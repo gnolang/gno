@@ -9,6 +9,18 @@ services:
       - ./collector/collector.yaml:/etc/otelcol-contrib/config.yaml
     networks:
       - gnoland-net
+    depends_on:
+      - tempo
+      - prometheus
+  tempo:
+    image: grafana/tempo:latest
+    command:
+      - "-config.file=/etc/tempo.yaml"
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo.yaml
+    networks:
+      - gnoland-net
+
   prometheus:
     image: prom/prometheus:latest
     command:
@@ -21,34 +33,91 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - gnoland-net
+
   grafana:
-    image: grafana/grafana-enterprise
+    image: grafana/grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
-      - ./grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
-      - ./grafana/gno-dashboards.json:/var/lib/grafana/dashboards/gno-dashboards.json
+      - ./grafana/provisioning:/etc/grafana/provisioning
     ports:
       - "3000:3000"
     networks:
       - gnoland-net
-  gnoland:
-    build:
-      context: ./gnoland
-      dockerfile: Dockerfile
-    ports:
-      - "26657:26657"
+
+  gnoland-val:
+    image: ghcr.io/gnolang/gno/gnoland:master
     networks:
       - gnoland-net
+    volumes:
+      # Shared Volume
+      - gnoland-shared:/gnoroot/shared-data
+    entrypoint:
+      - sh
+      - -c
+      # Recreate gno genesis from git :(
+      - |
+        gnoland secrets init
+        rm -f /gnoroot/shared-data/node_p2p.id
+        apk add git make go linux-headers
+        git clone https://github.com/gnolang/gno.git --single-branch gnoland-src
+        GOPATH='/usr/' make -C gnoland-src/contribs/gnogenesis/
+        gnogenesis generate
+        gnogenesis validator add -name val000 -address $(gnoland secrets get validator_key.address -raw) -pub-key $(gnoland secrets get validator_key.pub_key -raw)
+        gnogenesis balances add -balance-sheet /gnoroot/gno.land/genesis/genesis_balances.txt
+        gnoland config init
+        gnoland config set consensus.timeout_commit 1s
+        gnoland config set moniker val000
+        gnoland config set telemetry.metrics_enabled true
+        gnoland config set telemetry.traces_enabled true
+        gnoland config set telemetry.exporter_endpoint http://collector:4318
+        gnoland config set telemetry.service_instance_id val0
+        gnoland secrets get node_id.id -raw > /gnoroot/shared-data/node_p2p.id
+        cp /gnoroot/genesis.json /gnoroot/shared-data/genesis.json
+        gnoland start
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /gnoroot/shared-data/node_p2p.id || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  gnoland-rpc:
+    image: ghcr.io/gnolang/gno/gnoland:master
+    networks:
+      - gnoland-net
+    volumes:
+      # Shared Volume
+      - gnoland-shared:/gnoroot/shared-data
+    entrypoint:
+      - sh
+      - -c
+      - |
+        gnoland secrets init
+        gnoland config init
+        gnoland config set consensus.timeout_commit 1s
+        gnoland config set moniker rpc0
+        gnoland config set rpc.laddr tcp://0.0.0.0:26657
+        gnoland config set telemetry.metrics_enabled true
+        gnoland config set telemetry.traces_enabled true
+        gnoland config set telemetry.service_instance_id rpc000
+        gnoland config set telemetry.exporter_endpoint http://collector:4318
+        gnoland config set p2p.persistent_peers "$(cat /gnoroot/shared-data/node_p2p.id)@gnoland-val:26656"
+        gnoland start -genesis /gnoroot/shared-data/genesis.json
+    depends_on:
+      gnoland-val:
+        condition: service_healthy
+        restart: true
+
   supernova:
-    build:
-      dockerfile: supernova.Dockerfile
-      args:
-        supernova_version: v1.2.1
+    image: ghcr.io/gnolang/supernova:1.3.1
     command: >
-      -sub-accounts 10 -transactions 200 -url http://gnoland:26657
+      -sub-accounts 10 -transactions 100 -url http://gnoland-rpc:26657
       -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
-    restart: always
+      -mode PACKAGE_DEPLOYMENT
+    restart: unless-stopped
     networks:
       - gnoland-net
 
@@ -61,5 +130,5 @@ volumes:
     driver: local
   grafana_data:
     driver: local
-  gnoland:
+  gnoland-shared:
     driver: local

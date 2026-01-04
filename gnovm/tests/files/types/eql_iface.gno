@@ -5,7 +5,7 @@ type Foo struct {
 }
 
 func main() {
-	var l interface{} = 1
+	var l any = 1
 	println(1 == l)
 }
 

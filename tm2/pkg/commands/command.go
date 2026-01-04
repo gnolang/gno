@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -31,26 +32,28 @@ func HelpExec(_ context.Context, _ []string) error {
 // Metadata contains basic help
 // information about a command
 type Metadata struct {
-	Name       string
-	ShortUsage string
-	ShortHelp  string
-	LongHelp   string
-	Options    []ff.Option
+	Name          string
+	ShortUsage    string
+	ShortHelp     string
+	LongHelp      string
+	Options       []ff.Option
+	NoParentFlags bool
 }
 
 // Command is a simple wrapper for gnoland commands.
 type Command struct {
-	name        string
-	shortUsage  string
-	shortHelp   string
-	longHelp    string
-	options     []ff.Option
-	cfg         Config
-	flagSet     *flag.FlagSet
-	subcommands []*Command
-	exec        ExecMethod
-	selected    *Command
-	args        []string
+	name          string
+	shortUsage    string
+	shortHelp     string
+	longHelp      string
+	options       []ff.Option
+	cfg           Config
+	flagSet       *flag.FlagSet
+	subcommands   []*Command
+	exec          ExecMethod
+	selected      *Command
+	args          []string
+	noParentFlags bool
 }
 
 func NewCommand(
@@ -59,14 +62,15 @@ func NewCommand(
 	exec ExecMethod,
 ) *Command {
 	command := &Command{
-		name:       meta.Name,
-		shortUsage: meta.ShortUsage,
-		shortHelp:  meta.ShortHelp,
-		longHelp:   meta.LongHelp,
-		options:    meta.Options,
-		flagSet:    flag.NewFlagSet(meta.Name, flag.ContinueOnError),
-		exec:       exec,
-		cfg:        config,
+		name:          meta.Name,
+		shortUsage:    meta.ShortUsage,
+		shortHelp:     meta.ShortHelp,
+		longHelp:      meta.LongHelp,
+		options:       meta.Options,
+		noParentFlags: meta.NoParentFlags,
+		flagSet:       flag.NewFlagSet(meta.Name, flag.ContinueOnError),
+		exec:          exec,
+		cfg:           config,
 	}
 
 	if config != nil {
@@ -77,11 +81,17 @@ func NewCommand(
 	return command
 }
 
+// SetOutput sets the destination for usage and error messages.
+// If output is nil, [os.Stderr] is used.
+func (c *Command) SetOutput(output io.Writer) {
+	c.flagSet.SetOutput(output)
+}
+
 // AddSubCommands adds a variable number of subcommands
 // and registers common flags using the flagset
 func (c *Command) AddSubCommands(cmds ...*Command) {
 	for _, cmd := range cmds {
-		if c.cfg != nil {
+		if c.cfg != nil && !cmd.noParentFlags {
 			// Register the parent flagset with the child.
 			// The syntax is not intuitive, but the flagset being
 			// modified is the subcommand's, using the flags defined

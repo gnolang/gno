@@ -1,0 +1,11 @@
+# Run gno test on an empty dir
+
+! gno test .
+
+! stdout .+
+stderr 'gnowork.toml file not found in current or any parent directory and gnomod.toml doesn''t exists in current directory'
+
+! gno test ./...
+
+! stdout .+
+stderr 'gnowork.toml file not found in current or any parent directory and gnomod.toml doesn''t exists in current directory'

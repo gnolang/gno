@@ -1,650 +1,513 @@
 package p2p
 
 import (
+	"context"
 	"fmt"
-	"math/rand"
 	"net"
-	"reflect"
 	"testing"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
-	"github.com/gnolang/gno/tm2/pkg/testutils"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
+	"github.com/gnolang/gno/tm2/pkg/versionset"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-var defaultNodeName = "host_peer"
-
-func emptyNodeInfo() NodeInfo {
-	return NodeInfo{}
-}
-
-// newMultiplexTransport returns a tcp connected multiplexed peer
-// using the default MConnConfig. It's a convenience function used
-// for testing.
-func newMultiplexTransport(
-	nodeInfo NodeInfo,
-	nodeKey NodeKey,
-) *MultiplexTransport {
-	return NewMultiplexTransport(
-		nodeInfo, nodeKey, conn.DefaultMConnConfig(),
-	)
-}
-
-func TestTransportMultiplexConnFilter(t *testing.T) {
-	t.Parallel()
-
-	mt := newMultiplexTransport(
-		emptyNodeInfo(),
-		NodeKey{
-			PrivKey: ed25519.GenPrivKey(),
-		},
-	)
-	id := mt.nodeKey.ID()
-
-	MultiplexTransportConnFilters(
-		func(_ ConnSet, _ net.Conn, _ []net.IP) error { return nil },
-		func(_ ConnSet, _ net.Conn, _ []net.IP) error { return nil },
-		func(_ ConnSet, _ net.Conn, _ []net.IP) error {
-			return fmt.Errorf("rejected")
-		},
-	)(mt)
-
-	addr, err := NewNetAddressFromString(NetAddressString(id, "127.0.0.1:0"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := mt.Listen(*addr); err != nil {
-		t.Fatal(err)
-	}
-
-	errc := make(chan error)
-
-	go func() {
-		addr := NewNetAddress(id, mt.listener.Addr())
-
-		_, err := addr.Dial()
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		close(errc)
-	}()
-
-	if err := <-errc; err != nil {
-		t.Errorf("connection failed: %v", err)
-	}
-
-	_, err = mt.Accept(peerConfig{})
-	if err, ok := err.(RejectedError); ok {
-		if !err.IsFiltered() {
-			t.Errorf("expected peer to be filtered")
-		}
-	} else {
-		t.Errorf("expected RejectedError")
-	}
-}
-
-func TestTransportMultiplexConnFilterTimeout(t *testing.T) {
-	t.Parallel()
-
-	mt := newMultiplexTransport(
-		emptyNodeInfo(),
-		NodeKey{
-			PrivKey: ed25519.GenPrivKey(),
-		},
-	)
-	id := mt.nodeKey.ID()
-
-	MultiplexTransportFilterTimeout(5 * time.Millisecond)(mt)
-	MultiplexTransportConnFilters(
-		func(_ ConnSet, _ net.Conn, _ []net.IP) error {
-			time.Sleep(100 * time.Millisecond)
-			return nil
-		},
-	)(mt)
-
-	addr, err := NewNetAddressFromString(NetAddressString(id, "127.0.0.1:0"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := mt.Listen(*addr); err != nil {
-		t.Fatal(err)
-	}
-
-	errc := make(chan error)
-
-	go func() {
-		addr := NewNetAddress(id, mt.listener.Addr())
-
-		_, err := addr.Dial()
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		close(errc)
-	}()
-
-	if err := <-errc; err != nil {
-		t.Errorf("connection failed: %v", err)
-	}
-
-	_, err = mt.Accept(peerConfig{})
-	if _, ok := err.(FilterTimeoutError); !ok {
-		t.Errorf("expected FilterTimeoutError")
-	}
-}
-
-func TestTransportMultiplexAcceptMultiple(t *testing.T) {
-	t.Parallel()
-
-	mt := testSetupMultiplexTransport(t)
-	laddr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
-
-	var (
-		seed     = rand.New(rand.NewSource(time.Now().UnixNano()))
-		nDialers = seed.Intn(64) + 64
-		errc     = make(chan error, nDialers)
-	)
-
-	// Setup dialers.
-	for i := 0; i < nDialers; i++ {
-		go testDialer(*laddr, errc)
-	}
-
-	// Catch connection errors.
-	for i := 0; i < nDialers; i++ {
-		if err := <-errc; err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	ps := []Peer{}
-
-	// Accept all peers.
-	for i := 0; i < cap(errc); i++ {
-		p, err := mt.Accept(peerConfig{})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if err := p.Start(); err != nil {
-			t.Fatal(err)
-		}
-
-		ps = append(ps, p)
-	}
-
-	if have, want := len(ps), cap(errc); have != want {
-		t.Errorf("have %v, want %v", have, want)
-	}
-
-	// Stop all peers.
-	for _, p := range ps {
-		if err := p.Stop(); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := mt.Close(); err != nil {
-		t.Errorf("close errored: %v", err)
-	}
-}
-
-func testDialer(dialAddr NetAddress, errc chan error) {
-	var (
-		pv     = ed25519.GenPrivKey()
-		dialer = newMultiplexTransport(
-			testNodeInfo(pv.PubKey().Address().ID(), defaultNodeName),
-			NodeKey{
-				PrivKey: pv,
-			},
-		)
-	)
-
-	_, err := dialer.Dial(dialAddr, peerConfig{})
-	if err != nil {
-		errc <- err
-		return
-	}
-
-	// Signal that the connection was established.
-	errc <- nil
-}
-
-func TestFlappyTransportMultiplexAcceptNonBlocking(t *testing.T) {
-	t.Parallel()
-
-	testutils.FilterStability(t, testutils.Flappy)
-
-	mt := testSetupMultiplexTransport(t)
-
-	var (
-		fastNodePV   = ed25519.GenPrivKey()
-		fastNodeInfo = testNodeInfo(fastNodePV.PubKey().Address().ID(), "fastnode")
-		errc         = make(chan error)
-		fastc        = make(chan struct{})
-		slowc        = make(chan struct{})
-	)
-
-	// Simulate slow Peer.
-	go func() {
-		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
-
-		c, err := addr.Dial()
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		close(slowc)
-
-		select {
-		case <-fastc:
-			// Fast peer connected.
-		case <-time.After(100 * time.Millisecond):
-			// We error if the fast peer didn't succeed.
-			errc <- fmt.Errorf("Fast peer timed out")
-		}
-
-		sc, err := upgradeSecretConn(c, 100*time.Millisecond, ed25519.GenPrivKey())
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		_, err = handshake(sc, 100*time.Millisecond,
-			testNodeInfo(
-				ed25519.GenPrivKey().PubKey().Address().ID(),
-				"slow_peer",
-			))
-		if err != nil {
-			errc <- err
-			return
-		}
-	}()
-
-	// Simulate fast Peer.
-	go func() {
-		<-slowc
-
-		dialer := newMultiplexTransport(
-			fastNodeInfo,
-			NodeKey{
-				PrivKey: fastNodePV,
-			},
-		)
-		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
-
-		_, err := dialer.Dial(*addr, peerConfig{})
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		close(errc)
-		close(fastc)
-	}()
-
-	if err := <-errc; err != nil {
-		t.Errorf("connection failed: %v", err)
-	}
-
-	p, err := mt.Accept(peerConfig{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if have, want := p.NodeInfo(), fastNodeInfo; !reflect.DeepEqual(have, want) {
-		t.Errorf("have %v, want %v", have, want)
-	}
-}
-
-func TestTransportMultiplexValidateNodeInfo(t *testing.T) {
-	t.Parallel()
-
-	mt := testSetupMultiplexTransport(t)
-
-	errc := make(chan error)
-
-	go func() {
-		var (
-			pv     = ed25519.GenPrivKey()
-			dialer = newMultiplexTransport(
-				testNodeInfo(pv.PubKey().Address().ID(), ""), // Should not be empty
-				NodeKey{
-					PrivKey: pv,
-				},
-			)
-		)
-
-		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
-
-		_, err := dialer.Dial(*addr, peerConfig{})
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		close(errc)
-	}()
-
-	if err := <-errc; err != nil {
-		t.Errorf("connection failed: %v", err)
-	}
-
-	_, err := mt.Accept(peerConfig{})
-	if err, ok := err.(RejectedError); ok {
-		if !err.IsNodeInfoInvalid() {
-			t.Errorf("expected NodeInfo to be invalid")
-		}
-	} else {
-		t.Errorf("expected RejectedError")
-	}
-}
-
-func TestTransportMultiplexRejectMismatchID(t *testing.T) {
-	t.Parallel()
-
-	mt := testSetupMultiplexTransport(t)
-
-	errc := make(chan error)
-
-	go func() {
-		dialer := newMultiplexTransport(
-			testNodeInfo(
-				ed25519.GenPrivKey().PubKey().Address().ID(), "dialer",
-			),
-			NodeKey{
-				PrivKey: ed25519.GenPrivKey(),
-			},
-		)
-		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
-
-		_, err := dialer.Dial(*addr, peerConfig{})
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		close(errc)
-	}()
-
-	if err := <-errc; err != nil {
-		t.Errorf("connection failed: %v", err)
-	}
-
-	_, err := mt.Accept(peerConfig{})
-	if err, ok := err.(RejectedError); ok {
-		if !err.IsAuthFailure() {
-			t.Errorf("expected auth failure")
-		}
-	} else {
-		t.Errorf("expected RejectedError")
-	}
-}
-
-func TestTransportMultiplexDialRejectWrongID(t *testing.T) {
-	t.Parallel()
-
-	mt := testSetupMultiplexTransport(t)
-
-	var (
-		pv     = ed25519.GenPrivKey()
-		dialer = newMultiplexTransport(
-			testNodeInfo(pv.PubKey().Address().ID(), ""), // Should not be empty
-			NodeKey{
-				PrivKey: pv,
-			},
-		)
-	)
-
-	wrongID := ed25519.GenPrivKey().PubKey().Address().ID()
-	addr := NewNetAddress(wrongID, mt.listener.Addr())
-
-	_, err := dialer.Dial(*addr, peerConfig{})
-	if err != nil {
-		t.Logf("connection failed: %v", err)
-		if err, ok := err.(RejectedError); ok {
-			if !err.IsAuthFailure() {
-				t.Errorf("expected auth failure")
-			}
-		} else {
-			t.Errorf("expected RejectedError")
-		}
-	}
-}
-
-func TestTransportMultiplexRejectIncompatible(t *testing.T) {
-	t.Parallel()
-
-	mt := testSetupMultiplexTransport(t)
-
-	errc := make(chan error)
-
-	go func() {
-		var (
-			pv     = ed25519.GenPrivKey()
-			dialer = newMultiplexTransport(
-				testNodeInfoWithNetwork(pv.PubKey().Address().ID(), "dialer", "incompatible-network"),
-				NodeKey{
-					PrivKey: pv,
-				},
-			)
-		)
-		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
-
-		_, err := dialer.Dial(*addr, peerConfig{})
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		close(errc)
-	}()
-
-	_, err := mt.Accept(peerConfig{})
-	if err, ok := err.(RejectedError); ok {
-		if !err.IsIncompatible() {
-			t.Errorf("expected to reject incompatible")
-		}
-	} else {
-		t.Errorf("expected RejectedError")
-	}
-}
-
-func TestTransportMultiplexRejectSelf(t *testing.T) {
-	t.Parallel()
-
-	mt := testSetupMultiplexTransport(t)
-
-	errc := make(chan error)
-
-	go func() {
-		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
-
-		_, err := mt.Dial(*addr, peerConfig{})
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		close(errc)
-	}()
-
-	if err := <-errc; err != nil {
-		if err, ok := err.(RejectedError); ok {
-			if !err.IsSelf() {
-				t.Errorf("expected to reject self, got: %v", err)
-			}
-		} else {
-			t.Errorf("expected RejectedError")
-		}
-	} else {
-		t.Errorf("expected connection failure")
-	}
-
-	_, err := mt.Accept(peerConfig{})
-	if err, ok := err.(RejectedError); ok {
-		if !err.IsSelf() {
-			t.Errorf("expected to reject self, got: %v", err)
-		}
-	} else {
-		t.Errorf("expected RejectedError")
-	}
-}
-
-func TestTransportConnDuplicateIPFilter(t *testing.T) {
-	t.Parallel()
-
-	filter := ConnDuplicateIPFilter()
-
-	if err := filter(nil, &testTransportConn{}, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	var (
-		c  = &testTransportConn{}
-		cs = NewConnSet()
-	)
-
-	cs.Set(c, []net.IP{
-		{10, 0, 10, 1},
-		{10, 0, 10, 2},
-		{10, 0, 10, 3},
-	})
-
-	if err := filter(cs, c, []net.IP{
-		{10, 0, 10, 2},
-	}); err == nil {
-		t.Errorf("expected Peer to be rejected as duplicate")
-	}
-}
-
-func TestTransportHandshake(t *testing.T) {
-	t.Parallel()
-
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var (
-		peerPV       = ed25519.GenPrivKey()
-		peerNodeInfo = testNodeInfo(peerPV.PubKey().Address().ID(), defaultNodeName)
-	)
-
-	go func() {
-		c, err := net.Dial(ln.Addr().Network(), ln.Addr().String())
-		if err != nil {
-			t.Error(err)
-			return
-		}
-
-		go func(c net.Conn) {
-			_, err := amino.MarshalSizedWriter(c, peerNodeInfo)
-			if err != nil {
-				t.Error(err)
-			}
-		}(c)
-		go func(c net.Conn) {
-			var ni NodeInfo
-
-			_, err := amino.UnmarshalSizedReader(
-				c,
-				&ni,
-				int64(MaxNodeInfoSize()),
-			)
-			if err != nil {
-				t.Error(err)
-			}
-		}(c)
-	}()
-
-	c, err := ln.Accept()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ni, err := handshake(c, 100*time.Millisecond, emptyNodeInfo())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if have, want := ni, peerNodeInfo; !reflect.DeepEqual(have, want) {
-		t.Errorf("have %v, want %v", have, want)
-	}
-}
-
-// create listener
-func testSetupMultiplexTransport(t *testing.T) *MultiplexTransport {
+// generateNetAddr generates dummy net addresses
+func generateNetAddr(t *testing.T, count int) []*types.NetAddress {
 	t.Helper()
 
-	var (
-		pv = ed25519.GenPrivKey()
-		id = pv.PubKey().Address().ID()
-		mt = newMultiplexTransport(
-			testNodeInfo(
-				id, "transport",
-			),
-			NodeKey{
-				PrivKey: pv,
-			},
+	addrs := make([]*types.NetAddress, 0, count)
+
+	for range count {
+		key := types.GenerateNodeKey()
+
+		// Grab a random port
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+
+		addr, err := types.NewNetAddress(key.ID(), ln.Addr())
+		require.NoError(t, err)
+
+		addrs = append(addrs, addr)
+	}
+
+	return addrs
+}
+
+func TestMultiplexTransport_NetAddress(t *testing.T) {
+	t.Parallel()
+
+	t.Run("transport not active", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			ni     = types.NodeInfo{}
+			nk     = types.NodeKey{}
+			mCfg   = conn.DefaultMConnConfig()
+			logger = log.NewNoopLogger()
 		)
-	)
 
-	addr, err := NewNetAddressFromString(NetAddressString(id, "127.0.0.1:0"))
-	if err != nil {
-		t.Fatal(err)
-	}
+		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
+		addr := transport.NetAddress()
 
-	if err := mt.Listen(*addr); err != nil {
-		t.Fatal(err)
-	}
+		assert.Error(t, addr.Validate())
+	})
 
-	return mt
+	t.Run("active transport on random port", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			ni     = types.NodeInfo{}
+			nk     = types.NodeKey{}
+			mCfg   = conn.DefaultMConnConfig()
+			logger = log.NewNoopLogger()
+			addr   = generateNetAddr(t, 1)[0]
+		)
+
+		addr.Port = 0 // random port
+
+		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
+
+		require.NoError(t, transport.Listen(*addr))
+		defer func() {
+			require.NoError(t, transport.Close())
+		}()
+
+		netAddr := transport.NetAddress()
+		assert.False(t, netAddr.Equals(*addr))
+		assert.NoError(t, netAddr.Validate())
+	})
+
+	t.Run("active transport on specific port", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			ni     = types.NodeInfo{}
+			nk     = types.NodeKey{}
+			mCfg   = conn.DefaultMConnConfig()
+			logger = log.NewNoopLogger()
+			addr   = generateNetAddr(t, 1)[0]
+		)
+
+		addr.Port = 4123 // specific port
+
+		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
+
+		require.NoError(t, transport.Listen(*addr))
+		defer func() {
+			require.NoError(t, transport.Close())
+		}()
+
+		netAddr := transport.NetAddress()
+		assert.True(t, netAddr.Equals(*addr))
+		assert.NoError(t, netAddr.Validate())
+	})
 }
 
-type testTransportAddr struct{}
+func TestMultiplexTransport_Accept(t *testing.T) {
+	t.Parallel()
 
-func (a *testTransportAddr) Network() string { return "tcp" }
-func (a *testTransportAddr) String() string  { return "test.local:1234" }
+	t.Run("inactive transport", func(t *testing.T) {
+		t.Parallel()
 
-type testTransportConn struct{}
+		var (
+			ni     = types.NodeInfo{}
+			nk     = types.NodeKey{}
+			mCfg   = conn.DefaultMConnConfig()
+			logger = log.NewNoopLogger()
+		)
 
-func (c *testTransportConn) Close() error {
-	return fmt.Errorf("Close() not implemented")
-}
+		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
 
-func (c *testTransportConn) LocalAddr() net.Addr {
-	return &testTransportAddr{}
-}
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
 
-func (c *testTransportConn) RemoteAddr() net.Addr {
-	return &testTransportAddr{}
-}
+		p, err := transport.Accept(ctx, nil)
+		assert.Nil(t, p)
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
+	})
 
-func (c *testTransportConn) Read(_ []byte) (int, error) {
-	return -1, fmt.Errorf("Read() not implemented")
-}
+	t.Run("transport closed", func(t *testing.T) {
+		t.Parallel()
 
-func (c *testTransportConn) SetDeadline(_ time.Time) error {
-	return fmt.Errorf("SetDeadline() not implemented")
-}
+		var (
+			ni     = types.NodeInfo{}
+			nk     = types.NodeKey{}
+			mCfg   = conn.DefaultMConnConfig()
+			logger = log.NewNoopLogger()
+			addr   = generateNetAddr(t, 1)[0]
+		)
 
-func (c *testTransportConn) SetReadDeadline(_ time.Time) error {
-	return fmt.Errorf("SetReadDeadline() not implemented")
-}
+		addr.Port = 0
 
-func (c *testTransportConn) SetWriteDeadline(_ time.Time) error {
-	return fmt.Errorf("SetWriteDeadline() not implemented")
-}
+		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
 
-func (c *testTransportConn) Write(_ []byte) (int, error) {
-	return -1, fmt.Errorf("Write() not implemented")
+		// Start the transport
+		require.NoError(t, transport.Listen(*addr))
+
+		// Stop the transport
+		require.NoError(t, transport.Close())
+
+		p, err := transport.Accept(context.Background(), nil)
+
+		assert.Nil(t, p)
+		assert.ErrorIs(
+			t,
+			err,
+			errTransportClosed,
+		)
+	})
+
+	t.Run("context canceled", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			ni     = types.NodeInfo{}
+			nk     = types.NodeKey{}
+			mCfg   = conn.DefaultMConnConfig()
+			logger = log.NewNoopLogger()
+			addr   = generateNetAddr(t, 1)[0]
+		)
+
+		addr.Port = 0
+
+		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
+
+		// Start the transport
+		require.NoError(t, transport.Listen(*addr))
+
+		ctx, cancelFn := context.WithCancel(context.Background())
+		cancelFn()
+
+		p, err := transport.Accept(ctx, nil)
+
+		assert.Nil(t, p)
+		assert.ErrorIs(
+			t,
+			err,
+			context.Canceled,
+		)
+	})
+
+	t.Run("peer ID mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			network = "dev"
+			mCfg    = conn.DefaultMConnConfig()
+			logger  = log.NewNoopLogger()
+			keys    = []*types.NodeKey{
+				types.GenerateNodeKey(),
+				types.GenerateNodeKey(),
+			}
+
+			peerBehavior = &reactorPeerBehavior{
+				chDescs:      make([]*conn.ChannelDescriptor, 0),
+				reactorsByCh: make(map[byte]Reactor),
+				handlePeerErrFn: func(_ PeerConn, err error) {
+					require.NoError(t, err)
+				},
+				isPersistentPeerFn: func(_ types.ID) bool {
+					return false
+				},
+				isPrivatePeerFn: func(_ types.ID) bool {
+					return false
+				},
+			}
+		)
+
+		peers := make([]*MultiplexTransport, 0, len(keys))
+
+		for index, key := range keys {
+			addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+			require.NoError(t, err)
+
+			// Hijack the key value
+			id := types.GenerateNodeKey().ID()
+
+			na, err := types.NewNetAddress(id, addr)
+			require.NoError(t, err)
+
+			ni := types.NodeInfo{
+				Network:    network, // common network
+				NetAddress: na,
+				Version:    "v1.0.0-rc.0",
+				Moniker:    fmt.Sprintf("node-%d", index),
+				VersionSet: make(versionset.VersionSet, 0), // compatible version set
+				Channels:   []byte{42},                     // common channel
+			}
+
+			// Create a fresh transport
+			tr := NewMultiplexTransport(ni, *key, mCfg, logger)
+
+			// Start the transport
+			require.NoError(t, tr.Listen(*na))
+
+			t.Cleanup(func() {
+				assert.NoError(t, tr.Close())
+			})
+
+			peers = append(
+				peers,
+				tr,
+			)
+		}
+
+		// Make peer 1 --dial--> peer 2, and handshake.
+		// This "upgrade" should fail because the peer shared a different
+		// peer ID than what they actually used for the secret connection
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		p, err := peers[0].Dial(ctx, peers[1].netAddr, peerBehavior)
+		assert.ErrorIs(t, err, errPeerIDNodeInfoMismatch)
+		require.Nil(t, p)
+	})
+
+	t.Run("incompatible peers", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			network = "dev"
+			mCfg    = conn.DefaultMConnConfig()
+			logger  = log.NewNoopLogger()
+			keys    = []*types.NodeKey{
+				types.GenerateNodeKey(),
+				types.GenerateNodeKey(),
+			}
+
+			peerBehavior = &reactorPeerBehavior{
+				chDescs:      make([]*conn.ChannelDescriptor, 0),
+				reactorsByCh: make(map[byte]Reactor),
+				handlePeerErrFn: func(_ PeerConn, err error) {
+					require.NoError(t, err)
+				},
+				isPersistentPeerFn: func(_ types.ID) bool {
+					return false
+				},
+				isPrivatePeerFn: func(_ types.ID) bool {
+					return false
+				},
+			}
+		)
+
+		peers := make([]*MultiplexTransport, 0, len(keys))
+
+		for index, key := range keys {
+			addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+			require.NoError(t, err)
+
+			id := key.ID()
+
+			na, err := types.NewNetAddress(id, addr)
+			require.NoError(t, err)
+
+			chainID := network
+
+			if index%2 == 0 {
+				chainID = "totally-random-network"
+			}
+
+			ni := types.NodeInfo{
+				Network:    chainID,
+				NetAddress: na,
+				Version:    "v1.0.0-rc.0",
+				Moniker:    fmt.Sprintf("node-%d", index),
+				VersionSet: make(versionset.VersionSet, 0), // compatible version set
+				Channels:   []byte{42},                     // common channel
+			}
+
+			// Create a fresh transport
+			tr := NewMultiplexTransport(ni, *key, mCfg, logger)
+
+			// Start the transport
+			require.NoError(t, tr.Listen(*na))
+
+			t.Cleanup(func() {
+				assert.NoError(t, tr.Close())
+			})
+
+			peers = append(
+				peers,
+				tr,
+			)
+		}
+
+		// Make peer 1 --dial--> peer 2, and handshake.
+		// This "upgrade" should fail because the peer shared a different
+		// peer ID than what they actually used for the secret connection
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		p, err := peers[0].Dial(ctx, peers[1].netAddr, peerBehavior)
+		assert.ErrorIs(t, err, errIncompatibleNodeInfo)
+		require.Nil(t, p)
+	})
+
+	t.Run("dialed peer ID mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			network = "dev"
+			mCfg    = conn.DefaultMConnConfig()
+			logger  = log.NewNoopLogger()
+			keys    = []*types.NodeKey{
+				types.GenerateNodeKey(),
+				types.GenerateNodeKey(),
+			}
+
+			peerBehavior = &reactorPeerBehavior{
+				chDescs:      make([]*conn.ChannelDescriptor, 0),
+				reactorsByCh: make(map[byte]Reactor),
+				handlePeerErrFn: func(_ PeerConn, err error) {
+					require.NoError(t, err)
+				},
+				isPersistentPeerFn: func(_ types.ID) bool {
+					return false
+				},
+				isPrivatePeerFn: func(_ types.ID) bool {
+					return false
+				},
+			}
+		)
+
+		peers := make([]*MultiplexTransport, 0, len(keys))
+
+		for index, key := range keys {
+			addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+			require.NoError(t, err)
+
+			na, err := types.NewNetAddress(key.ID(), addr)
+			require.NoError(t, err)
+
+			ni := types.NodeInfo{
+				Network:    network, // common network
+				NetAddress: na,
+				Version:    "v1.0.0-rc.0",
+				Moniker:    fmt.Sprintf("node-%d", index),
+				VersionSet: make(versionset.VersionSet, 0), // compatible version set
+				Channels:   []byte{42},                     // common channel
+			}
+
+			// Create a fresh transport
+			tr := NewMultiplexTransport(ni, *key, mCfg, logger)
+
+			// Start the transport
+			require.NoError(t, tr.Listen(*na))
+
+			t.Cleanup(func() {
+				assert.NoError(t, tr.Close())
+			})
+
+			peers = append(
+				peers,
+				tr,
+			)
+		}
+
+		// Make peer 1 --dial--> peer 2, and handshake
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		p, err := peers[0].Dial(
+			ctx,
+			types.NetAddress{
+				ID:   types.GenerateNodeKey().ID(), // mismatched ID
+				IP:   peers[1].netAddr.IP,
+				Port: peers[1].netAddr.Port,
+			},
+			peerBehavior,
+		)
+		assert.ErrorIs(t, err, errPeerIDDialMismatch)
+		assert.Nil(t, p)
+	})
+
+	t.Run("valid peer accepted", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			network = "dev"
+			mCfg    = conn.DefaultMConnConfig()
+			logger  = log.NewNoopLogger()
+			keys    = []*types.NodeKey{
+				types.GenerateNodeKey(),
+				types.GenerateNodeKey(),
+			}
+
+			peerBehavior = &reactorPeerBehavior{
+				chDescs:      make([]*conn.ChannelDescriptor, 0),
+				reactorsByCh: make(map[byte]Reactor),
+				handlePeerErrFn: func(_ PeerConn, err error) {
+					require.NoError(t, err)
+				},
+				isPersistentPeerFn: func(_ types.ID) bool {
+					return false
+				},
+				isPrivatePeerFn: func(_ types.ID) bool {
+					return false
+				},
+			}
+		)
+
+		peers := make([]*MultiplexTransport, 0, len(keys))
+
+		for index, key := range keys {
+			addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+			require.NoError(t, err)
+
+			na, err := types.NewNetAddress(key.ID(), addr)
+			require.NoError(t, err)
+
+			ni := types.NodeInfo{
+				Network:    network, // common network
+				NetAddress: na,
+				Version:    "v1.0.0-rc.0",
+				Moniker:    fmt.Sprintf("node-%d", index),
+				VersionSet: make(versionset.VersionSet, 0), // compatible version set
+				Channels:   []byte{42},                     // common channel
+			}
+
+			// Create a fresh transport
+			tr := NewMultiplexTransport(ni, *key, mCfg, logger)
+
+			// Start the transport
+			require.NoError(t, tr.Listen(*na))
+
+			t.Cleanup(func() {
+				assert.NoError(t, tr.Close())
+			})
+
+			peers = append(
+				peers,
+				tr,
+			)
+		}
+
+		// Make peer 1 --dial--> peer 2, and handshake
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		p, err := peers[0].Dial(ctx, peers[1].netAddr, peerBehavior)
+		require.NoError(t, err)
+		require.NotNil(t, p)
+
+		// Make sure the new peer info is valid
+		assert.Equal(t, peers[1].netAddr.ID, p.ID())
+
+		assert.Equal(t, peers[1].nodeInfo.Channels, p.NodeInfo().Channels)
+		assert.Equal(t, peers[1].nodeInfo.Moniker, p.NodeInfo().Moniker)
+		assert.Equal(t, peers[1].nodeInfo.Network, p.NodeInfo().Network)
+
+		// Attempt to dial again, expect the dial to fail
+		// because the connection is already active
+		dialedPeer, err := peers[0].Dial(ctx, peers[1].netAddr, peerBehavior)
+		require.ErrorIs(t, err, errDuplicateConnection)
+		assert.Nil(t, dialedPeer)
+
+		// Remove the peer
+		peers[0].Remove(p)
+	})
 }

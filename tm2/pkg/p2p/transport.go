@@ -2,145 +2,65 @@ package p2p
 
 import (
 	"context"
+	goerrors "errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net"
-	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
+	"golang.org/x/sync/errgroup"
 )
 
-const (
-	defaultDialTimeout      = time.Second
-	defaultFilterTimeout    = 5 * time.Second
-	defaultHandshakeTimeout = 3 * time.Second
+// defaultHandshakeTimeout is the timeout for the STS handshaking protocol
+const defaultHandshakeTimeout = 3 * time.Second
+
+var (
+	errTransportClosed        = errors.New("transport is closed")
+	errDuplicateConnection    = errors.New("duplicate peer connection")
+	errPeerIDNodeInfoMismatch = errors.New("connection ID does not match node info ID")
+	errPeerIDDialMismatch     = errors.New("connection ID does not match dialed ID")
+	errIncompatibleNodeInfo   = errors.New("incompatible node info")
 )
 
-// IPResolver is a behaviour subset of net.Resolver.
-type IPResolver interface {
-	LookupIPAddr(context.Context, string) ([]net.IPAddr, error)
+type connUpgradeFn func(io.ReadWriteCloser, ed25519.PrivKeyEd25519) (*conn.SecretConnection, error)
+
+type secretConn interface {
+	net.Conn
+
+	RemotePubKey() ed25519.PubKeyEd25519
 }
 
-// accept is the container to carry the upgraded connection and NodeInfo from an
-// asynchronously running routine to the Accept method.
-type accept struct {
-	netAddr  *NetAddress
-	conn     net.Conn
-	nodeInfo NodeInfo
-	err      error
-}
-
-// peerConfig is used to bundle data we need to fully setup a Peer with an
-// MConn, provided by the caller of Accept and Dial (currently the Switch). This
-// a temporary measure until reactor setup is less dynamic and we introduce the
-// concept of PeerBehaviour to communicate about significant Peer lifecycle
-// events.
-// TODO(xla): Refactor out with more static Reactor setup and PeerBehaviour.
-type peerConfig struct {
-	chDescs     []*conn.ChannelDescriptor
-	onPeerError func(Peer, interface{})
-	outbound    bool
-	// isPersistent allows you to set a function, which, given socket address
-	// (for outbound peers) OR self-reported address (for inbound peers), tells
-	// if the peer is persistent or not.
-	isPersistent func(*NetAddress) bool
-	reactorsByCh map[byte]Reactor
-}
-
-// Transport emits and connects to Peers. The implementation of Peer is left to
-// the transport. Each transport is also responsible to filter establishing
-// peers specific to its domain.
-type Transport interface {
-	// Listening address.
-	NetAddress() NetAddress
-
-	// Accept returns a newly connected Peer.
-	Accept(peerConfig) (Peer, error)
-
-	// Dial connects to the Peer for the address.
-	Dial(NetAddress, peerConfig) (Peer, error)
-
-	// Cleanup any resources associated with Peer.
-	Cleanup(Peer)
-}
-
-// TransportLifecycle bundles the methods for callers to control start and stop
-// behaviour.
-type TransportLifecycle interface {
-	Close() error
-	Listen(NetAddress) error
-}
-
-// ConnFilterFunc to be implemented by filter hooks after a new connection has
-// been established. The set of existing connections is passed along together
-// with all resolved IPs for the new connection.
-type ConnFilterFunc func(ConnSet, net.Conn, []net.IP) error
-
-// ConnDuplicateIPFilter resolves and keeps all ips for an incoming connection
-// and refuses new ones if they come from a known ip.
-func ConnDuplicateIPFilter() ConnFilterFunc {
-	return func(cs ConnSet, c net.Conn, ips []net.IP) error {
-		for _, ip := range ips {
-			if cs.HasIP(ip) {
-				return RejectedError{
-					conn:        c,
-					err:         fmt.Errorf("IP<%v> already connected", ip),
-					isDuplicate: true,
-				}
-			}
-		}
-
-		return nil
-	}
-}
-
-// MultiplexTransportOption sets an optional parameter on the
-// MultiplexTransport.
-type MultiplexTransportOption func(*MultiplexTransport)
-
-// MultiplexTransportConnFilters sets the filters for rejection new connections.
-func MultiplexTransportConnFilters(
-	filters ...ConnFilterFunc,
-) MultiplexTransportOption {
-	return func(mt *MultiplexTransport) { mt.connFilters = filters }
-}
-
-// MultiplexTransportFilterTimeout sets the timeout waited for filter calls to
-// return.
-func MultiplexTransportFilterTimeout(
-	timeout time.Duration,
-) MultiplexTransportOption {
-	return func(mt *MultiplexTransport) { mt.filterTimeout = timeout }
-}
-
-// MultiplexTransportResolver sets the Resolver used for ip lookups, defaults to
-// net.DefaultResolver.
-func MultiplexTransportResolver(resolver IPResolver) MultiplexTransportOption {
-	return func(mt *MultiplexTransport) { mt.resolver = resolver }
+// peerInfo is a wrapper for an unverified peer connection
+type peerInfo struct {
+	addr     *types.NetAddress // the dial address of the peer
+	conn     net.Conn          // the connection associated with the peer
+	nodeInfo types.NodeInfo    // the relevant peer node info
 }
 
 // MultiplexTransport accepts and dials tcp connections and upgrades them to
 // multiplexed peers.
 type MultiplexTransport struct {
-	netAddr  NetAddress
-	listener net.Listener
+	ctx      context.Context
+	cancelFn context.CancelFunc
 
-	acceptc chan accept
-	closec  chan struct{}
+	logger *slog.Logger
 
-	// Lookup table for duplicate ip and id checks.
-	conns       ConnSet
-	connFilters []ConnFilterFunc
+	netAddr  types.NetAddress // the node's P2P dial address, used for handshaking
+	nodeInfo types.NodeInfo   // the node's P2P info, used for handshaking
+	nodeKey  types.NodeKey    // the node's private P2P key, used for handshaking
 
-	dialTimeout      time.Duration
-	filterTimeout    time.Duration
-	handshakeTimeout time.Duration
-	nodeInfo         NodeInfo
-	nodeKey          NodeKey
-	resolver         IPResolver
+	listener    net.Listener  // listener for inbound peer connections
+	peerCh      chan peerInfo // pipe for inbound peer connections
+	activeConns sync.Map      // active peer connections (remote address -> nothing)
+
+	connUpgradeFn connUpgradeFn // Upgrades the connection to a secret connection
 
 	// TODO(xla): This config is still needed as we parameterize peerConn and
 	// peer currently. All relevant configuration should be refactored into options
@@ -148,439 +68,369 @@ type MultiplexTransport struct {
 	mConfig conn.MConnConfig
 }
 
-// Test multiplexTransport for interface completeness.
-var (
-	_ Transport          = (*MultiplexTransport)(nil)
-	_ TransportLifecycle = (*MultiplexTransport)(nil)
-)
-
 // NewMultiplexTransport returns a tcp connected multiplexed peer.
 func NewMultiplexTransport(
-	nodeInfo NodeInfo,
-	nodeKey NodeKey,
+	nodeInfo types.NodeInfo,
+	nodeKey types.NodeKey,
 	mConfig conn.MConnConfig,
+	logger *slog.Logger,
 ) *MultiplexTransport {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &MultiplexTransport{
-		acceptc:          make(chan accept),
-		closec:           make(chan struct{}),
-		dialTimeout:      defaultDialTimeout,
-		filterTimeout:    defaultFilterTimeout,
-		handshakeTimeout: defaultHandshakeTimeout,
-		mConfig:          mConfig,
-		nodeInfo:         nodeInfo,
-		nodeKey:          nodeKey,
-		conns:            NewConnSet(),
-		resolver:         net.DefaultResolver,
+		ctx:           ctx,
+		cancelFn:      cancel,
+		peerCh:        make(chan peerInfo, 1),
+		mConfig:       mConfig,
+		nodeInfo:      nodeInfo,
+		nodeKey:       nodeKey,
+		logger:        logger,
+		connUpgradeFn: conn.MakeSecretConnection,
 	}
 }
 
-// NetAddress implements Transport.
-func (mt *MultiplexTransport) NetAddress() NetAddress {
+// NetAddress returns the transport's listen address (for p2p connections)
+func (mt *MultiplexTransport) NetAddress() types.NetAddress {
 	return mt.netAddr
 }
 
-// Accept implements Transport.
-func (mt *MultiplexTransport) Accept(cfg peerConfig) (Peer, error) {
+// Accept waits for a verified inbound Peer to connect, and returns it [BLOCKING]
+func (mt *MultiplexTransport) Accept(ctx context.Context, behavior PeerBehavior) (PeerConn, error) {
 	select {
-	// This case should never have any side-effectful/blocking operations to
-	// ensure that quality peers are ready to be used.
-	case a := <-mt.acceptc:
-		if a.err != nil {
-			return nil, a.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case info, ok := <-mt.peerCh:
+		if !ok {
+			return nil, errTransportClosed
 		}
 
-		cfg.outbound = false
-
-		return mt.wrapPeer(a.conn, a.nodeInfo, cfg, a.netAddr), nil
-	case <-mt.closec:
-		return nil, TransportClosedError{}
+		return mt.newMultiplexPeer(info, behavior, false)
 	}
 }
 
-// Dial implements Transport.
+// Dial creates an outbound Peer connection, and
+// verifies it (performs handshaking) [BLOCKING]
 func (mt *MultiplexTransport) Dial(
-	addr NetAddress,
-	cfg peerConfig,
-) (Peer, error) {
-	c, err := addr.DialTimeout(mt.dialTimeout)
+	ctx context.Context,
+	addr types.NetAddress,
+	behavior PeerBehavior,
+) (PeerConn, error) {
+	// Set a dial timeout for the connection
+	c, err := addr.DialContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO(xla): Evaluate if we should apply filters if we explicitly dial.
-	if err := mt.filterConn(c); err != nil {
-		return nil, err
-	}
-
-	secretConn, nodeInfo, err := mt.upgrade(c, &addr)
+	// Process the connection with expected ID
+	info, err := mt.processConn(c, addr.ID)
 	if err != nil {
-		return nil, err
+		// Close the net peer connection
+		_ = c.Close()
+
+		return nil, fmt.Errorf("unable to process connection, %w", err)
 	}
 
-	cfg.outbound = true
-
-	p := mt.wrapPeer(secretConn, nodeInfo, cfg, &addr)
-
-	return p, nil
+	return mt.newMultiplexPeer(info, behavior, true)
 }
 
-// Close implements TransportLifecycle.
+// Close stops the multiplex transport
 func (mt *MultiplexTransport) Close() error {
-	close(mt.closec)
-
-	if mt.listener != nil {
-		return mt.listener.Close()
+	if mt.listener == nil {
+		return nil
 	}
 
-	return nil
+	mt.cancelFn()
+
+	return mt.listener.Close()
 }
 
-// Listen implements TransportLifecycle.
-func (mt *MultiplexTransport) Listen(addr NetAddress) error {
+// Listen starts an active process of listening for incoming connections [NON-BLOCKING]
+func (mt *MultiplexTransport) Listen(addr types.NetAddress) error {
+	// Reserve a port, and start listening
 	ln, err := net.Listen("tcp", addr.DialString())
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to listen on address, %w", err)
 	}
 
 	if addr.Port == 0 {
 		// net.Listen on port 0 means the kernel will auto-allocate a port
 		// - find out which one has been given to us.
-		_, p, err := net.SplitHostPort(ln.Addr().String())
-		if err != nil {
+		tcpAddr, ok := ln.Addr().(*net.TCPAddr)
+		if !ok {
+			ln.Close()
 			return fmt.Errorf("error finding port (after listening on port 0): %w", err)
 		}
-		pInt, _ := strconv.Atoi(p)
-		addr.Port = uint16(pInt)
+
+		addr.Port = uint16(tcpAddr.Port)
 	}
 
 	mt.netAddr = addr
 	mt.listener = ln
 
-	go mt.acceptPeers()
+	// Run the routine for accepting
+	// incoming peer connections
+	go mt.runAcceptLoop(mt.ctx)
 
 	return nil
 }
 
-func (mt *MultiplexTransport) acceptPeers() {
-	for {
-		c, err := mt.listener.Accept()
-		if err != nil {
-			// If Close() has been called, silently exit.
-			select {
-			case _, ok := <-mt.closec:
-				if !ok {
-					return
-				}
-			default:
-				// Transport is not closed
-			}
+// runAcceptLoop runs the loop where incoming peers are:
+//
+// 1. accepted by the transport
+// 2. filtered
+// 3. upgraded (handshaked + verified)
+func (mt *MultiplexTransport) runAcceptLoop(ctx context.Context) {
+	var wg sync.WaitGroup
+	defer func() {
+		wg.Wait() // Wait for all process routines
+		close(mt.peerCh)
+	}()
 
-			mt.acceptc <- accept{err: err}
-			return
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel() // cancel sub-connection process
+
+	for {
+		// Accept an incoming peer connection
+		c, err := mt.listener.Accept()
+
+		switch {
+		case err == nil: // ok
+		case goerrors.Is(err, net.ErrClosed):
+			// Listener has been closed, this is not recoverable.
+			mt.logger.Debug("listener has been closed")
+			return // exit
+		default:
+			// An error occurred during accept, report and continue
+			mt.logger.Warn("accept p2p connection error", "err", err)
+			continue
 		}
 
-		// Connection upgrade and filtering should be asynchronous to avoid
-		// Head-of-line blocking[0].
-		// Reference:  https://github.com/tendermint/classic/issues/2047
-		//
-		// [0] https://en.wikipedia.org/wiki/Head-of-line_blocking
+		// Process the new connection asynchronously
+		wg.Add(1)
+
 		go func(c net.Conn) {
-			defer func() {
-				if r := recover(); r != nil {
-					err := RejectedError{
-						conn:          c,
-						err:           errors.New("recovered from panic: %v", r),
-						isAuthFailure: true,
-					}
-					select {
-					case mt.acceptc <- accept{err: err}:
-					case <-mt.closec:
-						// Give up if the transport was closed.
-						_ = c.Close()
-						return
-					}
-				}
-			}()
+			defer wg.Done()
 
-			var (
-				nodeInfo   NodeInfo
-				secretConn *conn.SecretConnection
-				netAddr    *NetAddress
-			)
+			info, err := mt.processConn(c, "")
+			if err != nil {
+				mt.logger.Error(
+					"unable to process p2p connection",
+					"err", err,
+				)
 
-			err := mt.filterConn(c)
-			if err == nil {
-				secretConn, nodeInfo, err = mt.upgrade(c, nil)
-				if err == nil {
-					addr := c.RemoteAddr()
-					id := secretConn.RemotePubKey().Address().ID()
-					netAddr = NewNetAddress(id, addr)
-				}
+				// Close the connection
+				_ = c.Close()
+
+				return
 			}
 
 			select {
-			case mt.acceptc <- accept{netAddr, secretConn, nodeInfo, err}:
-				// Make the upgraded peer available.
-			case <-mt.closec:
+			case mt.peerCh <- info:
+			case <-ctx.Done():
 				// Give up if the transport was closed.
 				_ = c.Close()
-				return
 			}
 		}(c)
 	}
 }
 
-// Cleanup removes the given address from the connections set and
-// closes the connection.
-func (mt *MultiplexTransport) Cleanup(p Peer) {
-	mt.conns.RemoveAddr(p.RemoteAddr())
-	_ = p.CloseConn()
-}
+// processConn handles the raw connection by upgrading it and verifying it
+func (mt *MultiplexTransport) processConn(c net.Conn, expectedID types.ID) (peerInfo, error) {
+	dialAddr := c.RemoteAddr().String()
 
-func (mt *MultiplexTransport) cleanup(c net.Conn) error {
-	mt.conns.Remove(c)
-
-	return c.Close()
-}
-
-func (mt *MultiplexTransport) filterConn(c net.Conn) (err error) {
-	defer func() {
-		if err != nil {
-			_ = c.Close()
-		}
-	}()
-
-	// Reject if connection is already present.
-	if mt.conns.Has(c) {
-		return RejectedError{conn: c, isDuplicate: true}
+	// Check if the connection is a duplicate one
+	if _, exists := mt.activeConns.LoadOrStore(dialAddr, struct{}{}); exists {
+		return peerInfo{}, errDuplicateConnection
 	}
 
-	// Resolve ips for incoming conn.
-	ips, err := resolveIPs(mt.resolver, c)
+	// Handshake with the peer, through STS
+	secretConn, nodeInfo, err := mt.upgradeAndVerifyConn(c)
 	if err != nil {
-		return err
+		mt.activeConns.Delete(dialAddr)
+
+		return peerInfo{}, fmt.Errorf("unable to upgrade connection, %w", err)
 	}
 
-	errc := make(chan error, len(mt.connFilters))
+	// Grab the connection ID.
+	// At this point, the connection and information shared
+	// with the peer is considered valid, since full handshaking
+	// and verification took place
+	id := secretConn.RemotePubKey().Address().ID()
 
-	for _, f := range mt.connFilters {
-		go func(f ConnFilterFunc, c net.Conn, ips []net.IP, errc chan<- error) {
-			errc <- f(mt.conns, c, ips)
-		}(f, c, ips, errc)
+	// The reason the dial ID needs to be verified is because
+	// for outbound peers (peers the node dials), there is an expected peer ID
+	// when initializing the outbound connection, that can differ from the exchanged one.
+	// For inbound peers, the ID is whatever the peer exchanges during the
+	// handshaking process, and is verified separately
+	if !expectedID.IsZero() && id.String() != expectedID.String() {
+		mt.activeConns.Delete(dialAddr)
+
+		return peerInfo{}, fmt.Errorf(
+			"%w (expected %q got %q)",
+			errPeerIDDialMismatch,
+			expectedID,
+			id,
+		)
 	}
 
-	for i := 0; i < cap(errc); i++ {
-		select {
-		case err := <-errc:
-			if err != nil {
-				return RejectedError{conn: c, err: err, isFiltered: true}
-			}
-		case <-time.After(mt.filterTimeout):
-			return FilterTimeoutError{}
-		}
-	}
+	netAddr, _ := types.NewNetAddress(id, c.RemoteAddr())
 
-	mt.conns.Set(c, ips)
-
-	return nil
+	return peerInfo{
+		addr:     netAddr,
+		conn:     secretConn,
+		nodeInfo: nodeInfo,
+	}, nil
 }
 
-func (mt *MultiplexTransport) upgrade(
-	c net.Conn,
-	dialedAddr *NetAddress,
-) (secretConn *conn.SecretConnection, nodeInfo NodeInfo, err error) {
-	defer func() {
-		if err != nil {
-			_ = mt.cleanup(c)
-		}
-	}()
-
-	secretConn, err = upgradeSecretConn(c, mt.handshakeTimeout, mt.nodeKey.PrivKey)
-	if err != nil {
-		return nil, NodeInfo{}, RejectedError{
-			conn:          c,
-			err:           fmt.Errorf("secret conn failed: %w", err),
-			isAuthFailure: true,
-		}
-	}
-
-	// For outgoing conns, ensure connection key matches dialed key.
-	connID := secretConn.RemotePubKey().Address().ID()
-	if dialedAddr != nil {
-		if dialedID := dialedAddr.ID; connID.String() != dialedID.String() {
-			return nil, NodeInfo{}, RejectedError{
-				conn: c,
-				id:   connID,
-				err: fmt.Errorf(
-					"conn.ID (%v) dialed ID (%v) mismatch",
-					connID,
-					dialedID,
-				),
-				isAuthFailure: true,
-			}
-		}
-	}
-
-	nodeInfo, err = handshake(secretConn, mt.handshakeTimeout, mt.nodeInfo)
-	if err != nil {
-		return nil, NodeInfo{}, RejectedError{
-			conn:          c,
-			err:           fmt.Errorf("handshake failed: %w", err),
-			isAuthFailure: true,
-		}
-	}
-
-	if err := nodeInfo.Validate(); err != nil {
-		return nil, NodeInfo{}, RejectedError{
-			conn:              c,
-			err:               err,
-			isNodeInfoInvalid: true,
-		}
-	}
-
-	// Ensure connection key matches self reported key.
-	if connID != nodeInfo.ID() {
-		return nil, NodeInfo{}, RejectedError{
-			conn: c,
-			id:   connID,
-			err: fmt.Errorf(
-				"conn.ID (%v) NodeInfo.ID (%v) mismatch",
-				connID,
-				nodeInfo.ID(),
-			),
-			isAuthFailure: true,
-		}
-	}
-
-	// Reject self.
-	if mt.nodeInfo.ID() == nodeInfo.ID() {
-		return nil, NodeInfo{}, RejectedError{
-			addr:   *NewNetAddress(nodeInfo.ID(), c.RemoteAddr()),
-			conn:   c,
-			id:     nodeInfo.ID(),
-			isSelf: true,
-		}
-	}
-
-	if err := mt.nodeInfo.CompatibleWith(nodeInfo); err != nil {
-		return nil, NodeInfo{}, RejectedError{
-			conn:           c,
-			err:            err,
-			id:             nodeInfo.ID(),
-			isIncompatible: true,
-		}
-	}
-
-	return secretConn, nodeInfo, nil
+// Remove removes the peer resources from the transport
+func (mt *MultiplexTransport) Remove(p PeerConn) {
+	mt.activeConns.Delete(p.RemoteAddr().String())
 }
 
-func (mt *MultiplexTransport) wrapPeer(
-	c net.Conn,
-	ni NodeInfo,
-	cfg peerConfig,
-	socketAddr *NetAddress,
-) Peer {
-	persistent := false
-	if cfg.isPersistent != nil {
-		if cfg.outbound {
-			persistent = cfg.isPersistent(socketAddr)
-		} else {
-			selfReportedAddr := ni.NetAddress
-			persistent = cfg.isPersistent(selfReportedAddr)
-		}
-	}
-
-	peerConn := newPeerConn(
-		cfg.outbound,
-		persistent,
+// upgradeAndVerifyConn upgrades the connections (performs the handshaking process)
+// and verifies that the connecting peer is valid
+func (mt *MultiplexTransport) upgradeAndVerifyConn(c net.Conn) (secretConn, types.NodeInfo, error) {
+	// Upgrade to a secret connection.
+	// A secret connection is a connection that has passed
+	// an initial handshaking process, as defined by the STS
+	// protocol, and is considered to be secure and authentic
+	sc, err := mt.upgradeToSecretConn(
 		c,
-		socketAddr,
+		defaultHandshakeTimeout,
+		mt.nodeKey.PrivKey,
 	)
+	if err != nil {
+		return nil, types.NodeInfo{}, fmt.Errorf("unable to upgrade p2p connection, %w", err)
+	}
 
-	p := newPeer(
-		peerConn,
-		mt.mConfig,
-		ni,
-		cfg.reactorsByCh,
-		cfg.chDescs,
-		cfg.onPeerError,
-	)
+	// Exchange node information
+	nodeInfo, err := exchangeNodeInfo(sc, defaultHandshakeTimeout, mt.nodeInfo)
+	if err != nil {
+		return nil, types.NodeInfo{}, fmt.Errorf("unable to exchange node information, %w", err)
+	}
 
-	return p
+	// Ensure the connection ID matches the node's reported ID
+	connID := sc.RemotePubKey().Address().ID()
+
+	if connID != nodeInfo.ID() {
+		return nil, types.NodeInfo{}, fmt.Errorf(
+			"%w (expected %q got %q)",
+			errPeerIDNodeInfoMismatch,
+			connID.String(),
+			nodeInfo.ID().String(),
+		)
+	}
+
+	// Check compatibility with the node
+	if err = mt.nodeInfo.CompatibleWith(nodeInfo); err != nil {
+		return nil, types.NodeInfo{}, fmt.Errorf("%w, %w", errIncompatibleNodeInfo, err)
+	}
+
+	return sc, nodeInfo, nil
 }
 
-func handshake(
-	c net.Conn,
+// newMultiplexPeer creates a new multiplex Peer, using
+// the provided Peer behavior and info
+func (mt *MultiplexTransport) newMultiplexPeer(
+	info peerInfo,
+	behavior PeerBehavior,
+	isOutbound bool,
+) (PeerConn, error) {
+	// Extract the host
+	host, _, err := net.SplitHostPort(info.conn.RemoteAddr().String())
+	if err != nil {
+		return nil, fmt.Errorf("unable to extract peer host, %w", err)
+	}
+
+	// Look up the IPs
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return nil, fmt.Errorf("unable to lookup peer IPs, %w", err)
+	}
+
+	// Wrap the info related to the connection
+	peerConn := &ConnInfo{
+		Outbound:   isOutbound,
+		Persistent: behavior.IsPersistentPeer(info.addr.ID),
+		Private:    behavior.IsPrivatePeer(info.nodeInfo.ID()),
+		Conn:       info.conn,
+		RemoteIP:   ips[0], // IPv4
+		SocketAddr: info.addr,
+	}
+
+	// Create the info related to the multiplex connection
+	mConfig := &ConnConfig{
+		MConfig:      mt.mConfig,
+		ReactorsByCh: behavior.Reactors(),
+		ChDescs:      behavior.ReactorChDescriptors(),
+		OnPeerError:  behavior.HandlePeerError,
+	}
+
+	return newPeer(peerConn, info.nodeInfo, mConfig), nil
+}
+
+// exchangeNodeInfo performs a data swap, where node
+// info is exchanged between the current node and a peer async
+func exchangeNodeInfo(
+	c secretConn,
 	timeout time.Duration,
-	nodeInfo NodeInfo,
-) (NodeInfo, error) {
+	nodeInfo types.NodeInfo,
+) (types.NodeInfo, error) {
 	if err := c.SetDeadline(time.Now().Add(timeout)); err != nil {
-		return NodeInfo{}, err
+		return types.NodeInfo{}, err
 	}
 
 	var (
-		errc = make(chan error, 2)
-
-		peerNodeInfo NodeInfo
+		peerNodeInfo types.NodeInfo
 		ourNodeInfo  = nodeInfo
 	)
 
-	go func(errc chan<- error, c net.Conn) {
+	g, _ := errgroup.WithContext(context.Background())
+
+	g.Go(func() error {
 		_, err := amino.MarshalSizedWriter(c, ourNodeInfo)
-		errc <- err
-	}(errc, c)
-	go func(errc chan<- error, c net.Conn) {
+
+		return err
+	})
+
+	g.Go(func() error {
 		_, err := amino.UnmarshalSizedReader(
 			c,
 			&peerNodeInfo,
-			int64(MaxNodeInfoSize()),
+			types.MaxNodeInfoSize,
 		)
-		errc <- err
-	}(errc, c)
 
-	for i := 0; i < cap(errc); i++ {
-		err := <-errc
-		if err != nil {
-			return NodeInfo{}, err
-		}
+		return err
+	})
+
+	if err := g.Wait(); err != nil {
+		return types.NodeInfo{}, err
+	}
+
+	// Validate the received node information
+	if err := nodeInfo.Validate(); err != nil {
+		return types.NodeInfo{}, fmt.Errorf("unable to validate node info, %w", err)
 	}
 
 	return peerNodeInfo, c.SetDeadline(time.Time{})
 }
 
-func upgradeSecretConn(
+// upgradeToSecretConn takes an active TCP connection,
+// and upgrades it to a verified, handshaked connection through
+// the STS protocol
+func (mt *MultiplexTransport) upgradeToSecretConn(
 	c net.Conn,
 	timeout time.Duration,
-	privKey crypto.PrivKey,
-) (*conn.SecretConnection, error) {
+	privKey ed25519.PrivKeyEd25519,
+) (secretConn, error) {
 	if err := c.SetDeadline(time.Now().Add(timeout)); err != nil {
 		return nil, err
 	}
 
-	sc, err := conn.MakeSecretConnection(c, privKey)
+	// Handshake (STS)
+	sc, err := mt.connUpgradeFn(c, privKey)
 	if err != nil {
 		return nil, err
 	}
 
 	return sc, sc.SetDeadline(time.Time{})
-}
-
-func resolveIPs(resolver IPResolver, c net.Conn) ([]net.IP, error) {
-	host, _, err := net.SplitHostPort(c.RemoteAddr().String())
-	if err != nil {
-		return nil, err
-	}
-
-	addrs, err := resolver.LookupIPAddr(context.Background(), host)
-	if err != nil {
-		return nil, err
-	}
-
-	ips := []net.IP{}
-
-	for _, addr := range addrs {
-		ips = append(ips, addr.IP)
-	}
-
-	return ips, nil
 }

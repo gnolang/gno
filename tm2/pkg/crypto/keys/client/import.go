@@ -8,7 +8,9 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/armor"
 )
 
 type ImportCfg struct {
@@ -16,7 +18,6 @@ type ImportCfg struct {
 
 	KeyName   string
 	ArmorPath string
-	Unsafe    bool
 }
 
 func NewImportCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -51,13 +52,6 @@ func (c *ImportCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"path to the encrypted armor file",
 	)
-
-	fs.BoolVar(
-		&c.Unsafe,
-		"unsafe",
-		false,
-		"import the private key armor as unencrypted",
-	)
 }
 
 func execImport(cfg *ImportCfg, io commands.IO) error {
@@ -77,7 +71,7 @@ func execImport(cfg *ImportCfg, io commands.IO) error {
 	}
 
 	// Read the raw encrypted armor
-	armor, err := os.ReadFile(cfg.ArmorPath)
+	keyArmor, err := os.ReadFile(cfg.ArmorPath)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to read armor from path %s, %w",
@@ -91,28 +85,20 @@ func execImport(cfg *ImportCfg, io commands.IO) error {
 		encryptPassword string
 	)
 
-	if !cfg.Unsafe {
-		// Get the armor decrypt password
-		decryptPassword, err = io.GetPassword(
-			"Enter the passphrase to decrypt your private key armor:",
-			cfg.RootCfg.InsecurePasswordStdin,
+	// Get the armor decrypt password
+	decryptPassword, err = io.GetPassword(
+		"Enter the passphrase to decrypt your private key armor:",
+		cfg.RootCfg.InsecurePasswordStdin,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"unable to retrieve armor decrypt password from user, %w",
+			err,
 		)
-		if err != nil {
-			return fmt.Errorf(
-				"unable to retrieve armor decrypt password from user, %w",
-				err,
-			)
-		}
 	}
 
 	// Get the key-base encrypt password
-	encryptPassword, err = io.GetCheckPassword(
-		[2]string{
-			"Enter a passphrase to encrypt your private key:",
-			"Repeat the passphrase:",
-		},
-		cfg.RootCfg.InsecurePasswordStdin,
-	)
+	encryptPassword, err = promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to retrieve key encrypt password from user, %w",
@@ -120,31 +106,24 @@ func execImport(cfg *ImportCfg, io commands.IO) error {
 		)
 	}
 
-	if cfg.Unsafe {
-		// Import the unencrypted private key
-		if err := kb.ImportPrivKeyUnsafe(
-			cfg.KeyName,
-			string(armor),
-			encryptPassword,
-		); err != nil {
-			return fmt.Errorf(
-				"unable to import the unencrypted private key, %w",
-				err,
-			)
-		}
-	} else {
-		// Import the encrypted private key
-		if err := kb.ImportPrivKey(
-			cfg.KeyName,
-			string(armor),
-			decryptPassword,
-			encryptPassword,
-		); err != nil {
-			return fmt.Errorf(
-				"unable to import the encrypted private key, %w",
-				err,
-			)
-		}
+	var privateKey crypto.PrivKey
+
+	// Decrypt the armor
+	privateKey, err = armor.UnarmorDecryptPrivKey(string(keyArmor), decryptPassword)
+	if err != nil {
+		return fmt.Errorf("unable to decrypt private key armor, %w", err)
+	}
+
+	// Import the private key
+	if err := kb.ImportPrivKey(
+		cfg.KeyName,
+		privateKey,
+		encryptPassword,
+	); err != nil {
+		return fmt.Errorf(
+			"unable to import the encrypted private key, %w",
+			err,
+		)
 	}
 
 	io.Printfln("Successfully imported private key %s", cfg.KeyName)

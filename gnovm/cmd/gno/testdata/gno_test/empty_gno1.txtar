@@ -1,8 +1,0 @@
-# Test empty gno1
-
-gno test .
-
-! stdout .+
-stderr '\?       \. 	\[no test files\]'
-
--- empty.gno --

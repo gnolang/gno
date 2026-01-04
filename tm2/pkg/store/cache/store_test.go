@@ -15,7 +15,7 @@ import (
 )
 
 func newCacheStore() types.Store {
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	return cache.New(mem)
 }
 
@@ -25,7 +25,7 @@ func valFmt(i int) []byte { return bz(fmt.Sprintf("value%0.8d", i)) }
 func TestCacheStore(t *testing.T) {
 	t.Parallel()
 
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	st := cache.New(mem)
 
 	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
@@ -70,7 +70,7 @@ func TestCacheStore(t *testing.T) {
 func TestCacheStoreNoNilSet(t *testing.T) {
 	t.Parallel()
 
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	st := cache.New(mem)
 	require.Panics(t, func() { st.Set([]byte("key"), nil) }, "setting a nil value should panic")
 }
@@ -78,7 +78,7 @@ func TestCacheStoreNoNilSet(t *testing.T) {
 func TestCacheStoreNested(t *testing.T) {
 	t.Parallel()
 
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	st := cache.New(mem)
 
 	// set. check its there on st and not on mem.
@@ -113,7 +113,7 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 
 	// set some items
 	nItems := 5
-	for i := 0; i < nItems; i++ {
+	for i := range nItems {
 		st.Set(keyFmt(i), valFmt(i))
 	}
 
@@ -127,6 +127,8 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 		i++
 	}
 	require.Equal(t, nItems, i)
+	require.NoError(t, itr.Error())
+	require.NoError(t, itr.Close())
 
 	// iterate over none
 	itr = st.Iterator(bz("money"), nil)
@@ -135,6 +137,8 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 		i++
 	}
 	require.Equal(t, 0, i)
+	require.NoError(t, itr.Error())
+	require.NoError(t, itr.Close())
 
 	// iterate over lower
 	itr = st.Iterator(keyFmt(0), keyFmt(3))
@@ -146,6 +150,8 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 		i++
 	}
 	require.Equal(t, 3, i)
+	require.NoError(t, itr.Error())
+	require.NoError(t, itr.Close())
 
 	// iterate over upper
 	itr = st.Iterator(keyFmt(2), keyFmt(4))
@@ -157,6 +163,8 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 		i++
 	}
 	require.Equal(t, 4, i)
+	require.NoError(t, itr.Error())
+	require.NoError(t, itr.Close())
 }
 
 func TestCacheKVReverseIteratorBounds(t *testing.T) {
@@ -166,7 +174,7 @@ func TestCacheKVReverseIteratorBounds(t *testing.T) {
 
 	// set some items
 	nItems := 5
-	for i := 0; i < nItems; i++ {
+	for i := range nItems {
 		st.Set(keyFmt(i), valFmt(i))
 	}
 
@@ -262,7 +270,7 @@ func TestCacheKVMergeIteratorDeleteLast(t *testing.T) {
 
 	// set some items and write them
 	nItems := 5
-	for i := 0; i < nItems; i++ {
+	for i := range nItems {
 		st.Set(keyFmt(i), valFmt(i))
 	}
 	st.Write()
@@ -276,7 +284,7 @@ func TestCacheKVMergeIteratorDeleteLast(t *testing.T) {
 	assertIterateDomain(t, st, nItems*2)
 
 	// delete them all
-	for i := 0; i < nItems*2; i++ {
+	for i := range nItems * 2 {
 		last := nItems*2 - 1 - i
 		st.Delete(keyFmt(last))
 		assertIterateDomain(t, st, last)
@@ -291,7 +299,7 @@ func TestCacheKVMergeIteratorDeletes(t *testing.T) {
 
 	// set some items and write them
 	nItems := 10
-	for i := 0; i < nItems; i++ {
+	for i := range nItems {
 		doOp(st, truth, opSet, i)
 	}
 	st.Write()
@@ -307,7 +315,7 @@ func TestCacheKVMergeIteratorDeletes(t *testing.T) {
 	truth = memdb.NewMemDB()
 
 	// set some items and write them
-	for i := 0; i < nItems; i++ {
+	for i := range nItems {
 		doOp(st, truth, opSet, i)
 	}
 	st.Write()
@@ -359,12 +367,12 @@ func TestCacheKVMergeIteratorRandom(t *testing.T) {
 	truth := memdb.NewMemDB()
 
 	start, end := 25, 975
-	max := 1000
+	maxVal := 1000
 	setRange(st, truth, start, end)
 
 	// do an op, test the iterator
-	for i := 0; i < 2000; i++ {
-		doRandomOp(st, truth, max)
+	for range 2000 {
+		doRandomOp(st, truth, maxVal)
 		assertIterateDomainCompare(t, st, truth)
 	}
 }
@@ -449,6 +457,8 @@ func assertIterateDomain(t *testing.T, st types.Store, expectedN int) {
 		i++
 	}
 	require.Equal(t, expectedN, i)
+	require.NoError(t, itr.Error())
+	require.NoError(t, itr.Close())
 }
 
 func assertIterateDomainCheck(t *testing.T, st types.Store, mem dbm.DB, r []keyRange) {
@@ -456,7 +466,8 @@ func assertIterateDomainCheck(t *testing.T, st types.Store, mem dbm.DB, r []keyR
 
 	// iterate over each and check they match the other
 	itr := st.Iterator(nil, nil)
-	itr2 := mem.Iterator(nil, nil) // ground truth
+	itr2, err := mem.Iterator(nil, nil) // ground truth
+	require.NoError(t, err)
 
 	krc := newKeyRangeCounter(r)
 	i := 0
@@ -488,7 +499,8 @@ func assertIterateDomainCompare(t *testing.T, st types.Store, mem dbm.DB) {
 
 	// iterate over each and check they match the other
 	itr := st.Iterator(nil, nil)
-	itr2 := mem.Iterator(nil, nil) // ground truth
+	itr2, err := mem.Iterator(nil, nil) // ground truth
+	require.NoError(t, err)
 	checkIterators(t, itr, itr2)
 	checkIterators(t, itr2, itr)
 }

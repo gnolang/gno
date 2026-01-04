@@ -1,0 +1,27 @@
+# Test --print-runtime-metrics flag
+
+gno test --print-runtime-metrics .
+
+! stdout .+
+stderr '---       runtime: cycle=[\d\.kM]+ allocs=[\d\.kM]+\(\d\.\d\d%\)'
+
+-- metrics.gno --
+package metrics
+
+-- metrics_test.gno --
+package metrics
+
+import (
+	"testing"
+)
+
+func TestTimeout(t *testing.T) {
+	for i := 0; i < 2; i++ {
+		println("plop")
+	}
+}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/flag_print_runtime_metrics"
+gno = "0.9"

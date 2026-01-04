@@ -19,9 +19,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
-	store "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 var (
@@ -47,7 +47,7 @@ func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
 	msgs := make([]std.Msg, len(msgInts))
 
 	for i, msgInt := range msgInts {
-		msgs[i] = msgCounter{msgInt, false}
+		msgs[i] = msgCounter{Counter: msgInt, FailOnHandler: false}
 	}
 
 	tx := std.Tx{Msgs: msgs}
@@ -120,13 +120,13 @@ func TestLoadVersion(t *testing.T) {
 	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res := app.Commit()
-	commitID1 := store.CommitID{1, res.Data}
+	commitID1 := store.CommitID{Version: 1, Hash: res.Data}
 
 	// execute a block, collect commit ID
 	header = &bft.Header{ChainID: "test-chain", Height: 2}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res = app.Commit()
-	commitID2 := store.CommitID{2, res.Data}
+	commitID2 := store.CommitID{Version: 2, Hash: res.Data}
 
 	// reload with LoadLatestVersion
 	app = newBaseApp(name, db, pruningOpt)
@@ -184,7 +184,7 @@ func TestLoadVersionInvalid(t *testing.T) {
 	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res := app.Commit()
-	commitID1 := store.CommitID{1, res.Data}
+	commitID1 := store.CommitID{Version: 1, Hash: res.Data}
 
 	// create a new app with the stores mounted under the same cap key
 	app = newBaseApp(name, db, pruningOpt)
@@ -197,6 +197,47 @@ func TestLoadVersionInvalid(t *testing.T) {
 	// require error when loading an invalid version
 	err = app.LoadVersion(2)
 	require.Error(t, err)
+}
+
+func TestOptionSetters(t *testing.T) {
+	t.Parallel()
+
+	tt := []struct {
+		// Calling BaseApp.[method]([value]) should change BaseApp.[fieldName] to [value].
+		method    string
+		fieldName string
+		value     any
+	}{
+		{"SetName", "name", "hello"},
+		{"SetAppVersion", "appVersion", "12345"},
+		{"SetDB", "db", memdb.NewMemDB()},
+		{"SetCMS", "cms", store.NewCommitMultiStore(memdb.NewMemDB())},
+		{"SetInitChainer", "initChainer", func(Context, abci.RequestInitChain) abci.ResponseInitChain { panic("not implemented") }},
+		{"SetBeginBlocker", "beginBlocker", func(Context, abci.RequestBeginBlock) abci.ResponseBeginBlock { panic("not implemented") }},
+		{"SetEndBlocker", "endBlocker", func(Context, abci.RequestEndBlock) abci.ResponseEndBlock { panic("not implemented") }},
+		{"SetAnteHandler", "anteHandler", func(Context, Tx, bool) (Context, Result, bool) { panic("not implemented") }},
+		{"SetBeginTxHook", "beginTxHook", func(Context) Context { panic("not implemented") }},
+		{"SetEndTxHook", "endTxHook", func(Context, Result) { panic("not implemented") }},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.method, func(t *testing.T) {
+			t.Parallel()
+
+			var ba BaseApp
+			rv := reflect.ValueOf(&ba)
+
+			rv.MethodByName(tc.method).Call([]reflect.Value{reflect.ValueOf(tc.value)})
+			changed := rv.Elem().FieldByName(tc.fieldName)
+
+			if reflect.TypeOf(tc.value).Kind() == reflect.Func {
+				assert.Equal(t, reflect.ValueOf(tc.value).Pointer(), changed.Pointer(), "%s(%#v): function value should have changed", tc.method, tc.value)
+			} else {
+				assert.True(t, reflect.ValueOf(tc.value).Equal(changed), "%s(%#v): wanted %v got %v", tc.method, tc.value, tc.value, changed)
+			}
+			assert.False(t, changed.IsZero(), "%s(%#v): field's new value should not be zero value", tc.method, tc.value)
+		})
+	}
 }
 
 func testLoadVersionHelper(t *testing.T, app *BaseApp, expectedHeight int64, expectedID store.CommitID) {
@@ -272,6 +313,12 @@ func TestBaseAppOptionSeal(t *testing.T) {
 	require.Panics(t, func() {
 		app.SetAnteHandler(nil)
 	})
+	require.Panics(t, func() {
+		app.SetBeginTxHook(nil)
+	})
+	require.Panics(t, func() {
+		app.SetEndTxHook(nil)
+	})
 }
 
 func TestSetMinGasPrices(t *testing.T) {
@@ -306,11 +353,6 @@ func TestInitChainer(t *testing.T) {
 		Data: key,
 	}
 
-	// initChainer is nil - nothing happens
-	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
-	res := app.Query(query)
-	require.Equal(t, 0, len(res.Value))
-
 	// set initChainer and try again - should see the value
 	app.SetInitChainer(initChainer)
 
@@ -318,6 +360,11 @@ func TestInitChainer(t *testing.T) {
 	err := app.LoadLatestVersion() // needed to make stores non-nil
 	require.Nil(t, err)
 	require.Equal(t, int64(0), app.LastBlockHeight())
+
+	// initChainer is nil - nothing happens
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+	res := app.Query(query)
+	require.Equal(t, 0, len(res.Value))
 
 	app.InitChain(abci.RequestInitChain{AppState: nil, ChainID: "test-chain-id"}) // must have valid JSON genesis file, even if empty
 
@@ -392,7 +439,7 @@ func setCounter(tx *Tx, counter int64) {
 
 func setFailOnHandler(tx *Tx, fail bool) {
 	for i, msg := range tx.Msgs {
-		tx.Msgs[i] = msgCounter{msg.(msgCounter).Counter, fail}
+		tx.Msgs[i] = msgCounter{Counter: msg.(msgCounter).Counter, FailOnHandler: fail}
 	}
 }
 
@@ -400,7 +447,7 @@ func anteHandlerTxTest(t *testing.T, capKey store.StoreKey, storeKey []byte) Ant
 	t.Helper()
 
 	return func(ctx Context, tx std.Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-		store := ctx.Store(capKey)
+		store := ctx.GasStore(capKey)
 		if getFailOnAnte(tx) {
 			res.Error = ABCIError(std.ErrInternal("ante handler failure"))
 			return newCtx, res, true
@@ -567,11 +614,11 @@ func TestDeliverTx(t *testing.T) {
 	nBlocks := 3
 	txPerHeight := 5
 
-	for blockN := 0; blockN < nBlocks; blockN++ {
+	for blockN := range nBlocks {
 		header := &bft.Header{ChainID: "test-chain", Height: int64(blockN) + 1}
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
-		for i := 0; i < txPerHeight; i++ {
+		for i := range txPerHeight {
 			counter := int64(blockN*txPerHeight + i)
 			tx := newTxCounter(counter, counter)
 
@@ -585,6 +632,38 @@ func TestDeliverTx(t *testing.T) {
 		app.EndBlock(abci.RequestEndBlock{})
 		app.Commit()
 	}
+}
+
+// Test that the gas used between Simulate and DeliverTx is the same.
+func TestGasUsedBetweenSimulateAndDeliver(t *testing.T) {
+	t.Parallel()
+
+	anteKey := []byte("ante-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
+
+	deliverKey := []byte("deliver-key")
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.Nil(t, err)
+
+	simulateRes := app.Simulate(txBytes, tx)
+	require.True(t, simulateRes.IsOK(), fmt.Sprintf("%v", simulateRes))
+	require.Greater(t, simulateRes.GasUsed, int64(0)) // gas used should be greater than 0
+
+	deliverRes := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, deliverRes.IsOK(), fmt.Sprintf("%v", deliverRes))
+
+	require.Equal(t, simulateRes.GasUsed, deliverRes.GasUsed) // gas used should be the same from simulate and deliver
 }
 
 // One call to DeliverTx should process all the messages, in order.
@@ -629,8 +708,8 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 	// replace the second message with a msgCounter2
 
 	tx = newTxCounter(1, 3)
-	tx.Msgs = append(tx.Msgs, msgCounter2{0})
-	tx.Msgs = append(tx.Msgs, msgCounter2{1})
+	tx.Msgs = append(tx.Msgs, msgCounter2{Counter: 0})
+	tx.Msgs = append(tx.Msgs, msgCounter2{Counter: 1})
 	txBytes, err = amino.Marshal(tx)
 	require.NoError(t, err)
 	res = app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
@@ -678,7 +757,7 @@ func TestSimulateTx(t *testing.T) {
 	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
 	nBlocks := 3
-	for blockN := 0; blockN < nBlocks; blockN++ {
+	for blockN := range nBlocks {
 		count := int64(blockN + 1)
 		header := &bft.Header{ChainID: "test-chain", Height: count}
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
@@ -706,7 +785,7 @@ func TestSimulateTx(t *testing.T) {
 		require.True(t, queryResult.IsOK(), queryResult.Log)
 
 		var res Result
-		amino.MustUnmarshal(queryResult.Value, &res)
+		require.NoError(t, amino.Unmarshal(queryResult.Value, &res))
 		require.Nil(t, err, "Result unmarshalling failed")
 		require.True(t, res.IsOK(), res.Log)
 		require.Equal(t, gasConsumed, res.GasUsed, res.Log)
@@ -927,7 +1006,6 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		fmt.Printf("debug i: %v\n", i)
 		tx := tc.tx
 
 		// reset the block gas
@@ -935,7 +1013,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 		// execute the transaction multiple times
-		for j := 0; j < tc.numDelivers; j++ {
+		for j := range tc.numDelivers {
 			res := app.Deliver(tx)
 
 			ctx := app.getState(RunTxModeDeliver).ctx

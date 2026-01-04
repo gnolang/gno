@@ -8,9 +8,12 @@
 //
 // Additional Command Overview:
 //
-// 1. `gnoland [start|stop]`:
+// 1. `gnoland [start|stop|restart]`:
 //   - The gnoland node doesn't start automatically. This enables the user to do some
 //     pre-configuration or pass custom arguments to the start command.
+//   - `gnoland restart` will simulate restarting a node, as in stopping and
+//     starting it again, recovering state from the persisted database data.
+//   - `gnoland start -non-validator` can be used to start a node as a non-validator node.
 //
 // 2. `gnokey`:
 //   - Supports most of the common commands.
@@ -21,7 +24,7 @@
 //
 // 3. `adduser`:
 //   - Must be run before `gnoland start`.
-//   - Creates a new user in the default keybase directory.
+//   - Creates a new user in the default keybase directory. ( Optionally, an std.Coins string can be provided, e.g. `1337ugnot,42foo,24bar` )
 //
 // 4. `adduserfrom`:
 //   - Must be run before `gnoland start`.
@@ -31,19 +34,25 @@
 //   - Must be run before `gnoland start`.
 //   - Loads a specific package from the 'examples' directory or from the working ($WORK) directory.
 //   - Can be used to load a single package or all packages within a directory.
-//   - If the target package has a `gno.mod`, all its dependencies (and their respective
+//   - If the target package has a `gnomod.toml`, all its dependencies (and their respective
 //     dependencies) will also be loaded.
 //   - The command takes either one or two arguments. The first argument is the name of the package(s),
 //     and the second (optional) argument is the path to the package(s).
 //     Examples:
 //     -- # Load a package from the 'examples' directory:
-//     -- loadpkg gno.land/p/demo/ufmt
+//     -- loadpkg gno.land/p/nt/ufmt
 //     -- # Load a package `./bar` from the testscript's working directory with the name `gno.land/r/foobar/bar`:
 //     -- loadpkg gno.land/r/foobar/bar $WORK/bar
 //   - If the path is not prefixed with the working directory, it is assumed to be relative to the
 //     examples directory.
 //   - It's important to note that the load order is significant when using multiple `loadpkg`
 //     command; packages should be loaded in the order they are dependent upon.
+//
+// 6. `patchpkg`:
+//   - Patches any loaded files by package by replacing all occurrences of the first argument with the second.
+//   - This is mostly used to replace hardcoded addresses from loaded packages.
+//   - NOTE: this command may only be temporary, as it's not best approach to
+//     solve the above problem
 //
 // Logging:
 //
@@ -66,13 +75,6 @@
 // Environment Variables:
 //
 // Input:
-//
-//   - LOG_LEVEL:
-//     The logging level to be used, which can be one of "error", "debug", "info", or an empty string.
-//     If empty, the log level defaults to "debug".
-//
-//   - LOG_DIR:
-//     If set, logs will be directed to the specified directory.
 //
 //   - TESTWORK:
 //     A boolean that, when enabled, retains working directories after tests for
@@ -100,11 +102,17 @@
 //     The path where the gnoland node stores its configuration and data. It's
 //     set only if the node has started.
 //
-//   - USER_SEED_test1:
-//     Contains the seed for the test1 account.
+//   - xxx_user_seed:
+//     Where `xxx` is the account name; Contains the seed for the test1 account.
 //
-//   - USER_ADDR_test1:
-//     Contains the address for the test1 account.
+//   - xxx_user_addr:
+//     Where `xxx` is the account name; Contains the address for the test1 account.
+//
+//   - xxx_account_num:
+//     Where `xxx` is the account name; Contains the account number for the test1 account.
+//
+//   - xxx_account_seq:
+//     Where `xxx` is the account name; Contains the address for the test1 account.
 //
 //   - RPC_ADDR:
 //     Points to the gnoland node's remote address. It's set only if the node has started.

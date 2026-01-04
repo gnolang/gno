@@ -237,7 +237,7 @@ func (h *Handshaker) Handshake(proxyApp appconn.AppConns) error {
 	// Handshake is done via ABCI Info on the query conn.
 	res, err := proxyApp.Query().InfoSync(abci.RequestInfo{})
 	if err != nil {
-		return fmt.Errorf("Error calling Info: %w", err)
+		return fmt.Errorf("error calling Info: %w", err)
 	}
 
 	blockHeight := res.LastBlockHeight
@@ -307,6 +307,13 @@ func (h *Handshaker) ReplayBlocks(
 			return nil, err
 		}
 
+		// Save the results by height
+		abciResponse := sm.NewABCIResponsesFromNum(int64(len(res.TxResponses)))
+		copy(abciResponse.DeliverTxs, res.TxResponses)
+		sm.SaveABCIResponses(h.stateDB, 0, abciResponse)
+
+		// NOTE: we don't save results by tx hash since the transactions are in the AppState opaque type
+
 		if stateBlockHeight == 0 { // we only update state when we are in initial state
 			// If the app returned validators or consensus params, update the state.
 			if len(res.Validators) > 0 {
@@ -347,7 +354,8 @@ func (h *Handshaker) ReplayBlocks(
 	var err error
 	// Now either store is equal to state, or one ahead.
 	// For each, consider all cases of where the app could be, given app <= store
-	if storeBlockHeight == stateBlockHeight {
+	switch storeBlockHeight {
+	case stateBlockHeight:
 		// Tendermint ran Commit and saved the state.
 		// Either the app is asking for replay, or we're all synced up.
 		if appBlockHeight < storeBlockHeight {
@@ -358,7 +366,7 @@ func (h *Handshaker) ReplayBlocks(
 			assertAppHashEqualsOneFromState(appHash, state)
 			return appHash, nil
 		}
-	} else if storeBlockHeight == stateBlockHeight+1 {
+	case stateBlockHeight + 1:
 		// We saved the block in the store but haven't updated the state,
 		// so we'll need to replay a block using the WAL.
 		switch {

@@ -66,6 +66,8 @@ func TestCompareIdenticalSlice(t *testing.T) {
 }
 
 func TestCompareBytes(t *testing.T) {
+	t.Skip("This test takes very long to run on Gno at time of writing, even in its short form")
+
 	lengths := make([]int, 0) // lengths to test in ascending order
 	for i := 0; i <= 128; i++ {
 		lengths = append(lengths, i)

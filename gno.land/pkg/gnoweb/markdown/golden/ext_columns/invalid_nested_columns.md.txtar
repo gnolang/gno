@@ -1,0 +1,26 @@
+-- input.md --
+<gno-columns>
+
+### Nested open <gno-columns> should be ignored
+
+<gno-columns>
+
+### The first closing tag should be kept as it is
+
+</gno-columns>
+
+### The next closing tag should be considered as lost
+
+</gno-columns>
+
+-- output.html --
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<h3>Nested open <!-- raw HTML omitted --> should be ignored</h3>
+<!-- unexpected/invalid columns tag omitted -->
+<h3>The first closing tag should be kept as it is</h3>
+</div>
+</div> <!-- </gno-columns> -->
+<h3>The next closing tag should be considered as lost</h3>
+<!-- unexpected/invalid columns tag omitted -->

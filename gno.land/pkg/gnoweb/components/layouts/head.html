@@ -1,0 +1,50 @@
+{{ define "layouts/head" }}
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ .Title }}</title>
+
+  <!-- Preload -->
+  <link rel="preload" href="{{ .AssetsPath }}fonts/intervar/Intervar.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2" as="font" type="font/woff2"
+    crossorigin />
+
+  <!-- Meta description -->
+  <meta name="description" content="{{ .Description }}" />
+
+  <!-- Canonical URL -->
+  {{ if .Canonical }}
+  <link rel="canonical" href="{{ .Canonical }}" />
+  {{ end }}
+
+  <!-- Open Graph metadata -->
+  <meta property="og:title" content="{{ .Title }}" />
+  <meta property="og:description" content="{{ .Description }}" />
+  <meta property="og:image" content="{{ .Image }}" />
+  <meta property="og:url" content="{{ .URL }}" />
+  <meta property="og:type" content="website" />
+
+  <!-- Twitter Card metadata -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{ .Title }}" />
+  <meta name="twitter:description" content="{{ .Description }}" />
+  <meta name="twitter:image" content="{{ .Image }}" />
+
+  <!-- Favicon -->
+  <link rel="icon" href="{{ .AssetsPath }}/favicon.ico" type="image/x-icon" />
+
+  <!-- Robots meta tag -->
+  <meta name="robots" content="index, follow" />
+
+  <!-- chroma stylesheet -->
+  <link rel="stylesheet" href="{{ .ChromaPath }}" />
+
+  <!-- web assets -->
+  <link rel="stylesheet" href="{{ .AssetsPath }}main.css?v={{ .BuildTime }}" />
+
+  <!-- wallet integrations -->
+  <meta name="gnoconnect:rpc" content="{{ .Remote }}" />
+  <meta name="gnoconnect:chainid" content="{{ .ChainId }}" />
+</head>
+{{ end }}

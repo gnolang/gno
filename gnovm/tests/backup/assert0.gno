@@ -32,7 +32,7 @@ func usesStringer(s MyStringer) {
 func main() {
 	aType := reflect.TypeOf((*MyWriter)(nil)).Elem()
 
-	var t interface{}
+	var t any
 	t = TestStruct{}
 	var tw MyWriter
 	var ok bool
@@ -57,7 +57,7 @@ func main() {
 	}
 	_ = foo
 
-	var tt interface{}
+	var tt any
 	tt = time.Nanosecond
 	var myD MyStringer
 	myD, ok = tt.(MyStringer)

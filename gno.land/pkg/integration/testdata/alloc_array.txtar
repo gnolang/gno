@@ -1,0 +1,20 @@
+loadpkg gno.land/r/alloc $WORK
+
+gnoland start
+
+! gnokey maketx call -pkgpath gno.land/r/alloc -func DoAlloc -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stderr 'Data: allocation limit exceeded'
+
+-- gnomod.toml --
+module = "alloc_array"
+gno = "0.9"
+
+-- alloc.gno --
+package alloc
+
+var buffer interface{}
+
+func DoAlloc(cur realm) {
+	var arr [1_000_000_000_000_000]byte
+	buffer = arr
+}

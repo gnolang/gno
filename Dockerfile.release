@@ -1,3 +1,6 @@
+# This file is similar to Dockerfile, but assumes that the binaries have
+# already been created, and as such doesn't `go build` them.
+
 FROM alpine AS base
 
 ENV     GNOROOT="/gnoroot/"
@@ -6,43 +9,77 @@ CMD     [ "" ]
 
 #
 ## ghcr.io/gnolang/gno/gnoland
-FROM base as gnoland
+FROM base AS gnoland
 
-COPY ./gnoland /usr/bin/gnoland
-COPY ./examples /gnoroot/examples/
-COPY ./gnovm/stdlibs /gnoroot/gnovm/stdlibs/
-COPY ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
-COPY ./gno.land/genesis/genesis_txs.jsonl /gnoroot/gno.land/genesis/genesis_txs.jsonl
+COPY     ./gnoland                               /usr/bin/gnoland
+COPY     ./examples                              /gnoroot/examples/
+COPY     ./gnovm/stdlibs                         /gnoroot/gnovm/stdlibs/
+COPY     ./gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs/
+COPY     ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+COPY     ./gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 
 EXPOSE 26656 26657
 
 ENTRYPOINT [ "/usr/bin/gnoland" ]
 
-
 #
 ## ghcr.io/gnolang/gno/gnokey
-FROM base as gnokey
+FROM base AS gnokey
 
 COPY       ./gnokey /usr/bin/gnokey
 ENTRYPOINT [ "/usr/bin/gnokey" ]
 
-
 #
 ## ghcr.io/gnolang/gno/gnoweb
-FROM base as gnoweb
+FROM base AS gnoweb
 
 COPY       ./gnoweb /usr/bin/gnoweb
 EXPOSE      8888
 ENTRYPOINT [ "/usr/bin/gnoweb" ]
 
+#
+## ghcr.io/gnolang/gno/gnofaucet
+FROM base AS gnofaucet
+
+COPY       ./gnofaucet /usr/bin/gnofaucet
+EXPOSE     5050
+ENTRYPOINT [ "/usr/bin/gnofaucet" ]
+
+#
+## ghcr.io/gnolang/gno/gnodev
+FROM base AS gnodev
+
+COPY       ./gnodev /usr/bin/gnodev
+COPY       ./examples                              /gnoroot/examples/
+COPY       ./gnovm/stdlibs                         /gnoroot/gnovm/stdlibs/
+COPY       ./gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs/
+COPY       ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+COPY       ./gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
+# gnoweb exposed by default
+EXPOSE     8888
+ENTRYPOINT [ "/usr/bin/gnodev" ]
 
 #
 ## ghcr.io/gnolang/gno
-FROM base as gno
+FROM base AS gno
 
-COPY     ./gno                 /usr/bin/gno
-COPY     ./examples            /gnoroot/examples/
-COPY     ./gnovm/stdlibs       /gnoroot/gnovm/stdlibs/
-COPY     ./gnovm/tests/stdlibs /gnoroot/gnovm/tests/stdlibs/
+COPY       ./gno                 /usr/bin/gno
+COPY       ./examples            /gnoroot/examples/
+COPY       ./gnovm/stdlibs       /gnoroot/gnovm/stdlibs/
+COPY       ./gnovm/tests/stdlibs /gnoroot/gnovm/tests/stdlibs/
 
 ENTRYPOINT [ "/usr/bin/gno" ]
+
+#
+## ghcr.io/gnolang/gnocontribs
+FROM base AS gnocontribs
+
+COPY       ./gnobro                                /usr/bin/gnobro
+COPY       ./gnogenesis                            /usr/bin/gnogenesis
+COPY       ./gnokms                                /usr/bin/gnokms
+COPY       ./examples                              /gnoroot/examples/
+COPY       ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+COPY       ./gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
+EXPOSE     22
+
+ENTRYPOINT [ "/bin/sh", "-c" ]

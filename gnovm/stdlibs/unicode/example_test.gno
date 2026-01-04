@@ -116,7 +116,7 @@ func ExampleSimpleFold() {
 	fmt.Printf("%#U\n", unicode.SimpleFold('A'))      // 'a'
 	fmt.Printf("%#U\n", unicode.SimpleFold('a'))      // 'A'
 	fmt.Printf("%#U\n", unicode.SimpleFold('K'))      // 'k'
-	fmt.Printf("%#U\n", unicode.SimpleFold('k'))      // '\u212A' (Kelvin symbol, K)
+	fmt.Printf("%#U\n", unicode.SimpleFold('k'))      // '\u212A' (Kelvin symbol, K)
 	fmt.Printf("%#U\n", unicode.SimpleFold('\u212A')) // 'K'
 	fmt.Printf("%#U\n", unicode.SimpleFold('1'))      // '1'
 
@@ -124,7 +124,7 @@ func ExampleSimpleFold() {
 	// U+0061 'a'
 	// U+0041 'A'
 	// U+006B 'k'
-	// U+212A 'K'
+	// U+212A 'K'
 	// U+004B 'K'
 	// U+0031 '1'
 }
@@ -193,4 +193,64 @@ func ExampleSpecialCase() {
 	// U+0069 'i'
 	// U+0130 'İ'
 	// U+0130 'İ'
+}
+
+func ExampleIsDigit() {
+	fmt.Printf("%t\n", unicode.IsDigit('৩'))
+	fmt.Printf("%t\n", unicode.IsDigit('A'))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsNumber() {
+	fmt.Printf("%t\n", unicode.IsNumber('Ⅷ'))
+	fmt.Printf("%t\n", unicode.IsNumber('A'))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsLetter() {
+	fmt.Printf("%t\n", unicode.IsLetter('A'))
+	fmt.Printf("%t\n", unicode.IsLetter('7'))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsLower() {
+	fmt.Printf("%t\n", unicode.IsLower('a'))
+	fmt.Printf("%t\n", unicode.IsLower('A'))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsUpper() {
+	fmt.Printf("%t\n", unicode.IsUpper('A'))
+	fmt.Printf("%t\n", unicode.IsUpper('a'))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsTitle() {
+	fmt.Printf("%t\n", unicode.IsTitle('ǅ'))
+	fmt.Printf("%t\n", unicode.IsTitle('a'))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsSpace() {
+	fmt.Printf("%t\n", unicode.IsSpace(' '))
+	fmt.Printf("%t\n", unicode.IsSpace('\n'))
+	fmt.Printf("%t\n", unicode.IsSpace('\t'))
+	fmt.Printf("%t\n", unicode.IsSpace('a'))
+	// Output:
+	// true
+	// true
+	// true
+	// false
 }

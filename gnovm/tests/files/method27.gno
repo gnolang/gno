@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/gnolang/gno/_test/net/http"
+	"filetests/extern/net/http"
 )
 
 type AuthenticatedRequest struct {
@@ -13,8 +13,8 @@ type AuthenticatedRequest struct {
 
 func main() {
 	a := &AuthenticatedRequest{}
-	fmt.Println("ua:", a.UserAgent())
+	fmt.Println("ua:", a.UserAgent(), ";")
 }
 
 // Output:
-// ua:
+// ua:  ;

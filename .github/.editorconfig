@@ -1,0 +1,8 @@
+# Make sure this is the top-level editorconfig
+# https://editorconfig.org/
+root = true
+
+# GitHub Actions Workflows
+[workflows/**.yml]
+indent_style = space
+indent_size = 2

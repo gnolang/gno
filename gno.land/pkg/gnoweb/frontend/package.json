@@ -1,0 +1,19 @@
+{
+	"name": "gnoweb",
+	"devDependencies": {
+		"@biomejs/biome": "2.0.5",
+		"@fullhuman/postcss-purgecss": "^7.0.2",
+		"chokidar-cli": "^3.0.0",
+		"cssnano": "^7.1.0",
+		"esbuild": "0.25.5",
+		"nodemon": "^3.1.10",
+		"postcss": "^8.5.6",
+		"postcss-cli": "^11.0.1",
+		"postcss-import": "^16.1.1",
+		"postcss-preset-env": "^10.2.4"
+	},
+	"browserslist": [
+		"defaults",
+		"not ie <= 11"
+	]
+}

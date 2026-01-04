@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
 func (m *Machine) doOpUpos() {
@@ -46,19 +47,19 @@ func (m *Machine) doOpUneg() {
 	case Uint64Type:
 		xv.SetUint64(-xv.GetUint64())
 	case Float32Type:
-		xv.SetFloat32(-xv.GetFloat32())
+		xv.SetFloat32(softfloat.Fneg32(xv.GetFloat32()))
 	case Float64Type:
-		xv.SetFloat64(-xv.GetFloat64())
-	case UntypedBigintType, BigintType:
-		bv := xv.V.(BigintValue)
-		xv.V = BigintValue{V: new(big.Int).Neg(bv.V)}
-	case UntypedBigdecType, BigdecType:
-		bv := xv.V.(BigdecValue)
-		xv.V = BigdecValue{V: apd.New(0, 0).Neg(bv.V)}
+		xv.SetFloat64(softfloat.Fneg64(xv.GetFloat64()))
+	case UntypedBigintType:
+		biv := xv.V.(BigintValue)
+		xv.V = BigintValue{V: new(big.Int).Neg(biv.V)}
+	case UntypedBigdecType:
+		bdv := xv.V.(BigdecValue)
+		xv.V = BigdecValue{V: apd.New(0, 0).Neg(bdv.V)}
 	case nil:
 		// NOTE: for now only BigintValue is possible.
-		bv := xv.V.(BigintValue)
-		xv.V = BigintValue{V: new(big.Int).Neg(bv.V)}
+		biv := xv.V.(BigintValue)
+		xv.V = BigintValue{V: new(big.Int).Neg(biv.V)}
 	default:
 		panic(fmt.Sprintf("unexpected type %s in operation",
 			baseOf(xv.T)))
@@ -77,7 +78,7 @@ func (m *Machine) doOpUnot() {
 	case BoolType, UntypedBoolType:
 		xv.SetBool(!xv.GetBool())
 	default:
-		panic(fmt.Sprintf("unexpected type %s in operation",
+		panic(fmt.Sprintf("unexpected type %v in operation",
 			baseOf(xv.T)))
 	}
 }
@@ -111,9 +112,9 @@ func (m *Machine) doOpUxor() {
 		xv.SetUint32(^xv.GetUint32())
 	case Uint64Type:
 		xv.SetUint64(^xv.GetUint64())
-	case UntypedBigintType, BigintType:
-		// XXX can it even be implemented?
-		panic("not yet implemented")
+	case UntypedBigintType:
+		bv := xv.V.(BigintValue)
+		xv.V = BigintValue{V: new(big.Int).Not(bv.V)}
 	default:
 		panic(fmt.Sprintf("unexpected type %s in operation",
 			baseOf(xv.T)))

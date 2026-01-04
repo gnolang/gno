@@ -7,17 +7,24 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 )
 
+// for tests
+var skipExternalTools bool
+
 func runTool(importPath string) error {
+	if skipExternalTools {
+		return nil
+	}
 	shortName := path.Base(importPath)
 	gr := gitRoot()
 
 	cmd := exec.Command(
 		"go", "run", "-modfile", filepath.Join(gr, "misc/devdeps/go.mod"),
-		importPath, "-w", "native.go",
+		importPath, "-w", outputFile,
 	)
 	_, err := cmd.Output()
 	if err != nil {
@@ -63,7 +70,7 @@ func findDirs() (gitRoot string, relPath string, err error) {
 	}
 	p := wd
 	for {
-		if s, e := os.Stat(filepath.Join(p, ".git")); e == nil && s.IsDir() {
+		if _, e := os.Stat(filepath.Join(p, ".git")); e == nil {
 			// make relPath relative to the git root
 			rp := strings.TrimPrefix(wd, p+string(filepath.Separator))
 			// normalize separator to /
@@ -116,4 +123,12 @@ func pkgNameFromPath(path string) string {
 			(r < '0' || r > '9')
 	})
 	return ns + "_" + strings.Join(flds, "_")
+}
+
+func mustUnquote(v string) string {
+	s, err := strconv.Unquote(v)
+	if err != nil {
+		panic(fmt.Errorf("could not unquote import path literal: %s", v))
+	}
+	return s
 }

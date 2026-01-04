@@ -1,0 +1,34 @@
+name: go.mod Tidy Checker
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+  pull_request:
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+  workflow_dispatch:
+
+jobs:
+  main:
+    name: Ensure go.mods are tidied
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Check go.mod files are up to date
+        working-directory: ${{ inputs.modulepath }}
+        run: |
+          make tidy VERIFY_MOD_SUMS=true

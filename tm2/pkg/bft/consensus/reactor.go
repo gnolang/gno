@@ -26,16 +26,13 @@ const (
 	VoteSetBitsChannel = byte(0x23)
 
 	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
-
-	blocksToContributeToBecomeGoodPeer = 10000
-	votesToContributeToBecomeGoodPeer  = 10000
 )
 
 // -----------------------------------------------------------------------------
 
 // ConsensusReactor defines a reactor for the consensus service.
 type ConsensusReactor struct {
-	p2p.BaseReactor // BaseService + p2p.Switch
+	p2p.BaseReactor // BaseService + p2p.MultiplexSwitch
 
 	conS *ConsensusState
 
@@ -157,7 +154,7 @@ func (conR *ConsensusReactor) GetChannels() []*p2p.ChannelDescriptor {
 }
 
 // InitPeer implements Reactor by creating a state for the peer.
-func (conR *ConsensusReactor) InitPeer(peer p2p.Peer) p2p.Peer {
+func (conR *ConsensusReactor) InitPeer(peer p2p.PeerConn) p2p.PeerConn {
 	peerState := NewPeerState(peer).SetLogger(conR.Logger)
 	peer.Set(types.PeerStateKey, peerState)
 	return peer
@@ -165,7 +162,7 @@ func (conR *ConsensusReactor) InitPeer(peer p2p.Peer) p2p.Peer {
 
 // AddPeer implements Reactor by spawning multiple gossiping goroutines for the
 // peer.
-func (conR *ConsensusReactor) AddPeer(peer p2p.Peer) {
+func (conR *ConsensusReactor) AddPeer(peer p2p.PeerConn) {
 	if !conR.IsRunning() {
 		return
 	}
@@ -187,7 +184,7 @@ func (conR *ConsensusReactor) AddPeer(peer p2p.Peer) {
 }
 
 // RemovePeer is a noop.
-func (conR *ConsensusReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
+func (conR *ConsensusReactor) RemovePeer(peer p2p.PeerConn, reason any) {
 	if !conR.IsRunning() {
 		return
 	}
@@ -205,7 +202,7 @@ func (conR *ConsensusReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 // Peer state updates can happen in parallel, but processing of
 // proposals, block parts, and votes are ordered by the receiveRoutine
 // NOTE: blocks on consensus state for proposals, block parts, and votes
-func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
+func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []byte) {
 	if !conR.IsRunning() {
 		conR.Logger.Debug("Receive", "src", src, "chId", chID, "bytes", msgBytes)
 		return
@@ -417,7 +414,7 @@ func (conR *ConsensusReactor) broadcastHasVoteMessage(vote *types.Vote) {
 	conR.Switch.Broadcast(StateChannel, amino.MustMarshalAny(msg))
 	/*
 		// TODO: Make this broadcast more selective.
-		for _, peer := range conR.Switch.Peers().List() {
+		for _, peer := range conR.MultiplexSwitch.Peers().List() {
 			ps, ok := peer.Get(PeerStateKey).(*PeerState)
 			if !ok {
 				panic(fmt.Sprintf("Peer %v has no state", peer))
@@ -446,13 +443,13 @@ func makeRoundStepMessage(event cstypes.EventNewRoundStep) (nrsMsg *NewRoundStep
 	return
 }
 
-func (conR *ConsensusReactor) sendNewRoundStepMessage(peer p2p.Peer) {
+func (conR *ConsensusReactor) sendNewRoundStepMessage(peer p2p.PeerConn) {
 	rs := conR.conS.GetRoundState()
 	nrsMsg := makeRoundStepMessage(rs.EventNewRoundStep())
 	peer.Send(StateChannel, amino.MustMarshalAny(nrsMsg))
 }
 
-func (conR *ConsensusReactor) gossipDataRoutine(peer p2p.Peer, ps *PeerState) {
+func (conR *ConsensusReactor) gossipDataRoutine(peer p2p.PeerConn, ps *PeerState) {
 	logger := conR.Logger.With("peer", peer)
 
 OUTER_LOOP:
@@ -547,7 +544,7 @@ OUTER_LOOP:
 }
 
 func (conR *ConsensusReactor) gossipDataForCatchup(logger *slog.Logger, rs *cstypes.RoundState,
-	prs *cstypes.PeerRoundState, ps *PeerState, peer p2p.Peer,
+	prs *cstypes.PeerRoundState, ps *PeerState, peer p2p.PeerConn,
 ) {
 	if index, ok := prs.ProposalBlockParts.Not().PickRandom(); ok {
 		// Ensure that the peer's PartSetHeader is correct
@@ -589,7 +586,7 @@ func (conR *ConsensusReactor) gossipDataForCatchup(logger *slog.Logger, rs *csty
 	time.Sleep(conR.conS.config.PeerGossipSleepDuration)
 }
 
-func (conR *ConsensusReactor) gossipVotesRoutine(peer p2p.Peer, ps *PeerState) {
+func (conR *ConsensusReactor) gossipVotesRoutine(peer p2p.PeerConn, ps *PeerState) {
 	logger := conR.Logger.With("peer", peer)
 
 	// Simple hack to throttle logs upon sleep.
@@ -644,13 +641,14 @@ OUTER_LOOP:
 			}
 		}
 
-		if sleeping == 0 {
+		switch sleeping {
+		case 0:
 			// We sent nothing. Sleep...
 			sleeping = 1
 			logger.Debug("No votes to send, sleeping", "rs.Height", rs.Height, "prs.Height", prs.Height,
 				"localPV", rs.Votes.Prevotes(rs.Round).BitArray(), "peerPV", prs.Prevotes,
 				"localPC", rs.Votes.Precommits(rs.Round).BitArray(), "peerPC", prs.Precommits)
-		} else if sleeping == 2 {
+		case 2:
 			// Continued sleep...
 			sleeping = 1
 		}
@@ -715,7 +713,7 @@ func (conR *ConsensusReactor) gossipVotesForHeight(logger *slog.Logger, rs *csty
 
 // NOTE: `queryMaj23Routine` has a simple crude design since it only comes
 // into play for liveness when there's a signature DDoS attack happening.
-func (conR *ConsensusReactor) queryMaj23Routine(peer p2p.Peer, ps *PeerState) {
+func (conR *ConsensusReactor) queryMaj23Routine(peer p2p.PeerConn, ps *PeerState) {
 	logger := conR.Logger.With("peer", peer)
 
 OUTER_LOOP:
@@ -824,15 +822,20 @@ func (conR *ConsensusReactor) peerStatsRoutine() {
 			}
 			switch msg.Msg.(type) {
 			case *VoteMessage:
-				if numVotes := ps.RecordVote(); numVotes%votesToContributeToBecomeGoodPeer == 0 {
-					// TODO: peer metrics.
-					// conR.Switch.MarkPeerAsGood(peer)
-				}
+				ps.RecordVote()
+
+				// votesToContributeToBecomeGoodPeer  = 10000
+				// if numVotes := ps.RecordVote(); numVotes%votesToContributeToBecomeGoodPeer == 0 {
+				// 	// TODO: peer metrics.
+				// 	// conR.MultiplexSwitch.MarkPeerAsGood(peer)
+				// }
 			case *BlockPartMessage:
-				if numParts := ps.RecordBlockPart(); numParts%blocksToContributeToBecomeGoodPeer == 0 {
-					// TODO: peer metrics.
-					// conR.Switch.MarkPeerAsGood(peer)
-				}
+				ps.RecordBlockPart()
+				// blocksToContributeToBecomeGoodPeer = 10000
+				// if numParts := ps.RecordBlockPart(); numParts%blocksToContributeToBecomeGoodPeer == 0 {
+				// 	// TODO: peer metrics.
+				// 	// conR.MultiplexSwitch.MarkPeerAsGood(peer)
+				// }
 			}
 		case <-conR.conS.Quit():
 			return
@@ -878,7 +881,7 @@ var (
 // NOTE: PeerStateExposed gets dumped with rpc/core/consensus.go.
 // Be mindful of what you Expose.
 type PeerState struct {
-	peer   p2p.Peer
+	peer   p2p.PeerConn
 	logger *slog.Logger
 
 	mtx sync.Mutex // NOTE: Modify below using setters, never directly.
@@ -886,7 +889,7 @@ type PeerState struct {
 }
 
 // NewPeerState returns a new PeerState for the given Peer
-func NewPeerState(peer p2p.Peer) *PeerState {
+func NewPeerState(peer p2p.PeerConn) *PeerState {
 	return &PeerState{
 		peer:   peer,
 		logger: log.NewNoopLogger(),
@@ -1112,7 +1115,8 @@ func (ps *PeerState) EnsureVoteBitArrays(height int64, numValidators int) {
 }
 
 func (ps *PeerState) ensureVoteBitArrays(height int64, numValidators int) {
-	if ps.PRS.Height == height {
+	switch ps.PRS.Height {
+	case height:
 		if ps.PRS.Prevotes == nil {
 			ps.PRS.Prevotes = bitarray.NewBitArray(numValidators)
 		}
@@ -1125,7 +1129,7 @@ func (ps *PeerState) ensureVoteBitArrays(height int64, numValidators int) {
 		if ps.PRS.ProposalPOL == nil {
 			ps.PRS.ProposalPOL = bitarray.NewBitArray(numValidators)
 		}
-	} else if ps.PRS.Height == height+1 {
+	case height + 1:
 		if ps.PRS.LastCommit == nil {
 			ps.PRS.LastCommit = bitarray.NewBitArray(numValidators)
 		}

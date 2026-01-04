@@ -1,0 +1,27 @@
+# Run gno tool transpile with gno files with an invalid import path
+
+! gno tool transpile .
+
+! stdout .+
+stderr '^main.gno:5:2: import "xxx" does not exist$'
+stderr '^sub/sub.gno:3:8: import "xxx" does not exist$'
+stderr '^2 transpile error\(s\)$'
+
+# no *.gen.go files are created
+! exec test -f main.gno.gen.go
+! exec test -f sub/sub.gno.gen.go
+
+-- main.gno --
+package main
+
+import (
+	"chain"
+	"xxx"
+)
+
+func main() {}
+
+-- sub/sub.gno --
+package sub
+
+import "xxx"

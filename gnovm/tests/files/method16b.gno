@@ -9,7 +9,7 @@ type Cheese struct {
 }
 
 func (t *Cheese) Hello(param string) {
-	fmt.Printf("%+v %+v", t, param)
+	fmt.Printf("%+v %+v\n", t, param)
 }
 
 func main() {

@@ -1,13 +1,19 @@
 name: Dependency License Scanning
 
 on:
-  workflow_dispatch:
-  pull_request:
+  push:
+    branches:
+      - master
     paths:
-      - ".github/.fossa.yml"
-      - ".github/workflows/fossa.yml"
-  schedule:
-    - cron: '0 0 * * 6' # At 00:00 on saturdays
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+  pull_request_target:
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,7 +25,7 @@ jobs:
     if: github.repository == 'gnolang/gno'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # we don't know what commit the last tag was it's safer to get entire repo so previousStableVersion resolves
           fetch-depth: 0
@@ -28,10 +34,10 @@ jobs:
         run: mv .github/.fossa.yml .
 
       - name: Cache Coursier cache
-        uses: coursier/cache-action@v6.4.5
+        uses: coursier/cache-action@6.4.7
 
       - name: Set up JDK 17
-        uses: coursier/setup-action@v1.3.5
+        uses: coursier/setup-action@v1.3.9
         with:
           jvm: temurin:1.17
 
@@ -47,4 +53,3 @@ jobs:
         run: fossa test
         env:
           FOSSA_API_KEY: "${{secrets.FOSSA_API_KEY}}"
-

@@ -1,0 +1,20 @@
+# testing simple gno lint command with any error
+
+gno lint .
+
+cmp stdout stdout.golden
+cmp stdout stderr.golden
+
+-- good_file.gno --
+package main
+
+func main() {
+	println("Hello", 42)
+}
+
+-- gnomod.toml --
+module = "no_error"
+gno = "0.9"
+
+-- stdout.golden --
+-- stderr.golden --

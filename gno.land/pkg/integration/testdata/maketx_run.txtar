@@ -1,0 +1,31 @@
+loadpkg gno.land/r/foobar/bar $WORK/bar
+
+## start a new node
+gnoland start
+
+## execute Render
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
+
+## compare render
+stdout 'main: --- hello from foo ---'
+stdout 'OK!'
+stdout 'GAS WANTED: 200000'
+stdout 'GAS USED: '
+stdout 'TX HASH: '
+
+-- bar/gnomod.toml --
+module = "gno.land/r/foobar/bar"
+gno = "0.9"
+
+-- bar/bar.gno --
+package bar
+
+func Render(path string) string {
+	return "hello from foo"
+}
+-- script/script.gno --
+package main
+import "gno.land/r/foobar/bar"
+func main() {
+	println("main: ---", bar.Render(""), "---")
+}

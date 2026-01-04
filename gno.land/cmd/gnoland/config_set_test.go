@@ -9,12 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 // initializeTestConfig initializes a default configuration
@@ -168,7 +170,7 @@ func TestConfig_Set_Base(t *testing.T) {
 			"db backend updated",
 			[]string{
 				"db_backend",
-				db.GoLevelDBBackend.String(),
+				db.PebbleDBBackend.String(),
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.DBBackend)
@@ -185,33 +187,23 @@ func TestConfig_Set_Base(t *testing.T) {
 			},
 		},
 		{
-			"validator key updated",
+			"validator sign state updated",
 			[]string{
-				"priv_validator_key_file",
+				"consensus.priv_validator.sign_state",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidatorKey)
+				assert.Equal(t, value, loadedCfg.Consensus.PrivValidator.SignState)
 			},
 		},
 		{
-			"validator state file updated",
+			"validator local signer updated",
 			[]string{
-				"priv_validator_state_file",
+				"consensus.priv_validator.local_signer",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidatorState)
-			},
-		},
-		{
-			"validator listen addr updated",
-			[]string{
-				"priv_validator_laddr",
-				"0.0.0.0:0",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidatorListenAddr)
+				assert.Equal(t, value, loadedCfg.Consensus.PrivValidator.LocalSigner)
 			},
 		},
 		{
@@ -242,19 +234,6 @@ func TestConfig_Set_Base(t *testing.T) {
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.ProfListenAddress)
-			},
-		},
-		{
-			"filter peers flag updated",
-			[]string{
-				"filter_peers",
-				"true",
-			},
-			func(loadedCfg *config.Config, value string) {
-				boolVal, err := strconv.ParseBool(value)
-				require.NoError(t, err)
-
-				assert.Equal(t, boolVal, loadedCfg.FilterPeers)
 			},
 		},
 	}
@@ -506,19 +485,6 @@ func TestConfig_Set_P2P(t *testing.T) {
 			},
 		},
 		{
-			"upnp toggle updated",
-			[]string{
-				"p2p.upnp",
-				"false",
-			},
-			func(loadedCfg *config.Config, value string) {
-				boolVal, err := strconv.ParseBool(value)
-				require.NoError(t, err)
-
-				assert.Equal(t, boolVal, loadedCfg.P2P.UPNP)
-			},
-		},
-		{
 			"max inbound peers updated",
 			[]string{
 				"p2p.max_num_inbound_peers",
@@ -588,20 +554,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 				boolVal, err := strconv.ParseBool(value)
 				require.NoError(t, err)
 
-				assert.Equal(t, boolVal, loadedCfg.P2P.PexReactor)
-			},
-		},
-		{
-			"seed mode updated",
-			[]string{
-				"p2p.seed_mode",
-				"false",
-			},
-			func(loadedCfg *config.Config, value string) {
-				boolVal, err := strconv.ParseBool(value)
-				require.NoError(t, err)
-
-				assert.Equal(t, boolVal, loadedCfg.P2P.SeedMode)
+				assert.Equal(t, boolVal, loadedCfg.P2P.PeerExchange)
 			},
 		},
 		{
@@ -612,39 +565,6 @@ func TestConfig_Set_P2P(t *testing.T) {
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.P2P.PrivatePeerIDs)
-			},
-		},
-		{
-			"allow duplicate IPs updated",
-			[]string{
-				"p2p.allow_duplicate_ip",
-				"false",
-			},
-			func(loadedCfg *config.Config, value string) {
-				boolVal, err := strconv.ParseBool(value)
-				require.NoError(t, err)
-
-				assert.Equal(t, boolVal, loadedCfg.P2P.AllowDuplicateIP)
-			},
-		},
-		{
-			"handshake timeout updated",
-			[]string{
-				"p2p.handshake_timeout",
-				"1s",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.P2P.HandshakeTimeout.String())
-			},
-		},
-		{
-			"dial timeout updated",
-			[]string{
-				"p2p.dial_timeout",
-				"1s",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.P2P.DialTimeout.String())
 			},
 		},
 	}
@@ -683,7 +603,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 				"0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.SplitN(value, ",", -1), loadedCfg.RPC.CORSAllowedOrigins)
+				assert.Equal(t, strings.Split(value, ","), loadedCfg.RPC.CORSAllowedOrigins)
 			},
 		},
 		{
@@ -693,7 +613,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 				"POST,GET",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.SplitN(value, ",", -1), loadedCfg.RPC.CORSAllowedMethods)
+				assert.Equal(t, strings.Split(value, ","), loadedCfg.RPC.CORSAllowedMethods)
 			},
 		},
 		{
@@ -703,7 +623,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 				"*",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.SplitN(value, ",", -1), loadedCfg.RPC.CORSAllowedHeaders)
+				assert.Equal(t, strings.Split(value, ","), loadedCfg.RPC.CORSAllowedHeaders)
 			},
 		},
 		{
@@ -882,6 +802,35 @@ func TestConfig_Set_Mempool(t *testing.T) {
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.Mempool.CacheSize))
+			},
+		},
+	}
+
+	verifySetTestTableCommon(t, testTable)
+}
+
+func TestConfig_Set_Application(t *testing.T) {
+	t.Parallel()
+
+	testTable := []testSetCase{
+		{
+			"min gas prices updated",
+			[]string{
+				"application.min_gas_prices",
+				"10foo/3gas",
+			},
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, value, loadedCfg.Application.MinGasPrices)
+			},
+		},
+		{
+			"prune strategy updated",
+			[]string{
+				"application.prune_strategy",
+				"everything",
+			},
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, types.PruneStrategy(value), loadedCfg.Application.PruneStrategy)
 			},
 		},
 	}

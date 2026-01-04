@@ -107,12 +107,12 @@ func TestWriteFileAtomicManyDuplicates(t *testing.T) {
 	)
 	// Initialize all of the atomic write files
 	atomicWriteFileRand = defaultSeed
-	for i := 0; i < atomicWriteFileMaxNumConflicts+2; i++ {
+	for i := range atomicWriteFileMaxNumConflicts + 2 {
 		fileRand := randWriteFileSuffix()
 		fname := "/tmp/" + atomicWriteFilePrefix + fileRand
 		f, err := os.OpenFile(fname, atomicWriteFileFlag, 0o777)
 		require.Nil(t, err)
-		f.WriteString(fmt.Sprintf(testString, i))
+		fmt.Fprintf(f, testString, i)
 		defer os.Remove(fname)
 	}
 
@@ -123,12 +123,12 @@ func TestWriteFileAtomicManyDuplicates(t *testing.T) {
 	WriteFileAtomic(fileToWrite, []byte(expectedString), 0o777)
 	// Check that all intermittent atomic file were untouched
 	atomicWriteFileRand = defaultSeed
-	for i := 0; i < atomicWriteFileMaxNumConflicts+2; i++ {
+	for i := range atomicWriteFileMaxNumConflicts + 2 {
 		fileRand := randWriteFileSuffix()
 		fname := "/tmp/" + atomicWriteFilePrefix + fileRand
 		firstAtomicFileBytes, err := os.ReadFile(fname)
 		require.Nil(t, err, "Error reading first atomic file")
-		require.Equal(t, []byte(fmt.Sprintf(testString, i)), firstAtomicFileBytes,
+		require.Equal(t, fmt.Appendf(nil, testString, i), firstAtomicFileBytes,
 			"atomic write file %d was overwritten", i)
 	}
 
