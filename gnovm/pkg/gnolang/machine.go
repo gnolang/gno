@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -23,10 +24,8 @@ import (
 
 type Machine struct {
 	// State
-	Ops           []Op // main operations
-	NumOps        int
+	Ops           []Op          // main operations
 	Values        []TypedValue  // buffer of values to be operated on
-	NumValues     int           // number of values
 	Exprs         []Expr        // pending expressions
 	Stmts         []Stmt        // pending statements
 	Blocks        []*Block      // block (scope) stack
@@ -83,6 +82,13 @@ type MachineOptions struct {
 	SkipPackage   bool // don't get/set package or realm.
 }
 
+const (
+	startingOpsCap = 1024
+	// sizeof(TypedValue) is 40 at time of writing; this ensures that the values
+	// slice occupies 1000 bytes by default.
+	startingValuesCap = 25
+)
+
 // the machine constructor gets spammed
 // this causes a significant part of the runtime and memory
 // to be occupied by *Machine
@@ -90,8 +96,8 @@ type MachineOptions struct {
 var machinePool = sync.Pool{
 	New: func() any {
 		return &Machine{
-			Ops:    make([]Op, VMSliceSize),
-			Values: make([]TypedValue, VMSliceSize),
+			Ops:    make([]Op, 0, startingOpsCap),
+			Values: make([]TypedValue, 0, startingValuesCap),
 		}
 	},
 }
@@ -110,18 +116,21 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	alloc := opts.Alloc
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes)
+		alloc = NewAllocator(opts.MaxAllocBytes) // allocator is nil if MaxAllocBytes is zero
 	}
 	store := opts.Store
 	if store == nil {
 		// bare store, no stdlibs.
 		store = NewStore(alloc, nil, nil)
+	} else if store.GetAllocator() == nil {
+		store.SetAllocator(alloc)
 	}
 	// Get machine from pool.
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
 	if mm.Alloc != nil {
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
+		mm.Alloc.SetGasMeter(vmGasMeter)
 	}
 	mm.Output = output
 	mm.Store = store
@@ -138,7 +147,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
 			pn := NewPackageNode(pkgName, opts.PkgPath, &FileSet{})
-			pv = pn.NewPackage()
+			pv = pn.NewPackage(mm.Alloc)
 			store.SetBlockNode(pn)
 			store.SetCachePackage(pv)
 		}
@@ -150,27 +159,15 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	return mm
 }
 
-const (
-	VMSliceSize = 1024
-)
-
-var (
-	opZeroed    [VMSliceSize]Op
-	valueZeroed [VMSliceSize]TypedValue
-)
-
 // Release resets some of the values of *Machine and puts back m into the
 // machine pool; for this reason, Release() should be called as a finalizer,
 // and m should not be used after this call. Only Machines initialized with this
 // package's constructors should be released.
 func (m *Machine) Release() {
 	// here we zero in the values for the next user
-	m.NumOps = 0
-	m.NumValues = 0
-
-	ops, values := m.Ops[:VMSliceSize:VMSliceSize], m.Values[:VMSliceSize:VMSliceSize]
-	copy(ops, opZeroed[:])
-	copy(values, valueZeroed[:])
+	ops, values := m.Ops[:0:startingOpsCap], m.Values[:0:startingValuesCap]
+	clear(ops[:startingOpsCap])
+	clear(values[:startingValuesCap])
 	*m = Machine{Ops: ops, Values: values}
 
 	machinePool.Put(m)
@@ -199,7 +196,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
 		mpkg = MPFProd.FilterMemPackage(mpkg)
-		fset := ParseMemPackage(mpkg)
+		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
@@ -216,10 +213,9 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		// TODO: is this right?
 		if pn.FileSet == nil {
 			pn.FileSet = fset
-		} else {
-			// This happens for non-realm file tests.
-			// TODO ensure the files are the same.
 		}
+		// pn.FileSet != nil happens for non-realm file tests.
+		// TODO ensure the files are the same.
 	}
 }
 
@@ -235,7 +231,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	if bm.OpsEnabled || bm.StorageEnabled {
+	if bm.OpsEnabled || bm.StorageEnabled || bm.NativeEnabled {
 		bm.InitMeasure()
 	}
 	if bm.StorageEnabled {
@@ -270,7 +266,13 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	// sort mpkg.
 	mpkg.Sort()
 	// parse files.
-	files := ParseMemPackageAsType(mpkg, mptype)
+	files := m.ParseMemPackageAsType(mpkg, mptype)
+	mod, err := gnomod.ParseMemPackage(mpkg)
+	private := false
+	if err == nil && mod != nil {
+		private = mod.Private
+	}
+
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -280,7 +282,8 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
-		pv = pn.NewPackage()
+		pv = pn.NewPackage(m.Alloc)
+		pv.SetPrivate(private)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 	}
@@ -471,6 +474,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if rlm != nil {
 		pb := pv.GetBlock(m.Store)
 		for _, update := range updates {
+			// XXX simplify.
 			if hiv, ok := update.V.(*HeapItemValue); ok {
 				rlm.DidUpdate(pb, nil, hiv)
 			} else {
@@ -485,7 +489,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 }
 
 // PreprocessFiles runs Preprocess on the given files. It is used to detect
-// compile-time errors in the package. It is also usde to preprocess files from
+// compile-time errors in the package. It is also used to preprocess files from
 // the package getter for tests, e.g. from "gnovm/tests/files/extern/*", or from
 // "examples/*".
 //   - fixFrom: the version of gno to fix from.
@@ -499,7 +503,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	if fixFrom != "" {
 		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
 	}
-	pv := pn.NewPackage()
+	pv := pn.NewPackage(nilAllocator)
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
@@ -518,7 +522,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		pv.AddFileBlock(fn.FileName, fb)
 	}
 	// Get new values across all files in package.
-	pn.PrepareNewValues(pv)
+	pn.PrepareNewValues(nilAllocator, pv)
 	// save package value.
 	var throwaway *Realm
 	if save {
@@ -603,7 +607,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	}
 
 	// Get new values across all files in package.
-	updates := pn.PrepareNewValues(pv)
+	updates := pn.PrepareNewValues(m.Alloc, pv)
 
 	// to detect loops in var declarations.
 	loopfindr := []Name{}
@@ -818,13 +822,12 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 			Ss(
 				Return(x),
 			)))
-	} else {
-		// x already creates its own scope.
 	}
+	// else,x already creates its own scope.
 	// Preprocess x.
 	x = Preprocess(m.Store, last, x).(Expr)
 	// Evaluate x.
-	start := m.NumValues
+	start := len(m.Values)
 	m.PushOp(OpHalt)
 	m.PushExpr(x)
 	m.PushOp(OpEval)
@@ -849,7 +852,7 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
 	// Evaluate x.
-	start := m.NumValues
+	start := len(m.Values)
 	m.PushOp(OpHalt)
 	m.PushOp(OpPopBlock)
 	m.PushExpr(x)
@@ -880,7 +883,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
 	// Evaluate x.
-	start := m.NumValues
+	start := len(m.Values)
 	m.PushOp(OpHalt)
 	m.PushOp(OpPopBlock)
 	m.PushExpr(x)
@@ -947,7 +950,7 @@ func (m *Machine) RunDeclaration(d Decl) {
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
 	d = Preprocess(m.Store, pn, d).(Decl)
 	// do not SaveBlockNodes(m.Store, d).
-	pn.PrepareNewValues(m.Package)
+	pn.PrepareNewValues(m.Alloc, m.Package)
 	m.runDeclaration(d)
 	if debug {
 		if pn != m.Package.GetBlock(m.Store).GetSource(m.Store) {
@@ -1129,7 +1132,7 @@ const (
 	OpCPUPrecall             = 207
 	OpCPUEnterCrossing       = 100 // XXX
 	OpCPUCall                = 256
-	OpCPUCallNativeBody      = 424
+	OpCPUCallNativeBody      = 424 // Todo benchmark this properly
 	OpCPUDefer               = 64
 	OpCPUCallDeferNativeBody = 33
 	OpCPUGo                  = 1 // Not yet implemented
@@ -1250,6 +1253,12 @@ func (m *Machine) Run(st Stage) {
 		defer func() {
 			// output each machine run results to file
 			bm.FinishRun()
+		}()
+	}
+	if bm.NativeEnabled {
+		defer func() {
+			// output each machine run results to file
+			bm.FinishNative()
 		}()
 	}
 	defer func() {
@@ -1613,36 +1622,28 @@ func (m *Machine) PushOp(op Op) {
 	if debug {
 		m.Printf("+o %v\n", op)
 	}
-	if len(m.Ops) == m.NumOps {
-		// TODO tune. also see PushValue().
-		newOps := make([]Op, len(m.Ops)*2)
-		copy(newOps, m.Ops)
-		m.Ops = newOps
-	}
 
-	m.Ops[m.NumOps] = op
-	m.NumOps++
+	m.Ops = append(m.Ops, op)
 }
 
 func (m *Machine) PopOp() Op {
-	numOps := m.NumOps
-	op := m.Ops[numOps-1]
+	op := m.Ops[len(m.Ops)-1]
 	if debug {
 		m.Printf("-o %v\n", op)
 	}
 	if OpSticky <= op {
 		// do not pop persistent op types.
 	} else {
-		m.NumOps--
+		m.Ops = m.Ops[:len(m.Ops)-1]
 	}
 	return op
 }
 
 func (m *Machine) ForcePopOp() {
 	if debug {
-		m.Printf("-o! %v\n", m.Ops[m.NumOps-1])
+		m.Printf("-o! %v\n", m.Ops[len(m.Ops)-1])
 	}
-	m.NumOps--
+	m.Ops = m.Ops[:len(m.Ops)-1]
 }
 
 // Offset starts at 1.
@@ -1732,18 +1733,18 @@ func (m *Machine) PopExpr() Expr {
 
 // Returns reference to value in Values stack.  Offset starts at 1.
 func (m *Machine) PeekValue(offset int) *TypedValue {
-	return &m.Values[m.NumValues-offset]
+	return &m.Values[len(m.Values)-offset]
 }
 
 // Returns a slice of the values stack.
 // Use or copy the result, as well as the slice.
 func (m *Machine) PeekValues(n int) []TypedValue {
-	return m.Values[m.NumValues-n : m.NumValues]
+	return m.Values[len(m.Values)-n : len(m.Values)]
 }
 
 // XXX delete?
 func (m *Machine) PeekType(offset int) Type {
-	return m.Values[m.NumValues-offset].T
+	return m.Values[len(m.Values)-offset].T
 }
 
 func (m *Machine) PushValueFromBlock(tv TypedValue) {
@@ -1757,24 +1758,16 @@ func (m *Machine) PushValue(tv TypedValue) {
 	if debug {
 		m.Printf("+v %v\n", tv)
 	}
-	if len(m.Values) == m.NumValues {
-		// TODO tune. also see PushOp().
-		newValues := make([]TypedValue, len(m.Values)*2)
-		copy(newValues, m.Values)
-		m.Values = newValues
-	}
-	m.Values[m.NumValues] = tv
-	m.NumValues++
-	return
+	m.Values = append(m.Values, tv)
 }
 
 // Resulting reference is volatile.
 func (m *Machine) PopValue() (tv *TypedValue) {
-	tv = &m.Values[m.NumValues-1]
+	tv = &m.Values[len(m.Values)-1]
 	if debug {
 		m.Printf("-v %v\n", tv)
 	}
-	m.NumValues--
+	m.Values = m.Values[:len(m.Values)-1]
 	return tv
 }
 
@@ -1785,14 +1778,14 @@ func (m *Machine) PopValue() (tv *TypedValue) {
 // NOTE: the values are in stack order, oldest first, the opposite order of
 // multiple pop calls.  This is used for params assignment, for example.
 func (m *Machine) PopValues(n int) []TypedValue {
+	popped := m.Values[len(m.Values)-n : len(m.Values)]
+	m.Values = m.Values[:len(m.Values)-n]
 	if debug {
-		for i := range n {
-			tv := m.Values[m.NumValues-n+i]
+		for i, tv := range popped {
 			m.Printf("-vs[%d/%d] %v\n", i, n, tv)
 		}
 	}
-	m.NumValues -= n
-	return m.Values[m.NumValues : m.NumValues+n]
+	return popped
 }
 
 // Like PopValues(), but copies the values onto given slice.
@@ -1811,17 +1804,17 @@ func (m *Machine) PopResults() {
 			m.PopValue()
 		}
 	} else {
-		m.NumValues -= m.NumResults
+		m.Values = m.Values[:len(m.Values)-m.NumResults]
 	}
 	m.NumResults = 0
 }
 
 // Pops values with index start or greater.
 func (m *Machine) ReapValues(start int) []TypedValue {
-	end := m.NumValues
+	end := len(m.Values)
 	rs := make([]TypedValue, end-start)
 	copy(rs, m.Values[start:end])
-	m.NumValues = start
+	m.Values = m.Values[:start]
 	return rs
 }
 
@@ -1854,8 +1847,8 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 	fr := Frame{
 		Label:     label,
 		Source:    s,
-		NumOps:    m.NumOps,
-		NumValues: m.NumValues,
+		NumOps:    len(m.Ops),
+		NumValues: len(m.Values),
 		NumExprs:  len(m.Exprs),
 		NumStmts:  len(m.Stmts),
 		NumBlocks: len(m.Blocks),
@@ -1875,13 +1868,13 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	if isDefer {
 		// defer frame calls do not get their args and func from the
 		// values stack (they were stored in fr.Defers).
-		numValues = m.NumValues
+		numValues = len(m.Values)
 	} else {
-		numValues = m.NumValues - cx.NumArgs - 1
+		numValues = len(m.Values) - cx.NumArgs - 1
 	}
 	fr := Frame{
 		Source:        cx,
-		NumOps:        m.NumOps,
+		NumOps:        len(m.Ops),
 		NumValues:     numValues,
 		NumExprs:      len(m.Exprs),
 		NumStmts:      len(m.Stmts),
@@ -1995,11 +1988,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				// Neither cross nor didswitch.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				if objpv.IsRealm() && objpv.Realm == nil {
-					rlm = m.Store.GetPackageRealm(objpv.PkgPath)
-				} else {
-					rlm = objpv.GetRealm()
-				}
+				rlm = objpv.GetRealm()
 				m.Realm = rlm
 				// DO NOT set DidCrossing here. Make
 				// DidCrossing only happen upon explicit
@@ -2043,8 +2032,8 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		// pop frames
 		m.Frames = m.Frames[:len(m.Frames)-depthFrames]
 		// reset
-		m.NumOps = fr.NumOps
-		m.NumValues = fr.NumValues
+		m.Ops = m.Ops[:fr.NumOps]
+		m.Values = m.Values[:fr.NumValues]
 		m.Exprs = m.Exprs[:fr.NumExprs]
 		m.Stmts = m.Stmts[:fr.NumStmts]
 		m.Blocks = m.Blocks[:fr.NumBlocks]
@@ -2061,8 +2050,8 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 
 func (m *Machine) PopFrameAndReset() {
 	fr := m.PopFrame()
-	m.NumOps = fr.NumOps
-	m.NumValues = fr.NumValues
+	m.Ops = m.Ops[:fr.NumOps]
+	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
 	m.Blocks = m.Blocks[:fr.NumBlocks]
@@ -2079,14 +2068,14 @@ func (m *Machine) PopFrameAndReturn() {
 	}
 	rtypes := fr.Func.GetType(m.Store).Results
 	numRes := len(rtypes)
-	m.NumOps = fr.NumOps
+	m.Ops = m.Ops[:fr.NumOps]
 	m.NumResults = numRes
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
 	m.Blocks = m.Blocks[:fr.NumBlocks]
 	// shift and convert results to typed-nil if undefined and not iface
 	// kind.  and not func result type isn't interface kind.
-	resStart := m.NumValues - numRes
+	resStart := len(m.Values) - numRes
 	for i := range numRes {
 		res := m.Values[resStart+i]
 		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
@@ -2094,7 +2083,7 @@ func (m *Machine) PopFrameAndReturn() {
 		}
 		m.Values[fr.NumValues+i] = res
 	}
-	m.NumValues = fr.NumValues + numRes
+	m.Values = m.Values[:fr.NumValues+numRes]
 	m.Package = fr.LastPackage
 	m.Realm = fr.LastRealm
 	if m.Exception != nil {
@@ -2109,8 +2098,8 @@ func (m *Machine) PopFrameAndReturn() {
 
 func (m *Machine) PeekFrameAndContinueFor() {
 	fr := m.LastFrame()
-	m.NumOps = fr.NumOps + 1
-	m.NumValues = fr.NumValues
+	m.Ops = m.Ops[:fr.NumOps+1]
+	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
@@ -2120,8 +2109,8 @@ func (m *Machine) PeekFrameAndContinueFor() {
 
 func (m *Machine) PeekFrameAndContinueRange() {
 	fr := m.LastFrame()
-	m.NumOps = fr.NumOps + 1
-	m.NumValues = fr.NumValues + 1
+	m.Ops = m.Ops[:fr.NumOps+1]
+	m.Values = m.Values[:fr.NumValues+1]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
@@ -2243,28 +2232,32 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	return pv
 }
 
-// Returns true if tv is N_Readonly or, its "first object" resides in a
-// different non-zero realm. Returns false for non-N_Readonly StringValue, free
-// floating pointers, and unreal objects.
+// Returns true iff:
+//   - m.Realm is nil (single user mode), or
+//   - tv is a ref to (external) package path, or
+//   - tv is N_Readonly, or
+//   - tv is not an object ("first object" ID is zero), or
+//   - tv is an unreal object (no object id), or
+//   - tv is an object residing in external realm
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
+	// Returns true iff:
+	//  - m.Realm is nil (single user mode)
 	if m.Realm == nil {
 		return false
 	}
-	if tv.IsReadonly() {
-		return true
+	//  - tv is a ref to package path
+	if rv, ok := tv.V.(RefValue); ok && rv.PkgPath != "" {
+		if rv.PkgPath == m.Package.PkgPath {
+			return false // local package
+		} else {
+			return true // external package
+		}
 	}
-	tvoid, ok := tv.GetFirstObjectID()
-	if !ok {
-		// e.g. if tv is a string, or free floating pointers.
-		return false
-	}
-	if tvoid.IsZero() {
-		return false
-	}
-	if tvoid.PkgID != m.Realm.ID {
-		return true
-	}
-	return false
+	//   - tv is N_Readonly, or
+	//   - tv is not an object ("first object" ID is zero), or
+	//   - tv is an unreal object (no object id), or
+	//   - tv is an object residing in external realm
+	return tv.IsReadonlyBy(m.Realm.ID)
 }
 
 // Returns ro = true if the base is readonly,
@@ -2291,7 +2284,8 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		pv = xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+
 		ro = m.IsReadonly(xv)
 	case *SelectorExpr:
 		xv := m.PopValue()
@@ -2319,9 +2313,9 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 // for testing.
 func (m *Machine) CheckEmpty() error {
 	found := ""
-	if m.NumOps > 0 {
+	if len(m.Ops) > 0 {
 		found = "op"
-	} else if m.NumValues > 0 {
+	} else if len(m.Values) > 0 {
 		found = "value"
 	} else if len(m.Exprs) > 0 {
 		found = "expr"
@@ -2346,6 +2340,10 @@ func (m *Machine) CheckEmpty() error {
 	} else {
 		return nil
 	}
+}
+
+func (m *Machine) PanicString(ex string) {
+	m.Panic(typedString(ex))
 }
 
 // This function does go-panic.
@@ -2437,7 +2435,7 @@ func (m *Machine) Println(args ...any) {
 			_, file, line, _ := runtime.Caller(2) // get caller info
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-			s := prefix + strings.Repeat("|", m.NumOps)
+			s := prefix + strings.Repeat("|", len(m.Ops))
 			fmt.Println(append([]any{s}, args...)...)
 		}
 	}
@@ -2449,7 +2447,7 @@ func (m *Machine) Printf(format string, args ...any) {
 			_, file, line, _ := runtime.Caller(2) // get caller info
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-			s := prefix + strings.Repeat("|", m.NumOps)
+			s := prefix + strings.Repeat("|", len(m.Ops))
 			fmt.Printf(s+" "+format, args...)
 		}
 	}
@@ -2462,7 +2460,7 @@ func (m *Machine) String() string {
 	// Calculate some reasonable total length to avoid reallocation
 	// Assuming an average length of 32 characters per string
 	var (
-		vsLength         = m.NumValues * 32
+		vsLength         = len(m.Values) * 32
 		ssLength         = len(m.Stmts) * 32
 		xsLength         = len(m.Exprs) * 32
 		bsLength         = 1024
@@ -2474,8 +2472,8 @@ func (m *Machine) String() string {
 	var sb strings.Builder
 	builder := &sb // Pointer for use in fmt.Fprintf.
 	builder.Grow(totalLength)
-	fmt.Fprintf(builder, "Machine:\n    Stage: %v\n    Op: %v\n    Values: (len: %d)\n", m.Stage, m.Ops[:m.NumOps], m.NumValues)
-	for i := m.NumValues - 1; i >= 0; i-- {
+	fmt.Fprintf(builder, "Machine:\n    Stage: %v\n    Op: %v\n    Values: (len: %d)\n", m.Stage, m.Ops[:len(m.Ops)], len(m.Values))
+	for i := len(m.Values) - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Values[i])
 	}
 	builder.WriteString("    Exprs:\n")
@@ -2504,15 +2502,8 @@ func (m *Machine) String() string {
 		}
 		// Update b
 		switch bp := b.Parent.(type) {
-		case nil:
-			b = nil
-		case *Block:
-			b = bp
 		case RefValue:
 			fmt.Fprintf(builder, "            (block ref %v)\n", bp.ObjectID)
-			b = nil
-		default:
-			panic("should not happen")
 		}
 	}
 	builder.WriteString("    Blocks (other):\n")

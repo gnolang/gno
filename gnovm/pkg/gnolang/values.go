@@ -12,6 +12,7 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -201,7 +202,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 	case nil:
 		return nil
 	case RefValue:
-		base := store.GetObject(cbase.ObjectID).(Object)
+		base := store.GetObject(cbase.ObjectID)
 		pv.Base = base
 		return base
 	case Object:
@@ -656,14 +657,14 @@ func (ml MapList) MarshalAmino() (MapListImage, error) {
 func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 	for i, item := range mlimg.List {
 		if i == 0 {
-			// init case
 			ml.Head = item
-		}
-		item.Prev = ml.Tail
-		if ml.Tail != nil {
+			ml.Tail = item
+			item.Prev = nil
+		} else {
+			item.Prev = ml.Tail
 			ml.Tail.Next = item
+			ml.Tail = item
 		}
-		ml.Tail = item
 		ml.Size++
 	}
 	return nil
@@ -680,11 +681,11 @@ func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 	}
 	if ml.Head == nil {
 		ml.Head = item
-	}
-	if ml.Tail != nil {
+		ml.Tail = item
+	} else {
 		ml.Tail.Next = item
+		ml.Tail = item
 	}
-	ml.Tail = item
 	ml.Size++
 	return item
 }
@@ -722,20 +723,27 @@ func (mv *MapValue) GetLength() int {
 
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
-func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
+func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedValue) PointerValue {
 	// If NaN, instead of computing map key, just append to List.
-	kmk := key.ComputeMapKey(store, false)
-	if mli, ok := mv.vmap[kmk]; ok {
-		return PointerValue{
-			TV:    fillValueTV(store, &mli.Value),
-			Base:  mv,
-			Index: PointerIndexMap,
+	kmk, isNaN := key.ComputeMapKey(store, false)
+	if !isNaN {
+		if mli, ok := mv.vmap[kmk]; ok {
+			// When assigning to a map item, the key is always equal to that of the
+			// last assignment; this is mostly noticeable in the case of -0 / 0:
+			// https://go.dev/play/p/iNPDR4FQlRv
+			mli.Key = key
+			return PointerValue{
+				TV:    &mli.Value,
+				Base:  mv,
+				Index: PointerIndexMap,
+			}
 		}
 	}
-	mli := mv.List.Append(alloc, *key)
+	mli := mv.List.Append(alloc, key)
+
 	mv.vmap[kmk] = mli
 	return PointerValue{
-		TV:    fillValueTV(store, &mli.Value),
+		TV:    &mli.Value,
 		Base:  mv,
 		Index: PointerIndexMap,
 	}
@@ -745,7 +753,10 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 // doesn't exist.
 func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
 	// If key is NaN, return default
-	kmk := key.ComputeMapKey(store, false)
+	kmk, isNaN := key.ComputeMapKey(store, false)
+	if isNaN {
+		return
+	}
 	if mli, exists := mv.vmap[kmk]; exists {
 		fillValueTV(store, &mli.Value)
 		val, ok = mli.Value, true
@@ -755,7 +766,10 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 
 func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
 	// if key is NaN, do nothing.
-	kmk := key.ComputeMapKey(store, false)
+	kmk, isNaN := key.ComputeMapKey(store, false)
+	if isNaN {
+		return
+	}
 	if mli, ok := mv.vmap[kmk]; ok {
 		mv.List.Remove(mli)
 		delete(mv.vmap, kmk)
@@ -781,16 +795,22 @@ type PackageValue struct {
 	FNames     []string
 	FBlocks    []Value
 	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
+	Private    bool
 	// NOTE: Realm is persisted separately.
 
 	fBlocksMap map[string]*Block
 }
+
+// See PackageNode.NewPackage() for PackageValue constructor.
+// Do not uncomment; always use PackageNode.NewPackage().
+// func NewPackageValue() {}
 
 // IsRealm returns true if pv represents a realm.
 func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
 
+// XXX, pass in allocator
 func (pv *PackageValue) getFBlocksMap() map[string]*Block {
 	if pv.fBlocksMap == nil {
 		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
@@ -885,6 +905,10 @@ func (pv *PackageValue) SetRealm(rlm *Realm) {
 	pv.Realm = rlm
 }
 
+func (pv *PackageValue) SetPrivate(private bool) {
+	pv.Private = private
+}
+
 // Convenience.
 func (pv *PackageValue) GetPackageNode(store Store) *PackageNode {
 	return pv.GetBlock(store).GetSource(store).(*PackageNode)
@@ -893,6 +917,10 @@ func (pv *PackageValue) GetPackageNode(store Store) *PackageNode {
 // Convenience
 func (pv *PackageValue) GetPkgAddr() crypto.Address {
 	return DerivePkgCryptoAddr(pv.PkgPath)
+}
+
+func (pv *PackageValue) GetPkgStorageDepositAddr() crypto.Address {
+	return DeriveStorageDepositCryptoAddr(pv.PkgPath)
 }
 
 // ----------------------------------------
@@ -967,8 +995,11 @@ func (tv *TypedValue) IsTypedNil() bool {
 	if tv.V != nil {
 		return false
 	}
-	if tv.T != nil && tv.T.Kind() == PointerKind {
-		return true
+	if tv.T != nil {
+		switch tv.T.Kind() {
+		case SliceKind, FuncKind, MapKind, InterfaceKind, PointerKind, ChanKind:
+			return true
+		}
 	}
 	return false
 }
@@ -981,13 +1012,25 @@ func (tv *TypedValue) IsNilInterface() bool {
 		}
 		if debug {
 			if tv.N != [8]byte{} {
-				panic(fmt.Sprintf(
-					"corrupted TypeValue (nil interface)"))
+				panic("corrupted TypeValue (nil interface)")
 			}
 		}
 		return false
 	}
 	return false
+}
+
+func (tv *TypedValue) IsNaN() bool {
+	switch tv.T.Kind() {
+	case Float32Kind:
+		_, _, _, _, nan := softfloat.Funpack32(tv.GetFloat32())
+		return nan
+	case Float64Kind:
+		_, _, _, _, nan := softfloat.Funpack64(tv.GetFloat64())
+		return nan
+	default:
+		return false
+	}
 }
 
 func (tv *TypedValue) HasKind(k Kind) bool {
@@ -1056,63 +1099,36 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 }
 
 // Returns encoded bytes for primitive values.
-// These bytes are used for both value hashes as well
-// as hash key bytes.
-func (tv *TypedValue) PrimitiveBytes() (data []byte) {
+// These are used for computing map keys.
+func (tv *TypedValue) PrimitiveBytes(bz []byte) []byte {
 	switch bt := baseOf(tv.T); bt {
 	case BoolType:
 		if tv.GetBool() {
-			return []byte{0x01}
+			return append(bz, 0x01)
 		}
-		return []byte{0x00}
+		return append(bz, 0x00)
 	case StringType:
-		return []byte(tv.GetString())
+		return append(bz, tv.GetString()...)
 	case Int8Type:
-		return []byte{uint8(tv.GetInt8())}
+		return append(bz, uint8(tv.GetInt8()))
 	case Int16Type:
-		data = make([]byte, 2)
-		binary.LittleEndian.PutUint16(
-			data, uint16(tv.GetInt16()))
-		return data
+		return binary.LittleEndian.AppendUint16(bz, uint16(tv.GetInt16()))
 	case Int32Type:
-		data = make([]byte, 4)
-		binary.LittleEndian.PutUint32(
-			data, uint32(tv.GetInt32()))
-		return data
+		return binary.LittleEndian.AppendUint32(bz, uint32(tv.GetInt32()))
 	case IntType, Int64Type:
-		data = make([]byte, 8)
-		binary.LittleEndian.PutUint64(
-			data, uint64(tv.GetInt()))
-		return data
+		return binary.LittleEndian.AppendUint64(bz, uint64(tv.GetInt()))
 	case Uint8Type:
-		return []byte{tv.GetUint8()}
+		return append(bz, tv.GetUint8())
 	case Uint16Type:
-		data = make([]byte, 2)
-		binary.LittleEndian.PutUint16(
-			data, tv.GetUint16())
-		return data
+		return binary.LittleEndian.AppendUint16(bz, tv.GetUint16())
 	case Uint32Type:
-		data = make([]byte, 4)
-		binary.LittleEndian.PutUint32(
-			data, tv.GetUint32())
-		return data
+		return binary.LittleEndian.AppendUint32(bz, tv.GetUint32())
 	case UintType, Uint64Type:
-		data = make([]byte, 8)
-		binary.LittleEndian.PutUint64(
-			data, tv.GetUint())
-		return data
+		return binary.LittleEndian.AppendUint64(bz, tv.GetUint())
 	case Float32Type:
-		data = make([]byte, 4)
-		u32 := tv.GetFloat32()
-		binary.LittleEndian.PutUint32(
-			data, u32)
-		return data
+		return binary.LittleEndian.AppendUint32(bz, tv.GetFloat32())
 	case Float64Type:
-		data = make([]byte, 8)
-		u64 := tv.GetFloat64()
-		binary.LittleEndian.PutUint64(
-			data, u64)
-		return data
+		return binary.LittleEndian.AppendUint64(bz, tv.GetFloat64())
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
@@ -1520,7 +1536,13 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 	}
 }
 
-func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
+// ComputeMapKey returns the value of tv, encoded as a string for usage inside
+// of a map.
+//
+// isNaN returns whether tv, or any of the values contained within (like in an
+// array or struct) are NaN's; this would make the same tv != to itself, and
+// so shouldn't be included within a vmap.
+func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isNaN bool) {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -1528,7 +1550,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 				panic("should not happen")
 			}
 		}
-		return MapKey(nilStr)
+		return nilStr, false
 	}
 	// General case.
 	bz := make([]byte, 0, 64)
@@ -1538,12 +1560,41 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		pbz := tv.PrimitiveBytes()
-		bz = append(bz, pbz...)
+		const (
+			fourZeroes  = "\x00\x00\x00\x00"
+			eightZeroes = fourZeroes + fourZeroes
+		)
+		// For float types, return isNaN = true if there is a nan value,
+		// normalize to 0 if negative zero.
+		switch bt {
+		case Float32Type:
+			if tv.IsNaN() {
+				return "", true
+			}
+			if tv.GetFloat32() == (1 << 31) {
+				bz = append(bz, fourZeroes...)
+			} else {
+				bz = tv.PrimitiveBytes(bz)
+			}
+		case Float64Type:
+			if tv.IsNaN() {
+				return "", true
+			}
+			if tv.GetFloat64() == (1 << 63) {
+				bz = append(bz, eightZeroes...)
+			} else {
+				bz = tv.PrimitiveBytes(bz)
+			}
+		default:
+			bz = tv.PrimitiveBytes(bz)
+		}
 	case *PointerType:
-		fillValueTV(store, tv)
-		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
-		bz = append(bz, uintptrToBytes(&ptr)...)
+		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
+		if tv.V != nil {
+			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
+			ptrBytes = uintptrToBytes(&ptr)
+		}
+		bz = append(bz, ptrBytes[:]...)
 	case FieldType:
 		panic("field (pseudo)type cannot be used as map key")
 	case *ArrayType:
@@ -1554,7 +1605,11 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := range al {
 				ev := fillValueTV(store, &av.List[i])
-				bz = append(bz, ev.ComputeMapKey(store, omitTypes)...)
+				mk, isNaN := ev.ComputeMapKey(store, omitTypes)
+				if isNaN {
+					return "", true
+				}
+				bz = append(bz, mk...)
 				if i != al-1 {
 					bz = append(bz, ',')
 				}
@@ -1572,7 +1627,11 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		for i := range sl {
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
-			bz = append(bz, fv.ComputeMapKey(store, omitTypes)...)
+			mk, isNaN := fv.ComputeMapKey(store, omitTypes)
+			if isNaN {
+				return "", true
+			}
+			bz = append(bz, mk...)
 			if i != sl-1 {
 				bz = append(bz, ',')
 			}
@@ -1594,7 +1653,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 			"unexpected map key type %s",
 			tv.T.String()))
 	}
-	return MapKey(bz)
+	return MapKey(bz), false
 }
 
 // ----------------------------------------
@@ -1664,7 +1723,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 	// NOTE: path will be mutated.
 	// NOTE: this code segment similar to that in op_types.go
 	var dtv *TypedValue
-	var isPtr bool = false
+	isPtr := false
 	switch path.Type {
 	case VPField:
 		switch path.Depth {
@@ -1898,10 +1957,10 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
-	return tv.GetPointerAtIndex(nilAllocator, store, &iv)
+	return tv.GetPointerAtIndex(nilRealm, nilAllocator, store, &iv)
 }
 
-func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
+func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
@@ -1943,7 +2002,21 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 			panic(&Exception{Value: typedString("uninitialized map index")})
 		}
 		mv := tv.V.(*MapValue)
-		pv := mv.GetPointerForKey(alloc, store, iv)
+
+		// if a key is getting attached, we should update it with the new one,
+		// as that is the one that matters. this is mostly relevant for -0 / 0.
+		// https://github.com/gnolang/gno/pull/4114
+		var oldObject Object
+		key, isNaN := iv.ComputeMapKey(store, false)
+		if !isNaN {
+			k, ok := mv.vmap[key]
+			if ok {
+				oldObject = k.Key.GetFirstObject(store)
+			}
+		}
+
+		ivk := iv.Copy(alloc)
+		pv := mv.GetPointerForKey(alloc, store, ivk)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
@@ -1951,6 +2024,12 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 				*(pv.TV) = defaultTypedValue(nil, vt)
 			}
 		}
+		// attach mapkey object, if changed
+		newObject := ivk.GetFirstObject(store)
+		if oldObject != newObject {
+			rlm.DidUpdate(mv, oldObject, newObject)
+		}
+
 		return pv
 	default:
 		panic(fmt.Sprintf(
@@ -2094,9 +2173,9 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				V: alloc.NewString(tv.GetString()[low:high]),
 			}
 		}
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedString(
 			"non-string primitive type cannot be sliced",
-		))})
+		)})
 	case *ArrayType:
 		if tv.GetLength() < high {
 			panic(&Exception{Value: typedString(fmt.Sprintf(
@@ -2126,8 +2205,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		}
 		if tv.V == nil {
 			if low != 0 || high != 0 {
-				panic(&Exception{Value: typedString(fmt.Sprintf(
-					"nil slice index out of range"))})
+				panic(&Exception{Value: typedString("nil slice index out of range")})
 			}
 			return TypedValue{
 				T: tv.T,
@@ -2267,8 +2345,7 @@ type Block struct {
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
-// XXX pass allocator in for heap items.
-func NewBlock(source BlockNode, parent *Block) *Block {
+func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
 	numNames := source.GetNumNames()
 	values := make([]TypedValue, numNames)
 	// Keep in sync with ExpandWith().
@@ -2279,7 +2356,7 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 		// Indicates must always be heap item.
 		values[i] = TypedValue{
 			T: heapItemType{},
-			V: &HeapItemValue{},
+			V: alloc.NewHeapItem(TypedValue{}),
 		}
 	}
 	return &Block{
@@ -2489,24 +2566,37 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 	b.Source = source // otherwise new variables won't show in print or debugger.
 }
 
+// RefValue.PkgPath is set if the RefValue refers to a local package or an
+// external package and originates from a name by the preprocessor.  In this
+// case .ObjectID cannot be set because it may not yet be real.
 // NOTE: RefValue Object methods declared in ownership.go
 type RefValue struct {
-	ObjectID ObjectID  `json:",omitempty"`
-	Escaped  bool      `json:",omitempty"`
-	PkgPath  string    `json:",omitempty"`
-	Hash     ValueHash `json:",omitempty"`
+	ObjectID ObjectID  `json:",omitempty"` // If non-zero, PkgPath is empty
+	Escaped  bool      `json:",omitempty"` // XXX NOT USED DELETEME
+	PkgPath  string    `json:",omitempty"` // If set, ObjectID is non-zero
+	Hash     ValueHash `json:",omitempty"` // Set iff not escaped
 }
 
 func RefValueFromPackage(pv *PackageValue) RefValue {
 	return RefValue{PkgPath: pv.PkgPath}
 }
 
+// Returns .ObjectID.
+// Does not derive ObjectID from PkgPath if of form RefValue{PkgPath}.
+// TODO: consider splitting into another value type to prevent confusion.
 func (rv RefValue) GetObjectID() ObjectID {
+	if rv.PkgPath != "" {
+		panic("unexpected ref value of form RefValue{PkgPath}")
+	}
 	return rv.ObjectID
 }
 
 // Base for a detached singleton (e.g. new(int) or &struct{})
 // Conceptually like a Block that holds one value.
+// NOTE: It is possible for the value to be external
+// while the heap item itself is not; but this
+// should not be possible w/ blocks or struct values.
+// See test/files/zrealm_crossrealm25a.gno.
 // NOTE: could be renamed to HeapItemBaseValue.
 // See also note in realm.go about auto-unwrapping.
 type HeapItemValue struct {

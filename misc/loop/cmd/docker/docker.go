@@ -34,9 +34,7 @@ func (dh *DockerHandler) CheckPulledMasterImage(ctx context.Context) (bool, erro
 	}
 
 	// Get local image digest
-	if len(localImage.RepoDigests) < 0 {
-		return false, fmt.Errorf("unable to get a local digest")
-	} else if len(localImage.RepoDigests) == 0 {
+	if len(localImage.RepoDigests) == 0 {
 		// Assume it's locally built and not pulled
 		return true, nil
 	}
@@ -106,6 +104,7 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 			"MONIKER=the-staging-chain",
 			"GENESIS_BACKUP_FILE=/backups/backup.jsonl",
 			"GENESIS_BALANCES_FILE=/backups/balances.jsonl",
+			"FAUCET_ADDRESS=g1qhuef2450xh7g7na8s865nreu2xw8j84kgkvt5",
 		},
 		Entrypoint: []string{"/scripts/start.sh"},
 		ExposedPorts: nat.PortSet{

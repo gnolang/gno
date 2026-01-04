@@ -37,7 +37,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const nodeMaxLifespan = time.Second * 60
+const nodeMaxLifespan = time.Second * 120
 
 var defaultUserBalance = std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
 
@@ -51,6 +51,7 @@ const (
 	envKeyExecCommand
 	envKeyExecBin
 	envKeyBase
+	envKeyStdinBuffer
 )
 
 type commandkind int
@@ -199,6 +200,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 
 		env.Values[envKeyGenesis] = &genesis
 		env.Values[envKeyPkgsLoader] = NewPkgsLoader()
+		env.Values[envKeyStdinBuffer] = new(strings.Builder)
 
 		env.Setenv("GNOROOT", gnoRootDir)
 		env.Setenv("GNOHOME", gnoHomeDir)
@@ -227,6 +229,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		"patchpkg":    patchpkgCmd(),
 		"loadpkg":     loadpkgCmd(gnoRootDir),
 		"scanf":       loadpkgCmd(gnoRootDir),
+		"input":       inputCmd(),
 	}
 
 	// Initialize cmds map if needed
@@ -300,11 +303,12 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 
 			cfg.Genesis.AppState = genesis
 			if *nonVal {
-				pv := gnoland.NewMockedPrivValidator()
+				pv := bft.NewMockPV()
+				pvPubKey := pv.PubKey()
 				cfg.Genesis.Validators = []bft.GenesisValidator{
 					{
-						Address: pv.GetPubKey().Address(),
-						PubKey:  pv.GetPubKey(),
+						Address: pvPubKey.Address(),
+						PubKey:  pvPubKey,
 						Power:   10,
 						Name:    "none",
 					},
@@ -361,7 +365,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				break
 			}
 
-			if err := node.Stop(); err != nil {
+			if err = node.Stop(); err != nil {
 				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
 				break
 			}
@@ -394,7 +398,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				break
 			}
 
-			if err := node.Stop(); err != nil {
+			if err = node.Stop(); err != nil {
 				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
 				break
 			}
@@ -427,7 +431,13 @@ func gnokeyCmd(nodes *NodesManager) func(ts *testscript.TestScript, neg bool, ar
 		io.SetErr(commands.WriteNopCloser(ts.Stderr()))
 		cmd := keyscli.NewRootCmd(io, client.DefaultBaseOptions)
 
-		io.SetIn(strings.NewReader("\n"))
+		// Use stdin buffer if available, otherwise default to newline
+		if stdinBuf, ok := ts.Value(envKeyStdinBuffer).(*strings.Builder); ok && stdinBuf.Len() > 0 {
+			io.SetIn(strings.NewReader(stdinBuf.String()))
+			stdinBuf.Reset() // Clear buffer after use
+		} else {
+			io.SetIn(strings.NewReader("\n"))
+		}
 		defaultArgs := []string{
 			"-home", gnoHomeDir,
 			"-insecure-password-stdin=true",
@@ -807,6 +817,28 @@ func GeneratePrivKeyFromMnemonic(mnemonic, bip39Passphrase string, account, inde
 
 func getNodeSID(ts *testscript.TestScript) string {
 	return ts.Getenv("SID")
+}
+
+func inputCmd() func(ts *testscript.TestScript, neg bool, args []string) {
+	return func(ts *testscript.TestScript, neg bool, args []string) {
+		if neg {
+			ts.Fatalf("input command does not support negation")
+		}
+
+		if len(args) == 0 {
+			ts.Fatalf("input requires at least one argument")
+		}
+
+		// Get or create stdin buffer
+		stdinBuf, ok := ts.Value(envKeyStdinBuffer).(*strings.Builder)
+		if !ok {
+			ts.Fatalf("stdin buffer not initialized")
+		}
+
+		// Join all arguments with spaces and add newline
+		content := strings.Join(args, " ") + "\n"
+		stdinBuf.WriteString(content)
+	}
 }
 
 func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error) {

@@ -37,6 +37,8 @@ builds:
   - id: gnokey
     main: ./gno.land/cmd/gnokey
     binary: gnokey
+    ldflags:
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Version }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -68,7 +70,7 @@ builds:
       - amd64
       - arm64
   - id: gnodev
-    dir: ./contribs/gnodev/cmd/gnodev
+    dir: ./contribs/gnodev
     binary: gnodev
     ldflags:
       # using hardcoded ldflag
@@ -84,7 +86,7 @@ builds:
   # Gno Contribs
   # NOTE: Contribs binary will be added in a single docker image below: gnocontribs
   - id: gnobro
-    dir: ./contribs/gnodev/cmd/gnobro
+    dir: ./contribs/gnobro
     binary: gnobro
     env:
       - CGO_ENABLED=0
@@ -97,6 +99,17 @@ builds:
   - id: gnogenesis
     dir: ./contribs/gnogenesis
     binary: gnogenesis
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+  - id: gnokms
+    dir: ./contribs/gnokms
+    binary: gnokms
     env:
       - CGO_ENABLED=0
     goos:
@@ -208,6 +221,7 @@ dockers:
       - gno.land/genesis/genesis_txs.jsonl
       - examples
       - gnovm/stdlibs
+      - gnovm/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -229,6 +243,7 @@ dockers:
       - gno.land/genesis/genesis_txs.jsonl
       - examples
       - gnovm/stdlibs
+      - gnovm/tests/stdlibs
 
   # gnokey
   - use: buildx
@@ -354,6 +369,7 @@ dockers:
       - gno.land/genesis/genesis_txs.jsonl
       - examples
       - gnovm/stdlibs
+      - gnovm/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -375,6 +391,7 @@ dockers:
       - gno.land/genesis/genesis_txs.jsonl
       - examples
       - gnovm/stdlibs
+      - gnovm/tests/stdlibs
 
   # gnocontribs
   - use: buildx
@@ -394,6 +411,7 @@ dockers:
     ids:
       - gnobro
       - gnogenesis
+      - gnokms
     extra_files:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
@@ -416,6 +434,7 @@ dockers:
     ids:
       - gnobro
       - gnogenesis
+      - gnokms
     extra_files:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl

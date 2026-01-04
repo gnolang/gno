@@ -32,3 +32,6 @@ func main() {
 // Output:
 // hey
 // hru?
+-- gnomod.toml --
+module = "gno.test/p/integ/output_sync"
+gno = "0.9"

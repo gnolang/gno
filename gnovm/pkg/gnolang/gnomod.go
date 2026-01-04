@@ -1,15 +1,14 @@
 package gnolang
 
 import (
-	"bytes"
+	"cmp"
 	"fmt"
 	"html/template"
-	"io/fs"
-	"os"
-	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -20,22 +19,25 @@ to generate the final gnomod.toml file. */}}
 module = "{{.PkgPath}}"
 gno = "{{.GnoVersion}}"`
 
+var gnomodTemplateOnce = sync.OnceValue(func() *template.Template {
+	return template.Must(template.New("").Parse(gnomodTemplate))
+})
+
 func GenGnoModLatest(pkgPath string) string  { return genGnoMod(pkgPath, GnoVerLatest) }
 func GenGnoModTesting(pkgPath string) string { return genGnoMod(pkgPath, GnoVerTesting) }
 func GenGnoModDefault(pkgPath string) string { return genGnoMod(pkgPath, GnoVerDefault) }
 func GenGnoModMissing(pkgPath string) string { return genGnoMod(pkgPath, GnoVerMissing) }
 
 func genGnoMod(pkgPath string, gnoVersion string) string {
-	buf := new(bytes.Buffer)
-	tmpl := template.Must(template.New("").Parse(gnomodTemplate))
-	err := tmpl.Execute(buf, struct {
+	var bld strings.Builder
+	err := gnomodTemplateOnce().Execute(&bld, struct {
 		PkgPath    string
 		GnoVersion string
 	}{pkgPath, gnoVersion})
 	if err != nil {
 		panic(fmt.Errorf("generating gnomod.toml: %w", err))
 	}
-	return string(buf.Bytes())
+	return bld.String()
 }
 
 const (
@@ -70,83 +72,32 @@ func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 	} else if mod.Gno == GnoVerLatest {
 		// current version, nothing to do.
 	} else {
-		panic("unsupported gno version " + mod.Gno)
+		panic("unsupported gno version " + mod.Gno + " in package " + mpkg.Path)
 	}
 	return
 }
 
-// ========================================
-// ReadPkgListFromDir() lists all gno packages in the given dir directory.
-// `mptype` determines what subset of files are considered to read from.
-func ReadPkgListFromDir(dir string, mptype MemPackageType) (gnomod.PkgList, error) {
-	var pkgs []gnomod.Pkg
-
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !d.IsDir() {
-			return nil
-		}
-
-		for _, fname := range []string{"gnomod.toml", "gno.mod"} {
-			modPath := filepath.Join(path, fname)
-			data, err := os.ReadFile(modPath)
-			if os.IsNotExist(err) {
-				continue
-			}
-			if err != nil {
-				return err
-			}
-
-			mod, err := gnomod.ParseBytes(modPath, data)
-			if err != nil {
-				return fmt.Errorf("parse: %w", err)
-			}
-			mod.Sanitize()
-			if err := mod.Validate(); err != nil {
-				return fmt.Errorf("failed to validate gnomod.toml in %s: %w", modPath, err)
-			}
-
-			pkg, err := ReadMemPackage(path, mod.Module, mptype)
-			if err != nil {
-				// ignore package files on error
-				pkg = &std.MemPackage{}
-			}
-
-			importsMap, err := packages.Imports(pkg, nil)
-			if err != nil {
-				// ignore imports on error
-				importsMap = nil
-			}
-			importsRaw := importsMap.Merge(
-				packages.FileKindFiletest,
-				packages.FileKindPackageSource,
-				packages.FileKindTest,
-				packages.FileKindXTest,
-			)
-
-			imports := make([]string, 0, len(importsRaw))
-			for _, imp := range importsRaw {
-				// remove self and standard libraries from imports
-				if imp.PkgPath != mod.Module &&
-					!IsStdlib(imp.PkgPath) {
-					imports = append(imports, imp.PkgPath)
-				}
-			}
-
-			pkgs = append(pkgs, gnomod.Pkg{
-				Dir:     path,
-				Name:    mod.Module,
-				Ignore:  mod.Ignore,
-				Imports: imports,
-			})
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
+func CompareVersions(a, b string) (int, bool) {
+	amaj, amin, aok := cutAndConvert(a, ".")
+	bmaj, bmin, bok := cutAndConvert(b, ".")
+	if !aok || !bok {
+		return 0, false
 	}
+	if c := cmp.Compare(amaj, bmaj); c != 0 {
+		return c, true
+	}
+	return cmp.Compare(amin, bmin), true
+}
 
-	return pkgs, nil
+func cutAndConvert(s, sep string) (int, int, bool) {
+	x, y, ok := strings.Cut(s, sep)
+	if !ok {
+		return 0, 0, false
+	}
+	cx, errx := strconv.Atoi(x)
+	cy, erry := strconv.Atoi(y)
+	if errx != nil || erry != nil {
+		return 0, 0, false
+	}
+	return cx, cy, true
 }
