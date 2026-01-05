@@ -57,9 +57,10 @@ var (
 
 // FormMarkdown represents a block of custom markdown content embedded
 type FormMarkdown struct {
-	Raw   string	// Raw markdown content inside <gno-markdown>
-	Error error		// Parsing/Randering error (if any)
+	Raw   string // Raw markdown content inside <gno-markdown>
+	Error error  // Parsing/Randering error (if any)
 }
+
 func (e FormMarkdown) GetName() string { return "" }
 func (e FormMarkdown) GetError() error { return e.Error }
 func (e FormMarkdown) String() string {
