@@ -2,6 +2,7 @@ package subscriptions
 
 import (
 	"chain"
+	"strings"
 	"time"
 
 	"gno.land/p/nt/avl"
@@ -9,6 +10,20 @@ import (
 	"gno.land/p/nt/seqid"
 	"gno.land/r/samcrew/normalizedcoins"
 )
+
+const serviceKeySeparator = ":"
+
+func serviceKey(owner address, displayName string) string {
+	return owner.String() + serviceKeySeparator + displayName
+}
+
+func parseServiceKey(key string) (owner address, displayName string) {
+	idx := strings.Index(key, serviceKeySeparator)
+	if idx == -1 {
+		return "", ""
+	}
+	return address(key[:idx]), key[idx+1:]
+}
 
 type service struct {
 	id            seqid.ID
@@ -46,16 +61,16 @@ func (svc *service) subscriberCount() int {
 	return count
 }
 
-func mustGetServiceByName(displayName string) *service {
-	svc := getServiceByName(displayName)
+func mustGetService(key string) *service {
+	svc := getService(key)
 	if svc == nil {
 		panic("service not found")
 	}
 	return svc
 }
 
-func getServiceByName(displayName string) *service {
-	value, exists := services.Get(displayName)
+func getService(key string) *service {
+	value, exists := services.Get(key)
 	if !exists {
 		return nil
 	}

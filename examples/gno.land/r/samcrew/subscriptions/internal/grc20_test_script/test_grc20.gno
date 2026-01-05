@@ -17,6 +17,7 @@ import (
 // Example workflow:
 /*
 # Step 1: Create the service (this script)
+# Note: The service will be owned by the address of KEY
 gnokey maketx run \
   --gas-fee 1000000ugnot \
   --gas-wanted 100000000 \
@@ -55,10 +56,12 @@ gnokey maketx call \
   KEY
 
 # Step 4: Subscribe to the service with GRC20 tokens
+# Service key format: <OWNER_ADDRESS>:<SERVICE_NAME>
+# Replace <OWNER_ADDRESS> with the address of the service owner (from Step 1)
 gnokey maketx call \
   -pkgpath "gno.land/r/samcrew/subscriptions" \
   -func "Subscribe" \
-  -args "GRC20 Premium Plan" \
+  -args "<OWNER_ADDRESS>:GRC20 Premium Plan" \
   -args "gno.land/r/demo/defi/foo20" \
   -args "5000000" \
   --gas-fee 1000000ugnot \
@@ -73,7 +76,7 @@ gnokey maketx call \
 gnokey maketx call \
   -pkgpath "gno.land/r/samcrew/subscriptions" \
   -func "Topup" \
-  -args "GRC20 Premium Plan" \
+  -args "<OWNER_ADDRESS>:GRC20 Premium Plan" \
   -args "gno.land/r/demo/defi/foo20" \
   -args "3000000" \
   --gas-fee 1000000ugnot \
