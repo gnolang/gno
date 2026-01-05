@@ -41,7 +41,7 @@ gnokey maketx call \
 # Step 3: Approve the subscription realm to spend your GRC20 tokens
 # First, get the subscription realm's address with:
 gnokey query vm/qeval -data 'gno.land/r/samcrew/subscriptions.GetRealmAddress()' --remote localhost:26657
-# Then use that address in the Approve command below (example: g12m5qwhwl9wqt77a3ke0gleff72xhxvzzq5j3nc)
+# Then use that address in the Approve command below
 gnokey maketx call \
   -pkgpath "gno.land/r/demo/defi/foo20" \
   -func "Approve" \
