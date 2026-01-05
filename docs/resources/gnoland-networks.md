@@ -135,6 +135,10 @@ is the `gnoweb` render of the Staging testnet.
 
 The latest Gno.land testnet, released on the 19th of December, 2025.
 
+### TestX
+
+These testnets are deprecated and currently serve as archives of previous progress.
+
 ### Test9
 
 Test9 is the testnet released on the 14th of October, 2025.
@@ -150,10 +154,6 @@ Test9 is the testnet released on the 14th of October, 2025.
 
 This testnet introduces major changes to the codebase, such as the `std` package 
 split, private realms, the storage fee collector, and more. 
-
-### TestX
-
-These testnets are deprecated and currently serve as archives of previous progress.
 
 ### Test8 (archive)
 
