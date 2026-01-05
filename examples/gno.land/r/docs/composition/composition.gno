@@ -44,12 +44,9 @@ import (
 )
 
 func ComposedAction(_ realm) {
-    // Call functions from component A (crossing realm boundaries)
-    // Pass nil as the realm parameter when calling external realms
-    a.DoSomething(nil)
-    
-    // Call functions from component B (crossing realm boundaries)
-    b.DoSomethingElse(nil)
+    // Pass cross as the realm parameter when calling external realms
+    a.DoSomething(cross)
+    b.DoSomethingElse(cross)
 }
 ` + "```" + `
 
