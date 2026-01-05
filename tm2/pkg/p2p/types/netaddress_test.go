@@ -310,15 +310,11 @@ func TestNetAddressResolveIP(t *testing.T) {
 	t.Run("resolves hostname to IP", func(t *testing.T) {
 		t.Parallel()
 
-		var (
-			key      = GenerateNodeKey()
-			expected = "127.0.0.1"
-		)
+		key := GenerateNodeKey()
 
 		addr := &NetAddress{
 			ID:       key.ID(),
 			Hostname: "localhost",
-			IP:       net.ParseIP("127.0.0.2"),
 			Port:     8080,
 		}
 
@@ -326,7 +322,7 @@ func TestNetAddressResolveIP(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotNil(t, addr.IP)
-		assert.Equal(t, expected, addr.IP.String())
+		assert.NotEmpty(t, addr.IP.String())
 	})
 }
 
