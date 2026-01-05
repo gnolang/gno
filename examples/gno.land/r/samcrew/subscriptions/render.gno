@@ -64,16 +64,18 @@ func homeHandler(res *mux.ResponseWriter, req *mux.Request) {
 
 	out += md.H3("Available Services")
 	t, _ := table.New(
-		[]string{"Service", "Period", "Price", "👥 Subs"},
+		[]string{"Service", "Owner", "Period", "Price", "👥 Subs"},
 		[][]string{},
 	)
 
 	// Iterate over page items
 	for _, item := range page.Items {
 		svc := item.Value.(*service)
+		svcKey := item.Key
 		subscriberCount := svc.subscriberCount()
 		t.AddRow([]string{
-			md.Bold(md.Link(svc.displayName, linkpath+":svc/"+url.PathEscape(svc.displayName))) + " - " + md.Italic(svc.description),
+			md.Bold(md.Link(svc.displayName, linkpath+":svc/"+url.PathEscape(svcKey))) + " - " + md.Italic(svc.description),
+			svc.owner.Owner().String(),
 			humanDuration(svc.renewalPeriod),
 			md.Bold(formatCoinsWithLinks(svc.price)),
 			ufmt.Sprintf("%d", subscriberCount),
@@ -134,8 +136,8 @@ func userHandler(res *mux.ResponseWriter, req *mux.Request) {
 	activeCount := 0
 	inactiveCount := 0
 	for _, item := range page.Items {
-		svcName := item.Key
-		svc := mustGetServiceByName(svcName)
+		svcKey := item.Key
+		svc := mustGetService(svcKey)
 		subRaw, _ := svc.subscribers.Get(userAddress)
 		sub := subRaw.(*subscription)
 		if sub.isActive(svc.renewalPeriod, svc.price) {
@@ -155,14 +157,14 @@ func userHandler(res *mux.ResponseWriter, req *mux.Request) {
 
 	out += md.H3("Subscriptions")
 	t, _ := table.New(
-		[]string{"Service", "Status", "Balance", "Started", "Actions"},
+		[]string{"Service", "Owner", "Status", "Balance", "Started", "Actions"},
 		[][]string{},
 	)
 
 	// Iterate over page items
 	for _, item := range page.Items {
-		svcName := item.Key
-		svc := mustGetServiceByName(svcName)
+		svcKey := item.Key
+		svc := mustGetService(svcKey)
 		subRaw, _ := svc.subscribers.Get(userAddress)
 		sub := subRaw.(*subscription)
 		status := "Inactive"
@@ -171,12 +173,13 @@ func userHandler(res *mux.ResponseWriter, req *mux.Request) {
 		}
 
 		// Action links for this subscription
-		actions := md.Link("Top Up", linkpath+"$help&func=Topup&serviceName="+url.QueryEscape(svcName)) + " • " +
-			md.Link("Withdraw", linkpath+"$help&func=Withdraw&serviceName="+url.QueryEscape(svcName)) + " • " +
-			md.Link("Unsubscribe", linkpath+"$help&func=Unsubscribe&serviceName="+url.QueryEscape(svcName))
+		actions := md.Link("Top Up", linkpath+"$help&func=Topup&svcKey="+url.QueryEscape(svcKey)) + " • " +
+			md.Link("Withdraw", linkpath+"$help&func=Withdraw&svcKey="+url.QueryEscape(svcKey)) + " • " +
+			md.Link("Unsubscribe", linkpath+"$help&func=Unsubscribe&svcKey="+url.QueryEscape(svcKey))
 
 		t.AddRow([]string{
-			md.Bold(md.Link(svcName, linkpath+":svc/"+url.PathEscape(svcName))),
+			md.Bold(md.Link(svc.displayName, linkpath+":svc/"+url.PathEscape(svcKey))),
+			svc.owner.Owner().String(),
 			status,
 			md.Bold(formatCoinsWithLinks(sub.balance(svc.renewalPeriod, svc.price))),
 			sub.startedAt.Format("Jan 02, 2006"),
@@ -194,12 +197,12 @@ func userHandler(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func serviceHandler(res *mux.ResponseWriter, req *mux.Request) {
-	serviceName := req.GetVar("name")
-	svc := mustGetServiceByName(serviceName)
+	svcKey := req.GetVar("name")
+	svc := mustGetService(svcKey)
 	r := runtime.CurrentRealm()
 	linkpath := getLinkPath(r.PkgPath())
 
-	out := md.H1(serviceName)
+	out := md.H1(svc.displayName)
 	out += md.Paragraph(svc.description)
 
 	// Navigation
@@ -209,14 +212,14 @@ func serviceHandler(res *mux.ResponseWriter, req *mux.Request) {
 	// Action buttons
 	out += md.H3("Quick Actions")
 	actionLinks := []string{
-		md.Link("Subscribe", linkpath+"$help&func=Subscribe&serviceName="+url.QueryEscape(serviceName)),
-		md.Link("Top Up", linkpath+"$help&func=Topup&serviceName="+url.QueryEscape(serviceName)),
-		md.Link("Unsubscribe", linkpath+"$help&func=Unsubscribe&serviceName="+url.QueryEscape(serviceName)),
+		md.Link("Subscribe", linkpath+"$help&func=Subscribe&svcKey="+url.QueryEscape(svcKey)),
+		md.Link("Top Up", linkpath+"$help&func=Topup&svcKey="+url.QueryEscape(svcKey)),
+		md.Link("Unsubscribe", linkpath+"$help&func=Unsubscribe&svcKey="+url.QueryEscape(svcKey)),
 	}
 	// Add owner-only action
 	caller := runtime.PreviousRealm().Address()
 	if caller == svc.owner.Owner() {
-		actionLinks = append(actionLinks, md.Link("💸 Claim Vault (Owner)", linkpath+"$help&func=ServiceClaimVault&displayName="+url.QueryEscape(serviceName)))
+		actionLinks = append(actionLinks, md.Link("💸 Claim Vault (Owner)", linkpath+"$help&func=ServiceClaimVault&svcKey="+url.QueryEscape(svcKey)))
 	}
 	out += md.Paragraph(strings.Join(actionLinks, " • "))
 	out += md.HorizontalRule()
@@ -226,10 +229,10 @@ func serviceHandler(res *mux.ResponseWriter, req *mux.Request) {
 	subscriberCount := svc.subscriberCount()
 
 	out += md.BulletList([]string{
+		md.Bold("Owner:") + " " + svc.owner.Owner().String(),
 		md.Bold("Billing Period:") + " " + humanDuration(svc.renewalPeriod),
 		md.Bold("Price:") + " " + formatCoinsWithLinks(svc.price),
 		md.Bold("Total Subscribers:") + " " + ufmt.Sprintf("%d", subscriberCount),
-		md.Bold("Owner:") + " " + svc.owner.Owner().String(),
 	})
 
 	// Add GRC20 payment instructions if service uses GRC20 tokens
@@ -255,7 +258,7 @@ func serviceHandler(res *mux.ResponseWriter, req *mux.Request) {
 			out += md.OrderedList([]string{
 				"Visit the GRC20 token: " + md.Link(tokenPath, tokenPath),
 				"Call the " + md.InlineCode("Approve") + " function with:\n   - " + md.Bold("spender:") + " " + md.InlineCode(runtime.CurrentRealm().Address().String()) + "\n   - " + md.Bold("amount:") + " the amount you want to deposit (or a large value for multiple top-ups)",
-				"Return here and use " + md.Link("Subscribe", linkpath+"$help&func=Subscribe&serviceName="+url.QueryEscape(serviceName)) + " or " + md.Link("Top Up", linkpath+"$help&func=Topup&serviceName="+url.QueryEscape(serviceName)) + " with the GRC20 token details",
+				"Return here and use " + md.Link("Subscribe", linkpath+"$help&func=Subscribe&svcKey="+url.QueryEscape(svcKey)) + " or " + md.Link("Top Up", linkpath+"$help&func=Topup&svcKey="+url.QueryEscape(svcKey)) + " with the GRC20 token details",
 			})
 			if i < len(grc20Paths)-1 {
 				out += md.HorizontalRule()

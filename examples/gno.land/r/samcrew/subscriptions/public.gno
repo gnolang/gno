@@ -4,6 +4,7 @@ import (
 	"chain"
 	"chain/banker"
 	"chain/runtime"
+	"strings"
 	"time"
 
 	"gno.land/p/nt/avl"
@@ -13,8 +14,8 @@ import (
 	"gno.land/r/samcrew/normalizedcoins"
 )
 
-var services *avl.Tree // key: displayName, value: *service
-var users *avl.Tree    // key: user address, value: avl.Tree of subscribed service names and empty struct{}
+var services *avl.Tree // key: ownerAddr:displayName, value: *service
+var users *avl.Tree    // key: user address, value: avl.Tree of subscribed service keys (ownerAddr:displayName) and empty struct{}
 var id seqid.ID
 
 // NewService creates a new subscription service with the given parameters
@@ -27,6 +28,9 @@ func NewService(cur realm, displayName, description string, renewalPeriod time.D
 	if displayName == "" {
 		panic("display name cannot be empty")
 	}
+	if strings.Contains(displayName, serviceKeySeparator) {
+		panic("display name cannot contain '" + serviceKeySeparator + "'")
+	}
 	if description == "" {
 		panic("description cannot be empty")
 	}
@@ -34,11 +38,11 @@ func NewService(cur realm, displayName, description string, renewalPeriod time.D
 		panic("renewal period must be positive")
 	}
 
-	// XXX: prefix with creator realm to avoid name clashes?
-	if services.Has(displayName) {
+	creator := runtime.PreviousRealm().Address()
+	key := serviceKey(creator, displayName)
+	if services.Has(key) {
 		panic("service with the same display name already exists")
 	}
-	creator := runtime.PreviousRealm().Address()
 	sCoins, err := normalizedcoins.PrefixCoins(native, grc20)
 	if err != nil {
 		panic(err)
@@ -52,7 +56,7 @@ func NewService(cur realm, displayName, description string, renewalPeriod time.D
 		price:         sCoins,
 		subscribers:   avl.NewTree(),
 	}
-	services.Set(displayName, svc)
+	services.Set(key, svc)
 }
 
 // NewServiceSimple creates a new subscription service with simple parameters
@@ -79,18 +83,18 @@ func NewServiceSimple(cur realm, displayName, description string, renewalPeriod 
 	NewService(cur, displayName, description, renewalPeriod, native, grc20)
 }
 
-// Subscribe allows a user to subscribe to a service by providing the service name
-// - serviceName: the name of the service to subscribe to
+// Subscribe allows a user to subscribe to a service by providing the service key
+// - svcKey: the full service key (ownerAddr:displayName)
 // - fqName: the fully qualified name of the GRC20 token to use for payment (empty string for native coins)
 // - amount: the amount of GRC20 tokens to deposit initially (0 for native coins)
-func Subscribe(cur realm, serviceName string, fqName string, amount int64) {
-	if serviceName == "" {
-		panic("service name cannot be empty")
+func Subscribe(cur realm, svcKey string, fqName string, amount int64) {
+	if svcKey == "" {
+		panic("service key cannot be empty")
 	}
 
-	creator := runtime.PreviousRealm().Address()
-	svc := mustGetServiceByName(serviceName)
-	if svc.subscribers.Has(creator.String()) {
+	caller := runtime.PreviousRealm().Address()
+	svc := mustGetService(svcKey)
+	if svc.subscribers.Has(caller.String()) {
 		panic("already subscribed")
 	}
 
@@ -102,7 +106,7 @@ func Subscribe(cur realm, serviceName string, fqName string, amount int64) {
 			panic("GRC20 token not found: " + fqName)
 		}
 		teller := token.RealmTeller()
-		if err := teller.TransferFrom(creator, runtime.CurrentRealm().Address(), amount); err != nil {
+		if err := teller.TransferFrom(caller, runtime.CurrentRealm().Address(), amount); err != nil {
 			panic(err)
 		}
 		grc20Send = chain.NewCoins(chain.NewCoin(fqName, amount))
@@ -124,33 +128,33 @@ func Subscribe(cur realm, serviceName string, fqName string, amount int64) {
 		lastChargedAt: time.Now(),
 		initialPaid:   false,
 	}
-	svc.subscribers.Set(creator.String(), sub)
+	svc.subscribers.Set(caller.String(), sub)
 
 	var userSubs *avl.Tree
-	userSubsRaw, ok := users.Get(creator.String())
+	userSubsRaw, ok := users.Get(caller.String())
 	if !ok {
 		userSubs = avl.NewTree()
 	} else {
 		userSubs = userSubsRaw.(*avl.Tree)
 	}
-	userSubs.Set(serviceName, struct{}{})
-	users.Set(creator.String(), userSubs)
+	userSubs.Set(svcKey, struct{}{})
+	users.Set(caller.String(), userSubs)
 }
 
-// Unsubscribe allows a user to unsubscribe from a service by providing the service name
+// Unsubscribe allows a user to unsubscribe from a service by providing the service key
 // It refunds any remaining balance after deducting due amounts to the service owner
-// - serviceName: the name of the service to unsubscribe from
-func Unsubscribe(cur realm, serviceName string) {
-	if serviceName == "" {
-		panic("service name cannot be empty")
+// - svcKey: the full service key (ownerAddr:displayName)
+func Unsubscribe(cur realm, svcKey string) {
+	if svcKey == "" {
+		panic("service key cannot be empty")
 	}
 
-	creator := runtime.PreviousRealm().Address()
-	svc := mustGetServiceByName(serviceName)
-	if !svc.subscribers.Has(creator.String()) {
-		panic("not subscribed to service: " + serviceName)
+	caller := runtime.PreviousRealm().Address()
+	svc := mustGetService(svcKey)
+	if !svc.subscribers.Has(caller.String()) {
+		panic("not subscribed to service: " + svcKey)
 	}
-	subValue, _ := svc.subscribers.Get(creator.String())
+	subValue, _ := svc.subscribers.Get(caller.String())
 	sub := subValue.(*subscription)
 	due, _ := sub.dueAmount(true, svc.renewalPeriod, svc.price)
 	if normalizedcoins.CoinsHasPositive(due) {
@@ -158,32 +162,32 @@ func Unsubscribe(cur realm, serviceName string) {
 	}
 	remaining := normalizedcoins.SubCoins(sub.vault, due)
 	if normalizedcoins.CoinsHasPositive(remaining) {
-		normalizedcoins.SendCoins(creator, remaining)
+		normalizedcoins.SendCoins(caller, remaining)
 	}
-	svc.subscribers.Remove(creator.String())
+	svc.subscribers.Remove(caller.String())
 
-	userSubsRaw, _ := users.Get(creator.String())
+	userSubsRaw, _ := users.Get(caller.String())
 	userSubs := userSubsRaw.(*avl.Tree)
-	userSubs.Remove(serviceName)
+	userSubs.Remove(svcKey)
 	if userSubs.Size() == 0 {
-		users.Remove(creator.String())
+		users.Remove(caller.String())
 	}
 }
 
 // Topup increases a user's subscription balance using native coins, GRC20 tokens,
 // or both in the same transaction. Native funds are inferred from the tx.
-// - serviceName: target service
+// - svcKey: the full service key (ownerAddr:displayName)
 // - fqName: GRC20 token denom (optional)
 // - amount: amount of GRC20 tokens (ignored if fqName empty)
-func Topup(cur realm, serviceName string, fqName string, amount int64) {
-	if serviceName == "" {
-		panic("service name cannot be empty")
+func Topup(cur realm, svcKey string, fqName string, amount int64) {
+	if svcKey == "" {
+		panic("service key cannot be empty")
 	}
 
 	caller := runtime.PreviousRealm().Address()
-	svc := mustGetServiceByName(serviceName)
+	svc := mustGetService(svcKey)
 	if !svc.subscribers.Has(caller.String()) {
-		panic("not subscribed to service: " + serviceName)
+		panic("not subscribed to service: " + svcKey)
 	}
 
 	// Validate GRC20 token exists if fqName is provided
@@ -198,10 +202,10 @@ func Topup(cur realm, serviceName string, fqName string, amount int64) {
 	_, active := sub.dueAmount(false, svc.renewalPeriod, svc.price)
 	native := banker.OriginSend()
 	if normalizedcoins.CoinsHasPositive(native) {
-		topupNative(cur, serviceName)
+		topupNative(cur, svcKey)
 	}
 	if amount != 0 {
-		topupGRC20(cur, serviceName, fqName, amount)
+		topupGRC20(cur, svcKey, fqName, amount)
 	}
 	// XXX: reset subscription if it was inactive and now has enough balance
 	if !active && !normalizedcoins.LessCoinsThan(sub.vault, svc.price) {
@@ -212,12 +216,12 @@ func Topup(cur realm, serviceName string, fqName string, amount int64) {
 }
 
 // Withdraw allows a user to withdraw available balance from their subscription
-// - serviceName: the name of the service to withdraw from
+// - svcKey: the full service key (ownerAddr:displayName)
 // - denom: the denomination of the coin to withdraw
 // - amount: the amount of the coin to withdraw
-func Withdraw(cur realm, serviceName string, denom string, amount int64) {
-	if serviceName == "" {
-		panic("service name cannot be empty")
+func Withdraw(cur realm, svcKey string, denom string, amount int64) {
+	if svcKey == "" {
+		panic("service key cannot be empty")
 	}
 	if denom == "" {
 		panic("denomination cannot be empty")
@@ -226,12 +230,12 @@ func Withdraw(cur realm, serviceName string, denom string, amount int64) {
 		panic("withdrawal amount must be positive")
 	}
 
-	creator := runtime.PreviousRealm().Address()
-	svc := mustGetServiceByName(serviceName)
-	if !svc.subscribers.Has(creator.String()) {
-		panic("not subscribed to service: " + serviceName)
+	caller := runtime.PreviousRealm().Address()
+	svc := mustGetService(svcKey)
+	if !svc.subscribers.Has(caller.String()) {
+		panic("not subscribed to service: " + svcKey)
 	}
-	subValue, _ := svc.subscribers.Get(creator.String())
+	subValue, _ := svc.subscribers.Get(caller.String())
 	sub := subValue.(*subscription)
 	due, _ := sub.dueAmount(false, svc.renewalPeriod, svc.price)
 	available := normalizedcoins.SubCoins(sub.vault, due)
@@ -240,15 +244,15 @@ func Withdraw(cur realm, serviceName string, denom string, amount int64) {
 		panic("insufficient available balance to withdraw")
 	}
 	sub.vault = normalizedcoins.SubCoins(sub.vault, withdraw)
-	normalizedcoins.SendCoins(creator, withdraw)
+	normalizedcoins.SendCoins(caller, withdraw)
 }
 
 // IsSubscribed checks if a user is currently subscribed to a service
-// - serviceName: the name of the service to check
+// - svcKey: the full service key (ownerAddr:displayName)
 // - userAddr: the address of the user to check
 // Returns true if the user is subscribed and active, false otherwise
-func IsSubscribed(cur realm, serviceName string, userAddr string) bool {
-	svc := getServiceByName(serviceName)
+func IsSubscribed(cur realm, svcKey string, userAddr string) bool {
+	svc := getService(svcKey)
 	if svc == nil {
 		return false
 	}
@@ -262,9 +266,9 @@ func IsSubscribed(cur realm, serviceName string, userAddr string) bool {
 
 // ServiceClaimVault allows the owner of a service to claim the funds in the service's vault.
 // It charges all subscribers for their due amounts and transfers the total to the owner.
-// - displayName: the name of the service
-func ServiceClaimVault(cur realm, displayName string) {
-	svc := mustGetServiceByName(displayName)
+// - svcKey: the full service key (ownerAddr:displayName)
+func ServiceClaimVault(cur realm, svcKey string) {
+	svc := mustGetService(svcKey)
 	svc.owner.AssertOwnedByPrevious()
 	balance := svc.balance(true)
 

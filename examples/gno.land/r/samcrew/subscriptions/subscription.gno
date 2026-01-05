@@ -72,8 +72,8 @@ func (sub *subscription) balance(renewalPeriod time.Duration, price chain.Coins)
 	return normalizedcoins.SubCoins(sub.vault, dueAmount)
 }
 
-func topupNative(cur realm, serviceName string) {
-	creator := runtime.PreviousRealm().Address()
+func topupNative(cur realm, svcKey string) {
+	caller := runtime.PreviousRealm().Address()
 	send := banker.OriginSend()
 	if !normalizedcoins.CoinsHasPositive(send) {
 		panic("topup amount must be positive")
@@ -84,21 +84,21 @@ func topupNative(cur realm, serviceName string) {
 		panic(err)
 	}
 
-	svc := mustGetServiceByName(serviceName)
-	if !svc.subscribers.Has(creator.String()) {
-		panic("not subscribed to service: " + serviceName)
+	svc := mustGetService(svcKey)
+	if !svc.subscribers.Has(caller.String()) {
+		panic("not subscribed to service: " + svcKey)
 	}
-	subValue, _ := svc.subscribers.Get(creator.String())
+	subValue, _ := svc.subscribers.Get(caller.String())
 	sub := subValue.(*subscription)
 	sub.vault = normalizedcoins.AddCoins(sub.vault, prefixedSend)
 }
 
-func topupGRC20(cur realm, serviceName string, fqName string, amount int64) {
+func topupGRC20(cur realm, svcKey string, fqName string, amount int64) {
 	token := grc20reg.MustGet(fqName)
 	if token == nil {
 		panic(errors.New("token not found: " + fqName))
 	}
-	creator := runtime.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 
 	anyAmount := amount == -1
 	if !anyAmount && amount <= 0 {
@@ -106,7 +106,7 @@ func topupGRC20(cur realm, serviceName string, fqName string, amount int64) {
 	}
 
 	if anyAmount {
-		amount = int64(token.Allowance(creator, runtime.CurrentRealm().Address()))
+		amount = int64(token.Allowance(caller, runtime.CurrentRealm().Address()))
 	}
 
 	grc20Send := chain.NewCoins(chain.NewCoin(fqName, amount))
@@ -116,15 +116,15 @@ func topupGRC20(cur realm, serviceName string, fqName string, amount int64) {
 	}
 
 	teller := token.RealmTeller()
-	if err := teller.TransferFrom(creator, runtime.CurrentRealm().Address(), amount); err != nil {
+	if err := teller.TransferFrom(caller, runtime.CurrentRealm().Address(), amount); err != nil {
 		panic(err)
 	}
 
-	svc := mustGetServiceByName(serviceName)
-	if !svc.subscribers.Has(creator.String()) {
-		panic("not subscribed to service: " + serviceName)
+	svc := mustGetService(svcKey)
+	if !svc.subscribers.Has(caller.String()) {
+		panic("not subscribed to service: " + svcKey)
 	}
-	subValue, _ := svc.subscribers.Get(creator.String())
+	subValue, _ := svc.subscribers.Get(caller.String())
 	sub := subValue.(*subscription)
 	sub.vault = normalizedcoins.AddCoins(sub.vault, prefixedSend)
 }
