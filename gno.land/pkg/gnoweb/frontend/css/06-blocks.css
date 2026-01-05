@@ -1836,9 +1836,9 @@ pre.chroma-chroma {
 			font-weight: var(--g-font-normal);
 		}
 
-		&:hover{
+		&:hover {
 			color: var(--s-color-text-primary);
-			
+
 			&::after {
 				opacity: 1;
 				visibility: visible;
@@ -2175,7 +2175,7 @@ pre.chroma-chroma {
 		color: var(--s-color-text-tertiary);
 		font-weight: var(--g-font-normal);
 		text-decoration: none;
-		display: inline-block; 
+		display: inline-block;
 	}
 
 	.gno-form_selectable {
