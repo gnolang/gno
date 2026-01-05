@@ -2,10 +2,10 @@
 
 ## Network configurations
 
-| Network | RPC Endpoint                            | Chain ID  |
-|---------|-----------------------------------------|-----------|
-| Staging | https://rpc.gno.land:443                | `staging` |
-| Test9   | https://rpc.test9.testnets.gno.land:443 | `test9`   |
+| Network | RPC Endpoint                             | Chain ID  |
+|---------|------------------------------------------|-----------|
+| Staging | https://rpc.gno.land:443                 | `staging` |
+| Test10  | https://rpc.test10.testnets.gno.land:443 | `test10`  |
 
 ### WebSocket endpoints
 
