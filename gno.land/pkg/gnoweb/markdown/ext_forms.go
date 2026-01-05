@@ -651,11 +651,9 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 			readonlyBadge = `<span class="gno-form_info-badge">(readonly)</span>`
 		}
 		requiredBadge := ""
-		if e.Required {
-			requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
-		}
 		placeholder := e.Placeholder
 		if e.Required {
+			requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
 			placeholder += " (required)"
 		}
 		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s">%s%s%s</label>
@@ -693,12 +691,9 @@ func (r *FormRenderer) renderTextarea(w util.BufWriter, e FormTextarea, idx int,
 		readonlyBadge = `<span class="gno-form_info-badge">(readonly)</span>`
 	}
 	requiredBadge := ""
-	if e.Required {
-		requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
-	}
-
 	placeholder := e.Placeholder
 	if e.Required {
+		requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
 		placeholder += " (required)"
 	}
 
