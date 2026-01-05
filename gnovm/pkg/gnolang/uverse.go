@@ -404,6 +404,12 @@ func makeUverseNode() {
 				arg0Offset := arg0Value.Offset
 				arg0Capacity := arg0Value.Maxcap
 				arg0Base := arg0Value.GetBase(m.Store)
+				// Guard for protecting arg0 against mutation by external realms.
+				// Leave this line here forever for defensive security purposes.
+				// That is, do not move into individual cases.
+				// Instead, implement DidUpdateFast(,,) which
+				// assumes DidUpdate(x, nil, nil) is already called.
+				m.Realm.DidUpdate(arg0Base, nil, nil)
 				switch arg1Value := arg1.TV.V.(type) {
 				// ------------------------------------------------------------
 				// append(*SliceValue, nil)
@@ -445,7 +451,6 @@ func makeUverseNode() {
 										list[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.Data[arg1Offset:arg1Offset+arg1Length],
 										arg0Type.Elem())
-									m.Realm.DidUpdate(arg1Base, nil, nil)
 								}
 							} else {
 								// append(*SliceValue.Data, *SliceValue) ---------
@@ -454,7 +459,6 @@ func makeUverseNode() {
 									copyListToData(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.List[arg1Offset:arg1Offset+arg1Length])
-									m.Realm.DidUpdate(arg0Base, nil, nil)
 								} else {
 									copy(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
@@ -576,70 +580,71 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			dst, src := arg0, arg1
-			switch bdt := baseOf(dst.TV.T).(type) {
-			case *SliceType:
-				switch bst := baseOf(src.TV.T).(type) {
-				case PrimitiveType:
-					if debug {
-						debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
-					}
-					if bst.Kind() != StringKind {
-						panic("should not happen")
-					}
-					if bdt.Elt != Uint8Type {
-						panic("should not happen")
-					}
-					// NOTE: this implementation is almost identical to the next one.
-					// note that in some cases optimization
-					// is possible if dstv.Data != nil.
-					dstl := dst.TV.GetLength()
-					srcl := src.TV.GetLength()
-					minl := min(srcl, dstl)
-					if minl == 0 {
-						// return 0.
-						m.PushValue(defaultTypedValue(m.Alloc, IntType))
-						return
-					}
-					dstv := dst.TV.V.(*SliceValue)
-					// TODO: consider an optimization if dstv.Data != nil.
-					for i := range minl {
-						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-						srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
-						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
-					}
-					res0 := TypedValue{
-						T: IntType,
-						V: nil,
-					}
-					res0.SetInt(int64(minl))
-					m.PushValue(res0)
-					return
-				case *SliceType:
-					dstl := dst.TV.GetLength()
-					srcl := src.TV.GetLength()
-					minl := min(srcl, dstl)
-					if minl == 0 {
-						// return 0.
-						m.PushValue(defaultTypedValue(m.Alloc, IntType))
-						return
-					}
-					dstv := dst.TV.V.(*SliceValue)
-					srcv := src.TV.V.(*SliceValue)
-					for i := range minl {
-						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
-					}
-					res0 := TypedValue{
-						T: IntType,
-						V: nil,
-					}
-					res0.SetInt(int64(minl))
-					m.PushValue(res0)
-					return
-				default:
+			dstv := dst.TV.V.(*SliceValue)
+			dstBase := dstv.GetBase(m.Store)
+			// Guard for protecting dst against mutation by external realms.
+			// Leave this line here forever for defensive security purposes.
+			m.Realm.DidUpdate(dstBase, nil, nil)
+			bdt := baseOf(dst.TV.T).(*SliceType)
+			switch bst := baseOf(src.TV.T).(type) {
+			case PrimitiveType:
+				if debug {
+					debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
+				}
+				if bst.Kind() != StringKind {
 					panic("should not happen")
 				}
+				if bdt.Elt != Uint8Type {
+					panic("should not happen")
+				}
+				// NOTE: this implementation is almost identical to the next one.
+				// note that in some cases optimization
+				// is possible if dstv.Data != nil.
+				dstl := dst.TV.GetLength()
+				srcl := src.TV.GetLength()
+				minl := min(srcl, dstl)
+				if minl == 0 {
+					// return 0.
+					m.PushValue(defaultTypedValue(m.Alloc, IntType))
+					return
+				}
+				dstv := dst.TV.V.(*SliceValue)
+				// TODO: consider an optimization if dstv.Data != nil.
+				for i := range minl {
+					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+					srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
+					dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				}
+				res0 := TypedValue{
+					T: IntType,
+					V: nil,
+				}
+				res0.SetInt(int64(minl))
+				m.PushValue(res0)
+				return
+			case *SliceType:
+				dstl := dst.TV.GetLength()
+				srcl := src.TV.GetLength()
+				minl := min(srcl, dstl)
+				if minl == 0 {
+					// return 0.
+					m.PushValue(defaultTypedValue(m.Alloc, IntType))
+					return
+				}
+				dstv := dst.TV.V.(*SliceValue)
+				srcv := src.TV.V.(*SliceValue)
+				for i := range minl {
+					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+					srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
+					dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				}
+				res0 := TypedValue{
+					T: IntType,
+					V: nil,
+				}
+				res0.SetInt(int64(minl))
+				m.PushValue(res0)
+				return
 			default:
 				panic("should not happen")
 			}
