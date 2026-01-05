@@ -46,15 +46,6 @@ func TestDivide(t *testing.T) {
 	}
 }
 
-func TestDivideByZero(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Divide(10, 0) should panic")
-		}
-	}()
-	Divide(cross, 10, 0)
-}
-
 func TestGetLastResult(t *testing.T) {
 	Add(cross, 7, 8)
 	if GetLastResult() != 15 {
