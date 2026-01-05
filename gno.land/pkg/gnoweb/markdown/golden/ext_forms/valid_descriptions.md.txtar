@@ -30,17 +30,17 @@
 <div id="desc_newsletter_3" class="gno-form_description">Receive updates about new features</div>
 <div class="gno-form_selectable">
 <input type="checkbox" id="newsletter_3" name="newsletter" value="subscribe" aria-labelledby="desc_newsletter_3" />
-<label for="newsletter_3"> subscribe - Subscribe to newsletter </label>
+<label for="newsletter_3">Subscribe to newsletter<span class="gno-form_value tooltip-inline" data-tooltip="Actual form value sent: subscribe">&nbsp;(subscribe)</span> </label>
 </div>
 <div id="desc_gender_4" class="gno-form_description">Select your gender</div>
 <div class="gno-form_selectable">
 <input type="radio" id="gender_4" name="gender" value="male" aria-labelledby="desc_gender_4" />
-<label for="gender_4"> male - Male option </label>
+<label for="gender_4">Male option<span class="gno-form_value tooltip-inline" data-tooltip="Actual form value sent: male">&nbsp;(male)</span> </label>
 </div>
 <div id="desc_gender_5" class="gno-form_description">Select your gender</div>
 <div class="gno-form_selectable">
 <input type="radio" id="gender_5" name="gender" value="female" aria-labelledby="desc_gender_5" />
-<label for="gender_5"> female - Female option </label>
+<label for="gender_5">Female option<span class="gno-form_value tooltip-inline" data-tooltip="Actual form value sent: female">&nbsp;(female)</span> </label>
 </div>
 <div id="desc_bio_6" class="gno-form_description">A brief description of yourself (optional)</div>
 <div class="gno-form_input"><label for="bio"> Tell us about yourself </label>

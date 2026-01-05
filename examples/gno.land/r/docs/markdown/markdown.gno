@@ -502,16 +502,16 @@ This form will submit to ±?recipient=value&email=value&pswd=value± on the same
 3. Form with Radio Buttons
 ±±±markdown
 <gno-form>
-  <gno-input name="color" type="radio" value="blue" description="What is your favorite color?" />
-  <gno-input name="color" type="radio" value="red" />
-  <gno-input name="color" type="radio" value="green" />
+  <gno-input name="color" type="radio" value="blue" placeholder="Blue color" description="What is your favorite color?" />
+  <gno-input name="color" type="radio" value="red" placeholder="Red color" />
+  <gno-input name="color" type="radio" value="green" placeholder="Green color" />
 </gno-form>
 ±±±
 
 <gno-form>
-  <gno-input name="color" type="radio" value="blue" description="What is your favorite color?" />
-  <gno-input name="color" type="radio" value="red" />
-  <gno-input name="color" type="radio" value="green" />
+  <gno-input name="color" type="radio" value="blue" placeholder="Blue color" description="What is your favorite color?" />
+  <gno-input name="color" type="radio" value="red" placeholder="Red color" />
+  <gno-input name="color" type="radio" value="green" placeholder="Green color" />
 </gno-form>
 
 Radio buttons allow users to select one option from a group. All radio buttons with the same ±name± form a group where only one can be selected.
@@ -519,18 +519,18 @@ Radio buttons allow users to select one option from a group. All radio buttons w
 4. Form with Checkboxes
 ±±±markdown
 <gno-form>
-  <gno-input name="interests" type="checkbox" value="coding" description="What do you like to do?"/>
-  <gno-input name="interests" type="checkbox" value="gaming" />
-  <gno-input name="interests" type="checkbox" value="reading" />
-  <gno-input name="newsletter" type="checkbox" value="subscribe" description="Subscribe to newsletter" placeholder="To get the latest news" checked="true" />
+  <gno-input name="interests" type="checkbox" value="coding" placeholder="Coding" description="What do you like to do?"/>
+  <gno-input name="interests" type="checkbox" value="gaming" placeholder="Gaming" />
+  <gno-input name="interests" type="checkbox" value="reading" placeholder="Reading" />
+  <gno-input name="newsletter" type="checkbox" value="subscribe" description="Subscribe to newsletter" placeholder="Yes, send me the latest news" checked="true" />
 </gno-form>
 ±±±
 
 <gno-form>
-  <gno-input name="interests" type="checkbox" value="coding" description="What do you like to do?" />
-  <gno-input name="interests" type="checkbox" value="gaming" />
-  <gno-input name="interests" type="checkbox" value="reading" />
-  <gno-input name="newsletter" type="checkbox" value="subscribe" description="Subscribe to newsletter" placeholder="To get the latest news" checked="true" />
+  <gno-input name="interests" type="checkbox" value="coding" placeholder="Coding" description="What do you like to do?" />
+  <gno-input name="interests" type="checkbox" value="gaming" placeholder="Gaming" />
+  <gno-input name="interests" type="checkbox" value="reading" placeholder="Reading" />
+  <gno-input name="newsletter" type="checkbox" value="subscribe" description="Subscribe to newsletter" placeholder="Yes, send me the latest news" checked="true" />
 </gno-form>
 
 Checkboxes allow users to select multiple options. Use ±checked="true"± to pre-select a checkbox.

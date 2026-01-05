@@ -1813,11 +1813,46 @@ pre.chroma-chroma {
 	}
 
 	/* ===== TOOLTIP COMPONENT ===== */
+	/* Common tooltip popup styles */
+	:is(.tooltip, .tooltip-inline) {
+		position: relative;
+		cursor: help;
+
+		&::after {
+			content: attr(data-tooltip);
+			position: absolute;
+			z-index: var(--g-z-max);
+			top: 100%;
+			scale: 0;
+			visibility: hidden;
+			opacity: 0;
+			padding-inline: var(--g-space-2);
+			padding-block: var(--g-space-1);
+			background-color: var(--s-color-bg-base);
+			border-radius: var(--s-rounded);
+			border: var(--s-border-secondary);
+			font-size: var(--g-font-size-100);
+			color: var(--s-color-text-secondary);
+			font-weight: var(--g-font-normal);
+		}
+
+		&:hover {
+			color: var(--s-color-text-primary);
+
+			&::after {
+				opacity: 1;
+				visibility: visible;
+				scale: 1;
+				transition-delay: var(--g-transition-fast);
+			}
+		}
+	}
+
+	/* Button tooltip variant - round icon button */
 	.tooltip {
 		--tooltip-left: 0;
 		--tooltip-right: initial;
 
-		position: relative;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -1834,34 +1869,12 @@ pre.chroma-chroma {
 		}
 
 		&::after {
-			content: attr(data-tooltip);
 			left: var(--tooltip-left);
 			right: var(--tooltip-right);
-			position: absolute;
-			z-index: var(--g-z-max);
-			scale: 0;
-			visibility: hidden;
-			padding-inline: var(--g-space-2);
-			padding-block: var(--g-space-1);
-			background-color: var(--s-color-bg-base);
-			border-radius: var(--s-rounded);
-			border: var(--s-border-secondary);
 			width: fit-content;
 			min-width: var(--g-space-32);
 			max-width: var(--g-space-48);
-			top: 100%;
 			text-align: center;
-			font-size: var(--g-font-size-100);
-			color: var(--s-color-text-secondary);
-			font-weight: var(--g-font-normal);
-			opacity: 0;
-		}
-
-		&:hover::after {
-			opacity: 1;
-			visibility: visible;
-			transition-delay: var(--g-transition-fast);
-			scale: 1;
 		}
 
 		&:only-of-type {
@@ -1870,6 +1883,19 @@ pre.chroma-chroma {
 
 		&:has(+ span) {
 			margin-inline-start: 0.3em;
+		}
+	}
+
+	/* Inline tooltip variant - for text elements */
+	.tooltip-inline {
+		--tooltip-left: 0;
+		--tooltip-right: initial;
+
+		&::after {
+			left: var(--tooltip-left);
+			right: var(--tooltip-right);
+			width: max-content;
+			white-space: nowrap;
 		}
 	}
 
@@ -2142,6 +2168,14 @@ pre.chroma-chroma {
 		color: var(--s-color-text-tertiary);
 		font-weight: var(--g-font-normal);
 		margin-inline-start: var(--g-space-1);
+	}
+
+	.gno-form_value {
+		font-size: var(--g-font-size-50);
+		color: var(--s-color-text-tertiary);
+		font-weight: var(--g-font-normal);
+		text-decoration: none;
+		display: inline-block;
 	}
 
 	.gno-form_selectable {

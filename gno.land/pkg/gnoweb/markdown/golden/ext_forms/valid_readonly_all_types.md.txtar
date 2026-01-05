@@ -28,15 +28,15 @@
 </div>
 <div class="gno-form_selectable">
 <input type="radio" id="gender_3" name="gender" value="female" checked disabled />
-<label for="gender_3"> female <span class="gno-form_readonly-badge">(readonly)</span></label>
+<label for="gender_3">female <span class="gno-form_readonly-badge">(readonly)</span></label>
 </div>
 <div class="gno-form_selectable">
 <input type="radio" id="gender_4" name="gender" value="male" disabled />
-<label for="gender_4"> male <span class="gno-form_readonly-badge">(readonly)</span></label>
+<label for="gender_4">male <span class="gno-form_readonly-badge">(readonly)</span></label>
 </div>
 <div class="gno-form_selectable">
 <input type="checkbox" id="newsletter_5" name="newsletter" value="subscribed" checked disabled />
-<label for="newsletter_5"> subscribed <span class="gno-form_readonly-badge">(readonly)</span></label>
+<label for="newsletter_5">subscribed <span class="gno-form_readonly-badge">(readonly)</span></label>
 </div>
 <div class="gno-form_input"><label for="bio"> Enter value <span class="gno-form_readonly-badge">(readonly)</span></label>
 <textarea id="bio" name="bio" placeholder="Enter value" rows="4" readonly>This is my bio</textarea>
