@@ -2,10 +2,10 @@
 
 ## Network configurations
 
-| Network | RPC Endpoint                            | Chain ID  |
-|---------|-----------------------------------------|-----------|
-| Staging | https://rpc.gno.land:443                | `staging` |
-| Test9   | https://rpc.test9.testnets.gno.land:443 | `test9`   |
+| Network | RPC Endpoint                             | Chain ID  |
+|---------|------------------------------------------|-----------|
+| Staging | https://rpc.gno.land:443                 | `staging` |
+| Test10  | https://rpc.test10.testnets.gno.land:443 | `test10`  |
 
 ### WebSocket endpoints
 
@@ -131,9 +131,13 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
     monorepo
 
+### Test10
+
+// todo
+
 ### Test9
 
-The latest Gno.land testnet, released on the 14th of October, 2025.
+Test9 is the testnet released on the 14th of October, 2025.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
