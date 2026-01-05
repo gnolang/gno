@@ -71,6 +71,11 @@ func ModifyState(_ realm) {
 }
 ` + "```" + `
 
+**Alternative**: If components don't need their own persistent state, 
+use pure packages (` + "`/p/...`" + `) instead of realms (` + "`/r/...`" + `). 
+Packages are stateless libraries that can only be imported, so all state 
+lives in the parent realm, eliminating bypass concerns entirely.
+
 ## This Example
 
 This realm combines a counter and a logger. Each action increments or decrements
