@@ -9,22 +9,22 @@ import (
 // from two sub-realms: a counter and a logger.
 
 // IncrementAndLog increments the counter and logs the action
-func IncrementAndLog(cur realm) {
-	counter.Increment(cur)
-	logger.Log(cur, "Counter incremented to "+counter.GetCountStr())
+func IncrementAndLog(_ realm) {
+	counter.Increment(cross)
+	logger.Log(cross, "Counter incremented to "+counter.GetCountStr())
 }
 
 // DecrementAndLog decrements the counter and logs the action
-func DecrementAndLog(cur realm) {
-	counter.Decrement(cur)
-	logger.Log(cur, "Counter decremented to "+counter.GetCountStr())
+func DecrementAndLog(_ realm) {
+	counter.Decrement(cross)
+	logger.Log(cross, "Counter decremented to "+counter.GetCountStr())
 }
 
 // Reset resets the counter and clears logs
-func Reset(cur realm) {
-	counter.Reset(cur)
-	logger.Clear(cur)
-	logger.Log(cur, "System reset")
+func Reset(_ realm) {
+	counter.Reset(cross)
+	logger.Clear(cross)
+	logger.Log(cross, "System reset")
 }
 
 func Render(_ string) string {
@@ -43,12 +43,31 @@ import (
     "gno.land/r/component/b"
 )
 
-func ComposedAction(cur realm) {
-    // Call functions from component A
-    a.DoSomething(cur)
+func ComposedAction(_ realm) {
+    // Call functions from component A (crossing realm boundaries)
+    // Pass nil as the realm parameter when calling external realms
+    a.DoSomething(nil)
     
-    // Call functions from component B
-    b.DoSomethingElse(cur)
+    // Call functions from component B (crossing realm boundaries)
+    b.DoSomethingElse(nil)
+}
+` + "```" + `
+
+## Access Control Pattern
+
+To prevent users from bypassing the composition realm and calling components directly,
+each component checks that the caller is the authorized composition realm:
+
+` + "```go" + `
+// In component realm
+const allowedCaller = "gno.land/r/my/composite"
+
+func ModifyState(_ realm) {
+    caller := runtime.PreviousRealm()
+    if caller.PkgPath() != allowedCaller {
+        panic("unauthorized")
+    }
+    // ... modify state
 }
 ` + "```" + `
 
@@ -57,8 +76,8 @@ func ComposedAction(cur realm) {
 This realm combines a counter and a logger. Each action increments or decrements
 the counter while automatically logging the change.
 
-**Key concept**: When calling functions in other realms that modify state, 
-you must pass the ` + "`realm`" + ` parameter to enable cross-realm calls.
+The counter and logger can only be modified through this composition realm.
+Direct calls to ` + "`counter.Increment()`" + ` or ` + "`logger.Log()`" + ` will fail with an authorization error.
 
 ## Components
 

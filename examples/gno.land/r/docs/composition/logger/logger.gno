@@ -1,23 +1,39 @@
 package logger
 
-import "time"
+import (
+	"chain/runtime"
+	"time"
+)
 
 var logs []string
 
-// Log adds a new entry to the log
+// allowedCaller is the only realm allowed to modify the logger
+const allowedCaller = "gno.land/r/docs/composition"
+
+// Log adds a new entry to the log (restricted to composition realm)
 func Log(_ realm, message string) {
+	assertAuthorized()
 	timestamp := time.Now().Format("15:04:05")
 	logs = append(logs, "["+timestamp+"] "+message)
+}
+
+// Clear removes all log entries (restricted to composition realm)
+func Clear(_ realm) {
+	assertAuthorized()
+	logs = nil
+}
+
+// assertAuthorized ensures only the composition realm can modify state
+func assertAuthorized() {
+	caller := runtime.PreviousRealm()
+	if caller.PkgPath() != allowedCaller {
+		panic("unauthorized: only " + allowedCaller + " can modify logger")
+	}
 }
 
 // GetLogs returns all log entries
 func GetLogs() []string {
 	return logs
-}
-
-// Clear removes all log entries
-func Clear(_ realm) {
-	logs = nil
 }
 
 // RenderLog returns a markdown snippet showing the log entries
