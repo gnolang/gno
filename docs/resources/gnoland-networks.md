@@ -133,7 +133,7 @@ is the `gnoweb` render of the Staging testnet.
 
 ### Test10
 
-// todo
+The latest Gno.land testnet, released on the 19th of December, 2025.
 
 ### Test9
 
