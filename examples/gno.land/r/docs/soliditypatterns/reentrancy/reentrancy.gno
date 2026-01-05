@@ -39,11 +39,10 @@ Coin transfers in Gno do **not** execute code on the recipient. Unlike Solidity'
 
 ` + "```go" + `
 func Withdraw(_ realm, amount int64) {
-    caller := std.PreviousRealm().Address()
+    caller := runtime.PreviousRealm().Address()
     
-    bnk := std.NewBanker(std.BankerTypeRealmSend)
-    coins := std.NewCoins(std.NewCoin("ugnot", amount))
-    bnk.SendCoins(std.CurrentRealm().Address(), caller, coins)  // No code executes on recipient
+    bnk := banker.NewBanker(banker.BankerTypeRealmSend)
+    bnk.SendCoins(runtime.CurrentRealm().Address(), caller, chain.Coins{chain.NewCoin("ugnot", amount)})  // No code executes on recipient
     deposits[caller] = 0  // Safe - no reentrancy possible
 }
 ` + "```" + `
@@ -55,7 +54,7 @@ pattern keeps your code clear and maintainable:
 
 ` + "```go" + `
 func Withdraw(_ realm, amount int64) {
-    caller := std.PreviousRealm().Address()
+    caller := runtime.PreviousRealm().Address()
     
     // 1. Checks - validate all preconditions
     balance := deposits[caller]
@@ -67,9 +66,8 @@ func Withdraw(_ realm, amount int64) {
     deposits[caller] -= amount
     
     // 3. Interactions - perform external operations last
-    bnk := std.NewBanker(std.BankerTypeRealmSend)
-    coins := std.NewCoins(std.NewCoin("ugnot", amount))
-    bnk.SendCoins(std.CurrentRealm().Address(), caller, coins)
+    bnk := banker.NewBanker(banker.BankerTypeRealmSend)
+    bnk.SendCoins(runtime.CurrentRealm().Address(), caller, chain.Coins{chain.NewCoin("ugnot", amount)})
 }
 ` + "```" + `
 

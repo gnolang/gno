@@ -5,12 +5,12 @@ import "strconv"
 var count int64 = 0
 
 // Increment increases the counter by 1
-func Increment() {
+func Increment(_ realm) {
 	count++
 }
 
 // Decrement decreases the counter by 1
-func Decrement() {
+func Decrement(_ realm) {
 	count--
 }
 
@@ -25,7 +25,7 @@ func GetCountStr() string {
 }
 
 // Reset sets the counter back to zero
-func Reset() {
+func Reset(_ realm) {
 	count = 0
 }
 

@@ -75,10 +75,6 @@ func Update(_ realm, name, description, endpoint string) {
 	}
 
 	service := val.(*Service)
-	if service.Owner != caller {
-		panic("only owner can update service")
-	}
-
 	service.Description = description
 	service.Endpoint = endpoint
 	services.Set(key, service)
@@ -95,10 +91,6 @@ func Deactivate(_ realm, name string) {
 	}
 
 	service := val.(*Service)
-	if service.Owner != caller {
-		panic("only owner can deactivate service")
-	}
-
 	service.Active = false
 	services.Set(key, service)
 }
@@ -108,14 +100,8 @@ func Delete(_ realm, name string) {
 	caller := runtime.PreviousRealm().Address()
 	key := caller.String() + ":" + name
 
-	val, ok := services.Get(key)
-	if !ok {
+	if !services.Has(key) {
 		panic("service not found")
-	}
-
-	service := val.(*Service)
-	if service.Owner != caller {
-		panic("only owner can delete service")
 	}
 
 	services.Remove(key)

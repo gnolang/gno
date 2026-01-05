@@ -5,7 +5,7 @@ import "time"
 var logs []string
 
 // Log adds a new entry to the log
-func Log(message string) {
+func Log(_ realm, message string) {
 	timestamp := time.Now().Format("15:04:05")
 	logs = append(logs, "["+timestamp+"] "+message)
 }
@@ -16,7 +16,7 @@ func GetLogs() []string {
 }
 
 // Clear removes all log entries
-func Clear() {
+func Clear(_ realm) {
 	logs = nil
 }
 
