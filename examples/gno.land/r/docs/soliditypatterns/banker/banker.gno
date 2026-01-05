@@ -123,6 +123,8 @@ import (
     "chain/runtime"
 )
 
+var deposits map[address]int64
+
 func Deposit(_ realm) {
     caller := runtime.PreviousRealm().Address()
     sent := banker.OriginSend()
@@ -133,6 +135,9 @@ func Deposit(_ realm) {
     deposits[caller] += amount
 }
 ` + "```" + `
+
+> **Note:** This example uses a map for simplicity. In production, prefer an AVL tree 
+> for better performance. See [source code](/r/docs/soliditypatterns/banker$source).
 
 ---
 
@@ -155,6 +160,8 @@ import (
     "chain/banker"
     "chain/runtime"
 )
+
+var deposits map[address]int64
 
 func Withdraw(_ realm, amount int64) {
     caller := runtime.PreviousRealm().Address()
