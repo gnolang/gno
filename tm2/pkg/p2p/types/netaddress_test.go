@@ -286,22 +286,48 @@ func TestNetAddress_Local(t *testing.T) {
 func TestNetAddressResolveIP(t *testing.T) {
 	t.Parallel()
 
-	var (
-		key      = GenerateNodeKey()
-		expected = "127.0.0.2"
-	)
+	t.Run("updates IP from IP hostname", func(t *testing.T) {
+		t.Parallel()
 
-	addr := &NetAddress{
-		ID:       key.ID(),
-		Hostname: expected,
-		IP:       net.ParseIP("127.0.0.1"),
-		Port:     8080,
-	}
+		var (
+			key      = GenerateNodeKey()
+			expected = "127.0.0.2"
+		)
 
-	err := addr.ResolveIP(context.Background())
-	require.NoError(t, err)
+		addr := &NetAddress{
+			ID:       key.ID(),
+			Hostname: expected,
+			IP:       net.ParseIP("127.0.0.1"),
+			Port:     8080,
+		}
 
-	assert.Equal(t, expected, addr.IP.String())
+		err := addr.ResolveIP(context.Background())
+		require.NoError(t, err)
+
+		assert.Equal(t, expected, addr.IP.String())
+	})
+
+	t.Run("resolves hostname to IP", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			key      = GenerateNodeKey()
+			expected = "127.0.0.1"
+		)
+
+		addr := &NetAddress{
+			ID:       key.ID(),
+			Hostname: "localhost",
+			IP:       net.ParseIP("127.0.0.2"),
+			Port:     8080,
+		}
+
+		err := addr.ResolveIP(context.Background())
+		require.NoError(t, err)
+
+		require.NotNil(t, addr.IP)
+		assert.Equal(t, expected, addr.IP.String())
+	})
 }
 
 func TestNetAddressFromStringHostnamePreserved(t *testing.T) {

@@ -753,6 +753,31 @@ func TestMultiplexSwitch_DialLoopResolvesHostname(t *testing.T) {
 	}
 }
 
+func TestMultiplexSwitch_ResolvePeerAddress(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns error on invalid hostname", func(t *testing.T) {
+		t.Parallel()
+
+		key := types.GenerateNodeKey()
+
+		addr := &types.NetAddress{
+			ID:       key.ID(),
+			Hostname: "invalid.invalid.invalid",
+			IP:       net.ParseIP("127.0.0.1"),
+			Port:     8080,
+		}
+
+		sw := NewMultiplexSwitch(nil, WithPersistentPeers([]*types.NetAddress{addr}))
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second)
+		defer cancelFn()
+
+		err := sw.resolvePeerAddress(ctx, addr)
+		require.Error(t, err)
+	})
+}
+
 func TestMultiplexSwitch_DialPeers(t *testing.T) {
 	t.Parallel()
 
