@@ -45,7 +45,7 @@ gnokey query vm/qeval -data 'gno.land/r/samcrew/subscriptions.GetRealmAddress()'
 gnokey maketx call \
   -pkgpath "gno.land/r/demo/defi/foo20" \
   -func "Approve" \
-  -args "g12m5qwhwl9wqt77a3ke0gleff72xhxvzzq5j3nc" \
+  -args "<ADDRESS>" \
   -args "50000000" \
   --gas-fee 1000000ugnot \
   --gas-wanted 5000000 \
