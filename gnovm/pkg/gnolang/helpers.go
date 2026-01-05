@@ -903,7 +903,7 @@ type StmtInjection struct {
 	idx  int // position to insert
 }
 
-func addStmtInsertionAttr(bn BlockNode, si *StmtInjection) {
+func addStmtInjectionAttr(bn BlockNode, si *StmtInjection) {
 	val := bn.GetAttribute(ATTR_CONTINUE_INSERT)
 	sis, _ := val.([]*StmtInjection)
 	if slices.Contains(sis, si) {
