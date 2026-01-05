@@ -452,7 +452,7 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 	fmt.Fprintf(w, `>`+"\n")
 	headerLabel := "Form"
 	if n.ExecFunc != "" {
-		headerLabel = fmt.Sprintf("Exec: %s", HTMLEscapeString(titleCase(n.ExecFunc)))
+		headerLabel = fmt.Sprintf("Exec: %s", HTMLEscapeString(n.ExecFunc))
 	}
 	fmt.Fprintf(w, `<div class="gno-form_header">
 <span><span class="font-bold">%s</span> %s</span>
@@ -604,17 +604,23 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 
 		fmt.Fprintln(w, ` />`)
 
-		label := e.Value
-		if e.Placeholder != "" {
-			label += " - " + e.Placeholder
-		}
 		readonlyBadge := ""
 		if e.Readonly {
 			readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
 		}
-		fmt.Fprintf(w, `<label for="%s"> %s %s</label>
+
+		// Display label with value shown transparently for security
+		if e.Placeholder != "" {
+			// Show human-readable label with subtle value indicator and tooltip
+			fmt.Fprintf(w, `<label for="%s">%s<span class="gno-form_value tooltip-inline" data-tooltip="Actual form value sent: %s">&nbsp;(%s)</span> %s</label>
 </div>
-`, HTMLEscapeString(uniqueID), HTMLEscapeString(label), readonlyBadge)
+`, HTMLEscapeString(uniqueID), HTMLEscapeString(e.Placeholder), HTMLEscapeString(e.Value), HTMLEscapeString(e.Value), readonlyBadge)
+		} else {
+			// No placeholder, just show the value
+			fmt.Fprintf(w, `<label for="%s">%s %s</label>
+</div>
+`, HTMLEscapeString(uniqueID), HTMLEscapeString(e.Value), readonlyBadge)
+		}
 	} else {
 		readonlyBadge := ""
 		if e.Readonly {

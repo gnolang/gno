@@ -19,11 +19,11 @@
 <div id="desc_preference_1" class="gno-form_description">Choose your preferred theme</div>
 <div class="gno-form_selectable">
 <input type="radio" id="preference_1" name="preference" value="light" aria-labelledby="desc_preference_1" />
-<label for="preference_1"> light - Light theme </label>
+<label for="preference_1">Light theme<span class="gno-form_value tooltip-inline" data-tooltip="Actual form value sent: light">&nbsp;(light)</span> </label>
 </div>
 <div class="gno-form_selectable">
 <input type="radio" id="preference_2" name="preference" value="dark" aria-labelledby="desc_preference_1" />
-<label for="preference_2"> dark - Dark theme </label>
+<label for="preference_2">Dark theme<span class="gno-form_value tooltip-inline" data-tooltip="Actual form value sent: dark">&nbsp;(dark)</span> </label>
 </div>
 <div id="desc_feedback_3" class="gno-form_description">Please provide detailed feedback about your experience</div>
 <div class="gno-form_input"><label for="feedback"> Your feedback </label>

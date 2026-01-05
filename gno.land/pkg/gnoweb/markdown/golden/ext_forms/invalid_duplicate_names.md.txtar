@@ -19,11 +19,11 @@
 <!-- Error: &#34;duplicate&#34;: name already used -->
 <div class="gno-form_selectable">
 <input type="radio" id="radio1_2" name="radio1" value="option1" />
-<label for="radio1_2"> option1 - Radio 1 </label>
+<label for="radio1_2">Radio 1<span class="gno-form_value tooltip-inline" data-tooltip="Actual form value sent: option1">&nbsp;(option1)</span> </label>
 </div>
 <div class="gno-form_selectable">
 <input type="radio" id="radio1_3" name="radio1" value="option2" />
-<label for="radio1_3"> option2 - Radio 2 </label>
+<label for="radio1_3">Radio 2<span class="gno-form_value tooltip-inline" data-tooltip="Actual form value sent: option2">&nbsp;(option2)</span> </label>
 </div>
 <!-- Error: &#34;duplicate&#34;: name already used -->
 <div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
