@@ -5,22 +5,22 @@ package tdd
 
 var lastResult int64
 
-func Add(a, b int64) int64 {
+func Add(_ realm, a, b int64) int64 {
 	lastResult = a + b
 	return lastResult
 }
 
-func Subtract(a, b int64) int64 {
+func Subtract(_ realm, a, b int64) int64 {
 	lastResult = a - b
 	return lastResult
 }
 
-func Multiply(a, b int64) int64 {
+func Multiply(_ realm, a, b int64) int64 {
 	lastResult = a * b
 	return lastResult
 }
 
-func Divide(a, b int64) int64 {
+func Divide(_ realm, a, b int64) int64 {
 	if b == 0 {
 		panic("division by zero")
 	}
@@ -50,9 +50,9 @@ First, write the test:
 ` + "```go" + `
 // calculator_test.gno
 func TestAdd(t *testing.T) {
-    result := Add(2, 3)
+    result := Add(nil, 2, 3)
     if result != 5 {
-        t.Errorf("Add(2, 3) = %d; want 5", result)
+        t.Errorf("Add(nil, 2, 3) = %d; want 5", result)
     }
 }
 ` + "```" + `
@@ -61,7 +61,7 @@ Then write the code:
 
 ` + "```go" + `
 // calculator.gno
-func Add(a, b int64) int64 {
+func Add(_ realm, a, b int64) int64 {
     return a + b
 }
 ` + "```" + `
@@ -81,9 +81,9 @@ func TestAdd(t *testing.T) {
     }
     
     for _, tt := range tests {
-        got := Add(tt.a, tt.b)
+        got := Add(nil, tt.a, tt.b)
         if got != tt.want {
-            t.Errorf("Add(%d, %d) = %d; want %d", 
+            t.Errorf("Add(nil, %d, %d) = %d; want %d", 
                 tt.a, tt.b, got, tt.want)
         }
     }
@@ -99,7 +99,7 @@ func TestDivideByZero(t *testing.T) {
             t.Error("expected panic")
         }
     }()
-    Divide(10, 0)
+    Divide(nil, 10, 0)
 }
 ` + "```" + `
 
@@ -110,7 +110,7 @@ func TestWithCaller(t *testing.T) {
     addr := testing.TestAddress("user1")
     testing.SetOriginCaller(addr)
     
-    result := SomeFunctionThatChecksCaller()
+    result := SomeFunctionThatChecksCaller(nil)
     // Assert...
 }
 ` + "```" + `
@@ -121,7 +121,7 @@ func TestWithCaller(t *testing.T) {
 func TestWithCoins(t *testing.T) {
     testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", 1000)})
     
-    result := SomePayableFunction()
+    result := SomePayableFunction(nil)
     // Assert...
 }
 ` + "```" + `

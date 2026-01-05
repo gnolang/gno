@@ -1,6 +1,7 @@
 package factory
 
 import (
+	"chain/runtime"
 	"strconv"
 )
 
@@ -104,21 +105,24 @@ var (
 
 // CreateFungibleToken creates a fungible token
 func CreateFungibleToken(_ realm, name string) string {
-	token := CreateToken(Fungible, name, "g1caller")
+	caller := runtime.PreviousRealm().Address()
+	token := CreateToken(Fungible, name, caller)
 	lastToken = token
 	return "Created: " + token.GetInfo()
 }
 
 // CreateNFT creates a non-fungible token
 func CreateNFT(_ realm, name string) string {
-	token := CreateToken(NonFungible, name, "g1caller")
+	caller := runtime.PreviousRealm().Address()
+	token := CreateToken(NonFungible, name, caller)
 	lastToken = token
 	return "Created: " + token.GetInfo()
 }
 
 // CreateSoulBound creates a soul-bound token
 func CreateSoulBound(_ realm, name string) string {
-	token := CreateToken(SoulBound, name, "g1caller")
+	caller := runtime.PreviousRealm().Address()
+	token := CreateToken(SoulBound, name, caller)
 	lastToken = token
 	return "Created: " + token.GetInfo()
 }

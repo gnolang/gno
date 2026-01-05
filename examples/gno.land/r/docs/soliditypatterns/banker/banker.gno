@@ -5,15 +5,17 @@ import (
 	"chain/banker"
 	"chain/runtime"
 	"strconv"
+
+	"gno.land/p/nt/avl"
 )
 
 // This example demonstrates the Gno equivalent of Solidity's
 // payable functions and ETH transfers.
 
-var deposits map[address]int64
+var deposits avl.Tree // address -> int64
 
 func init() {
-	deposits = make(map[address]int64)
+	deposits = avl.Tree{}
 }
 
 // Deposit accepts coins and tracks the sender's balance
@@ -28,7 +30,15 @@ func Deposit(_ realm) {
 	}
 
 	amount := sent.AmountOf("ugnot")
-	deposits[caller] += amount
+
+	// Get current balance
+	currentBalance := int64(0)
+	if val, exists := deposits.Get(caller.String()); exists {
+		currentBalance = val.(int64)
+	}
+
+	// Update balance
+	deposits.Set(caller.String(), currentBalance+amount)
 }
 
 // Withdraw sends coins back to the caller
@@ -36,13 +46,23 @@ func Deposit(_ realm) {
 func Withdraw(_ realm, amount int64) {
 	caller := runtime.PreviousRealm().Address()
 
+	// Get current balance
+	currentBalance := int64(0)
+	if val, exists := deposits.Get(caller.String()); exists {
+		currentBalance = val.(int64)
+	}
+
 	// Check balance
-	if deposits[caller] < amount {
+	if currentBalance < amount {
 		panic("insufficient balance")
 	}
 
-	// Update balance BEFORE sending (prevents reentrancy)
-	deposits[caller] -= amount
+	newBalance := currentBalance - amount
+	if newBalance == 0 {
+		deposits.Remove(caller.String())
+	} else {
+		deposits.Set(caller.String(), newBalance)
+	}
 
 	// Create a banker to send coins
 	bnk := banker.NewBanker(banker.BankerTypeRealmSend)
@@ -56,7 +76,10 @@ func Withdraw(_ realm, amount int64) {
 
 // GetBalance returns the deposited balance for an address
 func GetBalance(addr address) int64 {
-	return deposits[addr]
+	if val, exists := deposits.Get(addr.String()); exists {
+		return val.(int64)
+	}
+	return 0
 }
 
 // GetRealmBalance returns the total coins held by this realm
