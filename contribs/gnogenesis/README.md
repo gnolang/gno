@@ -186,7 +186,7 @@ The steps to get this sort of hash are:
 
 ## Genesis Transaction Sheet Format Reference
 
-This section provides a comprehensive reference for the `genesis_txs.jsonl` file format used by Gnoland for genesis transactions.
+This section provides a comprehensive reference for the `genesis_txs.jsonl` file format for genesis transactions.
 
 - **Format**: JSONL (JSON Lines) - one transaction per line
 - **Encoding**: Amino JSON serialization
@@ -310,5 +310,5 @@ func createGenesisTxsFile(outputPath string, privKey secp256k1.PrivKeySecp256k1,
 
 ### Transaction Ordering
 
-Transactions **must be sorted by timestamp before writing** to ensure deterministic ordering when replaying genesis state. The sorting is not done automatically when reading - you must sort manually using `slices.SortStableFunc` as shown above.
+Transactions **must be sorted by timestamp before writing** to ensure deterministic ordering when replaying genesis state. The sorting is not done automatically when reading, you must sort manually using `slices.SortStableFunc` as shown above.
 
