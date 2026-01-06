@@ -168,6 +168,7 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 	)
 
 	res.Write(md.H1(board.Name + ": Edit Comment"))
+	res.Write(md.Link("← Back to thread", makeThreadURI(thread)) + "\n\n")
 	res.Write(
 		md.Paragraph(
 			ufmt.Sprintf("Editing comment from %s thread", md.Link(thread.Title, makeThreadURI(thread))),

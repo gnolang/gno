@@ -37,7 +37,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	res.Write(md.H1("Boards › " + board.Name))
+	res.Write(md.H1(md.Link("Boards", gRealmPath) + " › " + md.Link(board.Name, makeBoardURI(board))))
 	res.Write(renderPost(thread, req.RawPath, "", 5))
 }
 
@@ -50,7 +50,7 @@ func renderThreadSummary(thread *boards.Post) string {
 		date        = thread.CreatedAt.Format(dateFormat)
 	)
 
-	b.WriteString(md.Bold(md.Link(summary, postURI)) + "  \n")
+	b.WriteString(md.H6(md.Link(summary, postURI)))
 	b.WriteString("Created by " + creatorLink + " on " + date + "  \n")
 
 	status := []string{
@@ -87,6 +87,7 @@ func renderCreateThread(res *mux.ResponseWriter, req *mux.Request) {
 	)
 
 	res.Write(md.H1(board.Name + ": Create Thread"))
+	res.Write(md.Link("← Back to board", makeBoardURI(board)) + "\n\n")
 	res.Write(
 		md.Paragraph(
 			ufmt.Sprintf("Thread will be created in %s board", md.Link(board.Name, makeBoardURI(board))),
@@ -142,6 +143,7 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 	)
 
 	res.Write(md.H1(board.Name + ": Edit Thread"))
+	res.Write(md.Link("← Back to thread", makeThreadURI(thread)) + "\n\n")
 	res.Write(
 		md.Paragraph("Editing " + md.Link(thread.Title, makeThreadURI(thread))),
 	)
@@ -198,6 +200,7 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 	)
 
 	res.Write(md.H1(board.Name + ": Repost Thread"))
+	res.Write(md.Link("← Back to thread", makeThreadURI(thread)) + "\n\n")
 	res.Write(
 		md.Paragraph(
 			"Threads can be reposted to other open boards or boards where you are a member " +

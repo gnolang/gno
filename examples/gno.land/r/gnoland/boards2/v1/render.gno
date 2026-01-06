@@ -101,7 +101,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		userLink := userLink(board.Creator)
 		date := board.CreatedAt.Format(dateFormat)
 
-		res.Write(md.Bold(md.Link(board.Name, makeBoardURI(board))) + "  \n")
+		res.Write(md.H6(md.Link(board.Name, makeBoardURI(board))))
 		res.Write("Created by " + userLink + " on " + date + ", #" + board.ID.String() + "  \n")
 
 		status := strconv.Itoa(board.Threads.Size()) + " threads"

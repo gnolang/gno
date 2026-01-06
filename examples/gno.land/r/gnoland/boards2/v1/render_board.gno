@@ -24,7 +24,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	creatorLink := userLink(board.Creator)
 	date := board.CreatedAt.Format(dateFormat)
 
-	res.Write(md.H1("Boards › " + board.Name))
+	res.Write(md.H1(md.Link("Boards", gRealmPath) + " › " + board.Name))
 	if board.Readonly {
 		res.Write(
 			mdalert.Warning("Info", "Creating new threads and commenting are disabled within this board") + "\n",
@@ -93,6 +93,7 @@ func renderBoardMenu(board *boards.Board, req *mux.Request) string {
 		b.WriteString(md.Link("Unfreeze Board", makeUnfreezeBoardURI(board)))
 		b.WriteString("\n")
 	} else {
+		b.WriteString("↳ ")
 		b.WriteString(md.Link("Create Thread", makeCreateThreadURI(board)))
 		b.WriteString(" • ")
 		b.WriteString(md.Link("Request Invite", makeRequestInviteURI(board)))
@@ -108,7 +109,7 @@ func renderBoardMenu(board *boards.Board, req *mux.Request) string {
 		b.WriteString("  \n")
 
 		if menu == menuManageBoard {
-			b.WriteString("↳")
+			b.WriteString(" — ")
 			b.WriteString(md.Link("Invite Member", makeInviteMemberURI(board)))
 			b.WriteString(" • ")
 			b.WriteString(md.Link("List Invite Requests", makeBoardURI(board)+"/invites"))
