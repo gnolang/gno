@@ -12,7 +12,7 @@
 <span><span class="font-bold">/r/test</span> Form</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
-<div class="gno-form_select"><label for="country"> Country </label>
+<div class="gno-form_select"><label for="country">Country</label>
 <select id="country" name="country">
 <option value="">Select a Country</option>
 <option value="United States">United States</option>
