@@ -521,9 +521,9 @@ func (re *Regexp) doMatch(r io.RuneReader, b []byte, s string) bool {
 func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int, dstCap []int) []int {
 	if dstCap == nil {
 		// Make sure 'return dstCap' is non-nil.
-		// XXX: Use a fresh clice instead of global arrayNoInts to avoid
+		// XXX: Use a fresh slice instead of global arrayNoInts to avoid
 		// XXX: the slice being backed by a "real" package-level object.
-		dstCap = []int{}
+		dstCap = []int{} // XXX: see above.
 	}
 
 	if r == nil && len(b)+len(s) < re.minInputLen {
