@@ -521,7 +521,9 @@ func (re *Regexp) doMatch(r io.RuneReader, b []byte, s string) bool {
 func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int, dstCap []int) []int {
 	if dstCap == nil {
 		// Make sure 'return dstCap' is non-nil.
-		dstCap = arrayNoInts[:0:0]
+		// XXX: Use a fresh clice instead of global arrayNoInts to avoid
+		// XXX: the slice being backed by a "real" package-level object.
+		dstCap = []int{}
 	}
 
 	if r == nil && len(b)+len(s) < re.minInputLen {
@@ -548,7 +550,3 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 	re.put(m)
 	return dstCap
 }
-
-// arrayNoInts is returned by doExecute match if nil dstCap is passed
-// to it with ncap=0.
-var arrayNoInts [0]int
