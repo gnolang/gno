@@ -13,7 +13,7 @@
 </div>
 <div data-controller="action-function" data-action-function-name-value="Transfer">
 <!-- Error: missing &#39;name&#39; attribute -->
-<div class="gno-form_input"><label for="amount"> Amount </label>
+<div class="gno-form_input"><label for="amount">Amount</label>
 <input type="number" id="amount" name="amount" placeholder="Amount" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="amount" />
 </div>
 <div class="gno-form_input"><input type="submit" value="Submit (Transfer Function)" /></div>
