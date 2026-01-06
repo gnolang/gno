@@ -15,7 +15,7 @@
 <span><span class="font-bold">/r/test</span> Form</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
-<div class="gno-form_input"><label for="duplicate"> test </label>
+<div class="gno-form_input"><label for="duplicate">test</label>
 <input type="text" id="duplicate" name="duplicate" placeholder="test" />
 </div>
 <!-- Error: &#34;duplicate&#34;: name already used -->
