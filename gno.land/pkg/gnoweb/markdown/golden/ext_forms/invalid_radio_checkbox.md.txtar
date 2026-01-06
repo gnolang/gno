@@ -20,11 +20,11 @@
 <!-- Error: &#39;checked&#39; attribute: invalid attribute for input type for type &#39;email&#39; -->
 <div class="gno-form_selectable">
 <input type="radio" id="radio_no_placeholder_4" name="radio_no_placeholder" value="option1" />
-<label for="radio_no_placeholder_4"> option1 </label>
+<label for="radio_no_placeholder_4">option1</label>
 </div>
 <div class="gno-form_selectable">
 <input type="checkbox" id="checkbox_no_placeholder_5" name="checkbox_no_placeholder" value="option2" />
-<label for="checkbox_no_placeholder_5"> option2 </label>
+<label for="checkbox_no_placeholder_5">option2</label>
 </div>
 <div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>
