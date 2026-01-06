@@ -1202,17 +1202,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if isShift {
 					// fmt.Println("---shift, n: ", n)
 					// check LHS type compatibility
-					propagate := func() bool {
-						var prevNode Node
-						if len(ns) > 1 {
-							prevNode = ns[len(ns)-1]
-						}
+					propagate := true
+					if len(ns) > 1 {
+						prevNode := ns[len(ns)-1]
 						if bx2, ok := prevNode.(*BinaryExpr); ok && (bx2.Op == SHL || bx2.Op == SHR) && bx2.Left == n {
-							return false
+							propagate = false
 						}
-						return true
 					}
-					n.assertShiftExprCompatible1(store, last, lt, rt, propagate())
+					n.assertShiftExprCompatible1(store, last, lt, rt, propagate)
 					// checkOrConvert RHS
 					if baseOf(rt) != UintType {
 						// fmt.Println("---RHS not uint...")

@@ -669,14 +669,10 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 	}
 	if !isIntNum(rt) {
 		var isIntValue bool
-		// special case for num like 1.0, it will be converted to uint later
+		// special case for num like 1.0, it will be converted to uint later.
 		if ric {
 			rv := evalConst(store, last, x.Right)
-			if bd, ok := rv.V.(BigdecValue); ok {
-				if isInteger(bd.V) {
-					isIntValue = true
-				}
-			}
+			isIntValue = IsExactBigDec(rv.V)
 		}
 		if !isIntValue {
 			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
@@ -694,22 +690,26 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 			return
 		}
 		// special case for 1.0
-		if lt == UntypedBigdecType {
-			// 1.0 << 1
-			if lic && ric {
-				// XXX, duplicate?
+		if lic {
+			lv := evalConst(store, last, lcx)
+			if !IsExactBigDec(lv.V) {
+				panic(fmt.Sprintf("invalid operation: shifted operand %v (%v) must be integer", lv, lt))
+			}
+
+			if ric && lt == UntypedBigdecType {
+				// const expr, e.g. 1.0 << 1.
 				convertConst(store, last, x, lcx, UntypedBigintType)
 				return
 			}
-		}
-		// not const, e.g. 1.0 << x, see types/shift_d5.gno
-		// this can be valid if the context if IntType.
-		// e.g. var y int = 1.0 << x.
-		if isNumeric(lt) {
+
+			// Not const, left to runtime check.
+			// e.g. 1.0 << x, see types/shift_d5.gno
+			// this can be valid if the context if IntType.
+			// e.g. var y int = 1.0 << x.
 			if propagate {
 				return
 			}
-			// embedded in an outer shift expr, no propagation.
+			// Embedded in an outer shift expr, no propagation.
 			// e.g. y = (1.0 << s) << s
 			if isUntyped(lt) {
 				lt = defaultTypeOf(lt)
