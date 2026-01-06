@@ -2,14 +2,6 @@
 
 This directory contains the genesis configuration files for the Gnoland blockchain.
 
-## Files
-
-| File | Description |
-|------|-------------|
-| `genesis.json` | Main genesis file that combines balances, transactions, and chain config |
-| `genesis_balances.txt` | Initial account balances |
-| `genesis_txs.jsonl` | Genesis transactions to replay at chain start |
-
 ## Genesis Balances (`genesis_balances.txt`)
 
 Plain text file with one balance entry per line:
