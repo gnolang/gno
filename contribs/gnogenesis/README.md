@@ -228,7 +228,7 @@ The following example shows how to create transactions, sort them by timestamp, 
 
 ```go
 import (
-    "bufio"
+    "fmt"
     "os"
     "slices"
     "time"
@@ -236,7 +236,6 @@ import (
     "github.com/gnolang/gno/gno.land/pkg/gnoland"
     "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
     "github.com/gnolang/gno/tm2/pkg/amino"
-    "github.com/gnolang/gno/tm2/pkg/crypto"
     "github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
     "github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -290,21 +289,17 @@ func createGenesisTxsFile(outputPath string, privKey secp256k1.PrivKeySecp256k1,
     }
     defer file.Close()
 
-    writer := bufio.NewWriter(file)
     for _, tx := range txs {
         encoded, err := amino.MarshalJSON(tx)
         if err != nil {
             return err
         }
-        if _, err := writer.Write(encoded); err != nil {
-            return err
-        }
-        if _, err := writer.WriteString("\n"); err != nil {
+        if _, err := fmt.Fprintf(file, "%s\n", encoded); err != nil {
             return err
         }
     }
 
-    return writer.Flush()
+    return nil
 }
 ```
 
