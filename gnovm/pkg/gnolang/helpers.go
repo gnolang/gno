@@ -898,6 +898,7 @@ func chopRight(in string) (left string, tok rune, right string) {
 	}
 }
 
+// Stmt injections.
 type StmtInjection struct {
 	stmt Stmt
 	idx  int // position to insert
@@ -917,6 +918,7 @@ func getStmtInjectionAttr(bn BlockNode) []*StmtInjection {
 	return sis
 }
 
+// Loopvar attrs.
 func addLoopvarAttrs(bn BlockNode, key GnoAttribute, name Name) {
 	val := bn.GetAttribute(key)
 	ns, ok := val.(map[Name]struct{})
