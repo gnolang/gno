@@ -580,11 +580,6 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			dst, src := arg0, arg1
-			dstv := dst.TV.V.(*SliceValue)
-			dstBase := dstv.GetBase(m.Store)
-			// Guard for protecting dst against mutation by external realms.
-			// Leave this line here forever for defensive security purposes.
-			m.Realm.DidUpdate(dstBase, nil, nil)
 			bdt := baseOf(dst.TV.T).(*SliceType)
 			switch bst := baseOf(src.TV.T).(type) {
 			case PrimitiveType:
@@ -609,6 +604,9 @@ func makeUverseNode() {
 					return
 				}
 				dstv := dst.TV.V.(*SliceValue)
+				// Guard for protecting dst against mutation by external realms.
+				dstBase := dstv.GetBase(m.Store)
+				m.Realm.DidUpdate(dstBase, nil, nil)
 				// TODO: consider an optimization if dstv.Data != nil.
 				for i := range minl {
 					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
@@ -632,6 +630,9 @@ func makeUverseNode() {
 					return
 				}
 				dstv := dst.TV.V.(*SliceValue)
+				// Guard for protecting dst against mutation by external realms.
+				dstBase := dstv.GetBase(m.Store)
+				m.Realm.DidUpdate(dstBase, nil, nil)
 				srcv := src.TV.V.(*SliceValue)
 				for i := range minl {
 					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
