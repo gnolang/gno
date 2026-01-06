@@ -18,10 +18,10 @@
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
 <div data-controller="action-function" data-action-function-name-value="UpdateProfile">
-<div class="gno-form_input"><label for="username"> Username </label>
+<div class="gno-form_input"><label for="username">Username</label>
 <input type="text" id="username" name="username" placeholder="Username" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="username" />
 </div>
-<div class="gno-form_input"><label for="email"> Email </label>
+<div class="gno-form_input"><label for="email">Email</label>
 <input type="email" id="email" name="email" placeholder="Email" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="email" />
 </div>
 <!-- Error: unexpected or invalid tag -->

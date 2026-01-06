@@ -16,27 +16,27 @@
 </div>
 <div class="gno-form_selectable">
 <input type="radio" id="gender_0" name="gender" value="male" />
-<label for="gender_0"> male - Male option </label>
+<label for="gender_0">male - Male option</label>
 </div>
 <div class="gno-form_selectable">
 <input type="radio" id="gender_1" name="gender" value="female" checked />
-<label for="gender_1"> female - Female option </label>
+<label for="gender_1">female - Female option</label>
 </div>
 <div class="gno-form_selectable">
 <input type="radio" id="gender_2" name="gender" value="other" />
-<label for="gender_2"> other - Other option </label>
+<label for="gender_2">other - Other option</label>
 </div>
 <div class="gno-form_selectable">
 <input type="checkbox" id="newsletter_3" name="newsletter" value="subscribe" checked />
-<label for="newsletter_3"> subscribe - Subscribe to newsletter </label>
+<label for="newsletter_3">subscribe - Subscribe to newsletter</label>
 </div>
 <div class="gno-form_selectable">
 <input type="checkbox" id="terms_4" name="terms" value="accepted" />
-<label for="terms_4"> accepted - I accept the terms </label>
+<label for="terms_4">accepted - I accept the terms</label>
 </div>
 <div class="gno-form_selectable">
 <input type="checkbox" id="preferences_5" name="preferences" value="marketing" checked />
-<label for="preferences_5"> marketing - Marketing emails </label>
+<label for="preferences_5">marketing - Marketing emails</label>
 </div>
 <div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>
