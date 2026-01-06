@@ -1574,8 +1574,7 @@ type BlockNode interface {
 	GetBody() Body
 	SetBody(Body)
 
-	FindNamePrefixed(Store, Name, ...string) (bool, Name)
-	FindNamePrefixedForPath(Store, Name, uint8, ...string) (bool, Name)
+	FindNamePrefixedUpTo(Store, Name, uint8, ...string) (bool, Name)
 
 	// Utility methods for gno fix etc.
 	// Unlike GetType[Decl|Expr]For[Path|Expr] which are determined
@@ -1963,54 +1962,26 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 	return 0, false
 }
 
-func (sb *StaticBlock) FindNamePrefixed(store Store, n Name, prefixes ...string) (found bool, name Name) {
+// Finds name with any of the given prefixes defined locally or in ancestors
+// up to depth.  If depth is 0xff, searches unlimited depth.
+// Returns found==false if not found.
+func (sb *StaticBlock) FindNamePrefixedUpTo(store Store, n Name, depth uint8, prefixes ...string) (found bool, name Name) {
 	if n == blankIdentifier {
 		return false, ""
 	}
 	// Check local.
 	gen := 1
-	// also search with .loopvar_, this make sure `i` also
-	// get a correct path.
-	if _, found, name = sb.FindLocalNamePrefixed(n, prefixes...); found {
-		return
-	}
-	// Check ancestors.
-	gen++
-	bp := sb.GetParentNode(store)
-	for bp != nil {
-		if _, found, name = bp.GetStaticBlock().FindLocalNamePrefixed(n, prefixes...); found {
-			return
-		} else {
-			bp = bp.GetParentNode(store)
-			gen++
-			if 0xff < gen {
-				panic("value path depth overflow")
-			}
-		}
-	}
-	return
-}
 
-func (sb *StaticBlock) FindNamePrefixedForPath(store Store, n Name, depth uint8, prefixes ...string) (found bool, name Name) {
-	if n == blankIdentifier {
-		return false, ""
-	}
-	// Check local.
-	gen := 1
-	// also search with .loopvar_, this make sure `i` also
-	// get a correct path.
 	if _, found, name = sb.FindLocalNamePrefixed(n, prefixes...); found {
 		return
 	}
+
 	// Check ancestors.
 	gen++
 	bp := sb.GetParentNode(store)
-	if _, ok := bp.(*IfStmt); ok {
-		depth++
-	}
-	for bp != nil && gen <= int(depth) {
+
+	for bp != nil && (gen <= int(depth)) {
 		if _, found, name = bp.GetStaticBlock().FindLocalNamePrefixed(n, prefixes...); found {
-			// found a NameExpr with type NameExprTypeLoopVarDefine
 			return
 		} else {
 			bp = bp.GetParentNode(store)
@@ -2026,8 +1997,6 @@ func (sb *StaticBlock) FindNamePrefixedForPath(store Store, n Name, depth uint8,
 func (sb *StaticBlock) FindLocalNamePrefixed(n Name, prefixes ...string) (uint16, bool, Name) {
 	for _, prefix := range prefixes {
 		n2 := Name(prefix) + n
-		// firstly search general TypeDefine names,
-		// it potentially overrides the loopvar.
 		for i, name := range sb.Names {
 			if name == n2 {
 				if debug {
@@ -2040,7 +2009,6 @@ func (sb *StaticBlock) FindLocalNamePrefixed(n Name, prefixes ...string) (uint16
 				if t != nil {
 					return uint16(i), true, n2
 				}
-				// else going on search loopvar
 			}
 		}
 	}
@@ -2053,14 +2021,14 @@ func (sb *StaticBlock) FindLocalNamePrefixed(n Name, prefixes ...string) (uint16
 	return 0, false, ""
 }
 
-func MarkLoopvar(last BlockNode, nx *NameExpr) {
+// If nx is a use of a loop variable, rename it accordingly.
+func RenameLoopVarUse(last BlockNode, nx *NameExpr) {
 	if nx.Name == blankIdentifier {
 		return
 	}
-
 	if nx.Type == NameExprTypeNormal {
 		// find 'i' or '.loopvar_i'
-		found, n := last.FindNamePrefixed(nil, nx.Name, "", ".loopvar_")
+		found, n := last.FindNamePrefixedUpTo(nil, nx.Name, 0xff, "", ".loopvar_")
 		if found && strings.HasPrefix(string(n), ".loopvar_") {
 			nx.Type = NameExprTypeLoopVarUse
 			// rename to .loopvar_x for later use.
