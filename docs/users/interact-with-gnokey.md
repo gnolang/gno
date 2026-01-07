@@ -1,7 +1,7 @@
 # Interacting with Gno.land using gnokey
 
 `gnokey` is the official command-line wallet and utility for interacting with
-Gno.land networks. It allows you to manage keys, query the blockchain, send
+Gno.land networks. It allows to manage keys, query the blockchain, send
 transactions, and deploy smart contracts. This guide will help you get started
 with the essential operations.
 
@@ -23,22 +23,15 @@ make install
 
 ## Managing key pairs
 
-In this tutorial, you will learn how to create your Gno key pair using
-[gnokey](./interact-with-gnokey.md). A key pair is required to send
-transactions to the blockchain, including deploying code, interacting with
-existing applications, and more.
+A key pair is required to send transactions to the blockchain, including 
+deploying code, interacting with existing applications, and transferring coins.
 
 ## A word about key pairs
 
-Key pairs are the foundation of how users interact with blockchains; and Gno is
-no exception. By using a 12-word or 24-word [mnemonic phrase](https://www.zimperium.com/glossary/mnemonic-seed/)
-as a source of randomness, users can derive a private and a public key.
-These two keys can then be used further; a public key derives an address which is
-a unique identifier of a user on the blockchain, while a private key is used for
-signing messages and transactions for the aforementioned address, proving a user
-has ownership over it.
-
-Let's see how we can use `gnokey` to generate a Gno key pair locally.
+Key pairs are the foundation of blockchain interactions. A 12-word or 24-word 
+[mnemonic phrase](https://www.zimperium.com/glossary/mnemonic-seed/) generates 
+a private and public key. Your public key derives your address (your unique 
+identifier), while your private key signs transactions, proving ownership.
 
 ## Generating a key pair
 
@@ -69,10 +62,8 @@ key pairs. The keybase directory path is stored under the `-home` flag in `gnoke
 
 ### Gno addresses
 
-Your **Gno address** is like your unique identifier on the network; an address
-is visible in the caller stack of an application, it is included in each
-transaction you create with your key pair, and anyone who knows your address can
-send you [coins](../resources/gno-stdlibs.md#coin), etc.
+Your **Gno address** (starting with `g1`) is your unique identifier on the network. 
+It's visible in transactions and used to receive [coins](../resources/gno-stdlibs.md#coin).
 
 ## Making transactions
 
@@ -98,7 +89,7 @@ Let's delve deeper into each of these message types.
 
 ## `AddPackage`
 
-In case you want to upload new code to the chain, you can use the `AddPackage`
+To upload new code to the chain, you can use the `AddPackage`
 message type. You can send an `AddPackage` transaction with `gnokey` using the
 following command:
 
@@ -139,6 +130,25 @@ func Hello() string {
   return "Hello, world!"
 }
 ```
+
+Before we upload the package to the chain, we need to create a `gnomod.toml` file.
+It is required for all packages and realms and contains metadata about your package.
+
+Create a `gnomod.toml` file in the same directory (`example/p/`):
+
+```bash
+gno mod init "gno.land/p/<your_namespace>/hello_world"
+```
+
+Replace `<your_namespace>` with your actual namespace. The module path must match 
+the `-pkgpath` you'll use when uploading the package.
+
+:::info Why do we need `gnomod.toml`?
+
+The `gnomod.toml` file is the package manifest. It defines the module path for 
+imports and package resolution. Without it, your package upload will fail.
+
+:::
 
 We are now ready to upload this package to the chain. To do this, we must set the
 correct flags for the `addpkg` subcommand.
@@ -536,17 +546,15 @@ internet.
 The intended purpose of this functionality is to provide maximum security when
 signing and broadcasting a transaction. In practice, this procedure should take
 place on two separate machines controlled by the holder of the keys, one with
-access to the internet (`Machine A`), and the other one without (`Machine B`),
-with the separation of steps as follows:
+access to the internet (`Machine A`), and the other one without (`Machine B`):
+
 1. `Machine A`: Fetch account information from the chain
-2. `Machine B`: Create an unsigned transaction locally
-3. `Machine B`: Sign the transaction
-4. `Machine A`: Broadcast the transaction
+2. `Machine B`: Create and sign the transaction offline
+3. `Machine A`: Broadcast the transaction
 
 ## 1. Fetching account information from the chain
 
-First, we need to fetch data for the account we are using to sign the transaction,
-using the [auth/accounts](#authaccounts) query:
+Fetch data for the account using the [auth/accounts](#authaccounts) query:
 
 ```bash
 gnokey query auth/accounts/<your_address> -remote "https://rpc.gno.land:443"
@@ -567,15 +575,12 @@ data: {
 }
 ```
 
-In this case, the account number is `468`, and the sequence (nonce) is `0`. We
-will need these values to sign the transaction later. These pieces of information
-are crucial during the signing process, as they are included in the signature
-of the transaction, preventing replay attacks.
+In this case, the account number is `468`, and the sequence (nonce) is `0`. These 
+values are needed to sign the transaction and prevent replay attacks.
 
 ## 2. Creating an unsigned transaction locally
 
-To create the transaction you want, you can use the [`call` API](#call),
-without the `-broadcast` flag, while redirecting the output to a local file:
+Create the transaction without the `-broadcast` flag, redirecting output to a file:
 
 ```bash
 gnokey maketx call \
@@ -587,12 +592,10 @@ mykey > userbook.tx
 ```
 
 This will create a `userbook.tx` file with a null `signature` field.
-Now we are ready to sign the transaction.
 
 ## 3. Signing the transaction
 
-To add a signature to the transaction, we can use the `gnokey sign` subcommand.
-To sign, we must set the correct flags for the subcommand:
+Use the `gnokey sign` subcommand with the following flags:
 - `-tx-path` - path to the transaction file to sign, in our case, `userbook.tx`
 - `-chainid` - id of the chain to sign for
 - `-account-number` - number of the account fetched previously
@@ -607,31 +610,23 @@ gnokey sign \
 mykey
 ```
 
-After inputting the correct values, `gnokey` will ask for the password to decrypt
-the key pair. Once we input the password, we should receive the message that the
-signing was completed. If we open the `userbook.tx` file, we will be able to see
-that the signature field has been populated.
-
-We are now ready to broadcast this transaction to the chain.
+After inputting the correct values, `gnokey` will ask for the password. Once entered,
+the signature field in `userbook.tx` will be populated.
 
 ## 4. Broadcasting the transaction
 
-To broadcast the signed transaction to the chain, we can use the `gnokey broadcast`
-subcommand, giving it the path to the signed transaction:
+Broadcast the signed transaction using `gnokey broadcast`:
 
 ```bash
 gnokey broadcast -remote "https://rpc.gno.land:443" userbook.tx
 ```
 
-In this case, we do not need to specify a key pair, as the transaction has already
-been signed in a previous step and `gnokey` is only sending it to the RPC endpoint.
+No key pair is needed since the transaction is already signed.
 
 ## Verifying a transaction's signature
 
-To verify a transaction's signature is correct, you can use the `gnokey verify`
-subcommand. We can provide the path to the transaction document using the `-docpath`
-flag, provide the key we signed the transaction with, and the signature itself.
-Make sure the signature is in the `hex` format.
+Verify a transaction's signature using the `gnokey verify` subcommand. Provide the 
+transaction document path, the signing key, and the signature in `hex` format:
 
 ```bash
 gnokey verify -docpath userbook.tx mykey <signature>
@@ -639,37 +634,28 @@ gnokey verify -docpath userbook.tx mykey <signature>
 
 ## Querying a Gno.land network
 
-Gno.land and `gnokey` support ABCI queries. Using ABCI queries, you can query the state of
-a Gno.land network without spending any gas. All queries need to be pointed towards
-a specific remote address from which the state will be retrieved.
-
-To send ABCI queries, you can use the `gnokey query` subcommand, and provide it
-with the appropriate query. The `query` subcommand allows us to send different
-types of queries to a Gno.land network.
+Use ABCI queries to read blockchain state without spending gas. Send queries using 
+`gnokey query` with the appropriate subcommand.
 
 Below is a list of queries a user can make with `gnokey`:
-- `auth/accounts/{ADDRESS}` - returns information about an account
-- `bank/balances/{ADDRESS}` - returns balances of an account
-- `vm/qfuncs` - returns the exported functions for a given pkgpath
-- `vm/qfile` - returns package contents for a given pkgpath
-- `vm/qdoc` - Returns the JSON of the doc for a given pkgpath, suitable for printing
-- `vm/qeval` - evaluates an expression in read-only mode on and returns the results
-- `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
-- `vm/qstorage` - returns storage usage and deposit locked in a realm
-
-Let's see how we can use them.
+- `auth/accounts/{ADDRESS}` - account information
+- `bank/balances/{ADDRESS}` - account balances
+- `vm/qfuncs` - exported functions for a package
+- `vm/qfile` - package file contents
+- `vm/qdoc` - package documentation
+- `vm/qeval` - evaluate expressions in read-only mode
+- `vm/qrender` - render output for a package
+- `vm/qstorage` - storage usage and deposit
 
 ## `auth/accounts`
 
-We can obtain information about a specific address using this subquery. To call it,
-we can run the following command:
+Get information about a specific address:
 
 ```bash
 gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
 ```
 
-With this, we are asking the Staging network to deliver information about the
-specified address. If everything went correctly, we should get output similar to the following:
+Output:
 
 ```bash
 height: 0
@@ -687,13 +673,11 @@ data: {
 }
 ```
 
-The return data will contain the following fields:
-- `height` - the height at which the query was executed. This is currently not
-  supported and is `0` by default.
-- `data` - contains the result of the query.
+The return data contains:
+- `height` - query execution height (currently `0` by default)
+- `data` - query result
 
-The `data` field returns a `BaseAccount`, which is the main struct used in Tendermint2
-to hold account data. It contains the following information:
+The `BaseAccount` struct contains:
 - `address` - the address of the account
 - `coins` - the list of coins the account owns
 - `public_key` - the TM2 public key of the account, from which the address is derived
@@ -702,32 +686,28 @@ to hold account data. It contains the following information:
 
 ## `bank/balances`
 
-With this query, we can fetch [coin](../resources/gno-stdlibs.md#coin) balances
-of a specific account. To call it, we can run the following command:
+Fetch [coin](../resources/gno-stdlibs.md#coin) balances of an account:
 
 ```bash
 gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
 ```
 
-If everything went correctly, we should get an output similar to the following:
+Output:
 
 ```bash
 height: 0
 data: "227984898927ugnot"
 ```
 
-The data field will contain the coins the address owns.
-
 ## `vm/qfuncs`
 
-Using the `vm/qfuncs` query, we can fetch exported functions from a specific package
-path. To specify the path we want to query, we can use the `-data` flag:
+Fetch exported functions from a package path using the `-data` flag:
 
 ```bash
 gnokey query vm/qfuncs --data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
 ```
 
-The output is a string containing all exported functions for the `wugnot` realm:
+Returns all exported functions for the package.
 
 ```json
 height: 0
@@ -754,16 +734,14 @@ data: [
 
 ## `vm/qfile`
 
-With the `vm/qfile` query, we can fetch files and their content found on a
-specific package path. To specify the path we want to query, we can use the
-`-data` flag:
+Fetch files and their content from a package path:
 
 ```bash
 gnokey query vm/qfile -data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
 ```
 
-If the `-data` field contains only the package path, the output is a list of all
-files found within the `wugnot` realm:
+Lists all files in the package. To retrieve a specific file's source code, add the 
+filename to the path:
 
 ```bash
 height: 0
@@ -772,50 +750,19 @@ wugnot.gno
 z0_filetest.gno
 ```
 
-If the `-data` field also specifies a file name after the path, the source code
-of the file will be retrieved:
-
 ```bash
 gnokey query vm/qfile -data "gno.land/r/gnoland/wugnot/wugnot.gno" -remote https://rpc.gno.land:443
 ```
 
-Output:
-```bash
-height: 0
-data: package wugnot
-
-import (
-        "std"
-        "strings"
-
-        "gno.land/p/nt/grc/grc20"
-        "gno.land/p/nt/ufmt"
-        pusers "gno.land/p/demo/users"
-        "gno.land/r/demo/users"
-)
-
-var (
-        banker *grc20.Banker = grc20.NewBanker("wrapped GNOT", "wugnot", 0)
-        Token                = banker.Token()
-)
-
-const (
-        ugnotMinDeposit  uint64 = 1000
-        wugnotMinDeposit uint64 = 1
-)
-...
-```
-
 ## `vm/qdoc`
 
-Using the `vm/qdoc` query, we can fetch the docs, for functions, types and variables from a specific
-package path. To specify the path we want to query, we can use the `-data` flag:
+Fetch documentation for functions, types, and variables from a package:
 
 ```bash
 gnokey query vm/qdoc --data "gno.land/r/gnoland/valopers/v2" -remote https://rpc.gno.land:443
 ```
 
-The output is a JSON string containing doc strings of the package, functions, etc., including comments for `valopers` realm:
+Returns JSON with package documentation, functions, types, and values.
 
 ```json
 height: 0
@@ -878,29 +825,23 @@ data: {
 
 ## `vm/qeval`
 
-`vm/qeval` allows us to evaluate a call to an exported function without using gas,
-in read-only mode. For example:
+Evaluate exported functions in read-only mode without using gas:
 
 ```bash
 gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 ```
 
-This command will return the `wugnot` balance of the above address without using gas.
-Properly escaping quotation marks for string arguments is currently required.
-
-Currently, `vm/qeval` only supports primitive types in expressions.
+Escape quotation marks for string arguments. Only supports primitive types.
 
 ## `vm/qrender`
 
-`vm/qrender` is an alias for executing `vm/qeval` on the `Render("")` function.
-We can use it like this:
+Render a package's output (shorthand for `vm/qeval` on the `Render("")` function):
 
 ```bash
 gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.gno.land:443
 ```
 
-Running this command will display the current `Render()` output of the WUGNOT
-realm, which is also displayed by default on the [realm's page](https://gno.land/r/gnoland/wugnot):
+Displays the current `Render()` output of the realm.
 
 ```bash
 height: 0
@@ -913,33 +854,23 @@ data: # wrapped GNOT ($wugnot)
 
 :::info Specifying a path to `Render()`
 
-To call the `vm/qrender` query with a specific path, use the `<pkgpath>:<renderpath>` syntax.
-For example, the `wugnot` realm provides a way to display the balance of a specific
-address in its `Render()` function. We can fetch the balance of an account by
-providing the following custom pattern to the `wugnot` realm:
+Use `<pkgpath>:<renderpath>` syntax to call `Render()` with a specific path:
 
 ```bash
 gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:balance/g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" -remote https://rpc.gno.land:443
 ```
 
-To see how this was achieved, check out `wugnot`'s `Render()` function.
 :::
 
 ## `vm/qpaths`
 
-`vm/qpaths` lists all existing package paths prefixed with the specified string
-using `--data=<prefix>`. If no paths are provided, all known paths will be
-listed, including those from `stdlibs`. You can specify an additional *limit*
-parameter at the end of the path using `<path>?limit=<x>` to restrict the number
-of results to `x` elements. If `0` is specified as *limit*, then, no limit will
-be applied, with a hard limit of `10_000`. The default *limit* is `1_000`.
-
-A simple example:
+List package paths with a specified prefix:
 ```bash
 gnokey query vm/qpaths --data "gno.land/r/gnoland"
 ```
 
-Would output:
+Without a prefix, lists all paths including `stdlibs`. Limit results using 
+`<path>?limit=<x>` (default: 1000, max: 10000):
 ```bash
 height: 0
 data: gno.land/r/gnoland/blog
@@ -951,16 +882,11 @@ gno.land/r/gnoland/users
 gno.land/r/gnoland/users/v1
 ```
 
-The result limit can also be specified in the following manner (mind the added
-quotes):
 ```bash
 gnokey query "vm/qpaths?limit=3" --data "gno.land/r/gnoland"
 ```
 
-You can also specify a string prefixed with `@` to list username's sub-packages
-including `/p` and `/r`.
-
-For example:
+Use `@username` to list packages under both `/p` and `/r`:
 ```bash
 gnokey query vm/qpaths --data "@foo"
 ```
@@ -974,28 +900,21 @@ gno.land/p/foo/ui
 gno.land/p/foo/svg
 ```
 
-In practice, this is shorthand for listing packages under `gno.land/p/foo` &
-`gno.land/r/foo`.
-
 ## `vm/qstorage`
 
-This ABCI query endpoint can be used to inspect current storage usage and deposit in a realm:
+Inspect storage usage and deposit in a realm:
 
 ```bash
 gnokey query vm/qstorage --data "gno.land/r/foo"
 ```
 
-Sample Output:
+Output shows total bytes used (`storage`) and GNOT locked (`deposit`):
 
 ```
 storage: 5025, deposit: 502500
 ```
 
-`storage` represents total bytes used, while `deposit` is the total GNOT locked for that by that realm.
-
-The storage price can be also calculated directly using this output
-(e.g., deposit / storage, `502500/5025 = 100ugnot`) instead of querying the price
-per byte from the params realm.
+Calculate storage price: `deposit / storage` (e.g., `502500/5025 = 100ugnot`).
 
 ### Gas parameters
 
