@@ -651,7 +651,6 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 // assertShiftExprCompatible1 check happens while trans_leave binary expression.
 // it checks both lhs and rhs types of shift expression.
 func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type) {
-	// fmt.Printf("---assertShiftExprCompatible1, lt: %v, rt: %v\n", lt, rt)
 	if rt == nil {
 		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
 	}
@@ -702,7 +701,6 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 			convertConst(store, last, x, lcx, UntypedBigintType)
 		}
 		return
-
 	}
 	panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 }
@@ -711,7 +709,6 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 // shift expr is compatible with t.
 // e.g. var y int = 1.0 << x.
 func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
-	// fmt.Printf("---,assertShiftExprCompatible2..., x: %v, t: %v\n", x, t)
 	// check lhs type
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if !checker(t) {

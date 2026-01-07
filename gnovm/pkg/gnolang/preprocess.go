@@ -4065,23 +4065,14 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			// check assignable first, see: types/shift_b6.gno
 			mustAssignableTo(n, xt, t)
 
-			var lt2 Type
-			lt2 = evalStaticTypeOf(store, last, bx.Left)
+			// If type info from context is not nil.
+			// e.g. y := 1.0 << s.
 			if t == nil {
-				// rt2 := evalStaticTypeOf(store, last, bx.Right)
-				// bx.assertShiftExprCompatible1(store, last, lt2, rt2, false)
-				// fmt.Println("---bx.Left: ", bx.Left)
-
+				lt2 := evalStaticTypeOf(store, last, bx.Left)
 				if !isIntNum(lt2) {
 					panic(fmt.Sprintf("invalid operation: shifted operand %v (%v) must be integer", bx.Left, lt2.String()))
 				}
 			}
-			// fmt.Println("---lt2: ", lt2)
-
-			// if lt2 == UntypedBigdecType {
-			// 	// const expr, e.g. 1.0 << 1.
-			// 	convertConst(store, last, bx.Left, bx.Left.(*ConstExpr), UntypedBigintType)
-			// }
 
 			if t == nil || t.Kind() == InterfaceKind {
 				t = defaultTypeOf(xt)
@@ -4112,7 +4103,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 						checkOrConvertType(store, last, n, &bx.Left, t)
 						checkOrConvertType(store, last, n, &bx.Right, t)
 						return
-					} else {
+					} else { // t is nil, and bx is untyped binary expr.
 						if shouldSwapOnSpecificity(lt, rt) {
 							// e.g. 1.0<<s + 1
 							// The expression '1.0<<s' does not trigger assertions of
@@ -4121,11 +4112,11 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 							// without a specific context type, '1.0<<s' is checked against
 							// its default type, the BigDecKind, will trigger assertion failure.
 							// so here in checkOrConvertType, shift expression is "finally" checked.
-							checkOrConvertType(store, last, n, &bx.Left, lt)
+							checkOrConvertType(store, last, n, &bx.Left, nil)
 							checkOrConvertType(store, last, n, &bx.Right, lt)
 						} else {
 							checkOrConvertType(store, last, n, &bx.Left, rt)
-							checkOrConvertType(store, last, n, &bx.Right, rt)
+							checkOrConvertType(store, last, n, &bx.Right, nil)
 						}
 					}
 					return
@@ -4135,11 +4126,11 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 					if shouldSwapOnSpecificity(lt, rt) {
 						// in form of bx.Left == bx.Right, bx.Left can be
 						// untyped shift, while lt is dest type of bx.Left.
-						checkOrConvertType(store, last, n, &bx.Left, lt)
+						checkOrConvertType(store, last, n, &bx.Left, nil)
 						checkOrConvertType(store, last, n, &bx.Right, lt)
 					} else {
 						checkOrConvertType(store, last, n, &bx.Left, rt)
-						checkOrConvertType(store, last, n, &bx.Right, rt)
+						checkOrConvertType(store, last, n, &bx.Right, nil)
 					}
 					// this is not a constant expression; the result here should
 					// always be a BoolType. (in this scenario, we may have some
