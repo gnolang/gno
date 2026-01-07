@@ -145,6 +145,7 @@ func renderInviteMember(res *mux.ResponseWriter, req *mux.Request) {
 	form.Input(
 		"user",
 		"placeholder", "Address",
+		"required", "true",
 	)
 	form.Select(
 		"role",

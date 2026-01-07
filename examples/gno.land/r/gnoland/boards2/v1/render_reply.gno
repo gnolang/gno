@@ -165,6 +165,7 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 		"bod",
 		"placeholder", "Comment",
 		"value", reply.Body,
+		"required", "true",
 	)
 
 	res.Write(md.H1(board.Name + ": Edit Comment"))

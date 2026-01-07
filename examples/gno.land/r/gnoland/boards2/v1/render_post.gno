@@ -386,6 +386,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 	form.Textarea(
 		"body",
 		"placeholder", "Comment",
+		"required", "true",
 	)
 
 	// Breadcrumb navigation

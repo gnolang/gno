@@ -145,6 +145,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 	form.Input(
 		"name",
 		"placeholder", "Board name",
+		"required", "true",
 	)
 	form.Radio(
 		"listed",

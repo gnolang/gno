@@ -79,11 +79,13 @@ func renderCreateThread(res *mux.ResponseWriter, req *mux.Request) {
 	form.Input(
 		"title",
 		"placeholder", "Title",
+		"required", "true",
 	)
 	form.Textarea(
 		"body",
 		"placeholder", "Content",
 		"rows", "10",
+		"required", "true",
 	)
 
 	res.Write(md.H1(board.Name + ": Create Thread"))
@@ -134,12 +136,14 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 		"title",
 		"placeholder", "Title",
 		"value", thread.Title,
+		"required", "true",
 	)
 	form.Textarea(
 		"bod",
 		"placeholder", "Content",
 		"rows", "10",
 		"value", thread.Body,
+		"required", "true",
 	)
 
 	res.Write(md.H1(board.Name + ": Edit Thread"))
@@ -188,10 +192,12 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 		"destinationBoardID",
 		"type", mdform.InputTypeNumber,
 		"placeholder", "Board ID where to repost",
+		"required", "true",
 	)
 	form.Input(
 		"title",
 		"placeholder", "Title",
+		"required", "true",
 	)
 	form.Textarea(
 		"body",
