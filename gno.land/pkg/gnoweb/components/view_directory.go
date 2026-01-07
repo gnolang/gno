@@ -28,7 +28,8 @@ func (d DirLinkType) LinkPrefix(pkgPath string) string {
 	return ""
 }
 
-// FullFileLink represents a file/package link with metadata
+// FullFileLink represents a package entry in the directory listing,
+// containing navigation links and metadata about whether it has a Render function.
 type FullFileLink struct {
 	Link       string
 	Name       string
