@@ -648,83 +648,70 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 }
 
 // ===========================================================
-// this check happens while trans_leave binary expression.
-// it checks if type of RHS is valid.
-// Check part of the LHS to ensure it is of a numeric type.
-// More stringent checks will be performed in the subsequent stage in
-// assertShiftExprCompatible2.
-func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type, propagate bool) {
+// assertShiftExprCompatible1 check happens while trans_leave binary expression.
+// it checks both lhs and rhs types of shift expression.
+func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type) {
 	// fmt.Printf("---assertShiftExprCompatible1, lt: %v, rt: %v\n", lt, rt)
-	// check rhs type
 	if rt == nil {
 		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
 	}
 
 	lcx, lic := x.Left.(*ConstExpr)
 	_, ric := x.Right.(*ConstExpr)
-	// step1, check RHS type
-	// special case when rhs is not integer
+	// Step1, check RHS type.
 	if !isNumeric(rt) {
 		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
 	}
-	if !isIntNum(rt) {
-		var isIntValue bool
-		// special case for num like 1.0, it will be converted to uint later.
-		if ric {
-			rv := evalConst(store, last, x.Right)
-			isIntValue = IsExactBigDec(rv.V)
-		}
-		if !isIntValue {
-			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
-		}
-	} else if ric { // is integer, check negative
+	if !isIntNum(rt) && !ric {
+		panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
+	}
+
+	if ric {
 		rv := evalConst(store, last, x.Right)
-		if rv.Sign() < 0 {
-			panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Right))
+		if isIntNum(rt) {
+			if rv.Sign() < 0 {
+				panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Right))
+			}
+		} else if !IsExactBigDec(rv.V) {
+			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
 		}
 	}
 
-	// step2, check lhs type
+	// Step2, check lhs type.
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if checker(lt) { // check pass
 			return
 		}
-		// special case for 1.0
-		if lic {
-			lv := evalConst(store, last, lcx)
-			if !IsExactBigDec(lv.V) {
-				panic(fmt.Sprintf("invalid operation: shifted operand %v (%v) must be integer", lv, lt))
-			}
 
-			if ric && lt == UntypedBigdecType {
-				// const expr, e.g. 1.0 << 1.
-				convertConst(store, last, x, lcx, UntypedBigintType)
-				return
-			}
-
-			// Not const, left to runtime check.
-			// e.g. 1.0 << x, see types/shift_d5.gno
-			// this can be valid if the context if IntType.
-			// e.g. var y int = 1.0 << x.
-			if propagate {
-				return
-			}
-			// Embedded in an outer shift expr, no propagation.
-			// e.g. y = (1.0 << s) << s
+		if !lic {
 			if isUntyped(lt) {
 				lt = defaultTypeOf(lt)
 			}
+			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
 		}
-		panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
+
+		// Special case for untyped const lhs.
+		lv := evalConst(store, last, lcx)
+		if !IsExactBigDec(lv.V) {
+			panic(fmt.Sprintf("invalid operation: shifted operand %v (%v) must be integer", lv, lt))
+		}
+
+		// Both const.
+		if ric {
+			// Representable as an integer. e.g. 1.0 << 1.
+			convertConst(store, last, x, lcx, UntypedBigintType)
+		}
+		return
+
 	}
 	panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 }
 
-// used in checkOrConvertType, only check lhs type.
-// check if untyped non-const shift expr is compatible.
-// e.g. y := 1.0 << x.
+// assertShiftExprCompatible2 checks if untyped (non-const)
+// shift expr is compatible with t.
+// e.g. var y int = 1.0 << x.
 func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
-	// fmt.Println("---,assertShiftExprCompatible2..., t: ", t)
+	// fmt.Printf("---,assertShiftExprCompatible2..., x: %v, t: %v\n", x, t)
 	// check lhs type
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if !checker(t) {
