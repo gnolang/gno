@@ -97,7 +97,7 @@ func renderCreateThread(res *mux.ResponseWriter, req *mux.Request) {
 		),
 	)
 	res.Write(form.String())
-	res.Write("\n\n**Done?** " + svgbtn.Button(136, 32, "#E2E2E2", "#54595D", "Return to board", makeBoardURI(board)) + "\n")
+	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to board", makeBoardURI(board)) + "\n")
 }
 
 func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
@@ -154,7 +154,7 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 		md.Paragraph("Editing " + md.Link(thread.Title, makeThreadURI(thread))),
 	)
 	res.Write(form.String())
-	res.Write("\n\n**Done?** " + svgbtn.Button(136, 32, "#E2E2E2", "#54595D", "Return to thread", makeThreadURI(thread)) + "\n")
+	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to thread", makeThreadURI(thread)) + "\n")
 }
 
 func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
@@ -222,5 +222,5 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 		),
 	)
 	res.Write(form.String())
-	res.Write("\n\n**Done?** " + svgbtn.Button(136, 32, "#E2E2E2", "#54595D", "Return to thread", makeThreadURI(thread)) + "\n")
+	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to thread", makeThreadURI(thread)) + "\n")
 }

@@ -184,7 +184,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 		),
 	)
 	res.Write(form.String())
-	res.Write("\n\n**Done?** " + svgbtn.Button(136, 32, "#E2E2E2", "#54595D", "Return to boards", gRealmPath) + "\n")
+	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to boards", gRealmPath) + "\n")
 }
 
 func renderMembers(res *mux.ResponseWriter, req *mux.Request) {

@@ -28,7 +28,7 @@ import (
 // - `text`: visible button label
 // - `link`: URL to wrap the image in markdown-style [svg](link)
 func Button(width, height int, btnColor, textColor, text, link string) string {
-	return ButtonWithRadius(width, height, 4, btnColor, textColor, text, link)
+	return ButtonWithRadius(width, height, height/5, btnColor, textColor, text, link)
 }
 
 // ButtonWithRadius creates a base SVG button with custom border radius.
