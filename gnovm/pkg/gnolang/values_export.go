@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"math"
 	"reflect"
 	"strings"
 	"unicode"
@@ -497,66 +496,6 @@ func (jmv *JSONMapValue) String() string                   { return "JSONMapValu
 func (jmv *JSONMapValue) DeepFill(store Store) Value       { return jmv }
 func (jmv *JSONMapValue) GetShallowSize() int64            { return 0 }
 func (jmv *JSONMapValue) VisitAssociated(vis Visitor) bool { return false }
-
-// primitiveToAny converts a primitive TypedValue to a native Go value.
-// Returns (value, true) for primitives, (nil, false) for non-primitives.
-// The returned values are native Go types that json/amino can serialize directly.
-func primitiveToAny(tv TypedValue) (any, bool) {
-	bt := BaseOf(tv.T)
-	pt, ok := bt.(PrimitiveType)
-	if !ok {
-		return nil, false
-	}
-
-	switch pt {
-	case BoolType, UntypedBoolType:
-		return tv.GetBool(), true
-	case StringType, UntypedStringType:
-		if sv, ok := tv.V.(StringValue); ok {
-			return string(sv), true
-		}
-		return tv.GetString(), true
-	case IntType:
-		return tv.GetInt(), true
-	case Int8Type:
-		return int64(tv.GetInt8()), true
-	case Int16Type:
-		return int64(tv.GetInt16()), true
-	case Int32Type, UntypedRuneType:
-		return int64(tv.GetInt32()), true
-	case Int64Type:
-		return tv.GetInt64(), true
-	case UintType:
-		return tv.GetUint(), true
-	case Uint8Type:
-		return uint64(tv.GetUint8()), true
-	case DataByteType:
-		return uint64(tv.GetDataByte()), true
-	case Uint16Type:
-		return uint64(tv.GetUint16()), true
-	case Uint32Type:
-		return uint64(tv.GetUint32()), true
-	case Uint64Type:
-		return tv.GetUint64(), true
-	case Float32Type:
-		// Convert float32 to string since Amino doesn't support float32 in interface{} fields
-		f := math.Float32frombits(tv.GetFloat32())
-		return fmt.Sprintf("%v", f), true
-	case Float64Type:
-		// Convert float64 to string since Amino doesn't support float64 in interface{} fields
-		f := math.Float64frombits(tv.GetFloat64())
-		return fmt.Sprintf("%v", f), true
-	case UntypedBigintType:
-		if bv, ok := tv.V.(BigintValue); ok {
-			return bv.V.String(), true
-		}
-	case UntypedBigdecType:
-		if bv, ok := tv.V.(BigdecValue); ok {
-			return bv.V.String(), true
-		}
-	}
-	return nil, false
-}
 
 // getElementType extracts element type from array, slice, or pointer types.
 func getElementType(typ Type) Type {
@@ -1225,14 +1164,8 @@ func (e *jsonExporter) exportTypedValue(tv TypedValue, depth int) TypedValue {
 }
 
 // extractValue extracts a value from a TypedValue for JSON serialization.
-// For primitives, returns native Go values (int64, string, bool, etc.).
-// For complex types, returns the Value directly for Amino serialization.
+// For primitives, returns the TypedValue directly so Amino serializes it consistently.
+// For complex types, returns the Value directly for Amino serialization with @type tags.
 func (e *jsonExporter) extractValue(tv TypedValue) any {
-	// Handle primitives - return native Go values
-	if v, ok := primitiveToAny(tv); ok {
-		return v
-	}
-	// For non-primitives, return the Value directly
-	// Amino will serialize it with @type tags
 	return tv.V
 }

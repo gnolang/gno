@@ -7,9 +7,7 @@ import (
 	"gno.land/p/nt/avl"
 )
 
-// ============================================================================
 // PRIMITIVES
-// ============================================================================
 
 func GetInt() int         { return persistedInt }
 func GetInt8() int8       { return persistedInt8 }
@@ -35,17 +33,13 @@ func GetAllPrimitives() (int, int8, int16, int32, int64, uint, uint8, uint16, ui
 		persistedFloat32, persistedFloat64, persistedString, persistedBool, persistedByte, persistedRune
 }
 
-// ============================================================================
 // DECLARED TYPES
-// ============================================================================
 
 func GetMyInt() MyInt       { return persistedMyInt }
 func GetMyString() MyString { return persistedMyString }
 func GetMyBool() MyBool     { return persistedMyBool }
 
-// ============================================================================
 // STRUCTS
-// ============================================================================
 
 func GetSimpleStruct() SimpleStruct { return persistedSimple }
 func GetNestedStruct() Outer        { return persistedOuter }
@@ -58,9 +52,7 @@ func GetEphemeralStruct() SimpleStruct {
 	return SimpleStruct{ID: 999, Name: "ephemeral"}
 }
 
-// ============================================================================
 // POINTERS
-// ============================================================================
 
 func GetStructPtr() *SimpleStruct { return persistedPtr }
 func GetNilPtr() *SimpleStruct    { return persistedNilPtr }
@@ -71,9 +63,7 @@ func GetEphemeralPtr() *SimpleStruct {
 	return &SimpleStruct{ID: 888, Name: "ephemeral_ptr"}
 }
 
-// ============================================================================
 // COLLECTIONS
-// ============================================================================
 
 func GetIntSlice() []int                    { return persistedIntSlice }
 func GetStringSlice() []string              { return persistedStringSlice }
@@ -83,16 +73,12 @@ func GetIntArray() [3]int                   { return persistedIntArray }
 func GetStringIntMap() map[string]int       { return persistedStringMap }
 func GetStructMap() map[string]SimpleStruct { return persistedStructMap }
 
-// ============================================================================
 // ERRORS
-// ============================================================================
 
 func GetError() error        { return persistedError }
 func GetErrorValue() MyError { return persistedError }
 
-// ============================================================================
 // MULTIPLE RETURN VALUES
-// ============================================================================
 
 func GetMultiple() (int, string, SimpleStruct) {
 	return 42, "test", persistedSimple
@@ -102,9 +88,7 @@ func GetMultipleWithPtr() (int, *SimpleStruct, error) {
 	return 1, persistedPtr, persistedError
 }
 
-// ============================================================================
 // INTERFACE
-// ============================================================================
 
 func GetInterface() interface{} {
 	return persistedSimple
@@ -114,18 +98,14 @@ func GetInterfacePtr() interface{} {
 	return persistedPtr
 }
 
-// ============================================================================
 // NIL VALUES
-// ============================================================================
 
 func GetNilSlice() []int           { return persistedNilSlice }
 func GetNilMap() map[string]int    { return persistedNilMap }
 func GetNilInterface() interface{} { return nil }
 
-// ============================================================================
 // RECURSIVE/CYCLIC EPHEMERAL STRUCTURES
 // These are non-persisted (unreal) objects with cycles - no ObjectIDs
-// ============================================================================
 
 // GetEphemeralSelfCycle returns a self-referential struct with a cycle
 // Structure: node -> node (cycle back to itself)
@@ -190,9 +170,7 @@ func GetEphemeralNestedSelfRef() *SelfRef {
 	}
 }
 
-// ============================================================================
 // COMBINED - ALL TYPES IN ONE STRUCT
-// ============================================================================
 
 // GetAll returns a single struct containing all type variations
 // This is the comprehensive test function for JSON export
@@ -200,9 +178,7 @@ func GetAll() *AllTypes {
 	return persistedAll
 }
 
-// ============================================================================
 // AVL TREE DEMO
-// ============================================================================
 
 // GetTree returns an AVL tree with 10 users for navigation demo
 func GetTree() *avl.Tree { return persistedTree }
@@ -216,9 +192,7 @@ func GetTreeNode(key string) interface{} {
 	return val
 }
 
-// ============================================================================
 // LONG LINKED LIST DEMO
-// ============================================================================
 
 // GetLongList returns a 10-node linked list for navigation demo
 func GetLongList() *Node { return persistedLongList }
@@ -232,9 +206,7 @@ func GetListNode(n int) *Node {
 	return node
 }
 
-// ============================================================================
 // DYNAMIC PARAMS DEMO
-// ============================================================================
 
 // GetByID returns a struct based on the ID parameter
 func GetByID(id int) *SimpleStruct {
@@ -322,9 +294,7 @@ func GetAllEphemeral() AllTypes {
 	}
 }
 
-// ============================================================================
 // EDGE CASES: VERTICAL (DEEP NESTING)
-// ============================================================================
 
 // GetDeepNestedStruct returns a linked list N levels deep
 // Structure: {Value:0, Next: {Value:1, Next: {...Value:N-1, Next:nil}}}
@@ -366,9 +336,7 @@ func GetDeepNestedMap(n int) map[string]interface{} {
 	return map[string]interface{}{key: GetDeepNestedMap(n - 1)}
 }
 
-// ============================================================================
 // EDGE CASES: HORIZONTAL (WIDE STRUCTURES)
-// ============================================================================
 
 // GetWideStruct returns a map with N fields (simulating wide struct)
 // Structure: {"field0": 0, "field1": 1, ..., "fieldN-1": N-1}
@@ -433,9 +401,7 @@ func GetWidePointerArray(n int) *PointerArray {
 	return &PointerArray{Pointers: pointers}
 }
 
-// ============================================================================
 // EDGE CASES: COMBINED STRESS
-// ============================================================================
 
 // GetWideAndDeep returns N fields per level, M levels deep
 // Tests memory and recursion with both horizontal and vertical stress
@@ -474,9 +440,7 @@ func buildBinaryTree(value, remainingLevels int) *TreeNode {
 	}
 }
 
-// ============================================================================
 // EDGE CASES: STRINGS
-// ============================================================================
 
 // GetLongString returns a string with N characters
 func GetLongString(n int) string {
@@ -527,9 +491,7 @@ func GetStringEdgeCases(longStringLen int) *StringEdgeCases {
 	}
 }
 
-// ============================================================================
 // EDGE CASES: NUMERICS
-// ============================================================================
 
 // GetNumericEdgeCases returns all numeric boundary values
 func GetNumericEdgeCases() *NumericEdgeCases {
@@ -572,9 +534,7 @@ func GetFloatEdgeCases() (float32, float32, float64, float64, float64) {
 		math.MaxFloat64, math.SmallestNonzeroFloat64, -math.MaxFloat64
 }
 
-// ============================================================================
 // EDGE CASES: POINTERS
-// ============================================================================
 
 // GetDeepPointerChain returns N levels of pointer indirection
 // Each level wraps a Node with a pointer to the next level
@@ -607,9 +567,7 @@ func GetMixedPointerSlice(n int) []*SimpleStruct {
 	return slice
 }
 
-// ============================================================================
 // RENDER (for web interface)
-// ============================================================================
 
 func Render(_ string) string {
 	return `# JSON Export Test Realm
