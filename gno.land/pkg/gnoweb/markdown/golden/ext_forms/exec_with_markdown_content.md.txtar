@@ -13,7 +13,7 @@
 </div>
 <div data-controller="action-function" data-action-function-name-value="Transfer">
 <!-- Error: unexpected or invalid tag -->
-<div class="gno-form_input"><label for="to"> Recipient </label>
+<div class="gno-form_input"><label for="to">Recipient</label>
 <input type="text" id="to" name="to" placeholder="Recipient" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="to" />
 </div>
 <div class="gno-form_input"><input type="submit" value="Submit (Transfer Function)" /></div>

@@ -3,21 +3,23 @@ package boards2
 import (
 	"net/url"
 	"strings"
+
+	"gno.land/p/gnoland/boards"
 )
 
-func makeBoardURI(b *Board) string {
+func makeBoardURI(b *boards.Board) string {
 	path := strings.TrimPrefix(string(gRealmLink), "gno.land")
 	return path + ":" + url.PathEscape(b.Name)
 }
 
-func makeFreezeBoardURI(b *Board) string {
+func makeFreezeBoardURI(b *boards.Board) string {
 	return gRealmLink.Call(
 		"FreezeBoard",
 		"boardID", b.ID.String(),
 	)
 }
 
-func makeUnfreezeBoardURI(b *Board) string {
+func makeUnfreezeBoardURI(b *boards.Board) string {
 	return gRealmLink.Call(
 		"UnfreezeBoard",
 		"boardID", b.ID.String(),
@@ -26,25 +28,15 @@ func makeUnfreezeBoardURI(b *Board) string {
 	)
 }
 
-func makeInviteMemberURI(b *Board) string {
-	return gRealmLink.Call(
-		"InviteMember",
-		"boardID", b.ID.String(),
-		"user", "",
-		"role", "",
-	)
+func makeInviteMemberURI(b *boards.Board) string {
+	return makeBoardURI(b) + "/invite-member"
 }
 
-func makeCreateThreadURI(b *Board) string {
-	return gRealmLink.Call(
-		"CreateThread",
-		"boardID", b.ID.String(),
-		"title", "",
-		"body", "",
-	)
+func makeCreateThreadURI(b *boards.Board) string {
+	return makeBoardURI(b) + "/create-thread"
 }
 
-func makeRequestInviteURI(b *Board) string {
+func makeRequestInviteURI(b *boards.Board) string {
 	return gRealmLink.Call(
 		"RequestInvite",
 		"boardID", b.ID.String(),
