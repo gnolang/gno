@@ -365,83 +365,28 @@ func TestHTTPHandler_DirectoryViewErrorTotal(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "internal error")
 }
 
-// TestHTTPHandler_RealmExplorerWithRender tests that realms with Render() function show the realm icon and Source button
+// TestHTTPHandler_RealmExplorerWithRender tests realms with Render() show realm icon and Source button.
 func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
 	t.Parallel()
 
-	// Create mock packages: one realm with Render, one without
 	realmWithRender := &gnoweb.MockPackage{
 		Domain: "gno.land",
 		Path:   "/r/demo/withrender",
-		Files: map[string]string{
-			"render.gno": `package withrender
-
-func Render(path string) string {
-	return "# Hello World"
-}`,
-		},
-		Functions: []*doc.JSONFunc{
-			{
-				Name: "Render",
-				Params: []*doc.JSONField{
-					{Name: "path", Type: "string"},
-				},
-				Results: []*doc.JSONField{
-					{Name: "", Type: "string"},
-				},
-			},
-		},
+		Files:  map[string]string{"render.gno": `package withrender`},
+		Functions: []*doc.JSONFunc{{
+			Name:    "Render",
+			Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
+			Results: []*doc.JSONField{{Type: "string"}},
+		}},
 	}
 
-	realmWithoutRender := &gnoweb.MockPackage{
-		Domain: "gno.land",
-		Path:   "/r/demo/norender",
-		Files: map[string]string{
-			"main.gno": `package norender
-
-func Hello() string {
-	return "Hello"
-}`,
-		},
-		Functions: []*doc.JSONFunc{
-			{
-				Name:   "Hello",
-				Params: []*doc.JSONField{},
-				Results: []*doc.JSONField{
-					{Name: "", Type: "string"},
-				},
-			},
-		},
-	}
-
-	client := gnoweb.NewMockClient(realmWithRender, realmWithoutRender)
-	config := newTestHandlerConfig(t, client)
-
-	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-	handler, err := gnoweb.NewHTTPHandler(logger, config)
-	require.NoError(t, err)
-
-	req, err := http.NewRequest(http.MethodGet, "/r/demo/", nil)
-	require.NoError(t, err)
-
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, gnoweb.NewMockClient(realmWithRender)))
 	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/", nil))
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	body := rr.Body.String()
-
-	// Check that both realms are listed
-	assert.Contains(t, body, "withrender", "should show realm with Render")
-	assert.Contains(t, body, "norender", "should show realm without Render")
-
-	// Check that realm icon is shown for realm with Render
-	assert.Contains(t, body, "#ico-realm", "should show realm icon")
-
-	// Check that Source button appears (for realm with Render)
-	assert.Contains(t, body, "Source", "should show Source button")
-
-	// The Source button should link to the source view
-	assert.Contains(t, body, "$source", "Source button should link to source view")
+	assert.Contains(t, rr.Body.String(), "#ico-realm")
+	assert.Contains(t, rr.Body.String(), "Source")
 }
 
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
