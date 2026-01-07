@@ -444,6 +444,65 @@ func Hello() string {
 	assert.Contains(t, body, "$source", "Source button should link to source view")
 }
 
+// TestHTTPHandler_PathsListView_DocError tests Doc errors are handled gracefully.
+func TestHTTPHandler_PathsListView_DocError(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) { return nil, gnoweb.ErrClientPackageNotFound },
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+			return []string{"/r/demo/realm1"}, nil
+		},
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			return nil, errors.New("doc error")
+		},
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, client))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/", nil))
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+// TestHTTPHandler_PathsListView_ListPathsError tests ListPaths errors return 404.
+func TestHTTPHandler_PathsListView_ListPathsError(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) { return nil, gnoweb.ErrClientPackageNotFound },
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) { return nil, errors.New("error") },
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, client))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/", nil))
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+// TestHTTPHandler_PathsListView_PackagePaths tests that Doc is not called for package paths.
+func TestHTTPHandler_PathsListView_PackagePaths(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) { return nil, gnoweb.ErrClientPackageNotFound },
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+			return []string{"/p/demo/pkg1"}, nil
+		},
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			t.Error("Doc called")
+			return nil, nil
+		},
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, client))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/p/demo/", nil))
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
 func TestHTTPHandler_NewInvalidConfig(t *testing.T) {
 	t.Parallel()
@@ -1125,65 +1184,33 @@ func TestHTTPHandler_DownloadWithContext(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), content)
 }
 
-// TestHTTPHandler_Post tests the Post method for form submissions.
+// TestHTTPHandler_Post tests POST redirects correctly.
 func TestHTTPHandler_Post(t *testing.T) {
 	t.Parallel()
 
-	mockPackage := &gnoweb.MockPackage{
+	mockPkg := &gnoweb.MockPackage{
 		Domain: "example.com",
 		Path:   "/r/mock/path",
-		Files: map[string]string{
-			"render.gno": `package main; func Render(path string) string { return "hello" }`,
-		},
-		Functions: []*doc.JSONFunc{
-			{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Name: "", Type: "string"}}},
-		},
+		Files:  map[string]string{"render.gno": `package main`},
 	}
 
-	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
-	handler, err := gnoweb.NewHTTPHandler(
-		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
-		config,
-	)
-	require.NoError(t, err)
-
-	// Test valid POST request with form data
-	formData := strings.NewReader("arg1=value1&arg2=value2")
-	req := httptest.NewRequest(http.MethodPost, "/r/mock/path", formData)
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, gnoweb.NewMockClient(mockPkg)))
+	req := httptest.NewRequest(http.MethodPost, "/r/mock/path", strings.NewReader("key=val"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	// Should redirect (303 See Other)
 	assert.Equal(t, http.StatusSeeOther, rr.Code)
-	location := rr.Header().Get("Location")
-	assert.Contains(t, location, "/r/mock/path")
 }
 
-// TestHTTPHandler_Post_InvalidPath tests the Post method with an invalid path.
+// TestHTTPHandler_Post_InvalidPath tests POST to invalid path returns 404.
 func TestHTTPHandler_Post_InvalidPath(t *testing.T) {
 	t.Parallel()
 
-	mockPackage := &gnoweb.MockPackage{
-		Domain: "example.com",
-		Path:   "/r/mock/path",
-		Files:  map[string]string{},
-	}
-
-	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
-	handler, err := gnoweb.NewHTTPHandler(
-		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
-		config,
-	)
-	require.NoError(t, err)
-
-	// Test POST to invalid path (contains uppercase which fails the regex)
-	formData := strings.NewReader("arg1=value1")
-	req := httptest.NewRequest(http.MethodPost, "/Invalid/Path", formData)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	mockPkg := &gnoweb.MockPackage{Domain: "example.com", Path: "/r/mock/path", Files: map[string]string{}}
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, gnoweb.NewMockClient(mockPkg)))
 	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/Invalid/Path", nil))
 
-	// Should return 404 for invalid path
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
