@@ -58,14 +58,12 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 		return indentBody(indent, md.Italic("⚠ Reply is hidden as it has been flagged as inappropriate")) + "\n"
 	}
 
-	// Author and date header (4chan style)
+	// Author and date header
 	creatorLink := userLink(post.Creator)
 	date := post.CreatedAt.Format(dateFormat)
 	header := md.Bold(creatorLink) + " · " + date
 	if !boards.IsThread(post) {
 		header += " " + md.Link("#"+post.ID.String(), makeReplyURI(post))
-	} else if post.Reposts.Size() > 0 {
-		header += " · " + strconv.Itoa(post.Reposts.Size()) + " repost(s)"
 	}
 	b.WriteString(indent + header + "  \n")
 
@@ -102,7 +100,11 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 	}
 
 	if boards.IsThread(post) {
-		actions = append(actions, md.Link("Repost", makeCreateRepostURI(post)))
+		repostAction := md.Link("Repost", makeCreateRepostURI(post))
+		if post.Reposts.Size() > 0 {
+			repostAction += " [" + strconv.Itoa(post.Reposts.Size()) + "]"
+		}
+		actions = append(actions, repostAction)
 	}
 
 	isReadonly := post.Readonly || post.Board.Readonly
@@ -111,10 +113,15 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 		if boards.IsThread(post) {
 			replyLabel = "Comment"
 		}
+		replyAction := md.Link(replyLabel, makeCreateReplyURI(post))
+		// Add reply count if any
+		if post.Replies.Size() > 0 {
+			replyAction += " [" + strconv.Itoa(post.Replies.Size()) + "]"
+		}
 
 		actions = append(
 			actions,
-			md.Link(replyLabel, makeCreateReplyURI(post)),
+			replyAction,
 			md.Link("Edit", makeEditPostURI(post)),
 			md.Link("Delete", makeDeletePostURI(post)),
 		)
@@ -128,7 +135,7 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 		}
 	}
 
-	b.WriteString("↳ " + strings.Join(actions, " • ") + " \n")
+	b.WriteString("↳ " + strings.Join(actions, " • ") + "\n")
 	return b.String()
 }
 
