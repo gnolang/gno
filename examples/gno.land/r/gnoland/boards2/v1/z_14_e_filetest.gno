@@ -37,5 +37,5 @@ func main() {
 }
 
 // Output:
-// true
+// false
 // true
