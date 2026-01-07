@@ -35,30 +35,24 @@ identifier), while your private key signs transactions, proving ownership.
 
 ## Generating a key pair
 
-The `gnokey add` command allows you to generate a new key pair locally. Simply
-run the command, while adding a name for your key pair:
+Generate a new key pair locally:
 
 ```bash
 gnokey add MyKey
 ```
 
-After running the command, `gnokey` will ask you to enter a password that will be
-used to encrypt your key pair to the disk. Then, it will show you the following
-information:
-- Your public key, as well as the Gno address derived from it, starting with `g1`,
-- Your randomly generated 12-word mnemonic phrase which was used to derive the key pair.
+You'll be prompted for a password to encrypt the key pair. The output shows:
+- Your public key and Gno address (starting with `g1`)
+- Your 12-word mnemonic phrase
 
 :::warning Safeguard your mnemonic phrase!
 
-A **mnemonic phrase** is like your master password; you can use it over and over
-to derive the same key pairs. This is why it is crucial to store it in a safe,
-offline place - writing the phrase on a piece of paper and hiding it is highly
-recommended. **If it gets lost, it is unrecoverable.**
+Your **mnemonic phrase** can regenerate your key pairs. Store it safely offline 
+(write it down on paper). **If lost, it cannot be recovered.**
 
 :::
 
-`gnokey` will generate a keybase in which it will store information about your
-key pairs. The keybase directory path is stored under the `-home` flag in `gnokey`.
+Key pairs are stored in a keybase directory (see `-home` flag).
 
 ### Gno addresses
 
@@ -67,61 +61,42 @@ It's visible in transactions and used to receive [coins](../resources/gno-stdlib
 
 ## Making transactions
 
-In Gno, there are four types of messages that can change on-chain state:
+Four message types can change on-chain state:
 - `AddPackage` - adds new code to the chain
-- `Call` - calls a specific path and function on the chain
-- `Send` - sends coins from one address to another
-- `Run` - executes a Gno script against on-chain code
+- `Call` - calls a realm function
+- `Send` - sends coins between addresses
+- `Run` - executes a Gno script
 
-A Gno.land transaction contains two main things:
-- A base configuration where variables such as `gas-fee`, `gas-wanted`, and others
-  are defined
-- A list of messages to execute on the chain
+Each transaction requires:
+- Base configuration (`gas-fee`, `gas-wanted`, etc.)
+- One or more messages to execute
 
-Currently, `gnokey` supports single-message transactions, while multiple-message
-transactions can be created in Go programs, supported by the
-[gnoclient](https://github.com/gnolang/gno/tree/master/gno.land/pkg/gnoclient) package.
+`gnokey` supports single-message transactions. For multiple-message transactions, 
+use [gnoclient](https://github.com/gnolang/gno/tree/master/gno.land/pkg/gnoclient) in Go programs.
 
-We will need some testnet coins (GNOTs) for each state-changing call. Visit the [Faucet
-Hub](https://faucet.gno.land) to get GNOTs for the Gno testnets that are currently live.
+:::info Getting testnet tokens
 
-Let's delve deeper into each of these message types.
+Visit [Faucet Hub](https://faucet.gno.land) to get GNOTs for testnets.
+
+:::
 
 ## `AddPackage`
 
-To upload new code to the chain, you can use the `AddPackage`
-message type. You can send an `AddPackage` transaction with `gnokey` using the
-following command:
+Upload new code to the chain:
 
 ```bash
 gnokey maketx addpkg
 ```
 
-To understand how to use this subcommand better, let's write a simple "Hello world"
-[pure package](../resources/gno-packages.md). First, let's create a folder which will
-store our example code.
+Let's create a simple "Hello world" [pure package](../resources/gno-packages.md):
 
 ```bash
-└── example/
-```
-
-Then, let's create a `hello_world.gno` file under the `p/` folder:
-
-```bash
-cd example
-mkdir p/ && cd p
+mkdir -p example/p
+cd example/p
 touch hello_world.gno
 ```
 
-Now, we should have the following folder structure:
-
-```bash
-└── example/
-│   └── p/
-│       └── hello_world.gno
-```
-
-In the `hello_world.gno` file, add the following code:
+In `hello_world.gno`:
 
 ```go
 package hello_world
@@ -131,77 +106,45 @@ func Hello() string {
 }
 ```
 
-Before we upload the package to the chain, we need to create a `gnomod.toml` file.
-It is required for all packages and realms and contains metadata about your package.
-
-Create a `gnomod.toml` file in the same directory (`example/p/`):
+Create the required `gnomod.toml` file:
 
 ```bash
 gno mod init "gno.land/p/<your_namespace>/hello_world"
 ```
 
-Replace `<your_namespace>` with your actual namespace. The module path must match 
-the `-pkgpath` you'll use when uploading the package.
+The module path must match the `-pkgpath` flag used when uploading.
 
-:::info Why do we need `gnomod.toml`?
+:::info About `gnomod.toml`
 
-The `gnomod.toml` file is the package manifest. It defines the module path for 
-imports and package resolution. Without it, your package upload will fail.
+This manifest file defines the module path for imports and package resolution. 
+Required for all packages and realms.
 
 :::
 
-We are now ready to upload this package to the chain. To do this, we must set the
-correct flags for the `addpkg` subcommand.
+Key flags for `addpkg`:
+- `-pkgpath` - on-chain path for your package
+- `-pkgdir` - local directory containing your code
+- `-broadcast` - broadcast transaction to chain
+- `-gas-wanted` / `-gas-fee` - gas configuration (see [Gas Fees](../resources/gas-fees.md))
+- `-chainid` / `-remote` - network configuration
 
-The `addpkg` subcommmand uses the following flags and arguments:
-- `-pkgpath` - on-chain path where your code will be uploaded to
-- `-pkgdir` - local path where your is located
-- `-broadcast` - enables broadcasting the transaction to the chain
-- `-send` - Amount of GNOT to send to the realm with the transaction (optional)
-- `-max-deposit` - Maximum GNOT to lock for storage deposit (optional)
-- `-gas-wanted` - the upper limit for units of gas for the execution of the
-  transaction
-- `-gas-fee` - amount of GNOTs to pay per gas unit
-- `-chain-id` - id of the chain that we are sending the transaction to
-- `-remote` - specifies the remote node RPC listener address
-
-The `-pkgpath`, `-pkgdir`, flags are unique to the `addpkg`
-subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and
-`-remote` are used for setting the base transaction configuration. These flags
-will be repeated throughout the tutorial.
-
-Next, let's configure the `addpkg` subcommand to publish this package to the
-[Staging](../resources/gnoland-networks.md) chain. Assuming we are in
-the `example/p/` folder, the command will look like this:
+Upload the package to [Staging](../resources/gnoland-networks.md):
 
 ```bash
 gnokey maketx addpkg \
 -pkgpath "gno.land/p/<your_namespace>/hello_world" \
 -pkgdir "." \
 -gas-fee 10000000ugnot \
--gas-wanted 8000000 \
--broadcast \
--chainid staging \
--remote "https://rpc.gno.land:443"
-```
-
-Once we have added a desired [namespace](../resources/users-and-teams.md) to upload the package to, we can specify a key pair name to use to execute the
-transaction:
-
-```bash
-gnokey maketx addpkg \
--pkgpath "gno.land/p/examplenamespace/hello_world" \
--pkgdir "." \
--gas-fee 10000000ugnot \
 -gas-wanted 200000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443"
+-remote "https://rpc.gno.land:443" \
 mykey
 ```
 
-If the transaction was successful, you will get an output from `gnokey` that is
-similar to the following:
+Replace `<your_namespace>` with your [namespace](../resources/users-and-teams.md).
+
+Output:
 
 ```console
 OK!
@@ -232,22 +175,14 @@ You can send a `Call` transaction with `gnokey` using the following command:
 gnokey maketx call
 ```
 
-:::info `Call` uses gas
+:::info Gas-free queries
 
-Using `Call` to call an exported function will use up gas, even if the function
-does not modify on-chain state. If you are calling such a function, you can use
-the `query` functionality for a read-only call which
-does not use gas.
+`Call` uses gas even for read-only functions. Use `vm/qeval` [queries](#vmqeval) 
+for gas-free reads.
 
 :::
 
-For this example, we will call the `wugnot` realm, which wraps GNOTs to a
-GRC20-compatible token called `wugnot`. We can find this realm deployed on the
-[Staging](../resources/gnoland-networks.md) chain, under the `gno.land/r/gnoland/wugnot` path.
-
-We will wrap `1000ugnot` into the equivalent in `wugnot`. To do this, we can call
-the `Deposit()` function found in the `wugnot` realm. As previously, we will
-configure the `maketx call` subcommand:
+Example - wrapping GNOTs using the `wugnot` realm:
 
 ```bash
 gnokey maketx call \
@@ -262,80 +197,17 @@ gnokey maketx call \
 mykey
 ```
 
-In this command, we have specified three main things:
-- The path where the realm lives on-chain with the `-pkgpath` flag
-- The function that we want to call on the realm with the `-func` flag
-- The amount of `ugnot` we want to send to be wrapped, using the `-send` flag
+The output shows an [event](../resources/gno-stdlibs.md#events) emitted by the `Deposit()` function.
 
-Apart from this, we have also specified the Staging chain ID, `staging`,
-as well as the Staging remote address, `https://rpc.gno.land:443`.
-
-After running the command, we can expect an output similar to the following:
-```bash
-OK!
-GAS WANTED: 2000000
-GAS USED:   489528
-HEIGHT:     24142
-EVENTS:     [{"type":"Transfer","attrs":[{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/r/gnoland/wugnot","func":"Mint"}]
-TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
-```
-
-In this case, we can see that the `Deposit()` function emitted an
-[event](../resources/gno-stdlibs.md#events) that tells us more about what
-happened during the transaction.
-
-After broadcasting the transaction, we can verify that we have the amount of `wugnot` we expect. We
-can call the `BalanceOf()` function in the same realm:
+Verify the balance using a gas-free query:
 
 ```bash
-gnokey maketx call \
--pkgpath "gno.land/r/gnoland/wugnot" \
--func "BalanceOf" \
--args "<your_address>" \
--gas-fee 10000000ugnot \
--gas-wanted 2000000 \
--broadcast \
--chainid staging \
--remote "https://rpc.gno.land:443" \
-mykey
+gnokey query vm/qeval -remote "https://rpc.gno.land:443" -data "gno.land/r/gnoland/wugnot.BalanceOf(\"<your_address>\")"
 ```
-
-If everything was successful, we should get something similar to the following
-output:
-
-```
-(1000 uint64)
-
-OK!
-GAS WANTED: 2000000
-GAS USED:   396457
-HEIGHT:     64839
-EVENTS:     []
-TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
-```
-
-At the top, you will see the output of the transaction, specifying the value and
-type of the return argument.
-
-In this case, we used `maketx call` to call a read-only function, which simply
-checks the `wugnot` balance of a specific address. This is discouraged, as
-`maketx call` actually uses gas. To call a read-only function without spending gas,
-check out the `vm/qeval` query section.
 
 ## `Send`
 
-We can use the `Send` message type to access the TM2 [Banker](../resources/gno-stdlibs.md#banker)
-directly and transfer coins from one Gno address to another.
-
-Coins, such as GNOTs, are always formatted in the following way:
-
-```
-<amount><denom>
-100ugnot
-```
-
-For this example, let's transfer some GNOTs. Just like before, we can configure
-our `maketx send` subcommand:
+Transfer coins between addresses:
 ```bash
 gnokey maketx send \
 -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
@@ -348,44 +220,13 @@ gnokey maketx send \
 mykey
 ```
 
-Here, we have set the `-to` & `-send` flags to match the recipient, in this case
-the publicly-known `test1` address, and `100ugnot` for the coins we want to send,
-respectively.
-
-To check the balance of a specific address, check out the `bank/balances` query
-in the [Querying a network](#querying-a-gnoland-network) section.
+Check balances using the [`bank/balances`](#bankbalances) query.
 
 ## `Run`
 
-With the `Run` message, you can write a snippet of Gno code and run it against
-code on the chain. For this example, we will use the [Userbook realm](https://gno.land/r/demo/userbook),
-which simply allows you to register the fact that you have interacted with it.
-It contains a simple `SignUp()` function, which we will call with `Run`.
+Execute Gno scripts against on-chain code. Example using the [Userbook realm](https://gno.land/r/demo/userbook):
 
-To understand how to use the `Run` message better, let's write a simple `script.gno`
-file. First, create a folder which will store our script.
-
-```bash
-└── example/
-```
-
-Then, let's create a `script.gno` file:
-
-```bash
-cd example
-touch script.gno
-```
-
-Now, we should have the following folder structure:
-
-```bash
-└── example/
-│   └── script.gno
-```
-
-In the `script.gno` file, first define the package to be `main`. Then we can import
-the Userbook realm and define a `main()` function with no return values that will
-be automatically detected and run. In it, we can call the `SignUp()` function.
+Create `script.gno`:
 
 ```go
 package main
@@ -397,7 +238,8 @@ func main() {
 }
 ```
 
-Now we will be able to provide this to the `maketx run` subcommand:
+Run the script:
+
 ```bash
 gnokey maketx run \
 -gas-fee 1000000ugnot \
@@ -408,70 +250,19 @@ gnokey maketx run \
 mykey ./script.gno
 ```
 
-After running this command, the chain will execute the script and apply any state
-changes. Additionally, by using `println`, which is only available in the `Run`
-& testing context, we will be able to see the return value of the function called.
+The chain executes the script and applies state changes. Using `println` (available in 
+`Run` and testing contexts) displays function return values.
 
-### The power of `Run`
+### Advanced `Run` capabilities
 
-Specifically, the above example could have been replaced with a simple `maketx call`
-call. The full potential of run comes out in three specific cases:
-1. Calling realm functions multiple times in a loop
-2. Calling functions with non-primitive input arguments
-3. Calling methods on exported variables
+`Run` excels in three scenarios:
 
-Let's look at each of these cases in detail. To demonstrate, we'll make a call
-to the following example realm:
+**1. Loop multiple calls:**
 
-```go
-package foo
-
-import "gno.land/p/nt/ufmt"
-
-var (
-	MainFoo *Foo
-	foos    []*Foo
-)
-
-type Foo struct {
-	bar string
-	baz int
-}
-
-func init() {
-	MainFoo = &Foo{bar: "mainBar", baz: 0}
-}
-
-func (f *Foo) String() string {
-	return ufmt.Sprintf("Foo - (bar: %s) - (baz: %d)\n\n", f.bar, f.baz)
-}
-
-func NewFoo(bar string, baz int) *Foo {
-	return &Foo{bar: bar, baz: baz}
-}
-
-func AddFoos(multipleFoos []*Foo) {
-	foos = append(foos, multipleFoos...)
-}
-
-func Render(_ string) string {
-	var output string
-
-	for _, f := range foos {
-		output += f.String()
-	}
-
-	return output
-}
-```
-
-1. Calling realm functions multiple times in a loop:
 ```go
 package main
 
-import (
-  "gno.land/r/docs/examples/foo"
-)
+import "gno.land/r/docs/examples/foo"
 
 func main() {
   for i := 0; i < 5; i++ {
@@ -480,42 +271,26 @@ func main() {
 }
 ```
 
-2. Calling functions with non-primitive input arguments:
-
-Currently, `Call` only supports primitives for arguments. With `Run`, these
-limitations are removed; we can execute a function that takes in a struct, array,
-or even an array of structs.
-
-We are unable to call `AddFoos()` with the `Call` message type, while with `Run`,
-we can:
+**2. Non-primitive arguments** (`Call` only supports primitives like strings, numbers, booleans):
 
 ```go
 package main
 
 import (
   "strconv"
-
   "gno.land/r/docs/examples/foo"
 )
 
 func main() {
   var multipleFoos []*foo.Foo
-
   for i := 0; i < 5; i++ {
-    newFoo := foo.NewFoo(
-      "bar"+strconv.Itoa(i),
-      i,
-    )
-
-    multipleFoos = append(multipleFoos, newFoo)
+    multipleFoos = append(multipleFoos, foo.NewFoo("bar"+strconv.Itoa(i), i))
   }
-
   foo.AddFoos(multipleFoos)
 }
-
 ```
 
-3. Calling methods on exported variables:
+**3. Call methods on exported variables:**
 
 ```go
 package main
@@ -523,38 +298,21 @@ package main
 import "gno.land/r/docs/examples/foo"
 
 func main() {
-	println(foo.MainFoo.String())
+  println(foo.MainFoo.String())
 }
 ```
 
-Finally, we can call methods that are on top-level objects in case they exist,
-which is not currently possible with the `Call` message.
-
 ## Making an airgapped transaction
 
-`gnokey` provides a way to create a transaction, sign it, and later
-broadcast it to a chain in the most secure fashion. This approach, while more
-complicated than the standard approach shown [in another section](#making-transactions),
-grants full control and provides [airgap](https://en.wikipedia.org/wiki/Air_gap_(networking))
-support.
+Create, sign, and broadcast transactions securely using separate online/offline machines. 
+This provides maximum security by keeping private keys offline ([airgap](https://en.wikipedia.org/wiki/Air_gap_(networking))).
 
-By separating the signing and the broadcasting steps of submitting a transaction,
-users can make sure that the signing happens in a secure, offline environment,
-keeping private keys away from possible exposure to attacks coming from the
-internet.
+Workflow:
+1. **Online machine**: Fetch account information
+2. **Offline machine**: Create and sign transaction
+3. **Online machine**: Broadcast transaction
 
-The intended purpose of this functionality is to provide maximum security when
-signing and broadcasting a transaction. In practice, this procedure should take
-place on two separate machines controlled by the holder of the keys, one with
-access to the internet (`Machine A`), and the other one without (`Machine B`):
-
-1. `Machine A`: Fetch account information from the chain
-2. `Machine B`: Create and sign the transaction offline
-3. `Machine A`: Broadcast the transaction
-
-## 1. Fetching account information from the chain
-
-Fetch data for the account using the [auth/accounts](#authaccounts) query:
+### 1. Fetch account information (online)
 
 ```bash
 gnokey query auth/accounts/<your_address> -remote "https://rpc.gno.land:443"
@@ -575,12 +333,9 @@ data: {
 }
 ```
 
-In this case, the account number is `468`, and the sequence (nonce) is `0`. These 
-values are needed to sign the transaction and prevent replay attacks.
+Extract `account_number` (`468`) and `sequence` (`0`) for signing.
 
-## 2. Creating an unsigned transaction locally
-
-Create the transaction without the `-broadcast` flag, redirecting output to a file:
+### 2. Create unsigned transaction (offline)
 
 ```bash
 gnokey maketx call \
@@ -591,15 +346,12 @@ gnokey maketx call \
 mykey > userbook.tx
 ```
 
-This will create a `userbook.tx` file with a null `signature` field.
+Creates `userbook.tx` with null signature. Note: no `-broadcast` flag, so the transaction 
+is not sent to the chain.
 
-## 3. Signing the transaction
+### 3. Sign transaction (offline)
 
-Use the `gnokey sign` subcommand with the following flags:
-- `-tx-path` - path to the transaction file to sign, in our case, `userbook.tx`
-- `-chainid` - id of the chain to sign for
-- `-account-number` - number of the account fetched previously
-- `-account-sequence` - sequence of the account fetched previously
+Sign using account number and sequence from step 1:
 
 ```bash
 gnokey sign \
@@ -610,23 +362,17 @@ gnokey sign \
 mykey
 ```
 
-After inputting the correct values, `gnokey` will ask for the password. Once entered,
-the signature field in `userbook.tx` will be populated.
+After entering the password, the signature field is populated.
 
-## 4. Broadcasting the transaction
-
-Broadcast the signed transaction using `gnokey broadcast`:
+### 4. Broadcast transaction (online)
 
 ```bash
 gnokey broadcast -remote "https://rpc.gno.land:443" userbook.tx
 ```
 
-No key pair is needed since the transaction is already signed.
+### Verify transaction signature
 
-## Verifying a transaction's signature
-
-Verify a transaction's signature using the `gnokey verify` subcommand. Provide the 
-transaction document path, the signing key, and the signature in `hex` format:
+Verify signature correctness (signature must be in `hex` format):
 
 ```bash
 gnokey verify -docpath userbook.tx mykey <signature>
