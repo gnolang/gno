@@ -1124,3 +1124,66 @@ func TestHTTPHandler_DownloadWithContext(t *testing.T) {
 	assert.True(t, contextReceived)
 	assert.Contains(t, rr.Body.String(), content)
 }
+
+// TestHTTPHandler_Post tests the Post method for form submissions.
+func TestHTTPHandler_Post(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"render.gno": `package main; func Render(path string) string { return "hello" }`,
+		},
+		Functions: []*doc.JSONFunc{
+			{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Name: "", Type: "string"}}},
+		},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		config,
+	)
+	require.NoError(t, err)
+
+	// Test valid POST request with form data
+	formData := strings.NewReader("arg1=value1&arg2=value2")
+	req := httptest.NewRequest(http.MethodPost, "/r/mock/path", formData)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// Should redirect (303 See Other)
+	assert.Equal(t, http.StatusSeeOther, rr.Code)
+	location := rr.Header().Get("Location")
+	assert.Contains(t, location, "/r/mock/path")
+}
+
+// TestHTTPHandler_Post_InvalidPath tests the Post method with an invalid path.
+func TestHTTPHandler_Post_InvalidPath(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files:  map[string]string{},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		config,
+	)
+	require.NoError(t, err)
+
+	// Test POST to invalid path (contains uppercase which fails the regex)
+	formData := strings.NewReader("arg1=value1")
+	req := httptest.NewRequest(http.MethodPost, "/Invalid/Path", formData)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// Should return 404 for invalid path
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
