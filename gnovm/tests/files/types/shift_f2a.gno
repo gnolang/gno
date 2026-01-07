@@ -7,7 +7,7 @@ func main() {
 }
 
 // Error:
-// main/shift_f2a.gno:5:6-22: operator << not defined on: BigdecKind
+// main/shift_f2a.gno:5:6-22: invalid operation: shifted operand (const (1.0 <untyped> bigdec)) (<untyped> bigdec) must be integer
 
 // TypeCheckError:
 // main/shift_f2a.gno:5:11: invalid operation: shifted operand 1.0 (type float64) must be integer
