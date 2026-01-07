@@ -155,21 +155,16 @@ EVENTS:     []
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 ```
 
-Let's analyze the output, which is standard for any `gnokey` transaction:
-- `GAS WANTED: 200000` - the original amount of gas specified for the transaction
-- `GAS USED:   117564` - the gas used to execute the transaction
-- `HEIGHT:     3990` - the block number at which the transaction was executed at
-- `EVENTS:     []` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, in this case, none
-- `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
-
-Congratulations! You have just uploaded a pure package to the Staging network.
-If you wish to deploy to a different network, find the list of all network
-configurations in the [Network Configuration](../resources/gnoland-networks.md) section.
+Transaction output fields:
+- `GAS WANTED` - gas limit specified
+- `GAS USED` - actual gas consumed
+- `HEIGHT` - block number
+- `EVENTS` - [events](../resources/gno-stdlibs.md#events) emitted
+- `TX HASH` - transaction hash
 
 ## `Call`
 
-The `Call` message type is used to call any exported realm function.
-You can send a `Call` transaction with `gnokey` using the following command:
+Call exported realm functions:
 
 ```bash
 gnokey maketx call
@@ -690,21 +685,7 @@ storage: 5025, deposit: 502500
 
 Calculate storage price: `deposit / storage` (e.g., `502500/5025 = 100ugnot`).
 
-### Gas parameters
+---
 
-When using `gnokey` to send transactions, you'll need to specify gas parameters:
-
-```bash
-gnokey maketx call \
-  --pkgpath "gno.land/r/demo/boards" \
-  --func "CreateBoard" \
-  --args "MyBoard" "Board description" \
-  --gas-fee 1000000ugnot \
-  --gas-wanted 2000000 \
-  --remote https://rpc.gno.land:443 \
-  --chainid staging \
-  YOUR_KEY_NAME
-```
-
-For detailed information about gas fees, including recommended values and
-optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).
+For detailed information about gas fees, including recommended values and optimization 
+strategies, see the [Gas Fees documentation](../resources/gas-fees.md).
