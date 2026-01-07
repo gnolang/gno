@@ -920,7 +920,7 @@
 		top: var(--g-space-14);
 		padding-block-start: var(--g-space-2);
 
-		&:not(:has(nav li)) {
+		&:has(.inner):not(:has(nav li)) {
 			display: none;
 		}
 
