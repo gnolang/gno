@@ -117,7 +117,8 @@ The module path must match the `-pkgpath` flag used when uploading.
 :::info About `gnomod.toml`
 
 This manifest file defines the module path for imports and package resolution. 
-Required for all packages and realms.
+Required for all packages and realms. See [Configuring Gno Projects](../resources/configuring-gno-projects.md) 
+for more details.
 
 :::
 
