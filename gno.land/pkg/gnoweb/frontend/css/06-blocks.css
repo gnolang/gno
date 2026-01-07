@@ -920,8 +920,7 @@
 		top: var(--g-space-14);
 		padding-block-start: var(--g-space-2);
 
-		/* Hide sidebar if it has no children */
-		&:has(ul:empty) {
+		&:not(:has(nav li)) {
 			display: none;
 		}
 
