@@ -242,3 +242,22 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte) ([]byt
 	)
 	return nil, fmt.Errorf("%w: %w", ErrClientResponse, qres.Response.Error)
 }
+
+// HasRenderFunction checks if the given JSON documentation contains a Render function
+// with the signature: func Render(path string) string
+func HasRenderFunction(jdoc *doc.JSONDocumentation) bool {
+	if jdoc == nil || len(jdoc.Funcs) == 0 {
+		return false
+	}
+
+	for _, fn := range jdoc.Funcs {
+		if fn.Name == "Render" &&
+			len(fn.Params) == 1 &&
+			len(fn.Results) == 1 &&
+			fn.Params[0].Type == "string" &&
+			fn.Results[0].Type == "string" {
+			return true
+		}
+	}
+	return false
+}

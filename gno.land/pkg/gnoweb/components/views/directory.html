@@ -11,15 +11,24 @@
   <ul class="b-list">
     {{ range .FilesLinks }}
     <li>
-      <a class="line-clamp-2" href="{{ .Link }}">
-        <span class="c-with-icon">
-          <svg class="c-icon">
-            <use href="#ico-file"></use>
-          </svg>
-          <span class="name">{{ .Name }}</span>
-        </span>
-        <span>Open</span>
-      </a>
+      <div class="b-list-item-realm">
+        <a class="b-list-item-link" href="{{ .Link }}">
+          <span class="c-with-icon">
+            <svg class="c-icon">
+              {{ if .HasRender }}
+              <use href="#ico-realm"></use>
+              {{ else }}
+              <use href="#ico-file"></use>
+              {{ end }}
+            </svg>
+            <span class="name">{{ .Name }}</span>
+          </span>
+        </a>
+        <div class="b-list-item-actions">
+          <a href="{{ .SourceLink }}" class="b-inline-btn">Source</a>
+          <a href="{{ .Link }}$help" class="b-inline-btn">Action</a>
+        </div>
+      </div>
     </li>
     {{ end }}
   </ul>

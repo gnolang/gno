@@ -4,7 +4,6 @@ const DirectoryViewType ViewType = "dir-view"
 
 type DirData struct {
 	PkgPath     string
-	Files       []string
 	FileCounter int
 	FilesLinks  FilesLinks
 	Mode        ViewMode
@@ -18,7 +17,7 @@ const (
 	DirLinkTypeFile
 )
 
-// Get the prefixed link depending on link type - Package Source Code or Package File
+// LinkPrefix returns the prefixed link depending on link type
 func (d DirLinkType) LinkPrefix(pkgPath string) string {
 	switch d {
 	case DirLinkTypeSource:
@@ -29,28 +28,40 @@ func (d DirLinkType) LinkPrefix(pkgPath string) string {
 	return ""
 }
 
-// Files has to be an array with Link (prefixed) and Name (filename)
+// FullFileLink represents a file/package link with metadata
 type FullFileLink struct {
-	Link string
-	Name string
+	Link       string
+	Name       string
+	HasRender  bool   // Indicates if Render() function exists
+	SourceLink string // Link to source code view
 }
 
-// FilesLinks has to be an array of FileLink
+// FilesLinks is a slice of FullFileLink
 type FilesLinks []FullFileLink
 
-func GetFullLinks(files []string, linkType DirLinkType, pkgPath string) FilesLinks {
+// buildFilesLinks creates FilesLinks from files with optional render metadata
+func buildFilesLinks(files []string, linkType DirLinkType, pkgPath string, hasRenderMap map[string]bool) FilesLinks {
 	result := make(FilesLinks, len(files))
 	for i, file := range files {
-		result[i] = FullFileLink{Link: linkType.LinkPrefix(pkgPath) + file, Name: file}
+		hasRender := false
+		if hasRenderMap != nil {
+			hasRender = hasRenderMap[file]
+		}
+		result[i] = FullFileLink{
+			Link:       linkType.LinkPrefix(pkgPath) + file,
+			Name:       file,
+			HasRender:  hasRender,
+			SourceLink: file + "$source",
+		}
 	}
 	return result
 }
 
-func DirectoryView(pkgPath string, files []string, fileCounter int, linkType DirLinkType, mode ViewMode, readme ...Component) *View {
+// DirectoryView creates a directory view with optional render metadata
+func DirectoryView(pkgPath string, files []string, fileCounter int, linkType DirLinkType, mode ViewMode, hasRenderMap map[string]bool, readme ...Component) *View {
 	viewData := DirData{
 		PkgPath:     pkgPath,
-		Files:       files,
-		FilesLinks:  GetFullLinks(files, linkType, pkgPath),
+		FilesLinks:  buildFilesLinks(files, linkType, pkgPath, hasRenderMap),
 		FileCounter: fileCounter,
 		Mode:        mode,
 	}
