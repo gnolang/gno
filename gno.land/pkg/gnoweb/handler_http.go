@@ -626,6 +626,25 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 		return GetClientErrorStatusPage(gnourl, ErrClientPackageNotFound)
 	}
 
+	// Check each realm to see if it has a Render function
+	hasRenderMap := make(map[string]bool)
+	for _, pkgPath := range paths {
+		// Only check realms (paths starting with /r/)
+		if !strings.HasPrefix(pkgPath, "/r/") {
+			continue
+		}
+
+		// Query the package documentation
+		jdoc, err := h.Client.Doc(ctx, pkgPath)
+		if err != nil {
+			h.Logger.Debug("unable to fetch doc for realm", "path", pkgPath, "error", err)
+			continue
+		}
+
+		// Check if this realm has a Render function
+		hasRenderMap[pkgPath] = HasRenderFunction(jdoc)
+	}
+
 	// Always use explorer mode for paths list
 	indexData.Mode = components.ViewModeExplorer
 
@@ -638,6 +657,7 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 		len(paths),
 		components.DirLinkTypeFile,
 		indexData.Mode,
+		hasRenderMap,
 	)
 }
 
@@ -670,6 +690,7 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 		len(files),
 		components.DirLinkTypeSource,
 		indexData.Mode,
+		nil, // no render metadata for file listing
 		readmeComp,
 	)
 }

@@ -806,6 +806,40 @@
 	}
 }
 
+.b-list-item-realm {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: var(--g-space-2);
+
+	&:hover {
+		background-color: var(--s-color-bg-surface-primary-hover);
+	}
+}
+
+.b-list-item-link {
+	flex: 1;
+	min-width: 0;
+	padding: 0;
+	display: flex;
+	align-items: center;
+
+	&:hover {
+		background-color: transparent;
+	}
+
+	.c-icon {
+		margin-inline-start: 0;
+	}
+}
+
+.b-list-item-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	flex-shrink: 0;
+}
+
 /* ===== USER COMPONENT ===== */
 .b-user-sidebar {
 	margin-block-start: var(--g-space-4);
