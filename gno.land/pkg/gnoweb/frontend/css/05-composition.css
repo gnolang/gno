@@ -194,6 +194,11 @@
 			text-decoration: underline;
 		}
 
+		/* link with image should be aligned to the middle */
+		&:has(> img) {
+			vertical-align: middle;
+		}
+
 		/* spacing between link badge */
 		& > span {
 			margin-block-end: 0.1em;
@@ -313,7 +318,7 @@
 
 	img {
 		max-width: 100%;
-		margin-block: var(--cr-space-4);
+		margin-block: var(--cr-space-2);
 		border: 1px solid var(--s-color-bg-surface-primary);
 		border-radius: var(--g-border-radius-sm);
 		user-select: none;

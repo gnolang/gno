@@ -9,6 +9,7 @@ import (
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/nt/mux"
@@ -183,6 +184,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 		),
 	)
 	res.Write(form.String())
+	res.Write("\n\n**Done?** " + svgbtn.Button(136, 32, "#E2E2E2", "#54595D", "Return to boards", gRealmPath) + "\n")
 }
 
 func renderMembers(res *mux.ResponseWriter, req *mux.Request) {

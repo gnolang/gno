@@ -1976,7 +1976,7 @@ pre.chroma-chroma {
 		display: block;
 		border-radius: var(--s-rounded);
 		border: var(--s-border-secondary);
-		margin-block: var(--g-space-12);
+		margin-block: var(--g-space-6);
 
 		input[type="submit"] {
 			background-color: var(--s-color-bg-brand-default);
