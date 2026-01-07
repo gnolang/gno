@@ -169,6 +169,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 	)
 
 	res.Write(md.H1("Boards: Create Board"))
+	res.Write(md.Link("← Back to boards", gRealmPath) + "\n\n")
 	res.Write(
 		md.Paragraph(
 			"Boards are by default listed by the realm but they can optionally " +
