@@ -135,14 +135,6 @@ is the `gnoweb` render of the Staging testnet.
 
 The latest Gno.land testnet, released on the 19th of December, 2025.
 
-### TestX
-
-These testnets are deprecated and currently serve as archives of previous progress.
-
-### Test9
-
-Test9 is the testnet released on the 14th of October, 2025.
-
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
@@ -151,6 +143,14 @@ Test9 is the testnet released on the 14th of October, 2025.
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
+
+### TestX
+
+These testnets are deprecated and currently serve as archives of previous progress.
+
+### Test9
+
+Test9 is the testnet released on the 14th of October, 2025.
 
 This testnet introduces major changes to the codebase, such as the `std` package 
 split, private realms, the storage fee collector, and more. 
