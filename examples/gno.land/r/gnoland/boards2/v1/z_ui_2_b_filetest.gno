@@ -37,13 +37,13 @@ func main() {
 // Sort by: [newest first](/r/gnoland/boards2/v1:TestBoard?order=asc)
 //
 // ###### [C](/r/gnoland/boards2/v1:TestBoard/3)
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
+// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) `✦ owner` on 2009-02-13 11:31pm UTC
 // **0 replies • 0 reposts**
 //
 // ###### [B](/r/gnoland/boards2/v1:TestBoard/2)
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
+// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) `✦ owner` on 2009-02-13 11:31pm UTC
 // **0 replies • 0 reposts**
 //
 // ###### [A](/r/gnoland/boards2/v1:TestBoard/1)
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
+// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) `✦ owner` on 2009-02-13 11:31pm UTC
 // **0 replies • 0 reposts**

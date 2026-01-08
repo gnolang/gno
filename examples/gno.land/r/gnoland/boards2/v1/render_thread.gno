@@ -48,11 +48,12 @@ func renderThreadSummary(thread *boards.Post) string {
 		postURI     = makeThreadURI(thread)
 		summary     = summaryOf(thread.Title, 80)
 		creatorLink = userLink(thread.Creator)
+		roleBadge   = getRoleBadge(thread)
 		date        = thread.CreatedAt.Format(dateFormat)
 	)
 
 	b.WriteString(md.H6(md.Link(summary, postURI)))
-	b.WriteString("Created by " + creatorLink + " on " + date + "  \n")
+	b.WriteString("Created by " + creatorLink + roleBadge + " on " + date + "  \n")
 
 	status := []string{
 		strconv.Itoa(thread.Replies.Size()) + " replies",

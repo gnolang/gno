@@ -41,7 +41,7 @@ func main() {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board\-2](/r/gnoland/boards2/v1:test-board-2)
 // ## Bar
 //
-// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** · 2009-02-13 11:31pm UTC
+// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `✦ owner` · 2009-02-13 11:31pm UTC
 // > *⚠ Source post has been deleted*
 // >
 // Body2

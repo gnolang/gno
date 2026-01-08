@@ -61,8 +61,9 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 
 	// Author and date header
 	creatorLink := userLink(post.Creator)
+	roleBadge := getRoleBadge(post)
 	date := post.CreatedAt.Format(dateFormat)
-	header := md.Bold(creatorLink) + " · " + date
+	header := md.Bold(creatorLink) + roleBadge + " · " + date
 	if !boards.IsThread(post) {
 		header += " " + md.Link("#"+post.ID.String(), makeReplyURI(post))
 	}
