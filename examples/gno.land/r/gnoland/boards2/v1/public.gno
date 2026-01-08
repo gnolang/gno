@@ -627,15 +627,6 @@ func IterateRealmMembers(offset int, fn boards.UsersIterFn) (halted bool) {
 	return gPerms.IterateUsers(offset, count, fn)
 }
 
-// GetBoard returns a single board.
-func GetBoard(boardID boards.ID) *boards.Board {
-	board := mustGetBoard(boardID)
-	if !board.Permissions.HasRole(runtime.OriginCaller(), RoleOwner) {
-		panic("forbidden")
-	}
-	return board
-}
-
 // Wraps a function to cross back to Boards2 realm.
 func crossingFn(fn func()) func() {
 	return func() {

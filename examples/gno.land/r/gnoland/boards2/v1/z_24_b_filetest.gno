@@ -8,24 +8,19 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
-	admin address = "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"
-)
+const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 
 var bid boards.ID
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-
 	bid = boards2.CreateBoard(cross, "test123", false, false)
-	boards2.InviteMember(cross, bid, admin, boards2.RoleAdmin)
 }
 
 func main() {
-	testing.SetRealm(testing.NewUserRealm(admin))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/test"))
 
-	// Calling as a non owner member should fail
+	// Calling as a non Boards2 sub realm should fail
 	boards2.GetBoard(bid)
 }
 
