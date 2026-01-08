@@ -32,6 +32,5 @@ func main() {
 // Output:
 // g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq owner
 // g1manfred47kzduec920z88wfr64ylksmdcedlf5 owner
-// g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq owner
 // g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj owner
 // g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5 admin
