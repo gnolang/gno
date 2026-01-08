@@ -695,9 +695,10 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 			panic(fmt.Sprintf("invalid operation: shifted operand %v (%v) must be integer", lv, lt))
 		}
 
-		// Both const.
+		// Both const. left is untypedBigDec & exact integer.
 		if ric {
 			// Representable as an integer. e.g. 1.0 << 1.
+			// convert lhs to untypedBigint so it can be evaluated as const later.
 			convertConst(store, last, x, lcx, UntypedBigintType)
 		}
 		return
