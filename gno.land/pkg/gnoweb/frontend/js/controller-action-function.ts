@@ -9,6 +9,15 @@ export class ActionFunctionController extends BaseController {
 	protected sendValue: string | null = null;
 	declare _funcName: string | null;
 	declare _pkgPath: string | null;
+	declare _paramInputsCache: HTMLInputElement[];
+
+	// Cached params inputs
+	private get _paramInputs(): HTMLInputElement[] {
+		if (!this._paramInputsCache) {
+			this._paramInputsCache = this.getTargets("param-input") as HTMLInputElement[];
+		}
+		return this._paramInputsCache;
+	}
 
 	protected connect(): void {
 		this.initializeDOM({
@@ -86,9 +95,9 @@ export class ActionFunctionController extends BaseController {
 	// get current value for a param name (handles checkbox multiple values)
 	private _getParamCurrentValue(paramName: string): string {
 		// radio or checkbox multiple values
-		const inputs = this.getTargets("param-input")
-			.filter((inp) => this.getValue("param", inp) === paramName)
-			.map((inp) => inp as HTMLInputElement);
+		const inputs = this._paramInputs.filter(
+			(inp) => this.getValue("param", inp) === paramName,
+		);
 
 		if (!inputs.length) return "";
 
@@ -118,8 +127,7 @@ export class ActionFunctionController extends BaseController {
 		const processed = new Set<string>();
 
 		// initialize the args
-		this.getTargets("param-input").forEach((paramInput) => {
-			const input = paramInput as HTMLInputElement;
+		this._paramInputs.forEach((input) => {
 			const paramName = this.getValue("param", input) || "";
 
 			if (!paramName || processed.has(paramName)) return;
@@ -150,8 +158,7 @@ export class ActionFunctionController extends BaseController {
 		const params: Record<string, string> = {};
 		const processed = new Set<string>();
 
-		this.getTargets("param-input").forEach((paramInput) => {
-			const input = paramInput as HTMLInputElement;
+		this._paramInputs.forEach((input) => {
 			const paramName = this.getValue("param", input) || "";
 			if (!paramName || processed.has(paramName)) return;
 
