@@ -622,13 +622,6 @@ func ChangeMemberRole(_ realm, boardID boards.ID, member address, role boards.Ro
 	})
 }
 
-// IterateRealmMembers iterates boards realm members.
-// The iteration is done only for realm members, board members are not iterated.
-func IterateRealmMembers(offset int, fn boards.UsersIterFn) (halted bool) {
-	count := gPerms.UsersCount() - offset
-	return gPerms.IterateUsers(offset, count, fn)
-}
-
 func assertMemberAddressIsValid(member address) {
 	if !member.IsValid() {
 		panic("invalid member address: " + member.String())

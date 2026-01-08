@@ -16,6 +16,13 @@ import (
 // It ignores the last realm path element which is the current version.
 var boardsNS = path.Dir(runtime.CurrentRealm().PkgPath()) + "/"
 
+// GetRealmPermissions returns Boards2 realm permissions.
+// This is a protected function only callable by Boards2 sub realms.
+func GetRealmPermissions() boards.Permissions {
+	assertRealmHasBoardsNS(runtime.CurrentRealm())
+	return gPerms
+}
+
 // GetBoard returns a board.
 // This is a protected function only callable by Boards2 sub realms.
 func GetBoard(boardID boards.ID) (_ *boards.Board, found bool) {
