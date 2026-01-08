@@ -44,6 +44,16 @@ UI - TOC Source component
   </a>
   {{ end }}
 
+  <!-- LICENSE File Section -->
+  {{ if .LicenseFile.Link }}
+  <a class="c-with-icon" href="{{ .LicenseFile.Link }}">
+    <svg class="c-icon">
+      <use href="#ico-{{ $.Icon }}"></use>
+    </svg>
+    {{ .LicenseFile.Text }}
+  </a>
+  {{ end }}
+
   <!-- Regular Files Section -->
   <ul class="b-toc">
     {{ range .GnoFiles }}
