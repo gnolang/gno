@@ -14,7 +14,9 @@ export class ActionFunctionController extends BaseController {
 	// Cached params inputs
 	private get _paramInputs(): HTMLInputElement[] {
 		if (!this._paramInputsCache) {
-			this._paramInputsCache = this.getTargets("param-input") as HTMLInputElement[];
+			this._paramInputsCache = this.getTargets(
+				"param-input",
+			) as HTMLInputElement[];
 		}
 		return this._paramInputsCache;
 	}
