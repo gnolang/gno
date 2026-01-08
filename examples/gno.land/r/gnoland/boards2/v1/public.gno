@@ -629,15 +629,6 @@ func IterateRealmMembers(offset int, fn boards.UsersIterFn) (halted bool) {
 	return gPerms.IterateUsers(offset, count, fn)
 }
 
-// GetBoard returns a single board.
-func GetBoard(boardID boards.ID) *boards.Board {
-	board := mustGetBoard(boardID)
-	if !board.Permissions.HasRole(runtime.OriginCaller(), permissions.RoleOwner) {
-		panic("forbidden")
-	}
-	return board
-}
-
 func assertMemberAddressIsValid(member address) {
 	if !member.IsValid() {
 		panic("invalid member address: " + member.String())
