@@ -363,13 +363,13 @@
 	}
 
 	blockquote {
-		border-inline-start: solid var(--g-space-1) var(--s-color-border-tertiary);
-		padding-inline-start: var(--g-space-4);
+		border-inline-start: solid var(--g-space-0-5) var(--s-color-border-tertiary);
+		padding-inline-start: var(--g-space-3);
 		color: var(--g-color-gray-600);
 		margin-block: var(--cr-space-4);
 
 		& > blockquote {
-			margin-block: var(--cr-space-8);
+			margin-block: var(--cr-space-7);
 		}
 	}
 
