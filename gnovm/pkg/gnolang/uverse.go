@@ -404,12 +404,7 @@ func makeUverseNode() {
 				arg0Offset := arg0Value.Offset
 				arg0Capacity := arg0Value.Maxcap
 				arg0Base := arg0Value.GetBase(m.Store)
-				// Guard for protecting arg0 against mutation by external realms.
-				// Leave this line here forever for defensive security purposes.
-				// That is, do not move into individual cases.
-				// Instead, implement DidUpdateFast(,,) which
-				// assumes DidUpdate(x, nil, nil) is already called.
-				m.Realm.DidUpdate(arg0Base, nil, nil)
+				// ANY MODIFICATION TO arg0 SHOULD ALWAYS CALL m.Realm.DidUpdate
 				switch arg1Value := arg1.TV.V.(type) {
 				// ------------------------------------------------------------
 				// append(*SliceValue, nil)
@@ -429,6 +424,11 @@ func makeUverseNode() {
 					if arg0Length+arg1Length <= arg0Capacity {
 						// append(*SliceValue, *SliceValue) w/i capacity -----
 						if 0 < arg1Length { // implies 0 < xvc
+							// DEFENSIVE: in this case, we're writing data directly
+							// into the backing array of arg0. Ensure we can write
+							// to it.
+							m.Realm.DidUpdate(arg0Base, nil, nil)
+
 							if arg0Base.Data == nil {
 								// append(*SliceValue.List, *SliceValue) ---------
 								list := arg0Base.List
