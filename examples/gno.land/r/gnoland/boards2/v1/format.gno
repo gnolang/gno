@@ -71,13 +71,13 @@ func getRoleBadge(post *boards.Post) string {
 
 	// Check roles in order of priority
 	if perms.HasRole(creator, permissions.RoleOwner) {
-		return " `✦ owner`"
+		return " `owner`"
 	}
 	if perms.HasRole(creator, permissions.RoleAdmin) {
-		return " `★ admin`"
+		return " `admin`"
 	}
 	if perms.HasRole(creator, permissions.RoleModerator) {
-		return " `◆ mod`"
+		return " `mod`"
 	}
 	return ""
 }
