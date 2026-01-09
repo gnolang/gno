@@ -104,6 +104,12 @@ func X_assertCallerIsRealm(m *gno.Machine) {
 }
 
 func X_originSend(m *gno.Machine) (denoms []string, amounts []int64) {
+	firstPkg := m.Frames[1].LastPackage.PkgPath
+	prevPkg := m.Frames[m.NumFrames()-2].LastPackage.PkgPath
+	if firstPkg != prevPkg {
+		// previous pkg is not the one targeted by origin send, returns nothing
+		return nil, nil
+	}
 	os := execctx.GetContext(m).OriginSend
 	return ExpandCoins(os)
 }
