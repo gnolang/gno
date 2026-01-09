@@ -1,6 +1,6 @@
 module github.com/gnolang/gno/contribs/gnobro
 
-go 1.23.6
+go 1.24.0
 
 require (
 	github.com/charmbracelet/bubbles v0.19.0
