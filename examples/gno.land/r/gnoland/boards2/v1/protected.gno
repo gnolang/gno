@@ -12,6 +12,8 @@ import (
 	"gno.land/p/gnoland/boards"
 )
 
+// TODO: Authorize sub realms to be able to call protected functions (use DAOs)
+
 // Keeps the package path to Boards2 realm.
 // It ignores the last realm path element which is the current version.
 var boardsNS = path.Dir(runtime.CurrentRealm().PkgPath()) + "/"
@@ -37,6 +39,18 @@ func MustGetBoard(boardID boards.ID) *boards.Board {
 	assertRealmHasBoardsNS(runtime.CurrentRealm())
 	// NOTE: Should we also check that origin caller is currently an owner within the board?
 	return mustGetBoard(boardID)
+}
+
+// Iterate iterates boards.
+// Iteration is done for all boards, including the ones that are not listed.
+// To reverse iterate boards use a negative count.
+// If the callback returns true, iteration is stopped.
+func Iterate(start, count int, fn boards.BoardIterFn) bool {
+	assertRealmHasBoardsNS(runtime.CurrentRealm())
+	// TODO: We should check that current realm is authorized to iterate boards
+	//       Realm must be reviewed before being authorized, to make sure boards
+	//       are actually independent and won't be modified indirectly.
+	return gBoards.Iterate(start, -count, fn)
 }
 
 // assertRealmHasBoardsNS asserts that a realm lives within Boards2 namespace.
