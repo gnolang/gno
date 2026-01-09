@@ -404,7 +404,8 @@ func makeUverseNode() {
 				arg0Offset := arg0Value.Offset
 				arg0Capacity := arg0Value.Maxcap
 				arg0Base := arg0Value.GetBase(m.Store)
-				// ANY MODIFICATION TO arg0 SHOULD ALWAYS CALL m.Realm.DidUpdate
+				// NOTE, ANY MODIFICATION TO arg0 SHOULD ALWAYS CALL
+				// m.Realm.DidUpdate(arg0Base, nil, nil) FIRST TO CHECK WRITE PERMISSIONS.
 				switch arg1Value := arg1.TV.V.(type) {
 				// ------------------------------------------------------------
 				// append(*SliceValue, nil)

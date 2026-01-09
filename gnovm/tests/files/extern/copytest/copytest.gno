@@ -3,7 +3,7 @@ package copytest
 var (
 	Slice = []int{1, 2, 3}
 
-	Array = [0]int{}
+	Array = [0]int{} // Empty array.
 
 	Array1 = [1]int{1}
 
