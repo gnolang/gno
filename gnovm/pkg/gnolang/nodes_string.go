@@ -117,23 +117,16 @@ func (x BasicLitExpr) String() string {
 	return x.Value
 }
 
-// func (x BinaryExpr) String() string {
-// 	return fmt.Sprintf("%s %s %s",
-// 		x.Left.String(),
-// 		x.Op.TokenString(),
-// 		x.Right.String(),
-// 	)
-// }
-
 func (x BinaryExpr) String() string {
 	raw := fmt.Sprintf("%s %s %s", x.Left.String(), x.Op.TokenString(), x.Right.String())
 	// Max length.
 	const maxLen = 100
-	// If it's too long, chop the middle
+	// If it's too long, chop the middle.
 	if len(raw) > maxLen {
-		// Keep the first 10 and last 10 characters
-		keep := 50
-		return raw[:keep] + "..." + raw[len(raw)-keep:]
+		// Keep first 48 and last 49 characters (48 + "..." + 49 = 100)
+		keepStart := 48
+		keepEnd := 49
+		return raw[:keepStart] + "..." + raw[len(raw)-keepEnd:]
 	}
 
 	return raw
