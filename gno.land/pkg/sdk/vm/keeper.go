@@ -670,14 +670,32 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if cx.Varg {
 		panic("variadic calls not yet supported")
 	}
-	if nargs := len(msg.Args) + 1; nargs != len(ft.Params) { // NOTE: nargs = `cur` + user's len(args)
-		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
+
+	hasVarg := ft.HasVarg()
+	// NOTE: nargs = `cur` + user's len(args)
+	nargs := len(msg.Args) + 1
+	if !hasVarg {
+		// If function is not variadic, it must have the same number of arguments.
+		if nargs != len(ft.Params) {
+			panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
+		}
+		// If function is variadic, it must have at least the number of arguments-1.
+		// on the function we can simply avoid the variadic argument.
+	} else if nargs < len(ft.Params)-1 {
+		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params)-1, nargs))
 	}
 	for i, arg := range msg.Args {
-		argType := ft.Params[i+1].Type
-		atv := convertArgToGno(arg, argType)
-		cx.Args[i+1] = &gno.ConstExpr{
-			TypedValue: atv,
+		paramIndex := i + 1
+		var argType gno.Type
+		if hasVarg && paramIndex >= len(ft.Params)-1 {
+			// For the variadic argument, we need to use the type of the
+			// elements contained on the slice.
+			argType = ft.Params[len(ft.Params)-1].Type.(*gno.SliceType).Elt
+		} else {
+			argType = ft.Params[paramIndex].Type
+		}
+		cx.Args[paramIndex] = &gno.ConstExpr{
+			TypedValue: convertArgToGno(arg, argType),
 		}
 	}
 	defer m.Release()
