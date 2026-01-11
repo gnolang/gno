@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/variadic"
+gno = "0.9"

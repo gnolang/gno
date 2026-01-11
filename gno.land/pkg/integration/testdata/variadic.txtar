@@ -1,0 +1,28 @@
+# create member and receiver users with known addresses
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+
+loadpkg gno.land/r/tests/vm/variadic
+
+gnoland start
+
+# Call variadic func with 2 variadic arguments
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/tests/vm/variadic -func Echo -args "mem123" -args "123mem" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
+stdout 'OK!'
+stdout '("mem123 123mem" string)'
+
+# Call variadic func with 0 variadic arguments
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/tests/vm/variadic -func Echo -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
+stdout 'OK!'
+stdout '("" string)'
+
+# Call variadic func with 2 int variadic arguments
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/tests/vm/variadic -func Add -args 10 -args 20 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
+stdout 'OK!'
+stdout '(30 int)'
+
+# Call variadic func with 0 int variadic arguments
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/tests/vm/variadic -func Add -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
+stdout 'OK!'
+stdout '(0 int)'
