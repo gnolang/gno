@@ -14,7 +14,6 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -47,7 +46,7 @@ func main() {
 	// Open Handshake's protocol list of reserved names
 	data, err := os.Open("lockup.json")
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	defer data.Close()
@@ -56,14 +55,14 @@ func main() {
 	var entries map[string][]any
 	err = json.NewDecoder(data).Decode(&entries)
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	// Parse Gno source into a tree
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, "", source, parser.ParseComments)
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	decl := node.Decls[1].(*ast.GenDecl)
@@ -85,7 +84,7 @@ func main() {
 	// Generate a Gno file with all the entries initialized
 	file, err := os.Create("main.gen.gno")
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	defer file.Close()
@@ -93,12 +92,19 @@ func main() {
 	var buf strings.Builder
 	err = format.Node(&buf, fset, node)
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	// Write the Gno file making sure sure each entry is defined in a single line
 	_, err = strings.NewReplacer("{Name", "\n\t{Name").WriteString(file, buf.String())
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
+
+	println("generated file " + file.Name())
+}
+
+func fatal(err error) {
+	println(err.Error())
+	os.Exit(1)
 }
