@@ -1554,11 +1554,14 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		return "\x00", false
 	}
 
+	// Don't use iota to avoid a false positive `staticcheck` complaint.
+	// Cannot be extended as-is, as only the least significant two bits of the
+	// len field are reserved for its "type".
 	const (
-		maskTypeID = iota
-		maskStringLength
-		maskArrayLength
-		maskStructLength
+		maskTypeID       = 0
+		maskStringLength = 1
+		maskArrayLength  = 2
+		maskStructLength = 3
 	)
 
 	// General case.
