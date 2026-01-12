@@ -8,7 +8,7 @@ import (
 	"gno.land/p/nt/avl/rotree"
 )
 
-// TODO: Allow updating validators
+// TODO: Allow updating checkers (reset, replace, append), GovDAO Tier1 only
 // TODO: Use tries to save storage
 
 var (
@@ -16,20 +16,20 @@ var (
 	blacklisted = avl.NewTree()
 	custom      = avl.NewTree()
 
-	// Name validators that defines the rules for valid names
-	validators = []Validator{
-		NewMinLengthValidator(4),
-		NewMaxLengthValidator(14),
-		NewLowercaseValidator(),
-		NewForbiddenPrefixValidator("g1", "gi", "gl"),
-		NewAlphaNumValidator(),
+	// Name constraints contains checkers that defines the rules for valid names
+	constraints = []Checker{
+		NewMinLengthChecker(4),
+		NewMaxLengthChecker(14),
+		NewLowercaseChecker(),
+		NewForbiddenPrefixChecker("g1", "gi", "gl"),
+		NewAlphaNumChecker(),
 	}
 )
 
 // IsNameValid checks is a name is a valid name.
 func IsNameValid(name string) error {
-	for _, v := range validators {
-		if err := v.Validate(name); err != nil {
+	for _, c := range constraints {
+		if err := c.Check(name); err != nil {
 			return err
 		}
 	}
@@ -55,12 +55,15 @@ func Render(string) string {
 	var b strings.Builder
 
 	b.WriteString(md.H1("Name Registry"))
-	b.WriteString(md.H2("Validation"))
+	b.WriteString(md.H2("Name Checks"))
 	b.WriteString(md.Paragraph("Names must match the following rules:"))
 
-	for _, v := range validators {
-		b.WriteString(md.BulletItem(v.Description()))
+	items := make([]string, len(constraints))
+	for _, c := range constraints {
+		items = append(items, c.Description())
 	}
+
+	b.WriteString(md.OrderedList(items))
 
 	return b.String()
 }
