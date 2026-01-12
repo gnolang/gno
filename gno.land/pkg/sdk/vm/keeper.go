@@ -665,12 +665,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if err != nil {
 		return "", err
 	}
-	// Convert Args to gno values.
 	cx := xn.(*gno.CallExpr)
-	if cx.Varg {
-		panic("variadic calls not yet supported")
-	}
-
 	hasVarg := ft.HasVarg()
 	// NOTE: nargs = `cur` + user's len(args)
 	nargs := len(msg.Args) + 1
@@ -684,6 +679,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	} else if nargs < len(ft.Params)-1 {
 		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params)-1, nargs))
 	}
+	// Convert Args to gno values.
 	for i, arg := range msg.Args {
 		paramIndex := i + 1
 		var argType gno.Type
