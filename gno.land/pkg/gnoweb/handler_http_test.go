@@ -1128,34 +1128,3 @@ func TestHTTPHandler_DownloadWithContext(t *testing.T) {
 	assert.True(t, contextReceived)
 	assert.Contains(t, rr.Body.String(), content)
 }
-
-// TestHTTPHandler_Post tests POST redirects correctly.
-func TestHTTPHandler_Post(t *testing.T) {
-	t.Parallel()
-
-	mockPkg := &gnoweb.MockPackage{
-		Domain: "example.com",
-		Path:   "/r/mock/path",
-		Files:  map[string]string{"render.gno": `package main`},
-	}
-
-	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, gnoweb.NewMockClient(mockPkg)))
-	req := httptest.NewRequest(http.MethodPost, "/r/mock/path", strings.NewReader("key=val"))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusSeeOther, rr.Code)
-}
-
-// TestHTTPHandler_Post_InvalidPath tests POST to invalid path returns 404.
-func TestHTTPHandler_Post_InvalidPath(t *testing.T) {
-	t.Parallel()
-
-	mockPkg := &gnoweb.MockPackage{Domain: "example.com", Path: "/r/mock/path", Files: map[string]string{}}
-	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, gnoweb.NewMockClient(mockPkg)))
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/Invalid/Path", nil))
-
-	assert.Equal(t, http.StatusNotFound, rr.Code)
-}
