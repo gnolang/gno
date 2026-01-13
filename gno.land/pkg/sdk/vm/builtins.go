@@ -81,36 +81,31 @@ func NewSDKParams(pmk ParamsKeeperI, ctx sdk.Context) *SDKParams {
 
 // The key has the format <module>:(<realm>:)?<paramname>.
 func (prm *SDKParams) SetString(key string, value string) {
-	prm.mustHaveModuleKeeper(key)
-	prm.pmk.SetString(prm.ctx, key, value)
+	prm.setWithCheck(key, func() { prm.pmk.SetString(prm.ctx, key, value) })
 }
 
 func (prm *SDKParams) SetBool(key string, value bool) {
-	prm.mustHaveModuleKeeper(key)
-	prm.pmk.SetBool(prm.ctx, key, value)
+	prm.setWithCheck(key, func() { prm.pmk.SetBool(prm.ctx, key, value) })
 }
 
 func (prm *SDKParams) SetInt64(key string, value int64) {
-	prm.mustHaveModuleKeeper(key)
-	prm.pmk.SetInt64(prm.ctx, key, value)
+	prm.setWithCheck(key, func() { prm.pmk.SetInt64(prm.ctx, key, value) })
 }
 
 func (prm *SDKParams) SetUint64(key string, value uint64) {
-	prm.mustHaveModuleKeeper(key)
-	prm.pmk.SetUint64(prm.ctx, key, value)
+	prm.setWithCheck(key, func() { prm.pmk.SetUint64(prm.ctx, key, value) })
 }
 
 func (prm *SDKParams) SetBytes(key string, value []byte) {
-	prm.mustHaveModuleKeeper(key)
-	prm.pmk.SetBytes(prm.ctx, key, value)
+	prm.setWithCheck(key, func() { prm.pmk.SetBytes(prm.ctx, key, value) })
 }
 
 func (prm *SDKParams) SetStrings(key string, value []string) {
-	prm.mustHaveModuleKeeper(key)
-	prm.pmk.SetStrings(prm.ctx, key, value)
+	prm.setWithCheck(key, func() { prm.pmk.SetStrings(prm.ctx, key, value) })
 }
 
 func (prm *SDKParams) UpdateStrings(key string, vals []string, add bool) {
+	prm.mustHaveModuleKeeper(key)
 	ss := &[]string{}
 	prm.pmk.GetStrings(prm.ctx, key, ss)
 
@@ -147,12 +142,17 @@ func (prm *SDKParams) UpdateStrings(key string, vals []string, add bool) {
 	prm.SetStrings(key, updatedList)
 }
 
+func (prm *SDKParams) setWithCheck(key string, set func()) {
+	prm.mustHaveModuleKeeper(key)
+	set()
+}
+
 func (prm *SDKParams) mustHaveModuleKeeper(key string) {
-	parts := strings.Split(key, ":")
-	if len(parts) == 0 {
+	idx := strings.Index(key, ":")
+	if idx <= 0 {
 		panic(fmt.Sprintf("SDKParams encountered invalid param key format: %s", key))
 	}
-	mname := parts[0]
+	mname := key[:idx]
 	if !prm.pmk.IsRegistered(mname) {
 		panic(fmt.Sprintf("module name <%s> not registered", mname))
 	}

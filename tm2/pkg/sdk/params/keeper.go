@@ -243,9 +243,10 @@ func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) {
 
 	if module != "" {
 		kpr, ok := pk.GetRegisteredKeeper(module)
-		if ok {
-			kpr.WillSetParam(ctx, rawKey, value)
+		if !ok {
+			panic("module not registered: " + module)
 		}
+		kpr.WillSetParam(ctx, rawKey, value)
 	}
 
 	stor := ctx.Store(pk.key)
