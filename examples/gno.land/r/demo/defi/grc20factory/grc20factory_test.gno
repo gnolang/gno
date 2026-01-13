@@ -1,4 +1,4 @@
-package foo20
+package grc20factory
 
 import (
 	"testing"
