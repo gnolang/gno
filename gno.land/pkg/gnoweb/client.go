@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 )
 
 var (
@@ -48,6 +49,10 @@ type ClientAdapter interface {
 	// Doc retrieves the JSON doc suitable for printing from a
 	// specified package path.
 	Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error)
+
+	// DocBatch retrieves JSON docs for multiple paths in a single batch request.
+	// Returns a map of path -> doc, skipping paths that fail.
+	DocBatch(ctx context.Context, paths []string) (map[string]*doc.JSONDocumentation, error)
 }
 
 type rpcClient struct {
@@ -169,6 +174,61 @@ func (c *rpcClient) Doc(ctx context.Context, pkgPath string) (*doc.JSONDocumenta
 	}
 
 	return jdoc, nil
+}
+
+// DocBatch retrieves JSON docs for multiple paths in a single batch request.
+func (c *rpcClient) DocBatch(ctx context.Context, paths []string) (map[string]*doc.JSONDocumentation, error) {
+	if len(paths) == 0 {
+		return make(map[string]*doc.JSONDocumentation), nil
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrClientTimeout, err.Error())
+	}
+
+	const qpath = "vm/qdoc"
+	batch := c.client.NewBatch()
+
+	// Add all queries to the batch
+	for _, pkgPath := range paths {
+		args := fmt.Sprintf("%s/%s", c.domain, strings.Trim(pkgPath, "/"))
+		if err := batch.ABCIQuery(qpath, []byte(args)); err != nil {
+			return nil, fmt.Errorf("unable to add batch query for %s: %w", pkgPath, err)
+		}
+	}
+
+	c.logger.Debug("sending batch doc query", "count", len(paths))
+
+	// Send the batch
+	results, err := batch.Send(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to send batch: %w", err)
+	}
+
+	// Parse results
+	docs := make(map[string]*doc.JSONDocumentation, len(paths))
+	for i, result := range results {
+		if result == nil {
+			continue
+		}
+
+		abciResult, ok := result.(*ctypes.ResultABCIQuery)
+		if !ok || abciResult.Response.Error != nil {
+			continue
+		}
+
+		jdoc := &doc.JSONDocumentation{}
+		if err := amino.UnmarshalJSON(abciResult.Response.Data, jdoc); err != nil {
+			c.logger.Debug("unable to unmarshal qdoc", "path", paths[i], "error", err)
+			continue
+		}
+
+		docs[paths[i]] = jdoc
+	}
+
+	c.logger.Debug("batch doc query complete", "requested", len(paths), "retrieved", len(docs))
+
+	return docs, nil
 }
 
 // query sends a query to the RPC client and returns the response

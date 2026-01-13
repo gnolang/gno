@@ -626,23 +626,25 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 		return GetClientErrorStatusPage(gnourl, ErrClientPackageNotFound)
 	}
 
-	// Check each realm to see if it has a Render function
-	hasRenderMap := make(map[string]bool)
+	// Filter realm paths for batch doc query
+	realmPaths := make([]string, 0, len(paths))
 	for _, pkgPath := range paths {
-		// Only check realms (paths starting with /r/)
-		if !strings.HasPrefix(pkgPath, "/r/") {
-			continue
+		if strings.HasPrefix(pkgPath, "/r/") {
+			realmPaths = append(realmPaths, pkgPath)
 		}
+	}
 
-		// Query the package documentation
-		jdoc, err := h.Client.Doc(ctx, pkgPath)
+	// Batch query all realm docs in a single request
+	hasRenderMap := make(map[string]bool)
+	if len(realmPaths) > 0 {
+		docs, err := h.Client.DocBatch(ctx, realmPaths)
 		if err != nil {
-			h.Logger.Debug("unable to fetch doc for realm", "path", pkgPath, "error", err)
-			continue
+			h.Logger.Debug("unable to batch fetch docs", "error", err)
+		} else {
+			for path, jdoc := range docs {
+				hasRenderMap[path] = HasRenderFunction(jdoc)
+			}
 		}
-
-		// Check if this realm has a Render function
-		hasRenderMap[pkgPath] = HasRenderFunction(jdoc)
 	}
 
 	// Always use explorer mode for paths list

@@ -37,6 +37,7 @@ type stubClient struct {
 	realmFunc     func(ctx context.Context, path, args string) ([]byte, error)
 	fileFunc      func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error)
 	docFunc       func(ctx context.Context, path string) (*doc.JSONDocumentation, error)
+	docBatchFunc  func(ctx context.Context, paths []string) (map[string]*doc.JSONDocumentation, error)
 	listFilesFunc func(ctx context.Context, path string) ([]string, error)
 	listPathsFunc func(ctx context.Context, prefix string, limit int) ([]string, error)
 }
@@ -60,6 +61,20 @@ func (s *stubClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentati
 		return s.docFunc(ctx, path)
 	}
 	return nil, errors.New("stubClient: Doc not implemented")
+}
+
+func (s *stubClient) DocBatch(ctx context.Context, paths []string) (map[string]*doc.JSONDocumentation, error) {
+	if s.docBatchFunc != nil {
+		return s.docBatchFunc(ctx, paths)
+	}
+	// Default: call Doc for each path
+	docs := make(map[string]*doc.JSONDocumentation)
+	for _, p := range paths {
+		if jdoc, err := s.Doc(ctx, p); err == nil {
+			docs[p] = jdoc
+		}
+	}
+	return docs, nil
 }
 
 func (s *stubClient) ListFiles(ctx context.Context, path string) ([]string, error) {
