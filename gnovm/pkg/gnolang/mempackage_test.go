@@ -336,17 +336,17 @@ func TestIsVersionSuffix(t *testing.T) {
 		input    string
 		expected bool
 	}{
-		{"v1", true},   // v1 is allowed for backwards compatibility
+		{"v1", true}, // v1 is allowed for backwards compatibility
 		{"v2", true},
 		{"v3", true},
 		{"v10", true},
 		{"v99", true},
-		{"v0", false},  // v0 is NOT a version suffix
-		{"v", false},   // incomplete
+		{"v0", false}, // v0 is NOT a version suffix
+		{"v", false},  // incomplete
 		{"v2beta", false},
-		{"2", false},   // missing v prefix
+		{"2", false}, // missing v prefix
 		{"", false},
-		{"V2", false},  // uppercase not allowed
+		{"V2", false}, // uppercase not allowed
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
@@ -364,14 +364,14 @@ func TestLastPathElement(t *testing.T) {
 	}{
 		{"gno.land/r/demo/counter", "counter"},
 		{"gno.land/p/demo/avl", "avl"},
-		{"gno.land/r/demo/foo/v1", "foo"},   // v1 is version suffix, return foo
-		{"gno.land/r/demo/foo/v2", "foo"},   // v2 is version suffix, return foo
-		{"gno.land/r/demo/foo/v10", "foo"},  // multi-digit version
-		{"encoding/json", "json"},            // stdlib
-		{"gno.land/r/demo/v2app", "v2app"},  // v2 in name, not suffix
-		{"gno.land/r/demo/myv2", "myv2"},    // v2 suffix in name
-		{"single", "single"},                 // single element path
-		{"", ""},                             // empty path
+		{"gno.land/r/demo/foo/v1", "foo"},  // v1 is version suffix, return foo
+		{"gno.land/r/demo/foo/v2", "foo"},  // v2 is version suffix, return foo
+		{"gno.land/r/demo/foo/v10", "foo"}, // multi-digit version
+		{"encoding/json", "json"},          // stdlib
+		{"gno.land/r/demo/v2app", "v2app"}, // v2 in name, not suffix
+		{"gno.land/r/demo/myv2", "myv2"},   // v2 suffix in name
+		{"single", "single"},               // single element path
+		{"", ""},                           // empty path
 	}
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
