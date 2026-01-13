@@ -274,55 +274,61 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		private = mod.Private
 	}
 
+	// If and old private package is overriden by a new package(now only private package).
+	// defer the clean operation.
+	overriden := false
 	if oid := ObjectIDFromPkgPath(mpkg.Path); m.Store.HasObject(oid) && private {
-		// idx of the old package
+		overriden = true
+		// Get idx of the old package.
 		pkgidx := m.Store.GetPackageIndexCounter(oid.PkgID)
 		// fmt.Println("======pkgidx: ", pkgidx-1)
+		// Get idx of object of the old package.
 		objidx := m.Store.GetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx))
-		// fmt.Println("======objidx: ", objidx)
+		fmt.Println("======objidx: ", objidx)
 
-		// fmt.Println("======prepare for cleaning MemPackage here...")
-		ctr2 := m.Store.GetPackageIndexCounter(ObjectIDFromPkgPath(mpkg.Path).PkgID)
-		// fmt.Println("======ctr2: ", ctr2)
-		idxkey := []byte(backendPackageIndexKey(ctr2))
-		if m.Store.HasMemPackage(idxkey) {
-			// fmt.Println("======found mempackage, clean it... idxkey: ", string(idxkey))
-			m.Store.DelMemPackage(idxkey)
-		}
+		// Reset and count from 0.
+		m.Store.ResetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx))
+
+		// The above logic happens before finalize objects and add mempackage.
 		//===========================================================
+		// Clean outdated Objects/Mempackage after new Objects/Mempackage are added.
 		defer func() {
-			// fmt.Println("======defer...")
-			// idx of new package revision
+			// fmt.Println("======defer clean...")
+			idxkey := []byte(backendPackageIndexKey(pkgidx))
+			if m.Store.HasMemPackage(idxkey) {
+				// fmt.Println("======found mempackage, clean it... idxkey: ", string(idxkey))
+				m.Store.DelMemPackage(idxkey)
+			}
+
+			// idx of new revision of the package.
 			pkgidx2 := m.Store.GetPackageIndexCounter(oid.PkgID)
 			// fmt.Println("======pkgidx2: ", pkgidx2)
 			objidx2 := m.Store.GetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx2))
-			// fmt.Println("======objidx2: ", objidx2)
+			fmt.Println("======objidx2: ", objidx2)
 
 			if objidx2 >= objidx {
-				// fmt.Println("======nothing to clean")
 				return
 			}
 
-			// fmt.Println("======do clean..., num: ", objidx-objidx2)
+			fmt.Println("======do clean..., num: ", objidx-objidx2)
 			// fmt.Println("======objidx: ", objidx)
-			for i := objidx2 + 1; ; i++ {
+			for i := objidx2 + 1; i <= objidx; i++ {
 				oid := ObjectID{PkgID: oid.PkgID, NewTime: i}
 				if m.Store.HasObject(oid) {
 					m.Store.DelObjectByID(oid)
-				} else {
-					// fmt.Println("============clean over...")
-					break
 				}
 			}
 		}()
 	}
 
-	// inc counter
-	ctr := m.Store.NextGlobalID()                                          // global
-	m.Store.NextPackageRevision(ObjectIDFromPkgPath(mpkg.Path).PkgID, ctr) // per package
+	// Set index for the new package.
+	// XXX if reuse slot not do this.
+	ctr := m.Store.GetGlobalID()
+	if !overriden {
+		ctr = m.Store.NextGlobalID() // global
+	}
 
-	// if oid := ObjectIDFromPkgPath(mpkg.Path); m.Store.HasObject(oid) && private {
-	// }
+	m.Store.NextPackageRevision(ObjectIDFromPkgPath(mpkg.Path).PkgID, ctr) // per package
 
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)

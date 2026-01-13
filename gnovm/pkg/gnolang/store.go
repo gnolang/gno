@@ -76,11 +76,12 @@ type Store interface {
 	NextPackageRevision(pid PkgID, currentRev uint64)
 	GetPackageIndexCounter(pid PkgID) uint64
 	GetObjectIndexCounter(key string) uint64
+	ResetObjectIndexCounter(key string)
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
 	AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
-	DelMemPackage(key []byte)
+	DelMemPackage(idxKey []byte)
 	HasMemPackage(key []byte) bool
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
@@ -733,7 +734,7 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	pid := oid.PkgID
 	pkgidx := ds.GetPackageIndexCounter(pid)
 	// fmt.Println("======SetObject, pkgidx: ", pkgidx)
-	ds.incObjectIndexCounter(backendObjectIndexKey(pid, pkgidx))
+	ds.IncObjectIndexCounter(backendObjectIndexKey(pid, pkgidx))
 	// fmt.Println("======objidx after increase: ", objidx)
 	return diff
 }
@@ -783,7 +784,7 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 
 // XXX, consume gas
 func (ds *defaultStore) DelObjectByID(oid ObjectID) {
-	// fmt.Println("======DelObjectByID, oo: ", oid)
+	fmt.Println("======DelObjectByID, oo: ", oid)
 	// delete from cache.
 	delete(ds.cacheObjects, oid)
 	// delete from backend.
@@ -972,7 +973,7 @@ func (ds *defaultStore) NumMemPackages() int64 {
 	}
 }
 
-// index all packages
+// Index all packages.
 func (ds *defaultStore) NextGlobalID() uint64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
@@ -1005,9 +1006,9 @@ func (ds *defaultStore) GetGlobalID() uint64 {
 	}
 }
 
-// index per package
+// Index for a package.
 func (ds *defaultStore) NextPackageRevision(pid PkgID, ctr uint64) {
-	// fmt.Printf("======incPackageIndexCounter, pid: %v, ctr: %d\n", pid, ctr)
+	// fmt.Printf("======NextPackageRevision, pid: %v, ctr: %d\n", pid, ctr)
 	ctrkey := pid.Hashlet[:]
 	ds.baseStore.Set(ctrkey, []byte(strconv.Itoa(int(ctr))))
 }
@@ -1030,7 +1031,7 @@ func (ds *defaultStore) GetPackageIndexCounter(pid PkgID) uint64 {
 // key format: pkgID:counter
 // e.g. 0000:1, 0000:2, same packages with different index
 // value is index of objects that belogs to a package
-func (ds *defaultStore) incObjectIndexCounter(key string) uint64 {
+func (ds *defaultStore) IncObjectIndexCounter(key string) uint64 {
 	ctrkey := []byte(key)
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -1046,6 +1047,12 @@ func (ds *defaultStore) incObjectIndexCounter(key string) uint64 {
 		ds.baseStore.Set(ctrkey, []byte(nextbz))
 		return uint64(ctr) + 1
 	}
+}
+
+func (ds *defaultStore) ResetObjectIndexCounter(key string) {
+	ctrkey := []byte(key)
+	bz := strconv.Itoa(0)
+	ds.baseStore.Set(ctrkey, []byte(bz))
 }
 
 func (ds *defaultStore) GetObjectIndexCounter(key string) uint64 {
@@ -1094,7 +1101,14 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}
 
-	ctr := ds.GetGlobalID()
+	var ctr uint64
+	// If exists, reuse slot.
+	ctr = ds.GetPackageIndexCounter(PkgIDFromPkgPath(mpkg.Path))
+	if ctr > 0 {
+		return
+	}
+
+	ctr = ds.GetGlobalID()
 	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(mpkg)
 	gas := overflow.Mulp(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
@@ -1105,8 +1119,9 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	size = len(bz)
 }
 
-func (ds *defaultStore) DelMemPackage(key []byte) {
-	ds.baseStore.Delete(key)
+func (ds *defaultStore) DelMemPackage(idxKey []byte) {
+	ds.baseStore.Delete(idxKey)
+	// no need to delete iavl, it alreay overriden.
 }
 
 func (ds *defaultStore) HasMemPackage(key []byte) bool {
