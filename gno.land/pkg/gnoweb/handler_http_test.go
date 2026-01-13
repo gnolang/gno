@@ -400,8 +400,8 @@ func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
 	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/", nil))
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "#ico-realm")
 	assert.Contains(t, rr.Body.String(), "Source")
+	assert.Contains(t, rr.Body.String(), "Action")
 }
 
 // TestHTTPHandler_PathsListView_DocError tests Doc errors are handled gracefully.
