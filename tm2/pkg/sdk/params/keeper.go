@@ -82,6 +82,9 @@ func (pk ParamsKeeper) GetRegisteredKeeper(moduleName string) (ParamfulKeeper, b
 }
 
 func (pk ParamsKeeper) Register(moduleName string, pmk ParamfulKeeper) {
+	if pmk == nil {
+		panic("cannot register nil keeper")
+	}
 	if _, exists := pk.kprs[moduleName]; exists {
 		panic("keeper for module " + moduleName + " already registered")
 	}
