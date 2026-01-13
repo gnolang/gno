@@ -4,4 +4,4 @@
 </gno-form>
 
 -- output.html --
-<!-- Error: invalid path attribute: invalid character &#39;?&#39; -->
+<!-- Error: invalid path attribute: contains invalid characters -->

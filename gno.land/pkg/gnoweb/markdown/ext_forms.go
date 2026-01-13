@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
@@ -41,34 +42,19 @@ var (
 	ErrFormInvalidPath      = errors.New("invalid path attribute")
 )
 
+// reFormPath defines the allowed pattern for form path attributes.
+// Allows: alphanumeric characters, slashes, underscores, and hyphens.
+// This pattern inherently rejects path traversal (..), protocols (://), fragments (#), etc.
+var reFormPath = regexp.MustCompile(`^[a-zA-Z0-9/_-]*$`)
+
 // ValidateFormPath validates the path attribute for forms to prevent
 // path traversal, open redirects, and other injection attacks.
 func ValidateFormPath(path string) error {
 	if path == "" {
 		return nil
 	}
-	// Reject path traversal attempts
-	if strings.Contains(path, "..") {
-		return fmt.Errorf("%w: contains '..'", ErrFormInvalidPath)
-	}
-	// Reject protocol-relative URLs
-	if strings.HasPrefix(path, "//") {
-		return fmt.Errorf("%w: cannot start with '//'", ErrFormInvalidPath)
-	}
-	// Reject absolute URLs with scheme
-	if strings.Contains(path, "://") {
-		return fmt.Errorf("%w: cannot contain '://'", ErrFormInvalidPath)
-	}
-	// Reject fragment identifiers that could be used to truncate URLs
-	if strings.Contains(path, "#") {
-		return fmt.Errorf("%w: cannot contain '#'", ErrFormInvalidPath)
-	}
-	// Only allow safe characters: alphanumeric, slashes, underscores, and hyphens
-	for _, r := range path {
-		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
-			(r >= '0' && r <= '9') || r == '/' || r == '_' || r == '-' || r == '.') {
-			return fmt.Errorf("%w: invalid character '%c'", ErrFormInvalidPath, r)
-		}
+	if !reFormPath.MatchString(path) {
+		return fmt.Errorf("%w: contains invalid characters", ErrFormInvalidPath)
 	}
 	return nil
 }
