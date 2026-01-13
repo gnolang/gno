@@ -63,11 +63,12 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 	creatorLink := userLink(post.Creator)
 	roleBadge := getRoleBadge(post)
 	date := post.CreatedAt.Format(dateFormat)
-	header := md.Bold(creatorLink) + roleBadge + " · " + date
+	b.WriteString(indent)
+	b.WriteString(md.Bold(creatorLink) + roleBadge + " · " + date)
 	if !boards.IsThread(post) {
-		header += " " + md.Link("#"+post.ID.String(), makeReplyURI(post))
+		b.WriteString(" " + md.Link("#"+post.ID.String(), makeReplyURI(post)))
 	}
-	b.WriteString(indent + header + "  \n")
+	b.WriteString("  \n")
 
 	srcContent, srcPost := renderSourcePost(post, indent)
 	if boards.IsRepost(post) && srcPost != nil {
