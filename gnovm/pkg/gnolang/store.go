@@ -1027,7 +1027,6 @@ func (ds *defaultStore) GetPackageIndexCounter(pid PkgID) uint64 {
 	}
 }
 
-// invode in SetObject
 // key format: pkgID:counter
 // e.g. 0000:1, 0000:2, same packages with different index
 // value is index of objects that belogs to a package
@@ -1225,7 +1224,6 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 				idxkey := []byte(backendPackageIndexKey(i))
 				path := ds.baseStore.Get(idxkey)
 				if path == nil {
-					// XXX, this is possible..
 					panic(fmt.Sprintf(
 						"missing package index %d", i))
 				}

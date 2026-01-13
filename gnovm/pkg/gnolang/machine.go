@@ -281,37 +281,29 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		overriden = true
 		// Get idx of the old package.
 		pkgidx := m.Store.GetPackageIndexCounter(oid.PkgID)
-		// fmt.Println("======pkgidx: ", pkgidx-1)
 		// Get idx of object of the old package.
 		objidx := m.Store.GetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx))
-		fmt.Println("======objidx: ", objidx)
 
 		// Reset and count from 0.
 		m.Store.ResetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx))
 
 		// The above logic happens before finalize objects and add mempackage.
-		//===========================================================
 		// Clean outdated Objects/Mempackage after new Objects/Mempackage are added.
 		defer func() {
-			// fmt.Println("======defer clean...")
 			idxkey := []byte(backendPackageIndexKey(pkgidx))
 			if m.Store.HasMemPackage(idxkey) {
-				// fmt.Println("======found mempackage, clean it... idxkey: ", string(idxkey))
 				m.Store.DelMemPackage(idxkey)
 			}
 
 			// idx of new revision of the package.
 			pkgidx2 := m.Store.GetPackageIndexCounter(oid.PkgID)
-			// fmt.Println("======pkgidx2: ", pkgidx2)
 			objidx2 := m.Store.GetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx2))
-			fmt.Println("======objidx2: ", objidx2)
 
 			if objidx2 >= objidx {
 				return
 			}
 
 			fmt.Println("======do clean..., num: ", objidx-objidx2)
-			// fmt.Println("======objidx: ", objidx)
 			for i := objidx2 + 1; i <= objidx; i++ {
 				oid := ObjectID{PkgID: oid.PkgID, NewTime: i}
 				if m.Store.HasObject(oid) {
