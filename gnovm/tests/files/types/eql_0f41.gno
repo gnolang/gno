@@ -32,7 +32,7 @@ func main() {
 }
 
 // Error:
-// main/eql_0f41.gno:27:5-20: invalid operation: get<VPBlock(4,2)>() == errCmp<VPBlock(4,3)> (mismatched types main.animal and .uverse.error)
+// main/eql_0f41.gno:27:5-20: invalid operation: (mismatched types main.animal and .uverse.error)
 
 // TypeCheckError:
 // main/eql_0f41.gno:27:14: invalid operation: get() == errCmp (mismatched types animal and error)

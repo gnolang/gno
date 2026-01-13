@@ -25,7 +25,7 @@ func main() {
 }
 
 // Error:
-// main/eql_0f1.gno:19:5-23: invalid operation: (const (1 int64)) == errCmp<VPBlock(4,1)> (mismatched types int64 and .uverse.error)
+// main/eql_0f1.gno:19:5-23: invalid operation: (mismatched types int64 and .uverse.error)
 
 // TypeCheckError:
 // main/eql_0f1.gno:19:17: invalid operation: int64(1) == errCmp (mismatched types int64 and error)

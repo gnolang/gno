@@ -29,7 +29,7 @@ func main() {
 }
 
 // Error:
-// main/cmp_longtoken.gno:9:7-28:22: invalid operation: (const-type bool)((const-type bool)((const-type bo...PBlock(1,1)>) == (const ("fail" <untyped> string)) (mismatched types <untyped> bool and <untyped> string)
+// main/cmp_longtoken.gno:9:7-28:22: invalid operation: (mismatched types <untyped> bool and <untyped> string)
 
 // TypeCheckError:
 // main/cmp_longtoken.gno:28:16: invalid operation: ((((((((((((((((((((a == b) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == (a == b)) == "fail" (mismatched types untyped bool and untyped string)

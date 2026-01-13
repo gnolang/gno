@@ -22,7 +22,7 @@ func main() {
 }
 
 // Error:
-// main/eql_0a2.gno:21:10-32: invalid operation: (const (0 main.Error1)) == (const (0 main.Error2)) (mismatched types main.Error1 and main.Error2)
+// main/eql_0a2.gno:21:10-32: invalid operation: (mismatched types main.Error1 and main.Error2)
 
 // TypeCheckError:
 // main/eql_0a2.gno:21:23: invalid operation: Error1(0) == Error2(0) (mismatched types Error1 and Error2)

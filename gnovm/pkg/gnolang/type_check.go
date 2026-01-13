@@ -741,7 +741,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 				if debug {
 					debug.Printf("checkAssignableTo fail: %v\n", err)
 				}
-				panic(fmt.Sprintf("invalid operation: %v (mismatched types %v and %v)", x, xt, dt))
+				panic(fmt.Sprintf("invalid operation: (mismatched types %v and %v)", xt, dt))
 			}
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[x.Op]; ok {

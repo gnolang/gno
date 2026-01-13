@@ -24,7 +24,7 @@ func main() {
 }
 
 // Error:
-// main/eql_0e1.gno:23:10-18: invalid operation: e1<VPBlock(1,0)> != e2<VPBlock(1,1)> (mismatched types main.Error1 and main.Error2)
+// main/eql_0e1.gno:23:10-18: invalid operation: (mismatched types main.Error1 and main.Error2)
 
 // TypeCheckError:
 // main/eql_0e1.gno:23:16: invalid operation: e1 != e2 (mismatched types Error1 and Error2)

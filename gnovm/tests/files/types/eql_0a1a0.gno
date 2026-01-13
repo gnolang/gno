@@ -6,7 +6,7 @@ func main() {
 }
 
 // Error:
-// main/eql_0a1a0.gno:5:10-24: invalid operation: (const (1 uint64)) == a<VPBlock(1,0)> (mismatched types uint64 and uint)
+// main/eql_0a1a0.gno:5:10-24: invalid operation: (mismatched types uint64 and uint)
 
 // TypeCheckError:
 // main/eql_0a1a0.gno:5:23: invalid operation: uint64(1) == a (mismatched types uint64 and uint)

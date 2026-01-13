@@ -20,7 +20,7 @@ func main() {
 }
 
 // Error:
-// main/cmp_pointer.gno:19:27-38: invalid operation: p1<VPBlock(1,0)> == p2Ptr<VPBlock(1,2)> (mismatched types *main.Person and *main.Worker)
+// main/cmp_pointer.gno:19:27-38: invalid operation: (mismatched types *main.Person and *main.Worker)
 
 // TypeCheckError:
 // main/cmp_pointer.gno:19:33: invalid operation: p1 == p2Ptr (mismatched types *Person and *Worker)

@@ -25,7 +25,7 @@ func main() {
 }
 
 // Error:
-// main/eql_0f0.gno:19:5-16: invalid operation: (const (1 <untyped> bigint)) == errCmp<VPBlock(4,1)> (mismatched types <untyped> bigint and .uverse.error)
+// main/eql_0f0.gno:19:5-16: invalid operation: (mismatched types <untyped> bigint and .uverse.error)
 
 // TypeCheckError:
 // main/eql_0f0.gno:19:5: cannot convert 1 (untyped int constant) to type interface{Error() string}

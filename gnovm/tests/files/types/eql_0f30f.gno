@@ -8,7 +8,7 @@ func main() {
 }
 
 // Error:
-// main/eql_0f30f.gno:7:10-16: invalid operation: a<VPBlock(3,0)> == b<VPBlock(3,1)> (mismatched types [2]int and [3]int)
+// main/eql_0f30f.gno:7:10-16: invalid operation: (mismatched types [2]int and [3]int)
 
 // TypeCheckError:
 // main/eql_0f30f.gno:7:15: invalid operation: a == b (mismatched types [2]int and [3]int)

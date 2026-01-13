@@ -18,7 +18,7 @@ func main() {
 }
 
 // Error:
-// main/cmp_struct_g.gno:17:25-31: invalid operation: a<VPBlock(1,0)> == b<VPBlock(1,1)> (mismatched types main.Person and main.Dog)
+// main/cmp_struct_g.gno:17:25-31: invalid operation: (mismatched types main.Person and main.Dog)
 
 // TypeCheckError:
 // main/cmp_struct_g.gno:17:30: invalid operation: a == b (mismatched types Person and Dog)
