@@ -66,7 +66,7 @@ func ValidateFormPath(path string) error {
 	// Only allow safe characters: alphanumeric, slashes, underscores, and hyphens
 	for _, r := range path {
 		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
-			(r >= '0' && r <= '9') || r == '/' || r == '_' || r == '-') {
+			(r >= '0' && r <= '9') || r == '/' || r == '_' || r == '-' || r == '.') {
 			return fmt.Errorf("%w: invalid character '%c'", ErrFormInvalidPath, r)
 		}
 	}

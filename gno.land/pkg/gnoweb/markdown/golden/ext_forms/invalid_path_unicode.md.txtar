@@ -1,0 +1,7 @@
+-- input.md --
+<gno-form path="путь">
+<gno-input name="data" type="text" placeholder="Data" />
+</gno-form>
+
+-- output.html --
+<!-- Error: invalid path attribute: invalid character &#39;п&#39; -->
