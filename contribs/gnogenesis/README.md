@@ -288,7 +288,6 @@ func createGenesisTxsFile(outputPath string, privKey secp256k1.PrivKeySecp256k1,
         return err
     }
     defer file.Close()
-
     for _, tx := range txs {
         encoded, err := amino.MarshalJSON(tx)
         if err != nil {
