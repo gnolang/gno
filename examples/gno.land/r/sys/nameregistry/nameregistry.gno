@@ -1,9 +1,6 @@
 package nameregistry
 
 import (
-	"strings"
-
-	"gno.land/p/moul/md"
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/rotree"
 )
@@ -49,21 +46,4 @@ func GetBlacklistedNames() rotree.IReadOnlyTree {
 // GetCustomNames returns custom registry names.
 func GetCustomNames() rotree.IReadOnlyTree {
 	return rotree.Wrap(custom, func(v any) any { return struct{}{} })
-}
-
-func Render(string) string {
-	var b strings.Builder
-
-	b.WriteString(md.H1("Name Registry"))
-	b.WriteString(md.H2("Name Checks"))
-	b.WriteString(md.Paragraph("Names must match the following rules:"))
-
-	items := make([]string, len(constraints))
-	for _, c := range constraints {
-		items = append(items, c.Description())
-	}
-
-	b.WriteString(md.OrderedList(items))
-
-	return b.String()
 }
