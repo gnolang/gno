@@ -94,14 +94,14 @@ export class ActionFunctionController extends BaseController {
 		// Checkbox: join all checked values
 		if (firstInput.type === "checkbox") {
 			return inputs
-				.filter((inp) => inp.checked)
+				.filter((inp) => inp.checked || inp.defaultChecked)
 				.map((inp) => inp.value.trim())
 				.join(",");
 		}
 
 		// Radio: find checked one
 		if (firstInput.type === "radio") {
-			const checked = inputs.find((inp) => inp.checked);
+			const checked = inputs.find((inp) => inp.checked || inp.defaultChecked);
 			return checked?.value.trim() || "";
 		}
 
