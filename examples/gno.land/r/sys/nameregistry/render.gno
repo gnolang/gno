@@ -142,7 +142,11 @@ func renderSearch(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.Link("← Back Home", makeURI("")) + "\n\n")
 	res.Write(md.H2("Search Names"))
 
-	if names == nil || prefix == "" {
+	if names == nil || len(prefix) < 3 {
+		if prefix != "" {
+			res.Write(mdalert.Caution("Error", "Search requires at least three letters"))
+		}
+
 		res.Write(form.String())
 	} else {
 		var (
@@ -157,16 +161,11 @@ func renderSearch(res *mux.ResponseWriter, req *mux.Request) {
 		})
 
 		if results.Len() == 0 {
-			alert := mdalert.New(
-				mdalert.TypeWarning,
-				"Not Found",
-				"Search didn't find any matching names",
-				false,
-			)
-			res.Write(alert.String())
+			res.Write(mdalert.Warning("Not Found", "Search didn't find any matching names"))
 			res.Write(form.String())
 		} else {
 			res.Write(form.String())
+			res.Write(md.H2("Results"))
 			res.Write(results.String())
 		}
 	}
