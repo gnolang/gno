@@ -1060,11 +1060,6 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 		return err
 	}
 
-	// NOTE: Package name vs path element validation is done separately in
-	// keeper.go for deployment and lint.go for linting, because existing
-	// packages may legitimately have different internal names than their path
-	// element (e.g., filtests/extern).
-
 	// Validate files.
 	if mpkg.IsEmpty() {
 		return fmt.Errorf("package has no files")
