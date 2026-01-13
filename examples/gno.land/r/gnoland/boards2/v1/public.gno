@@ -397,7 +397,7 @@ func DeleteReply(_ realm, boardID, threadID, replyID boards.ID) {
 		// Soft delete reply by changing its body when it contains
 		// sub-replies, otherwise hard delete it.
 		if reply.Replies.Size() > 0 {
-			reply.Body = "This reply has been deleted"
+			reply.Body = "*This reply has been deleted*"
 			reply.UpdatedAt = time.Now()
 		} else {
 			// Remove reply from the thread
