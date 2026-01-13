@@ -309,7 +309,6 @@ func TestMemPackage_Validate(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			if tc.panicMsg != "" {
@@ -350,6 +349,7 @@ func TestIsVersionSuffix(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			got := isVersionSuffix(tt.input)
 			assert.Equal(t, tt.expected, got)
 		})
@@ -375,6 +375,7 @@ func TestLastPathElement(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
+			t.Parallel()
 			got := LastPathElement(tt.path)
 			assert.Equal(t, tt.expected, got)
 		})
@@ -401,6 +402,7 @@ func TestValidatePkgNameMatchesPath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidatePkgNameMatchesPath(tt.pkgName, tt.pkgPath)
 			if tt.errContains == "" {
 				assert.NoError(t, err)
