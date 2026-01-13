@@ -29,7 +29,7 @@ func main() {
 // # [Boards](/r/gnoland/boards2/v1) › TestBoard
 // Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
 // ↳ [Create Thread](/r/gnoland/boards2/v1:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • **Manage Board**
-//  — [Invite Member](/r/gnoland/boards2/v1:TestBoard/invite-member) • [List Invite Requests](/r/gnoland/boards2/v1:TestBoard/invites) • [List Members](/r/gnoland/boards2/v1:TestBoard/members) • [List Banned Users](/r/gnoland/boards2/v1:TestBoard/banned-users) • [Freeze Board](/r/gnoland/boards2/v1$help&func=FreezeBoard&boardID=1)
+// └─ [Invite Member](/r/gnoland/boards2/v1:TestBoard/invite-member) • [List Invite Requests](/r/gnoland/boards2/v1:TestBoard/invites) • [List Members](/r/gnoland/boards2/v1:TestBoard/members) • [List Banned Users](/r/gnoland/boards2/v1:TestBoard/banned-users) • [Freeze Board](/r/gnoland/boards2/v1$help&func=FreezeBoard&boardID=1)
 //
 // ---
 // Sort by: [oldest first](/r/gnoland/boards2/v1:TestBoard?menu=manageBoard&order=desc)
