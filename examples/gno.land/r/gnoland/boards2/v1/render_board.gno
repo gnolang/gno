@@ -82,7 +82,6 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 // renderSubMenu renders a sub-menu with a distinct visual pattern.
-//TODO: add a gnoweb md component
 func renderSubMenu(items []string) string {
 	if len(items) == 0 {
 		return ""
