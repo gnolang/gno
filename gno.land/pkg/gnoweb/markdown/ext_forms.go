@@ -38,7 +38,40 @@ var (
 	ErrFormDuplicateName    = errors.New("name already used")
 	ErrFormInvalidAttribute = errors.New("invalid attribute for input type")
 	ErrFormMissingValue     = errors.New("missing 'value' attribute")
+	ErrFormInvalidPath      = errors.New("invalid path attribute")
 )
+
+// ValidateFormPath validates the path attribute for forms to prevent
+// path traversal, open redirects, and other injection attacks.
+func ValidateFormPath(path string) error {
+	if path == "" {
+		return nil
+	}
+	// Reject path traversal attempts
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("%w: contains '..'", ErrFormInvalidPath)
+	}
+	// Reject protocol-relative URLs
+	if strings.HasPrefix(path, "//") {
+		return fmt.Errorf("%w: cannot start with '//'", ErrFormInvalidPath)
+	}
+	// Reject absolute URLs with scheme
+	if strings.Contains(path, "://") {
+		return fmt.Errorf("%w: cannot contain '://'", ErrFormInvalidPath)
+	}
+	// Reject fragment identifiers that could be used to truncate URLs
+	if strings.Contains(path, "#") {
+		return fmt.Errorf("%w: cannot contain '#'", ErrFormInvalidPath)
+	}
+	// Only allow safe characters: alphanumeric, slashes, underscores, and hyphens
+	for _, r := range path {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || r == '/' || r == '_' || r == '-') {
+			return fmt.Errorf("%w: invalid character '%c'", ErrFormInvalidPath, r)
+		}
+	}
+	return nil
+}
 
 var (
 	FormKind = ast.NewNodeKind("Form")
@@ -220,8 +253,13 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 
 	node := &FormNode{usedNames: make(map[string]bool)}
 
-	// Extract attributes
+	// Extract and validate path attribute
 	node.RenderPath, _ = ExtractAttr(tok.Attr, "path")
+	if err := ValidateFormPath(node.RenderPath); err != nil {
+		node.Error = err
+		return node, parser.Continue
+	}
+
 	if gnourl, ok := getUrlFromContext(pc); ok {
 		node.RealmName = gnourl.Path
 	}

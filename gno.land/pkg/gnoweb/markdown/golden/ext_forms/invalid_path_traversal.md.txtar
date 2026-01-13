@@ -1,0 +1,7 @@
+-- input.md --
+<gno-form path="user../../../../../evil.domain.com#">
+<gno-input name="username" type="text" placeholder="Username" />
+</gno-form>
+
+-- output.html --
+<!-- Error: invalid path attribute: contains &#39;..&#39; -->

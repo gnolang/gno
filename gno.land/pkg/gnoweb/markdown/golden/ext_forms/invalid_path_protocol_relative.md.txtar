@@ -1,0 +1,7 @@
+-- input.md --
+<gno-form path="//evil.com/steal">
+<gno-input name="secret" type="text" placeholder="Secret" />
+</gno-form>
+
+-- output.html --
+<!-- Error: invalid path attribute: cannot start with &#39;//&#39; -->
