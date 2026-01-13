@@ -292,8 +292,9 @@ func TestDirectoryView(t *testing.T) {
 	fileCounter := 2
 	linkType := DirLinkTypeSource
 	mode := ViewModePackage
+	hasRenderMap := map[string]bool{"file1.gno": true, "file2.gno": false}
 
-	view := DirectoryView(pkgPath, files, fileCounter, linkType, mode, nil)
+	view := DirectoryView(pkgPath, files, fileCounter, linkType, mode, hasRenderMap)
 
 	assert.NotNil(t, view, "expected view to be non-nil")
 
@@ -348,46 +349,52 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 }
 
 func TestBuildFilesLinks(t *testing.T) {
+	hasRenderMap := map[string]bool{"file1.gno": true, "file2.gno": false}
+
 	cases := []struct {
-		name     string
-		files    []string
-		linkType DirLinkType
-		pkgPath  string
-		expected FilesLinks
+		name         string
+		files        []string
+		linkType     DirLinkType
+		pkgPath      string
+		hasRenderMap map[string]bool
+		expected     FilesLinks
 	}{
 		{
-			name:     "Source link type with multiple files",
-			files:    []string{"file1.gno", "file2.gno"},
-			linkType: DirLinkTypeSource,
-			pkgPath:  "/r/test/pkg",
+			name:         "Source link type with multiple files",
+			files:        []string{"file1.gno", "file2.gno"},
+			linkType:     DirLinkTypeSource,
+			pkgPath:      "/r/test/pkg",
+			hasRenderMap: hasRenderMap,
 			expected: FilesLinks{
-				{Link: "/r/test/pkg$source&file=file1.gno", Name: "file1.gno", SourceLink: "file1.gno$source"},
-				{Link: "/r/test/pkg$source&file=file2.gno", Name: "file2.gno", SourceLink: "file2.gno$source"},
+				{Link: "/r/test/pkg$source&file=file1.gno", Name: "file1.gno", SourceLink: "file1.gno$source", HasRender: true},
+				{Link: "/r/test/pkg$source&file=file2.gno", Name: "file2.gno", SourceLink: "file2.gno$source", HasRender: false},
 			},
 		},
 		{
-			name:     "File link type with multiple files",
-			files:    []string{"file1.gno", "file2.gno"},
-			linkType: DirLinkTypeFile,
-			pkgPath:  "/r/test/pkg",
+			name:         "File link type with multiple files",
+			files:        []string{"file1.gno", "file2.gno"},
+			linkType:     DirLinkTypeFile,
+			pkgPath:      "/r/test/pkg",
+			hasRenderMap: hasRenderMap,
 			expected: FilesLinks{
-				{Link: "file1.gno", Name: "file1.gno", SourceLink: "file1.gno$source"},
-				{Link: "file2.gno", Name: "file2.gno", SourceLink: "file2.gno$source"},
+				{Link: "file1.gno", Name: "file1.gno", SourceLink: "file1.gno$source", HasRender: true},
+				{Link: "file2.gno", Name: "file2.gno", SourceLink: "file2.gno$source", HasRender: false},
 			},
 		},
 		{
-			name:     "Empty files list",
-			files:    []string{},
-			linkType: DirLinkTypeSource,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{},
+			name:         "Empty files list",
+			files:        []string{},
+			linkType:     DirLinkTypeSource,
+			pkgPath:      "/r/test/pkg",
+			hasRenderMap: nil,
+			expected:     FilesLinks{},
 		},
 	}
 
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			result := buildFilesLinks(tc.files, tc.linkType, tc.pkgPath, nil)
+			result := buildFilesLinks(tc.files, tc.linkType, tc.pkgPath, tc.hasRenderMap)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
