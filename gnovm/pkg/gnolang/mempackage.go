@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -153,6 +154,51 @@ func IsUserlib(pkgPath string) bool {
 
 func IsTestFile(file string) bool {
 	return strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno")
+}
+
+//----------------------------------------
+// Package name and path validation helpers.
+// See https://github.com/gnolang/gno/issues/1571
+
+// reVersionSuffix matches version suffixes (v1, v2, v3, v10, v11, ...).
+// Note: Go convention says v1 should not appear in paths, but Gno allows it
+// for backwards compatibility with existing versioned packages.
+var reVersionSuffix = regexp.MustCompile(`^v([1-9][0-9]*)$`)
+
+// isVersionSuffix returns true if s is a version suffix (v1, v2, v3, ...).
+func isVersionSuffix(s string) bool {
+	return reVersionSuffix.MatchString(s)
+}
+
+// LastPathElement extracts the last meaningful element from a package path.
+// For versioned paths like "gno.land/r/foo/v2" or "gno.land/r/foo/v1", it
+// returns "foo" since version suffixes (v1, v2, ...) are skipped.
+func LastPathElement(pkgPath string) string {
+	parts := strings.Split(pkgPath, "/")
+	if len(parts) == 0 {
+		return ""
+	}
+	last := parts[len(parts)-1]
+
+	if isVersionSuffix(last) && len(parts) >= 2 {
+		return parts[len(parts)-2]
+	}
+	return last
+}
+
+// ValidatePkgNameMatchesPath ensures the declared package name matches the last path element.
+// This prevents confusion where a package at "gno.land/r/foo" declares "package bar".
+// For versioned paths (v1, v2, ...), the package name must match the element before
+// the version suffix (e.g., "gno.land/r/foo/v2" expects "package foo").
+func ValidatePkgNameMatchesPath(pkgName Name, pkgPath string) error {
+	expectedName := LastPathElement(pkgPath)
+	if expectedName == "" {
+		return nil
+	}
+	if string(pkgName) != expectedName {
+		return fmt.Errorf("package name %q does not match path element %q", pkgName, expectedName)
+	}
+	return nil
 }
 
 //----------------------------------------
@@ -1013,6 +1059,12 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	if err := validatePkgName(Name(mpkg.Name)); err != nil {
 		return err
 	}
+
+	// NOTE: Package name vs path element validation is done separately in
+	// keeper.go for deployment and lint.go for linting, because existing
+	// packages may legitimately have different internal names than their path
+	// element (e.g., filtests/extern).
+
 	// Validate files.
 	if mpkg.IsEmpty() {
 		return fmt.Errorf("package has no files")

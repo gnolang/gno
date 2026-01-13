@@ -471,6 +471,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err := gno.ValidateMemPackageAny(msg.Package); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
+	// Validate that the package name matches the last path element.
+	// See: https://github.com/gnolang/gno/issues/1571
+	if err := gno.ValidatePkgNameMatchesPath(gno.Name(memPkg.Name), pkgPath); err != nil {
+		return ErrInvalidPkgPath(err.Error())
+	}
 
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)

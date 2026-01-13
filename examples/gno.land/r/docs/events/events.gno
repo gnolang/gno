@@ -1,4 +1,4 @@
-package emitevents
+package events
 
 import "chain"
 

@@ -19,14 +19,15 @@ import (
 type gnoCode string
 
 const (
-	gnoUnknownError    gnoCode = "gnoUnknownError"
-	gnoReadError       gnoCode = "gnoReadError"
-	gnoImportError     gnoCode = "gnoImportError"
-	gnoGnoModError     gnoCode = "gnoGnoModError"
-	gnoPreprocessError gnoCode = "gnoPreprocessError"
-	gnoParserError     gnoCode = "gnoParserError"
-	gnoTypeCheckError  gnoCode = "gnoTypeCheckError"
-	gnoLintError       gnoCode = "gnoLintError"
+	gnoUnknownError        gnoCode = "gnoUnknownError"
+	gnoReadError           gnoCode = "gnoReadError"
+	gnoImportError         gnoCode = "gnoImportError"
+	gnoGnoModError         gnoCode = "gnoGnoModError"
+	gnoPreprocessError     gnoCode = "gnoPreprocessError"
+	gnoParserError         gnoCode = "gnoParserError"
+	gnoTypeCheckError      gnoCode = "gnoTypeCheckError"
+	gnoLintError           gnoCode = "gnoLintError"
+	gnoPackageNameMismatch gnoCode = "gnoPackageNameMismatch"
 
 	// TODO: add new gno codes here.
 )

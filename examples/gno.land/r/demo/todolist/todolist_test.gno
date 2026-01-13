@@ -1,4 +1,4 @@
-package todolistrealm
+package todolist
 
 import (
 	"chain/runtime"
