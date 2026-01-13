@@ -28,13 +28,24 @@ import (
 // - `text`: visible button label
 // - `link`: URL to wrap the image in markdown-style [svg](link)
 func Button(width, height int, btnColor, textColor, text, link string) string {
+	return ButtonWithRadius(width, height, height/5, btnColor, textColor, text, link)
+}
+
+// ButtonWithRadius creates a base SVG button with custom border radius.
+// - `width`, `height`: size in pixels
+// - `radius`: border radius in pixels
+// - `btnColor`: background color (e.g. "#007BFF")
+// - `textColor`: label color (e.g. "#FFFFFF")
+// - `text`: visible button label
+// - `link`: URL to wrap the image in markdown-style [svg](link)
+func ButtonWithRadius(width, height, radius int, btnColor, textColor, text, link string) string {
 	canvas := svg.NewCanvas(width, height).
 		WithViewBox(0, 0, width, height).
 		AddStyle("text", "font-family:sans-serif;font-size:14px;text-anchor:middle;dominant-baseline:middle;")
 
 	bg := svg.NewRectangle(0, 0, width, height, btnColor)
-	bg.RX = height / 5
-	bg.RY = height / 5
+	bg.RX = radius
+	bg.RY = radius
 
 	label := svg.NewText(width/2, height/2, text, textColor)
 
