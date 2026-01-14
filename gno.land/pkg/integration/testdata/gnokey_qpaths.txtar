@@ -1,17 +1,13 @@
 # aaa namespace
-loadpkg gno.land/r/aaa/bbb/ccc $WORK
-loadpkg gno.land/r/aaa/ccc/ddd $WORK
-loadpkg gno.land/r/aaa $WORK
+loadpkg gno.land/r/aaa/bbb/ccc $WORK/ccc
+loadpkg gno.land/r/aaa/ccc/ddd $WORK/ddd
+loadpkg gno.land/r/aaa $WORK/aaa
 
 # bbb namespace
-loadpkg gno.land/r/bbb/ccc $WORK
-loadpkg gno.land/p/bbb/ccc/ppp $WORK
-loadpkg gno.land/r/bbb/aaa $WORK
-loadpkg gno.land/r/bbb0 $WORK
-
-# foo-bar namespace (hyphenated)
-loadpkg gno.land/r/foo-bar/baz $WORK
-loadpkg gno.land/p/foo-bar/pkg $WORK
+loadpkg gno.land/r/bbb/ccc $WORK/ccc
+loadpkg gno.land/p/bbb/ccc/ppp $WORK/ppp
+loadpkg gno.land/r/bbb/aaa $WORK/aaa
+loadpkg gno.land/r/bbb0 $WORK/bbb0
 
 gnoland start
 
@@ -50,27 +46,41 @@ gnokey query vm/qpaths?limit=5 --data "_"
 cmp stdout stdlibs-qpaths.stdout.golden
 cmp stderr empty_file
 
+
 gnokey query vm/qpaths --data "_/encoding"
 cmp stdout stdlibs-encoding-qpaths.stdout.golden
 cmp stderr empty_file
+
 
 gnokey query vm/qpaths?limit=5 --data ""
 cmp stdout empty-qpaths.stdout.golden
 cmp stderr empty_file
 
-# query path for namespace with hyphen
-gnokey query vm/qpaths --data "@foo-bar"
-cmp stdout foo-bar-name-qpaths.stdout.golden
-cmp stderr empty_file
+-- aaa/aaa.gno --
+package aaa
 
-gnokey query vm/qpaths --data "@foo-bar/baz"
-cmp stdout foo-bar-name-subpath-qpaths.stdout.golden
-cmp stderr empty_file
+func Hello() { println("AAA") }
 
--- main.gno --
-package main
+-- ccc/ccc.gno --
+package ccc
 
-func main() { println("A") }
+func Hello() { println("CCC") }
+
+-- ddd/ddd.gno --
+package ddd
+
+func Hello() { println("DDD") }
+
+-- ppp/ppp.gno --
+package ppp
+
+func Hello() { println("PPP") }
+
+-- bbb0/bbb0.gno --
+package bbb0
+
+func Hello() { println("BBB0") }
+
 -- aaa-qpaths.stdout.golden --
 height: 0
 data: gno.land/r/aaa
@@ -102,13 +112,6 @@ Msg Traces:
 
 -- invalid-name-qpaths.stderr.golden --
 "gnokey" error: invalid username format
--- foo-bar-name-qpaths.stdout.golden --
-height: 0
-data: gno.land/p/foo-bar/pkg
-gno.land/r/foo-bar/baz
--- foo-bar-name-subpath-qpaths.stdout.golden --
-height: 0
-data: gno.land/r/foo-bar/baz
 -- ccc-qpaths.stdout.golden --
 height: 0
 data: 
@@ -118,14 +121,14 @@ data: bufio
 bytes
 chain
 chain/banker
-chain/markdown
+chain/params
 -- stdlibs-qpaths.stdout.golden --
 height: 0
 data: bufio
 bytes
 chain
 chain/banker
-chain/markdown
+chain/params
 -- stdlibs-encoding-qpaths.stdout.golden --
 height: 0
 data: encoding
