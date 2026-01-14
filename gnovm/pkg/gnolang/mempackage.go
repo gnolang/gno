@@ -175,13 +175,14 @@ func isVersionSuffix(s string) bool {
 // returns "foo" since version suffixes (v1, v2, ...) are skipped.
 func LastPathElement(pkgPath string) string {
 	parts := strings.Split(pkgPath, "/")
-	if len(parts) == 0 {
+	n := len(parts)
+	if n == 0 {
 		return ""
 	}
-	last := parts[len(parts)-1]
+	last := parts[n-1]
 
-	if isVersionSuffix(last) && len(parts) >= 2 {
-		return parts[len(parts)-2]
+	if isVersionSuffix(last) && n >= 2 {
+		return parts[n-2]
 	}
 	return last
 }

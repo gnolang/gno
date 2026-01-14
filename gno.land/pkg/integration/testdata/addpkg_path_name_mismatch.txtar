@@ -1,4 +1,5 @@
-# Test that package name must match the last element of the package path
+# Test that package declaration name must match the last element of the package path
+# e.g., deploying to gno.land/r/.../hello requires "package hello", not "package hello123"
 
 ## start a new node
 gnoland start
