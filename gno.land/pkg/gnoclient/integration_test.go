@@ -542,7 +542,7 @@ func Echo(str string) string {
 	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 177600}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
-	deploymentPathB := "gno.land/p/demo/integration/test/echo2"
+	deploymentPathB := "gno.land/p/demo/integration/test2/echo"
 	msg.Package.Path = deploymentPathB
 	_, err = addPackageSigningSeparately(t, client, baseCfg, msg)
 	assert.NoError(t, err)
@@ -686,8 +686,8 @@ func Hello(str string) string {
 	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 9999996543700}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
-	deploymentPath1B := "gno.land/p/demo/integration/test/echo2"
-	deploymentPath2B := "gno.land/p/demo/integration/test/hello2"
+	deploymentPath1B := "gno.land/p/demo/integration/test2/echo"
+	deploymentPath2B := "gno.land/p/demo/integration/test2/hello"
 	msg1.Package.Path = deploymentPath1B
 	msg2.Package.Path = deploymentPath2B
 	_, err = addPackageSigningSeparately(t, client, baseCfg, msg1, msg2)
