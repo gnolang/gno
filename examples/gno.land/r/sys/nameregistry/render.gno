@@ -48,9 +48,9 @@ func renderHome(res *mux.ResponseWriter, _ *mux.Request) {
 	table := mdtable.Table{
 		Headers: []string{"Names", "Total"},
 		Rows: [][]string{
-			{"Reserved", strconv.Itoa(reserved.Size())},
-			{"Blacklisted", strconv.Itoa(blacklisted.Size())},
-			{"Custom", strconv.Itoa(custom.Size())},
+			{TypeReserved, strconv.Itoa(reserved.Size())},
+			{TypeBlacklisted, strconv.Itoa(blacklisted.Size())},
+			{TypeCustom, strconv.Itoa(custom.Size())},
 		},
 	}
 
@@ -115,27 +115,27 @@ func renderSearch(res *mux.ResponseWriter, req *mux.Request) {
 	)
 	form.Select(
 		"type",
-		"Reserved",
-		"selected", strconv.FormatBool(nameType == "" || nameType == "Reserved"),
+		TypeReserved,
+		"selected", strconv.FormatBool(nameType == "" || nameType == TypeReserved),
 	)
 	form.Select(
 		"type",
-		"Custom",
-		"selected", strconv.FormatBool(nameType == "Custom"),
+		TypeCustom,
+		"selected", strconv.FormatBool(nameType == TypeCustom),
 	)
 	form.Select(
 		"type",
-		"Blacklisted",
-		"selected", strconv.FormatBool(nameType == "Blacklisted"),
+		TypeBlacklisted,
+		"selected", strconv.FormatBool(nameType == TypeBlacklisted),
 	)
 
 	var names *avl.Tree
 	switch nameType {
-	case "Reserved":
+	case TypeReserved:
 		names = reserved
-	case "Custom":
+	case TypeCustom:
 		names = custom
-	case "Blacklisted":
+	case TypeBlacklisted:
 		names = blacklisted
 	}
 
