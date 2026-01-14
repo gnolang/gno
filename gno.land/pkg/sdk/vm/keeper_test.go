@@ -283,6 +283,9 @@ private = true`,
 		{
 			Name: "test.gno",
 			Body: `package test
+var root any
+var root2 any
+var root3 any
 
 func Echo(cur realm) string {
 	return "hello world"
@@ -294,6 +297,21 @@ func Echo(cur realm) string {
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
+
+	pkgID := gnolang.PkgIDFromPkgPath(pkgPath)
+	t.Log("pkgID: ", pkgID)
+
+	store := env.vmk.getGnoTransactionStore(ctx)
+
+	num := 0
+	for i := uint64(1); i <= 10; i++ {
+		oid := gnolang.ObjectID{PkgID: pkgID, NewTime: i}
+		if store.HasObject(oid) {
+			t.Log("before overridden, found object: ", oid)
+			num++
+		}
+	}
+	assert.Equal(t, 7, num, "num of object not match")
 
 	// Re-upload the same private package with updated content.
 	files2 := []*std.MemFile{
@@ -318,7 +336,16 @@ func Echo(cur realm) string {
 	assert.NoError(t, err)
 
 	// Verify the package was updated with the new content.
-	store := env.vmk.getGnoTransactionStore(ctx)
+
+	num = 0
+	for i := uint64(1); i <= 10; i++ {
+		oid := gnolang.ObjectID{PkgID: pkgID, NewTime: i}
+		if store.HasObject(oid) {
+			t.Log("after overrideen, found object: ", oid)
+			num++
+		}
+	}
+
 	memFile := store.GetMemFile(pkgPath, "test.gno")
 	assert.NotNil(t, memFile)
 	expected := `package test
@@ -327,6 +354,7 @@ func Echo(cur realm) string {
 	return "hello updated world"
 }`
 	assert.Equal(t, expected, memFile.Body)
+	assert.Equal(t, 4, num, "num of object not match")
 }
 
 func TestVMKeeperAddPackage_ImportPrivate(t *testing.T) {
