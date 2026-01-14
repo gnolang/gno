@@ -2,7 +2,6 @@ package grc20
 
 import (
 	"math"
-	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -98,7 +97,8 @@ func TestTransferFromAtomicity(t *testing.T) {
 		owner   = testutils.TestAddress("owner")
 		spender = testutils.TestAddress("spender")
 
-		invalidRecipient = std.Address("")
+		invalidRecipient = address("")
+		recipient        = testutils.TestAddress("to")
 	)
 
 	token, admin := NewToken("Test", "TEST", 6)
@@ -122,6 +122,15 @@ func TestTransferFromAtomicity(t *testing.T) {
 	remainingAllowance := token.Allowance(owner, spender)
 	uassert.Equal(t, remainingAllowance, initialAllowance,
 		"allowance should not be reduced when transfer fails")
+
+	// transfer all tokens
+	admin.Transfer(owner, recipient, 100)
+	remainingBalance := token.BalanceOf(owner)
+	uassert.Equal(t, remainingBalance, int64(0),
+		"balance should be zero")
+
+	err = admin.TransferFrom(owner, spender, recipient, transferAmount)
+	uassert.Error(t, err, "transfer should fail due to insufficient balance")
 }
 
 func TestMintUntilOverflow(t *testing.T) {
@@ -131,7 +140,7 @@ func TestMintUntilOverflow(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		addr           std.Address
+		addr           address
 		amount         int64
 		expectedError  error
 		expectedSupply int64

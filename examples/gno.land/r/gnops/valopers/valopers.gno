@@ -2,10 +2,11 @@
 package valopers
 
 import (
+	"chain"
+	"chain/banker"
 	"crypto/bech32"
 	"errors"
 	"regexp"
-	"std"
 
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/nt/avl"
@@ -18,6 +19,11 @@ import (
 const (
 	MonikerMaxLength     = 32
 	DescriptionMaxLength = 2048
+
+	// Valid server types
+	ServerTypeCloud      = "cloud"
+	ServerTypeOnPrem     = "on-prem"
+	ServerTypeDataCenter = "data-center"
 )
 
 var (
@@ -26,12 +32,13 @@ var (
 	ErrInvalidAddress     = errors.New("invalid address")
 	ErrInvalidMoniker     = errors.New("moniker is not valid")
 	ErrInvalidDescription = errors.New("description is not valid")
+	ErrInvalidServerType  = errors.New("server type is not valid")
 )
 
 var (
-	valopers     *avl.Tree                            // valopers keeps track of all the valoper profiles. Address -> Valoper
-	instructions string                               // markdown instructions for valoper's registration
-	minFee       = std.NewCoin("ugnot", 20*1_000_000) // minimum gnot must be paid to register.
+	valopers     *avl.Tree                              // valopers keeps track of all the valoper profiles. Address -> Valoper
+	instructions string                                 // markdown instructions for valoper's registration
+	minFee       = chain.NewCoin("ugnot", 20*1_000_000) // minimum gnot must be paid to register.
 
 	monikerMaxLengthMiddle = ufmt.Sprintf("%d", MonikerMaxLength-2)
 	validateMonikerRe      = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`) // 32 characters, including spaces, hyphens or underscores in the middle
@@ -41,10 +48,11 @@ var (
 type Valoper struct {
 	Moniker     string // A human-readable name
 	Description string // A description and details about the valoper
+	ServerType  string // The type of server (cloud/on-prem/data-center)
 
-	Address     std.Address // The bech32 gno address of the validator
-	PubKey      string      // The bech32 public key of the validator
-	KeepRunning bool        // Flag indicating if the owner wants to keep the validator running
+	Address     address // The bech32 gno address of the validator
+	PubKey      string  // The bech32 public key of the validator
+	KeepRunning bool    // Flag indicating if the owner wants to keep the validator running
 
 	auth *authorizable.Authorizable // The authorizer system for the valoper
 }
@@ -53,14 +61,14 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 	return v.auth
 }
 
-func AddToAuthList(cur realm, address_XXX std.Address, member std.Address) {
+func AddToAuthList(cur realm, address_XXX address, member address) {
 	v := GetByAddr(address_XXX)
 	if err := v.Auth().AddToAuthListByPrevious(member); err != nil {
 		panic(err)
 	}
 }
 
-func DeleteFromAuthList(cur realm, address_XXX std.Address, member std.Address) {
+func DeleteFromAuthList(cur realm, address_XXX address, member address) {
 	v := GetByAddr(address_XXX)
 	if err := v.Auth().DeleteFromAuthListByPrevious(member); err != nil {
 		panic(err)
@@ -68,10 +76,10 @@ func DeleteFromAuthList(cur realm, address_XXX std.Address, member std.Address) 
 }
 
 // Register registers a new valoper
-func Register(cur realm, moniker string, description string, address_XXX std.Address, pubKey string) {
+func Register(cur realm, moniker string, description string, serverType string, address_XXX address, pubKey string) {
 	// Check if a fee is enforced
 	if !minFee.IsZero() {
-		sentCoins := std.OriginSend()
+		sentCoins := banker.OriginSend()
 
 		// Coins must be sent and cover the min fee
 		if len(sentCoins) != 1 || sentCoins[0].IsLT(minFee) {
@@ -87,6 +95,7 @@ func Register(cur realm, moniker string, description string, address_XXX std.Add
 	v := Valoper{
 		Moniker:     moniker,
 		Description: description,
+		ServerType:  serverType,
 		Address:     address_XXX,
 		PubKey:      pubKey,
 		KeepRunning: true,
@@ -105,7 +114,7 @@ func Register(cur realm, moniker string, description string, address_XXX std.Add
 }
 
 // UpdateMoniker updates an existing valoper's moniker
-func UpdateMoniker(cur realm, address_XXX std.Address, moniker string) {
+func UpdateMoniker(cur realm, address_XXX address, moniker string) {
 	// Check that the moniker is not empty
 	if err := validateMoniker(moniker); err != nil {
 		panic(err)
@@ -124,7 +133,7 @@ func UpdateMoniker(cur realm, address_XXX std.Address, moniker string) {
 }
 
 // UpdateDescription updates an existing valoper's description
-func UpdateDescription(cur realm, address_XXX std.Address, description string) {
+func UpdateDescription(cur realm, address_XXX address, description string) {
 	// Check that the description is not empty
 	if err := validateDescription(description); err != nil {
 		panic(err)
@@ -143,7 +152,7 @@ func UpdateDescription(cur realm, address_XXX std.Address, description string) {
 }
 
 // UpdateKeepRunning updates an existing valoper's active status
-func UpdateKeepRunning(cur realm, address_XXX std.Address, keepRunning bool) {
+func UpdateKeepRunning(cur realm, address_XXX address, keepRunning bool) {
 	v := GetByAddr(address_XXX)
 
 	// Check that the caller has permissions
@@ -156,8 +165,27 @@ func UpdateKeepRunning(cur realm, address_XXX std.Address, keepRunning bool) {
 	valopers.Set(address_XXX.String(), v)
 }
 
+// UpdateServerType updates an existing valoper's server type
+func UpdateServerType(cur realm, address_XXX address, serverType string) {
+	// Check that the server type is valid
+	if err := validateServerType(serverType); err != nil {
+		panic(err)
+	}
+
+	v := GetByAddr(address_XXX)
+
+	// Check that the caller has permissions
+	v.Auth().AssertPreviousOnAuthList()
+
+	// Update server type
+	v.ServerType = serverType
+
+	// Save the valoper info
+	valopers.Set(address_XXX.String(), v)
+}
+
 // GetByAddr fetches the valoper using the address, if present
-func GetByAddr(address_XXX std.Address) Valoper {
+func GetByAddr(address_XXX address) Valoper {
 	valoperRaw, exists := valopers.Get(address_XXX.String())
 	if !exists {
 		panic(ErrValoperMissing)
@@ -219,6 +247,7 @@ func (v *Valoper) Validate() error {
 
 	errs.Add(validateMoniker(v.Moniker))
 	errs.Add(validateDescription(v.Description))
+	errs.Add(validateServerType(v.ServerType))
 	errs.Add(validateBech32(v.Address))
 	errs.Add(validatePubKey(v.PubKey))
 
@@ -238,14 +267,15 @@ func (v Valoper) Render() string {
 	}
 
 	output += ufmt.Sprintf("- Address: %s\n", v.Address.String())
-	output += ufmt.Sprintf("- PubKey: %s\n\n", v.PubKey)
+	output += ufmt.Sprintf("- PubKey: %s\n", v.PubKey)
+	output += ufmt.Sprintf("- Server Type: %s\n\n", v.ServerType)
 	output += ufmt.Sprintf("[Profile link](/r/demo/profile:u/%s)\n", v.Address)
 
 	return output
 }
 
 // isValoper checks if the valoper exists
-func isValoper(address_XXX std.Address) bool {
+func isValoper(address_XXX address) bool {
 	_, exists := valopers.Get(address_XXX.String())
 
 	return exists
@@ -282,8 +312,8 @@ func validateDescription(description string) error {
 }
 
 // validateBech32 checks if the value is a valid bech32 address
-func validateBech32(address_XXX std.Address) error {
-	if !std.Address.IsValid(address_XXX) {
+func validateBech32(address_XXX address) error {
+	if !address_XXX.IsValid() {
 		return ErrInvalidAddress
 	}
 
@@ -294,6 +324,17 @@ func validateBech32(address_XXX std.Address) error {
 func validatePubKey(pubKey string) error {
 	if _, _, err := bech32.DecodeNoLimit(pubKey); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// validateServerType checks if the server type is valid
+func validateServerType(serverType string) error {
+	if serverType != ServerTypeCloud &&
+		serverType != ServerTypeOnPrem &&
+		serverType != ServerTypeDataCenter {
+		return ErrInvalidServerType
 	}
 
 	return nil

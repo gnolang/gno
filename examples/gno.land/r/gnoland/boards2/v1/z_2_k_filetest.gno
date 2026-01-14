@@ -1,25 +1,26 @@
 package main
 
 import (
-	"std"
 	"testing"
+
+	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const (
-	owner   = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	comment = "Second comment"
+	owner   address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	comment         = "Second comment"
 )
 
 var (
-	bid      boards2.BoardID
-	tid, rid boards2.PostID
+	bid      boards.ID
+	tid, rid boards.ID
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
 	rid = boards2.CreateReply(cross, bid, tid, 0, "Parent comment")
 
@@ -28,7 +29,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.CreateReply(cross, bid, tid, rid, "Sub comment")
 }

@@ -1,7 +1,6 @@
 package commondao
 
 import (
-	"std"
 	"strconv"
 	"strings"
 	"time"
@@ -209,7 +208,7 @@ func renderMembers(res *mux.ResponseWriter, path string, members commondao.Membe
 	}
 
 	table := mdtable.Table{Headers: []string{"Members"}}
-	members.IterateByOffset(pages.Offset(), pages.PageSize(), func(addr std.Address) bool {
+	members.IterateByOffset(pages.Offset(), pages.PageSize(), func(addr address) bool {
 		table.Append([]string{userLink(addr)})
 		return false
 	})
@@ -413,7 +412,8 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 	record := p.VotingRecord()
 	if p.Status() == commondao.StatusActive {
-		passes, _ := def.Tally(record.Readonly(), commondao.NewMemberSet(dao.Members()))
+		ctx := commondao.MustNewVotingContext(record, dao.Members())
+		passes, _ := def.Tally(ctx)
 		if passes {
 			res.Write(md.BulletItem("Expected Outcome: **pass** ☑"))
 		} else {
@@ -485,7 +485,7 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 }
 
 func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
-	member := std.Address(req.GetVar("address"))
+	member := address(req.GetVar("address"))
 	if !member.IsValid() {
 		res.Write("Invalid address")
 		return
@@ -614,7 +614,7 @@ func goToProposalLink(daoID, proposalID uint64) string {
 	return md.Link("Go to Proposal", proposalURL(daoID, proposalID))
 }
 
-func userLink(addr std.Address) string {
+func userLink(addr address) string {
 	user := users.ResolveAddress(addr)
 	if user != nil {
 		return user.RenderLink("")

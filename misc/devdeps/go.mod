@@ -6,12 +6,15 @@ toolchain go1.23.2
 
 require (
 	github.com/campoy/embedmd v1.0.0
+	github.com/golang/mock v1.6.0
 	github.com/golangci/golangci-lint/v2 v2.3.1 // sync with github actions
 	golang.org/x/tools v0.35.0
 	google.golang.org/protobuf v1.36.6
 	moul.io/testman v1.5.0
 	mvdan.cc/gofumpt v0.8.0
 )
+
+require google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
 
 require (
 	4d63.com/gocheckcompilerdirectives v1.3.0 // indirect

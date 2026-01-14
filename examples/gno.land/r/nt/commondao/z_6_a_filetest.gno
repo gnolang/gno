@@ -2,7 +2,6 @@
 package test
 
 import (
-	"std"
 	"testing"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 	"gno.land/r/nt/commondao"
 )
 
-const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 var (
 	dao      *pdao.CommonDAO
@@ -23,11 +22,11 @@ var (
 
 type propDef struct{}
 
-func (propDef) Title() string                                                 { return "" }
-func (propDef) Body() string                                                  { return "" }
-func (propDef) VotingPeriod() time.Duration                                   { return 0 }
-func (propDef) Validate() error                                               { return nil }
-func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return true, nil }
+func (propDef) Title() string                          { return "" }
+func (propDef) Body() string                           { return "" }
+func (propDef) VotingPeriod() time.Duration            { return 0 }
+func (propDef) Validate() error                        { return nil }
+func (propDef) Tally(pdao.VotingContext) (bool, error) { return true, nil }
 
 func (propDef) Execute(cur realm) error {
 	executed = true
@@ -36,12 +35,12 @@ func (propDef) Execute(cur realm) error {
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross, user1)
 
 	// Create a new DAO which gives ownership to `test`
-	testing.SetRealm(std.NewUserRealm(user1))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
+	testing.SetRealm(testing.NewUserRealm(user1))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 	dao = commondao.New(cross, "Foo")
 
 	// Configure DAO
@@ -52,7 +51,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(user1))
+	testing.SetRealm(testing.NewUserRealm(user1))
 
 	commondao.Execute(cross, dao.ID(), proposal.ID())
 
@@ -61,10 +60,10 @@ func main() {
 		panic("expected proposal to be finished")
 	}
 
-	println(p.Status() == pdao.StatusPassed)
+	println(string(p.Status()))
 	println(executed)
 }
 
 // Output:
-// true
+// executed
 // true

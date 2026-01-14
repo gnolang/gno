@@ -1,42 +1,44 @@
 package main
 
 import (
-	"std"
-	"strings"
 	"testing"
+
+	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	title = "Test Thread"
-	body  = "Test body"
-	path  = "test-board/1"
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	title         = "Test Thread"
+	body          = "Test body"
+	path          = "test-board/1"
 )
 
 var (
-	bid boards2.BoardID
-	pid boards2.PostID
+	bid boards.ID
+	pid boards.ID
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.EditThread(cross, bid, pid, title, body)
 
-	// Render content must contains thread's title and body
-	content := boards2.Render(path)
-	println(strings.HasPrefix(content, "# "+title))
-	println(strings.Contains(content, body))
+	println(boards2.Render(path))
 }
 
 // Output:
-// true
-// true
+// # [Boards](/r/gnoland/boards2/v1) › [test\-board](/r/gnoland/boards2/v1:test-board)
+// ## Test Thread
+//
+// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
+// Test body
+//
+// ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)

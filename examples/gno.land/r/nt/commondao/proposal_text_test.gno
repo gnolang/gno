@@ -1,7 +1,6 @@
 package commondao
 
 import (
-	"std"
 	"strings"
 	"testing"
 	"time"
@@ -87,14 +86,14 @@ func TestTextPropDefinitionNew(t *testing.T) {
 func TestTextPropDefinitionTally(t *testing.T) {
 	cases := []struct {
 		name    string
-		members []std.Address
+		members []address
 		votes   []commondao.Vote
 		err     error
 		success bool
 	}{
 		{
 			name: "succeed",
-			members: []std.Address{
+			members: []address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -113,7 +112,7 @@ func TestTextPropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "fail",
-			members: []std.Address{
+			members: []address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -131,7 +130,7 @@ func TestTextPropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "no quorum",
-			members: []std.Address{
+			members: []address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -149,8 +148,8 @@ func TestTextPropDefinitionTally(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
-				record  commondao.VotingRecord
 				p       = TextPropDefinition{quorum: commondao.QuorumTwoThirds}
+				record  commondao.VotingRecord
 				members = commondao.NewMemberStorage()
 			)
 
@@ -162,7 +161,9 @@ func TestTextPropDefinitionTally(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(members))
+			ctx := commondao.MustNewVotingContext(&record, members)
+
+			success, err := p.Tally(ctx)
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err, "expect an error")

@@ -1,14 +1,12 @@
 // PKGPATH: gno.land/r/test
 package test
 
-import (
-	"std"
-)
+import "chain/runtime"
 
 var node any
 
 func init() {
-	node = std.ChainHeight
+	node = runtime.ChainHeight
 }
 
 func main(cur realm) {
@@ -17,7 +15,7 @@ func main(cur realm) {
 	// to convert the types to builtin go/gno identifiers).
 	f := node.(func() int64)
 	println(f())
-	node = std.ChainID
+	node = runtime.ChainID
 	g := node.(func() string)
 	println(g())
 }
@@ -42,31 +40,31 @@ func main(cur realm) {
 //              "V": {
 //                  "@type": "/gno.RefValue",
 //                  "Escaped": true,
-//     -            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:44"
-//     +            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:41"
+//     -            "ObjectID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:8"
+//     +            "ObjectID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:5"
 //              }
 //          }
 //      }
-// u[a7f5397443359ea76c50be82c77f1f893a060925:41](7)=
+// u[c09c8277a76bf0c457fdf56bd592edcdcf839a50:5](7)=
 //     @@ -8,10 +8,11 @@
-//          "NativePkg": "std",
+//          "NativePkg": "chain/runtime",
 //          "ObjectInfo": {
-//              "ID": "a7f5397443359ea76c50be82c77f1f893a060925:41",
+//              "ID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:5",
 //     +        "IsEscaped": true,
-//              "LastObjectSize": "429",
+//              "LastObjectSize": "457",
 //     -        "ModTime": "0",
 //     +        "ModTime": "6",
-//              "OwnerID": "a7f5397443359ea76c50be82c77f1f893a060925:2",
+//              "OwnerID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:2",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
 //          "Parent": {
 //              "@type": "/gno.RefValue",
-// u[a7f5397443359ea76c50be82c77f1f893a060925:44](0)=
+// u[c09c8277a76bf0c457fdf56bd592edcdcf839a50:8](0)=
 //     @@ -12,7 +12,7 @@
-//              "LastObjectSize": "445",
+//              "LastObjectSize": "473",
 //              "ModTime": "6",
-//              "OwnerID": "a7f5397443359ea76c50be82c77f1f893a060925:2",
+//              "OwnerID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:2",
 //     -        "RefCount": "2"
 //     +        "RefCount": "1"
 //          },

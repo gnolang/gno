@@ -30,6 +30,7 @@ type StaticMetadata struct {
 	RemoteHelp string
 	ChainId    string
 	Analytics  bool
+	BuildTime  string
 }
 
 type AliasKind int
@@ -121,10 +122,12 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			ChromaPath: h.Static.ChromaPath,
 			ChainId:    h.Static.ChainId,
 			Remote:     h.Static.RemoteHelp,
+			BuildTime:  h.Static.BuildTime,
 		},
 		FooterData: components.FooterData{
 			Analytics:  h.Static.Analytics,
 			AssetsPath: h.Static.AssetsPath,
+			BuildTime:  h.Static.BuildTime,
 		},
 	}
 
@@ -243,7 +246,11 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
-	toc, err := h.Renderer.RenderRealm(&content, gnourl, []byte(mdContent))
+	toc, err := h.Renderer.RenderRealm(&content, gnourl, []byte(mdContent), RealmRenderContext{
+		ChainId: h.Static.ChainId,
+		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
+	})
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
@@ -299,7 +306,11 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	}
 
 	var content bytes.Buffer
-	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw)
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
+		ChainId: h.Static.ChainId,
+		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
+	})
 	if err != nil {
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
@@ -374,7 +385,11 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	// Render user profile realm
 	raw, err := h.Client.Realm(ctx, "/r/"+username+"/home", "")
 	if err == nil {
-		_, err = h.Renderer.RenderRealm(&content, gnourl, raw)
+		_, err = h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
+			ChainId: h.Static.ChainId,
+			Remote:  h.Static.RemoteHelp,
+			Domain:  h.Static.Domain,
+		})
 	}
 
 	if content.Len() == 0 {
@@ -396,7 +411,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	// Try to decode the bech32 address
 	username = CreateUsernameFromBech32(username)
 
-	//TODO: get from user r/profile and use placeholder if not set
+	// TODO: get from user r/profile and use placeholder if not set
 	handlename := "Gnome " + username
 
 	data := components.UserData{
@@ -478,7 +493,11 @@ func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, p
 	}
 
 	var buf bytes.Buffer
-	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file); err != nil {
+	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, RealmRenderContext{
+		ChainId: h.Static.ChainId,
+		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
+	}); err != nil {
 		h.Logger.Error("render README.md", "error", err)
 		return nil, nil
 	}

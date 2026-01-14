@@ -2,7 +2,7 @@ package strings_test
 
 import (
 	"strings"
-	testing "testing/base"
+	"testing"
 )
 
 func TestGenericTrieBuilding(t *testing.T) {

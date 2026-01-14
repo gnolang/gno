@@ -2,7 +2,6 @@ package commondao
 
 import (
 	"errors"
-	"std"
 	"strings"
 	"time"
 
@@ -46,7 +45,7 @@ func (p membersUpdatePropDefinition) Body() string {
 
 	if p.toAdd.Size() > 0 {
 		items := make([]string, 0, p.toAdd.Size())
-		p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
+		p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr address) bool {
 			items = append(items, addr.String())
 			return false
 		})
@@ -58,7 +57,7 @@ func (p membersUpdatePropDefinition) Body() string {
 
 	if p.toRemove.Size() > 0 {
 		items := make([]string, 0, p.toRemove.Size())
-		p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr std.Address) bool {
+		p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr address) bool {
 			items = append(items, addr.String())
 			return false
 		})
@@ -74,7 +73,7 @@ func (p membersUpdatePropDefinition) Body() string {
 func (p membersUpdatePropDefinition) Validate() (err error) {
 	members := p.dao.Members()
 
-	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
+	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr address) bool {
 		if members.Has(addr) {
 			err = errors.New("address is already a DAO member: " + addr.String())
 			return true
@@ -86,7 +85,7 @@ func (p membersUpdatePropDefinition) Validate() (err error) {
 		return err
 	}
 
-	p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr std.Address) bool {
+	p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr address) bool {
 		if !members.Has(addr) {
 			err = errors.New("address is not a DAO member: " + addr.String())
 			return true
@@ -97,18 +96,18 @@ func (p membersUpdatePropDefinition) Validate() (err error) {
 	return err
 }
 
-func (membersUpdatePropDefinition) Tally(r commondao.ReadonlyVotingRecord, members commondao.MemberSet) (bool, error) {
+func (membersUpdatePropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
 	// When DAO has one or two members succeed when there is a YES vote, otherwise
 	// tally requires at least three votes to be able to tally by 2/3s super majority
-	if members.Size() < 3 {
-		return r.VoteCount(commondao.ChoiceYes) > 0, nil
+	if ctx.Members.Size() < 3 {
+		return ctx.VotingRecord.VoteCount(commondao.ChoiceYes) > 0, nil
 	}
 
-	if !commondao.IsQuorumReached(commondao.QuorumTwoThirds, r, members) {
+	if !commondao.IsQuorumReached(commondao.QuorumTwoThirds, ctx.VotingRecord, ctx.Members) {
 		return false, commondao.ErrNoQuorum
 	}
 
-	c, success := commondao.SelectChoiceBySuperMajority(r, members.Size())
+	c, success := commondao.SelectChoiceBySuperMajority(ctx.VotingRecord, ctx.Members.Size())
 	if success {
 		return c == commondao.ChoiceYes, nil
 	}
@@ -118,12 +117,12 @@ func (membersUpdatePropDefinition) Tally(r commondao.ReadonlyVotingRecord, membe
 func (p membersUpdatePropDefinition) Execute(realm) error {
 	members := p.dao.Members()
 
-	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
+	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr address) bool {
 		members.Add(addr)
 		return false
 	})
 
-	p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr std.Address) bool {
+	p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr address) bool {
 		members.Remove(addr)
 		return false
 	})

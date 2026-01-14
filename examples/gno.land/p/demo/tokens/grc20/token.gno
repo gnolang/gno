@@ -1,9 +1,10 @@
 package grc20
 
 import (
+	"chain"
+	"chain/runtime"
 	"math"
 	"math/overflow"
-	"std"
 	"strconv"
 
 	"gno.land/p/nt/ufmt"
@@ -26,7 +27,7 @@ func NewToken(name, symbol string, decimals int) (*Token, *PrivateLedger) {
 		name:      name,
 		symbol:    symbol,
 		decimals:  decimals,
-		origRealm: std.CurrentRealm().PkgPath(),
+		origRealm: runtime.CurrentRealm().PkgPath(),
 		ledger:    ledger,
 	}
 	ledger.token = token
@@ -55,17 +56,17 @@ func (tok *Token) ID() string {
 }
 
 // HasAddr checks if the specified address is a known account in the bank.
-func (tok Token) HasAddr(addr std.Address) bool {
+func (tok Token) HasAddr(addr address) bool {
 	return tok.ledger.hasAddr(addr)
 }
 
 // BalanceOf returns the balance of the specified address.
-func (tok Token) BalanceOf(addr std.Address) int64 {
+func (tok Token) BalanceOf(addr address) int64 {
 	return tok.ledger.balanceOf(addr)
 }
 
 // Allowance returns the allowance of the specified owner and spender.
-func (tok Token) Allowance(owner, spender std.Address) int64 {
+func (tok Token) Allowance(owner, spender address) int64 {
 	return tok.ledger.allowance(owner, spender)
 }
 
@@ -79,15 +80,17 @@ func (tok Token) RenderHome() string {
 }
 
 // SpendAllowance decreases the allowance of the specified owner and spender.
-func (led *PrivateLedger) SpendAllowance(owner, spender std.Address, amount int64) error {
-	if !owner.IsValid() {
+func (led *PrivateLedger) SpendAllowance(owner, spender address, amount int64) error {
+	if !owner.IsValid() || !spender.IsValid() {
 		return ErrInvalidAddress
 	}
-	if !spender.IsValid() {
-		return ErrInvalidAddress
-	}
+
 	if amount < 0 {
 		return ErrInvalidAmount
+	}
+	// do nothing
+	if amount == 0 {
+		return nil
 	}
 
 	currentAllowance := led.allowance(owner, spender)
@@ -108,7 +111,7 @@ func (led *PrivateLedger) SpendAllowance(owner, spender std.Address, amount int6
 }
 
 // Transfer transfers tokens from the specified from address to the specified to address.
-func (led *PrivateLedger) Transfer(from, to std.Address, amount int64) error {
+func (led *PrivateLedger) Transfer(from, to address, amount int64) error {
 	if !from.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -144,7 +147,7 @@ func (led *PrivateLedger) Transfer(from, to std.Address, amount int64) error {
 		led.balances.Set(string(from), newFromBalance)
 	}
 
-	std.Emit(
+	chain.Emit(
 		TransferEvent,
 		"token", led.token.ID(),
 		"from", from.String(),
@@ -157,39 +160,34 @@ func (led *PrivateLedger) Transfer(from, to std.Address, amount int64) error {
 
 // TransferFrom transfers tokens from the specified owner to the specified to address.
 // It first checks if the owner has sufficient balance and then decreases the allowance.
-func (led *PrivateLedger) TransferFrom(owner, spender, to std.Address, amount int64) error {
+func (led *PrivateLedger) TransferFrom(owner, spender, to address, amount int64) error {
 	if amount < 0 {
 		return ErrInvalidAmount
 	}
+
+	if !owner.IsValid() || !to.IsValid() {
+		return ErrInvalidAddress
+	}
+
 	if led.balanceOf(owner) < amount {
 		return ErrInsufficientBalance
 	}
 
-	// allowance must be sufficient
-	currentAllowance := led.allowance(owner, spender)
-	if currentAllowance < amount {
-		return ErrInsufficientAllowance
+	// The check above guarantees that Transfer will succeed, ensuring
+	// atomicity for the subsequent operations.
+	if err := led.SpendAllowance(owner, spender, amount); err != nil {
+		return err
 	}
 
 	if err := led.Transfer(owner, to, amount); err != nil {
 		return err
 	}
 
-	// decrease the allowance only when transfer is successful
-	key := allowanceKey(owner, spender)
-	newAllowance := overflow.Sub64p(currentAllowance, amount)
-
-	if newAllowance == 0 {
-		led.allowances.Remove(key)
-	} else {
-		led.allowances.Set(key, newAllowance)
-	}
-
 	return nil
 }
 
 // Approve sets the allowance of the specified owner and spender.
-func (led *PrivateLedger) Approve(owner, spender std.Address, amount int64) error {
+func (led *PrivateLedger) Approve(owner, spender address, amount int64) error {
 	if !owner.IsValid() || !spender.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -199,7 +197,7 @@ func (led *PrivateLedger) Approve(owner, spender std.Address, amount int64) erro
 
 	led.allowances.Set(allowanceKey(owner, spender), amount)
 
-	std.Emit(
+	chain.Emit(
 		ApprovalEvent,
 		"token", led.token.ID(),
 		"owner", string(owner),
@@ -211,7 +209,7 @@ func (led *PrivateLedger) Approve(owner, spender std.Address, amount int64) erro
 }
 
 // Mint increases the total supply of the token and adds the specified amount to the specified address.
-func (led *PrivateLedger) Mint(addr std.Address, amount int64) error {
+func (led *PrivateLedger) Mint(addr address, amount int64) error {
 	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -230,7 +228,7 @@ func (led *PrivateLedger) Mint(addr std.Address, amount int64) error {
 
 	led.balances.Set(string(addr), newBalance)
 
-	std.Emit(
+	chain.Emit(
 		TransferEvent,
 		"token", led.token.ID(),
 		"from", "",
@@ -242,7 +240,7 @@ func (led *PrivateLedger) Mint(addr std.Address, amount int64) error {
 }
 
 // Burn decreases the total supply of the token and subtracts the specified amount from the specified address.
-func (led *PrivateLedger) Burn(addr std.Address, amount int64) error {
+func (led *PrivateLedger) Burn(addr address, amount int64) error {
 	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -264,7 +262,7 @@ func (led *PrivateLedger) Burn(addr std.Address, amount int64) error {
 		led.balances.Set(string(addr), newBalance)
 	}
 
-	std.Emit(
+	chain.Emit(
 		TransferEvent,
 		"token", led.token.ID(),
 		"from", string(addr),
@@ -276,12 +274,12 @@ func (led *PrivateLedger) Burn(addr std.Address, amount int64) error {
 }
 
 // hasAddr checks if the specified address is a known account in the ledger.
-func (led PrivateLedger) hasAddr(addr std.Address) bool {
+func (led PrivateLedger) hasAddr(addr address) bool {
 	return led.balances.Has(addr.String())
 }
 
 // balanceOf returns the balance of the specified address.
-func (led PrivateLedger) balanceOf(addr std.Address) int64 {
+func (led PrivateLedger) balanceOf(addr address) int64 {
 	balance, found := led.balances.Get(addr.String())
 	if !found {
 		return 0
@@ -290,7 +288,7 @@ func (led PrivateLedger) balanceOf(addr std.Address) int64 {
 }
 
 // allowance returns the allowance of the specified owner and spender.
-func (led PrivateLedger) allowance(owner, spender std.Address) int64 {
+func (led PrivateLedger) allowance(owner, spender address) int64 {
 	allowance, found := led.allowances.Get(allowanceKey(owner, spender))
 	if !found {
 		return 0
@@ -299,6 +297,6 @@ func (led PrivateLedger) allowance(owner, spender std.Address) int64 {
 }
 
 // allowanceKey returns the key for the allowance of the specified owner and spender.
-func allowanceKey(owner, spender std.Address) string {
+func allowanceKey(owner, spender address) string {
 	return owner.String() + ":" + spender.String()
 }

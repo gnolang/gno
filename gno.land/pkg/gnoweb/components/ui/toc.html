@@ -1,0 +1,109 @@
+{{/* ===================================================================================
+UI - TOC component
+=================================================================================== */}}
+{{- define "ui/toc_generic" }}
+<ul class="b-toc">
+  {{ range .Items }}
+  <li>
+    <a class="c-with-icon" href="{{ .Link }}">
+      <svg class="c-icon">
+        <use href="#ico-{{ $.Icon }}"></use>
+      </svg>
+      <span>{{ .Text }}</span>
+    </a>
+  </li>
+  {{ end }}
+</ul>
+{{ end }}
+
+{{/* ===================================================================================
+UI - TOC Realm component
+=================================================================================== */}}
+{{ define "ui/toc_realm" }}
+<ul class="b-toc">{{- range .Items }}
+  <li>
+    <a href="{{ .Anchor }}">{{ .Title }}</a>
+    {{ if .Items }} {{ template "ui/toc_realm" . }} {{ end }}
+  </li>
+  {{ end }}
+</ul>
+{{ end }}
+
+{{/* ===================================================================================
+UI - TOC Source component
+=================================================================================== */}}
+{{- define "ui/toc_source" }}
+<div class="b-source-toc c-stack">
+  <!-- README File Section -->
+  {{ if .ReadmeFile.Link }}
+  <a class="c-with-icon" href="{{ .ReadmeFile.Link }}">
+    <svg class="c-icon">
+      <use href="#ico-{{ $.Icon }}"></use>
+    </svg>
+    {{ .ReadmeFile.Text }}
+  </a>
+  {{ end }}
+
+  <!-- Regular Files Section -->
+  <ul class="b-toc">
+    {{ range .GnoFiles }}
+    <li>
+      <a class="c-with-icon" href="{{ .Link }}">
+        <svg class="c-icon">
+          <use href="#ico-{{ $.Icon }}"></use>
+        </svg>
+        {{ .Text }}
+      </a>
+    </li>
+    {{ end }}
+  </ul>
+
+  <!-- Test Files Section -->
+  {{ if .GnoTestFiles }}
+  <details class="accordion">
+    <summary class="c-with-icon">
+      <svg class="c-icon">
+        <use href="#ico-arrow"></use>
+      </svg>
+      <h3>Test Files</h3>
+    </summary>
+    <ul class="b-toc">
+      {{ range .GnoTestFiles }}
+      <li>
+        <a class="c-with-icon" href="{{ .Link }}">
+          <svg class="c-icon">
+            <use href="#ico-{{ $.Icon }}"></use>
+          </svg>
+          {{ .Text }}
+        </a>
+      </li>
+      {{ end }}
+    </ul>
+  </details>
+  {{ end }}
+
+  <!-- TOML Files Section -->
+  {{ if .TomlFiles }}
+  <details class="accordion">
+    <summary class="c-with-icon">
+      <svg class="c-icon">
+        <use href="#ico-arrow"></use>
+      </svg>
+      <h3>Configuration Files</h3>
+    </summary>
+    <ul class="b-toc">
+      {{ range .TomlFiles }}
+      <li>
+        <a class="c-with-icon" href="{{ .Link }}">
+          <svg class="c-icon">
+            <use href="#ico-{{ $.Icon }}"></use>
+          </svg>
+          {{ .Text }}
+        </a>
+      </li>
+      {{ end }}
+    </ul>
+  </details>
+  {{ end }}
+</div>
+{{ end }}

@@ -1,7 +1,5 @@
 package commondao
 
-import "std"
-
 // Option configures the CommonDAO.
 type Option func(*CommonDAO)
 
@@ -50,7 +48,7 @@ func WithChildren(children ...*CommonDAO) Option {
 }
 
 // WithMember assigns a member to the DAO.
-func WithMember(addr std.Address) Option {
+func WithMember(addr address) Option {
 	return func(dao *CommonDAO) {
 		dao.members.Add(addr)
 	}
