@@ -9,6 +9,17 @@ export class ActionFunctionController extends BaseController {
 	protected sendValue: string | null = null;
 	declare _funcName: string | null;
 	declare _pkgPath: string | null;
+	declare _paramInputsCache: HTMLInputElement[];
+
+	// Cached params inputs
+	private get _paramInputs(): HTMLInputElement[] {
+		if (!this._paramInputsCache) {
+			this._paramInputsCache = this.getTargets(
+				"param-input",
+			) as HTMLInputElement[];
+		}
+		return this._paramInputsCache;
+	}
 
 	protected connect(): void {
 		this.initializeDOM({
@@ -23,6 +34,9 @@ export class ActionFunctionController extends BaseController {
 
 		// Some functions may have no params, or all params already have values
 		this._updateQEvalResult();
+
+		// Dispatch initial params state for wallet integration
+		this._dispatchParamsChanged();
 	}
 
 	// listen for events from action-header controller
@@ -83,9 +97,9 @@ export class ActionFunctionController extends BaseController {
 	// get current value for a param name (handles checkbox multiple values)
 	private _getParamCurrentValue(paramName: string): string {
 		// radio or checkbox multiple values
-		const inputs = this.getTargets("param-input")
-			.filter((inp) => this.getValue("param", inp) === paramName)
-			.map((inp) => inp as HTMLInputElement);
+		const inputs = this._paramInputs.filter(
+			(inp) => this.getValue("param", inp) === paramName,
+		);
 
 		if (!inputs.length) return "";
 
@@ -115,8 +129,7 @@ export class ActionFunctionController extends BaseController {
 		const processed = new Set<string>();
 
 		// initialize the args
-		this.getTargets("param-input").forEach((paramInput) => {
-			const input = paramInput as HTMLInputElement;
+		this._paramInputs.forEach((input) => {
 			const paramName = this.getValue("param", input) || "";
 
 			if (!paramName || processed.has(paramName)) return;
@@ -134,10 +147,34 @@ export class ActionFunctionController extends BaseController {
 			if (paramName) {
 				this._updateArgInDOM(paramName, paramValue);
 				this._updateQEvalResult();
+				this._dispatchParamsChanged();
 			}
 		},
 		50,
 	);
+
+	// Dispatch params:changed event uppon parameter updates.
+	private _dispatchParamsChanged(): void {
+		if (!this._funcName || !this._pkgPath) return;
+
+		const params: Record<string, string> = {};
+		const processed = new Set<string>();
+
+		this._paramInputs.forEach((input) => {
+			const paramName = this.getValue("param", input) || "";
+			if (!paramName || processed.has(paramName)) return;
+
+			params[paramName] = this._getParamCurrentValue(paramName);
+			processed.add(paramName);
+		});
+
+		this.dispatch("params:changed", {
+			pkgPath: this._pkgPath,
+			funcName: this._funcName,
+			params: params,
+			send: this.sendValue || undefined,
+		});
+	}
 
 	// push args in DOM (in func code)
 	private _updateArgInDOM(paramName: string, paramValue: string): void {
@@ -239,8 +276,10 @@ export class ActionFunctionController extends BaseController {
 		event: Event & { params?: Record<string, unknown> },
 	): void {
 		const send = (event.params?.send as boolean) || false;
+		this.sendValue = send ? this.getValue("send") : null;
 		this.getDOMArray("send-code").forEach((sendElement) => {
-			sendElement.textContent = send ? this.getValue("send") : "";
+			sendElement.textContent = this.sendValue || "";
 		});
+		this._dispatchParamsChanged();
 	}
 }
