@@ -10,7 +10,7 @@ gnokey maketx call -pkgpath gno.land/r/demo/realm --func UnFill --args 0 --gas-f
 gnokey maketx call -pkgpath gno.land/r/demo/realm --func Fill --args 0 --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
 
 -- realm.gno --
-package main
+package realm
 
 type A struct {
 	A string

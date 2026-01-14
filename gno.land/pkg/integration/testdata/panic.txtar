@@ -14,7 +14,7 @@ stderr 'pkg<VPBlock\(1,0\)>.Trigger\(undefined\)'
 stderr 'gno.land/r/demo/panic/panic.gno:9'
 
 -- panic.gno --
-package main
+package panic
 
 func p() {
 	i := "here"
