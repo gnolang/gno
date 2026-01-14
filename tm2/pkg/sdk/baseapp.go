@@ -516,7 +516,6 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 
 	// Passes the query to the handler.
 	res = handler.Query(ctx, req)
-	res.Height = req.Height
 	return
 }
 

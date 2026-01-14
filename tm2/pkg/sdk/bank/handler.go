@@ -131,6 +131,7 @@ func (bh bankHandler) queryBalance(ctx sdk.Context, req abci.RequestQuery) (res 
 		return
 	}
 
+	res.Height = req.Height
 	res.Data = bz
 	return
 }
