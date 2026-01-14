@@ -920,8 +920,7 @@
 		top: var(--g-space-14);
 		padding-block-start: var(--g-space-2);
 
-		/* Hide sidebar if it has no children */
-		&:has(ul:empty) {
+		&:has(.inner):not(:has(nav li)) {
 			display: none;
 		}
 
@@ -1977,7 +1976,7 @@ pre.chroma-chroma {
 		display: block;
 		border-radius: var(--s-rounded);
 		border: var(--s-border-secondary);
-		margin-block: var(--g-space-12);
+		margin-block: var(--g-space-6);
 
 		input[type="submit"] {
 			background-color: var(--s-color-bg-brand-default);
