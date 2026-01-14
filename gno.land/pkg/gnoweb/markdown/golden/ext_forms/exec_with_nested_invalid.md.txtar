@@ -13,7 +13,7 @@
 <span><span class="font-bold">/r/test</span> Exec: Outer</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
-<div data-controller="action-function" data-action-function-name-value="Outer">
+<div data-controller="action-function" data-action-function-name-value="Outer" data-action-function-pkgpath-value="/r/test">
 <div class="gno-form_input"><label for="field1">Enter value</label>
 <input type="text" id="field1" name="field1" placeholder="Enter value" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="field1" />
 </div>
