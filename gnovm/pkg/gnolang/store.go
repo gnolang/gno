@@ -69,20 +69,18 @@ type Store interface {
 	NumMemPackages() int64
 
 	// Generates the next global sequence ID.
-	NextGlobalID() uint64
-	GetGlobalID() uint64
+	NextPackageGlobalID() uint64
+	GetPackageGlobalID() uint64
 
 	// Increments the revision number for the specific package.
 	SetPackageRevision(pid PkgID, currentRev uint64)
-	GetPackageIndex(pid PkgID) uint64
-	GetObjectIndex(key string) uint64
-	ResetObjectIndex(key string)
+	GetPackageRevision(pid PkgID) uint64
+	GetObjectCount(key string) uint64
+	ResetObjectCount(key string)
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
 	AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
-	DelMemPackage(idxKey []byte)
-	HasMemPackage(key []byte) bool
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	FindPathsByPrefix(prefix string) iter.Seq[string]
@@ -732,8 +730,8 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	}
 
 	pid := oid.PkgID
-	pkgidx := ds.GetPackageIndex(pid)
-	ds.IncObjectIndex(backendObjectIndexKey(pid, pkgidx))
+	pkgidx := ds.GetPackageRevision(pid)
+	ds.IncObjectCount(backendObjectIndexKey(pid, pkgidx))
 	return diff
 }
 
@@ -972,7 +970,7 @@ func (ds *defaultStore) NumMemPackages() int64 {
 }
 
 // Index all packages.
-func (ds *defaultStore) NextGlobalID() uint64 {
+func (ds *defaultStore) NextPackageGlobalID() uint64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -990,7 +988,7 @@ func (ds *defaultStore) NextGlobalID() uint64 {
 	}
 }
 
-func (ds *defaultStore) GetGlobalID() uint64 {
+func (ds *defaultStore) GetPackageGlobalID() uint64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -1010,7 +1008,7 @@ func (ds *defaultStore) SetPackageRevision(pid PkgID, ctr uint64) {
 	ds.baseStore.Set(ctrkey, []byte(strconv.Itoa(int(ctr))))
 }
 
-func (ds *defaultStore) GetPackageIndex(pid PkgID) uint64 {
+func (ds *defaultStore) GetPackageRevision(pid PkgID) uint64 {
 	ctrkey := pid.Hashlet[:]
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -1025,7 +1023,7 @@ func (ds *defaultStore) GetPackageIndex(pid PkgID) uint64 {
 }
 
 // Index of objects of a package.
-func (ds *defaultStore) IncObjectIndex(key string) uint64 {
+func (ds *defaultStore) IncObjectCount(key string) uint64 {
 	ctrkey := []byte(key)
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -1043,13 +1041,13 @@ func (ds *defaultStore) IncObjectIndex(key string) uint64 {
 	}
 }
 
-func (ds *defaultStore) ResetObjectIndex(key string) {
+func (ds *defaultStore) ResetObjectCount(key string) {
 	ctrkey := []byte(key)
 	bz := strconv.Itoa(0)
 	ds.baseStore.Set(ctrkey, []byte(bz))
 }
 
-func (ds *defaultStore) GetObjectIndex(key string) uint64 {
+func (ds *defaultStore) GetObjectCount(key string) uint64 {
 	ctrkey := []byte(key)
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -1097,9 +1095,9 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 
 	var idx uint64
 	// If package exists, reuse existing slot.
-	idx = ds.GetPackageIndex(PkgIDFromPkgPath(mpkg.Path))
+	idx = ds.GetPackageRevision(PkgIDFromPkgPath(mpkg.Path))
 	if idx == 0 {
-		idx = ds.GetGlobalID() // otherwise using a new slot.
+		idx = ds.GetPackageGlobalID() // otherwise using a new slot.
 	}
 
 	idxkey := []byte(backendPackageIndexKey(idx))
@@ -1110,15 +1108,6 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	pathkey := []byte(backendPackagePathKey(mpkg.Path))
 	ds.iavlStore.Set(pathkey, bz)
 	size = len(bz)
-}
-
-func (ds *defaultStore) DelMemPackage(idxKey []byte) {
-	ds.baseStore.Delete(idxKey)
-	// no need to delete iavl, it alreay overriden.
-}
-
-func (ds *defaultStore) HasMemPackage(key []byte) bool {
-	return ds.baseStore.Has(key)
 }
 
 // GetMemPackage retrieves the MemPackage at the given path.

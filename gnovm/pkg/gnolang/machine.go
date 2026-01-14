@@ -276,28 +276,22 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 
 	// If and old private package is overriden by a new package(now only private package).
 	// defer the clean operation.
-	overridden := false
+	replace := false
 	if oid := ObjectIDFromPkgPath(mpkg.Path); m.Store.HasObject(oid) {
-		overridden = true
-		// Get idx of the old package.
-		pkgidx := m.Store.GetPackageIndex(oid.PkgID)
-		// Get idx of object of the old package.
-		objidx := m.Store.GetObjectIndex(backendObjectIndexKey(oid.PkgID, pkgidx))
-
-		// Reset and count from 0.
-		m.Store.ResetObjectIndex(backendObjectIndexKey(oid.PkgID, pkgidx))
+		replace = true
+		// Package may have multi revisions.
+		pkgidx := m.Store.GetPackageRevision(oid.PkgID)
+		// Get count of object of the old package.
+		objidx := m.Store.GetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx))
+		m.Store.ResetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx))
 
 		// The above logic happens before finalize objects and add mempackage.
-		// Clean outdated Objects/Mempackage after new Objects/Mempackage are added.
-		defer func() {
-			idxkey := []byte(backendPackageIndexKey(pkgidx))
-			if m.Store.HasMemPackage(idxkey) {
-				m.Store.DelMemPackage(idxkey)
-			}
 
+		// Clean outdated Objects after new Objects are added.
+		defer func() {
 			// idx of new revision of the package.
-			pkgidx2 := m.Store.GetPackageIndex(oid.PkgID)
-			objidx2 := m.Store.GetObjectIndex(backendObjectIndexKey(oid.PkgID, pkgidx2))
+			pkgidx2 := m.Store.GetPackageRevision(oid.PkgID)
+			objidx2 := m.Store.GetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx2))
 
 			// If all old slots are overridden.
 			if objidx2 >= objidx {
@@ -319,9 +313,9 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	}
 
 	// If not overidden old package, increase index set revision for package.
-	if !overridden {
-		ctr := m.Store.NextGlobalID()                                         // global
-		m.Store.SetPackageRevision(ObjectIDFromPkgPath(mpkg.Path).PkgID, ctr) // per package
+	if !replace {
+		idx := m.Store.NextPackageGlobalID()                                  // global index.
+		m.Store.SetPackageRevision(ObjectIDFromPkgPath(mpkg.Path).PkgID, idx) // index per package.
 	}
 
 	// make and set package if doesn't exist.
