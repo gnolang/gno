@@ -22,5 +22,5 @@ func main() {
 		}
 	}
 
-	nameregistry.SetReservedNames(names...)
+	nameregistry.SetNames(cross, nameregistry.TypeReserved, names...)
 }
