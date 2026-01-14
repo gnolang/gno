@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
 )
@@ -144,8 +143,8 @@ func (m *mockWriter) Write(p []byte) (n int, err error) {
 func TestRealmView(t *testing.T) {
 	content := NewReaderComponent(strings.NewReader("testdata"))
 	tocItems := &RealmTOCData{
-		Items: []*markdown.TocItem{
-			{Title: []byte("Introduction"), ID: []byte("introduction")},
+		Items: []*TocItem{
+			{Title: "Introduction", ID: "introduction"},
 		},
 	}
 	data := RealmData{
@@ -166,6 +165,99 @@ func TestRealmView(t *testing.T) {
 	assert.Equal(t, content, realmViewParams.Article.ComponentContent, "expected component content to match")
 
 	assert.NoError(t, view.Render(io.Discard))
+}
+
+func TestRealmViewTOCXSSPrevention(t *testing.T) {
+	tests := []struct {
+		name           string
+		tocTitle       string
+		tocID          string
+		mustNotContain []string
+		mustContain    []string
+	}{
+		{
+			name:           "HTML entities in TOC title",
+			tocTitle:       "&lt;script&gt;alert('XSS')&lt;/script&gt; Heading",
+			tocID:          "heading",
+			mustNotContain: []string{"<script>alert", "<script>"},
+			mustContain:    []string{"&amp;lt;script&amp;gt;"},
+		},
+		{
+			name:           "Image tag with onerror via entities",
+			tocTitle:       "&lt;img src=x onerror=alert(1)&gt;",
+			tocID:          "img",
+			mustNotContain: []string{},
+			mustContain:    []string{"&amp;lt;img"},
+		},
+		{
+			name:           "SVG with onload via entities",
+			tocTitle:       "&lt;svg onload=alert(1)&gt;",
+			tocID:          "svg",
+			mustNotContain: []string{},
+			mustContain:    []string{"&amp;lt;svg"},
+		},
+		{
+			name:           "Numeric HTML entities",
+			tocTitle:       "&#60;script&#62;alert(1)&#60;/script&#62;",
+			tocID:          "numeric",
+			mustNotContain: []string{"<script"},
+			mustContain:    []string{"&amp;#60;script"},
+		},
+		{
+			name:           "Normal heading with ampersand",
+			tocTitle:       "API & SDK",
+			tocID:          "api-sdk",
+			mustNotContain: []string{},
+			mustContain:    []string{"API &amp; SDK"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a RealmView with potentially malicious TOC item
+			content := NewReaderComponent(strings.NewReader("test content"))
+			tocItems := &RealmTOCData{
+				Items: []*TocItem{
+					{Title: tt.tocTitle, ID: tt.tocID},
+				},
+			}
+			data := RealmData{
+				ComponentContent: content,
+				TocItems:         tocItems,
+			}
+
+			view := RealmView(data)
+
+			var buf strings.Builder
+			err := view.Render(&buf)
+			assert.NoError(t, err, "expected no error rendering view")
+
+			rendered := buf.String()
+
+			tocStart := strings.Index(rendered, `<ul class="b-toc">`)
+			tocEnd := strings.LastIndex(rendered, `</ul>`)
+			if tocStart == -1 || tocEnd == -1 {
+				t.Fatal("could not find TOC in rendered HTML")
+			}
+			tocHTML := rendered[tocStart : tocEnd+5]
+
+			for _, danger := range tt.mustNotContain {
+				if strings.Contains(tocHTML, danger) {
+					t.Errorf("Found unescaped dangerous pattern %q in TOC HTML.\n"+
+						"TOC HTML: %s",
+						danger, tocHTML)
+				}
+			}
+
+			for _, safe := range tt.mustContain {
+				if !strings.Contains(tocHTML, safe) {
+					t.Errorf("Expected escaped pattern %q not found in TOC HTML.\n"+
+						"Title: %s\nTOC HTML: %s",
+						safe, tt.tocTitle, tocHTML)
+				}
+			}
+		})
+	}
 }
 
 func TestHelpView(t *testing.T) {
