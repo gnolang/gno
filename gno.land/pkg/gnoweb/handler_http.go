@@ -197,11 +197,29 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use form data as query
+	// Extract path from hidden form field if present
+	if gnoPath := r.PostForm.Get("__gno_path"); gnoPath != "" {
+		gnourl.Args = gnoPath
+		// Remove from form data so it's not included in query params
+		r.PostForm.Del("__gno_path")
+	}
+
+	// Use remaining form data as query
 	gnourl.Query = r.PostForm
 
+	// Build redirect URL using EncodeFormURL
+	redirectURL := gnourl.EncodeFormURL()
+
+	// Defense-in-depth: validate redirect URL to prevent open redirects,
+	// This can happen when path is "/" and file is "evil.domain" -> "//evil.domain"
+	if strings.HasPrefix(redirectURL, "//") {
+		h.Logger.Warn("blocked unsafe redirect", "url", redirectURL)
+		http.Error(w, "invalid redirect", http.StatusBadRequest)
+		return
+	}
+
 	// Redirect to the new URL
-	http.Redirect(w, r, gnourl.EncodeWebURL(), http.StatusSeeOther)
+	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 }
 
 // prepareIndexBodyView prepares the data and main view for the index page.

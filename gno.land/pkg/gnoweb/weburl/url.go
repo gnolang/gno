@@ -82,11 +82,12 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 			urlstr.WriteRune(':')
 		}
 
-		// web: $ url-encoded + normal path encoding except /
-		// qrender arg: ? url-encoded, rest is sent decoded.
+		// PathEscape encodes everything including slashes.
+		// $ is also encoded. NoEscape only encodes ?.
 		args := gnoURL.Args
 		if escape {
-			args = webEscapedReplacer.Replace(url.PathEscape(args))
+			escaped := url.PathEscape(args)
+			args = webEscapedReplacer.Replace(escaped)
 		} else {
 			args = strings.ReplaceAll(args, "?", "%3F")
 		}
@@ -111,7 +112,6 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 
 var webEscapedReplacer = strings.NewReplacer(
 	"$", "%24",
-	"%2F", "/",
 )
 
 // Has checks if the EncodeFlag contains all the specified flags.
@@ -133,8 +133,16 @@ func (gnoURL GnoURL) EncodeURL() string {
 
 // EncodeWebURL encodes the path, package arguments, web query, and query into a string.
 // This function provides the full representation of the URL.
+// Slashes in args are unescaped for readability.
 func (gnoURL GnoURL) EncodeWebURL() string {
-	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery)
+	encoded := gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery)
+	return strings.ReplaceAll(encoded, "%2F", "/")
+}
+
+// EncodeFormURL encodes the URL for form redirects.
+// Slashes remain encoded (%2F) to prevent browser path normalization attacks.
+func (gnoURL GnoURL) EncodeFormURL() string {
+	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery)
 }
 
 // IsPure checks if the URL path represents a pure path.
