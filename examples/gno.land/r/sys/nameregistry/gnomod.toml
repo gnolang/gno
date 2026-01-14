@@ -1,2 +1,3 @@
 module = "gno.land/r/sys/nameregistry"
 gno = "0.9"
+private = true
