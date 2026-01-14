@@ -206,7 +206,7 @@ func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 
 	statusBadge := getStatusBadge(ps)
 
-	// Header with navigation - same style as proposal page
+	// Header with navigation
 	out := ufmt.Sprintf("# Proposal #%v - %s\n\n", pid, p.Title())
 	out += ufmt.Sprintf("[Back to Proposal](%v:%v) | [Back to Proposals](%v)\n\n", ren.relativeRealmPath, pid, ren.relativeRealmPath)
 	out += ufmt.Sprintf("%s\n\n", statusBadge)
