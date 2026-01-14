@@ -4,7 +4,6 @@ import (
 	"net/url"
 	"strings"
 
-	"gno.land/p/moul/md"
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/pager"
 	"gno.land/p/nt/ufmt"
@@ -18,9 +17,19 @@ func RenderMembers(path string, members MembersByTier) string {
 	mdFilters, items := urlfilter.ApplyFilters(u, members.Tree, "filter")
 	var sb strings.Builder
 
-	sb.WriteString(md.Link("> Go to Tiers summary <", "/r/gov/dao/v3/memberstore") + "\n\n")
-	sb.WriteString(md.Bold("Filter members by tiers:"))
-	sb.WriteString(mdFilters + "\n")
+	// Navigation
+	sb.WriteString("[Back to Tier Summary](/r/gov/dao/v3/memberstore) | ")
+	sb.WriteString("[Back to Proposals](/r/gov/dao/v3/impl)\n\n")
+
+	sb.WriteString("---\n\n")
+
+	// Filter section
+	sb.WriteString("## Members List\n\n")
+	sb.WriteString("**Filter by tier:** ")
+	sb.WriteString(mdFilters + "\n\n")
+
+	// Members count
+	sb.WriteString(ufmt.Sprintf("_Showing %d members_\n\n", items.Size()))
 
 	const pageSize = 14
 	pager := pager.NewPager(items, pageSize, false)

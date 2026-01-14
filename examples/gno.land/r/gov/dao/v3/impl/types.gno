@@ -132,14 +132,14 @@ func (ps *proposalStatus) String() string {
 	var sb strings.Builder
 
 	if ps.Accepted {
-		sb.WriteString("✅ **PROPOSAL ACCEPTED**\n\n")
+		sb.WriteString("**PROPOSAL ACCEPTED**\n\n")
 	} else if ps.Denied {
-		sb.WriteString("❌ **PROPOSAL REJECTED**\n\n")
+		sb.WriteString("**PROPOSAL REJECTED**\n\n")
 		if ps.DeniedReason != "" {
 			sb.WriteString("> **Reason:** " + ps.DeniedReason + "\n\n")
 		}
 	} else {
-		sb.WriteString("🔄 **Voting in Progress**\n\n")
+		sb.WriteString("**Voting in Progress**\n\n")
 	}
 
 	yesPercent := ps.YesPercent()
@@ -148,9 +148,9 @@ func (ps *proposalStatus) String() string {
 	noVotes := ps.NoVotes.Size()
 
 	sb.WriteString("| Vote Option | Votes | Percentage |\n")
-	sb.WriteString("|------------|-------|------------|\n")
-	sb.WriteString(ufmt.Sprintf("| ✅ YES | %d | %.2f%% |\n", yesVotes, yesPercent))
-	sb.WriteString(ufmt.Sprintf("| ❌ NO | %d | %.2f%% |\n", noVotes, noPercent))
+	sb.WriteString("|-------------|-------|------------|\n")
+	sb.WriteString(ufmt.Sprintf("| YES | %d | %.2f%% |\n", yesVotes, yesPercent))
+	sb.WriteString(ufmt.Sprintf("| NO | %d | %.2f%% |\n", noVotes, noPercent))
 	sb.WriteString("\n")
 
 	sb.WriteString(ufmt.Sprintf("**Eligible to vote:** %s\n", strings.Join(ps.TiersAllowedToVote, ", ")))

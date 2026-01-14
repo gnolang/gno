@@ -112,7 +112,16 @@ func initRouter() {
 // renderHome displays the tiers data (Number of members and powers) and tiers charts.
 func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 	var sb strings.Builder
-	sb.WriteString(md.Link("> Go to Members list <", "/r/gov/dao/v3/memberstore:members") + "\n")
+
+	// Navigation
+	sb.WriteString("[View Members List](/r/gov/dao/v3/memberstore:members) | ")
+	sb.WriteString("[Back to Proposals](/r/gov/dao/v3/impl)\n\n")
+
+	// Tier summary section
+	sb.WriteString("## Tier Summary\n\n")
+
+	sb.WriteString("| Tier | Members | Power |\n")
+	sb.WriteString("|------|---------|-------|\n")
 
 	members.Iterate("", "", func(tn string, ti interface{}) bool {
 		tree, ok := ti.(*avl.Tree)
@@ -127,14 +136,16 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 
 		tp := (tier.PowerHandler(members, tiers) * float64(members.GetTierSize(tn)))
 
-		sb.WriteString("- ")
-		sb.WriteString(tierColoredChip(tn))
-		sb.WriteString(ufmt.Sprintf(" Tier %v contains %v members with power: %v\n", tn, tree.Size(), tp))
+		sb.WriteString(ufmt.Sprintf("| %s | %v | %.1f |\n", tn, tree.Size(), tp))
 
 		return false
 	})
 
-	sb.WriteString("\n" + RenderCharts(members))
+	sb.WriteString("\n")
+
+	// Charts section
+	sb.WriteString(RenderCharts(members))
+
 	res.Write(sb.String())
 }
 
@@ -170,7 +181,7 @@ func tierColoredChip(tn string) string {
 
 func Render(path string) string {
 	var sb strings.Builder
-	sb.WriteString(md.H1("Memberstore Govdao v3"))
+	sb.WriteString(md.H1("GovDAO Members"))
 	sb.WriteString(router.Render(path))
 	return sb.String()
 }
