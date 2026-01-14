@@ -1,15 +1,11 @@
-loadpkg $WORK/hello
+# Test that package name must match the last element of the package path
 
 ## start a new node
 gnoland start
 
-## deploy realm should succeed
-gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
-stdout OK!
-
-## deploy realm should fail, because we import incorrectly.
-! gnokey maketx addpkg -pkgdir $WORK/bye -pkgpath gno.land/r/$test1_user_addr/bye -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
-stderr 'match its expected identifier'
+## deploy realm should fail because package name "hello123" doesn't match path element "hello"
+! gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stderr 'does not match path element'
 
 -- hello/gnomod.toml --
 module = "gno.land/p/demo/hello"
@@ -20,16 +16,4 @@ package hello123
 
 func SayHello() string {
 	return "hello world!"
-}
-
--- bye/gnomod.toml --
-module = "gno.land/p/demo/bye"
-gno = "0.9"
--- bye/bye.gno --
-package bye
-
-import "gno.land/p/demo/hello"
-
-func Bye() string {
-	return hello123.SayHello() + " bye"
 }

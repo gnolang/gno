@@ -44,7 +44,7 @@ stdout '# HELLO foo'
 
 Tx successfully signed and saved to $WORK/call.tx
 -- realm/realm.gno --
-package name
+package realm
 
 var name string
 
