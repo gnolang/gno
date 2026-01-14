@@ -168,9 +168,9 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 
 	// Card-style layout
 	out := "### [" + p.Title() + "](" + ufmt.Sprintf("%v:%v", ren.relativeRealmPath, pid) + ")\n\n"
-	out += ufmt.Sprintf("> **Proposal #%d** | %s | by %s\n\n", pid, status, tryResolveAddr(p.Author()))
+	out += ufmt.Sprintf("**Proposal #%d** | %s | by %s\n\n", pid, status, tryResolveAddr(p.Author()))
 
-	// Voting stats for active proposals - compact format
+	// Voting stats for active proposals
 	if !ps.Accepted && !ps.Denied {
 		yesPercent := ps.YesPercent()
 		noPercent := ps.NoPercent()
