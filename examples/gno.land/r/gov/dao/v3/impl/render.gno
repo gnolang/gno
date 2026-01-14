@@ -101,16 +101,17 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 
 	statusBadge := getStatusBadge(ps)
 
-	// Header
-	out := ufmt.Sprintf("# Proposal #%v\n\n", pid)
-	out += ufmt.Sprintf("## %s\n\n", p.Title())
+	// Header with navigation
+	out := ufmt.Sprintf("# Proposal #%v - %s\n\n", pid, p.Title())
+	out += ufmt.Sprintf("[View All Votes](%v:%v/votes) | [Back to Proposals](%v)\n\n", ren.relativeRealmPath, pid, ren.relativeRealmPath)
 	out += ufmt.Sprintf("%s\n\n", statusBadge)
 
-	// Metadata in a clean layout
+	// Metadata table
+	out += "## Details\n\n"
 	out += "| | |\n"
 	out += "|---|---|\n"
 	out += "| **Author** | " + tryResolveAddr(p.Author()) + " |\n"
-	out += "| **Status** | " + ufmt.Sprintf("%s", getPropStatus(ps))
+	out += "| **Status** | " + getPropStatus(ps)
 	if ps.DeniedReason != "" {
 		out += " _(Reason: " + ps.DeniedReason + ")_"
 	}
@@ -125,27 +126,27 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 
 	out += "\n"
 
+	// Description
 	out += "## Description\n\n"
-	out += "```\n"
 	out += p.Description()
-	out += "```\n\n"
+	out += "\n\n"
 
 	// Show executor metadata if exists
 	executorMeta := p.ExecutorString()
 	if executorMeta != "" {
-		out += "### Execution Details\n\n"
+		out += "## Execution Details\n\n"
 		out += "> This proposal contains executable actions that will be performed if accepted.\n\n"
 		out += "```\n"
 		out += executorMeta
 		out += "\n```\n\n"
 	}
 
-	out += "### Voting Statistics\n\n"
+	// Voting Statistics
+	out += "## Voting Statistics\n\n"
 	out += ps.String()
-
 	out += "\n"
-	out += ufmt.Sprintf("[View All Votes](%v:%v/votes)\n\n", ren.relativeRealmPath, pid)
 
+	// Actions
 	out += renderActionBar(ufmt.Sprintf("%v", pid), ps)
 
 	return out
@@ -203,19 +204,14 @@ func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 		return ufmt.Sprintf("# Proposal not found\n\n%s", err.Error())
 	}
 
-	status := getPropStatus(ps)
+	statusBadge := getStatusBadge(ps)
 
-	out := ufmt.Sprintf("# Proposal #%v - Voting Details\n\n", pid)
+	// Header with navigation - same style as proposal page
+	out := ufmt.Sprintf("# Proposal #%v - %s\n\n", pid, p.Title())
+	out += ufmt.Sprintf("[Back to Proposal](%v:%v) | [Back to Proposals](%v)\n\n", ren.relativeRealmPath, pid, ren.relativeRealmPath)
+	out += ufmt.Sprintf("%s\n\n", statusBadge)
 
-	out += ufmt.Sprintf("[Back to Proposal](%v:%v)\n\n", ren.relativeRealmPath, pid)
-
-	out += "---\n\n"
-
-	out += "**" + p.Title() + "**\n\n"
-	out += ufmt.Sprintf("> Status: %s\n\n", status)
-
-	out += "---\n\n"
-
+	// Vote Summary
 	out += "## Vote Summary\n\n"
 
 	yesPercent := ps.YesPercent()
@@ -228,10 +224,9 @@ func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 	out += "|------|-------|------------|\n"
 	out += ufmt.Sprintf("| **YES** | %d | %.2f%% |\n", yesVotes, yesPercent)
 	out += ufmt.Sprintf("| **NO** | %d | %.2f%% |\n", noVotes, noPercent)
-	out += ufmt.Sprintf("| **TOTAL** | **%d** | |\n\n", totalVotes)
+	out += ufmt.Sprintf("| **TOTAL** | %d | |\n\n", totalVotes)
 
-	out += "---\n\n"
-
+	// Individual Votes
 	out += "## Individual Votes\n\n"
 
 	votes := StringifyVotes(ps)
