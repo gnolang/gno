@@ -13,7 +13,7 @@ gnoland start
 
 # Query account
 gnokey query auth/accounts/g1meuazsmy8ztaz2xpuyraqq4axy6s00ycl07zva
-stdout 'height: [0-9]+'
+stdout 'height: 1'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
 stdout '    "address": "g1meuazsmy8ztaz2xpuyraqq4axy6s00ycl07zva",'
