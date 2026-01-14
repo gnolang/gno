@@ -17,18 +17,15 @@ func RenderMembers(path string, members MembersByTier) string {
 	mdFilters, items := urlfilter.ApplyFilters(u, members.Tree, "filter")
 	var sb strings.Builder
 
-	// Navigation
+	// Navigation - same style as proposal page
 	sb.WriteString("[Back to Tier Summary](/r/gov/dao/v3/memberstore) | ")
 	sb.WriteString("[Back to Proposals](/r/gov/dao/v3/impl)\n\n")
-
-	sb.WriteString("---\n\n")
 
 	// Filter section
 	sb.WriteString("## Members List\n\n")
 	sb.WriteString("**Filter by tier:** ")
 	sb.WriteString(mdFilters + "\n\n")
 
-	// Members count
 	sb.WriteString(ufmt.Sprintf("_Showing %d members_\n\n", items.Size()))
 
 	const pageSize = 14
@@ -53,8 +50,7 @@ func renderMembersPages(u *url.URL, page *pager.Page, members *avl.Tree) string 
 	for _, item := range page.Items {
 		addr := item.Key
 		tn, _ := members.Get(addr)
-		tnStr, _ := tn.(string)
-		tierCell := ufmt.Sprintf("%s %s", tierColoredChip(tnStr), tn)
+		tierCell := ufmt.Sprintf("%s", tn)
 		table.Rows = append(table.Rows, []string{tierCell, addr})
 	}
 
