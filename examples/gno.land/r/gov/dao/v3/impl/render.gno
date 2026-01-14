@@ -74,7 +74,7 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 		for _, item := range page.Items {
 			seqpid, err := seqid.FromString(item.Key)
 			if err != nil {
-				panic(err.Error())
+				continue
 			}
 			out += ren.renderProposalListItem(ufmt.Sprintf("%v", int64(seqpid)), d)
 			out += "\n"
@@ -89,10 +89,15 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		panic(err.Error())
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
+
+	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	if err != nil {
+		return ufmt.Sprintf("# Proposal not found\n\n%s", err.Error())
+	}
+
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 
 	statusBadge := getStatusBadge(ps)
 
@@ -150,10 +155,15 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		panic(err.Error())
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
+
+	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	if err != nil {
+		return ufmt.Sprintf("# Proposal not found\n\n%s\n\n", err.Error())
+	}
+
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 
 	status := getPropStatus(ps)
 
@@ -181,10 +191,18 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		panic(err.Error())
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
+
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
+	if ps == nil {
+		return ufmt.Sprintf("# Proposal not found\n\nProposal %v does not exist.", pid)
+	}
+
+	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	if err != nil {
+		return ufmt.Sprintf("# Proposal not found\n\n%s", err.Error())
+	}
 
 	statusBadge := getStatusBadge(ps)
 
@@ -222,6 +240,9 @@ func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 }
 
 func getPropStatus(ps *proposalStatus) string {
+	if ps == nil {
+		return "UNKNOWN"
+	}
 	if ps.Accepted {
 		return "ACCEPTED"
 	} else if ps.Denied {

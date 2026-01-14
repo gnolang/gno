@@ -3,9 +3,12 @@
 package ledger
 
 import (
+	"errors"
+
 	"github.com/btcsuite/btcd/btcec/v2"
 	ledger_go "github.com/cosmos/ledger-cosmos-go"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/zondax/hid"
 )
 
 // SECP256K1 reflects an interface a Ledger API must implement for SECP256K1
@@ -25,6 +28,10 @@ var Discover DiscoverFn = DiscoverDefault
 
 // DiscoverDefault is the default function for [Discover].
 func DiscoverDefault() (SECP256K1, error) {
+	if !hid.Supported() {
+		return nil, errors.New("ledger support is not enabled, try building with CGO_ENABLED=1")
+	}
+
 	device, err := ledger_go.FindLedgerCosmosUserApp()
 	if err != nil {
 		return nil, err

@@ -71,6 +71,11 @@ func (oid ObjectID) String() string {
 	return oids
 }
 
+func (oid ObjectID) IsPackageID() bool {
+	// all package objects have newtime 1.
+	return !oid.PkgID.IsZero() && oid.NewTime == 1
+}
+
 // TODO: make faster by making PkgID a pointer
 // and enforcing that the value of PkgID is never zero.
 func (oid ObjectID) IsZero() bool {
@@ -380,51 +385,108 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	case *BoundMethodValue:
 		return cv
 	case *PackageValue:
-		return cv.GetBlock(store)
+		return cv
 	case *Block:
 		return cv
 	case RefValue:
+		if cv.PkgPath != "" {
+			// Constructed by preprocessor from package name exprs
+			// (or derived implicitly for local package names).
+			// These may refer to package values not yet
+			// real/persisted; this function should not handle it.
+			panic("GetFirstObject() cannot handle RefValue{PkgPath}")
+		}
 		oo := store.GetObject(cv.ObjectID)
 		tv.V = oo
 		return oo
 	case *HeapItemValue:
-		// should only appear in PointerValue.Base
-		panic("heap item value should only appear as a pointer's base")
+		// should only appear in PointerValue.Base or
+		// closure capture; if you need to implement
+		// this, probably doing it wrong.
+		panic("invalid usage of GetFirstObject() on heap item")
 	default:
 		return nil
 	}
 }
 
-// returns false if there is no object.
-func (tv *TypedValue) GetFirstObjectID() (ObjectID, bool) {
+// IsReadonlyBy returns true if tv is readonly by realm rid.
+//   - tv is N_Readonly, or
+//   - tv is not an object ("first object" ID is zero), or
+//   - tv is an unreal object (no object id), or
+//   - tv is an object residing in external realm
+//
+// This is different from GetFirstObject in two significant ways:
+//  1. IsReadonlyBy does not go through RefValues; for this reason, it
+//     also doesn't need a store to fetch the nested object.
+//  2. If a pointer's HeapItemValue is unreal, only the object id of
+//     its underlying Value is considered.
+//  3. If a pointer's HeapItemValue is real, both the object id of
+//     the heap item value AND its internal value is considered.
+//
+// This function controls heavily the behaviour of
+// [Machine.IsReadonly], and thus the readonly taint behaviour.
+func (tv *TypedValue) IsReadonlyBy(rid PkgID) bool {
+	if tv.IsReadonly() {
+		return true
+	}
+	var tvoid ObjectID
 	switch cv := tv.V.(type) {
 	case PointerValue:
 		if cv.Base == nil {
-			return ObjectID{}, false
+			return false // free floating
 		}
-		return cv.Base.(ObjectIDer).GetObjectID(), true
+		if hiv, ok := cv.Base.(*HeapItemValue); ok {
+			// Also need to check the heap item value.
+			// NOTE: It is possible for the value to be
+			// external while the heap item itself is
+			// not.
+			// See test/files/zrealm_crossrealm25a.gno.
+			if hiv.Value.IsReadonlyBy(rid) {
+				return true
+			}
+			tvoid = hiv.GetObjectID()
+		} else {
+			tvoid = cv.Base.(ObjectIDer).GetObjectID()
+		}
 	case *ArrayValue:
-		return cv.GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case *SliceValue:
-		return cv.Base.(ObjectIDer).GetObjectID(), true
+		tvoid = cv.Base.(ObjectIDer).GetObjectID()
 	case *StructValue:
-		return cv.GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case *FuncValue:
-		return cv.GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case *MapValue:
-		return cv.GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case *BoundMethodValue:
-		return cv.GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case *PackageValue:
-		return cv.Block.(ObjectIDer).GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case *Block:
-		return cv.GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case RefValue:
-		return cv.GetObjectID(), true
+		if cv.PkgPath != "" {
+			// Constructed by preprocessor from package name exprs
+			// (or derived implicitly for local package names).
+			// These may refer to package values not yet
+			// real/persisted; this function should not handle it.
+			// It is should be handled by Machine.IsReadonly().
+			panic("IsReadonlyBy() cannot handle RefValue{PkgPath}")
+		}
+		tvoid = cv.GetObjectID()
 	case *HeapItemValue:
-		// should only appear in PointerValue.Base
-		panic("heap item value should only appear as a pointer's base")
+		// should only appear in PointerValue.Base or
+		// closure capture; if you need to implement
+		// this, probably doing it wrong.
+		panic("invalid usage of IsReadonly() on heap item")
 	default:
-		return ObjectID{}, false
+		return false // e.g. primitive
 	}
+	if tvoid.IsZero() {
+		return false
+	}
+	if tvoid.PkgID != rid {
+		return true
+	}
+	return false
 }
