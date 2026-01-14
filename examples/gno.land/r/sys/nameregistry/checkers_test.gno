@@ -3,6 +3,7 @@ package nameregistry_test
 import (
 	"testing"
 
+	"gno.land/p/nt/avl"
 	"gno.land/p/nt/uassert"
 
 	"gno.land/r/sys/nameregistry"
@@ -86,6 +87,13 @@ func TestCheckers(t *testing.T) {
 	// Alphanum
 	checker = nameregistry.NewAlphaNumChecker()
 	uassert.Equal(t, "Name must start with a letter and end with 3 numbers", checker.Description(), "expect description to match")
+
+	// Homoglyph
+	uassert.PanicsWithMessage(t, "homoglyph checker requires at least one names tree", func() {
+		_ = nameregistry.NewHomoglyphChecker()
+	}, "expect panic when no name tree")
+	checker = nameregistry.NewHomoglyphChecker(avl.NewTree())
+	uassert.Equal(t, "Reserved or blacklisted names are not allowed", checker.Description(), "expect description to match")
 }
 
 func TestCheckersCheck(t *testing.T) {
@@ -207,6 +215,53 @@ func TestCheckersCheck(t *testing.T) {
 			},
 			registerName: "x12",
 			errMsg:       "name must end with three numbers",
+		},
+		{
+			name: "homoglypgh valid",
+			setup: func() nameregistry.Checker {
+				return nameregistry.NewHomoglyphChecker(avl.NewTree())
+			},
+			registerName: "xyz",
+		},
+		{
+			name: "homoglypgh of reserved name",
+			setup: func() nameregistry.Checker {
+				t := avl.NewTree()
+				t.Set("foo", struct{}{})
+				return nameregistry.NewHomoglyphChecker(t)
+			},
+			registerName: "foo",
+			errMsg:       "name is reserved",
+		},
+		{
+			name: "homoglypgh of similar reserved name",
+			setup: func() nameregistry.Checker {
+				t := avl.NewTree()
+				t.Set("foo", struct{}{})
+				return nameregistry.NewHomoglyphChecker(t)
+			},
+			registerName: "f00",
+			errMsg:       "similar name already exists: foo",
+		},
+		{
+			name: "homoglypgh of similar reserved name 2",
+			setup: func() nameregistry.Checker {
+				t := avl.NewTree()
+				t.Set("foo", struct{}{})
+				return nameregistry.NewHomoglyphChecker(t)
+			},
+			registerName: "foo000",
+			errMsg:       "similar name already exists: foo",
+		},
+		{
+			name: "homoglypgh of similar reserved name 3",
+			setup: func() nameregistry.Checker {
+				t := avl.NewTree()
+				t.Set("foo", struct{}{})
+				return nameregistry.NewHomoglyphChecker(t)
+			},
+			registerName: "foo000bar000",
+			errMsg:       "similar name already exists: foo",
 		},
 	}
 

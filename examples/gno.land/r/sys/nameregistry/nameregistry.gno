@@ -13,13 +13,13 @@ var (
 	custom      = avl.NewTree()
 
 	// Name constraints contains checkers that defines the rules for valid names
-	// TODO: Constraints provably should be defined within the `users` realm
 	constraints = []Checker{
 		NewMinLengthChecker(4),
 		NewMaxLengthChecker(14),
 		NewLowercaseChecker(),
 		NewForbiddenPrefixChecker("g1", "gi", "gl"),
 		NewAlphaNumChecker(),
+		NewHomoglyphChecker(reserved, custom, blacklisted),
 	}
 )
 
