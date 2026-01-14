@@ -64,92 +64,138 @@ func main() {
 
 // Output:
 // --
-// # GovDAO
-// ## Members
-// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// # Governance DAO
+//
+// **1** proposals total | **1** active | **0** completed | [Members](/r/gov/dao/v3/memberstore)
+//
 // ## Proposals
-// ### [Prop #0 - User Registry V1: Delete user `alice123`](/r/gov/dao:0)
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// Status: ACTIVE
+// ### [User Registry V1: Delete user `alice123`](/r/gov/dao:0)
 //
-// Tiers eligible to vote: T1, T2, T3
+// **Proposal #0** | ACTIVE | by [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+//
+// **YES:** 3 (0.0%) | **NO:** 3 (0.0%) | _Eligible: T1, T2, T3_
 //
 // ---
 //
 //
+//
 // --
-// ## Prop #0 - User Registry V1: Delete user `alice123`
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// # Proposal #0 - User Registry V1: Delete user `alice123`
+//
+// [View All Votes](/r/gov/dao:0/votes) | [Back to Proposals](/r/gov/dao)
+//
+// **ACTIVE** - Voting in progress
+//
+// ## Details
+//
+// | | |
+// |---|---|
+// | **Author** | [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm) |
+// | **Status** | ACTIVE |
+// | **Eligible Tiers** | T1, T2, T3 |
+// | **YES** | 0.00% |
+// | **NO** | 0.00% |
+//
+// ## Description
 //
 // delete user test
 //
+// ## Voting Statistics
 //
+// **Voting in Progress**
 //
-// ---
+// | Vote Option | Votes | Percentage |
+// |-------------|-------|------------|
+// | YES | 3 | 0.00% |
+// | NO | 3 | 0.00% |
 //
-// ### Stats
-// - **Proposal is open for votes**
-// - Tiers eligible to vote: T1, T2, T3
-// - YES PERCENT: 0%
-// - NO PERCENT: 0%
+// **Eligible to vote:** T1, T2, T3
 //
-// [Detailed voting list](/r/gov/dao:0/votes)
+// ## Actions
 //
-// ---
+// **Cast your vote:**
 //
-// ### Actions
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
-// WARNING: Please double check transaction data before voting.
+// > **Note:** Please verify all transaction details before submitting your vote.
+//
+// > **Requirement:** You must have a registered namespace to cast a vote.
 // --
 // --
-// ## Prop #0 - User Registry V1: Delete user `alice123`
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// # Proposal #0 - User Registry V1: Delete user `alice123`
+//
+// [View All Votes](/r/gov/dao:0/votes) | [Back to Proposals](/r/gov/dao)
+//
+// **ACTIVE** - Voting in progress
+//
+// ## Details
+//
+// | | |
+// |---|---|
+// | **Author** | [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm) |
+// | **Status** | ACTIVE |
+// | **Eligible Tiers** | T1, T2, T3 |
+// | **YES** | 100.00% |
+// | **NO** | 0.00% |
+//
+// ## Description
 //
 // delete user test
 //
+// ## Voting Statistics
 //
+// **Voting in Progress**
 //
-// ---
+// | Vote Option | Votes | Percentage |
+// |-------------|-------|------------|
+// | YES | 3 | 100.00% |
+// | NO | 3 | 0.00% |
 //
-// ### Stats
-// - **Proposal is open for votes**
-// - Tiers eligible to vote: T1, T2, T3
-// - YES PERCENT: 100%
-// - NO PERCENT: 0%
+// **Eligible to vote:** T1, T2, T3
 //
-// [Detailed voting list](/r/gov/dao:0/votes)
+// ## Actions
 //
-// ---
+// **Cast your vote:**
 //
-// ### Actions
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
-// WARNING: Please double check transaction data before voting.
+// > **Note:** Please verify all transaction details before submitting your vote.
+//
+// > **Requirement:** You must have a registered namespace to cast a vote.
 // --
 // --
-// ## Prop #0 - User Registry V1: Delete user `alice123`
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// # Proposal #0 - User Registry V1: Delete user `alice123`
+//
+// [View All Votes](/r/gov/dao:0/votes) | [Back to Proposals](/r/gov/dao)
+//
+// **ACCEPTED** - This proposal has been approved and executed
+//
+// ## Details
+//
+// | | |
+// |---|---|
+// | **Author** | [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm) |
+// | **Status** | ACCEPTED |
+// | **Eligible Tiers** | T1, T2, T3 |
+//
+// ## Description
 //
 // delete user test
 //
+// ## Voting Statistics
 //
+// **PROPOSAL ACCEPTED**
 //
-// ---
+// | Vote Option | Votes | Percentage |
+// |-------------|-------|------------|
+// | YES | 3 | 100.00% |
+// | NO | 3 | 0.00% |
 //
-// ### Stats
-// - **PROPOSAL HAS BEEN ACCEPTED**
-// - Tiers eligible to vote: T1, T2, T3
-// - YES PERCENT: 100%
-// - NO PERCENT: 0%
+// **Eligible to vote:** T1, T2, T3
 //
-// [Detailed voting list](/r/gov/dao:0/votes)
+// ## Actions
 //
-// ---
+// > This proposal has been accepted and executed. No further actions needed.
 //
-// ### Actions
-// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
-//
-// WARNING: Please double check transaction data before voting.
 // Successfully deleted alice
