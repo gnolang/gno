@@ -70,17 +70,16 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 
 	if len(page.Items) == 0 {
 		out += "_No proposals to display._\n\n"
-	} else {
-		for _, item := range page.Items {
-			seqpid, err := seqid.FromString(item.Key)
-			if err != nil {
-				panic(err.Error())
-			}
-			out += ren.renderProposalListItem(ufmt.Sprintf("%v", int64(seqpid)), d)
-			out += "\n"
-		}
+		return out
 	}
-
+	for _, item := range page.Items {
+		seqpid, err := seqid.FromString(item.Key)
+		if err != nil {
+			continue
+		}
+		out += ren.renderProposalListItem(ufmt.Sprintf("%v", int64(seqpid)), d)
+		out += "\n"
+	}
 	out += page.Picker("")
 
 	return out
