@@ -11,7 +11,7 @@
 <span><span class="font-bold">/r/test</span> Exec: Transfer</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
-<div data-controller="action-function" data-action-function-name-value="Transfer">
+<div data-controller="action-function" data-action-function-name-value="Transfer" data-action-function-pkgpath-value="/r/test">
 <div class="gno-form_input"><label for="to">Recipient address</label>
 <input type="text" id="to" name="to" placeholder="Recipient address" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="to" />
 </div>
