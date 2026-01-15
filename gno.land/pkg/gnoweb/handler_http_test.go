@@ -1170,6 +1170,13 @@ func TestHTTPHandler_Post_HiddenPathField(t *testing.T) {
 			formData:        "__gno_path=submit?evil=injection&field=value",
 			wantStatus:      http.StatusSeeOther,
 			wantRedirectURL: "/r/test:submit%3Fevil=injection?field=value",
+		{
+			// Full regression test: verify the original security PoC attack is neutralized
+			name:            "PoC path traversal attack neutralized",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=user../../../../../evil.domain.com#&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:user..%2F..%2F..%2F..%2F..%2Fevil.domain.com%23?field=value",
 		},
 	}
 
