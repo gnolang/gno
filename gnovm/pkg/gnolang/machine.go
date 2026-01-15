@@ -305,7 +305,6 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 				debug.Println("clean outdated object, num: ", objctr-objctr2)
 			}
 
-			fmt.Println("clean outdated object, num: ", objctr-objctr2)
 			for i := objctr2 + 1; i <= objctr; i++ {
 				oid := ObjectID{PkgID: oid.PkgID, NewTime: i}
 				if m.Store.HasObject(oid) {
