@@ -749,7 +749,6 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) DelObject(oo Object) int64 {
-	fmt.Println("======DelObject, oo: ", oo.GetObjectID())
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -778,9 +777,19 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 	return size
 }
 
-// XXX, consume gas
 func (ds *defaultStore) DelObjectByID(oid ObjectID) {
-	fmt.Println("======DelObjectByID, oo: ", oid)
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+	if bm.StorageEnabled {
+		bm.StartStore(bm.StoreDeleteObject)
+		defer func() {
+			// delete is a signle operation, not a func of size of bytes
+			bm.StopStore(0)
+		}()
+	}
+	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
 	// delete from cache.
 	delete(ds.cacheObjects, oid)
 	// delete from backend.
@@ -954,7 +963,6 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 	// XXX
 }
 
-// XXX, filter out empty paths.
 func (ds *defaultStore) NumMemPackages() int64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
@@ -969,7 +977,7 @@ func (ds *defaultStore) NumMemPackages() int64 {
 	}
 }
 
-// Index all packages.
+// Sequence for all packages.
 func (ds *defaultStore) NextPackageGlobalID() uint64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)

@@ -299,19 +299,19 @@ func Echo(cur realm) string {
 	assert.NoError(t, err)
 
 	pkgID := gnolang.PkgIDFromPkgPath(pkgPath)
-	t.Log("pkgID: ", pkgID)
 
 	store := env.vmk.getGnoTransactionStore(ctx)
 
+	// 7 is hardcode count of obejcts of the package.
+	objCount := 7
 	num := 0
 	for i := uint64(1); i <= 10; i++ {
 		oid := gnolang.ObjectID{PkgID: pkgID, NewTime: i}
 		if store.HasObject(oid) {
-			t.Log("before overridden, found object: ", oid)
 			num++
 		}
 	}
-	assert.Equal(t, 7, num, "num of object not match")
+	assert.Equal(t, objCount, num, "num of object not match")
 
 	// Re-upload the same private package with updated content.
 	files2 := []*std.MemFile{
@@ -324,7 +324,7 @@ private = true`,
 		{
 			Name: "test.gno",
 			Body: `package test
-
+var root any
 func Echo(cur realm) string {
 	return "hello updated world"
 }`,
@@ -341,7 +341,6 @@ func Echo(cur realm) string {
 	for i := uint64(1); i <= 10; i++ {
 		oid := gnolang.ObjectID{PkgID: pkgID, NewTime: i}
 		if store.HasObject(oid) {
-			t.Log("after overrideen, found object: ", oid)
 			num++
 		}
 	}
@@ -349,12 +348,56 @@ func Echo(cur realm) string {
 	memFile := store.GetMemFile(pkgPath, "test.gno")
 	assert.NotNil(t, memFile)
 	expected := `package test
+var root any
+func Echo(cur realm) string {
+	return "hello updated world"
+}`
+	assert.Equal(t, expected, memFile.Body)
+	objCount -= 2
+	assert.Equal(t, objCount, num, "num of object not match")
+
+	// Re-upload the same private package with updated content.
+	files3 := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello updated world"
+}`,
+		},
+	}
+
+	msg3 := NewMsgAddPackage(addr, pkgPath, files3)
+	err = env.vmk.AddPackage(ctx, msg3)
+	assert.NoError(t, err)
+
+	// Verify the package was updated with the new content.
+
+	num = 0
+	for i := uint64(1); i <= 10; i++ {
+		oid := gnolang.ObjectID{PkgID: pkgID, NewTime: i}
+		if store.HasObject(oid) {
+			num++
+		}
+	}
+
+	memFile = store.GetMemFile(pkgPath, "test.gno")
+	assert.NotNil(t, memFile)
+	expected = `package test
 
 func Echo(cur realm) string {
 	return "hello updated world"
 }`
 	assert.Equal(t, expected, memFile.Body)
-	assert.Equal(t, 4, num, "num of object not match")
+	objCount -= 1
+	assert.Equal(t, objCount, num, "num of object not match")
 }
 
 func TestVMKeeperAddPackage_ImportPrivate(t *testing.T) {

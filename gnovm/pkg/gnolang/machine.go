@@ -314,7 +314,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 
 	// If not overidden old package, increase index set revision for package.
 	if !replace {
-		idx := m.Store.NextPackageGlobalID()                                  // global index.
+		idx := m.Store.NextPackageGlobalID()                                  // global index of package.
 		m.Store.SetPackageRevision(ObjectIDFromPkgPath(mpkg.Path).PkgID, idx) // index per package.
 	}
 
