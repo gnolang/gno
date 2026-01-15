@@ -29,9 +29,14 @@ var (
 		NewLowercaseChecker(),
 		NewForbiddenPrefixChecker("g1", "gi", "gl"),
 		NewAlphaNumChecker(),
-		NewHomoglyphChecker(reserved, custom, blacklisted),
+		NewSimilarityChecker(),
 	}
 )
+
+// Size returns the number of names in the registry.
+func Size() int {
+	return reserved.Size() + blacklisted.Size() + custom.Size()
+}
 
 // IsNameValid checks is a name is a valid name.
 func IsNameValid(name string) error {
