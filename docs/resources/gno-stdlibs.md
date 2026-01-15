@@ -894,12 +894,12 @@ Issues testing context **coins** to **addr**.
 ```go
 issue := chain.Coins{{"coin1", 100}, {"coin2", 200}}
 addr := address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec")
-testing.TestIssueCoins(addr, issue)
+testing.IssueCoins(addr, issue)
 ```
 
 ---
 
-### TestSetRealm
+### SetRealm
 
 ```go
 func SetRealm(rlm Realm)
@@ -907,7 +907,7 @@ func SetRealm(rlm Realm)
 
 Sets the realm for the current frame. After calling `SetRealm()`, calling
 [`CurrentRealm()`](#currentrealm) in the same test function will yield the value of `rlm`, and
-any `PreviousRealm()` called from a function used after TestSetRealm will yield `rlm`.
+any `PreviousRealm()` called from a function used after SetRealm will yield `rlm`.
 
 Should be used in combination with [`NewUserRealm`](#newuserrealm) &
 [`NewCodeRealm`](#newcoderealm).

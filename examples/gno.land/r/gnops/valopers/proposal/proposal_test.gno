@@ -42,6 +42,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 		moniker     string = "moniker"
 		description string = "description"
+		serverType  string = valopers.ServerTypeOnPrem
 		pubKey             = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
 	)
 
@@ -53,7 +54,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
-			valopers.Register(cross, moniker, description, g1user, pubKey)
+			valopers.Register(cross, moniker, description, serverType, g1user, pubKey)
 			valopers.UpdateKeepRunning(cross, g1user, false)
 		})
 
