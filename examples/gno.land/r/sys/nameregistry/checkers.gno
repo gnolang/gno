@@ -5,11 +5,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"gno.land/p/nt/avl/rotree"
 )
 
-// Checks that a string ends with with 3 numbers.
+// Matches the last three suffix numbers.
 var reEndsWithThreeNumbers = regexp.MustCompile(`[0-9]{3}$`)
 
 // Checker defines an interface for name checkers.
@@ -113,41 +111,12 @@ func NewAlphaNumChecker() Checker {
 	})
 }
 
-// NewHomoglyphChecker creates a checker to check that a name is not reserved
-// or blacklisted. Checker considers typosquatting with o=0, i=1 and i=l.
-// Names must be given within one or more AVL trees where key values are names.
-func NewHomoglyphChecker(names ...rotree.IReadOnlyTree) Checker {
-	if len(names) == 0 {
-		panic("homoglyph checker requires at least one names tree")
-	}
-
-	reNumbersSuffix := regexp.MustCompile(`[0-9]{1}[a-z0-9]*$`)
+// NewSimilarityChecker creates a checker to check that a name is not similar
+// or equal to a reserved or blacklisted name.
+func NewSimilarityChecker() Checker {
 	desc := "Reserved or blacklisted names are not allowed"
 	return NewChecker(desc, func(name string) error {
-		variants := []string{name}
-
-		// Remove all numbers from name prefix to avoid cases like "jesus000"
-		prefix := reNumbersSuffix.ReplaceAllString(name, "")
-		if prefix != name {
-			variants = append(variants, prefix)
-		}
-
-		variants = append(variants, GenHomoglyphVariants(name)...)
-		for i, n := range variants {
-			for _, storage := range names {
-				if !storage.Has(n) {
-					continue
-				}
-
-				// First name in list is the one being checked
-				if i == 0 {
-					return errors.New("name is reserved")
-				} else {
-					return errors.New("similar name already exists: " + n)
-				}
-			}
-		}
-		return nil
+		return CheckNameSimilarity(name, reserved, blacklisted, custom)
 	})
 }
 
