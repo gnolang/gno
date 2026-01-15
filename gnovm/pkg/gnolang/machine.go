@@ -254,7 +254,6 @@ func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*
 }
 
 func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
-	// fmt.Println("======runMemPacakge, path: ", mpkg.Path)
 	// validate mpkg.Type.
 	mptype := mpkg.Type.(MemPackageType)
 	if save && !mptype.IsStorable() {
@@ -280,27 +279,34 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		// Package may have multi revisions.
 		pkgidx := m.Store.GetPackageRevision(oid.PkgID)
 		// Get count of object of the old package.
-		objidx := m.Store.GetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx))
+		objctr := m.Store.GetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx))
 		m.Store.ResetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx))
 
 		// The above logic happens before finalize objects and add mempackage.
 
 		// Clean outdated Objects after new Objects are added.
 		defer func() {
-			// idx of new revision of the package.
+			if r := recover(); r != nil {
+				panic(r)
+			}
+			// If succeed, clean outdated objects.
+
+			// New revision of package.
 			pkgidx2 := m.Store.GetPackageRevision(oid.PkgID)
-			objidx2 := m.Store.GetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx2))
+			objctr2 := m.Store.GetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx2))
 
 			// If all old slots are overridden.
-			if objidx2 >= objidx {
+			if objctr2 >= objctr {
 				return
 			}
 
 			// Else clean the outdated objects.
 			if debug {
-				debug.Println("clean outdated object, num: ", objidx-objidx2)
+				debug.Println("clean outdated object, num: ", objctr-objctr2)
 			}
-			for i := objidx2 + 1; i <= objidx; i++ {
+
+			fmt.Println("clean outdated object, num: ", objctr-objctr2)
+			for i := objctr2 + 1; i <= objctr; i++ {
 				oid := ObjectID{PkgID: oid.PkgID, NewTime: i}
 				if m.Store.HasObject(oid) {
 					m.Store.DelObjectByID(oid)
