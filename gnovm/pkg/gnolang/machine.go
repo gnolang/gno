@@ -313,7 +313,6 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		m.Store.SetPackageRevision(oid.PkgID, idx) // index per package.
 	}
 
-
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
