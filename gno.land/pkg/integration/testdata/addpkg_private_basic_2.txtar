@@ -13,6 +13,26 @@ stdout OK!
 gnokey maketx addpkg -pkgdir $WORK/privaterealmedited -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
+# ensure Root exist.
+gnokey query vm/qeval --data "gno.land/r/foobar/privaterealm.Root"
+stdout 'undefined'
+
+# ensure Root2 is deleted
+! gnokey query vm/qeval --data "gno.land/r/foobar/privaterealm.Root2"
+stderr 'name Root2 not declared'
+
+# ensure Root3 is deleted
+! gnokey query vm/qeval --data "gno.land/r/foobar/privaterealm.Root3"
+stderr 'name Root3 not declared'
+
+# update a new private realm over the last one.
+gnokey maketx addpkg -pkgdir $WORK/privaterealmedited2 -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+# ensure Root is deleted
+! gnokey query vm/qeval --data "gno.land/r/foobar/privaterealm.Root"
+stderr 'name Root not declared'
+
 
 -- privaterealm/gnomod.toml --
 module = "gno.land/r/test"
@@ -22,9 +42,9 @@ private = true
 -- privaterealm/privaterealm.gno --
 package test
 
-var root any
-var root2 any
-var root3 any
+var Root any
+var Root2 any
+var Root3 any
 
 func Echo(cur realm) string {
  return "hello private world"
@@ -38,17 +58,20 @@ private = true
 -- privaterealmedited/privaterealm.gno --
 package test
 
+var Root any
+
 func Echo(cur realm) string {
  return "hello private edited world"
 }
 
--- publicrealm/gnomod.toml --
-module = "gno.land/r/foobar/publicrealm"
+-- privaterealmedited2/gnomod.toml --
+module = "gno.land/r/test"
 gno = "0.9"
+private = true
 
--- publicrealm/publicrealm.gno --
-package publicrealm
+-- privaterealmedited2/privaterealm2.gno --
+package test
 
 func Echo(cur realm) string {
- return "hello public world"
+ return "hello private edited world"
 }
