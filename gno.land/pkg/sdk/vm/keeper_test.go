@@ -353,7 +353,7 @@ func Echo(cur realm) string {
 	return "hello updated world"
 }`
 	assert.Equal(t, expected, memFile.Body)
-	objCount -= 2
+	objCount -= 2 // root2, root3 GC'd.
 	assert.Equal(t, objCount, num, "num of object not match")
 
 	// Re-upload the same private package with updated content.
@@ -396,7 +396,7 @@ func Echo(cur realm) string {
 	return "hello updated world"
 }`
 	assert.Equal(t, expected, memFile.Body)
-	objCount -= 1
+	objCount -= 1 // root GC'd.
 	assert.Equal(t, objCount, num, "num of object not match")
 }
 
