@@ -287,6 +287,12 @@ var root any
 var root2 any
 var root3 any
 
+func init() {
+	root = 1 // update does not count object count.
+	root2 = 2 
+	root3 = 3 
+}
+
 func Echo(cur realm) string {
 	return "hello world"
 }`,
@@ -302,16 +308,17 @@ func Echo(cur realm) string {
 
 	store := env.vmk.getGnoTransactionStore(ctx)
 
-	// 7 is hardcode count of obejcts of the package.
-	objCount := 7
-	num := 0
-	for i := uint64(1); i <= 10; i++ {
-		oid := gnolang.ObjectID{PkgID: pkgID, NewTime: i}
-		if store.HasObject(oid) {
-			num++
-		}
+	backendObjectIndexKey := func(pid gnolang.PkgID, index uint64) string {
+		return fmt.Sprintf("%s:%020d", pid, index)
 	}
-	assert.Equal(t, objCount, num, "num of object not match")
+
+	pkgidx := store.GetPackageRevision(pkgID)
+	// Get count of object of the old package.
+	objctr := store.GetObjectCount(backendObjectIndexKey(pkgID, pkgidx))
+
+	// 8 is hardcode count of obejcts of the package.
+	var objCount uint64 = 8
+	assert.Equal(t, objCount, objctr, "num of object not match")
 
 	// Re-upload the same private package with updated content.
 	files2 := []*std.MemFile{
@@ -337,14 +344,6 @@ func Echo(cur realm) string {
 
 	// Verify the package was updated with the new content.
 
-	num = 0
-	for i := uint64(1); i <= 10; i++ {
-		oid := gnolang.ObjectID{PkgID: pkgID, NewTime: i}
-		if store.HasObject(oid) {
-			num++
-		}
-	}
-
 	memFile := store.GetMemFile(pkgPath, "test.gno")
 	assert.NotNil(t, memFile)
 	expected := `package test
@@ -353,8 +352,10 @@ func Echo(cur realm) string {
 	return "hello updated world"
 }`
 	assert.Equal(t, expected, memFile.Body)
-	objCount -= 2 // root2, root3 GC'd.
-	assert.Equal(t, objCount, num, "num of object not match")
+
+	objctr = store.GetObjectCount(backendObjectIndexKey(pkgID, pkgidx))
+	objCount -= 3 // root2, root3 and init func GC'd.
+	assert.Equal(t, objCount, objctr, "num of object not match")
 
 	// Re-upload the same private package with updated content.
 	files3 := []*std.MemFile{
@@ -380,14 +381,6 @@ func Echo(cur realm) string {
 
 	// Verify the package was updated with the new content.
 
-	num = 0
-	for i := uint64(1); i <= 10; i++ {
-		oid := gnolang.ObjectID{PkgID: pkgID, NewTime: i}
-		if store.HasObject(oid) {
-			num++
-		}
-	}
-
 	memFile = store.GetMemFile(pkgPath, "test.gno")
 	assert.NotNil(t, memFile)
 	expected = `package test
@@ -396,8 +389,9 @@ func Echo(cur realm) string {
 	return "hello updated world"
 }`
 	assert.Equal(t, expected, memFile.Body)
+	objctr = store.GetObjectCount(backendObjectIndexKey(pkgID, pkgidx))
 	objCount -= 1 // root GC'd.
-	assert.Equal(t, objCount, num, "num of object not match")
+	assert.Equal(t, objCount, objctr, "num of object not match")
 }
 
 func TestVMKeeperAddPackage_ImportPrivate(t *testing.T) {
