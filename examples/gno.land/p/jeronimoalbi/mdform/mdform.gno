@@ -17,9 +17,9 @@ const (
 
 var (
 	formAttributes     = []string{"exec", "path"}
-	inputAttributes    = []string{"checked", "description", "placeholder", "readonly", "type", "value"}
-	textareaAttributes = []string{"placeholder", "readonly", "rows", "value"}
-	selectAttributes   = []string{"description", "readonly", "selected"}
+	inputAttributes    = []string{"checked", "description", "placeholder", "readonly", "required", "type", "value"}
+	textareaAttributes = []string{"placeholder", "readonly", "required", "rows", "value"}
+	selectAttributes   = []string{"description", "readonly", "required", "selected"}
 )
 
 // New creates a new form.
