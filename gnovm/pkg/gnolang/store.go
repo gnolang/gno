@@ -731,7 +731,7 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 
 	pid := oid.PkgID
 	pkgidx := ds.GetPackageRevision(pid)
-	ds.IncObjectCount(backendObjectIndexKey(pid, pkgidx))
+	ds.EnsureObjectCount(backendObjectIndexKey(pid, pkgidx), oid.NewTime)
 	return diff
 }
 
@@ -1030,22 +1030,22 @@ func (ds *defaultStore) GetPackageRevision(pid PkgID) uint64 {
 	}
 }
 
-// Index of objects of a package.
-func (ds *defaultStore) IncObjectCount(key string) uint64 {
+// EnsureObjectCount updates the max object index count if the provided count is greater.
+func (ds *defaultStore) EnsureObjectCount(key string, count uint64) {
 	ctrkey := []byte(key)
 	ctrbz := ds.baseStore.Get(ctrkey)
-	if ctrbz == nil {
-		nextbz := strconv.Itoa(1)
-		ds.baseStore.Set(ctrkey, []byte(nextbz))
-		return 1
-	} else {
+	var current uint64
+	if ctrbz != nil {
 		ctr, err := strconv.Atoi(string(ctrbz))
 		if err != nil {
 			panic(err)
 		}
-		nextbz := strconv.Itoa(ctr + 1)
+		current = uint64(ctr)
+	}
+
+	if count > current {
+		nextbz := strconv.FormatUint(count, 10)
 		ds.baseStore.Set(ctrkey, []byte(nextbz))
-		return uint64(ctr) + 1
 	}
 }
 
