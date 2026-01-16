@@ -40,7 +40,7 @@ stderr 'caller is not on T1 or T2. To add members, propose them through proposal
 
 # check output
 gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/memberstore:'
-stdout 'Tier T3 contains 1 members'
+stdout 'T3 | 1 |'
 
 -- proxy/create_member.gno --
 package proxy
