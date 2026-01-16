@@ -71,15 +71,14 @@ func Render() {
 
 // Output:
 // true
-// # GovDAO
-// ## Members
-// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// # Governance DAO
+//
+// **1** proposals total | **0** active | **1** completed | [Members](/r/gov/dao/v3/memberstore)
+//
 // ## Proposals
-// ### [Prop #0 - Proposal Title: Dummy proposal](/r/gov/dao:0)
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// Status: ACCEPTED
+// ### [Proposal Title: Dummy proposal](/r/gov/dao:0)
 //
-// Tiers eligible to vote: T1, T2, T3
+// **Proposal #0** | ACCEPTED | by [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
 // ---
