@@ -39,25 +39,7 @@ var (
 	ErrFormDuplicateName    = errors.New("name already used")
 	ErrFormInvalidAttribute = errors.New("invalid attribute for input type")
 	ErrFormMissingValue     = errors.New("missing 'value' attribute")
-	ErrFormInvalidPath      = errors.New("invalid path attribute")
 )
-
-// reFormPath defines the allowed pattern for form path attributes.
-// Allows: alphanumeric characters, slashes, underscores, and hyphens.
-// This pattern inherently rejects path traversal (..), protocols (://), fragments (#), etc.
-var reFormPath = regexp.MustCompile(`^[a-zA-Z0-9/_-]*$`)
-
-// ValidateFormPath validates the path attribute for forms to prevent
-// path traversal, open redirects, and other injection attacks.
-func ValidateFormPath(path string) error {
-	if path == "" {
-		return nil
-	}
-	if !reFormPath.MatchString(path) {
-		return fmt.Errorf("%w: contains invalid characters", ErrFormInvalidPath)
-	}
-	return nil
-}
 
 var (
 	FormKind = ast.NewNodeKind("Form")
@@ -239,13 +221,11 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 
 	node := &FormNode{usedNames: make(map[string]bool)}
 
-	// Extract and validate path attribute
+	// Extract path attribute and strip any query string
 	node.RenderPath, _ = ExtractAttr(tok.Attr, "path")
-	if err := ValidateFormPath(node.RenderPath); err != nil {
-		node.Error = err
-		return node, parser.Continue
-	}
+	node.RenderPath, _, _ = strings.Cut(node.RenderPath, "?")
 
+	// Get RealmName from context
 	if gnourl, ok := getUrlFromContext(pc); ok {
 		node.RealmName = gnourl.Path
 	}
@@ -479,11 +459,9 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 		return ast.WalkContinue, nil
 	}
 
-	// Build form action
+	// Form action is just the realm path (no args) to prevent browser path normalization
+	// The path is passed via hidden field instead
 	action := n.RealmName
-	if n.RenderPath != "" {
-		action += ":" + strings.TrimPrefix(n.RenderPath, "/")
-	}
 
 	// Render form opening
 	fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s" autocomplete="off" spellcheck="false"`, HTMLEscapeString(action))
@@ -491,6 +469,12 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 		fmt.Fprintf(w, ` data-controller="form-exec"`)
 	}
 	fmt.Fprintf(w, `>`+"\n")
+
+	// Add hidden field for path if specified (transmitted via POST body to avoid browser normalization)
+	if n.RenderPath != "" {
+		fmt.Fprintf(w, `<input type="hidden" name="__gno_path" value="%s" />`+"\n", HTMLEscapeString(n.RenderPath))
+	}
+
 	headerLabel := "Form"
 	if n.ExecFunc != "" {
 		headerLabel = fmt.Sprintf("Exec: %s", HTMLEscapeString(titleCase(n.ExecFunc)))

