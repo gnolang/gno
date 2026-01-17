@@ -16,10 +16,10 @@ func TestNewNolintParser(t *testing.T) {
 
 func TestNolintParser_Parse(t *testing.T) {
 	tests := []struct {
-		name       string
-		source     string
-		wantLines  []int
-		wantRules  map[int][]string
+		name      string
+		source    string
+		wantLines []int
+		wantRules map[int][]string
 	}{
 		{
 			name:      "no nolint comments",
