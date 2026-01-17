@@ -36,7 +36,7 @@ func (r *mockReporter) Summary() (info, warnings, errors int) {
 	return r.info, r.warnings, r.errors
 }
 
-// alwaysIssueRule returns an issue for every node.
+// alwaysIssueRule returns an issue for every function declaration.
 type alwaysIssueRule struct{}
 
 func (alwaysIssueRule) Info() RuleInfo {
@@ -58,7 +58,6 @@ func (alwaysIssueRule) Check(ctx *RuleContext, node gnolang.Node) []Issue {
 	return nil
 }
 
-// neverIssueRule never returns issues.
 type neverIssueRule struct{}
 
 func (neverIssueRule) Info() RuleInfo {

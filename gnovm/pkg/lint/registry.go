@@ -3,7 +3,6 @@ package lint
 import "fmt"
 
 type Registry struct {
-	// mu    sync.RWMutex // if concurrent registration needed
 	rules map[string]Rule
 }
 
