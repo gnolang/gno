@@ -154,4 +154,3 @@ func TestJSONReporter_Flush_Empty(t *testing.T) {
 		t.Errorf("expected empty array, got %d issues", len(issues))
 	}
 }
-
