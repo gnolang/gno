@@ -26,3 +26,21 @@ func (s Severity) String() string {
 func (s Severity) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
+
+func (s *Severity) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	switch str {
+	case "info":
+		*s = SeverityInfo
+	case "warning":
+		*s = SeverityWarning
+	case "error":
+		*s = SeverityError
+	default:
+		*s = SeverityInfo
+	}
+	return nil
+}

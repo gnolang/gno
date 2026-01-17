@@ -8,6 +8,8 @@ type Engine struct {
 	reporter Reporter
 }
 
+// TODO: handle verbose mode for linting engine
+
 func NewEngine(config *Config, registry *Registry, reporter Reporter) *Engine {
 	return &Engine{
 		config:   config,
