@@ -6,7 +6,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
-// testRule is a simple rule for testing the registry.
 type testRule struct {
 	id string
 }
@@ -46,7 +45,6 @@ func TestRegistry_Register(t *testing.T) {
 		t.Fatalf("Register() error = %v", err)
 	}
 
-	// Verify rule is registered
 	got, ok := r.Get("TEST001")
 	if !ok {
 		t.Error("registered rule should be retrievable")
@@ -78,10 +76,8 @@ func TestRegistry_MustRegister(t *testing.T) {
 
 	rule := &testRule{id: "TEST001"}
 
-	// Should not panic
 	r.MustRegister(rule)
 
-	// Verify registration
 	_, ok := r.Get("TEST001")
 	if !ok {
 		t.Error("MustRegister should register the rule")
@@ -133,13 +129,11 @@ func TestRegistry_Get(t *testing.T) {
 func TestRegistry_All(t *testing.T) {
 	r := NewRegistry()
 
-	// Empty registry
 	all := r.All()
 	if len(all) != 0 {
 		t.Error("All() on empty registry should return empty slice")
 	}
 
-	// Add rules
 	rule1 := &testRule{id: "TEST001"}
 	rule2 := &testRule{id: "TEST002"}
 	rule3 := &testRule{id: "TEST003"}
@@ -153,7 +147,6 @@ func TestRegistry_All(t *testing.T) {
 		t.Errorf("All() returned %d rules, want 3", len(all))
 	}
 
-	// Verify all rules are present (order may vary)
 	ids := make(map[string]bool)
 	for _, rule := range all {
 		ids[rule.Info().ID] = true
@@ -172,7 +165,6 @@ func TestDefaultRegistry(t *testing.T) {
 }
 
 func TestPackageLevelRegister(t *testing.T) {
-	// Create a new registry for testing to avoid polluting DefaultRegistry
 	oldRegistry := DefaultRegistry
 	DefaultRegistry = NewRegistry()
 	defer func() { DefaultRegistry = oldRegistry }()

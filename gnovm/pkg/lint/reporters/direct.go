@@ -21,7 +21,7 @@ func NewDirectReporter(w io.Writer) *DirectReporter {
 }
 
 func (r *DirectReporter) Report(issue lint.Issue) {
-	fmt.Fprintln(r.w, issue.String())
+	_, _ = fmt.Fprintln(r.w, issue.String())
 	if issue.Severity == lint.SeverityError {
 		r.errors++
 	}
