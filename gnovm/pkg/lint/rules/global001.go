@@ -36,7 +36,7 @@ func (GLOBAL001) Check(ctx *lint.RuleContext, node gnolang.Node) []lint.Issue {
 		return nil
 	}
 
-	var issues []lint.Issue
+	issues := make([]lint.Issue, 0, len(decl.NameExprs))
 
 	for _, nx := range decl.NameExprs {
 		name := string(nx.Name)

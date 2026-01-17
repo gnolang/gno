@@ -35,6 +35,14 @@ gno lint --list-rules
 | `strict` | All issues become errors | 1 if any issues |
 | `warn-only` | All issues become warnings | Always 0 |
 
+### Severity Levels
+
+| Level | Description | Exit Code (default mode) |
+|-------|-------------|--------------------------|
+| `info` | Informational messages | 0 |
+| `warning` | Potential issues that may need attention | 0 |
+| `error` | Issues that must be fixed | 1 |
+
 ## Available Rules
 
 ### AVL001: Unbounded AVL Tree Iteration

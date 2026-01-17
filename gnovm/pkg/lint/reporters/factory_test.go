@@ -31,10 +31,10 @@ func TestNewReporter(t *testing.T) {
 	var buf bytes.Buffer
 
 	tests := []struct {
-		name       string
-		format     string
-		wantType   string
-		wantErr    bool
+		name     string
+		format   string
+		wantType string
+		wantErr  bool
 	}{
 		{"text format", "text", "*reporters.TextReporter", false},
 		{"json format", "json", "*reporters.JSONReporter", false},
