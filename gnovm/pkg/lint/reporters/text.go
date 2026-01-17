@@ -55,12 +55,12 @@ func (r *TextReporter) Flush() error {
 	})
 
 	for _, issue := range r.issues {
-		fmt.Fprintln(r.w, issue.String())
+		_, _ = fmt.Fprintln(r.w, issue.String())
 	}
 
 	total := r.info + r.warnings + r.errors
 	if total > 0 {
-		fmt.Fprintf(r.w, "\nFound %d issue(s): %d error(s), %d warning(s), %d info\n",
+		_, _ = fmt.Fprintf(r.w, "\nFound %d issue(s): %d error(s), %d warning(s), %d info\n",
 			total, r.errors, r.warnings, r.info)
 	}
 

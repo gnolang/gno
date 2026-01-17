@@ -68,14 +68,12 @@ func TestNolintParser_Parse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewNolintParser(tt.source)
 
-			// Check expected lines have directives
 			for _, line := range tt.wantLines {
 				if _, ok := p.byLine[line]; !ok {
 					t.Errorf("expected directive at line %d", line)
 				}
 			}
 
-			// Check rules match
 			for line, wantRules := range tt.wantRules {
 				d, ok := p.byLine[line]
 				if !ok {

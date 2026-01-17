@@ -161,7 +161,7 @@ func TestTextReporter_Flush_Sorted(t *testing.T) {
 	r.Report(lint.Issue{RuleID: "T2", Filename: "a.gno", Line: 10, Column: 1, Severity: lint.SeverityWarning})
 	r.Report(lint.Issue{RuleID: "T3", Filename: "a.gno", Line: 5, Column: 1, Severity: lint.SeverityWarning})
 
-	r.Flush()
+	_ = r.Flush()
 
 	output := buf.String()
 	lines := strings.Split(output, "\n")
