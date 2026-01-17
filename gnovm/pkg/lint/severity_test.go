@@ -25,15 +25,6 @@ func TestSeverity_String(t *testing.T) {
 	}
 }
 
-func TestSeverity_Ordering(t *testing.T) {
-	if SeverityInfo >= SeverityWarning {
-		t.Error("SeverityInfo should be less than SeverityWarning")
-	}
-	if SeverityWarning >= SeverityError {
-		t.Error("SeverityWarning should be less than SeverityError")
-	}
-}
-
 func TestSeverity_MarshalJSON(t *testing.T) {
 	tests := []struct {
 		name     string

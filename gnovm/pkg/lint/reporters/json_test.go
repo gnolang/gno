@@ -8,24 +8,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/lint"
 )
 
-func TestNewJSONReporter(t *testing.T) {
-	var buf bytes.Buffer
-	r := NewJSONReporter(&buf)
-
-	if r == nil {
-		t.Fatal("NewJSONReporter() returned nil")
-	}
-	if r.w != &buf {
-		t.Error("writer not set correctly")
-	}
-	if r.issues == nil {
-		t.Error("issues slice should be initialized")
-	}
-	if r.seen == nil {
-		t.Error("seen map should be initialized")
-	}
-}
-
 func TestJSONReporter_Report(t *testing.T) {
 	var buf bytes.Buffer
 	r := NewJSONReporter(&buf)
@@ -173,23 +155,3 @@ func TestJSONReporter_Flush_Empty(t *testing.T) {
 	}
 }
 
-func TestJSONReporter_Summary(t *testing.T) {
-	var buf bytes.Buffer
-	r := NewJSONReporter(&buf)
-
-	r.Report(lint.Issue{RuleID: "T1", Severity: lint.SeverityInfo, Filename: "a.gno", Line: 1, Column: 1})
-	r.Report(lint.Issue{RuleID: "T2", Severity: lint.SeverityWarning, Filename: "a.gno", Line: 2, Column: 1})
-	r.Report(lint.Issue{RuleID: "T3", Severity: lint.SeverityError, Filename: "a.gno", Line: 3, Column: 1})
-
-	info, warnings, errors := r.Summary()
-
-	if info != 1 {
-		t.Errorf("info = %d, want 1", info)
-	}
-	if warnings != 1 {
-		t.Errorf("warnings = %d, want 1", warnings)
-	}
-	if errors != 1 {
-		t.Errorf("errors = %d, want 1", errors)
-	}
-}

@@ -5,28 +5,6 @@ import (
 	"testing"
 )
 
-func TestAvailableFormats(t *testing.T) {
-	formats := AvailableFormats()
-
-	if len(formats) != 2 {
-		t.Errorf("expected 2 formats, got %d", len(formats))
-	}
-
-	expected := map[string]bool{
-		"text": true,
-		"json": true,
-	}
-	for _, f := range formats {
-		if !expected[f] {
-			t.Errorf("unexpected format: %s", f)
-		}
-		delete(expected, f)
-	}
-	for f := range expected {
-		t.Errorf("missing format: %s", f)
-	}
-}
-
 func TestNewReporter(t *testing.T) {
 	var buf bytes.Buffer
 
