@@ -76,10 +76,9 @@ var GlobalState int
 ### Text (default)
 
 ```
-counter.gno:42:5: warning: unbounded Iterate on avl.Tree (AVL001)
 counter.gno:10:5: warning: exported package-level variable: Counter (GLOBAL001)
 
-Found 2 issue(s): 0 error(s), 2 warning(s), 0 info
+Found 1 issue(s): 0 error(s), 1 warning(s), 0 info
 ```
 
 ### JSON
@@ -91,11 +90,11 @@ gno lint --format=json ./mypackage
 ```json
 [
   {
-    "ruleId": "AVL001",
+    "ruleId": "GLOBAL001",
     "severity": "warning",
-    "message": "unbounded Iterate on avl.Tree",
+    "message": "exported package-level variable: Counter",
     "filename": "counter.gno",
-    "line": 42,
+    "line": 10,
     "column": 5
   }
 ]
