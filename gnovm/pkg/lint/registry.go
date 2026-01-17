@@ -43,9 +43,6 @@ func (r *Registry) All() []Rule {
 	return rules
 }
 
-// func (r *Registry) IDs() []string // deferred
-// func (r *Registry) Len() int      // deferred
-
 func Register(rule Rule) error {
 	return DefaultRegistry.Register(rule)
 }

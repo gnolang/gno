@@ -11,10 +11,6 @@ const (
 type Config struct {
 	Mode   Mode
 	Format string
-	// Enable  []string // deferred
-	// Disable []string // deferred
-	// Nolint  NolintConfig // deferred - RequireReason bool
-	// Rules   map[string]map[string]interface{} // deferred - per-rule config
 }
 
 func DefaultConfig() *Config {
@@ -24,11 +20,7 @@ func DefaultConfig() *Config {
 	}
 }
 
-// LoadConfig from gnolint.toml - deferred
-// func LoadConfig(dir string) (*Config, error)
-
 func (c *Config) IsRuleEnabled(ruleID string) bool {
-	// When Enable/Disable lists are added, check them here
 	return true
 }
 

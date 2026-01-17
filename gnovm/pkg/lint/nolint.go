@@ -10,7 +10,6 @@ var nolintPattern = regexp.MustCompile(`^//\s*nolint(?::([A-Za-z0-9,]+))?`)
 type NolintDirective struct {
 	Line  int
 	Rules []string
-	// Reason string // deferred
 }
 
 type NolintParser struct {
