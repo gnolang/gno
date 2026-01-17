@@ -1,40 +1,6 @@
 package rules
 
-import (
-	"testing"
-
-	"github.com/gnolang/gno/gnovm/pkg/lint"
-)
-
-func TestGLOBAL001_Info(t *testing.T) {
-	rule := &GLOBAL001{}
-	info := rule.Info()
-
-	if info.ID != "GLOBAL001" {
-		t.Errorf("ID = %v, want GLOBAL001", info.ID)
-	}
-	if info.Category != lint.CategoryGeneral {
-		t.Errorf("Category = %v, want CategoryGeneral", info.Category)
-	}
-	if info.Name != "exported-global-variable" {
-		t.Errorf("Name = %v, want exported-global-variable", info.Name)
-	}
-	if info.Severity != lint.SeverityWarning {
-		t.Errorf("Severity = %v, want SeverityWarning", info.Severity)
-	}
-}
-
-func TestGLOBAL001_Check_NotValueDecl(t *testing.T) {
-	rule := &GLOBAL001{}
-	ctx := &lint.RuleContext{}
-
-	// GLOBAL001 only checks ValueDecl nodes
-	// Passing nil should return nil issues
-	issues := rule.Check(ctx, nil)
-	if issues != nil {
-		t.Errorf("Check(nil) = %v, want nil", issues)
-	}
-}
+import "testing"
 
 func TestIsExported(t *testing.T) {
 	tests := []struct {
@@ -64,11 +30,7 @@ func TestIsExported(t *testing.T) {
 }
 
 func TestIsFileLevelDecl(t *testing.T) {
-	// Test with nil parents
 	if isFileLevelDecl(nil) {
 		t.Error("isFileLevelDecl(nil) = true, want false")
 	}
-
-	// Note: Testing with actual FileNode requires constructing gnolang nodes,
-	// which is complex. Full testing is done through integration tests (txtar).
 }

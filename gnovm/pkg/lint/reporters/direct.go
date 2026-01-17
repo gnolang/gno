@@ -7,10 +7,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/lint"
 )
 
-// DirectReporter prints issues immediately as they are reported, without
-// buffering or sorting. Used by commands like 'gno test' that need real-time
-// output mixed with other command output. Unlike TextReporter, it does not
-// add a summary line at the end.
+// DirectReporter prints issues immediately without buffering, for real-time output.
 type DirectReporter struct {
 	w      io.Writer
 	errors int

@@ -11,7 +11,7 @@ import (
 type TextReporter struct {
 	w        io.Writer
 	issues   []lint.Issue
-	seen     map[string]bool // deduplication: track reported issues
+	seen     map[string]bool
 	info     int
 	warnings int
 	errors   int
@@ -26,8 +26,6 @@ func NewTextReporter(w io.Writer) *TextReporter {
 }
 
 func (r *TextReporter) Report(issue lint.Issue) {
-	// Deduplicate: same file, line, column, and rule should only be reported once.
-	// This can happen when the same file is included in multiple filesets (prod, test).
 	key := fmt.Sprintf("%s:%d:%d:%s", issue.Filename, issue.Line, issue.Column, issue.RuleID)
 	if r.seen[key] {
 		return
