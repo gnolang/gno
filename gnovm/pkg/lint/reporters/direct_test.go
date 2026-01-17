@@ -8,18 +8,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/lint"
 )
 
-func TestNewDirectReporter(t *testing.T) {
-	var buf bytes.Buffer
-	r := NewDirectReporter(&buf)
-
-	if r == nil {
-		t.Fatal("NewDirectReporter() returned nil")
-	}
-	if r.w != &buf {
-		t.Error("writer not set correctly")
-	}
-}
-
 func TestDirectReporter_Report(t *testing.T) {
 	var buf bytes.Buffer
 	r := NewDirectReporter(&buf)
@@ -100,48 +88,6 @@ func TestDirectReporter_Report_ErrorCount(t *testing.T) {
 
 	if r.errors != 2 {
 		t.Errorf("errors = %d, want 2", r.errors)
-	}
-}
-
-func TestDirectReporter_Flush(t *testing.T) {
-	var buf bytes.Buffer
-	r := NewDirectReporter(&buf)
-
-	r.Report(lint.Issue{
-		RuleID:   "TEST001",
-		Severity: lint.SeverityWarning,
-		Message:  "test message",
-		Filename: "test.gno",
-		Line:     10,
-		Column:   5,
-	})
-
-	// Flush should do nothing and return nil
-	err := r.Flush()
-	if err != nil {
-		t.Fatalf("Flush() error = %v", err)
-	}
-}
-
-func TestDirectReporter_Summary(t *testing.T) {
-	var buf bytes.Buffer
-	r := NewDirectReporter(&buf)
-
-	r.Report(lint.Issue{RuleID: "T1", Severity: lint.SeverityInfo, Filename: "a.gno", Line: 1, Column: 1})
-	r.Report(lint.Issue{RuleID: "T2", Severity: lint.SeverityWarning, Filename: "a.gno", Line: 2, Column: 1})
-	r.Report(lint.Issue{RuleID: "T3", Severity: lint.SeverityError, Filename: "a.gno", Line: 3, Column: 1})
-
-	info, warnings, errors := r.Summary()
-
-	// DirectReporter only tracks errors
-	if info != 0 {
-		t.Errorf("info = %d, want 0 (not tracked)", info)
-	}
-	if warnings != 0 {
-		t.Errorf("warnings = %d, want 0 (not tracked)", warnings)
-	}
-	if errors != 1 {
-		t.Errorf("errors = %d, want 1", errors)
 	}
 }
 

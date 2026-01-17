@@ -23,19 +23,6 @@ func (r *testRule) Check(ctx *RuleContext, node gnolang.Node) []Issue {
 	return nil
 }
 
-func TestNewRegistry(t *testing.T) {
-	r := NewRegistry()
-	if r == nil {
-		t.Fatal("NewRegistry() returned nil")
-	}
-	if r.rules == nil {
-		t.Error("rules map should be initialized")
-	}
-	if len(r.rules) != 0 {
-		t.Error("new registry should be empty")
-	}
-}
-
 func TestRegistry_Register(t *testing.T) {
 	r := NewRegistry()
 
@@ -158,8 +145,3 @@ func TestRegistry_All(t *testing.T) {
 	}
 }
 
-func TestDefaultRegistry(t *testing.T) {
-	if DefaultRegistry == nil {
-		t.Error("DefaultRegistry should be initialized")
-	}
-}

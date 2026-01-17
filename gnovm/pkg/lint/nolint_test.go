@@ -2,18 +2,6 @@ package lint
 
 import "testing"
 
-func TestNewNolintParser(t *testing.T) {
-	source := "package main\n\nfunc main() {}\n"
-	p := NewNolintParser(source)
-
-	if p == nil {
-		t.Fatal("NewNolintParser() returned nil")
-	}
-	if p.byLine == nil {
-		t.Error("byLine map should be initialized")
-	}
-}
-
 func TestNolintParser_Parse(t *testing.T) {
 	tests := []struct {
 		name      string

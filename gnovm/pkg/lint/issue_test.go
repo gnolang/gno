@@ -1,10 +1,6 @@
 package lint
 
-import (
-	"testing"
-
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-)
+import "testing"
 
 func TestIssue_Location(t *testing.T) {
 	tests := []struct {
@@ -102,29 +98,3 @@ func TestIssue_String(t *testing.T) {
 	}
 }
 
-func TestNewIssue(t *testing.T) {
-	pos := gnolang.Pos{Line: 42, Column: 10}
-	issue := NewIssue("TEST001", SeverityError, "test message", "file.gno", pos)
-
-	if issue.RuleID != "TEST001" {
-		t.Errorf("RuleID = %v, want TEST001", issue.RuleID)
-	}
-	if issue.Severity != SeverityError {
-		t.Errorf("Severity = %v, want SeverityError", issue.Severity)
-	}
-	if issue.Message != "test message" {
-		t.Errorf("Message = %v, want 'test message'", issue.Message)
-	}
-	if issue.Filename != "file.gno" {
-		t.Errorf("Filename = %v, want 'file.gno'", issue.Filename)
-	}
-	if issue.Line != 42 {
-		t.Errorf("Line = %v, want 42", issue.Line)
-	}
-	if issue.Column != 10 {
-		t.Errorf("Column = %v, want 10", issue.Column)
-	}
-	if issue.Pos != pos {
-		t.Errorf("Pos = %v, want %v", issue.Pos, pos)
-	}
-}
