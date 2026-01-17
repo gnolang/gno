@@ -186,4 +186,3 @@ func TestTextReporter_Flush_NoIssues(t *testing.T) {
 		t.Error("output should not contain summary when no issues")
 	}
 }
-

@@ -97,4 +97,3 @@ func TestIssue_String(t *testing.T) {
 		})
 	}
 }
-

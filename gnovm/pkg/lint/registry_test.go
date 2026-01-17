@@ -144,4 +144,3 @@ func TestRegistry_All(t *testing.T) {
 		}
 	}
 }
-
