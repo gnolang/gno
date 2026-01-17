@@ -33,6 +33,7 @@ type lintCmd struct {
 	rootDir    string
 	autoGnomod bool
 	mode       string
+	format     string
 	// min_confidence: minimum confidence of a problem to print it
 	// (default 0.8) auto-fix: apply suggested fixes automatically.
 }
@@ -60,6 +61,7 @@ func (c *lintCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
 	fs.BoolVar(&c.autoGnomod, "auto-gnomod", true, "auto-generate gnomod.toml file if not already present")
 	fs.StringVar(&c.mode, "mode", "default", "lint mode: default, strict, warn-only")
+	fs.StringVar(&c.format, "format", "text", "output format: text, json")
 }
 
 func execLint(cmd *lintCmd, args []string, io commands.IO) error {
@@ -353,7 +355,10 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		return fmt.Errorf("invalid lint mode: %q", cmd.mode)
 	}
 
-	reporter := reporters.NewTextReporter(io.Err())
+	reporter, err := reporters.NewReporter(cmd.format, io.Err())
+	if err != nil {
+		return err
+	}
 	engine := lint.NewEngine(lintCfg, lint.DefaultRegistry, reporter)
 
 	for _, ppkg := range ppkgs {

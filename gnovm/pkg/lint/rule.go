@@ -21,7 +21,7 @@ type RuleInfo struct {
 type RuleContext struct {
 	File    *gnolang.FileNode
 	Source  string
-	Parents []gnolang.Node // parent node stack (innermost last)
+	Parents []gnolang.Node
 	// Store  gnolang.Store          // if rules need dynamic type resolution
 	// Package *gnolang.PackageNode   // if rules need package-level info
 	// Config  map[string]interface{} // for ConfigurableRule
