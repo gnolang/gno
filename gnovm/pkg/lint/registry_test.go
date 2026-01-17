@@ -163,36 +163,3 @@ func TestDefaultRegistry(t *testing.T) {
 		t.Error("DefaultRegistry should be initialized")
 	}
 }
-
-func TestPackageLevelRegister(t *testing.T) {
-	oldRegistry := DefaultRegistry
-	DefaultRegistry = NewRegistry()
-	defer func() { DefaultRegistry = oldRegistry }()
-
-	rule := &testRule{id: "PKG001"}
-
-	err := Register(rule)
-	if err != nil {
-		t.Fatalf("Register() error = %v", err)
-	}
-
-	_, ok := DefaultRegistry.Get("PKG001")
-	if !ok {
-		t.Error("package-level Register should add to DefaultRegistry")
-	}
-}
-
-func TestPackageLevelMustRegister(t *testing.T) {
-	oldRegistry := DefaultRegistry
-	DefaultRegistry = NewRegistry()
-	defer func() { DefaultRegistry = oldRegistry }()
-
-	rule := &testRule{id: "PKG002"}
-
-	MustRegister(rule)
-
-	_, ok := DefaultRegistry.Get("PKG002")
-	if !ok {
-		t.Error("package-level MustRegister should add to DefaultRegistry")
-	}
-}

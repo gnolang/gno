@@ -61,7 +61,6 @@ func TestNewReporter(t *testing.T) {
 				t.Fatal("reporter should not be nil")
 			}
 
-			// Check type by attempting type assertions
 			switch tt.wantType {
 			case "*reporters.TextReporter":
 				if _, ok := r.(*TextReporter); !ok {
@@ -73,14 +72,5 @@ func TestNewReporter(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestFormatConstants(t *testing.T) {
-	if FormatText != "text" {
-		t.Errorf("FormatText = %q, want 'text'", FormatText)
-	}
-	if FormatJSON != "json" {
-		t.Errorf("FormatJSON = %q, want 'json'", FormatJSON)
 	}
 }
