@@ -92,6 +92,11 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 
 	hasError := false
 
+	reporter, err := reporters.NewReporter(cmd.format, io.Err())
+	if err != nil {
+		return err
+	}
+
 	prodbs, prodgs := test.StoreWithOptions(
 		cmd.rootDir, goio.Discard,
 		test.StoreOptions{PreprocessOnly: true, WithExtern: false, WithExamples: true, Testing: false, Packages: pkgs},
@@ -164,14 +169,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			}
 		}
 		if err != nil {
-			issue := gnoIssue{
-				Code:       gnoGnoModError,
-				Confidence: 1, // ??
-				Location:   fpath,
-				Msg:        err.Error(),
-			}
-			io.ErrPrintln(issue)
-			hasError = true
+			reportIssue(reporter, gnoGnoModError, err.Error(), fpath)
+			reporter.Flush()
 			return commands.ExitCodeError(1)
 		}
 
@@ -181,7 +180,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
 		mpkg, err := gno.ReadMemPackage(dir, pkgPath, gno.MPAnyAll)
 		if err != nil {
-			printError(io.Err(), dir, pkgPath, err)
+			reportError(reporter, dir, pkgPath, err)
 			hasError = true
 			continue
 		}
@@ -197,7 +196,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// Perform imports using the parent store.
 		abortOnError := true
 		if err := test.LoadImports(testgs, mpkg, abortOnError); err != nil {
-			printError(io.Err(), dir, pkgPath, err)
+			reportError(reporter, dir, pkgPath, err)
 			hasError = true
 			continue
 		}
@@ -246,7 +245,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		}
 
 		// Handle runtime errors
-		didPanic := catchPanic(dir, pkgPath, io.Err(), func() {
+		didPanic := catchPanicWithReporter(reporter, dir, pkgPath, func() {
 			// Memo process results here.
 			ppkg := cmdutil.ProcessedPackage{MPkg: mpkg, Dir: dir}
 
@@ -266,7 +265,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				tcmode = gno.TCLatestRelaxed
 			}
 			tcFset := token.NewFileSet()
-			tcPkg, errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
+			tcPkg, errs := lintTypeCheck(reporter, dir, mpkg, gno.TypeCheckOptions{
 				Getter:     newProdGnoStore(),
 				TestGetter: newTestGnoStore(true),
 				Mode:       tcmode,
@@ -332,7 +331,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
 					pkgPath, err = parsePkgPathDirective(mfile.Body, pkgPath)
 					if err != nil {
-						io.ErrPrintln(err)
+						reportError(reporter, dir, pkgPath, err)
 						hasError = true
 						continue
 					}
@@ -350,6 +349,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		}
 	}
 	if hasError {
+		reporter.Flush()
 		return commands.ExitCodeError(1)
 	}
 
@@ -367,10 +367,6 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		return fmt.Errorf("invalid lint mode: %q", cmd.mode)
 	}
 
-	reporter, err := reporters.NewReporter(cmd.format, io.Err())
-	if err != nil {
-		return err
-	}
 	engine := lint.NewEngine(lintCfg, lint.DefaultRegistry, reporter)
 
 	for _, ppkg := range ppkgs {
@@ -433,25 +429,20 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	return nil
 }
 
-// Wrapper around TypeCheckMemPackage() to io.ErrPrintln(gnoIssue{}).
-// Prints and returns errors. Panics upon an unexpected error.
 func lintTypeCheck(
-	// Args:
-	io commands.IO,
+	reporter lint.Reporter,
 	dir string,
 	mpkg *std.MemPackage,
-	opts gno.TypeCheckOptions) (
-	// Results:
+	opts gno.TypeCheckOptions,
+) (
 	tcPkg *types.Package,
 	lerr error,
 ) {
-	// gno.TypeCheckMemPackage(mpkg, testStore).
 	tcPkg, tcErrs := gno.TypeCheckMemPackage(mpkg, opts)
 
-	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)
 	for _, err := range errors {
-		printError(io.Err(), dir, mpkg.Path, err)
+		reportError(reporter, dir, mpkg.Path, err)
 	}
 
 	lerr = tcErrs
