@@ -1,0 +1,22 @@
+# Test GLOBAL001: does NOT detect constants
+
+gno lint .
+
+! stderr 'GLOBAL001'
+
+-- main.gno --
+package main
+
+const MaxValue = 100
+
+func GetMax() int {
+	return MaxValue
+}
+
+func Render(path string) string {
+	return ""
+}
+
+-- gnomod.toml --
+module = "gno.land/r/test/global001const"
+gno = "0.9"
