@@ -7,14 +7,14 @@ import (
 )
 
 type Issue struct {
-	RuleID     string
-	Severity   Severity
-	Message    string
-	Filename   string
-	Line       int
-	Column     int
-	Pos        gnolang.Pos
-	Suggestion string
+	RuleID     string      `json:"ruleId"`
+	Severity   Severity    `json:"severity"`
+	Message    string      `json:"message"`
+	Filename   string      `json:"filename"`
+	Line       int         `json:"line"`
+	Column     int         `json:"column"`
+	Pos        gnolang.Pos `json:"-"`
+	Suggestion string      `json:"suggestion,omitempty"`
 }
 
 func (i Issue) Location() string {

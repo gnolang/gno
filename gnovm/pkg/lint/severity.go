@@ -1,5 +1,7 @@
 package lint
 
+import "encoding/json"
+
 type Severity int
 
 const (
@@ -19,4 +21,8 @@ func (s Severity) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+func (s Severity) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
 }
