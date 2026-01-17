@@ -1,0 +1,19 @@
+# Test --mode=warn-only: always exits 0
+
+gno lint --mode=warn-only .
+
+stderr 'warning'
+stderr 'GLOBAL001'
+
+-- main.gno --
+package main
+
+var Counter int
+
+func Render(path string) string {
+	return ""
+}
+
+-- gnomod.toml --
+module = "gno.land/r/test/modewarnonly"
+gno = "0.9"

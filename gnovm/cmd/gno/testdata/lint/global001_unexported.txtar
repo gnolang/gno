@@ -1,0 +1,26 @@
+# Test GLOBAL001: does NOT detect unexported variables
+
+gno lint .
+
+! stderr 'GLOBAL001'
+
+-- main.gno --
+package main
+
+var counter int
+
+func Increment(_ realm) {
+	counter++
+}
+
+func GetCounter() int {
+	return counter
+}
+
+func Render(path string) string {
+	return ""
+}
+
+-- gnomod.toml --
+module = "gno.land/r/test/global001unexported"
+gno = "0.9"

@@ -8,6 +8,7 @@ import (
 	goio "io"
 	"io/fs"
 	"path/filepath"
+	"sort"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/cmdutil"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -34,8 +35,7 @@ type lintCmd struct {
 	autoGnomod bool
 	mode       string
 	format     string
-	// min_confidence: minimum confidence of a problem to print it
-	// (default 0.8) auto-fix: apply suggested fixes automatically.
+	listRules  bool
 }
 
 func newLintCmd(io commands.IO) *commands.Command {
@@ -57,14 +57,20 @@ func newLintCmd(io commands.IO) *commands.Command {
 func (c *lintCmd) RegisterFlags(fs *flag.FlagSet) {
 	rootdir := gnoenv.RootDir()
 
-	fs.BoolVar(&c.verbose, "v", false, "verbose output when lintning")
+	fs.BoolVar(&c.verbose, "v", false, "verbose output when linting")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
 	fs.BoolVar(&c.autoGnomod, "auto-gnomod", true, "auto-generate gnomod.toml file if not already present")
 	fs.StringVar(&c.mode, "mode", "default", "lint mode: default, strict, warn-only")
 	fs.StringVar(&c.format, "format", "text", "output format: text, json")
+	fs.BoolVar(&c.listRules, "list-rules", false, "list available lint rules and exit")
 }
 
 func execLint(cmd *lintCmd, args []string, io commands.IO) error {
+	// Handle --list-rules first
+	if cmd.listRules {
+		return listLintRules(io)
+	}
+
 	// Show a help message by default.
 	if len(args) == 0 {
 		return flag.ErrHelp
@@ -440,4 +446,22 @@ func lintTargetName(pkg *packages.Package) string {
 	}
 
 	return tryRelativizePath(pkg.Dir)
+}
+
+func listLintRules(io commands.IO) error {
+	rules := lint.DefaultRegistry.All()
+
+	ruleInfos := make([]lint.RuleInfo, len(rules))
+	for i, r := range rules {
+		ruleInfos[i] = r.Info()
+	}
+	sort.Slice(ruleInfos, func(i, j int) bool {
+		return ruleInfos[i].ID < ruleInfos[j].ID
+	})
+
+	io.Println("Available lint rules:\n")
+	for _, info := range ruleInfos {
+		io.Printf("  %-12s %-30s (%s)\n", info.ID, info.Name, info.Severity)
+	}
+	return nil
 }

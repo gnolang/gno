@@ -1,0 +1,25 @@
+# Test GLOBAL001: detects exported package-level variables
+# Note: warnings don't cause failure in default mode
+
+gno lint .
+
+stderr 'GLOBAL001'
+stderr 'exported package-level variable'
+stderr 'Counter'
+
+-- main.gno --
+package main
+
+var Counter int
+
+func Increment(_ realm) {
+	Counter++
+}
+
+func Render(path string) string {
+	return ""
+}
+
+-- gnomod.toml --
+module = "gno.land/r/test/global001"
+gno = "0.9"
