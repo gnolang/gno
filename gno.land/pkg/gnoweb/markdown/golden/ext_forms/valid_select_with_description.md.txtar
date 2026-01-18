@@ -14,7 +14,7 @@
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
 <div id="desc_language_0" class="gno-form_description">Select your preferred programming language</div>
-<div class="gno-form_select"><label for="language"> Language </label>
+<div class="gno-form_select"><label for="language">Language</label>
 <select id="language" name="language" aria-labelledby="desc_language_0">
 <option value="">Select a Language</option>
 <option value="Go">Go</option>
