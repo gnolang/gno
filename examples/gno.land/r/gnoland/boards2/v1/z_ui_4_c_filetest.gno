@@ -4,30 +4,32 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const (
 	owner        address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
-	srcBoardName         = "BoardName"
-	dstBoardName         = "BoardName2"
+	srcBoardName         = "test-board"
+	dstBoardName         = "test-board-2"
 )
 
 var (
-	threadID       boards2.PostID
-	repostThreadID boards2.PostID
+	threadID       boards.ID
+	repostThreadID boards.ID
 )
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := boards2.CreateBoard(cross, srcBoardName, false)
+	boardID := boards2.CreateBoard(cross, srcBoardName, false, false)
 	threadID = boards2.CreateThread(cross, boardID, "Foo", "Body")
 
 	// Repost thread into a different board
-	dstBoardID := boards2.CreateBoard(cross, dstBoardName, false)
-	repostThreadID = boards2.CreateRepost(cross, boardID, threadID, "Bar", "Body2", dstBoardID)
+	dstBoardID := boards2.CreateBoard(cross, dstBoardName, false, false)
+	repostThreadID = boards2.CreateRepost(cross, boardID, threadID, dstBoardID, "Bar", "Body2")
 }
 
 func main() {
@@ -41,22 +43,24 @@ func main() {
 }
 
 // Output:
-// # Foo
+// # [Boards](/r/gnoland/boards2/v1) › [test\-board](/r/gnoland/boards2/v1:test-board)
+// ## Foo
 //
+// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
 // Body
 //
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, 1 repost(s)
-// [Flag](/r/gnoland/boards2/v1$help&func=FlagThread&boardID=1&reason=&threadID=1) • [Repost](/r/gnoland/boards2/v1$help&func=CreateRepost&boardID=1&body=&destinationBoardID=&threadID=1&title=) • [Reply](/r/gnoland/boards2/v1$help&func=CreateReply&boardID=1&body=&replyID=0&threadID=1) • [Edit](/r/gnoland/boards2/v1$help&func=EditThread&boardID=1&body=Body&threadID=1&title=Foo) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)
+// ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) [1] • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)
 //
 // >>><<<
 //
-// # Bar
+// # [Boards](/r/gnoland/boards2/v1) › [test\-board\-2](/r/gnoland/boards2/v1:test-board-2)
+// ## Bar
 //
+// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
 //
-// This thread is a repost of [another thread](/r/gnoland/boards2/v1:BoardName/1):
+// This thread is a repost of [another thread](/r/gnoland/boards2/v1:test-board/1):
 // > Body
 //
 // Body2
 //
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
-// [Flag](/r/gnoland/boards2/v1$help&func=FlagThread&boardID=2&reason=&threadID=1) • [Repost](/r/gnoland/boards2/v1$help&func=CreateRepost&boardID=2&body=&destinationBoardID=&threadID=1&title=) • [Reply](/r/gnoland/boards2/v1$help&func=CreateReply&boardID=2&body=&replyID=0&threadID=1) • [Edit](/r/gnoland/boards2/v1$help&func=EditThread&boardID=2&body=Body2&threadID=1&title=Bar) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=2&threadID=1)
+// ↳ [Flag](/r/gnoland/boards2/v1:test-board-2/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board-2/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board-2/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board-2/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=2&threadID=1)
