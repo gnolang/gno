@@ -1004,14 +1004,14 @@ func makeUverseNode() {
 			"amounts", "[]int64",
 		),
 		func(m *Machine) {
-			firstPkg := m.Frames[1].LastPackage.PkgPath
-			lastPkg := m.Frames[m.NumFrames()-1].LastPackage.PkgPath
 			var (
 				denoms  []string
 				amounts []int64
+				// Only return coins if current pkg is the initial pkg that actually
+				// received the funds.
+				firstPkg = m.Frames[1].LastPackage.PkgPath
+				lastPkg  = m.Frames[m.NumFrames()-1].LastPackage.PkgPath
 			)
-			// Only return coins if current pkg is the initial pkg that actually
-			// received the funds.
 			if firstPkg == lastPkg {
 				if osp, ok := m.Context.(OriginSendProvider); ok {
 					coins := osp.GetOriginSend()
