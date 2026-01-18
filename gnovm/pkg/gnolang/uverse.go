@@ -1159,6 +1159,8 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 	consumeGas(m, NativeCPUUversePrintInit)
 	output := formatUverseOutput(m, xv, newline)
 	consumeGas(m, overflow.Divp(types.Gas(len(output)), NativeCPUUversePrintCharsPerGas))
+	// For debugging:
+	// fmt.Println(colors.Cyan(string(output)))
 	m.Output.Write(output)
 }
 
