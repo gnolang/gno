@@ -15,7 +15,7 @@
 <span><span class="font-bold">/r/test</span> Form</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
-<div class="gno-form_select"><label for="country"> Country </label>
+<div class="gno-form_select"><label for="country">Country</label>
 <select id="country" name="country">
 <option value="">Select a Country</option>
 <option value="United States">United States</option>
@@ -24,7 +24,7 @@
 </select>
 <svg class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><use href="#ico-arrow"></use></svg>
 </div>
-<div class="gno-form_select"><label for="language"> Language </label>
+<div class="gno-form_select"><label for="language">Language</label>
 <select id="language" name="language">
 <option value="">Select a Language</option>
 <option value="Go">Go</option>
