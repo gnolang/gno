@@ -6,10 +6,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"reflect"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -98,6 +100,12 @@ var gCoinsType = &DeclaredType{
 	sealed:  true,
 }
 
+// OriginSendProvider is an interface for contexts that can provide origin send information.
+// This interface is implemented by ExecContext to avoid import cycles.
+type OriginSendProvider interface {
+	GetOriginSend() std.Coins
+}
+
 var gRealmType = &DeclaredType{
 	PkgPath: uversePkgPath,
 	Name:    "realm",
@@ -125,7 +133,9 @@ var gRealmType = &DeclaredType{
 				Type: &FuncType{
 					Params: nil,
 					Results: []FieldType{{
-						Type: gCoinsType,
+						Type: &SliceType{Elt: StringType},
+					}, {
+						Type: &SliceType{Elt: Int64Type},
 					}},
 				},
 			}, {
@@ -990,10 +1000,39 @@ func makeUverseNode() {
 	defNativeMethod(".grealm", "Coins",
 		nil, // params
 		Flds( // results
-			"", "gnocoins",
+			"denoms", "[]string",
+			"amounts", "[]int64",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			firstPkg := m.Frames[1].LastPackage.PkgPath
+			lastPkg := m.Frames[m.NumFrames()-1].LastPackage.PkgPath
+			var (
+				denoms  []string
+				amounts []int64
+			)
+			// Only return coins if current pkg is the initial pkg that actually
+			// received the funds.
+			if firstPkg == lastPkg {
+				if osp, ok := m.Context.(OriginSendProvider); ok {
+					coins := osp.GetOriginSend()
+					denoms = make([]string, len(coins))
+					amounts = make([]int64, len(coins))
+					for i, coin := range coins {
+						denoms[i] = coin.Denom
+						amounts[i] = coin.Amount
+					}
+				}
+			}
+			m.PushValue(Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&denoms).Elem(),
+			))
+			m.PushValue(Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&amounts).Elem(),
+			))
 		},
 	)
 	defNativeMethod(".grealm", "Send",
