@@ -1,3 +1,4 @@
+// Package auth provides the 'gnokms auth' command and its subcommands for managing mutual authentication keys.
 package auth
 
 import (
