@@ -41,7 +41,7 @@ func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
 type realm interface {
     Address() address
     PkgPath() string
-    Coins() gnocoins
+    Coins() ([]string, []int64)
     Send(coins gnocoins, to address) error
     Previous() realm
     Origin() realm
