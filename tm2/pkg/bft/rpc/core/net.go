@@ -3,6 +3,7 @@ package core
 import (
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // Get network info.
@@ -153,7 +154,9 @@ import (
 //	  }
 //
 // ```
-func NetInfo(_ *rpctypes.Context) (*ctypes.ResultNetInfo, error) {
+func NetInfo(ctx *rpctypes.Context) (*ctypes.ResultNetInfo, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "NetInfo")
+	defer span.End()
 	var (
 		set     = p2pPeers.Peers()
 		out, in = set.NumOutbound(), set.NumInbound()
@@ -225,5 +228,7 @@ func NetInfo(_ *rpctypes.Context) (*ctypes.ResultNetInfo, error) {
 //
 // ```
 func Genesis(ctx *rpctypes.Context) (*ctypes.ResultGenesis, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "Genesis")
+	defer span.End()
 	return &ctypes.ResultGenesis{Genesis: genDoc}, nil
 }

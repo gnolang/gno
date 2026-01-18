@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -19,7 +20,10 @@ func TestNewRemoteSignerClient(t *testing.T) {
 	t.Run("nil logger", func(t *testing.T) {
 		t.Parallel()
 
-		rsc, err := NewRemoteSignerClient("", nil)
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		rsc, err := NewRemoteSignerClient(ctx, "", nil)
 		require.Nil(t, rsc)
 		assert.ErrorIs(t, err, ErrNilLogger)
 	})
@@ -28,7 +32,11 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		t.Parallel()
 
 		invalidAddressProtocol := "udp://127.0.0.1"
-		rsc, err := NewRemoteSignerClient(invalidAddressProtocol, logger)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		rsc, err := NewRemoteSignerClient(ctx, invalidAddressProtocol, logger)
 		require.Nil(t, rsc)
 		assert.ErrorIs(t, err, ErrInvalidAddressProtocol)
 	})
@@ -44,15 +52,19 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default dialMaxRetries.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+		rsc, err := NewRemoteSignerClient(ctx, unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultDialMaxRetries, rsc.dialMaxRetries)
 		rsc.Close()
 
 		// Test functional option.
+		ctx, cancelFn = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		option := WithDialMaxRetries(3)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(ctx, unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, 3, rsc.dialMaxRetries)
@@ -69,15 +81,19 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default dialRetryInterval.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+		rsc, err := NewRemoteSignerClient(ctx, unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultDialRetryInterval, rsc.dialRetryInterval)
 		rsc.Close()
 
 		// Test functional option.
+		ctx, cancelFn = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		option := WithDialRetryInterval(42)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(ctx, unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, time.Duration(42), rsc.dialRetryInterval)
@@ -94,15 +110,19 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default dialTimeout.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+		rsc, err := NewRemoteSignerClient(ctx, unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultDialTimeout, rsc.dialTimeout)
 		rsc.Close()
 
 		// Test functional option.
+		ctx, cancelFn = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		option := WithDialTimeout(time.Millisecond)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(ctx, unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, time.Millisecond, rsc.dialTimeout)
@@ -119,15 +139,19 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default keepAlivePeriod.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+		rsc, err := NewRemoteSignerClient(ctx, unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultKeepAlivePeriod, rsc.keepAlivePeriod)
 		rsc.Close()
 
 		// Test functional option.
+		ctx, cancelFn = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		option := WithKeepAlivePeriod(42)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(ctx, unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, time.Duration(42), rsc.keepAlivePeriod)
@@ -144,15 +168,19 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default requestTimeout.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+		rsc, err := NewRemoteSignerClient(ctx, unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultRequestTimeout, rsc.requestTimeout)
 		rsc.Close()
 
 		// Test functional option.
+		ctx, cancelFn = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		option := WithRequestTimeout(time.Millisecond)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(ctx, unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, time.Millisecond, rsc.requestTimeout)
@@ -169,16 +197,20 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default clientPrivKey.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+		rsc, err := NewRemoteSignerClient(ctx, unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.NotNil(t, rsc.clientPrivKey)
 		rsc.Close()
 
 		// Test functional option.
+		ctx, cancelFn = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		privKey := ed25519.GenPrivKey()
 		option := WithClientPrivKey(privKey)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(ctx, unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, privKey, rsc.clientPrivKey)
@@ -195,16 +227,20 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default authorizedKeys.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+		rsc, err := NewRemoteSignerClient(ctx, unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Empty(t, rsc.authorizedKeys)
 		rsc.Close()
 
 		// Test functional option.
+		ctx, cancelFn = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		keys := []ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}
 		option := WithAuthorizedKeys(keys)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(ctx, unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, keys, rsc.authorizedKeys)
