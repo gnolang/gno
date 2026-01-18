@@ -139,6 +139,20 @@ func (vm *VMKeeper) Initialize(
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
 
+		opts := gno.TypeCheckOptions{
+			Getter:     vm.gnoStore,
+			TestGetter: vm.testStdlibCache.memPackageGetter(vm.gnoStore),
+			Mode:       gno.TCLatestStrict,
+			Cache:      vm.typeCheckCache,
+		}
+		for _, stdlib := range stdlibs.InitOrder() {
+			mp := vm.gnoStore.GetMemPackage(stdlib)
+			_, err := gno.TypeCheckMemPackage(mp, opts)
+			if err != nil {
+				panic(fmt.Errorf("intialization error type checking %q: %w", stdlib, err))
+			}
+		}
+
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
@@ -152,11 +166,9 @@ type stdlibCache struct {
 }
 
 var (
-	cachedStdlibOnce sync.Once
-	cachedStdlib     stdlibCache
-	// XXX: this is shared across different goroutines, in txtar tests.
-	// need to find a better way, or put a lock.
-	sharedTypeCheckCache gno.TypeCheckCache
+	cachedStdlibOnce         sync.Once
+	cachedStdlib             stdlibCache
+	cachedInitTypeCheckCache gno.TypeCheckCache
 )
 
 // LoadStdlib loads the Gno standard library into the given store.
@@ -171,8 +183,20 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 		gs := gno.NewStore(nil, cachedStdlib.base, cachedStdlib.iavl)
 		gs.SetNativeResolver(stdlibs.NativeResolver)
 		loadStdlib(gs, stdlibDir)
+		cachedInitTypeCheckCache = make(gno.TypeCheckCache)
+		opts := gno.TypeCheckOptions{
+			Getter:     gs,
+			TestGetter: vm.testStdlibCache.memPackageGetter(gs),
+			Mode:       gno.TCLatestStrict,
+			Cache:      cachedInitTypeCheckCache,
+		}
+		for _, lib := range stdlibs.InitOrder() {
+			_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+			if err != nil {
+				panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
+			}
+		}
 		cachedStdlib.gno = gs
-		sharedTypeCheckCache = make(gno.TypeCheckCache)
 	})
 
 	if stdlibDir != cachedStdlib.dir {
@@ -184,13 +208,25 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 
 	gs := vm.getGnoTransactionStore(ctx)
 	gno.CopyFromCachedStore(gs, cachedStdlib.gno, cachedStdlib.base, cachedStdlib.iavl)
-	vm.typeCheckCache = sharedTypeCheckCache
+	vm.typeCheckCache = maps.Clone(cachedInitTypeCheckCache)
 }
 
 // LoadStdlib loads the Gno standard library into the given store.
 func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 	gs := vm.getGnoTransactionStore(ctx)
 	loadStdlib(gs, stdlibDir)
+	opts := gno.TypeCheckOptions{
+		Getter:     gs,
+		TestGetter: vm.testStdlibCache.memPackageGetter(gs),
+		Mode:       gno.TCLatestStrict,
+		Cache:      vm.getTypeCheckCache(ctx),
+	}
+	for _, lib := range stdlibs.InitOrder() {
+		_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+		if err != nil {
+			panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
+		}
+	}
 }
 
 func loadStdlib(store gno.Store, stdlibDir string) {
@@ -429,9 +465,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
-	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
+
+	pv := gnostore.GetPackage(pkgPath, false)
+	if pv != nil && !pv.Private {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 	}
+
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
 		return ErrInvalidPkgPath("package path must be valid realm or p package path")
 	}
@@ -464,6 +503,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// no development packages.
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
+	}
+	if pv != nil && pv.Private && !gm.Private {
+		return ErrInvalidPackage("a private package cannot be overridden by a public package")
 	}
 	if gm.Private && !gno.IsRealmPath(pkgPath) {
 		return ErrInvalidPackage("private packages must be realm packages")
@@ -556,6 +598,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pl := gno.PackageNodeLocation(pkgPath)
 	pn := gnostore.GetBlockNode(pl).(*gno.PackageNode)
 	ft := pn.GetStaticTypeOf(gnostore, gno.Name(fnc)).(*gno.FuncType)
+	if len(ft.Params) == 0 || ft.Params[0].Type.String() != ".uverse.realm" {
+		panic(fmt.Sprintf("function %s is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun", fnc))
+	}
+
 	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})

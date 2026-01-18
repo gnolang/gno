@@ -61,7 +61,8 @@ UI - Help Function component
 </h2>
 <div class="c-stack">
   {{ range .Functions }}
-  <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}">
+  <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}"
+    data-action-function-pkgpath-value="{{ $.PkgPath }}">
     <header>
       <span class="title">
         <h2 id="func-{{ .Name }}">
@@ -148,8 +149,29 @@ UI - Help Function component
     </form>
     <div>
       <h3 class="title">Command</h3>
-      {{ template "ui/command" (buildCommandData $data .) }}
+      <div class="b-code u-mb-2">
+        <button data-controller="copy" data-action="click->copy#copy"
+          data-copy-remote-value="action-function-{{ .Name }}" data-copy-clean-value class="btn-copy"
+          aria-label="Copy Command">
+          {{ template "ui/copy" }}
+        </button>
+        {{/* prettier-ignore-start */}}
+        {{ if .Crossing }}
+        {{ template "ui/command" (buildCommandData $data .) }}
+        {{ else }}
+        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "<span data-action-function-target="remote">{{ $.Remote }}</span>" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $p.Name }}"></span>{{ end }})"</span></code></pre>
+        {{ end }}
+        {{/* prettier-ignore-end */}}
+      </div>
     </div>
+    {{ if not .Crossing }}
+    <div class="b-action-result">
+      <h3 class="title">Result</h3>
+      <div class="b-code">
+        <pre><code><span data-action-function-target="qeval-result"></span></code></pre>
+      </div>
+    </div>
+    {{ end }}
   </article>
   {{ end }}
 </div>

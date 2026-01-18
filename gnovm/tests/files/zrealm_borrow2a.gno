@@ -13,7 +13,7 @@ type Struct struct {
 func (s *Struct) Mutate() {
 	s.A += 1
 	// modify object associated to borrowed realm
-	crossrealm_b.Closure = func() { println("foo closure") }
+	crossrealm_b.SetClosure(cross, func() { println("foo closure") })
 }
 
 func (s *Struct) Get() int {
