@@ -152,12 +152,10 @@ type defaultStore struct {
 	iavlStore store.Store // for escaped object hashes
 
 	// transaction-scoped
-	cacheObjects          map[ObjectID]Object            // this is a real cache, reset with every transaction.
-	cacheObjectCounts     map[string]uint64              // local cache for object counts to reduce DB hits.
-	cachePackageRevisions map[PkgID]uint64               // local cache for package revisions.
-	cacheTypes            txlog.Map[TypeID, Type]        // this re-uses the parent store's.
-	cacheNodes            txlog.Map[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
-	alloc                 *Allocator                     // for accounting for cached items
+	cacheObjects map[ObjectID]Object            // this is a real cache, reset with every transaction.
+	cacheTypes   txlog.Map[TypeID, Type]        // this re-uses the parent store's.
+	cacheNodes   txlog.Map[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
+	alloc        *Allocator                     // for accounting for cached items
 
 	// Partially restored package; occupies memory and tracked for GC,
 	// this is more efficient than iterating over cacheObjects.
@@ -186,11 +184,9 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		alloc:     alloc,
 
 		// cacheObjects is set; objects in the store will be copied over for any transaction.
-		cacheObjects:          make(map[ObjectID]Object),
-		cacheObjectCounts:     make(map[string]uint64),
-		cachePackageRevisions: make(map[PkgID]uint64),
-		cacheTypes:            txlog.GoMap[TypeID, Type](map[TypeID]Type{}),
-		cacheNodes:            txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
+		cacheObjects: make(map[ObjectID]Object),
+		cacheTypes:   txlog.GoMap[TypeID, Type](map[TypeID]Type{}),
+		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
 
 		// reset at the message level
 		realmStorageDiffs: make(map[string]int64),
@@ -218,12 +214,10 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 		iavlStore: iavlStore,
 
 		// transaction-scoped
-		cacheObjects:          make(map[ObjectID]Object),
-		cacheObjectCounts:     make(map[string]uint64),
-		cachePackageRevisions: make(map[PkgID]uint64),
-		cacheTypes:            txlog.Wrap(ds.cacheTypes),
-		cacheNodes:            txlog.Wrap(ds.cacheNodes),
-		alloc:                 ds.alloc.Fork().Reset(),
+		cacheObjects: make(map[ObjectID]Object),
+		cacheTypes:   txlog.Wrap(ds.cacheTypes),
+		cacheNodes:   txlog.Wrap(ds.cacheNodes),
+		alloc:        ds.alloc.Fork().Reset(),
 
 		// store configuration
 		pkgGetter:      ds.pkgGetter,
@@ -735,9 +729,15 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		ds.iavlStore.Set(key, value)
 	}
 
-	pid := oid.PkgID
-	pkgidx := ds.GetPackageRevision(pid)
-	ds.ensureObjectCount(backendObjectIndexKey(pid, pkgidx), oid.NewTime)
+	// If private package, update object count.
+	// Only private packages can be overridden.
+	poid := ObjectIDFromPkgID(oid.PkgID)
+	pv := ds.GetObject(poid).(*PackageValue)
+	if pv.Private {
+		pid := oid.PkgID
+		pkgidx := ds.GetPackageRevision(pid)
+		ds.ensureObjectCount(backendObjectIndexKey(pid, pkgidx), oid.NewTime)
+	}
 	return diff
 }
 
@@ -1018,40 +1018,26 @@ func (ds *defaultStore) GetPackageGlobalID() uint64 {
 
 // Index for a package.
 func (ds *defaultStore) SetPackageRevision(pid PkgID, ctr uint64) {
-	ds.cachePackageRevisions[pid] = ctr
 	ctrkey := pid.Hashlet[:]
 	ds.baseStore.Set(ctrkey, []byte(strconv.Itoa(int(ctr))))
 }
 
 func (ds *defaultStore) GetPackageRevision(pid PkgID) uint64 {
-	if rev, exists := ds.cachePackageRevisions[pid]; exists {
-		return rev
-	}
-
 	ctrkey := pid.Hashlet[:]
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
-		ds.cachePackageRevisions[pid] = 0
 		return 0
 	} else {
 		ctr, err := strconv.Atoi(string(ctrbz))
 		if err != nil {
 			panic(err)
 		}
-		ds.cachePackageRevisions[pid] = uint64(ctr)
 		return uint64(ctr)
 	}
 }
 
 // ensureObjectCount updates the max object index count if the provided count is greater.
 func (ds *defaultStore) ensureObjectCount(key string, count uint64) {
-	// check cache.
-	if current, exists := ds.cacheObjectCounts[key]; exists {
-		if count <= current {
-			return
-		}
-	}
-
 	ctrkey := []byte(key)
 	ctrbz := ds.baseStore.Get(ctrkey)
 	var current uint64
@@ -1064,14 +1050,8 @@ func (ds *defaultStore) ensureObjectCount(key string, count uint64) {
 	}
 
 	if count > current {
-		// update cache.
-		ds.cacheObjectCounts[key] = count
-		// update db.
 		nextbz := strconv.FormatUint(count, 10)
 		ds.baseStore.Set(ctrkey, []byte(nextbz))
-	} else {
-		// update cache with current from db.
-		ds.cacheObjectCounts[key] = current
 	}
 }
 
@@ -1079,27 +1059,18 @@ func (ds *defaultStore) ResetObjectCount(key string) {
 	ctrkey := []byte(key)
 	bz := strconv.Itoa(0)
 	ds.baseStore.Set(ctrkey, []byte(bz))
-	// update cache.
-	ds.cacheObjectCounts[key] = 0
 }
 
 func (ds *defaultStore) GetObjectCount(key string) uint64 {
-	// check cache.
-	if current, exists := ds.cacheObjectCounts[key]; exists {
-		return current
-	}
-
 	ctrkey := []byte(key)
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
-		ds.cacheObjectCounts[key] = 0
 		return 0
 	} else {
 		ctr, err := strconv.Atoi(string(ctrbz))
 		if err != nil {
 			panic(err)
 		}
-		ds.cacheObjectCounts[key] = uint64(ctr)
 		return uint64(ctr)
 	}
 }
@@ -1280,8 +1251,6 @@ func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
-	ds.cacheObjectCounts = make(map[string]uint64)
-	ds.cachePackageRevisions = make(map[PkgID]uint64)
 	ds.realmStorageDiffs = make(map[string]int64)
 	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
