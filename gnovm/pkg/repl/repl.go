@@ -63,7 +63,7 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.errput = os.Stderr
 	_, r.store = test.TestStore(gnoenv.RootDir(), test.OutputWithError(r.output, r.errput), nil)
 
-	var nilAllocator = (*gno.Allocator)(nil)
+	nilAllocator := (*gno.Allocator)(nil)
 	r.pn = gno.NewPackageNode("repl", r.pkgPath, &gno.FileSet{})
 	r.pv = r.pn.NewPackage(nilAllocator)
 	r.fn = &gno.FileNode{
@@ -94,7 +94,7 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.m.SetActivePackage(r.pv)
 
 	// preprocess nodes.
-	r.fn = gno.Preprocess(r.store, r.pn, r.fn).(*gno.FileNode)
+	r.fn = gno.Preprocess(r.store, r.pn, r.fn, nil).(*gno.FileNode)
 
 	// set blocks.
 	// r.m.PushBlock(r.fb)
