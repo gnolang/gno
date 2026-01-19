@@ -177,7 +177,7 @@ import (
 
 // This is wrong → Non-deterministic
 func GetCurrentTime() time.Time {
-    return time.Now() // Not available
+    return time.Now()
 }
 
 // This is correct → Use block height
