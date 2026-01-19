@@ -674,8 +674,9 @@ This section shows the simplest multisig flow:
 
 **The single most important rule: key ordering**
 
-- The multisig is defined by the **ordered list of member keys**.
-- All participants must use the **exact same order** when running:
+The multisig is defined by the **ordered list of member keys**.
+
+All participants must use the **exact same order** when running:
 
 - `gnokey add multisig ...`
 - later, `gnokey multisign ...` expects signatures that correspond to that same ordering
@@ -959,6 +960,8 @@ Verify you built what you think you built:
 ```bash
 file build/gnokey
 go env GOOS GOARCH
+
+# If you're building on a Linux machine (same arch, otherwise they'll fail), run these below to sanity check:
 ./build/gnokey --help >/dev/null
 ./build/gnokey version || true
 ```
@@ -975,9 +978,11 @@ printf '%s\n' "$VERSION" | tee build/gnokey.version
 
 ```bash
 mkdir -p gnokey-airgap-bundle
-cp -v build/gnokey build/gnokey.sha256 build/gnokey.gitrev build/gnokey.version gnokey-airgap-bundle/
+cp -v build/gnokey gnokey-airgap-bundle/gnokey
+cp -v build/gnokey.gitrev build/gnokey.version gnokey-airgap-bundle/
 
-chmod -R a-w gnokey-airgap-bundle
+( cd gnokey-airgap-bundle && sha256sum gnokey > gnokey.sha256 )
+
 tar -czf gnokey-airgap-bundle.tgz gnokey-airgap-bundle
 sha256sum gnokey-airgap-bundle.tgz | tee gnokey-airgap-bundle.tgz.sha256
 ```
@@ -993,8 +998,8 @@ tar -xzf gnokey-airgap-bundle.tgz
 cd gnokey-airgap-bundle
 sha256sum -c gnokey.sha256
 
-install -m 0755 ./gnokey /usr/local/bin/gnokey
-gnokey --help | head
+# You can run the command locally now
+./gnokey --h
 ```
 
 ### Practical warning: CGO usually implies dynamic deps
@@ -1005,12 +1010,6 @@ target closely enough. Fix it by either:
 
 - building on the *same distro/glibc baseline* as the airgapped target, or
 - installing the required runtime libs on the airgapped machine via your offline package process.
-
-Inspect linkage:
-
-```bash
-ldd build/gnokey || true
-```
 
 ## Querying a Gno.land network
 
