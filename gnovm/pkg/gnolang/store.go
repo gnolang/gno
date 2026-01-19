@@ -732,9 +732,8 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	// If private package, update object count.
 	// Only private packages can be overridden.
 	poid := ObjectIDFromPkgID(oid.PkgID)
-	if ds.HasObject(poid) {
-		pv := ds.GetObject(poid).(*PackageValue)
-		if pv.Private {
+	if oo := ds.GetObjectSafe(poid); oo != nil {
+		if pv := oo.(*PackageValue); pv.Private {
 			pid := oid.PkgID
 			pkgidx := ds.GetPackageRevision(pid)
 			ds.ensureObjectCount(backendObjectIndexKey(pid, pkgidx), oid.NewTime)
