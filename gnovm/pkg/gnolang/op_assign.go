@@ -74,7 +74,7 @@ func (m *Machine) doOpMulAssign() {
 	}
 
 	// lv *= rv
-	mulAssign(lv.TV, rv)
+	mulAssign(lv.TV, rv, m.GasMeter)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}

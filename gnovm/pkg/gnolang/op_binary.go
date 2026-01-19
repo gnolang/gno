@@ -7,6 +7,7 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // ----------------------------------------
@@ -240,7 +241,7 @@ func (m *Machine) doOpMul() {
 	}
 
 	// lv * rv
-	mulAssign(lv, rv)
+	mulAssign(lv, rv, m.GasMeter)
 }
 
 func (m *Machine) doOpQuo() {
@@ -770,7 +771,7 @@ func subAssign(lv, rv *TypedValue) {
 }
 
 // for doOpMul and doOpMulAssign.
-func mulAssign(lv, rv *TypedValue) {
+func mulAssign(lv, rv *TypedValue, gasMeter store.GasMeter) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -804,7 +805,16 @@ func mulAssign(lv, rv *TypedValue) {
 		lv.SetFloat64(softfloat.Fmul64(lv.GetFloat64(), rv.GetFloat64()))
 	case UntypedBigintType:
 		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Mul(lb, rv.GetBigInt())
+		rb := rv.GetBigInt()
+		// Charge gas proportional to bit lengths
+		// BigInt multiplication is O(n*m) where n,m are bit lengths
+		if gasMeter != nil {
+			lBits := int64(lb.BitLen())
+			rBits := int64(rb.BitLen())
+			cost := max((lBits*rBits)/1000, 1) // Charge at least 1 gas
+			gasMeter.ConsumeGas(cost, "bigint_mul")
+		}
+		lb = big.NewInt(0).Mul(lb, rb)
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
 		lb := lv.GetBigDec()
