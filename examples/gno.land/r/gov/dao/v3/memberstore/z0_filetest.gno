@@ -22,7 +22,6 @@ func main() {
 
 	// The following lines would cause a compile error if uncommented:
 	// memberstore.Tiers.Set(...) // ERROR: Tiers is not exported (lowercase)
-	// memberstore.tiers.Set(...) // ERROR: tiers is not exported
 
 	// Iterate over tiers (read-only)
 	println("All tiers:")
