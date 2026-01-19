@@ -543,7 +543,7 @@ with the separation of steps as follows:
 3. `Machine B`: Sign the transaction
 4. `Machine A`: Broadcast the transaction
 
-## 1. Fetching account information from the chain
+### 1. Fetching account information from the chain
 
 First, we need to fetch data for the account we are using to sign the transaction,
 using the [auth/accounts](#authaccounts) query:
@@ -572,7 +572,7 @@ will need these values to sign the transaction later. These pieces of informatio
 are crucial during the signing process, as they are included in the signature
 of the transaction, preventing replay attacks.
 
-## 2. Creating an unsigned transaction locally
+### 2. Creating an unsigned transaction locally
 
 To create the transaction you want, you can use the [`call` API](#call),
 without the `-broadcast` flag, while redirecting the output to a local file:
@@ -589,7 +589,7 @@ mykey > userbook.tx
 This will create a `userbook.tx` file with a null `signature` field.
 Now we are ready to sign the transaction.
 
-## 3. Signing the transaction
+### 3. Signing the transaction
 
 To add a signature to the transaction, we can use the `gnokey sign` subcommand.
 To sign, we must set the correct flags for the subcommand:
@@ -614,7 +614,7 @@ that the signature field has been populated.
 
 We are now ready to broadcast this transaction to the chain.
 
-## 4. Broadcasting the transaction
+### 4. Broadcasting the transaction
 
 To broadcast the signed transaction to the chain, we can use the `gnokey broadcast`
 subcommand, giving it the path to the signed transaction:
@@ -659,7 +659,7 @@ Below is a list of queries a user can make with `gnokey`:
 
 Let's see how we can use them.
 
-## `auth/accounts`
+### `auth/accounts`
 
 We can obtain information about a specific address using this subquery. To call it,
 we can run the following command:
@@ -700,7 +700,7 @@ to hold account data. It contains the following information:
 - `account_number` - a unique identifier for the account on the Gno.land chain
 - `sequence` - a nonce, used for protection against replay attacks
 
-## `bank/balances`
+### `bank/balances`
 
 With this query, we can fetch [coin](../resources/gno-stdlibs.md#coin) balances
 of a specific account. To call it, we can run the following command:
@@ -718,7 +718,7 @@ data: "227984898927ugnot"
 
 The data field will contain the coins the address owns.
 
-## `vm/qfuncs`
+### `vm/qfuncs`
 
 Using the `vm/qfuncs` query, we can fetch exported functions from a specific package
 path. To specify the path we want to query, we can use the `-data` flag:
@@ -752,7 +752,7 @@ data: [
 ]
 ```
 
-## `vm/qfile`
+### `vm/qfile`
 
 With the `vm/qfile` query, we can fetch files and their content found on a
 specific package path. To specify the path we want to query, we can use the
@@ -806,7 +806,7 @@ const (
 ...
 ```
 
-## `vm/qdoc`
+### `vm/qdoc`
 
 Using the `vm/qdoc` query, we can fetch the docs, for functions, types and variables from a specific
 package path. To specify the path we want to query, we can use the `-data` flag:
@@ -876,7 +876,7 @@ data: {
 }
 ```
 
-## `vm/qeval`
+### `vm/qeval`
 
 `vm/qeval` allows us to evaluate a call to an exported function without using gas,
 in read-only mode. For example:
@@ -890,7 +890,7 @@ Properly escaping quotation marks for string arguments is currently required.
 
 Currently, `vm/qeval` only supports primitive types in expressions.
 
-## `vm/qrender`
+### `vm/qrender`
 
 `vm/qrender` is an alias for executing `vm/qeval` on the `Render("")` function.
 We can use it like this:
@@ -925,7 +925,7 @@ gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:balance/g125em6arxsnj4
 To see how this was achieved, check out `wugnot`'s `Render()` function.
 :::
 
-## `vm/qpaths`
+### `vm/qpaths`
 
 `vm/qpaths` lists all existing package paths prefixed with the specified string
 using `--data=<prefix>`. If no paths are provided, all known paths will be
@@ -977,7 +977,7 @@ gno.land/p/foo/svg
 In practice, this is shorthand for listing packages under `gno.land/p/foo` &
 `gno.land/r/foo`.
 
-## `vm/qstorage`
+### `vm/qstorage`
 
 This ABCI query endpoint can be used to inspect current storage usage and deposit in a realm:
 
@@ -997,7 +997,7 @@ The storage price can be also calculated directly using this output
 (e.g., deposit / storage, `502500/5025 = 100ugnot`) instead of querying the price
 per byte from the params realm.
 
-### Gas parameters
+## Gas parameters
 
 When using `gnokey` to send transactions, you'll need to specify gas parameters:
 
