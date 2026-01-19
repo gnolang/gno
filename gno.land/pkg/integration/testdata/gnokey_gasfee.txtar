@@ -31,8 +31,8 @@ stdout '"coins": "9999999792018ugnot"'
 
 # Tx Call -simulate only, estimate gas used and gas fee
 gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
-stdout 'GAS USED:   113965'
-stdout 'INFO:       estimated gas usage: 113965, gas fee: 119ugnot, current gas price: 1ugnot/1000gas'
+stdout 'GAS USED:   114031'
+stdout 'INFO:       estimated gas usage: 114031, gas fee: 120ugnot, current gas price: 1ugnot/1000gas'
 
 ## No fee was charged, and the sequence number did not change.
 gnokey query auth/accounts/$test1_user_addr
