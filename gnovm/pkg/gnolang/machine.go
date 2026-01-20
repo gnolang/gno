@@ -273,7 +273,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		private = mod.Private
 	}
 
-	// If and old private package is overridden by a new package(now only private package).
+	// If an old private package is overridden by a new package(now only private package).
 	// defer the clean operation.
 	if oid := ObjectIDFromPkgPath(mpkg.Path); m.Store.HasObject(oid) {
 		// Revision of old existing package.
