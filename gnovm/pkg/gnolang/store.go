@@ -462,32 +462,14 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 }
 
 // HasObject checks whether the object exists in cache or baseStore.
-// Note: unlike GetObjectSafe, no unmarshalling is performed.
 func (ds *defaultStore) HasObject(oid ObjectID) bool {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
-	var size int
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreGetObject)
-		defer func() {
-			bm.StopStore(size)
-		}()
-	}
 	// Check cache.
 	if _, exists := ds.cacheObjects[oid]; exists {
 		return true
 	}
+
 	key := backendObjectKey(oid)
-	hashbz := ds.baseStore.Get([]byte(key))
-	size = len(hashbz)
-	// XXX, Unlike the logic in loadObjectSafe, no unmarshalling is
-	// performed here to populate the object. Gas charging should
-	// have more fine-grained entries and corresponding benchmarks.
-	gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(size))
-	ds.consumeGas(gas, GasGetObjectDesc)
-	return hashbz != nil
+	return ds.baseStore.Has([]byte(key))
 }
 
 // loads and caches an object.
