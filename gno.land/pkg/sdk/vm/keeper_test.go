@@ -308,7 +308,7 @@ func Echo(cur realm) string {
 
 	store := env.vmk.getGnoTransactionStore(ctx)
 
-	backendObjectIndexKey := func(pid gnolang.PkgID, index uint64) string {
+	backendObjectIndexKey := func(pid gnolang.PkgID, index int64) string {
 		return fmt.Sprintf("%s:%020d", pid, index)
 	}
 
@@ -318,7 +318,7 @@ func Echo(cur realm) string {
 
 	// 8 is hardcode count of obejcts of the package.
 	var objCount uint64 = 8
-	assert.Equal(t, objCount, objctr, "num of object not match")
+	assert.Equal(t, objCount, objctr, "num of object does not match")
 
 	// Re-upload the same private package with updated content.
 	files2 := []*std.MemFile{
@@ -355,7 +355,7 @@ func Echo(cur realm) string {
 
 	objctr = store.GetObjectCount(backendObjectIndexKey(pkgID, pkgidx))
 	objCount -= 3 // root2, root3 and init func GC'd.
-	assert.Equal(t, objCount, objctr, "num of object not match")
+	assert.Equal(t, objCount, objctr, "num of object does not match")
 
 	// Re-upload the same private package with updated content.
 	files3 := []*std.MemFile{
@@ -391,7 +391,7 @@ func Echo(cur realm) string {
 	assert.Equal(t, expected, memFile.Body)
 	objctr = store.GetObjectCount(backendObjectIndexKey(pkgID, pkgidx))
 	objCount -= 1 // root GC'd.
-	assert.Equal(t, objCount, objctr, "num of object not match")
+	assert.Equal(t, objCount, objctr, "num of object does not match")
 }
 
 func TestVMKeeperAddPackage_ImportPrivate(t *testing.T) {

@@ -68,15 +68,18 @@ type Store interface {
 	SetAllocator(alloc *Allocator)
 	NumMemPackages() int64
 
+	// Some metrics for counting packages and objects,
+	// used for tracking and cleanup.
 	// Generates the next global sequence ID.
-	NextPackageGlobalID() uint64
-	GetPackageGlobalID() uint64
-
-	// Increments the revision number for the specific package.
-	SetPackageRevision(pid PkgID, currentRev uint64)
-	GetPackageRevision(pid PkgID) uint64
+	NextPackageGlobalID() int64
+	GetPackageGlobalID() int64
+	// Increments the revision for the specific package.
+	SetPackageRevision(pid PkgID, currentRev int64)
+	GetPackageRevision(pid PkgID) int64
+	// Object counts per package revision.
 	GetObjectCount(key string) uint64
 	ResetObjectCount(key string)
+
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
@@ -458,17 +461,32 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	return nil
 }
 
+// HasObject checks whether the object exists in cache or baseStore.
+// Note: unlike GetObjectSafe, no unmarshalling is performed.
 func (ds *defaultStore) HasObject(oid ObjectID) bool {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
 	}
-	// check cache.
+	var size int
+	if bm.StorageEnabled {
+		bm.StartStore(bm.StoreGetObject)
+		defer func() {
+			bm.StopStore(size)
+		}()
+	}
+	// Check cache.
 	if _, exists := ds.cacheObjects[oid]; exists {
 		return true
 	}
 	key := backendObjectKey(oid)
 	hashbz := ds.baseStore.Get([]byte(key))
+	size = len(hashbz)
+	// XXX, Unlike the logic in loadObjectSafe, no unmarshalling is
+	// performed here to populate the object. Gas charging should
+	// have more fine-grained entries and corresponding benchmarks.
+	gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(size))
+	ds.consumeGas(gas, GasGetObjectDesc)
 	return hashbz != nil
 }
 
@@ -731,6 +749,8 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 
 	// If private package, update object count.
 	// Only private packages can be overridden.
+	// XXX, this can be further optimized by
+	// embedding the private logic into the pkgID.
 	poid := ObjectIDFromPkgID(oid.PkgID)
 	if oo := ds.GetObjectSafe(poid); oo != nil {
 		if pv := oo.(*PackageValue); pv.Private {
@@ -985,56 +1005,59 @@ func (ds *defaultStore) NumMemPackages() int64 {
 }
 
 // Sequence for all packages.
-func (ds *defaultStore) NextPackageGlobalID() uint64 {
+func (ds *defaultStore) NextPackageGlobalID() int64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
+
 	if ctrbz == nil {
-		nextbz := strconv.Itoa(1)
-		ds.baseStore.Set(ctrkey, []byte(nextbz))
+		ds.baseStore.Set(ctrkey, []byte("1"))
 		return 1
-	} else {
-		ctr, err := strconv.Atoi(string(ctrbz))
-		if err != nil {
-			panic(err)
-		}
-		nextbz := strconv.Itoa(ctr + 1)
-		ds.baseStore.Set(ctrkey, []byte(nextbz))
-		return uint64(ctr) + 1
 	}
+
+	ctr, err := strconv.ParseInt(string(ctrbz), 10, 64)
+	if err != nil {
+		panic(fmt.Errorf("invalid counter: %w", err))
+	}
+
+	nextVal := ctr + 1
+
+	nextbz := strconv.FormatInt(nextVal, 10)
+	ds.baseStore.Set(ctrkey, []byte(nextbz))
+
+	return nextVal
 }
 
-func (ds *defaultStore) GetPackageGlobalID() uint64 {
+func (ds *defaultStore) GetPackageGlobalID() int64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
 		return 0
 	} else {
-		ctr, err := strconv.Atoi(string(ctrbz))
+		ctr, err := strconv.ParseInt(string(ctrbz), 10, 64)
 		if err != nil {
 			panic(err)
 		}
-		return uint64(ctr)
+		return ctr
 	}
 }
 
 // Index for a package.
-func (ds *defaultStore) SetPackageRevision(pid PkgID, ctr uint64) {
+func (ds *defaultStore) SetPackageRevision(pid PkgID, ctr int64) {
 	ctrkey := pid.Hashlet[:]
-	ds.baseStore.Set(ctrkey, []byte(strconv.Itoa(int(ctr))))
+	ds.baseStore.Set(ctrkey, []byte(strconv.FormatInt(ctr, 10)))
 }
 
-func (ds *defaultStore) GetPackageRevision(pid PkgID) uint64 {
+func (ds *defaultStore) GetPackageRevision(pid PkgID) int64 {
 	ctrkey := pid.Hashlet[:]
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
 		return 0
-	} else {
-		ctr, err := strconv.Atoi(string(ctrbz))
-		if err != nil {
-			panic(err)
-		}
-		return uint64(ctr)
 	}
+	ctr, err := strconv.ParseInt(string(ctrbz), 10, 64)
+	if err != nil {
+		panic(fmt.Errorf("invalid counter: %w", err))
+	}
+	return ctr
 }
 
 // ensureObjectCount updates the max object index count if the provided count is greater.
@@ -1043,11 +1066,11 @@ func (ds *defaultStore) ensureObjectCount(key string, count uint64) {
 	ctrbz := ds.baseStore.Get(ctrkey)
 	var current uint64
 	if ctrbz != nil {
-		ctr, err := strconv.Atoi(string(ctrbz))
+		ctr, err := strconv.ParseUint(string(ctrbz), 10, 64)
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("invalid counter: %w", err))
 		}
-		current = uint64(ctr)
+		current = ctr
 	}
 
 	if count > current {
@@ -1058,8 +1081,7 @@ func (ds *defaultStore) ensureObjectCount(key string, count uint64) {
 
 func (ds *defaultStore) ResetObjectCount(key string) {
 	ctrkey := []byte(key)
-	bz := strconv.Itoa(0)
-	ds.baseStore.Set(ctrkey, []byte(bz))
+	ds.baseStore.Set(ctrkey, []byte("0"))
 }
 
 func (ds *defaultStore) GetObjectCount(key string) uint64 {
@@ -1108,7 +1130,7 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}
 
-	var idx uint64
+	var idx int64
 	// If package exists, reuse existing slot.
 	idx = ds.GetPackageRevision(PkgIDFromPkgPath(mpkg.Path))
 	if idx == 0 {
@@ -1218,7 +1240,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 		}
 		ch := make(chan *std.MemPackage)
 		go func() {
-			for i := uint64(1); i <= uint64(ctr); i++ {
+			for i := int64(1); i <= int64(ctr); i++ {
 				idxkey := []byte(backendPackageIndexKey(i))
 				path := ds.baseStore.Get(idxkey)
 				if path == nil {
@@ -1344,11 +1366,11 @@ func backendPackageIndexCtrKey() string {
 	return "pkgidx:counter"
 }
 
-func backendPackageIndexKey(index uint64) string {
+func backendPackageIndexKey(index int64) string {
 	return fmt.Sprintf("pkgidx:%020d", index)
 }
 
-func backendObjectIndexKey(pid PkgID, index uint64) string {
+func backendObjectIndexKey(pid PkgID, index int64) string {
 	return fmt.Sprintf("%s:%020d", pid, index)
 }
 

@@ -276,21 +276,19 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	// If and old private package is overridden by a new package(now only private package).
 	// defer the clean operation.
 	if oid := ObjectIDFromPkgPath(mpkg.Path); m.Store.HasObject(oid) {
-		// Package may have multi revisions.
+		// Revision of old existing package.
 		pkgidx := m.Store.GetPackageRevision(oid.PkgID)
 		// Get count of object of the old package.
 		objctr := m.Store.GetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx))
 		m.Store.ResetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx))
-
-		// The above logic happens before finalize objects and add mempackage.
 
 		// Clean outdated Objects after new Objects are added.
 		defer func() {
 			if r := recover(); r != nil {
 				panic(r)
 			}
-			// If succeed, clean outdated objects.
 
+			// If succeed, clean outdated objects.
 			// New revision of package.
 			pkgidx2 := m.Store.GetPackageRevision(oid.PkgID)
 			objctr2 := m.Store.GetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx2))
@@ -307,15 +305,13 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 
 			for i := objctr2 + 1; i <= objctr; i++ {
 				oid := ObjectID{PkgID: oid.PkgID, NewTime: i}
-				if m.Store.HasObject(oid) {
-					m.Store.DelObjectByID(oid)
-				}
+				m.Store.DelObjectByID(oid)
 			}
 		}()
 	} else {
 		// If not override old package, increase index set revision for package.
-		idx := m.Store.NextPackageGlobalID()       // global index of package.
-		m.Store.SetPackageRevision(oid.PkgID, idx) // index per package.
+		idx := m.Store.NextPackageGlobalID() // global index of package.
+		m.Store.SetPackageRevision(oid.PkgID, idx)
 	}
 
 	// make and set package if doesn't exist.
