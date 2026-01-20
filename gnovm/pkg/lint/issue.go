@@ -8,7 +8,6 @@ import (
 
 type Issue struct {
 	RuleID     string      `json:"ruleId"`
-	Code       string      `json:"code,omitempty"` // TODO: refactor as RuleID
 	Severity   Severity    `json:"severity"`
 	Message    string      `json:"message"`
 	Filename   string      `json:"filename"`
@@ -23,12 +22,8 @@ func (i Issue) Location() string {
 }
 
 func (i Issue) String() string {
-	code := i.RuleID
-	if i.Code != "" {
-		code = i.Code
-	}
 	return fmt.Sprintf("%s: %s: %s (%s)",
-		i.Location(), i.Severity, i.Message, code)
+		i.Location(), i.Severity, i.Message, i.RuleID)
 }
 
 func NewIssue(ruleID string, severity Severity, msg string, filename string, pos gnolang.Pos) Issue {

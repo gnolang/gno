@@ -12,10 +12,6 @@ const (
 	FormatJSON = "json"
 )
 
-func AvailableFormats() []string {
-	return []string{FormatText, FormatJSON}
-}
-
 func NewReporter(format string, w io.Writer) (lint.Reporter, error) {
 	switch format {
 	case FormatText, "":

@@ -7,10 +7,14 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/lint"
 )
 
-// DirectReporter prints issues immediately without buffering, for real-time output.
+// DirectReporter writes issues to output as soon as they are reported.
+// It doesn't buffer, deduplicate or sort results like TextReporter does.
+// Used by `gno test` for type-check errors (see gnovm/cmd/gno/test.go).
 type DirectReporter struct {
-	w      io.Writer
-	errors int
+	w        io.Writer
+	info     int
+	warnings int
+	errors   int
 }
 
 func NewDirectReporter(w io.Writer) *DirectReporter {
@@ -19,7 +23,12 @@ func NewDirectReporter(w io.Writer) *DirectReporter {
 
 func (r *DirectReporter) Report(issue lint.Issue) {
 	_, _ = fmt.Fprintln(r.w, issue.String())
-	if issue.Severity == lint.SeverityError {
+	switch issue.Severity {
+	case lint.SeverityInfo:
+		r.info++
+	case lint.SeverityWarning:
+		r.warnings++
+	case lint.SeverityError:
 		r.errors++
 	}
 }
@@ -29,5 +38,5 @@ func (r *DirectReporter) Flush() error {
 }
 
 func (r *DirectReporter) Summary() (info, warnings, errors int) {
-	return 0, 0, r.errors
+	return r.info, r.warnings, r.errors
 }

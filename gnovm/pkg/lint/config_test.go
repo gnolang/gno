@@ -34,3 +34,27 @@ func TestConfig_EffectiveSeverity(t *testing.T) {
 		})
 	}
 }
+
+func TestConfig_IsRuleEnabled(t *testing.T) {
+	tests := []struct {
+		name     string
+		disable  map[string]bool
+		ruleID   string
+		expected bool
+	}{
+		{"no disabled rules", nil, "AVL001", true},
+		{"empty disabled rules", map[string]bool{}, "AVL001", true},
+		{"rule not in disabled list", map[string]bool{"GLOBAL001": true}, "AVL001", true},
+		{"rule in disabled list", map[string]bool{"AVL001": true}, "AVL001", false},
+		{"rule in disabled list with others", map[string]bool{"GLOBAL001": true, "AVL001": true, "OTHER": true}, "AVL001", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{Disable: tt.disable}
+			got := cfg.IsRuleEnabled(tt.ruleID)
+			if got != tt.expected {
+				t.Errorf("IsRuleEnabled(%q) = %v, want %v", tt.ruleID, got, tt.expected)
+			}
+		})
+	}
+}
