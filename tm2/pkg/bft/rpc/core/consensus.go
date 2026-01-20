@@ -6,6 +6,7 @@ import (
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // Get the validator set at the given block height.
@@ -55,6 +56,8 @@ import (
 //
 // ```
 func Validators(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultValidators, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "Validators")
+	defer span.End()
 	// The latest validator that we know is the
 	// NextValidator of the last block.
 	height := consensusState.GetState().LastBlockHeight + 1
@@ -213,6 +216,8 @@ func Validators(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultValidato
 //
 // ```
 func DumpConsensusState(ctx *rpctypes.Context) (*ctypes.ResultDumpConsensusState, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "DumpConsensusState")
+	defer span.End()
 	// Get Peer consensus states.
 	peers := p2pPeers.Peers().List()
 	peerStates := make([]ctypes.PeerStateInfo, len(peers))
@@ -296,6 +301,8 @@ func DumpConsensusState(ctx *rpctypes.Context) (*ctypes.ResultDumpConsensusState
 //
 // ```
 func ConsensusState(ctx *rpctypes.Context) (*ctypes.ResultConsensusState, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "ConsensusState")
+	defer span.End()
 	// Get self round state.
 	rs := consensusState.GetRoundStateSimple()
 	return &ctypes.ResultConsensusState{RoundState: rs}, nil
@@ -343,6 +350,8 @@ func ConsensusState(ctx *rpctypes.Context) (*ctypes.ResultConsensusState, error)
 //
 // ```
 func ConsensusParams(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultConsensusParams, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "ConsensusParams")
+	defer span.End()
 	height := consensusState.GetState().LastBlockHeight + 1
 	height, err := getHeight(height, heightPtr)
 	if err != nil {
