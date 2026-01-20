@@ -148,7 +148,6 @@ We are now ready to upload this package to the chain. To do this, we must set th
 correct flags for the `addpkg` subcommand.
 
 The `addpkg` subcommand uses the following flags and arguments:
-
 - `-pkgpath` - on-chain path where your code will be uploaded to
 - `-pkgdir` - local path where your is located
 - `-broadcast` - enables broadcasting the transaction to the chain
@@ -1108,23 +1107,23 @@ The output is a string containing all exported functions for the `wugnot` realm:
 ```json
 height: 0
 data: [
-{
-"FuncName": "Deposit",
-"Params": null,
-"Results": null
-},
-{
-"FuncName": "Withdraw",
-"Params": [
-{
-"Name": "amount",
-"Type": "uint64",
-"Value": ""
-}
-],
-"Results": null
-},
-// other functions
+        {
+          "FuncName": "Deposit",
+          "Params": null,
+          "Results": null
+        },
+        {
+          "FuncName": "Withdraw",
+          "Params": [
+            {
+            "Name": "amount",
+            "Type": "uint64",
+            "Value": ""
+            }
+          ],
+          "Results": null
+        },
+        // other functions
 ]
 ```
 
@@ -1198,59 +1197,59 @@ realm:
 ```json
 height: 0
 data: {
-"package_path": "gno.land/r/gnoland/valopers/v2",
-"package_line": "package valopers // import \"valopers\"",
-"package_doc": "Package valopers is designed around the permissionless lifecycle of valoper profiles. It also includes parts designed for govdao to propose valset changes based on registered valopers.\n",
-"values": [
-{
-"name": "valopers",
-"doc": "// Address -> Valoper\n",
-"type": "*avl.Tree"
-}
-// other values
-],
-"funcs": [
-{
-"type": "",
-"name": "GetByAddr",
-"signature": "func GetByAddr(address std.Address) Valoper",
-"doc": "GetByAddr fetches the valoper using the address, if present\n",
-"params": [
-{
-"Name": "address",
-"Type": "std.Address"
-}
-],
-"results": [
-{
-"Name": "",
-"Type": "Valoper"
-}
-]
-}
-// other funcs
-{
-"type": "Valoper",
-"name": "Render",
-"signature": "func (v Valoper) Render() string",
-"doc": "Render renders a single valoper with their information\n",
-"params": [],
-"results": [
-{
-"Name": "",
-"Type": "string"
-}
-]
-}
-// other methods (in this case of the Valoper type)
-],
-"types": [
-{
-"name": "Valoper",
-"signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      std.Address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
-"doc": "Valoper represents a validator operator profile\n"
-}
-]
+  "package_path": "gno.land/r/gnoland/valopers/v2",
+  "package_line": "package valopers // import \"valopers\"",
+  "package_doc": "Package valopers is designed around the permissionless lifecycle of valoper profiles. It also includes parts designed for govdao to propose valset changes based on registered valopers.\n",
+  "values": [
+    {
+      "name": "valopers",
+      "doc": "// Address -> Valoper\n",
+      "type": "*avl.Tree"
+    }
+    // other values
+  ],
+  "funcs": [
+    {
+      "type": "",
+      "name": "GetByAddr",
+      "signature": "func GetByAddr(address std.Address) Valoper",
+      "doc": "GetByAddr fetches the valoper using the address, if present\n",
+      "params": [
+        {
+          "Name": "address",
+          "Type": "std.Address"
+        }
+      ],
+      "results": [
+        {
+          "Name": "",
+          "Type": "Valoper"
+        }
+      ]
+    }
+    // other funcs
+    {
+      "type": "Valoper",
+      "name": "Render",
+      "signature": "func (v Valoper) Render() string",
+      "doc": "Render renders a single valoper with their information\n",
+      "params": [],
+      "results": [
+        {
+          "Name": "",
+          "Type": "string"
+        }
+      ]
+    }
+    // other methods (in this case of the Valoper type)
+  ],
+  "types": [
+    {
+      "name": "Valoper",
+      "signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      std.Address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
+      "doc": "Valoper represents a validator operator profile\n"
+    }
+  ]
 }
 ```
 
