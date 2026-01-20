@@ -10,21 +10,30 @@ import (
 
 type BankParamsContextKey struct{}
 
+// Default parameter values
+const (
+	//  Default 1M tokens, This should be overwritten by genesis parameters
+	TotalSupply = "1000000token"
+)
+
 // Params defines the parameters for the bank module.
 type Params struct {
-	RestrictedDenoms []string `json:"restricted_denoms" yaml:"restricted_denoms"`
+	RestrictedDenoms []string  `json:"restricted_denoms" yaml:"restricted_denoms"`
+	TotalSupply      std.Coins `json:"total_supply" yaml:"total_supply"`
 }
 
 // NewParams creates a new Params object
-func NewParams(restDenoms []string) Params {
+func NewParams(restDenoms []string, totalSupply std.Coins) Params {
 	return Params{
 		RestrictedDenoms: restDenoms,
+		TotalSupply:      totalSupply,
 	}
 }
 
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
-	return NewParams([]string{})
+	coins := std.MustParseCoins(TotalSupply)
+	return NewParams([]string{}, coins)
 }
 
 // String implements the stringer interface.
@@ -40,6 +49,11 @@ func (p *Params) Validate() error {
 		err := std.ValidateDenom(denom)
 		if err != nil {
 			return fmt.Errorf("invalid restricted denom: %s", denom)
+		}
+	}
+	for _, coin := range p.TotalSupply {
+		if !coin.IsValid() || coin.IsZero() {
+			return fmt.Errorf("invalid total supply: %s", coin.String())
 		}
 	}
 	return nil
