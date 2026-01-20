@@ -144,9 +144,6 @@ The latest Gno.land testnet, released on the 18th of December, 2025.
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
 
-This testnet introduces major changes to the codebase, such as the `std` package 
-split, private realms, the storage fee collector, and more. 
-
 ### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
