@@ -24,6 +24,8 @@ type NativeLoader struct {
 	remoteOverrides map[string]string // domain -> rpc URL
 }
 
+var _ Loader = (*NativeLoader)(nil)
+
 type NativeLoaderConfig struct {
 	Logger          *slog.Logger
 	GnoRoot         string
@@ -194,7 +196,7 @@ func (l *NativeLoader) DiscoverPackages() error {
 			// Parse the gnomod to get the module path
 			gm, err := gnomod.ParseDir(dir)
 			if err != nil {
-				l.logger.Debug("failed to parse gnomod", "dir", dir, "err", err)
+				l.logger.Info("skipping invalid gnomod", "dir", dir, "err", err)
 				return nil // skip invalid
 			}
 
