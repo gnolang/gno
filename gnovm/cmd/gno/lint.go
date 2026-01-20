@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/cmdutil"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -30,12 +31,13 @@ import (
 */
 
 type lintCmd struct {
-	verbose    bool
-	rootDir    string
-	autoGnomod bool
-	mode       string
-	format     string
-	listRules  bool
+	verbose      bool
+	rootDir      string
+	autoGnomod   bool
+	mode         string
+	format       string
+	listRules    bool
+	disableRules string
 }
 
 func newLintCmd(io commands.IO) *commands.Command {
@@ -63,6 +65,7 @@ func (c *lintCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.mode, "mode", "default", "lint mode: default, strict, warn-only")
 	fs.StringVar(&c.format, "format", "text", "output format: text, json")
 	fs.BoolVar(&c.listRules, "list-rules", false, "list available lint rules and exit")
+	fs.StringVar(&c.disableRules, "disable-rules", "", "comma-separated list of rules to disable (e.g., AVL001,GLOBAL001)")
 }
 
 func execLint(cmd *lintCmd, args []string, io commands.IO) error {
@@ -359,6 +362,12 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		lintCfg.Mode = lint.ModeWarnOnly
 	default:
 		return fmt.Errorf("invalid lint mode: %q", cmd.mode)
+	}
+
+	if cmd.disableRules != "" {
+		for _, rule := range strings.Split(cmd.disableRules, ",") {
+			lintCfg.Disable[rule] = true
+		}
 	}
 
 	engine := lint.NewEngine(lintCfg, lint.DefaultRegistry, reporter)

@@ -198,7 +198,7 @@ func parseLocation(loc string) (filename string, line, column int) {
 func reportIssue(reporter lint.Reporter, code gnoCode, msg, loc string) {
 	filename, line, column := parseLocation(loc)
 	reporter.Report(lint.Issue{
-		Code:     string(code),
+		RuleID:   string(code),
 		Severity: lint.SeverityError,
 		Message:  msg,
 		Filename: filename,

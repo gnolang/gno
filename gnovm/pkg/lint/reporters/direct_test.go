@@ -70,24 +70,26 @@ func TestDirectReporter_Report_ImmediateOutput(t *testing.T) {
 	}
 }
 
-func TestDirectReporter_Report_ErrorCount(t *testing.T) {
+func TestDirectReporter_Report_SeverityCount(t *testing.T) {
 	var buf bytes.Buffer
 	r := NewDirectReporter(&buf)
 
-	// Info and warning don't increment error count
+	// Report issues of each severity
 	r.Report(lint.Issue{RuleID: "T1", Severity: lint.SeverityInfo, Filename: "a.gno", Line: 1, Column: 1})
 	r.Report(lint.Issue{RuleID: "T2", Severity: lint.SeverityWarning, Filename: "a.gno", Line: 2, Column: 1})
-
-	if r.errors != 0 {
-		t.Errorf("errors = %d, want 0 after info and warning", r.errors)
-	}
-
-	// Error increments error count
-	r.Report(lint.Issue{RuleID: "T3", Severity: lint.SeverityError, Filename: "a.gno", Line: 3, Column: 1})
+	r.Report(lint.Issue{RuleID: "T3", Severity: lint.SeverityWarning, Filename: "a.gno", Line: 3, Column: 1})
 	r.Report(lint.Issue{RuleID: "T4", Severity: lint.SeverityError, Filename: "a.gno", Line: 4, Column: 1})
+	r.Report(lint.Issue{RuleID: "T5", Severity: lint.SeverityError, Filename: "a.gno", Line: 5, Column: 1})
 
-	if r.errors != 2 {
-		t.Errorf("errors = %d, want 2", r.errors)
+	info, warnings, errors := r.Summary()
+	if info != 1 {
+		t.Errorf("info = %d, want 1", info)
+	}
+	if warnings != 2 {
+		t.Errorf("warnings = %d, want 2", warnings)
+	}
+	if errors != 2 {
+		t.Errorf("errors = %d, want 2", errors)
 	}
 }
 
