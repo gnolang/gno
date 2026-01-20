@@ -80,7 +80,96 @@ Current anti-squatting in `r/gnoland/users/v1` is weak:
 
 ---
 
-## 4. Package Structure
+## 4. Design Rationale
+
+This section explains WHY this architecture was chosen over alternatives.
+
+### 4.1 Why a Multi-Layered Approach?
+
+A single anti-squatting mechanism is insufficient. Each layer addresses a different attack vector:
+
+| Layer | Addresses | Limitation if Used Alone |
+|-------|-----------|-------------------------|
+| Rate Limiting | Bulk registration from single actor | Bypassable via multiple wallets |
+| Length Pricing | Economic barrier for valuable names | Doesn't prevent wealthy attackers |
+| Protected Names | Safeguards critical system names | Doesn't scale to all valuable names |
+| Vickrey Auction | Fair price discovery for contested names | Overkill for regular registrations |
+
+**Combined Defense:** Rate limiting + pricing creates economic friction. Protected names guard critical infrastructure. Auctions handle high-value contested cases.
+
+### 4.2 Why Length-Based Pricing (ENS Model)?
+
+**Alternatives considered:**
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| Flat fee (current) | Simple | Underprices valuable short names |
+| Popularity-based | Reflects demand | Complex oracle needed |
+| **Length-based** | Simple, predictable, proven | May not match true market value |
+| Auction-only | True price discovery | Too slow for regular registration |
+
+**Decision:** Length-based pricing was chosen because:
+1. **Proven model** - ENS has validated this approach at scale
+2. **Predictable UX** - Users know fee before attempting registration
+3. **No oracle dependency** - Fully on-chain deterministic
+4. **Low implementation complexity** - Simple lookup table
+5. **Reasonable correlation** - Short names are generally more valuable
+
+### 4.3 Why Vickrey Sealed-Bid Auction?
+
+**Alternatives considered:**
+
+| Auction Type | Pros | Cons |
+|--------------|------|------|
+| English (ascending) | Familiar | Front-running vulnerable |
+| Dutch (descending) | Fast resolution | Overpayment common |
+| First-price sealed | No front-running | Winner's curse |
+| **Vickrey (2nd-price sealed)** | Truthful bidding incentive | Two-phase complexity |
+
+**Decision:** Vickrey auction was chosen because:
+1. **Truthful bidding** - Bidders incentivized to bid true value
+2. **Front-running resistant** - Commit-reveal prevents MEV exploitation
+3. **Fair pricing** - Winner pays second-highest, not their max
+4. **Blockchain proven** - Used by ENS for premium auctions
+
+### 4.4 Why Pluggable Library Design?
+
+**Alternatives considered:**
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| Hardcoded in r/gnoland/users | Simple | Not reusable |
+| **Importable package** | Reusable, testable | Slight indirection |
+| Separate realm | Isolated state | Cross-realm complexity |
+
+**Decision:** Pluggable package (`p/gnoland/antisquat`) because:
+1. **Reusability** - Other realms can import (packages, organizations)
+2. **Testability** - Isolated unit tests without realm state
+3. **Maintainer guidance** - @moul explicitly requested "generic, importable library"
+4. **Separation of concerns** - Anti-squatting logic separate from user management
+
+### 4.5 Why GovDAO Integration for Protected Names?
+
+Direct admin control creates trust issues. GovDAO integration ensures:
+1. **Transparency** - All additions/removals are public proposals
+2. **Community consensus** - Changes require voting approval
+3. **Accountability** - Proposal history creates audit trail
+4. **Decentralization** - No single point of control
+
+### 4.6 Comparison with Other Proposals
+
+| Proposal | Our Adoption | Reasoning |
+|----------|--------------|-----------|
+| @thinhnx-var: Sealed auction | ✅ Phase 2 | Best for contested names |
+| @miguelito766: DNS verification | ❌ Not included | External dependency, complexity |
+| @AnhVAR: Dual-tier (verified/unverified) | ⚠️ Partial (pricing tiers) | Simplified to pricing tiers |
+| @thinhnx-var: DID/KYC integration | ❌ Not in v1 | Future enhancement |
+
+**We adopted** the core sealed auction mechanism but simplified the tier system to length-based pricing for Phase 1.
+
+---
+
+## 5. Package Structure
 
 ```
 examples/gno.land/
@@ -108,9 +197,9 @@ examples/gno.land/
 
 ---
 
-## 5. Core Types & Interfaces
+## 6. Core Types & Interfaces
 
-### 5.1 Main Interface
+### 6.1 Main Interface
 
 ```gno
 package antisquat
@@ -143,7 +232,7 @@ type ValidationResult struct {
 }
 ```
 
-### 5.2 Rate Limiter
+### 6.2 Rate Limiter
 
 ```gno
 type RateLimiter interface {
@@ -160,7 +249,7 @@ type RateLimitConfig struct {
 }
 ```
 
-### 5.3 Protected Names
+### 6.3 Protected Names
 
 ```gno
 type ProtectedRegistry interface {
@@ -189,7 +278,7 @@ type ProtectedName struct {
 }
 ```
 
-### 5.4 Pricing Calculator
+### 6.4 Pricing Calculator
 
 ```gno
 type PricingCalculator interface {
@@ -217,9 +306,9 @@ var DefaultPriceTiers = []PriceTier{
 
 ---
 
-## 6. Implementation Details
+## 7. Implementation Details
 
-### 6.1 Rate Limiting
+### 7.1 Rate Limiting
 
 **Storage:** AVL tree keyed by `address.String()`
 
@@ -262,7 +351,7 @@ func (rl *rateLimiter) RecordRegistration(addr address, name string, now time.Ti
 }
 ```
 
-### 6.2 Protected Names
+### 7.2 Protected Names
 
 **Storage:** Two AVL trees - main + category index
 
@@ -295,7 +384,7 @@ func (r *registry) IsProtected(name string) bool {
 }
 ```
 
-### 6.3 Pricing
+### 7.3 Pricing
 
 ```gno
 func (c *calculator) CalculateFee(name string) int64 {
@@ -324,11 +413,11 @@ func (c *calculator) CalculateFee(name string) int64 {
 
 ---
 
-## 7. Vickrey Auction (Phase 2)
+## 8. Vickrey Auction (Phase 2)
 
 For premium names or contested registrations.
 
-### 7.1 Flow
+### 8.1 Flow
 
 ```
 Phase 1: COMMIT (7 days)
@@ -351,7 +440,7 @@ Phase 3: RESOLUTION
   - Losers get full refund
 ```
 
-### 7.2 Types
+### 8.2 Types
 
 ```gno
 type AuctionPhase uint8
@@ -376,7 +465,7 @@ type AuctionConfig struct {
 }
 ```
 
-### 7.3 Security
+### 8.3 Security
 
 - **Front-running prevention:** Bids hidden until reveal
 - **Commitment binding:** Hash includes bidder address
@@ -385,9 +474,9 @@ type AuctionConfig struct {
 
 ---
 
-## 8. GovDAO Integration
+## 9. GovDAO Integration
 
-### 8.1 Protected Names Proposals
+### 9.1 Protected Names Proposals
 
 ```gno
 import "gno.land/r/gov/dao"
@@ -417,7 +506,7 @@ func ProposeRemoveProtectedName(name string, reason string) dao.ProposalRequest 
 }
 ```
 
-### 8.2 Config Updates
+### 9.2 Config Updates
 
 ```gno
 func ProposeUpdateRateLimits(maxRegs int, windowDays int) dao.ProposalRequest {
@@ -441,9 +530,9 @@ func ProposeUpdateRateLimits(maxRegs int, windowDays int) dao.ProposalRequest {
 
 ---
 
-## 9. Integration with Existing System
+## 10. Integration with Existing System
 
-### 9.1 Controller Update
+### 10.1 Controller Update
 
 ```gno
 // r/gnoland/users/v2/users.gno
@@ -503,7 +592,7 @@ func Register(_ realm, username string) {
 
 ---
 
-## 10. Validation Flow
+## 11. Validation Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -551,9 +640,9 @@ func Register(_ realm, username string) {
 
 ---
 
-## 11. Testing Strategy
+## 12. Testing Strategy
 
-### 11.1 Unit Tests
+### 12.1 Unit Tests
 
 ```gno
 func TestRateLimiting(t *testing.T) {
@@ -592,7 +681,7 @@ func TestPricing(t *testing.T) {
 }
 ```
 
-### 11.2 Integration Tests (filetest)
+### 12.2 Integration Tests (filetest)
 
 ```gno
 // PKGPATH: gno.land/r/test/antisquat
@@ -614,7 +703,7 @@ func main() {
 
 ---
 
-## 12. Migration Plan
+## 13. Migration Plan
 
 1. **Deploy `p/gnoland/antisquat`** - No state migration needed
 2. **Deploy `r/gnoland/users/v2`** (or update v1)
@@ -624,7 +713,7 @@ func main() {
 
 ---
 
-## 13. Security Considerations
+## 14. Security Considerations
 
 | Risk | Mitigation |
 |------|------------|
@@ -636,7 +725,186 @@ func main() {
 
 ---
 
-## 14. Future Enhancements
+## 15. Operational Considerations
+
+This section addresses deployment, monitoring, failure scenarios, and ongoing operations.
+
+### 15.1 Deployment Strategy
+
+**Phased Rollout:**
+
+| Phase | Action | Risk Level |
+|-------|--------|------------|
+| 1. Testnet | Deploy to test4.gno.land | LOW |
+| 2. Audit | Code review + security audit | - |
+| 3. Soft Launch | Deploy to mainnet, disabled by default | LOW |
+| 4. Limited Activation | Enable for new registrations only | MEDIUM |
+| 5. Full Activation | Enable all features including auctions | HIGH |
+
+**Deployment Steps:**
+1. **Package deployment** - `gnokey maketx addpkg` for `p/gnoland/antisquat`
+2. **Realm deployment** - Deploy `r/gnoland/users/v2` (if new controller)
+3. **Whitelist update** - GovDAO proposal to whitelist new controller in `r/sys/users`
+4. **Configuration** - Set initial rate limits, protected names, pricing tiers
+5. **Monitoring setup** - Configure event indexing and alerting
+
+**Rollback Plan:**
+- If critical issues found: GovDAO proposal to remove v2 from whitelist
+- Existing users unaffected (stored in r/sys/users)
+- v1 controller remains functional as fallback
+
+### 15.2 Monitoring & Observability
+
+**On-chain Events Emitted:**
+
+```gno
+chain.Emit("Registration",
+    "address", addr,
+    "name", name,
+    "fee", fee,
+    "tier", tier,
+)
+
+chain.Emit("RateLimitHit",
+    "address", addr,
+    "remaining", remaining,
+    "window_resets", windowResets,
+)
+
+chain.Emit("ProtectedNameAttempt",
+    "address", addr,
+    "name", name,
+    "category", category,
+)
+
+chain.Emit("AuctionCreated",
+    "name", name,
+    "commit_end", commitEnd,
+    "reveal_end", revealEnd,
+)
+```
+
+**Metrics to Track:**
+
+| Metric | Description | Alert Threshold |
+|--------|-------------|-----------------|
+| registrations_per_hour | New registrations | > 100/hr (possible attack) |
+| rate_limit_hits | Blocked attempts | > 50/hr |
+| protected_name_attempts | Attempts on reserved names | > 20/hr |
+| avg_registration_fee | Average fee paid | < 1 GNOT (possible bug) |
+| unique_addresses_per_day | New registrants | Trend analysis |
+| auction_participation | Bids per auction | < 2 (low interest indicator) |
+
+**Indexer Integration:**
+- Events indexed by tx-indexer for dashboard queries
+- Grafana/equivalent dashboards for ops team
+- PagerDuty/equivalent alerts for anomalies
+
+### 15.3 Failure Scenarios & Recovery
+
+**Scenario 1: Rate Limiter State Corruption**
+- *Detection:* Users unable to register despite being within limits
+- *Recovery:* GovDAO proposal to reset rate limiter state for affected addresses
+- *Prevention:* Comprehensive test coverage, state validation on reads
+
+**Scenario 2: Protected Names List Manipulation**
+- *Detection:* Unauthorized names added/removed without proposal
+- *Recovery:* GovDAO proposal to restore correct list
+- *Prevention:* All modifications require GovDAO approval
+
+**Scenario 3: Auction Stuck in Commit Phase**
+- *Detection:* Auction past commit deadline with no transitions
+- *Recovery:* Admin function to force phase transition
+- *Prevention:* Block-based deadlines (not wall-clock time)
+
+**Scenario 4: Price Oracle Manipulation (Future)**
+- *Detection:* Unusual pricing patterns
+- *Recovery:* Emergency price freeze via GovDAO
+- *Prevention:* Use block-based pricing, no external oracles in v1
+
+**Scenario 5: Storage Bloat from Rate Limit Records**
+- *Detection:* Increasing gas costs for registration
+- *Recovery:* Batch prune expired records
+- *Prevention:* Automatic pruning on each registration, periodic cleanup jobs
+
+### 15.4 Upgrade Path
+
+**Package Upgrades (`p/gnoland/antisquat`):**
+- Packages are immutable once deployed
+- New versions deployed as `p/gnoland/antisquat/v2`, etc.
+- Realms must be updated to import new version
+
+**Realm Upgrades (`r/gnoland/users/v2`):**
+- State persists in `r/sys/users` (separate realm)
+- New controller can be deployed alongside old
+- GovDAO proposal to whitelist new, de-whitelist old
+
+**Configuration Updates:**
+- Rate limits: GovDAO proposal via `ProposeUpdateRateLimits()`
+- Protected names: GovDAO proposal via `ProposeAddProtectedName()`
+- Pricing tiers: GovDAO proposal via `ProposeUpdatePricing()`
+
+**Backward Compatibility:**
+- All existing usernames remain valid
+- No migration of existing users required
+- Old name lookups continue to work
+
+### 15.5 Performance Considerations
+
+**Storage Costs:**
+
+| Component | Storage per Entry | Estimated Growth |
+|-----------|------------------|------------------|
+| Rate limit record | ~100 bytes | O(active users × 3) |
+| Protected name | ~150 bytes | O(protected names) |
+| Auction commitment | ~200 bytes | O(active auctions × bidders) |
+
+**Gas Costs (Estimated):**
+
+| Operation | Gas Units |
+|-----------|-----------|
+| Register (standard) | ~50,000 |
+| Register (with rate limit check) | ~60,000 |
+| Commit bid | ~40,000 |
+| Reveal bid | ~45,000 |
+| Resolve auction | ~80,000 |
+
+**Optimization Strategies:**
+1. **Lazy pruning** - Remove expired rate limit records only when address registers again
+2. **Batch operations** - GovDAO can add multiple protected names in single proposal
+3. **Efficient lookups** - AVL trees provide O(log n) access
+
+**Scalability Limits:**
+- Rate limit storage: ~1M addresses before noticeable impact
+- Protected names: ~10K names is practical upper bound
+- Concurrent auctions: ~100 recommended maximum
+
+### 15.6 Incident Response
+
+**Severity Levels:**
+
+| Level | Description | Response Time | Example |
+|-------|-------------|---------------|---------|
+| P0 | Complete system failure | Immediate | Registration completely broken |
+| P1 | Security vulnerability | < 4 hours | Bypass allowing unlimited registrations |
+| P2 | Degraded functionality | < 24 hours | Rate limiting not working |
+| P3 | Minor issue | < 1 week | UI displaying wrong fee |
+
+**Response Procedures:**
+1. **Detect** - Monitoring alerts or user reports
+2. **Assess** - Determine severity and impact scope
+3. **Contain** - GovDAO emergency pause if needed
+4. **Fix** - Deploy patched version
+5. **Recover** - Restore normal operations
+6. **Review** - Post-incident analysis and documentation
+
+**Emergency Contacts:**
+- GovDAO multi-sig holders for emergency proposals
+- Core team Discord/Telegram for coordination
+
+---
+
+## 16. Future Enhancements
 
 1. **Proof of Humanity** - Integration with external verification
 2. **Reputation-based pricing** - Active users get discounts
@@ -646,7 +914,7 @@ func main() {
 
 ---
 
-## 15. Implementation Timeline
+## 17. Implementation Timeline
 
 | Phase | Scope | Priority |
 |-------|-------|----------|
@@ -658,7 +926,7 @@ func main() {
 
 ---
 
-## 16. Open Questions
+## 18. Open Questions
 
 1. **Protected names list** - Should it live in antisquat package or separate `p/gnoland/protectednames`?
 2. **Pricing tiers** - Are default values appropriate for mainnet?
