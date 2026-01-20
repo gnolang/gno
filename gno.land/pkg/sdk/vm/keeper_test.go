@@ -316,7 +316,7 @@ func Echo(cur realm) string {
 	// Get count of object of the old package.
 	objctr := store.GetObjectCount(backendObjectIndexKey(pkgID, pkgidx))
 
-	// 8 is hardcode count of obejcts of the package.
+	// 8 is hardcode count of objects of the package.
 	var objCount uint64 = 8
 	assert.Equal(t, objCount, objctr, "num of object does not match")
 
