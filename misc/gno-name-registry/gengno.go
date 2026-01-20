@@ -15,32 +15,13 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
 
 //go:embed source.gno
 var source string
-
-// Creates a new AST node for a name entry.
-func newEntryNode(name string, typ int) *ast.CompositeLit {
-	return &ast.CompositeLit{Elts: []ast.Expr{
-		&ast.KeyValueExpr{
-			Key: ast.NewIdent("Name"),
-			Value: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: strconv.Quote(name),
-			},
-		},
-		&ast.KeyValueExpr{
-			Key: ast.NewIdent("Type"),
-			Value: &ast.BasicLit{
-				Kind:  token.INT,
-				Value: strconv.Itoa(typ),
-			},
-		},
-	}}
-}
 
 func main() {
 	// Open Handshake's protocol list of reserved names
@@ -69,16 +50,33 @@ func main() {
 	spec := decl.Specs[0].(*ast.ValueSpec)
 	array := spec.Values[0].(*ast.CompositeLit)
 
-	// For each reserved name create an entry item
+	// Cleanup and sort names
+	var names []string
 	for _, v := range entries {
 		if len(v) != 2 {
 			// Skip invalid rows (usually the first one)
 			continue
 		}
 
+		// TODO: Should we skip country TLDs?
 		name := v[0].(string)
-		nameType := int(v[1].(float64))
-		array.Elts = append(array.Elts, newEntryNode(name, nameType))
+		if i := strings.Index(name, "."); i != -1 {
+			// Remove suffix starting from the first dot leaving only names
+			name = name[:i]
+		}
+
+		names = append(names, name)
+	}
+
+	slices.Sort(names)
+
+	// Add names to the generated script
+	// TODO: Generate multiple script files?
+	for _, name := range names {
+		array.Elts = append(array.Elts, &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: strconv.Quote(name),
+		})
 	}
 
 	// Generate a Gno file with all the entries initialized
@@ -96,7 +94,7 @@ func main() {
 	}
 
 	// Write the Gno file making sure sure each entry is defined in a single line
-	_, err = strings.NewReplacer("{Name", "\n\t{Name").WriteString(file, buf.String())
+	_, err = strings.NewReplacer("{\"", "{\n\t\"", ", \"", ",\n\t\"").WriteString(file, buf.String())
 	if err != nil {
 		fatal(err)
 	}
