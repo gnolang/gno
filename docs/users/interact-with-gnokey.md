@@ -780,7 +780,7 @@ Create the tx once (any participant can do it), then distribute the JSON to sign
 TX_PAYLOAD="./multisig-abc-send.json"
 rm -f "$TX_PAYLOAD"
 
-gnokey maketx send --home "./alice-kb" -chainid dev -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss multisig-abc > "$TX_PAYLOAD"
+gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss multisig-abc > "$TX_PAYLOAD"
 ```
 
 **Important: sign using the multisig account number + sequence**
