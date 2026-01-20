@@ -193,7 +193,7 @@ This section provides a comprehensive reference for the `genesis_txs.jsonl` file
 
 ### Transaction Structure
 
-Each line contains a `TxWithMetadata` object:
+The file contains multiple `TxWithMetadata` objects, one per line:
 
 ```json
 {
@@ -222,87 +222,90 @@ Genesis transactions support three VM message types defined in [`gno.land/pkg/sd
 | `MsgAddPackage` | `/vm.m_addpkg` | Deploys a new package or realm |
 | `MsgRun` | `/vm.m_run` | Executes ephemeral code (less common in genesis) |
 
+### Transaction Ordering
+
+Transactions **must be sorted by timestamp before writing** to ensure deterministic ordering when replaying genesis state. The sorting is not done automatically when reading, you must sort manually using `slices.SortStableFunc` as shown in the example below.
+
 ### Creating and writing a genesis_txs.jsonl file
 
 The following example shows how to create transactions, sort them by timestamp, sign them, and write to a JSONL file:
 
+[embedmd]:# (./_assets/genesis_txs_example.go go)
 ```go
-import (
-    "fmt"
-    "os"
-    "slices"
-    "time"
+package example
 
-    "github.com/gnolang/gno/gno.land/pkg/gnoland"
-    "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-    "github.com/gnolang/gno/tm2/pkg/amino"
-    "github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
-    "github.com/gnolang/gno/tm2/pkg/std"
+import (
+	"fmt"
+	"os"
+	"slices"
+	"time"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func createGenesisTxsFile(outputPath string, privKey secp256k1.PrivKeySecp256k1, chainID string) error {
-    var txs []gnoland.TxWithMetadata
+	var txs []gnoland.TxWithMetadata
 
-    // Create a MsgCall transaction
-    caller := privKey.PubKey().Address()
-    callTx := gnoland.TxWithMetadata{
-        Tx: std.Tx{
-            Msgs: []std.Msg{
-                vm.MsgCall{
-                    Caller:  caller,
-                    PkgPath: "gno.land/r/demo/users",
-                    Func:    "Register",
-                    Args:    []string{"myusername"},
-                    Send:    std.Coins{},
-                },
-            },
-            Fee: std.NewFee(2000000, std.MustParseCoin("1000000ugnot")),
-        },
-        Metadata: &gnoland.GnoTxMetadata{
-            Timestamp: time.Now().Unix(),
-        },
-    }
-    txs = append(txs, callTx)
+	// Create a MsgCall transaction
+	caller := privKey.PubKey().Address()
+	callTx := gnoland.TxWithMetadata{
+		Tx: std.Tx{
+			Msgs: []std.Msg{
+				vm.MsgCall{
+					Caller:  caller,
+					PkgPath: "gno.land/r/demo/users",
+					Func:    "Register",
+					Args:    []string{"myusername"},
+					Send:    std.Coins{},
+				},
+			},
+			Fee: std.NewFee(2000000, std.MustParseCoin("1000000ugnot")),
+		},
+		Metadata: &gnoland.GnoTxMetadata{
+			Timestamp: time.Now().Unix(),
+		},
+	}
+	txs = append(txs, callTx)
 
-    // Sort transactions by timestamp (required for deterministic ordering)
-    slices.SortStableFunc(txs, func(a, b gnoland.TxWithMetadata) int {
-        if a.Metadata == nil || b.Metadata == nil {
-            return 0
-        }
-        if a.Metadata.Timestamp < b.Metadata.Timestamp {
-            return -1
-        } else if a.Metadata.Timestamp > b.Metadata.Timestamp {
-            return 1
-        }
-        return 0
-    })
+	// Sort transactions by timestamp (required for deterministic ordering)
+	slices.SortStableFunc(txs, func(a, b gnoland.TxWithMetadata) int {
+		if a.Metadata == nil || b.Metadata == nil {
+			return 0
+		}
+		if a.Metadata.Timestamp < b.Metadata.Timestamp {
+			return -1
+		} else if a.Metadata.Timestamp > b.Metadata.Timestamp {
+			return 1
+		}
+		return 0
+	})
 
-    // Sign transactions
-    if err := gnoland.SignGenesisTxs(txs, privKey, chainID); err != nil {
-        return err
-    }
+	// Sign transactions
+	if err := gnoland.SignGenesisTxs(txs, privKey, chainID); err != nil {
+		return err
+	}
 
-    // Write transactions to JSONL file
-    file, err := os.Create(outputPath)
-    if err != nil {
-        return err
-    }
-    defer file.Close()
-    for _, tx := range txs {
-        encoded, err := amino.MarshalJSON(tx)
-        if err != nil {
-            return err
-        }
-        if _, err := fmt.Fprintf(file, "%s\n", encoded); err != nil {
-            return err
-        }
-    }
+	// Write transactions to JSONL file
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-    return nil
+	for _, tx := range txs {
+		encoded, err := amino.MarshalJSON(tx)
+		if err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(file, "%s\n", encoded); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 ```
-
-### Transaction Ordering
-
-Transactions **must be sorted by timestamp before writing** to ensure deterministic ordering when replaying genesis state. The sorting is not done automatically when reading, you must sort manually using `slices.SortStableFunc` as shown above.
-
