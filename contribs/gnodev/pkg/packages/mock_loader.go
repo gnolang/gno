@@ -9,6 +9,8 @@ type MockLoader struct {
 	packages map[string]*std.MemPackage
 }
 
+var _ Loader = (*MockLoader)(nil)
+
 // NewMockLoader creates a loader from a list of in-memory packages.
 func NewMockLoader(pkgs ...*std.MemPackage) *MockLoader {
 	m := &MockLoader{
