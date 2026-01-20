@@ -181,8 +181,7 @@ gnokey maketx addpkg \
 ```
 
 Once we have added a desired [namespace](../resources/users-and-teams.md) to upload the package to, we can specify a key
-pair name to use to execute the
-transaction:
+pair name to use to execute the transaction:
 
 ```bash
 gnokey maketx addpkg \
