@@ -669,7 +669,7 @@ This section shows the simplest multisig flow:
 - `gnokey`
 - their own private key (from mnemonic or existing)
 - the other signers' **pubkeys** (added as bech32 keys) present in the keybase
-- Agreement on **threshold** and **key ordering**
+- agreement on **threshold** and **key ordering**
 
 **The single most important rule: key ordering**
 
