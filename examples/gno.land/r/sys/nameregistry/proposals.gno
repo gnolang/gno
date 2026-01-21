@@ -7,6 +7,8 @@ import (
 	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
 )
 
 // ProposeConstraintsReset creates a new GovDAO proposal to reset name constraints.
@@ -27,10 +29,11 @@ func ProposeConstraintsReset(checkers ...Checker) dao.ProposalRequest {
 		return nil
 	}
 
-	return dao.NewProposalRequest(
+	return dao.NewProposalRequestWithFilter(
 		"Reset name registry constraints",
 		desc.String(),
 		dao.NewSimpleExecutor(cb, ""),
+		impl.FilterByTier{Tier: memberstore.T1},
 	)
 }
 
@@ -51,10 +54,11 @@ func ProposeConstraintsAppend(checkers ...Checker) dao.ProposalRequest {
 		return nil
 	}
 
-	return dao.NewProposalRequest(
+	return dao.NewProposalRequestWithFilter(
 		"Append new name registry constraints",
 		desc.String(),
 		dao.NewSimpleExecutor(cb, ""),
+		impl.FilterByTier{Tier: memberstore.T1},
 	)
 }
 
@@ -73,10 +77,11 @@ func ProposeNamesSet(nameType string, names ...string) dao.ProposalRequest {
 		return nil
 	}
 
-	return dao.NewProposalRequest(
+	return dao.NewProposalRequestWithFilter(
 		ufmt.Sprintf("Initialize %s names", nameType),
 		ufmt.Sprintf("Proposal initializes %d %s names", len(names), nameType),
 		dao.NewSimpleExecutor(cb, ""),
+		impl.FilterByTier{Tier: memberstore.T1},
 	)
 }
 
@@ -95,9 +100,10 @@ func ProposeNamesAdd(nameType string, names ...string) dao.ProposalRequest {
 		return nil
 	}
 
-	return dao.NewProposalRequest(
+	return dao.NewProposalRequestWithFilter(
 		ufmt.Sprintf("Add new %s names", nameType),
 		ufmt.Sprintf("Proposal adds %d %s new names", len(names), nameType),
 		dao.NewSimpleExecutor(cb, ""),
+		impl.FilterByTier{Tier: memberstore.T1},
 	)
 }
