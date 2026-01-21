@@ -12,20 +12,20 @@
 <span><span class="font-bold">/r/test</span> Form</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
-<div class="gno-form_input"><label for="content"> Enter content </label>
+<div class="gno-form_input"><label for="content">Enter content</label>
 <textarea id="content" name="content" placeholder="Enter content" rows="4">Line 1
 Line 2
 Line 3</textarea>
 </div>
-<div class="gno-form_input"><label for="tabs"> Enter tabbed content </label>
+<div class="gno-form_input"><label for="tabs">Enter tabbed content</label>
 <textarea id="tabs" name="tabs" placeholder="Enter tabbed content" rows="4">Col1	Col2	Col3</textarea>
 </div>
-<div class="gno-form_input"><label for="code"> Enter code </label>
+<div class="gno-form_input"><label for="code">Enter code</label>
 <textarea id="code" name="code" placeholder="Enter code" rows="6">func main() {
 	return
 }</textarea>
 </div>
-<div class="gno-form_input"><label for="mixed"> Mixed content </label>
+<div class="gno-form_input"><label for="mixed">Mixed content</label>
 <textarea id="mixed" name="mixed" placeholder="Mixed content" rows="4">Hello
 	Indented line
 Back to normal</textarea>

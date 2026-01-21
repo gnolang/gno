@@ -28,14 +28,14 @@ func main() {
 // ---
 // Sort by: [newest first](/r/gnoland/boards2/v1:?order=asc)
 //
-// **[CCC](/r/gnoland/boards2/v1:CCC)**
+// ###### [CCC](/r/gnoland/boards2/v1:CCC)
 // Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #3
 // **0 threads**
 //
-// **[BBB](/r/gnoland/boards2/v1:BBB)**
+// ###### [BBB](/r/gnoland/boards2/v1:BBB)
 // Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #2
 // **0 threads**
 //
-// **[AAA](/r/gnoland/boards2/v1:AAA)**
+// ###### [AAA](/r/gnoland/boards2/v1:AAA)
 // Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
 // **0 threads**
