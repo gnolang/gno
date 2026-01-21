@@ -229,14 +229,12 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool, queryCl
 	}
 
 	if len(candidates) == 0 {
+		// there are no candidates.
 		jdoc := queryQDoc(parsed.pkg, queryClient)
 		if jdoc != nil {
 			return &Documentable{doc: jdoc}, nil
 		}
-	}
 
-	if len(candidates) == 0 {
-		// there are no candidates.
 		// if this is ambiguous, remove ambiguity and try parsing args using pkg as the symbol.
 		if !parsed.pkgAmbiguous {
 			return nil, fmt.Errorf("commands/doc: package not found: %q", parsed.pkg)
