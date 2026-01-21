@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -14,7 +16,7 @@ const (
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.InviteMember(cross, 0, user, boards2.Role("foobar")) // Operate on realm DAO instead of individual boards
+	boards2.InviteMember(cross, 0, user, boards.Role("foobar")) // Operate on realm DAO instead of individual boards
 }
 
 // Error:
