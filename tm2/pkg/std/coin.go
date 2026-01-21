@@ -275,7 +275,7 @@ func (coins Coins) Add(coinsB Coins) Coins {
 	res := coins.AddUnsafe(coinsB)
 	if !res.IsValid() {
 		panic(fmt.Sprintf(
-			"invalid result: %v + %v = %v (coins must be sorted, lowercase-only denoms, and positive amounts)",
+			"invalid result: %v + %v = %v (must be sorted, lowercase-only denoms, and positive amounts)",
 			coins, coinsB, res,
 		))
 	}
