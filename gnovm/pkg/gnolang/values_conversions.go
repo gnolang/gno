@@ -1096,7 +1096,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 				panic("should not happen")
 			}
 		} else if t.Kind() == ArrayKind {
-
 			// Slice to array conversion (Go 1.20).
 			// Yields an array containing the elements of the underlying slice.
 			// Panics if len(slice) < len(array).
@@ -1140,7 +1139,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.V = av
 		} else if t.Kind() == PointerKind {
-
 			// Slice to array pointer conversion (Go 1.17).
 			// Yields a pointer to the underlying array of the slice (no copy).
 			// Panics if len(slice) < len(array).
