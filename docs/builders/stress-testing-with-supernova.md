@@ -9,20 +9,14 @@ performance metrics.
 
 ## Why Stress Test Your Network?
 
-Before deploying a Gno network to production, you need to answer critical
-questions:
+Stress testing answers critical questions before production deployment:
 
-- **What is the maximum throughput?** How many transactions per second (TPS)
-  can your node handle before performance degrades?
-- **How does gas consumption affect block production?** Understanding the
-  relationship between gas limits and transaction throughput helps optimize
-  block parameters.
-- **Are there bottlenecks?** Stress testing reveals performance issues in
-  consensus, storage, or network layers that may not appear during normal
-  operation.
-- **How do different workloads compare?** Deploying contracts versus calling
-  methods have different resource requirements. Knowing this helps with
-  capacity planning.
+| Question | Why It Matters |
+|----------|----------------|
+| What's my maximum TPS? | Know when performance will degrade under load |
+| How do gas limits affect throughput? | Optimize block parameters for your workload |
+| Where are the bottlenecks? | Find issues in consensus, storage, or networking |
+| How do workloads differ? | Plan capacity for deployments vs method calls |
 
 ## How Supernova Works
 
