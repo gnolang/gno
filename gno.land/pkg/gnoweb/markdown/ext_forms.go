@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"

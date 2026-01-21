@@ -1,7 +1,0 @@
--- input.md --
-<gno-form path="submit=value">
-<gno-input name="data" type="text" placeholder="Data" />
-</gno-form>
-
--- output.html --
-<!-- Error: invalid path attribute: contains invalid characters -->

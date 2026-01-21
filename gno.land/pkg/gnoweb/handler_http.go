@@ -197,7 +197,8 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract path from hidden form field if present
+	// Extract path from hidden form field if present.
+	// The value is HTML-escaped in the form and URL-encoded when building the redirect.
 	if gnoPath := r.PostForm.Get("__gno_path"); gnoPath != "" {
 		gnourl.Args = gnoPath
 		// Remove from form data so it's not included in query params
@@ -207,7 +208,9 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 	// Use remaining form data as query
 	gnourl.Query = r.PostForm
 
-	// Build redirect URL using EncodeFormURL
+	// Build redirect URL using EncodeFormURL.
+	// url.PathEscape encodes slashes and delimiter characters; the args remain part of
+	// the path (e.g. /r/realm:args), not a URL scheme.
 	redirectURL := gnourl.EncodeFormURL()
 
 	// Defense-in-depth: validate redirect URL to prevent open redirects,
