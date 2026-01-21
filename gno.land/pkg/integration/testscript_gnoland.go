@@ -225,14 +225,15 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 	}
 
 	cmds := map[string]func(ts *testscript.TestScript, neg bool, args []string){
-		"gnoland":     gnolandCmd(t, nodesManager, gnoRootDir),
-		"gnokey":      gnokeyCmd(nodesManager),
-		"adduser":     adduserCmd(nodesManager),
-		"adduserfrom": adduserfromCmd(nodesManager),
-		"patchpkg":    patchpkgCmd(),
-		"loadpkg":     loadpkgCmd(gnoRootDir),
-		"scanf":       loadpkgCmd(gnoRootDir),
-		"input":       inputCmd(),
+		"gnoland":        gnolandCmd(t, nodesManager, gnoRootDir),
+		"gnokey":         gnokeyCmd(nodesManager),
+		"adduser":        adduserCmd(nodesManager),
+		"adduserfrom":    adduserfromCmd(nodesManager),
+		"patchpkg":       patchpkgCmd(),
+		"loadpkg":        loadpkgCmd(gnoRootDir),
+		"loadgenesistxs": loadGenesisTxsCmd(gnoRootDir),
+		"scanf":          loadpkgCmd(gnoRootDir),
+		"input":          inputCmd(),
 	}
 
 	// Initialize cmds map if needed
@@ -283,6 +284,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
 			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
 			noParallel := fs.Bool("no-parallel", false, "don't run this node in parallel with other testing nodes")
+			skipGenesisSig := fs.Bool("skip-genesis-sig", false, "skip genesis transaction signature verification")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
@@ -345,12 +347,13 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			dbdir := ts.Getenv("GNO_DBDIR")
 			priv := ts.Value(envKeyPrivValKey).(ed25519.PrivKeyEd25519)
 			nodep := setupNode(ts, ctx, &ProcessNodeConfig{
-				ValidatorKey: priv,
-				Verbose:      false,
-				DBDir:        dbdir,
-				RootDir:      gnoRootDir,
-				TMConfig:     cfg.TMConfig,
-				Genesis:      NewMarshalableGenesisDoc(cfg.Genesis),
+				ValidatorKey:   priv,
+				Verbose:        false,
+				DBDir:          dbdir,
+				RootDir:        gnoRootDir,
+				TMConfig:       cfg.TMConfig,
+				Genesis:        NewMarshalableGenesisDoc(cfg.Genesis),
+				SkipGenesisSig: *skipGenesisSig,
 			})
 
 			nodesManager.Set(sid, &tNodeProcess{NodeProcess: nodep, cfg: cfg})
@@ -616,6 +619,30 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 		}
 
 		ts.Logf("%q package was added to genesis", args[0])
+	}
+}
+
+// loadGenesisTxsCmd loads genesis transactions from the default genesis_txs.jsonl file.
+// This allows testing with the actual production genesis transactions.
+// Note: Signature verification must be skipped for these txs since they are signed
+// by production keys that don't exist in the test environment.
+func loadGenesisTxsCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, args []string) {
+	return func(ts *testscript.TestScript, neg bool, args []string) {
+		if len(args) != 0 {
+			ts.Fatalf("`loadgenesistxs`: no arguments expected")
+		}
+
+		txsFile := filepath.Join(gnoRootDir, "gno.land", "genesis", "genesis_txs.jsonl")
+
+		genesisTxs, err := gnoland.LoadGenesisTxsFile(txsFile, "tendermint_test", "https://127.0.0.1:26657")
+		if err != nil {
+			ts.Fatalf("`loadgenesistxs`: unable to load genesis txs: %s", err)
+		}
+
+		genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+		genesis.Txs = append(genesis.Txs, genesisTxs...)
+
+		ts.Logf("loaded %d genesis transactions from %s", len(genesisTxs), txsFile)
 	}
 }
 
