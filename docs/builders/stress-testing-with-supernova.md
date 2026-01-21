@@ -2,7 +2,7 @@
 
 ## What is Supernova?
 
-Supernova is a stress-testing tool designed specifically for Gno TM2 networks.
+[Supernova](https://github.com/gnolang/supernova) is a stress-testing tool designed specifically for Gno TM2 networks.
 It helps node operators and developers understand how their network behaves
 under load by simulating realistic transaction patterns and measuring
 performance metrics.
@@ -94,8 +94,74 @@ correlate supernova's transaction metrics with internal node metrics like:
 
 ## Getting Started
 
-For installation and usage instructions, see the
-[Supernova GitHub repository](https://github.com/gnolang/supernova).
+1### Prerequisites
 
-For official benchmark results across different configurations, see the
-[benchmark reports](https://github.com/gnolang/benchmarks/tree/main/reports/supernova).
+- Go 1.19 or higher
+- A running Gno node (e.g., via `gnodev` or `gnoland start`)
+- A funded mnemonic (the first derived address needs funds for distribution)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/gnolang/supernova.git
+cd supernova
+
+# Build the binary
+make build
+
+# The binary will be at ./build/supernova
+```
+
+### Basic Usage
+
+```bash
+./build/supernova \
+  -url http://localhost:26657 \
+  -mnemonic "your twelve word mnemonic phrase here" \
+  -sub-accounts 5 \
+  -transactions 100 \
+  -mode REALM_CALL \
+  -output results.json
+```
+
+### CLI Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-url` | (required) | JSON-RPC URL of the Gno node |
+| `-mnemonic` | (required) | Mnemonic for deriving accounts |
+| `-sub-accounts` | 10 | Number of accounts sending transactions |
+| `-transactions` | 100 | Total transactions to send |
+| `-mode` | REALM_DEPLOYMENT | REALM_DEPLOYMENT, PACKAGE_DEPLOYMENT, or REALM_CALL |
+| `-batch` | 100 | Batch size for JSON-RPC calls |
+| `-chain-id` | dev | Chain ID of the network |
+| `-output` | (none) | Path to save results JSON |
+
+### Testing `supernova`
+
+1. **Start gnodev** (comes with a pre-funded account):
+   ```bash
+   gnodev
+   ```
+   Note the mnemonic shown in the `default-account` output (`source bonus chronic...`).
+
+2. **Run supernova** in another terminal:
+   ```bash
+   ./build/supernova \
+     -url http://localhost:26657 \
+     -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast" \
+     -sub-accounts 5 \
+     -transactions 50 \
+     -mode REALM_CALL \
+     -output results.json
+   ```
+
+3. **Check results** in `results.json`.
+
+For production-grade testing, increase `-sub-accounts` (50-100) and `-transactions` (5000+).
+
+### Resources
+
+- [Supernova GitHub repository](https://github.com/gnolang/supernova)
+- [Benchmark reports](https://github.com/gnolang/benchmarks/tree/main/reports/supernova)
