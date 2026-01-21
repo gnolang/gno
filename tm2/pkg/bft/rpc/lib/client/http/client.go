@@ -61,6 +61,10 @@ func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*ty
 
 	// Make sure the ID matches
 	if request.ID != response.ID {
+		// If response has an empty ID and an error, return the error instead of ID mismatch
+		if (response.ID == nil || response.ID.String() == "") && response.Error != nil {
+			return nil, response.Error
+		}
 		return nil, ErrRequestResponseIDMismatch
 	}
 
