@@ -1504,6 +1504,27 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					} // escapes...
 
 					//----------------------------------------
+					// LEAVE (TYPE) CALL EXPR []T to [N]T or *[N]T CASE:
+					//----------------------------------------
+
+					if ast, ok := atBase.(*SliceType); ok {
+						if cat, ok := ctBase.(*ArrayType); ok {
+							if ast.Elem().TypeID() == cat.Elem().TypeID() {
+								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+								return n, TRANS_CONTINUE
+							}
+						}
+						if cpt, ok := ctBase.(*PointerType); ok {
+							if cat, ok := cpt.Elem().(*ArrayType); ok {
+								if ast.Elem().TypeID() == cat.Elem().TypeID() {
+									n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+									return n, TRANS_CONTINUE
+								}
+							}
+						}
+					}
+
+					//----------------------------------------
 					// LEAVE (TYPE) CALL EXPR POINTER CASE:
 					// (*Foo)(&Bar{}} is legal, but only one level.
 					//----------------------------------------

@@ -1095,6 +1095,103 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			default:
 				panic("should not happen")
 			}
+		} else if t.Kind() == ArrayKind {
+
+			// Slice to array conversion (Go 1.20).
+			// Yields an array containing the elements of the underlying slice.
+			// Panics if len(slice) < len(array).
+			// Ref: https://go.dev/ref/spec#Conversions
+
+			at := baseOf(t).(*ArrayType)
+			arrayLen := at.Len
+
+			var sv *SliceValue
+			var sliceLen int
+			switch v := tv.V.(type) {
+			case nil:
+				sliceLen = 0
+			case *SliceValue:
+				sv = v
+				sliceLen = sv.Length
+			default:
+				panic("should not happen")
+			}
+
+			if sliceLen < arrayLen {
+				panic(fmt.Sprintf(
+					"cannot convert slice with length %d to array with length %d",
+					sliceLen, arrayLen))
+			}
+
+			var av *ArrayValue
+			if sv != nil {
+				svb := sv.GetBase(store)
+				if svb.Data != nil {
+					av = alloc.NewDataArray(arrayLen)
+					copy(av.Data, svb.Data[sv.Offset:sv.Offset+arrayLen])
+				} else {
+					av = alloc.NewListArray(arrayLen)
+					copy(av.List, svb.List[sv.Offset:sv.Offset+arrayLen])
+				}
+			} else {
+				// nil slice to zero-length array
+				av = alloc.NewListArray(arrayLen)
+			}
+			tv.T = t
+			tv.V = av
+		} else if t.Kind() == PointerKind {
+
+			// Slice to array pointer conversion (Go 1.17).
+			// Yields a pointer to the underlying array of the slice (no copy).
+			// Panics if len(slice) < len(array).
+			// Ref: https://go.dev/ref/spec#Conversions
+
+			pt := baseOf(t).(*PointerType)
+			at, ok := pt.Elem().(*ArrayType)
+			if !ok {
+				panic(fmt.Sprintf("cannot convert %s to %s", tv.T.String(), t.String()))
+			}
+			arrayLen := at.Len
+
+			switch sv := tv.V.(type) {
+			case nil:
+				if arrayLen == 0 {
+					tv.T = t
+					tv.V = nil
+				} else {
+					panic(fmt.Sprintf(
+						"cannot convert slice with length 0 to pointer to array with length %d",
+						arrayLen))
+				}
+			case *SliceValue:
+				if sv.Length < arrayLen {
+					panic(fmt.Sprintf(
+						"cannot convert slice with length %d to pointer to array with length %d",
+						sv.Length, arrayLen))
+				}
+				// We use SliceValue as TV.V (with ArrayType as TV.T) to preserve
+				// the offset for correct element access. GetPointerAtIndex in
+				// values.go handles this case.
+				// TODO: should we instead modify Deref to use the Index field?
+				arrayView := &SliceValue{
+					Base:   sv.Base,
+					Offset: sv.Offset,
+					Length: arrayLen,
+					Maxcap: arrayLen,
+				}
+				tv.T = t
+				tv.V = PointerValue{
+					TV: &TypedValue{
+						T: at,
+						V: arrayView,
+					},
+					Base:  sv.GetBase(store),
+					Index: sv.Offset,
+				}
+			default:
+				panic("should not happen")
+			}
+
 		} else {
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
