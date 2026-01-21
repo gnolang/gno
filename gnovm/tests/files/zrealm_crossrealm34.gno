@@ -1,5 +1,4 @@
 // PKGPATH: gno.land/r/crossrealm
-// PKGPATH: gno.land/r/crossrealm
 package crossrealm
 
 import (
