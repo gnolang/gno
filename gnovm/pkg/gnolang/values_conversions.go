@@ -1191,7 +1191,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			default:
 				panic("should not happen")
 			}
-
 		} else {
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
