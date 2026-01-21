@@ -193,7 +193,14 @@ This section provides a comprehensive reference for the `genesis_txs.jsonl` file
 
 ### Transaction Structure
 
-The file contains multiple `TxWithMetadata` objects, one per line:
+Each line contains a `TxWithMetadata` object serialized as compact JSON (no newlines within the object):
+
+```text
+{"tx":{"msg":[...],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":[...],"memo":""},"metadata":{"timestamp":1234567890}}
+{"tx":{"msg":[...],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":[...],"memo":""},"metadata":{"timestamp":1234567891}}
+```
+
+The structure of each `TxWithMetadata` object (shown here formatted for readability):
 
 ```json
 {
