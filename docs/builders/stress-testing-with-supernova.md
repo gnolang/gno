@@ -76,7 +76,7 @@ Block utilization reveals how efficiently blocks are being filled:
 
 ## When to Use Supernova
 
-- **Before mainnet launch**: Validate your network can handle expected load
+- **Before deployment**: Validate your network can handle expected load
 - **After configuration changes**: Verify block gas limits, timing parameters
 - **During capacity planning**: Determine hardware requirements for target TPS
 - **Comparing node implementations**: Benchmark different setups objectively
@@ -94,7 +94,7 @@ correlate supernova's transaction metrics with internal node metrics like:
 
 ## Getting Started
 
-1### Prerequisites
+### Prerequisites
 
 - Go 1.19 or higher
 - A running Gno node (e.g., via `gnodev` or `gnoland start`)
@@ -118,12 +118,14 @@ make build
 ```bash
 ./build/supernova \
   -url http://localhost:26657 \
-  -mnemonic "your twelve word mnemonic phrase here" \
+  -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast" \
   -sub-accounts 5 \
   -transactions 100 \
   -mode REALM_CALL \
   -output results.json
 ```
+
+You can check the results in `results.json`. For production-grade testing, increase `-sub-accounts` (50-100) and `-transactions` (5000+).
 
 ### CLI Flags
 
@@ -131,35 +133,13 @@ make build
 |------|---------|-------------|
 | `-url` | (required) | JSON-RPC URL of the Gno node |
 | `-mnemonic` | (required) | Mnemonic for deriving accounts |
-| `-sub-accounts` | 10 | Number of accounts sending transactions |
-| `-transactions` | 100 | Total transactions to send |
+| `-sub-accounts` | 1 | Number of accounts sending transactions |
+| `-transactions` | 10 | Total transactions to send |
 | `-mode` | REALM_DEPLOYMENT | REALM_DEPLOYMENT, PACKAGE_DEPLOYMENT, or REALM_CALL |
 | `-batch` | 100 | Batch size for JSON-RPC calls |
 | `-chain-id` | dev | Chain ID of the network |
 | `-output` | (none) | Path to save results JSON |
 
-### Testing `supernova`
-
-1. **Start gnodev** (comes with a pre-funded account):
-   ```bash
-   gnodev
-   ```
-   Note the mnemonic shown in the `default-account` output (`source bonus chronic...`).
-
-2. **Run supernova** in another terminal:
-   ```bash
-   ./build/supernova \
-     -url http://localhost:26657 \
-     -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast" \
-     -sub-accounts 5 \
-     -transactions 50 \
-     -mode REALM_CALL \
-     -output results.json
-   ```
-
-3. **Check results** in `results.json`.
-
-For production-grade testing, increase `-sub-accounts` (50-100) and `-transactions` (5000+).
 
 ### Resources
 
