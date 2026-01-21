@@ -2,10 +2,11 @@
 
 ## What is Supernova?
 
-[Supernova](https://github.com/gnolang/supernova) is a stress-testing tool designed specifically for Gno TM2 networks.
-It helps node operators and developers understand how their network behaves
-under load by simulating realistic transaction patterns and measuring
-performance metrics.
+[Supernova](https://github.com/gnolang/supernova) is a stress-testing
+tool designed specifically for Gno TM2 networks. It helps node operators
+and developers understand how their network behaves under load by
+simulating realistic transaction patterns and measuring performance
+metrics.
 
 ## Why Stress Test Your Network?
 
@@ -14,9 +15,9 @@ Stress testing answers critical questions before production deployment:
 | Question | Why It Matters |
 |----------|----------------|
 | What's my maximum TPS? | Know when performance will degrade under load |
-| How do gas limits affect throughput? | Optimize block parameters for your workload |
-| Where are the bottlenecks? | Find issues in consensus, storage, or networking |
-| How do workloads differ? | Plan capacity for deployments vs method calls |
+| How do gas limits affect throughput? | Optimize block parameters |
+| Where are the bottlenecks? | Find issues in consensus, storage, or network |
+| How do workloads differ? | Plan capacity for deployments vs calls |
 
 ## How Supernova Works
 
@@ -39,9 +40,9 @@ Based on the selected mode, supernova constructs and signs transactions.
 
 | Mode | What it Does | Best For |
 |------|--------------|----------|
-| REALM_DEPLOYMENT | Deploys a new realm per transaction | Testing heavy workloads (compilation, storage, state init) |
-| PACKAGE_DEPLOYMENT | Deploys pure packages (stateless libraries) | Testing code storage overhead |
-| REALM_CALL | Deploys one realm, then calls its methods | Simulating production workloads |
+| REALM_DEPLOYMENT | Deploys a new realm per tx | Heavy workloads |
+| PACKAGE_DEPLOYMENT | Deploys pure packages | Code storage |
+| REALM_CALL | Deploys realm, calls methods | Production |
 
 For most production scenarios, REALM_CALL provides the most relevant metrics
 since it simulates typical user interactions.
@@ -67,9 +68,9 @@ depends on your hardware, network configuration, and block parameters.
 
 Block utilization reveals how efficiently blocks are being filled:
 
-- **Low utilization (<50%)**: The network has spare capacity. Transaction
+- **Low utilization (\<50%)**: The network has spare capacity. Transaction
   volume is below what the network can handle.
-- **High utilization (>80%)**: The network is near capacity. Consider
+- **High utilization (\>80%)**: The network is near capacity. Consider
   increasing gas limits or optimizing transaction costs.
 - **Variable utilization**: May indicate inconsistent transaction batching or
   network congestion patterns.
@@ -118,14 +119,17 @@ make build
 ```bash
 ./build/supernova \
   -url http://localhost:26657 \
-  -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast" \
+  -mnemonic "source bonus chronic canvas draft south burst lottery \
+vacant surface solve popular case indicate oppose farm nothing bullet \
+exhibit title speed wink action roast" \
   -sub-accounts 5 \
   -transactions 100 \
   -mode REALM_CALL \
   -output results.json
 ```
 
-You can check the results in `results.json`. For production-grade testing, increase `-sub-accounts` (50-100) and `-transactions` (5000+).
+You can check the results in `results.json`. For production-grade
+testing, increase `-sub-accounts` (50-100) and `-transactions` (5000+).
 
 ### CLI Flags
 
@@ -135,13 +139,13 @@ You can check the results in `results.json`. For production-grade testing, incre
 | `-mnemonic` | (required) | Mnemonic for deriving accounts |
 | `-sub-accounts` | 1 | Number of accounts sending transactions |
 | `-transactions` | 10 | Total transactions to send |
-| `-mode` | REALM_DEPLOYMENT | REALM_DEPLOYMENT, PACKAGE_DEPLOYMENT, or REALM_CALL |
+| `-mode` | REALM_DEPLOYMENT | Transaction mode (see Modes section) |
 | `-batch` | 100 | Batch size for JSON-RPC calls |
 | `-chain-id` | dev | Chain ID of the network |
 | `-output` | (none) | Path to save results JSON |
 
-
 ### Resources
 
 - [Supernova GitHub repository](https://github.com/gnolang/supernova)
-- [Benchmark reports](https://github.com/gnolang/benchmarks/tree/main/reports/supernova)
+- [Benchmark reports](
+  https://github.com/gnolang/benchmarks/tree/main/reports/supernova)
