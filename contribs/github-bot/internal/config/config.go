@@ -103,7 +103,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 				// c) be a draft
 				If(r.Or(
 					r.ReviewByAnyUser(gh,
-						"jefft0", "leohhhn", "n0izn0iz", "notJoon", "omarsy", "x1unix",
+						"jefft0", "notJoon", "omarsy", "MikaelVallenet",
 					).WithDesiredState(utils.ReviewStateApproved),
 					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
 					r.Draft(),

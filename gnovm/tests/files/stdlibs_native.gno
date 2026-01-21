@@ -10,7 +10,6 @@ func main() {
 }
 
 // Output:
-// false
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): (const (ref(time) package{})).UTC
+// main/stdlibs_native.gno:7:2-10: cannot directly mutate time.UTC from main
