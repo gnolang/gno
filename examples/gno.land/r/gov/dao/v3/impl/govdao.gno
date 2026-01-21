@@ -189,6 +189,7 @@ func (g *GovDAO) isValidCall() bool {
 	}
 
 	// case 2
+	// TODO: Does this case still applies? Where?
 	if runtime.CurrentRealm().IsUser() {
 		return true
 	}
