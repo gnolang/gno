@@ -4,12 +4,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestInvalidMsg(t *testing.T) {
@@ -35,7 +36,7 @@ func TestArbitraryParamsQuery(t *testing.T) {
 		{path: "params/" + dummyModuleName + ":bar_int64", expected: `"-12345"`},
 		{path: "params/" + dummyModuleName + ":bar_uint64", expected: `"4242"`},
 		{path: "params/" + dummyModuleName + ":bar_bool", expected: "true"},
-		{path: "params/" + dummyModuleName + ":bar_bytes", expected: `"YmF6"`},
+		{path: "params/" + dummyModuleName + ":bar_bytes", expected: `baz`},
 	}
 
 	for _, tc := range tcs {
@@ -78,7 +79,7 @@ func TestModuleParamsQuery(t *testing.T) {
 		{path: "params/params_test:foo/bar.int64", expected: `"-12345"`},
 		{path: "params/params_test:foo/bar.uint64", expected: `"4242"`},
 		{path: "params/params_test:foo/bar.bool", expected: "true"},
-		{path: "params/params_test:foo/bar.bytes", expected: `"YmF6"`},
+		{path: "params/params_test:foo/bar.bytes", expected: `baz`},
 	}
 
 	for _, tc := range tcs {
