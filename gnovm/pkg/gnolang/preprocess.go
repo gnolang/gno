@@ -1258,8 +1258,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				} else if ric { // right is const, left is not
 					if isUntyped(rcx.T) {
-						// both untyped, e.g. 1<<s != 1.0
-						if !isUntyped(lt) { // left is typed
+						if !isUntyped(lt) { // left is typed non-const, right is untyped const.
 							checkOrConvertType(store, last, n, &n.Right, lt)
 						}
 					} else if rcx.T == nil { // RHS is nil
