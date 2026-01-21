@@ -7,13 +7,15 @@ import (
 	"gno.land/r/sys/users"
 )
 
-var govDAO *GovDAO = NewGovDAO()
-var law *Law
-var gRealm = runtime.CurrentRealm()
+var (
+	govDAO *GovDAO = NewGovDAO()
+	law    *Law
+	gRealm = runtime.CurrentRealm()
+)
 
 func init() {
 	law = &Law{
-		Supermajority: 66,
+		Supermajority: 66.67, // Two thirds
 	}
 }
 
@@ -33,7 +35,7 @@ func AddMember(cur realm, addr address) {
 	}
 
 	if users.ResolveAddress(caller.Address()) == nil {
-		panic("voter should have a namespace")
+		panic("caller should have a namespace")
 	}
 
 	if t != memberstore.T1 && t != memberstore.T2 {
