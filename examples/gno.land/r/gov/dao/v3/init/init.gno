@@ -1,12 +1,18 @@
 package init
 
 import (
+	"chain/runtime"
+
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
 func Init() {
+	if runtime.ChainID() != "dev" {
+		panic("unauthorized")
+	}
+
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
 	memberstore.Get().DeleteAll()
@@ -17,6 +23,10 @@ func Init() {
 }
 
 func InitWithUsers(addrs ...address) {
+	if runtime.ChainID() != "dev" {
+		panic("unauthorized")
+	}
+
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
 	memberstore.Get().DeleteAll()
