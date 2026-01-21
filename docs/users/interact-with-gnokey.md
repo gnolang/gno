@@ -143,7 +143,7 @@ func Hello() string {
 We are now ready to upload this package to the chain. To do this, we must set the
 correct flags for the `addpkg` subcommand.
 
-The `addpkg` subcommmand uses the following flags and arguments:
+The `addpkg` subcommand uses the following flags and arguments:
 - `-pkgpath` - on-chain path where your code will be uploaded to
 - `-pkgdir` - local path where your is located
 - `-broadcast` - enables broadcasting the transaction to the chain
