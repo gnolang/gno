@@ -248,8 +248,8 @@ func (coins Coins) validate() error {
 
 		lowDenom := coins[0].Denom
 		for _, coin := range coins[1:] {
-			if strings.ToLower(coin.Denom) != coin.Denom {
-				return fmt.Errorf("invalid denom: %s", coin.Denom)
+			if err := ValidateDenom(coin.Denom); err != nil {
+				return err
 			}
 			if coin.Denom < lowDenom {
 				return fmt.Errorf("coins not sorted: %s < %s", coin.Denom, lowDenom)
