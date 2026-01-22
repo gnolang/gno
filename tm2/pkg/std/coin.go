@@ -26,7 +26,7 @@ type Coin struct {
 // It will panic if the amount is negative.
 // To construct a negative (invalid) amount, use an operation.
 func NewCoin(denom string, amount int64) Coin {
-	if err := validate(denom, amount); err != nil {
+	if err := Validate(denom, amount); err != nil {
 		panic(err)
 	}
 
@@ -61,9 +61,9 @@ func (coin Coin) String() string {
 	}
 }
 
-// validate returns an error if the Coin has a negative amount or if
+// Validate returns an error if the Coin has a negative amount or if
 // the denom is invalid.
-func validate(denom string, amount int64) error {
+func Validate(denom string, amount int64) error {
 	if err := ValidateDenom(denom); err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func validate(denom string, amount int64) error {
 
 // IsValid returns true if the Coin has a non-negative amount and the denom is valid.
 func (coin Coin) IsValid() bool {
-	if err := validate(coin.Denom, coin.Amount); err != nil {
+	if err := Validate(coin.Denom, coin.Amount); err != nil {
 		return false
 	}
 	return true
@@ -120,8 +120,8 @@ func (coin Coin) IsEqual(other Coin) bool {
 // An invalid result panics.
 func (coin Coin) Add(coinB Coin) Coin {
 	res := coin.AddUnsafe(coinB)
-	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v + %v = %v (lowercase-only denoms, and positive amounts)", coin, coinB, res))
+	if err := Validate(res.Denom, res.Amount); err != nil {
+		panic(fmt.Sprintf("invalid result: %v + %v = %v: %v", coin, coinB, res, err))
 	}
 	return res
 }
@@ -143,8 +143,8 @@ func (coin Coin) AddUnsafe(coinB Coin) Coin {
 // An invalid result panics.
 func (coin Coin) Sub(coinB Coin) Coin {
 	res := coin.SubUnsafe(coinB)
-	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v - %v = %v (lowercase-only denoms, and positive amounts)", coin, coinB, res))
+	if err := Validate(res.Denom, res.Amount); err != nil {
+		panic(fmt.Sprintf("invalid result: %v - %v = %v: %v", coin, coinB, res, err))
 	}
 	return res
 }
