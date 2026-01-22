@@ -96,6 +96,10 @@ func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*ty
 	case response := <-responseCh:
 		// Make sure the ID matches
 		if response[0].ID != request.ID {
+			// If response has an empty ID and an error, return the error instead of ID mismatch
+			if (response[0].ID == nil || response[0].ID.String() == "") && response[0].Error != nil {
+				return nil, response[0].Error
+			}
 			return nil, ErrRequestResponseIDMismatch
 		}
 
@@ -145,6 +149,10 @@ func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (typ
 		// Make sure the IDs match
 		for index, response := range responses {
 			if requests[index].ID != response.ID {
+				// If response has an empty ID and an error, return the error instead of ID mismatch
+				if (response.ID == nil || response.ID.String() == "") && response.Error != nil {
+					return nil, response.Error
+				}
 				return nil, ErrRequestResponseIDMismatch
 			}
 		}

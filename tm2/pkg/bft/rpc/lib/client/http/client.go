@@ -87,6 +87,10 @@ func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (typ
 	// Make sure the IDs match
 	for index, response := range responses {
 		if requests[index].ID != response.ID {
+			// If response has an empty ID and an error, return the error instead of ID mismatch
+			if (response.ID == nil || response.ID.String() == "") && response.Error != nil {
+				return nil, response.Error
+			}
 			return nil, ErrRequestResponseIDMismatch
 		}
 	}
