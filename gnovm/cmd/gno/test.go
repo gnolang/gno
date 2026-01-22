@@ -189,7 +189,6 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
-	fmt.Println("execTest...")
 	// Default to current directory if no args provided
 	if len(args) == 0 {
 		args = []string{"."}
