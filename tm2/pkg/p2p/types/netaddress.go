@@ -157,7 +157,7 @@ func NewNetAddressFromStrings(idaddrs []string) ([]*NetAddress, []error) {
 func NewNetAddressFromIPPort(ip net.IP, port uint16) *NetAddress {
 	hostname := ""
 	if ip != nil {
-		hostname = ip.String()
+		hostname = ip.String() // preserve original IP string as hostname
 	}
 
 	return &NetAddress{

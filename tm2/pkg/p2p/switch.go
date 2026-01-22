@@ -742,7 +742,11 @@ func (sw *MultiplexSwitch) waitForPeersToDial(ctx context.Context) {
 // resolvePeerAddress re-resolves the hostname for a peer (if provided) so that
 // persistent peers backed by FQDNs pick up IP changes before each dial attempt.
 func (sw *MultiplexSwitch) resolvePeerAddress(ctx context.Context, peerAddr *types.NetAddress) error {
-	if peerAddr == nil || peerAddr.Hostname == "" {
+	if peerAddr == nil {
+		return errors.New("nil peer address provided")
+	}
+
+	if peerAddr.Hostname == "" {
 		return nil
 	}
 
