@@ -19,4 +19,4 @@ func main(cur realm) {
 }
 
 // Output:
-// (struct{("test_modif..." string)} gno.land/r/tests/vm.TestRealmObject)
+// (struct{("test_modified" string)} gno.land/r/tests/vm.TestRealmObject)
