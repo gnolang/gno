@@ -72,6 +72,64 @@ func TestCoinIsValid(t *testing.T) {
 	}
 }
 
+func TestValidate(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		denom   string
+		amount  int64
+		wantErr string
+	}{
+		{"atom", 1, ""},
+		{"atom", 0, ""},
+		{"atom", -1, "negative coin amount: -1"},
+		{"Atom", 1, "invalid denom: Atom"},
+		{"a", 1, "invalid denom: a"},
+		{"a very long coin denom", 1, "invalid denom: a very long coin denom"},
+		{"atOm", 1, "invalid denom: atOm"},
+		{"     ", 1, "invalid denom:      "},
+	}
+
+	for i, tc := range cases {
+		err := Validate(tc.denom, tc.amount)
+		if tc.wantErr == "" {
+			require.NoError(t, err, "unexpected error for Validate, tc #%d", i)
+		} else {
+			require.EqualError(t, err, tc.wantErr, "unexpected error message for Validate, tc #%d", i)
+		}
+	}
+}
+
+func TestCoinsValidate(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		coins   Coins
+		wantErr string
+	}{
+		{Coins{}, ""},
+		{Coins{{"gas", 1}}, ""},
+		{Coins{{"gas", 1}, {"mineral", 1}}, ""},
+		{Coins{{"gas", -1}}, "negative coin amount: -1"},
+		{Coins{{"GAS", 1}}, "invalid denom: GAS"},
+		{Coins{{"gas", 1}, {"MINERAL", 1}}, "invalid denom: MINERAL"},
+		{Coins{{"bbb", 1}, {"aaa", 1}}, "coins not sorted: aaa < bbb"},
+		{Coins{{"gas", 1}, {"tree", 1}, {"mineral", 1}}, "coins not sorted: mineral < tree"},
+		{Coins{{"gas", 1}, {"gas", 1}}, "duplicate denom: gas"},
+		{Coins{{"gas", 1}, {"mineral", 1}, {"mineral", 1}}, "duplicate denom: mineral"},
+		{Coins{{"gas", 1}, {"mineral", -5}}, "negative coin amount: -5"},
+	}
+
+	for i, tc := range cases {
+		err := tc.coins.Validate()
+		if tc.wantErr == "" {
+			require.NoError(t, err, "unexpected error for Coins.Validate, tc #%d", i)
+		} else {
+			require.EqualError(t, err, tc.wantErr, "unexpected error message for Coins.Validate, tc #%d", i)
+		}
+	}
+}
+
 func TestAddCoin(t *testing.T) {
 	t.Parallel()
 
