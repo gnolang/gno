@@ -9,7 +9,7 @@
 <span><span class="font-bold">/r/test</span> Exec: Transfer</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
-<div data-controller="action-function" data-action-function-name-value="Transfer">
+<div data-controller="action-function" data-action-function-name-value="Transfer" data-action-function-pkgpath-value="/r/test">
 <div class="command u-hidden" data-form-exec-target="command"><div data-controller="action-header" class="c-between">
   <span class="title">Command</span>
   <div class="c-inline">
