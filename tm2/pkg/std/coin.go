@@ -77,10 +77,7 @@ func Validate(denom string, amount int64) error {
 
 // IsValid returns true if the Coin has a non-negative amount and the denom is valid.
 func (coin Coin) IsValid() bool {
-	if err := Validate(coin.Denom, coin.Amount); err != nil {
-		return false
-	}
-	return true
+	return Validate(coin.Denom, coin.Amount) == nil
 }
 
 // IsZero returns if this represents no money
