@@ -31,7 +31,9 @@ func (l *MockLoader) Load(paths ...string) ([]*Package, error) {
 	for _, path := range paths {
 		pkg, err := l.Resolve(path)
 		if err != nil {
-			continue // Skip packages that don't exist
+			// Intentionally skip missing packages in mock loader for test flexibility.
+			// Real loaders should handle this differently.
+			continue
 		}
 		result = append(result, pkg)
 	}

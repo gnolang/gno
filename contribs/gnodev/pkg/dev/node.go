@@ -427,6 +427,8 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata
 	return state, nil
 }
 
+// generateTxs creates transactions for packages. Packages that fail to read
+// are logged and skipped, allowing deployment to proceed with available packages.
 func (n *Node) generateTxs(fee std.Fee, pkgs []*packages.Package) []gnoland.TxWithMetadata {
 	metatxs := make([]gnoland.TxWithMetadata, 0, len(pkgs))
 	for _, pkg := range pkgs {
