@@ -328,7 +328,7 @@ var operationNames = [OperationListMaxSize]string{
 	// Transaction operations
 	OpTransactionPerByte:            "TransactionPerByte",
 	OpTransactionSigVerifyEd25519:   "TransactionSigVerifyEd25519",
-	OpTransactionSigVerifySecp256k1: "TxansactionSigVerifySecp256k1",
+	OpTransactionSigVerifySecp256k1: "TransactionSigVerifySecp256k1",
 
 	// Native operations
 	OpNativePrintFlat:    "NativePrintFlat",
