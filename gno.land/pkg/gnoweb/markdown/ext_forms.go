@@ -478,7 +478,8 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 `, HTMLEscapeString(n.RealmName), headerLabel, HTMLEscapeString(n.RealmName))
 
 	if n.ExecFunc != "" {
-		fmt.Fprintf(w, `<div data-controller="action-function" data-action-function-name-value="%s">`+"\n", HTMLEscapeString(n.ExecFunc))
+		pkgPath := n.Domain + n.RealmName
+		fmt.Fprintf(w, `<div data-controller="action-function" data-action-function-name-value="%s" data-action-function-pkgpath-value="%s">`+"\n", HTMLEscapeString(n.ExecFunc), HTMLEscapeString(pkgPath))
 	}
 
 	// Track select elements that have been rendered
