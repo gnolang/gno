@@ -41,7 +41,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg))
 			}
 		case gno.StringType:
-			tv.SetString(gno.StringValue(arg))
+			tv.SetString(gno.NewStringValue(arg))
 			return
 		case gno.IntType:
 			assertNoPlusPrefix(arg)

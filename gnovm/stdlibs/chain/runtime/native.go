@@ -43,6 +43,6 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 
 func typedString(s string) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
-	tv.SetString(gno.StringValue(s))
+	tv.SetString(gno.NewStringValue(s))
 	return tv
 }
