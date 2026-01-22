@@ -151,9 +151,10 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 			markDepForVisit(loadSinglePkg(conf.Out, conf.Fetcher, dir, conf.Fset))
 		}
 
-		// Skip stdlib packages - they're handled natively by the VM
-		// and should not be deployed as user packages
-		if gnolang.IsStdlib(pkg.ImportPath) {
+		// Skip stdlib dependencies - they're handled natively by the VM
+		// and should not be deployed as user packages.
+		// However, keep packages that are explicitly matched patterns.
+		if len(pkg.Match) == 0 && gnolang.IsStdlib(pkg.ImportPath) {
 			continue
 		}
 		loaded = append(loaded, pkg)
