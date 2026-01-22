@@ -144,13 +144,7 @@ func TestAddCoin(t *testing.T) {
 		{NewCoin(testDenom1, 1), NewCoin(testDenom1, 1), NewCoin(testDenom1, 2), false},
 		{NewCoin(testDenom1, 1), NewCoin(testDenom1, 0), NewCoin(testDenom1, 1), false},
 		{NewCoin(testDenom1, 1), NewCoin(testDenom2, 1), NewCoin(testDenom1, 1), true},
-		{Coin{
-			Denom:  testDenomInvalid,
-			Amount: 1,
-		}, Coin{
-			Denom:  testDenomInvalid,
-			Amount: 1,
-		}, NewCoin(testDenom1, 0), true},
+		{Coin{Denom: testDenomInvalid, Amount: 1}, Coin{Denom: testDenomInvalid, Amount: 1}, NewCoin(testDenom1, 0), true},
 	}
 
 	for tcIndex, tc := range cases {
@@ -177,10 +171,7 @@ func TestSubCoin(t *testing.T) {
 		{NewCoin(testDenom1, 5), NewCoin(testDenom1, 3), NewCoin(testDenom1, 2), false},
 		{NewCoin(testDenom1, 5), NewCoin(testDenom1, 0), NewCoin(testDenom1, 5), false},
 		{NewCoin(testDenom1, 1), NewCoin(testDenom1, 5), Coin{}, true},
-		{NewCoin(testDenom1, 1), Coin{
-			Denom:  testDenomInvalid,
-			Amount: 1,
-		}, Coin{}, true},
+		{NewCoin(testDenom1, 1), Coin{Denom: testDenomInvalid, Amount: 1}, Coin{}, true},
 	}
 
 	for tcIndex, tc := range cases {
