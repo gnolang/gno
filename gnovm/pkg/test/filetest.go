@@ -15,8 +15,9 @@ import (
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/pmezard/go-difflib/difflib"
 	"go.uber.org/multierr"
 )
@@ -65,14 +66,15 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	if dirs.First(DirectiveRealm) != nil {
 		opslog = new(bytes.Buffer)
 	}
-
+	gasMeter := store.NewInfiniteGasMeter()
 	// Create machine for execution and run test
 	tcw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
-		Store:         tgs.BeginTransaction(tcw, tcw, nil),
+		Store:         tgs.BeginTransaction(tcw, tcw, gasMeter),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
+		GasMeter:      gasMeter,
 		Debug:         opts.Debug,
 		ReviveEnabled: true,
 	})
@@ -171,7 +173,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			res := opslog.(*bytes.Buffer).String()
 			match(dir, res)
 		case DirectiveEvents:
-			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
+			events := m.Context.(*teststdlibs.TestExecContext).EventLogger.Events()
 			evtjson, err := json.MarshalIndent(events, "", "  ")
 			if err != nil {
 				panic(err)
@@ -187,6 +189,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			match(dir, pre)
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
+		case DirectiveGas:
+			match(dir, strconv.FormatInt(m.GasMeter.GasConsumed(), 10))
 		case DirectiveStorage:
 			rlmDiff := realmDiffsString(m.Store.RealmStorageDiffs())
 			match(dir, rlmDiff)
@@ -363,8 +367,8 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
-		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
-		fn := gno.MustParseFile(fname, string(content))
+		m.Context.(*teststdlibs.TestExecContext).OriginCaller = DefaultCaller
+		fn := m.MustParseFile(fname, string(content))
 		// Run (add) file, and then run main().
 		m.RunFiles(fn)
 		m.RunMain()
@@ -406,7 +410,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store = orig
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2)
-		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
+		m.Context.(*teststdlibs.TestExecContext).OriginCaller = DefaultCaller
 		gno.EnableDebug()
 
 		// Clear store.opslog from init function(s).
@@ -438,6 +442,7 @@ const (
 	DirectiveEvents         = "Events"
 	DirectivePreprocessed   = "Preprocessed"
 	DirectiveStacktrace     = "Stacktrace"
+	DirectiveGas            = "Gas"
 	DirectiveStorage        = "Storage"
 	DirectiveTypeCheckError = "TypeCheckError"
 )
@@ -452,6 +457,7 @@ var allDirectives = []string{
 	DirectiveEvents,
 	DirectivePreprocessed,
 	DirectiveStacktrace,
+	DirectiveGas,
 	DirectiveStorage,
 	DirectiveTypeCheckError,
 }

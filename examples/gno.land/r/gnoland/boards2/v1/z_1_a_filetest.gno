@@ -1,21 +1,23 @@
 package main
 
 import (
-	"std"
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
-	bid   = boards2.BoardID(0)                                      // Operate on realm DAO instead of individual boards
-	role  = boards2.RoleOwner
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	user  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
+	bid           = boards.ID(0)                               // Operate on realm DAO instead of individual boards
+	role          = permissions.RoleOwner
 )
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.InviteMember(cross, bid, user, role)
 

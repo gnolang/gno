@@ -88,11 +88,11 @@ func (mfile *MemFile) Copy() *MemFile {
 // NOTE: in the future, a MemPackage may represent updates/additional-files for
 // an existing package.
 type MemPackage struct {
-	Name  string     `json:"name" yaml:"name"`   // package name as declared by `package`
-	Path  string     `json:"path" yaml:"path"`   // import path
-	Files []*MemFile `json:"files" yaml:"files"` // plain file system files.
-	Type  any        `json:"type" yaml:"type"`   // (user defined) package type.
-	Info  any        `json:"info" yaml:"info"`   // (user defined) extra information.
+	Name  string     `json:"name" yaml:"name"`           // package name as declared by `package`
+	Path  string     `json:"path" yaml:"path"`           // import path
+	Files []*MemFile `json:"files" yaml:"files"`         // plain file system files.
+	Type  any        `json:"type,omitempty" yaml:"type"` // (user defined) package type.
+	Info  any        `json:"info,omitempty" yaml:"info"` // (user defined) extra information.
 }
 
 // Package Name must be lower_case, can have digits & underscores.
@@ -126,9 +126,6 @@ func (mpkg *MemPackage) ValidateBasic() error {
 		},
 	)
 	if !sorted {
-		for i := 0; i < len(mpkg.Files); i++ {
-			fmt.Println("memfile", i, ":", mpkg.Files[i].Name)
-		}
 		return fmt.Errorf("mempackage %q has unsorted files", mpkg.Path)
 	}
 

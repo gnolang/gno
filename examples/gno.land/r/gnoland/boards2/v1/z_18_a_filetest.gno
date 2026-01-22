@@ -1,28 +1,28 @@
 package main
 
 import (
-	"std"
 	"testing"
 
-	"gno.land/p/nt/commondao"
+	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	bid   = boards2.BoardID(0)                                      // Operate on realm instead of individual boards
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	bid           = boards.ID(0)                               // Operate on realm instead of individual boards
 )
 
-var perms boards2.Permissions
+var perms boards.Permissions
 
 func init() {
 	// Create a new permissions instance without users
-	perms = boards2.NewBasicPermissions(commondao.New())
+	perms = permissions.New()
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.SetPermissions(cross, bid, perms)
 

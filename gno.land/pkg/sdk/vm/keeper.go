@@ -25,7 +25,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
-	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -139,6 +139,20 @@ func (vm *VMKeeper) Initialize(
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
 
+		opts := gno.TypeCheckOptions{
+			Getter:     vm.gnoStore,
+			TestGetter: vm.testStdlibCache.memPackageGetter(vm.gnoStore),
+			Mode:       gno.TCLatestStrict,
+			Cache:      vm.typeCheckCache,
+		}
+		for _, stdlib := range stdlibs.InitOrder() {
+			mp := vm.gnoStore.GetMemPackage(stdlib)
+			_, err := gno.TypeCheckMemPackage(mp, opts)
+			if err != nil {
+				panic(fmt.Errorf("intialization error type checking %q: %w", stdlib, err))
+			}
+		}
+
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
@@ -152,11 +166,9 @@ type stdlibCache struct {
 }
 
 var (
-	cachedStdlibOnce sync.Once
-	cachedStdlib     stdlibCache
-	// XXX: this is shared across different goroutines, in txtar tests.
-	// need to find a better way, or put a lock.
-	sharedTypeCheckCache gno.TypeCheckCache
+	cachedStdlibOnce         sync.Once
+	cachedStdlib             stdlibCache
+	cachedInitTypeCheckCache gno.TypeCheckCache
 )
 
 // LoadStdlib loads the Gno standard library into the given store.
@@ -171,8 +183,20 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 		gs := gno.NewStore(nil, cachedStdlib.base, cachedStdlib.iavl)
 		gs.SetNativeResolver(stdlibs.NativeResolver)
 		loadStdlib(gs, stdlibDir)
+		cachedInitTypeCheckCache = make(gno.TypeCheckCache)
+		opts := gno.TypeCheckOptions{
+			Getter:     gs,
+			TestGetter: vm.testStdlibCache.memPackageGetter(gs),
+			Mode:       gno.TCLatestStrict,
+			Cache:      cachedInitTypeCheckCache,
+		}
+		for _, lib := range stdlibs.InitOrder() {
+			_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+			if err != nil {
+				panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
+			}
+		}
 		cachedStdlib.gno = gs
-		sharedTypeCheckCache = make(gno.TypeCheckCache)
 	})
 
 	if stdlibDir != cachedStdlib.dir {
@@ -184,13 +208,25 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 
 	gs := vm.getGnoTransactionStore(ctx)
 	gno.CopyFromCachedStore(gs, cachedStdlib.gno, cachedStdlib.base, cachedStdlib.iavl)
-	vm.typeCheckCache = sharedTypeCheckCache
+	vm.typeCheckCache = maps.Clone(cachedInitTypeCheckCache)
 }
 
 // LoadStdlib loads the Gno standard library into the given store.
 func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 	gs := vm.getGnoTransactionStore(ctx)
 	loadStdlib(gs, stdlibDir)
+	opts := gno.TypeCheckOptions{
+		Getter:     gs,
+		TestGetter: vm.testStdlibCache.memPackageGetter(gs),
+		Mode:       gno.TCLatestStrict,
+		Cache:      vm.getTypeCheckCache(ctx),
+	}
+	for _, lib := range stdlibs.InitOrder() {
+		_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+		if err != nil {
+			panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
+		}
+	}
 }
 
 func loadStdlib(store gno.Store, stdlibDir string) {
@@ -299,17 +335,6 @@ func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
 }
 
 func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
-	tcc := vm.getTypeCheckCache(ctx)
-	for k, v := range tcc {
-		if vm.typeCheckCache[k] != nil {
-			continue
-		}
-		// only add stdlibs to the type check cache.
-		rawK, _, _ := strings.Cut(k, ":")
-		if gno.IsStdlib(rawK) {
-			vm.typeCheckCache[k] = v
-		}
-	}
 	vm.getGnoTransactionStore(ctx).Write()
 }
 
@@ -440,9 +465,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
-	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
+
+	pv := gnostore.GetPackage(pkgPath, false)
+	if pv != nil && !pv.Private {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 	}
+
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
 		return ErrInvalidPkgPath("package path must be valid realm or p package path")
 	}
@@ -475,6 +503,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// no development packages.
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
+	}
+	if pv != nil && pv.Private && !gm.Private {
+		return ErrInvalidPackage("a private package cannot be overridden by a public package")
+	}
+	if gm.Private && !gno.IsRealmPath(pkgPath) {
+		return ErrInvalidPackage("private packages must be realm packages")
 	}
 	if gm.Draft && ctx.BlockHeight() > 0 {
 		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
@@ -564,6 +598,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pl := gno.PackageNodeLocation(pkgPath)
 	pn := gnostore.GetBlockNode(pl).(*gno.PackageNode)
 	ft := pn.GetStaticTypeOf(gnostore, gno.Name(fnc)).(*gno.FuncType)
+	if len(ft.Params) == 0 || ft.Params[0].Type.String() != ".uverse.realm" {
+		panic(fmt.Sprintf("function %s is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun", fnc))
+	}
+
 	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
@@ -582,33 +620,12 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	} else {
 		expr = fmt.Sprintf(`pkg.%s(cross,%s)`, fnc, argslist)
 	}
-	xn := gno.MustParseExpr(expr)
-	// Send send-coins to pkg from caller.
-	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
-	caller := msg.Caller
-	send := msg.Send
-	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
-	if err != nil {
-		return "", err
-	}
-	// Convert Args to gno values.
-	cx := xn.(*gno.CallExpr)
-	if cx.Varg {
-		panic("variadic calls not yet supported")
-	}
-	if nargs := len(msg.Args) + 1; nargs != len(ft.Params) { // NOTE: nargs = `cur` + user's len(args)
-		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
-	}
-	for i, arg := range msg.Args {
-		argType := ft.Params[i+1].Type
-		atv := convertArgToGno(arg, argType)
-		cx.Args[i+1] = &gno.ConstExpr{
-			TypedValue: atv,
-		}
-	}
 	// Make context.
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
+	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
+	caller := msg.Caller
+	send := msg.Send
 	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
@@ -632,6 +649,27 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			Alloc:    gnostore.GetAllocator(),
 			GasMeter: ctx.GasMeter(),
 		})
+	xn := m.MustParseExpr(expr)
+	// Send send-coins to pkg from caller.
+	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
+	if err != nil {
+		return "", err
+	}
+	// Convert Args to gno values.
+	cx := xn.(*gno.CallExpr)
+	if cx.Varg {
+		panic("variadic calls not yet supported")
+	}
+	if nargs := len(msg.Args) + 1; nargs != len(ft.Params) { // NOTE: nargs = `cur` + user's len(args)
+		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
+	}
+	for i, arg := range msg.Args {
+		argType := ft.Params[i+1].Type
+		atv := convertArgToGno(arg, argType)
+		cx.Args[i+1] = &gno.ConstExpr{
+			TypedValue: atv,
+		}
+	}
 	defer m.Release()
 	m.SetActivePackage(mpv)
 	defer doRecover(m, &err)
@@ -770,6 +808,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	buf := new(bytes.Buffer)
 	output := io.Writer(buf)
+
+	// XXX: see reason of private for run msg here: https://github.com/gnolang/gno/pull/4594
+	gm := new(gnomod.File)
+	gm.Module = memPkg.Path
+	gm.Gno = gno.GnoVerLatest
+	gm.Private = true
+	memPkg.SetFile("gnomod.toml", gm.WriteString())
 
 	alloc := gnostore.GetAllocator()
 	// Run as self-executing closure to have own function for doRecover / m.Release defers.
@@ -1007,11 +1052,6 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 			"package not found: %s", pkgPath))
 		return nil, err
 	}
-	// Parse expression.
-	xx, err := gno.ParseExpr(expr)
-	if err != nil {
-		return nil, err
-	}
 	// Construct new machine.
 	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
@@ -1037,6 +1077,11 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		})
 	defer m.Release()
 	defer doRecoverQuery(m, &err)
+	// Parse expression.
+	xx, err := m.ParseExpr(expr)
+	if err != nil {
+		return nil, err
+	}
 	return m.Eval(xx), err
 }
 
@@ -1147,7 +1192,7 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			depositAmt -= requiredDeposit
 			// Emit event for storage deposit lock
 			d := std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}
-			evt := gnostd.StorageDepositEvent{
+			evt := chain.StorageDepositEvent{
 				BytesDelta: diff,
 				FeeDelta:   d,
 				PkgPath:    rlmPath,
@@ -1168,16 +1213,25 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 					rlmPath, rlm.Deposit, ugnot.Denom, depositUnlocked, ugnot.Denom))
 			}
 
-			err := vm.refundStorageDeposit(ctx, caller, rlm, depositUnlocked, released)
+			isRestricted := slices.Contains(vm.bank.RestrictedDenoms(ctx), ugnot.Denom)
+			receiver := caller
+			if isRestricted {
+				// If gnot tokens are locked, sent them to the storageFeeCollector address
+				// If unlocked, sent them to memory releaser
+				receiver = params.StorageFeeCollector
+			}
+
+			err := vm.refundStorageDeposit(ctx, receiver, rlm, depositUnlocked, released)
 			if err != nil {
 				return err
 			}
 			d := std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}
-			evt := gnostd.StorageUnlockEvent{
+			evt := chain.StorageUnlockEvent{
 				// For unlock, BytesDelta is negative
-				BytesDelta: diff,
-				FeeRefund:  d,
-				PkgPath:    rlmPath,
+				BytesDelta:     diff,
+				FeeRefund:      d,
+				PkgPath:        rlmPath,
+				RefundWithheld: isRestricted,
 			}
 			ctx.EventLogger().EmitEvent(evt)
 		}
@@ -1204,10 +1258,11 @@ func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, r
 	return nil
 }
 
-func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, caller crypto.Address, rlm *gno.Realm, depositUnlocked int64, released int64) error {
+func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, refundReceiver crypto.Address, rlm *gno.Realm, depositUnlocked int64, released int64) error {
 	storageDepositAddr := gno.DeriveStorageDepositCryptoAddr(rlm.Path)
 	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}}
-	err := vm.bank.SendCoinsUnrestricted(ctx, storageDepositAddr, caller, d)
+
+	err := vm.bank.SendCoinsUnrestricted(ctx, storageDepositAddr, refundReceiver, d)
 	if err != nil {
 		return fmt.Errorf("unable to return deposit %s, %w", rlm.Path, err)
 	}

@@ -97,28 +97,23 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 				c.Not(c.AuthorInTeam(gh, "tech-staff")),
 			),
 			Then: r.
+				// Decide whether to apply the review/triage-pending label.
+				// The PR should be either a) approved by any review team member
+				// b) reviewed by any member of tech staff
+				// c) be a draft
 				If(r.Or(
-					r.ReviewByAnyUser(gh, "jefft0", "leohhhn", "n0izn0iz", "notJoon", "omarsy", "x1unix").WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByAnyUser(gh,
+						"jefft0", "notJoon", "omarsy", "MikaelVallenet",
+					).WithDesiredState(utils.ReviewStateApproved),
 					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
 					r.Draft(),
 				)).
-				// Either there was a first approval from a member, and we
-				// assert that the label for triage-pending is removed and we
-				// request a review from the tech-staff team...
 				Then(
-					r.And(
-						r.Not(r.Label(gh, "review/triage-pending", r.LabelRemove)),
-						r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
-					),
+					r.Not(r.Label(gh, "review/triage-pending", r.LabelRemove)),
 				).
-				// Or there was not, and we apply the triage-pending label
-				// and remove the request for review from the tech-staff team.
-				// The requirement should always fail, to mark the PR is not
-				// ready to be merged.
 				Else(
 					r.And(
 						r.Label(gh, "review/triage-pending", r.LabelApply),
-						r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
 						r.Never(), // Always fail the requirement.
 					),
 				),
