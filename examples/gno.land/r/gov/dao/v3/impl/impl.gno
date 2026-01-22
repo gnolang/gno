@@ -15,7 +15,7 @@ var (
 
 func init() {
 	law = &Law{
-		Supermajority: 66.67, // Two thirds
+		Supermajority: 66.66, // Two thirds
 	}
 }
 
