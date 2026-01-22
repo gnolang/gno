@@ -91,11 +91,11 @@ func TestValidate(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		err := Validate(tc.denom, tc.amount)
+		err := validate(tc.denom, tc.amount)
 		if tc.wantErr == "" {
-			require.NoError(t, err, "unexpected error for Validate, tc #%d", i)
+			require.NoError(t, err, "unexpected error for validate, tc #%d", i)
 		} else {
-			require.EqualError(t, err, tc.wantErr, "unexpected error message for Validate, tc #%d", i)
+			require.EqualError(t, err, tc.wantErr, "unexpected error message for validate, tc #%d", i)
 		}
 	}
 }
@@ -110,22 +110,24 @@ func TestCoinsValidate(t *testing.T) {
 		{Coins{}, ""},
 		{Coins{{"gas", 1}}, ""},
 		{Coins{{"gas", 1}, {"mineral", 1}}, ""},
-		{Coins{{"gas", -1}}, "negative coin amount: -1"},
+		{Coins{{"gas", 0}}, "non-positive coin amount: 0"},
+		{Coins{{"gas", -1}}, "non-positive coin amount: -1"},
 		{Coins{{"GAS", 1}}, "invalid denom: GAS"},
 		{Coins{{"gas", 1}, {"MINERAL", 1}}, "invalid denom: MINERAL"},
 		{Coins{{"bbb", 1}, {"aaa", 1}}, "coins not sorted: aaa < bbb"},
 		{Coins{{"gas", 1}, {"tree", 1}, {"mineral", 1}}, "coins not sorted: mineral < tree"},
 		{Coins{{"gas", 1}, {"gas", 1}}, "duplicate denom: gas"},
 		{Coins{{"gas", 1}, {"mineral", 1}, {"mineral", 1}}, "duplicate denom: mineral"},
-		{Coins{{"gas", 1}, {"mineral", -5}}, "negative coin amount: -5"},
+		{Coins{{"gas", 1}, {"mineral", 0}}, "non-positive coin amount: 0"},
+		{Coins{{"gas", 1}, {"mineral", -5}}, "non-positive coin amount: -5"},
 	}
 
 	for i, tc := range cases {
-		err := tc.coins.Validate()
+		err := tc.coins.validate()
 		if tc.wantErr == "" {
-			require.NoError(t, err, "unexpected error for Coins.Validate, tc #%d", i)
+			require.NoError(t, err, "unexpected error for Coins.validate, tc #%d", i)
 		} else {
-			require.EqualError(t, err, tc.wantErr, "unexpected error message for Coins.Validate, tc #%d", i)
+			require.EqualError(t, err, tc.wantErr, "unexpected error message for Coins.validate, tc #%d", i)
 		}
 	}
 }
