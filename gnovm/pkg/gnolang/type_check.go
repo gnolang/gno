@@ -714,7 +714,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 }
 
 // assertShiftExprCompatible2 checks if untyped (non-const)
-// shift expr is compatible with t.
+// shift expr is compatible with t, which is type info from context.
 // e.g. var y int = 1.0 << x.
 func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
 	// check lhs type
