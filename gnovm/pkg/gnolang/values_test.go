@@ -86,49 +86,50 @@ func TestComputeMapKey(t *testing.T) {
 		want  MapKey
 		isNaN bool
 	}{
-		{`int64(1)`, "\x14int64\x01\x00\x00\x00\x00\x00\x00\x00", false},
-		{`int32(255)`, "\x14int32\xff\x00\x00\x00", false},
+		{`int64(1)`, "int64:\x01\x00\x00\x00\x00\x00\x00\x00", false},
+		{`int32(255)`, "int32:\xff\x00\x00\x00", false},
 		// basic string
-		{`"hello"`, "\x18string\x15hello", false},
+		{`"hello"`, "string:hello", false},
 		// string that contains bytes which look similar to an encoded int64 key.
-		{`"\x14int64\x01\x00\x00\x00\x00\x00\x00\x00"`, "\x18string\x39\x14int64\x01\x00\x00\x00\x00\x00\x00\x00", false},
+		{`"int64:\x01\x00\x00\x00\x00\x00\x00\x00"`, "string:int64:\x01\x00\x00\x00\x00\x00\x00\x00", false},
 		// NaN should be reported via isNaN == true and empty key.
 		{`func() float64 { p := float64(0); return 0/p }()`, MapKey(""), true},
 		{`func() float32 { p := float32(0); return 0/p }()`, MapKey(""), true},
 		// float negative zero normalization
-		{`float32(-0.0)`, "\x1cfloat32\x00\x00\x00\x00", false},
-		{`float64(-0.0)`, "\x1cfloat64\x00\x00\x00\x00\x00\x00\x00\x00", false},
+		{`float32(-0.0)`, "float32:\x00\x00\x00\x00", false},
+		{`float64(-0.0)`, "float64:\x00\x00\x00\x00\x00\x00\x00\x00", false},
 		// more examples
-		{`uint8(255)`, "\x14uint8\xff", false},
-		{`true`, "\x10bool\x01", false},
-		{`false`, "\x10bool\x00", false},
-		{`nil`, "\x00", false},
+		{`uint8(255)`, "uint8:\xff", false},
+		{`true`, "bool:\x01", false},
+		{`false`, "bool:\x00", false},
+		{`nil`, "nil", false},
 		{
 			`struct{a int; b bool}{1, true}`,
-			"\x78struct{main.a int;main.b bool}\x0b\x01\x00\x00\x00\x00\x00\x00\x00\x01",
+			"struct{main.a int;main.b bool}:{\x08\x01\x00\x00\x00\x00\x00\x00\x00,\x01\x01}",
 			false,
 		},
-		{`[8]byte{'a', 'b'}`, "\x20[8]uint8\x22ab\x00\x00\x00\x00\x00\x00", false},
+		{`[8]byte{'a', 'b'}`, "[8]uint8:[ab\x00\x00\x00\x00\x00\x00]", false},
+		{`[1]string{}`, "[1]string:[\x00]", false},
 
 		// Regressions from https://github.com/gnolang/gno/issues/4567
 		{
 			`[2]string{"hi,wor", "ld"}`,
-			"\x24[2]string\n\x19hi,wor\x09ld",
+			"[2]string:[\x06hi,wor,\x02ld]",
 			false,
 		},
 		{
 			`[2]string{"hi", "wor,ld"}`,
-			"\x24[2]string\n\x09hi\x19wor,ld",
+			"[2]string:[\x02hi,\x06wor,ld]",
 			false,
 		},
 		{
-			`[2]string{"hi\x09wor", "ld"}`,
-			"\x24[2]string\n\x19hi\x09wor\x09ld",
+			`[2]string{"hi,\x07wor", "ld"}`,
+			"[2]string:[\x07hi,\x07wor,\x02ld]",
 			false,
 		},
 		{
-			`[2]string{"hi", "wor\x09ld"}`,
-			"\x24[2]string\n\x09hi\x19wor\x09ld",
+			`[2]string{"hi", "wor,\x02ld"}`,
+			"[2]string:[\x02hi,\x07wor,\x02ld]",
 			false,
 		},
 	}
