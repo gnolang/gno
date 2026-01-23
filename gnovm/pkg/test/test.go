@@ -522,6 +522,10 @@ func (opts *TestOptions) runTestFiles(
 			}
 		}
 
+		if opts.DumpMachineState {
+			fmt.Fprintf(opts.Error, "--- Machine State: %s\n", m.String())
+		}
+
 		if opts.Metrics {
 			// XXX: store changes
 			// XXX: max mem consumption
