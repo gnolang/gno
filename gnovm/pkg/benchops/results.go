@@ -1,0 +1,259 @@
+package benchops
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"sort"
+	"time"
+)
+
+// Results contains the profiling results after Stop() is called.
+type Results struct {
+	Duration    time.Duration
+	StartTime   time.Time
+	EndTime     time.Time
+	OpStats     map[string]*OpStatJSON
+	StoreStats  map[string]*StoreStatJSON
+	NativeStats map[string]*NativeStatJSON
+}
+
+// OpStatJSON is the JSON-serializable form of opcode statistics.
+type OpStatJSON struct {
+	Count   int64   `json:"count"`
+	TotalNs int64   `json:"total_ns"`
+	AvgNs   int64   `json:"avg_ns"`
+	MinNs   int64   `json:"min_ns"`
+	MaxNs   int64   `json:"max_ns"`
+	Gas     int64   `json:"gas"`
+}
+
+// StoreStatJSON is the JSON-serializable form of store statistics.
+type StoreStatJSON struct {
+	Count     int64 `json:"count"`
+	TotalNs   int64 `json:"total_ns"`
+	AvgNs     int64 `json:"avg_ns"`
+	MinNs     int64 `json:"min_ns"`
+	MaxNs     int64 `json:"max_ns"`
+	TotalSize int64 `json:"total_size"`
+	AvgSize   int64 `json:"avg_size"`
+}
+
+// NativeStatJSON is the JSON-serializable form of native statistics.
+type NativeStatJSON struct {
+	Count   int64 `json:"count"`
+	TotalNs int64 `json:"total_ns"`
+	AvgNs   int64 `json:"avg_ns"`
+	MinNs   int64 `json:"min_ns"`
+	MaxNs   int64 `json:"max_ns"`
+}
+
+// buildResults creates Results from the profiler's internal state.
+// Must be called with p.mu held.
+func (p *Profiler) buildResults() *Results {
+	r := &Results{
+		Duration:    p.stopTime.Sub(p.startTime),
+		StartTime:   p.startTime,
+		EndTime:     p.stopTime,
+		OpStats:     make(map[string]*OpStatJSON),
+		StoreStats:  make(map[string]*StoreStatJSON),
+		NativeStats: make(map[string]*NativeStatJSON),
+	}
+
+	// Build op stats
+	for i := range 256 {
+		s := &p.opStats[i]
+		if s.count == 0 {
+			continue
+		}
+		op := Op(i)
+		r.OpStats[op.String()] = &OpStatJSON{
+			Count:   s.count,
+			TotalNs: s.totalDur.Nanoseconds(),
+			AvgNs:   s.totalDur.Nanoseconds() / s.count,
+			MinNs:   s.minDur.Nanoseconds(),
+			MaxNs:   s.maxDur.Nanoseconds(),
+			Gas:     GetOpGas(op),
+		}
+	}
+
+	// Build store stats
+	for i := range 256 {
+		s := &p.storeStats[i]
+		if s.count == 0 {
+			continue
+		}
+		op := StoreOp(i)
+		avgSize := int64(0)
+		if s.count > 0 {
+			avgSize = s.totalSize / s.count
+		}
+		r.StoreStats[op.String()] = &StoreStatJSON{
+			Count:     s.count,
+			TotalNs:   s.totalDur.Nanoseconds(),
+			AvgNs:     s.totalDur.Nanoseconds() / s.count,
+			MinNs:     s.minDur.Nanoseconds(),
+			MaxNs:     s.maxDur.Nanoseconds(),
+			TotalSize: s.totalSize,
+			AvgSize:   avgSize,
+		}
+	}
+
+	// Build native stats
+	for i := range 256 {
+		s := &p.nativeStats[i]
+		if s.count == 0 {
+			continue
+		}
+		op := NativeOp(i)
+		r.NativeStats[op.String()] = &NativeStatJSON{
+			Count:   s.count,
+			TotalNs: s.totalDur.Nanoseconds(),
+			AvgNs:   s.totalDur.Nanoseconds() / s.count,
+			MinNs:   s.minDur.Nanoseconds(),
+			MaxNs:   s.maxDur.Nanoseconds(),
+		}
+	}
+
+	return r
+}
+
+// WriteJSON writes the results as JSON to the given writer.
+func (r *Results) WriteJSON(w io.Writer) error {
+	if r == nil {
+		return nil
+	}
+
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(r)
+}
+
+// WriteReport writes a human-readable summary to the given writer.
+// topN limits how many entries to show per category (0 = all).
+func (r *Results) WriteReport(w io.Writer, topN int) error {
+	if r == nil {
+		return nil
+	}
+
+	fmt.Fprintf(w, "Profiling Results\n")
+	fmt.Fprintf(w, "=================\n")
+	fmt.Fprintf(w, "Duration: %v\n", r.Duration)
+	fmt.Fprintf(w, "Start:    %v\n", r.StartTime.Format(time.RFC3339))
+	fmt.Fprintf(w, "End:      %v\n\n", r.EndTime.Format(time.RFC3339))
+
+	// Op stats
+	if len(r.OpStats) > 0 {
+		fmt.Fprintf(w, "Opcode Statistics (by total time):\n")
+		fmt.Fprintf(w, "%-25s %10s %12s %12s %8s\n", "Opcode", "Count", "Total", "Avg", "Gas")
+		fmt.Fprintf(w, "%-25s %10s %12s %12s %8s\n", "------", "-----", "-----", "---", "---")
+
+		sorted := sortedOpStats(r.OpStats)
+		for i, kv := range sorted {
+			if topN > 0 && i >= topN {
+				break
+			}
+			fmt.Fprintf(w, "%-25s %10d %12s %12s %8d\n",
+				kv.name,
+				kv.stat.Count,
+				time.Duration(kv.stat.TotalNs),
+				time.Duration(kv.stat.AvgNs),
+				kv.stat.Gas,
+			)
+		}
+		fmt.Fprintln(w)
+	}
+
+	// Store stats
+	if len(r.StoreStats) > 0 {
+		fmt.Fprintf(w, "Store Statistics (by total time):\n")
+		fmt.Fprintf(w, "%-25s %10s %12s %12s %12s\n", "Operation", "Count", "Total", "Avg", "Avg Size")
+		fmt.Fprintf(w, "%-25s %10s %12s %12s %12s\n", "---------", "-----", "-----", "---", "--------")
+
+		sorted := sortedStoreStats(r.StoreStats)
+		for i, kv := range sorted {
+			if topN > 0 && i >= topN {
+				break
+			}
+			fmt.Fprintf(w, "%-25s %10d %12s %12s %12d\n",
+				kv.name,
+				kv.stat.Count,
+				time.Duration(kv.stat.TotalNs),
+				time.Duration(kv.stat.AvgNs),
+				kv.stat.AvgSize,
+			)
+		}
+		fmt.Fprintln(w)
+	}
+
+	// Native stats
+	if len(r.NativeStats) > 0 {
+		fmt.Fprintf(w, "Native Statistics (by total time):\n")
+		fmt.Fprintf(w, "%-25s %10s %12s %12s\n", "Function", "Count", "Total", "Avg")
+		fmt.Fprintf(w, "%-25s %10s %12s %12s\n", "--------", "-----", "-----", "---")
+
+		sorted := sortedNativeStats(r.NativeStats)
+		for i, kv := range sorted {
+			if topN > 0 && i >= topN {
+				break
+			}
+			fmt.Fprintf(w, "%-25s %10d %12s %12s\n",
+				kv.name,
+				kv.stat.Count,
+				time.Duration(kv.stat.TotalNs),
+				time.Duration(kv.stat.AvgNs),
+			)
+		}
+		fmt.Fprintln(w)
+	}
+
+	return nil
+}
+
+type opStatPair struct {
+	name string
+	stat *OpStatJSON
+}
+
+func sortedOpStats(m map[string]*OpStatJSON) []opStatPair {
+	pairs := make([]opStatPair, 0, len(m))
+	for k, v := range m {
+		pairs = append(pairs, opStatPair{k, v})
+	}
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].stat.TotalNs > pairs[j].stat.TotalNs
+	})
+	return pairs
+}
+
+type storeStatPair struct {
+	name string
+	stat *StoreStatJSON
+}
+
+func sortedStoreStats(m map[string]*StoreStatJSON) []storeStatPair {
+	pairs := make([]storeStatPair, 0, len(m))
+	for k, v := range m {
+		pairs = append(pairs, storeStatPair{k, v})
+	}
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].stat.TotalNs > pairs[j].stat.TotalNs
+	})
+	return pairs
+}
+
+type nativeStatPair struct {
+	name string
+	stat *NativeStatJSON
+}
+
+func sortedNativeStats(m map[string]*NativeStatJSON) []nativeStatPair {
+	pairs := make([]nativeStatPair, 0, len(m))
+	for k, v := range m {
+		pairs = append(pairs, nativeStatPair{k, v})
+	}
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].stat.TotalNs > pairs[j].stat.TotalNs
+	})
+	return pairs
+}
