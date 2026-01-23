@@ -6,9 +6,6 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-// TODO: These should only work when chain ID is "dev"
-//       Integration tests rely on these. Can integration gnoland node also use "dev"?
-
 func Init() {
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
