@@ -983,8 +983,11 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 		} else { // len(Lhs) == len(Rhs)
 			if x.Op == ASSIGN {
 				// assert valid left value
-				for _, lx := range x.Lhs {
+				for i, lx := range x.Lhs {
 					assertValidAssignLhs(store, last, lx)
+					lt := evalStaticTypeOf(store, last, lx)
+					rt := evalStaticTypeOf(store, last, x.Rhs[i])
+					assertAssignableTo(x, rt, lt)
 				}
 			}
 		}

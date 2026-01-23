@@ -4043,6 +4043,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 	if debug {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	}
+	// fmt.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	if cx, ok := (*x).(*ConstExpr); ok {
 		// e.g. int(1) == int8(1)
 		mustAssignableTo(n, cx.T, t)
@@ -4051,23 +4052,13 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 		if debug {
 			debug.Printf("shift, xt: %v, Op: %v, t: %v \n", xt, bx.Op, t)
 		}
+
 		if isUntyped(xt) {
-			// If type info from context is nil.
-			if t == nil {
-				lt2 := evalStaticTypeOf(store, last, bx.Left)
-				if !isIntNum(lt2) {
-					panic(fmt.Sprintf("invalid operation: shifted operand %v (%v) must be integer", bx.Left, lt2.String()))
-				}
-			}
-
-			// check assignable, see: types/shift_b6.gno
-			mustAssignableTo(n, xt, t)
-
 			if t == nil || t.Kind() == InterfaceKind {
 				t = defaultTypeOf(xt)
 			}
-
 			bx.assertShiftExprCompatible2(t)
+
 			// Convert untyped to typed.
 			checkOrConvertType(store, last, n, &bx.Left, t)
 		} else {
