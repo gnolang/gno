@@ -411,6 +411,11 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 	if len(path) >= 2 {
 		var result Result
 
+		// when a client did not provide a query height, manually inject the latest
+		if req.Height == 0 {
+			req.Height = app.LastBlockHeight()
+		}
+
 		switch path[1] {
 		case "simulate":
 			txBytes := req.Data
