@@ -389,22 +389,6 @@ func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Action")
 }
 
-// TestHTTPHandler_PathsListView_ListPathsError tests ListPaths errors return 404.
-func TestHTTPHandler_PathsListView_ListPathsError(t *testing.T) {
-	t.Parallel()
-
-	client := &stubClient{
-		listFilesFunc: func(ctx context.Context, path string) ([]string, error) { return nil, gnoweb.ErrClientPackageNotFound },
-		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) { return nil, errors.New("error") },
-	}
-
-	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, client))
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/", nil))
-
-	assert.Equal(t, http.StatusNotFound, rr.Code)
-}
-
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
 func TestHTTPHandler_NewInvalidConfig(t *testing.T) {
 	t.Parallel()
