@@ -33,7 +33,7 @@ const (
 	btRealmIssue
 )
 
-func X_bankerGetCoins(m *gno.Machine, bt uint8, addr string) (denoms []string, amounts []int64) {
+func X_bankerGetCoins(m *gno.Machine, addr string) (denoms []string, amounts []int64) {
 	coins := execctx.GetContext(m).Banker.GetCoins(crypto.Bech32Address(addr))
 	return ExpandCoins(coins)
 }
@@ -66,15 +66,15 @@ func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []str
 	}
 }
 
-func X_bankerTotalCoin(m *gno.Machine, bt uint8, denom string) int64 {
+func X_bankerTotalCoin(m *gno.Machine, denom string) int64 {
 	return execctx.GetContext(m).Banker.TotalCoin(denom)
 }
 
-func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
+func X_bankerIssueCoin(m *gno.Machine, addr string, denom string, amount int64) {
 	execctx.GetContext(m).Banker.IssueCoin(crypto.Bech32Address(addr), denom, amount)
 }
 
-func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
+func X_bankerRemoveCoin(m *gno.Machine, addr string, denom string, amount int64) {
 	execctx.GetContext(m).Banker.RemoveCoin(crypto.Bech32Address(addr), denom, amount)
 }
 
