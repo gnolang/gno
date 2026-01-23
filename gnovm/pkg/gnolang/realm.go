@@ -13,8 +13,6 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-
-	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 /*
@@ -176,10 +174,6 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	if rlm == nil {
 		return
 	}
@@ -340,11 +334,6 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(store Store) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
-
 	if debugRealm {
 		// * newCreated - may become created unless ancestor is deleted
 		// * newDeleted - may become deleted unless attached to new-real owner

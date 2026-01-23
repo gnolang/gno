@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"text/tabwriter"
 	"time"
 )
 
@@ -49,7 +50,6 @@ type NativeStatJSON struct {
 }
 
 // buildResults creates Results from the profiler's internal state.
-// Must be called with p.mu held.
 func (p *Profiler) buildResults() *Results {
 	r := &Results{
 		Duration:    p.stopTime.Sub(p.startTime),
@@ -132,78 +132,87 @@ func (r *Results) WriteReport(w io.Writer, topN int) error {
 		return nil
 	}
 
-	fmt.Fprintf(w, "Profiling Results\n")
-	fmt.Fprintf(w, "=================\n")
-	fmt.Fprintf(w, "Duration: %v\n", r.Duration)
-	fmt.Fprintf(w, "Start:    %v\n", r.StartTime.Format(time.RFC3339))
-	fmt.Fprintf(w, "End:      %v\n\n", r.EndTime.Format(time.RFC3339))
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', tabwriter.AlignRight)
+
+	fmt.Fprintf(tw, "Profiling Results\n")
+	fmt.Fprintf(tw, "═════════════════\n")
+	fmt.Fprintf(tw, "Duration:\t%v\t\n", r.Duration)
+	fmt.Fprintf(tw, "Start:\t%v\t\n", r.StartTime.Format(time.RFC3339))
+	fmt.Fprintf(tw, "End:\t%v\t\n\n", r.EndTime.Format(time.RFC3339))
 
 	// Op stats
 	if len(r.OpStats) > 0 {
-		fmt.Fprintf(w, "Opcode Statistics (by total time):\n")
-		fmt.Fprintf(w, "%-25s %10s %12s %12s %8s\n", "Opcode", "Count", "Total", "Avg", "Gas")
-		fmt.Fprintf(w, "%-25s %10s %12s %12s %8s\n", "------", "-----", "-----", "---", "---")
+		fmt.Fprintf(tw, "Opcode Statistics (by total time)\n")
+		fmt.Fprintf(tw, "──────────────────────────────────\n")
+		fmt.Fprintf(tw, "Opcode\tCount\tTotal\tAvg\tMin\tMax\tGas\t\n")
 
 		sorted := sortedOpStats(r.OpStats)
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
 			}
-			fmt.Fprintf(w, "%-25s %10d %12s %12s %8d\n",
+			fmt.Fprintf(tw, "%s\t%d\t%v\t%v\t%v\t%v\t%d\t\n",
 				kv.name,
 				kv.stat.Count,
 				time.Duration(kv.stat.TotalNs),
 				time.Duration(kv.stat.AvgNs),
+				time.Duration(kv.stat.MinNs),
+				time.Duration(kv.stat.MaxNs),
 				kv.stat.Gas,
 			)
 		}
-		fmt.Fprintln(w)
+		fmt.Fprintln(tw)
 	}
 
 	// Store stats
 	if len(r.StoreStats) > 0 {
-		fmt.Fprintf(w, "Store Statistics (by total time):\n")
-		fmt.Fprintf(w, "%-25s %10s %12s %12s %12s\n", "Operation", "Count", "Total", "Avg", "Avg Size")
-		fmt.Fprintf(w, "%-25s %10s %12s %12s %12s\n", "---------", "-----", "-----", "---", "--------")
+		fmt.Fprintf(tw, "Store Statistics (by total time)\n")
+		fmt.Fprintf(tw, "─────────────────────────────────\n")
+		fmt.Fprintf(tw, "Operation\tCount\tTotal\tAvg\tMin\tMax\tTotal Size\tAvg Size\t\n")
 
 		sorted := sortedStoreStats(r.StoreStats)
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
 			}
-			fmt.Fprintf(w, "%-25s %10d %12s %12s %12d\n",
+			fmt.Fprintf(tw, "%s\t%d\t%v\t%v\t%v\t%v\t%d\t%d\t\n",
 				kv.name,
 				kv.stat.Count,
 				time.Duration(kv.stat.TotalNs),
 				time.Duration(kv.stat.AvgNs),
+				time.Duration(kv.stat.MinNs),
+				time.Duration(kv.stat.MaxNs),
+				kv.stat.TotalSize,
 				kv.stat.AvgSize,
 			)
 		}
-		fmt.Fprintln(w)
+		fmt.Fprintln(tw)
 	}
 
 	// Native stats
 	if len(r.NativeStats) > 0 {
-		fmt.Fprintf(w, "Native Statistics (by total time):\n")
-		fmt.Fprintf(w, "%-25s %10s %12s %12s\n", "Function", "Count", "Total", "Avg")
-		fmt.Fprintf(w, "%-25s %10s %12s %12s\n", "--------", "-----", "-----", "---")
+		fmt.Fprintf(tw, "Native Statistics (by total time)\n")
+		fmt.Fprintf(tw, "──────────────────────────────────\n")
+		fmt.Fprintf(tw, "Function\tCount\tTotal\tAvg\tMin\tMax\t\n")
 
 		sorted := sortedNativeStats(r.NativeStats)
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
 			}
-			fmt.Fprintf(w, "%-25s %10d %12s %12s\n",
+			fmt.Fprintf(tw, "%s\t%d\t%v\t%v\t%v\t%v\t\n",
 				kv.name,
 				kv.stat.Count,
 				time.Duration(kv.stat.TotalNs),
 				time.Duration(kv.stat.AvgNs),
+				time.Duration(kv.stat.MinNs),
+				time.Duration(kv.stat.MaxNs),
 			)
 		}
-		fmt.Fprintln(w)
+		fmt.Fprintln(tw)
 	}
 
-	return nil
+	return tw.Flush()
 }
 
 type opStatPair struct {

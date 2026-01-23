@@ -6,7 +6,7 @@ package benchops
 // When built with -tags gnobench, this is true and profiling is enabled.
 const Enabled = true
 
-var global = New(DefaultConfig())
+var global = New()
 
 // SetGlobal sets the global profiler instance.
 func SetGlobal(p *Profiler) {

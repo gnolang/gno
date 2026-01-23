@@ -3,11 +3,8 @@ package benchops
 import "time"
 
 // BeginOp starts timing for an opcode.
+// Panics if profiler is not running (Start() must be called first).
 func (p *Profiler) BeginOp(op Op) {
-	if !p.config.EnableOps {
-		return
-	}
-
 	p.currentOp = &opStackEntry{
 		op:        op,
 		startTime: time.Now(),
@@ -15,12 +12,12 @@ func (p *Profiler) BeginOp(op Op) {
 }
 
 // EndOp stops timing for the current opcode and records the measurement.
+// Panics if called without a matching BeginOp.
 func (p *Profiler) EndOp() {
-	if p.currentOp == nil {
-		return
-	}
-
 	entry := p.currentOp
+	if entry == nil {
+		panic("benchops: EndOp called without matching BeginOp")
+	}
 	p.currentOp = nil
 
 	dur := entry.elapsed + time.Since(entry.startTime)
@@ -29,11 +26,8 @@ func (p *Profiler) EndOp() {
 
 // BeginStore starts timing for a store operation.
 // Automatically pauses the current opcode timing on the first nested call.
+// Panics if profiler is not running.
 func (p *Profiler) BeginStore(op StoreOp) {
-	if !p.config.EnableStore {
-		return
-	}
-
 	// Pause current opcode timing on first store call
 	if len(p.storeStack) == 0 && p.currentOp != nil {
 		p.currentOp.elapsed += time.Since(p.currentOp.startTime)
@@ -49,9 +43,10 @@ func (p *Profiler) BeginStore(op StoreOp) {
 
 // EndStore stops timing for the current store operation and records the measurement.
 // Automatically resumes opcode timing when the store stack empties.
+// Panics if called without a matching BeginStore.
 func (p *Profiler) EndStore(size int) {
 	if len(p.storeStack) == 0 {
-		return
+		panic("benchops: EndStore called without matching BeginStore")
 	}
 
 	// Pop and record the store entry
@@ -74,11 +69,8 @@ func (p *Profiler) EndStore(size int) {
 }
 
 // BeginNative starts timing for a native function.
+// Panics if profiler is not running.
 func (p *Profiler) BeginNative(op NativeOp) {
-	if !p.config.EnableNative {
-		return
-	}
-
 	p.currentNative = &nativeEntry{
 		op:        op,
 		startTime: time.Now(),
@@ -86,12 +78,12 @@ func (p *Profiler) BeginNative(op NativeOp) {
 }
 
 // EndNative stops timing for the current native function and records the measurement.
+// Panics if called without a matching BeginNative.
 func (p *Profiler) EndNative() {
-	if p.currentNative == nil {
-		return
-	}
-
 	entry := p.currentNative
+	if entry == nil {
+		panic("benchops: EndNative called without matching BeginNative")
+	}
 	p.currentNative = nil
 
 	dur := time.Since(entry.startTime)

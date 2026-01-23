@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/colors"
@@ -363,10 +363,10 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 // Some atomic operation.
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	var size int
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreGetPackageRealm)
+	if benchops.Enabled {
+		benchops.BeginStore(benchops.StoreGetPackageRealm)
 		defer func() {
-			bm.StopStore(size)
+			benchops.EndStore(size)
 		}()
 	}
 	oid := ObjectIDFromPkgPath(pkgPath)
@@ -390,16 +390,12 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 
 // An atomic operation to set the package realm info (id counter etc).
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 
 	var size int
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreSetPackageRealm)
+	if benchops.Enabled {
+		benchops.BeginStore(benchops.StoreSetPackageRealm)
 		defer func() {
-			bm.StopStore(size)
+			benchops.EndStore(size)
 		}()
 	}
 	oid := ObjectIDFromPkgPath(rlm.Path)
@@ -417,10 +413,6 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 // all []TypedValue types and TypeValue{} types to be
 // loaded (non-ref) types.
 func (ds *defaultStore) GetObject(oid ObjectID) Object {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	oo := ds.GetObjectSafe(oid)
 	if oo == nil {
 		panic(fmt.Sprintf("unexpected object with id %s", oid.String()))
@@ -429,10 +421,6 @@ func (ds *defaultStore) GetObject(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	// check cache.
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		return oo
@@ -449,17 +437,13 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 
 	var size int
 
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreGetObject)
+	if benchops.Enabled {
+		benchops.BeginStore(benchops.StoreGetObject)
 		defer func() {
-			bm.StopStore(size)
+			benchops.EndStore(size)
 		}()
 	}
 	key := backendObjectKey(oid)
@@ -609,15 +593,11 @@ func AllocExpanded(alloc *Allocator, val Value) {
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
 func (ds *defaultStore) SetObject(oo Object) int64 {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	var size int
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreSetObject)
+	if benchops.Enabled {
+		benchops.BeginStore(benchops.StoreSetObject)
 		defer func() {
-			bm.StopStore(size)
+			benchops.EndStore(size)
 		}()
 	}
 	oid := oo.GetObjectID()
@@ -719,15 +699,11 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) DelObject(oo Object) int64 {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreDeleteObject)
+	if benchops.Enabled {
+		benchops.BeginStore(benchops.StoreDeleteObject)
 		defer func() {
 			// delete is a signle operation, not a func of size of bytes
-			bm.StopStore(0)
+			benchops.EndStore(0)
 		}()
 	}
 	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
@@ -759,10 +735,6 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 }
 
 func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 
 	// check cache.
 	if tt, exists := ds.cacheTypes.Get(tid); exists {
@@ -807,16 +779,12 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 }
 
 func (ds *defaultStore) SetType(tt Type) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	var size int
 
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreSetType)
+	if benchops.Enabled {
+		benchops.BeginStore(benchops.StoreSetType)
 		defer func() {
-			bm.StopStore(size)
+			benchops.EndStore(size)
 		}()
 	}
 	tid := tt.TypeID()
@@ -856,17 +824,13 @@ func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
 }
 
 func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 
 	var size int
 
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreGetBlockNode)
+	if benchops.Enabled {
+		benchops.BeginStore(benchops.StoreGetBlockNode)
 		defer func() {
-			bm.StopStore(size)
+			benchops.EndStore(size)
 		}()
 	}
 	// check cache.
@@ -950,16 +914,12 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 // MPFiletests are not allowed, as they are currently only read from disk (e.g.
 // test/files). However, MP*All may include filetests files.
 func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	var size int
 
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreAddMemPackage)
+	if benchops.Enabled {
+		benchops.BeginStore(benchops.StoreAddMemPackage)
 		defer func() {
-			bm.StopStore(size)
+			benchops.EndStore(size)
 		}()
 	}
 	mpkgtype := mpkg.Type.(MemPackageType)
@@ -992,17 +952,13 @@ func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
 }
 
 func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 
 	var size int
 
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreGetMemPackage)
+	if benchops.Enabled {
+		benchops.BeginStore(benchops.StoreGetMemPackage)
 		defer func() {
-			bm.StopStore(size)
+			benchops.EndStore(size)
 		}()
 	}
 	pathkey := []byte(backendPackagePathKey(path))

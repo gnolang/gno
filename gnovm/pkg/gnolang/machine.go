@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -231,12 +231,6 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	if bm.OpsEnabled || bm.StorageEnabled || bm.NativeEnabled {
-		bm.InitMeasure()
-	}
-	if bm.StorageEnabled {
-		defer bm.FinishStore()
-	}
 	return m.runMemPackage(mpkg, save, false)
 }
 
@@ -798,13 +792,6 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
-	if bm.OpsEnabled || bm.StorageEnabled {
-		// reset the benchmark
-		bm.InitMeasure()
-	}
-	if bm.StorageEnabled {
-		defer bm.FinishStore()
-	}
 	// X must not have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
 		panic(fmt.Sprintf(
@@ -1249,22 +1236,14 @@ const (
 
 func (m *Machine) Run(st Stage) {
 	m.Stage = st
-	if bm.OpsEnabled {
-		defer func() {
-			// output each machine run results to file
-			bm.FinishRun()
-		}()
-	}
-	if bm.NativeEnabled {
-		defer func() {
-			// output each machine run results to file
-			bm.FinishNative()
-		}()
-	}
 	defer func() {
 		r := recover()
 
 		if r != nil {
+			// Reset profiler state on panic to prevent corrupted measurements.
+			if benchops.Enabled {
+				benchops.Recovery()
+			}
 			switch r := r.(type) {
 			case *Exception:
 				if r.Stacktrace.IsZero() {
@@ -1283,13 +1262,14 @@ func (m *Machine) Run(st Stage) {
 			m.Debug()
 		}
 		op := m.PopOp()
-		if bm.OpsEnabled {
-			// benchmark the operation.
-			bm.StartOpCode(byte(OpVoid))
-			bm.StopOpCode()
-			// we do not benchmark static evaluation.
+		if benchops.Enabled {
+			// Benchmark the operation.
+			// First measure OpVoid for calibration.
+			benchops.BeginOp(benchops.OpVoid)
+			benchops.EndOp()
+			// We do not benchmark static evaluation (OpStaticTypeOf).
 			if op != OpStaticTypeOf {
-				bm.StartOpCode(byte(op))
+				benchops.BeginOp(benchops.Op(op))
 			}
 		}
 		// TODO: this can be optimized manually, even into tiers.
@@ -1297,8 +1277,8 @@ func (m *Machine) Run(st Stage) {
 		/* Control operators */
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
-			if bm.OpsEnabled {
-				bm.StopOpCode()
+			if benchops.Enabled {
+				benchops.EndOp()
 			}
 			return
 		case OpNoop:
@@ -1607,9 +1587,9 @@ func (m *Machine) Run(st Stage) {
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
 		}
-		if bm.OpsEnabled {
+		if benchops.Enabled {
 			if op != OpStaticTypeOf {
-				bm.StopOpCode()
+				benchops.EndOp()
 			}
 		}
 	}

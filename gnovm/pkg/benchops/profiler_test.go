@@ -2,161 +2,170 @@ package benchops
 
 import (
 	"bytes"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProfilerLifecycle(t *testing.T) {
-	p := New(DefaultConfig())
+	p := New()
 
 	// Should start in Idle state
-	if p.State() != StateIdle {
-		t.Fatalf("expected StateIdle, got %v", p.State())
-	}
+	require.Equal(t, StateIdle, p.State())
 
 	// Start should transition to Running
 	p.Start()
-	if p.State() != StateRunning {
-		t.Fatalf("expected StateRunning, got %v", p.State())
-	}
+	require.Equal(t, StateRunning, p.State())
 
 	// Do some work
 	p.BeginOp(OpAdd)
-	time.Sleep(time.Microsecond)
+	time.Sleep(time.Millisecond)
 	p.EndOp()
 
-	// Stop should transition to Stopped and return results
+	// Stop should transition back to Idle and return results
 	results := p.Stop()
-	if p.State() != StateStopped {
-		t.Fatalf("expected StateStopped, got %v", p.State())
-	}
-	if results == nil {
-		t.Fatal("expected non-nil results")
-	}
-	if results.Duration == 0 {
-		t.Error("expected non-zero duration")
-	}
+	require.Equal(t, StateIdle, p.State())
+	require.NotNil(t, results)
+	assert.NotZero(t, results.Duration)
 
-	// Reset should return to Idle
-	p.Reset()
-	if p.State() != StateIdle {
-		t.Fatalf("expected StateIdle after Reset, got %v", p.State())
-	}
+	// Should be able to immediately reuse
+	p.Start()
+	require.Equal(t, StateRunning, p.State())
+	p.Stop()
+	require.Equal(t, StateIdle, p.State())
 }
 
-func TestProfilerStartPanics(t *testing.T) {
-	p := New(DefaultConfig())
+func TestProfilerStartPanicsWhenRunning(t *testing.T) {
+	p := New()
+	p.Start()
+	defer p.Stop() // Clean up
+
+	require.PanicsWithValue(t,
+		"benchops: profiler is already running (concurrent access or missing Stop)",
+		func() { p.Start() })
+}
+
+func TestProfilerConcurrentStartPanics(t *testing.T) {
+	p := New()
+
+	var wg sync.WaitGroup
+	var panicked atomic.Bool
+
+	// Start from main goroutine
 	p.Start()
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic on double Start")
-		}
+	// Try to start from another goroutine - should panic
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				panicked.Store(true)
+				assert.Equal(t,
+					"benchops: profiler is already running (concurrent access or missing Stop)",
+					r)
+			}
+		}()
+		p.Start() // should panic
 	}()
 
-	p.Start() // should panic
+	wg.Wait()
+	p.Stop() // Clean up
+
+	assert.True(t, panicked.Load(), "expected concurrent Start to panic")
 }
 
-func TestProfilerStopPanics(t *testing.T) {
-	p := New(DefaultConfig())
+func TestProfilerStopPanicsWhenNotRunning(t *testing.T) {
+	p := New()
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic on Stop before Start")
-		}
-	}()
+	require.PanicsWithValue(t,
+		"benchops: Stop called on non-running profiler",
+		func() { p.Stop() })
+}
 
-	p.Stop() // should panic
+func TestProfilerResetPanicsWhenRunning(t *testing.T) {
+	p := New()
+	p.Start()
+	defer p.Stop() // Clean up
+
+	require.PanicsWithValue(t,
+		"benchops: Reset called on running profiler (use Stop() instead)",
+		func() { p.Reset() })
 }
 
 func TestOpMeasurement(t *testing.T) {
-	p := New(DefaultConfig())
+	p := New()
 	p.Start()
 
 	// Measure some ops
 	for i := 0; i < 10; i++ {
 		p.BeginOp(OpAdd)
-		time.Sleep(10 * time.Microsecond)
+		time.Sleep(time.Millisecond)
 		p.EndOp()
 	}
 
 	results := p.Stop()
 
 	stat, ok := results.OpStats["OpAdd"]
-	if !ok {
-		t.Fatal("expected OpAdd in results")
-	}
-	if stat.Count != 10 {
-		t.Errorf("expected count 10, got %d", stat.Count)
-	}
-	if stat.TotalNs == 0 {
-		t.Error("expected non-zero total duration")
-	}
-	if stat.AvgNs == 0 {
-		t.Error("expected non-zero average duration")
-	}
+	require.True(t, ok, "expected OpAdd in results")
+	assert.Equal(t, int64(10), stat.Count)
+	assert.NotZero(t, stat.TotalNs, "expected non-zero total duration")
+	assert.NotZero(t, stat.AvgNs, "expected non-zero average duration")
 }
 
 func TestNestedStoreCalls(t *testing.T) {
-	p := New(DefaultConfig())
+	p := New()
 	p.Start()
 
 	// Start an opcode
 	p.BeginOp(OpCall)
-	time.Sleep(10 * time.Microsecond)
+	time.Sleep(time.Millisecond)
 
 	// Nested store calls should pause opcode timing
 	p.BeginStore(StoreGetPackage)
-	time.Sleep(5 * time.Microsecond)
+	time.Sleep(time.Millisecond)
 
 	// Second level nesting
 	p.BeginStore(StoreGetObject)
-	time.Sleep(5 * time.Microsecond)
+	time.Sleep(time.Millisecond)
 	p.EndStore(100)
 
 	// Third level nesting
 	p.BeginStore(StoreGetPackageRealm)
-	time.Sleep(5 * time.Microsecond)
+	time.Sleep(time.Millisecond)
 	p.EndStore(50)
 
 	p.EndStore(200)
 
 	// Resume and finish opcode
-	time.Sleep(10 * time.Microsecond)
+	time.Sleep(time.Millisecond)
 	p.EndOp()
 
 	results := p.Stop()
 
 	// Check opcode was recorded
 	opStat, ok := results.OpStats["OpCall"]
-	if !ok {
-		t.Fatal("expected OpCall in results")
-	}
-	if opStat.Count != 1 {
-		t.Errorf("expected OpCall count 1, got %d", opStat.Count)
-	}
+	require.True(t, ok, "expected OpCall in results")
+	assert.Equal(t, int64(1), opStat.Count)
 
 	// Check all store ops were recorded
 	stores := []string{"StoreGetPackage", "StoreGetObject", "StoreGetPackageRealm"}
 	for _, name := range stores {
 		stat, ok := results.StoreStats[name]
-		if !ok {
-			t.Errorf("expected %s in results", name)
-			continue
-		}
-		if stat.Count != 1 {
-			t.Errorf("expected %s count 1, got %d", name, stat.Count)
-		}
+		require.True(t, ok, "expected %s in results", name)
+		assert.Equal(t, int64(1), stat.Count, "%s count mismatch", name)
 	}
 
 	// Check sizes were recorded
-	if results.StoreStats["StoreGetObject"].TotalSize != 100 {
-		t.Errorf("expected StoreGetObject size 100, got %d", results.StoreStats["StoreGetObject"].TotalSize)
-	}
+	assert.Equal(t, int64(100), results.StoreStats["StoreGetObject"].TotalSize)
 }
 
 func TestPanicRecovery(t *testing.T) {
-	p := New(DefaultConfig())
+	p := New()
 	p.Start()
 
 	// Start an op and some store calls
@@ -169,52 +178,21 @@ func TestPanicRecovery(t *testing.T) {
 
 	// Should be able to continue measuring
 	p.BeginOp(OpAdd)
-	time.Sleep(time.Microsecond)
+	time.Sleep(time.Millisecond)
 	p.EndOp()
 
 	results := p.Stop()
 
 	// Only OpAdd should be in results (OpCall was not ended)
-	if _, ok := results.OpStats["OpCall"]; ok {
-		t.Error("OpCall should not be in results after recovery")
-	}
-	if _, ok := results.OpStats["OpAdd"]; !ok {
-		t.Error("OpAdd should be in results after recovery")
-	}
-}
+	_, hasOpCall := results.OpStats["OpCall"]
+	assert.False(t, hasOpCall, "OpCall should not be in results after recovery")
 
-func TestDisabledMeasurements(t *testing.T) {
-	cfg := Config{
-		EnableOps:    false,
-		EnableStore:  false,
-		EnableNative: false,
-	}
-	p := New(cfg)
-	p.Start()
-
-	// These should all be no-ops
-	p.BeginOp(OpAdd)
-	p.EndOp()
-	p.BeginStore(StoreGetObject)
-	p.EndStore(100)
-	p.BeginNative(NativePrint)
-	p.EndNative()
-
-	results := p.Stop()
-
-	if len(results.OpStats) != 0 {
-		t.Error("expected no op stats when disabled")
-	}
-	if len(results.StoreStats) != 0 {
-		t.Error("expected no store stats when disabled")
-	}
-	if len(results.NativeStats) != 0 {
-		t.Error("expected no native stats when disabled")
-	}
+	_, hasOpAdd := results.OpStats["OpAdd"]
+	assert.True(t, hasOpAdd, "OpAdd should be in results after recovery")
 }
 
 func TestResultsJSON(t *testing.T) {
-	p := New(DefaultConfig())
+	p := New()
 	p.Start()
 
 	p.BeginOp(OpAdd)
@@ -223,22 +201,14 @@ func TestResultsJSON(t *testing.T) {
 	results := p.Stop()
 
 	var buf bytes.Buffer
-	if err := results.WriteJSON(&buf); err != nil {
-		t.Fatalf("WriteJSON failed: %v", err)
-	}
-
-	if buf.Len() == 0 {
-		t.Error("expected non-empty JSON output")
-	}
-
-	// Basic sanity check
-	if !bytes.Contains(buf.Bytes(), []byte("OpAdd")) {
-		t.Error("expected OpAdd in JSON output")
-	}
+	err := results.WriteJSON(&buf)
+	require.NoError(t, err)
+	assert.NotZero(t, buf.Len(), "expected non-empty JSON output")
+	assert.Contains(t, buf.String(), "OpAdd")
 }
 
 func TestResultsReport(t *testing.T) {
-	p := New(DefaultConfig())
+	p := New()
 	p.Start()
 
 	p.BeginOp(OpAdd)
@@ -249,113 +219,121 @@ func TestResultsReport(t *testing.T) {
 	results := p.Stop()
 
 	var buf bytes.Buffer
-	if err := results.WriteReport(&buf, 10); err != nil {
-		t.Fatalf("WriteReport failed: %v", err)
-	}
-
-	if buf.Len() == 0 {
-		t.Error("expected non-empty report output")
-	}
+	err := results.WriteReport(&buf, 10)
+	require.NoError(t, err)
+	assert.NotZero(t, buf.Len(), "expected non-empty report output")
 
 	output := buf.String()
-	if !bytes.Contains([]byte(output), []byte("OpAdd")) {
-		t.Error("expected OpAdd in report output")
-	}
-	if !bytes.Contains([]byte(output), []byte("StoreGetObject")) {
-		t.Error("expected StoreGetObject in report output")
-	}
+	assert.Contains(t, output, "OpAdd")
+	assert.Contains(t, output, "StoreGetObject")
+}
+
+func TestEndOpPanicsWithoutBegin(t *testing.T) {
+	p := New()
+	p.Start()
+	defer p.Stop()
+
+	require.PanicsWithValue(t,
+		"benchops: EndOp called without matching BeginOp",
+		func() { p.EndOp() })
+}
+
+func TestEndStorePanicsWithoutBegin(t *testing.T) {
+	p := New()
+	p.Start()
+	defer p.Stop()
+
+	require.PanicsWithValue(t,
+		"benchops: EndStore called without matching BeginStore",
+		func() { p.EndStore(0) })
+}
+
+func TestEndNativePanicsWithoutBegin(t *testing.T) {
+	p := New()
+	p.Start()
+	defer p.Stop()
+
+	require.PanicsWithValue(t,
+		"benchops: EndNative called without matching BeginNative",
+		func() { p.EndNative() })
 }
 
 func TestOpString(t *testing.T) {
-	tests := []struct {
+	tests := map[string]struct {
 		op   Op
 		want string
 	}{
-		{OpAdd, "OpAdd"},
-		{OpCall, "OpCall"},
-		{Op(0xFE), "OpUnknown"}, // unknown op
+		"add":     {op: OpAdd, want: "OpAdd"},
+		"call":    {op: OpCall, want: "OpCall"},
+		"unknown": {op: Op(0xFE), want: "OpUnknown"},
 	}
 
-	for _, tt := range tests {
-		got := tt.op.String()
-		if got != tt.want {
-			t.Errorf("Op(%#x).String() = %q, want %q", tt.op, got, tt.want)
-		}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.op.String())
+		})
 	}
 }
 
 func TestStoreOpString(t *testing.T) {
-	tests := []struct {
+	tests := map[string]struct {
 		op   StoreOp
 		want string
 	}{
-		{StoreGetObject, "StoreGetObject"},
-		{StoreSetPackage, "StoreSetPackage"},
-		{StoreOp(0xFE), "StoreOpUnknown"}, // unknown op
+		"get_object":  {op: StoreGetObject, want: "StoreGetObject"},
+		"set_package": {op: StoreSetPackage, want: "StoreSetPackage"},
+		"unknown":     {op: StoreOp(0xFE), want: "StoreOpUnknown"},
 	}
 
-	for _, tt := range tests {
-		got := tt.op.String()
-		if got != tt.want {
-			t.Errorf("StoreOp(%#x).String() = %q, want %q", tt.op, got, tt.want)
-		}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.op.String())
+		})
 	}
 }
 
 func TestNativeOpString(t *testing.T) {
-	tests := []struct {
+	tests := map[string]struct {
 		op   NativeOp
 		want string
 	}{
-		{NativePrint, "NativePrint"},
-		{NativePrint1, "NativePrint1"},
-		{NativeOp(0xFE), "NativeOpUnknown"}, // unknown op
+		"print":   {op: NativePrint, want: "NativePrint"},
+		"print1":  {op: NativePrint1, want: "NativePrint1"},
+		"unknown": {op: NativeOp(0xFE), want: "NativeOpUnknown"},
 	}
 
-	for _, tt := range tests {
-		got := tt.op.String()
-		if got != tt.want {
-			t.Errorf("NativeOp(%#x).String() = %q, want %q", tt.op, got, tt.want)
-		}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.op.String())
+		})
 	}
 }
 
 func TestGetNativePrintCode(t *testing.T) {
-	tests := []struct {
+	tests := map[string]struct {
 		size int
 		want NativeOp
 	}{
-		{1, NativePrint1},
-		{1000, NativePrint1000},
-		{10000, NativePrint1e4},
+		"1":     {size: 1, want: NativePrint1},
+		"1000":  {size: 1000, want: NativePrint1000},
+		"10000": {size: 10000, want: NativePrint1e4},
 	}
 
-	for _, tt := range tests {
-		got := GetNativePrintCode(tt.size)
-		if got != tt.want {
-			t.Errorf("GetNativePrintCode(%d) = %v, want %v", tt.size, got, tt.want)
-		}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, GetNativePrintCode(tc.size))
+		})
 	}
 }
 
 func TestGetNativePrintCodePanics(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic for invalid print size")
-		}
-	}()
-
-	GetNativePrintCode(42) // should panic
+	require.Panics(t, func() { GetNativePrintCode(42) })
 }
 
 func TestGetOpGas(t *testing.T) {
 	// Test known op
-	if gas := GetOpGas(OpAdd); gas != 18 {
-		t.Errorf("GetOpGas(OpAdd) = %d, want 18", gas)
-	}
+	assert.Equal(t, int64(18), GetOpGas(OpAdd))
 
 	// Test unknown op returns 1
-	if gas := GetOpGas(Op(0xFE)); gas != 1 {
-		t.Errorf("GetOpGas(unknown) = %d, want 1", gas)
-	}
+	assert.Equal(t, int64(1), GetOpGas(Op(0xFE)))
 }

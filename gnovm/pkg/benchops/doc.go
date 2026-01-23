@@ -33,23 +33,58 @@
 // # Panic Recovery
 //
 // If the VM panics during execution, call Profiler.Recovery() to reset internal
-// state. This prevents corrupted timing data on subsequent runs.
+// state. This allows profiling to continue after the panic is handled. Note that
+// Recovery() does not release the mutex - the profiler remains in running state.
+// You must still call Stop() to release the lock and get results.
 //
-// # Thread Safety
+// # Thread Safety and Atomic State
 //
-// A Profiler instance is NOT safe for concurrent use from multiple goroutines.
-// The measurement methods (BeginOp, EndOp, BeginStore, EndStore, BeginNative,
-// EndNative) do not acquire locks for performance reasons. Each goroutine
-// should use its own Profiler instance.
+// The profiler is designed for SINGLE-THREADED use only. Machines should NOT
+// run in parallel when profiling. The profiler enforces this with fail-fast
+// behavior:
 //
-// The global profiler functions (when built with -tags gnobench) assume
-// single-threaded VM execution. SetGlobal should only be called during
-// initialization, before any measurement calls.
+//   - Start() uses atomic CompareAndSwap and panics if profiler is already running
+//   - Measurement methods (BeginOp, EndOp, etc.) have minimal checks for clear error messages
+//   - Misuse (e.g., EndOp without BeginOp) causes an immediate panic with clear message
+//   - State is stored atomically for lock-free reads via State()
+//
+// This design means:
+//
+//   - Low overhead in the measurement hot path
+//   - Concurrent access is detected immediately via panic
+//   - Programming errors (misuse) fail fast with clear messages
+//
+// # Simple State Machine
+//
+// The profiler has only two states: Idle and Running.
+//
+//	Idle  --Start()--> Running --Stop()--> Idle
+//
+// Stop() automatically resets the profiler to Idle state, so it can be
+// immediately reused without calling Reset(). The Reset() method exists
+// for explicit clearing if needed, but is typically unnecessary.
+//
+// # Test Usage Pattern
+//
+// Example test with profiling:
+//
+//	func TestWithProfiling(t *testing.T) {
+//	    // Do NOT call t.Parallel() - profiler is single-threaded
+//
+//	    p := benchops.Global()
+//	    p.Start()  // Panics if another test is profiling
+//	    defer func() {
+//	        results := p.Stop()  // Auto-resets to Idle
+//	        results.WriteJSON(os.Stdout)
+//	    }()
+//
+//	    // ... test code with Machine ...
+//	}
 //
 // # Usage
 //
-//	p := benchops.New(benchops.DefaultConfig())
-//	benchops.SetGlobal(p)
+//	runtime.GOMAXPROCS(1) // For accurate measurements
+//	p := benchops.Global()
 //	p.Start()
 //	defer func() {
 //	    results := p.Stop()

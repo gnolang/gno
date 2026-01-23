@@ -5,9 +5,8 @@ package gnolang
 import (
 	"bytes"
 	"fmt"
-	"io"
 
-	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
@@ -225,7 +224,7 @@ const (
 
 func init() {
 	// Skip Uverse init during benchmarking to load stdlibs in the benchmark main function.
-	if !(bm.OpsEnabled || bm.StorageEnabled) {
+	if !benchops.Enabled {
 		// Call Uverse() so we initialize the Uverse node ahead of any calls to the package.
 		Uverse()
 	}
@@ -858,16 +857,9 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			// Todo: should stop op code benchmarking here.
-			if bm.NativeEnabled {
-				arg0 := m.LastBlock().GetParams1(m.Store)
-				bm.StartNative(bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false))))
-				prevOutput := m.Output
-				m.Output = io.Discard
-				defer func() {
-					bm.StopNative()
-					m.Output = prevOutput
-				}()
+			if benchops.Enabled {
+				benchops.BeginNative(benchops.NativePrint)
+				defer benchops.EndNative()
 			}
 
 			arg0 := m.LastBlock().GetParams1(m.Store)
@@ -880,16 +872,9 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			// Todo: should stop op code benchmarking here.
-			if bm.NativeEnabled {
-				arg0 := m.LastBlock().GetParams1(m.Store)
-				bm.StartNative(bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false))))
-				prevOutput := m.Output
-				m.Output = io.Discard
-				defer func() {
-					bm.StopNative()
-					m.Output = prevOutput
-				}()
+			if benchops.Enabled {
+				benchops.BeginNative(benchops.NativePrint)
+				defer benchops.EndNative()
 			}
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, true)
