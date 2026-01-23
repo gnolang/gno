@@ -15,11 +15,7 @@
         <a class="b-list-item-link" href="{{ .Link }}">
           <span class="c-with-icon">
             <svg class="c-icon">
-              {{ if .HasRender }}
-              <use href="#ico-realm"></use>
-              {{ else }}
               <use href="#ico-file"></use>
-              {{ end }}
             </svg>
             <span class="name">{{ .Name }}</span>
           </span>

@@ -626,27 +626,6 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 		return GetClientErrorStatusPage(gnourl, ErrClientPackageNotFound)
 	}
 
-	// Filter realm paths for batch doc query
-	realmPaths := make([]string, 0, len(paths))
-	for _, pkgPath := range paths {
-		if strings.HasPrefix(pkgPath, "/r/") {
-			realmPaths = append(realmPaths, pkgPath)
-		}
-	}
-
-	// Batch query all realm docs in a single request
-	hasRenderMap := make(map[string]bool)
-	if len(realmPaths) > 0 {
-		docs, err := h.Client.DocBatch(ctx, realmPaths)
-		if err != nil {
-			h.Logger.Debug("unable to batch fetch docs", "error", err)
-		} else {
-			for path, jdoc := range docs {
-				hasRenderMap[path] = HasRenderFunction(jdoc)
-			}
-		}
-	}
-
 	// Always use explorer mode for paths list
 	indexData.Mode = components.ViewModeExplorer
 
@@ -659,7 +638,6 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 		len(paths),
 		components.DirLinkTypeFile,
 		indexData.Mode,
-		hasRenderMap,
 	)
 }
 
@@ -692,7 +670,6 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 		len(files),
 		components.DirLinkTypeSource,
 		indexData.Mode,
-		nil, // no render metadata for file listing
 		readmeComp,
 	)
 }
