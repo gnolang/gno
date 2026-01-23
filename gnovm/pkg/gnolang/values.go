@@ -1542,8 +1542,6 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 // array or struct) are NaN's; this would make the same tv != to itself, and
 // so shouldn't be included within a vmap.
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isNaN bool) {
-	// The implementation
-
 	if tv.T == nil {
 		if debug {
 			if omitType {
@@ -1555,7 +1553,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 	}
 
 	// Don't use iota to avoid a false positive `staticcheck` complaint.
-	// Cannot be extended as-is, as only the least significant two bits of the
+	// Cannot be extended as-is, as only the 2 least significant bits of the
 	// len field are reserved for its "type".
 	const (
 		maskTypeID       = 0
