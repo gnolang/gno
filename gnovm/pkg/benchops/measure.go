@@ -3,7 +3,8 @@ package benchops
 import "time"
 
 // BeginOp starts timing for an opcode.
-// Panics if profiler is not running (Start() must be called first).
+// If the profiler is not running, measurements are still recorded but will be
+// cleared on the next Start() call. No state check is performed for performance.
 func (p *Profiler) BeginOp(op Op) {
 	p.currentOp = &opStackEntry{
 		op:        op,
@@ -26,7 +27,7 @@ func (p *Profiler) EndOp() {
 
 // BeginStore starts timing for a store operation.
 // Automatically pauses the current opcode timing on the first nested call.
-// Panics if profiler is not running.
+// If the profiler is not running, measurements are recorded but cleared on next Start().
 func (p *Profiler) BeginStore(op StoreOp) {
 	// Pause current opcode timing on first store call
 	if len(p.storeStack) == 0 && p.currentOp != nil {
@@ -69,7 +70,7 @@ func (p *Profiler) EndStore(size int) {
 }
 
 // BeginNative starts timing for a native function.
-// Panics if profiler is not running.
+// If the profiler is not running, measurements are recorded but cleared on next Start().
 func (p *Profiler) BeginNative(op NativeOp) {
 	p.currentNative = &nativeEntry{
 		op:        op,

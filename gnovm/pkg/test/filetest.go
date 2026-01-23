@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/benchops"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -80,8 +81,28 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	})
 	defer m.Release()
 
+	// Start profiler if Gasprofile directive present and benchops enabled
+	var gasprofileOutput string
+	gasprofileEnabled := benchops.Enabled && dirs.First(DirectiveGasprofile) != nil
+	if gasprofileEnabled {
+		benchops.Start()
+		// Ensure profiler is stopped even on panic to avoid leaving it in running state
+		defer func() {
+			if benchops.IsRunning() {
+				results := benchops.Stop()
+				gasprofileOutput = formatGasprofileOutput(results)
+			}
+		}()
+	}
+
 	// RUN THE FILETEST /////////////////////////////////////
 	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck)
+
+	// Stop profiler and capture results
+	if gasprofileEnabled && benchops.IsRunning() {
+		results := benchops.Stop()
+		gasprofileOutput = formatGasprofileOutput(results)
+	}
 
 	// updated tells whether the directives have been updated, and as such
 	// a new generated filetest should be returned.
@@ -193,6 +214,12 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		case DirectiveTypeCheckError:
 			hasTypeCheckErrorDirective = true
 			match(dir, result.TypeCheckError)
+		case DirectiveGasprofile:
+			// Skip comparison when profiling not enabled
+			if !benchops.Enabled {
+				continue
+			}
+			match(dir, gasprofileOutput)
 		}
 	}
 
@@ -224,6 +251,60 @@ func realmDiffsString(m map[string]int64) string {
 	for _, k := range keys {
 		sb.WriteString(fmt.Sprintf("%s: %d\n", k, m[k]))
 	}
+	return sb.String()
+}
+
+// formatGasprofileOutput formats benchops profiling results for golden comparison.
+// The output is deterministic (no timing data, sorted alphabetically).
+func formatGasprofileOutput(r *benchops.Results) string {
+	if r == nil {
+		return ""
+	}
+
+	var sb strings.Builder
+
+	// Opcodes (sorted alphabetically)
+	if len(r.OpStats) > 0 {
+		sb.WriteString("Opcodes:\n")
+		names := make([]string, 0, len(r.OpStats))
+		for name := range r.OpStats {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			stat := r.OpStats[name]
+			fmt.Fprintf(&sb, "  %s: count=%d gas=%d\n", name, stat.Count, stat.Gas)
+		}
+	}
+
+	// Store operations (sorted alphabetically)
+	if len(r.StoreStats) > 0 {
+		sb.WriteString("Store:\n")
+		names := make([]string, 0, len(r.StoreStats))
+		for name := range r.StoreStats {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			stat := r.StoreStats[name]
+			fmt.Fprintf(&sb, "  %s: count=%d size=%d\n", name, stat.Count, stat.TotalSize)
+		}
+	}
+
+	// Native functions (sorted alphabetically)
+	if len(r.NativeStats) > 0 {
+		sb.WriteString("Native:\n")
+		names := make([]string, 0, len(r.NativeStats))
+		for name := range r.NativeStats {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			stat := r.NativeStats[name]
+			fmt.Fprintf(&sb, "  %s: count=%d\n", name, stat.Count)
+		}
+	}
+
 	return sb.String()
 }
 
@@ -438,6 +519,7 @@ const (
 	DirectiveGas            = "Gas"
 	DirectiveStorage        = "Storage"
 	DirectiveTypeCheckError = "TypeCheckError"
+	DirectiveGasprofile     = "Gasprofile"
 )
 
 var allDirectives = []string{
@@ -453,6 +535,7 @@ var allDirectives = []string{
 	DirectiveGas,
 	DirectiveStorage,
 	DirectiveTypeCheckError,
+	DirectiveGasprofile,
 }
 
 // Directives contains the directives of a file.

@@ -11,13 +11,13 @@ const Enabled = false
 // These functions are never called at runtime (guarded by `if Enabled`)
 // and will be eliminated by the compiler's dead code elimination.
 
-func BeginOp(op Op)           {}
+func Start()          {}
+func Stop() *Results  { return nil }
+func IsRunning() bool { return false }
+func BeginOp(op Op)   {}
 func EndOp()                  {}
 func BeginStore(op StoreOp)   {}
 func EndStore(size int)       {}
 func BeginNative(op NativeOp) {}
 func EndNative()              {}
 func Recovery()               {}
-func Reset()                  {}
-func SetGlobal(p *Profiler)   {}
-func Global() *Profiler       { return nil }

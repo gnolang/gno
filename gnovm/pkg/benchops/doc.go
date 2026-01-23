@@ -23,6 +23,13 @@
 // Verify with: go tool nm <binary> | grep benchops
 // Should show only type/const symbols, no function symbols.
 //
+// # Noop Recorder Pattern
+//
+// When profiling is not active, BeginOp/EndOp/etc. delegate to a noop
+// recorder that does nothing. When Start() is called, a real profiler is
+// created and set as the global recorder. Stop() returns results and
+// resets back to the noop recorder. This avoids any "stale data" issues.
+//
 // # Store Call Nesting
 //
 // Store operations can nest (e.g., GetPackage -> GetObjectSafe -> GetPackageRealm).
@@ -32,37 +39,33 @@
 //
 // # Panic Recovery
 //
-// If the VM panics during execution, call Profiler.Recovery() to reset internal
-// state. This allows profiling to continue after the panic is handled. Note that
-// Recovery() does not release the mutex - the profiler remains in running state.
-// You must still call Stop() to release the lock and get results.
+// If the VM panics during execution, call Recovery() to reset internal
+// state. This allows profiling to continue after the panic is handled.
+// The profiler remains in running state - you must still call Stop() to
+// get results.
 //
-// # Thread Safety and Atomic State
+// # Thread Safety
 //
 // The profiler is designed for SINGLE-THREADED use only. Machines should NOT
 // run in parallel when profiling. The profiler enforces this with fail-fast
 // behavior:
 //
-//   - Start() uses atomic CompareAndSwap and panics if profiler is already running
-//   - Measurement methods (BeginOp, EndOp, etc.) have minimal checks for clear error messages
+//   - Start() panics if profiler is already running
 //   - Misuse (e.g., EndOp without BeginOp) causes an immediate panic with clear message
-//   - State is stored atomically for lock-free reads via State()
 //
 // This design means:
 //
-//   - Low overhead in the measurement hot path
+//   - Low overhead in the measurement hot path (interface dispatch only)
 //   - Concurrent access is detected immediately via panic
 //   - Programming errors (misuse) fail fast with clear messages
 //
 // # Simple State Machine
 //
-// The profiler has only two states: Idle and Running.
+// The global recorder is either a noop (not profiling) or a real profiler (profiling).
 //
-//	Idle  --Start()--> Running --Stop()--> Idle
+//	noop  --Start()--> profiler --Stop()--> noop
 //
-// Stop() automatically resets the profiler to Idle state, so it can be
-// immediately reused without calling Reset(). The Reset() method exists
-// for explicit clearing if needed, but is typically unnecessary.
+// Stop() returns results and automatically resets to noop state.
 //
 // # Test Usage Pattern
 //
@@ -71,10 +74,9 @@
 //	func TestWithProfiling(t *testing.T) {
 //	    // Do NOT call t.Parallel() - profiler is single-threaded
 //
-//	    p := benchops.Global()
-//	    p.Start()  // Panics if another test is profiling
+//	    benchops.Start()  // Panics if another test is profiling
 //	    defer func() {
-//	        results := p.Stop()  // Auto-resets to Idle
+//	        results := benchops.Stop()
 //	        results.WriteJSON(os.Stdout)
 //	    }()
 //
@@ -84,10 +86,9 @@
 // # Usage
 //
 //	runtime.GOMAXPROCS(1) // For accurate measurements
-//	p := benchops.Global()
-//	p.Start()
+//	benchops.Start()
 //	defer func() {
-//	    results := p.Stop()
+//	    results := benchops.Stop()
 //	    results.WriteJSON(os.Stdout)
 //	}()
 //	// ... VM execution ...
