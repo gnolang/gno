@@ -746,6 +746,8 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			continue
 		} else {
 			if !uo.GetIsDeleted() {
+				// No recursive save needed; child objects were already
+				// persisted via created objects.
 				rlm.assertObjectIsPublic(uo, store, tids)
 				rlm.saveObject(store, uo)
 				uo.SetIsDirty(false, 0)
