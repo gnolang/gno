@@ -361,8 +361,8 @@ func TestBuildFilesLinks(t *testing.T) {
 			linkType: DirLinkTypeSource,
 			pkgPath:  "/r/test/pkg",
 			expected: FilesLinks{
-				{Link: "/r/test/pkg$source&file=file1.gno", Name: "file1.gno", SourceLink: "file1.gno$source"},
-				{Link: "/r/test/pkg$source&file=file2.gno", Name: "file2.gno", SourceLink: "file2.gno$source"},
+				{Link: "/r/test/pkg$source&file=file1.gno", Name: "file1.gno"},
+				{Link: "/r/test/pkg$source&file=file2.gno", Name: "file2.gno"},
 			},
 		},
 		{
@@ -371,8 +371,8 @@ func TestBuildFilesLinks(t *testing.T) {
 			linkType: DirLinkTypeFile,
 			pkgPath:  "/r/test/pkg",
 			expected: FilesLinks{
-				{Link: "file1.gno", Name: "file1.gno", SourceLink: "file1.gno$source"},
-				{Link: "file2.gno", Name: "file2.gno", SourceLink: "file2.gno$source"},
+				{Link: "file1.gno", Name: "file1.gno"},
+				{Link: "file2.gno", Name: "file2.gno"},
 			},
 		},
 		{

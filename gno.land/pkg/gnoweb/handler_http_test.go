@@ -37,7 +37,6 @@ type stubClient struct {
 	realmFunc     func(ctx context.Context, path, args string) ([]byte, error)
 	fileFunc      func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error)
 	docFunc       func(ctx context.Context, path string) (*doc.JSONDocumentation, error)
-	docBatchFunc  func(ctx context.Context, paths []string) (map[string]*doc.JSONDocumentation, error)
 	listFilesFunc func(ctx context.Context, path string) ([]string, error)
 	listPathsFunc func(ctx context.Context, prefix string, limit int) ([]string, error)
 }
@@ -61,20 +60,6 @@ func (s *stubClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentati
 		return s.docFunc(ctx, path)
 	}
 	return nil, errors.New("stubClient: Doc not implemented")
-}
-
-func (s *stubClient) DocBatch(ctx context.Context, paths []string) (map[string]*doc.JSONDocumentation, error) {
-	if s.docBatchFunc != nil {
-		return s.docBatchFunc(ctx, paths)
-	}
-	// Default: call Doc for each path
-	docs := make(map[string]*doc.JSONDocumentation)
-	for _, p := range paths {
-		if jdoc, err := s.Doc(ctx, p); err == nil {
-			docs[p] = jdoc
-		}
-	}
-	return docs, nil
 }
 
 func (s *stubClient) ListFiles(ctx context.Context, path string) ([]string, error) {
@@ -397,11 +382,70 @@ func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
 
 	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, gnoweb.NewMockClient(realmWithRender)))
 	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/", nil))
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/withrender", nil))
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "Source")
 	assert.Contains(t, rr.Body.String(), "Action")
+}
+
+// TestHTTPHandler_PathsListView_DocError tests Doc errors are handled gracefully.
+func TestHTTPHandler_PathsListView_DocError(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) { return nil, gnoweb.ErrClientPackageNotFound },
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+			return []string{"/r/demo/realm1"}, nil
+		},
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			return nil, errors.New("doc error")
+		},
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, client))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/", nil))
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+// TestHTTPHandler_PathsListView_ListPathsError tests ListPaths errors return 404.
+func TestHTTPHandler_PathsListView_ListPathsError(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) { return nil, gnoweb.ErrClientPackageNotFound },
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) { return nil, errors.New("error") },
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, client))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/", nil))
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+// TestHTTPHandler_PathsListView_PackagePaths tests that Doc is not called for package paths.
+func TestHTTPHandler_PathsListView_PackagePaths(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) { return nil, gnoweb.ErrClientPackageNotFound },
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+			return []string{"/p/demo/pkg1"}, nil
+		},
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			t.Error("Doc called")
+			return nil, nil
+		},
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, client))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/p/demo/", nil))
+
+	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
