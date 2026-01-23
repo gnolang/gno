@@ -43,6 +43,7 @@ type opStackEntry struct {
 	op        Op
 	startTime time.Time
 	elapsed   time.Duration
+	ctx       OpContext // source location context
 }
 
 // storeStackEntry tracks an in-progress store operation for nested calls.
@@ -55,4 +56,15 @@ type storeStackEntry struct {
 type nativeEntry struct {
 	op        NativeOp
 	startTime time.Time
+}
+
+// locationStat tracks statistics for a source location (file:line).
+type locationStat struct {
+	file     string
+	line     int
+	funcName string
+	pkgPath  string
+	count    int64
+	totalDur time.Duration
+	gasTotal int64
 }

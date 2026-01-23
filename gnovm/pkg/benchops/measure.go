@@ -1,6 +1,9 @@
 package benchops
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
 // BeginOp starts timing for an opcode.
 // If the profiler is not running, measurements are still recorded but will be
@@ -9,6 +12,14 @@ func (p *Profiler) BeginOp(op Op) {
 	p.currentOp = &opStackEntry{
 		op:        op,
 		startTime: time.Now(),
+	}
+}
+
+// SetOpContext sets the source location context for the current opcode.
+// Must be called after BeginOp and before EndOp.
+func (p *Profiler) SetOpContext(ctx OpContext) {
+	if p.currentOp != nil {
+		p.currentOp.ctx = ctx
 	}
 }
 
@@ -23,6 +34,29 @@ func (p *Profiler) EndOp() {
 
 	dur := entry.elapsed + time.Since(entry.startTime)
 	p.opStats[entry.op].record(dur)
+
+	// Record location stats if context was set
+	if entry.ctx.File != "" && entry.ctx.Line > 0 {
+		p.recordLocation(entry.op, entry.ctx, dur)
+	}
+}
+
+// recordLocation records timing for a specific source location.
+func (p *Profiler) recordLocation(op Op, ctx OpContext, dur time.Duration) {
+	key := ctx.File + ":" + strconv.Itoa(ctx.Line)
+	stat := p.locationStats[key]
+	if stat == nil {
+		stat = &locationStat{
+			file:     ctx.File,
+			line:     ctx.Line,
+			funcName: ctx.FuncName,
+			pkgPath:  ctx.PkgPath,
+		}
+		p.locationStats[key] = stat
+	}
+	stat.count++
+	stat.totalDur += dur
+	stat.gasTotal += GetOpGas(op)
 }
 
 // BeginStore starts timing for a store operation.

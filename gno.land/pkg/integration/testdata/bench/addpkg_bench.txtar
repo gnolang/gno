@@ -30,13 +30,14 @@ func Get() int {
 	return count
 }
 -- profile.json --
-OpStats:
-  Name         Count  Gas
-  OpEval       26     29
-  OpExec       2      25
-  OpFieldType  6      59
-  OpFuncType   4      81
-  OpHalt       20     1
-  OpPopBlock   18     3
-  OpValueDecl  2      113
-  OpVoid       84     1
+Opcodes:
+  OpEval: count=26 gas=29
+  OpExec: count=2 gas=25
+  OpFieldType: count=6 gas=59
+  OpFuncType: count=4 gas=81
+  OpHalt: count=20 gas=1
+  OpPopBlock: count=18 gas=3
+  OpValueDecl: count=2 gas=113
+  OpVoid: count=84 gas=1
+HotSpots:
+  counter.gno:3 -: count=6 gas=334

@@ -29,11 +29,12 @@ bench start profile_100.json
 gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/loop -func Loop -args 100 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 bench stop
 
-# Verify that identical calls produce identical profiles (deterministic fields only)
-cmpbench profile_10a.json profile_10b.json
+# Verify that identical calls produce identical deterministic profiles
+# (Store is excluded from comparison since it varies between runs)
+cmpbench profile_10a.json profile_10b.json opcodes,hotspots
 
 # Verify that different iteration counts produce different profiles
-! cmpbench profile_10a.json profile_100.json
+! cmpbench profile_10a.json profile_100.json opcodes,hotspots
 
 -- loop/gnomod.toml --
 module = "loop"
@@ -57,56 +58,62 @@ func GetTotal() int {
 	return total
 }
 -- profile_10a.json --
-OpStats:
-  Name             Count  Gas
-  OpBody           4      43
-  OpCall           2      256
-  OpDefine         2      111
-  OpEnterCrossing  2      100
-  OpEval           86     29
-  OpExec           2      25
-  OpForLoop        42     27
-  OpHalt           14     1
-  OpInc            40     76
-  OpLss            22     13
-  OpPopBlock       8      3
-  OpPrecall        2      207
-  OpReturn         2      38
-  OpSelector       2      32
-  OpVoid           236    1
+Opcodes:
+  OpBody: count=4 gas=43
+  OpCall: count=2 gas=256
+  OpDefine: count=2 gas=111
+  OpEnterCrossing: count=2 gas=100
+  OpEval: count=86 gas=29
+  OpExec: count=2 gas=25
+  OpForLoop: count=42 gas=27
+  OpHalt: count=14 gas=1
+  OpInc: count=40 gas=76
+  OpLss: count=22 gas=13
+  OpPopBlock: count=8 gas=3
+  OpPrecall: count=2 gas=207
+  OpReturn: count=2 gas=38
+  OpSelector: count=2 gas=32
+  OpVoid: count=236 gas=1
+HotSpots:
+  loop.gno:7 -: count=26 gas=1850
+  loop.gno:8 -: count=20 gas=1520
 -- profile_10b.json --
-OpStats:
-  Name             Count  Gas
-  OpBody           4      43
-  OpCall           2      256
-  OpDefine         2      111
-  OpEnterCrossing  2      100
-  OpEval           86     29
-  OpExec           2      25
-  OpForLoop        42     27
-  OpHalt           14     1
-  OpInc            40     76
-  OpLss            22     13
-  OpPopBlock       8      3
-  OpPrecall        2      207
-  OpReturn         2      38
-  OpSelector       2      32
-  OpVoid           236    1
+Opcodes:
+  OpBody: count=4 gas=43
+  OpCall: count=2 gas=256
+  OpDefine: count=2 gas=111
+  OpEnterCrossing: count=2 gas=100
+  OpEval: count=86 gas=29
+  OpExec: count=2 gas=25
+  OpForLoop: count=42 gas=27
+  OpHalt: count=14 gas=1
+  OpInc: count=40 gas=76
+  OpLss: count=22 gas=13
+  OpPopBlock: count=8 gas=3
+  OpPrecall: count=2 gas=207
+  OpReturn: count=2 gas=38
+  OpSelector: count=2 gas=32
+  OpVoid: count=236 gas=1
+HotSpots:
+  loop.gno:7 -: count=26 gas=1850
+  loop.gno:8 -: count=20 gas=1520
 -- profile_100.json --
-OpStats:
-  Name             Count  Gas
-  OpBody           4      43
-  OpCall           2      256
-  OpDefine         2      111
-  OpEnterCrossing  2      100
-  OpEval           626    29
-  OpExec           2      25
-  OpForLoop        402    27
-  OpHalt           14     1
-  OpInc            400    76
-  OpLss            202    13
-  OpPopBlock       8      3
-  OpPrecall        2      207
-  OpReturn         2      38
-  OpSelector       2      32
-  OpVoid           1676   1
+Opcodes:
+  OpBody: count=4 gas=43
+  OpCall: count=2 gas=256
+  OpDefine: count=2 gas=111
+  OpEnterCrossing: count=2 gas=100
+  OpEval: count=626 gas=29
+  OpExec: count=2 gas=25
+  OpForLoop: count=402 gas=27
+  OpHalt: count=14 gas=1
+  OpInc: count=400 gas=76
+  OpLss: count=202 gas=13
+  OpPopBlock: count=8 gas=3
+  OpPrecall: count=2 gas=207
+  OpReturn: count=2 gas=38
+  OpSelector: count=2 gas=32
+  OpVoid: count=1676 gas=1
+HotSpots:
+  loop.gno:7 -: count=206 gas=15530
+  loop.gno:8 -: count=200 gas=15200

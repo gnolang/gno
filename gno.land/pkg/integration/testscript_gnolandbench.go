@@ -124,7 +124,7 @@ func updateTxtarWithProfiles(env *testscript.Env) {
 		}
 
 		// Format the profile output (deterministic fields only)
-		formatted, err := gnointegration.FormatBenchOutput(data)
+		formatted, err := gnointegration.FormatBenchOutput(data, state.Sections)
 		if err != nil {
 			env.T().Log(fmt.Sprintf("bench: failed to format profile %s: %v", filename, err))
 			continue

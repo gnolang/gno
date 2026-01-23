@@ -7,9 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -46,9 +44,10 @@ const defaultProfileFile = "profile.json"
 
 // BenchState tracks profiling state during a testscript test.
 type BenchState struct {
-	Running    bool
-	OutputFile string
-	Files      []string // All generated files for golden comparison
+	Running    bool                  // Whether profiling is currently active
+	OutputFile string                // Target file for profile output
+	Sections   benchops.SectionFlags // Sections to include in golden output
+	Files      []string              // All generated profile files for comparison
 }
 
 // RegisterBenchCommands adds benchops-related commands to testscript params.
@@ -64,7 +63,12 @@ func RegisterBenchCommands(p *testscript.Params, stateKey any) {
 }
 
 // makeCmdBench creates the "bench" command handler.
-// Usage: bench start [filename] | bench stop
+// Usage: bench start [filename] [sections] | bench stop
+//
+// The sections parameter is a comma-separated list of section names:
+//   - opcodes, store, native, hotspots, all
+//
+// Example: bench start profile.json opcodes,native,hotspots
 func makeCmdBench(stateKey any) func(*testscript.TestScript, bool, []string) {
 	return func(ts *testscript.TestScript, neg bool, args []string) {
 		if neg {
@@ -72,7 +76,7 @@ func makeCmdBench(stateKey any) func(*testscript.TestScript, bool, []string) {
 		}
 
 		if len(args) == 0 {
-			ts.Fatalf("usage: bench start [file] | bench stop")
+			ts.Fatalf("usage: bench start [file] [sections] | bench stop")
 		}
 
 		// Retrieve state from testscript values
@@ -117,15 +121,16 @@ func writeBenchResults(path string, results *benchops.Results) (err error) {
 		}
 	}()
 
-	if err := results.WriteJSON(f); err != nil {
-		return fmt.Errorf("failed to write JSON: %w", err)
+	if werr := results.WriteJSON(f); werr != nil {
+		return fmt.Errorf("failed to write JSON: %w", werr)
 	}
 	return nil
 }
 
 // FormatBenchOutput formats bench profile data for golden comparison.
-// Only includes deterministic fields (Count, Gas).
-func FormatBenchOutput(data []byte) (string, error) {
+// Uses WriteGolden for deterministic output (excludes timing, sorts alphabetically).
+// The sections parameter controls which sections to include (0 = all).
+func FormatBenchOutput(data []byte, sections benchops.SectionFlags) (string, error) {
 	events, err := parseBenchData(data)
 	if err != nil {
 		return "", err
@@ -136,16 +141,13 @@ func FormatBenchOutput(data []byte) (string, error) {
 	}
 
 	var out strings.Builder
-	tw := tabwriter.NewWriter(&out, 0, 0, 2, ' ', 0)
-
 	for i, event := range events {
 		if i > 0 {
-			fmt.Fprintln(tw)
+			fmt.Fprintln(&out)
 		}
-		writeEvent(tw, &event)
+		writeEventGolden(&out, &event, sections)
 	}
 
-	tw.Flush()
 	return trimLines(out.String()), nil
 }
 
@@ -201,17 +203,27 @@ type benchEvent struct {
 // ---- Command Implementation
 
 // CmdJSONBench is the exported jsonbench testscript command.
-// Usage: jsonbench <file>
+// Usage: jsonbench <file> [sections]
 //
 // Parses bench profile output and displays deterministic fields.
+// The optional sections parameter is a comma-separated list (e.g., "opcodes,native").
 // Supports both formats:
 //   - "gno test --bench-profile": JSONL with BenchEvent wrapper
 //   - "gno run --bench-profile": direct JSON with OpStats
 //
 // With negation (! jsonbench), expects no valid events to be found.
 func CmdJSONBench(ts *testscript.TestScript, neg bool, args []string) {
-	if len(args) != 1 {
-		ts.Fatalf("usage: jsonbench <file>")
+	if len(args) < 1 || len(args) > 2 {
+		ts.Fatalf("usage: jsonbench <file> [sections]")
+	}
+
+	var sections benchops.SectionFlags // default: 0 = all
+	if len(args) == 2 {
+		var err error
+		sections, err = benchops.ParseSectionFlags(args[1])
+		if err != nil {
+			ts.Fatalf("jsonbench: %v", err)
+		}
 	}
 
 	// File read errors are always fatal, regardless of negation
@@ -236,37 +248,44 @@ func CmdJSONBench(ts *testscript.TestScript, neg bool, args []string) {
 	}
 
 	var out strings.Builder
-	tw := tabwriter.NewWriter(&out, 0, 0, 2, ' ', 0)
-
 	for i, event := range events {
 		if i > 0 {
-			fmt.Fprintln(tw)
+			fmt.Fprintln(&out)
 		}
-		writeEvent(tw, &event)
+		writeEventGolden(&out, &event, sections)
 	}
 
-	tw.Flush()
 	fmt.Fprint(ts.Stdout(), trimLines(out.String()))
 }
 
 // CmdCmpBench compares two bench profile files by their deterministic fields.
-// Usage: cmpbench <file1> <file2>
+// Usage: cmpbench <file1> <file2> [sections]
 //
 // Compares only Count and Gas values, ignoring timing data.
+// The optional sections parameter is a comma-separated list (e.g., "opcodes,native").
 // Fails if the deterministic fields differ.
 // With negation (! cmpbench), expects files to differ.
 func CmdCmpBench(ts *testscript.TestScript, neg bool, args []string) {
-	if len(args) != 2 {
-		ts.Fatalf("usage: cmpbench <file1> <file2>")
+	if len(args) < 2 || len(args) > 3 {
+		ts.Fatalf("usage: cmpbench <file1> <file2> [sections]")
+	}
+
+	var sections benchops.SectionFlags // default: 0 = all
+	if len(args) == 3 {
+		var err error
+		sections, err = benchops.ParseSectionFlags(args[2])
+		if err != nil {
+			ts.Fatalf("cmpbench: %v", err)
+		}
 	}
 
 	// File read errors are always fatal, regardless of negation
-	formatted1, err := formatBenchFile(ts.MkAbs(args[0]))
+	formatted1, err := formatBenchFile(ts.MkAbs(args[0]), sections)
 	if err != nil {
 		ts.Fatalf("cmpbench: %s: %v", args[0], err)
 	}
 
-	formatted2, err := formatBenchFile(ts.MkAbs(args[1]))
+	formatted2, err := formatBenchFile(ts.MkAbs(args[1]), sections)
 	if err != nil {
 		ts.Fatalf("cmpbench: %s: %v", args[1], err)
 	}
@@ -289,12 +308,12 @@ func CmdCmpBench(ts *testscript.TestScript, neg bool, args []string) {
 }
 
 // formatBenchFile reads and formats a bench profile file for comparison.
-func formatBenchFile(path string) (string, error) {
+func formatBenchFile(path string, sections benchops.SectionFlags) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
-	return FormatBenchOutput(data)
+	return FormatBenchOutput(data, sections)
 }
 
 // CmdBenchWithState implements the bench command with an external state.
@@ -307,8 +326,16 @@ func CmdBenchWithState(ts *testscript.TestScript, state *BenchState, args []stri
 		}
 
 		state.OutputFile = defaultProfileFile
+		state.Sections = 0 // default: all sections
 		if len(args) > 1 {
 			state.OutputFile = args[1]
+		}
+		if len(args) > 2 {
+			sections, err := benchops.ParseSectionFlags(args[2])
+			if err != nil {
+				ts.Fatalf("bench: %v", err)
+			}
+			state.Sections = sections
 		}
 
 		benchops.Start()
@@ -346,34 +373,24 @@ func parseBenchFile(filename string) ([]benchEvent, error) {
 	return parseBenchData(data)
 }
 
-func writeEvent(tw *tabwriter.Writer, event *benchEvent) {
+// writeEventGolden writes a benchEvent in deterministic golden format.
+// Uses benchops.Results.WriteGolden for the profile data.
+func writeEventGolden(w *strings.Builder, event *benchEvent, sections benchops.SectionFlags) {
 	// Only print Package/Test if present (gno test format)
 	if event.Package != "" {
-		fmt.Fprintf(tw, "Package:\t%s\n", event.Package)
+		fmt.Fprintf(w, "Package: %s\n", event.Package)
 	}
 	if event.Test != "" {
-		fmt.Fprintf(tw, "Test:\t%s\n", event.Test)
+		fmt.Fprintf(w, "Test: %s\n", event.Test)
 	}
 
-	// Always print OpStats (deterministic fields only: Count, Gas)
-	fmt.Fprintln(tw, "OpStats:")
-	if event.Profile == nil || len(event.Profile.OpStats) == 0 {
-		fmt.Fprintln(tw, "  <none>")
+	// Use WriteGolden for deterministic profile output
+	if event.Profile == nil {
+		fmt.Fprintln(w, "<no profile>")
 		return
 	}
 
-	fmt.Fprintf(tw, "  Name\tCount\tGas\n")
-	keys := make([]string, 0, len(event.Profile.OpStats))
-	for k := range event.Profile.OpStats {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, name := range keys {
-		stat := event.Profile.OpStats[name]
-		// Only output deterministic fields from benchops.OpStatJSON
-		fmt.Fprintf(tw, "  %s\t%d\t%d\n", name, stat.Count, stat.Gas)
-	}
+	event.Profile.WriteGolden(w, sections)
 }
 
 func trimLines(s string) string {

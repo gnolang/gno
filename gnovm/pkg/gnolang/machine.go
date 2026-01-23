@@ -1270,6 +1270,7 @@ func (m *Machine) Run(st Stage) {
 			// We do not benchmark static evaluation (OpStaticTypeOf).
 			if op != OpStaticTypeOf {
 				benchops.BeginOp(benchops.Op(op))
+				benchops.SetOpContext(m.captureOpContext())
 			}
 		}
 		// TODO: this can be optimized manually, even into tiers.
@@ -1819,6 +1820,38 @@ func (m *Machine) PopBlock() (b *Block) {
 // Mutate and forget.
 func (m *Machine) LastBlock() *Block {
 	return m.Blocks[len(m.Blocks)-1]
+}
+
+// captureOpContext captures source location for benchops profiling.
+// Returns context with file, line, function name, and package path.
+func (m *Machine) captureOpContext() benchops.OpContext {
+	ctx := benchops.OpContext{}
+
+	// Get location from current block source
+	if len(m.Blocks) > 0 {
+		if src := m.LastBlock().GetSource(m.Store); src != nil {
+			loc := src.GetLocation()
+			ctx.PkgPath = loc.PkgPath
+			ctx.File = loc.File
+		}
+	}
+
+	// Get line from current statement
+	if len(m.Stmts) > 0 {
+		if stmt := m.PeekStmt1(); stmt != nil {
+			ctx.Line = stmt.GetLine()
+		}
+	}
+
+	// Get function name from call frame
+	if len(m.Frames) > 0 {
+		frame := &m.Frames[len(m.Frames)-1]
+		if frame.Func != nil {
+			ctx.FuncName = string(frame.Func.Name)
+		}
+	}
+
+	return ctx
 }
 
 // Pushes a frame with one less statement.

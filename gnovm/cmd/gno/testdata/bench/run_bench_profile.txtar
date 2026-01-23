@@ -20,24 +20,28 @@ func main() {
 }
 
 -- expected.golden --
-OpStats:
-  Name               Count  Gas
-  OpAssign           10     79
-  OpBody             3      43
-  OpCall             2      256
-  OpCallNativeBody   1      424
-  OpDefine           1      111
-  OpEval             75     29
-  OpExec             2      25
-  OpForLoop          21     27
-  OpFuncType         1      81
-  OpHalt             14     1
-  OpInc              10     76
-  OpLss              11     13
-  OpMul              10     19
-  OpPopBlock         13     3
-  OpPopResults       1      1
-  OpPrecall          2      207
-  OpReturn           1      38
-  OpReturnFromBlock  1      36
-  OpVoid             187    1
+Opcodes:
+  OpAssign: count=10 gas=79
+  OpBody: count=3 gas=43
+  OpCall: count=2 gas=256
+  OpCallNativeBody: count=1 gas=424
+  OpDefine: count=1 gas=111
+  OpEval: count=75 gas=29
+  OpExec: count=2 gas=25
+  OpForLoop: count=21 gas=27
+  OpFuncType: count=1 gas=81
+  OpHalt: count=14 gas=1
+  OpInc: count=10 gas=76
+  OpLss: count=11 gas=13
+  OpMul: count=10 gas=19
+  OpPopBlock: count=13 gas=3
+  OpPopResults: count=1 gas=1
+  OpPrecall: count=2 gas=207
+  OpReturn: count=1 gas=38
+  OpReturnFromBlock: count=1 gas=36
+  OpVoid: count=187 gas=1
+Native:
+  NativePrint: count=1
+HotSpots:
+  main.gno:4 -: count=13 gas=925
+  main.gno:5 -: count=50 gas=1850

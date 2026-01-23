@@ -2,6 +2,15 @@ package benchops
 
 import "fmt"
 
+// OpContext provides source location context for an opcode execution.
+// Used for hot spots analysis and flame graph support.
+type OpContext struct {
+	File     string // source file path (e.g., "counter.gno")
+	Line     int    // line number
+	FuncName string // enclosing function name
+	PkgPath  string // package path (e.g., "gno.land/r/demo/counter")
+}
+
 // Op represents a GnoVM opcode.
 type Op byte
 
@@ -337,6 +346,7 @@ func (o NativeOp) String() string {
 }
 
 // GetNativePrintCode returns the appropriate NativeOp for the given print size.
+// Valid sizes are: 1, 1000, 10000. Panics if size is not one of these values.
 func GetNativePrintCode(size int) NativeOp {
 	switch size {
 	case 1:

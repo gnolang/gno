@@ -5,11 +5,19 @@ import (
 	"time"
 )
 
+const (
+	// maxOpCodes is the maximum number of opcodes (byte range 0-255).
+	maxOpCodes = 256
+	// defaultStackCapacity is the initial capacity for op/store stacks.
+	defaultStackCapacity = 16
+)
+
 // Recorder is the interface for recording profiling measurements.
 // The global recorder is either a noopRecorder (when not profiling) or
 // a *Profiler (when profiling is active).
 type Recorder interface {
 	BeginOp(op Op)
+	SetOpContext(ctx OpContext) // Set source location context for current op
 	EndOp()
 	BeginStore(op StoreOp)
 	EndStore(size int)
@@ -21,12 +29,16 @@ type Recorder interface {
 // Used when profiling is not active.
 type noopRecorder struct{}
 
-func (noopRecorder) BeginOp(Op)         {}
-func (noopRecorder) EndOp()             {}
-func (noopRecorder) BeginStore(StoreOp) {}
-func (noopRecorder) EndStore(int)       {}
-func (noopRecorder) BeginNative(NativeOp) {}
-func (noopRecorder) EndNative()         {}
+func (noopRecorder) BeginOp(Op)             {}
+func (noopRecorder) SetOpContext(OpContext) {}
+func (noopRecorder) EndOp()                 {}
+func (noopRecorder) BeginStore(StoreOp)     {}
+func (noopRecorder) EndStore(int)           {}
+func (noopRecorder) BeginNative(NativeOp)   {}
+func (noopRecorder) EndNative()             {}
+
+// Ensure noopRecorder implements Recorder.
+var _ Recorder = noopRecorder{}
 
 // Ensure Profiler implements Recorder
 var _ Recorder = (*Profiler)(nil)
@@ -60,24 +72,28 @@ type Profiler struct {
 	stopTime  time.Time
 
 	// Op statistics
-	opStats   [256]opStat
+	opStats   [maxOpCodes]opStat
 	opStack   []opStackEntry
 	currentOp *opStackEntry
 
 	// Store statistics
-	storeStats [256]storeStat
+	storeStats [maxOpCodes]storeStat
 	storeStack []storeStackEntry
 
 	// Native statistics
-	nativeStats   [256]nativeStat
+	nativeStats   [maxOpCodes]nativeStat
 	currentNative *nativeEntry
+
+	// Location statistics (key: "file:line")
+	locationStats map[string]*locationStat
 }
 
 // New creates a new Profiler in idle state.
 func New() *Profiler {
 	p := &Profiler{
-		opStack:    make([]opStackEntry, 0, 16),
-		storeStack: make([]storeStackEntry, 0, 16),
+		opStack:       make([]opStackEntry, 0, defaultStackCapacity),
+		storeStack:    make([]storeStackEntry, 0, defaultStackCapacity),
+		locationStats: make(map[string]*locationStat),
 	}
 	p.state.Store(int32(StateIdle))
 	return p
@@ -94,7 +110,7 @@ func (p *Profiler) Start() {
 		if current == StateRunning {
 			panic("benchops: profiler is already running (concurrent access or missing Stop)")
 		}
-		panic("benchops: Start called on non-idle profiler")
+		panic("benchops: Start called on non-idle profiler (invalid state)")
 	}
 
 	// Clear any stale data from instrumentation that ran without Start/Stop
@@ -109,7 +125,7 @@ func (p *Profiler) Start() {
 // Panics if not in StateRunning.
 func (p *Profiler) Stop() *Results {
 	if !p.state.CompareAndSwap(int32(StateRunning), int32(StateIdle)) {
-		panic("benchops: Stop called on non-running profiler")
+		panic("benchops: Stop called on non-running profiler (missing Start)")
 	}
 
 	p.stopTime = time.Now()
@@ -123,13 +139,14 @@ func (p *Profiler) Stop() *Results {
 
 // clearData clears all collected measurement data without changing state.
 func (p *Profiler) clearData() {
-	p.opStats = [256]opStat{}
+	p.opStats = [maxOpCodes]opStat{}
 	p.opStack = p.opStack[:0]
 	p.currentOp = nil
-	p.storeStats = [256]storeStat{}
+	p.storeStats = [maxOpCodes]storeStat{}
 	p.storeStack = p.storeStack[:0]
-	p.nativeStats = [256]nativeStat{}
+	p.nativeStats = [maxOpCodes]nativeStat{}
 	p.currentNative = nil
+	p.locationStats = make(map[string]*locationStat)
 }
 
 // Reset clears all collected data and returns to idle state.

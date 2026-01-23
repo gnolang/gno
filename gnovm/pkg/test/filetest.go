@@ -255,56 +255,13 @@ func realmDiffsString(m map[string]int64) string {
 }
 
 // formatGasprofileOutput formats benchops profiling results for golden comparison.
-// The output is deterministic (no timing data, sorted alphabetically).
+// Uses benchops.Results.WriteGolden for deterministic output.
 func formatGasprofileOutput(r *benchops.Results) string {
 	if r == nil {
 		return ""
 	}
-
 	var sb strings.Builder
-
-	// Opcodes (sorted alphabetically)
-	if len(r.OpStats) > 0 {
-		sb.WriteString("Opcodes:\n")
-		names := make([]string, 0, len(r.OpStats))
-		for name := range r.OpStats {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		for _, name := range names {
-			stat := r.OpStats[name]
-			fmt.Fprintf(&sb, "  %s: count=%d gas=%d\n", name, stat.Count, stat.Gas)
-		}
-	}
-
-	// Store operations (sorted alphabetically)
-	if len(r.StoreStats) > 0 {
-		sb.WriteString("Store:\n")
-		names := make([]string, 0, len(r.StoreStats))
-		for name := range r.StoreStats {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		for _, name := range names {
-			stat := r.StoreStats[name]
-			fmt.Fprintf(&sb, "  %s: count=%d size=%d\n", name, stat.Count, stat.TotalSize)
-		}
-	}
-
-	// Native functions (sorted alphabetically)
-	if len(r.NativeStats) > 0 {
-		sb.WriteString("Native:\n")
-		names := make([]string, 0, len(r.NativeStats))
-		for name := range r.NativeStats {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		for _, name := range names {
-			stat := r.NativeStats[name]
-			fmt.Fprintf(&sb, "  %s: count=%d\n", name, stat.Count)
-		}
-	}
-
+	r.WriteGolden(&sb, 0) // 0 = all sections
 	return sb.String()
 }
 

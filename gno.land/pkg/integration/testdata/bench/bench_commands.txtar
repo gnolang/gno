@@ -16,8 +16,4 @@ bench stop
 bench start second.json
 bench stop
 -- first.json --
-OpStats:
-  <none>
 -- second.json --
-OpStats:
-  <none>

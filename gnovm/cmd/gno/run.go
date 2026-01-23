@@ -275,7 +275,9 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 				cio.ErrPrintfln("warning: could not create bench profile file: %v", err)
 				return
 			}
-			results.WriteJSON(f)
+			if err := results.WriteJSON(f); err != nil {
+				cio.ErrPrintfln("warning: could not write bench profile: %v", err)
+			}
 			if err := f.Close(); err != nil {
 				cio.ErrPrintfln("warning: could not close bench profile file: %v", err)
 			}

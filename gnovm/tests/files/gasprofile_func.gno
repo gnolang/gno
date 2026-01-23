@@ -40,3 +40,6 @@ func main() {
 //   StoreGetObject: count=1 size=0
 // Native:
 //   NativePrint: count=1
+// HotSpots:
+//   gasprofile_func.gno:12 main: count=7 gas=690
+//   gasprofile_func.gno:13 main: count=7 gas=690

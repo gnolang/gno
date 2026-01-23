@@ -68,6 +68,11 @@ func EndOp() {
 	global.Load().recorder.EndOp()
 }
 
+// SetOpContext sets the source location context for the current opcode.
+func SetOpContext(ctx OpContext) {
+	global.Load().recorder.SetOpContext(ctx)
+}
+
 // BeginStore starts timing for a store operation using the global recorder.
 func BeginStore(op StoreOp) {
 	global.Load().recorder.BeginStore(op)

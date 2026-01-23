@@ -36,50 +36,80 @@ func TestCompute(t *testing.T) {
 }
 
 -- expected.golden --
-Package:  gno.land/p/demo/opstats
-Test:     TestCompute
-OpStats:
-  Name                Count  Gas
-  OpAdd               9      18
-  OpAddAssign         5      85
-  OpAssign            2      79
-  OpBinary1           4      18
-  OpBody              49     43
-  OpCall              20     256
-  OpCallNativeBody    7      424
-  OpCompositeLit      3      50
-  OpConvert           7      16
-  OpDefer             1      64
-  OpDefine            11     111
-  OpEql               2      160
-  OpEval              231    29
-  OpExec              5      25
-  OpForLoop           11     27
-  OpFuncLit           1      61
-  OpFuncType          1      81
-  OpHalt              10     1
-  OpIfCond            14     38
-  OpInc               5      76
-  OpLand              4      24
-  OpLeq               1      19
-  OpLss               9      13
-  OpNeq               2      95
-  OpPopBlock          21     3
-  OpPopFrameAndReset  1      15
-  OpPopResults        2      1
-  OpPrecall           27     207
-  OpQuo               1      16
-  OpRangeIter         2      105
-  OpRef               2      125
-  OpReturn            17     38
-  OpReturnAfterCopy   1      38
-  OpReturnCallDefers  2      78
-  OpReturnFromBlock   3      36
-  OpSelector          24     32
-  OpSlice             4      103
-  OpStructLit         3      179
-  OpSub               4      6
-  OpTypeSwitch        1      171
-  OpUnot              2      6
-  OpValueDecl         1      113
-  OpVoid              534    1
+Package: gno.land/p/demo/opstats
+Test: TestCompute
+Opcodes:
+  OpAdd: count=9 gas=18
+  OpAddAssign: count=5 gas=85
+  OpAssign: count=2 gas=79
+  OpBinary1: count=4 gas=18
+  OpBody: count=49 gas=43
+  OpCall: count=20 gas=256
+  OpCallNativeBody: count=7 gas=424
+  OpCompositeLit: count=3 gas=50
+  OpConvert: count=7 gas=16
+  OpDefer: count=1 gas=64
+  OpDefine: count=11 gas=111
+  OpEql: count=2 gas=160
+  OpEval: count=231 gas=29
+  OpExec: count=5 gas=25
+  OpForLoop: count=11 gas=27
+  OpFuncLit: count=1 gas=61
+  OpFuncType: count=1 gas=81
+  OpHalt: count=10 gas=1
+  OpIfCond: count=14 gas=38
+  OpInc: count=5 gas=76
+  OpLand: count=4 gas=24
+  OpLeq: count=1 gas=19
+  OpLss: count=9 gas=13
+  OpNeq: count=2 gas=95
+  OpPopBlock: count=21 gas=3
+  OpPopFrameAndReset: count=1 gas=15
+  OpPopResults: count=2 gas=1
+  OpPrecall: count=27 gas=207
+  OpQuo: count=1 gas=16
+  OpRangeIter: count=2 gas=105
+  OpRef: count=2 gas=125
+  OpReturn: count=17 gas=38
+  OpReturnAfterCopy: count=1 gas=38
+  OpReturnCallDefers: count=2 gas=78
+  OpReturnFromBlock: count=3 gas=36
+  OpSelector: count=24 gas=32
+  OpSlice: count=4 gas=103
+  OpStructLit: count=3 gas=179
+  OpSub: count=4 gas=6
+  OpTypeSwitch: count=1 gas=171
+  OpUnot: count=2 gas=6
+  OpValueDecl: count=1 gas=113
+  OpVoid: count=534 gas=1
+HotSpots:
+  foo.gno:4 Compute: count=2 gas=140
+  foo.gno:5 -: count=8 gas=545
+  foo.gno:6 -: count=10 gas=570
+  foo_test.gno:6 TestCompute: count=6 gas=661
+  foo_test.gno:7 TestCompute: count=5 gas=220
+  itoa.gno:26 FormatInt: count=35 gas=1576
+  itoa.gno:60 small: count=5 gas=138
+  testing.gno:110 Failed: count=8 gas=256
+  testing.gno:228 marshal: count=2 gas=140
+  testing.gno:229 marshal: count=2 gas=140
+  testing.gno:230 marshal: count=4 gas=128
+  testing.gno:233 marshal: count=4 gas=128
+  testing.gno:298 shouldRun: count=7 gas=346
+  testing.gno:309 RunTest: count=12 gas=700
+  testing.gno:315 RunTest: count=5 gas=220
+  testing.gno:320 RunTest: count=15 gas=816
+  testing.gno:326 RunTest: count=7 gas=693
+  testing.gno:357 formatDur: count=15 gas=1077
+  testing.gno:358 formatDur: count=9 gas=659
+  testing.gno:359 formatDur: count=3 gas=167
+  testing.gno:360 formatDur: count=15 gas=930
+  testing.gno:375 tRunner: count=12 gas=745
+  testing.gno:379 tRunner: count=7 gas=1094
+  testing.gno:381 tRunner: count=5 gas=264
+  testing.gno:382 -: count=9 gas=1155
+  testing.gno:383 -: count=2 gas=200
+  testing.gno:391 -: count=12 gas=1219
+  testing.gno:392 -: count=9 gas=719
+  testing.gno:394 -: count=4 gas=128
+  testing.gno:406 tRunner: count=2 gas=67
