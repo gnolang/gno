@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	govDAO *GovDAO = NewGovDAO()
 	law    *Law
-	gRealm = runtime.CurrentRealm()
+	govDAO *GovDAO = NewGovDAO()
+	gRealm         = runtime.CurrentRealm()
 )
 
 func init() {
