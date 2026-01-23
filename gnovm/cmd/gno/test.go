@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -33,6 +34,8 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+	bench               bool
+	benchProfile        string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -178,6 +181,20 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.BoolVar(
+		&c.bench,
+		"bench",
+		false,
+		"print operation profiling summary after each test (requires -tags gnobench build)",
+	)
+
+	fs.StringVar(
+		&c.benchProfile,
+		"bench-profile",
+		"",
+		"write operation profiling results to JSON file (requires -tags gnobench build)",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -228,7 +245,14 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
+	opts.Bench = cmd.bench
+	opts.BenchProfile = cmd.benchProfile
 	cache := make(gno.TypeCheckCache, 64)
+
+	// Warn if gnobench not enabled
+	if (cmd.bench || cmd.benchProfile != "") && !benchops.Enabled {
+		io.ErrPrintln("warning: --bench/--bench-profile ignored (requires -tags gnobench build)")
+	}
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
 	// _, pgs := test.ProdStore(cmd.rootDir, opts.WriterForStore())

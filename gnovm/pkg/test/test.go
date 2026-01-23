@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gnovm/pkg/benchops"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/stdlibs"
@@ -145,6 +146,13 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Print human-readable benchops profile after each test.
+	Bench bool
+	// Path to JSON file for benchops profiling results (test2json-compatible JSONL).
+	BenchProfile string
+
+	// benchFile is the opened file for writing JSONL profile output.
+	benchFile *os.File
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -155,6 +163,43 @@ type TestOptions struct {
 // [Test] is then able to swap it when needed.
 func (opts *TestOptions) WriterForStore() io.Writer {
 	return &opts.outWriter
+}
+
+// BenchEvent follows the test2json TestEvent pattern for bench results.
+// See: https://pkg.go.dev/cmd/test2json
+type BenchEvent struct {
+	Time    time.Time         `json:"Time"`              // RFC3339
+	Action  string            `json:"Action"`            // Always "bench"
+	Package string            `json:"Package"`           // Package path
+	Test    string            `json:"Test"`              // Test name or filetest filename
+	Elapsed float64           `json:"Elapsed,omitempty"` // Duration in seconds
+	Profile *benchops.Results `json:"Profile,omitempty"` // Benchops profiling data
+}
+
+// writeBenchEvent writes a single bench event to the profile file.
+func (opts *TestOptions) writeBenchEvent(pkg, testName string, elapsed time.Duration, results *benchops.Results) {
+	if opts.benchFile == nil || results == nil {
+		return
+	}
+	event := BenchEvent{
+		Time:    time.Now(),
+		Action:  "bench",
+		Package: pkg,
+		Test:    testName,
+		Elapsed: elapsed.Seconds(),
+		Profile: results,
+	}
+	if err := json.NewEncoder(opts.benchFile).Encode(event); err != nil {
+		fmt.Fprintf(opts.Error, "warning: could not write bench event: %v\n", err)
+	}
+}
+
+// benchEnabled returns true if benchops profiling should be performed.
+func (opts *TestOptions) benchEnabled() bool {
+	if !benchops.Enabled {
+		return false
+	}
+	return opts.Bench || opts.BenchProfile != ""
 }
 
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
@@ -223,6 +268,21 @@ func tee(ptr *io.Writer, dst io.Writer) (revert func()) {
 func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
+
+	// Open bench profile file if requested
+	if benchops.Enabled && opts.BenchProfile != "" {
+		f, err := os.Create(opts.BenchProfile)
+		if err != nil {
+			return fmt.Errorf("could not create bench profile file: %w", err)
+		}
+		opts.benchFile = f
+		defer func() {
+			if err := opts.benchFile.Close(); err != nil {
+				fmt.Fprintf(opts.Error, "warning: could not close bench profile file: %v\n", err)
+			}
+			opts.benchFile = nil
+		}()
+	}
 
 	var errs error
 
@@ -311,6 +371,11 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 				continue
 			}
 
+			// Start benchops profiling for this filetest if enabled
+			if opts.benchEnabled() {
+				benchops.Start()
+			}
+
 			startedAt := time.Now()
 			if opts.Verbose {
 				fmt.Fprintf(opts.Error, "=== RUN   %s\n", testName)
@@ -318,27 +383,44 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			tcheck := false // already type-checked e.g. by cmd/gno/test.go
 			// We can not use shared tx gno store (tgs) between _filetest.gno since we need to
 			// isolate the state between them
-			changed, err := opts.runFiletest(
+			changed, ftErr := opts.runFiletest(
 				testFileName, []byte(testFile.Body), opts.TestStore, tcheck)
+
+			duration := time.Since(startedAt)
+
+			// Stop benchops profiling and handle results
+			var benchResults *benchops.Results
+			if opts.benchEnabled() && benchops.IsRunning() {
+				benchResults = benchops.Stop()
+			}
+
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
-				err = os.WriteFile(testFilePath, []byte(changed), 0o644)
-				if err != nil {
-					panic(fmt.Errorf("could not fix golden file: %w", err))
+				ftErr = os.WriteFile(testFilePath, []byte(changed), 0o644)
+				if ftErr != nil {
+					panic(fmt.Errorf("could not fix golden file: %w", ftErr))
 				}
 			}
 
-			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
-			if err != nil {
+			if ftErr != nil {
 				fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", testName, dstr)
-				fmt.Fprintln(opts.Error, err.Error())
+				fmt.Fprintln(opts.Error, ftErr.Error())
 				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
 			} else if opts.Verbose {
 				fmt.Fprintf(opts.Error, "--- PASS: %s (%s)\n", testName, dstr)
 			}
 
-			// XXX: add per-test metrics
+			// Output benchops profiling results
+			if benchResults != nil {
+				if opts.Bench {
+					fmt.Fprintf(opts.Error, "\n--- Bench: %s ---\n", testFileName)
+					benchResults.WriteReport(opts.Error, 10)
+				}
+				if opts.BenchProfile != "" {
+					opts.writeBenchEvent(mpkg.Path, testFileName, duration, benchResults)
+				}
+			}
 		}
 	}
 
@@ -355,6 +437,11 @@ func (opts *TestOptions) runTestFiles(
 ) (errs error) {
 	var m *gno.Machine
 	defer func() {
+		// Ensure benchops is stopped if running (panic recovery)
+		if benchops.Enabled && benchops.IsRunning() {
+			benchops.Recovery()
+			benchops.Stop()
+		}
 		if r := recover(); r != nil {
 			if st := m.ExceptionStacktrace(); st != "" {
 				errs = multierr.Append(errors.New(st), errs)
@@ -463,6 +550,12 @@ func (opts *TestOptions) runTestFiles(
 			m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
 		}
 
+		// Start benchops profiling for this test if enabled
+		if opts.benchEnabled() {
+			benchops.Start()
+		}
+		testStartTime := time.Now()
+
 		eval := m.Eval(gno.Call(
 			runTestCX,                                     // Call testing.RunTest
 			gno.Str(opts.RunFlag),                         // run flag
@@ -479,6 +572,14 @@ func (opts *TestOptions) runTestFiles(
 				},
 			},
 		))
+
+		testDuration := time.Since(testStartTime)
+
+		// Stop benchops profiling and handle results
+		var benchResults *benchops.Results
+		if opts.benchEnabled() && benchops.IsRunning() {
+			benchResults = benchops.Stop()
+		}
 
 		if opts.Events {
 			events := m.Context.(*runtime.TestExecContext).EventLogger.Events()
@@ -513,6 +614,17 @@ func (opts *TestOptions) runTestFiles(
 			errs = multierr.Append(errs, err)
 			if opts.FailfastFlag {
 				return errs
+			}
+		}
+
+		// Output benchops profiling results
+		if benchResults != nil {
+			if opts.Bench {
+				fmt.Fprintf(opts.Error, "\n--- Bench: %s ---\n", tf.Name)
+				benchResults.WriteReport(opts.Error, 10)
+			}
+			if opts.BenchProfile != "" {
+				opts.writeBenchEvent(mpkg.Path, tf.Name, testDuration, benchResults)
 			}
 		}
 

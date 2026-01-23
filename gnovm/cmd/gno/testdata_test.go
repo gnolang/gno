@@ -24,6 +24,11 @@ func Test_Scripts(t *testing.T) {
 		}
 
 		name := dir.Name()
+		// Skip bench directory - requires gnobench tag, tested by Test_ScriptsBench
+		if name == "bench" {
+			continue
+		}
+
 		t.Run(name, func(t *testing.T) {
 			testdir := filepath.Join(testdata, name)
 			p := integration.NewTestingParams(t, testdir)

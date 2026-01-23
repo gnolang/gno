@@ -1,0 +1,29 @@
+# Test --bench flag outputs profiling info
+
+gno test --bench .
+
+stderr '--- Bench:'
+stderr 'Profiling Results'
+stderr 'Opcode Statistics'
+
+-- gnomod.toml --
+module = "gno.land/p/demo/benchflag"
+gno = "0.9"
+
+-- foo.gno --
+package benchflag
+
+func Add(a, b int) int {
+	return a + b
+}
+
+-- foo_test.gno --
+package benchflag
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+	if Add(1, 2) != 3 {
+		t.Fatal("expected 3")
+	}
+}

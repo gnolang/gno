@@ -1,0 +1,72 @@
+# Test --bench-profile flag writes JSONL file with valid bench events
+
+gno test --bench-profile results.jsonl .
+
+exists results.jsonl
+
+# Verify JSON structure using jsonbench
+jsonbench results.jsonl
+cmp stdout expected.golden
+
+-- gnomod.toml --
+module = "gno.land/p/demo/benchprofile"
+gno = "0.9"
+
+-- foo.gno --
+package benchprofile
+
+-- foo_test.gno --
+package benchprofile
+
+import "testing"
+
+func TestFoo(t *testing.T) {
+	x := 1 + 2
+	_ = x
+}
+
+-- expected.golden --
+Package:  gno.land/p/demo/benchprofile
+Test:     TestFoo
+OpStats:
+  Name                Count  Gas
+  OpAdd               9      18
+  OpAssign            3      79
+  OpBinary1           4      18
+  OpBody              46     43
+  OpCall              19     256
+  OpCallNativeBody    7      424
+  OpCompositeLit      3      50
+  OpConvert           7      16
+  OpDefer             1      64
+  OpDefine            9      111
+  OpEql               2      160
+  OpEval              201    29
+  OpExec              4      25
+  OpFuncLit           1      61
+  OpFuncType          1      81
+  OpHalt              10     1
+  OpIfCond            13     38
+  OpLand              4      24
+  OpLeq               1      19
+  OpLss               3      13
+  OpNeq               1      95
+  OpPopBlock          20     3
+  OpPopFrameAndReset  1      15
+  OpPopResults        2      1
+  OpPrecall           26     207
+  OpQuo               1      16
+  OpRangeIter         2      105
+  OpRef               2      125
+  OpReturn            16     38
+  OpReturnAfterCopy   1      38
+  OpReturnCallDefers  2      78
+  OpReturnFromBlock   3      36
+  OpSelector          24     32
+  OpSlice             4      103
+  OpStructLit         3      179
+  OpSub               4      6
+  OpTypeSwitch        1      171
+  OpUnot              2      6
+  OpValueDecl         1      113
+  OpVoid              466    1

@@ -1,0 +1,43 @@
+# Test gno run --bench-profile flag writes valid JSON profile
+
+gno run --bench-profile profile.json main.gno
+
+stdout 'World'
+exists profile.json
+
+# Verify profile contains expected OpStats using jsonbench
+jsonbench profile.json
+cmp stdout expected.golden
+
+-- main.gno --
+package main
+
+func main() {
+	for i := 0; i < 10; i++ {
+		_ = i * 2
+	}
+	println("World")
+}
+
+-- expected.golden --
+OpStats:
+  Name               Count  Gas
+  OpAssign           10     79
+  OpBody             3      43
+  OpCall             2      256
+  OpCallNativeBody   1      424
+  OpDefine           1      111
+  OpEval             75     29
+  OpExec             2      25
+  OpForLoop          21     27
+  OpFuncType         1      81
+  OpHalt             14     1
+  OpInc              10     76
+  OpLss              11     13
+  OpMul              10     19
+  OpPopBlock         13     3
+  OpPopResults       1      1
+  OpPrecall          2      207
+  OpReturn           1      38
+  OpReturnFromBlock  1      36
+  OpVoid             187    1

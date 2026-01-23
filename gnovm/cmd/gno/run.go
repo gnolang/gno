@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/test"
@@ -18,11 +19,13 @@ import (
 )
 
 type runCmd struct {
-	verbose   bool
-	rootDir   string
-	expr      string
-	debug     bool
-	debugAddr string
+	verbose      bool
+	rootDir      string
+	expr         string
+	debug        bool
+	debugAddr    string
+	bench        bool
+	benchProfile string
 }
 
 func newRunCmd(cio commands.IO) *commands.Command {
@@ -75,6 +78,20 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 		"debug-addr",
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
+	)
+
+	fs.BoolVar(
+		&c.bench,
+		"bench",
+		false,
+		"print operation profiling summary after execution (requires -tags gnobench build)",
+	)
+
+	fs.StringVar(
+		&c.benchProfile,
+		"bench-profile",
+		"",
+		"write operation profiling results to JSON file (requires -tags gnobench build)",
 	)
 }
 
@@ -228,6 +245,41 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 		if err := m.Debugger.Serve(cfg.debugAddr); err != nil {
 			return err
 		}
+	}
+
+	// Warn if gnobench not enabled
+	if (cfg.bench || cfg.benchProfile != "") && !benchops.Enabled {
+		cio.ErrPrintln("warning: --bench/--bench-profile ignored (requires -tags gnobench build)")
+	}
+
+	// Start benchops profiling if enabled
+	if benchops.Enabled && (cfg.bench || cfg.benchProfile != "") {
+		benchops.Start()
+		defer func() {
+			if !benchops.IsRunning() {
+				return
+			}
+			benchops.Recovery()
+			results := benchops.Stop()
+
+			if cfg.bench {
+				cio.ErrPrintln("\n--- Benchops Profile ---")
+				results.WriteReport(cio.Err(), 10)
+			}
+
+			if cfg.benchProfile == "" {
+				return
+			}
+			f, err := os.Create(cfg.benchProfile)
+			if err != nil {
+				cio.ErrPrintfln("warning: could not create bench profile file: %v", err)
+				return
+			}
+			results.WriteJSON(f)
+			if err := f.Close(); err != nil {
+				cio.ErrPrintfln("warning: could not close bench profile file: %v", err)
+			}
+		}()
 	}
 
 	// run files

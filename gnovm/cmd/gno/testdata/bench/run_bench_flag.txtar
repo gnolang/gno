@@ -1,0 +1,15 @@
+# Test gno run --bench flag
+
+gno run --bench main.gno
+
+stdout 'Hello'
+stderr '--- Benchops Profile ---'
+stderr 'Profiling Results'
+stderr 'Opcode Statistics'
+
+-- main.gno --
+package main
+
+func main() {
+	println("Hello")
+}

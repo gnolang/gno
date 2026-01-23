@@ -1,0 +1,85 @@
+# Test jsonbench OpStats output with deterministic count and gas values
+
+gno test --bench-profile results.jsonl .
+
+exists results.jsonl
+
+# Verify OpStats are captured (only Count and Gas - deterministic values)
+jsonbench results.jsonl
+cmp stdout expected.golden
+
+-- gnomod.toml --
+module = "gno.land/p/demo/opstats"
+gno = "0.9"
+
+-- foo.gno --
+package opstats
+
+func Compute(n int) int {
+	sum := 0
+	for i := 0; i < n; i++ {
+		sum += i
+	}
+	return sum
+}
+
+-- foo_test.gno --
+package opstats
+
+import "testing"
+
+func TestCompute(t *testing.T) {
+	result := Compute(5)
+	if result != 10 {
+		t.Fatalf("expected 10, got %d", result)
+	}
+}
+
+-- expected.golden --
+Package:  gno.land/p/demo/opstats
+Test:     TestCompute
+OpStats:
+  Name                Count  Gas
+  OpAdd               9      18
+  OpAddAssign         5      85
+  OpAssign            2      79
+  OpBinary1           4      18
+  OpBody              49     43
+  OpCall              20     256
+  OpCallNativeBody    7      424
+  OpCompositeLit      3      50
+  OpConvert           7      16
+  OpDefer             1      64
+  OpDefine            11     111
+  OpEql               2      160
+  OpEval              231    29
+  OpExec              5      25
+  OpForLoop           11     27
+  OpFuncLit           1      61
+  OpFuncType          1      81
+  OpHalt              10     1
+  OpIfCond            14     38
+  OpInc               5      76
+  OpLand              4      24
+  OpLeq               1      19
+  OpLss               9      13
+  OpNeq               2      95
+  OpPopBlock          21     3
+  OpPopFrameAndReset  1      15
+  OpPopResults        2      1
+  OpPrecall           27     207
+  OpQuo               1      16
+  OpRangeIter         2      105
+  OpRef               2      125
+  OpReturn            17     38
+  OpReturnAfterCopy   1      38
+  OpReturnCallDefers  2      78
+  OpReturnFromBlock   3      36
+  OpSelector          24     32
+  OpSlice             4      103
+  OpStructLit         3      179
+  OpSub               4      6
+  OpTypeSwitch        1      171
+  OpUnot              2      6
+  OpValueDecl         1      113
+  OpVoid              534    1
