@@ -187,29 +187,31 @@ export class ActionFunctionController extends BaseController {
 				arg.textContent = escapedValue || "";
 			});
 
-		// Update function links (execute and anchor) with new parameter value
-		const functionLinks = [
-			...this.getTargets("function-execute"),
-			...this.getTargets("function-anchor"),
-		] as HTMLAnchorElement[];
-		if (functionLinks.length > 0) {
-			functionLinks.forEach((functionLink) => {
-				const linkAttribute = functionLink.hasAttribute("href")
-					? "href"
-					: "data-copy-text-value";
-				const currentUrl = functionLink.getAttribute(linkAttribute);
-				if (!currentUrl) {
-					console.warn(
-						`No href or data-copy-text-value attribute found for the function link: ${functionLink}.`,
-					);
-					return;
-				}
+		// Update function execute (form) and anchor (copy button) with new parameter
+		const executeForm = this.getTarget("function-execute") as HTMLFormElement;
+		const anchorButton = this.getTarget("function-anchor") as HTMLButtonElement;
+		if (!executeForm && !anchorButton) return;
 
-				const u = new URL(currentUrl, window.location.origin);
-				u.searchParams.set(paramName, paramValue);
-				functionLink.setAttribute(linkAttribute, u.toString() || "");
-			});
+		const baseUrl =
+			executeForm?.getAttribute("action") ||
+			anchorButton?.getAttribute("data-copy-text-value");
+		if (!baseUrl) return;
+
+		const parts = baseUrl.split("&");
+		const encodedValue = encodeURIComponent(paramValue);
+		const index = parts.findIndex(
+			(part, i) => i > 0 && part.startsWith(`${paramName}=`),
+		);
+		if (index !== -1) {
+			parts[index] = `${paramName}=${encodedValue}`;
+		} else {
+			parts.push(`${paramName}=${encodedValue}`);
 		}
+
+		const updatedUrl = parts.join("&");
+
+		executeForm?.setAttribute("action", updatedUrl);
+		anchorButton?.setAttribute("data-copy-text-value", updatedUrl);
 	}
 
 	// Update the qeval result
