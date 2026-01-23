@@ -445,7 +445,7 @@ func lintRenderSignature(io commands.IO, pkg *types.Package, fset *token.FileSet
 			location = fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
 		}
 
-		err := fmt.Errorf("the 'Render' function signature is incorrect for the '%s' package. the signature must be of the form: func Render(string) string", pkg.Name())
+		err := fmt.Errorf("invalid signature for the realm's Render function; must be of the form: func Render(string) string")
 		fmt.Fprintln(io.Err(), gnoIssue{
 			Code:       gnoLintError,
 			Msg:        err.Error(),
