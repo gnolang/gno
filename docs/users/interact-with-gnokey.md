@@ -1,7 +1,7 @@
 # Interacting with Gno.land using gnokey
 
 `gnokey` is the official command-line wallet and utility for interacting with
-Gno.land networks. It allows to manage keys, query the blockchain, send
+Gno.land networks. It allows you to manage keys, query the blockchain, send
 transactions, and deploy smart contracts. This guide will help you get started
 with the essential operations.
 
@@ -30,8 +30,9 @@ deploying code, interacting with existing applications, and transferring coins.
 
 Key pairs are the foundation of blockchain interactions. A 12-word or 24-word 
 [mnemonic phrase](https://www.zimperium.com/glossary/mnemonic-seed/) generates 
-a private and public key. Your public key derives your address (your unique 
-identifier), while your private key signs transactions, proving ownership.
+a private and public key. Your public key derives your address (starting with `g1`), 
+which is your unique identifier on the network. Your private key signs transactions, 
+proving you own that address.
 
 ## Generating a key pair
 
@@ -62,13 +63,13 @@ It's visible in transactions and used to receive [coins](../resources/gno-stdlib
 ## Making transactions
 
 Four message types can change on-chain state:
-- `AddPackage` - adds new code to the chain
-- `Call` - calls a realm function
-- `Send` - sends coins between addresses
-- `Run` - executes a Gno script
+- `AddPackage` - uploads new code (packages or realms) to the chain
+- `Call` - calls an exported function in a realm
+- `Send` - transfers coins between addresses
+- `Run` - executes a Gno script against on-chain code
 
 Each transaction requires:
-- Base configuration (`gas-fee`, `gas-wanted`, etc.)
+- Base configuration (`gas-fee`, `gas-wanted`, `chainid`, `remote`)
 - One or more messages to execute
 
 `gnokey` supports single-message transactions. For multiple-message transactions, 
@@ -76,7 +77,7 @@ use [gnoclient](https://github.com/gnolang/gno/tree/master/gno.land/pkg/gnoclien
 
 :::info Getting testnet tokens
 
-Visit [Faucet Hub](https://faucet.gno.land) to get GNOTs for testnets.
+You'll need testnet coins (GNOTs) for any transaction. Visit [Faucet Hub](https://faucet.gno.land) to get GNOTs.
 
 :::
 
@@ -117,8 +118,8 @@ The module path must match the `-pkgpath` flag used when uploading.
 :::info About `gnomod.toml`
 
 This manifest file defines the module path for imports and package resolution. 
-Required for all packages and realms. See [Configuring Gno Projects](../resources/configuring-gno-projects.md) 
-for more details.
+It's required for all packages and realms — without it, your code won't upload properly.
+See [Configuring Gno Projects](../resources/configuring-gno-projects.md) for more details.
 
 :::
 
@@ -157,15 +158,15 @@ TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 ```
 
 Transaction output fields:
-- `GAS WANTED` - gas limit specified
-- `GAS USED` - actual gas consumed
-- `HEIGHT` - block number
-- `EVENTS` - [events](../resources/gno-stdlibs.md#events) emitted
-- `TX HASH` - transaction hash
+- `GAS WANTED` - the gas limit you specified
+- `GAS USED` - actual gas consumed by the transaction
+- `HEIGHT` - block number where the transaction was included
+- `EVENTS` - [events](../resources/gno-stdlibs.md#events) emitted during execution
+- `TX HASH` - unique identifier for this transaction
 
 ## `Call`
 
-Call exported realm functions:
+Call exported functions in a realm:
 
 ```bash
 gnokey maketx call
@@ -173,12 +174,12 @@ gnokey maketx call
 
 :::info Gas-free queries
 
-`Call` uses gas even for read-only functions. Use `vm/qeval` [queries](#vmqeval) 
-for gas-free reads.
+`Call` uses gas even for read-only functions. If you just want to read data 
+without spending gas, use `vm/qeval` [queries](#vmqeval) instead.
 
 :::
 
-Example - wrapping GNOTs using the `wugnot` realm:
+Example — wrapping GNOTs using the `wugnot` realm (which converts GNOT to a GRC20 token):
 
 ```bash
 gnokey maketx call \
@@ -203,7 +204,9 @@ gnokey query vm/qeval -remote "https://rpc.gno.land:443" -data "gno.land/r/gnola
 
 ## `Send`
 
-Transfer coins between addresses:
+Transfer coins from one address to another. Coins are formatted as `<amount><denom>` 
+(e.g., `100ugnot`):
+
 ```bash
 gnokey maketx send \
 -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
@@ -443,6 +446,8 @@ height: 0
 data: "227984898927ugnot"
 ```
 
+The `data` field contains the coins the address owns.
+
 ## `auth/gasprice`
 
 Fetch the minimum gas price required for transactions:
@@ -601,7 +606,7 @@ Evaluate exported functions in read-only mode without using gas:
 gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 ```
 
-Escape quotation marks for string arguments. Only supports primitive types.
+Note: You must escape quotation marks for string arguments. Currently only supports primitive types in expressions.
 
 ## `vm/qrender`
 
@@ -624,7 +629,8 @@ data: # wrapped GNOT ($wugnot)
 
 :::info Specifying a path to `Render()`
 
-Use `<pkgpath>:<renderpath>` syntax to call `Render()` with a specific path:
+Use `<pkgpath>:<renderpath>` syntax to call `Render()` with a specific path. 
+For example, the `wugnot` realm can display the balance of a specific address:
 
 ```bash
 gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:balance/g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" -remote https://rpc.gno.land:443
