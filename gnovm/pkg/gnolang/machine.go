@@ -289,9 +289,8 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 			}
 
 			// If succeed, clean outdated objects.
-			// New revision of package.
-			pkgidx2 := m.Store.GetPackageRevision(oid.PkgID)
-			objctr2 := m.Store.GetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx2))
+			// Package revision does not update while override.
+			objctr2 := m.Store.GetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx))
 
 			// If all old slots are overridden.
 			if objctr2 >= objctr {
@@ -300,7 +299,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 
 			// Else clean the outdated objects.
 			if debug {
-				debug.Println("clean outdated object, num: ", objctr-objctr2)
+				debug.Printf("clean outdated object, origin count: %d, current count: %d, num to delete: %d\n", objctr, objctr2, objctr-objctr2)
 			}
 
 			for i := objctr2 + 1; i <= objctr; i++ {
