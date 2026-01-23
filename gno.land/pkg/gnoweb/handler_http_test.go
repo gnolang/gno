@@ -37,7 +37,6 @@ type stubClient struct {
 	realmFunc     func(ctx context.Context, path, args string) ([]byte, error)
 	fileFunc      func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error)
 	docFunc       func(ctx context.Context, path string) (*doc.JSONDocumentation, error)
-	docBatchFunc  func(ctx context.Context, paths []string) (map[string]*doc.JSONDocumentation, error)
 	listFilesFunc func(ctx context.Context, path string) ([]string, error)
 	listPathsFunc func(ctx context.Context, prefix string, limit int) ([]string, error)
 }
@@ -61,20 +60,6 @@ func (s *stubClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentati
 		return s.docFunc(ctx, path)
 	}
 	return nil, errors.New("stubClient: Doc not implemented")
-}
-
-func (s *stubClient) DocBatch(ctx context.Context, paths []string) (map[string]*doc.JSONDocumentation, error) {
-	if s.docBatchFunc != nil {
-		return s.docBatchFunc(ctx, paths)
-	}
-	// Default: call Doc for each path
-	docs := make(map[string]*doc.JSONDocumentation)
-	for _, p := range paths {
-		if jdoc, err := s.Doc(ctx, p); err == nil {
-			docs[p] = jdoc
-		}
-	}
-	return docs, nil
 }
 
 func (s *stubClient) ListFiles(ctx context.Context, path string) ([]string, error) {
@@ -378,30 +363,6 @@ func TestHTTPHandler_DirectoryViewErrorTotal(t *testing.T) {
 	// GetClientErrorStatusPage by default should return 500
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 	assert.Contains(t, rr.Body.String(), "internal error")
-}
-
-// TestHTTPHandler_RealmExplorerWithRender tests realms with Render() show realm icon and Source button.
-func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
-	t.Parallel()
-
-	realmWithRender := &gnoweb.MockPackage{
-		Domain: "gno.land",
-		Path:   "/r/demo/withrender",
-		Files:  map[string]string{"render.gno": `package withrender`},
-		Functions: []*doc.JSONFunc{{
-			Name:    "Render",
-			Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
-			Results: []*doc.JSONField{{Type: "string"}},
-		}},
-	}
-
-	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, gnoweb.NewMockClient(realmWithRender)))
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/", nil))
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Source")
-	assert.Contains(t, rr.Body.String(), "Action")
 }
 
 // TestHTTPHandler_PathsListView_DocError tests Doc errors are handled gracefully.

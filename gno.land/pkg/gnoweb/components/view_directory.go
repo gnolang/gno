@@ -30,9 +30,8 @@ func (d DirLinkType) LinkPrefix(pkgPath string) string {
 
 // FullFileLink represents a package entry in the directory listing.
 type FullFileLink struct {
-	Link       string
-	Name       string
-	SourceLink string // Link to source code view
+	Link string
+	Name string
 }
 
 // FilesLinks is a slice of FullFileLink
@@ -43,9 +42,8 @@ func buildFilesLinks(files []string, linkType DirLinkType, pkgPath string) Files
 	result := make(FilesLinks, len(files))
 	for i, file := range files {
 		result[i] = FullFileLink{
-			Link:       linkType.LinkPrefix(pkgPath) + file,
-			Name:       file,
-			SourceLink: file + "$source",
+			Link: linkType.LinkPrefix(pkgPath) + file,
+			Name: file,
 		}
 	}
 	return result
