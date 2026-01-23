@@ -9,6 +9,7 @@ import (
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/nt/mux"
@@ -101,7 +102,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		userLink := userLink(board.Creator)
 		date := board.CreatedAt.Format(dateFormat)
 
-		res.Write(md.Bold(md.Link(board.Name, makeBoardURI(board))) + "  \n")
+		res.Write(md.H6(md.Link(board.Name, makeBoardURI(board))))
 		res.Write("Created by " + userLink + " on " + date + ", #" + board.ID.String() + "  \n")
 
 		status := strconv.Itoa(board.Threads.Size()) + " threads"
@@ -145,6 +146,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 	form.Input(
 		"name",
 		"placeholder", "Board name",
+		"required", "true",
 	)
 	form.Radio(
 		"listed",
@@ -168,6 +170,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 	)
 
 	res.Write(md.H1("Boards: Create Board"))
+	res.Write(md.Link("← Back to boards", gRealmPath) + "\n\n")
 	res.Write(
 		md.Paragraph(
 			"Boards are by default listed by the realm but they can optionally " +
@@ -181,6 +184,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 		),
 	)
 	res.Write(form.String())
+	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to boards", gRealmPath) + "\n")
 }
 
 func renderMembers(res *mux.ResponseWriter, req *mux.Request) {

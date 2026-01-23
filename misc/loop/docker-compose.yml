@@ -12,6 +12,12 @@ services:
     restart: unless-stopped
     command:
       - --api.insecure=true
+      - --accesslog=true
+      - --accesslog.fields.defaultmode=keep
+      - --accesslog.fields.headers.defaultmode=keep
+      - --accesslog.fields.headers.names.X-Real-Ip=keep
+      - --accesslog.fields.headers.names.X-Forwarded-Server=keep
+      - --accesslog.fields.headers.names.X-Forwarded-Host=keep
       - --providers.file=true
       - --providers.file.watch=true
       - --providers.file.directory=/etc/traefik/configs
@@ -23,9 +29,14 @@ services:
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      # Forward proxy protocol
+      - --entrypoints.websecure.proxyprotocol.trustedips=0.0.0.0/0
+      - --entrypoints.websecure.forwardedheaders.trustedips=0.0.0.0/0
       - --entryPoints.web.forwardedHeaders.insecure
+      - --entryPoints.web.proxyprotocol.insecure
       - --certificatesresolvers.le.acme.tlschallenge=true
       - --certificatesresolvers.le.acme.email=dev@gno.land
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
     networks:
       - portal-loop
     ports:
@@ -33,8 +44,9 @@ services:
       - 443:443
       - 26657:26657
     volumes:
-      - ./traefik:/etc/traefik/configs
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik:/etc/traefik/configs
+      - ./traefik/letsencrypt:/letsencrypt
 
   gnoweb:
     image: ghcr.io/gnolang/gno/gnoweb:master
@@ -56,7 +68,7 @@ services:
       - traefik.http.routers.gnoweb.tls=true
       - traefik.http.routers.gnoweb.tls.certresolver=le
       # Secure headers
-      - traefik.http.routers.gnoweb.middlewares=secure-headers@file
+      - traefik.http.routers.gnoweb.middlewares=secure-headers@file,web-ratelimit@file
       - com.centurylinklabs.watchtower.enable=true
 
   gnofaucet:
