@@ -28,11 +28,11 @@ deploying code, interacting with existing applications, and transferring coins.
 
 ## A word about key pairs
 
-Key pairs are the foundation of blockchain interactions. A 12-word or 24-word 
-[mnemonic phrase](https://www.zimperium.com/glossary/mnemonic-seed/) generates 
-a private and public key. Your public key derives your address (starting with `g1`), 
-which is your unique identifier on the network. Your private key signs transactions, 
-proving you own that address.
+Key pairs are the foundation of how users interact with blockchains. A 12-word or 
+24-word [mnemonic phrase](https://www.zimperium.com/glossary/mnemonic-seed/) generates 
+a private and public key:
+- **Public key** → derives your address (starting with `g1`), your unique identifier
+- **Private key** → signs transactions, proving you own that address
 
 ## Generating a key pair
 
@@ -74,6 +74,8 @@ Each transaction requires:
 
 `gnokey` supports single-message transactions. For multiple-message transactions, 
 use [gnoclient](https://github.com/gnolang/gno/tree/master/gno.land/pkg/gnoclient) in Go programs.
+
+To deploy to other networks, see [Network Configuration](../resources/gnoland-networks.md).
 
 :::info Getting testnet tokens
 
