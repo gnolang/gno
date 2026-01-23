@@ -4043,9 +4043,6 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			debug.Printf("shift, xt: %v, Op: %v, t: %v \n", xt, bx.Op, t)
 		}
 		if isUntyped(xt) {
-			// check assignable first, see: types/shift_b6.gno
-			assertAssignableTo(n, xt, t)
-
 			// If type info from context is nil.
 			if t == nil {
 				lt2 := evalStaticTypeOf(store, last, bx.Left)
@@ -4054,7 +4051,9 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 				}
 			}
 
-			// If type info from context is not nil.
+			// check assignable, see: types/shift_b6.gno
+			assertAssignableTo(n, xt, t)
+
 			if t == nil || t.Kind() == InterfaceKind {
 				t = defaultTypeOf(xt)
 			}
