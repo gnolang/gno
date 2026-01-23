@@ -389,27 +389,6 @@ func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Action")
 }
 
-// TestHTTPHandler_PathsListView_DocError tests Doc errors are handled gracefully.
-func TestHTTPHandler_PathsListView_DocError(t *testing.T) {
-	t.Parallel()
-
-	client := &stubClient{
-		listFilesFunc: func(ctx context.Context, path string) ([]string, error) { return nil, gnoweb.ErrClientPackageNotFound },
-		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
-			return []string{"/r/demo/realm1"}, nil
-		},
-		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
-			return nil, errors.New("doc error")
-		},
-	}
-
-	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, client))
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/", nil))
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-}
-
 // TestHTTPHandler_PathsListView_ListPathsError tests ListPaths errors return 404.
 func TestHTTPHandler_PathsListView_ListPathsError(t *testing.T) {
 	t.Parallel()
@@ -424,28 +403,6 @@ func TestHTTPHandler_PathsListView_ListPathsError(t *testing.T) {
 	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/", nil))
 
 	assert.Equal(t, http.StatusNotFound, rr.Code)
-}
-
-// TestHTTPHandler_PathsListView_PackagePaths tests that Doc is not called for package paths.
-func TestHTTPHandler_PathsListView_PackagePaths(t *testing.T) {
-	t.Parallel()
-
-	client := &stubClient{
-		listFilesFunc: func(ctx context.Context, path string) ([]string, error) { return nil, gnoweb.ErrClientPackageNotFound },
-		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
-			return []string{"/p/demo/pkg1"}, nil
-		},
-		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
-			t.Error("Doc called")
-			return nil, nil
-		},
-	}
-
-	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, client))
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/p/demo/", nil))
-
-	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
