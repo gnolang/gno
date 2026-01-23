@@ -40,6 +40,8 @@ Opcodes:
   OpReturn: count=1 gas=38
   OpReturnFromBlock: count=1 gas=36
   OpVoid: count=187 gas=1
+Store:
+  StoreGetObject: count=1 size=0
 Native:
   NativePrint: count=1
 HotSpots:

@@ -82,6 +82,9 @@ Opcodes:
   OpUnot: count=2 gas=6
   OpValueDecl: count=1 gas=113
   OpVoid: count=534 gas=1
+Store:
+  StoreGetBlockNode: count=8 size=0
+  StoreGetObject: count=133 size=108087
 HotSpots:
   foo.gno:4 Compute: count=2 gas=140
   foo.gno:5 -: count=8 gas=545

@@ -1,7 +1,13 @@
 package benchops
 
 // OpGas maps opcode bytes to their gas costs.
-// These values mirror the OpCPU* constants in gnolang/machine.go.
+//
+// These values are derived from the OpCPU* constants in gnolang/machine.go.
+// They represent the relative CPU cost of each VM opcode, used for gas metering.
+//
+// IMPORTANT: When updating these values, ensure they stay in sync with the
+// OpCPU* constants in gnolang/machine.go. The benchops/cmd tool can be used
+// to re-calibrate these values through benchmarking.
 var OpGas = [256]int64{
 	// ---- Control Operators (0x00-0x1F)
 	0x00: 1,   // OpInvalid

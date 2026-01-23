@@ -346,7 +346,13 @@ func (o NativeOp) String() string {
 }
 
 // GetNativePrintCode returns the appropriate NativeOp for the given print size.
-// Valid sizes are: 1, 1000, 10000. Panics if size is not one of these values.
+// The sizes correspond to benchmark calibration points for print operations:
+//   - 1: Single byte print (minimal I/O overhead)
+//   - 1000: 1KB buffer print (typical small output)
+//   - 10000: 10KB buffer print (larger output)
+//
+// These discrete sizes allow profiling to track I/O costs at different scales.
+// Panics if size is not one of these values (programmer error).
 func GetNativePrintCode(size int) NativeOp {
 	switch size {
 	case 1:
