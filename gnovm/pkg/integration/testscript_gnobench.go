@@ -44,8 +44,8 @@ func SetupGnoBench(p *testscript.Params, homeDir, buildDir string) error {
 // benchEvent is the format from "gno test --bench-profile" (JSONL with wrapper).
 // Uses benchops.Results for the profile data to maintain single source of truth.
 type benchEvent struct {
-	Package string           `json:"Package"`
-	Test    string           `json:"Test"`
+	Package string            `json:"Package"`
+	Test    string            `json:"Test"`
 	Profile *benchops.Results `json:"Profile,omitempty"`
 }
 
