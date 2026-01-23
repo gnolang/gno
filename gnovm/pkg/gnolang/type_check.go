@@ -658,20 +658,25 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 	lcx, lic := x.Left.(*ConstExpr)
 	_, ric := x.Right.(*ConstExpr)
 	// Step1, check RHS type.
+	// Must be numeric.
 	if !isNumeric(rt) {
 		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
 	}
+	// If not const, must be IntNum.
 	if !isIntNum(rt) && !ric {
 		panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
 	}
 
 	if ric {
 		rv := evalConst(store, last, x.Right)
+		if rv.Sign() < 0 {
+			panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Right))
+		}
+
 		if isIntNum(rt) {
-			if rv.Sign() < 0 {
-				panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Right))
-			}
+			// Good.
 		} else if !IsExactBigDec(rv.V) {
+			// e.g. 1.0, 2.0
 			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
 		}
 	}
@@ -682,6 +687,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 			return
 		}
 
+		// If lhs not IntNum, it must be const.
 		if !lic {
 			if isUntyped(lt) {
 				lt = defaultTypeOf(lt)
@@ -689,6 +695,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
 		}
 
+		// LHS is const.
 		// Special case for untyped const lhs.
 		lv := evalConst(store, last, lcx)
 		if !IsExactBigDec(lv.V) {
