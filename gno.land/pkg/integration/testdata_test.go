@@ -2,6 +2,7 @@ package integration
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -10,13 +11,50 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// listTestdataFiles returns all .txtar files in testdata, excluding the bench subdirectory.
+func listTestdataFiles(t *testing.T) []string {
+	t.Helper()
+
+	var files []string
+	err := filepath.WalkDir("testdata", func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip the bench subdirectory entirely
+		if d.IsDir() && d.Name() == "bench" {
+			return filepath.SkipDir
+		}
+
+		// Only include .txtar files
+		if !d.IsDir() && filepath.Ext(path) == ".txtar" {
+			files = append(files, path)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("failed to list testdata files: %v", err)
+	}
+
+	return files
+}
+
 func TestTestdata(t *testing.T) {
 	t.Parallel()
 
 	flagInMemoryTS, _ := strconv.ParseBool(os.Getenv("INMEMORY_TS"))
 	flagSeqTS, _ := strconv.ParseBool(os.Getenv("SEQ_TS"))
 
-	p := gno_integration.NewTestingParams(t, "testdata")
+	// List files explicitly, excluding the bench directory
+	files := listTestdataFiles(t)
+	if len(files) == 0 {
+		t.Skip("no testdata files found")
+	}
+
+	p := gno_integration.NewTestingParams(t, "")
+	p.Files = files
 
 	if coverdir, ok := gno_integration.ResolveCoverageDir(); ok {
 		err := gno_integration.SetupTestscriptsCoverage(&p, coverdir)

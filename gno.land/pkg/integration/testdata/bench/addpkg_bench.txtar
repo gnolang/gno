@@ -1,0 +1,42 @@
+# Test package deployment with benchops profiling
+#
+# Profile outputs are automatically written to this file when
+# running with UPDATE_SCRIPTS=true
+
+gnoland start
+
+# Profile the addpkg transaction
+bench start profile.json
+
+gnokey maketx addpkg -pkgdir $WORK/counter -pkgpath gno.land/r/$test1_user_addr/counter -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+
+bench stop
+
+-- counter/gnomod.toml --
+module = "counter"
+gno = "0.9"
+
+-- counter/counter.gno --
+package counter
+
+var count int
+
+func Inc(cur realm) int {
+	count++
+	return count
+}
+
+func Get() int {
+	return count
+}
+-- profile.json --
+OpStats:
+  Name         Count  Gas
+  OpEval       26     29
+  OpExec       2      25
+  OpFieldType  6      59
+  OpFuncType   4      81
+  OpHalt       20     1
+  OpPopBlock   18     3
+  OpValueDecl  2      113
+  OpVoid       84     1

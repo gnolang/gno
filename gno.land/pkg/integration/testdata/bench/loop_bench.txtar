@@ -1,0 +1,112 @@
+# Test benchops profiling with repeated function calls
+#
+# This test profiles the same function with different arguments to verify
+# that benchops correctly captures different operation counts.
+#
+# - profile_10a.json and profile_10b.json: same function, same arg (10 iterations)
+# - profile_100.json: same function, different arg (100 iterations)
+#
+# Profile outputs are automatically written to this file when
+# running with UPDATE_SCRIPTS=true
+
+gnoland start
+
+# Deploy the loop counter realm
+gnokey maketx addpkg -pkgdir $WORK/loop -pkgpath gno.land/r/$test1_user_addr/loop -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+
+# Profile first call with 10 iterations
+bench start profile_10a.json
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/loop -func Loop -args 10 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+bench stop
+
+# Profile second call with 10 iterations (should match profile_10a)
+bench start profile_10b.json
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/loop -func Loop -args 10 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+bench stop
+
+# Profile call with 100 iterations (should have ~10x more ops)
+bench start profile_100.json
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/loop -func Loop -args 100 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+bench stop
+
+# Verify that identical calls produce identical profiles (deterministic fields only)
+cmpbench profile_10a.json profile_10b.json
+
+# Verify that different iteration counts produce different profiles
+! cmpbench profile_10a.json profile_100.json
+
+-- loop/gnomod.toml --
+module = "loop"
+gno = "0.9"
+
+-- loop/loop.gno --
+package loop
+
+var total int
+
+// Loop increments a counter n times and returns the total.
+func Loop(cur realm, n int) int {
+	for i := 0; i < n; i++ {
+		total++
+	}
+	return total
+}
+
+// GetTotal returns the current total.
+func GetTotal() int {
+	return total
+}
+-- profile_10a.json --
+OpStats:
+  Name             Count  Gas
+  OpBody           4      43
+  OpCall           2      256
+  OpDefine         2      111
+  OpEnterCrossing  2      100
+  OpEval           86     29
+  OpExec           2      25
+  OpForLoop        42     27
+  OpHalt           14     1
+  OpInc            40     76
+  OpLss            22     13
+  OpPopBlock       8      3
+  OpPrecall        2      207
+  OpReturn         2      38
+  OpSelector       2      32
+  OpVoid           236    1
+-- profile_10b.json --
+OpStats:
+  Name             Count  Gas
+  OpBody           4      43
+  OpCall           2      256
+  OpDefine         2      111
+  OpEnterCrossing  2      100
+  OpEval           86     29
+  OpExec           2      25
+  OpForLoop        42     27
+  OpHalt           14     1
+  OpInc            40     76
+  OpLss            22     13
+  OpPopBlock       8      3
+  OpPrecall        2      207
+  OpReturn         2      38
+  OpSelector       2      32
+  OpVoid           236    1
+-- profile_100.json --
+OpStats:
+  Name             Count  Gas
+  OpBody           4      43
+  OpCall           2      256
+  OpDefine         2      111
+  OpEnterCrossing  2      100
+  OpEval           626    29
+  OpExec           2      25
+  OpForLoop        402    27
+  OpHalt           14     1
+  OpInc            400    76
+  OpLss            202    13
+  OpPopBlock       8      3
+  OpPrecall        2      207
+  OpReturn         2      38
+  OpSelector       2      32
+  OpVoid           1676   1
