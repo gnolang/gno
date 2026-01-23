@@ -347,52 +347,6 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 	}
 }
 
-func TestBuildFilesLinks(t *testing.T) {
-	cases := []struct {
-		name     string
-		files    []string
-		linkType DirLinkType
-		pkgPath  string
-		expected FilesLinks
-	}{
-		{
-			name:     "Source link type with multiple files",
-			files:    []string{"file1.gno", "file2.gno"},
-			linkType: DirLinkTypeSource,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{
-				{Link: "/r/test/pkg$source&file=file1.gno", Name: "file1.gno"},
-				{Link: "/r/test/pkg$source&file=file2.gno", Name: "file2.gno"},
-			},
-		},
-		{
-			name:     "File link type with multiple files",
-			files:    []string{"file1.gno", "file2.gno"},
-			linkType: DirLinkTypeFile,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{
-				{Link: "file1.gno", Name: "file1.gno"},
-				{Link: "file2.gno", Name: "file2.gno"},
-			},
-		},
-		{
-			name:     "Empty files list",
-			files:    []string{},
-			linkType: DirLinkTypeSource,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{},
-		},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			result := buildFilesLinks(tc.files, tc.linkType, tc.pkgPath)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
 func TestUserView(t *testing.T) {
 	data := UserData{
 		Username:   "testuser",

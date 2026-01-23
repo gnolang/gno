@@ -808,8 +808,8 @@
 
 .b-list-item-realm {
 	display: flex;
-	justify-content: space-between;
 	align-items: center;
+	gap: var(--g-space-2);
 	padding: var(--g-space-2);
 
 	&:hover {
@@ -820,9 +820,6 @@
 .b-list-item-link {
 	flex: 1;
 	min-width: 0;
-	padding: 0;
-	display: flex;
-	align-items: center;
 
 	&:hover {
 		background-color: transparent;
@@ -835,9 +832,7 @@
 
 .b-list-item-actions {
 	display: flex;
-	align-items: center;
 	gap: var(--g-space-2);
-	flex-shrink: 0;
 }
 
 /* ===== USER COMPONENT ===== */
