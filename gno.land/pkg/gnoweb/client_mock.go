@@ -138,21 +138,6 @@ func (m *MockClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentati
 	return &doc.JSONDocumentation{Funcs: pkg.Functions}, nil
 }
 
-// DocBatch retrieves JSON docs for multiple paths.
-func (m *MockClient) DocBatch(ctx context.Context, paths []string) (map[string]*doc.JSONDocumentation, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, fmt.Errorf("context error: %w", err)
-	}
-
-	docs := make(map[string]*doc.JSONDocumentation, len(paths))
-	for _, path := range paths {
-		if pkg, exists := m.Packages[path]; exists {
-			docs[path] = &doc.JSONDocumentation{Funcs: pkg.Functions}
-		}
-	}
-	return docs, nil
-}
-
 // Helper: check if package has a Render(string) string function.
 func pkgHasRender(pkg *MockPackage) bool {
 	if len(pkg.Functions) == 0 {
