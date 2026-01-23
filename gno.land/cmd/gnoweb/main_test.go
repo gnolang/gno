@@ -37,12 +37,34 @@ func TestNormalizeRemoteURL(t *testing.T) {
 	}
 }
 
+func TestNormalizeRemoteURL_UnsupportedProtocol(t *testing.T) {
+	t.Parallel()
+
+	unsupportedCases := []struct {
+		name  string
+		input string
+	}{
+		{"unix protocol", "unix://var/run/gno.sock"},
+		{"file protocol", "file:///path/to/file"},
+		{"ftp protocol", "ftp://example.com"},
+		{"ws protocol", "ws://example.com"},
+	}
+
+	for _, tc := range unsupportedCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Panics(t, func() {
+				normalizeRemoteURL(tc.input)
+			}, "Expected panic for unsupported protocol: %s", tc.input)
+		})
+	}
+}
+
 func TestSetupWeb(t *testing.T) {
 	opts := defaultWebOptions
-	opts.bind = "127.0.0.1:0" // random port
+	opts.bind = "127.0.0.1:0"
 	stdio := commands.NewDefaultIO()
 
-	// Open /dev/null as a write-only file
 	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0o644)
 	require.NoError(t, err)
 	defer devNull.Close()

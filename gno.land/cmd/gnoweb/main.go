@@ -18,20 +18,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// normalizeRemoteURL ensures the remote URL has a valid HTTP(S) protocol.
-// - tcp:// is converted to http:// (RPC uses HTTP over TCP)
-// - No protocol defaults to http://
-// - http:// and https:// are kept as-is
-func normalizeRemoteURL(remote string) string {
-	if strings.HasPrefix(remote, "tcp://") {
-		return strings.Replace(remote, "tcp://", "http://", 1)
-	}
-	if strings.HasPrefix(remote, "http://") || strings.HasPrefix(remote, "https://") {
-		return remote
-	}
-	return "http://" + remote
-}
-
 // Authorized external image host providers.
 var cspImgHost = []string{
 	// Gno-related hosts
@@ -377,4 +363,25 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// normalizeRemoteURL ensures the remote URL has a valid HTTP(S) protocol.
+// - tcp:// is converted to http:// (RPC uses HTTP over TCP)
+// - No protocol defaults to http://
+// - http:// and https:// are kept as-is
+// - Any other protocol (e.g., unix://) will panic as it's not supported in web context
+func normalizeRemoteURL(remote string) string {
+	protocol, rest, found := strings.Cut(remote, "://")
+	if !found {
+		return "http://" + remote
+	}
+
+	switch protocol {
+	case "tcp":
+		return "http://" + rest
+	case "http", "https":
+		return remote
+	default:
+		panic("unsupported protocol: " + protocol)
+	}
 }
