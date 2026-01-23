@@ -160,6 +160,11 @@ type TypeCheckOptions struct {
 	// libraries. Packages found in the Cache won't need to be type checked
 	// again.
 	Cache TypeCheckCache
+
+	// Fset, if non-nil, is used for Go parsing instead of creating a new one.
+	// After TypeCheckMemPackage returns, it contains the file position
+	// information from the parsed package.
+	Fset *token.FileSet
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -172,7 +177,7 @@ type TypeCheckOptions struct {
 //   - getter: the normal package import getter without test stdlibs.
 //   - tgetter: getter for test stdlibs with overrides when gimp.testing (importing from *_test.gno|*_filetest.gno).
 func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
-	pkg *types.Package, fset *token.FileSet, errs error,
+	pkg *types.Package, errs error,
 ) {
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
@@ -183,6 +188,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		tgetter:   gimpGetterWrapper{mpkg, opts.TestGetter},
 		cache:     map[string]*gnoImporterResult{},
 		permCache: opts.Cache,
+		fset:      opts.Fset,
 		cfg: &types.Config{
 			Error: func(err error) {
 				gimp.Error(err)
@@ -192,7 +198,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 	}
 	gimp.cfg.Importer = gimp
 
-	pkg, fset, errs = gimp.typeCheckMemPackage(mpkg, nil)
+	pkg, errs = gimp.typeCheckMemPackage(mpkg, nil)
 	return
 }
 
@@ -215,6 +221,7 @@ type gnoImporter struct {
 	tgetter   MemPackageGetter // used for stdlibs if .testing
 	cache     map[string]*gnoImporterResult
 	permCache TypeCheckCache
+	fset      *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
 	cfg       *types.Config
 	errors    []error  // there may be many for a single import
 	stack     []string // stack of pkgpaths for cyclic import detection
@@ -341,7 +348,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		return nil, err
 	}
 	wtests := gimp.testing && gimp.pkgPath == pkgPath
-	pkg, _, errs := gimp.typeCheckMemPackage(mpkg, &wtests)
+	pkg, errs := gimp.typeCheckMemPackage(mpkg, &wtests)
 	if errs != nil {
 		result.err = errs
 		result.pending = false
@@ -407,14 +414,14 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 // Returns parsed *types.Package, *token.FileSet, []*ast.File.
 //   - wtests: if nil, type check all, including filetests; otherwise returns early.
 func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool) (
-	pkg *types.Package, fset *token.FileSet, errs error,
+	pkg *types.Package, errs error,
 ) {
 	// See adr/pr4264_lint_transpile.md
 	// STEP 2: Check gno.mod version.
 	var gnoVersion string
 	mod, err := ParseCheckGnoMod(mpkg)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if gimp.tcmode.RequiresLatestGnoMod() {
 		if mod == nil {
@@ -444,11 +451,10 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	}
 
 	// STEP 3: Parse the mem package to Go AST.
-	gofset, allgofs, gofs, _gofs, tgofs, errs := GoParseMemPackage(mpkg)
+	gofset, allgofs, gofs, _gofs, tgofs, errs := GoParseMemPackage(mpkg, gimp.fset)
 	if errs != nil {
-		return nil, nil, errs
+		return nil, errs
 	}
-	fset = gofset
 
 	// STEP 3: Prepare for Go type-checking.
 	for _, gof := range allgofs {
@@ -553,7 +559,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		}
 		*/
 	}
-	return pkg, fset, multierr.Combine(gimp.errors[numErrs:]...)
+	return pkg, multierr.Combine(gimp.errors[numErrs:]...)
 }
 
 // Ensure uniqueness of declarations,
@@ -591,10 +597,14 @@ func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
 //   - gofs: all normal .gno files (and _test.gno files if wtests).
 //   - _gofs: all xxx_test package _test.gno files if wtests.
 //   - tgofs: all _testfile.gno test files.
-func GoParseMemPackage(mpkg *std.MemPackage) (
+func GoParseMemPackage(mpkg *std.MemPackage, fset *token.FileSet) (
 	gofset *token.FileSet, allgofs, gofs, _gofs, tgofs []*ast.File, errs error,
 ) {
-	gofset = token.NewFileSet()
+	if fset != nil {
+		gofset = fset
+	} else {
+		gofset = token.NewFileSet()
+	}
 
 	// This map is used to allow for Go native overrides/redeclarations.
 	decls := make(map[string]struct{}) // (func) decl name

@@ -258,11 +258,13 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			if cmd.autoGnomod {
 				tcmode = gno.TCLatestRelaxed
 			}
-			tcPkg, tcFset, errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
+			tcFset := token.NewFileSet()
+			tcPkg, errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
 				Getter:     newProdGnoStore(),
 				TestGetter: newTestGnoStore(true),
 				Mode:       tcmode,
 				Cache:      cache,
+				Fset:       tcFset,
 			})
 			if errs != nil {
 				// io.ErrPrintln(errs) printed above.
@@ -379,11 +381,10 @@ func lintTypeCheck(
 	opts gno.TypeCheckOptions) (
 	// Results:
 	tcPkg *types.Package,
-	tcFset *token.FileSet,
 	lerr error,
 ) {
 	// gno.TypeCheckMemPackage(mpkg, testStore).
-	tcPkg, tcFset, tcErrs := gno.TypeCheckMemPackage(mpkg, opts)
+	tcPkg, tcErrs := gno.TypeCheckMemPackage(mpkg, opts)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)
