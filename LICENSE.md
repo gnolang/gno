@@ -39,10 +39,12 @@ The Attribution Notice must be in a manner readily visible to users and must be
 at least as conspicuous as other legal notices or credits in the same
 interface. If there are no other notices or credits it is sufficient for the
 Attribution Notice to appear prominently in the header or footer of the
-interface. The Attribution URL and related attribution terms described herein
-are determined exclusively by NewTendermint, LLC. In cases of ambiguity,
-forks, or disputes regarding attribution, the designation made by
-NewTendermint, LLC shall conclusively govern.
+interface. Where the Attribution Notice is displayed in any user interface, you 
+must also provide a conspicuous link to the Gno.land Network Interaction Terms and, 
+if the interface enables package uploads, to the Gno.land Contributor License Agreement. 
+The Attribution URL and related attribution terms described herein are determined 
+exclusively by NewTendermint, LLC. In cases of ambiguity, forks, or disputes regarding 
+attribution, the designation made by NewTendermint, LLC shall conclusively govern.
 
 This attribution requirement remains in force for twelve (12) years from the
 date the Covered Work is first publicly released under this License, or twelve
