@@ -183,24 +183,6 @@ func TestPanicRecovery(t *testing.T) {
 	}
 }
 
-func TestNilProfilerSafe(t *testing.T) {
-	var p *Profiler
-
-	// All methods should be nil-safe
-	p.Start()    // no-op
-	p.BeginOp(OpAdd)
-	p.EndOp()
-	p.BeginStore(StoreGetObject)
-	p.EndStore(0)
-	p.BeginNative(NativePrint)
-	p.EndNative()
-	p.Recovery()
-	p.Reset()
-	p.Stop()   // returns nil
-	p.State()  // returns StateIdle
-	p.Config() // returns zero Config
-}
-
 func TestDisabledMeasurements(t *testing.T) {
 	cfg := Config{
 		EnableOps:    false,

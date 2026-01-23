@@ -61,9 +61,6 @@ func New(cfg Config) *Profiler {
 
 // Start begins profiling. Panics if not in StateIdle.
 func (p *Profiler) Start() {
-	if p == nil {
-		return
-	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -77,9 +74,6 @@ func (p *Profiler) Start() {
 
 // Stop ends profiling and returns the results. Panics if not in StateRunning.
 func (p *Profiler) Stop() *Results {
-	if p == nil {
-		return nil
-	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -93,12 +87,8 @@ func (p *Profiler) Stop() *Results {
 	return p.buildResults()
 }
 
-// Reset clears all collected data but keeps the profiler in its current state.
-// Useful for running multiple benchmarks without creating new profilers.
+// Reset clears all collected data and returns to idle state.
 func (p *Profiler) Reset() {
-	if p == nil {
-		return
-	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -112,17 +102,12 @@ func (p *Profiler) Reset() {
 	p.nativeStats = [256]nativeStat{}
 	p.currentNative = nil
 
-	if p.state == StateStopped {
-		p.state = StateIdle
-	}
+	p.state = StateIdle
 }
 
 // Recovery resets internal state after a panic without changing profiler state.
 // Call this from a recover block to ensure the profiler can continue.
 func (p *Profiler) Recovery() {
-	if p == nil {
-		return
-	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -134,9 +119,6 @@ func (p *Profiler) Recovery() {
 
 // State returns the current profiler state.
 func (p *Profiler) State() State {
-	if p == nil {
-		return StateIdle
-	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.state
@@ -144,8 +126,5 @@ func (p *Profiler) State() State {
 
 // Config returns the profiler's configuration.
 func (p *Profiler) Config() Config {
-	if p == nil {
-		return Config{}
-	}
 	return p.config
 }

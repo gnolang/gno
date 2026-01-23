@@ -20,12 +20,12 @@ type Results struct {
 
 // OpStatJSON is the JSON-serializable form of opcode statistics.
 type OpStatJSON struct {
-	Count   int64   `json:"count"`
-	TotalNs int64   `json:"total_ns"`
-	AvgNs   int64   `json:"avg_ns"`
-	MinNs   int64   `json:"min_ns"`
-	MaxNs   int64   `json:"max_ns"`
-	Gas     int64   `json:"gas"`
+	Count   int64 `json:"count"`
+	TotalNs int64 `json:"total_ns"`
+	AvgNs   int64 `json:"avg_ns"`
+	MinNs   int64 `json:"min_ns"`
+	MaxNs   int64 `json:"max_ns"`
+	Gas     int64 `json:"gas"`
 }
 
 // StoreStatJSON is the JSON-serializable form of store statistics.
@@ -84,10 +84,6 @@ func (p *Profiler) buildResults() *Results {
 			continue
 		}
 		op := StoreOp(i)
-		avgSize := int64(0)
-		if s.count > 0 {
-			avgSize = s.totalSize / s.count
-		}
 		r.StoreStats[op.String()] = &StoreStatJSON{
 			Count:     s.count,
 			TotalNs:   s.totalDur.Nanoseconds(),
@@ -95,7 +91,7 @@ func (p *Profiler) buildResults() *Results {
 			MinNs:     s.minDur.Nanoseconds(),
 			MaxNs:     s.maxDur.Nanoseconds(),
 			TotalSize: s.totalSize,
-			AvgSize:   avgSize,
+			AvgSize:   s.totalSize / s.count,
 		}
 	}
 

@@ -1,13 +1,10 @@
 package benchops
 
-import (
-	"runtime"
-	"time"
-)
+import "time"
 
 // BeginOp starts timing for an opcode.
 func (p *Profiler) BeginOp(op Op) {
-	if p == nil || !p.config.EnableOps {
+	if !p.config.EnableOps {
 		return
 	}
 
@@ -19,7 +16,7 @@ func (p *Profiler) BeginOp(op Op) {
 
 // EndOp stops timing for the current opcode and records the measurement.
 func (p *Profiler) EndOp() {
-	if p == nil || p.currentOp == nil {
+	if p.currentOp == nil {
 		return
 	}
 
@@ -33,7 +30,7 @@ func (p *Profiler) EndOp() {
 // BeginStore starts timing for a store operation.
 // Automatically pauses the current opcode timing on the first nested call.
 func (p *Profiler) BeginStore(op StoreOp) {
-	if p == nil || !p.config.EnableStore {
+	if !p.config.EnableStore {
 		return
 	}
 
@@ -53,7 +50,7 @@ func (p *Profiler) BeginStore(op StoreOp) {
 // EndStore stops timing for the current store operation and records the measurement.
 // Automatically resumes opcode timing when the store stack empties.
 func (p *Profiler) EndStore(size int) {
-	if p == nil || len(p.storeStack) == 0 {
+	if len(p.storeStack) == 0 {
 		return
 	}
 
@@ -77,13 +74,11 @@ func (p *Profiler) EndStore(size int) {
 }
 
 // BeginNative starts timing for a native function.
-// Runs GC first to reduce measurement noise.
 func (p *Profiler) BeginNative(op NativeOp) {
-	if p == nil || !p.config.EnableNative {
+	if !p.config.EnableNative {
 		return
 	}
 
-	runtime.GC()
 	p.currentNative = &nativeEntry{
 		op:        op,
 		startTime: time.Now(),
@@ -92,7 +87,7 @@ func (p *Profiler) BeginNative(op NativeOp) {
 
 // EndNative stops timing for the current native function and records the measurement.
 func (p *Profiler) EndNative() {
-	if p == nil || p.currentNative == nil {
+	if p.currentNative == nil {
 		return
 	}
 

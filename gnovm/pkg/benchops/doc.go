@@ -35,6 +35,17 @@
 // If the VM panics during execution, call Profiler.Recovery() to reset internal
 // state. This prevents corrupted timing data on subsequent runs.
 //
+// # Thread Safety
+//
+// A Profiler instance is NOT safe for concurrent use from multiple goroutines.
+// The measurement methods (BeginOp, EndOp, BeginStore, EndStore, BeginNative,
+// EndNative) do not acquire locks for performance reasons. Each goroutine
+// should use its own Profiler instance.
+//
+// The global profiler functions (when built with -tags gnobench) assume
+// single-threaded VM execution. SetGlobal should only be called during
+// initialization, before any measurement calls.
+//
 // # Usage
 //
 //	p := benchops.New(benchops.DefaultConfig())
