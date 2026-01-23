@@ -176,7 +176,6 @@ func Render(path string) string {
 // Get gets the Members store
 func Get() MembersByTier {
 	currealm := runtime.CurrentRealm().PkgPath()
-	// TODO: This should fail when there are no allowed DAOs
 	if !dao.InAllowedDAOs(currealm) {
 		panic("this Realm is not allowed to get the Members data: " + currealm)
 	}

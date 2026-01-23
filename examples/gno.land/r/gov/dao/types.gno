@@ -181,7 +181,6 @@ type SafeExecutor struct {
 
 func (e *SafeExecutor) Execute(cur realm) error {
 	// Verify the caller is an adequate Realm
-	// TODO: Ideally, safe executor should not execute when allowed DAOs is empty
 	if !InAllowedDAOs(runtime.PreviousRealm().PkgPath()) {
 		return errors.New("execution only allowed by validated govDAOs")
 	}

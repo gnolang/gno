@@ -185,7 +185,7 @@ func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.Propo
 // keys used by the treasury. The new list, if voted and accepted, will overwrite the current one.
 func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
 	if len(newTokenKeys) == 0 {
-		panic("the list of new tokens is ampty")
+		panic("the list of new tokens is empty")
 	}
 
 	cb := func(_ realm) error {
