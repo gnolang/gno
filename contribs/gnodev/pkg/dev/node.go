@@ -114,6 +114,23 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	}
 }
 
+type CachePath struct {
+	data map[string]bool
+	mu   sync.RWMutex
+}
+
+func (cp *CachePath) Set(key string) {
+	cp.mu.Lock()
+	defer cp.mu.Unlock()
+	cp.data[key] = true
+}
+
+func (cp *CachePath) Get(key string) bool {
+	cp.mu.RLock()
+	defer cp.mu.RUnlock()
+	return cp.data[key]
+}
+
 // Node is not thread safe
 type Node struct {
 	*node.Node
@@ -127,7 +144,7 @@ type Node struct {
 	pkgs         []packages.Package
 	pkgsModifier map[string]QueryPath // path -> QueryPath
 	paths        []string
-
+	cachepath    *CachePath
 	// keep track of number of loaded package to be able to skip them on restore
 	loadedPackages int
 
@@ -161,6 +178,7 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 		currentStateIndex: len(cfg.InitialTxs),
 		paths:             pkgpaths,
 		pkgsModifier:      pkgsModifier,
+		cachepath:         &CachePath{data: make(map[string]bool)},
 	}
 
 	// XXX: MOVE THIS, passing context here can be confusing
@@ -284,6 +302,11 @@ func (n *Node) getBlockTransactions(ctx context.Context, blockNum uint64) ([]gno
 		var tx std.Tx
 		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
 			return nil, fmt.Errorf("unable to unmarshal tx: %w", unmarshalErr)
+		}
+		for _, msg := range tx.Msgs {
+			if addpkg, ok := msg.(vm.MsgAddPackage); ok && addpkg.Package != nil {
+				n.cachepath.Set(addpkg.Package.Path)
+			}
 		}
 
 		metaTxs = append(metaTxs, gnoland.TxWithMetadata{
@@ -428,6 +451,11 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata
 func (n *Node) generateTxs(fee std.Fee, pkgs []packages.Package) []gnoland.TxWithMetadata {
 	metatxs := make([]gnoland.TxWithMetadata, 0, len(pkgs))
 	for _, pkg := range pkgs {
+		if n.cachepath.Get(pkg.Path) {
+			n.logger.Error("Can't reload package, package conflict in ", "path", pkg.Path)
+			continue
+		}
+
 		msg := vm.MsgAddPackage{
 			Creator:    n.config.DefaultCreator,
 			MaxDeposit: n.config.DefaultDeposit,
@@ -513,7 +541,6 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	// Generate txs
 	pkgsTxs := n.generateTxs(DefaultFee, pkgs)
 	genesis.Txs = append(pkgsTxs, state...)
-
 	// Reset the node with the new genesis state.
 	err = n.rebuildNode(ctx, genesis)
 	if err != nil {
@@ -528,7 +555,6 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	// Update node infos
 	n.pkgs = pkgs
 	n.loadedPackages = len(pkgsTxs)
-
 	// Emit reload event
 	n.emitter.Emit(&events.Reload{})
 	return nil
