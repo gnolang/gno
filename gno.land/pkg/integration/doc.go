@@ -54,6 +54,26 @@
 //   - NOTE: this command may only be temporary, as it's not best approach to
 //     solve the above problem
 //
+// # Bench Commands (requires -tags gnobench)
+//
+// Use SetupGnolandBenchInMemory to enable benchops profiling in testscripts.
+// This runs the node in-process, allowing direct access to the profiler.
+//
+// 1. `bench start [file] [sections] | bench stop`:
+//   - Starts/stops the benchops profiler.
+//   - Optional file specifies output path (default: profile.json).
+//   - Optional sections: opcodes, store, native, hotspots, all (comma-separated).
+//
+// 2. `jsonbench <file> [sections]`:
+//   - Parses bench profile and displays deterministic fields (counts and gas, no timing).
+//   - Supports both "gno test --bench-profile" (JSONL) and "gno run --bench-profile" (JSON) formats.
+//
+// 3. `cmpbench <file1> <file2> [sections]`:
+//   - Compares two bench profiles by their deterministic fields.
+//   - Fails if Count or Gas values differ.
+//
+// When updateScripts is true, profile outputs are written back to the txtar file.
+//
 // Logging:
 //
 // Gnoland logs aren't forwarded to stdout to avoid overwhelming the tests with too much
