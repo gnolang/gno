@@ -33,7 +33,7 @@ func TestMempoolNoProgressUntilTxsAvailable(t *testing.T) {
 	app := NewCounterApplication()
 	cs := newConsensusStateWithConfig(config, state, privVals[0], app)
 	assertMempool(cs.txNotifier).EnableTxsAvailable()
-	height, round := cs.Height, cs.Round
+	height, round := cs.Height.Load(), cs.Round
 	newBlockCh := subscribe(cs.evsw, types.EventNewBlock{})
 	startFrom(cs, height, round)
 	defer func() {
@@ -58,7 +58,7 @@ func TestMempoolProgressAfterCreateEmptyBlocksInterval(t *testing.T) {
 	app := NewCounterApplication()
 	cs := newConsensusStateWithConfig(config, state, privVals[0], app)
 	assertMempool(cs.txNotifier).EnableTxsAvailable()
-	height, round := cs.Height, cs.Round
+	height, round := cs.Height.Load(), cs.Round
 	newBlockCh := subscribe(cs.evsw, types.EventNewBlock{})
 	startFrom(cs, height, round)
 	defer func() {
@@ -82,12 +82,12 @@ func TestMempoolProgressInHigherRound(t *testing.T) {
 	app := NewCounterApplication()
 	cs := newConsensusStateWithConfig(config, state, privVals[0], app)
 	assertMempool(cs.txNotifier).EnableTxsAvailable()
-	height, round := cs.Height, cs.Round
+	height, round := cs.Height.Load(), cs.Round
 	newBlockCh := subscribe(cs.evsw, types.EventNewBlock{})
 	newStepCh := subscribe(cs.evsw, cstypes.EventNewRoundStep{})
 	timeoutCh := subscribe(cs.evsw, cstypes.EventTimeoutPropose{})
 	cs.setProposal = func(proposal *types.Proposal) error {
-		if cs.Height == 2 && cs.Round == 0 {
+		if cs.Height.Load() == 2 && cs.Round == 0 {
 			// dont set the proposal in round 0 so we timeout and
 			// go to next round
 			cs.Logger.Info("Ignoring set proposal at height 2, round 0")
@@ -149,7 +149,7 @@ func TestMempoolTxConcurrentWithCommit(t *testing.T) {
 	app := NewCounterApplication()
 	cs := newConsensusStateWithConfigAndBlockStore(config, state, privVals[0], app, blockDB)
 	sm.SaveState(blockDB, state)
-	height, round := cs.Height, cs.Round
+	height, round := cs.Height.Load(), cs.Round
 	newBlockCh := subscribe(cs.evsw, types.EventNewBlock{})
 
 	NTxs := 3000
