@@ -185,7 +185,10 @@ func (bs *BlockStore) SaveBlockWithBatch(batch dbm.Batch, block *types.Block, bl
 	// Save block meta
 	blockMeta := types.NewBlockMeta(block, blockParts)
 	metaBytes := amino.MustMarshal(blockMeta)
-	batch.Set(calcBlockMetaKey(height), metaBytes)
+	err := batch.Set(calcBlockMetaKey(height), metaBytes)
+	if err != nil {
+		panic(err)
+	}
 
 	// Save block parts
 	for i := range blockParts.Total() {
@@ -195,12 +198,18 @@ func (bs *BlockStore) SaveBlockWithBatch(batch dbm.Batch, block *types.Block, bl
 
 	// Save block commit (duplicate and separate from the Block)
 	blockCommitBytes := amino.MustMarshal(block.LastCommit)
-	batch.Set(calcBlockCommitKey(height-1), blockCommitBytes)
+	err = batch.Set(calcBlockCommitKey(height-1), blockCommitBytes)
+	if err != nil {
+		panic(err)
+	}
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
 	seenCommitBytes := amino.MustMarshal(seenCommit)
-	batch.Set(calcSeenCommitKey(height), seenCommitBytes)
+	err = batch.Set(calcSeenCommitKey(height), seenCommitBytes)
+	if err != nil {
+		panic(err)
+	}
 
 	// Save new BlockStoreStateJSON descriptor
 	BlockStoreStateJSON{Height: height}.Save(batch)
@@ -216,7 +225,10 @@ func (bs *BlockStore) saveBlockPart(batch dbm.Batch, height int64, index int, pa
 		panic(fmt.Sprintf("BlockStore can only save contiguous blocks. Wanted %v, got %v", bs.Height()+1, height))
 	}
 	partBytes := amino.MustMarshal(part)
-	batch.Set(calcBlockPartKey(height, index), partBytes)
+	err := batch.Set(calcBlockPartKey(height, index), partBytes)
+	if err != nil {
+		panic(err)
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -252,7 +264,10 @@ func (bsj BlockStoreStateJSON) Save(batch dbm.Batch) {
 	if err != nil {
 		panic(fmt.Sprintf("Could not marshal state bytes: %v", err))
 	}
-	batch.Set(blockStoreKey, bytes)
+	err = batch.Set(blockStoreKey, bytes)
+	if err != nil {
+		panic(fmt.Sprintf("Could not save blockStore state: %v", err))
+	}
 }
 
 // LoadBlockStoreStateJSON returns the BlockStoreStateJSON as loaded from disk.
