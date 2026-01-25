@@ -1263,10 +1263,6 @@ func (m *Machine) Run(st Stage) {
 		}
 		op := m.PopOp()
 		if benchops.Enabled {
-			// Benchmark the operation.
-			// First measure OpVoid for calibration.
-			benchops.BeginOp(benchops.OpVoid)
-			benchops.EndOp()
 			// We do not benchmark static evaluation (OpStaticTypeOf).
 			if op != OpStaticTypeOf {
 				benchops.BeginOp(benchops.Op(op))
@@ -1284,6 +1280,9 @@ func (m *Machine) Run(st Stage) {
 			return
 		case OpNoop:
 			m.incrCPU(OpCPUNoop)
+			if benchops.Enabled {
+				benchops.EndOp()
+			}
 			continue
 		case OpExec:
 			m.incrCPU(OpCPUExec)
