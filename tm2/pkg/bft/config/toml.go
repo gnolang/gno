@@ -109,7 +109,7 @@ func ResetTestRoot(testName string) (*Config, string) {
 	if config.Backup == nil {
 		config.Backup = &backup.Config{}
 	}
-	config.Backup.ListenAddress = "unix://" + filepath.Join(rootDir, "backup.sock")
+	config.Backup.ListenAddress = "localhost:4242"
 
 	return config, genesisFilePath
 }
