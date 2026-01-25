@@ -2,14 +2,16 @@ package main
 
 import (
 	"context"
-	"net/http/httptest"
+	"net"
 	"os"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/backup"
+	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 func TestBackup(t *testing.T) {
@@ -21,16 +23,30 @@ func TestBackup(t *testing.T) {
 		5: {Header: types.Header{Height: 5}},
 	}}
 
-	mux := backup.NewMux(store)
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
+	server := grpc.NewServer()
+	backupService := backup.NewBackupServiceHandler(store)
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	backuppb.RegisterBackupServiceServer(server, backupService)
+	t.Cleanup(func() {
+		server.Stop()
+		_ = lis.Close()
+	})
+
+	go func() {
+		if err := server.Serve(lis); err != nil {
+			t.Error(err)
+		}
+	}()
 
 	io := commands.NewTestIO()
 	io.SetOut(os.Stdout)
 	io.SetErr(os.Stderr)
+	outDir := t.TempDir()
 
-	err := newRootCmd(io).ParseAndRun(context.Background(), []string{
-		"--remote", srv.URL,
+	err = newRootCmd(io).ParseAndRun(context.Background(), []string{
+		"--remote", lis.Addr().String(),
+		"--o", outDir,
 	})
 	require.NoError(t, err)
 }

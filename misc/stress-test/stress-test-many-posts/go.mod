@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.23.8
 
 require (
-	connectrpc.com/connect v1.18.1
+	connectrpc.com/connect v1.16.2
 	github.com/gnolang/gnonative/v4 v4.2.2
 )
 
