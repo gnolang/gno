@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"testing"
@@ -183,7 +184,7 @@ func TestStreamBlocks(t *testing.T) {
 			var streamErr error
 			for {
 				msg, err := stream.Recv()
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				if err != nil {
@@ -226,8 +227,7 @@ func newTestClient(t *testing.T, store blockStore) (backuppb.BackupServiceClient
 	dialer := func(context.Context, string) (net.Conn, error) {
 		return listener.Dial()
 	}
-	conn, err := grpc.DialContext(
-		context.Background(),
+	conn, err := grpc.NewClient(
 		"bufnet",
 		grpc.WithContextDialer(dialer),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

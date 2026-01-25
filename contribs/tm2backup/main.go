@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -81,7 +82,7 @@ func execBackup(ctx context.Context, c *backupCfg, cmdIO commands.IO) (resErr er
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	core := zapcore.NewCore(zapcore.NewConsoleEncoder(config.EncoderConfig), zapcore.AddSync(cmdIO.Out()), config.Level)
 	logger := zap.New(core)
-	conn, err := grpc.Dial(c.remote, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(c.remote, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Println(err)
 		return
@@ -104,7 +105,7 @@ func execBackup(ctx context.Context, c *backupCfg, cmdIO commands.IO) (resErr er
 		for {
 			res, err := res.Recv()
 			// Stream closed, no error
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return nil
 			}
 			if err != nil {
