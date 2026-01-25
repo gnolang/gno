@@ -46,11 +46,10 @@ const _Kind_name = "InvalidKindBoolKindStringKindIntKindInt8KindInt16KindInt32Ki
 var _Kind_index = [...]uint16{0, 11, 19, 29, 36, 44, 53, 62, 71, 79, 88, 98, 108, 118, 129, 140, 150, 160, 169, 178, 189, 199, 210, 223, 231, 239, 246, 254, 263, 275, 284, 295}
 
 func (i Kind) String() string {
-	idx := int(i) - 0
-	if i < 0 || idx >= len(_Kind_index)-1 {
+	if i >= Kind(len(_Kind_index)-1) {
 		return "Kind(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Kind_name[_Kind_index[idx]:_Kind_index[idx+1]]
+	return _Kind_name[_Kind_index[i]:_Kind_index[i+1]]
 }
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
@@ -291,11 +290,10 @@ const _TransCtrl_name = "TRANS_CONTINUETRANS_SKIPTRANS_EXIT"
 var _TransCtrl_index = [...]uint8{0, 14, 24, 34}
 
 func (i TransCtrl) String() string {
-	idx := int(i) - 0
-	if i < 0 || idx >= len(_TransCtrl_index)-1 {
+	if i >= TransCtrl(len(_TransCtrl_index)-1) {
 		return "TransCtrl(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _TransCtrl_name[_TransCtrl_index[idx]:_TransCtrl_index[idx+1]]
+	return _TransCtrl_name[_TransCtrl_index[i]:_TransCtrl_index[i+1]]
 }
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
@@ -387,11 +385,10 @@ const _TransField_name = "TRANS_ROOTTRANS_BINARY_LEFTTRANS_BINARY_RIGHTTRANS_CAL
 var _TransField_index = [...]uint16{0, 10, 27, 45, 60, 74, 87, 104, 120, 133, 148, 164, 179, 191, 202, 220, 241, 254, 274, 293, 314, 332, 358, 376, 396, 416, 435, 454, 473, 492, 518, 538, 558, 579, 596, 615, 637, 653, 669, 685, 700, 716, 728, 742, 756, 770, 784, 797, 810, 823, 836, 849, 867, 881, 894, 909, 926, 942, 961, 978, 999, 1020, 1035, 1051, 1068, 1082, 1099, 1120, 1141, 1156, 1171, 1186, 1203, 1219, 1236, 1250, 1264, 1279, 1294, 1309}
 
 func (i TransField) String() string {
-	idx := int(i) - 0
-	if i < 0 || idx >= len(_TransField_index)-1 {
+	if i >= TransField(len(_TransField_index)-1) {
 		return "TransField(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _TransField_name[_TransField_index[idx]:_TransField_index[idx+1]]
+	return _TransField_name[_TransField_index[i]:_TransField_index[i+1]]
 }
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
@@ -511,9 +508,8 @@ const _Word_name = "ILLEGALNAMEINTFLOATIMAGCHARSTRINGADDSUBMULQUOREMBANDBORXORSH
 var _Word_index = [...]uint16{0, 7, 11, 14, 19, 23, 27, 33, 36, 39, 42, 45, 48, 52, 55, 58, 61, 64, 72, 82, 92, 102, 112, 122, 133, 143, 153, 163, 173, 188, 192, 195, 200, 203, 206, 209, 212, 215, 221, 224, 227, 230, 233, 239, 244, 248, 252, 257, 265, 272, 277, 281, 292, 295, 299, 301, 305, 307, 313, 322, 325, 332, 337, 343, 349, 355, 361, 365, 368}
 
 func (i Word) String() string {
-	idx := int(i) - 0
-	if i < 0 || idx >= len(_Word_index)-1 {
+	if i < 0 || i >= Word(len(_Word_index)-1) {
 		return "Word(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Word_name[_Word_index[idx]:_Word_index[idx+1]]
+	return _Word_name[_Word_index[i]:_Word_index[i+1]]
 }
