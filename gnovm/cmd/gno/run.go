@@ -19,13 +19,13 @@ import (
 )
 
 type runCmd struct {
-	verbose      bool
-	rootDir      string
-	expr         string
-	debug        bool
-	debugAddr    string
-	bench        bool
-	benchProfile string
+	verbose    bool
+	rootDir    string
+	expr       string
+	debug      bool
+	debugAddr  string
+	benchops   bool
+	opsProfile string
 }
 
 func newRunCmd(cio commands.IO) *commands.Command {
@@ -81,15 +81,15 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&c.bench,
-		"bench",
+		&c.benchops,
+		"benchops",
 		false,
 		"print operation profiling summary after execution (requires -tags gnobench build)",
 	)
 
 	fs.StringVar(
-		&c.benchProfile,
-		"bench-profile",
+		&c.opsProfile,
+		"opsprofile",
 		"",
 		"write operation profiling results to JSON file (requires -tags gnobench build)",
 	)
@@ -248,13 +248,13 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	}
 
 	// Warn if gnobench not enabled
-	if (cfg.bench || cfg.benchProfile != "") && !benchops.Enabled {
-		cio.ErrPrintln("warning: --bench/--bench-profile ignored (requires -tags gnobench build)")
+	if (cfg.benchops || cfg.opsProfile != "") && !benchops.Enabled {
+		cio.ErrPrintln("warning: --benchops/--opsprofile ignored (requires -tags gnobench build)")
 	}
 
 	// Start benchops profiling if enabled
-	if benchops.Enabled && (cfg.bench || cfg.benchProfile != "") {
-		benchops.Start()
+	if benchops.Enabled && (cfg.benchops || cfg.opsProfile != "") {
+		benchops.Start(benchops.WithTiming())
 		defer func() {
 			if !benchops.IsRunning() {
 				return
@@ -262,24 +262,24 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 			benchops.Recovery()
 			results := benchops.Stop()
 
-			if cfg.bench {
+			if cfg.benchops {
 				cio.ErrPrintln("\n--- Benchops Profile ---")
 				results.WriteReport(cio.Err(), 10)
 			}
 
-			if cfg.benchProfile == "" {
+			if cfg.opsProfile == "" {
 				return
 			}
-			f, err := os.Create(cfg.benchProfile)
+			f, err := os.Create(cfg.opsProfile)
 			if err != nil {
-				cio.ErrPrintfln("warning: could not create bench profile file: %v", err)
+				cio.ErrPrintfln("warning: could not create opsprofile file: %v", err)
 				return
 			}
 			if err := results.WriteJSON(f); err != nil {
-				cio.ErrPrintfln("warning: could not write bench profile: %v", err)
+				cio.ErrPrintfln("warning: could not write opsprofile: %v", err)
 			}
 			if err := f.Close(); err != nil {
-				cio.ErrPrintfln("warning: could not close bench profile file: %v", err)
+				cio.ErrPrintfln("warning: could not close opsprofile file: %v", err)
 			}
 		}()
 	}

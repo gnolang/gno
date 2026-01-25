@@ -147,12 +147,12 @@ type TestOptions struct {
 	// Uses Error to print the events emitted.
 	Events bool
 	// Print human-readable benchops profile after each test.
-	Bench bool
+	Benchops bool
 	// Path to JSON file for benchops profiling results (test2json-compatible JSONL).
-	BenchProfile string
+	OpsProfile string
 
-	// benchFile is the opened file for writing JSONL profile output.
-	benchFile *os.File
+	// opsFile is the opened file for writing JSONL profile output.
+	opsFile *os.File
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -178,7 +178,7 @@ type BenchEvent struct {
 
 // writeBenchEvent writes a single bench event to the profile file.
 func (opts *TestOptions) writeBenchEvent(pkg, testName string, elapsed time.Duration, results *benchops.Results) {
-	if opts.benchFile == nil || results == nil {
+	if opts.opsFile == nil || results == nil {
 		return
 	}
 	event := BenchEvent{
@@ -189,7 +189,7 @@ func (opts *TestOptions) writeBenchEvent(pkg, testName string, elapsed time.Dura
 		Elapsed: elapsed.Seconds(),
 		Profile: results,
 	}
-	if err := json.NewEncoder(opts.benchFile).Encode(event); err != nil {
+	if err := json.NewEncoder(opts.opsFile).Encode(event); err != nil {
 		fmt.Fprintf(opts.Error, "warning: could not write bench event: %v\n", err)
 	}
 }
@@ -199,7 +199,7 @@ func (opts *TestOptions) benchEnabled() bool {
 	if !benchops.Enabled {
 		return false
 	}
-	return opts.Bench || opts.BenchProfile != ""
+	return opts.Benchops || opts.OpsProfile != ""
 }
 
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
@@ -269,18 +269,18 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
 
-	// Open bench profile file if requested
-	if benchops.Enabled && opts.BenchProfile != "" {
-		f, err := os.Create(opts.BenchProfile)
+	// Open ops profile file if requested
+	if benchops.Enabled && opts.OpsProfile != "" {
+		f, err := os.Create(opts.OpsProfile)
 		if err != nil {
-			return fmt.Errorf("could not create bench profile file: %w", err)
+			return fmt.Errorf("could not create ops profile file: %w", err)
 		}
-		opts.benchFile = f
+		opts.opsFile = f
 		defer func() {
-			if err := opts.benchFile.Close(); err != nil {
-				fmt.Fprintf(opts.Error, "warning: could not close bench profile file: %v\n", err)
+			if err := opts.opsFile.Close(); err != nil {
+				fmt.Fprintf(opts.Error, "warning: could not close ops profile file: %v\n", err)
 			}
-			opts.benchFile = nil
+			opts.opsFile = nil
 		}()
 	}
 
@@ -413,11 +413,11 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 			// Output benchops profiling results
 			if benchResults != nil {
-				if opts.Bench {
-					fmt.Fprintf(opts.Error, "\n--- Bench: %s ---\n", testFileName)
+				if opts.Benchops {
+					fmt.Fprintf(opts.Error, "\n--- Benchops: %s ---\n", testFileName)
 					benchResults.WriteReport(opts.Error, 10)
 				}
-				if opts.BenchProfile != "" {
+				if opts.OpsProfile != "" {
 					opts.writeBenchEvent(mpkg.Path, testFileName, duration, benchResults)
 				}
 			}
@@ -619,11 +619,11 @@ func (opts *TestOptions) runTestFiles(
 
 		// Output benchops profiling results
 		if benchResults != nil {
-			if opts.Bench {
-				fmt.Fprintf(opts.Error, "\n--- Bench: %s ---\n", tf.Name)
+			if opts.Benchops {
+				fmt.Fprintf(opts.Error, "\n--- Benchops: %s ---\n", tf.Name)
 				benchResults.WriteReport(opts.Error, 10)
 			}
-			if opts.BenchProfile != "" {
+			if opts.OpsProfile != "" {
 				opts.writeBenchEvent(mpkg.Path, tf.Name, testDuration, benchResults)
 			}
 		}

@@ -34,8 +34,8 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
-	bench               bool
-	benchProfile        string
+	benchops            bool
+	opsProfile          string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -183,15 +183,15 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&c.bench,
-		"bench",
+		&c.benchops,
+		"benchops",
 		false,
 		"print operation profiling summary after each test (requires -tags gnobench build)",
 	)
 
 	fs.StringVar(
-		&c.benchProfile,
-		"bench-profile",
+		&c.opsProfile,
+		"opsprofile",
 		"",
 		"write operation profiling results to JSON file (requires -tags gnobench build)",
 	)
@@ -245,13 +245,13 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
-	opts.Bench = cmd.bench
-	opts.BenchProfile = cmd.benchProfile
+	opts.Benchops = cmd.benchops
+	opts.OpsProfile = cmd.opsProfile
 	cache := make(gno.TypeCheckCache, 64)
 
 	// Warn if gnobench not enabled
-	if (cmd.bench || cmd.benchProfile != "") && !benchops.Enabled {
-		io.ErrPrintln("warning: --bench/--bench-profile ignored (requires -tags gnobench build)")
+	if (cmd.benchops || cmd.opsProfile != "") && !benchops.Enabled {
+		io.ErrPrintln("warning: --benchops/--opsprofile ignored (requires -tags gnobench build)")
 	}
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.

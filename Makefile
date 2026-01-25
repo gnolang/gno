@@ -45,7 +45,10 @@ install.gnodev:
 install.gnobro:
 	$(MAKE) --no-print-directory -C ./contribs/gnobro install
 	@printf "\033[0;32m[+] 'gnobro' has been installed. Read more in ./contribs/gnobro/\033[0m\n"
-
+.PHONY: install.benchops
+install.benchops:
+	go install -tags gnobench ./gnovm/cmd/gno
+	@printf "\033[0;32m[+] 'gno' has been installed with benchops support (gnobench tag).\033[0m\n"
 
 # old aliases
 .PHONY: install_gnokey
