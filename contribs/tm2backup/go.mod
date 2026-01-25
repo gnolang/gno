@@ -7,10 +7,10 @@ toolchain go1.24.0
 replace github.com/gnolang/gno => ../..
 
 require (
-	connectrpc.com/connect v1.18.1
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
+	google.golang.org/grpc v1.75.0
 )
 
 require (
@@ -30,6 +30,7 @@ require (
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/term v0.34.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250825161204-c5933d9347a5 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

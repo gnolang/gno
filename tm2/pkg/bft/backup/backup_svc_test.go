@@ -2,15 +2,17 @@ package backup
 
 import (
 	"context"
-	"net/http/httptest"
+	"io"
+	"net"
 	"testing"
 
-	"connectrpc.com/connect"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb"
-	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb/backuppbconnect"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 func TestStreamBlocks(t *testing.T) {
@@ -160,36 +162,42 @@ func TestStreamBlocks(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			store := tc.initStore()
-			mux := NewMux(store)
-			srv := httptest.NewServer(mux)
-			defer srv.Close()
-			httpClient := srv.Client()
-			client := backuppbconnect.NewBackupServiceClient(httpClient, srv.URL)
+			client, cleanup := newTestClient(t, store)
+			defer cleanup()
 
-			stream, err := client.StreamBlocks(context.Background(), &connect.Request[backuppb.StreamBlocksRequest]{Msg: &backuppb.StreamBlocksRequest{
-				StartHeight: tc.start,
-				EndHeight:   tc.end,
-			}})
-			require.NoError(t, err)
-			defer func() {
-				require.NoError(t, stream.Close())
-			}()
+			stream, err := client.StreamBlocks(
+				context.Background(),
+				&backuppb.StreamBlocksRequest{
+					StartHeight: tc.start,
+					EndHeight:   tc.end,
+				},
+			)
+			if tc.errContains == "" {
+				require.NoError(t, err)
+			} else if err != nil {
+				require.ErrorContains(t, err, tc.errContains)
+				return
+			}
 
 			data := []*types.Block(nil)
+			var streamErr error
 			for {
-				if !stream.Receive() {
-					err := stream.Err()
-					if tc.errContains == "" {
-						require.NoError(t, err)
-					} else {
-						require.ErrorContains(t, err, tc.errContains)
-					}
+				msg, err := stream.Recv()
+				if err == io.EOF {
 					break
 				}
-				msg := stream.Msg()
+				if err != nil {
+					streamErr = err
+					break
+				}
 				block := &types.Block{}
 				require.NoError(t, amino.Unmarshal(msg.Data, block))
 				data = append(data, block)
+			}
+			if tc.errContains == "" {
+				require.NoError(t, streamErr)
+			} else {
+				require.ErrorContains(t, streamErr, tc.errContains)
 			}
 			require.Equal(t, tc.expectedResult, data)
 		})
@@ -198,9 +206,41 @@ func TestStreamBlocks(t *testing.T) {
 
 func TestNewServer(t *testing.T) {
 	require.NotPanics(t, func() {
-		serv := NewServer(DefaultConfig(), &mockBlockStore{})
-		require.NotNil(t, serv)
+		srv := grpc.NewServer()
+		backuppb.RegisterBackupServiceServer(srv, NewBackupServiceHandler(&mockBlockStore{}))
+		require.NotNil(t, srv)
 	})
+}
+
+func newTestClient(t *testing.T, store blockStore) (backuppb.BackupServiceClient, func()) {
+	t.Helper()
+
+	listener := bufconn.Listen(1024 * 1024)
+	server := grpc.NewServer()
+	backuppb.RegisterBackupServiceServer(server, NewBackupServiceHandler(store))
+
+	go func() {
+		_ = server.Serve(listener)
+	}()
+
+	dialer := func(context.Context, string) (net.Conn, error) {
+		return listener.Dial()
+	}
+	conn, err := grpc.DialContext(
+		context.Background(),
+		"bufnet",
+		grpc.WithContextDialer(dialer),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	require.NoError(t, err)
+
+	cleanup := func() {
+		_ = conn.Close()
+		server.Stop()
+		_ = listener.Close()
+	}
+
+	return backuppb.NewBackupServiceClient(conn), cleanup
 }
 
 type mockBlockStore struct {

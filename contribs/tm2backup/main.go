@@ -4,12 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
+	"io"
+	"log"
 	"os"
 
-	"connectrpc.com/connect"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb"
-	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb/backuppbconnect"
 	"github.com/gnolang/gno/tm2/pkg/bft/backup/v1"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"go.uber.org/zap"
@@ -74,36 +76,41 @@ func (c *backupCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execBackup(ctx context.Context, c *backupCfg, io commands.IO) (resErr error) {
+func execBackup(ctx context.Context, c *backupCfg, cmdIO commands.IO) (resErr error) {
 	config := zap.NewDevelopmentConfig()
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	core := zapcore.NewCore(zapcore.NewConsoleEncoder(config.EncoderConfig), zapcore.AddSync(io.Out()), config.Level)
+	core := zapcore.NewCore(zapcore.NewConsoleEncoder(config.EncoderConfig), zapcore.AddSync(cmdIO.Out()), config.Level)
 	logger := zap.New(core)
+	conn, err := grpc.Dial(c.remote, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
 	return backup.WithWriter(c.outDir, c.startHeight, c.endHeight, logger, func(startHeight int64, write func(bytes []byte) error) error {
-		client := backuppbconnect.NewBackupServiceClient(
-			http.DefaultClient,
-			c.remote,
-			connect.WithGRPC(),
-		)
+		client := backuppb.NewBackupServiceClient(conn)
 		res, err := client.StreamBlocks(
 			ctx,
-			connect.NewRequest(&backuppb.StreamBlocksRequest{
+			&backuppb.StreamBlocksRequest{
 				StartHeight: startHeight,
 				EndHeight:   c.endHeight,
-			}),
+			},
 		)
+
 		if err != nil {
 			return fmt.Errorf("open blocks stream: %w", err)
 		}
 
 		for {
-			ok := res.Receive()
-			if !ok {
-				return res.Err()
+			res, err := res.Recv()
+			// Stream closed, no error
+			if err == io.EOF {
+				return nil
 			}
-
-			if err := write(res.Msg().Data); err != nil {
+			if err != nil {
+				return err
+			}
+			if err := write(res.Data); err != nil {
 				return err
 			}
 		}

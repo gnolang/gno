@@ -30,8 +30,6 @@ import (
 	// embedmd
 	_ "github.com/campoy/embedmd/embedmd"
 
-	// backup grpc
-	_ "connectrpc.com/connect/cmd/protoc-gen-connect-go"
-	_ "github.com/bufbuild/buf/cmd/buf"
-	_ "google.golang.org/protobuf/cmd/protoc-gen-go"
+	// required to generate mocks (see `make mocks`)
+	_ "github.com/golang/mock/mockgen"
 )

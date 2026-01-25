@@ -14,9 +14,12 @@ import (
 	"time"
 
 	"github.com/rs/cors"
+	"google.golang.org/grpc"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/backup"
+	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
@@ -181,7 +184,7 @@ type Node struct {
 	txEventStore      eventstore.TxEventStore
 	eventStoreService *eventstore.Service
 	firstBlockSignal  <-chan struct{}
-	backupServer      *http.Server
+	backupServer      *grpc.Server
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -606,9 +609,16 @@ func (n *Node) OnStart() error {
 
 	// start backup server if requested
 	if n.config.Backup != nil && n.config.Backup.ListenAddress != "" {
-		n.backupServer = backup.NewServer(n.config.Backup, n.blockStore)
+		n.backupServer = grpc.NewServer()
+		backupService := backup.NewBackupServiceHandler(n.blockStore)
+		backuppb.RegisterBackupServiceServer(n.backupServer, backupService)
+		lis, err := net.Listen("tcp", n.config.Backup.ListenAddress)
+		if err != nil {
+			panic(errors.Wrap(err, "failed to create grpc listener for backup server"))
+		}
+
 		go func() {
-			if err := n.backupServer.ListenAndServe(); err != nil {
+			if err := n.backupServer.Serve(lis); err != nil {
 				n.Logger.Info("Backup server stopped", "err", err)
 			}
 		}()
@@ -692,11 +702,7 @@ func (n *Node) OnStop() {
 
 	// stop the backup server if started
 	if n.backupServer != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-		defer cancel()
-		if err := n.backupServer.Shutdown(ctx); err != nil {
-			n.Logger.Error("Error closing backup server", "err", err)
-		}
+		n.backupServer.GracefulStop()
 	}
 
 	// finally stop the listeners / external services
