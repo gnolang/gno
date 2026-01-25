@@ -23,11 +23,32 @@ func init() {
 	global.Store(noopState)
 }
 
+// ---- Functional Options
+
+// Option configures the profiler behavior.
+type Option func(*Profiler)
+
+// WithTiming enables wall-clock timing for all operations.
+// Without this option, only gas/count tracking is performed (minimal overhead).
+// Use this when you need timing data for performance analysis.
+func WithTiming() Option {
+	return func(p *Profiler) { p.timingEnabled = true }
+}
+
+// ---- Configuration Functions
+
 // Start begins profiling with a new Profiler.
+// Accepts optional functional options to configure the profiler.
 // Uses CompareAndSwap to detect concurrent Start calls.
 // Panics if profiling is already active.
-func Start() {
+func Start(opts ...Option) {
 	p := New()
+
+	// Apply options before starting
+	for _, opt := range opts {
+		opt(p)
+	}
+
 	p.Start()
 	newState := &globalState{recorder: p, profiler: p}
 
@@ -58,6 +79,8 @@ func IsRunning() bool {
 	return global.Load().profiler != nil
 }
 
+// ---- Hot Path Functions (explicit Begin/End for VM main loop)
+
 // BeginOp starts timing for an opcode using the global recorder.
 func BeginOp(op Op) {
 	global.Load().recorder.BeginOp(op)
@@ -73,25 +96,51 @@ func SetOpContext(ctx OpContext) {
 	global.Load().recorder.SetOpContext(ctx)
 }
 
-// BeginStore starts timing for a store operation using the global recorder.
+// ---- Store Operations
+
+// BeginStore starts tracking a store operation.
 func BeginStore(op StoreOp) {
 	global.Load().recorder.BeginStore(op)
 }
 
-// EndStore stops timing for the current store operation using the global recorder.
+// EndStore completes the current store operation with its size.
 func EndStore(size int) {
 	global.Load().recorder.EndStore(size)
 }
 
-// BeginNative starts timing for a native function using the global recorder.
+// ---- Native Operations
+
+// BeginNative starts tracking a native function call.
 func BeginNative(op NativeOp) {
 	global.Load().recorder.BeginNative(op)
 }
 
-// EndNative stops timing for the current native function using the global recorder.
+// EndNative completes the current native function call.
 func EndNative() {
 	global.Load().recorder.EndNative()
 }
+
+// ---- Defer-Friendly Trace Functions
+
+// TraceStore traces a store operation. Returns a closer that accepts size.
+// Always records count. Only records timing if WithTiming() was used.
+// Usage: defer benchops.TraceStore(benchops.StoreGetObject)(size)
+func TraceStore(op StoreOp) func(size int) {
+	rec := global.Load().recorder
+	rec.BeginStore(op)
+	return rec.EndStore
+}
+
+// TraceNative traces a native function call.
+// Always records count. Only records timing if WithTiming() was used.
+// Usage: defer benchops.TraceNative(benchops.NativeXxx)()
+func TraceNative(op NativeOp) func() {
+	rec := global.Load().recorder
+	rec.BeginNative(op)
+	return rec.EndNative
+}
+
+// ---- Recovery
 
 // Recovery resets the global profiler's internal state after a panic.
 // No-op if profiler is not running.

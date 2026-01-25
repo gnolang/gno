@@ -71,18 +71,24 @@ type Profiler struct {
 	startTime time.Time
 	stopTime  time.Time
 
-	// Op statistics
-	opStats   [maxOpCodes]opStat
-	opStack   []opStackEntry
-	currentOp *opStackEntry
+	// Configuration (set via options before Start)
+	timingEnabled bool // Track wall-clock time (expensive, opt-in)
+
+	// Op statistics (gas-only by default)
+	opStats      [maxOpCodes]opStat
+	opStatsTimed [maxOpCodes]opStatTimed // only populated if timingEnabled
+	opStack      []opStackEntry
+	currentOp    *opStackEntry
 
 	// Store statistics
-	storeStats [maxOpCodes]storeStat
-	storeStack []storeStackEntry
+	storeStats      [maxOpCodes]storeStat
+	storeStatsTimed [maxOpCodes]storeStatTimed // only populated if timingEnabled
+	storeStack      []storeStackEntry
 
 	// Native statistics
-	nativeStats   [maxOpCodes]nativeStat
-	currentNative *nativeEntry
+	nativeStats      [maxOpCodes]nativeStat
+	nativeStatsTimed [maxOpCodes]nativeStatTimed // only populated if timingEnabled
+	currentNative    *nativeEntry
 
 	// Location statistics (key: "file:line")
 	locationStats map[string]*locationStat
@@ -140,11 +146,14 @@ func (p *Profiler) Stop() *Results {
 // clearData clears all collected measurement data without changing state.
 func (p *Profiler) clearData() {
 	p.opStats = [maxOpCodes]opStat{}
+	p.opStatsTimed = [maxOpCodes]opStatTimed{}
 	p.opStack = p.opStack[:0]
 	p.currentOp = nil
 	p.storeStats = [maxOpCodes]storeStat{}
+	p.storeStatsTimed = [maxOpCodes]storeStatTimed{}
 	p.storeStack = p.storeStack[:0]
 	p.nativeStats = [maxOpCodes]nativeStat{}
+	p.nativeStatsTimed = [maxOpCodes]nativeStatTimed{}
 	p.currentNative = nil
 	p.locationStats = make(map[string]*locationStat)
 }

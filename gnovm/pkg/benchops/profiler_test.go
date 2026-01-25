@@ -99,6 +99,7 @@ func TestProfilerResetPanicsWhenRunning(t *testing.T) {
 
 func TestOpMeasurement(t *testing.T) {
 	p := New()
+	p.timingEnabled = true // Enable timing for this test
 	p.Start()
 
 	// Measure some ops (sleep ensures measurable duration for timing verification)
