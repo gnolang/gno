@@ -201,12 +201,10 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
-			// Save Types to m.Store (while preprocessing).
+			// Save Types to constTypeExpr (while preprocessing).
 			fn = Preprocess(m.Store, pn, fn).(*FileNode)
 			// Save BlockNodes to m.Store.
 			SaveBlockNodes(m.Store, fn)
-
-			SaveTypes(m.Store, fn)
 		}
 		// Normally, the fileset would be added onto the
 		// package node only after runFiles(), but we cannot

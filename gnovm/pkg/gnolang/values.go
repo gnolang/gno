@@ -531,6 +531,9 @@ func (fv *FuncValue) GetType(store Store) *FuncType {
 	case nil:
 		return nil
 	case RefType:
+		// NOTE: This doesn't happen yet:
+		// only *DeclaredTypes become RefTypes.
+		// In the future we may change this.
 		typ := store.GetType(ct.ID).(*FuncType)
 		fv.Type = typ
 		return typ
