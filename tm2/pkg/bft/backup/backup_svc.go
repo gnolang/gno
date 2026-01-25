@@ -1,18 +1,12 @@
 package backup
 
 import (
-	"context"
 	"fmt"
-	"net/http"
-	"time"
 
-	"connectrpc.com/connect"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb"
-	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb/backuppbconnect"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
+	"google.golang.org/grpc"
 )
 
 type Config struct {
@@ -29,32 +23,22 @@ type blockStore interface {
 	LoadBlock(height int64) *types.Block
 }
 
-func NewBackupServiceHandler(store blockStore) (string, http.Handler) {
+func NewBackupServiceHandler(store blockStore) backuppb.BackupServiceServer {
 	backupServ := &backupServer{store: store}
-	return backuppbconnect.NewBackupServiceHandler(backupServ)
-}
-
-func NewMux(store blockStore) *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.Handle(NewBackupServiceHandler(store))
-	return mux
-}
-
-func NewServer(conf *Config, store blockStore) *http.Server {
-	mux := NewMux(store)
-	return &http.Server{Addr: conf.ListenAddress, Handler: h2c.NewHandler(mux, &http2.Server{}), ReadHeaderTimeout: time.Second * 5}
+	return backupServ
 }
 
 type backupServer struct {
+	backuppb.UnimplementedBackupServiceServer
 	store blockStore
 }
 
 // StreamBlocks implements backuppbconnect.BackupServiceHandler.
-func (b *backupServer) StreamBlocks(_ context.Context, req *connect.Request[backuppb.StreamBlocksRequest], stream *connect.ServerStream[backuppb.StreamBlocksResponse]) error {
-	if req == nil || req.Msg == nil {
+func (b *backupServer) StreamBlocks(req *backuppb.StreamBlocksRequest, stream grpc.ServerStreamingServer[backuppb.StreamBlocksResponse]) error {
+	if req == nil {
 		return fmt.Errorf("request is nil")
 	}
-	startHeight := req.Msg.StartHeight
+	startHeight := req.StartHeight
 	if startHeight == 0 {
 		startHeight = 1
 	}
@@ -67,7 +51,7 @@ func (b *backupServer) StreamBlocks(_ context.Context, req *connect.Request[back
 		return fmt.Errorf("block store returned invalid max height (%d)", blockStoreHeight)
 	}
 
-	endHeight := req.Msg.EndHeight
+	endHeight := req.EndHeight
 	if endHeight == 0 {
 		endHeight = blockStoreHeight
 	} else if endHeight > blockStoreHeight {
@@ -97,4 +81,4 @@ func (b *backupServer) StreamBlocks(_ context.Context, req *connect.Request[back
 	return nil
 }
 
-var _ backuppbconnect.BackupServiceHandler = (*backupServer)(nil)
+var _ backuppb.BackupServiceServer = (*backupServer)(nil)

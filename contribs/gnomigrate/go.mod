@@ -10,7 +10,6 @@ require (
 replace github.com/gnolang/gno => ../..
 
 require (
-	connectrpc.com/connect v1.18.1 // indirect
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
