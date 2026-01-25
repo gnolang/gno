@@ -228,7 +228,7 @@ func newTestClient(t *testing.T, store blockStore) (backuppb.BackupServiceClient
 		return listener.Dial()
 	}
 	conn, err := grpc.NewClient(
-		"bufnet",
+		"passthrough:///bufnet",
 		grpc.WithContextDialer(dialer),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
