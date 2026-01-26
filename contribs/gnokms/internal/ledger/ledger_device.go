@@ -25,14 +25,14 @@ func requiredLedgerVersion() ledgerAppVersion {
 	return ledgerAppVersion{AppMode: 0, Major: 0, Minor: 5, Patch: 0}
 }
 
-func (v ledgerAppVersion) meetsMinimum(min ledgerAppVersion) bool {
-	if v.Major != min.Major {
-		return v.Major > min.Major
+func (v ledgerAppVersion) meetsMinimum(minimum ledgerAppVersion) bool {
+	if v.Major != minimum.Major {
+		return v.Major > minimum.Major
 	}
-	if v.Minor != min.Minor {
-		return v.Minor > min.Minor
+	if v.Minor != minimum.Minor {
+		return v.Minor > minimum.Minor
 	}
-	return v.Patch >= min.Patch
+	return v.Patch >= minimum.Patch
 }
 
 type tendermintLedger struct {
