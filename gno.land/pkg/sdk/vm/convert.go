@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -144,11 +145,11 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetUint64(u64)
 			return
 		case gno.Float32Type:
-			value := convertFloat(arg, 32)
+			value := convertStringToFloat(arg, 32)
 			tv.SetFloat32(math.Float32bits(float32(value)))
 			return
 		case gno.Float64Type:
-			value := convertFloat(arg, 64)
+			value := convertStringToFloat(arg, 64)
 			tv.SetFloat64(math.Float64bits(value))
 			return
 		default:
@@ -194,7 +195,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	}
 }
 
-func convertFloat(value string, precision int) float64 {
+func convertStringToFloat(value string, precision int) float64 {
 	assertNoPlusPrefix(value)
 	dec, _, err := apd.NewFromString(value)
 	if err != nil {
@@ -207,4 +208,63 @@ func convertFloat(value string, precision int) float64 {
 	}
 
 	return f64
+}
+
+type jsonResults struct {
+	Results json.RawMessage `json:"results"`
+	Error   *string         `json:"@error,omitempty"`
+}
+
+// stringifyJSONResults converts TypedValues to JSON format.
+// ft is the function type (if available) used for signature-based error detection.
+// When ft is provided, @error is extracted only if the function signature declares
+// an error return type. When ft is nil, fallback to value-based detection.
+func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, ft *gno.FuncType) string {
+	jres := jsonResults{Results: []byte("[]")}
+	if len(tvs) > 0 {
+		var err error
+
+		opts := gno.JSONExporterOptions{MaxDepth: 10, ExportUnexported: true}
+		if jres.Results, err = opts.ExportTypedValues(tvs); err != nil {
+			panic("unable to marshal results")
+		}
+
+		// Check for error based on function signature. If the func return type's last
+		// element is exactly a named or unnamed interface type which implements error,
+		// then .Error() is called.
+		last := tvs[len(tvs)-1]
+		shouldExtractError := false
+		if ft != nil && len(ft.Results) > 0 {
+			// Signature-based: check if declared return type implements error
+			lastReturnType := ft.Results[len(ft.Results)-1].Type
+			shouldExtractError = gno.IsErrorType(lastReturnType)
+		} else {
+			// Fallback for QueryEval: value-based detection
+			shouldExtractError = last.ImplError()
+		}
+
+		if shouldExtractError {
+			if errStr, ok := tryGetError(m, last); ok {
+				jres.Error = &errStr
+			}
+		}
+	}
+
+	s, err := json.Marshal(jres)
+	if err != nil {
+		panic("unable to marshal result")
+	}
+
+	return string(s)
+}
+
+func tryGetError(m *gno.Machine, tv gno.TypedValue) (string, bool) {
+	// Check if type implements error interface
+	if !tv.ImplError() {
+		return "", false
+	}
+
+	// Call .Error() method using the same approach as TypedValue.Sprint()
+	res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
+	return res[0].GetString(), true
 }

@@ -47,7 +47,7 @@ gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=
 
 ## Check collector1 balance, must have changed
 gnokey query bank/balances/$collector1_user_addr
-stdout '997490700ugnot'
+stdout '997498900ugnot'
 
 ## Submit a proposal to change fee_collector to collector2
 
@@ -63,22 +63,22 @@ stdout 'OK!'
 
 ## Check collector1 balance
 gnokey query bank/balances/$collector1_user_addr
-stdout '999590700ugnot'
+stdout '999598900ugnot'
 
 ## Check collector2 balance
 gnokey query bank/balances/$collector2_user_addr
-stdout '997403000ugnot'
+stdout '997411200ugnot'
 
 ## Make costly tx
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/costly.gno
 
 ## Check collector1 balance, must not have changed
 gnokey query bank/balances/$collector1_user_addr
-stdout '999590700ugnot'
+stdout '999598900ugnot'
 
 ## Check collector2 balance, must have changed
 gnokey query bank/balances/$collector2_user_addr
-stdout '997503000ugnot'
+stdout '997511200ugnot'
 
 -- run/load_user.gno --
 package main

@@ -40,6 +40,10 @@ func execRotate(cfg *RotateCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
+	if cfg.RootCfg.Json {
+		io.ErrPrintln("warning: -json flag has no effect on `rotate` command")
+	}
+
 	nameOrBech32 := args[0]
 
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
