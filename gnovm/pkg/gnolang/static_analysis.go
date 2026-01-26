@@ -146,7 +146,7 @@ func (s *staticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 		return terminates && elseTerminates
 	case *ForStmt:
 		s.push(&ForContext{forstmt: n})
-		_ = s.staticAnalysisBlockStmt(n.BodyBlock.Body)
+		_ = s.staticAnalysisBlockStmt(n.Body)
 		ctx := s.pop().(*ForContext)
 		// there are no "break" statements referring to the "for" statement
 		hasNoBreaks := len(ctx.breakstmts) == 0

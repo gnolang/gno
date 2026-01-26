@@ -141,9 +141,9 @@ const (
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
 	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH" // if name expr refers to package.
 	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"     // gno fix this version.
-	ATTR_REDEFINE_NAME         GnoAttribute = "ATTR_REDEFINE_NAME"
-	ATTR_HEAP_DEFINE_LOOPVAR   GnoAttribute = "ATTR_HEAP_DEFINE_LOOPVAR"
-	ATTR_CONTINUE_INSERT       GnoAttribute = "ATTR_CONTINUE_INSERT"
+	// ATTR_REDEFINE_NAME         GnoAttribute = "ATTR_REDEFINE_NAME"
+	ATTR_HEAP_DEFINE_LOOPVAR GnoAttribute = "ATTR_HEAP_DEFINE_LOOPVAR"
+	ATTR_CONTINUE_INSERT     GnoAttribute = "ATTR_CONTINUE_INSERT"
 )
 
 // Embedded in each Node.
@@ -892,18 +892,10 @@ type ExprStmt struct {
 type ForStmt struct {
 	Attributes
 	StaticBlock
-	Init      Stmt // initialization (simple) statement; or nil
-	Cond      Expr // condition; or nil
-	Post      Stmt // post iteration (simple) statement; or nil
-	BodyBlock *BlockStmt
-}
-
-func (fs *ForStmt) GetBody() Body {
-	return fs.BodyBlock.Body
-}
-
-func (fs *ForStmt) SetBody(b Body) {
-	fs.BodyBlock.Body.SetBody(b)
+	Init Stmt // initialization (simple) statement; or nil
+	Cond Expr // condition; or nil
+	Post Stmt // post iteration (simple) statement; or nil
+	Body
 }
 
 type GoStmt struct {

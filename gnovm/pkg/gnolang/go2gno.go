@@ -442,10 +442,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.ForStmt:
 		return &ForStmt{
-			Init:      toSimp(fs, gon.Init),
-			Cond:      toExpr(fs, gon.Cond),
-			Post:      toSimp(fs, gon.Post),
-			BodyBlock: &BlockStmt{Body: toBody(fs, gon.Body)},
+			Init: toSimp(fs, gon.Init),
+			Cond: toExpr(fs, gon.Cond),
+			Post: toSimp(fs, gon.Post),
+			Body: toBody(fs, gon.Body),
 		}
 	case *ast.IfStmt:
 		thenStmt := IfCaseStmt{
