@@ -2101,7 +2101,7 @@ func (m *Machine) PeekFrameAndContinueFor() {
 	m.Ops = m.Ops[:fr.NumOps+1]
 	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
-	m.Stmts = m.Stmts[:fr.NumStmts+1+1] // keep bodystmt in stack
+	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
 	ls := m.PeekStmt(1).(*bodyStmt)
 	ls.NextBodyIndex = ls.BodyLen

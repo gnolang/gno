@@ -313,7 +313,7 @@ func (x ForStmt) String() string {
 		post = x.Post.String()
 	}
 	return fmt.Sprintf("for %s; %s; %s %s ",
-		init, cond, post, x.BodyBlock.String())
+		init, cond, post, x.Body.String())
 }
 
 func (x GoStmt) String() string {
