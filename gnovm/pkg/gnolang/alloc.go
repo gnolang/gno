@@ -100,6 +100,15 @@ func (alloc *Allocator) SetGasMeter(gasMeter store.GasMeter) {
 	alloc.gasMeter = gasMeter
 }
 
+func (alloc *Allocator) ConsumeCPU(cycles int64) {
+	if alloc == nil {
+		return
+	}
+	if alloc.gasMeter != nil {
+		alloc.gasMeter.ConsumeGas(overflow.Mulp(cycles, GasFactorCPU), "CPUCycles")
+	}
+}
+
 func (alloc *Allocator) MemStats() string {
 	if alloc == nil {
 		return "nil allocator"

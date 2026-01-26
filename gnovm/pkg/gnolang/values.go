@@ -2608,6 +2608,7 @@ type HeapItemValue struct {
 
 func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 	tvs := alloc.NewStructFields(len(st.Fields))
+	alloc.ConsumeCPU(int64(len(st.Fields)) * OpCPURangeIter)
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {
 			tvs[i] = defaultTypedValue(alloc, ft.Type)
@@ -2629,6 +2630,7 @@ func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	av := alloc.NewListArray(at.Len)
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
+		alloc.ConsumeCPU(int64(at.Len) * OpCPURangeIter)
 		for i := range at.Len {
 			tvs[i] = defaultTypedValue(alloc, et)
 		}
