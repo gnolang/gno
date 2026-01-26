@@ -9,15 +9,13 @@ func inc2(j *int) {
 
 func forLoopRef() {
 	for i := 0; i < 5; inc2(&i) {
-		// .redefine_i := .loopvar_i // still need this.
-
 		if i == 2 {
-			// just to test continue injection.
+		// Copy out.
 			continue
 		}
 
 		println("ok")
-		// .loopvar_i<loopvarHeapUse> = .redefine_i
+		// Copy out.
 	}
 
 	println("s1: ", s1)

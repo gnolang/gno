@@ -1090,7 +1090,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
-				// fmt.Println("---Trans_Leave *NameExpr: ", n)
 				if isBlankIdentifier(n) {
 					switch ftype {
 					case TRANS_ASSIGN_LHS, TRANS_RANGE_KEY, TRANS_RANGE_VALUE, TRANS_VAR_NAME:

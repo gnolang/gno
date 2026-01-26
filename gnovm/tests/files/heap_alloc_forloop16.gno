@@ -3,20 +3,18 @@ package main
 func main() {
 	var f func()
 	for i := 0; i < 1; {
-		// right place to inject...
-		// i := i // .redefine_i = .loopvar_i
 		println("enter, i: ", i) // 0
-		i++ // .redefine_i
+		i++
 		println("after inc, i: ", i) // 1
 
 		f = func(){
-			start := i // .redefine_i, value is 1
+			start := i 
 			println("capture, start: ", start)
 		}
 		f()
-		i++ // .redefine_i
+		i++ 
 		// Copy back
-		// .loopvar_i = .redefine_i
+		// .loopvar_i<NameExprTypeLoopVarHeapDefine> = .loopvar_i
 	}
 }
 

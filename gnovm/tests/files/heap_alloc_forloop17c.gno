@@ -4,7 +4,6 @@ func main() {
 	var f func()
 OUTER:
 	for i := 0; i < 3; {
-		// .redefine_i = .loopvar_i
 		println("enter, i: ", i)
 
 		for j := 0; j < 2; j++ {
@@ -13,8 +12,8 @@ OUTER:
 			}
 			if j == 1 {
 				println("---continue")
-				i++ // .redefine_i, => 3
-				// .loopvar_i = .redefine_i
+				i++ 
+				// Copy out.
 				continue OUTER
 			}
 		}
