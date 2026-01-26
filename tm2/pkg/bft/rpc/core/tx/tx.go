@@ -1,6 +1,7 @@
 package tx
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
@@ -8,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // Handler is the transaction RPC handler
@@ -31,6 +33,9 @@ func NewHandler(blockStore sm.BlockStore, stateDB dbm.DB) *Handler {
 //	Params:
 //	- hash []byte (required)
 func (h *Handler) TxHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	_, span := traces.Tracer().Start(context.Background(), "Tx")
+	defer span.End()
+
 	const idxHash = 0
 
 	hash, err := params.AsBytes(p, idxHash, true)

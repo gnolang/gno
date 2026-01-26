@@ -1,6 +1,8 @@
 package consensus
 
 import (
+	"context"
+
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -10,6 +12,7 @@ import (
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // Handler is the consensus RPC handler
@@ -36,6 +39,9 @@ func NewHandler(consensusState Consensus, stateDB dbm.DB, peers ctypes.Peers) *H
 //	Params:
 //	- height   int64 (optional, default latest height)
 func (h *Handler) ValidatorsHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	_, span := traces.Tracer().Start(context.Background(), "Validators")
+	defer span.End()
+
 	const idxHeight = 0
 
 	heightVal, err := params.AsInt64(p, idxHeight)
@@ -68,6 +74,9 @@ func (h *Handler) DumpConsensusStateHandler(_ *metadata.Metadata, p []any) (any,
 	if len(p) > 0 {
 		return nil, spec.GenerateInvalidParamError(1)
 	}
+
+	_, span := traces.Tracer().Start(context.Background(), "DumpConsensusState")
+	defer span.End()
 
 	var (
 		peers      = h.peers.Peers().List()
@@ -114,6 +123,9 @@ func (h *Handler) ConsensusStateHandler(_ *metadata.Metadata, p []any) (any, *sp
 		return nil, spec.GenerateInvalidParamError(1)
 	}
 
+	_, span := traces.Tracer().Start(context.Background(), "ConsensusState")
+	defer span.End()
+
 	return &ResultConsensusState{
 		RoundState: h.consensusState.GetRoundStateSimple(),
 	}, nil
@@ -124,6 +136,9 @@ func (h *Handler) ConsensusStateHandler(_ *metadata.Metadata, p []any) (any, *sp
 //	Params:
 //	- height   int64 (optional, default latest height)
 func (h *Handler) ConsensusParamsHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	_, span := traces.Tracer().Start(context.Background(), "ConsensusParams")
+	defer span.End()
+
 	const idxHeight = 0
 
 	heightVal, err := params.AsInt64(p, idxHeight)

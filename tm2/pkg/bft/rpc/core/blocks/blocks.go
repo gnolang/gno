@@ -1,6 +1,7 @@
 package blocks
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
@@ -10,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // Handler is the blocks RPC handler
@@ -33,6 +35,9 @@ func NewHandler(store state.BlockStore, stateDB dbm.DB) *Handler {
 //	  - minHeight   int64 (optional, default 1)
 //	  - maxHeight   int64 (optional, default latest height)
 func (h *Handler) BlockchainInfoHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	_, span := traces.Tracer().Start(context.Background(), "BlockchainInfo")
+	defer span.End()
+
 	const limit int64 = 20
 
 	const (
@@ -82,6 +87,9 @@ func (h *Handler) BlockchainInfoHandler(_ *metadata.Metadata, p []any) (any, *sp
 //		Params:
 //	  - height   int64 (optional, default latest height)
 func (h *Handler) BlockHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	_, span := traces.Tracer().Start(context.Background(), "Block")
+	defer span.End()
+
 	const idxHeight = 0
 
 	storeHeight := h.store.Height()
@@ -122,6 +130,9 @@ func (h *Handler) BlockHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJS
 //		Params:
 //	  - height   int64 (optional, default latest height)
 func (h *Handler) CommitHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	_, span := traces.Tracer().Start(context.Background(), "Commit")
+	defer span.End()
+
 	const idxHeight = 0
 
 	storeHeight := h.store.Height()
@@ -174,6 +185,9 @@ func (h *Handler) CommitHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJ
 //		Params:
 //	  - height   int64 (optional, default latest height)
 func (h *Handler) BlockResultsHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	_, span := traces.Tracer().Start(context.Background(), "BlockResults")
+	defer span.End()
+
 	storeHeight := h.store.Height()
 
 	height, err := params.AsInt64(p, 0)

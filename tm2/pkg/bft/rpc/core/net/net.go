@@ -1,10 +1,13 @@
 package net
 
 import (
+	"context"
+
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/metadata"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // Handler is the net RPC handler
@@ -36,6 +39,9 @@ func (h *Handler) NetInfoHandler(_ *metadata.Metadata, p []any) (any, *spec.Base
 		return nil, spec.GenerateInvalidParamError(1)
 	}
 
+	_, span := traces.Tracer().Start(context.Background(), "NetInfo")
+	defer span.End()
+
 	var (
 		set     = h.peers.Peers()
 		out, in = set.NumOutbound(), set.NumInbound()
@@ -66,6 +72,9 @@ func (h *Handler) GenesisHandler(_ *metadata.Metadata, p []any) (any, *spec.Base
 	if len(p) > 0 {
 		return nil, spec.GenerateInvalidParamError(1)
 	}
+
+	_, span := traces.Tracer().Start(context.Background(), "Genesis")
+	defer span.End()
 
 	return &ResultGenesis{
 		Genesis: h.genesisDoc,

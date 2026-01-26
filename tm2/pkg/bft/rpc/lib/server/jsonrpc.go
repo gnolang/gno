@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	httpWriter "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/writer/http"
 	wsWriter "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/writer/ws"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
@@ -215,6 +217,9 @@ func (j *JSONRPC) handleRequest(
 	writer writer.ResponseWriter,
 	requests spec.BaseJSONRequests,
 ) {
+	_, span := traces.Tracer().Start(context.Background(), "handleRequest")
+	defer span.End()
+
 	// Parse all JSON-RPC requests
 	responses := make(spec.BaseJSONResponses, len(requests))
 
@@ -302,6 +307,9 @@ func (j *JSONRPC) route(
 // handleHTTPGetRequest parses the GET request, extracts the query params, and passes
 // the JSON-RPC request on for further processing
 func (j *JSONRPC) handleHTTPGetRequest(w http.ResponseWriter, r *http.Request) {
+	_, span := traces.Tracer().Start(context.Background(), "handleHTTPGetRequest")
+	defer span.End()
+
 	method := chi.URLParam(r, "method")
 
 	entry, ok := j.handlers[method]

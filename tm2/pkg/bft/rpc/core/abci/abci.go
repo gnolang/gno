@@ -1,11 +1,14 @@
 package abci
 
 import (
+	"context"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/metadata"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // Handler is the ABCI RPC handler
@@ -78,6 +81,9 @@ func (h *Handler) InfoHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSO
 	if len(p) > 0 {
 		return nil, spec.GenerateInvalidParamError(1)
 	}
+
+	_, span := traces.Tracer().Start(context.Background(), "ABCIInfo")
+	defer span.End()
 
 	resInfo, err := h.proxyAppQuery.InfoSync(abci.RequestInfo{})
 	if err != nil {

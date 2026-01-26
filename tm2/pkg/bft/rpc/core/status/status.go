@@ -1,11 +1,13 @@
 package status
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/metadata"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 type BuildStatusFn func() (*ResultStatus, error)
@@ -28,6 +30,9 @@ func NewHandler(buildFn BuildStatusFn) *Handler {
 //	Params:
 //	- heightGte (optional, defaults to 0)
 func (h *Handler) StatusHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	_, span := traces.Tracer().Start(context.Background(), "Status")
+	defer span.End()
+
 	const idxHeightGte = 0
 
 	heightGte, err := params.AsInt64(p, idxHeightGte)

@@ -1,6 +1,7 @@
 package mempool
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/events"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // Handler is the mempool RPC handler
@@ -36,6 +38,9 @@ func NewHandler(
 //		Params:
 //	  - tx   []byte (required)
 func (h *Handler) BroadcastTxAsyncHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	_, span := traces.Tracer().Start(context.Background(), "BroadcastTxAsync")
+	defer span.End()
+
 	const idxTx = 0
 
 	rawTx, err := coreparams.AsBytes(p, idxTx, true)
@@ -60,6 +65,9 @@ func (h *Handler) BroadcastTxAsyncHandler(_ *metadata.Metadata, p []any) (any, *
 //		Params:
 //	  - tx   []byte (required)
 func (h *Handler) BroadcastTxSyncHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	_, span := traces.Tracer().Start(context.Background(), "BroadcastTxSync")
+	defer span.End()
+
 	const idxTx = 0
 
 	rawTx, err := coreparams.AsBytes(p, idxTx, true)
@@ -92,6 +100,9 @@ func (h *Handler) BroadcastTxSyncHandler(_ *metadata.Metadata, p []any) (any, *s
 //		Params:
 //	  - tx   []byte (required)
 func (h *Handler) BroadcastTxCommitHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	_, span := traces.Tracer().Start(context.Background(), "BroadcastTxCommit")
+	defer span.End()
+
 	const idxTx = 0
 
 	rawTx, err := coreparams.AsBytes(p, idxTx, true)
@@ -139,6 +150,9 @@ func (h *Handler) BroadcastTxCommitHandler(_ *metadata.Metadata, p []any) (any, 
 //		Params:
 //	  - limit	int64 (optional, default 30, max 100)
 func (h *Handler) UnconfirmedTxsHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	_, span := traces.Tracer().Start(context.Background(), "UnconfirmedTxs")
+	defer span.End()
+
 	const idxLimit = 0
 
 	limit64, err := coreparams.AsInt64(p, idxLimit)
@@ -166,6 +180,9 @@ func (h *Handler) NumUnconfirmedTxsHandler(_ *metadata.Metadata, p []any) (any, 
 	if len(p) > 0 {
 		return nil, spec.GenerateInvalidParamError(1)
 	}
+
+	_, span := traces.Tracer().Start(context.Background(), "NumUnconfirmedTxs")
+	defer span.End()
 
 	return ResultUnconfirmedTxs{
 		Count:      h.mempool.Size(),
