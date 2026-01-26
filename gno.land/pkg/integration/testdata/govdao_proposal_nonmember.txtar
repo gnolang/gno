@@ -1,0 +1,74 @@
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+adduserfrom nonmember 'smooth crawl poverty trumpet glare useful curtain annual pluck lunar example merge ready forum better verb rescue rule mechanic dynamic drift bench release weekend'
+stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Case 1: Non-member WITHOUT fee (should fail)
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
+stdout 'non-members must send 1000000ugnot to create a proposal'
+
+# Case 2: Non-member WITH fee (should succeed)
+gnokey maketx run -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test nonmember $WORK/proposer/create_proposal_must.gno
+stdout OK!
+
+# Verify proposal was created
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'New T2 Member Proposal'
+
+-- proposer/create_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func main() {
+	addr := address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
+	preq := impl.NewAddMemberRequest(cross, addr, "T2", "My portfolio")
+	_, err := dao.CreateProposal(cross, preq)
+	if err != nil {
+		println(err.Error())
+	}
+}
+
+-- proposer/create_proposal_must.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func main() {
+	addr := address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
+	preq := impl.NewAddMemberRequest(cross, addr, "T2", "My portfolio")
+	dao.MustCreateProposal(cross, preq)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
