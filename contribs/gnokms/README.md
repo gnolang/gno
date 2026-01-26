@@ -56,9 +56,9 @@ Updated configuration saved at gnoland-data/config/config.toml
 
 ### Using `gnokms` with Ledger Tendermint validator app
 
-1. Open the Tendermint Validator app on your Ledger device.
+1. Open the [tm-ledger-validator app](https://github.com/gnoverse/tm-ledger-validator) on your Ledger device.
    - Only Ledger Nano S Plus is supported.
-   - The Ledger Nano X does not support sideloading developer apps, so the Tendermint Validator app cannot be installed on it.
+   - The Ledger Nano X does not support sideloading developer apps, so the tm-ledger-validator app cannot be installed on it.
    - Disable the PIN lock on the Ledger device.
    - The first signature requires manual confirmation on the Ledger (it displays the height and round to initialize the validator state). Subsequent signatures proceed without user action.
 2. Start a `gnokms` server with the Ledger backend using:
