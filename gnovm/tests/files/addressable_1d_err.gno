@@ -9,4 +9,4 @@ func getArr() [1]int {
 }
 
 // TypeCheckError:
-// main/addressable_1d_err.gno:4:6: cannot slice unaddressable value getArr() (value of type [1]int)
+// main/addressable_1d_err.gno:4:6: invalid operation: cannot slice getArr() (value of type [1]int) (value not addressable)
