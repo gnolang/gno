@@ -337,7 +337,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 				fmt.Fprintln(opts.Error, err.Error())
 				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
 			} else if opts.Verbose {
-				fmt.Fprintf(opts.Error, "--- PASS: %s (%s, %d)\n", testName, dstr, gas)
+				fmt.Fprintf(opts.Error, "--- PASS: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
 			}
 
 			// XXX: add per-test metrics
