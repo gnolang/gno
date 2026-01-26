@@ -1,5 +1,10 @@
 package daokit
 
+// Handles DAO governance through proposal voting and execution.
+// They contain actions that run when voting requirements are satisfied.
+//
+// Common use cases: member management, treasury operations, rule updates.
+
 import (
 	"chain/runtime"
 	"errors"
@@ -14,9 +19,9 @@ import (
 type ProposalStatus int
 
 const (
-	ProposalStatusOpen ProposalStatus = iota
-	ProposalStatusPassed
-	ProposalStatusExecuted
+	ProposalStatusOpen     ProposalStatus = iota // Currently accepting votes
+	ProposalStatusPassed                         // Met conditions, ready for execution
+	ProposalStatusExecuted                       // Successfully executed
 )
 
 func (s ProposalStatus) String() string {
@@ -39,12 +44,14 @@ type Proposal struct {
 	CreatedAt     time.Time
 	CreatedHeight int64
 	ProposerID    string
-	Condition     daocond.Condition
-	Action        Action
-	Status        ProposalStatus
-	ExecutorID    string
-	ExecutedAt    time.Time
-	Ballot        daocond.Ballot
+
+	Action     Action            // What to execute if passed
+	Condition  daocond.Condition // Voting conditions for this proposal
+	Status     ProposalStatus
+	ExecutorID string
+	ExecutedAt time.Time
+
+	Ballot daocond.Ballot // All votes cast on this proposal
 }
 
 type ProposalsStore struct {
@@ -52,6 +59,7 @@ type ProposalsStore struct {
 	genID seqid.ID
 }
 
+// Data needed to create a new proposal.
 type ProposalRequest struct {
 	Title       string
 	Description string
@@ -64,24 +72,6 @@ func NewProposalsStore() *ProposalsStore {
 	}
 }
 
-func (p *ProposalsStore) newProposal(proposer string, req ProposalRequest, condition daocond.Condition) *Proposal {
-	id := p.genID.Next()
-	proposal := &Proposal{
-		ID:            id,
-		Title:         req.Title,
-		Description:   req.Description,
-		ProposerID:    proposer,
-		Status:        ProposalStatusOpen,
-		Action:        req.Action,
-		Condition:     condition,
-		Ballot:        daocond.NewBallot(),
-		CreatedAt:     time.Now(),
-		CreatedHeight: runtime.ChainHeight(),
-	}
-	p.Tree.Set(id.String(), proposal)
-	return proposal
-}
-
 func (p *ProposalsStore) GetProposal(id uint64) *Proposal {
 	value, ok := p.Tree.Get(seqid.ID(id).String())
 	if !ok {
@@ -91,6 +81,24 @@ func (p *ProposalsStore) GetProposal(id uint64) *Proposal {
 	return proposal
 }
 
+// Returns all proposals that match the given filter function.
+func (p *ProposalsStore) GetProposals(filter func(Proposal) bool) *ProposalsStore {
+	proposals := NewProposalsStore()
+	p.Tree.Iterate("", "", func(key string, value interface{}) bool {
+		prop, ok := value.(*Proposal)
+		if !ok {
+			panic(errors.New("unexpected invalid proposal type"))
+		}
+		prop.UpdateStatus() // XXX: costly and probably insecure
+		if filter(*prop) {
+			proposals.Tree.Set(key, prop)
+		}
+		return false
+	})
+	return proposals
+}
+
+// Updates proposal status based on current voting condition results.
 func (p *Proposal) UpdateStatus() {
 	conditionsAreMet := p.Condition.Eval(p.Ballot)
 	if p.Status == ProposalStatusOpen && conditionsAreMet {
@@ -98,6 +106,7 @@ func (p *Proposal) UpdateStatus() {
 	}
 }
 
+// Returns all proposals as a JSON string.
 func (p *ProposalsStore) GetProposalsJSON() string {
 	props := make([]*json.Node, 0, p.Tree.Size())
 	// XXX: pagination
@@ -123,4 +132,22 @@ func (p *ProposalsStore) GetProposalsJSON() string {
 		panic(err)
 	}
 	return string(bz)
+}
+
+func (p *ProposalsStore) newProposal(proposer string, req ProposalRequest, condition daocond.Condition) *Proposal {
+	id := p.genID.Next()
+	proposal := &Proposal{
+		ID:            id,
+		Title:         req.Title,
+		Description:   req.Description,
+		ProposerID:    proposer,
+		Status:        ProposalStatusOpen,
+		Action:        req.Action,
+		Condition:     condition,
+		Ballot:        daocond.NewBallot(),
+		CreatedAt:     time.Now(),
+		CreatedHeight: runtime.ChainHeight(),
+	}
+	p.Tree.Set(id.String(), proposal)
+	return proposal
 }
