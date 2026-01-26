@@ -228,7 +228,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.NodeRemote = normalizeRemoteURL(cfg.remote)
 	appcfg.NodeRequestTimeout = cfg.remoteTimeout
 	appcfg.RemoteHelp = normalizeRemoteURL(cfg.remoteHelp)
-	if appcfg.RemoteHelp == "" || appcfg.RemoteHelp == "http://" {
+	if appcfg.RemoteHelp == "" {
 		appcfg.RemoteHelp = appcfg.NodeRemote
 	}
 	appcfg.Analytics = cfg.analytics
@@ -371,11 +371,14 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http
 // - http:// and https:// are kept as-is
 // - Any other protocol (e.g., unix://) will panic as it's not supported in web context
 func normalizeRemoteURL(remote string) string {
+	remote = strings.TrimSpace(remote)
+	if remote == "" {
+		return ""
+	}
 	protocol, rest, found := strings.Cut(remote, "://")
 	if !found {
 		return "http://" + remote
 	}
-
 	switch protocol {
 	case "tcp":
 		return "http://" + rest

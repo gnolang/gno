@@ -21,6 +21,7 @@ func TestNormalizeRemoteURL(t *testing.T) {
 		input    string
 		expected string
 	}{
+		{"empty", "", ""},
 		{"tcp protocol", "tcp://127.0.0.1:26657", "http://127.0.0.1:26657"},
 		{"http protocol", "http://127.0.0.1:26657", "http://127.0.0.1:26657"},
 		{"https protocol", "https://rpc.gno.land:443", "https://rpc.gno.land:443"},
