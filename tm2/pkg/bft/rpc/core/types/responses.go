@@ -8,21 +8,8 @@ import (
 // TODO move to respective packages
 
 // CheckTx result
-type ResultBroadcastTx struct {
-	Error abci.Error `json:"error"`
-	Data  []byte     `json:"data"`
-	Log   string     `json:"log"`
-
-	Hash []byte `json:"hash"`
-}
 
 // CheckTx and DeliverTx results
-type ResultBroadcastTxCommit struct {
-	CheckTx   abci.ResponseCheckTx   `json:"check_tx"`
-	DeliverTx abci.ResponseDeliverTx `json:"deliver_tx"`
-	Hash      []byte                 `json:"hash"`
-	Height    int64                  `json:"height"`
-}
 
 // Result of querying for a tx
 type ResultTx struct {
@@ -41,12 +28,6 @@ type ResultTxSearch struct {
 }
 
 // List of mempool txs
-type ResultUnconfirmedTxs struct {
-	Count      int        `json:"n_txs"`
-	Total      int        `json:"total"`
-	TotalBytes int64      `json:"total_bytes"`
-	Txs        []types.Tx `json:"txs"`
-}
 
 // Info abci msg
 type ResultABCIInfo struct {

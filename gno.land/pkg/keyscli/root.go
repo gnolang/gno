@@ -6,7 +6,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -34,7 +34,7 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 	)
 
 	// OnTxSuccess is only used by NewBroadcastCmd
-	cfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
+	cfg.OnTxSuccess = func(tx std.Tx, res *mempool.ResultBroadcastTxCommit) {
 		PrintTxInfo(tx, res, io)
 	}
 	cmd.AddSubCommands(
@@ -61,7 +61,7 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 
 // PrintTxInfo prints the transaction result to io. If the events has storage deposit
 // info then also print it with the total transaction cost.
-func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO) {
+func PrintTxInfo(tx std.Tx, res *mempool.ResultBroadcastTxCommit, io commands.IO) {
 	io.Println(string(res.DeliverTx.Data))
 	io.Println("OK!")
 	io.Println("GAS WANTED:", res.DeliverTx.GasWanted)

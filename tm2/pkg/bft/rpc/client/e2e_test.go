@@ -13,6 +13,7 @@ import (
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -222,7 +223,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			broadcastTxCommitMethod,
-			&ctypes.ResultBroadcastTxCommit{
+			&mempool.ResultBroadcastTxCommit{
 				Hash: []byte("dummy"),
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -234,7 +235,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			broadcastTxAsyncMethod,
-			&ctypes.ResultBroadcastTx{
+			&mempool.ResultBroadcastTx{
 				Hash: []byte("dummy"),
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -246,7 +247,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			broadcastTxSyncMethod,
-			&ctypes.ResultBroadcastTx{
+			&mempool.ResultBroadcastTx{
 				Hash: []byte("dummy"),
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -258,7 +259,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			unconfirmedTxsMethod,
-			&ctypes.ResultUnconfirmedTxs{
+			&mempool.ResultUnconfirmedTxs{
 				Count: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -270,7 +271,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			numUnconfirmedTxsMethod,
-			&ctypes.ResultUnconfirmedTxs{
+			&mempool.ResultUnconfirmedTxs{
 				Count: 10,
 			},
 			func(client *RPCClient, expectedResult any) {

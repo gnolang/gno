@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abciErrors "github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -86,8 +87,8 @@ func TestCallSingle(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-				res := &ctypes.ResultBroadcastTxCommit{
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error) {
+				res := &mempool.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
 							Data: []byte("it works!"),
@@ -150,8 +151,8 @@ func TestCallMultiple(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-				res := &ctypes.ResultBroadcastTxCommit{
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error) {
+				res := &mempool.ResultBroadcastTxCommit{
 					CheckTx: abci.ResponseCheckTx{
 						ResponseBase: abci.ResponseBase{
 							Error:  nil,
@@ -624,8 +625,8 @@ func TestRunSingle(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-				res := &ctypes.ResultBroadcastTxCommit{
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error) {
+				res := &mempool.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
 							Data: []byte("hi gnoclient!\n"),
@@ -701,8 +702,8 @@ func TestRunMultiple(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-				res := &ctypes.ResultBroadcastTxCommit{
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error) {
+				res := &mempool.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
 							Data: []byte("hi gnoclient!\nhi gnoclient!\n"),
@@ -1358,7 +1359,7 @@ func TestLatestBlockHeightErrors(t *testing.T) {
 }
 
 // The same as client.Call, but test signing separately
-func callSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
+func callSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgCall) (*mempool.ResultBroadcastTxCommit, error) {
 	t.Helper()
 	tx, err := NewCallTx(cfg, msgs...)
 	assert.NoError(t, err)
@@ -1373,7 +1374,7 @@ func callSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...v
 }
 
 // The same as client.Run, but test signing separately
-func runSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
+func runSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgRun) (*mempool.ResultBroadcastTxCommit, error) {
 	t.Helper()
 	tx, err := NewRunTx(cfg, msgs...)
 	assert.NoError(t, err)
@@ -1388,7 +1389,7 @@ func runSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm
 }
 
 // The same as client.Send, but test signing separately
-func sendSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
+func sendSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...bank.MsgSend) (*mempool.ResultBroadcastTxCommit, error) {
 	t.Helper()
 	tx, err := NewSendTx(cfg, msgs...)
 	assert.NoError(t, err)
@@ -1403,7 +1404,7 @@ func sendSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...b
 }
 
 // The same as client.AddPackage, but test signing separately
-func addPackageSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error) {
+func addPackageSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*mempool.ResultBroadcastTxCommit, error) {
 	t.Helper()
 	tx, err := NewAddPackageTx(cfg, msgs...)
 	assert.NoError(t, err)

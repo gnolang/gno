@@ -7,7 +7,6 @@ import (
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mock"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/stretchr/testify/assert"
@@ -82,7 +81,7 @@ func TestHandler_BroadcastTxAsyncHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultBroadcastTx)
+		result, ok := res.(*ResultBroadcastTx)
 		require.True(t, ok)
 
 		expectedHash := types.Tx(txBytes).Hash()
@@ -170,7 +169,7 @@ func TestHandler_BroadcastTxSyncHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultBroadcastTx)
+		result, ok := res.(*ResultBroadcastTx)
 		require.True(t, ok)
 
 		assert.Equal(t, checkResp.Error, result.Error)
@@ -259,7 +258,7 @@ func TestHandler_BroadcastTxCommitHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultBroadcastTxCommit)
+		result, ok := res.(*ResultBroadcastTxCommit)
 		require.True(t, ok)
 
 		assert.Equal(t, checkResp, result.CheckTx)
@@ -325,7 +324,7 @@ func TestHandler_BroadcastTxCommitHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultBroadcastTxCommit)
+		result, ok := res.(*ResultBroadcastTxCommit)
 		require.True(t, ok)
 
 		assert.Equal(t, checkResp, result.CheckTx)
@@ -390,7 +389,7 @@ func TestHandler_UnconfirmedTxsHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultUnconfirmedTxs)
+		result, ok := res.(*ResultUnconfirmedTxs)
 		require.True(t, ok)
 
 		assert.Equal(t, len(expectedTxs), result.Count)
@@ -442,7 +441,7 @@ func TestHandler_NumUnconfirmedTxsHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultUnconfirmedTxs)
+		result, ok := res.(*ResultUnconfirmedTxs)
 		require.True(t, ok)
 
 		assert.Equal(t, size, result.Count)

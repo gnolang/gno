@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -50,9 +51,9 @@ type ABCIClient interface {
 		opts ABCIQueryOptions) (*ctypes.ResultABCIQuery, error)
 
 	// Writing to abci app
-	BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error)
-	BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error)
-	BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error)
+	BroadcastTxCommit(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error)
+	BroadcastTxAsync(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTx, error)
+	BroadcastTxSync(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTx, error)
 }
 
 // SignClient groups together the functionality needed to get valid signatures
@@ -87,8 +88,8 @@ type NetworkClient interface {
 
 // MempoolClient shows us data about current mempool state.
 type MempoolClient interface {
-	UnconfirmedTxs(ctx context.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error)
-	NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error)
+	UnconfirmedTxs(ctx context.Context, limit int) (*mempool.ResultUnconfirmedTxs, error)
+	NumUnconfirmedTxs(ctx context.Context) (*mempool.ResultUnconfirmedTxs, error)
 }
 
 type TxClient interface {

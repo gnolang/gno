@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -100,7 +100,7 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error) {
+func BroadcastHandler(cfg *BroadcastCfg) (*mempool.ResultBroadcastTxCommit, error) {
 	if cfg.tx == nil {
 		return nil, errors.New("invalid tx")
 	}
@@ -143,7 +143,7 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	return bres, nil
 }
 
-func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit) error {
+func estimateGasFee(cli client.ABCIClient, bres *mempool.ResultBroadcastTxCommit) error {
 	gp := std.GasPrice{}
 	qres, err := cli.ABCIQuery(context.Background(), "auth/gasprice", []byte{})
 	if err != nil {
@@ -168,7 +168,7 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit)
 	return nil
 }
 
-func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxCommit, error) {
+func SimulateTx(cli client.ABCIClient, tx []byte) (*mempool.ResultBroadcastTxCommit, error) {
 	bres, err := cli.ABCIQuery(context.Background(), ".app/simulate", tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "simulate tx")
@@ -180,7 +180,7 @@ func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxComm
 		return nil, errors.Wrap(err, "unmarshaling simulate result")
 	}
 
-	return &ctypes.ResultBroadcastTxCommit{
+	return &mempool.ResultBroadcastTxCommit{
 		DeliverTx: result,
 	}, nil
 }

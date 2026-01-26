@@ -10,6 +10,7 @@ import (
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -223,7 +224,7 @@ func TestRPCClient_BroadcastTxCommit(t *testing.T) {
 	var (
 		tx = []byte("tx")
 
-		expectedTxCommit = &ctypes.ResultBroadcastTxCommit{
+		expectedTxCommit = &mempool.ResultBroadcastTxCommit{
 			Hash: []byte("dummy"),
 		}
 
@@ -257,7 +258,7 @@ func TestRPCClient_BroadcastTxAsync(t *testing.T) {
 	var (
 		tx = []byte("tx")
 
-		expectedTxBroadcast = &ctypes.ResultBroadcastTx{
+		expectedTxBroadcast = &mempool.ResultBroadcastTx{
 			Hash: []byte("dummy"),
 		}
 
@@ -291,7 +292,7 @@ func TestRPCClient_BroadcastTxSync(t *testing.T) {
 	var (
 		tx = []byte("tx")
 
-		expectedTxBroadcast = &ctypes.ResultBroadcastTx{
+		expectedTxBroadcast = &mempool.ResultBroadcastTx{
 			Hash: []byte("dummy"),
 		}
 
@@ -325,7 +326,7 @@ func TestRPCClient_UnconfirmedTxs(t *testing.T) {
 	var (
 		limit = 10
 
-		expectedResult = &ctypes.ResultUnconfirmedTxs{
+		expectedResult = &mempool.ResultUnconfirmedTxs{
 			Count: 10,
 		}
 
@@ -357,7 +358,7 @@ func TestRPCClient_NumUnconfirmedTxs(t *testing.T) {
 	t.Parallel()
 
 	var (
-		expectedResult = &ctypes.ResultUnconfirmedTxs{
+		expectedResult = &mempool.ResultUnconfirmedTxs{
 			Count: 10,
 		}
 

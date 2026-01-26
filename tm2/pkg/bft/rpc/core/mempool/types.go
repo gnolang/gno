@@ -20,3 +20,25 @@ type Mempool interface {
 	// TxsBytes returns the total size (in bytes) of all transactions in the mempool
 	TxsBytes() int64
 }
+
+type ResultBroadcastTx struct {
+	Error abci.Error `json:"error"`
+	Data  []byte     `json:"data"`
+	Log   string     `json:"log"`
+
+	Hash []byte `json:"hash"`
+}
+
+type ResultBroadcastTxCommit struct {
+	CheckTx   abci.ResponseCheckTx   `json:"check_tx"`
+	DeliverTx abci.ResponseDeliverTx `json:"deliver_tx"`
+	Hash      []byte                 `json:"hash"`
+	Height    int64                  `json:"height"`
+}
+
+type ResultUnconfirmedTxs struct {
+	Count      int        `json:"n_txs"`
+	Total      int        `json:"total"`
+	TotalBytes int64      `json:"total_bytes"`
+	Txs        []types.Tx `json:"txs"`
+}

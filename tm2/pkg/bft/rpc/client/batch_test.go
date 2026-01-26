@@ -9,6 +9,7 @@ import (
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -216,14 +217,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			broadcastTxCommitMethod,
-			&ctypes.ResultBroadcastTxCommit{
+			&mempool.ResultBroadcastTxCommit{
 				Hash: []byte("dummy"),
 			},
 			func(batch *RPCBatch) {
 				batch.BroadcastTxCommit([]byte("dummy"))
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultBroadcastTxCommit)
+				castResult, ok := result.(*mempool.ResultBroadcastTxCommit)
 				require.True(t, ok)
 
 				return castResult
@@ -231,14 +232,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			broadcastTxAsyncMethod,
-			&ctypes.ResultBroadcastTx{
+			&mempool.ResultBroadcastTx{
 				Hash: []byte("dummy"),
 			},
 			func(batch *RPCBatch) {
 				batch.BroadcastTxAsync([]byte("dummy"))
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultBroadcastTx)
+				castResult, ok := result.(*mempool.ResultBroadcastTx)
 				require.True(t, ok)
 
 				return castResult
@@ -246,14 +247,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			broadcastTxSyncMethod,
-			&ctypes.ResultBroadcastTx{
+			&mempool.ResultBroadcastTx{
 				Hash: []byte("dummy"),
 			},
 			func(batch *RPCBatch) {
 				batch.BroadcastTxSync([]byte("dummy"))
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultBroadcastTx)
+				castResult, ok := result.(*mempool.ResultBroadcastTx)
 				require.True(t, ok)
 
 				return castResult
@@ -261,14 +262,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			unconfirmedTxsMethod,
-			&ctypes.ResultUnconfirmedTxs{
+			&mempool.ResultUnconfirmedTxs{
 				Count: 10,
 			},
 			func(batch *RPCBatch) {
 				batch.UnconfirmedTxs(0)
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultUnconfirmedTxs)
+				castResult, ok := result.(*mempool.ResultUnconfirmedTxs)
 				require.True(t, ok)
 
 				return castResult
@@ -276,14 +277,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			numUnconfirmedTxsMethod,
-			&ctypes.ResultUnconfirmedTxs{
+			&mempool.ResultUnconfirmedTxs{
 				Count: 10,
 			},
 			func(batch *RPCBatch) {
 				batch.NumUnconfirmedTxs()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultUnconfirmedTxs)
+				castResult, ok := result.(*mempool.ResultUnconfirmedTxs)
 				require.True(t, ok)
 
 				return castResult

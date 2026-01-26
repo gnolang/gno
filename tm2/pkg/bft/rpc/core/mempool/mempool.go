@@ -6,7 +6,6 @@ import (
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	coreparams "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/utils"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/metadata"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
@@ -50,7 +49,7 @@ func (h *Handler) BroadcastTxAsyncHandler(_ *metadata.Metadata, p []any) (any, *
 		return nil, spec.GenerateResponseError(checkErr)
 	}
 
-	return &ctypes.ResultBroadcastTx{
+	return &ResultBroadcastTx{
 		Hash: tx.Hash(),
 	}, nil
 }
@@ -80,7 +79,7 @@ func (h *Handler) BroadcastTxSyncHandler(_ *metadata.Metadata, p []any) (any, *s
 	res := <-resCh
 	r := res.(abci.ResponseCheckTx)
 
-	return &ctypes.ResultBroadcastTx{
+	return &ResultBroadcastTx{
 		Error: r.Error,
 		Data:  r.Data,
 		Log:   r.Log,
@@ -115,7 +114,7 @@ func (h *Handler) BroadcastTxCommitHandler(_ *metadata.Metadata, p []any) (any, 
 	checkTxRes := checkTxResMsg.(abci.ResponseCheckTx)
 
 	if checkTxRes.Error != nil {
-		return &ctypes.ResultBroadcastTxCommit{
+		return &ResultBroadcastTxCommit{
 			CheckTx:   checkTxRes,
 			DeliverTx: abci.ResponseDeliverTx{},
 			Hash:      tx.Hash(),
@@ -127,7 +126,7 @@ func (h *Handler) BroadcastTxCommitHandler(_ *metadata.Metadata, p []any) (any, 
 		return nil, spec.GenerateResponseError(txErr)
 	}
 
-	return &ctypes.ResultBroadcastTxCommit{
+	return &ResultBroadcastTxCommit{
 		CheckTx:   checkTxRes,
 		DeliverTx: txRes.Response,
 		Hash:      tx.Hash(),
@@ -152,7 +151,7 @@ func (h *Handler) UnconfirmedTxsHandler(_ *metadata.Metadata, p []any) (any, *sp
 		txs   = h.mempool.ReapMaxTxs(limit)
 	)
 
-	return &ctypes.ResultUnconfirmedTxs{
+	return &ResultUnconfirmedTxs{
 		Count:      len(txs),
 		Total:      h.mempool.Size(),
 		TotalBytes: h.mempool.TxsBytes(),
@@ -168,7 +167,7 @@ func (h *Handler) NumUnconfirmedTxsHandler(_ *metadata.Metadata, p []any) (any, 
 		return nil, spec.GenerateInvalidParamError(1)
 	}
 
-	return &ctypes.ResultUnconfirmedTxs{
+	return ResultUnconfirmedTxs{
 		Count:      h.mempool.Size(),
 		Total:      h.mempool.Size(),
 		TotalBytes: h.mempool.TxsBytes(),

@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -159,7 +160,7 @@ func (b *RPCBatch) BroadcastTxCommit(tx types.Tx) {
 		},
 	)
 
-	b.addRequest(request, &ctypes.ResultBroadcastTxCommit{})
+	b.addRequest(request, &mempool.ResultBroadcastTxCommit{})
 }
 
 func (b *RPCBatch) BroadcastTxAsync(tx types.Tx) {
@@ -179,7 +180,7 @@ func (b *RPCBatch) broadcastTX(route string, tx types.Tx) {
 		},
 	)
 
-	b.addRequest(request, &ctypes.ResultBroadcastTx{})
+	b.addRequest(request, &mempool.ResultBroadcastTx{})
 }
 
 func (b *RPCBatch) UnconfirmedTxs(limit int) {
@@ -191,7 +192,7 @@ func (b *RPCBatch) UnconfirmedTxs(limit int) {
 		},
 	)
 
-	b.addRequest(request, &ctypes.ResultUnconfirmedTxs{})
+	b.addRequest(request, &mempool.ResultUnconfirmedTxs{})
 }
 
 func (b *RPCBatch) NumUnconfirmedTxs() {
@@ -201,7 +202,7 @@ func (b *RPCBatch) NumUnconfirmedTxs() {
 		nil,
 	)
 
-	b.addRequest(request, &ctypes.ResultUnconfirmedTxs{})
+	b.addRequest(request, &mempool.ResultUnconfirmedTxs{})
 }
 
 func (b *RPCBatch) NetInfo() {

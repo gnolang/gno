@@ -6,6 +6,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -104,12 +105,12 @@ func (m *mockKeysInfo) GetPath() (*hd.BIP44Params, error) {
 
 // RPC Client mock
 type (
-	mockBroadcastTxCommit    func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error)
+	mockBroadcastTxCommit    func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error)
 	mockABCIQuery            func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error)
 	mockABCIInfo             func(ctx context.Context) (*ctypes.ResultABCIInfo, error)
 	mockABCIQueryWithOptions func(ctx context.Context, path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error)
-	mockBroadcastTxAsync     func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error)
-	mockBroadcastTxSync      func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error)
+	mockBroadcastTxAsync     func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTx, error)
+	mockBroadcastTxSync      func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTx, error)
 	mockGenesis              func(ctx context.Context) (*net.ResultGenesis, error)
 	mockBlockchainInfo       func(ctx context.Context, minHeight, maxHeight int64) (*blocks.ResultBlockchainInfo, error)
 	mockNetInfo              func(ctx context.Context) (*net.ResultNetInfo, error)
@@ -122,8 +123,8 @@ type (
 	mockCommit               func(ctx context.Context, height *int64) (*blocks.ResultCommit, error)
 	mockValidators           func(ctx context.Context, height *int64) (*consensus.ResultValidators, error)
 	mockStatus               func(ctx context.Context, heightGte *int64) (*status.ResultStatus, error)
-	mockUnconfirmedTxs       func(ctx context.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error)
-	mockNumUnconfirmedTxs    func(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error)
+	mockUnconfirmedTxs       func(ctx context.Context, limit int) (*mempool.ResultUnconfirmedTxs, error)
+	mockNumUnconfirmedTxs    func(ctx context.Context) (*mempool.ResultUnconfirmedTxs, error)
 	mockTx                   func(ctx context.Context, hash []byte) (*ctypes.ResultTx, error)
 )
 
@@ -151,7 +152,7 @@ type mockRPCClient struct {
 	tx                   mockTx
 }
 
-func (m *mockRPCClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+func (m *mockRPCClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error) {
 	if m.broadcastTxCommit != nil {
 		return m.broadcastTxCommit(ctx, tx)
 	}
@@ -179,14 +180,14 @@ func (m *mockRPCClient) ABCIQueryWithOptions(ctx context.Context, path string, d
 	return nil, nil
 }
 
-func (m *mockRPCClient) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (m *mockRPCClient) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTx, error) {
 	if m.broadcastTxAsync != nil {
 		return m.broadcastTxAsync(ctx, tx)
 	}
 	return nil, nil
 }
 
-func (m *mockRPCClient) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (m *mockRPCClient) BroadcastTxSync(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTx, error) {
 	if m.broadcastTxSync != nil {
 		return m.broadcastTxSync(ctx, tx)
 	}
@@ -277,14 +278,14 @@ func (m *mockRPCClient) Status(ctx context.Context, heightGte *int64) (*status.R
 	return nil, nil
 }
 
-func (m *mockRPCClient) UnconfirmedTxs(ctx context.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error) {
+func (m *mockRPCClient) UnconfirmedTxs(ctx context.Context, limit int) (*mempool.ResultUnconfirmedTxs, error) {
 	if m.unconfirmedTxs != nil {
 		return m.unconfirmedTxs(ctx, limit)
 	}
 	return nil, nil
 }
 
-func (m *mockRPCClient) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
+func (m *mockRPCClient) NumUnconfirmedTxs(ctx context.Context) (*mempool.ResultUnconfirmedTxs, error) {
 	if m.numUnconfirmedTxs != nil {
 		return m.numUnconfirmedTxs(ctx)
 	}

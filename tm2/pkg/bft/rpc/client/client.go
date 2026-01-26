@@ -8,6 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -157,8 +158,8 @@ func (c *RPCClient) ABCIQueryWithOptions(ctx context.Context, path string, data 
 	)
 }
 
-func (c *RPCClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-	return sendRequestCommon[ctypes.ResultBroadcastTxCommit](
+func (c *RPCClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error) {
+	return sendRequestCommon[mempool.ResultBroadcastTxCommit](
 		ctx,
 		c.requestTimeout,
 		c.caller,
@@ -169,16 +170,16 @@ func (c *RPCClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes
 	)
 }
 
-func (c *RPCClient) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (c *RPCClient) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTx, error) {
 	return c.broadcastTX(ctx, broadcastTxAsyncMethod, tx)
 }
 
-func (c *RPCClient) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (c *RPCClient) BroadcastTxSync(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTx, error) {
 	return c.broadcastTX(ctx, broadcastTxSyncMethod, tx)
 }
 
-func (c *RPCClient) broadcastTX(ctx context.Context, route string, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	return sendRequestCommon[ctypes.ResultBroadcastTx](
+func (c *RPCClient) broadcastTX(ctx context.Context, route string, tx types.Tx) (*mempool.ResultBroadcastTx, error) {
+	return sendRequestCommon[mempool.ResultBroadcastTx](
 		ctx,
 		c.requestTimeout,
 		c.caller,
@@ -189,8 +190,8 @@ func (c *RPCClient) broadcastTX(ctx context.Context, route string, tx types.Tx) 
 	)
 }
 
-func (c *RPCClient) UnconfirmedTxs(ctx context.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error) {
-	return sendRequestCommon[ctypes.ResultUnconfirmedTxs](
+func (c *RPCClient) UnconfirmedTxs(ctx context.Context, limit int) (*mempool.ResultUnconfirmedTxs, error) {
+	return sendRequestCommon[mempool.ResultUnconfirmedTxs](
 		ctx,
 		c.requestTimeout,
 		c.caller,
@@ -201,8 +202,8 @@ func (c *RPCClient) UnconfirmedTxs(ctx context.Context, limit int) (*ctypes.Resu
 	)
 }
 
-func (c *RPCClient) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
-	return sendRequestCommon[ctypes.ResultUnconfirmedTxs](
+func (c *RPCClient) NumUnconfirmedTxs(ctx context.Context) (*mempool.ResultUnconfirmedTxs, error) {
+	return sendRequestCommon[mempool.ResultUnconfirmedTxs](
 		ctx,
 		c.requestTimeout,
 		c.caller,
