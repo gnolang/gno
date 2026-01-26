@@ -4,20 +4,19 @@ func main() {
 	var f func()
 OUTER:
 	for i := 0; i < 3; {
-		// .redefine_i = .loopvar_i
 		println("enter, i: ", i)
 
 		for j := 0; j < 2; j++ {
 			if j == 1 {
 				println("---continue")
-				i++ // .redefine_i, => 3
+				i++
 
 				func(){
 					println(j)
 				}()
 
-				// .loopvar_j = .redefine_j
-				// .loopvar_i = .redefine_i
+				// .loopvar_j = .loopvar_j
+				// .loopvar_i = .loopvar_i
 				continue OUTER
 			}
 		}

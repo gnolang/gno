@@ -434,8 +434,6 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
-	// fmt.Printf("==========================EXEC: %v, (type of s): %v\n", s, reflect.TypeOf(s))
-
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {
@@ -499,7 +497,6 @@ EXEC_SWITCH:
 		m.PushOp(OpEval)
 	case *ForStmt:
 		m.PushFrameBasic(cs)
-
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
@@ -509,7 +506,6 @@ EXEC_SWITCH:
 			Post:          cs.Post,
 		}
 		m.PushBlock(b)
-
 		m.PushOp(OpForLoop)
 		m.PushStmt(b.GetBodyStmt())
 		// evaluate condition
