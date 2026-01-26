@@ -14,14 +14,14 @@ import (
 	"gno.land/r/gov/dao/v3/treasury"
 )
 
-func NewChangeLawRequest(_ realm, newLaw *Law) dao.ProposalRequest {
+func NewChangeLawRequest(_ realm, newLaw Law) dao.ProposalRequest {
 	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
 	cb := func(_ realm) error {
-		law = newLaw
+		law = &newLaw
 		return nil
 	}
 
