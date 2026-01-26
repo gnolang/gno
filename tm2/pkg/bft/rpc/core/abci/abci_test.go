@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	abciTypes "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -105,7 +104,7 @@ func TestHandler_QueryHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultABCIQuery)
+		result, ok := res.(*ResultABCIQuery)
 		require.True(t, ok)
 
 		assert.Equal(t, expectedResponse, result.Response)
@@ -143,7 +142,7 @@ func TestHandler_QueryHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultABCIQuery)
+		result, ok := res.(*ResultABCIQuery)
 		require.True(t, ok)
 
 		assert.Equal(t, expectedResponse, result.Response)
@@ -231,7 +230,7 @@ func TestHandler_InfoHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultABCIInfo)
+		result, ok := res.(*ResultABCIInfo)
 		require.True(t, ok)
 
 		assert.Equal(t, expectedResponse, result.Response)

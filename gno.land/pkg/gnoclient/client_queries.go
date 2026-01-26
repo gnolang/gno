@@ -6,8 +6,8 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -23,7 +23,7 @@ type QueryCfg struct {
 }
 
 // Query performs a generic query on the blockchain.
-func (c *Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
+func (c *Client) Query(cfg QueryCfg) (*abci.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (c *Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 }
 
 // QueryAccount retrieves account information for a given address.
-func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
+func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *abci.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, nil, err
 	}
@@ -66,7 +66,7 @@ func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.Re
 }
 
 // QueryAppVersion retrieves information about the app version
-func (c *Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
+func (c *Client) QueryAppVersion() (string, *abci.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return "", nil, err
 	}
@@ -86,7 +86,7 @@ func (c *Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
 // Render calls the Render function for pkgPath with optional args. The pkgPath should
 // include the prefix like "gno.land/". This is similar to using a browser URL
 // <testnet>/<pkgPath>:<args> where <pkgPath> doesn't have the prefix like "gno.land/".
-func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCIQuery, error) {
+func (c *Client) Render(pkgPath string, args string) (string, *abci.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return "", nil, err
 	}
@@ -109,7 +109,7 @@ func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCI
 // include the prefix like "gno.land/". The expression is usually a function call like
 // "GetBoardIDFromName(\"testboard\")". The return value is a typed expression like
 // "(1 gno.land/r/archive/boards.BoardID)\n(true bool)".
-func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error) {
+func (c *Client) QEval(pkgPath string, expression string) (string, *abci.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return "", nil, err
 	}

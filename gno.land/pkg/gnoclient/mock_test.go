@@ -4,13 +4,14 @@ import (
 	"context"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/health"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
@@ -107,9 +108,9 @@ func (m *mockKeysInfo) GetPath() (*hd.BIP44Params, error) {
 // RPC Client mock
 type (
 	mockBroadcastTxCommit    func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error)
-	mockABCIQuery            func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error)
-	mockABCIInfo             func(ctx context.Context) (*ctypes.ResultABCIInfo, error)
-	mockABCIQueryWithOptions func(ctx context.Context, path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error)
+	mockABCIQuery            func(ctx context.Context, path string, data []byte) (*abci.ResultABCIQuery, error)
+	mockABCIInfo             func(ctx context.Context) (*abci.ResultABCIInfo, error)
+	mockABCIQueryWithOptions func(ctx context.Context, path string, data []byte, opts client.ABCIQueryOptions) (*abci.ResultABCIQuery, error)
 	mockBroadcastTxAsync     func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTx, error)
 	mockBroadcastTxSync      func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTx, error)
 	mockGenesis              func(ctx context.Context) (*net.ResultGenesis, error)
@@ -118,7 +119,7 @@ type (
 	mockDumpConsensusState   func(ctx context.Context) (*consensus.ResultDumpConsensusState, error)
 	mockConsensusState       func(ctx context.Context) (*consensus.ResultConsensusState, error)
 	mockConsensusParams      func(ctx context.Context, height *int64) (*consensus.ResultConsensusParams, error)
-	mockHealth               func(ctx context.Context) (*ctypes.ResultHealth, error)
+	mockHealth               func(ctx context.Context) (*health.ResultHealth, error)
 	mockBlock                func(ctx context.Context, height *int64) (*blocks.ResultBlock, error)
 	mockBlockResults         func(ctx context.Context, height *int64) (*blocks.ResultBlockResults, error)
 	mockCommit               func(ctx context.Context, height *int64) (*blocks.ResultCommit, error)
@@ -160,21 +161,21 @@ func (m *mockRPCClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*me
 	return nil, nil
 }
 
-func (m *mockRPCClient) ABCIQuery(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+func (m *mockRPCClient) ABCIQuery(ctx context.Context, path string, data []byte) (*abci.ResultABCIQuery, error) {
 	if m.abciQuery != nil {
 		return m.abciQuery(ctx, path, data)
 	}
 	return nil, nil
 }
 
-func (m *mockRPCClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
+func (m *mockRPCClient) ABCIInfo(ctx context.Context) (*abci.ResultABCIInfo, error) {
 	if m.abciInfo != nil {
 		return m.abciInfo(ctx)
 	}
 	return nil, nil
 }
 
-func (m *mockRPCClient) ABCIQueryWithOptions(ctx context.Context, path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+func (m *mockRPCClient) ABCIQueryWithOptions(ctx context.Context, path string, data []byte, opts client.ABCIQueryOptions) (*abci.ResultABCIQuery, error) {
 	if m.abciQueryWithOptions != nil {
 		return m.abciQueryWithOptions(ctx, path, data, opts)
 	}
@@ -237,7 +238,7 @@ func (m *mockRPCClient) ConsensusParams(ctx context.Context, height *int64) (*co
 	return nil, nil
 }
 
-func (m *mockRPCClient) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
+func (m *mockRPCClient) Health(ctx context.Context) (*health.ResultHealth, error) {
 	if m.health != nil {
 		return m.health(ctx)
 	}

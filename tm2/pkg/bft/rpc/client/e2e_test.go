@@ -11,13 +11,14 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
+	abciTypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/health"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -196,7 +197,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			abciInfoMethod,
-			&ctypes.ResultABCIInfo{
+			&abciTypes.ResultABCIInfo{
 				Response: abci.ResponseInfo{
 					LastBlockAppHash: []byte("dummy"),
 				},
@@ -210,7 +211,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			abciQueryMethod,
-			&ctypes.ResultABCIQuery{
+			&abciTypes.ResultABCIQuery{
 				Response: abci.ResponseQuery{
 					Value: []byte("dummy"),
 				},
@@ -336,7 +337,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			healthMethod,
-			&ctypes.ResultHealth{},
+			&health.ResultHealth{},
 			func(client *RPCClient, expectedResult any) {
 				result, err := client.Health(context.Background())
 				require.NoError(t, err)

@@ -18,7 +18,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	abciTypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -48,8 +48,8 @@ func TestRender(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
-				res := &ctypes.ResultABCIQuery{
+			abciQuery: func(ctx context.Context, path string, data []byte) (*abciTypes.ResultABCIQuery, error) {
+				res := &abciTypes.ResultABCIQuery{
 					Response: abci.ResponseQuery{
 						ResponseBase: abci.ResponseBase{
 							Data: expectedRender,
@@ -1440,7 +1440,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		var (
 			rpcErr        = errors.New("rpc error")
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*abciTypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1466,7 +1466,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		t.Parallel()
 
 		var (
-			response = &ctypes.ResultABCIQuery{
+			response = &abciTypes.ResultABCIQuery{
 				Response: abci.ResponseQuery{
 					ResponseBase: abci.ResponseBase{
 						Error: abciErrors.UnknownError{},
@@ -1474,7 +1474,7 @@ func TestClient_EstimateGas(t *testing.T) {
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*abciTypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1500,13 +1500,13 @@ func TestClient_EstimateGas(t *testing.T) {
 		t.Parallel()
 
 		var (
-			response = &ctypes.ResultABCIQuery{
+			response = &abciTypes.ResultABCIQuery{
 				Response: abci.ResponseQuery{
 					Value: []byte("totally valid amino"),
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*abciTypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1543,13 +1543,13 @@ func TestClient_EstimateGas(t *testing.T) {
 		require.NoError(t, err)
 
 		var (
-			response = &ctypes.ResultABCIQuery{
+			response = &abciTypes.ResultABCIQuery{
 				Response: abci.ResponseQuery{
 					Value: encodedResp, // valid amino binary
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*abciTypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1594,13 +1594,13 @@ func TestClient_EstimateGas(t *testing.T) {
 		require.NoError(t, err)
 
 		var (
-			response = &ctypes.ResultABCIQuery{
+			response = &abciTypes.ResultABCIQuery{
 				Response: abci.ResponseQuery{
 					Value: encodedResp, // valid amino binary
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*abciTypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx

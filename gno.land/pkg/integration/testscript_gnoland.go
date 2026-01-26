@@ -22,7 +22,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -634,7 +634,7 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 	for i, res := range batchRes {
 		account := accounts[i]
 		name := account.GetName()
-		qres := res.(*ctypes.ResultABCIQuery)
+		qres := res.(*abci.ResultABCIQuery)
 
 		if err := qres.Response.Error; err != nil {
 			ts.Fatalf("query account %q error: %s", account.GetName(), err.Error())

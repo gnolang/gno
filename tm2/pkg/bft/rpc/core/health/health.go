@@ -1,7 +1,6 @@
 package health
 
 import (
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/metadata"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 )
@@ -15,5 +14,5 @@ func HealthHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
 		return nil, spec.GenerateInvalidParamError(1)
 	}
 
-	return &ctypes.ResultHealth{}, nil
+	return &ResultHealth{}, nil
 }

@@ -8,13 +8,14 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
+	abciTypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/health"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -148,7 +149,7 @@ func TestRPCClient_ABCIInfo(t *testing.T) {
 	t.Parallel()
 
 	var (
-		expectedInfo = &ctypes.ResultABCIInfo{
+		expectedInfo = &abciTypes.ResultABCIInfo{
 			Response: abci.ResponseInfo{
 				LastBlockAppHash: []byte("dummy"),
 			},
@@ -186,7 +187,7 @@ func TestRPCClient_ABCIQuery(t *testing.T) {
 		data = []byte("data")
 		opts = DefaultABCIQueryOptions
 
-		expectedQuery = &ctypes.ResultABCIQuery{
+		expectedQuery = &abciTypes.ResultABCIQuery{
 			Response: abci.ResponseQuery{
 				Value: []byte("dummy"),
 			},
@@ -525,7 +526,7 @@ func TestRPCClient_Health(t *testing.T) {
 	t.Parallel()
 
 	var (
-		expectedResult = &ctypes.ResultHealth{}
+		expectedResult = &health.ResultHealth{}
 
 		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()

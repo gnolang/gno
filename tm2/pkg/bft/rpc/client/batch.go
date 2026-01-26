@@ -7,13 +7,14 @@ import (
 	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abciTypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/health"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -130,7 +131,7 @@ func (b *RPCBatch) ABCIInfo() {
 		nil,
 	)
 
-	b.addRequest(request, &ctypes.ResultABCIInfo{})
+	b.addRequest(request, &abciTypes.ResultABCIInfo{})
 }
 
 func (b *RPCBatch) ABCIQuery(path string, data []byte) {
@@ -149,7 +150,7 @@ func (b *RPCBatch) ABCIQueryWithOptions(path string, data []byte, opts ABCIQuery
 		},
 	)
 
-	b.addRequest(request, &ctypes.ResultABCIQuery{})
+	b.addRequest(request, &abciTypes.ResultABCIQuery{})
 }
 
 func (b *RPCBatch) BroadcastTxCommit(tx types.Tx) {
@@ -260,7 +261,7 @@ func (b *RPCBatch) Health() {
 		nil,
 	)
 
-	b.addRequest(request, &ctypes.ResultHealth{})
+	b.addRequest(request, &health.ResultHealth{})
 }
 
 func (b *RPCBatch) BlockchainInfo(minHeight, maxHeight int64) {

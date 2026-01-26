@@ -14,8 +14,8 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	abciTypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -702,7 +702,7 @@ func Test_execVerify(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a test server that will return the account number and sequence.
-		handler := defaultHTTPHandler(t, "abci_query", &ctypes.ResultABCIQuery{
+		handler := defaultHTTPHandler(t, "abci_query", &abciTypes.ResultABCIQuery{
 			Response: abci.ResponseQuery{
 				ResponseBase: abci.ResponseBase{
 					Data: baseAccount,
@@ -802,7 +802,7 @@ func Test_execVerify(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a test server that will return the account number and sequence.
-		handler := defaultHTTPHandler(t, "abci_query", &ctypes.ResultABCIQuery{
+		handler := defaultHTTPHandler(t, "abci_query", &abciTypes.ResultABCIQuery{
 			Response: abci.ResponseQuery{
 				ResponseBase: abci.ResponseBase{
 					Data: baseAccount,
@@ -863,7 +863,7 @@ func Test_execVerify(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a test server that will return the account number and sequence.
-		handler := defaultHTTPHandler(t, "abci_query", &ctypes.ResultABCIQuery{
+		handler := defaultHTTPHandler(t, "abci_query", &abciTypes.ResultABCIQuery{
 			Response: abci.ResponseQuery{
 				ResponseBase: abci.ResponseBase{
 					Data: baseAccount,

@@ -3,7 +3,6 @@ package health
 import (
 	"testing"
 
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,9 +28,9 @@ func TestHandler_Health(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultHealth)
+		result, ok := res.(*ResultHealth)
 		require.True(t, ok)
 
-		assert.Equal(t, &ctypes.ResultHealth{}, result)
+		assert.Equal(t, &ResultHealth{}, result)
 	})
 }

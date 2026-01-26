@@ -4,7 +4,6 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/metadata"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 )
@@ -66,7 +65,9 @@ func (h *Handler) QueryHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJS
 		return nil, spec.GenerateResponseError(queryErr)
 	}
 
-	return &ctypes.ResultABCIQuery{Response: resQuery}, nil
+	return &ResultABCIQuery{
+		Response: resQuery,
+	}, nil
 }
 
 // InfoHandler gets some info about the application.
@@ -83,5 +84,7 @@ func (h *Handler) InfoHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSO
 		return nil, spec.GenerateResponseError(err)
 	}
 
-	return &ctypes.ResultABCIInfo{Response: resInfo}, nil
+	return &ResultABCIInfo{
+		Response: resInfo,
+	}, nil
 }

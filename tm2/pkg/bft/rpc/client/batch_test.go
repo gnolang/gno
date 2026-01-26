@@ -7,13 +7,14 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
+	abciTypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/health"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -184,7 +185,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			abciInfoMethod,
-			&ctypes.ResultABCIInfo{
+			&abciTypes.ResultABCIInfo{
 				Response: abci.ResponseInfo{
 					LastBlockAppHash: []byte("dummy"),
 				},
@@ -193,7 +194,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 				batch.ABCIInfo()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultABCIInfo)
+				castResult, ok := result.(*abciTypes.ResultABCIInfo)
 				require.True(t, ok)
 
 				return castResult
@@ -201,7 +202,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			abciQueryMethod,
-			&ctypes.ResultABCIQuery{
+			&abciTypes.ResultABCIQuery{
 				Response: abci.ResponseQuery{
 					Value: []byte("dummy"),
 				},
@@ -210,7 +211,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 				batch.ABCIQuery("path", []byte("dummy"))
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultABCIQuery)
+				castResult, ok := result.(*abciTypes.ResultABCIQuery)
 				require.True(t, ok)
 
 				return castResult
@@ -357,12 +358,12 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			healthMethod,
-			&ctypes.ResultHealth{},
+			&health.ResultHealth{},
 			func(batch *RPCBatch) {
 				batch.Health()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultHealth)
+				castResult, ok := result.(*health.ResultHealth)
 				require.True(t, ok)
 
 				return castResult

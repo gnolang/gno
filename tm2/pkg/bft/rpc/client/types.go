@@ -3,13 +3,14 @@ package client
 import (
 	"context"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/health"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
@@ -46,10 +47,10 @@ type Client interface {
 // is easier to mock.
 type ABCIClient interface {
 	// Reading from abci app
-	ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error)
-	ABCIQuery(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error)
+	ABCIInfo(ctx context.Context) (*abci.ResultABCIInfo, error)
+	ABCIQuery(ctx context.Context, path string, data []byte) (*abci.ResultABCIQuery, error)
 	ABCIQueryWithOptions(ctx context.Context, path string, data []byte,
-		opts ABCIQueryOptions) (*ctypes.ResultABCIQuery, error)
+		opts ABCIQueryOptions) (*abci.ResultABCIQuery, error)
 
 	// Writing to abci app
 	BroadcastTxCommit(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error)
@@ -84,7 +85,7 @@ type NetworkClient interface {
 	DumpConsensusState(ctx context.Context) (*consensus.ResultDumpConsensusState, error)
 	ConsensusState(ctx context.Context) (*consensus.ResultConsensusState, error)
 	ConsensusParams(ctx context.Context, height *int64) (*consensus.ResultConsensusParams, error)
-	Health(ctx context.Context) (*ctypes.ResultHealth, error)
+	Health(ctx context.Context) (*health.ResultHealth, error)
 }
 
 // MempoolClient shows us data about current mempool state.

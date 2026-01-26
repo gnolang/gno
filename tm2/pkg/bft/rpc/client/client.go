@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/health"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/batch"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/http"
@@ -130,8 +131,8 @@ func (c *RPCClient) Status(ctx context.Context, heightGte *int64) (*status.Resul
 	)
 }
 
-func (c *RPCClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
-	return sendRequestCommon[ctypes.ResultABCIInfo](
+func (c *RPCClient) ABCIInfo(ctx context.Context) (*abci.ResultABCIInfo, error) {
+	return sendRequestCommon[abci.ResultABCIInfo](
 		ctx,
 		c.requestTimeout,
 		c.caller,
@@ -140,12 +141,12 @@ func (c *RPCClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error
 	)
 }
 
-func (c *RPCClient) ABCIQuery(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+func (c *RPCClient) ABCIQuery(ctx context.Context, path string, data []byte) (*abci.ResultABCIQuery, error) {
 	return c.ABCIQueryWithOptions(ctx, path, data, DefaultABCIQueryOptions)
 }
 
-func (c *RPCClient) ABCIQueryWithOptions(ctx context.Context, path string, data []byte, opts ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	return sendRequestCommon[ctypes.ResultABCIQuery](
+func (c *RPCClient) ABCIQueryWithOptions(ctx context.Context, path string, data []byte, opts ABCIQueryOptions) (*abci.ResultABCIQuery, error) {
+	return sendRequestCommon[abci.ResultABCIQuery](
 		ctx,
 		c.requestTimeout,
 		c.caller,
@@ -260,8 +261,8 @@ func (c *RPCClient) ConsensusParams(ctx context.Context, height *int64) (*consen
 	)
 }
 
-func (c *RPCClient) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
-	return sendRequestCommon[ctypes.ResultHealth](
+func (c *RPCClient) Health(ctx context.Context) (*health.ResultHealth, error) {
+	return sendRequestCommon[health.ResultHealth](
 		ctx,
 		c.requestTimeout,
 		c.caller,
