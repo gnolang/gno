@@ -146,12 +146,10 @@ func (alloc *Allocator) Allocate(size int64) {
 	} else {
 		alloc.bytes += size
 	}
-	// The value of `bytes` decreases during GC, and fees
-	// are only charged when it exceeds peakBytes (again).
+	// Consume gas proportional to the allocation size in bytes.
 	if alloc.gasMeter != nil {
 		alloc.gasMeter.ConsumeGas(overflow.Mulp(size, GasCostPerByte), "memory allocation")
 	}
-
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
