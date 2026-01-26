@@ -100,7 +100,8 @@ func (alloc *Allocator) SetGasMeter(gasMeter store.GasMeter) {
 	alloc.gasMeter = gasMeter
 }
 
-func (alloc *Allocator) ConsumeCPU(cycles int64) {
+// XXX: Keep track of CPU cycles like in machine.IncrCPU ?
+func (alloc *Allocator) IncrCPU(cycles int64) {
 	if alloc == nil {
 		return
 	}
