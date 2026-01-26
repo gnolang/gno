@@ -8,6 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
@@ -93,5 +94,5 @@ type MempoolClient interface {
 }
 
 type TxClient interface {
-	Tx(ctx context.Context, hash []byte) (*ctypes.ResultTx, error)
+	Tx(ctx context.Context, hash []byte) (*tx.ResultTx, error)
 }

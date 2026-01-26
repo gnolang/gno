@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -125,7 +126,7 @@ type (
 	mockStatus               func(ctx context.Context, heightGte *int64) (*status.ResultStatus, error)
 	mockUnconfirmedTxs       func(ctx context.Context, limit int) (*mempool.ResultUnconfirmedTxs, error)
 	mockNumUnconfirmedTxs    func(ctx context.Context) (*mempool.ResultUnconfirmedTxs, error)
-	mockTx                   func(ctx context.Context, hash []byte) (*ctypes.ResultTx, error)
+	mockTx                   func(ctx context.Context, hash []byte) (*tx.ResultTx, error)
 )
 
 type mockRPCClient struct {
@@ -292,7 +293,7 @@ func (m *mockRPCClient) NumUnconfirmedTxs(ctx context.Context) (*mempool.ResultU
 	return nil, nil
 }
 
-func (m *mockRPCClient) Tx(ctx context.Context, hash []byte) (*ctypes.ResultTx, error) {
+func (m *mockRPCClient) Tx(ctx context.Context, hash []byte) (*tx.ResultTx, error) {
 	if m.tx != nil {
 		return m.tx(ctx, hash)
 	}

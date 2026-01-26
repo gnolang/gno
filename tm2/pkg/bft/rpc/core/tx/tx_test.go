@@ -6,7 +6,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mock"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -336,7 +335,7 @@ func TestHandler_TxHandler(t *testing.T) {
 		require.Nil(t, e)
 		require.NotNil(t, out)
 
-		result, ok := out.(*ctypes.ResultTx)
+		result, ok := out.(*ResultTx)
 		require.True(t, ok)
 
 		assert.Equal(t, txResultIndex.BlockNum, result.Height)

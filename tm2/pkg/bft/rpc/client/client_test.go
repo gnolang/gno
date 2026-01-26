@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -732,7 +733,7 @@ func TestRPCClient_Tx(t *testing.T) {
 	var (
 		hash = []byte("tx hash")
 
-		expectedResult = &ctypes.ResultTx{
+		expectedResult = &tx.ResultTx{
 			Hash:   hash,
 			Height: 10,
 		}

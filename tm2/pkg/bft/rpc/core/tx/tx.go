@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/metadata"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
@@ -97,7 +96,7 @@ func (h *Handler) TxHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONE
 
 	deliverResponse := blockResults.DeliverTxs[resultIndex.TxIndex]
 
-	return &ctypes.ResultTx{
+	return &ResultTx{
 		Hash:     hash,
 		Height:   resultIndex.BlockNum,
 		Index:    resultIndex.TxIndex,

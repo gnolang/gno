@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -450,7 +451,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			txMethod,
-			&ctypes.ResultTx{
+			&tx.ResultTx{
 				Hash:   []byte("tx hash"),
 				Height: 10,
 			},
@@ -458,7 +459,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 				batch.Tx([]byte("tx hash"))
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultTx)
+				castResult, ok := result.(*tx.ResultTx)
 				require.True(t, ok)
 
 				return castResult

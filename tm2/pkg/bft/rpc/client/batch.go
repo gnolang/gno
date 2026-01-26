@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
@@ -342,7 +343,7 @@ func (b *RPCBatch) Tx(hash []byte) {
 		},
 	)
 
-	b.addRequest(request, &ctypes.ResultTx{})
+	b.addRequest(request, &tx.ResultTx{})
 }
 
 func (b *RPCBatch) Validators(height *int64) {

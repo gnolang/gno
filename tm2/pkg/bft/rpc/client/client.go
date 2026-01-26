@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/batch"
@@ -343,8 +344,8 @@ func (c *RPCClient) Commit(ctx context.Context, height *int64) (*blocks.ResultCo
 	)
 }
 
-func (c *RPCClient) Tx(ctx context.Context, hash []byte) (*ctypes.ResultTx, error) {
-	return sendRequestCommon[ctypes.ResultTx](
+func (c *RPCClient) Tx(ctx context.Context, hash []byte) (*tx.ResultTx, error) {
+	return sendRequestCommon[tx.ResultTx](
 		ctx,
 		c.requestTimeout,
 		c.caller,
