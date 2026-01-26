@@ -8,6 +8,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
@@ -275,7 +276,7 @@ func (b *RPCBatch) Genesis() {
 	// Prepare the RPC request
 	request := newRequest(genesisMethod, nil)
 
-	b.addRequest(request, &ctypes.ResultGenesis{})
+	b.addRequest(request, &net.ResultGenesis{})
 }
 
 func (b *RPCBatch) Block(height *int64) {

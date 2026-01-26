@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -107,7 +108,7 @@ type (
 	mockABCIQueryWithOptions func(ctx context.Context, path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error)
 	mockBroadcastTxAsync     func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error)
 	mockBroadcastTxSync      func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error)
-	mockGenesis              func(ctx context.Context) (*ctypes.ResultGenesis, error)
+	mockGenesis              func(ctx context.Context) (*net.ResultGenesis, error)
 	mockBlockchainInfo       func(ctx context.Context, minHeight, maxHeight int64) (*blocks.ResultBlockchainInfo, error)
 	mockNetInfo              func(ctx context.Context) (*ctypes.ResultNetInfo, error)
 	mockDumpConsensusState   func(ctx context.Context) (*ctypes.ResultDumpConsensusState, error)
@@ -190,7 +191,7 @@ func (m *mockRPCClient) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctyp
 	return nil, nil
 }
 
-func (m *mockRPCClient) Genesis(ctx context.Context) (*ctypes.ResultGenesis, error) {
+func (m *mockRPCClient) Genesis(ctx context.Context) (*net.ResultGenesis, error) {
 	if m.genesis != nil {
 		return m.genesis(ctx)
 	}

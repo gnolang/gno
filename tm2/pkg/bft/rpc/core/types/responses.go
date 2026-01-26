@@ -15,11 +15,6 @@ import (
 
 // TODO move to respective packages
 
-// Genesis file
-type ResultGenesis struct {
-	Genesis *types.GenesisDoc `json:"genesis"`
-}
-
 // Info about the node's syncing state
 type SyncInfo struct {
 	LatestBlockHash   []byte    `json:"latest_block_hash"`

@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/batch"
@@ -278,8 +279,8 @@ func (c *RPCClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight int
 	)
 }
 
-func (c *RPCClient) Genesis(ctx context.Context) (*ctypes.ResultGenesis, error) {
-	return sendRequestCommon[ctypes.ResultGenesis](
+func (c *RPCClient) Genesis(ctx context.Context) (*net.ResultGenesis, error) {
+	return sendRequestCommon[net.ResultGenesis](
 		ctx,
 		c.requestTimeout,
 		c.caller,

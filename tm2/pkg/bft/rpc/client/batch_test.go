@@ -8,6 +8,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -380,7 +381,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			genesisMethod,
-			&ctypes.ResultGenesis{
+			&net.ResultGenesis{
 				Genesis: &bfttypes.GenesisDoc{
 					ChainID: "dummy",
 				},
@@ -389,7 +390,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 				batch.Genesis()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultGenesis)
+				castResult, ok := result.(*net.ResultGenesis)
 				require.True(t, ok)
 
 				return castResult

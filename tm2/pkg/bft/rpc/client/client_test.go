@@ -9,6 +9,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -586,7 +587,7 @@ func TestRPCClient_Genesis(t *testing.T) {
 	t.Parallel()
 
 	var (
-		expectedResult = &ctypes.ResultGenesis{
+		expectedResult = &net.ResultGenesis{
 			Genesis: &bfttypes.GenesisDoc{
 				ChainID: "dummy",
 			},

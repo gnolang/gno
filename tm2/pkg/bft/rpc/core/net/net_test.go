@@ -100,7 +100,7 @@ func TestHandler_GenesisHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultGenesis)
+		result, ok := res.(*ResultGenesis)
 		require.True(t, ok)
 
 		assert.Equal(t, genDoc, result.Genesis)

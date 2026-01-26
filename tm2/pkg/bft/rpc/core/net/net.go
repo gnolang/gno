@@ -67,5 +67,7 @@ func (h *Handler) GenesisHandler(_ *metadata.Metadata, p []any) (any, *spec.Base
 		return nil, spec.GenerateInvalidParamError(1)
 	}
 
-	return &ctypes.ResultGenesis{Genesis: h.genesisDoc}, nil
+	return &ResultGenesis{
+		Genesis: h.genesisDoc,
+	}, nil
 }

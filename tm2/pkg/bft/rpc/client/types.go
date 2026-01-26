@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
@@ -63,7 +64,7 @@ type SignClient interface {
 
 // HistoryClient provides access to data from genesis to now in large chunks.
 type HistoryClient interface {
-	Genesis(ctx context.Context) (*ctypes.ResultGenesis, error)
+	Genesis(ctx context.Context) (*net.ResultGenesis, error)
 	BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*blocks.ResultBlockchainInfo, error)
 }
 
