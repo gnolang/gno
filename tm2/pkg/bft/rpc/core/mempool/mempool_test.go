@@ -6,6 +6,7 @@ import (
 	"time"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mock"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -20,7 +21,7 @@ func TestHandler_BroadcastTxAsyncHandler(t *testing.T) {
 		t.Parallel()
 
 		h := &Handler{
-			mempool: &mockMempool{},
+			mempool: &mock.Mempool{},
 		}
 
 		res, err := h.BroadcastTxAsyncHandler(nil, nil)
@@ -35,8 +36,8 @@ func TestHandler_BroadcastTxAsyncHandler(t *testing.T) {
 
 		var (
 			checkErr = errors.New("mempool error")
-			mp       = &mockMempool{
-				checkTxFn: func(tx types.Tx, cb func(abci.Response)) error {
+			mp       = &mock.Mempool{
+				CheckTxFn: func(tx types.Tx, cb func(abci.Response)) error {
 					return checkErr
 				},
 			}
@@ -62,8 +63,8 @@ func TestHandler_BroadcastTxAsyncHandler(t *testing.T) {
 
 		var (
 			capturedTx types.Tx
-			mp         = &mockMempool{
-				checkTxFn: func(tx types.Tx, cb func(abci.Response)) error {
+			mp         = &mock.Mempool{
+				CheckTxFn: func(tx types.Tx, cb func(abci.Response)) error {
 					capturedTx = tx
 					return nil
 				},
@@ -97,7 +98,7 @@ func TestHandler_BroadcastTxSyncHandler(t *testing.T) {
 		t.Parallel()
 
 		h := &Handler{
-			mempool: &mockMempool{},
+			mempool: &mock.Mempool{},
 		}
 
 		res, err := h.BroadcastTxSyncHandler(nil, nil)
@@ -113,8 +114,8 @@ func TestHandler_BroadcastTxSyncHandler(t *testing.T) {
 		var (
 			checkErr = errors.New("sync mempool error")
 
-			mp = &mockMempool{
-				checkTxFn: func(tx types.Tx, cb func(abci.Response)) error {
+			mp = &mock.Mempool{
+				CheckTxFn: func(tx types.Tx, cb func(abci.Response)) error {
 					return checkErr
 				},
 			}
@@ -149,8 +150,8 @@ func TestHandler_BroadcastTxSyncHandler(t *testing.T) {
 				},
 			}
 
-			mp = &mockMempool{
-				checkTxFn: func(txArg types.Tx, cb func(abci.Response)) error {
+			mp = &mock.Mempool{
+				CheckTxFn: func(txArg types.Tx, cb func(abci.Response)) error {
 					assert.Equal(t, tx, txArg)
 
 					cb(checkResp)
@@ -186,7 +187,7 @@ func TestHandler_BroadcastTxCommitHandler(t *testing.T) {
 		t.Parallel()
 
 		h := &Handler{
-			mempool: &mockMempool{},
+			mempool: &mock.Mempool{},
 		}
 
 		res, err := h.BroadcastTxCommitHandler(nil, nil)
@@ -201,8 +202,8 @@ func TestHandler_BroadcastTxCommitHandler(t *testing.T) {
 
 		var (
 			checkErr = errors.New("commit mempool error")
-			mp       = &mockMempool{
-				checkTxFn: func(tx types.Tx, cb func(abci.Response)) error {
+			mp       = &mock.Mempool{
+				CheckTxFn: func(tx types.Tx, cb func(abci.Response)) error {
 					return checkErr
 				},
 			}
@@ -237,10 +238,11 @@ func TestHandler_BroadcastTxCommitHandler(t *testing.T) {
 				},
 			}
 
-			mp = &mockMempool{
-				checkTxFn: func(txArg types.Tx, cb func(abci.Response)) error {
+			mp = &mock.Mempool{
+				CheckTxFn: func(txArg types.Tx, cb func(abci.Response)) error {
 					assert.Equal(t, tx, txArg)
 					cb(checkResp)
+
 					return nil
 				},
 			}
@@ -305,8 +307,8 @@ func TestHandler_BroadcastTxCommitHandler(t *testing.T) {
 			},
 		}
 
-		mp := &mockMempool{
-			checkTxFn: func(txArg types.Tx, cb func(abci.Response)) error {
+		mp := &mock.Mempool{
+			CheckTxFn: func(txArg types.Tx, cb func(abci.Response)) error {
 				assert.Equal(t, tx, txArg)
 				cb(checkResp)
 
@@ -340,7 +342,7 @@ func TestHandler_UnconfirmedTxsHandler(t *testing.T) {
 
 		var (
 			h = &Handler{
-				mempool: &mockMempool{},
+				mempool: &mock.Mempool{},
 			}
 
 			params = []any{"not-an-int"}
@@ -363,15 +365,16 @@ func TestHandler_UnconfirmedTxsHandler(t *testing.T) {
 				[]byte("tx3"),
 			}
 
-			mp = &mockMempool{
-				reapMaxTxsFn: func(max int) []types.Tx {
+			mp = &mock.Mempool{
+				ReapMaxTxsFn: func(max int) types.Txs {
 					assert.Equal(t, 10, max)
+
 					return expectedTxs
 				},
-				sizeFn: func() int {
+				SizeFn: func() int {
 					return 5
 				},
-				txsBytesFn: func() int64 {
+				TxsBytesFn: func() int64 {
 					return 123
 				},
 			}
@@ -404,7 +407,7 @@ func TestHandler_NumUnconfirmedTxsHandler(t *testing.T) {
 		t.Parallel()
 
 		h := &Handler{
-			mempool: &mockMempool{},
+			mempool: &mock.Mempool{},
 		}
 
 		res, err := h.NumUnconfirmedTxsHandler(nil, []any{"extra"})
@@ -421,11 +424,11 @@ func TestHandler_NumUnconfirmedTxsHandler(t *testing.T) {
 			size     = 7
 			txsBytes = int64(456)
 
-			mp = &mockMempool{
-				sizeFn: func() int {
+			mp = &mock.Mempool{
+				SizeFn: func() int {
 					return size
 				},
-				txsBytesFn: func() int64 {
+				TxsBytesFn: func() int64 {
 					return txsBytes
 				},
 			}

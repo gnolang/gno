@@ -49,14 +49,14 @@ func TestHTTP_Handle(t *testing.T) {
 	)
 
 	singleRequest, err := json.Marshal(
-		spec.NewJSONRequest(1, method, nil),
+		spec.NewJSONRequest(spec.JSONRPCNumberID(1), method, nil),
 	)
 	require.NoError(t, err)
 
 	requests := spec.BaseJSONRequests{
-		spec.NewJSONRequest(1, method, nil),
-		spec.NewJSONRequest(2, method, nil),
-		spec.NewJSONRequest(3, method, nil),
+		spec.NewJSONRequest(spec.JSONRPCNumberID(1), method, nil),
+		spec.NewJSONRequest(spec.JSONRPCNumberID(2), method, nil),
+		spec.NewJSONRequest(spec.JSONRPCNumberID(3), method, nil),
 	}
 
 	batchRequest, err := json.Marshal(requests)
@@ -71,7 +71,7 @@ func TestHTTP_Handle(t *testing.T) {
 			func(resp []byte) error {
 				response := decodeResponse[spec.BaseJSONResponse](t, resp)
 
-				assert.Equal(t, spec.NewJSONResponse(1, commonResponse, nil), response)
+				assert.Equal(t, spec.NewJSONResponse(spec.JSONRPCNumberID(1), commonResponse, nil), response)
 
 				return nil
 			},
@@ -85,7 +85,7 @@ func TestHTTP_Handle(t *testing.T) {
 				for index, response := range *responses {
 					assert.Equal(
 						t,
-						spec.NewJSONResponse(uint(index+1), commonResponse, nil),
+						spec.NewJSONResponse(spec.JSONRPCNumberID(index+1), commonResponse, nil),
 						response,
 					)
 				}

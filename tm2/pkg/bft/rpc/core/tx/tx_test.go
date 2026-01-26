@@ -99,7 +99,7 @@ func TestHandler_TxHandler(t *testing.T) {
 		tx := types.Tx(raw)
 
 		sdb := memdb.NewMemDB()
-		sdb.Set(state.CalcTxResultKey(tx.Hash()), idx.Bytes())
+		require.NoError(t, sdb.Set(state.CalcTxResultKey(tx.Hash()), idx.Bytes()))
 
 		h := NewHandler(mockBlockStore, sdb)
 
@@ -140,7 +140,7 @@ func TestHandler_TxHandler(t *testing.T) {
 		tx := types.Tx(raw)
 
 		sdb := memdb.NewMemDB()
-		sdb.Set(state.CalcTxResultKey(tx.Hash()), idx.Bytes())
+		require.NoError(t, sdb.Set(state.CalcTxResultKey(tx.Hash()), idx.Bytes()))
 
 		h := NewHandler(mockBlockStore, sdb)
 
@@ -183,7 +183,7 @@ func TestHandler_TxHandler(t *testing.T) {
 		tx := types.Tx(raw)
 
 		sdb := memdb.NewMemDB()
-		sdb.Set(state.CalcTxResultKey(tx.Hash()), idx.Bytes())
+		require.NoError(t, sdb.Set(state.CalcTxResultKey(tx.Hash()), idx.Bytes()))
 
 		h := NewHandler(mockBlockStore, sdb)
 
@@ -226,7 +226,7 @@ func TestHandler_TxHandler(t *testing.T) {
 		)
 
 		sdb := memdb.NewMemDB()
-		sdb.Set(state.CalcTxResultKey(tx.Hash()), idx.Bytes())
+		require.NoError(t, sdb.Set(state.CalcTxResultKey(tx.Hash()), idx.Bytes()))
 
 		h := NewHandler(mockBlockStore, sdb)
 
@@ -274,8 +274,8 @@ func TestHandler_TxHandler(t *testing.T) {
 		)
 
 		sdb := memdb.NewMemDB()
-		sdb.Set(state.CalcTxResultKey(tx.Hash()), idx.Bytes())
-		sdb.Set(state.CalcABCIResponsesKey(height), responses.Bytes())
+		require.NoError(t, sdb.Set(state.CalcTxResultKey(tx.Hash()), idx.Bytes()))
+		require.NoError(t, sdb.Set(state.CalcABCIResponsesKey(height), responses.Bytes()))
 
 		h := NewHandler(mockBlockStore, sdb)
 
@@ -327,8 +327,8 @@ func TestHandler_TxHandler(t *testing.T) {
 		)
 
 		sdb := memdb.NewMemDB()
-		sdb.Set(state.CalcTxResultKey(tx.Hash()), txResultIndex.Bytes())
-		sdb.Set(state.CalcABCIResponsesKey(height), responses.Bytes())
+		require.NoError(t, sdb.Set(state.CalcTxResultKey(tx.Hash()), txResultIndex.Bytes()))
+		require.NoError(t, sdb.Set(state.CalcABCIResponsesKey(height), responses.Bytes()))
 
 		h := NewHandler(mockBlockStore, sdb)
 

@@ -18,6 +18,7 @@ func get(params []any, idx int) any {
 	return params[idx]
 }
 
+// AsString returns the parameter at idx as a string, accepting raw strings or decoding JSON-RPC values via Amino
 func AsString(params []any, idx int) (string, *spec.BaseJSONError) {
 	raw := get(params, idx)
 	if raw == nil {
@@ -44,6 +45,8 @@ func AsString(params []any, idx int) (string, *spec.BaseJSONError) {
 	}
 }
 
+// AsBytes returns the parameter at idx as bytes, supporting 0x-prefixed hex and Amino JSON
+// semantics otherwise, optionally requiring the value to be present
 func AsBytes(params []any, idx int, required bool) ([]byte, *spec.BaseJSONError) {
 	raw := get(params, idx)
 	if raw == nil {
@@ -95,6 +98,8 @@ func AsBytes(params []any, idx int, required bool) ([]byte, *spec.BaseJSONError)
 	}
 }
 
+// AsInt64 returns the parameter at idx as an int64, accepting native numeric types and query-string integers,
+// with a JSON -> Amino fallback for legacy behavior
 func AsInt64(params []any, idx int) (int64, *spec.BaseJSONError) {
 	raw := get(params, idx)
 	if raw == nil {
@@ -104,14 +109,11 @@ func AsInt64(params []any, idx int) (int64, *spec.BaseJSONError) {
 	switch v := raw.(type) {
 	case int64:
 		return v, nil
-
 	case int:
 		return int64(v), nil
-
 	case float64:
 		// JSON numbers -> int64 (old Amino expected strings, but no client should rely on that distinction)
 		return int64(v), nil
-
 	case string:
 		// HTTP GET: query param is always a string.
 		// Old Amino wrapped integer-looking strings in quotes and then used Amino decoding
@@ -125,7 +127,6 @@ func AsInt64(params []any, idx int) (int64, *spec.BaseJSONError) {
 		}
 
 		return i, nil
-
 	default:
 		// Fallback, json -> amino -> int64
 		b, err := json.Marshal(v)
@@ -142,6 +143,8 @@ func AsInt64(params []any, idx int) (int64, *spec.BaseJSONError) {
 	}
 }
 
+// AsBool returns the parameter at idx as a bool, accepting native bools and
+// "true"/"false" strings, with a JSON -> Amino fallback for legacy behavior
 func AsBool(params []any, idx int) (bool, *spec.BaseJSONError) {
 	raw := get(params, idx)
 	if raw == nil {
@@ -162,7 +165,6 @@ func AsBool(params []any, idx int) (bool, *spec.BaseJSONError) {
 		default:
 			return false, spec.GenerateInvalidParamError(idx)
 		}
-
 	default:
 		// Fallback, json -> amino -> bool
 		b, err := json.Marshal(v)

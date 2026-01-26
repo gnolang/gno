@@ -21,7 +21,7 @@ type RPCBatch struct {
 	// resultMap maps the request ID -> result Amino type
 	// Why?
 	// There is a weird quirk in this RPC system where request results
-	// are marshalled into Amino JSON, before being handed off to the client.
+	// are marshaled into Amino JSON, before being handed off to the client.
 	// The client, of course, needs to unmarshal the Amino JSON-encoded response result
 	// back into a concrete type.
 	// Since working with an RPC batch is asynchronous

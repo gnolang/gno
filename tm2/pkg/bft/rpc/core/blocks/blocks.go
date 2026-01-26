@@ -169,7 +169,7 @@ func (h *Handler) CommitHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJ
 	return ctypes.NewResultCommit(&header, commit, true), nil
 }
 
-// BlockResultsHandler fetches the ABCIResults for the given height.
+// BlockResultsHandler fetches the ABCI results for the given height.
 // If no height is provided, it will fetch results for the latest block
 //
 //		Params:
@@ -202,6 +202,7 @@ func (h *Handler) BlockResultsHandler(_ *metadata.Metadata, p []any) (any, *spec
 // if low is 0 it defaults to 1, if high is 0 it defaults to height (block height).
 // limit sets the maximum amounts of values included within [low,high] (inclusive),
 // increasing low as necessary.
+// Migrated from legacy Tendermint RPC
 func filterMinMax(height, low, high, limit int64) (int64, int64, error) {
 	// filter negatives
 	if low < 0 || high < 0 {
