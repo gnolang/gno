@@ -333,7 +333,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
 			if err != nil {
-				fmt.Fprintf(opts.Error, "--- FAIL: %s (%s, %d)\n", testName, dstr, gas)
+				fmt.Fprintf(opts.Error, "--- FAIL: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
 				fmt.Fprintln(opts.Error, err.Error())
 				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
 			} else if opts.Verbose {
