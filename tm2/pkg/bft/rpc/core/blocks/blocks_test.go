@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -86,7 +85,7 @@ func TestHandler_BlockchainInfoHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultBlockchainInfo)
+		result, ok := res.(*ResultBlockchainInfo)
 		require.True(t, ok)
 
 		assert.Equal(t, storeHeight, result.LastHeight)
@@ -130,7 +129,7 @@ func TestHandler_BlockchainInfoHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultBlockchainInfo)
+		result, ok := res.(*ResultBlockchainInfo)
 		require.True(t, ok)
 
 		require.Len(t, result.BlockMetas, 20)
@@ -309,7 +308,7 @@ func TestHandler_BlockHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultBlock)
+		result, ok := res.(*ResultBlock)
 		require.True(t, ok)
 
 		assert.Equal(t, meta, result.BlockMeta)
@@ -363,7 +362,7 @@ func TestHandler_BlockHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultBlock)
+		result, ok := res.(*ResultBlock)
 		require.True(t, ok)
 
 		assert.Same(t, meta, result.BlockMeta)
@@ -558,7 +557,7 @@ func TestHandler_CommitHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultCommit)
+		result, ok := res.(*ResultCommit)
 		require.True(t, ok)
 
 		assert.False(t, result.CanonicalCommit)
@@ -602,7 +601,7 @@ func TestHandler_CommitHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultCommit)
+		result, ok := res.(*ResultCommit)
 		require.True(t, ok)
 
 		assert.True(t, result.CanonicalCommit)
@@ -703,7 +702,7 @@ func TestHandler_BlockResultsHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultBlockResults)
+		result, ok := res.(*ResultBlockResults)
 		require.True(t, ok)
 
 		assert.Equal(t, targetHeight, result.Height)

@@ -619,9 +619,7 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 	batch := cli.NewBatch()
 	for _, account := range accounts {
 		accountPath := filepath.Join(path, account.GetAddress().String())
-		if err := batch.ABCIQuery(accountPath, []byte{}); err != nil {
-			return fmt.Errorf("unable to create query request: %w", err)
-		}
+		batch.ABCIQuery(accountPath, []byte{})
 	}
 
 	batchRes, err := batch.Send(context.Background())

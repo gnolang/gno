@@ -7,7 +7,7 @@ import (
 
 type (
 	CheckTxDelegate    func(tx types.Tx, cb func(abci.Response)) error
-	ReapMaxTxsDelegate func(max int) types.Txs
+	ReapMaxTxsDelegate func(maxTxs int) types.Txs
 	SizeDelegate       func() int
 	TxsBytesDelegate   func() int64
 )
@@ -27,9 +27,9 @@ func (m *Mempool) CheckTx(tx types.Tx, cb func(abci.Response)) error {
 	return nil
 }
 
-func (m *Mempool) ReapMaxTxs(max int) types.Txs {
+func (m *Mempool) ReapMaxTxs(maxTxs int) types.Txs {
 	if m.ReapMaxTxsFn != nil {
-		return m.ReapMaxTxsFn(max)
+		return m.ReapMaxTxsFn(maxTxs)
 	}
 
 	return nil

@@ -28,7 +28,6 @@ import (
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	rpccore "github.com/gnolang/gno/tm2/pkg/bft/rpc/core"
-	_ "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/null"
@@ -576,7 +575,7 @@ func (n *Node) OnStart() error {
 	// so we can eg. receive txs for the first block
 	if n.config.RPC.ListenAddress != "" {
 		// Initialize the JSON-RPC pipeline
-		rpcServer := server.NewJSONRPC(server.WithLogger(n.Logger.With("json-rpc")))
+		rpcServer := server.NewJSONRPC(server.WithLogger(n.Logger.With("module", "json-rpc")))
 
 		// Setup the handlers with the RPC
 		rpccore.SetupABCI(rpcServer, n.proxyApp.Query())
@@ -592,7 +591,7 @@ func (n *Node) OnStart() error {
 		mux := rpcServer.SetupRoutes(chi.NewMux())
 
 		// Initialize and start the server
-		n.rpcServer = rpccore.New(mux, n.config.RPC, n.Logger.With("rpc-server"))
+		n.rpcServer = rpccore.New(mux, n.config.RPC, n.Logger.With("module", "rpc-server"))
 
 		if err := n.rpcServer.Start(); err != nil {
 			return fmt.Errorf("unable to start RPC server: %w", err)

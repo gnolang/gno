@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
@@ -267,7 +268,7 @@ func (b *RPCBatch) BlockchainInfo(minHeight, maxHeight int64) {
 		},
 	)
 
-	b.addRequest(request, &ctypes.ResultBlockchainInfo{})
+	b.addRequest(request, &blocks.ResultBlockchainInfo{})
 }
 
 func (b *RPCBatch) Genesis() {
@@ -291,7 +292,7 @@ func (b *RPCBatch) Block(height *int64) {
 		},
 	)
 
-	b.addRequest(request, &ctypes.ResultBlock{})
+	b.addRequest(request, &blocks.ResultBlock{})
 }
 
 func (b *RPCBatch) BlockResults(height *int64) {
@@ -308,7 +309,7 @@ func (b *RPCBatch) BlockResults(height *int64) {
 		},
 	)
 
-	b.addRequest(request, &ctypes.ResultBlockResults{})
+	b.addRequest(request, &blocks.ResultBlockResults{})
 }
 
 func (b *RPCBatch) Commit(height *int64) {
@@ -325,7 +326,7 @@ func (b *RPCBatch) Commit(height *int64) {
 		},
 	)
 
-	b.addRequest(request, &ctypes.ResultCommit{})
+	b.addRequest(request, &blocks.ResultCommit{})
 }
 
 func (b *RPCBatch) Tx(hash []byte) {

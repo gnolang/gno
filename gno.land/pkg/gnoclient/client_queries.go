@@ -6,6 +6,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -129,7 +130,7 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 
 // Block gets the latest block at height, if any
 // Height must be larger than 0
-func (c *Client) Block(height int64) (*ctypes.ResultBlock, error) {
+func (c *Client) Block(height int64) (*blocks.ResultBlock, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, ErrMissingRPCClient
 	}
@@ -148,7 +149,7 @@ func (c *Client) Block(height int64) (*ctypes.ResultBlock, error) {
 
 // BlockResult gets the block results at height, if any
 // Height must be larger than 0
-func (c *Client) BlockResult(height int64) (*ctypes.ResultBlockResults, error) {
+func (c *Client) BlockResult(height int64) (*blocks.ResultBlockResults, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, ErrMissingRPCClient
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -552,7 +553,7 @@ func TestRPCClient_BlockchainInfo(t *testing.T) {
 		minHeight = int64(5)
 		maxHeight = int64(10)
 
-		expectedResult = &ctypes.ResultBlockchainInfo{
+		expectedResult = &blocks.ResultBlockchainInfo{
 			LastHeight: 100,
 		}
 
@@ -621,7 +622,7 @@ func TestRPCClient_Block(t *testing.T) {
 	var (
 		height = int64(10)
 
-		expectedResult = &ctypes.ResultBlock{
+		expectedResult = &blocks.ResultBlock{
 			BlockMeta: &bfttypes.BlockMeta{
 				Header: bfttypes.Header{
 					Height: height,
@@ -659,7 +660,7 @@ func TestRPCClient_BlockResults(t *testing.T) {
 	var (
 		height = int64(10)
 
-		expectedResult = &ctypes.ResultBlockResults{
+		expectedResult = &blocks.ResultBlockResults{
 			Height: height,
 		}
 
@@ -693,7 +694,7 @@ func TestRPCClient_Commit(t *testing.T) {
 	var (
 		height = int64(10)
 
-		expectedResult = &ctypes.ResultCommit{
+		expectedResult = &blocks.ResultCommit{
 			CanonicalCommit: true,
 		}
 

@@ -19,7 +19,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -279,7 +279,7 @@ func (proxy *PathInterceptor) Close() error {
 
 // parseRPCRequest unmarshals and processes RPC requests, returning paths.
 func parseRPCRequest(body []byte, upaths uniqPaths) error {
-	var req rpctypes.RPCRequest
+	var req spec.BaseJSONRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		return fmt.Errorf("unable to unmarshal RPC request: %w", err)
 	}

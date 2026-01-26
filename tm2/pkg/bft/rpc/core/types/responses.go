@@ -7,7 +7,6 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
-	"github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
@@ -16,47 +15,9 @@ import (
 
 // TODO move to respective packages
 
-// List of blocks
-type ResultBlockchainInfo struct {
-	LastHeight int64              `json:"last_height"`
-	BlockMetas []*types.BlockMeta `json:"block_metas"`
-}
-
 // Genesis file
 type ResultGenesis struct {
 	Genesis *types.GenesisDoc `json:"genesis"`
-}
-
-// Single block (with meta)
-type ResultBlock struct {
-	BlockMeta *types.BlockMeta `json:"block_meta"`
-	Block     *types.Block     `json:"block"`
-}
-
-// Commit and Header
-type ResultCommit struct {
-	types.SignedHeader `json:"signed_header"`
-	CanonicalCommit    bool `json:"canonical"`
-}
-
-// ABCI results from a block
-type ResultBlockResults struct {
-	Height  int64                `json:"height"`
-	Results *state.ABCIResponses `json:"results"`
-}
-
-// NewResultCommit is a helper to initialize the ResultCommit with
-// the embedded struct
-func NewResultCommit(header *types.Header, commit *types.Commit,
-	canonical bool,
-) *ResultCommit {
-	return &ResultCommit{
-		SignedHeader: types.SignedHeader{
-			Header: header,
-			Commit: commit,
-		},
-		CanonicalCommit: canonical,
-	}
 }
 
 // Info about the node's syncing state

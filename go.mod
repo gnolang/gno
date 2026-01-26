@@ -31,7 +31,6 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/rogpeppe/go-internal v1.14.1
-	github.com/rs/cors v1.11.1
 	github.com/rs/xid v1.6.0
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b
 	github.com/stretchr/testify v1.10.0

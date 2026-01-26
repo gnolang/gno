@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
@@ -54,16 +55,16 @@ type ABCIClient interface {
 // SignClient groups together the functionality needed to get valid signatures
 // and prove anything about the chain.
 type SignClient interface {
-	Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error)
-	BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error)
-	Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error)
+	Block(ctx context.Context, height *int64) (*blocks.ResultBlock, error)
+	BlockResults(ctx context.Context, height *int64) (*blocks.ResultBlockResults, error)
+	Commit(ctx context.Context, height *int64) (*blocks.ResultCommit, error)
 	Validators(ctx context.Context, height *int64) (*ctypes.ResultValidators, error)
 }
 
 // HistoryClient provides access to data from genesis to now in large chunks.
 type HistoryClient interface {
 	Genesis(ctx context.Context) (*ctypes.ResultGenesis, error)
-	BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error)
+	BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*blocks.ResultBlockchainInfo, error)
 }
 
 // StatusClient provides access to general chain info.

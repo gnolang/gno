@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -107,15 +108,15 @@ type (
 	mockBroadcastTxAsync     func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error)
 	mockBroadcastTxSync      func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error)
 	mockGenesis              func(ctx context.Context) (*ctypes.ResultGenesis, error)
-	mockBlockchainInfo       func(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error)
+	mockBlockchainInfo       func(ctx context.Context, minHeight, maxHeight int64) (*blocks.ResultBlockchainInfo, error)
 	mockNetInfo              func(ctx context.Context) (*ctypes.ResultNetInfo, error)
 	mockDumpConsensusState   func(ctx context.Context) (*ctypes.ResultDumpConsensusState, error)
 	mockConsensusState       func(ctx context.Context) (*ctypes.ResultConsensusState, error)
 	mockConsensusParams      func(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error)
 	mockHealth               func(ctx context.Context) (*ctypes.ResultHealth, error)
-	mockBlock                func(ctx context.Context, height *int64) (*ctypes.ResultBlock, error)
-	mockBlockResults         func(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error)
-	mockCommit               func(ctx context.Context, height *int64) (*ctypes.ResultCommit, error)
+	mockBlock                func(ctx context.Context, height *int64) (*blocks.ResultBlock, error)
+	mockBlockResults         func(ctx context.Context, height *int64) (*blocks.ResultBlockResults, error)
+	mockCommit               func(ctx context.Context, height *int64) (*blocks.ResultCommit, error)
 	mockValidators           func(ctx context.Context, height *int64) (*ctypes.ResultValidators, error)
 	mockStatus               func(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error)
 	mockUnconfirmedTxs       func(ctx context.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error)
@@ -196,7 +197,7 @@ func (m *mockRPCClient) Genesis(ctx context.Context) (*ctypes.ResultGenesis, err
 	return nil, nil
 }
 
-func (m *mockRPCClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
+func (m *mockRPCClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*blocks.ResultBlockchainInfo, error) {
 	if m.blockchainInfo != nil {
 		return m.blockchainInfo(ctx, minHeight, maxHeight)
 	}
@@ -238,21 +239,21 @@ func (m *mockRPCClient) Health(ctx context.Context) (*ctypes.ResultHealth, error
 	return nil, nil
 }
 
-func (m *mockRPCClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
+func (m *mockRPCClient) Block(ctx context.Context, height *int64) (*blocks.ResultBlock, error) {
 	if m.block != nil {
 		return m.block(ctx, height)
 	}
 	return nil, nil
 }
 
-func (m *mockRPCClient) BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
+func (m *mockRPCClient) BlockResults(ctx context.Context, height *int64) (*blocks.ResultBlockResults, error) {
 	if m.blockResults != nil {
 		return m.blockResults(ctx, height)
 	}
 	return nil, nil
 }
 
-func (m *mockRPCClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
+func (m *mockRPCClient) Commit(ctx context.Context, height *int64) (*blocks.ResultCommit, error) {
 	if m.commit != nil {
 		return m.commit(ctx, height)
 	}

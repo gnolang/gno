@@ -7,6 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -364,14 +365,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			blockchainMethod,
-			&ctypes.ResultBlockchainInfo{
+			&blocks.ResultBlockchainInfo{
 				LastHeight: 100,
 			},
 			func(batch *RPCBatch) {
 				batch.BlockchainInfo(0, 0)
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultBlockchainInfo)
+				castResult, ok := result.(*blocks.ResultBlockchainInfo)
 				require.True(t, ok)
 
 				return castResult
@@ -396,7 +397,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			blockMethod,
-			&ctypes.ResultBlock{
+			&blocks.ResultBlock{
 				BlockMeta: &bfttypes.BlockMeta{
 					Header: bfttypes.Header{
 						Height: 10,
@@ -407,7 +408,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 				batch.Block(nil)
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultBlock)
+				castResult, ok := result.(*blocks.ResultBlock)
 				require.True(t, ok)
 
 				return castResult
@@ -415,14 +416,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			blockResultsMethod,
-			&ctypes.ResultBlockResults{
+			&blocks.ResultBlockResults{
 				Height: 10,
 			},
 			func(batch *RPCBatch) {
 				batch.BlockResults(nil)
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultBlockResults)
+				castResult, ok := result.(*blocks.ResultBlockResults)
 				require.True(t, ok)
 
 				return castResult
@@ -430,14 +431,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			commitMethod,
-			&ctypes.ResultCommit{
+			&blocks.ResultCommit{
 				CanonicalCommit: true,
 			},
 			func(batch *RPCBatch) {
 				batch.Commit(nil)
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultCommit)
+				castResult, ok := result.(*blocks.ResultCommit)
 				require.True(t, ok)
 
 				return castResult

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/utils"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/metadata"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
@@ -71,7 +70,7 @@ func (h *Handler) BlockchainInfoHandler(_ *metadata.Metadata, p []any) (any, *sp
 		blockMetas = append(blockMetas, blockMeta)
 	}
 
-	return &ctypes.ResultBlockchainInfo{
+	return &ResultBlockchainInfo{
 		LastHeight: storeHeight,
 		BlockMetas: blockMetas,
 	}, nil
@@ -111,7 +110,7 @@ func (h *Handler) BlockHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJS
 		)
 	}
 
-	return &ctypes.ResultBlock{
+	return &ResultBlock{
 		BlockMeta: blockMeta,
 		Block:     block,
 	}, nil
@@ -155,7 +154,7 @@ func (h *Handler) CommitHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJ
 			)
 		}
 
-		return ctypes.NewResultCommit(&header, commit, false), nil
+		return NewResultCommit(&header, commit, false), nil
 	}
 
 	// canonical commit (from height+1)
@@ -166,7 +165,7 @@ func (h *Handler) CommitHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJ
 		)
 	}
 
-	return ctypes.NewResultCommit(&header, commit, true), nil
+	return NewResultCommit(&header, commit, true), nil
 }
 
 // BlockResultsHandler fetches the ABCI results for the given height.
@@ -192,7 +191,7 @@ func (h *Handler) BlockResultsHandler(_ *metadata.Metadata, p []any) (any, *spec
 		return nil, spec.GenerateResponseError(loadErr)
 	}
 
-	return &ctypes.ResultBlockResults{
+	return &ResultBlockResults{
 		Height:  height,
 		Results: results,
 	}, nil

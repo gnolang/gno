@@ -366,8 +366,8 @@ func TestHandler_UnconfirmedTxsHandler(t *testing.T) {
 			}
 
 			mp = &mock.Mempool{
-				ReapMaxTxsFn: func(max int) types.Txs {
-					assert.Equal(t, 10, max)
+				ReapMaxTxsFn: func(maxTxs int) types.Txs {
+					assert.Equal(t, 10, maxTxs)
 
 					return expectedTxs
 				},

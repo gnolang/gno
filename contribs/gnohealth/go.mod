@@ -19,7 +19,6 @@ require (
 	github.com/cosmos/ics23/go v0.11.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
-	github.com/go-chi/chi/v5 v5.2.3 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
@@ -27,7 +26,6 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
-	github.com/olahol/melody v1.4.0 // indirect
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.23.0 // indirect

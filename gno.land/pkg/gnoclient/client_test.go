@@ -5,15 +5,16 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abciErrors "github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -1176,8 +1177,8 @@ func TestBlock(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			block: func(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
-				return &ctypes.ResultBlock{
+			block: func(ctx context.Context, height *int64) (*blocks.ResultBlock, error) {
+				return &blocks.ResultBlock{
 					BlockMeta: &types.BlockMeta{
 						BlockID: types.BlockID{},
 						Header:  types.Header{},
@@ -1206,8 +1207,8 @@ func TestBlockResults(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			blockResults: func(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
-				return &ctypes.ResultBlockResults{
+			blockResults: func(ctx context.Context, height *int64) (*blocks.ResultBlockResults, error) {
+				return &blocks.ResultBlockResults{
 					Height:  *height,
 					Results: nil,
 				}, nil

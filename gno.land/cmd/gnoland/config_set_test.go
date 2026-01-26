@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -577,16 +575,6 @@ func TestConfig_Set_RPC(t *testing.T) {
 
 	testTable := []testSetCase{
 		{
-			"root dir updated",
-			[]string{
-				"rpc.home",
-				"example root dir",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.RPC.RootDir)
-			},
-		},
-		{
 			"listen address updated",
 			[]string{
 				"rpc.laddr",
@@ -594,129 +582,6 @@ func TestConfig_Set_RPC(t *testing.T) {
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.RPC.ListenAddress)
-			},
-		},
-		{
-			"CORS Allowed Origins updated",
-			[]string{
-				"rpc.cors_allowed_origins",
-				"0.0.0.0:0",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.Split(value, ","), loadedCfg.RPC.CORSAllowedOrigins)
-			},
-		},
-		{
-			"CORS Allowed Methods updated",
-			[]string{
-				"rpc.cors_allowed_methods",
-				"POST,GET",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.Split(value, ","), loadedCfg.RPC.CORSAllowedMethods)
-			},
-		},
-		{
-			"CORS Allowed Headers updated",
-			[]string{
-				"rpc.cors_allowed_headers",
-				"*",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.Split(value, ","), loadedCfg.RPC.CORSAllowedHeaders)
-			},
-		},
-		{
-			"GRPC listen address updated",
-			[]string{
-				"rpc.grpc_laddr",
-				"0.0.0.0:0",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.RPC.GRPCListenAddress)
-			},
-		},
-		{
-			"GRPC max open connections updated",
-			[]string{
-				"rpc.grpc_max_open_connections",
-				"10",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.RPC.GRPCMaxOpenConnections))
-			},
-		},
-		{
-			"unsafe value updated",
-			[]string{
-				"rpc.unsafe",
-				"true",
-			},
-			func(loadedCfg *config.Config, value string) {
-				boolVal, err := strconv.ParseBool(value)
-				require.NoError(t, err)
-
-				assert.Equal(t, boolVal, loadedCfg.RPC.Unsafe)
-			},
-		},
-		{
-			"rpc max open connections updated",
-			[]string{
-				"rpc.max_open_connections",
-				"10",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.RPC.MaxOpenConnections))
-			},
-		},
-		{
-			"tx commit broadcast timeout updated",
-			[]string{
-				"rpc.timeout_broadcast_tx_commit",
-				(time.Second * 10).String(),
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.RPC.TimeoutBroadcastTxCommit.String())
-			},
-		},
-		{
-			"max body bytes updated",
-			[]string{
-				"rpc.max_body_bytes",
-				"10",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.RPC.MaxBodyBytes))
-			},
-		},
-		{
-			"max header bytes updated",
-			[]string{
-				"rpc.max_header_bytes",
-				"10",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.RPC.MaxHeaderBytes))
-			},
-		},
-		{
-			"TLS cert file updated",
-			[]string{
-				"rpc.tls_cert_file",
-				"example path",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.RPC.TLSCertFile)
-			},
-		},
-		{
-			"TLS key file updated",
-			[]string{
-				"rpc.tls_key_file",
-				"example path",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.RPC.TLSKeyFile)
 			},
 		},
 	}

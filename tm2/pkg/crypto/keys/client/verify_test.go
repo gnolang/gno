@@ -15,7 +15,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -55,23 +55,15 @@ func defaultHTTPHandler(
 		require.Equal(t, "application/json", r.Header.Get("content-type"))
 
 		// Parse the message
-		var req types.RPCRequest
+		var req spec.BaseJSONRequest
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 
 		// Basic request validation
 		require.Equal(t, req.JSONRPC, "2.0")
 		require.Equal(t, req.Method, method)
 
-		// Marshal the result data to Amino JSON
-		result, err := amino.MarshalJSON(responseResult)
-		require.NoError(t, err)
-
 		// Send a response back
-		response := types.RPCResponse{
-			JSONRPC: "2.0",
-			ID:      req.ID,
-			Result:  result,
-		}
+		response := spec.NewJSONResponse(req.ID, responseResult, nil)
 
 		// Marshal the response
 		marshalledResponse, err := json.Marshal(response)

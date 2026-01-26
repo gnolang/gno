@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -340,7 +341,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			blockchainMethod,
-			&ctypes.ResultBlockchainInfo{
+			&blocks.ResultBlockchainInfo{
 				LastHeight: 100,
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -366,7 +367,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			blockMethod,
-			&ctypes.ResultBlock{
+			&blocks.ResultBlock{
 				BlockMeta: &bfttypes.BlockMeta{
 					Header: bfttypes.Header{
 						Height: 10,
@@ -382,7 +383,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			blockResultsMethod,
-			&ctypes.ResultBlockResults{
+			&blocks.ResultBlockResults{
 				Height: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -394,7 +395,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			commitMethod,
-			&ctypes.ResultCommit{
+			&blocks.ResultCommit{
 				CanonicalCommit: true,
 			},
 			func(client *RPCClient, expectedResult any) {

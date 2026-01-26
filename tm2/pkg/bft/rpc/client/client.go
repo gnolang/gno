@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/batch"
@@ -264,8 +265,8 @@ func (c *RPCClient) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 	)
 }
 
-func (c *RPCClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
-	return sendRequestCommon[ctypes.ResultBlockchainInfo](
+func (c *RPCClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*blocks.ResultBlockchainInfo, error) {
+	return sendRequestCommon[blocks.ResultBlockchainInfo](
 		ctx,
 		c.requestTimeout,
 		c.caller,
@@ -287,13 +288,13 @@ func (c *RPCClient) Genesis(ctx context.Context) (*ctypes.ResultGenesis, error) 
 	)
 }
 
-func (c *RPCClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
+func (c *RPCClient) Block(ctx context.Context, height *int64) (*blocks.ResultBlock, error) {
 	var v int64
 	if height != nil {
 		v = *height
 	}
 
-	return sendRequestCommon[ctypes.ResultBlock](
+	return sendRequestCommon[blocks.ResultBlock](
 		ctx,
 		c.requestTimeout,
 		c.caller,
@@ -304,13 +305,13 @@ func (c *RPCClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBlo
 	)
 }
 
-func (c *RPCClient) BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
+func (c *RPCClient) BlockResults(ctx context.Context, height *int64) (*blocks.ResultBlockResults, error) {
 	var v int64
 	if height != nil {
 		v = *height
 	}
 
-	return sendRequestCommon[ctypes.ResultBlockResults](
+	return sendRequestCommon[blocks.ResultBlockResults](
 		ctx,
 		c.requestTimeout,
 		c.caller,
@@ -321,13 +322,13 @@ func (c *RPCClient) BlockResults(ctx context.Context, height *int64) (*ctypes.Re
 	)
 }
 
-func (c *RPCClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
+func (c *RPCClient) Commit(ctx context.Context, height *int64) (*blocks.ResultCommit, error) {
 	var v int64
 	if height != nil {
 		v = *height
 	}
 
-	return sendRequestCommon[ctypes.ResultCommit](
+	return sendRequestCommon[blocks.ResultCommit](
 		ctx,
 		c.requestTimeout,
 		c.caller,
