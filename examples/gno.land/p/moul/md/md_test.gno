@@ -3,13 +3,13 @@ package md_test
 import (
 	"testing"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/demo/uassert"
 )
 
 func TestHelpers(t *testing.T) {
 	tests := []struct {
 		name     string
-		function func() string
+		fn       func() string
 		expected string
 	}{
 		{"Bold", func() string { return md.Bold("foo") }, "**foo**"},
@@ -30,42 +30,60 @@ func TestHelpers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.function()
-			if result != tt.expected {
-				t.Errorf("%s() = %q, want %q", tt.name, result, tt.expected)
-			}
+			got := tt.fn()
+			uassert.Equal(t, tt.expected, got)
 		})
 	}
 }
 
 func TestLists(t *testing.T) {
-	t.Run("BulletList", func(t *testing.T) {
-		items := []string{"foo", "bar"}
-		expected := "- foo\n- bar\n"
-		result := md.BulletList(items)
-		if result != expected {
-			t.Errorf("BulletList(%q) = %q, want %q", items, result, expected)
-		}
-	})
+	tests := []struct {
+		name     string
+		fn       func() string
+		expected string
+	}{
+		{"BulletItem", func() string { return BulletItem("foo") }, "- foo\n"},
+		{"BulletItem with spaces", func() string { return BulletItem("  foo  ") }, "- foo\n"},
+		{"BulletItem multiline", func() string { return BulletItem("  foo  \n  bar  ") }, "- foo\n  bar\n"},
+		{"BulletList", func() string { return BulletList([]string{"foo", "bar"}) }, "- foo\n- bar\n"},
+		{"BulletList with spaces", func() string { return BulletList([]string{"  foo  ", "  bar  "}) }, "- foo\n- bar\n"},
+		{"OrderedList", func() string { return OrderedList([]string{"foo", "bar"}) }, "1. foo\n2. bar\n"},
+		{"OrderedList with spaces", func() string { return OrderedList([]string{"  foo  ", "  bar  "}) }, "1. foo\n2. bar\n"},
+		{"TodoList", func() string { return TodoList([]string{"foo", "bar"}, []bool{true, false}) }, "- [x] foo\n- [ ] bar\n"},
+		{"TodoList with spaces", func() string { return TodoList([]string{"  foo  ", "  bar  \n  more  "}, []bool{true, false}) }, "- [x] foo\n- [ ] bar\n  more\n"},
+	}
 
-	t.Run("OrderedList", func(t *testing.T) {
-		items := []string{"foo", "bar"}
-		expected := "1. foo\n2. bar\n"
-		result := md.OrderedList(items)
-		if result != expected {
-			t.Errorf("OrderedList(%q) = %q, want %q", items, result, expected)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.fn()
+			uassert.Equal(t, tt.expected, got)
+		})
+	}
+}
 
-	t.Run("TodoList", func(t *testing.T) {
-		items := []string{"foo", "bar\nmore bar"}
-		done := []bool{true, false}
-		expected := "- [x] foo\n- [ ] bar\n  more bar\n"
-		result := md.TodoList(items, done)
-		if result != expected {
-			t.Errorf("TodoList(%q, %q) = %q, want %q", items, done, result, expected)
-		}
-	})
+func TestFormatting(t *testing.T) {
+	tests := []struct {
+		name     string
+		fn       func() string
+		expected string
+	}{
+		{"Blockquote", func() string { return Blockquote("foo") }, "> foo"},
+		{"Blockquote with spaces", func() string { return Blockquote("  foo  \n  bar  ") }, "> foo\n> bar"},
+		{"Link", func() string { return Link("foo", "http://example.com") }, "[foo](http://example.com)"},
+		{"Link with spaces", func() string { return Link("  foo  ", "http://example.com") }, "[foo](http://example.com)"},
+		{"Image", func() string { return Image("foo", "http://example.com") }, "![foo](http://example.com)"},
+		{"Image with spaces", func() string { return Image("  foo  ", "http://example.com") }, "![foo](http://example.com)"},
+		{"Paragraph", func() string { return Paragraph("foo") }, "foo"},
+		{"Paragraph with spaces", func() string { return Paragraph("  foo  ") }, "foo"},
+		{"Paragraph multiline", func() string { return Paragraph("  foo  \n  bar  ") }, "foo\n  bar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.fn()
+			uassert.Equal(t, tt.expected, got)
+		})
+	}
 }
 
 func TestUserLink(t *testing.T) {
@@ -91,23 +109,38 @@ func TestUserLink(t *testing.T) {
 }
 
 func TestNested(t *testing.T) {
-	t.Run("Nested Single Level", func(t *testing.T) {
-		content := "- foo\n- bar"
-		expected := "  - foo\n  - bar"
-		result := md.Nested(content, "  ")
-		if result != expected {
-			t.Errorf("Nested(%q) = %q, want %q", content, result, expected)
-		}
-	})
+	tests := []struct {
+		name     string
+		content  string
+		prefix   string
+		expected string
+	}{
+		{
+			name:     "basic nesting",
+			content:  "- foo\n- bar",
+			prefix:   "  ",
+			expected: "  - foo\n  - bar",
+		},
+		{
+			name:     "preserve spaces",
+			content:  "  - foo  \n  - bar  ",
+			prefix:   "  ",
+			expected: "    - foo  \n    - bar  ",
+		},
+		{
+			name:     "empty lines",
+			content:  "- foo\n\n- bar",
+			prefix:   "  ",
+			expected: "  - foo\n\n  - bar",
+		},
+	}
 
-	t.Run("Nested Double Level", func(t *testing.T) {
-		content := "  - foo\n  - bar"
-		expected := "    - foo\n    - bar"
-		result := md.Nested(content, "  ")
-		if result != expected {
-			t.Errorf("Nested(%q) = %q, want %q", content, result, expected)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Nested(tt.content, tt.prefix)
+			uassert.Equal(t, tt.expected, got)
+		})
+	}
 }
 
 func TestColumns(t *testing.T) {

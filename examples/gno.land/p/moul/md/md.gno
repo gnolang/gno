@@ -20,13 +20,13 @@ import (
 // Bold returns bold text for markdown.
 // Example: Bold("foo") => "**foo**"
 func Bold(text string) string {
-	return "**" + text + "**"
+	return "**" + strings.TrimSpace(text) + "**"
 }
 
 // Italic returns italicized text for markdown.
 // Example: Italic("foo") => "*foo*"
 func Italic(text string) string {
-	return "*" + text + "*"
+	return "*" + strings.TrimSpace(text) + "*"
 }
 
 // Strikethrough returns strikethrough text for markdown.
@@ -38,37 +38,37 @@ func Strikethrough(text string) string {
 // H1 returns a level 1 header for markdown.
 // Example: H1("foo") => "# foo\n"
 func H1(text string) string {
-	return "# " + text + "\n"
+	return "# " + strings.TrimSpace(text)
 }
 
 // H2 returns a level 2 header for markdown.
 // Example: H2("foo") => "## foo\n"
 func H2(text string) string {
-	return "## " + text + "\n"
+	return "## " + strings.TrimSpace(text)
 }
 
 // H3 returns a level 3 header for markdown.
 // Example: H3("foo") => "### foo\n"
 func H3(text string) string {
-	return "### " + text + "\n"
+	return "### " + strings.TrimSpace(text)
 }
 
 // H4 returns a level 4 header for markdown.
 // Example: H4("foo") => "#### foo\n"
 func H4(text string) string {
-	return "#### " + text + "\n"
+	return "#### " + strings.TrimSpace(text)
 }
 
 // H5 returns a level 5 header for markdown.
 // Example: H5("foo") => "##### foo\n"
 func H5(text string) string {
-	return "##### " + text + "\n"
+	return "##### " + strings.TrimSpace(text)
 }
 
 // H6 returns a level 6 header for markdown.
 // Example: H6("foo") => "###### foo\n"
 func H6(text string) string {
-	return "###### " + text + "\n"
+	return "###### " + strings.TrimSpace(text)
 }
 
 // BulletList returns a bullet list for markdown.
@@ -86,9 +86,9 @@ func BulletList(items []string) string {
 func BulletItem(item string) string {
 	var sb strings.Builder
 	lines := strings.Split(item, "\n")
-	sb.WriteString("- " + lines[0] + "\n")
+	sb.WriteString("- " + strings.TrimSpace(lines[0]) + "\n")
 	for _, line := range lines[1:] {
-		sb.WriteString("  " + line + "\n")
+		sb.WriteString("  " + strings.TrimSpace(line) + "\n")
 	}
 	return sb.String()
 }
@@ -99,9 +99,9 @@ func OrderedList(items []string) string {
 	var sb strings.Builder
 	for i, item := range items {
 		lines := strings.Split(item, "\n")
-		sb.WriteString(strconv.Itoa(i+1) + ". " + lines[0] + "\n")
+		sb.WriteString(strconv.Itoa(i+1) + ". " + strings.TrimSpace(lines[0]) + "\n")
 		for _, line := range lines[1:] {
-			sb.WriteString("   " + line + "\n")
+			sb.WriteString("   " + strings.TrimSpace(line) + "\n")
 		}
 	}
 	return sb.String()
@@ -126,19 +126,19 @@ func TodoItem(item string, done bool) string {
 		checkbox = "x"
 	}
 	lines := strings.Split(item, "\n")
-	sb.WriteString("- [" + checkbox + "] " + lines[0] + "\n")
+	sb.WriteString("- [" + checkbox + "] " + strings.TrimSpace(lines[0]) + "\n")
 	for _, line := range lines[1:] {
-		sb.WriteString("  " + line + "\n")
+		sb.WriteString("  " + strings.TrimSpace(line) + "\n")
 	}
 	return sb.String()
 }
 
-// Nested prefixes each line with a given prefix, enabling nested lists.
-// Example: Nested("- foo\n- bar", "  ") => "  - foo\n  - bar\n"
+// Nested prefixes each line with a given prefix, preserving existing spaces.
+// Example: Nested("- foo\n- bar", "  ") => "  - foo\n  - bar"
 func Nested(content, prefix string) string {
 	lines := strings.Split(content, "\n")
 	for i := range lines {
-		if strings.TrimSpace(lines[i]) != "" {
+		if lines[i] != "" {
 			lines[i] = prefix + lines[i]
 		}
 	}
@@ -148,10 +148,13 @@ func Nested(content, prefix string) string {
 // Blockquote returns a blockquote for markdown.
 // Example: Blockquote("foo\nbar") => "> foo\n> bar\n"
 func Blockquote(text string) string {
-	lines := strings.Split(text, "\n")
+	lines := strings.Split(strings.TrimSpace(text), "\n")
 	var sb strings.Builder
-	for _, line := range lines {
-		sb.WriteString("> " + line + "\n")
+	for i, line := range lines {
+		sb.WriteString("> " + strings.TrimSpace(line))
+		if i < len(lines)-1 {
+			sb.WriteString("\n")
+		}
 	}
 	return sb.String()
 }
@@ -183,7 +186,7 @@ func HorizontalRule() string {
 // Link returns a hyperlink for markdown.
 // Example: Link("foo", "http://example.com") => "[foo](http://example.com)"
 func Link(text, url string) string {
-	return "[" + EscapeText(text) + "](" + url + ")"
+	return "[" + strings.TrimSpace(text) + "](" + url + ")"
 }
 
 // UserLink returns a user profile link for markdown.
@@ -206,7 +209,7 @@ func InlineImageWithLink(altText, imageUrl, linkUrl string) string {
 // Image returns an image for markdown.
 // Example: Image("foo", "http://example.com") => "![foo](http://example.com)"
 func Image(altText, url string) string {
-	return "![" + EscapeText(altText) + "](" + url + ")"
+	return "![" + strings.TrimSpace(altText) + "](" + url + ")"
 }
 
 // Footnote returns a footnote for markdown.
@@ -216,9 +219,16 @@ func Footnote(reference, text string) string {
 }
 
 // Paragraph wraps the given text in a Markdown paragraph.
-// Example: Paragraph("foo") => "foo\n"
+// Preserves indentation for multiline content
 func Paragraph(content string) string {
-	return content + "\n\n"
+	lines := strings.Split(content, "\n")
+	// Trim first line
+	lines[0] = strings.TrimSpace(lines[0])
+	// For subsequent lines, only trim right space but preserve left indentation
+	for i := 1; i < len(lines); i++ {
+		lines[i] = strings.TrimRight(lines[i], " \t")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // CollapsibleSection creates a collapsible section for markdown using
