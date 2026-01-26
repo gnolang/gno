@@ -1,55 +1,11 @@
 package core_types
 
 import (
-	"encoding/json"
-
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
-	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
 // TODO move to respective packages
-
-// Log from dialing seeds
-type ResultDialSeeds struct {
-	Log string `json:"log"`
-}
-
-// Log from dialing peers
-type ResultDialPeers struct {
-	Log string `json:"log"`
-}
-
-// Validators for a height
-type ResultValidators struct {
-	BlockHeight int64              `json:"block_height"`
-	Validators  []*types.Validator `json:"validators"`
-}
-
-// ConsensusParams for given height
-type ResultConsensusParams struct {
-	BlockHeight     int64                `json:"block_height"`
-	ConsensusParams abci.ConsensusParams `json:"consensus_params"`
-}
-
-// Info about the consensus state.
-type ResultDumpConsensusState struct {
-	Config     *cnscfg.ConsensusConfig `json:"config"`
-	RoundState *cstypes.RoundState     `json:"round_state"`
-	Peers      []PeerStateInfo         `json:"peers"`
-}
-
-// UNSTABLE
-type PeerStateInfo struct {
-	NodeAddress string          `json:"node_address"`
-	PeerState   json.RawMessage `json:"peer_state"`
-}
-
-// Info about (simplified) consensus state.
-type ResultConsensusState struct {
-	RoundState cstypes.RoundStateSimple `json:"round_state"`
-}
 
 // CheckTx result
 type ResultBroadcastTx struct {

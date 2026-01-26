@@ -12,7 +12,6 @@ import (
 
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -126,7 +125,7 @@ func TestHandler_ValidatorsHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultValidators)
+		result, ok := res.(*ResultValidators)
 		require.True(t, ok)
 
 		assert.Equal(t, int64(1), result.BlockHeight)
@@ -178,7 +177,7 @@ func TestHandler_DumpConsensusStateHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultDumpConsensusState)
+		result, ok := res.(*ResultDumpConsensusState)
 		require.True(t, ok)
 
 		assert.Same(t, cfg, result.Config)
@@ -227,7 +226,7 @@ func TestHandler_ConsensusStateHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultConsensusState)
+		result, ok := res.(*ResultConsensusState)
 		require.True(t, ok)
 
 		assert.Equal(t, simple, result.RoundState)
@@ -341,7 +340,7 @@ func TestHandler_ConsensusParamsHandler(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultConsensusParams)
+		result, ok := res.(*ResultConsensusParams)
 		require.True(t, ok)
 
 		assert.Equal(t, int64(1), result.BlockHeight)

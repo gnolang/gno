@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -220,8 +221,8 @@ func (c *RPCClient) NetInfo(ctx context.Context) (*net.ResultNetInfo, error) {
 	)
 }
 
-func (c *RPCClient) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
-	return sendRequestCommon[ctypes.ResultDumpConsensusState](
+func (c *RPCClient) DumpConsensusState(ctx context.Context) (*consensus.ResultDumpConsensusState, error) {
+	return sendRequestCommon[consensus.ResultDumpConsensusState](
 		ctx,
 		c.requestTimeout,
 		c.caller,
@@ -230,8 +231,8 @@ func (c *RPCClient) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpC
 	)
 }
 
-func (c *RPCClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
-	return sendRequestCommon[ctypes.ResultConsensusState](
+func (c *RPCClient) ConsensusState(ctx context.Context) (*consensus.ResultConsensusState, error) {
+	return sendRequestCommon[consensus.ResultConsensusState](
 		ctx,
 		c.requestTimeout,
 		c.caller,
@@ -240,13 +241,13 @@ func (c *RPCClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensus
 	)
 }
 
-func (c *RPCClient) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
+func (c *RPCClient) ConsensusParams(ctx context.Context, height *int64) (*consensus.ResultConsensusParams, error) {
 	var v int64
 	if height != nil {
 		v = *height
 	}
 
-	return sendRequestCommon[ctypes.ResultConsensusParams](
+	return sendRequestCommon[consensus.ResultConsensusParams](
 		ctx,
 		c.requestTimeout,
 		c.caller,
@@ -353,13 +354,13 @@ func (c *RPCClient) Tx(ctx context.Context, hash []byte) (*ctypes.ResultTx, erro
 	)
 }
 
-func (c *RPCClient) Validators(ctx context.Context, height *int64) (*ctypes.ResultValidators, error) {
+func (c *RPCClient) Validators(ctx context.Context, height *int64) (*consensus.ResultValidators, error) {
 	var v int64
 	if height != nil {
 		v = *height
 	}
 
-	return sendRequestCommon[ctypes.ResultValidators](
+	return sendRequestCommon[consensus.ResultValidators](
 		ctx,
 		c.requestTimeout,
 		c.caller,

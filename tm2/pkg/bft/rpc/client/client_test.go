@@ -9,6 +9,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -420,7 +421,7 @@ func TestRPCClient_DumpConsensusState(t *testing.T) {
 	t.Parallel()
 
 	var (
-		expectedResult = &ctypes.ResultDumpConsensusState{
+		expectedResult = &consensus.ResultDumpConsensusState{
 			RoundState: &cstypes.RoundState{
 				Round: 10,
 			},
@@ -454,7 +455,7 @@ func TestRPCClient_ConsensusState(t *testing.T) {
 	t.Parallel()
 
 	var (
-		expectedResult = &ctypes.ResultConsensusState{
+		expectedResult = &consensus.ResultConsensusState{
 			RoundState: cstypes.RoundStateSimple{
 				ProposalBlockHash: []byte("dummy"),
 			},
@@ -490,7 +491,7 @@ func TestRPCClient_ConsensusParams(t *testing.T) {
 	var (
 		blockHeight = int64(10)
 
-		expectedResult = &ctypes.ResultConsensusParams{
+		expectedResult = &consensus.ResultConsensusParams{
 			BlockHeight: blockHeight,
 		}
 
@@ -765,7 +766,7 @@ func TestRPCClient_Validators(t *testing.T) {
 	var (
 		height = int64(10)
 
-		expectedResult = &ctypes.ResultValidators{
+		expectedResult = &consensus.ResultValidators{
 			BlockHeight: height,
 		}
 

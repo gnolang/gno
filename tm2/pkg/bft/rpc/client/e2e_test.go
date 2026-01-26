@@ -12,6 +12,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -293,7 +294,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			dumpConsensusStateMethod,
-			&ctypes.ResultDumpConsensusState{
+			&consensus.ResultDumpConsensusState{
 				RoundState: &cstypes.RoundState{
 					Round: 10,
 				},
@@ -307,7 +308,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			consensusStateMethod,
-			&ctypes.ResultConsensusState{
+			&consensus.ResultConsensusState{
 				RoundState: cstypes.RoundStateSimple{
 					ProposalBlockHash: []byte("dummy"),
 				},
@@ -321,7 +322,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			consensusParamsMethod,
-			&ctypes.ResultConsensusParams{
+			&consensus.ResultConsensusParams{
 				BlockHeight: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -422,7 +423,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			validatorsMethod,
-			&ctypes.ResultValidators{
+			&consensus.ResultValidators{
 				BlockHeight: 10,
 			},
 			func(client *RPCClient, expectedResult any) {

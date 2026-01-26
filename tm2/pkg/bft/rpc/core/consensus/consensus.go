@@ -55,7 +55,7 @@ func (h *Handler) ValidatorsHandler(_ *metadata.Metadata, p []any) (any, *spec.B
 		return nil, spec.GenerateResponseError(loadErr)
 	}
 
-	return &ctypes.ResultValidators{
+	return ResultValidators{
 		BlockHeight: height,
 		Validators:  validators.Validators,
 	}, nil
@@ -71,7 +71,7 @@ func (h *Handler) DumpConsensusStateHandler(_ *metadata.Metadata, p []any) (any,
 
 	var (
 		peers      = h.peers.Peers().List()
-		peerStates = make([]ctypes.PeerStateInfo, len(peers))
+		peerStates = make([]PeerStateInfo, len(peers))
 	)
 
 	for i, peer := range peers {
@@ -88,7 +88,7 @@ func (h *Handler) DumpConsensusStateHandler(_ *metadata.Metadata, p []any) (any,
 			return nil, spec.GenerateResponseError(err)
 		}
 
-		peerStates[i] = ctypes.PeerStateInfo{
+		peerStates[i] = PeerStateInfo{
 			NodeAddress: peer.SocketAddr().String(),
 			PeerState:   psJSON,
 		}
@@ -99,7 +99,7 @@ func (h *Handler) DumpConsensusStateHandler(_ *metadata.Metadata, p []any) (any,
 		roundState = h.consensusState.GetRoundStateDeepCopy()
 	)
 
-	return &ctypes.ResultDumpConsensusState{
+	return &ResultDumpConsensusState{
 		Config:     config,
 		RoundState: roundState,
 		Peers:      peerStates,
@@ -114,7 +114,7 @@ func (h *Handler) ConsensusStateHandler(_ *metadata.Metadata, p []any) (any, *sp
 		return nil, spec.GenerateInvalidParamError(1)
 	}
 
-	return &ctypes.ResultConsensusState{
+	return &ResultConsensusState{
 		RoundState: h.consensusState.GetRoundStateSimple(),
 	}, nil
 }
@@ -143,7 +143,7 @@ func (h *Handler) ConsensusParamsHandler(_ *metadata.Metadata, p []any) (any, *s
 		return nil, spec.GenerateResponseError(loadErr)
 	}
 
-	return &ctypes.ResultConsensusParams{
+	return &ResultConsensusParams{
 		BlockHeight:     height,
 		ConsensusParams: consensusParams,
 	}, nil

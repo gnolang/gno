@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -60,7 +61,7 @@ type SignClient interface {
 	Block(ctx context.Context, height *int64) (*blocks.ResultBlock, error)
 	BlockResults(ctx context.Context, height *int64) (*blocks.ResultBlockResults, error)
 	Commit(ctx context.Context, height *int64) (*blocks.ResultCommit, error)
-	Validators(ctx context.Context, height *int64) (*ctypes.ResultValidators, error)
+	Validators(ctx context.Context, height *int64) (*consensus.ResultValidators, error)
 }
 
 // HistoryClient provides access to data from genesis to now in large chunks.
@@ -78,9 +79,9 @@ type StatusClient interface {
 // usually.
 type NetworkClient interface {
 	NetInfo(ctx context.Context) (*net.ResultNetInfo, error)
-	DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error)
-	ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error)
-	ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error)
+	DumpConsensusState(ctx context.Context) (*consensus.ResultDumpConsensusState, error)
+	ConsensusState(ctx context.Context) (*consensus.ResultConsensusState, error)
+	ConsensusParams(ctx context.Context, height *int64) (*consensus.ResultConsensusParams, error)
 	Health(ctx context.Context) (*ctypes.ResultHealth, error)
 }
 

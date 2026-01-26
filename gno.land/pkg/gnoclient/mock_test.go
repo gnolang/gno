@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -112,14 +113,14 @@ type (
 	mockGenesis              func(ctx context.Context) (*net.ResultGenesis, error)
 	mockBlockchainInfo       func(ctx context.Context, minHeight, maxHeight int64) (*blocks.ResultBlockchainInfo, error)
 	mockNetInfo              func(ctx context.Context) (*net.ResultNetInfo, error)
-	mockDumpConsensusState   func(ctx context.Context) (*ctypes.ResultDumpConsensusState, error)
-	mockConsensusState       func(ctx context.Context) (*ctypes.ResultConsensusState, error)
-	mockConsensusParams      func(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error)
+	mockDumpConsensusState   func(ctx context.Context) (*consensus.ResultDumpConsensusState, error)
+	mockConsensusState       func(ctx context.Context) (*consensus.ResultConsensusState, error)
+	mockConsensusParams      func(ctx context.Context, height *int64) (*consensus.ResultConsensusParams, error)
 	mockHealth               func(ctx context.Context) (*ctypes.ResultHealth, error)
 	mockBlock                func(ctx context.Context, height *int64) (*blocks.ResultBlock, error)
 	mockBlockResults         func(ctx context.Context, height *int64) (*blocks.ResultBlockResults, error)
 	mockCommit               func(ctx context.Context, height *int64) (*blocks.ResultCommit, error)
-	mockValidators           func(ctx context.Context, height *int64) (*ctypes.ResultValidators, error)
+	mockValidators           func(ctx context.Context, height *int64) (*consensus.ResultValidators, error)
 	mockStatus               func(ctx context.Context, heightGte *int64) (*status.ResultStatus, error)
 	mockUnconfirmedTxs       func(ctx context.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error)
 	mockNumUnconfirmedTxs    func(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error)
@@ -213,21 +214,21 @@ func (m *mockRPCClient) NetInfo(ctx context.Context) (*net.ResultNetInfo, error)
 	return nil, nil
 }
 
-func (m *mockRPCClient) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
+func (m *mockRPCClient) DumpConsensusState(ctx context.Context) (*consensus.ResultDumpConsensusState, error) {
 	if m.dumpConsensusState != nil {
 		return m.dumpConsensusState(ctx)
 	}
 	return nil, nil
 }
 
-func (m *mockRPCClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
+func (m *mockRPCClient) ConsensusState(ctx context.Context) (*consensus.ResultConsensusState, error) {
 	if m.consensusState != nil {
 		return m.consensusState(ctx)
 	}
 	return nil, nil
 }
 
-func (m *mockRPCClient) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
+func (m *mockRPCClient) ConsensusParams(ctx context.Context, height *int64) (*consensus.ResultConsensusParams, error) {
 	if m.consensusParams != nil {
 		return m.consensusParams(ctx, height)
 	}
@@ -262,7 +263,7 @@ func (m *mockRPCClient) Commit(ctx context.Context, height *int64) (*blocks.Resu
 	return nil, nil
 }
 
-func (m *mockRPCClient) Validators(ctx context.Context, height *int64) (*ctypes.ResultValidators, error) {
+func (m *mockRPCClient) Validators(ctx context.Context, height *int64) (*consensus.ResultValidators, error) {
 	if m.validators != nil {
 		return m.validators(ctx, height)
 	}

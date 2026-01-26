@@ -8,6 +8,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -220,7 +221,7 @@ func (b *RPCBatch) DumpConsensusState() {
 		nil,
 	)
 
-	b.addRequest(request, &ctypes.ResultDumpConsensusState{})
+	b.addRequest(request, &consensus.ResultDumpConsensusState{})
 }
 
 func (b *RPCBatch) ConsensusState() {
@@ -230,7 +231,7 @@ func (b *RPCBatch) ConsensusState() {
 		nil,
 	)
 
-	b.addRequest(request, &ctypes.ResultConsensusState{})
+	b.addRequest(request, &consensus.ResultConsensusState{})
 }
 
 func (b *RPCBatch) ConsensusParams(height *int64) {
@@ -247,7 +248,7 @@ func (b *RPCBatch) ConsensusParams(height *int64) {
 		},
 	)
 
-	b.addRequest(request, &ctypes.ResultConsensusParams{})
+	b.addRequest(request, &consensus.ResultConsensusParams{})
 }
 
 func (b *RPCBatch) Health() {
@@ -357,5 +358,5 @@ func (b *RPCBatch) Validators(height *int64) {
 		},
 	)
 
-	b.addRequest(request, &ctypes.ResultValidators{})
+	b.addRequest(request, &consensus.ResultValidators{})
 }
