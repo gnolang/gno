@@ -5,4 +5,4 @@ func main() {
 }
 
 // TypeCheckError:
-// main/addressable_1b_err.gno:4:6: cannot slice unaddressable value [1]int{…} (value of type [1]int)
+// main/addressable_1b_err.gno:4:6: invalid operation: cannot slice [1]int{…} (value of type [1]int) (value not addressable)

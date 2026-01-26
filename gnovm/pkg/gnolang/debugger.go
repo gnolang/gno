@@ -687,6 +687,11 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 		if tv, ok := debugLookup(m, n.Name); ok {
 			return tv, nil
 		}
+		// Rewritten loopvar.
+		if tv, ok := debugLookup(m, fmt.Sprintf("%s%s", ".loopvar_", n.Name)); ok {
+			return tv, nil
+		}
+
 		return tv, fmt.Errorf("could not find symbol value for %s", n.Name)
 	case *ast.ParenExpr:
 		return debugEvalExpr(m, n.X)
