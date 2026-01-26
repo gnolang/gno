@@ -281,7 +281,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			netInfoMethod,
-			&ctypes.ResultNetInfo{
+			&net.ResultNetInfo{
 				NPeers: 10,
 			},
 			func(client *RPCClient, expectedResult any) {

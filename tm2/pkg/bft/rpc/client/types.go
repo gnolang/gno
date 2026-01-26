@@ -77,7 +77,7 @@ type StatusClient interface {
 // NetworkClient is general info about the network state. May not be needed
 // usually.
 type NetworkClient interface {
-	NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error)
+	NetInfo(ctx context.Context) (*net.ResultNetInfo, error)
 	DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error)
 	ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error)
 	ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error)

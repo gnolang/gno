@@ -41,9 +41,9 @@ func (h *Handler) NetInfoHandler(_ *metadata.Metadata, p []any) (any, *spec.Base
 		out, in = set.NumOutbound(), set.NumInbound()
 	)
 
-	peers := make([]ctypes.Peer, 0, out+in)
+	peers := make([]Peer, 0, out+in)
 	for _, peer := range set.List() {
-		peers = append(peers, ctypes.Peer{
+		peers = append(peers, Peer{
 			NodeInfo:         peer.NodeInfo(),
 			IsOutbound:       peer.IsOutbound(),
 			ConnectionStatus: peer.Status(),
@@ -51,7 +51,7 @@ func (h *Handler) NetInfoHandler(_ *metadata.Metadata, p []any) (any, *spec.Base
 		})
 	}
 
-	return &ctypes.ResultNetInfo{
+	return &ResultNetInfo{
 		Listening: h.transport.IsListening(),
 		Listeners: h.transport.Listeners(),
 		NPeers:    len(peers),

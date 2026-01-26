@@ -210,8 +210,8 @@ func (c *RPCClient) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconf
 	)
 }
 
-func (c *RPCClient) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
-	return sendRequestCommon[ctypes.ResultNetInfo](
+func (c *RPCClient) NetInfo(ctx context.Context) (*net.ResultNetInfo, error) {
+	return sendRequestCommon[net.ResultNetInfo](
 		ctx,
 		c.requestTimeout,
 		c.caller,

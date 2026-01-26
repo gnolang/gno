@@ -210,7 +210,7 @@ func (b *RPCBatch) NetInfo() {
 		nil,
 	)
 
-	b.addRequest(request, &ctypes.ResultNetInfo{})
+	b.addRequest(request, &net.ResultNetInfo{})
 }
 
 func (b *RPCBatch) DumpConsensusState() {

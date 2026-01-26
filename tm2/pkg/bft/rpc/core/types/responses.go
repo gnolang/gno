@@ -7,19 +7,9 @@ import (
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
-	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 // TODO move to respective packages
-
-// Info about peer connections
-type ResultNetInfo struct {
-	Listening bool     `json:"listening"`
-	Listeners []string `json:"listeners"`
-	NPeers    int      `json:"n_peers"`
-	Peers     []Peer   `json:"peers"`
-}
 
 // Log from dialing seeds
 type ResultDialSeeds struct {
@@ -29,14 +19,6 @@ type ResultDialSeeds struct {
 // Log from dialing peers
 type ResultDialPeers struct {
 	Log string `json:"log"`
-}
-
-// A peer
-type Peer struct {
-	NodeInfo         p2pTypes.NodeInfo    `json:"node_info"`
-	IsOutbound       bool                 `json:"is_outbound"`
-	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
-	RemoteIP         string               `json:"remote_ip"`
 }
 
 // Validators for a height

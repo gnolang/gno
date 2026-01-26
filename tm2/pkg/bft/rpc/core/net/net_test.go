@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mock"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
@@ -60,7 +59,7 @@ func TestHandler_NetInfo(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
-		result, ok := res.(*ctypes.ResultNetInfo)
+		result, ok := res.(*ResultNetInfo)
 		require.True(t, ok)
 
 		assert.True(t, result.Listening)

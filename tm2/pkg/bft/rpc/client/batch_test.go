@@ -290,14 +290,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			netInfoMethod,
-			&ctypes.ResultNetInfo{
+			&net.ResultNetInfo{
 				NPeers: 10,
 			},
 			func(batch *RPCBatch) {
 				batch.NetInfo()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultNetInfo)
+				castResult, ok := result.(*net.ResultNetInfo)
 				require.True(t, ok)
 
 				return castResult

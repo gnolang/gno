@@ -388,7 +388,7 @@ func TestRPCClient_NetInfo(t *testing.T) {
 	t.Parallel()
 
 	var (
-		expectedResult = &ctypes.ResultNetInfo{
+		expectedResult = &net.ResultNetInfo{
 			NPeers: 10,
 		}
 

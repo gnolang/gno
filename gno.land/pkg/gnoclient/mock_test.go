@@ -111,7 +111,7 @@ type (
 	mockBroadcastTxSync      func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error)
 	mockGenesis              func(ctx context.Context) (*net.ResultGenesis, error)
 	mockBlockchainInfo       func(ctx context.Context, minHeight, maxHeight int64) (*blocks.ResultBlockchainInfo, error)
-	mockNetInfo              func(ctx context.Context) (*ctypes.ResultNetInfo, error)
+	mockNetInfo              func(ctx context.Context) (*net.ResultNetInfo, error)
 	mockDumpConsensusState   func(ctx context.Context) (*ctypes.ResultDumpConsensusState, error)
 	mockConsensusState       func(ctx context.Context) (*ctypes.ResultConsensusState, error)
 	mockConsensusParams      func(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error)
@@ -206,7 +206,7 @@ func (m *mockRPCClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight
 	return nil, nil
 }
 
-func (m *mockRPCClient) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
+func (m *mockRPCClient) NetInfo(ctx context.Context) (*net.ResultNetInfo, error) {
 	if m.netInfo != nil {
 		return m.netInfo(ctx)
 	}
