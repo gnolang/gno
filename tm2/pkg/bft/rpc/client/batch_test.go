@@ -9,6 +9,7 @@ import (
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -119,7 +120,7 @@ func TestRPCBatch_Send(t *testing.T) {
 
 		var (
 			numRequests    = 10
-			expectedStatus = &ctypes.ResultStatus{
+			expectedStatus = &status.ResultStatus{
 				NodeInfo: p2pTypes.NodeInfo{
 					Moniker: "dummy",
 				},
@@ -144,7 +145,7 @@ func TestRPCBatch_Send(t *testing.T) {
 		assert.Len(t, results, numRequests)
 
 		for _, result := range results {
-			castResult, ok := result.(*ctypes.ResultStatus)
+			castResult, ok := result.(*status.ResultStatus)
 			require.True(t, ok)
 
 			assert.Equal(t, expectedStatus, castResult)
@@ -163,7 +164,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 	}{
 		{
 			statusMethod,
-			&ctypes.ResultStatus{
+			&status.ResultStatus{
 				NodeInfo: p2pTypes.NodeInfo{
 					Moniker: "dummy",
 				},
@@ -172,7 +173,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 				batch.Status()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultStatus)
+				castResult, ok := result.(*status.ResultStatus)
 				require.True(t, ok)
 
 				return castResult

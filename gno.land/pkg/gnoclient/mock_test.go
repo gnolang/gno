@@ -6,6 +6,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -119,7 +120,7 @@ type (
 	mockBlockResults         func(ctx context.Context, height *int64) (*blocks.ResultBlockResults, error)
 	mockCommit               func(ctx context.Context, height *int64) (*blocks.ResultCommit, error)
 	mockValidators           func(ctx context.Context, height *int64) (*ctypes.ResultValidators, error)
-	mockStatus               func(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error)
+	mockStatus               func(ctx context.Context, heightGte *int64) (*status.ResultStatus, error)
 	mockUnconfirmedTxs       func(ctx context.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error)
 	mockNumUnconfirmedTxs    func(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error)
 	mockTx                   func(ctx context.Context, hash []byte) (*ctypes.ResultTx, error)
@@ -268,7 +269,7 @@ func (m *mockRPCClient) Validators(ctx context.Context, height *int64) (*ctypes.
 	return nil, nil
 }
 
-func (m *mockRPCClient) Status(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
+func (m *mockRPCClient) Status(ctx context.Context, heightGte *int64) (*status.ResultStatus, error) {
 	if m.status != nil {
 		return m.status(ctx, heightGte)
 	}

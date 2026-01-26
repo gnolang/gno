@@ -14,6 +14,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -603,7 +604,7 @@ func Test_execVerify(t *testing.T) {
 		flagAccountSequence.Set(strconv.FormatUint(accountSequence, 10))
 
 		// Create a test server that will return the account number and sequence.
-		handler := defaultHTTPHandler(t, "status", &ctypes.ResultStatus{
+		handler := defaultHTTPHandler(t, "status", &status.ResultStatus{
 			NodeInfo: p2pTypes.NodeInfo{
 				Network: chainID,
 			},

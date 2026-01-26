@@ -10,6 +10,7 @@ import (
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -110,7 +111,7 @@ func TestRPCClient_Status(t *testing.T) {
 	t.Parallel()
 
 	var (
-		expectedStatus = &ctypes.ResultStatus{
+		expectedStatus = &status.ResultStatus{
 			NodeInfo: p2pTypes.NodeInfo{
 				Moniker: "dummy",
 			},
@@ -795,7 +796,7 @@ func TestRPCClient_Validators(t *testing.T) {
 func TestRPCClient_Batch(t *testing.T) {
 	t.Parallel()
 
-	convertResults := func(results []*ctypes.ResultStatus) []any {
+	convertResults := func(results []*status.ResultStatus) []any {
 		res := make([]any, len(results))
 
 		for index, item := range results {
@@ -806,7 +807,7 @@ func TestRPCClient_Batch(t *testing.T) {
 	}
 
 	var (
-		expectedStatuses = []*ctypes.ResultStatus{
+		expectedStatuses = []*status.ResultStatus{
 			{
 				NodeInfo: p2pTypes.NodeInfo{
 					Moniker: "dummy",
@@ -860,7 +861,7 @@ func TestRPCClient_Batch(t *testing.T) {
 	require.Len(t, results, len(expectedStatuses))
 
 	for index, result := range results {
-		castResult, ok := result.(*ctypes.ResultStatus)
+		castResult, ok := result.(*status.ResultStatus)
 		require.True(t, ok)
 
 		assert.Equal(t, expectedStatuses[index], castResult)

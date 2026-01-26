@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abciErrors "github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -1229,9 +1230,9 @@ func TestLatestBlockHeight(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			status: func(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
-				return &ctypes.ResultStatus{
-					SyncInfo: ctypes.SyncInfo{
+			status: func(ctx context.Context, heightGte *int64) (*status.ResultStatus, error) {
+				return &status.ResultStatus{
+					SyncInfo: status.SyncInfo{
 						LatestBlockHeight: latestHeight,
 					},
 				}, nil

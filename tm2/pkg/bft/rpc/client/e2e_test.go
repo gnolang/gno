@@ -13,6 +13,7 @@ import (
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -178,16 +179,16 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 	}{
 		{
 			statusMethod,
-			&ctypes.ResultStatus{
+			&status.ResultStatus{
 				NodeInfo: p2pTypes.NodeInfo{
 					Moniker: "dummy",
 				},
 			},
 			func(client *RPCClient, expectedResult any) {
-				status, err := client.Status(context.Background(), nil)
+				clientStatus, err := client.Status(context.Background(), nil)
 				require.NoError(t, err)
 
-				assert.Equal(t, expectedResult, status)
+				assert.Equal(t, expectedResult, clientStatus)
 			},
 		},
 		{

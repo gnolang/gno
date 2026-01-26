@@ -8,6 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/batch"
@@ -109,13 +110,13 @@ func (c *RPCClient) NewBatch() *RPCBatch {
 	}
 }
 
-func (c *RPCClient) Status(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
+func (c *RPCClient) Status(ctx context.Context, heightGte *int64) (*status.ResultStatus, error) {
 	var v int64
 	if heightGte != nil {
 		v = *heightGte
 	}
 
-	return sendRequestCommon[ctypes.ResultStatus](
+	return sendRequestCommon[status.ResultStatus](
 		ctx,
 		c.requestTimeout,
 		c.caller,

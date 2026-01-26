@@ -4,12 +4,11 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/metadata"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 )
 
-type BuildStatusFn func() (*ctypes.ResultStatus, error)
+type BuildStatusFn func() (*ResultStatus, error)
 
 // Handler is the status RPC handler
 type Handler struct {

@@ -2,49 +2,16 @@ package core_types
 
 import (
 	"encoding/json"
-	"time"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 // TODO move to respective packages
-
-// Info about the node's syncing state
-type SyncInfo struct {
-	LatestBlockHash   []byte    `json:"latest_block_hash"`
-	LatestAppHash     []byte    `json:"latest_app_hash"`
-	LatestBlockHeight int64     `json:"latest_block_height"`
-	LatestBlockTime   time.Time `json:"latest_block_time"`
-	CatchingUp        bool      `json:"catching_up"`
-}
-
-// Info about the node's validator
-type ValidatorInfo struct {
-	Address     crypto.Address `json:"address"`
-	PubKey      crypto.PubKey  `json:"pub_key"`
-	VotingPower int64          `json:"voting_power"`
-}
-
-// Node Status
-type ResultStatus struct {
-	NodeInfo      p2pTypes.NodeInfo `json:"node_info"`
-	SyncInfo      SyncInfo          `json:"sync_info"`
-	ValidatorInfo ValidatorInfo     `json:"validator_info"`
-}
-
-// Is TxIndexing enabled
-func (s *ResultStatus) TxIndexEnabled() bool {
-	if s == nil {
-		return false
-	}
-	return s.NodeInfo.Other.TxIndex == "on"
-}
 
 // Info about peer connections
 type ResultNetInfo struct {

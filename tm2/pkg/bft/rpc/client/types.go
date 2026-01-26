@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
@@ -70,7 +71,7 @@ type HistoryClient interface {
 
 // StatusClient provides access to general chain info.
 type StatusClient interface {
-	Status(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error)
+	Status(ctx context.Context, heightGte *int64) (*status.ResultStatus, error)
 }
 
 // NetworkClient is general info about the network state. May not be needed

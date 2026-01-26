@@ -13,7 +13,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
@@ -686,7 +686,7 @@ func (n *Node) Ready() <-chan struct{} {
 }
 
 // buildStatus builds the node's current status information
-func (n *Node) buildStatus() (*ctypes.ResultStatus, error) {
+func (n *Node) buildStatus() (*status.ResultStatus, error) {
 	pubKey := n.PrivValidator().PubKey()
 
 	validatorAtHeight := func(height int64) *types.Validator {
@@ -743,16 +743,16 @@ func (n *Node) buildStatus() (*ctypes.ResultStatus, error) {
 		votingPower = val.VotingPower
 	}
 
-	result := &ctypes.ResultStatus{
+	result := &status.ResultStatus{
 		NodeInfo: n.NodeInfo(),
-		SyncInfo: ctypes.SyncInfo{
+		SyncInfo: status.SyncInfo{
 			LatestBlockHash:   latestBlockHash,
 			LatestAppHash:     latestAppHash,
 			LatestBlockHeight: latestHeight,
 			LatestBlockTime:   latestBlockTime,
 			CatchingUp:        n.consensusReactor.FastSync(),
 		},
-		ValidatorInfo: ctypes.ValidatorInfo{
+		ValidatorInfo: status.ValidatorInfo{
 			Address:     pubKey.Address(),
 			PubKey:      pubKey,
 			VotingPower: votingPower,
