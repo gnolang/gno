@@ -10,24 +10,30 @@ import "github.com/gnolang/gno/tm2/pkg/std/std.proto";
 message m_call {
 	string caller = 1;
 	string send = 2;
-	string pkg_path = 3;
-	string func = 4;
-	repeated string args = 5;
+	string max_deposit = 3;
+	string pkg_path = 4;
+	string func = 5;
+	repeated string args = 6;
 }
 
 message m_run {
 	string caller = 1;
 	string send = 2;
-	std.MemPackage package = 3;
+	string max_deposit = 3;
+	std.MemPackage package = 4;
 }
 
 message m_addpkg {
 	string creator = 1;
 	std.MemPackage package = 2;
-	string deposit = 3;
+	string send = 3;
+	string max_deposit = 4;
 }
 
 message InvalidPkgPathError {
+}
+
+message NoRenderDeclError {
 }
 
 message PkgExistError {
@@ -40,5 +46,11 @@ message InvalidExprError {
 }
 
 message TypeCheckError {
-	repeated string errors = 1 [json_name = "Errors"];
+	repeated string errors = 1;
+}
+
+message UnauthorizedUserError {
+}
+
+message InvalidPackageError {
 }
