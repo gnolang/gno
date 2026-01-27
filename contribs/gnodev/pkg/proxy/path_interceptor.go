@@ -19,6 +19,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -286,25 +287,34 @@ func parseRPCRequest(body []byte, upaths uniqPaths) error {
 
 	switch req.Method {
 	case "abci_query":
-		var squery struct {
-			Path string `json:"path"`
-			Data []byte `json:"data,omitempty"`
-		}
-		if err := json.Unmarshal(req.Params, &squery); err != nil {
-			return fmt.Errorf("unable to unmarshal params: %w", err)
+		// Params order: path, data, height, prove
+		const (
+			idxPath = 0
+			idxData = 1
+		)
+
+		path, err := params.AsString(req.Params, idxPath)
+		if err != nil {
+			return fmt.Errorf("unable to get path param: %w", err)
 		}
 
-		return handleQuery(squery.Path, squery.Data, upaths)
+		data, err := params.AsBytes(req.Params, idxData, false)
+		if err != nil {
+			return fmt.Errorf("unable to get data param: %w", err)
+		}
+
+		return handleQuery(path, data, upaths)
 
 	case "broadcast_tx_commit":
-		var stx struct {
-			Tx []byte `json:"tx"`
-		}
-		if err := json.Unmarshal(req.Params, &stx); err != nil {
-			return fmt.Errorf("unable to unmarshal params: %w", err)
+		// Params order: tx
+		const idxTx = 0
+
+		tx, err := params.AsBytes(req.Params, idxTx, true)
+		if err != nil {
+			return fmt.Errorf("unable to get tx param: %w", err)
 		}
 
-		return handleTx(stx.Tx, upaths)
+		return handleTx(tx, upaths)
 	}
 
 	return fmt.Errorf("unhandled method: %q", req.Method)

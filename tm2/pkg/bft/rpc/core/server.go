@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/config"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
 type Server struct {
@@ -35,18 +36,24 @@ func New(h http.Handler, config *config.Config, logger *slog.Logger) *Server {
 
 // Start starts the server asynchronously
 func (s *Server) Start() error {
+	// Parse the listen address to extract the protocol and address.
+	// This preserves legacy behavior where the RPC listen address
+	// has the format "tcp://..."
+	proto, addr := osm.ProtocolAndAddress(s.config.ListenAddress)
+
 	s.srv = &http.Server{
-		Addr:              s.config.ListenAddress,
+		Addr:              addr,
 		Handler:           s.h,
 		ReadHeaderTimeout: 60 * time.Second,
 		WriteTimeout:      60 * time.Second,
 	}
 
-	ln, err := net.Listen("tcp", s.srv.Addr)
+	ln, err := net.Listen(proto, addr)
 	if err != nil {
 		return fmt.Errorf(
-			"unable to listen on address %s: %w",
-			s.srv.Addr,
+			"unable to listen on address %s://%s: %w",
+			proto,
+			addr,
 			err,
 		)
 	}

@@ -37,7 +37,7 @@ func setupTestWebServer(t *testing.T, callback func(s *JSONRPC)) *testWebServer 
 	return s
 }
 
-// TestHTTP_Handle_BatchRequest verifies that the JSON-RPC server:
+// TestHTTP_Handle verifies that the JSON-RPC server:
 // - can handle a single HTTP request to a dummy endpoint
 // - can handle a batch HTTP request to a dummy endpoint
 func TestHTTP_Handle(t *testing.T) {
