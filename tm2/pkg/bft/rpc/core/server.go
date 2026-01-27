@@ -19,8 +19,9 @@ type Server struct {
 	logger *slog.Logger
 	config *config.Config
 
-	srv      *http.Server
-	ln       net.Listener
+	srv *http.Server
+	ln  net.Listener
+
 	errCh    chan error
 	stopOnce sync.Once
 }
@@ -95,4 +96,9 @@ func (s *Server) Stop() error {
 	})
 
 	return shutdownErr
+}
+
+// Listener returns the RPC server's bound listener, if any
+func (s *Server) Listener() net.Listener {
+	return s.ln
 }
