@@ -24,8 +24,6 @@ func New(logger *slog.Logger, s *melody.Session) ResponseWriter {
 }
 
 func (w ResponseWriter) WriteResponse(response any) {
-	// TODO use amino encoding
-
 	jsonRaw, encodeErr := json.Marshal(response)
 	if encodeErr != nil {
 		w.logger.Error(

@@ -24,7 +24,6 @@ func New(logger *slog.Logger, w http.ResponseWriter) ResponseWriter {
 }
 
 func (h ResponseWriter) WriteResponse(response any) {
-	// TODO use amino encoding
 	if err := json.NewEncoder(h.w).Encode(response); err != nil {
 		h.logger.Error(
 			"unable to encode JSON response",
