@@ -103,3 +103,27 @@ func (p *PoA) GetValidators() []validators.Validator {
 
 	return vals
 }
+
+// TotalVotingPower returns the total voting power of all validators in the set
+func (p *PoA) TotalVotingPower() uint64 {
+	var total uint64
+	p.validators.Iterate("", "", func(_ string, value any) bool {
+		validator := value.(validators.Validator)
+		total += validator.VotingPower
+		return false
+	})
+	return total
+}
+
+func (p *PoA) GetValidatorsMap() map[address]validators.Validator {
+	valsMap := make(map[address]validators.Validator, p.validators.Size())
+
+	p.validators.Iterate("", "", func(_ string, value any) bool {
+		validator := value.(validators.Validator)
+		valsMap[validator.Address] = validator
+
+		return false
+	})
+
+	return valsMap
+}
