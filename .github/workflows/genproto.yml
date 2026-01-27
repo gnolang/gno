@@ -28,6 +28,8 @@ jobs:
         with:
           go-version: ${{ inputs.go-version || '1.23.x' }}
 
+      - run: go version
+
       - name: Install protoc
         run: sudo apt install -y libprotobuf-dev protobuf-compiler
 
