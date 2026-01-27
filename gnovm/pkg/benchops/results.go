@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -18,51 +19,13 @@ type Results struct {
 	StartTime     time.Time
 	EndTime       time.Time
 	TimingEnabled bool // Whether timing was enabled for this run
-	OpStats       map[string]*OpStatJSON
-	StoreStats    map[string]*StoreStatJSON
-	NativeStats   map[string]*NativeStatJSON
-	LocationStats []*LocationStatJSON `json:"LocationStats,omitempty"`
-}
-
-// OpStatJSON is the JSON-serializable form of opcode statistics.
-type OpStatJSON struct {
-	Count   int64 `json:"count"`
-	TotalNs int64 `json:"total_ns,omitempty"`
-	AvgNs   int64 `json:"avg_ns,omitempty"`
-	MinNs   int64 `json:"min_ns,omitempty"`
-	MaxNs   int64 `json:"max_ns,omitempty"`
-	Gas     int64 `json:"gas"`
-}
-
-// StoreStatJSON is the JSON-serializable form of store statistics.
-type StoreStatJSON struct {
-	Count     int64 `json:"count"`
-	TotalNs   int64 `json:"total_ns,omitempty"`
-	AvgNs     int64 `json:"avg_ns,omitempty"`
-	MinNs     int64 `json:"min_ns,omitempty"`
-	MaxNs     int64 `json:"max_ns,omitempty"`
-	TotalSize int64 `json:"total_size"`
-	AvgSize   int64 `json:"avg_size"`
-}
-
-// NativeStatJSON is the JSON-serializable form of native statistics.
-type NativeStatJSON struct {
-	Count   int64 `json:"count"`
-	TotalNs int64 `json:"total_ns,omitempty"`
-	AvgNs   int64 `json:"avg_ns,omitempty"`
-	MinNs   int64 `json:"min_ns,omitempty"`
-	MaxNs   int64 `json:"max_ns,omitempty"`
-}
-
-// LocationStatJSON aggregates stats by source location.
-type LocationStatJSON struct {
-	File     string `json:"file"`
-	Line     int    `json:"line"`
-	FuncName string `json:"func,omitempty"`
-	PkgPath  string `json:"pkg"`
-	Count    int64  `json:"count"`
-	TotalNs  int64  `json:"total_ns,omitempty"`
-	Gas      int64  `json:"gas"`
+	OpStats       map[string]*OpStat
+	StoreStats    map[string]*StoreStat
+	NativeStats   map[string]*NativeStat
+	LocationStats []*LocationStat       `json:"LocationStats,omitempty"`
+	SubOpStats    map[string]*SubOpStat `json:"SubOpStats,omitempty"`
+	VarStats      []*VarStat            `json:"VarStats,omitempty"`
+	StackSamples  []*StackSample        `json:"StackSamples,omitempty"`
 }
 
 // SectionFlags controls which sections are included in WriteGolden output.
@@ -73,8 +36,10 @@ const (
 	SectionStore
 	SectionNative
 	SectionHotSpots
+	SectionSubOps
+	SectionVars
 
-	SectionAll = SectionOpcodes | SectionStore | SectionNative | SectionHotSpots
+	SectionAll = SectionOpcodes | SectionStore | SectionNative | SectionHotSpots | SectionSubOps | SectionVars
 )
 
 // Has returns true if the flag is set.
@@ -103,10 +68,14 @@ func ParseSectionFlags(s string) (SectionFlags, error) {
 			flags |= SectionNative
 		case "hotspots":
 			flags |= SectionHotSpots
+		case "subops":
+			flags |= SectionSubOps
+		case "vars":
+			flags |= SectionVars
 		case "all":
 			return 0, nil
 		default:
-			return 0, fmt.Errorf("unknown section %q (valid: opcodes, store, native, hotspots, all)", name)
+			return 0, fmt.Errorf("unknown section %q", name)
 		}
 	}
 	return flags, nil
@@ -119,112 +88,114 @@ func (p *Profiler) buildResults() *Results {
 		StartTime:     p.startTime,
 		EndTime:       p.stopTime,
 		TimingEnabled: p.timingEnabled,
-		OpStats:       make(map[string]*OpStatJSON),
-		StoreStats:    make(map[string]*StoreStatJSON),
-		NativeStats:   make(map[string]*NativeStatJSON),
+		OpStats:       make(map[string]*OpStat),
+		StoreStats:    make(map[string]*StoreStat),
+		NativeStats:   make(map[string]*NativeStat),
+		SubOpStats:    make(map[string]*SubOpStat),
 	}
 
-	// Build op stats
+	// Build op stats (copy non-zero entries)
 	for i := range maxOpCodes {
+		s := &p.opStats[i]
+		if s.Count == 0 {
+			continue
+		}
 		name := Op(i).String()
-		if p.timingEnabled {
-			s := &p.opStatsTimed[i]
-			if s.count == 0 {
-				continue
-			}
-			r.OpStats[name] = &OpStatJSON{
-				Count:   s.count,
-				TotalNs: s.totalDur.Nanoseconds(),
-				AvgNs:   s.totalDur.Nanoseconds() / s.count,
-				MinNs:   s.minDur.Nanoseconds(),
-				MaxNs:   s.maxDur.Nanoseconds(),
-				Gas:     s.gas,
-			}
-		} else {
-			s := &p.opStats[i]
-			if s.count == 0 {
-				continue
-			}
-			r.OpStats[name] = &OpStatJSON{
-				Count: s.count,
-				Gas:   s.gas,
-			}
+		r.OpStats[name] = &OpStat{
+			TimingStat: s.TimingStat,
+			Gas:        s.Gas,
 		}
 	}
 
 	// Build store stats
 	for i := range maxOpCodes {
+		s := &p.storeStats[i]
+		if s.Count == 0 {
+			continue
+		}
 		name := StoreOp(i).String()
-		if p.timingEnabled {
-			s := &p.storeStatsTimed[i]
-			if s.count == 0 {
-				continue
-			}
-			r.StoreStats[name] = &StoreStatJSON{
-				Count:     s.count,
-				TotalNs:   s.totalDur.Nanoseconds(),
-				AvgNs:     s.totalDur.Nanoseconds() / s.count,
-				MinNs:     s.minDur.Nanoseconds(),
-				MaxNs:     s.maxDur.Nanoseconds(),
-				TotalSize: s.totalSize,
-				AvgSize:   s.totalSize / s.count,
-			}
-		} else {
-			s := &p.storeStats[i]
-			if s.count == 0 {
-				continue
-			}
-			r.StoreStats[name] = &StoreStatJSON{
-				Count:     s.count,
-				TotalSize: s.totalSize,
-				AvgSize:   s.totalSize / s.count,
-			}
+		r.StoreStats[name] = &StoreStat{
+			TimingStat: s.TimingStat,
+			TotalSize:  s.TotalSize,
 		}
 	}
 
 	// Build native stats
 	for i := range maxOpCodes {
+		s := &p.nativeStats[i]
+		if s.Count == 0 {
+			continue
+		}
 		name := NativeOp(i).String()
-		if p.timingEnabled {
-			s := &p.nativeStatsTimed[i]
-			if s.count == 0 {
-				continue
-			}
-			r.NativeStats[name] = &NativeStatJSON{
-				Count:   s.count,
-				TotalNs: s.totalDur.Nanoseconds(),
-				AvgNs:   s.totalDur.Nanoseconds() / s.count,
-				MinNs:   s.minDur.Nanoseconds(),
-				MaxNs:   s.maxDur.Nanoseconds(),
-			}
-		} else {
-			s := &p.nativeStats[i]
-			if s.count == 0 {
-				continue
-			}
-			r.NativeStats[name] = &NativeStatJSON{
-				Count: s.count,
-			}
+		r.NativeStats[name] = &NativeStat{
+			TimingStat: s.TimingStat,
 		}
 	}
 
 	// Build location stats
 	if len(p.locationStats) > 0 {
-		r.LocationStats = make([]*LocationStatJSON, 0, len(p.locationStats))
+		r.LocationStats = make([]*LocationStat, 0, len(p.locationStats))
 		for _, s := range p.locationStats {
-			r.LocationStats = append(r.LocationStats, &LocationStatJSON{
-				File:     s.file,
-				Line:     s.line,
-				FuncName: s.funcName,
-				PkgPath:  s.pkgPath,
-				Count:    s.count,
-				TotalNs:  s.totalDur.Nanoseconds(),
-				Gas:      s.gasTotal,
+			r.LocationStats = append(r.LocationStats, &LocationStat{
+				File:     s.File,
+				Line:     s.Line,
+				FuncName: s.FuncName,
+				PkgPath:  s.PkgPath,
+				Count:    s.Count,
+				TotalNs:  s.TotalNs,
+				Gas:      s.Gas,
 			})
 		}
-		slices.SortFunc(r.LocationStats, func(a, b *LocationStatJSON) int {
+		slices.SortFunc(r.LocationStats, func(a, b *LocationStat) int {
 			return cmp.Compare(b.Gas, a.Gas) // descending
 		})
+	}
+
+	// Build sub-op stats
+	for i := range maxSubOps {
+		s := &p.subOpStats[i]
+		if s.Count == 0 {
+			continue
+		}
+		name := SubOp(i).String()
+		r.SubOpStats[name] = &SubOpStat{
+			TimingStat: s.TimingStat,
+		}
+	}
+
+	// Build variable stats
+	if len(p.varStats) > 0 {
+		r.VarStats = make([]*VarStat, 0, len(p.varStats))
+		for _, s := range p.varStats {
+			r.VarStats = append(r.VarStats, &VarStat{
+				Name:       s.Name,
+				File:       s.File,
+				Line:       s.Line,
+				Index:      s.Index,
+				TimingStat: s.TimingStat,
+			})
+		}
+		slices.SortFunc(r.VarStats, func(a, b *VarStat) int {
+			return cmp.Compare(b.TotalNs, a.TotalNs) // descending
+		})
+	}
+
+	// Build stack samples from aggregated map
+	if p.stackEnabled && len(p.stackSampleAgg) > 0 {
+		r.StackSamples = make([]*StackSample, 0, len(p.stackSampleAgg))
+		for keyStr, sample := range p.stackSampleAgg {
+			var frames []StackFrame
+			for _, part := range strings.Split(keyStr, "|") {
+				frame := parseFrameFromKey(part)
+				frames = append(frames, frame)
+			}
+			r.StackSamples = append(r.StackSamples, &StackSample{
+				Stack:      frames,
+				Gas:        sample.gas,
+				DurationNs: sample.durationNs,
+				Count:      sample.count,
+			})
+		}
 	}
 
 	return r
@@ -271,6 +242,8 @@ func (r *Results) WriteReport(w io.Writer, topN int) error {
 	r.writeStoreStats(tw, topN)
 	r.writeNativeStats(tw, topN)
 	r.writeHotSpots(tw, topN)
+	r.writeSubOpStats(tw, topN)
+	r.writeVarStats(tw, topN)
 
 	return tw.Flush()
 }
@@ -289,9 +262,9 @@ func (r *Results) writeOpStats(tw *tabwriter.Writer, topN int) {
 	if r.TimingEnabled {
 		fmt.Fprintf(tw, "Opcode Statistics (by total time)\n")
 		fmt.Fprintf(tw, "──────────────────────────────────\n")
-		fmt.Fprintf(tw, "Opcode\tCount\tTotal\tAvg\tMin\tMax\tGas\t%%\t\n")
+		fmt.Fprintf(tw, "Opcode\tCount\tTotal\tAvg\tStdDev\tMin\tMax\tGas\t%%\t\n")
 
-		sorted := sortedMap(r.OpStats, func(s *OpStatJSON) int64 { return s.TotalNs })
+		sorted := sortedMap(r.OpStats, func(s *OpStat) int64 { return s.TotalNs })
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
@@ -300,9 +273,10 @@ func (r *Results) writeOpStats(tw *tabwriter.Writer, topN int) {
 			if totalGas > 0 {
 				pct = float64(kv.val.Gas) * 100 / float64(totalGas)
 			}
-			fmt.Fprintf(tw, "%s\t%d\t%v\t%v\t%v\t%v\t%d\t%.1f%%\t\n",
+			fmt.Fprintf(tw, "%s\t%d\t%v\t%v\t%v\t%v\t%v\t%d\t%.1f%%\t\n",
 				kv.key, kv.val.Count,
-				time.Duration(kv.val.TotalNs), time.Duration(kv.val.AvgNs),
+				time.Duration(kv.val.TotalNs), time.Duration(kv.val.AvgNs()),
+				time.Duration(kv.val.StdDevNs()),
 				time.Duration(kv.val.MinNs), time.Duration(kv.val.MaxNs),
 				kv.val.Gas, pct)
 		}
@@ -311,7 +285,7 @@ func (r *Results) writeOpStats(tw *tabwriter.Writer, topN int) {
 		fmt.Fprintf(tw, "──────────────────────────\n")
 		fmt.Fprintf(tw, "Opcode\tCount\tGas\t%%\t\n")
 
-		sorted := sortedMap(r.OpStats, func(s *OpStatJSON) int64 { return s.Gas })
+		sorted := sortedMap(r.OpStats, func(s *OpStat) int64 { return s.Gas })
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
@@ -333,31 +307,32 @@ func (r *Results) writeStoreStats(tw *tabwriter.Writer, topN int) {
 	if r.TimingEnabled {
 		fmt.Fprintf(tw, "Store Statistics (by total time)\n")
 		fmt.Fprintf(tw, "─────────────────────────────────\n")
-		fmt.Fprintf(tw, "Operation\tCount\tTotal\tAvg\tMin\tMax\tTotal Size\tAvg Size\t\n")
+		fmt.Fprintf(tw, "Operation\tCount\tTotal\tAvg\tStdDev\tMin\tMax\tTotal Size\tAvg Size\t\n")
 
-		sorted := sortedMap(r.StoreStats, func(s *StoreStatJSON) int64 { return s.TotalNs })
+		sorted := sortedMap(r.StoreStats, func(s *StoreStat) int64 { return s.TotalNs })
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
 			}
-			fmt.Fprintf(tw, "%s\t%d\t%v\t%v\t%v\t%v\t%d\t%d\t\n",
+			fmt.Fprintf(tw, "%s\t%d\t%v\t%v\t%v\t%v\t%v\t%d\t%d\t\n",
 				kv.key, kv.val.Count,
-				time.Duration(kv.val.TotalNs), time.Duration(kv.val.AvgNs),
+				time.Duration(kv.val.TotalNs), time.Duration(kv.val.AvgNs()),
+				time.Duration(kv.val.StdDevNs()),
 				time.Duration(kv.val.MinNs), time.Duration(kv.val.MaxNs),
-				kv.val.TotalSize, kv.val.AvgSize)
+				kv.val.TotalSize, kv.val.AvgSize())
 		}
 	} else {
 		fmt.Fprintf(tw, "Store Statistics (by count)\n")
 		fmt.Fprintf(tw, "───────────────────────────\n")
 		fmt.Fprintf(tw, "Operation\tCount\tTotal Size\tAvg Size\t\n")
 
-		sorted := sortedMap(r.StoreStats, func(s *StoreStatJSON) int64 { return s.Count })
+		sorted := sortedMap(r.StoreStats, func(s *StoreStat) int64 { return s.Count })
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
 			}
 			fmt.Fprintf(tw, "%s\t%d\t%d\t%d\t\n",
-				kv.key, kv.val.Count, kv.val.TotalSize, kv.val.AvgSize)
+				kv.key, kv.val.Count, kv.val.TotalSize, kv.val.AvgSize())
 		}
 	}
 	fmt.Fprintln(tw)
@@ -370,16 +345,17 @@ func (r *Results) writeNativeStats(tw *tabwriter.Writer, topN int) {
 	if r.TimingEnabled {
 		fmt.Fprintf(tw, "Native Statistics (by total time)\n")
 		fmt.Fprintf(tw, "──────────────────────────────────\n")
-		fmt.Fprintf(tw, "Function\tCount\tTotal\tAvg\tMin\tMax\t\n")
+		fmt.Fprintf(tw, "Function\tCount\tTotal\tAvg\tStdDev\tMin\tMax\t\n")
 
-		sorted := sortedMap(r.NativeStats, func(s *NativeStatJSON) int64 { return s.TotalNs })
+		sorted := sortedMap(r.NativeStats, func(s *NativeStat) int64 { return s.TotalNs })
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
 			}
-			fmt.Fprintf(tw, "%s\t%d\t%v\t%v\t%v\t%v\t\n",
+			fmt.Fprintf(tw, "%s\t%d\t%v\t%v\t%v\t%v\t%v\t\n",
 				kv.key, kv.val.Count,
-				time.Duration(kv.val.TotalNs), time.Duration(kv.val.AvgNs),
+				time.Duration(kv.val.TotalNs), time.Duration(kv.val.AvgNs()),
+				time.Duration(kv.val.StdDevNs()),
 				time.Duration(kv.val.MinNs), time.Duration(kv.val.MaxNs))
 		}
 	} else {
@@ -387,7 +363,7 @@ func (r *Results) writeNativeStats(tw *tabwriter.Writer, topN int) {
 		fmt.Fprintf(tw, "────────────────────────────\n")
 		fmt.Fprintf(tw, "Function\tCount\t\n")
 
-		sorted := sortedMap(r.NativeStats, func(s *NativeStatJSON) int64 { return s.Count })
+		sorted := sortedMap(r.NativeStats, func(s *NativeStat) int64 { return s.Count })
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
@@ -458,6 +434,78 @@ func abbreviatePkgPath(pkg string) string {
 	return pkg
 }
 
+func (r *Results) writeSubOpStats(tw *tabwriter.Writer, topN int) {
+	if len(r.SubOpStats) == 0 {
+		return
+	}
+	if r.TimingEnabled {
+		fmt.Fprintf(tw, "Sub-Operation Statistics (by total time)\n")
+		fmt.Fprintf(tw, "─────────────────────────────────────────\n")
+		fmt.Fprintf(tw, "SubOp\tCount\tTotal\tAvg\tStdDev\tMin\tMax\t\n")
+
+		sorted := sortedMap(r.SubOpStats, func(s *SubOpStat) int64 { return s.TotalNs })
+		for i, kv := range sorted {
+			if topN > 0 && i >= topN {
+				break
+			}
+			fmt.Fprintf(tw, "%s\t%d\t%v\t%v\t%v\t%v\t%v\t\n",
+				kv.key, kv.val.Count,
+				time.Duration(kv.val.TotalNs), time.Duration(kv.val.AvgNs()),
+				time.Duration(kv.val.StdDevNs()),
+				time.Duration(kv.val.MinNs), time.Duration(kv.val.MaxNs))
+		}
+	} else {
+		fmt.Fprintf(tw, "Sub-Operation Statistics (by count)\n")
+		fmt.Fprintf(tw, "────────────────────────────────────\n")
+		fmt.Fprintf(tw, "SubOp\tCount\t\n")
+
+		sorted := sortedMap(r.SubOpStats, func(s *SubOpStat) int64 { return s.Count })
+		for i, kv := range sorted {
+			if topN > 0 && i >= topN {
+				break
+			}
+			fmt.Fprintf(tw, "%s\t%d\t\n", kv.key, kv.val.Count)
+		}
+	}
+	fmt.Fprintln(tw)
+}
+
+func (r *Results) writeVarStats(tw *tabwriter.Writer, topN int) {
+	if len(r.VarStats) == 0 {
+		return
+	}
+	if r.TimingEnabled {
+		fmt.Fprintf(tw, "Variable Statistics (by total time)\n")
+		fmt.Fprintf(tw, "────────────────────────────────────\n")
+		fmt.Fprintf(tw, "Location\tVar\tCount\tTotal\tAvg\tStdDev\tMin\tMax\t\n")
+
+		for i, v := range r.VarStats {
+			if topN > 0 && i >= topN {
+				break
+			}
+			location := fmt.Sprintf("%s:%d", v.File, v.Line)
+			fmt.Fprintf(tw, "%s\t%s\t%d\t%v\t%v\t%v\t%v\t%v\t\n",
+				location, v.DisplayName(), v.Count,
+				time.Duration(v.TotalNs), time.Duration(v.AvgNs()),
+				time.Duration(v.StdDevNs()),
+				time.Duration(v.MinNs), time.Duration(v.MaxNs))
+		}
+	} else {
+		fmt.Fprintf(tw, "Variable Statistics (by count)\n")
+		fmt.Fprintf(tw, "───────────────────────────────\n")
+		fmt.Fprintf(tw, "Location\tVar\tCount\t\n")
+
+		for i, v := range r.VarStats {
+			if topN > 0 && i >= topN {
+				break
+			}
+			location := fmt.Sprintf("%s:%d", v.File, v.Line)
+			fmt.Fprintf(tw, "%s\t%s\t%d\t\n", location, v.DisplayName(), v.Count)
+		}
+	}
+	fmt.Fprintln(tw)
+}
+
 // WriteGolden writes a deterministic summary for test golden files.
 func (r *Results) WriteGolden(w io.Writer, sections SectionFlags) {
 	if r == nil {
@@ -495,7 +543,7 @@ func (r *Results) WriteGolden(w io.Writer, sections SectionFlags) {
 	if sections.Has(SectionHotSpots) && len(r.LocationStats) > 0 {
 		fmt.Fprintln(w, "HotSpots:")
 		locs := slices.Clone(r.LocationStats)
-		slices.SortFunc(locs, func(a, b *LocationStatJSON) int {
+		slices.SortFunc(locs, func(a, b *LocationStat) int {
 			return cmp.Or(
 				cmp.Compare(a.File, b.File),
 				cmp.Compare(a.Line, b.Line),
@@ -505,6 +553,32 @@ func (r *Results) WriteGolden(w io.Writer, sections SectionFlags) {
 			funcName := cmp.Or(loc.FuncName, "-")
 			fmt.Fprintf(w, "  %s:%d %s: count=%d gas=%d\n",
 				loc.File, loc.Line, funcName, loc.Count, loc.Gas)
+		}
+	}
+
+	// SubOps
+	if sections.Has(SectionSubOps) && len(r.SubOpStats) > 0 {
+		fmt.Fprintln(w, "SubOps:")
+		for _, name := range slices.Sorted(maps.Keys(r.SubOpStats)) {
+			stat := r.SubOpStats[name]
+			fmt.Fprintf(w, "  %s: count=%d\n", name, stat.Count)
+		}
+	}
+
+	// Variables
+	if sections.Has(SectionVars) && len(r.VarStats) > 0 {
+		fmt.Fprintln(w, "Variables:")
+		vars := slices.Clone(r.VarStats)
+		slices.SortFunc(vars, func(a, b *VarStat) int {
+			return cmp.Or(
+				cmp.Compare(a.File, b.File),
+				cmp.Compare(a.Line, b.Line),
+				cmp.Compare(a.Name, b.Name),
+				cmp.Compare(a.Index, b.Index),
+			)
+		})
+		for _, v := range vars {
+			fmt.Fprintf(w, "  %s:%d %s: count=%d\n", v.File, v.Line, v.DisplayName(), v.Count)
 		}
 	}
 }
@@ -529,40 +603,6 @@ func sortedMap[V any](m map[string]V, keyFn func(V) int64) []kvPair[V] {
 	return pairs
 }
 
-// ---- Merge helper types and functions
-
-// timedStat defines the interface for stats that can be merged with timing data.
-type timedStat interface {
-	getCount() int64
-	getTotalNs() int64
-	getMinNs() int64
-	getMaxNs() int64
-}
-
-func (s *OpStatJSON) getCount() int64     { return s.Count }
-func (s *OpStatJSON) getTotalNs() int64   { return s.TotalNs }
-func (s *OpStatJSON) getMinNs() int64     { return s.MinNs }
-func (s *OpStatJSON) getMaxNs() int64     { return s.MaxNs }
-func (s *NativeStatJSON) getCount() int64 { return s.Count }
-func (s *NativeStatJSON) getTotalNs() int64 {
-	return s.TotalNs
-}
-func (s *NativeStatJSON) getMinNs() int64 { return s.MinNs }
-func (s *NativeStatJSON) getMaxNs() int64 { return s.MaxNs }
-
-// mergeTimedStats updates dst with values from src using standard min/max/avg logic.
-func mergeTimedStats(dstCount, dstTotalNs, dstMinNs, dstMaxNs *int64, src timedStat) {
-	*dstCount += src.getCount()
-	*dstTotalNs += src.getTotalNs()
-	srcMin := src.getMinNs()
-	if srcMin > 0 && (*dstMinNs == 0 || srcMin < *dstMinNs) {
-		*dstMinNs = srcMin
-	}
-	if src.getMaxNs() > *dstMaxNs {
-		*dstMaxNs = src.getMaxNs()
-	}
-}
-
 // MergeResults combines multiple Results into a single aggregated Result.
 // This is useful for combining profiling data from multiple test runs.
 func MergeResults(results ...*Results) *Results {
@@ -574,9 +614,10 @@ func MergeResults(results ...*Results) *Results {
 	}
 
 	merged := &Results{
-		OpStats:     make(map[string]*OpStatJSON),
-		StoreStats:  make(map[string]*StoreStatJSON),
-		NativeStats: make(map[string]*NativeStatJSON),
+		OpStats:     make(map[string]*OpStat),
+		StoreStats:  make(map[string]*StoreStat),
+		NativeStats: make(map[string]*NativeStat),
+		SubOpStats:  make(map[string]*SubOpStat),
 	}
 
 	for _, r := range results {
@@ -590,15 +631,12 @@ func MergeResults(results ...*Results) *Results {
 		// Merge OpStats
 		for name, stat := range r.OpStats {
 			if existing, ok := merged.OpStats[name]; ok {
-				mergeTimedStats(&existing.Count, &existing.TotalNs, &existing.MinNs, &existing.MaxNs, stat)
+				existing.TimingStat.Merge(&stat.TimingStat)
 				existing.Gas += stat.Gas
-				if existing.Count > 0 {
-					existing.AvgNs = existing.TotalNs / existing.Count
-				}
 			} else {
-				merged.OpStats[name] = &OpStatJSON{
-					Count: stat.Count, TotalNs: stat.TotalNs, AvgNs: stat.AvgNs,
-					MinNs: stat.MinNs, MaxNs: stat.MaxNs, Gas: stat.Gas,
+				merged.OpStats[name] = &OpStat{
+					TimingStat: stat.TimingStat,
+					Gas:        stat.Gas,
 				}
 			}
 		}
@@ -606,24 +644,12 @@ func MergeResults(results ...*Results) *Results {
 		// Merge StoreStats
 		for name, stat := range r.StoreStats {
 			if existing, ok := merged.StoreStats[name]; ok {
-				existing.Count += stat.Count
-				existing.TotalNs += stat.TotalNs
+				existing.TimingStat.Merge(&stat.TimingStat)
 				existing.TotalSize += stat.TotalSize
-				if stat.MinNs > 0 && (existing.MinNs == 0 || stat.MinNs < existing.MinNs) {
-					existing.MinNs = stat.MinNs
-				}
-				if stat.MaxNs > existing.MaxNs {
-					existing.MaxNs = stat.MaxNs
-				}
-				if existing.Count > 0 {
-					existing.AvgNs = existing.TotalNs / existing.Count
-					existing.AvgSize = existing.TotalSize / existing.Count
-				}
 			} else {
-				merged.StoreStats[name] = &StoreStatJSON{
-					Count: stat.Count, TotalNs: stat.TotalNs, AvgNs: stat.AvgNs,
-					MinNs: stat.MinNs, MaxNs: stat.MaxNs,
-					TotalSize: stat.TotalSize, AvgSize: stat.AvgSize,
+				merged.StoreStats[name] = &StoreStat{
+					TimingStat: stat.TimingStat,
+					TotalSize:  stat.TotalSize,
 				}
 			}
 		}
@@ -631,21 +657,59 @@ func MergeResults(results ...*Results) *Results {
 		// Merge NativeStats
 		for name, stat := range r.NativeStats {
 			if existing, ok := merged.NativeStats[name]; ok {
-				mergeTimedStats(&existing.Count, &existing.TotalNs, &existing.MinNs, &existing.MaxNs, stat)
-				if existing.Count > 0 {
-					existing.AvgNs = existing.TotalNs / existing.Count
-				}
+				existing.TimingStat.Merge(&stat.TimingStat)
 			} else {
-				merged.NativeStats[name] = &NativeStatJSON{
-					Count: stat.Count, TotalNs: stat.TotalNs, AvgNs: stat.AvgNs,
-					MinNs: stat.MinNs, MaxNs: stat.MaxNs,
+				merged.NativeStats[name] = &NativeStat{
+					TimingStat: stat.TimingStat,
+				}
+			}
+		}
+
+		// Merge SubOpStats
+		for name, stat := range r.SubOpStats {
+			if existing, ok := merged.SubOpStats[name]; ok {
+				existing.TimingStat.Merge(&stat.TimingStat)
+			} else {
+				merged.SubOpStats[name] = &SubOpStat{
+					TimingStat: stat.TimingStat,
 				}
 			}
 		}
 
 		// Merge LocationStats (append all)
 		merged.LocationStats = append(merged.LocationStats, r.LocationStats...)
+
+		// Merge StackSamples (append all)
+		merged.StackSamples = append(merged.StackSamples, r.StackSamples...)
 	}
 
 	return merged
+}
+
+// parseFrameFromKey parses a frame from a key part like "funcName@file:line".
+func parseFrameFromKey(part string) StackFrame {
+	atIdx := strings.IndexByte(part, '@')
+	if atIdx == -1 {
+		return StackFrame{Func: part}
+	}
+
+	funcName := part[:atIdx]
+	rest := part[atIdx+1:]
+
+	colonIdx := strings.LastIndexByte(rest, ':')
+	if colonIdx == -1 {
+		return StackFrame{Func: funcName, File: rest}
+	}
+
+	// Parse line number. Keys are created by buildFromStacks using strconv.Itoa,
+	// so this should never fail for valid keys. If malformed, line defaults to 0.
+	line, err := strconv.Atoi(rest[colonIdx+1:])
+	if err != nil {
+		line = 0
+	}
+	return StackFrame{
+		Func: funcName,
+		File: rest[:colonIdx],
+		Line: line,
+	}
 }

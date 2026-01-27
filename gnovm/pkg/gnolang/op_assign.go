@@ -1,5 +1,7 @@
 package gnolang
 
+import "github.com/gnolang/gno/gnovm/pkg/benchops"
+
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
 	// Define each value evaluated for Lhs.
@@ -10,12 +12,25 @@ func (m *Machine) doOpDefine() {
 	for i := range s.Lhs {
 		// Get name and value of i'th term.
 		nx := s.Lhs[i].(*NameExpr)
+
+		if benchops.Enabled {
+			benchops.BeginSubOp(benchops.SubOpDefineVar, benchops.SubOpContext{
+				Line:    s.Line,
+				VarName: string(nx.Name),
+				Index:   i,
+			})
+		}
+
 		// Finally, define (or assign if loop block).
 		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
 		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+
+		if benchops.Enabled {
+			benchops.EndSubOp()
+		}
 	}
 }
 
@@ -26,12 +41,36 @@ func (m *Machine) doOpAssign() {
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
+		if benchops.Enabled {
+			// Determine sub-op type based on LHS expression
+			subOp := benchops.SubOpAssignVar
+			varName := ""
+			switch lx := s.Lhs[i].(type) {
+			case *NameExpr:
+				varName = string(lx.Name)
+			case *IndexExpr:
+				subOp = benchops.SubOpAssignIndex
+			case *SelectorExpr:
+				subOp = benchops.SubOpAssignField
+				varName = string(lx.Sel)
+			}
+			benchops.BeginSubOp(subOp, benchops.SubOpContext{
+				Line:    s.Line,
+				VarName: varName,
+				Index:   i,
+			})
+		}
+
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
 		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+
+		if benchops.Enabled {
+			benchops.EndSubOp()
+		}
 	}
 }
 

@@ -2,6 +2,8 @@ package gnolang
 
 import (
 	"fmt"
+
+	"github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 // OpBinary1 defined in op_binary.go
@@ -409,6 +411,9 @@ func (m *Machine) doOpArrayLit() {
 		set := make([]bool, bt.Len)
 		var idx int64
 		for i, v := range vs {
+			if benchops.Enabled {
+				benchops.BeginSubOp(benchops.SubOpArrayElem, benchops.SubOpContext{Index: i})
+			}
 			if kx := x.Elts[i].Key; kx != nil {
 				// XXX why convert?
 				k := kx.(*ConstExpr).ConvertGetInt()
@@ -435,6 +440,9 @@ func (m *Machine) doOpArrayLit() {
 					al[idx] = v.Copy(m.Alloc)
 				}
 				idx++
+			}
+			if benchops.Enabled {
+				benchops.EndSubOp()
 			}
 		}
 	}
@@ -544,10 +552,16 @@ func (m *Machine) doOpMapLit() {
 		// TODO: future optimization
 		// omitType := baseOf(mt).Elem().Kind() != InterfaceKind
 		for i := range ne {
+			if benchops.Enabled {
+				benchops.BeginSubOp(benchops.SubOpMapEntry, benchops.SubOpContext{Index: i})
+			}
 			ktv := kvs[i*2].Copy(m.Alloc)
 			vtv := kvs[i*2+1]
 			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
 			*ptr.TV = vtv.Copy(m.Alloc)
+			if benchops.Enabled {
+				benchops.EndSubOp()
+			}
 		}
 	}
 	// pop map type.
@@ -622,8 +636,17 @@ func (m *Machine) doOpStructLit() {
 				// already set
 				panic(fmt.Sprintf("duplicate field name %s in struct literal", fnx.Name))
 			}
+			if benchops.Enabled {
+				benchops.BeginSubOp(benchops.SubOpStructField, benchops.SubOpContext{
+					VarName: string(fnx.Name),
+					Index:   int(fnx.Path.Index),
+				})
+			}
 			fsset[fnx.Path.Index] = true
 			fs[fnx.Path.Index] = ftv.Copy(m.Alloc)
+			if benchops.Enabled {
+				benchops.EndSubOp()
+			}
 		}
 	}
 	// construct and push value.

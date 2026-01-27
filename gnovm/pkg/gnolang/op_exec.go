@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"unicode/utf8"
+
+	"github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 /*
@@ -165,6 +167,9 @@ func (m *Machine) doOpExec(op Op) {
 			fallthrough
 		case -1: // assign list element.
 			if bs.Key != nil {
+				if benchops.Enabled {
+					benchops.BeginSubOp(benchops.SubOpRangeKey, benchops.SubOpContext{Index: bs.ListIndex})
+				}
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
 				switch bs.Op {
@@ -177,8 +182,14 @@ func (m *Machine) doOpExec(op Op) {
 				default:
 					panic("should not happen")
 				}
+				if benchops.Enabled {
+					benchops.EndSubOp()
+				}
 			}
 			if bs.Value != nil {
+				if benchops.Enabled {
+					benchops.BeginSubOp(benchops.SubOpRangeValue, benchops.SubOpContext{Index: bs.ListIndex})
+				}
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
 				ev := xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &iv).Deref()
@@ -191,6 +202,9 @@ func (m *Machine) doOpExec(op Op) {
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
+				}
+				if benchops.Enabled {
+					benchops.EndSubOp()
 				}
 			}
 			bs.NextBodyIndex++
@@ -261,6 +275,9 @@ func (m *Machine) doOpExec(op Op) {
 			fallthrough
 		case -1: // assign list element.
 			if bs.Key != nil {
+				if benchops.Enabled {
+					benchops.BeginSubOp(benchops.SubOpRangeKey, benchops.SubOpContext{Index: bs.ListIndex})
+				}
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
 				switch bs.Op {
@@ -273,8 +290,14 @@ func (m *Machine) doOpExec(op Op) {
 				default:
 					panic("should not happen")
 				}
+				if benchops.Enabled {
+					benchops.EndSubOp()
+				}
 			}
 			if bs.Value != nil {
+				if benchops.Enabled {
+					benchops.BeginSubOp(benchops.SubOpRangeValue, benchops.SubOpContext{Index: bs.ListIndex})
+				}
 				ev := typedRune(bs.NextRune)
 				switch bs.Op {
 				case ASSIGN:
@@ -285,6 +308,9 @@ func (m *Machine) doOpExec(op Op) {
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
+				}
+				if benchops.Enabled {
+					benchops.EndSubOp()
 				}
 			}
 			bs.NextBodyIndex++
@@ -358,6 +384,9 @@ func (m *Machine) doOpExec(op Op) {
 		case -1: // assign list element.
 			next := bs.NextItem
 			if bs.Key != nil {
+				if benchops.Enabled {
+					benchops.BeginSubOp(benchops.SubOpRangeKey, benchops.SubOpContext{Index: bs.ListIndex})
+				}
 				kv := *fillValueTV(m.Store, &next.Key)
 				switch bs.Op {
 				case ASSIGN:
@@ -369,8 +398,14 @@ func (m *Machine) doOpExec(op Op) {
 				default:
 					panic("should not happen")
 				}
+				if benchops.Enabled {
+					benchops.EndSubOp()
+				}
 			}
 			if bs.Value != nil {
+				if benchops.Enabled {
+					benchops.BeginSubOp(benchops.SubOpRangeValue, benchops.SubOpContext{Index: bs.ListIndex})
+				}
 				vv := *fillValueTV(m.Store, &next.Value)
 				switch bs.Op {
 				case ASSIGN:
@@ -381,6 +416,9 @@ func (m *Machine) doOpExec(op Op) {
 					ptr.TV.Assign(m.Alloc, vv, false)
 				default:
 					panic("should not happen")
+				}
+				if benchops.Enabled {
+					benchops.EndSubOp()
 				}
 			}
 			bs.NextBodyIndex++

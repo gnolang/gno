@@ -10,32 +10,42 @@ const (
 	maxOpCodes = 256
 	// defaultStackCapacity is the initial capacity for op/store stacks.
 	defaultStackCapacity = 16
+	// defaultStackSampleCapacity is the initial capacity for stack samples.
+	defaultStackSampleCapacity = 256
 )
 
 // Recorder is the interface for recording profiling measurements.
 // The global recorder is either a noopRecorder (when not profiling) or
 // a *Profiler (when profiling is active).
+//
+// Error handling semantics:
+// - EndOp, EndStore, EndNative: panic if called without matching Begin (programming error)
+// - EndSubOp: tolerant of missing BeginSubOp (returns silently) to simplify conditional instrumentation
 type Recorder interface {
 	BeginOp(op Op)
-	SetOpContext(ctx OpContext) // Set source location context for current op
+	SetOpContext(ctx OpContext)
 	EndOp()
 	BeginStore(op StoreOp)
 	EndStore(size int)
 	BeginNative(op NativeOp)
 	EndNative()
+	BeginSubOp(op SubOp, ctx SubOpContext)
+	EndSubOp()
 }
 
 // noopRecorder is the default recorder that does nothing.
 // Used when profiling is not active.
 type noopRecorder struct{}
 
-func (noopRecorder) BeginOp(Op)             {}
-func (noopRecorder) SetOpContext(OpContext) {}
-func (noopRecorder) EndOp()                 {}
-func (noopRecorder) BeginStore(StoreOp)     {}
-func (noopRecorder) EndStore(int)           {}
-func (noopRecorder) BeginNative(NativeOp)   {}
-func (noopRecorder) EndNative()             {}
+func (noopRecorder) BeginOp(Op)                     {}
+func (noopRecorder) SetOpContext(OpContext)         {}
+func (noopRecorder) EndOp()                         {}
+func (noopRecorder) BeginStore(StoreOp)             {}
+func (noopRecorder) EndStore(int)                   {}
+func (noopRecorder) BeginNative(NativeOp)           {}
+func (noopRecorder) EndNative()                     {}
+func (noopRecorder) BeginSubOp(SubOp, SubOpContext) {}
+func (noopRecorder) EndSubOp()                      {}
 
 // Ensure noopRecorder implements Recorder.
 var _ Recorder = noopRecorder{}
@@ -73,33 +83,43 @@ type Profiler struct {
 
 	// Configuration (set via options before Start)
 	timingEnabled bool // Track wall-clock time (expensive, opt-in)
+	stackEnabled  bool // Track call stacks for pprof (opt-in)
 
-	// Op statistics (gas-only by default)
-	opStats      [maxOpCodes]opStat
-	opStatsTimed [maxOpCodes]opStatTimed // only populated if timingEnabled
-	opStack      []opStackEntry
-	currentOp    *opStackEntry
+	// Op statistics (unified type handles both timed and non-timed)
+	opStats   [maxOpCodes]OpStat
+	opStack   []opStackEntry
+	currentOp *opStackEntry
 
 	// Store statistics
-	storeStats      [maxOpCodes]storeStat
-	storeStatsTimed [maxOpCodes]storeStatTimed // only populated if timingEnabled
-	storeStack      []storeStackEntry
+	storeStats [maxOpCodes]StoreStat
+	storeStack []storeStackEntry
 
 	// Native statistics
-	nativeStats      [maxOpCodes]nativeStat
-	nativeStatsTimed [maxOpCodes]nativeStatTimed // only populated if timingEnabled
-	currentNative    *nativeEntry
+	nativeStats   [maxOpCodes]NativeStat
+	currentNative *nativeEntry
 
 	// Location statistics (key: "file:line")
-	locationStats map[string]*locationStat
+	locationStats map[string]*LocationStat
+
+	// Sub-operation statistics
+	subOpStats   [maxSubOps]SubOpStat
+	currentSubOp *subOpStackEntry    // sub-ops don't nest, single pointer suffices
+	varStats     map[string]*VarStat // key: "file:line:varname" or "file:line:idx"
+
+	// Call stack tracking for pprof (opt-in)
+	callStack      []callFrame             // current call stack (root-to-leaf)
+	stackSampleAgg map[string]*stackSample // aggregated samples by stack signature (avoids memory growth)
 }
 
 // New creates a new Profiler in idle state.
 func New() *Profiler {
 	p := &Profiler{
-		opStack:       make([]opStackEntry, 0, defaultStackCapacity),
-		storeStack:    make([]storeStackEntry, 0, defaultStackCapacity),
-		locationStats: make(map[string]*locationStat),
+		opStack:        make([]opStackEntry, 0, defaultStackCapacity),
+		storeStack:     make([]storeStackEntry, 0, defaultStackCapacity),
+		locationStats:  make(map[string]*LocationStat),
+		varStats:       make(map[string]*VarStat),
+		callStack:      make([]callFrame, 0, defaultStackCapacity),
+		stackSampleAgg: make(map[string]*stackSample, defaultStackSampleCapacity),
 	}
 	p.state.Store(int32(StateIdle))
 	return p
@@ -145,17 +165,19 @@ func (p *Profiler) Stop() *Results {
 
 // clearData clears all collected measurement data without changing state.
 func (p *Profiler) clearData() {
-	p.opStats = [maxOpCodes]opStat{}
-	p.opStatsTimed = [maxOpCodes]opStatTimed{}
+	p.opStats = [maxOpCodes]OpStat{}
 	p.opStack = p.opStack[:0]
 	p.currentOp = nil
-	p.storeStats = [maxOpCodes]storeStat{}
-	p.storeStatsTimed = [maxOpCodes]storeStatTimed{}
+	p.storeStats = [maxOpCodes]StoreStat{}
 	p.storeStack = p.storeStack[:0]
-	p.nativeStats = [maxOpCodes]nativeStat{}
-	p.nativeStatsTimed = [maxOpCodes]nativeStatTimed{}
+	p.nativeStats = [maxOpCodes]NativeStat{}
 	p.currentNative = nil
-	p.locationStats = make(map[string]*locationStat)
+	p.locationStats = make(map[string]*LocationStat)
+	p.subOpStats = [maxSubOps]SubOpStat{}
+	p.currentSubOp = nil
+	p.varStats = make(map[string]*VarStat)
+	p.callStack = p.callStack[:0]
+	p.stackSampleAgg = make(map[string]*stackSample)
 }
 
 // Reset clears all collected data and returns to idle state.
@@ -177,6 +199,8 @@ func (p *Profiler) Recovery() {
 	p.currentOp = nil
 	p.storeStack = p.storeStack[:0]
 	p.currentNative = nil
+	p.currentSubOp = nil
+	p.callStack = p.callStack[:0]
 }
 
 // State returns the current profiler state.

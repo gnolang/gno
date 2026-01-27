@@ -40,6 +40,10 @@ build:
 install:
 	go install $(GOBUILD_FLAGS) ./cmd/gno
 
+.PHONY: install.benchops
+install.benchops:
+	go install -tags gnobench $(GOBUILD_FLAGS) ./cmd/gno
+
 .PHONY: clean
 clean:
 	rm -rf build

@@ -390,7 +390,6 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 
 // An atomic operation to set the package realm info (id counter etc).
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
-
 	var size int
 	if benchops.Enabled {
 		benchops.BeginStore(benchops.StoreSetPackageRealm)
@@ -437,7 +436,6 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
-
 	var size int
 
 	if benchops.Enabled {
@@ -735,7 +733,6 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 }
 
 func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
-
 	// check cache.
 	if tt, exists := ds.cacheTypes.Get(tid); exists {
 		return tt
@@ -824,7 +821,6 @@ func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
 }
 
 func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
-
 	var size int
 
 	if benchops.Enabled {
@@ -952,7 +948,6 @@ func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
 }
 
 func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
-
 	var size int
 
 	if benchops.Enabled {

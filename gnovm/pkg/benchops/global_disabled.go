@@ -14,17 +14,23 @@ const Enabled = false
 // Option is a no-op type when profiling is disabled.
 type Option func(*Profiler)
 
-func WithTiming() Option              { return nil }
-func Start(opts ...Option)            {}
-func Stop() *Results                  { return nil }
-func IsRunning() bool                 { return false }
-func BeginOp(op Op)                   {}
-func SetOpContext(ctx OpContext)      {}
-func EndOp()                          {}
-func BeginStore(op StoreOp)           {}
-func EndStore(size int)               {}
-func BeginNative(op NativeOp)         {}
-func EndNative()                      {}
-func TraceStore(op StoreOp) func(int) { return func(int) {} }
-func TraceNative(op NativeOp) func()  { return func() {} }
-func Recovery()                       {}
+func WithTiming() Option                                { return nil }
+func WithStacks() Option                                { return nil }
+func Start(opts ...Option)                              {}
+func Stop() *Results                                    { return nil }
+func IsRunning() bool                                   { return false }
+func BeginOp(op Op)                                     {}
+func SetOpContext(ctx OpContext)                        {}
+func EndOp()                                            {}
+func BeginStore(op StoreOp)                             {}
+func EndStore(size int)                                 {}
+func BeginNative(op NativeOp)                           {}
+func EndNative()                                        {}
+func BeginSubOp(op SubOp, ctx SubOpContext)             {}
+func EndSubOp()                                         {}
+func TraceStore(op StoreOp) func(int)                   { return func(int) {} }
+func TraceNative(op NativeOp) func()                    { return func() {} }
+func TraceSubOp(op SubOp, ctx SubOpContext) func()      { return func() {} }
+func Recovery()                                         {}
+func PushCall(funcName, pkgPath, file string, line int) {}
+func PopCall()                                          {}

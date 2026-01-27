@@ -148,11 +148,11 @@ type TestOptions struct {
 	Events bool
 	// Print human-readable benchops profile after each test.
 	Benchops bool
-	// Path to JSON file for benchops profiling results (test2json-compatible JSONL).
+	// Path to pprof file for benchops profiling results.
 	OpsProfile string
 
-	// opsFile is the opened file for writing JSONL profile output.
-	opsFile *os.File
+	// benchResults accumulates profiling results across tests for pprof output.
+	benchResults []*benchops.Results
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -165,41 +165,19 @@ func (opts *TestOptions) WriterForStore() io.Writer {
 	return &opts.outWriter
 }
 
-// BenchEvent follows the test2json TestEvent pattern for bench results.
-// See: https://pkg.go.dev/cmd/test2json
-type BenchEvent struct {
-	Time    time.Time         `json:"Time"`              // RFC3339
-	Action  string            `json:"Action"`            // Always "bench"
-	Package string            `json:"Package"`           // Package path
-	Test    string            `json:"Test"`              // Test name or filetest filename
-	Elapsed float64           `json:"Elapsed,omitempty"` // Duration in seconds
-	Profile *benchops.Results `json:"Profile,omitempty"` // Benchops profiling data
-}
-
-// writeBenchEvent writes a single bench event to the profile file.
-func (opts *TestOptions) writeBenchEvent(pkg, testName string, elapsed time.Duration, results *benchops.Results) {
-	if opts.opsFile == nil || results == nil {
-		return
-	}
-	event := BenchEvent{
-		Time:    time.Now(),
-		Action:  "bench",
-		Package: pkg,
-		Test:    testName,
-		Elapsed: elapsed.Seconds(),
-		Profile: results,
-	}
-	if err := json.NewEncoder(opts.opsFile).Encode(event); err != nil {
-		fmt.Fprintf(opts.Error, "warning: could not write bench event: %v\n", err)
-	}
-}
-
 // benchEnabled returns true if benchops profiling should be performed.
 func (opts *TestOptions) benchEnabled() bool {
 	if !benchops.Enabled {
 		return false
 	}
 	return opts.Benchops || opts.OpsProfile != ""
+}
+
+// collectBenchResults accumulates profiling results for pprof output.
+func (opts *TestOptions) collectBenchResults(results *benchops.Results) {
+	if results != nil && opts.OpsProfile != "" {
+		opts.benchResults = append(opts.benchResults, results)
+	}
 }
 
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
@@ -269,18 +247,22 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
 
-	// Open ops profile file if requested
+	// Write accumulated pprof results at the end if requested
 	if benchops.Enabled && opts.OpsProfile != "" {
-		f, err := os.Create(opts.OpsProfile)
-		if err != nil {
-			return fmt.Errorf("could not create ops profile file: %w", err)
-		}
-		opts.opsFile = f
 		defer func() {
-			if err := opts.opsFile.Close(); err != nil {
-				fmt.Fprintf(opts.Error, "warning: could not close ops profile file: %v\n", err)
+			if len(opts.benchResults) > 0 {
+				// Merge all results and write pprof
+				merged := benchops.MergeResults(opts.benchResults...)
+				f, err := os.Create(opts.OpsProfile)
+				if err != nil {
+					fmt.Fprintf(opts.Error, "warning: could not create opsprofile file: %v\n", err)
+					return
+				}
+				defer f.Close()
+				if err := merged.WritePprof(f); err != nil {
+					fmt.Fprintf(opts.Error, "warning: could not write opsprofile: %v\n", err)
+				}
 			}
-			opts.opsFile = nil
 		}()
 	}
 
@@ -373,7 +355,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 			// Start benchops profiling for this filetest if enabled
 			if opts.benchEnabled() {
-				benchops.Start()
+				benchops.Start(benchops.WithTiming(), benchops.WithStacks())
 			}
 
 			startedAt := time.Now()
@@ -417,9 +399,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 					fmt.Fprintf(opts.Error, "\n--- Benchops: %s ---\n", testFileName)
 					benchResults.WriteReport(opts.Error, 10)
 				}
-				if opts.OpsProfile != "" {
-					opts.writeBenchEvent(mpkg.Path, testFileName, duration, benchResults)
-				}
+				opts.collectBenchResults(benchResults)
 			}
 		}
 	}
@@ -552,9 +532,8 @@ func (opts *TestOptions) runTestFiles(
 
 		// Start benchops profiling for this test if enabled
 		if opts.benchEnabled() {
-			benchops.Start()
+			benchops.Start(benchops.WithTiming(), benchops.WithStacks())
 		}
-		testStartTime := time.Now()
 
 		eval := m.Eval(gno.Call(
 			runTestCX,                                     // Call testing.RunTest
@@ -572,8 +551,6 @@ func (opts *TestOptions) runTestFiles(
 				},
 			},
 		))
-
-		testDuration := time.Since(testStartTime)
 
 		// Stop benchops profiling and handle results
 		var benchResults *benchops.Results
@@ -623,9 +600,7 @@ func (opts *TestOptions) runTestFiles(
 				fmt.Fprintf(opts.Error, "\n--- Benchops: %s ---\n", tf.Name)
 				benchResults.WriteReport(opts.Error, 10)
 			}
-			if opts.OpsProfile != "" {
-				opts.writeBenchEvent(mpkg.Path, tf.Name, testDuration, benchResults)
-			}
+			opts.collectBenchResults(benchResults)
 		}
 
 		if opts.Metrics {

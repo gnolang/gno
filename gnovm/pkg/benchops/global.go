@@ -35,6 +35,12 @@ func WithTiming() Option {
 	return func(p *Profiler) { p.timingEnabled = true }
 }
 
+// WithStacks enables call stack tracking for pprof output.
+// Stack tracking adds memory overhead for stack copies.
+func WithStacks() Option {
+	return func(p *Profiler) { p.stackEnabled = true }
+}
+
 // ---- Configuration Functions
 
 // Start begins profiling with a new Profiler.
@@ -120,6 +126,20 @@ func EndNative() {
 	global.Load().recorder.EndNative()
 }
 
+// ---- SubOp Functions (explicit Begin/End for loops)
+
+// BeginSubOp starts tracking a sub-operation with optional context.
+// Use this with EndSubOp for explicit begin/end tracking in loops.
+// Pass zero value SubOpContext{} if no context is needed.
+func BeginSubOp(op SubOp, ctx SubOpContext) {
+	global.Load().recorder.BeginSubOp(op, ctx)
+}
+
+// EndSubOp completes the current sub-operation.
+func EndSubOp() {
+	global.Load().recorder.EndSubOp()
+}
+
 // ---- Defer-Friendly Trace Functions
 
 // TraceStore traces a store operation. Returns a closer that accepts size.
@@ -132,12 +152,21 @@ func TraceStore(op StoreOp) func(size int) {
 }
 
 // TraceNative traces a native function call.
-// Always records count. Only records timing if WithTiming() was used.
+// Always records timing if WithTiming() was used.
 // Usage: defer benchops.TraceNative(benchops.NativeXxx)()
 func TraceNative(op NativeOp) func() {
 	rec := global.Load().recorder
 	rec.BeginNative(op)
 	return rec.EndNative
+}
+
+// TraceSubOp traces a sub-operation with context.
+// Always records count. Only records timing if WithTiming() was used.
+// Usage: defer benchops.TraceSubOp(benchops.SubOpDefineVar, ctx)()
+func TraceSubOp(op SubOp, ctx SubOpContext) func() {
+	rec := global.Load().recorder
+	rec.BeginSubOp(op, ctx)
+	return rec.EndSubOp
 }
 
 // ---- Recovery
@@ -147,5 +176,23 @@ func TraceNative(op NativeOp) func() {
 func Recovery() {
 	if p := global.Load().profiler; p != nil {
 		p.Recovery()
+	}
+}
+
+// ---- Call Stack Tracking
+
+// PushCall pushes a function call onto the call stack.
+// Called when entering a function.
+func PushCall(funcName, pkgPath, file string, line int) {
+	if p := global.Load().profiler; p != nil {
+		p.PushCall(funcName, pkgPath, file, line)
+	}
+}
+
+// PopCall pops the current function from the call stack.
+// Called when returning from a function.
+func PopCall() {
+	if p := global.Load().profiler; p != nil {
+		p.PopCall()
 	}
 }

@@ -91,7 +91,7 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 		&c.opsProfile,
 		"opsprofile",
 		"",
-		"write operation profiling results to JSON file (requires -tags gnobench build)",
+		"write operation profiling results to pprof file (requires -tags gnobench build)",
 	)
 }
 
@@ -248,13 +248,15 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	}
 
 	// Warn if gnobench not enabled
-	if (cfg.benchops || cfg.opsProfile != "") && !benchops.Enabled {
+	profilingEnabled := cfg.benchops || cfg.opsProfile != ""
+	if profilingEnabled && !benchops.Enabled {
 		cio.ErrPrintln("warning: --benchops/--opsprofile ignored (requires -tags gnobench build)")
 	}
 
 	// Start benchops profiling if enabled
-	if benchops.Enabled && (cfg.benchops || cfg.opsProfile != "") {
-		benchops.Start(benchops.WithTiming())
+	if benchops.Enabled && profilingEnabled {
+		// Enable full profiling for CLI: timing for performance analysis, stacks for pprof
+		benchops.Start(benchops.WithTiming(), benchops.WithStacks())
 		defer func() {
 			if !benchops.IsRunning() {
 				return
@@ -267,19 +269,18 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 				results.WriteReport(cio.Err(), 10)
 			}
 
-			if cfg.opsProfile == "" {
-				return
-			}
-			f, err := os.Create(cfg.opsProfile)
-			if err != nil {
-				cio.ErrPrintfln("warning: could not create opsprofile file: %v", err)
-				return
-			}
-			if err := results.WriteJSON(f); err != nil {
-				cio.ErrPrintfln("warning: could not write opsprofile: %v", err)
-			}
-			if err := f.Close(); err != nil {
-				cio.ErrPrintfln("warning: could not close opsprofile file: %v", err)
+			if cfg.opsProfile != "" {
+				f, err := os.Create(cfg.opsProfile)
+				if err != nil {
+					cio.ErrPrintfln("warning: could not create opsprofile file: %v", err)
+				} else {
+					if err := results.WritePprof(f); err != nil {
+						cio.ErrPrintfln("warning: could not write opsprofile: %v", err)
+					}
+					if err := f.Close(); err != nil {
+						cio.ErrPrintfln("warning: could not close opsprofile file: %v", err)
+					}
+				}
 			}
 		}()
 	}

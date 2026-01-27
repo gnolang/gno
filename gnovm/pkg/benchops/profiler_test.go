@@ -21,7 +21,7 @@ func TestProfilerLifecycle(t *testing.T) {
 	p.Start()
 	require.Equal(t, StateRunning, p.State())
 
-	// Do some work (sleep ensures measurable duration for timing verification)
+	// Do some work
 	p.BeginOp(OpAdd)
 	time.Sleep(time.Millisecond)
 	p.EndOp()
@@ -99,7 +99,7 @@ func TestProfilerResetPanicsWhenRunning(t *testing.T) {
 
 func TestOpMeasurement(t *testing.T) {
 	p := New()
-	p.timingEnabled = true // Enable timing for this test
+	p.timingEnabled = true // Required for timing data
 	p.Start()
 
 	// Measure some ops (sleep ensures measurable duration for timing verification)
@@ -395,7 +395,7 @@ func TestLocationTracking(t *testing.T) {
 	assert.GreaterOrEqual(t, results.LocationStats[0].Gas, results.LocationStats[1].Gas)
 
 	// Check line 10 stats (5 OpAdd = 5 * 18 = 90 gas)
-	var line10Stat, line20Stat *LocationStatJSON
+	var line10Stat, line20Stat *LocationStat
 	for _, stat := range results.LocationStats {
 		if stat.Line == 10 {
 			line10Stat = stat
@@ -620,4 +620,341 @@ func TestParseSectionFlags(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ---- Sub-operation (Level 2) tests
+
+func TestSubOpMeasurement(t *testing.T) {
+	p := New()
+	p.Start()
+	// Sub-ops are always enabled now
+
+	// Test basic sub-op tracking
+	p.BeginSubOp(SubOpDefineVar, SubOpContext{Line: 10, VarName: "x", File: "test.gno"})
+	time.Sleep(time.Microsecond)
+	p.EndSubOp()
+
+	results := p.Stop()
+	require.NotNil(t, results.SubOpStats)
+	require.Contains(t, results.SubOpStats, "DefineVar")
+	assert.Equal(t, int64(1), results.SubOpStats["DefineVar"].Count)
+}
+
+func TestSubOpAlwaysEnabled(t *testing.T) {
+	p := New()
+	p.Start()
+	// Sub-ops are always tracked now (no EnableSubOps needed)
+
+	p.BeginSubOp(SubOpDefineVar, SubOpContext{})
+	p.EndSubOp()
+
+	results := p.Stop()
+	require.NotNil(t, results.SubOpStats)
+	assert.Equal(t, int64(1), results.SubOpStats["DefineVar"].Count)
+}
+
+func TestSubOpMultipleTypes(t *testing.T) {
+	p := New()
+	p.Start()
+	// Sub-ops are always enabled now
+
+	// Test multiple sub-op types
+	for i := 0; i < 3; i++ {
+		p.BeginSubOp(SubOpDefineVar, SubOpContext{})
+		p.EndSubOp()
+	}
+	for i := 0; i < 2; i++ {
+		p.BeginSubOp(SubOpAssignVar, SubOpContext{})
+		p.EndSubOp()
+	}
+
+	results := p.Stop()
+	assert.Equal(t, int64(3), results.SubOpStats["DefineVar"].Count)
+	assert.Equal(t, int64(2), results.SubOpStats["AssignVar"].Count)
+}
+
+func TestSubOpString(t *testing.T) {
+	tests := map[string]struct {
+		op   SubOp
+		want string
+	}{
+		"define":  {op: SubOpDefineVar, want: "DefineVar"},
+		"assign":  {op: SubOpAssignVar, want: "AssignVar"},
+		"range":   {op: SubOpRangeKey, want: "RangeKey"},
+		"unknown": {op: SubOp(0xFE), want: "Unknown"},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.op.String())
+		})
+	}
+}
+
+func TestEndSubOpWithoutBeginNoOp(t *testing.T) {
+	p := New()
+	p.Start()
+	// Sub-ops are always enabled now
+	defer p.Stop()
+
+	// EndSubOp without BeginSubOp should not panic - it's a no-op
+	require.NotPanics(t, func() { p.EndSubOp() })
+}
+
+func TestSubOpWithContext(t *testing.T) {
+	p := New()
+	p.Start()
+	// Sub-ops are always enabled now
+
+	// Track variable assignments with context
+	p.BeginSubOp(SubOpDefineVar, SubOpContext{
+		File:    "test.gno",
+		Line:    10,
+		VarName: "x",
+	})
+	time.Sleep(time.Microsecond)
+	p.EndSubOp()
+
+	p.BeginSubOp(SubOpAssignVar, SubOpContext{
+		File:    "test.gno",
+		Line:    15,
+		VarName: "y",
+	})
+	time.Sleep(time.Microsecond)
+	p.EndSubOp()
+
+	results := p.Stop()
+
+	// Verify sub-op stats
+	require.NotNil(t, results.SubOpStats)
+	assert.Equal(t, int64(1), results.SubOpStats["DefineVar"].Count)
+	assert.Equal(t, int64(1), results.SubOpStats["AssignVar"].Count)
+
+	// Verify variable stats
+	require.NotNil(t, results.VarStats)
+	require.Len(t, results.VarStats, 2)
+}
+
+func TestSubOpIndexedContext(t *testing.T) {
+	p := New()
+	p.Start()
+	// Sub-ops are always enabled now
+
+	// Test indexed operations (e.g., range loop indices)
+	p.BeginSubOp(SubOpRangeKey, SubOpContext{
+		File:  "test.gno",
+		Line:  20,
+		Index: 0,
+	})
+	p.EndSubOp()
+
+	p.BeginSubOp(SubOpRangeValue, SubOpContext{
+		File:  "test.gno",
+		Line:  20,
+		Index: 1,
+	})
+	p.EndSubOp()
+
+	results := p.Stop()
+
+	require.NotNil(t, results.SubOpStats)
+	assert.Equal(t, int64(1), results.SubOpStats["RangeKey"].Count)
+	assert.Equal(t, int64(1), results.SubOpStats["RangeValue"].Count)
+}
+
+func TestWriteGoldenWithSubOps(t *testing.T) {
+	p := New()
+	p.Start()
+	// Sub-ops are always enabled now
+
+	p.BeginSubOp(SubOpDefineVar, SubOpContext{Line: 10, VarName: "x", File: "test.gno"})
+	p.EndSubOp()
+
+	p.BeginSubOp(SubOpAssignVar, SubOpContext{})
+	p.EndSubOp()
+
+	results := p.Stop()
+
+	var buf bytes.Buffer
+	results.WriteGolden(&buf, SectionSubOps)
+	output := buf.String()
+
+	assert.Contains(t, output, "SubOps:")
+	assert.Contains(t, output, "AssignVar: count=1")
+	assert.Contains(t, output, "DefineVar: count=1")
+}
+
+func TestWriteGoldenWithVars(t *testing.T) {
+	p := New()
+	p.Start()
+	// Sub-ops are always enabled now
+
+	p.BeginSubOp(SubOpDefineVar, SubOpContext{
+		File:    "test.gno",
+		Line:    10,
+		VarName: "myVar",
+	})
+	p.EndSubOp()
+
+	results := p.Stop()
+
+	var buf bytes.Buffer
+	results.WriteGolden(&buf, SectionVars)
+	output := buf.String()
+
+	assert.Contains(t, output, "Variables:")
+	assert.Contains(t, output, "test.gno:10 myVar: count=1")
+}
+
+func TestRecoveryResetsSubOps(t *testing.T) {
+	p := New()
+	p.Start()
+	// Sub-ops are always enabled now
+
+	// Start a sub-op without ending it
+	p.BeginSubOp(SubOpDefineVar, SubOpContext{})
+
+	// Simulate panic recovery
+	p.Recovery()
+
+	// Should be able to continue measuring
+	p.BeginSubOp(SubOpAssignVar, SubOpContext{})
+	time.Sleep(time.Microsecond)
+	p.EndSubOp()
+
+	results := p.Stop()
+
+	// Only AssignVar should be in results (DefineVar was not ended)
+	assert.NotContains(t, results.SubOpStats, "DefineVar")
+	assert.Contains(t, results.SubOpStats, "AssignVar")
+}
+
+// ---- Call stack tracking tests
+
+func TestStackTrackingBasic(t *testing.T) {
+	p := New()
+	p.Start()
+	p.stackEnabled = true
+
+	// Simulate a call stack: main -> handleRequest -> computeValue
+	p.PushCall("main", "gno.land/r/demo/test", "test.gno", 5)
+	p.PushCall("handleRequest", "gno.land/r/demo/test", "test.gno", 10)
+	p.PushCall("computeValue", "gno.land/r/demo/test", "test.gno", 20)
+
+	// Record an op while in computeValue
+	p.BeginOp(OpAdd)
+	p.SetOpContext(OpContext{File: "test.gno", Line: 25})
+	p.EndOp()
+
+	// Pop back to handleRequest
+	p.PopCall()
+
+	// Record another op while in handleRequest
+	p.BeginOp(OpMul)
+	p.SetOpContext(OpContext{File: "test.gno", Line: 12})
+	p.EndOp()
+
+	p.PopCall() // back to main
+	p.PopCall() // exit main
+
+	results := p.Stop()
+
+	// Check that we have stack samples
+	require.NotNil(t, results.StackSamples)
+	require.GreaterOrEqual(t, len(results.StackSamples), 2)
+
+	// Check the first sample has the full call stack (leaf-to-root)
+	found3Deep := false
+	found2Deep := false
+	for _, sample := range results.StackSamples {
+		if len(sample.Stack) == 3 {
+			found3Deep = true
+			assert.Equal(t, "computeValue", sample.Stack[0].Func)
+			assert.Equal(t, "handleRequest", sample.Stack[1].Func)
+			assert.Equal(t, "main", sample.Stack[2].Func)
+		}
+		if len(sample.Stack) == 2 {
+			found2Deep = true
+			assert.Equal(t, "handleRequest", sample.Stack[0].Func)
+			assert.Equal(t, "main", sample.Stack[1].Func)
+		}
+	}
+	assert.True(t, found3Deep, "expected a sample with 3-level call stack")
+	assert.True(t, found2Deep, "expected a sample with 2-level call stack")
+}
+
+func TestStackTrackingDisabledByDefault(t *testing.T) {
+	p := New()
+	p.Start()
+	// Don't call EnableStacks()
+
+	p.PushCall("main", "gno.land/r/demo/test", "test.gno", 5)
+	p.BeginOp(OpAdd)
+	p.SetOpContext(OpContext{File: "test.gno", Line: 10})
+	p.EndOp()
+	p.PopCall()
+
+	results := p.Stop()
+
+	// No stack samples should be recorded
+	assert.Empty(t, results.StackSamples)
+}
+
+func TestRecoveryResetsCallStack(t *testing.T) {
+	p := New()
+	p.Start()
+	p.stackEnabled = true
+
+	// Push some calls without popping
+	p.PushCall("main", "pkg", "test.gno", 1)
+	p.PushCall("nested", "pkg", "test.gno", 10)
+
+	// Simulate panic recovery
+	p.Recovery()
+
+	// Call stack should be empty now
+	// Test by pushing a new call and recording an op
+	p.PushCall("newMain", "pkg", "test.gno", 1)
+	p.BeginOp(OpAdd)
+	p.SetOpContext(OpContext{File: "test.gno", Line: 5})
+	p.EndOp()
+	p.PopCall()
+
+	results := p.Stop()
+
+	// Only the newMain call should be in the stack samples
+	require.NotNil(t, results.StackSamples)
+	for _, sample := range results.StackSamples {
+		// Should only have 1 frame (newMain)
+		assert.Equal(t, 1, len(sample.Stack))
+		assert.Equal(t, "newMain", sample.Stack[0].Func)
+	}
+}
+
+func TestStackTrackingPprofOutput(t *testing.T) {
+	p := New()
+	p.Start()
+	p.stackEnabled = true
+
+	// Simulate a call stack
+	p.PushCall("main", "gno.land/r/demo/test", "test.gno", 5)
+	p.PushCall("compute", "gno.land/r/demo/test", "test.gno", 10)
+
+	// Record some ops
+	for i := 0; i < 3; i++ {
+		p.BeginOp(OpAdd)
+		p.SetOpContext(OpContext{File: "test.gno", Line: 15})
+		p.EndOp()
+	}
+
+	p.PopCall()
+	p.PopCall()
+
+	results := p.Stop()
+
+	// Write pprof output
+	var buf bytes.Buffer
+	err := results.WritePprof(&buf)
+	require.NoError(t, err)
+	assert.NotZero(t, buf.Len())
 }

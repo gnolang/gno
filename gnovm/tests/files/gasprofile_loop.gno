@@ -13,24 +13,23 @@ func main() {
 
 // Gasprofile:
 // Opcodes:
-//   OpAddAssign: count=10 gas=85
-//   OpBody: count=4 gas=43
-//   OpCall: count=2 gas=256
+//   OpAddAssign: count=10 gas=850
+//   OpBody: count=4 gas=172
+//   OpCall: count=2 gas=512
 //   OpCallNativeBody: count=1 gas=424
-//   OpDefine: count=2 gas=111
-//   OpEval: count=55 gas=29
-//   OpExec: count=3 gas=25
-//   OpForLoop: count=21 gas=27
+//   OpDefine: count=2 gas=222
+//   OpEval: count=55 gas=1595
+//   OpExec: count=3 gas=75
+//   OpForLoop: count=21 gas=567
 //   OpFuncType: count=1 gas=81
-//   OpHalt: count=13 gas=1
-//   OpInc: count=10 gas=76
-//   OpLss: count=11 gas=13
-//   OpPopBlock: count=12 gas=3
-//   OpPopResults: count=2 gas=1
-//   OpPrecall: count=2 gas=207
+//   OpHalt: count=13 gas=13
+//   OpInc: count=10 gas=760
+//   OpLss: count=11 gas=143
+//   OpPopBlock: count=12 gas=36
+//   OpPopResults: count=2 gas=2
+//   OpPrecall: count=2 gas=414
 //   OpReturn: count=1 gas=38
 //   OpReturnFromBlock: count=1 gas=36
-//   OpVoid: count=158 gas=1
 // Store:
 //   StoreGetObject: count=1 size=0
 // Native:
@@ -39,3 +38,6 @@ func main() {
 //   gasprofile_loop.gno:4 main: count=2 gas=140
 //   gasprofile_loop.gno:5 -: count=13 gas=925
 //   gasprofile_loop.gno:6 -: count=20 gas=1140
+// SubOps:
+//   DefineVar: count=2
+//   ParamAssign: count=1

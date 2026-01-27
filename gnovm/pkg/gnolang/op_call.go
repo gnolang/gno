@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 func (m *Machine) doOpPrecall() {
@@ -141,6 +143,19 @@ func (m *Machine) doOpCall() {
 	fv := fr.Func
 	fs := fv.GetSource(m.Store)
 	ft := fr.Func.GetType(m.Store)
+
+	// Push call onto benchops stack for pprof call graph tracking
+	if benchops.Enabled {
+		funcName := string(fv.Name)
+		pkgPath := fv.PkgPath
+		file := fv.FileName
+		line := 0
+		if fs != nil {
+			line = fs.GetLine()
+		}
+		benchops.PushCall(funcName, pkgPath, file, line)
+	}
+
 	// Create new block scope.
 	pb := fr.Func.GetParent(m.Store)
 	b := m.Alloc.NewBlock(fs, pb)
@@ -208,7 +223,13 @@ func (m *Machine) doOpCall() {
 	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
 	// Assign parameters in forward order.
 	for i, argtv := range args {
+		if benchops.Enabled {
+			benchops.BeginSubOp(benchops.SubOpParamAssign, benchops.SubOpContext{Index: i})
+		}
 		b.Values[i].AssignToBlock(argtv)
+		if benchops.Enabled {
+			benchops.EndSubOp()
+		}
 	}
 }
 
@@ -272,6 +293,10 @@ func (m *Machine) maybeFinalize(cfr *Frame) {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
+	// Pop from benchops call stack
+	if benchops.Enabled {
+		benchops.PopCall()
+	}
 	// Unwind stack.
 	cfr := m.PopUntilLastCallFrame()
 	// Finalize if exiting realm boundary.
@@ -282,6 +307,10 @@ func (m *Machine) doOpReturn() {
 
 // Like doOpReturn but first copies results to block.
 func (m *Machine) doOpReturnAfterCopy() {
+	// Pop from benchops call stack
+	if benchops.Enabled {
+		benchops.PopCall()
+	}
 	// If there are named results that are heap defined,
 	// need to write to those from stack before returning.
 	cfr := m.MustPeekCallFrame(1)
@@ -308,6 +337,10 @@ func (m *Machine) doOpReturnAfterCopy() {
 // i.e. named result vars declared in func signatures,
 // because return was called with no return arguments.
 func (m *Machine) doOpReturnFromBlock() {
+	// Pop from benchops call stack
+	if benchops.Enabled {
+		benchops.PopCall()
+	}
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
 	fv := cfr.Func
