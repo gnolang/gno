@@ -14,7 +14,7 @@ func main() {
 }
 
 // Preprocessed:
-// file{ package main; import fmt fmt; func main() { for .loopvar_i<!@VPBlock(1,0)> := (const (0 int)); .loopvar_i<*VPBlock(1,0)> < (const (3 int)); .loopvar_i<*VPBlock(1,0)>++ i<!~VPBlock(1,1)> := .loopvar_i<*VPBlock(1,0)>; func func(){ i<~VPBlock(1,0)> += (const (1 int)); (const (println func(...interface {})))(i<~VPBlock(1,0)>) }<i<()~VPBlock(1,1)>>() ; (const (ref(fmt) package{})).Println((const ("Hello, 世界" string))) } }
+// file{ package main; import fmt fmt; func main() { for .loopvar_i<!VPBlock(1,0)> := (const (0 int)); .loopvar_i<VPBlock(1,0)> < (const (3 int)); .loopvar_i<VPBlock(1,0)>++ i<!~VPBlock(1,1)> := .loopvar_i<VPBlock(1,0)>; func func(){ i<~VPBlock(1,0)> += (const (1 int)); (const (println func(...interface {})))(i<~VPBlock(1,0)>) }<i<()~VPBlock(1,1)>>() ; (const (ref(fmt) package{})).Println((const ("Hello, 世界" string))) } }
 
 // Output:
 // 1
