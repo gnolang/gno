@@ -29,7 +29,7 @@ jobs:
           go-version: ${{ inputs.go-version || '1.23.x' }}
 
       - name: Install protoc
-        run: sudo apt install -y protoc-gen-go
+        run: sudo apt install -y libprotobuf-dev protobuf-compiler
 
       - name: Checkout code
         uses: actions/checkout@v5
