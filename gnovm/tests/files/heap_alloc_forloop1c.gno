@@ -16,9 +16,10 @@ func forLoopRef() {
 	}()
 
 	for i := Int(0); i < 10; inc2(&i) {
+		// .redefine_i := .loopvar_i // still need this.
 		i := i
 		s1 = append(s1, &i)
-		// .loopvar<loopvarheapdefine> = .loopvar_i
+		// .loopvar<loopvarheapdefine> = .redefine_i
 	}
 }
 
