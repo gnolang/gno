@@ -596,24 +596,6 @@ func (n *Node) OnStart() error {
 		if err := n.rpcServer.Start(); err != nil {
 			return fmt.Errorf("unable to start RPC server: %w", err)
 		}
-
-		// This is fundamentally broken.
-		// The node's configuration should be read-only and non-modifiable, even in memory.
-		//
-		// However, due to the way the Tendermint node was bootstrapped before, and the way
-		// existing tools like gnodev rely on the broken node setup process (bft/node),
-		// external callers make invalid assumptions about configuration mutability.
-		//
-		// It is expected that the node's RPC listen address, when bound, is saved
-		// in the node's in-memory configuration. The flow is: the node operator defines a listen
-		// address with an unbound port (0), and after OnStart runs, the in-memory config is updated
-		// with the actual bound port (ex, 55432). External processes (tests, tools, etc.) then read
-		// the port from the configuration rather than from the node itself.
-		//
-		// Due to this quirk, and to not completely overhaul how some tools and processes are set up,
-		// we preserve the folklore in its entirety here, by updating the configuration in memory, too
-		addr := n.rpcServer.Listener().Addr()
-		n.config.RPC.ListenAddress = addr.Network() + "://" + addr.String()
 	}
 
 	// Start the transport.
@@ -851,6 +833,15 @@ func (n *Node) IsListening() bool {
 // NodeInfo returns the Node's Info from the Switch.
 func (n *Node) NodeInfo() p2pTypes.NodeInfo {
 	return n.nodeInfo
+}
+
+// RPC returns the node's registered RPC server.
+// TODO we should consider if this is a good idea, exposing it like this.
+// The legacy implementation of the RPC modified the in-memory configuration
+// of the node directly upon starting, so external users of the node could query the bound listen address
+// from the configuration (updated), and now this is not the case (nor should it be)
+func (n *Node) RPC() *rpccore.Server {
+	return n.rpcServer
 }
 
 func makeNodeInfo(

@@ -98,7 +98,13 @@ func (s *Server) Stop() error {
 	return shutdownErr
 }
 
-// Listener returns the RPC server's bound listener, if any
-func (s *Server) Listener() net.Listener {
-	return s.ln
+// ListenAddress returns the RPC server's bound listen address, if any
+func (s *Server) ListenAddress() string {
+	if s.ln == nil {
+		return ""
+	}
+
+	addr := s.ln.Addr()
+
+	return addr.Network() + "://" + addr.String()
 }
