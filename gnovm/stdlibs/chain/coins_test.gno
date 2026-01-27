@@ -70,7 +70,6 @@ func TestCoinsIsZero(t *testing.T) {
 	}
 }
 
-// maxInt64 is the maximum int64 value.
 const maxInt64 int64 = (1 << 63) - 1
 
 func shouldPanic(t *testing.T, f func()) {

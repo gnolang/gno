@@ -134,8 +134,7 @@ func (cz Coins) sortAndJoin() Coins {
 				cz = append(cz[:i], cz[i+2:]...)
 			} else {
 				cz[i].Amount = sum
-				// Remove next from the slice. For loop condition guarantees length
-				// to be at least i+2.
+				// Remove next from the slice.
 				cz = append(cz[:i+1], cz[i+2:]...)
 			}
 		} else {
