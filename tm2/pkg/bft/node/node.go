@@ -835,6 +835,15 @@ func (n *Node) NodeInfo() p2pTypes.NodeInfo {
 	return n.nodeInfo
 }
 
+// RPC returns the node's registered RPC server.
+// TODO we should consider if this is a good idea, exposing it like this.
+// The legacy implementation of the RPC modified the in-memory configuration
+// of the node directly upon starting, so external users of the node could query the bound listen address
+// from the configuration (updated), and now this is not the case (nor should it be)
+func (n *Node) RPC() *rpccore.Server {
+	return n.rpcServer
+}
+
 func makeNodeInfo(
 	config *cfg.Config,
 	nodeKey *p2pTypes.NodeKey,

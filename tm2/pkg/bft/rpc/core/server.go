@@ -19,8 +19,9 @@ type Server struct {
 	logger *slog.Logger
 	config *config.Config
 
-	srv      *http.Server
-	ln       net.Listener
+	srv *http.Server
+	ln  net.Listener
+
 	errCh    chan error
 	stopOnce sync.Once
 }
@@ -95,4 +96,13 @@ func (s *Server) Stop() error {
 	})
 
 	return shutdownErr
+}
+
+// ListenAddress returns the RPC server's bound listen address, if any
+func (s *Server) ListenAddress() string {
+	if s.ln == nil {
+		return ""
+	}
+
+	return s.ln.Addr().String()
 }
