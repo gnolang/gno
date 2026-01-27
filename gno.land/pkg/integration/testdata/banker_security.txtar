@@ -21,7 +21,7 @@ gnokey query bank/balances/${attacker_user_addr}
 stdout '1000000000ugnot'
 
 ## Deploy the malicious realm that attempts to steal coins
-gnokey maketx addpkg -pkgdir $WORK/malicious -pkgpath gno.land/r/test/malicious -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test attacker
+gnokey maketx addpkg -pkgdir $WORK/malicious -pkgpath gno.land/r/test/malicious -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test attacker
 stdout OK!
 
 ## ============================================
@@ -30,7 +30,7 @@ stdout OK!
 ## This should FAIL - banker should only allow sending from the realm's own address
 ## ============================================
 
-! gnokey maketx call -pkgpath gno.land/r/test/malicious -func StealWithOriginSend -args ${victim_user_addr} -args ${attacker_user_addr} -args 100000 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test attacker
+! gnokey maketx call -pkgpath gno.land/r/test/malicious -func StealWithOriginSend -args ${victim_user_addr} -args ${attacker_user_addr} -args 100000 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
 stderr 'can only send coins from realm that created banker'
 
 ## Verify victim's coins are NOT stolen (still has 1000 GNOT)
@@ -43,7 +43,7 @@ stdout '1000000000ugnot'
 ## This should FAIL - banker should only allow sending from the realm's own address
 ## ============================================
 
-! gnokey maketx call -pkgpath gno.land/r/test/malicious -func StealWithRealmSend -args ${victim_user_addr} -args ${attacker_user_addr} -args 100000 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test attacker
+! gnokey maketx call -pkgpath gno.land/r/test/malicious -func StealWithRealmSend -args ${victim_user_addr} -args ${attacker_user_addr} -args 100000 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
 stderr 'can only send coins from realm that created banker'
 
 ## Verify victim's coins are still safe (still has 1000 GNOT)
@@ -55,7 +55,7 @@ stdout '1000000000ugnot'
 ## Even if user sends some coins, realm cannot send more than what was sent
 ## ============================================
 
-! gnokey maketx call -pkgpath gno.land/r/test/malicious -func LegitOriginSend -args ${attacker_user_addr} -args 100000 -send 10ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test victim
+! gnokey maketx call -pkgpath gno.land/r/test/malicious -func LegitOriginSend -args ${attacker_user_addr} -args 100000 -send 10ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test victim
 stderr 'cannot send "100000ugnot", limit "10ugnot" exceeded'
 
 ## ============================================
@@ -63,7 +63,7 @@ stderr 'cannot send "100000ugnot", limit "10ugnot" exceeded'
 ## This verifies the banker does work correctly for legitimate use
 ## ============================================
 
-gnokey maketx call -pkgpath gno.land/r/test/malicious -func LegitOriginSend -args ${attacker_user_addr} -args 5 -send 10ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test victim
+gnokey maketx call -pkgpath gno.land/r/test/malicious -func LegitOriginSend -args ${attacker_user_addr} -args 5 -send 10ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test victim
 stdout OK!
 
 ## ============================================
@@ -71,16 +71,16 @@ stdout OK!
 ## Deploy a "helper" realm that the malicious realm tries to use to steal coins
 ## ============================================
 
-gnokey maketx addpkg -pkgdir $WORK/helper -pkgpath gno.land/r/test/helper -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test attacker
+gnokey maketx addpkg -pkgdir $WORK/helper -pkgpath gno.land/r/test/helper -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test attacker
 stdout OK!
 
 ## Update malicious realm to have access to helper
-gnokey maketx addpkg -pkgdir $WORK/malicious_v2 -pkgpath gno.land/r/test/malicious_v2 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test attacker
+gnokey maketx addpkg -pkgdir $WORK/malicious_v2 -pkgpath gno.land/r/test/malicious_v2 -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test attacker
 stdout OK!
 
 ## Try cross-realm attack - helper realm should not be able to create OriginSend banker
 ## because it's not the origin package
-! gnokey maketx call -pkgpath gno.land/r/test/malicious_v2 -func CrossRealmAttack -args ${victim_user_addr} -args ${attacker_user_addr} -args 100000 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test attacker
+! gnokey maketx call -pkgpath gno.land/r/test/malicious_v2 -func CrossRealmAttack -args ${victim_user_addr} -args ${attacker_user_addr} -args 100000 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
 stderr 'banker with type BankerTypeOriginSend can only be instantiated by the origin package'
 
 ## Final verification - victim's coins remain safe throughout all tests
