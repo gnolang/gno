@@ -615,7 +615,7 @@ func TestNewValidBlockMessageValidateBasic(t *testing.T) {
 		},
 		{
 			func(msg *NewValidBlockMessage) { msg.BlockParts.Elems = nil },
-			"mismatch between specified number of bits 1, and number of elements 0, expected 1 elements",
+			"mismatch between specified number of bits 1, and number of elements 0, expected 1 element",
 		},
 		{
 			func(msg *NewValidBlockMessage) {
