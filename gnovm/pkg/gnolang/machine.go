@@ -2276,14 +2276,13 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
 			ro = false // always mutable
-		case NameExprTypeLoopVarUse:
-			lb := m.LastBlock()
-			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
 		case NameExprTypeLoopVarHeapUse:
 			lb := m.LastBlock()
 			path := lx.Path
 			ptr := lb.GetPointerToDirect(m.Store, path)
+			if _, ok := ptr.TV.T.(heapItemType); !ok {
+				panic("should be heapItemType")
+			}
 			hiv := &HeapItemValue{}
 			*ptr.TV = TypedValue{
 				T: heapItemType{},

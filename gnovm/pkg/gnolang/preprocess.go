@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"maps"
 	"math"
 	"math/big"
 	"reflect"
@@ -197,11 +196,9 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 						if !isLocallyDefined2(last, ln) {
 							if ftype == TRANS_FOR_INIT {
 								ln = Name(fmt.Sprintf(".loopvar_%s", ln)) // rename to .loopvar_x.
-								nx.Type = NameExprTypeLoopVarDefine       // demote if shadowed by i := i
 								nx.Name = ln
-							} else {
-								nx.Type = NameExprTypeDefine
 							}
+							nx.Type = NameExprTypeDefine
 							last.Reserve(false, nx, n, NSDefine, i)
 						}
 						// else do nothing.
@@ -562,14 +559,15 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		}
 	}
 
-	transform := func() {
-		transformLoopvar(n)
-		transformHeapItem(n)
+	transform := func(n Node) {
+		if _, ok := n.(*FileNode); ok {
+			transformLoopvar(n)
+			transformHeapItem(n)
+		}
 	}
 
 	// do transform
-	transform()
-
+	transform(n)
 	return n
 }
 
@@ -3118,8 +3116,9 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 					if ftype == TRANS_VAR_NAME {
 						return n, TRANS_CONTINUE
 					}
-					// Ignore := defines, etc.
-					if nx.Type != NameExprTypeLoopVarUse {
+					// Ignore other types.
+					// if nx.Type != NameExprTypeLoopVarUse {
+					if nx.Type == NameExprTypeDefine {
 						return n, TRANS_CONTINUE
 					}
 					if !strings.HasPrefix(string(nx.Name), ".loopvar") {
@@ -3136,6 +3135,7 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 					stop = true
 				}
 			case *NameExpr:
+				// fmt.Printf("findHeapDefinedLoopvarByUse %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 				// NOTE: Keep in sync maybe with transpile_gno0p0.go/FindMore...
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
@@ -3153,8 +3153,9 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 				if ftype == TRANS_VAR_NAME {
 					return n, TRANS_CONTINUE
 				}
-				// Ignore := defines, etc.
-				if n.Type != NameExprTypeLoopVarUse {
+				// Ignore other types.
+				// if n.Type != NameExprTypeLoopVarUse {
+				if n.Type == NameExprTypeDefine {
 					return n, TRANS_CONTINUE
 				}
 				if !strings.HasPrefix(string(n.Name), ".loopvar") {
@@ -3245,23 +3246,14 @@ func findContinue(ctx BlockNode, bn BlockNode) {
 				}
 
 				var (
-					rns  map[Name]struct{}
 					hlns map[Name]struct{}
 				)
 				// bn is the *ForStmt.
 				hlns = getLoopvarAttrs(tbn, ATTR_HEAP_DEFINE_LOOPVAR)
 
-				if len(rns) == 0 && len(hlns) == 0 {
+				if len(hlns) == 0 {
 					return n, TRANS_CONTINUE
 				}
-
-				// Delete duplicated names.
-				maps.DeleteFunc(rns, func(k Name, v struct{}) bool {
-					if _, found := hlns[k]; found {
-						return true
-					}
-					return false
-				})
 
 				inject := func(names map[Name]struct{}) {
 					for name := range names {
@@ -3429,14 +3421,6 @@ func resolveInjectedName(ctx BlockNode, bn BlockNode) {
 		case TRANS_LEAVE:
 			switch n := n.(type) {
 			case *NameExpr:
-				// demote loopvar related name type.
-				if n.Type == NameExprTypeLoopVarDefine {
-					n.Type = NameExprTypeDefine
-				}
-				if n.Type == NameExprTypeLoopVarUse {
-					n.Type = NameExprTypeNormal
-				}
-
 				if ftype == TRANS_COMPOSITE_KEY {
 					return n, TRANS_CONTINUE
 				}
