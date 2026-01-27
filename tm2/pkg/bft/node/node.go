@@ -675,7 +675,7 @@ func (n *Node) OnStop() {
 	n.isListening = false
 
 	// Stop the RPC server
-	if err := n.rpcServer.Start(); err != nil {
+	if err := n.rpcServer.Stop(); err != nil {
 		n.Logger.Error("unable to gracefully stop RPC server", "err", err)
 	}
 }
