@@ -377,14 +377,12 @@ type Exprs []Expr
 type NameExprType int
 
 const (
-	NameExprTypeNormal        NameExprType = iota // default
-	NameExprTypeDefine                            // when defining normally
-	NameExprTypeHeapDefine                        // when defining escaped name in loop
-	NameExprTypeHeapUse                           // when above used in non-define lhs/rhs
-	NameExprTypeHeapClosure                       // when closure captures name
-	NameExprTypeLoopVarDefine                     // when defining a loopvar
-	NameExprTypeLoopVarUse
-	NameExprTypeLoopVarHeapDefine // when loopvar is captured
+	NameExprTypeNormal            NameExprType = iota // default
+	NameExprTypeDefine                                // when defining normally
+	NameExprTypeHeapDefine                            // when defining escaped name in loop
+	NameExprTypeHeapUse                               // when above used in non-define lhs/rhs
+	NameExprTypeHeapClosure                           // when closure captures name
+	NameExprTypeLoopVarHeapDefine                     // when loopvar is captured
 	NameExprTypeLoopVarHeapUse
 )
 
@@ -2021,7 +2019,6 @@ func RenameLoopVarUse(last BlockNode, nx *NameExpr) {
 		// find 'i' or '.loopvar_i'
 		found, n := last.FindNamePrefixedUpTo(nil, nx.Name, 0xff, "", ".loopvar_")
 		if found && strings.HasPrefix(string(n), ".loopvar_") {
-			nx.Type = NameExprTypeLoopVarUse
 			// rename to .loopvar_x for later use.
 			nx.Name = n
 		}
