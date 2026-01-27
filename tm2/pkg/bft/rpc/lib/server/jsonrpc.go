@@ -263,12 +263,6 @@ func (j *JSONRPC) handleRequest(
 			continue
 		}
 
-		// TODO fix print
-		j.logger.Debug(
-			"handled request",
-			"request", baseRequest,
-		)
-
 		responses[i] = spec.NewJSONResponse(
 			baseRequest.ID,
 			handleResp,
