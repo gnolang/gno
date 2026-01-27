@@ -493,6 +493,8 @@ func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflec
 		err = fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
 		return
 	}
+	// NOTE: rv.Set() should succeed because it was validated
+	// already during Register[Interface/Concrete].
 	rv.Set(irvSet)
 	return n, err
 }
