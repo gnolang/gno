@@ -143,7 +143,7 @@ func (cz Coins) sortAndJoin() Coins {
 			i++
 		}
 	}
-	return cz
+	return cz[:len(cz):len(cz)]
 }
 
 // String returns the string representation of Coins
