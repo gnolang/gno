@@ -25,8 +25,8 @@ func TestHandler_ValidatorsHandler(t *testing.T) {
 
 		var (
 			db            = memdb.NewMemDB()
-			mockConsensus = &mockConsensus{
-				getStateFn: func() sm.State {
+			mockConsensus = &mock.Consensus{
+				GetStateFn: func() sm.State {
 					return sm.State{
 						LastBlockHeight: 10,
 					}
@@ -49,8 +49,8 @@ func TestHandler_ValidatorsHandler(t *testing.T) {
 
 		var (
 			db            = memdb.NewMemDB()
-			mockConsensus = &mockConsensus{
-				getStateFn: func() sm.State {
+			mockConsensus = &mock.Consensus{
+				GetStateFn: func() sm.State {
 					return sm.State{
 						LastBlockHeight: 10,
 					}
@@ -73,8 +73,8 @@ func TestHandler_ValidatorsHandler(t *testing.T) {
 
 		var (
 			db            = memdb.NewMemDB()
-			mockConsensus = &mockConsensus{
-				getStateFn: func() sm.State {
+			mockConsensus = &mock.Consensus{
+				GetStateFn: func() sm.State {
 					return sm.State{
 						LastBlockHeight: 0,
 					}
@@ -109,8 +109,8 @@ func TestHandler_ValidatorsHandler(t *testing.T) {
 				LastHeightConsensusParamsChanged: 1,
 			}
 
-			mockConsensus = &mockConsensus{
-				getStateFn: func() sm.State {
+			mockConsensus = &mock.Consensus{
+				GetStateFn: func() sm.State {
 					return st
 				},
 			}
@@ -155,11 +155,11 @@ func TestHandler_DumpConsensusStateHandler(t *testing.T) {
 			cfg = &cnscfg.ConsensusConfig{}
 			rs  = &cstypes.RoundState{}
 
-			mockConsensus = &mockConsensus{
-				getConfigDeepCopyFn: func() *cnscfg.ConsensusConfig {
+			mockConsensus = &mock.Consensus{
+				GetConfigDeepCopyFn: func() *cnscfg.ConsensusConfig {
 					return cfg
 				},
-				getRoundStateDeepCopyFn: func() *cstypes.RoundState {
+				GetRoundStateDeepCopyFn: func() *cstypes.RoundState {
 					return rs
 				},
 			}
@@ -193,7 +193,7 @@ func TestHandler_ConsensusStateHandler(t *testing.T) {
 		t.Parallel()
 
 		h := NewHandler(
-			&mockConsensus{},
+			&mock.Consensus{},
 			memdb.NewMemDB(),
 			&mock.Peers{},
 		)
@@ -213,8 +213,8 @@ func TestHandler_ConsensusStateHandler(t *testing.T) {
 				HeightRoundStep: "10/0/0",
 			}
 
-			mockConsensus = &mockConsensus{
-				getRoundStateSimpleFn: func() cstypes.RoundStateSimple {
+			mockConsensus = &mock.Consensus{
+				GetRoundStateSimpleFn: func() cstypes.RoundStateSimple {
 					return simple
 				},
 			}
@@ -240,8 +240,8 @@ func TestHandler_ConsensusParamsHandler(t *testing.T) {
 		t.Parallel()
 
 		var (
-			mockConsensus = &mockConsensus{
-				getStateFn: func() sm.State {
+			mockConsensus = &mock.Consensus{
+				GetStateFn: func() sm.State {
 					return sm.State{
 						LastBlockHeight: 10,
 					}
@@ -264,8 +264,8 @@ func TestHandler_ConsensusParamsHandler(t *testing.T) {
 		t.Parallel()
 
 		var (
-			mockConsensus = &mockConsensus{
-				getStateFn: func() sm.State {
+			mockConsensus = &mock.Consensus{
+				GetStateFn: func() sm.State {
 					return sm.State{
 						LastBlockHeight: 10,
 					}
@@ -289,8 +289,8 @@ func TestHandler_ConsensusParamsHandler(t *testing.T) {
 		t.Parallel()
 
 		var (
-			mockConsensus = &mockConsensus{
-				getStateFn: func() sm.State {
+			mockConsensus = &mock.Consensus{
+				GetStateFn: func() sm.State {
 					return sm.State{
 						LastBlockHeight: 0,
 					}
@@ -325,8 +325,8 @@ func TestHandler_ConsensusParamsHandler(t *testing.T) {
 				LastHeightConsensusParamsChanged: 1,
 			}
 
-			mockConsensus = &mockConsensus{
-				getStateFn: func() sm.State {
+			mockConsensus = &mock.Consensus{
+				GetStateFn: func() sm.State {
 					return st
 				},
 			}

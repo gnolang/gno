@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	abciTypes "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mock"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,8 +18,8 @@ func TestHandler_QueryHandler(t *testing.T) {
 		t.Parallel()
 
 		var (
-			mockQuery = &mockQuery{
-				querySyncFn: func(_ abciTypes.RequestQuery) (abciTypes.ResponseQuery, error) {
+			mockQuery = &mock.AppConn{
+				QuerySyncFn: func(_ abciTypes.RequestQuery) (abciTypes.ResponseQuery, error) {
 					t.FailNow()
 
 					return abciTypes.ResponseQuery{}, nil
@@ -49,8 +50,8 @@ func TestHandler_QueryHandler(t *testing.T) {
 				[]byte("data"),
 			}
 
-			mockQuery = &mockQuery{
-				querySyncFn: func(_ abciTypes.RequestQuery) (abciTypes.ResponseQuery, error) {
+			mockQuery = &mock.AppConn{
+				QuerySyncFn: func(_ abciTypes.RequestQuery) (abciTypes.ResponseQuery, error) {
 					return abciTypes.ResponseQuery{}, queryErr
 				},
 			}
@@ -89,8 +90,8 @@ func TestHandler_QueryHandler(t *testing.T) {
 				Prove:  true,
 			}
 
-			mockQuery = &mockQuery{
-				querySyncFn: func(req abciTypes.RequestQuery) (abciTypes.ResponseQuery, error) {
+			mockQuery = &mock.AppConn{
+				QuerySyncFn: func(req abciTypes.RequestQuery) (abciTypes.ResponseQuery, error) {
 					assert.Equal(t, expectedRequest, req)
 
 					return expectedResponse, nil
@@ -127,8 +128,8 @@ func TestHandler_QueryHandler(t *testing.T) {
 			}
 			expectedResponse = abciTypes.ResponseQuery{}
 
-			mockQuery = &mockQuery{
-				querySyncFn: func(req abciTypes.RequestQuery) (abciTypes.ResponseQuery, error) {
+			mockQuery = &mock.AppConn{
+				QuerySyncFn: func(req abciTypes.RequestQuery) (abciTypes.ResponseQuery, error) {
 					assert.Equal(t, expectedRequest, req)
 
 					return expectedResponse, nil
@@ -158,8 +159,8 @@ func TestHandler_InfoHandler(t *testing.T) {
 		var (
 			params = []any{"unexpected"}
 
-			mockQuery = &mockQuery{
-				infoSyncFn: func(_ abciTypes.RequestInfo) (abciTypes.ResponseInfo, error) {
+			mockQuery = &mock.AppConn{
+				InfoSyncFn: func(_ abciTypes.RequestInfo) (abciTypes.ResponseInfo, error) {
 					t.FailNow()
 
 					return abciTypes.ResponseInfo{}, nil
@@ -183,8 +184,8 @@ func TestHandler_InfoHandler(t *testing.T) {
 			infoErr = errors.New("info failed")
 			params  = []any(nil)
 
-			mockQuery = &mockQuery{
-				infoSyncFn: func(req abciTypes.RequestInfo) (abciTypes.ResponseInfo, error) {
+			mockQuery = &mock.AppConn{
+				InfoSyncFn: func(req abciTypes.RequestInfo) (abciTypes.ResponseInfo, error) {
 					// The request should always be empty
 					assert.Equal(t, abciTypes.RequestInfo{}, req)
 
@@ -214,8 +215,8 @@ func TestHandler_InfoHandler(t *testing.T) {
 				ABCIVersion: "v1.2.3",
 			}
 
-			mockQuery = &mockQuery{
-				infoSyncFn: func(req abciTypes.RequestInfo) (abciTypes.ResponseInfo, error) {
+			mockQuery = &mock.AppConn{
+				InfoSyncFn: func(req abciTypes.RequestInfo) (abciTypes.ResponseInfo, error) {
 					// The request should always be empty
 					assert.Equal(t, abciTypes.RequestInfo{}, req)
 
