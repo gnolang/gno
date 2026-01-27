@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"maps"
 	"math"
 	"math/big"
 	"reflect"
@@ -560,6 +559,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					return n, TRANS_CONTINUE
 				})
 		}
+
+		// Demote loopvar type.
+		Transcribe(n,
+			func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+				if stage != TRANS_LEAVE {
+					return n, TRANS_CONTINUE
+				}
+				if bn, ok := n.(*ForStmt); ok {
+					demoteLoopvarType(ctx, bn)
+					return n, TRANS_CONTINUE
+				}
+				return n, TRANS_CONTINUE
+			})
 	}
 
 	transform := func() {
@@ -3244,24 +3256,12 @@ func findContinue(ctx BlockNode, bn BlockNode) {
 					return n, TRANS_CONTINUE
 				}
 
-				var (
-					rns  map[Name]struct{}
-					hlns map[Name]struct{}
-				)
 				// bn is the *ForStmt.
-				hlns = getLoopvarAttrs(tbn, ATTR_HEAP_DEFINE_LOOPVAR)
+				hlns := getLoopvarAttrs(tbn, ATTR_HEAP_DEFINE_LOOPVAR)
 
-				if len(rns) == 0 && len(hlns) == 0 {
+				if len(hlns) == 0 {
 					return n, TRANS_CONTINUE
 				}
-
-				// Delete duplicated names.
-				maps.DeleteFunc(rns, func(k Name, v struct{}) bool {
-					if _, found := hlns[k]; found {
-						return true
-					}
-					return false
-				})
 
 				inject := func(names map[Name]struct{}) {
 					for name := range names {
@@ -3365,11 +3365,8 @@ func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 			case *ForStmt:
 				body := n.Body
 
-				var (
-					hlns map[Name]struct{}
-				)
 				// get names to redefine.
-				hlns = getLoopvarAttrs(n, ATTR_HEAP_DEFINE_LOOPVAR)
+				hlns := getLoopvarAttrs(n, ATTR_HEAP_DEFINE_LOOPVAR)
 				if len(hlns) == 0 {
 					return n, TRANS_CONTINUE
 				}
@@ -3429,14 +3426,6 @@ func resolveInjectedName(ctx BlockNode, bn BlockNode) {
 		case TRANS_LEAVE:
 			switch n := n.(type) {
 			case *NameExpr:
-				// demote loopvar related name type.
-				if n.Type == NameExprTypeLoopVarDefine {
-					n.Type = NameExprTypeDefine
-				}
-				if n.Type == NameExprTypeLoopVarUse {
-					n.Type = NameExprTypeNormal
-				}
-
 				if ftype == TRANS_COMPOSITE_KEY {
 					return n, TRANS_CONTINUE
 				}
@@ -3457,6 +3446,46 @@ func resolveInjectedName(ctx BlockNode, bn BlockNode) {
 						fillNameExprPath(last, n, false)
 					}
 				}
+				return n, TRANS_CONTINUE
+			}
+		}
+		return n, TRANS_CONTINUE
+	})
+}
+
+func demoteLoopvarType(ctx BlockNode, bn BlockNode) {
+	// Iterate over all nodes recursively.
+	_ = TranscribeB(ctx, bn, func(
+		ns []Node,
+		stack []BlockNode,
+		last BlockNode,
+		ftype TransField,
+		index int,
+		n Node,
+		stage TransStage,
+	) (Node, TransCtrl) {
+		defer doRecover(stack, n)
+
+		if debug {
+			debug.Printf("demoteLoopvarType %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		}
+
+		switch stage {
+		// ----------------------------------------
+		case TRANS_BLOCK:
+
+		// ----------------------------------------
+		case TRANS_LEAVE:
+			switch n := n.(type) {
+			case *NameExpr:
+				// demote loopvar related name type.
+				if n.Type == NameExprTypeLoopVarDefine {
+					n.Type = NameExprTypeDefine
+				}
+				if n.Type == NameExprTypeLoopVarUse {
+					n.Type = NameExprTypeNormal
+				}
+
 				return n, TRANS_CONTINUE
 			}
 		}
