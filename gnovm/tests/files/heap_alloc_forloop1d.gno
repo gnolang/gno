@@ -26,6 +26,8 @@ func main() {
 	forLoopRef()
 }
 
+// go 1.22 loop var is not supported for now.
+
 // Preprocessed:
 // file{ package main; var s1<!~VPBlock(2,0)> []*((const-type int)); func inc2(j *((const-type int))) { *(j<VPBlock(1,0)>) = *(j<VPBlock(1,0)>) + (const (2 int)) }; func forLoopRef() { defer func func(){ for i<!VPBlock(1,0)>, e<!VPBlock(1,1)> := range (const (ref(main) package{})).s1 { (const (println func(...interface {})))((const ("i, e: " string)), i<VPBlock(1,0)>, *(e<VPBlock(1,1)>)) } }(); for .loopvar_i<!~VPBlock(1,0)> := (const (0 int)); .loopvar_i<~VPBlock(1,0)> < (const (3 int)); inc2<VPBlock(4,1)>(&(.loopvar_i<~VPBlock(1,0)>)) s1<~VPBlock(4,0)> = (const (append func([]*int, ...*int) []*int))(s1<~VPBlock(4,0)>, &(.loopvar_i<~VPBlock(1,0)>)); for .loopvar_j<!~VPBlock(1,0)> := (const (0 int)); .loopvar_j<~VPBlock(1,0)> < (const (2 int)); inc2<VPBlock(5,1)>(&(.loopvar_j<~VPBlock(1,0)>)) s1<~VPBlock(5,0)> = (const (append func([]*int, ...*int) []*int))(s1<~VPBlock(5,0)>, &(.loopvar_j<~VPBlock(1,0)>)); .loopvar_j<*~VPBlock(1,0)> = .loopvar_j<~VPBlock(1,0)> ; .loopvar_i<*~VPBlock(1,0)> = .loopvar_i<~VPBlock(1,0)>  }; func main() { forLoopRef<VPBlock(3,2)>() } }
 
