@@ -5,7 +5,7 @@ import (
 	"flag"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -88,7 +88,7 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
+func QueryHandler(cfg *QueryCfg) (*abci.ResultABCIQuery, error) {
 	remote := cfg.RootCfg.Remote
 	if remote == "" {
 		return nil, errors.New("missing remote url")

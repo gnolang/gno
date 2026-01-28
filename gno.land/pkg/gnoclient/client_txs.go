@@ -7,7 +7,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -32,7 +32,7 @@ type BaseTxCfg struct {
 }
 
 // Call executes one or more MsgCall calls on the blockchain
-func (c *Client) Call(cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) Call(cfg BaseTxCfg, msgs ...vm.MsgCall) (*mempool.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
 		return nil, err
@@ -82,7 +82,7 @@ func NewCallTx(cfg BaseTxCfg, msgs ...vm.MsgCall) (*std.Tx, error) {
 }
 
 // Run executes one or more MsgRun calls on the blockchain
-func (c *Client) Run(cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) Run(cfg BaseTxCfg, msgs ...vm.MsgRun) (*mempool.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func NewRunTx(cfg BaseTxCfg, msgs ...vm.MsgRun) (*std.Tx, error) {
 }
 
 // Send executes one or more MsgSend calls on the blockchain
-func (c *Client) Send(cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) Send(cfg BaseTxCfg, msgs ...bank.MsgSend) (*mempool.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
 		return nil, err
@@ -182,7 +182,7 @@ func NewSendTx(cfg BaseTxCfg, msgs ...bank.MsgSend) (*std.Tx, error) {
 }
 
 // AddPackage executes one or more AddPackage calls on the blockchain
-func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*mempool.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
 		return nil, err
@@ -232,7 +232,7 @@ func NewAddPackageTx(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*std.Tx, error) {
 }
 
 // signAndBroadcastTxCommit signs a transaction and broadcasts it, returning the result
-func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64) (*mempool.ResultBroadcastTxCommit, error) {
 	signedTx, err := c.SignTx(tx, accountNumber, sequenceNumber)
 	if err != nil {
 		return nil, err
@@ -274,7 +274,7 @@ func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.T
 
 // BroadcastTxCommit marshals and broadcasts the signed transaction, returning the result.
 // If the result has a delivery error, then return a wrapped error.
-func (c *Client) BroadcastTxCommit(signedTx *std.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) BroadcastTxCommit(signedTx *std.Tx) (*mempool.ResultBroadcastTxCommit, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}

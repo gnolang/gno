@@ -4,22 +4,26 @@ import (
 	"context"
 	"testing"
 
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // generateRequests generates dummy RPC requests
-func generateRequests(t *testing.T, count int) types.RPCRequests {
+func generateRequests(t *testing.T, count int) spec.BaseJSONRequests {
 	t.Helper()
 
-	requests := make(types.RPCRequests, 0, count)
+	requests := make(spec.BaseJSONRequests, 0, count)
 
 	for i := range count {
-		requests = append(requests, types.RPCRequest{
-			JSONRPC: "2.0",
-			ID:      types.JSONRPCIntID(i),
-		})
+		requests = append(
+			requests,
+			spec.NewJSONRequest(
+				spec.JSONRPCNumberID(i),
+				"",
+				nil,
+			),
+		)
 	}
 
 	return requests
@@ -29,20 +33,17 @@ func TestBatch_AddRequest(t *testing.T) {
 	t.Parallel()
 
 	var (
-		capturedSend types.RPCRequests
+		capturedSend spec.BaseJSONRequests
 		requests     = generateRequests(t, 100)
 
 		mockClient = &mockClient{
-			sendBatchFn: func(_ context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
+			sendBatchFn: func(_ context.Context, requests spec.BaseJSONRequests) (spec.BaseJSONResponses, error) {
 				capturedSend = requests
 
-				responses := make(types.RPCResponses, len(requests))
+				responses := make(spec.BaseJSONResponses, len(requests))
 
 				for index, request := range requests {
-					responses[index] = types.RPCResponse{
-						JSONRPC: "2.0",
-						ID:      request.ID,
-					}
+					responses[index] = spec.NewJSONResponse(request.ID, nil, nil)
 				}
 
 				return responses, nil
