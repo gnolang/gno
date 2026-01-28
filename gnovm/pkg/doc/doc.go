@@ -6,6 +6,7 @@
 package doc
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"go/token"
@@ -15,8 +16,16 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"go.uber.org/multierr"
 )
+
+// ABCIQueryClient is a simplified interface for just calling ABCIQuery.
+// It is implemented by RPCClient and others, but can be implemented for mock test
+type ABCIQueryClient interface {
+	ABCIQuery(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error)
+}
 
 // WriteDocumentationOptions represents the possible options when requesting
 // documentation through Documentable.
@@ -39,6 +48,7 @@ type Documentable struct {
 	symbol     string
 	accessible string
 	pkgData    *pkgData
+	doc        *JSONDocumentation
 }
 
 func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOptions) error {
@@ -47,19 +57,28 @@ func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOpti
 	}
 	o.w = w
 
+	var doc *JSONDocumentation
+	var pkgName string
 	var err error
-	// pkgData may already be initialised if we already had to look to see
-	// if it had the symbol we wanted; otherwise initialise it now.
-	if d.pkgData == nil {
-		d.pkgData, err = newPkgData(d.bfsDir, o.Unexported)
+	if d.doc != nil {
+		// Already got the JSONDocumentation (from vm/qdoc)
+		doc = d.doc
+		pkgName = doc.PackagePath
+	} else {
+		// pkgData may already be initialised if we already had to look to see
+		// if it had the symbol we wanted; otherwise initialise it now.
+		if d.pkgData == nil {
+			d.pkgData, err = newPkgData(d.bfsDir, o.Unexported)
+			if err != nil {
+				return err
+			}
+		}
+
+		pkgName = d.pkgData.name
+		doc, err = d.WriteJSONDocumentation(o)
 		if err != nil {
 			return err
 		}
-	}
-
-	doc, err := d.WriteJSONDocumentation(o)
-	if err != nil {
-		return err
 	}
 
 	// copied from go source - map vars, constants and constructors to their respective types.
@@ -106,7 +125,7 @@ func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOpti
 	}
 
 	pp := &pkgPrinter{
-		name:        d.pkgData.name,
+		name:        pkgName,
 		doc:         doc,
 		typedValue:  typedValue,
 		constructor: constructor,
@@ -174,17 +193,18 @@ var fpAbs = filepath.Abs
 // dirs specifies the gno system directories to scan which specify full import paths
 // in their directories, such as @/examples and @/gnovm/stdlibs; modDirs specifies
 // directories which contain a gno.mod file.
-func ResolveDocumentable(dirs, modDirs, args []string, unexported bool) (*Documentable, error) {
+// If the package is not found locally, query the remote vm/qdoc using the queryClient (if not nil)
+func ResolveDocumentable(dirs, modDirs, args []string, unexported bool, queryClient ABCIQueryClient) (*Documentable, error) {
 	d := newDirs(dirs, modDirs)
 
 	parsed, ok := parseArgs(args)
 	if !ok {
 		return nil, fmt.Errorf("commands/doc: invalid arguments: %v", args)
 	}
-	return resolveDocumentable(d, parsed, unexported)
+	return resolveDocumentable(d, parsed, unexported, queryClient)
 }
 
-func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool) (*Documentable, error) {
+func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool, queryClient ABCIQueryClient) (*Documentable, error) {
 	var candidates []bfsDir
 
 	// if we have a candidate package name, search dirs for a dir that matches it.
@@ -210,12 +230,17 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool) (*Docum
 
 	if len(candidates) == 0 {
 		// there are no candidates.
+		jdoc := queryQDoc(parsed.pkg, queryClient)
+		if jdoc != nil {
+			return &Documentable{doc: jdoc}, nil
+		}
+
 		// if this is ambiguous, remove ambiguity and try parsing args using pkg as the symbol.
 		if !parsed.pkgAmbiguous {
 			return nil, fmt.Errorf("commands/doc: package not found: %q", parsed.pkg)
 		}
 		parsed = docArgs{pkg: ".", sym: parsed.pkg, acc: parsed.sym}
-		return resolveDocumentable(dirs, parsed, unexported)
+		return resolveDocumentable(dirs, parsed, unexported, queryClient)
 	}
 	// we wanted documentation about a package, and we found one!
 	if parsed.sym == "" {
@@ -265,6 +290,36 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool) (*Docum
 		fmt.Errorf("commands/doc: could not resolve arguments: %+v", parsed),
 		multierr.Combine(errs...),
 	)
+}
+
+// queryQDoc uses the queryClient to query the remote vm/qdoc for the pkg path and returns the JSONDocumentation.
+// If queryClient is nil, do nothing and return nil.
+// If error, log to the console and return nil.
+func queryQDoc(pkg string, queryClient ABCIQueryClient) *JSONDocumentation {
+	if queryClient == nil {
+		return nil
+	}
+
+	const qpath = "vm/qdoc"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	qres, err := queryClient.ABCIQuery(ctx, qpath, []byte(pkg))
+	if err != nil {
+		log.Printf("unable to query qdoc for %q: %q", pkg, err)
+		return nil
+	}
+	if qres.Response.Error != nil {
+		log.Printf("error querying qdoc for %q: %q", pkg, qres.Response.Error)
+		return nil
+	}
+
+	jdoc := &JSONDocumentation{}
+	if err := amino.UnmarshalJSON(qres.Response.Data, jdoc); err != nil {
+		log.Printf("unable to unmarshal qdoc: %q", err)
+		return nil
+	}
+
+	return jdoc
 }
 
 // docArgs represents the parsed args of the doc command.
