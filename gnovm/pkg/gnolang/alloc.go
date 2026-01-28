@@ -14,13 +14,8 @@ import (
 type Allocator struct {
 	maxBytes int64
 	bytes    int64
-	// `peakBytes` represents the maximum memory
-	// usage during a single transaction, and is used
-	// to calculate the corresponding gas usage.
-	// It increases monotonically.
-	peakBytes int64
-	collect   func() (left int64, ok bool) // gc callback
-	gasMeter  store.GasMeter
+	collect  func() (left int64, ok bool) // gc callback
+	gasMeter store.GasMeter
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -151,15 +146,9 @@ func (alloc *Allocator) Allocate(size int64) {
 	} else {
 		alloc.bytes += size
 	}
-	// The value of `bytes` decreases during GC, and fees
-	// are only charged when it exceeds peakBytes (again).
-	if alloc.bytes > alloc.peakBytes {
-		if alloc.gasMeter != nil {
-			change := alloc.bytes - alloc.peakBytes
-			alloc.gasMeter.ConsumeGas(overflow.Mulp(change, GasCostPerByte), "memory allocation")
-		}
-
-		alloc.peakBytes = alloc.bytes
+	// Consume gas proportional to the allocation size in bytes.
+	if alloc.gasMeter != nil {
+		alloc.gasMeter.ConsumeGas(overflow.Mulp(size, GasCostPerByte), "memory allocation")
 	}
 }
 
