@@ -1987,9 +1987,16 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 			"primitive type %s cannot be indexed",
 			tv.T.String()))
 	case *ArrayType:
-		av := tv.V.(*ArrayValue)
 		ii := int(iv.ConvertGetInt())
-		return av.GetPointerAtIndexInt2(store, ii, bt.Elt)
+		switch v := tv.V.(type) {
+		case *ArrayValue:
+			return v.GetPointerAtIndexInt2(store, ii, bt.Elt)
+		case *SliceValue:
+			// Slice-to-array-pointer conversion: value is SliceValue with ArrayType.
+			return v.GetPointerAtIndexInt2(store, ii, bt.Elt)
+		default:
+			panic(fmt.Sprintf("unexpected value type %T for ArrayType", tv.V))
+		}
 	case *SliceType:
 		if tv.V == nil {
 			panic("nil slice index (out of bounds)")
