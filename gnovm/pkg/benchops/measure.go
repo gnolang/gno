@@ -8,27 +8,20 @@ import (
 
 // ---- Op measurement methods
 
-// BeginOp starts timing for an opcode.
-func (p *Profiler) BeginOp(op Op) {
-	entry := &opStackEntry{op: op}
+// BeginOp starts timing for an opcode with its source location context.
+func (p *Profiler) BeginOp(op Op, ctx OpContext) {
+	entry := &opStackEntry{op: op, ctx: ctx}
 	if p.timingEnabled {
 		entry.startTime = time.Now()
 	}
 	p.currentOp = entry
 }
 
-// SetOpContext sets the source location context for the current opcode.
-func (p *Profiler) SetOpContext(ctx OpContext) {
-	if p.currentOp != nil {
-		p.currentOp.ctx = ctx
-	}
-}
-
 // EndOp stops timing for the current opcode and records the measurement.
 func (p *Profiler) EndOp() {
 	entry := p.currentOp
 	if entry == nil {
-		panic("benchops: EndOp called without matching BeginOp")
+		panic("benchops: EndOp: no matching BeginOp")
 	}
 	p.currentOp = nil
 
@@ -93,7 +86,7 @@ func (p *Profiler) BeginStore(op StoreOp) {
 // EndStore stops timing for the current store operation and records the measurement.
 func (p *Profiler) EndStore(size int) {
 	if len(p.storeStack) == 0 {
-		panic("benchops: EndStore called without matching BeginStore")
+		panic("benchops: EndStore: no matching BeginStore")
 	}
 
 	// Pop and record the store entry
@@ -122,20 +115,23 @@ func (p *Profiler) EndStore(size int) {
 
 // ---- Native measurement methods
 
-// BeginNative starts timing for a native function.
-func (p *Profiler) BeginNative(op NativeOp) {
+// TraceNative traces a native function call.
+// Records timing by default (disable with WithoutTiming).
+// Usage: defer profiler.TraceNative(benchops.NativeXxx)()
+func (p *Profiler) TraceNative(op NativeOp) func() {
 	entry := &nativeEntry{op: op}
 	if p.timingEnabled {
 		entry.startTime = time.Now()
 	}
 	p.currentNative = entry
+	return p.endNative
 }
 
-// EndNative stops timing for the current native function and records the measurement.
-func (p *Profiler) EndNative() {
+// endNative stops timing for the current native function and records the measurement.
+func (p *Profiler) endNative() {
 	entry := p.currentNative
 	if entry == nil {
-		panic("benchops: EndNative called without matching BeginNative")
+		panic("benchops: endNative: no matching TraceNative")
 	}
 	p.currentNative = nil
 
@@ -149,7 +145,8 @@ func (p *Profiler) EndNative() {
 // ---- Sub-operation measurement methods
 
 // BeginSubOp starts timing for a sub-operation within an opcode.
-// Pass zero value SubOpContext{} if no context is needed.
+// Pass zero value SubOpContext{} if no context is needed, or use
+// NewSubOpContext/NewSubOpContextWithVar/NewSubOpContextWithIndex constructors.
 func (p *Profiler) BeginSubOp(op SubOp, ctx SubOpContext) {
 	entry := &subOpStackEntry{op: op, ctx: ctx}
 	if p.timingEnabled {
@@ -159,8 +156,12 @@ func (p *Profiler) BeginSubOp(op SubOp, ctx SubOpContext) {
 }
 
 // EndSubOp stops timing for the current sub-operation and records the measurement.
-// Unlike EndOp, this is tolerant of missing BeginSubOp calls (returns silently).
-// This allows simpler conditional instrumentation where BeginSubOp may be skipped.
+//
+// Unlike EndOp/EndStore/EndNative which panic without matching Begin calls,
+// EndSubOp is tolerant and returns silently if no BeginSubOp was called.
+// This design choice enables simpler conditional instrumentation patterns where
+// BeginSubOp may be conditionally skipped (e.g., when profiling only certain
+// sub-operation types), without requiring callers to track whether Begin was called.
 func (p *Profiler) EndSubOp() {
 	entry := p.currentSubOp
 	if entry == nil {

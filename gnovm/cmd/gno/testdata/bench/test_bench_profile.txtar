@@ -1,6 +1,6 @@
-# Test --bench-profile flag writes JSONL file with valid bench events
+# Test --benchops-profile flag writes JSONL file with valid bench events
 
-gno test --bench-profile results.jsonl .
+gno test --benchops-profile results.jsonl .
 
 exists results.jsonl
 

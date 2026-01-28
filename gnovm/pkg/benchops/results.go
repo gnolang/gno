@@ -21,11 +21,11 @@ type Results struct {
 	TimingEnabled bool // Whether timing was enabled for this run
 	OpStats       map[string]*OpStat
 	StoreStats    map[string]*StoreStat
-	NativeStats   map[string]*NativeStat
-	LocationStats []*LocationStat       `json:"LocationStats,omitempty"`
-	SubOpStats    map[string]*SubOpStat `json:"SubOpStats,omitempty"`
-	VarStats      []*VarStat            `json:"VarStats,omitempty"`
-	StackSamples  []*StackSample        `json:"StackSamples,omitempty"`
+	NativeStats   map[string]*TimingStat
+	LocationStats []*LocationStat        `json:"LocationStats,omitempty"`
+	SubOpStats    map[string]*TimingStat `json:"SubOpStats,omitempty"`
+	VarStats      []*VarStat             `json:"VarStats,omitempty"`
+	StackSamples  []*StackSample         `json:"StackSamples,omitempty"`
 }
 
 // SectionFlags controls which sections are included in WriteGolden output.
@@ -81,6 +81,14 @@ func ParseSectionFlags(s string) (SectionFlags, error) {
 	return flags, nil
 }
 
+// Capacity hints for result maps, based on typical number of defined operations.
+const (
+	opStatsHint     = 48 // ~40 defined opcodes + headroom
+	storeStatsHint  = 16 // ~10 store operations
+	nativeStatsHint = 16 // ~10 native operations
+	subOpStatsHint  = 16 // ~13 sub-operations
+)
+
 // buildResults creates Results from the profiler's internal state.
 func (p *Profiler) buildResults() *Results {
 	r := &Results{
@@ -88,10 +96,10 @@ func (p *Profiler) buildResults() *Results {
 		StartTime:     p.startTime,
 		EndTime:       p.stopTime,
 		TimingEnabled: p.timingEnabled,
-		OpStats:       make(map[string]*OpStat),
-		StoreStats:    make(map[string]*StoreStat),
-		NativeStats:   make(map[string]*NativeStat),
-		SubOpStats:    make(map[string]*SubOpStat),
+		OpStats:       make(map[string]*OpStat, opStatsHint),
+		StoreStats:    make(map[string]*StoreStat, storeStatsHint),
+		NativeStats:   make(map[string]*TimingStat, nativeStatsHint),
+		SubOpStats:    make(map[string]*TimingStat, subOpStatsHint),
 	}
 
 	// Build op stats (copy non-zero entries)
@@ -127,9 +135,8 @@ func (p *Profiler) buildResults() *Results {
 			continue
 		}
 		name := NativeOp(i).String()
-		r.NativeStats[name] = &NativeStat{
-			TimingStat: s.TimingStat,
-		}
+		clone := *s
+		r.NativeStats[name] = &clone
 	}
 
 	// Build location stats
@@ -158,9 +165,8 @@ func (p *Profiler) buildResults() *Results {
 			continue
 		}
 		name := SubOp(i).String()
-		r.SubOpStats[name] = &SubOpStat{
-			TimingStat: s.TimingStat,
-		}
+		clone := *s
+		r.SubOpStats[name] = &clone
 	}
 
 	// Build variable stats
@@ -347,7 +353,7 @@ func (r *Results) writeNativeStats(tw *tabwriter.Writer, topN int) {
 		fmt.Fprintf(tw, "──────────────────────────────────\n")
 		fmt.Fprintf(tw, "Function\tCount\tTotal\tAvg\tStdDev\tMin\tMax\t\n")
 
-		sorted := sortedMap(r.NativeStats, func(s *NativeStat) int64 { return s.TotalNs })
+		sorted := sortedMap(r.NativeStats, func(s *TimingStat) int64 { return s.TotalNs })
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
@@ -363,7 +369,7 @@ func (r *Results) writeNativeStats(tw *tabwriter.Writer, topN int) {
 		fmt.Fprintf(tw, "────────────────────────────\n")
 		fmt.Fprintf(tw, "Function\tCount\t\n")
 
-		sorted := sortedMap(r.NativeStats, func(s *NativeStat) int64 { return s.Count })
+		sorted := sortedMap(r.NativeStats, func(s *TimingStat) int64 { return s.Count })
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
@@ -422,13 +428,9 @@ func (r *Results) writeHotSpots(tw *tabwriter.Writer, topN int) {
 // abbreviatePkgPath shortens a package path for display.
 // e.g., "gno.land/r/demo/boards" -> "r/demo/boards"
 func abbreviatePkgPath(pkg string) string {
-	if pkg == "" {
-		return ""
-	}
-	// Remove common prefixes
 	for _, prefix := range []string{"gno.land/", "github.com/"} {
-		if strings.HasPrefix(pkg, prefix) {
-			return pkg[len(prefix):]
+		if rest, ok := strings.CutPrefix(pkg, prefix); ok {
+			return rest
 		}
 	}
 	return pkg
@@ -443,7 +445,7 @@ func (r *Results) writeSubOpStats(tw *tabwriter.Writer, topN int) {
 		fmt.Fprintf(tw, "─────────────────────────────────────────\n")
 		fmt.Fprintf(tw, "SubOp\tCount\tTotal\tAvg\tStdDev\tMin\tMax\t\n")
 
-		sorted := sortedMap(r.SubOpStats, func(s *SubOpStat) int64 { return s.TotalNs })
+		sorted := sortedMap(r.SubOpStats, func(s *TimingStat) int64 { return s.TotalNs })
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
@@ -459,7 +461,7 @@ func (r *Results) writeSubOpStats(tw *tabwriter.Writer, topN int) {
 		fmt.Fprintf(tw, "────────────────────────────────────\n")
 		fmt.Fprintf(tw, "SubOp\tCount\t\n")
 
-		sorted := sortedMap(r.SubOpStats, func(s *SubOpStat) int64 { return s.Count })
+		sorted := sortedMap(r.SubOpStats, func(s *TimingStat) int64 { return s.Count })
 		for i, kv := range sorted {
 			if topN > 0 && i >= topN {
 				break
@@ -605,6 +607,13 @@ func sortedMap[V any](m map[string]V, keyFn func(V) int64) []kvPair[V] {
 
 // MergeResults combines multiple Results into a single aggregated Result.
 // This is useful for combining profiling data from multiple test runs.
+//
+// Aggregation behavior:
+//   - OpStats, StoreStats, NativeStats, SubOpStats: Merged by name with counts/gas/timing combined
+//   - LocationStats, StackSamples: Appended without deduplication (may contain duplicates from
+//     different runs; consumers should aggregate if needed)
+//   - Duration: Summed across all results
+//   - TimingEnabled: True if any input had timing enabled
 func MergeResults(results ...*Results) *Results {
 	if len(results) == 0 {
 		return nil
@@ -616,8 +625,8 @@ func MergeResults(results ...*Results) *Results {
 	merged := &Results{
 		OpStats:     make(map[string]*OpStat),
 		StoreStats:  make(map[string]*StoreStat),
-		NativeStats: make(map[string]*NativeStat),
-		SubOpStats:  make(map[string]*SubOpStat),
+		NativeStats: make(map[string]*TimingStat),
+		SubOpStats:  make(map[string]*TimingStat),
 	}
 
 	for _, r := range results {
@@ -657,22 +666,20 @@ func MergeResults(results ...*Results) *Results {
 		// Merge NativeStats
 		for name, stat := range r.NativeStats {
 			if existing, ok := merged.NativeStats[name]; ok {
-				existing.TimingStat.Merge(&stat.TimingStat)
+				existing.Merge(stat)
 			} else {
-				merged.NativeStats[name] = &NativeStat{
-					TimingStat: stat.TimingStat,
-				}
+				clone := *stat
+				merged.NativeStats[name] = &clone
 			}
 		}
 
 		// Merge SubOpStats
 		for name, stat := range r.SubOpStats {
 			if existing, ok := merged.SubOpStats[name]; ok {
-				existing.TimingStat.Merge(&stat.TimingStat)
+				existing.Merge(stat)
 			} else {
-				merged.SubOpStats[name] = &SubOpStat{
-					TimingStat: stat.TimingStat,
-				}
+				clone := *stat
+				merged.SubOpStats[name] = &clone
 			}
 		}
 

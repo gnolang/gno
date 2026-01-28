@@ -1242,7 +1242,7 @@ func (m *Machine) Run(st Stage) {
 		if r != nil {
 			// Reset profiler state on panic to prevent corrupted measurements.
 			if benchops.Enabled {
-				benchops.Recovery()
+				benchops.R().Recovery()
 			}
 			switch r := r.(type) {
 			case *Exception:
@@ -1265,8 +1265,7 @@ func (m *Machine) Run(st Stage) {
 		if benchops.Enabled {
 			// We do not benchmark static evaluation (OpStaticTypeOf).
 			if op != OpStaticTypeOf {
-				benchops.BeginOp(benchops.Op(op))
-				benchops.SetOpContext(m.captureOpContext())
+				benchops.R().BeginOp(benchops.Op(op), m.captureOpContext())
 			}
 		}
 		// TODO: this can be optimized manually, even into tiers.
@@ -1275,13 +1274,13 @@ func (m *Machine) Run(st Stage) {
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
 			if benchops.Enabled {
-				benchops.EndOp()
+				benchops.R().EndOp()
 			}
 			return
 		case OpNoop:
 			m.incrCPU(OpCPUNoop)
 			if benchops.Enabled {
-				benchops.EndOp()
+				benchops.R().EndOp()
 			}
 			continue
 		case OpExec:
@@ -1589,7 +1588,7 @@ func (m *Machine) Run(st Stage) {
 		}
 		if benchops.Enabled {
 			if op != OpStaticTypeOf {
-				benchops.EndOp()
+				benchops.R().EndOp()
 			}
 		}
 	}
@@ -1847,6 +1846,26 @@ func (m *Machine) captureOpContext() benchops.OpContext {
 		frame := &m.Frames[len(m.Frames)-1]
 		if frame.Func != nil {
 			ctx.FuncName = string(frame.Func.Name)
+		}
+	}
+
+	return ctx
+}
+
+// captureSubOpContext captures source location for benchops sub-operation profiling.
+// Returns context with File populated from the machine's current block source.
+// The line parameter allows callers to provide a specific line number from the
+// statement being processed (e.g., from AssignStmt.Line or RangeStmt.Line).
+func (m *Machine) captureSubOpContext(line int) benchops.SubOpContext {
+	ctx := benchops.SubOpContext{
+		Line:  line,
+		Index: -1,
+	}
+
+	// Get file from current block source (same pattern as captureOpContext)
+	if len(m.Blocks) > 0 {
+		if src := m.LastBlock().GetSource(m.Store); src != nil {
+			ctx.File = src.GetLocation().File
 		}
 	}
 

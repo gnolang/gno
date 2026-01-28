@@ -17,8 +17,7 @@ func TestWritePprof(t *testing.T) {
 	p.Start()
 
 	// Add some operations with location context
-	p.BeginOp(OpAdd)
-	p.SetOpContext(OpContext{
+	p.BeginOp(OpAdd, OpContext{
 		File:     "test.gno",
 		Line:     10,
 		FuncName: "add",
@@ -27,8 +26,7 @@ func TestWritePprof(t *testing.T) {
 	time.Sleep(time.Microsecond)
 	p.EndOp()
 
-	p.BeginOp(OpMul)
-	p.SetOpContext(OpContext{
+	p.BeginOp(OpMul, OpContext{
 		File:     "test.gno",
 		Line:     20,
 		FuncName: "mul",
@@ -101,8 +99,7 @@ func TestWritePprofGasValues(t *testing.T) {
 
 	// Add 3 ops at same location to accumulate gas
 	for i := 0; i < 3; i++ {
-		p.BeginOp(OpAdd) // 18 gas each
-		p.SetOpContext(OpContext{
+		p.BeginOp(OpAdd, OpContext{ // 18 gas each
 			File:     "test.gno",
 			Line:     10,
 			FuncName: "add",
@@ -129,8 +126,7 @@ func TestWritePprofLineNumbers(t *testing.T) {
 	p := New()
 	p.Start()
 
-	p.BeginOp(OpAdd)
-	p.SetOpContext(OpContext{
+	p.BeginOp(OpAdd, OpContext{
 		File:     "test.gno",
 		Line:     42,
 		FuncName: "myFunc",

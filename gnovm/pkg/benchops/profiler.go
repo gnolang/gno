@@ -19,33 +19,48 @@ const (
 // a *Profiler (when profiling is active).
 //
 // Error handling semantics:
-// - EndOp, EndStore, EndNative: panic if called without matching Begin (programming error)
-// - EndSubOp: tolerant of missing BeginSubOp (returns silently) to simplify conditional instrumentation
+//   - EndOp, EndStore: panic if called without matching Begin (programming error)
+//   - EndSubOp: tolerant of missing BeginSubOp (returns silently) to simplify conditional instrumentation
 type Recorder interface {
-	BeginOp(op Op)
-	SetOpContext(ctx OpContext)
+	// BeginOp starts timing for an opcode with its source location context.
+	BeginOp(op Op, ctx OpContext)
+	// EndOp stops timing for the current opcode and records the measurement.
 	EndOp()
+	// BeginStore starts timing for a store operation.
 	BeginStore(op StoreOp)
+	// EndStore stops timing for the current store operation with the given size.
 	EndStore(size int)
-	BeginNative(op NativeOp)
-	EndNative()
+	// TraceNative returns a function to be deferred for tracing native calls.
+	TraceNative(op NativeOp) func()
+	// BeginSubOp starts timing for a sub-operation within an opcode.
 	BeginSubOp(op SubOp, ctx SubOpContext)
+	// EndSubOp stops timing for the current sub-operation (tolerant of missing Begin).
 	EndSubOp()
+	// PushCall pushes a function call onto the call stack for pprof tracking.
+	PushCall(funcName, pkgPath, file string, line int)
+	// PopCall pops the current function from the call stack.
+	PopCall()
+	// Recovery resets internal state after a panic without changing profiler state.
+	Recovery()
 }
 
 // noopRecorder is the default recorder that does nothing.
-// Used when profiling is not active.
+// Used when profiling is not active (before Start() in enabled builds).
 type noopRecorder struct{}
 
-func (noopRecorder) BeginOp(Op)                     {}
-func (noopRecorder) SetOpContext(OpContext)         {}
-func (noopRecorder) EndOp()                         {}
-func (noopRecorder) BeginStore(StoreOp)             {}
-func (noopRecorder) EndStore(int)                   {}
-func (noopRecorder) BeginNative(NativeOp)           {}
-func (noopRecorder) EndNative()                     {}
-func (noopRecorder) BeginSubOp(SubOp, SubOpContext) {}
-func (noopRecorder) EndSubOp()                      {}
+// noopFunc is a package-level no-op function to avoid allocation in TraceNative.
+var noopFunc = func() {}
+
+func (noopRecorder) BeginOp(Op, OpContext)                {}
+func (noopRecorder) EndOp()                               {}
+func (noopRecorder) BeginStore(StoreOp)                   {}
+func (noopRecorder) EndStore(int)                         {}
+func (noopRecorder) TraceNative(NativeOp) func()          { return noopFunc }
+func (noopRecorder) BeginSubOp(SubOp, SubOpContext)       {}
+func (noopRecorder) EndSubOp()                            {}
+func (noopRecorder) PushCall(string, string, string, int) {}
+func (noopRecorder) PopCall()                             {}
+func (noopRecorder) Recovery()                            {}
 
 // Ensure noopRecorder implements Recorder.
 var _ Recorder = noopRecorder{}
@@ -72,48 +87,57 @@ func (s State) String() string {
 	}
 }
 
+// Int32 returns the State as int32 for atomic operations.
+func (s State) Int32() int32 { return int32(s) }
+
+// stateFromInt32 converts an int32 to State.
+func stateFromInt32(v int32) State { return State(v) }
+
 // Profiler collects timing statistics for GnoVM operations.
 // Recording (BeginOp/EndOp, etc.) is NOT thread-safe and must be done
 // from a single goroutine. Atomics are only used for state transitions
 // to detect accidental concurrent Start/Stop calls.
+//
+// Field ordering is optimized to minimize padding:
+// - 8-byte aligned fields (pointers, slices, maps, time.Time) grouped together
+// - Small fields (bools) grouped to share padding
 type Profiler struct {
-	state     atomic.Int32
+	// ---- 8-byte aligned fields (no padding between these)
 	startTime time.Time
 	stopTime  time.Time
 
-	// Configuration (set via options before Start)
+	// Pointers and slices (all 8-byte aligned)
+	opStack        []opStackEntry
+	currentOp      *opStackEntry
+	storeStack     []storeStackEntry
+	currentNative  *nativeEntry
+	locationStats  map[string]*LocationStat
+	currentSubOp   *subOpStackEntry        // sub-ops don't nest, single pointer suffices
+	varStats       map[string]*VarStat     // key: "file:line:varname" or "file:line:idx"
+	callStack      []callFrame             // current call stack (root-to-leaf)
+	stackSampleAgg map[string]*stackSample // aggregated samples by stack signature (avoids memory growth)
+
+	// ---- 4-byte aligned fields
+	state atomic.Int32
+
+	// Configuration flags (grouped to share padding)
 	timingEnabled bool // Track wall-clock time (expensive, opt-in)
 	stackEnabled  bool // Track call stacks for pprof (opt-in)
 
-	// Op statistics (unified type handles both timed and non-timed)
-	opStats   [maxOpCodes]OpStat
-	opStack   []opStackEntry
-	currentOp *opStackEntry
-
-	// Store statistics
-	storeStats [maxOpCodes]StoreStat
-	storeStack []storeStackEntry
-
-	// Native statistics
-	nativeStats   [maxOpCodes]NativeStat
-	currentNative *nativeEntry
-
-	// Location statistics (key: "file:line")
-	locationStats map[string]*LocationStat
-
-	// Sub-operation statistics
-	subOpStats   [maxSubOps]SubOpStat
-	currentSubOp *subOpStackEntry    // sub-ops don't nest, single pointer suffices
-	varStats     map[string]*VarStat // key: "file:line:varname" or "file:line:idx"
-
-	// Call stack tracking for pprof (opt-in)
-	callStack      []callFrame             // current call stack (root-to-leaf)
-	stackSampleAgg map[string]*stackSample // aggregated samples by stack signature (avoids memory growth)
+	// ---- Large arrays at the end (cache-friendly for iteration)
+	opStats     [maxOpCodes]OpStat
+	storeStats  [maxOpCodes]StoreStat
+	nativeStats [maxOpCodes]TimingStat
+	subOpStats  [maxSubOps]TimingStat
 }
 
 // New creates a new Profiler in idle state.
+// By default, timing and stack tracking are enabled for full profiling.
+// Use WithoutTiming() or WithoutStacks() to disable specific features.
 func New() *Profiler {
 	p := &Profiler{
+		timingEnabled:  true, // Enabled by default for full profiling
+		stackEnabled:   true, // Enabled by default for pprof output
 		opStack:        make([]opStackEntry, 0, defaultStackCapacity),
 		storeStack:     make([]storeStackEntry, 0, defaultStackCapacity),
 		locationStats:  make(map[string]*LocationStat),
@@ -121,7 +145,7 @@ func New() *Profiler {
 		callStack:      make([]callFrame, 0, defaultStackCapacity),
 		stackSampleAgg: make(map[string]*stackSample, defaultStackSampleCapacity),
 	}
-	p.state.Store(int32(StateIdle))
+	p.state.Store(StateIdle.Int32())
 	return p
 }
 
@@ -131,12 +155,12 @@ func New() *Profiler {
 // Clears any stale data from previous instrumentation before starting.
 // Panics if not in StateIdle.
 func (p *Profiler) Start() {
-	if !p.state.CompareAndSwap(int32(StateIdle), int32(StateRunning)) {
-		current := State(p.state.Load())
+	if !p.state.CompareAndSwap(StateIdle.Int32(), StateRunning.Int32()) {
+		current := stateFromInt32(p.state.Load())
 		if current == StateRunning {
-			panic("benchops: profiler is already running (concurrent access or missing Stop)")
+			panic("benchops: Start: profiler is already running (concurrent access or missing Stop)")
 		}
-		panic("benchops: Start called on non-idle profiler (invalid state)")
+		panic("benchops: Start: profiler is not idle (invalid state)")
 	}
 
 	// Clear any stale data from instrumentation that ran without Start/Stop
@@ -150,8 +174,8 @@ func (p *Profiler) Start() {
 // Uses atomic CompareAndSwap to ensure thread-safe state transition.
 // Panics if not in StateRunning.
 func (p *Profiler) Stop() *Results {
-	if !p.state.CompareAndSwap(int32(StateRunning), int32(StateIdle)) {
-		panic("benchops: Stop called on non-running profiler (missing Start)")
+	if !p.state.CompareAndSwap(StateRunning.Int32(), StateIdle.Int32()) {
+		panic("benchops: Stop: profiler is not running (missing Start)")
 	}
 
 	p.stopTime = time.Now()
@@ -170,10 +194,10 @@ func (p *Profiler) clearData() {
 	p.currentOp = nil
 	p.storeStats = [maxOpCodes]StoreStat{}
 	p.storeStack = p.storeStack[:0]
-	p.nativeStats = [maxOpCodes]NativeStat{}
+	p.nativeStats = [maxOpCodes]TimingStat{}
 	p.currentNative = nil
 	p.locationStats = make(map[string]*LocationStat)
-	p.subOpStats = [maxSubOps]SubOpStat{}
+	p.subOpStats = [maxSubOps]TimingStat{}
 	p.currentSubOp = nil
 	p.varStats = make(map[string]*VarStat)
 	p.callStack = p.callStack[:0]
@@ -184,12 +208,12 @@ func (p *Profiler) clearData() {
 // This is a no-op if the profiler is already idle.
 // Panics if called while the profiler is running (use Stop() instead).
 func (p *Profiler) Reset() {
-	current := State(p.state.Load())
+	current := stateFromInt32(p.state.Load())
 	if current == StateRunning {
-		panic("benchops: Reset called on running profiler (use Stop() instead)")
+		panic("benchops: Reset: profiler is running (use Stop instead)")
 	}
 	p.clearData()
-	p.state.Store(int32(StateIdle))
+	p.state.Store(StateIdle.Int32())
 }
 
 // Recovery resets internal state after a panic without changing profiler state.
@@ -206,5 +230,5 @@ func (p *Profiler) Recovery() {
 // State returns the current profiler state.
 // This is safe to call at any time (lock-free atomic read).
 func (p *Profiler) State() State {
-	return State(p.state.Load())
+	return stateFromInt32(p.state.Load())
 }

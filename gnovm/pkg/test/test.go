@@ -355,7 +355,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 			// Start benchops profiling for this filetest if enabled
 			if opts.benchEnabled() {
-				benchops.Start(benchops.WithTiming(), benchops.WithStacks())
+				benchops.Start()
 			}
 
 			startedAt := time.Now()
@@ -419,7 +419,7 @@ func (opts *TestOptions) runTestFiles(
 	defer func() {
 		// Ensure benchops is stopped if running (panic recovery)
 		if benchops.Enabled && benchops.IsRunning() {
-			benchops.Recovery()
+			benchops.R().Recovery()
 			benchops.Stop()
 		}
 		if r := recover(); r != nil {
@@ -532,7 +532,7 @@ func (opts *TestOptions) runTestFiles(
 
 		// Start benchops profiling for this test if enabled
 		if opts.benchEnabled() {
-			benchops.Start(benchops.WithTiming(), benchops.WithStacks())
+			benchops.Start()
 		}
 
 		eval := m.Eval(gno.Call(

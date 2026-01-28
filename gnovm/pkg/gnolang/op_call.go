@@ -153,7 +153,7 @@ func (m *Machine) doOpCall() {
 		if fs != nil {
 			line = fs.GetLine()
 		}
-		benchops.PushCall(funcName, pkgPath, file, line)
+		benchops.R().PushCall(funcName, pkgPath, file, line)
 	}
 
 	// Create new block scope.
@@ -224,11 +224,17 @@ func (m *Machine) doOpCall() {
 	// Assign parameters in forward order.
 	for i, argtv := range args {
 		if benchops.Enabled {
-			benchops.BeginSubOp(benchops.SubOpParamAssign, benchops.SubOpContext{Index: i})
+			line := 0
+			if fs != nil {
+				line = fs.GetLine()
+			}
+			ctx := m.captureSubOpContext(line)
+			ctx.Index = i
+			benchops.R().BeginSubOp(benchops.SubOpParamAssign, ctx)
 		}
 		b.Values[i].AssignToBlock(argtv)
 		if benchops.Enabled {
-			benchops.EndSubOp()
+			benchops.R().EndSubOp()
 		}
 	}
 }
@@ -295,7 +301,7 @@ func (m *Machine) maybeFinalize(cfr *Frame) {
 func (m *Machine) doOpReturn() {
 	// Pop from benchops call stack
 	if benchops.Enabled {
-		benchops.PopCall()
+		benchops.R().PopCall()
 	}
 	// Unwind stack.
 	cfr := m.PopUntilLastCallFrame()
@@ -309,7 +315,7 @@ func (m *Machine) doOpReturn() {
 func (m *Machine) doOpReturnAfterCopy() {
 	// Pop from benchops call stack
 	if benchops.Enabled {
-		benchops.PopCall()
+		benchops.R().PopCall()
 	}
 	// If there are named results that are heap defined,
 	// need to write to those from stack before returning.
@@ -339,7 +345,7 @@ func (m *Machine) doOpReturnAfterCopy() {
 func (m *Machine) doOpReturnFromBlock() {
 	// Pop from benchops call stack
 	if benchops.Enabled {
-		benchops.PopCall()
+		benchops.R().PopCall()
 	}
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()

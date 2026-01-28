@@ -1,6 +1,6 @@
-# Test gno run --bench-profile flag writes valid JSON profile
+# Test gno run --benchops-profile flag writes valid JSON profile
 
-gno run --bench-profile profile.json main.gno
+gno run --benchops-profile profile.json main.gno
 
 stdout 'World'
 exists profile.json

@@ -11,11 +11,11 @@ import (
 // TimingStat contains common timing statistics.
 // Used for both runtime collection and JSON export.
 type TimingStat struct {
-	Count   int64 `json:"count"`
-	TotalNs int64 `json:"total_ns,omitempty"`
-	MinNs   int64 `json:"min_ns,omitempty"`
-	MaxNs   int64 `json:"max_ns,omitempty"`
-	SumSqNs int64 `json:"sumsq_ns,omitempty"` // sum of squared durations for stddev/merge
+	Count   int64   `json:"count"`
+	TotalNs int64   `json:"total_ns,omitempty"`
+	MinNs   int64   `json:"min_ns,omitempty"`
+	MaxNs   int64   `json:"max_ns,omitempty"`
+	SumSqNs float64 `json:"sumsq_ns,omitempty"` // sum of squared durations for stddev/merge (float64 to avoid overflow)
 }
 
 // Record adds a sample to the timing statistics.
@@ -33,7 +33,9 @@ func (t *TimingStat) Record(dur time.Duration) {
 	if ns > t.MaxNs {
 		t.MaxNs = ns
 	}
-	t.SumSqNs += ns * ns
+	// Use float64 to avoid overflow: ns^2 for durations > 3s exceeds int64 max
+	nsf := float64(ns)
+	t.SumSqNs += nsf * nsf
 }
 
 // AvgNs returns the average duration in nanoseconds.
@@ -52,7 +54,7 @@ func (t *TimingStat) StdDevNs() int64 {
 		return 0
 	}
 	meanNs := float64(t.TotalNs) / float64(t.Count)
-	variance := float64(t.SumSqNs)/float64(t.Count) - meanNs*meanNs
+	variance := t.SumSqNs/float64(t.Count) - meanNs*meanNs
 	if variance < 0 {
 		// Numerical instability protection
 		variance = 0
@@ -70,6 +72,18 @@ func (t *TimingStat) Merge(other *TimingStat) {
 	}
 	if other.MaxNs > t.MaxNs {
 		t.MaxNs = other.MaxNs
+	}
+}
+
+// CSVTimingFields returns timing fields formatted for CSV export.
+// Returns: [total_ns, avg_ns, stddev_ns, min_ns, max_ns]
+func (t *TimingStat) CSVTimingFields() []string {
+	return []string{
+		strconv.FormatInt(t.TotalNs, 10),
+		strconv.FormatInt(t.AvgNs(), 10),
+		strconv.FormatInt(t.StdDevNs(), 10),
+		strconv.FormatInt(t.MinNs, 10),
+		strconv.FormatInt(t.MaxNs, 10),
 	}
 }
 
@@ -105,26 +119,6 @@ func (s *StoreStat) AvgSize() int64 {
 	return s.TotalSize / s.Count
 }
 
-// NativeStat tracks statistics for a single native operation.
-type NativeStat struct {
-	TimingStat
-}
-
-// Record adds a native operation sample with optional duration.
-func (s *NativeStat) Record(dur time.Duration) {
-	s.TimingStat.Record(dur)
-}
-
-// SubOpStat tracks statistics for a single sub-operation type.
-type SubOpStat struct {
-	TimingStat
-}
-
-// Record adds a sub-operation sample with optional duration.
-func (s *SubOpStat) Record(dur time.Duration) {
-	s.TimingStat.Record(dur)
-}
-
 // LocationStat aggregates stats by source location.
 type LocationStat struct {
 	File     string `json:"file"`
@@ -143,14 +137,16 @@ type VarStat struct {
 	File    string `json:"file"`
 	Line    int    `json:"line"`
 	PkgPath string `json:"pkg,omitempty"`
-	Index   int    `json:"index,omitempty"`
+	Index   int    `json:"index,omitempty"` // 0-based index; -1 means "no index"
 }
 
 // DisplayName returns a human-readable name for the variable.
+// Returns the variable name if set, otherwise "#N" for Index >= 0, otherwise "-".
 func (v *VarStat) DisplayName() string {
 	if v.Name != "" {
 		return v.Name
 	}
+	// Index >= 0 means a valid 0-based index; -1 means "no index"
 	if v.Index >= 0 {
 		return "#" + strconv.Itoa(v.Index)
 	}
@@ -213,7 +209,14 @@ type callFrame struct {
 }
 
 // estimatedFrameKeySize is the expected size of a stack frame key string.
-// Derived from: average func name (~20) + "@" (1) + average file path (~35) + ":" (1) + line (~4) = 61
+// Format: "funcName@file:line", for example "handleRequest@counter.gno:42"
+// Estimation breakdown:
+//   - Function name: ~20 chars (e.g., "handleRequest", "processTransaction")
+//   - "@" separator:   1 char
+//   - File path:     ~35 chars (e.g., "gno.land/r/demo/boards/post.gno")
+//   - ":" separator:   1 char
+//   - Line number:    ~4 chars (1-9999)
+//   - Total:         ~61 chars, rounded up to 64 for alignment
 const estimatedFrameKeySize = 64
 
 // stackSample is the internal aggregation struct for stack samples during collection.

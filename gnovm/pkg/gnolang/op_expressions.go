@@ -412,7 +412,9 @@ func (m *Machine) doOpArrayLit() {
 		var idx int64
 		for i, v := range vs {
 			if benchops.Enabled {
-				benchops.BeginSubOp(benchops.SubOpArrayElem, benchops.SubOpContext{Index: i})
+				ctx := m.captureSubOpContext(x.Line)
+				ctx.Index = i
+				benchops.R().BeginSubOp(benchops.SubOpArrayElem, ctx)
 			}
 			if kx := x.Elts[i].Key; kx != nil {
 				// XXX why convert?
@@ -442,7 +444,7 @@ func (m *Machine) doOpArrayLit() {
 				idx++
 			}
 			if benchops.Enabled {
-				benchops.EndSubOp()
+				benchops.R().EndSubOp()
 			}
 		}
 	}
@@ -553,14 +555,16 @@ func (m *Machine) doOpMapLit() {
 		// omitType := baseOf(mt).Elem().Kind() != InterfaceKind
 		for i := range ne {
 			if benchops.Enabled {
-				benchops.BeginSubOp(benchops.SubOpMapEntry, benchops.SubOpContext{Index: i})
+				ctx := m.captureSubOpContext(x.Line)
+				ctx.Index = i
+				benchops.R().BeginSubOp(benchops.SubOpMapEntry, ctx)
 			}
 			ktv := kvs[i*2].Copy(m.Alloc)
 			vtv := kvs[i*2+1]
 			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
 			*ptr.TV = vtv.Copy(m.Alloc)
 			if benchops.Enabled {
-				benchops.EndSubOp()
+				benchops.R().EndSubOp()
 			}
 		}
 	}
@@ -637,15 +641,15 @@ func (m *Machine) doOpStructLit() {
 				panic(fmt.Sprintf("duplicate field name %s in struct literal", fnx.Name))
 			}
 			if benchops.Enabled {
-				benchops.BeginSubOp(benchops.SubOpStructField, benchops.SubOpContext{
-					VarName: string(fnx.Name),
-					Index:   int(fnx.Path.Index),
-				})
+				ctx := m.captureSubOpContext(x.Line)
+				ctx.VarName = string(fnx.Name)
+				ctx.Index = int(fnx.Path.Index)
+				benchops.R().BeginSubOp(benchops.SubOpStructField, ctx)
 			}
 			fsset[fnx.Path.Index] = true
 			fs[fnx.Path.Index] = ftv.Copy(m.Alloc)
 			if benchops.Enabled {
-				benchops.EndSubOp()
+				benchops.R().EndSubOp()
 			}
 		}
 	}

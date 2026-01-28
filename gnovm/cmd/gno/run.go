@@ -89,7 +89,7 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.opsProfile,
-		"opsprofile",
+		"benchops-profile",
 		"",
 		"write operation profiling results to pprof file (requires -tags gnobench build)",
 	)
@@ -250,18 +250,18 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	// Warn if gnobench not enabled
 	profilingEnabled := cfg.benchops || cfg.opsProfile != ""
 	if profilingEnabled && !benchops.Enabled {
-		cio.ErrPrintln("warning: --benchops/--opsprofile ignored (requires -tags gnobench build)")
+		cio.ErrPrintln("warning: --benchops/--benchops-profile ignored (requires -tags gnobench build)")
 	}
 
 	// Start benchops profiling if enabled
 	if benchops.Enabled && profilingEnabled {
-		// Enable full profiling for CLI: timing for performance analysis, stacks for pprof
-		benchops.Start(benchops.WithTiming(), benchops.WithStacks())
+		// Full profiling enabled by default (timing + stacks)
+		benchops.Start()
 		defer func() {
 			if !benchops.IsRunning() {
 				return
 			}
-			benchops.Recovery()
+			benchops.R().Recovery()
 			results := benchops.Stop()
 
 			if cfg.benchops {

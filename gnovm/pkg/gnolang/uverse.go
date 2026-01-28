@@ -858,8 +858,7 @@ func makeUverseNode() {
 		nil, // results
 		func(m *Machine) {
 			if benchops.Enabled {
-				benchops.BeginNative(benchops.NativePrint)
-				defer benchops.EndNative()
+				defer benchops.R().TraceNative(benchops.NativePrint)()
 			}
 
 			arg0 := m.LastBlock().GetParams1(m.Store)
@@ -873,8 +872,7 @@ func makeUverseNode() {
 		nil, // results
 		func(m *Machine) {
 			if benchops.Enabled {
-				benchops.BeginNative(benchops.NativePrint)
-				defer benchops.EndNative()
+				defer benchops.R().TraceNative(benchops.NativePrint)()
 			}
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, true)

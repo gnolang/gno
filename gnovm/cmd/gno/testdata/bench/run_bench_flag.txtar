@@ -1,6 +1,6 @@
-# Test gno run --bench flag
+# Test gno run --benchops flag
 
-gno run --bench main.gno
+gno run --benchops main.gno
 
 stdout 'Hello'
 stderr '--- Benchops Profile ---'

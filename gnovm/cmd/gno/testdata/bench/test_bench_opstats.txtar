@@ -1,6 +1,6 @@
 # Test jsonbench OpStats output with deterministic count and gas values
 
-gno test --bench-profile results.jsonl .
+gno test --benchops-profile results.jsonl .
 
 exists results.jsonl
 

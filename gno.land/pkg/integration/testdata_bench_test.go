@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTestdataBench(t *testing.T) {
+func TestBenchOpsIntegration(t *testing.T) {
 	// Bench tests run sequentially to avoid profiler conflicts
 	// (benchops uses global state)
 

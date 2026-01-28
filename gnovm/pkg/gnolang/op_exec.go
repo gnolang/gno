@@ -168,7 +168,9 @@ func (m *Machine) doOpExec(op Op) {
 		case -1: // assign list element.
 			if bs.Key != nil {
 				if benchops.Enabled {
-					benchops.BeginSubOp(benchops.SubOpRangeKey, benchops.SubOpContext{Index: bs.ListIndex})
+					ctx := m.captureSubOpContext(bs.Line)
+					ctx.Index = bs.ListIndex
+					benchops.R().BeginSubOp(benchops.SubOpRangeKey, ctx)
 				}
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
@@ -183,12 +185,14 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 				if benchops.Enabled {
-					benchops.EndSubOp()
+					benchops.R().EndSubOp()
 				}
 			}
 			if bs.Value != nil {
 				if benchops.Enabled {
-					benchops.BeginSubOp(benchops.SubOpRangeValue, benchops.SubOpContext{Index: bs.ListIndex})
+					ctx := m.captureSubOpContext(bs.Line)
+					ctx.Index = bs.ListIndex
+					benchops.R().BeginSubOp(benchops.SubOpRangeValue, ctx)
 				}
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
@@ -204,7 +208,7 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 				if benchops.Enabled {
-					benchops.EndSubOp()
+					benchops.R().EndSubOp()
 				}
 			}
 			bs.NextBodyIndex++
@@ -276,7 +280,9 @@ func (m *Machine) doOpExec(op Op) {
 		case -1: // assign list element.
 			if bs.Key != nil {
 				if benchops.Enabled {
-					benchops.BeginSubOp(benchops.SubOpRangeKey, benchops.SubOpContext{Index: bs.ListIndex})
+					ctx := m.captureSubOpContext(bs.Line)
+					ctx.Index = bs.ListIndex
+					benchops.R().BeginSubOp(benchops.SubOpRangeKey, ctx)
 				}
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
@@ -291,12 +297,14 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 				if benchops.Enabled {
-					benchops.EndSubOp()
+					benchops.R().EndSubOp()
 				}
 			}
 			if bs.Value != nil {
 				if benchops.Enabled {
-					benchops.BeginSubOp(benchops.SubOpRangeValue, benchops.SubOpContext{Index: bs.ListIndex})
+					ctx := m.captureSubOpContext(bs.Line)
+					ctx.Index = bs.ListIndex
+					benchops.R().BeginSubOp(benchops.SubOpRangeValue, ctx)
 				}
 				ev := typedRune(bs.NextRune)
 				switch bs.Op {
@@ -310,7 +318,7 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 				if benchops.Enabled {
-					benchops.EndSubOp()
+					benchops.R().EndSubOp()
 				}
 			}
 			bs.NextBodyIndex++
@@ -385,7 +393,9 @@ func (m *Machine) doOpExec(op Op) {
 			next := bs.NextItem
 			if bs.Key != nil {
 				if benchops.Enabled {
-					benchops.BeginSubOp(benchops.SubOpRangeKey, benchops.SubOpContext{Index: bs.ListIndex})
+					ctx := m.captureSubOpContext(bs.Line)
+					ctx.Index = bs.ListIndex
+					benchops.R().BeginSubOp(benchops.SubOpRangeKey, ctx)
 				}
 				kv := *fillValueTV(m.Store, &next.Key)
 				switch bs.Op {
@@ -399,12 +409,14 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 				if benchops.Enabled {
-					benchops.EndSubOp()
+					benchops.R().EndSubOp()
 				}
 			}
 			if bs.Value != nil {
 				if benchops.Enabled {
-					benchops.BeginSubOp(benchops.SubOpRangeValue, benchops.SubOpContext{Index: bs.ListIndex})
+					ctx := m.captureSubOpContext(bs.Line)
+					ctx.Index = bs.ListIndex
+					benchops.R().BeginSubOp(benchops.SubOpRangeValue, ctx)
 				}
 				vv := *fillValueTV(m.Store, &next.Value)
 				switch bs.Op {
@@ -418,7 +430,7 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 				if benchops.Enabled {
-					benchops.EndSubOp()
+					benchops.R().EndSubOp()
 				}
 			}
 			bs.NextBodyIndex++

@@ -11,20 +11,22 @@ import (
 )
 
 // Example_globalAPI demonstrates the typical usage pattern with the global API.
-// Start() begins profiling, Stop() returns results and resets to noop state.
+// Start() begins profiling, R() returns the Recorder for hot-path operations,
+// Stop() returns results and resets to noop state.
 func Example_globalAPI() {
 	// Start profiling (panics if already running)
 	benchops.Start()
 
-	// Simulate some operations
-	benchops.BeginOp(benchops.OpAdd)
-	benchops.EndOp()
+	// All hot-path operations go through R() when Enabled is true.
+	// In VM code, calls are guarded by `if benchops.Enabled { ... }`.
+	benchops.R().BeginOp(benchops.OpAdd, benchops.OpContext{})
+	benchops.R().EndOp()
 
-	benchops.BeginOp(benchops.OpCall)
+	benchops.R().BeginOp(benchops.OpCall, benchops.OpContext{})
 	// Store operations are nested and auto-pause opcode timing
-	benchops.BeginStore(benchops.StoreGetObject)
-	benchops.EndStore(100) // size in bytes
-	benchops.EndOp()
+	benchops.R().BeginStore(benchops.StoreGetObject)
+	benchops.R().EndStore(100) // size in bytes
+	benchops.R().EndOp()
 
 	// Stop profiling and get results
 	results := benchops.Stop()
@@ -41,10 +43,10 @@ func Example_profilerDirect() {
 	p.Start()
 
 	// Record operations
-	p.BeginOp(benchops.OpAdd)
+	p.BeginOp(benchops.OpAdd, benchops.OpContext{})
 	p.EndOp()
 
-	p.BeginOp(benchops.OpMul)
+	p.BeginOp(benchops.OpMul, benchops.OpContext{})
 	p.EndOp()
 
 	// Get results
@@ -69,7 +71,7 @@ func Example_storeNesting() {
 	p.Start()
 
 	// Start an opcode
-	p.BeginOp(benchops.OpCall)
+	p.BeginOp(benchops.OpCall, benchops.OpContext{})
 
 	// Nested store calls (like GetPackage -> GetObject -> GetPackageRealm)
 	p.BeginStore(benchops.StoreGetPackage)
@@ -98,7 +100,7 @@ func Example_resultsJSON() {
 	p := benchops.New()
 	p.Start()
 
-	p.BeginOp(benchops.OpAdd)
+	p.BeginOp(benchops.OpAdd, benchops.OpContext{})
 	p.EndOp()
 
 	results := p.Stop()
@@ -123,7 +125,7 @@ func Example_panicRecovery() {
 	p.Start()
 
 	// Simulate partial operations (like a panic mid-execution)
-	p.BeginOp(benchops.OpCall)
+	p.BeginOp(benchops.OpCall, benchops.OpContext{})
 	p.BeginStore(benchops.StoreGetPackage)
 	// ... panic would occur here ...
 
@@ -131,7 +133,7 @@ func Example_panicRecovery() {
 	p.Recovery()
 
 	// Can continue profiling after recovery
-	p.BeginOp(benchops.OpAdd)
+	p.BeginOp(benchops.OpAdd, benchops.OpContext{})
 	p.EndOp()
 
 	results := p.Stop()

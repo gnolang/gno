@@ -72,5 +72,21 @@ type SubOpContext struct {
 	File    string // Source file name
 	Line    int    // Line number in source
 	VarName string // Variable/field name being assigned (mutually exclusive with Index)
-	Index   int    // Index for indexed operations (0-based; only meaningful when VarName is empty)
+	Index   int    // Index for indexed operations (0-based); use -1 for "no index"
+}
+
+// NewSubOpContextWithIndex creates a SubOpContext with an index.
+// Use this instead of struct literal to ensure Index is properly set.
+func NewSubOpContextWithIndex(file string, line, index int) SubOpContext {
+	return SubOpContext{File: file, Line: line, Index: index}
+}
+
+// NewSubOpContextWithVar creates a SubOpContext with a variable name.
+func NewSubOpContextWithVar(file string, line int, varName string) SubOpContext {
+	return SubOpContext{File: file, Line: line, VarName: varName, Index: -1}
+}
+
+// NewSubOpContext creates a SubOpContext with just file and line.
+func NewSubOpContext(file string, line int) SubOpContext {
+	return SubOpContext{File: file, Line: line, Index: -1}
 }

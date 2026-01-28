@@ -14,11 +14,10 @@ func (m *Machine) doOpDefine() {
 		nx := s.Lhs[i].(*NameExpr)
 
 		if benchops.Enabled {
-			benchops.BeginSubOp(benchops.SubOpDefineVar, benchops.SubOpContext{
-				Line:    s.Line,
-				VarName: string(nx.Name),
-				Index:   i,
-			})
+			ctx := m.captureSubOpContext(s.Line)
+			ctx.VarName = string(nx.Name)
+			ctx.Index = i
+			benchops.R().BeginSubOp(benchops.SubOpDefineVar, ctx)
 		}
 
 		// Finally, define (or assign if loop block).
@@ -29,7 +28,7 @@ func (m *Machine) doOpDefine() {
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 
 		if benchops.Enabled {
-			benchops.EndSubOp()
+			benchops.R().EndSubOp()
 		}
 	}
 }
@@ -54,11 +53,10 @@ func (m *Machine) doOpAssign() {
 				subOp = benchops.SubOpAssignField
 				varName = string(lx.Sel)
 			}
-			benchops.BeginSubOp(subOp, benchops.SubOpContext{
-				Line:    s.Line,
-				VarName: varName,
-				Index:   i,
-			})
+			ctx := m.captureSubOpContext(s.Line)
+			ctx.VarName = varName
+			ctx.Index = i
+			benchops.R().BeginSubOp(subOp, ctx)
 		}
 
 		// Pop lhs value and desired type.
@@ -69,7 +67,7 @@ func (m *Machine) doOpAssign() {
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 
 		if benchops.Enabled {
-			benchops.EndSubOp()
+			benchops.R().EndSubOp()
 		}
 	}
 }

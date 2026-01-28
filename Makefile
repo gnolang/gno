@@ -86,3 +86,14 @@ tidy:
 .PHONY: mocks
 mocks:
 	$(rundep) github.com/golang/mock/mockgen -source=tm2/pkg/db/types.go -package mockdb -destination tm2/pkg/db/mockdb/mockdb.go
+
+.PHONY: update.benchops.golden
+update.benchops.golden:
+	@echo "==> Updating benchops golden tests..."
+	@echo "  -> GnoVM filetests (gasprofile_*.gno)"
+	go test -tags gnobench ./gnovm/pkg/gnolang/... -test.short --update-golden-tests -run TestBenchOpsFiles
+	@echo "  -> GnoVM CLI txtar tests"
+	UPDATE_SCRIPTS=true go test -tags gnobench ./gnovm/cmd/gno/... -run TestBenchOpsScripts
+	@echo "  -> Gno.land integration txtar tests"
+	UPDATE_SCRIPTS=true go test -tags gnobench ./gno.land/pkg/integration/... -run TestBenchOpsIntegration
+	@echo "Done."

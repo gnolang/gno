@@ -191,7 +191,7 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.opsProfile,
-		"opsprofile",
+		"benchops-profile",
 		"",
 		"write operation profiling results to pprof file (requires -tags gnobench build)",
 	)
@@ -251,7 +251,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 
 	// Warn if gnobench not enabled
 	if (cmd.benchops || cmd.opsProfile != "") && !benchops.Enabled {
-		io.ErrPrintln("warning: --benchops/--opsprofile ignored (requires -tags gnobench build)")
+		io.ErrPrintln("warning: --benchops/--benchops-profile ignored (requires -tags gnobench build)")
 	}
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.

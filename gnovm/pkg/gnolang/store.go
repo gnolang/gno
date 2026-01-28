@@ -364,9 +364,10 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	var size int
 	if benchops.Enabled {
-		benchops.BeginStore(benchops.StoreGetPackageRealm)
+		rec := benchops.R()
+		rec.BeginStore(benchops.StoreGetPackageRealm)
 		defer func() {
-			benchops.EndStore(size)
+			rec.EndStore(size)
 		}()
 	}
 	oid := ObjectIDFromPkgPath(pkgPath)
@@ -392,9 +393,10 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	var size int
 	if benchops.Enabled {
-		benchops.BeginStore(benchops.StoreSetPackageRealm)
+		rec := benchops.R()
+		rec.BeginStore(benchops.StoreSetPackageRealm)
 		defer func() {
-			benchops.EndStore(size)
+			rec.EndStore(size)
 		}()
 	}
 	oid := ObjectIDFromPkgPath(rlm.Path)
@@ -439,9 +441,10 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 	var size int
 
 	if benchops.Enabled {
-		benchops.BeginStore(benchops.StoreGetObject)
+		rec := benchops.R()
+		rec.BeginStore(benchops.StoreGetObject)
 		defer func() {
-			benchops.EndStore(size)
+			rec.EndStore(size)
 		}()
 	}
 	key := backendObjectKey(oid)
@@ -593,9 +596,10 @@ func AllocExpanded(alloc *Allocator, val Value) {
 func (ds *defaultStore) SetObject(oo Object) int64 {
 	var size int
 	if benchops.Enabled {
-		benchops.BeginStore(benchops.StoreSetObject)
+		rec := benchops.R()
+		rec.BeginStore(benchops.StoreSetObject)
 		defer func() {
-			benchops.EndStore(size)
+			rec.EndStore(size)
 		}()
 	}
 	oid := oo.GetObjectID()
@@ -698,10 +702,11 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 
 func (ds *defaultStore) DelObject(oo Object) int64 {
 	if benchops.Enabled {
-		benchops.BeginStore(benchops.StoreDeleteObject)
+		rec := benchops.R()
+		rec.BeginStore(benchops.StoreDeleteObject)
 		defer func() {
 			// delete is a signle operation, not a func of size of bytes
-			benchops.EndStore(0)
+			rec.EndStore(0)
 		}()
 	}
 	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
@@ -779,9 +784,10 @@ func (ds *defaultStore) SetType(tt Type) {
 	var size int
 
 	if benchops.Enabled {
-		benchops.BeginStore(benchops.StoreSetType)
+		rec := benchops.R()
+		rec.BeginStore(benchops.StoreSetType)
 		defer func() {
-			benchops.EndStore(size)
+			rec.EndStore(size)
 		}()
 	}
 	tid := tt.TypeID()
@@ -824,9 +830,10 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 	var size int
 
 	if benchops.Enabled {
-		benchops.BeginStore(benchops.StoreGetBlockNode)
+		rec := benchops.R()
+		rec.BeginStore(benchops.StoreGetBlockNode)
 		defer func() {
-			benchops.EndStore(size)
+			rec.EndStore(size)
 		}()
 	}
 	// check cache.
@@ -913,9 +920,10 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	var size int
 
 	if benchops.Enabled {
-		benchops.BeginStore(benchops.StoreAddMemPackage)
+		rec := benchops.R()
+		rec.BeginStore(benchops.StoreAddMemPackage)
 		defer func() {
-			benchops.EndStore(size)
+			rec.EndStore(size)
 		}()
 	}
 	mpkgtype := mpkg.Type.(MemPackageType)
@@ -951,9 +959,10 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	var size int
 
 	if benchops.Enabled {
-		benchops.BeginStore(benchops.StoreGetMemPackage)
+		rec := benchops.R()
+		rec.BeginStore(benchops.StoreGetMemPackage)
 		defer func() {
-			benchops.EndStore(size)
+			rec.EndStore(size)
 		}()
 	}
 	pathkey := []byte(backendPackagePathKey(path))

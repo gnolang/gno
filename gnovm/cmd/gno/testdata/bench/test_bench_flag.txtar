@@ -1,8 +1,8 @@
-# Test --bench flag outputs profiling info
+# Test --benchops flag outputs profiling info
 
-gno test --bench .
+gno test --benchops .
 
-stderr '--- Bench:'
+stderr '--- Benchops:'
 stderr 'Profiling Results'
 stderr 'Opcode Statistics'
 

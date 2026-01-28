@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_ScriptsBench(t *testing.T) {
+func TestBenchOpsScripts(t *testing.T) {
 	testdir, err := filepath.Abs(filepath.Join("testdata", "bench"))
 	require.NoError(t, err)
 

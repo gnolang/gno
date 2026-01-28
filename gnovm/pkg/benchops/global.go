@@ -28,17 +28,26 @@ func init() {
 // Option configures the profiler behavior.
 type Option func(*Profiler)
 
-// WithTiming enables wall-clock timing for all operations.
-// Without this option, only gas/count tracking is performed (minimal overhead).
-// Use this when you need timing data for performance analysis.
-func WithTiming() Option {
-	return func(p *Profiler) { p.timingEnabled = true }
+// WithoutTiming disables wall-clock timing.
+// Use this when you only need gas/count data without timing overhead.
+func WithoutTiming() Option {
+	return func(p *Profiler) { p.timingEnabled = false }
 }
 
-// WithStacks enables call stack tracking for pprof output.
-// Stack tracking adds memory overhead for stack copies.
-func WithStacks() Option {
-	return func(p *Profiler) { p.stackEnabled = true }
+// WithoutStacks disables call stack tracking.
+// Use this when pprof output is not needed (reduces memory overhead).
+func WithoutStacks() Option {
+	return func(p *Profiler) { p.stackEnabled = false }
+}
+
+// ---- Hot Path Entry Point
+
+// R returns the global Recorder for hot-path operations.
+// IMPORTANT: Must only be called within `if benchops.Enabled { ... }` guards.
+// When Enabled=false (disabled builds), this returns nil and calling methods
+// on nil will panic - but those code paths are eliminated at compile time.
+func R() Recorder {
+	return global.Load().recorder
 }
 
 // ---- Configuration Functions
@@ -58,9 +67,11 @@ func Start(opts ...Option) {
 	p.Start()
 	newState := &globalState{recorder: p, profiler: p}
 
+	// CompareAndSwap ensures only one Start() succeeds. noopState is a singleton
+	// that Stop() always restores, so this correctly detects concurrent access.
 	if !global.CompareAndSwap(noopState, newState) {
 		p.Stop() // Clean up the profiler we created
-		panic("benchops: Start called while profiler is already running")
+		panic("benchops: Start: profiler is already running")
 	}
 }
 
@@ -70,11 +81,11 @@ func Start(opts ...Option) {
 func Stop() *Results {
 	state := global.Load()
 	if state.profiler == nil {
-		panic("benchops: Stop called while profiler is not running")
+		panic("benchops: Stop: profiler is not running")
 	}
 
 	if !global.CompareAndSwap(state, noopState) {
-		panic("benchops: concurrent Stop detected")
+		panic("benchops: Stop: concurrent access detected")
 	}
 
 	return state.profiler.Stop()
@@ -83,116 +94,4 @@ func Stop() *Results {
 // IsRunning returns true if profiling is currently active.
 func IsRunning() bool {
 	return global.Load().profiler != nil
-}
-
-// ---- Hot Path Functions (explicit Begin/End for VM main loop)
-
-// BeginOp starts timing for an opcode using the global recorder.
-func BeginOp(op Op) {
-	global.Load().recorder.BeginOp(op)
-}
-
-// EndOp stops timing for the current opcode using the global recorder.
-func EndOp() {
-	global.Load().recorder.EndOp()
-}
-
-// SetOpContext sets the source location context for the current opcode.
-func SetOpContext(ctx OpContext) {
-	global.Load().recorder.SetOpContext(ctx)
-}
-
-// ---- Store Operations
-
-// BeginStore starts tracking a store operation.
-func BeginStore(op StoreOp) {
-	global.Load().recorder.BeginStore(op)
-}
-
-// EndStore completes the current store operation with its size.
-func EndStore(size int) {
-	global.Load().recorder.EndStore(size)
-}
-
-// ---- Native Operations
-
-// BeginNative starts tracking a native function call.
-func BeginNative(op NativeOp) {
-	global.Load().recorder.BeginNative(op)
-}
-
-// EndNative completes the current native function call.
-func EndNative() {
-	global.Load().recorder.EndNative()
-}
-
-// ---- SubOp Functions (explicit Begin/End for loops)
-
-// BeginSubOp starts tracking a sub-operation with optional context.
-// Use this with EndSubOp for explicit begin/end tracking in loops.
-// Pass zero value SubOpContext{} if no context is needed.
-func BeginSubOp(op SubOp, ctx SubOpContext) {
-	global.Load().recorder.BeginSubOp(op, ctx)
-}
-
-// EndSubOp completes the current sub-operation.
-func EndSubOp() {
-	global.Load().recorder.EndSubOp()
-}
-
-// ---- Defer-Friendly Trace Functions
-
-// TraceStore traces a store operation. Returns a closer that accepts size.
-// Always records count. Only records timing if WithTiming() was used.
-// Usage: defer benchops.TraceStore(benchops.StoreGetObject)(size)
-func TraceStore(op StoreOp) func(size int) {
-	rec := global.Load().recorder
-	rec.BeginStore(op)
-	return rec.EndStore
-}
-
-// TraceNative traces a native function call.
-// Always records timing if WithTiming() was used.
-// Usage: defer benchops.TraceNative(benchops.NativeXxx)()
-func TraceNative(op NativeOp) func() {
-	rec := global.Load().recorder
-	rec.BeginNative(op)
-	return rec.EndNative
-}
-
-// TraceSubOp traces a sub-operation with context.
-// Always records count. Only records timing if WithTiming() was used.
-// Usage: defer benchops.TraceSubOp(benchops.SubOpDefineVar, ctx)()
-func TraceSubOp(op SubOp, ctx SubOpContext) func() {
-	rec := global.Load().recorder
-	rec.BeginSubOp(op, ctx)
-	return rec.EndSubOp
-}
-
-// ---- Recovery
-
-// Recovery resets the global profiler's internal state after a panic.
-// No-op if profiler is not running.
-func Recovery() {
-	if p := global.Load().profiler; p != nil {
-		p.Recovery()
-	}
-}
-
-// ---- Call Stack Tracking
-
-// PushCall pushes a function call onto the call stack.
-// Called when entering a function.
-func PushCall(funcName, pkgPath, file string, line int) {
-	if p := global.Load().profiler; p != nil {
-		p.PushCall(funcName, pkgPath, file, line)
-	}
-}
-
-// PopCall pops the current function from the call stack.
-// Called when returning from a function.
-func PopCall() {
-	if p := global.Load().profiler; p != nil {
-		p.PopCall()
-	}
 }
