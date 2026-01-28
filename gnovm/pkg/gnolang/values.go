@@ -657,14 +657,14 @@ func (ml MapList) MarshalAmino() (MapListImage, error) {
 func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 	for i, item := range mlimg.List {
 		if i == 0 {
-			// init case
 			ml.Head = item
-		}
-		item.Prev = ml.Tail
-		if ml.Tail != nil {
+			ml.Tail = item
+			item.Prev = nil
+		} else {
+			item.Prev = ml.Tail
 			ml.Tail.Next = item
+			ml.Tail = item
 		}
-		ml.Tail = item
 		ml.Size++
 	}
 	return nil
@@ -681,11 +681,11 @@ func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 	}
 	if ml.Head == nil {
 		ml.Head = item
-	}
-	if ml.Tail != nil {
+		ml.Tail = item
+	} else {
 		ml.Tail.Next = item
+		ml.Tail = item
 	}
-	ml.Tail = item
 	ml.Size++
 	return item
 }
@@ -800,6 +800,10 @@ type PackageValue struct {
 
 	fBlocksMap map[string]*Block
 }
+
+// See PackageNode.NewPackage() for PackageValue constructor.
+// Do not uncomment; always use PackageNode.NewPackage().
+// func NewPackageValue() {}
 
 // IsRealm returns true if pv represents a realm.
 func (pv *PackageValue) IsRealm() bool {
@@ -2562,19 +2566,28 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 	b.Source = source // otherwise new variables won't show in print or debugger.
 }
 
+// RefValue.PkgPath is set if the RefValue refers to a local package or an
+// external package and originates from a name by the preprocessor.  In this
+// case .ObjectID cannot be set because it may not yet be real.
 // NOTE: RefValue Object methods declared in ownership.go
 type RefValue struct {
-	ObjectID ObjectID  `json:",omitempty"`
-	Escaped  bool      `json:",omitempty"`
-	PkgPath  string    `json:",omitempty"`
-	Hash     ValueHash `json:",omitempty"`
+	ObjectID ObjectID  `json:",omitempty"` // If non-zero, PkgPath is empty
+	Escaped  bool      `json:",omitempty"` // XXX NOT USED DELETEME
+	PkgPath  string    `json:",omitempty"` // If set, ObjectID is non-zero
+	Hash     ValueHash `json:",omitempty"` // Set iff not escaped
 }
 
 func RefValueFromPackage(pv *PackageValue) RefValue {
 	return RefValue{PkgPath: pv.PkgPath}
 }
 
+// Returns .ObjectID.
+// Does not derive ObjectID from PkgPath if of form RefValue{PkgPath}.
+// TODO: consider splitting into another value type to prevent confusion.
 func (rv RefValue) GetObjectID() ObjectID {
+	if rv.PkgPath != "" {
+		panic("unexpected ref value of form RefValue{PkgPath}")
+	}
 	return rv.ObjectID
 }
 

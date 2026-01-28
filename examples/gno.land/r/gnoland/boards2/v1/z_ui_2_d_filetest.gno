@@ -9,14 +9,14 @@ import (
 
 const (
 	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
-	boardName         = "BoardName"
+	boardName         = "TestBoard"
 )
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a readonly board and then add a thread
-	boardID := boards2.CreateBoard(cross, boardName, false)
+	boardID := boards2.CreateBoard(cross, boardName, false, false)
 	boards2.CreateThread(cross, boardID, "A", "Body")
 	boards2.FreezeBoard(cross, boardID)
 }
@@ -26,15 +26,16 @@ func main() {
 }
 
 // Output:
-// # BoardName
-// Board created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
-// _**Starting new threads and commenting is disabled**_
+// # [Boards](/r/gnoland/boards2/v1) › TestBoard
+// > [!WARNING] Info
+// > Creating new threads and commenting are disabled within this board
 //
-// [List Members](/r/gnoland/boards2/v1:BoardName/members) • [Unfreeze Board](/r/gnoland/boards2/v1$help&func=UnfreezeBoard&boardID=1&replyID=&threadID=)
+// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
+// [List Members](/r/gnoland/boards2/v1:TestBoard/members) • [Unfreeze Board](/r/gnoland/boards2/v1$help&func=UnfreezeBoard&boardID=1&replyID=&threadID=)
 //
 // ---
-// Sort by: [oldest first](/r/gnoland/boards2/v1:BoardName?order=desc)
+// Sort by: [oldest first](/r/gnoland/boards2/v1:TestBoard?order=desc)
 //
-// **≡ [A](/r/gnoland/boards2/v1:BoardName/1)**
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
+// ###### [A](/r/gnoland/boards2/v1:TestBoard/1)
+// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) `owner` on 2009-02-13 11:31pm UTC
 // **0 replies • 0 reposts**
