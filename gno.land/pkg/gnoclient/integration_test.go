@@ -749,3 +749,120 @@ func loadpkgs(t *testing.T, rootdir string, paths ...string) []gnoland.TxWithMet
 	require.NoError(t, err)
 	return meta
 }
+
+func TestCallVariadicFunc_Integration(t *testing.T) {
+	// Setup packages
+	rootdir := gnoenv.RootDir()
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	meta := loadpkgs(t, rootdir, "gno.land/r/tests/vm/variadic")
+	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
+	state.Txs = append(state.Txs, meta...)
+	config.Genesis.AppState = state
+
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	// Init Signer & RPCClient
+	signer := newInMemorySigner(t, "tendermint_test")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	// Setup Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      21000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	// Make Msg config
+	msg := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/tests/vm/variadic",
+		Func:    "Echo",
+		Args:    []string{"test", "argument"},
+		Send:    nil,
+	}
+
+	// Execute call
+	res, err := client.Call(baseCfg, msg)
+	require.NoError(t, err)
+
+	expected := "(\"test argument\" string)\n\n"
+	got := string(res.DeliverTx.Data)
+
+	assert.Equal(t, expected, got)
+
+	res, err = callSigningSeparately(t, client, baseCfg, msg)
+	require.NoError(t, err)
+	got = string(res.DeliverTx.Data)
+	assert.Equal(t, expected, got)
+}
+func TestCallVariadicZeroVariadicArgsFunc_Integration(t *testing.T) {
+	// Setup packages
+	rootdir := gnoenv.RootDir()
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	meta := loadpkgs(t, rootdir, "gno.land/r/tests/vm/variadic")
+	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
+	state.Txs = append(state.Txs, meta...)
+	config.Genesis.AppState = state
+
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	// Init Signer & RPCClient
+	signer := newInMemorySigner(t, "tendermint_test")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	// Setup Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      21000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	// Make Msg config
+	msg := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/tests/vm/variadic",
+		Func:    "Echo",
+		Args:    []string{},
+		Send:    nil,
+	}
+
+	// Execute call
+	res, err := client.Call(baseCfg, msg)
+	require.NoError(t, err)
+
+	expected := "(\"\" string)\n\n"
+	got := string(res.DeliverTx.Data)
+
+	assert.Equal(t, expected, got)
+
+	res, err = callSigningSeparately(t, client, baseCfg, msg)
+	require.NoError(t, err)
+	got = string(res.DeliverTx.Data)
+	assert.Equal(t, expected, got)
+}
