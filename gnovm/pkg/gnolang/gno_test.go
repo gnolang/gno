@@ -600,6 +600,106 @@ func assertOutput(t *testing.T, input string, output string) {
 	assert.Nil(t, err)
 }
 
+func TestConstantSizeLimits(t *testing.T) {
+	t.Parallel()
+
+	// Helper to generate a binary string representation
+	genBinaryString := func(bits int) string {
+		s := "1"
+		for range bits {
+			s += "0"
+		}
+		return "0b" + s
+	}
+
+	bigintAtMaxSize := genBinaryString(MaxConstantBits - 1)
+	bigintExceedsMaxSize := genBinaryString(MaxConstantBits)
+
+	tests := []struct {
+		name        string
+		source      string
+		shouldPanic bool
+		panicMsg    string
+	}{
+		{
+			name: "string at max size",
+			source: fmt.Sprintf(`package test
+func main() {
+	const s = "%s"
+}`, strings.Repeat("a", MaxConstantBytes)),
+			shouldPanic: false,
+		},
+		{
+			name: "string exceeds max size",
+			source: fmt.Sprintf(`package test
+func main() {
+	const s = "%s"
+}`, strings.Repeat("a", MaxConstantBytes+1)),
+			shouldPanic: true,
+			panicMsg:    "constant string too large",
+		},
+		{
+			name: "bigint at max size",
+			source: fmt.Sprintf(`package test
+func main() {
+	const n = %s
+}`, bigintAtMaxSize),
+			shouldPanic: false,
+		},
+		{
+			name: "bigint exceeds max size",
+			source: fmt.Sprintf(`package test
+func main() {
+	const n = %s
+}`, bigintExceedsMaxSize),
+			shouldPanic: true,
+			panicMsg:    "constant bigint too large",
+		},
+		{
+			name: "small string should pass",
+			source: `package test
+func main() {
+	const s = "hello world"
+}`,
+			shouldPanic: false,
+		},
+		{
+			name: "small int should pass",
+			source: `package test
+func main() {
+	const n = 123456789
+}`,
+			shouldPanic: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			defer func() {
+				r := recover()
+				if tc.shouldPanic {
+					require.NotNil(t, r, "expected panic but didn't get one")
+					if tc.panicMsg != "" {
+						errMsg := fmt.Sprintf("%v", r)
+						assert.Contains(t, errMsg, tc.panicMsg)
+					}
+				} else {
+					if r != nil {
+						t.Fatalf("unexpected panic: %v", r)
+					}
+				}
+			}()
+
+			m := NewMachine("test", nil)
+			n := m.MustParseFile("main.go", tc.source)
+			m.RunFiles(n)
+			m.RunMain()
+		})
+	}
+}
+
 // ----------------------------------------
 // Benchmarks
 
@@ -628,7 +728,7 @@ func BenchmarkPreprocess(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// initStaticBlocks is always performed before a Preprocess
 		initStaticBlocks(nil, pn, copies[i])
-		main = Preprocess(nil, pkg, copies[i]).(*FuncDecl)
+		main = Preprocess(nil, pkg, copies[i], nil).(*FuncDecl)
 		_ = main
 	}
 }
