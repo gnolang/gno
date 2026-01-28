@@ -158,7 +158,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 
 	if cfg.RootCfg.Broadcast {
 		cfg.RootCfg.RootCfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
-			PrintTxInfo(tx, res, cmdio)
+			client.PrintTxInfo(tx, res, cmdio, cfg.RootCfg.RootCfg.Verbosity)
 		}
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
 		if err != nil {

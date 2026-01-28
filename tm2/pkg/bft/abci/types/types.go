@@ -6,6 +6,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 )
 
 // ----------------------------------------
@@ -177,13 +178,13 @@ type ResponseBeginBlock struct {
 type ResponseCheckTx struct {
 	ResponseBase
 	GasWanted int64 // nondeterministic
-	GasUsed   int64
+	GasUsed   gas.GasDetail
 }
 
 type ResponseDeliverTx struct {
 	ResponseBase
 	GasWanted int64
-	GasUsed   int64
+	GasUsed   gas.GasDetail
 }
 
 type ResponseEndBlock struct {

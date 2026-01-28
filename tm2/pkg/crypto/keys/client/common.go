@@ -9,6 +9,7 @@ type BaseOptions struct {
 	Home                  string
 	Remote                string
 	Quiet                 bool
+	Verbosity             int // Verbosity level for gas detail: 0=none, 1=categories, 2=non-zero ops, 3=all ops
 	InsecurePasswordStdin bool
 	Config                string
 	// OnTxSuccess is called when the transaction tx succeeds. It can, for example,

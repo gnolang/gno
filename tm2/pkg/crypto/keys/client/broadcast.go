@@ -88,13 +88,7 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		if cfg.RootCfg.OnTxSuccess != nil {
 			cfg.RootCfg.OnTxSuccess(tx, res)
 		} else {
-			io.Println(string(res.DeliverTx.Data))
-			io.Println("OK!")
-			io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
-			io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
-			io.Println("HEIGHT:    ", res.Height)
-			io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
-			io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+			PrintTxInfo(tx, res, io, cfg.RootCfg.Verbosity)
 		}
 	}
 	return nil
@@ -158,12 +152,12 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit)
 		return nil
 	}
 
-	fee := bres.DeliverTx.GasUsed/gp.Gas + 1
+	fee := bres.DeliverTx.GasUsed.Total.GasConsumed/gp.Gas + 1
 	fee = overflow.Mulp(fee, gp.Price.Amount)
 	// 5% fee buffer to cover the suden change of gas price
 	feeBuffer := overflow.Mulp(fee, 5) / 100
 	fee = overflow.Addp(fee, feeBuffer)
-	s := fmt.Sprintf("estimated gas usage: %d, gas fee: %d%s, current gas price: %s\n", bres.DeliverTx.GasUsed, fee, gp.Price.Denom, gp.String())
+	s := fmt.Sprintf("estimated gas usage: %d, gas fee: %d%s, current gas price: %s\n", bres.DeliverTx.GasUsed.Total.GasConsumed, fee, gp.Price.Denom, gp.String())
 	bres.DeliverTx.Info = s
 	return nil
 }
