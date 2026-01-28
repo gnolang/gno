@@ -355,7 +355,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			}
 		}
 		// Must parse before set pn&pv.
-		// fn := m.MustParseFile(fname, string(content))
+		fn := m.MustParseFile(fname, string(content))
 		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 		pv := pn.NewPackage(m.Alloc)
@@ -364,7 +364,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.SetActivePackage(pv)
 		m.Context.(*teststdlibs.TestExecContext).OriginCaller = DefaultCaller
 		// Run (add) file, and then run main().
-		fn := m.MustParseFile(fname, string(content))
 		m.RunFiles(fn)
 		m.RunMain()
 	} else { // Realm case.
