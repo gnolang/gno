@@ -18,6 +18,12 @@ type Member struct {
 	InvitationPoints int
 }
 
+func NewMember(invitationPoints int) *Member {
+	return &Member{
+		InvitationPoints: invitationPoints,
+	}
+}
+
 func (m *Member) RemoveInvitationPoint() {
 	if m.InvitationPoints <= 0 {
 		panic("not enough invitation points")
