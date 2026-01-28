@@ -1,21 +1,31 @@
 package validators
 
 import (
+	"strings"
+
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
 )
-
-const errNoChangesProposed = "no set changes proposed"
 
 // NewPropRequest creates a new proposal request that wraps a changes closure
 // proposal. This wrapper is required to ensure the GovDAO Realm actually
 // executed the callback.
 func NewPropRequest(changesFn func() []validators.Validator, title, description string) dao.ProposalRequest {
 	if changesFn == nil {
-		panic(errNoChangesProposed)
+		panic("no set changes proposed")
+	}
+
+	title = strings.TrimSpace(title)
+	if title == "" {
+		panic("proposal title is empty")
+	}
+
+	if strings.TrimSpace(description) == "" {
+		panic("proposal description is empty")
 	}
 
 	callback := func(cur realm) error {
+		// TODO: Validators should be getted before execution and listed in the proposal description
 		for _, change := range changesFn() {
 			if change.VotingPower == 0 {
 				// This change request is to remove the validator
