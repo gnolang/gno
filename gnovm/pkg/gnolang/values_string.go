@@ -503,6 +503,10 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 	} else {
 		vs = tv.ProtectedSprint(seen, false)
 		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
+			const maxLen = 200
+			if len(vs) > maxLen {
+				vs = vs[:maxLen] + "..."
+			}
 			vs = strconv.Quote(vs)
 		}
 	}

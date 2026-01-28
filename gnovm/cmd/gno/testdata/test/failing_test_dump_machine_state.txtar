@@ -1,0 +1,25 @@
+# Test with a failing _test.gno file with dump machine state.
+
+! gno test -v -dump-machine-state .
+
+! stdout .+
+stderr '=== RUN   TestAlwaysFailing'
+stderr '--- FAIL: TestAlwaysFailing'
+stderr '--- Machine State: Machine:\n    Stage: StageRun\n    Op:'
+
+-- failing.gno --
+package failing
+
+-- failing_test.gno --
+package failing
+
+import "testing"
+
+func TestAlwaysFailing(t *testing.T) {
+	t.Fatal("failed")
+}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/failing_tst"
+gno = "0.9"
