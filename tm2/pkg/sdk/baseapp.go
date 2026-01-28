@@ -762,16 +762,26 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		if r := recover(); r != nil {
 			switch ex := r.(type) {
 			case store.OutOfGasError:
+				gasUsed := ctx.GasMeter().GasConsumed()
+				maxGas := int64(-1)
+				if cp := ctx.ConsensusParams(); cp != nil {
+					maxGas = cp.Block.MaxGas
+				}
+				var detail string
+				if maxGas > 0 && gasUsed >= maxGas {
+					detail = fmt.Sprintf("(hit consensus maxGas %d)", maxGas)
+				}
 				log := fmt.Sprintf(
-					"out of gas, gasWanted: %d, gasUsed: %d location: %v",
+					"out of gas %s, gasWanted: %d, gasUsed: %d (until panic) location: %v",
+					detail,
 					gasWanted,
-					ctx.GasMeter().GasConsumed(),
+					gasUsed,
 					ex.Descriptor,
 				)
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
-				result.GasUsed = ctx.GasMeter().GasConsumed()
+				result.GasUsed = gasUsed
 				return
 			default:
 				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
@@ -861,6 +871,20 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
+
+	// Special case for simulation mode where the gas meter is infinite:
+	// if we used more gas than was requested, return an out of gas error.
+	if mode == RunTxModeSimulate && result.Error == nil &&
+		gasWanted > 0 && result.GasUsed > gasWanted {
+		log := fmt.Sprintf(
+			"out of gas during simulation; gasWanted: %d, gasUsed: %d",
+			gasWanted, result.GasUsed,
+		)
+		result.Error = ABCIError(std.ErrOutOfGas(log))
+		result.Log = log
+
+		return result
+	}
 
 	// Safety check: don't write the cache state unless we're in DeliverTx.
 	if mode != RunTxModeDeliver {
