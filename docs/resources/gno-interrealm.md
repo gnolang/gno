@@ -132,20 +132,14 @@ func FilterList(cur realm, testlist []string) { // blanks out blacklist items fr
 ```
 
 This is a toy example, but you can see that the intent of `FilterList()` is to
-modify an externally provided slice; yet if you call `alice.FilterList(cross,
-alice.GetBlacklist())` you can trick alice into modifying its own blacklist--the
-result is that alice.BlackList becomes full of blank values.
+modify an externally provided slice; yet if you call `alice.FilterList(cross, alice.GetBlacklist())` you can trick alice into modifying its own blacklist--the result is that alice.BlackList becomes full of blank values.
 
 With the readonly taint, `var Blacklist []string` solves the problem for you;
 that is, /r/bob cannot call `alice.FilterList(cross, alice.Blacklist)`, even
 though alice can call `FilterList(cur, Blacklist)` if it wants to (but that would
 simply be programmer error).
 
-Of course the problem remains if alice implements `func GetBlacklist() []string
-{ return Blacklist }` since then /r/bob can call `alice.FilterList(cross,
-alice.GetBlacklist())` which would not be readonly tainted, but we should be
-adding the `readonly` modifier to support `func GetBlacklist() readonly
-[]string`. TODO 
+Of course the problem remains if alice implements `func GetBlacklist() []string { return Blacklist }` since then /r/bob can call `alice.FilterList(cross, alice.GetBlacklist())` which would not be readonly tainted, but we should be adding the `readonly` modifier to support `func GetBlacklist() readonly []string`. TODO 
 
 ## `fn(cross, ...)` and `func fn(cur realm, ...){...}` Specification
 
