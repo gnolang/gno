@@ -30,12 +30,13 @@ import (
 const gracefulShutdown = time.Second * 5
 
 type ProcessNodeConfig struct {
-	ValidatorKey ed25519.PrivKeyEd25519 `json:"priv"`
-	Verbose      bool                   `json:"verbose"`
-	DBDir        string                 `json:"dbdir"`
-	RootDir      string                 `json:"rootdir"`
-	Genesis      *MarshalableGenesisDoc `json:"genesis"`
-	TMConfig     *tmcfg.Config          `json:"tm"`
+	ValidatorKey   ed25519.PrivKeyEd25519 `json:"priv"`
+	Verbose        bool                   `json:"verbose"`
+	DBDir          string                 `json:"dbdir"`
+	RootDir        string                 `json:"rootdir"`
+	Genesis        *MarshalableGenesisDoc `json:"genesis"`
+	TMConfig       *tmcfg.Config          `json:"tm"`
+	SkipGenesisSig bool                   `json:"skip_genesis_sig"` // Skip genesis tx signature verification
 }
 
 type ProcessConfig struct {
@@ -77,6 +78,7 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	defer db.Close() // ensure db is close
 
 	nodecfg := TestingMinimalNodeConfig(pcfg.RootDir)
+	nodecfg.SkipGenesisSigVerification = pcfg.SkipGenesisSig
 
 	// Configure validator if provided
 	if len(pcfg.ValidatorKey) > 0 && !isAllZero(pcfg.ValidatorKey) {
