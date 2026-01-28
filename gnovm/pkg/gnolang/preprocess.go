@@ -196,7 +196,7 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 						if !isLocallyDefined2(last, ln) {
 							if ftype == TRANS_FOR_INIT {
 								ln = Name(fmt.Sprintf(".loopvar_%s", ln)) // rename to .loopvar_x.
-								nx.Type = NameExprTypeLoopVarDefine       // demote if shadowed by i := i
+								nx.Type = NameExprTypeLoopVarDefine       // demoted after transform loopvar.
 								nx.Name = ln
 							} else {
 								nx.Type = NameExprTypeDefine
@@ -540,7 +540,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					if bn, ok := n.(*ForStmt); ok {
 						findContinue(ctx, bn)
 						rewriteContinue(ctx, bn)
-						shadowLoopvar(ctx, bn)
+						heapAllocLoopvar(ctx, bn)
 						return n, TRANS_CONTINUE
 					}
 					return n, TRANS_CONTINUE
@@ -3130,7 +3130,7 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 					if ftype == TRANS_VAR_NAME {
 						return n, TRANS_CONTINUE
 					}
-					// Ignore := defines, etc.
+					// Ignore other name type.
 					if nx.Type != NameExprTypeLoopVarUse {
 						return n, TRANS_CONTINUE
 					}
@@ -3165,7 +3165,7 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 				if ftype == TRANS_VAR_NAME {
 					return n, TRANS_CONTINUE
 				}
-				// Ignore := defines, etc.
+				// Ignore other name type.
 				if n.Type != NameExprTypeLoopVarUse {
 					return n, TRANS_CONTINUE
 				}
@@ -3336,8 +3336,8 @@ func rewriteContinue(ctx BlockNode, bn BlockNode) {
 	})
 }
 
-// Rewrite loop variables by redefining them in the loop body.
-func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
+// Copy out loopvar to a new slot of heapItemValue.
+func heapAllocLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 	// Iterate over all nodes recursively.
 	_ = TranscribeB(ctx, bn, func(
 		ns []Node,
@@ -3351,7 +3351,7 @@ func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("shadowLoopvar %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("heapAllocLoopvar %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -3453,6 +3453,13 @@ func resolveInjectedName(ctx BlockNode, bn BlockNode) {
 	})
 }
 
+// `NameExprTypeLoopVarDefine` and `NameExprTypeLoopVarUse` are required to
+// prevent `Nx` from being tainted by `transformHeapItem` before
+// `transformLoopvar` in certain cases.
+//
+// This is a workaround for the current transform ordering. With a more
+// efficient or better-structured set of transform phases, this special
+// handling should no longer be necessary.
 func demoteLoopvarType(ctx BlockNode, bn BlockNode) {
 	// Iterate over all nodes recursively.
 	_ = TranscribeB(ctx, bn, func(
@@ -3796,7 +3803,7 @@ func codaHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
-			// type switch is a special cast that varName is
+			// type switch is a special case that `varName` is
 			// defined in case clauses.
 			case *SwitchClauseStmt:
 				// parent switch statement.
