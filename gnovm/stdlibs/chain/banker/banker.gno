@@ -142,6 +142,12 @@ func (b banker) RemoveCoin(addr address, denom string, amount int64) {
 }
 
 func assertCoinDenom(denom string) {
+	if runtime.CurrentRealm().PkgPath() == "gno.land/r/aib/ibc/apps/transfer" {
+		if !strings.HasPrefix(denom, "ibc/") {
+			panic("gno.land/r/aib/ibc/apps/transfer can only issue/remove coins with the ibc/ prefix")
+		}
+		return
+	}
 	prefix := "/" + runtime.CurrentRealm().PkgPath() + ":"
 	if !strings.HasPrefix(denom, prefix) {
 		panic("invalid denom, can only issue/remove coins with the realm's prefix: " + prefix)
