@@ -145,6 +145,8 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Coverage collector for tracking code coverage (nil if disabled).
+	Coverage *gno.CoverageCollector
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -266,6 +268,19 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	// not necessarily integration tests, it's just for our internal reference.)
 	tset, itset, itfiles, ftfiles := parseMemPackageTests(mpkg)
 
+	// Register coverable statements if coverage is enabled
+	if opts.Coverage != nil {
+		// Register statements from main package (non-test files)
+		registerCoverableFromMemPackage(opts.Coverage, mpkg)
+		// Register statements from test files
+		if tset != nil {
+			registerCoverableFromFileSet(opts.Coverage, mpkg.Path, tset)
+		}
+		if itset != nil {
+			registerCoverableFromFileSet(opts.Coverage, mpkg.Path+"_test", itset)
+		}
+	}
+
 	// Testing with *_test.gno
 	if len(tset.Files)+len(itset.Files) > 0 {
 		// Run test files in pkg.
@@ -379,6 +394,7 @@ func (opts *TestOptions) runTestFiles(
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 	m.Alloc = alloc
+	m.Coverage = opts.Coverage
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
 	} else {
@@ -400,6 +416,7 @@ func (opts *TestOptions) runTestFiles(
 		// - Wrap here.
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
+		m.Coverage = opts.Coverage
 		m.SetActivePackage(pv)
 
 		testingpv := m.Store.GetPackage("testing", false)
@@ -637,4 +654,50 @@ func prettySize(nb int64) string {
 
 func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
+}
+
+// registerCoverableFromMemPackage registers coverable statements from a MemPackage.
+// Only registers statements from non-test .gno files.
+func registerCoverableFromMemPackage(cc *gno.CoverageCollector, mpkg *std.MemPackage) {
+	var m *gno.Machine
+	for _, mfile := range mpkg.Files {
+		if !strings.HasSuffix(mfile.Name, ".gno") {
+			continue
+		}
+		// Skip test and filetest files - they're handled separately
+		if strings.HasSuffix(mfile.Name, "_test.gno") || strings.HasSuffix(mfile.Name, "_filetest.gno") {
+			continue
+		}
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
+		if err != nil {
+			continue // skip files that can't be parsed
+		}
+		if n == nil {
+			continue
+		}
+		registerCoverableFromFileNode(cc, mpkg.Path, n)
+	}
+}
+
+// registerCoverableFromFileSet registers coverable statements from a FileSet.
+func registerCoverableFromFileSet(cc *gno.CoverageCollector, pkgPath string, fset *gno.FileSet) {
+	if fset == nil {
+		return
+	}
+	for _, fn := range fset.Files {
+		registerCoverableFromFileNode(cc, pkgPath, fn)
+	}
+}
+
+// registerCoverableFromFileNode registers coverable statements from a FileNode.
+func registerCoverableFromFileNode(cc *gno.CoverageCollector, pkgPath string, fn *gno.FileNode) {
+	if fn == nil {
+		return
+	}
+	fileName := fn.FileName
+	for _, decl := range fn.Decls {
+		if fd, ok := decl.(*gno.FuncDecl); ok {
+			cc.RegisterFuncDecl(pkgPath, fileName, fd)
+		}
+	}
 }
