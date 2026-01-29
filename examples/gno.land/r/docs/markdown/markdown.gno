@@ -425,6 +425,8 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
      - ±placeholder±: Hint text shown in the input (optional, defaults to "Enter value")
      - ±value±: Default value for non-selectable inputs (optional)
      - ±description±: Description of the input as title (optional - can be used as title for group of one or multiple inputs)
+     - ±required±: Set to "true" to mark the field as required (optional)
+     - ±readonly±: Set to "true" to make the field read-only (optional)
    - Supported input types:
      - ±type="text"± (default): For text input
      - ±type="number"±: For numeric values only (with browser validation)
@@ -449,6 +451,8 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
    - Optional attributes:
      - ±value±: Default content for the textarea (optional)
      - ±rows±: Number of visible rows (2-10, defaults to 4)
+     - ±required±: Set to "true" to mark the field as required (optional)
+     - ±readonly±: Set to "true" to make the field read-only (optional)
    - Perfect for longer text input like messages, descriptions, or comments
    - Each textarea must have a unique name
    - Textareas are rendered with labels and proper styling
@@ -461,6 +465,7 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
    - Optional attributes:
      - ±description±: Description of the select group (optional)
      - ±selected±: Set to "true" to pre-select the option (optional)
+     - ±required±: Set to "true" to mark the field as required (optional)
    - Multiple ±<gno-select>± elements with the same ±name± form a select group
    - All options with the same ±name± form a group where only one can be selected
    - The ±value± attribute serves both as the submitted value and the displayed text
@@ -627,59 +632,7 @@ This example shows how to combine all form element types in a single form.
   <gno-textarea name="bio" placeholder="Short bio" rows="4" value="Super builder" />
 </gno-form>
 
-9. Exec Form with Manual Fields
-When using the ±exec± attribute, a command preview appears for the specified function. You must manually define form fields whose ±name± attributes match the function's parameter names, placed in the same order as they appear in the function signature.
-
-±±±markdown
-<gno-form exec="CreatePost">
-  <gno-input name="title" type="text" placeholder="Post title" />
-  <gno-textarea name="content" rows="5" placeholder="Post content"></gno-textarea>
-  <gno-input name="tags" type="text" placeholder="Comma-separated tags" />
-</gno-form>
-±±±
-
-<gno-form exec="CreatePost">
-  <gno-input name="title" type="text" placeholder="Post title" />
-  <gno-textarea name="content" rows="5" placeholder="Post content"></gno-textarea>
-  <gno-input name="tags" type="text" placeholder="Comma-separated tags" />
-</gno-form>
-
-The command preview shows the full gnokey command with placeholders for each field value.
-
-10. Exec Form with All Field Types
-Here's an example demonstrating all supported field types in a single exec form:
-
-±±±markdown
-<gno-form exec="CreateProfile">
-  <gno-input name="username" placeholder="Your username" description="Profile Information" />
-  <gno-input name="age" type="number" placeholder="Your age" />
-  <gno-textarea name="bio" placeholder="Tell us about yourself" rows="4" />
-  <gno-select name="country" value="USA" description="Select your country" />
-  <gno-select name="country" value="France" />
-  <gno-select name="country" value="Germany" />
-  <gno-input name="visibility" type="radio" value="public" description="Profile visibility" checked="true" />
-  <gno-input name="visibility" type="radio" value="private" />
-  <gno-input name="notifications" type="checkbox" value="email" description="Notifications" checked="true" />
-  <gno-input name="notifications" type="checkbox" value="sms" />
-</gno-form>
-±±±
-
-<gno-form exec="CreateProfile">
-  <gno-input name="username" placeholder="Your username" description="Profile Information" value="alice" />
-  <gno-input name="age" type="number" placeholder="Your age" />
-  <gno-textarea name="bio" placeholder="Tell us about yourself" rows="4" />
-  <gno-select name="country" value="USA" description="Select your country" />
-  <gno-select name="country" value="France" />
-  <gno-select name="country" value="Germany" />
-  <gno-input name="visibility" type="radio" value="public" description="Profile visibility" checked="true" />
-  <gno-input name="visibility" type="radio" value="private" />
-  <gno-input name="notifications" type="checkbox" value="email" description="Notifications" checked="true" />
-  <gno-input name="notifications" type="checkbox" value="sms" />
-</gno-form>
-
-All field types update the command preview in real-time as you interact with them.
-
-11. Form with Readonly Fields
+9. Form with Readonly Fields
 The ±readonly="true"± attribute makes fields non-editable while displaying their values. This is useful for showing fixed values that users should see but cannot modify.
 
 ±±±markdown
@@ -708,6 +661,83 @@ The ±readonly="true"± attribute makes fields non-editable while displaying the
 
 **Note**: For text-based inputs and textareas, the HTML ±readonly± attribute is used. For radio buttons, checkboxes, and select dropdowns, ±disabled± is used instead since ±readonly± doesn't work on these elements in HTML.
 
+10. Form with Required Fields
+The ±required="true"± attribute marks fields as mandatory. Required fields display a "(required)" badge next to their label and use HTML5 browser validation.
+
+±±±markdown
+<gno-form>
+  <gno-input name="username" placeholder="Enter username" required="true" />
+  <gno-input name="email" type="email" placeholder="Your email" required="true" />
+  <gno-textarea name="bio" placeholder="Tell us about yourself" rows="4" required="true" />
+  <gno-select name="country" value="USA" required="true" />
+  <gno-select name="country" value="France" />
+  <gno-select name="country" value="Germany" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-input name="username" placeholder="Enter username" required="true"/>
+  <gno-input name="email" type="email" placeholder="Your email" required="true" />
+  <gno-textarea name="bio" placeholder="Tell us about yourself" rows="4" required="true" />
+  <gno-select name="country" value="USA" required="true" />
+  <gno-select name="country" value="France" />
+  <gno-select name="country" value="Germany" />
+</gno-form>
+
+Required fields are validated by the browser before submission. The form cannot be submitted until all required fields are filled.
+
+11. Exec Form with Manual Fields
+When using the ±exec± attribute, a command preview appears for the specified function. You must manually define form fields whose ±name± attributes match the function's parameter names, placed in the same order as they appear in the function signature.
+
+±±±markdown
+<gno-form exec="CreatePost">
+  <gno-input name="title" type="text" placeholder="Post title" />
+  <gno-textarea name="content" rows="5" placeholder="Post content"></gno-textarea>
+  <gno-input name="tags" type="text" placeholder="Comma-separated tags" />
+</gno-form>
+±±±
+
+<gno-form exec="CreatePost">
+  <gno-input name="title" type="text" placeholder="Post title" />
+  <gno-textarea name="content" rows="5" placeholder="Post content"></gno-textarea>
+  <gno-input name="tags" type="text" placeholder="Comma-separated tags" />
+</gno-form>
+
+The command preview shows the full gnokey command with placeholders for each field value.
+
+12. Exec Form with All Field Types
+Here's an example demonstrating all supported field types in a single exec form:
+
+±±±markdown
+<gno-form exec="CreateProfile">
+  <gno-input name="username" placeholder="Your username" description="Profile Information" />
+  <gno-input name="age" type="number" placeholder="Your age" />
+  <gno-textarea name="bio" placeholder="Tell us about yourself" rows="4" />
+  <gno-select name="country" value="USA" description="Select your country" />
+  <gno-select name="country" value="France" />
+  <gno-select name="country" value="Germany" />
+  <gno-input name="visibility" type="radio" value="public" description="Profile visibility" required="true" />
+  <gno-input name="visibility" type="radio" value="private" />
+  <gno-input name="notifications" type="checkbox" value="email" description="Notifications" checked="true" />
+  <gno-input name="notifications" type="checkbox" value="sms" />
+</gno-form>
+±±±
+
+<gno-form exec="CreateProfile">
+  <gno-input name="username" placeholder="Your username" description="Profile Information" value="alice" />
+  <gno-input name="age" type="number" placeholder="Your age" />
+  <gno-textarea name="bio" placeholder="Tell us about yourself" rows="4" />
+  <gno-select name="country" value="USA" description="Select your country" />
+  <gno-select name="country" value="France" />
+  <gno-select name="country" value="Germany" />
+  <gno-input name="visibility" type="radio" value="public" description="Profile visibility" required="true" />
+  <gno-input name="visibility" type="radio" value="private" />
+  <gno-input name="notifications" type="checkbox" value="email" description="Notifications" checked="true" />
+  <gno-input name="notifications" type="checkbox" value="sms" />
+</gno-form>
+
+All field types update the command preview in real-time as you interact with them.
+
 #### Important Rules
 
 1. **Validation Rules**:
@@ -721,6 +751,7 @@ The ±readonly="true"± attribute makes fields non-editable while displaying the
    - The ±checked± attribute is only valid for radio and checkbox inputs
    - The ±selected± attribute is only valid for ±<gno-select>± elements
    - The ±readonly="true"± attribute makes fields non-editable (works on all field types)
+   - The ±required="true"± attribute marks fields as required (works on input, textarea, and select)
    - Textarea ±rows± attribute must be between 2 and 10 (defaults to 4 if invalid or not specified)
 
 2. **Security Features**:

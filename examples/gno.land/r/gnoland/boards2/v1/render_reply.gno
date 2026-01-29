@@ -7,6 +7,7 @@ import (
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux"
 	"gno.land/p/nt/ufmt"
@@ -165,13 +166,16 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 		"bod",
 		"placeholder", "Comment",
 		"value", reply.Body,
+		"required", "true",
 	)
 
 	res.Write(md.H1(board.Name + ": Edit Comment"))
+	res.Write(md.Link("← Back to thread", makeThreadURI(thread)) + "\n\n")
 	res.Write(
 		md.Paragraph(
 			ufmt.Sprintf("Editing comment from %s thread", md.Link(thread.Title, makeThreadURI(thread))),
 		),
 	)
 	res.Write(form.String())
+	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to thread", makeThreadURI(thread)) + "\n")
 }
