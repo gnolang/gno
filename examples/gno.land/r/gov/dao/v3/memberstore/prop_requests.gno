@@ -13,6 +13,7 @@ func NewChangeTiersRequest(tiers TiersByName) dao.ProposalRequest {
 	}
 
 	callback := func(cur realm) error {
+		// TODO: Assigning tiers directly is not safe, could be potentially changed after proposal passes
 		Tiers = tiers
 
 		return nil
