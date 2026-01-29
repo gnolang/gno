@@ -385,7 +385,6 @@ const (
 	NameExprTypeLoopVarDefine                     // when defining a loopvar
 	NameExprTypeLoopVarUse
 	NameExprTypeLoopVarHeapDefine // when loopvar is captured
-	NameExprTypeLoopVarHeapUse
 )
 
 type NameExpr struct {
