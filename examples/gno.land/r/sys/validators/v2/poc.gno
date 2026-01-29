@@ -40,7 +40,7 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		desc.WriteString("\n\n")
 	}
 
-	desc.WriteString("## Valudator Updates\n")
+	desc.WriteString("## Validator Updates\n")
 	for _, change := range changes {
 		if change.VotingPower == 0 {
 			desc.WriteString(ufmt.Sprintf("- %s: remove", change.Address))
