@@ -112,8 +112,6 @@ func (x NameExpr) String() string {
 		return fmt.Sprintf("%s<~%s>", x.Name, x.Path.String())
 	case NameExprTypeLoopVarUse:
 		return fmt.Sprintf("%s<*%s>", x.Name, x.Path.String())
-	case NameExprTypeLoopVarHeapUse:
-		return fmt.Sprintf("%s<*~%s>", x.Name, x.Path.String())
 	case NameExprTypeHeapClosure:
 		return fmt.Sprintf("%s<()~%s>", x.Name, x.Path.String())
 	default:

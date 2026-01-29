@@ -546,7 +546,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					return n, TRANS_CONTINUE
 				})
 
-			// rename & resolve after rewrite fully done.
+			// Fill path after rewrite fully done.
 			Transcribe(n,
 				func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 					if stage != TRANS_LEAVE {
@@ -3271,7 +3271,7 @@ func findContinue(ctx BlockNode, bn BlockNode) {
 						lhs := Nx(ln)
 						rhs := Nx(rn)
 
-						lhs.Type = NameExprTypeLoopVarHeapUse
+						lhs.Type = NameExprTypeLoopVarHeapDefine
 
 						rhs.Type = NameExprTypeNormal
 						as := A(lhs, "=", rhs)
@@ -3351,7 +3351,7 @@ func markLoopvarHeapDefine(ctx BlockNode, bn BlockNode) (stop bool) {
 		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("heapAllocLoopvar %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("markLoopvarHeapDefine %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -3377,7 +3377,7 @@ func markLoopvarHeapDefine(ctx BlockNode, bn BlockNode) (stop bool) {
 						lhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
 						rhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
 
-						lhs2.Type = NameExprTypeLoopVarHeapUse
+						lhs2.Type = NameExprTypeLoopVarHeapDefine
 						rhs2.Type = NameExprTypeNormal
 
 						as2 := A(lhs2, "=", rhs2)
