@@ -3,6 +3,7 @@ package validators
 import (
 	"strings"
 
+	"gno.land/p/nt/ufmt"
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
 )
@@ -24,9 +25,18 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		panic("proposal description is empty")
 	}
 
+	// Get the list of validators now to make sure the list
+	// doesn't change during the lifetime of the proposal
+	changes := changesFn()
+
+	// Limit the number of validators to keep the description within a limit
+	// that makes sense because there is not pagination of validators
+	if len(changes) > 40 {
+		panic("max number of allowed validators per proposal is 40")
+	}
+
 	callback := func(cur realm) error {
-		// TODO: Validators should be getted before execution and listed in the proposal description
-		for _, change := range changesFn() {
+		for _, change := range changes {
 			if change.VotingPower == 0 {
 				// This change request is to remove the validator
 				removeValidator(change.Address)
@@ -41,7 +51,17 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(callback, "")
+	// List the validator addresses and the action to be taken for each one
+	items := make([]string, len(changes))
+	for i, change := range changes {
+		if change.VotingPower == 0 {
+			items[i] = ufmt.Sprintf("- %s: remove", change.Address)
+		} else {
+			items[i] = ufmt.Sprintf("- %s: add", change.Address)
+		}
+	}
+
+	e := dao.NewSimpleExecutor(callback, ufmt.Sprintf("Validators:\n%s\n", strings.Join(items, "\n")))
 
 	return dao.NewProposalRequest(title, description, e)
 }
