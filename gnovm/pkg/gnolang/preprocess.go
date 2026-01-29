@@ -3267,12 +3267,9 @@ func findContinue(ctx BlockNode, bn BlockNode) {
 					for _, name := range names {
 						ln := fmt.Sprintf("%s%s", ".loopvar_", name)
 						rn := fmt.Sprintf("%s%s", ".loopvar_", name)
-
 						lhs := Nx(ln)
 						rhs := Nx(rn)
-
 						lhs.Type = NameExprTypeLoopVarHeapDefine
-
 						rhs.Type = NameExprTypeNormal
 						as := A(lhs, "=", rhs)
 						// Add insertion attrs.
@@ -3376,13 +3373,10 @@ func markLoopvarHeapDefine(ctx BlockNode, bn BlockNode) (stop bool) {
 						// Copy-out state from redefine to loopvar at end of body.
 						lhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
 						rhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
-
 						lhs2.Type = NameExprTypeLoopVarHeapDefine
 						rhs2.Type = NameExprTypeNormal
-
 						as2 := A(lhs2, "=", rhs2)
 						body = slices.Insert(body, len(body), Stmt(as2))
-
 						n.Body = body
 					}
 				}

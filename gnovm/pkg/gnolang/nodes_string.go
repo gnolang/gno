@@ -310,7 +310,7 @@ func (x ForStmt) String() string {
 	if x.Post != nil {
 		post = x.Post.String()
 	}
-	return fmt.Sprintf("for %s; %s; %s %s ",
+	return fmt.Sprintf("for %s; %s; %s { %s }",
 		init, cond, post, x.Body.String())
 }
 

@@ -423,7 +423,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-
 		// iterate over Body; its length can change if a statement is decomposed.
 		for idx := 0; idx < len(cnn.Body); idx++ {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_FOR_BODY, idx, cnn.Body[idx], &c).(Stmt)

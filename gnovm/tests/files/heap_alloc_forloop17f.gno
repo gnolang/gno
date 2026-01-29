@@ -19,7 +19,7 @@ func main() {
 }
 
 // Preprocessed:
-// file{ package main; var p<!~VPBlock(2,0)> *((const-type int)); func main() { for .loopvar_i<!~VPBlock(1,0)> := (const (0 int)); .loopvar_i<~VPBlock(1,0)> < (const (10 int)); .loopvar_i<~VPBlock(1,0)>++ switch .loopvar_i<~VPBlock(2,0)> % (const (3 int)) { case (const (0 int)): .loopvar_i<@!~VPBlock(2,0)> = .loopvar_i<~VPBlock(2,0)>; continue; case (const (1 int)): (const (println func(...interface {})))((const ("One" string))); .loopvar_i<@!~VPBlock(2,0)> = .loopvar_i<~VPBlock(2,0)>; continue }; p<~VPBlock(4,0)> = &(.loopvar_i<~VPBlock(1,0)>); .loopvar_i<@!~VPBlock(1,0)> = .loopvar_i<~VPBlock(1,0)> ; (const (println func(...interface {})))(*(p<~VPBlock(3,0)>)) } }
+// file{ package main; var p<!~VPBlock(2,0)> *((const-type int)); func main() { for .loopvar_i<!~VPBlock(1,0)> := (const (0 int)); .loopvar_i<~VPBlock(1,0)> < (const (10 int)); .loopvar_i<~VPBlock(1,0)>++ { switch .loopvar_i<~VPBlock(2,0)> % (const (3 int)) { case (const (0 int)): .loopvar_i<@!~VPBlock(2,0)> = .loopvar_i<~VPBlock(2,0)>; continue; case (const (1 int)): (const (println func(...interface {})))((const ("One" string))); .loopvar_i<@!~VPBlock(2,0)> = .loopvar_i<~VPBlock(2,0)>; continue }; p<~VPBlock(4,0)> = &(.loopvar_i<~VPBlock(1,0)>); .loopvar_i<@!~VPBlock(1,0)> = .loopvar_i<~VPBlock(1,0)> }; (const (println func(...interface {})))(*(p<~VPBlock(3,0)>)) } }
 
 // Output:
 // One
