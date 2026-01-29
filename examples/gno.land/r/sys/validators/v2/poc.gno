@@ -21,10 +21,6 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		panic("proposal title is empty")
 	}
 
-	if strings.TrimSpace(description) == "" {
-		panic("proposal description is empty")
-	}
-
 	// Get the list of validators now to make sure the list
 	// doesn't change during the lifetime of the proposal
 	changes := changesFn()
@@ -33,6 +29,24 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 	// that makes sense because there is not pagination of validators
 	if len(changes) > 40 {
 		panic("max number of allowed validators per proposal is 40")
+	} else if len(changes) == 0 {
+		panic("proposal requires at least one validator")
+	}
+
+	// List the validator addresses and the action to be taken for each one
+	var desc strings.Builder
+	desc.WriteString(description)
+	if len(description) > 0 {
+		desc.WriteString("\n\n")
+	}
+
+	desc.WriteString("## Valudator Updates\n")
+	for _, change := range changes {
+		if change.VotingPower == 0 {
+			desc.WriteString(ufmt.Sprintf("- %s: remove", change.Address))
+		} else {
+			desc.WriteString(ufmt.Sprintf("- %s: add", change.Address))
+		}
 	}
 
 	callback := func(cur realm) error {
@@ -51,19 +65,9 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		return nil
 	}
 
-	// List the validator addresses and the action to be taken for each one
-	items := make([]string, len(changes))
-	for i, change := range changes {
-		if change.VotingPower == 0 {
-			items[i] = ufmt.Sprintf("- %s: remove", change.Address)
-		} else {
-			items[i] = ufmt.Sprintf("- %s: add", change.Address)
-		}
-	}
+	e := dao.NewSimpleExecutor(callback, "")
 
-	e := dao.NewSimpleExecutor(callback, ufmt.Sprintf("Validators:\n%s\n", strings.Join(items, "\n")))
-
-	return dao.NewProposalRequest(title, description, e)
+	return dao.NewProposalRequest(title, desc.String(), e)
 }
 
 // IsValidator returns a flag indicating if the given bech32 address
