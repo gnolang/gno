@@ -6,12 +6,20 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
 )
+
+// IsJSONFormat returns true if the file extension indicates JSON format (.json or .jsonl).
+// Both extensions trigger JSON/JSONL output rather than pprof output.
+func IsJSONFormat(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	return ext == ".jsonl" || ext == ".json"
+}
 
 // Results contains the profiling results after Stop() is called.
 type Results struct {
@@ -26,6 +34,14 @@ type Results struct {
 	SubOpStats    map[string]*TimingStat `json:"SubOpStats,omitempty"`
 	VarStats      []*VarStat             `json:"VarStats,omitempty"`
 	StackSamples  []*StackSample         `json:"StackSamples,omitempty"`
+}
+
+// BenchEvent holds profiling results for a single test with metadata.
+// Used for JSONL output format from "gno test --benchops-profile".
+type BenchEvent struct {
+	Package string   `json:"Package"`
+	Test    string   `json:"Test"`
+	Profile *Results `json:"Profile,omitempty"`
 }
 
 // SectionFlags controls which sections are included in WriteGolden output.
@@ -123,8 +139,10 @@ func (p *Profiler) buildResults() *Results {
 		}
 		name := StoreOp(i).String()
 		r.StoreStats[name] = &StoreStat{
-			TimingStat: s.TimingStat,
-			TotalSize:  s.TotalSize,
+			TimingStat:   s.TimingStat,
+			TotalSize:    s.TotalSize,
+			BytesRead:    s.BytesRead,
+			BytesWritten: s.BytesWritten,
 		}
 	}
 
@@ -319,7 +337,7 @@ func (r *Results) writeStoreStats(tw *tabwriter.Writer, topN int) {
 	if r.TimingEnabled {
 		fmt.Fprintf(tw, "Store Statistics (by total time)\n")
 		fmt.Fprintf(tw, "─────────────────────────────────\n")
-		fmt.Fprintf(tw, "Operation\tCount\tTotal\tAvg\tStdDev\tMin\tMax\tTotal Size\tAvg Size\t\n")
+		fmt.Fprintf(tw, "Operation\tCount\tTotal\tAvg\tStdDev\tMin\tMax\tBytes Read\tBytes Written\t\n")
 
 		sorted := sortedMap(r.StoreStats, func(s *StoreStat) int64 { return s.TotalNs })
 		for i, kv := range sorted {
@@ -331,12 +349,12 @@ func (r *Results) writeStoreStats(tw *tabwriter.Writer, topN int) {
 				time.Duration(kv.val.TotalNs), time.Duration(kv.val.AvgNs()),
 				time.Duration(kv.val.StdDevNs()),
 				time.Duration(kv.val.MinNs), time.Duration(kv.val.MaxNs),
-				kv.val.TotalSize, kv.val.AvgSize())
+				kv.val.BytesRead, kv.val.BytesWritten)
 		}
 	} else {
 		fmt.Fprintf(tw, "Store Statistics (by count)\n")
 		fmt.Fprintf(tw, "───────────────────────────\n")
-		fmt.Fprintf(tw, "Operation\tCount\tTotal Size\tAvg Size\t\n")
+		fmt.Fprintf(tw, "Operation\tCount\tBytes Read\tBytes Written\t\n")
 
 		sorted := sortedMap(r.StoreStats, func(s *StoreStat) int64 { return s.Count })
 		for i, kv := range sorted {
@@ -344,7 +362,7 @@ func (r *Results) writeStoreStats(tw *tabwriter.Writer, topN int) {
 				break
 			}
 			fmt.Fprintf(tw, "%s\t%d\t%d\t%d\t\n",
-				kv.key, kv.val.Count, kv.val.TotalSize, kv.val.AvgSize())
+				kv.key, kv.val.Count, kv.val.BytesRead, kv.val.BytesWritten)
 		}
 	}
 	fmt.Fprintln(tw)
@@ -534,7 +552,8 @@ func (r *Results) WriteGolden(w io.Writer, sections SectionFlags) {
 		fmt.Fprintln(w, "Store:")
 		for _, name := range slices.Sorted(maps.Keys(r.StoreStats)) {
 			stat := r.StoreStats[name]
-			fmt.Fprintf(w, "  %s: count=%d size=%d\n", name, stat.Count, stat.TotalSize)
+			fmt.Fprintf(w, "  %s: count=%d bytes_read=%d bytes_written=%d\n",
+				name, stat.Count, stat.BytesRead, stat.BytesWritten)
 		}
 	}
 
@@ -661,10 +680,14 @@ func MergeResults(results ...*Results) *Results {
 			if existing, ok := merged.StoreStats[name]; ok {
 				existing.TimingStat.Merge(&stat.TimingStat)
 				existing.TotalSize += stat.TotalSize
+				existing.BytesRead += stat.BytesRead
+				existing.BytesWritten += stat.BytesWritten
 			} else {
 				merged.StoreStats[name] = &StoreStat{
-					TimingStat: stat.TimingStat,
-					TotalSize:  stat.TotalSize,
+					TimingStat:   stat.TimingStat,
+					TotalSize:    stat.TotalSize,
+					BytesRead:    stat.BytesRead,
+					BytesWritten: stat.BytesWritten,
 				}
 			}
 		}
@@ -691,6 +714,9 @@ func MergeResults(results ...*Results) *Results {
 
 		// Merge LocationStats (append all)
 		merged.LocationStats = append(merged.LocationStats, r.LocationStats...)
+
+		// Merge VarStats (append all)
+		merged.VarStats = append(merged.VarStats, r.VarStats...)
 
 		// Merge StackSamples (append all)
 		merged.StackSamples = append(merged.StackSamples, r.StackSamples...)

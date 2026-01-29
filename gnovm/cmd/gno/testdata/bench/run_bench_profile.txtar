@@ -21,29 +21,35 @@ func main() {
 
 -- expected.golden --
 Opcodes:
-  OpAssign: count=10 gas=79
-  OpBody: count=3 gas=43
-  OpCall: count=2 gas=256
+  OpAssign: count=10 gas=790
+  OpBody: count=3 gas=129
+  OpCall: count=2 gas=512
   OpCallNativeBody: count=1 gas=424
   OpDefine: count=1 gas=111
-  OpEval: count=75 gas=29
-  OpExec: count=2 gas=25
-  OpForLoop: count=21 gas=27
+  OpEval: count=75 gas=2175
+  OpExec: count=2 gas=50
+  OpForLoop: count=21 gas=567
   OpFuncType: count=1 gas=81
-  OpHalt: count=14 gas=1
-  OpInc: count=10 gas=76
-  OpLss: count=11 gas=13
-  OpMul: count=10 gas=19
-  OpPopBlock: count=13 gas=3
+  OpHalt: count=14 gas=14
+  OpInc: count=10 gas=760
+  OpLss: count=11 gas=143
+  OpMul: count=10 gas=190
+  OpPopBlock: count=13 gas=39
   OpPopResults: count=1 gas=1
-  OpPrecall: count=2 gas=207
+  OpPrecall: count=2 gas=414
   OpReturn: count=1 gas=38
   OpReturnFromBlock: count=1 gas=36
-  OpVoid: count=187 gas=1
 Store:
-  StoreGetObject: count=1 size=0
+  StoreGetObject: count=1 bytes_read=0 bytes_written=0
 Native:
   NativePrint: count=1
 HotSpots:
   main.gno:4 -: count=13 gas=925
   main.gno:5 -: count=50 gas=1850
+SubOps:
+  AssignVar: count=10
+  DefineVar: count=1
+  ParamAssign: count=1
+Variables:
+  main.gno:4 i: count=1
+  main.gno:5 _: count=10

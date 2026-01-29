@@ -6,11 +6,12 @@
 gnoland start
 
 # Profile the addpkg transaction
-bench start profile.golden
+bench start profile.json
 
 gnokey maketx addpkg -pkgdir $WORK/counter -pkgpath gno.land/r/$test1_user_addr/counter -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 
 bench stop
+cmp stdout profile.golden
 
 -- counter/gnomod.toml --
 module = "counter"
@@ -39,10 +40,27 @@ Opcodes:
   OpPopBlock: count=18 gas=54
   OpValueDecl: count=2 gas=226
 Store:
-  StoreAddMemPackage: count=2 size=842
-  StoreGetObject: count=6 size=0
-  StoreGetPackageRealm: count=2 size=210
-  StoreSetObject: count=12 size=5934
-  StoreSetPackageRealm: count=8 size=854
+  StoreAddMemPackage: count=2 bytes_read=0 bytes_written=842
+  StoreGetObject: count=6 bytes_read=0 bytes_written=0
+  StoreGetPackageRealm: count=2 bytes_read=210 bytes_written=0
+  StoreSetObject: count=12 bytes_read=0 bytes_written=5934
+  StoreSetPackageRealm: count=8 bytes_read=0 bytes_written=854
+HotSpots:
+  counter.gno:3 -: count=6 gas=334
+-- profile.json --
+Opcodes:
+  OpEval: count=26 gas=754
+  OpExec: count=2 gas=50
+  OpFieldType: count=6 gas=354
+  OpFuncType: count=4 gas=324
+  OpHalt: count=20 gas=20
+  OpPopBlock: count=18 gas=54
+  OpValueDecl: count=2 gas=226
+Store:
+  StoreAddMemPackage: count=2 bytes_read=0 bytes_written=842
+  StoreGetObject: count=6 bytes_read=0 bytes_written=0
+  StoreGetPackageRealm: count=2 bytes_read=210 bytes_written=0
+  StoreSetObject: count=12 bytes_read=0 bytes_written=5934
+  StoreSetPackageRealm: count=8 bytes_read=0 bytes_written=854
 HotSpots:
   counter.gno:3 -: count=6 gas=334

@@ -29,49 +29,48 @@ func TestFoo(t *testing.T) {
 Package: gno.land/p/demo/benchprofile
 Test: TestFoo
 Opcodes:
-  OpAdd: count=9 gas=18
-  OpAssign: count=3 gas=79
-  OpBinary1: count=4 gas=18
-  OpBody: count=46 gas=43
-  OpCall: count=19 gas=256
-  OpCallNativeBody: count=7 gas=424
-  OpCompositeLit: count=3 gas=50
-  OpConvert: count=7 gas=16
+  OpAdd: count=9 gas=162
+  OpAssign: count=3 gas=237
+  OpBinary1: count=4 gas=72
+  OpBody: count=46 gas=1978
+  OpCall: count=19 gas=4864
+  OpCallNativeBody: count=7 gas=2968
+  OpCompositeLit: count=3 gas=150
+  OpConvert: count=7 gas=112
   OpDefer: count=1 gas=64
-  OpDefine: count=9 gas=111
-  OpEql: count=2 gas=160
-  OpEval: count=201 gas=29
-  OpExec: count=4 gas=25
+  OpDefine: count=9 gas=999
+  OpEql: count=2 gas=320
+  OpEval: count=201 gas=5829
+  OpExec: count=4 gas=100
   OpFuncLit: count=1 gas=61
   OpFuncType: count=1 gas=81
-  OpHalt: count=10 gas=1
-  OpIfCond: count=13 gas=38
-  OpLand: count=4 gas=24
+  OpHalt: count=10 gas=10
+  OpIfCond: count=13 gas=494
+  OpLand: count=4 gas=96
   OpLeq: count=1 gas=19
-  OpLss: count=3 gas=13
+  OpLss: count=3 gas=39
   OpNeq: count=1 gas=95
-  OpPopBlock: count=20 gas=3
+  OpPopBlock: count=20 gas=60
   OpPopFrameAndReset: count=1 gas=15
-  OpPopResults: count=2 gas=1
-  OpPrecall: count=26 gas=207
+  OpPopResults: count=2 gas=2
+  OpPrecall: count=26 gas=5382
   OpQuo: count=1 gas=16
-  OpRangeIter: count=2 gas=105
-  OpRef: count=2 gas=125
-  OpReturn: count=16 gas=38
+  OpRangeIter: count=2 gas=210
+  OpRef: count=2 gas=250
+  OpReturn: count=16 gas=608
   OpReturnAfterCopy: count=1 gas=38
-  OpReturnCallDefers: count=2 gas=78
-  OpReturnFromBlock: count=3 gas=36
-  OpSelector: count=24 gas=32
-  OpSlice: count=4 gas=103
-  OpStructLit: count=3 gas=179
-  OpSub: count=4 gas=6
+  OpReturnCallDefers: count=2 gas=156
+  OpReturnFromBlock: count=3 gas=108
+  OpSelector: count=24 gas=768
+  OpSlice: count=4 gas=412
+  OpStructLit: count=3 gas=537
+  OpSub: count=4 gas=24
   OpTypeSwitch: count=1 gas=171
-  OpUnot: count=2 gas=6
+  OpUnot: count=2 gas=12
   OpValueDecl: count=1 gas=113
-  OpVoid: count=466 gas=1
 Store:
-  StoreGetBlockNode: count=8 size=0
-  StoreGetObject: count=133 size=108087
+  StoreGetBlockNode: count=8 bytes_read=0 bytes_written=0
+  StoreGetObject: count=133 bytes_read=108087 bytes_written=0
 HotSpots:
   foo_test.gno:6 TestFoo: count=2 gas=140
   foo_test.gno:7 TestFoo: count=2 gas=108
@@ -100,3 +99,46 @@ HotSpots:
   testing.gno:392 -: count=9 gas=719
   testing.gno:394 -: count=4 gas=128
   testing.gno:406 tRunner: count=2 gas=67
+SubOps:
+  AssignField: count=1
+  AssignVar: count=2
+  DefineVar: count=10
+  ParamAssign: count=23
+  StructField: count=8
+Variables:
+  foo_test.gno:5 #0: count=1
+  foo_test.gno:6 x: count=1
+  foo_test.gno:7 _: count=1
+  itoa.gno:25 #0: count=1
+  itoa.gno:25 #1: count=1
+  itoa.gno:34 #0: count=1
+  itoa.gno:59 #0: count=1
+  testing.gno:109 #0: count=2
+  testing.gno:227 #0: count=1
+  testing.gno:228 failed: count=1
+  testing.gno:229 skipped: count=1
+  testing.gno:239 #0: count=1
+  testing.gno:240 Failed: count=1
+  testing.gno:240 Skipped: count=1
+  testing.gno:297 #0: count=1
+  testing.gno:297 #1: count=1
+  testing.gno:308 #0: count=1
+  testing.gno:308 #1: count=1
+  testing.gno:308 #2: count=1
+  testing.gno:308 #3: count=1
+  testing.gno:309 failfast: count=1
+  testing.gno:309 name: count=1
+  testing.gno:309 t: count=1
+  testing.gno:309 verbose: count=1
+  testing.gno:326 report: count=1
+  testing.gno:353 #0: count=1
+  testing.gno:357 dstr: count=1
+  testing.gno:360 dstr: count=1
+  testing.gno:374 #0: count=1
+  testing.gno:374 #1: count=1
+  testing.gno:374 #2: count=1
+  testing.gno:379 start: count=1
+  testing.gno:382 err: count=1
+  testing.gno:382 st: count=1
+  testing.gno:391 dur: count=1
+  testing.gno:392 dur: count=1

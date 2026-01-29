@@ -8,11 +8,20 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/rogpeppe/go-internal/testscript"
 )
+
+// benchMutex serializes access to the global benchops profiler across parallel tests.
+// Since benchops.Start/Stop uses a global profiler, tests using "bench start/stop"
+// cannot run truly in parallel - they must wait for the profiler to be available.
+var benchMutex sync.Mutex
+
+// benchStateKey is the key used to store BenchState in testscript env.Values.
+type benchStateKey struct{}
 
 // SetupGnoBench prepares the given testscript environment for tests that utilize
 // the gno command built with -tags gnobench. This enables benchops profiling.
@@ -29,9 +38,22 @@ func SetupGnoBench(p *testscript.Params, homeDir, buildDir string) error {
 
 	setupGnoCommand(p, gnoBin, gnoroot, homeDir)
 
+	// Wrap Setup to initialize BenchState for each test
+	origSetup := p.Setup
+	p.Setup = func(env *testscript.Env) error {
+		if origSetup != nil {
+			if err := origSetup(env); err != nil {
+				return err
+			}
+		}
+		env.Values[benchStateKey{}] = &BenchState{}
+		return nil
+	}
+
 	if p.Cmds == nil {
 		p.Cmds = make(map[string]func(ts *testscript.TestScript, neg bool, args []string))
 	}
+	p.Cmds["bench"] = makeCmdBench(benchStateKey{})
 	p.Cmds["jsonbench"] = CmdJSONBench
 	p.Cmds["cmpbench"] = CmdCmpBench
 
@@ -40,14 +62,13 @@ func SetupGnoBench(p *testscript.Params, homeDir, buildDir string) error {
 
 // ---- Exported Bench State and Commands for Reuse
 
-const defaultProfileFile = "profile.golden"
-
 // BenchState tracks profiling state during a testscript test.
 type BenchState struct {
 	Running    bool                  // Whether profiling is currently active
 	OutputFile string                // Target file for profile output
 	Sections   benchops.SectionFlags // Sections to include in golden output
 	Files      []string              // All generated profile files for comparison
+	mutexHeld  bool                  // Whether this test holds the benchMutex
 }
 
 // RegisterBenchCommands adds benchops-related commands to testscript params.
@@ -63,12 +84,10 @@ func RegisterBenchCommands(p *testscript.Params, stateKey any) {
 }
 
 // makeCmdBench creates the "bench" command handler.
-// Usage: bench start [filename] [sections] | bench stop
+// Usage: bench start <filename.json> | bench stop
 //
-// The sections parameter is a comma-separated list of section names:
-//   - opcodes, store, native, hotspots, all
-//
-// Example: bench start profile.json opcodes,native,hotspots
+// The filename MUST end with .json or .jsonl extension.
+// Example: bench start profile.json
 func makeCmdBench(stateKey any) func(*testscript.TestScript, bool, []string) {
 	return func(ts *testscript.TestScript, neg bool, args []string) {
 		if neg {
@@ -76,7 +95,7 @@ func makeCmdBench(stateKey any) func(*testscript.TestScript, bool, []string) {
 		}
 
 		if len(args) == 0 {
-			ts.Fatalf("usage: bench start [file] [sections] | bench stop")
+			ts.Fatalf("usage: bench start <filename.json> | bench stop")
 		}
 
 		// Retrieve state from testscript values
@@ -98,6 +117,12 @@ func AutoStopBench(ts *testscript.TestScript, state *BenchState) {
 
 	results := benchops.Stop()
 	state.Running = false
+
+	// Release mutex only if we hold it
+	if state.mutexHeld {
+		benchMutex.Unlock()
+		state.mutexHeld = false
+	}
 
 	path := ts.MkAbs(state.OutputFile)
 	if err := writeBenchResults(path, results); err != nil {
@@ -154,8 +179,8 @@ func FormatBenchOutput(data []byte, sections benchops.SectionFlags) (string, err
 // parseBenchData parses bench profile data, auto-detecting the format.
 // Supports both formats:
 //   - Direct benchops.Results JSON (from "gno run --bench-profile")
-//   - JSONL with benchEvent wrapper (from "gno test --bench-profile")
-func parseBenchData(data []byte) ([]benchEvent, error) {
+//   - JSONL with benchops.BenchEvent wrapper (from "gno test --bench-profile")
+func parseBenchData(data []byte) ([]benchops.BenchEvent, error) {
 	content := strings.TrimSpace(string(data))
 	if content == "" {
 		return nil, nil
@@ -165,12 +190,12 @@ func parseBenchData(data []byte) ([]benchEvent, error) {
 	var profile benchops.Results
 	if err := json.Unmarshal([]byte(content), &profile); err == nil {
 		if profile.OpStats != nil {
-			return []benchEvent{{Profile: &profile}}, nil
+			return []benchops.BenchEvent{{Profile: &profile}}, nil
 		}
 	}
 
-	// Parse as JSONL (benchEvent with Profile)
-	var events []benchEvent
+	// Parse as JSONL (benchops.BenchEvent with Profile)
+	var events []benchops.BenchEvent
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	lineNum := 0
 	for scanner.Scan() {
@@ -180,7 +205,7 @@ func parseBenchData(data []byte) ([]benchEvent, error) {
 			continue
 		}
 
-		var event benchEvent
+		var event benchops.BenchEvent
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
 			return nil, fmt.Errorf("line %d: %w", lineNum, err)
 		}
@@ -192,29 +217,25 @@ func parseBenchData(data []byte) ([]benchEvent, error) {
 
 // ---- Bench JSON Parsing (uses benchops types)
 
-// benchEvent is the format from "gno test --bench-profile" (JSONL with wrapper).
-// Uses benchops.Results for the profile data to maintain single source of truth.
-type benchEvent struct {
-	Package string            `json:"Package"`
-	Test    string            `json:"Test"`
-	Profile *benchops.Results `json:"Profile,omitempty"`
-}
-
 // ---- Command Implementation
 
-// CmdJSONBench is the exported jsonbench testscript command.
-// Usage: jsonbench <file> [sections]
+// CmdJSONBench parses and displays a bench profile file in golden format.
+// Usage: jsonbench <file.json> [sections]
 //
-// Parses bench profile output and displays deterministic fields.
+// The file MUST end with .json or .jsonl extension.
 // The optional sections parameter is a comma-separated list (e.g., "opcodes,native").
-// Supports both formats:
-//   - "gno test --bench-profile": JSONL with BenchEvent wrapper
-//   - "gno run --bench-profile": direct JSON with OpStats
-//
+// Outputs deterministic golden format for comparison.
 // With negation (! jsonbench), expects no valid events to be found.
 func CmdJSONBench(ts *testscript.TestScript, neg bool, args []string) {
 	if len(args) < 1 || len(args) > 2 {
-		ts.Fatalf("usage: jsonbench <file> [sections]")
+		ts.Fatalf("usage: jsonbench <file.json> [sections]")
+	}
+
+	filename := args[0]
+
+	// Validate .json/.jsonl extension using centralized function
+	if !benchops.IsJSONFormat(filename) {
+		ts.Fatalf("jsonbench: file must end with .json or .jsonl, got %q", filename)
 	}
 
 	var sections benchops.SectionFlags // default: 0 = all
@@ -227,7 +248,7 @@ func CmdJSONBench(ts *testscript.TestScript, neg bool, args []string) {
 	}
 
 	// File read errors are always fatal, regardless of negation
-	events, err := parseBenchFile(ts.MkAbs(args[0]))
+	events, err := parseBenchFile(ts.MkAbs(filename))
 	if err != nil {
 		ts.Fatalf("jsonbench: %v", err)
 	}
@@ -259,15 +280,23 @@ func CmdJSONBench(ts *testscript.TestScript, neg bool, args []string) {
 }
 
 // CmdCmpBench compares two bench profile files by their deterministic fields.
-// Usage: cmpbench <file1> <file2> [sections]
+// Usage: cmpbench <file1.json> <file2.json> [sections]
 //
+// Files MUST end with .json or .jsonl extension.
 // Compares only Count and Gas values, ignoring timing data.
 // The optional sections parameter is a comma-separated list (e.g., "opcodes,native").
 // Fails if the deterministic fields differ.
 // With negation (! cmpbench), expects files to differ.
 func CmdCmpBench(ts *testscript.TestScript, neg bool, args []string) {
 	if len(args) < 2 || len(args) > 3 {
-		ts.Fatalf("usage: cmpbench <file1> <file2> [sections]")
+		ts.Fatalf("usage: cmpbench <file1.json> <file2.json> [sections]")
+	}
+
+	// Validate .json/.jsonl extension using centralized function
+	for _, f := range args[:2] {
+		if !benchops.IsJSONFormat(f) {
+			ts.Fatalf("cmpbench: files must end with .json or .jsonl, got %q", f)
+		}
 	}
 
 	var sections benchops.SectionFlags // default: 0 = all
@@ -322,21 +351,27 @@ func CmdBenchWithState(ts *testscript.TestScript, state *BenchState, args []stri
 	switch args[0] {
 	case "start":
 		if state.Running {
-			ts.Fatalf("bench: profiler already running (missing bench stop?)")
+			ts.Fatalf("bench: profiler already running for this test (missing bench stop?)")
 		}
 
-		state.OutputFile = defaultProfileFile
-		state.Sections = 0 // default: all sections
-		if len(args) > 1 {
-			state.OutputFile = args[1]
+		// Require exactly one argument: the filename
+		if len(args) != 2 {
+			ts.Fatalf("usage: bench start <filename.json>")
 		}
-		if len(args) > 2 {
-			sections, err := benchops.ParseSectionFlags(args[2])
-			if err != nil {
-				ts.Fatalf("bench: %v", err)
-			}
-			state.Sections = sections
+
+		filename := args[1]
+
+		// MUST be .json or .jsonl extension - use centralized validation
+		if !benchops.IsJSONFormat(filename) {
+			ts.Fatalf("bench start: filename must end with .json or .jsonl, got %q", filename)
 		}
+
+		// Acquire mutex to serialize access to global profiler across parallel tests
+		benchMutex.Lock()
+		state.mutexHeld = true
+
+		state.OutputFile = filename
+		state.Sections = 0 // Always all sections (no selection)
 
 		benchops.Start()
 		state.Running = true
@@ -350,6 +385,12 @@ func CmdBenchWithState(ts *testscript.TestScript, state *BenchState, args []stri
 		results := benchops.Stop()
 		state.Running = false
 
+		// Release mutex only if we hold it
+		if state.mutexHeld {
+			benchMutex.Unlock()
+			state.mutexHeld = false
+		}
+
 		// Write JSON to file in the work directory
 		path := ts.MkAbs(state.OutputFile)
 		if err := writeBenchResults(path, results); err != nil {
@@ -359,13 +400,12 @@ func CmdBenchWithState(ts *testscript.TestScript, state *BenchState, args []stri
 		state.Files = append(state.Files, state.OutputFile)
 		ts.Logf("bench: stopped profiling, wrote %s", state.OutputFile)
 
-		// Log full human-readable report (visible with -v flag)
-		var reportBuf strings.Builder
-		reportBuf.WriteString("\n=== Benchops Report: ")
-		reportBuf.WriteString(state.OutputFile)
-		reportBuf.WriteString(" ===\n")
-		results.WriteReport(&reportBuf)
-		ts.Logf("%s", reportBuf.String())
+		// Output golden format to stdout for automatic comparison
+		var out strings.Builder
+		results.WriteGolden(&out, 0) // 0 = all sections
+		if _, err := fmt.Fprint(ts.Stdout(), trimLines(out.String())); err != nil {
+			ts.Fatalf("bench: failed to write output: %v", err)
+		}
 
 	default:
 		ts.Fatalf("bench: unknown subcommand %q (use 'start' or 'stop')", args[0])
@@ -373,7 +413,7 @@ func CmdBenchWithState(ts *testscript.TestScript, state *BenchState, args []stri
 }
 
 // parseBenchFile parses a bench profile file, auto-detecting the format.
-func parseBenchFile(filename string) ([]benchEvent, error) {
+func parseBenchFile(filename string) ([]benchops.BenchEvent, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -381,9 +421,9 @@ func parseBenchFile(filename string) ([]benchEvent, error) {
 	return parseBenchData(data)
 }
 
-// writeEventGolden writes a benchEvent in deterministic golden format.
+// writeEventGolden writes a benchops.BenchEvent in deterministic golden format.
 // Uses benchops.Results.WriteGolden for the profile data.
-func writeEventGolden(w *strings.Builder, event *benchEvent, sections benchops.SectionFlags) {
+func writeEventGolden(w *strings.Builder, event *benchops.BenchEvent, sections benchops.SectionFlags) {
 	// Only print Package/Test if present (gno test format)
 	if event.Package != "" {
 		fmt.Fprintf(w, "Package: %s\n", event.Package)

@@ -86,7 +86,7 @@ func SetupGnolandBenchInMemory(p *testscript.Params, testDir string, updateScrip
 		}
 
 		if len(args) == 0 {
-			ts.Fatalf("usage: bench start [file] | bench stop")
+			ts.Fatalf("usage: bench start <filename.json> | bench stop")
 		}
 
 		state := getBenchState(ts)

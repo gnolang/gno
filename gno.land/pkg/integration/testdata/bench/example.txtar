@@ -4,32 +4,30 @@
 #
 # ---- Available Commands ----
 #
-#   bench start [filename] [sections]
-#       Start profiling. Output will be written to the specified file.
-#       Default filename: profile.golden
-#       Sections: opcodes, store, native, hotspots, all (comma-separated)
+#   bench start <filename.json>
+#       Start profiling. Filename MUST end with .json or .jsonl.
+#       Output will be written as JSON to the specified file.
 #
 #   bench stop
-#       Stop profiling and write results to the output file.
+#       Stop profiling. Writes JSON to file and outputs golden format to stdout.
+#       Use `cmp stdout expected.golden` to compare the output.
 #
-#   jsonbench <file> [sections]
+#   jsonbench <file.json> [sections]
 #       Parse and display bench profile in deterministic golden format.
-#       Useful for inspecting profile contents during test development.
+#       File MUST end with .json or .jsonl.
+#       Sections: opcodes, store, native, hotspots, subops, vars, all (comma-separated)
 #
-#   cmpbench <file1> <file2> [sections]
+#   cmpbench <file1.json> <file2.json> [sections]
 #       Compare two bench profiles by their deterministic fields.
-#       Use with ! prefix to assert files differ: ! cmpbench a.golden b.golden
+#       Files MUST end with .json or .jsonl.
+#       Use with ! prefix to assert files differ: ! cmpbench a.json b.json
 #
-# ---- File Extension Convention ----
+# ---- Workflow ----
 #
-#   .golden  - Golden format output (deterministic, human-readable)
-#              This is what gets embedded in txtar files.
-#
-#   .json    - Raw JSON format (contains timing data, non-deterministic)
-#              Written during test execution, then converted to golden.
-#
-#   .pprof   - pprof format for visualization tools (go tool pprof)
-#              Exported when PPROF_DIR is set.
+#   bench start profile.json
+#   # ... run gno code ...
+#   bench stop
+#   cmp stdout profile.golden    # compare golden output
 #
 # ---- Updating Golden Files ----
 #
@@ -44,11 +42,16 @@
 gnoland start
 
 # Test basic bench start/stop cycle
-bench start first.golden
+bench start first.json
 bench stop
+cmp stdout first.golden
 
 # Test multiple bench cycles
-bench start second.golden
+bench start second.json
 bench stop
+cmp stdout second.golden
+
 -- first.golden --
 -- second.golden --
+-- first.json --
+-- second.json --

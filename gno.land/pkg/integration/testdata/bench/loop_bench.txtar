@@ -3,8 +3,8 @@
 # This test profiles the same function with different arguments to verify
 # that benchops correctly captures different operation counts.
 #
-# - profile_10a.golden and profile_10b.golden: same function, same arg (10 iterations)
-# - profile_100.golden: same function, different arg (100 iterations)
+# - profile_10a.json and profile_10b.json: same function, same arg (10 iterations)
+# - profile_100.json: same function, different arg (100 iterations)
 #
 # Profile outputs are automatically written to this file when
 # running with UPDATE_SCRIPTS=true
@@ -15,26 +15,29 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/loop -pkgpath gno.land/r/$test1_user_addr/loop -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 
 # Profile first call with 10 iterations
-bench start profile_10a.golden
+bench start profile_10a.json
 gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/loop -func Loop -args 10 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 bench stop
+cmp stdout profile_10a.golden
 
 # Profile second call with 10 iterations (should match profile_10a)
-bench start profile_10b.golden
+bench start profile_10b.json
 gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/loop -func Loop -args 10 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 bench stop
+cmp stdout profile_10b.golden
 
 # Profile call with 100 iterations (should have ~10x more ops)
-bench start profile_100.golden
+bench start profile_100.json
 gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/loop -func Loop -args 100 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 bench stop
+cmp stdout profile_100.golden
 
 # Verify that identical calls produce identical deterministic profiles
 # (Store is excluded from comparison since it varies between runs)
-cmpbench profile_10a.golden profile_10b.golden opcodes,hotspots
+cmpbench profile_10a.json profile_10b.json opcodes,hotspots
 
 # Verify that different iteration counts produce different profiles
-! cmpbench profile_10a.golden profile_100.golden opcodes,hotspots
+! cmpbench profile_10a.json profile_100.json opcodes,hotspots
 
 -- loop/gnomod.toml --
 module = "loop"
@@ -74,11 +77,11 @@ Opcodes:
   OpReturn: count=2 gas=76
   OpSelector: count=2 gas=64
 Store:
-  StoreGetBlockNode: count=6 size=0
-  StoreGetObject: count=14 size=5986
-  StoreGetPackageRealm: count=4 size=436
-  StoreSetObject: count=2 size=442
-  StoreSetPackageRealm: count=2 size=218
+  StoreGetBlockNode: count=6 bytes_read=0 bytes_written=0
+  StoreGetObject: count=14 bytes_read=5986 bytes_written=0
+  StoreGetPackageRealm: count=4 bytes_read=436 bytes_written=0
+  StoreSetObject: count=2 bytes_read=0 bytes_written=442
+  StoreSetPackageRealm: count=2 bytes_read=0 bytes_written=218
 HotSpots:
   loop.gno:7 -: count=26 gas=1850
   loop.gno:8 -: count=20 gas=1520
@@ -106,10 +109,10 @@ Opcodes:
   OpReturn: count=2 gas=76
   OpSelector: count=2 gas=64
 Store:
-  StoreGetBlockNode: count=6 size=0
-  StoreGetObject: count=14 size=5996
-  StoreGetPackageRealm: count=2 size=218
-  StoreSetObject: count=2 size=442
+  StoreGetBlockNode: count=6 bytes_read=0 bytes_written=0
+  StoreGetObject: count=14 bytes_read=5996 bytes_written=0
+  StoreGetPackageRealm: count=2 bytes_read=218 bytes_written=0
+  StoreSetObject: count=2 bytes_read=0 bytes_written=442
 HotSpots:
   loop.gno:7 -: count=26 gas=1850
   loop.gno:8 -: count=20 gas=1520
@@ -137,10 +140,104 @@ Opcodes:
   OpReturn: count=2 gas=76
   OpSelector: count=2 gas=64
 Store:
-  StoreGetBlockNode: count=6 size=0
-  StoreGetObject: count=14 size=5996
-  StoreGetPackageRealm: count=2 size=218
-  StoreSetObject: count=2 size=442
+  StoreGetBlockNode: count=6 bytes_read=0 bytes_written=0
+  StoreGetObject: count=14 bytes_read=5996 bytes_written=0
+  StoreGetPackageRealm: count=2 bytes_read=218 bytes_written=0
+  StoreSetObject: count=2 bytes_read=0 bytes_written=442
+HotSpots:
+  loop.gno:7 -: count=206 gas=15530
+  loop.gno:8 -: count=200 gas=15200
+SubOps:
+  DefineVar: count=2
+  ParamAssign: count=4
+Variables:
+  loop.gno:6 #0: count=2
+  loop.gno:6 #1: count=2
+  loop.gno:7 i: count=2
+-- profile_10a.json --
+Opcodes:
+  OpBody: count=4 gas=172
+  OpCall: count=2 gas=512
+  OpDefine: count=2 gas=222
+  OpEnterCrossing: count=2 gas=200
+  OpEval: count=86 gas=2494
+  OpExec: count=2 gas=50
+  OpForLoop: count=42 gas=1134
+  OpHalt: count=14 gas=14
+  OpInc: count=40 gas=3040
+  OpLss: count=22 gas=286
+  OpPopBlock: count=8 gas=24
+  OpPrecall: count=2 gas=414
+  OpReturn: count=2 gas=76
+  OpSelector: count=2 gas=64
+Store:
+  StoreGetBlockNode: count=6 bytes_read=0 bytes_written=0
+  StoreGetObject: count=14 bytes_read=5986 bytes_written=0
+  StoreGetPackageRealm: count=4 bytes_read=436 bytes_written=0
+  StoreSetObject: count=2 bytes_read=0 bytes_written=442
+  StoreSetPackageRealm: count=2 bytes_read=0 bytes_written=218
+HotSpots:
+  loop.gno:7 -: count=26 gas=1850
+  loop.gno:8 -: count=20 gas=1520
+SubOps:
+  DefineVar: count=2
+  ParamAssign: count=4
+Variables:
+  loop.gno:6 #0: count=2
+  loop.gno:6 #1: count=2
+  loop.gno:7 i: count=2
+-- profile_10b.json --
+Opcodes:
+  OpBody: count=4 gas=172
+  OpCall: count=2 gas=512
+  OpDefine: count=2 gas=222
+  OpEnterCrossing: count=2 gas=200
+  OpEval: count=86 gas=2494
+  OpExec: count=2 gas=50
+  OpForLoop: count=42 gas=1134
+  OpHalt: count=14 gas=14
+  OpInc: count=40 gas=3040
+  OpLss: count=22 gas=286
+  OpPopBlock: count=8 gas=24
+  OpPrecall: count=2 gas=414
+  OpReturn: count=2 gas=76
+  OpSelector: count=2 gas=64
+Store:
+  StoreGetBlockNode: count=6 bytes_read=0 bytes_written=0
+  StoreGetObject: count=14 bytes_read=5996 bytes_written=0
+  StoreGetPackageRealm: count=2 bytes_read=218 bytes_written=0
+  StoreSetObject: count=2 bytes_read=0 bytes_written=442
+HotSpots:
+  loop.gno:7 -: count=26 gas=1850
+  loop.gno:8 -: count=20 gas=1520
+SubOps:
+  DefineVar: count=2
+  ParamAssign: count=4
+Variables:
+  loop.gno:6 #0: count=2
+  loop.gno:6 #1: count=2
+  loop.gno:7 i: count=2
+-- profile_100.json --
+Opcodes:
+  OpBody: count=4 gas=172
+  OpCall: count=2 gas=512
+  OpDefine: count=2 gas=222
+  OpEnterCrossing: count=2 gas=200
+  OpEval: count=626 gas=18154
+  OpExec: count=2 gas=50
+  OpForLoop: count=402 gas=10854
+  OpHalt: count=14 gas=14
+  OpInc: count=400 gas=30400
+  OpLss: count=202 gas=2626
+  OpPopBlock: count=8 gas=24
+  OpPrecall: count=2 gas=414
+  OpReturn: count=2 gas=76
+  OpSelector: count=2 gas=64
+Store:
+  StoreGetBlockNode: count=6 bytes_read=0 bytes_written=0
+  StoreGetObject: count=14 bytes_read=5996 bytes_written=0
+  StoreGetPackageRealm: count=2 bytes_read=218 bytes_written=0
+  StoreSetObject: count=2 bytes_read=0 bytes_written=442
 HotSpots:
   loop.gno:7 -: count=206 gas=15530
   loop.gno:8 -: count=200 gas=15200

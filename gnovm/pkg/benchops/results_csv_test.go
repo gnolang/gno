@@ -131,9 +131,11 @@ func TestWriteCSVSectionWithTiming(t *testing.T) {
 func TestWriteCSVStoreStats(t *testing.T) {
 	results := &Results{
 		StoreStats: map[string]*StoreStat{
-			"GetObject": {
-				TimingStat: TimingStat{Count: 5, TotalNs: 1000},
-				TotalSize:  500,
+			"StoreGetObject": {
+				TimingStat:   TimingStat{Count: 5, TotalNs: 1000},
+				TotalSize:    500,
+				BytesRead:    500,
+				BytesWritten: 0,
 			},
 		},
 		TimingEnabled: true,
@@ -144,6 +146,6 @@ func TestWriteCSVStoreStats(t *testing.T) {
 	require.NoError(t, err)
 
 	csv := buf.String()
-	assert.Contains(t, csv, "operation,count,total_size,avg_size,total_ns")
-	assert.Contains(t, csv, "GetObject,5,500,100,1000")
+	assert.Contains(t, csv, "operation,count,bytes_read,bytes_written,total_ns")
+	assert.Contains(t, csv, "StoreGetObject,5,500,0,1000")
 }

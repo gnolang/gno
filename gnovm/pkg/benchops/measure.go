@@ -84,7 +84,7 @@ func (p *Profiler) BeginStore(op StoreOp) {
 }
 
 // EndStore stops timing for the current store operation and records the measurement.
-func (p *Profiler) EndStore(size int) {
+func (p *Profiler) EndStore(bytes int) {
 	if len(p.storeStack) == 0 {
 		panic("benchops: EndStore: no matching BeginStore")
 	}
@@ -98,7 +98,8 @@ func (p *Profiler) EndStore(size int) {
 	if p.timingEnabled {
 		dur = time.Since(entry.startTime)
 	}
-	p.storeStats[entry.op].Record(size, dur)
+	// Pass operation type for read/write routing
+	p.storeStats[entry.op].Record(entry.op, bytes, dur)
 
 	// Resume opcode timing when store stack empties
 	if len(p.storeStack) == 0 && len(p.opStack) > 0 {

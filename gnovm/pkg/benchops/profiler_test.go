@@ -505,7 +505,7 @@ func TestWriteGolden(t *testing.T) {
 	assert.Contains(t, output, "OpMul: count=1 gas=19")
 
 	// Store should be present
-	assert.Contains(t, output, "StoreGetObject: count=1 size=42")
+	assert.Contains(t, output, "StoreGetObject: count=1 bytes_read=42 bytes_written=0")
 
 	// Native should be present
 	assert.Contains(t, output, "NativePrint: count=1")
@@ -598,6 +598,30 @@ func TestParseSectionFlags(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tc.want, got)
 			}
+		})
+	}
+}
+
+func TestIsJSONFormat(t *testing.T) {
+	tests := []struct {
+		filename string
+		want     bool
+	}{
+		{"profile.json", true},
+		{"profile.jsonl", true},
+		{"profile.JSON", true},  // case insensitive
+		{"profile.JSONL", true}, // case insensitive
+		{"profile.pprof", false},
+		{"profile.pb.gz", false},
+		{"profile", false},
+		{"/path/to/profile.json", true},
+		{"/path/to/profile.pprof", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.filename, func(t *testing.T) {
+			got := IsJSONFormat(tc.filename)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }
@@ -938,6 +962,9 @@ func TestStackTrackingPprofOutput(t *testing.T) {
 // ---- Global Start() with options integration tests
 
 func TestGlobalStartWithoutTiming(t *testing.T) {
+	if !Enabled {
+		t.Skip("requires gnobench build tag")
+	}
 	Start(WithoutTiming())
 	defer func() {
 		if IsRunning() {
@@ -958,6 +985,9 @@ func TestGlobalStartWithoutTiming(t *testing.T) {
 }
 
 func TestGlobalStartWithoutStacks(t *testing.T) {
+	if !Enabled {
+		t.Skip("requires gnobench build tag")
+	}
 	Start(WithoutStacks())
 	defer func() {
 		if IsRunning() {
@@ -978,6 +1008,9 @@ func TestGlobalStartWithoutStacks(t *testing.T) {
 }
 
 func TestGlobalStartWithBothOptionsDisabled(t *testing.T) {
+	if !Enabled {
+		t.Skip("requires gnobench build tag")
+	}
 	Start(WithoutTiming(), WithoutStacks())
 	defer func() {
 		if IsRunning() {
@@ -998,4 +1031,151 @@ func TestGlobalStartWithBothOptionsDisabled(t *testing.T) {
 
 	// But counts should still work
 	assert.Equal(t, int64(1), results.OpStats["OpAdd"].Count)
+}
+
+// ---- Store I/O byte tracking tests
+
+func TestStoreStatBytesRead(t *testing.T) {
+	var stat StoreStat
+	stat.Record(StoreGetObject, 1024, time.Millisecond)
+	stat.Record(StoreGetObject, 2048, time.Millisecond)
+
+	assert.Equal(t, int64(3072), stat.BytesRead)
+	assert.Equal(t, int64(0), stat.BytesWritten)
+	assert.Equal(t, int64(3072), stat.TotalSize) // backward compat
+}
+
+func TestStoreStatBytesWritten(t *testing.T) {
+	var stat StoreStat
+	stat.Record(StoreSetObject, 512, time.Millisecond)
+
+	assert.Equal(t, int64(0), stat.BytesRead)
+	assert.Equal(t, int64(512), stat.BytesWritten)
+	assert.Equal(t, int64(512), stat.TotalSize) // backward compat
+}
+
+func TestStoreStatMixedOperations(t *testing.T) {
+	var stat StoreStat
+	// Read operations
+	stat.Record(StoreGetObject, 100, time.Millisecond)
+	stat.Record(StoreGetPackage, 200, time.Millisecond)
+	// Write operations
+	stat.Record(StoreSetObject, 50, time.Millisecond)
+	stat.Record(StoreSetPackage, 75, time.Millisecond)
+
+	assert.Equal(t, int64(300), stat.BytesRead)
+	assert.Equal(t, int64(125), stat.BytesWritten)
+	assert.Equal(t, int64(425), stat.TotalSize)
+}
+
+func TestStoreOpIsRead(t *testing.T) {
+	readOps := []StoreOp{
+		StoreGetObject, StoreGetPackage, StoreGetType,
+		StoreGetBlockNode, StoreGetMemPackage, StoreGetPackageRealm,
+		StoreGet, AminoUnmarshal,
+	}
+	for _, op := range readOps {
+		assert.True(t, op.IsRead(), "expected %s to be a read op", op)
+		assert.False(t, op.IsWrite(), "expected %s not to be a write op", op)
+	}
+}
+
+func TestStoreOpIsWrite(t *testing.T) {
+	writeOps := []StoreOp{
+		StoreSetObject, StoreSetPackage, StoreSetType,
+		StoreSetBlockNode, StoreAddMemPackage, StoreSetPackageRealm,
+		StoreSet, AminoMarshal, AminoMarshalAny, FinalizeTx,
+	}
+	for _, op := range writeOps {
+		assert.True(t, op.IsWrite(), "expected %s to be a write op", op)
+		assert.False(t, op.IsRead(), "expected %s not to be a read op", op)
+	}
+}
+
+func TestStoreOpDeleteIsNeither(t *testing.T) {
+	// Delete operations don't count as read or write
+	assert.False(t, StoreDeleteObject.IsRead())
+	assert.False(t, StoreDeleteObject.IsWrite())
+}
+
+func TestProfilerBytesTracking(t *testing.T) {
+	p := New()
+	p.Start()
+
+	// Track read operation
+	p.BeginStore(StoreGetObject)
+	p.EndStore(1024)
+
+	// Track write operation
+	p.BeginStore(StoreSetObject)
+	p.EndStore(512)
+
+	results := p.Stop()
+
+	// Check read bytes
+	getStat := results.StoreStats["StoreGetObject"]
+	require.NotNil(t, getStat)
+	assert.Equal(t, int64(1), getStat.Count)
+	assert.Equal(t, int64(1024), getStat.BytesRead)
+	assert.Equal(t, int64(0), getStat.BytesWritten)
+
+	// Check write bytes
+	setStat := results.StoreStats["StoreSetObject"]
+	require.NotNil(t, setStat)
+	assert.Equal(t, int64(1), setStat.Count)
+	assert.Equal(t, int64(0), setStat.BytesRead)
+	assert.Equal(t, int64(512), setStat.BytesWritten)
+}
+
+func TestWriteGoldenWithStoreBytes(t *testing.T) {
+	p := New()
+	p.Start()
+
+	p.BeginStore(StoreGetObject)
+	p.EndStore(1024)
+
+	p.BeginStore(StoreSetObject)
+	p.EndStore(512)
+
+	results := p.Stop()
+
+	var buf bytes.Buffer
+	results.WriteGolden(&buf, SectionStore)
+	output := buf.String()
+
+	assert.Contains(t, output, "Store:")
+	assert.Contains(t, output, "StoreGetObject: count=1 bytes_read=1024 bytes_written=0")
+	assert.Contains(t, output, "StoreSetObject: count=1 bytes_read=0 bytes_written=512")
+}
+
+func TestMergeResultsBytesTracking(t *testing.T) {
+	// Create first result set
+	p1 := New()
+	p1.Start()
+	p1.BeginStore(StoreGetObject)
+	p1.EndStore(1000)
+	results1 := p1.Stop()
+
+	// Create second result set
+	p2 := New()
+	p2.Start()
+	p2.BeginStore(StoreGetObject)
+	p2.EndStore(500)
+	p2.BeginStore(StoreSetObject)
+	p2.EndStore(200)
+	results2 := p2.Stop()
+
+	// Merge results
+	merged := MergeResults(results1, results2)
+
+	// Check merged stats
+	getStat := merged.StoreStats["StoreGetObject"]
+	require.NotNil(t, getStat)
+	assert.Equal(t, int64(2), getStat.Count)
+	assert.Equal(t, int64(1500), getStat.BytesRead) // 1000 + 500
+
+	setStat := merged.StoreStats["StoreSetObject"]
+	require.NotNil(t, setStat)
+	assert.Equal(t, int64(1), setStat.Count)
+	assert.Equal(t, int64(200), setStat.BytesWritten)
 }

@@ -193,7 +193,7 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		&c.opsProfile,
 		"benchops-profile",
 		"",
-		"write operation profiling results to pprof file (requires -tags gnobench build)",
+		"write operation profiling results to file; JSONL if .json/.jsonl extension, pprof otherwise (requires -tags gnobench build)",
 	)
 }
 

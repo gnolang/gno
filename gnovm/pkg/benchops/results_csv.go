@@ -109,7 +109,7 @@ func (r *Results) writeOpStatsCSV(cw *csv.Writer) error {
 }
 
 func (r *Results) writeStoreStatsCSV(cw *csv.Writer) error {
-	header := []string{"operation", "count", "total_size", "avg_size"}
+	header := []string{"operation", "count", "bytes_read", "bytes_written"}
 	if r.TimingEnabled {
 		header = append(header, "total_ns", "avg_ns", "stddev_ns", "min_ns", "max_ns")
 	}
@@ -122,8 +122,8 @@ func (r *Results) writeStoreStatsCSV(cw *csv.Writer) error {
 		row := []string{
 			name,
 			strconv.FormatInt(stat.Count, 10),
-			strconv.FormatInt(stat.TotalSize, 10),
-			strconv.FormatInt(stat.AvgSize(), 10),
+			strconv.FormatInt(stat.BytesRead, 10),
+			strconv.FormatInt(stat.BytesWritten, 10),
 		}
 		if r.TimingEnabled {
 			row = append(row, stat.CSVTimingFields()...)

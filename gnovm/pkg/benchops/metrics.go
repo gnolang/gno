@@ -102,12 +102,20 @@ func (s *OpStat) Record(gas int64, dur time.Duration) {
 // StoreStat tracks statistics for a single store operation.
 type StoreStat struct {
 	TimingStat
-	TotalSize int64 `json:"total_size"`
+	TotalSize    int64 `json:"total_size,omitempty"`    // Deprecated: use BytesRead/BytesWritten
+	BytesRead    int64 `json:"bytes_read,omitempty"`    // Total bytes read from store
+	BytesWritten int64 `json:"bytes_written,omitempty"` // Total bytes written to store
 }
 
 // Record adds a store sample with size and optional duration.
-func (s *StoreStat) Record(size int, dur time.Duration) {
-	s.TotalSize += int64(size)
+// The bytes are routed to BytesRead or BytesWritten based on the operation type.
+func (s *StoreStat) Record(op StoreOp, bytes int, dur time.Duration) {
+	s.TotalSize += int64(bytes) // Keep for backward compat
+	if op.IsRead() {
+		s.BytesRead += int64(bytes)
+	} else if op.IsWrite() {
+		s.BytesWritten += int64(bytes)
+	}
 	s.TimingStat.Record(dur)
 }
 

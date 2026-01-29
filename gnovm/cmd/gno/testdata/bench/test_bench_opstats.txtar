@@ -39,52 +39,51 @@ func TestCompute(t *testing.T) {
 Package: gno.land/p/demo/opstats
 Test: TestCompute
 Opcodes:
-  OpAdd: count=9 gas=18
-  OpAddAssign: count=5 gas=85
-  OpAssign: count=2 gas=79
-  OpBinary1: count=4 gas=18
-  OpBody: count=49 gas=43
-  OpCall: count=20 gas=256
-  OpCallNativeBody: count=7 gas=424
-  OpCompositeLit: count=3 gas=50
-  OpConvert: count=7 gas=16
+  OpAdd: count=9 gas=162
+  OpAddAssign: count=5 gas=425
+  OpAssign: count=2 gas=158
+  OpBinary1: count=4 gas=72
+  OpBody: count=49 gas=2107
+  OpCall: count=20 gas=5120
+  OpCallNativeBody: count=7 gas=2968
+  OpCompositeLit: count=3 gas=150
+  OpConvert: count=7 gas=112
   OpDefer: count=1 gas=64
-  OpDefine: count=11 gas=111
-  OpEql: count=2 gas=160
-  OpEval: count=231 gas=29
-  OpExec: count=5 gas=25
-  OpForLoop: count=11 gas=27
+  OpDefine: count=11 gas=1221
+  OpEql: count=2 gas=320
+  OpEval: count=231 gas=6699
+  OpExec: count=5 gas=125
+  OpForLoop: count=11 gas=297
   OpFuncLit: count=1 gas=61
   OpFuncType: count=1 gas=81
-  OpHalt: count=10 gas=1
-  OpIfCond: count=14 gas=38
-  OpInc: count=5 gas=76
-  OpLand: count=4 gas=24
+  OpHalt: count=10 gas=10
+  OpIfCond: count=14 gas=532
+  OpInc: count=5 gas=380
+  OpLand: count=4 gas=96
   OpLeq: count=1 gas=19
-  OpLss: count=9 gas=13
-  OpNeq: count=2 gas=95
-  OpPopBlock: count=21 gas=3
+  OpLss: count=9 gas=117
+  OpNeq: count=2 gas=190
+  OpPopBlock: count=21 gas=63
   OpPopFrameAndReset: count=1 gas=15
-  OpPopResults: count=2 gas=1
-  OpPrecall: count=27 gas=207
+  OpPopResults: count=2 gas=2
+  OpPrecall: count=27 gas=5589
   OpQuo: count=1 gas=16
-  OpRangeIter: count=2 gas=105
-  OpRef: count=2 gas=125
-  OpReturn: count=17 gas=38
+  OpRangeIter: count=2 gas=210
+  OpRef: count=2 gas=250
+  OpReturn: count=17 gas=646
   OpReturnAfterCopy: count=1 gas=38
-  OpReturnCallDefers: count=2 gas=78
-  OpReturnFromBlock: count=3 gas=36
-  OpSelector: count=24 gas=32
-  OpSlice: count=4 gas=103
-  OpStructLit: count=3 gas=179
-  OpSub: count=4 gas=6
+  OpReturnCallDefers: count=2 gas=156
+  OpReturnFromBlock: count=3 gas=108
+  OpSelector: count=24 gas=768
+  OpSlice: count=4 gas=412
+  OpStructLit: count=3 gas=537
+  OpSub: count=4 gas=24
   OpTypeSwitch: count=1 gas=171
-  OpUnot: count=2 gas=6
+  OpUnot: count=2 gas=12
   OpValueDecl: count=1 gas=113
-  OpVoid: count=534 gas=1
 Store:
-  StoreGetBlockNode: count=8 size=0
-  StoreGetObject: count=133 size=108087
+  StoreGetBlockNode: count=8 bytes_read=0 bytes_written=0
+  StoreGetObject: count=133 bytes_read=108087 bytes_written=0
 HotSpots:
   foo.gno:4 Compute: count=2 gas=140
   foo.gno:5 -: count=8 gas=545
@@ -116,3 +115,48 @@ HotSpots:
   testing.gno:392 -: count=9 gas=719
   testing.gno:394 -: count=4 gas=128
   testing.gno:406 tRunner: count=2 gas=67
+SubOps:
+  AssignField: count=1
+  AssignVar: count=1
+  DefineVar: count=12
+  ParamAssign: count=24
+  StructField: count=8
+Variables:
+  foo.gno:3 #0: count=1
+  foo.gno:4 sum: count=1
+  foo.gno:5 i: count=1
+  foo_test.gno:5 #0: count=1
+  foo_test.gno:6 result: count=1
+  itoa.gno:25 #0: count=1
+  itoa.gno:25 #1: count=1
+  itoa.gno:34 #0: count=1
+  itoa.gno:59 #0: count=1
+  testing.gno:109 #0: count=2
+  testing.gno:227 #0: count=1
+  testing.gno:228 failed: count=1
+  testing.gno:229 skipped: count=1
+  testing.gno:239 #0: count=1
+  testing.gno:240 Failed: count=1
+  testing.gno:240 Skipped: count=1
+  testing.gno:297 #0: count=1
+  testing.gno:297 #1: count=1
+  testing.gno:308 #0: count=1
+  testing.gno:308 #1: count=1
+  testing.gno:308 #2: count=1
+  testing.gno:308 #3: count=1
+  testing.gno:309 failfast: count=1
+  testing.gno:309 name: count=1
+  testing.gno:309 t: count=1
+  testing.gno:309 verbose: count=1
+  testing.gno:326 report: count=1
+  testing.gno:353 #0: count=1
+  testing.gno:357 dstr: count=1
+  testing.gno:360 dstr: count=1
+  testing.gno:374 #0: count=1
+  testing.gno:374 #1: count=1
+  testing.gno:374 #2: count=1
+  testing.gno:379 start: count=1
+  testing.gno:382 err: count=1
+  testing.gno:382 st: count=1
+  testing.gno:391 dur: count=1
+  testing.gno:392 dur: count=1

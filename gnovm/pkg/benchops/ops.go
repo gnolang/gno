@@ -318,6 +318,28 @@ func (o StoreOp) String() string {
 	return "StoreOpUnknown"
 }
 
+// IsRead returns true for store operations that read data.
+func (o StoreOp) IsRead() bool {
+	switch o {
+	case StoreGetObject, StoreGetPackage, StoreGetType,
+		StoreGetBlockNode, StoreGetMemPackage, StoreGetPackageRealm,
+		StoreGet, AminoUnmarshal:
+		return true
+	}
+	return false
+}
+
+// IsWrite returns true for store operations that write data.
+func (o StoreOp) IsWrite() bool {
+	switch o {
+	case StoreSetObject, StoreSetPackage, StoreSetType,
+		StoreSetBlockNode, StoreAddMemPackage, StoreSetPackageRealm,
+		StoreSet, AminoMarshal, AminoMarshalAny, FinalizeTx:
+		return true
+	}
+	return false
+}
+
 // NativeOp represents a native function operation.
 type NativeOp byte
 

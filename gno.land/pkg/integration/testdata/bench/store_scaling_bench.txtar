@@ -6,26 +6,26 @@ loadpkg gno.land/r/bench/scalestore $WORK/scalestore
 gnoland start
 
 # Profile small object operations (< 100 bytes)
-bench start small_write.golden
+bench start small_write.json
 gnokey maketx call -pkgpath gno.land/r/bench/scalestore -func SetSmall -args "test" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 bench stop
+cmp stdout small_write.golden
 
-bench start small_read.golden
+bench start small_read.json
 gnokey maketx call -pkgpath gno.land/r/bench/scalestore -func GetSmall -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 bench stop
+cmp stdout small_read.golden
 
 # Profile large object operations (> 1KB)
-bench start large_write.golden
+bench start large_write.json
 gnokey maketx call -pkgpath gno.land/r/bench/scalestore -func SetLarge -args "test" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid tendermint_test test1
 bench stop
+cmp stdout large_write.golden
 
-bench start large_read.golden
+bench start large_read.json
 gnokey maketx call -pkgpath gno.land/r/bench/scalestore -func GetLarge -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid tendermint_test test1
 bench stop
-
-# Verify profiles were created
-jsonbench small_write.golden store
-jsonbench large_write.golden store
+cmp stdout large_read.golden
 
 -- scalestore/gnomod.toml --
 module = "gno.land/r/bench/scalestore"
@@ -77,18 +77,246 @@ func itoa(i int) string {
 }
 
 -- small_write.golden --
+Opcodes:
+  OpAssign: count=2 gas=158
+  OpBody: count=4 gas=172
+  OpCall: count=2 gas=512
+  OpEnterCrossing: count=2 gas=200
+  OpEval: count=18 gas=522
+  OpExec: count=2 gas=50
+  OpHalt: count=14 gas=14
+  OpPopBlock: count=8 gas=24
+  OpPrecall: count=2 gas=414
+  OpReturnFromBlock: count=2 gas=72
+  OpSelector: count=2 gas=64
 Store:
-  StoreGetBlockNode: count=6 size=0
-  StoreGetObject: count=24 size=12114
-  StoreGetPackageRealm: count=4 size=320
-  StoreSetObject: count=2 size=498
-  StoreSetPackageRealm: count=2 size=160
-
+  StoreGetBlockNode: count=6 bytes_read=0 bytes_written=0
+  StoreGetObject: count=24 bytes_read=12114 bytes_written=0
+  StoreGetPackageRealm: count=4 bytes_read=320 bytes_written=0
+  StoreSetObject: count=2 bytes_read=0 bytes_written=498
+  StoreSetPackageRealm: count=2 bytes_read=0 bytes_written=160
+HotSpots:
+  store.gno:7 SetSmall: count=4 gas=216
+SubOps:
+  AssignVar: count=2
+  ParamAssign: count=4
+Variables:
+  store.gno:6 #0: count=2
+  store.gno:6 #1: count=2
+  store.gno:7 smallData: count=2
+-- small_read.golden --
+Opcodes:
+  OpBody: count=2 gas=86
+  OpCall: count=2 gas=512
+  OpEnterCrossing: count=2 gas=200
+  OpEval: count=16 gas=464
+  OpHalt: count=14 gas=14
+  OpPopBlock: count=8 gas=24
+  OpPrecall: count=2 gas=414
+  OpReturn: count=2 gas=76
+  OpSelector: count=2 gas=64
+Store:
+  StoreGetBlockNode: count=6 bytes_read=0 bytes_written=0
+  StoreGetObject: count=24 bytes_read=12180 bytes_written=0
+  StoreGetPackageRealm: count=2 bytes_read=160 bytes_written=0
+SubOps:
+  ParamAssign: count=2
+Variables:
+  store.gno:10 #0: count=2
 -- large_write.golden --
+Opcodes:
+  OpAdd: count=1156 gas=20808
+  OpAssign: count=580 gas=45820
+  OpBody: count=802 gas=34486
+  OpCall: count=204 gas=52224
+  OpCallNativeBody: count=2 gas=848
+  OpConvert: count=756 gas=12096
+  OpDefine: count=200 gas=22200
+  OpEnterCrossing: count=2 gas=200
+  OpEql: count=200 gas=32000
+  OpEval: count=9696 gas=281184
+  OpExec: count=4 gas=100
+  OpForLoop: count=1734 gas=46818
+  OpGtr: count=576 gas=11520
+  OpHalt: count=14 gas=14
+  OpIfCond: count=200 gas=7600
+  OpInc: count=200 gas=15200
+  OpLss: count=202 gas=2626
+  OpPopBlock: count=206 gas=618
+  OpPrecall: count=960 gas=198720
+  OpQuoAssign: count=378 gas=18900
+  OpRem: count=378 gas=6804
+  OpReturn: count=202 gas=7676
+  OpReturnFromBlock: count=2 gas=72
+  OpSelector: count=2 gas=64
+  OpSliceType: count=2 gas=110
 Store:
-  StoreDeleteObject: count=2 size=0
-  StoreGetBlockNode: count=8 size=0
-  StoreGetObject: count=26 size=12532
-  StoreGetPackageRealm: count=4 size=320
-  StoreSetObject: count=4 size=16084
-  StoreSetPackageRealm: count=4 size=320
+  StoreDeleteObject: count=2 bytes_read=0 bytes_written=0
+  StoreGetBlockNode: count=8 bytes_read=0 bytes_written=0
+  StoreGetObject: count=26 bytes_read=12532 bytes_written=0
+  StoreGetPackageRealm: count=4 bytes_read=320 bytes_written=0
+  StoreSetObject: count=4 bytes_read=0 bytes_written=16084
+  StoreSetPackageRealm: count=4 bytes_read=0 bytes_written=320
+HotSpots:
+  store.gno:23 SetLarge: count=18 gas=1484
+  store.gno:24 -: count=206 gas=15530
+  store.gno:25 -: count=2800 gas=167800
+  store.gno:34 itoa: count=1000 gas=57000
+  store.gno:37 itoa: count=396 gas=27720
+  store.gno:39 -: count=7182 gas=339444
+  store.gno:40 -: count=756 gas=29862
+SubOps:
+  AssignIndex: count=200
+  AssignVar: count=380
+  DefineVar: count=200
+  ParamAssign: count=208
+Variables:
+  store.gno:21 #0: count=2
+  store.gno:21 #1: count=2
+  store.gno:23 largeData: count=2
+  store.gno:24 i: count=2
+  store.gno:25 #0: count=200
+  store.gno:33 #0: count=200
+  store.gno:37 s: count=198
+  store.gno:39 s: count=378
+-- large_read.golden --
+Opcodes:
+  OpBody: count=2 gas=86
+  OpCall: count=2 gas=512
+  OpEnterCrossing: count=2 gas=200
+  OpEval: count=16 gas=464
+  OpHalt: count=14 gas=14
+  OpPopBlock: count=8 gas=24
+  OpPrecall: count=2 gas=414
+  OpReturn: count=2 gas=76
+  OpSelector: count=2 gas=64
+Store:
+  StoreGetBlockNode: count=6 bytes_read=0 bytes_written=0
+  StoreGetObject: count=24 bytes_read=12194 bytes_written=0
+  StoreGetPackageRealm: count=2 bytes_read=160 bytes_written=0
+SubOps:
+  ParamAssign: count=2
+Variables:
+  store.gno:29 #0: count=2
+-- small_write.json --
+Opcodes:
+  OpAssign: count=2 gas=158
+  OpBody: count=4 gas=172
+  OpCall: count=2 gas=512
+  OpEnterCrossing: count=2 gas=200
+  OpEval: count=18 gas=522
+  OpExec: count=2 gas=50
+  OpHalt: count=14 gas=14
+  OpPopBlock: count=8 gas=24
+  OpPrecall: count=2 gas=414
+  OpReturnFromBlock: count=2 gas=72
+  OpSelector: count=2 gas=64
+Store:
+  StoreGetBlockNode: count=6 bytes_read=0 bytes_written=0
+  StoreGetObject: count=24 bytes_read=12114 bytes_written=0
+  StoreGetPackageRealm: count=4 bytes_read=320 bytes_written=0
+  StoreSetObject: count=2 bytes_read=0 bytes_written=498
+  StoreSetPackageRealm: count=2 bytes_read=0 bytes_written=160
+HotSpots:
+  store.gno:7 SetSmall: count=4 gas=216
+SubOps:
+  AssignVar: count=2
+  ParamAssign: count=4
+Variables:
+  store.gno:6 #0: count=2
+  store.gno:6 #1: count=2
+  store.gno:7 smallData: count=2
+-- small_read.json --
+Opcodes:
+  OpBody: count=2 gas=86
+  OpCall: count=2 gas=512
+  OpEnterCrossing: count=2 gas=200
+  OpEval: count=16 gas=464
+  OpHalt: count=14 gas=14
+  OpPopBlock: count=8 gas=24
+  OpPrecall: count=2 gas=414
+  OpReturn: count=2 gas=76
+  OpSelector: count=2 gas=64
+Store:
+  StoreGetBlockNode: count=6 bytes_read=0 bytes_written=0
+  StoreGetObject: count=24 bytes_read=12180 bytes_written=0
+  StoreGetPackageRealm: count=2 bytes_read=160 bytes_written=0
+SubOps:
+  ParamAssign: count=2
+Variables:
+  store.gno:10 #0: count=2
+-- large_write.json --
+Opcodes:
+  OpAdd: count=1156 gas=20808
+  OpAssign: count=580 gas=45820
+  OpBody: count=802 gas=34486
+  OpCall: count=204 gas=52224
+  OpCallNativeBody: count=2 gas=848
+  OpConvert: count=756 gas=12096
+  OpDefine: count=200 gas=22200
+  OpEnterCrossing: count=2 gas=200
+  OpEql: count=200 gas=32000
+  OpEval: count=9696 gas=281184
+  OpExec: count=4 gas=100
+  OpForLoop: count=1734 gas=46818
+  OpGtr: count=576 gas=11520
+  OpHalt: count=14 gas=14
+  OpIfCond: count=200 gas=7600
+  OpInc: count=200 gas=15200
+  OpLss: count=202 gas=2626
+  OpPopBlock: count=206 gas=618
+  OpPrecall: count=960 gas=198720
+  OpQuoAssign: count=378 gas=18900
+  OpRem: count=378 gas=6804
+  OpReturn: count=202 gas=7676
+  OpReturnFromBlock: count=2 gas=72
+  OpSelector: count=2 gas=64
+  OpSliceType: count=2 gas=110
+Store:
+  StoreDeleteObject: count=2 bytes_read=0 bytes_written=0
+  StoreGetBlockNode: count=8 bytes_read=0 bytes_written=0
+  StoreGetObject: count=26 bytes_read=12532 bytes_written=0
+  StoreGetPackageRealm: count=4 bytes_read=320 bytes_written=0
+  StoreSetObject: count=4 bytes_read=0 bytes_written=16084
+  StoreSetPackageRealm: count=4 bytes_read=0 bytes_written=320
+HotSpots:
+  store.gno:23 SetLarge: count=18 gas=1484
+  store.gno:24 -: count=206 gas=15530
+  store.gno:25 -: count=2800 gas=167800
+  store.gno:34 itoa: count=1000 gas=57000
+  store.gno:37 itoa: count=396 gas=27720
+  store.gno:39 -: count=7182 gas=339444
+  store.gno:40 -: count=756 gas=29862
+SubOps:
+  AssignIndex: count=200
+  AssignVar: count=380
+  DefineVar: count=200
+  ParamAssign: count=208
+Variables:
+  store.gno:21 #0: count=2
+  store.gno:21 #1: count=2
+  store.gno:23 largeData: count=2
+  store.gno:24 i: count=2
+  store.gno:25 #0: count=200
+  store.gno:33 #0: count=200
+  store.gno:37 s: count=198
+  store.gno:39 s: count=378
+-- large_read.json --
+Opcodes:
+  OpBody: count=2 gas=86
+  OpCall: count=2 gas=512
+  OpEnterCrossing: count=2 gas=200
+  OpEval: count=16 gas=464
+  OpHalt: count=14 gas=14
+  OpPopBlock: count=8 gas=24
+  OpPrecall: count=2 gas=414
+  OpReturn: count=2 gas=76
+  OpSelector: count=2 gas=64
+Store:
+  StoreGetBlockNode: count=6 bytes_read=0 bytes_written=0
+  StoreGetObject: count=24 bytes_read=12194 bytes_written=0
+  StoreGetPackageRealm: count=2 bytes_read=160 bytes_written=0
+SubOps:
+  ParamAssign: count=2
+Variables:
+  store.gno:29 #0: count=2

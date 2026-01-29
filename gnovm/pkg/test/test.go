@@ -151,8 +151,9 @@ type TestOptions struct {
 	// Path to pprof file for benchops profiling results.
 	OpsProfile string
 
-	// benchResults accumulates profiling results across tests for pprof output.
-	benchResults []*benchops.Results
+	// benchResults accumulates profiling results across tests for output.
+	// Each entry includes Package/Test metadata for JSONL output format.
+	benchResults []benchops.BenchEvent
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -173,10 +174,14 @@ func (opts *TestOptions) benchEnabled() bool {
 	return opts.Benchops || opts.OpsProfile != ""
 }
 
-// collectBenchResults accumulates profiling results for pprof output.
-func (opts *TestOptions) collectBenchResults(results *benchops.Results) {
+// collectBenchResults accumulates profiling results for output.
+func (opts *TestOptions) collectBenchResults(pkgPath, testName string, results *benchops.Results) {
 	if results != nil && opts.OpsProfile != "" {
-		opts.benchResults = append(opts.benchResults, results)
+		opts.benchResults = append(opts.benchResults, benchops.BenchEvent{
+			Package: pkgPath,
+			Test:    testName,
+			Profile: results,
+		})
 	}
 }
 
@@ -247,18 +252,37 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
 
-	// Write accumulated pprof results at the end if requested
+	// Write accumulated results at the end if requested
 	if benchops.Enabled && opts.OpsProfile != "" {
 		defer func() {
-			if len(opts.benchResults) > 0 {
-				// Merge all results and write pprof
-				merged := benchops.MergeResults(opts.benchResults...)
-				f, err := os.Create(opts.OpsProfile)
-				if err != nil {
-					fmt.Fprintf(opts.Error, "warning: could not create opsprofile file: %v\n", err)
-					return
+			if len(opts.benchResults) == 0 {
+				return
+			}
+
+			f, err := os.Create(opts.OpsProfile)
+			if err != nil {
+				fmt.Fprintf(opts.Error, "warning: could not create opsprofile file: %v\n", err)
+				return
+			}
+			defer f.Close()
+
+			// Choose output format based on file extension
+			if benchops.IsJSONFormat(opts.OpsProfile) {
+				// Write JSONL format (one JSON object per line)
+				enc := json.NewEncoder(f)
+				for _, event := range opts.benchResults {
+					if err := enc.Encode(event); err != nil {
+						fmt.Fprintf(opts.Error, "warning: could not write benchops event: %v\n", err)
+						return
+					}
 				}
-				defer f.Close()
+			} else {
+				// Default: merge all results and write pprof format
+				profiles := make([]*benchops.Results, len(opts.benchResults))
+				for i, event := range opts.benchResults {
+					profiles[i] = event.Profile
+				}
+				merged := benchops.MergeResults(profiles...)
 				if err := merged.WritePprof(f); err != nil {
 					fmt.Fprintf(opts.Error, "warning: could not write opsprofile: %v\n", err)
 				}
@@ -399,7 +423,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 					fmt.Fprintf(opts.Error, "\n--- Benchops: %s ---\n", testFileName)
 					benchResults.WriteReportN(opts.Error, 10)
 				}
-				opts.collectBenchResults(benchResults)
+				opts.collectBenchResults(mpkg.Path, testName, benchResults)
 			}
 		}
 	}
@@ -600,7 +624,7 @@ func (opts *TestOptions) runTestFiles(
 				fmt.Fprintf(opts.Error, "\n--- Benchops: %s ---\n", tf.Name)
 				benchResults.WriteReportN(opts.Error, 10)
 			}
-			opts.collectBenchResults(benchResults)
+			opts.collectBenchResults(mpkg.Path, tf.Name, benchResults)
 		}
 
 		if opts.Metrics {

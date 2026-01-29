@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -91,7 +92,7 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 		&c.opsProfile,
 		"benchops-profile",
 		"",
-		"write operation profiling results to pprof file (requires -tags gnobench build)",
+		"write operation profiling results to file; JSON if .json/.jsonl extension, pprof otherwise (requires -tags gnobench build)",
 	)
 }
 
@@ -270,16 +271,8 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 			}
 
 			if cfg.opsProfile != "" {
-				f, err := os.Create(cfg.opsProfile)
-				if err != nil {
-					cio.ErrPrintfln("warning: could not create opsprofile file: %v", err)
-				} else {
-					if err := results.WritePprof(f); err != nil {
-						cio.ErrPrintfln("warning: could not write opsprofile: %v", err)
-					}
-					if err := f.Close(); err != nil {
-						cio.ErrPrintfln("warning: could not close opsprofile file: %v", err)
-					}
+				if err := writeOpsProfile(cfg.opsProfile, results, cio); err != nil {
+					cio.ErrPrintfln("warning: %v", err)
 				}
 			}
 		}()
@@ -358,6 +351,31 @@ func runExpr(m *gno.Machine, expr string) (err error) {
 		}
 	}()
 	m.Eval(ex)
+	return nil
+}
+
+// writeOpsProfile writes benchops results to a file.
+// Format is JSON if filename ends in .json/.jsonl, pprof otherwise.
+func writeOpsProfile(filename string, results *benchops.Results, cio commands.IO) error {
+	f, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("could not create opsprofile file: %w", err)
+	}
+	defer func() {
+		if cerr := f.Close(); cerr != nil {
+			cio.ErrPrintfln("warning: could not close opsprofile file: %v", cerr)
+		}
+	}()
+
+	if benchops.IsJSONFormat(filename) {
+		if err := json.NewEncoder(f).Encode(results); err != nil {
+			return fmt.Errorf("could not write opsprofile: %w", err)
+		}
+	} else {
+		if err := results.WritePprof(f); err != nil {
+			return fmt.Errorf("could not write opsprofile: %w", err)
+		}
+	}
 	return nil
 }
 
