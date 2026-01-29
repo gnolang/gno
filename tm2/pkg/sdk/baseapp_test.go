@@ -1018,7 +1018,7 @@ func TestOutOfGasLogWithoutConsensusMaxGasHint(t *testing.T) {
 	require.True(t, res.IsErr())
 	_, ok := res.Error.(std.OutOfGasError)
 	require.True(t, ok)
-	assert.NotContains(t, res.Log, "hit consensus maxGas")
+	assert.Contains(t, res.Log, "hit tx gas limit")
 }
 
 func TestSimulationOutOfGasSpecialCase(t *testing.T) {
