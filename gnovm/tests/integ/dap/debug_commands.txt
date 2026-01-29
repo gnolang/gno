@@ -1,0 +1,10 @@
+help
+list
+break 6
+continue
+print x
+print y
+next
+print z
+stack
+quit
