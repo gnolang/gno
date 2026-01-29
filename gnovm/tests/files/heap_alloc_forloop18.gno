@@ -10,7 +10,7 @@ func main() {
 }
 
 // Preprocessed:
-// file{ package main; func main() { for .loopvar_i<!~VPBlock(1,0)>, .loopvar_j<!~VPBlock(1,1)> := (const (0 int)), (const (10 int)); .loopvar_i<~VPBlock(1,0)> < .loopvar_j<~VPBlock(1,1)>; .loopvar_i<~VPBlock(1,0)>, .loopvar_j<~VPBlock(1,1)> = .loopvar_i<~VPBlock(1,0)> + (const (1 int)), .loopvar_j<~VPBlock(1,1)> - (const (1 int)) func func(){ (const (println func(...interface {})))(.loopvar_i<~VPBlock(1,0)>, .loopvar_j<~VPBlock(1,1)>) }<.loopvar_i<()~VPBlock(1,0)>, .loopvar_j<()~VPBlock(1,1)>>(); .loopvar_i<@!~VPBlock(1,0)> = .loopvar_i<~VPBlock(1,0)>; .loopvar_j<@!~VPBlock(1,1)> = .loopvar_j<~VPBlock(1,1)>  } }
+// file{ package main; func main() { for .loopvar_i<!~VPBlock(1,0)>, .loopvar_j<!~VPBlock(1,1)> := (const (0 int)), (const (10 int)); .loopvar_i<~VPBlock(1,0)> < .loopvar_j<~VPBlock(1,1)>; .loopvar_i<~VPBlock(1,0)>, .loopvar_j<~VPBlock(1,1)> = .loopvar_i<~VPBlock(1,0)> + (const (1 int)), .loopvar_j<~VPBlock(1,1)> - (const (1 int)) { func func(){ (const (println func(...interface {})))(.loopvar_i<~VPBlock(1,0)>, .loopvar_j<~VPBlock(1,1)>) }<.loopvar_i<()~VPBlock(1,0)>, .loopvar_j<()~VPBlock(1,1)>>(); .loopvar_i<@!~VPBlock(1,0)> = .loopvar_i<~VPBlock(1,0)>; .loopvar_j<@!~VPBlock(1,1)> = .loopvar_j<~VPBlock(1,1)> } } }
 
 // Output:
 // 0 10

@@ -12,7 +12,7 @@ func main() {
 }
 
 // Preprocessed:
-// file{ package main; var ps<!~VPBlock(2,0)> []*((const-type int)); func main() { for .loopvar_i<!~VPBlock(1,0)> := (const (0 int)); .loopvar_i<~VPBlock(1,0)> < (const (3 int)); .loopvar_i<~VPBlock(1,0)>++ ps<~VPBlock(4,0)> = (const (append func([]*int, ...*int) []*int))(ps<~VPBlock(4,0)>, &(.loopvar_i<~VPBlock(1,0)>)); .loopvar_i<@!~VPBlock(1,0)> = .loopvar_i<~VPBlock(1,0)> ; for _<VPBlock(0,0)>, v<!VPBlock(1,0)> := range ps<~VPBlock(4,0)> { (const (println func(...interface {})))(*(v<VPBlock(1,0)>)) } } }
+// file{ package main; var ps<!~VPBlock(2,0)> []*((const-type int)); func main() { for .loopvar_i<!~VPBlock(1,0)> := (const (0 int)); .loopvar_i<~VPBlock(1,0)> < (const (3 int)); .loopvar_i<~VPBlock(1,0)>++ { ps<~VPBlock(4,0)> = (const (append func([]*int, ...*int) []*int))(ps<~VPBlock(4,0)>, &(.loopvar_i<~VPBlock(1,0)>)); .loopvar_i<@!~VPBlock(1,0)> = .loopvar_i<~VPBlock(1,0)> }; for _<VPBlock(0,0)>, v<!VPBlock(1,0)> := range ps<~VPBlock(4,0)> { (const (println func(...interface {})))(*(v<VPBlock(1,0)>)) } } }
 
 // Output:
 // 0
