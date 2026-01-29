@@ -40,7 +40,7 @@ func SetupGnoBench(p *testscript.Params, homeDir, buildDir string) error {
 
 // ---- Exported Bench State and Commands for Reuse
 
-const defaultProfileFile = "profile.json"
+const defaultProfileFile = "profile.golden"
 
 // BenchState tracks profiling state during a testscript test.
 type BenchState struct {

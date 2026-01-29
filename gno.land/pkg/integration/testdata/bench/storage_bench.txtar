@@ -11,12 +11,12 @@ loadpkg gno.land/r/bench/storage $WORK/storage
 gnoland start
 
 # Profile AddPost operation (writes to all 3 board types)
-bench start addpost.json
+bench start addpost.golden
 gnokey maketx call -pkgpath gno.land/r/bench/storage -func AddPost -args "Hello" -args "World" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid tendermint_test test1
 bench stop
 
 # Profile GetPost operation
-bench start getpost.json
+bench start getpost.golden
 gnokey maketx call -pkgpath gno.land/r/bench/storage -func GetPost -args "0" -args "0" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid tendermint_test test1
 bench stop
 
@@ -184,7 +184,7 @@ func GetBoardSize(cur realm) int {
 	return boards.Size()
 }
 
--- addpost.json --
+-- addpost.golden --
 Opcodes:
   OpAdd: count=8 gas=144
   OpAddAssign: count=6 gas=510
@@ -319,7 +319,7 @@ Variables:
   tree.gno:66 newnode: count=2
   tree.gno:66 updated: count=2
   tree.gno:67 node: count=2
--- getpost.json --
+-- getpost.golden --
 Opcodes:
   OpAdd: count=8 gas=144
   OpAssign: count=6 gas=474

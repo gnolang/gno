@@ -3,8 +3,8 @@
 # This test profiles the same function with different arguments to verify
 # that benchops correctly captures different operation counts.
 #
-# - profile_10a.json and profile_10b.json: same function, same arg (10 iterations)
-# - profile_100.json: same function, different arg (100 iterations)
+# - profile_10a.golden and profile_10b.golden: same function, same arg (10 iterations)
+# - profile_100.golden: same function, different arg (100 iterations)
 #
 # Profile outputs are automatically written to this file when
 # running with UPDATE_SCRIPTS=true
@@ -15,26 +15,26 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/loop -pkgpath gno.land/r/$test1_user_addr/loop -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 
 # Profile first call with 10 iterations
-bench start profile_10a.json
+bench start profile_10a.golden
 gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/loop -func Loop -args 10 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 bench stop
 
 # Profile second call with 10 iterations (should match profile_10a)
-bench start profile_10b.json
+bench start profile_10b.golden
 gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/loop -func Loop -args 10 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 bench stop
 
 # Profile call with 100 iterations (should have ~10x more ops)
-bench start profile_100.json
+bench start profile_100.golden
 gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/loop -func Loop -args 100 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 bench stop
 
 # Verify that identical calls produce identical deterministic profiles
 # (Store is excluded from comparison since it varies between runs)
-cmpbench profile_10a.json profile_10b.json opcodes,hotspots
+cmpbench profile_10a.golden profile_10b.golden opcodes,hotspots
 
 # Verify that different iteration counts produce different profiles
-! cmpbench profile_10a.json profile_100.json opcodes,hotspots
+! cmpbench profile_10a.golden profile_100.golden opcodes,hotspots
 
 -- loop/gnomod.toml --
 module = "loop"
@@ -57,7 +57,7 @@ func Loop(cur realm, n int) int {
 func GetTotal() int {
 	return total
 }
--- profile_10a.json --
+-- profile_10a.golden --
 Opcodes:
   OpBody: count=4 gas=172
   OpCall: count=2 gas=512
@@ -89,7 +89,7 @@ Variables:
   loop.gno:6 #0: count=2
   loop.gno:6 #1: count=2
   loop.gno:7 i: count=2
--- profile_10b.json --
+-- profile_10b.golden --
 Opcodes:
   OpBody: count=4 gas=172
   OpCall: count=2 gas=512
@@ -120,7 +120,7 @@ Variables:
   loop.gno:6 #0: count=2
   loop.gno:6 #1: count=2
   loop.gno:7 i: count=2
--- profile_100.json --
+-- profile_100.golden --
 Opcodes:
   OpBody: count=4 gas=172
   OpCall: count=2 gas=512

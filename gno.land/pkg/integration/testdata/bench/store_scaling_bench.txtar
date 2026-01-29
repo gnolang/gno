@@ -6,26 +6,26 @@ loadpkg gno.land/r/bench/scalestore $WORK/scalestore
 gnoland start
 
 # Profile small object operations (< 100 bytes)
-bench start small_write.json
+bench start small_write.golden
 gnokey maketx call -pkgpath gno.land/r/bench/scalestore -func SetSmall -args "test" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 bench stop
 
-bench start small_read.json
+bench start small_read.golden
 gnokey maketx call -pkgpath gno.land/r/bench/scalestore -func GetSmall -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 bench stop
 
 # Profile large object operations (> 1KB)
-bench start large_write.json
+bench start large_write.golden
 gnokey maketx call -pkgpath gno.land/r/bench/scalestore -func SetLarge -args "test" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid tendermint_test test1
 bench stop
 
-bench start large_read.json
+bench start large_read.golden
 gnokey maketx call -pkgpath gno.land/r/bench/scalestore -func GetLarge -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid tendermint_test test1
 bench stop
 
 # Verify profiles were created
-jsonbench small_write.json store
-jsonbench large_write.json store
+jsonbench small_write.golden store
+jsonbench large_write.golden store
 
 -- scalestore/gnomod.toml --
 module = "gno.land/r/bench/scalestore"
@@ -76,7 +76,7 @@ func itoa(i int) string {
 	return s
 }
 
--- small_write.json --
+-- small_write.golden --
 Store:
   StoreGetBlockNode: count=6 size=0
   StoreGetObject: count=24 size=12114
@@ -84,7 +84,7 @@ Store:
   StoreSetObject: count=2 size=498
   StoreSetPackageRealm: count=2 size=160
 
--- large_write.json --
+-- large_write.golden --
 Store:
   StoreDeleteObject: count=2 size=0
   StoreGetBlockNode: count=8 size=0

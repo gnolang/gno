@@ -6,7 +6,7 @@
 gnoland start
 
 # Profile the addpkg transaction
-bench start profile.json
+bench start profile.golden
 
 gnokey maketx addpkg -pkgdir $WORK/counter -pkgpath gno.land/r/$test1_user_addr/counter -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 
@@ -29,7 +29,7 @@ func Inc(cur realm) int {
 func Get() int {
 	return count
 }
--- profile.json --
+-- profile.golden --
 Opcodes:
   OpEval: count=26 gas=754
   OpExec: count=2 gas=50

@@ -180,7 +180,7 @@ func exportPprofProfiles(env *testscript.Env, profileDir string) {
 
 	// Process each generated profile file
 	for _, filename := range state.Files {
-		pprofName := strings.TrimSuffix(filename, ".json") + ".pprof"
+		pprofName := strings.TrimSuffix(filename, ".golden") + ".pprof"
 		pprofPath := filepath.Join(outDir, pprofName)
 
 		if err := exportSinglePprof(env.WorkDir, filename, pprofPath); err != nil {

@@ -1,0 +1,54 @@
+# Example: Bench Command Usage
+#
+# This example demonstrates the bench commands available in txtar tests.
+#
+# ---- Available Commands ----
+#
+#   bench start [filename] [sections]
+#       Start profiling. Output will be written to the specified file.
+#       Default filename: profile.golden
+#       Sections: opcodes, store, native, hotspots, all (comma-separated)
+#
+#   bench stop
+#       Stop profiling and write results to the output file.
+#
+#   jsonbench <file> [sections]
+#       Parse and display bench profile in deterministic golden format.
+#       Useful for inspecting profile contents during test development.
+#
+#   cmpbench <file1> <file2> [sections]
+#       Compare two bench profiles by their deterministic fields.
+#       Use with ! prefix to assert files differ: ! cmpbench a.golden b.golden
+#
+# ---- File Extension Convention ----
+#
+#   .golden  - Golden format output (deterministic, human-readable)
+#              This is what gets embedded in txtar files.
+#
+#   .json    - Raw JSON format (contains timing data, non-deterministic)
+#              Written during test execution, then converted to golden.
+#
+#   .pprof   - pprof format for visualization tools (go tool pprof)
+#              Exported when PPROF_DIR is set.
+#
+# ---- Updating Golden Files ----
+#
+# Run tests with UPDATE_SCRIPTS=true to update embedded golden output:
+#
+#   UPDATE_SCRIPTS=true go test -tags gnobench ./...
+#
+# Or use the Makefile target:
+#
+#   make update.benchops
+
+gnoland start
+
+# Test basic bench start/stop cycle
+bench start first.golden
+bench stop
+
+# Test multiple bench cycles
+bench start second.golden
+bench stop
+-- first.golden --
+-- second.golden --
