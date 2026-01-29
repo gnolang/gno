@@ -359,6 +359,14 @@ func CmdBenchWithState(ts *testscript.TestScript, state *BenchState, args []stri
 		state.Files = append(state.Files, state.OutputFile)
 		ts.Logf("bench: stopped profiling, wrote %s", state.OutputFile)
 
+		// Log full human-readable report (visible with -v flag)
+		var reportBuf strings.Builder
+		reportBuf.WriteString("\n=== Benchops Report: ")
+		reportBuf.WriteString(state.OutputFile)
+		reportBuf.WriteString(" ===\n")
+		results.WriteReport(&reportBuf)
+		ts.Logf("%s", reportBuf.String())
+
 	default:
 		ts.Fatalf("bench: unknown subcommand %q (use 'start' or 'stop')", args[0])
 	}

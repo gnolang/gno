@@ -59,61 +59,95 @@ func GetTotal() int {
 }
 -- profile_10a.json --
 Opcodes:
-  OpBody: count=4 gas=43
-  OpCall: count=2 gas=256
-  OpDefine: count=2 gas=111
-  OpEnterCrossing: count=2 gas=100
-  OpEval: count=86 gas=29
-  OpExec: count=2 gas=25
-  OpForLoop: count=42 gas=27
-  OpHalt: count=14 gas=1
-  OpInc: count=40 gas=76
-  OpLss: count=22 gas=13
-  OpPopBlock: count=8 gas=3
-  OpPrecall: count=2 gas=207
-  OpReturn: count=2 gas=38
-  OpSelector: count=2 gas=32
-  OpVoid: count=236 gas=1
+  OpBody: count=4 gas=172
+  OpCall: count=2 gas=512
+  OpDefine: count=2 gas=222
+  OpEnterCrossing: count=2 gas=200
+  OpEval: count=86 gas=2494
+  OpExec: count=2 gas=50
+  OpForLoop: count=42 gas=1134
+  OpHalt: count=14 gas=14
+  OpInc: count=40 gas=3040
+  OpLss: count=22 gas=286
+  OpPopBlock: count=8 gas=24
+  OpPrecall: count=2 gas=414
+  OpReturn: count=2 gas=76
+  OpSelector: count=2 gas=64
+Store:
+  StoreGetBlockNode: count=6 size=0
+  StoreGetObject: count=14 size=5986
+  StoreGetPackageRealm: count=4 size=436
+  StoreSetObject: count=2 size=442
+  StoreSetPackageRealm: count=2 size=218
 HotSpots:
   loop.gno:7 -: count=26 gas=1850
   loop.gno:8 -: count=20 gas=1520
+SubOps:
+  DefineVar: count=2
+  ParamAssign: count=4
+Variables:
+  loop.gno:6 #0: count=2
+  loop.gno:6 #1: count=2
+  loop.gno:7 i: count=2
 -- profile_10b.json --
 Opcodes:
-  OpBody: count=4 gas=43
-  OpCall: count=2 gas=256
-  OpDefine: count=2 gas=111
-  OpEnterCrossing: count=2 gas=100
-  OpEval: count=86 gas=29
-  OpExec: count=2 gas=25
-  OpForLoop: count=42 gas=27
-  OpHalt: count=14 gas=1
-  OpInc: count=40 gas=76
-  OpLss: count=22 gas=13
-  OpPopBlock: count=8 gas=3
-  OpPrecall: count=2 gas=207
-  OpReturn: count=2 gas=38
-  OpSelector: count=2 gas=32
-  OpVoid: count=236 gas=1
+  OpBody: count=4 gas=172
+  OpCall: count=2 gas=512
+  OpDefine: count=2 gas=222
+  OpEnterCrossing: count=2 gas=200
+  OpEval: count=86 gas=2494
+  OpExec: count=2 gas=50
+  OpForLoop: count=42 gas=1134
+  OpHalt: count=14 gas=14
+  OpInc: count=40 gas=3040
+  OpLss: count=22 gas=286
+  OpPopBlock: count=8 gas=24
+  OpPrecall: count=2 gas=414
+  OpReturn: count=2 gas=76
+  OpSelector: count=2 gas=64
+Store:
+  StoreGetBlockNode: count=6 size=0
+  StoreGetObject: count=14 size=5996
+  StoreGetPackageRealm: count=2 size=218
+  StoreSetObject: count=2 size=442
 HotSpots:
   loop.gno:7 -: count=26 gas=1850
   loop.gno:8 -: count=20 gas=1520
+SubOps:
+  DefineVar: count=2
+  ParamAssign: count=4
+Variables:
+  loop.gno:6 #0: count=2
+  loop.gno:6 #1: count=2
+  loop.gno:7 i: count=2
 -- profile_100.json --
 Opcodes:
-  OpBody: count=4 gas=43
-  OpCall: count=2 gas=256
-  OpDefine: count=2 gas=111
-  OpEnterCrossing: count=2 gas=100
-  OpEval: count=626 gas=29
-  OpExec: count=2 gas=25
-  OpForLoop: count=402 gas=27
-  OpHalt: count=14 gas=1
-  OpInc: count=400 gas=76
-  OpLss: count=202 gas=13
-  OpPopBlock: count=8 gas=3
-  OpPrecall: count=2 gas=207
-  OpReturn: count=2 gas=38
-  OpSelector: count=2 gas=32
-  OpVoid: count=1676 gas=1
+  OpBody: count=4 gas=172
+  OpCall: count=2 gas=512
+  OpDefine: count=2 gas=222
+  OpEnterCrossing: count=2 gas=200
+  OpEval: count=626 gas=18154
+  OpExec: count=2 gas=50
+  OpForLoop: count=402 gas=10854
+  OpHalt: count=14 gas=14
+  OpInc: count=400 gas=30400
+  OpLss: count=202 gas=2626
+  OpPopBlock: count=8 gas=24
+  OpPrecall: count=2 gas=414
+  OpReturn: count=2 gas=76
+  OpSelector: count=2 gas=64
+Store:
+  StoreGetBlockNode: count=6 size=0
+  StoreGetObject: count=14 size=5996
+  StoreGetPackageRealm: count=2 size=218
+  StoreSetObject: count=2 size=442
 HotSpots:
   loop.gno:7 -: count=206 gas=15530
   loop.gno:8 -: count=200 gas=15200
+SubOps:
+  DefineVar: count=2
+  ParamAssign: count=4
+Variables:
+  loop.gno:6 #0: count=2
+  loop.gno:6 #1: count=2
+  loop.gno:7 i: count=2

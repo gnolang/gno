@@ -31,8 +31,8 @@ func Example_globalAPI() {
 	// Stop profiling and get results
 	results := benchops.Stop()
 
-	// Print human-readable report to stdout
-	results.WriteReport(os.Stdout, 10)
+	// Print human-readable report to stdout (top 10 entries per section)
+	results.WriteReportN(os.Stdout, 10)
 }
 
 // Example_profilerDirect demonstrates direct Profiler usage without globals.

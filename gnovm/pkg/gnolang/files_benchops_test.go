@@ -3,6 +3,7 @@
 package gnolang_test
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/fs"
@@ -15,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBenchOpsFiles tests gasprofile files in "gnovm/tests/files".
+// TestBenchOpsFiles tests benchops files in "gnovm/tests/bench_files".
 // Requires -tags gnobench build tag.
 //
 // Cheatsheet:
@@ -23,7 +24,7 @@ import (
 //	run all benchops file tests:
 //		go test -tags gnobench -run TestBenchOpsFiles -short
 //	run a specific test:
-//		go test -tags gnobench -run TestBenchOpsFiles/gasprofile_basic
+//		go test -tags gnobench -run TestBenchOpsFiles/basic
 //	update golden tests:
 //		go test -tags gnobench -run TestBenchOpsFiles -short -update-golden-tests
 func TestBenchOpsFiles(t *testing.T) {
@@ -32,12 +33,13 @@ func TestBenchOpsFiles(t *testing.T) {
 	rootDir, err := filepath.Abs("../../../")
 	require.NoError(t, err)
 
-	newOpts := func() *test.TestOptions {
+	newOpts := func(reportBuf *bytes.Buffer) *test.TestOptions {
 		o := &test.TestOptions{
-			RootDir: rootDir,
-			Output:  io.Discard,
-			Error:   io.Discard,
-			Sync:    *withSync,
+			RootDir:  rootDir,
+			Output:   io.Discard,
+			Error:    reportBuf, // Capture benchops report here
+			Sync:     *withSync,
+			Benchops: true, // Enable human-readable report output
 		}
 		o.BaseStore, o.TestStore = test.StoreWithOptions(
 			rootDir, o.WriterForStore(),
@@ -45,24 +47,19 @@ func TestBenchOpsFiles(t *testing.T) {
 		)
 		return o
 	}
-	sharedOpts := newOpts()
+	sharedReportBuf := &bytes.Buffer{}
+	sharedOpts := newOpts(sharedReportBuf)
 
-	dir := "../../tests/files"
+	dir := "../../tests/bench_files"
 	fsys := os.DirFS(dir)
 	err = fs.WalkDir(fsys, ".", func(path string, de fs.DirEntry, err error) error {
 		switch {
 		case err != nil:
 			return err
-		case path == "extern":
-			return fs.SkipDir
 		case de.IsDir():
 			return nil
 		}
 
-		// Only process gasprofile_*.gno files
-		if !strings.HasPrefix(filepath.Base(path), "gasprofile_") {
-			return nil
-		}
 		if !strings.HasSuffix(path, ".gno") {
 			return nil
 		}
@@ -84,10 +81,16 @@ func TestBenchOpsFiles(t *testing.T) {
 		var criticalError error
 		t.Run(subTestName, func(t *testing.T) {
 			opts := sharedOpts
+			reportBuf := sharedReportBuf
 			if isLong {
 				t.Parallel()
-				opts = newOpts()
+				reportBuf = &bytes.Buffer{}
+				opts = newOpts(reportBuf)
 			}
+
+			// Reset buffer before test
+			reportBuf.Reset()
+
 			changed, err := opts.RunFiletest(path, content, opts.TestStore)
 			if err != nil {
 				t.Fatal(err.Error())
@@ -97,6 +100,11 @@ func TestBenchOpsFiles(t *testing.T) {
 				if err != nil {
 					criticalError = fmt.Errorf("could not fix golden file: %w", err)
 				}
+			}
+
+			// Log the benchops report (visible with -v flag)
+			if reportBuf.Len() > 0 {
+				t.Log(reportBuf.String())
 			}
 		})
 

@@ -99,9 +99,16 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck)
 
 	// Stop profiler and capture results
+	var benchResults *benchops.Results
 	if gasprofileEnabled && benchops.IsRunning() {
-		results := benchops.Stop()
-		gasprofileOutput = formatGasprofileOutput(results)
+		benchResults = benchops.Stop()
+		gasprofileOutput = formatGasprofileOutput(benchResults)
+	}
+
+	// Print full human report if Benchops option is enabled
+	if benchResults != nil && opts.Benchops {
+		fmt.Fprintf(opts.Error, "\n=== Benchops Report: %s ===\n", fname)
+		benchResults.WriteReport(opts.Error)
 	}
 
 	// updated tells whether the directives have been updated, and as such

@@ -3,10 +3,13 @@
 package integration
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/benchops"
 	gnointegration "github.com/gnolang/gno/gnovm/pkg/integration"
 	"github.com/rogpeppe/go-internal/testscript"
 	"golang.org/x/tools/txtar"
@@ -25,8 +28,11 @@ type benchSourceKey struct{}
 // When updateScripts is true, profile outputs are automatically written back
 // to the txtar file as `-- <filename> --` sections.
 //
+// When profileDir is non-empty, pprof files are automatically written to
+// profileDir/{testName}/profile.pprof at the end of each test.
+//
 // Note: This function assumes sequential test execution since benchops uses global state.
-func SetupGnolandBenchInMemory(p *testscript.Params, testDir string, updateScripts bool) {
+func SetupGnolandBenchInMemory(p *testscript.Params, testDir string, updateScripts bool, profileDir string) {
 	// Build a list of txtar files
 	txtarFiles, err := filepath.Glob(filepath.Join(testDir, "*.txtar"))
 	if err != nil {
@@ -56,6 +62,13 @@ func SetupGnolandBenchInMemory(p *testscript.Params, testDir string, updateScrip
 		if updateScripts && sourcePath != "" {
 			env.Defer(func() {
 				updateTxtarWithProfiles(env)
+			})
+		}
+
+		// Register deferred pprof export when profileDir is set
+		if profileDir != "" {
+			env.Defer(func() {
+				exportPprofProfiles(env, profileDir)
 			})
 		}
 
@@ -142,6 +155,69 @@ func updateTxtarWithProfiles(env *testscript.Env) {
 	}
 
 	env.T().Log(fmt.Sprintf("bench: updated txtar %s", sourcePath))
+}
+
+// exportPprofProfiles reads generated profile files and exports them as pprof files.
+func exportPprofProfiles(env *testscript.Env, profileDir string) {
+	state, ok := env.Values[benchEnvKey{}].(*gnointegration.BenchState)
+	if !ok || len(state.Files) == 0 {
+		return
+	}
+
+	// Derive test name from the source txtar file
+	sourcePath, _ := env.Values[benchSourceKey{}].(string)
+	testName := "unknown"
+	if sourcePath != "" {
+		testName = strings.TrimSuffix(filepath.Base(sourcePath), ".txtar")
+	}
+
+	// Create output directory: profileDir/{testName}/
+	outDir := filepath.Join(profileDir, testName)
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		env.T().Log(fmt.Sprintf("pprof: failed to create directory %s: %v", outDir, err))
+		return
+	}
+
+	// Process each generated profile file
+	for _, filename := range state.Files {
+		pprofName := strings.TrimSuffix(filename, ".json") + ".pprof"
+		pprofPath := filepath.Join(outDir, pprofName)
+
+		if err := exportSinglePprof(env.WorkDir, filename, pprofPath); err != nil {
+			env.T().Log(fmt.Sprintf("pprof: %v", err))
+			continue
+		}
+		env.T().Log(fmt.Sprintf("pprof: wrote %s", pprofPath))
+	}
+}
+
+// exportSinglePprof converts a single JSON profile to pprof format.
+func exportSinglePprof(workDir, filename, pprofPath string) (err error) {
+	profilePath := filepath.Join(workDir, filename)
+	data, err := os.ReadFile(profilePath)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", profilePath, err)
+	}
+
+	var results benchops.Results
+	if err := json.Unmarshal(data, &results); err != nil {
+		return fmt.Errorf("failed to parse %s: %w", filename, err)
+	}
+
+	f, err := os.Create(pprofPath)
+	if err != nil {
+		return fmt.Errorf("failed to create %s: %w", pprofPath, err)
+	}
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("failed to close %s: %w", pprofPath, cerr)
+		}
+	}()
+
+	if err := results.WritePprof(f); err != nil {
+		return fmt.Errorf("failed to write pprof: %w", err)
+	}
+	return nil
 }
 
 // findSourceTxtar tries to find which txtar file corresponds to the given WorkDir

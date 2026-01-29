@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,11 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
 )
+
+// benchProfileDir specifies a directory to write pprof profiles (one per test).
+// When set, each test will automatically export its profiling results to a
+// pprof file at profileDir/{testName}/profile.pprof.
+var benchProfileDir = flag.String("bench-profile-dir", "", "directory to write pprof profiles (one per test)")
 
 func TestBenchOpsIntegration(t *testing.T) {
 	// Bench tests run sequentially to avoid profiler conflicts
@@ -40,7 +46,7 @@ func TestBenchOpsIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Add benchops profiling support with auto-update of txtar files
-	SetupGnolandBenchInMemory(&p, testdir, updateScripts)
+	SetupGnolandBenchInMemory(&p, testdir, updateScripts, *benchProfileDir)
 
 	// Force in-memory mode for bench tests (no RPC, runs in same process)
 	origSetup := p.Setup

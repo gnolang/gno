@@ -1,0 +1,94 @@
+# Test store operations with different object sizes
+# Compares small vs large object read/write costs to quantify 630x variability
+
+loadpkg gno.land/r/bench/scalestore $WORK/scalestore
+
+gnoland start
+
+# Profile small object operations (< 100 bytes)
+bench start small_write.json
+gnokey maketx call -pkgpath gno.land/r/bench/scalestore -func SetSmall -args "test" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+bench stop
+
+bench start small_read.json
+gnokey maketx call -pkgpath gno.land/r/bench/scalestore -func GetSmall -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+bench stop
+
+# Profile large object operations (> 1KB)
+bench start large_write.json
+gnokey maketx call -pkgpath gno.land/r/bench/scalestore -func SetLarge -args "test" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid tendermint_test test1
+bench stop
+
+bench start large_read.json
+gnokey maketx call -pkgpath gno.land/r/bench/scalestore -func GetLarge -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid tendermint_test test1
+bench stop
+
+# Verify profiles were created
+jsonbench small_write.json store
+jsonbench large_write.json store
+
+-- scalestore/gnomod.toml --
+module = "gno.land/r/bench/scalestore"
+gno = "0.9"
+
+-- scalestore/store.gno --
+package scalestore
+
+// Small object: single string field
+var smallData string
+
+func SetSmall(cur realm, value string) {
+	smallData = value
+}
+
+func GetSmall(cur realm) string {
+	return smallData
+}
+
+// Large object: slice with many elements
+var largeData []string
+
+func init() {
+	largeData = make([]string, 0)
+}
+
+func SetLarge(cur realm, prefix string) {
+	// Create 100 entries to make a larger object
+	largeData = make([]string, 100)
+	for i := 0; i < 100; i++ {
+		largeData[i] = prefix + "_entry_" + itoa(i)
+	}
+}
+
+func GetLarge(cur realm) []string {
+	return largeData
+}
+
+func itoa(i int) string {
+	if i == 0 {
+		return "0"
+	}
+	s := ""
+	for i > 0 {
+		s = string(rune('0'+i%10)) + s
+		i /= 10
+	}
+	return s
+}
+
+-- small_write.json --
+Store:
+  StoreGetBlockNode: count=6 size=0
+  StoreGetObject: count=24 size=12114
+  StoreGetPackageRealm: count=4 size=320
+  StoreSetObject: count=2 size=498
+  StoreSetPackageRealm: count=2 size=160
+
+-- large_write.json --
+Store:
+  StoreDeleteObject: count=2 size=0
+  StoreGetBlockNode: count=8 size=0
+  StoreGetObject: count=26 size=12532
+  StoreGetPackageRealm: count=4 size=320
+  StoreSetObject: count=4 size=16084
+  StoreSetPackageRealm: count=4 size=320

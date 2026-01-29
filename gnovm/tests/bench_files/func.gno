@@ -40,8 +40,15 @@ func main() {
 // Native:
 //   NativePrint: count=1
 // HotSpots:
-//   gasprofile_func.gno:12 main: count=7 gas=690
-//   gasprofile_func.gno:13 main: count=7 gas=690
+//   func.gno:12 main: count=7 gas=690
+//   func.gno:13 main: count=7 gas=690
 // SubOps:
 //   DefineVar: count=2
 //   ParamAssign: count=5
+// Variables:
+//   func.gno:3 #0: count=1
+//   func.gno:3 #1: count=1
+//   func.gno:7 #0: count=1
+//   func.gno:7 #1: count=1
+//   func.gno:12 x: count=1
+//   func.gno:13 y: count=1

@@ -1,0 +1,398 @@
+# Test storage operations with different data structures
+# Compares AVL tree vs map vs slice performance for persistent storage
+#
+# Profile outputs are automatically written to this file when
+# running with UPDATE_SCRIPTS=true
+
+# Preload packages before starting gnoland
+loadpkg gno.land/p/nt/avl
+loadpkg gno.land/r/bench/storage $WORK/storage
+
+gnoland start
+
+# Profile AddPost operation (writes to all 3 board types)
+bench start addpost.json
+gnokey maketx call -pkgpath gno.land/r/bench/storage -func AddPost -args "Hello" -args "World" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid tendermint_test test1
+bench stop
+
+# Profile GetPost operation
+bench start getpost.json
+gnokey maketx call -pkgpath gno.land/r/bench/storage -func GetPost -args "0" -args "0" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid tendermint_test test1
+bench stop
+
+-- storage/gnomod.toml --
+module = "storage"
+gno = "0.9"
+
+-- storage/boards.gno --
+package storage
+
+import (
+	"strconv"
+
+	"gno.land/p/nt/avl"
+)
+
+var boards avl.Tree
+
+type Board interface {
+	AddPost(title, content string)
+	GetPost(id int) (Post, bool)
+	Size() int
+}
+
+// posts are persisted in an avl tree
+type TreeBoard struct {
+	id    int
+	posts *avl.Tree
+}
+
+func (b *TreeBoard) AddPost(title, content string) {
+	n := b.posts.Size()
+	p := Post{n, title, content}
+	b.posts.Set(strconv.Itoa(n), p)
+}
+
+func (b *TreeBoard) GetPost(id int) (Post, bool) {
+	p, ok := b.posts.Get(strconv.Itoa(id))
+	if ok {
+		return p.(Post), true
+	}
+	return Post{}, false
+}
+
+func (b *TreeBoard) Size() int {
+	return b.posts.Size()
+}
+
+// posts are persisted in a map
+type MapBoard struct {
+	id    int
+	posts map[int]Post
+}
+
+func (b *MapBoard) AddPost(title, content string) {
+	n := len(b.posts)
+	p := Post{n, title, content}
+	b.posts[n] = p
+}
+
+func (b *MapBoard) GetPost(id int) (Post, bool) {
+	p, ok := b.posts[id]
+	if ok {
+		return p, true
+	}
+	return Post{}, false
+}
+
+func (b *MapBoard) Size() int {
+	return len(b.posts)
+}
+
+// posts are persisted in a slice
+type SliceBoard struct {
+	id    int
+	posts []Post
+}
+
+func (b *SliceBoard) AddPost(title, content string) {
+	n := len(b.posts)
+	p := Post{n, title, content}
+	b.posts = append(b.posts, p)
+}
+
+func (b *SliceBoard) GetPost(id int) (Post, bool) {
+	if id >= 0 && id < len(b.posts) {
+		return b.posts[id], true
+	}
+	return Post{}, false
+}
+
+func (b *SliceBoard) Size() int {
+	return len(b.posts)
+}
+
+type Post struct {
+	id      int
+	title   string
+	content string
+}
+
+-- storage/forum.gno --
+package storage
+
+import (
+	"strconv"
+
+	"gno.land/p/nt/avl"
+)
+
+func init() {
+	// we write to three common data structure for persistence
+	// avl.Tree, map and slice.
+	posts0 := avl.NewTree()
+	b0 := &TreeBoard{0, posts0}
+	boards.Set(strconv.Itoa(0), b0)
+
+	posts1 := make(map[int]Post)
+	b1 := &MapBoard{1, posts1}
+	boards.Set(strconv.Itoa(1), b1)
+
+	posts2 := []Post{}
+	b2 := &SliceBoard{2, posts2}
+	boards.Set(strconv.Itoa(2), b2)
+}
+
+// post to all boards.
+func AddPost(cur realm, title, content string) {
+	for i := 0; i < boards.Size(); i++ {
+		boardId := strconv.Itoa(i)
+		b, ok := boards.Get(boardId)
+		if ok {
+			b.(Board).AddPost(title, content)
+		}
+	}
+}
+
+func GetPost(cur realm, boardId, postId int) string {
+	b, ok := boards.Get(strconv.Itoa(boardId))
+	var res string
+
+	if ok {
+		p, ok := b.(Board).GetPost(postId)
+		if ok {
+			res = p.title + "," + p.content
+		}
+	}
+	return res
+}
+
+func GetPostSize(cur realm, boardId int) int {
+	b, ok := boards.Get(strconv.Itoa(boardId))
+	var res int
+
+	if ok {
+		res = b.(Board).Size()
+	} else {
+		res = -1
+	}
+
+	return res
+}
+
+func GetBoardSize(cur realm) int {
+	return boards.Size()
+}
+
+-- addpost.json --
+Opcodes:
+  OpAdd: count=8 gas=144
+  OpAddAssign: count=6 gas=510
+  OpAssign: count=18 gas=1422
+  OpBinary1: count=24 gas=432
+  OpBody: count=226 gas=9718
+  OpCall: count=96 gas=24576
+  OpCallNativeBody: count=6 gas=2544
+  OpCompositeLit: count=8 gas=400
+  OpConvert: count=40 gas=640
+  OpDefine: count=34 gas=3774
+  OpEnterCrossing: count=2 gas=200
+  OpEql: count=58 gas=9280
+  OpEval: count=1060 gas=30740
+  OpExec: count=10 gas=250
+  OpForLoop: count=26 gas=702
+  OpHalt: count=14 gas=14
+  OpIfCond: count=82 gas=3116
+  OpInc: count=6 gas=456
+  OpLand: count=24 gas=576
+  OpLeq: count=8 gas=152
+  OpLss: count=34 gas=442
+  OpPopBlock: count=38 gas=114
+  OpPopResults: count=8 gas=8
+  OpPrecall: count=136 gas=28152
+  OpRef: count=16 gas=2000
+  OpReturn: count=62 gas=2356
+  OpReturnAfterCopy: count=20 gas=760
+  OpReturnFromBlock: count=14 gas=504
+  OpSelector: count=170 gas=5440
+  OpSlice: count=8 gas=824
+  OpStructLit: count=8 gas=1432
+  OpSub: count=6 gas=36
+  OpTypeAssert1: count=6 gas=132
+Store:
+  StoreDeleteObject: count=2 size=0
+  StoreGetBlockNode: count=14 size=0
+  StoreGetObject: count=326 size=309352
+  StoreGetPackageRealm: count=4 size=316
+  StoreSetObject: count=18 size=7180
+  StoreSetPackageRealm: count=4 size=316
+HotSpots:
+  boards.gno:24 AddPost: count=18 gas=1508
+  boards.gno:25 AddPost: count=16 gas=970
+  boards.gno:48 AddPost: count=16 gas=1444
+  boards.gno:49 AddPost: count=16 gas=970
+  boards.gno:50 AddPost: count=12 gas=454
+  boards.gno:72 AddPost: count=16 gas=1444
+  boards.gno:73 AddPost: count=16 gas=970
+  boards.gno:74 AddPost: count=20 gas=1496
+  forum.gno:27 -: count=12 gas=786
+  forum.gno:28 -: count=48 gas=4332
+  forum.gno:29 -: count=54 gas=5082
+  forum.gno:30 -: count=12 gas=402
+  itoa.gno:26 FormatInt: count=280 gas=12608
+  itoa.gno:60 small: count=40 gas=1104
+  node.gno:28 Size: count=50 gas=2850
+  node.gno:84 Get: count=80 gas=4560
+  node.gno:88 Get: count=112 gas=5536
+  node.gno:89 Get: count=42 gas=2076
+  node.gno:97 Get: count=70 gas=1990
+  node.gno:100 Get: count=42 gas=4158
+  node.gno:101 Get: count=48 gas=4140
+  node.gno:102 Get: count=54 gas=1800
+  node.gno:133 Set: count=10 gas=570
+  tree.gno:52 Get: count=60 gas=4506
+  tree.gno:66 Set: count=22 gas=1624
+  tree.gno:67 Set: count=6 gas=274
+SubOps:
+  AssignField: count=4
+  AssignIndex: count=2
+  AssignVar: count=36
+  DefineVar: count=42
+  ParamAssign: count=154
+  StructField: count=8
+Variables:
+  boards.gno:23 #0: count=2
+  boards.gno:23 #1: count=2
+  boards.gno:23 #2: count=2
+  boards.gno:24 n: count=2
+  boards.gno:25 p: count=2
+  boards.gno:47 #0: count=2
+  boards.gno:47 #1: count=2
+  boards.gno:47 #2: count=2
+  boards.gno:48 n: count=2
+  boards.gno:49 p: count=2
+  boards.gno:50 #0: count=2
+  boards.gno:71 #0: count=2
+  boards.gno:71 #1: count=2
+  boards.gno:71 #2: count=2
+  boards.gno:72 n: count=2
+  boards.gno:73 p: count=2
+  boards.gno:74 posts: count=2
+  forum.gno:26 #0: count=2
+  forum.gno:26 #1: count=2
+  forum.gno:26 #2: count=2
+  forum.gno:27 i: count=2
+  forum.gno:28 boardId: count=6
+  forum.gno:29 b: count=6
+  forum.gno:29 ok: count=6
+  itoa.gno:25 #0: count=8
+  itoa.gno:25 #1: count=8
+  itoa.gno:34 #0: count=8
+  itoa.gno:59 #0: count=8
+  node.gno:17 #0: count=2
+  node.gno:17 #1: count=2
+  node.gno:18 height: count=2
+  node.gno:18 key: count=2
+  node.gno:18 size: count=2
+  node.gno:18 value: count=2
+  node.gno:27 #0: count=10
+  node.gno:83 #0: count=16
+  node.gno:83 #1: count=16
+  node.gno:100 rightNode: count=6
+  node.gno:101 exists: count=6
+  node.gno:101 index: count=6
+  node.gno:101 value: count=6
+  node.gno:132 #0: count=2
+  node.gno:132 #1: count=2
+  node.gno:132 #2: count=2
+  node.gno:221 #0: count=4
+  node.gno:225 #0: count=6
+  tree.gno:39 #0: count=10
+  tree.gno:51 #0: count=6
+  tree.gno:51 #1: count=6
+  tree.gno:52 _: count=6
+  tree.gno:52 exists: count=6
+  tree.gno:52 value: count=6
+  tree.gno:65 #0: count=2
+  tree.gno:65 #1: count=2
+  tree.gno:65 #2: count=2
+  tree.gno:66 newnode: count=2
+  tree.gno:66 updated: count=2
+  tree.gno:67 node: count=2
+-- getpost.json --
+Opcodes:
+  OpAdd: count=8 gas=144
+  OpAssign: count=6 gas=474
+  OpBinary1: count=12 gas=216
+  OpBody: count=78 gas=3354
+  OpCall: count=28 gas=7168
+  OpConvert: count=20 gas=320
+  OpDefine: count=6 gas=666
+  OpEnterCrossing: count=2 gas=200
+  OpEql: count=20 gas=3200
+  OpEval: count=366 gas=10614
+  OpExec: count=2 gas=50
+  OpHalt: count=14 gas=14
+  OpIfCond: count=32 gas=1216
+  OpLand: count=12 gas=288
+  OpLeq: count=4 gas=76
+  OpLss: count=10 gas=130
+  OpPopBlock: count=18 gas=54
+  OpPrecall: count=48 gas=9936
+  OpRef: count=2 gas=250
+  OpReturn: count=18 gas=684
+  OpReturnAfterCopy: count=6 gas=228
+  OpReturnFromBlock: count=4 gas=144
+  OpSelector: count=48 gas=1536
+  OpSlice: count=4 gas=412
+  OpTypeAssert1: count=4 gas=88
+  OpValueDecl: count=2 gas=226
+Store:
+  StoreGetBlockNode: count=12 size=0
+  StoreGetObject: count=308 size=302172
+  StoreGetPackageRealm: count=2 size=158
+HotSpots:
+  boards.gno:30 GetPost: count=32 gas=2730
+  boards.gno:31 GetPost: count=4 gas=134
+  forum.gno:37 GetPost: count=30 gas=2858
+  forum.gno:38 GetPost: count=6 gas=334
+  forum.gno:40 GetPost: count=4 gas=134
+  forum.gno:41 GetPost: count=22 gas=1604
+  forum.gno:42 GetPost: count=4 gas=134
+  forum.gno:43 GetPost: count=24 gas=764
+  itoa.gno:26 FormatInt: count=140 gas=6304
+  itoa.gno:60 small: count=20 gas=552
+  node.gno:84 Get: count=30 gas=1710
+  node.gno:88 Get: count=42 gas=2076
+  node.gno:89 Get: count=28 gas=1384
+  node.gno:97 Get: count=14 gas=398
+  tree.gno:52 Get: count=40 gas=3004
+SubOps:
+  AssignVar: count=14
+  DefineVar: count=12
+  ParamAssign: count=48
+Variables:
+  boards.gno:29 #0: count=2
+  boards.gno:29 #1: count=2
+  boards.gno:30 ok: count=2
+  boards.gno:30 p: count=2
+  forum.gno:36 #0: count=2
+  forum.gno:36 #1: count=2
+  forum.gno:36 #2: count=2
+  forum.gno:37 b: count=2
+  forum.gno:37 ok: count=2
+  forum.gno:41 ok: count=2
+  forum.gno:41 p: count=2
+  forum.gno:43 res: count=2
+  itoa.gno:25 #0: count=4
+  itoa.gno:25 #1: count=4
+  itoa.gno:34 #0: count=4
+  itoa.gno:59 #0: count=4
+  node.gno:83 #0: count=6
+  node.gno:83 #1: count=6
+  node.gno:221 #0: count=2
+  tree.gno:51 #0: count=4
+  tree.gno:51 #1: count=4
+  tree.gno:52 _: count=4
+  tree.gno:52 exists: count=4
+  tree.gno:52 value: count=4

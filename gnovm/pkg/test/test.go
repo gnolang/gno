@@ -397,7 +397,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			if benchResults != nil {
 				if opts.Benchops {
 					fmt.Fprintf(opts.Error, "\n--- Benchops: %s ---\n", testFileName)
-					benchResults.WriteReport(opts.Error, 10)
+					benchResults.WriteReportN(opts.Error, 10)
 				}
 				opts.collectBenchResults(benchResults)
 			}
@@ -598,7 +598,7 @@ func (opts *TestOptions) runTestFiles(
 		if benchResults != nil {
 			if opts.Benchops {
 				fmt.Fprintf(opts.Error, "\n--- Benchops: %s ---\n", tf.Name)
-				benchResults.WriteReport(opts.Error, 10)
+				benchResults.WriteReportN(opts.Error, 10)
 			}
 			opts.collectBenchResults(benchResults)
 		}

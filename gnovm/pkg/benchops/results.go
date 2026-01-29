@@ -215,8 +215,14 @@ func (r *Results) WriteJSON(w io.Writer) error {
 	return json.NewEncoder(w).Encode(r)
 }
 
-// WriteReport writes a human-readable summary.
-func (r *Results) WriteReport(w io.Writer, topN int) error {
+// WriteReport writes a full human-readable summary with all entries.
+func (r *Results) WriteReport(w io.Writer) error {
+	return r.WriteReportN(w, 0)
+}
+
+// WriteReportN writes a human-readable summary limited to topN entries per section.
+// Use topN=0 for no limit.
+func (r *Results) WriteReportN(w io.Writer, topN int) error {
 	if r == nil {
 		return nil
 	}

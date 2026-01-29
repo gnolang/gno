@@ -266,7 +266,7 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 
 			if cfg.benchops {
 				cio.ErrPrintln("\n--- Benchops Profile ---")
-				results.WriteReport(cio.Err(), 10)
+				results.WriteReportN(cio.Err(), 10)
 			}
 
 			if cfg.opsProfile != "" {

@@ -240,7 +240,7 @@ func TestResultsReport(t *testing.T) {
 	results := p.Stop()
 
 	var buf bytes.Buffer
-	err := results.WriteReport(&buf, 10)
+	err := results.WriteReportN(&buf, 10)
 	require.NoError(t, err)
 	assert.NotZero(t, buf.Len(), "expected non-empty report output")
 
@@ -450,7 +450,7 @@ func TestLocationTrackingReport(t *testing.T) {
 	results := p.Stop()
 
 	var buf bytes.Buffer
-	err := results.WriteReport(&buf, 10)
+	err := results.WriteReportN(&buf, 10)
 	require.NoError(t, err)
 
 	output := buf.String()

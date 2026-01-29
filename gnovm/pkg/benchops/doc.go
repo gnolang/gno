@@ -66,7 +66,8 @@
 // # Output Formats
 //
 //	results.WriteJSON(w)          // Compact JSON
-//	results.WriteReport(w, topN)  // Human-readable summary
+//	results.WriteReport(w)        // Human-readable summary (all entries)
+//	results.WriteReportN(w, topN) // Human-readable summary (limited to topN)
 //	results.WritePprof(w)         // pprof protobuf (go tool pprof compatible)
 //	results.WriteCSV(w)           // CSV for spreadsheet analysis
 //	results.WriteGolden(w, flags) // Deterministic output for golden tests

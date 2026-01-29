@@ -45,10 +45,12 @@ install.gnodev:
 install.gnobro:
 	$(MAKE) --no-print-directory -C ./contribs/gnobro install
 	@printf "\033[0;32m[+] 'gnobro' has been installed. Read more in ./contribs/gnobro/\033[0m\n"
+
+# benchos install for profiling
+
 .PHONY: install.benchops
 install.benchops:
 	go install -tags gnobench ./gnovm/cmd/gno
-	@printf "\033[0;32m[+] 'gno' has been installed with benchops support (gnobench tag).\033[0m\n"
 
 # old aliases
 .PHONY: install_gnokey
@@ -87,13 +89,19 @@ tidy:
 mocks:
 	$(rundep) github.com/golang/mock/mockgen -source=tm2/pkg/db/types.go -package mockdb -destination tm2/pkg/db/mockdb/mockdb.go
 
-.PHONY: update.benchops.golden
-update.benchops.golden:
-	@echo "==> Updating benchops golden tests..."
-	@echo "  -> GnoVM filetests (gasprofile_*.gno)"
-	go test -tags gnobench ./gnovm/pkg/gnolang/... -test.short --update-golden-tests -run TestBenchOpsFiles
-	@echo "  -> GnoVM CLI txtar tests"
+.PHONY: test.benchops
+test.benchops:
+	go test -tags gnobench ./gnovm/pkg/gnolang -test.short -run TestBenchOpsFiles
+	go test -tags gnobench ./gnovm/cmd/gno/... -run TestBenchOpsScripts
+	go test -tags gnobench ./gno.land/pkg/integration/... -run TestBenchOpsIntegration
+
+.PHONY: update.benchops
+update.benchops:
+	go test -tags gnobench ./gnovm/pkg/gnolang -test.short -update-golden-tests -run TestBenchOpsFiles
 	UPDATE_SCRIPTS=true go test -tags gnobench ./gnovm/cmd/gno/... -run TestBenchOpsScripts
-	@echo "  -> Gno.land integration txtar tests"
 	UPDATE_SCRIPTS=true go test -tags gnobench ./gno.land/pkg/integration/... -run TestBenchOpsIntegration
-	@echo "Done."
+
+.PHONY: bench.pprof
+bench.pprof:
+	go test -tags gnobench ./gno.land/pkg/integration -run TestBenchOpsIntegration -bench-profile-dir=./profiles -v
+	@echo "View with: go tool pprof -http=:8080 ./profiles/<test_name>/profile.pprof"
