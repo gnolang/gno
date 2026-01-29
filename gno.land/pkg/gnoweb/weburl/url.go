@@ -87,7 +87,7 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 		args := gnoURL.Args
 		if escape {
 			escaped := url.PathEscape(args)
-			args = webEscapedReplacer.Replace(escaped)
+			args = strings.ReplaceAll(escaped, "$", "%24")
 		} else {
 			args = strings.ReplaceAll(args, "?", "%3F")
 		}
@@ -109,10 +109,6 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 
 	return urlstr.String()
 }
-
-var webEscapedReplacer = strings.NewReplacer(
-	"$", "%24",
-)
 
 // Has checks if the EncodeFlag contains all the specified flags.
 func (f EncodeFlag) Has(flags EncodeFlag) bool {
