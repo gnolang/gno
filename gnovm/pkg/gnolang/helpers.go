@@ -897,3 +897,39 @@ func chopRight(in string) (left string, tok rune, right string) {
 		return
 	}
 }
+
+// Stmt injections.
+type StmtInjection struct {
+	stmt Stmt
+	idx  int // position to insert
+}
+
+func addStmtInjectionAttr(bn BlockNode, key GnoAttribute, si *StmtInjection) {
+	val := bn.GetAttribute(key)
+	sis, _ := val.([]*StmtInjection)
+	if slices.Contains(sis, si) {
+		return
+	}
+	bn.SetAttribute(ATTR_CONTINUE_INSERT, append(sis, si))
+}
+
+func getStmtInjectionAttr(bn BlockNode, key GnoAttribute) []*StmtInjection {
+	sis, _ := bn.GetAttribute(key).([]*StmtInjection)
+	return sis
+}
+
+// Loopvar attrs.
+func addLoopvarAttrs(bn BlockNode, key GnoAttribute, name Name) {
+	val := bn.GetAttribute(key)
+	ns, _ := val.([]Name)
+	if slices.Contains(ns, name) {
+		return
+	}
+	ns = append(ns, name)
+	bn.SetAttribute(key, ns)
+}
+
+func getLoopvarAttrs(bn BlockNode, key GnoAttribute) []Name {
+	names, _ := bn.GetAttribute(key).([]Name)
+	return names
+}

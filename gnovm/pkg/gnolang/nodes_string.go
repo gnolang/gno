@@ -104,8 +104,16 @@ func (x NameExpr) String() string {
 		return fmt.Sprintf("%s<!%s>", x.Name, x.Path.String())
 	case NameExprTypeHeapDefine:
 		return fmt.Sprintf("%s<!~%s>", x.Name, x.Path.String())
+	case NameExprTypeLoopVarDefine:
+		return fmt.Sprintf("%s<!@%s>", x.Name, x.Path.String())
+	case NameExprTypeLoopVarHeapDefine:
+		return fmt.Sprintf("%s<@!~%s>", x.Name, x.Path.String())
 	case NameExprTypeHeapUse:
 		return fmt.Sprintf("%s<~%s>", x.Name, x.Path.String())
+	case NameExprTypeLoopVarUse:
+		return fmt.Sprintf("%s<*%s>", x.Name, x.Path.String())
+	case NameExprTypeLoopVarHeapUse:
+		return fmt.Sprintf("%s<*~%s>", x.Name, x.Path.String())
 	case NameExprTypeHeapClosure:
 		return fmt.Sprintf("%s<()~%s>", x.Name, x.Path.String())
 	default:
@@ -304,7 +312,7 @@ func (x ForStmt) String() string {
 	if x.Post != nil {
 		post = x.Post.String()
 	}
-	return fmt.Sprintf("for %s; %s; %s { %s }",
+	return fmt.Sprintf("for %s; %s; %s %s ",
 		init, cond, post, x.Body.String())
 }
 
