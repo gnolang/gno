@@ -767,7 +767,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 				if cp := ctx.ConsensusParams(); cp != nil {
 					maxGas = cp.Block.MaxGas
 				}
-				var detail string
+				detail := "(hit tx gas limit)"
 				if maxGas > 0 && gasUsed >= maxGas {
 					detail = fmt.Sprintf("(hit consensus maxGas %d)", maxGas)
 				}
