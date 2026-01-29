@@ -22,10 +22,10 @@ const (
 	AlignBottom  HAlignment = "bottom"
 )
 
-// padLine aligns text within a given width.
+// PadLine aligns text within a given width.
 //
 // Supports AlignLeft, AlignRight, and AlignWCenter alignment.
-func padLine(line string, width int, align WAlignment, space string) string {
+func PadLine(line string, width int, align WAlignment, space string) string {
 	padding := width - len(line)
 	if width < len(line) {
 		padding = 0
@@ -43,10 +43,10 @@ func padLine(line string, width int, align WAlignment, space string) string {
 	}
 }
 
-// padHeight pads lines vertically according to alignment.
+// PadHeight pads lines vertically according to alignment.
 //
 // Supports AlignTop, AlignBottom, and AlignHCenter alignment.
-func padHeight(lines []string, height int, align HAlignment) []string {
+func PadHeight(lines []string, height int, align HAlignment) []string {
 	padded := []string{}
 	if height <= 0 {
 		return lines
@@ -123,7 +123,7 @@ func FlexFrame(lines []string, align WAlignment) string {
 
 	body := ""
 	for i := 0; i < len(lines); i++ {
-		body += "| " + padLine(lines[i], maxWidth, align, " ") + " |\n"
+		body += "| " + PadLine(lines[i], maxWidth, align, " ") + " |\n"
 	}
 
 	return md.CodeBlock(top+body+bottom) + "\n"
@@ -160,14 +160,14 @@ func Frame(
 	if len(lines) > height {
 		height = len(lines)
 	}
-	lines = padHeight(lines, height, hAlign)
+	lines = PadHeight(lines, height, hAlign)
 
 	top := "+" + Repeat("-", maxWidth+2) + "+\n"
 	bottom := "+" + Repeat("-", maxWidth+2) + "+"
 	body := ""
 
 	for _, line := range lines {
-		body += "| " + padLine(line, maxWidth, wAlign, " ") + " |\n"
+		body += "| " + PadLine(line, maxWidth, wAlign, " ") + " |\n"
 	}
 
 	return md.CodeBlock(top+body+bottom) + "\n"
@@ -221,7 +221,7 @@ func FixedFrame(
 			wrapped = append(wrapped, current)
 		}
 	}
-	wrapped = padHeight(wrapped, height, hAlign)
+	wrapped = PadHeight(wrapped, height, hAlign)
 
 	top := "+" + Repeat("-", width+2) + "+\n"
 	bottom := "+" + Repeat("-", width+2) + "+"
@@ -231,7 +231,7 @@ func FixedFrame(
 		if i == height {
 			break
 		}
-		body += "| " + padLine(line, width, wAlign, " ") + " |\n"
+		body += "| " + PadLine(line, width, wAlign, " ") + " |\n"
 	}
 
 	return md.CodeBlock(top+body+bottom) + "\n"
