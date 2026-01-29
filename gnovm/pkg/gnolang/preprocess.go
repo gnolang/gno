@@ -540,7 +540,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					if bn, ok := n.(*ForStmt); ok {
 						findContinue(ctx, bn)
 						rewriteContinue(ctx, bn)
-						heapAllocLoopvar(ctx, bn)
+						markLoopvarHeapDefine(ctx, bn)
 						return n, TRANS_CONTINUE
 					}
 					return n, TRANS_CONTINUE
@@ -3263,8 +3263,8 @@ func findContinue(ctx BlockNode, bn BlockNode) {
 					return n, TRANS_CONTINUE
 				}
 
-				inject := func(names map[Name]struct{}) {
-					for name := range names {
+				inject := func(names []Name) {
+					for _, name := range names {
 						ln := fmt.Sprintf("%s%s", ".loopvar_", name)
 						rn := fmt.Sprintf("%s%s", ".loopvar_", name)
 
@@ -3280,7 +3280,7 @@ func findContinue(ctx BlockNode, bn BlockNode) {
 							idx:  idx,
 							stmt: as,
 						}
-						addStmtInjectionAttr(last, si)
+						addStmtInjectionAttr(last, ATTR_CONTINUE_INSERT, si)
 					}
 				}
 
@@ -3319,7 +3319,7 @@ func rewriteContinue(ctx BlockNode, bn BlockNode) {
 		case TRANS_LEAVE:
 			switch bn := n.(type) {
 			case BlockNode:
-				sis := getStmtInjectionAttr(bn)
+				sis := getStmtInjectionAttr(bn, ATTR_CONTINUE_INSERT)
 				if len(sis) > 0 {
 					body := bn.GetBody()
 					for _, si := range sis {
@@ -3337,7 +3337,7 @@ func rewriteContinue(ctx BlockNode, bn BlockNode) {
 }
 
 // Copy out loopvar to a new slot of heapItemValue.
-func heapAllocLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
+func markLoopvarHeapDefine(ctx BlockNode, bn BlockNode) (stop bool) {
 	// Iterate over all nodes recursively.
 	_ = TranscribeB(ctx, bn, func(
 		ns []Node,
@@ -3371,8 +3371,8 @@ func heapAllocLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 					return n, TRANS_CONTINUE
 				}
 
-				rewrite := func(names map[Name]struct{}) {
-					for rn := range names {
+				rewrite := func(names []Name) {
+					for _, rn := range names {
 						// Copy-out state from redefine to loopvar at end of body.
 						lhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
 						rhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
@@ -3399,8 +3399,7 @@ func heapAllocLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 	return
 }
 
-// Resolves injected names by filling in their paths.
-// Also ajust index of names accordingly.
+// Fill path for injected name.
 func resolveInjectedName(ctx BlockNode, bn BlockNode) {
 	// Iterate over all nodes recursively.
 	_ = TranscribeB(ctx, bn, func(
@@ -3427,6 +3426,10 @@ func resolveInjectedName(ctx BlockNode, bn BlockNode) {
 			switch n := n.(type) {
 			case *NameExpr:
 				if ftype == TRANS_COMPOSITE_KEY {
+					return n, TRANS_CONTINUE
+				}
+
+				if n.Path.Type != VPInvalid {
 					return n, TRANS_CONTINUE
 				}
 
