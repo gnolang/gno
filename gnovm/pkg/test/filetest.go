@@ -354,6 +354,8 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
 		}
+		// Must parse before set pn&pv.
+		fn := m.MustParseFile(fname, string(content))
 		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 		pv := pn.NewPackage(m.Alloc)
@@ -361,7 +363,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
 		m.Context.(*teststdlibs.TestExecContext).OriginCaller = DefaultCaller
-		fn := m.MustParseFile(fname, string(content))
 		// Run (add) file, and then run main().
 		m.RunFiles(fn)
 		m.RunMain()
