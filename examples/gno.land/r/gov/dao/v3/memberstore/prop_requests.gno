@@ -3,18 +3,28 @@ package memberstore
 import (
 	"chain/runtime"
 
+	"gno.land/p/nt/avl"
+
 	"gno.land/r/gov/dao"
 )
 
-func NewChangeTiersRequest(tiers TiersByName) dao.ProposalRequest {
+func NewChangeTiersRequest(tiers map[string]Tier) dao.ProposalRequest {
+	if len(tiers) == 0 {
+		panic("tiers list is empty")
+	}
+
 	member, _ := Get().GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
+	tiersByName := TiersByName{avl.NewTree()}
+	for name, tier := range tiers {
+		tiersByName.Set(name, tier)
+	}
+
 	callback := func(cur realm) error {
-		// TODO: Assigning tiers directly is not safe, could be potentially changed after proposal passes
-		Tiers = tiers
+		Tiers = tiersByName
 
 		return nil
 	}
