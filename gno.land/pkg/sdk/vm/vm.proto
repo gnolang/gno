@@ -28,6 +28,7 @@ message m_addpkg {
 	std.MemPackage package = 2;
 	string send = 3;
 	string max_deposit = 4;
+	string cla_hash = 5;
 }
 
 message InvalidPkgPathError {
@@ -53,4 +54,10 @@ message UnauthorizedUserError {
 }
 
 message InvalidPackageError {
+}
+
+message CLAHashMismatchError {
+}
+
+message CLAHashMissingError {
 }

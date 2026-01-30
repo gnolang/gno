@@ -49,3 +49,7 @@ tidy:
 	chmod +x ./mod_tidy.sh
 	# Tidy go mods
 	VERIFY_MOD_SUMS=$(VERIFY_MOD_SUMS) ./mod_tidy.sh
+
+.PHONY: generate
+generate:
+	$(MAKE) -C ./genproto generate
