@@ -103,6 +103,10 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 				ggs.VM.Params.ChainDomain = value.(string)
 			case "sysnames_pkgpath":
 				ggs.VM.Params.SysNamesPkgPath = value.(string)
+			case "cla_hash":
+				ggs.VM.Params.CLAHash = value.(string)
+			case "cla_doc_url":
+				ggs.VM.Params.CLADocURL = value.(string)
 			default:
 				return errors.New("unexpected vm parameter " + name)
 			}

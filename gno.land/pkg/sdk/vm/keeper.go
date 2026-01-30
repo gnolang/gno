@@ -438,6 +438,30 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	return nil
 }
 
+// validateCLAHash checks if the provided CLA hash matches the expected hash from params.
+// Returns nil if enforcement is disabled (empty param) or if hashes match.
+func (vm *VMKeeper) validateCLAHash(ctx sdk.Context, msgCLAHash string) error {
+	params := vm.GetParams(ctx)
+	expectedHash := params.CLAHash
+
+	// If expected hash is empty, CLA enforcement is disabled
+	if expectedHash == "" {
+		return nil
+	}
+
+	// CLA enforcement is enabled - hash must be provided
+	if msgCLAHash == "" {
+		return ErrCLAHashMissing()
+	}
+
+	// Hash must match
+	if msgCLAHash != expectedHash {
+		return ErrCLAHashMismatch(expectedHash, msgCLAHash)
+	}
+
+	return nil
+}
+
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	creator := msg.Creator
@@ -464,6 +488,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
+	}
+
+	// Validate CLA hash if enforcement is enabled
+	if err := vm.validateCLAHash(ctx, msg.CLAHash); err != nil {
+		return err
 	}
 
 	pv := gnostore.GetPackage(pkgPath, false)

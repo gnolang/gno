@@ -20,6 +20,7 @@ type MsgAddPackage struct {
 	Package    *std.MemPackage `json:"package" yaml:"package"`
 	Send       std.Coins       `json:"send" yaml:"send"`
 	MaxDeposit std.Coins       `json:"max_deposit" yaml:"max_deposit"`
+	CLAHash    string          `json:"cla_hash" yaml:"cla_hash"`
 }
 
 var _ std.Msg = MsgAddPackage{}

@@ -21,7 +21,9 @@ func TestParamsString(t *testing.T) {
 		fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain) +
 		fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit) +
 		fmt.Sprintf("StoragePrice: %q\n", p.StoragePrice) +
-		fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector)
+		fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector) +
+		fmt.Sprintf("CLAHash: %q\n", p.CLAHash) +
+		fmt.Sprintf("CLADocURL: %q\n", p.CLADocURL)
 
 	// Assert: check if the result matches the expected string.
 	if result != expected {

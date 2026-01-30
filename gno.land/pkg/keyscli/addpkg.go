@@ -90,6 +90,9 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
+	// Load stored CLA hash for this remote (empty if not signed - keeper will validate)
+	claHash := LoadCLAHashForRemote(cfg.RootCfg.RootCfg.Home, cfg.RootCfg.RootCfg.Remote)
+
 	// read account pubkey.
 	nameOrBech32 := args[0]
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.RootCfg.Home)
@@ -131,6 +134,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		Package:    memPkg,
 		Send:       send,
 		MaxDeposit: deposit,
+		CLAHash:    claHash,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},

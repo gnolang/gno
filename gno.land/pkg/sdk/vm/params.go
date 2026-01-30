@@ -29,23 +29,27 @@ type Params struct {
 	DefaultDeposit      string         `json:"default_deposit" yaml:"default_deposit"`
 	StoragePrice        string         `json:"storage_price" yaml:"storage_price"`
 	StorageFeeCollector crypto.Address `json:"storage_fee_collector" yaml:"storage_fee_collector"`
+	CLAHash             string         `json:"cla_hash" yaml:"cla_hash"`
+	CLADocURL           string         `json:"cla_doc_url" yaml:"cla_doc_url"`
 }
 
 // NewParams creates a new Params object
-func NewParams(namesPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address) Params {
+func NewParams(namesPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address, claHash, claDocURL string) Params {
 	return Params{
 		SysNamesPkgPath:     namesPkgPath,
 		ChainDomain:         chainDomain,
 		DefaultDeposit:      defaultDeposit,
 		StoragePrice:        storagePrice,
 		StorageFeeCollector: storageFeeCollector,
+		CLAHash:             claHash,
+		CLADocURL:           claDocURL,
 	}
 }
 
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
 	return NewParams(sysNamesPkgDefault, chainDomainDefault,
-		depositDefault, storagePriceDefault, crypto.AddressFromPreimage([]byte(storageFeeCollectorNameDefault)))
+		depositDefault, storagePriceDefault, crypto.AddressFromPreimage([]byte(storageFeeCollectorNameDefault)), "", "")
 }
 
 // String implements the stringer interface.
@@ -57,6 +61,8 @@ func (p Params) String() string {
 	sb.WriteString(fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit))
 	sb.WriteString(fmt.Sprintf("StoragePrice: %q\n", p.StoragePrice))
 	sb.WriteString(fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector.String()))
+	sb.WriteString(fmt.Sprintf("CLAHash: %q\n", p.CLAHash))
+	sb.WriteString(fmt.Sprintf("CLADocURL: %q\n", p.CLADocURL))
 	return sb.String()
 }
 

@@ -25,4 +25,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	TypeCheckError{}, "TypeCheckError",
 	UnauthorizedUserError{}, "UnauthorizedUserError",
 	InvalidPackageError{}, "InvalidPackageError",
+	CLAHashMismatchError{}, "CLAHashMismatchError",
+	CLAHashMissingError{}, "CLAHashMissingError",
 ))

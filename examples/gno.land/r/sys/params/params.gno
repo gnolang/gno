@@ -98,6 +98,22 @@ func NewSysParamStringsPropRequestRemoveWithTitle(module, submodule, name, title
 		title,
 	)
 }
+
+// NewCLAConfigPropRequest creates a proposal to set both CLA hash and document URL atomically.
+// An empty hash disables CLA enforcement; non-empty enables it.
+func NewCLAConfigPropRequest(hash, url string) dao.ProposalRequest {
+	callback := func(cur realm) error {
+		prms.SetSysParamString("vm", "p", "cla_hash", hash)
+		prms.SetSysParamString("vm", "p", "cla_doc_url", url)
+		chain.Emit("set", "key", "vm:p:cla_hash")
+		chain.Emit("set", "key", "vm:p:cla_doc_url")
+		return nil
+	}
+
+	e := dao.NewSimpleExecutor(callback, "")
+	return dao.NewProposalRequest("Set CLA configuration", "This proposal sets the CLA hash and document URL for package deployment verification.", e)
+}
+
 func newPropRequest(key string, fn func(), title string) dao.ProposalRequest {
 	callback := func(cur realm) error {
 		fn()
