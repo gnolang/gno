@@ -1,6 +1,10 @@
 package expect
 
-import "gno.land/p/nt/ufmt"
+import (
+	"strings"
+
+	"gno.land/p/nt/ufmt"
+)
 
 // Value creates a new checker values of different types.
 func Value(t TestingT, value any) ValueChecker {
@@ -31,7 +35,7 @@ func (c ValueChecker) Not() ValueChecker {
 // ToBeNil asserts that current value is nil.
 func (c ValueChecker) ToBeNil() {
 	c.ctx.T().Helper()
-	c.ctx.CheckExpectation(c.value == nil, func(ctx Context) string {
+	c.ctx.CheckExpectation(c.value == nil || istypednil(c.value), func(ctx Context) string {
 		if !ctx.IsNegated() {
 			return ufmt.Sprintf("Expected value to be nil\nGot: %v", c.value)
 		}
@@ -43,11 +47,31 @@ func (c ValueChecker) ToBeNil() {
 func (c ValueChecker) ToEqual(value any) {
 	c.ctx.T().Helper()
 
+	// Assert error values first to allow comparing errors to string values
+	if err, ok := c.value.(error); ok {
+		want, ok := value.(error)
+		if !ok {
+			c.ctx.Fail("Failed: expected an error value\nGot: %T", value)
+			return
+		}
+
+		c.ctx.CheckExpectation(err.Error() == want.Error(), func(ctx Context) string {
+			if !ctx.IsNegated() {
+				return ufmt.Sprintf("Expected errors to match\nGot: %s\nWant: %s", err.Error(), want.Error())
+			}
+			return ufmt.Sprintf("Expected errors to be different\nGot: %s", err.Error())
+		})
+
+		return
+	}
+
 	switch v := value.(type) {
 	case string:
 		c.AsString().ToEqual(v)
 	case []byte:
 		c.AsString().ToEqual(string(v))
+	case Stringer:
+		c.AsString().ToEqual(v.String())
 	case bool:
 		c.AsBoolean().ToEqual(v)
 	case float32:
@@ -74,9 +98,29 @@ func (c ValueChecker) ToEqual(value any) {
 		c.AsInt().ToEqual(int64(v))
 	case int64:
 		c.AsInt().ToEqual(v)
+	case error:
+		c.ctx.Fail("Error is not equal to value\nGot: %s", v.Error())
 	default:
 		c.ctx.Fail("Unsupported type: %T", value)
 	}
+}
+
+// ToContainErrorString asserts that current error value contains an error string.
+func (c ValueChecker) ToContainErrorString(msg string) {
+	c.ctx.T().Helper()
+
+	err, ok := c.value.(error)
+	if !ok {
+		c.ctx.Fail("Failed: expected an error value\nGot: %T", c.value)
+		return
+	}
+
+	c.ctx.CheckExpectation(strings.Contains(err.Error(), msg), func(ctx Context) string {
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected error message to contain: %s\nGot: %s", msg, err.Error())
+		}
+		return ufmt.Sprintf("Expected error message not to contain: %s\nGot: %s", msg, err.Error())
+	})
 }
 
 // AsString returns a checker to assert current value as a string.
