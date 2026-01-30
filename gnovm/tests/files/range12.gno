@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/range12.gno:7:2-9:3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// main/range12.gno:8:2-10:3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
