@@ -8,6 +8,7 @@ import (
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // Get Tendermint status including node info, pubkey, latest block
@@ -81,6 +82,8 @@ import (
 //
 // ```
 func Status(ctx *rpctypes.Context, heightGtePtr *int64) (*ctypes.ResultStatus, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "Status")
+	defer span.End()
 	var latestHeight int64
 	if getFastSync() {
 		latestHeight = blockStore.Height()

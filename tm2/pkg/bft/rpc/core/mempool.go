@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/service"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // -----------------------------------------------------------------------------
@@ -78,6 +79,8 @@ import (
 // |-----------+------+---------+----------+-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
 func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "BroadcastTxAsync")
+	defer span.End()
 	err := mempool.CheckTx(tx, nil)
 	if err != nil {
 		return nil, err
@@ -143,6 +146,8 @@ func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadca
 // |-----------+------+---------+----------+-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
 func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "BroadcastTxSync")
+	defer span.End()
 	resCh := make(chan abci.Response, 1)
 	err := mempool.CheckTx(tx, func(res abci.Response) {
 		resCh <- res
@@ -225,6 +230,8 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 // |-----------+------+---------+----------+-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
 func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "BroadcastTxCommit")
+	defer span.End()
 	// Broadcast tx and wait for CheckTx result
 	checkTxResCh := make(chan abci.Response, 1)
 	err := mempool.CheckTx(tx, func(res abci.Response) {
@@ -299,6 +306,8 @@ func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadc
 // | limit     | int  | 30      | false    | Maximum number of entries (max: 100) |
 // ```
 func UnconfirmedTxs(ctx *rpctypes.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "UnconfirmedTxs")
+	defer span.End()
 	// reuse per_page validator
 	limit = validatePerPage(limit)
 
@@ -344,6 +353,8 @@ func UnconfirmedTxs(ctx *rpctypes.Context, limit int) (*ctypes.ResultUnconfirmed
 //
 // ```
 func NumUnconfirmedTxs(ctx *rpctypes.Context) (*ctypes.ResultUnconfirmedTxs, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "NumUnconfirmedTxs")
+	defer span.End()
 	return &ctypes.ResultUnconfirmedTxs{
 		Count:      mempool.Size(),
 		Total:      mempool.Size(),
