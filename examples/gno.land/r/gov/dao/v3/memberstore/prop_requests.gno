@@ -18,13 +18,13 @@ func NewChangeTiersRequest(tiers map[string]Tier) dao.ProposalRequest {
 		panic("proposer is not a member")
 	}
 
-	tiersByName := TiersByName{avl.NewTree()}
+	newTiers := TiersByName{avl.NewTree()}
 	for name, tier := range tiers {
-		tiersByName.Set(name, tier)
+		newTiers.Set(name, tier)
 	}
 
 	callback := func(cur realm) error {
-		Tiers = tiersByName
+		Tiers = newTiers
 
 		return nil
 	}
