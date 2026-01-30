@@ -167,7 +167,7 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit)
 	if bres.DeliverTx.Info == "" {
 		bres.DeliverTx.Info = s
 	} else {
-		bres.DeliverTx.Info = bres.DeliverTx.Info + "; " + s
+		bres.DeliverTx.Info = bres.DeliverTx.Info + ", " + s
 	}
 	return nil
 }
