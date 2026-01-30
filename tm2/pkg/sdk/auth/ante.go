@@ -411,16 +411,9 @@ func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	if ctx.Mode() == sdk.RunTxModeSimulate {
 		// Cap simulation gas to avoid unbounded consumption; use consensus maxGas
 		// as a ceiling. Ignore the tx gasLimit here so we can measure full gas usage.
-		maxGas := int64(-1)
-		if cp := ctx.ConsensusParams(); cp != nil {
-			maxGas = cp.Block.MaxGas
+		if cp := ctx.ConsensusParams(); cp != nil && cp.Block.MaxGas != -1 {
+			return ctx.WithGasMeter(store.NewGasMeter(cp.Block.MaxGas))
 		}
-
-		if maxGas != int64(-1) {
-			return ctx.WithGasMeter(store.NewGasMeter(maxGas))
-		}
-
-		// If no limit is configured (maxGas == -1), fall back to infinite.
 		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
 	}
 
