@@ -238,7 +238,7 @@ func FetchCLAContent(urlOrPath string) (string, error) {
 	}
 
 	// HTTP/HTTPS URLs
-	resp, err := http.Get(urlOrPath)
+	resp, err := http.Get(urlOrPath) // nolint:gosec
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch CLA from %s: %w", urlOrPath, err)
 	}
