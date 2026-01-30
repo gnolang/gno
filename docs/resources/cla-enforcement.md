@@ -36,28 +36,28 @@ Sign once per chain, deploy many times:
 
 ```bash
 # Sign CLA for a chain (queries chain for document URL, displays content, prompts for "agree")
-gnokey cla sign --remote https://rpc.gno.land:443
+gnokey cla sign --remote https://rpc.example.land:443
 
 # Sign CLA from local file
-gnokey cla sign --url /path/to/cla.txt --remote https://rpc.gno.land:443
+gnokey cla sign --url /path/to/cla.txt --remote https://rpc.example.land:443
 
 # Check CLA status (all chains)
 gnokey cla status
 
 # Check CLA status for specific chain
-gnokey cla status --remote https://rpc.gno.land:443
+gnokey cla status --remote https://rpc.example.land:443
 
 # Deploy packages (uses stored CLA hash for that remote automatically)
-gnokey maketx addpkg -pkgpath gno.land/r/demo/hello -pkgdir ./hello --remote https://rpc.gno.land:443 mykey
+gnokey maketx addpkg -pkgpath gno.land/r/demo/hello -pkgdir ./hello --remote https://rpc.example.land:443 mykey
 ```
 
 CLA hashes are stored per-remote in `$GNOHOME/config.toml`:
 
 ```toml
-[zones."https://rpc.gno.land:443"]
+[zones."https://rpc.example.land:443"]
 cla_hash = "b6faa56f8eec79eb"
 
-[zones."https://rpc.test5.gno.land:443"]
+[zones."https://rpc.testx.example.land:443"]
 cla_hash = "a3d74e2544d091e8"
 ```
 
@@ -78,8 +78,8 @@ Include `cla_hash` field in `MsgAddPackage`:
 
 Query current enforcement state:
 ```bash
-gnokey query params/vm:p:cla_doc_url --remote https://rpc.gno.land:443
-gnokey query params/vm:p:cla_hash --remote https://rpc.gno.land:443
+gnokey query params/vm:p:cla_doc_url --remote https://rpc.example.land:443
+gnokey query params/vm:p:cla_hash --remote https://rpc.example.land:443
 ```
 
 Empty `cla_hash` = disabled, non-empty = hash required.
