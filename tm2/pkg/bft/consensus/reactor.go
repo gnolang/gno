@@ -241,7 +241,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 		case *VoteSetMaj23Message:
 			cs := conR.conS
 			cs.mtx.Lock()
-			height, votes := cs.Height, cs.Votes
+			height, votes := cs.Height.Load(), cs.Votes
 			cs.mtx.Unlock()
 			if height != msg.Height {
 				return
@@ -301,7 +301,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 		case *VoteMessage:
 			cs := conR.conS
 			cs.mtx.RLock()
-			height, valSize, lastCommitSize := cs.Height, cs.Validators.Size(), cs.LastCommit.Size()
+			height, valSize, lastCommitSize := cs.Height.Load(), cs.Validators.Size(), cs.LastCommit.Size()
 			cs.mtx.RUnlock()
 			ps.EnsureVoteBitArrays(height, valSize)
 			ps.EnsureVoteBitArrays(height-1, lastCommitSize)
@@ -323,7 +323,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 		case *VoteSetBitsMessage:
 			cs := conR.conS
 			cs.mtx.Lock()
-			height, votes := cs.Height, cs.Votes
+			height, votes := cs.Height.Load(), cs.Votes
 			cs.mtx.Unlock()
 
 			if height == msg.Height {
@@ -467,8 +467,8 @@ OUTER_LOOP:
 			if index, ok := rs.ProposalBlockParts.BitArray().Sub(prs.ProposalBlockParts.Copy()).PickRandom(); ok {
 				part := rs.ProposalBlockParts.GetPart(index)
 				msg := &BlockPartMessage{
-					Height: rs.Height, // This tells peer that this part applies to us.
-					Round:  rs.Round,  // This tells peer that this part applies to us.
+					Height: rs.Height.Load(), // This tells peer that this part applies to us.
+					Round:  rs.Round,         // This tells peer that this part applies to us.
 					Part:   part,
 				}
 				logger.Debug("Sending block part", "height", prs.Height, "round", prs.Round)
@@ -480,7 +480,7 @@ OUTER_LOOP:
 		}
 
 		// If the peer is on a previous height, help catch up.
-		if (0 < prs.Height) && (prs.Height < rs.Height) {
+		if (0 < prs.Height) && (prs.Height < rs.Height.Load()) {
 			heightLogger := logger.With("height", prs.Height)
 
 			// if we never received the commit message from the peer, the block parts wont be initialized
@@ -499,7 +499,7 @@ OUTER_LOOP:
 		}
 
 		// If height and round don't match, sleep.
-		if (rs.Height != prs.Height) || (rs.Round != prs.Round) {
+		if (rs.Height.Load() != prs.Height) || (rs.Round != prs.Round) {
 			// logger.Info("Peer Height|Round mismatch, sleeping", "peerHeight", prs.Height, "peerRound", prs.Round, "peer", peer)
 			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
 			continue OUTER_LOOP
@@ -527,7 +527,7 @@ OUTER_LOOP:
 			// so we definitely have rs.Votes.Prevotes(rs.Proposal.POLRound).
 			if 0 <= rs.Proposal.POLRound {
 				msg := &ProposalPOLMessage{
-					Height:           rs.Height,
+					Height:           rs.Height.Load(),
 					ProposalPOLRound: rs.Proposal.POLRound,
 					ProposalPOL:      rs.Votes.Prevotes(rs.Proposal.POLRound).BitArray(),
 				}
@@ -551,7 +551,7 @@ func (conR *ConsensusReactor) gossipDataForCatchup(logger *slog.Logger, rs *csty
 		blockMeta := conR.conS.blockStore.LoadBlockMeta(prs.Height)
 		if blockMeta == nil {
 			logger.Error("Failed to load block meta",
-				"ourHeight", rs.Height, "blockstoreHeight", conR.conS.blockStore.Height())
+				"ourHeight", rs.Height.Load(), "blockstoreHeight", conR.conS.blockStore.Height())
 			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
 			return
 		} else if !blockMeta.BlockID.PartsHeader.Equals(prs.ProposalBlockPartsHeader) {
@@ -609,11 +609,11 @@ OUTER_LOOP:
 			sleeping = 0
 		}
 
-		// logger.Debug("gossipVotesRoutine", "rsHeight", rs.Height, "rsRound", rs.Round,
+		// logger.Debug("gossipVotesRoutine", "rsHeight", rs.Height.Load(), "rsRound", rs.Round,
 		//	"prsHeight", prs.Height, "prsRound", prs.Round, "prsStep", prs.Step)
 
 		// If height matches, then send LastCommit, Prevotes, Precommits.
-		if rs.Height == prs.Height {
+		if rs.Height.Load() == prs.Height {
 			heightLogger := logger.With("height", prs.Height)
 			if conR.gossipVotesForHeight(heightLogger, rs, prs, ps) {
 				continue OUTER_LOOP
@@ -622,7 +622,7 @@ OUTER_LOOP:
 
 		// Special catchup logic.
 		// If peer is lagging by height 1, send LastCommit.
-		if prs.Height != 0 && rs.Height == prs.Height+1 {
+		if prs.Height != 0 && rs.Height.Load() == prs.Height+1 {
 			if ps.PickSendVote(rs.LastCommit) {
 				logger.Debug("Picked rs.LastCommit to send", "height", prs.Height)
 				continue OUTER_LOOP
@@ -631,7 +631,7 @@ OUTER_LOOP:
 
 		// Catchup logic
 		// If peer is lagging by more than 1, send Commit.
-		if prs.Height != 0 && rs.Height >= prs.Height+2 {
+		if prs.Height != 0 && rs.Height.Load() >= prs.Height+2 {
 			// Load the block commit for prs.Height,
 			// which contains precommit signatures for prs.Height.
 			commit := conR.conS.blockStore.LoadBlockCommit(prs.Height)
@@ -645,7 +645,7 @@ OUTER_LOOP:
 		case 0:
 			// We sent nothing. Sleep...
 			sleeping = 1
-			logger.Debug("No votes to send, sleeping", "rs.Height", rs.Height, "prs.Height", prs.Height,
+			logger.Debug("No votes to send, sleeping", "rs.Height.Load()", rs.Height.Load(), "prs.Height", prs.Height,
 				"localPV", rs.Votes.Prevotes(rs.Round).BitArray(), "peerPV", prs.Prevotes,
 				"localPC", rs.Votes.Precommits(rs.Round).BitArray(), "peerPC", prs.Precommits)
 		case 2:
@@ -728,7 +728,7 @@ OUTER_LOOP:
 		{
 			rs := conR.conS.GetRoundState()
 			prs := ps.GetRoundState()
-			if rs.Height == prs.Height {
+			if rs.Height.Load() == prs.Height {
 				if maj23, ok := rs.Votes.Prevotes(prs.Round).TwoThirdsMajority(); ok {
 					peer.TrySend(StateChannel, amino.MustMarshalAny(&VoteSetMaj23Message{
 						Height:  prs.Height,
@@ -745,7 +745,7 @@ OUTER_LOOP:
 		{
 			rs := conR.conS.GetRoundState()
 			prs := ps.GetRoundState()
-			if rs.Height == prs.Height {
+			if rs.Height.Load() == prs.Height {
 				if maj23, ok := rs.Votes.Precommits(prs.Round).TwoThirdsMajority(); ok {
 					peer.TrySend(StateChannel, amino.MustMarshalAny(&VoteSetMaj23Message{
 						Height:  prs.Height,
@@ -762,7 +762,7 @@ OUTER_LOOP:
 		{
 			rs := conR.conS.GetRoundState()
 			prs := ps.GetRoundState()
-			if rs.Height == prs.Height && prs.ProposalPOLRound >= 0 {
+			if rs.Height.Load() == prs.Height && prs.ProposalPOLRound >= 0 {
 				if maj23, ok := rs.Votes.Prevotes(prs.ProposalPOLRound).TwoThirdsMajority(); ok {
 					peer.TrySend(StateChannel, amino.MustMarshalAny(&VoteSetMaj23Message{
 						Height:  prs.Height,
@@ -1295,7 +1295,7 @@ func (ps *PeerState) ApplyHasVoteMessage(msg *HasVoteMessage) {
 // ApplyVoteSetBitsMessage updates the peer state for the bit-array of votes
 // it claims to have for the corresponding BlockID.
 // `ourVotes` is a BitArray of votes we have for msg.BlockID
-// NOTE: if ourVotes is nil (e.g. msg.Height < rs.Height),
+// NOTE: if ourVotes is nil (e.g. msg.Height < rs.Height.Load()),
 // we conservatively overwrite ps's votes w/ msg.Votes.
 func (ps *PeerState) ApplyVoteSetBitsMessage(msg *VoteSetBitsMessage, ourVotes *bitarray.BitArray) {
 	ps.mtx.Lock()

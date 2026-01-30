@@ -221,7 +221,7 @@ LOOP:
 			t.Logf("WAL crashed: %v", err)
 
 			// make sure we can make blocks after a crash
-			startNewConsensusStateAndWaitForBlock(t, consensusReplayConfig, genesisFile, cs.Height, blockDB, stateDB)
+			startNewConsensusStateAndWaitForBlock(t, consensusReplayConfig, genesisFile, cs.Height.Load(), blockDB, stateDB)
 
 			// stop consensus state and transactions sender (initFn)
 			cs.Stop()
@@ -357,7 +357,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	for i := range nPeers {
 		vss[i] = NewValidatorStub(css[i].privValidator, i)
 	}
-	height, round := css[0].Height, css[0].Round
+	height, round := css[0].Height.Load(), css[0].Round
 	// start the machine
 	startFrom(css[0], height, round)
 	incrementHeight(vss...)
