@@ -3,6 +3,7 @@ package sdk
 import (
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"runtime/debug"
 	"sort"
@@ -882,12 +883,28 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		)
 		result.Error = ABCIError(std.ErrOutOfGas(log))
 		result.Log = log
+		suggested := int64(math.Ceil(float64(result.GasUsed) * 1.05)) // +5% ceil
+		msg := fmt.Sprintf("suggested gas-wanted (gas used + 5%%): %d", suggested)
+		if result.Info == "" {
+			result.Info = msg
+		} else {
+			result.Info = result.Info + ", " + msg
+		}
 
 		return result
 	}
 
 	// Safety check: don't write the cache state unless we're in DeliverTx.
 	if mode != RunTxModeDeliver {
+		if mode == RunTxModeSimulate {
+			suggested := int64(math.Ceil(float64(result.GasUsed) * 1.05)) // +5% ceil
+			msg := fmt.Sprintf("suggested gas-wanted (gas used + 5%%): %d", suggested)
+			if result.Info == "" {
+				result.Info = msg
+			} else {
+				result.Info = result.Info + ", " + msg
+			}
+		}
 		return result
 	}
 
