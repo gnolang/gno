@@ -52,6 +52,9 @@ func main() {
 	if bm.NativeEnabled {
 		benchmarkNative(bstore.gnoStore, dir)
 	}
+	if bm.PreprocessEnabled {
+		benchmarkPreprocess(bstore.gnoStore, dir)
+	}
 
 	bm.Finish()
 	stats(tmpFile)

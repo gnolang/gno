@@ -94,7 +94,7 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.m.SetActivePackage(r.pv)
 
 	// preprocess nodes.
-	r.fn = gno.Preprocess(r.store, r.pn, r.fn).(*gno.FileNode)
+	r.fn = gno.Preprocess(r.store, r.pn, r.fn, r.m.GasMeter).(*gno.FileNode)
 
 	// set blocks.
 	// r.m.PushBlock(r.fb)
