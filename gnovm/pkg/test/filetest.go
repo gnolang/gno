@@ -128,8 +128,12 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 					Content: "",
 				})
 			} else {
-				return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:\n%s\nstack:\n%v",
-					result.Error, result.Output, result.GnoStacktrace, string(result.GoPanicStack))
+				mstate := ""
+				if opts.DumpMachineState {
+					mstate = m.String()
+				}
+				return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:\n%s\nstack:\n%v\nMachine state: %s",
+					result.Error, result.Output, result.GnoStacktrace, string(result.GoPanicStack), mstate)
 			}
 		}
 	} else if result.Output != "" {

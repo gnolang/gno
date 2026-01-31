@@ -145,6 +145,8 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Dump machine state
+	DumpMachineState bool
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -359,9 +361,13 @@ func (opts *TestOptions) runTestFiles(
 			if st := m.ExceptionStacktrace(); st != "" {
 				errs = multierr.Append(errors.New(st), errs)
 			}
+			mstate := ""
+			if opts.DumpMachineState {
+				mstate = m.String()
+			}
 			errs = multierr.Append(
 				fmt.Errorf("panic: %v\ngo stacktrace:\n%v\ngno machine: %v\ngno stacktrace:\n%v",
-					r, string(debug.Stack()), m.String(), m.Stacktrace()),
+					r, string(debug.Stack()), mstate, m.Stacktrace()),
 				errs,
 			)
 		}
@@ -514,6 +520,10 @@ func (opts *TestOptions) runTestFiles(
 			if opts.FailfastFlag {
 				return errs
 			}
+		}
+
+		if opts.DumpMachineState {
+			fmt.Fprintf(opts.Error, "--- Machine State: %s\n", m.String())
 		}
 
 		if opts.Metrics {

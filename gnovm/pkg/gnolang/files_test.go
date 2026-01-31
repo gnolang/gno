@@ -17,6 +17,7 @@ import (
 )
 
 var withSync = flag.Bool("update-golden-tests", false, "rewrite tests updating Realm: and Output: with new values where changed")
+var dumpMachineState = flag.Bool("dump-machine-state", false, "dump machine state...")
 
 type nopReader struct{}
 
@@ -40,10 +41,11 @@ func TestFiles(t *testing.T) {
 
 	newOpts := func() *test.TestOptions {
 		o := &test.TestOptions{
-			RootDir: rootDir,
-			Output:  io.Discard,
-			Error:   io.Discard,
-			Sync:    *withSync,
+			RootDir:          rootDir,
+			Output:           io.Discard,
+			Error:            io.Discard,
+			Sync:             *withSync,
+			DumpMachineState: *dumpMachineState,
 		}
 		o.BaseStore, o.TestStore = test.StoreWithOptions(
 			rootDir, o.WriterForStore(),

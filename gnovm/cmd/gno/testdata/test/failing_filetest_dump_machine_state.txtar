@@ -1,0 +1,24 @@
+# Test with a failing _filetest.gno file with dump machine state.
+
+! gno test -v -dump-machine-state .
+
+stderr '=== RUN   ./failing_filetest.gno'
+stderr 'Machine state: Machine:\n    Stage: StageRun\n    Op:'
+
+-- failing.gno --
+package failing
+
+-- failing_filetest.gno --
+package main
+
+func main() {
+	panic("beep boop")
+}
+
+// Output:
+// blah
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/failing_filetest"
+gno = "0.9"
