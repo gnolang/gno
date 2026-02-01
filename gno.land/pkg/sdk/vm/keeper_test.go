@@ -121,6 +121,71 @@ func Echo(cur realm) string {
 	assert.Nil(t, memFile)
 }
 
+func TestVMKeeperAddPackage_CLAEnforcement(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	// Create test package.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "test.gno",
+			Body: `package test
+func Echo(cur realm) string {
+	return "hello world"
+}`,
+		},
+	}
+
+	t.Run("CLA disabled - no hash required", func(t *testing.T) {
+		// CLA is disabled by default (empty hash)
+		msg := NewMsgAddPackage(addr, "gno.land/r/test1", files)
+		msg.Package.Path = "gno.land/r/test1"
+		err := env.vmk.AddPackage(ctx, msg)
+		assert.NoError(t, err)
+	})
+
+	t.Run("CLA enabled - missing hash rejected", func(t *testing.T) {
+		// Enable CLA enforcement
+		env.prmk.SetString(ctx, "vm:p:cla_hash", "expectedhash12345")
+
+		msg := NewMsgAddPackage(addr, "gno.land/r/test2", files)
+		msg.Package.Path = "gno.land/r/test2"
+		// msg.CLAHash is empty
+
+		err := env.vmk.AddPackage(ctx, msg)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, CLAHashMissingError{})
+	})
+
+	t.Run("CLA enabled - wrong hash rejected", func(t *testing.T) {
+		msg := NewMsgAddPackage(addr, "gno.land/r/test3", files)
+		msg.Package.Path = "gno.land/r/test3"
+		msg.CLAHash = "wronghash1234567"
+
+		err := env.vmk.AddPackage(ctx, msg)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, CLAHashMismatchError{})
+	})
+
+	t.Run("CLA enabled - correct hash accepted", func(t *testing.T) {
+		msg := NewMsgAddPackage(addr, "gno.land/r/test4", files)
+		msg.Package.Path = "gno.land/r/test4"
+		msg.CLAHash = "expectedhash12345"
+
+		err := env.vmk.AddPackage(ctx, msg)
+		assert.NoError(t, err)
+		assert.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage("gno.land/r/test4", false))
+	})
+}
+
 func TestVMKeeperAddPackage_DraftPackage(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)

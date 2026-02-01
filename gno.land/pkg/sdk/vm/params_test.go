@@ -133,3 +133,90 @@ func TestWillSetParam(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCLAHash(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	vmk := env.vmk
+	prmk := env.prmk
+
+	tests := []struct {
+		name        string
+		claParam    string // CLA hash in params
+		msgCLAHash  string // CLA hash in message
+		expectError bool
+		errorType   error
+	}{
+		{
+			name:        "enforcement disabled (empty param), empty message hash",
+			claParam:    "",
+			msgCLAHash:  "",
+			expectError: false,
+		},
+		{
+			name:        "enforcement disabled (empty param), message has hash",
+			claParam:    "",
+			msgCLAHash:  "somehash12345678",
+			expectError: false, // hash is ignored when enforcement is disabled
+		},
+		{
+			name:        "enforcement enabled, matching hash",
+			claParam:    "a3d74e2544d091e8",
+			msgCLAHash:  "a3d74e2544d091e8",
+			expectError: false,
+		},
+		{
+			name:        "enforcement enabled, missing hash in message",
+			claParam:    "a3d74e2544d091e8",
+			msgCLAHash:  "",
+			expectError: true,
+			errorType:   CLAHashMissingError{},
+		},
+		{
+			name:        "enforcement enabled, mismatched hash",
+			claParam:    "a3d74e2544d091e8",
+			msgCLAHash:  "wronghash1234567",
+			expectError: true,
+			errorType:   CLAHashMismatchError{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set the CLA hash param
+			prmk.SetString(ctx, "vm:p:cla_hash", tt.claParam)
+
+			// Call validateCLAHash
+			err := vmk.validateCLAHash(ctx, tt.msgCLAHash)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.ErrorIs(t, err, tt.errorType)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestCLAErrors(t *testing.T) {
+	t.Run("CLAHashMismatchError", func(t *testing.T) {
+		err := ErrCLAHashMismatch("expected123", "actual456")
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, CLAHashMismatchError{})
+
+		// Test the base error message
+		baseErr := CLAHashMismatchError{}
+		assert.Equal(t, "CLA hash mismatch", baseErr.Error())
+	})
+
+	t.Run("CLAHashMissingError", func(t *testing.T) {
+		err := ErrCLAHashMissing()
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, CLAHashMissingError{})
+
+		// Test the base error message
+		baseErr := CLAHashMissingError{}
+		assert.Equal(t, "CLA hash missing", baseErr.Error())
+	})
+}

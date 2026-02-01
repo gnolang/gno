@@ -1,6 +1,8 @@
 package keyscli
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -53,6 +55,18 @@ func TestFetchCLAContent(t *testing.T) {
 	testContent := "This is test CLA content.\n"
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0o644))
 
+	// Create test HTTP server
+	httpContent := "HTTP CLA content\n"
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/cla.txt" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(httpContent))
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
 	tests := []struct {
 		name        string
 		urlOrPath   string
@@ -77,6 +91,16 @@ func TestFetchCLAContent(t *testing.T) {
 		{
 			name:        "nonexistent file:// URL",
 			urlOrPath:   "file:///nonexistent/path/to/file.txt",
+			expectError: true,
+		},
+		{
+			name:      "HTTP URL success",
+			urlOrPath: ts.URL + "/cla.txt",
+			expected:  httpContent,
+		},
+		{
+			name:        "HTTP URL not found",
+			urlOrPath:   ts.URL + "/notfound.txt",
 			expectError: true,
 		},
 	}
@@ -145,6 +169,25 @@ func TestConfig(t *testing.T) {
 		loaded, err := LoadConfig(subDir)
 		require.NoError(t, err)
 		assert.Equal(t, "1234567890abcdef", loaded.GetCLAHash("https://rpc.test.gno.land:443"))
+	})
+
+	t.Run("load invalid TOML", func(t *testing.T) {
+		subDir := filepath.Join(tmpDir, "invalid_toml")
+		require.NoError(t, os.MkdirAll(subDir, 0o755))
+
+		// Write invalid TOML
+		configPath := filepath.Join(subDir, configFile)
+		require.NoError(t, os.WriteFile(configPath, []byte("invalid { toml ["), 0o600))
+
+		_, err := LoadConfig(subDir)
+		assert.Error(t, err)
+	})
+
+	t.Run("set CLA hash on nil zones", func(t *testing.T) {
+		// Test SetCLAHash initializing nil Zones map
+		cfg := &Config{Zones: nil}
+		cfg.SetCLAHash("https://test:443", "hash123")
+		assert.Equal(t, "hash123", cfg.GetCLAHash("https://test:443"))
 	})
 }
 
