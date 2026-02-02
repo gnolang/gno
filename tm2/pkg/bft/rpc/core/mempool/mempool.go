@@ -3,6 +3,7 @@ package mempool
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -158,6 +159,11 @@ func (h *Handler) UnconfirmedTxsHandler(_ *metadata.Metadata, p []any) (any, *sp
 	limit64, err := coreparams.AsInt64(p, idxLimit)
 	if err != nil {
 		return nil, err
+	}
+
+	// Sanity check to make security scans happy
+	if limit64 < 0 || limit64 > math.MaxInt32 {
+		return nil, spec.GenerateInvalidParamError(idxLimit)
 	}
 
 	var (
