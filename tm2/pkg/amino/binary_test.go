@@ -409,4 +409,5 @@ func TestInterfaceTypeAssignabilityOnDecodeError(t *testing.T) {
 	var dst Interface1Wrapper
 	err = cdc.Unmarshal(bz, &dst)
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not assignable")
 }
