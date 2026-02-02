@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/middleware"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
@@ -363,12 +365,71 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 				res.WriteHeader(http.StatusInternalServerError)
 			}
 		})
+
+		mux.HandleFunc("/next_tx", func(res http.ResponseWriter, req *http.Request) {
+			if err := ds.devNode.MoveToNextTX(req.Context()); err != nil {
+				ds.logger.Error("failed to move forward", slog.Any("err", err))
+				res.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+
+		mux.HandleFunc("/prev_tx", func(res http.ResponseWriter, req *http.Request) {
+			if err := ds.devNode.MoveToPreviousTX(req.Context()); err != nil {
+				ds.logger.Error("failed to move backward", slog.Any("err", err))
+				res.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+
+		mux.HandleFunc("/list_accounts", func(res http.ResponseWriter, req *http.Request) {
+			if jsonBytes, err := marshalJSONAccounts(req.Context(), ds.book); err != nil {
+				ds.logger.Error("failed to list accounts", slog.Any("err", err))
+				res.WriteHeader(http.StatusInternalServerError)
+			} else {
+				res.Header().Set("Content-Type", "application/json")
+				res.Write(jsonBytes)
+			}
+		})
 	}
 
+	// Setup scripts to inject into the web pages
+	var scripts [][]byte
+
+	// Reload script
 	if !ds.cfg.noWatch {
 		evtstarget := fmt.Sprintf("%s/_events", ds.cfg.webListenerAddr)
 		mux.Handle("/_events", ds.emitterServer)
-		mux.Handle("/", emitter.NewMiddleware(evtstarget, webhandler))
+
+		reloadScript, err := emitter.GenerateReloadScript(evtstarget)
+		if err != nil {
+			return nil, fmt.Errorf("unable to generate reload script: %w", err)
+		}
+
+		scripts = append(scripts, reloadScript)
+	}
+
+	// Custom script
+	if ds.cfg.webCustomJS != "" {
+		customJS, err := os.ReadFile(ds.cfg.webCustomJS)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read custom JS file %q: %w", ds.cfg.webCustomJS, err)
+		}
+
+		var customScript bytes.Buffer
+
+		// Prepend gnodev infos to the custom JS script.
+		customScript.WriteString("const gnodev = {\n")
+		customScript.WriteString(fmt.Sprintf("  rpcListenerAddr: '%s',\n", ds.cfg.nodeP2PListenerAddr))
+		customScript.WriteString(fmt.Sprintf("  webListenerAddr: '%s',\n", ds.cfg.webListenerAddr))
+		customScript.WriteString(fmt.Sprintf("  webHomePath: '%s',\n", ds.webHomePath))
+		customScript.WriteString(fmt.Sprintf("  chainID: '%s',\n", ds.cfg.chainId))
+		customScript.WriteString("};\n\n")
+
+		customScript.Write(customJS)
+		scripts = append(scripts, customScript.Bytes())
+	}
+
+	if len(scripts) > 0 {
+		mux.Handle("/", middleware.NewInjectorMiddleware(scripts, webhandler))
 	} else {
 		mux.Handle("/", webhandler)
 	}
