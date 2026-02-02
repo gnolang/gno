@@ -705,7 +705,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		// We probably don't want to stop the peer here. The vote does not
 		// necessarily comes from a malicious peer but can be just broadcasted by
 		// a typical peer.
-		// https://github.com/tendermint/classic/issues/1281
+		// https://github.com/tendermint/tendermint/issues/1281
 		// }
 
 		// NOTE: the vote is broadcast to peers by the reactor listening
@@ -721,7 +721,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 
 	if err != nil { //nolint:staticcheck
 		// Causes TestReactorValidatorSetChanges to timeout
-		// https://github.com/tendermint/classic/issues/3406
+		// https://github.com/tendermint/tendermint/issues/3406
 		// cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round,
 		// 	"peer", peerID, "err", err, "msg", msg)
 	}
@@ -1544,7 +1544,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2pTypes.ID) (bool
 			// Either
 			// 1) bad peer OR
 			// 2) not a bad peer? this can also err sometimes with "Unexpected step" OR
-			// 3) tmkms use with multiple validators connecting to a single tmkms instance (https://github.com/tendermint/classic/issues/3839).
+			// 3) tmkms use with multiple validators connecting to a single tmkms instance (https://github.com/tendermint/tendermint/issues/3839).
 			cs.Logger.Info("Error attempting to add vote", "err", err)
 			return added, ErrAddingVote
 		}
@@ -1734,7 +1734,7 @@ func (cs *ConsensusState) voteTime() time.Time {
 	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.
 	timeIota := time.Duration(cs.state.ConsensusParams.Block.TimeIotaMS) * time.Millisecond
 	if cs.LockedBlock != nil {
-		// See the BFT time spec https://tendermint.com/docs/spec/consensus/bft-time.html
+		// See the BFT time spec https://docs.cometbft.com/v0.38/spec/consensus/bft-time
 		minVoteTime = cs.LockedBlock.Time.Add(timeIota)
 	} else if cs.ProposalBlock != nil {
 		minVoteTime = cs.ProposalBlock.Time.Add(timeIota)
