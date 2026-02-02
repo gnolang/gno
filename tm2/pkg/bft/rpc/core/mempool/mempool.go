@@ -184,7 +184,7 @@ func (h *Handler) NumUnconfirmedTxsHandler(_ *metadata.Metadata, p []any) (any, 
 	_, span := traces.Tracer().Start(context.Background(), "NumUnconfirmedTxs")
 	defer span.End()
 
-	return ResultUnconfirmedTxs{
+	return &ResultUnconfirmedTxs{
 		Count:      h.mempool.Size(),
 		Total:      h.mempool.Size(),
 		TotalBytes: h.mempool.TxsBytes(),

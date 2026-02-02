@@ -61,7 +61,7 @@ func (h *Handler) ValidatorsHandler(_ *metadata.Metadata, p []any) (any, *spec.B
 		return nil, spec.GenerateResponseError(loadErr)
 	}
 
-	return ResultValidators{
+	return &ResultValidators{
 		BlockHeight: height,
 		Validators:  validators.Validators,
 	}, nil
