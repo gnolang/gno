@@ -1,17 +1,21 @@
-# XXX: NEED UPDATE: cannot send transfer to self
-
 # Test for https://github.com/gnolang/gno/issues/1786
+# Tests proxy pattern for wrapping/unwrapping tokens using a local wugnot copy
+# (without AssertOriginCall to allow cross-realm deposits)
 
-loadpkg gno.land/r/gnoland/wugnot
+loadpkg gno.land/p/demo/tokens/grc20
 
 gnoland start
 
-# add contract
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/proxywugnot -gas-fee 1000000ugnot -gas-wanted 16000000 -broadcast -chainid=tendermint_test test1
+# add wugnot package (local copy without AssertOriginCall)
+gnokey maketx addpkg -pkgdir $WORK/wugnot -pkgpath gno.land/r/demo/wugnot -gas-fee 1000000ugnot -gas-wanted 16000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# add proxy contract
+gnokey maketx addpkg -pkgdir $WORK/proxywugnot -pkgpath gno.land/r/demo/proxywugnot -gas-fee 1000000ugnot -gas-wanted 16000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # approve wugnot to `proxywugnot ≈ g1fndyg0we60rdfchyy5dwxzkfmhl5u34j932rg3`
-gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Approve -args "g1fndyg0we60rdfchyy5dwxzkfmhl5u34j932rg3" -args 10000 -gas-fee 1000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Approve -args "g1fndyg0we60rdfchyy5dwxzkfmhl5u34j932rg3" -args 10000 -gas-fee 1000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # send 10000ugnot to `proxywugnot` to wrap it
@@ -19,7 +23,7 @@ gnokey maketx call -pkgpath gno.land/r/demo/proxywugnot --send "10000ugnot" -fun
 stdout OK!
 
 # check user's wugnot balance
-gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 stdout '10000 int64'
 
 # unwrap 500 wugnot
@@ -30,21 +34,123 @@ gnokey maketx call -pkgpath gno.land/r/demo/proxywugnot -func ProxyUnwrap -args 
 # XXX with pathcing only wugnot.gnot it will panic
 # panic msg: RealmSendBanker can only send from the realm package address "g1fndyg0we60rdfchyy5dwxzkfmhl5u34j932rg3", but got "g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6"
 
-
 # check user's wugnot balance
-
-gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 stdout '9500 int64'
 
 # render
-gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:invalid"
+gnokey query vm/qrender --data "gno.land/r/demo/wugnot:invalid"
 stdout 'data: 404'
 
--- gnomod.toml --
-module = "issue_1786"
+-- wugnot/gnomod.toml --
+module = "gno.land/r/demo/wugnot"
 gno = "0.9"
 
--- realm.gno --
+-- wugnot/wugnot.gno --
+package wugnot
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+	"strings"
+
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/ufmt"
+)
+
+var Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)
+
+const (
+	ugnotMinDeposit  int64 = 1000
+	wugnotMinDeposit int64 = 1
+)
+
+func Deposit(cur realm) {
+	caller := runtime.PreviousRealm().Address()
+	sent := banker.OriginSend()
+	amount := sent.AmountOf("ugnot")
+
+	require(int64(amount) >= ugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d ugnot.", amount, ugnotMinDeposit))
+
+	checkErr(adm.Mint(caller, int64(amount)))
+}
+
+func Withdraw(cur realm, amount int64) {
+	require(amount >= wugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d wugnot.", amount, wugnotMinDeposit))
+
+	caller := runtime.PreviousRealm().Address()
+	pkgaddr := runtime.CurrentRealm().Address()
+	callerBal := Token.BalanceOf(caller)
+	require(amount <= callerBal, ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
+
+	// send swapped ugnots to caller
+	stdBanker := banker.NewBanker(banker.BankerTypeRealmSend)
+	send := chain.Coins{{"ugnot", int64(amount)}}
+	stdBanker.SendCoins(pkgaddr, caller, send)
+	checkErr(adm.Burn(caller, amount))
+}
+
+func Render(path string) string {
+	parts := strings.Split(path, "/")
+	c := len(parts)
+
+	switch {
+	case path == "":
+		return Token.RenderHome()
+	case c == 2 && parts[0] == "balance":
+		owner := address(parts[1])
+		balance := Token.BalanceOf(owner)
+		return ufmt.Sprintf("%d", balance)
+	default:
+		return "404"
+	}
+}
+
+func TotalSupply() int64 {
+	return Token.TotalSupply()
+}
+
+func BalanceOf(owner address) int64 {
+	return Token.BalanceOf(owner)
+}
+
+func Allowance(owner, spender address) int64 {
+	return Token.Allowance(owner, spender)
+}
+
+func Transfer(cur realm, to address, amount int64) {
+	userTeller := Token.CallerTeller()
+	checkErr(userTeller.Transfer(to, amount))
+}
+
+func Approve(cur realm, spender address, amount int64) {
+	userTeller := Token.CallerTeller()
+	checkErr(userTeller.Approve(spender, amount))
+}
+
+func TransferFrom(cur realm, from, to address, amount int64) {
+	userTeller := Token.CallerTeller()
+	checkErr(userTeller.TransferFrom(from, to, amount))
+}
+
+func require(condition bool, msg string) {
+	if !condition {
+		panic(msg)
+	}
+}
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+-- proxywugnot/gnomod.toml --
+module = "gno.land/r/demo/proxywugnot"
+gno = "0.9"
+
+-- proxywugnot/realm.gno --
 package proxywugnot
 
 import (
@@ -52,7 +158,7 @@ import (
 	"chain/banker"
 	"chain/runtime"
 
-	"gno.land/r/gnoland/wugnot"
+	"gno.land/r/demo/wugnot"
 )
 
 func ProxyWrap(cur realm) {
@@ -64,7 +170,7 @@ func ProxyWrap(cur realm) {
 	}
 
 	// WRAP IT
-	wugnotAddr := chain.PackageAddress("gno.land/r/gnoland/wugnot")
+	wugnotAddr := chain.PackageAddress("gno.land/r/demo/wugnot")
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
 	banker_.SendCoins(runtime.CurrentRealm().Address(), wugnotAddr, chain.Coins{{"ugnot", int64(ugnotSent)}})
 	wugnot.Deposit(cross) // `proxywugnot` has ugnot
