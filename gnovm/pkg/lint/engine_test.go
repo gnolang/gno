@@ -55,21 +55,6 @@ func (alwaysIssueRule) Check(ctx *RuleContext, node gnolang.Node) []Issue {
 	return nil
 }
 
-type neverIssueRule struct{}
-
-func (neverIssueRule) Info() RuleInfo {
-	return RuleInfo{
-		ID:       "TEST002",
-		Category: CategoryGeneral,
-		Name:     "never-issue",
-		Severity: SeverityWarning,
-	}
-}
-
-func (neverIssueRule) Check(ctx *RuleContext, node gnolang.Node) []Issue {
-	return nil
-}
-
 func TestEngine_Run_NoRules(t *testing.T) {
 	cfg := DefaultConfig()
 	reg := NewRegistry() // empty registry
