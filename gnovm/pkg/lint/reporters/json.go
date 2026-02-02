@@ -55,7 +55,13 @@ func (r *JSONReporter) Flush() error {
 
 	encoder := json.NewEncoder(r.w)
 	encoder.SetIndent("", "\t")
-	return encoder.Encode(r.issues)
+	err := encoder.Encode(r.issues)
+
+	r.issues = r.issues[:0]
+	clear(r.seen)
+	r.info, r.warnings, r.errors = 0, 0, 0
+
+	return err
 }
 
 func (r *JSONReporter) Summary() (info, warnings, errors int) {
