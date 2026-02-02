@@ -23,7 +23,9 @@ type MakeTxCfg struct {
 	Broadcast bool
 	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
 	Simulate string
-	ChainID  string
+	// Only used with SimulateOnly
+	GasFeeMargin int64
+	ChainID      string
 }
 
 // These are the valid options for MakeTxConfig.Simulate.
@@ -103,6 +105,13 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		- only: avoids broadcasting transaction (ie. dry run)`,
 	)
 
+	fs.Int64Var(
+		&c.GasFeeMargin,
+		"gas-fee-margin",
+		5,
+		"percent to increase the simulated gas fee (only useful with -simulate only)",
+	)
+
 	fs.StringVar(
 		&c.ChainID,
 		"chainid",
@@ -178,6 +187,7 @@ func SignAndBroadcastHandler(
 
 		DryRun:       cfg.Simulate == SimulateOnly,
 		testSimulate: cfg.Simulate == SimulateTest,
+		GasFeeMargin: cfg.GasFeeMargin,
 	}
 
 	return BroadcastHandler(bopts)
