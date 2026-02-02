@@ -48,6 +48,7 @@ Learn about core concepts found in Gno.land & Gno.
 - [Configuring Gno Projects](resources/configuring-gno-projects.md) - Using gnomod.toml & gnowork.toml to configure your Gno packages.
 - [Local development with `gnodev`](resources/gnodev.md) - Reference for the local node, its features and flags, and the hot-reload development loop.
 - [Testing Gno](resources/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
+- [Linting Gno](resources/gno-lint.md) - Learn how to use `gno lint` to identify potential issues and enforce best practices in your Gno code.
 - [Working with Realms](resources/realms.md) - Working with realms and environment variables.
 - [Interrealm Specification](resources/gno-interrealm.md) - Understand how inter-realm communication works.
 - [Gno Memory Model](resources/gno-memory-model.md) - A peek under the hood of the Gno Virtual Machine.
