@@ -23,6 +23,7 @@ func init() {
 }
 
 func Deposit(cur realm) {
+	runtime.AssertOriginCall()
 	caller := runtime.PreviousRealm().Address()
 	sent := banker.OriginSend()
 	amount := sent.AmountOf("ugnot")
