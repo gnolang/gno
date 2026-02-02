@@ -1,15 +1,46 @@
 package keyscli
 
 import (
+	"flag"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNewCLACmd(t *testing.T) {
+	cfg := &client.BaseCfg{}
+	io := commands.NewTestIO()
+
+	cmd := NewCLACmd(cfg, io)
+	assert.NotNil(t, cmd)
+}
+
+func TestCLASignCfg_RegisterFlags(t *testing.T) {
+	cfg := &CLASignCfg{}
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	cfg.RegisterFlags(fs)
+
+	// Check that --url flag is registered
+	urlFlag := fs.Lookup("url")
+	assert.NotNil(t, urlFlag)
+	assert.Equal(t, "", urlFlag.DefValue)
+}
+
+func TestCLAStatusCfg_RegisterFlags(t *testing.T) {
+	cfg := &CLAStatusCfg{
+		RootCfg: &client.BaseCfg{},
+	}
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	cfg.RegisterFlags(fs)
+	// CLAStatusCfg has no flags, just verify it doesn't panic
+}
 
 func TestComputeCLAHash(t *testing.T) {
 	tests := []struct {
@@ -225,5 +256,113 @@ func TestLoadCLAHashForRemote(t *testing.T) {
 	t.Run("load from nonexistent dir", func(t *testing.T) {
 		hash := LoadCLAHashForRemote("/nonexistent/dir", "https://rpc.gno.land:443")
 		assert.Equal(t, "", hash)
+	})
+}
+
+func TestExecCLAStatus(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	t.Run("no CLAs signed", func(t *testing.T) {
+		cfg := &CLAStatusCfg{
+			RootCfg: &client.BaseCfg{
+				BaseOptions: client.BaseOptions{Home: tmpDir},
+			},
+		}
+		io := commands.NewTestIO()
+
+		err := execCLAStatus(cfg, io)
+		assert.NoError(t, err)
+	})
+
+	t.Run("with specific remote - not signed", func(t *testing.T) {
+		subDir := filepath.Join(tmpDir, "not_signed")
+		require.NoError(t, os.MkdirAll(subDir, 0o755))
+
+		cfg := &CLAStatusCfg{
+			RootCfg: &client.BaseCfg{
+				BaseOptions: client.BaseOptions{
+					Home:   subDir,
+					Remote: "https://rpc.gno.land:443",
+				},
+			},
+		}
+		io := commands.NewTestIO()
+
+		err := execCLAStatus(cfg, io)
+		assert.NoError(t, err)
+	})
+
+	t.Run("with specific remote - signed", func(t *testing.T) {
+		subDir := filepath.Join(tmpDir, "signed")
+		require.NoError(t, os.MkdirAll(subDir, 0o755))
+
+		// Save a config with CLA hash
+		config := &Config{
+			Zones: map[string]ZoneConfig{
+				"https://rpc.gno.land:443": {CLAHash: "testhash12345678"},
+			},
+		}
+		require.NoError(t, SaveConfig(subDir, config))
+
+		cfg := &CLAStatusCfg{
+			RootCfg: &client.BaseCfg{
+				BaseOptions: client.BaseOptions{
+					Home:   subDir,
+					Remote: "https://rpc.gno.land:443",
+				},
+			},
+		}
+		io := commands.NewTestIO()
+
+		err := execCLAStatus(cfg, io)
+		assert.NoError(t, err)
+	})
+
+	t.Run("list all signed CLAs", func(t *testing.T) {
+		subDir := filepath.Join(tmpDir, "list_all")
+		require.NoError(t, os.MkdirAll(subDir, 0o755))
+
+		// Save a config with multiple CLA hashes
+		config := &Config{
+			Zones: map[string]ZoneConfig{
+				"https://rpc.gno.land:443":  {CLAHash: "hash1"},
+				"http://localhost:26657":    {CLAHash: "hash2"},
+				"https://rpc.test.gno.land": {CLAHash: ""}, // empty hash should be skipped
+			},
+		}
+		require.NoError(t, SaveConfig(subDir, config))
+
+		cfg := &CLAStatusCfg{
+			RootCfg: &client.BaseCfg{
+				BaseOptions: client.BaseOptions{
+					Home:   subDir,
+					Remote: "", // empty = list all
+				},
+			},
+		}
+		io := commands.NewTestIO()
+
+		err := execCLAStatus(cfg, io)
+		assert.NoError(t, err)
+	})
+
+	t.Run("load config error", func(t *testing.T) {
+		subDir := filepath.Join(tmpDir, "invalid_config")
+		require.NoError(t, os.MkdirAll(subDir, 0o755))
+
+		// Write invalid TOML
+		configPath := filepath.Join(subDir, configFile)
+		require.NoError(t, os.WriteFile(configPath, []byte("invalid { toml"), 0o600))
+
+		cfg := &CLAStatusCfg{
+			RootCfg: &client.BaseCfg{
+				BaseOptions: client.BaseOptions{Home: subDir},
+			},
+		}
+		io := commands.NewTestIO()
+
+		err := execCLAStatus(cfg, io)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to load config")
 	})
 }
