@@ -20,10 +20,12 @@ gno lint --list-rules
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `-C` | - | Change to directory before running command |
 | `-v` | false | Verbose output |
 | `--mode` | default | Lint mode: `default`, `strict`, `warn-only` |
 | `--format` | text | Output format: `text`, `json` |
 | `--list-rules` | false | List available rules and exit |
+| `--disable-rules` | - | Comma-separated list of rules to disable (e.g., `AVL001,GLOBAL001`) |
 | `--root-dir` | auto | Gno root directory |
 | `--auto-gnomod` | true | Auto-generate gnomod.toml if missing |
 
