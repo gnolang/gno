@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	rpcClient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
 	"github.com/gnolang/gno/contribs/tx-archive/backup/client"
@@ -76,12 +76,7 @@ func (c *Client) GetBlocks(ctx context.Context, from, to uint64) ([]*client.Bloc
 		// Add current block to the batch
 		currBlockInt64 := int64(currBlock)
 
-		if err := batch.Block(&currBlockInt64); err != nil {
-			return nil, fmt.Errorf(
-				"unable to batch block request, %w",
-				err,
-			)
-		}
+		batch.Block(&currBlockInt64)
 	}
 
 	// Send batch of requests
@@ -94,10 +89,10 @@ func (c *Client) GetBlocks(ctx context.Context, from, to uint64) ([]*client.Bloc
 	}
 
 	// Gather blocks containing transaction in RPC results
-	var blocks []*client.Block
+	var clientBlocks []*client.Block
 
 	for _, result := range results {
-		blockRes, ok := result.(*ctypes.ResultBlock)
+		blockRes, ok := result.(*blocks.ResultBlock)
 		if !ok {
 			return nil, errors.New("unable to cast request result to TxData")
 		}
@@ -121,7 +116,7 @@ func (c *Client) GetBlocks(ctx context.Context, from, to uint64) ([]*client.Bloc
 			}
 
 			// Add block including transactions, timestamp and block height to slice
-			blocks = append(blocks, &client.Block{
+			clientBlocks = append(clientBlocks, &client.Block{
 				Timestamp: blockRes.Block.Time.Unix(),
 				Height:    uint64(blockRes.Block.Height),
 				Txs:       txs,
@@ -129,7 +124,7 @@ func (c *Client) GetBlocks(ctx context.Context, from, to uint64) ([]*client.Bloc
 		}
 	}
 
-	return blocks, nil
+	return clientBlocks, nil
 }
 
 func (c *Client) GetTxResults(block uint64) ([]*abci.ResponseDeliverTx, error) {
