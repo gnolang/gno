@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	testDenom1 = "atom"
-	testDenom2 = "muon"
+	testDenom1       = "atom"
+	testDenom2       = "muon"
+	testDenomInvalid = "Atom"
 )
 
 // ----------------------------------------------------------------------------
@@ -71,6 +72,66 @@ func TestCoinIsValid(t *testing.T) {
 	}
 }
 
+func TestValidate(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		denom   string
+		amount  int64
+		wantErr string
+	}{
+		{"atom", 1, ""},
+		{"atom", 0, ""},
+		{"atom", -1, "negative coin amount: -1"},
+		{"Atom", 1, "invalid denom: Atom"},
+		{"a", 1, "invalid denom: a"},
+		{"a very long coin denom", 1, "invalid denom: a very long coin denom"},
+		{"atOm", 1, "invalid denom: atOm"},
+		{"     ", 1, "invalid denom:      "},
+	}
+
+	for i, tc := range cases {
+		err := validate(tc.denom, tc.amount)
+		if tc.wantErr == "" {
+			require.NoError(t, err, "unexpected error for validate, tc #%d", i)
+		} else {
+			require.EqualError(t, err, tc.wantErr, "unexpected error message for validate, tc #%d", i)
+		}
+	}
+}
+
+func TestCoinsValidate(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		coins   Coins
+		wantErr string
+	}{
+		{Coins{}, ""},
+		{Coins{{"gas", 1}}, ""},
+		{Coins{{"gas", 1}, {"mineral", 1}}, ""},
+		{Coins{{"gas", 0}}, "non-positive coin amount: 0"},
+		{Coins{{"gas", -1}}, "non-positive coin amount: -1"},
+		{Coins{{"GAS", 1}}, "invalid denom: GAS"},
+		{Coins{{"gas", 1}, {"MINERAL", 1}}, "invalid denom: MINERAL"},
+		{Coins{{"bbb", 1}, {"aaa", 1}}, "coins not sorted: aaa < bbb"},
+		{Coins{{"gas", 1}, {"tree", 1}, {"mineral", 1}}, "coins not sorted: mineral < tree"},
+		{Coins{{"gas", 1}, {"gas", 1}}, "duplicate denom: gas"},
+		{Coins{{"gas", 1}, {"mineral", 1}, {"mineral", 1}}, "duplicate denom: mineral"},
+		{Coins{{"gas", 1}, {"mineral", 0}}, "non-positive coin amount: 0"},
+		{Coins{{"gas", 1}, {"mineral", -5}}, "non-positive coin amount: -5"},
+	}
+
+	for i, tc := range cases {
+		err := tc.coins.validate()
+		if tc.wantErr == "" {
+			require.NoError(t, err, "unexpected error for Coins.validate, tc #%d", i)
+		} else {
+			require.EqualError(t, err, tc.wantErr, "unexpected error message for Coins.validate, tc #%d", i)
+		}
+	}
+}
+
 func TestAddCoin(t *testing.T) {
 	t.Parallel()
 
@@ -83,6 +144,7 @@ func TestAddCoin(t *testing.T) {
 		{NewCoin(testDenom1, 1), NewCoin(testDenom1, 1), NewCoin(testDenom1, 2), false},
 		{NewCoin(testDenom1, 1), NewCoin(testDenom1, 0), NewCoin(testDenom1, 1), false},
 		{NewCoin(testDenom1, 1), NewCoin(testDenom2, 1), NewCoin(testDenom1, 1), true},
+		{Coin{Denom: testDenomInvalid, Amount: 1}, Coin{Denom: testDenomInvalid, Amount: 1}, NewCoin(testDenom1, 0), true},
 	}
 
 	for tcIndex, tc := range cases {
@@ -109,6 +171,7 @@ func TestSubCoin(t *testing.T) {
 		{NewCoin(testDenom1, 5), NewCoin(testDenom1, 3), NewCoin(testDenom1, 2), false},
 		{NewCoin(testDenom1, 5), NewCoin(testDenom1, 0), NewCoin(testDenom1, 5), false},
 		{NewCoin(testDenom1, 1), NewCoin(testDenom1, 5), Coin{}, true},
+		{NewCoin(testDenom1, 1), Coin{Denom: testDenomInvalid, Amount: 1}, Coin{}, true},
 	}
 
 	for tcIndex, tc := range cases {
@@ -254,18 +317,24 @@ func TestAddCoins(t *testing.T) {
 		inputOne Coins
 		inputTwo Coins
 		expected Coins
+		panics   bool
 	}{
-		{Coins{{testDenom1, one}, {testDenom2, one}}, Coins{{testDenom1, one}, {testDenom2, one}}, Coins{{testDenom1, two}, {testDenom2, two}}},
-		{Coins{{testDenom1, zero}, {testDenom2, one}}, Coins{{testDenom1, zero}, {testDenom2, zero}}, Coins{{testDenom2, one}}},
-		{Coins{{testDenom1, two}}, Coins{{testDenom2, zero}}, Coins{{testDenom1, two}}},
-		{Coins{{testDenom1, one}}, Coins{{testDenom1, one}, {testDenom2, two}}, Coins{{testDenom1, two}, {testDenom2, two}}},
-		{Coins{{testDenom1, zero}, {testDenom2, zero}}, Coins{{testDenom1, zero}, {testDenom2, zero}}, Coins(nil)},
+		{Coins{{testDenom1, one}, {testDenom2, one}}, Coins{{testDenom1, one}, {testDenom2, one}}, Coins{{testDenom1, two}, {testDenom2, two}}, false},
+		{Coins{{testDenom1, zero}, {testDenom2, one}}, Coins{{testDenom1, zero}, {testDenom2, zero}}, Coins{{testDenom2, one}}, false},
+		{Coins{{testDenom1, two}}, Coins{{testDenom2, zero}}, Coins{{testDenom1, two}}, false},
+		{Coins{{testDenom1, one}}, Coins{{testDenom1, one}, {testDenom2, two}}, Coins{{testDenom1, two}, {testDenom2, two}}, false},
+		{Coins{{testDenom1, zero}, {testDenom2, zero}}, Coins{{testDenom1, zero}, {testDenom2, zero}}, Coins(nil), false},
+		{Coins{{testDenom1, zero}}, Coins{{testDenomInvalid, one}}, Coins{}, true},
 	}
 
 	for tcIndex, tc := range cases {
-		res := tc.inputOne.Add(tc.inputTwo)
-		assert.True(t, res.IsValid())
-		require.Equal(t, tc.expected, res, "sum of coins is incorrect, tc #%d", tcIndex)
+		if tc.panics {
+			require.Panics(t, func() { tc.inputOne.Add(tc.inputTwo) })
+		} else {
+			res := tc.inputOne.Add(tc.inputTwo)
+			assert.True(t, res.IsValid())
+			require.Equal(t, tc.expected, res, "sum of coins is incorrect, tc #%d", tcIndex)
+		}
 	}
 }
 
@@ -434,6 +503,8 @@ func TestParse(t *testing.T) {
 		{"2 3foo, 97 bar", false, nil},        // 3foo is invalid coin name
 		{"11me coin, 12you coin", false, nil}, // no spaces in coin names
 		{"1.2btc", false, nil},                // amount must be integer
+		{"-5foo", false, nil},                 // amount must be positive
+		{"5Foo", false, nil},                  // denom must be lowercase
 	}
 
 	for tcIndex, tc := range cases {
@@ -615,6 +686,17 @@ func TestNewCoins(t *testing.T) {
 	tenatom := NewCoin("atom", 10)
 	tenbtc := NewCoin("btc", 10)
 	zeroeth := NewCoin("eth", 0)
+
+	// don't use NewCoin(...) to avoid early panic
+	uppercase := Coin{
+		Denom:  "UPC",
+		Amount: 10,
+	}
+	negative := Coin{
+		Denom:  "neg",
+		Amount: -5,
+	}
+
 	tests := []struct {
 		name      string
 		coins     Coins
@@ -625,6 +707,8 @@ func TestNewCoins(t *testing.T) {
 		{"one coin", []Coin{tenatom}, Coins{tenatom}, false},
 		{"sort after create", []Coin{tenbtc, tenatom}, Coins{tenatom, tenbtc}, false},
 		{"sort and remove zeroes", []Coin{zeroeth, tenbtc, tenatom}, Coins{tenatom, tenbtc}, false},
+		{"panic on uppercase denom", []Coin{uppercase}, Coins{}, true},
+		{"panic on negative amount", []Coin{negative}, Coins{}, true},
 		{"panic on dups", []Coin{tenatom, tenatom}, Coins{}, true},
 	}
 	for _, tt := range tests {
