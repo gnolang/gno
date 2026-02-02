@@ -49,7 +49,7 @@ func (bA *BitArray) GetIndex(i int) bool {
 }
 
 func (bA *BitArray) getIndex(i int) bool {
-	if i >= bA.Bits {
+	if i >= bA.Bits || i/64 >= len(bA.Elems) {
 		return false
 	}
 	return bA.Elems[i/64]&(uint64(1)<<uint(i%64)) > 0
@@ -222,6 +222,10 @@ func (bA *BitArray) IsFull() bool {
 	}
 	bA.mtx.Lock()
 	defer bA.mtx.Unlock()
+
+	if len(bA.Elems) == 0 {
+		return true
+	}
 
 	// Check all elements except the last
 	for _, elem := range bA.Elems[:len(bA.Elems)-1] {
