@@ -46,6 +46,10 @@ func main() {
 // Output:
 // true
 // # [Boards](/r/gnoland/boards2/v1) › [test123](/r/gnoland/boards2/v1:test123)
+//
+//
+// > [!NOTE] 3 THINGS YOU NEED TO GET STARTED
+// > To post and comment you need: a **Gno address** (create one with [Adena](https://adena.app) or [gnokey](https://docs.gno.land/users/interact-with-gnokey)), **GNOT** to pay for transactions (get some from the [faucet](https://faucet.gno.land/)), and a **registered username** ([register yours](/r/gnoland/users/v1)).
 // ## Test Thread
 //
 // **[@user123](/u/user123)** · 2009-02-13 11:31pm UTC
