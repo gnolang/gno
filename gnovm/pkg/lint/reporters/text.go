@@ -62,6 +62,10 @@ func (r *TextReporter) Flush() error {
 			total, r.errors, r.warnings, r.info)
 	}
 
+	r.issues = r.issues[:0]
+	clear(r.seen)
+	r.info, r.warnings, r.errors = 0, 0, 0
+
 	return nil
 }
 
