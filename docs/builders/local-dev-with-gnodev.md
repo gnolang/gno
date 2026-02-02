@@ -97,6 +97,32 @@ Directory watching, as well as transaction replaying, can be disabled with the
 With the main features of `gnodev` out of the way, let's dive into a practical
 example.
 
+## Default test account
+
+`gnodev` uses a standard test account that is consistent across all Gno tooling
+and test scripts. This account is automatically pre-funded with testnet GNOT
+and is available for immediate use in development and testing.
+
+**Important:** This account's mnemonic is publicly known and should **never** be
+used on production networks or with real funds.
+
+### Account details
+
+- **Address:** `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+- **Mnemonic:** `source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast`
+
+### Usage
+
+The default test account is automatically imported when you run `gnodev`, making
+it immediately available for testing your realms and packages. This account is
+also used by default when deploying packages to the local node.
+
+### Security note
+
+Since the mnemonic for this account is publicly documented, it should only be
+used for local development and testing. Never send real assets to this address
+or use it on any public network.
+
 ## Practical example
 
 Let's use the local file structure we set up in the [previous tutorial](anatomy-of-a-gno-package.md):
