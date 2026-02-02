@@ -1,3 +1,5 @@
+# XXX: NEED UPDATE: cannot send transfer to self
+
 # Test for https://github.com/gnolang/gno/issues/1786
 # Tests proxy pattern for wrapping/unwrapping tokens using a local wugnot copy
 # (without AssertOriginCall to allow cross-realm deposits)
