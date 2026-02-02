@@ -149,15 +149,9 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 		pkgsModifier[qpath.Path] = qpath
 	}
 
-	rpcClient, err := client.NewHTTPClient(cfg.TMConfig.RPC.ListenAddress)
-	if err != nil {
-		return nil, fmt.Errorf("unable to initialize RPC client: %w", err)
-	}
-
 	devnode := &Node{
 		loader:            cfg.Loader,
 		config:            cfg,
-		client:            rpcClient,
 		emitter:           cfg.Emitter,
 		logger:            cfg.Logger,
 		startTime:         startTime,
@@ -205,7 +199,10 @@ func (n *Node) Client() client.Client {
 }
 
 func (n *Node) GetRemoteAddress() string {
-	return n.Node.Config().RPC.ListenAddress
+	n.muNode.RLock()
+	defer n.muNode.RUnlock()
+
+	return n.Node.RPC().ListenAddress()
 }
 
 // AddPackagePaths to load
@@ -625,6 +622,15 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+
+	// Create the RPC client using the actual bound address.
+	// This is done after the node starts because the listen address
+	// may use port 0, and the actual port is only known after binding
+	rpcClient, err := client.NewHTTPClient(node.RPC().ListenAddress())
+	if err != nil {
+		return fmt.Errorf("unable to create RPC client: %w", err)
+	}
+	n.client = rpcClient
 
 	return nil
 }
