@@ -474,6 +474,12 @@ func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflec
 	// prefixed, due to the type of field 2, so bareValue is false.
 	_n, err := cdc.decodeReflectBinary(value, cinfo, crv, fopts, bareValue, 0)
 	if slide(&value, &n, _n) && err != nil {
+		// Verify that the decoded concrete type is assignable to the target interface.
+		// This prevents panics when a registered type doesn't implement the target interface.
+		if !irvSet.Type().AssignableTo(rv.Type()) {
+			err = fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
+			return
+		}
 		rv.Set(irvSet) // Helps with debugging
 		return
 	}

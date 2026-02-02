@@ -379,3 +379,34 @@ func TestInterfaceTypeAssignability(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not assignable")
 }
+
+func TestInterfaceTypeAssignabilityOnDecodeError(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+
+	// Same as TestInterfaceTypeAssignability but with corrupted bytes
+	// to trigger the error path in decodeReflectBinaryAny where
+	// rv.Set(irvSet) is called for debugging purposes.
+	type AnyWrapper struct {
+		Value any
+	}
+	type Interface1Wrapper struct {
+		Value tests.Interface1
+	}
+
+	src := AnyWrapper{Value: tests.PrimitivesStruct{Int: 42}}
+	bz, err := cdc.Marshal(src)
+	require.NoError(t, err)
+
+	// Corrupt some bytes to cause decode error (but keep typeURL intact)
+	if len(bz) > 20 {
+		bz[len(bz)-1] ^= 0xFF
+		bz[len(bz)-2] ^= 0xFF
+	}
+
+	var dst Interface1Wrapper
+	err = cdc.Unmarshal(bz, &dst)
+	require.Error(t, err)
+}
