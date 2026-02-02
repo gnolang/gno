@@ -10,14 +10,14 @@ const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.CreateBoard(cross, "TEST123", false)
+	boards2.CreateBoard(cross, "TEST123", false, false)
 }
 
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Should fail because board name already exists with a different casing
-	boards2.CreateBoard(cross, "test123", false)
+	boards2.CreateBoard(cross, "test123", false, false)
 }
 
 // Error:
