@@ -10,7 +10,7 @@ import (
 
 // ABCIResult is the deterministic component of a ResponseDeliverTx.
 // TODO: add tags and other fields
-// https://github.com/tendermint/classic/issues/1007
+// https://github.com/tendermint/tendermint/issues/1007
 type ABCIResult struct {
 	Error  abci.Error   `json:"error"`
 	Data   []byte       `json:"data"`
