@@ -81,7 +81,45 @@ const (
 	allocTypedValue  = _allocTypedValue
 )
 
-const GasCostPerByte = 1 // gas cost per byte allocated
+const GasCostPerByteMem = 1 // gas cost per byte allocated (capacity/scarcity)
+const GasCostPerByteCPU = 1 // gas cost per byte allocated (cpu/throughput)
+// gas cost per allocation (overhead), GasCostPerAlloc = 30 (This aligns with roughly 1-2 standard CPU instructions like ADD or SUB
+const GasCostPerAlloc = 30
+
+/*
+// FUTURE: Structure-Based Gas Pricing (Scan vs NoScan)
+//
+// To accurately reflect the burden on the Go Garbage Collector, we should differentiate
+// between "NoScan" memory (raw bytes, strings) and "Scan" memory (pointers, structs).
+//
+// - NoScan: Cheap. The GC skips these blocks entirely.
+// - Scan:   Expensive. The GC must traverse these to find more pointers.
+//
+// const GasCostPerByte_NoScan = 1  // Base cost for raw data
+// const GasCostPerByte_Scan   = 4  // Premium cost for pointer-rich memory
+*/
+
+/*
+// FUTURE: Unified Memory Accounting
+//
+// Currently, memory tracking (alloc.go) is primarily focused on the VM runtime heap.
+// To ensure full node safety and eliminate "Low CPU, High Memory" attacks, the
+// accounting should be expanded to cover the entire transaction lifecycle:
+//
+// 1. Parsing & AST: Large source files or deeply nested expressions create a
+//    significant memory burden (AST Nodes) before the VM even starts. These should
+//    ideally use the Allocator to track peak memory and consume gas.
+//
+// 2. Preprocessing: Logic in preprocess.go generates temporary structures and
+//    transformed code which currently bypasses granular memory gas charging.
+//
+// 3. Runtime Granularity: Within the VM (op_call.go, op_expressions.go, etc.),
+//    intermediate operations like value copies, literal handling, and frame
+//    allocations should be strictly metered to prevent uncharged memory bloat.
+//
+// Goal: peakBytes should reflect the absolute maximum physical RAM burden placed
+// on the node from the moment a transaction is received until it is finalized.
+*/
 
 func NewAllocator(maxBytes int64) *Allocator {
 	if maxBytes == 0 {
@@ -151,12 +189,32 @@ func (alloc *Allocator) Allocate(size int64) {
 	} else {
 		alloc.bytes += size
 	}
+
+	// Consume gas for the allocation overhead and size (throughput).
+	if alloc.gasMeter != nil {
+		alloc.gasMeter.ConsumeGas(GasCostPerAlloc, "memory allocation (overhead)")
+		alloc.gasMeter.ConsumeGas(overflow.Mulp(size, GasCostPerByteCPU), "memory allocation (cpu)")
+
+		/*
+			// FUTURE: Implement Scan/NoScan differentiation
+			// The Allocate() method signature should be updated to:
+			// func (alloc *Allocator) Allocate(size int64, isNoScan bool)
+
+			rate := GasCostPerByte_Scan
+			if isNoScan {
+				rate = GasCostPerByte_NoScan
+			}
+			// This replaces the flat GasCostPerByteCPU charge above
+			alloc.gasMeter.ConsumeGas(overflow.Mulp(size, rate), "memory allocation (gc-burden)")
+		*/
+	}
+
 	// The value of `bytes` decreases during GC, and fees
 	// are only charged when it exceeds peakBytes (again).
 	if alloc.bytes > alloc.peakBytes {
 		if alloc.gasMeter != nil {
 			change := alloc.bytes - alloc.peakBytes
-			alloc.gasMeter.ConsumeGas(overflow.Mulp(change, GasCostPerByte), "memory allocation")
+			alloc.gasMeter.ConsumeGas(overflow.Mulp(change, GasCostPerByteMem), "memory allocation")
 		}
 
 		alloc.peakBytes = alloc.bytes
