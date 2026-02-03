@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"std"
+	"chain/runtime"
 	"strconv"
 	"strings"
 
@@ -45,11 +45,11 @@ func NewRender(d *GovDAO) *render {
 }
 
 func (ren *render) Render(pkgPath string, path string) string {
-	relativePath, found := strings.CutPrefix(pkgPath, std.ChainDomain())
+	relativePath, found := strings.CutPrefix(pkgPath, runtime.ChainDomain())
 	if !found {
 		panic(ufmt.Sprintf(
 			"realm package with unexpected name found: %v in chain domain %v",
-			pkgPath, std.ChainDomain()))
+			pkgPath, runtime.ChainDomain()))
 	}
 	ren.relativeRealmPath = relativePath
 	return ren.router.Render(path)
@@ -61,10 +61,15 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 	out += "[> Go to Memberstore <](/r/gov/dao/v3/memberstore)\n"
 	out += "## Proposals\n"
 	page := ren.pssPager.MustGetPageByPath(url)
+	if len(page.Items) == 0 {
+		out += "\nNo proposals yet.\n\n"
+		return out
+	}
+
 	for _, item := range page.Items {
 		seqpid, err := seqid.FromString(item.Key)
 		if err != nil {
-			panic(err.Error())
+			continue
 		}
 		out += ren.renderProposalListItem(ufmt.Sprintf("%v", int64(seqpid)), d)
 		out += "---\n\n"
@@ -78,10 +83,15 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		panic(err.Error())
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
+
+	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	if err != nil {
+		return ufmt.Sprintf("# Proposal not found\n\n%s", err.Error())
+	}
+
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, p.Title())
 	out += "Author: " + tryResolveAddr(p.Author()) + "\n\n"
 
@@ -102,10 +112,15 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		panic(err.Error())
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
+
+	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	if err != nil {
+		return ufmt.Sprintf("# Proposal not found\n\n%s\n\n", err.Error())
+	}
+
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, p.Title(), ren.relativeRealmPath, pid)
 	out += ufmt.Sprintf("Author: %s\n\n", tryResolveAddr(p.Author()))
 
@@ -122,9 +137,13 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		panic(err.Error())
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
+
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
+	if ps == nil {
+		return ufmt.Sprintf("# Proposal not found\n\nProposal %v does not exist.", pid)
+	}
 
 	out := ""
 	out += ufmt.Sprintf("# Proposal #%v - Vote List\n\n", pid)
@@ -138,6 +157,9 @@ func isPropActive(ps *proposalStatus) bool {
 }
 
 func getPropStatus(ps *proposalStatus) string {
+	if ps == nil {
+		return "UNKNOWN"
+	}
 	if ps.Accepted {
 		return "ACCEPTED"
 	} else if ps.Denied {
@@ -160,7 +182,7 @@ func renderActionBar(sPid string) string {
 	return out
 }
 
-func tryResolveAddr(addr std.Address) string {
+func tryResolveAddr(addr address) string {
 	userData := users.ResolveAddress(addr)
 	if userData == nil {
 		return addr.String()

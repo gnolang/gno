@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
@@ -19,6 +20,7 @@ var (
 const tmpFile = "benchmark.bin"
 
 func main() {
+	runtime.GOMAXPROCS(1) // for consistent benchmarking
 	flag.Parse()
 	if *binFlag != "" {
 		binFile, err := filepath.Abs(*binFlag)
@@ -46,6 +48,11 @@ func main() {
 	if bm.StorageEnabled {
 		benchmarkStorage(bstore, dir)
 	}
+
+	if bm.NativeEnabled {
+		benchmarkNative(bstore.gnoStore, dir)
+	}
+
 	bm.Finish()
 	stats(tmpFile)
 	err = os.Remove(tmpFile)

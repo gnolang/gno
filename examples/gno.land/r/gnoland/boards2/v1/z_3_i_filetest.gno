@@ -3,39 +3,41 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"std"
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 	users "gno.land/r/gnoland/users/v1"
 )
 
 const (
-	owner   = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	member  = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
-	member2 = std.Address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
-	name    = "foo123"
-	newName = "barbaz123"
+	owner   address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	member  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
+	member2 address = "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"
+	name            = "foo123"
+	newName         = "barbaz123"
 )
 
-var bid boards2.BoardID // Operate on board DAO
+var bid boards.ID // Operate on board DAO
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, name, false)
-	boards2.InviteMember(cross, bid, member, boards2.RoleOwner)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	bid = boards2.CreateBoard(cross, name, false, false)
+	boards2.InviteMember(cross, bid, member, permissions.RoleOwner)
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
-	testing.SetRealm(std.NewUserRealm(member))
+	testing.SetRealm(testing.NewUserRealm(member))
 	users.Register(cross, newName)
 
 	// Invite a new member that doesn't own the user that matches the new board name
-	boards2.InviteMember(cross, bid, member2, boards2.RoleOwner)
+	boards2.InviteMember(cross, bid, member2, permissions.RoleOwner)
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(member2))
+	testing.SetRealm(testing.NewUserRealm(member2))
 
 	boards2.RenameBoard(cross, name, newName)
 }

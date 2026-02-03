@@ -27,11 +27,11 @@ gnokey query bank/balances/$collector1_user_addr
 stdout '1000000000ugnot'
 
 # Register member with a namespace 
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "collector111" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test collector1
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "collector111" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test collector1
 stdout 'OK!'
 
 # Register member with a namespace 
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "collector222" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test collector2
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "collector222" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test collector2
 stdout 'OK!'
 
 ## Vote change proposal with unrestricted account test1
@@ -83,47 +83,39 @@ stdout '997503000ugnot'
 -- run/load_user.gno --
 package main
 
-import (
-	i "gno.land/r/gov/dao/v3/init"
-	"std"
-)
+import i "gno.land/r/gov/dao/v3/init"
 
 func main() {
-	i.InitWithUsers(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	i.InitWithUsers(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
-
 -- run/propose_collector1.gno --
 package main
 
 import (
-	"std"
 	"gno.land/r/gov/dao"
 	"gno.land/r/sys/params"
 )
 
 func main() {
-	collector1 := std.Address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
+	collector1 := address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
 	pr := params.NewSetFeeCollectorRequest(collector1)
 	pid := dao.MustCreateProposal(cross, pr)
 	println(pid.String())
 }
-
 -- run/propose_collector2.gno --
 package main
 
 import (
-	"std"
 	"gno.land/r/gov/dao"
 	"gno.land/r/sys/params"
 )
 
 func main() {
-	collector2 := std.Address("g149244zfh3qc7zcspttmmpknkzss4esteg6f086")
+	collector2 := address("g149244zfh3qc7zcspttmmpknkzss4esteg6f086")
 	pr := params.NewSetFeeCollectorRequest(collector2)
 	pid := dao.MustCreateProposal(cross, pr)
 	println(pid.String())
 }
-
 -- run/costly.gno --
 package main
 

@@ -1,7 +1,8 @@
 package impl
 
 import (
-	"std"
+	"chain/runtime"
+	"strings"
 
 	"gno.land/p/aeddi/panictoerr"
 	"gno.land/p/moul/md"
@@ -13,14 +14,14 @@ import (
 	"gno.land/r/gov/dao/v3/treasury"
 )
 
-func NewChangeLawRequest(_ realm, newLaw *Law) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(std.OriginCaller())
+func NewChangeLawRequest(_ realm, newLaw Law) dao.ProposalRequest {
+	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
 	cb := func(_ realm) error {
-		law = newLaw
+		law = &newLaw
 		return nil
 	}
 
@@ -30,7 +31,7 @@ func NewChangeLawRequest(_ realm, newLaw *Law) dao.ProposalRequest {
 }
 
 func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(std.OriginCaller())
+	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -52,7 +53,7 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
 
-func NewAddMemberRequest(_ realm, addr std.Address, tier string, portfolio string) dao.ProposalRequest {
+func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) dao.ProposalRequest {
 	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
@@ -66,7 +67,7 @@ func NewAddMemberRequest(_ realm, addr std.Address, tier string, portfolio strin
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get().GetMember(std.OriginCaller())
+	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -93,12 +94,13 @@ func NewAddMemberRequest(_ realm, addr std.Address, tier string, portfolio strin
 	)
 }
 
-func NewWithdrawMemberRequest(_ realm, addr std.Address, reason string) dao.ProposalRequest {
+func NewWithdrawMemberRequest(_ realm, addr address, reason string) dao.ProposalRequest {
 	member, tier := memberstore.Get().GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")
 	}
 
+	reason = strings.TrimSpace(reason)
 	if tier == memberstore.T1 && reason == "" {
 		panic("T1 user removals must contains a reason.")
 	}
@@ -117,7 +119,7 @@ func NewWithdrawMemberRequest(_ realm, addr std.Address, reason string) dao.Prop
 	)
 }
 
-func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
+func NewPromoteMemberRequest(addr address, fromTier string, toTier string) dao.ProposalRequest {
 	cb := func(_ realm) error {
 		prevTier := memberstore.Get().RemoveMember(addr)
 		if prevTier == "" {
@@ -148,6 +150,7 @@ func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.Propo
 		panic("banker not registered in treasury with ID: " + payment.BankerID())
 	}
 
+	reason = strings.TrimSpace(reason)
 	if reason == "" {
 		panic("treasury payment request requires a reason")
 	}
@@ -181,6 +184,10 @@ func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.Propo
 // NewTreasuryGRC20TokensUpdate creates a proposal request to update the list of GRC20 tokens registry
 // keys used by the treasury. The new list, if voted and accepted, will overwrite the current one.
 func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
+	if len(newTokenKeys) == 0 {
+		panic("the list of new tokens is empty")
+	}
+
 	cb := func(_ realm) error {
 		return panictoerr.PanicToError(func() {
 			// NOTE:: Consider checking if the newTokenKeys are already registered

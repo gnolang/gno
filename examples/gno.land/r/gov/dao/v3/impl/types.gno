@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"std"
 	"strings"
 
 	"gno.land/p/nt/avl"
@@ -28,6 +27,10 @@ func NewProposalsStatuses() ProposalsStatuses {
 }
 
 func (pss ProposalsStatuses) GetStatus(id dao.ProposalID) *proposalStatus {
+	if pss.Tree == nil {
+		return nil
+	}
+
 	pids := id.String()
 	psv, ok := pss.Get(pids)
 	if !ok {
@@ -190,7 +193,7 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 		ms, _ := value.(*avl.Tree)
 		ms.Iterate("", "", func(addr string, _ interface{}) bool {
 			sb.WriteString("\n")
-			sb.WriteString("- " + tryResolveAddr(std.Address(addr)) + "\n")
+			sb.WriteString("- " + tryResolveAddr(address(addr)) + "\n")
 
 			return false
 		})
@@ -219,5 +222,4 @@ This proposal contains the following metadata:
 	}
 
 	return out
-
 }

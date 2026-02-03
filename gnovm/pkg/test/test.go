@@ -18,10 +18,11 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/stdlibs"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/tests/stdlibs/chain/runtime"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"go.uber.org/multierr"
 )
@@ -42,11 +43,11 @@ const (
 // the pkgAddr the coins in `send` by default, and only that.
 // The Height and Timestamp parameters are set to the [DefaultHeight] and
 // [DefaultTimestamp].
-func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *teststd.TestExecContext {
+func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *runtime.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
 	pkgAddr := gno.DerivePkgBech32Addr(pkgPath) // the addr of the pkgPath called.
 
-	banker := &teststd.TestBanker{
+	banker := &runtime.TestBanker{
 		CoinTable: map[crypto.Bech32Address]std.Coins{
 			pkgAddr: send,
 		},
@@ -63,21 +64,22 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *tests
 		Params:          newTestParams(),
 		EventLogger:     sdk.NewEventLogger(),
 	}
-	return &teststd.TestExecContext{
+	return &runtime.TestExecContext{
 		ExecContext: ctx,
-		RealmFrames: make(map[int]teststd.RealmOverride),
+		RealmFrames: make(map[int]runtime.RealmOverride),
 	}
 }
 
 // Machine is a minimal machine, set up with just the Store, Output and Context.
 // It is only used for linting/preprocessing.
-func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool) *gno.Machine {
+func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool, gasMeter store.GasMeter) *gno.Machine {
 	return gno.NewMachineWithOptions(gno.MachineOptions{
 		Store:         testStore,
 		Output:        output,
 		Context:       Context("", pkgPath, nil),
 		Debug:         debug,
 		ReviveEnabled: true,
+		GasMeter:      gasMeter,
 	})
 }
 
@@ -105,12 +107,13 @@ func newTestParams() *testParams {
 	return &testParams{}
 }
 
-func (tp *testParams) SetBool(key string, val bool)        { /* noop */ }
-func (tp *testParams) SetBytes(key string, val []byte)     { /* noop */ }
-func (tp *testParams) SetInt64(key string, val int64)      { /* noop */ }
-func (tp *testParams) SetUint64(key string, val uint64)    { /* noop */ }
-func (tp *testParams) SetString(key string, val string)    { /* noop */ }
-func (tp *testParams) SetStrings(key string, val []string) { /* noop */ }
+func (tp *testParams) SetBool(key string, val bool)                     { /* noop */ }
+func (tp *testParams) SetBytes(key string, val []byte)                  { /* noop */ }
+func (tp *testParams) SetInt64(key string, val int64)                   { /* noop */ }
+func (tp *testParams) SetUint64(key string, val uint64)                 { /* noop */ }
+func (tp *testParams) SetString(key string, val string)                 { /* noop */ }
+func (tp *testParams) SetStrings(key string, val []string)              { /* noop */ }
+func (tp *testParams) UpdateStrings(key string, val []string, add bool) { /* noop */ }
 
 // ----------------------------------------
 // main test function
@@ -317,7 +320,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			tcheck := false // already type-checked e.g. by cmd/gno/test.go
 			// We can not use shared tx gno store (tgs) between _filetest.gno since we need to
 			// isolate the state between them
-			changed, err := opts.runFiletest(
+			changed, gas, err := opts.runFiletest(
 				testFileName, []byte(testFile.Body), opts.TestStore, tcheck)
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
@@ -330,11 +333,11 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
 			if err != nil {
-				fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", testName, dstr)
+				fmt.Fprintf(opts.Error, "--- FAIL: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
 				fmt.Fprintln(opts.Error, err.Error())
 				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
 			} else if opts.Verbose {
-				fmt.Fprintf(opts.Error, "--- PASS: %s (%s)\n", testName, dstr)
+				fmt.Fprintf(opts.Error, "--- PASS: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
 			}
 
 			// XXX: add per-test metrics
@@ -376,7 +379,7 @@ func (opts *TestOptions) runTestFiles(
 	opts.TestStore.SetLogStoreOps(nil)
 
 	// Check if we already have the package - it may have been eagerly loaded.
-	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
+	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, nil)
 	m.Alloc = alloc
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
@@ -397,11 +400,11 @@ func (opts *TestOptions) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
+		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
-		testingpv := m.Store.GetPackage("testing/base", false)
+		testingpv := m.Store.GetPackage("testing", false)
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
 		testingcx := &gno.ConstExpr{TypedValue: testingtv}
 		testfv := m.Eval(gno.Nx(tf.Name))[0].GetFunc()
@@ -416,7 +419,7 @@ func (opts *TestOptions) runTestFiles(
 			// > TestSomething(cur realm, t *testing.T) {...}
 			//
 			// Normally this isn't possible because
-			// stdlibs/testing/base is a non-realm, so it cannot
+			// stdlibs/testing is a non-realm, so it cannot
 			// have `cur`. And while a realm could call `func(cur
 			// realm){...}(cross)`, some *_test.gno test cases want
 			// `cur` to refer to the realm package, while
@@ -478,9 +481,10 @@ func (opts *TestOptions) runTestFiles(
 				},
 			},
 		))
+		fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
 
 		if opts.Events {
-			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
+			events := m.Context.(*runtime.TestExecContext).EventLogger.Events()
 			if events != nil {
 				res, err := json.Marshal(events)
 				if err != nil {
@@ -575,12 +579,13 @@ func parseMemPackageTests(mpkg *std.MemPackage) (tset, itset *gno.FileSet, itfil
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
 	var errs error
+	var m *gno.Machine
 	for _, mfile := range mpkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip this file.
 		}
 
-		n, err := gno.ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue

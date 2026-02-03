@@ -9,6 +9,16 @@ import (
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
+)
+
+const (
+	// NativeCPUUversePrintInit is the base gas cost for the Print function.
+	// The actual cost is 1800, but we subtract OpCPUCallNativeBody (424), resulting in 1376.
+	NativeCPUUversePrintInit = 1376
+	// NativeCPUUversePrintPerChar is now chars per gas unit.
+	NativeCPUUversePrintCharsPerGas = 10
 )
 
 // ----------------------------------------
@@ -394,6 +404,8 @@ func makeUverseNode() {
 				arg0Offset := arg0Value.Offset
 				arg0Capacity := arg0Value.Maxcap
 				arg0Base := arg0Value.GetBase(m.Store)
+				// NOTE, ANY MODIFICATION TO arg0 SHOULD ALWAYS CALL
+				// m.Realm.DidUpdate(arg0Base, nil, nil) FIRST TO CHECK WRITE PERMISSIONS.
 				switch arg1Value := arg1.TV.V.(type) {
 				// ------------------------------------------------------------
 				// append(*SliceValue, nil)
@@ -413,6 +425,11 @@ func makeUverseNode() {
 					if arg0Length+arg1Length <= arg0Capacity {
 						// append(*SliceValue, *SliceValue) w/i capacity -----
 						if 0 < arg1Length { // implies 0 < xvc
+							// DEFENSIVE: in this case, we're writing data directly
+							// into the backing array of arg0. Ensure we can write
+							// to it.
+							m.Realm.DidUpdate(arg0Base, nil, nil)
+
 							if arg0Base.Data == nil {
 								// append(*SliceValue.List, *SliceValue) ---------
 								list := arg0Base.List
@@ -435,7 +452,6 @@ func makeUverseNode() {
 										list[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.Data[arg1Offset:arg1Offset+arg1Length],
 										arg0Type.Elem())
-									m.Realm.DidUpdate(arg1Base, nil, nil)
 								}
 							} else {
 								// append(*SliceValue.Data, *SliceValue) ---------
@@ -444,7 +460,6 @@ func makeUverseNode() {
 									copyListToData(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.List[arg1Offset:arg1Offset+arg1Length])
-									m.Realm.DidUpdate(arg0Base, nil, nil)
 								} else {
 									copy(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
@@ -566,70 +581,72 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			dst, src := arg0, arg1
-			switch bdt := baseOf(dst.TV.T).(type) {
-			case *SliceType:
-				switch bst := baseOf(src.TV.T).(type) {
-				case PrimitiveType:
-					if debug {
-						debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
-					}
-					if bst.Kind() != StringKind {
-						panic("should not happen")
-					}
-					if bdt.Elt != Uint8Type {
-						panic("should not happen")
-					}
-					// NOTE: this implementation is almost identical to the next one.
-					// note that in some cases optimization
-					// is possible if dstv.Data != nil.
-					dstl := dst.TV.GetLength()
-					srcl := src.TV.GetLength()
-					minl := min(srcl, dstl)
-					if minl == 0 {
-						// return 0.
-						m.PushValue(defaultTypedValue(m.Alloc, IntType))
-						return
-					}
-					dstv := dst.TV.V.(*SliceValue)
-					// TODO: consider an optimization if dstv.Data != nil.
-					for i := range minl {
-						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-						srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
-						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
-					}
-					res0 := TypedValue{
-						T: IntType,
-						V: nil,
-					}
-					res0.SetInt(int64(minl))
-					m.PushValue(res0)
-					return
-				case *SliceType:
-					dstl := dst.TV.GetLength()
-					srcl := src.TV.GetLength()
-					minl := min(srcl, dstl)
-					if minl == 0 {
-						// return 0.
-						m.PushValue(defaultTypedValue(m.Alloc, IntType))
-						return
-					}
-					dstv := dst.TV.V.(*SliceValue)
-					srcv := src.TV.V.(*SliceValue)
-					for i := range minl {
-						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
-					}
-					res0 := TypedValue{
-						T: IntType,
-						V: nil,
-					}
-					res0.SetInt(int64(minl))
-					m.PushValue(res0)
-					return
-				default:
+			bdt := baseOf(dst.TV.T).(*SliceType)
+			switch bst := baseOf(src.TV.T).(type) {
+			case PrimitiveType:
+				if debug {
+					debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
+				}
+				if bst.Kind() != StringKind {
 					panic("should not happen")
 				}
+				if bdt.Elt != Uint8Type {
+					panic("should not happen")
+				}
+				// NOTE: this implementation is almost identical to the next one.
+				// note that in some cases optimization
+				// is possible if dstv.Data != nil.
+				dstl := dst.TV.GetLength()
+				srcl := src.TV.GetLength()
+				minl := min(srcl, dstl)
+				if minl == 0 {
+					// return 0.
+					m.PushValue(defaultTypedValue(m.Alloc, IntType))
+					return
+				}
+				dstv := dst.TV.V.(*SliceValue)
+				// Guard for protecting dst against mutation by external realms.
+				dstBase := dstv.GetBase(m.Store)
+				m.Realm.DidUpdate(dstBase, nil, nil)
+				// TODO: consider an optimization if dstv.Data != nil.
+				for i := range minl {
+					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+					srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
+					dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				}
+				res0 := TypedValue{
+					T: IntType,
+					V: nil,
+				}
+				res0.SetInt(int64(minl))
+				m.PushValue(res0)
+				return
+			case *SliceType:
+				dstl := dst.TV.GetLength()
+				srcl := src.TV.GetLength()
+				minl := min(srcl, dstl)
+				if minl == 0 {
+					// return 0.
+					m.PushValue(defaultTypedValue(m.Alloc, IntType))
+					return
+				}
+				dstv := dst.TV.V.(*SliceValue)
+				// Guard for protecting dst against mutation by external realms.
+				dstBase := dstv.GetBase(m.Store)
+				m.Realm.DidUpdate(dstBase, nil, nil)
+				srcv := src.TV.V.(*SliceValue)
+				for i := range minl {
+					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+					srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
+					dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				}
+				res0 := TypedValue{
+					T: IntType,
+					V: nil,
+				}
+				res0.SetInt(int64(minl))
+				m.PushValue(res0)
+				return
 			default:
 				panic("should not happen")
 			}
@@ -848,6 +865,18 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
+			// Todo: should stop op code benchmarking here.
+			if bm.NativeEnabled {
+				arg0 := m.LastBlock().GetParams1(m.Store)
+				bm.StartNative(bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false))))
+				prevOutput := m.Output
+				m.Output = io.Discard
+				defer func() {
+					bm.StopNative()
+					m.Output = prevOutput
+				}()
+			}
+
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, false)
 		},
@@ -858,6 +887,17 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
+			// Todo: should stop op code benchmarking here.
+			if bm.NativeEnabled {
+				arg0 := m.LastBlock().GetParams1(m.Store)
+				bm.StartNative(bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false))))
+				prevOutput := m.Output
+				m.Output = io.Discard
+				defer func() {
+					bm.StopNative()
+					m.Output = prevOutput
+				}()
+			}
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, true)
 		},
@@ -1113,37 +1153,56 @@ func copyListToRunes(dst []rune, tvs []TypedValue) {
 	}
 }
 
+func consumeGas(m *Machine, amount types.Gas) {
+	if m.GasMeter != nil {
+		m.GasMeter.ConsumeGas(amount, "CPUCycles")
+	}
+}
+
 // uversePrint is used for the print and println functions.
 // println passes newline = true.
 // xv contains the variadic argument passed to the function.
 func uversePrint(m *Machine, xv PointerValue, newline bool) {
+	consumeGas(m, NativeCPUUversePrintInit)
+	output := formatUverseOutput(m, xv, newline)
+	consumeGas(m, overflow.Divp(types.Gas(len(output)), NativeCPUUversePrintCharsPerGas))
+	// For debugging:
+	// fmt.Println(colors.Cyan(string(output)))
+	m.Output.Write(output)
+}
+
+func formatUverseOutput(m *Machine, xv PointerValue, newline bool) []byte {
 	xvl := xv.TV.GetLength()
 	switch xvl {
 	case 0:
 		if newline {
-			m.Output.Write(bNewline)
+			return bNewline
 		}
 	case 1:
 		ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 		res := ev.Sprint(m)
-		io.WriteString(m.Output, res)
 		if newline {
-			m.Output.Write(bNewline)
+			res += "\n"
 		}
+		return []byte(res)
 	default:
 		var buf bytes.Buffer
+
 		for i := range xvl {
 			if i != 0 { // Not the last item.
 				buf.WriteByte(' ')
 			}
 			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-			buf.WriteString(ev.Sprint(m))
+			res := ev.Sprint(m)
+			buf.WriteString(res)
 		}
 		if newline {
 			buf.WriteByte('\n')
 		}
-		m.Output.Write(buf.Bytes())
+		return buf.Bytes()
 	}
+
+	return nil
 }
 
 var bNewline = []byte("\n")

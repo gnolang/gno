@@ -12,6 +12,7 @@ This mode is the best for benchmarking each major release and/or changes in GnoV
 
     make build.bench.opcode
     make build.bench.storage
+    make build.bench.native
 
 ### Production mode
 
@@ -22,11 +23,11 @@ It gives us a complete picture of the node perform.
 
   1. Build the production node with benchmarking flags:
 
-  `go build -tags "benchmarkingstorage benchmarkingops" gno.land/cmd/gnoland`
+  `go build -tags "benchmarkingstorage benchmarkingops benchmarkingnative" gno.land/cmd/gnoland`
 
   2. Run the node in the production environment. It will dump benchmark data to a benchmarks.bin file.
 
-  3. call the realm contracts at `gno.land/r/x/benchmark/opcodes` and `gno.land/r/x/benchmark/storage`
+  3. call the realm contracts at `gno.land/r/x/benchmark/opcodes`, `gno.land/r/x/benchmark/storage` and `gno.land/r/x/benchmark/native`
 
   4. Stop the server after the benchmarking session is complete.
 

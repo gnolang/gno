@@ -1,7 +1,7 @@
 package init
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
@@ -9,6 +9,8 @@ import (
 )
 
 func Init() {
+	assertIsDevChain()
+
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
 	memberstore.Get().DeleteAll()
@@ -18,7 +20,9 @@ func Init() {
 	})
 }
 
-func InitWithUsers(addrs ...std.Address) {
+func InitWithUsers(addrs ...address) {
+	assertIsDevChain()
+
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
 	memberstore.Get().DeleteAll()
@@ -34,4 +38,11 @@ func InitWithUsers(addrs ...std.Address) {
 		DAO:         impl.NewGovDAO(),
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})
+}
+
+func assertIsDevChain() {
+	chainID := runtime.ChainID()
+	if chainID != "dev" && chainID != "tendermint_test" {
+		panic("unauthorized")
+	}
 }

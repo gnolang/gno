@@ -2,7 +2,6 @@ package proposal
 
 import (
 	"errors"
-	"std"
 
 	"gno.land/p/nt/ufmt"
 	pVals "gno.land/p/sys/validators"
@@ -18,7 +17,7 @@ var (
 
 // NewValidatorProposalRequest creates a proposal request to the GovDAO
 // for adding the given valoper to the validator set.
-func NewValidatorProposalRequest(cur realm, address_XXX std.Address) dao.ProposalRequest {
+func NewValidatorProposalRequest(cur realm, address_XXX address) dao.ProposalRequest {
 	var (
 		valoper     = valopers.GetByAddr(address_XXX)
 		votingPower = uint64(1)
@@ -80,7 +79,7 @@ func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) da
 	return dao.NewProposalRequest(title, description, e)
 }
 
-// ProposeNewMinFee creates a proposal to the GovDAO
+// ProposeNewMinFeeProposalRequest creates a proposal to the GovDAO
 // for updating the minimum fee to register a new valoper.
 func ProposeNewMinFeeProposalRequest(cur realm, newMinFee int64) dao.ProposalRequest {
 	cb := valopers.NewMinFeeProposalCallback(newMinFee)

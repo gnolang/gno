@@ -33,22 +33,26 @@ var splitFuncs map[string]splitFunc
 
 func makeSplitFuncs() {
 	splitFuncs = map[string]splitFunc{
-		"std.Address":       newSplitFunc("chain.Address"),
+		// chain.Address & std.Address are converted separately to `address`
+		// std.{Encode,Decode}Bech32 are removed and should be manually converted
+		// RawAddress / RawAddressSize handled separately
 		"std.Emit":          newSplitFunc("chain.Emit"),
-		"std.EncodeBech32":  newSplitFunc("chain.EncodeBech32"),
-		"std.DecodeBech32":  newSplitFunc("chain.DecodeBech32"),
-		"std.DerivePkgAddr": newSplitFunc("chain.DerivePkgAddr"),
+		"std.DerivePkgAddr": newSplitFunc("chain.PackageAddress"),
+		"std.Coin":          newSplitFunc("chain.Coin"),
+		"std.Coins":         newSplitFunc("chain.Coins"),
+		"std.NewCoin":       newSplitFunc("chain.NewCoin"),
+		"std.NewCoins":      newSplitFunc("chain.NewCoins"),
+		"std.CoinDenom":     newSplitFunc("chain.CoinDenom"),
 
 		"std.AssertOriginCall": newSplitFunc("chain/runtime.AssertOriginCall"),
 		"std.PreviousRealm":    newSplitFunc("chain/runtime.PreviousRealm"),
 		"std.CurrentRealm":     newSplitFunc("chain/runtime.CurrentRealm"),
-		"std.NewUserRealm":     newSplitFunc("chain/runtime.NewUserRealm"),
-		"std.NewCodeRealm":     newSplitFunc("chain/runtime.NewCodeRealm"),
+		"std.NewUserRealm":     newSplitFunc("testing.NewUserRealm"),
+		"std.NewCodeRealm":     newSplitFunc("testing.NewCodeRealm"),
 		"std.OriginCaller":     newSplitFunc("chain/runtime.OriginCaller"),
 		"std.ChainDomain":      newSplitFunc("chain/runtime.ChainDomain"),
 		"std.ChainHeight":      newSplitFunc("chain/runtime.ChainHeight"),
 		"std.ChainID":          newSplitFunc("chain/runtime.ChainID"),
-		"std.CoinDenom":        newSplitFunc("chain/runtime.CoinDenom"),
 		"std.CallerAt":         newSplitFunc("chain/runtime.CallerAt"),
 		"std.Realm":            newSplitFunc("chain/runtime.Realm"),
 
@@ -56,21 +60,29 @@ func makeSplitFuncs() {
 		"std.NewBanker":            newSplitFunc("chain/banker.NewBanker"),
 		"std.BankerType":           newSplitFunc("chain/banker.BankerType"),
 		"std.OriginSend":           newSplitFunc("chain/banker.OriginSend"),
-		"std.Coin":                 newSplitFunc("chain/banker.Coin"),
-		"std.Coins":                newSplitFunc("chain/banker.Coins"),
-		"std.NewCoin":              newSplitFunc("chain/banker.NewCoin"),
-		"std.NewCoins":             newSplitFunc("chain/banker.NewCoins"),
 		"std.BankerTypeReadonly":   newSplitFunc("chain/banker.BankerTypeReadonly"),
 		"std.BankerTypeOriginSend": newSplitFunc("chain/banker.BankerTypeOriginSend"),
 		"std.BankerTypeRealmSend":  newSplitFunc("chain/banker.BankerTypeRealmSend"),
 		"std.BankerTypeRealmIssue": newSplitFunc("chain/banker.BankerTypeRealmIssue"),
 
-		"std.SetParamBool":    newSplitFunc("chain/params.SetBool"),
-		"std.SetParamBytes":   newSplitFunc("chain/params.SetBytes"),
-		"std.SetParamInt64":   newSplitFunc("chain/params.SetInt64"),
-		"std.SetParamString":  newSplitFunc("chain/params.SetString"),
-		"std.SetParamStrings": newSplitFunc("chain/params.SetStrings"),
-		"std.SetParamUint64":  newSplitFunc("chain/params.SetUint64"),
+		"std.SetParamBool":       newSplitFunc("chain/params.SetBool"),
+		"std.SetParamBytes":      newSplitFunc("chain/params.SetBytes"),
+		"std.SetParamInt64":      newSplitFunc("chain/params.SetInt64"),
+		"std.SetParamString":     newSplitFunc("chain/params.SetString"),
+		"std.SetParamStrings":    newSplitFunc("chain/params.SetStrings"),
+		"std.UpdateParamStrings": newSplitFunc("chain/params.UpdateStrings"),
+		"std.SetParamUint64":     newSplitFunc("chain/params.SetUint64"),
+
+		// Previous stdsplit iterations.
+		"chain.DerivePkgAddr":        newSplitFunc("chain.PackageAddress"),
+		"chain.DerivePkgAddress":     newSplitFunc("chain.PackageAddress"),
+		"chain/runtime.NewUserRealm": newSplitFunc("testing.NewUserRealm"),
+		"chain/runtime.NewCodeRealm": newSplitFunc("testing.NewCodeRealm"),
+		"chain/runtime.CoinDenom":    newSplitFunc("chain.CoinDenom"),
+		"chain/banker.Coin":          newSplitFunc("chain.Coin"),
+		"chain/banker.Coins":         newSplitFunc("chain.Coins"),
+		"chain/banker.NewCoin":       newSplitFunc("chain.NewCoin"),
+		"chain/banker.NewCoins":      newSplitFunc("chain.NewCoins"),
 	}
 
 	// From a previous batch of std changes: https://github.com/gnolang/gno/pull/3374
@@ -95,6 +107,7 @@ func stdsplit(f *ast.File) (fixed bool) {
 		"chain/runtime": "runtime",
 		"chain/params":  "params",
 		"chain/banker":  "banker",
+		"testing":       "testing",
 	}
 
 	var toRename []string
@@ -128,7 +141,16 @@ func stdsplit(f *ast.File) (fixed bool) {
 				}
 				ip := importPath(def)
 				joined := ip + "." + n.Sel.Name
-				if joined == "std.RawAddressSize" {
+				switch joined {
+				case "chain.Address", "std.Address":
+					// Replace both with simple `address`.
+					c.Replace(&ast.Ident{
+						NamePos: n.Pos(),
+						Name:    "address",
+					})
+					fixed = true
+					return false
+				case "std.RawAddressSize":
 					// Special case: this no longer exists, but provide a simple
 					// replacement as a direct literal.
 					c.Replace(&ast.BasicLit{
@@ -136,6 +158,23 @@ func stdsplit(f *ast.File) (fixed bool) {
 						Kind:     token.INT,
 						Value:    "20",
 					})
+					fixed = true
+					return false
+				case "std.RawAddress":
+					// Special case: this no longer exists, substitute with a [20]byte.
+					c.Replace(&ast.ArrayType{
+						Lbrack: n.Pos(),
+						Len: &ast.BasicLit{
+							ValuePos: n.Pos() + 1,
+							Kind:     token.INT,
+							Value:    "20",
+						},
+						Elt: &ast.Ident{
+							NamePos: n.Pos() + 2,
+							Name:    "byte",
+						},
+					})
+					fixed = true
 					return false
 				}
 				target, ok := splitFuncs[joined]

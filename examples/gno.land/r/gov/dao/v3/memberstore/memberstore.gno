@@ -1,7 +1,7 @@
 package memberstore
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 
 	"gno.land/p/demo/svg"
@@ -12,9 +12,11 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-var members MembersByTier
-var Tiers TiersByName
-var router *mux.Router
+var (
+	members MembersByTier
+	Tiers   TiersByName
+	router  *mux.Router
+)
 
 const (
 	T1 = "T1"
@@ -86,7 +88,7 @@ func init() {
 			t1p := t1.BasePower * t1ms
 			t3p := t3.BasePower * t3ms
 
-			//capped to 1/3 of tier 1
+			// capped to 1/3 of tier 1
 			t1ptreshold := t1p * (1.0 / 3.0)
 			if t3p > t1ptreshold {
 				return t1ptreshold / t3ms
@@ -173,7 +175,7 @@ func Render(path string) string {
 
 // Get gets the Members store
 func Get() MembersByTier {
-	currealm := std.CurrentRealm().PkgPath()
+	currealm := runtime.CurrentRealm().PkgPath()
 	if !dao.InAllowedDAOs(currealm) {
 		panic("this Realm is not allowed to get the Members data: " + currealm)
 	}

@@ -1,33 +1,35 @@
 package main
 
 import (
-	"std"
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
-	user  = std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	admin address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
+	user  address = "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"
 )
 
-var bid boards2.BoardID // Operate on board DAO
+var bid boards.ID // Operate on board DAO
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	bid = boards2.CreateBoard(cross, "test123", false, false)
 
 	// Add an admin member
-	boards2.InviteMember(cross, bid, admin, boards2.RoleAdmin)
+	boards2.InviteMember(cross, bid, admin, permissions.RoleAdmin)
 }
 
 func main() {
 	// Next call will be done by the admin member
-	testing.SetRealm(std.NewUserRealm(admin))
+	testing.SetRealm(testing.NewUserRealm(admin))
 
-	boards2.InviteMember(cross, bid, user, boards2.RoleOwner)
+	boards2.InviteMember(cross, bid, user, permissions.RoleOwner)
 }
 
 // Error:

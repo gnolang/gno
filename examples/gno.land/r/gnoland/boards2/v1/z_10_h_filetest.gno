@@ -1,23 +1,24 @@
 package main
 
 import (
-	"std"
 	"testing"
+
+	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 
 var (
-	bid boards2.BoardID
-	pid boards2.PostID
+	bid boards.ID
+	pid boards.ID
 )
 
 func init() {
 	// Created a board with flagging threshold greater than 1
-	testing.SetRealm(std.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	boards2.SetFlaggingThreshold(cross, bid, 2)
 
 	// Create a thread so the realm owner can flag and hide it with a single flag
@@ -27,7 +28,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.FlagThread(cross, bid, pid, "")
 

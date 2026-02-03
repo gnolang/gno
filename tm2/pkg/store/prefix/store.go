@@ -73,7 +73,7 @@ func (s Store) Delete(key []byte) {
 }
 
 // Implements Store
-// Check https://github.com/tendermint/classic/blob/master/libs/db/prefix_db.go#L106
+// Check https://github.com/tendermint/tendermint/blob/master/libs/db/prefix_db.go#L106
 func (s Store) Iterator(start, end []byte) types.Iterator {
 	newstart := cloneAppend(s.prefix, start)
 
@@ -90,7 +90,7 @@ func (s Store) Iterator(start, end []byte) types.Iterator {
 }
 
 // Implements Store
-// Check https://github.com/tendermint/classic/blob/master/libs/db/prefix_db.go#L129
+// Check https://github.com/tendermint/tendermint/blob/master/libs/db/prefix_db.go#L129
 func (s Store) ReverseIterator(start, end []byte) types.Iterator {
 	newstart := cloneAppend(s.prefix, start)
 
@@ -165,8 +165,13 @@ func (iter *prefixIterator) Value() []byte {
 }
 
 // Implements Iterator
-func (iter *prefixIterator) Close() {
-	iter.iter.Close()
+func (iter *prefixIterator) Close() error {
+	return iter.iter.Close()
+}
+
+// Implements Iterator
+func (iter *prefixIterator) Error() error {
+	return iter.iter.Error()
 }
 
 // copied from github.com/tendermint/classic/libs/db/prefix_db.go

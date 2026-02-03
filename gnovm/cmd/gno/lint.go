@@ -221,7 +221,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					tmpkgType := tmpkg.Type.(gno.MemPackageType)
 					m2.Store.AddMemPackage(tmpkg, tmpkgType)
 					return m2.PreprocessFiles(tmpkg.Name, tmpkg.Path,
-						gno.ParseMemPackageAsType(tmpkg, tmpkgType), true, true, "")
+						m2.ParseMemPackageAsType(tmpkg, tmpkgType), true, true, "")
 				} else {
 					return tgetter(pkgPath, store)
 				}
@@ -269,7 +269,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			}
 
 			// Construct machine for testing.
-			tm := test.Machine(newProdGnoStore(), goio.Discard, pkgPath, false)
+			tm := test.Machine(newProdGnoStore(), goio.Discard, pkgPath, false, nil)
 			defer tm.Release()
 
 			// LINT STEP 4: re-parse for preprocessor.

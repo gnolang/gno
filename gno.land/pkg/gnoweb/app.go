@@ -100,6 +100,10 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Setup StaticMetadata
 	chromaStylePath := path.Join(assetsBase, "_chroma", "style.css")
+
+	// Build time for cache busting
+	buildTime := time.Now().Format("20060102150405") // YYYYMMDDHHMMSS
+
 	staticMeta := StaticMetadata{
 		Domain:     cfg.Domain,
 		AssetsPath: assetsBase,
@@ -107,6 +111,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		RemoteHelp: cfg.RemoteHelp,
 		ChainId:    cfg.ChainID,
 		Analytics:  cfg.Analytics,
+		BuildTime:  buildTime,
 	}
 
 	// Configure Markdown renderer
@@ -116,7 +121,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 			mdhtml.WithXHTML(), mdhtml.WithUnsafe(),
 		))
 	}
-	renderer := NewHTMLRenderer(logger, rcfg)
+	renderer := NewHTMLRenderer(logger, rcfg, adpcli)
 
 	// Configure HTTPHandler
 	if cfg.Aliases == nil {
