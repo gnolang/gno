@@ -232,7 +232,11 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool, queryCl
 		// there are no candidates.
 		jdoc := queryQDoc(parsed.pkg, queryClient)
 		if jdoc != nil {
-			return &Documentable{doc: jdoc}, nil
+			return &Documentable{
+				doc:        jdoc,
+				symbol:     parsed.sym,
+				accessible: parsed.acc,
+			}, nil
 		}
 
 		// if this is ambiguous, remove ambiguity and try parsing args using pkg as the symbol.
