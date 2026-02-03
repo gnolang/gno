@@ -79,7 +79,9 @@ func (s *basicGRC1155Token) IsApprovedForAll(owner, operator address) bool {
 		return false
 	}
 
-	return approved.(bool)
+ab, ok := approved.(bool)
+return ok && ab
+
 }
 
 // Safely transfers `tokenId` token from `from` to `to`, checking that
