@@ -3,8 +3,10 @@ package boards2
 import "gno.land/r/gnoland/boards2/v1/permissions"
 
 func createBasicBoardPermissions(owner address) *permissions.Permissions {
-	perms := permissions.New(permissions.UseSingleUserRole())
-	perms.SetSuperRole(permissions.RoleOwner)
+	perms := permissions.New(
+		permissions.UseSingleUserRole(),
+		permissions.WithSuperRole(permissions.RoleOwner),
+	)
 	perms.AddRole(
 		permissions.RoleAdmin,
 		permissions.PermissionBoardRename,
@@ -50,8 +52,10 @@ func createBasicBoardPermissions(owner address) *permissions.Permissions {
 }
 
 func createOpenBoardPermissions(owner address) *permissions.Permissions {
-	perms := permissions.New(permissions.UseSingleUserRole())
-	perms.SetSuperRole(permissions.RoleOwner)
+	perms := permissions.New(
+		permissions.UseSingleUserRole(),
+		permissions.WithSuperRole(permissions.RoleOwner),
+	)
 	perms.SetPublicPermissions(
 		permissions.PermissionThreadCreate,
 		permissions.PermissionReplyCreate,

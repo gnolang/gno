@@ -65,22 +65,14 @@ func (bp *Permissions) SetPublicPermissions(permissions ...boards.Permission) {
 	}
 }
 
-// SetSuperRole assigns a super role.
-// A super role is one that have all permissions.
-// These type of role doesn't need to be mapped to any permission.
-func (bp *Permissions) SetSuperRole(r boards.Role) {
+// AddRole add a role with one or more assigned permissions.
+// If role exists its permissions are overwritten with the new ones.
+func (bp *Permissions) AddRole(r boards.Role, p boards.Permission, extra ...boards.Permission) {
+	// If role is the super role it already has all permissions
 	if bp.superRole == r {
 		return
 	}
 
-	name := string(r)
-	bp.dao.Members().Grouping().Add(name)
-	bp.superRole = r
-}
-
-// AddRole add a role with one or more assigned permissions.
-// If role exists its permissions are overwritten with the new ones.
-func (bp *Permissions) AddRole(r boards.Role, p boards.Permission, extra ...boards.Permission) {
 	// Get member group for the role if it exists or otherwise create a new group
 	grouping := bp.dao.Members().Grouping()
 	name := string(r)
@@ -99,7 +91,7 @@ func (bp *Permissions) AddRole(r boards.Role, p boards.Permission, extra ...boar
 
 // RoleExists checks if a role exists.
 func (bp Permissions) RoleExists(r boards.Role) bool {
-	return (bp.superRole != "" && r == bp.superRole) || bp.dao.Members().Grouping().Has(string(r))
+	return r == bp.superRole || bp.dao.Members().Grouping().Has(string(r))
 }
 
 // GetUserRoles returns the list of roles assigned to a user.
