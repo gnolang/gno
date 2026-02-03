@@ -54,6 +54,9 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 
 		// Custom MakeTX command
 		NewMakeTxCmd(cfg, io),
+
+		// CLA management
+		NewCLACmd(cfg, io),
 	)
 
 	return cmd

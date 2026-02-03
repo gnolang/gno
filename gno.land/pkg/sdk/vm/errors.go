@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -27,6 +28,8 @@ type (
 		abciError
 		Errors []string `json:"errors"`
 	}
+	CLAHashMismatchError struct{ abciError }
+	CLAHashMissingError  struct{ abciError }
 )
 
 func (e InvalidPkgPathError) Error() string   { return "invalid package path" }
@@ -37,6 +40,8 @@ func (e InvalidFileError) Error() string      { return "file is not available" }
 func (e InvalidExprError) Error() string      { return "invalid expression" }
 func (e UnauthorizedUserError) Error() string { return "unauthorized user" }
 func (e InvalidPackageError) Error() string   { return "invalid package" }
+func (e CLAHashMismatchError) Error() string  { return "CLA hash mismatch" }
+func (e CLAHashMissingError) Error() string   { return "CLA hash missing" }
 func (e TypeCheckError) Error() string {
 	var bld strings.Builder
 	bld.WriteString("invalid gno package; type check errors:\n")
@@ -79,4 +84,12 @@ func ErrTypeCheck(err error) error {
 		tce.Errors = append(tce.Errors, err.Error())
 	}
 	return errors.NewWithData(tce).Stacktrace()
+}
+
+func ErrCLAHashMismatch(expected, actual string) error {
+	return errors.Wrap(CLAHashMismatchError{}, fmt.Sprintf("expected %q, got %q", expected, actual))
+}
+
+func ErrCLAHashMissing() error {
+	return errors.Wrap(CLAHashMissingError{}, "CLA acknowledgment required: include CLAHash field in MsgAddPackage")
 }

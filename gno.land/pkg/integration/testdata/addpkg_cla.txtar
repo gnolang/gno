@@ -1,0 +1,145 @@
+# Test CLA enforcement for package deployment
+# Covers: default disabled state, governance update, enforcement validation, config.toml workflow
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/gnoland/users/v1
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Verify default cla_hash is empty (enforcement disabled)
+gnokey query params/vm:p:cla_hash
+stdout 'data: ""$'
+
+## SCENARIO 1: Deployment succeeds when enforcement disabled
+gnokey maketx addpkg -pkgdir $WORK/hello1 -pkgpath gno.land/r/$test1_user_addr/hello1 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/hello1 -chainid=tendermint_test -func SayHello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast test1
+stdout '\("hello world!" string\)'
+
+## SCENARIO 2: Enable CLA enforcement via governance (set both cla_doc_url and cla_hash atomically)
+
+# Register member
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
+stdout 'OK!'
+
+# Set both cla_hash and cla_doc_url in a single proposal
+# Hash: echo "Test CLA content" | sha256sum | cut -c1-16 = a3d74e2544d091e8
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/set_cla_config.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey query params/vm:p:cla_doc_url
+stdout 'data: "https://raw.githubusercontent.com/gnolang/gno/abc123/docs/CLA.txt"$'
+
+gnokey query params/vm:p:cla_hash
+stdout 'data: "a3d74e2544d091e8"$'
+
+## SCENARIO 3: Deployment fails without CLA hash in config
+! gnokey maketx addpkg -pkgdir $WORK/hello2 -pkgpath gno.land/r/$test1_user_addr/hello2 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stderr 'CLA hash missing'
+
+## SCENARIO 4: Deployment succeeds with matching CLA hash in config.toml
+# Write config.toml with CLA hash for this remote
+exec sh -c 'printf "[zones.\"%s\"]\ncla_hash = \"a3d74e2544d091e8\"\n" "$RPC_ADDR" > $GNOHOME/config.toml'
+
+gnokey maketx addpkg -pkgdir $WORK/hello3 -pkgpath gno.land/r/$test1_user_addr/hello3 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## SCENARIO 5: Deployment fails with mismatched CLA hash
+exec sh -c 'printf "[zones.\"%s\"]\ncla_hash = \"wronghash1234567\"\n" "$RPC_ADDR" > $GNOHOME/config.toml'
+
+! gnokey maketx addpkg -pkgdir $WORK/hello4 -pkgpath gno.land/r/$test1_user_addr/hello4 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stderr 'CLA hash mismatch'
+
+-- proposer/set_cla_config.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main() {
+	preq := params.NewCLAConfigPropRequest(
+		"a3d74e2544d091e8",
+		"https://raw.githubusercontent.com/gnolang/gno/abc123/docs/CLA.txt",
+	)
+	dao.MustCreateProposal(cross, preq)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
+
+-- hello1/gnomod.toml --
+module = "hello1"
+gno = "0.9"
+
+-- hello1/hello.gno --
+package hello1
+
+func SayHello(cur realm) string {
+	return "hello world!"
+}
+
+-- hello2/gnomod.toml --
+module = "hello2"
+gno = "0.9"
+
+-- hello2/hello.gno --
+package hello2
+
+func SayHello(cur realm) string {
+	return "hello2"
+}
+
+-- hello3/gnomod.toml --
+module = "hello3"
+gno = "0.9"
+
+-- hello3/hello.gno --
+package hello3
+
+func SayHello(cur realm) string {
+	return "hello3"
+}
+
+-- hello4/gnomod.toml --
+module = "hello4"
+gno = "0.9"
+
+-- hello4/hello.gno --
+package hello4
+
+func SayHello(cur realm) string {
+	return "hello4"
+}

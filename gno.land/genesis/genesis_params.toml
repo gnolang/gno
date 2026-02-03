@@ -7,6 +7,8 @@
 ["vm"]
   chain_domain = "gno.land"
   sysnames_pkgpath = "gno.land/r/sys/names"
+  cla_hash = ""     # Empty = CLA enforcement disabled
+  cla_doc_url = ""  # URL to CLA document (e.g., raw GitHub URL with commit hash)
   # TODO: Leverage toml unmarshaler to extract these into VM Params struct before writing to genesis
   # TODO: max_gas = 100_000_000
   # TODO: chain_tz = "UTC"
