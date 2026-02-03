@@ -77,7 +77,7 @@ func (request *RPCRequest) UnmarshalJSON(data []byte) error {
 
 	// Check if the ID is set
 	if unsafeReq.ID == nil {
-		return nil
+		return errors.New("request ID cannot be nil")
 	}
 
 	// Parse the ID
@@ -175,7 +175,7 @@ func (response *RPCResponse) UnmarshalJSON(data []byte) error {
 
 	// Check if any response ID is set
 	if unsafeResp.ID == nil {
-		return nil
+		return errors.New("response ID cannot be nil")
 	}
 
 	// Parse the ID

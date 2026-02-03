@@ -18,7 +18,6 @@ var (
 	ErrTimedOut                  = errors.New("context timed out")
 	ErrRequestResponseIDMismatch = errors.New("ws request / response ID mismatch")
 	ErrInvalidBatchResponse      = errors.New("invalid ws batch response size")
-	ErrNilRequestID              = errors.New("request ID cannot be nil")
 )
 
 type responseCh chan<- types.RPCResponses
@@ -69,10 +68,6 @@ func NewClient(rpcURL string, opts ...Option) (*Client, error) {
 
 // SendRequest sends a single RPC request to the server
 func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
-	if request.ID == nil {
-		return nil, ErrNilRequestID
-	}
-
 	// Create the response channel for the pipeline
 	responseCh := make(chan types.RPCResponses, 1)
 
@@ -117,9 +112,6 @@ func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (typ
 	requestIDs := make([]string, 0, len(requests))
 
 	for _, request := range requests {
-		if request.ID == nil {
-			return nil, ErrNilRequestID
-		}
 		requestIDs = append(requestIDs, request.ID.String())
 	}
 
@@ -170,18 +162,6 @@ func generateIDHash(ids ...string) string {
 	}
 
 	return string(hash.Sum(nil))
-}
-
-// extractResponseIDs extracts string IDs from responses, returns nil if any ID is nil
-func extractResponseIDs(responses types.RPCResponses) []string {
-	ids := make([]string, 0, len(responses))
-	for _, r := range responses {
-		if r.ID == nil {
-			return nil
-		}
-		ids = append(ids, r.ID.String())
-	}
-	return ids
 }
 
 // runWriteRoutine runs the client -> server write routine
@@ -251,21 +231,15 @@ func (c *Client) runReadRoutine(ctx context.Context) {
 				continue
 			}
 
-			if response.ID == nil {
-				c.logger.Debug("received response with nil ID, ignoring", "data", string(data))
-				continue
-			}
-
 			// This is a single response, generate the unique ID
 			responseHash = generateIDHash(response.ID.String())
 			responses = types.RPCResponses{response}
 		} else {
 			// This is a batch response, generate the unique ID
 			// from the combined IDs
-			ids := extractResponseIDs(responses)
-			if ids == nil {
-				c.logger.Debug("batch response contains nil ID, ignoring batch", "data", string(data))
-				continue
+			ids := make([]string, 0, len(responses))
+			for _, r := range responses {
+				ids = append(ids, r.ID.String())
 			}
 
 			responseHash = generateIDHash(ids...)
