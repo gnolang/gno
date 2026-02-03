@@ -175,6 +175,9 @@ func (response *RPCResponse) UnmarshalJSON(data []byte) error {
 
 	// Check if any response ID is set
 	if unsafeResp.ID == nil {
+		if response.Error != nil {
+			return fmt.Errorf("response ID is nil (error: %s)", response.Error.Message)
+		}
 		return errors.New("response ID cannot be nil")
 	}
 
