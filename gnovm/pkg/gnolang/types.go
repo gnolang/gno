@@ -2312,7 +2312,7 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					assertAssignableTo(n, spec, match.Elem())
+					mustAssignableTo(n, spec, match.Elem())
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2326,7 +2326,7 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					assertAssignableTo(n, spec, match)
+					mustAssignableTo(n, spec, match)
 					return // ok
 				} else {
 					if isUntyped(spec) {

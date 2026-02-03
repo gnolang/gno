@@ -570,6 +570,16 @@ func TestEncode(t *testing.T) {
 			EncodeFlags: EncodePath | EncodeWebQuery,
 			Expected:    "/r/demo/foo$user=Alice",
 		},
+
+		{
+			Name: "Slashes in args are encoded by default",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "path/to/resource",
+			},
+			EncodeFlags: EncodePath | EncodeArgs,
+			Expected:    "/r/demo/foo:path%2Fto%2Fresource",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -605,4 +615,74 @@ func TestGnoURL_Helpers(t *testing.T) {
 	// WebQueries are included, and as such any webquery in the path should be escaped.
 	// The path is escaped too, except for / which is converted back for ease of reading.
 	assert.Equal(t, "/r/demo/users:p/foo=%24bar&%3Fbaz$func=foo?%26=%3D&a%2Bb=b%2B&hey=1", gurl.EncodeWebURL())
+}
+
+func TestEncodeFormURL(t *testing.T) {
+	testCases := []struct {
+		name     string
+		gnoURL   GnoURL
+		expected string
+	}{
+		{
+			name: "simple path",
+			gnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "submit",
+			},
+			expected: "/r/demo/foo:submit",
+		},
+		{
+			name: "path with slashes encoded",
+			gnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "path/to/resource",
+			},
+			expected: "/r/demo/foo:path%2Fto%2Fresource",
+		},
+		{
+			name: "path traversal encoded",
+			gnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "../../../bar",
+			},
+			expected: "/r/demo/foo:..%2F..%2F..%2Fbar",
+		},
+		{
+			name: "with query params",
+			gnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "foo/bar",
+				Query: url.Values{
+					"name": {"test"},
+				},
+			},
+			expected: "/r/demo/foo:foo%2Fbar?name=test",
+		},
+		{
+			name: "no args",
+			gnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Query: url.Values{
+					"name": {"test"},
+				},
+			},
+			expected: "/r/demo/foo?name=test",
+		},
+		{
+			name: "query in args is encoded",
+			gnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "submit?evil=injection",
+			},
+			// ? is encoded so browser won't parse as query string
+			expected: "/r/demo/foo:submit%3Fevil=injection",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.gnoURL.EncodeFormURL()
+			assert.Equal(t, tc.expected, result)
+		})
+	}
 }
