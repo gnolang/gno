@@ -79,7 +79,7 @@ func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) da
 	return dao.NewProposalRequest(title, description, e)
 }
 
-// ProposeNewMinFee creates a proposal to the GovDAO
+// ProposeNewMinFeeProposalRequest creates a proposal to the GovDAO
 // for updating the minimum fee to register a new valoper.
 func ProposeNewMinFeeProposalRequest(cur realm, newMinFee int64) dao.ProposalRequest {
 	cb := valopers.NewMinFeeProposalCallback(newMinFee)

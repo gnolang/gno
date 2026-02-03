@@ -25,7 +25,7 @@ func NewBitArray(bits int) *BitArray {
 	}
 	return &BitArray{
 		Bits:  bits,
-		Elems: make([]uint64, (bits+63)/64),
+		Elems: make([]uint64, numElements(bits)),
 	}
 }
 
@@ -49,7 +49,7 @@ func (bA *BitArray) GetIndex(i int) bool {
 }
 
 func (bA *BitArray) getIndex(i int) bool {
-	if i >= bA.Bits {
+	if i >= bA.Bits || i/64 >= len(bA.Elems) {
 		return false
 	}
 	return bA.Elems[i/64]&(uint64(1)<<uint(i%64)) > 0
@@ -67,7 +67,7 @@ func (bA *BitArray) SetIndex(i int, v bool) bool {
 }
 
 func (bA *BitArray) setIndex(i int, v bool) bool {
-	if i >= bA.Bits {
+	if i >= bA.Bits || i/64 >= len(bA.Elems) {
 		return false
 	}
 	if v {
@@ -98,7 +98,7 @@ func (bA *BitArray) copy() *BitArray {
 }
 
 func (bA *BitArray) copyBits(bits int) *BitArray {
-	c := make([]uint64, (bits+63)/64)
+	c := make([]uint64, numElements(bits))
 	copy(c, bA.Elems)
 	return &BitArray{
 		Bits:  bits,
@@ -223,6 +223,10 @@ func (bA *BitArray) IsFull() bool {
 	bA.mtx.Lock()
 	defer bA.mtx.Unlock()
 
+	if len(bA.Elems) == 0 {
+		return true
+	}
+
 	// Check all elements except the last
 	for _, elem := range bA.Elems[:len(bA.Elems)-1] {
 		if (^elem) != 0 {
@@ -256,9 +260,16 @@ func (bA *BitArray) PickRandom() (int, bool) {
 }
 
 func (bA *BitArray) getTrueIndices() []int {
+	numElems := len(bA.Elems)
+	if numElems != numElements(bA.Bits) {
+		return nil
+	}
+	if numElems == 0 {
+		return nil
+	}
+
 	trueIndices := make([]int, 0, bA.Bits)
 	curBit := 0
-	numElems := len(bA.Elems)
 	// set all true indices
 	for i := range numElems - 1 {
 		elem := bA.Elems[i]
@@ -413,6 +424,12 @@ func (bA *BitArray) UnmarshalJSON(bz []byte) error {
 	// Construct new BitArray and copy over.
 	numBits := len(bits)
 	bA2 := NewBitArray(numBits)
+	if bA2 == nil {
+		// Treat it as if we encountered the case: b == "null"
+		bA.Bits = 0
+		bA.Elems = nil
+		return nil
+	}
 	for i := range numBits {
 		if bits[i] == 'x' {
 			bA2.SetIndex(i, true)
@@ -426,4 +443,25 @@ func (bA *BitArray) UnmarshalJSON(bz []byte) error {
 	bA.Elems = bA2.Elems
 
 	return nil
+}
+
+// ValidateBasic verifies that Elems has the correct length for the declared Bits count.
+func (bA *BitArray) ValidateBasic() error {
+	if bA == nil {
+		return nil
+	}
+	bA.mtx.Lock()
+	defer bA.mtx.Unlock()
+
+	expectedElems := numElements(bA.Bits)
+	if expectedElems != len(bA.Elems) {
+		return fmt.Errorf("mismatch between specified number of bits %d, and number of elements %d, expected %d elements",
+			bA.Bits, len(bA.Elems), expectedElems)
+	}
+
+	return nil
+}
+
+func numElements(bits int) int {
+	return (bits + 63) / 64
 }
