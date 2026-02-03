@@ -61,7 +61,8 @@ UI - Help Function component
 </h2>
 <div class="c-stack">
   {{ range .Functions }}
-  <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}">
+  <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}"
+    data-action-function-pkgpath-value="{{ $.PkgPath }}">
     <header>
       <span class="title">
         <h2 id="func-{{ .Name }}">
@@ -79,27 +80,29 @@ UI - Help Function component
       </span>
       <span class="b-btns">
         <button class="b-btn b-btn--secondary c-with-icon" aria-label="Copy Function" data-controller="copy"
-          data-action="click->copy#copy" data-copy-text-value="{{ buildHelpURL $data . }}" title="Function anchor link">
+          data-action-function-target="function-anchor" data-action="click->copy#copy"
+          data-copy-text-value="{{ buildHelpURL $data . }}" title="Function anchor link">
           <svg class="c-icon">
             <use href="#ico-link" data-copy-target="icon"></use>
             <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
           </svg>
           <span>Link</span>
         </button>
-        <a href="{{ buildHelpURL $data . }}" data-action-function-target="function-link"
-          title="Function transaction link" class="b-btn b-btn--secondary c-with-icon">
+        <button type="submit" form="form-{{ .Name }}" title="Function transaction link"
+          class="b-btn b-btn--secondary c-with-icon">
           <svg class="c-icon">
             <use href="#ico-tx-link"></use>
           </svg>
           <span>Execute</span>
-        </a>
+        </button>
       </span>
     </header>
 
     {{ with .Doc }}
     <p class="description">{{ . }}</p>
     {{ end }}
-    <form class="params">
+    <form class="params" id="form-{{ .Name }}" method="GET" action="{{ buildHelpURL $data . }}"
+      data-action-function-target="function-execute">
       {{- with .Params }}
       <h3 class="title">
         Param{{- if gt (len .) 1 }}s{{ end }}
@@ -147,25 +150,29 @@ UI - Help Function component
     </form>
     <div>
       <h3 class="title">Command</h3>
-      <div class="b-code">
+      <div class="b-code u-mb-2">
         <button data-controller="copy" data-action="click->copy#copy"
           data-copy-remote-value="action-function-{{ .Name }}" data-copy-clean-value class="btn-copy"
           aria-label="Copy Command">
           {{ template "ui/copy" }}
         </button>
         {{/* prettier-ignore-start */}}
-        <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target="action-function-{{ .Name }}"># WARNING: This command is running in an INSECURE mode.
-# It is strongly recommended to use a hardware device for signing
-# and avoid trusting any computer connected to the internet,
-# as your private keys could be exposed.
-
-gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}"{{ range .Params }} -args "<span data-action-function-target="arg" data-action-function-arg-value="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" -broadcast -chainid "{{ $.ChainId }}" -remote "{{ $.Remote }}" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-{{ .Name }}" class="u-inline">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
-gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}"{{ range .Params }} -args "<span data-action-function-target="arg" data-action-function-arg-value="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" <span data-action-function-target="address">ADDRESS</span> > call.tx
-gnokey sign -tx-path call.tx -chainid "{{ $.ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
-gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
+        {{ if .Crossing }}
+        {{ template "ui/command" (buildCommandData $data .) }}
+        {{ else }}
+        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "<span data-action-function-target="remote">{{ $.Remote }}</span>" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $p.Name }}"></span>{{ end }})"</span></code></pre>
+        {{ end }}
         {{/* prettier-ignore-end */}}
       </div>
     </div>
+    {{ if not .Crossing }}
+    <div class="b-action-result">
+      <h3 class="title">Result</h3>
+      <div class="b-code">
+        <pre><code><span data-action-function-target="qeval-result"></span></code></pre>
+      </div>
+    </div>
+    {{ end }}
   </article>
   {{ end }}
 </div>
