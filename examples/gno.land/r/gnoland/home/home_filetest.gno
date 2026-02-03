@@ -53,9 +53,19 @@ func main() {
 // - [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
 // - [Testnet 10](https://test10.testnets.gno.land/)
 // - [Faucet Hub](https://faucet.gno.land)
-// - [Open Boards, a social discussion forum](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions)
+// - [Open Boards](/r/gnoland/boards2/v1): community forum
 //
 // </gno-columns>
+//
+// ---
+//
+// ## [Open Boards](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions) - On-chain forum for the Gno.land community
+//
+// **Discuss, share, and connect.** Open Boards is a fully on-chain social forum: create boards, post threads, reply, all stored on Gno.land. A ready-to-use realm to experience decentralized social in action.
+//
+// [![Open Boards — start discussing](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyODAiIGhlaWdodD0iNDQiIHZpZXdCb3g9IjAgMCAyODAgNDQiPjxzdHlsZT50ZXh0e2ZvbnQtZmFtaWx5OnNhbnMtc2VyaWY7Zm9udC1zaXplOjE0cHg7dGV4dC1hbmNob3I6bWlkZGxlO2RvbWluYW50LWJhc2VsaW5lOm1pZGRsZTt9PC9zdHlsZT48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMjgwIiBoZWlnaHQ9IjQ0IiByeD0iOCIgcnk9IjgiIGZpbGw9IiMyMjZjNTciIC8+PHRleHQgeD0iMTQwIiB5PSIyMiIgZHg9IjAiIGR5PSIwIiByb3RhdGU9IiIgZmlsbD0iI2ZmZmZmZiIgPk9wZW4gQm9hcmRzIOKAlCBzdGFydCBkaXNjdXNzaW5nPC90ZXh0Pjwvc3ZnPg==)](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions)
+//
+// ---
 //
 // <gno-columns>
 //
