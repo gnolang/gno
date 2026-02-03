@@ -613,6 +613,17 @@ func TestNewValidBlockMessageValidateBasic(t *testing.T) {
 			func(msg *NewValidBlockMessage) { msg.BlockParts = bitarray.NewBitArray(types.MaxBlockPartsCount + 1) },
 			"BlockParts bit array size 1602 not equal to BlockPartsHeader.Total 1",
 		},
+		{
+			func(msg *NewValidBlockMessage) { msg.BlockParts.Elems = nil },
+			"mismatch between specified number of bits 1, and number of elements 0, expected 1 element",
+		},
+		{
+			func(msg *NewValidBlockMessage) {
+				msg.BlockParts.Bits = 500
+				msg.BlockPartsHeader.Total = 500 // header total should match bitarray size so ba validation is reached
+			},
+			"mismatch between specified number of bits 500, and number of elements 1, expected 8 elements",
+		},
 	}
 
 	for i, tc := range testCases {
@@ -652,6 +663,14 @@ func TestProposalPOLMessageValidateBasic(t *testing.T) {
 		{
 			func(msg *ProposalPOLMessage) { msg.ProposalPOL = bitarray.NewBitArray(types.MaxVotesCount + 1) },
 			"ProposalPOL bit array is too big: 10001, max: 10000",
+		},
+		{
+			func(msg *ProposalPOLMessage) { msg.ProposalPOL.Elems = nil },
+			"mismatch between specified number of bits 1, and number of elements 0, expected 1 elements",
+		},
+		{
+			func(msg *ProposalPOLMessage) { msg.ProposalPOL.Bits = 500 },
+			"mismatch between specified number of bits 500, and number of elements 1, expected 8 elements",
 		},
 	}
 
@@ -825,6 +844,14 @@ func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
 		{
 			func(msg *VoteSetBitsMessage) { msg.Votes = bitarray.NewBitArray(types.MaxVotesCount + 1) },
 			"votes bit array is too big: 10001, max: 10000",
+		},
+		{
+			func(msg *VoteSetBitsMessage) { msg.Votes.Elems = nil },
+			"mismatch between specified number of bits 1, and number of elements 0, expected 1 elements",
+		},
+		{
+			func(msg *VoteSetBitsMessage) { msg.Votes.Bits = 500 },
+			"mismatch between specified number of bits 500, and number of elements 1, expected 8 elements",
 		},
 	}
 
