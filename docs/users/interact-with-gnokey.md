@@ -670,6 +670,23 @@ This section shows the simplest multisig flow:
 - the other signers' **pubkeys** (added as bech32 keys) present in the keybase
 - agreement on **threshold** and the **member set**
 
+**Recommended: use a dedicated key for multisig**
+
+Avoid reusing your primary key for multisig. Create a fresh key or derive a new
+one from your mnemonic, then use that key for multisig participation.
+
+Example (derive a new key from an existing mnemonic):
+
+```sh
+gnokey add my-msig-key --recover --account 0 --index 7
+```
+
+Example (explicit derivation path):
+
+```sh
+gnokey add my-msig-key --recover --derivation-path "44'/118'/0'/0/7"
+```
+
 **Key ordering (default behavior)**
 
 By default, `gnokey add multisig` sorts member pubkeys (`-nosort=false`). That
