@@ -18,21 +18,30 @@ type ValidatorFunc func(boards.Permissions, boards.Args) error
 // before a permissioned callback is called.
 //
 // No permissions validation is done by default.
+//
+// Users are allowed to have multiple roles at the same time by default, but permissions can
+// be configured to only allow one role per user.
 type Permissions struct {
-	superRole  boards.Role
-	dao        *commondao.CommonDAO
-	validators *avl.Tree // string(boards.Permission) -> BasicPermissionValidator
-	public     *avl.Tree // string(boards.Permission) -> struct{}{}
+	superRole      boards.Role
+	dao            *commondao.CommonDAO
+	validators     *avl.Tree // string(boards.Permission) -> BasicPermissionValidator
+	public         *avl.Tree // string(boards.Permission) -> struct{}{}
+	singleUserRole bool
 }
 
 // New creates a new permissions type.
-func New() *Permissions {
+func New(options ...Option) *Permissions {
 	s := storage.NewMemberStorage()
-	return &Permissions{
+	bp := &Permissions{
 		validators: avl.NewTree(),
 		public:     avl.NewTree(),
 		dao:        commondao.New(commondao.WithMemberStorage(s)),
 	}
+
+	for _, apply := range options {
+		apply(bp)
+	}
+	return bp
 }
 
 // DAO returns the underlying permissions DAO.
@@ -154,12 +163,17 @@ func (bp Permissions) HasPermission(user address, perm boards.Permission) bool {
 // Method can also be called to change the roles of an existing user.
 // All user's roles can be removed by calling this method without roles.
 func (bp *Permissions) SetUserRoles(_ realm, user address, roles ...boards.Role) {
+	if len(roles) > 1 && bp.singleUserRole {
+		panic("user can only have one role")
+	}
+
 	groups := storage.GetMemberGroups(bp.dao.Members(), user)
 	isGuest := len(roles) == 0
 
-	// If user has roles remove it from the groups its currently assigned
+	// Clear current assigned roles when user has any assigned if
+	// multiple roles are not allowed, or when user is a guest.
 	grouping := bp.dao.Members().Grouping()
-	if isGuest && groups != nil {
+	if len(groups) > 0 && (isGuest || bp.singleUserRole) {
 		for _, name := range groups {
 			group, found := grouping.Get(name)
 			if !found {
