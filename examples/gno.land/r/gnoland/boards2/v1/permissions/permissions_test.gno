@@ -381,7 +381,8 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 				perms := New()
 				perms.AddRole("a", "permission1")
 				perms.AddRole("b", "permission2")
-				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a")
+				perms.AddRole("c", "permission2")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "c")
 				return perms
 			},
 		},

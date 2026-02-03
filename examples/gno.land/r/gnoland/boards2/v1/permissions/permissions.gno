@@ -153,6 +153,7 @@ func (ps Permissions) HasPermission(user address, perm boards.Permission) bool {
 
 // SetUserRoles adds a new user when it doesn't exist and sets its roles.
 // Method can also be called to change the roles of an existing user.
+// It removes any existing user roles before assigning new ones.
 // All user's roles can be removed by calling this method without roles.
 func (ps *Permissions) SetUserRoles(_ realm, user address, roles ...boards.Role) {
 	if len(roles) > 1 && ps.singleUserRole {
@@ -162,18 +163,15 @@ func (ps *Permissions) SetUserRoles(_ realm, user address, roles ...boards.Role)
 	groups := storage.GetMemberGroups(ps.dao.Members(), user)
 	isGuest := len(roles) == 0
 
-	// Clear current assigned roles when user has any assigned if
-	// multiple roles are not allowed, or when user is a guest.
+	// Clear current user roles
 	grouping := ps.dao.Members().Grouping()
-	if len(groups) > 0 && (isGuest || ps.singleUserRole) {
-		for _, name := range groups {
-			group, found := grouping.Get(name)
-			if !found {
-				continue
-			}
-
-			group.Members().Remove(user)
+	for _, name := range groups {
+		group, found := grouping.Get(name)
+		if !found {
+			continue
 		}
+
+		group.Members().Remove(user)
 	}
 
 	// Add user to the storage as guest when no roles are assigned
