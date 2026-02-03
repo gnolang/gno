@@ -238,6 +238,7 @@ func (c *Client) runReadRoutine(ctx context.Context) {
 			// This is a batch response, generate the unique ID
 			// from the combined IDs
 			ids := make([]string, 0, len(responses))
+
 			for _, response := range responses {
 				ids = append(ids, response.ID.String())
 			}
