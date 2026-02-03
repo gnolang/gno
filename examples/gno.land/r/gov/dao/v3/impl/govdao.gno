@@ -108,6 +108,9 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	}
 
 	status := g.pss.GetStatus(r.ProposalID)
+	if status == nil {
+		return errors.New("proposal not found")
+	}
 
 	if status.Denied || status.Accepted {
 		return errors.New(ufmt.Sprintf("proposal closed. Accepted: %v", status.Accepted))

@@ -1,0 +1,38 @@
+name: GnoVM Benchmarks
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  benchops:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run native benchmarks
+        working-directory: gnovm
+        run: make run.bench.native
+
+      - name: Run storage benchmarks
+        working-directory: gnovm
+        run: make run.bench.storage
+
+      - name: Run opcode benchmarks
+        working-directory: gnovm
+        run: make run.bench.opcode
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: gnovm/*_results_*.csv
+          retention-days: 30

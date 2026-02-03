@@ -5,7 +5,8 @@
 </gno-form>
 
 -- output.html --
-<form class="gno-form" method="post" action="/r/test:submit" autocomplete="off" spellcheck="false">
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<input type="hidden" name="__gno_path" value="/submit" />
 <div class="gno-form_header">
 <span><span class="font-bold">/r/test</span> Form</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
