@@ -14,6 +14,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -340,7 +341,7 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 
 	// add block gas meter for any genesis transactions (allow infinite gas)
 	app.deliverState.ctx = app.deliverState.ctx.
-		WithBlockGasMeter(store.NewInfiniteGasMeter())
+		WithBlockGasMeter(gas.NewInfiniteMeter(gas.DefaultConfig()))
 
 	// Run the set chain initializer
 	res = app.initChainer(app.deliverState.ctx, req)
@@ -546,11 +547,11 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 	}
 
 	// add block gas meter
-	var gasMeter store.GasMeter
+	var gasMeter gas.Meter
 	if maxGas := app.getMaximumBlockGas(); maxGas > 0 {
-		gasMeter = store.NewGasMeter(maxGas)
+		gasMeter = gas.NewMeter(maxGas, gas.DefaultConfig())
 	} else {
-		gasMeter = store.NewInfiniteGasMeter()
+		gasMeter = gas.NewInfiniteMeter(gas.DefaultConfig())
 	}
 
 	app.deliverState.ctx = app.deliverState.ctx.WithBlockGasMeter(gasMeter)
@@ -701,7 +702,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	result.Events = events
 	result.Info = strings.Join(msgInfos, "\n")
 	result.Log = strings.Join(msgLogs, "\n")
-	result.GasUsed = ctx.GasMeter().GasConsumed()
+	result.GasUsed = ctx.GasMeter().GasDetail()
 	return result
 }
 
@@ -741,9 +742,10 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 
 	if mode == RunTxModeDeliver {
 		gasleft := ctx.BlockGasMeter().Remaining()
-		ctx = ctx.WithGasMeter(store.NewPassthroughGasMeter(
+		ctx = ctx.WithGasMeter(gas.NewPassthroughMeter(
 			ctx.GasMeter(),
 			gasleft,
+			gas.DefaultConfig(),
 		))
 	}
 
@@ -753,15 +755,10 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		return
 	}
 
-	var startingGas int64
-	if mode == RunTxModeDeliver {
-		startingGas = ctx.BlockGasMeter().GasConsumed()
-	}
-
 	defer func() {
 		if r := recover(); r != nil {
 			switch ex := r.(type) {
-			case store.OutOfGasError:
+			case gas.OutOfGasError:
 				log := fmt.Sprintf(
 					"out of gas, gasWanted: %d, gasUsed: %d location: %v",
 					gasWanted,
@@ -771,20 +768,20 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
-				result.GasUsed = ctx.GasMeter().GasConsumed()
+				result.GasUsed = ctx.GasMeter().GasDetail()
 				return
 			default:
 				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
 				result.Error = ABCIError(std.ErrInternal(log))
 				result.Log = log
 				result.GasWanted = gasWanted
-				result.GasUsed = ctx.GasMeter().GasConsumed()
+				result.GasUsed = ctx.GasMeter().GasDetail()
 				return
 			}
 		}
 		// Whether AnteHandler panics or not.
 		result.GasWanted = gasWanted
-		result.GasUsed = ctx.GasMeter().GasConsumed()
+		result.GasUsed = ctx.GasMeter().GasDetail()
 	}()
 
 	// If BlockGasMeter() panics it will be caught by the above recover and will
@@ -795,13 +792,9 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 	defer func() {
 		if mode == RunTxModeDeliver {
 			ctx.BlockGasMeter().ConsumeGas(
-				ctx.GasMeter().GasConsumedToLimit(),
-				"block gas meter",
+				gas.OpBlockGasSum,
+				float64(ctx.GasMeter().GasConsumedToLimit()),
 			)
-
-			if ctx.BlockGasMeter().GasConsumed() < startingGas {
-				panic(std.ErrGasOverflow("tx gas summation"))
-			}
 		}
 	}()
 

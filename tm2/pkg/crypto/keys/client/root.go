@@ -78,6 +78,17 @@ func (c *BaseCfg) RegisterFlags(fs *flag.FlagSet) {
 		"suppress output during execution",
 	)
 
+	fs.IntVar(
+		&c.Verbosity,
+		"v",
+		0,
+		`verbosity level for gas detail:
+		- 0: no detail (default)
+		- 1: gas by category
+		- 2: gas by category + operations (excluding zero count)
+		- 3: gas by category + all operations (including zero count)`,
+	)
+
 	fs.BoolVar(
 		&c.InsecurePasswordStdin,
 		"insecure-password-stdin",

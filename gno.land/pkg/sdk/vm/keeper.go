@@ -29,6 +29,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -586,8 +587,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 	// Log the telemetry
 	logTelemetry(
-		m2.GasMeter.GasConsumed(),
-		m2.Cycles,
+		m2.GasMeter.GasDetail(),
 		attribute.KeyValue{
 			Key:   "operation",
 			Value: attribute.StringValue("m_addpkg"),
@@ -699,8 +699,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 	// Log the telemetry
 	logTelemetry(
-		m.GasMeter.GasConsumed(),
-		m.Cycles,
+		m.GasMeter.GasDetail(),
 		attribute.KeyValue{
 			Key:   "operation",
 			Value: attribute.StringValue("m_call"),
@@ -733,7 +732,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 		return
 	}
 	if err, ok := r.(error); ok {
-		var oog stypes.OutOfGasError
+		var oog gas.OutOfGasError
 		if goerrors.As(err, &oog) {
 			if repanicOutOfGas {
 				panic(oog)
@@ -875,8 +874,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 	// Log the telemetry
 	logTelemetry(
-		m2.GasMeter.GasConsumed(),
-		m2.Cycles,
+		m2.GasMeter.GasDetail(),
 		attribute.KeyValue{
 			Key:   "operation",
 			Value: attribute.StringValue("m_run"),
@@ -1052,7 +1050,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 }
 
 func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr string) (rtvs []gno.TypedValue, err error) {
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	ctx = ctx.WithGasMeter(gas.NewMeter(maxGasQuery, gas.DefaultConfig()))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	// Get Package.
@@ -1284,8 +1282,7 @@ func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, refundReceiver crypto.
 
 // logTelemetry logs the VM processing telemetry
 func logTelemetry(
-	gasUsed int64,
-	cpuCycles int64,
+	gasUsed gas.GasDetail,
 	attributes ...attribute.KeyValue,
 ) {
 	if !telemetry.MetricsEnabled() {
@@ -1302,14 +1299,14 @@ func logTelemetry(
 	// Record the CPU cycles
 	metrics.VMCPUCycles.Record(
 		context.Background(),
-		cpuCycles,
+		gasUsed.CategoryDetails()["CPU"].Total.GasConsumed,
 		metric.WithAttributes(attributes...),
 	)
 
 	// Record the gas used
 	metrics.VMGasUsed.Record(
 		context.Background(),
-		gasUsed,
+		gasUsed.Total.GasConsumed,
 		metric.WithAttributes(attributes...),
 	)
 }

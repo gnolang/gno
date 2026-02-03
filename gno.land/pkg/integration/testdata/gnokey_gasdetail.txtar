@@ -1,0 +1,269 @@
+# Diplay detailed gas usage with different verbosity levels.
+# Golden files generated using:
+#   UPDATE_SCRIPTS=true go test -run 'TestTestdata/gnokey_gasdetail$'
+
+# Start a new node
+gnoland start
+
+# Add the hello package
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -v 0 test1
+
+# Display gas details with verbosity level 0 (default)
+gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -v 0 test1
+cmp stdout gnokey-detail-verbosity-0.stdout.golden
+cmp stderr gnokey-detail-verbosity-0.stderr.golden
+
+# Display gas details with verbosity level 1
+gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -v 1 test1
+cmp stdout gnokey-detail-verbosity-1.stdout.golden
+cmp stderr gnokey-detail-verbosity-1.stderr.golden
+
+# Display gas details with verbosity level 2
+gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -v 2 test1
+cmp stdout gnokey-detail-verbosity-2.stdout.golden
+cmp stderr gnokey-detail-verbosity-2.stderr.golden
+
+# Display gas details with verbosity level 3
+gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -v 3 test1
+cmp stdout gnokey-detail-verbosity-3.stdout.golden
+cmp stderr gnokey-detail-verbosity-3.stderr.golden
+
+-- hello/gnomod.toml --
+module = "gno.land/r/hello"
+gno = "0.9"
+
+-- hello/hello.gno --
+package hello
+
+var s = "hello"
+
+func Hello(cur realm) string {
+	return s
+}
+
+-- gnokey-detail-verbosity-0.stdout.golden --
+("hello" string)
+
+
+OK!
+GAS WANTED: 2000000
+GAS USED:   113989
+HEIGHT:     4
+EVENTS:     []
+INFO:       
+TX HASH:    cURlWQhzE9z3ICQg9vWuQt6eoViHcvGMTvGGSACkcm4=
+-- gnokey-detail-verbosity-0.stderr.golden --
+Enter password.
+-- gnokey-detail-verbosity-1.stdout.golden --
+("hello" string)
+
+
+OK!
+GAS WANTED: 2000000
+GAS USED:           Operation: 69    Gas: 113989
+├── CPU:            Operation: 12    Gas: 822
+├── KVStore:        Operation: 6     Gas: 67788
+├── Memory:         Operation: 5     Gas: 1192
+├── Parsing:        Operation: 14    Gas: 23
+├── Store:          Operation: 30    Gas: 40844
+└── Transaction:    Operation: 2     Gas: 3320
+
+HEIGHT:     5
+EVENTS:     []
+INFO:       
+TX HASH:    L+37Nj9UOQU9jXiGICBoVIRAtqLHYXnzAhqltYjhaig=
+-- gnokey-detail-verbosity-1.stderr.golden --
+Enter password.
+-- gnokey-detail-verbosity-2.stdout.golden --
+("hello" string)
+
+
+OK!
+GAS WANTED: 2000000
+GAS USED:                                 Operation: 69    Gas: 113989
+├── CPU:                                  Operation: 12    Gas: 822
+│   ├── CPUHalt:                          Operation: 1     Gas: 1
+│   ├── CPUPrecall:                       Operation: 1     Gas: 207
+│   ├── CPUEnterCrossing:                 Operation: 1     Gas: 100
+│   ├── CPUCall:                          Operation: 1     Gas: 256
+│   ├── CPUReturn:                        Operation: 1     Gas: 38
+│   ├── CPUEval:                          Operation: 5     Gas: 145
+│   ├── CPUSelector:                      Operation: 1     Gas: 32
+│   └── CPUBody:                          Operation: 1     Gas: 43
+├── KVStore:                              Operation: 6     Gas: 67788
+│   ├── KVStoreGetObjectPerByte:          Operation: 5     Gas: 31632
+│   └── KVStoreGetPackageRealmPerByte:    Operation: 1     Gas: 36156
+├── Memory:                               Operation: 5     Gas: 1192
+│   └── MemoryAllocPerByte:               Operation: 5     Gas: 1192
+├── Parsing:                              Operation: 14    Gas: 23
+│   ├── ParsingToken:                     Operation: 8     Gas: 8
+│   └── ParsingNesting:                   Operation: 6     Gas: 15
+├── Store:                                Operation: 30    Gas: 40844
+│   ├── StoreReadFlat:                    Operation: 10    Gas: 10000
+│   ├── StoreReadPerByte:                 Operation: 10    Gas: 3474
+│   ├── StoreWriteFlat:                   Operation: 5     Gas: 10000
+│   └── StoreWritePerByte:                Operation: 5     Gas: 17370
+└── Transaction:                          Operation: 2     Gas: 3320
+    ├── TransactionPerByte:               Operation: 1     Gas: 2320
+    └── TxansactionSigVerifySecp256k1:    Operation: 1     Gas: 1000
+
+HEIGHT:     6
+EVENTS:     []
+INFO:       
+TX HASH:    bfE6GTX84Xx06LYzhOVW5ZgX8pKEPYol148KhmwQqHg=
+-- gnokey-detail-verbosity-2.stderr.golden --
+Enter password.
+-- gnokey-detail-verbosity-3.stdout.golden --
+("hello" string)
+
+
+OK!
+GAS WANTED: 2000000
+GAS USED:                                 Operation: 69    Gas: 113989
+├── BlockGas:                             Operation: 0     Gas: 0
+│   └── BlockGasSum:                      Operation: 0     Gas: 0
+├── CPU:                                  Operation: 12    Gas: 822
+│   ├── CPUInvalid:                       Operation: 0     Gas: 0
+│   ├── CPUHalt:                          Operation: 1     Gas: 1
+│   ├── CPUNoop:                          Operation: 0     Gas: 0
+│   ├── CPUExec:                          Operation: 0     Gas: 0
+│   ├── CPUPrecall:                       Operation: 1     Gas: 207
+│   ├── CPUEnterCrossing:                 Operation: 1     Gas: 100
+│   ├── CPUCall:                          Operation: 1     Gas: 256
+│   ├── CPUCallNativeBody:                Operation: 0     Gas: 0
+│   ├── CPUDefer:                         Operation: 0     Gas: 0
+│   ├── CPUCallDeferNativeBody:           Operation: 0     Gas: 0
+│   ├── CPUGo:                            Operation: 0     Gas: 0
+│   ├── CPUSelect:                        Operation: 0     Gas: 0
+│   ├── CPUSwitchClause:                  Operation: 0     Gas: 0
+│   ├── CPUSwitchClauseCase:              Operation: 0     Gas: 0
+│   ├── CPUTypeSwitch:                    Operation: 0     Gas: 0
+│   ├── CPUIfCond:                        Operation: 0     Gas: 0
+│   ├── CPUPopValue:                      Operation: 0     Gas: 0
+│   ├── CPUPopResults:                    Operation: 0     Gas: 0
+│   ├── CPUPopBlock:                      Operation: 0     Gas: 0
+│   ├── CPUPopFrameAndReset:              Operation: 0     Gas: 0
+│   ├── CPUPanic1:                        Operation: 0     Gas: 0
+│   ├── CPUPanic2:                        Operation: 0     Gas: 0
+│   ├── CPUReturn:                        Operation: 1     Gas: 38
+│   ├── CPUReturnAfterCopy:               Operation: 0     Gas: 0
+│   ├── CPUReturnFromBlock:               Operation: 0     Gas: 0
+│   ├── CPUReturnToBlock:                 Operation: 0     Gas: 0
+│   ├── CPUUpos:                          Operation: 0     Gas: 0
+│   ├── CPUUneg:                          Operation: 0     Gas: 0
+│   ├── CPUUnot:                          Operation: 0     Gas: 0
+│   ├── CPUUxor:                          Operation: 0     Gas: 0
+│   ├── CPUUrecv:                         Operation: 0     Gas: 0
+│   ├── CPULor:                           Operation: 0     Gas: 0
+│   ├── CPULand:                          Operation: 0     Gas: 0
+│   ├── CPUEql:                           Operation: 0     Gas: 0
+│   ├── CPUNeq:                           Operation: 0     Gas: 0
+│   ├── CPULss:                           Operation: 0     Gas: 0
+│   ├── CPULeq:                           Operation: 0     Gas: 0
+│   ├── CPUGtr:                           Operation: 0     Gas: 0
+│   ├── CPUGeq:                           Operation: 0     Gas: 0
+│   ├── CPUAdd:                           Operation: 0     Gas: 0
+│   ├── CPUSub:                           Operation: 0     Gas: 0
+│   ├── CPUBor:                           Operation: 0     Gas: 0
+│   ├── CPUXor:                           Operation: 0     Gas: 0
+│   ├── CPUMul:                           Operation: 0     Gas: 0
+│   ├── CPUQuo:                           Operation: 0     Gas: 0
+│   ├── CPURem:                           Operation: 0     Gas: 0
+│   ├── CPUShl:                           Operation: 0     Gas: 0
+│   ├── CPUShr:                           Operation: 0     Gas: 0
+│   ├── CPUBand:                          Operation: 0     Gas: 0
+│   ├── CPUBandn:                         Operation: 0     Gas: 0
+│   ├── CPUEval:                          Operation: 5     Gas: 145
+│   ├── CPUBinary1:                       Operation: 0     Gas: 0
+│   ├── CPUIndex1:                        Operation: 0     Gas: 0
+│   ├── CPUIndex2:                        Operation: 0     Gas: 0
+│   ├── CPUSelector:                      Operation: 1     Gas: 32
+│   ├── CPUSlice:                         Operation: 0     Gas: 0
+│   ├── CPUStar:                          Operation: 0     Gas: 0
+│   ├── CPURef:                           Operation: 0     Gas: 0
+│   ├── CPUTypeAssert1:                   Operation: 0     Gas: 0
+│   ├── CPUTypeAssert2:                   Operation: 0     Gas: 0
+│   ├── CPUStaticTypeOf:                  Operation: 0     Gas: 0
+│   ├── CPUCompositeLit:                  Operation: 0     Gas: 0
+│   ├── CPUArrayLit:                      Operation: 0     Gas: 0
+│   ├── CPUSliceLit:                      Operation: 0     Gas: 0
+│   ├── CPUSliceLit2:                     Operation: 0     Gas: 0
+│   ├── CPUMapLit:                        Operation: 0     Gas: 0
+│   ├── CPUStructLit:                     Operation: 0     Gas: 0
+│   ├── CPUFuncLit:                       Operation: 0     Gas: 0
+│   ├── CPUConvert:                       Operation: 0     Gas: 0
+│   ├── CPUFieldType:                     Operation: 0     Gas: 0
+│   ├── CPUArrayType:                     Operation: 0     Gas: 0
+│   ├── CPUSliceType:                     Operation: 0     Gas: 0
+│   ├── CPUPointerType:                   Operation: 0     Gas: 0
+│   ├── CPUInterfaceType:                 Operation: 0     Gas: 0
+│   ├── CPUChanType:                      Operation: 0     Gas: 0
+│   ├── CPUFuncType:                      Operation: 0     Gas: 0
+│   ├── CPUMapType:                       Operation: 0     Gas: 0
+│   ├── CPUStructType:                    Operation: 0     Gas: 0
+│   ├── CPUAssign:                        Operation: 0     Gas: 0
+│   ├── CPUAddAssign:                     Operation: 0     Gas: 0
+│   ├── CPUSubAssign:                     Operation: 0     Gas: 0
+│   ├── CPUMulAssign:                     Operation: 0     Gas: 0
+│   ├── CPUQuoAssign:                     Operation: 0     Gas: 0
+│   ├── CPURemAssign:                     Operation: 0     Gas: 0
+│   ├── CPUBandAssign:                    Operation: 0     Gas: 0
+│   ├── CPUBandnAssign:                   Operation: 0     Gas: 0
+│   ├── CPUBorAssign:                     Operation: 0     Gas: 0
+│   ├── CPUXorAssign:                     Operation: 0     Gas: 0
+│   ├── CPUShlAssign:                     Operation: 0     Gas: 0
+│   ├── CPUShrAssign:                     Operation: 0     Gas: 0
+│   ├── CPUDefine:                        Operation: 0     Gas: 0
+│   ├── CPUInc:                           Operation: 0     Gas: 0
+│   ├── CPUDec:                           Operation: 0     Gas: 0
+│   ├── CPUValueDecl:                     Operation: 0     Gas: 0
+│   ├── CPUTypeDecl:                      Operation: 0     Gas: 0
+│   ├── CPUSticky:                        Operation: 0     Gas: 0
+│   ├── CPUBody:                          Operation: 1     Gas: 43
+│   ├── CPUForLoop:                       Operation: 0     Gas: 0
+│   ├── CPURangeIter:                     Operation: 0     Gas: 0
+│   ├── CPURangeIterString:               Operation: 0     Gas: 0
+│   ├── CPURangeIterMap:                  Operation: 0     Gas: 0
+│   ├── CPURangeIterArrayPtr:             Operation: 0     Gas: 0
+│   └── CPUReturnCallDefers:              Operation: 0     Gas: 0
+├── KVStore:                              Operation: 6     Gas: 67788
+│   ├── KVStoreGetObjectPerByte:          Operation: 5     Gas: 31632
+│   ├── KVStoreSetObjectPerByte:          Operation: 0     Gas: 0
+│   ├── KVStoreGetTypePerByte:            Operation: 0     Gas: 0
+│   ├── KVStoreSetTypePerByte:            Operation: 0     Gas: 0
+│   ├── KVStoreGetPackageRealmPerByte:    Operation: 1     Gas: 36156
+│   ├── KVStoreSetPackageRealmPerByte:    Operation: 0     Gas: 0
+│   ├── KVStoreAddMemPackagePerByte:      Operation: 0     Gas: 0
+│   ├── KVStoreGetMemPackagePerByte:      Operation: 0     Gas: 0
+│   └── KVStoreDeleteObject:              Operation: 0     Gas: 0
+├── Memory:                               Operation: 5     Gas: 1192
+│   ├── MemoryAllocPerByte:               Operation: 5     Gas: 1192
+│   └── MemoryGarbageCollect:             Operation: 0     Gas: 0
+├── Native:                               Operation: 0     Gas: 0
+│   ├── NativePrintFlat:                  Operation: 0     Gas: 0
+│   └── NativePrintPerByte:               Operation: 0     Gas: 0
+├── Parsing:                              Operation: 14    Gas: 23
+│   ├── ParsingToken:                     Operation: 8     Gas: 8
+│   └── ParsingNesting:                   Operation: 6     Gas: 15
+├── Store:                                Operation: 30    Gas: 40844
+│   ├── StoreReadFlat:                    Operation: 10    Gas: 10000
+│   ├── StoreReadPerByte:                 Operation: 10    Gas: 3474
+│   ├── StoreWriteFlat:                   Operation: 5     Gas: 10000
+│   ├── StoreWritePerByte:                Operation: 5     Gas: 17370
+│   ├── StoreHas:                         Operation: 0     Gas: 0
+│   ├── StoreDelete:                      Operation: 0     Gas: 0
+│   ├── StoreIterNextFlat:                Operation: 0     Gas: 0
+│   └── StoreValuePerByte:                Operation: 0     Gas: 0
+├── Testing:                              Operation: 0     Gas: 0
+│   └── Testing:                          Operation: 0     Gas: 0
+└── Transaction:                          Operation: 2     Gas: 3320
+    ├── TransactionPerByte:               Operation: 1     Gas: 2320
+    ├── TransactionSigVerifyEd25519:      Operation: 0     Gas: 0
+    └── TxansactionSigVerifySecp256k1:    Operation: 1     Gas: 1000
+
+HEIGHT:     7
+EVENTS:     []
+INFO:       
+TX HASH:    c9Y1h7dcEm2GUhiqxOI317mwKGjzLW6dqDpu9WsSv2k=
+-- gnokey-detail-verbosity-3.stderr.golden --
+Enter password.

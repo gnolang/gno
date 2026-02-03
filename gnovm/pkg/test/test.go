@@ -20,6 +20,7 @@ import (
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/tests/stdlibs/chain/runtime"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -400,6 +401,7 @@ func (opts *TestOptions) runTestFiles(
 		// - Wrap here.
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
+		m.GasMeter = gas.NewInfiniteMeter(gas.DefaultConfig())
 		m.SetActivePackage(pv)
 
 		testingpv := m.Store.GetPackage("testing", false)
@@ -527,10 +529,13 @@ func (opts *TestOptions) runTestFiles(
 					float64(allocs)/float64(maxAllocs)*100,
 				)
 			}
-			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s allocs=%s\n",
-				prettySize(m.Cycles),
-				allocsVal,
-			)
+
+			if m.GasMeter != nil {
+				fmt.Fprintf(opts.Error, "---       runtime: cycle=%d allocs=%s\n",
+					m.GasMeter.GasDetail().CategoryDetails()["CPU"].Total.GasConsumed,
+					allocsVal,
+				)
+			}
 		}
 	}
 

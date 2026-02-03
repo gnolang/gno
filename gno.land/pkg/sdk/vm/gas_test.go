@@ -7,10 +7,10 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,7 +37,7 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasError:
+			case gas.OutOfGasError:
 				res.Error = sdk.ABCIError(std.ErrOutOfGas(""))
 				abort = true
 			default:
@@ -107,7 +107,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasError:
+			case gas.OutOfGasError:
 				res.Error = sdk.ABCIError(std.ErrOutOfGas(""))
 				abort = true
 			default:

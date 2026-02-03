@@ -30,10 +30,12 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/rs/cors v1.11.1
 	github.com/rs/xid v1.6.0
+	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b
 	github.com/stretchr/testify v1.11.1
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/valyala/bytebufferpool v1.0.0
+	github.com/xlab/treeprint v1.2.0
 	github.com/yuin/goldmark v1.7.8
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	github.com/zondax/hid v0.9.2
