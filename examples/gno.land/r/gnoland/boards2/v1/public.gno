@@ -104,6 +104,11 @@ func GetBoardIDFromName(_ realm, name string) (_ boards.ID, found bool) {
 	return board.ID, true
 }
 
+// BoardCount returns the total number of boards.
+func BoardCount() int {
+	return gBoards.Size()
+}
+
 // CreateBoard creates a new board.
 //
 // Listed boards are included in the realm's list of boards.
