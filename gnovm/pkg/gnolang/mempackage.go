@@ -161,7 +161,6 @@ func IsTestFile(file string) bool {
 var (
 	goodFiles = []string{
 		"LICENSE",
-		"README.md",
 		"gno.mod",
 	}
 	// NOTE: Xtn is easier to type than Extension due to proximity of 'e'
@@ -171,6 +170,7 @@ var (
 	goodFileXtns = []string{
 		".gno",
 		".toml",
+		".md",
 		// ".txtar", // XXX: to be considered
 	}
 	badFileXtns = []string{
@@ -640,7 +640,7 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // ReadMemPackage initializes a new MemPackage by reading the OS directory at
 // dir, and saving it with the given pkgPath (import path).  The resulting
 // MemPackage will contain the names and content of all *.gno files, and
-// additionally README.md, LICENSE.
+// additionally LICENSE, *.md and *.toml .
 //
 // ReadMemPackage only reads good file extensions or whitelisted good files,
 // and ignores bad file extensions. Validation will fail if any bad extensions
