@@ -2,6 +2,7 @@
 DEV_REMOTE ?= 127.0.0.1:26657
 CHAIN_ID ?=
 PUBLIC_DIR ?= public
+# Optional: static home, e.g. ALIASES='/=static:../../../misc/deployments/home-alias/home.default.md'. When empty, no -aliases is passed.
 ALIASES ?=
 
 # tools
@@ -105,7 +106,7 @@ $(out_dir_static)/%: $(src_dir_static)/%
 # Run the development dependencies in parallel
 dev.all: $(esbuild) $(PUBLIC_DIR)
 	@echo "-- starting development tools"
-	PUBLIC_DIR=$(cache_dir)/public $(MAKE) -j 3 dev.gnoweb dev.ts dev.maincss
+	PUBLIC_DIR=$(cache_dir)/public ALIASES="$(ALIASES)" $(MAKE) -j 3 dev.gnoweb dev.ts dev.maincss
 
 # Go server in development mode
 dev.gnoweb: generate
