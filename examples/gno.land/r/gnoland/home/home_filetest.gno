@@ -53,7 +53,7 @@ func main() {
 // - [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
 // - [Testnet 10](https://test10.testnets.gno.land/)
 // - [Faucet Hub](https://faucet.gno.land)
-// - [Board](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions)
+// - [Board](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions): community forum
 //
 // </gno-columns>
 //
