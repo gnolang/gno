@@ -33,7 +33,6 @@ func Render(_ string) string {
 	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
 	r.RegisterCallback(":newsletter-button:", newsletterButton)
-	r.RegisterCallback(":boards-button:", boardsButton)
 	r.RegisterCallback(":latest-gnomes:", func() string {
 		return users.RenderLatestUsersWidget(5)
 	})
@@ -87,19 +86,9 @@ the foundations of a fairer and freer world, join us today.
 - [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
 - [Testnet 10](https://test10.testnets.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
-- [Open Boards](/r/gnoland/boards2/v1): community forum
+- [Board](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions)
 
 </gno-columns>
-
----
-
-## [Open Boards](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions) - On-chain forum for the Gno.land community
-
-**Discuss, share, and connect.** Open Boards is a fully on-chain social forum: create boards, post threads, reply, all stored on Gno.land. A ready-to-use realm to experience decentralized social in action.
-
-:boards-button:
-
----
 
 <gno-columns>
 
@@ -228,17 +217,6 @@ func newsletterButton() string {
 		"#ffffff",
 		"Subscribe to stay in the Gno",
 		"https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b",
-	)
-}
-
-func boardsButton() string {
-	return svgbtn.Button(
-		280,
-		44,
-		"#226c57",
-		"#ffffff",
-		"Open Boards — start discussing",
-		"https://gno.land/r/gnoland/boards2/v1:OpenDiscussions",
 	)
 }
 
