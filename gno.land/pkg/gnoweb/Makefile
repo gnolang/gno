@@ -2,6 +2,7 @@
 DEV_REMOTE ?= 127.0.0.1:26657
 CHAIN_ID ?=
 PUBLIC_DIR ?= public
+ALIASES ?=
 
 # tools
 
@@ -111,6 +112,7 @@ dev.gnoweb: generate
 	$(reflex) -s -r '.*\.(go|html)' -- \
 		go run -tags=noembed -ldflags="-X 'github.com/gnolang/gno/gno.land/pkg/gnoweb.AssetDir=${PUBLIC_DIR}'" ../../cmd/gnoweb \
 		-v -no-strict -chainid=${CHAIN_ID} -remote=${DEV_REMOTE} \
+		$(if $(ALIASES),-aliases="$(ALIASES)",) \
 		2>&1 | $(logname) gnoweb
 
 
