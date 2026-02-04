@@ -28,7 +28,7 @@ type BroadcastCfg struct {
 	// If true, simulation is attempted but not printed;
 	// the result is only returned in case of an error.
 	testSimulate bool
-	GasFeeMargin int64
+	GasFeeMargin uint64
 }
 
 func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -144,7 +144,7 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	return bres, nil
 }
 
-func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit, gasFeeMargin int64) error {
+func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit, gasFeeMargin uint64) error {
 	gp := std.GasPrice{}
 	qres, err := cli.ABCIQuery(context.Background(), "auth/gasprice", []byte{})
 	if err != nil {
@@ -162,7 +162,7 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit,
 	fee := bres.DeliverTx.GasUsed/gp.Gas + 1
 	fee = overflow.Mulp(fee, gp.Price.Amount)
 	// gasFeeMargin is a percentage fee buffer to cover the sudden change of gas price
-	feeBuffer := overflow.Mulp(fee, gasFeeMargin) / 100
+	feeBuffer := overflow.Mulp(fee, int64(gasFeeMargin)) / 100
 	fee = overflow.Addp(fee, feeBuffer)
 	s := fmt.Sprintf("estimated gas usage: %d, gas fee: %d%s, current gas price: %s\n", bres.DeliverTx.GasUsed, fee, gp.Price.Denom, gp.String())
 	bres.DeliverTx.Info = s

@@ -24,7 +24,7 @@ type MakeTxCfg struct {
 	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
 	Simulate string
 	// Only used with SimulateOnly
-	GasFeeMargin int64
+	GasFeeMargin uint64
 	ChainID      string
 }
 
@@ -105,7 +105,7 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		- only: avoids broadcasting transaction (ie. dry run)`,
 	)
 
-	fs.Int64Var(
+	fs.Uint64Var(
 		&c.GasFeeMargin,
 		"gas-fee-margin",
 		5,
