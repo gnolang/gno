@@ -128,7 +128,6 @@ func validateOpenThreadCreate(perms boards.Permissions, args boards.Args) error 
 	}
 
 	// Require non members to have some GNOT in their accounts
-	// Require non members to have some GNOT in their accounts
 	if err := checkAccountHasAmount(caller, gOpenAccountAmount); err != nil {
 		return ufmt.Errorf("caller is not allowed to create threads: %s", err)
 	}
