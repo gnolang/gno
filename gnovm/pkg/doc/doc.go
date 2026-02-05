@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"go.uber.org/multierr"
@@ -230,13 +231,19 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool, queryCl
 
 	if len(candidates) == 0 {
 		// there are no candidates.
-		jdoc := queryQDoc(parsed.pkg, queryClient)
-		if jdoc != nil {
-			return &Documentable{
-				doc:        jdoc,
-				symbol:     parsed.sym,
-				accessible: parsed.acc,
-			}, nil
+		// only query the remote if parsed.pkg is a valid package path
+		if gno.IsRealmPath(parsed.pkg) || gno.IsPPackagePath(parsed.pkg) {
+			jdoc, err := queryQDoc(parsed.pkg, queryClient)
+			if err != nil {
+				return nil, fmt.Errorf("package %q not found locally; remote query failed: %w", parsed.pkg, err)
+			}
+			if jdoc != nil {
+				return &Documentable{
+					doc:        jdoc,
+					symbol:     parsed.sym,
+					accessible: parsed.acc,
+				}, nil
+			}
 		}
 
 		// if this is ambiguous, remove ambiguity and try parsing args using pkg as the symbol.
@@ -298,10 +305,9 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool, queryCl
 
 // queryQDoc uses the queryClient to query the remote vm/qdoc for the pkg path and returns the JSONDocumentation.
 // If queryClient is nil, do nothing and return nil.
-// If error, log to the console and return nil.
-func queryQDoc(pkg string, queryClient ABCIQueryClient) *JSONDocumentation {
+func queryQDoc(pkg string, queryClient ABCIQueryClient) (*JSONDocumentation, error) {
 	if queryClient == nil {
-		return nil
+		return nil, nil
 	}
 
 	const qpath = "vm/qdoc"
@@ -309,21 +315,18 @@ func queryQDoc(pkg string, queryClient ABCIQueryClient) *JSONDocumentation {
 	defer cancel()
 	qres, err := queryClient.ABCIQuery(ctx, qpath, []byte(pkg))
 	if err != nil {
-		log.Printf("unable to query qdoc for %q: %q", pkg, err)
-		return nil
+		return nil, fmt.Errorf("unable to query qdoc for %q: %q", pkg, err)
 	}
 	if qres.Response.Error != nil {
-		log.Printf("error querying qdoc for %q: %q", pkg, qres.Response.Error)
-		return nil
+		return nil, fmt.Errorf("error querying qdoc for %q: %q", pkg, qres.Response.Error)
 	}
 
 	jdoc := &JSONDocumentation{}
 	if err := amino.UnmarshalJSON(qres.Response.Data, jdoc); err != nil {
-		log.Printf("unable to unmarshal qdoc: %q", err)
-		return nil
+		return nil, fmt.Errorf("unable to unmarshal qdoc: %q", err)
 	}
 
-	return jdoc
+	return jdoc, nil
 }
 
 // docArgs represents the parsed args of the doc command.
