@@ -61,7 +61,6 @@ func TestCoinsIsZero(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			zero := tt.coins.IsZero()
 
 			if zero != tt.expected {
@@ -69,4 +68,37 @@ func TestCoinsIsZero(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCoins_AmountOf(t *testing.T) {
+	coins := chain.Coins{
+		chain.NewCoin("denom1", 1),
+		chain.NewCoin("denom2", 2),
+	}
+
+	amount := coins.AmountOf("denom1")
+	if amount != 1 {
+		t.Fatalf("expected amount=1 for denom1, got %d", amount)
+	}
+
+	amount = coins.AmountOf("denom2")
+	if amount != 2 {
+		t.Fatalf("expected amount=2 for denom2, got %d", amount)
+	}
+
+	amount = coins.AmountOf("denom3")
+	if amount != 0 {
+		t.Fatalf("expected amount=0 for denom3, got %d", amount)
+	}
+
+	coins = append(coins, chain.NewCoin("denom1", 1))
+
+	func() {
+		defer func() {
+			if err := recover(); err == nil {
+				t.Fatal("expected panic when getting duplicate denom")
+			}
+		}()
+		coins.AmountOf("denom1")
+	}()
 }
