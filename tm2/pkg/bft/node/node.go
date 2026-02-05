@@ -6,20 +6,20 @@ package node
 import (
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/rs/cors"
-
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
+	"github.com/go-chi/chi/v5"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bc "github.com/gnolang/gno/tm2/pkg/bft/blockchain"
@@ -28,8 +28,6 @@ import (
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	rpccore "github.com/gnolang/gno/tm2/pkg/bft/rpc/core"
-	_ "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
-	rpcserver "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/null"
@@ -175,7 +173,7 @@ type Node struct {
 	consensusState    *cs.ConsensusState   // latest consensus state
 	consensusReactor  *cs.ConsensusReactor // for participating in the consensus
 	proxyApp          appconn.AppConns     // connection to the application
-	rpcListeners      []net.Listener       // rpc servers
+	rpcServer         *rpccore.Server      // the node's RPC server (TM)
 	txEventStore      eventstore.TxEventStore
 	eventStoreService *eventstore.Service
 	firstBlockSignal  <-chan struct{}
@@ -573,24 +571,31 @@ func (n *Node) OnStart() error {
 		time.Sleep(genTime.Sub(now))
 	}
 
-	// Set up the GLOBAL variables in rpc/core which refer to this node.
-	// This is done separately from startRPC(), as the values in rpc/core are used,
-	// for instance, to set up Local clients (rpc/client) which work without
-	// a network connection.
-	n.configureRPC()
-	if n.config.RPC.Unsafe {
-		rpccore.AddUnsafeRoutes()
-	}
-	rpccore.Start()
-
 	// Start the RPC server before the P2P server
 	// so we can eg. receive txs for the first block
 	if n.config.RPC.ListenAddress != "" {
-		listeners, err := n.startRPC()
-		if err != nil {
-			return err
+		// Initialize the JSON-RPC pipeline
+		rpcServer := server.NewJSONRPC(server.WithLogger(n.Logger.With("module", "json-rpc")))
+
+		// Setup the handlers with the RPC
+		rpccore.SetupABCI(rpcServer, n.proxyApp.Query())
+		rpccore.SetupBlocks(rpcServer, n.blockStore, n.stateDB)
+		rpccore.SetupConsensus(rpcServer, n.consensusState, n.stateDB, n.sw)
+		rpccore.SetupHealth(rpcServer)
+		rpccore.SetupMempool(rpcServer, n.mempool, n.evsw)
+		rpccore.SetupNet(rpcServer, n.sw, n, n.genesisDoc)
+		rpccore.SetupTx(rpcServer, n.blockStore, n.stateDB)
+		rpccore.SetupStatus(rpcServer, n.buildStatus)
+
+		// Register the mux routes
+		mux := rpcServer.SetupRoutes(chi.NewMux())
+
+		// Initialize and start the server
+		n.rpcServer = rpccore.New(mux, n.config.RPC, n.Logger.With("module", "rpc-server"))
+
+		if err := n.rpcServer.Start(); err != nil {
+			return fmt.Errorf("unable to start RPC server: %w", err)
 		}
-		n.rpcListeners = listeners
 	}
 
 	// Start the transport.
@@ -669,11 +674,10 @@ func (n *Node) OnStop() {
 
 	n.isListening = false
 
-	// finally stop the listeners / external services
-	for _, l := range n.rpcListeners {
-		n.Logger.Info("Closing rpc listener", "listener", l)
-		if err := l.Close(); err != nil {
-			n.Logger.Error("Error closing listener", "listener", l, "err", err)
+	// Stop the RPC server
+	if n.rpcServer != nil {
+		if err := n.rpcServer.Stop(); err != nil {
+			n.Logger.Error("unable to gracefully stop RPC server", "err", err)
 		}
 	}
 }
@@ -683,118 +687,81 @@ func (n *Node) Ready() <-chan struct{} {
 	return n.firstBlockSignal
 }
 
-// configureRPC sets all variables in rpccore so they will serve
-// rpc calls from this node
-func (n *Node) configureRPC() {
-	rpccore.SetStateDB(n.stateDB)
-	rpccore.SetBlockStore(n.blockStore)
-	rpccore.SetConsensusState(n.consensusState)
-	rpccore.SetMempool(n.mempool)
-	rpccore.SetP2PPeers(n.sw)
-	rpccore.SetP2PTransport(n)
-	rpccore.SetPubKey(n.privValidator.PubKey())
-	rpccore.SetGenesisDoc(n.genesisDoc)
-	rpccore.SetProxyAppQuery(n.proxyApp.Query())
-	rpccore.SetGetFastSync(n.consensusReactor.FastSync)
-	rpccore.SetLogger(n.Logger.With("module", "rpc"))
-	rpccore.SetEventSwitch(n.evsw)
-	rpccore.SetConfig(*n.config.RPC)
-}
+// buildStatus builds the node's current status information
+func (n *Node) buildStatus() (*status.ResultStatus, error) {
+	pubKey := n.PrivValidator().PubKey()
 
-func (n *Node) startRPC() (listeners []net.Listener, err error) {
-	defer func() {
-		if err != nil {
-			// Close all the created listeners on any error, instead of
-			// leaking them: https://github.com/gnolang/gno/issues/3639
-			for _, ln := range listeners {
-				ln.Close()
+	validatorAtHeight := func(height int64) *types.Validator {
+		privValAddress := pubKey.Address()
+
+		// If we're still at height h, search in the current validator set.
+		lastBlockHeight, vals := n.consensusState.GetValidators()
+		if lastBlockHeight == height {
+			for _, val := range vals {
+				if val.Address == privValAddress {
+					return val
+				}
 			}
 		}
-	}()
 
-	listenAddrs := splitAndTrimEmpty(n.config.RPC.ListenAddress, ",", " ")
-
-	config := rpcserver.DefaultConfig()
-	config.MaxBodyBytes = n.config.RPC.MaxBodyBytes
-	config.MaxHeaderBytes = n.config.RPC.MaxHeaderBytes
-	config.MaxOpenConnections = n.config.RPC.MaxOpenConnections
-	// If necessary adjust global WriteTimeout to ensure it's greater than
-	// TimeoutBroadcastTxCommit.
-	// See https://github.com/tendermint/tendermint/issues/3435
-	if config.WriteTimeout <= n.config.RPC.TimeoutBroadcastTxCommit {
-		config.WriteTimeout = n.config.RPC.TimeoutBroadcastTxCommit + 1*time.Second
-	}
-
-	// we may expose the rpc over both a unix and tcp socket
-	var rebuildAddresses bool
-	listeners = make([]net.Listener, 0, len(listenAddrs))
-	for _, listenAddr := range listenAddrs {
-		mux := http.NewServeMux()
-		rpcLogger := n.Logger.With("module", "rpc-server")
-		wmLogger := rpcLogger.With("protocol", "websocket")
-		wm := rpcserver.NewWebsocketManager(rpccore.Routes,
-			rpcserver.OnDisconnect(func(remoteAddr string) {
-				// any cleanup...
-				// (we used to unsubscribe from all event subscriptions)
-			}),
-			rpcserver.ReadLimit(config.MaxBodyBytes),
-		)
-		wm.SetLogger(wmLogger)
-		mux.HandleFunc("/websocket", wm.WebsocketHandler)
-		rpcserver.RegisterRPCFuncs(mux, rpccore.Routes, rpcLogger)
-		if strings.HasPrefix(listenAddr, "tcp://") && strings.HasSuffix(listenAddr, ":0") {
-			rebuildAddresses = true
-		}
-		listener, err := rpcserver.Listen(
-			listenAddr,
-			config,
-		)
-		if err != nil {
-			return nil, err
+		// If we've moved to the next height, retrieve the validator set from DB.
+		if lastBlockHeight > height {
+			vals, err := sm.LoadValidators(n.stateDB, height)
+			if err != nil {
+				return nil // should not happen
+			}
+			_, val := vals.GetByAddress(privValAddress)
+			return val
 		}
 
-		var rootHandler http.Handler = mux
-		if n.config.RPC.IsCorsEnabled() {
-			corsMiddleware := cors.New(cors.Options{
-				AllowedOrigins: n.config.RPC.CORSAllowedOrigins,
-				AllowedMethods: n.config.RPC.CORSAllowedMethods,
-				AllowedHeaders: n.config.RPC.CORSAllowedHeaders,
-			})
-			rootHandler = corsMiddleware.Handler(mux)
-		}
-		if n.config.RPC.IsTLSEnabled() {
-			go rpcserver.StartHTTPAndTLSServer(
-				listener,
-				rootHandler,
-				n.config.RPC.CertFile(),
-				n.config.RPC.KeyFile(),
-				rpcLogger,
-				config,
-			)
-		} else {
-			go rpcserver.StartHTTPServer(
-				listener,
-				rootHandler,
-				rpcLogger,
-				config,
-			)
-		}
-
-		listeners = append(listeners, listener)
-	}
-	if rebuildAddresses {
-		n.config.RPC.ListenAddress = joinListenerAddresses(listeners)
+		return nil
 	}
 
-	return listeners, nil
-}
+	var latestHeight int64
 
-func joinListenerAddresses(ll []net.Listener) string {
-	sl := make([]string, len(ll))
-	for i, l := range ll {
-		sl[i] = l.Addr().Network() + "://" + l.Addr().String()
+	if n.consensusReactor.FastSync() {
+		latestHeight = n.blockStore.Height()
+	} else {
+		latestHeight = n.consensusState.GetLastHeight()
 	}
-	return strings.Join(sl, ",")
+
+	var (
+		latestBlockMeta     *types.BlockMeta
+		latestBlockHash     []byte
+		latestAppHash       []byte
+		latestBlockTimeNano int64
+	)
+	if latestHeight != 0 {
+		latestBlockMeta = n.blockStore.LoadBlockMeta(latestHeight)
+		latestBlockHash = latestBlockMeta.BlockID.Hash
+		latestAppHash = latestBlockMeta.Header.AppHash
+		latestBlockTimeNano = latestBlockMeta.Header.Time.UnixNano()
+	}
+
+	latestBlockTime := time.Unix(0, latestBlockTimeNano)
+
+	var votingPower int64
+	if val := validatorAtHeight(latestHeight); val != nil {
+		votingPower = val.VotingPower
+	}
+
+	result := &status.ResultStatus{
+		NodeInfo: n.NodeInfo(),
+		SyncInfo: status.SyncInfo{
+			LatestBlockHash:   latestBlockHash,
+			LatestAppHash:     latestAppHash,
+			LatestBlockHeight: latestHeight,
+			LatestBlockTime:   latestBlockTime,
+			CatchingUp:        n.consensusReactor.FastSync(),
+		},
+		ValidatorInfo: status.ValidatorInfo{
+			Address:     pubKey.Address(),
+			PubKey:      pubKey,
+			VotingPower: votingPower,
+		},
+	}
+
+	return result, nil
 }
 
 // Switch returns the Node's Switch.
@@ -868,6 +835,15 @@ func (n *Node) IsListening() bool {
 // NodeInfo returns the Node's Info from the Switch.
 func (n *Node) NodeInfo() p2pTypes.NodeInfo {
 	return n.nodeInfo
+}
+
+// RPC returns the node's registered RPC server.
+// TODO we should consider if this is a good idea, exposing it like this.
+// The legacy implementation of the RPC modified the in-memory configuration
+// of the node directly upon starting, so external users of the node could query the bound listen address
+// from the configuration (updated), and now this is not the case (nor should it be)
+func (n *Node) RPC() *rpccore.Server {
+	return n.rpcServer
 }
 
 func makeNodeInfo(

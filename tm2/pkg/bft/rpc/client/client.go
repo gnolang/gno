@@ -6,12 +6,19 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/health"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/batch"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/http"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/ws"
-	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/rs/xid"
 )
@@ -107,251 +114,274 @@ func (c *RPCClient) NewBatch() *RPCBatch {
 	}
 }
 
-func (c *RPCClient) Status(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
-	return sendRequestCommon[ctypes.ResultStatus](
+func (c *RPCClient) Status(ctx context.Context, heightGte *int64) (*status.ResultStatus, error) {
+	var v int64
+	if heightGte != nil {
+		v = *heightGte
+	}
+
+	return sendRequestCommon[status.ResultStatus](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		statusMethod,
-		map[string]any{
-			"heightGte": heightGte,
+		[]any{
+			v,
 		},
 	)
 }
 
-func (c *RPCClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
-	return sendRequestCommon[ctypes.ResultABCIInfo](
+func (c *RPCClient) ABCIInfo(ctx context.Context) (*abci.ResultABCIInfo, error) {
+	return sendRequestCommon[abci.ResultABCIInfo](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		abciInfoMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
-func (c *RPCClient) ABCIQuery(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+func (c *RPCClient) ABCIQuery(ctx context.Context, path string, data []byte) (*abci.ResultABCIQuery, error) {
 	return c.ABCIQueryWithOptions(ctx, path, data, DefaultABCIQueryOptions)
 }
 
-func (c *RPCClient) ABCIQueryWithOptions(ctx context.Context, path string, data []byte, opts ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	return sendRequestCommon[ctypes.ResultABCIQuery](
+func (c *RPCClient) ABCIQueryWithOptions(ctx context.Context, path string, data []byte, opts ABCIQueryOptions) (*abci.ResultABCIQuery, error) {
+	return sendRequestCommon[abci.ResultABCIQuery](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		abciQueryMethod,
-		map[string]any{
-			"path":   path,
-			"data":   data,
-			"height": opts.Height,
-			"prove":  opts.Prove,
+		[]any{
+			path,
+			data,
+			opts.Height,
+			opts.Prove,
 		},
 	)
 }
 
-func (c *RPCClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-	return sendRequestCommon[ctypes.ResultBroadcastTxCommit](
+func (c *RPCClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error) {
+	return sendRequestCommon[mempool.ResultBroadcastTxCommit](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		broadcastTxCommitMethod,
-		map[string]any{"tx": tx},
+		[]any{
+			tx,
+		},
 	)
 }
 
-func (c *RPCClient) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (c *RPCClient) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTx, error) {
 	return c.broadcastTX(ctx, broadcastTxAsyncMethod, tx)
 }
 
-func (c *RPCClient) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (c *RPCClient) BroadcastTxSync(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTx, error) {
 	return c.broadcastTX(ctx, broadcastTxSyncMethod, tx)
 }
 
-func (c *RPCClient) broadcastTX(ctx context.Context, route string, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	return sendRequestCommon[ctypes.ResultBroadcastTx](
+func (c *RPCClient) broadcastTX(ctx context.Context, route string, tx types.Tx) (*mempool.ResultBroadcastTx, error) {
+	return sendRequestCommon[mempool.ResultBroadcastTx](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		route,
-		map[string]any{"tx": tx},
+		[]any{
+			tx,
+		},
 	)
 }
 
-func (c *RPCClient) UnconfirmedTxs(ctx context.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error) {
-	return sendRequestCommon[ctypes.ResultUnconfirmedTxs](
+func (c *RPCClient) UnconfirmedTxs(ctx context.Context, limit int) (*mempool.ResultUnconfirmedTxs, error) {
+	return sendRequestCommon[mempool.ResultUnconfirmedTxs](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		unconfirmedTxsMethod,
-		map[string]any{"limit": limit},
+		[]any{
+			limit,
+		},
 	)
 }
 
-func (c *RPCClient) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
-	return sendRequestCommon[ctypes.ResultUnconfirmedTxs](
+func (c *RPCClient) NumUnconfirmedTxs(ctx context.Context) (*mempool.ResultUnconfirmedTxs, error) {
+	return sendRequestCommon[mempool.ResultUnconfirmedTxs](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		numUnconfirmedTxsMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
-func (c *RPCClient) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
-	return sendRequestCommon[ctypes.ResultNetInfo](
+func (c *RPCClient) NetInfo(ctx context.Context) (*net.ResultNetInfo, error) {
+	return sendRequestCommon[net.ResultNetInfo](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		netInfoMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
-func (c *RPCClient) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
-	return sendRequestCommon[ctypes.ResultDumpConsensusState](
+func (c *RPCClient) DumpConsensusState(ctx context.Context) (*consensus.ResultDumpConsensusState, error) {
+	return sendRequestCommon[consensus.ResultDumpConsensusState](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		dumpConsensusStateMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
-func (c *RPCClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
-	return sendRequestCommon[ctypes.ResultConsensusState](
+func (c *RPCClient) ConsensusState(ctx context.Context) (*consensus.ResultConsensusState, error) {
+	return sendRequestCommon[consensus.ResultConsensusState](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		consensusStateMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
-func (c *RPCClient) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	params := map[string]any{}
+func (c *RPCClient) ConsensusParams(ctx context.Context, height *int64) (*consensus.ResultConsensusParams, error) {
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
-	return sendRequestCommon[ctypes.ResultConsensusParams](
+	return sendRequestCommon[consensus.ResultConsensusParams](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		consensusParamsMethod,
-		params,
+		[]any{
+			v,
+		},
 	)
 }
 
-func (c *RPCClient) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
-	return sendRequestCommon[ctypes.ResultHealth](
+func (c *RPCClient) Health(ctx context.Context) (*health.ResultHealth, error) {
+	return sendRequestCommon[health.ResultHealth](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		healthMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
-func (c *RPCClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
-	return sendRequestCommon[ctypes.ResultBlockchainInfo](
+func (c *RPCClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*blocks.ResultBlockchainInfo, error) {
+	return sendRequestCommon[blocks.ResultBlockchainInfo](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		blockchainMethod,
-		map[string]any{
-			"minHeight": minHeight,
-			"maxHeight": maxHeight,
+		[]any{
+			minHeight,
+			maxHeight,
 		},
 	)
 }
 
-func (c *RPCClient) Genesis(ctx context.Context) (*ctypes.ResultGenesis, error) {
-	return sendRequestCommon[ctypes.ResultGenesis](
+func (c *RPCClient) Genesis(ctx context.Context) (*net.ResultGenesis, error) {
+	return sendRequestCommon[net.ResultGenesis](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		genesisMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
-func (c *RPCClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
-	params := map[string]any{}
+func (c *RPCClient) Block(ctx context.Context, height *int64) (*blocks.ResultBlock, error) {
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
-	return sendRequestCommon[ctypes.ResultBlock](
+	return sendRequestCommon[blocks.ResultBlock](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		blockMethod,
-		params,
-	)
-}
-
-func (c *RPCClient) BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
-	params := map[string]any{}
-	if height != nil {
-		params["height"] = height
-	}
-
-	return sendRequestCommon[ctypes.ResultBlockResults](
-		ctx,
-		c.requestTimeout,
-		c.caller,
-		blockResultsMethod,
-		params,
-	)
-}
-
-func (c *RPCClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
-	params := map[string]any{}
-	if height != nil {
-		params["height"] = height
-	}
-
-	return sendRequestCommon[ctypes.ResultCommit](
-		ctx,
-		c.requestTimeout,
-		c.caller,
-		commitMethod,
-		params,
-	)
-}
-
-func (c *RPCClient) Tx(ctx context.Context, hash []byte) (*ctypes.ResultTx, error) {
-	return sendRequestCommon[ctypes.ResultTx](
-		ctx,
-		c.requestTimeout,
-		c.caller,
-		txMethod,
-		map[string]any{
-			"hash": hash,
+		[]any{
+			v,
 		},
 	)
 }
 
-func (c *RPCClient) Validators(ctx context.Context, height *int64) (*ctypes.ResultValidators, error) {
-	params := map[string]any{}
+func (c *RPCClient) BlockResults(ctx context.Context, height *int64) (*blocks.ResultBlockResults, error) {
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
-	return sendRequestCommon[ctypes.ResultValidators](
+	return sendRequestCommon[blocks.ResultBlockResults](
+		ctx,
+		c.requestTimeout,
+		c.caller,
+		blockResultsMethod,
+		[]any{
+			v,
+		},
+	)
+}
+
+func (c *RPCClient) Commit(ctx context.Context, height *int64) (*blocks.ResultCommit, error) {
+	var v int64
+	if height != nil {
+		v = *height
+	}
+
+	return sendRequestCommon[blocks.ResultCommit](
+		ctx,
+		c.requestTimeout,
+		c.caller,
+		commitMethod,
+		[]any{
+			v,
+		},
+	)
+}
+
+func (c *RPCClient) Tx(ctx context.Context, hash []byte) (*tx.ResultTx, error) {
+	return sendRequestCommon[tx.ResultTx](
+		ctx,
+		c.requestTimeout,
+		c.caller,
+		txMethod,
+		[]any{
+			hash,
+		},
+	)
+}
+
+func (c *RPCClient) Validators(ctx context.Context, height *int64) (*consensus.ResultValidators, error) {
+	var v int64
+	if height != nil {
+		v = *height
+	}
+
+	return sendRequestCommon[consensus.ResultValidators](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		validatorsMethod,
-		params,
+		[]any{
+			v,
+		},
 	)
 }
 
 // newRequest creates a new request based on the method
 // and given params
-func newRequest(method string, params map[string]any) (rpctypes.RPCRequest, error) {
-	id := rpctypes.JSONRPCStringID(xid.New().String())
-
-	return rpctypes.MapToRequest(id, method, params)
+func newRequest(method string, params []any) *spec.BaseJSONRequest {
+	return spec.NewJSONRequest(
+		spec.JSONRPCStringID(xid.New().String()),
+		method,
+		params,
+	)
 }
 
 // sendRequestCommon is the common request creation, sending, and parsing middleware
@@ -360,13 +390,10 @@ func sendRequestCommon[T any](
 	timeout time.Duration,
 	caller rpcclient.Client,
 	method string,
-	params map[string]any,
+	params []any,
 ) (*T, error) {
 	// Prepare the RPC request
-	request, err := newRequest(method, params)
-	if err != nil {
-		return nil, err
-	}
+	request := newRequest(method, params)
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

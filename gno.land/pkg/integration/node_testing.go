@@ -52,7 +52,7 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 		}
 	}
 
-	return node, node.Config().RPC.ListenAddress
+	return node, node.RPC().ListenAddress()
 }
 
 // TestingNodeConfig constructs an in-memory node configuration

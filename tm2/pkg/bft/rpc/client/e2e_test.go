@@ -11,8 +11,15 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	abciTypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/health"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gorilla/websocket"
@@ -46,7 +53,7 @@ func defaultHTTPHandler(
 		require.Equal(t, "application/json", r.Header.Get("content-type"))
 
 		// Parse the message
-		var req types.RPCRequest
+		var req *spec.BaseJSONRequest
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 
 		// Basic request validation
@@ -58,10 +65,13 @@ func defaultHTTPHandler(
 		require.NoError(t, err)
 
 		// Send a response back
-		response := types.RPCResponse{
-			JSONRPC: "2.0",
-			ID:      req.ID,
-			Result:  result,
+		response := spec.BaseJSONResponse{
+			Result: result, // direct
+			Error:  nil,
+			BaseJSON: spec.BaseJSON{
+				JSONRPC: spec.JSONRPCVersion,
+				ID:      req.ID,
+			},
 		}
 
 		// Marshal the response
@@ -98,7 +108,7 @@ func defaultWSHandler(
 			require.NoError(t, err)
 
 			// Parse the message
-			var req types.RPCRequest
+			var req *spec.BaseJSONRequest
 			require.NoError(t, json.Unmarshal(message, &req))
 
 			// Basic request validation
@@ -110,10 +120,13 @@ func defaultWSHandler(
 			require.NoError(t, err)
 
 			// Send a response back
-			response := types.RPCResponse{
-				JSONRPC: "2.0",
-				ID:      req.ID,
-				Result:  result,
+			response := spec.BaseJSONResponse{
+				Result: result, // direct
+				Error:  nil,
+				BaseJSON: spec.BaseJSON{
+					JSONRPC: spec.JSONRPCVersion,
+					ID:      req.ID,
+				},
 			}
 
 			// Marshal the response
@@ -170,21 +183,21 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 	}{
 		{
 			statusMethod,
-			&ctypes.ResultStatus{
+			&status.ResultStatus{
 				NodeInfo: p2pTypes.NodeInfo{
 					Moniker: "dummy",
 				},
 			},
 			func(client *RPCClient, expectedResult any) {
-				status, err := client.Status(context.Background(), nil)
+				clientStatus, err := client.Status(context.Background(), nil)
 				require.NoError(t, err)
 
-				assert.Equal(t, expectedResult, status)
+				assert.Equal(t, expectedResult, clientStatus)
 			},
 		},
 		{
 			abciInfoMethod,
-			&ctypes.ResultABCIInfo{
+			&abciTypes.ResultABCIInfo{
 				Response: abci.ResponseInfo{
 					LastBlockAppHash: []byte("dummy"),
 				},
@@ -198,7 +211,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			abciQueryMethod,
-			&ctypes.ResultABCIQuery{
+			&abciTypes.ResultABCIQuery{
 				Response: abci.ResponseQuery{
 					Value: []byte("dummy"),
 				},
@@ -212,7 +225,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			broadcastTxCommitMethod,
-			&ctypes.ResultBroadcastTxCommit{
+			&mempool.ResultBroadcastTxCommit{
 				Hash: []byte("dummy"),
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -224,7 +237,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			broadcastTxAsyncMethod,
-			&ctypes.ResultBroadcastTx{
+			&mempool.ResultBroadcastTx{
 				Hash: []byte("dummy"),
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -236,7 +249,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			broadcastTxSyncMethod,
-			&ctypes.ResultBroadcastTx{
+			&mempool.ResultBroadcastTx{
 				Hash: []byte("dummy"),
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -248,7 +261,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			unconfirmedTxsMethod,
-			&ctypes.ResultUnconfirmedTxs{
+			&mempool.ResultUnconfirmedTxs{
 				Count: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -260,7 +273,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			numUnconfirmedTxsMethod,
-			&ctypes.ResultUnconfirmedTxs{
+			&mempool.ResultUnconfirmedTxs{
 				Count: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -272,7 +285,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			netInfoMethod,
-			&ctypes.ResultNetInfo{
+			&net.ResultNetInfo{
 				NPeers: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -284,7 +297,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			dumpConsensusStateMethod,
-			&ctypes.ResultDumpConsensusState{
+			&consensus.ResultDumpConsensusState{
 				RoundState: &cstypes.RoundState{
 					Round: 10,
 				},
@@ -298,7 +311,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			consensusStateMethod,
-			&ctypes.ResultConsensusState{
+			&consensus.ResultConsensusState{
 				RoundState: cstypes.RoundStateSimple{
 					ProposalBlockHash: []byte("dummy"),
 				},
@@ -312,7 +325,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			consensusParamsMethod,
-			&ctypes.ResultConsensusParams{
+			&consensus.ResultConsensusParams{
 				BlockHeight: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -324,7 +337,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			healthMethod,
-			&ctypes.ResultHealth{},
+			&health.ResultHealth{},
 			func(client *RPCClient, expectedResult any) {
 				result, err := client.Health(context.Background())
 				require.NoError(t, err)
@@ -334,7 +347,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			blockchainMethod,
-			&ctypes.ResultBlockchainInfo{
+			&blocks.ResultBlockchainInfo{
 				LastHeight: 100,
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -346,7 +359,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			genesisMethod,
-			&ctypes.ResultGenesis{
+			&net.ResultGenesis{
 				Genesis: &bfttypes.GenesisDoc{
 					ChainID: "dummy",
 				},
@@ -360,7 +373,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			blockMethod,
-			&ctypes.ResultBlock{
+			&blocks.ResultBlock{
 				BlockMeta: &bfttypes.BlockMeta{
 					Header: bfttypes.Header{
 						Height: 10,
@@ -376,7 +389,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			blockResultsMethod,
-			&ctypes.ResultBlockResults{
+			&blocks.ResultBlockResults{
 				Height: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -388,7 +401,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			commitMethod,
-			&ctypes.ResultCommit{
+			&blocks.ResultCommit{
 				CanonicalCommit: true,
 			},
 			func(client *RPCClient, expectedResult any) {
@@ -400,7 +413,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			txMethod,
-			&ctypes.ResultTx{
+			&tx.ResultTx{
 				Hash:   []byte("tx hash"),
 				Height: 10,
 			},
@@ -413,7 +426,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 		},
 		{
 			validatorsMethod,
-			&ctypes.ResultValidators{
+			&consensus.ResultValidators{
 				BlockHeight: 10,
 			},
 			func(client *RPCClient, expectedResult any) {

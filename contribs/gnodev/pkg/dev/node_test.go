@@ -15,7 +15,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
@@ -564,7 +564,7 @@ func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error
 	return render, err
 }
 
-func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types.ResultBroadcastTxCommit, error) {
+func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*mempool.ResultBroadcastTxCommit, error) {
 	t.Helper()
 
 	defaultCfg := gnoclient.BaseTxCfg{
@@ -575,7 +575,7 @@ func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types
 	return testingCallRealmWithConfig(t, node, defaultCfg, msgs...)
 }
 
-func testingCallRealmWithConfig(t *testing.T, node *Node, bcfg gnoclient.BaseTxCfg, msgs ...vm.MsgCall) (*core_types.ResultBroadcastTxCommit, error) {
+func testingCallRealmWithConfig(t *testing.T, node *Node, bcfg gnoclient.BaseTxCfg, msgs ...vm.MsgCall) (*mempool.ResultBroadcastTxCommit, error) {
 	t.Helper()
 
 	signer := newInMemorySigner(t, node.Config().ChainID())

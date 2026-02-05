@@ -117,7 +117,7 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 		return val.Address == ourAddress
 	})
 
-	lisnAddress := node.Config().RPC.ListenAddress
+	lisnAddress := node.RPC().ListenAddress()
 	if isValidator {
 		select {
 		case <-ctx.Done():

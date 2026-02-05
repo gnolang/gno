@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -116,7 +116,7 @@ func SignAndBroadcastHandler(
 	nameOrBech32 string,
 	tx std.Tx,
 	pass string,
-) (*types.ResultBroadcastTxCommit, error) {
+) (*mempool.ResultBroadcastTxCommit, error) {
 	baseopts := cfg.RootCfg
 	txopts := cfg
 
