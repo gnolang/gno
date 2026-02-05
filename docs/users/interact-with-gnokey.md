@@ -658,7 +658,7 @@ This section shows the simplest multisig flow:
 1) creating a **local multisig key** in each participant's keybase
 2) creating a tx **unsigned** (shared payload)
 3) each signer produces an **individual signature document**
-4) combining signatures with `multisign` (ordering does not matter by default)
+4) combining signatures with `multisign`
 5) broadcasting
 
 ### 1. Create the local multisig representation
@@ -687,7 +687,7 @@ Example (explicit derivation path):
 gnokey add my-msig-key --recover --derivation-path "44'/118'/0'/0/1"
 ```
 
-**Key ordering (default behavior)**
+#### Key ordering
 
 By default, `gnokey add multisig` sorts member pubkeys (`-nosort=false`). That
 means the multisig has a deterministic member order based on pubkey sorting, not
@@ -701,7 +701,7 @@ All participants must use the **exact same member set** and threshold when runni
 If the member set or threshold differs between participants, you will *not* end
 up with the same multisig public key/address, and signing will fail.
 
-If you set `-nosort=true`, then ordering matters and everyone must use the same
+If you set `-nosort`, then ordering matters and everyone must use the same
 explicit order.
 
 #### Example members used here
@@ -730,7 +730,7 @@ echo "\n\n$ALICE_MNEMONIC" | gnokey add --recover "alice" --home "./alice-kb" -i
 gnokey add bech32 --home "./alice-kb" -pubkey "$BOB_PUBKEY" multisig-bob
 gnokey add bech32 --home "./alice-kb" -pubkey "$CHARLIE_PUBKEY" multisig-charlie
 
-# Create multisig (order does not matter by default)
+# Create multisig
 gnokey add multisig --home "./alice-kb" \
   --multisig alice \
   --multisig multisig-bob \
@@ -847,14 +847,10 @@ echo "\n\n" | gnokey sign --tx-path "$TX_PAYLOAD" --home "./bob-kb" bob --accoun
 
 ### 3. Combine signatures with the multisig
 
-`gnokey add multisig` sorts member pubkeys by default (`-nosort=false`), so the
-creation order does **not** matter. The multisig has a deterministic member order
-based on pubkey sorting, not on the CLI order you provided.
-
-When you call `gnokey multisign`, you can pass signature files in any order.
-`gnokey` matches each signature to its corresponding member pubkey, so you do
-not need to preserve or remember the creation order. Just ensure the signatures
-are from members of that multisig.
+Order is handled automatically (see [Key ordering](#key-ordering)).
+When you call `gnokey multisign`, you can pass signature files in any order; `gnokey`
+matches each signature to its corresponding member pubkey. Just ensure the
+signatures are from members of that multisig.
 
 #### Multisign (Alice + Bob example)
 
