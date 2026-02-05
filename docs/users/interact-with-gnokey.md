@@ -678,13 +678,13 @@ one from your mnemonic, then use that key for multisig participation.
 Example (derive a new key from an existing mnemonic):
 
 ```sh
-gnokey add my-msig-key --recover --account 0 --index 7
+gnokey add my-msig-key --recover --account 0 --index 1
 ```
 
 Example (explicit derivation path):
 
 ```sh
-gnokey add my-msig-key --recover --derivation-path "44'/118'/0'/0/7"
+gnokey add my-msig-key --recover --derivation-path "44'/118'/0'/0/1"
 ```
 
 **Key ordering (default behavior)**
