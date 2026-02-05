@@ -1201,8 +1201,10 @@ func (ft *FuncType) Specify(store Store, n Node, argTVs []TypedValue, isVarg boo
 	}
 	lookup := map[Name]Type{}
 	hasVarg := ft.HasVarg()
+	paramsToSpecify := ft.Params
 	if hasVarg && !isVarg {
-		if isGeneric(ft.Params[len(ft.Params)-1].Type) {
+		lastParam := ft.Params[len(ft.Params)-1]
+		if isGeneric(lastParam.Type) {
 			// consolidate vargs into slice.
 			var nvarg int
 			var vargt Type
@@ -1222,27 +1224,37 @@ func (ft *FuncType) Specify(store Store, n Node, argTVs []TypedValue, isVarg boo
 						varg.T.String()))
 				}
 			}
-			if nvarg > 0 && vargt == nil {
-				panic(fmt.Sprintf(
-					"unspecified generic varg %s",
-					ft.Params[len(ft.Params)-1].String()))
+			if nvarg == 0 {
+				// If we have no args, consider it as an untyped nil.
+				argTVs = append(argTVs[:len(ft.Params)-1], TypedValue{
+					T: nil,
+					V: nil,
+				})
+				// Do not process the type of the last argument.
+				paramsToSpecify = paramsToSpecify[:len(paramsToSpecify)-1]
+			} else {
+				if vargt == nil {
+					panic(fmt.Sprintf(
+						"unspecified generic varg %s",
+						lastParam.String()))
+				}
+				argTVs = argTVs[:len(ft.Params)-1]
+				argTVs = append(argTVs, TypedValue{
+					T: &SliceType{Elt: vargt, Vrd: true},
+					V: nil,
+				})
 			}
-			argTVs = argTVs[:len(ft.Params)-1]
-			argTVs = append(argTVs, TypedValue{
-				T: &SliceType{Elt: vargt, Vrd: true},
-				V: nil,
-			})
 		} else {
 			// just use already specific type.
 			argTVs = argTVs[:len(ft.Params)-1]
 			argTVs = append(argTVs, TypedValue{
-				T: ft.Params[len(ft.Params)-1].Type,
+				T: lastParam.Type,
 				V: nil,
 			})
 		}
 	}
 	// specify generic types from args.
-	for i, pf := range ft.Params {
+	for i, pf := range paramsToSpecify {
 		arg := &argTVs[i]
 		if arg.T.Kind() == TypeKind {
 			specifyType(store, n, lookup, pf.Type, arg.T, arg.GetType())
@@ -2300,7 +2312,7 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					assertAssignableTo(n, spec, match.Elem())
+					mustAssignableTo(n, spec, match.Elem())
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2314,7 +2326,7 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					assertAssignableTo(n, spec, match)
+					mustAssignableTo(n, spec, match)
 					return // ok
 				} else {
 					if isUntyped(spec) {

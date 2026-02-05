@@ -197,6 +197,29 @@ func main(cur realm) {
 //         }
 //     }
 // }
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:8](5)=
+//     @@ -17,11 +17,11 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "5f8c7561e9dd28d3c2189bb364f0c8a2a7b7188e",
+//                      "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:9"
+//                  }
+//              },
+//              {
+//     +            "N": "AQAAAAAAAAA=",
+//                  "T": {
+//                      "@type": "/gno.PrimitiveType",
+//                      "value": "32"
+//     @@ -31,7 +31,7 @@
+//          "ObjectInfo": {
+//              "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:8",
+//              "LastObjectSize": "446",
+//     -        "ModTime": "0",
+//     +        "ModTime": "9",
+//              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7",
+//              "RefCount": "1"
+//          }
 // u[1ffd45e074aa1b8df562907c95ad97526b7ca187:9](135)=
 //     @@ -7,13 +7,23 @@
 //                          "@type": "/gno.RefType",
@@ -221,29 +244,5 @@ func main(cur realm) {
 //     -        "ModTime": "0",
 //     +        "ModTime": "9",
 //              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:8",
-//              "RefCount": "1"
-//          }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:8](5)=
-//     @@ -17,11 +17,12 @@
-//                  },
-//                  "V": {
-//                      "@type": "/gno.RefValue",
-//     -                "Hash": "5f8c7561e9dd28d3c2189bb364f0c8a2a7b7188e",
-//     +                "Hash": "86290cec1339c1100bb6905585bf3ca4217ef9fa",
-//                      "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:9"
-//                  }
-//              },
-//              {
-//     +            "N": "AQAAAAAAAAA=",
-//                  "T": {
-//                      "@type": "/gno.PrimitiveType",
-//                      "value": "32"
-//     @@ -31,7 +32,7 @@
-//          "ObjectInfo": {
-//              "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:8",
-//              "LastObjectSize": "446",
-//     -        "ModTime": "0",
-//     +        "ModTime": "9",
-//              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7",
 //              "RefCount": "1"
 //          }
