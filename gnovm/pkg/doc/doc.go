@@ -315,15 +315,15 @@ func queryQDoc(pkg string, queryClient ABCIQueryClient) (*JSONDocumentation, err
 	defer cancel()
 	qres, err := queryClient.ABCIQuery(ctx, qpath, []byte(pkg))
 	if err != nil {
-		return nil, fmt.Errorf("unable to query qdoc for %q: %q", pkg, err)
+		return nil, fmt.Errorf("unable to query qdoc for %q: %w", pkg, err)
 	}
 	if qres.Response.Error != nil {
-		return nil, fmt.Errorf("error querying qdoc for %q: %q", pkg, qres.Response.Error)
+		return nil, fmt.Errorf("error querying qdoc for %q: %w", pkg, qres.Response.Error)
 	}
 
 	jdoc := &JSONDocumentation{}
 	if err := amino.UnmarshalJSON(qres.Response.Data, jdoc); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal qdoc: %q", err)
+		return nil, fmt.Errorf("unable to unmarshal qdoc: %w", err)
 	}
 
 	return jdoc, nil
