@@ -553,4 +553,48 @@ func TestAdd_Derive(t *testing.T) {
 
 		require.ErrorIs(t, cmd.ParseAndRun(ctx, args), errInvalidDerivationPath)
 	})
+
+	t.Run("derivation path overwrite aborted", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			mnemonic    = generateTestMnemonic(t)
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+			keyName = "example-key"
+			path    = "44'/118'/0'/0/0"
+		)
+
+		// Pre-create a key that will collide with the derived name.
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		_, err = kb.CreateAccount(keyName, mnemonic, "", "encrypt", 0, 0)
+		require.NoError(t, err)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		io := commands.NewTestIO()
+		io.SetIn(strings.NewReader("n\n"))
+
+		// Create the command
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+
+		args := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			keyName,
+			"--derivation-path",
+			path,
+		}
+
+		require.ErrorIs(t, cmd.ParseAndRun(ctx, args), errOverwriteAborted)
+	})
 }
