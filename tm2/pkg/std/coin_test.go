@@ -4,9 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
 var (
@@ -22,7 +23,7 @@ func TestCoin(t *testing.T) {
 	t.Parallel()
 
 	require.Panics(t, func() { NewCoin(testDenom1, -1) })
-	require.Panics(t, func() { NewCoin(strings.ToUpper(testDenom1), 10) })
+	require.NotPanics(t, func() { NewCoin(strings.ToUpper(testDenom1), 10) })
 	require.Equal(t, int64(5), NewCoin(testDenom1, 5).Amount)
 }
 
@@ -60,15 +61,16 @@ func TestCoinIsValid(t *testing.T) {
 		{Coin{testDenom1, int64(-1)}, false},
 		{Coin{testDenom1, int64(0)}, true},
 		{Coin{testDenom1, int64(1)}, true},
-		{Coin{"Atom", int64(1)}, false},
+		{Coin{"ibc/7F1D3FCF4AE79E1554D670D1AD949A9BA4E4A3C76C63093E17E446A46061A7A2", int64(1)}, true},
+		{Coin{"Atom", int64(1)}, true},
 		{Coin{"a", int64(1)}, false},
 		{Coin{"a very long coin denom", int64(1)}, false},
-		{Coin{"atOm", int64(1)}, false},
+		{Coin{"atOm", int64(1)}, true},
 		{Coin{"     ", int64(1)}, false},
 	}
 
 	for i, tc := range cases {
-		require.Equal(t, tc.expectPass, tc.coin.IsValid(), "unexpected result for IsValid, tc #%d", i)
+		require.Equal(t, tc.expectPass, tc.coin.IsValid(), "unexpected result for IsValid for coin %s tc #%d", tc.coin, i)
 	}
 }
 
@@ -419,8 +421,8 @@ func TestCoins(t *testing.T) {
 
 	assert.True(t, good.IsValid(), "Coins are valid")
 	assert.False(t, mixedCase1.IsValid(), "Coins denoms contain upper case characters")
-	assert.False(t, mixedCase2.IsValid(), "First Coins denoms contain upper case characters")
-	assert.False(t, mixedCase3.IsValid(), "Single denom in Coins contains upper case characters")
+	assert.True(t, mixedCase2.IsValid(), "First Coins denoms contain upper case characters are valid")
+	assert.True(t, mixedCase3.IsValid(), "Single denom in Coins contains upper case characters are valid")
 	assert.True(t, good.IsAllPositive(), "Expected coins to be positive: %v", good)
 	assert.False(t, empty.IsAllPositive(), "Expected coins to not be positive: %v", empty)
 	assert.True(t, good.IsAllGTE(empty), "Expected %v to be >= %v", good, empty)
@@ -498,7 +500,7 @@ func TestParse(t *testing.T) {
 		{"98 bar , 1 foo  ", true, Coins{{"bar", int64(98)}, {"foo", one}}},
 		{"  55\t \t bling\n", true, Coins{{"bling", int64(55)}}},
 		{"2foo, 97 bar", true, Coins{{"bar", int64(97)}, {"foo", int64(2)}}},
-		{"5foo-bar", false, nil},
+		{"5-foo-bar", false, nil},
 		{"5 mycoin,", false, nil},             // no empty coins in a list
 		{"2 3foo, 97 bar", false, nil},        // 3foo is invalid coin name
 		{"11me coin, 12you coin", false, nil}, // no spaces in coin names
@@ -609,7 +611,7 @@ func TestAmountOf(t *testing.T) {
 		assert.Equal(t, tc.amountOfTREE, tc.coins.AmountOf("tree"))
 	}
 
-	assert.Panics(t, func() { cases[0].coins.AmountOf("Invalid") })
+	assert.Panics(t, func() { cases[0].coins.AmountOf("-Invalid") })
 }
 
 func TestCoinsIsAnyGTE(t *testing.T) {
