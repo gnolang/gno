@@ -106,6 +106,17 @@ users = append(users[:index], users[index+1:]...)
 
 Pre-allocate capacity for better performance: `make([]string, 0, 100)`.
 
+Slices hold references to underlying backing arrays; so modifying
+a value in a slice is like modifying it in a pointer to an array. This is
+particularly relevant for cross-realm interactions: the elements of
+a slice of another realm are *references*, not values.
+
+To copy a slice, use append on a nil slice:
+
+...go
+users = append([]string(nil), otherSlice...)
+...
+
 ## Structs
 
 Group related data together.
