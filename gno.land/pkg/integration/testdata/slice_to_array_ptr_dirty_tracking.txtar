@@ -1,0 +1,51 @@
+# Test that mutations through a slice-to-array pointer persist
+# across transactions. Mutate via pointer in one tx, then read
+# via the original slice in the next tx.
+
+loadpkg gno.land/p/nt/ufmt
+
+gnoland start
+
+## deploy realm
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/test/dirty -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## tx1: initialize slice and pointer
+gnokey maketx call -pkgpath gno.land/r/test/dirty -func Init -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## tx2: mutate through pointer
+gnokey maketx call -pkgpath gno.land/r/test/dirty -func MutatePtr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## tx3: read through slice — should see the pointer mutation from tx2
+gnokey maketx call -pkgpath gno.land/r/test/dirty -func ReadSlice -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("99 2 3" string)'
+stdout OK!
+
+-- gnomod.toml --
+module = "gno.land/r/test/dirty"
+gno = "0.9"
+
+-- dirty.gno --
+package dirty
+
+import "gno.land/p/nt/ufmt"
+
+var (
+	data []int
+	ptr  *[3]int
+)
+
+func Init(cur realm) {
+	data = []int{1, 2, 3, 4, 5}
+	ptr = (*[3]int)(data)
+}
+
+func MutatePtr(cur realm) {
+	(*ptr)[0] = 99
+}
+
+func ReadSlice(cur realm) string {
+	return ufmt.Sprintf("%d %d %d", data[0], data[1], data[2])
+}

@@ -255,6 +255,11 @@ type ArrayValue struct {
 	ObjectInfo
 	List []TypedValue
 	Data []byte
+
+	// For slice-to-array-ptr views: redirect indexing to the real
+	// backing array so that realm dirty tracking works correctly.
+	BaseArray  *ArrayValue `json:"-"`
+	BaseOffset int         `json:"-"`
 }
 
 // NOTE: Result should not be written to,
@@ -297,6 +302,10 @@ func (av *ArrayValue) GetLength() int {
 
 // et is only required for .List byte-arrays.
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+	// Redirect to real backing array for slice-to-array-ptr views.
+	if av.BaseArray != nil {
+		return av.BaseArray.GetPointerAtIndexInt2(store, av.BaseOffset+ii, et)
+	}
 	if av.Data == nil {
 		ev := fillValueTV(store, &av.List[ii]) // by reference
 		return PointerValue{
@@ -2729,13 +2738,25 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			switch cbv := base.(type) {
 			case *ArrayValue:
 				et := baseOf(tv.T).(*PointerType).Elt
-				// reconstruct subsliced array view from base and index for slice2array ptrs
-				if at, ok := et.(*ArrayType); ok && cbv.GetLength() > at.Len {
+				// Distinguish slice 2 array ptr (reconstruct sub-view) from nested
+				// array element pointer. For nested arrays, the element's type matches
+				// the target array type. For slice 2 array ptr, they differ.
+				// Data backed arrays only store bytes, so always slice 2 array ptr.
+				// Bounds check handles zero-length conversions where the list is empty.
+				if at, ok := et.(*ArrayType); ok && (cbv.Data != nil || cv.Index >= len(cbv.List) || cbv.List[cv.Index].T.TypeID() != at.TypeID()) {
 					var viewAV *ArrayValue
 					if cbv.Data != nil {
-						viewAV = &ArrayValue{Data: cbv.Data[cv.Index : cv.Index+at.Len]}
+						viewAV = &ArrayValue{
+							Data:       cbv.Data[cv.Index : cv.Index+at.Len],
+							BaseArray:  cbv,
+							BaseOffset: cv.Index,
+						}
 					} else {
-						viewAV = &ArrayValue{List: cbv.List[cv.Index : cv.Index+at.Len]}
+						viewAV = &ArrayValue{
+							List:       cbv.List[cv.Index : cv.Index+at.Len],
+							BaseArray:  cbv,
+							BaseOffset: cv.Index,
+						}
 					}
 					cv.TV = &TypedValue{T: at, V: viewAV}
 				} else {

@@ -1,0 +1,46 @@
+# Test zero-length slice-to-array-pointer persistence.
+# Edge case: cbv.List is empty, so cbv.List[cv.Index] panics
+# in the type comparison guard.
+
+loadpkg gno.land/p/nt/ufmt
+
+gnoland start
+
+## deploy realm
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/test/zerolen -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## initialize: convert empty slice to *[0]int
+gnokey maketx call -pkgpath gno.land/r/test/zerolen -func Init -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## read after realm reload: pointer should be non-nil
+gnokey maketx call -pkgpath gno.land/r/test/zerolen -func ReadPtr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("not nil, len=0" string)'
+stdout OK!
+
+-- gnomod.toml --
+module = "gno.land/r/test/zerolen"
+gno = "0.9"
+
+-- zerolen.gno --
+package zerolen
+
+import "gno.land/p/nt/ufmt"
+
+var (
+	data []int
+	ptr  *[0]int
+)
+
+func Init(cur realm) {
+	data = make([]int, 0)
+	ptr = (*[0]int)(data)
+}
+
+func ReadPtr(cur realm) string {
+	if ptr != nil {
+		return ufmt.Sprintf("not nil, len=%d", len(*ptr))
+	}
+	return "nil"
+}

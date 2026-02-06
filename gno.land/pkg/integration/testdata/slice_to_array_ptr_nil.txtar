@@ -1,0 +1,33 @@
+# Test that converting a nil slice to *[0]T produces a nil pointer.
+# In Go: (*[0]int)(nil) == nil
+
+loadpkg gno.land/p/nt/ufmt
+
+gnoland start
+
+## deploy realm
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/test/nilconv -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## convert nil slice to *[0]int, should not panic
+gnokey maketx call -pkgpath gno.land/r/test/nilconv -func ConvertNil -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("nil" string)'
+stdout OK!
+
+-- gnomod.toml --
+module = "gno.land/r/test/nilconv"
+gno = "0.9"
+
+-- nilconv.gno --
+package nilconv
+
+import "gno.land/p/nt/ufmt"
+
+func ConvertNil(cur realm) string {
+	var s []int
+	p := (*[0]int)(s)
+	if p == nil {
+		return ufmt.Sprintf("nil")
+	}
+	return ufmt.Sprintf("not nil, len=%d", len(*p))
+}

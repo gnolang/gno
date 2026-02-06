@@ -1170,14 +1170,18 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 				baseAV := sv.GetBase(store)
 				var av *ArrayValue
 				if arrayLen == 0 {
-					av = &ArrayValue{}
+					av = &ArrayValue{BaseArray: baseAV, BaseOffset: sv.Offset}
 				} else if baseAV.Data != nil {
 					av = &ArrayValue{
-						Data: baseAV.Data[sv.Offset : sv.Offset+arrayLen],
+						Data:       baseAV.Data[sv.Offset : sv.Offset+arrayLen],
+						BaseArray:  baseAV,
+						BaseOffset: sv.Offset,
 					}
 				} else {
 					av = &ArrayValue{
-						List: baseAV.List[sv.Offset : sv.Offset+arrayLen],
+						List:       baseAV.List[sv.Offset : sv.Offset+arrayLen],
+						BaseArray:  baseAV,
+						BaseOffset: sv.Offset,
 					}
 				}
 				tv.T = t
