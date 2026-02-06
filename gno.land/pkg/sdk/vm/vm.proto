@@ -54,3 +54,6 @@ message UnauthorizedUserError {
 
 message InvalidPackageError {
 }
+
+message InvalidFileError {
+}
