@@ -8,9 +8,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/lint"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
@@ -177,6 +179,93 @@ func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 			printError(w, dir, pkgPath, err)
 		}
 	}
+}
+
+func parseLocation(loc string) (filename string, line, column int) {
+	parts := strings.Split(loc, ":")
+	if len(parts) >= 1 {
+		filename = parts[0]
+	}
+	if len(parts) >= 2 {
+		line, _ = strconv.Atoi(parts[1])
+	}
+	if len(parts) >= 3 {
+		column, _ = strconv.Atoi(parts[2])
+	}
+	return
+}
+
+func reportIssue(reporter lint.Reporter, code gnoCode, msg, loc string) {
+	filename, line, column := parseLocation(loc)
+	reporter.Report(lint.Issue{
+		RuleID:   string(code),
+		Severity: lint.SeverityError,
+		Message:  msg,
+		Filename: filename,
+		Line:     line,
+		Column:   column,
+	})
+}
+
+func reportError(reporter lint.Reporter, dir, pkgPath string, err error) {
+	switch err := err.(type) {
+	case *gno.PreprocessError:
+		err2 := err.Unwrap()
+		issue := guessIssueFromError(dir, pkgPath, err2, gnoPreprocessError)
+		reportIssue(reporter, issue.Code, issue.Msg, issue.Location)
+	case gno.ImportError:
+		reportIssue(reporter, gnoImportError, err.GetMsg(), err.GetLocation())
+	case types.Error:
+		loc := err.Fset.Position(err.Pos).String()
+		loc = guessFilePathLocRel(loc, pkgPath, dir)
+		code := gnoTypeCheckError
+		if strings.Contains(err.Msg, "(unknown import path \"") {
+			code = gnoImportError
+		}
+		reportIssue(reporter, code, err.Msg, loc)
+	case scanner.ErrorList:
+		for _, err := range err {
+			loc := err.Pos.String()
+			loc = guessFilePathLocRel(loc, pkgPath, dir)
+			reportIssue(reporter, gnoParserError, err.Msg, loc)
+		}
+	case scanner.Error:
+		loc := err.Pos.String()
+		loc = guessFilePathLocRel(loc, pkgPath, dir)
+		reportIssue(reporter, gnoParserError, err.Msg, loc)
+	default:
+		errors := multierr.Errors(err)
+		if len(errors) == 1 {
+			issue := guessIssueFromError(dir, pkgPath, err, gnoUnknownError)
+			reportIssue(reporter, issue.Code, issue.Msg, issue.Location)
+			return
+		}
+		for _, err := range errors {
+			reportError(reporter, dir, pkgPath, err)
+		}
+	}
+}
+
+func catchPanicWithReporter(reporter lint.Reporter, dir, pkgPath string, action func()) (didPanic bool) {
+	if os.Getenv("DEBUG_PANIC") == "1" {
+		fmt.Println("DEBUG_PANIC=1 (will not recover)")
+	} else {
+		defer func() {
+			r := recover()
+			if r == nil {
+				return
+			}
+			didPanic = true
+			if err, ok := r.(error); ok {
+				reportError(reporter, dir, pkgPath, err)
+			} else {
+				panic(r)
+			}
+		}()
+	}
+
+	action()
+	return
 }
 
 func catchPanic(dir, pkgPath string, stderr io.WriteCloser, action func()) (didPanic bool) {
