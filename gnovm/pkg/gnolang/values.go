@@ -2729,6 +2729,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			switch cbv := base.(type) {
 			case *ArrayValue:
 				et := baseOf(tv.T).(*PointerType).Elt
+				// reconstruct subsliced array view from base and index for slice2array ptrs
 				if at, ok := et.(*ArrayType); ok && cbv.GetLength() > at.Len {
 					var viewAV *ArrayValue
 					if cbv.Data != nil {
