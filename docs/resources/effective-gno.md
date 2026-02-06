@@ -55,12 +55,12 @@ var counter int
 
 // public getter endpoint.
 func GetCounter() int {
-    return counter
+	return counter
 }
 
 // public setter endpoint.
 func IncCounter(_ realm) {
-    counter++
+	counter++
 }
 ```
 
@@ -111,11 +111,11 @@ that could lead to user frustration or the need to fork the code.
 import "std"
 
 func Foobar() {
-    caller := std.PreviousRealm().Address()
-    if caller != "g1xxxxx" {
-        panic("permission denied")
-    }
-    // ...
+	caller := std.PreviousRealm().Address()
+	if caller != "g1xxxxx" {
+		panic("permission denied")
+	}
+	// ...
 }
 ```
 
@@ -134,15 +134,15 @@ you start a program, in Gno, `init()` is executed once in a realm's lifetime.
 
 In Gno, `init()` primarily serves two purposes:
 1. It establishes the initial state, specifically, setting up global variables.
-    - Note: global variables can often be set up just by assigning their initial value when you're declaring them. See below for an example! \
-      Deciding when to initialise the variable directly, and when to set it up in `init` can be non-straightforward. As a rule of thumb, though, `init` visually marks the code as executing only when the realm is started, while assigning the variables can be less straightforward.
+	- Note: global variables can often be set up just by assigning their initial value when you're declaring them. See below for an example! \
+	  Deciding when to initialise the variable directly, and when to set it up in `init` can be non-straightforward. As a rule of thumb, though, `init` visually marks the code as executing only when the realm is started, while assigning the variables can be less straightforward.
 2. It communicates with another realm, for example, to register itself in a registry.
 
 ```go
 import "gno.land/r/some/registry"
 
 func init() {
-    registry.Register(cross, "myID", myCallback)
+	registry.Register(cross, "myID", myCallback)
 }
 
 func myCallback(a, b string) { /* ... */ }
@@ -153,25 +153,25 @@ package.
 
 ```go
 import (
-    "std"
-    "time"
+	"std"
+	"time"
 )
 
 var (
-    created time.Time
-    admin   std.Address
-    list	= []string{"foo", "bar", time.Now().Format("15:04:05")}
+	created time.Time
+	admin   std.Address
+	list	= []string{"foo", "bar", time.Now().Format("15:04:05")}
 )
 
 func init() {
-    created = time.Now()
-    // std.OriginCaller in the context of realm initialisation is,
-    // of course, the publisher of the realm :)
-    // This can be better than hardcoding an admin address as a constant.
-    admin = std.OriginCaller()
-    // list is already initialized, so it will already contain "foo", "bar" and
-    // the current time as existing items.
-    list = append(list, admin.String())
+	created = time.Now()
+	// std.OriginCaller in the context of realm initialisation is,
+	// of course, the publisher of the realm :)
+	// This can be better than hardcoding an admin address as a constant.
+	admin = std.OriginCaller()
+	// list is already initialized, so it will already contain "foo", "bar" and
+	// the current time as existing items.
+	list = append(list, admin.String())
 }
 ```
 
@@ -233,36 +233,36 @@ efficient, and trustworthy Gno contracts.
 
 ```go
 import (
-    "gno.land/p/finance/tokens"
-    "gno.land/p/finance/exchange"
-    "gno.land/p/finance/wallet"
-    "gno.land/p/utils/permissions"
+	"gno.land/p/finance/tokens"
+	"gno.land/p/finance/exchange"
+	"gno.land/p/finance/wallet"
+	"gno.land/p/utils/permissions"
 )
 
 var (
-    myWallet wallet.Wallet
-    myToken tokens.Token
-    myExchange exchange.Exchange
+	myWallet wallet.Wallet
+	myToken tokens.Token
+	myExchange exchange.Exchange
 )
 
 func init() {
-    myWallet = wallet.NewWallet()
-    myToken = tokens.NewToken("MyToken", "MTK")
-    myExchange = exchange.NewExchange(myToken)
+	myWallet = wallet.NewWallet()
+	myToken = tokens.NewToken("MyToken", "MTK")
+	myExchange = exchange.NewExchange(myToken)
 }
 
 func BuyTokens(_ realm, amount int) {
-    caller := permissions.GetCaller()
-    permissions.CheckPermission(caller, "buy")
-    myWallet.Debit(caller, amount)
-    myExchange.Buy(caller, amount)
+	caller := permissions.GetCaller()
+	permissions.CheckPermission(caller, "buy")
+	myWallet.Debit(caller, amount)
+	myExchange.Buy(caller, amount)
 }
 
 func SellTokens(_ realm, amount int) {
-    caller := permissions.GetCaller()
-    permissions.CheckPermission(caller, "sell")
-    myWallet.Credit(caller, amount)
-    myExchange.Sell(caller, amount)
+	caller := permissions.GetCaller()
+	permissions.CheckPermission(caller, "sell")
+	myWallet.Credit(caller, amount)
+	myExchange.Sell(caller, amount)
 }
 ```
 
@@ -304,44 +304,44 @@ to illustrate the concept:
 // The Teller interface is designed to ensure that any token adhering to this
 // standard provides a consistent API for interacting with fungible tokens.
 type Teller interface {
-    exts.TokenMetadata
+	exts.TokenMetadata
 
-    // Returns the amount of tokens in existence.
-    TotalSupply() uint64
+	// Returns the amount of tokens in existence.
+	TotalSupply() uint64
 
-    // Returns the amount of tokens owned by `account`.
-    BalanceOf(account std.Address) uint64
+	// Returns the amount of tokens owned by `account`.
+	BalanceOf(account std.Address) uint64
 
-    // Moves `amount` tokens from the caller's account to `to`.
-    //
-    // Returns an error if the operation failed.
-    Transfer(to std.Address, amount uint64) error
+	// Moves `amount` tokens from the caller's account to `to`.
+	//
+	// Returns an error if the operation failed.
+	Transfer(to std.Address, amount uint64) error
 
-    // Returns the remaining number of tokens that `spender` will be
-    // allowed to spend on behalf of `owner` through {transferFrom}. This is
-    // zero by default.
-    //
-    // This value changes when {approve} or {transferFrom} are called.
-    Allowance(owner, spender std.Address) uint64
+	// Returns the remaining number of tokens that `spender` will be
+	// allowed to spend on behalf of `owner` through {transferFrom}. This is
+	// zero by default.
+	//
+	// This value changes when {approve} or {transferFrom} are called.
+	Allowance(owner, spender std.Address) uint64
 
-    // Sets `amount` as the allowance of `spender` over the caller's tokens.
-    //
-    // Returns an error if the operation failed.
-    //
-    // IMPORTANT: Beware that changing an allowance with this method brings
-    // the risk that someone may use both the old and the new allowance by
-    // unfortunate transaction ordering. One possible solution to mitigate
-    // this race condition is to first reduce the spender's allowance to 0
-    // and set the desired value afterwards:
-    // https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-    Approve(spender std.Address, amount uint64) error
+	// Sets `amount` as the allowance of `spender` over the caller's tokens.
+	//
+	// Returns an error if the operation failed.
+	//
+	// IMPORTANT: Beware that changing an allowance with this method brings
+	// the risk that someone may use both the old and the new allowance by
+	// unfortunate transaction ordering. One possible solution to mitigate
+	// this race condition is to first reduce the spender's allowance to 0
+	// and set the desired value afterwards:
+	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+	Approve(spender std.Address, amount uint64) error
 
-    // Moves `amount` tokens from `from` to `to` using the
-    // allowance mechanism. `amount` is then deducted from the caller's
-    // allowance.
-    //
-    // Returns an error if the operation failed.
-    TransferFrom(from, to std.Address, amount uint64) error
+	// Moves `amount` tokens from `from` to `to` using the
+	// allowance mechanism. `amount` is then deducted from the caller's
+	// allowance.
+	//
+	// Returns an error if the operation failed.
+	TransferFrom(from, to std.Address, amount uint64) error
 }
 ```
 
@@ -408,8 +408,8 @@ structure as follows:
 gno.land/p/nt/seqid
 ├── generator
 └── internal
-    ├── base32
-    └── cford32
+	├── base32
+	└── cford32
 ```
 
 The `seqid/internal`, `seqid/internal/base32`, and `seqid/internal/cford32`
@@ -465,8 +465,8 @@ certain operations.
 import "std"
 
 func PublicMethod(nb int) {
-    caller := std.PreviousRealm().Address()
-    privateMethod(caller, nb)
+	caller := std.PreviousRealm().Address()
+	privateMethod(caller, nb)
 }
 
 func privateMethod(caller std.Address, nb int) { /* ... */ }
@@ -500,24 +500,24 @@ the Gno standard library:
 package events
 
 import (
-    "std"
+	"std"
 )
 
 var owner std.Address
 
 func init() {
-    owner = std.PreviousRealm().Address()
+	owner = std.PreviousRealm().Address()
 }
 
 func ChangeOwner(_ realm, newOwner std.Address) {
-    caller := std.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 
-    if caller != owner {
-        panic("access denied")
-    }
+	if caller != owner {
+		panic("access denied")
+	}
 
-    owner = newOwner
-    std.Emit("OwnershipChange", "newOwner", newOwner.String())
+	owner = newOwner
+	std.Emit("OwnershipChange", "newOwner", newOwner.String())
 }
 
 ```
@@ -527,19 +527,19 @@ of block #43 will contain the following data:
 ```json
 {
   "Events": [
-    {
-      "@type": "/tm.gnoEvent",
-      "type": "OwnershipChange",
-      "pkg_path": "gno.",
-      "func": "ChangeOwner",
-      "attrs": [
-        {
-          "key": "newOwner",
-          "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
-        }
-      ]
-    }
-    // other events
+	{
+	  "@type": "/tm.gnoEvent",
+	  "type": "OwnershipChange",
+	  "pkg_path": "gno.",
+	  "func": "ChangeOwner",
+	  "attrs": [
+		{
+		  "key": "newOwner",
+		  "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
+		}
+	  ]
+	}
+	// other events
   ]
 }
 ```
@@ -582,11 +582,11 @@ import "std"
 var admin std.Address = "g1xxxxx"
 
 func AdminOnlyFunction(_ realm) {
-    caller := std.PreviousRealm().Address()
-    if caller != admin {
-        panic("permission denied")
-    }
-    // ...
+	caller := std.PreviousRealm().Address()
+	if caller != admin {
+		panic("permission denied")
+	}
+	// ...
 }
 
 // func UpdateAdminAddress(_ realm, newAddr std.Address) { /* ... */ }
@@ -609,11 +609,11 @@ Here's an example:
 import "std"
 
 func TransferTokens(_ realm, to std.Address, amount int64) {
-    caller := std.PreviousRealm().Address()
-    if caller != admin {
-        panic("permission denied")
-    }
-    // ...
+	caller := std.PreviousRealm().Address()
+	if caller != admin {
+		panic("permission denied")
+	}
+	// ...
 }
 ```
 
@@ -656,7 +656,7 @@ users := make(map[string]User)
 users["bob"] = User{}
 users["alice"] = User{}
 for name := range users { // unspecified order
-    // ...
+	// ...
 }
 user := users["alice"] // O(1) direct access
 
@@ -667,35 +667,35 @@ users.Set("alice", &User{})
 users.Set("charlie", &User{})
 // Iterate all users (sorted alphabetically)
 users.Iterate("", "", func(name string, value any) bool {
-    // Order: alice, bob, charlie (sorted by key)
-    user := value.(*User) // Type cast required - values are interface{}
-    return false // return true to stop iteration
+	// Order: alice, bob, charlie (sorted by key)
+	user := value.(*User) // Type cast required - values are interface{}
+	return false // return true to stop iteration
 })
 
 // Range query: get users from "bob" to "charlie" (inclusive)
 // This is O(log n + k) where k = results in range
 users.Iterate("bob", "charlie", func(name string, value any) bool {
-    // Only visits: bob, charlie
-    user := value.(*User) 
-    return false
+	// Only visits: bob, charlie
+	user := value.(*User) 
+	return false
 })
 
 // Get a specific user (O(log n))
 value, exists := users.Get("alice")
 if !exists {
-    return nil
+	return nil
 }
 return value.(*User)
 
 // Multi-index example - search the same data in different ways
 var (
-    usersById   avl.Tree // Find user by ID
-    usersByName avl.Tree // Find user by name
+	usersById   avl.Tree // Find user by ID
+	usersByName avl.Tree // Find user by name
 )
 
 func AddUser(id, name string) {
-    usersById.Set(id, name)     // Can search by ID
-    usersByName.Set(name, id)   // Can search by name
+	usersById.Set(id, name)     // Can search by ID
+	usersByName.Set(name, id)   // Can search by name
 }
 ```
 
@@ -714,25 +714,25 @@ usage completely.
 
 ```go
 type MySafeStruct {
-    counter nb
-    admin std.Address
+	counter nb
+	admin std.Address
 }
 
 func NewSafeStruct() *MySafeStruct {
-    caller := std.PreviousRealm().Address()
-    return &MySafeStruct{
-        counter: 0,
-        admin: caller,
-    }
+	caller := std.PreviousRealm().Address()
+	return &MySafeStruct{
+		counter: 0,
+		admin: caller,
+	}
 }
 
 func (s *MySafeStruct) Counter() int { return s.counter }
 func (s *MySafeStruct) Inc(_ realm) {
-    caller := std.PreviousRealm().Address()
-    if caller != s.admin {
-        panic("permission denied")
-    }
-    s.counter++
+	caller := std.PreviousRealm().Address()
+	if caller != s.admin {
+		panic("permission denied")
+	}
+	s.counter++
 }
 ```
 
@@ -742,8 +742,8 @@ Then, you can register this object in one or more other realms so that they can 
 import "gno.land/r/otherrealm"
 
 func init() {
-    mySafeObj := NewSafeStruct()
-    otherrealm.Register(mySafeObject)
+	mySafeObj := NewSafeStruct()
+	otherrealm.Register(mySafeObject)
 }
 
 // then, other realm can call the public functions but won't be the "owner" of
@@ -791,8 +791,8 @@ import "gno.land/p/demo/tokens/grc20"
 var fooToken = grc20.NewBanker("Foo Token", "FOO", 4)
 
 func MyBalance(_ realm) uint64 {
-    caller := std.PreviousRealm().Address()
-    return fooToken.BalanceOf(caller)
+	caller := std.PreviousRealm().Address()
+	return fooToken.BalanceOf(caller)
 }
 ```
 
