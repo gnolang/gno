@@ -50,7 +50,7 @@ func Iterate(start, count int, fn boards.BoardIterFn) bool {
 	// TODO: We should check that current realm is authorized to iterate boards
 	//       Realm must be reviewed before being authorized, to make sure boards
 	//       are actually independent and won't be modified indirectly.
-	return gBoards.Iterate(start, -count, fn)
+	return gBoards.Iterate(start, count, fn)
 }
 
 // assertRealmHasBoardsNS asserts that a realm lives within Boards2 namespace.
