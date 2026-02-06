@@ -7,12 +7,12 @@ them in your [realms](./realms.md) and [packages](./gno-packages.md).
 
 | Type | Example | Best For |
 |------|---------|----------|
-| **Array** | `[5]int` | Fixed-size collections |
-| **AVL Tree** | `avl.Tree` | Large/growing datasets |
-| **Map** | `map[string]int` | Small key-value stores |
-| **Slice** | `[]string` | Dynamic lists |
-| **Struct** | `type User struct{...}` | Grouped data |
-| **Pointer** | `*User` | Reference values |
+| **[Array](#arrays)** | `[5]int` | Fixed-size collections |
+| **[AVL Tree](#avl-trees)** | `avl.Tree` | Large/growing datasets |
+| **[Map](#maps)** | `map[string]int` | Small key-value stores |
+| **[Slice](#slices)** | `[]string` | Dynamic lists |
+| **[Struct](#structs)** | `type User struct{...}` | Grouped data |
+| **[Pointer](#pointers)** | `*User` | Reference values |
 
 ## Arrays
 
