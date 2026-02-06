@@ -49,7 +49,7 @@ if exists {
 }
 
 // Iterate in sorted order
-users.Iterate("", "", func(key string, value interface{}) bool {
+users.Iterate("", "", func(key string, value any) bool {
     user := value.(User)
     println(key, user.Score)
     return false // continue iterating
@@ -63,8 +63,7 @@ users.Iterate("", "", func(key string, value interface{}) bool {
 Key-value stores with O(1) lookup.
 
 ```go
-var scores map[string]int
-scores = make(map[string]int)
+scores := make(map[string]int)
 
 // Set
 scores["alice"] = 100
@@ -113,9 +112,9 @@ a slice of another realm are *references*, not values.
 
 To copy a slice, use append on a nil slice:
 
-...go
+```go
 users = append([]string(nil), otherSlice...)
-...
+```
 
 ## Structs
 
@@ -170,7 +169,7 @@ This is a key feature of Gno's [automatic state management](./gno-memory-model.m
 var (
     counter int              // Single value
     users   []string         // Entire slice
-    scores  map[string]int   // Entire map  
+    scores  map[string]int   // Entire map
     tree    avl.Tree         // Only modified nodes
 )
 ```

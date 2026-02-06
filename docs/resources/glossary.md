@@ -29,8 +29,8 @@ networks.
 See [Third-party wallets](../users/third-party-wallets.md).
 
 ### AVL Tree
-A data structure for storing key-value pairs in Gno. gas-efficient and particularly 
-suited for large or growing datasets. 
+A data structure for storing key-value pairs in Gno. It is gas-efficient
+and particularly suited for large or growing datasets. 
 Deployed under `gno.land/p/nt/avl`.
 
 See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for usage guidance 
