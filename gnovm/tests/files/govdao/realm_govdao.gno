@@ -89,6 +89,8 @@ func Render() {
 // Output:
 // true
 // # GovDAO
+// [> View Activity <](/r/gov/dao:activity)
+//
 // ## Members
 // [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
 // ## Proposals
