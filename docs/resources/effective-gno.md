@@ -665,6 +665,7 @@ var users avl.Tree
 users.Set("bob", &User{})
 users.Set("alice", &User{})
 users.Set("charlie", &User{})
+
 // Iterate all users (sorted alphabetically)
 users.Iterate("", "", func(name string, value any) bool {
 	// Order: alice, bob, charlie (sorted by key)
