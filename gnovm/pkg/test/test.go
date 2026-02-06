@@ -16,7 +16,9 @@ import (
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/instrumentation"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/gnovm/pkg/profiler"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/tests/stdlibs/chain/runtime"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -116,6 +118,204 @@ func (tp *testParams) SetStrings(key string, val []string)              { /* noo
 func (tp *testParams) UpdateStrings(key string, val []string, add bool) { /* noop */ }
 
 // ----------------------------------------
+// Profiling configuration
+
+func getProfileFormat(format string) profiler.ProfileFormat {
+	switch format {
+	case "toplist":
+		return profiler.FormatTopList
+	case "calltree":
+		return profiler.FormatCallTree
+	case "json":
+		return profiler.FormatJSON
+	default:
+		return profiler.FormatText
+	}
+}
+
+// ProfileConfig stores profiling options and runtime state.
+type ProfileConfig struct {
+	Enabled       bool
+	OutputFile    string
+	PrintToStdout bool
+	Format        string
+	Type          string
+	SampleRate    int
+	Interactive   bool
+	LineLevel     bool
+
+	profiler    *profiler.Profiler
+	sink        instrumentation.Sink
+	options     profiler.Options
+	lastProfile *profiler.Profile
+}
+
+// IsEnabled reports whether profiling is active.
+func (pc *ProfileConfig) IsEnabled() bool {
+	return pc != nil && pc.Enabled
+}
+
+// GetFormat returns the requested output format.
+func (pc *ProfileConfig) GetFormat() profiler.ProfileFormat {
+	if pc == nil {
+		return profiler.FormatText
+	}
+	return getProfileFormat(pc.Format)
+}
+
+// GetProfileType resolves the profile type string.
+func (pc *ProfileConfig) GetProfileType() profiler.ProfileType {
+	if pc == nil {
+		return profiler.ProfileCPU
+	}
+	switch pc.Type {
+	case "memory":
+		return profiler.ProfileMemory
+	case "gas":
+		return profiler.ProfileGas
+	default:
+		return profiler.ProfileCPU
+	}
+}
+
+// GetSampleRate returns the sampling interval.
+func (pc *ProfileConfig) GetSampleRate() int {
+	if pc == nil {
+		return 0
+	}
+	if pc.SampleRate > 0 {
+		return pc.SampleRate
+	}
+	if pc.GetProfileType() == profiler.ProfileMemory {
+		return 1
+	}
+	return 100
+}
+
+// LastProfile returns the most recently collected profile snapshot.
+func (pc *ProfileConfig) LastProfile() *profiler.Profile {
+	if pc == nil {
+		return nil
+	}
+	return pc.lastProfile
+}
+
+// Start activates profiling if it isn't already running.
+// Returns true when this call initialized profiling and should be paired with Stop.
+func (pc *ProfileConfig) Start() (bool, error) {
+	if pc == nil || !pc.IsEnabled() {
+		return false, nil
+	}
+	if pc.profiler != nil {
+		return false, nil
+	}
+	if err := pc.initialize(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// Stop finalizes profiling if it's currently running.
+func (pc *ProfileConfig) Stop(opts *TestOptions, writer ProfileWriter) error {
+	if pc == nil || pc.profiler == nil {
+		return nil
+	}
+	return pc.finalize(opts, writer)
+}
+
+func (pc *ProfileConfig) needsAllocator() bool {
+	return pc != nil && pc.GetProfileType() == profiler.ProfileMemory
+}
+
+func (pc *ProfileConfig) needsGasMeter() bool {
+	return pc != nil && pc.GetProfileType() == profiler.ProfileGas
+}
+
+func (pc *ProfileConfig) initialize() error {
+	if pc == nil || !pc.IsEnabled() {
+		return nil
+	}
+	opts := profiler.Options{
+		Type:       pc.GetProfileType(),
+		SampleRate: pc.GetSampleRate(),
+	}
+	prof := profiler.NewProfiler(opts.Type, opts.SampleRate)
+	if pc.LineLevel || pc.Interactive {
+		prof.EnableLineProfiling()
+	}
+	prof.StartProfiling(nil, opts)
+	pc.profiler = prof
+	pc.options = opts
+	pc.sink = profiler.NewSinkAdapter(prof, opts)
+	pc.lastProfile = nil
+	return nil
+}
+
+func (pc *ProfileConfig) finalize(opts *TestOptions, writer ProfileWriter) error {
+	if pc == nil || pc.profiler == nil {
+		return nil
+	}
+	profile := pc.profiler.StopProfiling()
+	pc.profiler = nil
+	pc.sink = nil
+	pc.lastProfile = profile
+	if profile == nil {
+		return nil
+	}
+	if writer == nil {
+		writer = &DefaultProfileWriter{}
+	}
+	if err := writer.WriteProfile(profile, pc, opts.Output, opts.Error, opts.TestStore); err != nil {
+		fmt.Fprintf(opts.Error, "Profiling error: %v\n", err)
+		return err
+	}
+	return nil
+}
+
+func (pc *ProfileConfig) attachMachine(m *gno.Machine) {
+	if pc == nil || !pc.IsEnabled() || pc.sink == nil || m == nil {
+		return
+	}
+	m.StartProfilingWithSink(pc.sink, pc.options)
+	if pc.needsGasMeter() && m.GasMeter == nil {
+		m.GasMeter = storetypes.NewInfiniteGasMeter()
+	}
+}
+
+// ProfileWriter writes profiling results to an output sink.
+type ProfileWriter interface {
+	WriteProfile(profile *profiler.Profile, pc *ProfileConfig, output, errOutput io.Writer, testStore gno.Store) error
+}
+
+// DefaultProfileWriter implements the production writer.
+type DefaultProfileWriter struct{}
+
+func (w *DefaultProfileWriter) WriteProfile(profile *profiler.Profile, pc *ProfileConfig, output, errOutput io.Writer, testStore gno.Store) error {
+	if profile == nil || pc == nil {
+		return nil
+	}
+
+	switch {
+	case pc.PrintToStdout:
+		fmt.Fprintln(output, "\n=== PROFILING RESULTS ===")
+		if err := profile.WriteFormat(output, pc.GetFormat()); err != nil {
+			return fmt.Errorf("failed to write profile: %w", err)
+		}
+	default:
+		file, err := os.Create(pc.OutputFile)
+		if err != nil {
+			return fmt.Errorf("failed to create profile output file: %w", err)
+		}
+		defer file.Close()
+		if err := profile.WriteFormat(file, pc.GetFormat()); err != nil {
+			return fmt.Errorf("failed to write profile: %w", err)
+		}
+		fmt.Fprintf(errOutput, "Profile written to %s\n", pc.OutputFile)
+	}
+	return nil
+}
+
+// ----------------------------------------
 // main test function
 
 // TestOptions is a list of options that must be passed to [Test].
@@ -147,6 +347,8 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Profile configuration
+	Profile *ProfileConfig
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -227,6 +429,23 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.errW = opts.Error
 
 	var errs error
+	profileStarted := false
+
+	// Initialize profiling if enabled
+	if opts.Profile != nil {
+		var err error
+		profileStarted, err = opts.Profile.Start()
+		if err != nil {
+			return fmt.Errorf("failed to initialize profiling: %w", err)
+		}
+		if profileStarted {
+			defer func() {
+				if err := opts.Profile.Stop(opts, &DefaultProfileWriter{}); err != nil {
+					errs = multierr.Append(errs, err)
+				}
+			}()
+		}
+	}
 
 	// Create a common tcw/tgs for both the `pkg` tests as well as the
 	// `pkg_test` tests. This allows us to "export" symbols from the pkg
@@ -372,7 +591,7 @@ func (opts *TestOptions) runTestFiles(
 	tests := loadTestFuncs(mpkg.Name, files)
 
 	var alloc *gno.Allocator
-	if opts.Metrics {
+	if opts.Metrics || (opts.Profile != nil && opts.Profile.needsAllocator()) {
 		alloc = gno.NewAllocator(math.MaxInt64)
 	}
 	// reset store ops, if any - we only need them for some filetests.
@@ -381,6 +600,9 @@ func (opts *TestOptions) runTestFiles(
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, nil)
 	m.Alloc = alloc
+	if opts.Profile != nil {
+		opts.Profile.attachMachine(m)
+	}
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
 	} else {
@@ -402,6 +624,9 @@ func (opts *TestOptions) runTestFiles(
 		// - Wrap here.
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
 		m.Alloc = alloc.Reset()
+		if opts.Profile != nil {
+			opts.Profile.attachMachine(m)
+		}
 		m.SetActivePackage(pv)
 
 		testingpv := m.Store.GetPackage("testing", false)
@@ -613,6 +838,32 @@ func parseMemPackageTests(mpkg *std.MemPackage) (tset, itset *gno.FileSet, itfil
 		panic(errs)
 	}
 	return
+}
+
+type storeAdapter struct {
+	store gno.Store
+}
+
+// NewStoreAdapter wraps a gno.Store so profiler can read source files.
+func NewStoreAdapter(store gno.Store) profiler.Store {
+	if store == nil {
+		return nil
+	}
+	return storeAdapter{store: store}
+}
+
+func (sa storeAdapter) GetMemFile(pkgPath, name string) *profiler.MemFile {
+	if sa.store == nil {
+		return nil
+	}
+	mem := sa.store.GetMemFile(pkgPath, name)
+	if mem == nil {
+		return nil
+	}
+	return &profiler.MemFile{
+		Name: mem.Name,
+		Body: mem.Body,
+	}
 }
 
 func shouldRun(filter filterMatch, path string) bool {
