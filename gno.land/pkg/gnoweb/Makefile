@@ -2,7 +2,6 @@
 DEV_REMOTE ?= 127.0.0.1:26657
 CHAIN_ID ?=
 PUBLIC_DIR ?= public
-# Optional: static home, e.g. ALIASES='/=static:../../../misc/deployments/home-alias/home.default.md'. When empty, no -aliases is passed.
 ALIASES ?=
 
 # tools

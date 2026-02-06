@@ -16,7 +16,9 @@ the foundations of a fairer and freer world, join us today.
 
 ## [Boards](/r/gnoland/boards2/v1:OpenDiscussions) - On-chain forum for the Gno.land community
 
-**Discuss, share, and connect**. Open Boards is a fully on-chain social forum: create boards, post threads, reply, all stored on Gno.land. A ready-to-use dapp to experience decentralized social in action.
+**Post, discuss, and create your content community**: Boards is a fully on-chain social forum to create Boards topics, post threads, comment and reply. A plug-and-deploy DAO lets communities manage content, permissions and moderation their way.
+
+Explore this ready-to-use Gno dApp, and experience decentralized social media in action.
 
 **[Open Boards](/r/gnoland/boards2/v1:OpenDiscussions)**
 
