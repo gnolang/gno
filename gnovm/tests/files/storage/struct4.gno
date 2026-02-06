@@ -70,6 +70,32 @@ func main() {
 //              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:11",
 //              "RefCount": "1"
 //          }
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:6](135)=
+//     @@ -2,7 +2,7 @@
+//          "ObjectInfo": {
+//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:6",
+//              "LastObjectSize": "254",
+//     -        "ModTime": "0",
+//     +        "ModTime": "12",
+//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2",
+//              "RefCount": "1"
+//          },
+//     @@ -13,6 +13,15 @@
+//                      "@type": "/gno.RefType",
+//                      "ID": "gno.land/r/storage.Foo"
+//                  }
+//     +        },
+//     +        "V": {
+//     +            "@type": "/gno.PointerValue",
+//     +            "Base": {
+//     +                "@type": "/gno.RefValue",
+//     +                "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:11"
+//     +            },
+//     +            "Index": "0",
+//     +            "TV": null
+//              }
+//          }
+//      }
 // u[34f997a9ca158338c03cfc00686d77220a6cf62f:11](5)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
@@ -89,33 +115,6 @@ func main() {
 //                  "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:12"
 //              }
 //          }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:6](135)=
-//     @@ -2,7 +2,7 @@
-//          "ObjectInfo": {
-//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:6",
-//              "LastObjectSize": "254",
-//     -        "ModTime": "0",
-//     +        "ModTime": "12",
-//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2",
-//              "RefCount": "1"
-//          },
-//     @@ -13,6 +13,16 @@
-//                      "@type": "/gno.RefType",
-//                      "ID": "gno.land/r/storage.Foo"
-//                  }
-//     +        },
-//     +        "V": {
-//     +            "@type": "/gno.PointerValue",
-//     +            "Base": {
-//     +                "@type": "/gno.RefValue",
-//     +                "Hash": "dfbf2681f241a888fa3f782d8a6d8a42607ff63d",
-//     +                "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:11"
-//     +            },
-//     +            "Index": "0",
-//     +            "TV": null
-//              }
-//          }
-//      }
 // u[34f997a9ca158338c03cfc00686d77220a6cf62f:3](0)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
