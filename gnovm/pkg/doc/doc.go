@@ -250,6 +250,7 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool, queryCl
 		if !parsed.pkgAmbiguous {
 			return nil, fmt.Errorf("commands/doc: package not found: %q", parsed.pkg)
 		}
+		log.Printf("warning: could not find ambiguous package path: %q. Trying \".\"", parsed.pkg)
 		parsed = docArgs{pkg: ".", sym: parsed.pkg, acc: parsed.sym}
 		return resolveDocumentable(dirs, parsed, unexported, queryClient)
 	}
