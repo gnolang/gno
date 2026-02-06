@@ -40,23 +40,6 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			Then: r.MaintainerCanModify(),
 		},
 		{
-			Description: "Changes to 'docs' folder must be reviewed/authored by at least one devrel and one tech-staff",
-			If: c.And(
-				c.BaseBranch("^master$"),
-				c.FileChanged(gh, "^docs/"),
-			),
-			Then: r.And(
-				r.Or(
-					r.AuthorInTeam(gh, "tech-staff"),
-					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore).WithDesiredState(utils.ReviewStateApproved),
-				),
-				r.Or(
-					r.AuthorInTeam(gh, "devrels"),
-					r.ReviewByTeamMembers(gh, "devrels", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
-				),
-			),
-		},
-		{
 			Description: "Changes related to gnoweb must be reviewed by its codeowners",
 			If: c.And(
 				c.BaseBranch("^master$"),

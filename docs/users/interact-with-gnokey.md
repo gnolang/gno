@@ -149,7 +149,7 @@ correct flags for the `addpkg` subcommand.
 
 The `addpkg` subcommand uses the following flags and arguments:
 - `-pkgpath` - on-chain path where your code will be uploaded to
-- `-pkgdir` - local path where your is located
+- `-pkgdir` - local path where your code is located
 - `-broadcast` - enables broadcasting the transaction to the chain
 - `-send` - Amount of GNOT to send to the realm with the transaction (optional)
 - `-max-deposit` - Maximum GNOT to lock for storage deposit (optional)
@@ -1372,7 +1372,7 @@ Sample Output:
 storage: 5025, deposit: 502500
 ```
 
-`storage` represents total bytes used, while `deposit` is the total GNOT locked for that by that realm.
+`storage` represents total bytes used, while `deposit` is the total GNOT locked by that realm.
 
 The storage price can be also calculated directly using this output
 (e.g., deposit / storage, `502500/5025 = 100ugnot`) instead of querying the price
