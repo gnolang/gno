@@ -920,8 +920,7 @@
 		top: var(--g-space-14);
 		padding-block-start: var(--g-space-2);
 
-		/* Hide sidebar if it has no children */
-		&:has(ul:empty) {
+		&:has(.inner):not(:has(nav li)) {
 			display: none;
 		}
 
@@ -1096,8 +1095,6 @@ pre.chroma-chroma {
 	}
 
 	a {
-		word-break: break-all;
-
 		> span {
 			display: -webkit-box;
 			-webkit-line-clamp: 2;
@@ -1111,6 +1108,10 @@ pre.chroma-chroma {
 			color: var(--s-color-text-link-hover);
 		}
 	}
+}
+
+main.dev-mode .b-toc a {
+	word-break: break-all;
 }
 
 .b-source-toc {
@@ -1977,7 +1978,7 @@ pre.chroma-chroma {
 		display: block;
 		border-radius: var(--s-rounded);
 		border: var(--s-border-secondary);
-		margin-block: var(--g-space-12);
+		margin-block: var(--g-space-6);
 
 		input[type="submit"] {
 			background-color: var(--s-color-bg-brand-default);
@@ -2112,6 +2113,20 @@ pre.chroma-chroma {
 				border-color: var(--s-color-border-secondary);
 			}
 		}
+
+		&:user-invalid {
+			border-color: var(--s-color-border-error);
+
+			&:focus {
+				border-color: var(--s-color-border-error);
+			}
+		}
+
+		@supports not selector(:user-invalid) {
+			&:invalid:not(:placeholder-shown):not(:focus) {
+				border-color: var(--s-color-border-error);
+			}
+		}
 	}
 
 	.gno-form_input input:focus,
@@ -2137,7 +2152,7 @@ pre.chroma-chroma {
 		font-weight: var(--g-font-semibold);
 	}
 
-	.gno-form_readonly-badge {
+	.gno-form_info-badge {
 		font-size: var(--g-font-size-50);
 		color: var(--s-color-text-tertiary);
 		font-weight: var(--g-font-normal);
@@ -2197,6 +2212,17 @@ pre.chroma-chroma {
 						opacity: var(--g-opacity-50);
 						cursor: not-allowed;
 						text-decoration: none;
+					}
+				}
+
+				/* Validation states for radio/checkbox */
+				&:user-invalid {
+					border-color: var(--s-color-border-error);
+				}
+
+				@supports not selector(:user-invalid) {
+					&:invalid {
+						border-color: var(--s-color-border-error);
 					}
 				}
 			}
@@ -2349,7 +2375,7 @@ pre.chroma-chroma {
 		}
 
 		&.gno-alert-caution {
-			border-inline-start-color: var(--s-color-border-caution);
+			border-inline-start-color: var(--s-color-border-error);
 			background-color: color-mix(
 				in srgb,
 				var(--s-color-bg-caution-default) 10%,

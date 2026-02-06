@@ -32,7 +32,7 @@ func main() {
 
 	// Render content must contain the releted message instead of reply's body
 	content := boards2.Render("test-board/1/2")
-	println(strings.Contains(content, "\n> This reply has been deleted\n"))
+	println(strings.Contains(content, "\n> *This reply has been deleted*\n"))
 	println(strings.Contains(content, "\n> > Child reply\n"))
 }
 
