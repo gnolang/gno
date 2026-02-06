@@ -18,7 +18,7 @@ func main() {
 }
 
 // Error:
-// main/cmp_struct_g.gno:17:25-31: cannot use main.Person as main.Dog without explicit conversion
+// main/cmp_struct_g.gno:17:25-31: invalid operation: (mismatched types main.Person and main.Dog)
 
 // TypeCheckError:
 // main/cmp_struct_g.gno:17:30: invalid operation: a == b (mismatched types Person and Dog)
