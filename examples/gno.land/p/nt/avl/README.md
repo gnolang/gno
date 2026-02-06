@@ -43,6 +43,7 @@ In Gno, the choice between `avl.Tree` and `map` is fundamentally about how data 
 Consider a realm with 1,000 key-value pairs. Here's what happens when you access a single value:
 
 **Map storage:**
+
 ```
 Object :4 = map{
   ("0" string):("123" string),
@@ -52,10 +53,11 @@ Object :4 = map{
 }
 ```
 - Accessing `map["100"]` loads object `:4` (contains **all 1,000 pairs**)
-- Gas cost: proportional to total map size (1,000 entries)
+- Gas cost is proportional to total map size (1,000 entries)
 - **1 object fetch, but massive data load**
 
 **AVL tree storage:**
+
 ```
 Object :6 = Node{key="4", height=10, size=1000, left=:7, right=...}
 Object :9 = Node{key="2", height=9, size=334, left=:10, right=...}
@@ -68,7 +70,7 @@ Object :31 = Node{key="101", height=1, size=2, left=:32, right=...}
 Object :33 = Node{key="100", value="123", height=0, size=1}
 ```
 - Accessing `tree.Get("100")` loads ~10 objects (the search path)
-- Gas cost: proportional to log(n) ≈ 10 nodes
+- Gas cost is proportional to log2(n) ≈ 10 nodes
 - **10 object fetches, each containing only a single node**
 
 ## Further Reading
