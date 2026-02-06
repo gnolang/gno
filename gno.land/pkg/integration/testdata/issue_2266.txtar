@@ -6,9 +6,9 @@ loadpkg gno.land/r/demo/realm $WORK
 gnoland start
 
 
-gnokey maketx call -pkgpath gno.land/r/demo/realm --func Fill --args 0 --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
-gnokey maketx call -pkgpath gno.land/r/demo/realm --func Fill --args 1 --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
-gnokey maketx call -pkgpath gno.land/r/demo/realm --func UnFill --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/realm --func Fill --args 0 --gas-fee 1000000ugnot --gas-wanted 2000000 --chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/realm --func Fill --args 1 --gas-fee 1000000ugnot --gas-wanted 2000000 --chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/realm --func UnFill --gas-fee 1000000ugnot --gas-wanted 2000000 --chainid=tendermint_test test1
 
 
 -- realm.gno --

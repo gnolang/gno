@@ -4,11 +4,11 @@ loadpkg $WORK/hello
 gnoland start
 
 ## deploy realm should succeed
-gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
 stdout OK!
 
 ## deploy realm should fail, because we import incorrectly.
-! gnokey maketx addpkg -pkgdir $WORK/bye -pkgpath gno.land/r/$test1_user_addr/bye -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK/bye -pkgpath gno.land/r/$test1_user_addr/bye -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
 stderr 'match its expected identifier'
 
 -- hello/gnomod.toml --

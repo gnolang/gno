@@ -1,7 +1,7 @@
 # start a new node
 gnoland start
 
-! gnokey maketx run -max-deposit 2000000000ugnot -gas-fee 10000000ugnot -gas-wanted 2900000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
+! gnokey maketx run -max-deposit 2000000000ugnot -gas-fee 10000000ugnot -gas-wanted 2900000000 -chainid=tendermint_test test1 $WORK/script/script.gno
 stderr 'allocation limit exceeded'
 
 -- script/script.gno --
