@@ -33,6 +33,7 @@
         "items": [
           "resources/effective-gno",
           "resources/gno-packages",
+          "resources/gno-data-structures",
           "resources/gnoland-networks",
           "resources/users-and-teams",
           "resources/gas-fees",
