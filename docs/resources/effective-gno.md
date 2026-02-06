@@ -635,7 +635,7 @@ This makes `avl.Tree` far more gas-efficient for large or growing datasets.
 **Key differences**:
 
 - **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
-- **Maps**: O(1) lookup, type safety, iterate in **insertion order**.
+- **Maps**: O(1) lookup, type safety, iterate in **unspecified order**.
 
 **Use `avl.Tree` when you need**:
 
