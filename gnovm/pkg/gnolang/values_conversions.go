@@ -1167,23 +1167,26 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 						"cannot convert slice with length %d to pointer to array with length %d",
 						sv.Length, arrayLen))
 				}
-				// We use SliceValue as TV.V (with ArrayType as TV.T) to preserve
-				// the offset for correct element access. GetPointerAtIndex in
-				// values.go handles this case.
-				// TODO: should we instead modify Deref to use the Index field?
-				arrayView := &SliceValue{
-					Base:   sv.Base,
-					Offset: sv.Offset,
-					Length: arrayLen,
-					Maxcap: arrayLen,
+				baseAV := sv.GetBase(store)
+				var av *ArrayValue
+				if arrayLen == 0 {
+					av = &ArrayValue{}
+				} else if baseAV.Data != nil {
+					av = &ArrayValue{
+						Data: baseAV.Data[sv.Offset : sv.Offset+arrayLen],
+					}
+				} else {
+					av = &ArrayValue{
+						List: baseAV.List[sv.Offset : sv.Offset+arrayLen],
+					}
 				}
 				tv.T = t
 				tv.V = PointerValue{
 					TV: &TypedValue{
 						T: at,
-						V: arrayView,
+						V: av,
 					},
-					Base:  sv.GetBase(store),
+					Base:  baseAV,
 					Index: sv.Offset,
 				}
 			default:

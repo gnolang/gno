@@ -1987,16 +1987,9 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 			"primitive type %s cannot be indexed",
 			tv.T.String()))
 	case *ArrayType:
+		av := tv.V.(*ArrayValue)
 		ii := int(iv.ConvertGetInt())
-		switch v := tv.V.(type) {
-		case *ArrayValue:
-			return v.GetPointerAtIndexInt2(store, ii, bt.Elt)
-		case *SliceValue:
-			// Slice-to-array-pointer conversion: value is SliceValue with ArrayType.
-			return v.GetPointerAtIndexInt2(store, ii, bt.Elt)
-		default:
-			panic(fmt.Sprintf("unexpected value type %T for ArrayType", tv.V))
-		}
+		return av.GetPointerAtIndexInt2(store, ii, bt.Elt)
 	case *SliceType:
 		if tv.V == nil {
 			panic("nil slice index (out of bounds)")
@@ -2736,8 +2729,18 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			switch cbv := base.(type) {
 			case *ArrayValue:
 				et := baseOf(tv.T).(*PointerType).Elt
-				epv := cbv.GetPointerAtIndexInt2(store, cv.Index, et)
-				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
+				if at, ok := et.(*ArrayType); ok && cbv.GetLength() > at.Len {
+					var viewAV *ArrayValue
+					if cbv.Data != nil {
+						viewAV = &ArrayValue{Data: cbv.Data[cv.Index : cv.Index+at.Len]}
+					} else {
+						viewAV = &ArrayValue{List: cbv.List[cv.Index : cv.Index+at.Len]}
+					}
+					cv.TV = &TypedValue{T: at, V: viewAV}
+				} else {
+					epv := cbv.GetPointerAtIndexInt2(store, cv.Index, et)
+					cv.TV = epv.TV // TODO optimize? (epv.* ignored)
+				}
 			case *StructValue:
 				fpv := cbv.GetPointerToInt(store, cv.Index)
 				cv.TV = fpv.TV // TODO optimize?
