@@ -69,7 +69,7 @@ func execCLASign(cfg *CLASignCfg, cmdIO commands.IO) error {
 		return errors.New("--remote is required (identifies which chain this CLA is for)")
 	}
 
-	// GetOB CLA URL - either from flag or by querying chain
+	// Get CLA URL - either from flag or by querying chain
 	claURL := cfg.CLAUrl
 	if claURL == "" {
 		url, err := queryCLADocURL(cfg.RootCfg.Remote)
