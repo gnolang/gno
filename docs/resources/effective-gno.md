@@ -702,9 +702,6 @@ func AddUser(id, name string) {
 
 For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/README.md).
 
-In the future, we plan to add built-in "map" support that will match the
-efficiency of an `avl.Tree` while offering a more intuitive API.
-
 ### Construct "safe" objects
 
 A safe object in Gno is an object that is designed to be tamper-proof and
