@@ -3,42 +3,30 @@ package names
 import (
 	"testing"
 
-	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
+	"gno.land/r/sys/users"
 )
 
 var alice = testutils.TestAddress("alice")
 
-func TestDefaultVerifier(t *testing.T) {
-	// Disabled: any case is true
-	uassert.True(t, verifier(false, alice, alice.String()))
-	uassert.True(t, verifier(false, "", alice.String()))
-	uassert.True(t, verifier(false, alice, "somerandomusername"))
+func TestIsAuthorizedAddressForNamespace(t *testing.T) {
+	// username + addr mismatch
+	uassert.False(t, IsAuthorizedAddressForNamespace(alice, "notregistered"))
+	// PA namespace check
+	uassert.True(t, IsAuthorizedAddressForNamespace(alice, alice.String()))
 
-	// Enabled: PA namespace check
-	uassert.True(t, verifier(true, alice, alice.String()))
+	// Empty name/address
+	uassert.False(t, IsAuthorizedAddressForNamespace(address(""), ""))
 
-	// Enabled: non-PA namespaces denied
-	uassert.False(t, verifier(true, alice, "notregistered"))
-	uassert.False(t, verifier(true, alice, "alice"))
+	// Register proper username
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
+	urequire.NoError(t, users.RegisterUser(cross, "alice", alice))
 
-	// Enabled: empty name/address
-	uassert.False(t, verifier(true, address(""), ""))
-	uassert.False(t, verifier(true, alice, ""))
-	uassert.False(t, verifier(true, address(""), "something"))
-}
+	// Proper namespace
+	uassert.True(t, IsAuthorizedAddressForNamespace(alice, "alice"))
 
-func TestEnable(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p"))
-
-	uassert.NotPanics(t, func() {
-		Enable(cross)
-	})
-
-	// Confirm enable drops ownership
-	uassert.Equal(t, Ownable.Owner().String(), "")
-	uassert.AbortsWithMessage(t, ownable.ErrUnauthorized.Error(), func() {
-		Enable(cross)
-	})
+	// Wrong address for namespace
+	uassert.False(t, IsAuthorizedAddressForNamespace(testutils.TestAddress("bob"), "alice"))
 }

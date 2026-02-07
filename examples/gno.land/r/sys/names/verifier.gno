@@ -1,46 +1,43 @@
-// Package names enforces namespace permissions for package deployment.
-// Only address-prefix (PA) namespaces are allowed.
+// Package names provides functionality for checking of package deployments
+// by users registered in r/sys/users are done to proper namespaces.
 package names
 
-import "gno.land/p/nt/ownable/v0"
+import (
+	"strings"
 
-var (
-	Ownable = ownable.NewWithAddressByPrevious("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p") // genesis deployer — dropped in genesis via Enable.
-	enabled = false
+	"gno.land/r/sys/users"
 )
 
-// IsAuthorizedAddressForNamespace checks if the given address can deploy to the given namespace.
-// Only the address's own PA namespace is permitted.
+// IsAuthorizedAddressForNamespace ensures that the given address has ownership of the given name.
+// A user's name found in r/sys/users is equivalent to their namespace.
+// Note: Whether namespace enforcement is enabled or not is controlled by the
+// VM param `sysnames_pkgpath`. The keeper only calls this function when enforcement is on.
 func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool {
-	return verifier(enabled, address_XXX, namespace)
+	return verifier(address_XXX, namespace)
 }
 
-// Enable enables the namespace check and drops centralized ownership of this realm.
-// The namespace check is disabled initially to ease txtar and other testing contexts,
-// but this function is meant to be called in the genesis of a chain.
-func Enable(cur realm) {
-	if err := Ownable.DropOwnership(); err != nil {
-		panic(err)
-	}
-	enabled = true
-}
-
-func IsEnabled() bool {
-	return enabled
-}
-
-// verifier checks namespace deployment permissions.
-// An address matching the namespace is the only allowed case.
-func verifier(isEnabled bool, address_XXX address, namespace string) bool {
-	if !isEnabled {
-		return true // only in pre-genesis cases
-	}
-
-	if namespace == "" || !address_XXX.IsValid() {
+// verifier checks the store to see that the
+// user has properly registered a given name/namespace.
+// This function considers as valid an `address` that matches the `namespace` (PA namespaces)
+func verifier(address_XXX address, namespace string) bool {
+	if strings.TrimSpace(address_XXX.String()) == "" || strings.TrimSpace(namespace) == "" {
 		return false
 	}
 
 	// Allow user with their own address as namespace
+	// This enables pseudo-anon namespaces
 	// ie gno.land/{p,r}/{ADDRESS}/**
-	return address_XXX.String() == namespace
+	if address_XXX.String() == namespace {
+		return true
+	}
+
+	// Can be a registered namespace or an alias
+	userData, _ := users.ResolveName(namespace)
+	if userData == nil || userData.IsDeleted() {
+		return false
+	}
+
+	/// XXX: add check for r/sys/teams down the line
+
+	return userData.Addr() == address_XXX
 }

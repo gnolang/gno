@@ -12,14 +12,14 @@ import (
 // TestParamsString verifies the output of the String method.
 func TestParamsString(t *testing.T) {
 	p := Params{
-		SysNamesPkgPath: "gno.land/r/sys/names", // XXX what is this really for now
+		SysNamesPkgPath: "gno.land/r/sys/names",
 		ChainDomain:     "example.com",
 	}
 	result := p.String()
 
 	// Construct the expected string.
 	expected := "Params: \n" +
-		fmt.Sprintf("SysUsersPkgPath: %q\n", p.SysNamesPkgPath) +
+		fmt.Sprintf("SysNamesPkgPath: %q\n", p.SysNamesPkgPath) +
 		fmt.Sprintf("SysCLAPkgPath: %q\n", p.SysCLAPkgPath) +
 		fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain) +
 		fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit) +
