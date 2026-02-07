@@ -385,9 +385,20 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	}
 	namespace := match[1]
 
-	// if `sysUsersPkg` does not exist -> skip validation.
+	// if `usersPkg` does not exist -> skip validation.
 	usersPkg := store.GetPackage(sysNamesPkg, false)
 	if usersPkg == nil {
+		return nil
+	}
+
+	// If namespace enforcement is disabled, allow all deployments.
+	if !vm.getSysNamesEnabledParam(ctx) {
+		return nil
+	}
+
+	// During genesis (block height 0), skip namespace enforcement.
+	// Genesis packages are trusted and deployed by chain operators.
+	if ctx.BlockHeight() == 0 {
 		return nil
 	}
 
@@ -538,9 +549,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
 
-	// TODO: ACLs.
-	// - if r/system/names does not exists -> skip validation.
-	// - loads r/system/names data state.
+	// Check namespace permission via r/sys/names.
 	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
 		return err
 	}
