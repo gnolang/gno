@@ -421,6 +421,11 @@ func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflec
 	// NOTE: For compatibility with other languages,
 	// nil-pointer interface values are forbidden.
 	if len(value) == 0 {
+		// Verify that the decoded concrete type is assignable to the target interface.
+		if !irvSet.Type().AssignableTo(rv.Type()) {
+			err = fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
+			return
+		}
 		rv.Set(irvSet)
 		return
 	}
@@ -469,6 +474,12 @@ func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflec
 	// prefixed, due to the type of field 2, so bareValue is false.
 	_n, err := cdc.decodeReflectBinary(value, cinfo, crv, fopts, bareValue, 0)
 	if slide(&value, &n, _n) && err != nil {
+		// Verify that the decoded concrete type is assignable to the target interface.
+		// This prevents panics when a registered type doesn't implement the target interface.
+		if !irvSet.Type().AssignableTo(rv.Type()) {
+			err = fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
+			return
+		}
 		rv.Set(irvSet) // Helps with debugging
 		return
 	}
@@ -482,6 +493,12 @@ func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflec
 	// We need to set here, for when !PointerPreferred and the type
 	// is say, an array of bytes (e.g. [32]byte), then we must call
 	// rv.Set() *after* the value was acquired.
+	// Verify that the decoded concrete type is assignable to the target interface.
+	// This prevents panics when a registered type doesn't implement the target interface.
+	if !irvSet.Type().AssignableTo(rv.Type()) {
+		err = fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
+		return
+	}
 	// NOTE: rv.Set() should succeed because it was validated
 	// already during Register[Interface/Concrete].
 	rv.Set(irvSet)

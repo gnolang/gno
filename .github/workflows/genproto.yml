@@ -1,0 +1,45 @@
+name: Amino genproto Checker
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**/*.go'
+      - 'misc/genproto/**'
+  pull_request:
+    paths:
+      - '**/*.go'
+      - 'misc/genproto/**'
+  workflow_dispatch:
+    inputs:
+      go-version:
+        description: "Go version to use"
+        required: false
+        type: string
+        default: "1.23.x"
+
+jobs:
+  main:
+    name: Ensure .proto files are updated
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version || '1.23.x' }}
+
+      - name: Install protoc
+        run: sudo apt install -y libprotobuf-dev protobuf-compiler
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install devdeps
+        run: |
+          make -C misc/devdeps install
+
+      - name: Check .proto files are up to date
+        run: |
+          make -C misc/genproto
+          git diff --text --exit-code || (echo "Some .proto files are not updated, please run 'make -C misc/genproto'." && exit 1)

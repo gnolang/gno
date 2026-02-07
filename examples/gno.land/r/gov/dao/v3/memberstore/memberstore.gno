@@ -12,9 +12,11 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-var members MembersByTier
-var Tiers TiersByName
-var router *mux.Router
+var (
+	members MembersByTier
+	Tiers   TiersByName
+	router  *mux.Router
+)
 
 const (
 	T1 = "T1"
@@ -86,7 +88,7 @@ func init() {
 			t1p := t1.BasePower * t1ms
 			t3p := t3.BasePower * t3ms
 
-			//capped to 1/3 of tier 1
+			// capped to 1/3 of tier 1
 			t1ptreshold := t1p * (1.0 / 3.0)
 			if t3p > t1ptreshold {
 				return t1ptreshold / t3ms
