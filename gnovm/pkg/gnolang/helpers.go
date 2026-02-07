@@ -651,10 +651,10 @@ func ImportD(name any, path string) *ImportDecl {
 
 func For(init, cond, post any, b ...Stmt) *ForStmt {
 	return &ForStmt{
-		Init: S(init).(SimpleStmt),
-		Cond: X(cond),
-		Post: S(post).(SimpleStmt),
-		Body: b,
+		Init:      S(init).(SimpleStmt),
+		Cond:      X(cond),
+		Post:      S(post).(SimpleStmt),
+		BodyBlock: &BlockStmt{Body: b},
 	}
 }
 
@@ -896,4 +896,40 @@ func chopRight(in string) (left string, tok rune, right string) {
 		right = string(ss.rnz[lastOut+2 : len(in)-2])
 		return
 	}
+}
+
+// Stmt injections.
+type StmtInjection struct {
+	stmt Stmt
+	idx  int // position to insert
+}
+
+func addStmtInjectionAttr(bn BlockNode, si *StmtInjection) {
+	val := bn.GetAttribute(ATTR_CONTINUE_INSERT)
+	sis, _ := val.([]*StmtInjection)
+	if slices.Contains(sis, si) {
+		return
+	}
+	bn.SetAttribute(ATTR_CONTINUE_INSERT, append(sis, si))
+}
+
+func getStmtInjectionAttr(bn BlockNode) []*StmtInjection {
+	sis, _ := bn.GetAttribute(ATTR_CONTINUE_INSERT).([]*StmtInjection)
+	return sis
+}
+
+// Loopvar attrs.
+func addLoopvarAttrs(bn BlockNode, key GnoAttribute, name Name) {
+	val := bn.GetAttribute(key)
+	ns, ok := val.(map[Name]struct{})
+	if !ok {
+		ns = make(map[Name]struct{})
+	}
+	ns[name] = struct{}{}
+	bn.SetAttribute(key, ns)
+}
+
+func getLoopvarAttrs(bn BlockNode, key GnoAttribute) map[Name]struct{} {
+	names, _ := bn.GetAttribute(key).(map[Name]struct{})
+	return names
 }
