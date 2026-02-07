@@ -273,7 +273,7 @@ func (m *Machine) maybeFinalize(cfr *Frame) {
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
 	// Unwind stack.
-	cfr := m.PopUntilLastCallFrame()
+	cfr := m.FindAndPopToCallFrame()
 	// Finalize if exiting realm boundary.
 	m.maybeFinalize(cfr)
 	// Reset to before frame.
@@ -297,7 +297,7 @@ func (m *Machine) doOpReturnAfterCopy() {
 	}
 
 	// Unwind stack.
-	cfr = m.PopUntilLastCallFrame()
+	cfr = m.FindAndPopToCallFrame()
 	// Finalize if exiting realm boundary.
 	m.maybeFinalize(cfr)
 	// Reset to before frame.
@@ -309,7 +309,7 @@ func (m *Machine) doOpReturnAfterCopy() {
 // because return was called with no return arguments.
 func (m *Machine) doOpReturnFromBlock() {
 	// Copy results from block.
-	cfr := m.PopUntilLastCallFrame()
+	cfr := m.FindAndPopToCallFrame()
 	fv := cfr.Func
 	ft := fv.GetType(m.Store)
 	numParams := len(ft.Params)
@@ -355,7 +355,7 @@ func (m *Machine) doOpReturnCallDefers() {
 			// If crossing a realm boundary find the revive frame
 			// for transaction revival.
 			if m.isRealmBoundary(cfr) {
-				cfr := m.PopUntilLastReviveFrame()
+				cfr := m.FindAndPopToReviveFrame()
 				if cfr == nil {
 					// or abort the transaction.
 					panic(m.makeUnhandledPanicError())
@@ -553,7 +553,7 @@ func (m *Machine) doOpPanic2() {
 	if m.Exception == nil {
 		panic("should not happen")
 	}
-	cfr := m.PopUntilLastCallFrame()
+	cfr := m.FindAndPopToCallFrame()
 	if cfr == nil {
 		// If we can't find a call frame, we're in a corrupted state.
 		// This can happen during init functions with realm calls.
