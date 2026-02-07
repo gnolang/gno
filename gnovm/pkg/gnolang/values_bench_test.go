@@ -68,33 +68,32 @@ func BenchmarkComputeMapKey_Bytes(b *testing.B) {
 }
 
 func BenchmarkComputeMapKey_IntArray(b *testing.B) {
-    lengths := []int{0, 8, 32, 1024}
+	lengths := []int{0, 8, 32, 1024}
 
-    for _, n := range lengths {
-        n := n
-        b.Run(fmt.Sprintf("len=%d", n), func(b *testing.B) {
-            st, gm := newBenchStoreWithGas()
+	for _, n := range lengths {
+		n := n
+		b.Run(fmt.Sprintf("len=%d", n), func(b *testing.B) {
+			st, gm := newBenchStoreWithGas()
 
-            arr := ArrayValue{
-                List: make([]TypedValue, n),
-            }
-            for i := 0; i < n; i++ {
-                arr.List[i] = typedInt(i)
-            }
+			arr := ArrayValue{
+				List: make([]TypedValue, n),
+			}
+			for i := 0; i < n; i++ {
+				arr.List[i] = typedInt(i)
+			}
 
-            tv := TypedValue{
-                T: &ArrayType{Len: n, Elt: IntType},
-                V: &arr,
-            }
+			tv := TypedValue{
+				T: &ArrayType{Len: n, Elt: IntType},
+				V: &arr,
+			}
 
-            b.ResetTimer()
-            for i := 0; i < b.N; i++ {
-                _, _ = tv.ComputeMapKey(st, false)
-            }
-            b.StopTimer()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_, _ = tv.ComputeMapKey(st, false)
+			}
+			b.StopTimer()
 
-            b.ReportMetric(float64(gm.GasConsumed())/float64(b.N), "gas/op")
-        })
-    }
+			b.ReportMetric(float64(gm.GasConsumed())/float64(b.N), "gas/op")
+		})
+	}
 }
-
