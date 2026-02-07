@@ -137,32 +137,38 @@ func TestSortPkgs(t *testing.T) {
 		}, {
 			desc: "no_dependencies",
 			in: []*Package{
-				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{}},
-				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: map[FileKind][]string{}},
-				{ImportPath: "pkg3", Dir: "/path/to/pkg3", Imports: map[FileKind][]string{}},
+				{ImportPath: "test.land/r/pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{}},
+				{ImportPath: "test.land/r/pkg2", Dir: "/path/to/pkg2", Imports: map[FileKind][]string{}},
+				{ImportPath: "test.land/r/pkg3", Dir: "/path/to/pkg3", Imports: map[FileKind][]string{}},
 			},
-			expected: []string{"pkg1", "pkg2", "pkg3"},
+			expected: []string{"test.land/r/pkg1", "test.land/r/pkg2", "test.land/r/pkg3"},
 		}, {
 			desc: "circular_dependencies",
 			in: []*Package{
-				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg2"}}},
-				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg1"}}},
+				{ImportPath: "test.land/r/pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"test.land/r/pkg2"}}},
+				{ImportPath: "test.land/r/pkg2", Dir: "/path/to/pkg2", Imports: map[FileKind][]string{FileKindPackageSource: {"test.land/r/pkg1"}}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "missing_dependencies",
 			in: []*Package{
-				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg2"}}},
+				{ImportPath: "test.land/r/pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"test.land/r/pkg2"}}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "valid_dependencies",
 			in: []*Package{
-				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg2"}}},
-				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg3"}}},
-				{ImportPath: "pkg3", Dir: "/path/to/pkg3", Imports: map[FileKind][]string{}},
+				{ImportPath: "test.land/r/pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"test.land/r/pkg2"}}},
+				{ImportPath: "test.land/r/pkg2", Dir: "/path/to/pkg2", Imports: map[FileKind][]string{FileKindPackageSource: {"test.land/r/pkg3"}}},
+				{ImportPath: "test.land/r/pkg3", Dir: "/path/to/pkg3", Imports: map[FileKind][]string{}},
 			},
-			expected: []string{"pkg3", "pkg2", "pkg1"},
+			expected: []string{"test.land/r/pkg3", "test.land/r/pkg2", "test.land/r/pkg1"},
+		}, {
+			desc: "stdlib_imports_skipped",
+			in: []*Package{
+				{ImportPath: "test.land/r/pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"std", "strings"}}},
+			},
+			expected: []string{"test.land/r/pkg1"},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {

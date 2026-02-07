@@ -61,7 +61,11 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		panic(fmt.Errorf("context root should be absolute at this point, got %q", loaderCtx.Root))
 	}
 
-	expanded, err := expandPatterns(conf.GnoRoot, loaderCtx, conf.Out, patterns...)
+	// Discover local packages in workspace roots BEFORE expanding patterns
+	// This allows remote-style patterns like "gno.land/r/foo" to resolve to local dirs
+	localDeps := discoverPkgsForLocalDeps(conf, loaderCtx)
+
+	expanded, err := expandPatterns(conf.GnoRoot, loaderCtx, localDeps, conf.Out, patterns...)
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +84,6 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 	}
 
 	// load deps
-
-	localDeps := discoverPkgsForLocalDeps(conf, loaderCtx)
 
 	// mark all pattern packages for visit
 	toVisit := []*Package(pkgs)
@@ -105,9 +107,9 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 			continue
 		}
 
-		// load tests deps if test flag is set and the package is not a dep
+		// load tests deps if test flag is set
 		importKinds := []FileKind{FileKindPackageSource}
-		if conf.Test && len(pkg.Match) != 0 {
+		if conf.Test {
 			importKinds = append(importKinds, FileKindTest, FileKindXTest, FileKindFiletest)
 		}
 
@@ -149,6 +151,12 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 			markDepForVisit(loadSinglePkg(conf.Out, conf.Fetcher, dir, conf.Fset))
 		}
 
+		// Skip stdlib dependencies - they're handled natively by the VM
+		// and should not be deployed as user packages.
+		// However, keep packages that are explicitly matched patterns.
+		if len(pkg.Match) == 0 && gnolang.IsStdlib(pkg.ImportPath) {
+			continue
+		}
 		loaded = append(loaded, pkg)
 	}
 

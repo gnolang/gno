@@ -151,13 +151,10 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	loggerEvents := ds.logger.WithGroup(EventServerLogName)
 	ds.emitterServer = emitter.NewServer(loggerEvents)
 
-	// XXX: it would be nice to not have this hardcoded
-	examplesDir := filepath.Join(ds.cfg.root, "examples")
-
-	// Setup loader and resolver
+	// Setup loader
 	loaderLogger := ds.logger.WithGroup(LoaderLogName)
-	resolver, localPaths := setupPackagesResolver(loaderLogger, ds.cfg, dirs...)
-	ds.loader = packages.NewGlobLoader(examplesDir, resolver)
+	var localPaths []string
+	ds.loader, localPaths = setupPackagesLoader(loaderLogger, ds.cfg, dirs...)
 
 	// Get user's address book from local keybase
 	accountLogger := ds.logger.WithGroup(AccountsLogName)
@@ -195,8 +192,9 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 
 	address := resolveUnixOrTCPAddr(nodeCfg.TMConfig.RPC.ListenAddress)
 
-	// Setup lazy proxy
-	if ds.cfg.lazyLoader {
+	// Setup lazy proxy (enabled for auto and lazy modes, disabled for full mode)
+	enableProxy := ds.cfg.loadMode != LoadModeFull
+	if enableProxy {
 		proxyLogger := ds.logger.WithGroup(ProxyLogName)
 		ds.proxy, err = proxy.NewPathInterceptor(proxyLogger, address)
 		if err != nil {
@@ -222,14 +220,32 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	}
 	ds.DeferClose(ds.devNode.Close)
 
-	// Setup default web home realm, fallback on first local path
+	// Setup default web home realm, only considering realm paths (/r/)
 	devNodePaths := ds.devNode.Paths()
+
+	// Filter to only realm paths
+	realmPaths := make([]string, 0, len(devNodePaths))
+	for _, p := range devNodePaths {
+		if strings.Contains(p, "/r/") {
+			realmPaths = append(realmPaths, p)
+		}
+	}
 
 	switch webHome := ds.cfg.webHome; webHome {
 	case "":
-		if len(devNodePaths) > 0 {
-			ds.webHomePath = strings.TrimPrefix(devNodePaths[0], ds.cfg.chainDomain)
-			ds.logger.WithGroup(WebLogName).Info("using default package", "path", devNodePaths[0])
+		// Only set web home if there are realm paths
+		if len(realmPaths) > 0 {
+			var homePath string
+			if ds.cfg.loadMode == LoadModeAuto && len(realmPaths) > 1 {
+				// Compute highest common root for auto mode with multiple realms
+				homePath = commonPathPrefix(realmPaths)
+				ds.logger.WithGroup(WebLogName).Info("using common root", "path", homePath)
+			} else {
+				// Single realm or non-auto mode: use first realm path
+				homePath = realmPaths[0]
+				ds.logger.WithGroup(WebLogName).Info("using default realm", "path", homePath)
+			}
+			ds.webHomePath = strings.TrimPrefix(homePath, ds.cfg.chainDomain)
 		}
 	case "/", ":none:": // skip
 	default:
@@ -261,7 +277,7 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 		// Generate initial paths
 		initPaths := map[string]struct{}{}
 		for _, pkg := range ds.devNode.ListPkgs() {
-			initPaths[pkg.Path] = struct{}{}
+			initPaths[pkg.ImportPath] = struct{}{}
 		}
 
 		ds.proxy.HandlePath(func(paths ...string) {
@@ -274,7 +290,6 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 
 				// Try to resolve the path first.
 				// If we are unable to resolve it, ignore and continue
-
 				if _, err := ds.loader.Resolve(path); err != nil {
 					proxyLogger.Debug("unable to resolve path",
 						"error", err,
@@ -543,6 +558,37 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 		}
 	default:
 	}
+}
+
+// commonPathPrefix returns the highest common directory prefix of all paths.
+// For example: ["a/b/x", "a/b/y"] -> "a/b"
+func commonPathPrefix(paths []string) string {
+	switch len(paths) {
+	case 0:
+		return ""
+	case 1:
+		return paths[0]
+	}
+
+	// Split first path into segments
+	parts := strings.Split(paths[0], "/")
+
+	// Find common prefix length across all paths
+	for _, p := range paths[1:] {
+		otherParts := strings.Split(p, "/")
+
+		// Trim parts to common length
+		newLen, minLen := 0, min(len(parts), len(otherParts))
+		for i := range minLen {
+			if parts[i] != otherParts[i] {
+				break
+			}
+			newLen = i + 1
+		}
+		parts = parts[:newLen]
+	}
+
+	return strings.Join(parts, "/")
 }
 
 // XXX: packages modifier does not support glob yet
