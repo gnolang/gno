@@ -11,13 +11,15 @@ import (
 func TestParamsString(t *testing.T) {
 	p := Params{
 		SysNamesPkgPath: "gno.land/r/sys/names", // XXX what is this really for now
+		SysNamesEnabled: true,
 		ChainDomain:     "example.com",
 	}
 	result := p.String()
 
 	// Construct the expected string.
 	expected := "Params: \n" +
-		fmt.Sprintf("SysUsersPkgPath: %q\n", p.SysNamesPkgPath) +
+		fmt.Sprintf("SysNamesPkgPath: %q\n", p.SysNamesPkgPath) +
+		fmt.Sprintf("SysNamesEnabled: %t\n", p.SysNamesEnabled) +
 		fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain) +
 		fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit) +
 		fmt.Sprintf("StoragePrice: %q\n", p.StoragePrice) +
@@ -130,4 +132,20 @@ func TestWillSetParam(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWillSetParamBool(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	vmk := env.vmk
+	prmk := env.prmk
+
+	// Default should be false
+	prms := vmk.GetParams(ctx)
+	assert.False(t, prms.SysNamesEnabled, "expected sysnames_enabled to default to false")
+
+	// Set sysnames_enabled to true
+	prmk.SetBool(ctx, "vm:p:sysnames_enabled", true)
+	prms = vmk.GetParams(ctx)
+	assert.True(t, prms.SysNamesEnabled, "expected sysnames_enabled to be true")
 }
