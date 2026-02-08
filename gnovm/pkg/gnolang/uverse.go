@@ -434,18 +434,41 @@ func makeUverseNode() {
 								// append(*SliceValue.List, *SliceValue) ---------
 								list := arg0Base.List
 								if arg1Base.Data == nil {
-									for i := range arg1Length {
-										oldElem := list[arg0Offset+arg0Length+i]
-										// unrefCopy will resolve references and copy their values
-										// to copy by value rather than by reference.
-										newElem := arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
-										list[arg0Offset+arg0Length+i] = newElem
+									dstStart := arg0Offset + arg0Length
+									dstEnd := dstStart + arg1Length
+									srcStart := arg1Offset
+									srcEnd := arg1Offset + arg1Length
+									overlap := arg0Base == arg1Base && dstStart < srcEnd && srcStart < dstEnd
+									// Overlap-safe copy: copy backward when dst starts after src to avoid clobbering.
+									if overlap && dstStart > srcStart {
+										for i := arg1Length - 1; i >= 0; i-- {
+											oldElem := list[dstStart+i]
+											// unrefCopy will resolve references and copy their values
+											// to copy by value rather than by reference.
+											newElem := arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+											list[dstStart+i] = newElem
 
-										m.Realm.DidUpdate(
-											arg0Base,
-											oldElem.GetFirstObject(m.Store),
-											newElem.GetFirstObject(m.Store),
-										)
+											m.Realm.DidUpdate(
+												arg0Base,
+												oldElem.GetFirstObject(m.Store),
+												newElem.GetFirstObject(m.Store),
+											)
+										}
+									} else {
+										for i := range arg1Length {
+											oldElem := list[dstStart+i]
+
+											// unrefCopy will resolve references and copy their values
+											// to copy by value rather than by reference.
+											newElem := arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+											list[dstStart+i] = newElem
+
+											m.Realm.DidUpdate(
+												arg0Base,
+												oldElem.GetFirstObject(m.Store),
+												newElem.GetFirstObject(m.Store),
+											)
+										}
 									}
 								} else {
 									copyDataToList(
@@ -635,10 +658,25 @@ func makeUverseNode() {
 				dstBase := dstv.GetBase(m.Store)
 				m.Realm.DidUpdate(dstBase, nil, nil)
 				srcv := src.TV.V.(*SliceValue)
-				for i := range minl {
-					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-					srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-					dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				srcBase := srcv.GetBase(m.Store)
+				dstStart := dstv.Offset
+				dstEnd := dstStart + minl
+				srcStart := srcv.Offset
+				srcEnd := srcStart + minl
+				overlap := dstBase == srcBase && dstStart < srcEnd && srcStart < dstEnd
+				// Overlap-safe copy: copy backward when dst starts after src to avoid clobbering.
+				if overlap && dstStart > srcStart {
+					for i := minl - 1; i >= 0; i-- {
+						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
+						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+					}
+				} else {
+					for i := range minl {
+						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
+						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+					}
 				}
 				res0 := TypedValue{
 					T: IntType,
