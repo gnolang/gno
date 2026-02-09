@@ -54,6 +54,7 @@ func createOpenBoardPermissions(owner address) *permissions.Permisions {
 	perms.SetSuperRole(permissions.RoleOwner)
 	perms.SetPublicPermissions(
 		permissions.PermissionThreadCreate,
+		permissions.PermissionThreadRepost,
 		permissions.PermissionReplyCreate,
 	)
 	perms.AddRole(
