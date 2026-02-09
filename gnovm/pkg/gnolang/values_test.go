@@ -23,6 +23,65 @@ func (m *mockTypedValueStruct) DeepFill(store Store) Value {
 	return m
 }
 
+func TestSignStaleUpperBytes(t *testing.T) {
+	tests := []struct {
+		name     string
+		setup    func(tv *TypedValue) // first assignment
+		apply    func(tv *TypedValue) // second assignment
+		wantSign int
+	}{
+		{
+			name: "int64(-1) then int8(1): Sign should be +1",
+			setup: func(tv *TypedValue) {
+				tv.T = Int64Type
+				tv.SetInt64(-1) // fills all 8 bytes with 0xFF
+			},
+			apply: func(tv *TypedValue) {
+				tv.T = Int8Type
+				tv.SetInt8(1) // only writes N[0]
+			},
+			wantSign: 1,
+		},
+		{
+			name: "int64(-1) then int32(1): Sign should be +1",
+			setup: func(tv *TypedValue) {
+				tv.T = Int64Type
+				tv.SetInt64(-1)
+			},
+			apply: func(tv *TypedValue) {
+				tv.T = Int32Type
+				tv.SetInt32(1)
+			},
+			wantSign: 1,
+		},
+		{
+			name: "uint64(0xFFFFFFFFFFFFFFFF) then uint8(0): Sign should be 0",
+			setup: func(tv *TypedValue) {
+				tv.T = Uint64Type
+				tv.SetUint64(1)
+			},
+			apply: func(tv *TypedValue) {
+				tv.T = Uint8Type
+				tv.SetUint8(0)
+			},
+			wantSign: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tv TypedValue
+			tt.setup(&tv)
+			tt.apply(&tv)
+
+			got := tv.Sign()
+			if got != tt.wantSign {
+				t.Errorf("Sign() = %d, want %d (stale upper bytes in N buffer affected result)", got, tt.wantSign)
+			}
+		})
+	}
+}
+
 func TestGetLengthPanic(t *testing.T) {
 	tests := []struct {
 		name     string

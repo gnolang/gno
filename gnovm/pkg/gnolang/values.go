@@ -1515,16 +1515,34 @@ func (tv *TypedValue) Sign() int {
 	}
 
 	switch tv.T.Kind() {
-	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-		return signOfUnsignedBytes(tv.N)
-	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, Float32Kind, Float64Kind:
-		return signOfSignedBytes(tv.N)
+	case IntKind:
+		return signOfSigned(tv.GetInt())
+	case Int8Kind:
+		return signOfSigned(int64(tv.GetInt8()))
+	case Int16Kind:
+		return signOfSigned(int64(tv.GetInt16()))
+	case Int32Kind:
+		return signOfSigned(int64(tv.GetInt32()))
+	case Int64Kind:
+		return signOfSigned(tv.GetInt64())
+	case UintKind:
+		return signOfUnsigned(tv.GetUint())
+	case Uint8Kind:
+		return signOfUnsigned(uint64(tv.GetUint8()))
+	case Uint16Kind:
+		return signOfUnsigned(uint64(tv.GetUint16()))
+	case Uint32Kind:
+		return signOfUnsigned(uint64(tv.GetUint32()))
+	case Uint64Kind:
+		return signOfUnsigned(tv.GetUint64())
+	case Float32Kind:
+		return signOfSigned(int64(int32(tv.GetFloat32())))
+	case Float64Kind:
+		return signOfSigned(int64(tv.GetFloat64()))
 	case BigintKind:
-		v := tv.GetBigInt()
-		return v.Sign()
+		return tv.GetBigInt().Sign()
 	case BigdecKind:
-		v := tv.GetBigDec()
-		return v.Sign()
+		return tv.GetBigDec().Sign()
 	default:
 		panic("type should be numeric")
 	}
@@ -2756,21 +2774,18 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 
 // ----------------------------------------
 // Utility
-func signOfSignedBytes(n [8]byte) int {
-	si := *(*int64)(unsafe.Pointer(&n[0]))
-	switch {
-	case si == 0:
-		return 0
-	case si < 0:
-		return -1
-	default:
+func signOfSigned(v int64) int {
+	if v > 0 {
 		return 1
+	} else if v < 0 {
+		return -1
 	}
+	return 0
 }
 
-func signOfUnsignedBytes(n [8]byte) int {
-	if *(*uint64)(unsafe.Pointer(&n[0])) == 0 {
-		return 0
+func signOfUnsigned(v uint64) int {
+	if v != 0 {
+		return 1
 	}
-	return 1
+	return 0
 }
