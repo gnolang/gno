@@ -1,8 +1,6 @@
 package hub
 
 import (
-	"time"
-
 	"gno.land/p/gnoland/boards"
 )
 
@@ -53,11 +51,11 @@ type Thread struct {
 	// Creator is the account address that created the thread.
 	Creator address
 
-	// CreatedAt is thread's creation time.
-	CreatedAt time.Time
+	// CreatedAt is thread's creation time as Unix time.
+	CreatedAt int64
 
-	// UpdatedAt is thread's update time.
-	UpdatedAt time.Time
+	// UpdatedAt is thread's update time as unix time.
+	UpdatedAt int64
 }
 
 // IterateFlags iterates thread moderation flags.
@@ -100,7 +98,7 @@ func newSafeThread(ref *boards.Post) Thread {
 		RepostCount:     ref.Reposts.Size(),
 		FlagCount:       ref.Flags.Size(),
 		Creator:         ref.Creator,
-		CreatedAt:       ref.CreatedAt,
-		UpdatedAt:       ref.UpdatedAt,
+		CreatedAt:       ref.CreatedAt.Unix(),
+		UpdatedAt:       ref.UpdatedAt.Unix(),
 	}
 }

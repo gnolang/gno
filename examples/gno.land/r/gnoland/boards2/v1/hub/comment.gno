@@ -1,8 +1,6 @@
 package hub
 
 import (
-	"time"
-
 	"gno.land/p/gnoland/boards"
 )
 
@@ -38,11 +36,11 @@ type Comment struct {
 	// Creator is the account address that created the comment or reply.
 	Creator address
 
-	// CreatedAt is thread's creation time.
-	CreatedAt time.Time
+	// CreatedAt is thread's creation time as Unix time.
+	CreatedAt int64
 
-	// UpdatedAt is thread's update time.
-	UpdatedAt time.Time
+	// UpdatedAt is thread's update time as Unix time.
+	UpdatedAt int64
 }
 
 // IterateFlags iterates comment moderation flags.
@@ -76,7 +74,7 @@ func newSafeComment(ref *boards.Post) Comment {
 		ReplyCount: ref.Replies.Size(),
 		FlagCount:  ref.Flags.Size(),
 		Creator:    ref.Creator,
-		CreatedAt:  ref.CreatedAt,
-		UpdatedAt:  ref.UpdatedAt,
+		CreatedAt:  ref.CreatedAt.Unix(),
+		UpdatedAt:  ref.UpdatedAt.Unix(),
 	}
 }
