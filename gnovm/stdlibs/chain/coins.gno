@@ -127,7 +127,8 @@ func (cz Coins) sortAndJoin() Coins {
 			// Consolidate next into current.
 			sum, ok := overflow.Add64(current.Amount, next.Amount)
 			if !ok {
-				panic("coin add overflow/underflow: " + strconv.Itoa(int(current.Amount)) + " + " + strconv.Itoa(int(next.Amount)))
+				panic("coin add overflow/underflow: " + strconv.Itoa(int(current.Amount)) +
+					" + " + strconv.Itoa(int(next.Amount)) + " " + next.Denom)
 			}
 			if sum == 0 {
 				// current + next cancel each other out. Remove both.
@@ -190,7 +191,7 @@ func (cz Coins) AmountOf(denom string) int64 {
 //     the same denom, it will be removed.
 //   - The receiver and the parameter will not be modified.
 func (cz Coins) Add(b Coins) Coins {
-	// Create dst then sort to have O(log(N)) complexity.
+	// Create dst then sort to have O(n*log(n)) complexity.
 	dst := make(Coins, len(cz)+len(b))
 	copy(dst[:len(cz)], cz)
 	copy(dst[len(cz):], b)
