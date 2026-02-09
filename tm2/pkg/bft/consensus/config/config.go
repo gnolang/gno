@@ -20,7 +20,7 @@ const (
 type ConsensusConfig struct {
 	RootDir     string `json:"home" toml:"home"`
 	WALPath     string `json:"wal_file" toml:"wal_file"`
-	WALDisabled bool   `json:"-" toml:"-"`
+	WALDisabled bool   `json:"wal_disabled" toml:"-"`
 	walFile     string // overrides WalPath if set
 
 	PrivValidator *privval.PrivValidatorConfig `json:"priv_validator" toml:"priv_validator" comment:"##### private validator configuration options #####"`

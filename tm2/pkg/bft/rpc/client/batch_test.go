@@ -7,8 +7,15 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	abciTypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/health"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
@@ -26,10 +33,10 @@ func generateMockBatchClient(
 	t.Helper()
 
 	return &mockClient{
-		sendBatchFn: func(_ context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
+		sendBatchFn: func(_ context.Context, requests spec.BaseJSONRequests) (spec.BaseJSONResponses, error) {
 			require.Len(t, requests, expectedRequests)
 
-			responses := make(types.RPCResponses, len(requests))
+			responses := make(spec.BaseJSONResponses, len(requests))
 
 			for index, request := range requests {
 				require.Equal(t, "2.0", request.JSONRPC)
@@ -39,11 +46,13 @@ func generateMockBatchClient(
 				result, err := amino.MarshalJSON(commonResult)
 				require.NoError(t, err)
 
-				response := types.RPCResponse{
-					JSONRPC: "2.0",
-					ID:      request.ID,
-					Result:  result,
-					Error:   nil,
+				response := &spec.BaseJSONResponse{
+					Result: result,
+					Error:  nil,
+					BaseJSON: spec.BaseJSON{
+						JSONRPC: spec.JSONRPCVersion,
+						ID:      request.ID,
+					},
 				}
 
 				responses[index] = response
@@ -66,7 +75,7 @@ func TestRPCBatch_Count(t *testing.T) {
 	assert.Equal(t, 0, batch.Count())
 
 	// Add a dummy request
-	require.NoError(t, batch.Status())
+	batch.Status()
 
 	// Make sure the request is enqueued
 	assert.Equal(t, 1, batch.Count())
@@ -81,7 +90,7 @@ func TestRPCBatch_Clear(t *testing.T) {
 	)
 
 	// Add a dummy request
-	require.NoError(t, batch.Status())
+	batch.Status()
 
 	// Make sure the request is enqueued
 	assert.Equal(t, 1, batch.Count())
@@ -115,7 +124,7 @@ func TestRPCBatch_Send(t *testing.T) {
 
 		var (
 			numRequests    = 10
-			expectedStatus = &ctypes.ResultStatus{
+			expectedStatus = &status.ResultStatus{
 				NodeInfo: p2pTypes.NodeInfo{
 					Moniker: "dummy",
 				},
@@ -129,7 +138,7 @@ func TestRPCBatch_Send(t *testing.T) {
 
 		// Enqueue the requests
 		for range numRequests {
-			require.NoError(t, batch.Status())
+			batch.Status()
 		}
 
 		// Send the batch
@@ -140,7 +149,7 @@ func TestRPCBatch_Send(t *testing.T) {
 		assert.Len(t, results, numRequests)
 
 		for _, result := range results {
-			castResult, ok := result.(*ctypes.ResultStatus)
+			castResult, ok := result.(*status.ResultStatus)
 			require.True(t, ok)
 
 			assert.Equal(t, expectedStatus, castResult)
@@ -159,16 +168,16 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 	}{
 		{
 			statusMethod,
-			&ctypes.ResultStatus{
+			&status.ResultStatus{
 				NodeInfo: p2pTypes.NodeInfo{
 					Moniker: "dummy",
 				},
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.Status())
+				batch.Status()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultStatus)
+				castResult, ok := result.(*status.ResultStatus)
 				require.True(t, ok)
 
 				return castResult
@@ -176,16 +185,16 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			abciInfoMethod,
-			&ctypes.ResultABCIInfo{
+			&abciTypes.ResultABCIInfo{
 				Response: abci.ResponseInfo{
 					LastBlockAppHash: []byte("dummy"),
 				},
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.ABCIInfo())
+				batch.ABCIInfo()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultABCIInfo)
+				castResult, ok := result.(*abciTypes.ResultABCIInfo)
 				require.True(t, ok)
 
 				return castResult
@@ -193,16 +202,16 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			abciQueryMethod,
-			&ctypes.ResultABCIQuery{
+			&abciTypes.ResultABCIQuery{
 				Response: abci.ResponseQuery{
 					Value: []byte("dummy"),
 				},
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.ABCIQuery("path", []byte("dummy")))
+				batch.ABCIQuery("path", []byte("dummy"))
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultABCIQuery)
+				castResult, ok := result.(*abciTypes.ResultABCIQuery)
 				require.True(t, ok)
 
 				return castResult
@@ -210,14 +219,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			broadcastTxCommitMethod,
-			&ctypes.ResultBroadcastTxCommit{
+			&mempool.ResultBroadcastTxCommit{
 				Hash: []byte("dummy"),
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.BroadcastTxCommit([]byte("dummy")))
+				batch.BroadcastTxCommit([]byte("dummy"))
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultBroadcastTxCommit)
+				castResult, ok := result.(*mempool.ResultBroadcastTxCommit)
 				require.True(t, ok)
 
 				return castResult
@@ -225,14 +234,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			broadcastTxAsyncMethod,
-			&ctypes.ResultBroadcastTx{
+			&mempool.ResultBroadcastTx{
 				Hash: []byte("dummy"),
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.BroadcastTxAsync([]byte("dummy")))
+				batch.BroadcastTxAsync([]byte("dummy"))
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultBroadcastTx)
+				castResult, ok := result.(*mempool.ResultBroadcastTx)
 				require.True(t, ok)
 
 				return castResult
@@ -240,14 +249,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			broadcastTxSyncMethod,
-			&ctypes.ResultBroadcastTx{
+			&mempool.ResultBroadcastTx{
 				Hash: []byte("dummy"),
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.BroadcastTxSync([]byte("dummy")))
+				batch.BroadcastTxSync([]byte("dummy"))
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultBroadcastTx)
+				castResult, ok := result.(*mempool.ResultBroadcastTx)
 				require.True(t, ok)
 
 				return castResult
@@ -255,14 +264,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			unconfirmedTxsMethod,
-			&ctypes.ResultUnconfirmedTxs{
+			&mempool.ResultUnconfirmedTxs{
 				Count: 10,
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.UnconfirmedTxs(0))
+				batch.UnconfirmedTxs(0)
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultUnconfirmedTxs)
+				castResult, ok := result.(*mempool.ResultUnconfirmedTxs)
 				require.True(t, ok)
 
 				return castResult
@@ -270,14 +279,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			numUnconfirmedTxsMethod,
-			&ctypes.ResultUnconfirmedTxs{
+			&mempool.ResultUnconfirmedTxs{
 				Count: 10,
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.NumUnconfirmedTxs())
+				batch.NumUnconfirmedTxs()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultUnconfirmedTxs)
+				castResult, ok := result.(*mempool.ResultUnconfirmedTxs)
 				require.True(t, ok)
 
 				return castResult
@@ -285,14 +294,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			netInfoMethod,
-			&ctypes.ResultNetInfo{
+			&net.ResultNetInfo{
 				NPeers: 10,
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.NetInfo())
+				batch.NetInfo()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultNetInfo)
+				castResult, ok := result.(*net.ResultNetInfo)
 				require.True(t, ok)
 
 				return castResult
@@ -300,16 +309,16 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			dumpConsensusStateMethod,
-			&ctypes.ResultDumpConsensusState{
+			&consensus.ResultDumpConsensusState{
 				RoundState: &cstypes.RoundState{
 					Round: 10,
 				},
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.DumpConsensusState())
+				batch.DumpConsensusState()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultDumpConsensusState)
+				castResult, ok := result.(*consensus.ResultDumpConsensusState)
 				require.True(t, ok)
 
 				return castResult
@@ -317,16 +326,16 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			consensusStateMethod,
-			&ctypes.ResultConsensusState{
+			&consensus.ResultConsensusState{
 				RoundState: cstypes.RoundStateSimple{
 					ProposalBlockHash: []byte("dummy"),
 				},
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.ConsensusState())
+				batch.ConsensusState()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultConsensusState)
+				castResult, ok := result.(*consensus.ResultConsensusState)
 				require.True(t, ok)
 
 				return castResult
@@ -334,14 +343,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			consensusParamsMethod,
-			&ctypes.ResultConsensusParams{
+			&consensus.ResultConsensusParams{
 				BlockHeight: 10,
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.ConsensusParams(nil))
+				batch.ConsensusParams(nil)
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultConsensusParams)
+				castResult, ok := result.(*consensus.ResultConsensusParams)
 				require.True(t, ok)
 
 				return castResult
@@ -349,12 +358,12 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			healthMethod,
-			&ctypes.ResultHealth{},
+			&health.ResultHealth{},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.Health())
+				batch.Health()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultHealth)
+				castResult, ok := result.(*health.ResultHealth)
 				require.True(t, ok)
 
 				return castResult
@@ -362,14 +371,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			blockchainMethod,
-			&ctypes.ResultBlockchainInfo{
+			&blocks.ResultBlockchainInfo{
 				LastHeight: 100,
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.BlockchainInfo(0, 0))
+				batch.BlockchainInfo(0, 0)
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultBlockchainInfo)
+				castResult, ok := result.(*blocks.ResultBlockchainInfo)
 				require.True(t, ok)
 
 				return castResult
@@ -377,16 +386,16 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			genesisMethod,
-			&ctypes.ResultGenesis{
+			&net.ResultGenesis{
 				Genesis: &bfttypes.GenesisDoc{
 					ChainID: "dummy",
 				},
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.Genesis())
+				batch.Genesis()
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultGenesis)
+				castResult, ok := result.(*net.ResultGenesis)
 				require.True(t, ok)
 
 				return castResult
@@ -394,7 +403,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			blockMethod,
-			&ctypes.ResultBlock{
+			&blocks.ResultBlock{
 				BlockMeta: &bfttypes.BlockMeta{
 					Header: bfttypes.Header{
 						Height: 10,
@@ -402,10 +411,10 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 				},
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.Block(nil))
+				batch.Block(nil)
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultBlock)
+				castResult, ok := result.(*blocks.ResultBlock)
 				require.True(t, ok)
 
 				return castResult
@@ -413,14 +422,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			blockResultsMethod,
-			&ctypes.ResultBlockResults{
+			&blocks.ResultBlockResults{
 				Height: 10,
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.BlockResults(nil))
+				batch.BlockResults(nil)
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultBlockResults)
+				castResult, ok := result.(*blocks.ResultBlockResults)
 				require.True(t, ok)
 
 				return castResult
@@ -428,14 +437,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			commitMethod,
-			&ctypes.ResultCommit{
+			&blocks.ResultCommit{
 				CanonicalCommit: true,
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.Commit(nil))
+				batch.Commit(nil)
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultCommit)
+				castResult, ok := result.(*blocks.ResultCommit)
 				require.True(t, ok)
 
 				return castResult
@@ -443,15 +452,15 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			txMethod,
-			&ctypes.ResultTx{
+			&tx.ResultTx{
 				Hash:   []byte("tx hash"),
 				Height: 10,
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.Tx([]byte("tx hash")))
+				batch.Tx([]byte("tx hash"))
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultTx)
+				castResult, ok := result.(*tx.ResultTx)
 				require.True(t, ok)
 
 				return castResult
@@ -459,14 +468,14 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		},
 		{
 			validatorsMethod,
-			&ctypes.ResultValidators{
+			&consensus.ResultValidators{
 				BlockHeight: 10,
 			},
 			func(batch *RPCBatch) {
-				require.NoError(t, batch.Validators(nil))
+				batch.Validators(nil)
 			},
 			func(result any) any {
-				castResult, ok := result.(*ctypes.ResultValidators)
+				castResult, ok := result.(*consensus.ResultValidators)
 				require.True(t, ok)
 
 				return castResult

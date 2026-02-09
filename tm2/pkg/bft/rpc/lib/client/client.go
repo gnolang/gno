@@ -3,16 +3,16 @@ package rpcclient
 import (
 	"context"
 
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 )
 
 // Client is the JSON-RPC client abstraction
 type Client interface {
 	// SendRequest sends a single RPC request to the JSON-RPC layer
-	SendRequest(context.Context, types.RPCRequest) (*types.RPCResponse, error)
+	SendRequest(context.Context, *spec.BaseJSONRequest) (*spec.BaseJSONResponse, error)
 
 	// SendBatch sends a batch of RPC requests to the JSON-RPC layer
-	SendBatch(context.Context, types.RPCRequests) (types.RPCResponses, error)
+	SendBatch(context.Context, spec.BaseJSONRequests) (spec.BaseJSONResponses, error)
 
 	// Close closes the RPC client
 	Close() error
@@ -21,10 +21,10 @@ type Client interface {
 // Batch is the JSON-RPC batch abstraction
 type Batch interface {
 	// AddRequest adds a single request to the RPC batch
-	AddRequest(types.RPCRequest)
+	AddRequest(*spec.BaseJSONRequest)
 
 	// Send sends the batch to the RPC layer
-	Send(context.Context) (types.RPCResponses, error)
+	Send(context.Context) (spec.BaseJSONResponses, error)
 
 	// Clear clears out the batch
 	Clear() int

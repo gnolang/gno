@@ -3,12 +3,12 @@ package client
 import (
 	"context"
 
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 )
 
 type (
-	sendRequestDelegate func(context.Context, types.RPCRequest) (*types.RPCResponse, error)
-	sendBatchDelegate   func(context.Context, types.RPCRequests) (types.RPCResponses, error)
+	sendRequestDelegate func(context.Context, *spec.BaseJSONRequest) (*spec.BaseJSONResponse, error)
+	sendBatchDelegate   func(context.Context, spec.BaseJSONRequests) (spec.BaseJSONResponses, error)
 	closeDelegate       func() error
 )
 
@@ -18,7 +18,7 @@ type mockClient struct {
 	closeFn       closeDelegate
 }
 
-func (m *mockClient) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
+func (m *mockClient) SendRequest(ctx context.Context, request *spec.BaseJSONRequest) (*spec.BaseJSONResponse, error) {
 	if m.sendRequestFn != nil {
 		return m.sendRequestFn(ctx, request)
 	}
@@ -26,7 +26,7 @@ func (m *mockClient) SendRequest(ctx context.Context, request types.RPCRequest) 
 	return nil, nil
 }
 
-func (m *mockClient) SendBatch(ctx context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
+func (m *mockClient) SendBatch(ctx context.Context, requests spec.BaseJSONRequests) (spec.BaseJSONResponses, error) {
 	if m.sendBatchFn != nil {
 		return m.sendBatchFn(ctx, requests)
 	}

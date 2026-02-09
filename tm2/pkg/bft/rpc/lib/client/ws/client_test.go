@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,10 +37,11 @@ func TestClient_SendRequest(t *testing.T) {
 		var (
 			upgrader = websocket.Upgrader{}
 
-			request = types.RPCRequest{
-				JSONRPC: "2.0",
-				ID:      types.JSONRPCStringID("id"),
-			}
+			request = spec.NewJSONRequest(
+				spec.JSONRPCStringID("id"),
+				"",
+				nil,
+			)
 		)
 
 		ctx, cancelFn := context.WithCancel(context.Background())
@@ -62,7 +63,7 @@ func TestClient_SendRequest(t *testing.T) {
 				require.NoError(t, err)
 
 				// Parse the message
-				var req types.RPCRequest
+				var req *spec.BaseJSONRequest
 				require.NoError(t, json.Unmarshal(message, &req))
 				require.Equal(t, request.ID.String(), req.ID.String())
 
@@ -96,15 +97,17 @@ func TestClient_SendRequest(t *testing.T) {
 		var (
 			upgrader = websocket.Upgrader{}
 
-			request = types.RPCRequest{
-				JSONRPC: "2.0",
-				ID:      types.JSONRPCStringID("id"),
-			}
+			request = spec.NewJSONRequest(
+				spec.JSONRPCStringID("id"),
+				"",
+				nil,
+			)
 
-			response = types.RPCResponse{
-				JSONRPC: "2.0",
-				ID:      request.ID,
-			}
+			response = spec.NewJSONResponse(
+				request.ID,
+				nil,
+				nil,
+			)
 		)
 
 		// Create the server
@@ -123,7 +126,7 @@ func TestClient_SendRequest(t *testing.T) {
 				require.NoError(t, err)
 
 				// Parse the message
-				var req types.RPCRequest
+				var req *spec.BaseJSONRequest
 				require.NoError(t, json.Unmarshal(message, &req))
 				require.Equal(t, request.ID.String(), req.ID.String())
 
@@ -168,12 +171,13 @@ func TestClient_SendBatch(t *testing.T) {
 		var (
 			upgrader = websocket.Upgrader{}
 
-			request = types.RPCRequest{
-				JSONRPC: "2.0",
-				ID:      types.JSONRPCStringID("id"),
-			}
+			request = spec.NewJSONRequest(
+				spec.JSONRPCStringID("id"),
+				"",
+				nil,
+			)
 
-			batch = types.RPCRequests{request}
+			batch = spec.BaseJSONRequests{request}
 		)
 
 		ctx, cancelFn := context.WithCancel(context.Background())
@@ -195,7 +199,7 @@ func TestClient_SendBatch(t *testing.T) {
 				require.NoError(t, err)
 
 				// Parse the message
-				var req types.RPCRequests
+				var req spec.BaseJSONRequests
 				require.NoError(t, json.Unmarshal(message, &req))
 
 				require.Len(t, req, 1)
@@ -231,18 +235,20 @@ func TestClient_SendBatch(t *testing.T) {
 		var (
 			upgrader = websocket.Upgrader{}
 
-			request = types.RPCRequest{
-				JSONRPC: "2.0",
-				ID:      types.JSONRPCStringID("id"),
-			}
+			request = spec.NewJSONRequest(
+				spec.JSONRPCStringID("id"),
+				"",
+				nil,
+			)
 
-			response = types.RPCResponse{
-				JSONRPC: "2.0",
-				ID:      request.ID,
-			}
+			response = spec.NewJSONResponse(
+				request.ID,
+				nil,
+				nil,
+			)
 
-			batch         = types.RPCRequests{request}
-			batchResponse = types.RPCResponses{response}
+			batch         = spec.BaseJSONRequests{request}
+			batchResponse = spec.BaseJSONResponses{response}
 		)
 
 		// Create the server
@@ -261,7 +267,7 @@ func TestClient_SendBatch(t *testing.T) {
 				require.NoError(t, err)
 
 				// Parse the message
-				var req types.RPCRequests
+				var req spec.BaseJSONRequests
 				require.NoError(t, json.Unmarshal(message, &req))
 
 				require.Len(t, req, 1)

@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"strings"
 
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 )
 
 const (
@@ -52,9 +52,9 @@ func NewClient(rpcURL string) (*Client, error) {
 }
 
 // SendRequest sends a single RPC request to the server
-func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
+func (c *Client) SendRequest(ctx context.Context, request *spec.BaseJSONRequest) (*spec.BaseJSONResponse, error) {
 	// Send the request
-	response, err := sendRequestCommon[types.RPCRequest, *types.RPCResponse](ctx, c.client, c.rpcURL, request)
+	response, err := sendRequestCommon[*spec.BaseJSONRequest, *spec.BaseJSONResponse](ctx, c.client, c.rpcURL, request)
 	if err != nil {
 		return nil, err
 	}
@@ -68,9 +68,9 @@ func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*ty
 }
 
 // SendBatch sends a single RPC batch request to the server
-func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
+func (c *Client) SendBatch(ctx context.Context, requests spec.BaseJSONRequests) (spec.BaseJSONResponses, error) {
 	// Send the batch
-	responses, err := sendRequestCommon[types.RPCRequests, types.RPCResponses](ctx, c.client, c.rpcURL, requests)
+	responses, err := sendRequestCommon[spec.BaseJSONRequests, spec.BaseJSONResponses](ctx, c.client, c.rpcURL, requests)
 	if err != nil {
 		return nil, err
 	}
@@ -97,11 +97,11 @@ func (c *Client) Close() error {
 
 type (
 	requestType interface {
-		types.RPCRequest | types.RPCRequests
+		*spec.BaseJSONRequest | spec.BaseJSONRequests
 	}
 
 	responseType interface {
-		*types.RPCResponse | types.RPCResponses
+		*spec.BaseJSONResponse | spec.BaseJSONResponses
 	}
 )
 

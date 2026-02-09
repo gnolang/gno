@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"sync"
 
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gorilla/websocket"
@@ -20,7 +20,7 @@ var (
 	ErrInvalidBatchResponse      = errors.New("invalid ws batch response size")
 )
 
-type responseCh chan<- types.RPCResponses
+type responseCh chan<- spec.BaseJSONResponses
 
 // Client is a WebSocket client implementation
 type Client struct {
@@ -67,9 +67,9 @@ func NewClient(rpcURL string, opts ...Option) (*Client, error) {
 }
 
 // SendRequest sends a single RPC request to the server
-func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
+func (c *Client) SendRequest(ctx context.Context, request *spec.BaseJSONRequest) (*spec.BaseJSONResponse, error) {
 	// Create the response channel for the pipeline
-	responseCh := make(chan types.RPCResponses, 1)
+	responseCh := make(chan spec.BaseJSONResponses, 1)
 
 	// Generate a unique request ID hash
 	requestHash := generateIDHash(request.ID.String())
@@ -99,14 +99,14 @@ func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*ty
 			return nil, ErrRequestResponseIDMismatch
 		}
 
-		return &response[0], nil
+		return response[0], nil
 	}
 }
 
 // SendBatch sends a batch of RPC requests to the server
-func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
+func (c *Client) SendBatch(ctx context.Context, requests spec.BaseJSONRequests) (spec.BaseJSONResponses, error) {
 	// Create the response channel for the pipeline
-	responseCh := make(chan types.RPCResponses, 1)
+	responseCh := make(chan spec.BaseJSONResponses, 1)
 
 	// Generate a unique request ID hash
 	requestIDs := make([]string, 0, len(requests))
@@ -216,14 +216,14 @@ func (c *Client) runReadRoutine(ctx context.Context) {
 		}
 
 		var (
-			responses    types.RPCResponses
+			responses    spec.BaseJSONResponses
 			responseHash string
 		)
 
 		// Try to unmarshal as a batch of responses first
 		if err := json.Unmarshal(data, &responses); err != nil {
 			// Try to unmarshal as a single response
-			var response types.RPCResponse
+			var response *spec.BaseJSONResponse
 
 			if err := json.Unmarshal(data, &response); err != nil {
 				c.logger.Error("failed to parse response", "err", err, "data", string(data))
@@ -233,7 +233,7 @@ func (c *Client) runReadRoutine(ctx context.Context) {
 
 			// This is a single response, generate the unique ID
 			responseHash = generateIDHash(response.ID.String())
-			responses = types.RPCResponses{response}
+			responses = spec.BaseJSONResponses{response}
 		} else {
 			// This is a batch response, generate the unique ID
 			// from the combined IDs

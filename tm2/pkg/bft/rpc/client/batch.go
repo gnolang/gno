@@ -7,9 +7,16 @@ import (
 	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	abciTypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/health"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/net"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/tx"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
-	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
@@ -21,7 +28,7 @@ type RPCBatch struct {
 	// resultMap maps the request ID -> result Amino type
 	// Why?
 	// There is a weird quirk in this RPC system where request results
-	// are marshalled into Amino JSON, before being handed off to the client.
+	// are marshaled into Amino JSON, before being handed off to the client.
 	// The client, of course, needs to unmarshal the Amino JSON-encoded response result
 	// back into a concrete type.
 	// Since working with an RPC batch is asynchronous
@@ -96,7 +103,7 @@ func (b *RPCBatch) Send(ctx context.Context) ([]any, error) {
 	return results, errors.Join(errs...)
 }
 
-func (b *RPCBatch) addRequest(request rpctypes.RPCRequest, result any) {
+func (b *RPCBatch) addRequest(request *spec.BaseJSONRequest, result any) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 
@@ -107,319 +114,252 @@ func (b *RPCBatch) addRequest(request rpctypes.RPCRequest, result any) {
 	b.batch.AddRequest(request)
 }
 
-func (b *RPCBatch) Status() error {
+func (b *RPCBatch) Status() {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		statusMethod,
-		map[string]any{},
+		nil,
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultStatus{})
-
-	return nil
+	b.addRequest(request, &status.ResultStatus{})
 }
 
-func (b *RPCBatch) ABCIInfo() error {
+func (b *RPCBatch) ABCIInfo() {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		abciInfoMethod,
-		map[string]any{},
+		nil,
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultABCIInfo{})
-
-	return nil
+	b.addRequest(request, &abciTypes.ResultABCIInfo{})
 }
 
-func (b *RPCBatch) ABCIQuery(path string, data []byte) error {
-	return b.ABCIQueryWithOptions(path, data, DefaultABCIQueryOptions)
+func (b *RPCBatch) ABCIQuery(path string, data []byte) {
+	b.ABCIQueryWithOptions(path, data, DefaultABCIQueryOptions)
 }
 
-func (b *RPCBatch) ABCIQueryWithOptions(path string, data []byte, opts ABCIQueryOptions) error {
+func (b *RPCBatch) ABCIQueryWithOptions(path string, data []byte, opts ABCIQueryOptions) {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		abciQueryMethod,
-		map[string]any{
-			"path":   path,
-			"data":   data,
-			"height": opts.Height,
-			"prove":  opts.Prove,
+		[]any{
+			path,
+			data,
+			opts.Height,
+			opts.Prove,
 		},
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultABCIQuery{})
-
-	return nil
+	b.addRequest(request, &abciTypes.ResultABCIQuery{})
 }
 
-func (b *RPCBatch) BroadcastTxCommit(tx types.Tx) error {
+func (b *RPCBatch) BroadcastTxCommit(tx types.Tx) {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		broadcastTxCommitMethod,
-		map[string]any{"tx": tx},
+		[]any{
+			tx,
+		},
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultBroadcastTxCommit{})
-
-	return nil
+	b.addRequest(request, &mempool.ResultBroadcastTxCommit{})
 }
 
-func (b *RPCBatch) BroadcastTxAsync(tx types.Tx) error {
-	return b.broadcastTX(broadcastTxAsyncMethod, tx)
+func (b *RPCBatch) BroadcastTxAsync(tx types.Tx) {
+	b.broadcastTX(broadcastTxAsyncMethod, tx)
 }
 
-func (b *RPCBatch) BroadcastTxSync(tx types.Tx) error {
-	return b.broadcastTX(broadcastTxSyncMethod, tx)
+func (b *RPCBatch) BroadcastTxSync(tx types.Tx) {
+	b.broadcastTX(broadcastTxSyncMethod, tx)
 }
 
-func (b *RPCBatch) broadcastTX(route string, tx types.Tx) error {
+func (b *RPCBatch) broadcastTX(route string, tx types.Tx) {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		route,
-		map[string]any{"tx": tx},
+		[]any{
+			tx,
+		},
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultBroadcastTx{})
-
-	return nil
+	b.addRequest(request, &mempool.ResultBroadcastTx{})
 }
 
-func (b *RPCBatch) UnconfirmedTxs(limit int) error {
+func (b *RPCBatch) UnconfirmedTxs(limit int) {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		unconfirmedTxsMethod,
-		map[string]any{"limit": limit},
+		[]any{
+			limit,
+		},
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultUnconfirmedTxs{})
-
-	return nil
+	b.addRequest(request, &mempool.ResultUnconfirmedTxs{})
 }
 
-func (b *RPCBatch) NumUnconfirmedTxs() error {
+func (b *RPCBatch) NumUnconfirmedTxs() {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		numUnconfirmedTxsMethod,
-		map[string]any{},
+		nil,
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultUnconfirmedTxs{})
-
-	return nil
+	b.addRequest(request, &mempool.ResultUnconfirmedTxs{})
 }
 
-func (b *RPCBatch) NetInfo() error {
+func (b *RPCBatch) NetInfo() {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		netInfoMethod,
-		map[string]any{},
+		nil,
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultNetInfo{})
-
-	return nil
+	b.addRequest(request, &net.ResultNetInfo{})
 }
 
-func (b *RPCBatch) DumpConsensusState() error {
+func (b *RPCBatch) DumpConsensusState() {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		dumpConsensusStateMethod,
-		map[string]any{},
+		nil,
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultDumpConsensusState{})
-
-	return nil
+	b.addRequest(request, &consensus.ResultDumpConsensusState{})
 }
 
-func (b *RPCBatch) ConsensusState() error {
+func (b *RPCBatch) ConsensusState() {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		consensusStateMethod,
-		map[string]any{},
+		nil,
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultConsensusState{})
-
-	return nil
+	b.addRequest(request, &consensus.ResultConsensusState{})
 }
 
-func (b *RPCBatch) ConsensusParams(height *int64) error {
-	params := map[string]any{}
+func (b *RPCBatch) ConsensusParams(height *int64) {
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		consensusParamsMethod,
-		params,
+		[]any{
+			v,
+		},
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultConsensusParams{})
-
-	return nil
+	b.addRequest(request, &consensus.ResultConsensusParams{})
 }
 
-func (b *RPCBatch) Health() error {
+func (b *RPCBatch) Health() {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		healthMethod,
-		map[string]any{},
+		nil,
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultHealth{})
-
-	return nil
+	b.addRequest(request, &health.ResultHealth{})
 }
 
-func (b *RPCBatch) BlockchainInfo(minHeight, maxHeight int64) error {
+func (b *RPCBatch) BlockchainInfo(minHeight, maxHeight int64) {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		blockchainMethod,
-		map[string]any{
-			"minHeight": minHeight,
-			"maxHeight": maxHeight,
+		[]any{
+			minHeight,
+			maxHeight,
 		},
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultBlockchainInfo{})
-
-	return nil
+	b.addRequest(request, &blocks.ResultBlockchainInfo{})
 }
 
-func (b *RPCBatch) Genesis() error {
+func (b *RPCBatch) Genesis() {
 	// Prepare the RPC request
-	request, err := newRequest(genesisMethod, map[string]any{})
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
+	request := newRequest(genesisMethod, nil)
 
-	b.addRequest(request, &ctypes.ResultGenesis{})
-
-	return nil
+	b.addRequest(request, &net.ResultGenesis{})
 }
 
-func (b *RPCBatch) Block(height *int64) error {
-	params := map[string]any{}
+func (b *RPCBatch) Block(height *int64) {
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
 	// Prepare the RPC request
-	request, err := newRequest(blockMethod, params)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
+	request := newRequest(
+		blockMethod,
+		[]any{
+			v,
+		},
+	)
 
-	b.addRequest(request, &ctypes.ResultBlock{})
-
-	return nil
+	b.addRequest(request, &blocks.ResultBlock{})
 }
 
-func (b *RPCBatch) BlockResults(height *int64) error {
-	params := map[string]any{}
+func (b *RPCBatch) BlockResults(height *int64) {
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
 	// Prepare the RPC request
-	request, err := newRequest(blockResultsMethod, params)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
+	request := newRequest(
+		blockResultsMethod,
+		[]any{
+			v,
+		},
+	)
 
-	b.addRequest(request, &ctypes.ResultBlockResults{})
-
-	return nil
+	b.addRequest(request, &blocks.ResultBlockResults{})
 }
 
-func (b *RPCBatch) Commit(height *int64) error {
-	params := map[string]any{}
+func (b *RPCBatch) Commit(height *int64) {
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
 	// Prepare the RPC request
-	request, err := newRequest(commitMethod, params)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
+	request := newRequest(
+		commitMethod,
+		[]any{
+			v,
+		},
+	)
 
-	b.addRequest(request, &ctypes.ResultCommit{})
-
-	return nil
+	b.addRequest(request, &blocks.ResultCommit{})
 }
 
-func (b *RPCBatch) Tx(hash []byte) error {
+func (b *RPCBatch) Tx(hash []byte) {
 	// Prepare the RPC request
-	request, err := newRequest(
+	request := newRequest(
 		txMethod,
-		map[string]any{
-			"hash": hash,
+		[]any{
+			hash,
 		},
 	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
 
-	b.addRequest(request, &ctypes.ResultTx{})
-
-	return nil
+	b.addRequest(request, &tx.ResultTx{})
 }
 
-func (b *RPCBatch) Validators(height *int64) error {
-	params := map[string]any{}
+func (b *RPCBatch) Validators(height *int64) {
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
 	// Prepare the RPC request
-	request, err := newRequest(validatorsMethod, params)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
+	request := newRequest(
+		validatorsMethod,
+		[]any{
+			v,
+		},
+	)
 
-	b.addRequest(request, &ctypes.ResultValidators{})
-
-	return nil
+	b.addRequest(request, &consensus.ResultValidators{})
 }

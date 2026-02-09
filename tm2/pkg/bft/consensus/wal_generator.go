@@ -18,11 +18,10 @@ func randPort() int {
 	return base + random.RandIntn(spread)
 }
 
-func makeAddrs() (string, string, string) {
+func makeAddrs() (string, string) {
 	start := randPort()
-	return fmt.Sprintf("tcp://0.0.0.0:%d", start),
-		fmt.Sprintf("tcp://0.0.0.0:%d", start+1),
-		fmt.Sprintf("tcp://0.0.0.0:%d", start+2)
+	return fmt.Sprintf("0.0.0.0:%d", start),
+		fmt.Sprintf("0.0.0.0:%d", start+1)
 }
 
 // getConfig returns a config and genesis file for test cases
@@ -32,10 +31,9 @@ func getConfig(t *testing.T) (*cfg.Config, string) {
 	c, genesisFile := cfg.ResetTestRoot(t.Name())
 
 	// and we use random ports to run in parallel
-	tm, rpc, grpc := makeAddrs()
+	tm, rpc := makeAddrs()
 	c.P2P.ListenAddress = tm
 	c.RPC.ListenAddress = rpc
-	c.RPC.GRPCListenAddress = grpc
 
 	return c, genesisFile
 }

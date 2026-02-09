@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"dario.cat/mergo"
+	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/config"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
-	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	eventstore "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -48,7 +48,7 @@ type Config struct {
 	BaseConfig `toml:",squash"`
 
 	// Options for services
-	RPC          *rpc.RPCConfig       `json:"rpc" toml:"rpc" comment:"##### rpc server configuration options #####"`
+	RPC          *rpc.Config          `json:"rpc" toml:"rpc" comment:"##### rpc server configuration options #####"`
 	P2P          *p2p.P2PConfig       `json:"p2p" toml:"p2p" comment:"##### peer to peer configuration options #####"`
 	Mempool      *mem.MempoolConfig   `json:"mempool" toml:"mempool" comment:"##### mempool configuration options #####"`
 	Consensus    *cns.ConsensusConfig `json:"consensus" toml:"consensus" comment:"##### consensus configuration options #####"`
@@ -61,7 +61,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		BaseConfig:   DefaultBaseConfig(),
-		RPC:          rpc.DefaultRPCConfig(),
+		RPC:          rpc.DefaultConfig(),
 		P2P:          p2p.DefaultP2PConfig(),
 		Mempool:      mem.DefaultMempoolConfig(),
 		Consensus:    cns.DefaultConsensusConfig(),
@@ -178,7 +178,7 @@ func testP2PConfig() *p2p.P2PConfig {
 func TestConfig() *Config {
 	return &Config{
 		BaseConfig:   testBaseConfig(),
-		RPC:          rpc.TestRPCConfig(),
+		RPC:          rpc.DefaultConfig(),
 		P2P:          testP2PConfig(),
 		Mempool:      mem.TestMempoolConfig(),
 		Consensus:    cns.TestConsensusConfig(),
@@ -191,7 +191,6 @@ func TestConfig() *Config {
 // SetRootDir sets the RootDir for all Config structs
 func (cfg *Config) SetRootDir(root string) *Config {
 	cfg.BaseConfig.RootDir = root
-	cfg.RPC.RootDir = root
 	cfg.P2P.RootDir = root
 	cfg.Mempool.RootDir = root
 	cfg.Consensus.RootDir = root
@@ -228,9 +227,6 @@ func (cfg *Config) EnsureDirs() error {
 func (cfg *Config) ValidateBasic() error {
 	if err := cfg.BaseConfig.ValidateBasic(); err != nil {
 		return err
-	}
-	if err := cfg.RPC.ValidateBasic(); err != nil {
-		return errors.Wrap(err, "Error in [rpc] section")
 	}
 	if err := cfg.P2P.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [p2p] section")

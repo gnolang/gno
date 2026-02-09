@@ -5,17 +5,20 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abciErrors "github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/blocks"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mempool"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/status"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	abciTypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -45,8 +48,8 @@ func TestRender(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
-				res := &ctypes.ResultABCIQuery{
+			abciQuery: func(ctx context.Context, path string, data []byte) (*abciTypes.ResultABCIQuery, error) {
+				res := &abciTypes.ResultABCIQuery{
 					Response: abci.ResponseQuery{
 						ResponseBase: abci.ResponseBase{
 							Data: expectedRender,
@@ -84,8 +87,8 @@ func TestCallSingle(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-				res := &ctypes.ResultBroadcastTxCommit{
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error) {
+				res := &mempool.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
 							Data: []byte("it works!"),
@@ -148,8 +151,8 @@ func TestCallMultiple(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-				res := &ctypes.ResultBroadcastTxCommit{
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error) {
+				res := &mempool.ResultBroadcastTxCommit{
 					CheckTx: abci.ResponseCheckTx{
 						ResponseBase: abci.ResponseBase{
 							Error:  nil,
@@ -622,8 +625,8 @@ func TestRunSingle(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-				res := &ctypes.ResultBroadcastTxCommit{
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error) {
+				res := &mempool.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
 							Data: []byte("hi gnoclient!\n"),
@@ -699,8 +702,8 @@ func TestRunMultiple(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-				res := &ctypes.ResultBroadcastTxCommit{
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*mempool.ResultBroadcastTxCommit, error) {
+				res := &mempool.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
 							Data: []byte("hi gnoclient!\nhi gnoclient!\n"),
@@ -1176,8 +1179,8 @@ func TestBlock(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			block: func(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
-				return &ctypes.ResultBlock{
+			block: func(ctx context.Context, height *int64) (*blocks.ResultBlock, error) {
+				return &blocks.ResultBlock{
 					BlockMeta: &types.BlockMeta{
 						BlockID: types.BlockID{},
 						Header:  types.Header{},
@@ -1206,8 +1209,8 @@ func TestBlockResults(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			blockResults: func(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
-				return &ctypes.ResultBlockResults{
+			blockResults: func(ctx context.Context, height *int64) (*blocks.ResultBlockResults, error) {
+				return &blocks.ResultBlockResults{
 					Height:  *height,
 					Results: nil,
 				}, nil
@@ -1228,9 +1231,9 @@ func TestLatestBlockHeight(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			status: func(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
-				return &ctypes.ResultStatus{
-					SyncInfo: ctypes.SyncInfo{
+			status: func(ctx context.Context, heightGte *int64) (*status.ResultStatus, error) {
+				return &status.ResultStatus{
+					SyncInfo: status.SyncInfo{
 						LatestBlockHeight: latestHeight,
 					},
 				}, nil
@@ -1356,7 +1359,7 @@ func TestLatestBlockHeightErrors(t *testing.T) {
 }
 
 // The same as client.Call, but test signing separately
-func callSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
+func callSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgCall) (*mempool.ResultBroadcastTxCommit, error) {
 	t.Helper()
 	tx, err := NewCallTx(cfg, msgs...)
 	assert.NoError(t, err)
@@ -1371,7 +1374,7 @@ func callSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...v
 }
 
 // The same as client.Run, but test signing separately
-func runSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
+func runSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgRun) (*mempool.ResultBroadcastTxCommit, error) {
 	t.Helper()
 	tx, err := NewRunTx(cfg, msgs...)
 	assert.NoError(t, err)
@@ -1386,7 +1389,7 @@ func runSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm
 }
 
 // The same as client.Send, but test signing separately
-func sendSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
+func sendSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...bank.MsgSend) (*mempool.ResultBroadcastTxCommit, error) {
 	t.Helper()
 	tx, err := NewSendTx(cfg, msgs...)
 	assert.NoError(t, err)
@@ -1401,7 +1404,7 @@ func sendSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...b
 }
 
 // The same as client.AddPackage, but test signing separately
-func addPackageSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error) {
+func addPackageSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*mempool.ResultBroadcastTxCommit, error) {
 	t.Helper()
 	tx, err := NewAddPackageTx(cfg, msgs...)
 	assert.NoError(t, err)
@@ -1437,7 +1440,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		var (
 			rpcErr        = errors.New("rpc error")
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*abciTypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1463,7 +1466,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		t.Parallel()
 
 		var (
-			response = &ctypes.ResultABCIQuery{
+			response = &abciTypes.ResultABCIQuery{
 				Response: abci.ResponseQuery{
 					ResponseBase: abci.ResponseBase{
 						Error: abciErrors.UnknownError{},
@@ -1471,7 +1474,7 @@ func TestClient_EstimateGas(t *testing.T) {
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*abciTypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1497,13 +1500,13 @@ func TestClient_EstimateGas(t *testing.T) {
 		t.Parallel()
 
 		var (
-			response = &ctypes.ResultABCIQuery{
+			response = &abciTypes.ResultABCIQuery{
 				Response: abci.ResponseQuery{
 					Value: []byte("totally valid amino"),
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*abciTypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1540,13 +1543,13 @@ func TestClient_EstimateGas(t *testing.T) {
 		require.NoError(t, err)
 
 		var (
-			response = &ctypes.ResultABCIQuery{
+			response = &abciTypes.ResultABCIQuery{
 				Response: abci.ResponseQuery{
 					Value: encodedResp, // valid amino binary
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*abciTypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1591,13 +1594,13 @@ func TestClient_EstimateGas(t *testing.T) {
 		require.NoError(t, err)
 
 		var (
-			response = &ctypes.ResultABCIQuery{
+			response = &abciTypes.ResultABCIQuery{
 				Response: abci.ResponseQuery{
 					Value: encodedResp, // valid amino binary
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*abciTypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
