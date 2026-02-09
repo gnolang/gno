@@ -4,6 +4,7 @@ package main
 // SEND: 1000000ugnot
 
 import (
+	"chain"
 	"testing"
 
 	"gno.land/p/gnoland/boards"
@@ -25,6 +26,9 @@ var (
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test123", false, true)
+
+	// Make sure user account has the required amount of GNOT for open board actions
+	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})
 
 	// Register a username which is required to be able to add
 	// a reply and then create a new reply as a non member user.
