@@ -292,6 +292,20 @@ func TestMemPackage_Validate(t *testing.T) {
 			"",
 			"",
 		},
+		{
+			"valid_with_other_markdown",
+			&std.MemPackage{
+				Type: MPUserProd,
+				Name: "hey",
+				Path: "gno.land/r/path/path",
+				Files: []*std.MemFile{
+					{Name: "a.gno", Body: "package hey"},
+					{Name: "other.md", Body: "# Other markdown file"},
+				},
+			},
+			"",
+			"",
+		},
 	}
 
 	for _, tc := range tt {

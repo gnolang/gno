@@ -13,13 +13,13 @@ const (
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.CreateBoard(cross, boardName, false)
+	boards2.CreateBoard(cross, boardName, false, false)
 }
 
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross, boardName, false)
+	boards2.CreateBoard(cross, boardName, false, false)
 }
 
 // Error:

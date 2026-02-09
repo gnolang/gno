@@ -20,6 +20,7 @@ import (
 
 type MakeRunCfg struct {
 	RootCfg    *client.MakeTxCfg
+	Send       string
 	MaxDeposit string
 }
 
@@ -42,6 +43,12 @@ func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Comma
 }
 
 func (c *MakeRunCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.Send,
+		"send",
+		"",
+		"send amount",
+	)
 	fs.StringVar(
 		&c.MaxDeposit,
 		"max-deposit",
@@ -75,7 +82,13 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 	caller := info.GetAddress()
 
-	// Parase deposit amount
+	// Parse send amount.
+	send, err := std.ParseCoins(cfg.Send)
+	if err != nil {
+		return errors.Wrap(err, "parsing send coins")
+	}
+
+	// Parse deposit amount
 	deposit, err := std.ParseCoins(cfg.MaxDeposit)
 	if err != nil {
 		return errors.Wrap(err, "parsing storage deposit coins")
@@ -133,6 +146,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	msg := vm.MsgRun{
 		Caller:     caller,
 		Package:    memPkg,
+		Send:       send,
 		MaxDeposit: deposit,
 	}
 	tx := std.Tx{

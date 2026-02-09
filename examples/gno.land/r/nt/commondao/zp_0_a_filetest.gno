@@ -40,7 +40,7 @@ func main() {
 		panic("expected proposal to be created")
 	}
 
-	println(p.Status() == pcommondao.StatusActive)
+	println(string(p.Status()))
 	println(p.Creator() == user)
 	println(p.Definition().Title() == "Members Update")
 	println("")
@@ -48,7 +48,7 @@ func main() {
 }
 
 // Output:
-// true
+// active
 // true
 // true
 //

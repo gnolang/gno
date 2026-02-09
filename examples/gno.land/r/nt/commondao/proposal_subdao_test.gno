@@ -106,7 +106,9 @@ func TestSubDAOPropDefinitionTally(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(members))
+			ctx := commondao.MustNewVotingContext(&record, members)
+
+			success, err := p.Tally(ctx)
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err, "expect an error")
@@ -252,7 +254,9 @@ func TestDissolvePropDefinitionTally(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(members))
+			ctx := commondao.MustNewVotingContext(&record, members)
+
+			success, err := p.Tally(ctx)
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err, "expect an error")

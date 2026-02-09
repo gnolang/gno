@@ -8,6 +8,19 @@ import type { ActionMode } from "./controller-action-header.js";
 export class ActionFunctionController extends BaseController {
 	protected sendValue: string | null = null;
 	declare _funcName: string | null;
+	declare _pkgPath: string | null;
+	declare _paramInputsCache: HTMLInputElement[];
+	declare _params: Record<string, string>;
+
+	// Cached params inputs
+	private get _paramInputs(): HTMLInputElement[] {
+		if (!this._paramInputsCache) {
+			this._paramInputsCache = this.getTargets(
+				"param-input",
+			) as HTMLInputElement[];
+		}
+		return this._paramInputsCache;
+	}
 
 	protected connect(): void {
 		this.initializeDOM({
@@ -15,9 +28,16 @@ export class ActionFunctionController extends BaseController {
 		});
 
 		this._funcName = this.getValue("name") || null;
+		this._pkgPath = this.getValue("pkgpath") || null;
 
 		this._initializeArgs();
 		this._listenForEvents();
+
+		// Some functions may have no params, or all params already have values
+		this._updateQEvalResult();
+
+		// Dispatch initial params state for wallet integration
+		this._dispatchParamsChanged();
 	}
 
 	// listen for events from action-header controller
@@ -26,7 +46,6 @@ export class ActionFunctionController extends BaseController {
 		this.on("mode:changed", (event: Event) => {
 			const customEvent = event as CustomEvent;
 			const mode: ActionMode = customEvent.detail.mode;
-			console.log("mode:changed", mode);
 			this._updateAllFunctionsMode(mode);
 		});
 
@@ -44,7 +63,6 @@ export class ActionFunctionController extends BaseController {
 		const modeElements = this.getTargets("mode");
 
 		modeElements.forEach((modeElement) => {
-			console.log("modeElement in function", modeElement);
 			const isVisible = this.getValue("mode", modeElement) === mode;
 			modeElement.classList.toggle("u-inline", isVisible);
 			modeElement.classList.toggle("u-hidden", !isVisible);
@@ -62,41 +80,82 @@ export class ActionFunctionController extends BaseController {
 		});
 	}
 
-	// sanitize the args input
-	private _sanitizeArgsInput(input: HTMLInputElement): {
-		paramName: string;
-		paramValue: string;
-	} {
-		const paramName = this.getValue("param", input) || "";
-		const paramValue = input.value.trim();
+	// get current value for a param name (handles checkbox multiple values)
+	private _getParamCurrentValue(paramName: string): string {
+		// radio or checkbox multiple values
+		const inputs = this._paramInputs.filter(
+			(inp) => this.getValue("param", inp) === paramName,
+		);
 
-		if (!paramName) {
-			console.warn("sanitizeArgsInput: param is missing in arg input dataset.");
+		if (!inputs.length) return "";
+
+		const firstInput = inputs[0];
+
+		// Checkbox: join all checked values
+		if (firstInput.type === "checkbox") {
+			return inputs
+				.filter((inp) => inp.checked)
+				.map((inp) => inp.value.trim())
+				.join(",");
 		}
 
-		return { paramName, paramValue };
+		// Radio: find checked one
+		if (firstInput.type === "radio") {
+			const checked = inputs.find((inp) => inp.checked);
+
+			return checked?.value.trim() || "";
+		}
+
+		// Other: return value
+		return firstInput.value.trim();
 	}
 
 	// initialize the args
 	private _initializeArgs(): void {
-		this.getTargets("param-input").forEach((paramInput) => {
-			const { paramName, paramValue } = this._sanitizeArgsInput(
-				paramInput as HTMLInputElement,
-			);
-			if (paramName) this._pushArgsInDOM(paramName, paramValue);
+		// multiple values (radio or checkbox) to be initialized only once
+		const processed = new Set<string>();
+
+		// Build params tree and initialize the args
+		this._params = {};
+		this._paramInputs.forEach((input) => {
+			const paramName = this.getValue("param", input) || "";
+
+			if (!paramName || processed.has(paramName)) return;
+
+			const paramValue = this._getParamCurrentValue(paramName);
+			this._params[paramName] = paramValue;
+			if (paramValue) this._updateArgInDOM(paramName, paramValue);
+
+			processed.add(paramName);
 		});
 	}
 
-	// debounced update all args
+	// debounced update all args and update the qeval result
 	private _debouncedUpdateAllArgs = debounce(
 		(paramName: string, paramValue: string) => {
-			if (paramName) this._pushArgsInDOM(paramName, paramValue);
+			if (paramName) {
+				this._updateArgInDOM(paramName, paramValue);
+				this._updateQEvalResult();
+				this._dispatchParamsChanged();
+			}
 		},
 		50,
 	);
 
+	// Dispatch params:changed event uppon parameter updates.
+	private _dispatchParamsChanged(): void {
+		if (!this._funcName || !this._pkgPath) return;
+
+		this.dispatch("params:changed", {
+			pkgPath: this._pkgPath,
+			funcName: this._funcName,
+			params: { ...this._params },
+			send: this.sendValue || undefined,
+		});
+	}
+
 	// push args in DOM (in func code)
-	private _pushArgsInDOM(paramName: string, paramValue: string): void {
+	private _updateArgInDOM(paramName: string, paramValue: string): void {
 		const escapedValue = escapeShellSpecialChars(paramValue);
 
 		// Update args elements with the new parameter value
@@ -106,17 +165,77 @@ export class ActionFunctionController extends BaseController {
 				arg.textContent = escapedValue || "";
 			});
 
-		// Update function link with new parameter value
-		const functionLink = this.getTarget("function-link") as HTMLAnchorElement;
-		if (functionLink) {
-			const currentUrl = functionLink.getAttribute("href");
-			if (!currentUrl) {
-				console.warn(`No href attribute found for function link`);
-				return;
-			}
-			const u = new URL(functionLink.href, window.location.origin);
-			u.searchParams.set(paramName, paramValue);
-			functionLink.href = u.toString();
+		// Update function execute (form) and anchor (copy button) with new parameter
+		const executeForm = this.getTarget("function-execute") as HTMLFormElement;
+		const anchorButton = this.getTarget("function-anchor") as HTMLButtonElement;
+		if (!executeForm && !anchorButton) return;
+
+		const baseUrl =
+			executeForm?.getAttribute("action") ||
+			anchorButton?.getAttribute("data-copy-text-value");
+		if (!baseUrl) return;
+
+		const parts = baseUrl.split("&");
+		const encodedValue = encodeURIComponent(paramValue);
+		const index = parts.findIndex(
+			(part, i) => i > 0 && part.startsWith(`${paramName}=`),
+		);
+		if (index !== -1) {
+			parts[index] = `${paramName}=${encodedValue}`;
+		} else {
+			parts.push(`${paramName}=${encodedValue}`);
+		}
+
+		const updatedUrl = parts.join("&");
+
+		executeForm?.setAttribute("action", updatedUrl);
+		anchorButton?.setAttribute("data-copy-text-value", updatedUrl);
+	}
+
+	// Update the qeval result
+	// If there is no "qeval-result" target, then do nothing.
+	private async _updateQEvalResult(): Promise<void> {
+		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
+		const remoteTarget = this.getTarget("remote") as HTMLElement;
+
+		// If there is no resultTarget or remoteTarget, this is a crossing function.
+		if (!(resultTarget && remoteTarget)) return;
+
+		// If there are no args, then show the "(enter param values)" placeholder.
+		const argNodes = this.getTargets("arg");
+		const haveAllArgs = argNodes.every((arg) => arg.textContent !== "");
+		if (!haveAllArgs) {
+			resultTarget.textContent = "(enter param values)";
+			resultTarget.classList.remove("u-color-danger");
+			return;
+		}
+
+		// Build the data string for the qeval query.
+		const args = argNodes
+			.map((arg) => (arg.textContent as string).replace(/\\(.)/g, "$1"))
+			.join(",");
+		const data = `${this._pkgPath}.${this._funcName}(${args})`;
+
+		// Fetch the qeval result from the remote and update the DOM.
+		const result = await this._fetchQEval(remoteTarget.textContent || "", data);
+		resultTarget.textContent = result;
+		resultTarget.classList.toggle(
+			"u-color-danger",
+			result.startsWith("Error:"),
+		);
+	}
+
+	// Fetch the qeval result from the remote
+	private async _fetchQEval(remote: string, data: string): Promise<string> {
+		try {
+			const url = `${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
+			const response = await fetch(url);
+			if (!response.ok) return "";
+
+			const result = (await response.json()).result.response.ResponseBase;
+			return result.Data ? atob(result.Data) : `Error: ${result.Error.value}`;
+		} catch {
+			return "";
 		}
 	}
 
@@ -124,9 +243,13 @@ export class ActionFunctionController extends BaseController {
 	// update all args (DOM action)
 	public updateAllArgs(event: Event): void {
 		const target = event.target as HTMLInputElement;
-		const { paramName, paramValue } = this._sanitizeArgsInput(target);
+		const paramName = this.getValue("param", target);
+		if (!paramName) return;
 
-		if (paramName) this._debouncedUpdateAllArgs(paramName, paramValue);
+		// get the current value for the param name and update params tree
+		const paramValue = this._getParamCurrentValue(paramName);
+		this._params[paramName] = paramValue;
+		this._debouncedUpdateAllArgs(paramName, paramValue);
 	}
 
 	// update all functions send (DOM action)
@@ -134,8 +257,10 @@ export class ActionFunctionController extends BaseController {
 		event: Event & { params?: Record<string, unknown> },
 	): void {
 		const send = (event.params?.send as boolean) || false;
+		this.sendValue = send ? this.getValue("send") : null;
 		this.getDOMArray("send-code").forEach((sendElement) => {
-			sendElement.textContent = send ? this.getValue("send") : "";
+			sendElement.textContent = this.sendValue || "";
 		});
+		this._dispatchParamsChanged();
 	}
 }
