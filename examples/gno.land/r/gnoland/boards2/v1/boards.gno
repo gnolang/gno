@@ -34,6 +34,9 @@ var (
 		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", // @devx
 		"g1manfred47kzduec920z88wfr64ylksmdcedlf5", // @moul
 	)
+
+	// TODO: Allow updating open account amount though a proposal (GovDAO, CommonDAO?)
+	gOpenAccountAmount = int64(3_000_000_000) // ugnot required for open board actions
 )
 
 func init() {
