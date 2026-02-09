@@ -214,6 +214,7 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	}
 
 	if len(cfg.DerivationPath) == 0 {
+		// Normal derivation uses account/index flags.
 		if err := confirmOverwrite(name); err != nil {
 			return err
 		}
@@ -244,6 +245,11 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 
 		infos = []keys.Info{info}
 	} else {
+		// Derivation paths override account/index flags.
+		if cfg.Account != 0 || cfg.Index != 0 {
+			io.Println("WARNING: -account/-index are ignored when -derivation-path is provided.")
+		}
+
 		entries := make([]deriveEntry, 0, len(cfg.DerivationPath))
 
 		for _, path := range cfg.DerivationPath {
