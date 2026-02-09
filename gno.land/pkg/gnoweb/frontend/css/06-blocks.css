@@ -1095,8 +1095,6 @@ pre.chroma-chroma {
 	}
 
 	a {
-		word-break: break-all;
-
 		> span {
 			display: -webkit-box;
 			-webkit-line-clamp: 2;
@@ -1110,6 +1108,10 @@ pre.chroma-chroma {
 			color: var(--s-color-text-link-hover);
 		}
 	}
+}
+
+main.dev-mode .b-toc a {
+	word-break: break-all;
 }
 
 .b-source-toc {
