@@ -12,22 +12,22 @@ const (
 	StoreSetPackage      byte = 0x05 // get package from store
 	StoreGetType         byte = 0x06 // get type from store
 	StoreSetType         byte = 0x07 // set type in store
-	StoreGetBlockNode    byte = 0x08 // get block node from store
-	StoreSetBlockNode    byte = 0x09 // set block node in store
-	StoreAddMemPackage   byte = 0x0A // add mempackage to store
-	StoreGetMemPackage   byte = 0x0B // get mempackage from store
-	StoreGetPackageRealm byte = 0x0C // add mempackage to store
-	StoreSetPackageRealm byte = 0x0D // get mempackage from store
-
-	AminoMarshal    byte = 0x0E // marshal mem package and realm to binary
-	AminoMarshalAny byte = 0x0F // marshal gno object to binary
-	AminoUnmarshal  byte = 0x10 // unmarshl binary to gno object, package and realm
+	StoreDeleteType      byte = 0x08 // delete type from store
+	StoreGetBlockNode    byte = 0x09 // get block node from store
+	StoreSetBlockNode    byte = 0x0A // set block node in store
+	StoreAddMemPackage   byte = 0x0B // add mempackage to store
+	StoreGetMemPackage   byte = 0x0C // get mempackage from store
+	StoreGetPackageRealm byte = 0x0D // add mempackage to store
+	StoreSetPackageRealm byte = 0x0E // get mempackage from store
+	AminoMarshal         byte = 0x0F // marshal mem package and realm to binary
+	AminoMarshalAny      byte = 0x10 // marshal gno object to binary
+	AminoUnmarshal       byte = 0x11 // unmarshl binary to gno object, package and realm
 
 	// underlying store
-	StoreGet byte = 0x11 // Get binary value by key
-	StoreSet byte = 0x12 // Set binary value by key
+	StoreGet byte = 0x12 // Get binary value by key
+	StoreSet byte = 0x13 // Set binary value by key
 
-	FinalizeTx byte = 0x13 // finalize transaction
+	FinalizeTx byte = 0x14 // finalize transaction
 
 	invalidStoreCode string = "StoreInvalid"
 )

@@ -123,6 +123,7 @@ const (
 	GasAddMemPackageDesc   = "AddMemPackagePerByte"
 	GasGetMemPackageDesc   = "GetMemPackagePerByte"
 	GasDeleteObjectDesc    = "DeleteObjectFlat"
+	GasDeleteTypeDesc      = "DeleteTypeFlat"
 )
 
 // GasConfig defines gas cost for each operation on KVStores
@@ -136,6 +137,7 @@ type GasConfig struct {
 	GasAddMemPackage   int64
 	GasGetMemPackage   int64
 	GasDeleteObject    int64
+	GasDeleteType      int64
 }
 
 // DefaultGasConfig returns a default gas config for KVStores.
@@ -150,6 +152,7 @@ func DefaultGasConfig() GasConfig {
 		GasAddMemPackage:   8,    // per byte cost
 		GasGetMemPackage:   8,    // per byte cost
 		GasDeleteObject:    3715, // flat cost
+		GasDeleteType:      3715, // flat cost
 	}
 }
 
@@ -818,13 +821,13 @@ func (ds *defaultStore) DelTypeByID(tid TypeID) {
 		defer bm.ResumeOpCode()
 	}
 	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreDeleteObject)
+		bm.StartStore(bm.StoreDeleteType)
 		defer func() {
 			// delete is a signle operation, not a func of size of bytes
 			bm.StopStore(0)
 		}()
 	}
-	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
+	ds.consumeGas(ds.gasConfig.GasDeleteType, GasDeleteTypeDesc)
 	// delete from cache.
 	ds.cacheTypes.Delete(tid)
 	// delete from backend.
@@ -1049,17 +1052,7 @@ func (ds *defaultStore) GetPackageGlobalID() int64 {
 	}
 }
 
-// Index for a package.
-func (ds *defaultStore) SetPackageRevision(pid PkgID, ctr int64) {
-	ctrkey := []byte(backendPackageRevisionKey(pid))
-	ds.baseStore.Set(ctrkey, []byte(strconv.FormatInt(ctr, 10)))
-}
-
-func (ds *defaultStore) ResetPackageTypes(pid PkgID) {
-	tskey := []byte(backendPackageTypesKey(pid))
-	ds.baseStore.Delete(tskey)
-}
-
+// Track declared types in a pacakge.
 func (ds *defaultStore) AddPackageTypes(pid PkgID, typ TypeID) {
 	tskey := []byte(backendPackageTypesKey(pid))
 	bz := ds.baseStore.Get(tskey)
@@ -1084,6 +1077,17 @@ func (ds *defaultStore) GetPackageTypes(pid PkgID) []TypeID {
 	var typs []TypeID
 	amino.MustUnmarshal(bz, &typs)
 	return typs
+}
+
+func (ds *defaultStore) ResetPackageTypes(pid PkgID) {
+	tskey := []byte(backendPackageTypesKey(pid))
+	ds.baseStore.Delete(tskey)
+}
+
+// Index for a package.
+func (ds *defaultStore) SetPackageRevision(pid PkgID, ctr int64) {
+	ctrkey := []byte(backendPackageRevisionKey(pid))
+	ds.baseStore.Set(ctrkey, []byte(strconv.FormatInt(ctr, 10)))
 }
 
 func (ds *defaultStore) GetPackageRevision(pid PkgID) int64 {

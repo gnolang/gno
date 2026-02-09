@@ -383,6 +383,12 @@ func Echo(cur realm) string {
 	objctr = store.GetObjectCount(backendObjectIndexKey(pkgID, pkgidx))
 	objCount -= 3 // root2, root3 and init func GC'd.
 	assert.Equal(t, objCount, objctr, "num of object does not match")
+	ms := gnolang.TypeID("gno.land/r/test.MyStruct")
+	ms2 := gnolang.TypeID("gno.land/r/test.MyStruct2")
+	dts := store.GetTypeSafe(ms)
+	assert.NotNil(t, dts)
+	dts = store.GetTypeSafe(ms2)
+	assert.NotNil(t, dts)
 
 	// Re-upload the same private package with updated content.
 	files3 := []*std.MemFile{
@@ -421,9 +427,9 @@ func Echo(cur realm) string {
 	assert.Equal(t, objCount, objctr, "num of object does not match")
 
 	// Check declared types are cleared.
-	ms := gnolang.TypeID("gno.land/r/test.MyStruct")
-	ms2 := gnolang.TypeID("gno.land/r/test.MyStruct2")
-	dts := store.GetTypeSafe(ms)
+	ms = gnolang.TypeID("gno.land/r/test.MyStruct")
+	ms2 = gnolang.TypeID("gno.land/r/test.MyStruct2")
+	dts = store.GetTypeSafe(ms)
 	assert.Nil(t, dts)
 	dts = store.GetTypeSafe(ms2)
 	assert.Nil(t, dts)
