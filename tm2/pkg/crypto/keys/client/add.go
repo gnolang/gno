@@ -410,7 +410,7 @@ func deriveKeyName(base string, params *hd.BIP44Params, totalPaths int) string {
 		return base
 	}
 
-	return fmt.Sprintf("%s-%d-%d", base, params.Account, params.AddressIndex)
+	return fmt.Sprintf("%s-a%di%d", base, params.Account, params.AddressIndex)
 }
 
 // generateAccounts the accounts using the provided mnemonics
