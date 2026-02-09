@@ -597,4 +597,63 @@ func TestAdd_Derive(t *testing.T) {
 
 		require.ErrorIs(t, cmd.ParseAndRun(ctx, args), errOverwriteAborted)
 	})
+
+	t.Run("derivation path passphrase preflight", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			mnemonic    = generateTestMnemonic(t)
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+			keyName = "example-key"
+			paths   = []string{"44'/118'/0'/0/0", "44'/118'/0'/0/1"}
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		io := commands.NewTestIO()
+		// First passphrase OK, second mismatch triggers errPassphraseMismatch.
+		io.SetIn(strings.NewReader(mnemonic + "\npass1\npass1\npass2\npass3\n"))
+
+		// Create the command
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+
+		args := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			keyName,
+		}
+
+		for _, path := range paths {
+			args = append(
+				args, []string{
+					"--derivation-path",
+					path,
+				}...,
+			)
+		}
+
+		require.ErrorIs(t, cmd.ParseAndRun(ctx, args), errPassphraseMismatch)
+
+		// Ensure no derived keys were persisted.
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		for _, path := range paths {
+			params, err := hd.NewParamsFromPath(path)
+			require.NoError(t, err)
+
+			derivedName := deriveKeyName(keyName, params, len(paths))
+			has, err := kb.HasByName(derivedName)
+			require.NoError(t, err)
+			require.False(t, has)
+		}
+	})
 }

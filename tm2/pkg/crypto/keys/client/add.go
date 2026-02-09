@@ -269,19 +269,24 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		}
 
 		infos = make([]keys.Info, 0, len(entries))
+		passphrases := make([]string, len(entries))
 
-		for _, entry := range entries {
+		for i := range entries {
 			// Ask for a password when generating a local key
 			pw, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
 			if err != nil {
 				return err
 			}
 
+			passphrases[i] = pw
+		}
+
+		for i, entry := range entries {
 			info, err := kb.CreateAccountBip44(
 				entry.name,
 				mnemonic,
 				"",
-				pw,
+				passphrases[i],
 				*entry.params,
 			)
 			if err != nil {
