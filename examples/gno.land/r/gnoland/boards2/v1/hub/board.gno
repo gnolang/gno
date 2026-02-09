@@ -1,8 +1,6 @@
 package hub
 
 import (
-	"time"
-
 	"gno.land/p/gnoland/boards"
 )
 
@@ -37,11 +35,11 @@ type Board struct {
 	// Creator is the account address that created the board.
 	Creator address
 
-	// CreatedAt is the board's creation time.
-	CreatedAt time.Time
+	// CreatedAt is the board's creation time as Unix time.
+	CreatedAt int64
 
-	// UpdatedAt is the board's update time.
-	UpdatedAt time.Time
+	// UpdatedAt is the board's update time as Unix time.
+	UpdatedAt int64
 }
 
 // IterateThreads iterates board threads by creation time.
@@ -68,7 +66,7 @@ func newSafeBoard(ref *boards.Board) Board {
 		ThreadCount: ref.Threads.Size(),
 		MemberCount: ref.Permissions.UsersCount(),
 		Creator:     ref.Creator,
-		CreatedAt:   ref.CreatedAt,
-		UpdatedAt:   ref.UpdatedAt,
+		CreatedAt:   ref.CreatedAt.Unix(),
+		UpdatedAt:   ref.UpdatedAt.Unix(),
 	}
 }
