@@ -27,6 +27,10 @@ func NewProposalsStatuses() ProposalsStatuses {
 }
 
 func (pss ProposalsStatuses) GetStatus(id dao.ProposalID) *proposalStatus {
+	if pss.Tree == nil {
+		return nil
+	}
+
 	pids := id.String()
 	psv, ok := pss.Get(pids)
 	if !ok {
@@ -208,5 +212,4 @@ This proposal contains the following metadata:
 	}
 
 	return out
-
 }
