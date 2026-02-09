@@ -113,7 +113,6 @@ func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 	flagReply := func() {
 		hide := flagItem(reply, caller, reason, getFlaggingThreshold(board.ID))
 		if hide || isRealmOwner {
-			// Realm owners can hide with a single flag
 			reply.Hidden = true
 		}
 

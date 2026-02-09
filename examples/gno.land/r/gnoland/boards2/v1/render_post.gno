@@ -53,12 +53,6 @@ func renderPost(post *boards.Post, path, indent string, levels int) string {
 func renderPostContent(post *boards.Post, indent string, levels int) string {
 	var b strings.Builder
 
-	if post.Hidden {
-		// Flagged comment should be hidden, but replies still visible (see: #3480)
-		// Flagged threads will be hidden by render function caller.
-		return indentBody(indent, md.Italic("⚠ Reply is hidden as it has been flagged as inappropriate")) + "\n"
-	}
-
 	// Author and date header
 	creatorLink := userLink(post.Creator)
 	roleBadge := getRoleBadge(post)
@@ -69,6 +63,14 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 		b.WriteString(" " + md.Link("#"+post.ID.String(), makeReplyURI(post)))
 	}
 	b.WriteString("  \n")
+
+	// Flagged comment should be hidden, but replies still visible (see: #3480)
+	// Flagged threads will be hidden by render function caller.
+	if post.Hidden {
+		b.WriteString(indentBody(indent, md.Italic("⚠ Reply is hidden as it has been flagged as inappropriate")))
+		b.WriteString("\n")
+		return b.String()
+	}
 
 	srcContent, srcPost := renderSourcePost(post, indent)
 	if boards.IsRepost(post) && srcPost != nil {
