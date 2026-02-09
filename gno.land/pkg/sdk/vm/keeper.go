@@ -448,6 +448,80 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	return nil
 }
 
+// checkCLASignature verifies the creator has signed the required CLA.
+// Returns nil if:
+// - SysCLAPkgPath parameter is empty (CLA enforcement disabled)
+// - CLA realm is not deployed yet
+// - Creator has a valid CLA signature
+func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) error {
+	sysCLAPkg := vm.getSysCLAPkgParam(ctx)
+	if sysCLAPkg == "" {
+		return nil // CLA enforcement disabled
+	}
+
+	store := vm.getGnoTransactionStore(ctx)
+
+	// If CLA realm does not exist -> skip validation
+	claPkg := store.GetPackage(sysCLAPkg, false)
+	if claPkg == nil {
+		return nil
+	}
+
+	chainDomain := vm.getChainDomainParam(ctx)
+
+	// Create execution context
+	msgCtx := stdlibs.ExecContext{
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     chainDomain,
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    creator.Bech32(),
+		OriginSendSpent: new(std.Coins),
+		Banker:          NewSDKBanker(vm, ctx),
+		Params:          NewSDKParams(vm.prmk, ctx),
+		EventLogger:     ctx.EventLogger(),
+	}
+
+	// Create machine for realm call
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:  "",
+			Output:   vm.Output,
+			Store:    store,
+			Context:  msgCtx,
+			Alloc:    store.GetAllocator(),
+			GasMeter: ctx.GasMeter(),
+		})
+	defer m.Release()
+
+	// Call cla.HasValidSignature(address)
+	mpv := gno.NewPackageNode("main", "main", nil).NewPackage(m.Alloc)
+	m.SetActivePackage(mpv)
+	m.RunDeclaration(gno.ImportD("cla", sysCLAPkg))
+	x := gno.Call(
+		gno.Sel(gno.Nx("cla"), "HasValidSignature"),
+		gno.Str(creator.String()),
+	)
+
+	ret := m.Eval(x)
+	if len(ret) == 0 {
+		panic("checkCLASignature: invalid response length")
+	}
+
+	hasValidSig := ret[0]
+	if hasValidSig.T.Kind() != gno.BoolKind {
+		panic("checkCLASignature: invalid response kind")
+	}
+
+	if !hasValidSig.GetBool() {
+		return ErrUnauthorizedUser(
+			fmt.Sprintf("address %s has not signed the required CLA",
+				creator.String()))
+	}
+
+	return nil
+}
+
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	creator := msg.Creator
@@ -542,6 +616,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// - if r/system/names does not exists -> skip validation.
 	// - loads r/system/names data state.
 	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
+		return err
+	}
+
+	// Check CLA signature
+	if err := vm.checkCLASignature(ctx, creator); err != nil {
 		return err
 	}
 

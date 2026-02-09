@@ -14,6 +14,7 @@ import (
 
 const (
 	sysNamesPkgDefault             = "gno.land/r/sys/names"
+	sysCLAPkgDefault               = "gno.land/r/sys/cla"
 	chainDomainDefault             = "gno.land"
 	depositDefault                 = "600000000ugnot"
 	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1B GNOT == 10TB
@@ -25,6 +26,7 @@ var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-
 // Params defines the parameters for the bank module.
 type Params struct {
 	SysNamesPkgPath     string         `json:"sysnames_pkgpath" yaml:"sysnames_pkgpath"`
+	SysCLAPkgPath       string         `json:"syscla_pkgpath" yaml:"syscla_pkgpath"`
 	ChainDomain         string         `json:"chain_domain" yaml:"chain_domain"`
 	DefaultDeposit      string         `json:"default_deposit" yaml:"default_deposit"`
 	StoragePrice        string         `json:"storage_price" yaml:"storage_price"`
@@ -32,9 +34,10 @@ type Params struct {
 }
 
 // NewParams creates a new Params object
-func NewParams(namesPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address) Params {
+func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address) Params {
 	return Params{
 		SysNamesPkgPath:     namesPkgPath,
+		SysCLAPkgPath:       claPkgPath,
 		ChainDomain:         chainDomain,
 		DefaultDeposit:      defaultDeposit,
 		StoragePrice:        storagePrice,
@@ -44,7 +47,7 @@ func NewParams(namesPkgPath, chainDomain, defaultDeposit, storagePrice string, s
 
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
-	return NewParams(sysNamesPkgDefault, chainDomainDefault,
+	return NewParams(sysNamesPkgDefault, sysCLAPkgDefault, chainDomainDefault,
 		depositDefault, storagePriceDefault, crypto.AddressFromPreimage([]byte(storageFeeCollectorNameDefault)))
 }
 
@@ -53,6 +56,7 @@ func (p Params) String() string {
 	var sb strings.Builder
 	sb.WriteString("Params: \n")
 	sb.WriteString(fmt.Sprintf("SysUsersPkgPath: %q\n", p.SysNamesPkgPath))
+	sb.WriteString(fmt.Sprintf("SysCLAPkgPath: %q\n", p.SysCLAPkgPath))
 	sb.WriteString(fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain))
 	sb.WriteString(fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit))
 	sb.WriteString(fmt.Sprintf("StoragePrice: %q\n", p.StoragePrice))
@@ -63,6 +67,9 @@ func (p Params) String() string {
 func (p Params) Validate() error {
 	if p.SysNamesPkgPath != "" && !gno.IsUserlib(p.SysNamesPkgPath) {
 		return fmt.Errorf("invalid user package path %q", p.SysNamesPkgPath)
+	}
+	if p.SysCLAPkgPath != "" && !gno.IsUserlib(p.SysCLAPkgPath) {
+		return fmt.Errorf("invalid CLA package path %q", p.SysCLAPkgPath)
 	}
 	if p.ChainDomain != "" && !ASCIIDomain.MatchString(p.ChainDomain) {
 		return fmt.Errorf("invalid chain domain %q, failed to match %q", p.ChainDomain, ASCIIDomain)
@@ -102,6 +109,7 @@ func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 
 const (
 	sysUsersPkgParamPath = "vm:p:sysnames_pkgpath"
+	sysCLAPkgParamPath   = "vm:p:syscla_pkgpath"
 	chainDomainParamPath = "vm:p:chain_domain"
 )
 
@@ -115,6 +123,12 @@ func (vm *VMKeeper) getSysNamesPkgParam(ctx sdk.Context) string {
 	sysNamesPkg := sysNamesPkgDefault
 	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysNamesPkg)
 	return sysNamesPkg
+}
+
+func (vm *VMKeeper) getSysCLAPkgParam(ctx sdk.Context) string {
+	sysCLAPkg := sysCLAPkgDefault
+	vm.prmk.GetString(ctx, sysCLAPkgParamPath, &sysCLAPkg)
+	return sysCLAPkg
 }
 
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
