@@ -307,7 +307,6 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		}
 
 		infos = make([]keys.Info, 0, len(entries))
-
 		passphrases := make([]string, len(entries))
 		for i := range entries {
 			// Ask for a password when generating a local key
