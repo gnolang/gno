@@ -12,9 +12,11 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-var members MembersByTier
-var Tiers TiersByName
-var router *mux.Router
+var (
+	members MembersByTier
+	tiers   TiersByName // private to prevent external modification
+	router  *mux.Router
+)
 
 const (
 	T1 = "T1"
@@ -25,8 +27,8 @@ const (
 func init() {
 	members = NewMembersByTier()
 
-	Tiers = TiersByName{avl.NewTree()}
-	Tiers.Set(T1, Tier{
+	tiers = TiersByName{avl.NewTree()}
+	tiers.Set(T1, Tier{
 		InvitationPoints: 3,
 		MinSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
 			return 70
@@ -40,7 +42,7 @@ func init() {
 		},
 	})
 
-	Tiers.Set(T2, Tier{
+	tiers.Set(T2, Tier{
 		InvitationPoints: 2,
 		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
 			return membersByTier.GetTierSize(T1) * 2
@@ -68,7 +70,7 @@ func init() {
 		},
 	})
 
-	Tiers.Set(T3, Tier{
+	tiers.Set(T3, Tier{
 		InvitationPoints: 1,
 		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
 			return 0
@@ -86,7 +88,7 @@ func init() {
 			t1p := t1.BasePower * t1ms
 			t3p := t3.BasePower * t3ms
 
-			//capped to 1/3 of tier 1
+			// capped to 1/3 of tier 1
 			t1ptreshold := t1p * (1.0 / 3.0)
 			if t3p > t1ptreshold {
 				return t1ptreshold / t3ms
@@ -118,12 +120,12 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 			return false
 		}
 
-		tier, ok := Tiers.GetTier(tn)
+		tier, ok := tiers.GetTier(tn)
 		if !ok {
 			return false
 		}
 
-		tp := (tier.PowerHandler(members, Tiers) * float64(members.GetTierSize(tn)))
+		tp := (tier.PowerHandler(members, tiers) * float64(members.GetTierSize(tn)))
 
 		sb.WriteString(ufmt.Sprintf("- %v Tier %v contains %v members with power: %v\n", tierColoredChip(tn), tn, tree.Size(), tp))
 
@@ -179,4 +181,38 @@ func Get() MembersByTier {
 	}
 
 	return members
+}
+
+// GetTier returns a tier by name. This is a read-only accessor.
+func GetTier(name string) (Tier, bool) {
+	return tiers.GetTier(name)
+}
+
+// IterateTiers iterates over all tiers in order. This is a read-only accessor.
+// The callback receives the tier name and tier data.
+// Return true from the callback to stop iteration.
+func IterateTiers(fn func(name string, tier Tier) bool) {
+	tiers.Iterate("", "", func(name string, value interface{}) bool {
+		tier, ok := value.(Tier)
+		if !ok {
+			return false
+		}
+		return fn(name, tier)
+	})
+}
+
+// setTiers replaces the tiers configuration.
+// This is internal and should only be called via governance proposal execution.
+func setTiers(newTiers TiersByName) {
+	tiers = newTiers
+}
+
+// GetTierPower calculates the effective voting power for a tier given the current members.
+// This is a safe accessor that uses the internal tiers configuration.
+func GetTierPower(tierName string, members MembersByTier) float64 {
+	tier, ok := tiers.GetTier(tierName)
+	if !ok {
+		return 0
+	}
+	return tier.PowerHandler(members, tiers)
 }

@@ -100,10 +100,12 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		proposal, err := dao.GetProposal(cross, pid) // index starts from 0
 		urequire.NoError(t, err, "proposal not found")
 
-		description := ufmt.Sprintf("Valoper profile: [%s](/r/gnops/valopers:%s)\n\n%s",
+		description := ufmt.Sprintf(
+			"Valoper profile: [%s](/r/gnops/valopers:%s)\n\n%s\n\n## Validator Updates\n- %s: add",
 			valoper.Moniker,
 			valoper.Address,
 			valoper.Render(),
+			valoper.Address,
 		)
 
 		// Check that the proposal is correct
