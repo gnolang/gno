@@ -146,8 +146,8 @@ func (cz Coins) String() string {
 }
 
 // AmountOf returns the amount of a specific coin from the Coins set.
-// AmountOf ensures that there is only 1 coin with the given denom in cz. If
-// there are more, AmountOf will panic.
+// Returns 0 if the denom is not found. Panics if there are duplicate coins with
+// the given denom.
 func (cz Coins) AmountOf(denom string) int64 {
 	amt, set := int64(0), false
 	for _, c := range cz {
