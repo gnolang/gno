@@ -38,8 +38,8 @@ func main() {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board](/r/gnoland/boards2/v1:test-board)
 //
 //
-// > [!NOTE] 3 THINGS YOU NEED TO GET STARTED
-// > To post and comment you need: a **Gno address** (create one with [Adena](https://adena.app) or [gnokey](https://docs.gno.land/users/interact-with-gnokey)), **GNOT** to pay for transactions (get some from the [faucet](https://faucet.gno.land/)), and a **registered username** ([register yours](/r/gnoland/users/v1)).
+// > [!NOTE] 2 THINGS YOU NEED TO GET STARTED
+// > To post and comment, **retrieve your Gno key** with [Adena](https://adena.app) or [gnokey](https://docs.gno.land/users/interact-with-gnokey). You need **at least 3,000 GNOT** in your account (balance requirement, not a transfer).
 // ## Test Thread
 //
 // **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC

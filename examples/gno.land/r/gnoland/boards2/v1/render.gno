@@ -366,11 +366,9 @@ func noteAlert(title, msg string) string {
 }
 
 func getStartedAlert() string {
-	msg := "To post and comment you need: a **Gno address** (create one with " +
-		md.Link("Adena", "https://adena.app") + " or " + md.Link("gnokey", "https://docs.gno.land/users/interact-with-gnokey") + "), " +
-		"**GNOT** to pay for transactions (get some from the " + md.Link("faucet", "https://faucet.gno.land/") + "), and a **registered username** (" +
-		md.Link("register yours", "/r/gnoland/users/v1") + ")."
-	return noteAlert("3 THINGS YOU NEED TO GET STARTED", msg)
+	msg := "To post and comment, **retrieve your Gno key** with " + md.Link("Adena", "https://adena.app") + " or " + md.Link("gnokey", "https://docs.gno.land/users/interact-with-gnokey") + ". " +
+		"You need **at least 3,000 GNOT** in your account (balance requirement, not a transfer)."
+	return noteAlert("2 THINGS YOU NEED TO GET STARTED", msg)
 }
 
 func rolesToString(roles []boards.Role) string {
