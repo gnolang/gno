@@ -1,8 +1,8 @@
 # Regression test for TypedValue.Sign() stale upper bytes bug.
 #
-# Converting int64 to int8 used to leave leftover bytes in the N buffer,
-# causing Sign() to return a wrong result. This made valid shift operations
-# panic with "negative shift amount" even though the value was positive.
+# Converting int64 to int8 used to read all bytes in the N buffer even for small types,
+# which could contain stale data from previous conversions, causing Sign() to return a wrong result.
+# This made valid shift operations panic with "negative shift amount (uint8 1)" even though the value was positive.
 
 gno test .
 
