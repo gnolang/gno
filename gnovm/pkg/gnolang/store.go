@@ -57,6 +57,7 @@ type Store interface {
 	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
 	SetType(Type)
+	DelTypeByID(tid TypeID)
 	GetPackageNode(pkgPath string) *PackageNode
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
@@ -76,6 +77,9 @@ type Store interface {
 	// Increments the revision for the specific package.
 	SetPackageRevision(pid PkgID, currentRev int64)
 	GetPackageRevision(pid PkgID) int64
+	AddPackageTypes(pid PkgID, typ TypeID)
+	GetPackageTypes(pid PkgID) []TypeID
+	ResetPackageTypes(pid PkgID)
 	// Object counts per package revision.
 	GetObjectCount(key string) uint64
 	ResetObjectCount(key string)
@@ -808,6 +812,28 @@ func (ds *defaultStore) DelObjectByID(oid ObjectID) {
 	}
 }
 
+func (ds *defaultStore) DelTypeByID(tid TypeID) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+	if bm.StorageEnabled {
+		bm.StartStore(bm.StoreDeleteObject)
+		defer func() {
+			// delete is a signle operation, not a func of size of bytes
+			bm.StopStore(0)
+		}()
+	}
+	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
+	// delete from cache.
+	ds.cacheTypes.Delete(tid)
+	// delete from backend.
+	if ds.baseStore != nil {
+		key := backendTypeKey(tid)
+		ds.baseStore.Delete([]byte(key))
+	}
+}
+
 // NOTE: not used quite yet.
 // NOTE: The implementation matches that of GetObject() in anticipation of what
 // the persistent type system might work like.
@@ -1025,12 +1051,43 @@ func (ds *defaultStore) GetPackageGlobalID() int64 {
 
 // Index for a package.
 func (ds *defaultStore) SetPackageRevision(pid PkgID, ctr int64) {
-	ctrkey := pid.Hashlet[:]
+	ctrkey := []byte(backendPackageRevisionKey(pid))
 	ds.baseStore.Set(ctrkey, []byte(strconv.FormatInt(ctr, 10)))
 }
 
+func (ds *defaultStore) ResetPackageTypes(pid PkgID) {
+	tskey := []byte(backendPackageTypesKey(pid))
+	ds.baseStore.Set(tskey, nil)
+}
+
+func (ds *defaultStore) AddPackageTypes(pid PkgID, typ TypeID) {
+	tskey := []byte(backendPackageTypesKey(pid))
+	bz := ds.baseStore.Get(tskey)
+	typs := []TypeID{}
+	if bz != nil {
+		amino.MustUnmarshal(bz, &typs)
+		if slices.Contains(typs, typ) {
+			return
+		}
+	}
+	typs = append(typs, typ)
+	bz = amino.MustMarshal(typs)
+	ds.baseStore.Set(tskey, bz)
+}
+
+func (ds *defaultStore) GetPackageTypes(pid PkgID) []TypeID {
+	tskey := []byte(backendPackageTypesKey(pid))
+	bz := ds.baseStore.Get(tskey)
+	if bz == nil {
+		return nil
+	}
+	var typs []TypeID
+	amino.MustUnmarshal(bz, &typs)
+	return typs
+}
+
 func (ds *defaultStore) GetPackageRevision(pid PkgID) int64 {
-	ctrkey := pid.Hashlet[:]
+	ctrkey := []byte(backendPackageRevisionKey(pid))
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
 		return 0
@@ -1373,6 +1430,14 @@ func backendPackageGlobalPath(path string) string { return "pkg:" + path }
 func decodeBackendPackagePathKey(key string) string {
 	path := strings.TrimPrefix(key, "pkg:")
 	return strings.TrimPrefix(path, "_/")
+}
+
+func backendPackageRevisionKey(pid PkgID) string {
+	return "pkgRev:" + pid.String()
+}
+
+func backendPackageTypesKey(pid PkgID) string {
+	return "pkgTypes:" + pid.String()
 }
 
 // ----------------------------------------

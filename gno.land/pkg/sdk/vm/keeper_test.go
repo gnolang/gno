@@ -287,6 +287,11 @@ var root any
 var root2 any
 var root3 any
 
+type MyStruct struct {
+    Field1 string
+	Field2 int
+}
+
 func init() {
 	root = 1 // update does not count object count.
 	root2 = 2 
@@ -332,6 +337,17 @@ private = true`,
 			Name: "test.gno",
 			Body: `package test
 var root any
+
+type MyStruct struct { // change struct.
+    Field1 bool
+	Field2 string
+}
+
+type MyStruct2 struct {
+    Field1 string
+	Field2 int
+}
+
 func Echo(cur realm) string {
 	return "hello updated world"
 }`,
@@ -348,6 +364,17 @@ func Echo(cur realm) string {
 	assert.NotNil(t, memFile)
 	expected := `package test
 var root any
+
+type MyStruct struct { // change struct.
+    Field1 bool
+	Field2 string
+}
+
+type MyStruct2 struct {
+    Field1 string
+	Field2 int
+}
+
 func Echo(cur realm) string {
 	return "hello updated world"
 }`
@@ -392,6 +419,14 @@ func Echo(cur realm) string {
 	objctr = store.GetObjectCount(backendObjectIndexKey(pkgID, pkgidx))
 	objCount -= 1 // root GC'd.
 	assert.Equal(t, objCount, objctr, "num of object does not match")
+
+	// Check declared types are cleared.
+	ms := gnolang.TypeID("gno.land/r/test.MyStruct")
+	ms2 := gnolang.TypeID("gno.land/r/test.MyStruct2")
+	dts := store.GetTypeSafe(ms)
+	assert.Nil(t, dts)
+	dts = store.GetTypeSafe(ms2)
+	assert.Nil(t, dts)
 }
 
 func TestVMKeeperAddPackage_ImportPrivate(t *testing.T) {
