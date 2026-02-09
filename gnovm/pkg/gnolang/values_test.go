@@ -55,7 +55,7 @@ func TestSignStaleUpperBytes(t *testing.T) {
 			wantSign: 1,
 		},
 		{
-			name: "uint64(0xFFFFFFFFFFFFFFFF) then uint8(0): Sign should be 0",
+			name: "uint64(1) then uint8(0): Sign should be 0",
 			setup: func(tv *TypedValue) {
 				tv.T = Uint64Type
 				tv.SetUint64(1)
@@ -76,7 +76,7 @@ func TestSignStaleUpperBytes(t *testing.T) {
 
 			got := tv.Sign()
 			if got != tt.wantSign {
-				t.Errorf("Sign() = %d, want %d (stale upper bytes in N buffer affected result)", got, tt.wantSign)
+				t.Errorf("Sign() = %d, want %d", got, tt.wantSign)
 			}
 		})
 	}
