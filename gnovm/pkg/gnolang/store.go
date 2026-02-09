@@ -1057,7 +1057,7 @@ func (ds *defaultStore) SetPackageRevision(pid PkgID, ctr int64) {
 
 func (ds *defaultStore) ResetPackageTypes(pid PkgID) {
 	tskey := []byte(backendPackageTypesKey(pid))
-	ds.baseStore.Set(tskey, nil)
+	ds.baseStore.Delete(tskey)
 }
 
 func (ds *defaultStore) AddPackageTypes(pid PkgID, typ TypeID) {
