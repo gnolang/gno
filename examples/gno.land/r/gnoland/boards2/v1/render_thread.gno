@@ -200,6 +200,7 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 	)
 	form.Input(
 		"title",
+		"value", thread.Title,
 		"placeholder", "Title",
 		"required", "true",
 	)

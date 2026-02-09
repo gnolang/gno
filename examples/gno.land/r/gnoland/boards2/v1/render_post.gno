@@ -8,6 +8,7 @@ import (
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/mdalert"
 	"gno.land/p/nt/mux"
 	"gno.land/p/nt/ufmt"
 )
@@ -72,30 +73,37 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 		return b.String()
 	}
 
-	srcContent, srcPost := renderSourcePost(post, indent)
+	srcContent, srcPost := renderSourcePost(post, indent, post.Body == "")
 	if boards.IsRepost(post) && srcPost != nil {
-		originLink := md.Link("another thread", makeThreadURI(srcPost))
-		b.WriteString("  \nThis thread is a repost of " + originLink + ": \n")
+		msg := "Original thread is: " + md.Link(srcPost.Title, makeThreadURI(srcPost))
+		b.WriteString(mdalert.New(mdalert.TypeInfo, "Thread Repost", msg, true).String())
+		b.WriteString("\n")
+	}
+
+	// Render repost body before original thread's body
+	if post.Body != "" {
+		b.WriteString(indentBody(indent, post.Body) + "\n")
+		if srcContent != "" {
+			// Add extra line to separate repost content from original thread content
+			b.WriteString("\n")
+		}
 	}
 
 	b.WriteString(srcContent)
 
+	// Add a newline to separate source deleted message from repost body content
 	if boards.IsRepost(post) && srcPost == nil && len(post.Body) > 0 {
-		// Add a newline to separate source deleted message from repost body content
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 	}
 
-	b.WriteString(indentBody(indent, post.Body))
-	b.WriteString("\n")
-
-	if boards.IsThread(post) {
-		// Split content and controls for threads.
+	// Split thread content and actions
+	if boards.IsThread(post) && !boards.IsRepost(post) {
 		b.WriteString("\n")
 	}
 
 	// Action buttons
 	b.WriteString(indent)
-	if !boards.IsThread(post) {
+	if !boards.IsThread(post) { // is comment
 		b.WriteString("  \n")
 		b.WriteString(indent)
 	}
@@ -171,30 +179,32 @@ func renderPostInner(post *boards.Post) string {
 	return s
 }
 
-func renderSourcePost(post *boards.Post, indent string) (string, *boards.Post) {
+func renderSourcePost(post *boards.Post, indent string, inline bool) (string, *boards.Post) {
 	if !boards.IsRepost(post) {
 		return "", nil
 	}
 
-	indent += "> "
+	if !inline {
+		indent += "> "
+	}
 
 	// TODO: figure out a way to decouple posts from a global storage.
 	board, ok := gBoards.Get(post.OriginalBoardID)
 	if !ok {
 		// TODO: Boards can't be deleted so this might be redundant
-		return indentBody(indent, md.Italic("⚠ Source board has been deleted")+"\n"), nil
+		return indentBody(indent, md.Italic("⚠ Source board has been deleted")), nil
 	}
 
 	srcPost, ok := board.Threads.Get(post.ParentID)
 	if !ok {
-		return indentBody(indent, md.Italic("⚠ Source post has been deleted")+"\n"), nil
+		return indentBody(indent, md.Italic("⚠ Source post has been deleted")), nil
 	}
 
 	if srcPost.Hidden {
-		return indentBody(indent, md.Italic("⚠ Source post has been flagged as inappropriate")+"\n"), nil
+		return indentBody(indent, md.Italic("⚠ Source post has been flagged as inappropriate")), nil
 	}
 
-	return indentBody(indent, srcPost.Summary()) + "\n\n", srcPost
+	return indentBody(indent, srcPost.Body) + "\n\n", srcPost
 }
 
 func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
