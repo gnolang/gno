@@ -648,7 +648,7 @@ This makes `avl.Tree` far more gas-efficient for large or growing datasets.
 
 - O(1) fast lookups
 - Small bounded datasets (e.g.: configuration values)
-- Type safety (AVL values are `any` and require type casting)
+- Type safety (AVL values are `any` and require type assertions)
 
 ```go
 // Map example
