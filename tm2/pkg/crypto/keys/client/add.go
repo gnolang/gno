@@ -188,16 +188,19 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		mnemonic string
 	)
 
-	if len(cfg.DerivationPath) == 0 {
-		// Check if the key exists
-		exists, err := kb.HasByName(name)
+	type deriveEntry struct {
+		name   string
+		params *hd.BIP44Params
+	}
+
+	confirmOverwrite := func(keyName string) error {
+		exists, err := kb.HasByName(keyName)
 		if err != nil {
 			return fmt.Errorf("unable to fetch key, %w", err)
 		}
 
-		// Get overwrite confirmation, if any
 		if exists {
-			overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
+			overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", keyName))
 			if err != nil {
 				return fmt.Errorf("unable to get confirmation, %w", err)
 			}
@@ -205,6 +208,14 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 			if !overwrite {
 				return errOverwriteAborted
 			}
+		}
+
+		return nil
+	}
+
+	if len(cfg.DerivationPath) == 0 {
+		if err := confirmOverwrite(name); err != nil {
+			return err
 		}
 
 		// Ask for a password when generating a local key
@@ -233,11 +244,6 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 
 		infos = []keys.Info{info}
 	} else {
-		type deriveEntry struct {
-			name   string
-			params *hd.BIP44Params
-		}
-
 		entries := make([]deriveEntry, 0, len(cfg.DerivationPath))
 
 		for _, path := range cfg.DerivationPath {
@@ -247,21 +253,8 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 			}
 
 			derivedName := deriveKeyName(name, params, len(cfg.DerivationPath))
-
-			exists, err := kb.HasByName(derivedName)
-			if err != nil {
-				return fmt.Errorf("unable to fetch key, %w", err)
-			}
-
-			if exists {
-				overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", derivedName))
-				if err != nil {
-					return fmt.Errorf("unable to get confirmation, %w", err)
-				}
-
-				if !overwrite {
-					return errOverwriteAborted
-				}
+			if err := confirmOverwrite(derivedName); err != nil {
+				return err
 			}
 
 			entries = append(entries, deriveEntry{
