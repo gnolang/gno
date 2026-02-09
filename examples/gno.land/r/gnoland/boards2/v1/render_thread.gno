@@ -29,12 +29,12 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 
 	thread, found := board.Threads.Get(boards.ID(threadID))
 	if !found {
-		res.Write("Thread does not exist with ID: " + rawID)
+		res.Write("Thread not found")
 		return
 	}
 
 	if thread.Hidden {
-		res.Write("Thread with ID: " + rawID + " has been flagged as inappropriate")
+		res.Write("⚠ Thread has been flagged as inappropriate")
 		return
 	}
 
