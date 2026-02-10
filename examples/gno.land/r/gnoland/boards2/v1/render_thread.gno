@@ -52,6 +52,11 @@ func renderThreadSummary(thread *boards.Post) string {
 		date        = thread.CreatedAt.Format(dateFormat)
 	)
 
+	if boards.IsRepost(thread) {
+		summary += ` ⟳`
+		postURI += ` "This is a thread repost"`
+	}
+
 	b.WriteString(md.H6(md.Link(summary, postURI)))
 	b.WriteString("Created by " + creatorLink + roleBadge + " on " + date + "  \n")
 
