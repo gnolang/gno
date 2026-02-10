@@ -80,6 +80,7 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 	var (
 		prunedAddr = removeProtocolIfDefined(idaddr)
 		spl        = strings.Split(prunedAddr, "@")
+		hostname   = ""
 	)
 
 	if len(spl) != 2 {
@@ -106,10 +107,10 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 		return nil, ErrEmptyHost
 	}
 
-	hostname := host
-
 	ip := net.ParseIP(host)
 	if ip == nil {
+		hostname = host
+
 		ips, err := net.LookupIP(host)
 		if err != nil {
 			return nil, fmt.Errorf("unable to look up IP, %w", err)
@@ -155,15 +156,9 @@ func NewNetAddressFromStrings(idaddrs []string) ([]*NetAddress, []error) {
 // NewNetAddressFromIPPort returns a new NetAddress using the provided IP
 // and port number.
 func NewNetAddressFromIPPort(ip net.IP, port uint16) *NetAddress {
-	hostname := ""
-	if ip != nil {
-		hostname = ip.String() // preserve original IP string as hostname
-	}
-
 	return &NetAddress{
-		IP:       ip,
-		Hostname: hostname,
-		Port:     port,
+		IP:   ip,
+		Port: port,
 	}
 }
 
@@ -232,9 +227,9 @@ func (na *NetAddress) DialString() string {
 	)
 }
 
-// ResolveIP resolves the hostname for the address (if any) and updates the IP
-// field with the latest lookup result.
-func (na *NetAddress) ResolveIP(ctx context.Context) error {
+// PrepareForDial resolves the hostname for the address (if any) and updates the
+// IP field with the latest lookup result before dialing.
+func (na *NetAddress) PrepareForDial(ctx context.Context) error {
 	if na == nil || na.Hostname == "" {
 		return nil
 	}
@@ -262,6 +257,10 @@ func (na *NetAddress) ResolveIP(ctx context.Context) error {
 // DialContext dials the given NetAddress with a context
 func (na *NetAddress) DialContext(ctx context.Context) (net.Conn, error) {
 	var d net.Dialer
+
+	if err := na.PrepareForDial(ctx); err != nil {
+		return nil, err
+	}
 
 	conn, err := d.DialContext(ctx, "tcp", na.DialString())
 	if err != nil {

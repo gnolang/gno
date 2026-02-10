@@ -309,16 +309,9 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 
 			// Create a dial context
 			dialCtx, cancelFn := context.WithTimeout(ctx, defaultDialTimeout)
-			if err := sw.resolvePeerAddress(dialCtx, peerAddr); err != nil {
-				sw.Logger.Error(
-					"unable to resolve peer address",
-					"peer", peerAddr,
-					"err", err,
-				)
-			}
+			defer cancelFn()
 
 			p, err := sw.transport.Dial(dialCtx, *peerAddr, sw.peerBehavior)
-			cancelFn()
 			if err != nil {
 				sw.Logger.Error(
 					"unable to dial peer",
@@ -737,44 +730,6 @@ func (sw *MultiplexSwitch) waitForPeersToDial(ctx context.Context) {
 	case <-ctx.Done():
 	case <-sw.dialNotify:
 	}
-}
-
-// resolvePeerAddress re-resolves the hostname for a peer (if provided) so that
-// persistent peers backed by FQDNs pick up IP changes before each dial attempt.
-func (sw *MultiplexSwitch) resolvePeerAddress(ctx context.Context, peerAddr *types.NetAddress) error {
-	if peerAddr == nil {
-		return errors.New("nil peer address provided")
-	}
-
-	if peerAddr.Hostname == "" {
-		return nil
-	}
-
-	var oldIP string
-	if peerAddr.IP != nil {
-		oldIP = peerAddr.IP.String()
-	}
-
-	if err := peerAddr.ResolveIP(ctx); err != nil {
-		return err
-	}
-
-	if !sw.isPersistentPeer(peerAddr.ID) || peerAddr.IP == nil {
-		return nil
-	}
-
-	newIP := peerAddr.IP.String()
-	if oldIP != "" && oldIP != newIP {
-		sw.Logger.Info(
-			"persistent peer resolved to new IP",
-			"peerID", peerAddr.ID,
-			"hostname", peerAddr.Hostname,
-			"oldIP", oldIP,
-			"newIP", newIP,
-		)
-	}
-
-	return nil
 }
 
 // logTelemetry logs the switch telemetry data

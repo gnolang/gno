@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -283,7 +284,7 @@ func TestNetAddress_Local(t *testing.T) {
 	}
 }
 
-func TestNetAddressResolveIP(t *testing.T) {
+func TestNetAddressPrepareForDial(t *testing.T) {
 	t.Parallel()
 
 	t.Run("updates IP from IP hostname", func(t *testing.T) {
@@ -301,7 +302,7 @@ func TestNetAddressResolveIP(t *testing.T) {
 			Port:     8080,
 		}
 
-		err := addr.ResolveIP(context.Background())
+		err := addr.PrepareForDial(context.Background())
 		require.NoError(t, err)
 
 		assert.Equal(t, expected, addr.IP.String())
@@ -318,12 +319,31 @@ func TestNetAddressResolveIP(t *testing.T) {
 			Port:     8080,
 		}
 
-		err := addr.ResolveIP(context.Background())
+		err := addr.PrepareForDial(context.Background())
 		require.NoError(t, err)
 
 		require.NotNil(t, addr.IP)
 		assert.NotEmpty(t, addr.IP.String())
 	})
+}
+
+func TestNetAddressDialContextInvalidHostname(t *testing.T) {
+	t.Parallel()
+
+	key := GenerateNodeKey()
+
+	addr := &NetAddress{
+		ID:       key.ID(),
+		Hostname: "invalid.invalid.invalid",
+		IP:       net.ParseIP("127.0.0.1"),
+		Port:     8080,
+	}
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second)
+	defer cancelFn()
+
+	_, err := addr.DialContext(ctx)
+	require.Error(t, err)
 }
 
 func TestNetAddressFromStringHostnamePreserved(t *testing.T) {
@@ -335,6 +355,18 @@ func TestNetAddressFromStringHostnamePreserved(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "localhost", addr.Hostname)
+	require.NotNil(t, addr.IP)
+}
+
+func TestNetAddressFromStringHostnameEmptyForIP(t *testing.T) {
+	t.Parallel()
+
+	key := GenerateNodeKey()
+
+	addr, err := NewNetAddressFromString(fmt.Sprintf("%s@127.0.0.1:8080", key.ID()))
+	require.NoError(t, err)
+
+	assert.Empty(t, addr.Hostname)
 	require.NotNil(t, addr.IP)
 }
 
