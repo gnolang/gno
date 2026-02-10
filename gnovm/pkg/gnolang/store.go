@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"hash/maphash"
 	"io"
 	"iter"
 	"reflect"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dgraph-io/ristretto/v2"
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -154,6 +156,7 @@ type defaultStore struct {
 	// store configuration; cannot be modified in a transaction
 	pkgGetter      PackageGetter  // non-realm packages
 	nativeResolver NativeResolver // for injecting natives
+	aminoCache     *ristretto.Cache[uint64, any]
 
 	// transient
 	opslog  io.Writer // for logging store operations.
@@ -167,7 +170,17 @@ type defaultStore struct {
 	realmStorageDiffs map[string]int64 // maps realm path to size diff
 }
 
+var mhSeed = maphash.MakeSeed()
+
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
+	rc, err := ristretto.NewCache(&ristretto.Config[uint64, any]{
+		NumCounters: 1000000,
+		MaxCost:     256 * (1 << 20), // 256 MB
+		BufferItems: 64,
+	})
+	if err != nil {
+		panic(err)
+	}
 	ds := &defaultStore{
 		baseStore: baseStore,
 		iavlStore: iavlStore,
@@ -185,6 +198,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		pkgGetter:      nil,
 		nativeResolver: nil,
 		gasConfig:      DefaultGasConfig(),
+		aminoCache:     rc,
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -235,14 +249,6 @@ type transactionStore struct {
 func (t transactionStore) Write() {
 	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
 }
-
-// XXX: we should block Go2GnoType, because it uses a global cache map;
-// but it's called during preprocess and thus breaks some testing code.
-// let's wait until we remove Go2Gno entirely.
-// https://github.com/gnolang/gno/issues/1361
-// func (transactionStore) Go2GnoType(reflect.Type) Type {
-// 	panic("Go2GnoType may not be called in a transaction store")
-// }
 
 func (transactionStore) SetNativeResolver(ns NativeResolver) {
 	panic("SetNativeResolver may not be called in a transaction store")
@@ -774,8 +780,15 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		if bz != nil {
 			gas := overflow.Mulp(ds.gasConfig.GasGetType, store.Gas(len(bz)))
 			ds.consumeGas(gas, GasGetTypeDesc)
+			mh := maphash.Bytes(mhSeed, bz)
 			var tt Type
-			amino.MustUnmarshal(bz, &tt)
+			if val, ok := ds.aminoCache.Get(mh); ok {
+				tt = val.(Type)
+			} else {
+				amino.MustUnmarshal(bz, &tt)
+				// len(bz) is not the proper cost of tt, but is good enough
+				ds.aminoCache.Set(mh, tt, int64(len(bz)))
+			}
 			if debug {
 				if tt.TypeID() != tid {
 					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
@@ -831,6 +844,8 @@ func (ds *defaultStore) SetType(tt Type) {
 		key := backendTypeKey(tid)
 		tcopy := copyTypeWithRefs(tt)
 		bz := amino.MustMarshalAny(tcopy)
+		mh := maphash.Bytes(mhSeed, bz)
+		ds.aminoCache.Set(mh, tt, int64(len(bz)))
 		gas := overflow.Mulp(ds.gasConfig.GasSetType, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasSetTypeDesc)
 		ds.baseStore.Set([]byte(key), bz)
