@@ -58,7 +58,8 @@ func main() {
 //
 // **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
 // > [!INFO]- Thread Repost
-// > Original thread is: [Foo](/r/gnoland/boards2/v1:test-board/1)
+// > Original thread is [Foo](/r/gnoland/boards2/v1:test-board/1)
+// > Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
 //
 // Body2
 //

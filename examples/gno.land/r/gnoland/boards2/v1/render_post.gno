@@ -75,7 +75,13 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 
 	srcContent, srcPost := renderSourcePost(post, indent)
 	if boards.IsRepost(post) && srcPost != nil {
-		msg := "Original thread is: " + md.Link(srcPost.Title, makeThreadURI(srcPost))
+		msg := ufmt.Sprintf(
+			"Original thread is %s  \nCreated by %s on %s",
+			md.Link(srcPost.Title, makeThreadURI(srcPost)),
+			userLink(srcPost.Creator),
+			srcPost.CreatedAt.Format(dateFormat),
+		)
+
 		b.WriteString(mdalert.New(mdalert.TypeInfo, "Thread Repost", msg, true).String())
 		b.WriteString("\n")
 	}
