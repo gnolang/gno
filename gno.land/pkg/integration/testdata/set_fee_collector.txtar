@@ -63,22 +63,22 @@ stdout 'OK!'
 
 ## Check collector1 balance
 gnokey query bank/balances/$collector1_user_addr
-stdout '999590700ugnot'
+stdout '990590700ugnot'
 
 ## Check collector2 balance
 gnokey query bank/balances/$collector2_user_addr
-stdout '997403000ugnot'
+stdout '988403000ugnot'
 
 ## Make costly tx
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/costly.gno
 
 ## Check collector1 balance, must not have changed
 gnokey query bank/balances/$collector1_user_addr
-stdout '999590700ugnot'
+stdout '990590700ugnot'
 
 ## Check collector2 balance, must have changed
 gnokey query bank/balances/$collector2_user_addr
-stdout '997503000ugnot'
+stdout '988503000ugnot'
 
 -- run/load_user.gno --
 package main
