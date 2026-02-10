@@ -132,6 +132,16 @@ func TestComputeMapKey(t *testing.T) {
 			"[2]string:[\x02hi,\x07wor,\x02ld]",
 			false,
 		},
+		{
+			`struct{a string; b string}{"x", "y,z"}`,
+			"struct{main.a string;main.b string}:{\x01x,\x03y,z}",
+			false,
+		},
+		{
+			`struct{a string; b string}{"x,y", "z"}`,
+			"struct{main.a string;main.b string}:{\x03x,y,\x01z}",
+			false,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.valX, func(t *testing.T) {
