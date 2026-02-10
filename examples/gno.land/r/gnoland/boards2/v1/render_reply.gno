@@ -17,7 +17,7 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("Board not found")
 		return
 	}
 
@@ -37,13 +37,13 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 
 	thread, found := board.Threads.Get(boards.ID(threadID))
 	if !found {
-		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
+		res.Write("Thread not found")
 		return
 	}
 
 	reply, found := thread.Replies.Get(boards.ID(replyID))
 	if !found {
-		res.Write("Reply does not exist with ID: " + rawID)
+		res.Write("Reply not found")
 		return
 	}
 

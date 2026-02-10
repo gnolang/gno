@@ -34,4 +34,4 @@ func main() {
 }
 
 // Output:
-// ⚠ Thread has been flagged as inappropriate
+// ⚠ Thread has been flagged as [inappropriate](/r/gnoland/boards2/v1:BoardName/1/flagging-reasons)
