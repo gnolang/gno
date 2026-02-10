@@ -630,7 +630,8 @@ reliable way to manage access to your contract.
 An `avl.Tree` works like a `map` for storing key-value pairs. `maps` store all
 entries in one object (accessing any value loads everything), while AVL trees
 store each node separately (accessing a value loads only the search path).
-This makes `avl.Tree` far more gas-efficient for large or growing datasets.
+This makes `avl.Tree` significantly more efficient in both gas usage and
+performance for large or growing datasets.
 
 **Key differences**:
 
@@ -639,7 +640,7 @@ This makes `avl.Tree` far more gas-efficient for large or growing datasets.
 
 **Use `avl.Tree` when you need**:
 
-- Lazy loading (gas-efficient for large datasets - only loads the search path)
+- Lazy loading (efficient for large datasets - only loads the search path)
 - Efficient range queries (find all keys between "bob" and "charlie")
 - Data that grows over time (user registries, leaderboards)
 - Sorted iteration by key value

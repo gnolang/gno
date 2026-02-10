@@ -29,9 +29,9 @@ networks.
 See [Third-party wallets](../users/third-party-wallets.md).
 
 ### AVL Tree
-A data structure for storing key-value pairs in Gno. It is gas-efficient
-and particularly suited for large or growing datasets. 
-Deployed under `gno.land/p/nt/avl`.
+Data structure commonly used instead of the native `map` for
+key-value storage. It is gas and performance efficient, particularly suited
+for large or growing datasets. Deployed under `gno.land/p/nt/avl`.
 
 See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for usage guidance 
 and the [package README](../../examples/gno.land/p/nt/avl/README.md) for technical details.
@@ -205,7 +205,7 @@ which the address is derived) that represents an account on Gno.land.
 ### Map
 A native Gno data structure for storing key-value pairs, identical to Go maps.
 Maps provide O(1) lookup time and type safety, but store all entries in a single
-object which can be gas-inefficient for large datasets. For scalable storage in
+object which can be inefficient for large datasets. For scalable storage in
 realms, consider using `avl.Tree` instead.
 See [Data Structures](./gno-data-structures.md) and
 [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage).
