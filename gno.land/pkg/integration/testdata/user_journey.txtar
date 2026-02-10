@@ -1,10 +1,10 @@
 # This test simulates a user journey in the Gno ecosystem, including
 # adding packages, using well-known Realms and interracting with other users.
 loadpkg gno.land/r/gnoland/users/v1
-loadpkg gno.land/r/demo/grc20factory
+loadpkg gno.land/r/demo/defi/grc20factory
 loadpkg gno.land/r/demo/disperse
-loadpkg gno.land/r/demo/wugnot
-loadpkg gno.land/r/demo/boards
+loadpkg gno.land/r/gnoland/wugnot
+loadpkg gno.land/r/archive/boards
 loadpkg gno.land/r/sys/names
 
 # Override admin address in r/sys/names with test1 address
@@ -32,7 +32,7 @@ stdout 'data: "100000000000ugnot"'
 
 # User3 funds user1 (100ugnot) and user2 (4e10ugnot) using the disperse Realm
 gnokey maketx call -pkgpath gno.land/r/demo/disperse -func DisperseUgnotString -args "$user1_user_addr,$user2_user_addr" -args '100,40000000000' -send 40000000100ugnot -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
-stdout 'OK!' 
+stdout 'OK!'
 
 # Verify users' new balances
 gnokey query bank/balances/${user1_user_addr}
@@ -44,7 +44,7 @@ stdout 'data: "59998999900ugnot"' # Disperse + Gas used
 
 # User2 sends some more ugnot to user1 (1e10ugnot)
 gnokey maketx send -send 10000000000ugnot -to $user1_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test user2
-stdout 'OK!' 
+stdout 'OK!'
 
 # Verify users' new balances
 gnokey query bank/balances/${user1_user_addr}
@@ -52,34 +52,34 @@ stdout 'data: "10000000101ugnot"'
 gnokey query bank/balances/${user2_user_addr}
 stdout 'data: "29999000001ugnot"' # Send tx + Gas used
 
-###########j#####################
+################################
 # Exchange wugnot between users #
 #################################
 
 # user1 & user2 balances should be empty
-gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user1_user_addr}\")"
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user1_user_addr}\")"
 stdout '0 int64'
-gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user2_user_addr}\")"
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user2_user_addr}\")"
 stdout '0 int64'
 
 # user2 make a deposit of 1e7ugnot
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send 10000000ugnot -gas-fee 100000ugnot -gas-wanted 14000000  -broadcast -chainid=tendermint_test user2
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 10000000ugnot -gas-fee 100000ugnot -gas-wanted 14000000  -broadcast -chainid=tendermint_test user2
 stdout 'OK!'
-gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user2_user_addr}\")"
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user2_user_addr}\")"
 stdout '10000000 int64'
 
 # user2 transfers 1e7ugnot to user1
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Transfer -args ${user1_user_addr} -args 10000000 -gas-fee 100000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Transfer -args ${user1_user_addr} -args 10000000 -gas-fee 100000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
 stdout 'OK!'
 
 # Verify users' new balances
-gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user1_user_addr}\")"
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user1_user_addr}\")"
 stdout '10000000 int64'
-gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user2_user_addr}\")"
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user2_user_addr}\")"
 stdout '0 int64'
 
 # user1 withdraw 1e7ugnot
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Withdraw -args 10000000 -gas-fee 100000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Withdraw -args 10000000 -gas-fee 100000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
 stdout 'OK!'
 
 ################################
@@ -90,51 +90,51 @@ stdout 'OK!'
 env DISPERSE_REALM_ADDR=g1yryw6qs8h9anvguu4dfdc0u7zh4gvv8vqf59sj
 
 # user1 creates a new token with 5 decimals and 10 drip ammount for the faucet
-gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func New -args MyAwesomeToken -args MAT -args 5 -args 0 -args 10 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
-stdout 'OK!' 
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func New -args MyAwesomeToken -args MAT -args 5 -args 0 -args 10 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+stdout 'OK!'
 
 # user1 mints 1000 MAT to himself
-gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func Mint -args MAT -args "$user1_user_addr" -args 1000 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
-stdout 'OK!' 
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Mint -args MAT -args "$user1_user_addr" -args 1000 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+stdout 'OK!'
 
 # Verify user1's MAT balance
-gnokey query vm/qeval --data "gno.land/r/demo/grc20factory.BalanceOf(\"MAT\", \"$user1_user_addr\")"
-stdout '1000 int64' 
+gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\", \"$user1_user_addr\")"
+stdout '1000 int64'
 
 # Approve disperse Realm to spend 500 MAT on behalf of user1
-gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func Approve -args MAT -args "$DISPERSE_REALM_ADDR" -args 500 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
-stdout 'OK!' 
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Approve -args MAT -args "$DISPERSE_REALM_ADDR" -args 500 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+stdout 'OK!'
 
 # Check disperse Realm allowance to spend MAT on behalf of user1
-gnokey query vm/qeval --data "gno.land/r/demo/grc20factory.Allowance(\"MAT\", \"$user1_user_addr\", \"$DISPERSE_REALM_ADDR\")"
+gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.Allowance(\"MAT\", \"$user1_user_addr\", \"$DISPERSE_REALM_ADDR\")"
 stdout '500 int64'
 
 # Disperse 490 MAT to user2 and 10 to user3
-gnokey maketx call -pkgpath gno.land/r/demo/disperse -func DisperseGRC20String -args "$user2_user_addr,$user3_user_addr" -args '490MAT,10MAT' -gas-fee 1000000ugnot -gas-wanted 24000000 -broadcast -chainid=tendermint_test user1
-stdout 'OK!' 
+gnokey maketx call -pkgpath gno.land/r/demo/disperse -func DisperseGRC20String -args "$user2_user_addr,$user3_user_addr" -args '490MAT,10MAT' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
+stdout 'OK!'
 
 # Verify user2's and user3's MAT balances
-gnokey query vm/qeval --data "gno.land/r/demo/grc20factory.BalanceOf(\"MAT\", \"$user2_user_addr\")"
+gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\", \"$user2_user_addr\")"
 stdout '490 int64'
-gnokey query vm/qeval --data "gno.land/r/demo/grc20factory.BalanceOf(\"MAT\", \"$user3_user_addr\")"
+gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\", \"$user3_user_addr\")"
 stdout '10 int64'
 
 # user3 requests MAT from the faucet
-gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func Faucet -args MAT -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
-stdout 'OK!' 
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Faucet -args MAT -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
+stdout 'OK!'
 
 # Verify user3's MAT balance
-gnokey query vm/qeval --data "gno.land/r/demo/grc20factory.BalanceOf(\"MAT\", \"$user3_user_addr\")"
+gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\", \"$user3_user_addr\")"
 stdout '20 int64'
 
 # user2 transfers 200 MAT to user3
-gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func Transfer -args MAT -args "$user3_user_addr" -args 200 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
-stdout 'OK!' 
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Transfer -args MAT -args "$user3_user_addr" -args 200 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+stdout 'OK!'
 
 # Verify user2's and user3's MAT balances
-gnokey query vm/qeval --data "gno.land/r/demo/grc20factory.BalanceOf(\"MAT\", \"$user2_user_addr\")"
+gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\", \"$user2_user_addr\")"
 stdout '290 int64'
-gnokey query vm/qeval --data "gno.land/r/demo/grc20factory.BalanceOf(\"MAT\", \"$user3_user_addr\")"
+gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\", \"$user3_user_addr\")"
 stdout '220 int64'
 
 ###########################
@@ -143,40 +143,40 @@ stdout '220 int64'
 
 # user3 register as gnoland/user
 gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -args user333 -gas-fee 1000000ugnot -gas-wanted 14000000 -send 1000000ugnot -broadcast -chainid=tendermint_test user3
-stdout 'OK!' 
+stdout 'OK!'
 
 # user3 creates a new board and a thread
-gnokey maketx call -pkgpath gno.land/r/demo/boards -func CreateBoard -args 'user3_awesome_board' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
-stdout 'OK!' 
-gnokey maketx call -pkgpath gno.land/r/demo/boards -func CreateThread -args 1 -args 'My first thread' -args 'Hey Guys!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
-stdout 'OK!' 
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateBoard -args 'user3_awesome_board' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateThread -args 1 -args 'My first thread' -args 'Hey Guys!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
+stdout 'OK!'
 
 # user1 tries to reply to the thread without registering
-! gnokey maketx call -pkgpath gno.land/r/demo/boards -func CreateReply -args 1 -args 1 -args 1 -args 'Hello!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+! gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateReply -args 1 -args 1 -args 1 -args 'Hello!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
 stderr 'please register, otherwise minimum fee 100000000 is required if anonymous'
 
 # user2 registers as gnoland/user
 gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -args user222 -gas-fee 1000000ugnot -gas-wanted 14000000 -send 1000000ugnot -broadcast -chainid=tendermint_test user2
-stdout 'OK!' 
+stdout 'OK!'
 
 # user2 posts a reply to the thread
-gnokey maketx call -pkgpath gno.land/r/demo/boards -func CreateReply -args 1 -args 1 -args 1 -args 'Hey hey hey!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
-stdout 'OK!' 
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateReply -args 1 -args 1 -args 1 -args 'Hey hey hey!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+stdout 'OK!'
 
 # user2 creates a new thread
-gnokey maketx call -pkgpath gno.land/r/demo/boards -func CreateThread -args 1 -args 'My own thread' -args 'Posting on my own thread' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
-stdout 'OK!' 
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateThread -args 1 -args 'My own thread' -args 'Posting on my own thread' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+stdout 'OK!'
 
 # user1 replies to user3's thread anonymously
-gnokey maketx call -pkgpath gno.land/r/demo/boards -func CreateReply -args 1 -args 1 -args 1 -args 'I prefer not to register' -send 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
-stdout 'OK!' 
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateReply -args 1 -args 1 -args 1 -args 'I prefer not to register' -send 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+stdout 'OK!'
 
 ######################
 # Add package / home #
 ######################
 
 # Enable `sys/names` to deploy packages to user namespace
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1400000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test test1
 stdout 'OK!'
 
 # user2 publishes a custom home package to its namespace
@@ -197,26 +197,25 @@ stdout 'OK!'
 # stdout 'My awesome home package with admin: '${user1_user_addr}
 
 
+-- gnomod.toml --
+module = "gno.land/r/user222/home"
+gno = "0.9"
+
 -- home.gno --
 package home
 
-import (
-	"std"
-
-	"gno.land/p/demo/ownable"
-)
+import "gno.land/p/nt/ownable"
 
 var admin = ownable.NewWithOrigin()
 
-func TransferOwnership(newOwner std.Address) {
-	crossing()
-
-// Wait for https://github.com/gnolang/gno/pull/4278 to be merged
-//	if err := admin.TransferOwnershipByPrevious(newOwner); err != nil {
-//		panic(err)
-//	}
+func TransferOwnership(cur realm, newOwner address) {
+	// Wait for https://github.com/gnolang/gno/pull/4278 to be merged
+	//
+	//	if err := admin.TransferOwnershipByPrevious(newOwner); err != nil {
+	//		panic(err)
+	//	}
 }
 
 func Render(path string) string {
-    return "# My awesome home package with admin: " + admin.Owner().String()
+	return "# My awesome home package with admin: " + admin.Owner().String()
 }

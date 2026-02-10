@@ -20,7 +20,10 @@ import (
 // so it is still faster to first check the truth value
 // before calling debug.Println or debug.Printf.
 
-type debugging bool
+type (
+	debugging      bool
+	debuggingRealm bool
+)
 
 // using a const is probably faster.
 // const debug debugging = true // or flip
@@ -64,6 +67,28 @@ func (debugging) Printf(format string, args ...any) {
 			_, file, line, _ := runtime.Caller(2)
 			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			fmt.Printf(prefix+format, args...)
+		}
+	}
+}
+
+func (debuggingRealm) Println(args ...interface{}) {
+	if debugRealm {
+		if enabled {
+			_, file, line, _ := runtime.Caller(2)
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG_REALM: %17s: ", caller)
+			fmt.Println(append([]interface{}{prefix}, args...)...)
+		}
+	}
+}
+
+func (debuggingRealm) Printf(format string, args ...interface{}) {
+	if debugRealm {
+		if enabled {
+			_, file, line, _ := runtime.Caller(2)
+			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG_REALM: %17s: ", caller)
 			fmt.Printf(prefix+format, args...)
 		}
 	}
@@ -146,4 +171,13 @@ func DisableDebug() {
 
 func EnableDebug() {
 	enabled = true
+}
+
+func PrintCaller(start, end int) {
+	for i := start; i < end; i++ {
+		_, file, line, _ := runtime.Caller(i)
+		caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+		prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+		fmt.Println(append([]any{prefix}, "")...)
+	}
 }

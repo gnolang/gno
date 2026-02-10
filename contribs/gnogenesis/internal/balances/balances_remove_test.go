@@ -35,12 +35,12 @@ func TestGenesis_Balances_Remove(t *testing.T) {
 	t.Run("genesis app state not set", func(t *testing.T) {
 		t.Parallel()
 
-		dummyKey := common.GetDummyKey(t)
+		dummyKey := common.DummyKey(t)
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		genesis.AppState = nil // not set
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
@@ -62,12 +62,12 @@ func TestGenesis_Balances_Remove(t *testing.T) {
 	t.Run("address is present", func(t *testing.T) {
 		t.Parallel()
 
-		dummyKey := common.GetDummyKey(t)
+		dummyKey := common.DummyKey(t)
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		state := gnoland.GnoGenesisState{
 			// Set an initial balance value
 			Balances: []gnoland.Balance{
@@ -109,12 +109,12 @@ func TestGenesis_Balances_Remove(t *testing.T) {
 	t.Run("address not present", func(t *testing.T) {
 		t.Parallel()
 
-		dummyKey := common.GetDummyKey(t)
+		dummyKey := common.DummyKey(t)
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		state := gnoland.GnoGenesisState{
 			Balances: []gnoland.Balance{}, // Empty initial balance
 		}

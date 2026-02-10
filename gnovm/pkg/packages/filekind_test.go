@@ -8,11 +8,10 @@ import (
 
 func TestGetFileKind(t *testing.T) {
 	tcs := []struct {
-		name          string
-		filename      string
-		body          string
-		fileKind      FileKind
-		errorContains string
+		name     string
+		filename string
+		body     string
+		fileKind FileKind
 	}{
 		{
 			name:     "compiled",
@@ -23,6 +22,12 @@ func TestGetFileKind(t *testing.T) {
 			name:     "test",
 			filename: "foo_test.gno",
 			body:     "package foo",
+			fileKind: FileKindTest,
+		},
+		{
+			name:     "test_badpkgclause",
+			filename: "foo_test.gno",
+			body:     "pakage foo",
 			fileKind: FileKindTest,
 		},
 		{
@@ -37,26 +42,15 @@ func TestGetFileKind(t *testing.T) {
 			fileKind: FileKindFiletest,
 		},
 		{
-			name:          "err_badpkgclause",
-			filename:      "foo_test.gno",
-			body:          "pakage foo",
-			errorContains: "foo_test.gno:1:1: expected 'package', found pakage",
-		},
-		{
-			name:          "err_notgnofile",
-			filename:      "foo.gno.bck",
-			errorContains: `foo.gno.bck:1:1: not a gno file`,
+			name:     "notgnofile",
+			filename: "foo.gno.bck",
+			fileKind: FileKindOther,
 		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			out, err := GetFileKind(tc.filename, tc.body, nil)
-			if len(tc.errorContains) != 0 {
-				require.ErrorContains(t, err, tc.errorContains)
-			} else {
-				require.NoError(t, err)
-			}
+			out := GetFileKind(tc.filename, tc.body, nil)
 			require.Equal(t, tc.fileKind, out)
 		})
 	}

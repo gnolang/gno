@@ -1,0 +1,50 @@
+-- input.md --
+<gno-form>
+<gno-input name="username" type="text" placeholder="Enter your username" description="Your username will be displayed publicly" />
+<gno-input name="email" type="email" placeholder="Enter your email" description="We'll never share your email with anyone" />
+<gno-input name="age" type="number" placeholder="Enter your age" description="Must be 18 or older" />
+<gno-input name="newsletter" type="checkbox" value="subscribe" placeholder="Subscribe to newsletter" description="Receive updates about new features" />
+<gno-input name="gender" type="radio" value="male" placeholder="Male option" description="Select your gender" />
+<gno-input name="gender" type="radio" value="female" placeholder="Female option" description="Select your gender" />
+<gno-textarea name="bio" placeholder="Tell us about yourself" description="A brief description of yourself (optional)" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div id="desc_username_0" class="gno-form_description">Your username will be displayed publicly</div>
+<div class="gno-form_input"><label for="username">Enter your username</label>
+<input type="text" id="username" name="username" placeholder="Enter your username" />
+</div>
+<div id="desc_email_1" class="gno-form_description">We&#39;ll never share your email with anyone</div>
+<div class="gno-form_input"><label for="email">Enter your email</label>
+<input type="email" id="email" name="email" placeholder="Enter your email" />
+</div>
+<div id="desc_age_2" class="gno-form_description">Must be 18 or older</div>
+<div class="gno-form_input"><label for="age">Enter your age</label>
+<input type="number" id="age" name="age" placeholder="Enter your age" />
+</div>
+<div id="desc_newsletter_3" class="gno-form_description">Receive updates about new features</div>
+<div class="gno-form_selectable">
+<input type="checkbox" id="newsletter_3" name="newsletter" value="subscribe" aria-labelledby="desc_newsletter_3" />
+<label for="newsletter_3">subscribe - Subscribe to newsletter</label>
+</div>
+<div id="desc_gender_4" class="gno-form_description">Select your gender</div>
+<div class="gno-form_selectable">
+<input type="radio" id="gender_4" name="gender" value="male" aria-labelledby="desc_gender_4" />
+<label for="gender_4">male - Male option</label>
+</div>
+<div id="desc_gender_5" class="gno-form_description">Select your gender</div>
+<div class="gno-form_selectable">
+<input type="radio" id="gender_5" name="gender" value="female" aria-labelledby="desc_gender_5" />
+<label for="gender_5">female - Female option</label>
+</div>
+<div id="desc_bio_6" class="gno-form_description">A brief description of yourself (optional)</div>
+<div class="gno-form_input"><label for="bio">Tell us about yourself</label>
+<textarea id="bio" name="bio" placeholder="Tell us about yourself" rows="4"></textarea>
+</div>
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>

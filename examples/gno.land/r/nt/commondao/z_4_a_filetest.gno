@@ -1,15 +1,14 @@
 package main
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/r/nt/commondao"
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	name  = "B"
 )
 
@@ -17,19 +16,19 @@ var daoID uint64
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	commondao.Invite(cross, user)
 
 	// Create a couple of DAOs
-	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	commondao.New("A")
-	daoID = commondao.New(name).ID()
-	commondao.New("C")
+	testing.SetRealm(testing.NewUserRealm(user))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
+	commondao.New(cross, "A")
+	daoID = commondao.New(cross, name).ID()
+	commondao.New(cross, "C")
 }
 
 func main() {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 
 	dao := commondao.Get(daoID)
 	if dao == nil {

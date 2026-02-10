@@ -1,0 +1,113 @@
+# Set up GNOROOT in the current directory.
+mkdir $WORK/gnovm/tests
+symlink $WORK/gnovm/stdlibs -> $GNOROOT/gnovm/stdlibs
+symlink $WORK/gnovm/tests/stdlibs -> $GNOROOT/gnovm/tests/stdlibs
+env GNOROOT=$WORK
+
+# Run the filetest
+gno test -v .
+stdout 'With WorkingNew: 42'
+stdout 'With BuggedNew: 42'
+stderr 'ok      . 	\d+\.\d\ds'
+
+-- gnowork.toml --
+
+-- p/bug_package/gnomod.toml --
+module = "gno.land/p/testing/bug_package"
+gno = "0.9"
+
+-- p/bug_package/bug_package.gno --
+package bug_package
+
+type PkgObject struct {
+	value int
+}
+
+func New() *PkgObject {
+	return &PkgObject{value: 0}
+}
+
+func (po *PkgObject) Set(value int) {
+	po.value = value
+}
+
+func (po *PkgObject) Get() int {
+	return po.value
+}
+
+-- r/bug_callee/gnomod.toml --
+module = "gno.land/r/testing/bug_callee"
+gno = "0.9"
+
+-- r/bug_callee/bug_callee.gno --
+package bug_callee
+
+import (
+	pkg "gno.land/p/testing/bug_package"
+)
+
+var calleePtr *pkg.PkgObject
+
+func Register(cur realm,callerPtr *pkg.PkgObject) {
+	calleePtr = callerPtr
+}
+
+-- r/bug_caller/gnomod.toml --
+module = "gno.land/r/testing/bug_caller"
+gno = "0.9"
+
+-- r/bug_caller/bug_caller.gno --
+package bug_caller
+
+import (
+	pkg "gno.land/p/testing/bug_package"
+	callee "gno.land/r/testing/bug_callee"
+)
+
+var callerPtr *pkg.PkgObject
+
+func WorkingNew(cur realm) {
+	callerPtr = pkg.New()
+}
+
+func BuggedNew(cur realm) {
+	callerPtr = pkg.New()
+
+	callee.Register(cross,callerPtr)
+}
+
+func Set(cur realm,value int) {
+	callerPtr.Set(value)
+}
+
+func Get() int {
+	return callerPtr.Get()
+}
+
+-- gnomod.toml --
+module = "gno.test/p/integ/object_pointer"
+gno = "0.9"
+
+-- x_filetest.gno --
+// PKGPATH: gno.land/r/testing/main
+
+package main
+
+import (
+	caller "gno.land/r/testing/bug_caller"
+)
+
+func main() {
+	caller.WorkingNew(cross)
+	caller.Set(cross,42)
+	println("With WorkingNew:", caller.Get())
+
+	caller.BuggedNew(cross)
+	caller.Set(cross,42)
+	println("With BuggedNew:", caller.Get())
+}
+
+// Output:
+// With WorkingNew: 42
+// With BuggedNew: 42
+

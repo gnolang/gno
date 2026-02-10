@@ -1,7 +1,6 @@
 package main
 
 import (
-	"std"
 	"testing"
 
 	pcommondao "gno.land/p/nt/commondao"
@@ -10,8 +9,8 @@ import (
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	name  = "Foo"
 )
 
@@ -19,27 +18,24 @@ var parentID uint64
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	commondao.Invite(cross, user)
 
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
-	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Create the root DAO
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	parentID = commondao.New("Parent DAO").ID()
-
-	// Change options to allow SubDAOs
-	options := commondao.GetOptions(parentID)
-	options.SetAllowChildren(true)
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao"))
+	parentDAO := commondao.New(cross, "Parent DAO", commondao.AllowChildren(true))
+	parentID = parentDAO.ID()
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(testing.NewUserRealm(user))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao"))
 
-	dao := commondao.NewSubDAO(name, parentID)
+	dao := commondao.NewSubDAO(cross, name, parentID)
 	if dao == nil {
 		panic("expected subDAO to be created")
 	}

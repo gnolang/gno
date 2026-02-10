@@ -2,8 +2,8 @@ package testing
 
 import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain/banker"
+	"github.com/gnolang/gno/gnovm/tests/stdlibs/chain/runtime"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -15,7 +15,7 @@ func X_getContext(m *gno.Machine) (
 	height int64,
 	timeUnix int64, timeNano int64,
 ) {
-	ctx := m.Context.(*teststd.TestExecContext)
+	ctx := m.Context.(*runtime.TestExecContext)
 
 	originCaller = ctx.OriginCaller.String()
 
@@ -46,7 +46,7 @@ func X_setContext(
 	height int64,
 	timeUnix int64, timeNano int64,
 ) {
-	ctx := m.Context.(*teststd.TestExecContext)
+	ctx := m.Context.(*runtime.TestExecContext)
 
 	ctx.ChainID = chainID
 	ctx.Height = height
@@ -73,23 +73,40 @@ func X_setContext(
 		}
 
 		m.Frames[frameIdx].TestOverridden = true // in case frame gets popped
-		ctx.RealmFrames[frameIdx] = teststd.RealmOverride{
+		ctx.RealmFrames[frameIdx] = runtime.RealmOverride{
 			Addr:    crypto.Bech32Address(currRealmAddr),
 			PkgPath: currRealmPkgPath,
 		}
 	}
 
-	ctx.OriginSend = std.CompactCoins(origSendDenoms, origSendAmounts)
-	coins := std.CompactCoins(origSpendDenoms, origSpendAmounts)
+	ctx.OriginSend = banker.CompactCoins(origSendDenoms, origSendAmounts)
+	coins := banker.CompactCoins(origSpendDenoms, origSpendAmounts)
 	ctx.OriginSendSpent = &coins
 
 	m.Context = ctx
 }
 
 func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) {
-	ctx := m.Context.(*teststd.TestExecContext)
+	ctx := m.Context.(*runtime.TestExecContext)
 	banker := ctx.Banker
 	for i := range denom {
 		banker.IssueCoin(crypto.Bech32Address(addr), denom[i], amt[i])
 	}
+}
+
+func X_newRealm(m *gno.Machine, addr, pkgPath string) gno.TypedValue {
+	return gno.TypedValue{
+		// testing imports chain/runtime, so this type is always available.
+		T: m.Store.GetType("chain/runtime.Realm"),
+		V: m.Alloc.NewStructWithFields(
+			// addr address
+			gno.TypedValue{T: m.Store.GetType(".uverse.address"), V: gno.StringValue(addr)},
+			// pkgPath string
+			gno.TypedValue{T: gno.StringType, V: gno.StringValue(pkgPath)},
+		),
+	}
+}
+
+func X_isRealm(m *gno.Machine, pkgPath string) bool {
+	return gno.IsRealmPath(pkgPath)
 }

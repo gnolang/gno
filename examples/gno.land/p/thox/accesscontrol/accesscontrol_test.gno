@@ -1,12 +1,11 @@
 package accesscontrol
 
 import (
-	"std"
 	"testing"
 
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/uassert"
 )
 
 var (
@@ -18,7 +17,7 @@ var (
 	roleName = "TestRole"
 )
 
-func initSetup(admin std.Address) *Roles {
+func initSetup(admin address) *Roles {
 	return &Roles{
 		Roles:   []*Role{},
 		Ownable: ownable.NewWithAddress(admin),

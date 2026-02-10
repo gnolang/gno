@@ -21,10 +21,7 @@ func DiffStores(a Store, b Store, prefixesToSkip [][]byte) (kvA KVPair, kvB KVPa
 	iterA := a.Iterator(nil, nil)
 	iterB := b.Iterator(nil, nil)
 	count = int64(0)
-	for {
-		if !iterA.Valid() && !iterB.Valid() {
-			break
-		}
+	for iterA.Valid() || iterB.Valid() {
 		var kvA, kvB KVPair
 		if iterA.Valid() {
 			kvA = KVPair{Key: iterA.Key(), Value: iterA.Value()}

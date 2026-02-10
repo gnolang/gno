@@ -2,7 +2,6 @@ package markdown
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -10,6 +9,7 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
+	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
@@ -22,16 +22,19 @@ const (
 	tooltipExternalLink = "External link"
 	tooltipInternalLink = "Cross package link"
 	tooltipTxLink       = "Transaction link"
+	tooltipUserLink     = "User profile"
 
-	// Icons for link types
-	iconExternalLink = "↗"
-	iconInternalLink = "↔"
-	iconTxLink       = "⚡︎"
+	// SVG icon ids for link types
+	iconExternalLink = "ico-external-link"
+	iconInternalLink = "ico-internal-link"
+	iconTxLink       = "ico-tx-link"
+	iconUserLink     = "ico-user-link"
 
 	// CSS classes for link types
 	classLinkExternal = "link-external"
 	classLinkInternal = "link-internal"
 	classLinkTx       = "link-tx"
+	classLinkUser     = "link-user"
 )
 
 // GnoLinkType represents the type of a link
@@ -42,6 +45,7 @@ const (
 	GnoLinkTypeExternal
 	GnoLinkTypePackage
 	GnoLinkTypeInternal
+	GnoLinkTypeUser
 )
 
 func (t GnoLinkType) String() string {
@@ -52,6 +56,8 @@ func (t GnoLinkType) String() string {
 		return "package"
 	case GnoLinkTypeInternal:
 		return "internal"
+	case GnoLinkTypeUser:
+		return "user"
 	}
 	return "unknown"
 }
@@ -115,7 +121,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		}
 
 		// Detect and set the GnoLink type.
-		gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, &orig)
+		gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, orig)
 
 		return ast.WalkContinue, nil
 	})
@@ -133,6 +139,11 @@ func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLink
 
 		// Otherwise, treat it as an external URL.
 		return nil, GnoLinkTypeExternal
+	}
+
+	// Check if it's a user link first
+	if target.IsUser() {
+		return target, GnoLinkTypeUser
 	}
 
 	// Extract domain and namespace from the target.
@@ -166,28 +177,48 @@ type attr struct {
 	value string
 }
 
-// writeHTMLTag writes an HTML attribute.
+// renderStringAttributes writes an HTML attribute.
+// variant of html.RenderAttributes with custom attributes
 // XXX: We probably want this as a general helper for futur extension.
-func writeHTMLTag(w util.BufWriter, tag string, attrs []attr) {
-	w.WriteString("<" + tag)
-	for _, a := range attrs {
-		w.WriteByte(' ') // write space separator
-		fmt.Fprintf(w, "%s=%q", a.name, a.value)
+func renderStringAttributes(w util.BufWriter, attrs []attr) {
+	for _, attr := range attrs {
+		w.WriteByte(' ')
+		w.WriteString(attr.name)
+		w.WriteString(`="`)
+		w.Write(util.EscapeHTML(util.StringToReadOnlyBytes(attr.value)))
+		w.WriteByte('"')
 	}
-	w.WriteByte('>')
 }
 
 // linkTypeInfo contains information about a link type.
 type linkTypeInfo struct {
 	tooltip string
-	icon    string
+	iconID  string
 	class   string
 }
 
-var linkTypes = map[GnoLinkType]linkTypeInfo{
-	GnoLinkTypeExternal: {tooltipExternalLink, iconExternalLink, classLinkExternal},
-	GnoLinkTypeInternal: {tooltipInternalLink, iconInternalLink, classLinkInternal},
-	GnoLinkTypePackage:  {tooltipTxLink, iconTxLink, classLinkTx},
+// getLinkIcons returns all icons that should be displayed for a given link
+func getLinkIcons(n *GnoLink) []linkTypeInfo {
+	var icons []linkTypeInfo
+
+	// Add type-specific icon (external/internal)
+	if n.LinkType != GnoLinkTypePackage {
+		switch n.LinkType {
+		case GnoLinkTypeExternal:
+			icons = append(icons, linkTypeInfo{tooltipExternalLink, iconExternalLink, classLinkExternal})
+		case GnoLinkTypeInternal:
+			icons = append(icons, linkTypeInfo{tooltipInternalLink, iconInternalLink, classLinkInternal})
+		case GnoLinkTypeUser:
+			icons = append(icons, linkTypeInfo{tooltipUserLink, iconUserLink, classLinkUser})
+		}
+	}
+
+	// Add Tx icon for non-external links with help webquery
+	if n.LinkType != GnoLinkTypeExternal && n.GnoURL != nil && n.GnoURL.WebQuery.Has("help") {
+		icons = append(icons, linkTypeInfo{tooltipTxLink, iconTxLink, classLinkTx})
+	}
+
+	return icons
 }
 
 // renderGnoLink renders a link node.
@@ -205,8 +236,14 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 	}
 
 	if entering {
-		// Prepare link attributes with href first.
-		attrs := []attr{{"href", string(n.Destination)}}
+		w.WriteString(`<a href="`)
+		if !html.IsDangerousURL(n.Destination) {
+			w.Write(util.EscapeHTML(util.URLEscape(n.Destination, true)))
+		}
+		w.WriteByte('"')
+
+		// Prepare additional link attributes.
+		attrs := []attr{}
 		if n.LinkType == GnoLinkTypeExternal {
 			attrs = append(attrs, attr{"rel", "noopener nofollow ugc"})
 		}
@@ -214,32 +251,26 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 			attrs = append(attrs, attr{"title", string(n.Title)})
 		}
 
-		// Write opening tag <a>.
-		writeHTMLTag(w, "a", attrs)
+		// Render additional attributes
+		renderStringAttributes(w, attrs)
+
+		// Close tag and continue
+		w.WriteByte('>')
 		return ast.WalkContinue, nil
 	}
 
-	// Add the Tx icon span if needed.
-	if n.LinkType != GnoLinkTypeExternal &&
-		n.GnoURL != nil && n.GnoURL.WebQuery.Has("help") { // has help webquery
-		writeHTMLTag(w, "span", []attr{
-			{"class", classLinkTx + " js-tooltip tooltip"},
-			{"data-tooltip", tooltipTxLink},
+	// Render all icons dynamically
+	for _, icon := range getLinkIcons(n) {
+		w.WriteString("<span")
+		renderStringAttributes(w, []attr{
+			{"class", icon.class + " tooltip"},
+			{"data-tooltip-target", "info"},
+			{"data-tooltip", icon.tooltip},
+			{"title", icon.tooltip},
 		})
-		w.WriteString(iconTxLink)
+		w.WriteByte('>')
+		w.WriteString(`<svg class="c-icon"><use href="#` + icon.iconID + `"></use></svg>`)
 		w.WriteString("</span>")
-	}
-
-	// Add external/internal icon span if needed.
-	if n.LinkType != GnoLinkTypePackage {
-		if info, ok := linkTypes[n.LinkType]; ok {
-			writeHTMLTag(w, "span", []attr{
-				{"class", info.class + " js-tooltip tooltip"},
-				{"data-tooltip", info.tooltip},
-			})
-			w.WriteString(info.icon)
-			w.WriteString("</span>")
-		}
 	}
 
 	// Write closing tag <a>.

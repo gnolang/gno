@@ -4,11 +4,11 @@ subdirectory, which uses a [different license](./tm2/LICENSE).
 
 ---
 
-Copyright (C) 2024 NewTendermint, LLC
+Copyright (C) 2025 NewTendermint, LLC
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNO Network General Public License as published by
-NewTendermint, LLC, either version 4 of the License, or (at your option) any
+NewTendermint, LLC, either version 6 of the License, or (at your option) any
 later version published by NewTendermint, LLC.
 
 This program is distributed in the hope that it will be useful, but is provided
@@ -22,44 +22,56 @@ with this program.  If not, see <https://gno.land/license>.
 Attached below are the terms of the GNO Network General Public License, Version
 4 (a fork of the GNU Affero General Public License 3).
 
-## Additional Terms
 
-### Strong Attribution
+# Additional Terms (Strong Attribution)
 
-If any of your user interfaces, such as websites and mobile applications, serve
-as the primary point of entry to a platform or blockchain that 1) offers users
-the ability to upload their own smart contracts to the platform or blockchain,
-and 2) leverages any Covered Work (including the GNO virtual machine) to run
-those smart contracts on the platform or blockchain ("Applicable Work"), then
-the Applicable Work must prominently link to (1) gno.land or (2) any other URL
-designated by NewTendermint, LLC that has not been rejected by the governance of
-the first chain known as gno.land, provided that the identity of the first chain
-is not ambiguous.  In the event the identity of the first chain is ambiguous,
-then NewTendermint, LLC's designation shall control.  Such link must appear
-conspicuously in the header or footer of the Applicable Work, such that all
-users may learn of gno.land or the URL designated by NewTendermint, LLC.
+In accordance with Section 7 of the License, any user interface of a Covered
+Work, or of any other work or service that does not include the Covered Work
+but which derives functionality from it or otherwise uses it (an “Applicable
+Work”), and any material that promotes the Covered Work, must prominently
+display a reasonable attribution notice for the Covered Work (the “Attribution
+Notice”). The Attribution Notice shall, at minimum, include an active hyperlink
+to a URL designated by the Licensor for attribution (the “Attribution URL”),
+and up to three words such as "built on" or "forked from" as designated by the
+Licensor according to the Licensor's Attribution Policy.
 
-This additional attribution requirement shall remain in effect for (1) 7
-years from the date of publication of the Applicable Work, or (2) 7 years from
-the date of publication of the Covered Work (including republication of new
-versions), whichever is later, but no later than 12 years after the application
-of this strong attribution requirement to the publication of the Applicable
-Work.  For purposes of this Strong Attribution requirement, Covered Work shall
-mean any work that is licensed under the GNO Network General Public License,
-Version 4 or later, by NewTendermint, LLC.
+The Attribution Notice must be in a manner readily visible to users and must be
+at least as conspicuous as other legal notices or credits in the same
+interface. If there are no other notices or credits it is sufficient for the
+Attribution Notice to appear prominently in the header or footer of the
+interface. The Attribution URL and related attribution terms described herein
+are determined exclusively by NewTendermint, LLC. In cases of ambiguity,
+forks, or disputes regarding attribution, the designation made by
+NewTendermint, LLC shall conclusively govern.
 
-For clarification, this strong attribution clause is viral; you are responsible
-for ensuring that any other person or entity you have a contractional
-relationship with preserves the spirit of this strong attribution clause.  The
-user who uses or modifies this software, the owner and maintainers of primary
-portals, and the validators and full nodes that run the blockchain software may
-all be different entities, but the strong attribution clause shall persist
-across these entities whereever contractional relationships exist.
+This attribution requirement remains in force for twelve (12) years from the
+date the Covered Work is first publicly released under this License, or twelve
+(12) years from the date you first make an Applicable Work available to the
+public, whichever is later. In no event shall this requirement continue beyond
+twenty five (25) years from the Covered Work’s initial public release. If a
+court of competent jurisdiction or the Licensor finds that the designated
+Attribution URL violates users’ reasonable expectations of privacy or security,
+then the requirement to include that URL may be omitted or modified to the
+minimum extent necessary to avoid such issue. In all other cases, the
+attribution must be preserved as stated.
+
+You must preserve and display the Attribution Notice as required above in every
+Covered Work and Applicable Work that you propagate, operate, or otherwise make
+available to users or third parties. If you convey, deploy or promote the
+Covered Work to any third party, or permit or enable a third party to deploy,
+operate or promote an Applicable Work, you must require that such third party,
+as a condition of use, also preserve and maintain the same Attribution Notice
+and comply with the above attribution requirement. The attribution requirement
+is a condition of the License that travels with the Covered Work forever and
+must be honored by all downstream recipients for the duration specified above.
+This clause constitutes an additional term permitted by Section 7 of this
+License and shall not be construed as a further restriction on the exercise of
+rights granted under this License.
 
 
 # GNO NETWORK GENERAL PUBLIC LICENSE
 
-Version 4, 7 May 2024
+Version 6, 25 November 2025
 
 Modified from the GNU AFFERO GENERAL PUBLIC LICENSE.
 GNU is not affiliated with GNO or NewTendermint, LLC.
@@ -114,7 +126,7 @@ modification follow.
 
 ### 0. Definitions.
 
-"This License" refers to version 4 of the GNO Network General Public License.
+"This License" refers to version 6 of the GNO Network General Public License.
 
 "Copyright" also means copyright-like laws that apply to other kinds of
 works, such as semiconductor masks.
@@ -417,7 +429,7 @@ that material) supplement the terms of this License with terms:
 -   g) Requiring strong attribution such as notices on any user interfaces
     that run or convey any covered work, such as a prominent link to a URL
     on the header of a website, such that all users of the covered work may
-    become aware of the notice, for a period no longer than 20 years.
+    become aware of the notice, for a period no longer than 25 years.
 
 All other non-permissive additional terms are considered "further
 restrictions" within the meaning of section 10.  If the Program as you
@@ -680,7 +692,7 @@ the "copyright" line and a pointer to where the full notice is found.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNO Network General Public License as published by
-    NewTendermint LLC, either version 4 of the License, or
+    NewTendermint LLC, either version 6 of the License, or
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,

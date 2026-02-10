@@ -1,0 +1,20 @@
+-- input.md --
+g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq should be valid as first line
+
+This is a GNO address g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq
+
+This one gmpkp5lm8lwpm0pym4388836d009zfe4maxlqsq or g1mbpkp5lm8lwpm0pym4388836d009zfe4mxlqsq are not a reference.
+
+g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq to start a line
+
+g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq
+
+This is not an address even if g1 inside werwrefg1mpkp5lm8lwpm0pym4388836d009zfe4
+
+-- output.html --
+<p><a href="/u/g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq">g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a> should be valid as first line</p>
+<p>This is a GNO address <a href="/u/g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq">g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a></p>
+<p>This one gmpkp5lm8lwpm0pym4388836d009zfe4maxlqsq or g1mbpkp5lm8lwpm0pym4388836d009zfe4mxlqsq are not a reference.</p>
+<p><a href="/u/g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq">g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a> to start a line</p>
+<p><a href="/u/g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq">g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a></p>
+<p>This is not an address even if g1 inside werwrefg1mpkp5lm8lwpm0pym4388836d009zfe4</p>

@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rand
+package rand_test
 
 import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"testing"
 )
 
@@ -96,7 +97,7 @@ func checkSampleSliceDistributions(t *testing.T, samples []float64, nslices int,
 //
 
 func generateNormalSamples(nsamples int, mean, stddev float64, seed uint64) []float64 {
-	r := New(NewPCG(seed, seed))
+	r := rand.New(rand.NewPCG(seed, seed))
 	samples := make([]float64, nsamples)
 	for i := range samples {
 		samples[i] = r.NormFloat64()*stddev + mean
@@ -153,7 +154,7 @@ func TestNonStandardNormalValues(t *testing.T) {
 //
 
 func generateExponentialSamples(nsamples int, rate float64, seed uint64) []float64 {
-	r := New(NewPCG(seed, seed))
+	r := rand.New(rand.NewPCG(seed, seed))
 	samples := make([]float64, nsamples)
 	for i := range samples {
 		samples[i] = r.ExpFloat64() / rate
@@ -207,7 +208,7 @@ func TestNonStandardExponentialValues(t *testing.T) {
 func initNorm() (testKn []uint32, testWn, testFn []float32) {
 	const m1 = 1 << 31
 	var (
-		dn float64 = rn
+		dn float64 = rand.Rn
 		tn         = dn
 		vn float64 = 9.91256303526217e-3
 	)
@@ -236,7 +237,7 @@ func initNorm() (testKn []uint32, testWn, testFn []float32) {
 func initExp() (testKe []uint32, testWe, testFe []float32) {
 	const m2 = 1 << 32
 	var (
-		de float64 = re
+		de float64 = rand.Re
 		te         = de
 		ve float64 = 3.9496598225815571993e-3
 	)
@@ -300,27 +301,27 @@ func compareFloat32Slices(s1, s2 []float32) int {
 
 func TestNormTables(t *testing.T) {
 	testKn, testWn, testFn := initNorm()
-	if i := compareUint32Slices(kn[0:], testKn); i >= 0 {
-		t.Errorf("kn disagrees at index %v; %v != %v", i, kn[i], testKn[i])
+	if i := compareUint32Slices(rand.Kn[0:], testKn); i >= 0 {
+		t.Errorf("kn disagrees at index %v; %v != %v", i, rand.Kn[i], testKn[i])
 	}
-	if i := compareFloat32Slices(wn[0:], testWn); i >= 0 {
-		t.Errorf("wn disagrees at index %v; %v != %v", i, wn[i], testWn[i])
+	if i := compareFloat32Slices(rand.Wn[0:], testWn); i >= 0 {
+		t.Errorf("wn disagrees at index %v; %v != %v", i, rand.Wn[i], testWn[i])
 	}
-	if i := compareFloat32Slices(fn[0:], testFn); i >= 0 {
-		t.Errorf("fn disagrees at index %v; %v != %v", i, fn[i], testFn[i])
+	if i := compareFloat32Slices(rand.Fn[0:], testFn); i >= 0 {
+		t.Errorf("fn disagrees at index %v; %v != %v", i, rand.Fn[i], testFn[i])
 	}
 }
 
 func TestExpTables(t *testing.T) {
 	testKe, testWe, testFe := initExp()
-	if i := compareUint32Slices(ke[0:], testKe); i >= 0 {
-		t.Errorf("ke disagrees at index %v; %v != %v", i, ke[i], testKe[i])
+	if i := compareUint32Slices(rand.Ke[0:], testKe); i >= 0 {
+		t.Errorf("ke disagrees at index %v; %v != %v", i, rand.Ke[i], testKe[i])
 	}
-	if i := compareFloat32Slices(we[0:], testWe); i >= 0 {
-		t.Errorf("we disagrees at index %v; %v != %v", i, we[i], testWe[i])
+	if i := compareFloat32Slices(rand.We[0:], testWe); i >= 0 {
+		t.Errorf("we disagrees at index %v; %v != %v", i, rand.We[i], testWe[i])
 	}
-	if i := compareFloat32Slices(fe[0:], testFe); i >= 0 {
-		t.Errorf("fe disagrees at index %v; %v != %v", i, fe[i], testFe[i])
+	if i := compareFloat32Slices(rand.Fe[0:], testFe); i >= 0 {
+		t.Errorf("fe disagrees at index %v; %v != %v", i, rand.Fe[i], testFe[i])
 	}
 }
 
@@ -375,7 +376,7 @@ func encodePerm(s []int) int {
 func TestUniformFactorial(t *testing.T) {
 	t.Skip("This test takes ~3 mins to run on Gno at time of writing, even in its short form")
 
-	r := New(NewPCG(1, 2))
+	r := rand.New(rand.NewPCG(1, 2))
 	top := 6
 	if testing.Short() {
 		top = 3
@@ -452,12 +453,12 @@ func TestUniformFactorial(t *testing.T) {
 
 var Sink uint64
 
-func testRand() *Rand {
-	return New(NewPCG(1, 2))
+func testRand() *rand.Rand {
+	return rand.New(rand.NewPCG(1, 2))
 }
 
 func BenchmarkSourceUint64(b *testing.B) {
-	s := NewPCG(1, 2)
+	s := rand.NewPCG(1, 2)
 	var t uint64
 	for n := b.N; n > 0; n-- {
 		t += s.Uint64()
@@ -468,7 +469,7 @@ func BenchmarkSourceUint64(b *testing.B) {
 func BenchmarkGlobalInt64(b *testing.B) {
 	var t int64
 	for n := b.N; n > 0; n-- {
-		t += Int64()
+		t += rand.Int64()
 	}
 	Sink = uint64(t)
 }
@@ -476,7 +477,7 @@ func BenchmarkGlobalInt64(b *testing.B) {
 func BenchmarkGlobalUint64(b *testing.B) {
 	var t uint64
 	for n := b.N; n > 0; n-- {
-		t += Uint64()
+		t += rand.Uint64()
 	}
 	Sink = t
 }
@@ -503,7 +504,7 @@ func BenchmarkGlobalIntN1000(b *testing.B) {
 	var t int
 	arg := 1000
 	for n := b.N; n > 0; n-- {
-		t += IntN(arg)
+		t += rand.IntN(arg)
 	}
 	Sink = uint64(t)
 }

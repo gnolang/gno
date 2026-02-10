@@ -1,0 +1,33 @@
+-- input.md --
+<gno-form>
+<gno-input name="username" type="text" placeholder="Enter username" description="Your unique username for the platform" />
+<gno-input name="preference" type="radio" value="light" placeholder="Light theme" description="Choose your preferred theme" />
+<gno-input name="preference" type="radio" value="dark" placeholder="Dark theme" />
+<gno-textarea name="feedback" placeholder="Your feedback" description="Please provide detailed feedback about your experience" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div id="desc_username_0" class="gno-form_description">Your unique username for the platform</div>
+<div class="gno-form_input"><label for="username">Enter username</label>
+<input type="text" id="username" name="username" placeholder="Enter username" />
+</div>
+<div id="desc_preference_1" class="gno-form_description">Choose your preferred theme</div>
+<div class="gno-form_selectable">
+<input type="radio" id="preference_1" name="preference" value="light" aria-labelledby="desc_preference_1" />
+<label for="preference_1">light - Light theme</label>
+</div>
+<div class="gno-form_selectable">
+<input type="radio" id="preference_2" name="preference" value="dark" aria-labelledby="desc_preference_1" />
+<label for="preference_2">dark - Dark theme</label>
+</div>
+<div id="desc_feedback_3" class="gno-form_description">Please provide detailed feedback about your experience</div>
+<div class="gno-form_input"><label for="feedback">Your feedback</label>
+<textarea id="feedback" name="feedback" placeholder="Your feedback" rows="4"></textarea>
+</div>
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>

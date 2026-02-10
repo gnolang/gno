@@ -8,6 +8,17 @@ import (
 	"io"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
+)
+
+const (
+	// NativeCPUUversePrintInit is the base gas cost for the Print function.
+	// The actual cost is 1800, but we subtract OpCPUCallNativeBody (424), resulting in 1376.
+	NativeCPUUversePrintInit = 1376
+	// NativeCPUUversePrintPerChar is now chars per gas unit.
+	NativeCPUUversePrintCharsPerGas = 10
 )
 
 // ----------------------------------------
@@ -59,6 +70,34 @@ var gStringerType = &DeclaredType{
 	sealed: true,
 }
 
+var gAddressType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "address",
+	Base:    StringType,
+	sealed:  true,
+	// methods defined in makeUverseNode()
+}
+
+var gCoinType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "gnocoin",
+	Base: &StructType{
+		PkgPath: uversePkgPath,
+		Fields: []FieldType{
+			{Name: "Denom", Type: StringType},
+			{Name: "Amount", Type: Int64Type},
+		},
+	},
+	sealed: true,
+}
+
+var gCoinsType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "gnocoins",
+	Base:    &SliceType{Elt: gCoinType},
+	sealed:  true,
+}
+
 var gRealmType = &DeclaredType{
 	PkgPath: uversePkgPath,
 	Name:    "realm",
@@ -66,27 +105,64 @@ var gRealmType = &DeclaredType{
 		PkgPath: uversePkgPath,
 		Methods: []FieldType{
 			{
-				Name: "Addr",
+				Name: "Address",
 				Type: &FuncType{
 					Params: nil,
-					Results: []FieldType{
-						{
-							// Name: "",
-							Type: StringType, // NOT std.Address.
-						},
-					},
+					Results: []FieldType{{
+						Type: gAddressType,
+					}},
 				},
-			},
-			{
-				Name: "Prev",
+			}, {
+				Name: "PkgPath",
 				Type: &FuncType{
 					Params: nil,
-					Results: []FieldType{
-						{
-							// Name: "",
-							Type: nil, // gets filled in init() below.
-						},
-					},
+					Results: []FieldType{{
+						Type: StringType,
+					}},
+				},
+			}, {
+				Name: "Coins",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: gCoinsType,
+					}},
+				},
+			}, {
+				Name: "Send",
+				Type: &FuncType{
+					Params: []FieldType{{
+						Name: "coins", Type: gCoinsType,
+					}, {
+						Name: "to", Type: gAddressType,
+					}},
+					Results: []FieldType{{
+						Type: gErrorType,
+					}},
+				},
+			}, { // gets filled in init() below.
+				Name: "Previous",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: nil,
+					}},
+				},
+			}, { // gets filled in init() below.
+				Name: "Origin",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: nil,
+					}},
+				},
+			}, { // gets filled in init() below.
+				Name: "String",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: StringType,
+					}},
 				},
 			},
 		},
@@ -95,7 +171,41 @@ var gRealmType = &DeclaredType{
 }
 
 func init() {
-	gRealmType.Base.(*InterfaceType).Methods[1].Type.(*FuncType).Results[0].Type = gRealmType
+	gRealmPrevious := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Previous")
+	gRealmOrigin := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Origin")
+	gRealmPrevious.Type.(*FuncType).Results[0].Type = gRealmType
+	gRealmOrigin.Type.(*FuncType).Results[0].Type = gRealmType
+}
+
+var gConcreteRealmType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    ".grealm",
+	Base: &StructType{
+		PkgPath: uversePkgPath,
+		Fields: []FieldType{
+			{Name: "addr", Type: gAddressType},
+			{Name: "pkgPath", Type: StringType},
+			{Name: "prev", Type: gRealmType},
+		},
+	},
+	sealed: true,
+	// methods defined in makeUverseNode()
+}
+
+// NOTE: the value is set as a constExpr for the `.cur` in the preprocessor,
+// and likewise for MsgCall cross-call of crossing functions, so the value
+// should be deterministic, not dynamic, and only depend on the realm.
+func NewConcreteRealm(pkgPath string) TypedValue {
+	return TypedValue{
+		T: gConcreteRealmType,
+		V: &StructValue{
+			Fields: []TypedValue{
+				{T: gAddressType, V: nil}, // XXX
+				{T: StringType, V: StringValue(pkgPath)},
+				{T: gConcreteRealmType, V: nil}, // XXX
+			},
+		},
+	}
 }
 
 // ----------------------------------------
@@ -161,9 +271,10 @@ func makeUverseNode() {
 
 	// temporary convenience functions.
 	def := func(n Name, tv TypedValue) {
-		uverseNode.Define(n, tv)
+		uverseNode.Define2(true, n, tv.T, tv, NameSource{})
 	}
 	defNative := uverseNode.DefineNative
+	defNativeMethod := uverseNode.DefineNativeMethod
 
 	// Primitive types
 	undefined := TypedValue{}
@@ -293,6 +404,8 @@ func makeUverseNode() {
 				arg0Offset := arg0Value.Offset
 				arg0Capacity := arg0Value.Maxcap
 				arg0Base := arg0Value.GetBase(m.Store)
+				// NOTE, ANY MODIFICATION TO arg0 SHOULD ALWAYS CALL
+				// m.Realm.DidUpdate(arg0Base, nil, nil) FIRST TO CHECK WRITE PERMISSIONS.
 				switch arg1Value := arg1.TV.V.(type) {
 				// ------------------------------------------------------------
 				// append(*SliceValue, nil)
@@ -312,6 +425,11 @@ func makeUverseNode() {
 					if arg0Length+arg1Length <= arg0Capacity {
 						// append(*SliceValue, *SliceValue) w/i capacity -----
 						if 0 < arg1Length { // implies 0 < xvc
+							// DEFENSIVE: in this case, we're writing data directly
+							// into the backing array of arg0. Ensure we can write
+							// to it.
+							m.Realm.DidUpdate(arg0Base, nil, nil)
+
 							if arg0Base.Data == nil {
 								// append(*SliceValue.List, *SliceValue) ---------
 								list := arg0Base.List
@@ -334,7 +452,6 @@ func makeUverseNode() {
 										list[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.Data[arg1Offset:arg1Offset+arg1Length],
 										arg0Type.Elem())
-									m.Realm.DidUpdate(arg1Base, nil, nil)
 								}
 							} else {
 								// append(*SliceValue.Data, *SliceValue) ---------
@@ -343,7 +460,6 @@ func makeUverseNode() {
 									copyListToData(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.List[arg1Offset:arg1Offset+arg1Length])
-									m.Realm.DidUpdate(arg0Base, nil, nil)
 								} else {
 									copy(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
@@ -452,7 +568,6 @@ func makeUverseNode() {
 			}
 			res0.SetInt(int64(arg0.TV.GetCapacity()))
 			m.PushValue(res0)
-			return
 		},
 	)
 	defNative("copy",
@@ -466,70 +581,72 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			dst, src := arg0, arg1
-			switch bdt := baseOf(dst.TV.T).(type) {
-			case *SliceType:
-				switch bst := baseOf(src.TV.T).(type) {
-				case PrimitiveType:
-					if debug {
-						debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
-					}
-					if bst.Kind() != StringKind {
-						panic("should not happen")
-					}
-					if bdt.Elt != Uint8Type {
-						panic("should not happen")
-					}
-					// NOTE: this implementation is almost identical to the next one.
-					// note that in some cases optimization
-					// is possible if dstv.Data != nil.
-					dstl := dst.TV.GetLength()
-					srcl := src.TV.GetLength()
-					minl := min(srcl, dstl)
-					if minl == 0 {
-						// return 0.
-						m.PushValue(defaultTypedValue(m.Alloc, IntType))
-						return
-					}
-					dstv := dst.TV.V.(*SliceValue)
-					// TODO: consider an optimization if dstv.Data != nil.
-					for i := range minl {
-						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-						srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
-						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
-					}
-					res0 := TypedValue{
-						T: IntType,
-						V: nil,
-					}
-					res0.SetInt(int64(minl))
-					m.PushValue(res0)
-					return
-				case *SliceType:
-					dstl := dst.TV.GetLength()
-					srcl := src.TV.GetLength()
-					minl := min(srcl, dstl)
-					if minl == 0 {
-						// return 0.
-						m.PushValue(defaultTypedValue(m.Alloc, IntType))
-						return
-					}
-					dstv := dst.TV.V.(*SliceValue)
-					srcv := src.TV.V.(*SliceValue)
-					for i := range minl {
-						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
-					}
-					res0 := TypedValue{
-						T: IntType,
-						V: nil,
-					}
-					res0.SetInt(int64(minl))
-					m.PushValue(res0)
-					return
-				default:
+			bdt := baseOf(dst.TV.T).(*SliceType)
+			switch bst := baseOf(src.TV.T).(type) {
+			case PrimitiveType:
+				if debug {
+					debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
+				}
+				if bst.Kind() != StringKind {
 					panic("should not happen")
 				}
+				if bdt.Elt != Uint8Type {
+					panic("should not happen")
+				}
+				// NOTE: this implementation is almost identical to the next one.
+				// note that in some cases optimization
+				// is possible if dstv.Data != nil.
+				dstl := dst.TV.GetLength()
+				srcl := src.TV.GetLength()
+				minl := min(srcl, dstl)
+				if minl == 0 {
+					// return 0.
+					m.PushValue(defaultTypedValue(m.Alloc, IntType))
+					return
+				}
+				dstv := dst.TV.V.(*SliceValue)
+				// Guard for protecting dst against mutation by external realms.
+				dstBase := dstv.GetBase(m.Store)
+				m.Realm.DidUpdate(dstBase, nil, nil)
+				// TODO: consider an optimization if dstv.Data != nil.
+				for i := range minl {
+					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+					srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
+					dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				}
+				res0 := TypedValue{
+					T: IntType,
+					V: nil,
+				}
+				res0.SetInt(int64(minl))
+				m.PushValue(res0)
+				return
+			case *SliceType:
+				dstl := dst.TV.GetLength()
+				srcl := src.TV.GetLength()
+				minl := min(srcl, dstl)
+				if minl == 0 {
+					// return 0.
+					m.PushValue(defaultTypedValue(m.Alloc, IntType))
+					return
+				}
+				dstv := dst.TV.V.(*SliceValue)
+				// Guard for protecting dst against mutation by external realms.
+				dstBase := dstv.GetBase(m.Store)
+				m.Realm.DidUpdate(dstBase, nil, nil)
+				srcv := src.TV.V.(*SliceValue)
+				for i := range minl {
+					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+					srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
+					dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				}
+				res0 := TypedValue{
+					T: IntType,
+					V: nil,
+				}
+				res0.SetInt(int64(minl))
+				m.PushValue(res0)
+				return
 			default:
 				panic("should not happen")
 			}
@@ -588,7 +705,6 @@ func makeUverseNode() {
 			}
 			res0.SetInt(int64(arg0.TV.GetLength()))
 			m.PushValue(res0)
-			return
 		},
 	)
 	defNative("make",
@@ -607,7 +723,8 @@ func makeUverseNode() {
 			switch bt := baseOf(tt).(type) {
 			case *SliceType:
 				et := bt.Elem()
-				if vargsl == 1 {
+				switch vargsl {
+				case 1:
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					if et.Kind() == Uint8Kind {
@@ -633,7 +750,7 @@ func makeUverseNode() {
 						})
 						return
 					}
-				} else if vargsl == 2 {
+				case 2:
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
@@ -678,18 +795,19 @@ func makeUverseNode() {
 						})
 						return
 					}
-				} else {
+				default:
 					panic("make() of slice type takes 2 or 3 arguments")
 				}
 			case *MapType:
 				// NOTE: the type is not used.
-				if vargsl == 0 {
+				switch vargsl {
+				case 0:
 					m.PushValue(TypedValue{
 						T: tt,
 						V: m.Alloc.NewMap(0),
 					})
 					return
-				} else if vargsl == 1 {
+				case 1:
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					m.PushValue(TypedValue{
@@ -697,15 +815,14 @@ func makeUverseNode() {
 						V: m.Alloc.NewMap(li),
 					})
 					return
-				} else {
+				default:
 					panic("make() of map type takes 1 or 2 arguments")
 				}
 			case *ChanType:
-				if vargsl == 0 {
+				switch vargsl {
+				case 0, 1:
 					panic("not yet implemented")
-				} else if vargsl == 1 {
-					panic("not yet implemented")
-				} else {
+				default:
 					panic("make() of chan type takes 1 or 2 arguments")
 				}
 			default:
@@ -738,7 +855,6 @@ func makeUverseNode() {
 					Index: 0,
 				},
 			})
-			return
 		},
 	)
 
@@ -749,6 +865,18 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
+			// Todo: should stop op code benchmarking here.
+			if bm.NativeEnabled {
+				arg0 := m.LastBlock().GetParams1(m.Store)
+				bm.StartNative(bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false))))
+				prevOutput := m.Output
+				m.Output = io.Discard
+				defer func() {
+					bm.StopNative()
+					m.Output = prevOutput
+				}()
+			}
+
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, false)
 		},
@@ -759,6 +887,17 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
+			// Todo: should stop op code benchmarking here.
+			if bm.NativeEnabled {
+				arg0 := m.LastBlock().GetParams1(m.Store)
+				bm.StartNative(bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false))))
+				prevOutput := m.Output
+				m.Output = io.Discard
+				defer func() {
+					bm.StopNative()
+					m.Output = prevOutput
+				}()
+			}
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, true)
 		},
@@ -794,65 +933,121 @@ func makeUverseNode() {
 
 	//----------------------------------------
 	// Gno2 types
+	def("address", asValue(gAddressType))
+	defNativeMethod("address", "String",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			res0 := typedString(arg0.TV.GetString())
+			m.PushValue(res0)
+		},
+	)
+	defNativeMethod("address", "IsValid",
+		nil, // params
+		Flds( // results
+			"", "bool",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			b32addr := arg0.TV.GetString()
+			addr, err := crypto.AddressFromBech32(b32addr)
+			if err != nil {
+				m.PushValue(typedBool(false))
+				return
+			}
+			_ = addr
+			m.PushValue(typedBool(len(addr) == 20))
+		},
+	)
+	def("gnocoin", asValue(gCoinType))
+	def("gnocoins", asValue(gCoinsType))
 	def("realm", asValue(gRealmType))
+	def(".grealm", asValue(gConcreteRealmType))
+	defNativeMethod(".grealm", "Address",
+		nil, // params
+		Flds( // results
+			"", "address",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "PkgPath",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "Coins",
+		nil, // params
+		Flds( // results
+			"", "gnocoins",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "Send",
+		Flds( // params
+			"coins", "gnocoins",
+			"to", "address",
+		),
+		Flds( // results
+			"", "error",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "Origin",
+		nil, // params
+		Flds( // results
+			"", "realm",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "Previous",
+		nil, // params
+		Flds( // results
+			"", "realm",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "String",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
 	defNative("crossing",
 		nil, // params
 		nil, // results
 		func(m *Machine) {
-			stmt := m.PeekStmt(1)
-			bs, ok := stmt.(*bodyStmt)
-			if !ok {
-				panic("unexpected origin of crossing call")
-			}
-			if bs.NextBodyIndex != 1 {
-				panic("crossing call must be the first call of a function or method")
-			}
-			fr1 := m.PeekCallFrame(1) // fr1.LastPackage created fr.
-			if !fr1.LastPackage.IsRealm() {
-				panic("crossing call only allowed in realm packages") // XXX test
-			}
-			// Verify prior fr.WithCross or fr.DidCrossing.
-			// NOTE: fr.WithCross may or may not be true,
-			// crossing() (which sets fr.DidCrossing) can be
-			// stacked.
-			for i := 1 + 1; ; i++ {
-				fri := m.PeekCallFrame(i)
-				if fri == nil {
-					// For stage add, meaning init() AND
-					// global var decls inherit a faux
-					// frame of index -1 which crossed from
-					// the package deployer.
-					// For stage run, main() does the same,
-					// so main() can be crossing or not, it
-					// doesn't matter. This applies for
-					// MsgRun() as well as tests. MsgCall()
-					// runs like cross(fn)(...) which
-					// meains fri.WithCross would have been
-					// found below.
-					fr2 := m.PeekCallFrame(2)
-					fr2.SetDidCrossing()
-					return
-				}
-				if fri.WithCross || fri.DidCrossing {
-					// NOTE: fri.DidCrossing implies
-					// everything under it is also valid.
-					// fri.DidCrossing && !fri.WithCross
-					// can happen with an implicit switch.
-					fr2 := m.PeekCallFrame(2)
-					fr2.SetDidCrossing()
-					return
-				}
-				// Neither fri.WithCross nor fri.DidCrossing, yet
-				// Realm already switched implicitly.
-				if fri.LastRealm != m.Realm {
-					panic("crossing could not find corresponding cross(fn)(...) call")
-				}
-			}
-			//nolint:govet // detected as unreachable
-			panic("should not happen") // defensive
+			// should not happen since gno 0.9.
+			panic("crossing() is reserved but deprecated")
 		},
 	)
-	defNative("cross",
+	def("cross", undefined) // special keyword for cross-calling
+	def(".cur", undefined)  // special keyword for non-cross-calling main(cur realm)
+	// `cross` used to be a function, but it is now a special value.
+	// XXX make this unavailable in prod 0.9.  Code that refers to this
+	// intermediate name (gno fix > prepare()) will not pass type-checking
+	// because it isn't available in .gnobuiltins.gno for gno 0.9, but this
+	// name is unnecessarily reserved and brittle.
+	defNative("_cross_gno0p0",
 		Flds( // param
 			"x", GenT("X", nil),
 		),
@@ -862,10 +1057,6 @@ func makeUverseNode() {
 		func(m *Machine) {
 			// This is handled by op_call instead.
 			panic("cross is a virtual function")
-			/*
-				arg0 := m.LastBlock().GetParams1(m.Store)
-				m.PushValue(arg0.Deref())
-			*/
 		},
 	)
 	defNative("attach",
@@ -940,7 +1131,7 @@ func makeUverseNode() {
 			}
 		},
 	)
-	uverseValue = uverseNode.NewPackage()
+	uverseValue = uverseNode.NewPackage(nilAllocator)
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {
@@ -962,37 +1153,56 @@ func copyListToRunes(dst []rune, tvs []TypedValue) {
 	}
 }
 
+func consumeGas(m *Machine, amount types.Gas) {
+	if m.GasMeter != nil {
+		m.GasMeter.ConsumeGas(amount, "CPUCycles")
+	}
+}
+
 // uversePrint is used for the print and println functions.
 // println passes newline = true.
 // xv contains the variadic argument passed to the function.
 func uversePrint(m *Machine, xv PointerValue, newline bool) {
+	consumeGas(m, NativeCPUUversePrintInit)
+	output := formatUverseOutput(m, xv, newline)
+	consumeGas(m, overflow.Divp(types.Gas(len(output)), NativeCPUUversePrintCharsPerGas))
+	// For debugging:
+	// fmt.Println(colors.Cyan(string(output)))
+	m.Output.Write(output)
+}
+
+func formatUverseOutput(m *Machine, xv PointerValue, newline bool) []byte {
 	xvl := xv.TV.GetLength()
 	switch xvl {
 	case 0:
 		if newline {
-			m.Output.Write(bNewline)
+			return bNewline
 		}
 	case 1:
 		ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 		res := ev.Sprint(m)
-		io.WriteString(m.Output, res)
 		if newline {
-			m.Output.Write(bNewline)
+			res += "\n"
 		}
+		return []byte(res)
 	default:
 		var buf bytes.Buffer
+
 		for i := range xvl {
 			if i != 0 { // Not the last item.
 				buf.WriteByte(' ')
 			}
 			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-			buf.WriteString(ev.Sprint(m))
+			res := ev.Sprint(m)
+			buf.WriteString(res)
 		}
 		if newline {
 			buf.WriteByte('\n')
 		}
-		m.Output.Write(buf.Bytes())
+		return buf.Bytes()
 	}
+
+	return nil
 }
 
 var bNewline = []byte("\n")

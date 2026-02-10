@@ -1,0 +1,71 @@
+-- input.md --
+
+<gno-form exec="UpdateProfile">
+  <gno-input name="username" type="text" placeholder="Username" />
+  <gno-input name="email" type="email" placeholder="Email" />
+  <gno-textarea name="bio" rows="3" placeholder="Bio"></gno-textarea>
+  <gno-select name="visibility">
+    <option value="public">Public</option>
+    <option value="private">Private</option>
+  </gno-select>
+  <gno-input name="website" type="url" placeholder="Website" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false" data-controller="form-exec">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Exec: Updateprofile</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div data-controller="action-function" data-action-function-name-value="UpdateProfile" data-action-function-pkgpath-value="/r/test">
+<div class="gno-form_input"><label for="username">Username</label>
+<input type="text" id="username" name="username" placeholder="Username" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="username" />
+</div>
+<div class="gno-form_input"><label for="email">Email</label>
+<input type="email" id="email" name="email" placeholder="Email" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="email" />
+</div>
+<!-- Error: unexpected or invalid tag -->
+<!-- Error: unexpected or invalid tag -->
+<!-- Error: unexpected or invalid tag -->
+<!-- Error: unexpected or invalid tag -->
+<!-- Error: unexpected or invalid tag -->
+<!-- Error: invalid input type -->
+<div class="gno-form_input"><input type="submit" value="Submit (UpdateProfile Function)" /></div>
+<div class="command u-hidden" data-form-exec-target="command"><div data-controller="action-header" class="c-between">
+  <span class="title">Command</span>
+  <div class="c-inline">
+    <div class="b-input">
+      <select data-action-header-target="mode" data-action="change->action-header#updateMode">
+        <option value="secure" selected="selected">Mode: Full Security</option>
+        <option value="fast">Mode: Fast</option>
+      </select>
+      <svg><use href="#ico-arrow-down"></use></svg>
+    </div>
+    <div class="b-input">
+      <label for="form-address-UpdateProfile">Address</label>
+      <input type="text" data-action-header-target="address" data-action="input->action-header#updateAddress" id="form-address-UpdateProfile" class="u-font-mono" placeholder="ADDRESS" />
+    </div>
+  </div>
+</div>
+<div class="b-code">
+    <button data-controller="copy" data-action="click->copy#copy" data-copy-remote-value="action-function-UpdateProfile"
+        data-copy-clean-value class="btn-copy" aria-label="Copy Command">
+        <svg class="c-icon">
+            <use href="#ico-copy" data-copy-target="icon"></use>
+            <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
+        </svg>
+    </button>
+    <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target="action-function-UpdateProfile"># WARNING: This command is running in an INSECURE mode.
+# It is strongly recommended to use a hardware device for signing
+# and avoid trusting any computer connected to the internet,
+# as your private keys could be exposed.
+
+gnokey maketx call -pkgpath "/r/test" -func "UpdateProfile" -args $'<span data-action-function-target="arg" data-action-function-arg-value="username"></span>' -args $'<span data-action-function-target="arg" data-action-function-arg-value="email"></span>' -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" -broadcast -chainid "dev" -remote "127.0.0.1:26657" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-UpdateProfile" class="u-inline">gnokey query -remote "127.0.0.1:26657" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
+gnokey maketx call -pkgpath "/r/test" -func "UpdateProfile" -args $'<span data-action-function-target="arg" data-action-function-arg-value="username"></span>' -args $'<span data-action-function-target="arg" data-action-function-arg-value="email"></span>' -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" <span data-action-function-target="address">ADDRESS</span> > call.tx
+gnokey sign -tx-path call.tx -chainid "dev" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
+gnokey broadcast -remote "127.0.0.1:26657" call.tx
+  </span></code></pre>
+</div>
+</div>
+</div>
+</form>

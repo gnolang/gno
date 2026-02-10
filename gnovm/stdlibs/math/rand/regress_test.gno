@@ -9,7 +9,7 @@
 // in the underlying code, find ways to fix them that do not affect the
 // outputs.
 
-package rand
+package rand_test
 
 /*
 XXX: disabled because reflect, but would be good to enable it

@@ -15,9 +15,7 @@ stdout 'TX HASH:    '
 -- cbee.gno --
 package cbee
 
-import (
-    "std"
-)
+import "chain"
 
 const (
 	foo = "foo"
@@ -32,18 +30,16 @@ func (c *contractA) foo(cb func()) {
 }
 
 func subFoo() {
-	std.Emit(foo, "k1", "v1", "k2", "v2")
+	chain.Emit(foo, "k1", "v1", "k2", "v2")
 }
 
 type contractB struct{}
 
 func (c *contractB) subBar() {
-	std.Emit(bar, "bar", "baz")
+	chain.Emit(bar, "bar", "baz")
 }
 
-func Foo() {
-	crossing()
-
+func Foo(cur realm) {
 	a := &contractA{}
 	b := &contractB{}
 

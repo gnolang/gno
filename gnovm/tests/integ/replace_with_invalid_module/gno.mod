@@ -1,5 +1,5 @@
-module gno.land/tests/replaceavl
+module gno.land/t/replaceavl
 
 replace (
-        "gno.land/p/demo/avl" => "gno.land/p/demo/notexists"
+        "gno.land/p/nt/avl" => "gno.land/p/demo/notexists"
 )

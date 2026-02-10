@@ -14,6 +14,7 @@ FROM base AS gnoland
 COPY     ./gnoland                               /usr/bin/gnoland
 COPY     ./examples                              /gnoroot/examples/
 COPY     ./gnovm/stdlibs                         /gnoroot/gnovm/stdlibs/
+COPY     ./gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs/
 COPY     ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 COPY     ./gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 
@@ -51,6 +52,7 @@ FROM base AS gnodev
 COPY       ./gnodev /usr/bin/gnodev
 COPY       ./examples                              /gnoroot/examples/
 COPY       ./gnovm/stdlibs                         /gnoroot/gnovm/stdlibs/
+COPY       ./gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs/
 COPY       ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 COPY       ./gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 # gnoweb exposed by default
@@ -74,8 +76,8 @@ FROM base AS gnocontribs
 
 COPY       ./gnobro                                /usr/bin/gnobro
 COPY       ./gnogenesis                            /usr/bin/gnogenesis
+COPY       ./gnokms                                /usr/bin/gnokms
 COPY       ./examples                              /gnoroot/examples/
-COPY       ./gnovm/stdlibs                         /gnoroot/gnovm/stdlibs/
 COPY       ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 COPY       ./gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 EXPOSE     22

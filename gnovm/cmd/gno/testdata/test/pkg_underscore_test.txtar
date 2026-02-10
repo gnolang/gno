@@ -6,7 +6,7 @@ symlink $WORK/gnovm/stdlibs -> $GNOROOT/gnovm/stdlibs
 symlink $WORK/gnovm/tests/stdlibs -> $GNOROOT/gnovm/tests/stdlibs
 env GNOROOT=$WORK
 
-gno test -v ./examples/gno.land/p/demo/hello
+gno test -v ./hello
 
 stderr '=== RUN   TestHello'
 stderr '--- PASS: TestHello.*'
@@ -14,17 +14,18 @@ stderr '--- PASS: TestHello.*'
 stderr '=== RUN   TestHullo'
 stderr '--- PASS: TestHullo.*'
 
-stderr '=== RUN   ./examples/gno.land/p/demo/hello/z0_filetest.*'
+stderr '=== RUN   ./hello/z0_filetest.*'
 
--- examples/gno.land/p/demo/hello/gno.mod --
-module gno.land/p/demo/hello
-
--- examples/gno.land/p/demo/hello/hello.gno --
+-- gnowork.toml --
+-- hello/gnomod.toml --
+module = "gno.land/p/demo/hello"
+gno = "0.9"
+-- hello/hello.gno --
 package hello
 
 var Name = "foo"
 
--- examples/gno.land/p/demo/hello/hello_test.gno --
+-- hello/hello_test.gno --
 package hello_test
 
 import (
@@ -43,7 +44,7 @@ func TestHello(t *testing.T) {
      }
 }
 
--- examples/gno.land/p/demo/hello/hullo_test.gno --
+-- hello/hullo_test.gno --
 package hello
 
 import (
@@ -58,7 +59,7 @@ func TestHullo(t *testing.T) {
      }
 }
 
--- examples/gno.land/p/demo/hello/z0_filetest.gno --
+-- hello/z0_filetest.gno --
 package main
 
 import "gno.land/p/demo/hello"
@@ -69,3 +70,5 @@ func main() {
 
 // Output:
 // filetest foo
+
+-- gnowork.tomlgnowork.toml --

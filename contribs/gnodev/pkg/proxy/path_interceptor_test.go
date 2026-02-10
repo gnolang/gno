@@ -1,6 +1,7 @@
 package proxy_test
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"path"
@@ -13,8 +14,10 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -37,15 +40,15 @@ func Render(_ string) string { return "foo" }
 
 var i int
 
-func Incr() {
-        crossing()
+func Incr(cur realm) {
         i++
 }
 `,
 			},
-			{Name: "gno.mod", Body: `module ` + targetPath},
 		},
 	}
+	pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
+	pkg.Sort()
 
 	rootdir := gnoenv.RootDir()
 	cfg := integration.TestingMinimalNodeConfig(rootdir)
@@ -61,7 +64,7 @@ func Incr() {
 	require.NoError(t, err)
 	defer interceptor.Close()
 	cfg.TMConfig.RPC.ListenAddress = interceptor.ProxyAddress()
-	cfg.SkipGenesisVerification = true
+	cfg.SkipGenesisSigVerification = true
 
 	// Setup genesis
 	privKey := secp256k1.GenPrivKey()
@@ -80,7 +83,7 @@ func Incr() {
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
 		require.NoError(t, err)
 
-		res, err := cli.ABCIQuery("vm/qrender", []byte(targetPath+":\n"))
+		res, err := cli.ABCIQuery(context.Background(), "vm/qrender", []byte(targetPath+":\n"))
 		require.NoError(t, err)
 		assert.Nil(t, res.Response.Error)
 
@@ -97,7 +100,7 @@ func Incr() {
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
 		require.NoError(t, err)
 
-		res, err := cli.ABCIQuery("vm/qfile", []byte(path.Join(targetPath, "foo.gno")))
+		res, err := cli.ABCIQuery(context.Background(), "vm/qfile", []byte(path.Join(targetPath, "foo.gno")))
 		require.NoError(t, err)
 		assert.Nil(t, res.Response.Error)
 
@@ -135,7 +138,7 @@ func Incr() {
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
 		require.NoError(t, err)
 
-		res, err := cli.BroadcastTxCommit(bz)
+		res, err := cli.BroadcastTxCommit(context.Background(), types.Tx(bz))
 		require.NoError(t, err)
 		if !assert.NoError(t, res.CheckTx.Error) {
 			t.Logf("log: %v", res.CheckTx.Log)
@@ -163,7 +166,7 @@ import foo "` + targetPath + `"
 
 func Render(_ string) string { return foo.Render("bar") }`,
 			},
-			{Name: "gno.mod", Body: `module ` + barPath},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(barPath)},
 		}
 
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
@@ -188,7 +191,7 @@ func Render(_ string) string { return foo.Render("bar") }`,
 		bz, err := amino.Marshal(tx)
 		require.NoError(t, err)
 
-		res, err := cli.BroadcastTxCommit(bz)
+		res, err := cli.BroadcastTxCommit(context.Background(), types.Tx(bz))
 		require.NoError(t, err)
 		if !assert.NoError(t, res.CheckTx.Error) {
 			t.Logf("logs: %s", res.CheckTx.Log)
@@ -231,7 +234,7 @@ func Render(_ string) string { return foo.Render("bar") }`,
 		require.NoError(t, err)
 		defer cli.Close()
 
-		res, err := cli.ABCIQuery(query, []byte{})
+		res, err := cli.ABCIQuery(context.Background(), query, []byte{})
 		require.NoError(t, err)
 		require.NoError(t, res.Response.Error)
 

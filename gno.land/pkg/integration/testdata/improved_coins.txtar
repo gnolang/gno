@@ -2,32 +2,32 @@ loadpkg gno.land/r/demo/coins $WORK
 
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "MakeNewCoins" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "MakeNewCoins" -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
 stdout '(300 int64)'
 stdout '(321 int64)'
 stdout '("ugnot" string)'
 stdout '("example" string)'
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "AddCoin" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "AddCoin" -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
 stdout '(300 int64)'
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "SubCoin" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "SubCoin" -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
 stdout '(123 int64)'
 
 gnokey maketx call -pkgpath gno.land/r/demo/coins -func "StringZeroCoin" -gas-fee 1000000ugnot -gas-wanted 3000000 -broadcast -chainid=tendermint_test test1
 stdout '("0ugnot" string)'
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "IsZero" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "IsZero" -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
 stdout '(true bool)'
 stdout '(false bool)'
 stdout '(false bool)'
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "IsPositive" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "IsPositive" -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
 stdout '(false bool)'
 stdout '(false bool)'
 stdout '(true bool)'
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "IsNegative" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "IsNegative" -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
 stdout '(true bool)'
 stdout '(false bool)'
 stdout '(false bool)'
@@ -35,63 +35,51 @@ stdout '(false bool)'
 -- coins.gno --
 package coins
 
-import "std"
+import (
+	"chain"
+)
 
-func MakeNewCoins() std.Coins {
-	crossing()
-
-	coin1 := std.NewCoin("ugnot", 123)
-	coin2 := std.NewCoin("example", 321)
-	coin3 := std.NewCoin("ugnot", 177)
-	return std.NewCoins(coin1, coin2, coin3)
+func MakeNewCoins(cur realm) chain.Coins {
+	coin1 := chain.NewCoin("ugnot", 123)
+	coin2 := chain.NewCoin("example", 321)
+	coin3 := chain.NewCoin("ugnot", 177)
+	return chain.NewCoins(coin1, coin2, coin3)
 }
 
-func AddCoin() std.Coin {
-	crossing()
-
-	coin1 := std.NewCoin("ugnot", 123)
-	coin2 := std.NewCoin("ugnot", 177)
+func AddCoin(cur realm) chain.Coin {
+	coin1 := chain.NewCoin("ugnot", 123)
+	coin2 := chain.NewCoin("ugnot", 177)
 	return coin1.Add(coin2)
 }
 
-func SubCoin() std.Coin {
-	crossing()
-
-	coin1 := std.NewCoin("ugnot", 300)
-	coin2 := std.NewCoin("ugnot", 177)
+func SubCoin(cur realm) chain.Coin {
+	coin1 := chain.NewCoin("ugnot", 300)
+	coin2 := chain.NewCoin("ugnot", 177)
 	return coin1.Sub(coin2)
 }
 
-func StringZeroCoin() string {
-	crossing()
-
-	coin1 := std.NewCoin("ugnot", 0)
+func StringZeroCoin(cur realm) string {
+	coin1 := chain.NewCoin("ugnot", 0)
 	return coin1.String()
 }
 
-func IsZero() (bool, bool, bool) {
-	crossing()
-
-	coin1 := std.NewCoin("ugnot", 0)
-	coin2 := std.NewCoin("ugnot", 123)
-	coin3 := std.NewCoin("ugnot", -123)
+func IsZero(cur realm) (bool, bool, bool) {
+	coin1 := chain.NewCoin("ugnot", 0)
+	coin2 := chain.NewCoin("ugnot", 123)
+	coin3 := chain.NewCoin("ugnot", -123)
 	return coin1.IsZero(), coin2.IsZero(), coin3.IsZero()
 }
 
-func IsPositive() (bool, bool, bool) {
-	crossing()
-
-	coin1 := std.NewCoin("ugnot", -123)
-	coin2 := std.NewCoin("ugnot", 0)
-	coin3 := std.NewCoin("ugnot", 123)
+func IsPositive(cur realm) (bool, bool, bool) {
+	coin1 := chain.NewCoin("ugnot", -123)
+	coin2 := chain.NewCoin("ugnot", 0)
+	coin3 := chain.NewCoin("ugnot", 123)
 	return coin1.IsPositive(), coin2.IsPositive(), coin3.IsPositive()
 }
 
-func IsNegative() (bool, bool, bool) {
-	crossing()
-
-	coin1 := std.NewCoin("ugnot", -123)
-	coin2 := std.NewCoin("ugnot", 0)
-	coin3 := std.NewCoin("ugnot", 123)
+func IsNegative(cur realm) (bool, bool, bool) {
+	coin1 := chain.NewCoin("ugnot", -123)
+	coin2 := chain.NewCoin("ugnot", 0)
+	coin3 := chain.NewCoin("ugnot", 123)
 	return coin1.IsNegative(), coin2.IsNegative(), coin3.IsNegative()
 }

@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -25,7 +26,7 @@ func (c *Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}
-	qres, err := c.RPCClient.ABCIQueryWithOptions(cfg.Path, cfg.Data, cfg.ABCIQueryOptions)
+	qres, err := c.RPCClient.ABCIQueryWithOptions(context.Background(), cfg.Path, cfg.Data, cfg.ABCIQueryOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "query error")
 	}
@@ -46,11 +47,11 @@ func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.Re
 	path := fmt.Sprintf("auth/accounts/%s", crypto.AddressToBech32(addr))
 	data := []byte{}
 
-	qres, err := c.RPCClient.ABCIQuery(path, data)
+	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "query account")
 	}
-	if qres.Response.Data == nil || len(qres.Response.Data) == 0 || string(qres.Response.Data) == "null" {
+	if len(qres.Response.Data) == 0 || string(qres.Response.Data) == "null" {
 		return nil, nil, std.ErrUnknownAddress("unknown address: " + crypto.AddressToBech32(addr))
 	}
 
@@ -72,7 +73,7 @@ func (c *Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
 	path := ".app/version"
 	data := []byte{}
 
-	qres, err := c.RPCClient.ABCIQuery(path, data)
+	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "query app version")
 	}
@@ -92,7 +93,7 @@ func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCI
 	path := "vm/qrender"
 	data := fmt.Appendf(nil, "%s:%s", pkgPath, args)
 
-	qres, err := c.RPCClient.ABCIQuery(path, data)
+	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "query render")
 	}
@@ -106,7 +107,7 @@ func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCI
 // QEval evaluates the given expression with the realm code at pkgPath. The pkgPath should
 // include the prefix like "gno.land/". The expression is usually a function call like
 // "GetBoardIDFromName(\"testboard\")". The return value is a typed expression like
-// "(1 gno.land/r/demo/boards.BoardID)\n(true bool)".
+// "(1 gno.land/r/archive/boards.BoardID)\n(true bool)".
 func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return "", nil, err
@@ -115,7 +116,7 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 	path := "vm/qeval"
 	data := fmt.Appendf(nil, "%s.%s", pkgPath, expression)
 
-	qres, err := c.RPCClient.ABCIQuery(path, data)
+	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "query qeval")
 	}
@@ -137,7 +138,7 @@ func (c *Client) Block(height int64) (*ctypes.ResultBlock, error) {
 		return nil, ErrInvalidBlockHeight
 	}
 
-	block, err := c.RPCClient.Block(&height)
+	block, err := c.RPCClient.Block(context.Background(), &height)
 	if err != nil {
 		return nil, fmt.Errorf("block query failed: %w", err)
 	}
@@ -156,7 +157,7 @@ func (c *Client) BlockResult(height int64) (*ctypes.ResultBlockResults, error) {
 		return nil, ErrInvalidBlockHeight
 	}
 
-	blockResults, err := c.RPCClient.BlockResults(&height)
+	blockResults, err := c.RPCClient.BlockResults(context.Background(), &height)
 	if err != nil {
 		return nil, fmt.Errorf("block query failed: %w", err)
 	}
@@ -170,7 +171,7 @@ func (c *Client) LatestBlockHeight() (int64, error) {
 		return 0, ErrMissingRPCClient
 	}
 
-	status, err := c.RPCClient.Status()
+	status, err := c.RPCClient.Status(context.Background(), nil)
 	if err != nil {
 		return 0, fmt.Errorf("block number query failed: %w", err)
 	}

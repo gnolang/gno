@@ -9,13 +9,17 @@ gnoland start
 # check error message
 stdout 'TX HASH:    '
 stderr 'as string value in return statement'
-stderr '"std" imported and not used'
+stderr '"chain" imported and not used'
+
+-- gnomod.toml --
+module = "invalid"
+gno = "0.9"
 
 -- bar.gno --
 package bar
 
-import "std"
+import "chain"
 
 func Render(path string) string {
- 	return 89
+	return 89
 }

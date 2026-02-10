@@ -1,32 +1,42 @@
-{{ define "renderDir" }}
-        {{ $pkgpath := .PkgPath }}
-        <article class="code-content mt-10 lg:col-span-7 pb-24 text-gray-900">
-            <div class="flex flex-col md:flex-row justify-between mb-4 md:items-center">
-                <div class="flex items-center gap-8">
-                    <h1 class="text-600 font-bold">{{ $pkgpath }}</h1>
-                </div>
-                <div class="flex gap-4 text-gray-300 pt-0.5">
-                    <span class="text-gray-300">{{ if .Mode.IsExplorer }} Explorer · {{ .FileCounter }} Packages{{ else }} Directory · {{ .FileCounter }} Files{{ end }}</span>
-                </div>
-            </div>
+{{ define "renderDir" }} {{ $pkgpath := .PkgPath }}
+<article class="b-directory u-grid-full">
+  <header class="b-content-header">
+    <h1 class="title b-content-h1">{{ $pkgpath }}</h1>
+    <div class="header-info">
+      <span>{{ if .Mode.IsExplorer }} Explorer · {{ .FileCounter }} Packages {{
+        else }} Directory · {{ .FileCounter }} Files {{ end }}</span>
+    </div>
+  </header>
 
-            <div class="source-code font-mono mt-6">
-                <ul>
-                    {{ range .FilesLinks }}
-                    <li class="border-b first:border-t">
-                        <a class="py-2 flex justify-between items-center px-2 text-gray-600 line-clamp-2 hover:bg-gray-100" href="{{ .Link }}">
-                            <span class="flex items-center gap-2">
-                                <svg class="w-4 h-4 shrink-0">
-                                    <use href="#ico-file"></use>
-                                </svg>
-                                {{ .Name }}
-                            </span>
-                            <span class="text-gray-300">Open</span>
-                        </a>
-                    </li>
-                    {{ end }}
-                </ul>
-            </div> 
-        </article>
+  <ul class="b-list">
+    {{ range .FilesLinks }}
+    <li>
+      <a class="line-clamp-2" href="{{ .Link }}">
+        <span class="c-with-icon">
+          <svg class="c-icon">
+            <use href="#ico-file"></use>
+          </svg>
+          <span class="name">{{ .Name }}</span>
+        </span>
+        <span>Open</span>
+      </a>
+    </li>
+    {{ end }}
+  </ul>
+
+  {{ if .Readme }}
+  <div class="b-content-header">
+    <span class="c-with-icon">
+      <svg class="c-icon">
+        <use href="#ico-readme"></use>
+      </svg>
+      <span>README.md</span>
+    </span>
+    <a href="{{ $pkgpath }}$source&file=README.md" class="b-inline-btn">Open</a>
+  </div>
+  <md-renderer class="c-readme-view">
+    {{ render .Readme }}
+  </md-renderer>
+  {{ end }}
+</article>
 {{ end }}
-

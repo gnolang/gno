@@ -1,7 +1,7 @@
 package net
 
 import (
-	"github.com/gnolang/gno/_test/context"
+	"filetests/extern/context"
 )
 
 // XXX dummy

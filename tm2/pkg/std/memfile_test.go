@@ -1,6 +1,7 @@
 package std
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -103,6 +104,42 @@ func TestMemPackage_Validate(t *testing.T) {
 			},
 			"invalid package path",
 		},
+		{
+			"Valid toml file",
+			&MemPackage{
+				Name: "hey",
+				Path: "gno.land/r/demo/hey",
+				Files: []*MemFile{
+					{Name: "a.gno"},
+					{Name: "gnomod.toml"},
+				},
+			},
+			"",
+		},
+		{
+			"Multiple toml files",
+			&MemPackage{
+				Name: "hey",
+				Path: "gno.land/r/demo/hey",
+				Files: []*MemFile{
+					{Name: "a.gno"},
+					{Name: "gnomod.toml"},
+					{Name: "gnoweb.toml"},
+				},
+			},
+			"",
+		},
+		{
+			"Toml file without gno file",
+			&MemPackage{
+				Name: "hey",
+				Path: "gno.land/r/demo/hey",
+				Files: []*MemFile{
+					{Name: "gnomod.toml"},
+				},
+			},
+			"",
+		},
 	}
 
 	for _, tc := range tt {
@@ -153,9 +190,147 @@ func TestSplitFilepath(t *testing.T) {
 			expFilename: "LICENSE",
 		},
 		{
+			name:        "readme",
+			filepath:    "gno.land/r/demo/avl/README",
+			expDirPath:  "gno.land/r/demo/avl",
+			expFilename: "README",
+		},
+		{
 			name:       "regular path",
 			filepath:   "gno.land/p/demo/avl",
 			expDirPath: "gno.land/p/demo/avl",
+		},
+		{
+			name:        "nested path with multiple files",
+			filepath:    "gno.land/r/demo/avl/nested/file.gno",
+			expDirPath:  "gno.land/r/demo/avl/nested",
+			expFilename: "file.gno",
+		},
+		{
+			name:        "path with dots",
+			filepath:    "gno.land/r/demo/avl.test/file.gno",
+			expDirPath:  "gno.land/r/demo/avl.test",
+			expFilename: "file.gno",
+		},
+		{
+			name:        "path with underscores",
+			filepath:    "gno.land/r/demo/avl_test/file.gno",
+			expDirPath:  "gno.land/r/demo/avl_test",
+			expFilename: "file.gno",
+		},
+		{
+			name:        "path with numbers",
+			filepath:    "gno.land/r/demo/avl123/file.gno",
+			expDirPath:  "gno.land/r/demo/avl123",
+			expFilename: "file.gno",
+		},
+		{
+			name:        "path with mixed case",
+			filepath:    "gno.land/r/demo/avlTest/file.gno",
+			expDirPath:  "gno.land/r/demo/avlTest",
+			expFilename: "file.gno",
+		},
+		{
+			name:        "path with special files",
+			filepath:    "gno.land/r/demo/avl/.gitignore",
+			expDirPath:  "gno.land/r/demo/avl",
+			expFilename: ".gitignore",
+		},
+		{
+			name:        "path with hidden directory",
+			filepath:    "gno.land/r/demo/.avl/file.gno",
+			expDirPath:  "gno.land/r/demo/.avl",
+			expFilename: "file.gno",
+		},
+		{
+			name:        "path with toml file",
+			filepath:    "gno.land/r/demo/avl/config.toml",
+			expDirPath:  "gno.land/r/demo/avl",
+			expFilename: "config.toml",
+		},
+		{
+			name:        "path with markdown file",
+			filepath:    "gno.land/r/demo/avl/README.md",
+			expDirPath:  "gno.land/r/demo/avl",
+			expFilename: "README.md",
+		},
+		{
+			name:        "path with json file",
+			filepath:    "gno.land/r/demo/avl/config.json",
+			expDirPath:  "gno.land/r/demo/avl",
+			expFilename: "config.json",
+		},
+		{
+			name:        "path with yaml file",
+			filepath:    "gno.land/r/demo/avl/config.yaml",
+			expDirPath:  "gno.land/r/demo/avl",
+			expFilename: "config.yaml",
+		},
+		{
+			name:        "path with multiple extensions",
+			filepath:    "gno.land/r/demo/avl/file.test.gno",
+			expDirPath:  "gno.land/r/demo/avl",
+			expFilename: "file.test.gno",
+		},
+		{
+			name:        "path with spaces",
+			filepath:    "gno.land/r/demo/avl test/file.gno",
+			expDirPath:  "gno.land/r/demo/avl test",
+			expFilename: "file.gno",
+		},
+		{
+			name:        "path with unicode",
+			filepath:    "gno.land/r/demo/avl-测试/file.gno",
+			expDirPath:  "gno.land/r/demo/avl-测试",
+			expFilename: "file.gno",
+		},
+		{
+			name:        "path with emoji",
+			filepath:    "gno.land/r/demo/avl-🚀/file.gno",
+			expDirPath:  "gno.land/r/demo/avl-🚀",
+			expFilename: "file.gno",
+		},
+		{
+			name:        "path with multiple slashes",
+			filepath:    "gno.land/r/demo/avl//file.gno",
+			expDirPath:  "gno.land/r/demo/avl",
+			expFilename: "file.gno",
+		},
+		{
+			name:        "path with leading slash",
+			filepath:    "/gno.land/r/demo/avl/file.gno",
+			expDirPath:  "/gno.land/r/demo/avl",
+			expFilename: "file.gno",
+		},
+		{
+			name:        "path with trailing slash and file",
+			filepath:    "gno.land/r/demo/avl/file.gno/",
+			expDirPath:  "gno.land/r/demo/avl/file.gno",
+			expFilename: "",
+		},
+		{
+			name:        "path with just filename",
+			filepath:    "file.gno",
+			expDirPath:  "file.gno",
+			expFilename: "",
+		},
+		{
+			name:        "path with just directory",
+			filepath:    "gno.land/r/demo/avl/",
+			expDirPath:  "gno.land/r/demo/avl",
+			expFilename: "",
+		},
+		{
+			name:        "path with single character",
+			filepath:    "gno.land/r/demo/a/file.gno",
+			expDirPath:  "gno.land/r/demo/a",
+			expFilename: "file.gno",
+		},
+		{
+			name:        "path with maximum length",
+			filepath:    "gno.land/r/demo/" + strings.Repeat("a", 100) + "/file.gno",
+			expDirPath:  "gno.land/r/demo/" + strings.Repeat("a", 100),
+			expFilename: "file.gno",
 		},
 	}
 

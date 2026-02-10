@@ -1,62 +1,63 @@
-package commondao
+package commondao_test
 
 import (
-	"std"
 	"testing"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
+
+	"gno.land/p/nt/commondao"
 )
 
 func TestVotingRecordDefaults(t *testing.T) {
 	var (
-		record VotingRecord
-		user   = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		record commondao.VotingRecord
+		user   address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 	)
 
 	uassert.Equal(t, record.Size(), 0)
-	uassert.Equal(t, record.VoteCount(ChoiceYes), 0)
-	uassert.Equal(t, record.VoteCount(ChoiceNo), 0)
-	uassert.Equal(t, record.VoteCount(ChoiceAbstain), 0)
+	uassert.Equal(t, record.VoteCount(commondao.ChoiceYes), 0)
+	uassert.Equal(t, record.VoteCount(commondao.ChoiceNo), 0)
+	uassert.Equal(t, record.VoteCount(commondao.ChoiceAbstain), 0)
 	uassert.False(t, record.HasVoted(user))
 }
 
 func TestVotingRecordAddVote(t *testing.T) {
 	cases := []struct {
 		name                            string
-		setup                           func(*VotingRecord)
-		votes                           []Vote
+		setup                           func(*commondao.VotingRecord)
+		votes                           []commondao.Vote
 		yesCount, noCount, abstainCount int
 		updated                         bool
 	}{
 		{
 			name: "single vote",
-			votes: []Vote{
+			votes: []commondao.Vote{
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-					Choice:  ChoiceYes,
+					Choice:  commondao.ChoiceYes,
 				},
 			},
 			yesCount: 1,
 		},
 		{
 			name: "multiple votes",
-			votes: []Vote{
+			votes: []commondao.Vote{
 				{
 					Address: "g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
-					Choice:  ChoiceNo,
+					Choice:  commondao.ChoiceNo,
 				},
 				{
 					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
-					Choice:  ChoiceYes,
+					Choice:  commondao.ChoiceYes,
 				},
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-					Choice:  ChoiceNo,
+					Choice:  commondao.ChoiceNo,
 				},
 				{
 					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-					Choice:  ChoiceAbstain,
+					Choice:  commondao.ChoiceAbstain,
 				},
 			},
 			yesCount:     1,
@@ -65,14 +66,17 @@ func TestVotingRecordAddVote(t *testing.T) {
 		},
 		{
 			name: "vote exists",
-			votes: []Vote{
+			votes: []commondao.Vote{
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-					Choice:  ChoiceYes,
+					Choice:  commondao.ChoiceYes,
 				},
 			},
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceAbstain})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceAbstain,
+				})
 			},
 			yesCount:     1,
 			abstainCount: 0,
@@ -83,7 +87,7 @@ func TestVotingRecordAddVote(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
-				record  VotingRecord
+				record  commondao.VotingRecord
 				updated bool
 			)
 
@@ -99,7 +103,7 @@ func TestVotingRecordAddVote(t *testing.T) {
 			urequire.Equal(t, record.Size(), len(tc.votes), "expect record size to match")
 
 			var i int
-			record.Iterate(0, record.Size(), false, func(v Vote) bool {
+			record.Iterate(0, record.Size(), false, func(v commondao.Vote) bool {
 				uassert.Equal(t, v.Address, tc.votes[i].Address)
 				uassert.Equal(t, string(v.Choice), string(tc.votes[i].Choice))
 				uassert.True(t, record.HasVoted(v.Address))
@@ -108,9 +112,9 @@ func TestVotingRecordAddVote(t *testing.T) {
 				return false
 			})
 
-			uassert.Equal(t, record.VoteCount(ChoiceYes), tc.yesCount, "expect YES vote count to match")
-			uassert.Equal(t, record.VoteCount(ChoiceNo), tc.noCount, "expect NO vote count to match")
-			uassert.Equal(t, record.VoteCount(ChoiceAbstain), tc.abstainCount, "expect ABSTAIN vote count to match")
+			uassert.Equal(t, record.VoteCount(commondao.ChoiceYes), tc.yesCount, "expect YES vote count to match")
+			uassert.Equal(t, record.VoteCount(commondao.ChoiceNo), tc.noCount, "expect NO vote count to match")
+			uassert.Equal(t, record.VoteCount(commondao.ChoiceAbstain), tc.abstainCount, "expect ABSTAIN vote count to match")
 		})
 	}
 }
@@ -118,48 +122,66 @@ func TestVotingRecordAddVote(t *testing.T) {
 func TestFindMostVotedChoice(t *testing.T) {
 	cases := []struct {
 		name   string
-		setup  func(*VotingRecord)
-		choice VoteChoice
+		setup  func(*commondao.VotingRecord)
+		choice commondao.VoteChoice
 	}{
 		{
 			name:   "no votes",
-			choice: ChoiceNone,
+			choice: commondao.ChoiceNone,
 		},
 		{
 			name: "one vote",
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
 			},
-			choice: ChoiceYes,
+			choice: commondao.ChoiceYes,
 		},
 		{
 			name: "multiple votes",
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceNo})
-				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceNo})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceNo,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
-			choice: ChoiceNo,
+			choice: commondao.ChoiceNo,
 		},
 		{
 			name: "tie",
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceNo})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
-			choice: ChoiceNone,
+			choice: commondao.ChoiceNone,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var record VotingRecord
+			var record commondao.VotingRecord
 
 			if tc.setup != nil {
 				tc.setup(&record)
 			}
 
-			choice := FindMostVotedChoice(record.Readonly())
+			choice := commondao.FindMostVotedChoice(record.Readonly())
 
 			uassert.Equal(t, string(choice), string(tc.choice))
 		})
@@ -169,33 +191,48 @@ func TestFindMostVotedChoice(t *testing.T) {
 func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 	cases := []struct {
 		name         string
-		setup        func(*VotingRecord)
-		choice       VoteChoice
+		setup        func(*commondao.VotingRecord)
+		choice       commondao.VoteChoice
 		membersCount int
 		success      bool
 	}{
 		{
 			name:         "no votes",
-			choice:       ChoiceNone,
+			choice:       commondao.ChoiceNone,
 			membersCount: 3,
 			success:      false,
 		},
 		{
 			name: "majority",
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceNo})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
-			choice:       ChoiceYes,
+			choice:       commondao.ChoiceYes,
 			membersCount: 3,
 			success:      true,
 		},
 		{
 			name: "no majority",
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceNo})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
 			choice:       "",
 			membersCount: 3,
@@ -203,12 +240,21 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 		},
 		{
 			name: "majority with abstain vote",
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceAbstain})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceAbstain,
+				})
 			},
-			choice:       ChoiceYes,
+			choice:       commondao.ChoiceYes,
 			membersCount: 3,
 			success:      true,
 		},
@@ -216,13 +262,13 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var record VotingRecord
+			var record commondao.VotingRecord
 
 			if tc.setup != nil {
 				tc.setup(&record)
 			}
 
-			choice, success := SelectChoiceByAbsoluteMajority(record.Readonly(), tc.membersCount)
+			choice, success := commondao.SelectChoiceByAbsoluteMajority(record.Readonly(), tc.membersCount)
 
 			uassert.Equal(t, string(tc.choice), string(choice), "choice")
 			uassert.Equal(t, tc.success, success, "success")
@@ -233,33 +279,48 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 func TestSelectChoiceBySuperMajority(t *testing.T) {
 	cases := []struct {
 		name         string
-		setup        func(*VotingRecord)
-		choice       VoteChoice
+		setup        func(*commondao.VotingRecord)
+		choice       commondao.VoteChoice
 		membersCount int
 		success      bool
 	}{
 		{
 			name:         "no votes",
-			choice:       ChoiceNone,
+			choice:       commondao.ChoiceNone,
 			membersCount: 3,
 			success:      false,
 		},
 		{
 			name: "majority",
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceNo})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
-			choice:       ChoiceYes,
+			choice:       commondao.ChoiceYes,
 			membersCount: 3,
 			success:      true,
 		},
 		{
 			name: "no majority",
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceNo})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
 			choice:       "",
 			membersCount: 3,
@@ -267,12 +328,21 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 		},
 		{
 			name: "majority with abstain vote",
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceAbstain})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceAbstain,
+				})
 			},
-			choice:       ChoiceYes,
+			choice:       commondao.ChoiceYes,
 			membersCount: 3,
 			success:      true,
 		},
@@ -280,13 +350,13 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var record VotingRecord
+			var record commondao.VotingRecord
 
 			if tc.setup != nil {
 				tc.setup(&record)
 			}
 
-			choice, success := SelectChoiceBySuperMajority(record.Readonly(), tc.membersCount)
+			choice, success := commondao.SelectChoiceBySuperMajority(record.Readonly(), tc.membersCount)
 
 			uassert.Equal(t, string(tc.choice), string(choice), "choice")
 			uassert.Equal(t, tc.success, success, "success")
@@ -297,59 +367,188 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 func TestSelectChoiceByPlurality(t *testing.T) {
 	cases := []struct {
 		name    string
-		setup   func(*VotingRecord)
-		choice  VoteChoice
+		setup   func(*commondao.VotingRecord)
+		choice  commondao.VoteChoice
 		success bool
 	}{
 		{
 			name:    "no votes",
-			choice:  ChoiceNone,
+			choice:  commondao.ChoiceNone,
 			success: false,
 		},
 		{
 			name: "plurality",
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceNo})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
-			choice:  ChoiceYes,
+			choice:  commondao.ChoiceYes,
 			success: true,
 		},
 		{
 			name: "no plurality",
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceNo})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
 			choice:  "",
 			success: false,
 		},
 		{
 			name: "plurality with abstain vote",
-			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
-				r.AddVote(Vote{Address: "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5", Choice: ChoiceNo})
-				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceAbstain})
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5",
+					Choice:  commondao.ChoiceNo,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceAbstain,
+				})
 			},
-			choice:  ChoiceYes,
+			choice:  commondao.ChoiceYes,
 			success: true,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var record VotingRecord
+			var record commondao.VotingRecord
 
 			if tc.setup != nil {
 				tc.setup(&record)
 			}
 
-			choice, success := SelectChoiceByPlurality(record.Readonly())
+			choice, success := commondao.SelectChoiceByPlurality(record.Readonly())
 
 			uassert.Equal(t, string(tc.choice), string(choice), "choice")
 			uassert.Equal(t, tc.success, success, "success")
+		})
+	}
+}
+
+func TestCollectVotes(t *testing.T) {
+	cases := []struct {
+		name   string
+		setup  func() commondao.MemberStorage
+		votes  []commondao.Vote
+		groups []string
+		error  string
+	}{
+		{
+			name: "one group",
+			setup: func() commondao.MemberStorage {
+				s := commondao.NewMemberStorageWithGrouping()
+				one, _ := s.Grouping().Add("one")
+				one.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+				one.Members().Add("g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt")
+				return s
+			},
+			groups: []string{"one"},
+			votes: []commondao.Vote{
+				{
+					Address: "g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
+					Choice:  commondao.ChoiceNo,
+				},
+				{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				},
+			},
+		},
+		{
+			name: "two groups",
+			setup: func() commondao.MemberStorage {
+				s := commondao.NewMemberStorageWithGrouping()
+				one, _ := s.Grouping().Add("one")
+				one.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+				one.Members().Add("g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt")
+				two, _ := s.Grouping().Add("two")
+				two.Members().Add("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+				return s
+			},
+			groups: []string{"one", "two"},
+			votes: []commondao.Vote{
+				{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				},
+				{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceNo,
+				},
+			},
+		},
+		{
+			name:  "no group names",
+			setup: func() commondao.MemberStorage { return commondao.NewMemberStorageWithGrouping() },
+			error: "one or more group names are required to collect votes",
+		},
+		{
+			name:   "member group not found",
+			setup:  func() commondao.MemberStorage { return commondao.NewMemberStorageWithGrouping() },
+			groups: []string{"foo"},
+			error:  "member group not found: foo",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			var r commondao.VotingRecord
+			for _, v := range tc.votes {
+				r.AddVote(v)
+			}
+
+			storage := tc.setup()
+			ctx := commondao.MustNewVotingContext(&r, storage)
+
+			// Act
+			votes, err := commondao.CollectVotes(ctx, tc.groups...)
+
+			// Assert
+			if tc.error != "" {
+				urequire.ErrorContains(t, err, tc.error)
+				return
+			}
+
+			urequire.NoError(t, err, "unexpected error")
+			urequire.Equal(t, len(tc.votes), votes.Size(), "expect number of votes to match")
+
+			var i int
+			votes.Iterate(0, votes.Size(), false, func(v commondao.Vote) bool {
+				want := tc.votes[i]
+
+				urequire.Equal(t, want.Address, v.Address, "expect vote address to match")
+				urequire.Equal(t, string(want.Choice), string(v.Choice), "expect vote choice to match")
+
+				i++
+				return false
+			})
 		})
 	}
 }

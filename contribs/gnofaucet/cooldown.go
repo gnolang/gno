@@ -10,17 +10,17 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// CooldownLimiter limits a specific user to one claim per cooldown period
+// redisLimiter limits a specific user to one claim per cooldown period
 // this limiter keeps track of which keys are on cooldown using a badger database (written to a local file)
-type CooldownLimiter struct {
+type redisLimiter struct {
 	redis             *redis.Client
 	cooldownTime      time.Duration
 	maxlifeTimeAmount *int64
 }
 
-// NewCooldownLimiter initializes a Cooldown Limiter with a given duration
-func NewCooldownLimiter(cooldown time.Duration, redis *redis.Client, maxlifeTimeAmount int64) *CooldownLimiter {
-	limiter := &CooldownLimiter{
+// newRedisLimiter initializes a Cooldown Limiter with a given duration
+func newRedisLimiter(cooldown time.Duration, redis *redis.Client, maxlifeTimeAmount int64) *redisLimiter {
+	limiter := &redisLimiter{
 		redis:        redis,
 		cooldownTime: cooldown,
 	}
@@ -31,11 +31,11 @@ func NewCooldownLimiter(cooldown time.Duration, redis *redis.Client, maxlifeTime
 	return limiter
 }
 
-// CheckCooldown checks if a key can make a claim or if it is still within the cooldown period
+// checkCooldown checks if a key can make a claim or if it is still within the cooldown period
 // also checks that the user will not exceed the max lifetime allowed amount
 // Returns true if the key is not on cooldown, and marks the key as on cooldown
 // Returns false if the key is on cooldown or if an error occurs
-func (rl *CooldownLimiter) CheckCooldown(ctx context.Context, key string, amountClaimed int64) (bool, error) {
+func (rl *redisLimiter) checkCooldown(ctx context.Context, key string, amountClaimed int64) (bool, error) {
 	claimData, err := rl.getClaimsData(ctx, key)
 	if err != nil {
 		return false, fmt.Errorf("unable to check if key is on cooldown, %w", err)
@@ -52,7 +52,7 @@ func (rl *CooldownLimiter) CheckCooldown(ctx context.Context, key string, amount
 	return true, rl.declareClaimedValue(ctx, key, amountClaimed, claimData)
 }
 
-func (rl *CooldownLimiter) getClaimsData(ctx context.Context, key string) (*claimData, error) {
+func (rl *redisLimiter) getClaimsData(ctx context.Context, key string) (*claimData, error) {
 	storedData, err := rl.redis.Get(ctx, key).Result()
 	if err != nil {
 		// Here we return an empty claimData because is the first time the user is making a claim
@@ -69,7 +69,7 @@ func (rl *CooldownLimiter) getClaimsData(ctx context.Context, key string) (*clai
 	return claimData, err
 }
 
-func (rl *CooldownLimiter) declareClaimedValue(ctx context.Context, key string, amountClaimed int64, currentData *claimData) error {
+func (rl *redisLimiter) declareClaimedValue(ctx context.Context, key string, amountClaimed int64, currentData *claimData) error {
 	currentData.LastClaimed = time.Now()
 	currentData.TotalClaimed += amountClaimed
 

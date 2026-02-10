@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/examplespkgfetcher"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/require"
 )
@@ -138,9 +138,10 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 			io.SetOut(commands.WriteNopCloser(mockOut))
 			io.SetErr(commands.WriteNopCloser(mockErr))
 
-			testPackageFetcher = examplespkgfetcher.New()
+			testPackageFetcher = examplespkgfetcher.New("")
 
-			err := newGnocliCmd(io).ParseAndRun(context.Background(), test.args)
+			cmd, _ := newGnocliCmd(io)
+			err := cmd.ParseAndRun(context.Background(), test.args)
 
 			if errShouldBeEmpty {
 				require.Nil(t, err, "err should be nil")

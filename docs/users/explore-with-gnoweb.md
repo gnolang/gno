@@ -1,7 +1,7 @@
-# Exploring gno.land with gnoweb
+# Exploring Gno.land with gnoweb
 
-`gnoweb` is gno.land's universal web interface that lets you browse applications
-and source code on any gno.land network. This guide explains how to use gnoweb
+`gnoweb` is Gno.land's universal web interface that lets you browse applications
+and source code on any Gno.land network. This guide explains how to use gnoweb
 to explore the blockchain ecosystem.
 
 ## Networks
@@ -12,16 +12,16 @@ For a complete list of all available networks (testnets and more), see [Networks
 
 ## Understanding Code Organization
 
-Before diving into `gnoweb`, we need to cover a fundamental concept in gno.land:
+Before diving into `gnoweb`, we need to cover a fundamental concept in Gno.land:
 code organization.
 
-gno.land can host two types of code: [realms](../resources/realms.md) (smart contracts),
+Gno.land can host two types of code: [realms](../resources/realms.md) (smart contracts),
 and [pure packages](../resources/gno-packages.md) (libraries). Realms can
 contain and manage state, while pure packages are used for creating reusable
 functionality, hence _pure_.
 
-gno.land employs a storage system which is similar to a classic file system - each
-package lives on a specific package path. A typical gno.land package path, such
+Gno.land employs a storage system which is similar to a classic file system - each
+package lives on a specific package path. A typical Gno.land package path, such
 as `gno.land/r/gnoland/home`, contains the following components:
 
 ```
@@ -46,14 +46,14 @@ Let's break it down:
 Realms can implement a special `Render()` function that returns HTML-like content:
 
 `gnoweb` is a minimalistic web server that serves as a unified frontend for all
-realms in gno.land. It uses ABCI queries to get the latest state of a specific
-realm from the gno.land network.
+realms in Gno.land. It uses ABCI queries to get the latest state of a specific
+realm from the Gno.land network.
 
 Let's dive into how this works.
 
 ### Realm state rendering
 
-In line with minimalistic principles, gno.land encourages developers to implement
+In line with minimalistic principles, Gno.land encourages developers to implement
 a `Render()` function within their realms, allowing them to create a Markdown view
 for how their realms will be rendered. `gnoweb` utilizes a built-in Markdown renderer
 that uses the output of the `Render()` function as its content source.
@@ -72,13 +72,13 @@ func Render(path string) string {
 }
 ```
 
-Based on the provided path, `gnoweb` queries the gno.land network using the
+Based on the provided path, `gnoweb` queries the Gno.land network using the
 `qrender` ABCI query. It then renders the response data as Markdown.
 
 The realm above can be found on the Staging network at [`gno.land/r/docs/hello`](https://gno.land/r/docs/hello).
 
 While JS/TS clients for Gno exist and developers can create custom websites for their
-gno.land applications as they see fit, the approach `gnoweb` takes with `Render()`
+Gno.land applications as they see fit, the approach `gnoweb` takes with `Render()`
 is a surefire way for simplicity and ease of development.
 
 :::info `Render()` is optional
@@ -88,8 +88,23 @@ Custom getter methods tailored to the specifics of the realm can be built instea
 
 ### Viewing source code
 
-All code uploaded to gno.land is open-source and available for everyone to see,
+All code uploaded to Gno.land is open-source and available for everyone to see,
 by design.
 
 Visit the [`gno.land/r/docs/source`](https://gno.land/r/docs/source) realm to learn
 how you can do this.
+
+## Alternative: Terminal UI with gnobro
+
+While `gnoweb` provides a web-based interface for exploring realms, developers
+who prefer working in the terminal can use `gnobro` - a terminal user interface
+(TUI) for browsing realms.
+
+`gnobro` offers:
+- Terminal-based navigation of realms
+- Direct connection to `gnodev` for local development
+- Real-time updates when connected to a development server
+- SSH access for remote browsing
+
+To learn more about `gnobro`, see the [gnobro
+documentation](https://github.com/gnolang/gno/blob/master/contribs/gnobro/README.md).

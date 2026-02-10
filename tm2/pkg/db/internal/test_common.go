@@ -62,7 +62,85 @@ func (MockIterator) Value() []byte {
 	return nil
 }
 
-func (MockIterator) Close() {
+func (MockIterator) Close() error {
+	return nil
+}
+
+func (MockIterator) Error() error {
+	return nil
+}
+
+func BenchmarkIterator(b *testing.B, db db.DB) {
+	b.Helper()
+
+	b.StopTimer()
+
+	// create dummy data
+	batch := db.NewBatch()
+
+	const numItems = int64(10000)
+
+	for i := 0; i < int(numItems); i++ {
+		idxBytes := int642Bytes(int64(i))
+		valBytes := int642Bytes(0)
+		batch.Set(idxBytes, valBytes)
+	}
+
+	batch.Write()
+
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		it, err := db.Iterator(int642Bytes(0), int642Bytes(numItems))
+		if err != nil {
+			panic(err)
+		}
+		for {
+			it.Next()
+
+			if !it.Valid() {
+				break
+			}
+
+			kn := bytes2Int64(it.Key())
+			if kn < 0 || kn > numItems {
+				b.Fatal("key out of expected values")
+			}
+		}
+		it.Close()
+	}
+}
+
+func BenchmarkBatchWrites(b *testing.B, db db.DB) {
+	b.Helper()
+
+	b.StopTimer()
+
+	// create dummy data
+	const numItems = int64(1000000)
+	internal := map[int64]int64{}
+	for i := 0; i < int(numItems); i++ {
+		internal[int64(i)] = int64(0)
+	}
+
+	batch := db.NewBatch()
+
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		{
+			//nolint:gosec
+			idx := int64(rand.Int()) % numItems
+			internal[idx]++
+			val := internal[idx]
+			idxBytes := int642Bytes(idx)
+			valBytes := int642Bytes(val)
+			// fmt.Printf("Set %X -> %X\n", idxBytes, valBytes)
+			batch.Set(idxBytes, valBytes)
+		}
+	}
+
+	batch.Write()
 }
 
 func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
@@ -89,7 +167,6 @@ func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
 			val := internal[idx]
 			idxBytes := int642Bytes(idx)
 			valBytes := int642Bytes(val)
-			// fmt.Printf("Set %X -> %X\n", idxBytes, valBytes)
 			db.Set(idxBytes, valBytes)
 		}
 
@@ -99,8 +176,10 @@ func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
 			idx := int64(rand.Int()) % numItems
 			valExp := internal[idx]
 			idxBytes := int642Bytes(idx)
-			valBytes := db.Get(idxBytes)
-			// fmt.Printf("Get %X -> %X\n", idxBytes, valBytes)
+			valBytes, err := db.Get(idxBytes)
+			if err != nil {
+				panic(err)
+			}
 			if valExp == 0 {
 				if !bytes.Equal(valBytes, nil) {
 					b.Errorf("Expected %v for %v, got %X", nil, idx, valBytes)

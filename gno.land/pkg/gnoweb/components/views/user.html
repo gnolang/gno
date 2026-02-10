@@ -1,0 +1,168 @@
+{{ define "renderUser" }}
+<aside class="b-sidebar sidebar">
+  <div class="b-user-sidebar">
+    <div class="user-info">
+      <div class="user-avatar">
+        <img src="/public/imgs/gnoland.svg" alt="{{ .Username }}'s avatar" />
+      </div>
+      <div>
+        <h1 class="title">
+          {{ .Handlename }}
+        </h1>
+        <p class="subtitle">
+          {{ .Username }}
+        </p>
+      </div>
+    </div>
+
+    <a href="#user-contributions-packages" role="button" aria-controls="user-contributions-packages" class="b-btn">
+      Contributions
+      <span class="b-tag--secondary">
+        {{ .PackageCount }}
+      </span>
+    </a>
+</aside>
+
+<md-renderer class="c-realm-view">
+  <a href="../r/{{ .Username }}/home" class="b-btn c-with-icon">
+    <svg class="c-icon">
+      <use href="#ico-realm"></use>
+    </svg>
+    {{ .Username }}/home
+  </a>
+  {{ render .Content }}
+</md-renderer>
+
+<div class="b-packages u-is-loading filter-list" id="user-contributions-packages" data-controller="list">
+  <h2 class="title">
+    Contributions
+  </h2>
+  <nav>
+    <div class="packages-tabs">
+      <label>
+        <input type="radio" id="contributions-filter-packages" name="contributions-filter" value="packages" checked
+          class="u-sr-only" />
+        All&nbsp;Packages
+        <span data-list-target="packages-count" class="b-tag--secondary">
+          {{ .PackageCount }}
+        </span>
+      </label>
+      <label>
+        <input type="radio" id="contributions-filter-realms" name="contributions-filter" value="realms"
+          class="u-sr-only" />
+        <svg class="c-icon">
+          <use href="#ico-realm"></use>
+        </svg>
+        Realms
+        <span data-list-target="realms-count" class="b-tag--secondary">
+          {{ .RealmCount }}
+        </span>
+      </label>
+      <label>
+        <input type="radio" id="contributions-filter-pures" name="contributions-filter" value="pures"
+          class="u-sr-only" />
+
+        <svg class="c-icon">
+          <use href="#ico-pure"></use>
+        </svg>
+        Pures
+        <span data-list-target="pure-count" class="b-tag--secondary">
+          {{ .PureCount }}
+        </span>
+      </label>
+    </div>
+    <div class="packages-filters">
+      <div data-action="change->list#orderChange" class="c-toggle-btn">
+        <input type="radio" name="order-mode" value="desc" id="order-desc" checked />
+        <label for="order-asc">
+          <svg class="b-icon-action">
+            <title>Descending Order</title>
+            <use href="#ico-order-desc"></use>
+          </svg>
+          <span>Order</span>
+        </label>
+
+        <input type="radio" name="order-mode" value="asc" id="order-asc" />
+        <label for="order-desc">
+          <svg class="b-icon-action">
+            <title>Ascending Order</title>
+            <use href="#ico-order-asc"></use>
+          </svg>
+          <span>Order</span>
+        </label>
+      </div>
+
+      <div data-action="change->list#displayModeChange" class="c-toggle-btn">
+        <input type="radio" name="display-mode" value="display-grid" id="display-grid" checked />
+        <label for="display-list">
+          <svg class="b-icon-action">
+            <title>Grid Display</title>
+            <use href="#ico-grid"></use>
+          </svg>
+          <span>Grid</span>
+        </label>
+
+        <input type="radio" name="display-mode" value="display-list" id="display-list" />
+        <label for="display-grid">
+          <svg class="b-icon-action">
+            <title>List Display</title>
+            <use href="#ico-list"></use>
+          </svg>
+          <span>List</span>
+        </label>
+      </div>
+    </div>
+    <div class="packages-search b-input">
+      <input type="text" id="packages-search" name="packages-search" data-list-target="search-bar"
+        data-action="input->list#search" placeholder="Search packages" aria-label="Search packages" />
+      <svg class="c-icon">
+        <use href="#ico-search"></use>
+      </svg>
+    </div>
+  </nav>
+  <div data-list-target="range" class="range">{{- range .Contributions -}}
+    <article data-list-type-value="{{ .Type }}">
+      <div class="article-content">
+        <span class="title">
+          {{ if eq .Type.String "pure" }}
+          <svg class="b-icon-action">
+            <use href="#ico-pure"></use>
+          </svg>
+          {{ else }}
+          <svg class="b-icon-action">
+            <use href="#ico-realm"></use>
+          </svg>
+          {{ end }}
+          <h3>
+            <a href="{{ .URL }}" data-list-target="range-title">{{- .Title -}}</a>
+          </h3>
+        </span>
+        <p>
+          {{ with .Description }}
+          {{ . }}
+          {{ else }}
+          <a href="{{ .URL }}">
+            Explore
+            {{ .Title }}
+            {{ .Type.String }}
+          </a>
+          {{ end }}
+        </p>
+      </div>
+      {{ if or .Date .Size }}
+      <footer>
+        {{ if .Date }}
+        <time datetime="{{ .Date.Format " 2006-01-02" }}">
+          {{ FormatRelativeTime .Date }}
+        </time>
+        {{ end }}
+        {{ if .Size }}
+        <span class="size">{{ .Size }}b</span>
+        {{ end }}
+      </footer>
+      {{ end }}
+    </article>
+    {{- end -}}
+  </div>
+</div>
+{{ end }}

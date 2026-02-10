@@ -1,18 +1,17 @@
 package commondao
 
 import (
-	"std"
 	"strconv"
 	"strings"
 	"time"
 
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/nt/commondao"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/sys/users"
 )
@@ -82,11 +81,9 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render main menu
 	menu := []string{
-		md.Link("List Proposals", daoProposalsURL(dao.ID())),
+		md.Link("View Proposals", daoProposalsURL(dao.ID())),
 		md.Link("View Settings", settingsURL(dao.ID())),
 	}
-
-	// TODO: Add submenu with proposal links when proposals support is enabled
 
 	if parentDAO := dao.Parent(); parentDAO != nil {
 		menu = append(menu, md.Link("Go to Parent DAO", daoURL(parentDAO.ID())))
@@ -131,15 +128,76 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render latest proposals
 	proposals := dao.ActiveProposals()
-	if proposals.Size() == 0 {
+	if proposals.Size() > 0 {
+		res.Write(md.H2("Latest Proposals"))
+		proposals.Iterate(0, 3, true, func(p *commondao.Proposal) bool {
+			renderProposalsListItem(res, dao, p)
+			return false
+		})
+	}
+
+	// Render proposal creation links
+	if !dao.IsDeleted() {
+		renderCreateProposalSection(dao.ID(), res)
+	}
+}
+
+func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
+	var (
+		cols []string
+		o    = getOptions(daoID)
+	)
+
+	if o.AllowTextProposals {
+		cols = append(cols, md.Paragraph(textProposalLink(daoID))+
+			md.Paragraph(
+				"This type of proposal is also known as text proposal which can be used for example "+
+					"to get consensus on initiatives without actually making any change on-chain.",
+			),
+		)
+	}
+
+	if o.AllowSubDAOProposals {
+		cols = append(cols, md.Paragraph(newSubDAOLink(daoID))+
+			md.Paragraph(
+				"This type of proposal is used to create SubDAOs, "+
+					"which are used to create tree based DAOs.",
+			),
+		)
+	}
+
+	if o.AllowDissolutionProposals {
+		cols = append(cols, md.Paragraph(dissolveSubDAOLink(daoID))+
+			md.Paragraph(
+				"This type of proposal can be used to dissolve DAOs and SubDAOs.",
+			)+
+			md.Paragraph(
+				"Dissolving a DAO can't be undone, once the dissolution proposal passes "+
+					"and is executed DAO will be readonly.",
+			),
+		)
+	}
+
+	if o.AllowMembersUpdate {
+		cols = append(cols, md.Paragraph(updateMembersLink(daoID))+
+			md.Paragraph(
+				"This type of proposal can be used to add new members to this DAO "+
+					"and also to remove existing ones.",
+			)+
+			md.Paragraph(
+				"A single proposal allows new members to be added and any number of existing ones "+
+					"removed within the same proposal.",
+			),
+		)
+	}
+
+	if len(cols) == 0 {
 		return
 	}
 
-	res.Write(md.H2("Latest Proposals"))
-	proposals.Iterate(0, 3, true, func(p *commondao.Proposal) bool {
-		renderProposalsListItem(res, dao, p)
-		return false
-	})
+	res.Write(md.H2("Create Proposal"))
+	res.Write(md.Paragraph("These are the proposal supported by this DAO:"))
+	res.Write(md.Columns(cols, false))
 }
 
 func renderMembers(res *mux.ResponseWriter, path string, members commondao.MemberStorage) {
@@ -150,7 +208,7 @@ func renderMembers(res *mux.ResponseWriter, path string, members commondao.Membe
 	}
 
 	table := mdtable.Table{Headers: []string{"Members"}}
-	members.IterateByOffset(pages.Offset(), pages.PageSize(), func(addr std.Address) bool {
+	members.IterateByOffset(pages.Offset(), pages.PageSize(), func(addr address) bool {
 		table.Append([]string{userLink(addr)})
 		return false
 	})
@@ -202,6 +260,10 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	table.Append([]string{"Allow SubDAOs", strconv.FormatBool(o.AllowChildren)})
 	table.Append([]string{"Enable Voting", strconv.FormatBool(o.AllowVoting)})
 	table.Append([]string{"Enable Proposal Execution", strconv.FormatBool(o.AllowExecution)})
+	table.Append([]string{"Text Proposals", strconv.FormatBool(o.AllowTextProposals)})
+	table.Append([]string{"Members Update proposals", strconv.FormatBool(o.AllowMembersUpdate)})
+	table.Append([]string{"SubDAO creation proposals", strconv.FormatBool(o.AllowSubDAOProposals)})
+	table.Append([]string{"DAO dissolution proposals", strconv.FormatBool(o.AllowDissolutionProposals)})
 
 	res.Write(md.H2("Options"))
 	res.Write(table.String())
@@ -350,7 +412,8 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 	record := p.VotingRecord()
 	if p.Status() == commondao.StatusActive {
-		passes, _ := def.Tally(record.Readonly(), commondao.NewMemberSet(dao.Members()))
+		ctx := commondao.MustNewVotingContext(record, dao.Members())
+		passes, _ := def.Tally(ctx)
 		if passes {
 			res.Write(md.BulletItem("Expected Outcome: **pass** ☑"))
 		} else {
@@ -422,7 +485,7 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 }
 
 func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
-	member := std.Address(req.GetVar("address"))
+	member := address(req.GetVar("address"))
 	if !member.IsValid() {
 		res.Write("Invalid address")
 		return
@@ -508,12 +571,38 @@ func executeLink(daoID, proposalID uint64) string {
 	))
 }
 
+func textProposalLink(daoID uint64) string {
+	return ufmt.Sprintf("[General Proposal](%s)", realmLink.Call(
+		"CreateTextProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
+		"title", "",
+		"body", "",
+		"votingDays", "7",
+	))
+}
+
 func updateMembersLink(daoID uint64) string {
 	return md.Link("Update Members", realmLink.Call(
 		"CreateMembersUpdateProposal",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"newMembers", "",
 		"removeMembers", "",
+	))
+}
+
+func newSubDAOLink(daoID uint64) string {
+	return md.Link("New SubDAO", realmLink.Call(
+		"CreateSubDAOProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
+		"name", "",
+		"members", "",
+	))
+}
+
+func dissolveSubDAOLink(daoID uint64) string {
+	return md.Link("Dissolve DAO", realmLink.Call(
+		"CreateDissolutionProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
 	))
 }
 
@@ -525,7 +614,7 @@ func goToProposalLink(daoID, proposalID uint64) string {
 	return md.Link("Go to Proposal", proposalURL(daoID, proposalID))
 }
 
-func userLink(addr std.Address) string {
+func userLink(addr address) string {
 	user := users.ResolveAddress(addr)
 	if user != nil {
 		return user.RenderLink("")

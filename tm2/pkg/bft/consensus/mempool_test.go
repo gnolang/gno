@@ -39,7 +39,7 @@ func TestMempoolNoProgressUntilTxsAvailable(t *testing.T) {
 	defer func() {
 		cs.Stop()
 		cs.Wait()
-		app.Close()
+		_ = app.Close()
 	}()
 
 	ensureNewEventOnChannel(newBlockCh) // first block gets committed
@@ -64,7 +64,7 @@ func TestMempoolProgressAfterCreateEmptyBlocksInterval(t *testing.T) {
 	defer func() {
 		cs.Stop()
 		cs.Wait()
-		app.Close()
+		_ = app.Close()
 	}()
 
 	ensureNewEventOnChannel(newBlockCh)   // first block gets committed
@@ -99,7 +99,7 @@ func TestMempoolProgressInHigherRound(t *testing.T) {
 	defer func() {
 		cs.Stop()
 		cs.Wait()
-		app.Close()
+		_ = app.Close()
 	}()
 
 	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepPropose)   // first round at first height
@@ -159,7 +159,7 @@ func TestMempoolTxConcurrentWithCommit(t *testing.T) {
 	defer func() {
 		cs.Stop()
 		cs.Wait()
-		app.Close()
+		_ = app.Close()
 	}()
 
 	for nTxs := 0; nTxs < NTxs; {

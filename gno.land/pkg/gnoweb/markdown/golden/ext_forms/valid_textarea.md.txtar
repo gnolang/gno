@@ -1,0 +1,31 @@
+-- input.md --
+<gno-form>
+<gno-textarea name="comment" placeholder="Leave a comment" description="Your feedback helps us improve" />
+<gno-textarea name="bio" placeholder="Tell us about yourself" rows="6" description="A brief description of yourself (optional)" />
+<gno-textarea name="code" placeholder="Paste your code here" rows="10" description="Share your code snippet" />
+<gno-textarea name="story" placeholder="Share your story" rows="3" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div id="desc_comment_0" class="gno-form_description">Your feedback helps us improve</div>
+<div class="gno-form_input"><label for="comment">Leave a comment</label>
+<textarea id="comment" name="comment" placeholder="Leave a comment" rows="4"></textarea>
+</div>
+<div id="desc_bio_1" class="gno-form_description">A brief description of yourself (optional)</div>
+<div class="gno-form_input"><label for="bio">Tell us about yourself</label>
+<textarea id="bio" name="bio" placeholder="Tell us about yourself" rows="6"></textarea>
+</div>
+<div id="desc_code_2" class="gno-form_description">Share your code snippet</div>
+<div class="gno-form_input"><label for="code">Paste your code here</label>
+<textarea id="code" name="code" placeholder="Paste your code here" rows="10"></textarea>
+</div>
+<div class="gno-form_input"><label for="story">Share your story</label>
+<textarea id="story" name="story" placeholder="Share your story" rows="3"></textarea>
+</div>
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>

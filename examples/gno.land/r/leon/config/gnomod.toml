@@ -1,0 +1,5 @@
+module = "gno.land/r/leon/config"
+gno = "0.9"
+
+[addpkg]
+  creator = "g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"

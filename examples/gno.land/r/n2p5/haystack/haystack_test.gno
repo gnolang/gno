@@ -4,10 +4,10 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/urequire"
 	"gno.land/p/n2p5/haystack"
 	"gno.land/p/n2p5/haystack/needle"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/urequire"
 )
 
 func TestHaystack(t *testing.T) {
@@ -31,15 +31,15 @@ func TestHaystack(t *testing.T) {
 		n3, _ := genNeedleHex(3)
 
 		testing.SetOriginCaller(u1)
-		urequire.NotPanics(t, func() { Add(n1) })
-		urequire.PanicsWithMessage(t,
+		urequire.NotPanics(t, func() { Add(cross, n1) })
+		urequire.AbortsWithMessage(t,
 			haystack.ErrorDuplicateNeedle.Error(),
 			func() {
-				Add(n1)
+				Add(cross, n1)
 			})
 		testing.SetOriginCaller(u2)
-		urequire.NotPanics(t, func() { Add(n2) })
-		urequire.NotPanics(t, func() { Add(n3) })
+		urequire.NotPanics(t, func() { Add(cross, n2) })
+		urequire.NotPanics(t, func() { Add(cross, n3) })
 	})
 
 	t.Run("Get", func(t *testing.T) {
@@ -49,7 +49,7 @@ func TestHaystack(t *testing.T) {
 		_, h2 := genNeedleHex(5)
 
 		testing.SetOriginCaller(u1)
-		urequire.NotPanics(t, func() { Add(n1) })
+		urequire.NotPanics(t, func() { Add(cross, n1) })
 		urequire.NotPanics(t, func() {
 			result := Get(h1)
 			urequire.Equal(t, n1, result)

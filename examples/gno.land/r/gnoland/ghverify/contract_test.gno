@@ -1,57 +1,57 @@
 package ghverify
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 )
 
-func TestVerificationLifecycle(t *testing.T) {
-	defaultAddress := std.OriginCaller()
-	user1Address := std.Address(testutils.TestAddress("user 1"))
-	user2Address := std.Address(testutils.TestAddress("user 2"))
+func TestVerificationLifecycle(cur realm, t *testing.T) {
+	defaultAddress := runtime.OriginCaller()
+	user1Address := address(testutils.TestAddress("user 1"))
+	user2Address := address(testutils.TestAddress("user 2"))
 
 	// Verify request returns no feeds.
-	result := GnorkleEntrypoint("request")
+	result := GnorkleEntrypoint(cur, "request")
 	if result != "[]" {
 		t.Fatalf("expected empty request result, got %s", result)
 	}
 
 	// Make a verification request with the created user.
 	testing.SetOriginCaller(user1Address)
-	RequestVerification("deelawn")
+	RequestVerification(cur, "deelawn")
 
 	// A subsequent request from the same address should panic because there is
 	// already a feed with an ID of this user's address.
 	var errMsg string
-	func() {
+	func(cur realm) {
 		defer func() {
 			if r := recover(); r != nil {
 				errMsg = r.(error).Error()
 			}
 		}()
-		RequestVerification("deelawn")
-	}()
+		RequestVerification(cur, "deelawn")
+	}(cur)
 	if errMsg != "feed already exists" {
 		t.Fatalf("expected feed already exists, got %s", errMsg)
 	}
 
 	// Verify the request returns no feeds for this non-whitelisted user.
-	result = GnorkleEntrypoint("request")
+	result = GnorkleEntrypoint(cur, "request")
 	if result != "[]" {
 		t.Fatalf("expected empty request result, got %s", result)
 	}
 
 	// Make a verification request with the created user.
 	testing.SetOriginCaller(user2Address)
-	RequestVerification("omarsy")
+	RequestVerification(cur, "omarsy")
 
 	// Set the caller back to the whitelisted user and verify that the feed data
 	// returned matches what should have been created by the `RequestVerification`
 	// invocation.
 	testing.SetOriginCaller(defaultAddress)
-	result = GnorkleEntrypoint("request")
+	result = GnorkleEntrypoint(cur, "request")
 	expResult := `[{"id":"` + string(user1Address) + `","type":"0","value_type":"string","tasks":[{"gno_address":"` +
 		string(user1Address) + `","github_handle":"deelawn"}]},` +
 		`{"id":"` + string(user2Address) + `","type":"0","value_type":"string","tasks":[{"gno_address":"` +
@@ -62,25 +62,25 @@ func TestVerificationLifecycle(t *testing.T) {
 
 	// Try to trigger feed ingestion from the non-authorized user.
 	testing.SetOriginCaller(user1Address)
-	func() {
+	func(cur realm) {
 		defer func() {
 			if r := recover(); r != nil {
 				errMsg = r.(error).Error()
 			}
 		}()
-		GnorkleEntrypoint("ingest," + string(user1Address) + ",OK")
-	}()
+		GnorkleEntrypoint(cur, "ingest,"+string(user1Address)+",OK")
+	}(cur)
 	if errMsg != "caller not whitelisted" {
 		t.Fatalf("expected caller not whitelisted, got %s", errMsg)
 	}
 
 	// Set the caller back to the whitelisted user and transfer contract ownership.
 	testing.SetOriginCaller(defaultAddress)
-	SetOwner(defaultAddress)
+	SetOwner(cross, defaultAddress)
 
 	// Now trigger the feed ingestion from the user and new owner and only whitelisted address.
-	GnorkleEntrypoint("ingest," + string(user1Address) + ",OK")
-	GnorkleEntrypoint("ingest," + string(user2Address) + ",OK")
+	GnorkleEntrypoint(cur, "ingest,"+string(user1Address)+",OK")
+	GnorkleEntrypoint(cur, "ingest,"+string(user2Address)+",OK")
 
 	// Verify the ingestion autocommitted the value and triggered the post handler.
 	data := Render("")
@@ -90,16 +90,16 @@ func TestVerificationLifecycle(t *testing.T) {
 	}
 
 	// Finally make sure the feed was cleaned up after the data was committed.
-	result = GnorkleEntrypoint("request")
+	result = GnorkleEntrypoint(cur, "request")
 	if result != "[]" {
 		t.Fatalf("expected empty request result, got %s", result)
 	}
 
 	// Check that the accessor functions are working as expected.
-	if handle := GetHandleByAddress(string(user1Address)); handle != "deelawn" {
+	if handle := GetHandleByAddress(cur, string(user1Address)); handle != "deelawn" {
 		t.Fatalf("expected deelawn, got %s", handle)
 	}
-	if address := GetAddressByHandle("deelawn"); address != string(user1Address) {
-		t.Fatalf("expected %s, got %s", string(user1Address), address)
+	if address_XXX := GetAddressByHandle(cur, "deelawn"); address_XXX != string(user1Address) {
+		t.Fatalf("expected %s, got %s", string(user1Address), address_XXX)
 	}
 }

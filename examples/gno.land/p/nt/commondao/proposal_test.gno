@@ -1,20 +1,21 @@
-package commondao
+package commondao_test
 
 import (
-	"std"
+	"errors"
 	"testing"
 	"time"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
-	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
+
+	"gno.land/p/nt/commondao"
 )
 
 func TestProposalNew(t *testing.T) {
 	cases := []struct {
 		name       string
-		creator    std.Address
-		definition ProposalDefinition
+		creator    address
+		definition commondao.ProposalDefinition
 		err        error
 	}{
 		{
@@ -26,15 +27,15 @@ func TestProposalNew(t *testing.T) {
 			name:       "invalid creator address",
 			creator:    "invalid",
 			definition: testPropDef{},
-			err:        ErrInvalidCreatorAddress,
+			err:        commondao.ErrInvalidCreatorAddress,
 		},
 		{
 			name:    "max custom vote choices exceeded",
 			creator: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			definition: testPropDef{
-				voteChoices: make([]VoteChoice, MaxCustomVoteChoices+1),
+				voteChoices: make([]commondao.VoteChoice, commondao.MaxCustomVoteChoices+1),
 			},
-			err: ErrMaxCustomVoteChoices,
+			err: commondao.ErrMaxCustomVoteChoices,
 		},
 	}
 
@@ -42,7 +43,7 @@ func TestProposalNew(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			id := uint64(1)
 
-			p, err := NewProposal(id, tc.creator, tc.definition)
+			p, err := commondao.NewProposal(id, tc.creator, tc.definition)
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err, "expected an error")
@@ -52,7 +53,7 @@ func TestProposalNew(t *testing.T) {
 			urequire.NoError(t, err, "unexpected error")
 			uassert.Equal(t, p.ID(), id)
 			uassert.NotEqual(t, p.Definition(), nil)
-			uassert.True(t, p.Status() == StatusActive)
+			uassert.True(t, p.Status() == commondao.StatusActive)
 			uassert.Equal(t, p.Creator(), tc.creator)
 			uassert.False(t, p.CreatedAt().IsZero())
 			uassert.NotEqual(t, p.VotingRecord(), nil)
@@ -65,29 +66,41 @@ func TestProposalNew(t *testing.T) {
 func TestProposalVoteChoices(t *testing.T) {
 	cases := []struct {
 		name       string
-		definition ProposalDefinition
-		choices    []VoteChoice
+		definition commondao.ProposalDefinition
+		choices    []commondao.VoteChoice
 	}{
 		{
 			name:       "custom choices",
-			definition: testPropDef{voteChoices: []VoteChoice{"FOO", "BAR", "BAZ"}},
-			choices:    []VoteChoice{"BAR", "BAZ", "FOO"},
+			definition: testPropDef{voteChoices: []commondao.VoteChoice{"FOO", "BAR", "BAZ"}},
+			choices: []commondao.VoteChoice{
+				"BAR",
+				"BAZ",
+				"FOO",
+			},
 		},
 		{
 			name:       "defaults because of empty custom choice list",
-			definition: testPropDef{voteChoices: []VoteChoice{}},
-			choices:    []VoteChoice{ChoiceAbstain, ChoiceNo, ChoiceYes},
+			definition: testPropDef{voteChoices: []commondao.VoteChoice{}},
+			choices: []commondao.VoteChoice{
+				commondao.ChoiceAbstain,
+				commondao.ChoiceNo,
+				commondao.ChoiceYes,
+			},
 		},
 		{
 			name:       "defaults because of single custom choice list",
-			definition: testPropDef{voteChoices: []VoteChoice{"FOO"}},
-			choices:    []VoteChoice{ChoiceAbstain, ChoiceNo, ChoiceYes},
+			definition: testPropDef{voteChoices: []commondao.VoteChoice{"FOO"}},
+			choices: []commondao.VoteChoice{
+				commondao.ChoiceAbstain,
+				commondao.ChoiceNo,
+				commondao.ChoiceYes,
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			p, _ := NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{
+			p, _ := commondao.NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{
 				voteChoices: tc.choices,
 			})
 
@@ -105,26 +118,29 @@ func TestIsQuorumReached(t *testing.T) {
 	cases := []struct {
 		name    string
 		quorum  float64
-		members []std.Address
-		votes   []Vote
+		members []address
+		votes   []commondao.Vote
 		fail    bool
 	}{
 		{
 			name:   "one third",
-			quorum: QuorumOneThird,
-			members: []std.Address{
+			quorum: commondao.QuorumOneThird,
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
 			},
-			votes: []Vote{
-				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
+			votes: []commondao.Vote{
+				{
+					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+					Choice:  commondao.ChoiceYes,
+				},
 			},
 		},
 		{
 			name:   "one third no quorum",
-			quorum: QuorumOneThird,
-			members: []std.Address{
+			quorum: commondao.QuorumOneThird,
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -133,132 +149,177 @@ func TestIsQuorumReached(t *testing.T) {
 		},
 		{
 			name:   "half",
-			quorum: QuorumHalf,
-			members: []std.Address{
+			quorum: commondao.QuorumHalf,
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
 				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
 			},
-			votes: []Vote{
-				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes},
-				{Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc", Choice: ChoiceNo},
+			votes: []commondao.Vote{
+				{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				},
+				{
+					Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
+					Choice:  commondao.ChoiceNo,
+				},
 			},
 		},
 		{
 			name:   "half no quorum",
-			quorum: QuorumHalf,
-			members: []std.Address{
+			quorum: commondao.QuorumHalf,
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
 				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
 			},
-			votes: []Vote{
-				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
+			votes: []commondao.Vote{
+				{
+					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+					Choice:  commondao.ChoiceYes,
+				},
 			},
 			fail: true,
 		},
 		{
 			name:   "two thirds",
-			quorum: QuorumTwoThirds,
-			members: []std.Address{
+			quorum: commondao.QuorumTwoThirds,
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
 			},
-			votes: []Vote{
-				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes},
-				{Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc", Choice: ChoiceNo},
+			votes: []commondao.Vote{
+				{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				},
+				{
+					Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
+					Choice:  commondao.ChoiceNo,
+				},
 			},
 		},
 		{
 			name:   "two thirds no quorum",
-			quorum: QuorumTwoThirds,
-			members: []std.Address{
+			quorum: commondao.QuorumTwoThirds,
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
 			},
-			votes: []Vote{
-				{Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc", Choice: ChoiceNo},
+			votes: []commondao.Vote{
+				{
+					Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
+					Choice:  commondao.ChoiceNo,
+				},
 			},
 			fail: true,
 		},
 		{
 			name:   "three fourths",
-			quorum: QuorumThreeFourths,
-			members: []std.Address{
+			quorum: commondao.QuorumThreeFourths,
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
 				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
 			},
-			votes: []Vote{
-				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes},
-				{Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc", Choice: ChoiceNo},
-				{Address: "g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt", Choice: ChoiceNo},
+			votes: []commondao.Vote{
+				{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				},
+				{
+					Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
+					Choice:  commondao.ChoiceNo,
+				},
+				{
+					Address: "g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
+					Choice:  commondao.ChoiceNo,
+				},
 			},
 		},
 		{
 			name:   "three fourths no quorum",
-			quorum: QuorumThreeFourths,
-			members: []std.Address{
+			quorum: commondao.QuorumThreeFourths,
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
 				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
 			},
-			votes: []Vote{
-				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes},
+			votes: []commondao.Vote{
+				{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				},
 			},
 			fail: true,
 		},
 		{
 			name:   "full",
-			quorum: QuorumFull,
-			members: []std.Address{
+			quorum: commondao.QuorumFull,
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			},
-			votes: []Vote{
-				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceNo},
-				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceNo},
+			votes: []commondao.Vote{
+				{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceNo,
+				},
+				{
+					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+					Choice:  commondao.ChoiceNo,
+				},
 			},
 		},
 		{
 			name:   "full no quorum",
-			quorum: QuorumFull,
-			members: []std.Address{
+			quorum: commondao.QuorumFull,
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			},
-			votes: []Vote{
-				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceNo},
+			votes: []commondao.Vote{
+				{
+					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+					Choice:  commondao.ChoiceNo,
+				},
 			},
 			fail: true,
 		},
 		{
 			name:   "no quorum with empty vote",
-			quorum: QuorumHalf,
-			members: []std.Address{
+			quorum: commondao.QuorumHalf,
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			},
-			votes: []Vote{
-				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceNone},
+			votes: []commondao.Vote{
+				{
+					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+					Choice:  commondao.ChoiceNone,
+				},
 			},
 			fail: true,
 		},
 		{
 			name:   "no quorum with abstention",
-			quorum: QuorumHalf,
-			members: []std.Address{
+			quorum: commondao.QuorumHalf,
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			},
-			votes: []Vote{
-				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceAbstain},
+			votes: []commondao.Vote{
+				{
+					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+					Choice:  commondao.ChoiceAbstain,
+				},
 			},
 			fail: true,
 		},
@@ -271,17 +332,18 @@ func TestIsQuorumReached(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var members addrset.Set
+			members := commondao.NewMemberStorage()
+			storage := commondao.MustNewReadonlyMemberStorage(members)
 			for _, m := range tc.members {
 				members.Add(m)
 			}
 
-			var record VotingRecord
+			var record commondao.VotingRecord
 			for _, v := range tc.votes {
 				record.AddVote(v)
 			}
 
-			success := IsQuorumReached(tc.quorum, record.Readonly(), NewMemberSet(&members))
+			success := commondao.IsQuorumReached(tc.quorum, record.Readonly(), *storage)
 
 			if tc.fail {
 				uassert.False(t, success, "expect quorum to fail")
@@ -292,26 +354,101 @@ func TestIsQuorumReached(t *testing.T) {
 	}
 }
 
+func TestProposalTally(t *testing.T) {
+	errTest := errors.New("test")
+	creator := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	cases := []struct {
+		name   string
+		setup  func() *commondao.Proposal
+		status commondao.ProposalStatus
+		err    error
+	}{
+		{
+			name: "passed",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: true})
+				return p
+			},
+			status: commondao.StatusPassed,
+		},
+		{
+			name: "rejected",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: false})
+				return p
+			},
+			status: commondao.StatusRejected,
+		},
+		{
+			name: "proposal is not active",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: true})
+				p.Tally(commondao.NewMemberStorage())
+				return p
+			},
+			err: commondao.ErrStatusIsNotActive,
+		},
+		{
+			name: "tally error",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyErr: errTest})
+				return p
+			},
+			err: errTest,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := tc.setup()
+			members := commondao.NewMemberStorage()
+
+			err := p.Tally(members)
+
+			if tc.err != nil {
+				urequire.ErrorIs(t, err, tc.err)
+				return
+			}
+
+			urequire.NoError(t, err)
+			urequire.Equal(t, string(tc.status), string(p.Status()))
+		})
+	}
+}
+
+func TestMustValidate(t *testing.T) {
+	uassert.NotPanics(t, func() {
+		commondao.MustValidate(testPropDef{})
+	}, "expect validation to succeed")
+
+	uassert.PanicsWithMessage(t, "validable proposal definition is nil", func() {
+		commondao.MustValidate(nil)
+	}, "expect validation to panic with nil definition")
+
+	uassert.PanicsWithMessage(t, "boom!", func() {
+		commondao.MustValidate(testPropDef{validationErr: errors.New("boom!")})
+	}, "expect validation to panic")
+}
+
 type testPropDef struct {
-	votingPeriod                          time.Duration
-	tallyResult                           bool
-	validationErr, tallyErr, executionErr error
-	voteChoices                           []VoteChoice
+	votingPeriod            time.Duration
+	tallyResult             bool
+	validationErr, tallyErr error
+	voteChoices             []commondao.VoteChoice
 }
 
 func (testPropDef) Title() string                 { return "" }
 func (testPropDef) Body() string                  { return "" }
 func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
-func (d testPropDef) Execute() error              { return d.executionErr }
 
-func (d testPropDef) Tally(ReadonlyVotingRecord, MemberSet) (bool, error) {
+func (d testPropDef) Tally(commondao.VotingContext) (bool, error) {
 	return d.tallyResult, d.tallyErr
 }
 
-func (d testPropDef) CustomVoteChoices() []VoteChoice {
+func (d testPropDef) CustomVoteChoices() []commondao.VoteChoice {
 	if len(d.voteChoices) > 0 {
 		return d.voteChoices
 	}
-	return []VoteChoice{ChoiceYes, ChoiceNo, ChoiceAbstain}
+	return []commondao.VoteChoice{commondao.ChoiceYes, commondao.ChoiceNo, commondao.ChoiceAbstain}
 }

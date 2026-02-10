@@ -44,7 +44,7 @@ import (
 	"math"
 
 	"gno.land/p/demo/entropy"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 	"gno.land/p/wyhaines/rand/xorshiftr128plus"
 )
 

@@ -1,4 +1,4 @@
-# Run test on gno.land/p/demo/ufmt without path argument
+# Run test on gno.land/p/nt/ufmt without path argument
 
 gno test
 
@@ -96,3 +96,8 @@ func TestRun(t *testing.T) {
 		t.Run(tc, func(t *testing.T) {})
 	}
 }
+
+
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/no_path_flag_run'

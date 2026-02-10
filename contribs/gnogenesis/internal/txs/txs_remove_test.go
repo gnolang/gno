@@ -38,7 +38,7 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		genesis.AppState = nil // no app state
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
@@ -63,7 +63,7 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		// Generate dummy txs
 		txs := generateDummyTxs(t, 10)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
 			Txs: txs,
 		}
@@ -91,7 +91,7 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		// Generate dummy txs
 		txs := generateDummyTxs(t, 10)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
 			Txs: txs,
 		}

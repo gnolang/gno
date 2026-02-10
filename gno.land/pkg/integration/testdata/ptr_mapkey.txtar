@@ -1,18 +1,12 @@
-gnoland start
+loadpkg gno.land/r/demo/ptrmap $WORK
 
-# add contract
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/ptrmap -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout OK!
+gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/demo/ptrmap -func AddToMap -args 5 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/demo/ptrmap -func GetFromMap -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout '(5 int)'
-stdout OK!
-
--- gno.mod --
-module gno.land/r/demo/ptrmap
+gnokey query vm/qeval --data "gno.land/r/demo/ptrmap.GetFromMap()"
+stdout '5 int'
 
 -- realm.gno --
 package ptrmap
@@ -22,14 +16,10 @@ var (
 	i = new(int)
 )
 
-func AddToMap(value int) {
-	crossing()
-
+func AddToMap(cur realm, value int) {
 	m[i] = value
 }
 
 func GetFromMap() int {
-	crossing()
-
 	return m[i]
 }

@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/gnolang/gno/_test/net/http"
+	"filetests/extern/net/http"
 )
 
 type S struct {

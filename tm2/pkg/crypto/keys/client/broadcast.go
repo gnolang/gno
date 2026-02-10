@@ -85,13 +85,17 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
 	} else {
-		io.Println(string(res.DeliverTx.Data))
-		io.Println("OK!")
-		io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
-		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
-		io.Println("HEIGHT:    ", res.Height)
-		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
-		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+		if cfg.RootCfg.OnTxSuccess != nil {
+			cfg.RootCfg.OnTxSuccess(tx, res)
+		} else {
+			io.Println(string(res.DeliverTx.Data))
+			io.Println("OK!")
+			io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
+			io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
+			io.Println("HEIGHT:    ", res.Height)
+			io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
+			io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+		}
 	}
 	return nil
 }
@@ -131,7 +135,7 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		}
 	}
 
-	bres, err := cli.BroadcastTxCommit(bz)
+	bres, err := cli.BroadcastTxCommit(context.Background(), bz)
 	if err != nil {
 		return nil, errors.Wrap(err, "broadcasting bytes")
 	}
@@ -141,7 +145,7 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 
 func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit) error {
 	gp := std.GasPrice{}
-	qres, err := cli.ABCIQuery("auth/gasprice", []byte{})
+	qres, err := cli.ABCIQuery(context.Background(), "auth/gasprice", []byte{})
 	if err != nil {
 		return errors.Wrap(err, "query gas price")
 	}
@@ -165,7 +169,7 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit)
 }
 
 func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxCommit, error) {
-	bres, err := cli.ABCIQuery(".app/simulate", tx)
+	bres, err := cli.ABCIQuery(context.Background(), ".app/simulate", tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "simulate tx")
 	}

@@ -247,11 +247,7 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 		// evaluate func
-		if x.IsWithCross() {
-			m.PushExpr(x.Func.(*CallExpr).Args[0])
-		} else {
-			m.PushExpr(x.Func)
-		}
+		m.PushExpr(x.Func)
 		m.PushOp(OpEval)
 	case *IndexExpr:
 		if x.HasOK {
@@ -319,7 +315,12 @@ func (m *Machine) doOpEval() {
 	case *ConstExpr:
 		m.PopExpr()
 		// push preprocessed value
-		m.PushValue(x.TypedValue)
+		tv := x.TypedValue
+		// see .pkgSelector; const(ref(pkgPath)).  do not fill in;
+		// nodes may be more persistent than values in a tx.
+		// (currently all nodes are cached, but we don't want to cache
+		// all packages too).
+		m.PushValue(tv)
 	case *constTypeExpr:
 		m.PopExpr()
 		// push preprocessed type as value

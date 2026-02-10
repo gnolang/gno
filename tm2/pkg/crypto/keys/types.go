@@ -28,7 +28,7 @@ type Keybase interface {
 	// CreateAccount creates an account based using the BIP44 path (44'/118'/{account}'/0/{index}
 	// Encrypt the key to disk using encryptPasswd.
 	// If an account exists with the same address but a different name, it is replaced by the new name.
-	// See https://github.com/tendermint/classic/sdk/issues/2095
+	// See https://github.com/cosmos/cosmos-sdk/issues/2095
 	CreateAccount(name, mnemonic, bip39Passwd, encryptPasswd string, account uint32, index uint32) (Info, error)
 
 	// Like CreateAccount but from general bip44 params.

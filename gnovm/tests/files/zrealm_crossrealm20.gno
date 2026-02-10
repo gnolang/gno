@@ -1,19 +1,24 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
-	"std"
+	"chain/runtime"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 type fooer struct {
 	s string
 }
 
-func (f *fooer) Foo() {
-	f.s = "B"
-	println("hello " + f.s + " " + std.CurrentRealm().PkgPath())
+func (f *fooer) Foo(cur realm) {
+	f.s = "Foo"
+	println("hello " + f.s + " " + runtime.CurrentRealm().PkgPath())
+}
+
+func (f *fooer) Bar() {
+	f.s = "Bar"
+	println("hello " + f.s + " " + runtime.CurrentRealm().PkgPath())
 }
 
 var f *fooer
@@ -21,22 +26,24 @@ var f *fooer
 func init() {
 	f = &fooer{s: "A"}
 	fg := func() crossrealm.Fooer { return f }
-	cross(crossrealm.SetFooerGetter)(fg)
-	crossrealm.CallFooerGetterFoo()
+	crossrealm.SetFooerGetter(cross, fg)
+	f.s = "B"
+	crossrealm.CallFooerGetterFooCross(cross)
 	f.s = "C"
-	crossrealm.CallFooerGetterFoo()
+	crossrealm.CallFooerGetterFooCross(cross)
+	f.s = "D"
+	crossrealm.CallFooerGetterBar()
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	print(".")
 }
 
 // Output:
-// hello B gno.land/r/crossrealm_test
-// hello B gno.land/r/crossrealm_test
+// hello Foo gno.land/r/crossrealm
+// hello Foo gno.land/r/crossrealm
+// hello Bar gno.land/r/crossrealm
 // .
 
 // Realm:
-// finalizerealm["gno.land/r/crossrealm_test"]
+// finalizerealm["gno.land/r/crossrealm"]

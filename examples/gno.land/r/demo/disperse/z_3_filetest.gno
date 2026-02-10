@@ -3,30 +3,30 @@
 package main
 
 import (
-	"std"
+	"chain"
 	"testing"
 
+	tokens "gno.land/r/demo/defi/grc20factory"
 	"gno.land/r/demo/disperse"
-	tokens "gno.land/r/demo/grc20factory"
 )
 
 func main() {
-	disperseAddr := std.DerivePkgAddr("gno.land/r/demo/disperse")
-	mainAddr := std.DerivePkgAddr("gno.land/r/demo/main")
-	beneficiary1 := std.Address("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
-	beneficiary2 := std.Address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
+	disperseAddr := chain.PackageAddress("gno.land/r/demo/disperse")
+	mainAddr := chain.PackageAddress("gno.land/r/demo/main")
+	beneficiary1 := address("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
+	beneficiary2 := address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
 
 	testing.SetOriginCaller(mainAddr)
 
-	cross(tokens.New)("test", "TEST", 4, 0, 0)
-	cross(tokens.Mint)("TEST", mainAddr, 200)
+	tokens.New(cross, "test", "TEST", 4, 0, 0)
+	tokens.Mint(cross, "TEST", mainAddr, 200)
 	println("main balance before:", tokens.BalanceOf("TEST", mainAddr))
 
-	cross(tokens.Approve)("TEST", disperseAddr, 200)
+	tokens.Approve(cross, "TEST", disperseAddr, 200)
 	println("disperse allowance before:", tokens.Allowance("TEST", mainAddr, disperseAddr))
 
 	addressesStr := beneficiary1.String() + "," + beneficiary2.String()
-	cross(disperse.DisperseGRC20String)(addressesStr, "150TEST,50TEST")
+	disperse.DisperseGRC20String(cross, addressesStr, "150TEST,50TEST")
 
 	println("main balance after:", tokens.BalanceOf("TEST", mainAddr))
 	println("disperse allowance after:", tokens.Allowance("TEST", mainAddr, disperseAddr))

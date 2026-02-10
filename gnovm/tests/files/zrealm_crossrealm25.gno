@@ -1,22 +1,28 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/vm/crossrealm_b"
 )
 
 type Struct struct {
 	A int
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
+	println("s := &Struct{A: 100}")
 	s := &Struct{A: 100}
-	cross(crossrealm_b.SetObject)(&s.A)
+	println("crossrealm_b.SetObject(cross, &s.A)")
+	crossrealm_b.SetObject(cross, &s.A)
+	println("s.A = 123")
 	s.A = 123
 	println(s)
 }
 
+// Output:
+// s := &Struct{A: 100}
+// crossrealm_b.SetObject(cross, &s.A)
+// s.A = 123
+
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (w/o method): s<~VPBlock(1,1)>.A

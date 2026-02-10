@@ -1,21 +1,20 @@
 package users
 
 import (
-	"std"
 	"strconv"
 	"testing"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func TestResolveName(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		res, isLatest := ResolveName(alice)
 		uassert.Equal(t, aliceAddr, res.Addr())
@@ -26,7 +25,7 @@ func TestResolveName(t *testing.T) {
 	t.Run("name+Alias", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 		data, _ := ResolveName(alice)
 		urequire.NoError(t, data.UpdateName("alice1"))
 
@@ -41,7 +40,7 @@ func TestResolveName(t *testing.T) {
 	t.Run("multiple_aliases", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		// RegisterUser and check each Alias
 		var names []string
@@ -65,12 +64,12 @@ func TestResolveName(t *testing.T) {
 }
 
 func TestResolveAddress(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		res := ResolveAddress(aliceAddr)
 
@@ -81,7 +80,7 @@ func TestResolveAddress(t *testing.T) {
 	t.Run("name+Alias", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 		data, _ := ResolveName(alice)
 		urequire.NoError(t, data.UpdateName("alice1"))
 
@@ -95,7 +94,7 @@ func TestResolveAddress(t *testing.T) {
 	t.Run("multiple_aliases", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		// RegisterUser and check each Alias
 		var names []string
@@ -115,10 +114,10 @@ func TestResolveAddress(t *testing.T) {
 }
 
 func TestROStores(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 	cleanStore(t)
 
-	urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+	urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 	roNS := GetReadOnlyNameStore()
 	roAS := GetReadonlyAddrStore()
 
@@ -169,12 +168,12 @@ func TestROStores(t *testing.T) {
 }
 
 func TestResolveAny(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 
 	t.Run("name", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		res, _ := ResolveAny(alice)
 
@@ -185,7 +184,7 @@ func TestResolveAny(t *testing.T) {
 	t.Run("address", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		res, _ := ResolveAny(aliceAddr.String())
 

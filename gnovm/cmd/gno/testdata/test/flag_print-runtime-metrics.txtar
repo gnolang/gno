@@ -20,3 +20,8 @@ func TestTimeout(t *testing.T) {
 		println("plop")
 	}
 }
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/flag_print_runtime_metrics"
+gno = "0.9"

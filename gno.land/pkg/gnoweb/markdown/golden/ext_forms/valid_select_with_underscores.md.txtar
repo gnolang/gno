@@ -1,0 +1,25 @@
+-- input.md --
+
+<gno-form>
+<gno-select name="favorite_pet" value="Dog" />
+<gno-select name="favorite_pet" value="Cat" />
+<gno-select name="favorite_pet" value="Bird" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div class="gno-form_select"><label for="favorite_pet">Favorite Pet</label>
+<select id="favorite_pet" name="favorite_pet">
+<option value="">Select a Favorite Pet</option>
+<option value="Dog">Dog</option>
+<option value="Cat">Cat</option>
+<option value="Bird">Bird</option>
+</select>
+<svg class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><use href="#ico-arrow"></use></svg>
+</div>
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>

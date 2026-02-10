@@ -25,6 +25,7 @@ import (
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -34,7 +35,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/random"
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
 func TestMain(m *testing.M) {
@@ -370,7 +370,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	// height 2
 	height++
 	incrementHeight(vss...)
-	newValidatorPubKey1 := css[nVals].privValidator.GetPubKey()
+	newValidatorPubKey1 := css[nVals].privValidator.PubKey()
 	newValidatorTx1 := kvstore.MakeValSetChangeTx(newValidatorPubKey1, testMinPower)
 	err := assertMempool(css[0].txNotifier).CheckTx(newValidatorTx1, nil)
 	assert.Nil(t, err)
@@ -394,7 +394,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	// height 3
 	height++
 	incrementHeight(vss...)
-	updateValidatorPubKey1 := css[nVals].privValidator.GetPubKey()
+	updateValidatorPubKey1 := css[nVals].privValidator.PubKey()
 	updateValidatorTx1 := kvstore.MakeValSetChangeTx(updateValidatorPubKey1, 25)
 	err = assertMempool(css[0].txNotifier).CheckTx(updateValidatorTx1, nil)
 	assert.Nil(t, err)
@@ -418,11 +418,11 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	// height 4
 	height++
 	incrementHeight(vss...)
-	newValidatorPubKey2 := css[nVals+1].privValidator.GetPubKey()
+	newValidatorPubKey2 := css[nVals+1].privValidator.PubKey()
 	newValidatorTx2 := kvstore.MakeValSetChangeTx(newValidatorPubKey2, testMinPower)
 	err = assertMempool(css[0].txNotifier).CheckTx(newValidatorTx2, nil)
 	assert.Nil(t, err)
-	newValidatorPubKey3 := css[nVals+2].privValidator.GetPubKey()
+	newValidatorPubKey3 := css[nVals+2].privValidator.PubKey()
 	newValidatorTx3 := kvstore.MakeValSetChangeTx(newValidatorPubKey3, testMinPower)
 	err = assertMempool(css[0].txNotifier).CheckTx(newValidatorTx3, nil)
 	assert.Nil(t, err)
@@ -433,8 +433,9 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	copy(newVss, vss[:nVals+1])
 	sort.Sort(ValidatorStubsByAddress(newVss))
 	selfIndex := 0
+	cssPubKey := css[0].privValidator.PubKey()
 	for i, vs := range newVss {
-		if vs.GetPubKey().Equals(css[0].privValidator.GetPubKey()) {
+		if vs.PubKey().Equals(cssPubKey) {
 			selfIndex = i
 			break
 		}
@@ -490,8 +491,9 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	newVss = make([]*validatorStub, nVals+3)
 	copy(newVss, vss[:nVals+3])
 	sort.Sort(ValidatorStubsByAddress(newVss))
+	cssPubKey = css[0].privValidator.PubKey()
 	for i, vs := range newVss {
-		if vs.GetPubKey().Equals(css[0].privValidator.GetPubKey()) {
+		if vs.PubKey().Equals(cssPubKey) {
 			selfIndex = i
 			break
 		}
@@ -568,10 +570,8 @@ func TestHandshakeReplayOne(t *testing.T) {
 }
 
 // Sync from caught up
-func TestFlappyHandshakeReplayNone(t *testing.T) {
+func TestHandshakeReplayNone(t *testing.T) {
 	t.Parallel()
-
-	testutils.FilterStability(t, testutils.Flappy)
 
 	for _, m := range modes {
 		testHandshakeReplay(t, config, numBlocks, m, nil)
@@ -854,7 +854,10 @@ func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
 	//		- 0x03
 	config, genesisFile := ResetConfig("handshake_test_")
 	defer os.RemoveAll(config.RootDir)
-	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
+	fileSigner, err := signer.LoadOrMakeLocalSigner(config.Consensus.PrivValidator.LocalSignerPath())
+	require.NoError(t, err)
+	privVal, err := privval.NewPrivValidator(fileSigner, config.Consensus.PrivValidator.SignStatePath())
+	require.NoError(t, err)
 	const appVersion = "v0.0.0-test"
 	stateDB, state, store := makeStateAndStore(config, genesisFile, appVersion)
 	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)

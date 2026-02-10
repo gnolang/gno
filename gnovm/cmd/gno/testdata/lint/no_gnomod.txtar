@@ -1,6 +1,6 @@
 # gno lint: no gnomod
 
-gno lint .
+! gno lint .
 
 cmp stdout stdout.golden
 cmp stderr stderr.golden
@@ -14,4 +14,4 @@ func main() {
 
 -- stdout.golden --
 -- stderr.golden --
-auto-generated "gno.mod"
+gnowork.toml file not found in current or any parent directory and gnomod.toml doesn't exists in current directory

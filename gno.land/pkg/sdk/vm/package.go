@@ -24,4 +24,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	InvalidExprError{}, "InvalidExprError",
 	TypeCheckError{}, "TypeCheckError",
 	UnauthorizedUserError{}, "UnauthorizedUserError",
+	InvalidPackageError{}, "InvalidPackageError",
+	InvalidFileError{}, "InvalidFileError",
 ))

@@ -1,14 +1,15 @@
 package txfees
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 	"strings"
 )
 
 func Render(path string) string {
-	banker := std.NewBanker(std.BankerTypeReadonly)
-	realmAddr := std.CurrentRealm().Address()
-	balance := banker.GetCoins(realmAddr).String()
+	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	realmAddr := runtime.CurrentRealm().Address()
+	balance := banker_.GetCoins(realmAddr).String()
 
 	if strings.TrimSpace(balance) == "" {
 		balance = "\\<empty\\>"

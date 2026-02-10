@@ -1,14 +1,16 @@
 package home
 
 import (
-	"std"
+	"chain/runtime"
 	"strconv"
 
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/ui"
 	"gno.land/p/moul/dynreplacer"
+	"gno.land/p/nt/ownable"
 	blog "gno.land/r/gnoland/blog"
-	"gno.land/r/gnoland/events"
+
+	"gno.land/p/leon/svgbtn"
+	"gno.land/r/devrels/events"
+	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/leon/hor"
 )
 
@@ -30,123 +32,147 @@ func Render(_ string) string {
 		return hor.RenderExhibWidget(5)
 	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
+	r.RegisterCallback(":newsletter-button:", newsletterButton)
+	r.RegisterCallback(":latest-gnomes:", func() string {
+		return users.RenderLatestUsersWidget(5)
+	})
 	r.RegisterCallback(":chain-height:", func() string {
-		return strconv.Itoa(int(std.ChainHeight()))
+		return strconv.Itoa(int(runtime.ChainHeight()))
 	})
 
-	template := `# Welcome to gno.land
+	template := `# Welcome to Gno.land
 
-We’re building gno.land, set to become the leading open-source smart contract
+We’re building Gno.land, set to become the leading open-source smart contract
 platform, using Gno, an interpreted and fully deterministic variation of the
 Go programming language for succinct and composable smart contracts.
 
-With transparent and timeless code, gno.land is the next generation of smart
+With transparent and timeless code, Gno.land is the next generation of smart
 contract platforms, serving as the “GitHub” of the ecosystem, with realms built
 using fully transparent, auditable code that anyone can inspect and reuse.
 
-Intuitive and easy to use, gno.land lowers the barrier to web3 and makes
+Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes
 censorship-resistant platforms accessible to everyone. If you want to help lay
 the foundations of a fairer and freer world, join us today. 
 
-## Learn about gno.land
+
+<gno-columns>
+## Learn about Gno.land
 
 - [About](/about)
 - [GitHub](https://github.com/gnolang)
 - [Blog](/blog)
 - [Events](/events)
-- Tokenomics (soon)
 - [Partners, Fund, Grants](/partners)
 - [Explore the Ecosystem](/ecosystem)
 - [Careers](https://jobs.ashbyhq.com/allinbits)
+
+|||
 
 ## Build with Gno
 
 - [Write Gno in the browser](https://play.gno.land)
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
-- [Gno by Example](https://gno-by-example.com/)
-- [Efficient local development for Gno](https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev)
+- [Gno by Example](/r/docs/home)
+- [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
 - [Get testnet GNOTs](https://faucet.gno.land)
+
+|||
 
 ## Explore the universe
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
-- [Staging chain](https://docs.gno.land/concepts/portal-loop)
-- [Testnet 6](https://test6.gno.land/)
-- [Testnet 5](https://test5.gno.land/)
+- [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
+- [Testnet 10](https://test10.testnets.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
+- [Boards](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions): community forum
+
+</gno-columns>
+
+<gno-columns>
 
 ## [Latest Blogposts](/r/gnoland/blog)
 
 :latest-blogposts:
 
-## [Latest Events](/r/gnoland/events)
+|||
+
+## [Latest Events](/r/devrels/events)
 
 :upcoming-events:
+
+||| 
 
 ## [Hall of Realms](/r/leon/hor)
 
 :latest-hor:
 
+</gno-columns>
+
 ---
 
 ## [Gno Playground](https://play.gno.land)
 
-
 Gno Playground is a web application designed for building, running, testing, and
 interacting with your Gno code, enhancing your understanding of the Gno
 language. With Gno Playground, you can share your code, execute tests, deploy
-your realms and packages to gno.land, and explore a multitude of other features.
+your realms and packages to Gno.land, and explore a multitude of other features.
 
 Experience the convenience of code sharing and rapid experimentation with
 [Gno Playground](https://play.gno.land).
 
+---
+
 ## Explore New Packages and Realms
 
-### [r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)
+All code in Gno.land is organized in packages, and each package lives at a unique package path like
+"r/gnoland/home". You can browse packages, inspect their source, and use them in your own libraries and realms.
 
-- [r/gnoland/blog](/r/gnoland/blog)
-- [r/gnoland/users](/r/gnoland/users)
-- [r/gnoland/home](/r/gnoland/home)
-- [r/gnoland/pages](/r/gnoland/pages)
+<gno-columns>
 
-### [r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)
+### r/gnoland
 
-- [r/sys/names](/r/sys/names)
-- [r/sys/users](/r/sys/users)
-- [r/sys/rewards](/r/sys/rewards)
-- [/r/sys/validators/v2](/r/sys/validators/v2)
+Official realm packages developed by the Gno.land core team.
 
-### [r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)
+[Browse](/r/gnoland)
 
-- [r/demo/boards](/r/demo/boards)
-- [r/demo/banktest](/r/demo/banktest)
-- [r/demo/foo20](/r/demo/foo20)
-- [r/demo/foo721](/r/demo/foo721)
-- [r/demo/microblog](/r/demo/microblog)
-- [r/demo/nft](/r/demo/nft)
-- [r/demo/types](/r/demo/types)
-- [r/demo/art/gnoface](/r/demo/art/gnoface)
-- [r/demo/art/millipede](/r/demo/art/millipede)
-- [r/demo/groups](/r/demo/groups)
-- ...
+|||
 
-### [p/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo)
+### r/sys
 
-- [p/demo/avl](/p/demo/avl)
-- [p/demo/blog](/p/demo/blog)
-- [p/demo/ui](/p/demo/ui)
-- [p/demo/ufmt](/p/demo/ufmt)
-- [p/demo/merkle](/p/demo/merkle)
-- [p/demo/bf](/p/demo/bf)
-- [p/demo/flow](/p/demo/flow)
-- [p/demo/gnode](/p/demo/gnode)
-- [p/demo/grc/grc20](/p/demo/grc/grc20)
-- [p/demo/grc/grc721](/p/demo/grc/grc721)
-- ...
+System-level realm packages used by the chain.
+
+[Browse](/r/sys)
+
+|||
+
+### r/demo
+
+Demo realm packages showcasing what’s possible.
+
+[Browse](/r/demo)
+
+|||
+
+### p/demo
+
+Pure packages for demo purposes.
+
+[Browse](/p/demo)
+
+</gno-columns>
 
 ---
+
+<gno-columns>
+## Latest Gnomes
+
+Latest Gnomes in the [registry](/r/gnoland/users/v1).
+
+:latest-gnomes:
+
+|||
 
 ## Socials
 
@@ -156,15 +182,25 @@ Experience the convenience of code sharing and rapid experimentation with
 - [Youtube](https://www.youtube.com/@_gnoland)
 - [Telegram](https://t.me/gnoland)
 
-## Quote of the ~Day~ Block#:chain-height:
+|||
+
+## Quote of the ~Day~ Block #:chain-height:
 
 > :qotb:
 
+</gno-columns>
+
 ---
 
-**This is a testnet.**
-Package names are not guaranteed to be available for production.
-`
+## Sign up for our newsletter
+
+Stay in the Gno by signing up for our newsletter. You'll get the scoop on dev updates, fresh content, and community news.
+
+:newsletter-button:
+
+---
+
+**This is a testnet.** Package names are not guaranteed to be available for production.`
 
 	if override != "" {
 		template = override
@@ -173,13 +209,15 @@ Package names are not guaranteed to be available for production.
 	return result
 }
 
-func latestHOFItems(num int) ui.Element {
-	submissions := hor.RenderExhibWidget(num)
-
-	return ui.Element{
-		ui.H2("[Hall of Realms](/r/leon/hor)"),
-		ui.Text(submissions),
-	}
+func newsletterButton() string {
+	return svgbtn.Button(
+		256,
+		44,
+		"#226c57",
+		"#ffffff",
+		"Subscribe to stay in the Gno",
+		"https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b",
+	)
 }
 
 func quoteOfTheBlock() string {
@@ -190,14 +228,13 @@ func quoteOfTheBlock() string {
 		"Now, you Gno.",
 		"Come for the Go, Stay for the Gno.",
 	}
-	height := std.ChainHeight()
+	height := runtime.ChainHeight()
 	idx := int(height) % len(quotes)
 	qotb := quotes[idx]
 	return qotb
 }
 
-func AdminSetOverride(content string) {
-	crossing()
+func AdminSetOverride(cur realm, content string) {
 	Admin.AssertOwnedByPrevious()
 	override = content
 }

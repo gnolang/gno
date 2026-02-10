@@ -5,7 +5,7 @@ gno test -v .
 stdout 'hey'
 stdout 'hru?'
 stderr '=== RUN   ./x_filetest.gno'
-stderr '--- PASS: ./x_filetest.gno \(\d+\.\d\ds\)'
+stderr '--- PASS: ./x_filetest.gno \(elapsed: \d+\.\d\ds, gas: \d+\)'
 stderr 'ok      \. 	\d+\.\d\ds'
 
 -- x_filetest.gno --
@@ -19,3 +19,8 @@ func main() {
 // Output:
 // hey
 // hru?
+
+
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/output_correct'

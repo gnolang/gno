@@ -3,8 +3,8 @@
 gno test -print-events .
 
 ! stdout .+
-stderr 'EVENTS: \[{\"type\":\"EventA\",\"attrs\":\[\],\"pkg_path\":\"gno.land/r/.*\"\}]'
-stderr 'EVENTS: \[{\"type\":\"EventB\",\"attrs\":\[{\"key\":\"keyA\",\"value\":\"valA\"}\],\"pkg_path\":\"gno.land/r/.*\"},{\"type\":\"EventC\",\"attrs\":\[{\"key\":\"keyD\",\"value\":\"valD\"}\],\"pkg_path\":\"gno.land/r/.*\"}\]'
+stderr 'EVENTS: \[{\"type\":\"EventA\",\"attrs\":\[\],\"pkg_path\":\"gno.test/r/integ/multitest_events"\}]'
+stderr 'EVENTS: \[{\"type\":\"EventB\",\"attrs\":\[{\"key\":\"keyA\",\"value\":\"valA\"}\],\"pkg_path\":\"gno.test/r/integ/multitest_events"},{\"type\":\"EventC\",\"attrs\":\[{\"key\":\"keyD\",\"value\":\"valD\"}\],\"pkg_path\":\"gno.test/r/integ/multitest_events"}\]'
 stderr 'ok      \. 	\d+\.\d\ds'
 
 -- valid.gno --
@@ -14,13 +14,18 @@ package valid
 package valid
 
 import "testing"
-import "std"
+import "chain"
 
 func TestA(t *testing.T) {
-	std.Emit("EventA")
+	chain.Emit("EventA")
 }
 
 func TestB(t *testing.T) {
-	std.Emit("EventB", "keyA", "valA")
-	std.Emit("EventC", "keyD", "valD")
+	chain.Emit("EventB", "keyA", "valA")
+	chain.Emit("EventC", "keyD", "valD")
 }
+
+
+-- gnomod.toml --
+module = "gno.test/r/integ/multitest_events"
+gno = "0.9"

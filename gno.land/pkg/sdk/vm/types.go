@@ -17,8 +17,10 @@ type AccountKeeperI interface {
 type BankKeeperI interface {
 	GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins
 	SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
+	SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 	SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
 	AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
+	RestrictedDenoms(ctx sdk.Context) []string
 }
 
 // ParamsKeeperI is the limited interface only needed for VM.

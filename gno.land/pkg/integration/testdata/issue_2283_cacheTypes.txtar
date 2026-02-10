@@ -6,14 +6,14 @@
 # These are not necessary, but they "alleviate" add_feeds.tx from the
 # responsibility of loading standard libraries, thus not making it exceed
 # the --gas-wanted.
-loadpkg gno.land/p/demo/avl
-loadpkg gno.land/p/demo/avl/pager
-loadpkg gno.land/p/demo/avlhelpers
+loadpkg gno.land/p/nt/avl
+loadpkg gno.land/p/nt/avl/pager
+loadpkg gno.land/p/jefft0/avlhelpers
 loadpkg gno.land/p/moul/txlink
 
 loadpkg gno.land/p/demo/users $WORK/pusers
 loadpkg gno.land/r/demo/users $WORK/users
-loadpkg gno.land/r/demo/boards $WORK/boards
+loadpkg gno.land/r/archive/boards $WORK/boards
 
 gnoland start
 
@@ -38,23 +38,23 @@ stdout OK!
           },
           {
             "Name": "feed.gno",
-            "Body": "package social_feeds\n\nimport (\n\t\"std\"\n\t\"strconv\"\n\t\"strings\"\n\t\"time\"\n\n\t\"gno.land/p/demo/avl\"\n\t\"gno.land/p/demo/teritori/flags_index\"\n\tujson \"gno.land/p/demo/teritori/ujson\"\n\t\"gno.land/p/demo/ufmt\"\n)\n\ntype FeedID uint64\n\nfunc (fid FeedID) String() string {\n\treturn strconv.Itoa(int(fid))\n}\n\nfunc (fid *FeedID) FromJSON(ast *ujson.JSONASTNode) {\n\tval, err := strconv.Atoi(ast.Value)\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\t*fid = FeedID(val)\n}\n\nfunc (fid FeedID) ToJSON() string {\n\treturn strconv.Itoa(int(fid))\n}\n\ntype Feed struct {\n\tid        FeedID\n\turl       string\n\tname      string\n\tcreator   std.Address\n\towner     std.Address\n\tposts     avl.Tree // pidkey -> *Post\n\tcreatedAt int64\n\n\tflags             *flags_index.FlagsIndex\n\thiddenPostsByUser avl.Tree // std.Address => *avl.Tree (postID => bool)\n\n\tpostsCtr uint64\n}\n\nfunc newFeed(fid FeedID, url string, name string, creator std.Address) *Feed {\n\tif !reName.MatchString(name) {\n\t\tpanic(\"invalid feed name: \" + name)\n\t}\n\n\tif gFeedsByName.Has(name) {\n\t\tpanic(\"feed already exists: \" + name)\n\t}\n\n\treturn &Feed{\n\t\tid:        fid,\n\t\turl:       url,\n\t\tname:      name,\n\t\tcreator:   creator,\n\t\towner:     creator,\n\t\tposts:     avl.Tree{},\n\t\tcreatedAt: time.Now().Unix(),\n\t\tflags:     flags_index.NewFlagsIndex(),\n\t\tpostsCtr:  0,\n\t}\n}\n\nfunc (feed *Feed) incGetPostID() PostID {\n\tfeed.postsCtr++\n\treturn PostID(feed.postsCtr)\n}\n\nfunc (feed *Feed) GetPost(pid PostID) *Post {\n\tpidkey := postIDKey(pid)\n\tpost_, exists := feed.posts.Get(pidkey)\n\tif !exists {\n\t\treturn nil\n\t}\n\treturn post_.(*Post)\n}\n\nfunc (feed *Feed) MustGetPost(pid PostID) *Post {\n\tpost := feed.GetPost(pid)\n\tif post == nil {\n\t\tpanic(\"post does not exist\")\n\t}\n\treturn post\n}\n\nfunc (feed *Feed) AddPost(creator std.Address, parentID PostID, category uint64, metadata string) *Post {\n\tpid := feed.incGetPostID()\n\tpidkey := postIDKey(pid)\n\n\tpost := newPost(feed, pid, creator, parentID, category, metadata)\n\tfeed.posts.Set(pidkey, post)\n\n\t// If post is a comment then increase the comment count on parent\n\tif uint64(parentID) != 0 {\n\t\tparent := feed.MustGetPost(parentID)\n\t\tparent.commentsCount += 1\n\t}\n\n\treturn post\n}\n\nfunc (feed *Feed) FlagPost(flagBy std.Address, pid PostID) {\n\tflagID := getFlagID(feed.id, pid)\n\n\tif feed.flags.HasFlagged(flagID, flagBy.String()) {\n\t\tpanic(\"already flagged\")\n\t}\n\n\tfeed.flags.Flag(flagID, flagBy.String())\n}\n\nfunc (feed *Feed) BanPost(pid PostID) {\n\tpidkey := postIDKey(pid)\n\t_, removed := feed.posts.Remove(pidkey)\n\tif !removed {\n\t\tpanic(\"post does not exist with id \" + pid.String())\n\t}\n}\n\nfunc (feed *Feed) HidePostForUser(caller std.Address, pid PostID) {\n\tuserAddr := caller.String()\n\n\tvalue, exists := feed.hiddenPostsByUser.Get(userAddr)\n\tvar hiddenPosts *avl.Tree\n\tif exists {\n\t\thiddenPosts = value.(*avl.Tree)\n\t} else {\n\t\thiddenPosts = avl.NewTree()\n\t\tfeed.hiddenPostsByUser.Set(userAddr, hiddenPosts)\n\t}\n\n\tif hiddenPosts.Has(pid.String()) {\n\t\tpanic(\"PostID is already hidden: \" + pid.String())\n\t}\n\n\thiddenPosts.Set(pid.String(), true)\n}\n\nfunc (feed *Feed) UnHidePostForUser(userAddress std.Address, pid PostID) {\n\tvalue, exists := feed.hiddenPostsByUser.Get(userAddress.String())\n\tvar hiddenPosts *avl.Tree\n\tif exists {\n\t\thiddenPosts = value.(*avl.Tree)\n\t\t_, removed := hiddenPosts.Remove(pid.String())\n\t\tif !removed {\n\t\t\tpanic(\"Post is not hidden: \" + pid.String())\n\t\t}\n\t} else {\n\t\tpanic(\"User has not hidden post: \" + pid.String())\n\t}\n}\n\nfunc (feed *Feed) Render() string {\n\tpkgpath := std.CurrentRealmPath()\n\n\tstr := \"\"\n\tstr += ufmt.Sprintf(\"Feed: %s (ID: %s) - Owner: %s\", feed.name, feed.id, feed.owner)\n\tstr += \"\\n\\n There are \" + intToString(feed.posts.Size()) + \" post(s) \\n\\n\"\n\n\tif feed.posts.Size() > 0 {\n\t\tfeed.posts.Iterate(\"\", \"\", func(key string, value interface{}) bool {\n\t\t\tif str != \"\" {\n\t\t\t\tstr += \"\\n\"\n\t\t\t}\n\n\t\t\tpost := value.(*Post)\n\t\t\tpostUrl := strings.Replace(pkgpath, \"gno.land\", \"\", -1) + \":\" + feed.name + \"/\" + post.id.String()\n\n\t\t\tstr += \" * [\" +\n\t\t\t\t\"PostID: \" + post.id.String() +\n\t\t\t\t\" - \" + intToString(post.reactions.Size()) + \" reactions \" +\n\t\t\t\t\" - \" + ufmt.Sprintf(\"%d\", post.tipAmount) + \" tip amount\" +\n\t\t\t\t\"]\" +\n\t\t\t\t\"(\" + postUrl + \")\" +\n\t\t\t\t\"\\n\"\n\t\t\treturn false\n\t\t})\n\n\t\tstr += \"-------------------------\\n\"\n\t\tstr += feed.flags.Dump()\n\t}\n\n\tstr += \"---------------------------------------\\n\"\n\tif feed.hiddenPostsByUser.Size() > 0 {\n\t\tstr += \"Hidden posts by users:\\n\\n\"\n\n\t\tfeed.hiddenPostsByUser.Iterate(\"\", \"\", func(userAddr string, value interface{}) bool {\n\t\t\thiddenPosts := value.(*avl.Tree)\n\t\t\tstr += \"\\nUser address: \" + userAddr + \"\\n\"\n\n\t\t\thiddenPosts.Iterate(\"\", \"\", func(pid string, value interface{}) bool {\n\t\t\t\tstr += \"- PostID: \" + pid + \"\\n\"\n\t\t\t\treturn false\n\t\t\t})\n\n\t\t\treturn false\n\t\t})\n\t}\n\n\treturn str\n}\n\nfunc (feed *Feed) ToJSON() string {\n\tposts := []ujson.FormatKV{}\n\tfeed.posts.Iterate(\"\", \"\", func(key string, value interface{}) bool {\n\t\tposts = append(posts, ujson.FormatKV{\n\t\t\tKey:   key,\n\t\t\tValue: value.(*Post),\n\t\t})\n\t\treturn false\n\t})\n\tfeedJSON := ujson.FormatObject([]ujson.FormatKV{\n\t\t{Key: \"id\", Value: uint64(feed.id)},\n\t\t{Key: \"url\", Value: feed.url},\n\t\t{Key: \"name\", Value: feed.name},\n\t\t{Key: \"creator\", Value: feed.creator},\n\t\t{Key: \"owner\", Value: feed.owner},\n\t\t{Key: \"posts\", Value: ujson.FormatObject(posts), Raw: true},\n\t\t{Key: \"createdAt\", Value: feed.createdAt},\n\t\t{Key: \"postsCtr\", Value: feed.postsCtr},\n\t\t// TODO: convert flags, hiddenPostsByUser\n\t\t// {Key: \"flags\", Value: feed.flags},\n\t\t// {Key: \"hiddenPostsByUser\", Value: feed.hiddenPostsByUser},\n\t})\n\treturn feedJSON\n}\n\nfunc (feed *Feed) FromJSON(jsonData string) {\n\tast := ujson.TokenizeAndParse(jsonData)\n\tast.ParseObject([]*ujson.ParseKV{\n\t\t{Key: \"id\", CustomParser: func(node *ujson.JSONASTNode) {\n\t\t\tfid, _ := strconv.Atoi(node.Value)\n\t\t\tfeed.id = FeedID(fid)\n\t\t}},\n\t\t{Key: \"url\", Value: &feed.url},\n\t\t{Key: \"name\", Value: &feed.name},\n\t\t{Key: \"creator\", Value: &feed.creator},\n\t\t{Key: \"owner\", Value: &feed.owner},\n\t\t{Key: \"posts\", CustomParser: func(node *ujson.JSONASTNode) {\n\t\t\tposts := avl.NewTree()\n\t\t\tfor _, child := range node.ObjectChildren {\n\t\t\t\tpostNode := child.Value\n\n\t\t\t\tpost := Post{}\n\t\t\t\tpost.FromJSON(postNode.String())\n\t\t\t\tposts.Set(child.Key, &post)\n\t\t\t}\n\t\t\tfeed.posts = *posts\n\t\t}},\n\t\t{Key: \"createdAt\", Value: &feed.createdAt},\n\t\t{Key: \"postsCtr\", Value: &feed.postsCtr},\n\t})\n}\n"
+                    "Body": "package social_feeds\n\nimport (\n\t\"std\"\n\t\"strconv\"\n\t\"strings\"\n\t\"time\"\n\n\t\"gno.land/p/nt/avl\"\n\t\"gno.land/p/demo/teritori/flags_index\"\n\tujson \"gno.land/p/demo/teritori/ujson\"\n\t\"gno.land/p/nt/ufmt\"\n)\n\ntype FeedID uint64\n\nfunc (fid FeedID) String() string {\n\treturn strconv.Itoa(int(fid))\n}\n\nfunc (fid *FeedID) FromJSON(ast *ujson.JSONASTNode) {\n\tval, err := strconv.Atoi(ast.Value)\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\t*fid = FeedID(val)\n}\n\nfunc (fid FeedID) ToJSON() string {\n\treturn strconv.Itoa(int(fid))\n}\n\ntype Feed struct {\n\tid        FeedID\n\turl       string\n\tname      string\n\tcreator   std.Address\n\towner     std.Address\n\tposts     avl.Tree // pidkey -> *Post\n\tcreatedAt int64\n\n\tflags             *flags_index.FlagsIndex\n\thiddenPostsByUser avl.Tree // std.Address => *avl.Tree (postID => bool)\n\n\tpostsCtr uint64\n}\n\nfunc newFeed(fid FeedID, url string, name string, creator std.Address) *Feed {\n\tif !reName.MatchString(name) {\n\t\tpanic(\"invalid feed name: \" + name)\n\t}\n\n\tif gFeedsByName.Has(name) {\n\t\tpanic(\"feed already exists: \" + name)\n\t}\n\n\treturn &Feed{\n\t\tid:        fid,\n\t\turl:       url,\n\t\tname:      name,\n\t\tcreator:   creator,\n\t\towner:     creator,\n\t\tposts:     avl.Tree{},\n\t\tcreatedAt: time.Now().Unix(),\n\t\tflags:     flags_index.NewFlagsIndex(),\n\t\tpostsCtr:  0,\n\t}\n}\n\nfunc (feed *Feed) incGetPostID() PostID {\n\tfeed.postsCtr++\n\treturn PostID(feed.postsCtr)\n}\n\nfunc (feed *Feed) GetPost(pid PostID) *Post {\n\tpidkey := postIDKey(pid)\n\tpost_, exists := feed.posts.Get(pidkey)\n\tif !exists {\n\t\treturn nil\n\t}\n\treturn post_.(*Post)\n}\n\nfunc (feed *Feed) MustGetPost(pid PostID) *Post {\n\tpost := feed.GetPost(pid)\n\tif post == nil {\n\t\tpanic(\"post does not exist\")\n\t}\n\treturn post\n}\n\nfunc (feed *Feed) AddPost(creator std.Address, parentID PostID, category uint64, metadata string) *Post {\n\tpid := feed.incGetPostID()\n\tpidkey := postIDKey(pid)\n\n\tpost := newPost(feed, pid, creator, parentID, category, metadata)\n\tfeed.posts.Set(pidkey, post)\n\n\t// If post is a comment then increase the comment count on parent\n\tif uint64(parentID) != 0 {\n\t\tparent := feed.MustGetPost(parentID)\n\t\tparent.commentsCount += 1\n\t}\n\n\treturn post\n}\n\nfunc (feed *Feed) FlagPost(flagBy std.Address, pid PostID) {\n\tflagID := getFlagID(feed.id, pid)\n\n\tif feed.flags.HasFlagged(flagID, flagBy.String()) {\n\t\tpanic(\"already flagged\")\n\t}\n\n\tfeed.flags.Flag(flagID, flagBy.String())\n}\n\nfunc (feed *Feed) BanPost(pid PostID) {\n\tpidkey := postIDKey(pid)\n\t_, removed := feed.posts.Remove(pidkey)\n\tif !removed {\n\t\tpanic(\"post does not exist with id \" + pid.String())\n\t}\n}\n\nfunc (feed *Feed) HidePostForUser(caller std.Address, pid PostID) {\n\tuserAddr := caller.String()\n\n\tvalue, exists := feed.hiddenPostsByUser.Get(userAddr)\n\tvar hiddenPosts *avl.Tree\n\tif exists {\n\t\thiddenPosts = value.(*avl.Tree)\n\t} else {\n\t\thiddenPosts = avl.NewTree()\n\t\tfeed.hiddenPostsByUser.Set(userAddr, hiddenPosts)\n\t}\n\n\tif hiddenPosts.Has(pid.String()) {\n\t\tpanic(\"PostID is already hidden: \" + pid.String())\n\t}\n\n\thiddenPosts.Set(pid.String(), true)\n}\n\nfunc (feed *Feed) UnHidePostForUser(userAddress std.Address, pid PostID) {\n\tvalue, exists := feed.hiddenPostsByUser.Get(userAddress.String())\n\tvar hiddenPosts *avl.Tree\n\tif exists {\n\t\thiddenPosts = value.(*avl.Tree)\n\t\t_, removed := hiddenPosts.Remove(pid.String())\n\t\tif !removed {\n\t\t\tpanic(\"Post is not hidden: \" + pid.String())\n\t\t}\n\t} else {\n\t\tpanic(\"User has not hidden post: \" + pid.String())\n\t}\n}\n\nfunc (feed *Feed) Render() string {\n\tpkgpath := std.CurrentRealmPath()\n\n\tstr := \"\"\n\tstr += ufmt.Sprintf(\"Feed: %s (ID: %s) - Owner: %s\", feed.name, feed.id, feed.owner)\n\tstr += \"\\n\\n There are \" + intToString(feed.posts.Size()) + \" post(s) \\n\\n\"\n\n\tif feed.posts.Size() > 0 {\n\t\tfeed.posts.Iterate(\"\", \"\", func(key string, value interface{}) bool {\n\t\t\tif str != \"\" {\n\t\t\t\tstr += \"\\n\"\n\t\t\t}\n\n\t\t\tpost := value.(*Post)\n\t\t\tpostUrl := strings.Replace(pkgpath, \"gno.land\", \"\", -1) + \":\" + feed.name + \"/\" + post.id.String()\n\n\t\t\tstr += \" * [\" +\n\t\t\t\t\"PostID: \" + post.id.String() +\n\t\t\t\t\" - \" + intToString(post.reactions.Size()) + \" reactions \" +\n\t\t\t\t\" - \" + ufmt.Sprintf(\"%d\", post.tipAmount) + \" tip amount\" +\n\t\t\t\t\"]\" +\n\t\t\t\t\"(\" + postUrl + \")\" +\n\t\t\t\t\"\\n\"\n\t\t\treturn false\n\t\t})\n\n\t\tstr += \"-------------------------\\n\"\n\t\tstr += feed.flags.Dump()\n\t}\n\n\tstr += \"---------------------------------------\\n\"\n\tif feed.hiddenPostsByUser.Size() > 0 {\n\t\tstr += \"Hidden posts by users:\\n\\n\"\n\n\t\tfeed.hiddenPostsByUser.Iterate(\"\", \"\", func(userAddr string, value interface{}) bool {\n\t\t\thiddenPosts := value.(*avl.Tree)\n\t\t\tstr += \"\\nUser address: \" + userAddr + \"\\n\"\n\n\t\t\thiddenPosts.Iterate(\"\", \"\", func(pid string, value interface{}) bool {\n\t\t\t\tstr += \"- PostID: \" + pid + \"\\n\"\n\t\t\t\treturn false\n\t\t\t})\n\n\t\t\treturn false\n\t\t})\n\t}\n\n\treturn str\n}\n\nfunc (feed *Feed) ToJSON() string {\n\tposts := []ujson.FormatKV{}\n\tfeed.posts.Iterate(\"\", \"\", func(key string, value interface{}) bool {\n\t\tposts = append(posts, ujson.FormatKV{\n\t\t\tKey:   key,\n\t\t\tValue: value.(*Post),\n\t\t})\n\t\treturn false\n\t})\n\tfeedJSON := ujson.FormatObject([]ujson.FormatKV{\n\t\t{Key: \"id\", Value: uint64(feed.id)},\n\t\t{Key: \"url\", Value: feed.url},\n\t\t{Key: \"name\", Value: feed.name},\n\t\t{Key: \"creator\", Value: feed.creator},\n\t\t{Key: \"owner\", Value: feed.owner},\n\t\t{Key: \"posts\", Value: ujson.FormatObject(posts), Raw: true},\n\t\t{Key: \"createdAt\", Value: feed.createdAt},\n\t\t{Key: \"postsCtr\", Value: feed.postsCtr},\n\t\t// TODO: convert flags, hiddenPostsByUser\n\t\t// {Key: \"flags\", Value: feed.flags},\n\t\t// {Key: \"hiddenPostsByUser\", Value: feed.hiddenPostsByUser},\n\t})\n\treturn feedJSON\n}\n\nfunc (feed *Feed) FromJSON(jsonData string) {\n\tast := ujson.TokenizeAndParse(jsonData)\n\tast.ParseObject([]*ujson.ParseKV{\n\t\t{Key: \"id\", CustomParser: func(node *ujson.JSONASTNode) {\n\t\t\tfid, _ := strconv.Atoi(node.Value)\n\t\t\tfeed.id = FeedID(fid)\n\t\t}},\n\t\t{Key: \"url\", Value: &feed.url},\n\t\t{Key: \"name\", Value: &feed.name},\n\t\t{Key: \"creator\", Value: &feed.creator},\n\t\t{Key: \"owner\", Value: &feed.owner},\n\t\t{Key: \"posts\", CustomParser: func(node *ujson.JSONASTNode) {\n\t\t\tposts := avl.NewTree()\n\t\t\tfor _, child := range node.ObjectChildren {\n\t\t\t\tpostNode := child.Value\n\n\t\t\t\tpost := Post{}\n\t\t\t\tpost.FromJSON(postNode.String())\n\t\t\t\tposts.Set(child.Key, &post)\n\t\t\t}\n\t\t\tfeed.posts = *posts\n\t\t}},\n\t\t{Key: \"createdAt\", Value: &feed.createdAt},\n\t\t{Key: \"postsCtr\", Value: &feed.postsCtr},\n\t})\n}\n"
           },
           {
             "Name": "feeds.gno",
-            "Body": "package social_feeds\n\nimport (\n\t\"regexp\"\n\n\t\"gno.land/p/demo/avl\"\n)\n\n//----------------------------------------\n// Realm (package) state\n\nvar (\n\tgFeeds          avl.Tree    // id -> *Feed\n\tgFeedsCtr       int         // increments Feed.id\n\tgFeedsByName    avl.Tree    // name -> *Feed\n\tgDefaultAnonFee = 100000000 // minimum fee required if anonymous\n)\n\n//----------------------------------------\n// Constants\n\nvar reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{2,29}$`)\n"
+            "Body": "package social_feeds\n\nimport (\n\t\"regexp\"\n\n\t\"gno.land/p/nt/avl\"\n)\n\n//----------------------------------------\n// Realm (package) state\n\nvar (\n\tgFeeds          avl.Tree    // id -> *Feed\n\tgFeedsCtr       int         // increments Feed.id\n\tgFeedsByName    avl.Tree    // name -> *Feed\n\tgDefaultAnonFee = 100000000 // minimum fee required if anonymous\n)\n\n//----------------------------------------\n// Constants\n\nvar reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{2,29}$`)\n"
           },
           {
             "Name": "feeds_test.gno",
-            "Body": "package social_feeds\n\nimport (\n\t\"encoding/base64\"\n\t\"fmt\"\n\t\"std\"\n\t\"strconv\"\n\t\"strings\"\n\t\"testing\"\n\n\t\"gno.land/p/demo/avl\"\n\tujson \"gno.land/p/demo/teritori/ujson\"\n\t\"gno.land/p/demo/testutils\"\n\t\"gno.land/r/demo/boards\"\n\t// Fake previous version for testing\n\tfeedsV7 \"gno.land/r/demo/teritori/social_feeds\"\n\t\"gno.land/r/demo/users\"\n)\n\nvar (\n\trootPostID = PostID(0)\n\tpostID1    = PostID(1)\n\tfeedID1    = FeedID(1)\n\tcat1       = uint64(1)\n\tcat2       = uint64(2)\n\tuser       = testutils.TestAddress(\"user\")\n\tfilter_all = []uint64{}\n)\n\nfunc getFeed1() *Feed {\n\treturn mustGetFeed(feedID1)\n}\n\nfunc getPost1() *Post {\n\tfeed1 := getFeed1()\n\tpost1 := feed1.MustGetPost(postID1)\n\treturn post1\n}\n\nfunc testCreateFeed(t *testing.T) {\n\tfeedID := CreateFeed(\"teritori1\")\n\tfeed := mustGetFeed(feedID)\n\n\tif feedID != 1 {\n\t\tt.Fatalf(\"expected feedID: 1, got %q.\", feedID)\n\t}\n\n\tif feed.name != \"teritori1\" {\n\t\tt.Fatalf(\"expected feedName: teritori1, got %q.\", feed.name)\n\t}\n}\n\nfunc testCreatePost(t *testing.T) {\n\tmetadata := `{\"gifs\": [], \"files\": [], \"title\": \"\", \"message\": \"testouille\", \"hashtags\": [], \"mentions\": [], \"createdAt\": \"2023-03-29T12:19:04.858Z\", \"updatedAt\": \"2023-03-29T12:19:04.858Z\"}`\n\tpostID := CreatePost(feedID1, rootPostID, cat1, metadata)\n\tfeed := mustGetFeed(feedID1)\n\tpost := feed.MustGetPost(postID)\n\n\tif postID != 1 {\n\t\tt.Fatalf(\"expected postID: 1, got %q.\", postID)\n\t}\n\n\tif post.category != cat1 {\n\t\tt.Fatalf(\"expected categoryID: %q, got %q.\", cat1, post.category)\n\t}\n}\n\nfunc toPostIDsStr(posts []*Post) string {\n\tvar postIDs []string\n\tfor _, post := range posts {\n\t\tpostIDs = append(postIDs, post.id.String())\n\t}\n\n\tpostIDsStr := strings.Join(postIDs, \",\")\n\treturn postIDsStr\n}\n\nfunc testGetPosts(t *testing.T) {\n\tuser := std.Address(\"user\")\n\tstd.TestSetOrigCaller(user)\n\n\tfeedID := CreateFeed(\"teritori10\")\n\tfeed := mustGetFeed(feedID)\n\n\tCreatePost(feedID, rootPostID, cat1, \"post1\")\n\tCreatePost(feedID, rootPostID, cat1, \"post2\")\n\tCreatePost(feedID, rootPostID, cat1, \"post3\")\n\tCreatePost(feedID, rootPostID, cat1, \"post4\")\n\tCreatePost(feedID, rootPostID, cat1, \"post5\")\n\tpostIDToFlagged := CreatePost(feedID, rootPostID, cat1, \"post6\")\n\tpostIDToHide := CreatePost(feedID, rootPostID, cat1, \"post7\")\n\tCreatePost(feedID, rootPostID, cat1, \"post8\")\n\n\tvar posts []*Post\n\tvar postIDsStr string\n\n\t// Query last 3 posts\n\tposts = getPosts(feed, 0, \"\", \"\", []uint64{}, 0, 3)\n\tpostIDsStr = toPostIDsStr(posts)\n\n\tif postIDsStr != \"8,7,6\" {\n\t\tt.Fatalf(\"expected posts order: 8,7,6. Got: %s\", postIDsStr)\n\t}\n\n\t// Query page 2\n\tposts = getPosts(feed, 0, \"\", \"\", []uint64{}, 3, 3)\n\tpostIDsStr = toPostIDsStr(posts)\n\tif postIDsStr != \"5,4,3\" {\n\t\tt.Fatalf(\"expected posts order: 5,4,3. Got: %s\", postIDsStr)\n\t}\n\n\t// Exclude hidden post\n\tHidePostForMe(feed.id, postIDToHide)\n\n\tposts = getPosts(feed, 0, user.String(), \"\", []uint64{}, 0, 3)\n\tpostIDsStr = toPostIDsStr(posts)\n\n\tif postIDsStr != \"8,6,5\" {\n\t\tt.Fatalf(\"expected posts order: 8,6,5. Got: %s\", postIDsStr)\n\t}\n\n\t// Exclude flagged post\n\tFlagPost(feed.id, postIDToFlagged)\n\n\tposts = getPosts(feed, 0, user.String(), \"\", []uint64{}, 0, 3)\n\tpostIDsStr = toPostIDsStr(posts)\n\n\tif postIDsStr != \"8,5,4\" {\n\t\tt.Fatalf(\"expected posts order: 8,5,4. Got: %s\", postIDsStr)\n\t}\n\n\t// Pagination with hidden/flagged posts\n\tposts = getPosts(feed, 0, user.String(), \"\", []uint64{}, 3, 3)\n\tpostIDsStr = toPostIDsStr(posts)\n\n\tif postIDsStr != \"3,2,1\" {\n\t\tt.Fatalf(\"expected posts order: 3,2,1. Got: %s\", postIDsStr)\n\t}\n\n\t// Query out of range\n\tposts = getPosts(feed, 0, user.String(), \"\", []uint64{}, 6, 3)\n\tpostIDsStr = toPostIDsStr(posts)\n\n\tif postIDsStr != \"\" {\n\t\tt.Fatalf(\"expected posts order: ''. Got: %s\", postIDsStr)\n\t}\n}\n\nfunc testReactPost(t *testing.T) {\n\tfeed := getFeed1()\n\tpost := getPost1()\n\n\ticon := \"🥰\"\n\tReactPost(feed.id, post.id, icon, true)\n\n\t// Set reaction\n\treactionCount_, ok := post.reactions.Get(\"🥰\")\n\tif !ok {\n\t\tt.Fatalf(\"expected 🥰 exists\")\n\t}\n\n\treactionCount := reactionCount_.(int)\n\tif reactionCount != 1 {\n\t\tt.Fatalf(\"expected reactionCount: 1, got %q.\", reactionCount)\n\t}\n\n\t// Unset reaction\n\tReactPost(feed.id, post.id, icon, false)\n\t_, exist := post.reactions.Get(\"🥰\")\n\tif exist {\n\t\tt.Fatalf(\"expected 🥰 not exist\")\n\t}\n}\n\nfunc testCreateAndDeleteComment(t *testing.T) {\n\tfeed1 := getFeed1()\n\tpost1 := getPost1()\n\n\tmetadata := `empty_meta_data`\n\n\tcommentID1 := CreatePost(feed1.id, post1.id, cat1, metadata)\n\tcommentID2 := CreatePost(feed1.id, post1.id, cat1, metadata)\n\tcomment2 := feed1.MustGetPost(commentID2)\n\n\tif comment2.id != 3 { // 1 post + 2 comments = 3\n\t\tt.Fatalf(\"expected comment postID: 3, got %q.\", comment2.id)\n\t}\n\n\tif comment2.parentID != post1.id {\n\t\tt.Fatalf(\"expected comment parentID: %q, got %q.\", post1.id, comment2.parentID)\n\t}\n\n\t// Check comment count on parent\n\tif post1.commentsCount != 2 {\n\t\tt.Fatalf(\"expected comments count: 2, got %d.\", post1.commentsCount)\n\t}\n\n\t// Get comments\n\tcomments := GetComments(feed1.id, post1.id, 0, 10)\n\tcommentsParsed := ujson.ParseSlice(comments)\n\n\tif len(commentsParsed) != 2 {\n\t\tt.Fatalf(\"expected encoded comments: 2, got %q.\", commentsParsed)\n\t}\n\n\t// Delete 1 comment\n\tDeletePost(feed1.id, comment2.id)\n\tcomments = GetComments(feed1.id, post1.id, 0, 10)\n\tcommentsParsed = ujson.ParseSlice(comments)\n\n\tif len(commentsParsed) != 1 {\n\t\tt.Fatalf(\"expected encoded comments: 1, got %q.\", commentsParsed)\n\t}\n\n\t// Check comment count on parent\n\tif post1.commentsCount != 1 {\n\t\tt.Fatalf(\"expected comments count: 1, got %d.\", post1.commentsCount)\n\t}\n}\n\nfunc countPosts(feedID FeedID, categories []uint64, limit uint8) int {\n\toffset := uint64(0)\n\n\tpostsStr := GetPosts(feedID, 0, \"\", categories, offset, limit)\n\tif postsStr == \"[]\" {\n\t\treturn 0\n\t}\n\n\tparsedPosts := ujson.ParseSlice(postsStr)\n\tpostsCount := len(parsedPosts)\n\treturn postsCount\n}\n\nfunc countPostsByUser(feedID FeedID, user string) int {\n\toffset := uint64(0)\n\tlimit := uint8(10)\n\n\tpostsStr := GetPosts(feedID, 0, user, []uint64{}, offset, limit)\n\tif postsStr == \"[]\" {\n\t\treturn 0\n\t}\n\n\tparsedPosts := ujson.ParseSlice(postsStr)\n\tpostsCount := len(parsedPosts)\n\treturn postsCount\n}\n\nfunc testFilterByCategories(t *testing.T) {\n\t// // Re-add reaction to test post list\n\t// ReactPost(1, postID, \"🥰\", true)\n\t// ReactPost(1, postID, \"😇\", true)\n\n\tfilter_cat1 := []uint64{1}\n\tfilter_cat1_2 := []uint64{1, 2}\n\tfilter_cat9 := []uint64{9}\n\tfilter_cat1_2_9 := []uint64{1, 2, 9}\n\n\tfeedID2 := CreateFeed(\"teritori2\")\n\tfeed2 := mustGetFeed(feedID2)\n\n\t// Create 2 posts on root with cat1\n\tpostID1 := CreatePost(feed2.id, rootPostID, cat1, \"metadata\")\n\tpostID2 := CreatePost(feed2.id, rootPostID, cat1, \"metadata\")\n\n\t// Create 1 posts on root with cat2\n\tpostID3 := CreatePost(feed2.id, rootPostID, cat2, \"metadata\")\n\n\t// Create comments on post 1\n\tcommentPostID1 := CreatePost(feed2.id, postID1, cat1, \"metadata\")\n\n\t// cat1: Should return max = limit\n\tif count := countPosts(feed2.id, filter_cat1, 1); count != 1 {\n\t\tt.Fatalf(\"expected posts count: 1, got %q.\", count)\n\t}\n\n\t// cat1: Should return max = total\n\tif count := countPosts(feed2.id, filter_cat1, 10); count != 2 {\n\t\tt.Fatalf(\"expected posts count: 2, got %q.\", count)\n\t}\n\n\t// cat 1 + 2: Should return max = limit\n\tif count := countPosts(feed2.id, filter_cat1_2, 2); count != 2 {\n\t\tt.Fatalf(\"expected posts count: 2, got %q.\", count)\n\t}\n\n\t// cat 1 + 2: Should return max = total on both\n\tif count := countPosts(feed2.id, filter_cat1_2, 10); count != 3 {\n\t\tt.Fatalf(\"expected posts count: 3, got %q.\", count)\n\t}\n\n\t// cat 1, 2, 9: Should return total of 1, 2\n\tif count := countPosts(feed2.id, filter_cat1_2_9, 10); count != 3 {\n\t\tt.Fatalf(\"expected posts count: 3, got %q.\", count)\n\t}\n\n\t// cat 9: Should return 0\n\tif count := countPosts(feed2.id, filter_cat9, 10); count != 0 {\n\t\tt.Fatalf(\"expected posts count: 0, got %q.\", count)\n\t}\n\n\t// cat all: should return all\n\tif count := countPosts(feed2.id, filter_all, 10); count != 3 {\n\t\tt.Fatalf(\"expected posts count: 3, got %q.\", count)\n\t}\n\n\t// add comments should not impact the results\n\tCreatePost(feed2.id, postID1, cat1, \"metadata\")\n\tCreatePost(feed2.id, postID2, cat1, \"metadata\")\n\n\tif count := countPosts(feed2.id, filter_all, 10); count != 3 {\n\t\tt.Fatalf(\"expected posts count: 3, got %q.\", count)\n\t}\n\n\t// delete a post should affect the result\n\tDeletePost(feed2.id, postID1)\n\n\tif count := countPosts(feed2.id, filter_all, 10); count != 2 {\n\t\tt.Fatalf(\"expected posts count: 2, got %q.\", count)\n\t}\n}\n\nfunc testTipPost(t *testing.T) {\n\tcreator := testutils.TestAddress(\"creator\")\n\tstd.TestIssueCoins(creator, std.Coins{{\"ugnot\", 100_000_000}})\n\n\t// NOTE: Dont know why the address should be this to be able to call banker (= std.CallerAt(1))\n\ttipper := testutils.TestAddress(\"tipper\")\n\tstd.TestIssueCoins(tipper, std.Coins{{\"ugnot\", 50_000_000}})\n\n\tbanker := std.GetBanker(std.BankerTypeReadonly)\n\n\t// Check Original coins of creator/tipper\n\tif coins := banker.GetCoins(creator); coins[0].Amount != 100_000_000 {\n\t\tt.Fatalf(\"expected creator coin count: 100_000_000, got %d.\", coins[0].Amount)\n\t}\n\n\tif coins := banker.GetCoins(tipper); coins[0].Amount != 50_000_000 {\n\t\tt.Fatalf(\"expected tipper coin count: 50_000_000, got %d.\", coins[0].Amount)\n\t}\n\n\t// Creator creates feed, post\n\tstd.TestSetOrigCaller(creator)\n\n\tfeedID3 := CreateFeed(\"teritori3\")\n\tfeed3 := mustGetFeed(feedID3)\n\n\tpostID1 := CreatePost(feed3.id, rootPostID, cat1, \"metadata\")\n\tpost1 := feed3.MustGetPost(postID1)\n\n\t// Tiper tips the ppst\n\tstd.TestSetOrigCaller(tipper)\n\tstd.TestSetOrigSend(std.Coins{{\"ugnot\", 1_000_000}}, nil)\n\tTipPost(feed3.id, post1.id)\n\n\t// Coin must be increased for creator\n\tif coins := banker.GetCoins(creator); coins[0].Amount != 101_000_000 {\n\t\tt.Fatalf(\"expected creator coin after beging tipped: 101_000_000, got %d.\", coins[0].Amount)\n\t}\n\n\t// Total tip amount should increased\n\tif post1.tipAmount != 1_000_000 {\n\t\tt.Fatalf(\"expected total tipAmount: 1_000_000, got %d.\", post1.tipAmount)\n\t}\n\n\t// Add more tip should update this total\n\tstd.TestSetOrigSend(std.Coins{{\"ugnot\", 2_000_000}}, nil)\n\tTipPost(feed3.id, post1.id)\n\n\tif post1.tipAmount != 3_000_000 {\n\t\tt.Fatalf(\"expected total tipAmount: 3_000_000, got %d.\", post1.tipAmount)\n\t}\n}\n\nfunc testFlagPost(t *testing.T) {\n\tflagger := testutils.TestAddress(\"flagger\")\n\n\tfeedID9 := CreateFeed(\"teritori9\")\n\tfeed9 := mustGetFeed(feedID9)\n\n\tCreatePost(feed9.id, rootPostID, cat1, \"metadata1\")\n\tpid := CreatePost(feed9.id, rootPostID, cat1, \"metadata1\")\n\n\t// Flag post\n\tstd.TestSetOrigCaller(flagger)\n\tFlagPost(feed9.id, pid)\n\n\t// Another user flags\n\tanother := testutils.TestAddress(\"another\")\n\tstd.TestSetOrigCaller(another)\n\tFlagPost(feed9.id, pid)\n\n\tflaggedPostsStr := GetFlaggedPosts(feed9.id, 0, 10)\n\tparsed := ujson.ParseSlice(flaggedPostsStr)\n\tif flaggedPostsCount := len(parsed); flaggedPostsCount != 1 {\n\t\tt.Fatalf(\"expected flagged posts: 1, got %d.\", flaggedPostsCount)\n\t}\n}\n\nfunc testFilterUser(t *testing.T) {\n\tuser1 := testutils.TestAddress(\"user1\")\n\tuser2 := testutils.TestAddress(\"user2\")\n\n\t// User1 create 2 posts\n\tstd.TestSetOrigCaller(user1)\n\n\tfeedID4 := CreateFeed(\"teritori4\")\n\tfeed4 := mustGetFeed(feedID4)\n\n\tCreatePost(feed4.id, rootPostID, cat1, `{\"metadata\": \"value\"}`)\n\tCreatePost(feed4.id, rootPostID, cat1, `{\"metadata2\": \"value\"}`)\n\n\t// User2 create 1 post\n\tstd.TestSetOrigCaller(user2)\n\tCreatePost(feed4.id, rootPostID, cat1, `{\"metadata\": \"value\"}`)\n\n\tif count := countPostsByUser(feed4.id, user1.String()); count != 2 {\n\t\tt.Fatalf(\"expected total posts by user1: 2, got %d.\", count)\n\t}\n\n\tif count := countPostsByUser(feed4.id, user2.String()); count != 1 {\n\t\tt.Fatalf(\"expected total posts by user2: 1, got %d.\", count)\n\t}\n\n\tif count := countPostsByUser(feed4.id, \"\"); count != 3 {\n\t\tt.Fatalf(\"expected total posts: 3, got %d.\", count)\n\t}\n}\n\nfunc testHidePostForMe(t *testing.T) {\n\tuser := std.Address(\"user\")\n\tstd.TestSetOrigCaller(user)\n\n\tfeedID8 := CreateFeed(\"teritor8\")\n\tfeed8 := mustGetFeed(feedID8)\n\n\tpostIDToHide := CreatePost(feed8.id, rootPostID, cat1, `{\"metadata\": \"value\"}`)\n\tpostID := CreatePost(feed8.id, rootPostID, cat1, `{\"metadata\": \"value\"}`)\n\n\tif count := countPosts(feed8.id, filter_all, 10); count != 2 {\n\t\tt.Fatalf(\"expected posts count: 2, got %q.\", count)\n\t}\n\n\t// Hide a post for me\n\tHidePostForMe(feed8.id, postIDToHide)\n\n\tif count := countPosts(feed8.id, filter_all, 10); count != 1 {\n\t\tt.Fatalf(\"expected posts count after hidding: 1, got %q.\", count)\n\t}\n\n\t// Query from another user should return full list\n\tanother := std.Address(\"another\")\n\tstd.TestSetOrigCaller(another)\n\n\tif count := countPosts(feed8.id, filter_all, 10); count != 2 {\n\t\tt.Fatalf(\"expected posts count from another: 2, got %q.\", count)\n\t}\n\n\t// UnHide a post for me\n\tstd.TestSetOrigCaller(user)\n\tUnHidePostForMe(feed8.id, postIDToHide)\n\n\tif count := countPosts(feed8.id, filter_all, 10); count != 2 {\n\t\tt.Fatalf(\"expected posts count after unhidding: 2, got %q.\", count)\n\t}\n}\n\nfunc testMigrateFeedData(t *testing.T) string {\n\tfeedID := feedsV7.CreateFeed(\"teritor11\")\n\n\t// Post to test\n\tpostID := feedsV7.CreatePost(feedID, feedsV7.PostID(0), 2, `{\"metadata\": \"value\"}`)\n\tfeedsV7.ReactPost(feedID, postID, \"🇬🇸\", true)\n\n\t// Add comment to post\n\tcommentID := feedsV7.CreatePost(feedID, postID, 2, `{\"comment1\": \"value\"}`)\n\tfeedsV7.ReactPost(feedID, commentID, \"🇬🇸\", true)\n\n\t// // Post with json metadata\n\tfeedsV7.CreatePost(feedID, feedsV7.PostID(0), 2, `{'a':1}`)\n\n\t// Expect: should convert feed data to JSON successfully without error\n\tdataJSON := feedsV7.ExportFeedData(feedID)\n\tif dataJSON == \"\" {\n\t\tt.Fatalf(\"expected feed data exported successfully\")\n\t}\n\n\t// Import data =====================================\n\tImportFeedData(FeedID(uint64(feedID)), dataJSON)\n\n\t// Test public func\n\t// MigrateFromPreviousFeed(feedID)\n}\n\nfunc Test(t *testing.T) {\n\ttestCreateFeed(t)\n\n\ttestCreatePost(t)\n\n\ttestGetPosts(t)\n\n\ttestReactPost(t)\n\n\ttestCreateAndDeleteComment(t)\n\n\ttestFilterByCategories(t)\n\n\ttestTipPost(t)\n\n\ttestFilterUser(t)\n\n\ttestFlagPost(t)\n\n\ttestHidePostForMe(t)\n\n\ttestMigrateFeedData(t)\n}\n"
+            "Body": "package social_feeds\n\nimport (\n\t\"encoding/base64\"\n\t\"fmt\"\n\t\"std\"\n\t\"strconv\"\n\t\"strings\"\n\t\"testing\"\n\n\t\"gno.land/p/nt/avl\"\n\tujson \"gno.land/p/demo/teritori/ujson\"\n\t\"gno.land/p/nt/testutils\"\n\t\"gno.land/r/archive/boards\"\n\t// Fake previous version for testing\n\tfeedsV7 \"gno.land/r/demo/teritori/social_feeds\"\n\t\"gno.land/r/demo/users\"\n)\n\nvar (\n\trootPostID = PostID(0)\n\tpostID1    = PostID(1)\n\tfeedID1    = FeedID(1)\n\tcat1       = uint64(1)\n\tcat2       = uint64(2)\n\tuser       = testutils.TestAddress(\"user\")\n\tfilter_all = []uint64{}\n)\n\nfunc getFeed1() *Feed {\n\treturn mustGetFeed(feedID1)\n}\n\nfunc getPost1() *Post {\n\tfeed1 := getFeed1()\n\tpost1 := feed1.MustGetPost(postID1)\n\treturn post1\n}\n\nfunc testCreateFeed(t *testing.T) {\n\tfeedID := CreateFeed(\"teritori1\")\n\tfeed := mustGetFeed(feedID)\n\n\tif feedID != 1 {\n\t\tt.Fatalf(\"expected feedID: 1, got %q.\", feedID)\n\t}\n\n\tif feed.name != \"teritori1\" {\n\t\tt.Fatalf(\"expected feedName: teritori1, got %q.\", feed.name)\n\t}\n}\n\nfunc testCreatePost(t *testing.T) {\n\tmetadata := `{\"gifs\": [], \"files\": [], \"title\": \"\", \"message\": \"testouille\", \"hashtags\": [], \"mentions\": [], \"createdAt\": \"2023-03-29T12:19:04.858Z\", \"updatedAt\": \"2023-03-29T12:19:04.858Z\"}`\n\tpostID := CreatePost(feedID1, rootPostID, cat1, metadata)\n\tfeed := mustGetFeed(feedID1)\n\tpost := feed.MustGetPost(postID)\n\n\tif postID != 1 {\n\t\tt.Fatalf(\"expected postID: 1, got %q.\", postID)\n\t}\n\n\tif post.category != cat1 {\n\t\tt.Fatalf(\"expected categoryID: %q, got %q.\", cat1, post.category)\n\t}\n}\n\nfunc toPostIDsStr(posts []*Post) string {\n\tvar postIDs []string\n\tfor _, post := range posts {\n\t\tpostIDs = append(postIDs, post.id.String())\n\t}\n\n\tpostIDsStr := strings.Join(postIDs, \",\")\n\treturn postIDsStr\n}\n\nfunc testGetPosts(t *testing.T) {\n\tuser := std.Address(\"user\")\n\tstd.TestSetOrigCaller(user)\n\n\tfeedID := CreateFeed(\"teritori10\")\n\tfeed := mustGetFeed(feedID)\n\n\tCreatePost(feedID, rootPostID, cat1, \"post1\")\n\tCreatePost(feedID, rootPostID, cat1, \"post2\")\n\tCreatePost(feedID, rootPostID, cat1, \"post3\")\n\tCreatePost(feedID, rootPostID, cat1, \"post4\")\n\tCreatePost(feedID, rootPostID, cat1, \"post5\")\n\tpostIDToFlagged := CreatePost(feedID, rootPostID, cat1, \"post6\")\n\tpostIDToHide := CreatePost(feedID, rootPostID, cat1, \"post7\")\n\tCreatePost(feedID, rootPostID, cat1, \"post8\")\n\n\tvar posts []*Post\n\tvar postIDsStr string\n\n\t// Query last 3 posts\n\tposts = getPosts(feed, 0, \"\", \"\", []uint64{}, 0, 3)\n\tpostIDsStr = toPostIDsStr(posts)\n\n\tif postIDsStr != \"8,7,6\" {\n\t\tt.Fatalf(\"expected posts order: 8,7,6. Got: %s\", postIDsStr)\n\t}\n\n\t// Query page 2\n\tposts = getPosts(feed, 0, \"\", \"\", []uint64{}, 3, 3)\n\tpostIDsStr = toPostIDsStr(posts)\n\tif postIDsStr != \"5,4,3\" {\n\t\tt.Fatalf(\"expected posts order: 5,4,3. Got: %s\", postIDsStr)\n\t}\n\n\t// Exclude hidden post\n\tHidePostForMe(feed.id, postIDToHide)\n\n\tposts = getPosts(feed, 0, user.String(), \"\", []uint64{}, 0, 3)\n\tpostIDsStr = toPostIDsStr(posts)\n\n\tif postIDsStr != \"8,6,5\" {\n\t\tt.Fatalf(\"expected posts order: 8,6,5. Got: %s\", postIDsStr)\n\t}\n\n\t// Exclude flagged post\n\tFlagPost(feed.id, postIDToFlagged)\n\n\tposts = getPosts(feed, 0, user.String(), \"\", []uint64{}, 0, 3)\n\tpostIDsStr = toPostIDsStr(posts)\n\n\tif postIDsStr != \"8,5,4\" {\n\t\tt.Fatalf(\"expected posts order: 8,5,4. Got: %s\", postIDsStr)\n\t}\n\n\t// Pagination with hidden/flagged posts\n\tposts = getPosts(feed, 0, user.String(), \"\", []uint64{}, 3, 3)\n\tpostIDsStr = toPostIDsStr(posts)\n\n\tif postIDsStr != \"3,2,1\" {\n\t\tt.Fatalf(\"expected posts order: 3,2,1. Got: %s\", postIDsStr)\n\t}\n\n\t// Query out of range\n\tposts = getPosts(feed, 0, user.String(), \"\", []uint64{}, 6, 3)\n\tpostIDsStr = toPostIDsStr(posts)\n\n\tif postIDsStr != \"\" {\n\t\tt.Fatalf(\"expected posts order: ''. Got: %s\", postIDsStr)\n\t}\n}\n\nfunc testReactPost(t *testing.T) {\n\tfeed := getFeed1()\n\tpost := getPost1()\n\n\ticon := \"🥰\"\n\tReactPost(feed.id, post.id, icon, true)\n\n\t// Set reaction\n\treactionCount_, ok := post.reactions.Get(\"🥰\")\n\tif !ok {\n\t\tt.Fatalf(\"expected 🥰 exists\")\n\t}\n\n\treactionCount := reactionCount_.(int)\n\tif reactionCount != 1 {\n\t\tt.Fatalf(\"expected reactionCount: 1, got %q.\", reactionCount)\n\t}\n\n\t// Unset reaction\n\tReactPost(feed.id, post.id, icon, false)\n\t_, exist := post.reactions.Get(\"🥰\")\n\tif exist {\n\t\tt.Fatalf(\"expected 🥰 not exist\")\n\t}\n}\n\nfunc testCreateAndDeleteComment(t *testing.T) {\n\tfeed1 := getFeed1()\n\tpost1 := getPost1()\n\n\tmetadata := `empty_meta_data`\n\n\tcommentID1 := CreatePost(feed1.id, post1.id, cat1, metadata)\n\tcommentID2 := CreatePost(feed1.id, post1.id, cat1, metadata)\n\tcomment2 := feed1.MustGetPost(commentID2)\n\n\tif comment2.id != 3 { // 1 post + 2 comments = 3\n\t\tt.Fatalf(\"expected comment postID: 3, got %q.\", comment2.id)\n\t}\n\n\tif comment2.parentID != post1.id {\n\t\tt.Fatalf(\"expected comment parentID: %q, got %q.\", post1.id, comment2.parentID)\n\t}\n\n\t// Check comment count on parent\n\tif post1.commentsCount != 2 {\n\t\tt.Fatalf(\"expected comments count: 2, got %d.\", post1.commentsCount)\n\t}\n\n\t// Get comments\n\tcomments := GetComments(feed1.id, post1.id, 0, 10)\n\tcommentsParsed := ujson.ParseSlice(comments)\n\n\tif len(commentsParsed) != 2 {\n\t\tt.Fatalf(\"expected encoded comments: 2, got %q.\", commentsParsed)\n\t}\n\n\t// Delete 1 comment\n\tDeletePost(feed1.id, comment2.id)\n\tcomments = GetComments(feed1.id, post1.id, 0, 10)\n\tcommentsParsed = ujson.ParseSlice(comments)\n\n\tif len(commentsParsed) != 1 {\n\t\tt.Fatalf(\"expected encoded comments: 1, got %q.\", commentsParsed)\n\t}\n\n\t// Check comment count on parent\n\tif post1.commentsCount != 1 {\n\t\tt.Fatalf(\"expected comments count: 1, got %d.\", post1.commentsCount)\n\t}\n}\n\nfunc countPosts(feedID FeedID, categories []uint64, limit uint8) int {\n\toffset := uint64(0)\n\n\tpostsStr := GetPosts(feedID, 0, \"\", categories, offset, limit)\n\tif postsStr == \"[]\" {\n\t\treturn 0\n\t}\n\n\tparsedPosts := ujson.ParseSlice(postsStr)\n\tpostsCount := len(parsedPosts)\n\treturn postsCount\n}\n\nfunc countPostsByUser(feedID FeedID, user string) int {\n\toffset := uint64(0)\n\tlimit := uint8(10)\n\n\tpostsStr := GetPosts(feedID, 0, user, []uint64{}, offset, limit)\n\tif postsStr == \"[]\" {\n\t\treturn 0\n\t}\n\n\tparsedPosts := ujson.ParseSlice(postsStr)\n\tpostsCount := len(parsedPosts)\n\treturn postsCount\n}\n\nfunc testFilterByCategories(t *testing.T) {\n\t// // Re-add reaction to test post list\n\t// ReactPost(1, postID, \"🥰\", true)\n\t// ReactPost(1, postID, \"😇\", true)\n\n\tfilter_cat1 := []uint64{1}\n\tfilter_cat1_2 := []uint64{1, 2}\n\tfilter_cat9 := []uint64{9}\n\tfilter_cat1_2_9 := []uint64{1, 2, 9}\n\n\tfeedID2 := CreateFeed(\"teritori2\")\n\tfeed2 := mustGetFeed(feedID2)\n\n\t// Create 2 posts on root with cat1\n\tpostID1 := CreatePost(feed2.id, rootPostID, cat1, \"metadata\")\n\tpostID2 := CreatePost(feed2.id, rootPostID, cat1, \"metadata\")\n\n\t// Create 1 posts on root with cat2\n\tpostID3 := CreatePost(feed2.id, rootPostID, cat2, \"metadata\")\n\n\t// Create comments on post 1\n\tcommentPostID1 := CreatePost(feed2.id, postID1, cat1, \"metadata\")\n\n\t// cat1: Should return max = limit\n\tif count := countPosts(feed2.id, filter_cat1, 1); count != 1 {\n\t\tt.Fatalf(\"expected posts count: 1, got %q.\", count)\n\t}\n\n\t// cat1: Should return max = total\n\tif count := countPosts(feed2.id, filter_cat1, 10); count != 2 {\n\t\tt.Fatalf(\"expected posts count: 2, got %q.\", count)\n\t}\n\n\t// cat 1 + 2: Should return max = limit\n\tif count := countPosts(feed2.id, filter_cat1_2, 2); count != 2 {\n\t\tt.Fatalf(\"expected posts count: 2, got %q.\", count)\n\t}\n\n\t// cat 1 + 2: Should return max = total on both\n\tif count := countPosts(feed2.id, filter_cat1_2, 10); count != 3 {\n\t\tt.Fatalf(\"expected posts count: 3, got %q.\", count)\n\t}\n\n\t// cat 1, 2, 9: Should return total of 1, 2\n\tif count := countPosts(feed2.id, filter_cat1_2_9, 10); count != 3 {\n\t\tt.Fatalf(\"expected posts count: 3, got %q.\", count)\n\t}\n\n\t// cat 9: Should return 0\n\tif count := countPosts(feed2.id, filter_cat9, 10); count != 0 {\n\t\tt.Fatalf(\"expected posts count: 0, got %q.\", count)\n\t}\n\n\t// cat all: should return all\n\tif count := countPosts(feed2.id, filter_all, 10); count != 3 {\n\t\tt.Fatalf(\"expected posts count: 3, got %q.\", count)\n\t}\n\n\t// add comments should not impact the results\n\tCreatePost(feed2.id, postID1, cat1, \"metadata\")\n\tCreatePost(feed2.id, postID2, cat1, \"metadata\")\n\n\tif count := countPosts(feed2.id, filter_all, 10); count != 3 {\n\t\tt.Fatalf(\"expected posts count: 3, got %q.\", count)\n\t}\n\n\t// delete a post should affect the result\n\tDeletePost(feed2.id, postID1)\n\n\tif count := countPosts(feed2.id, filter_all, 10); count != 2 {\n\t\tt.Fatalf(\"expected posts count: 2, got %q.\", count)\n\t}\n}\n\nfunc testTipPost(t *testing.T) {\n\tcreator := testutils.TestAddress(\"creator\")\n\tstd.TestIssueCoins(creator, std.Coins{{\"ugnot\", 100_000_000}})\n\n\t// NOTE: Dont know why the address should be this to be able to call banker (= std.CallerAt(1))\n\ttipper := testutils.TestAddress(\"tipper\")\n\tstd.TestIssueCoins(tipper, std.Coins{{\"ugnot\", 50_000_000}})\n\n\tbanker := std.GetBanker(std.BankerTypeReadonly)\n\n\t// Check Original coins of creator/tipper\n\tif coins := banker.GetCoins(creator); coins[0].Amount != 100_000_000 {\n\t\tt.Fatalf(\"expected creator coin count: 100_000_000, got %d.\", coins[0].Amount)\n\t}\n\n\tif coins := banker.GetCoins(tipper); coins[0].Amount != 50_000_000 {\n\t\tt.Fatalf(\"expected tipper coin count: 50_000_000, got %d.\", coins[0].Amount)\n\t}\n\n\t// Creator creates feed, post\n\tstd.TestSetOrigCaller(creator)\n\n\tfeedID3 := CreateFeed(\"teritori3\")\n\tfeed3 := mustGetFeed(feedID3)\n\n\tpostID1 := CreatePost(feed3.id, rootPostID, cat1, \"metadata\")\n\tpost1 := feed3.MustGetPost(postID1)\n\n\t// Tiper tips the ppst\n\tstd.TestSetOrigCaller(tipper)\n\tstd.TestSetOrigSend(std.Coins{{\"ugnot\", 1_000_000}}, nil)\n\tTipPost(feed3.id, post1.id)\n\n\t// Coin must be increased for creator\n\tif coins := banker.GetCoins(creator); coins[0].Amount != 101_000_000 {\n\t\tt.Fatalf(\"expected creator coin after beging tipped: 101_000_000, got %d.\", coins[0].Amount)\n\t}\n\n\t// Total tip amount should increased\n\tif post1.tipAmount != 1_000_000 {\n\t\tt.Fatalf(\"expected total tipAmount: 1_000_000, got %d.\", post1.tipAmount)\n\t}\n\n\t// Add more tip should update this total\n\tstd.TestSetOrigSend(std.Coins{{\"ugnot\", 2_000_000}}, nil)\n\tTipPost(feed3.id, post1.id)\n\n\tif post1.tipAmount != 3_000_000 {\n\t\tt.Fatalf(\"expected total tipAmount: 3_000_000, got %d.\", post1.tipAmount)\n\t}\n}\n\nfunc testFlagPost(t *testing.T) {\n\tflagger := testutils.TestAddress(\"flagger\")\n\n\tfeedID9 := CreateFeed(\"teritori9\")\n\tfeed9 := mustGetFeed(feedID9)\n\n\tCreatePost(feed9.id, rootPostID, cat1, \"metadata1\")\n\tpid := CreatePost(feed9.id, rootPostID, cat1, \"metadata1\")\n\n\t// Flag post\n\tstd.TestSetOrigCaller(flagger)\n\tFlagPost(feed9.id, pid)\n\n\t// Another user flags\n\tanother := testutils.TestAddress(\"another\")\n\tstd.TestSetOrigCaller(another)\n\tFlagPost(feed9.id, pid)\n\n\tflaggedPostsStr := GetFlaggedPosts(feed9.id, 0, 10)\n\tparsed := ujson.ParseSlice(flaggedPostsStr)\n\tif flaggedPostsCount := len(parsed); flaggedPostsCount != 1 {\n\t\tt.Fatalf(\"expected flagged posts: 1, got %d.\", flaggedPostsCount)\n\t}\n}\n\nfunc testFilterUser(t *testing.T) {\n\tuser1 := testutils.TestAddress(\"user1\")\n\tuser2 := testutils.TestAddress(\"user2\")\n\n\t// User1 create 2 posts\n\tstd.TestSetOrigCaller(user1)\n\n\tfeedID4 := CreateFeed(\"teritori4\")\n\tfeed4 := mustGetFeed(feedID4)\n\n\tCreatePost(feed4.id, rootPostID, cat1, `{\"metadata\": \"value\"}`)\n\tCreatePost(feed4.id, rootPostID, cat1, `{\"metadata2\": \"value\"}`)\n\n\t// User2 create 1 post\n\tstd.TestSetOrigCaller(user2)\n\tCreatePost(feed4.id, rootPostID, cat1, `{\"metadata\": \"value\"}`)\n\n\tif count := countPostsByUser(feed4.id, user1.String()); count != 2 {\n\t\tt.Fatalf(\"expected total posts by user1: 2, got %d.\", count)\n\t}\n\n\tif count := countPostsByUser(feed4.id, user2.String()); count != 1 {\n\t\tt.Fatalf(\"expected total posts by user2: 1, got %d.\", count)\n\t}\n\n\tif count := countPostsByUser(feed4.id, \"\"); count != 3 {\n\t\tt.Fatalf(\"expected total posts: 3, got %d.\", count)\n\t}\n}\n\nfunc testHidePostForMe(t *testing.T) {\n\tuser := std.Address(\"user\")\n\tstd.TestSetOrigCaller(user)\n\n\tfeedID8 := CreateFeed(\"teritor8\")\n\tfeed8 := mustGetFeed(feedID8)\n\n\tpostIDToHide := CreatePost(feed8.id, rootPostID, cat1, `{\"metadata\": \"value\"}`)\n\tpostID := CreatePost(feed8.id, rootPostID, cat1, `{\"metadata\": \"value\"}`)\n\n\tif count := countPosts(feed8.id, filter_all, 10); count != 2 {\n\t\tt.Fatalf(\"expected posts count: 2, got %q.\", count)\n\t}\n\n\t// Hide a post for me\n\tHidePostForMe(feed8.id, postIDToHide)\n\n\tif count := countPosts(feed8.id, filter_all, 10); count != 1 {\n\t\tt.Fatalf(\"expected posts count after hidding: 1, got %q.\", count)\n\t}\n\n\t// Query from another user should return full list\n\tanother := std.Address(\"another\")\n\tstd.TestSetOrigCaller(another)\n\n\tif count := countPosts(feed8.id, filter_all, 10); count != 2 {\n\t\tt.Fatalf(\"expected posts count from another: 2, got %q.\", count)\n\t}\n\n\t// UnHide a post for me\n\tstd.TestSetOrigCaller(user)\n\tUnHidePostForMe(feed8.id, postIDToHide)\n\n\tif count := countPosts(feed8.id, filter_all, 10); count != 2 {\n\t\tt.Fatalf(\"expected posts count after unhidding: 2, got %q.\", count)\n\t}\n}\n\nfunc testMigrateFeedData(t *testing.T) string {\n\tfeedID := feedsV7.CreateFeed(\"teritor11\")\n\n\t// Post to test\n\tpostID := feedsV7.CreatePost(feedID, feedsV7.PostID(0), 2, `{\"metadata\": \"value\"}`)\n\tfeedsV7.ReactPost(feedID, postID, \"🇬🇸\", true)\n\n\t// Add comment to post\n\tcommentID := feedsV7.CreatePost(feedID, postID, 2, `{\"comment1\": \"value\"}`)\n\tfeedsV7.ReactPost(feedID, commentID, \"🇬🇸\", true)\n\n\t// // Post with json metadata\n\tfeedsV7.CreatePost(feedID, feedsV7.PostID(0), 2, `{'a':1}`)\n\n\t// Expect: should convert feed data to JSON successfully without error\n\tdataJSON := feedsV7.ExportFeedData(feedID)\n\tif dataJSON == \"\" {\n\t\tt.Fatalf(\"expected feed data exported successfully\")\n\t}\n\n\t// Import data =====================================\n\tImportFeedData(FeedID(uint64(feedID)), dataJSON)\n\n\t// Test public func\n\t// MigrateFromPreviousFeed(feedID)\n}\n\nfunc Test(t *testing.T) {\n\ttestCreateFeed(t)\n\n\ttestCreatePost(t)\n\n\ttestGetPosts(t)\n\n\ttestReactPost(t)\n\n\ttestCreateAndDeleteComment(t)\n\n\ttestFilterByCategories(t)\n\n\ttestTipPost(t)\n\n\ttestFilterUser(t)\n\n\ttestFlagPost(t)\n\n\ttestHidePostForMe(t)\n\n\ttestMigrateFeedData(t)\n}\n"
           },
           {
             "Name": "flags.gno",
             "Body": "package social_feeds\n\nimport (\n\t\"strconv\"\n\t\"strings\"\n\n\t\"gno.land/p/demo/teritori/flags_index\"\n)\n\nvar SEPARATOR = \"/\"\n\nfunc getFlagID(fid FeedID, pid PostID) flags_index.FlagID {\n\treturn flags_index.FlagID(fid.String() + SEPARATOR + pid.String())\n}\n\nfunc parseFlagID(flagID flags_index.FlagID) (FeedID, PostID) {\n\tparts := strings.Split(string(flagID), SEPARATOR)\n\tif len(parts) != 2 {\n\t\tpanic(\"invalid flag ID '\" + string(flagID) + \"'\")\n\t}\n\tfid, err := strconv.Atoi(parts[0])\n\tif err != nil || fid == 0 {\n\t\tpanic(\"invalid feed ID in flag ID '\" + parts[0] + \"'\")\n\t}\n\tpid, err := strconv.Atoi(parts[1])\n\tif err != nil || pid == 0 {\n\t\tpanic(\"invalid post ID in flag ID '\" + parts[1] + \"'\")\n\t}\n\treturn FeedID(fid), PostID(pid)\n}\n"
           },
           {
-            "Name": "gno.mod",
-            "Body": "module gno.land/r/demo/teritori/social_feeds\n\nrequire (\n\tgno.land/p/demo/avl v0.0.0-latest\n\tgno.land/p/demo/teritori/dao_interfaces v0.0.0-latest\n\tgno.land/p/demo/teritori/flags_index v0.0.0-latest\n\tgno.land/p/demo/teritori/ujson v0.0.0-latest\n\tgno.land/p/demo/testutils v0.0.0-latest\n\tgno.land/p/demo/ufmt v0.0.0-latest\n\tgno.land/r/demo/boards v0.0.0-latest\n\tgno.land/r/demo/users v0.0.0-latest\n)\n"
+            "Name": "gnomod.toml",
+            "Body": "module = \"gno.land/r/demo/teritori/social_feeds\"\n"
           },
           {
             "Name": "messages.gno",
@@ -66,11 +66,11 @@ stdout OK!
           },
           {
             "Name": "post.gno",
-            "Body": "package social_feeds\n\nimport (\n\t\"std\"\n\t\"strconv\"\n\t\"time\"\n\n\t\"gno.land/p/demo/avl\"\n\tujson \"gno.land/p/demo/teritori/ujson\"\n)\n\ntype PostID uint64\n\nfunc (pid PostID) String() string {\n\treturn strconv.Itoa(int(pid))\n}\n\nfunc (pid *PostID) FromJSON(ast *ujson.JSONASTNode) {\n\tval, err := strconv.Atoi(ast.Value)\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\t*pid = PostID(val)\n}\n\nfunc (pid PostID) ToJSON() string {\n\treturn strconv.Itoa(int(pid))\n}\n\ntype Reaction struct {\n\ticon  string\n\tcount uint64\n}\n\nvar Categories []string = []string{\n\t\"Reaction\",\n\t\"Comment\",\n\t\"Normal\",\n\t\"Article\",\n\t\"Picture\",\n\t\"Audio\",\n\t\"Video\",\n}\n\ntype Post struct {\n\tid            PostID\n\tparentID      PostID\n\tfeedID        FeedID\n\tcategory      uint64\n\tmetadata      string\n\treactions     avl.Tree // icon -> count\n\tcomments      avl.Tree // Post.id -> *Post\n\tcreator       std.Address\n\ttipAmount     uint64\n\tdeleted       bool\n\tcommentsCount uint64\n\n\tcreatedAt int64\n\tupdatedAt int64\n\tdeletedAt int64\n}\n\nfunc newPost(feed *Feed, id PostID, creator std.Address, parentID PostID, category uint64, metadata string) *Post {\n\treturn &Post{\n\t\tid:        id,\n\t\tparentID:  parentID,\n\t\tfeedID:    feed.id,\n\t\tcategory:  category,\n\t\tmetadata:  metadata,\n\t\treactions: avl.Tree{},\n\t\tcreator:   creator,\n\t\tcreatedAt: time.Now().Unix(),\n\t}\n}\n\nfunc (post *Post) String() string {\n\treturn post.ToJSON()\n}\n\nfunc (post *Post) Update(category uint64, metadata string) {\n\tpost.category = category\n\tpost.metadata = metadata\n\tpost.updatedAt = time.Now().Unix()\n}\n\nfunc (post *Post) Delete() {\n\tpost.deleted = true\n\tpost.deletedAt = time.Now().Unix()\n}\n\nfunc (post *Post) Tip(from std.Address, to std.Address) {\n\treceivedCoins := std.OriginSend()\n\tamount := receivedCoins[0].Amount\n\n\tbanker := std.GetBanker(std.BankerTypeOrigSend)\n\t// banker := std.GetBanker(std.BankerTypeRealmSend)\n\tcoinsToSend := std.Coins{std.Coin{Denom: \"ugnot\", Amount: amount}}\n\tpkgaddr := std.GetOrigPkgAddr()\n\n\tbanker.SendCoins(pkgaddr, to, coinsToSend)\n\n\t// Update tip amount\n\tpost.tipAmount += uint64(amount)\n}\n\n// Always remove reaction if count = 0\nfunc (post *Post) React(icon string, up bool) {\n\tcount_, ok := post.reactions.Get(icon)\n\tcount := 0\n\n\tif ok {\n\t\tcount = count_.(int)\n\t}\n\n\tif up {\n\t\tcount++\n\t} else {\n\t\tcount--\n\t}\n\n\tif count <= 0 {\n\t\tpost.reactions.Remove(icon)\n\t} else {\n\t\tpost.reactions.Set(icon, count)\n\t}\n}\n\nfunc (post *Post) Render() string {\n\treturn post.metadata\n}\n\nfunc (post *Post) FromJSON(jsonData string) {\n\tast := ujson.TokenizeAndParse(jsonData)\n\tast.ParseObject([]*ujson.ParseKV{\n\t\t{Key: \"id\", CustomParser: func(node *ujson.JSONASTNode) {\n\t\t\tpid, _ := strconv.Atoi(node.Value)\n\t\t\tpost.id = PostID(pid)\n\t\t}},\n\t\t{Key: \"parentID\", CustomParser: func(node *ujson.JSONASTNode) {\n\t\t\tpid, _ := strconv.Atoi(node.Value)\n\t\t\tpost.parentID = PostID(pid)\n\t\t}},\n\t\t{Key: \"feedID\", CustomParser: func(node *ujson.JSONASTNode) {\n\t\t\tfid, _ := strconv.Atoi(node.Value)\n\t\t\tpost.feedID = FeedID(fid)\n\t\t}},\n\t\t{Key: \"category\", Value: &post.category},\n\t\t{Key: \"metadata\", Value: &post.metadata},\n\t\t{Key: \"reactions\", CustomParser: func(node *ujson.JSONASTNode) {\n\t\t\treactions := avl.NewTree()\n\t\t\tfor _, child := range node.ObjectChildren {\n\t\t\t\treactionCount := child.Value\n\t\t\t\treactions.Set(child.Key, reactionCount)\n\t\t\t}\n\t\t\tpost.reactions = *reactions\n\t\t}},\n\t\t{Key: \"commentsCount\", Value: &post.commentsCount},\n\t\t{Key: \"creator\", Value: &post.creator},\n\t\t{Key: \"tipAmount\", Value: &post.tipAmount},\n\t\t{Key: \"deleted\", Value: &post.deleted},\n\t\t{Key: \"createdAt\", Value: &post.createdAt},\n\t\t{Key: \"updatedAt\", Value: &post.updatedAt},\n\t\t{Key: \"deletedAt\", Value: &post.deletedAt},\n\t})\n}\n\nfunc (post *Post) ToJSON() string {\n\treactionsKV := []ujson.FormatKV{}\n\tpost.reactions.Iterate(\"\", \"\", func(key string, value interface{}) bool {\n\t\tcount := value.(int)\n\t\tdata := ujson.FormatKV{Key: key, Value: count}\n\t\treactionsKV = append(reactionsKV, data)\n\t\treturn false\n\t})\n\treactions := ujson.FormatObject(reactionsKV)\n\n\tpostJSON := ujson.FormatObject([]ujson.FormatKV{\n\t\t{Key: \"id\", Value: uint64(post.id)},\n\t\t{Key: \"parentID\", Value: uint64(post.parentID)},\n\t\t{Key: \"feedID\", Value: uint64(post.feedID)},\n\t\t{Key: \"category\", Value: post.category},\n\t\t{Key: \"metadata\", Value: post.metadata},\n\t\t{Key: \"reactions\", Value: reactions, Raw: true},\n\t\t{Key: \"creator\", Value: post.creator},\n\t\t{Key: \"tipAmount\", Value: post.tipAmount},\n\t\t{Key: \"deleted\", Value: post.deleted},\n\t\t{Key: \"commentsCount\", Value: post.commentsCount},\n\t\t{Key: \"createdAt\", Value: post.createdAt},\n\t\t{Key: \"updatedAt\", Value: post.updatedAt},\n\t\t{Key: \"deletedAt\", Value: post.deletedAt},\n\t})\n\treturn postJSON\n}\n"
+            "Body": "package social_feeds\n\nimport (\n\t\"std\"\n\t\"strconv\"\n\t\"time\"\n\n\t\"gno.land/p/nt/avl\"\n\tujson \"gno.land/p/demo/teritori/ujson\"\n)\n\ntype PostID uint64\n\nfunc (pid PostID) String() string {\n\treturn strconv.Itoa(int(pid))\n}\n\nfunc (pid *PostID) FromJSON(ast *ujson.JSONASTNode) {\n\tval, err := strconv.Atoi(ast.Value)\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\t*pid = PostID(val)\n}\n\nfunc (pid PostID) ToJSON() string {\n\treturn strconv.Itoa(int(pid))\n}\n\ntype Reaction struct {\n\ticon  string\n\tcount uint64\n}\n\nvar Categories []string = []string{\n\t\"Reaction\",\n\t\"Comment\",\n\t\"Normal\",\n\t\"Article\",\n\t\"Picture\",\n\t\"Audio\",\n\t\"Video\",\n}\n\ntype Post struct {\n\tid            PostID\n\tparentID      PostID\n\tfeedID        FeedID\n\tcategory      uint64\n\tmetadata      string\n\treactions     avl.Tree // icon -> count\n\tcomments      avl.Tree // Post.id -> *Post\n\tcreator       std.Address\n\ttipAmount     uint64\n\tdeleted       bool\n\tcommentsCount uint64\n\n\tcreatedAt int64\n\tupdatedAt int64\n\tdeletedAt int64\n}\n\nfunc newPost(feed *Feed, id PostID, creator std.Address, parentID PostID, category uint64, metadata string) *Post {\n\treturn &Post{\n\t\tid:        id,\n\t\tparentID:  parentID,\n\t\tfeedID:    feed.id,\n\t\tcategory:  category,\n\t\tmetadata:  metadata,\n\t\treactions: avl.Tree{},\n\t\tcreator:   creator,\n\t\tcreatedAt: time.Now().Unix(),\n\t}\n}\n\nfunc (post *Post) String() string {\n\treturn post.ToJSON()\n}\n\nfunc (post *Post) Update(category uint64, metadata string) {\n\tpost.category = category\n\tpost.metadata = metadata\n\tpost.updatedAt = time.Now().Unix()\n}\n\nfunc (post *Post) Delete() {\n\tpost.deleted = true\n\tpost.deletedAt = time.Now().Unix()\n}\n\nfunc (post *Post) Tip(from std.Address, to std.Address) {\n\treceivedCoins := std.OriginSend()\n\tamount := receivedCoins[0].Amount\n\n\tbanker := std.GetBanker(std.BankerTypeOrigSend)\n\t// banker := std.GetBanker(std.BankerTypeRealmSend)\n\tcoinsToSend := std.Coins{std.Coin{Denom: \"ugnot\", Amount: amount}}\n\tpkgaddr := std.GetOrigPkgAddr()\n\n\tbanker.SendCoins(pkgaddr, to, coinsToSend)\n\n\t// Update tip amount\n\tpost.tipAmount += uint64(amount)\n}\n\n// Always remove reaction if count = 0\nfunc (post *Post) React(icon string, up bool) {\n\tcount_, ok := post.reactions.Get(icon)\n\tcount := 0\n\n\tif ok {\n\t\tcount = count_.(int)\n\t}\n\n\tif up {\n\t\tcount++\n\t} else {\n\t\tcount--\n\t}\n\n\tif count <= 0 {\n\t\tpost.reactions.Remove(icon)\n\t} else {\n\t\tpost.reactions.Set(icon, count)\n\t}\n}\n\nfunc (post *Post) Render() string {\n\treturn post.metadata\n}\n\nfunc (post *Post) FromJSON(jsonData string) {\n\tast := ujson.TokenizeAndParse(jsonData)\n\tast.ParseObject([]*ujson.ParseKV{\n\t\t{Key: \"id\", CustomParser: func(node *ujson.JSONASTNode) {\n\t\t\tpid, _ := strconv.Atoi(node.Value)\n\t\t\tpost.id = PostID(pid)\n\t\t}},\n\t\t{Key: \"parentID\", CustomParser: func(node *ujson.JSONASTNode) {\n\t\t\tpid, _ := strconv.Atoi(node.Value)\n\t\t\tpost.parentID = PostID(pid)\n\t\t}},\n\t\t{Key: \"feedID\", CustomParser: func(node *ujson.JSONASTNode) {\n\t\t\tfid, _ := strconv.Atoi(node.Value)\n\t\t\tpost.feedID = FeedID(fid)\n\t\t}},\n\t\t{Key: \"category\", Value: &post.category},\n\t\t{Key: \"metadata\", Value: &post.metadata},\n\t\t{Key: \"reactions\", CustomParser: func(node *ujson.JSONASTNode) {\n\t\t\treactions := avl.NewTree()\n\t\t\tfor _, child := range node.ObjectChildren {\n\t\t\t\treactionCount := child.Value\n\t\t\t\treactions.Set(child.Key, reactionCount)\n\t\t\t}\n\t\t\tpost.reactions = *reactions\n\t\t}},\n\t\t{Key: \"commentsCount\", Value: &post.commentsCount},\n\t\t{Key: \"creator\", Value: &post.creator},\n\t\t{Key: \"tipAmount\", Value: &post.tipAmount},\n\t\t{Key: \"deleted\", Value: &post.deleted},\n\t\t{Key: \"createdAt\", Value: &post.createdAt},\n\t\t{Key: \"updatedAt\", Value: &post.updatedAt},\n\t\t{Key: \"deletedAt\", Value: &post.deletedAt},\n\t})\n}\n\nfunc (post *Post) ToJSON() string {\n\treactionsKV := []ujson.FormatKV{}\n\tpost.reactions.Iterate(\"\", \"\", func(key string, value interface{}) bool {\n\t\tcount := value.(int)\n\t\tdata := ujson.FormatKV{Key: key, Value: count}\n\t\treactionsKV = append(reactionsKV, data)\n\t\treturn false\n\t})\n\treactions := ujson.FormatObject(reactionsKV)\n\n\tpostJSON := ujson.FormatObject([]ujson.FormatKV{\n\t\t{Key: \"id\", Value: uint64(post.id)},\n\t\t{Key: \"parentID\", Value: uint64(post.parentID)},\n\t\t{Key: \"feedID\", Value: uint64(post.feedID)},\n\t\t{Key: \"category\", Value: post.category},\n\t\t{Key: \"metadata\", Value: post.metadata},\n\t\t{Key: \"reactions\", Value: reactions, Raw: true},\n\t\t{Key: \"creator\", Value: post.creator},\n\t\t{Key: \"tipAmount\", Value: post.tipAmount},\n\t\t{Key: \"deleted\", Value: post.deleted},\n\t\t{Key: \"commentsCount\", Value: post.commentsCount},\n\t\t{Key: \"createdAt\", Value: post.createdAt},\n\t\t{Key: \"updatedAt\", Value: post.updatedAt},\n\t\t{Key: \"deletedAt\", Value: post.deletedAt},\n\t})\n\treturn postJSON\n}\n"
           },
           {
             "Name": "public.gno",
-            "Body": "package social_feeds\n\nimport (\n\t\"std\"\n\t\"strconv\"\n\t\"strings\"\n\n\t\"gno.land/p/demo/avl\"\n\t\"gno.land/p/demo/teritori/flags_index\"\n\t\"gno.land/p/demo/ufmt\"\n)\n\n// Only registered user can create a new feed\n// For the flexibility when testing, allow all user to create feed\nfunc CreateFeed(name string) FeedID {\n\tpkgpath := std.CurrentRealmPath()\n\n\tfid := incGetFeedID()\n\tcaller := std.PreviousRealm().Addr()\n\turl := strings.Replace(pkgpath, \"gno.land\", \"\", -1) + \":\" + name\n\tfeed := newFeed(fid, url, name, caller)\n\tfidkey := feedIDKey(fid)\n\tgFeeds.Set(fidkey, feed)\n\tgFeedsByName.Set(name, feed)\n\treturn feed.id\n}\n\n// Anyone can create a post in a existing feed, allow un-registered users also\nfunc CreatePost(fid FeedID, parentID PostID, catetory uint64, metadata string) PostID {\n\tcaller := std.PreviousRealm().Addr()\n\n\tfeed := mustGetFeed(fid)\n\tpost := feed.AddPost(caller, parentID, catetory, metadata)\n\treturn post.id\n}\n\n// Only post's owner can edit post\nfunc EditPost(fid FeedID, pid PostID, category uint64, metadata string) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\tpost := feed.MustGetPost(pid)\n\n\tif caller != post.creator {\n\t\tpanic(\"you are not creator of this post\")\n\t}\n\n\tpost.Update(category, metadata)\n}\n\n// Only feed creator/owner can call this\nfunc SetOwner(fid FeedID, newOwner std.Address) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\n\tif caller != feed.creator && caller != feed.owner {\n\t\tpanic(\"you are not creator/owner of this feed\")\n\t}\n\n\tfeed.owner = newOwner\n}\n\n// Only feed creator/owner or post creator can delete the post\nfunc DeletePost(fid FeedID, pid PostID) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\tpost := feed.MustGetPost(pid)\n\n\tif caller != post.creator && caller != feed.creator && caller != feed.owner {\n\t\tpanic(\"you are nor creator of this post neither creator/owner of the feed\")\n\t}\n\n\tpost.Delete()\n\n\t// If post is comment then decrease comments count on parent\n\tif uint64(post.parentID) != 0 {\n\t\tparent := feed.MustGetPost(post.parentID)\n\t\tparent.commentsCount -= 1\n\t}\n}\n\n// Only feed owner can ban the post\nfunc BanPost(fid FeedID, pid PostID, reason string) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\t_ = feed.MustGetPost(pid)\n\n\t// For experimenting, we ban only the post for now\n\t// TODO: recursive delete/ban comments\n\tif caller != feed.owner {\n\t\tpanic(\"you are owner of the feed\")\n\t}\n\n\tfeed.BanPost(pid)\n\n\tfeed.flags.ClearFlagCount(getFlagID(fid, pid))\n}\n\n// Any one can react post\nfunc ReactPost(fid FeedID, pid PostID, icon string, up bool) {\n\tfeed := mustGetFeed(fid)\n\tpost := feed.MustGetPost(pid)\n\n\tpost.React(icon, up)\n}\n\nfunc TipPost(fid FeedID, pid PostID) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\tpost := feed.MustGetPost(pid)\n\n\tpost.Tip(caller, post.creator)\n}\n\n// Get a list of flagged posts\n// NOTE: We can support multi feeds in the future but for now we will have only 1 feed\n// Return stringified list in format: postStr-count,postStr-count\nfunc GetFlaggedPosts(fid FeedID, offset uint64, limit uint8) string {\n\tfeed := mustGetFeed(fid)\n\n\t// Already sorted by count descending\n\tflags := feed.flags.GetFlags(uint64(limit), offset)\n\n\tvar postList []string\n\tfor _, flagCount := range flags {\n\t\tflagID := flagCount.FlagID\n\n\t\tfeedID, postID := parseFlagID(flagID)\n\t\tif feedID != feed.id {\n\t\t\tcontinue\n\t\t}\n\n\t\tpost := feed.GetPost(postID)\n\t\tpostList = append(postList, ufmt.Sprintf(\"%s\", post))\n\t}\n\n\tSEPARATOR := \",\"\n\tres := strings.Join(postList, SEPARATOR)\n\treturn ufmt.Sprintf(\"[%s]\", res)\n}\n\n// NOTE: due to bug of std.PreviousRealm().Addr() return \"\" when query so we user this proxy function temporary\n// in waiting of correct behaviour of std.PreviousRealm().Addr()\nfunc GetPosts(fid FeedID, parentID PostID, user string, categories []uint64, offset uint64, limit uint8) string {\n\tcaller := std.PreviousRealm().Addr()\n\tdata := GetPostsWithCaller(fid, parentID, caller.String(), user, categories, offset, limit)\n\treturn data\n}\n\nfunc GetPostsWithCaller(fid FeedID, parentID PostID, callerAddrStr string, user string, categories []uint64, offset uint64, limit uint8) string {\n\t// Return flagged posts, we process flagged posts differently using FlagIndex\n\tif len(categories) == 1 && categories[0] == uint64(9) {\n\t\treturn GetFlaggedPosts(fid, offset, limit)\n\t}\n\n\t// BUG: normally std.PreviousRealm().Addr() should return a value instead of empty\n\t// Fix is in progress on Gno side\n\tfeed := mustGetFeed(fid)\n\tposts := getPosts(feed, parentID, callerAddrStr, user, categories, offset, limit)\n\n\tSEPARATOR := \",\"\n\tvar postListStr []string\n\n\tfor _, post := range posts {\n\t\tpostListStr = append(postListStr, post.String())\n\t}\n\n\tres := strings.Join(postListStr, SEPARATOR)\n\treturn ufmt.Sprintf(\"[%s]\", res)\n}\n\n// user here is: filter by user\nfunc getPosts(feed *Feed, parentID PostID, callerAddrStr string, user string, categories []uint64, offset uint64, limit uint8) []*Post {\n\tcaller := std.Address(callerAddrStr)\n\n\tvar posts []*Post\n\tvar skipped uint64\n\n\t// Create an avlTree for optimizing the check\n\trequestedCategories := avl.NewTree()\n\tfor _, category := range categories {\n\t\tcatStr := strconv.FormatUint(category, 10)\n\t\trequestedCategories.Set(catStr, true)\n\t}\n\n\tfeed.posts.ReverseIterate(\"\", \"\", func(key string, value interface{}) bool {\n\t\tpost := value.(*Post)\n\n\t\tpostCatStr := strconv.FormatUint(post.category, 10)\n\n\t\t// NOTE: this search mechanism is not efficient, only for demo purpose\n\t\tif post.parentID == parentID && post.deleted == false {\n\t\t\tif requestedCategories.Size() > 0 && !requestedCategories.Has(postCatStr) {\n\t\t\t\treturn false\n\t\t\t}\n\n\t\t\tif user != \"\" && std.Address(user) != post.creator {\n\t\t\t\treturn false\n\t\t\t}\n\n\t\t\t// Filter hidden post\n\t\t\tflagID := getFlagID(feed.id, post.id)\n\t\t\tif feed.flags.HasFlagged(flagID, callerAddrStr) {\n\t\t\t\treturn false\n\t\t\t}\n\n\t\t\t// Check if post is in hidden list\n\t\t\tvalue, exists := feed.hiddenPostsByUser.Get(caller.String())\n\t\t\tif exists {\n\t\t\t\thiddenPosts := value.(*avl.Tree)\n\t\t\t\t// If post.id exists in hiddenPosts tree => that post is hidden\n\t\t\t\tif hiddenPosts.Has(post.id.String()) {\n\t\t\t\t\treturn false\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tif skipped < offset {\n\t\t\t\tskipped++\n\t\t\t\treturn false\n\t\t\t}\n\n\t\t\tposts = append(posts, post)\n\t\t}\n\n\t\tif len(posts) == int(limit) {\n\t\t\treturn true\n\t\t}\n\n\t\treturn false\n\t})\n\n\treturn posts\n}\n\n// Get comments list\nfunc GetComments(fid FeedID, parentID PostID, offset uint64, limit uint8) string {\n\treturn GetPosts(fid, parentID, \"\", []uint64{}, offset, limit)\n}\n\n// Get Post\nfunc GetPost(fid FeedID, pid PostID) string {\n\tfeed := mustGetFeed(fid)\n\n\tdata, ok := feed.posts.Get(postIDKey(pid))\n\tif !ok {\n\t\tpanic(\"Unable to get post\")\n\t}\n\n\tpost := data.(*Post)\n\treturn post.String()\n}\n\nfunc FlagPost(fid FeedID, pid PostID) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\n\tfeed.FlagPost(caller, pid)\n}\n\nfunc HidePostForMe(fid FeedID, pid PostID) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\n\tfeed.HidePostForUser(caller, pid)\n}\n\nfunc UnHidePostForMe(fid FeedID, pid PostID) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\n\tfeed.UnHidePostForUser(caller, pid)\n}\n\nfunc GetFlags(fid FeedID, limit uint64, offset uint64) string {\n\tfeed := mustGetFeed(fid)\n\n\ttype FlagCount struct {\n\t\tFlagID flags_index.FlagID\n\t\tCount  uint64\n\t}\n\n\tflags := feed.flags.GetFlags(limit, offset)\n\n\tvar res []string\n\tfor _, flag := range flags {\n\t\tres = append(res, ufmt.Sprintf(\"%s:%d\", flag.FlagID, flag.Count))\n\t}\n\n\treturn strings.Join(res, \"|\")\n}\n\n// TODO: allow only creator to call\nfunc GetFeedByID(fid FeedID) *Feed {\n\treturn mustGetFeed(fid)\n}\n\n// TODO: allow only admin to call\nfunc ExportFeedData(fid FeedID) string {\n\tfeed := mustGetFeed(fid)\n\tfeedJSON := feed.ToJSON()\n\treturn feedJSON\n}\n\n// TODO: allow only admin to call\nfunc ImportFeedData(fid FeedID, jsonData string) {\n\tfeed := mustGetFeed(fid)\n\tfeed.FromJSON(jsonData)\n}\n\n// func MigrateFromPreviousFeed(fid feedsV7.FeedID) {\n// \t// Get exported data from previous feeds\n// \tjsonData := feedsV7.ExportFeedData(fid)\n// \tImportFeedData(FeedID(uint64(fid)), jsonData)\n// }\n"
+            "Body": "package social_feeds\n\nimport (\n\t\"std\"\n\t\"strconv\"\n\t\"strings\"\n\n\t\"gno.land/p/nt/avl\"\n\t\"gno.land/p/demo/teritori/flags_index\"\n\t\"gno.land/p/nt/ufmt\"\n)\n\n// Only registered user can create a new feed\n// For the flexibility when testing, allow all user to create feed\nfunc CreateFeed(name string) FeedID {\n\tpkgpath := std.CurrentRealmPath()\n\n\tfid := incGetFeedID()\n\tcaller := std.PreviousRealm().Addr()\n\turl := strings.Replace(pkgpath, \"gno.land\", \"\", -1) + \":\" + name\n\tfeed := newFeed(fid, url, name, caller)\n\tfidkey := feedIDKey(fid)\n\tgFeeds.Set(fidkey, feed)\n\tgFeedsByName.Set(name, feed)\n\treturn feed.id\n}\n\n// Anyone can create a post in a existing feed, allow un-registered users also\nfunc CreatePost(fid FeedID, parentID PostID, catetory uint64, metadata string) PostID {\n\tcaller := std.PreviousRealm().Addr()\n\n\tfeed := mustGetFeed(fid)\n\tpost := feed.AddPost(caller, parentID, catetory, metadata)\n\treturn post.id\n}\n\n// Only post's owner can edit post\nfunc EditPost(fid FeedID, pid PostID, category uint64, metadata string) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\tpost := feed.MustGetPost(pid)\n\n\tif caller != post.creator {\n\t\tpanic(\"you are not creator of this post\")\n\t}\n\n\tpost.Update(category, metadata)\n}\n\n// Only feed creator/owner can call this\nfunc SetOwner(fid FeedID, newOwner std.Address) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\n\tif caller != feed.creator && caller != feed.owner {\n\t\tpanic(\"you are not creator/owner of this feed\")\n\t}\n\n\tfeed.owner = newOwner\n}\n\n// Only feed creator/owner or post creator can delete the post\nfunc DeletePost(fid FeedID, pid PostID) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\tpost := feed.MustGetPost(pid)\n\n\tif caller != post.creator && caller != feed.creator && caller != feed.owner {\n\t\tpanic(\"you are nor creator of this post neither creator/owner of the feed\")\n\t}\n\n\tpost.Delete()\n\n\t// If post is comment then decrease comments count on parent\n\tif uint64(post.parentID) != 0 {\n\t\tparent := feed.MustGetPost(post.parentID)\n\t\tparent.commentsCount -= 1\n\t}\n}\n\n// Only feed owner can ban the post\nfunc BanPost(fid FeedID, pid PostID, reason string) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\t_ = feed.MustGetPost(pid)\n\n\t// For experimenting, we ban only the post for now\n\t// TODO: recursive delete/ban comments\n\tif caller != feed.owner {\n\t\tpanic(\"you are owner of the feed\")\n\t}\n\n\tfeed.BanPost(pid)\n\n\tfeed.flags.ClearFlagCount(getFlagID(fid, pid))\n}\n\n// Any one can react post\nfunc ReactPost(fid FeedID, pid PostID, icon string, up bool) {\n\tfeed := mustGetFeed(fid)\n\tpost := feed.MustGetPost(pid)\n\n\tpost.React(icon, up)\n}\n\nfunc TipPost(fid FeedID, pid PostID) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\tpost := feed.MustGetPost(pid)\n\n\tpost.Tip(caller, post.creator)\n}\n\n// Get a list of flagged posts\n// NOTE: We can support multi feeds in the future but for now we will have only 1 feed\n// Return stringified list in format: postStr-count,postStr-count\nfunc GetFlaggedPosts(fid FeedID, offset uint64, limit uint8) string {\n\tfeed := mustGetFeed(fid)\n\n\t// Already sorted by count descending\n\tflags := feed.flags.GetFlags(uint64(limit), offset)\n\n\tvar postList []string\n\tfor _, flagCount := range flags {\n\t\tflagID := flagCount.FlagID\n\n\t\tfeedID, postID := parseFlagID(flagID)\n\t\tif feedID != feed.id {\n\t\t\tcontinue\n\t\t}\n\n\t\tpost := feed.GetPost(postID)\n\t\tpostList = append(postList, ufmt.Sprintf(\"%s\", post))\n\t}\n\n\tSEPARATOR := \",\"\n\tres := strings.Join(postList, SEPARATOR)\n\treturn ufmt.Sprintf(\"[%s]\", res)\n}\n\n// NOTE: due to bug of std.PreviousRealm().Addr() return \"\" when query so we user this proxy function temporary\n// in waiting of correct behaviour of std.PreviousRealm().Addr()\nfunc GetPosts(fid FeedID, parentID PostID, user string, categories []uint64, offset uint64, limit uint8) string {\n\tcaller := std.PreviousRealm().Addr()\n\tdata := GetPostsWithCaller(fid, parentID, caller.String(), user, categories, offset, limit)\n\treturn data\n}\n\nfunc GetPostsWithCaller(fid FeedID, parentID PostID, callerAddrStr string, user string, categories []uint64, offset uint64, limit uint8) string {\n\t// Return flagged posts, we process flagged posts differently using FlagIndex\n\tif len(categories) == 1 && categories[0] == uint64(9) {\n\t\treturn GetFlaggedPosts(fid, offset, limit)\n\t}\n\n\t// BUG: normally std.PreviousRealm().Addr() should return a value instead of empty\n\t// Fix is in progress on Gno side\n\tfeed := mustGetFeed(fid)\n\tposts := getPosts(feed, parentID, callerAddrStr, user, categories, offset, limit)\n\n\tSEPARATOR := \",\"\n\tvar postListStr []string\n\n\tfor _, post := range posts {\n\t\tpostListStr = append(postListStr, post.String())\n\t}\n\n\tres := strings.Join(postListStr, SEPARATOR)\n\treturn ufmt.Sprintf(\"[%s]\", res)\n}\n\n// user here is: filter by user\nfunc getPosts(feed *Feed, parentID PostID, callerAddrStr string, user string, categories []uint64, offset uint64, limit uint8) []*Post {\n\tcaller := std.Address(callerAddrStr)\n\n\tvar posts []*Post\n\tvar skipped uint64\n\n\t// Create an avlTree for optimizing the check\n\trequestedCategories := avl.NewTree()\n\tfor _, category := range categories {\n\t\tcatStr := strconv.FormatUint(category, 10)\n\t\trequestedCategories.Set(catStr, true)\n\t}\n\n\tfeed.posts.ReverseIterate(\"\", \"\", func(key string, value interface{}) bool {\n\t\tpost := value.(*Post)\n\n\t\tpostCatStr := strconv.FormatUint(post.category, 10)\n\n\t\t// NOTE: this search mechanism is not efficient, only for demo purpose\n\t\tif post.parentID == parentID && post.deleted == false {\n\t\t\tif requestedCategories.Size() > 0 && !requestedCategories.Has(postCatStr) {\n\t\t\t\treturn false\n\t\t\t}\n\n\t\t\tif user != \"\" && std.Address(user) != post.creator {\n\t\t\t\treturn false\n\t\t\t}\n\n\t\t\t// Filter hidden post\n\t\t\tflagID := getFlagID(feed.id, post.id)\n\t\t\tif feed.flags.HasFlagged(flagID, callerAddrStr) {\n\t\t\t\treturn false\n\t\t\t}\n\n\t\t\t// Check if post is in hidden list\n\t\t\tvalue, exists := feed.hiddenPostsByUser.Get(caller.String())\n\t\t\tif exists {\n\t\t\t\thiddenPosts := value.(*avl.Tree)\n\t\t\t\t// If post.id exists in hiddenPosts tree => that post is hidden\n\t\t\t\tif hiddenPosts.Has(post.id.String()) {\n\t\t\t\t\treturn false\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tif skipped < offset {\n\t\t\t\tskipped++\n\t\t\t\treturn false\n\t\t\t}\n\n\t\t\tposts = append(posts, post)\n\t\t}\n\n\t\tif len(posts) == int(limit) {\n\t\t\treturn true\n\t\t}\n\n\t\treturn false\n\t})\n\n\treturn posts\n}\n\n// Get comments list\nfunc GetComments(fid FeedID, parentID PostID, offset uint64, limit uint8) string {\n\treturn GetPosts(fid, parentID, \"\", []uint64{}, offset, limit)\n}\n\n// Get Post\nfunc GetPost(fid FeedID, pid PostID) string {\n\tfeed := mustGetFeed(fid)\n\n\tdata, ok := feed.posts.Get(postIDKey(pid))\n\tif !ok {\n\t\tpanic(\"Unable to get post\")\n\t}\n\n\tpost := data.(*Post)\n\treturn post.String()\n}\n\nfunc FlagPost(fid FeedID, pid PostID) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\n\tfeed.FlagPost(caller, pid)\n}\n\nfunc HidePostForMe(fid FeedID, pid PostID) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\n\tfeed.HidePostForUser(caller, pid)\n}\n\nfunc UnHidePostForMe(fid FeedID, pid PostID) {\n\tcaller := std.PreviousRealm().Addr()\n\tfeed := mustGetFeed(fid)\n\n\tfeed.UnHidePostForUser(caller, pid)\n}\n\nfunc GetFlags(fid FeedID, limit uint64, offset uint64) string {\n\tfeed := mustGetFeed(fid)\n\n\ttype FlagCount struct {\n\t\tFlagID flags_index.FlagID\n\t\tCount  uint64\n\t}\n\n\tflags := feed.flags.GetFlags(limit, offset)\n\n\tvar res []string\n\tfor _, flag := range flags {\n\t\tres = append(res, ufmt.Sprintf(\"%s:%d\", flag.FlagID, flag.Count))\n\t}\n\n\treturn strings.Join(res, \"|\")\n}\n\n// TODO: allow only creator to call\nfunc GetFeedByID(fid FeedID) *Feed {\n\treturn mustGetFeed(fid)\n}\n\n// TODO: allow only admin to call\nfunc ExportFeedData(fid FeedID) string {\n\tfeed := mustGetFeed(fid)\n\tfeedJSON := feed.ToJSON()\n\treturn feedJSON\n}\n\n// TODO: allow only admin to call\nfunc ImportFeedData(fid FeedID, jsonData string) {\n\tfeed := mustGetFeed(fid)\n\tfeed.FromJSON(jsonData)\n}\n\n// func MigrateFromPreviousFeed(fid feedsV7.FeedID) {\n// \t// Get exported data from previous feeds\n// \tjsonData := feedsV7.ExportFeedData(fid)\n// \tImportFeedData(FeedID(uint64(fid)), jsonData)\n// }\n"
           },
           {
             "Name": "render.gno",
@@ -96,7 +96,9 @@ stdout OK!
   ],
   "memo": ""
 }
-
+-- bye/gnomod.toml --
+module = "gno.land/r/demo/bye"
+gno = "0.9"
 -- bye/bye.gno --
 package bye
 
@@ -108,357 +110,350 @@ func Call(s string) {
 	base64.StdEncoding.DecodeString("hey")
 }
 
--- pusers/gno.mod --
-module gno.land/p/demo/users
-
+-- pusers/gnomod.toml --
+module = "gno.land/p/demo/users"
+gno = "0.9"
 -- pusers/users.gno --
 package users
 
-import (
-    "std"
-    "strconv"
-)
+import "strconv"
 
 //----------------------------------------
 // Types
 
 type User struct {
-    Address std.Address
-    Name    string
-    Profile string
-    Number  int
-    Invites int
-    Inviter std.Address
+	Address address
+	Name    string
+	Profile string
+	Number  int
+	Invites int
+	Inviter address
 }
 
 func (u *User) Render() string {
-    str := "## user " + u.Name + "\n" +
-       "\n" +
-       " * address = " + string(u.Address) + "\n" +
-       " * " + strconv.Itoa(u.Invites) + " invites\n"
-    if u.Inviter != "" {
-       str = str + " * invited by " + string(u.Inviter) + "\n"
-    }
-    str = str + "\n" +
-       u.Profile + "\n"
-    return str
+	str := "## user " + u.Name + "\n" +
+		"\n" +
+		" * address = " + string(u.Address) + "\n" +
+		" * " + strconv.Itoa(u.Invites) + " invites\n"
+	if u.Inviter != "" {
+		str = str + " * invited by " + string(u.Inviter) + "\n"
+	}
+	str = str + "\n" +
+		u.Profile + "\n"
+	return str
 }
 
 type AddressOrName string
 
 func (aon AddressOrName) IsName() bool {
-    return aon != "" && aon[0] == '@'
+	return aon != "" && aon[0] == '@'
 }
 
 func (aon AddressOrName) GetName() (string, bool) {
-    if len(aon) >= 2 && aon[0] == '@' {
-       return string(aon[1:]), true
-    }
-    return "", false
+	if len(aon) >= 2 && aon[0] == '@' {
+		return string(aon[1:]), true
+	}
+	return "", false
 }
-
--- users/gno.mod --
-module gno.land/r/demo/users
-
+-- users/gnomod.toml --
+module = "gno.land/r/demo/users"
+gno "0.9"
 -- users/users.gno --
 package users
 
 import (
-    "regexp"
-    "std"
-    "strconv"
-    "strings"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+	"regexp"
+	"strconv"
+	"strings"
 
-    "gno.land/p/demo/avl"
-    "gno.land/p/demo/avl/pager"
-    "gno.land/p/demo/avlhelpers"
-    "gno.land/p/demo/users"
+	"gno.land/p/demo/users"
+	"gno.land/p/jefft0/avlhelpers"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/pager"
 )
 
 //----------------------------------------
 // State
 
 var (
-    admin std.Address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
+	admin address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 
-    restricted avl.Tree                  // Name -> true - restricted name
-    name2User  avl.Tree                  // Name -> *users.User
-    addr2User  avl.Tree                  // std.Address -> *users.User
-    invites    avl.Tree                  // string(inviter+":"+invited) -> true
-    counter    int                       // user id counter
-    minFee     int64    = 20 * 1_000_000 // minimum gnot must be paid to register.
-    maxFeeMult int64    = 10             // maximum multiples of minFee accepted.
+	restricted avl.Tree                  // Name -> true - restricted name
+	name2User  avl.Tree                  // Name -> *users.User
+	addr2User  avl.Tree                  // std.Address -> *users.User
+	invites    avl.Tree                  // string(inviter+":"+invited) -> true
+	counter    int                       // user id counter
+	minFee     int64    = 20 * 1_000_000 // minimum gnot must be paid to register.
+	maxFeeMult int64    = 10             // maximum multiples of minFee accepted.
 )
 
 //----------------------------------------
 // Top-level functions
 
-func Register(inviter std.Address, name string, profile string) {
-	crossing()
-    // assert CallTx call.
-    std.AssertOriginCall()
-    // assert invited or paid.
-    caller := std.PreviousRealm().Address()
-    if caller != std.OriginCaller() {
-       panic("should not happen") // because std.AssertOrigCall().
-    }
+func Register(cur realm, inviter address, name string, profile string) {
+	// assert CallTx call.
+	runtime.AssertOriginCall()
+	// assert invited or paid.
+	caller := runtime.PreviousRealm().Address()
+	if caller != runtime.OriginCaller() {
+		panic("should not happen") // because std.AssertOrigCall().
+	}
 
-    sentCoins := std.OriginSend()
-    minCoin := std.NewCoin("ugnot", minFee)
+	sentCoins := banker.OriginSend()
+	minCoin := chain.NewCoin("ugnot", minFee)
 
-    if inviter == "" {
-       // banker := std.GetBanker(std.BankerTypeOrigSend)
-       if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
-          if sentCoins[0].Amount > minFee*maxFeeMult {
-             panic("payment must not be greater than " + strconv.Itoa(int(minFee*maxFeeMult)))
-          } else {
-             // ok
-          }
-       } else {
-          panic("payment must not be less than " + strconv.Itoa(int(minFee)))
-       }
-    } else {
-       invitekey := inviter.String() + ":" + caller.String()
-       _, ok := invites.Get(invitekey)
-       if !ok {
-          panic("invalid invitation")
-       }
-       invites.Remove(invitekey)
-    }
+	if inviter == "" {
+		// banker := std.GetBanker(std.BankerTypeOrigSend)
+		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
+			if sentCoins[0].Amount > minFee*maxFeeMult {
+				panic("payment must not be greater than " + strconv.Itoa(int(minFee*maxFeeMult)))
+			} else {
+				// ok
+			}
+		} else {
+			panic("payment must not be less than " + strconv.Itoa(int(minFee)))
+		}
+	} else {
+		invitekey := inviter.String() + ":" + caller.String()
+		_, ok := invites.Get(invitekey)
+		if !ok {
+			panic("invalid invitation")
+		}
+		invites.Remove(invitekey)
+	}
 
-    // assert not already registered.
-    _, ok := name2User.Get(name)
-    if ok {
-       panic("name already registered: " + name)
-    }
-    _, ok = addr2User.Get(caller.String())
-    if ok {
-       panic("address already registered: " + caller.String())
-    }
+	// assert not already registered.
+	_, ok := name2User.Get(name)
+	if ok {
+		panic("name already registered: " + name)
+	}
+	_, ok = addr2User.Get(caller.String())
+	if ok {
+		panic("address already registered: " + caller.String())
+	}
 
-    isInviterAdmin := inviter == admin
+	isInviterAdmin := inviter == admin
 
-    // check for restricted name
-    if _, isRestricted := restricted.Get(name); isRestricted {
-       // only address invite by the admin can register restricted name
-       if !isInviterAdmin {
-          panic("restricted name: " + name)
-       }
+	// check for restricted name
+	if _, isRestricted := restricted.Get(name); isRestricted {
+		// only address invite by the admin can register restricted name
+		if !isInviterAdmin {
+			panic("restricted name: " + name)
+		}
 
-       restricted.Remove(name)
-    }
+		restricted.Remove(name)
+	}
 
-    // assert name is valid.
-    // admin inviter can bypass name restriction
-    if !isInviterAdmin && !reName.MatchString(name) {
-       panic("invalid name: " + name + " (must be at least 6 characters, lowercase alphanumeric with underscore)")
-    }
+	// assert name is valid.
+	// admin inviter can bypass name restriction
+	if !isInviterAdmin && !reName.MatchString(name) {
+		panic("invalid name: " + name + " (must be at least 6 characters, lowercase alphanumeric with underscore)")
+	}
 
-    // remainder of fees go toward invites.
-    invites := int(0)
-    if len(sentCoins) == 1 {
-       if sentCoins[0].Denom == "ugnot" && sentCoins[0].Amount >= minFee {
-          invites = int(sentCoins[0].Amount / minFee)
-          if inviter == "" && invites > 0 {
-             invites -= 1
-          }
-       }
-    }
-    // register.
-    counter++
-    user := &users.User{
-       Address: caller,
-       Name:    name,
-       Profile: profile,
-       Number:  counter,
-       Invites: invites,
-       Inviter: inviter,
-    }
-    name2User.Set(name, user)
-    addr2User.Set(caller.String(), user)
+	// remainder of fees go toward invites.
+	invites := int(0)
+	if len(sentCoins) == 1 {
+		if sentCoins[0].Denom == "ugnot" && sentCoins[0].Amount >= minFee {
+			invites = int(sentCoins[0].Amount / minFee)
+			if inviter == "" && invites > 0 {
+				invites -= 1
+			}
+		}
+	}
+	// register.
+	counter++
+	user := &users.User{
+		Address: caller,
+		Name:    name,
+		Profile: profile,
+		Number:  counter,
+		Invites: invites,
+		Inviter: inviter,
+	}
+	name2User.Set(name, user)
+	addr2User.Set(caller.String(), user)
 }
 
-func Invite(invitee string) {
-	crossing()
-    // assert CallTx call.
-    std.AssertOriginCall()
-    // get caller/inviter.
-    caller := std.PreviousRealm().Address()
-    if caller != std.OriginCaller() {
-       panic("should not happen") // because std.AssertOrigCall().
-    }
-    lines := strings.Split(invitee, "\n")
-    if caller == admin {
-       // nothing to do, all good
-    } else {
-       // ensure has invites.
-       userI, ok := addr2User.Get(caller.String())
-       if !ok {
-          panic("user unknown")
-       }
-       user := userI.(*users.User)
-       if user.Invites <= 0 {
-          panic("user has no invite tokens")
-       }
-       user.Invites -= len(lines)
-       if user.Invites < 0 {
-          panic("user has insufficient invite tokens")
-       }
-    }
-    // for each line...
-    for _, line := range lines {
-       if line == "" {
-          continue // file bodies have a trailing newline.
-       } else if strings.HasPrefix(line, `//`) {
-          continue // comment
-       }
-       // record invite.
-       invitekey := string(caller) + ":" + string(line)
-       invites.Set(invitekey, true)
-    }
+func Invite(cur realm, invitee string) {
+	// assert CallTx call.
+	runtime.AssertOriginCall()
+	// get caller/inviter.
+	caller := runtime.PreviousRealm().Address()
+	if caller != runtime.OriginCaller() {
+		panic("should not happen") // because std.AssertOrigCall().
+	}
+	lines := strings.Split(invitee, "\n")
+	if caller == admin {
+		// nothing to do, all good
+	} else {
+		// ensure has invites.
+		userI, ok := addr2User.Get(caller.String())
+		if !ok {
+			panic("user unknown")
+		}
+		user := userI.(*users.User)
+		if user.Invites <= 0 {
+			panic("user has no invite tokens")
+		}
+		user.Invites -= len(lines)
+		if user.Invites < 0 {
+			panic("user has insufficient invite tokens")
+		}
+	}
+	// for each line...
+	for _, line := range lines {
+		if line == "" {
+			continue // file bodies have a trailing newline.
+		} else if strings.HasPrefix(line, `//`) {
+			continue // comment
+		}
+		// record invite.
+		invitekey := string(caller) + ":" + string(line)
+		invites.Set(invitekey, true)
+	}
 }
 
-func GrantInvites(invites string) {
-	crossing()
-    // assert CallTx call.
-    std.AssertOriginCall()
-    // assert admin.
-    caller := std.PreviousRealm().Address()
-    if caller != std.OriginCaller() {
-       panic("should not happen") // because std.AssertOrigCall().
-    }
-    if caller != admin {
-       panic("unauthorized")
-    }
-    // for each line...
-    lines := strings.Split(invites, "\n")
-    for _, line := range lines {
-       if line == "" {
-          continue // file bodies have a trailing newline.
-       } else if strings.HasPrefix(line, `//`) {
-          continue // comment
-       }
-       // parse name and invites.
-       var name string
-       var invites int
-       parts := strings.Split(line, ":")
-       if len(parts) == 1 { // short for :1.
-          name = parts[0]
-          invites = 1
-       } else if len(parts) == 2 {
-          name = parts[0]
-          invites_, err := strconv.Atoi(parts[1])
-          if err != nil {
-             panic(err)
-          }
-          invites = int(invites_)
-       } else {
-          panic("should not happen")
-       }
-       // give invites.
-       userI, ok := name2User.Get(name)
-       if !ok {
-          // maybe address.
-          userI, ok = addr2User.Get(name)
-          if !ok {
-             panic("invalid user " + name)
-          }
-       }
-       user := userI.(*users.User)
-       user.Invites += invites
-    }
+func GrantInvites(cur realm, invites string) {
+	// assert CallTx call.
+	runtime.AssertOriginCall()
+	// assert admin.
+	caller := runtime.PreviousRealm().Address()
+	if caller != runtime.OriginCaller() {
+		panic("should not happen") // because std.AssertOrigCall().
+	}
+	if caller != admin {
+		panic("unauthorized")
+	}
+	// for each line...
+	lines := strings.Split(invites, "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue // file bodies have a trailing newline.
+		} else if strings.HasPrefix(line, `//`) {
+			continue // comment
+		}
+		// parse name and invites.
+		var name string
+		var invites int
+		parts := strings.Split(line, ":")
+		if len(parts) == 1 { // short for :1.
+			name = parts[0]
+			invites = 1
+		} else if len(parts) == 2 {
+			name = parts[0]
+			invites_, err := strconv.Atoi(parts[1])
+			if err != nil {
+				panic(err)
+			}
+			invites = int(invites_)
+		} else {
+			panic("should not happen")
+		}
+		// give invites.
+		userI, ok := name2User.Get(name)
+		if !ok {
+			// maybe address.
+			userI, ok = addr2User.Get(name)
+			if !ok {
+				panic("invalid user " + name)
+			}
+		}
+		user := userI.(*users.User)
+		user.Invites += invites
+	}
 }
 
 // Any leftover fees go toward invitations.
-func SetMinFee(newMinFee int64) {
-	crossing()
-    // assert CallTx call.
-    std.AssertOriginCall()
-    // assert admin caller.
-    caller := std.PreviousRealm().Address()
-    if caller != admin {
-       panic("unauthorized")
-    }
-    // update global variables.
-    minFee = newMinFee
+func SetMinFee(cur realm, newMinFee int64) {
+	// assert CallTx call.
+	runtime.AssertOriginCall()
+	// assert admin caller.
+	caller := runtime.PreviousRealm().Address()
+	if caller != admin {
+		panic("unauthorized")
+	}
+	// update global variables.
+	minFee = newMinFee
 }
 
 // This helps prevent fat finger accidents.
-func SetMaxFeeMultiple(newMaxFeeMult int64) {
-	crossing()
-    // assert CallTx call.
-    std.AssertOriginCall()
-    // assert admin caller.
-    caller := std.PreviousRealm().Address()
-    if caller != admin {
-       panic("unauthorized")
-    }
-    // update global variables.
-    maxFeeMult = newMaxFeeMult
+func SetMaxFeeMultiple(cur realm, newMaxFeeMult int64) {
+	// assert CallTx call.
+	runtime.AssertOriginCall()
+	// assert admin caller.
+	caller := runtime.PreviousRealm().Address()
+	if caller != admin {
+		panic("unauthorized")
+	}
+	// update global variables.
+	maxFeeMult = newMaxFeeMult
 }
 
 //----------------------------------------
 // Exposed public functions
 
 func GetUserByName(name string) *users.User {
-    userI, ok := name2User.Get(name)
-    if !ok {
-       return nil
-    }
-    return userI.(*users.User)
+	userI, ok := name2User.Get(name)
+	if !ok {
+		return nil
+	}
+	return userI.(*users.User)
 }
 
-func GetUserByAddress(addr std.Address) *users.User {
-    userI, ok := addr2User.Get(addr.String())
-    if !ok {
-       return nil
-    }
-    return userI.(*users.User)
+func GetUserByAddress(addr address) *users.User {
+	userI, ok := addr2User.Get(addr.String())
+	if !ok {
+		return nil
+	}
+	return userI.(*users.User)
 }
 
 // unlike GetUserByName, input must be "@" prefixed for names.
 func GetUserByAddressOrName(input users.AddressOrName) *users.User {
-    name, isName := input.GetName()
-    if isName {
-       return GetUserByName(name)
-    }
-    return GetUserByAddress(std.Address(input))
+	name, isName := input.GetName()
+	if isName {
+		return GetUserByName(name)
+	}
+	return GetUserByAddress(address(input))
 }
 
 // Get a list of user names starting from the given prefix. Limit the
 // number of results to maxResults. (This can be used for a name search tool.)
 func ListUsersByPrefix(prefix string, maxResults int) []string {
-    return avlhelpers.ListByteStringKeysByPrefix(&name2User, prefix, maxResults)
+	return avlhelpers.ListByteStringKeysByPrefix(&name2User, prefix, maxResults)
 }
 
-func Resolve(input users.AddressOrName) std.Address {
-    name, isName := input.GetName()
-    if !isName {
-       return std.Address(input) // TODO check validity
-    }
+func Resolve(input users.AddressOrName) address {
+	name, isName := input.GetName()
+	if !isName {
+		return address(input) // TODO check validity
+	}
 
-    user := GetUserByName(name)
-    return user.Address
+	user := GetUserByName(name)
+	return user.Address
 }
 
 // Add restricted name to the list
 func AdminAddRestrictedName(name string) {
-    // assert CallTx call.
-    std.AssertOriginCall()
-    // get caller
-    caller := std.OriginCaller()
-    // assert admin
-    if caller != admin {
-       panic("unauthorized")
-    }
+	// assert CallTx call.
+	runtime.AssertOriginCall()
+	// get caller
+	caller := runtime.OriginCaller()
+	// assert admin
+	if caller != admin {
+		panic("unauthorized")
+	}
 
-    if user := GetUserByName(name); user != nil {
-       panic("already registered name")
-    }
+	if user := GetUserByName(name); user != nil {
+		panic("already registered name")
+	}
 
-    // register restricted name
+	// register restricted name
 
-    restricted.Set(name, true)
+	restricted.Set(name, true)
 }
 
 //----------------------------------------
@@ -471,132 +466,132 @@ var reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{5,16}$`)
 // Render main page
 
 func Render(fullPath string) string {
-    path, _ := splitPathAndQuery(fullPath)
-    if path == "" {
-       return renderHome(fullPath)
-    } else if len(path) >= 38 { // 39? 40?
-       if path[:2] != "g1" {
-          return "invalid address " + path
-       }
-       user := GetUserByAddress(std.Address(path))
-       if user == nil {
-          // TODO: display basic information about account.
-          return "unknown address " + path
-       }
-       return user.Render()
-    } else {
-       user := GetUserByName(path)
-       if user == nil {
-          return "unknown username " + path
-       }
-       return user.Render()
-    }
+	path, _ := splitPathAndQuery(fullPath)
+	if path == "" {
+		return renderHome(fullPath)
+	} else if len(path) >= 38 { // 39? 40?
+		if path[:2] != "g1" {
+			return "invalid address " + path
+		}
+		user := GetUserByAddress(address(path))
+		if user == nil {
+			// TODO: display basic information about account.
+			return "unknown address " + path
+		}
+		return user.Render()
+	} else {
+		user := GetUserByName(path)
+		if user == nil {
+			return "unknown username " + path
+		}
+		return user.Render()
+	}
 }
 
 func renderHome(path string) string {
-    doc := ""
+	doc := ""
 
-    page := pager.NewPager(&name2User, 50, false).MustGetPageByPath(path)
+	page := pager.NewPager(&name2User, 50, false).MustGetPageByPath(path)
 
-    for _, item := range page.Items {
-       user := item.Value.(*users.User)
-       doc += " * [" + user.Name + "](/r/demo/users:" + user.Name + ")\n"
-    }
-    doc += "\n"
-    doc += page.Picker(path)
-    return doc
+	for _, item := range page.Items {
+		user := item.Value.(*users.User)
+		doc += " * [" + user.Name + "](/r/demo/users:" + user.Name + ")\n"
+	}
+	doc += "\n"
+	doc += page.Picker(path)
+	return doc
 }
 
 func splitPathAndQuery(fullPath string) (string, string) {
-    parts := strings.SplitN(fullPath, "?", 2)
-    path := parts[0]
-    queryString := ""
-    if len(parts) > 1 {
-       queryString = "?" + parts[1]
-    }
-    return path, queryString
+	parts := strings.SplitN(fullPath, "?", 2)
+	path := parts[0]
+	queryString := ""
+	if len(parts) > 1 {
+		queryString = "?" + parts[1]
+	}
+	return path, queryString
 }
 
 // pre-restricted names
 var preRestrictedNames = []string{
-    "bitcoin", "cosmos", "newtendermint", "ethereum",
+	"bitcoin", "cosmos", "newtendermint", "ethereum",
 }
 
 // pre-registered users
 var preRegisteredUsers = []struct {
-    Name    string
-    Address std.Address
+	Name    string
+	Address address
 }{
-    // system name
-    {"archives", "g1xlnyjrnf03ju82v0f98ruhpgnquk28knmjfe5k"}, // -> @r_archives
-    {"demo", "g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"},     // -> @r_demo
-    {"gno", "g19602kd9tfxrfd60sgreadt9zvdyyuudcyxsz8a"},      // -> @r_gno
-    {"gnoland", "g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"},  // -> @r_gnoland
-    {"gnolang", "g1yjlnm3z2630gg5mryjd79907e0zx658wxs9hnd"},  // -> @r_gnolang
-    {"gov", "g1g73v2anukg4ej7axwqpthsatzrxjsh0wk797da"},      // -> @r_gov
-    {"nt", "g15ge0ae9077eh40erwrn2eq0xw6wupwqthpv34l"},       // -> @r_nt
-    {"sys", "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l"},      // -> @r_sys
-    {"x", "g164sdpew3c2t3rvxj3kmfv7c7ujlvcw2punzzuz"},        // -> @r_x
+	// system name
+	{"archive", "g1xlnyjrnf03ju82v0f98ruhpgnquk28knmjfe5k"}, // -> @r_archive
+	{"demo", "g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"},    // -> @r_demo
+	{"gno", "g19602kd9tfxrfd60sgreadt9zvdyyuudcyxsz8a"},     // -> @r_gno
+	{"gnoland", "g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"}, // -> @r_gnoland
+	{"gnolang", "g1yjlnm3z2630gg5mryjd79907e0zx658wxs9hnd"}, // -> @r_gnolang
+	{"gov", "g1g73v2anukg4ej7axwqpthsatzrxjsh0wk797da"},     // -> @r_gov
+	{"nt", "g15ge0ae9077eh40erwrn2eq0xw6wupwqthpv34l"},      // -> @r_nt
+	{"sys", "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l"},     // -> @r_sys
+	{"x", "g164sdpew3c2t3rvxj3kmfv7c7ujlvcw2punzzuz"},       // -> @r_x
 
-    // test1 user
-    {"test1", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}, // -> @test1
+	// test1 user
+	{"test1", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}, // -> @test1
 }
 
 func init() {
-    // add pre-registered users
-    for _, res := range preRegisteredUsers {
-       // assert not already registered.
-       _, ok := name2User.Get(res.Name)
-       if ok {
-          panic("name already registered")
-       }
+	// add pre-registered users
+	for _, res := range preRegisteredUsers {
+		// assert not already registered.
+		_, ok := name2User.Get(res.Name)
+		if ok {
+			panic("name already registered")
+		}
 
-       _, ok = addr2User.Get(res.Address.String())
-       if ok {
-          panic("address already registered")
-       }
+		_, ok = addr2User.Get(res.Address.String())
+		if ok {
+			panic("address already registered")
+		}
 
-       counter++
-       user := &users.User{
-          Address: res.Address,
-          Name:    res.Name,
-          Profile: "",
-          Number:  counter,
-          Invites: int(0),
-          Inviter: admin,
-       }
-       name2User.Set(res.Name, user)
-       addr2User.Set(res.Address.String(), user)
-    }
+		counter++
+		user := &users.User{
+			Address: res.Address,
+			Name:    res.Name,
+			Profile: "",
+			Number:  counter,
+			Invites: int(0),
+			Inviter: admin,
+		}
+		name2User.Set(res.Name, user)
+		addr2User.Set(res.Address.String(), user)
+	}
 
-    // add pre-restricted names
-    for _, name := range preRestrictedNames {
-       if _, ok := name2User.Get(name); ok {
-          panic("name already registered")
-       }
+	// add pre-restricted names
+	for _, name := range preRestrictedNames {
+		if _, ok := name2User.Get(name); ok {
+			panic("name already registered")
+		}
 
-       restricted.Set(name, true)
-    }
+		restricted.Set(name, true)
+	}
 }
-
--- boards/gno.mod --
-module gno.land/r/demo/boards
-
+-- boards/gnomod.toml --
+module = "gno.land/r/archive/boards"
+gno "0.9"
 -- boards/boards.gno --
 package boards
 
 import (
-    "std"
-    "strconv"
-    "regexp"
-    "time"
-    "strings"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
 
-    "gno.land/p/demo/avl"
-    "gno.land/p/moul/txlink"
+	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/avl"
 
-    "gno.land/r/demo/users"
-
+	"gno.land/r/demo/users"
 )
 
 //----------------------------------------
@@ -605,37 +600,37 @@ import (
 type BoardID uint64
 
 func (bid BoardID) String() string {
-    return strconv.Itoa(int(bid))
+	return strconv.Itoa(int(bid))
 }
 
 type Board struct {
-    id        BoardID // only set for public boards.
-    url       string
-    name      string
-    creator   std.Address
-    threads   avl.Tree // Post.id -> *Post
-    postsCtr  uint64   // increments Post.id
-    createdAt time.Time
-    deleted   avl.Tree // TODO reserved for fast-delete.
+	id        BoardID // only set for public boards.
+	url       string
+	name      string
+	creator   address
+	threads   avl.Tree // Post.id -> *Post
+	postsCtr  uint64   // increments Post.id
+	createdAt time.Time
+	deleted   avl.Tree // TODO reserved for fast-delete.
 }
 
-func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
-    if !reName.MatchString(name) {
-       panic("invalid name: " + name)
-    }
-    exists := gBoardsByName.Has(name)
-    if exists {
-       panic("board already exists")
-    }
-    return &Board{
-       id:        id,
-       url:       url,
-       name:      name,
-       creator:   creator,
-       threads:   avl.Tree{},
-       createdAt: time.Now(),
-       deleted:   avl.Tree{},
-    }
+func newBoard(id BoardID, url string, name string, creator address) *Board {
+	if !reName.MatchString(name) {
+		panic("invalid name: " + name)
+	}
+	exists := gBoardsByName.Has(name)
+	if exists {
+		panic("board already exists")
+	}
+	return &Board{
+		id:        id,
+		url:       url,
+		name:      name,
+		creator:   creator,
+		threads:   avl.Tree{},
+		createdAt: time.Now(),
+		deleted:   avl.Tree{},
+	}
 }
 
 /* TODO support this once we figure out how to ensure URL correctness.
@@ -649,90 +644,90 @@ func NewPrivateBoard(url string, name string, creator std.Address) *Board {
 */
 
 func (board *Board) IsPrivate() bool {
-    return board.id == 0
+	return board.id == 0
 }
 
 func (board *Board) GetThread(pid PostID) *Post {
-    pidkey := postIDKey(pid)
-    postI, exists := board.threads.Get(pidkey)
-    if !exists {
-       return nil
-    }
-    return postI.(*Post)
+	pidkey := postIDKey(pid)
+	postI, exists := board.threads.Get(pidkey)
+	if !exists {
+		return nil
+	}
+	return postI.(*Post)
 }
 
-func (board *Board) AddThread(creator std.Address, title string, body string) *Post {
-    pid := board.incGetPostID()
-    pidkey := postIDKey(pid)
-    thread := newPost(board, pid, creator, title, body, pid, 0, 0)
-    board.threads.Set(pidkey, thread)
-    return thread
+func (board *Board) AddThread(creator address, title string, body string) *Post {
+	pid := board.incGetPostID()
+	pidkey := postIDKey(pid)
+	thread := newPost(board, pid, creator, title, body, pid, 0, 0)
+	board.threads.Set(pidkey, thread)
+	return thread
 }
 
 // NOTE: this can be potentially very expensive for threads with many replies.
 // TODO: implement optional fast-delete where thread is simply moved.
 func (board *Board) DeleteThread(pid PostID) {
-    pidkey := postIDKey(pid)
-    _, removed := board.threads.Remove(pidkey)
-    if !removed {
-       panic("thread does not exist with id " + pid.String())
-    }
+	pidkey := postIDKey(pid)
+	_, removed := board.threads.Remove(pidkey)
+	if !removed {
+		panic("thread does not exist with id " + pid.String())
+	}
 }
 
-func (board *Board) HasPermission(addr std.Address, perm Permission) bool {
-    if board.creator == addr {
-       switch perm {
-       case EditPermission:
-          return true
-       case DeletePermission:
-          return true
-       default:
-          return false
-       }
-    }
-    return false
+func (board *Board) HasPermission(addr address, perm Permission) bool {
+	if board.creator == addr {
+		switch perm {
+		case EditPermission:
+			return true
+		case DeletePermission:
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // Renders the board for display suitable as plaintext in
 // console.  This is suitable for demonstration or tests,
 // but not for prod.
 func (board *Board) RenderBoard() string {
-    str := ""
-    str += "\\[[post](" + board.GetPostFormURL() + ")]\n\n"
-    if board.threads.Size() > 0 {
-       board.threads.Iterate("", "", func(key string, value interface{}) bool {
-          if str != "" {
-             str += "----------------------------------------\n"
-          }
-          str += value.(*Post).RenderSummary() + "\n"
-          return false
-       })
-    }
-    return str
+	str := ""
+	str += "\\[[post](" + board.GetPostFormURL() + ")]\n\n"
+	if board.threads.Size() > 0 {
+		board.threads.Iterate("", "", func(key string, value interface{}) bool {
+			if str != "" {
+				str += "----------------------------------------\n"
+			}
+			str += value.(*Post).RenderSummary() + "\n"
+			return false
+		})
+	}
+	return str
 }
 
 func (board *Board) incGetPostID() PostID {
-    board.postsCtr++
-    return PostID(board.postsCtr)
+	board.postsCtr++
+	return PostID(board.postsCtr)
 }
 
 func (board *Board) GetURLFromThreadAndReplyID(threadID, replyID PostID) string {
-    if replyID == 0 {
-       return board.url + "/" + threadID.String()
-    } else {
-       return board.url + "/" + threadID.String() + "/" + replyID.String()
-    }
+	if replyID == 0 {
+		return board.url + "/" + threadID.String()
+	} else {
+		return board.url + "/" + threadID.String() + "/" + replyID.String()
+	}
 }
 
 func (board *Board) GetPostFormURL() string {
-    return txlink.Call("CreateThread", "bid", board.id.String())
+	return txlink.Call("CreateThread", "bid", board.id.String())
 }
 
 var (
-    gBoards         avl.Tree    // id -> *Board
-    gBoardsCtr      int         // increments Board.id
-    gBoardsByName   avl.Tree    // name -> *Board
-    gDefaultAnonFee = 100000000 // minimum fee required if anonymous
+	gBoards         avl.Tree    // id -> *Board
+	gBoardsCtr      int         // increments Board.id
+	gBoardsByName   avl.Tree    // name -> *Board
+	gDefaultAnonFee = 100000000 // minimum fee required if anonymous
 )
 
 //----------------------------------------
@@ -745,85 +740,85 @@ var reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{2,29}$`)
 // XXX ensure these cannot be called from public.
 
 func getBoard(bid BoardID) *Board {
-    bidkey := boardIDKey(bid)
-    board_, exists := gBoards.Get(bidkey)
-    if !exists {
-       return nil
-    }
-    board := board_.(*Board)
-    return board
+	bidkey := boardIDKey(bid)
+	board_, exists := gBoards.Get(bidkey)
+	if !exists {
+		return nil
+	}
+	board := board_.(*Board)
+	return board
 }
 
 func incGetBoardID() BoardID {
-    gBoardsCtr++
-    return BoardID(gBoardsCtr)
+	gBoardsCtr++
+	return BoardID(gBoardsCtr)
 }
 
 func padLeft(str string, length int) string {
-    if len(str) >= length {
-       return str
-    } else {
-       return strings.Repeat(" ", length-len(str)) + str
-    }
+	if len(str) >= length {
+		return str
+	} else {
+		return strings.Repeat(" ", length-len(str)) + str
+	}
 }
 
 func padZero(u64 uint64, length int) string {
-    str := strconv.Itoa(int(u64))
-    if len(str) >= length {
-       return str
-    } else {
-       return strings.Repeat("0", length-len(str)) + str
-    }
+	str := strconv.Itoa(int(u64))
+	if len(str) >= length {
+		return str
+	} else {
+		return strings.Repeat("0", length-len(str)) + str
+	}
 }
 
 func boardIDKey(bid BoardID) string {
-    return padZero(uint64(bid), 10)
+	return padZero(uint64(bid), 10)
 }
 
 func postIDKey(pid PostID) string {
-    return padZero(uint64(pid), 10)
+	return padZero(uint64(pid), 10)
 }
 
 func indentBody(indent string, body string) string {
-    lines := strings.Split(body, "\n")
-    res := ""
-    for i, line := range lines {
-       if i > 0 {
-          res += "\n"
-       }
-       res += indent + line
-    }
-    return res
+	lines := strings.Split(body, "\n")
+	res := ""
+	for i, line := range lines {
+		if i > 0 {
+			res += "\n"
+		}
+		res += indent + line
+	}
+	return res
 }
 
 // NOTE: length must be greater than 3.
 func summaryOf(str string, length int) string {
-    lines := strings.SplitN(str, "\n", 2)
-    line := lines[0]
-    if len(line) > length {
-       line = line[:(length-3)] + "..."
-    } else if len(lines) > 1 {
-       // len(line) <= 80
-       line = line + "..."
-    }
-    return line
+	lines := strings.SplitN(str, "\n", 2)
+	line := lines[0]
+	if len(line) > length {
+		line = line[:(length-3)] + "..."
+	} else if len(lines) > 1 {
+		// len(line) <= 80
+		line = line + "..."
+	}
+	return line
 }
 
-func displayAddressMD(addr std.Address) string {
-    user := users.GetUserByAddress(addr)
-    if user == nil {
-       return "[" + addr.String() + "](/r/demo/users:" + addr.String() + ")"
-    } else {
-       return "[@" + user.Name + "](/r/demo/users:" + user.Name + ")"
-    }
+func displayAddressMD(addr address) string {
+	user := users.GetUserByAddress(addr)
+	if user == nil {
+		return "[" + addr.String() + "](/r/demo/users:" + addr.String() + ")"
+	} else {
+		return "[@" + user.Name + "](/r/demo/users:" + user.Name + ")"
+	}
 }
 
-func usernameOf(addr std.Address) string {
-    user := users.GetUserByAddress(addr)
-    if user == nil {
-       return ""
-    }
-    return user.Name
+func usernameOf(addr address) string {
+	user := users.GetUserByAddress(addr)
+	if user == nil {
+		return ""
+	}
+	return user.Name
 }
 
 //----------------------------------------
@@ -833,511 +828,511 @@ func usernameOf(addr std.Address) string {
 type PostID uint64
 
 func (pid PostID) String() string {
-    return strconv.Itoa(int(pid))
+	return strconv.Itoa(int(pid))
 }
 
 // A Post is a "thread" or a "reply" depending on context.
 // A thread is a Post of a Board that holds other replies.
 type Post struct {
-    board       *Board
-    id          PostID
-    creator     std.Address
-    title       string // optional
-    body        string
-    replies     avl.Tree // Post.id -> *Post
-    repliesAll  avl.Tree // Post.id -> *Post (all replies, for top-level posts)
-    reposts     avl.Tree // Board.id -> Post.id
-    threadID    PostID   // original Post.id
-    parentID    PostID   // parent Post.id (if reply or repost)
-    repostBoard BoardID  // original Board.id (if repost)
-    createdAt   time.Time
-    updatedAt   time.Time
+	board       *Board
+	id          PostID
+	creator     address
+	title       string // optional
+	body        string
+	replies     avl.Tree // Post.id -> *Post
+	repliesAll  avl.Tree // Post.id -> *Post (all replies, for top-level posts)
+	reposts     avl.Tree // Board.id -> Post.id
+	threadID    PostID   // original Post.id
+	parentID    PostID   // parent Post.id (if reply or repost)
+	repostBoard BoardID  // original Board.id (if repost)
+	createdAt   time.Time
+	updatedAt   time.Time
 }
 
-func newPost(board *Board, id PostID, creator std.Address, title, body string, threadID, parentID PostID, repostBoard BoardID) *Post {
-    return &Post{
-       board:       board,
-       id:          id,
-       creator:     creator,
-       title:       title,
-       body:        body,
-       replies:     avl.Tree{},
-       repliesAll:  avl.Tree{},
-       reposts:     avl.Tree{},
-       threadID:    threadID,
-       parentID:    parentID,
-       repostBoard: repostBoard,
-       createdAt:   time.Now(),
-    }
+func newPost(board *Board, id PostID, creator address, title, body string, threadID, parentID PostID, repostBoard BoardID) *Post {
+	return &Post{
+		board:       board,
+		id:          id,
+		creator:     creator,
+		title:       title,
+		body:        body,
+		replies:     avl.Tree{},
+		repliesAll:  avl.Tree{},
+		reposts:     avl.Tree{},
+		threadID:    threadID,
+		parentID:    parentID,
+		repostBoard: repostBoard,
+		createdAt:   time.Now(),
+	}
 }
 
 func (post *Post) IsThread() bool {
-    return post.parentID == 0
+	return post.parentID == 0
 }
 
 func (post *Post) GetPostID() PostID {
-    return post.id
+	return post.id
 }
 
-func (post *Post) AddReply(creator std.Address, body string) *Post {
-    board := post.board
-    pid := board.incGetPostID()
-    pidkey := postIDKey(pid)
-    reply := newPost(board, pid, creator, "", body, post.threadID, post.id, 0)
-    post.replies.Set(pidkey, reply)
-    if post.threadID == post.id {
-       post.repliesAll.Set(pidkey, reply)
-    } else {
-       thread := board.GetThread(post.threadID)
-       thread.repliesAll.Set(pidkey, reply)
-    }
-    return reply
+func (post *Post) AddReply(creator address, body string) *Post {
+	board := post.board
+	pid := board.incGetPostID()
+	pidkey := postIDKey(pid)
+	reply := newPost(board, pid, creator, "", body, post.threadID, post.id, 0)
+	post.replies.Set(pidkey, reply)
+	if post.threadID == post.id {
+		post.repliesAll.Set(pidkey, reply)
+	} else {
+		thread := board.GetThread(post.threadID)
+		thread.repliesAll.Set(pidkey, reply)
+	}
+	return reply
 }
 
 func (post *Post) Update(title string, body string) {
-    post.title = title
-    post.body = body
-    post.updatedAt = time.Now()
+	post.title = title
+	post.body = body
+	post.updatedAt = time.Now()
 }
 
 func (thread *Post) GetReply(pid PostID) *Post {
-    pidkey := postIDKey(pid)
-    replyI, ok := thread.repliesAll.Get(pidkey)
-    if !ok {
-       return nil
-    } else {
-       return replyI.(*Post)
-    }
+	pidkey := postIDKey(pid)
+	replyI, ok := thread.repliesAll.Get(pidkey)
+	if !ok {
+		return nil
+	} else {
+		return replyI.(*Post)
+	}
 }
 
-func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Board) *Post {
-    if !post.IsThread() {
-       panic("cannot repost non-thread post")
-    }
-    pid := dst.incGetPostID()
-    pidkey := postIDKey(pid)
-    repost := newPost(dst, pid, creator, title, body, pid, post.id, post.board.id)
-    dst.threads.Set(pidkey, repost)
-    if !dst.IsPrivate() {
-       bidkey := boardIDKey(dst.id)
-       post.reposts.Set(bidkey, pid)
-    }
-    return repost
+func (post *Post) AddRepostTo(creator address, title, body string, dst *Board) *Post {
+	if !post.IsThread() {
+		panic("cannot repost non-thread post")
+	}
+	pid := dst.incGetPostID()
+	pidkey := postIDKey(pid)
+	repost := newPost(dst, pid, creator, title, body, pid, post.id, post.board.id)
+	dst.threads.Set(pidkey, repost)
+	if !dst.IsPrivate() {
+		bidkey := boardIDKey(dst.id)
+		post.reposts.Set(bidkey, pid)
+	}
+	return repost
 }
 
 func (thread *Post) DeletePost(pid PostID) {
-    if thread.id == pid {
-       panic("should not happen")
-    }
-    pidkey := postIDKey(pid)
-    postI, removed := thread.repliesAll.Remove(pidkey)
-    if !removed {
-       panic("post not found in thread")
-    }
-    post := postI.(*Post)
-    if post.parentID != thread.id {
-       parent := thread.GetReply(post.parentID)
-       parent.replies.Remove(pidkey)
-    } else {
-       thread.replies.Remove(pidkey)
-    }
+	if thread.id == pid {
+		panic("should not happen")
+	}
+	pidkey := postIDKey(pid)
+	postI, removed := thread.repliesAll.Remove(pidkey)
+	if !removed {
+		panic("post not found in thread")
+	}
+	post := postI.(*Post)
+	if post.parentID != thread.id {
+		parent := thread.GetReply(post.parentID)
+		parent.replies.Remove(pidkey)
+	} else {
+		thread.replies.Remove(pidkey)
+	}
 }
 
-func (post *Post) HasPermission(addr std.Address, perm Permission) bool {
-    if post.creator == addr {
-       switch perm {
-       case EditPermission:
-          return true
-       case DeletePermission:
-          return true
-       default:
-          return false
-       }
-    }
-    // post notes inherit permissions of the board.
-    return post.board.HasPermission(addr, perm)
+func (post *Post) HasPermission(addr address, perm Permission) bool {
+	if post.creator == addr {
+		switch perm {
+		case EditPermission:
+			return true
+		case DeletePermission:
+			return true
+		default:
+			return false
+		}
+	}
+	// post notes inherit permissions of the board.
+	return post.board.HasPermission(addr, perm)
 }
 
 func (post *Post) GetSummary() string {
-    return summaryOf(post.body, 80)
+	return summaryOf(post.body, 80)
 }
 
 func (post *Post) GetURL() string {
-    if post.IsThread() {
-       return post.board.GetURLFromThreadAndReplyID(
-          post.id, 0)
-    } else {
-       return post.board.GetURLFromThreadAndReplyID(
-          post.threadID, post.id)
-    }
+	if post.IsThread() {
+		return post.board.GetURLFromThreadAndReplyID(
+			post.id, 0)
+	} else {
+		return post.board.GetURLFromThreadAndReplyID(
+			post.threadID, post.id)
+	}
 }
 
 func (post *Post) GetReplyFormURL() string {
-    return txlink.Call("CreateReply",
-       "bid", post.board.id.String(),
-       "threadid", post.threadID.String(),
-       "postid", post.id.String(),
-    )
+	return txlink.Call("CreateReply",
+		"bid", post.board.id.String(),
+		"threadid", post.threadID.String(),
+		"postid", post.id.String(),
+	)
 }
 
 func (post *Post) GetRepostFormURL() string {
-    return txlink.Call("CreateRepost",
-       "bid", post.board.id.String(),
-       "postid", post.id.String(),
-    )
+	return txlink.Call("CreateRepost",
+		"bid", post.board.id.String(),
+		"postid", post.id.String(),
+	)
 }
 
 func (post *Post) GetDeleteFormURL() string {
-    return txlink.Call("DeletePost",
-       "bid", post.board.id.String(),
-       "threadid", post.threadID.String(),
-       "postid", post.id.String(),
-    )
+	return txlink.Call("DeletePost",
+		"bid", post.board.id.String(),
+		"threadid", post.threadID.String(),
+		"postid", post.id.String(),
+	)
 }
 
 func (post *Post) RenderSummary() string {
-    if post.repostBoard != 0 {
-       dstBoard := getBoard(post.repostBoard)
-       if dstBoard == nil {
-          panic("repostBoard does not exist")
-       }
-       thread := dstBoard.GetThread(PostID(post.parentID))
-       if thread == nil {
-          return "reposted post does not exist"
-       }
-       return "Repost: " + post.GetSummary() + "\n" + thread.RenderSummary()
-    }
-    str := ""
-    if post.title != "" {
-       str += "## [" + summaryOf(post.title, 80) + "](" + post.GetURL() + ")\n"
-       str += "\n"
-    }
-    str += post.GetSummary() + "\n"
-    str += "\\- " + displayAddressMD(post.creator) + ","
-    str += " [" + post.createdAt.Format("2006-01-02 3:04pm MST") + "](" + post.GetURL() + ")"
-    str += " \\[[x](" + post.GetDeleteFormURL() + ")]"
-    str += " (" + strconv.Itoa(post.replies.Size()) + " replies)"
-    str += " (" + strconv.Itoa(post.reposts.Size()) + " reposts)" + "\n"
-    return str
+	if post.repostBoard != 0 {
+		dstBoard := getBoard(post.repostBoard)
+		if dstBoard == nil {
+			panic("repostBoard does not exist")
+		}
+		thread := dstBoard.GetThread(PostID(post.parentID))
+		if thread == nil {
+			return "reposted post does not exist"
+		}
+		return "Repost: " + post.GetSummary() + "\n" + thread.RenderSummary()
+	}
+	str := ""
+	if post.title != "" {
+		str += "## [" + summaryOf(post.title, 80) + "](" + post.GetURL() + ")\n"
+		str += "\n"
+	}
+	str += post.GetSummary() + "\n"
+	str += "\\- " + displayAddressMD(post.creator) + ","
+	str += " [" + post.createdAt.Format("2006-01-02 3:04pm MST") + "](" + post.GetURL() + ")"
+	str += " \\[[x](" + post.GetDeleteFormURL() + ")]"
+	str += " (" + strconv.Itoa(post.replies.Size()) + " replies)"
+	str += " (" + strconv.Itoa(post.reposts.Size()) + " reposts)" + "\n"
+	return str
 }
 
 func (post *Post) RenderPost(indent string, levels int) string {
-    if post == nil {
-       return "nil post"
-    }
-    str := ""
-    if post.title != "" {
-       str += indent + "# " + post.title + "\n"
-       str += indent + "\n"
-    }
-    str += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
-    str += indent + "\\- " + displayAddressMD(post.creator) + ", "
-    str += "[" + post.createdAt.Format("2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
-    str += " \\[[reply](" + post.GetReplyFormURL() + ")]"
-    if post.IsThread() {
-       str += " \\[[repost](" + post.GetRepostFormURL() + ")]"
-    }
-    str += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
-    if levels > 0 {
-       if post.replies.Size() > 0 {
-          post.replies.Iterate("", "", func(key string, value interface{}) bool {
-             str += indent + "\n"
-             str += value.(*Post).RenderPost(indent+"> ", levels-1)
-             return false
-          })
-       }
-    } else {
-       if post.replies.Size() > 0 {
-          str += indent + "\n"
-          str += indent + "_[see all " + strconv.Itoa(post.replies.Size()) + " replies](" + post.GetURL() + ")_\n"
-       }
-    }
-    return str
+	if post == nil {
+		return "nil post"
+	}
+	str := ""
+	if post.title != "" {
+		str += indent + "# " + post.title + "\n"
+		str += indent + "\n"
+	}
+	str += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
+	str += indent + "\\- " + displayAddressMD(post.creator) + ", "
+	str += "[" + post.createdAt.Format("2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
+	str += " \\[[reply](" + post.GetReplyFormURL() + ")]"
+	if post.IsThread() {
+		str += " \\[[repost](" + post.GetRepostFormURL() + ")]"
+	}
+	str += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
+	if levels > 0 {
+		if post.replies.Size() > 0 {
+			post.replies.Iterate("", "", func(key string, value interface{}) bool {
+				str += indent + "\n"
+				str += value.(*Post).RenderPost(indent+"> ", levels-1)
+				return false
+			})
+		}
+	} else {
+		if post.replies.Size() > 0 {
+			str += indent + "\n"
+			str += indent + "_[see all " + strconv.Itoa(post.replies.Size()) + " replies](" + post.GetURL() + ")_\n"
+		}
+	}
+	return str
 }
 
 // render reply and link to context thread
 func (post *Post) RenderInner() string {
-    if post.IsThread() {
-       panic("unexpected thread")
-    }
-    threadID := post.threadID
-    // replyID := post.id
-    parentID := post.parentID
-    str := ""
-    str += "_[see thread](" + post.board.GetURLFromThreadAndReplyID(
-       threadID, 0) + ")_\n\n"
-    thread := post.board.GetThread(post.threadID)
-    var parent *Post
-    if thread.id == parentID {
-       parent = thread
-    } else {
-       parent = thread.GetReply(parentID)
-    }
-    str += parent.RenderPost("", 0)
-    str += "\n"
-    str += post.RenderPost("> ", 5)
-    return str
+	if post.IsThread() {
+		panic("unexpected thread")
+	}
+	threadID := post.threadID
+	// replyID := post.id
+	parentID := post.parentID
+	str := ""
+	str += "_[see thread](" + post.board.GetURLFromThreadAndReplyID(
+		threadID, 0) + ")_\n\n"
+	thread := post.board.GetThread(post.threadID)
+	var parent *Post
+	if thread.id == parentID {
+		parent = thread
+	} else {
+		parent = thread.GetReply(parentID)
+	}
+	str += parent.RenderPost("", 0)
+	str += "\n"
+	str += post.RenderPost("> ", 5)
+	return str
 }
 
 //----------------------------------------
 // Public facing functions
 
 func GetBoardIDFromName(name string) (BoardID, bool) {
-    boardI, exists := gBoardsByName.Get(name)
-    if !exists {
-       return 0, false
-    }
-    return boardI.(*Board).id, true
+	boardI, exists := gBoardsByName.Get(name)
+	if !exists {
+		return 0, false
+	}
+	return boardI.(*Board).id, true
 }
 
 func CreateBoard(name string) BoardID {
-    if !std.PreviousRealm().IsUser() {
-       panic("invalid non-user call")
-    }
-    bid := incGetBoardID()
-    caller := std.OriginCaller()
-    if usernameOf(caller) == "" {
-       panic("unauthorized")
-    }
-    url := "/r/demo/boards:" + name
-    board := newBoard(bid, url, name, caller)
-    bidkey := boardIDKey(bid)
-    gBoards.Set(bidkey, board)
-    gBoardsByName.Set(name, board)
-    return board.id
+	if !runtime.PreviousRealm().IsUser() {
+		panic("invalid non-user call")
+	}
+	bid := incGetBoardID()
+	caller := runtime.OriginCaller()
+	if usernameOf(caller) == "" {
+		panic("unauthorized")
+	}
+	url := "/r/demo/boards:" + name
+	board := newBoard(bid, url, name, caller)
+	bidkey := boardIDKey(bid)
+	gBoards.Set(bidkey, board)
+	gBoardsByName.Set(name, board)
+	return board.id
 }
 
 func checkAnonFee() bool {
-    sent := std.OriginSend()
-    anonFeeCoin := std.NewCoin("ugnot", int64(gDefaultAnonFee))
-    if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin) {
-       return true
-    }
-    return false
+	sent := banker.OriginSend()
+	anonFeeCoin := chain.NewCoin("ugnot", int64(gDefaultAnonFee))
+	if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin) {
+		return true
+	}
+	return false
 }
 
 func CreateThread(bid BoardID, title string, body string) PostID {
-    if !std.PreviousRealm().IsUser() {
-       panic("invalid non-user call")
-    }
-    caller := std.OriginCaller()
-    if usernameOf(caller) == "" {
-       if !checkAnonFee() {
-          panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
-       }
-    }
-    board := getBoard(bid)
-    if board == nil {
-       panic("board not exist")
-    }
-    thread := board.AddThread(caller, title, body)
-    return thread.id
+	if !runtime.PreviousRealm().IsUser() {
+		panic("invalid non-user call")
+	}
+	caller := runtime.OriginCaller()
+	if usernameOf(caller) == "" {
+		if !checkAnonFee() {
+			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
+		}
+	}
+	board := getBoard(bid)
+	if board == nil {
+		panic("board not exist")
+	}
+	thread := board.AddThread(caller, title, body)
+	return thread.id
 }
 
 func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
-    if !std.PreviousRealm().IsUser() {
-       panic("invalid non-user call")
-    }
-    caller := std.OriginCaller()
-    if usernameOf(caller) == "" {
-       if !checkAnonFee() {
-          panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
-       }
-    }
-    board := getBoard(bid)
-    if board == nil {
-       panic("board not exist")
-    }
-    thread := board.GetThread(threadid)
-    if thread == nil {
-       panic("thread not exist")
-    }
-    if postid == threadid {
-       reply := thread.AddReply(caller, body)
-       return reply.id
-    } else {
-       post := thread.GetReply(postid)
-       reply := post.AddReply(caller, body)
-       return reply.id
-    }
+	if !runtime.PreviousRealm().IsUser() {
+		panic("invalid non-user call")
+	}
+	caller := runtime.OriginCaller()
+	if usernameOf(caller) == "" {
+		if !checkAnonFee() {
+			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
+		}
+	}
+	board := getBoard(bid)
+	if board == nil {
+		panic("board not exist")
+	}
+	thread := board.GetThread(threadid)
+	if thread == nil {
+		panic("thread not exist")
+	}
+	if postid == threadid {
+		reply := thread.AddReply(caller, body)
+		return reply.id
+	} else {
+		post := thread.GetReply(postid)
+		reply := post.AddReply(caller, body)
+		return reply.id
+	}
 }
 
 // If dstBoard is private, does not ping back.
 // If board specified by bid is private, panics.
 func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
-    if !std.PreviousRealm().IsUser() {
-       panic("invalid non-user call")
-    }
-    caller := std.OriginCaller()
-    if usernameOf(caller) == "" {
-       // TODO: allow with gDefaultAnonFee payment.
-       if !checkAnonFee() {
-          panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
-       }
-    }
-    board := getBoard(bid)
-    if board == nil {
-       panic("src board not exist")
-    }
-    if board.IsPrivate() {
-       panic("cannot repost from a private board")
-    }
-    dst := getBoard(dstBoardID)
-    if dst == nil {
-       panic("dst board not exist")
-    }
-    thread := board.GetThread(postid)
-    if thread == nil {
-       panic("thread not exist")
-    }
-    repost := thread.AddRepostTo(caller, title, body, dst)
-    return repost.id
+	if !runtime.PreviousRealm().IsUser() {
+		panic("invalid non-user call")
+	}
+	caller := runtime.OriginCaller()
+	if usernameOf(caller) == "" {
+		// TODO: allow with gDefaultAnonFee payment.
+		if !checkAnonFee() {
+			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
+		}
+	}
+	board := getBoard(bid)
+	if board == nil {
+		panic("src board not exist")
+	}
+	if board.IsPrivate() {
+		panic("cannot repost from a private board")
+	}
+	dst := getBoard(dstBoardID)
+	if dst == nil {
+		panic("dst board not exist")
+	}
+	thread := board.GetThread(postid)
+	if thread == nil {
+		panic("thread not exist")
+	}
+	repost := thread.AddRepostTo(caller, title, body, dst)
+	return repost.id
 }
 
 func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
-    if !std.PreviousRealm().IsUser() {
-       panic("invalid non-user call")
-    }
-    caller := std.OriginCaller()
-    board := getBoard(bid)
-    if board == nil {
-       panic("board not exist")
-    }
-    thread := board.GetThread(threadid)
-    if thread == nil {
-       panic("thread not exist")
-    }
-    if postid == threadid {
-       // delete thread
-       if !thread.HasPermission(caller, DeletePermission) {
-          panic("unauthorized")
-       }
-       board.DeleteThread(threadid)
-    } else {
-       // delete thread's post
-       post := thread.GetReply(postid)
-       if post == nil {
-          panic("post not exist")
-       }
-       if !post.HasPermission(caller, DeletePermission) {
-          panic("unauthorized")
-       }
-       thread.DeletePost(postid)
-    }
+	if !runtime.PreviousRealm().IsUser() {
+		panic("invalid non-user call")
+	}
+	caller := runtime.OriginCaller()
+	board := getBoard(bid)
+	if board == nil {
+		panic("board not exist")
+	}
+	thread := board.GetThread(threadid)
+	if thread == nil {
+		panic("thread not exist")
+	}
+	if postid == threadid {
+		// delete thread
+		if !thread.HasPermission(caller, DeletePermission) {
+			panic("unauthorized")
+		}
+		board.DeleteThread(threadid)
+	} else {
+		// delete thread's post
+		post := thread.GetReply(postid)
+		if post == nil {
+			panic("post not exist")
+		}
+		if !post.HasPermission(caller, DeletePermission) {
+			panic("unauthorized")
+		}
+		thread.DeletePost(postid)
+	}
 }
 
 func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
-    if !std.PreviousRealm().IsUser() {
-       panic("invalid non-user call")
-    }
-    caller := std.OriginCaller()
-    board := getBoard(bid)
-    if board == nil {
-       panic("board not exist")
-    }
-    thread := board.GetThread(threadid)
-    if thread == nil {
-       panic("thread not exist")
-    }
-    if postid == threadid {
-       // edit thread
-       if !thread.HasPermission(caller, EditPermission) {
-          panic("unauthorized")
-       }
-       thread.Update(title, body)
-    } else {
-       // edit thread's post
-       post := thread.GetReply(postid)
-       if post == nil {
-          panic("post not exist")
-       }
-       if !post.HasPermission(caller, EditPermission) {
-          panic("unauthorized")
-       }
-       post.Update(title, body)
-    }
+	if !runtime.PreviousRealm().IsUser() {
+		panic("invalid non-user call")
+	}
+	caller := runtime.OriginCaller()
+	board := getBoard(bid)
+	if board == nil {
+		panic("board not exist")
+	}
+	thread := board.GetThread(threadid)
+	if thread == nil {
+		panic("thread not exist")
+	}
+	if postid == threadid {
+		// edit thread
+		if !thread.HasPermission(caller, EditPermission) {
+			panic("unauthorized")
+		}
+		thread.Update(title, body)
+	} else {
+		// edit thread's post
+		post := thread.GetReply(postid)
+		if post == nil {
+			panic("post not exist")
+		}
+		if !post.HasPermission(caller, EditPermission) {
+			panic("unauthorized")
+		}
+		post.Update(title, body)
+	}
 }
 
 //----------------------------------------
 // Render functions
 
 func RenderBoard(bid BoardID) string {
-    board := getBoard(bid)
-    if board == nil {
-       return "missing board"
-    }
-    return board.RenderBoard()
+	board := getBoard(bid)
+	if board == nil {
+		return "missing board"
+	}
+	return board.RenderBoard()
 }
 
 func Render(path string) string {
-    if path == "" {
-       str := "These are all the boards of this realm:\n\n"
-       gBoards.Iterate("", "", func(key string, value interface{}) bool {
-          board := value.(*Board)
-          str += " * [" + board.url + "](" + board.url + ")\n"
-          return false
-       })
-       return str
-    }
-    parts := strings.Split(path, "/")
-    if len(parts) == 1 {
-       // /r/demo/boards:BOARD_NAME
-       name := parts[0]
-       boardI, exists := gBoardsByName.Get(name)
-       if !exists {
-          return "board does not exist: " + name
-       }
-       return boardI.(*Board).RenderBoard()
-    } else if len(parts) == 2 {
-       // /r/demo/boards:BOARD_NAME/THREAD_ID
-       name := parts[0]
-       boardI, exists := gBoardsByName.Get(name)
-       if !exists {
-          return "board does not exist: " + name
-       }
-       pid, err := strconv.Atoi(parts[1])
-       if err != nil {
-          return "invalid thread id: " + parts[1]
-       }
-       board := boardI.(*Board)
-       thread := board.GetThread(PostID(pid))
-       if thread == nil {
-          return "thread does not exist with id: " + parts[1]
-       }
-       return thread.RenderPost("", 5)
-    } else if len(parts) == 3 {
-       // /r/demo/boards:BOARD_NAME/THREAD_ID/REPLY_ID
-       name := parts[0]
-       boardI, exists := gBoardsByName.Get(name)
-       if !exists {
-          return "board does not exist: " + name
-       }
-       pid, err := strconv.Atoi(parts[1])
-       if err != nil {
-          return "invalid thread id: " + parts[1]
-       }
-       board := boardI.(*Board)
-       thread := board.GetThread(PostID(pid))
-       if thread == nil {
-          return "thread does not exist with id: " + parts[1]
-       }
-       rid, err := strconv.Atoi(parts[2])
-       if err != nil {
-          return "invalid reply id: " + parts[2]
-       }
-       reply := thread.GetReply(PostID(rid))
-       if reply == nil {
-          return "reply does not exist with id: " + parts[2]
-       }
-       return reply.RenderInner()
-    } else {
-       return "unrecognized path " + path
-    }
+	if path == "" {
+		str := "These are all the boards of this realm:\n\n"
+		gBoards.Iterate("", "", func(key string, value interface{}) bool {
+			board := value.(*Board)
+			str += " * [" + board.url + "](" + board.url + ")\n"
+			return false
+		})
+		return str
+	}
+	parts := strings.Split(path, "/")
+	if len(parts) == 1 {
+		// /r/demo/boards:BOARD_NAME
+		name := parts[0]
+		boardI, exists := gBoardsByName.Get(name)
+		if !exists {
+			return "board does not exist: " + name
+		}
+		return boardI.(*Board).RenderBoard()
+	} else if len(parts) == 2 {
+		// /r/demo/boards:BOARD_NAME/THREAD_ID
+		name := parts[0]
+		boardI, exists := gBoardsByName.Get(name)
+		if !exists {
+			return "board does not exist: " + name
+		}
+		pid, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return "invalid thread id: " + parts[1]
+		}
+		board := boardI.(*Board)
+		thread := board.GetThread(PostID(pid))
+		if thread == nil {
+			return "thread does not exist with id: " + parts[1]
+		}
+		return thread.RenderPost("", 5)
+	} else if len(parts) == 3 {
+		// /r/demo/boards:BOARD_NAME/THREAD_ID/REPLY_ID
+		name := parts[0]
+		boardI, exists := gBoardsByName.Get(name)
+		if !exists {
+			return "board does not exist: " + name
+		}
+		pid, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return "invalid thread id: " + parts[1]
+		}
+		board := boardI.(*Board)
+		thread := board.GetThread(PostID(pid))
+		if thread == nil {
+			return "thread does not exist with id: " + parts[1]
+		}
+		rid, err := strconv.Atoi(parts[2])
+		if err != nil {
+			return "invalid reply id: " + parts[2]
+		}
+		reply := thread.GetReply(PostID(rid))
+		if reply == nil {
+			return "reply does not exist with id: " + parts[2]
+		}
+		return reply.RenderInner()
+	} else {
+		return "unrecognized path " + path
+	}
 }
 
 type Permission string
 
 const (
-    DeletePermission Permission = "role:delete"
-    EditPermission   Permission = "role:edit"
+	DeletePermission Permission = "role:delete"
+	EditPermission   Permission = "role:edit"
 )

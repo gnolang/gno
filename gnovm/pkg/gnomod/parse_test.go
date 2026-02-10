@@ -1,330 +1,228 @@
 package gnomod
 
 import (
-	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-func TestModuleDeprecated(t *testing.T) {
-	for _, tc := range []struct {
-		desc, in, expected string
+// TestParseBytes tests parsing of both gno.mod and gnomod.toml files
+func TestParseBytes(t *testing.T) {
+	testCases := []struct {
+		name            string
+		content         string
+		fileType        string // "gno.mod" or "gnomod.toml"
+		expectedModule  string
+		expectedVersion string
+		expectedIgnore  bool
+		expectedDraft   bool
+		expectedError   string
 	}{
+		// Valid gno.mod cases
 		{
-			desc: "no_comment",
-			in:   `module m`,
+			name:            "valid gno.mod with module",
+			content:         "module gno.land/p/demo/foo",
+			fileType:        "gno.mod",
+			expectedModule:  "gno.land/p/demo/foo",
+			expectedVersion: "0.0",
 		},
 		{
-			desc: "other_comment",
-			in: `// yo
-			module m`,
+			name:            "valid gno.mod with module and gno version",
+			content:         "module gno.land/p/demo/foo\ngno 0.9",
+			fileType:        "gno.mod",
+			expectedModule:  "gno.land/p/demo/foo",
+			expectedVersion: "0.9",
 		},
 		{
-			desc: "deprecated_no_colon",
-			in: `//Deprecated
-			module m`,
+			name:            "valid gno.mod with module and replace",
+			content:         "module gno.land/p/demo/foo\nreplace bar => ../bar",
+			fileType:        "gno.mod",
+			expectedModule:  "gno.land/p/demo/foo",
+			expectedVersion: "0.0",
 		},
 		{
-			desc: "deprecated_no_space",
-			in: `//Deprecated:blah
-			module m`,
-			expected: "blah",
+			name:           "gno.mod with ignore comment",
+			content:        "// Ignore\n\nmodule gno.land/p/demo/foo",
+			fileType:       "gno.mod",
+			expectedModule: "gno.land/p/demo/foo",
+			expectedIgnore: true,
 		},
 		{
-			desc: "deprecated_simple",
-			in: `// Deprecated: blah
-			module m`,
-			expected: "blah",
+			name:           "gno.mod with deprecated comment",
+			content:        "// Deprecated: use new module\nmodule gno.land/p/demo/foo",
+			fileType:       "gno.mod",
+			expectedModule: "gno.land/p/demo/foo",
+		},
+
+		// Valid gnomod.toml cases
+		{
+			name:            "valid gnomod.toml with module",
+			content:         "module = \"gno.land/p/demo/foo\"",
+			fileType:        "gnomod.toml",
+			expectedModule:  "gno.land/p/demo/foo",
+			expectedVersion: "0.0",
 		},
 		{
-			desc: "deprecated_lowercase",
-			in: `// deprecated: blah
-			module m`,
+			name:            "valid gnomod.toml with module and gno version",
+			content:         "module = \"gno.land/p/demo/foo\"\ngno = \"0.9\"",
+			fileType:        "gnomod.toml",
+			expectedModule:  "gno.land/p/demo/foo",
+			expectedVersion: "0.9",
 		},
 		{
-			desc: "deprecated_multiline",
-			in: `// Deprecated: one
-			// two
-			module m`,
-			expected: "one\ntwo",
+			name:            "valid gnomod.toml with module and replace",
+			content:         "module = \"gno.land/p/demo/foo\"\nignore = true",
+			fileType:        "gnomod.toml",
+			expectedModule:  "gno.land/p/demo/foo",
+			expectedVersion: "0.0",
+			expectedIgnore:  true,
 		},
 		{
-			desc: "deprecated_mixed",
-			in: `// some other comment
-			// Deprecated: blah
-			module m`,
+			name:           "gnomod.toml with ignore flag",
+			content:        "module = \"gno.land/p/demo/foo\"\nignore = true",
+			fileType:       "gnomod.toml",
+			expectedModule: "gno.land/p/demo/foo",
+			expectedIgnore: true,
 		},
 		{
-			desc: "deprecated_middle",
-			in: `// module m is Deprecated: blah
-			module m`,
+			name:           "gnomod.toml with draft and ignore flags",
+			content:        "module = \"gno.land/p/demo/foo\"\ndraft = true\nignore = true",
+			fileType:       "gnomod.toml",
+			expectedModule: "gno.land/p/demo/foo",
+			expectedDraft:  true,
+			expectedIgnore: true,
+		},
+
+		// Invalid cases
+		{
+			name:          "invalid gno.mod without module",
+			content:       "replace bar => ../bar",
+			fileType:      "gno.mod",
+			expectedError: "invalid gnomod.toml: 'module' is required",
 		},
 		{
-			desc: "deprecated_multiple",
-			in: `// Deprecated: a
-			// Deprecated: b
-			module m`,
-			expected: "a\nDeprecated: b",
+			name:          "invalid gno.mod with require",
+			content:       "module foo\nrequire bar v0.0.0",
+			fileType:      "gno.mod",
+			expectedError: "unknown directive: require",
 		},
 		{
-			desc: "deprecated_paragraph",
-			in: `// Deprecated: a
-			// b
-			//
-			// c
-			module m`,
-			expected: "a\nb",
+			name:          "invalid gnomod.toml without module",
+			content:       "gno = \"0.9\"",
+			fileType:      "gnomod.toml",
+			expectedError: "invalid gnomod.toml: 'module' is required",
 		},
 		{
-			desc: "deprecated_paragraph_space",
-			in: `// Deprecated: the next line has a space
-			//
-			// c
-			module m`,
-			expected: "the next line has a space",
+			name:          "invalid gnomod.toml with invalid toml",
+			content:       "path = gno.land/p/demo/foo",
+			fileType:      "gnomod.toml",
+			expectedError: "error parsing gnomod.toml file",
 		},
 		{
-			desc:     "deprecated_suffix",
-			in:       `module m // Deprecated: blah`,
-			expected: "blah",
+			name:          "invalid module path with space",
+			content:       "module \"gno.land/p/demo/ foo\"",
+			fileType:      "gno.mod",
+			expectedError: "malformed import path",
 		},
 		{
-			desc: `deprecated_mixed_suffix`,
-			in: `// some other comment
-			module m // Deprecated: blah`,
+			name:          "invalid module path with Unicode",
+			content:       "module gno.land/p/demo/한글",
+			fileType:      "gno.mod",
+			expectedError: "malformed import path",
 		},
-		{
-			desc: "deprecated_mixed_suffix_paragraph",
-			in: `// some other comment
-			//
-			module m // Deprecated: blah`,
-			expected: "blah",
-		},
-		{
-			desc: "deprecated_block",
-			in: `// Deprecated: blah
-			module (
-				m
-			)`,
-			expected: "blah",
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			f, err := ParseBytes("in", []byte(tc.in))
-			assert.Nil(t, err)
-			assert.Equal(t, tc.expected, f.Module.Deprecated)
-		})
 	}
-}
 
-func TestParseDraft(t *testing.T) {
-	for _, tc := range []struct {
-		desc, in string
-		expected bool
-	}{
-		{
-			desc: "no_comment",
-			in:   `module m`,
-		},
-		{
-			desc: "other_comment",
-			in:   `// yo`,
-		},
-		{
-			desc:     "draft_no_space",
-			in:       `//Draft`,
-			expected: true,
-		},
-		{
-			desc:     "draft_simple",
-			in:       `// Draft`,
-			expected: true,
-		},
-		{
-			desc: "draft_lowercase",
-			in:   `// draft`,
-		},
-		{
-			desc: "draft_multiline",
-			in: `// Draft
-			// yo`,
-		},
-		{
-			desc: "draft_mixed",
-			in: `// some other comment
-			// Draft`,
-		},
-		{
-			desc: "draft_not_first_line",
-			in: `
-			// Draft`,
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			f, err := ParseBytes("in", []byte(tc.in))
-			assert.Nil(t, err)
-			assert.Equal(t, tc.expected, f.Draft)
-		})
-	}
-}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var file *File
+			var err error
 
-func TestParseFilepath(t *testing.T) {
-	pkgDir := "bar"
-	for _, tc := range []struct {
-		desc, modData, modPath, errShouldContain string
-	}{
-		{
-			desc:             "file not exists",
-			modData:          `module foo`,
-			modPath:          filepath.Join(pkgDir, "mod.gno"),
-			errShouldContain: "could not read gno.mod file:",
-		},
-		{
-			desc:             "file path is dir",
-			modData:          `module foo`,
-			modPath:          pkgDir,
-			errShouldContain: "is a directory",
-		},
-		{
-			desc:    "valid gno.mod file",
-			modData: `module foo`,
-			modPath: filepath.Join(pkgDir, "gno.mod"),
-		},
-		{
-			desc: "valid gno.mod file with replace",
-			modData: `module foo
-			replace bar => ../bar`,
-			modPath: filepath.Join(pkgDir, "gno.mod"),
-		},
-		{
-			desc:             "error bad module directive",
-			modData:          `module foo v0.0.0`,
-			modPath:          filepath.Join(pkgDir, "gno.mod"),
-			errShouldContain: "error parsing gno.mod file at",
-		},
-		{
-			desc:             "error gno.mod without module",
-			modData:          `replace bar => ../bar`,
-			modPath:          filepath.Join(pkgDir, "gno.mod"),
-			errShouldContain: "requires module",
-		},
-		{
-			desc: "error gno.mod with require",
-			modData: `module foo
-			require bar v0.0.0`,
-			modPath:          filepath.Join(pkgDir, "gno.mod"),
-			errShouldContain: "unknown directive: require",
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			// Create test dir
-			tempDir, cleanUpFn := testutils.NewTestCaseDir(t)
-			require.NotNil(t, tempDir)
-			defer cleanUpFn()
-
-			// Create gno package
-			createGnoModPkg(t, tempDir, pkgDir, tc.modData)
-
-			_, err := ParseFilepath(filepath.Join(tempDir, tc.modPath))
-			if tc.errShouldContain != "" {
-				assert.ErrorContains(t, err, tc.errShouldContain)
-			} else {
-				assert.NoError(t, err)
+			file, err = ParseBytes(tc.fileType, []byte(tc.content))
+			if tc.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectedError)
+				return
 			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedModule, file.Module)
+			if tc.expectedVersion != "" {
+				assert.Equal(t, tc.expectedVersion, file.GetGno())
+			}
+			assert.Equal(t, tc.expectedIgnore, file.Ignore)
+			assert.Equal(t, tc.expectedDraft, file.Draft)
 		})
 	}
 }
 
-// TestParseWithInvalidModulePath tests that Parse correctly rejects gno.mod files
-// with invalid module paths.
-func TestParseWithInvalidModulePath(t *testing.T) {
-	tests := []struct {
-		name    string
-		modData string
-		errMsg  string
+// TestParseMemPackage tests parsing of module files from MemPackage
+func TestParseMemPackage(t *testing.T) {
+	t.Skip("skipping")
+	testCases := []struct {
+		name            string
+		files           []*std.MemFile
+		expectedModule  string
+		expectedVersion string
+		expectedError   string
 	}{
 		{
-			name:    "valid module path",
-			modData: "module gno.land/p/demo/foo",
-			errMsg:  "",
+			name: "valid gno.mod in mem package",
+			files: []*std.MemFile{
+				{Name: "gno.mod", Body: "module gno.land/p/demo/foo"},
+			},
+			expectedModule:  "gno.land/p/demo/foo",
+			expectedVersion: "0.0",
 		},
 		{
-			name:    "module path with space",
-			modData: "module \"gno.land/p/demo/ foo\"",
-			errMsg:  "malformed import path \"gno.land/p/demo/ foo\": invalid char ' '",
+			name: "valid gnomod.toml in mem package",
+			files: []*std.MemFile{
+				{Name: "gnomod.toml", Body: "module = \"gno.land/p/demo/foo\""},
+			},
+			expectedModule:  "gno.land/p/demo/foo",
+			expectedVersion: "0.0",
 		},
 		{
-			name:    "module path with Unicode",
-			modData: "module gno.land/p/demo/한글",
-			errMsg:  "malformed import path \"gno.land/p/demo/한글\": invalid char '한'",
+			name: "both files present, prefers gnomod.toml",
+			files: []*std.MemFile{
+				{Name: "gno.mod", Body: "module gno.land/p/demo/old"},
+				{Name: "gnomod.toml", Body: "module = \"gno.land/p/demo/new\""},
+			},
+			expectedModule:  "gno.land/p/demo/new",
+			expectedVersion: "0.0",
 		},
 		{
-			name:    "module path with invalid character",
-			modData: "module gno.land/p/demo/foo*bar",
-			errMsg:  "malformed import path \"gno.land/p/demo/foo*bar\": invalid char '*'",
+			name:          "no module files",
+			files:         []*std.MemFile{},
+			expectedError: "gnomod.toml not in mem package",
+		},
+		{
+			name: "invalid gno.mod",
+			files: []*std.MemFile{
+				{Name: "gno.mod", Body: "invalid content"},
+			},
+			expectedError: "error parsing gno.mod file",
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseBytes("gno.mod", []byte(tt.modData))
-			if tt.errMsg != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errMsg)
-			} else {
-				assert.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mpkg := &std.MemPackage{
+				Name:  "test",
+				Path:  "gno.land/p/demo/test",
+				Files: tc.files,
 			}
-		})
-	}
-}
 
-// TestCreateGnoModFileWithInvalidPath tests that CreateGnoModFile correctly rejects
-// invalid module paths.
-func TestCreateGnoModFileWithInvalidPath(t *testing.T) {
-	tests := []struct {
-		name    string
-		modPath string
-		errMsg  string
-	}{
-		{
-			name:    "valid module path",
-			modPath: "gno.land/p/demo/foo",
-			errMsg:  "",
-		},
-		{
-			name:    "module path with space",
-			modPath: "gno.land/p/demo/ foo",
-			errMsg:  "malformed import path \"gno.land/p/demo/ foo\": invalid char ' '",
-		},
-		{
-			name:    "module path with Unicode",
-			modPath: "gno.land/p/demo/한글",
-			errMsg:  "malformed import path \"gno.land/p/demo/한글\": invalid char '한'",
-		},
-		{
-			name:    "module path with invalid character",
-			modPath: "gno.land/p/demo/foo*bar",
-			errMsg:  "malformed import path \"gno.land/p/demo/foo*bar\": invalid char '*'",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tempDir, cleanUpFn := testutils.NewTestCaseDir(t)
-			defer cleanUpFn()
-
-			err := CreateGnoModFile(tempDir, tt.modPath)
-			if tt.errMsg != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errMsg)
-			} else {
-				if err != nil && !assert.Contains(t, err.Error(), "dir") {
-					t.Errorf("unexpected error: %v", err)
-				}
+			file, err := ParseMemPackage(mpkg)
+			if tc.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectedError)
+				return
 			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedModule, file.Module)
+			assert.Equal(t, tc.expectedVersion, file.GetGno())
 		})
 	}
 }

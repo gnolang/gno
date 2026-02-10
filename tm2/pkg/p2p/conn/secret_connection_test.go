@@ -20,9 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/async"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
-	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
@@ -142,6 +140,8 @@ func TestShareLowOrderPubkey(t *testing.T) {
 	}
 }
 
+const lowOrderPointError = `crypto/ecdh: bad X25519 remote ECDH input: low order point`
+
 // Test that additionally that the Diffie-Hellman shared secret is non-zero.
 // The shared secret would be zero for lower order pub-keys (but tested against the blacklist only).
 func TestComputeDHFailsOnLowOrder(t *testing.T) {
@@ -151,9 +151,8 @@ func TestComputeDHFailsOnLowOrder(t *testing.T) {
 	for _, remLowOrderPubKey := range blacklist {
 		remLowOrderPubKey := remLowOrderPubKey
 		shared, err := computeDHSecret(&remLowOrderPubKey, locPrivKey)
-		assert.Error(t, err)
-
-		assert.Equal(t, err, ErrSharedSecretIsZero)
+		_ = assert.Error(t, err) &&
+			assert.Equal(t, lowOrderPointError, err.Error())
 		assert.Empty(t, shared)
 	}
 }
@@ -244,7 +243,7 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 	}
 
 	// A helper that will run with (fooConn, fooWrites, fooReads) and vice versa
-	genNodeRunner := func(id string, nodeConn kvstoreConn, nodeWrites []string, nodeReads *[]string) async.Task {
+	genNodeRunner := func(_ string, nodeConn kvstoreConn, nodeWrites []string, nodeReads *[]string) async.Task {
 		return func(_ int) (any, error, bool) {
 			// Initiate cryptographic private key and secret connection through nodeConn.
 			nodePrvKey := ed25519.GenPrivKey()
@@ -388,55 +387,6 @@ func TestDeriveSecretsAndChallengeGolden(t *testing.T) {
 		require.Equal(t, expectedSendSecret, (*sendSecret)[:], "Send Secrets aren't equal")
 		require.Equal(t, expectedChallenge, (*challenge)[:], "challenges aren't equal")
 	}
-}
-
-type privKeyWithNilPubKey struct {
-	orig crypto.PrivKey
-}
-
-func (pk privKeyWithNilPubKey) Bytes() []byte                   { return pk.orig.Bytes() }
-func (pk privKeyWithNilPubKey) Sign(msg []byte) ([]byte, error) { return pk.orig.Sign(msg) }
-func (pk privKeyWithNilPubKey) PubKey() crypto.PubKey           { return nil }
-func (pk privKeyWithNilPubKey) Equals(pk2 crypto.PrivKey) bool  { return pk.orig.Equals(pk2) }
-
-func TestNilPubkey(t *testing.T) {
-	t.Parallel()
-
-	fooConn, barConn := makeKVStoreConnPair()
-	fooPrvKey := ed25519.GenPrivKey()
-	barPrvKey := privKeyWithNilPubKey{ed25519.GenPrivKey()}
-
-	go func() {
-		_, err := MakeSecretConnection(barConn, barPrvKey)
-		assert.NoError(t, err)
-	}()
-
-	assert.NotPanics(t, func() {
-		_, err := MakeSecretConnection(fooConn, fooPrvKey)
-		if assert.Error(t, err) {
-			assert.Equal(t, "expected ed25519 pubkey, got <nil>", err.Error())
-		}
-	})
-}
-
-func TestNonEd25519Pubkey(t *testing.T) {
-	t.Parallel()
-
-	fooConn, barConn := makeKVStoreConnPair()
-	fooPrvKey := ed25519.GenPrivKey()
-	barPrvKey := secp256k1.GenPrivKey()
-
-	go func() {
-		_, err := MakeSecretConnection(barConn, barPrvKey)
-		assert.NoError(t, err)
-	}()
-
-	assert.NotPanics(t, func() {
-		_, err := MakeSecretConnection(fooConn, fooPrvKey)
-		if assert.Error(t, err) {
-			assert.Equal(t, "expected ed25519 pubkey, got secp256k1.PubKeySecp256k1", err.Error())
-		}
-	})
 }
 
 // Creates the data for a test vector file.

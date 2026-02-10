@@ -1,0 +1,47 @@
+# Test multisig functionality - creates a 2-of-3 multisig
+# Demonstrates creating multisig without all private keys on same computer
+
+# 1. Create alice account using entropy (private key on this computer)
+input test123
+input test123
+input alice entropy seed with sufficient randomness from dice rolls and other random sources
+input y
+gnokey add alice --entropy --insecure-password-stdin --home $WORK
+stdout 'alice \(local\)'
+stdout 'g1kfc8mxuqvg2zks5sf003y8u5pmhttg74l5pcz7'
+
+# 2. Create bob account from recovered mnemonic (could be from another device)
+input test123
+input test123
+input wage renew timber answer someone model torch cake ostrich sort appear walk kiss expose magnet crisp keen skin enter opinion desk dice lyrics reflect
+gnokey add bob --recover --insecure-password-stdin --home $WORK
+stdout 'bob \(local\)'
+stdout 'g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054'
+
+# 3. Create charlie as public-key-only (no private key on this computer)
+# This simulates receiving a public key from someone else
+# The address/pubkey below is from the mnemonic: "public donor train assault valve arrange local remain topple inspire tenant nose talent film shoulder mail rose plate banner wet apart over cube song"
+gnokey add bech32 charlie --pubkey gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqv78qzekzh8ysj26zgda53kngk6x9329la0vjhwp75t4ytkymfhzz46a2dz --home $WORK
+stdout 'Key "charlie" saved to disk.'
+
+# List keys to show different types
+gnokey list --home $WORK
+stdout 'alice.*local.*g1kfc8mxuqvg2zks5sf003y8u5pmhttg74l5pcz7'    # has private key (from entropy)
+stdout 'bob.*local.*g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054'      # has private key (recovered)
+stdout 'charlie.*offline.*g1k8g5ljcvdtg6km6qt6k6ytf4sycgyxqkezuaq5' # no private key (public key only)
+
+# Create 2-of-3 multisig treasury
+# This multisig can be signed by alice and bob (who have private keys)
+# Charlie can participate but would need to sign on their own device
+gnokey add multisig treasury --multisig alice --multisig bob --multisig charlie --threshold 2 --home $WORK
+stdout 'Key "treasury" saved to disk.'
+
+# List all keys including the multisig
+gnokey list --home $WORK
+stdout 'alice.*local.*g1kfc8mxuqvg2zks5sf003y8u5pmhttg74l5pcz7'
+stdout 'bob.*local.*g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054' 
+stdout 'charlie.*offline.*g1k8g5ljcvdtg6km6qt6k6ytf4sycgyxqkezuaq5'
+stdout 'treasury.*multi.*g1xnjarczxjgvuhfxmwtehqhp0ze7kpphetxax7a'
+
+# Verify treasury is a 2-of-3 multisig
+# Note: The multisig address is deterministic based on the pubkeys and threshold

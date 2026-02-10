@@ -1,5 +1,5 @@
 # load a package from the 'examples' directory.
-loadpkg gno.land/p/demo/ufmt
+loadpkg gno.land/p/nt/ufmt
 
 ## start a new node
 gnoland start
@@ -11,14 +11,15 @@ stdout OK!
 gnokey query vm/qrender --data 'gno.land/r/importtest:'
 stdout '92054'
 
--- gno.mod --
-module gno.land/r/importtest
+-- gnomod.toml --
+module = "gno.land/r/importtest"
+gno = "0.9"
 
 -- import.gno --
 package importtest
 
 import (
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 func Render(_ string) string {

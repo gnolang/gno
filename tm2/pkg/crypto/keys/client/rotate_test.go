@@ -65,7 +65,7 @@ func Test_execRotate(t *testing.T) {
 		io.SetIn(strings.NewReader(p1 + "\n" + p2 + "\n" + "blah" + "\n"))
 		err = execRotate(cfg, args, io)
 		require.Error(t, err)
-		require.Equal(t, "unable to parse provided password, passphrases don't match", err.Error())
+		require.Equal(t, "passphrases don't match", err.Error())
 	}
 
 	{

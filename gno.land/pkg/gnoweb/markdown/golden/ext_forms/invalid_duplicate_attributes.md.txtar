@@ -1,0 +1,16 @@
+-- input.md --
+<gno-form>
+<gno-input name="duplicate" name="duplicate2" placeholder="test" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div class="gno-form_input"><label for="duplicate2">test</label>
+<input type="text" id="duplicate2" name="duplicate2" placeholder="test" />
+</div>
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>

@@ -1,16 +1,16 @@
 package loci
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 )
 
 func TestLociStore(t *testing.T) {
 	t.Run("TestSet", func(t *testing.T) {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
-		caller := std.PreviousRealm()
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
+		caller := runtime.PreviousRealm()
 		store := New()
 		// Ensure that the value is nil before setting it.
 		if r1 := store.Get(caller.Address()); r1 != nil {
@@ -26,8 +26,8 @@ func TestLociStore(t *testing.T) {
 		}
 	})
 	t.Run("TestGet", func(t *testing.T) {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
-		caller := std.PreviousRealm()
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
+		caller := runtime.PreviousRealm()
 		store := New()
 		store.Set([]byte("hello"))
 		if r0 := store.Get(testutils.TestAddress("nil_user")); r0 != nil {

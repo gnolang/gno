@@ -3,10 +3,9 @@
 package names
 
 import (
-	"std"
 	"strings"
 
-	"gno.land/p/demo/ownable"
+	"gno.land/p/nt/ownable"
 
 	"gno.land/r/sys/users"
 )
@@ -19,15 +18,14 @@ var (
 
 // IsAuthorizedAddressForNamespace ensures that the given address has ownership of the given name.
 // A user's name found in r/sys/users is equivalent to their namespace.
-func IsAuthorizedAddressForNamespace(address std.Address, namespace string) bool {
-	return verifier(enabled, address, namespace)
+func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool {
+	return verifier(enabled, address_XXX, namespace)
 }
 
 // Enable enables the namespace check and drops centralized ownership of this realm.
 // The namespace check is disabled initially to ease txtar and other testing contexts,
 // but this function is meant to be called in the genesis of a chain.
-func Enable() {
-	crossing()
+func Enable(cur realm) {
 	if err := Ownable.DropOwnershipByPrevious(); err != nil {
 		panic(err)
 	}
@@ -35,26 +33,25 @@ func Enable() {
 }
 
 func IsEnabled() bool {
-	crossing()
 	return enabled
 }
 
 // verifier checks the store to see that the
 // user has properly registered a given name/namespace.
 // This function considers as valid an `address` that matches the `namespace` (PA namespaces)
-func verifier(enabled bool, address std.Address, namespace string) bool {
+func verifier(enabled bool, address_XXX address, namespace string) bool {
 	if !enabled {
 		return true // only in pre-genesis cases
 	}
 
-	if strings.TrimSpace(address.String()) == "" || strings.TrimSpace(namespace) == "" {
+	if strings.TrimSpace(address_XXX.String()) == "" || strings.TrimSpace(namespace) == "" {
 		return false
 	}
 
 	// Allow user with their own address as namespace
 	// This enables pseudo-anon namespaces
 	// ie gno.land/{p,r}/{ADDRESS}/**
-	if address.String() == namespace {
+	if address_XXX.String() == namespace {
 		return true
 	}
 
@@ -66,5 +63,5 @@ func verifier(enabled bool, address std.Address, namespace string) bool {
 
 	/// XXX: add check for r/sys/teams down the line
 
-	return userData.Addr() == address
+	return userData.Addr() == address_XXX
 }

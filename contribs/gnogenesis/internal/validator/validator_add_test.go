@@ -38,7 +38,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
@@ -62,10 +62,10 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		key := common.GetDummyKey(t)
+		key := common.DummyKey(t)
 
 		// Create the command
 		cmd := NewValidatorCmd(commands.NewTestIO())
@@ -90,10 +90,10 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		key := common.GetDummyKey(t)
+		key := common.DummyKey(t)
 
 		// Create the command
 		cmd := NewValidatorCmd(commands.NewTestIO())
@@ -118,10 +118,10 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		key := common.GetDummyKey(t)
+		key := common.DummyKey(t)
 
 		// Create the command
 		cmd := NewValidatorCmd(commands.NewTestIO())
@@ -148,10 +148,10 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		dummyKeys := common.GetDummyKeys(t, 2)
+		dummyKeys := common.DummyKeys(t, 2)
 
 		// Create the command
 		cmd := NewValidatorCmd(commands.NewTestIO())
@@ -178,8 +178,8 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		dummyKeys := common.GetDummyKeys(t, 2)
-		genesis := common.GetDefaultGenesis()
+		dummyKeys := common.DummyKeys(t, 2)
+		genesis := common.DefaultGenesis()
 
 		// Set an existing validator
 		genesis.Validators = append(genesis.Validators, types.GenesisValidator{
@@ -216,8 +216,8 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		key := common.GetDummyKey(t)
-		genesis := common.GetDefaultGenesis()
+		key := common.DummyKey(t)
+		genesis := common.DefaultGenesis()
 
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 

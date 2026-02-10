@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 )
 
 func TestGoLevelDBNewGoLevelDB(t *testing.T) {
@@ -53,4 +54,26 @@ func BenchmarkGoLevelDBRandomReadsWrites(b *testing.B) {
 	defer db.Close()
 
 	internal.BenchmarkRandomReadsWrites(b, db)
+}
+
+func BenchmarkGoLevelDBBatchWrites(b *testing.B) {
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
+	db, err := NewGoLevelDB(name, b.TempDir())
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer db.Close()
+
+	internal.BenchmarkBatchWrites(b, db)
+}
+
+func BenchmarkGoLevelDBIterator(b *testing.B) {
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
+	db, err := NewGoLevelDB(name, b.TempDir())
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer db.Close()
+
+	internal.BenchmarkIterator(b, db)
 }

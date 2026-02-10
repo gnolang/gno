@@ -1,7 +1,6 @@
 package main
 
 import (
-	"std"
 	"testing"
 	"time"
 
@@ -11,18 +10,18 @@ import (
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
 type propDef struct{}
 
-func (propDef) Title() string                                                 { return "" }
-func (propDef) Body() string                                                  { return "" }
-func (propDef) VotingPeriod() time.Duration                                   { return 0 }
-func (propDef) Validate() error                                               { return nil }
-func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return false, nil }
-func (propDef) Execute() error                                                { return nil }
+func (propDef) Title() string                          { return "" }
+func (propDef) Body() string                           { return "" }
+func (propDef) VotingPeriod() time.Duration            { return time.Hour }
+func (propDef) Validate() error                        { return nil }
+func (propDef) Tally(pdao.VotingContext) (bool, error) { return false, nil }
+func (propDef) Execute() error                         { return nil }
 
 var (
 	daoID    uint64
@@ -32,13 +31,13 @@ var (
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	commondao.Invite(cross, user)
 
-	// Create a new DAO which gives ownership to `commondao_test`
-	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	dao := commondao.New("Foo")
+	// Create a new DAO which gives ownership to `test`
+	testing.SetRealm(testing.NewUserRealm(user))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
+	dao := commondao.New(cross, "Foo")
 	daoID = dao.ID()
 
 	// Configure DAO
@@ -50,9 +49,9 @@ func init() {
 
 func main() {
 	// User must be the caller to Vote()
-	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
-	cross(commondao.Vote)(daoID, proposal.ID(), vote, "")
+	commondao.Vote(cross, daoID, proposal.ID(), vote, "")
 
 	record := proposal.VotingRecord()
 	if record.Size() != 1 {

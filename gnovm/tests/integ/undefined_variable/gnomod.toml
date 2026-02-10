@@ -1,0 +1,2 @@
+module = "gno.vm/r/tests/integ/undefined_variable"
+gno = "0.9"

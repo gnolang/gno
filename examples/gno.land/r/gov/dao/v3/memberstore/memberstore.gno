@@ -1,16 +1,22 @@
 package memberstore
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/svg"
+	"gno.land/p/moul/md"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
 )
 
-var members MembersByTier
-var Tiers TiersByName
+var (
+	members MembersByTier
+	Tiers   TiersByName
+	router  *mux.Router
+)
 
 const (
 	T1 = "T1"
@@ -82,7 +88,7 @@ func init() {
 			t1p := t1.BasePower * t1ms
 			t3p := t3.BasePower * t3ms
 
-			//capped to 1/3 of tier 1
+			// capped to 1/3 of tier 1
 			t1ptreshold := t1p * (1.0 / 3.0)
 			if t3p > t1ptreshold {
 				return t1ptreshold / t3ms
@@ -92,12 +98,21 @@ func init() {
 		},
 	})
 
+	initRouter()
 }
 
-func Render(string) string {
-	var sb strings.Builder
+// initRouter initializes the router for the memberstore.
+func initRouter() {
+	router = mux.NewRouter()
+	router.HandleFunc("", renderHome)
+	router.HandleFunc("members", renderMembers)
+	router.NotFoundHandler = renderNotFound
+}
 
-	sb.WriteString("# Memberstore Govdao v3:\n\n")
+// renderHome displays the tiers data (Number of members and powers) and tiers charts.
+func renderHome(res *mux.ResponseWriter, req *mux.Request) {
+	var sb strings.Builder
+	sb.WriteString(md.Link("> Go to Members list <", "/r/gov/dao/v3/memberstore:members") + "\n")
 
 	members.Iterate("", "", func(tn string, ti interface{}) bool {
 		tree, ok := ti.(*avl.Tree)
@@ -112,17 +127,55 @@ func Render(string) string {
 
 		tp := (tier.PowerHandler(members, Tiers) * float64(members.GetTierSize(tn)))
 
-		sb.WriteString(ufmt.Sprintf("- Tier %v contains %v members with power: %v\n", tn, tree.Size(), tp))
+		sb.WriteString(ufmt.Sprintf("- %v Tier %v contains %v members with power: %v\n", tierColoredChip(tn), tn, tree.Size(), tp))
 
 		return false
 	})
 
+	sb.WriteString("\n" + RenderCharts(members))
+	res.Write(sb.String())
+}
+
+// renderMembers displays the members list.
+func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
+	path := strings.Replace(req.RawPath, "members", "", 1) // We have to clean the path
+	res.Write(RenderMembers(path, members))
+}
+
+func renderNotFound(res *mux.ResponseWriter, req *mux.Request) {
+	res.Write("# 404\n\nThat page was not found. Would you like to [**go home**?](/r/gov/dao/v3/memberstore)")
+}
+
+func tierColor(tn string) string {
+	switch tn {
+	case T1:
+		return "#329175"
+	case T2:
+		return "#21577A"
+	case T3:
+		return "#F3D3BC"
+	default:
+		return "#FFF"
+	}
+}
+
+// tierColoredChip returns a colored chip svg for the given tier name.
+func tierColoredChip(tn string) string {
+	canvas := svg.NewCanvas(16, 16)
+	canvas.Append(svg.NewRectangle(0, 0, 16, 16, tierColor(tn)))
+	return canvas.Render(tn + " colored chip")
+}
+
+func Render(path string) string {
+	var sb strings.Builder
+	sb.WriteString(md.H1("Memberstore Govdao v3"))
+	sb.WriteString(router.Render(path))
 	return sb.String()
 }
 
 // Get gets the Members store
 func Get() MembersByTier {
-	currealm := std.CurrentRealm().PkgPath()
+	currealm := runtime.CurrentRealm().PkgPath()
 	if !dao.InAllowedDAOs(currealm) {
 		panic("this Realm is not allowed to get the Members data: " + currealm)
 	}

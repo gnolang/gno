@@ -16,7 +16,7 @@ func main() {
 }
 
 // Error:
-// main/return_interface_filetest.gno:13:2-9: cannot use interface {} as []int
+// main/return_interface.gno:13:2-9: cannot use interface {} as []int
 
 // TypeCheckError:
-// main/return_interface_filetest.gno:13:6: cannot use x() (value of interface type any) as nat value in assignment: need type assertion
+// main/return_interface.gno:13:6: cannot use x() (value of interface type any) as nat value in assignment: need type assertion

@@ -13,18 +13,18 @@ Nam id ipsum faucibus __[italic](/r/test/mypackage/realm)__ ultrices eros at.
     - level 3 [internal3](/r/other3/realm)
 
 -- output.html --
-<p>Lorem ipsum dolor sit <a href="https://example.com" rel="noopener nofollow ugc">external<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a> consectetur adipiscing elit.
-Vivamus nibh dui, finibus <a href="/r/other/realm">internal<span class="link-internal js-tooltip tooltip" data-tooltip="Cross package link">↔</span></a> quis placerat et, laoreet ut est.
+<p>Lorem ipsum dolor sit <a href="https://example.com" rel="noopener nofollow ugc">external<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a> consectetur adipiscing elit.
+Vivamus nibh dui, finibus <a href="/r/other/realm">internal<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span></a> quis placerat et, laoreet ut est.
 Nam id ipsum faucibus <a href="/r/test/mypackage/realm">package</a> ultrices eros at.</p>
 <p>Nam id ipsum <em>faucibus</em> <em><a href="/r/test/mypackage/realm">italic</a></em> ultrices eros at.
 Nam id ipsum faucibus <strong><a href="/r/test/mypackage/realm">italic</a></strong> ultrices eros at.</p>
-<h2>Inline title <a href="/r/other/realm">internal<span class="link-internal js-tooltip tooltip" data-tooltip="Cross package link">↔</span></a></h2>
+<h2>Inline title <a href="/r/other/realm">internal<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span></a></h2>
 <ul>
-<li>level 1 <a href="/r/other1/realm">internal1<span class="link-internal js-tooltip tooltip" data-tooltip="Cross package link">↔</span></a>
+<li>level 1 <a href="/r/other1/realm">internal1<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span></a>
 <ul>
-<li>level 2 <a href="/r/other2/realm">internal2<span class="link-internal js-tooltip tooltip" data-tooltip="Cross package link">↔</span></a>
+<li>level 2 <a href="/r/other2/realm">internal2<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span></a>
 <ul>
-<li>level 3 <a href="/r/other3/realm">internal3<span class="link-internal js-tooltip tooltip" data-tooltip="Cross package link">↔</span></a></li>
+<li>level 3 <a href="/r/other3/realm">internal3<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span></a></li>
 </ul>
 </li>
 </ul>

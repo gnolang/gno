@@ -4,12 +4,12 @@
 loadpkg gno.land/r/demo/counter $WORK
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/demo/counter -func Incr -gas-fee 1000000ugnot -gas-wanted 200000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/counter -func Incr -gas-fee 1000000ugnot -gas-wanted 300000 -broadcast -chainid tendermint_test test1
 stdout '\(1 int\)'
 
 gnoland restart
 
-gnokey maketx call -pkgpath gno.land/r/demo/counter -func Incr -gas-fee 1000000ugnot -gas-wanted 200000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/counter -func Incr -gas-fee 1000000ugnot -gas-wanted 300000 -broadcast -chainid tendermint_test test1
 stdout '\(2 int\)'
 
 -- counter.gno --
@@ -17,9 +17,7 @@ package counter
 
 var counter int
 
-func Incr() int {
-	crossing()
-
+func Incr(cur realm) int {
 	counter++
 	return counter
 }

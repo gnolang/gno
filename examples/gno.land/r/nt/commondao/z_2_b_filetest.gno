@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	commondao.New("")
+	commondao.New(cross, "")
 }
 
 // Error:

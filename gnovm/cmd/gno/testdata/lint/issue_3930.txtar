@@ -7,12 +7,11 @@ cmp stderr stderr.golden
 package hello
 
 import (
-"fmt"
 "math"
 )
 
 func init() {
-	fmt.Println("here", math.MaxInt)
+	println("here", math.MaxInt)
 }
 
 func init() {
@@ -20,8 +19,8 @@ func init() {
 }
 
 func Get(){}
--- gno.mod --
-module gno.land/r/demo/hello
+-- gnomod.toml --
+module = "gno.land/r/demo/hello"
 
 -- stdout.golden --
 -- stderr.golden --

@@ -203,6 +203,12 @@ func (cdc *Codec) decodeReflectJSONInterface(bz []byte, iinfo *TypeInfo, rv refl
 	// Decode into the concrete type.
 	err = cdc.decodeReflectJSON(bz, cinfo, crv, fopts)
 	if err != nil {
+		// Verify that the decoded concrete type is assignable to the target interface.
+		// This prevents panics when a registered type doesn't implement the target interface.
+		if !irvSet.Type().AssignableTo(rv.Type()) {
+			err = fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
+			return
+		}
 		rv.Set(irvSet) // Helps with debugging
 		return
 	}
@@ -210,6 +216,12 @@ func (cdc *Codec) decodeReflectJSONInterface(bz []byte, iinfo *TypeInfo, rv refl
 	// We need to set here, for when !PointerPreferred and the type
 	// is say, an array of bytes (e.g. [32]byte), then we must call
 	// rv.Set() *after* the value was acquired.
+	// Verify that the decoded concrete type is assignable to the target interface.
+	// This prevents panics when a registered type doesn't implement the target interface.
+	if !irvSet.Type().AssignableTo(rv.Type()) {
+		err = fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
+		return
+	}
 	rv.Set(irvSet)
 	return err
 }

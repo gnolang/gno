@@ -10,7 +10,7 @@ with Go. Therefore, if you haven't already, we highly recommend reading
 ## Disclaimer
 
 Gno is a young language. The practices we've identified are based on its current
-state. As Gno evolves, new practices will emerge and some current ones may
+state. As Gno evolves, new practices will emerge, and some current ones may
 become obsolete. We welcome your contributions and feedback. Stay updated and
 help shape Gno's future!
 
@@ -21,7 +21,7 @@ counter-intuitive, especially if you're coming from a Go background.
 
 ### Embrace global variables in realms
 
-In Gno, using global variables is not only acceptable, but also encouraged,
+In Gno, using global variables is not only acceptable but also encouraged,
 specifically when working with realms. This is due to the unique persistence
 feature of realms.
 
@@ -59,7 +59,7 @@ func GetCounter() int {
 }
 
 // public setter endpoint.
-func IncCounter() {
+func IncCounter(_ realm) {
 	counter++
 }
 ```
@@ -76,7 +76,7 @@ While the famous [quote by Rob
 Pike](https://github.com/golang/go/wiki/CodeReviewComments#dont-panic) advises
 Go developers "Don't panic.", in Gno, we actually embrace `panic`.
 
-Panic in Gno is not just for critical errors or programming mistakes as it is in
+Panic in Gno is not just for critical errors or programming mistakes, as it is in
 Go. Instead, it's used as a control flow mechanism to stop the execution of a
 [realm](./realms.md) when something goes wrong. This could be due to an invalid input, a
 failed precondition, or any other situation where it's not possible or desirable
@@ -91,7 +91,7 @@ When you return an `error` in Gno, it's like giving back any other piece of data
 It tells you something went wrong, but it doesn't stop your code or undo any
 changes you made.
 
-But, when you use `panic` in Gno, it stops your code right away, says it failed,
+But when you use `panic` in Gno, it stops your code right away, says it failed,
 and doesn't save any changes you made. This is safer when you want to stop
 everything and not save wrong changes.
 
@@ -119,12 +119,12 @@ func Foobar() {
 }
 ```
 
-- TODO: suggest MustXXX and AssertXXX flows in p/.
+<!-- TODO: suggest MustXXX and AssertXXX flows in p/ -->
 
 ### Understand the importance of `init()`
 
-In Gno, the `init()` function isn't just a function, it's a cornerstone. It's
-automatically triggered when a new realm is added onchain, making it a one-time
+In Gno, the `init()` function isn't just a function; it's a cornerstone. It's
+automatically triggered when a new realm is added on-chain, making it a one-time
 setup tool for the lifetime of a realm. In essence, `init()` acts as a
 constructor for your realm.
 
@@ -142,7 +142,7 @@ In Gno, `init()` primarily serves two purposes:
 import "gno.land/r/some/registry"
 
 func init() {
-	registry.Register("myID", myCallback)
+	registry.Register(cross, "myID", myCallback)
 }
 
 func myCallback(a, b string) { /* ... */ }
@@ -203,7 +203,7 @@ of Go and Gno. Essentially, you can think of each `p/` package as a Lego brick
 in an ever-growing collection, giving more power to users. `p/` in Gno is
 basically a way to extend the standard libraries in a community-driven manner.
 
-Unlike other compiled languages where dependencies are not always well-known and
+Unlike other compiled languages, where dependencies are not always well-known and
 clear metrics are lacking, Gno allows for a reputation system not only for the
 called contracts, but also for the dependencies.
 
@@ -217,7 +217,7 @@ dependencies. However, in Gno, we can expect that over time, contracts will
 become smaller, more powerful, and partially audited by default, thanks to this
 enforced open-source system.
 
-One key difference between the Go and Gno ecosystem is the trust assumption when
+One key difference between the Go and Gno ecosystems is the trust assumption when
 adding a new dependency. Dependency code always needs to be vetted, [regardless
 of what programming language or ecosystem you're using][sc-attack]. However, in
 Gno, you can have the certainty that the author of a package cannot overwrite an
@@ -251,14 +251,14 @@ func init() {
 	myExchange = exchange.NewExchange(myToken)
 }
 
-func BuyTokens(amount int) {
+func BuyTokens(_ realm, amount int) {
 	caller := permissions.GetCaller()
 	permissions.CheckPermission(caller, "buy")
 	myWallet.Debit(caller, amount)
 	myExchange.Buy(caller, amount)
 }
 
-func SellTokens(amount int) {
+func SellTokens(_ realm, amount int) {
 	caller := permissions.GetCaller()
 	permissions.CheckPermission(caller, "sell")
 	myWallet.Credit(caller, amount)
@@ -272,8 +272,8 @@ func SellTokens(amount int) {
 
 One of the well-known proverbs in Go is: ["Documentation is for
 users"](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=1147s), as stated by Rob
-Pike. In Go, documentation is for users, but users are often developers. In Gno,
-documentation is for users, and users can be other developers but also the end users.
+Pike. In Go, documentation is primarily for users, but users are often developers themselves. In Gno,
+documentation is for users, and users can be other developers as well as end users.
 
 In Go, we usually have well-written documentation for other developers to
 maintain and use our code as a library. Then, we often have another layer of
@@ -284,7 +284,7 @@ In Gno, the focus shifts towards writing documentation for the end user. You can
 even consider that the main reader is an end user, who is not so interested in
 technical details, but mostly interested in how and why they should use a
 particular endpoint. Comments will be used to aid code source reading, but also to
-generate documentation and even for smart wallets that need to understand what
+generate documentation, and even for smart wallets that need to understand what
 to do.
 
 Inline comments have the same goal: to guide users (developers or end users)
@@ -293,7 +293,7 @@ main purpose in Gno is for discoverability. This shift towards user-centric
 documentation reflects the broader shift in Gno towards making code more
 accessible and understandable for all users, not just developers.
 
-Here's an example from [grc20](https://gno.land/p/demo/grc/grc20$source&file=types.gno)
+Here's an example from [grc20](https://gno.land/p/demo/tokens/grc20$source&file=types.gno)
 to illustrate the concept:
 
 ```go
@@ -399,23 +399,23 @@ don't expect that other people will use your helpers, then you should probably
 use subdirectories like `p/NAMESPACE/DAPP/foo/bar/baz`.
 
 Packages which contain `internal` as an element of the path (ie. at the end, or
-in between, like `gno.land/p/demo/seqid/internal`, or
-`gno.land/p/demo/seqid/internal/base32`) can only be imported by packages
+in between, like `gno.land/p/nt/seqid/internal`, or
+`gno.land/p/nt/seqid/internal/base32`) can only be imported by packages
 sharing the same root as the `internal` package. That is, given a package
 structure as follows:
 
 ```
-gno.land/p/demo/seqid
+gno.land/p/nt/seqid
 ├── generator
 └── internal
     ├── base32
     └── cford32
 ```
 
-The `seqid/internal`, `seqid/internal/base32` and `seqid/internal/cford32`
+The `seqid/internal`, `seqid/internal/base32`, and `seqid/internal/cford32`
 packages can only be imported by `seqid` and `seqid/generator`.
 
-This works for both realm and packages, and can be used to create entirely
+This works for both realms and packages, and can be used to create entirely
 restricted packages and realms that are not meant for outside consumption.
 
 ### Define types and interfaces in pure packages (p/)
@@ -456,7 +456,7 @@ your realm with the same level of care and security considerations as you would
 a public API.
 
 One approach is to simulate a secure perimeter within your realm by having
-private functions for the logic and then writing your API layer by adding some
+private functions for the logic, and then writing your API layer by adding some
 front-facing API with authentication. This way, you can control access to your
 realm's functionality and ensure that only authorized callers can execute
 certain operations.
@@ -487,7 +487,7 @@ these logs can be indexed, filtered, and searched by external services, allowing
 them to monitor the behaviour of on-chain apps.
 
 It is good practice to emit events when any major action in your code is
-triggered. For example, good times to emit an event is after a balance transfer,
+triggered. For example, good times to emit an event are after a balance transfer,
 ownership change, profile created, etc. Alternatively, you can view event emission
 as a way to include data for monitoring purposes, given the indexable nature of
 events.
@@ -509,7 +509,7 @@ func init() {
 	owner = std.PreviousRealm().Address()
 }
 
-func ChangeOwner(newOwner std.Address) {
+func ChangeOwner(_ realm, newOwner std.Address) {
 	caller := std.PreviousRealm().Address()
 
 	if caller != owner {
@@ -570,7 +570,7 @@ signed the transaction.
 TODO: explain when to use `std.OriginCaller`.
 
 Internally, this call will look at the frame stack, which is basically the stack
-of callers including all the functions, anonymous functions, other realms, and
+of callers, including all the functions, anonymous functions, other realms, and
 take the initial caller. This allows you to identify the original caller and
 implement access control based on their address.
 
@@ -581,7 +581,7 @@ import "std"
 
 var admin std.Address = "g1xxxxx"
 
-func AdminOnlyFunction() {
+func AdminOnlyFunction(_ realm) {
 	caller := std.PreviousRealm().Address()
 	if caller != admin {
 		panic("permission denied")
@@ -589,7 +589,7 @@ func AdminOnlyFunction() {
 	// ...
 }
 
-// func UpdateAdminAddress(newAddr std.Address) { /* ... */ }
+// func UpdateAdminAddress(_ realm, newAddr std.Address) { /* ... */ }
 ```
 
 In this example, `AdminOnlyFunction` is a function that can only be called by
@@ -608,7 +608,7 @@ Here's an example:
 ```go
 import "std"
 
-func TransferTokens(to std.Address, amount int64) {
+func TransferTokens(_ realm, to std.Address, amount int64) {
 	caller := std.PreviousRealm().Address()
 	if caller != admin {
 		panic("permission denied")
@@ -653,7 +653,7 @@ func GetPost(id string) *Post {
 	return tree.Get(id).(*Post)
 }
 
-func AddPost(id string, post *Post) {
+func AddPost(_ realm, id string, post *Post) {
 	tree.Set(id, post)
 }
 ```
@@ -705,7 +705,7 @@ func NewSafeStruct() *MySafeStruct {
 }
 
 func (s *MySafeStruct) Counter() int { return s.counter }
-func (s *MySafeStruct) Inc() {
+func (s *MySafeStruct) Inc(_ realm) {
 	caller := std.PreviousRealm().Address()
 	if caller != s.admin {
 		panic("permission denied")
@@ -714,8 +714,7 @@ func (s *MySafeStruct) Inc() {
 }
 ```
 
-Then, you can register this object in another or several other realms so other
-realms can access the object, but still following your own rules.
+Then, you can register this object in one or more other realms so that they can access it, while still following your own rules.
 
 ```go
 import "gno.land/r/otherrealm"
@@ -765,17 +764,17 @@ Coins, or flexibility and control with GRC20 tokens. And if you want the
 best of both worlds, you can wrap a Coins into a GRC20 compatible token.
 
 ```go
-import "gno.land/p/demo/grc/grc20"
+import "gno.land/p/demo/tokens/grc20"
 
 var fooToken = grc20.NewBanker("Foo Token", "FOO", 4)
 
-func MyBalance() uint64 {
+func MyBalance(_ realm) uint64 {
 	caller := std.PreviousRealm().Address()
 	return fooToken.BalanceOf(caller)
 }
 ```
 
-See also: https://gno.land/r/demo/foo20
+See also: https://gno.land/r/demo/defi/foo20
 
 #### Wrapping Coins
 
@@ -784,7 +783,7 @@ your coins the flexibility of GRC20 while keeping the security of Coins.
 It's a bit more complex, but it's a powerful option that offers great
 versatility.
 
-See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/wugnot
+See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland/wugnot
 
 <!-- TODO:
 

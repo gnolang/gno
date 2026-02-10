@@ -124,7 +124,7 @@ func TestMigrate_Txs(t *testing.T) {
 			jsonData, err := amino.MarshalJSON(tx)
 			require.NoError(t, err)
 
-			_, err = f.WriteString(fmt.Sprintf("%s\n", jsonData))
+			_, err = fmt.Fprintf(f, "%s\n", jsonData)
 			require.NoError(t, err)
 		}
 

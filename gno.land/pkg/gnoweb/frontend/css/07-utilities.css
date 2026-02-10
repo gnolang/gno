@@ -1,0 +1,128 @@
+/* ==========================================================================
+   07-UTILITIES - Utility classes and overrides (CUBE CSS: Utility + Exception)
+   ========================================================================== */
+
+.u-hidden {
+	display: none;
+}
+.u-inline {
+	display: inline;
+}
+
+.u-sr-only {
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	padding: 0;
+	position: absolute;
+	width: 1px;
+	clip: rect(0, 0, 0, 0);
+	border-width: 0;
+	white-space: nowrap;
+}
+
+/* ===== TEXT UTILITIES ===== */
+.u-italic-subtle {
+	font-style: italic;
+	opacity: 0.8;
+}
+
+.u-word-break {
+	word-break: break-word;
+	overflow-wrap: break-word;
+}
+
+.u-color-valid {
+	color: var(--s-color-bg-brand-default);
+}
+
+.u-color-danger {
+	color: var(--s-color-text-caution);
+}
+
+.u-quotes::before,
+.u-quotes::after {
+	content: '"';
+	color: var(--color-gray-400);
+}
+
+.u-text-stroke {
+	-webkit-text-stroke: currentColor;
+	-webkit-text-stroke-width: 0.6px;
+}
+
+.u-font-mono {
+	font-family: var(--g-font-family-mono);
+}
+
+.u-capitalize {
+	text-transform: capitalize;
+}
+
+.u-text-center {
+	text-align: center;
+}
+
+/* ===== SCROLLBAR UTILITIES ===== */
+.u-no-scrollbar::-webkit-scrollbar {
+	display: none;
+}
+
+.u-no-scrollbar {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+/* ===== STATE UTILITIES ===== */
+.u-is-loading {
+	opacity: 0;
+}
+
+.u-pointer-events-none {
+	pointer-events: none;
+}
+
+.u-icon-static {
+	width: var(--g-space-4);
+	height: var(--g-space-4);
+}
+
+/* ===== SPACE UTILITIES ===== */
+.u-gap-0 {
+	gap: 0;
+}
+
+.u-mt-4 {
+	margin-block-start: var(--g-space-4);
+}
+
+.u-mb-0 {
+	margin-block-end: 0;
+}
+
+.u-mb-2 {
+	margin-block-end: var(--g-space-2);
+}
+.u-lg-mb-4 {
+	@media (--lg) {
+		margin-block-end: var(--g-space-4);
+	}
+}
+
+.u-grid-row-1 {
+	grid-row-start: 1;
+}
+
+.u-grid-full {
+	grid-column: 1 / -1;
+}
+
+/* ===== FOCUS UTILITIES ===== */
+.u-focus-no-field-sizing-w-20:focus {
+	width: 5rem;
+}
+
+/* ===== EMPTY STATE UTILITIES ===== */
+*:empty + .u-prev-empty {
+	margin-top: var(--space-4);
+}

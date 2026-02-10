@@ -12,3 +12,8 @@ package minim
 package main
 
 func main() {}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/minim3"
+gno = "0.9"

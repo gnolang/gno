@@ -11,9 +11,7 @@ func init() {
 	ms.Field = 1
 }
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	println(ms)
 	ms.Field += 2
 	println(ms)
@@ -25,7 +23,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4](0)=
 //     @@ -1,7 +1,7 @@
 //      {
 //          "Fields": [

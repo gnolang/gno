@@ -304,3 +304,21 @@ func (ctx *Context) Context() context.Context {
 	}
 	return context.Background()
 }
+
+// NewHTTPStatusError returns an error meant to be used in the rpc handlers to signal to the server
+// that it must answer with a specific http error code
+func NewHTTPStatusError(code int, message string) error {
+	return &HTTPStatusError{Code: code, Message: message}
+}
+
+// HTTPStatusError is an error meant to be returned in the rpc handlers to signal to the server
+// that it must answer with a specific http error code
+type HTTPStatusError struct {
+	Code    int
+	Message string
+}
+
+// Error implements error.
+func (h *HTTPStatusError) Error() string {
+	return fmt.Sprintf("%d: %s", h.Code, h.Message)
+}

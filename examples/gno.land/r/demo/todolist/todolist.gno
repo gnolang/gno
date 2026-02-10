@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"strconv"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/todolist"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/ufmt"
 )
 
 // State variables
@@ -21,7 +21,7 @@ func init() {
 	todolistTree = avl.NewTree()
 }
 
-func NewTodoList(title string) (int, string) {
+func NewTodoList(_ realm, title string) (int, string) {
 	// Create new Todolist
 	tl := todolist.NewTodoList(title)
 	// Update AVL tree with new state
@@ -30,7 +30,7 @@ func NewTodoList(title string) (int, string) {
 	return int(tlid), "created successfully"
 }
 
-func AddTask(todolistID int, title string) string {
+func AddTask(_ realm, todolistID int, title string) string {
 	// Get Todolist from AVL tree
 	tl, ok := todolistTree.Get(strconv.Itoa(todolistID))
 	if !ok {
@@ -49,7 +49,7 @@ func AddTask(todolistID int, title string) string {
 	return "task added successfully"
 }
 
-func ToggleTaskStatus(todolistID int, taskID int) string {
+func ToggleTaskStatus(_ realm, todolistID int, taskID int) string {
 	// Get Todolist from AVL tree
 	tl, ok := todolistTree.Get(strconv.Itoa(todolistID))
 	if !ok {
@@ -68,7 +68,7 @@ func ToggleTaskStatus(todolistID int, taskID int) string {
 	return "task status changed successfully"
 }
 
-func RemoveTask(todolistID int, taskID int) string {
+func RemoveTask(_ realm, todolistID int, taskID int) string {
 	// Get Todolist from AVL tree
 	tl, ok := todolistTree.Get(strconv.Itoa(todolistID))
 	if !ok {
@@ -87,7 +87,7 @@ func RemoveTask(todolistID int, taskID int) string {
 	return "task status changed successfully"
 }
 
-func RemoveTodoList(todolistID int) string {
+func RemoveTodoList(_ realm, todolistID int) string {
 	// Get Todolist from AVL tree
 	_, ok := todolistTree.Get(strconv.Itoa(todolistID))
 	if !ok {

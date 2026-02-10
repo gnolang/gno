@@ -1,28 +1,28 @@
 # Reproducible Test for https://github.com/gnolang/gno/issues/1167
-loadpkg gno.land/p/demo/avl
+loadpkg gno.land/p/nt/avl
 
 gnoland start
 
 # add contract
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/xx -gas-fee 1000000ugnot -gas-wanted 8000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/xx -gas-fee 1000000ugnot -gas-wanted 9000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # execute New
-gnokey maketx call -pkgpath gno.land/r/demo/xx -func New -args X -gas-fee 1000000ugnot -gas-wanted 800000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func New -args X -gas-fee 1000000ugnot -gas-wanted 900000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # execute Delta for the first time
-gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 3500000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout '"1,1,1;'
 
 # execute Delta for the second time
-gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 3500000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout '1,1,1;2,2,2;'
 
 # execute Delta for the third time
-gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 3500000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout '1,1,1;2,2,2;3,3,3;'
 
@@ -30,16 +30,17 @@ stdout '1,1,1;2,2,2;3,3,3;'
 gnokey query vm/qrender --data "gno.land/r/demo/xx:X"
 stdout '1,1,1;2,2,2;3,3,3;'
 
--- gno.mod --
-module gno.land/r/demo/xx
+-- gnomod.toml --
+module = "gno.land/r/demo/xx"
 
+gno = "0.9"
 -- realm.gno --
 package xx
 
 import (
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 type Move struct {
@@ -73,18 +74,14 @@ var games avl.Tree // id -> *Game
 
 var counter byte
 
-func New(s string) string {
-	crossing()
-
+func New(cur realm, s string) string {
 	// Bug shows if Moves has a cap > 0 when initialised.
 	el := &Game{Position: Position{Moves: make([]Move, 0, 2)}}
 	games.Set(s, el)
 	return values(el.Position)
 }
 
-func Delta(s string) string {
-	crossing()
-
+func Delta(cur realm, s string) string {
 	v, _ := games.Get(s)
 	g, ok := v.(*Game)
 	if !ok {

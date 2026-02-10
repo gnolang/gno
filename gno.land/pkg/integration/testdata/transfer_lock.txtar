@@ -4,8 +4,8 @@
 adduser regular1
 
 
-loadpkg gno.land/r/demo/wugnot
-loadpkg gno.land/r/demo/echo
+loadpkg gno.land/r/gnoland/wugnot
+loadpkg gno.land/r/archive/echo
 
 ## start a new node.
 ## The -lock-transfer flag is intended for integration testing purposes
@@ -24,34 +24,40 @@ stdout 'OK!'
 stderr 'restricted token transfer error'
 
 ## Restricted token transfer by calling a realm deposit function.
-! gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -gas-fee 1000000ugnot -send "10000ugnot" -gas-wanted 2000000 -broadcast -chainid=tendermint_test regular1
+! gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -gas-fee 1000000ugnot -send "10000ugnot" -gas-wanted 2000000 -broadcast -chainid=tendermint_test regular1
 stderr 'restricted token transfer error'
 
 
-## Restricted token transfer with depositing to a realm package while adding a package.
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank -deposit "1000ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular1
-stderr 'restricted token transfer error'
+## making a storage deposit to a realm package while adding the package is acceptable
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank -max-deposit "2000000ugnot" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test regular1
+stdout 'OK!'
 
 ## paying gas fees to add a package is acceptable.
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank -gas-fee 1000000ugnot -gas-wanted 12500000 -broadcast -chainid=tendermint_test regular1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank2 -gas-fee 1000000ugnot -gas-wanted 12500000 -broadcast -chainid=tendermint_test regular1
 stdout 'OK!'
 
 ## paying gas fees to call a realm function is acceptable.
-gnokey query vm/qrender --data 'gno.land/r/demo/echo:Hello!'
+gnokey query vm/qrender --data 'gno.land/r/archive/echo:Hello!'
 stdout 'Hello!'
 
+-- gnomod.toml --
+module = "gno.land/r/demo/lock"
+
+gno = "0.9"
 -- bank.gno --
 package bank
 
-import "std"
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+)
 
-func Withdraw(denom string, amt int64) string{
-	crossing()
-
-  caller := std.OriginCaller()
-  coin := std.Coins{{denom, amt}}
-  banker := std.NewBanker(std.BankerTypeOriginSend)
-  pkgaddr := std.PreviousRealm().Address()
-  banker.SendCoins(pkgaddr, caller, coin)
-  return "Withdrawn!"
+func Withdraw(cur realm, denom string, amt int64) string {
+	caller := runtime.OriginCaller()
+	coin := chain.Coins{{denom, amt}}
+	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
+	pkgaddr := runtime.PreviousRealm().Address()
+	banker_.SendCoins(pkgaddr, caller, coin)
+	return "Withdrawn!"
 }

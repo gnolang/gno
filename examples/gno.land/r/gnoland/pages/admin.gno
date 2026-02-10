@@ -1,14 +1,14 @@
 package gnopages
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 var (
-	adminAddr     std.Address
+	adminAddr     address
 	moderatorList avl.Tree
 	inPause       bool
 )
@@ -18,30 +18,30 @@ func init() {
 	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 }
 
-func AdminSetAdminAddr(addr std.Address) {
+func AdminSetAdminAddr(_ realm, addr address) {
 	assertIsAdmin()
 	adminAddr = addr
 }
 
-func AdminSetInPause(state bool) {
+func AdminSetInPause(_ realm, state bool) {
 	assertIsAdmin()
 	inPause = state
 }
 
-func AdminAddModerator(addr std.Address) {
+func AdminAddModerator(_ realm, addr address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), true)
 }
 
-func AdminRemoveModerator(addr std.Address) {
+func AdminRemoveModerator(_ realm, addr address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), false) // XXX: delete instead?
 }
 
-func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
+func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	tagList := strings.Split(tags, ",")
 	authorList := strings.Split(authors, ",")
 
@@ -49,7 +49,7 @@ func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 	checkErr(err)
 }
 
-func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
+func ModEditPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
 	tagList := strings.Split(tags, ",")
@@ -59,24 +59,24 @@ func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
 	checkErr(err)
 }
 
-func isAdmin(addr std.Address) bool {
+func isAdmin(addr address) bool {
 	return addr == adminAddr
 }
 
-func isModerator(addr std.Address) bool {
+func isModerator(addr address) bool {
 	_, found := moderatorList.Get(addr.String())
 	return found
 }
 
 func assertIsAdmin() {
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	if !isAdmin(caller) {
 		panic("access restricted.")
 	}
 }
 
 func assertIsModerator() {
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}

@@ -1,5 +1,8 @@
 # Gno
 
+[![License](https://img.shields.io/badge/license-GNO%20GPL%20v5-blue.svg)](LICENSE.md)
+[![Go Reference](https://pkg.go.dev/badge/hey/google)](https://gnolang.github.io/gno/github.com/gnolang/gno.html)
+
 > At first, there was Bitcoin, out of entropy soup of the greater All.
 > Then, there was Ethereum, which was created in the likeness of Bitcoin,
 > but made Turing complete.
@@ -8,37 +11,45 @@
 > Then came Gno upon Cosmos and there spring forth Gnoland,
 > simulated by the Gnomes of the Greater Resistance.
 
+**Gno is a blockchain platform that interprets a deterministic variant of Go 
+for writing smart contracts, built on Tendermint consensus.**
+
 Gno is an interpreted and fully-deterministic implementation of the Go
 programming language, designed to build succinct and composable smart contracts.
-The first blockchain to use it is gno.land, a
-contribution-based chain, backed by a variation of the [Tendermint](https://docs.tendermint.com/v0.34/introduction/what-is-tendermint.html)
-consensus engine.
+The first blockchain to use it is gno.land, a contribution-based chain, backed
+by a variation of the [Tendermint](./tm2) consensus engine.
 
-## Getting started
+PLEASE NOTE: This is NOT the same project or token as the excellent Gnosis.io project.
 
-If you haven't already, take a moment to check out our [website](https://gno.land/).
+## Getting Started
 
-> The website is a deployment of our [gnoweb](./gno.land/cmd/gnoweb) frontend; you
-> can use it to check out
-> [some](https://gno.land/r/demo/boards)
-> [example](https://gno.land/r/gnoland/blog)
-> [contracts](https://gno.land/r/gnoland/users/v1).
->
-> Use the `[source]` button in the header to inspect the program's source; use
-> the `[help]` button to view how you can use [`gnokey`](./gno.land/cmd/gnokey)
-> to interact with the chain from your command line.
+Explore Gno through our comprehensive documentation:
 
-If you have already played around with the website, use our
-[Getting Started](https://github.com/gnolang/getting-started) guide to learn how
-to write and deploy your first smart contract. No local set-up required!
+- **[For Users](./docs#use-gnoland)** - Learn how to use Gno applications, 
+  manage accounts, and interact with the blockchain
+- **[For Builders](./docs#build-on-gnoland)** - Start writing smart contracts, 
+  understand the Gno language, and deploy your applications  
+- **[Resources](./docs#resources)** - Technical specifications, best 
+  practices, and advanced topics
 
-Once you're done, learn how to set up your local environment with the
-[quickstart guide](./docs/builders/what-is-gnolang.md) and the
-[contributing guide](./CONTRIBUTING.md).
+Visit [gno.land](https://gno.land) to see live smart contracts in action.
 
-You can discover additional details about current tools and Gno documentation on
-our [official documentation](https://docs.gno.land). Additionally, the [awesome-gno](https://github.com/gnolang/awesome-gno)
-repository offers more resources to dig into. We are eager to see your first PR!
+## Key Features
+
+- **Go Syntax**: If you know Go, you know Gno
+- **Deterministic Execution**: Fully predictable contract behavior
+- **Composable Packages**: Import and reuse code like regular Go
+- **Auto-Persisted State**: Global variables automatically saved between calls
+- **Contribution System**: Rewarding open source contributors
+- **Developer Experience**: Comprehensive tooling including testing, 
+  debugging, and hot-reload development
+
+## Documentation
+
+- [Documentation](./docs/) - Complete documentation portal
+- [Examples](./examples) - Sample contracts and patterns
+- [Go API Reference](https://gnolang.github.io/gno/github.com/gnolang/gno.html) - 
+  Go package documentation
 
 ## Gno Playground
 <a href="https://play.gno.land/p/VxDC6AmKmK6?run.expr=println(Render(%22%22))">
@@ -46,46 +57,53 @@ repository offers more resources to dig into. We are eager to see your first PR!
 </a>
 </br></br>
 
-[Gno Playground](https://play.gno.land), available at [play.gno.land](https://play.gno.land), is a web app that allows users to write, share, and deploy Gno code. Developers can seamlessly test, debug, and deploy realms and packages on gno.land, while being able to collaborate with peers to work on projects together and seek assistance. A key feature of Gno Playground is the ability to get started without the need to install any tools or manage any services, offering immediate access and convenience for users.
+[Gno Playground](https://play.gno.land), available at 
+[play.gno.land](https://play.gno.land), is a web app that allows users to 
+write, share, and deploy Gno code. Developers can seamlessly test, debug, and 
+deploy realms and packages on gno.land, while being able to collaborate with 
+peers to work on projects together and seek assistance. A key feature of Gno 
+Playground is the ability to get started without the need to install any tools 
+or manage any services, offering immediate access and convenience for users.
 
-## Repository structure
+**Note:** The playground may not always reflect the latest changes in this 
+repository.
 
-* [examples](./examples) - Smart-contract examples and guides for new Gno developers.
-* [gnovm](./gnovm) - GnoVM and the Gno Language.
-* [gno.land](./gno.land) - gno.land blockchain and tools.
-* [tm2](./tm2) - Tendermint2.
-* [docs](./docs) - Official documentation, deployed under [docs.gno.land](https://docs.gno.land).
-* [contribs](./contribs) - Collection of enhanced tools for Gno.
+## Repository Structure
 
-## Socials & Contact
+* [docs](./docs) - Official documentation
+* [examples](./examples) - Smart contract examples and guides
+* [gnovm](./gnovm) - GnoVM and the Gno language
+* [gno.land](./gno.land) - Blockchain node and tools
+* [tm2](./tm2) - Tendermint2 consensus engine
+* [contribs](./contribs) - Additional tools and utilities
+* [misc](./misc) - Various utilities and scripts
 
-* [**Discord**](https://discord.gg/YFtMjWwUN7): good for general chat-based
-  conversations, as well as for asking support on developing with Gno.
-* [**Reddit**](https://www.reddit.com/r/gnoland): more "permanent" and
-  forum-style discussions. Feel free to post anything Gno-related, as well as
-  any question related to Gno programming!
-* [**Telegram**](https://t.me/gnoland): unofficial Telegram group.
-* [**Twitter**](https://twitter.com/_gnoland): official Twitter account. Follow
-   us to know about new developments, events & official announcements about Gno!
-* [**YouTube**](https://www.youtube.com/@_gnoland): here we post all of our
-  video content, like workshops, talks and public development calls. Follow
-  along on our development journey!
+## Community
 
-<details><summary>Short doc about all the commands</summary>
+**Explore the Ecosystem:**
+- [Gnoverse](https://github.com/gnoverse) - Community projects and initiatives
+- [Awesome Gno](https://github.com/gnoverse/awesome-gno) - Curated list of 
+  resources
+- [Gnoscan](https://gnoscan.io) - Blockchain explorer
+- [Gno Studio](https://gno.studio) - Web IDE for Gno development
+- [Become a Gnome](./docs/builders/become-a-gnome.md) - Join the contributor 
+  community
 
-  User commands:
+**Connect & Get Help:**
+- [Discord](https://discord.gg/YFtMjWwUN7) - Real-time support and development 
+  discussions
+- [Twitter](https://twitter.com/_gnoland) - Official announcements and updates
+- [YouTube](https://www.youtube.com/@_gnoland) - Tutorials, workshops, and 
+  development calls
+- [Workshops](https://github.com/gnolang/workshops) - Educational materials
+- [Reddit](https://www.reddit.com/r/gnoland) - Forum-style discussions
+- [Telegram](https://t.me/gnoland) - Community-run group
 
-  * [gnokey](./gno.land/cmd/gnokey) - key manipulation, also general interaction with gnoland
-  * [gnoland](./gno.land/cmd/gnoland) - runs the blockchain node
-  * [gnoweb](./gno.land/cmd/gnoweb) - serves gno website, along with user-defined content
+**Contribute:**
+- [GitHub Issues](https://github.com/gnolang/gno/issues) - Report bugs and 
+  request features
+- [Contributing Guide](./CONTRIBUTING.md) - Guidelines for contributors
 
-  Developer commands:
-
-  * [gno](./gnovm/cmd/gno) - handy tool for developing gno packages & realms
-  * [goscan](./misc/goscan) - dumps imports from specified file’s AST
-  * [genproto](./misc/genproto) - helper for generating .proto implementations
-  * [gnofaucet](./contribs/gnofaucet) - serves GNOT faucet
-</details>
 
 <details><summary>CI/CD/Tools badges and links</summary>
 

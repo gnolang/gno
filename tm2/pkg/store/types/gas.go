@@ -175,10 +175,8 @@ func NewPassthroughGasMeter(base GasMeter, limit int64) passthroughGasMeter {
 	if limit < 0 {
 		panic("gas must not be negative")
 	}
-	if limit > base.Remaining() {
-		// this is fine for now:
-		// will panic when actually consumed.
-	}
+	// limit > base.Remaining() is not checked; so that a panic happens when
+	// gas is actually consumed.
 	return passthroughGasMeter{
 		Base: base,
 		Head: NewGasMeter(limit),

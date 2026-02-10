@@ -1,32 +1,32 @@
 package main
 
 import (
-	"std"
+	"chain"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 	"gno.land/r/gnoland/faucet"
 )
 
 // mints ugnot to current realm
 func init() {
-	faucetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
-	testing.IssueCoins(faucetaddr, std.Coins{{"ugnot", 200_000_000}})
+	faucetaddr := chain.PackageAddress("gno.land/r/gnoland/faucet")
+	testing.IssueCoins(faucetaddr, chain.Coins{{"ugnot", 200_000_000}})
 }
 
 // assert render with empty path and 2 controllers
 func main() {
 	var (
-		adminaddr       = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		adminaddr       = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 		controlleraddr1 = testutils.TestAddress("controller1")
 		controlleraddr2 = testutils.TestAddress("controller2")
 	)
-	testing.SetRealm(std.NewUserRealm(adminaddr))
-	err := cross(faucet.AdminAddController)(controlleraddr1)
+	testing.SetRealm(testing.NewUserRealm(adminaddr))
+	err := faucet.AdminAddController(cross, controlleraddr1)
 	if err != "" {
 		panic(err)
 	}
-	err = cross(faucet.AdminAddController)(controlleraddr2)
+	err = faucet.AdminAddController(cross, controlleraddr2)
 	if err != "" {
 		panic(err)
 	}

@@ -1,166 +1,149 @@
+{{/* ===================================================================================
+LAYOUT - Header component
+=================================================================================== */}}
 {{ define "layouts/header" }}
-  <header class="main-header sticky top-0 bg-light border-b text-100 z-max">
-    <nav
-      aria-label="Realm navigation"
-      class="max-w-screen-max mx-auto px-4 md:px-10 flex lg:grid grid-cols-10 grid-flow-dense gap-4 md:gap-x-8 lg:gap-x-20 xxl:gap-x-32 items-stretch"
-    >
-      <div
-        class="main-navigation flex-auto min-w-0 flex items-stretch gap-1 {{ if .Mode.IsExplorer }}col-span-10{{ else }} col-span-7{{ end }} w-full h-full py-2"
-      >
-        <a
-          href="/"
-          class="rounded border border-gray-100 cursor-pointer h-10 w-10 shrink-0"
-        >
-          <img
-            src="/public/imgs/gnoland.svg"
-            alt="Gno username profile pic"
-            width="40px"
-            height="40px"
-          />
-        </a>
+<header class="b-header">
+  <nav class="c-center c-view-grid" aria-label="Package navigation">
+    <div class="main-nav {{ if .Mode.IsExplorer }}main-nav--explorer{{ end }}">
+      <a href="/" class="user-picture">
+        <img src="/public/imgs/gnoland.svg" alt="Gno username profile pic" width="40px" height="40px" />
+      </a>
 
-        <div
-          class="relative h-auto w-full overflow-scroll no-scrollbar text-gray-100 has-[[data-role='header-input-search']:focus-within]:text-gray-50"
-        >
-          <div
-            class="relative overflow-scroll no-scrollbar md:pr-8 flex items-center bg-current has-[[data-role='header-input-search']:focus-within]:border-gray-300 border h-full border-gray-100 px-1.5 py-0 rounded"
-          >
-            <form
-              class="js-header-searchbar peer absolute w-full h-full top-0 left-0 p-1.5 md:pr-8 text-200 text-gray-600 font-medium"
-            >
-              <label for="header-input-search" class="sr-only">
-                gno.land Search
+      <div class="b-main-navigation">
+        <div class="inner c-reel u-no-scrollbar" data-controller="searchbar">
+          <form class="searchbar" data-action="submit->searchbar#searchUrl">
+            <label for="header-input-search" class="u-sr-only">
+              gno.land Search
+            </label>
+            <input id="header-input-search" data-searchbar-target="input" type="text" value="{{ .RealmPath }}" />
+            <button type="submit" class="u-sr-only">Search</button>
+          </form>
+
+          {{ template "ui/breadcrumb" .Breadcrumb }}
+        </div>
+
+        <!-- Network Info Popup -->
+        <label for="searchbar-server-popup-toggle" class="network-toggle" tabindex="0" role="button"
+          aria-controls="network-info-popup">
+          <svg>
+            <title>Network Info</title>
+            <use href="#ico-earth"></use>
+          </svg>
+        </label>
+
+        <input type="checkbox" id="searchbar-server-popup-toggle" class="b-popup u-sr-only" aria-expanded="false" />
+        <label for="searchbar-server-popup-toggle" class="b-popup-bg"></label>
+
+        <div class="b-popup-dialog" role="dialog" aria-labelledby="network-info-title" aria-modal="true">
+          <div class="inner">
+            <header>
+              <span id="network-info-title">Network Info</span>
+              <label for="searchbar-server-popup-toggle" tabindex="0" role="button" aria-label="Close popup">
+                <svg aria-hidden="true" class="c-icon">
+                  <title>Close Network Info</title>
+                  <use href="#ico-cross"></use>
+                </svg>
               </label>
-              <input
-                id="header-input-search"
-                data-role="header-input-search"
-                type="text"
-                value="{{ .RealmPath }}"
-                class="relative h-full w-full bg-transparent outline-none"
-              />
-              <button type="submit" class="sr-only">Search</button>
-            </form>
-
-            {{ template "ui/breadcrumb" .Breadcrumb }}
-          </div>
-
-          <!-- Network Info Popup -->
-          <label
-            for="searchbar-server-popup-toggle"
-            class="absolute hidden md:flex justify-center rounded-r items-center p-1.5 h-[calc(100%-2px)] bg-current z-max right-px top-px cursor-pointer"
-            tabindex="0"
-            role="button"
-            aria-controls="network-info-popup"
-          >
-            <svg class="w-5 h-5 text-gray-400 hover:text-gray-600">
-              <title>Network Info</title>
-              <use href="#ico-earth"></use>
-            </svg>
-          </label>
-
-          <input
-            type="checkbox"
-            id="searchbar-server-popup-toggle"
-            class="hidden peer"
-            aria-expanded="false"
-          />
-          <label
-            for="searchbar-server-popup-toggle"
-            class="fixed z-max inset-0 flex items-center justify-center opacity-0 invisible peer-checked:opacity-100 peer-checked:visible"
-          ></label>
-
-          <div
-            class="z-max absolute top-0 right-0 opacity-0 invisible 0 peer-checked:opacity-100 peer-checked:visible"
-            role="dialog"
-            aria-labelledby="network-info-title"
-            aria-modal="true"
-          >
-            <div
-              class="px-4 py-2 w-72 fixed -translate-x-full rounded bg-light border border-gray-100"
-            >
-              <div class="w-full flex justify-between items-center pb-3">
-                <span
-                  id="network-info-title"
-                  class="text-gray-600 text-100 font-semibold"
-                  >Network Info</span
-                >
-                <label
-                  for="searchbar-server-popup-toggle"
-                  class="absolute right-3 text-gray-400 hover:text-gray-900 cursor-pointer"
-                  tabindex="0"
-                  role="button"
-                  aria-label="Close popup"
-                >
-                  <svg class="w-3 h-3">
-                    <title>Close Network Info</title>
-                    <use href="#ico-cross"></use>
-                  </svg>
-                </label>
+            </header>
+            <div class="item">
+              <svg aria-hidden="true" class="c-icon">
+                <use href="#ico-chain"></use>
+              </svg>
+              <div class="item-content">
+                <span class="item-label">Chain ID</span>
+                <span class="item-value">{{ .ChainId }}</span>
               </div>
-              <div class="flex gap-1 items-start w-full py-2 text-gray-400">
-                <svg class="w-4 h-4" aria-hidden="true">
-                  <use href="#ico-chain"></use>
-                </svg>
-                <div class="flex flex-col justify-start items-start">
-                  <span class="text-50">Chain ID</span>
-                  <span class="text-gray-600 font-semibold leading-tigh"
-                    >{{ .ChainId }}</span
-                  >
-                </div>
-              </div>
-              <div class="flex gap-1 items-start w-full py-2 text-gray-400">
-                <svg class="w-4 h-4" aria-hidden="true">
-                  <use href="#ico-rpc"></use>
-                </svg>
-                <div class="flex flex-col justify-start items-start">
-                  <span class="text-50">RPC Address</span>
-                  <span class="text-gray-600 font-semibold leading-tight"
-                    >{{ .Remote }}</span
-                  >
-                </div>
+            </div>
+            <div class="item">
+              <svg aria-hidden="true" class="c-icon">
+                <use href="#ico-rpc"></use>
+              </svg>
+              <div class="item-content">
+                <span class="item-label">RPC Address</span>
+                <span class="item-value">{{ .Remote }}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <div
-        class="sidemenu col-span-3 h-auto flex flex-grow-0 flex-shrink-0 basis-auto"
-      >
-        {{ if .Mode.IsHome }}
-          <label
-            for="header-input-devmode"
-            class="order-3 ml-auto flex items-center cursor-pointer"
-          >
-            <svg class="w-5 h-5 ml-4 lg:ml-2">
-              <title>Developer menu switch</title>
-              <use href="#ico-more"></use>
-            </svg>
-          </label>
-        {{ end }}
-        <input
-          id="header-input-devmode"
-          type="checkbox"
-          name="devmode"
-          class="peer sr-only"
-          {{ if not .Mode.IsHome }}checked{{ end }}
-        />
-        <div
-          role="menu"
-          class="peer-checked:flex hidden justify-end lg:justify-start h-full"
-        >
-          {{ range .Links.Dev }}{{ template "ui/header_link" . }}{{ end }}
-        </div>
-
-        {{ if .Mode.IsHome }}
-          <div
-            role="menu"
-            class="peer-checked:hidden flex justify-end lg:justify-start h-full"
-          >
-            {{ range .Links.General }}{{ template "ui/header_link" . }}{{ end }}
-          </div>
-        {{ end }}
+    <div class="b-main-menu">
+      {{ if .Mode.IsHome }}
+      <label for="header-input-devmode" class="menu-toggle">
+        <svg>
+          <title>Developer menu switch</title>
+          <use href="#ico-more"></use>
+        </svg>
+      </label>
+      {{ end }}
+      <input id="header-input-devmode" type="checkbox" name="devmode" class="u-sr-only menu-toggle-input" {{ if not
+        .Mode.IsHome }}checked{{ end }} />
+      <div role="menu" class="menu-dev">
+        {{ range .Links.Dev }}{{ template "ui/header_link" . }}{{ end }}
       </div>
-    </nav>
-  </header>
+
+      {{ if .Mode.IsHome }}
+      <div role="menu" class="menu-general">
+        {{ range .Links.General }}{{ template "ui/header_link" . }}{{ end }}
+      </div>
+      {{ end }}
+    </div>
+  </nav>
+</header>
+{{ end }}
+
+{{/* ==================================================================================
+UI - Header link component
+================================================================================== */}}
+{{ define "ui/header_link" }}
+<a href="{{ .URL }}" class="b-menu-link" role="menuitem">
+  <div class="link {{ if .Icon }} link--icon{{ end }}{{ if .IsActive }} link--is-active u-text-stroke{{ end }}">
+    {{ if .Icon }}
+    <svg>
+      <use href="#{{ .Icon }}"></use>
+    </svg>
+    {{ end }}
+    <span class="{{ if .Icon }}link-label{{ end }}">{{ .Label }}</span>
+  </div>
+</a>
+{{ end }}
+
+{{/* ===================================================================================
+UI - Breadcrumb component
+=================================================================================== */}}
+{{ define "ui/breadcrumb" }}
+<form method="GET" action="" class="b-breadcrumb">
+  <ol data-searchbar-target="breadcrumb">
+    <!-- Path Part -->
+    {{- range $index, $part := .Parts }}
+    <li class="element">
+      <a href="{{ $part.URL }}{{ if eq $index 0 }}/{{ end }}">
+        {{ $part.Name }}
+      </a>
+    </li>
+    {{- end }}
+
+    <!-- Args Part -->
+    {{- if .ArgParts }} {{- range $index, $arg := .ArgParts }}
+    <li class="argument">
+      <a href="{{ $arg.URL }}">
+        {{ $arg.Name }}
+      </a>
+    </li>
+    {{- end }} {{- end }}
+
+    <!-- Queries Part -->
+    {{ $allQueries := .Queries }} {{- range $index, $query := $allQueries }}
+    <li class="query">
+      <label for="{{ $query.Key }}">
+        <span>{{ $query.Key }}=</span>
+        <input type="text" id="{{ $query.Key }}" name="{{ $query.Key }}" value="{{ $query.Value }}"
+          placeholder="{{ $query.Key }}" data-controller="breadcrumb" data-action="focus->breadcrumb#focus" />
+      </label>
+    </li>
+    {{- end }}
+  </ol>
+  <button type="submit" class="u-sr-only">Update Breadcrumb</button>
+</form>
 {{ end }}

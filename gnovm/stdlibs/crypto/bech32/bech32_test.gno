@@ -3,14 +3,15 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package bech32
+package bech32_test
 
 import (
 	"bytes"
+	"crypto/bech32"
 	"encoding/hex"
 	"fmt"
 	"strings"
-	testing "testing/base"
+	"testing"
 )
 
 // TestBech32 tests whether decoding and re-encoding the valid BIP-173 test
@@ -27,34 +28,34 @@ func TestBech32(t *testing.T) {
 		{"abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw", nil},
 		{"11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j", nil},
 		{"split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w", nil},
-		{"split1checkupstagehandshakeupstreamerranterredcaperred2y9e2w", ErrInvalidChecksum{"2y9e3w", "2y9e3wlc445v", "2y9e2w"}}, // invalid checksum
-		{"s lit1checkupstagehandshakeupstreamerranterredcaperredp8hs2p", ErrInvalidCharacter(' ')},                               // invalid character (space) in hrp
-		{"spl\x7Ft1checkupstagehandshakeupstreamerranterredcaperred2y9e3w", ErrInvalidCharacter(127)},                            // invalid character (DEL) in hrp
-		{"split1cheo2y9e2w", ErrNonCharsetChar('o')},                                                                             // invalid character (o) in data part
-		{"split1a2y9w", ErrInvalidSeparatorIndex(5)},                                                                             // too short data part
-		{"1checkupstagehandshakeupstreamerranterredcaperred2y9e3w", ErrInvalidSeparatorIndex(0)},                                 // empty hrp
-		{"11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j", ErrInvalidLength(91)},    // too long
+		{"split1checkupstagehandshakeupstreamerranterredcaperred2y9e2w", bech32.ErrInvalidChecksum{"2y9e3w", "2y9e3wlc445v", "2y9e2w"}}, // invalid checksum
+		{"s lit1checkupstagehandshakeupstreamerranterredcaperredp8hs2p", bech32.ErrInvalidCharacter(' ')},                               // invalid character (space) in hrp
+		{"spl\x7Ft1checkupstagehandshakeupstreamerranterredcaperred2y9e3w", bech32.ErrInvalidCharacter(127)},                            // invalid character (DEL) in hrp
+		{"split1cheo2y9e2w", bech32.ErrNonCharsetChar('o')},                                                                             // invalid character (o) in data part
+		{"split1a2y9w", bech32.ErrInvalidSeparatorIndex(5)},                                                                             // too short data part
+		{"1checkupstagehandshakeupstreamerranterredcaperred2y9e3w", bech32.ErrInvalidSeparatorIndex(0)},                                 // empty hrp
+		{"11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j", bech32.ErrInvalidLength(91)},    // too long
 
 		// Additional test vectors used in bitcoin core
-		{" 1nwldj5", ErrInvalidCharacter(' ')},
-		{"\x7f" + "1axkwrx", ErrInvalidCharacter(0x7f)},
-		{"\x801eym55h", ErrInvalidCharacter(0x80)},
-		{"an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx", ErrInvalidLength(91)},
-		{"pzry9x0s0muk", ErrInvalidSeparatorIndex(-1)},
-		{"1pzry9x0s0muk", ErrInvalidSeparatorIndex(0)},
-		{"x1b4n0q5v", ErrNonCharsetChar(98)},
-		{"li1dgmt3", ErrInvalidSeparatorIndex(2)},
-		{"de1lg7wt\xff", ErrInvalidCharacter(0xff)},
-		{"A1G7SGD8", ErrInvalidChecksum{"2uel5l", "2uel5llqfn3a", "g7sgd8"}},
-		{"10a06t8", ErrInvalidLength(7)},
-		{"1qzzfhee", ErrInvalidSeparatorIndex(0)},
-		{"a12UEL5L", ErrMixedCase{}},
-		{"A12uEL5L", ErrMixedCase{}},
+		{" 1nwldj5", bech32.ErrInvalidCharacter(' ')},
+		{"\x7f" + "1axkwrx", bech32.ErrInvalidCharacter(0x7f)},
+		{"\x801eym55h", bech32.ErrInvalidCharacter(0x80)},
+		{"an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx", bech32.ErrInvalidLength(91)},
+		{"pzry9x0s0muk", bech32.ErrInvalidSeparatorIndex(-1)},
+		{"1pzry9x0s0muk", bech32.ErrInvalidSeparatorIndex(0)},
+		{"x1b4n0q5v", bech32.ErrNonCharsetChar(98)},
+		{"li1dgmt3", bech32.ErrInvalidSeparatorIndex(2)},
+		{"de1lg7wt\xff", bech32.ErrInvalidCharacter(0xff)},
+		{"A1G7SGD8", bech32.ErrInvalidChecksum{"2uel5l", "2uel5llqfn3a", "g7sgd8"}},
+		{"10a06t8", bech32.ErrInvalidLength(7)},
+		{"1qzzfhee", bech32.ErrInvalidSeparatorIndex(0)},
+		{"a12UEL5L", bech32.ErrMixedCase{}},
+		{"A12uEL5L", bech32.ErrMixedCase{}},
 	}
 
 	for i, test := range tests {
 		str := test.str
-		hrp, decoded, err := Decode(str)
+		hrp, decoded, err := bech32.Decode(str)
 		if test.expectedError != err {
 			t.Errorf("%d: expected decoding error %v "+
 				"instead got %v", i, test.expectedError, err)
@@ -67,7 +68,7 @@ func TestBech32(t *testing.T) {
 		}
 
 		// Check that it encodes to the same string
-		encoded, err := Encode(hrp, decoded)
+		encoded, err := bech32.Encode(hrp, decoded)
 		if err != nil {
 			t.Errorf("encoding failed: %v", err)
 		}
@@ -80,7 +81,7 @@ func TestBech32(t *testing.T) {
 		// Flip a bit in the string an make sure it is caught.
 		pos := strings.LastIndexAny(str, "1")
 		flipped := str[:pos+1] + string((str[pos+1] ^ 1)) + str[pos+2:]
-		_, _, err = Decode(flipped)
+		_, _, err = bech32.Decode(flipped)
 		if err == nil {
 			t.Error("expected decoding to fail")
 		}
@@ -105,29 +106,29 @@ func TestBech32M(t *testing.T) {
 		{"?1v759aa", nil},
 
 		// Additional test vectors used in bitcoin core
-		{"\x201xj0phk", ErrInvalidCharacter('\x20')},
-		{"\x7f1g6xzxy", ErrInvalidCharacter('\x7f')},
-		{"\x801vctc34", ErrInvalidCharacter('\x80')},
-		{"an84characterslonghumanreadablepartthatcontainsthetheexcludedcharactersbioandnumber11d6pts4", ErrInvalidLength(91)},
-		{"qyrz8wqd2c9m", ErrInvalidSeparatorIndex(-1)},
-		{"1qyrz8wqd2c9m", ErrInvalidSeparatorIndex(0)},
-		{"y1b0jsk6g", ErrNonCharsetChar(98)},
-		{"lt1igcx5c0", ErrNonCharsetChar(105)},
-		{"in1muywd", ErrInvalidSeparatorIndex(2)},
-		{"mm1crxm3i", ErrNonCharsetChar(105)},
-		{"au1s5cgom", ErrNonCharsetChar(111)},
-		{"M1VUXWEZ", ErrInvalidChecksum{"mzl49c", "mzl49cw70eq6", "vuxwez"}},
-		{"16plkw9", ErrInvalidLength(7)},
-		{"1p2gdwpf", ErrInvalidSeparatorIndex(0)},
+		{"\x201xj0phk", bech32.ErrInvalidCharacter('\x20')},
+		{"\x7f1g6xzxy", bech32.ErrInvalidCharacter('\x7f')},
+		{"\x801vctc34", bech32.ErrInvalidCharacter('\x80')},
+		{"an84characterslonghumanreadablepartthatcontainsthetheexcludedcharactersbioandnumber11d6pts4", bech32.ErrInvalidLength(91)},
+		{"qyrz8wqd2c9m", bech32.ErrInvalidSeparatorIndex(-1)},
+		{"1qyrz8wqd2c9m", bech32.ErrInvalidSeparatorIndex(0)},
+		{"y1b0jsk6g", bech32.ErrNonCharsetChar(98)},
+		{"lt1igcx5c0", bech32.ErrNonCharsetChar(105)},
+		{"in1muywd", bech32.ErrInvalidSeparatorIndex(2)},
+		{"mm1crxm3i", bech32.ErrNonCharsetChar(105)},
+		{"au1s5cgom", bech32.ErrNonCharsetChar(111)},
+		{"M1VUXWEZ", bech32.ErrInvalidChecksum{"mzl49c", "mzl49cw70eq6", "vuxwez"}},
+		{"16plkw9", bech32.ErrInvalidLength(7)},
+		{"1p2gdwpf", bech32.ErrInvalidSeparatorIndex(0)},
 
-		{" 1nwldj5", ErrInvalidCharacter(' ')},
-		{"\x7f" + "1axkwrx", ErrInvalidCharacter(0x7f)},
-		{"\x801eym55h", ErrInvalidCharacter(0x80)},
+		{" 1nwldj5", bech32.ErrInvalidCharacter(' ')},
+		{"\x7f" + "1axkwrx", bech32.ErrInvalidCharacter(0x7f)},
+		{"\x801eym55h", bech32.ErrInvalidCharacter(0x80)},
 	}
 
 	for i, test := range tests {
 		str := test.str
-		hrp, decoded, err := Decode(str)
+		hrp, decoded, err := bech32.Decode(str)
 		if test.expectedError != err {
 			t.Errorf("%d: (%v) expected decoding error %v "+
 				"instead got %v", i, str, test.expectedError,
@@ -141,7 +142,7 @@ func TestBech32M(t *testing.T) {
 		}
 
 		// Check that it encodes to the same string, using bech32 m.
-		encoded, err := EncodeM(hrp, decoded)
+		encoded, err := bech32.EncodeM(hrp, decoded)
 		if err != nil {
 			t.Errorf("encoding failed: %v", err)
 		}
@@ -154,7 +155,7 @@ func TestBech32M(t *testing.T) {
 		// Flip a bit in the string an make sure it is caught.
 		pos := strings.LastIndexAny(str, "1")
 		flipped := str[:pos+1] + string((str[pos+1] ^ 1)) + str[pos+2:]
-		_, _, err = Decode(flipped)
+		_, _, err = bech32.Decode(flipped)
 		if err == nil {
 			t.Error("expected decoding to fail")
 		}
@@ -167,34 +168,34 @@ func TestBech32M(t *testing.T) {
 func TestBech32DecodeGeneric(t *testing.T) {
 	tests := []struct {
 		str     string
-		version Version
+		version bech32.Version
 	}{
-		{"A1LQFN3A", VersionM},
-		{"a1lqfn3a", VersionM},
-		{"an83characterlonghumanreadablepartthatcontainsthetheexcludedcharactersbioandnumber11sg7hg6", VersionM},
-		{"abcdef1l7aum6echk45nj3s0wdvt2fg8x9yrzpqzd3ryx", VersionM},
-		{"11llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllludsr8", VersionM},
-		{"split1checkupstagehandshakeupstreamerranterredcaperredlc445v", VersionM},
-		{"?1v759aa", VersionM},
+		{"A1LQFN3A", bech32.VersionM},
+		{"a1lqfn3a", bech32.VersionM},
+		{"an83characterlonghumanreadablepartthatcontainsthetheexcludedcharactersbioandnumber11sg7hg6", bech32.VersionM},
+		{"abcdef1l7aum6echk45nj3s0wdvt2fg8x9yrzpqzd3ryx", bech32.VersionM},
+		{"11llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllludsr8", bech32.VersionM},
+		{"split1checkupstagehandshakeupstreamerranterredcaperredlc445v", bech32.VersionM},
+		{"?1v759aa", bech32.VersionM},
 
-		{"A12UEL5L", Version0},
-		{"a12uel5l", Version0},
-		{"an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1tt5tgs", Version0},
-		{"abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw", Version0},
-		{"11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j", Version0},
-		{"split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w", Version0},
+		{"A12UEL5L", bech32.Version0},
+		{"a12uel5l", bech32.Version0},
+		{"an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1tt5tgs", bech32.Version0},
+		{"abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw", bech32.Version0},
+		{"11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j", bech32.Version0},
+		{"split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w", bech32.Version0},
 
-		{"BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4", Version0},
-		{"tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7", Version0},
-		{"bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kt5nd6y", VersionM},
-		{"BC1SW50QGDZ25J", VersionM},
-		{"bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs", VersionM},
-		{"tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy", Version0},
-		{"tb1pqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesf3hn0c", VersionM},
-		{"bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0", VersionM},
+		{"BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4", bech32.Version0},
+		{"tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7", bech32.Version0},
+		{"bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kt5nd6y", bech32.VersionM},
+		{"BC1SW50QGDZ25J", bech32.VersionM},
+		{"bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs", bech32.VersionM},
+		{"tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy", bech32.Version0},
+		{"tb1pqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesf3hn0c", bech32.VersionM},
+		{"bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0", bech32.VersionM},
 	}
 	for i, test := range tests {
-		_, _, version, err := DecodeGeneric(test.str)
+		_, _, version, err := bech32.DecodeGeneric(test.str)
 		if err != nil {
 			t.Errorf("%d: (%v) unexpected error during "+
 				"decoding: %v", i, test.str, err)
@@ -253,13 +254,13 @@ func TestMixedCaseEncode(t *testing.T) {
 			t.Errorf("%q: invalid hex %q: %v", test.name, test.data, err)
 			continue
 		}
-		convertedData, err := ConvertBits(data, 8, 5, true)
+		convertedData, err := bech32.ConvertBits(data, 8, 5, true)
 		if err != nil {
 			t.Errorf("%q: unexpected convert bits error: %v", test.name,
 				err)
 			continue
 		}
-		gotEncoded, err := Encode(test.hrp, convertedData)
+		gotEncoded, err := bech32.Encode(test.hrp, convertedData)
 		if err != nil {
 			t.Errorf("%q: unexpected encode error: %v", test.name, err)
 			continue
@@ -272,7 +273,7 @@ func TestMixedCaseEncode(t *testing.T) {
 
 		// Ensure the decoding the expected lowercase encoding converted to all
 		// uppercase produces the lowercase HRP and original data.
-		gotHRP, gotData, err := Decode(strings.ToUpper(test.encoded))
+		gotHRP, gotData, err := bech32.Decode(strings.ToUpper(test.encoded))
 		if err != nil {
 			t.Errorf("%q: unexpected decode error: %v", test.name, err)
 			continue
@@ -283,7 +284,7 @@ func TestMixedCaseEncode(t *testing.T) {
 				gotHRP, wantHRP)
 			continue
 		}
-		convertedGotData, err := ConvertBits(gotData, 5, 8, false)
+		convertedGotData, err := bech32.ConvertBits(gotData, 5, 8, false)
 		if err != nil {
 			t.Errorf("%q: unexpected convert bits error: %v", test.name,
 				err)
@@ -303,13 +304,13 @@ func TestCanDecodeUnlimitedBech32(t *testing.T) {
 	input := "11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq5kx0yd"
 
 	// Sanity check that an input of this length errors on regular Decode()
-	_, _, err := Decode(input)
+	_, _, err := bech32.Decode(input)
 	if err == nil {
 		t.Fatalf("Test vector not appropriate")
 	}
 
 	// Try and decode it.
-	hrp, data, err := DecodeNoLimit(input)
+	hrp, data, err := bech32.DecodeNoLimit(input)
 	if err != nil {
 		t.Fatalf("Expected decoding of large string to work. Got error: %v", err)
 	}
@@ -364,49 +365,49 @@ func TestBech32Base256(t *testing.T) {
 	}, {
 		name:    "same as previous but with checksum invalidated",
 		encoded: "split1checkupstagehandshakeupstreamerranterredcaperred2y9e2w",
-		err:     ErrInvalidChecksum{"2y9e3w", "2y9e3wlc445v", "2y9e2w"},
+		err:     bech32.ErrInvalidChecksum{"2y9e3w", "2y9e3wlc445v", "2y9e2w"},
 	}, {
 		name:    "hrp with invalid character (space)",
 		encoded: "s lit1checkupstagehandshakeupstreamerranterredcaperredp8hs2p",
-		err:     ErrInvalidCharacter(' '),
+		err:     bech32.ErrInvalidCharacter(' '),
 	}, {
 		name:    "hrp with invalid character (DEL)",
 		encoded: "spl\x7ft1checkupstagehandshakeupstreamerranterredcaperred2y9e3w",
-		err:     ErrInvalidCharacter(127),
+		err:     bech32.ErrInvalidCharacter(127),
 	}, {
 		name:    "data part with invalid character (o)",
 		encoded: "split1cheo2y9e2w",
-		err:     ErrNonCharsetChar('o'),
+		err:     bech32.ErrNonCharsetChar('o'),
 	}, {
 		name:    "data part too short",
 		encoded: "split1a2y9w",
-		err:     ErrInvalidSeparatorIndex(5),
+		err:     bech32.ErrInvalidSeparatorIndex(5),
 	}, {
 		name:    "empty hrp",
 		encoded: "1checkupstagehandshakeupstreamerranterredcaperred2y9e3w",
-		err:     ErrInvalidSeparatorIndex(0),
+		err:     bech32.ErrInvalidSeparatorIndex(0),
 	}, {
 		name:    "no separator",
 		encoded: "pzry9x0s0muk",
-		err:     ErrInvalidSeparatorIndex(-1),
+		err:     bech32.ErrInvalidSeparatorIndex(-1),
 	}, {
 		name:    "too long by one char",
 		encoded: "11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j",
-		err:     ErrInvalidLength(91),
+		err:     bech32.ErrInvalidLength(91),
 	}, {
 		name:    "invalid due to mixed case in hrp",
 		encoded: "aBcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw",
-		err:     ErrMixedCase{},
+		err:     bech32.ErrMixedCase{},
 	}, {
 		name:    "invalid due to mixed case in data part",
 		encoded: "abcdef1Qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw",
-		err:     ErrMixedCase{},
+		err:     bech32.ErrMixedCase{},
 	}}
 
 	for _, test := range tests {
 		// Ensure the decode either produces an error or not as expected.
 		str := test.encoded
-		gotHRP, gotData, err := DecodeToBase256(str)
+		gotHRP, gotData, err := bech32.DecodeToBase256(str)
 		if test.err != err {
 			t.Errorf("%q: unexpected decode error -- got %v, want %v",
 				test.name, err, test.err)
@@ -437,7 +438,7 @@ func TestBech32Base256(t *testing.T) {
 		// Encode the same data with the HRP converted to all uppercase and
 		// ensure the result is the lowercase version of the original encoded
 		// bech32 string.
-		gotEncoded, err := EncodeFromBase256(strings.ToUpper(test.hrp), data)
+		gotEncoded, err := bech32.EncodeFromBase256(strings.ToUpper(test.hrp), data)
 		if err != nil {
 			t.Errorf("%q: unexpected uppercase HRP encode error: %v", test.name,
 				err)
@@ -451,7 +452,7 @@ func TestBech32Base256(t *testing.T) {
 		// Encode the same data with the HRP converted to all lowercase and
 		// ensure the result is the lowercase version of the original encoded
 		// bech32 string.
-		gotEncoded, err = EncodeFromBase256(strings.ToLower(test.hrp), data)
+		gotEncoded, err = bech32.EncodeFromBase256(strings.ToLower(test.hrp), data)
 		if err != nil {
 			t.Errorf("%q: unexpected lowercase HRP encode error: %v", test.name,
 				err)
@@ -472,7 +473,7 @@ func TestBech32Base256(t *testing.T) {
 			}
 			mixedHRPBuilder.WriteRune(r)
 		}
-		gotEncoded, err = EncodeFromBase256(mixedHRPBuilder.String(), data)
+		gotEncoded, err = bech32.EncodeFromBase256(mixedHRPBuilder.String(), data)
 		if err != nil {
 			t.Errorf("%q: unexpected lowercase HRP encode error: %v", test.name,
 				err)
@@ -485,7 +486,7 @@ func TestBech32Base256(t *testing.T) {
 		// Ensure a bit flip in the string is caught.
 		pos := strings.LastIndexAny(test.encoded, "1")
 		flipped := str[:pos+1] + string((str[pos+1] ^ 1)) + str[pos+2:]
-		_, _, err = DecodeToBase256(flipped)
+		_, _, err = bech32.DecodeToBase256(flipped)
 		if err == nil {
 			t.Error("expected decoding to fail")
 		}
@@ -503,7 +504,7 @@ func BenchmarkEncodeDecodeCycle(b *testing.B) {
 	}
 
 	// Convert this into a 79-byte, base 32 byte slice.
-	base32Input, err := ConvertBits(inputData, 8, 5, true)
+	base32Input, err := bech32.ConvertBits(inputData, 8, 5, true)
 	if err != nil {
 		b.Fatalf("failed to convert input to 32 bits-per-element: %v", err)
 	}
@@ -518,12 +519,12 @@ func BenchmarkEncodeDecodeCycle(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		str, err := Encode(hrp, base32Input)
+		str, err := bech32.Encode(hrp, base32Input)
 		if err != nil {
 			b.Fatalf("failed to encode input: %v", err)
 		}
 
-		_, _, err = Decode(str)
+		_, _, err = bech32.Decode(str)
 		if err != nil {
 			b.Fatalf("failed to decode string: %v", err)
 		}
@@ -598,7 +599,7 @@ func TestConvertBits(t *testing.T) {
 			t.Fatalf("invalid test output data: %v", err)
 		}
 
-		actual, err := ConvertBits(input, tc.fromBits, tc.toBits, tc.pad)
+		actual, err := bech32.ConvertBits(input, tc.fromBits, tc.toBits, tc.pad)
 		if err != nil {
 			t.Fatalf("test case %d failed: %v", i, err)
 		}
@@ -621,14 +622,14 @@ func TestConvertBitsFailures(t *testing.T) {
 		err      error
 	}{
 		// Not enough output bytes when not using padding.
-		{"ff", 8, 5, false, ErrInvalidIncompleteGroup{}},
-		{"1f1c10", 5, 8, false, ErrInvalidIncompleteGroup{}},
+		{"ff", 8, 5, false, bech32.ErrInvalidIncompleteGroup{}},
+		{"1f1c10", 5, 8, false, bech32.ErrInvalidIncompleteGroup{}},
 
 		// Unsupported bit conversions.
-		{"", 0, 5, false, ErrInvalidBitGroups{}},
-		{"", 10, 5, false, ErrInvalidBitGroups{}},
-		{"", 5, 0, false, ErrInvalidBitGroups{}},
-		{"", 5, 10, false, ErrInvalidBitGroups{}},
+		{"", 0, 5, false, bech32.ErrInvalidBitGroups{}},
+		{"", 10, 5, false, bech32.ErrInvalidBitGroups{}},
+		{"", 5, 0, false, bech32.ErrInvalidBitGroups{}},
+		{"", 5, 10, false, bech32.ErrInvalidBitGroups{}},
 	}
 
 	for i, tc := range tests {
@@ -637,13 +638,12 @@ func TestConvertBitsFailures(t *testing.T) {
 			t.Fatalf("invalid test input data: %v", err)
 		}
 
-		_, err = ConvertBits(input, tc.fromBits, tc.toBits, tc.pad)
+		_, err = bech32.ConvertBits(input, tc.fromBits, tc.toBits, tc.pad)
 		if err != tc.err {
 			t.Fatalf("test case %d failure: expected '%v' got '%v'", i,
 				tc.err, err)
 		}
 	}
-
 }
 
 // BenchmarkConvertBitsDown benchmarks the speed and memory allocation behavior
@@ -661,7 +661,7 @@ func BenchmarkConvertBitsDown(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := ConvertBits(inputData, 8, 5, true)
+		_, err := bech32.ConvertBits(inputData, 8, 5, true)
 		if err != nil {
 			b.Fatalf("error converting bits: %v", err)
 		}
@@ -683,7 +683,7 @@ func BenchmarkConvertBitsUp(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := ConvertBits(inputData, 8, 5, true)
+		_, err := bech32.ConvertBits(inputData, 8, 5, true)
 		if err != nil {
 			b.Fatalf("error converting bits: %v", err)
 		}

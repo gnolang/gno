@@ -17,14 +17,6 @@ var tmpl = template.New("web")
 
 func registerCommonFuncs(funcs template.FuncMap) {
 	// NOTE: this method does NOT escape HTML, use with caution
-	funcs["noescape_string"] = func(in string) template.HTML {
-		return template.HTML(in) //nolint:gosec
-	}
-	// NOTE: this method does NOT escape HTML, use with caution
-	funcs["noescape_bytes"] = func(in []byte) template.HTML {
-		return template.HTML(in) //nolint:gosec
-	}
-	// NOTE: this method does NOT escape HTML, use with caution
 	// Render Component element into raw html element
 	funcs["render"] = func(comp Component) (template.HTML, error) {
 		var buf bytes.Buffer
@@ -40,6 +32,22 @@ func registerCommonFuncs(funcs template.FuncMap) {
 		}
 
 		return vals.Has(key)
+	}
+	funcs["FormatRelativeTime"] = FormatRelativeTimeSince
+	// dict creates a map from key-value pairs for passing multiple values to templates
+	funcs["dict"] = func(kv ...any) (map[string]any, error) {
+		if len(kv)%2 != 0 {
+			return nil, fmt.Errorf("dict requires an even number of arguments")
+		}
+		result := make(map[string]any)
+		for i := 0; i < len(kv); i += 2 {
+			key, ok := kv[i].(string)
+			if !ok {
+				return nil, fmt.Errorf("dict keys must be strings")
+			}
+			result[key] = kv[i+1]
+		}
+		return result, nil
 	}
 }
 

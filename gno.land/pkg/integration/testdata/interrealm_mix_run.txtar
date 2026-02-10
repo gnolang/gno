@@ -1,0 +1,273 @@
+adduserfrom runner 'apart roast chief monitor bundle auto fade double valid budget able average onion slam rice flame despair wage uphold nominee proud alien spider useful'
+stdout 'g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80'
+
+loadpkg gno.land/p/nt/ufmt
+
+## start a new node
+gnoland start
+
+## load packages
+gnokey maketx addpkg -pkgdir $WORK/utils -pkgpath gno.land/p/test/utils -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+
+## validate initial state
+gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
+stdout 'Object\.value = 0, value = 0'
+
+## run non_crossing_mutation
+! gnokey maketx run runner $WORK/run/non_crossing_mutation.gno -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test
+stderr 'cannot modify external-realm or non-realm object'
+gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
+stdout 'Object\.value = 0, value = 0'
+
+## run crossing_mutation
+gnokey maketx run runner $WORK/run/crossing_mutation.gno -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test
+gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
+stdout 'Object\.value = 0, value = 1'
+
+## run borrowed_object_mutation
+gnokey maketx run runner $WORK/run/borrowed_object_mutation.gno -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test
+gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
+stdout 'Object\.value = 1, value = 1'
+
+## run object_mutation_rooted_at_caller
+gnokey maketx run runner $WORK/run/object_mutation_rooted_at_caller.gno -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test
+
+## run call_mutate_object
+gnokey maketx run runner $WORK/run/call_mutate_object.gno -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test
+gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
+stdout 'Object\.value = 2, value = 1'
+
+## run inspect_realms_crossing
+gnokey maketx run runner $WORK/run/inspect_realms_crossing.gno -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test
+
+## run inspect_realms_non_crossing
+gnokey maketx run runner $WORK/run/inspect_realms_non_crossing.gno -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test
+
+## run mutate_object_with_borrow_crossing
+gnokey maketx run runner $WORK/run/mutate_object_with_borrow_crossing.gno -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test
+gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
+stdout 'Object\.value = 3, value = 1'
+
+## run mutate_crossing_object
+gnokey maketx run runner $WORK/run/mutate_crossing_object.gno -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test
+gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
+stdout 'Object\.value = 4, value = 1'
+
+## run mutate_crossing_object_rooted_at_caller
+gnokey maketx run runner $WORK/run/mutate_crossing_object_rooted_at_caller.gno -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test
+
+-- run/non_crossing_mutation.gno --
+package main
+
+import (
+	"gno.land/p/test/utils"
+	"gno.land/r/test/borrowrealm"
+)
+
+func main() {
+	utils.AssertPreviousRealmPkgPath("")
+	utils.AssertCurrentRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+
+	borrowrealm.Mutate()
+}
+
+-- run/crossing_mutation.gno --
+package main
+
+import "gno.land/r/test/borrowrealm"
+
+func main() {
+	borrowrealm.MutateCrossing(cross)
+}
+
+-- run/borrowed_object_mutation.gno --
+package main
+
+import "gno.land/r/test/borrowrealm"
+
+
+func main() {
+ 	borrowrealm.Object.Mutate()
+}
+
+-- run/object_mutation_rooted_at_caller.gno --
+package main
+
+import "gno.land/r/test/borrowrealm"
+
+var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrealm.ObjectImpl{}
+
+func main() {
+ 	obj.Mutate()
+}
+
+-- run/call_mutate_object.gno --
+package main
+
+import "gno.land/r/test/borrowrealm"
+
+func main() {
+	borrowrealm.MutateObject()
+}
+
+-- run/inspect_realms_crossing.gno --
+package main
+
+import "gno.land/r/test/borrowrealm"
+
+func main() {
+	borrowrealm.InspectRealmsCrossing(cross)
+}
+
+-- run/inspect_realms_non_crossing.gno --
+package main
+
+import "gno.land/r/test/borrowrealm"
+
+func main() {
+	borrowrealm.InspectRealmsNonCrossing()
+}
+
+-- run/mutate_object_with_borrow_crossing.gno --
+package main
+
+import "gno.land/r/test/borrowrealm"
+
+func main() {
+	borrowrealm.MutateObjectWithBorrowCrossing(cross)
+}
+
+-- run/mutate_crossing_object.gno --
+package main
+
+import "gno.land/r/test/borrowrealm"
+
+func main() {
+	borrowrealm.Object.MutateCrossing(cross)
+}
+
+-- run/mutate_crossing_object_rooted_at_caller.gno --
+package main
+
+import "gno.land/r/test/borrowrealm"
+
+var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrealm.ObjectImpl{}
+
+func main() {
+	obj.MutateCrossingObjectRootedAtCaller(cross)
+}
+
+-- borrowrealm/gnomod.toml --
+module = "gno.land/r/test/borrowrealm"
+gno = "0.9"
+
+-- borrowrealm/main.gno --
+package borrowrealm
+
+import (
+	"gno.land/p/test/utils"
+	"gno.land/p/nt/ufmt"
+)
+
+var Object ObjectImplem
+var value int
+
+type ObjectImplem struct {
+	value int
+}
+
+func NewObject() *ObjectImplem {
+	return &ObjectImplem{}
+}
+
+func (o *ObjectImplem) MutateWithoutRealmCheck() {
+	o.value++
+}
+
+func (o *ObjectImplem) Mutate() {
+	utils.AssertPreviousRealmPkgPath("")
+	utils.AssertCurrentRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+
+	o.value++
+}
+
+func (o *ObjectImplem) MutateCrossing(cur realm) {
+	utils.AssertPreviousRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
+
+	o.value++
+}
+
+func (o *ObjectImplem) MutateCrossingObjectRootedAtCaller(cur realm) {
+	utils.AssertPreviousRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
+
+	o.value++
+}
+
+func (o *ObjectImplem) MutateWithBorrowCrossing() {
+	utils.AssertPreviousRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
+
+	o.value++
+}
+
+func InspectRealmsNonCrossing() {
+	utils.AssertPreviousRealmPkgPath("")
+	utils.AssertCurrentRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+}
+
+func InspectRealmsCrossing(cur realm) {
+	utils.AssertPreviousRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
+}
+
+func Mutate() {
+	value++
+}
+
+func MutateCrossing(cur realm) {
+	value++
+}
+
+func MutateObject() {
+	Object.Mutate()
+}
+
+func MutateObjectWithBorrowCrossing(cur realm) {
+	Object.MutateWithBorrowCrossing()
+}
+
+func Render(_ string) string {
+ 	return ufmt.Sprintf("Object.value = %d, value = %d\n", Object.value, value)
+}
+
+-- utils/gnomod.toml --
+module = "gno.land/p/test/utils"
+gno = "0.9"
+
+-- utils/utils.gno --
+package utils
+
+import "chain/runtime"
+
+func AssertCurrentRealmPkgPath(expected string) {
+	currentRealm := runtime.CurrentRealm().PkgPath()
+	if currentRealm != expected {
+		if expected == "" {
+			expected = "empty"
+		}
+		panic("expected std.CurrentRealm().PkgPath() to return " + expected + ", got " + currentRealm)
+	}
+}
+
+func AssertPreviousRealmPkgPath(expected string) {
+	previousRealm := runtime.PreviousRealm().PkgPath()
+	if previousRealm != expected {
+		if expected == "" {
+			expected = "empty"
+		}
+		panic("expected std.PreviousRealm().PkgPath() to return " + expected + ", got " + previousRealm)
+	}
+}

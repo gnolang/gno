@@ -22,10 +22,13 @@ on:
 jobs:
   main:
     name: Run gno.land suite
-    uses: ./.github/workflows/main_template.yml
+    uses: ./.github/workflows/template_main.yml
     with:
       modulepath: "gno.land"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
+      # FIXME(gfanton): run txtar integration test sequentially using `ts-seq` to avoid timeout, this is a
+      # temporary fix for until cache is properly implemented on typecheck
+      tests-ts-seq: true
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -44,9 +47,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: lts/Jod # (22.x) https://github.com/nodejs/Release
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: |
           make -C gno.land/pkg/gnoweb fclean generate
           # Check if there are changes after running generate.gnoweb
           git diff --exit-code || \
              (echo "\`gnoweb generate\` out of date, please run \`make gnoweb.generate\` within './gno.land'" && exit 1)
+
+  gnoweb_front_lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/Jod
+      - uses: actions/checkout@v5
+      - run: make -C gno.land/pkg/gnoweb/frontend lint.ci

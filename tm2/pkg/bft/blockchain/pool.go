@@ -106,11 +106,7 @@ func (pool *BlockPool) OnStart() error {
 
 // spawns requesters as needed
 func (pool *BlockPool) makeRequestersRoutine() {
-	for {
-		if !pool.IsRunning() {
-			break
-		}
-
+	for pool.IsRunning() {
 		_, numPending, lenRequesters := pool.GetStatus()
 		switch {
 		case numPending >= maxPendingRequests:

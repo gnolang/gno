@@ -82,5 +82,5 @@ func (gp GasPrice) IsGTE(gpB GasPrice) (bool, error) {
 }
 
 func (gp GasPrice) String() string {
-	return fmt.Sprintf("%dgas/%s", gp.Gas, gp.Price.String())
+	return fmt.Sprintf("%s/%dgas", gp.Price.String(), gp.Gas)
 }

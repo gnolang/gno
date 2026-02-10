@@ -11,7 +11,7 @@ Refer to specific command help options (`--help`) for further customization opti
 To install gnogenesis, clone the repository and build the tool:
 
 ```shell
-git clone https://github.com/gnoland/gno.git
+git clone https://github.com/gnolang/gno.git
 cd gno/contribs/gnogenesis
 make install
 ```

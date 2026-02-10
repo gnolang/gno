@@ -1,8 +1,8 @@
 package main
 
 import (
-	quux "github.com/gnolang/gno/_test/bar" // pkg name is actually quux
-	baz "github.com/gnolang/gno/_test/baz"  // pkg name is also quux, force it to be baz.
+	quux "filetests/extern/bar" // pkg name is actually quux
+	baz "filetests/extern/baz"  // pkg name is also quux, force it to be baz.
 )
 
 func main() {

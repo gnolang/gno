@@ -2,16 +2,18 @@ package commondao
 
 import (
 	"errors"
-	"std"
 	"time"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 const (
-	StatusActive ProposalStatus = "active"
-	StatusFailed                = "failed"
-	StatusPassed                = "passed"
+	StatusActive    ProposalStatus = "active"
+	StatusPassed                   = "passed"
+	StatusRejected                 = "rejected"
+	StatusExecuted                 = "executed"
+	StatusFailed                   = "failed"
+	StatusWithdrawn                = "withdrawn"
 )
 
 const (
@@ -54,7 +56,7 @@ type (
 		id             uint64
 		status         ProposalStatus
 		definition     ProposalDefinition
-		creator        std.Address
+		creator        address
 		record         *VotingRecord // TODO: Add support for multiple voting records
 		statusReason   string
 		voteChoices    *avl.Tree // string(VoteChoice) -> struct{}
@@ -69,17 +71,20 @@ type (
 		// Title returns the proposal title.
 		Title() string
 
-		// Body returns the proposal body.
-		// It usually contains the proposal description and other elements like proposal parameters.
+		// Body returns proposal's body.
+		// It usually contains description or values that are specific to the proposal,
+		// like a description of the proposal's motivation or the list of values that
+		// would be applied when the proposal is approved.
 		Body() string
 
 		// VotingPeriod returns the period where votes are allowed after proposal creation.
-		// No more votes should be allowed once this period is met. It is used to calculate
-		// the voting deadline from the proposal's creationd date.
+		// It is used to calculate the voting deadline from the proposal's creationd date.
 		VotingPeriod() time.Duration
 
 		// Tally counts the number of votes and verifies if proposal passes.
-		Tally(ReadonlyVotingRecord, MemberSet) (passes bool, _ error)
+		// It receives a voting context containing a readonly record with the votes
+		// that has been submitted for the proposal and also the list of DAO members.
+		Tally(VotingContext) (passes bool, _ error)
 	}
 
 	// Validable defines an interface for proposal definitions that require state validation.
@@ -93,8 +98,7 @@ type (
 	// Once proposals are executed they are archived and considered finished.
 	Executable interface {
 		// Execute executes the proposal.
-		// This method must allow crossing.
-		Execute() error
+		Execute(realm) error
 	}
 
 	// CustomizableVoteChoices defines an interface for proposal definitions that want
@@ -107,8 +111,30 @@ type (
 	}
 )
 
+// MustValidate validates that a proposal is valid for the current state or panics on error.
+func MustValidate(v Validable) {
+	if v == nil {
+		panic("validable proposal definition is nil")
+	}
+
+	if err := v.Validate(); err != nil {
+		panic(err)
+	}
+}
+
+// MustExecute executes an executable proposal or panics on error.
+func MustExecute(e Executable) {
+	if e == nil {
+		panic("executable proposal definition is nil")
+	}
+
+	if err := e.Execute(cross); err != nil {
+		panic(err)
+	}
+}
+
 // NewProposal creates a new DAO proposal.
-func NewProposal(id uint64, creator std.Address, d ProposalDefinition) (*Proposal, error) {
+func NewProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, error) {
 	if d == nil {
 		return nil, ErrProposalDefinitionRequired
 	}
@@ -166,7 +192,7 @@ func (p Proposal) Status() ProposalStatus {
 }
 
 // Creator returns the address of the account that created the proposal.
-func (p Proposal) Creator() std.Address {
+func (p Proposal) Creator() address {
 	return p.creator
 }
 
@@ -201,6 +227,11 @@ func (p Proposal) VoteChoices() []VoteChoice {
 	return choices
 }
 
+// HasVotingDeadlinePassed checks if the voting deadline has been met.
+func (p Proposal) HasVotingDeadlinePassed() bool {
+	return !time.Now().Before(p.VotingDeadline())
+}
+
 // Validate validates that a proposal is valid for the current state.
 // Validation is done when proposal status is active and when the definition supports validation.
 func (p Proposal) Validate() error {
@@ -219,8 +250,30 @@ func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
 }
 
+// Tally counts votes and updates proposal status with the current outcome.
+// Proposal status is updated to "passed" when proposal is approved
+// or to "rejected" if proposal doesn't pass.
+func (p *Proposal) Tally(members MemberStorage) error {
+	if p.status != StatusActive {
+		return ErrStatusIsNotActive
+	}
+
+	ctx := MustNewVotingContext(p.VotingRecord(), members)
+	passes, err := p.Definition().Tally(ctx)
+	if err != nil {
+		return err
+	}
+
+	if passes {
+		p.status = StatusPassed
+	} else {
+		p.status = StatusRejected
+	}
+	return nil
+}
+
 // IsQuorumReached checks if a participation quorum is reach.
-func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members MemberSet) bool {
+func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMemberStorage) bool {
 	if members.Size() <= 0 || quorum <= 0 {
 		return false
 	}

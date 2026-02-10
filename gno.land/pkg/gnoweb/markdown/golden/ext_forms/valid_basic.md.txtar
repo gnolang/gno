@@ -1,0 +1,17 @@
+-- input.md --
+
+<gno-form>
+<gno-input name="test" placeholder="Enter test value" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div class="gno-form_input"><label for="test">Enter test value</label>
+<input type="text" id="test" name="test" placeholder="Enter test value" />
+</div>
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>

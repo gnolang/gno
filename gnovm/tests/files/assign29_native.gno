@@ -11,7 +11,7 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): (const (ref(time) package{})).Now
+// main/assign29_native.gno:8:2-10: cannot directly mutate time.Now from main
 
 // TypeCheckError:
 // main/assign29_native.gno:8:2: use of package time not in selector; main/assign29_native.gno:8:2: cannot assign to time.Now (neither addressable nor a map index expression)

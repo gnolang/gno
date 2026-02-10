@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -65,8 +66,8 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 	}{
 		// valid queries
 		{input: []byte(`gno.land/r/hello.Echo("hello")`), expectedResult: `("echo:hello" string)`},
-		{input: []byte(`gno.land/r/hello.caller()`), expectedResult: `("" std.Address)`}, // FIXME?
-		{input: []byte(`gno.land/r/hello.GetHeight()`), expectedResult: `(0 int64)`},
+		{input: []byte(`gno.land/r/hello.caller()`), expectedResult: `("" .uverse.address)`}, // FIXME?
+		{input: []byte(`gno.land/r/hello.GetHeight()`), expectedResult: `(42 int64)`},
 		// {input: []byte(`gno.land/r/hello.time.RFC3339`), expectedResult: `test`}, // not working, but should we care?
 		{input: []byte(`gno.land/r/hello.PubString`), expectedResult: `("public string" string)`},
 		{input: []byte(`gno.land/r/hello.ConstString`), expectedResult: `("const string" string)`},
@@ -95,7 +96,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello`), expectedPanicMatch: `expected <pkgpath>.<expression> syntax in query input data`},
 
 		// errors
-		{input: []byte(`gno.land/r/hello.doesnotexist`), expectedErrorMatch: `^/:0:0: name doesnotexist not declared:`}, // multiline error
+		{input: []byte(`gno.land/r/hello.doesnotexist`), expectedErrorMatch: `^:0:0: name doesnotexist not declared:`}, // multiline error
 		{input: []byte(`gno.land/r/doesnotexist.Foo`), expectedErrorMatch: `^invalid package path$`},
 		{input: []byte(`gno.land/r/hello.Panic()`), expectedErrorMatch: `^foo$`},
 		{input: []byte(`gno.land/r/hello.sl[6]`), expectedErrorMatch: `^slice index out of bounds: 6 \(len=5\)$`},
@@ -115,18 +116,21 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 			env.acck.SetAccount(ctx, acc)
 			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
-
+			const pkgpath = "gno.land/r/hello"
 			// Create test package.
 			files := []*std.MemFile{
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgpath)},
 				{Name: "hello.gno", Body: `
 package hello
 
-import "std"
-import "time"
+import (
+	"chain/runtime"
+	"time"
+)
 
 var _ = time.RFC3339
-func caller() std.Address { return std.OriginCaller() }
-var GetHeight = std.ChainHeight
+func caller() address { return runtime.OriginCaller() }
+var GetHeight = runtime.ChainHeight
 var sl = []int{1,2,3,4,5}
 func fn() func(string) string { return Echo }
 type myStruct struct{a int}
@@ -209,8 +213,10 @@ func TestVmHandlerQuery_Funcs(t *testing.T) {
 			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
+			const pkgpath = "gno.land/r/hello"
 			// Create test package.
 			files := []*std.MemFile{
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgpath)},
 				{Name: "hello.gno", Body: `
 package hello
 
@@ -260,17 +266,30 @@ func TestVmHandlerQuery_File(t *testing.T) {
 		input               []byte
 		expectedResult      string
 		expectedResultMatch string
-		expectedErrorMatch  string
+		expectedError       error
 		expectedPanicMatch  string
+		expectedLogMatch    string
 		// XXX: expectedEvents
 	}{
 		// valid queries
 		{input: []byte(`gno.land/r/hello/hello.gno`), expectedResult: "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
 		{input: []byte(`gno.land/r/hello/README.md`), expectedResult: "# Hello"},
-		{input: []byte(`gno.land/r/hello/doesnotexist.gno`), expectedErrorMatch: `file "gno.land/r/hello/doesnotexist.gno" is not available`},
-		{input: []byte(`gno.land/r/hello`), expectedResult: "README.md\nhello.gno"},
-		{input: []byte(`gno.land/r/doesnotexist`), expectedErrorMatch: `package "gno.land/r/doesnotexist" is not available`},
-		{input: []byte(`gno.land/r/doesnotexist/hello.gno`), expectedErrorMatch: `file "gno.land/r/doesnotexist/hello.gno" is not available`},
+		{
+			input:            []byte(`gno.land/r/hello/doesnotexist.gno`),
+			expectedError:    &InvalidFileError{},
+			expectedLogMatch: `file "gno.land/r/hello/doesnotexist.gno" is not available`,
+		},
+		{input: []byte(`gno.land/r/hello`), expectedResult: "README.md\ngnomod.toml\nhello.gno"},
+		{
+			input:            []byte(`gno.land/r/doesnotexist`),
+			expectedError:    &InvalidPackageError{},
+			expectedLogMatch: `package "gno.land/r/doesnotexist" is not available`,
+		},
+		{
+			input:            []byte(`gno.land/r/doesnotexist/hello.gno`),
+			expectedError:    &InvalidFileError{},
+			expectedLogMatch: `file "gno.land/r/doesnotexist/hello.gno" is not available`,
+		},
 	}
 
 	for _, tc := range tt {
@@ -287,9 +306,11 @@ func TestVmHandlerQuery_File(t *testing.T) {
 			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
+			const pkgpath = "gno.land/r/hello"
 			// Create test package.
 			files := []*std.MemFile{
 				{Name: "README.md", Body: "# Hello"},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgpath)},
 				{Name: "hello.gno", Body: "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
 			}
 			pkgPath := "gno.land/r/hello"
@@ -311,7 +332,8 @@ func TestVmHandlerQuery_File(t *testing.T) {
 				}
 			}()
 			res := vmHandler.Query(env.ctx, req)
-			if tc.expectedErrorMatch == "" {
+
+			if tc.expectedError == nil {
 				assert.True(t, res.IsOK(), "should not have error")
 				if tc.expectedResult != "" {
 					assert.Equal(t, string(res.Data), tc.expectedResult)
@@ -321,8 +343,11 @@ func TestVmHandlerQuery_File(t *testing.T) {
 				}
 			} else {
 				assert.False(t, res.IsOK(), "should have an error")
-				errmsg := res.Error.Error()
-				assert.Regexp(t, tc.expectedErrorMatch, errmsg)
+				assert.ErrorIs(t, res.Error, tc.expectedError)
+			}
+
+			if tc.expectedLogMatch != "" {
+				assert.Regexp(t, tc.expectedLogMatch, res.Log)
 			}
 		})
 	}
@@ -373,9 +398,13 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 		},
 		Types: []*doc.JSONType{
 			{
-				Name:      "myStruct",
-				Signature: "type myStruct struct{ a int }",
-				Doc:       "myStruct is a struct for testing\n",
+				Name: "myStruct",
+				Type: "struct{ a int }",
+				Doc:  "myStruct is a struct for testing\n",
+				Kind: "struct",
+				Fields: []*doc.JSONField{
+					{Name: "a", Type: "int", Doc: ""},
+				},
 			},
 		},
 	}
@@ -405,7 +434,10 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
+			const pkgpath = "gno.land/r/hello"
+			// Create test package.
 			files := []*std.MemFile{
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgpath)},
 				{Name: "hello.gno", Body: `
 // hello is a package for testing
 package hello

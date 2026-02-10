@@ -10,16 +10,16 @@ func HelloFromMyPkg() string {
 	return "hello gnoland"
 }
 
--- pkg/mypkg/gno.mod --
-module gno.land/r/test/mypkg
-                            
+-- pkg/mypkg/gnomod.toml --
+module = "gno.land/r/test/mypkg"
+                    
 -- file.gno --
 package testdata
 
 var myVar = mypkg.HelloFromMyPkg()
 
--- gno.mod --
-module gno.land/r/test/mypkg2
+-- gnomod.toml --
+module = "gno.land/r/test/mypkg2"
 
 -- stdout.golden --
 package testdata

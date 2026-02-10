@@ -2,18 +2,18 @@
 
 ## User Registration
 
-In gno.land, users can register a unique username that:
+In Gno.land, users can register a unique username that:
 - Provides a more readable identity than a blockchain address
-- Grants the exclusive right to deploy code under that namespace
+- Grants the exclusive right to deploy code under a matching namespace
 - Can be used in social contexts across the ecosystem
 
 ### Registration Process
 
 To register a username:
 
-1. Visit the user registry realm at [`gno.land/r/gnoland/users`](https://gno.land/r/gnoland/users)
-2. Check if your desired username is available by 
-3. Register using the following command:
+1. Visit the user registry realm at [`gno.land/r/gnoland/users/v1`](https://gno.land/r/gnoland/users/v1)
+2. Check if your desired username is available
+3. Register using transaction links & a web extension wallet, or with `gnokey` using the following command:
 
 ```bash
 gnokey maketx call \
@@ -28,15 +28,16 @@ gnokey maketx call \
   YOUR_KEY_NAME
 ```
 
-The registration costs 1 GNOT, which serves as an anti-spam measure and ensures users value their identities.
+The registration costs 1 GNOT, which serves as an anti-spam measure and ensures 
+users value their identities.
 
 ## Username Ownership
 
 Once registered, a username is permanently linked to the registering address. This address:
 
 - Has exclusive rights to deploy packages under that namespace
-- Can manage that username's profile and
-<!-- - XXX: Can transfer ownership, when we decide how we want to propose this -->
+- Can manage that username's profile
+- and more to come.
 
 ### Namespace Access
 
@@ -55,7 +56,8 @@ Only the address that registered the username can deploy to these paths, ensurin
 
 ## Teams and Collaborative Development
 
-There is an ongoing effort on team-based development through shared namespaces. This feature will enable:
+There is an ongoing effort to bring team-based development through shared
+namespaces. This feature will enable:
 
 1. Multiple addresses with permission to deploy under a team namespace
 2. Role-based access control for team members

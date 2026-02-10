@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -45,27 +44,36 @@ func (i gnoIssue) String() string {
 }
 
 // Gno parses and sorts mpkg files into the following filesets:
-//   - fset: all normal and _test.go files in package excluding `package xxx_test`
+// Args:
+//   - onlyFiletests: true if all files are filetests. relaxed.
+//     used to transpile test/files/*.gno (no _filetest.gno suffix).
+//
+// Results:
+//   - all: all files.
+//   - fset: all normal files in package excluding test files.
+//   - tfset: all normal and _test.go files in package excluding `package xxx_test`
 //     integration *_test.gno files.
 //   - _tests: `package xxx_test` integration *_test.gno files.
 //   - ftests: *_filetest.gno file tests, each in their own file set.
-func sourceAndTestFileset(mpkg *std.MemPackage) (
-	all, fset *gno.FileSet, _tests *gno.FileSet, ftests []*gno.FileSet,
+func sourceAndTestFileset(mpkg *std.MemPackage, onlyFiletests bool) (
+	all, fset, tfset *gno.FileSet, _tests *gno.FileSet, ftests []*gno.FileSet,
 ) {
 	all = &gno.FileSet{}
 	fset = &gno.FileSet{}
+	tfset = &gno.FileSet{}
 	_tests = &gno.FileSet{}
+	var m *gno.Machine
 	for _, mfile := range mpkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // Skip non-GNO files
 		}
 
-		n := gno.MustParseFile(mfile.Name, mfile.Body)
+		n := m.MustParseFile(mfile.Name, mfile.Body)
 		if n == nil {
 			continue // Skip empty files
 		}
 		all.AddFiles(n)
-		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
+		if strings.HasSuffix(mfile.Name, "_filetest.gno") || onlyFiletests {
 			// A _filetest.gno is a package of its own.
 			ftset := &gno.FileSet{}
 			ftset.AddFiles(n)
@@ -74,10 +82,16 @@ func sourceAndTestFileset(mpkg *std.MemPackage) (
 			strings.HasSuffix(string(n.PkgName), "_test") {
 			// A xxx_file integration test is a package of its own.
 			_tests.AddFiles(n)
-		} else {
-			// All normal package files and,
+		} else if strings.HasSuffix(mfile.Name, "_test.gno") &&
+			!strings.HasSuffix(string(n.PkgName), "_test") {
 			// _test.gno files that aren't xxx_test.
+			tfset.AddFiles(n)
+		} else {
+			// Non-test files.
 			fset.AddFiles(n)
+			// Parse again so fset and tfset can be preprocessed separately.
+			n := m.MustParseFile(mfile.Name, mfile.Body)
+			tfset.AddFiles(n)
 		}
 	}
 	return
@@ -90,74 +104,6 @@ func parsePkgPathDirective(body string, defaultPkgPath string) (string, error) {
 	}
 	return dirs.FirstDefault(test.DirectivePkgPath, defaultPkgPath), nil
 }
-
-type processedFileSet struct {
-	pn   *gno.PackageNode
-	fset *gno.FileSet
-}
-
-type processedPackage struct {
-	dir    string             // dirctory
-	mpkg   *std.MemPackage    // includes all files
-	normal processedFileSet   // includes all prod (and some *_test.gno) files
-	_tests processedFileSet   // includes all xxx_test *_test.gno integration files
-	ftests []processedFileSet // includes all *_filetest.gno filetest files
-}
-
-func (ppkg *processedPackage) AddNormal(pn *gno.PackageNode, fset *gno.FileSet) {
-	if ppkg.normal != (processedFileSet{}) {
-		panic("normal processed fileset already set")
-	}
-	ppkg.normal = processedFileSet{pn, fset}
-}
-
-func (ppkg *processedPackage) AddUnderscoreTests(pn *gno.PackageNode, fset *gno.FileSet) {
-	if ppkg._tests != (processedFileSet{}) {
-		panic("_test processed fileset already set")
-	}
-	ppkg._tests = processedFileSet{pn, fset}
-}
-
-func (ppkg *processedPackage) AddFileTest(pn *gno.PackageNode, fset *gno.FileSet) {
-	if len(fset.Files) != 1 {
-		panic("filetests must have filesets of length 1")
-	}
-	fname := fset.Files[0].Name
-	if !strings.HasSuffix(string(fname), "_filetest.gno") {
-		panic(fmt.Sprintf("expected *_filetest.gno but got %q", fname))
-	}
-	for _, ftest := range ppkg.ftests {
-		if ftest.fset.Files[0].Name == fname {
-			panic(fmt.Sprintf("fileetest with name %q already exists", fname))
-		}
-	}
-	ppkg.ftests = append(ppkg.ftests, processedFileSet{pn, fset})
-}
-
-func (ppkg *processedPackage) GetFileTest(fname gno.Name) processedFileSet {
-	if !strings.HasSuffix(string(fname), "_filetest.gno") {
-		panic(fmt.Sprintf("expected *_filetest.gno but got %q", fname))
-	}
-	for _, ftest := range ppkg.ftests {
-		if ftest.fset.Files[0].Name == fname {
-			return ftest
-		}
-	}
-	panic(fmt.Sprintf("processedFileSet for filetest %q not found", fname))
-}
-
-// reParseRecover is a regex designed to parse error details from a string.
-// It extracts the file location, line number, and error message from a
-// formatted error string.
-// XXX: Ideally, error handling should encapsulate location details within a
-// dedicated error type.
-const (
-	rePos       = `(?:` + `\d+(?::\d+)?` + `)` // NOTE: allows the omission of columns, more relaxed than gno.Pos.
-	reSpan      = `(?:` + rePos + `-` + rePos + `)`
-	rePosOrSpan = `(?:` + reSpan + `|` + rePos + `)`
-)
-
-var reParseRecover = regexp.MustCompile(`^([^:]+):(` + rePosOrSpan + `):? *(.*)$`)
 
 func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 	switch err := err.(type) {
@@ -182,7 +128,7 @@ func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 		})
 	case types.Error:
 		loc := err.Fset.Position(err.Pos).String()
-		loc = guessFilePathLoc(loc, pkgPath, dir)
+		loc = guessFilePathLocRel(loc, pkgPath, dir)
 		code := gnoTypeCheckError
 		if strings.Contains(err.Msg, "(unknown import path \"") {
 			// NOTE: This is a bit of a hack.
@@ -199,7 +145,7 @@ func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 	case scanner.ErrorList:
 		for _, err := range err {
 			loc := err.Pos.String()
-			loc = guessFilePathLoc(loc, pkgPath, dir)
+			loc = guessFilePathLocRel(loc, pkgPath, dir)
 			fmt.Fprintln(w, gnoIssue{
 				Code:       gnoParserError,
 				Msg:        err.Msg,
@@ -209,7 +155,7 @@ func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 		}
 	case scanner.Error:
 		loc := err.Pos.String()
-		loc = guessFilePathLoc(loc, pkgPath, dir)
+		loc = guessFilePathLocRel(loc, pkgPath, dir)
 		fmt.Fprintln(w, gnoIssue{
 			Code:       gnoParserError,
 			Msg:        err.Msg,
@@ -236,7 +182,10 @@ func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 func catchPanic(dir, pkgPath string, stderr io.WriteCloser, action func()) (didPanic bool) {
 	// If this gets out of hand (e.g. with nested catchPanic with need for
 	// selective catching) then pass in a bool instead.
-	if os.Getenv("DEBUG_PANIC") != "1" {
+	// See also pkg/test/imports.go.
+	if os.Getenv("DEBUG_PANIC") == "1" {
+		fmt.Println("DEBUG_PANIC=1 (will not recover)")
+	} else {
 		defer func() {
 			// Errors catched here mostly come from:
 			// gnovm/pkg/gnolang/preprocess.go
@@ -263,19 +212,18 @@ func guessIssueFromError(dir, pkgPath string, err error, code gnoCode) gnoIssue 
 	issue.Code = code
 
 	parsedError := strings.TrimSpace(err.Error())
-	matches := reParseRecover.FindStringSubmatch(parsedError)
-
-	if len(matches) > 0 {
-		errPath := matches[1]
-		errLoc := matches[2]
-		errMsg := matches[3]
-		errPath = guessFilePathLoc(errPath, pkgPath, dir)
+	match := gno.ReErrorLine.Match(parsedError)
+	if match == nil {
+		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
+		issue.Msg = err.Error()
+	} else {
+		errPath := match.Get("PATH")
+		errLoc := match.Get("LOC")
+		errMsg := match.Get("MSG")
+		errPath = guessFilePathLocRel(errPath, pkgPath, dir)
 		errPath = filepath.Clean(errPath)
 		issue.Location = errPath + ":" + errLoc
 		issue.Msg = strings.TrimSpace(errMsg)
-	} else {
-		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
-		issue.Msg = err.Error()
 	}
 	return issue
 }
@@ -288,6 +236,7 @@ func guessFilePathLoc(s, pkgPath, dir string) string {
 	if !dirExists(dir) {
 		panic(fmt.Sprintf("dir %q does not exist", dir))
 	}
+
 	s = filepath.Clean(s)
 	pkgPath = filepath.Clean(pkgPath)
 	dir = filepath.Clean(dir)
@@ -321,6 +270,32 @@ func guessFilePathLoc(s, pkgPath, dir string) string {
 	}
 	// dunno.
 	return s
+}
+
+// Wrapper around [guessFilePathLoc] that tries to relativize it's output
+func guessFilePathLocRel(s, pkgPath, dir string) string {
+	p := guessFilePathLoc(s, pkgPath, dir)
+	return tryRelativizePath(p)
+}
+
+// tryRelativizePath takes a path in and if it is absolute, tries to make it relative to cwd.
+// Any errors are ignored and in case of errors, the initial path is returned
+func tryRelativizePath(p string) string {
+	if !filepath.IsAbs(p) {
+		return p
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return p
+	}
+
+	rel, err := filepath.Rel(wd, p)
+	if err != nil {
+		return p
+	}
+
+	return rel
 }
 
 func dirExists(dir string) bool {

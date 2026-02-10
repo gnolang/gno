@@ -1,17 +1,17 @@
 package chess
 
 import (
+	"chain"
 	"fmt"
 	"os"
-	"std"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/morgan/chess"
 	"gno.land/p/morgan/chess/glicko2"
+	"gno.land/p/nt/avl"
 )
 
 func cleanup() {
@@ -25,16 +25,16 @@ func cleanup() {
 	playerRatings = [CategoryMax][]*glicko2.PlayerRating{}
 }
 
-func TestNewGame(t *testing.T) {
+func TestNewGame(cur realm, t *testing.T) {
 	cleanup()
 
-	g := xNewGame(std.DerivePkgAddr("xx").String(), 0, 0)
+	g := xNewGame(cur, chain.PackageAddress("xx").String(), 0, 0)
 	println(g)
 }
 
 const (
-	white std.Address = "g1white"
-	black std.Address = "g1black"
+	white address = "g1white"
+	black address = "g1black"
 )
 
 /*
@@ -255,27 +255,27 @@ func (tc testCommandFunc) Run(t *testing.T, bufs map[string]string) { tc(t, bufs
 // form func(gameID string) string (hence ID), and that takes as the first
 // parameter a <player> which will be the caller.
 type testCommandColorID struct {
-	fn   func(string) string
-	addr std.Address
+	fn   func(realm, string) string
+	addr address
 }
 
-func newTestCommandColorID(fn func(string) string, s string, addr string) testCommandRunner {
-	return &testCommandColorID{fn, std.Address("g1" + addr)}
+func newTestCommandColorID(fn func(realm, string) string, s string, addr string) testCommandRunner {
+	return &testCommandColorID{fn, address("g1" + addr)}
 }
 
 func (tc *testCommandColorID) Run(t *testing.T, bufs map[string]string) {
-	testing.SetRealm(std.NewUserRealm(tc.addr))
-	bufs["result"] = cross(tc.fn)(bufs["id"])
+	testing.SetRealm(testing.NewUserRealm(tc.addr))
+	bufs["result"] = tc.fn(cross, bufs["id"])
 }
 
 type testCommandNewGame struct {
-	w, b          std.Address
+	w, b          address
 	seconds, incr int
 }
 
 func (tc *testCommandNewGame) Run(t *testing.T, bufs map[string]string) {
-	testing.SetRealm(std.NewUserRealm(tc.w))
-	res := cross(xNewGame)(string(tc.b), tc.seconds, tc.incr)
+	testing.SetRealm(testing.NewUserRealm(tc.w))
+	res := xNewGame(cross, string(tc.b), tc.seconds, tc.incr)
 	bufs["result"] = res
 
 	const idMagicString = `"id":"`
@@ -289,14 +289,14 @@ func (tc *testCommandNewGame) Run(t *testing.T, bufs map[string]string) {
 }
 
 type testCommandMove struct {
-	addr      std.Address
+	addr      address
 	from, to  string
 	promotion chess.Piece
 }
 
 func (tc *testCommandMove) Run(t *testing.T, bufs map[string]string) {
-	testing.SetRealm(std.NewUserRealm(tc.addr))
-	bufs["result"] = cross(MakeMove)(bufs["id"], tc.from, tc.to, tc.promotion)
+	testing.SetRealm(testing.NewUserRealm(tc.addr))
+	bufs["result"] = MakeMove(cross, bufs["id"], tc.from, tc.to, tc.promotion)
 }
 
 type testCommandGame struct {
@@ -404,7 +404,7 @@ func parseCommandTest(t *testing.T, command string) (funcs []testCommandRunner, 
 				seconds = atoi(command[3])
 				fallthrough
 			case 3:
-				w, b = std.Address("g1"+command[1]), std.Address("g1"+command[2])
+				w, b = address("g1"+command[1]), address("g1"+command[2])
 			default:
 				panic("invalid newgame command " + line)
 			}
@@ -427,7 +427,7 @@ func parseCommandTest(t *testing.T, command string) (funcs []testCommandRunner, 
 				}
 			}
 			funcs = append(funcs, &testCommandMove{
-				addr:      std.Address("g1" + command[1]),
+				addr:      address("g1" + command[1]),
 				from:      from,
 				to:        to,
 				promotion: promotion,

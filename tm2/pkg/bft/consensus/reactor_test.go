@@ -242,7 +242,7 @@ func TestReactorVotingPowerChange(t *testing.T) {
 	// map of active validators
 	activeVals := make(map[string]struct{})
 	for i := range nVals {
-		addr := css[i].privValidator.GetPubKey().Address()
+		addr := css[i].privValidator.PubKey().Address()
 		activeVals[addr.String()] = struct{}{}
 	}
 
@@ -254,7 +254,7 @@ func TestReactorVotingPowerChange(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Debug("---------------------------- Testing changing the voting power of one validator a few times")
 
-	val1PubKey := css[0].privValidator.GetPubKey()
+	val1PubKey := css[0].privValidator.PubKey()
 	updateValTx := kvstore.MakeValSetChangeTx(val1PubKey, 25)
 	previousTotalVotingPower := css[0].GetRoundState().LastValidators.TotalVotingPower()
 
@@ -308,7 +308,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// map of active validators
 	activeVals := make(map[string]struct{})
 	for i := range nVals {
-		addr := css[i].privValidator.GetPubKey().Address()
+		addr := css[i].privValidator.PubKey().Address()
 		activeVals[addr.String()] = struct{}{}
 	}
 
@@ -320,7 +320,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing adding one validator")
 
-	newValPubKey1 := css[nVals].privValidator.GetPubKey()
+	newValPubKey1 := css[nVals].privValidator.PubKey()
 	newValTx1 := kvstore.MakeValSetChangeTx(newValPubKey1, testMinPower)
 
 	// wait till everyone makes block 2
@@ -346,7 +346,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing changing the voting power of one validator")
 
-	updateValPubKey1 := css[nVals].privValidator.GetPubKey()
+	updateValPubKey1 := css[nVals].privValidator.PubKey()
 	updateValTx1 := kvstore.MakeValSetChangeTx(updateValPubKey1, 25)
 	previousTotalVotingPower := css[nVals].GetRoundState().LastValidators.TotalVotingPower()
 
@@ -362,10 +362,10 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing adding two validators at once")
 
-	newValPubKey2 := css[nVals+1].privValidator.GetPubKey()
+	newValPubKey2 := css[nVals+1].privValidator.PubKey()
 	newValTx2 := kvstore.MakeValSetChangeTx(newValPubKey2, testMinPower)
 
-	newValPubKey3 := css[nVals+2].privValidator.GetPubKey()
+	newValPubKey3 := css[nVals+2].privValidator.PubKey()
 	newValTx3 := kvstore.MakeValSetChangeTx(newValPubKey3, testMinPower)
 
 	waitForAndValidateBlock(t, nPeers, activeVals, blocksSubs, css, newValTx2, newValTx3)
@@ -613,6 +613,17 @@ func TestNewValidBlockMessageValidateBasic(t *testing.T) {
 			func(msg *NewValidBlockMessage) { msg.BlockParts = bitarray.NewBitArray(types.MaxBlockPartsCount + 1) },
 			"BlockParts bit array size 1602 not equal to BlockPartsHeader.Total 1",
 		},
+		{
+			func(msg *NewValidBlockMessage) { msg.BlockParts.Elems = nil },
+			"mismatch between specified number of bits 1, and number of elements 0, expected 1 element",
+		},
+		{
+			func(msg *NewValidBlockMessage) {
+				msg.BlockParts.Bits = 500
+				msg.BlockPartsHeader.Total = 500 // header total should match bitarray size so ba validation is reached
+			},
+			"mismatch between specified number of bits 500, and number of elements 1, expected 8 elements",
+		},
 	}
 
 	for i, tc := range testCases {
@@ -652,6 +663,14 @@ func TestProposalPOLMessageValidateBasic(t *testing.T) {
 		{
 			func(msg *ProposalPOLMessage) { msg.ProposalPOL = bitarray.NewBitArray(types.MaxVotesCount + 1) },
 			"ProposalPOL bit array is too big: 10001, max: 10000",
+		},
+		{
+			func(msg *ProposalPOLMessage) { msg.ProposalPOL.Elems = nil },
+			"mismatch between specified number of bits 1, and number of elements 0, expected 1 elements",
+		},
+		{
+			func(msg *ProposalPOLMessage) { msg.ProposalPOL.Bits = 500 },
+			"mismatch between specified number of bits 500, and number of elements 1, expected 8 elements",
 		},
 	}
 
@@ -825,6 +844,14 @@ func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
 		{
 			func(msg *VoteSetBitsMessage) { msg.Votes = bitarray.NewBitArray(types.MaxVotesCount + 1) },
 			"votes bit array is too big: 10001, max: 10000",
+		},
+		{
+			func(msg *VoteSetBitsMessage) { msg.Votes.Elems = nil },
+			"mismatch between specified number of bits 1, and number of elements 0, expected 1 elements",
+		},
+		{
+			func(msg *VoteSetBitsMessage) { msg.Votes.Bits = 500 },
+			"mismatch between specified number of bits 500, and number of elements 1, expected 8 elements",
 		},
 	}
 

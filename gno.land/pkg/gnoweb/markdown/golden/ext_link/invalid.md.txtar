@@ -8,6 +8,6 @@
 -- output.html --
 <p><!-- invalid link -->
 <!-- invalid link -->
-<a href="https://example.com" rel="noopener nofollow ugc">Invalid html tag <!-- raw HTML omitted --><span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a>
-<a href="https://example.com" rel="noopener nofollow ugc" title="\\\"<div>">Invalid html tag 2<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a>
+<a href="https://example.com" rel="noopener nofollow ugc">Invalid html tag <!-- raw HTML omitted --><span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a>
+<a href="https://example.com" rel="noopener nofollow ugc" title="\&quot;&lt;div&gt;">Invalid html tag 2<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a>
 <!-- invalid link --></p>

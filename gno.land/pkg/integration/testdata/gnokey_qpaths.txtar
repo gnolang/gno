@@ -57,8 +57,9 @@ cmp stdout empty-qpaths.stdout.golden
 cmp stderr empty_file
 
 -- main.gno --
-package main; func main() { println("A") }
+package main
 
+func main() { println("A") }
 -- aaa-qpaths.stdout.golden --
 height: 0
 data: gno.land/r/aaa
@@ -97,16 +98,16 @@ data:
 height: 0
 data: bufio
 bytes
-crypto/bech32
-crypto/chacha20
-crypto/chacha20/chacha
+chain
+chain/banker
+chain/params
 -- stdlibs-qpaths.stdout.golden --
 height: 0
 data: bufio
 bytes
-crypto/bech32
-crypto/chacha20
-crypto/chacha20/chacha
+chain
+chain/banker
+chain/params
 -- stdlibs-encoding-qpaths.stdout.golden --
 height: 0
 data: encoding

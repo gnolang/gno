@@ -18,14 +18,18 @@ import (
 	_ "mvdan.cc/gofumpt"
 
 	// protoc, genproto
+	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
 	_ "google.golang.org/protobuf/cmd/protoc-gen-go"
 
 	// gen docs
 	_ "golang.org/x/tools/cmd/godoc"
 
 	// linter
-	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
+	_ "github.com/golangci/golangci-lint/v2/cmd/golangci-lint"
 
 	// embedmd
 	_ "github.com/campoy/embedmd/embedmd"
+
+	// required to generate mocks (see `make mocks`)
+	_ "github.com/golang/mock/mockgen"
 )

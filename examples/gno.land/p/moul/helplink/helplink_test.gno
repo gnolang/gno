@@ -1,20 +1,20 @@
 package helplink
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/urequire"
 )
 
 func TestFunc(t *testing.T) {
-	cd := std.ChainDomain()
+	cd := runtime.ChainDomain()
 	tests := []struct {
-		title string
-		fn    string
-		args  []string
-		want  string
-		realm Realm
+		title     string
+		fn        string
+		args      []string
+		want      string
+		realm_XXX Realm
 	}{
 		{"Example", "foo", []string{"bar", "1", "baz", "2"}, "[Example](/p/moul/helplink$help&func=foo&bar=1&baz=2)", ""},
 		{"Realm Example", "foo", []string{"bar", "1", "baz", "2"}, "[Realm Example](/r/lorem/ipsum$help&func=foo&bar=1&baz=2)", Realm(cd + "/r/lorem/ipsum")},
@@ -36,19 +36,19 @@ func TestFunc(t *testing.T) {
 					}
 				}()
 			}
-			got := tt.realm.Func(tt.title, tt.fn, tt.args...)
+			got := tt.realm_XXX.Func(tt.title, tt.fn, tt.args...)
 			urequire.Equal(t, tt.want, got)
 		})
 	}
 }
 
 func TestFuncURL(t *testing.T) {
-	cd := std.ChainDomain()
+	cd := runtime.ChainDomain()
 	tests := []struct {
-		fn    string
-		args  []string
-		want  string
-		realm Realm
+		fn        string
+		args      []string
+		want      string
+		realm_XXX Realm
 	}{
 		{"foo", []string{"bar", "1", "baz", "2"}, "/p/moul/helplink$help&func=foo&bar=1&baz=2", ""},
 		{"testFunc", []string{"key", "value"}, "/p/moul/helplink$help&func=testFunc&key=value", ""},
@@ -78,17 +78,17 @@ func TestFuncURL(t *testing.T) {
 					}
 				}()
 			}
-			got := tt.realm.FuncURL(tt.fn, tt.args...)
+			got := tt.realm_XXX.FuncURL(tt.fn, tt.args...)
 			urequire.Equal(t, tt.want, got)
 		})
 	}
 }
 
 func TestHome(t *testing.T) {
-	cd := std.ChainDomain()
+	cd := runtime.ChainDomain()
 	tests := []struct {
-		realm Realm
-		want  string
+		realm_XXX Realm
+		want      string
 	}{
 		{"", "$help"},
 		{Realm(cd + "/r/lorem/ipsum"), "/r/lorem/ipsum$help"},
@@ -96,8 +96,8 @@ func TestHome(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(string(tt.realm), func(t *testing.T) {
-			got := tt.realm.Home()
+		t.Run(string(tt.realm_XXX), func(t *testing.T) {
+			got := tt.realm_XXX.Home()
 			urequire.Equal(t, tt.want, got)
 		})
 	}

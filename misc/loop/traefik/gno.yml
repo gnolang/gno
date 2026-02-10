@@ -1,6 +1,30 @@
 ---
 http:
   middlewares:
+    secure-headers:
+      headers:
+        # CSP Headers
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src 'self' data: https://gnolang.github.io https://assets.gnoteam.com https://sa.gno.services https://imgur.com https://*.imgur.com https://*.github.io https://github.com https://*.githubusercontent.com https://imgflip.com https://*.imgflip.com https://ipfs.io https://cloudflare-ipfs.com; font-src 'self';"
+        # Vary: Origin
+        addVaryHeader: true
+        # X-XSS-Protection: 1; mode=block
+        browserXssFilter: true
+        # X-Content-Type-Options: nosniff
+        contentTypeNosniff: true
+        # X-Frame-Options: DENY
+        frameDeny: true
+        # Referrer-Policy: no-referrer
+        referrerPolicy: "no-referrer"
+        # HSTS Headers
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+    web-ratelimit:
+      rateLimit:
+        average: 20 # Allow ~20 requests per second per IP
+        burst: 30
+        period: 1s
     ipwhitelist:
       ipWhiteList:
         sourceRange:
@@ -18,7 +42,7 @@ http:
       service: gno-portal-loop
       tls:
         certResolver: le
-      rule: "Host(`rpc.gno.land`) || Host(`rpc.portal.gnoteam.com`)"
+      rule: "Host(`rpc.gno.land`) || Host(`rpc.staging.gno.land`)"
       entrypoints: [ "web", "websecure" ]
       middlewares: []
 

@@ -1,8 +1,8 @@
 package commondao
 
 import (
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
 )
 
 // ProposalStorage defines an interface for proposal storages.

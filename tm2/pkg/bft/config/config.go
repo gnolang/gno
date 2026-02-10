@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"dario.cat/mergo"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
@@ -23,15 +24,12 @@ import (
 )
 
 var (
-	errInvalidMoniker                    = errors.New("moniker not set")
-	errInvalidDBBackend                  = errors.New("invalid DB backend")
-	errInvalidDBPath                     = errors.New("invalid DB path")
-	errInvalidPrivValidatorKeyPath       = errors.New("invalid private validator key path")
-	errInvalidPrivValidatorStatePath     = errors.New("invalid private validator state file path")
-	errInvalidABCIMechanism              = errors.New("invalid ABCI mechanism")
-	errInvalidPrivValidatorListenAddress = errors.New("invalid PrivValidator listen address")
-	errInvalidProfListenAddress          = errors.New("invalid profiling server listen address")
-	errInvalidNodeKeyPath                = errors.New("invalid p2p node key path")
+	errInvalidMoniker           = errors.New("moniker not set")
+	errInvalidDBBackend         = errors.New("invalid DB backend")
+	errInvalidDBPath            = errors.New("invalid DB path")
+	errInvalidABCIMechanism     = errors.New("invalid ABCI mechanism")
+	errInvalidProfListenAddress = errors.New("invalid profiling server listen address")
+	errInvalidNodeKeyPath       = errors.New("invalid p2p node key path")
 )
 
 const (
@@ -197,6 +195,7 @@ func (cfg *Config) SetRootDir(root string) *Config {
 	cfg.P2P.RootDir = root
 	cfg.Mempool.RootDir = root
 	cfg.Consensus.RootDir = root
+	cfg.Consensus.PrivValidator.RootDir = (filepath.Join(root, DefaultSecretsDir))
 
 	return cfg
 }
@@ -255,15 +254,11 @@ var (
 	DefaultConfigDir  = "config"
 	DefaultSecretsDir = "secrets"
 
-	DefaultConfigFileName   = "config.toml"
-	defaultNodeKeyName      = "node_key.json"
-	defaultPrivValKeyName   = "priv_validator_key.json"
-	defaultPrivValStateName = "priv_validator_state.json"
+	DefaultConfigFileName = "config.toml"
+	defaultNodeKeyName    = "node_key.json"
 
-	defaultConfigPath       = filepath.Join(DefaultConfigDir, DefaultConfigFileName)
-	defaultPrivValKeyPath   = filepath.Join(DefaultSecretsDir, defaultPrivValKeyName)
-	defaultPrivValStatePath = filepath.Join(DefaultSecretsDir, defaultPrivValStateName)
-	defaultNodeKeyPath      = filepath.Join(DefaultSecretsDir, defaultNodeKeyName)
+	defaultConfigPath  = filepath.Join(DefaultConfigDir, DefaultConfigFileName)
+	defaultNodeKeyPath = filepath.Join(DefaultSecretsDir, defaultNodeKeyName)
 )
 
 // BaseConfig defines the base configuration for a Tendermint node.
@@ -304,28 +299,22 @@ type BaseConfig struct {
 	// and verifying their commits
 	FastSyncMode bool `toml:"fast_sync" comment:"If this node is many blocks behind the tip of the chain, FastSync\n allows them to catchup quickly by downloading blocks in parallel\n and verifying their commits"`
 
-	// Database backend: goleveldb | boltdb
-	// * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
+	// Database backend: pebbledb | goleveldb | boltdb
+	// * pebbledb (github.com/cockroachdb/pebble)
 	//   - pure go
 	//   - stable
+	// * goleveldb (github.com/syndtr/goleveldb)
+	//   - pure go
+	//   - stable
+	//   - use goleveldb build tag
 	// * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
-	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | boltdb\n * goleveldb (github.com/syndtr/goleveldb - most popular implementation)\n  - pure go\n  - stable\n* boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
+	DBBackend string `toml:"db_backend" comment:"Database backend: pebbledb | goleveldb | boltdb\n* pebbledb (github.com/cockroachdb/pebble)\n  - pure go\n  - stable\n* goleveldb (github.com/syndtr/goleveldb)\n  - pure go\n  - stable\n  - use goleveldb build tag\n* boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
 
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
-
-	// Path to the JSON file containing the private key to use as a validator in the consensus protocol
-	PrivValidatorKey string `toml:"priv_validator_key_file" comment:"Path to the JSON file containing the private key to use as a validator in the consensus protocol"`
-
-	// Path to the JSON file containing the last sign state of a validator
-	PrivValidatorState string `toml:"priv_validator_state_file" comment:"Path to the JSON file containing the last sign state of a validator"`
-
-	// TCP or UNIX socket address for Tendermint to listen on for
-	// connections from an external PrivValidator process
-	PrivValidatorListenAddr string `toml:"priv_validator_laddr" comment:"TCP or UNIX socket address for Tendermint to listen on for\n connections from an external PrivValidator process"`
 
 	// A JSON file containing the private key to use for p2p authenticated encryption
 	NodeKey string `toml:"node_key_file" comment:"Path to the JSON file containing the private key to use for node authentication in the p2p protocol"`
@@ -340,16 +329,14 @@ type BaseConfig struct {
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
 func DefaultBaseConfig() BaseConfig {
 	return BaseConfig{
-		PrivValidatorKey:   defaultPrivValKeyPath,
-		PrivValidatorState: defaultPrivValStatePath,
-		NodeKey:            defaultNodeKeyPath,
-		Moniker:            defaultMoniker,
-		ProxyApp:           "tcp://127.0.0.1:26658",
-		ABCI:               SocketABCI,
-		ProfListenAddress:  "",
-		FastSyncMode:       true,
-		DBBackend:          db.GoLevelDBBackend.String(),
-		DBPath:             DefaultDBDir,
+		NodeKey:           defaultNodeKeyPath,
+		Moniker:           defaultMoniker,
+		ProxyApp:          "tcp://127.0.0.1:26658",
+		ABCI:              SocketABCI,
+		ProfListenAddress: "",
+		FastSyncMode:      true,
+		DBBackend:         db.PebbleDBBackend.String(),
+		DBPath:            DefaultDBDir,
 	}
 }
 
@@ -365,16 +352,6 @@ func testBaseConfig() BaseConfig {
 
 func (cfg BaseConfig) ChainID() string {
 	return cfg.chainID
-}
-
-// PrivValidatorKeyFile returns the full path to the priv_validator_key.json file
-func (cfg BaseConfig) PrivValidatorKeyFile() string {
-	return filepath.Join(cfg.RootDir, cfg.PrivValidatorKey)
-}
-
-// PrivValidatorStateFile returns the full path to the priv_validator_state.json file
-func (cfg BaseConfig) PrivValidatorStateFile() string {
-	return filepath.Join(cfg.RootDir, cfg.PrivValidatorState)
 }
 
 // NodeKeyFile returns the full path to the node_key.json file
@@ -422,22 +399,6 @@ func (cfg BaseConfig) ValidateBasic() error {
 	// Verify the DB path is set
 	if cfg.DBPath == "" {
 		return errInvalidDBPath
-	}
-
-	// Verify the validator private key path is set
-	if cfg.PrivValidatorKey == "" {
-		return errInvalidPrivValidatorKeyPath
-	}
-
-	// Verify the validator state file path is set
-	if cfg.PrivValidatorState == "" {
-		return errInvalidPrivValidatorStatePath
-	}
-
-	// Verify the PrivValidator listen address
-	if cfg.PrivValidatorListenAddr != "" &&
-		!tcpUnixAddressRegex.MatchString(cfg.PrivValidatorListenAddr) {
-		return errInvalidPrivValidatorListenAddress
 	}
 
 	// Verify the p2p private key exists

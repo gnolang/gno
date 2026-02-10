@@ -28,22 +28,22 @@
 package txlink
 
 import (
+	"chain/runtime"
 	"net/url"
-	"std"
 	"strings"
 )
 
-var chainDomain = std.ChainDomain()
+var chainDomain = runtime.ChainDomain()
 
 // Realm represents a specific realm for generating tx links.
 type Realm string
 
 // TxBuilder provides a fluent interface for building transaction URLs
 type TxBuilder struct {
-	fn    string   // function name
-	args  []string // key-value pairs
-	send  string   // optional send amount
-	realm Realm    // realm for the URL
+	fn        string   // function name
+	args      []string // key-value pairs
+	send      string   // optional send amount
+	realm_XXX Realm    // realm for the URL
 }
 
 // NewLink creates a transaction link builder for the specified function in the current realm.
@@ -56,7 +56,7 @@ func (r Realm) NewLink(fn string) *TxBuilder {
 	if fn == "" {
 		return nil
 	}
-	return &TxBuilder{fn: fn, realm: r}
+	return &TxBuilder{fn: fn, realm_XXX: r}
 }
 
 // addArg adds a key-value argument pair. Returns the builder for chaining.
@@ -116,7 +116,7 @@ func (b *TxBuilder) URL() string {
 	if b.send != "" {
 		args = append(args, ".send", b.send)
 	}
-	return b.realm.Call(b.fn, args...)
+	return b.realm_XXX.Call(b.fn, args...)
 }
 
 // Call returns a URL for the specified function with optional key-value
@@ -129,7 +129,7 @@ func Call(fn string, args ...string) string {
 func (r Realm) prefix() string {
 	// relative
 	if r == "" {
-		curPath := std.CurrentRealm().PkgPath()
+		curPath := runtime.CurrentRealm().PkgPath()
 		return strings.TrimPrefix(curPath, chainDomain)
 	}
 

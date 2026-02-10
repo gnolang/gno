@@ -1,14 +1,17 @@
 package impl
 
 import (
-	"std"
+	"chain/runtime"
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/helplink"
+	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
+	"gno.land/r/sys/users"
 )
 
 type render struct {
@@ -19,21 +22,17 @@ type render struct {
 
 func NewRender(d *GovDAO) *render {
 	ren := &render{
-		pssPager: pager.NewPager(d.pss.Tree, 3, true),
+		pssPager: pager.NewPager(d.pss.Tree, 5, true),
 	}
 
 	r := mux.NewRouter()
-
-	r.HandleFunc("/", func(rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(ren.renderActiveProposals(req.RawPath, d))
-	})
 
 	r.HandleFunc("", func(rw *mux.ResponseWriter, req *mux.Request) {
 		rw.Write(ren.renderActiveProposals(req.RawPath, d))
 	})
 
 	r.HandleFunc("{pid}", func(rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(ren.renderProposal(req.GetVar("pid"), d))
+		rw.Write(ren.renderProposalPage(req.GetVar("pid"), d))
 	})
 
 	r.HandleFunc("{pid}/votes", func(rw *mux.ResponseWriter, req *mux.Request) {
@@ -46,27 +45,34 @@ func NewRender(d *GovDAO) *render {
 }
 
 func (ren *render) Render(pkgPath string, path string) string {
-	relativePath, found := strings.CutPrefix(pkgPath, std.ChainDomain())
+	relativePath, found := strings.CutPrefix(pkgPath, runtime.ChainDomain())
 	if !found {
 		panic(ufmt.Sprintf(
 			"realm package with unexpected name found: %v in chain domain %v",
-			pkgPath, std.ChainDomain()))
+			pkgPath, runtime.ChainDomain()))
 	}
 	ren.relativeRealmPath = relativePath
 	return ren.router.Render(path)
 }
 
 func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
-	out := "# Active Proposals:\n"
-
-	page, err := ren.pssPager.GetPageByPath(url)
-	if err != nil {
-		out += ufmt.Sprintf("Error getting selected page: %v", err.Error())
+	out := "# GovDAO\n"
+	out += "## Members\n"
+	out += "[> Go to Memberstore <](/r/gov/dao/v3/memberstore)\n"
+	out += "## Proposals\n"
+	page := ren.pssPager.MustGetPageByPath(url)
+	if len(page.Items) == 0 {
+		out += "\nNo proposals yet.\n\n"
 		return out
 	}
 
 	for _, item := range page.Items {
-		out += ren.renderProposal(item.Key, d)
+		seqpid, err := seqid.FromString(item.Key)
+		if err != nil {
+			continue
+		}
+		out += ren.renderProposalListItem(ufmt.Sprintf("%v", int64(seqpid)), d)
+		out += "---\n\n"
 	}
 
 	out += page.Picker("")
@@ -74,36 +80,112 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 	return out
 }
 
-func (ren *render) renderProposal(sPid string, d *GovDAO) string {
-	pid, err := strconv.Atoi(sPid)
+func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
+	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		panic(err.Error())
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
+
+	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	if err != nil {
+		return ufmt.Sprintf("# Proposal not found\n\n%s", err.Error())
+	}
+
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
+	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, p.Title())
+	out += "Author: " + tryResolveAddr(p.Author()) + "\n\n"
 
-	p := cross(dao.MustGetProposal)(dao.ProposalID(pid))
-
-	out := ""
-	out += ufmt.Sprintf("## Proposal with id: %v", sPid)
-	out += StringifyProposal(p)
+	out += p.Description()
 	out += "\n\n"
+
+	out += "\n\n---\n\n"
 	out += ps.String()
-	out += ufmt.Sprintf("- [Go to votes list](%v:%v/votes).", ren.relativeRealmPath, sPid)
-	out += "\n\n"
+	out += "\n"
+	out += ufmt.Sprintf("[Detailed voting list](%v:%v/votes)", ren.relativeRealmPath, pid)
+	out += "\n\n---\n\n"
+
+	out += renderActionBar(ufmt.Sprintf("%v", pid))
 
 	return out
 }
 
-func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
-	pid, err := strconv.Atoi(sPid)
+func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
+	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		panic(err.Error())
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
+
+	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	if err != nil {
+		return ufmt.Sprintf("# Proposal not found\n\n%s\n\n", err.Error())
+	}
+
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
+	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, p.Title(), ren.relativeRealmPath, pid)
+	out += ufmt.Sprintf("Author: %s\n\n", tryResolveAddr(p.Author()))
+
+	out += "Status: " + getPropStatus(ps)
+	out += "\n\n"
+
+	out += "Tiers eligible to vote: "
+	out += strings.Join(ps.TiersAllowedToVote, ", ")
+
+	out += "\n\n"
+	return out
+}
+
+func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
+	pid, err := strconv.ParseInt(sPid, 10, 64)
+	if err != nil {
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
+	}
+
+	ps := d.pss.GetStatus(dao.ProposalID(pid))
+	if ps == nil {
+		return ufmt.Sprintf("# Proposal not found\n\nProposal %v does not exist.", pid)
+	}
 
 	out := ""
-	out += ufmt.Sprintf("## Voters for Proposal with id: %v\n\n", sPid)
+	out += ufmt.Sprintf("# Proposal #%v - Vote List\n\n", pid)
 	out += StringifyVotes(ps)
 
 	return out
+}
+
+func isPropActive(ps *proposalStatus) bool {
+	return !ps.Accepted && !ps.Denied
+}
+
+func getPropStatus(ps *proposalStatus) string {
+	if ps == nil {
+		return "UNKNOWN"
+	}
+	if ps.Accepted {
+		return "ACCEPTED"
+	} else if ps.Denied {
+		return "REJECTED"
+	}
+	return "ACTIVE"
+}
+
+func renderActionBar(sPid string) string {
+	out := "### Actions\n"
+
+	proxy := helplink.Realm("gno.land/r/gov/dao")
+	out += proxy.Func("Vote YES", "MustVoteOnProposalSimple", "pid", sPid, "option", "YES") + " | "
+	out += proxy.Func("Vote NO", "MustVoteOnProposalSimple", "pid", sPid, "option", "NO") + " | "
+	out += proxy.Func("Vote ABSTAIN", "MustVoteOnProposalSimple", "pid", sPid, "option", "ABSTAIN")
+
+	out += "\n\n"
+	out += "WARNING: Please double check transaction data before voting.\n\n"
+	out += "**New**: Members **must** have a namespace to vote to enforce simpler tracking."
+	return out
+}
+
+func tryResolveAddr(addr address) string {
+	userData := users.ResolveAddress(addr)
+	if userData == nil {
+		return addr.String()
+	}
+	return userData.RenderLink("")
 }

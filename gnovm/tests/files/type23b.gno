@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/gnolang/gno/_test/net/http"
-	"github.com/gnolang/gno/_test/net/http/httptest"
+	"filetests/extern/net/http"
+	"filetests/extern/net/http/httptest"
 )
 
 func main() {

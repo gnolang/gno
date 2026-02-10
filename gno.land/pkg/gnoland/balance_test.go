@@ -1,8 +1,11 @@
 package gnoland
 
 import (
+	crand "crypto/rand"
 	"fmt"
 	"math"
+	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -230,6 +233,81 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 
 		assert.Len(t, balanceMap, 0)
 		assert.Contains(t, err.Error(), "invalid amount")
+	})
+}
+
+func TestBalances_List(t *testing.T) {
+	t.Parallel()
+
+	generateBalances := func(count int) Balances {
+		balances := NewBalances()
+
+		for i := 0; i < count; i++ {
+			// Generate a random address
+			var addr bft.Address
+			_, err := crand.Read(addr[:])
+			require.NoError(t, err)
+
+			// Generate a random amount
+			randAmount, err := crand.Int(crand.Reader, big.NewInt(100))
+			require.NoError(t, err)
+
+			amount := std.NewCoins(std.NewCoin(ugnot.Denom, randAmount.Int64()+1))
+			balances.Set(addr, amount)
+		}
+
+		return balances
+	}
+
+	t.Run("sorted balance list", func(t *testing.T) {
+		t.Parallel()
+
+		const nAccounts = 100
+
+		balances := generateBalances(nAccounts)
+
+		got := balances.List()
+
+		for i := 1; i < len(got); i++ {
+			var (
+				prev = got[i-1].Address
+				curr = got[i].Address
+			)
+
+			assert.LessOrEqual(
+				t,
+				prev.Compare(curr),
+				0,
+			)
+		}
+	})
+
+	t.Run("deterministic balance sort", func(t *testing.T) {
+		t.Parallel()
+
+		const (
+			nAccounts   = 100
+			nIterations = 300
+		)
+
+		var (
+			balances       = generateBalances(nAccounts)
+			sortedBalances = make([][]Balance, 0, nIterations)
+		)
+
+		for range nIterations {
+			sortedBalances = append(sortedBalances, balances.List())
+		}
+
+		ref := sortedBalances[0]
+		for _, sb := range sortedBalances[1:] {
+			require.True(
+				t,
+				slices.EqualFunc(ref, sb, func(b1 Balance, b2 Balance) bool {
+					return b1.Amount.IsEqual(b2.Amount) && b1.Address.Compare(b2.Address) == 0
+				}),
+			)
+		}
 	})
 }
 

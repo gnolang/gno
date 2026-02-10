@@ -1,29 +1,34 @@
-loadpkg gno.land/r/gnoland/valopers
-loadpkg gno.land/r/gnoland/valopers_proposal
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gnops/valopers/proposal
 loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/gnoland/users/v1
 
 adduser regular1
 
 gnoland start
 
+# Register member with a namespace 
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular1
+stdout 'OK!'
+
 # Add user as a member for govdao
 gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/load_user.gno
 
 # add a valoper with a bad address
-! gnokey maketx call -pkgpath gno.land/r/gnoland/valopers -func Register -gas-fee 1000000ugnot -gas-wanted 30000000 -send 20000000ugnot -args berty -args "My validator description" -args 1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 1000000ugnot -gas-wanted 30000000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args 1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test1
 stderr 'panic: invalid address'
 
 # add a valoper with a bad pubkey
-! gnokey maketx call -pkgpath gno.land/r/gnoland/valopers -func Register -gas-fee 1000000ugnot -gas-wanted 30000000 -send 20000000ugnot -args berty -args "My validator description" -args g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40zzz -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 1000000ugnot -gas-wanted 30000000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40zzz -broadcast -chainid=tendermint_test test1
 stderr 'panic: invalid checksum'
 
 # add a valoper
-gnokey maketx call -pkgpath gno.land/r/gnoland/valopers -func Register -gas-fee 1000000ugnot -gas-wanted 30000000 -send 20000000ugnot -args berty -args "My validator description" -args g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 1000000ugnot -gas-wanted 30000000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # see the valoper in the Render
-gnokey maketx call -pkgpath gno.land/r/gnoland/valopers -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args "" -broadcast -chainid=tendermint_test test1
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gnops/valopers:'
 stdout '\* \[berty\]'
 
 # make a proposal for a non-existing valoper
@@ -35,8 +40,7 @@ gnokey maketx run  -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chaini
 stdout OK!
 
 # see the valoper in gov/dao Render
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 15000000 -args "" -broadcast -chainid=tendermint_test test1
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 stdout 'Add valoper berty'
 
 # make a proposal for updating instructions
@@ -44,8 +48,7 @@ gnokey maketx run  -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chaini
 stdout OK!
 
 # see the instructions in gov/dao proposition Render
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 15000000 -args "1" -broadcast -chainid=tendermint_test test1
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:1'
 stdout 'new instructions'
 
 # make a proposal for updating minimum fee
@@ -53,63 +56,54 @@ gnokey maketx run  -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chaini
 stdout OK!
 
 # see the instructions in gov/dao proposition Render
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 15000000 -args "2" -broadcast -chainid=tendermint_test test1
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:2'
 stdout 'Update the minimum register fee to: 1000000 ugnot'
 
 -- run/load_user.gno --
 package main
 
-import (
-  i "gno.land/r/gov/dao/v3/init"
-  "std"
-)
+import i "gno.land/r/gov/dao/v3/init"
 
 func main() {
-	i.InitWithUsers(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	i.InitWithUsers(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
-
 -- run/new_proposal_bad.gno --
 package main
 
 import (
-  "std"
-  "gno.land/r/gov/dao"
-  "gno.land/r/gnoland/valopers_proposal"
+	"gno.land/r/gnops/valopers/proposal"
+	"gno.land/r/gov/dao"
 )
 
 func main() {
-  pr := cross(valopers_proposal.NewValidatorProposalRequest)(std.Address("g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"))
-  pid := cross(dao.MustCreateProposal)(pr)
-  println(pid.String())
+	pr := proposal.NewValidatorProposalRequest(cross, address("g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"))
+	pid := dao.MustCreateProposal(cross, pr)
+	println(pid.String())
 }
-
 -- run/new_proposal_good.gno --
 package main
 
 import (
-  "std"
-  "gno.land/r/gov/dao"
-  "gno.land/r/gnoland/valopers_proposal"
+	"gno.land/r/gnops/valopers/proposal"
+	"gno.land/r/gov/dao"
 )
 
 func main() {
-  pr := cross(valopers_proposal.NewValidatorProposalRequest)(std.Address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"))
-  pid := cross(dao.MustCreateProposal)(pr)
-  println(pid.String())
+	pr := proposal.NewValidatorProposalRequest(cross, address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"))
+	pid := dao.MustCreateProposal(cross, pr)
+	println(pid.String())
 }
-
 -- run/new_instructions_proposal.gno --
 package main
 
 import (
   "gno.land/r/gov/dao"
-  "gno.land/r/gnoland/valopers_proposal"
+  "gno.land/r/gnops/valopers/proposal"
 )
 
 func main() {
-  pr := cross(valopers_proposal.ProposeNewInstructionsProposalRequest)("new instructions")
-  pid := cross(dao.MustCreateProposal)(pr)
+  pr := proposal.ProposeNewInstructionsProposalRequest(cross, "new instructions")
+  pid := dao.MustCreateProposal(cross, pr)
   println(pid.String())
 }
 
@@ -118,11 +112,11 @@ package main
 
 import (
   "gno.land/r/gov/dao"
-  "gno.land/r/gnoland/valopers_proposal"
+  "gno.land/r/gnops/valopers/proposal"
 )
 
 func main() {
-  pr := cross(valopers_proposal.ProposeNewMinFeeProposalRequest)(1000000)
-  pid := cross(dao.MustCreateProposal)(pr)
+  pr := proposal.ProposeNewMinFeeProposalRequest(cross, 1000000)
+  pid := dao.MustCreateProposal(cross, pr)
   println(pid.String())
 }

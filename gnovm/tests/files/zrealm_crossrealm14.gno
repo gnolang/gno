@@ -1,13 +1,11 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	// even though we are running within a realm,
 	// we aren't storing the result of crossrealm.Make1(),
 	// so this should print fine.

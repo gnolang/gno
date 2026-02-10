@@ -1,0 +1,17 @@
+-- input.md --
+
+<gno-form>
+<gno-select value="a" text="Option A" />
+<gno-select value="b" text="Option B" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<!-- Error: missing &#39;name&#39; attribute -->
+<!-- Error: missing &#39;name&#39; attribute -->
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>

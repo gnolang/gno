@@ -2,7 +2,7 @@
 
 # Test for https://github.com/gnolang/gno/issues/1786
 
-loadpkg gno.land/r/demo/wugnot
+loadpkg gno.land/r/gnoland/wugnot
 
 gnoland start
 
@@ -11,7 +11,7 @@ gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/proxywugnot -gas-fee
 stdout OK!
 
 # approve wugnot to `proxywugnot ≈ g1fndyg0we60rdfchyy5dwxzkfmhl5u34j932rg3`
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Approve -args "g1fndyg0we60rdfchyy5dwxzkfmhl5u34j932rg3" -args 10000 -gas-fee 1000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Approve -args "g1fndyg0we60rdfchyy5dwxzkfmhl5u34j932rg3" -args 10000 -gas-fee 1000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # send 10000ugnot to `proxywugnot` to wrap it
@@ -19,8 +19,7 @@ gnokey maketx call -pkgpath gno.land/r/demo/proxywugnot --send "10000ugnot" -fun
 stdout OK!
 
 # check user's wugnot balance
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func BalanceOf -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" -gas-fee 1000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
-stdout OK!
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 stdout '10000 int64'
 
 # unwrap 500 wugnot
@@ -33,32 +32,31 @@ gnokey maketx call -pkgpath gno.land/r/demo/proxywugnot -func ProxyUnwrap -args 
 
 
 # check user's wugnot balance
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func BalanceOf -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" -gas-fee 1100000ugnot -gas-wanted 2200000 -broadcast -chainid=tendermint_test test1
-stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 stdout '9500 int64'
 
 # render
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -args "invalid" -gas-fee 1100000ugnot -gas-wanted 2300000 -broadcast -chainid=tendermint_test test1
-stdout OK!
-stdout '("404" string)'
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:invalid"
+stdout 'data: 404'
 
--- gno.mod --
-module gno.land/r/demo/proxywugnot
-
+-- gnomod.toml --
+module = "issue_1786"
+gno = "0.9"
 
 -- realm.gno --
 package proxywugnot
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 
-	"gno.land/r/demo/wugnot"
+	"gno.land/r/gnoland/wugnot"
 )
 
-func ProxyWrap() {
-	crossing()
-
-	sent := std.OriginSend()
+func ProxyWrap(cur realm) {
+	sent := banker.OriginSend()
 	ugnotSent := int64(sent.AmountOf("ugnot"))
 
 	if ugnotSent == 0 {
@@ -66,29 +64,27 @@ func ProxyWrap() {
 	}
 
 	// WRAP IT
-	wugnotAddr := std.DerivePkgAddr("gno.land/r/demo/wugnot")
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(std.CurrentRealm().Address(), wugnotAddr, std.Coins{{"ugnot", int64(ugnotSent)}})
-	cross(wugnot.Deposit)() // `proxywugnot` has ugnot
+	wugnotAddr := chain.PackageAddress("gno.land/r/gnoland/wugnot")
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_.SendCoins(runtime.CurrentRealm().Address(), wugnotAddr, chain.Coins{{"ugnot", int64(ugnotSent)}})
+	wugnot.Deposit(cross) // `proxywugnot` has ugnot
 
 	// SEND WUGNOT: PROXY_WUGNOT -> USER
-	cross(wugnot.Transfer)(std.OriginCaller(), ugnotSent)
+	wugnot.Transfer(cross, runtime.OriginCaller(), ugnotSent)
 }
 
-func ProxyUnwrap(wugnotAmount int64) {
-	crossing()
-
+func ProxyUnwrap(cur realm, wugnotAmount int64) {
 	if wugnotAmount == 0 {
 		return
 	}
 
 	// SEND WUGNOT: USER -> PROXY_WUGNOT
-	cross(wugnot.TransferFrom)(std.OriginCaller(), std.CurrentRealm().Address(), wugnotAmount)
+	wugnot.TransferFrom(cross, runtime.OriginCaller(), runtime.CurrentRealm().Address(), wugnotAmount)
 
 	// UNWRAP IT
-	cross(wugnot.Withdraw)(wugnotAmount)
+	wugnot.Withdraw(cross, wugnotAmount)
 
 	// SEND GNOT: PROXY_WUGNOT -> USER
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(std.CurrentRealm().Address(), std.OriginCaller(), std.Coins{{"ugnot", int64(wugnotAmount)}})
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_.SendCoins(runtime.CurrentRealm().Address(), runtime.OriginCaller(), chain.Coins{{"ugnot", int64(wugnotAmount)}})
 }

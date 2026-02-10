@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
-	testing "testing/base"
+	"testing"
 )
 
 var htmlEscaper = strings.NewReplacer(
@@ -29,11 +29,11 @@ var htmlUnescaper = strings.NewReplacer(
 
 // The http package's old HTML escaping function.
 func oldHTMLEscape(s string) string {
-	s = strings.Replace(s, "&", "&amp;", -1)
-	s = strings.Replace(s, "<", "&lt;", -1)
-	s = strings.Replace(s, ">", "&gt;", -1)
-	s = strings.Replace(s, `"`, "&quot;", -1)
-	s = strings.Replace(s, "'", "&apos;", -1)
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, `"`, "&quot;")
+	s = strings.ReplaceAll(s, "'", "&apos;")
 	return s
 }
 
@@ -448,7 +448,7 @@ func BenchmarkByteReplacerWriteString(b *testing.B) {
 func BenchmarkByteByteReplaces(b *testing.B) {
 	str := strings.Repeat("a", 100) + strings.Repeat("b", 100)
 	for i := 0; i < b.N; i++ {
-		strings.Replace(strings.Replace(str, "a", "A", -1), "b", "B", -1)
+		strings.ReplaceAll(strings.ReplaceAll(str, "a", "A"), "b", "B")
 	}
 }
 

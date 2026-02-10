@@ -1,0 +1,137 @@
+## It tests changing fee_collector and assert that fee are correctly collected
+
+adduserfrom collector1 'post settle extend broken surface clump pulse cook afford forum civil oppose bid raise hello wave deer bar vital vacant evolve junior safe script'
+stdout 'g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52'
+adduserfrom collector2 'buyer capital phrase knee credit prize before census spread print bind feature pink twenty element total urban gap frown nose tongue under increase work'
+stdout 'g149244zfh3qc7zcspttmmpknkzss4esteg6f086'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/gnoland/users/v1
+
+gnoland start
+
+## Load member as T1 to be able to vote afterwards
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/load_user.gno
+
+## Submit a proposal to change fee_collector to collector1
+
+## pay the fee and submit a proposal to change the fee collector.
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_collector1.gno
+stdout '0'
+
+## Check collector1 balance
+gnokey query bank/balances/$collector1_user_addr
+stdout '1000000000ugnot'
+
+# Register member with a namespace 
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "collector111" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test collector1
+stdout 'OK!'
+
+# Register member with a namespace 
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "collector222" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test collector2
+stdout 'OK!'
+
+## Vote change proposal with unrestricted account test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+## Execute change proposal with unrestricted account test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+## Make costly tx
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/costly.gno
+
+## Check collector1 balance, must have changed
+gnokey query bank/balances/$collector1_user_addr
+stdout '997490700ugnot'
+
+## Submit a proposal to change fee_collector to collector2
+
+## pay the fee and submit a proposal to change the fee collector.
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_collector2.gno
+stdout '1'
+## Vote change proposal with unrestricted account test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -args YES -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+## Execute change proposal with unrestricted account test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+## Check collector1 balance
+gnokey query bank/balances/$collector1_user_addr
+stdout '999590700ugnot'
+
+## Check collector2 balance
+gnokey query bank/balances/$collector2_user_addr
+stdout '997403000ugnot'
+
+## Make costly tx
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/costly.gno
+
+## Check collector1 balance, must not have changed
+gnokey query bank/balances/$collector1_user_addr
+stdout '999590700ugnot'
+
+## Check collector2 balance, must have changed
+gnokey query bank/balances/$collector2_user_addr
+stdout '997503000ugnot'
+
+-- run/load_user.gno --
+package main
+
+import i "gno.land/r/gov/dao/v3/init"
+
+func main() {
+	i.InitWithUsers(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+}
+-- run/propose_collector1.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main() {
+	collector1 := address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
+	pr := params.NewSetFeeCollectorRequest(collector1)
+	pid := dao.MustCreateProposal(cross, pr)
+	println(pid.String())
+}
+-- run/propose_collector2.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main() {
+	collector2 := address("g149244zfh3qc7zcspttmmpknkzss4esteg6f086")
+	pr := params.NewSetFeeCollectorRequest(collector2)
+	pid := dao.MustCreateProposal(cross, pr)
+	println(pid.String())
+}
+-- run/costly.gno --
+package main
+
+func main() {
+	println(fibo(1000))
+}
+
+func fibo(n int) int {
+	f := make([]int, n+1, n+2)
+	if n < 2 {
+		f = f[0:2]
+	}
+	f[0] = 0
+	f[1] = 1
+	for i := 2; i <= n; i++ {
+		f[i] = f[i-1] + f[i-2]
+	}
+	return f[n]
+}

@@ -38,16 +38,19 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
 	}()
 
-	_, testStore := test.Store(gnoenv.RootDir(), output)
+	_, testStore := test.TestStore(gnoenv.RootDir(), output, nil)
 
-	f := gnolang.MustReadFile(file)
+	pkgName, e := gnolang.ParseFilePackageName(file)
+	if e != nil {
+		return "", e.Error()
+	}
 
 	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
-		PkgPath: string(f.PkgName),
+		PkgPath: pkgName,
 		Input:   stdin,
 		Output:  output,
 		Store:   testStore,
-		Context: test.Context(test.DefaultCaller, string(f.PkgName), nil),
+		Context: test.Context(test.DefaultCaller, pkgName, nil),
 		Debug:   true,
 	})
 
@@ -60,8 +63,10 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 		}
 	}
 
+	f := m.MustReadFile(file)
+
 	m.RunFiles(f)
-	ex, _ := gnolang.ParseExpr("main()")
+	ex, _ := m.ParseExpr("main()")
 	m.Eval(ex)
 	out, err = bout.String(), berr.String()
 	return
@@ -113,7 +118,7 @@ func TestDebug(t *testing.T) {
 		{in: "p \"xxxx\"\n", out: `("xxxx" string)`},
 		{in: "si\n", out: "sample.gno:14"},
 		{in: "s\ns\n", out: `=>   14: var global = "test"`},
-		{in: "s\n\n\n", out: "=>   33: 	num := 5"},
+		{in: "s\n\n\n\n\n", out: "=>   33: 	num := 5"},
 		{in: "foo", out: "command not available: foo"},
 		{in: "\n\n", out: "dbg> "},
 		{in: "#\n", out: "dbg> "},

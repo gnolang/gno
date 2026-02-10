@@ -7,6 +7,12 @@ on:
   pull_request:
     paths:
       - contribs/**
+      # We have to trigger the testing workflow for contribs on the following,
+      # since there is a direct depency of contribs to gno.land / tm2 / gnovm.
+      - gno.land/**
+      - gnovm/**
+      - tm2/**
+
   workflow_dispatch:
 
 jobs:
@@ -16,7 +22,7 @@ jobs:
       programs: ${{ steps.set-matrix.outputs.programs }}
       go-versions: ${{ steps.get-go-versions.outputs.go-versions }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - id: set-matrix
         run: |
@@ -26,14 +32,14 @@ jobs:
         run: |
           contribs_programs=$(ls -d contribs/*/ | cut -d/ -f2)
           versions_map="{"
-          
+
           for p in $contribs_programs; do
             # Fetch the go version of the contribs entry, and save it
             # to a versions map we can reference later in the workflow
             go_version=$(grep "^go [0-9]" contribs/$p/go.mod | cut -d ' ' -f2)
             versions_map="$versions_map\"$p\":\"$go_version\","
           done
-          
+
           # Close out the JSON
           versions_map="${versions_map%,}"
           versions_map="$versions_map}"
@@ -46,7 +52,7 @@ jobs:
       matrix:
         program: ${{ fromJson(needs.setup.outputs.programs) }}
     name: Run Main
-    uses: ./.github/workflows/main_template.yml
+    uses: ./.github/workflows/template_main.yml
     with:
       modulepath: contribs/${{ matrix.program }}
       go-version: ${{ (fromJson(needs.setup.outputs.go-versions))[matrix.program] }}

@@ -63,5 +63,5 @@ func (cms Store) MultiCacheWrap() types.MultiStore {
 
 // GetStore returns an underlying Store by key.
 func (cms Store) GetStore(key types.StoreKey) types.Store {
-	return cms.stores[key].(types.Store)
+	return cms.stores[key]
 }

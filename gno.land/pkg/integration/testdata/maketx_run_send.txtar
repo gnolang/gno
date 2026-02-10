@@ -1,0 +1,25 @@
+## start a new node
+gnoland start
+
+## user balance before realm send
+gnokey query auth/accounts/$test1_user_addr
+stdout '"coins": "10000000000000ugnot"'
+
+## run script/script.gno with send flag
+gnokey maketx run -send 42ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
+stdout 'send: 42ugnot'
+
+## user balance after realm send
+# only reduced by -gas-fee, -send does not affect balance since the ephemeral
+# realm shares the same address as the user.
+gnokey query auth/accounts/$test1_user_addr
+stdout '"coins": "9999999000000ugnot"'
+
+-- script/script.gno --
+package main
+
+import "chain/banker"
+
+func main() {
+	println("send:", banker.OriginSend())
+}

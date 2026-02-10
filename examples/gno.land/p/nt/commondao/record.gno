@@ -3,9 +3,8 @@ package commondao
 import (
 	"errors"
 	"math"
-	"std"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // ErrVoteExists indicates that a user already voted.
@@ -21,12 +20,12 @@ type (
 	// Vote defines a single vote.
 	Vote struct {
 		// Address is the address of the user that this vote belons to.
-		Address std.Address
+		Address address
 
 		// Choice contains the voted choice.
 		Choice VoteChoice
 
-		// Reason contains the reason for the vote.
+		// Reason contains an optional reason for the vote.
 		Reason string
 
 		// Context can store any custom voting values related to the vote.
@@ -74,12 +73,12 @@ func (r ReadonlyVotingRecord) VoteCount(c VoteChoice) int {
 }
 
 // HasVoted checks if an account already voted.
-func (r ReadonlyVotingRecord) HasVoted(user std.Address) bool {
+func (r ReadonlyVotingRecord) HasVoted(user address) bool {
 	return r.votes.Has(user.String())
 }
 
 // GetVote returns a vote.
-func (r ReadonlyVotingRecord) GetVote(user std.Address) (_ Vote, found bool) {
+func (r ReadonlyVotingRecord) GetVote(user address) (_ Vote, found bool) {
 	if v, found := r.votes.Get(user.String()); found {
 		return v.(Vote), true
 	}
@@ -192,4 +191,33 @@ func SelectChoiceByPlurality(r ReadonlyVotingRecord) (VoteChoice, bool) {
 		return choice, true
 	}
 	return ChoiceNone, false
+}
+
+// CollectVotes returns an voting record containing votes of members from one or more groups.
+// Returned tree uses member account address as key and `commondao.Vote` as value.
+func CollectVotes(ctx VotingContext, groups ...string) (*VotingRecord, error) {
+	if len(groups) == 0 {
+		return nil, errors.New("one or more group names are required to collect votes")
+	}
+
+	var (
+		votes    VotingRecord
+		grouping = ctx.Members.Grouping()
+	)
+
+	for _, name := range groups {
+		group, found := grouping.Get(name)
+		if !found {
+			return nil, errors.New("member group not found: " + name)
+		}
+
+		group.Members().IterateByOffset(0, group.Members().Size(), func(member address) bool {
+			v, found := ctx.VotingRecord.GetVote(member)
+			if found {
+				votes.AddVote(v)
+			}
+			return false
+		})
+	}
+	return &votes, nil
 }

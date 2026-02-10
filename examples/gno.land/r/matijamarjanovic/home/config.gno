@@ -1,64 +1,26 @@
 package home
 
 import (
-	"errors"
-	"std"
+	"chain/runtime"
+
+	"gno.land/p/moul/authz"
 )
 
 var (
-	mainAddr   = std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y") // matija's main address
-	backupAddr std.Address                                               // backup address
-
-	errorInvalidAddr  = errors.New("config: invalid address")
-	errorUnauthorized = errors.New("config: unauthorized")
+	mainAddr   = address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
+	backupAddr = address("g1kjsl2ungmc95mgluq96w8dqlep8d4n8cxdfthk")
+	auth       = authz.NewMemberAuthority(mainAddr, backupAddr)
+	Auth       = authz.NewWithAuthority(auth)
 )
 
-func Address() std.Address {
+func Authorize(cur realm, addr string) {
+	auth.AddMember(runtime.PreviousRealm().Address(), address(addr))
+}
+
+func Address() address {
 	return mainAddr
 }
 
-func Backup() std.Address {
+func Backup() address {
 	return backupAddr
-}
-
-func SetAddress(newAddress std.Address) error {
-	if !newAddress.IsValid() {
-		return errorInvalidAddr
-	}
-
-	if err := checkAuthorized(); err != nil {
-		return err
-	}
-
-	mainAddr = newAddress
-	return nil
-}
-
-func SetBackup(newAddress std.Address) error {
-	if !newAddress.IsValid() {
-		return errorInvalidAddr
-	}
-
-	if err := checkAuthorized(); err != nil {
-		return err
-	}
-
-	backupAddr = newAddress
-	return nil
-}
-
-func checkAuthorized() error {
-	caller := std.OriginCaller()
-	if caller != mainAddr && caller != backupAddr {
-		return errorUnauthorized
-	}
-
-	return nil
-}
-
-func AssertAuthorized() {
-	caller := std.OriginCaller()
-	if caller != mainAddr && caller != backupAddr {
-		panic(errorUnauthorized)
-	}
 }

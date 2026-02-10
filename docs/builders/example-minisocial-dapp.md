@@ -19,8 +19,8 @@ mkdir minisocial
 cd minisocial
 ```
 
-Next, initialize a `gno.mod` file. This file declares the package path of your
-realm and is used by Gno tools. Run the following command to create a `gno.mod` file:
+Next, initialize a `gnomod.toml` file. This file declares the package path of your
+realm and is used by Gno tools. Run the following command to create a `gnomod.toml` file:
 
 ```sh
 gno mod init gno.land/r/example/minisocial
@@ -47,26 +47,25 @@ importing some standard library packages, as well as some pure packages directly
 from the chain.
 
 First, let's declare a `Post` struct that will hold all the data of a single post.
-We will import two packages:
-- `std` - the [Gno standard package](../resources/gno-stdlibs.md) which provides chain-related functionality
-- `time` - which allows us to handle time
+We import the `time` package, which allows us to handle time-related functionality.
 
 [embedmd]:# (../_assets/minisocial/types-1.gno go)
 ```go
 package minisocial
 
 import (
-	"std"  // The standard Gno package
 	"time" // For handling time operations
 )
 
 // Post defines the main data we keep about each post
 type Post struct {
-	text      string      // Main text body
-	author    std.Address // Address of the post author, provided by the execution context
-	createdAt time.Time   // When the post was created
+	text      string    // Main text body
+	author    address   // Address of the post author, provided by the execution context
+	createdAt time.Time // When the post was created
 }
 ```
+
+The `address` keyword is a built-in keyword type represents a Gno address.
 
 Standard libraries such as `time` are ported over directly from Go. Check out the
 [Go-Gno Compatability](../resources/go-gno-compatibility.md) page for more info.
@@ -93,7 +92,9 @@ a transaction by anyone.
 [embedmd]:# (../_assets/minisocial/posts-1.gno go /\/\/ CreatePost/ $)
 ```go
 // CreatePost creates a new post
-func CreatePost(text string) error {
+// As the function modifies state (i.e. the `posts` slice),
+// it needs to be crossing. This is defined by the first argument being of type `realm`
+func CreatePost(_ realm, text string) error {
 	// If the body of the post is empty, return an error
 	if text == "" {
 		return errors.New("empty post text")
@@ -101,9 +102,9 @@ func CreatePost(text string) error {
 
 	// Append the new post to the list
 	posts = append(posts, &Post{
-		text:      text,                          // Set the input text
-		author:    std.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
-		createdAt: time.Now(),                    // Capture the time of the transaction, in this case the block timestamp
+		text:      text,                              // Set the input text
+		author:    runtime.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
+		createdAt: time.Now(),                        // Capture the time of the transaction, in this case the block timestamp
 	})
 
 	return nil
@@ -115,9 +116,10 @@ A few things to note:
   best practices: return early in your code and modify state only after you are sure all
   security checks in your code have passed. To discard (revert) state changes,
   use `panic()`.
-- To get the caller of `CreatePost`, we need to import package `std`, the [Gno standard package](../resources/gno-stdlibs.md),
-and use `std.PreviousRealm.Address()`. Check out the [realm concept page](../resources/realms.md)
-& the [std package](../resources/gno-stdlibs.md) reference page for more info.
+- To get the caller of `CreatePost`, we need to import `chain/runtime`,
+which provides access to the function caller, and use `runtime.PreviousRealm.Address()`.
+Check out the [realm concept page](../resources/realms.md) & the 
+[`chain/runtime` package](../resources/gno-stdlibs.md) reference page for more info.
 - In Gno, `time.Now()` returns the timestamp of the block the transaction was
 included in, instead of the system time.
 
@@ -135,10 +137,10 @@ Let's start building the "front end" of our app.
 One of the core features of Gno is that developers can simply provide a Markdown
 view of their realm state directly in Gno, removing the need for using complex
 frontend frameworks, languages, and clients. To learn more about this, check out
-[Exploring gno.land](../users/explore-with-gnoweb.md).
+[Exploring Gno.land](../users/explore-with-gnoweb.md).
 
 The easiest way to develop this part of our Gno app is to run `gnodev`, which
-contains a built-in gno.land node, a built-in instance of `gnoweb`, fast hot
+contains a built-in Gno.land node, a built-in instance of `gnoweb`, fast hot
 reload, and automatic balance premining. Using `gnodev` will allow us to see our
 code changes live.
 
@@ -236,7 +238,7 @@ func (p Post) String() string {
 ```
 
 Here, package `ufmt` is used to provide string formatting functionality. It can
-be imported via with `gno.land/p/demo/ufmt`.
+be imported via with `gno.land/p/nt/ufmt`.
 
 With this, we can expand our `Render()` function in `posts.gno` as follows:
 
@@ -244,7 +246,7 @@ With this, we can expand our `Render()` function in `posts.gno` as follows:
 ```go
 package minisocial
 
-import "gno.land/p/demo/ufmt" // Gno counterpart to `fmt`, for formatting strings
+import "gno.land/p/nt/ufmt" // Gno counterpart to `fmt`, for formatting strings
 
 func Render(_ string) string {
 	output := "# MiniSocial\n\n" // \n is needed just like in standard Markdown
@@ -284,21 +286,23 @@ Let's create a `post_test.gno` file, and add the following code:
 package minisocial
 
 import (
-	"std"
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/testutils" // Provides testing utilities
+	"gno.land/p/nt/testutils" // Provides testing utilities
 )
 
 func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
-	testing.SetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(text1)
+
+	// To call a crossing function, we specify the `cross` keyword
+	// This matches the first argument of type realm in the function itself
+	err := CreatePost(cross, text1)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -332,10 +336,12 @@ func TestCreatePostMultiple(t *testing.T) {
 	for _, p := range posts {
 		// Set the appropriate caller realm based on the author
 		authorAddr := testutils.TestAddress(p.author)
-		testing.SetRealm(std.NewUserRealm(authorAddr))
+		testing.SetRealm(testing.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := CreatePost(p.text)
+		// To call a crossing function, we specify the `cross` keyword
+		// This matches the first argument of type realm in the function itself
+		err := CreatePost(cross, p.text)
 		if err != nil {
 			t.Fatalf("expected no error for post '%s', got %v", p.text, err)
 		}
@@ -369,7 +375,7 @@ ok      .       0.87s
 ## Conclusion
 
 Congratulations on completing your first Gno realm!
-Now you're equipped with the required knowledge to venture into gno.land.
+Now you're equipped with the required knowledge to venture into Gno.land.
 
 Full code of this app can be found on the Staging network, on
 [this link](https://gno.land/r/docs/minisocial).
@@ -377,7 +383,7 @@ Full code of this app can be found on the Staging network, on
 ## Bonus - resolving usernames
 
 Let's make our MiniSocial app even better by resolving addresses to potential usernames
-registered in the [gno.land user registry](https://gno.land/demo/users).
+registered in the [Gno.land User Registry](https://gno.land/demo/users).
 
 We can import the `gno.land/r/sys/users` realm which provides user data and use
 it to try to resolve the address:

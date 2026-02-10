@@ -1,0 +1,30 @@
+-- input.md --
+<gno-form>
+<gno-input name="radio_no_value" type="radio" placeholder="Radio without value" />
+<gno-input name="checkbox_no_value" type="checkbox" placeholder="Checkbox without value" />
+<gno-input name="text_with_checked" type="text" placeholder="Text input with checked" checked="true" />
+<gno-input name="email_with_checked" type="email" placeholder="Email with checked" checked="true" />
+<gno-input name="radio_no_placeholder" type="radio" value="option1" />
+<gno-input name="checkbox_no_placeholder" type="checkbox" value="option2" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<!-- Error: missing &#39;value&#39; attribute for radio input -->
+<!-- Error: missing &#39;value&#39; attribute for checkbox input -->
+<!-- Error: &#39;checked&#39; attribute: invalid attribute for input type for type &#39;text&#39; -->
+<!-- Error: &#39;checked&#39; attribute: invalid attribute for input type for type &#39;email&#39; -->
+<div class="gno-form_selectable">
+<input type="radio" id="radio_no_placeholder_4" name="radio_no_placeholder" value="option1" />
+<label for="radio_no_placeholder_4">option1</label>
+</div>
+<div class="gno-form_selectable">
+<input type="checkbox" id="checkbox_no_placeholder_5" name="checkbox_no_placeholder" value="option2" />
+<label for="checkbox_no_placeholder_5">option2</label>
+</div>
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>

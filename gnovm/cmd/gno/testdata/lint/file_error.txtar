@@ -1,6 +1,6 @@
 # gno lint: test file error
 
-! gno lint ./i_have_error_test.gno
+! gno lint .
 
 cmp stdout stdout.golden
 cmp stderr stderr.golden
@@ -15,8 +15,8 @@ func TestIHaveSomeError() {
 	fmt.Println("Hello", 42)
 }
 
--- gno.mod --
-module gno.land/p/test
+-- gnomod.toml --
+module = "gno.land/p/test"
 
 -- stdout.golden --
 -- stderr.golden --

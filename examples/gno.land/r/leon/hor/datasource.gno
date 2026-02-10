@@ -3,9 +3,9 @@ package hor
 import (
 	"errors"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/datasource"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ufmt"
 )
 
 func NewDatasource() Datasource {

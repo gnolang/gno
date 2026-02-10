@@ -23,14 +23,16 @@ var (
 const (
 	// XXX rename these to flagXyz.
 
-	// flagUnrestricted allows flagUnrestricted transfers.
-	flagUnrestricted BitSet = 1 << iota
+	// flagTokenLockWhitelisted allows unrestricted transfers.
+	flagTokenLockWhitelisted BitSet = 1 << iota
 
 	// TODO: flagValidatorAccount marks an account as validator.
 	flagValidatorAccount
 
 	// TODO: flagRealmAccount marks an account as realm.
 	flagRealmAccount
+
+	flagFrozen
 )
 
 // bitSet represents a set of flags stored in a 64-bit unsigned integer.
@@ -49,7 +51,7 @@ type GnoAccount struct {
 }
 
 // validFlags defines the set of all valid flags that can be used with BitSet.
-var validFlags = flagUnrestricted | flagValidatorAccount | flagRealmAccount
+const validFlags = flagTokenLockWhitelisted | flagValidatorAccount | flagRealmAccount | flagFrozen
 
 func (ga *GnoAccount) setFlag(flag BitSet) {
 	if !isValidFlag(flag) {
@@ -79,15 +81,31 @@ func isValidFlag(flag BitSet) bool {
 	return flag&^validFlags == 0 && flag != 0
 }
 
-// SetUnrestricted allows the account to bypass global transfer locking restrictions.
-// By default, accounts are restricted when global transfer locking is enabled.
-func (ga *GnoAccount) SetUnrestricted() {
-	ga.setFlag(flagUnrestricted)
+// SetTokenLockWhitelisted allows the account to bypass global transfer locking restrictions.
+// By default, accounts are restricted with token transfer when global transfer locking is enabled.
+func (ga *GnoAccount) SetTokenLockWhitelisted(whitelisted bool) {
+	if whitelisted {
+		ga.setFlag(flagTokenLockWhitelisted)
+	} else {
+		ga.clearFlag(flagTokenLockWhitelisted)
+	}
 }
 
-// IsUnrestricted checks whether the account is flagUnrestricted.
-func (ga *GnoAccount) IsUnrestricted() bool {
-	return ga.hasFlag(flagUnrestricted)
+// IsTokenLockWhitelisted checks whether the account is white listed for the token locking
+func (ga *GnoAccount) IsTokenLockWhitelisted() bool {
+	return ga.hasFlag(flagTokenLockWhitelisted)
+}
+
+func (ga *GnoAccount) SetFrozen(frozen bool) {
+	if frozen {
+		ga.setFlag(flagFrozen)
+	} else {
+		ga.clearFlag(flagFrozen)
+	}
+}
+
+func (ga *GnoAccount) IsFrozen() bool {
+	return ga.hasFlag(flagFrozen)
 }
 
 // String implements fmt.Stringer
@@ -165,9 +183,16 @@ func ReadGenesisTxs(ctx context.Context, path string) ([]TxWithMetadata, error) 
 	return txs, nil
 }
 
-// SignGenesisTxs will sign all txs passed as argument using the private key.
+// GenesisSigner defines the interface needed to sign genesis transactions.
+// Both crypto.PrivKey and bft/types.Signer implement this interface.
+type GenesisSigner interface {
+	PubKey() crypto.PubKey
+	Sign(msg []byte) ([]byte, error)
+}
+
+// SignGenesisTxs will sign all txs passed as argument using the genesis signer.
 // This signature is only valid for genesis transactions as the account number and sequence are 0
-func SignGenesisTxs(txs []TxWithMetadata, privKey crypto.PrivKey, chainID string) error {
+func SignGenesisTxs(txs []TxWithMetadata, signer GenesisSigner, chainID string) error {
 	for index, tx := range txs {
 		// Upon verifying genesis transactions, the account number and sequence are considered to be 0.
 		// The reason for this is that it is not possible to know the account number (or sequence!) in advance
@@ -177,14 +202,14 @@ func SignGenesisTxs(txs []TxWithMetadata, privKey crypto.PrivKey, chainID string
 			return fmt.Errorf("unable to get sign bytes for transaction, %w", err)
 		}
 
-		signature, err := privKey.Sign(bytes)
+		signature, err := signer.Sign(bytes)
 		if err != nil {
 			return fmt.Errorf("unable to sign genesis transaction, %w", err)
 		}
 
 		txs[index].Tx.Signatures = []std.Signature{
 			{
-				PubKey:    privKey.PubKey(),
+				PubKey:    signer.PubKey(),
 				Signature: signature,
 			},
 		}

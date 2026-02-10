@@ -18,7 +18,7 @@
 package params
 
 import (
-	"std"
+	"chain"
 	prms "sys/params"
 
 	"gno.land/r/gov/dao"
@@ -84,11 +84,24 @@ func NewSysParamStringsPropRequestWithTitle(module, submodule, name, title strin
 		title,
 	)
 }
-
+func NewSysParamStringsPropRequestAddWithTitle(module, submodule, name, title string, value []string) dao.ProposalRequest {
+	return newPropRequest(
+		syskey(module, submodule, name),
+		func() { prms.UpdateSysParamStrings(module, submodule, name, value, true) },
+		title,
+	)
+}
+func NewSysParamStringsPropRequestRemoveWithTitle(module, submodule, name, title string, value []string) dao.ProposalRequest {
+	return newPropRequest(
+		syskey(module, submodule, name),
+		func() { prms.UpdateSysParamStrings(module, submodule, name, value, false) },
+		title,
+	)
+}
 func newPropRequest(key string, fn func(), title string) dao.ProposalRequest {
-	callback := func() error {
+	callback := func(cur realm) error {
 		fn()
-		std.Emit("set", "key", key) // TODO document, make const, make consistent. 'k'??
+		chain.Emit("set", "key", key) // TODO document, make const, make consistent. 'k'??
 		return nil
 	}
 

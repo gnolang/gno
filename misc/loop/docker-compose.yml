@@ -8,100 +8,116 @@ networks:
 
 services:
   traefik:
-    image: "traefik:v2.11"
+    image: traefik:v3
     restart: unless-stopped
     command:
-      - "--api.insecure=true"
-      - "--providers.file=true"
-      - "--providers.file.watch=true"
-      - "--providers.file.directory=/etc/traefik/configs"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.rpc.address=:26657"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
-      - "--entryPoints.web.forwardedHeaders.insecure"
-      - "--certificatesresolvers.le.acme.tlschallenge=true"
-      - "--certificatesresolvers.le.acme.email=dev@gno.land"
+      - --api.insecure=true
+      - --accesslog=true
+      - --accesslog.fields.defaultmode=keep
+      - --accesslog.fields.headers.defaultmode=keep
+      - --accesslog.fields.headers.names.X-Real-Ip=keep
+      - --accesslog.fields.headers.names.X-Forwarded-Server=keep
+      - --accesslog.fields.headers.names.X-Forwarded-Host=keep
+      - --providers.file=true
+      - --providers.file.watch=true
+      - --providers.file.directory=/etc/traefik/configs
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.rpc.address=:26657
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      # Forward proxy protocol
+      - --entrypoints.websecure.proxyprotocol.trustedips=0.0.0.0/0
+      - --entrypoints.websecure.forwardedheaders.trustedips=0.0.0.0/0
+      - --entryPoints.web.forwardedHeaders.insecure
+      - --entryPoints.web.proxyprotocol.insecure
+      - --certificatesresolvers.le.acme.tlschallenge=true
+      - --certificatesresolvers.le.acme.email=dev@gno.land
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
     networks:
       - portal-loop
     ports:
-      - "80:80"
-      - "443:443"
-      - "26657:26657"
+      - 80:80
+      - 443:443
+      - 26657:26657
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik:/etc/traefik/configs
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - ./traefik/letsencrypt:/letsencrypt
 
   gnoweb:
     image: ghcr.io/gnolang/gno/gnoweb:master
     restart: unless-stopped
-    env_file: ".env"
-    entrypoint:
-      - gnoweb
+    env_file: .env
+    command:
       - --bind=0.0.0.0:8888
       - --remote=traefik:26657
+      - --chainid=staging
       - --with-analytics
       - --faucet-url=https://faucet-api.gno.land
-      - --chainid=portal-loop
       - --help-remote=https://rpc.gno.land:443
     networks:
       - portal-loop
     labels:
-      com.centurylinklabs.watchtower.enable: "true"
-      traefik.enable: "true"
-      traefik.http.routers.gnoweb.entrypoints: "web,websecure"
-      traefik.http.routers.gnoweb.rule: "Host(`gno.land`) || Host(`www.gno.land`)"
-      traefik.http.routers.gnoweb.tls: "true"
-      traefik.http.routers.gnoweb.tls.certresolver: "le"
+      - traefik.enable=true
+      - traefik.http.routers.gnoweb.entrypoints=web,websecure
+      - traefik.http.routers.gnoweb.rule=Host(`gno.land`) || Host(`www.gno.land`) || Host(`staging.gno.land`)
+      - traefik.http.routers.gnoweb.tls=true
+      - traefik.http.routers.gnoweb.tls.certresolver=le
+      # Secure headers
+      - traefik.http.routers.gnoweb.middlewares=secure-headers@file,web-ratelimit@file
+      - com.centurylinklabs.watchtower.enable=true
 
   gnofaucet:
     image: ghcr.io/gnolang/gno/gnofaucet:master
+    command:
+      - serve
+      - captcha
+      - --listen-address=0.0.0.0:5050
+      - --chain-id=staging
+      - --is-behind-proxy=true
+      - --mnemonic=${FAUCET_MNEMONIC}
+      - --num-accounts=1
+      - --remote=http://traefik:26657
+      - --captcha-secret=${CAPTCHA_SECRET_KEY}
+    env_file: .env
     networks:
       - portal-loop
-    command:
-      - "serve"
-      - "--listen-address=0.0.0.0:5050"
-      - "--chain-id=portal-loop"
-      - "--is-behind-proxy=true"
-      - "--mnemonic=${FAUCET_MNEMONIC}"
-      - "--num-accounts=1"
-      - "--remote=http://traefik:26657"
-      - "--captcha-secret=${CAPTCHA_SECRET_KEY}"
-    env_file: ".env"
     labels:
-      com.centurylinklabs.watchtower.enable: "true"
-      traefik.enable: "true"
-      traefik.http.routers.gnofaucet-api.entrypoints: "websecure"
-      traefik.http.routers.gnofaucet-api.rule: "Host(`faucet-api.gno.land`)"
-      traefik.http.routers.gnofaucet-api.tls: "true"
-      traefik.http.routers.gnofaucet-api.tls.certresolver: "le"
-      traefik.http.middlewares.gnofaucet-ratelimit.ratelimit.average: "6"
-      traefik.http.middlewares.gnofaucet-ratelimit.ratelimit.period: "1m"
+      - traefik.enable=true
+      - traefik.http.routers.gnofaucet-api.entrypoints=web,websecure
+      - traefik.http.routers.gnofaucet-api.rule=Host(`faucet-api.staging.gno.land`)
+      - traefik.http.routers.gnofaucet-api.tls=true
+      - traefik.http.routers.gnofaucet-api.tls.certresolver=le
+      - traefik.http.middlewares.gnofaucet-ratelimit.ratelimit.average=6
+      - traefik.http.middlewares.gnofaucet-ratelimit.ratelimit.period=1m
+      - com.centurylinklabs.watchtower.enable=true
 
   tx-indexer:
     image: ghcr.io/gnolang/tx-indexer:latest
+    command:
+      - start
+      - -http-rate-limit=500
+      - -listen-address=0.0.0.0:8546
+      - -max-slots=2000
+      - -remote=http://traefik:26657
     networks:
       - portal-loop
-    entrypoint:
-      - /tx-indexer
-      - start
-      - "-http-rate-limit=500"
-      - "-listen-address=0.0.0.0:8546"
-      - "-max-slots=2000"
-      - "-remote=http://traefik:26657"
     labels:
-      traefik.enable: "true"
-      traefik.http.routers.tx-indexer.entrypoints: "websecure"
-      traefik.http.routers.tx-indexer.rule: "Host(`indexer.portal.gnoteam.com`)"
-      traefik.http.routers.tx-indexer.tls: "true"
-      traefik.http.routers.tx-indexer.tls.certresolver: "le"
-      traefik.http.services.tx-indexer.loadbalancer.server.port: 8546
+      - traefik.enable=true
+      - traefik.http.routers.tx-indexer.entrypoints=web,websecure
+      - traefik.http.routers.tx-indexer.rule=Host(`indexer.staging.gno.land`)
+      - traefik.http.routers.tx-indexer.tls=true
+      - traefik.http.routers.tx-indexer.tls.certresolver=le
+      - traefik.http.services.tx-indexer.loadbalancer.server.port=8546
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.depends-on=/portalloopd
 
   portalloopd:
+    container_name: portalloopd
     build:
       context: ../..
       target: portalloopd
@@ -110,45 +126,65 @@ services:
       - ./scripts:/scripts
       - ./backups:/backups
       - ./traefik:/etc/traefik/configs
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - portal-loop
-    ports:
-      - 9090:9090
     environment:
-      HOST_PWD: $PWD
-      SNAPSHOTS_DIR: "/backups/snapshots"
-      MASTER_BACKUP_FILE: "/backups/backup.jsonl"
-      RPC_URL: "http://traefik:26657"
-      PROM_ADDR: "0.0.0.0:9090"
-      TRAEFIK_GNO_FILE: "/etc/traefik/configs/gno.yml"
+      - HOST_PWD=$PWD
+      - SNAPSHOTS_DIR=/backups/snapshots
+      - MASTER_BACKUP_FILE=/backups/backup.jsonl
+      - RPC_URL="http://traefik:26657"
+      - TRAEFIK_GNO_FILE=/etc/traefik/configs/gno.yml
     extra_hosts:
       - host.docker.internal:host-gateway
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+      - com.centurylinklabs.watchtower.enable=true
+    healthcheck:
+      test: [ "CMD-SHELL", 
+        "[ $$(curl -s traefik:26657/status | jq -r '.result.sync_info.latest_block_height') -ge 1 ] \
+            && grep -q 'middlewares: \\[\\]' /etc/traefik/configs/gno.yml" ]
+      interval: 30s
+      timeout: 3s
+      retries: 10
+      start_period: 120s
 
-  autocounterd:
-    image: ghcr.io/gnolang/gno/autocounterd:latest
-    restart: unless-stopped
-    env_file: ".env"
-    command:
-      - "start"
-      - "--chain-id=portal-loop"
-      - "--interval=15m"
-      - "--mnemonic=${COUNTER_MNEMONIC}"
-      - "--rpc=http://traefik:26657"
+  portalloopd-notify:
+    image: containrrr/shoutrrr
     networks:
       - portal-loop
+    env_file: .env
+    command: 
+      - send
+      - --url
+      - ${WATCHTOWER_NOTIFICATION_URL}
+      - --message
+      - "Portal Loop is healthy again"
     labels:
-      com.centurylinklabs.watchtower.enable: "true"
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.depends-on=/portalloopd
+    depends_on:
+      portalloopd:
+        condition: service_healthy
 
   watchtower:
     image: containrrr/watchtower
-    command: --interval 30 --http-api-metrics --label-enable
+    command: 
+      - --interval
+      - "30"
+      - --label-enable
+      - --http-api-metrics
+      - --http-api-update
+      - --http-api-periodic-polls
+      - --debug
+      - --cleanup
+      - --include-stopped
+      - --revive-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /home/devops/.docker/config.json:/config.json
+      - $HOME/.docker/config.json:/config.json
+    env_file: .env
     environment:
-      WATCHTOWER_HTTP_API_TOKEN: "mytoken"
+      - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_HTTP_API_TOKEN}
+      - WATCHTOWER_NOTIFICATIONS_HOSTNAME="Portal Loop Watchtower"
     ports:
-      - 127.0.0.1:8000:8080
+      - 127.0.0.1:8080:8080

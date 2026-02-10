@@ -33,13 +33,16 @@ type Visitor func(v Value) (stop bool)
 //	impl, whether it re-uses the same Type or not.
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
+// XXX: record original value and verify after GC
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	// times objects are visited for gc
 	var visitCount int64
 
 	defer func() {
-		gasCPU := overflow.Mulp(visitCount*VisitCpuFactor, GasFactorCPU)
-		visitCount = 0
+		gasCPU := overflow.Mulp(overflow.Mulp(visitCount, VisitCpuFactor), GasFactorCPU)
+		if debug {
+			debug.Printf("GasConsumed for GC: %v\n", gasCPU)
+		}
 		if m.GasMeter != nil {
 			m.GasMeter.ConsumeGas(gasCPU, "GC")
 		}
@@ -56,7 +59,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	m.GCCycle += 1
 
 	// Construct visitor callback.
-	vis := GCVisitorFn(m.GCCycle, m.Alloc, visitCount)
+	vis := GCVisitorFn(m.GCCycle, m.Alloc, &visitCount)
 
 	// Visit blocks
 	for _, block := range m.Blocks {
@@ -81,6 +84,17 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	stop := vis(m.Package)
 	if stop {
 		return -1, false
+	}
+
+	// Visit staging package.
+	// Stating package is partially loaded package.
+	// it's more efficient to vist it than to
+	// iterate over the whole cache.
+	if tpv := m.Store.GetStagingPackage(); tpv != nil {
+		stop = vis(tpv)
+		if stop {
+			return -1, false
+		}
 	}
 
 	// Visit exceptions
@@ -113,7 +127,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 // Returns a visitor that bumps the GCCycle counter
 // and stops if alloc is out of memory.
-func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
+func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 	var vis func(value Value) bool
 
 	vis = func(v Value) bool {
@@ -122,33 +136,36 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 		}
 
 		if oo, isObject := v.(Object); isObject {
-			defer func() {
-				// Finally bump cycle for object.
-				oo.SetLastGCCycle(gcCycle)
-			}()
-
 			// Return if already measured.
 			if debug {
 				debug.Printf("oo.GetLastGCCycle: %d, gcCycle: %d\n", oo.GetLastGCCycle(), gcCycle)
 			}
+
 			if oo.GetLastGCCycle() == gcCycle {
 				return false // but don't stop
 			}
 		}
 
-		visitCount++ // Count operations for gas calculation
+		*visitCount++ // Count operations for gas calculation
 
 		// Add object size to alloc.
 		size := v.GetShallowSize()
-		alloc.Allocate(size)
 
-		// Stop if alloc max exceeded.
+		// Stop if alloc max exceeded during GC.
 		// NOTE: Unlikely to occur, but keep it here for
 		// now to handle potential edge cases.
 		// Consider removing it later if no issues arise.
 		maxBytes, curBytes := alloc.Status()
-		if maxBytes < curBytes {
+		if maxBytes < curBytes+size {
 			return true
+		}
+
+		alloc.Allocate(size)
+
+		// bump before visiting associated,
+		// this avoids infinite recursion.
+		if oo, isObject := v.(Object); isObject {
+			oo.SetLastGCCycle(gcCycle)
 		}
 
 		// Invoke the traverser on v.
@@ -186,6 +203,9 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
+	if fv.PkgPath == ".uverse" {
+		return
+	}
 	// visit captures
 	for _, tv := range fv.Captures {
 		v := tv.V
@@ -198,8 +218,18 @@ func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 		}
 	}
 
-	// Skip visiting the parent to avoid redundancy
-	// and prevent a potential cycle.
+	// Visit parent.
+	switch v := fv.Parent.(type) {
+	case nil:
+		return
+	case *Block:
+		if v != nil {
+			stop = vis(v)
+		}
+	case RefValue:
+		stop = vis(v)
+	}
+
 	return
 }
 
@@ -219,14 +249,18 @@ func (sv *StructValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (bmv *BoundMethodValue) VisitAssociated(vis Visitor) (stop bool) {
-	// bmv.Func cannot be a closure, it must be a method.
-	// So we do not visit it (for garbage collection).
-
 	// Visit receiver.
 	v := bmv.Receiver.V
 	if v != nil {
 		stop = vis(v)
 	}
+
+	// Visit func
+	fv := bmv.Func
+	if fv != nil {
+		stop = vis(fv)
+	}
+
 	return
 }
 
@@ -257,6 +291,10 @@ func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
+	if pv.PkgPath == ".uverse" {
+		return false
+	}
+
 	// visit pv.Block
 	v := pv.Block
 	if v != nil {
@@ -285,6 +323,13 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
+	// skip .uverse
+	if pn, ok := b.Source.(*PackageNode); ok {
+		if pn.PkgPath == ".uverse" {
+			return
+		}
+	}
+
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
 		v := b.Values[i].V

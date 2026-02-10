@@ -49,21 +49,36 @@ gnodev --add-account <bech32/name1>[:<amount1>] ./myrealm
 USAGE
   gnodev <cmd> [flags] 
 
-The gnodev command starts an in-memory node and a gno.land web interface, primarily for realm package development.
+The gnodev command starts an in-memory node and a gno.land
+web interface, primarily for realm package development.
 
-Currently gnodev comes with two mode <local> and <staging>, those command mostly differ by there default values, while gnodev local as default for working locally, satging default are oriented to be use on server.
+Currently gnodev comes with two mode <local> and <staging>, those command mostly
+differ by there default values, while gnodev local as default for working
+locally, satging default are oriented to be use on server.
 
-gnodev uses its own package loader and resolver system to support multiple scenarios and use cases. It currently supports three types of resolvers, each taking a location as an argument.
-- root: This resolver takes a <dir> as its location. It attempts to resolve packages based on your file system structure and the package path. For example, if 'root=/user/gnome/myproject' and you try to resolve 'gno.land/r/bar/buzz' as a package, the <root> resolver will attempt to resolve it to /user/gnome/myproject/gno.land/r/bar/buzz.
-- local: This resolver also takes a <dir> as its location. It is designed to load a single package, using the module name from 'gno.mod' within this package to resolve the package.
-- remote: This resolver takes a <remote> RPC address as its location. It is meant to use a remote node as a resolver, primarily for testing a local package against a remote node.
+gnodev uses its own package loader and resolver system to support multiple
+scenarios and use cases. It currently supports three types of resolvers, each
+taking a location as an argument.
+- root: This resolver takes a <dir> as its location. It attempts to resolve
+  packages based on your file system structure and the package path.
+  For example, if 'root=/user/gnome/myproject' and you try to resolve
+  'gno.land/r/bar/buzz' as a package, the <root> resolver will attempt to
+  resolve it to /user/gnome/myproject/gno.land/r/bar/buzz.
+- local: This resolver also takes a <dir> as its location. It is designed to
+  load a single package, using the module name from 'gnomod.toml' within this
+  package to resolve the package.
+- remote: This resolver takes a <remote> RPC address as its location. It is
+  meant to use a remote node as a resolver, primarily for testing a local
+  package against a remote node.
 
-Resolvers can be chained, and gnodev will attempt to use them in the order they are declared.
+Resolvers can be chained, and gnodev will attempt to use them in the order they
+are declared.
 
 For example:
     gnodev -resolver root=/user/gnome/myproject -resolver remote=https://rpc.gno.lands
 
-If no resolvers can resolve a given package path, the loader will return a "package not found" error.
+If no resolvers can resolve a given package path, the loader will return a
+"package not found" error.
 
 If no command is provided, gnodev will automatically start in <local> mode.
 
@@ -90,31 +105,33 @@ By default, the current directory and the "example" folder from "gnoroot" will b
 
 
 FLAGS
-  -C ...                                                change directory context before running gnodev
-  -add-account ...                                      add (or set) a premine account in the form `<bech32|name>[=<amount>]`, can be used multiple time
-  -balance-file ...                                     load the provided balance file (refer to the documentation for format)
-  -chain-domain gno.land                                set node ChainDomain
-  -chain-id dev                                         set node ChainID
-  -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5  default key name or Bech32 address for deploying packages
-  -genesis ...                                          load the given genesis file
-  -interactive=false                                    enable gnodev interactive mode
-  -lazy-loader=true                                     enable lazy loader
-  -log-format console                                   log output format, can be `json` or `console`
-  -max-gas 10000000000                                  set the maximum gas per block
-  -no-replay=false                                      do not replay previous transactions upon reload
-  -no-watch=false                                       do not watch for file changes
-  -no-web=false                                         disable gnoweb
-  -node-rpc-listener 127.0.0.1:26657                    listening address for GnoLand RPC node
-  -paths ...                                            additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
-  -resolver ...                                         list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order
-  -txs-file ...                                         load the provided transactions file (refer to the documentation for format)
-  -unsafe-api=true                                      enable /reset and /reload endpoints which are not safe to expose publicly
-  -v=false                                              enable verbose output for development
-  -web-help-remote ...                                  gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
-  -web-home ...                                         gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
-  -web-html=false                                       gnoweb: enable unsafe HTML parsing in markdown rendering
-  -web-listener 127.0.0.1:8888                          gnoweb: web server listener address
-  -web-with-html=false                                  gnoweb: enable HTML parsing in markdown rendering
+  -C ...	change directory context before running gnodev
+  -add-account ...	add (or set) a premine account in the form `<bech32|name>[=<amount>]`, can be used multiple time
+  -balance-file ...	load the provided balance file (refer to the documentation for format)
+  -chain-domain gno.land	set node ChainDomain
+  -chain-id dev	set node ChainID
+  -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5	default key name or Bech32 address for deploying packages
+  -empty-blocks=false 	enable creation of empty blocks (default: ~1s interval)
+  -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
+  -genesis ...	load the given genesis file
+  -interactive=false 	enable gnodev interactive mode
+  -lazy-loader=true 	enable lazy loader
+  -log-format console	log output format, can be `json` or `console`
+  -max-gas 10000000000	set the maximum gas per block
+  -no-replay=false 	do not replay previous transactions upon reload
+  -no-watch=false 	do not watch for file changes
+  -no-web=false 	disable gnoweb
+  -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
+  -paths ...	additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
+  -resolver ...	list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order
+  -txs-file ...	load the provided transactions file (refer to the documentation for format)
+  -unsafe-api=true 	enable /reset and /reload endpoints which are not safe to expose publicly
+  -v=false 	enable verbose output for development
+  -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
+  -web-home ...	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
+  -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
+  -web-listener 127.0.0.1:8888	gnoweb: web server listener address
+  -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
 
 ```
 
@@ -134,81 +151,54 @@ Additionally, you can specify an additional package directory to load.
 
 
 FLAGS
-  -add-account ...                                      add (or set) a premine account in the form `<bech32|name>[=<amount>]`, can be used multiple time
-  -balance-file ...                                     load the provided balance file (refer to the documentation for format)
-  -chain-domain gno.land                                set node ChainDomain
-  -chain-id dev                                         set node ChainID
-  -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5  default key name or Bech32 address for deploying packages
-  -genesis ...                                          load the given genesis file
-  -interactive=false                                    enable gnodev interactive mode
-  -lazy-loader=false                                    enable lazy loader
-  -log-format json                                      log output format, can be `json` or `console`
-  -max-gas 10000000000                                  set the maximum gas per block
-  -no-replay=false                                      do not replay previous transactions upon reload
-  -no-watch=false                                       do not watch for file changes
-  -no-web=false                                         disable gnoweb
-  -node-rpc-listener 127.0.0.1:26657                    listening address for GnoLand RPC node
-  -paths gno.land/**                                    additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
-  -resolver ...                                         list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order
-  -txs-file ...                                         load the provided transactions file (refer to the documentation for format)
-  -unsafe-api=false                                     enable /reset and /reload endpoints which are not safe to expose publicly
-  -v=false                                              enable verbose output for development
-  -web-help-remote ...                                  gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
-  -web-home :none:                                      gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
-  -web-html=false                                       gnoweb: enable unsafe HTML parsing in markdown rendering
-  -web-listener 127.0.0.1:8888                          gnoweb: web server listener address
-  -web-with-html=false                                  gnoweb: enable HTML parsing in markdown rendering
+  -add-account ...	add (or set) a premine account in the form `<bech32|name>[=<amount>]`, can be used multiple time
+  -balance-file ...	load the provided balance file (refer to the documentation for format)
+  -chain-domain gno.land	set node ChainDomain
+  -chain-id dev	set node ChainID
+  -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5	default key name or Bech32 address for deploying packages
+  -empty-blocks=false 	enable creation of empty blocks (default: ~1s interval)
+  -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
+  -genesis ...	load the given genesis file
+  -interactive=false 	enable gnodev interactive mode
+  -lazy-loader=false 	enable lazy loader
+  -log-format json	log output format, can be `json` or `console`
+  -max-gas 10000000000	set the maximum gas per block
+  -no-replay=false 	do not replay previous transactions upon reload
+  -no-watch=false 	do not watch for file changes
+  -no-web=false 	disable gnoweb
+  -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
+  -paths gno.land/**	additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
+  -resolver ...	list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order
+  -txs-file ...	load the provided transactions file (refer to the documentation for format)
+  -unsafe-api=false 	enable /reset and /reload endpoints which are not safe to expose publicly
+  -v=false 	enable verbose output for development
+  -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
+  -web-home :none:	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
+  -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
+  -web-listener 127.0.0.1:8888	gnoweb: web server listener address
+  -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
 
 ```
 
+### Transaction file format
 
-## `gnobro`: realm interface
-`gnobro` is a terminal user interface (TUI) that allows you to browse realms within your terminal. It
-automatically connects to `gnodev` for real-time development. In addition to hot reload, it also has the
-ability to execute commands and interact with your realm.
+`gnodev` can sends genesis transactions to the local node using the `-txs-file` flag associated with the `-paths` and the `-add-account` flag.
 
-
-## Usage
-**gnobro** [**options**] [**PKG_PATH **]
-
-Run gnobro followed by any specific options and/or a target pacakge path.
-
-Use `gnobro -h` for a detailed list of options.
-
-Example:
+The transactions file attached to the `-txs-file` is a set of transaction, each wrapped by `"tx"`. A transaction can be generated by following the step 1, 2 and 3 from [Making an airgapped transaction](https://docs.gno.land/users/interact-with-gnokey/#making-an-airgapped-transaction).
+Here's an example of the format:
 ```
-gnobro gno.land/r/demo/home
+{"tx": {"msg":[{"@type":"/vm.m_call","caller":"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj","send":"1000000ugnot","pkg_path":"gno.land/r/gnoland/users/v1","func":"Register","args":["administrator123"]}],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":[{"pub_key":{"@type":"/tm.PubKeySecp256k1","value":"AmG6kzznyo1uNqWPAYU6wDpsmzQKDaEOrVRaZ08vOyX0"},"signature":""}],"memo":""}}
+{"tx": {"msg":[{"@type":"/vm.m_call","caller":"g1qpymzwx4l4cy6cerdyajp9ksvjsf20rk5y9rtt","send":"1000000ugnot","pkg_path":"gno.land/r/gnoland/users/v1","func":"Register","args":["zoo_ma123"]}],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":[{"pub_key":{"@type":"/tm.PubKeySecp256k1","value":"A6yg5/iiktruezVw5vZJwLlGwyrvw8RlqOToTRMWXkE2"},"signature":""}],"memo":""}}
+{"tx": {"msg":[{"@type":"/vm.m_call","caller":"g1manfred47kzduec920z88wfr64ylksmdcedlf5","send":"1000000ugnot","pkg_path":"gno.land/r/gnoland/users/v1","func":"Register","args":["moul001"]}],"fee":{"gas_wanted":"2000000","gas_fee":"200000000ugnot"},"signatures":[{"pub_key":{"@type":"/tm.PubKeySecp256k1","value":"AnK+a6mcFDjY6b/v6p7r8QFW1M1PgIoQxBgrwOoyY7v3"},"signature":""}],"memo":""}}
 ```
 
-### `gnobro -h`
-[embedmd]:# (.tmp/gnobro-usage.txt)
-```txt
-USAGE
-  gnobro [flags] [pkg_path]
 
-Gnobro is a terminal user interface (TUI) that allows you to browse realms within your
-terminal. It automatically connects to Gnodev for real-time development. In
-addition to hot reload, it also has the ability to execute commands and interact
-with your realm.
+## Related Tools
 
+### `gnobro`: Terminal UI for Realm Browsing
+`gnobro` is a terminal user interface (TUI) that allows you to browse realms within your terminal. It can automatically connect to `gnodev` for real-time development with hot reload capabilities and the ability to execute commands and interact with your realm.
 
-FLAGS
-  -account ...                            default local account to use
-  -banner=false                           if enabled, display a banner
-  -chainid dev                            chainid
-  -default-realm gno.land/r/gnoland/home  default realm to display when gnobro starts and no argument is provided
-  -dev=true                               enable dev mode and connect to gnodev for realtime update
-  -dev-remote ...                         dev endpoint, if empty will default to `ws://<target>:8888`
-  -jsonlog=false                          display server log as json format
-  -readonly=false                         readonly mode, no commands allowed
-  -remote 127.0.0.1:26657                 remote gno.land URL
-  -ssh ...                                ssh server listener address
-  -ssh-key .ssh/id_ed25519                ssh host key path
-
-```
+`gnobro` is available as a separate tool in the `contribs/gnobro` directory. For more information, see the [gnobro README](../gnobro/README.md).
 
 ## Installation
 Run `make install` to install `gnodev`.
-
-Run `make install.gnobro` to install `gnobro`.
-

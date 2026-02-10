@@ -426,3 +426,59 @@ func (r *ReviewByOrgMembersRequirement) WithDesiredState(s utils.ReviewState) *R
 func ReviewByOrgMembers(gh *client.GitHub) *ReviewByOrgMembersRequirement {
 	return &ReviewByOrgMembersRequirement{gh: gh, count: 1}
 }
+
+// ReviewByAnyUserRequirement asserts that the given PR has been reviewed by
+// at least one of the given users, filtering for PR reviews with state desiredState.
+type ReviewByAnyUserRequirement struct {
+	gh           *client.GitHub
+	users        []string
+	desiredState string
+}
+
+var _ Requirement = &ReviewByAnyUserRequirement{}
+
+// IsSatisfied implements [Requirement].
+func (r *ReviewByAnyUserRequirement) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
+	detail := fmt.Sprintf("At least one of these user(s) reviewed the pull request: %v", r.users)
+	if r.desiredState != "" {
+		detail += fmt.Sprintf(" (with state %q)", r.desiredState)
+	}
+
+	// Check if one of the users already approved this PR.
+	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
+	if err != nil {
+		r.gh.Logger.Errorf("unable to check number of reviews on this PR: %v", err)
+		return utils.AddStatusNode(false, detail, details)
+	}
+	reviews = deduplicateReviews(reviews)
+
+	for _, review := range reviews {
+		if r.desiredState == "" || review.GetState() == r.desiredState {
+			for _, user := range r.users {
+				if review.GetUser().GetLogin() == user {
+					detail = fmt.Sprintf("User %s already reviewed PR %d with state %s", user, pr.GetNumber(), review.GetState())
+					r.gh.Logger.Debugf("%s", detail)
+					return utils.AddStatusNode(true, detail, details)
+				}
+			}
+		}
+	}
+
+	return utils.AddStatusNode(false, detail, details)
+}
+
+// WithDesiredState asserts that the matching review should also be of the given ReviewState.
+//
+// If an empty string is passed, then all reviews are counted. This is the default.
+func (r *ReviewByAnyUserRequirement) WithDesiredState(s utils.ReviewState) *ReviewByAnyUserRequirement {
+	if s != "" && !s.Valid() {
+		panic(fmt.Sprintf("invalid state: %q", s))
+	}
+	r.desiredState = string(s)
+	return r
+}
+
+// ReviewByAnyUser asserts that at least one of the given users reviewed this PR.
+func ReviewByAnyUser(gh *client.GitHub, users ...string) *ReviewByAnyUserRequirement {
+	return &ReviewByAnyUserRequirement{gh: gh, users: users}
+}

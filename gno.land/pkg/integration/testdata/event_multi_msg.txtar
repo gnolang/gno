@@ -31,7 +31,9 @@ stdout 'Tx successfully signed and saved to '
 gnokey broadcast $WORK/multi/multi_msg.tx -quiet=false
 
 stdout OK!
-stdout 'GAS WANTED: 2000000'
+
+stdout 'GAS WANTED: 3000000'
+
 stdout 'GAS USED:   [0-9]+'
 stdout 'HEIGHT:     [0-9]+'
 stdout 'EVENTS:     \[{\"type\":\"TAG\",\"attrs\":\[{\"key\":\"KEY\",\"value\":\"value11\"}\],\"pkg_path\":\"gno.land/r/demo/simple_event\"},{\"type\":\"TAG\",\"attrs\":\[{\"key\":\"KEY\",\"value\":\"value22\"}\],\"pkg_path\":\"gno.land/r/demo/simple_event\"}\]'
@@ -41,14 +43,12 @@ stdout 'EVENTS:     \[{\"type\":\"TAG\",\"attrs\":\[{\"key\":\"KEY\",\"value\":\
 -- event/simple_event.gno --
 package simple_event
 
-import (
-	"std"
-)
+import "chain"
 
-func Event(value string) {
-	crossing()
-	std.Emit("TAG", "KEY", value)
+func Event(cur realm, value string) {
+	chain.Emit("TAG", "KEY", value)
 }
-
 -- multi/multi_msg.tx --
-{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/demo/simple_event","func":"Event","args":["value11"]},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/demo/simple_event","func":"Event","args":["value22"]}],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":null,"memo":""}
+
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/demo/simple_event","func":"Event","args":["value11"]},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/demo/simple_event","func":"Event","args":["value22"]}],"fee":{"gas_wanted":"3000000","gas_fee":"1000000ugnot"},"signatures":null,"memo":""}
+

@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
 )
@@ -144,8 +143,8 @@ func (m *mockWriter) Write(p []byte) (n int, err error) {
 func TestRealmView(t *testing.T) {
 	content := NewReaderComponent(strings.NewReader("testdata"))
 	tocItems := &RealmTOCData{
-		Items: []*markdown.TocItem{
-			{Title: []byte("Introduction"), ID: []byte("introduction")},
+		Items: []*TocItem{
+			{Title: "Introduction", ID: "introduction"},
 		},
 	}
 	data := RealmData{
@@ -166,6 +165,99 @@ func TestRealmView(t *testing.T) {
 	assert.Equal(t, content, realmViewParams.Article.ComponentContent, "expected component content to match")
 
 	assert.NoError(t, view.Render(io.Discard))
+}
+
+func TestRealmViewTOCXSSPrevention(t *testing.T) {
+	tests := []struct {
+		name           string
+		tocTitle       string
+		tocID          string
+		mustNotContain []string
+		mustContain    []string
+	}{
+		{
+			name:           "HTML entities in TOC title",
+			tocTitle:       "&lt;script&gt;alert('XSS')&lt;/script&gt; Heading",
+			tocID:          "heading",
+			mustNotContain: []string{"<script>alert", "<script>"},
+			mustContain:    []string{"&amp;lt;script&amp;gt;"},
+		},
+		{
+			name:           "Image tag with onerror via entities",
+			tocTitle:       "&lt;img src=x onerror=alert(1)&gt;",
+			tocID:          "img",
+			mustNotContain: []string{},
+			mustContain:    []string{"&amp;lt;img"},
+		},
+		{
+			name:           "SVG with onload via entities",
+			tocTitle:       "&lt;svg onload=alert(1)&gt;",
+			tocID:          "svg",
+			mustNotContain: []string{},
+			mustContain:    []string{"&amp;lt;svg"},
+		},
+		{
+			name:           "Numeric HTML entities",
+			tocTitle:       "&#60;script&#62;alert(1)&#60;/script&#62;",
+			tocID:          "numeric",
+			mustNotContain: []string{"<script"},
+			mustContain:    []string{"&amp;#60;script"},
+		},
+		{
+			name:           "Normal heading with ampersand",
+			tocTitle:       "API & SDK",
+			tocID:          "api-sdk",
+			mustNotContain: []string{},
+			mustContain:    []string{"API &amp; SDK"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a RealmView with potentially malicious TOC item
+			content := NewReaderComponent(strings.NewReader("test content"))
+			tocItems := &RealmTOCData{
+				Items: []*TocItem{
+					{Title: tt.tocTitle, ID: tt.tocID},
+				},
+			}
+			data := RealmData{
+				ComponentContent: content,
+				TocItems:         tocItems,
+			}
+
+			view := RealmView(data)
+
+			var buf strings.Builder
+			err := view.Render(&buf)
+			assert.NoError(t, err, "expected no error rendering view")
+
+			rendered := buf.String()
+
+			tocStart := strings.Index(rendered, `<ul class="b-toc">`)
+			tocEnd := strings.LastIndex(rendered, `</ul>`)
+			if tocStart == -1 || tocEnd == -1 {
+				t.Fatal("could not find TOC in rendered HTML")
+			}
+			tocHTML := rendered[tocStart : tocEnd+5]
+
+			for _, danger := range tt.mustNotContain {
+				if strings.Contains(tocHTML, danger) {
+					t.Errorf("Found unescaped dangerous pattern %q in TOC HTML.\n"+
+						"TOC HTML: %s",
+						danger, tocHTML)
+				}
+			}
+
+			for _, safe := range tt.mustContain {
+				if !strings.Contains(tocHTML, safe) {
+					t.Errorf("Expected escaped pattern %q not found in TOC HTML.\n"+
+						"Title: %s\nTOC HTML: %s",
+						safe, tt.tocTitle, tocHTML)
+				}
+			}
+		})
+	}
 }
 
 func TestHelpView(t *testing.T) {
@@ -189,7 +281,7 @@ func TestHelpView(t *testing.T) {
 	helpViewParams, ok := templateComponent.data.(helpViewParams)
 	assert.True(t, ok, "expected helpViewParams type in component data")
 
-	assert.Equal(t, data.RealmName, helpViewParams.HelpData.RealmName, "expected realm name %s, got %s", data.RealmName, helpViewParams.HelpData.RealmName)
+	assert.Equal(t, data.RealmName, helpViewParams.RealmName, "expected realm name %s, got %s", data.RealmName, helpViewParams.RealmName)
 
 	assert.NoError(t, view.Render(io.Discard))
 }
@@ -236,7 +328,7 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 			name:     "File link type",
 			linkType: DirLinkTypeFile,
 			pkgPath:  "/r/test/pkg",
-			expected: "https://",
+			expected: "",
 		},
 		{
 			name:     "Invalid link type",
@@ -279,8 +371,8 @@ func TestGetFullLinks(t *testing.T) {
 			linkType: DirLinkTypeFile,
 			pkgPath:  "/r/test/pkg",
 			expected: FilesLinks{
-				{Link: "https://file1.gno", Name: "file1.gno"},
-				{Link: "https://file2.gno", Name: "file2.gno"},
+				{Link: "file1.gno", Name: "file1.gno"},
+				{Link: "file2.gno", Name: "file2.gno"},
 			},
 		},
 		{
@@ -299,4 +391,50 @@ func TestGetFullLinks(t *testing.T) {
 			assert.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func TestUserView(t *testing.T) {
+	data := UserData{
+		Username:   "testuser",
+		Handlename: "Test User",
+		Bio:        "This is a test user.",
+		Links: []UserLink{
+			{Type: UserLinkTypeLink, URL: "https://example.com"},
+			{Type: UserLinkTypeGithub, URL: "https://github.com/testuser", Title: "GitHub"},
+		},
+		Contributions: []UserContribution{
+			{
+				Title: "Realm Contribution",
+				Type:  UserContributionTypeRealm,
+			},
+			{
+				Title: "Package Contribution",
+				Type:  UserContributionTypePackage,
+			},
+		},
+		PackageCount: 2,
+		RealmCount:   1,
+		PureCount:    1,
+		Content:      NewReaderComponent(strings.NewReader("Test content")),
+	}
+
+	view := UserView(data)
+
+	assert.NotNil(t, view, "expected view to be non-nil")
+
+	templateComponent, ok := view.Component.(*TemplateComponent)
+	assert.True(t, ok, "expected TemplateComponent type in view.Component")
+
+	userData, ok := templateComponent.data.(UserData)
+	assert.True(t, ok, "expected UserData type in component data")
+
+	// Assert that link title for UserLinkTypeLink was set to the host
+	assert.Equal(t, "example.com", userData.Links[0].Title, "expected link title to be host")
+
+	// Assert counts
+	assert.Equal(t, 1, userData.RealmCount, "expected 1 realm")
+	assert.Equal(t, 2, userData.PackageCount, "expected 2 packages")
+	assert.Equal(t, 1, userData.PureCount, "expected 1 pure package")
+
+	assert.NoError(t, view.Render(io.Discard))
 }

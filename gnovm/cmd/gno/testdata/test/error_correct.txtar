@@ -3,7 +3,7 @@
 gno test -v .
 
 stderr '=== RUN   ./x_filetest.gno'
-stderr '--- PASS: ./x_filetest.gno \(\d+\.\d\ds\)'
+stderr '--- PASS: ./x_filetest.gno \(elapsed: \d+\.\d\ds, gas: \d+\)'
 stderr 'ok      \. 	\d+\.\d\ds'
 
 -- x_filetest.gno --
@@ -15,3 +15,8 @@ func main() {
 
 // Error:
 // oups
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/error_correct"
+gno = "0.9"

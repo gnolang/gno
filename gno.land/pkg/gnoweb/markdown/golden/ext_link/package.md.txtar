@@ -22,12 +22,12 @@
 <a href="/r/test/hello:arg1/arg2">Link with args</a>
 <a href="https://gno.land/p/test/hello">Package with domain</a>
 <a href="https://gno.land/p/test/hello:arg1/arg2">Package with domain and args</a>
-<a href="/p/test/hello$help">Package with domain and func<span class="link-tx js-tooltip tooltip" data-tooltip="Transaction link">⚡︎</span></a>
-<a href="https://gno.land/p/test/hello$help&arg1=value1">Package with domain and func args<span class="link-tx js-tooltip tooltip" data-tooltip="Transaction link">⚡︎</span></a>
+<a href="/p/test/hello$help">Package with domain and func<span class="link-tx tooltip" data-tooltip-target="info" data-tooltip="Transaction link" title="Transaction link"><svg class="c-icon"><use href="#ico-tx-link"></use></svg></span></a>
+<a href="https://gno.land/p/test/hello$help&amp;arg1=value1">Package with domain and func args<span class="link-tx tooltip" data-tooltip-target="info" data-tooltip="Transaction link" title="Transaction link"><svg class="c-icon"><use href="#ico-tx-link"></use></svg></span></a>
 <a href="./hello.md">Relative with dot slash</a>
 <a href="./hello">Relative with dot slash no extension</a>
 <a href="#doc">Relative with fragment</a>
 <a href="/r/test/hello.md#Render">Package link with func</a>
-<a href="/r/test/hello.md$help">Package link with help<span class="link-tx js-tooltip tooltip" data-tooltip="Transaction link">⚡︎</span></a>
-<a href="/r/test/hello.md$help&func=Render">Package link with help and func<span class="link-tx js-tooltip tooltip" data-tooltip="Transaction link">⚡︎</span></a>
-<a href="/r/test/hello.md$help&func=Render&arg1=value1">Package link with help and args<span class="link-tx js-tooltip tooltip" data-tooltip="Transaction link">⚡︎</span></a></p>
+<a href="/r/test/hello.md$help">Package link with help<span class="link-tx tooltip" data-tooltip-target="info" data-tooltip="Transaction link" title="Transaction link"><svg class="c-icon"><use href="#ico-tx-link"></use></svg></span></a>
+<a href="/r/test/hello.md$help&amp;func=Render">Package link with help and func<span class="link-tx tooltip" data-tooltip-target="info" data-tooltip="Transaction link" title="Transaction link"><svg class="c-icon"><use href="#ico-tx-link"></use></svg></span></a>
+<a href="/r/test/hello.md$help&amp;func=Render&amp;arg1=value1">Package link with help and args<span class="link-tx tooltip" data-tooltip-target="info" data-tooltip="Transaction link" title="Transaction link"><svg class="c-icon"><use href="#ico-tx-link"></use></svg></span></a></p>

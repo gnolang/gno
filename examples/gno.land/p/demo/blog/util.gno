@@ -10,7 +10,7 @@ func breadcrumb(parts []string) string {
 }
 
 func getTitleKey(title string) string {
-	return strings.Replace(title, " ", "", -1)
+	return strings.ReplaceAll(title, " ", "")
 }
 
 func getPublishedKey(t time.Time) string {

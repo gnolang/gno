@@ -271,7 +271,6 @@ type WALSearchOptions struct {
 // CONTRACT: caller must close group reader.
 func (wal *baseWAL) SearchForHeight(height int64, options *WALSearchOptions) (rd io.ReadCloser, found bool, err error) {
 	var (
-		msg  *TimedWALMessage
 		meta *MetaMessage
 		gr   *auto.GroupReader
 	)
@@ -334,7 +333,7 @@ OUTER_LOOP:
 
 	FILE_LOOP:
 		for {
-			msg, meta, err = dec.ReadMessage()
+			_, meta, err = dec.ReadMessage()
 			// error case
 			if err != nil {
 				if goerrors.Is(err, io.EOF) {
@@ -425,11 +424,11 @@ OUTER_LOOP:
 				}
 			}
 			// msg case
-			if msg != nil {
-				// do nothing, we're only interested in meta lines.
-				// TODO: optimize by implementing ReadNextMeta(),
-				// which skips decoding non-meta messages.
-			}
+			// if msg != nil {
+			// do nothing, we're only interested in meta lines.
+			// TODO: optimize by implementing ReadNextMeta(),
+			// which skips decoding non-meta messages.
+			// }
 		}
 	}
 

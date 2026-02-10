@@ -1,0 +1,28 @@
+-- input.md --
+
+<gno-form>
+<gno-select name="language" value="Go" description="Select your preferred programming language" />
+<gno-select name="language" value="Rust" />
+<gno-select name="language" value="Python" />
+<gno-select name="language" value="JavaScript" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div id="desc_language_0" class="gno-form_description">Select your preferred programming language</div>
+<div class="gno-form_select"><label for="language">Language</label>
+<select id="language" name="language" aria-labelledby="desc_language_0">
+<option value="">Select a Language</option>
+<option value="Go">Go</option>
+<option value="Rust">Rust</option>
+<option value="Python">Python</option>
+<option value="JavaScript">JavaScript</option>
+</select>
+<svg class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><use href="#ico-arrow"></use></svg>
+</div>
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>

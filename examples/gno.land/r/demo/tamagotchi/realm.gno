@@ -1,24 +1,22 @@
 package tamagotchi
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/demo/tamagotchi"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 var t *tamagotchi.Tamagotchi
 
-func init() {
-	Reset("gnome#0")
+func init(cur realm) {
+	Reset(cur, "gnome#0")
 }
 
-func Reset(optionalName string) string {
-	crossing()
-
+func Reset(cur realm, optionalName string) string {
 	name := optionalName
 	if name == "" {
-		height := std.ChainHeight()
+		height := runtime.ChainHeight()
 		name = ufmt.Sprintf("gnome#%d", height)
 	}
 
@@ -27,23 +25,17 @@ func Reset(optionalName string) string {
 	return ufmt.Sprintf("A new tamagotchi is born. Their name is %s %s.", t.Name(), t.Face())
 }
 
-func Feed() string {
-	crossing()
-
+func Feed(cur realm) string {
 	t.Feed()
 	return t.Markdown()
 }
 
-func Play() string {
-	crossing()
-
+func Play(cur realm) string {
 	t.Play()
 	return t.Markdown()
 }
 
-func Heal() string {
-	crossing()
-
+func Heal(cur realm) string {
 	t.Heal()
 	return t.Markdown()
 }

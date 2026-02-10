@@ -1,7 +1,7 @@
 package dirsmod
 
 import (
-	"dirs.mod/dep"
+	"dirs.mod/r/dep"
 )
 
 func foo() {

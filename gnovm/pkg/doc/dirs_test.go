@@ -41,7 +41,7 @@ func TestNewDirs_nonExisting(t *testing.T) {
 	assert.Empty(t, d.hist, "hist should be empty")
 	assert.Equal(t, strings.Count(buf.String(), "\n"), 2, "output should contain 2 lines")
 	assert.Contains(t, buf.String(), "non/existing/dir: no such file or directory")
-	assert.Contains(t, buf.String(), "this/one/neither/gno.mod: no such file or directory")
+	assert.Contains(t, buf.String(), "this/one/neither/gnomod.toml: no such file or directory")
 	assert.NotContains(t, buf.String(), "dirsempty: no such file or directory")
 }
 
@@ -57,7 +57,7 @@ func TestNewDirs_invalidModDir(t *testing.T) {
 	log.Default().SetOutput(old)
 	assert.Empty(t, d.hist, "hist should be len 0 (testdata/dirs is not a valid mod dir)")
 	assert.Equal(t, strings.Count(buf.String(), "\n"), 1, "output should contain 1 line")
-	assert.Contains(t, buf.String(), "gno.mod: no such file or directory")
+	assert.Contains(t, buf.String(), "gnomod.toml: no such file or directory")
 }
 
 func tNewDirs(t *testing.T) (string, *bfsDirs) {
@@ -81,17 +81,14 @@ func TestDirs_findPackage(t *testing.T) {
 			{importPath: "rand", dir: filepath.Join(td, "dirs/rand")},
 			{importPath: "crypto/rand", dir: filepath.Join(td, "dirs/crypto/rand")},
 			{importPath: "math/rand", dir: filepath.Join(td, "dirs/math/rand")},
-			{importPath: "dirs.mod/prefix/math/rand", dir: filepath.Join(td, "dirsmod/math/rand")},
+			{importPath: "dirs.mod/r/prefix/math/rand", dir: filepath.Join(td, "dirsmod/math/rand")},
 		}},
 		{"crypto/rand", []bfsDir{
 			{importPath: "crypto/rand", dir: filepath.Join(td, "dirs/crypto/rand")},
 		}},
-		{"dep", []bfsDir{
-			{importPath: "dirs.mod/dep", dir: filepath.Join(td, "dirsdep/pkg/mod/dirs.mod/dep")},
-		}},
+		{"dep", []bfsDir{}},
 		{"alpha", []bfsDir{
-			{importPath: "dirs.mod/dep/alpha", dir: filepath.Join(td, "dirsdep/pkg/mod/dirs.mod/dep/alpha")},
-			// no gnoland-data/module/alpha as it is inside a module
+			{importPath: "module/alpha", dir: filepath.Join(td, "dirs/module/alpha")},
 		}},
 		{"math", []bfsDir{
 			{importPath: "math", dir: filepath.Join(td, "dirs/math")},
@@ -102,7 +99,7 @@ func TestDirs_findPackage(t *testing.T) {
 	}
 	for _, tc := range tt {
 		tc := tc
-		t.Run("name_"+strings.Replace(tc.name, "/", "_", -1), func(t *testing.T) {
+		t.Run("name_"+strings.ReplaceAll(tc.name, "/", "_"), func(t *testing.T) {
 			res := d.findPackage(tc.name)
 			assert.Equal(t, tc.res, res, "dirs returned should be the equal")
 		})
@@ -130,7 +127,7 @@ func TestDirs_findDir(t *testing.T) {
 	}
 	for _, tc := range tt {
 		tc := tc
-		t.Run(strings.Replace(tc.name, "/", "_", -1), func(t *testing.T) {
+		t.Run(strings.ReplaceAll(tc.name, "/", "_"), func(t *testing.T) {
 			res := d.findDir(tc.in)
 			assert.Equal(t, tc.res, res, "dirs returned should be the equal")
 		})

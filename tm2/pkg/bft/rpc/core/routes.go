@@ -9,7 +9,7 @@ import (
 var Routes = map[string]*rpc.RPCFunc{
 	// info API
 	"health":               rpc.NewRPCFunc(Health, ""),
-	"status":               rpc.NewRPCFunc(Status, ""),
+	"status":               rpc.NewRPCFunc(Status, "heightGte"),
 	"net_info":             rpc.NewRPCFunc(NetInfo, ""),
 	"blockchain":           rpc.NewRPCFunc(BlockchainInfo, "minHeight,maxHeight"),
 	"genesis":              rpc.NewRPCFunc(Genesis, ""),

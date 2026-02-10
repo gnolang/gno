@@ -4,7 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 
+	"github.com/gnolang/faucet"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -47,5 +49,24 @@ func execCaptcha(ctx context.Context, cfg *captchaCfg, io commands.IO) error {
 		return errCaptchaMissing
 	}
 
-	return serveFaucet(ctx, cfg.rootCfg, io, getCaptchaMiddleware(cfg.captchaSecret))
+	// Start the IP throttler
+	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+	st.start(ctx)
+
+	// Prepare the middlewares
+	httpMiddlewares := []func(http.Handler) http.Handler{
+		ipMiddleware(cfg.rootCfg.isBehindProxy, st),
+	}
+
+	rpcMiddlewares := []faucet.Middleware{
+		captchaMiddleware(cfg.captchaSecret),
+	}
+
+	return serveFaucet(
+		ctx,
+		cfg.rootCfg,
+		io,
+		faucet.WithHTTPMiddlewares(httpMiddlewares),
+		faucet.WithMiddlewares(rpcMiddlewares),
+	)
 }

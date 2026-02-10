@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/gnolang/gno/_test/net/http"
+	"filetests/extern/net/http"
 )
 
 type AuthenticatedRequest struct {

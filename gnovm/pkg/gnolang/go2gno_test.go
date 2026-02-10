@@ -1,7 +1,6 @@
 package gnolang
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,10 +17,11 @@ func main(){
 		}
 	}
 }`
-	n, err := ParseFile("main.go", gocode)
+	var m *Machine
+	n, err := m.ParseFile("main.go", gocode)
 	assert.NoError(t, err, "ParseFile error")
 	assert.NotNil(t, n, "ParseFile error")
-	fmt.Printf("CODE:\n%s\n\n", gocode)
-	fmt.Printf("AST:\n%#v\n\n", n)
-	fmt.Printf("AST.String():\n%s\n", n.String())
+	t.Logf("CODE:\n%s\n\n", gocode)
+	t.Logf("AST:\n%#v\n\n", n)
+	t.Logf("AST.String():\n%s\n", n.String())
 }

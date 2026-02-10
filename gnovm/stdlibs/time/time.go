@@ -4,7 +4,7 @@ import (
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
 )
 
 func X_now(m *gno.Machine) (sec int64, nsec int32, mono int64) {
@@ -12,6 +12,6 @@ func X_now(m *gno.Machine) (sec int64, nsec int32, mono int64) {
 		return 0, 0, 0
 	}
 
-	ctx := std.GetContext(m)
+	ctx := execctx.GetContext(m)
 	return ctx.Timestamp, int32(ctx.TimestampNano), ctx.Timestamp*int64(time.Second) + ctx.TimestampNano
 }

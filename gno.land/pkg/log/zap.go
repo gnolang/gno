@@ -1,8 +1,10 @@
 package log
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/exp/zapslog"
@@ -23,6 +25,22 @@ func GetZapLoggerFn(format Format) NewZapLoggerFn {
 	default:
 		return NewZapConsoleLogger
 	}
+}
+
+// InitializeZapLogger initializes the zap logger using the given format and log level,
+// outputting to the given IO
+func InitializeZapLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logger, error) {
+	// Initialize the log level
+	level, err := zapcore.ParseLevel(logLevel)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse log level, %w", err)
+	}
+
+	// Initialize the log format
+	format := Format(strings.ToLower(logFormat))
+
+	// Initialize the zap logger
+	return GetZapLoggerFn(format)(io, level), nil
 }
 
 // NewZapJSONLogger creates a zap logger with a JSON encoder for production use.

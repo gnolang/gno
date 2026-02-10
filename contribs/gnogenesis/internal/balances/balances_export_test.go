@@ -19,7 +19,7 @@ import (
 func getDummyBalances(t *testing.T, count int) []gnoland.Balance {
 	t.Helper()
 
-	dummyKeys := common.GetDummyKeys(t, count)
+	dummyKeys := common.DummyKeys(t, count)
 	amount := std.NewCoins(std.NewCoin(ugnot.Denom, 10))
 
 	balances := make([]gnoland.Balance, len(dummyKeys))
@@ -59,7 +59,7 @@ func TestGenesis_Balances_Export(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		genesis.AppState = nil // no app state
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
@@ -82,7 +82,7 @@ func TestGenesis_Balances_Export(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
 			Balances: getDummyBalances(t, 1),
 		}
@@ -106,11 +106,12 @@ func TestGenesis_Balances_Export(t *testing.T) {
 
 		// Generate dummy balances
 		balances := getDummyBalances(t, 10)
+		gnoland.SortBalances(balances)
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
 			Balances: balances,
 		}

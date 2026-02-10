@@ -1,0 +1,11 @@
+-- input.md --
+Hello @alice, your GNO address is g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5.
+
+@bob_user has another address than this wrong g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5 (not bech32).
+
+ok and in another link, [[GitHub: @leohhhn]](https://github.com/leohhhn) or [GitHub: @leohhhn](https://github.com/leohhhn) should be desactivated.
+
+-- output.html --
+<p>Hello <a href="/u/alice">@alice<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a>, your GNO address is <a href="/u/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5">g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a>.</p>
+<p><a href="/u/bob_user">@bob_user<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a> has another address than this wrong g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5 (not bech32).</p>
+<p>ok and in another link, <a href="https://github.com/leohhhn" rel="noopener nofollow ugc">[GitHub: @leohhhn]<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a> or <a href="https://github.com/leohhhn" rel="noopener nofollow ugc">GitHub: @leohhhn<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a> should be desactivated.</p>

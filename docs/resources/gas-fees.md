@@ -1,12 +1,12 @@
-# Gas Fees in gno.land
+# Gas Fees in Gno.land
 
-This document explains how gas works in the gno.land ecosystem, including gas
+This document explains how gas works in the Gno.land ecosystem, including gas
 pricing, estimation, and optimization.
 
 ## What is Gas?
 
 Gas is a measure of computational and storage resources required to execute
-operations on the blockchain. Every transaction on gno.land consumes gas based
+operations on the blockchain. Every transaction on Gno.land consumes gas based
 on:
 
 1. The complexity of the operation being performed
@@ -20,7 +20,7 @@ Gas serves several important purposes:
 
 ## Gas Parameters
 
-When submitting transactions to gno.land, you need to specify two gas-related parameters:
+When submitting transactions to Gno.land, you need to specify two gas-related parameters:
 
 ### Gas Wanted
 
@@ -39,31 +39,48 @@ The total maximum fee you might pay is calculated as:
 Maximum Fee = Gas Wanted × Gas Fee
 ```
 
-However, you'll only be charged for the gas actually used.
+You will be charged the gas fee you specified.
 
 ## Typical Gas Values
 
 Here are some recommended gas values for common operations:
 
-| Operation | Recommended Gas Wanted | Typical Gas Fee |
-|-----------|------------------------|----------------|
-| Simple transfer | 100,000 | 1000000ugnot |
-| Calling a realm function | 2,000,000 | 1000000ugnot |
-| Deploying a small package | 5,000,000 | 1000000ugnot |
-| Deploying a complex realm | 10,000,000+ | 1000000ugnot |
+| Operation                 | Recommended Gas Wanted | Typical Gas Fee |
+| ------------------------- | ---------------------- | --------------- |
+| Simple transfer           | 100,000                | 1000000ugnot    |
+| Calling a realm function  | 2,000,000              | 1000000ugnot    |
+| Deploying a small package | 5,000,000              | 1000000ugnot    |
+| Deploying a complex realm | 10,000,000+            | 1000000ugnot    |
 
 These values may vary based on network conditions and the specific
 implementation of your code.
 
 ## Gas Estimation
 
-Currently, gno.land doesn't provide automatic gas estimation. You need to:
+Use the `-simulate only` flag to simulate a transaction without executing it
+on-chain. This allows you to estimate gas usage and fees without incurring
+any cost or incrementing the account sequence number.
 
-1. Start with conservative (higher) gas values
-2. Observe actual gas usage from transaction receipts
-3. Adjust your gas parameters for future transactions
-
-Future updates to the platform will likely include improved gas estimation tools.
+```bash
+gnokey maketx addpkg \
+  -pkgdir "./hello" \
+  -pkgpath gno.land/r/hello \
+  -gas-wanted 2000000 \
+  -gas-fee 1000000ugnot \
+  -remote https://rpc.gno.land:443 \
+  -broadcast \
+  -chainid staging \
+  -simulate only \
+  YOUR_KEY_NAME
+```
+You will see output similar to the following:
+```
+GAS WANTED: 2000000
+GAS USED:   268994
+INFO:       estimated gas usage: 268994, gas fee: 282ugnot, current gas price: 1ugnot/1000gas
+```
+You can then use the estimated gas as the -gas-wanted and -gas-fee values in your
+actual transaction.
 
 ## Example Transaction with Gas Parameters
 
@@ -71,13 +88,14 @@ Here's an example of sending a transaction with gas parameters:
 
 ```bash
 gnokey maketx call \
-  --pkgpath "gno.land/r/demo/boards" \
-  --func "CreateBoard" \
-  --args "MyBoard" "Board description" \
-  --gas-fee 1000000ugnot \
-  --gas-wanted 2000000 \
-  --remote https://rpc.gno.land:443 \
-  --chainid staging \
+  -pkgpath "gno.land/r/demo/boards" \
+  -func "CreateBoard" \
+  -args "MyBoard" \
+  -args "Board description" \
+  -gas-fee 1000000ugnot \
+  -gas-wanted 2000000 \
+  -remote https://rpc.gno.land:443 \
+  -chainid staging \
   YOUR_KEY_NAME
 ```
 

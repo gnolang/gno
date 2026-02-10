@@ -1,22 +1,21 @@
 package minisocial
 
 import (
-	"std"
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/testutils" // Provides testing utilities
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/testutils" // Provides testing utilities
+	"gno.land/p/nt/uassert"
 )
 
 func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
-	testing.SetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := cross(CreatePost)(text1)
+	err := CreatePost(cross, text1)
 	uassert.True(t, err == nil, "expected no error")
 
 	// Get the rendered page
@@ -42,10 +41,10 @@ func TestCreatePostMultiple(t *testing.T) {
 	for _, p := range posts {
 		// Set the appropriate caller realm based on the author
 		authorAddr := testutils.TestAddress(p.author)
-		testing.SetRealm(std.NewUserRealm(authorAddr))
+		testing.SetRealm(testing.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := cross(CreatePost)(p.text)
+		err := CreatePost(cross, p.text)
 		uassert.True(t, err == nil, "expected no error for post "+p.text)
 	}
 
@@ -63,23 +62,23 @@ func TestCreatePostMultiple(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	aliceAddr := testutils.TestAddress("alice")
-	testing.SetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	_ = cross(CreatePost)(text1)
+	_ = CreatePost(cross, text1)
 
 	got := Render("")
 	uassert.True(t, strings.Contains(got, text1), "expected render to contain text1")
 
 	// Set admin
-	testing.SetRealm(std.NewUserRealm(Ownable.Owner()))
-	cross(ResetPosts)()
+	testing.SetRealm(testing.NewUserRealm(Ownable.Owner()))
+	ResetPosts(cross)
 
 	got = Render("")
 	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")
 
 	text2 := "Some other Text!!"
-	_ = cross(CreatePost)(text2)
+	_ = CreatePost(cross, text2)
 
 	got = Render("")
 	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")

@@ -155,12 +155,6 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 // supported.  See https://github.com/golang/go/issues/20013 and
 // https://github.com/golang/go/issues/39717.
 func gno2GoType(t Type) reflect.Type {
-	// special case if t == Float32Type or Float64Type
-	if t == Float32Type {
-		return reflect.TypeOf(float32(0.0))
-	} else if t == Float64Type {
-		return reflect.TypeOf(float64(0.0))
-	}
 	switch ct := baseOf(t).(type) {
 	case PrimitiveType:
 		switch ct {

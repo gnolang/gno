@@ -63,7 +63,7 @@ func (s *set) Get(key types.ID) PeerConn {
 		return nil
 	}
 
-	return p.(PeerConn)
+	return p
 }
 
 // Remove discards peer by its Key, if the peer was previously memoized.
@@ -80,7 +80,7 @@ func (s *set) Remove(key types.ID) bool {
 
 	delete(s.peers, key)
 
-	if p.(PeerConn).IsOutbound() {
+	if p.IsOutbound() {
 		s.outbound -= 1
 
 		return true
@@ -114,7 +114,7 @@ func (s *set) List() []PeerConn {
 
 	peers := make([]PeerConn, 0)
 	for _, p := range s.peers {
-		peers = append(peers, p.(PeerConn))
+		peers = append(peers, p)
 	}
 
 	return peers

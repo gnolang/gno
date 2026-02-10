@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"std"
+	"chain/runtime"
 
 	psubtests "gno.land/p/demo/tests/subtests"
 )
@@ -9,7 +9,7 @@ import (
 const World = "world"
 
 func CurrentRealmPath() string {
-	return std.CurrentRealm().PkgPath()
+	return runtime.CurrentRealm().PkgPath()
 }
 
 //----------------------------------------
@@ -47,11 +47,11 @@ func ModifyTestRealmObject2c() {
 	SomeValue3.Field = "modified"
 }
 
-func GetPreviousRealm() std.Realm {
-	return std.PreviousRealm()
+func GetPreviousRealm() runtime.Realm {
+	return runtime.PreviousRealm()
 }
 
-func GetPSubtestsPreviousRealm() std.Realm {
+func GetPSubtestsPreviousRealm() runtime.Realm {
 	return psubtests.GetPreviousRealm()
 }
 

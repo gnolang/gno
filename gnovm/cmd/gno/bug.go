@@ -11,8 +11,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gnolang/gno/gnovm/pkg/version"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/version"
 )
 
 // NOTE: keep in sync with .github/ISSUE_TEMPLATE/BUG-REPORT.md

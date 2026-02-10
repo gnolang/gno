@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"net"
 	"testing"
 
@@ -54,11 +53,11 @@ func TestNodeInfo_Validate(t *testing.T) {
 			},
 			{
 				"empty tab version",
-				fmt.Sprintf("\t"),
+				"\t",
 			},
 			{
 				"empty space version",
-				fmt.Sprintf("  "),
+				"  ",
 			},
 		}
 
@@ -93,11 +92,11 @@ func TestNodeInfo_Validate(t *testing.T) {
 			},
 			{
 				"empty tab moniker",
-				fmt.Sprintf("\t"),
+				"\t",
 			},
 			{
 				"empty space moniker",
-				fmt.Sprintf("  "),
+				"  ",
 			},
 		}
 
@@ -128,11 +127,11 @@ func TestNodeInfo_Validate(t *testing.T) {
 			},
 			{
 				"empty tab RPC address",
-				fmt.Sprintf("\t"),
+				"\t",
 			},
 			{
 				"empty space RPC address",
-				fmt.Sprintf("  "),
+				"  ",
 			},
 		}
 

@@ -1,0 +1,37 @@
+# sample interrealm execution of `gno fix`
+
+gno fix -fix interrealm main.gno
+cmp main.gno main.gno.golden
+cmp stdout empty
+cmp stderr empty
+
+-- main.gno --
+package main
+
+import "std"
+
+func main() {
+	addr := std.Address("g1337")
+	cross(hello)(addr)
+}
+
+func hello(i std.Address) {
+	crossing()
+
+	println(i)
+}
+-- main.gno.golden --
+package main
+
+import "std"
+
+func main() {
+	addr := std.Address("g1337")
+	hello(cross, addr)
+}
+
+func hello(cur realm, i std.Address) {
+
+	println(i)
+}
+-- empty --

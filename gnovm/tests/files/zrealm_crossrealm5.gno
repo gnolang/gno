@@ -1,8 +1,8 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
-	"gno.land/r/demo/tests"
+	tests "gno.land/r/tests/vm"
 )
 
 // NOTE: it is valid to persist external realm types.
@@ -12,9 +12,7 @@ func init() {
 	somevalue = &tests.TestRealmObjectValue
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	// NOTE: but it is invalid to modify it directly.
 	somevalue.Field = "test"
 	println(somevalue)

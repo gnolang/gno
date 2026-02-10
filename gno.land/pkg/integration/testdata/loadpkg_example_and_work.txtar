@@ -1,5 +1,5 @@
 # load a package from the 'examples' and $WORK directory.
-loadpkg gno.land/p/demo/ufmt
+loadpkg gno.land/p/nt/ufmt
 loadpkg gno.land/r/importtest $WORK
 
 ## start a new node
@@ -13,9 +13,9 @@ stdout '92054'
 package importtest
 
 import (
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 func Render(_ string) string {
- 	return ufmt.Sprintf("%d", 92054)
+	return ufmt.Sprintf("%d", 92054)
 }

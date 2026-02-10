@@ -12,9 +12,9 @@ func main() {
 	println("Hello", 42)
 }
 
--- gno.mod --
-module gno.land/p/demo/test
+-- gnomod.toml --
+module = "no_error"
+gno = "0.9"
 
-gno 0.9
 -- stdout.golden --
 -- stderr.golden --

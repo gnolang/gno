@@ -1,0 +1,11 @@
+-- input.md --
+This is an email: user@domain.com
+
+Another email: test@example.org
+
+Not an email: Hello @user, how are you?
+
+-- output.html --
+<p>This is an email: user@domain.com</p>
+<p>Another email: test@example.org</p>
+<p>Not an email: Hello <a href="/u/user">@user<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a>, how are you?</p>

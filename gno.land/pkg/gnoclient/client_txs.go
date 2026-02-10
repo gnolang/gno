@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -282,7 +283,7 @@ func (c *Client) BroadcastTxCommit(signedTx *std.Tx) (*ctypes.ResultBroadcastTxC
 		return nil, errors.Wrap(err, "marshaling tx binary bytes")
 	}
 
-	bres, err := c.RPCClient.BroadcastTxCommit(bz)
+	bres, err := c.RPCClient.BroadcastTxCommit(context.Background(), bz)
 	if err != nil {
 		return nil, errors.Wrap(err, "broadcasting bytes")
 	}
@@ -299,11 +300,24 @@ func (c *Client) BroadcastTxCommit(signedTx *std.Tx) (*ctypes.ResultBroadcastTxC
 
 // EstimateGas returns the least amount of gas required
 // for the transaction to go through on the chain (minimum gas wanted).
-// The estimation process assumes the transaction is properly signed
+// The estimation process assumes the transaction signature has the proper public key
 func (c *Client) EstimateGas(tx *std.Tx) (int64, error) {
+	deliverTx, err := c.Simulate(tx)
+	if err != nil {
+		return 0, err
+	}
+
+	// Return the actual value returned by the node
+	// for executing the transaction
+	return deliverTx.GasUsed, nil
+}
+
+// Simulate the transaction and return the ResponseDeliverTx.
+// The simulation process assumes the transaction signature has the proper public key
+func (c *Client) Simulate(tx *std.Tx) (*abci.ResponseDeliverTx, error) {
 	// Make sure the RPC client is set
 	if err := c.validateRPCClient(); err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	// Prepare the transaction.
@@ -311,30 +325,28 @@ func (c *Client) EstimateGas(tx *std.Tx) (int64, error) {
 	// in order to be estimated
 	encodedTx, err := amino.Marshal(tx)
 	if err != nil {
-		return 0, fmt.Errorf("unable to marshal tx: %w", err)
+		return nil, fmt.Errorf("unable to marshal tx: %w", err)
 	}
 
 	// Perform the simulation query
-	resp, err := c.RPCClient.ABCIQuery(simulatePath, encodedTx)
+	resp, err := c.RPCClient.ABCIQuery(context.Background(), simulatePath, encodedTx)
 	if err != nil {
-		return 0, fmt.Errorf("unable to perform ABCI query: %w", err)
+		return nil, fmt.Errorf("unable to perform ABCI query: %w", err)
 	}
 
 	// Extract the query response
 	if err = resp.Response.Error; err != nil {
-		return 0, fmt.Errorf("error encountered during ABCI query: %w", err)
+		return nil, fmt.Errorf("error encountered during ABCI query: %w", err)
 	}
 
-	var deliverTx abci.ResponseDeliverTx
-	if err = amino.Unmarshal(resp.Response.Value, &deliverTx); err != nil {
-		return 0, fmt.Errorf("unable to unmarshal gas estimation response: %w", err)
+	deliverTx := new(abci.ResponseDeliverTx)
+	if err = amino.Unmarshal(resp.Response.Value, deliverTx); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal simulation response: %w", err)
 	}
 
 	if err = deliverTx.Error; err != nil {
-		return 0, fmt.Errorf("error encountered during gas estimation: %w", err)
+		return nil, fmt.Errorf("error encountered during simulation: %w", err)
 	}
 
-	// Return the actual value returned by the node
-	// for executing the transaction
-	return deliverTx.GasUsed, nil
+	return deliverTx, nil
 }

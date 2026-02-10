@@ -1,25 +1,21 @@
+version: "2"
+
 run:
   concurrency: 8
-  timeout: 10m
+  go: ""
+  modules-download-mode: readonly
   issues-exit-code: 1
   tests: true
-  modules-download-mode: readonly
   allow-parallel-runners: false
-  go: ""
-
 output:
   path-prefix: ""
-  sort-results: true
-
 linters:
-  fast: false
-  disable-all: true
+  default: none
   enable:
     - whitespace # Tool for detection of leading and trailing whitespace
     - unconvert # Unnecessary type conversions
     - tparallel # Detects inappropriate usage of t.Parallel() method in your Go test codes
     - thelper # Detects golang test helpers without t.Helper() call and checks the consistency of test helpers
-    - stylecheck # Stylecheck is a replacement for golint
     - prealloc # Finds slice declarations that could potentially be pre-allocated
     - predeclared # Finds code that shadows one of Go's predeclared identifiers
     - nolintlint # Ill-formed or insufficient nolint directives
@@ -28,65 +24,83 @@ linters:
     - importas # Enforces consistent import aliases
     - govet # same as 'go vet'
     - gosec # Security problems
-    - gofmt # Whether the code was gofmt-ed
-    - goimports # Unused imports
-    - goconst # Repeated strings that could be replaced by a constant
     - dogsled # Checks assignments with too many blank identifiers (e.g. x, , , _, := f())
     - errname # Checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error
     - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13
     - unused # Checks Go code for unused constants, variables, functions and types
     - gomodguard # Enforces an allow and block list for direct Go module dependencies
     - forbidigo # Forbids some custom-set identifiers, like regexp.MatchString
-
-linters-settings:
-  gofmt:
-    simplify: true
-
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-
-  gosec:
-    excludes:
-      - G204 # Subprocess launched with a potential tainted input or cmd arguments
-      - G306 # Expect WriteFile permissions to be 0600 or less
-      - G115 # Integer overflow conversion, no solution to check the overflow in time of convert, so linter shouldn't check the overflow.
-  stylecheck:
-    checks: ["all", "-ST1022", "-ST1003"]
-  errorlint:
-    asserts: false
-
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-
-  forbidigo:
-    forbid:
-      - p: '^regexp\.(Match|MatchString)$'
-        msg: it will re-compile the regexp for each execution; compile the regexp with regexp.Compile and store it as a singleton
-
+    - staticcheck # well-known all-round linter
+  settings:
+    errorlint:
+      asserts: false
+    forbidigo:
+      forbid:
+        - pattern: ^regexp\.(Match|MatchString)$
+          msg: it will re-compile the regexp for each execution; compile the regexp with regexp.Compile and store it as a singleton
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    gosec:
+      excludes:
+        - G204 # Subprocess launched with a potential tainted input or cmd arguments
+        - G306 # Expect WriteFile permissions to be 0600 or less
+        - G115 # Integer overflow conversion, no solution to check the overflow in time of convert, so linter shouldn't check the overflow.
+    staticcheck:
+      checks:
+        - all
+        - -ST1003 # Poorly chosen identifier.
+        - -ST1022 # The documentation of an exported variable or constant should start with variable's name
+        - -QF1001 # could apply De Morgan's law
+        - -QF1008 # could remove embedded field "..." from selector
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - gosec # Disabled linting of weak number generators
+          - makezero # Disabled linting of intentional slice appends
+          - goconst # Disabled linting of common mnemonics and test case strings
+          - unused # Disabled linting of unused mock methods
+        path: _test\.go
+      - linters:
+          - errorlint
+        path: _\.gno
+      - path: gnovm/pkg/gnolang
+        text: string `(realm|cross|.no realm.|crossing)` has (\d+) occurrences, make it a constant
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+      - gnovm/pkg/parser/
 issues:
-  whole-files: true
   max-issues-per-linter: 0
   max-same-issues: 0
+  uniq-by-line: false
+  whole-files: true
   new: false
   fix: false
-  exclude-dirs-use-default: true
-  uniq-by-line: false
-
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gosec # Disabled linting of weak number generators
-        - makezero # Disabled linting of intentional slice appends
-        - goconst # Disabled linting of common mnemonics and test case strings
-        - unused # Disabled linting of unused mock methods
-    - path: _\.gno
-      linters:
-        - errorlint # Disabled linting of error comparisons, because of lacking std lib support
-    - path: gnovm/pkg/gnolang
-      text: "string `(realm|cross|.no realm.|crossing)` has (\\d+) occurrences, make it a constant"
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

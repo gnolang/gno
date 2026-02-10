@@ -1,7 +1,7 @@
 package main
 
 import (
-	avl "gno.land/p/demo/avl"
+	avl "gno.land/p/nt/avl"
 )
 
 var foo = avl.ID(123)

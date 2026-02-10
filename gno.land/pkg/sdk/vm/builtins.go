@@ -110,6 +110,43 @@ func (prm *SDKParams) SetStrings(key string, value []string) {
 	prm.pmk.SetStrings(prm.ctx, key, value)
 }
 
+func (prm *SDKParams) UpdateStrings(key string, vals []string, add bool) {
+	ss := &[]string{}
+	prm.pmk.GetStrings(prm.ctx, key, ss)
+
+	oldList := *ss
+	existing := make(map[string]struct{}, len(oldList))
+	// Temporary map for duplicate detection
+	for _, s := range oldList {
+		existing[s] = struct{}{}
+	}
+
+	if add {
+		// Append only non-duplicate values
+		for _, v := range vals {
+			if _, found := existing[v]; !found {
+				oldList = append(oldList, v)
+				existing[v] = struct{}{}
+			}
+		}
+		prm.SetStrings(key, oldList)
+		return
+	}
+	// Remove case
+	updatedList := oldList[:0] // reuse original memory
+	removeSet := make(map[string]struct{}, len(vals))
+	for _, v := range vals {
+		removeSet[v] = struct{}{}
+	}
+
+	for _, s := range oldList {
+		if _, found := removeSet[s]; !found {
+			updatedList = append(updatedList, s)
+		}
+	}
+	prm.SetStrings(key, updatedList)
+}
+
 func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key string, value any) {
 	parts := strings.Split(key, ":")
 	if len(parts) == 0 {

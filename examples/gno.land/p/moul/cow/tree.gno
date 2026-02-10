@@ -1,5 +1,5 @@
 // Package cow provides a Copy-on-Write (CoW) AVL tree implementation.
-// This is a fork of gno.land/p/demo/avl that adds CoW functionality
+// This is a fork of gno.land/p/nt/avl that adds CoW functionality
 // while maintaining the original AVL tree interface and properties.
 //
 // Copy-on-Write creates a copy of a data structure only when it is modified,

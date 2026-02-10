@@ -1,0 +1,38 @@
+# load the package
+loadpkg gno.land/r/ext $WORK/ext
+loadpkg gno.land/r/alloc $WORK/alloc
+
+# start a new node
+gnoland start
+
+# this works fine, mostly for observing allocations and garbage collection.
+gnokey maketx call -pkgpath gno.land/r/alloc -func DoAlloc -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+-- alloc/alloc.gno --
+// MAXALLOC: 100000000
+package alloc
+
+import (
+	"runtime"
+
+	"gno.land/r/ext"
+)
+
+var s = "hello world" 
+
+func DoAlloc(_ realm) {
+	runtime.GC()
+	println("MemStats: ", runtime.MemStats())
+	ext.GetVar()
+}
+
+-- ext/ext.gno --
+package ext
+
+var Global int
+
+func GetVar() int {
+	return Global
+}
+

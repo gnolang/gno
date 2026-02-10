@@ -25,7 +25,7 @@ jobs:
     if: github.repository == 'gnolang/gno'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # we don't know what commit the last tag was it's safer to get entire repo so previousStableVersion resolves
           fetch-depth: 0
@@ -34,7 +34,7 @@ jobs:
         run: mv .github/.fossa.yml .
 
       - name: Cache Coursier cache
-        uses: coursier/cache-action@v6.4.6
+        uses: coursier/cache-action@6.4.7
 
       - name: Set up JDK 17
         uses: coursier/setup-action@v1.3.9

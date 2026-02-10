@@ -49,6 +49,9 @@ proxy_app = "tcp://127.0.0.1:26658"
 # Lowest gas prices accepted by a validator
 min_gas_prices = ""
 
+# State pruning strategy [everything, nothing, syncable]
+prune_strategy = "syncable"
+
 ##### consensus configuration options #####
 [consensus]
 
@@ -116,19 +119,19 @@ max_num_outbound_peers = 40 # Advised value is 40
 max_packet_msg_payload_size = 1024
 
 # Comma separated list of nodes to keep persistent connections to
-persistent_peers = "g1s0x78pl3c2xv2n7hp33lh4jkyqvhg5hlx6huh7@gno-core-sen-01.test6.testnets.gno.land:26656,g1jeta40dllwtrh293498hq0dh0cr3u4gw77h5rc@gno-core-sen-02.test6.testnets.gno.land:26656"
+persistent_peers = "g1s0x78pl3c2xv2n7hp33lh4jkyqvhg5hlx6huh7@gno-core-sen-1.test6.testnets.gno.land:26656,g1jeta40dllwtrh293498hq0dh0cr3u4gw77h5rc@gno-core-sen-2.test6.testnets.gno.land:26656"
 
 # Set true to enable the peer-exchange reactor
 pex = true
 
 # Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
-private_peer_ids = "g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-01.test6.testnets.gno.land:26656,g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-02.test6.testnets.gno.land:26656"
+private_peer_ids = "g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-1.test6.testnets.gno.land:26656,g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-2.test6.testnets.gno.land:26656"
 
 # Rate at which packets can be received, in bytes/second
 recv_rate = 5120000
 
 # Comma separated list of seed nodes to connect to
-seeds = "g1s0x78pl3c2xv2n7hp33lh4jkyqvhg5hlx6huh7@gno-core-sen-01.test6.testnets.gno.land:26656,g1jeta40dllwtrh293498hq0dh0cr3u4gw77h5rc@gno-core-sen-02.test6.testnets.gno.land:26656"
+seeds = "g1s0x78pl3c2xv2n7hp33lh4jkyqvhg5hlx6huh7@gno-core-sen-1.test6.testnets.gno.land:26656,g1jeta40dllwtrh293498hq0dh0cr3u4gw77h5rc@gno-core-sen-2.test6.testnets.gno.land:26656"
 
 # Rate at which packets can be sent, in bytes/second
 send_rate = 5120000

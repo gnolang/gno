@@ -37,7 +37,7 @@ func TestGenesis_Validator_Remove(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
@@ -61,8 +61,8 @@ func TestGenesis_Validator_Remove(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		dummyKeys := common.GetDummyKeys(t, 2)
-		genesis := common.GetDefaultGenesis()
+		dummyKeys := common.DummyKeys(t, 2)
+		genesis := common.DefaultGenesis()
 
 		// Set an existing validator
 		genesis.Validators = append(genesis.Validators, types.GenesisValidator{
@@ -95,9 +95,9 @@ func TestGenesis_Validator_Remove(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		dummyKey := common.GetDummyKey(t)
+		dummyKey := common.DummyKey(t)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 
 		// Set an existing validator
 		genesis.Validators = append(genesis.Validators, types.GenesisValidator{

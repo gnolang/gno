@@ -22,9 +22,9 @@ stdout 'same address, success!'
 -- registry/registry.gno --
 package registry
 
-import "std"
+import "chain/runtime"
 
-type transferCb func(to std.Address, amount uint64) string
+type transferCb func(cur realm, to address, amount uint64) string
 
 type pair struct {
 	name string
@@ -33,21 +33,17 @@ type pair struct {
 
 var registry = []pair{}
 
-func Register(name string, cb transferCb) {
-	crossing()
-
+func Register(cur realm, name string, cb transferCb) {
 	registry = append(registry, pair{name: name, cb: cb})
 }
 
-func TransferByName(name string, to string, amount uint64) string {
-	crossing()
-
+func TransferByName(cur realm, name string, to string, amount uint64) string {
 	for _, pair := range registry {
 		if pair.name != name {
 			continue
 		}
 
-		if std.CurrentRealm().Address().String() != cross(pair.cb)(std.Address(to), amount) {
+		if runtime.CurrentRealm().Address().String() != pair.cb(cross, address(to), amount) {
 			return "invalid address, ownership issue :("
 		}
 
@@ -56,7 +52,9 @@ func TransferByName(name string, to string, amount uint64) string {
 
 	return "not found"
 }
-
+-- foo20wrapper/gnomod.toml --
+module = "gno.land/r/foo20wrapper"
+gno = "0.9"
 -- foo20wrapper/foo20wrapper.gno --
 package foo20wrapper
 
@@ -64,17 +62,18 @@ import "gno.land/r/registry"
 import "gno.land/r/foo20"
 
 func init() {
-	  cross(registry.Register)("foo20", foo20.Transfer)
+	  registry.Register(cross, "foo20", foo20.Transfer)
 }
 
+-- foo20/gnomod.toml --
+module = "gno.land/r/foo20"
+gno = "0.9"
 -- foo20/foo20.gno --
 package foo20
 
-import "std"
+import "chain/runtime"
 
-func Transfer(to std.Address, amount uint64) string {
-	crossing()
-
-	println("transfer from=" + std.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
-	return std.PreviousRealm().Address().String()
+func Transfer(cur realm, to address, amount uint64) string {
+	println("transfer from=" + runtime.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
+	return runtime.PreviousRealm().Address().String()
 }

@@ -82,11 +82,12 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 			urlstr.WriteRune(':')
 		}
 
-		// web: $ url-encoded + normal path encoding except /
-		// qrender arg: ? url-encoded, rest is sent decoded.
+		// PathEscape encodes everything including slashes.
+		// $ is also encoded. NoEscape only encodes ?.
 		args := gnoURL.Args
 		if escape {
-			args = webEscapedReplacer.Replace(url.PathEscape(args))
+			escaped := url.PathEscape(args)
+			args = strings.ReplaceAll(escaped, "$", "%24")
 		} else {
 			args = strings.ReplaceAll(args, "?", "%3F")
 		}
@@ -109,11 +110,6 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 	return urlstr.String()
 }
 
-var webEscapedReplacer = strings.NewReplacer(
-	"$", "%24",
-	"%2F", "/",
-)
-
 // Has checks if the EncodeFlag contains all the specified flags.
 func (f EncodeFlag) Has(flags EncodeFlag) bool {
 	return f&flags != 0
@@ -133,8 +129,16 @@ func (gnoURL GnoURL) EncodeURL() string {
 
 // EncodeWebURL encodes the path, package arguments, web query, and query into a string.
 // This function provides the full representation of the URL.
+// Slashes in args are unescaped for readability.
 func (gnoURL GnoURL) EncodeWebURL() string {
-	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery)
+	encoded := gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery)
+	return strings.ReplaceAll(encoded, "%2F", "/")
+}
+
+// EncodeFormURL encodes the URL for form redirects.
+// Slashes remain encoded (%2F) to prevent browser path normalization attacks.
+func (gnoURL GnoURL) EncodeFormURL() string {
+	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery)
 }
 
 // IsPure checks if the URL path represents a pure path.
@@ -145,6 +149,10 @@ func (gnoURL GnoURL) IsPure() bool {
 // IsRealm checks if the URL path represents a realm path.
 func (gnoURL GnoURL) IsRealm() bool {
 	return strings.HasPrefix(gnoURL.Path, "/r/")
+}
+
+func (gnoURL GnoURL) IsUser() bool {
+	return strings.HasPrefix(gnoURL.Path, "/u/")
 }
 
 // IsFile checks if the URL path represents a file.
@@ -161,8 +169,11 @@ func (gnoURL GnoURL) IsDir() bool {
 // rePkgPath matches and validates a path.
 var rePkgPath = regexp.MustCompile(`^/[a-z0-9_/]*$`)
 
+// reUserPath matches and validates a user path.
+var reUserPath = regexp.MustCompile(`^/u/[a-zA-Z0-9_]+$`)
+
 func (gnoURL GnoURL) IsValidPath() bool {
-	return rePkgPath.MatchString(gnoURL.Path)
+	return rePkgPath.MatchString(gnoURL.Path) || reUserPath.MatchString(gnoURL.Path)
 }
 
 var reNamespace = regexp.MustCompile(`^/[a-z]/[a-z][a-z0-9_/]*$`)
@@ -179,6 +190,15 @@ func (gnoURL GnoURL) Namespace() string {
 	}
 
 	return path
+}
+
+// Extract the username from the path (e.g., "/u/alice" -> "alice")
+func (gnoURL GnoURL) Username() string {
+	if !gnoURL.IsUser() {
+		return ""
+	}
+
+	return gnoURL.Path[3:] // skip `/u/`
 }
 
 // ParseFromURL parses a URL into a GnoURL structure, extracting and validating its components.

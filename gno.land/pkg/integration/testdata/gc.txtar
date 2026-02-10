@@ -3,10 +3,11 @@
 loadpkg gno.land/r/gc $WORK/r/gc
 
 ## start a new node
-gnoland start
+gnoland start -no-parallel
 
-gnokey maketx call -pkgpath gno.land/r/gc -func Alloc -gas-fee 100000ugnot -gas-wanted 3000000 -simulate skip -broadcast -chainid tendermint_test test1
-stdout 'GAS USED:   508221'
+
+gnokey maketx call -pkgpath gno.land/r/gc -func Alloc -gas-fee 10000000ugnot -gas-wanted 300000000 -simulate skip -broadcast -chainid tendermint_test test1
+stdout 'GAS USED:   262693098'
 
 -- r/gc/gc.gno --
 package gc
@@ -15,11 +16,9 @@ func gen() {
 	_ = make([]byte, 250*1024*1024)
 }
 
-func Alloc() {
-	crossing()
-
+func Alloc(cur realm) {
 	for i := 0; i < 100; i++ {
 		gen()
-	    gen()
+		gen()
 	}
 }

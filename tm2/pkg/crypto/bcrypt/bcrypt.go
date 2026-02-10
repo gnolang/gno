@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"golang.org/x/crypto/blowfish"
+	"golang.org/x/crypto/blowfish" //nolint:staticcheck
 )
 
 const (

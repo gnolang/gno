@@ -11,7 +11,7 @@ type testService struct {
 	BaseService
 }
 
-func (testService) OnReset() error {
+func (*testService) OnReset() error {
 	return nil
 }
 

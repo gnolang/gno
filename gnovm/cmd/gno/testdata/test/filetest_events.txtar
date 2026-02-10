@@ -9,7 +9,7 @@ gno test -print-events -v .
 
 stdout 'test'
 stderr '=== RUN   ./valid_filetest.gno'
-stderr '--- PASS: ./valid_filetest.gno \(\d+\.\d\ds\)'
+stderr '--- PASS: ./valid_filetest.gno \(elapsed: \d+\.\d\ds, gas: \d+\)'
 stderr 'ok      \. 	\d+\.\d\ds'
 
 -- valid.gno --
@@ -18,12 +18,12 @@ package valid
 -- valid_filetest.gno --
 package main
 
-import "std"
+import "chain"
 
 func main() {
 	println("test")
-	std.Emit("EventA")
-	std.Emit("EventB", "keyA",  "valA")
+	chain.Emit("EventA")
+	chain.Emit("EventB", "keyA",  "valA")
 }
 
 // Output:
@@ -47,3 +47,8 @@ func main() {
 //     "pkg_path": "main"
 //   }
 // ]
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/filetest_events"
+gno = "0.9"

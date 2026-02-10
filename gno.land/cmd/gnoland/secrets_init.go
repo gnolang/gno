@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
+	fstate "github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
@@ -141,10 +141,7 @@ func overwriteGuard(
 // initAndSaveValidatorKey generates a validator private key and saves it to the given path
 func initAndSaveValidatorKey(path string, io commands.IO) error {
 	// Initialize the validator's private key
-	privateKey := generateValidatorPrivateKey()
-
-	// Save the key
-	if err := saveSecretData(privateKey, path); err != nil {
+	if _, err := signer.GeneratePersistedFileKey(path); err != nil {
 		return fmt.Errorf("unable to save validator key, %w", err)
 	}
 
@@ -156,10 +153,7 @@ func initAndSaveValidatorKey(path string, io commands.IO) error {
 // initAndSaveValidatorState generates an empty last validator sign state and saves it to the given path
 func initAndSaveValidatorState(path string, io commands.IO) error {
 	// Initialize the validator's last sign state
-	validatorState := generateLastSignValidatorState()
-
-	// Save the last sign state
-	if err := saveSecretData(validatorState, path); err != nil {
+	if _, err := fstate.GeneratePersistedFileState(path); err != nil {
 		return fmt.Errorf("unable to save last validator sign state, %w", err)
 	}
 
@@ -171,35 +165,11 @@ func initAndSaveValidatorState(path string, io commands.IO) error {
 // initAndSaveNodeKey generates a node p2p key and saves it to the given path
 func initAndSaveNodeKey(path string, io commands.IO) error {
 	// Initialize the node's p2p key
-	nodeKey := generateNodeKey()
-
-	// Save the node key
-	if err := saveSecretData(nodeKey, path); err != nil {
+	if _, err := types.GeneratePersistedNodeKey(path); err != nil {
 		return fmt.Errorf("unable to save node p2p key, %w", err)
 	}
 
 	io.Printfln("Node key saved at %s", path)
 
 	return nil
-}
-
-// generateValidatorPrivateKey generates the validator's private key
-func generateValidatorPrivateKey() *privval.FilePVKey {
-	privKey := ed25519.GenPrivKey()
-
-	return &privval.FilePVKey{
-		Address: privKey.PubKey().Address(),
-		PubKey:  privKey.PubKey(),
-		PrivKey: privKey,
-	}
-}
-
-// generateLastSignValidatorState generates the empty last sign state
-func generateLastSignValidatorState() *privval.FilePVLastSignState {
-	return &privval.FilePVLastSignState{} // Empty last sign state
-}
-
-// generateNodeKey generates the p2p node key
-func generateNodeKey() *types.NodeKey {
-	return types.GenerateNodeKey()
 }

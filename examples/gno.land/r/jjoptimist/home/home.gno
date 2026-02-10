@@ -1,7 +1,7 @@
 package home
 
 import (
-	"std"
+	"chain/runtime"
 	"strconv"
 	"time"
 
@@ -57,11 +57,11 @@ func getGnomeArt(height int64) string {
 
 func init() {
 	creation = time.Now()
-	cross(hor.Register)("JJoptimist's Home Realm", "")
+	hor.Register(cross, "JJoptimist's Home Realm", "")
 }
 
 func Render(path string) string {
-	height := std.ChainHeight()
+	height := runtime.ChainHeight()
 
 	output := "# " + config.Title + "\n\n"
 

@@ -1,0 +1,83 @@
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+adduserfrom newmember 'smooth crawl poverty trumpet glare useful curtain annual pluck lunar example merge ready forum better verb rescue rule mechanic dynamic drift bench release weekend'
+stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+
+adduser newmember2
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/gnoland/users/v1
+
+# load specific govDAO implementation and needed users for your integration test
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/demo/proxy $WORK/proxy
+
+gnoland start
+
+# call gov/dao render to check everything is working as expected and the loader worked
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
+
+# Register member with a namespace first
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
+stdout 'OK!'
+
+# Register member with a namespace first
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "newmem123" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test newmember
+stdout 'OK!'
+
+# Call from a non-member
+! gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -broadcast -chainid=tendermint_test newmember2
+stderr 'caller is not a member'
+
+# Call from with a proxy realm
+! gnokey maketx call -pkgpath gno.land/r/demo/proxy -func CreateMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -broadcast -chainid=tendermint_test member
+stderr 'this function must be called by an EOA through msg call or msg run'
+
+# Add a T3 member with invitation points
+gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# No invitation point left for the member
+! gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args ${newmember2_user_addr} -broadcast -chainid=tendermint_test member
+stderr 'not enough invitation points'
+
+# Call from a T3 member
+! gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args ${newmember2_user_addr} -broadcast -chainid=tendermint_test newmember
+stderr 'caller is not on T1 or T2. To add members, propose them through proposals'
+
+# check output
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/memberstore:'
+stdout 'Tier T3 contains 1 members'
+
+-- proxy/create_member.gno --
+package proxy
+
+import "gno.land/r/gov/dao/v3/impl"
+
+func CreateMember(cur realm, addr address) {
+	impl.AddMember(cross, addr)
+}
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 1}) // member address
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}

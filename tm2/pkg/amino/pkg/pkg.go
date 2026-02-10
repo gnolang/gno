@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -261,7 +262,7 @@ func (pkg *Package) WithComments(filename string) *Package {
 				continue
 			}
 			for _, field := range structType.Fields.List {
-				if field.Names != nil && len(field.Names) == 1 && field.Doc != nil {
+				if len(field.Names) == 1 && field.Doc != nil {
 					// Set the field comment.
 					if pkgType.FieldComments == nil {
 						pkgType.FieldComments = make(map[string]string)
@@ -402,6 +403,9 @@ func GetCallersDirname() string {
 	dirName = filepath.Dir(filename)
 	if filename == "" || dirName == "" {
 		panic("could not derive caller's package directory")
+	}
+	if !path.IsAbs(dirName) {
+		dirName = "" // if relative, assume from module and return empty string
 	}
 	return dirName
 }

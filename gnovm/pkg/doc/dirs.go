@@ -13,11 +13,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"golang.org/x/mod/module"
 )
 
 // A bfsDir describes a directory holding code by specifying
@@ -56,14 +55,14 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 	}
 
 	for _, mdir := range modDirs {
-		gm, err := gnomod.ParseFilepath(filepath.Join(mdir, "gno.mod"))
+		gm, err := gnomod.ParseFilepath(filepath.Join(mdir, "gnomod.toml"))
 		if err != nil {
 			log.Printf("%v", err)
 			continue
 		}
 		roots = append(roots, bfsDir{
 			dir:        mdir,
-			importPath: gm.Module.Mod.Path,
+			importPath: gm.Module,
 		})
 		roots = append(roots, getGnoModDirs(gm, mdir)...)
 	}
@@ -75,12 +74,11 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 	// cmd/go makes use of the go list command, we don't have that here.
 
-	imports := packageImportsRecursive(root, gm.Module.Mod.Path)
+	imports := packageImportsRecursive(root, gm.Module)
 
 	dirs := make([]bfsDir, 0, len(imports))
 	for _, r := range imports {
-		mv := gm.Resolve(module.Version{Path: r})
-		path := gnomod.PackageDir("", mv)
+		path := filepath.Join(root, r)
 		if _, err := os.Stat(path); err != nil {
 			// only give directories which actually exist and don't give
 			// an error when accessing
@@ -90,7 +88,7 @@ func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 			continue
 		}
 		dirs = append(dirs, bfsDir{
-			importPath: mv.Path,
+			importPath: r,
 			dir:        path,
 		})
 	}
@@ -99,7 +97,7 @@ func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 }
 
 func packageImportsRecursive(root string, pkgPath string) []string {
-	pkg, err := gnolang.ReadMemPackage(root, pkgPath)
+	pkg, err := gno.ReadMemPackage(root, pkgPath, gno.MPAnyProd)
 	if err != nil {
 		// ignore invalid packages
 		pkg = &std.MemPackage{}

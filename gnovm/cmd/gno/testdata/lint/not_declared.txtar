@@ -1,6 +1,6 @@
 # testing gno lint command: not declared error
 
-! gno lint ./bad_file.gno
+! gno lint .
 
 cmp stdout stdout.golden
 cmp stderr stderr.golden
@@ -13,8 +13,8 @@ func main() {
 	println("Hello", 42)
 }
 
--- gno.mod --
-module gno.land/p/demo/hello
+-- gnomod.toml --
+module = "gno.land/p/demo/hello"
 
 -- stdout.golden --
 -- stderr.golden --

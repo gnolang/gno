@@ -1,32 +1,43 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
-	"std"
+	"chain/runtime"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 type fooer struct{}
 
-func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
+func (fooer) Foo(cur realm) {
+	println("hello " + runtime.CurrentRealm().PkgPath())
+}
+
+func (fooer) Bar() {
+	println("hello " + runtime.CurrentRealm().PkgPath())
+}
 
 var f *fooer
 
 func init() {
+	println("init")
 	f = &fooer{}
-	cross(crossrealm.SetFooer)(f)
-	crossrealm.CallFooerFoo()
-	cross(crossrealm.CallFooerFooSR)()
+	crossrealm.SetFooer(cross, f)
+	// crossrealm.CallFooerFooCur(cross) <-- panics: cannot cur-call to
+	// external realm function gno.land/r/crossrealm_test.Foo from
+	// gno.land/r/tests/vm/crossrealm
+	crossrealm.CallFooerFooCross(cross)
+	crossrealm.CallFooerBar()
+	crossrealm.CallFooerBarCrossing(cross)
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	print(".")
 }
 
 // Output:
-// hello gno.land/r/crossrealm_test
-// hello gno.land/r/demo/tests/crossrealm
+// init
+// hello gno.land/r/crossrealm
+// hello gno.land/r/crossrealm
+// hello gno.land/r/tests/vm/crossrealm
 // .

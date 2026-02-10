@@ -1,0 +1,14 @@
+-- input.md --
+Hello @alice, how are you doing?
+
+This is a mention of @bob_user.
+
+You can also mention users like @user_name_123 or @user_with_many_________underscores_and_numbers_12345.
+
+But you cannot mention user like @not-user or @not!user or even too short ones like @ab or email addresses like example@test.com.
+
+-- output.html --
+<p>Hello <a href="/u/alice">@alice<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a>, how are you doing?</p>
+<p>This is a mention of <a href="/u/bob_user">@bob_user<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a>.</p>
+<p>You can also mention users like <a href="/u/user_name_123">@user_name_123<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a> or <a href="/u/user_with_many_________underscores_and_numbers_12345">@user_with_many_________underscores_and_numbers_12345<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a>.</p>
+<p>But you cannot mention user like @not-user or <a href="/u/not">@not<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a>!user or even too short ones like @ab or email addresses like example@test.com.</p>

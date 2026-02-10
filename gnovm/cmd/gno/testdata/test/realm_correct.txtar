@@ -4,7 +4,7 @@ gno test -v .
 
 ! stdout .+ # stdout should be empty
 stderr '=== RUN   ./x_filetest.gno'
-stderr '--- PASS: ./x_filetest.gno \(\d+\.\d\ds\)'
+stderr '--- PASS: ./x_filetest.gno \(elapsed: \d+\.\d\ds, gas: \d+\)'
 stderr 'ok      \. 	\d+\.\d\ds'
 
 -- x_filetest.gno --
@@ -13,19 +13,17 @@ package xx
 
 var x int
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	x = 1
 }
 
 // Realm:
 // finalizerealm["gno.land/r/xx"]
-// u[aea84df38908f9569d0f552575606e6e6e7e22dd:3]=
-//     @@ -1,11 +1,12 @@
-//      {
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:3](5)=
+//     @@ -2,11 +2,12 @@
 //          "ObjectInfo": {
 //              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:3",
+//              "LastObjectSize": "216",
 //     -        "ModTime": "0",
 //     +        "ModTime": "5",
 //              "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
@@ -36,3 +34,8 @@ func main() {
 //              "T": {
 //                  "@type": "/gno.PrimitiveType",
 //                  "value": "32"
+
+
+-- gnomod.toml --
+module = "gno.test/r/integ/realm_correct"
+gno = "0.9"

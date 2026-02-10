@@ -1,23 +1,23 @@
 package foo1155
 
 import (
-	"std"
+	"chain/runtime"
 
-	"gno.land/p/demo/grc/grc1155"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/tokens/grc1155"
+	"gno.land/p/nt/ufmt"
 )
 
 var (
-	dummyURI             = "ipfs://xyz"
-	admin    std.Address = "g10x5phu0k6p64cwrhfpsc8tk43st9kug6wft530"
-	foo                  = grc1155.NewBasicGRC1155Token(dummyURI)
+	dummyURI         = "ipfs://xyz"
+	admin    address = "g10x5phu0k6p64cwrhfpsc8tk43st9kug6wft530"
+	foo              = grc1155.NewBasicGRC1155Token(dummyURI)
 )
 
 func init() {
 	mintGRC1155Token(admin) // @administrator (10)
 }
 
-func mintGRC1155Token(owner std.Address) {
+func mintGRC1155Token(owner address) {
 	for i := 1; i <= 10; i++ {
 		tid := grc1155.TokenID(ufmt.Sprintf("%d", i))
 		foo.SafeMint(owner, tid, 100)
@@ -26,7 +26,7 @@ func mintGRC1155Token(owner std.Address) {
 
 // Getters
 
-func BalanceOf(user std.Address, tid grc1155.TokenID) int64 {
+func BalanceOf(user address, tid grc1155.TokenID) int64 {
 	balance, err := foo.BalanceOf(user, tid)
 	if err != nil {
 		panic(err)
@@ -35,7 +35,7 @@ func BalanceOf(user std.Address, tid grc1155.TokenID) int64 {
 	return balance
 }
 
-func BalanceOfBatch(ul []std.Address, batch []grc1155.TokenID) []int64 {
+func BalanceOfBatch(ul []address, batch []grc1155.TokenID) []int64 {
 	balanceBatch, err := foo.BalanceOfBatch(ul, batch)
 	if err != nil {
 		panic(err)
@@ -44,27 +44,27 @@ func BalanceOfBatch(ul []std.Address, batch []grc1155.TokenID) []int64 {
 	return balanceBatch
 }
 
-func IsApprovedForAll(owner, user std.Address) bool {
+func IsApprovedForAll(owner, user address) bool {
 	return foo.IsApprovedForAll(owner, user)
 }
 
 // Setters
 
-func SetApprovalForAll(user std.Address, approved bool) {
+func SetApprovalForAll(_ realm, user address, approved bool) {
 	err := foo.SetApprovalForAll(user, approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(from, to std.Address, tid grc1155.TokenID, amount int64) {
+func TransferFrom(_ realm, from, to address, tid grc1155.TokenID, amount int64) {
 	err := foo.SafeTransferFrom(from, to, tid, amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func BatchTransferFrom(from, to std.Address, batch []grc1155.TokenID, amounts []int64) {
+func BatchTransferFrom(_ realm, from, to address, batch []grc1155.TokenID, amounts []int64) {
 	err := foo.SafeBatchTransferFrom(from, to, batch, amounts)
 	if err != nil {
 		panic(err)
@@ -73,8 +73,8 @@ func BatchTransferFrom(from, to std.Address, batch []grc1155.TokenID, amounts []
 
 // Admin
 
-func Mint(to std.Address, tid grc1155.TokenID, amount int64) {
-	caller := std.OriginCaller()
+func Mint(_ realm, to address, tid grc1155.TokenID, amount int64) {
+	caller := runtime.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.SafeMint(to, tid, amount)
 	if err != nil {
@@ -82,8 +82,8 @@ func Mint(to std.Address, tid grc1155.TokenID, amount int64) {
 	}
 }
 
-func MintBatch(to std.Address, batch []grc1155.TokenID, amounts []int64) {
-	caller := std.OriginCaller()
+func MintBatch(_ realm, to address, batch []grc1155.TokenID, amounts []int64) {
+	caller := runtime.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.SafeBatchMint(to, batch, amounts)
 	if err != nil {
@@ -91,8 +91,8 @@ func MintBatch(to std.Address, batch []grc1155.TokenID, amounts []int64) {
 	}
 }
 
-func Burn(from std.Address, tid grc1155.TokenID, amount int64) {
-	caller := std.OriginCaller()
+func Burn(_ realm, from address, tid grc1155.TokenID, amount int64) {
+	caller := runtime.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.Burn(from, tid, amount)
 	if err != nil {
@@ -100,8 +100,8 @@ func Burn(from std.Address, tid grc1155.TokenID, amount int64) {
 	}
 }
 
-func BurnBatch(from std.Address, batch []grc1155.TokenID, amounts []int64) {
-	caller := std.OriginCaller()
+func BurnBatch(_ realm, from address, batch []grc1155.TokenID, amounts []int64) {
+	caller := runtime.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.BatchBurn(from, batch, amounts)
 	if err != nil {
@@ -122,8 +122,8 @@ func Render(path string) string {
 
 // Util
 
-func assertIsAdmin(address std.Address) {
-	if address != admin {
+func assertIsAdmin(address_XXX address) {
+	if address_XXX != admin {
 		panic("restricted access")
 	}
 }

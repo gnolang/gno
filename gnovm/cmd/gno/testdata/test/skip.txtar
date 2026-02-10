@@ -22,3 +22,8 @@ func TestSkip(t *testing.T) {
 	t.Skip("I'm on strike!")
 	t.Log("so this shouldn't print")
 }
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/skip"
+gno = "0.9"

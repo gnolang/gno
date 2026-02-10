@@ -1,6 +1,6 @@
 package foo
 
-import bar "github.com/gnolang/gno/_test/b2/foo"
+import bar "filetests/extern/b2/foo"
 
 var Desc = "in b1/foo"
 

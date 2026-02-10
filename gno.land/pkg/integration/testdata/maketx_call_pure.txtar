@@ -18,23 +18,32 @@ stderr '"gnokey" error: --= Error =--\nData: invalid package path'
 stderr '"gnokey" error: --= Error =--\nData: invalid package path'
 
 # 4. normal call to realm ERROR (need crossing)
-! gnokey maketx call -pkgpath gno.land/r/foo/call_realm -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stderr 'cannot cross-call a non-crossing function gno.land/r/foo/call_realm.Render from <no realm>'
+! gnokey maketx call -pkgpath gno.land/r/foo/call_realm -func Render2 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stderr 'function Render2 is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun'
+
+# 5. normal call to realm ERROR (need crossing)
+! gnokey maketx call -pkgpath gno.land/r/foo/call_realm -func Render -args "" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stderr 'function Render is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun'
+# XXX: While the error is correct, the correct message should be something like the message below:
+# stderr 'cannot cross-call a non-crossing function gno.land/r/foo/call_realm.Render from <no realm>'
 
 # 5. normal eval realm SUCCESS
-gnokey query vm/qeval --data 'gno.land/r/foo/call_realm.Render()'
+gnokey query vm/qeval --data 'gno.land/r/foo/call_realm.Render2()'
 stdout 'ok'
 
 -- pure/package.gno --
 package call_pure
 
 func Hello() string {
- 	return "notok"
+	return "notok"
 }
-
 -- realm/realm.gno --
 package call_realm
 
-func Render() string {
- 	return "ok"
+func Render(path string) string {
+	return path
+}
+
+func Render2() string {
+	return "ok"
 }

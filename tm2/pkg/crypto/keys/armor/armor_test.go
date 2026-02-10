@@ -23,6 +23,18 @@ func TestArmorUnarmor_PrivKey_Encrypted(t *testing.T) {
 	require.True(t, priv.Equals(decrypted))
 }
 
+func TestArmorUnarmor_PrivKey_EmptyPass(t *testing.T) {
+	t.Parallel()
+
+	priv := secp256k1.GenPrivKey()
+	astr := armor.EncryptArmorPrivKey(priv, "")
+	_, err := armor.UnarmorDecryptPrivKey(astr, "wrongpassphrase")
+	require.Error(t, err)
+	decrypted, err := armor.UnarmorDecryptPrivKey(astr, "")
+	require.NoError(t, err)
+	require.True(t, priv.Equals(decrypted))
+}
+
 func TestArmorUnarmor_PubKey(t *testing.T) {
 	t.Parallel()
 

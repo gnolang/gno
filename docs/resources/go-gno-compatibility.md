@@ -278,7 +278,7 @@ Legend:
 [^3]: `crypto/sha256` is currently only implemented for `Sum256`, which should
   still cover a majority of use cases. A full implementation is welcome.
 [^4]: like many other encoding packages, `fmt` depends on `reflect` to be added.
-  For now, package `gno.land/p/demo/ufmt` may do what you need. In test
+  For now, package `gno.land/p/nt/ufmt` may do what you need. In test
   functions, `fmt` works.
 [^5]: `io/ioutil` [is deprecated in Go.](https://pkg.go.dev/io/ioutil)
   Its functionality has been moved to packages `os` and `io`. The functions

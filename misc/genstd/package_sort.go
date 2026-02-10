@@ -2,18 +2,10 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
-
-	"golang.org/x/exp/maps"
 )
-
-// mostly for the "testing" package, these only exist as Gno native injections
-var nativeInjections = []string{
-	"fmt",
-	"os",
-	"encoding/json",
-}
 
 // sortPackages sorts pkgs into their initialization order.
 func sortPackages(pkgs []*pkgData) []string {
@@ -31,15 +23,9 @@ func sortPackages(pkgs []*pkgData) []string {
 			)
 		}
 		// for a deterministic result, sort the imports.
-		imports := maps.Keys(pkg.imports)
-		slices.Sort(imports)
+		imports := slices.Sorted(maps.Keys(pkg.imports))
 		for _, imp := range imports {
 			if slices.Contains(res, imp) {
-				continue
-			}
-			if (pkg.importPath == "testing" ||
-				pkg.importPath == "testing/base") &&
-				slices.Contains(nativeInjections, imp) {
 				continue
 			}
 

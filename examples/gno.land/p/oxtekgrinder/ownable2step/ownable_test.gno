@@ -1,12 +1,11 @@
 package ownable2step
 
 import (
-	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 var (
@@ -87,18 +86,18 @@ func TestOwnedByCurrent(t *testing.T) {
 
 func TestOwnedByCurrentUnauthorized(t *testing.T) {
 	testing.SetOriginCaller(alice)
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 
 	var o *Ownable2Step
 	func() {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 		o = NewWithOrigin()
 	}()
 
 	uassert.True(t, o.OwnedByCurrent())
 
 	unauthorizedCaller := bob
-	testing.SetRealm(std.NewUserRealm(unauthorizedCaller))
+	testing.SetRealm(testing.NewUserRealm(unauthorizedCaller))
 	uassert.False(t, o.OwnedByCurrent())
 }
 
@@ -107,19 +106,19 @@ func TestOwnedByPrevious(t *testing.T) {
 
 	o := New()
 	func() {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 		uassert.True(t, o.OwnedByPrevious())
 	}()
 }
 
 func TestOwnedByPreviousUnauthorized(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 
 	o := New()
 	unauthorizedCaller := bob
-	testing.SetRealm(std.NewUserRealm(unauthorizedCaller))
+	testing.SetRealm(testing.NewUserRealm(unauthorizedCaller))
 	func() {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 		uassert.False(t, o.OwnedByPrevious())
 	}()
 }

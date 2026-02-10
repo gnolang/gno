@@ -8,7 +8,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
-	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
+	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
@@ -36,7 +36,7 @@ func benchmarkDiskStore() BenchStore {
 		log.Fatal("unable to get absolute path for storage directory.", err)
 	}
 
-	db, err := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(storeDir, config.DefaultDBDir))
+	db, err := dbm.NewDB("gnolang", dbm.PebbleDBBackend, filepath.Join(storeDir, config.DefaultDBDir))
 	if err != nil {
 		log.Fatalf("error initializing database %q using path %q: %s\n", dbm.GoLevelDBBackend, storeDir, err)
 	}

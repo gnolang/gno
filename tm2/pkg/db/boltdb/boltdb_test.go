@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 )
 
 func TestBoltDBNew(t *testing.T) {
@@ -15,7 +16,8 @@ func TestBoltDBNew(t *testing.T) {
 
 	db, err := New(name, t.TempDir())
 	require.NoError(t, err)
-	db.Close()
+	require.NoError(t, db.Print())
+	require.NoError(t, db.Close())
 }
 
 func BenchmarkBoltDBRandomReadsWrites(b *testing.B) {

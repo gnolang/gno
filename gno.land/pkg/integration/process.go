@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"os/signal"
 	"slices"
 	"sync"
 	"testing"
@@ -81,9 +80,9 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 
 	// Configure validator if provided
 	if len(pcfg.ValidatorKey) > 0 && !isAllZero(pcfg.ValidatorKey) {
-		nodecfg.PrivValidator = bft.NewMockPVWithParams(pcfg.ValidatorKey, false, false)
+		nodecfg.PrivValidator = bft.NewMockPVWithPrivKey(pcfg.ValidatorKey)
 	}
-	pv := nodecfg.PrivValidator.GetPubKey()
+	pk := nodecfg.PrivValidator.PubKey()
 
 	// Setup node configuration
 	nodecfg.DB = db
@@ -92,8 +91,8 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	nodecfg.Genesis = pcfg.Genesis.ToGenesisDoc()
 	nodecfg.Genesis.Validators = []bft.GenesisValidator{
 		{
-			Address: pv.Address(),
-			PubKey:  pv,
+			Address: pk.Address(),
+			PubKey:  pk,
 			Power:   10,
 			Name:    "self",
 		},
@@ -110,8 +109,10 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	}
 	defer node.Stop()
 
+	// Get the validator public key
+	ourAddress := nodecfg.PrivValidator.PubKey().Address()
+
 	// Determine if the node is a validator
-	ourAddress := nodecfg.PrivValidator.GetPubKey().Address()
 	isValidator := slices.ContainsFunc(nodecfg.Genesis.Validators, func(val bft.GenesisValidator) bool {
 		return val.Address == ourAddress
 	})
@@ -215,6 +216,7 @@ func RunNodeProcess(ctx context.Context, cfg ProcessConfig, name string, args ..
 
 	address, err := waitForProcessReady(ctx, stdoutPipe, cfg.Stdout)
 	if err != nil {
+		cmd.Process.Kill() // kill process if it isn't ready yet
 		return nil, fmt.Errorf("waiting for readiness: %w", err)
 	}
 
@@ -292,9 +294,6 @@ func RunInMemoryProcess(ctx context.Context, cfg ProcessConfig) (NodeProcess, er
 }
 
 func RunMain(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-
 	// Read the configuration from standard input
 	configData, err := io.ReadAll(stdin)
 	if err != nil {

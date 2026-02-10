@@ -608,14 +608,13 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliv
 
 // validateBasicTxMsgs executes basic validator calls for messages.
 func validateBasicTxMsgs(msgs []Msg) error {
-	if msgs == nil || len(msgs) == 0 {
+	if len(msgs) == 0 {
 		return std.ErrUnknownRequest("Tx.GetMsgs() must return at least one message in list")
 	}
 
 	for _, msg := range msgs {
 		// Validate the Msg.
-		err := msg.ValidateBasic()
-		if err != nil {
+		if err := msg.ValidateBasic(); err != nil {
 			return err
 		}
 	}
@@ -720,7 +719,7 @@ func (app *BaseApp) getState(mode RunTxMode) *state {
 // a cache wrapped multi-store.
 func (app *BaseApp) cacheTxContext(ctx Context) (Context, store.MultiStore) {
 	ms := ctx.MultiStore()
-	// TODO: https://github.com/tendermint/classic/sdk/issues/2824
+	// TODO: https://github.com/cosmos/cosmos-sdk/issues/2824
 	msCache := ms.MultiCacheWrap()
 	return ctx.WithMultiStore(msCache), msCache
 }
@@ -819,7 +818,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		// Cache wrap context before anteHandler call in case
 		// it aborts.  This is required for both CheckTx and
 		// DeliverTx.  Ref:
-		// https://github.com/tendermint/classic/sdk/issues/2772
+		// https://github.com/cosmos/cosmos-sdk/issues/2772
 		//
 		// NOTE: Alternatively, we could require that
 		// anteHandler ensures that writes do not happen if
@@ -972,9 +971,18 @@ func (app *BaseApp) halt() {
 	os.Exit(0)
 }
 
-// TODO implement cleanup
 func (app *BaseApp) Close() error {
-	return nil // XXX
+	if app.db == nil {
+		return nil
+	}
+
+	app.logger.Info("Closing application.db")
+
+	if err := app.db.Close(); err != nil {
+		return fmt.Errorf("unable to gracefully close DB: %w", err)
+	}
+
+	return nil
 }
 
 // ----------------------------------------------------------------------------

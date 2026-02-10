@@ -5,12 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
-	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -23,13 +19,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -46,7 +41,7 @@ var startGraphic = strings.ReplaceAll(`
 `, "'", "`")
 
 // Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
-var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1)))
 
 type startCfg struct {
 	gnoRootDir                 string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
@@ -184,7 +179,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	}
 
 	// Initialize the logger
-	zapLogger, err := initializeLogger(io.Out(), c.logLevel, c.logFormat)
+	zapLogger, err := log.InitializeZapLogger(io.Out(), c.logLevel, c.logFormat)
 	if err != nil {
 		return fmt.Errorf("unable to initialize zap logger, %w", err)
 	}
@@ -215,22 +210,33 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 			return errMissingGenesis
 		}
 
-		// Load the private validator secrets
-		privateKey := privval.LoadFilePV(
-			cfg.PrivValidatorKeyFile(),
-			cfg.PrivValidatorStateFile(),
-		)
+		// Get the node key for signer init
+		nodeKey, err := p2pTypes.LoadOrMakeNodeKey(cfg.NodeKeyFile())
+		if err != nil {
+			return fmt.Errorf("unable to load or make node key, %w", err)
+		}
+
+		// Init the signer based on the config
+		signer, err := privval.NewSignerFromConfig(ctx, cfg.Consensus.PrivValidator, nodeKey.PrivKey, logger)
+		if err != nil {
+			return fmt.Errorf("unable to instantiate signer based on config: %w", err)
+		}
 
 		// Init a new genesis.json
-		if err := lazyInitGenesis(io, c, genesisPath, privateKey.Key.PrivKey); err != nil {
+		if err := lazyInitGenesis(io, c, genesisPath, signer); err != nil {
 			return fmt.Errorf("unable to initialize genesis.json, %w", err)
 		}
+
+		// Close the signer
+		signer.Close()
 	}
 
 	// Initialize telemetry
 	if err := telemetry.Init(*cfg.Telemetry); err != nil {
 		return fmt.Errorf("unable to initialize telemetry, %w", err)
 	}
+
+	defer telemetry.Shutdown()
 
 	// Print the starting graphic
 	if c.logFormat != string(log.JSONFormat) {
@@ -239,7 +245,6 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 
 	// Create a top-level shared event switch
 	evsw := events.NewEventSwitch()
-	minGasPrices := cfg.Application.MinGasPrices
 
 	// Create application and node
 	cfg.LocalApp, err = gnoland.NewApp(
@@ -248,9 +253,9 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 			SkipFailingTxs:      c.skipFailingGenesisTxs,
 			SkipSigVerification: c.skipGenesisSigVerification,
 		},
+		cfg.Application,
 		evsw,
 		logger,
-		minGasPrices,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
@@ -267,17 +272,8 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to start the Gnoland node, %w", err)
 	}
 
-	// Set up the wait context
-	nodeCtx, _ := signal.NotifyContext(
-		ctx,
-		os.Interrupt,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-	)
-
 	// Wait for the exit signal
-	<-nodeCtx.Done()
+	<-ctx.Done()
 
 	if !gnoNode.IsRunning() {
 		return nil
@@ -286,6 +282,11 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	// Gracefully stop the gno node
 	if err := gnoNode.Stop(); err != nil {
 		return fmt.Errorf("unable to gracefully stop the Gnoland node, %w", err)
+	}
+
+	// Gracefully stop the app
+	if err = cfg.LocalApp.Close(); err != nil {
+		return fmt.Errorf("unable to gracefully close the Gnoland application: %w", err)
 	}
 
 	return nil
@@ -342,12 +343,12 @@ func lazyInitNodeDir(io commands.IO, nodeDir string) error {
 	return fmt.Errorf("unable to initialize secrets, %w", err)
 }
 
-// lazyInitGenesis a new genesis.json file, with a signle validator
+// lazyInitGenesis a new genesis.json file, with a single validator
 func lazyInitGenesis(
 	io commands.IO,
 	c *startCfg,
 	genesisPath string,
-	privateKey crypto.PrivKey,
+	signer gnoland.GenesisSigner,
 ) error {
 	// Check if the genesis.json is present
 	if osm.FileExists(genesisPath) {
@@ -355,7 +356,7 @@ func lazyInitGenesis(
 	}
 
 	// Generate the new genesis.json file
-	if err := generateGenesisFile(genesisPath, privateKey, c); err != nil {
+	if err := generateGenesisFile(genesisPath, signer, c); err != nil {
 		return fmt.Errorf("unable to generate genesis file, %w", err)
 	}
 
@@ -364,25 +365,9 @@ func lazyInitGenesis(
 	return nil
 }
 
-// initializeLogger initializes the zap logger using the given format and log level,
-// outputting to the given IO
-func initializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logger, error) {
-	// Initialize the log level
-	level, err := zapcore.ParseLevel(logLevel)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse log level, %w", err)
-	}
-
-	// Initialize the log format
-	format := log.Format(strings.ToLower(logFormat))
-
-	// Initialize the zap logger
-	return log.GetZapLoggerFn(format)(io, level), nil
-}
-
-func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg) error {
+func generateGenesisFile(genesisFile string, signer gnoland.GenesisSigner, c *startCfg) error {
 	var (
-		pubKey = privKey.PubKey()
+		pubKey = signer.PubKey()
 		// There is an active constraint for gno.land transactions:
 		//
 		// All transaction messages' (MsgSend, MsgAddPkg...) "author" field,
@@ -443,7 +428,7 @@ func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg
 	genesisTxs = append(pkgsTxs, genesisTxs...)
 
 	// Sign genesis transactions, with the default key (test1)
-	if err = gnoland.SignGenesisTxs(genesisTxs, privKey, c.chainID); err != nil {
+	if err = gnoland.SignGenesisTxs(genesisTxs, signer, c.chainID); err != nil {
 		return fmt.Errorf("unable to sign genesis txs: %w", err)
 	}
 
@@ -456,7 +441,7 @@ func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg
 	// Since the cost can't be estimated upfront at this point, the balance
 	// set is an arbitrary value based on a "best guess" basis.
 	// There should be a larger discussion if genesis transactions should consume gas, at all
-	deployerBalance := int64(len(genesisTxs)) * 10_000_000 // ~10 GNOT per tx
+	deployerBalance := int64(len(genesisTxs)) * 2_100_000 // ~2.1 GNOT per tx
 	balances.Set(txSender, std.NewCoins(std.NewCoin("ugnot", deployerBalance)))
 
 	// Construct genesis AppState.

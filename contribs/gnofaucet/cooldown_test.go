@@ -18,27 +18,27 @@ func TestCooldownLimiter(t *testing.T) {
 	})
 
 	cooldownDuration := time.Second
-	limiter := NewCooldownLimiter(cooldownDuration, rdb, 0)
+	limiter := newRedisLimiter(cooldownDuration, rdb, 0)
 	ctx := context.Background()
 	user := "testUser"
 
 	// First check should be allowed
-	allowed, err := limiter.CheckCooldown(ctx, user, tenGnots)
+	allowed, err := limiter.checkCooldown(ctx, user, tenGnots)
 	require.NoError(t, err)
 
 	if !allowed {
-		t.Errorf("Expected first CheckCooldown to return true, but got false")
+		t.Errorf("Expected first checkCooldown to return true, but got false")
 	}
 
-	allowed, err = limiter.CheckCooldown(ctx, user, tenGnots)
+	allowed, err = limiter.checkCooldown(ctx, user, tenGnots)
 	require.NoError(t, err)
 	// Second check immediately should be denied
 	if allowed {
-		t.Errorf("Expected second CheckCooldown to return false, but got true")
+		t.Errorf("Expected second checkCooldown to return false, but got true")
 	}
 
 	require.Eventually(t, func() bool {
-		allowed, err := limiter.CheckCooldown(ctx, user, tenGnots)
+		allowed, err := limiter.checkCooldown(ctx, user, tenGnots)
 		return err == nil && !allowed
-	}, 2*cooldownDuration, 10*time.Millisecond, "Expected CheckCooldown to return true after cooldown period")
+	}, 2*cooldownDuration, 10*time.Millisecond, "Expected checkCooldown to return true after cooldown period")
 }

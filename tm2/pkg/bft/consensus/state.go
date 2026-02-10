@@ -15,6 +15,7 @@ import (
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/fail"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
@@ -607,19 +608,20 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			cs.Logger.Error("CONSENSUS FAILURE!!!", "err", r, "stack", string(debug.Stack()))
-			// stop gracefully
-			//
-			// NOTE: We most probably shouldn't be running any further when there is
-			// some unexpected panic. Some unknown error happened, and so we don't
-			// know if that will result in the validator signing an invalid thing. It
-			// might be worthwhile to explore a mechanism for manual resuming via
-			// some console or secure RPC system, but for now, halting the chain upon
-			// unexpected consensus bugs sounds like the better option.
-			onExit()
-		} else {
-			onExit()
+			// Log the panic if it's not due to the remote signer client being closed.
+			if err, ok := r.(error); !ok || !goerrors.Is(err, client.ErrClientAlreadyClosed) {
+				cs.Logger.Error("CONSENSUS FAILURE!!!", "err", r, "stack", string(debug.Stack()))
+				// stop gracefully
+				//
+				// NOTE: We most probably shouldn't be running any further when there is
+				// some unexpected panic. Some unknown error happened, and so we don't
+				// know if that will result in the validator signing an invalid thing. It
+				// might be worthwhile to explore a mechanism for manual resuming via
+				// some console or secure RPC system, but for now, halting the chain upon
+				// unexpected consensus bugs sounds like the better option.
+			}
 		}
+		onExit()
 	}()
 
 	for {
@@ -703,7 +705,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		// We probably don't want to stop the peer here. The vote does not
 		// necessarily comes from a malicious peer but can be just broadcasted by
 		// a typical peer.
-		// https://github.com/tendermint/classic/issues/1281
+		// https://github.com/tendermint/tendermint/issues/1281
 		// }
 
 		// NOTE: the vote is broadcast to peers by the reactor listening
@@ -719,7 +721,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 
 	if err != nil { //nolint:staticcheck
 		// Causes TestReactorValidatorSetChanges to timeout
-		// https://github.com/tendermint/classic/issues/3406
+		// https://github.com/tendermint/tendermint/issues/3406
 		// cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round,
 		// 	"peer", peerID, "err", err, "msg", msg)
 	}
@@ -842,12 +844,11 @@ func (cs *ConsensusState) enterNewRound(height int64, round int) {
 	// we may need an empty "proof" block, and enterPropose immediately.
 	waitForTxs := cs.config.WaitForTxs() && round == 0 && !cs.needProofBlock(height)
 	if waitForTxs {
-		if cs.config.CreateEmptyBlocksInterval > 0 {
+		if cs.config.CreateEmptyBlocks && cs.config.CreateEmptyBlocksInterval > 0 {
 			cs.scheduleTimeout(cs.config.CreateEmptyBlocksInterval, height, round,
 				cstypes.RoundStepNewRound)
-		} else {
-			// wait until mempool pings us.
 		}
+		// else wait until mempool pings us.
 	} else {
 		cs.enterPropose(height, round)
 	}
@@ -897,9 +898,11 @@ func (cs *ConsensusState) enterPropose(height int64, round int) {
 		logger.Debug("This node is not a validator")
 		return
 	}
+	logger.Debug("This node is a validator")
+
+	address := cs.privValidator.PubKey().Address()
 
 	// if not a validator, we're done
-	address := cs.privValidator.GetPubKey().Address()
 	if !cs.Validators.HasAddress(address) {
 		logger.Debug("This node is not a validator", "addr", address, "vals", cs.Validators)
 		return
@@ -956,6 +959,10 @@ func (cs *ConsensusState) defaultDecideProposal(height int64, round int) {
 			"proposal round", proposal.POLRound,
 			"proposal timestamp", proposal.Timestamp.Unix(),
 		)
+	} else if goerrors.Is(err, client.ErrClientAlreadyClosed) {
+		// The remote signer client was closed by the node,
+		// so we panic to stop the receiveRoutine loop.
+		panic(err)
 	} else if !cs.replayMode {
 		cs.Logger.Error("enterPropose: Error signing proposal", "height", height, "round", round, "err", err)
 	}
@@ -1004,7 +1011,7 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 		}(startTime)
 	}
 
-	proposerAddr := cs.privValidator.GetPubKey().Address()
+	proposerAddr := cs.privValidator.PubKey().Address()
 	return cs.blockExec.CreateProposalBlock(cs.Height, cs.state, commit, proposerAddr)
 }
 
@@ -1537,7 +1544,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2pTypes.ID) (bool
 			// Either
 			// 1) bad peer OR
 			// 2) not a bad peer? this can also err sometimes with "Unexpected step" OR
-			// 3) tmkms use with multiple validators connecting to a single tmkms instance (https://github.com/tendermint/classic/issues/3839).
+			// 3) tmkms use with multiple validators connecting to a single tmkms instance (https://github.com/tendermint/tendermint/issues/3839).
 			cs.Logger.Info("Error attempting to add vote", "err", err)
 			return added, ErrAddingVote
 		}
@@ -1704,11 +1711,11 @@ func (cs *ConsensusState) signVote(type_ types.SignedMsgType, hash []byte, heade
 	// Flush the WAL. Otherwise, we may not recompute the same vote to sign, and the privValidator will refuse to sign anything.
 	cs.wal.FlushAndSync()
 
-	addr := cs.privValidator.GetPubKey().Address()
-	valIndex, _ := cs.Validators.GetByAddress(addr)
+	address := cs.privValidator.PubKey().Address()
+	valIndex, _ := cs.Validators.GetByAddress(address)
 
 	vote := &types.Vote{
-		ValidatorAddress: addr,
+		ValidatorAddress: address,
 		ValidatorIndex:   valIndex,
 		Height:           cs.Height,
 		Round:            cs.Round,
@@ -1727,7 +1734,7 @@ func (cs *ConsensusState) voteTime() time.Time {
 	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.
 	timeIota := time.Duration(cs.state.ConsensusParams.Block.TimeIotaMS) * time.Millisecond
 	if cs.LockedBlock != nil {
-		// See the BFT time spec https://tendermint.com/docs/spec/consensus/bft-time.html
+		// See the BFT time spec https://docs.cometbft.com/v0.38/spec/consensus/bft-time
 		minVoteTime = cs.LockedBlock.Time.Add(timeIota)
 	} else if cs.ProposalBlock != nil {
 		minVoteTime = cs.ProposalBlock.Time.Add(timeIota)
@@ -1740,10 +1747,12 @@ func (cs *ConsensusState) voteTime() time.Time {
 }
 
 // sign the vote and publish on internalMsgQueue
-func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, header types.PartSetHeader) *types.Vote {
+func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, header types.PartSetHeader) {
+	address := cs.privValidator.PubKey().Address()
+
 	// if we don't have a key or we're not in the validator set, do nothing
-	if cs.privValidator == nil || !cs.Validators.HasAddress(cs.privValidator.GetPubKey().Address()) {
-		return nil
+	if cs.privValidator == nil || !cs.Validators.HasAddress(address) {
+		return
 	}
 	vote, err := cs.signVote(type_, hash, header)
 	if err == nil {
@@ -1760,13 +1769,13 @@ func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, he
 			"validator address", vote.ValidatorAddress,
 			"validator index", vote.ValidatorIndex,
 		)
-
-		return vote
+	} else if goerrors.Is(err, client.ErrClientAlreadyClosed) {
+		// The remote signer client was closed by the node,
+		// so we panic to stop the receiveRoutine loop.
+		panic(err)
+	} else /* if !cs.replayMode */ {
+		cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
 	}
-	// if !cs.replayMode {
-	cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
-	// }
-	return nil
 }
 
 // logTelemetry logs the consensus state telemetry

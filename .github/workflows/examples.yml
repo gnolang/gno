@@ -9,6 +9,13 @@ on:
       # any change to gnovm code can make examples fail
       - gnovm/**
       - examples/**
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: Enable debug mode for gno test
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -24,63 +31,38 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
       - run: go install -v ./gnovm/cmd/gno
       - run: go run ./gnovm/cmd/gno tool transpile -v --gobuild ./examples
   test:
-    strategy:
-      fail-fast: false
-      matrix:
-        goversion:
-          - "1.23.x"
-        # unittests: TODO: matrix with contracts
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.goversion }}
-      - name: Set environment variables for debug mode
-        if: env.ACTIONS_STEP_DEBUG == 'true'
-        run: |
-          export LOG_PATH_DIR=${{ runner.temp }}/logs
-          mkdir -p $LOG_PATH_DIR
-          echo "LOG_LEVEL=debug" >> $GITHUB_ENV
-          echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
-      - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno test -v -print-runtime-metrics -print-events ./examples/...
+    name: Run gno test
+    uses: ./.github/workflows/template_gnotest.yml
+    with:
+      debug: ${{ inputs.debug || false }}
+      path: "examples"
+      go-version: "1.23.x"
+
   lint:
-    strategy:
-      fail-fast: false
-      matrix:
-        goversion:
-          - "1.23.x"
-        # unittests: TODO: matrix with contracts
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.goversion }}
-      # testing official directories, basically examples/ minus examples/.../x/.
-      - run: make lint -C ./examples
-      # TODO: consider running lint on every other directories, maybe in "warning" mode?
+    name: Run gno lint
+    uses: ./.github/workflows/template_gnolint.yml
+    with:
+      path: "examples"
+      go-version: "1.23.x"
+    # TODO: consider running lint on every other directories, maybe in "warning" mode?
     # TODO: track coverage
 
   fmt:
     name: Run gno fmt on examples
-    uses: ./.github/workflows/gnofmt_template.yml
+    uses: ./.github/workflows/template_gnofmt.yml
     with:
-      path: "examples/..."
+      path: "examples"
 
   generate:
     name: Check generated files are up to date
-    uses: ./.github/workflows/build_template.yml
+    uses: ./.github/workflows/template_build.yml
     with:
       modulepath: "examples"
       go-version: "1.23.x"
@@ -97,10 +79,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v4
-      - run: |
-          GNO_CMD="$(pwd)/gnovm/cmd/gno"
-          # Find all directories containing gno.mod file
-          find ./examples -name "gno.mod" -execdir go run "$GNO_CMD" mod tidy \;
+      - uses: actions/checkout@v5
+      - working-directory: ./examples
+        run: |
+          make tidy
           # Check if there are changes after running gno mod tidy
-          git diff --exit-code || (echo "Some gno.mod files are not tidy, please run 'make tidy'." && exit 1)
+          git diff --exit-code || (echo "Some gnomod.toml files are not tidy, please run 'make tidy'." && exit 1)

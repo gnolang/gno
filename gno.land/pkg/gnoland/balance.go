@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -79,12 +80,26 @@ func (bs Balances) Get(address crypto.Address) (balance Balance, ok bool) {
 	return
 }
 
+// List returns a slice of balances, sorted by Balance.Address
+// in lexicographic order.
 func (bs Balances) List() []Balance {
 	list := make([]Balance, 0, len(bs))
 	for _, balance := range bs {
 		list = append(list, balance)
 	}
+
+	SortBalances(list)
 	return list
+}
+
+// SortBalances sorts balances in lexicographic order, compared by .Address instead of .Amount
+// because .Amount's type is Coins that requires a deeper comparison by .Denom and
+// .Amount which are unnecessarily complex yet by the nature of each Balance in Balances,
+// each entry will be keyed by the same Address in a map.
+func SortBalances(list []Balance) {
+	slices.SortFunc(list, func(a, b Balance) int {
+		return a.Address.Compare(b.Address)
+	})
 }
 
 // LeftMerge left-merges the two maps

@@ -47,11 +47,11 @@ func TestApplyBlock(t *testing.T) {
 	block := makeBlock(state, 1)
 	blockID := types.BlockID{Hash: block.Hash(), PartsHeader: block.MakePartSet(testPartSize).Header()}
 
-	//nolint:ineffassign
 	state, err = blockExec.ApplyBlock(state, blockID, block)
 	require.Nil(t, err)
 
 	// TODO check state and mempool
+	_ = state
 }
 
 // TestBeginBlockValidators ensures we send absent validators list.

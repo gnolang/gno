@@ -1,8 +1,8 @@
 # test for https://github.com/gnolang/gnochess/issues/97
 
-gnoland start
+loadpkg gno.land/r/demo/bug97 $WORK
 
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/bug97 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnoland start
 
 gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'RealmCall1' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
 stdout 'OK!'
@@ -30,15 +30,11 @@ func NewS() S {
 
 var s S
 
-func RealmCall1() {
-	crossing()
-
+func RealmCall1(cur realm) {
 	s = NewS()
 }
 
-func RealmCall2()  {
-	crossing()
-
+func RealmCall2(cur realm)  {
 	arr2 := s.Arr
 	arr2[0] = 8
 	s = S{Arr: arr2}

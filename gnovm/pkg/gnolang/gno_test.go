@@ -6,11 +6,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"text/template"
-	"unsafe"
 
 	// "github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
@@ -22,9 +20,7 @@ func setupMachine(b *testing.B, numValues, numStmts, numExprs, numBlocks, numFra
 
 	m := &Machine{
 		Ops:       make([]Op, 100),
-		NumOps:    100,
 		Values:    make([]TypedValue, numValues),
-		NumValues: numValues,
 		Exprs:     make([]Expr, numExprs),
 		Stmts:     make([]Stmt, numStmts),
 		Blocks:    make([]*Block, numBlocks),
@@ -121,7 +117,7 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 			}()
 
 			m := NewMachine("test", nil)
-			nn := MustParseFile("main.go", s)
+			nn := m.MustParseFile("main.go", s)
 			m.RunFiles(nn)
 			m.RunMain()
 		})
@@ -152,7 +148,7 @@ func TestConvertTo(t *testing.T) {
 
 		m := NewMachine("test", nil)
 
-		n := MustParseFile("main.go", source)
+		n := m.MustParseFile("main.go", source)
 		m.RunFiles(n)
 		m.RunMain()
 	}
@@ -329,7 +325,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint(a))
@@ -338,7 +334,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint8(a))
@@ -347,7 +343,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint16(a))
@@ -356,7 +352,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint32(a))
@@ -365,7 +361,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint64(a))
@@ -374,7 +370,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a float32 = 1.5
 		   println(int32(a))
@@ -383,7 +379,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 		   println(int32(1.5))
 		}`,
@@ -391,7 +387,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a float64 = 1.5
 		   println(int64(a))
@@ -400,7 +396,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 		   println(int64(1.5))
 		}`,
@@ -408,7 +404,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 				func main() {
 					const f = float64(1.0)
 				   println(int64(f))
@@ -447,7 +443,7 @@ func main() {
 		}
 	}
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
 }
@@ -458,7 +454,7 @@ func BenchmarkPreprocessForLoop(b *testing.B) {
 func main() {
 	for i:=0; i<10000; i++ {}
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 
 	for i := 0; i < b.N; i++ {
@@ -477,7 +473,7 @@ func foo(a int) {
     b := int(a)
     println(b)
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 	fn := n.Decls[1].(*FuncDecl)
 	as := fn.Body[0].(*AssignStmt)
@@ -497,7 +493,7 @@ func main() {
 		}
 	}
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 
 	for i := 0; i < b.N; i++ {
@@ -582,7 +578,7 @@ func TestEval(t *testing.T) {
 func next(i int) int {
 	return i+1
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 	res := m.Eval(Call("next", "1"))
 	fmt.Println(res)
@@ -596,10 +592,10 @@ func assertOutput(t *testing.T, input string, output string) {
 		PkgPath: "test",
 		Output:  buf,
 	})
-	n := MustParseFile("main.go", input)
+	n := m.MustParseFile("main.go", input)
 	m.RunFiles(n)
 	m.RunMain()
-	assert.Equal(t, output, string(buf.Bytes()))
+	assert.Equal(t, output, buf.String())
 	err := m.CheckEmpty()
 	assert.Nil(t, err)
 }
@@ -633,6 +629,7 @@ func BenchmarkPreprocess(b *testing.B) {
 		// initStaticBlocks is always performed before a Preprocess
 		initStaticBlocks(nil, pn, copies[i])
 		main = Preprocess(nil, pkg, copies[i]).(*FuncDecl)
+		_ = main
 	}
 }
 
@@ -682,7 +679,7 @@ func BenchmarkBenchdata(b *testing.B) {
 					PkgPath: "main",
 					Output:  io.Discard,
 				})
-				n := MustParseFile("main.go", buf.String())
+				n := m.MustParseFile("main.go", buf.String())
 				m.RunFiles(n)
 
 				b.ResetTimer()
@@ -690,240 +687,4 @@ func BenchmarkBenchdata(b *testing.B) {
 			})
 		}
 	}
-}
-
-// ----------------------------------------
-// Unsorted
-
-type Struct1 struct {
-	A int
-	B int
-}
-
-func TestModifyTypeAsserted(t *testing.T) {
-	t.Parallel()
-
-	x := Struct1{1, 1}
-	var v any = x
-	x2 := v.(Struct1)
-	x2.A = 2
-
-	// only x2 is changed.
-	assert.Equal(t, 1, x.A)
-	assert.Equal(t, 1, v.(Struct1).A)
-	assert.Equal(t, 2, x2.A)
-}
-
-type Interface1 interface {
-	Foo()
-}
-
-func TestTypeConversion(t *testing.T) {
-	t.Parallel()
-
-	x := 1
-	var v any = x
-	if _, ok := v.(Interface1); ok {
-		panic("should not happen")
-	}
-	v = nil
-	if _, ok := v.(Interface1); ok {
-		panic("should not happen")
-	}
-	assert.Panics(t, func() {
-		// this would panic.
-		z := v.(Interface1)
-		fmt.Println(z)
-	})
-}
-
-func TestSomething(t *testing.T) {
-	t.Parallel()
-
-	type Foo struct {
-		X any
-	}
-
-	type Bar struct {
-		X any
-		Y bool
-	}
-
-	fmt.Println(unsafe.Sizeof(Foo{}))                        // 16
-	fmt.Println(unsafe.Sizeof(Foo{X: reflect.ValueOf(0)}.X)) // still 16? weird.
-	fmt.Println(unsafe.Sizeof(reflect.ValueOf(0)))           // 24
-	fmt.Println(unsafe.Sizeof(Bar{}))
-}
-
-// XXX is there a way to test in Go as well as Gno?
-func TestDeferOrder(t *testing.T) {
-	t.Parallel()
-
-	a := func() func(int, int) int {
-		fmt.Println("a constructed")
-		return func(x int, y int) int {
-			fmt.Println("a called")
-			return x + y
-		}
-	}
-	b := func() int {
-		fmt.Println("b constructed")
-		return 1
-	}
-	c := func() int {
-		fmt.Println("c constructed")
-		return 2
-	}
-	defer a()(b(), c())
-	fmt.Println("post defer")
-
-	// should print
-	// a constructed
-	// b constructed
-	// c constructed
-	// post defer
-	// a called
-}
-
-// XXX is there a way to test in Go as well as Gno?
-func TestCallOrder(t *testing.T) {
-	t.Parallel()
-
-	a := func() func(int, int) int {
-		fmt.Println("a constructed")
-		return func(x int, y int) int {
-			fmt.Println("a called")
-			return x + y
-		}
-	}
-	b := func() int {
-		fmt.Println("b constructed")
-		return 1
-	}
-	c := func() int {
-		fmt.Println("c constructed")
-		return 2
-	}
-	a()(b(), c())
-
-	// should print
-	// a constructed
-	// b constructed
-	// c constructed
-	// a called
-}
-
-// XXX is there a way to test in Go as well as Gno?
-func TestBinaryShortCircuit(t *testing.T) {
-	t.Parallel()
-
-	tr := func() bool {
-		fmt.Println("t called")
-		return true
-	}
-	fa := func() bool {
-		fmt.Println("f called")
-		return false
-	}
-	if fa() && tr() {
-		fmt.Println("error")
-	} else {
-		fmt.Println("done")
-	}
-}
-
-// XXX is there a way to test in Go as well as Gno?
-func TestSwitchDefine(t *testing.T) {
-	t.Parallel()
-
-	var x any = 1
-	switch y := x.(type) {
-	case int:
-		fmt.Println("int", y) // XXX
-	default:
-		fmt.Println("not int")
-	}
-}
-
-// XXX is there a way to test in Go as well as Gno?
-func TestBinaryCircuit(t *testing.T) {
-	t.Parallel()
-
-	tr := func() bool {
-		fmt.Println("tr() called")
-		return true
-	}
-	fa := func() bool {
-		fmt.Println("fa() called")
-		return false
-	}
-
-	fmt.Println("case 1")
-	fmt.Println(fa() && tr())
-	fmt.Println("case 1")
-	fmt.Println(tr() || fa())
-
-	// should print
-	// case 1
-	// fa() called
-	// false
-	// case 1
-	// tr() called
-	// true
-}
-
-func TestMultiAssignment(t *testing.T) {
-	t.Parallel()
-
-	buf := make([]int, 4)
-	ref := func(i int) *int {
-		fmt.Printf("ref(%v) called\n", i)
-		return &buf[i]
-	}
-	val := func(i int) int {
-		fmt.Printf("val(%v) called\n", i)
-		return i
-	}
-
-	*ref(0), *ref(1), *ref(2), *ref(3) = val(11), val(22), val(33), val(44)
-
-	/*
-		ref(0) called
-		ref(1) called
-		ref(2) called
-		ref(3) called
-		val(11) called
-		val(22) called
-		val(33) called
-		val(44) called
-	*/
-}
-
-// XXX is there a way to test in Go as well as Gno?
-func TestCallLHS(t *testing.T) {
-	t.Parallel()
-
-	x := 1
-	xptr := func() *int {
-		return &x
-	}
-	*xptr() = 2
-	assert.Equal(t, 2, x)
-}
-
-// XXX is there a way to test in Go as well as Gno?
-func TestCallFieldLHS(t *testing.T) {
-	t.Parallel()
-
-	type str struct {
-		X int
-	}
-	x := str{}
-	xptr := func() *str {
-		return &x
-	}
-	y := 0
-	xptr().X, y = 2, 3
-	assert.Equal(t, 2, x.X)
-	assert.Equal(t, 3, y)
 }

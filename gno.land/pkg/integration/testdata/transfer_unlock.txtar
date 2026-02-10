@@ -2,6 +2,8 @@
 loadpkg gno.land/r/sys/params
 loadpkg gno.land/r/gov/dao/v3/init
 loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/gnoland/users/v1
 
 adduser regular1
 
@@ -38,6 +40,10 @@ gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000  -broadcast -chaini
 
 stdout 'OK!'
 
+# Register member with a namespace 
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular1
+stdout 'OK!'
+
 ## Restricted transfer is unlocked, allowing simple token transfers for regular accounts.
 gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 100000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular1
 
@@ -46,15 +52,11 @@ stdout 'OK!'
 -- run/load_user.gno --
 package main
 
-import (
-  i "gno.land/r/gov/dao/v3/init"
-  "std"
-)
+import i "gno.land/r/gov/dao/v3/init"
 
 func main() {
-	i.InitWithUsers(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	i.InitWithUsers(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
-
 -- run/propose_unlock.gno --
 package main
 
@@ -65,7 +67,7 @@ import (
 
 func main() {
 	pr := params.ProposeUnlockTransferRequest()
-  pid := cross(dao.MustCreateProposal)(pr)
+  pid := dao.MustCreateProposal(cross, pr)
   println(pid.String())
 }
 
@@ -78,7 +80,7 @@ import (
 )
 
 func main() {
-	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
 	})
@@ -92,7 +94,7 @@ import (
 )
 
 func main() {
-	ok := cross(dao.ExecuteProposal)(dao.ProposalID(0))
+	ok := dao.ExecuteProposal(cross, dao.ProposalID(0))
   if ok {
     println("OK!")
   }

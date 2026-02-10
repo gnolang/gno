@@ -39,17 +39,42 @@ func (pl *PkgsLoader) SetPatch(replace, with string) {
 	pl.patchs[replace] = with
 }
 
-func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
+func (pl *PkgsLoader) LoadPackages() ([]*std.MemPackage, error) {
 	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
 	}
 
-	txs := make([]gnoland.TxWithMetadata, len(pkgslist))
+	mpkgs := make([]*std.MemPackage, len(pkgslist))
 	for i, pkg := range pkgslist {
-		tx, err := gnoland.LoadPackage(pkg, creatorKey.PubKey().Address(), fee, deposit)
+		mpkg := gnolang.MustReadMemPackage(pkg.Dir, pkg.Name, gnolang.MPAnyAll)
+		file, _ := gnomod.ParseMemPackage(mpkg)
+		if file == nil {
+			// generate a gnomod.toml
+			file = &gnomod.File{
+				Module: pkg.Name,
+				Gno:    gnolang.GnoVerLatest,
+			}
+		}
+		mpkg.SetFile("gnomod.toml", file.WriteString())
+
+		mpkg.Sort()
+		mpkgs[i] = mpkg
+	}
+	return mpkgs, nil
+}
+
+func (pl *PkgsLoader) GenerateTxs(creatorKey crypto.PrivKey, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
+	mpkgs, err := pl.LoadPackages()
+	if err != nil {
+		return nil, err
+	}
+
+	txs := make([]gnoland.TxWithMetadata, len(mpkgs))
+	for i, mpkg := range mpkgs {
+		tx, err := gnoland.LoadPackage(mpkg, creatorKey.PubKey().Address(), fee, deposit)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.Name, err)
+			return nil, fmt.Errorf("unable to load pkg %q: %w", mpkg.Name, err)
 		}
 
 		// If any replace value is specified, apply them
@@ -86,7 +111,7 @@ func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, depos
 
 func (pl *PkgsLoader) LoadAllPackagesFromDir(dir string) error {
 	// list all packages from target path
-	pkglist, err := gnolang.ReadPkgListFromDir(dir)
+	pkglist, err := packages.ReadPkgListFromDir(dir, gnolang.MPUserAll)
 	if err != nil {
 		return fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}
@@ -100,9 +125,9 @@ func (pl *PkgsLoader) LoadAllPackagesFromDir(dir string) error {
 	return nil
 }
 
-func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
+func (pl *PkgsLoader) LoadPackage(modroot string, dir, name string) error {
 	// Initialize a queue with the root package
-	queue := []gnomod.Pkg{{Dir: path, Name: name}}
+	queue := []gnomod.Pkg{{Dir: dir, Name: name}}
 
 	for len(queue) > 0 {
 		// Dequeue the first package
@@ -123,18 +148,26 @@ func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 			gm.Sanitize()
 
 			// Override package info with mod infos
-			currentPkg.Name = gm.Module.Mod.Path
-			currentPkg.Draft = gm.Draft
+			currentPkg.Name = gm.Module
+			currentPkg.Ignore = gm.Ignore
 
-			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name)
+			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name, gnolang.MPAnyAll)
 			if err != nil {
 				return fmt.Errorf("unable to read package at %q: %w", currentPkg.Dir, err)
 			}
+
 			importsMap, err := packages.Imports(pkg, nil)
 			if err != nil {
 				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
 			}
-			imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest)
+
+			imports := importsMap.Merge(
+				packages.FileKindPackageSource,
+				packages.FileKindTest,
+				packages.FileKindXTest,
+				packages.FileKindFiletest,
+			)
+
 			for _, imp := range imports {
 				if imp.PkgPath == currentPkg.Name || gnolang.IsStdlib(imp.PkgPath) {
 					continue
@@ -143,8 +176,8 @@ func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 			}
 		}
 
-		if currentPkg.Draft {
-			continue // Skip draft package
+		if currentPkg.Ignore {
+			continue // Skip ignore package
 		}
 
 		if pl.exist(currentPkg) {

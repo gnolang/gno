@@ -17,6 +17,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/pkg"
+	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 )
 
 type Dummy struct{}
@@ -549,15 +550,38 @@ func TestMarshalJSONIndent(t *testing.T) {
 	cdc := amino.NewCodec()
 	registerTransports(cdc)
 	obj := Transport{Vehicle: Car("Tesla")}
-	expected := fmt.Sprintf(`{
+	expected := `{
   "Vehicle": {
     "@type": "/amino_test.Car",
     "value": "Tesla"
   },
   "Capacity": "0"
-}`)
+}`
 
 	blob, err := cdc.MarshalJSONIndent(obj, "", "  ")
 	assert.Nil(t, err)
 	assert.Equal(t, expected, string(blob))
+}
+
+func TestJSONInterfaceTypeAssignability(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+
+	type AnyWrapper struct {
+		Value any
+	}
+	type Interface1Wrapper struct {
+		Value tests.Interface1
+	}
+
+	src := AnyWrapper{Value: tests.PrimitivesStruct{Int: 42}}
+	bz, err := cdc.JSONMarshal(src)
+	require.NoError(t, err)
+
+	var dst Interface1Wrapper
+	err = cdc.JSONUnmarshal(bz, &dst)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not assignable")
 }

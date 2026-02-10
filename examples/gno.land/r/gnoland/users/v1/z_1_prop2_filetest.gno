@@ -3,10 +3,10 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/gov/dao"
 	daov3init "gno.land/r/gov/dao/v3/init"
@@ -14,48 +14,63 @@ import (
 )
 
 // Test updating a name via GovDAO
+var c address = runtime.OriginCaller()
 
-var c std.Address = std.OriginCaller()
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func registerTestUser(addrs ...address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := susers.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
+	}
+}
 
 func init() {
 	daov3init.InitWithUsers(c)
+	registerTestUser(c)
 
 	alice := testutils.TestAddress("alice")
 
 	// Register alice
 	testing.SetOriginCaller(alice)
-	testing.SetRealm(std.NewUserRealm(alice))
-	cross(users.Register)("alice123")
+	testing.SetRealm(testing.NewUserRealm(alice))
+	users.Register(cross, "alice123")
 
 	// Prop to delete user
 	testing.SetOriginCaller(c)
-	testing.SetRealm(std.NewUserRealm(c))
+	testing.SetRealm(testing.NewUserRealm(c))
 	pr := users.ProposeDeleteUser(alice, "delete user test")
-	cross(dao.MustCreateProposal)(pr)
+	dao.MustCreateProposal(cross, pr)
 }
 
 func main() {
 	testing.SetOriginCaller(c)
 
 	println("--")
-	println(cross(dao.Render)(""))
+	println(dao.Render(""))
 	println("--")
-	println(cross(dao.Render)("0"))
+	println(dao.Render("0"))
 	println("--")
 
-	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
 	})
 
 	println("--")
-	println(cross(dao.Render)("0"))
+	println(dao.Render("0"))
 	println("--")
 
-	cross(dao.ExecuteProposal)(dao.ProposalID(0))
+	dao.ExecuteProposal(cross, dao.ProposalID(0))
 
 	println("--")
-	println(cross(dao.Render)("0"))
+	println(dao.Render("0"))
 
 	data, _ := susers.ResolveName("alice123")
 	if data == nil {
@@ -65,78 +80,98 @@ func main() {
 
 // Output:
 // --
-// # Active Proposals:
-// ## Proposal with id: 0
-// ### Title: Propose deleting a name using users/v1 realm
+// # GovDAO
+// ## Members
+// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// ## Proposals
+// ### [Prop #0 - User Registry V1: Delete user `alice123`](/r/gov/dao:0)
+// Author: [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
-// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Status: ACTIVE
+//
+// Tiers eligible to vote: T1, T2, T3
+//
+// ---
+//
+//
+// --
+// ## Prop #0 - User Registry V1: Delete user `alice123`
+// Author: [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
 // delete user test
 //
 //
-// ### Proposal Status:
 //
-// - **Proposal open for votes**
-// - Allowed tiers to vote: T1 T2 T3
+// ---
+//
+// ### Stats
+// - **Proposal is open for votes**
+// - Tiers eligible to vote: T1, T2, T3
 // - YES PERCENT: 0%
 // - NO PERCENT: 0%
-// - [Go to votes list](/r/gov/dao:0/votes).
 //
+// [Detailed voting list](/r/gov/dao:0/votes)
 //
+// ---
+//
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
+//
+// WARNING: Please double check transaction data before voting.
+//
+// **New**: Members **must** have a namespace to vote to enforce simpler tracking.
 // --
-// ## Proposal with id: 0
-// ### Title: Propose deleting a name using users/v1 realm
-//
-// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// --
+// ## Prop #0 - User Registry V1: Delete user `alice123`
+// Author: [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
 // delete user test
 //
 //
-// ### Proposal Status:
 //
-// - **Proposal open for votes**
-// - Allowed tiers to vote: T1 T2 T3
-// - YES PERCENT: 0%
-// - NO PERCENT: 0%
-// - [Go to votes list](/r/gov/dao:0/votes).
+// ---
 //
-//
-// --
-// --
-// ## Proposal with id: 0
-// ### Title: Propose deleting a name using users/v1 realm
-//
-// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-//
-// delete user test
-//
-//
-// ### Proposal Status:
-//
-// - **Proposal open for votes**
-// - Allowed tiers to vote: T1 T2 T3
+// ### Stats
+// - **Proposal is open for votes**
+// - Tiers eligible to vote: T1, T2, T3
 // - YES PERCENT: 100%
 // - NO PERCENT: 0%
-// - [Go to votes list](/r/gov/dao:0/votes).
 //
+// [Detailed voting list](/r/gov/dao:0/votes)
 //
+// ---
+//
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
+//
+// WARNING: Please double check transaction data before voting.
+//
+// **New**: Members **must** have a namespace to vote to enforce simpler tracking.
 // --
 // --
-// ## Proposal with id: 0
-// ### Title: Propose deleting a name using users/v1 realm
-//
-// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ## Prop #0 - User Registry V1: Delete user `alice123`
+// Author: [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
 // delete user test
 //
 //
-// ### Proposal Status:
 //
+// ---
+//
+// ### Stats
 // - **PROPOSAL HAS BEEN ACCEPTED**
-// - Allowed tiers to vote: T1 T2 T3
+// - Tiers eligible to vote: T1, T2, T3
 // - YES PERCENT: 100%
 // - NO PERCENT: 0%
-// - [Go to votes list](/r/gov/dao:0/votes).
 //
+// [Detailed voting list](/r/gov/dao:0/votes)
 //
+// ---
+//
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
+//
+// WARNING: Please double check transaction data before voting.
+//
+// **New**: Members **must** have a namespace to vote to enforce simpler tracking.
 // Successfully deleted alice

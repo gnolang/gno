@@ -36,7 +36,7 @@ func main() {
 
 // Stacktrace:
 // panic: wtf
-// f<VPBlock(3,1)>(v<VPBlock(1,3)>.((const-type int)),lit<VPBlock(1,1)>[0],*pit<VPBlock(1,2)>,&vit<~VPBlock(1,0)>,!b<VPBlock(1,4)>,[](const-type string)<len=2>,typeval{main.S}<len=1>,map[(const-type string)] (const-type string)<len=2>,func(s (const-type string)) .res.0 (const-type string){ ... })
+// f<VPBlock(3,1)>(v<VPBlock(1,3)>.((const-type int)),lit<VPBlock(1,1)>[0],*pit<VPBlock(1,2)>,&vit<~VPBlock(1,0)>,!b<VPBlock(1,4)>,(const-type []string)<len=2>,(const-type main.S)<len=1>,(const-type map[string]string)<len=2>,func(s (const-type string)) .res.0 (const-type string){ ... })
 //     main/panic0a.gno:9
 // main<VPBlock(1,2)>()
 //     main/panic0a.gno:22

@@ -26,8 +26,8 @@ func (c *Cfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-// GetDefaultGenesis returns the default genesis config
-func GetDefaultGenesis() *types.GenesisDoc {
+// DefaultGenesis returns the default genesis config
+func DefaultGenesis() *types.GenesisDoc {
 	return &types.GenesisDoc{
 		GenesisTime:     time.Now(),
 		ChainID:         DefaultChainID,

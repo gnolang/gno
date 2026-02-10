@@ -1,4 +1,4 @@
-loadpkg gno.land/r/demo/atomicswap
+loadpkg gno.land/r/demo/defi/atomicswap
 
 adduser test2 1010000000ugnot
 adduser test3 1010000000ugnot
@@ -16,22 +16,24 @@ stdout 'coins.*:.*1010000000ugnot'
 # echo -n "secret" | sha256sum
 # This will produce a hashlock string like "2bb808d537b1da3e38bd30361aa85586dbbeacdd7126fef6a25ef97b5f27a25b".
 # Replace the hashlock argument in the command below with the generated hash.
-gnokey maketx call -pkgpath gno.land/r/demo/atomicswap -func NewCoinSwap -gas-fee 1000000ugnot -send 12345ugnot -gas-wanted 10000000 -args $test3_user_addr -args '2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b' -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/demo/defi/atomicswap -func NewCoinSwap -gas-fee 1000000ugnot -send 12345ugnot -gas-wanted 10000000 -args $test3_user_addr -args '2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b' -broadcast -chainid=tendermint_test test2
 stdout '(1 int)'
 stdout ".*$test2_user_addr.*$test3_user_addr.*12345ugnot.*"
 stdout 'OK!'
+stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":453100\}.*\]'
 
-gnokey query vm/qrender --data 'gno.land/r/demo/atomicswap:'
+gnokey query vm/qrender --data 'gno.land/r/demo/defi/atomicswap:'
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*1008987655ugnot'
+stdout 'coins.*:.*1008534555ugnot'
 gnokey query auth/accounts/$test3_user_addr
 stdout 'coins.*:.*1010000000ugnot'
 
-gnokey maketx call -pkgpath gno.land/r/demo/atomicswap -func Claim -gas-fee 1000000ugnot -gas-wanted 10000000 -args '1' -args 'secret' -broadcast -chainid=tendermint_test test3
+gnokey maketx call -pkgpath gno.land/r/demo/defi/atomicswap -func Claim -gas-fee 1000000ugnot -gas-wanted 10000000 -args '1' -args 'secret' -broadcast -chainid=tendermint_test test3
 stdout 'OK!'
+stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":500\}.*\]'
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*1008987655ugnot'
+stdout 'coins.*:.*1008534555ugnot'
 gnokey query auth/accounts/$test3_user_addr
-stdout 'coins.*:.*1009012345ugnot'
+stdout 'coins.*:.*1009011845ugnot'

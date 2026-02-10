@@ -1,0 +1,179 @@
+{{/* ===================================================================================
+LAYOUT - Action component
+=================================================================================== */}}
+{{ define "renderHelp" }}
+{{ $data := . }}
+<!-- Help Settings-->
+<header data-controller="action-header" class="b-content-header">
+  <h1 class="title b-content-h1">
+    <span>{{ .RealmName }}</span>
+    <span class="b-tag">
+      package
+    </span>
+  </h1>
+  <form class="b-inline-form">
+    <div class="b-input">
+      <select id="action-user-mode" data-action-header-target="mode" data-action="change->action-header#updateMode">
+        <option value="secure" selected="selected">
+          Mode: Full Security
+        </option>
+        <option value="fast">Mode: Fast</option>
+      </select>
+      <svg>
+        <use href="#ico-arrow-down"></use>
+      </svg>
+    </div>
+    <div class="b-input">
+      <label for="action-user-address">Key&nbsp;/&nbsp;Address</label>
+      <input type="text" data-action-header-target="address" id="action-user-address"
+        data-action="input->action-header#updateAddress" class="u-font-mono" placeholder="ADDRESS" />
+    </div>
+  </form>
+</header>
+
+<!-- Help ToC -->
+{{ with render .ComponentTOC }}
+{{ template "layout/aside" . }}
+{{ end }}
+
+
+<!-- Help Content List -->
+{{ template "layout/article" .Article }}
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Help Function component
+=================================================================================== */}}
+{{ define "ui/help_function" }}
+{{ $data := . }}
+{{ with .Doc }}
+<div class="b-action-overview">
+  <h2 class="b-content-h2" id="overview">
+    Overview
+  </h2>
+  <p>{{ . }}</p>
+</div>
+{{ end }}
+
+<h2 class="b-content-h2">
+  Function{{- if gt (len .Functions) 1 }}s{{- end }}
+</h2>
+<div class="c-stack">
+  {{ range .Functions }}
+  <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}"
+    data-action-function-pkgpath-value="{{ $.PkgPath }}">
+    <header>
+      <span class="title">
+        <h2 id="func-{{ .Name }}">
+          {{ .Name }}
+        </h2>
+        <span class="signature c-with-icon--inline">
+          <code data-copy-target="func-{{ .Name }}">
+              {{ .Signature }}
+            </code>
+          <button class="b-inline-btn" aria-label="Copy Function" data-controller="copy" data-action="click->copy#copy"
+            data-copy-remote-value="func-{{ .Name }}">
+            {{ template "ui/copy" }}
+          </button>
+        </span>
+      </span>
+      <span class="b-btns">
+        <button class="b-btn b-btn--secondary c-with-icon" aria-label="Copy Function" data-controller="copy"
+          data-action-function-target="function-anchor" data-action="click->copy#copy"
+          data-copy-text-value="{{ buildHelpURL $data . }}" title="Function anchor link">
+          <svg class="c-icon">
+            <use href="#ico-link" data-copy-target="icon"></use>
+            <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
+          </svg>
+          <span>Link</span>
+        </button>
+        <button type="submit" form="form-{{ .Name }}" title="Function transaction link"
+          class="b-btn b-btn--secondary c-with-icon">
+          <svg class="c-icon">
+            <use href="#ico-tx-link"></use>
+          </svg>
+          <span>Execute</span>
+        </button>
+      </span>
+    </header>
+
+    {{ with .Doc }}
+    <p class="description">{{ . }}</p>
+    {{ end }}
+    <form class="params" id="form-{{ .Name }}" method="GET" action="{{ buildHelpURL $data . }}"
+      data-action-function-target="function-execute">
+      {{- with .Params }}
+      <h3 class="title">
+        Param{{- if gt (len .) 1 }}s{{ end }}
+      </h3>
+      {{ end }}
+      {{ $funcName := .Name }}
+      <div class="b-block-form u-mb-2">
+        {{ range .Params }}
+        <div class="b-input">
+          <label for="func-{{ $funcName }}-param-{{ .Name }}">
+            {{ .Name }}
+          </label>
+          <input type="text" {{- if eq $data.SelectedFunc $funcName }} value="{{ getSelectedArgValue $data . }}" {{- end
+            }} placeholder="parameter" id="func-{{ $funcName }}-param-{{ .Name }}"
+            data-action-function-target="param-input" data-action="input->action-function#updateAllArgs"
+            data-action-function-param-value="{{ .Name }}" autocomplete="off" autocorrect="off" autocapitalize="off"
+            spellcheck="false" />
+        </div>
+        {{ end }}
+      </div>
+      {{ with $data.SelectedSend }}
+      <div class="b-alert b-alert-warning">
+        <h3 class="alert-title c-with-icon">
+          <svg class="c-icon">
+            <use href="#ico-warning"></use>
+          </svg>Warning
+        </h3>
+        <div class="content">
+          <p>This transaction link is requesting <strong>{{ . }}</strong> from your
+            balance. For your safety, you must manually confirm the addition of coins to the transaction.</p>
+          <div class="b-btn b-switch">
+            <input type="checkbox" id="func-{{ $funcName }}-send-flag" data-action-function-send-value="{{ . }}" />
+            <label for="func-{{ $funcName }}-send-flag" data-action="click->action-function#updateAllFunctionsSend"
+              data-action-function-send-param="true">
+              Add to the command
+            </label>
+            <label for="func-{{ $funcName }}-send-flag" data-action="click->action-function#updateAllFunctionsSend"
+              data-action-function-send-param="false">
+              Remove from the command
+            </label>
+          </div>
+        </div>
+      </div>
+      {{ end }}
+    </form>
+    <div>
+      <h3 class="title">Command</h3>
+      <div class="b-code u-mb-2">
+        <button data-controller="copy" data-action="click->copy#copy"
+          data-copy-remote-value="action-function-{{ .Name }}" data-copy-clean-value class="btn-copy"
+          aria-label="Copy Command">
+          {{ template "ui/copy" }}
+        </button>
+        {{/* prettier-ignore-start */}}
+        {{ if .Crossing }}
+        {{ template "ui/command" (buildCommandData $data .) }}
+        {{ else }}
+        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "<span data-action-function-target="remote">{{ $.Remote }}</span>" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $p.Name }}"></span>{{ end }})"</span></code></pre>
+        {{ end }}
+        {{/* prettier-ignore-end */}}
+      </div>
+    </div>
+    {{ if not .Crossing }}
+    <div class="b-action-result">
+      <h3 class="title">Result</h3>
+      <div class="b-code">
+        <pre><code><span data-action-function-target="qeval-result"></span></code></pre>
+      </div>
+    </div>
+    {{ end }}
+  </article>
+  {{ end }}
+</div>
+{{ end }}

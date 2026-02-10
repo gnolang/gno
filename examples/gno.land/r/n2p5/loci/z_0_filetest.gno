@@ -2,34 +2,33 @@
 package test
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/r/n2p5/loci"
 )
 
-func main() {
-	crossing()
-	caller := std.CurrentRealm()
+func main(cur realm) {
+	caller := runtime.CurrentRealm()
 	println("caller: " + string(caller.Address()))
 
 	// test nothing being set, yet.
-	r0 := cross(loci.Get)(caller.Address())
+	r0 := loci.Get(cross, caller.Address())
 	println("expect: " + "")
 	println("got   : " + r0)
 
 	// set the value, which uses the CurrentRealm as the caller.
 	input1 := "aGVsbG8sIHdvcmxkCg=="
-	cross(loci.Set)(input1)
+	loci.Set(cross, input1)
 	println("set   : " + string(input1))
-	r1 := cross(loci.Get)(caller.Address())
+	r1 := loci.Get(cross, caller.Address())
 	println("expect: " + input1)
 	println("got   : " + r1)
 
 	// change the value, which should override the previous value.
 	input2 := "Z29vZGJ5ZSwgd29ybGQK"
-	cross(loci.Set)(input2)
+	loci.Set(cross, input2)
 	println("set   : " + string(input2))
-	r2 := cross(loci.Get)(caller.Address())
+	r2 := loci.Get(cross, caller.Address())
 	println("expect: " + input2)
 	println("got   : " + r2)
 

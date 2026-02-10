@@ -6,22 +6,22 @@ type (
 	Number2 = Number
 
 	// PointerType
-	Pointer = *int32
+	Pointer  = *int32
 	Pointer2 = Pointer
 
 	// Interface
-	Interface = any
+	Interface  = any
 	Interface2 = Interface
 
 	// S
-	Struct = struct{Name string}
+	Struct  = struct{ Name string }
 	Struct2 = Struct
 )
 
-func fNumber(n Number) { println(n) }
-func fPointer(p Pointer) { println(*p) }
+func fNumber(n Number)       { println(n) }
+func fPointer(p Pointer)     { println(*p) }
 func fInterface(i Interface) { println(i) }
-func fStruct(s Struct) { println(s.Name) }
+func fStruct(s Struct)       { println(s.Name) }
 
 func main() {
 	var n Number2 = 5

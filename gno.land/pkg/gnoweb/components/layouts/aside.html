@@ -1,10 +1,28 @@
+{{/* ===================================================================================
+LAYOUT - Aside component
+=================================================================================== */}}
 {{- define "layout/aside" }}
-<aside class="first:mt-8 lg:first:mt-0 col-span-1 lg:col-span-3 lg:col-span-3 lg:order-2 lg:row-start-1 lg:row-span-2 relative h-full" aria-label="Table of Contents">
-  <div class="sticky top-14 lg:pt-2 has-[ul:empty]:hidden">
-    <div id="sidebar-summary" class="max-h-screen overflow-scroll no-scrollbar bg-gray-50 lg:bg-transparent rounded-sm">
+<aside class="b-sidebar sidebar" aria-label="Table of Contents">
+  <div>
+    <div id="sidebar-summary" class="inner u-no-scrollbar">
       {{ template "ui/expend_label" "On this page"}}
-      <nav class="toc-nav hidden lg:block text-100 mt-2 lg:mt-0 pb-6 lg:pb-28 px-4 py-2 lg:px-0 *:pl-0">{{ . }}</nav>
+      <nav>{{ . }}</nav>
     </div>
   </div>
 </aside>
+{{ end }}
+
+{{/* ===================================================================================
+UI - Expend Label component
+=================================================================================== */}}
+{{ define "ui/expend_label" }}
+<label for="toc-expend" class="b-expend-btn">
+  {{ . }}
+  <input id="toc-expend" type="checkbox" />
+  <span class="wrapper-icon">
+    <svg class="c-icon u-icon-static">
+      <use href="#ico-arrow-down"></use>
+    </svg>
+  </span>
+</label>
 {{ end }}

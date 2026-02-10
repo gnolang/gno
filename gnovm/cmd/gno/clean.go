@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -66,6 +66,11 @@ func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 	if cfg.modCache {
 		modCacheDir := gnomod.ModCachePath()
 		if !cfg.dryRun {
+			fl, err := packages.LockCache(modCacheDir)
+			if err != nil {
+				return err
+			}
+			defer fl.Unlock()
 			if err := os.RemoveAll(modCacheDir); err != nil {
 				return err
 			}
@@ -76,24 +81,12 @@ func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 		return nil
 	}
 
-	path, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	modDir, err := gnomod.FindRootDir(path)
-	if err != nil {
-		return fmt.Errorf("not a gno module: %w", err)
-	}
-
-	if path != modDir && (cfg.dryRun || cfg.verbose) {
-		io.Println("cd", modDir)
-	}
-	err = clean(modDir, cfg, io)
+	wd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return clean(wd, cfg, io)
 }
 
 // clean removes generated files from a directory.

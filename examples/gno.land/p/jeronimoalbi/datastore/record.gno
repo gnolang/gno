@@ -3,9 +3,9 @@ package datastore
 import (
 	"errors"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/collection"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
 )
 
 // ErrUndefinedField indicates that a field in not defined in a record's schema.

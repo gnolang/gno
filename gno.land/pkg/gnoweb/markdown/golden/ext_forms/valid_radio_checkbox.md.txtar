@@ -1,0 +1,42 @@
+-- input.md --
+<gno-form>
+<gno-input name="gender" type="radio" value="male" placeholder="Male option" />
+<gno-input name="gender" type="radio" value="female" placeholder="Female option" checked="true" />
+<gno-input name="gender" type="radio" value="other" placeholder="Other option" />
+<gno-input name="newsletter" type="checkbox" value="subscribe" placeholder="Subscribe to newsletter" checked="true" />
+<gno-input name="terms" type="checkbox" value="accepted" placeholder="I accept the terms" />
+<gno-input name="preferences" type="checkbox" value="marketing" placeholder="Marketing emails" checked="true" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div class="gno-form_selectable">
+<input type="radio" id="gender_0" name="gender" value="male" />
+<label for="gender_0">male - Male option</label>
+</div>
+<div class="gno-form_selectable">
+<input type="radio" id="gender_1" name="gender" value="female" checked />
+<label for="gender_1">female - Female option</label>
+</div>
+<div class="gno-form_selectable">
+<input type="radio" id="gender_2" name="gender" value="other" />
+<label for="gender_2">other - Other option</label>
+</div>
+<div class="gno-form_selectable">
+<input type="checkbox" id="newsletter_3" name="newsletter" value="subscribe" checked />
+<label for="newsletter_3">subscribe - Subscribe to newsletter</label>
+</div>
+<div class="gno-form_selectable">
+<input type="checkbox" id="terms_4" name="terms" value="accepted" />
+<label for="terms_4">accepted - I accept the terms</label>
+</div>
+<div class="gno-form_selectable">
+<input type="checkbox" id="preferences_5" name="preferences" value="marketing" checked />
+<label for="preferences_5">marketing - Marketing emails</label>
+</div>
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>

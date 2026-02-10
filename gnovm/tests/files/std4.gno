@@ -1,11 +1,9 @@
 package main
 
-import (
-	"std"
-)
+import "chain/runtime"
 
 func main() {
-	realm1 := std.CurrentRealm()
+	realm1 := runtime.CurrentRealm()
 	println(realm1)
 }
 

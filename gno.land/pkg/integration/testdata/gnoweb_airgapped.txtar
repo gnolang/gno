@@ -48,13 +48,11 @@ package name
 
 var name string
 
-func SetName(s string) string {
-	crossing()
-
+func SetName(cur realm, s string) string {
 	name = s
 	return name
 }
 
 func Render(_ string) string {
-	return "# HELLO "+name
+	return "# HELLO " + name
 }

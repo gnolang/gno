@@ -3,9 +3,7 @@ package test
 
 import "time"
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	println(time.UTC == nil)
 	time.UTC = nil
 	println(time.UTC == nil)
@@ -13,4 +11,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): (const (ref(time) package{})).UTC
+// gno.land/r/test/stdlibs.gno:8:2-10: cannot directly mutate time.UTC from gno.land/r/test

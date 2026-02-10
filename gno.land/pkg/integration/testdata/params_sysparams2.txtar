@@ -69,6 +69,10 @@ gnokey query params/bank:p:baz
 stdout 'data: \n'
 
 
+-- params/gnomod.toml --
+module = "gno.land/r/sys/params"
+gno = "0.9"
+
 -- params/setter.gno --
 package params
 
@@ -77,8 +81,7 @@ import (
 )
 
 // This should succeed if it is called from gno.land/r/sys/params
-func SetLockTransfer(denom string) {
-	crossing()
+func SetLockTransfer(cur realm, denom string) {
 	params.SetSysParamStrings("bank","p", "restricted_denoms", []string{denom})
 }
 
@@ -86,40 +89,33 @@ func SetLockTransfer(denom string) {
 // # func SetLockTransfer(denom string) { params.SetSysParamString("bank","p", "restricted_denoms", denom) }
 
 // This should fail because the parameter does not exist
-func SetBankArbitrary(value string) {
-	crossing()
+func SetBankArbitrary(cur realm, value string) {
 	params.SetSysParamString("bank","p", "newkey", value)
 }
 
 // SetSysParamXXX must be called from gno.land/r/sys/params; otherwise it panics
 
 // This should fail because the key "bank:restricted_denoms" is not valid
-func SetInvalidKey(denom string)  {
-	crossing()
+func SetInvalidKey(cur realm, denom string)  {
 	params.SetSysParamString("bank", "p", "bank:restricted_denoms", "ugnot")
 }
 
-func SetSysParamString(s string) {
-	crossing()
+func SetSysParamString(cur realm, s string) {
 	params.SetSysParamString("bank","p", "foo", s)
 }
 
-func SetSysParamBool(b  bool)   {
-	crossing()
+func SetSysParamBool(cur realm, b bool)   {
 	params.SetSysParamBool("bank","p", "bar", b)
 }
 
-func SetSysParamInt64(i int64)  {
-	crossing()
+func SetSysParamInt64(cur realm, i int64)  {
 	params.SetSysParamInt64("bank","p", "baz", i)
 }
 
-func SetSysParamUint64(u uint64)  {
-	crossing()
+func SetSysParamUint64(cur realm, u uint64)  {
 	params.SetSysParamUint64("bank","p", "baz", u)
 }
 
-func SetSysParamBytes()  {
-	crossing()
+func SetSysParamBytes(cur realm)  {
 	params.SetSysParamBytes("bank","p", "baz", []byte{255,255})
 }

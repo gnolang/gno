@@ -14,10 +14,15 @@ docker buildx bake --allow fs=\* --file misc/deployments/bake/docker-bake.hcl --
 docker buildx bake --allow fs=\* --file docker-bake.hcl --set \*.dockerfile=Dockerfile _gno
 ```
 
+* Bake a single target for a single platform and output into a local folder `build/`, from `${project_root_folder}`
+
+```sh
+docker buildx bake --allow fs=\* --file misc/deployments/bake/docker-bake.hcl --set \*.context=. --set \*.dockerfile=Dockerfile --set common.platform=linux/arm64 --set common.output.type=local --set common.output.dest=build/ gnofaucet
+
 * Bake a single target and push to registry, from `${project_root_folder}`
 
 ```sh
-docker buildx bake --allow fs=\* --file misc/deployments/bake/docker-bake.hcl --set \*.context=. --set \*. dockerfile=Dockerfile --push gnoland
+docker buildx bake --allow fs=\* --file misc/deployments/bake/docker-bake.hcl --set \*.context=. --set \*.dockerfile=Dockerfile --push gnoland
 ```
 
 ## See Also

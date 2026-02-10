@@ -1,0 +1,69 @@
+loadpkg gno.land/p/nt/avl
+
+# start a new node
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/cpu_cycle_overrun1 -gas-fee 1000000ugnot -gas-wanted 1000000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Call AddData 3 times
+gnokey maketx call -pkgpath gno.land/r/cpu_cycle_overrun1 -func AddData -gas-fee 1000000ugnot -gas-wanted 1000000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/cpu_cycle_overrun1 -func AddData -gas-fee 1000000ugnot -gas-wanted 1000000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/cpu_cycle_overrun1 -func AddData -gas-fee 1000000ugnot -gas-wanted 1000000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Call AddData one more time. The call to Render used to hang. If you commented this out, then the call to Render would return quickly.
+# This bug was fixed by https://github.com/gnolang/gno/pull/4060
+gnokey maketx call -pkgpath gno.land/r/cpu_cycle_overrun1 -func AddData -gas-fee 1000000ugnot -gas-wanted 1000000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Call Render
+gnokey query vm/qrender --data "gno.land/r/cpu_cycle_overrun1:"
+
+-- gnomod.toml --
+module = "gno.land/r/test/cpu_cycle_overrun1"
+gno = "0.9"
+
+-- cpu_cycle_overrun1.gno --
+package cpu_cycle_overrun1
+
+import (
+	"strconv"
+	"time"
+
+	"gno.land/p/nt/avl"
+)
+
+var gData = avl.Tree{} // id -> string
+
+type MyData struct {
+	data avl.Tree
+}
+
+// Add a lot of data to gData (as much as we can do with the given maximum gas allowed).
+func AddData(cur realm) {
+	for i := 1; i <= 100; i++ {
+		gData.Set(strconv.Itoa(gData.Size()), "hello")
+	}
+}
+
+func Render(path string) string {
+	// Put the data in allData.
+	subdata := &MyData{data: gData}
+	allData := avl.Tree{}
+	gData.Iterate("", "", func(key string, postI interface{}) bool {
+		allData.Set(strconv.Itoa(allData.Size()), subdata)
+		return false
+	})
+
+	// Iterate allData and make the render string.
+	now := time.Now()
+	str := ""
+	allData.Iterate("", "", func(key string, dataI interface{}) bool {
+		str += now.Format("2006-01-02 3:04pm MST")
+		return false
+	})
+	return "len " + strconv.Itoa(len(str))
+}

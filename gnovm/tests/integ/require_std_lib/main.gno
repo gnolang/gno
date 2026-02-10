@@ -1,7 +1,5 @@
 package main
 
-import (
-	"std"
-)
+import "chain"
 
-var foo std.Address
+var foo address

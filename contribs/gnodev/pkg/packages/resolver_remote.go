@@ -2,12 +2,12 @@ package packages
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
 	gopath "path"
-	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -37,14 +37,15 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 
 	// First query files
 	data := []byte(path)
-	qres, err := res.RPCClient.ABCIQuery(qpath, data)
+	qres, err := res.RPCClient.ABCIQuery(context.Background(), qpath, data)
 	if err != nil {
 		return nil, fmt.Errorf("client unable to query: %w", err)
 	}
 
 	if err := qres.Response.Error; err != nil {
-		if errors.Is(err, vm.InvalidPkgPathError{}) ||
-			strings.HasSuffix(err.Error(), "is not available") { // XXX: find a better to check this
+		if errors.Is(err, vm.InvalidFileError{}) ||
+			errors.Is(err, vm.InvalidPkgPathError{}) ||
+			errors.Is(err, vm.InvalidPackageError{}) {
 			return nil, ErrResolverPackageNotFound
 		}
 
@@ -57,7 +58,7 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 	for _, filename := range files {
 		fname := string(filename)
 		fpath := gopath.Join(path, fname)
-		qres, err := res.RPCClient.ABCIQuery(qpath, []byte(fpath))
+		qres, err := res.RPCClient.ABCIQuery(context.Background(), qpath, []byte(fpath))
 		if err != nil {
 			return nil, fmt.Errorf("unable to query path")
 		}
@@ -68,7 +69,7 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 		body := qres.Response.Data
 
 		// Check package name
-		if name == "" && isGnoFile(fname) && !isTestFile(fname) {
+		if name == "" && isGnoFile(fname) {
 			// Check package name
 			f, err := parser.ParseFile(fset, fname, body, parser.PackageClauseOnly)
 			if err != nil {

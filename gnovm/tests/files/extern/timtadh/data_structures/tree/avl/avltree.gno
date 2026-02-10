@@ -5,8 +5,8 @@ package avl
 import (
 	"fmt"
 
-	"github.com/gnolang/gno/_test/timtadh/data_structures/tree"
-	"github.com/gnolang/gno/_test/timtadh/data_structures/types"
+	"filetests/extern/timtadh/data_structures/tree"
+	"filetests/extern/timtadh/data_structures/types"
 )
 
 func abs(i int) int {

@@ -112,7 +112,7 @@ func TestReadGenesisTxs(t *testing.T) {
 			encodedTx, err := amino.MarshalJSON(tx)
 			require.NoError(t, err)
 
-			_, err = file.WriteString(fmt.Sprintf("%s\n", encodedTx))
+			_, err = fmt.Fprintf(file, "%s\n", encodedTx)
 			require.NoError(t, err)
 		}
 
@@ -141,7 +141,7 @@ func TestGnoAccountRestriction(t *testing.T) {
 	toAccount := acck.NewAccountWithAddress(ctx, toAddress)
 
 	// Default account is not unrestricted
-	assert.False(t, fromAccount.(*GnoAccount).IsUnrestricted())
+	assert.False(t, fromAccount.(*GnoAccount).IsTokenLockWhitelisted())
 
 	// Send Unrestricted
 	fromAccount.SetCoins(std.NewCoins(std.NewCoin("foocoin", 10)))
@@ -160,13 +160,13 @@ func TestGnoAccountRestriction(t *testing.T) {
 	assert.Equal(t, "restricted token transfer error", err.Error())
 
 	// Set unrestrict Account
-	fromAccount.(*GnoAccount).SetUnrestricted()
-	assert.True(t, fromAccount.(*GnoAccount).IsUnrestricted())
+	fromAccount.(*GnoAccount).SetTokenLockWhitelisted(true)
+	assert.True(t, fromAccount.(*GnoAccount).IsTokenLockWhitelisted())
 
 	// Persisted unrestricted state
 	acck.SetAccount(ctx, fromAccount)
 	fromAccount = acck.GetAccount(ctx, fromAddress)
-	assert.True(t, fromAccount.(*GnoAccount).IsUnrestricted())
+	assert.True(t, fromAccount.(*GnoAccount).IsTokenLockWhitelisted())
 
 	// Send Restricted
 	bankk.SetRestrictedDenoms(ctx, []string{"foocoin"}) // XXX unnecessary?
@@ -253,8 +253,8 @@ func TestSetFlag(t *testing.T) {
 	account := &GnoAccount{}
 
 	// Test setting a valid flag
-	account.setFlag(flagUnrestricted)
-	assert.True(t, account.hasFlag(flagUnrestricted), "Expected unrestricted flag to be set")
+	account.setFlag(flagTokenLockWhitelisted)
+	assert.True(t, account.hasFlag(flagTokenLockWhitelisted), "Expected flagTokenLockWhitelisted to be set")
 
 	// Test setting an invalid flag
 	assert.Panics(t, func() {
@@ -266,9 +266,9 @@ func TestClearFlag(t *testing.T) {
 	account := &GnoAccount{}
 
 	// Set and then clear the flag
-	account.setFlag(flagUnrestricted)
-	assert.True(t, account.hasFlag(flagUnrestricted), "Expected unrestricted flag to be set before clearing")
+	account.setFlag(flagTokenLockWhitelisted)
+	assert.True(t, account.hasFlag(flagTokenLockWhitelisted), "Expected flagTokenLockWhitelisted to be set before clearing")
 
-	account.clearFlag(flagUnrestricted)
-	assert.False(t, account.hasFlag(flagUnrestricted), "Expected unrestricted flag to be cleared")
+	account.clearFlag(flagTokenLockWhitelisted)
+	assert.False(t, account.hasFlag(flagTokenLockWhitelisted), "Expected flagTokenLockWhitelisted to be cleared")
 }
