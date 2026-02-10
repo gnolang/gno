@@ -175,7 +175,7 @@ var mhSeed = maphash.MakeSeed()
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
 	rc, err := ristretto.NewCache(&ristretto.Config[uint64, any]{
 		NumCounters: 1000000,
-		MaxCost:     256 * (1 << 20), // 256 MB
+		MaxCost:     8 * (1 << 20), // 8 MB
 		BufferItems: 64,
 	})
 	if err != nil {
