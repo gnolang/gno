@@ -73,7 +73,7 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 		return b.String()
 	}
 
-	srcContent, srcPost := renderSourcePost(post, indent, post.Body == "")
+	srcContent, srcPost := renderSourcePost(post, indent)
 	if boards.IsRepost(post) && srcPost != nil {
 		msg := "Original thread is: " + md.Link(srcPost.Title, makeThreadURI(srcPost))
 		b.WriteString(mdalert.New(mdalert.TypeInfo, "Thread Repost", msg, true).String())
@@ -179,14 +179,12 @@ func renderPostInner(post *boards.Post) string {
 	return s
 }
 
-func renderSourcePost(post *boards.Post, indent string, inline bool) (string, *boards.Post) {
+func renderSourcePost(post *boards.Post, indent string) (string, *boards.Post) {
 	if !boards.IsRepost(post) {
 		return "", nil
 	}
 
-	if !inline {
-		indent += "> "
-	}
+	indent += "> "
 
 	// TODO: figure out a way to decouple posts from a global storage.
 	board, ok := gBoards.Get(post.OriginalBoardID)
