@@ -124,7 +124,7 @@ func DefaultGasConfig() GasConfig {
 	return GasConfig{
 		GasGetObject:       16,   // per byte cost
 		GasSetObject:       16,   // per byte cost
-		GasGetType:         52,   // per byte cost
+		GasGetType:         5,    // per byte cost (TODO: should be benchmarked)
 		GasSetType:         52,   // per byte cost
 		GasGetPackageRealm: 524,  // per byte cost
 		GasSetPackageRealm: 524,  // per byte cost
