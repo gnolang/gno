@@ -781,11 +781,9 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	// check cache.
 	if tts, exists := ds.cacheTypes.Get(tid); exists {
 		// if not yet it ds.cacheTypesEph, consume gas.
-		if !ephExists {
-			gas := overflow.Mulp(ds.gasConfig.GasGetType, store.Gas(tts.Size))
-			ds.consumeGas(gas, GasGetTypeDesc)
-			ds.cacheTypesEph[tid] = tts.Type
-		}
+	        gas := overflow.Mulp(ds.gasConfig.GasGetType, store.Gas(tts.Size))
+                ds.consumeGas(gas, GasGetTypeDesc)
+	        ds.cacheTypesEph[tid] = tts.Type
 		// return type.
 		return tts.Type
 	}
