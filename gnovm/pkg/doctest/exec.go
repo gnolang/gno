@@ -37,7 +37,7 @@ var (
 	cache      = newCache(maxCacheSize)
 	regexCache = make(map[string]*regexp.Regexp)
 
-	addrRegex = regexp.MustCompile(`gno\.land/r/[a-z0-9]+/[a-z_/.]+`)
+	addrRegex = regexp.MustCompile(`gno\.land/[pre]/[a-z0-9]+/[a-z_/.]+`)
 )
 
 // ExecuteCodeBlock executes a parsed code block and executes it in a gno VM.
@@ -168,6 +168,8 @@ func setupEnv() (
 	mcw := ms.MultiCacheWrap()
 
 	vmk := vm.NewVMKeeper(baseKey, iavlKey, acck, bank, prmk)
+	prmk.Register(vm.ModuleName, vmk)
+	vmk.SetParams(ctx, vm.DefaultParams())
 	vmk.Initialize(log.NewNoopLogger(), mcw)
 
 	stdlibCtx := vmk.MakeGnoTransactionStore(ctx.WithMultiStore(mcw))
