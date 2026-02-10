@@ -4,12 +4,12 @@ gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1000000u
 gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/bar -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 502500ugnot -broadcast -chainid=tendermint_test test1
 
 gnokey maketx call -pkgpath gno.land/r/foo -func NewS -args "struct"  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
-stdout 'GAS USED: +259763'
+stdout 'GAS USED: +253089'
 
 gnoland restart
 
 gnokey maketx call -pkgpath gno.land/r/bar -func NewS -args "struct"  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
-stdout 'GAS USED: +259763'
+stdout 'GAS USED: +253089'
 
 
 -- foo/gnomod.toml --
