@@ -108,7 +108,7 @@ func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
 		&c.DerivationPath,
 		"derivation-path",
-        "derivation path for deriving and persisting key in the keybase",
+		"derivation path for deriving and persisting key in the keybase",
 	)
 }
 
