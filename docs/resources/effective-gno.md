@@ -631,7 +631,7 @@ An `avl.Tree` works like a `map` for storing key-value pairs. `maps` store all
 entries in one object (accessing any value loads everything), while AVL trees
 store each node separately (accessing a value loads only the search path).
 This makes `avl.Tree` significantly more efficient in both gas usage and
-performance for large or growing datasets.
+runtime performance for large or growing datasets.
 
 **Key differences**:
 
