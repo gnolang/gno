@@ -26,12 +26,12 @@ stdout '0'
 gnokey query bank/balances/$collector1_user_addr
 stdout '1000000000ugnot'
 
-# Register member with a namespace 
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "collector111" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test collector1
+# Register member with a namespace
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "collector111" -gas-fee 10000000ugnot -gas-wanted 110000000 -broadcast -chainid=tendermint_test collector1
 stdout 'OK!'
 
-# Register member with a namespace 
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "collector222" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test collector2
+# Register member with a namespace
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "collector222" -gas-fee 10000000ugnot -gas-wanted 110000000 -broadcast -chainid=tendermint_test collector2
 stdout 'OK!'
 
 ## Vote change proposal with unrestricted account test1
@@ -47,7 +47,7 @@ gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=
 
 ## Check collector1 balance, must have changed
 gnokey query bank/balances/$collector1_user_addr
-stdout '997490700ugnot'
+stdout '988490700ugnot'
 
 ## Submit a proposal to change fee_collector to collector2
 

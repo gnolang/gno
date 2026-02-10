@@ -124,7 +124,7 @@ func DefaultGasConfig() GasConfig {
 	return GasConfig{
 		GasGetObject:       16,   // per byte cost
 		GasSetObject:       16,   // per byte cost
-		GasGetType:         52,   // per byte cost
+		GasGetType:         5,    // per byte cost
 		GasSetType:         52,   // per byte cost
 		GasGetPackageRealm: 524,  // per byte cost
 		GasSetPackageRealm: 524,  // per byte cost
@@ -140,10 +140,12 @@ type defaultStore struct {
 	iavlStore store.Store // for escaped object hashes
 
 	// transaction-scoped
-	cacheObjects map[ObjectID]Object            // this is a real cache, reset with every transaction.
-	cacheTypes   txlog.Map[TypeID, Type]        // this re-uses the parent store's.
-	cacheNodes   txlog.Map[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
-	alloc        *Allocator                     // for accounting for cached items
+	// cacheNodes is an actual store - BlockNodes are not stored in the underlying
+	// DB and must be re-initialized using PreprocessAllFilesAndSaveBlockNodes.
+	cacheObjects map[ObjectID]Object
+	cacheTypes   map[TypeID]Type
+	cacheNodes   txlog.Map[Location, BlockNode]
+	alloc        *Allocator // for accounting for cached items
 
 	// Partially restored package; occupies memory and tracked for GC,
 	// this is more efficient than iterating over cacheObjects.
@@ -173,7 +175,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 
 		// cacheObjects is set; objects in the store will be copied over for any transaction.
 		cacheObjects: make(map[ObjectID]Object),
-		cacheTypes:   txlog.GoMap[TypeID, Type](map[TypeID]Type{}),
+		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
 
 		// reset at the message level
@@ -203,7 +205,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 
 		// transaction-scoped
 		cacheObjects: make(map[ObjectID]Object),
-		cacheTypes:   txlog.Wrap(ds.cacheTypes),
+		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.Wrap(ds.cacheNodes),
 		alloc:        ds.alloc.Fork().Reset(),
 
@@ -221,7 +223,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 		// reset at the message level
 		realmStorageDiffs: make(map[string]int64),
 	}
-	ds2.SetCachePackage(Uverse())
+	InitStoreCaches(ds2)
 
 	return transactionStore{ds2}
 }
@@ -231,7 +233,6 @@ type transactionStore struct {
 }
 
 func (t transactionStore) Write() {
-	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Commit()
 	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
 }
 
@@ -262,9 +263,6 @@ func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl st
 		ds.iavlStore.Set(iter.Key(), iter.Value())
 	}
 
-	for k, v := range ss.cacheTypes.Iterate() {
-		ds.cacheTypes.Set(k, v)
-	}
 	for k, v := range ss.cacheNodes.Iterate() {
 		ds.cacheNodes.Set(k, v)
 	}
@@ -765,7 +763,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	}
 
 	// check cache.
-	if tt, exists := ds.cacheTypes.Get(tid); exists {
+	if tt, exists := ds.cacheTypes[tid]; exists {
 		return tt
 	}
 
@@ -785,7 +783,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 				}
 			}
 			// set in cache.
-			ds.cacheTypes.Set(tid, tt)
+			ds.cacheTypes[tid] = tt
 			// after setting in cache, fill tt.
 			fillType(ds, tt)
 			return tt
@@ -796,13 +794,13 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 
 func (ds *defaultStore) SetCacheType(tt Type) {
 	tid := tt.TypeID()
-	if tt2, exists := ds.cacheTypes.Get(tid); exists {
+	if tt2, exists := ds.cacheTypes[tid]; exists {
 		if tt != tt2 {
 			panic(fmt.Sprintf("cannot re-register %q with different type", tid))
 		}
 		// else, already set.
 	} else {
-		ds.cacheTypes.Set(tid, tt)
+		ds.cacheTypes[tid] = tt
 	}
 }
 
@@ -821,7 +819,7 @@ func (ds *defaultStore) SetType(tt Type) {
 	}
 	tid := tt.TypeID()
 	// return if tid already known.
-	if tt2, exists := ds.cacheTypes.Get(tid); exists {
+	if tt2, exists := ds.cacheTypes[tid]; exists {
 		if tt != tt2 {
 			// this can happen for a variety of reasons.
 			// TODO classify them and optimize.
@@ -839,7 +837,7 @@ func (ds *defaultStore) SetType(tt Type) {
 		size = len(bz)
 	}
 	// save type to cache.
-	ds.cacheTypes.Set(tid, tt)
+	ds.cacheTypes[tid] = tt
 }
 
 // Convenience
@@ -1165,11 +1163,10 @@ func (ds *defaultStore) Print() {
 	utils.Print(ds.iavlStore)
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheTypes..."))
-	ds.cacheTypes.Iterate()(func(tid TypeID, typ Type) bool {
+	for tid, typ := range ds.cacheTypes {
 		fmt.Printf("- %v: %v\n", tid,
 			stringz.TrimN(fmt.Sprintf("%v", typ), 50))
-		return true
-	})
+	}
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheNodes..."))
 	ds.cacheNodes.Iterate()(func(loc Location, bn BlockNode) bool {
@@ -1231,25 +1228,6 @@ func decodeBackendPackagePathKey(key string) string {
 // builtin types and packages
 
 func InitStoreCaches(store Store) {
-	/* This is what it used to be, but it's confusing when there are new
-	 * uverse types.
-
-	types := []Type{
-		BoolType, UntypedBoolType,
-		StringType, UntypedStringType,
-		IntType, Int8Type, Int16Type, Int32Type, Int64Type, UntypedRuneType,
-		UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type,
-		UntypedBigintType,
-		gTypeType,
-		gPackageType,
-		blockType{},
-		Float32Type, Float64Type,
-		gErrorType, // from uverse.go
-	}
-	for _, tt := range types {
-		store.SetCacheType(tt)
-	}
-	*/
 	uverse := UverseNode()
 	for _, tv := range uverse.GetStaticBlock().Values {
 		if tv.T != nil && tv.T.Kind() == TypeKind {
