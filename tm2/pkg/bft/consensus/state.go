@@ -164,7 +164,7 @@ func NewConsensusState(
 		timeoutTicker:    NewTimeoutTicker(),
 		statsMsgQueue:    make(chan msgInfo, msgQueueSize),
 		done:             nil,
-		doWALCatchup:     true,
+		doWALCatchup:     !config.WALDisabled, // no catchup if WAL is disabled
 		evsw:             events.NewEventSwitch(),
 		wal:              walm.NopWAL{},
 		walDisabled:      config.WALDisabled,
