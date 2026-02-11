@@ -120,6 +120,25 @@ For production packages, you'll want your own namespace:
 
 This gives you a more human-readable package path and establishes your identity in the ecosystem.
 
+## Package Name Requirements
+
+When deploying a package, the package name declared in your source code must
+match the last element of the package path. For example:
+
+- `gno.land/r/demo/counter` requires `package counter`
+- `gno.land/p/demo/mylib` requires `package mylib`
+
+### Version Suffixes
+
+Paths can include version suffixes for versioned packages:
+
+- `gno.land/r/demo/mylib/v1` requires `package mylib` (v1 is a version suffix)
+- `gno.land/r/demo/mylib/v2` requires `package mylib` (v2 is a version suffix)
+- `gno.land/r/demo/mylib/v10` requires `package mylib` (v10 is a version suffix)
+
+The `gno lint` command will warn you about package name mismatches before
+deployment.
+
 ## Understanding Deployment Parameters
 
 - `--pkgpath` - The on-chain path where your code will be stored

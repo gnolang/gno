@@ -69,11 +69,11 @@ gnokey query params/vm:gno.land/r/myrealm:bank_lockTransfer
 stdout 'data: "ugnot"'
 
 -- params/gnomod.toml --
-module = "gno.land/r/sys/params"
+module = "gno.land/r/myrealm"
 gno = "0.9"
 
 -- params/setter.gno --
-package params
+package myrealm
 
 import params_ "chain/params"
 
