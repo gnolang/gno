@@ -423,7 +423,6 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 
 	stacktrace.Calls = calls
 
-	// XXX move to machine.LastLine()?
 	if m.LastFrame().Func != nil && m.LastFrame().Func.IsNative() {
 		stacktrace.LastLine = -1 // special line for native.
 	} else {
@@ -1666,7 +1665,6 @@ func (m *Machine) PushStmts(ss ...Stmt) {
 			m.Printf("+s %v\n", s)
 		}
 	}
-	// XXX, also set lastLine here?
 	m.Stmts = append(m.Stmts, ss...)
 }
 
