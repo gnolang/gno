@@ -114,9 +114,14 @@ implemented through roles and permissions will rely on DAO proposals to actually
 support for proposals is going to be implemented in upcoming Boards2 versions**.
 
 Right now is possible to integrate with the underlying DAO and change the default board mechanics to rely on
-proposals using a [custom board] implementation, by creating a new realm that import and uses the [custom
+proposals using a [custom board] implementation, by creating a new realm that imports and uses the [custom
 permissions] realm, which exposes the DAO. The new realm can then be used to replace the default board
-permissions, which right now can only be done by a Boards2 realm `owner`.
+permissions, which right now can only be done by a Boards2 realm `owner` using a public realm function:
+
+```go
+// SetPermissions sets a permissions implementation for boards2 realm or a board
+func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions)
+```
 
 ## Moderation
 
