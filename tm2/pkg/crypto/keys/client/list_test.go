@@ -151,6 +151,9 @@ func Test_execList_MultisigMembersDisplay(t *testing.T) {
 	require.NoError(t, execList(cfg, nil, io))
 
 	output := out.String()
-	assert.Contains(t, output, "pub: "+msPub.String())
+	for _, pk := range msPub.(multisig.PubKeyMultisigThreshold).PubKeys {
+		assert.Contains(t, output, "\n  "+pk.String()+"\n")
+	}
+	assert.Contains(t, output, "pub:")
 	assert.NotContains(t, output, crypto.PubKeyToBech32(msPub))
 }
