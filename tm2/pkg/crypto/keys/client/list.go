@@ -65,13 +65,15 @@ func printInfos(infos []keys.Info, showMultisigMembers bool, io commands.IO) {
 		keyname := info.GetName()
 		keytype := info.GetType()
 		keypub := info.GetPubKey()
+		keyaddr := info.GetAddress()
+		keypath, _ := info.GetPath()
 		keypubDisplay := keypub.String()
+
 		if keytype == keys.TypeMulti && !showMultisigMembers {
 			keypubDisplay = crypto.PubKeyToBech32(keypub)
 		}
-		keyaddr := info.GetAddress()
-		keypath, _ := info.GetPath()
-		io.Printfln("%d. %s (%s) - addr: %v pub: %v, path: %v",
-			i, keyname, keytype, keyaddr, keypubDisplay, keypath)
+
+		io.Printfln("%d. %s (%s) - addr: %v path: %v pub: %v",
+			i, keyname, keytype, keyaddr, keypath, keypubDisplay)
 	}
 }
