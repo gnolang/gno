@@ -247,7 +247,13 @@ func Block(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlock, error)
 	}
 
 	blockMeta := blockStore.LoadBlockMeta(height)
+	if blockMeta == nil {
+		return nil, fmt.Errorf("block meta not found for height %d", height)
+	}
 	block := blockStore.LoadBlock(height)
+	if block == nil {
+		return nil, fmt.Errorf("block not found for height %d", height)
+	}
 	return &ctypes.ResultBlock{BlockMeta: blockMeta, Block: block}, nil
 }
 
@@ -339,7 +345,11 @@ func Commit(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultCommit, erro
 		return nil, err
 	}
 
-	header := blockStore.LoadBlockMeta(height).Header
+	blockMeta := blockStore.LoadBlockMeta(height)
+	if blockMeta == nil {
+		return nil, fmt.Errorf("block meta not found for height %d", height)
+	}
+	header := blockMeta.Header
 
 	// If the next block has not been committed yet,
 	// use a non-canonical commit
