@@ -1,14 +1,15 @@
 package gnolang
 
 import (
+	"crypto/sha256"
 	"fmt"
-	"hash/maphash"
 	"io"
 	"iter"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/dgraph-io/ristretto/v2"
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
@@ -156,7 +157,7 @@ type defaultStore struct {
 	// store configuration; cannot be modified in a transaction
 	pkgGetter      PackageGetter  // non-realm packages
 	nativeResolver NativeResolver // for injecting natives
-	aminoCache     *ristretto.Cache[uint64, any]
+	aminoCache     *ristretto.Cache[[]byte, any]
 
 	// transient
 	opslog  io.Writer // for logging store operations.
@@ -170,17 +171,19 @@ type defaultStore struct {
 	realmStorageDiffs map[string]int64 // maps realm path to size diff
 }
 
-var mhSeed = maphash.MakeSeed()
-
-func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
-	rc, err := ristretto.NewCache(&ristretto.Config[uint64, any]{
-		NumCounters: 1000000,
-		MaxCost:     8 * (1 << 20), // 8 MB
+var globalAminoCache = sync.OnceValue[*ristretto.Cache[[]byte, any]](func() *ristretto.Cache[[]byte, any] {
+	rc, err := ristretto.NewCache(&ristretto.Config[[]byte, any]{
+		NumCounters: 1_000_000,       // maximum number of keys in cache
+		MaxCost:     256 * (1 << 20), // 256 MB
 		BufferItems: 64,
 	})
 	if err != nil {
 		panic(err)
 	}
+	return rc
+})
+
+func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
 	ds := &defaultStore{
 		baseStore: baseStore,
 		iavlStore: iavlStore,
@@ -198,7 +201,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		pkgGetter:      nil,
 		nativeResolver: nil,
 		gasConfig:      DefaultGasConfig(),
-		aminoCache:     rc,
+		aminoCache:     globalAminoCache(),
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -228,8 +231,9 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 		nativeResolver: ds.nativeResolver,
 
 		// gas meter
-		gasMeter:  gasMeter,
-		gasConfig: ds.gasConfig,
+		gasMeter:   gasMeter,
+		gasConfig:  ds.gasConfig,
+		aminoCache: ds.aminoCache,
 
 		// transient
 		current: nil,
@@ -475,7 +479,13 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		var oo Object
 		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
-		amino.MustUnmarshal(bz, &oo)
+		cacheSum := sha256.Sum256(bz)
+		if cachedObj, ok := ds.aminoCache.Get(cacheSum[:]); ok {
+			oo = copyValueWithRefs(cachedObj.(Object)).(Object)
+		} else {
+			amino.MustUnmarshal(bz, &oo)
+			ds.aminoCache.Set(cacheSum[:], copyValueWithRefs(oo).(Object), int64(len(bz)))
+		}
 		if debug {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
@@ -683,6 +693,9 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		copy(hashbz[HashSize:], bz)
 		ds.baseStore.Set([]byte(key), hashbz)
 		size = len(hashbz)
+		// Setting aminoCache here currently results in realm ownership starting to fall apart.
+		// Probably ObjectInfo.Copy should not copy the unexported fields?
+		// ds.aminoCache.Set(mh, o2.(Object), int64(len(bz)))
 		oo.GetObjectInfo().LastObjectSize = int64(size)
 	}
 	// save object to cache.
@@ -780,14 +793,14 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		if bz != nil {
 			gas := overflow.Mulp(ds.gasConfig.GasGetType, store.Gas(len(bz)))
 			ds.consumeGas(gas, GasGetTypeDesc)
-			mh := maphash.Bytes(mhSeed, bz)
+			cacheSum := sha256.Sum256(bz)
 			var tt Type
-			if val, ok := ds.aminoCache.Get(mh); ok {
-				tt = val.(Type)
+			if val, ok := ds.aminoCache.Get(cacheSum[:]); ok {
+				tt = copyTypeWithRefs(val.(Type))
 			} else {
 				amino.MustUnmarshal(bz, &tt)
 				// len(bz) is not the proper cost of tt, but is good enough
-				ds.aminoCache.Set(mh, tt, int64(len(bz)))
+				ds.aminoCache.Set(cacheSum[:], copyTypeWithRefs(tt), int64(len(bz)))
 			}
 			if debug {
 				if tt.TypeID() != tid {
@@ -844,8 +857,8 @@ func (ds *defaultStore) SetType(tt Type) {
 		key := backendTypeKey(tid)
 		tcopy := copyTypeWithRefs(tt)
 		bz := amino.MustMarshalAny(tcopy)
-		mh := maphash.Bytes(mhSeed, bz)
-		ds.aminoCache.Set(mh, tt, int64(len(bz)))
+		cacheSum := sha256.Sum256(bz)
+		ds.aminoCache.Set(cacheSum[:], tcopy, int64(len(bz)))
 		gas := overflow.Mulp(ds.gasConfig.GasSetType, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasSetTypeDesc)
 		ds.baseStore.Set([]byte(key), bz)
