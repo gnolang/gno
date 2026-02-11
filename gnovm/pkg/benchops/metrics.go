@@ -217,14 +217,7 @@ type callFrame struct {
 }
 
 // estimatedFrameKeySize is the expected size of a stack frame key string.
-// Format: "funcName@file:line", for example "handleRequest@counter.gno:42"
-// Estimation breakdown:
-//   - Function name: ~20 chars (e.g., "handleRequest", "processTransaction")
-//   - "@" separator:   1 char
-//   - File path:     ~35 chars (e.g., "gno.land/r/demo/boards/post.gno")
-//   - ":" separator:   1 char
-//   - Line number:    ~4 chars (1-9999)
-//   - Total:         ~61 chars, rounded up to 64 for alignment
+// Example: "handleRequest@gno.land/r/demo/boards/post.gno:42"
 const estimatedFrameKeySize = 64
 
 // stackSample is the internal aggregation struct for stack samples during collection.

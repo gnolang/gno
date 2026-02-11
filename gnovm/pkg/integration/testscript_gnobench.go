@@ -16,8 +16,6 @@ import (
 )
 
 // benchMutex serializes access to the global benchops profiler across parallel tests.
-// Since benchops.Start/Stop uses a global profiler, tests using "bench start/stop"
-// cannot run truly in parallel - they must wait for the profiler to be available.
 var benchMutex sync.Mutex
 
 // benchStateKey is the key used to store BenchState in testscript env.Values.
@@ -108,8 +106,7 @@ func makeCmdBench(stateKey any) func(*testscript.TestScript, bool, []string) {
 	}
 }
 
-// AutoStopBench stops profiling if still running and writes results.
-// Call this at end of test to ensure bench data is captured.
+// AutoStopBench ensures bench data is captured at end of test.
 func AutoStopBench(ts *testscript.TestScript, state *BenchState) {
 	if !state.Running {
 		return
@@ -118,7 +115,6 @@ func AutoStopBench(ts *testscript.TestScript, state *BenchState) {
 	results := benchops.Stop()
 	state.Running = false
 
-	// Release mutex only if we hold it
 	if state.mutexHeld {
 		benchMutex.Unlock()
 		state.mutexHeld = false
@@ -134,7 +130,7 @@ func AutoStopBench(ts *testscript.TestScript, state *BenchState) {
 	ts.Logf("bench: auto-stopped profiling, wrote %s", state.OutputFile)
 }
 
-// writeBenchResults writes benchmark results to a file with proper error handling.
+// writeBenchResults writes benchmark results as JSON to a file.
 func writeBenchResults(path string, results *benchops.Results) (err error) {
 	f, err := os.Create(path)
 	if err != nil {
@@ -214,10 +210,6 @@ func parseBenchData(data []byte) ([]benchops.BenchEvent, error) {
 
 	return events, scanner.Err()
 }
-
-// ---- Bench JSON Parsing (uses benchops types)
-
-// ---- Command Implementation
 
 // CmdJSONBench parses and displays a bench profile file in golden format.
 // Usage: jsonbench <file.json> [sections]

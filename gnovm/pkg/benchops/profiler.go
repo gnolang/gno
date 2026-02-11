@@ -87,26 +87,20 @@ func (s State) String() string {
 	}
 }
 
-// Int32 returns the State as int32 for atomic operations.
-func (s State) Int32() int32 { return int32(s) }
-
-// stateFromInt32 converts an int32 to State.
-func stateFromInt32(v int32) State { return State(v) }
+func (p *Profiler) loadState() State                    { return State(p.state.Load()) }
+func (p *Profiler) storeState(s State)                   { p.state.Store(int32(s)) }
+func (p *Profiler) casState(old, new State) bool {
+	return p.state.CompareAndSwap(int32(old), int32(new))
+}
 
 // Profiler collects timing statistics for GnoVM operations.
 // Recording (BeginOp/EndOp, etc.) is NOT thread-safe and must be done
 // from a single goroutine. Atomics are only used for state transitions
 // to detect accidental concurrent Start/Stop calls.
-//
-// Field ordering is optimized to minimize padding:
-// - 8-byte aligned fields (pointers, slices, maps, time.Time) grouped together
-// - Small fields (bools) grouped to share padding
 type Profiler struct {
-	// ---- 8-byte aligned fields (no padding between these)
 	startTime time.Time
 	stopTime  time.Time
 
-	// Pointers and slices (all 8-byte aligned)
 	opStack        []opStackEntry
 	currentOp      *opStackEntry
 	storeStack     []storeStackEntry
@@ -117,14 +111,11 @@ type Profiler struct {
 	callStack      []callFrame             // current call stack (root-to-leaf)
 	stackSampleAgg map[string]*stackSample // aggregated samples by stack signature (avoids memory growth)
 
-	// ---- 4-byte aligned fields
 	state atomic.Int32
 
-	// Configuration flags (grouped to share padding)
-	timingEnabled bool // Track wall-clock time (expensive, opt-in)
-	stackEnabled  bool // Track call stacks for pprof (opt-in)
+	timingEnabled bool
+	stackEnabled  bool
 
-	// ---- Large arrays at the end (cache-friendly for iteration)
 	opStats     [maxOpCodes]OpStat
 	storeStats  [maxOpCodes]StoreStat
 	nativeStats [maxOpCodes]TimingStat
@@ -145,19 +136,14 @@ func New() *Profiler {
 		callStack:      make([]callFrame, 0, defaultStackCapacity),
 		stackSampleAgg: make(map[string]*stackSample, defaultStackSampleCapacity),
 	}
-	p.state.Store(StateIdle.Int32())
+	p.storeState(StateIdle)
 	return p
 }
 
-// Start begins profiling.
-// Uses atomic CompareAndSwap to detect concurrent access - panics if profiler
-// is already running.
-// Clears any stale data from previous instrumentation before starting.
-// Panics if not in StateIdle.
+// Start begins profiling. Panics if not in StateIdle.
 func (p *Profiler) Start() {
-	if !p.state.CompareAndSwap(StateIdle.Int32(), StateRunning.Int32()) {
-		current := stateFromInt32(p.state.Load())
-		if current == StateRunning {
+	if !p.casState(StateIdle, StateRunning) {
+		if p.loadState() == StateRunning {
 			panic("benchops: Start: profiler is already running (concurrent access or missing Stop)")
 		}
 		panic("benchops: Start: profiler is not idle (invalid state)")
@@ -170,11 +156,9 @@ func (p *Profiler) Start() {
 }
 
 // Stop ends profiling, returns the results, and resets to idle state.
-// The profiler can be immediately reused with Start() after Stop().
-// Uses atomic CompareAndSwap to ensure thread-safe state transition.
 // Panics if not in StateRunning.
 func (p *Profiler) Stop() *Results {
-	if !p.state.CompareAndSwap(StateRunning.Int32(), StateIdle.Int32()) {
+	if !p.casState(StateRunning, StateIdle) {
 		panic("benchops: Stop: profiler is not running (missing Start)")
 	}
 
@@ -208,12 +192,11 @@ func (p *Profiler) clearData() {
 // This is a no-op if the profiler is already idle.
 // Panics if called while the profiler is running (use Stop() instead).
 func (p *Profiler) Reset() {
-	current := stateFromInt32(p.state.Load())
-	if current == StateRunning {
+	if p.loadState() == StateRunning {
 		panic("benchops: Reset: profiler is running (use Stop instead)")
 	}
 	p.clearData()
-	p.state.Store(StateIdle.Int32())
+	p.storeState(StateIdle)
 }
 
 // Recovery resets internal state after a panic without changing profiler state.
@@ -230,5 +213,5 @@ func (p *Profiler) Recovery() {
 // State returns the current profiler state.
 // This is safe to call at any time (lock-free atomic read).
 func (p *Profiler) State() State {
-	return stateFromInt32(p.state.Load())
+	return p.loadState()
 }

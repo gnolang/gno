@@ -631,7 +631,6 @@ func TestIsJSONFormat(t *testing.T) {
 func TestSubOpMeasurement(t *testing.T) {
 	p := New()
 	p.Start()
-	// Sub-ops are always enabled now
 
 	// Test basic sub-op tracking
 	p.BeginSubOp(SubOpDefineVar, SubOpContext{Line: 10, VarName: "x", File: "test.gno"})
@@ -646,7 +645,6 @@ func TestSubOpMeasurement(t *testing.T) {
 func TestSubOpAlwaysEnabled(t *testing.T) {
 	p := New()
 	p.Start()
-	// Sub-ops are always tracked now (no EnableSubOps needed)
 
 	p.BeginSubOp(SubOpDefineVar, SubOpContext{})
 	p.EndSubOp()
@@ -659,7 +657,6 @@ func TestSubOpAlwaysEnabled(t *testing.T) {
 func TestSubOpMultipleTypes(t *testing.T) {
 	p := New()
 	p.Start()
-	// Sub-ops are always enabled now
 
 	// Test multiple sub-op types
 	for i := 0; i < 3; i++ {
@@ -697,7 +694,6 @@ func TestSubOpString(t *testing.T) {
 func TestEndSubOpWithoutBeginNoOp(t *testing.T) {
 	p := New()
 	p.Start()
-	// Sub-ops are always enabled now
 	defer p.Stop()
 
 	// EndSubOp without BeginSubOp should not panic - it's a no-op
@@ -707,7 +703,6 @@ func TestEndSubOpWithoutBeginNoOp(t *testing.T) {
 func TestSubOpWithContext(t *testing.T) {
 	p := New()
 	p.Start()
-	// Sub-ops are always enabled now
 
 	// Track variable assignments with context
 	p.BeginSubOp(SubOpDefineVar, SubOpContext{
@@ -739,7 +734,6 @@ func TestSubOpWithContext(t *testing.T) {
 func TestSubOpIndexedContext(t *testing.T) {
 	p := New()
 	p.Start()
-	// Sub-ops are always enabled now
 
 	// Test indexed operations (e.g., range loop indices)
 	p.BeginSubOp(SubOpRangeKey, SubOpContext{
@@ -766,7 +760,6 @@ func TestSubOpIndexedContext(t *testing.T) {
 func TestWriteGoldenWithSubOps(t *testing.T) {
 	p := New()
 	p.Start()
-	// Sub-ops are always enabled now
 
 	p.BeginSubOp(SubOpDefineVar, SubOpContext{Line: 10, VarName: "x", File: "test.gno"})
 	p.EndSubOp()
@@ -788,7 +781,6 @@ func TestWriteGoldenWithSubOps(t *testing.T) {
 func TestWriteGoldenWithVars(t *testing.T) {
 	p := New()
 	p.Start()
-	// Sub-ops are always enabled now
 
 	p.BeginSubOp(SubOpDefineVar, SubOpContext{
 		File:    "test.gno",
@@ -810,7 +802,6 @@ func TestWriteGoldenWithVars(t *testing.T) {
 func TestRecoveryResetsSubOps(t *testing.T) {
 	p := New()
 	p.Start()
-	// Sub-ops are always enabled now
 
 	// Start a sub-op without ending it
 	p.BeginSubOp(SubOpDefineVar, SubOpContext{})
