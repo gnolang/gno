@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
@@ -70,6 +71,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	gasMeter := store.NewInfiniteGasMeter()
 	// Create machine for execution and run test
 	tcw := opts.BaseStore.CacheWrap()
+	needsAlloc := opts.Profile != nil && opts.Profile.needsAllocator()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
 		Store:         tgs.BeginTransaction(tcw, tcw, gasMeter),
@@ -79,6 +81,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		Debug:         opts.Debug,
 		ReviveEnabled: true,
 	})
+	provisionFiletestAllocator(m, needsAlloc)
+	if opts.Profile != nil {
+		opts.Profile.attachMachine(m)
+	}
 	defer m.Release()
 
 	// RUN THE FILETEST /////////////////////////////////////
@@ -639,4 +645,11 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 	}
 
 	return result, sc.Err()
+}
+
+func provisionFiletestAllocator(m *gno.Machine, needsAllocator bool) {
+	if !needsAllocator || m == nil || m.Alloc != nil {
+		return
+	}
+	m.Alloc = gno.NewAllocator(math.MaxInt64)
 }
