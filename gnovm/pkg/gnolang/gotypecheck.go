@@ -132,9 +132,9 @@ func (gw gimpGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
 type TypeCheckMode int
 
 const (
-	TCLatestStrict  TypeCheckMode = iota // require latest gnomod gno version, forbid drafts
-	TCGenesisStrict                      // require latest gnomod gno version, allow drafts
-	TCLatestRelaxed                      // generate latest gno.mod if missing; for testing
+	TCLatestStrict  TypeCheckMode = iota // require latest gnomod.toml gno version, forbid drafts
+	TCGenesisStrict                      // require latest gnomod.toml gno version, allow drafts
+	TCLatestRelaxed                      // generate latest gnomod.toml if missing
 	TCGno0p0                             // when gno fix'ing from gno 0.0.
 )
 

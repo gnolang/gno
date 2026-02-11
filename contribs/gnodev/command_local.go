@@ -38,6 +38,8 @@ var defaultLocalAppConfig = AppConfig{
 	interactive:         isatty.IsTerminal(os.Stdout.Fd()),
 	unsafeAPI:           true,
 	lazyLoader:          true,
+	emptyBlocks:         false,
+	emptyBlocksInterval: 1,
 
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app

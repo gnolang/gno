@@ -1,0 +1,58 @@
+-- input.md --
+<gno-form>
+<gno-input name="username" type="text" placeholder="Enter username" value="Alice" required="true" />
+<gno-textarea name="bio" placeholder="Short bio" rows="4" value="Super builder" required="true" />
+<gno-select name="role" value="admin" required="true" />
+<gno-select name="role" value="user" />
+<gno-input name="gender" type="radio" value="male" description="Select your gender" required="true" />
+<gno-input name="gender" type="radio" value="female" />
+<gno-input name="gender" type="radio" value="other" />
+<gno-input name="terms" type="checkbox" value="accepted" description="Legal agreement" required="true" />
+<gno-input name="newsletter" type="checkbox" value="subscribe" description="Newsletter" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div class="gno-form_input"><label for="username">Enter username<span class="gno-form_info-badge">(required)</span></label>
+<input type="text" id="username" name="username" placeholder="Enter username (required)" value="Alice" required />
+</div>
+<div class="gno-form_input"><label for="bio">Short bio<span class="gno-form_info-badge">(required)</span></label>
+<textarea id="bio" name="bio" placeholder="Short bio (required)" rows="4" required>Super builder</textarea>
+</div>
+<div class="gno-form_select"><label for="role">Role<span class="gno-form_info-badge">(required)</span></label>
+<select id="role" name="role" required>
+<option value="">Select a Role (required)</option>
+<option value="admin">admin</option>
+<option value="user">user</option>
+</select>
+<svg class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><use href="#ico-arrow"></use></svg>
+</div>
+<div id="desc_gender_4" class="gno-form_description">Select your gender<span class="gno-form_info-badge">(required)</span></div>
+<div class="gno-form_selectable">
+<input type="radio" id="gender_4" name="gender" value="male" aria-labelledby="desc_gender_4" required />
+<label for="gender_4">male</label>
+</div>
+<div class="gno-form_selectable">
+<input type="radio" id="gender_5" name="gender" value="female" aria-labelledby="desc_gender_4" />
+<label for="gender_5">female</label>
+</div>
+<div class="gno-form_selectable">
+<input type="radio" id="gender_6" name="gender" value="other" aria-labelledby="desc_gender_4" />
+<label for="gender_6">other</label>
+</div>
+<div id="desc_terms_7" class="gno-form_description">Legal agreement</div>
+<div class="gno-form_selectable">
+<input type="checkbox" id="terms_7" name="terms" value="accepted" aria-labelledby="desc_terms_7" required />
+<label for="terms_7">accepted<span class="gno-form_info-badge">(required)</span></label>
+</div>
+<div id="desc_newsletter_8" class="gno-form_description">Newsletter</div>
+<div class="gno-form_selectable">
+<input type="checkbox" id="newsletter_8" name="newsletter" value="subscribe" aria-labelledby="desc_newsletter_8" />
+<label for="newsletter_8">subscribe</label>
+</div>
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>

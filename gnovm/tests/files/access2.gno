@@ -11,9 +11,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/p/nt/testutils) package{})).TestVar1
-
-// Stacktrace:
-// panic: cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/p/nt/testutils) package{})).TestVar1
-// main<VPBlock(1,0)>(struct{( .uverse.address),("gno.land/r/access" string),(nil .uverse..grealm)})
-//     gno.land/r/access/access2.gno:9
+// gno.land/r/access/access2.gno:9:2-20: cannot directly mutate gno.land/p/nt/testutils.TestVar1 from gno.land/r/access

@@ -13,9 +13,11 @@ var (
 
 func main() {
 	expect.Value(t, nil).Not().ToBeNil()
+	expect.Value(t, (*int)(nil)).Not().ToBeNil()
 
 	println(output.String())
 }
 
 // Output:
+// Expected a non nil value
 // Expected a non nil value

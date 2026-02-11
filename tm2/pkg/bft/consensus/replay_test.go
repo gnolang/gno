@@ -35,7 +35,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/random"
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
 func TestMain(m *testing.M) {
@@ -571,10 +570,8 @@ func TestHandshakeReplayOne(t *testing.T) {
 }
 
 // Sync from caught up
-func TestFlappyHandshakeReplayNone(t *testing.T) {
+func TestHandshakeReplayNone(t *testing.T) {
 	t.Parallel()
-
-	testutils.FilterStability(t, testutils.Flappy)
 
 	for _, m := range modes {
 		testHandshakeReplay(t, config, numBlocks, m, nil)

@@ -49,6 +49,15 @@ func TestValidateBasic(t *testing.T) {
 		assert.ErrorIs(t, cfg.ValidateBasic(), errInvalidLocalSignerPath)
 	})
 
+	t.Run("remote signer config is nil", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RemoteSigner = nil
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errNilRemoteSignerConfig)
+	})
+
 	t.Run("remote signer config with invalid key", func(t *testing.T) {
 		t.Parallel()
 

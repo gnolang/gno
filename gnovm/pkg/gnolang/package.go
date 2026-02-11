@@ -104,6 +104,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	FileNode{},
 	PackageNode{},
 	RefNode{},
+	NameSource{},
+	Pos{},
+	Span{},
 
 	//----------------------------------------
 	// Types

@@ -189,7 +189,7 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 	txs := make([]TxWithMetadata, 0, len(nonIgnoredPkgs))
 
 	for _, pkg := range nonIgnoredPkgs {
-		// XXX: as addpkg require gno.mod, we should probably check this here
+		// XXX: as addpkg require gnomod.toml, we should probably check this here
 		mpkg, err := gno.ReadMemPackage(pkg.Dir, pkg.Name, gno.MPUserAll)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)

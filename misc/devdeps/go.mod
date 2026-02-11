@@ -14,6 +14,8 @@ require (
 	mvdan.cc/gofumpt v0.8.0
 )
 
+require google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
+
 require (
 	4d63.com/gocheckcompilerdirectives v1.3.0 // indirect
 	4d63.com/gochecknoglobals v0.2.2 // indirect

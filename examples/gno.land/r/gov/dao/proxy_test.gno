@@ -79,9 +79,9 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 		pid = MustCreateProposal(cross, NewProposalRequest("Proposal Title", "Description", e))
 	})
 
-	p := MustGetProposal(cross, 1000)
-	if p != nil {
-		panic("proposal must be nil")
+	p, err := GetProposal(cross, 1000)
+	if p != nil || err == nil {
+		panic("proposal should not exist and should return an error")
 	}
 	p = MustGetProposal(cross, pid)
 	urequire.Equal(t, "Proposal Title", p.Title())

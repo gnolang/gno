@@ -1,19 +1,14 @@
 package main
 
-var a = 0
-func foo()int{
-	return 1/a
-}
 func main() {
-	foo()
+	var p *int
+	*p = 2
 }
-
-// Error:
-// division by zero
 
 // Stacktrace:
-// panic: division by zero
-// foo<VPBlock(3,1)>()
+// panic: nil pointer dereference
+// main<VPBlock(1,0)>()
 //     main/panic3.gno:5
-// main<VPBlock(1,2)>()
-//     main/panic3.gno:8
+
+// Error:
+// nil pointer dereference

@@ -43,3 +43,16 @@ func SetObject(cur realm, x any) {
 func GetObject() any {
 	return Object
 }
+
+func IncrementObject(cur realm) any {
+	ptr := Object.(*int)
+	*ptr += 1
+	return Object
+}
+
+var n int
+
+// NOTE should be non-crossing
+func IncrGlobal() {
+	n++
+}

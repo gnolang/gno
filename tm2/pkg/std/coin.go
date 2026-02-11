@@ -77,10 +77,7 @@ func validate(denom string, amount int64) error {
 
 // IsValid returns true if the Coin has a non-negative amount and the denom is valid.
 func (coin Coin) IsValid() bool {
-	if err := validate(coin.Denom, coin.Amount); err != nil {
-		return false
-	}
-	return true
+	return validate(coin.Denom, coin.Amount) == nil
 }
 
 // IsZero returns if this represents no money
@@ -120,8 +117,8 @@ func (coin Coin) IsEqual(other Coin) bool {
 // An invalid result panics.
 func (coin Coin) Add(coinB Coin) Coin {
 	res := coin.AddUnsafe(coinB)
-	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v + %v = %v", coin, coinB, res))
+	if err := validate(res.Denom, res.Amount); err != nil {
+		panic(fmt.Sprintf("invalid result: %v + %v = %v: %v", coin, coinB, res, err))
 	}
 	return res
 }
@@ -143,8 +140,8 @@ func (coin Coin) AddUnsafe(coinB Coin) Coin {
 // An invalid result panics.
 func (coin Coin) Sub(coinB Coin) Coin {
 	res := coin.SubUnsafe(coinB)
-	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v - %v = %v", coin, coinB, res))
+	if err := validate(res.Denom, res.Amount); err != nil {
+		panic(fmt.Sprintf("invalid result: %v - %v = %v: %v", coin, coinB, res, err))
 	}
 	return res
 }
@@ -191,8 +188,8 @@ func NewCoins(coins ...Coin) Coins {
 		panic(fmt.Errorf("find duplicate denom: %s", newCoins[dupIndex]))
 	}
 
-	if !newCoins.IsValid() {
-		panic(fmt.Errorf("invalid coin set: %s", newCoins))
+	if err := newCoins.validate(); err != nil {
+		panic(fmt.Errorf("invalid coin set %s: %w", newCoins, err))
 	}
 
 	return newCoins
@@ -226,37 +223,49 @@ func (coins Coins) String() string {
 // IsValid asserts the Coins are sorted, have positive amount,
 // and Denom does not contain upper case characters.
 func (coins Coins) IsValid() bool {
+	return coins.validate() == nil
+}
+
+// validate checks that the Coins are sorted, have positive amounts,
+// and valid denoms. Returns an error describing the issue if invalid.
+func (coins Coins) validate() error {
 	switch len(coins) {
 	case 0:
-		return true
+		return nil
 	case 1:
 		if err := ValidateDenom(coins[0].Denom); err != nil {
-			return false
+			return err
 		}
-		return coins[0].IsPositive()
+		if !coins[0].IsPositive() {
+			return fmt.Errorf("non-positive coin amount: %d", coins[0].Amount)
+		}
+		return nil
 	default:
 		// check single coin case
-		if !(Coins{coins[0]}).IsValid() {
-			return false
+		if err := (Coins{coins[0]}).validate(); err != nil {
+			return err
 		}
 
 		lowDenom := coins[0].Denom
 		for _, coin := range coins[1:] {
-			if strings.ToLower(coin.Denom) != coin.Denom {
-				return false
+			if err := ValidateDenom(coin.Denom); err != nil {
+				return err
 			}
-			if coin.Denom <= lowDenom {
-				return false
+			if coin.Denom < lowDenom {
+				return fmt.Errorf("coins not sorted: %s < %s", coin.Denom, lowDenom)
+			}
+			if coin.Denom == lowDenom {
+				return fmt.Errorf("duplicate denom: %s", coin.Denom)
 			}
 			if !coin.IsPositive() {
-				return false
+				return fmt.Errorf("non-positive coin amount: %d", coin.Amount)
 			}
 
 			// we compare each coin against the last denom
 			lowDenom = coin.Denom
 		}
 
-		return true
+		return nil
 	}
 }
 
@@ -270,8 +279,8 @@ func (coins Coins) IsValid() bool {
 // denominations. Panics on invalid result.
 func (coins Coins) Add(coinsB Coins) Coins {
 	res := coins.AddUnsafe(coinsB)
-	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v + %v = %v", coins, coinsB, res))
+	if err := res.validate(); err != nil {
+		panic(fmt.Sprintf("invalid result: %v + %v = %v: %v", coins, coinsB, res, err))
 	}
 	return res
 }
@@ -371,8 +380,8 @@ func (coins Coins) DenomsSubsetOf(coinsB Coins) bool {
 // Panics on invalid result.
 func (coins Coins) Sub(coinsB Coins) Coins {
 	res := coins.SubUnsafe(coinsB)
-	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v - %v = %v", coins, coinsB, res))
+	if err := res.validate(); err != nil {
+		panic(fmt.Sprintf("invalid result: %v - %v = %v: %v", coins, coinsB, res, err))
 	}
 	return res
 }
@@ -716,8 +725,8 @@ func ParseCoins(coinsStr string) (Coins, error) {
 	coins.Sort()
 
 	// validate coins before returning
-	if !coins.IsValid() {
-		return nil, fmt.Errorf("parseCoins invalid: %#v", coins)
+	if err := coins.validate(); err != nil {
+		return nil, fmt.Errorf("parseCoins: invalid coins %v: %w", coins, err)
 	}
 
 	return coins, nil
