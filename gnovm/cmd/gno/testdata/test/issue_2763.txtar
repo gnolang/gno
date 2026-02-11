@@ -1,7 +1,7 @@
 # https://github.com/gnolang/gno/issues/2763
 
 ! gno test .
-stderr 'foo_test.gno:16:6: add2 redeclared in this block \(code=gnoTypeCheckError\)'
+stderr 'foo_test.gno:16:6: error: add2 redeclared in this block \(gnoTypeCheckError\)'
 
 -- foo.gno --
 package foo

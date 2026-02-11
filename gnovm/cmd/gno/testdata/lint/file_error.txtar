@@ -20,5 +20,7 @@ module = "gno.land/p/test"
 
 -- stdout.golden --
 -- stderr.golden --
-i_have_error_test.gno:6:7: undefined: undefined_variable (code=gnoTypeCheckError)
-i_have_error_test.gno:6:2: declared and not used: i (code=gnoTypeCheckError)
+i_have_error_test.gno:6:7: error: undefined: undefined_variable (gnoTypeCheckError)
+i_have_error_test.gno:6:2: error: declared and not used: i (gnoTypeCheckError)
+
+Found 2 issue(s): 2 error(s), 0 warning(s), 0 info

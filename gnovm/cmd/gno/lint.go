@@ -8,11 +8,16 @@ import (
 	goio "io"
 	"io/fs"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/cmdutil"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/lint"
+	"github.com/gnolang/gno/gnovm/pkg/lint/reporters"
+	_ "github.com/gnolang/gno/gnovm/pkg/lint/rules"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -26,11 +31,13 @@ import (
 */
 
 type lintCmd struct {
-	verbose    bool
-	rootDir    string
-	autoGnomod bool
-	// min_confidence: minimum confidence of a problem to print it
-	// (default 0.8) auto-fix: apply suggested fixes automatically.
+	verbose      bool
+	rootDir      string
+	autoGnomod   bool
+	mode         string
+	format       string
+	listRules    bool
+	disableRules string
 }
 
 func newLintCmd(io commands.IO) *commands.Command {
@@ -52,12 +59,21 @@ func newLintCmd(io commands.IO) *commands.Command {
 func (c *lintCmd) RegisterFlags(fs *flag.FlagSet) {
 	rootdir := gnoenv.RootDir()
 
-	fs.BoolVar(&c.verbose, "v", false, "verbose output when lintning")
+	fs.BoolVar(&c.verbose, "v", false, "verbose output when linting")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
 	fs.BoolVar(&c.autoGnomod, "auto-gnomod", true, "auto-generate gnomod.toml file if not already present")
+	fs.StringVar(&c.mode, "mode", "default", "lint mode: default, strict, warn-only")
+	fs.StringVar(&c.format, "format", "text", "output format: text, json")
+	fs.BoolVar(&c.listRules, "list-rules", false, "list available lint rules and exit")
+	fs.StringVar(&c.disableRules, "disable-rules", "", "comma-separated list of rules to disable (e.g., AVL001,GLOBAL001)")
 }
 
 func execLint(cmd *lintCmd, args []string, io commands.IO) error {
+	// Handle --list-rules first
+	if cmd.listRules {
+		return listLintRules(io)
+	}
+
 	// Show a help message by default.
 	if len(args) == 0 {
 		return flag.ErrHelp
@@ -82,6 +98,11 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	}
 
 	hasError := false
+
+	reporter, err := reporters.NewReporter(cmd.format, io.Err())
+	if err != nil {
+		return err
+	}
 
 	prodbs, prodgs := test.StoreWithOptions(
 		cmd.rootDir, goio.Discard,
@@ -112,7 +133,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		io.ErrPrintfln("linting packages: %v", targetsNames)
 	}
 	//----------------------------------------
-	// LINT STAGE 1: Typecheck and lint.
+	// LINT STAGE 1: Preprocessing.
 	for _, pkg := range pkgs {
 		// ignore dependencies
 		if len(pkg.Match) == 0 {
@@ -155,24 +176,18 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			}
 		}
 		if err != nil {
-			issue := gnoIssue{
-				Code:       gnoGnoModError,
-				Confidence: 1, // ??
-				Location:   fpath,
-				Msg:        err.Error(),
-			}
-			io.ErrPrintln(issue)
-			hasError = true
+			reportIssue(reporter, gnoGnoModError, err.Error(), fpath)
+			reporter.Flush()
 			return commands.ExitCodeError(1)
 		}
 
 		// See adr/pr4264_lint_transpile.md
-		// LINT STEP 1: ReadMemPackage()
+		// STEP 1.1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
 		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
 		mpkg, err := gno.ReadMemPackage(dir, pkgPath, gno.MPAnyAll)
 		if err != nil {
-			printError(io.Err(), dir, pkgPath, err)
+			reportError(reporter, dir, pkgPath, err)
 			hasError = true
 			continue
 		}
@@ -188,7 +203,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// Perform imports using the parent store.
 		abortOnError := true
 		if err := test.LoadImports(testgs, mpkg, abortOnError); err != nil {
-			printError(io.Err(), dir, pkgPath, err)
+			reportError(reporter, dir, pkgPath, err)
 			hasError = true
 			continue
 		}
@@ -237,13 +252,13 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		}
 
 		// Handle runtime errors
-		didPanic := catchPanic(dir, pkgPath, io.Err(), func() {
+		didPanic := catchPanicWithReporter(reporter, dir, pkgPath, func() {
 			// Memo process results here.
 			ppkg := cmdutil.ProcessedPackage{MPkg: mpkg, Dir: dir}
 
 			// Run type checking
-			// LINT STEP 2: ParseGnoMod()
-			// STEP 3: GoParse*()
+			// STEP 1.2: ParseGnoMod()
+			// STEP 1.3: GoParse*()
 			//
 			// lintTypeCheck(mpkg) -->
 			//   TypeCheckMemPackage(mpkg) -->
@@ -256,7 +271,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			if cmd.autoGnomod {
 				tcmode = gno.TCLatestRelaxed
 			}
-			errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
+			errs := lintTypeCheck(reporter, dir, mpkg, gno.TypeCheckOptions{
 				Getter:     newProdGnoStore(),
 				TestGetter: newTestGnoStore(true),
 				Mode:       tcmode,
@@ -272,7 +287,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			tm := test.Machine(newProdGnoStore(), goio.Discard, pkgPath, false, nil)
 			defer tm.Release()
 
-			// LINT STEP 4: re-parse for preprocessor.
+			// STEP 1.4: re-parse for preprocessor.
 			// While lintTypeCheck > TypeCheckMemPackage will find
 			// most issues, the preprocessor may have additional
 			// checks.
@@ -280,7 +295,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			_, fset, tfset, _tests, ftests := sourceAndTestFileset(mpkg, false)
 
 			{
-				// LINT STEP 5: PreprocessFiles()
+				// STEP 1.5: PreprocessFiles()
 				// Preprocess fset files (no test files)
 				tm.Store = newProdGnoStore()
 				pn, _ := tm.PreprocessFiles(
@@ -288,7 +303,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				ppkg.AddNormal(pn, fset)
 			}
 			{
-				// LINT STEP 5: PreprocessFiles()
+				// STEP 1.5: PreprocessFiles()
 				// Preprocess fset files (w/ some *_test.gno).
 				tm.Store = newTestGnoStore(false)
 				pn, _ := tm.PreprocessFiles(
@@ -296,7 +311,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				ppkg.AddTest(pn, fset)
 			}
 			{
-				// LINT STEP 5: PreprocessFiles()
+				// STEP 1.5: PreprocessFiles()
 				// Preprocess _test files (all xxx_test *_test.gno).
 				tm.Store = newTestGnoStore(true)
 				pn, _ := tm.PreprocessFiles(
@@ -304,7 +319,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				ppkg.AddUnderscoreTests(pn, _tests)
 			}
 			{
-				// LINT STEP 5: PreprocessFiles()
+				// STEP 1.5: PreprocessFiles()
 				// Preprocess _filetest.gno files.
 				for i, fset := range ftests {
 					tm.Store = newTestGnoStore(true)
@@ -313,7 +328,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
 					pkgPath, err = parsePkgPathDirective(mfile.Body, pkgPath)
 					if err != nil {
-						io.ErrPrintln(err)
+						reportError(reporter, dir, pkgPath, err)
 						hasError = true
 						continue
 					}
@@ -331,11 +346,65 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		}
 	}
 	if hasError {
+		reporter.Flush()
 		return commands.ExitCodeError(1)
 	}
 
 	//----------------------------------------
-	// LINT STAGE 2: Write.
+	// LINT STAGE 2: Lint rules.
+	lintCfg := lint.DefaultConfig()
+	switch cmd.mode {
+	case "default":
+		lintCfg.Mode = lint.ModeDefault
+	case "strict":
+		lintCfg.Mode = lint.ModeStrict
+	case "warn-only":
+		lintCfg.Mode = lint.ModeWarnOnly
+	default:
+		return fmt.Errorf("invalid lint mode: %q", cmd.mode)
+	}
+
+	if cmd.disableRules != "" {
+		for _, rule := range strings.Split(cmd.disableRules, ",") {
+			lintCfg.Disable[rule] = true
+		}
+	}
+
+	engine := lint.NewEngine(lintCfg, lint.DefaultRegistry, reporter)
+
+	for _, ppkg := range ppkgs {
+		sources := make(map[string]string)
+		for _, mf := range ppkg.MPkg.Files {
+			sources[mf.Name] = mf.Body
+		}
+
+		if ppkg.Prod.Fset != nil {
+			engine.Run(ppkg.Prod.Fset, sources)
+		}
+		if ppkg.Test.Fset != nil {
+			engine.Run(ppkg.Test.Fset, sources)
+		}
+		if ppkg.XTest.Fset != nil {
+			engine.Run(ppkg.XTest.Fset, sources)
+		}
+		for _, ftest := range ppkg.FTest {
+			if ftest.Fset != nil {
+				engine.Run(ftest.Fset, sources)
+			}
+		}
+	}
+
+	if err := engine.Flush(); err != nil {
+		return err
+	}
+
+	_, _, lintErrors := engine.Summary()
+	if lintErrors > 0 {
+		hasError = true
+	}
+
+	//----------------------------------------
+	// LINT STAGE 3: Write.
 	// Must be a separate stage to prevent partial writes.
 	for _, pkg := range pkgs {
 		// ignore dependencies
@@ -349,34 +418,31 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			continue
 		}
 
-		// LINT STEP 6: mpkg.WriteTo():
+		// STEP 3.1: mpkg.WriteTo()
 		err := ppkg.MPkg.WriteTo(pkg.Dir)
 		if err != nil {
 			return err
 		}
 	}
 
+	if hasError {
+		return commands.ExitCodeError(1)
+	}
+
 	return nil
 }
 
-// Wrapper around TypeCheckMemPackage() to io.ErrPrintln(gnoIssue{}).
-// Prints and returns errors. Panics upon an unexpected error.
 func lintTypeCheck(
-	// Args:
-	io commands.IO,
+	reporter lint.Reporter,
 	dir string,
 	mpkg *std.MemPackage,
-	opts gno.TypeCheckOptions) (
-	// Results:
-	lerr error,
-) {
-	// gno.TypeCheckMemPackage(mpkg, testStore).
+	opts gno.TypeCheckOptions,
+) (lerr error) {
 	_, tcErrs := gno.TypeCheckMemPackage(mpkg, opts)
 
-	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)
 	for _, err := range errors {
-		printError(io.Err(), dir, mpkg.Path, err)
+		reportError(reporter, dir, mpkg.Path, err)
 	}
 
 	lerr = tcErrs
@@ -389,4 +455,22 @@ func lintTargetName(pkg *packages.Package) string {
 	}
 
 	return tryRelativizePath(pkg.Dir)
+}
+
+func listLintRules(io commands.IO) error {
+	rules := lint.DefaultRegistry.All()
+
+	ruleInfos := make([]lint.RuleInfo, len(rules))
+	for i, r := range rules {
+		ruleInfos[i] = r.Info()
+	}
+	sort.Slice(ruleInfos, func(i, j int) bool {
+		return ruleInfos[i].ID < ruleInfos[j].ID
+	})
+
+	io.Println("Available lint rules:\n")
+	for _, info := range ruleInfos {
+		io.Printf("  %-12s %-30s (%s)\n", info.ID, info.Name, info.Severity)
+	}
+	return nil
 }

@@ -41,6 +41,7 @@
           "resources/gno-stdlibs",
           "resources/configuring-gno-projects",
           "resources/gno-testing",
+          "resources/gno-lint",
           "resources/realms",
           "resources/gno-interrealm",
           "resources/gno-memory-model",

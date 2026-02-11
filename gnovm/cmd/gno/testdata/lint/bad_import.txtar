@@ -20,4 +20,6 @@ gno = "0.9"
 
 -- stdout.golden --
 -- stderr.golden --
-bad_file.gno:3:8: unknown import path "python" (code=gnoImportError)
+bad_file.gno:3:8: error: unknown import path "python" (gnoImportError)
+
+Found 1 issue(s): 1 error(s), 0 warning(s), 0 info

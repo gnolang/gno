@@ -21,21 +21,21 @@ func TestLintApp(t *testing.T) {
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/undefined_variable",
 			simulateExternalRepo: true,
-			stderrShouldBe:       "undefined_variables_test.gno:6:28: undefined: toto (code=gnoTypeCheckError)\n",
+			stderrShouldBe:       "undefined_variables_test.gno:6:28: error: undefined: toto (gnoTypeCheckError)\n\nFound 1 issue(s): 1 error(s), 0 warning(s), 0 info\n",
 			errShouldBe:          "exit code: 1",
 		},
 		{
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/package_not_declared",
 			simulateExternalRepo: true,
-			stderrShouldBe:       "main.gno:4:2: undefined: fmt (code=gnoTypeCheckError)\n",
+			stderrShouldBe:       "main.gno:4:2: error: undefined: fmt (gnoTypeCheckError)\n\nFound 1 issue(s): 1 error(s), 0 warning(s), 0 info\n",
 			errShouldBe:          "exit code: 1",
 		},
 		{
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/several-lint-errors",
 			simulateExternalRepo: true,
-			stderrShouldBe:       "main.gno:5:5: expected ';', found example (code=gnoParserError)\nmain.gno:6:2: expected '}', found 'EOF' (code=gnoParserError)\n",
+			stderrShouldBe:       "main.gno:5:5: error: expected ';', found example (gnoParserError)\nmain.gno:6:2: error: expected '}', found 'EOF' (gnoParserError)\n\nFound 2 issue(s): 2 error(s), 0 warning(s), 0 info\n",
 			errShouldBe:          "exit code: 1",
 		},
 		{
@@ -44,10 +44,12 @@ func TestLintApp(t *testing.T) {
 			simulateExternalRepo: true,
 			stderrShouldBe: func() string {
 				lines := []string{
-					"file2.gno:3:5: expected 'IDENT', found '{' (code=gnoParserError)",
-					"file2.gno:5:1: expected type, found '}' (code=gnoParserError)",
-					"main.gno:5:5: expected ';', found example (code=gnoParserError)",
-					"main.gno:6:2: expected '}', found 'EOF' (code=gnoParserError)",
+					"file2.gno:3:5: error: expected 'IDENT', found '{' (gnoParserError)",
+					"file2.gno:5:1: error: expected type, found '}' (gnoParserError)",
+					"main.gno:5:5: error: expected ';', found example (gnoParserError)",
+					"main.gno:6:2: error: expected '}', found 'EOF' (gnoParserError)",
+					"",
+					"Found 4 issue(s): 4 error(s), 0 warning(s), 0 info",
 				}
 				return strings.Join(lines, "\n") + "\n"
 			}(),
@@ -63,21 +65,21 @@ func TestLintApp(t *testing.T) {
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/invalid_module_name",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "gnomod.toml: invalid gnomod.toml: 'module' is required (code=gnoGnoModError)",
+			stderrShouldContain:  "gnomod.toml:0:0: error: invalid gnomod.toml: 'module' is required (gnoGnoModError)",
 			errShouldBe:          "exit code: 1",
 		},
 		{
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/invalid_gno_file",
 			simulateExternalRepo: true,
-			stderrShouldBe:       "invalid.gno:1:1: expected 'package', found packag (code=gnoParserError)\n",
+			stderrShouldBe:       "invalid.gno:1:1: error: expected 'package', found packag (gnoParserError)\n\nFound 1 issue(s): 1 error(s), 0 warning(s), 0 info\n",
 			errShouldBe:          "exit code: 1",
 		},
 		{
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/typecheck_missing_return",
 			simulateExternalRepo: true,
-			stderrShouldBe:       "main.gno:5:1: missing return (code=gnoTypeCheckError)\n",
+			stderrShouldBe:       "main.gno:5:1: error: missing return (gnoTypeCheckError)\n\nFound 1 issue(s): 1 error(s), 0 warning(s), 0 info\n",
 			errShouldBe:          "exit code: 1",
 		},
 		{
