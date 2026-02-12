@@ -4545,6 +4545,7 @@ func checkBoolKind(xt Type) {
 func checkOrConvertIntegerKind(store Store, last BlockNode, n Node, x Expr) {
 	if cx, ok := x.(*ConstExpr); ok {
 		convertConst(store, last, n, cx, IntType)
+		cx.AssertNonNegative("invalid argument, index must not be negative")
 	} else if x != nil {
 		xt := evalStaticTypeOf(store, last, x)
 		if isUntyped(xt) {
