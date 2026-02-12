@@ -36,9 +36,9 @@ var (
 )
 
 var (
-	valopers     *avl.Tree                              // valopers keeps track of all the valoper profiles. Address -> Valoper
-	instructions string                                 // markdown instructions for valoper's registration
-	minFee       = chain.NewCoin("ugnot", 20*1_000_000) // minimum gnot must be paid to register.
+	valopers     *avl.Tree                   // valopers keeps track of all the valoper profiles. Address -> Valoper
+	instructions string                      // markdown instructions for valoper's registration
+	minFee       = chain.NewCoin("ugnot", 0) // minimum gnot must be paid to register. (0 by default)
 
 	monikerMaxLengthMiddle = ufmt.Sprintf("%d", MonikerMaxLength-2)
 	validateMonikerRe      = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`) // 32 characters, including spaces, hyphens or underscores in the middle
