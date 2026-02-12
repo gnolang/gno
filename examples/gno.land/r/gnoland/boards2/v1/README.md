@@ -88,8 +88,8 @@ func RevokeInvite(_ realm, boardID boards.ID, user address)
 
 There are four possible roles that invited users can have when they are members of a board:
 - `owner`: Grants all available permissions
-- `admin`: Grants basic and advanced permissions, like being able to rename boards, ban or unban users, flag
-  content, add or remove members, etc
+- `admin`: Grants basic, moderator and advanced permissions, like being able to rename boards, add or remove
+   members, or change their role.
 - `moderator`: Grants basic and moderation related permissions, like being able to ban or unban users, or
   flag content.
 - `guest`: Grants basic permissions that allow creating threads, reposting and commenting.
