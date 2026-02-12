@@ -4547,7 +4547,12 @@ func checkOrConvertIntegerKind(store Store, last BlockNode, n Node, x Expr) {
 		convertConst(store, last, n, cx, IntType)
 	} else if x != nil {
 		xt := evalStaticTypeOf(store, last, x)
-		checkIntegerKind(xt)
+		if isUntyped(xt) {
+			dt := IntType // Convert to IntType dirrectly.
+			checkOrConvertType(store, last, n, &x, dt)
+		} else {
+			checkIntegerKind(xt)
+		}
 	}
 }
 
