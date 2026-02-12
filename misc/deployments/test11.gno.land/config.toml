@@ -234,7 +234,7 @@ unsafe = false
 
 ##### node telemetry #####
 [telemetry]
-enabled = true # Advised to be `true`
+metrics_enabled = true # Advised to be `true`
 
 # the endpoint to export metrics to, like a local OpenTelemetry collector
 exporter_endpoint = "" # Change me to the OTEL endpoint!
@@ -245,6 +245,7 @@ service_instance_id = "gno-node-1" # Change me!
 
 # in Prometheus this is transformed into the label 'exported_job'
 service_name = "gno.land"
+traces_enabled = false
 
 ##### event store #####
 [tx_event_store]
