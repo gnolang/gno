@@ -31,6 +31,10 @@ func ProposeRealmMembersAdd(users ...address) dao.ProposalRequest {
 	var desc strings.Builder
 	desc.WriteString(md.Paragraph(header))
 	for _, addr := range users {
+		if !addr.IsValid() {
+			panic("invalid address: " + addr.String())
+		}
+
 		// Make sure current user is not a member yet
 		if gPerms.HasUser(addr) {
 			panic("user is already a member: " + addr.String())
@@ -73,6 +77,10 @@ func ProposeRealmMembersRemove(members ...address) dao.ProposalRequest {
 	var desc strings.Builder
 	desc.WriteString(md.Paragraph(header))
 	for _, addr := range members {
+		if !addr.IsValid() {
+			panic("invalid address: " + addr.String())
+		}
+
 		// Make sure current user is a member
 		if !gPerms.HasUser(addr) {
 			panic("user is not a member: " + addr.String())
