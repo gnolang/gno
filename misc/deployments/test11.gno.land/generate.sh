@@ -36,7 +36,7 @@ printf "\nAdding validators...\n"
 
 # Gno Core (2)
 gnogenesis validator add -name gnocore-val-01 -power 1 -address g1e8j30772p4fvjd27eqq0e50vs74ekst50f5hz6 -pub-key gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqdw9mje8pwpd8p6pu3h0ke9mxp3s7l5vr6jtsffyd9wazpgxufwrssj367n
-gnogenesis validator add -name gnocore-val-02 -power 1 -address g1rz2fyj09vdxc6alw6kexmddhwexg8s5scj4vaj -pub-key gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0mxx3hhmy5hsl9kv8ne2ch46l8uk3kpnwc8kr900066ejz3zlhqcj6wjna
+gnogenesis validator add -name gnocore-val-02 -power 1 -address g18k5nz67cg03lrdkwnf9qmdfzf0ptaq7lxefe4y -pub-key gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0mxx3hhmy5hsl9kv8ne2ch46l8uk3kpnwc8kr900066ejz3zlhqcj6wjna
 
 # Use a temporary directory for intermediary states
 TMP_DIR=./tmp-genesis
