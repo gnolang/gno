@@ -100,28 +100,49 @@ from it.
 
 Other custom user defined roles can exists on top of the default ones though [custom board] implementations.
 
-### Custom Board Permissions
+### Custom Boards
 
-TODO
+Boards2 realm allows users to customize the mechanics of their boards when the default ones doesn't make
+sense to that community, or when users want to integrate a board with their realms.
+
+An example of this would be a case where thread creation should be allowed only though a new `publisher`
+role, or a case where a community have their own DAO realm and governance implementation and are looking to
+integrate it into their board mechanics by creating threads though proposals that must be approved for the
+thread to be published.
+
+Each board can customize the way it works by implementing the [Permissions] interface that is defined in the
+[gno.land/p/gnoland/boards] package. It is though the implementation of that interface within a new realm
+that the default board mechanics can be customized. The new realm can then be used to create an instance of
+a custom `Permissions` implementation to replace the one assigned by default to a board.
+
+Right now only Boards2 realm `owner` members are allowed to change default board permissions using a public
+realm function:
+
+```go
+// SetPermissions sets a permissions implementation for boards2 realm or a board
+func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions)
+```
+
+> This function will be replaced by a proposal that would need to pass for the custom permissions to be
+> applied to a board once Boards2 governance is implemented.
+
+`Permissions` implementation allow communities to customize the way they want to manage users and roles,
+where or how they should be stored, and the requirements or effects different board actions have.
+
+Boards2 provides a custom `Permissions` implementation in [gno.land/r/gnoland/boards2/v1/permissions] that
+can be imported by realms and used to implement custom boards.
 
 ### Boards Governance
 
 By default boards are created with an undelying DAO, so each new board is linked to an independent DAO which
 is used to organize members by role, and can also be used to update boards in a permissionless manner.
 
-Current Boards2 realm implementation doesn't run proposals, but some of the mechanics that are currently
-implemented through roles and permissions will rely on DAO proposals to actually execute changes. **Default
-support for proposals is going to be implemented in upcoming Boards2 versions**.
+Current Boards2 realm implementation doesn't run proposals, but some of the current mechanics will rely on
+DAO proposals to actually execute changes.
 
 Right now is possible to integrate with the underlying DAO and change the default board mechanics to rely on
-proposals using a [custom board] implementation, by creating a new realm that imports and uses the [custom
-permissions] realm, which exposes the DAO. The new realm can then be used to replace the default board
-permissions, which right now can only be done by a Boards2 realm `owner` using a public realm function:
-
-```go
-// SetPermissions sets a permissions implementation for boards2 realm or a board
-func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions)
-```
+proposals using a [custom board] implementation, by creating a new realm that imports and uses the
+[gno.land/r/gnoland/boards2/v1/permissions] realm, which exposes the underlying DAO.
 
 ## Moderation
 
@@ -192,7 +213,9 @@ func UnfreezeThread(_ realm, boardID, threadID boards.ID)
 
 
 [users realm]: https://gno.land/r/gnoland/users/v1
-[custom permissions]: https://gno.land/r/gnoland/boards2/v1/permissions/
+[gno.land/r/gnoland/boards2/v1/permissions]: https://gno.land/r/gnoland/boards2/v1/permissions/
 [custom board]: #custom-board-permissions
 [Adena]: https://www.adena.app/
 [Faucet Hub]: https://faucet.gno.land/
+[gno.land/p/gnoland/boards]: https://gno.land/p/gnoland/boards
+[Permissions]: https://gno.land/p/gnoland/boards$source&file=permissions.gno#L23
