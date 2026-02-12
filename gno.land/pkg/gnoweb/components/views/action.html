@@ -88,20 +88,21 @@ UI - Help Function component
           </svg>
           <span>Link</span>
         </button>
-        <a href="{{ buildHelpURL $data . }}" data-action-function-target="function-execute"
-          title="Function transaction link" class="b-btn b-btn--secondary c-with-icon">
+        <button type="submit" form="form-{{ .Name }}" title="Function transaction link"
+          class="b-btn b-btn--secondary c-with-icon">
           <svg class="c-icon">
             <use href="#ico-tx-link"></use>
           </svg>
           <span>Execute</span>
-        </a>
+        </button>
       </span>
     </header>
 
     {{ with .Doc }}
     <p class="description">{{ . }}</p>
     {{ end }}
-    <form class="params">
+    <form class="params" id="form-{{ .Name }}" method="GET" action="{{ buildHelpURL $data . }}"
+      data-action-function-target="function-execute">
       {{- with .Params }}
       <h3 class="title">
         Param{{- if gt (len .) 1 }}s{{ end }}

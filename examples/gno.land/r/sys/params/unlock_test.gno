@@ -50,7 +50,7 @@ func TestFailUnlockTransfer(t *testing.T) {
 	id := dao.MustCreateProposal(cross, pr)
 	urequire.AbortsWithMessage(
 		t,
-		"proposal didn't reach supermajority yet: 66",
+		"proposal didn't reach supermajority yet: 66.66",
 		func() {
 			dao.ExecuteProposal(cross, id)
 		},
