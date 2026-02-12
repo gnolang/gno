@@ -1,21 +1,21 @@
-adduserfrom member1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
-stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
-
-adduserfrom member2 'smooth crawl poverty trumpet glare useful curtain annual pluck lunar example merge ready forum better verb rescue rule mechanic dynamic drift bench release weekend'
-stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
-
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
 loadpkg gno.land/r/sys/users
 loadpkg gno.land/r/gnoland/users/v1
 loadpkg gno.land/r/gnoland/boards2/v1
 
-# load specific govDAO implementation and needed users for your integration test
+adduser member1
+adduser member2
+
+# Initialize GovDAO members
 loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+patchpkg "g1member1" $member1_user_addr
+patchpkg "g1member2" $member2_user_addr
 
 gnoland start
 
-# call gov/dao render to check everything is working as expected and the loader worked
+# render GovDAO to check it's working
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 stdout 'data: # GovDAO'
 
@@ -123,8 +123,8 @@ func init() {
 	memberstore.Get().SetTier(memberstore.T2)
 	memberstore.Get().SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
-	memberstore.Get().SetMember(memberstore.T2, address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), &memberstore.Member{InvitationPoints: 2})
+	memberstore.Get().SetMember(memberstore.T1, "g1member1", &memberstore.Member{InvitationPoints: 3})
+	memberstore.Get().SetMember(memberstore.T2, "g1member2", &memberstore.Member{InvitationPoints: 2})
 
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         impl.GetInstance(),
