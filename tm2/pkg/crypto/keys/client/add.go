@@ -12,10 +12,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/keyerror"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
 
 var (
+	errOverwriteAborted      = errors.New("overwrite aborted")
 	errInvalidMnemonic       = errors.New("invalid bip39 mnemonic")
 	errInvalidDerivationPath = errors.New("invalid derivation path")
 	errPassphraseMismatch    = errors.New("passphrases don't match")
@@ -143,22 +145,10 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to read keybase, %w", err)
 	}
 
-	// Check if the key exists
-	exists, err := kb.HasByName(name)
+	// Check if the key name already exists
+	confirmedKey, err := checkNameCollision(kb, name, io)
 	if err != nil {
-		return fmt.Errorf("unable to fetch key, %w", err)
-	}
-
-	// Get overwrite confirmation, if any
-	if exists {
-		overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
-		if err != nil {
-			return fmt.Errorf("unable to get confirmation, %w", err)
-		}
-
-		if !overwrite {
-			return errOverwriteAborted
-		}
+		return err
 	}
 
 	// Ask for a password when generating a local key
@@ -197,6 +187,16 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		if err != nil {
 			return fmt.Errorf("unable to generate mnemonic, %w", err)
 		}
+	}
+
+	// Derive the address early to check for address collision
+	seed := bip39.NewSeed(mnemonic, "")
+	hdPath := hd.NewFundraiserParams(uint32(cfg.Account), crypto.CoinType, uint32(cfg.Index))
+	key := generateKeyFromSeed(seed, hdPath.String())
+	newAddress := key.PubKey().Address()
+
+	if err := checkAddressCollision(kb, newAddress, confirmedKey, io); err != nil {
+		return err
 	}
 
 	// Save the account
@@ -334,4 +334,71 @@ func generateKeyFromSeed(seed []byte, path string) crypto.PrivKey {
 	derivedPriv, _ := hd.DerivePrivateKeyForPath(masterPriv, ch, path)
 
 	return secp256k1.PrivKeySecp256k1(derivedPriv)
+}
+
+// checkNameCollision checks if a key with the given name already exists in the keybase.
+// If it exists, it prints the existing key details and prompts for overwrite confirmation.
+// Returns the existing key info if the user confirmed the overwrite, nil if no collision.
+// Returns errOverwriteAborted if the user declines.
+func checkNameCollision(kb keys.Keybase, name string, io commands.IO) (keys.Info, error) {
+	exists, err := kb.HasByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch key, %w", err)
+	}
+
+	if !exists {
+		return nil, nil
+	}
+
+	existingKey, err := kb.GetByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch key, %w", err)
+	}
+
+	io.Println("Key already exists:")
+	printNewInfo(existingKey, io)
+
+	overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
+	if err != nil {
+		return nil, fmt.Errorf("unable to get confirmation, %w", err)
+	}
+
+	if !overwrite {
+		return nil, errOverwriteAborted
+	}
+
+	return existingKey, nil
+}
+
+// checkAddressCollision checks if a key with the given address already exists in the keybase.
+// If confirmedOverwrite is not nil, the check is skipped when the found key has the same name
+// (meaning the user already confirmed the overwrite via name collision).
+func checkAddressCollision(kb keys.Keybase, address crypto.Address, confirmedOverwrite keys.Info, io commands.IO) error {
+	existingKey, err := kb.GetByAddress(address)
+	if err != nil {
+		if keyerror.IsErrKeyNotFound(err) {
+			return nil
+		}
+
+		return fmt.Errorf("unable to fetch key by address, %w", err)
+	}
+
+	// Skip if this is the same key already confirmed via name collision
+	if confirmedOverwrite != nil && existingKey.GetName() == confirmedOverwrite.GetName() {
+		return nil
+	}
+
+	io.Println("An existing key already uses this address:")
+	printNewInfo(existingKey, io)
+
+	overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing key %s", existingKey.GetName()))
+	if err != nil {
+		return fmt.Errorf("unable to get confirmation, %w", err)
+	}
+
+	if !overwrite {
+		return errOverwriteAborted
+	}
+
+	return nil
 }

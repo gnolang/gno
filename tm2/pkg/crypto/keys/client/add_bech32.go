@@ -8,6 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/keyerror"
 )
 
 type AddBech32Cfg struct {
@@ -52,34 +53,48 @@ func execAddBech32(cfg *AddBech32Cfg, args []string, io commands.IO) error {
 
 	name := args[0]
 
+	// Parse the public key early so the address is known for collision checks
+	publicKey, err := crypto.PubKeyFromBech32(cfg.PublicKey)
+	if err != nil {
+		return fmt.Errorf("unable to parse public key from bech32, %w", err)
+	}
+
 	// Read the keybase from the home directory
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.RootCfg.Home)
 	if err != nil {
 		return fmt.Errorf("unable to read keybase, %w", err)
 	}
 
-	// Check if the key exists
-	exists, err := kb.HasByName(name)
-	if err != nil {
-		return fmt.Errorf("unable to fetch key, %w", err)
+	// Check if a key with signing capability already exists at this address.
+	// Adding a public-key-only reference when a local or ledger key already
+	// exists at the same address is redundant and should be skipped.
+	newAddress := publicKey.Address()
+
+	existingKey, err := kb.GetByAddress(newAddress)
+	if err != nil && !keyerror.IsErrKeyNotFound(err) {
+		return fmt.Errorf("unable to fetch key by address, %w", err)
 	}
 
-	// Get overwrite confirmation, if any
-	if exists {
-		overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
-		if err != nil {
-			return fmt.Errorf("unable to get confirmation, %w", err)
-		}
+	if existingKey != nil {
+		existingType := existingKey.GetType()
+		if existingType == keys.TypeLocal || existingType == keys.TypeLedger {
+			io.Println("A key with signing capability already exists at this address:")
+			printNewInfo(existingKey, io)
+			io.Println("Adding a public-key-only reference is redundant. Skipping.")
 
-		if !overwrite {
-			return errOverwriteAborted
+			return nil
 		}
 	}
 
-	// Parse the public key
-	publicKey, err := crypto.PubKeyFromBech32(cfg.PublicKey)
+	// Check for name collision
+	confirmedKey, err := checkNameCollision(kb, name, io)
 	if err != nil {
-		return fmt.Errorf("unable to parse public key from bech32, %w", err)
+		return err
+	}
+
+	// Check for address collision
+	if err := checkAddressCollision(kb, newAddress, confirmedKey, io); err != nil {
+		return err
 	}
 
 	// Save it offline in the keybase

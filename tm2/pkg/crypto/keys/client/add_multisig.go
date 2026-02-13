@@ -13,10 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 )
 
-var (
-	errOverwriteAborted       = errors.New("overwrite aborted")
-	errUnableToVerifyMultisig = errors.New("unable to verify multisig threshold")
-)
+var errUnableToVerifyMultisig = errors.New("unable to verify multisig threshold")
 
 type AddMultisigCfg struct {
 	RootCfg *AddCfg
@@ -89,24 +86,6 @@ func execAddMultisig(cfg *AddMultisigCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to read keybase, %w", err)
 	}
 
-	// Check if the key exists
-	exists, err := kb.HasByName(name)
-	if err != nil {
-		return fmt.Errorf("unable to fetch key, %w", err)
-	}
-
-	// Get overwrite confirmation, if any
-	if exists {
-		overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
-		if err != nil {
-			return fmt.Errorf("unable to get confirmation, %w", err)
-		}
-
-		if !overwrite {
-			return errOverwriteAborted
-		}
-	}
-
 	publicKeys := make([]crypto.PubKey, 0)
 	for _, keyName := range cfg.Multisig {
 		k, err := kb.GetByName(keyName)
@@ -124,11 +103,23 @@ func execAddMultisig(cfg *AddMultisigCfg, args []string, io commands.IO) error {
 		})
 	}
 
+	// Construct the multisig public key to get the address
+	multiPubKey := multisig.NewPubKeyMultisigThreshold(cfg.MultisigThreshold, publicKeys)
+	newAddress := multiPubKey.Address()
+
+	// Check for name collision
+	confirmedKey, err := checkNameCollision(kb, name, io)
+	if err != nil {
+		return err
+	}
+
+	// Check for address collision
+	if err := checkAddressCollision(kb, newAddress, confirmedKey, io); err != nil {
+		return err
+	}
+
 	// Create a new public key with the multisig threshold
-	if _, err := kb.CreateMulti(
-		name,
-		multisig.NewPubKeyMultisigThreshold(cfg.MultisigThreshold, publicKeys),
-	); err != nil {
+	if _, err := kb.CreateMulti(name, multiPubKey); err != nil {
 		return fmt.Errorf("unable to create multisig key reference, %w", err)
 	}
 

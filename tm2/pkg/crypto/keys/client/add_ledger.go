@@ -39,22 +39,9 @@ func execAddLedger(cfg *AddCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to read keybase, %w", err)
 	}
 
-	// Check if the key exists
-	exists, err := kb.HasByName(name)
-	if err != nil {
-		return fmt.Errorf("unable to fetch key, %w", err)
-	}
-
-	// Get overwrite confirmation, if any
-	if exists {
-		overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
-		if err != nil {
-			return fmt.Errorf("unable to get confirmation, %w", err)
-		}
-
-		if !overwrite {
-			return errOverwriteAborted
-		}
+	// Check if the key name already exists
+	if _, err := checkNameCollision(kb, name, io); err != nil {
+		return err
 	}
 
 	// Create the ledger reference
