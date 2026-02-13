@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/microblog"
+	"gno.land/p/demo/ui/md"
 	"gno.land/p/nt/ufmt"
 	susers "gno.land/r/sys/users"
 )
@@ -24,18 +25,27 @@ func init() {
 }
 
 func renderHome() string {
-	output := ufmt.Sprintf("# %s\n\n", m.Title)
-	output += "# pages\n\n"
+	doc := md.New().
+		H1(m.Title).
+		H1("pages")
 
+	// Build list of user pages
+	var items []string
 	for _, page := range m.GetPages() {
+		var item string
 		if u := susers.ResolveAddress(page.Author); u != nil {
-			output += ufmt.Sprintf("- [%s (%s)](%s%s)\n", u.Name(), page.Author.String(), m.Prefix, page.Author.String())
+			item = md.Link(ufmt.Sprintf("%s (%s)", u.Name(), page.Author.String()), m.Prefix+page.Author.String())
 		} else {
-			output += ufmt.Sprintf("- [%s](%s%s)\n", page.Author.String(), m.Prefix, page.Author.String())
+			item = md.Link(page.Author.String(), m.Prefix+page.Author.String())
 		}
+		items = append(items, item)
 	}
 
-	return output
+	if len(items) > 0 {
+		doc.Bullet(items...)
+	}
+
+	return doc.String()
 }
 
 func renderUser(user string) string {
@@ -65,18 +75,24 @@ func Render(path string) string {
 }
 
 func PageToString(p *microblog.Page) string {
-	o := ""
-	if u := susers.ResolveAddress(p.Author); u != nil {
-		o += ufmt.Sprintf("# [%s](/u/%s)\n\n", u, u)
-	}
-	o += ufmt.Sprintf("## [%s](/r/demo/microblog:%s)\n\n", p.Author, p.Author)
+	doc := md.New()
 
-	o += ufmt.Sprintf("joined %s, last updated %s\n\n", p.CreatedAt.Format("2006-02-01"), p.LastPosted.Format("2006-02-01"))
-	o += "## feed\n\n"
-	for _, u := range p.GetPosts() {
-		o += u.String() + "\n\n"
+	// User header with link
+	if u := susers.ResolveAddress(p.Author); u != nil {
+		doc.H1(md.Link(u.Name(), "/u/"+u.Name()))
 	}
-	return o
+	doc.H2(md.Link(p.Author.String(), "/r/demo/microblog:"+p.Author.String()))
+
+	// Timestamps
+	doc.P(ufmt.Sprintf("joined %s, last updated %s", p.CreatedAt.Format("2006-02-01"), p.LastPosted.Format("2006-02-01")))
+
+	// Feed section
+	doc.H2("feed")
+	for _, post := range p.GetPosts() {
+		doc.P(post.String())
+	}
+
+	return doc.String()
 }
 
 // NewPost takes a single argument (post markdown) and
