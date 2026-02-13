@@ -108,7 +108,7 @@ func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
 		&c.DerivationPath,
 		"derivation-path",
-		"derivation path for deriving the address",
+		"derivation path for deriving and persisting key in the keybase",
 	)
 }
 
@@ -143,73 +143,164 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to read keybase, %w", err)
 	}
 
-	// Check if the key exists
-	exists, err := kb.HasByName(name)
-	if err != nil {
-		return fmt.Errorf("unable to fetch key, %w", err)
-	}
+	getMnemonic := func() (string, error) {
+		switch {
+		case cfg.Recover:
+			bip39Message := "Enter your bip39 mnemonic"
+			var mnemonic string
+			var err error
+			if cfg.Masked {
+				mnemonic, err = io.GetPassword(bip39Message, false)
+			} else {
+				mnemonic, err = io.GetString(bip39Message)
+			}
+			if err != nil {
+				return "", fmt.Errorf("unable to parse mnemonic, %w", err)
+			}
 
-	// Get overwrite confirmation, if any
-	if exists {
-		overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
-		if err != nil {
-			return fmt.Errorf("unable to get confirmation, %w", err)
-		}
+			// Make sure it's valid
+			if !bip39.IsMnemonicValid(mnemonic) {
+				return "", errInvalidMnemonic
+			}
 
-		if !overwrite {
-			return errOverwriteAborted
-		}
-	}
+			return mnemonic, nil
+		case cfg.Entropy:
+			// Generate mnemonic using custom entropy
+			mnemonic, err := GenerateMnemonicWithCustomEntropy(io, cfg.Masked)
+			if err != nil {
+				return "", fmt.Errorf("unable to generate mnemonic with custom entropy, %w", err)
+			}
 
-	// Ask for a password when generating a local key
-	pw, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
-	if err != nil {
-		return err
-	}
+			return mnemonic, nil
+		default:
+			// Generate mnemonic using computer PRNG
+			mnemonic, err := GenerateMnemonic(mnemonicEntropySize)
+			if err != nil {
+				return "", fmt.Errorf("unable to generate mnemonic, %w", err)
+			}
 
-	var mnemonic string
-
-	switch {
-	case cfg.Recover:
-		bip39Message := "Enter your bip39 mnemonic"
-		if cfg.Masked {
-			mnemonic, err = io.GetPassword(bip39Message, false)
-		} else {
-			mnemonic, err = io.GetString(bip39Message)
-		}
-		if err != nil {
-			return fmt.Errorf("unable to parse mnemonic, %w", err)
-		}
-
-		// Make sure it's valid
-		if !bip39.IsMnemonicValid(mnemonic) {
-			return errInvalidMnemonic
-		}
-	case cfg.Entropy:
-		// Generate mnemonic using custom entropy
-		mnemonic, err = GenerateMnemonicWithCustomEntropy(io, cfg.Masked)
-		if err != nil {
-			return fmt.Errorf("unable to generate mnemonic with custom entropy, %w", err)
-		}
-	default:
-		// Generate mnemonic using computer PRNG
-		mnemonic, err = GenerateMnemonic(mnemonicEntropySize)
-		if err != nil {
-			return fmt.Errorf("unable to generate mnemonic, %w", err)
+			return mnemonic, nil
 		}
 	}
 
-	// Save the account
-	info, err := kb.CreateAccount(
-		name,
-		mnemonic,
-		"",
-		pw,
-		uint32(cfg.Account),
-		uint32(cfg.Index),
+	var (
+		infos    []keys.Info
+		mnemonic string
 	)
-	if err != nil {
-		return fmt.Errorf("unable to save account to keybase, %w", err)
+
+	type deriveEntry struct {
+		name   string
+		params *hd.BIP44Params
+	}
+
+	confirmOverwrite := func(keyName string) error {
+		exists, err := kb.HasByName(keyName)
+		if err != nil {
+			return fmt.Errorf("unable to fetch key, %w", err)
+		}
+
+		if exists {
+			overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", keyName))
+			if err != nil {
+				return fmt.Errorf("unable to get confirmation, %w", err)
+			}
+
+			if !overwrite {
+				return errOverwriteAborted
+			}
+		}
+
+		return nil
+	}
+
+	if len(cfg.DerivationPath) == 0 {
+		// Normal derivation uses account/index flags.
+		if err := confirmOverwrite(name); err != nil {
+			return err
+		}
+
+		// Ask for a password when generating a local key
+		pw, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
+		if err != nil {
+			return err
+		}
+
+		mnemonic, err = getMnemonic()
+		if err != nil {
+			return err
+		}
+
+		// Save the account
+		info, err := kb.CreateAccount(
+			name,
+			mnemonic,
+			"",
+			pw,
+			uint32(cfg.Account),
+			uint32(cfg.Index),
+		)
+		if err != nil {
+			return fmt.Errorf("unable to save account to keybase, %w", err)
+		}
+
+		infos = []keys.Info{info}
+	} else {
+		// Derivation paths override account/index flags.
+		if cfg.Account != 0 || cfg.Index != 0 {
+			io.Println("WARNING: -account/-index are ignored when -derivation-path is provided.")
+		}
+
+		entries := make([]deriveEntry, 0, len(cfg.DerivationPath))
+
+		for _, path := range cfg.DerivationPath {
+			params, err := hd.NewParamsFromPath(path)
+			if err != nil {
+				return fmt.Errorf("unable to parse derivation path, %w", err)
+			}
+
+			derivedName := deriveKeyName(name, params, len(cfg.DerivationPath))
+			if err := confirmOverwrite(derivedName); err != nil {
+				return err
+			}
+
+			entries = append(entries, deriveEntry{
+				name:   derivedName,
+				params: params,
+			})
+		}
+
+		mnemonic, err = getMnemonic()
+		if err != nil {
+			return err
+		}
+
+		infos = make([]keys.Info, 0, len(entries))
+		passphrases := make([]string, len(entries))
+
+		for i := range entries {
+			// Ask for a password when generating a local key
+			pw, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
+			if err != nil {
+				return err
+			}
+
+			passphrases[i] = pw
+		}
+
+		for i, entry := range entries {
+			info, err := kb.CreateAccountBip44(
+				entry.name,
+				mnemonic,
+				"",
+				passphrases[i],
+				*entry.params,
+			)
+			if err != nil {
+				return fmt.Errorf("unable to save account to keybase, %w", err)
+			}
+
+			infos = append(infos, info)
+		}
 	}
 
 	// Print the derived address info
@@ -217,13 +308,17 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 
 	// Recover key from seed passphrase
 	if cfg.Recover {
-		printCreate(info, false, "", io)
+		for _, info := range infos {
+			printCreate(info, false, "", io)
+		}
 
 		return nil
 	}
 
-	// Print the key create info
-	printCreate(info, !cfg.NoBackup, mnemonic, io)
+	// Print the key create info (mnemonic only once)
+	for i, info := range infos {
+		printCreate(info, !cfg.NoBackup && i == 0, mnemonic, io)
+	}
 
 	return nil
 }
@@ -308,6 +403,14 @@ func printDerive(
 			accounts[index].String(),
 		)
 	}
+}
+
+func deriveKeyName(base string, params *hd.BIP44Params, totalPaths int) string {
+	if totalPaths == 1 {
+		return base
+	}
+
+	return fmt.Sprintf("%s-a%di%d", base, params.Account, params.AddressIndex)
 }
 
 // generateAccounts the accounts using the provided mnemonics

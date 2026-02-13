@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -356,7 +357,16 @@ func TestAdd_Derive(t *testing.T) {
 		mockOut := bytes.NewBufferString("")
 
 		io := commands.NewTestIO()
-		io.SetIn(strings.NewReader(dummyPass + "\n" + dummyPass + "\n" + mnemonic + "\n"))
+		var sb strings.Builder
+		sb.WriteString(mnemonic)
+		sb.WriteString("\n")
+		for range paths {
+			sb.WriteString(dummyPass)
+			sb.WriteString("\n")
+			sb.WriteString(dummyPass)
+			sb.WriteString("\n")
+		}
+		io.SetIn(strings.NewReader(sb.String()))
 		io.SetOut(commands.WriteNopCloser(mockOut))
 
 		// Create the command
@@ -393,6 +403,76 @@ func TestAdd_Derive(t *testing.T) {
 
 		for _, expectedAccount := range expectedAccounts {
 			assert.Contains(t, deriveOutput, expectedAccount.String())
+		}
+	})
+
+	t.Run("derivation paths create keybase entries", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome   = t.TempDir()
+			mnemonic = generateTestMnemonic(t)
+			paths    = generateDerivationPaths(3)
+
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+
+			dummyPass = "dummy-pass"
+			keyName   = "example-key"
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		io := commands.NewTestIO()
+		var sb strings.Builder
+		sb.WriteString(mnemonic)
+		sb.WriteString("\n")
+		for range paths {
+			sb.WriteString(dummyPass)
+			sb.WriteString("\n")
+			sb.WriteString(dummyPass)
+			sb.WriteString("\n")
+		}
+		io.SetIn(strings.NewReader(sb.String()))
+
+		// Create the command
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+
+		args := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			keyName,
+		}
+
+		for _, path := range paths {
+			args = append(
+				args, []string{
+					"--derivation-path",
+					path,
+				}...,
+			)
+		}
+
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		for _, path := range paths {
+			params, err := hd.NewParamsFromPath(path)
+			require.NoError(t, err)
+
+			derivedName := deriveKeyName(keyName, params, len(paths))
+
+			has, err := kb.HasByName(derivedName)
+			require.NoError(t, err)
+			require.True(t, has)
 		}
 	})
 
@@ -472,5 +552,108 @@ func TestAdd_Derive(t *testing.T) {
 		}
 
 		require.ErrorIs(t, cmd.ParseAndRun(ctx, args), errInvalidDerivationPath)
+	})
+
+	t.Run("derivation path overwrite aborted", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			mnemonic    = generateTestMnemonic(t)
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+			keyName = "example-key"
+			path    = "44'/118'/0'/0/0"
+		)
+
+		// Pre-create a key that will collide with the derived name.
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		_, err = kb.CreateAccount(keyName, mnemonic, "", "encrypt", 0, 0)
+		require.NoError(t, err)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		io := commands.NewTestIO()
+		io.SetIn(strings.NewReader("n\n"))
+
+		// Create the command
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+
+		args := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			keyName,
+			"--derivation-path",
+			path,
+		}
+
+		require.ErrorIs(t, cmd.ParseAndRun(ctx, args), errOverwriteAborted)
+	})
+
+	t.Run("derivation path passphrase preflight", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			mnemonic    = generateTestMnemonic(t)
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+			keyName = "example-key"
+			paths   = []string{"44'/118'/0'/0/0", "44'/118'/0'/0/1"}
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		io := commands.NewTestIO()
+		// First passphrase OK, second mismatch triggers errPassphraseMismatch.
+		io.SetIn(strings.NewReader(mnemonic + "\npass1\npass1\npass2\npass3\n"))
+
+		// Create the command
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+
+		args := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			keyName,
+		}
+
+		for _, path := range paths {
+			args = append(
+				args, []string{
+					"--derivation-path",
+					path,
+				}...,
+			)
+		}
+
+		require.ErrorIs(t, cmd.ParseAndRun(ctx, args), errPassphraseMismatch)
+
+		// Ensure no derived keys were persisted.
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		for _, path := range paths {
+			params, err := hd.NewParamsFromPath(path)
+			require.NoError(t, err)
+
+			derivedName := deriveKeyName(keyName, params, len(paths))
+			has, err := kb.HasByName(derivedName)
+			require.NoError(t, err)
+			require.False(t, has)
+		}
 	})
 }
