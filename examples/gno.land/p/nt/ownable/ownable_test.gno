@@ -76,13 +76,59 @@ func TestTransferOwnershipUnauthorized(t *testing.T) {
 
 	// Set realm to an unauthorized user bob.
 	testing.SetRealm(testing.NewUserRealm(bob))
-	// current is gno.land/r/test/test so of course errors.
+	// owner is alice, so bob is unauthorized.
 	uassert.ErrorContains(t, o.TransferOwnership(bob), ErrUnauthorized.Error())
 	uassert.ErrorContains(t, o.DropOwnershipByCurrent(), ErrUnauthorized.Error())
 	// Reset realm to alice.
 	testing.SetRealm(testing.NewUserRealm(alice))
 	uassert.NoError(t, o.TransferOwnership(alice))
 	uassert.NoError(t, o.DropOwnershipByCurrent())
+}
+
+func TestTransferOwnershipByPrevious(t *testing.T) {
+	var o *Ownable
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		o = NewWithOrigin() // owned by alice
+	})
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		err := o.TransferOwnershipByPrevious(bob)
+		urequire.NoError(t, err)
+	})
+
+	got := o.Owner()
+	uassert.Equal(t, got, bob)
+}
+
+func TestTransferOwnershipByPreviousUnauthorized(t *testing.T) {
+	var o *Ownable
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		o = NewWithOrigin() // owned by alice
+	})
+
+	testing.SetRealm(testing.NewUserRealm(bob))
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		uassert.ErrorContains(t, o.TransferOwnershipByPrevious(bob), ErrUnauthorized.Error())
+	})
+}
+
+func TestTransferOwnershipByPreviousInvalidAddress(t *testing.T) {
+	var o *Ownable
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		o = NewWithOrigin() // owned by alice
+	})
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		uassert.ErrorContains(t, o.TransferOwnershipByPrevious(""), ErrInvalidAddress.Error())
+	})
 }
 
 func TestOwnedByCurrent(t *testing.T) {
