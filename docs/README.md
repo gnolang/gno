@@ -45,6 +45,7 @@ Learn about core concepts found in Gno.land & Gno.
 - [Storage Deposit](resources/storage-deposit.md) - Learn how storage deposits work, including costs, refunds, and cleanup incentives in Gno.land.
 - [Standard libraries](resources/gno-stdlibs.md) - An overview of the standard libraries found in the Gno language and how they enhance blockchain functionality.
 - [Configuring Gno Projects](resources/configuring-gno-projects.md) - Using gnomod.toml & gnowork.toml to configure your Gno packages.
+- [Indexing Gno](resources/indexing-gno.md) - Learn how to index TM2 blockchain (As Gno Land) through `tx-indexer`.
 - [Testing Gno](resources/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
 - [Working with Realms](resources/realms.md) - Working with realms and environment variables.
 - [Interrealm Specification](resources/gno-interrealm.md) - Understand how inter-realm communication works.
