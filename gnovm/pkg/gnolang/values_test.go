@@ -110,6 +110,18 @@ func TestComputeMapKey(t *testing.T) {
 		},
 		{`[8]byte{'a', 'b'}`, "[8]uint8:[ab\x00\x00\x00\x00\x00\x00]", false},
 		{`[1]string{}`, "[1]string:[\x00]", false},
+		{`""`, "string:", false},
+		{`"\x00"`, "string:\x00", false},
+		{
+			`struct{a int; b string; c bool}{}`,
+			"struct{main.a int;main.b string;main.c bool}:{\x08\x00\x00\x00\x00\x00\x00\x00\x00,\x00,\x01\x00}",
+			false,
+		},
+		{
+			`[1][1]int{{42}}`,
+			"[1][1]int:[\x0b[\x08*\x00\x00\x00\x00\x00\x00\x00]]",
+			false,
+		},
 
 		// Regressions from https://github.com/gnolang/gno/issues/4567
 		{
@@ -142,17 +154,27 @@ func TestComputeMapKey(t *testing.T) {
 			"struct{main.a string;main.b string}:{\x03x,y,\x01z}",
 			false,
 		},
+
+		// Check child types which use omitTypes. (because of interface)
 		{
-			// With omitType == false
 			`[2]interface{}{"hi,wor", int64(1)}`,
 			"[2]interface{}:[\rstring:hi,wor,\x0eint64:\x01\x00\x00\x00\x00\x00\x00\x00]",
 			false,
 		},
 		{
-			// With omitType == false
 			`struct{a interface{}; b interface{}}{"hi,wor", int64(1)}`,
 			"struct{main.a interface{};main.b interface{}}:{\rstring:hi,wor,\x0eint64:\x01\x00\x00\x00\x00\x00\x00\x00}",
 			false,
+		},
+
+		// NaN propagation
+		{
+			`func() struct{f float64} { p := float64(0); return struct{f float64}{0/p} }()`,
+			MapKey(""), true,
+		},
+		{
+			`func() [1]float64 { p := float64(0); return [1]float64{0/p} }()`,
+			MapKey(""), true,
 		},
 	}
 	for _, tc := range tt {
@@ -164,6 +186,29 @@ func TestComputeMapKey(t *testing.T) {
 			mk, isNaN := vals[0].ComputeMapKey(nil, false)
 			assert.Equal(t, tc.want, mk)
 			assert.Equal(t, tc.isNaN, isNaN)
+		})
+	}
+}
+
+func TestComputeMapKey_collisions(t *testing.T) {
+	pairs := [][2]string{
+		{`[2]string{"", "abcd"}`, `[2]string{"abcd", ""}`},
+		{`[1]interface{}{int8(1)}`, `[1]interface{}{uint8(1)}`},
+		{`[1]interface{}{int8(1)}`, `[1]interface{}{true}`},
+		{`[2][1]int{{1}, {2}}`, `[2][1]int{{2}, {1}}`},
+	}
+	for _, pair := range pairs {
+		t.Run(pair[0]+" vs "+pair[1], func(t *testing.T) {
+			m := NewMachine("main", nil)
+			v1 := m.Eval(m.MustParseExpr(pair[0]))
+			v2 := m.Eval(m.MustParseExpr(pair[1]))
+			require.Len(t, v1, 1)
+			require.Len(t, v2, 1)
+			mk1, nan1 := v1[0].ComputeMapKey(nil, false)
+			mk2, nan2 := v2[0].ComputeMapKey(nil, false)
+			require.False(t, nan1)
+			require.False(t, nan2)
+			assert.NotEqual(t, mk1, mk2)
 		})
 	}
 }
