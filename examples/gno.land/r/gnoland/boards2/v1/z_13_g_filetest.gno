@@ -7,7 +7,6 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -27,7 +26,7 @@ func init() {
 	rid = boards2.CreateReply(cross, bid, tid, 0, "body")
 
 	// Invite a member using a role with permission to flag replies
-	boards2.InviteMember(cross, bid, moderator, permissions.RoleModerator)
+	boards2.InviteMember(cross, bid, moderator, boards2.RoleModerator)
 }
 
 func main() {
