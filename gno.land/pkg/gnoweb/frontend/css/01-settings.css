@@ -254,7 +254,9 @@
 	--g-color-gray-200: oklch(0.7984 0 0); /* #BDBDBD - Content dark color */
 	--g-color-gray-300: oklch(0.683 0 0); /* #999999 - Muted color */
 	--g-color-gray-400: oklch(0.5863 0 0); /* #7C7C7C - Border color */
+	--g-color-gray-500: oklch(0.52 0.01 0); /* Dark mode - between 400 and 600 */
 	--g-color-gray-600: oklch(0.4609 0.0091 241.82); /* #54595D - Content color */
+	--g-color-gray-700: oklch(0.28 0.005 0); /* Dark mode - between 600 and 800 */
 	--g-color-gray-800: oklch(0.1867 0 0); /* #131313 - Background dark color */
 	--g-color-gray-900: oklch(0.1349 0.0024 286.07); /* #080809 - Title color */
 
