@@ -532,12 +532,12 @@ func TestHandshakeReplayAll(t *testing.T) {
 	t.Parallel()
 
 	for _, m := range modes {
-		testHandshakeReplay(t, config, 0, m, nil)
+		testHandshakeReplay(t, 0, m, nil)
 	}
 	sim := makeTestSim(t, "all")
 	defer sim.CleanupFunc()
 	for _, m := range modes {
-		testHandshakeReplay(t, config, 0, m, &sim)
+		testHandshakeReplay(t, 0, m, &sim)
 	}
 }
 
@@ -546,12 +546,12 @@ func TestHandshakeReplaySome(t *testing.T) {
 	t.Parallel()
 
 	for _, m := range modes {
-		testHandshakeReplay(t, config, 1, m, nil)
+		testHandshakeReplay(t, 1, m, nil)
 	}
 	sim := makeTestSim(t, "some")
 	defer sim.CleanupFunc()
 	for _, m := range modes {
-		testHandshakeReplay(t, config, 1, m, &sim)
+		testHandshakeReplay(t, 1, m, &sim)
 	}
 }
 
@@ -560,12 +560,12 @@ func TestHandshakeReplayOne(t *testing.T) {
 	t.Parallel()
 
 	for _, m := range modes {
-		testHandshakeReplay(t, config, numBlocks-1, m, nil)
+		testHandshakeReplay(t, numBlocks-1, m, nil)
 	}
 	sim := makeTestSim(t, "one")
 	defer sim.CleanupFunc()
 	for _, m := range modes {
-		testHandshakeReplay(t, config, numBlocks-1, m, &sim)
+		testHandshakeReplay(t, numBlocks-1, m, &sim)
 	}
 }
 
@@ -574,12 +574,12 @@ func TestHandshakeReplayNone(t *testing.T) {
 	t.Parallel()
 
 	for _, m := range modes {
-		testHandshakeReplay(t, config, numBlocks, m, nil)
+		testHandshakeReplay(t, numBlocks, m, nil)
 	}
 	sim := makeTestSim(t, "none")
 	defer sim.CleanupFunc()
 	for _, m := range modes {
-		testHandshakeReplay(t, config, numBlocks, m, &sim)
+		testHandshakeReplay(t, numBlocks, m, &sim)
 	}
 }
 
@@ -649,7 +649,7 @@ func tempWALWithData(data []byte) string {
 }
 
 // Make some blocks. Start a fresh app and apply nBlocks blocks. Then restart the app and sync it up with the remaining blocks
-func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uint, sim *testSim) {
+func testHandshakeReplay(t *testing.T, nBlocks int, mode uint, sim *testSim) {
 	t.Helper()
 
 	var (
@@ -658,6 +658,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 		store        *mockBlockStore
 		stateDB      dbm.DB
 		genesisState sm.State
+		config       *cfg.Config
 
 		genesisFile string
 	)
@@ -676,6 +677,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 	} else { // test single node
 		testConfig, gf := ResetConfig(fmt.Sprintf("%s_%v_s", t.Name(), mode))
 		defer os.RemoveAll(testConfig.RootDir)
+		config = testConfig
 		walBody, err := WALWithNBlocks(t, numBlocks)
 		require.NoError(t, err)
 		walFile := tempWALWithData(walBody)
