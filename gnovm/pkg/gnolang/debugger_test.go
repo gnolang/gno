@@ -203,3 +203,28 @@ func TestRemoteError(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// TestBreakpointMatching tests the breakpoint file matching logic
+func TestBreakpointMatching(t *testing.T) {
+	// Test breakpoint matching with different file path formats
+	runDebugTest(t, debugTarget, []dtest{
+		// Test breakpoint with line number only
+		{in: "b 37\nc\nprint num\ndetach\n", out: "(5 int)"},
+
+		// Test breakpoint with filename:line
+		{in: "b sample.gno:37\nc\nprint num\ndetach\n", out: "(5 int)"},
+
+		// Test breakpoint with relative path
+		{in: "b ./sample.gno:37\nc\nprint num\ndetach\n", out: "(5 int)"},
+
+		// Test multiple breakpoints
+		{in: "b 37\nb 40\nc\nprint num\nc\nprint t\ndetach\n", out: "(5 int)"},
+
+		// Test breakpoint at different locations
+		{in: "b 27\nc\nprint b\ndetach\n", out: `("!zero" string)`},
+		{in: "b 45\nc\nprint x\ndetach\n", out: "(4 int)"},
+
+		// Test that program continues past non-matching breakpoints
+		{in: "b 999\nc\ndetach\n", out: "bye 4"},
+	})
+}
