@@ -118,7 +118,7 @@ graph TD
     FBlocks: []gno.Value{
         &gno.Block{
             Source: &gno.FileNode{
-		            Decls: gno.Decls{&gno.FuncDecl{...}},
+                Decls: gno.Decls{&gno.FuncDecl{...}},
             },
         },
     },
