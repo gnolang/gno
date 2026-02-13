@@ -43,6 +43,20 @@ func (o *Ownable) TransferOwnership(newOwner address) error {
 		return ErrUnauthorized
 	}
 
+	return o.transferOwnership(newOwner)
+}
+
+// TransferOwnershipByPrevious transfers ownership of the Ownable struct
+// when ownership is asserted against the previous realm.
+func (o *Ownable) TransferOwnershipByPrevious(newOwner address) error {
+	if !o.OwnedByPrevious() {
+		return ErrUnauthorized
+	}
+
+	return o.transferOwnership(newOwner)
+}
+
+func (o *Ownable) transferOwnership(newOwner address) error {
 	if !newOwner.IsValid() {
 		return ErrInvalidAddress
 	}
