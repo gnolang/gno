@@ -63,7 +63,7 @@ const (
 )
 
 var (
-	_ Value = StringValue("")
+	_ Value = StringValue{}
 	_ Value = BigintValue{}
 	_ Value = BigdecValue{}
 	_ Value = DataByteValue{}
@@ -84,7 +84,55 @@ var (
 // ----------------------------------------
 // StringValue
 
-type StringValue string
+// StringValue can operate in two modes:
+// 1. Owner mode: holds the actual string data (ref=false)
+// 2. Reference mode: holds a slice of another string (ref=true)
+//
+// In reference mode, the data field contains a Go string slice
+// which shares the underlying byte array with the original string.
+// This avoids copying data during slicing operations.
+type StringValue struct {
+	data string // The string data (or slice of original in ref mode)
+	ref  bool   // true if this is a reference/slice of another string
+}
+
+// NewStringValue creates a new StringValue in owner mode
+func NewStringValue(s string) StringValue {
+	return StringValue{data: s, ref: false}
+}
+
+// NewStringValueRef creates a new StringValue in reference mode
+// This is used for slicing operations to avoid data copying
+func NewStringValueRef(s string) StringValue {
+	return StringValue{data: s, ref: true}
+}
+
+// Value returns the underlying string value
+func (sv StringValue) Value() string {
+	return sv.data
+}
+
+// IsRef returns true if this StringValue is a reference (slice)
+func (sv StringValue) IsRef() bool {
+	return sv.ref
+}
+
+// Len returns the length of the string
+func (sv StringValue) Len() int {
+	return len(sv.data)
+}
+
+// MarshalAmino serializes StringValue to a string for amino encoding
+func (sv StringValue) MarshalAmino() (string, error) {
+	return sv.data, nil
+}
+
+// UnmarshalAmino deserializes a string into StringValue
+func (sv *StringValue) UnmarshalAmino(s string) error {
+	sv.data = s
+	sv.ref = false
+	return nil
+}
 
 // ----------------------------------------
 // BigintValue
@@ -1185,7 +1233,7 @@ func (tv *TypedValue) GetString() string {
 	if tv.V == nil {
 		return ""
 	}
-	return string(tv.V.(StringValue))
+	return tv.V.(StringValue).Value()
 }
 
 func (tv *TypedValue) SetInt(n int64) {
@@ -2068,7 +2116,7 @@ func (tv *TypedValue) GetLength() int {
 	}
 	switch cv := tv.V.(type) {
 	case StringValue:
-		return len(cv)
+		return cv.Len()
 	case *ArrayValue:
 		return cv.GetLength()
 	case *SliceValue:
@@ -2144,9 +2192,12 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				low, high, tv.GetLength()))})
 		}
 		if t == StringType || t == UntypedStringType {
+			// Use NewStringRef for slicing to avoid data copy.
+			// Go's string slicing already shares the underlying byte array,
+			// so we only need to allocate the StringValue struct overhead.
 			return TypedValue{
 				T: tv.T,
-				V: alloc.NewString(tv.GetString()[low:high]),
+				V: alloc.NewStringRef(tv.GetString()[low:high]),
 			}
 		}
 		panic(&Exception{Value: typedString(
@@ -2673,7 +2724,7 @@ func typedRune(r rune) TypedValue {
 // NOTE: does not allocate; used for panics.
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
-	tv.V = StringValue(s)
+	tv.V = NewStringValue(s)
 	return tv
 }
 
