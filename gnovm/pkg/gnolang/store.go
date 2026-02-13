@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"iter"
@@ -8,7 +9,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/dgraph-io/ristretto/v2"
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -124,7 +127,7 @@ func DefaultGasConfig() GasConfig {
 	return GasConfig{
 		GasGetObject:       16,   // per byte cost
 		GasSetObject:       16,   // per byte cost
-		GasGetType:         52,   // per byte cost
+		GasGetType:         5,    // per byte cost
 		GasSetType:         52,   // per byte cost
 		GasGetPackageRealm: 524,  // per byte cost
 		GasSetPackageRealm: 524,  // per byte cost
@@ -140,10 +143,12 @@ type defaultStore struct {
 	iavlStore store.Store // for escaped object hashes
 
 	// transaction-scoped
-	cacheObjects map[ObjectID]Object            // this is a real cache, reset with every transaction.
-	cacheTypes   txlog.Map[TypeID, Type]        // this re-uses the parent store's.
-	cacheNodes   txlog.Map[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
-	alloc        *Allocator                     // for accounting for cached items
+	// cacheNodes is an actual store - BlockNodes are not stored in the underlying
+	// DB and must be re-initialized using PreprocessAllFilesAndSaveBlockNodes.
+	cacheObjects map[ObjectID]Object
+	cacheTypes   map[TypeID]Type
+	cacheNodes   txlog.Map[Location, BlockNode]
+	alloc        *Allocator // for accounting for cached items
 
 	// Partially restored package; occupies memory and tracked for GC,
 	// this is more efficient than iterating over cacheObjects.
@@ -152,6 +157,7 @@ type defaultStore struct {
 	// store configuration; cannot be modified in a transaction
 	pkgGetter      PackageGetter  // non-realm packages
 	nativeResolver NativeResolver // for injecting natives
+	aminoCache     *ristretto.Cache[[]byte, any]
 
 	// transient
 	opslog  io.Writer // for logging store operations.
@@ -165,6 +171,18 @@ type defaultStore struct {
 	realmStorageDiffs map[string]int64 // maps realm path to size diff
 }
 
+var globalAminoCache = sync.OnceValue[*ristretto.Cache[[]byte, any]](func() *ristretto.Cache[[]byte, any] {
+	rc, err := ristretto.NewCache(&ristretto.Config[[]byte, any]{
+		NumCounters: 1_000_000,       // maximum number of keys in cache
+		MaxCost:     256 * (1 << 20), // 256 MB
+		BufferItems: 64,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return rc
+})
+
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
 	ds := &defaultStore{
 		baseStore: baseStore,
@@ -173,7 +191,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 
 		// cacheObjects is set; objects in the store will be copied over for any transaction.
 		cacheObjects: make(map[ObjectID]Object),
-		cacheTypes:   txlog.GoMap[TypeID, Type](map[TypeID]Type{}),
+		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
 
 		// reset at the message level
@@ -183,6 +201,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		pkgGetter:      nil,
 		nativeResolver: nil,
 		gasConfig:      DefaultGasConfig(),
+		aminoCache:     globalAminoCache(),
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -203,7 +222,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 
 		// transaction-scoped
 		cacheObjects: make(map[ObjectID]Object),
-		cacheTypes:   txlog.Wrap(ds.cacheTypes),
+		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.Wrap(ds.cacheNodes),
 		alloc:        ds.alloc.Fork().Reset(),
 
@@ -212,8 +231,9 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 		nativeResolver: ds.nativeResolver,
 
 		// gas meter
-		gasMeter:  gasMeter,
-		gasConfig: ds.gasConfig,
+		gasMeter:   gasMeter,
+		gasConfig:  ds.gasConfig,
+		aminoCache: ds.aminoCache,
 
 		// transient
 		current: nil,
@@ -221,7 +241,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 		// reset at the message level
 		realmStorageDiffs: make(map[string]int64),
 	}
-	ds2.SetCachePackage(Uverse())
+	InitStoreCaches(ds2)
 
 	return transactionStore{ds2}
 }
@@ -231,17 +251,8 @@ type transactionStore struct {
 }
 
 func (t transactionStore) Write() {
-	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Commit()
 	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
 }
-
-// XXX: we should block Go2GnoType, because it uses a global cache map;
-// but it's called during preprocess and thus breaks some testing code.
-// let's wait until we remove Go2Gno entirely.
-// https://github.com/gnolang/gno/issues/1361
-// func (transactionStore) Go2GnoType(reflect.Type) Type {
-// 	panic("Go2GnoType may not be called in a transaction store")
-// }
 
 func (transactionStore) SetNativeResolver(ns NativeResolver) {
 	panic("SetNativeResolver may not be called in a transaction store")
@@ -262,9 +273,6 @@ func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl st
 		ds.iavlStore.Set(iter.Key(), iter.Value())
 	}
 
-	for k, v := range ss.cacheTypes.Iterate() {
-		ds.cacheTypes.Set(k, v)
-	}
 	for k, v := range ss.cacheNodes.Iterate() {
 		ds.cacheNodes.Set(k, v)
 	}
@@ -471,7 +479,13 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		var oo Object
 		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
-		amino.MustUnmarshal(bz, &oo)
+		cacheSum := sha256.Sum256(bz)
+		if cachedObj, ok := ds.aminoCache.Get(cacheSum[:]); ok {
+			oo = copyValueWithRefs(cachedObj.(Object)).(Object)
+		} else {
+			amino.MustUnmarshal(bz, &oo)
+			ds.aminoCache.Set(cacheSum[:], copyValueWithRefs(oo).(Object), int64(len(bz)))
+		}
 		if debug {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
@@ -679,6 +693,9 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		copy(hashbz[HashSize:], bz)
 		ds.baseStore.Set([]byte(key), hashbz)
 		size = len(hashbz)
+		// Setting aminoCache here currently results in realm ownership starting to fall apart.
+		// Probably ObjectInfo.Copy should not copy the unexported fields?
+		// ds.aminoCache.Set(mh, o2.(Object), int64(len(bz)))
 		oo.GetObjectInfo().LastObjectSize = int64(size)
 	}
 	// save object to cache.
@@ -765,7 +782,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	}
 
 	// check cache.
-	if tt, exists := ds.cacheTypes.Get(tid); exists {
+	if tt, exists := ds.cacheTypes[tid]; exists {
 		return tt
 	}
 
@@ -776,8 +793,15 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		if bz != nil {
 			gas := overflow.Mulp(ds.gasConfig.GasGetType, store.Gas(len(bz)))
 			ds.consumeGas(gas, GasGetTypeDesc)
+			cacheSum := sha256.Sum256(bz)
 			var tt Type
-			amino.MustUnmarshal(bz, &tt)
+			if val, ok := ds.aminoCache.Get(cacheSum[:]); ok {
+				tt = copyTypeWithRefs(val.(Type))
+			} else {
+				amino.MustUnmarshal(bz, &tt)
+				// len(bz) is not the proper cost of tt, but is good enough
+				ds.aminoCache.Set(cacheSum[:], copyTypeWithRefs(tt), int64(len(bz)))
+			}
 			if debug {
 				if tt.TypeID() != tid {
 					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
@@ -785,7 +809,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 				}
 			}
 			// set in cache.
-			ds.cacheTypes.Set(tid, tt)
+			ds.cacheTypes[tid] = tt
 			// after setting in cache, fill tt.
 			fillType(ds, tt)
 			return tt
@@ -796,13 +820,13 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 
 func (ds *defaultStore) SetCacheType(tt Type) {
 	tid := tt.TypeID()
-	if tt2, exists := ds.cacheTypes.Get(tid); exists {
+	if tt2, exists := ds.cacheTypes[tid]; exists {
 		if tt != tt2 {
 			panic(fmt.Sprintf("cannot re-register %q with different type", tid))
 		}
 		// else, already set.
 	} else {
-		ds.cacheTypes.Set(tid, tt)
+		ds.cacheTypes[tid] = tt
 	}
 }
 
@@ -821,7 +845,7 @@ func (ds *defaultStore) SetType(tt Type) {
 	}
 	tid := tt.TypeID()
 	// return if tid already known.
-	if tt2, exists := ds.cacheTypes.Get(tid); exists {
+	if tt2, exists := ds.cacheTypes[tid]; exists {
 		if tt != tt2 {
 			// this can happen for a variety of reasons.
 			// TODO classify them and optimize.
@@ -833,13 +857,15 @@ func (ds *defaultStore) SetType(tt Type) {
 		key := backendTypeKey(tid)
 		tcopy := copyTypeWithRefs(tt)
 		bz := amino.MustMarshalAny(tcopy)
+		cacheSum := sha256.Sum256(bz)
+		ds.aminoCache.Set(cacheSum[:], tcopy, int64(len(bz)))
 		gas := overflow.Mulp(ds.gasConfig.GasSetType, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasSetTypeDesc)
 		ds.baseStore.Set([]byte(key), bz)
 		size = len(bz)
 	}
 	// save type to cache.
-	ds.cacheTypes.Set(tid, tt)
+	ds.cacheTypes[tid] = tt
 }
 
 // Convenience
@@ -1165,11 +1191,10 @@ func (ds *defaultStore) Print() {
 	utils.Print(ds.iavlStore)
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheTypes..."))
-	ds.cacheTypes.Iterate()(func(tid TypeID, typ Type) bool {
+	for tid, typ := range ds.cacheTypes {
 		fmt.Printf("- %v: %v\n", tid,
 			stringz.TrimN(fmt.Sprintf("%v", typ), 50))
-		return true
-	})
+	}
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheNodes..."))
 	ds.cacheNodes.Iterate()(func(loc Location, bn BlockNode) bool {
@@ -1231,25 +1256,6 @@ func decodeBackendPackagePathKey(key string) string {
 // builtin types and packages
 
 func InitStoreCaches(store Store) {
-	/* This is what it used to be, but it's confusing when there are new
-	 * uverse types.
-
-	types := []Type{
-		BoolType, UntypedBoolType,
-		StringType, UntypedStringType,
-		IntType, Int8Type, Int16Type, Int32Type, Int64Type, UntypedRuneType,
-		UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type,
-		UntypedBigintType,
-		gTypeType,
-		gPackageType,
-		blockType{},
-		Float32Type, Float64Type,
-		gErrorType, // from uverse.go
-	}
-	for _, tt := range types {
-		store.SetCacheType(tt)
-	}
-	*/
 	uverse := UverseNode()
 	for _, tv := range uverse.GetStaticBlock().Values {
 		if tv.T != nil && tv.T.Kind() == TypeKind {

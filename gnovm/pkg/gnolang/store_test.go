@@ -43,7 +43,15 @@ func TestTransactionStore(t *testing.T) {
 	assert.Nil(t, st.GetMemPackage("gno.vm/t/hello"))
 	assert.NotNil(t, txSt.GetMemPackage("gno.vm/t/hello"))
 	assert.PanicsWithValue(t, "unexpected type with id gno.vm/t/hello.A", func() { st.GetType("gno.vm/t/hello.A") })
-	assert.NotNil(t, txSt.GetType("gno.vm/t/hello.A"))
+
+	// Check that hello.A is set in txSt.
+	// Later, we will get hello.A from the parent store; that will do an amino
+	// unmarshal and as such Methods will be unmarshaled to []TypedValue{}.
+	// To make it match in the last assert.Equal, we set it to []TypedValue{} here.
+	stA := txSt.GetType("gno.vm/t/hello.A")
+	assert.NotNil(t, stA)
+	assert.Empty(t, stA.(*DeclaredType).Methods)
+	stA.(*DeclaredType).Methods = []TypedValue{}
 
 	// use write on the stores
 	txSt.Write()
@@ -97,7 +105,7 @@ func TestCopyFromCachedStore(t *testing.T) {
 
 	assert.Equal(t, c1, d1, "cached baseStore and dest baseStore should match")
 	assert.Equal(t, c2, d2, "cached iavlStore and dest iavlStore should match")
-	assert.Equal(t, cachedStore.cacheTypes, destStore.cacheTypes, "cacheTypes should match")
+	assert.Equal(t, cachedStore.cacheNodes, destStore.cacheNodes, "cacheNodes should match")
 }
 
 func TestFindByPrefix(t *testing.T) {

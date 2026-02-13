@@ -1,0 +1,47 @@
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 502500ugnot -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/bar -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 502500ugnot -broadcast -chainid=tendermint_test test1
+
+gnokey maketx call -pkgpath gno.land/r/foo -func NewS -args "struct"  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+stdout 'GAS USED: +252934'
+
+gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/bar -func NewS -args "struct"  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+stdout 'GAS USED: +252934'
+
+
+-- foo/gnomod.toml --
+module = "gno.land/r/foo"
+
+gno = "0.9"
+
+-- foo/storage.gno --
+package foo
+
+var record *S
+type S struct{
+  name string
+}
+
+func NewS(cur realm, name string){
+  record = &S{name}
+}
+
+-- bar/gnomod.toml --
+module = "gno.land/r/bar"
+
+gno = "0.9"
+
+-- bar/storage.gno --
+package foo
+
+var record *S
+type S struct{
+  name string
+}
+
+func NewS(cur realm, name string){
+  record = &S{name}
+}

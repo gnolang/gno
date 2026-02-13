@@ -23,7 +23,7 @@ gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -fu
 stdout 'OK!'
 
 # Register withdrawmember with a namespace first
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "withdraw456" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test withdrawmember
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "withdraw456" -gas-fee 10000000ugnot -gas-wanted 110000000 -broadcast -chainid=tendermint_test withdrawmember
 stdout 'OK!'
 
 # add the proposal
