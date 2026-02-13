@@ -2287,6 +2287,11 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 // NOTE: NOT LAZY (and potentially expensive)
 func (tv *TypedValue) DeepFill(store Store) {
 	if tv.V != nil {
+		switch tv.V.(type) {
+		case StringValue, BigintValue, BigdecValue:
+			// Do nothing - these are constant values
+			return
+		}
 		tv.V = tv.V.DeepFill(store)
 	}
 }
