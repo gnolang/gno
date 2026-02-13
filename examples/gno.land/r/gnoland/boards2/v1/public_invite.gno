@@ -8,8 +8,6 @@ import (
 
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/nt/avl"
-
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // Invite contains a user invitation.
@@ -84,10 +82,10 @@ func AcceptInvite(_ realm, boardID boards.ID, user address) {
 	caller := runtime.PreviousRealm().Address()
 	invite := Invite{
 		User: user,
-		Role: permissions.RoleGuest,
+		Role: RoleGuest,
 	}
 	args := boards.Args{caller, boardID, []Invite{invite}}
-	board.Permissions.WithPermission(caller, permissions.PermissionMemberInvite, args, func(realm) {
+	board.Permissions.WithPermission(caller, PermissionMemberInvite, args, crossingFn(func() {
 		assertMembersUpdateIsEnabled(boardID)
 
 		invitee := user.String()
@@ -107,9 +105,9 @@ func AcceptInvite(_ realm, boardID boards.ID, user address) {
 			"MembersInvited",
 			"invitedBy", caller.String(),
 			"boardID", board.ID.String(),
-			"members", user.String()+":"+string(permissions.RoleGuest), // TODO: Support optional role assign
+			"members", user.String()+":"+string(RoleGuest), // TODO: Support optional role assign
 		)
-	})
+	}))
 }
 
 // RevokeInvite revokes a board invite request.
@@ -118,8 +116,8 @@ func RevokeInvite(_ realm, boardID boards.ID, user address) {
 
 	board := mustGetBoard(boardID)
 	caller := runtime.PreviousRealm().Address()
-	args := boards.Args{boardID, user, permissions.RoleGuest}
-	board.Permissions.WithPermission(caller, permissions.PermissionMemberInviteRevoke, args, func(realm) {
+	args := boards.Args{boardID, user, RoleGuest}
+	board.Permissions.WithPermission(caller, PermissionMemberInviteRevoke, args, crossingFn(func() {
 		invitee := user.String()
 		requests, found := getInviteRequests(boardID)
 		if !found || !requests.Has(invitee) {
@@ -134,7 +132,7 @@ func RevokeInvite(_ realm, boardID boards.ID, user address) {
 			"boardID", board.ID.String(),
 			"user", user.String(),
 		)
-	})
+	}))
 }
 
 func inviteMembers(boardID boards.ID, invites ...Invite) {
@@ -148,7 +146,7 @@ func inviteMembers(boardID boards.ID, invites ...Invite) {
 	perms := mustGetPermissions(boardID)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{caller, boardID, invites}
-	perms.WithPermission(caller, permissions.PermissionMemberInvite, args, func(realm) {
+	perms.WithPermission(caller, PermissionMemberInvite, args, crossingFn(func() {
 		assertMembersUpdateIsEnabled(boardID)
 
 		users := make([]string, len(invites))
@@ -170,7 +168,7 @@ func inviteMembers(boardID boards.ID, invites ...Invite) {
 			"boardID", boardID.String(),
 			"members", strings.Join(users, ","),
 		)
-	})
+	}))
 }
 
 func assertInviteRequestExists(boardID boards.ID, user address) {
