@@ -1,0 +1,44 @@
+# Test that a pointer to a nested array element persists correctly.
+# Regression: the slice-to-array-ptr reconstruction must NOT kick in
+# for normal nested array element pointers.
+
+loadpkg gno.land/p/nt/ufmt
+
+gnoland start
+
+## deploy realm
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/test/nestedptr -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## initialize: take pointer to outer[0]
+gnokey maketx call -pkgpath gno.land/r/test/nestedptr -func Init -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## read through pointer after realm reload
+gnokey maketx call -pkgpath gno.land/r/test/nestedptr -func ReadPtr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("10 20 30" string)'
+stdout OK!
+
+-- gnomod.toml --
+module = "gno.land/r/test/nestedptr"
+gno = "0.9"
+
+-- nestedptr.gno --
+package nestedptr
+
+import "gno.land/p/nt/ufmt"
+
+var (
+	outer [2][3]int
+	ptr   *[3]int
+)
+
+func Init(cur realm) {
+	outer[0] = [3]int{10, 20, 30}
+	outer[1] = [3]int{40, 50, 60}
+	ptr = &outer[0]
+}
+
+func ReadPtr(cur realm) string {
+	return ufmt.Sprintf("%d %d %d", (*ptr)[0], (*ptr)[1], (*ptr)[2])
+}

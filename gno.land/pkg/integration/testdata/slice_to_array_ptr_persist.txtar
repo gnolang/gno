@@ -1,0 +1,62 @@
+# Test that slice 2 array pointer conversion persists correctly
+# across transactions in a realm.
+
+loadpkg gno.land/p/nt/ufmt
+
+gnoland start
+
+## deploy realm
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/test/sliceptr -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## first call: initialize the pointer
+gnokey maketx call -pkgpath gno.land/r/test/sliceptr -func Init -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## second call (new transaction, realm state reloaded): read through the persisted pointer
+gnokey maketx call -pkgpath gno.land/r/test/sliceptr -func ReadPtr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("1 2 3" string)'
+stdout OK!
+
+## third call: mutate through pointer, verify it works after reload
+gnokey maketx call -pkgpath gno.land/r/test/sliceptr -func MutateThenRead -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("99 2 3" string)'
+stdout OK!
+
+## fourth call: mutate the slice, verify pointer sees the change (shared backing array)
+gnokey maketx call -pkgpath gno.land/r/test/sliceptr -func MutateSliceThenReadPtr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("77 2 3" string)'
+stdout OK!
+
+-- gnomod.toml --
+module = "gno.land/r/test/sliceptr"
+gno = "0.9"
+
+-- sliceptr.gno --
+package sliceptr
+
+import "gno.land/p/nt/ufmt"
+
+var (
+	data []byte
+	ptr  *[3]byte
+)
+
+func Init(cur realm) {
+	data = []byte{1, 2, 3, 4, 5}
+	ptr = (*[3]byte)(data)
+}
+
+func ReadPtr(cur realm) string {
+	return ufmt.Sprintf("%d %d %d", (*ptr)[0], (*ptr)[1], (*ptr)[2])
+}
+
+func MutateThenRead(cur realm) string {
+	(*ptr)[0] = 99
+	return ufmt.Sprintf("%d %d %d", (*ptr)[0], (*ptr)[1], (*ptr)[2])
+}
+
+func MutateSliceThenReadPtr(cur realm) string {
+	data[0] = 77
+	return ufmt.Sprintf("%d %d %d", (*ptr)[0], (*ptr)[1], (*ptr)[2])
+}
