@@ -26,8 +26,7 @@ func SetCLAURL(cur realm, url string) {
 // TransferOwnership transfers ownership to a new address.
 // Only callable by the current owner.
 func TransferOwnership(cur realm, newOwner address) {
-	owner.AssertOwnedByPrevious()
-	err := owner.TransferOwnership(newOwner)
+	err := owner.TransferOwnershipByPrevious(newOwner)
 	if err != nil {
 		panic(err)
 	}

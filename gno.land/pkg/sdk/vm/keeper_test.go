@@ -1624,3 +1624,55 @@ func Hello(cur realm) string { return "hello" }`},
 	err := env.vmk.AddPackage(ctx, userMsg)
 	assert.NoError(t, err, "should allow deployment when CLA realm is not deployed")
 }
+
+// TestVMKeeperCLASignature_TransferOwnership tests CLA ownership transfer behavior.
+func TestVMKeeperCLASignature_TransferOwnership(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Create admin and alice addresses.
+	admin := crypto.AddressFromPreimage([]byte("admin"))
+	alice := crypto.AddressFromPreimage([]byte("alice"))
+
+	// Set up accounts with initial balance.
+	adminAcc := env.acck.NewAccountWithAddress(ctx, admin)
+	env.acck.SetAccount(ctx, adminAcc)
+	env.bankk.SetCoins(ctx, admin, initialBalance)
+
+	aliceAcc := env.acck.NewAccountWithAddress(ctx, alice)
+	env.acck.SetAccount(ctx, aliceAcc)
+	env.bankk.SetCoins(ctx, alice, initialBalance)
+
+	// Deploy dependency packages from examples directory: avl -> addrset -> ownable -> cla.
+	err := deployExamplePackage(env, ctx, admin, "gno.land/p/nt/avl")
+	require.NoError(t, err, "failed to deploy avl package")
+
+	err = deployExamplePackage(env, ctx, admin, "gno.land/p/moul/addrset")
+	require.NoError(t, err, "failed to deploy addrset package")
+
+	err = deployExamplePackage(env, ctx, admin, "gno.land/p/nt/ownable")
+	require.NoError(t, err, "failed to deploy ownable package")
+
+	// Deploy CLA realm with the placeholder owner replaced by our test admin address.
+	const claPkgPath = "gno.land/r/sys/cla"
+	err = deployExamplePackageWithPatch(env, ctx, admin, claPkgPath, map[string]string{
+		"g1replacemewithmultisig": admin.String(),
+	})
+	require.NoError(t, err, "failed to deploy cla realm")
+
+	// Transfer ownership from admin to alice.
+	transferMsg := NewMsgCall(admin, nil, claPkgPath, "TransferOwnership", []string{alice.String()})
+	_, err = env.vmk.Call(ctx, transferMsg)
+	require.NoError(t, err)
+
+	// Old owner should no longer be able to update CLA URL.
+	setURLByAdmin := NewMsgCall(admin, nil, claPkgPath, "SetCLAURL", []string{"https://example.com/cla-v1"})
+	_, err = env.vmk.Call(ctx, setURLByAdmin)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "caller is not owner")
+
+	// New owner should be able to update CLA URL.
+	setURLByAlice := NewMsgCall(alice, nil, claPkgPath, "SetCLAURL", []string{"https://example.com/cla-v2"})
+	_, err = env.vmk.Call(ctx, setURLByAlice)
+	require.NoError(t, err)
+}

@@ -5,6 +5,7 @@ import (
 
 	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/testutils"
 	"gno.land/p/nt/uassert"
 )
 
@@ -144,4 +145,33 @@ func TestSetCLAURL_NotOwner(t *testing.T) {
 	})
 
 	uassert.Equal(t, "", claURL)
+}
+
+func TestTransferOwnership_Success(t *testing.T) {
+	resetState()
+
+  // newOwner should be a valid Gno address
+	newOwner := testutils.TestAddress("new-owner")
+	testing.SetRealm(testing.NewUserRealm(ownerAddr))
+
+	uassert.NotPanics(t, func() {
+		TransferOwnership(cross, newOwner)
+	})
+
+	uassert.Equal(t, owner.Owner(), newOwner)
+}
+
+func TestTransferOwnership_NotOwner(t *testing.T) {
+	resetState()
+
+  // newOwner should be a valid Gno address
+	newOwner := testutils.TestAddress("new-owner")
+
+	testing.SetRealm(testing.NewUserRealm(nonOwnerAddr))
+
+	uassert.AbortsWithMessage(t, ownable.ErrUnauthorized.Error(), func() {
+		TransferOwnership(cross, newOwner)
+	})
+
+	uassert.Equal(t, owner.Owner(), address(ownerAddr))
 }

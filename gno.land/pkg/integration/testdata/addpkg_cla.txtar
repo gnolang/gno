@@ -97,6 +97,23 @@ stdout 'true bool'
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/pkg1 -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
+# ============================================================
+# Test 6: TransferOwnership behavior
+# ============================================================
+
+# Admin attempts to transfer ownership to alice.
+# Transfer succeeds.
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func TransferOwnership -args "$alice_user_addr" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
+stdout 'OK!'
+
+# Previous owner can no longer update settings.
+! gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetCLAURL -args "https://example.com/cla-v1" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
+stderr 'caller is not owner'
+
+# New owner (alice) can update settings.
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetCLAURL -args "https://example.com/cla-v2" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
 -- gnomod.toml --
 module = "gno.land/r/mypkg"
 gno = "0.9"
