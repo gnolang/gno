@@ -138,6 +138,46 @@ func (z *Uint) String() string {
 	return z.Dec()
 }
 
+const (
+	hextable = "0123456789abcdef"
+)
+
+// Hex encodes z in 0x-prefixed hexadecimal form.
+func (z *Uint) Hex() string {
+	// This implementation is not optimal, it allocates a full
+	// 66-byte output buffer which it fills. It could instead allocate a smaller
+	// buffer, and omit the final crop-stage.
+	output := make([]byte, 66)
+	nibbles := (z.BitLen() + 3) / 4 // nibbles [0,64]
+	if nibbles == 0 {
+		nibbles = 1
+	}
+	// Start with the most significant
+	zWord := (nibbles - 1) / 16
+	for i := zWord; i >= 0; i-- {
+		off := (3 - i) * 16
+		output[off+2] = hextable[byte(z.arr[i]>>60)&0xf]
+		output[off+3] = hextable[byte(z.arr[i]>>56)&0xf]
+		output[off+4] = hextable[byte(z.arr[i]>>52)&0xf]
+		output[off+5] = hextable[byte(z.arr[i]>>48)&0xf]
+		output[off+6] = hextable[byte(z.arr[i]>>44)&0xf]
+		output[off+7] = hextable[byte(z.arr[i]>>40)&0xf]
+		output[off+8] = hextable[byte(z.arr[i]>>36)&0xf]
+		output[off+9] = hextable[byte(z.arr[i]>>32)&0xf]
+		output[off+10] = hextable[byte(z.arr[i]>>28)&0xf]
+		output[off+11] = hextable[byte(z.arr[i]>>24)&0xf]
+		output[off+12] = hextable[byte(z.arr[i]>>20)&0xf]
+		output[off+13] = hextable[byte(z.arr[i]>>16)&0xf]
+		output[off+14] = hextable[byte(z.arr[i]>>12)&0xf]
+		output[off+15] = hextable[byte(z.arr[i]>>8)&0xf]
+		output[off+16] = hextable[byte(z.arr[i]>>4)&0xf]
+		output[off+17] = hextable[byte(z.arr[i]&0xF)&0xf]
+	}
+	output[64-nibbles] = '0'
+	output[65-nibbles] = 'x'
+	return string(output[64-nibbles:])
+}
+
 // MarshalJSON implements json.Marshaler.
 // MarshalJSON marshals using the 'decimal string' representation. This is _not_ compatible
 // with big.Uint: big.Uint marshals into JSON 'native' numeric format.
@@ -174,6 +214,23 @@ func (z *Uint) UnmarshalText(input []byte) error {
 		return z.fromHex(string(input))
 	}
 	return z.fromDecimal(string(input))
+}
+
+// Bytes32 returns the value of z as a 32-byte big-endian array.
+func (z Uint) Bytes32() [32]byte {
+	// The PutUint64()s are inlined and we get 4x (load, bswap, store) instructions.
+	var b [32]byte
+	binary.BigEndian.PutUint64(b[0:8], z.arr[3])
+	binary.BigEndian.PutUint64(b[8:16], z.arr[2])
+	binary.BigEndian.PutUint64(b[16:24], z.arr[1])
+	binary.BigEndian.PutUint64(b[24:32], z.arr[0])
+	return b
+}
+
+// Bytes returns the value of z as a big-endian byte slice.
+func (z Uint) Bytes() []byte {
+	b := z.Bytes32()
+	return b[32-z.ByteLen():]
 }
 
 // SetBytes interprets buf as the bytes of a big-endian unsigned
