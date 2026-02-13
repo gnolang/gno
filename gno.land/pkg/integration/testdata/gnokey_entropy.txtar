@@ -14,8 +14,8 @@ stdout 'g1agaedd6jgwcyxxy3ra6r8t20fv2s0t4rcguqrw'
 input test123
 input test123
 input my entropy seed with sufficient randomness from dice rolls 18 7 3 12 5 19 8 2 14 11 20 1 9 15 4 13 6 17 10 16 4 8 12 3 7 19 2 11 15 18 5 9 14 6 1 20 13 10 17 4 8 16
-input y  
-gnokey add mykey2 --entropy --insecure-password-stdin --home $WORK
+input y
+gnokey add mykey2 --entropy --force --insecure-password-stdin --home $WORK
 stdout 'mykey2 \(local\)'
 stdout 'g1agaedd6jgwcyxxy3ra6r8t20fv2s0t4rcguqrw'
 

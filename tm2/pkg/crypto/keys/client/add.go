@@ -6,16 +6,19 @@ import (
 	"flag"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/keyerror"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
 
 var (
+	errOverwriteAborted      = errors.New("overwrite aborted")
 	errInvalidMnemonic       = errors.New("invalid bip39 mnemonic")
 	errInvalidDerivationPath = errors.New("invalid derivation path")
 	errPassphraseMismatch    = errors.New("passphrases don't match")
@@ -32,6 +35,7 @@ type AddCfg struct {
 	Index    uint64
 	Entropy  bool
 	Masked   bool
+	Force    bool
 
 	DerivationPath commands.StringArr
 }
@@ -105,6 +109,13 @@ func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 		"mask input characters (use with --entropy or --recover)",
 	)
 
+	fs.BoolVar(
+		&c.Force,
+		"force",
+		false,
+		"override any existing key without interactive prompts",
+	)
+
 	fs.Var(
 		&c.DerivationPath,
 		"derivation-path",
@@ -143,24 +154,6 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to read keybase, %w", err)
 	}
 
-	// Check if the key exists
-	exists, err := kb.HasByName(name)
-	if err != nil {
-		return fmt.Errorf("unable to fetch key, %w", err)
-	}
-
-	// Get overwrite confirmation, if any
-	if exists {
-		overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
-		if err != nil {
-			return fmt.Errorf("unable to get confirmation, %w", err)
-		}
-
-		if !overwrite {
-			return errOverwriteAborted
-		}
-	}
-
 	// Ask for a password when generating a local key
 	pw, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
 	if err != nil {
@@ -196,6 +189,25 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		mnemonic, err = GenerateMnemonic(mnemonicEntropySize)
 		if err != nil {
 			return fmt.Errorf("unable to generate mnemonic, %w", err)
+		}
+	}
+
+	// If not forcing, check for collisions with existing keys
+	if !cfg.Force {
+		// Derive the address to check for collision
+		seed := bip39.NewSeed(mnemonic, "")
+		hdPath := hd.NewFundraiserParams(uint32(cfg.Account), crypto.CoinType, uint32(cfg.Index))
+		key := generateKeyFromSeed(seed, hdPath.String())
+		newAddress := key.PubKey().Address()
+
+		// Handle address / name collision if any
+		handled, err := handleCollision(kb, name, newAddress, keys.TypeLocal, io)
+		if err != nil {
+			return err
+		}
+		// If a collision was found and handled, we can skip saving the new key
+		if handled {
+			return nil
 		}
 	}
 
@@ -334,4 +346,178 @@ func generateKeyFromSeed(seed []byte, path string) crypto.PrivKey {
 	derivedPriv, _ := hd.DerivePrivateKeyForPath(masterPriv, ch, path)
 
 	return secp256k1.PrivKeySecp256k1(derivedPriv)
+}
+
+// hasSigningCapability returns true for key types that can sign transactions.
+func hasSigningCapability(t keys.KeyType) bool {
+	return t == keys.TypeLocal || t == keys.TypeLedger
+}
+
+// bold returns the input string wrapped in bold ANSI escape codes
+func bold(s string) string {
+	const (
+		ansiBold  = "\033[1m"
+		ansiReset = "\033[0m"
+	)
+	return ansiBold + s + ansiReset
+}
+
+// printCollisionDiff prints a diff-style comparison between an existing key and the new key,
+// highlighting fields that differ using ANSI bold.
+func printCollisionDiff(
+	existingName string, existingAddress crypto.Address, existingType keys.KeyType,
+	newName string, newAddress crypto.Address, newType keys.KeyType,
+	io commands.IO,
+) {
+	printKeyDetail := func(name string, address crypto.Address, keyType keys.KeyType) {
+		// Append signing capability info to the type string
+		typeStr := keyType.String()
+		if hasSigningCapability(keyType) {
+			typeStr += " (signing)"
+		} else {
+			typeStr += " (public-key-only)"
+		}
+
+		// Represent zero addresses with a placeholder for better readability
+		addrStr := address.String()
+		if keyType == keys.TypeLedger && address.IsZero() {
+			addrStr = "(unknow - stored on ledger)"
+		} else if address.IsZero() {
+			addrStr = "(none)"
+		}
+
+		// Highlight differences in bold
+		if existingName != newName {
+			name = bold(name)
+		}
+		if existingAddress != newAddress {
+			addrStr = bold(addrStr)
+		}
+		if existingType != newType {
+			typeStr = bold(typeStr)
+		}
+
+		// Print the key details
+		io.Printfln("  Name:     %s", name)
+		io.Printfln("  Address:  %s", addrStr)
+		io.Printfln("  Type:     %s", typeStr)
+		io.Println("")
+	}
+
+	io.Println("Key collision detected:\n")
+
+	io.Println("Existing key:")
+	printKeyDetail(existingName, existingAddress, existingType)
+
+	io.Println("New key:")
+	printKeyDetail(newName, newAddress, newType)
+}
+
+// handleCollision checks for existing keys that collide with the new key by name or address,
+// and prompts the user to resolve the collision if any is found. It returns a boolean indicating
+// whether the collision was handled (e.g. by renaming) and an error if any occurred during handling.
+func handleCollision(
+	kb keys.Keybase,
+	newName string, newAddress crypto.Address, newType keys.KeyType,
+	io commands.IO,
+) (bool, error) {
+	var existing keys.Info
+
+	// Look for existing key by name first
+	existing, err := kb.GetByName(newName)
+	if err != nil {
+		if !keyerror.IsErrKeyNotFound(err) {
+			return false, fmt.Errorf("unable to fetch key, %w", err)
+		}
+	}
+
+	// If not found by name, look for existing key by address (if address is non-zero)
+	if existing == nil && !newAddress.IsZero() {
+		existing, err = kb.GetByAddress(newAddress)
+		if err != nil {
+			if !keyerror.IsErrKeyNotFound(err) {
+				return false, fmt.Errorf("unable to fetch key by address, %w", err)
+			}
+		}
+	}
+
+	// No collision found
+	if existing == nil {
+		return false, nil
+	}
+
+	// Collision found - resolve it
+	var (
+		existingName    = existing.GetName()
+		existingAddress = existing.GetAddress()
+		existingType    = existing.GetType()
+
+		sameName    = existingName == newName
+		sameAddress = existingAddress == newAddress
+		sameType    = existingType == newType
+	)
+
+	// Print the diff
+	printCollisionDiff(existingName, existingAddress, existingType, newName, newAddress, newType, io)
+
+	// Case 1: Exactly the same key (same name, address, type) -> skip
+	if sameName && sameAddress && sameType {
+		io.Println("Key is identical. Skipping.")
+		return true, nil
+	}
+
+	// Case 2: Only the name differs -> prompt rename
+	if !sameName && sameAddress && sameType {
+		rename, err := io.GetConfirmation(fmt.Sprintf("Rename the existing key %q", existingName))
+		if err != nil {
+			return false, fmt.Errorf("unable to get confirmation, %w", err)
+		}
+		if !rename {
+			return false, errOverwriteAborted
+		}
+		if err := kb.Rename(existingName, newName); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	// Case 3: Name differs, same address, and signing capability would be lost -> prompt rename vs override
+	if !sameName && sameAddress && hasSigningCapability(existingType) && !hasSigningCapability(newType) {
+		choice, err := io.GetString(fmt.Sprintf(`
+  You are about to overwrite a key with signing capability (%q) with a key that does not have signing capability (%q).
+
+  Options:
+    (R)ename: rename existing key %q to %q, keeping signing capability.
+    (o)verride: replace with the new key. %s
+    (c)ancel: abort.
+
+  Choose an action [R/o/c]: `,
+			existingName, newName, existingName, newName, bold("⚠ This will lose signing capability."),
+		))
+		if err != nil {
+			return false, fmt.Errorf("unable to get choice, %w", err)
+		}
+
+		switch strings.ToLower(strings.TrimSpace(choice)) {
+		case "r", "":
+			if err := kb.Rename(existingName, newName); err != nil {
+				return false, err
+			}
+			return true, nil
+		case "o":
+			return false, nil
+		default:
+			return false, errOverwriteAborted
+		}
+	}
+
+	// Other cases -> prompt override (with warning if losing signing capability)
+	overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing key %q", existingName))
+	if err != nil {
+		return false, fmt.Errorf("unable to get confirmation, %w", err)
+	}
+	if !overwrite {
+		return false, errOverwriteAborted
+	}
+	return false, nil
 }

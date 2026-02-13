@@ -44,6 +44,9 @@ type Keybase interface {
 	// CreateMulti creates, stores, and returns a new multsig (offline) key reference
 	CreateMulti(name string, pubkey crypto.PubKey) (info Info, err error)
 
+	// Rename renames an existing key from oldName to newName
+	Rename(oldName, newName string) error
+
 	// Rotate replaces the encryption password for a given key
 	Rotate(name, oldpass string, getNewpass func() (string, error)) error
 
