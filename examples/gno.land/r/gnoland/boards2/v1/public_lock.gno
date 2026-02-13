@@ -28,7 +28,7 @@ func LockRealm(_ realm, lockRealmMembers bool) {
 	}
 
 	caller := runtime.PreviousRealm().Address()
-	gPerms.WithPermission(cross, caller, permissions.PermissionRealmLock, boards.Args{}, func(realm) {
+	gPerms.WithPermission(caller, permissions.PermissionRealmLock, boards.Args{}, func(realm) {
 		gLocked.realm = true
 		gLocked.realmMembers = lockRealmMembers
 

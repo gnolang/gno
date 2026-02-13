@@ -59,7 +59,7 @@ func setBoardReadonly(boardID boards.ID, readonly bool) {
 
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{caller, board.ID, readonly}
-	board.Permissions.WithPermission(cross, caller, permissions.PermissionBoardFreeze, args, func(realm) {
+	board.Permissions.WithPermission(caller, permissions.PermissionBoardFreeze, args, func(realm) {
 		assertRealmIsNotLocked()
 
 		board.Readonly = readonly
@@ -86,7 +86,7 @@ func setThreadReadonly(boardID, threadID boards.ID, readonly bool) {
 
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{caller, board.ID, thread.ID, readonly}
-	board.Permissions.WithPermission(cross, caller, permissions.PermissionThreadFreeze, args, func(realm) {
+	board.Permissions.WithPermission(caller, permissions.PermissionThreadFreeze, args, func(realm) {
 		assertRealmIsNotLocked()
 
 		thread.Readonly = readonly

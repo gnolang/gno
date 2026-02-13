@@ -155,7 +155,7 @@ func (ps Permissions) HasPermission(user address, perm boards.Permission) bool {
 // Method can also be called to change the roles of an existing user.
 // It removes any existing user roles before assigning new ones.
 // All user's roles can be removed by calling this method without roles.
-func (ps *Permissions) SetUserRoles(_ realm, user address, roles ...boards.Role) {
+func (ps *Permissions) SetUserRoles(user address, roles ...boards.Role) {
 	if len(roles) > 1 && ps.singleUserRole {
 		panic("user can only have one role")
 	}
@@ -193,7 +193,7 @@ func (ps *Permissions) SetUserRoles(_ realm, user address, roles ...boards.Role)
 }
 
 // RemoveUser removes a user from permissions.
-func (ps *Permissions) RemoveUser(_ realm, user address) bool {
+func (ps *Permissions) RemoveUser(user address) bool {
 	groups := storage.GetMemberGroups(ps.dao.Members(), user)
 	if groups == nil {
 		return ps.dao.Members().Remove(user)
@@ -240,9 +240,9 @@ func (ps Permissions) IterateUsers(start, count int, fn boards.UsersIterFn) (sto
 
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a permission validator fails.
-// Callbacks are by default called when there is no validator registered for the permission.
+// Callbacks are by default called when there is no validator function registered for the permission.
 // If a permission validation function exists it's called before calling the callback.
-func (ps *Permissions) WithPermission(_ realm, user address, p boards.Permission, args boards.Args, cb func(realm)) {
+func (ps *Permissions) WithPermission(user address, p boards.Permission, args boards.Args, cb func(realm)) {
 	if !ps.HasPermission(user, p) {
 		panic("unauthorized")
 	}

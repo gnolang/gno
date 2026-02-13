@@ -44,7 +44,7 @@ func createBasicBoardPermissions(owner address) *permissions.Permissions {
 		permissions.PermissionThreadRepost,
 		permissions.PermissionReplyCreate,
 	)
-	perms.SetUserRoles(cross, owner, permissions.RoleOwner)
+	perms.SetUserRoles(owner, permissions.RoleOwner)
 	perms.ValidateFunc(permissions.PermissionBoardRename, validateBasicBoardRename)
 	perms.ValidateFunc(permissions.PermissionMemberInvite, validateBasicMemberInvite)
 	perms.ValidateFunc(permissions.PermissionRoleChange, validateBasicRoleChange)
@@ -97,7 +97,7 @@ func createOpenBoardPermissions(owner address) *permissions.Permissions {
 		permissions.PermissionThreadRepost,
 		permissions.PermissionReplyCreate,
 	)
-	perms.SetUserRoles(cross, owner, permissions.RoleOwner)
+	perms.SetUserRoles(owner, permissions.RoleOwner)
 	perms.ValidateFunc(permissions.PermissionBoardRename, validateOpenBoardRename)
 	perms.ValidateFunc(permissions.PermissionMemberInvite, validateOpenMemberInvite)
 	perms.ValidateFunc(permissions.PermissionRoleChange, validateOpenRoleChange)

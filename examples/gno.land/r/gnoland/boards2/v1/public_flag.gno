@@ -25,7 +25,7 @@ func SetFlaggingThreshold(_ realm, boardID boards.ID, threshold int) {
 
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{board.ID, threshold}
-	board.Permissions.WithPermission(cross, caller, permissions.PermissionBoardFlaggingUpdate, args, func(realm) {
+	board.Permissions.WithPermission(caller, permissions.PermissionBoardFlaggingUpdate, args, func(realm) {
 		assertRealmIsNotLocked()
 
 		gFlaggingThresholds.Set(boardID.String(), threshold)
@@ -88,7 +88,7 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reason}
-	board.Permissions.WithPermission(cross, caller, permissions.PermissionThreadFlag, args, func(realm) {
+	board.Permissions.WithPermission(caller, permissions.PermissionThreadFlag, args, func(realm) {
 		flagThread()
 	})
 }
@@ -134,7 +134,7 @@ func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reply.ID, reason}
-	board.Permissions.WithPermission(cross, caller, permissions.PermissionReplyFlag, args, func(realm) {
+	board.Permissions.WithPermission(caller, permissions.PermissionReplyFlag, args, func(realm) {
 		flagReply()
 	})
 }

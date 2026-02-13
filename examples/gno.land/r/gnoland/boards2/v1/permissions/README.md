@@ -37,7 +37,7 @@ perms.ValidateFunc(PermisionFoo, validateFoo)
 // Call a permissioned callback
 args := boards.Args{"bar"}
 user := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-perms.WithPermission(cross, user, PermisionFoo, args, func(realm) {
+perms.WithPermission(user, PermisionFoo, args, func(realm) {
     println("Hello bar!")
 })
 ```

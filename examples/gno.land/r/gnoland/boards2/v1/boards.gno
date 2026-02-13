@@ -52,7 +52,7 @@ func initRealmPermissions(owners ...address) boards.Permissions {
 	)
 	perms.AddRole(permissions.RoleAdmin, permissions.PermissionBoardCreate)
 	for _, owner := range owners {
-		perms.SetUserRoles(cross, owner, permissions.RoleOwner)
+		perms.SetUserRoles(owner, permissions.RoleOwner)
 	}
 
 	perms.ValidateFunc(permissions.PermissionBoardCreate, validateBasicBoardCreate)
