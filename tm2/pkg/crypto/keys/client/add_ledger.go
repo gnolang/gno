@@ -39,9 +39,17 @@ func execAddLedger(cfg *AddCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to read keybase, %w", err)
 	}
 
-	// Check if the key name already exists
-	if _, err := checkNameCollision(kb, name, io); err != nil {
-		return err
+	// If not forcing, check for collisions with existing keys
+	if !cfg.Force {
+		// Handle name collision if any
+		handled, err := handleCollision(kb, name, crypto.Address{}, keys.TypeLedger, io)
+		if err != nil {
+			return err
+		}
+		// If a collision was found and handled, we can skip saving the new key
+		if handled {
+			return nil
+		}
 	}
 
 	// Create the ledger reference

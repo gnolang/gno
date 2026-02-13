@@ -105,17 +105,21 @@ func execAddMultisig(cfg *AddMultisigCfg, args []string, io commands.IO) error {
 
 	// Construct the multisig public key to get the address
 	multiPubKey := multisig.NewPubKeyMultisigThreshold(cfg.MultisigThreshold, publicKeys)
-	newAddress := multiPubKey.Address()
 
-	// Check for name collision
-	confirmedKey, err := checkNameCollision(kb, name, io)
-	if err != nil {
-		return err
-	}
+	// If not forcing, check for collisions with existing keys
+	if !cfg.RootCfg.Force {
+		// Derive the address to check for collision
+		newAddress := multiPubKey.Address()
 
-	// Check for address collision
-	if err := checkAddressCollision(kb, newAddress, confirmedKey, io); err != nil {
-		return err
+		// Handle address / name collision if any
+		handled, err := handleCollision(kb, name, newAddress, keys.TypeMulti, io)
+		if err != nil {
+			return err
+		}
+		// If a collision was found and handled, we can skip saving the new key
+		if handled {
+			return nil
+		}
 	}
 
 	// Create a new public key with the multisig threshold
