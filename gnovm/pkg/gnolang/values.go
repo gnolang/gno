@@ -1510,6 +1510,8 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
+// Sign returns the sign of the given numeric tv.
+// Floating points are not correctly handled for NaN values.
 func (tv *TypedValue) Sign() int {
 	if tv.T == nil {
 		panic("type should not be nil")
@@ -1517,29 +1519,31 @@ func (tv *TypedValue) Sign() int {
 
 	switch tv.T.Kind() {
 	case IntKind:
-		return signOfSigned(tv.GetInt())
+		return signOfInteger(tv.GetInt())
 	case Int8Kind:
-		return signOfSigned(int64(tv.GetInt8()))
+		return signOfInteger(int64(tv.GetInt8()))
 	case Int16Kind:
-		return signOfSigned(int64(tv.GetInt16()))
+		return signOfInteger(int64(tv.GetInt16()))
 	case Int32Kind:
-		return signOfSigned(int64(tv.GetInt32()))
+		return signOfInteger(int64(tv.GetInt32()))
 	case Int64Kind:
-		return signOfSigned(tv.GetInt64())
+		return signOfInteger(tv.GetInt64())
 	case UintKind:
-		return signOfUnsigned(tv.GetUint())
+		return signOfInteger(tv.GetUint())
 	case Uint8Kind:
-		return signOfUnsigned(uint64(tv.GetUint8()))
+		return signOfInteger(uint64(tv.GetUint8()))
 	case Uint16Kind:
-		return signOfUnsigned(uint64(tv.GetUint16()))
+		return signOfInteger(uint64(tv.GetUint16()))
 	case Uint32Kind:
-		return signOfUnsigned(uint64(tv.GetUint32()))
+		return signOfInteger(uint64(tv.GetUint32()))
 	case Uint64Kind:
-		return signOfUnsigned(tv.GetUint64())
+		return signOfInteger(tv.GetUint64())
 	case Float32Kind:
-		return signOfSigned(int64(int32(tv.GetFloat32())))
+		// Will return an invalid result for NaN values; but it's OK for the
+		// current users of this function.
+		return signOfInteger(tv.GetFloat32())
 	case Float64Kind:
-		return signOfSigned(int64(tv.GetFloat64()))
+		return signOfInteger(tv.GetFloat64())
 	case BigintKind:
 		return tv.GetBigInt().Sign()
 	case BigdecKind:
@@ -2750,18 +2754,14 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 
 // ----------------------------------------
 // Utility
-func signOfSigned(v int64) int {
+func signOfInteger[T interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
+}](v T) int {
 	if v > 0 {
 		return 1
 	} else if v < 0 {
 		return -1
-	}
-	return 0
-}
-
-func signOfUnsigned(v uint64) int {
-	if v != 0 {
-		return 1
 	}
 	return 0
 }
