@@ -20,7 +20,8 @@ export class ThemeController extends BaseController {
 
 	protected connect(): void {
 		const storedTheme = localStorage.getItem(STORAGE_KEY);
-		if (isTheme(storedTheme)) document.documentElement.setAttribute("data-theme", storedTheme);
+		if (isTheme(storedTheme))
+			document.documentElement.setAttribute("data-theme", storedTheme);
 		this.updateIcon(this.theme);
 	}
 
