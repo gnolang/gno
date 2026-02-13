@@ -73,10 +73,10 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			var called bool
 
 			perms := tc.setup()
-			callback := func(realm) { called = true }
-
 			testCaseFn := func() {
-				perms.WithPermission(tc.user, tc.permission, tc.args, callback)
+				perms.WithPermission(tc.user, tc.permission, tc.args, func() {
+					called = true
+				})
 			}
 
 			if tc.err != "" {

@@ -1,22 +1,21 @@
-# Boards2 Permissions
+# Boards Permissions Extension
 
-This realm provides a custom `gno.land/p/gnoland/boards` package `Permissions` implementation.
+This is a `gno.land/p/gnoland/boards` package extension that provides a custom
+`Permissions` implementation that uses an underlying DAO to manage users and
+roles.
 
-This implementation is used by default when creating non open boards, to organize board members,
-roles and permissions. It uses an underlying DAO to manage users and roles.
+It also supports optionally setting validation functions to be triggered by the
+`WithPermission()` method before a callback is called. Validators allows adding
+custom checks and requirements before the callback is called.
 
-The `Permissions` type also supports optionally setting validation functions to be triggered within
-`WithPermission()` method before a permissioned callback is called.
-
-Permissioned call example:
+Usage Example:
 
 ```go
 import (
   "errors"
 
   "gno.land/p/gnoland/boards"
-
-  "gno.land/r/gnoland/boards/permissions"
+  "gno.land/p/gnoland/boards/exts/permissions"
 )
 
 // Define a foo permissions
@@ -24,6 +23,7 @@ const PermissionFoo boards.Permissions = "foo"
 
 // Define a custom foo permission validation function
 validateFoo := func(_ boards.Permissions, args boards.Args) error {
+    // Check that the first argument is the string "bar"
     if name, ok := args[0].(string); !ok || name != "bar" {
         return errors.New("unauthorized")
     }
