@@ -5,8 +5,9 @@ import (
 )
 
 const (
-	SourceViewType ViewType = "source-view"
-	ReadmeFileName string   = "README.md"
+	SourceViewType  ViewType = "source-view"
+	ReadmeFileName  string   = "README.md"
+	LicenseFileName string   = "LICENSE"
 )
 
 // SourceData holds data for rendering a source code view.
@@ -40,6 +41,7 @@ func (d SourceData) ArticleClasses() string {
 type SourceTocData struct {
 	Icon         string
 	ReadmeFile   SourceTocItem
+	LicenseFile  SourceTocItem
 	GnoFiles     []SourceTocItem
 	GnoTestFiles []SourceTocItem
 	TomlFiles    []SourceTocItem
@@ -79,6 +81,9 @@ func SourceView(data SourceData) *View {
 		switch {
 		case file == ReadmeFileName:
 			tocData.ReadmeFile = item
+
+		case file == LicenseFileName:
+			tocData.LicenseFile = item
 
 		case strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno"):
 			tocData.GnoTestFiles = append(tocData.GnoTestFiles, item)
