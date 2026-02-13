@@ -563,6 +563,9 @@ func (mptype MemPackageType) Validate(pkgPath string) {
 	// Check if MPUser*.
 	switch {
 	case mptype.IsUserlib():
+		if strings.HasSuffix(pkgPath, "/filetests") {
+			panic(fmt.Sprintf("expected user package path for %q but got %q ending in filetests", mptype, pkgPath))
+		}
 		if !IsUserlib(pkgPath) {
 			panic(fmt.Sprintf("expected user package path for %q but got %q", mptype, pkgPath))
 		}
