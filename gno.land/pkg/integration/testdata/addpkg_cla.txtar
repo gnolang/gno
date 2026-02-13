@@ -1,0 +1,109 @@
+# Test CLA enforcement during package deployment
+# Verifies VMKeeper->r/sys/cla integration
+
+loadpkg gno.land/r/sys/cla
+
+adduser admin
+adduser alice
+
+patchpkg "g1replacemewithmultisig" $admin_user_addr # use our custom admin
+
+gnoland start
+
+# Give alice user more tokens for gas
+gnokey maketx send -send 1000000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
+
+# ============================================================
+# Test 1: CLA enforcement disabled (no required hash set)
+# ============================================================
+
+# Check CLA is disabled by default (HasValidSignature returns true for anyone)
+gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user_addr\")"
+stdout 'true bool'
+
+# Alice should be able to addpkg when CLA is disabled
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg1 -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test alice
+stdout 'OK!'
+
+# ============================================================
+# Test 2: Enable CLA enforcement, block unsigned deployer
+# ============================================================
+
+# Admin sets required CLA hash
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetRequiredHash -args "abc123hash" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
+stdout 'OK!'
+
+# Alice's signature is now invalid (hasn't signed)
+gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user_addr\")"
+stdout 'false bool'
+
+# Alice tries to deploy without signing CLA - should FAIL
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stderr 'has not signed the required CLA'
+
+# ============================================================
+# Test 3: Sign CLA, then deploy successfully
+# ============================================================
+
+# Alice signs the CLA with correct hash
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "abc123hash" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+# Verify Alice's signature
+gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user_addr\")"
+stdout 'true bool'
+
+# Now Alice should be able to deploy
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg3 -gas-fee 1000000ugnot -gas-wanted 1500000 -broadcast -chainid=tendermint_test alice
+stdout 'OK!'
+
+# ============================================================
+# Test 4: CLA hash update resets all signatures
+# ============================================================
+
+# Admin updates the required hash - resets all signatures
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetRequiredHash -args "newhash456" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
+stdout 'OK!'
+
+# Alice's signature was reset
+gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user_addr\")"
+stdout 'false bool'
+
+# Alice tries to deploy - should FAIL
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg4 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stderr 'has not signed the required CLA'
+
+# Alice re-signs with new hash
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "newhash456" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+# Now Alice can deploy again
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg5 -gas-fee 1000000ugnot -gas-wanted 1500000 -broadcast -chainid=tendermint_test alice
+stdout 'OK!'
+
+# ============================================================
+# Test 5: Disable enforcement by clearing hash
+# ============================================================
+
+# Admin clears the required hash to disable enforcement
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetRequiredHash -args "" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
+stdout 'OK!'
+
+# Anyone passes validation when enforcement is disabled
+gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$test1_user_addr\")"
+stdout 'true bool'
+
+# Any user can deploy when enforcement is disabled (even test1 who never signed)
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/pkg1 -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+-- gnomod.toml --
+module = "gno.land/r/mypkg"
+gno = "0.9"
+
+-- one.gno --
+package one
+
+func Render(path string) string {
+    return "# Hello"
+}
