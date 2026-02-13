@@ -16,61 +16,61 @@ loadpkg gno.land/p/nt/ufmt
 gnoland start
 
 ## load packages
-gnokey maketx addpkg -pkgdir $WORK/bob -pkgpath gno.land/r/test/bob -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/alice -pkgpath gno.land/r/test/alice -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/peter -pkgpath gno.land/p/test/peter -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/bob -pkgpath gno.land/r/test/bob -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/alice -pkgpath gno.land/r/test/alice -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/peter -pkgpath gno.land/p/test/peter -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
 
 ## test CASE_rA1
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA1 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rA2
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA2 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rA3
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA3 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rB1
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB1 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rB2
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB2 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rB3
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB3 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rB4
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB4 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB4 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rC1
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC1 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stdout 'OK'
 
 ## test CASE_rC2
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC2 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rC3
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC3 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stdout 'OK'
 
 ## test CASE_rC4
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC4 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC4 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rC5
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC5 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC5 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rD1
-! gnokey maketx addpkg -pkgdir $WORK/callerrealm_rd1 -pkgpath gno.land/r/test/callerrealm_rd1 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK/callerrealm_rd1 -pkgpath gno.land/r/test/callerrealm_rd1 -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
 stderr 'cannot directly mutate gno.land/r/test/bob.AllowedList from gno.land/r/test/callerrealm_rd1'
 
 ## query
@@ -78,50 +78,50 @@ stderr 'cannot directly mutate gno.land/r/test/bob.AllowedList from gno.land/r/t
 # stdout 'AllowedList = \[1, 2, 3\]'
 
 ## test CASE_pA1
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pA1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pA1 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_pA2
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pA2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pA2 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_pA3 -- omitted (illegal crossing function)
-# ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pA3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+# ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pA3 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 
 ## test CASE_pB1
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pB1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pB1 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_pB2
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pB2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pB2 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_pB3
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pB3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pB3 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_pB4
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pB4 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pB4 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_pC1
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC1 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stdout 'OK'
 
 ## test CASE_pC2
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC2 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_pC3
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC3 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stdout 'OK'
 
 ## test CASE_pC4
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC4 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC4 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_pC5
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC5 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC5 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
 

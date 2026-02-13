@@ -17,49 +17,49 @@ gnoland start -lock-transfer
 
 ## test1 is the DefaultAccount in the integration test. To ensure that the unrestricted account can send tokens even when token transfers are locked,
 ## we included it in the unrestricted account list in the genesis state. By default, the unrestricted account list is empty.
-gnokey maketx send -send "9999999ugnot" -to $regular1_user_addr -gas-fee 10000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx send -send "9999999ugnot" -to $regular1_user_addr -gas-fee 10000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 
 stdout 'OK!'
 
-gnokey maketx send -send "9999999ugnot" -to $regular2_user_addr -gas-fee 10000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx send -send "9999999ugnot" -to $regular2_user_addr -gas-fee 10000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 
 stdout 'OK!'
 
 ## Restricted simple token transfer for a regular account
-! gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular1
+! gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -chainid=tendermint_test regular1
 
 stderr 'restricted token transfer error'
 
-! gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular2
+! gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -chainid=tendermint_test regular2
 
 stderr 'restricted token transfer error'
 
 
 ## Load member as T1 to be able to vote afterwards
-gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/load_user.gno
+gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -chainid=tendermint_test test1 $WORK/run/load_user.gno
 
 ## Submit a proposal to add a regular use as the unrestricted account.
-gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_unrestricted.gno
+gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -chainid=tendermint_test test1 $WORK/run/propose_unrestricted.gno
 
 stdout '0'
 
 ## Vote for the unrestricted account proposal using test1
-gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
+gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
 
 stdout 'OK!'
 
 ## Execute the unrestricted account proposal using test1
-gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
+gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000  -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
 
 stdout 'OK!'
 
 ## Token transfers for regular1 accounts is allowed.
-gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular1
+gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -chainid=tendermint_test regular1
 
 stdout 'OK!'
 
 ## Token transfers for regular2 accounts is allowed.
-gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular2
+gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -chainid=tendermint_test regular2
 
 stdout 'OK!'
 
@@ -69,17 +69,17 @@ stdout '["g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","g18e22n23g462drp4pyszyl6e6m
 
 
 ## Submit a proposal to remove regular1 and regular2 as the unrestricted accounts.
-gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_restricted.gno
+gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -chainid=tendermint_test test1 $WORK/run/propose_restricted.gno
 
 stdout '1'
 
 ## Vote for the remove unrestricted account proposal using test1
-gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal1.gno
+gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -chainid=tendermint_test test1 $WORK/run/vote_proposal1.gno
 
 stdout 'OK!'
 
 ## Execute the remove unrestricted account proposal using test1
-gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal1.gno
+gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000  -chainid=tendermint_test test1 $WORK/run/exec_proposal1.gno
 
 stdout 'OK!'
 
@@ -88,11 +88,11 @@ gnokey query params/auth:p:unrestricted_addrs
 stdout '["g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"]'
 
 ## Restricted simple token transfer for a regular account
-! gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular1
+! gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -chainid=tendermint_test regular1
 
 stderr 'restricted token transfer error'
 
-! gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular2
+! gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -chainid=tendermint_test regular2
 
 stderr 'restricted token transfer error'
 
