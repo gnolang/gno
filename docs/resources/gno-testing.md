@@ -150,6 +150,75 @@ func Render(_ string) string {
 The `run` subcommand also supports a full GnoVM debugger, which can be started
 with the `-debug` flag. Read more about it [here](https://gno.land/r/gnoland/blog:p/gno-debugger).
 
+## Filetests
+
+Filetests are golden tests typically used to test realms. They execute a `main`
+function and compare actual output against expected output written as comment
+directives at the bottom of the file.
+
+Filetests use the `*_filetest.gno` suffix and are placed in a `filetests/`
+subdirectory of the realm package.
+
+### Example
+
+```go
+// PKGPATH: gno.land/r/demo/counter_test
+// SEND: 1000000ugnot
+package counter_test
+
+import "gno.land/r/demo/counter"
+
+func main() {
+	counter.Increment(cross)
+	println(counter.Render(""))
+}
+
+// Output:
+// 1
+
+// Gas:
+// 1868332
+```
+
+### Directives
+
+**Input directives** are single-line comments at the top of the file:
+
+| Directive  | Description                          | Default |
+|------------|--------------------------------------|---------|
+| `PKGPATH`  | Package path. Use `r/` for realms.   | `main`  |
+| `MAXALLOC` | Max memory allocation in bytes.      | `0`     |
+| `SEND`     | Coins sent with the transaction.     | (none)  |
+
+**Output directives** are multi-line comments at the bottom:
+
+| Directive        | Matches                                       |
+|------------------|-----------------------------------------------|
+| `Output`         | Standard output.                              |
+| `Error`          | Panic or error message.                       |
+| `Realm`          | Realm state change operations.                |
+| `Events`         | Emitted events (JSON).                        |
+| `Preprocessed`   | Preprocessed AST.                             |
+| `Stacktrace`     | Gno stacktrace on panic.                      |
+| `Gas`            | Gas consumed.                                 |
+| `Storage`        | Realm storage size diff.                      |
+| `TypeCheckError` | Go type-checker error.                        |
+
+### Naming conventions
+
+- `_long` suffix -- skipped with `-short`.
+- `_known` suffix -- skipped (known issues).
+- `_filetest.gno` suffix -- realm package filetests in `examples/`.
+
+### Running filetests
+
+```bash
+# Only run the filetest for a package (from the package directory)
+gno test -run "_filetest.gno" .
+# Update expected values when output intentionally changes
+gno test --update-golden-tests .
+```
+
 ## Final remarks
 
 Note that executing and testing code as shown in this tutorial utilizes a local,
@@ -160,11 +229,9 @@ No real on-chain transactions occur, and the state changes are purely in-memory
 for testing and development purposes. You might notice this if you run the same
 expression modifying a state variable twice, with the actual value staying unchanged.
 
-All imports used in your code are resolved from the GnoVM’s installation
+All imports used in your code are resolved from the GnoVM's installation
 directory.
 
 ## Conclusion
 
-That's it 🎉
-
-You've successfully run local tests and expressions using the `gno` binary.
+That's it. You've successfully run local tests and expressions using the `gno` binary.
