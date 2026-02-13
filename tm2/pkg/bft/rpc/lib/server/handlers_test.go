@@ -39,7 +39,7 @@ func statusOK(code int) bool { return code >= 200 && code <= 299 }
 
 // Ensure that nefarious/unintended inputs to `params`
 // do not crash our RPC handlers.
-// See Issue https://github.com/gnolang/gno/tm2/pkg/bft/issues/708.
+// See Issue https://github.com/tendermint/tendermint/issues/708.
 func TestRPCParams(t *testing.T) {
 	t.Parallel()
 
@@ -106,9 +106,9 @@ func TestJSONRPCID(t *testing.T) {
 		{`{"jsonrpc": "2.0", "method": "c", "id": 1, "params": ["a", "10"]}`, false, types.JSONRPCIntID(1)},
 		{`{"jsonrpc": "2.0", "method": "c", "id": 1.3, "params": ["a", "10"]}`, false, types.JSONRPCIntID(1)},
 		{`{"jsonrpc": "2.0", "method": "c", "id": -1, "params": ["a", "10"]}`, false, types.JSONRPCIntID(-1)},
-		{`{"jsonrpc": "2.0", "method": "c", "id": null, "params": ["a", "10"]}`, false, nil},
 
 		// bad id
+		{`{"jsonrpc": "2.0", "method": "c", "id": null, "params": ["a", "10"]}`, true, nil},
 		{`{"jsonrpc": "2.0", "method": "c", "id": {}, "params": ["a", "10"]}`, true, nil},
 		{`{"jsonrpc": "2.0", "method": "c", "id": [], "params": ["a", "10"]}`, true, nil},
 	}

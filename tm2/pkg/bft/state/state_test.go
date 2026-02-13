@@ -446,7 +446,7 @@ func testProposerFreq(t *testing.T, caseNum int, valSet *types.ValidatorSet) {
 }
 
 // TestProposerPriorityDoesNotGetResetToZero assert that we preserve accum when calling updateState
-// see https://github.com/tendermint/classic/issues/2718
+// see https://github.com/tendermint/tendermint/issues/2718
 func TestProposerPriorityDoesNotGetResetToZero(t *testing.T) {
 	t.Parallel()
 
@@ -730,7 +730,7 @@ func TestLargeGenesisValidator(t *testing.T) {
 	// add more validators with same voting power as the 2nd
 	// let the genesis validator "unbond",
 	// see how long it takes until the effect wears off and both begin to alternate
-	// see: https://github.com/tendermint/classic/issues/2960
+	// see: https://github.com/tendermint/tendermint/issues/2960
 	firstAddedValPubKey := ed25519.GenPrivKey().PubKey()
 	firstAddedValVotingPower := int64(10)
 	firstAddedVal := abci.ValidatorUpdate{PubKey: (firstAddedValPubKey), Power: firstAddedValVotingPower}

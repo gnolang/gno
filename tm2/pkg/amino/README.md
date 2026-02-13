@@ -1,6 +1,6 @@
 # Amino
 
-http://github.com/gnolang/gno/tm2/pkg/amino
+https://github.com/gnolang/gno/tree/master/tm2/pkg/amino
 
 NOTE: This project used to be gnolang/gno/pkgs/amino, derived from
 tendermint/go-amino.
@@ -92,7 +92,7 @@ migration scripts.  Feedback welcome in the issues section.
 
 ### Floating points
 Floating point number types are discouraged as [they are generally
-non-deterministic](http://gafferongames.com/networking-for-game-programmers/floating-point-determinism/).
+non-deterministic](https://gafferongames.com/post/floating_point_determinism/).
 If you need to use them, use the field tag `amino:"unsafe"`.
 
 ### Enums
