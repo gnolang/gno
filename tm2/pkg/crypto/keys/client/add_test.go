@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -318,6 +319,225 @@ func TestAdd_Base_Add(t *testing.T) {
 		key, err := kb.GetByName(keyName)
 		require.NoError(t, err)
 		require.NotNil(t, key)
+	})
+
+	t.Run("name collision shows existing key details", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+
+			keyName = "key-name"
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		mockOut := bytes.NewBufferString("")
+
+		io := commands.NewTestIO()
+		io.SetIn(strings.NewReader("test1234\ntest1234\n"))
+		io.SetOut(commands.WriteNopCloser(mockOut))
+
+		// Create initial key
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+		args := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			keyName,
+		}
+
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		// Get the original key info
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		original, err := kb.GetByName(keyName)
+		require.NoError(t, err)
+
+		// Try to add another key with the same name, confirm overwrite
+		mockOut.Reset()
+		io.SetIn(strings.NewReader("y\ntest1234\ntest1234\n"))
+
+		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		// Verify the output contains existing key details
+		output := mockOut.String()
+		assert.Contains(t, output, "Key already exists:")
+		assert.Contains(t, output, original.GetAddress().String())
+	})
+
+	t.Run("address collision with recover", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			mnemonic    = generateTestMnemonic(t)
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		io := commands.NewTestIO()
+
+		// Create initial key with mnemonic
+		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+		args := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			"key1",
+		}
+
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		// Try to add another key with the same mnemonic (same address), decline overwrite
+		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\nn\n"))
+		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
+		args2 := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			"key2",
+		}
+
+		require.ErrorIs(t, cmd.ParseAndRun(ctx, args2), errOverwriteAborted)
+
+		// Verify original key is untouched
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		original, err := kb.GetByName("key1")
+		require.NoError(t, err)
+		require.NotNil(t, original)
+	})
+
+	t.Run("address collision with recover, confirm overwrite", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			mnemonic    = generateTestMnemonic(t)
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		io := commands.NewTestIO()
+
+		// Create initial key with mnemonic
+		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+		args := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			"key1",
+		}
+
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		// Verify key1 exists
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		original, err := kb.GetByName("key1")
+		require.NoError(t, err)
+
+		// Add key2 with same mnemonic, confirm address overwrite
+		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\ny\n"))
+		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
+		args2 := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			"key2",
+		}
+
+		require.NoError(t, cmd.ParseAndRun(ctx, args2))
+
+		// Verify key2 now exists with the same address
+		newKey, err := kb.GetByName("key2")
+		require.NoError(t, err)
+		assert.Equal(t, original.GetAddress(), newKey.GetAddress())
+	})
+
+	t.Run("name and address collision, single confirmation", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			mnemonic    = generateTestMnemonic(t)
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+
+			keyName = "key-name"
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		io := commands.NewTestIO()
+
+		// Create initial key with mnemonic
+		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+		args := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			keyName,
+		}
+
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		// Recover with same name and same mnemonic — only one confirmation needed
+		// (name collision confirmed, address collision skipped because same key)
+		io.SetIn(strings.NewReader("y\ntest1234\ntest1234\n" + mnemonic + "\n"))
+		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
+
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		// Verify key exists
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		// Compute expected address from the mnemonic
+		seed := bip39.NewSeed(mnemonic, "")
+		expectedAddr := generateKeyFromSeed(seed, "44'/118'/0'/0/0").PubKey().Address()
+
+		key, err := kb.GetByName(keyName)
+		require.NoError(t, err)
+		assert.Equal(t, expectedAddr, key.GetAddress())
 	})
 }
 

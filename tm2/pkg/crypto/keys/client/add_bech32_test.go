@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"testing"
@@ -198,5 +199,125 @@ func TestAdd_Bech32(t *testing.T) {
 
 		// Make sure the key is not overwritten
 		assert.Equal(t, original.GetAddress(), newKey.GetAddress())
+	})
+
+	t.Run("skip when local key exists at same address", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			mnemonic    = generateTestMnemonic(t)
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		// First create a local key using `add --recover`
+		io := commands.NewTestIO()
+		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
+
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+		args := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			"local-key",
+		}
+
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		// Get the public key from the local key
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		localKey, err := kb.GetByName("local-key")
+		require.NoError(t, err)
+
+		// Try to add a bech32 key with the same public key
+		mockOut := bytes.NewBufferString("")
+		io = commands.NewTestIO()
+		io.SetOut(commands.WriteNopCloser(mockOut))
+
+		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
+		bech32Args := []string{
+			"add",
+			"bech32",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--pubkey",
+			localKey.GetPubKey().String(),
+			"pubonly-key",
+		}
+
+		// Should succeed but skip adding
+		require.NoError(t, cmd.ParseAndRun(ctx, bech32Args))
+
+		output := mockOut.String()
+		assert.Contains(t, output, "A key with signing capability already exists at this address:")
+		assert.Contains(t, output, "redundant")
+
+		// Verify the pub-only key was NOT created
+		_, err = kb.GetByName("pubonly-key")
+		require.Error(t, err)
+	})
+
+	t.Run("address collision with different name", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+
+			seed    = bip39.NewSeed(generateTestMnemonic(t), "")
+			account = generateKeyFromSeed(seed, "44'/118'/0'/0/0")
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		io := commands.NewTestIO()
+		io.SetIn(strings.NewReader("test1234\ntest1234\n"))
+
+		// Add first offline key
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+		args := []string{
+			"add",
+			"bech32",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--pubkey",
+			account.PubKey().String(),
+			"offline-key-1",
+		}
+
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		// Try to add second offline key with same pubkey but different name, decline
+		io.SetIn(strings.NewReader("n\n"))
+
+		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
+		args2 := []string{
+			"add",
+			"bech32",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--pubkey",
+			account.PubKey().String(),
+			"offline-key-2",
+		}
+
+		require.ErrorIs(t, cmd.ParseAndRun(ctx, args2), errOverwriteAborted)
 	})
 }

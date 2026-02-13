@@ -118,4 +118,82 @@ func TestAdd_Multisig(t *testing.T) {
 
 		assert.Equal(t, original.GetType(), keys.TypeMulti)
 	})
+
+	t.Run("multisig address collision, decline overwrite", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+			mnemonic = generateTestMnemonic(t)
+
+			keyNames = []string{
+				"key-1",
+				"key-2",
+			}
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		// Prepare the multisig keys
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		for index, keyName := range keyNames {
+			_, err = kb.CreateAccount(
+				keyName,
+				mnemonic,
+				"",
+				"123",
+				0,
+				uint32(index),
+			)
+
+			require.NoError(t, err)
+		}
+
+		// Create first multisig key
+		io := commands.NewTestIO()
+		io.SetIn(strings.NewReader("y\n"))
+
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+		args := []string{
+			"add",
+			"multisig",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--multisig",
+			keyNames[0],
+			"--multisig",
+			keyNames[1],
+			"multi-1",
+		}
+
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		// Try to create second multisig with same keys (same address), different name
+		// Decline address collision overwrite
+		io.SetIn(strings.NewReader("n\n"))
+
+		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
+		args2 := []string{
+			"add",
+			"multisig",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--multisig",
+			keyNames[0],
+			"--multisig",
+			keyNames[1],
+			"multi-2",
+		}
+
+		require.ErrorIs(t, cmd.ParseAndRun(ctx, args2), errOverwriteAborted)
+	})
 }
