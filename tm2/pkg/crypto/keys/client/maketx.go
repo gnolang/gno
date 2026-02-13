@@ -1,9 +1,12 @@
 package client
 
 import (
+	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -214,6 +217,11 @@ func ExecSignAndBroadcast(
 	if err != nil {
 		return errors.Wrap(err, "broadcast tx")
 	}
+
+	if cfg.RootCfg.Json {
+		return printResultBroadcastTxCommitJson(bres, io)
+	}
+
 	if bres.CheckTx.IsErr() {
 		return errors.Wrapf(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
 	}
@@ -234,6 +242,78 @@ func ExecSignAndBroadcast(
 		io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
 		io.Println("INFO:      ", bres.DeliverTx.Info)
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+	}
+
+	return nil
+}
+
+func printResultBroadcastTxCommitJson(bres *types.ResultBroadcastTxCommit, io commands.IO) error {
+	var output struct {
+		CheckTx   json.RawMessage `json:"check_tx"`
+		DeliverTx json.RawMessage `json:"deliver_tx"`
+		GasWanted int64           `json:"gas_wanted,omitempty"`
+		GasUsed   int64           `json:"gas_used,omitempty"`
+		Height    int64           `json:"height,omitempty"`
+		TxHash    string          `json:"tx_hash,omitempty"`
+		Error     string          `json:"error,omitempty"`
+		Data      string          `json:"data,omitempty"`
+		Events    json.RawMessage `json:"events,omitempty"`
+	}
+
+	var err error
+
+	// Marshal CheckTx
+	output.CheckTx, err = amino.MarshalJSON(bres.CheckTx)
+	if err != nil {
+		io.ErrPrintfln("Unable to marshal `CheckTx` from: %+v", bres)
+		return fmt.Errorf("amino marshal json error: %w", err)
+	}
+
+	// Marshal DeliverTx
+	output.DeliverTx, err = amino.MarshalJSON(bres.DeliverTx)
+	if err != nil {
+		io.ErrPrintfln("Unable to marshal `DeliverTx` from: %+v", bres)
+		return fmt.Errorf("amino marshal json error: %w", err)
+	}
+
+	// Set output fields
+	output.Height = bres.Height
+	if len(bres.Hash) > 0 {
+		output.TxHash = base64.StdEncoding.EncodeToString(bres.Hash)
+	}
+
+	// Determine if there is an error in CheckTx or DeliverTx and fill the output
+	if bres.CheckTx.IsErr() {
+		output.Error = bres.CheckTx.Error.Error()
+		output.DeliverTx = nil
+	} else if bres.DeliverTx.IsErr() {
+		output.GasWanted = bres.DeliverTx.GasWanted
+		output.GasUsed = bres.DeliverTx.GasUsed
+		output.Error = bres.DeliverTx.Error.Error()
+	} else {
+		output.GasWanted = bres.DeliverTx.GasWanted
+		output.GasUsed = bres.DeliverTx.GasUsed
+		output.Events = bres.DeliverTx.EncodeEvents()
+		output.Data = strings.TrimSpace(string(bres.DeliverTx.ResponseBase.Data))
+	}
+
+	// Encode output to JSON
+	var buff bytes.Buffer
+	jsonEnc := json.NewEncoder(&buff)
+	jsonEnc.SetEscapeHTML(false) // Disable HTML escaping for better readability of characters like `<`, `>`
+
+	// Marshal output
+	if err := jsonEnc.Encode(output); err != nil {
+		io.ErrPrintfln("Unable to marshal output: %+v", output)
+		return fmt.Errorf("marshal json error: %w", err)
+	}
+
+	// Print the JSON output
+	io.Printf(buff.String())
+
+	// Return an error code if there is an error in either CheckTx or DeliverTx
+	if bres.CheckTx.IsErr() || bres.DeliverTx.IsErr() {
+		return commands.ExitCodeError(1)
 	}
 
 	return nil

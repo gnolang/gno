@@ -112,7 +112,7 @@ func main(cur realm) {
 //     @@ -3,8 +3,8 @@
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:12",
 //              "IsEscaped": true,
-//              "LastObjectSize": "337",
+//              "LastObjectSize": "296",
 //     -        "ModTime": "0",
 //     -        "RefCount": "3"
 //     +        "ModTime": "15",
@@ -123,7 +123,7 @@ func main(cur realm) {
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4](0)=
 //     @@ -4,7 +4,7 @@
 //              "IsEscaped": true,
-//              "LastObjectSize": "340",
+//              "LastObjectSize": "299",
 //              "ModTime": "15",
 //     -        "RefCount": "2"
 //     +        "RefCount": "1"
@@ -139,5 +139,5 @@ func main(cur realm) {
 //                  "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //              }
 //          }
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:14](-337)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:14](-296)
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:15](-585)

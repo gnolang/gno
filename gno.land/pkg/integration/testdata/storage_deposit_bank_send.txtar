@@ -3,7 +3,7 @@
 ## start a new node
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK/contracts -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 835100ugnot -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/contracts -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 810500ugnot -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 
@@ -24,16 +24,16 @@ stdout 'g1nln0nrcd20s6a2736n864ma8lac0zep8hw7th9'
 stdout OK!
 
 gnokey query auth/accounts/g1nln0nrcd20s6a2736n864ma8lac0zep8hw7th9
-stdout '"coins": "835100ugnot"'
+stdout '"coins": "810500ugnot"'
 
 
 ## realm deposit before realm send
 gnokey query vm/qstorage --data gno.land/r/foo
-stdout 'storage: 8351, deposit: 835100'
+stdout 'storage: 8105, deposit: 810500'
 
 ## user balance before realm send
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999996164900ugnot"'
+stdout '"coins": "9999996189500ugnot"'
 
 ## realm send
 ! gnokey maketx call -pkgpath gno.land/r/foo -func RealmSend -args $test1_user_addr -args 1  -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
@@ -45,11 +45,11 @@ stdout '"coins": ""'
 
 ## realm desposit after realm send,
 gnokey query vm/qstorage --data gno.land/r/foo
-stdout 'storage: 8351, deposit: 835100'
+stdout 'storage: 8105, deposit: 810500'
 
 ## user balance after realm send has not changed
 gnokey query auth/accounts/$test1_user_addr
-stdout '9999996164900ugnot'
+stdout '9999996189500ugnot'
 
 ## realm banker send in msg run should bebehave the same.
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/run/realm_send.gno

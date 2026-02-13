@@ -338,21 +338,44 @@ func handleTx(bz []byte, upaths uniqPaths) error {
 }
 
 // handleQuery processes the query and returns relevant paths.
-func handleQuery(path string, data []byte, upaths uniqPaths) error {
-	switch path {
+func handleQuery(qpath string, data []byte, upaths uniqPaths) error {
+	qpath, _, _ = strings.Cut(qpath, "?")
+
+	switch qpath {
 	case ".app/simulate":
 		return handleTx(data, upaths)
 
-	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval":
+	case "vm/qeval":
+		path := parseQueryEvalData(string(data))
+		upaths.addPath(path)
+		return nil
+	case "vm/qrender", "vm/qfile", "vm/qfuncs":
 		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out
 		upaths.addPath(path)
 		return nil
-
+	case "vm/qobject": // ignore
 	default:
-		return fmt.Errorf("unhandled: %q", path)
+		return fmt.Errorf("unhandled: %q", qpath)
 	}
 
 	// XXX: handle more cases
+
+	return nil
+}
+
+func parseQueryEvalData(data string) (pkgPath string) {
+	slash := strings.IndexByte(data, '/')
+	if slash >= 0 {
+		pkgPath += data[:slash]
+		data = data[slash:]
+	}
+	if dot := strings.IndexByte(data, '.'); dot >= 0 {
+		pkgPath += data[:dot]
+	} else {
+		pkgPath += data
+	}
+
+	return
 }
 
 func cleanupPath(path string) string {
