@@ -87,6 +87,18 @@ func benchmarkNative(bstore gno.Store, dir string) {
 		callOpsBench(bstore, pv)
 	}
 }
+
+const preprocessPkgPath = "gno.land/r/x/benchmark/preprocess"
+
+func benchmarkPreprocess(bstore gno.Store, dir string) {
+	preprocessPkgDir := filepath.Join(dir, "preprocess")
+
+	pv := addPackage(bstore, preprocessPkgDir, preprocessPkgPath)
+	for range rounds {
+		cx := gno.Call("RunAll")
+		callFunc(bstore, pv, cx)
+	}
+}
 func callFunc(gstore gno.Store, pv *gno.PackageValue, cx gno.Expr) []gno.TypedValue {
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
