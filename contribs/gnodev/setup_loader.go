@@ -1,90 +1,87 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
-	gopath "path"
+	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 )
 
-type varResolver []packages.Resolver
+func setupPackagesLoader(logger *slog.Logger, cfg *AppConfig, dirs ...string) (packages.Loader, []string) {
+	// Add extra workspaces (e.g., examples directory and user-provided directories)
+	examplesDir := filepath.Join(cfg.root, "examples")
+	workspaces := append([]string{examplesDir}, dirs...)
 
-func (va varResolver) String() string {
-	resolvers := packages.ChainedResolver(va)
-	return resolvers.Name()
-}
-
-func (va *varResolver) Set(value string) error {
-	name, location, found := strings.Cut(value, "=")
-	if !found {
-		return fmt.Errorf("invalid resolver format %q, should be `<name>=<location>`", value)
+	// Warn about deprecated resolver flag
+	if len(cfg.resolvers) > 0 {
+		logger.Warn("the -resolver flag is deprecated and ignored; packages are now discovered via gnomod.toml and gnowork.toml")
 	}
 
-	var res packages.Resolver
-	switch name {
-	case "remote":
-		rpc, err := client.NewHTTPClient(location)
-		if err != nil {
-			return fmt.Errorf("invalid resolver remote: %q", location)
-		}
+	loader := packages.NewNativeLoader(packages.NativeLoaderConfig{
+		Logger:          logger,
+		GnoRoot:         cfg.root,
+		ExtraWorkspaces: workspaces,
+	})
 
-		res = packages.NewRemoteResolver(location, rpc)
-	case "root": // process everything from a root directory
-		res = packages.NewRootResolver(location)
-	case "local": // process a single directory
-		path, ok := guessPathGnoMod(location)
-		if !ok {
-			return fmt.Errorf("unable to read module path from gnomod.toml in %q", location)
-		}
-
-		res = packages.NewLocalResolver(path, location)
-	default:
-		return fmt.Errorf("invalid resolver name: %q", name)
+	// Pre-populate the index for lazy loading support
+	// This scans workspace roots and maps import paths to filesystem directories
+	if err := loader.DiscoverPackages(); err != nil {
+		logger.Warn("failed to discover packages", "err", err)
 	}
 
-	*va = append(*va, res)
-	return nil
-}
-
-func setupPackagesResolver(logger *slog.Logger, cfg *AppConfig, dirs ...string) (packages.Resolver, []string) {
-	// Add root resolvers
-	localResolvers := make([]packages.Resolver, len(dirs))
-
+	// Determine paths to pre-load based on load mode
 	var paths []string
-	for i, dir := range dirs {
-		path := guessPath(cfg, dir)
-		resolver := packages.NewLocalResolver(path, dir)
-
-		if resolver.IsValid() {
-			logger.Info("guessing directory path", "path", path, "dir", dir)
-			paths = append(paths, path) // append local path
-		} else {
-			logger.Warn("no gno package found", "dir", dir)
+	switch cfg.loadMode {
+	case LoadModeAuto:
+		// If in examples folder, use lazy mode (no pre-load)
+		if isInExamplesDir(cfg.root, dirs) {
+			logger.Info("running from examples folder, using lazy loading")
+			break
 		}
 
-		localResolvers[i] = resolver
+		examplesDir := filepath.Join(cfg.root, "examples")
+
+		for _, dir := range dirs {
+			absDir, err := filepath.Abs(dir)
+			if err != nil {
+				continue
+			}
+
+			if isWorkspaceDir(dir) {
+				// Workspace detected: pre-load ALL packages within this workspace
+				// by filtering the discovered index by directory prefix
+				logger.Info("workspace detected, will pre-load all packages", "dir", dir)
+				for _, pkg := range loader.GetIndex().List() {
+					// Skip examples packages
+					if strings.HasPrefix(pkg.Dir, examplesDir) {
+						continue
+					}
+					// Only include packages under this workspace
+					if strings.HasPrefix(pkg.Dir, absDir) {
+						logger.Debug("workspace package detected", "path", pkg.ImportPath)
+						paths = append(paths, pkg.ImportPath)
+					}
+				}
+			} else if pkgPath, ok := guessPathGnoMod(dir); ok {
+				// Single package detected
+				logger.Info("package detected, will be pre-loaded", "path", pkgPath, "dir", dir)
+				paths = append(paths, pkgPath)
+			}
+		}
+	case LoadModeLazy:
+		logger.Info("lazy mode: packages will be loaded on-demand")
+	case LoadModeFull:
+		// Pre-load all discovered packages
+		for _, pkg := range loader.GetIndex().List() {
+			paths = append(paths, pkg.ImportPath)
+		}
+		logger.Info("full mode: pre-loading all discovered packages", "count", len(paths))
 	}
 
-	resolver := packages.ChainResolvers(
-		packages.ChainResolvers(localResolvers...), // Resolve local directories
-		packages.ChainResolvers(cfg.resolvers...),  // Use user's custom resolvers
-	)
-
-	// Enrich resolver with middleware
-	return packages.MiddlewareResolver(resolver,
-		packages.CacheMiddleware(func(pkg *packages.Package) bool {
-			return pkg.Kind == packages.PackageKindRemote // Only cache remote package
-		}),
-		packages.FilterStdlibs,                    // Filter stdlib package from resolving
-		packages.PackageCheckerMiddleware(logger), // Pre-check syntax to avoid bothering the node reloading on invalid files
-		packages.LogMiddleware(logger),            // Log request
-	), paths
+	return loader, paths
 }
 
 func guessPathGnoMod(dir string) (path string, ok bool) {
@@ -95,13 +92,22 @@ func guessPathGnoMod(dir string) (path string, ok bool) {
 	return modfile.Module, true
 }
 
-var reInvalidChar = regexp.MustCompile(`[^\w_-]`)
+func isWorkspaceDir(dir string) bool {
+	workFile := filepath.Join(dir, "gnowork.toml")
+	_, err := os.Stat(workFile)
+	return err == nil
+}
 
-func guessPath(cfg *AppConfig, dir string) (path string) {
-	if path, ok := guessPathGnoMod(dir); ok {
-		return path
+func isInExamplesDir(gnoRoot string, dirs []string) bool {
+	examplesDir := filepath.Join(gnoRoot, "examples")
+	for _, dir := range dirs {
+		absDir, err := filepath.Abs(dir)
+		if err != nil {
+			continue
+		}
+		if strings.HasPrefix(absDir, examplesDir) {
+			return true
+		}
 	}
-
-	rname := reInvalidChar.ReplaceAllString(filepath.Base(dir), "-")
-	return gopath.Join(cfg.chainDomain, "/r/dev/", rname)
+	return false
 }
