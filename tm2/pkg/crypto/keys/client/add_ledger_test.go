@@ -106,9 +106,9 @@ func TestAdd_Ledger(t *testing.T) {
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
 		require.NoError(t, cmd.ParseAndRun(ctx, args))
 
-		// Verify the output contains existing key details
+		// Verify the output contains diff-style collision info
 		output := mockOut.String()
-		assert.Contains(t, output, "Key already exists:")
+		assert.Contains(t, output, "Key collision detected:")
 		assert.Contains(t, output, original.GetAddress().String())
 
 		newKey, err := kb.GetByName(keyName)

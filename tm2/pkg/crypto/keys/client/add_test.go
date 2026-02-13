@@ -98,7 +98,8 @@ func TestAdd_Base_Add(t *testing.T) {
 		original, err := kb.GetByName(keyName)
 		require.NoError(t, err)
 
-		io.SetIn(strings.NewReader("y\ntest1234\ntest1234\n"))
+		// Password first, then override confirmation (collision check happens after mnemonic derivation)
+		io.SetIn(strings.NewReader("test1234\ntest1234\ny\n"))
 
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
 		require.NoError(t, cmd.ParseAndRun(ctx, args))
@@ -196,7 +197,8 @@ func TestAdd_Base_Add(t *testing.T) {
 		original, err := kb.GetByName(keyName)
 		require.NoError(t, err)
 
-		io.SetIn(strings.NewReader("n\ntest1234\ntest1234\n"))
+		// Password first, then decline override
+		io.SetIn(strings.NewReader("test1234\ntest1234\nn\n"))
 
 		// Confirm overwrite
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
@@ -321,7 +323,7 @@ func TestAdd_Base_Add(t *testing.T) {
 		require.NotNil(t, key)
 	})
 
-	t.Run("name collision shows existing key details", func(t *testing.T) {
+	t.Run("name collision shows diff output", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -363,19 +365,20 @@ func TestAdd_Base_Add(t *testing.T) {
 		require.NoError(t, err)
 
 		// Try to add another key with the same name, confirm overwrite
+		// Password first, then override confirmation
 		mockOut.Reset()
-		io.SetIn(strings.NewReader("y\ntest1234\ntest1234\n"))
+		io.SetIn(strings.NewReader("test1234\ntest1234\ny\n"))
 
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
 		require.NoError(t, cmd.ParseAndRun(ctx, args))
 
-		// Verify the output contains existing key details
+		// Verify the output contains diff-style collision info
 		output := mockOut.String()
-		assert.Contains(t, output, "Key already exists:")
+		assert.Contains(t, output, "Key collision detected:")
 		assert.Contains(t, output, original.GetAddress().String())
 	})
 
-	t.Run("address collision with recover", func(t *testing.T) {
+	t.Run("address collision with recover, decline", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -406,7 +409,7 @@ func TestAdd_Base_Add(t *testing.T) {
 
 		require.NoError(t, cmd.ParseAndRun(ctx, args))
 
-		// Try to add another key with the same mnemonic (same address), decline overwrite
+		// Try to add another key with the same mnemonic (same address), decline rename
 		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\nn\n"))
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
 		args2 := []string{
@@ -429,7 +432,7 @@ func TestAdd_Base_Add(t *testing.T) {
 		require.NotNil(t, original)
 	})
 
-	t.Run("address collision with recover, confirm overwrite", func(t *testing.T) {
+	t.Run("address collision with recover, confirm rename", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -467,7 +470,8 @@ func TestAdd_Base_Add(t *testing.T) {
 		original, err := kb.GetByName("key1")
 		require.NoError(t, err)
 
-		// Add key2 with same mnemonic, confirm address overwrite
+		// Add key2 with same mnemonic, confirm rename
+		// Same address + same type + different name → rename prompt
 		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\ny\n"))
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
 		args2 := []string{
@@ -481,13 +485,17 @@ func TestAdd_Base_Add(t *testing.T) {
 
 		require.NoError(t, cmd.ParseAndRun(ctx, args2))
 
-		// Verify key2 now exists with the same address
+		// Verify key1 was renamed to key2 (same address)
 		newKey, err := kb.GetByName("key2")
 		require.NoError(t, err)
 		assert.Equal(t, original.GetAddress(), newKey.GetAddress())
+
+		// key1 should no longer exist
+		_, err = kb.GetByName("key1")
+		require.Error(t, err)
 	})
 
-	t.Run("name and address collision, single confirmation", func(t *testing.T) {
+	t.Run("identical key recovery skips without prompt", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -504,7 +512,10 @@ func TestAdd_Base_Add(t *testing.T) {
 		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFn()
 
+		mockOut := bytes.NewBufferString("")
+
 		io := commands.NewTestIO()
+		io.SetOut(commands.WriteNopCloser(mockOut))
 
 		// Create initial key with mnemonic
 		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
@@ -520,24 +531,85 @@ func TestAdd_Base_Add(t *testing.T) {
 
 		require.NoError(t, cmd.ParseAndRun(ctx, args))
 
-		// Recover with same name and same mnemonic — only one confirmation needed
-		// (name collision confirmed, address collision skipped because same key)
-		io.SetIn(strings.NewReader("y\ntest1234\ntest1234\n" + mnemonic + "\n"))
+		// Recover with same name and same mnemonic → identical key, skip (no prompt)
+		mockOut.Reset()
+		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
 
 		require.NoError(t, cmd.ParseAndRun(ctx, args))
 
-		// Verify key exists
+		// Verify skip message
+		output := mockOut.String()
+		assert.Contains(t, output, "Key is identical. Skipping.")
+
+		// Verify key still exists
 		kb, err := keys.NewKeyBaseFromDir(kbHome)
 		require.NoError(t, err)
 
-		// Compute expected address from the mnemonic
 		seed := bip39.NewSeed(mnemonic, "")
 		expectedAddr := generateKeyFromSeed(seed, "44'/118'/0'/0/0").PubKey().Address()
 
 		key, err := kb.GetByName(keyName)
 		require.NoError(t, err)
 		assert.Equal(t, expectedAddr, key.GetAddress())
+	})
+
+	t.Run("force flag overrides without prompt", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+
+			keyName = "key-name"
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		io := commands.NewTestIO()
+		io.SetIn(strings.NewReader("test1234\ntest1234\n"))
+
+		// Create initial key
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+		args := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			keyName,
+		}
+
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		original, err := kb.GetByName(keyName)
+		require.NoError(t, err)
+
+		// Add with --force (no confirmation prompt needed)
+		io.SetIn(strings.NewReader("test1234\ntest1234\n"))
+
+		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
+		forceArgs := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--force",
+			keyName,
+		}
+
+		require.NoError(t, cmd.ParseAndRun(ctx, forceArgs))
+
+		// Verify the key was overridden (different mnemonic → different address)
+		newKey, err := kb.GetByName(keyName)
+		require.NoError(t, err)
+		assert.NotEqual(t, original.GetAddress(), newKey.GetAddress())
 	})
 }
 
