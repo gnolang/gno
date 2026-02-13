@@ -7,16 +7,13 @@ loadpkg gno.land/r/gnoland/wugnot
 loadpkg gno.land/r/archive/boards
 loadpkg gno.land/r/sys/names
 
-# Override admin address in r/sys/names with test1 address
-patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $test1_user_addr
-
 # Add 3 users with different balances
 adduser user1 1ugnot
 adduser user2 1ugnot
 adduser user3 100000000000ugnot
 
-# Start the node
-gnoland start
+# Start the node with namespace enforcement enabled
+gnoland start -sysnames-enabled
 
 # Verify users' initial balances
 gnokey query bank/balances/${user1_user_addr}
@@ -174,10 +171,6 @@ stdout 'OK!'
 ######################
 # Add package / home #
 ######################
-
-# Enable `sys/names` to deploy packages to user namespace
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test test1
-stdout 'OK!'
 
 # user2 publishes a custom home package to its namespace
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/user222/home -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
