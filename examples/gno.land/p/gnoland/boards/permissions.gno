@@ -38,7 +38,7 @@ type (
 		//    // Update internal realm state
 		//    // ...
 		//  }(cross)
-		WithPermission(address, Permission, Args, func(realm))
+		WithPermission(address, Permission, Args, func())
 
 		// SetUserRoles adds a new user when it doesn't exist and sets its roles.
 		// Method can also be called to change the roles of an existing user.
