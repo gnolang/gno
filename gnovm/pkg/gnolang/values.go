@@ -1114,26 +1114,22 @@ func (tv *TypedValue) MapKeyBytes(bz []byte) (bz2 []byte, isNaN bool) {
 		return binary.LittleEndian.AppendUint64(bz, tv.GetUint()), false
 	case Float32Type:
 		u32 := tv.GetFloat32()
-		if u32 == (1 << 31) {
-			u32 = 0 // normalize -0
+		if u32 == 0 || u32 == (1<<31) { // 0 or -0 normalized to 0
+			return binary.LittleEndian.AppendUint32(bz, 0), false
 		}
-		_, _, _, _, isNaN = softfloat.Funpack32(u32)
-		if isNaN {
+		if _, _, _, _, isNaN = softfloat.Funpack32(u32); isNaN {
 			return bz, true
-		} else {
-			return binary.LittleEndian.AppendUint32(bz, u32), false
 		}
+		return binary.LittleEndian.AppendUint32(bz, u32), false
 	case Float64Type:
 		u64 := tv.GetFloat64()
-		if u64 == (1 << 63) {
-			u64 = 0 // normalize -0
+		if u64 == 0 || u64 == (1<<63) { // 0 or -0 normalized to 0
+			return binary.LittleEndian.AppendUint64(bz, 0), false
 		}
-		_, _, _, _, isNaN = softfloat.Funpack64(u64)
-		if isNaN {
+		if _, _, _, _, isNaN = softfloat.Funpack64(u64); isNaN {
 			return bz, true
-		} else {
-			return binary.LittleEndian.AppendUint64(bz, u64), false
 		}
+		return binary.LittleEndian.AppendUint64(bz, u64), false
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
@@ -1560,8 +1556,8 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 	// General case.
 	bz := make([]byte, 0, 64)
 	if !omitType {
-		// TypeID is human readible and balanced, so appending ":" works.
-		// This keeps ComputeMapKey somewhat human readible esp w/
+		// TypeID is human readable and balanced, so appending ":" works.
+		// This keeps ComputeMapKey somewhat human readable esp w/
 		// colors.ColoredBytes().
 		bz = append(bz, tv.T.TypeID().Bytes()...)
 		bz = append(bz, ':') // type/value separator

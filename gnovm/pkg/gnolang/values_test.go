@@ -142,6 +142,18 @@ func TestComputeMapKey(t *testing.T) {
 			"struct{main.a string;main.b string}:{\x03x,y,\x01z}",
 			false,
 		},
+		{
+			// With omitType == false
+			`[2]interface{}{"hi,wor", int64(1)}`,
+			"[2]interface{}:[\rstring:hi,wor,\x0eint64:\x01\x00\x00\x00\x00\x00\x00\x00]",
+			false,
+		},
+		{
+			// With omitType == false
+			`struct{a interface{}; b interface{}}{"hi,wor", int64(1)}`,
+			"struct{main.a interface{};main.b interface{}}:{\rstring:hi,wor,\x0eint64:\x01\x00\x00\x00\x00\x00\x00\x00}",
+			false,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.valX, func(t *testing.T) {
