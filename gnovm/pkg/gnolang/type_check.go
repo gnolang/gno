@@ -312,7 +312,7 @@ Main:
 			} else {
 				// otherwise, packages can only be referred to by
 				// *NameExprs, and cannot be copied.
-				pvc := evalConst(store, last, currExpr.X)
+				pvc := evalConst(store, last, currExpr.X, nil)
 				pv_, ok := pvc.V.(*PackageValue)
 				if !ok {
 					panic(fmt.Sprintf(
@@ -670,7 +670,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 		var isIntValue bool
 		// special case for num like 1.0, it will be converted to uint later
 		if ric {
-			rv := evalConst(store, last, x.Right)
+			rv := evalConst(store, last, x.Right, nil)
 			if bd, ok := rv.V.(BigdecValue); ok {
 				if isInteger(bd.V) {
 					isIntValue = true
@@ -681,7 +681,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
 		}
 	} else if ric { // is integer, check negative
-		rv := evalConst(store, last, x.Right)
+		rv := evalConst(store, last, x.Right, nil)
 		if rv.Sign() < 0 {
 			panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Right))
 		}
@@ -1013,7 +1013,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				_, ric := x.Rhs[0].(*ConstExpr)
 				// check negative
 				if ric {
-					rv := evalConst(store, last, x.Rhs[0])
+					rv := evalConst(store, last, x.Rhs[0], nil)
 					rv.AssertNonNegative("invalid operation: negative shift count")
 				}
 			default:
