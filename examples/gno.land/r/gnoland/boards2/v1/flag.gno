@@ -3,6 +3,7 @@ package boards2
 import (
 	"strconv"
 
+	"gno.land/p/gnoland/boards"
 	"gno.land/p/nt/avl"
 )
 
@@ -11,31 +12,27 @@ const DefaultFlaggingThreshold = 1
 
 var gFlaggingThresholds avl.Tree // string(board ID) -> int
 
-type Flaggable interface {
-	// Flag adds a new flag to an item.
-	// It returns false when the user flagging already flagged the item.
-	Flag(user address, reason string) bool
-
-	// FlagsCount returns number of times item was flagged.
-	FlagsCount() int
-}
-
-// flagItem adds a flag to a flaggable item.
-// Returns whether flag count threshold is reached and item can be hidden.
+// flagItem adds a flag to a post.
+// Returns whether flag count threshold is reached and post can be hidden.
 // Panics if flag count threshold was already reached.
-func flagItem(item Flaggable, user address, reason string, threshold int) bool {
-	if item.FlagsCount() >= threshold {
-		panic("item flag count threshold exceeded: " + strconv.Itoa(threshold))
+func flagItem(post *boards.Post, user address, reason string, threshold int) bool {
+	if post.Flags.Size() >= threshold {
+		panic("flag count threshold exceeded: " + strconv.Itoa(threshold))
 	}
 
-	if !item.Flag(user, reason) {
-		panic("item has been already flagged by " + user.String())
+	if post.Flags.Exists(user) {
+		panic("post has been already flagged by " + user.String())
 	}
 
-	return item.FlagsCount() == threshold
+	post.Flags.Add(boards.Flag{
+		User:   user,
+		Reason: reason,
+	})
+
+	return post.Flags.Size() == threshold
 }
 
-func getFlaggingThreshold(bid BoardID) int {
+func getFlaggingThreshold(bid boards.ID) int {
 	if v, ok := gFlaggingThresholds.Get(bid.String()); ok {
 		return v.(int)
 	}

@@ -11,4 +11,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/p/nt/testutils) package{})).TestVar1
+// gno.land/r/access/access2.gno:9:2-20: cannot directly mutate gno.land/p/nt/testutils.TestVar1 from gno.land/r/access

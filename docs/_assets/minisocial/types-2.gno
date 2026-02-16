@@ -1,7 +1,6 @@
 package minisocial
 
 import (
-	"std"  // The standard Gno package
 	"time" // For handling time operations
 
 	"gno.land/p/nt/ufmt"
@@ -10,7 +9,7 @@ import (
 // Post defines the main data we keep about each post
 type Post struct {
 	text      string
-	author    std.Address
+	author    address
 	createdAt time.Time
 }
 

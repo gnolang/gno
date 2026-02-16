@@ -1,7 +1,7 @@
 package minisocial
 
 import (
-	"std"
+	"github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"strings"
 	"testing"
 
@@ -12,7 +12,7 @@ func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
-	testing.SetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
 	err := CreatePost(cross, text1)
@@ -44,7 +44,7 @@ func TestCreatePostMultiple(t *testing.T) {
 	for _, p := range posts {
 		// Set the appropriate caller realm based on the author
 		authorAddr := testutils.TestAddress(p.author)
-		testing.SetRealm(std.NewUserRealm(authorAddr))
+		testing.SetRealm(testing.NewUserRealm(authorAddr))
 
 		// Create the post
 		// To call a crossing function, we specify the `cross` keyword

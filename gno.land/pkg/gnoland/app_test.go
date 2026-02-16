@@ -124,7 +124,7 @@ func TestNewAppWithOptions(t *testing.T) {
 		{"params/vm:gno.land/r/sys/testrealm:bar_uint64", `"1337"`},
 		{"params/vm:gno.land/r/sys/testrealm:bar_bool", `true`},
 		{"params/vm:gno.land/r/sys/testrealm:bar_strings", `["some","strings"]`},
-		{"params/vm:gno.land/r/sys/testrealm:bar_bytes", `"SGkh"`}, // XXX: make this test more readable
+		{"params/vm:gno.land/r/sys/testrealm:bar_bytes", string([]byte{0x48, 0x69, 0x21})}, // XXX: make this test more readable
 	}
 
 	for _, tc := range tcs {

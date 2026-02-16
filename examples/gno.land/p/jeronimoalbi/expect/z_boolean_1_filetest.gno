@@ -25,8 +25,8 @@ func main() {
 	expect.Value(t, "TRUE").AsBoolean().ToBeFalsy()
 	expect.Value(t, "FALSE").AsBoolean().Not().ToBeFalsy()
 
-	expect.Value(t, []byte("")).AsBoolean().ToBeFalsy()
-	expect.Value(t, []byte(nil)).AsBoolean().Not().ToBeFalsy()
+	expect.Value(t, []byte("TRUE")).AsBoolean().ToBeFalsy()
+	expect.Value(t, []byte("FALSE")).AsBoolean().Not().ToBeFalsy()
 
 	expect.Value(t, intStringer{1}).AsBoolean().ToBeFalsy()
 	expect.Value(t, intStringer{0}).AsBoolean().Not().ToBeFalsy()

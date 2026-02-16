@@ -3,7 +3,10 @@ package dao
 import (
 	"chain"
 	"chain/runtime"
+	"errors"
 	"strconv"
+
+	"gno.land/p/nt/ufmt"
 )
 
 // dao is the actual govDAO implementation, having all the needed business logic
@@ -25,6 +28,9 @@ var gRealm = runtime.CurrentRealm()
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
 func Render(p string) string {
+	if dao == nil {
+		return "DAO not initialized"
+	}
 	return dao.Render(gRealm.PkgPath(), p)
 }
 
@@ -43,6 +49,9 @@ func MustCreateProposal(cur realm, r ProposalRequest) ProposalID {
 // If the proposal was denied, it will return false. If the proposal is correctly
 // executed, it will return true. If something happens this function will panic.
 func ExecuteProposal(cur realm, pid ProposalID) bool {
+	if dao == nil {
+		return false
+	}
 	execute, err := dao.PreExecuteProposal(pid)
 	if err != nil {
 		panic(err.Error())
@@ -64,6 +73,9 @@ func ExecuteProposal(cur realm, pid ProposalID) bool {
 // CreateProposal will try to create a new proposal, that will be validated by the actual
 // govDAO implementation. If the proposal cannot be created, an error will be returned.
 func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
+	if dao == nil {
+		return -1, errors.New("DAO not initialized")
+	}
 	author, err := dao.PreCreateProposal(r)
 	if err != nil {
 		return -1, err
@@ -97,6 +109,9 @@ func MustVoteOnProposal(cur realm, r VoteRequest) {
 // If the voter cannot vote the specified proposal, this method will return an error
 // with the explanation of why.
 func VoteOnProposal(cur realm, r VoteRequest) error {
+	if dao == nil {
+		return errors.New("DAO not initialized")
+	}
 	return dao.VoteOnProposal(r)
 }
 
@@ -119,11 +134,17 @@ func MustGetProposal(cur realm, pid ProposalID) *Proposal {
 
 // GetProposal gets created proposal by its ID
 func GetProposal(cur realm, pid ProposalID) (*Proposal, error) {
+	if dao == nil {
+		return nil, errors.New("DAO not initialized")
+	}
 	if err := dao.PreGetProposal(pid); err != nil {
 		return nil, err
 	}
 
 	prop := proposals.GetProposal(pid)
+	if prop == nil {
+		return nil, errors.New(ufmt.Sprintf("Proposal %v does not exist.", int64(pid)))
+	}
 
 	if err := dao.PostGetProposal(pid, prop); err != nil {
 		return nil, err

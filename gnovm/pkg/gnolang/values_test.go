@@ -3,6 +3,9 @@ package gnolang
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockTypedValueStruct struct {
@@ -73,6 +76,139 @@ func TestGetLengthPanic(t *testing.T) {
 			}()
 
 			tt.tv.GetLength()
+		})
+	}
+}
+
+func TestComputeMapKey(t *testing.T) {
+	tt := []struct {
+		valX  string
+		want  MapKey
+		isNaN bool
+	}{
+		{`int64(1)`, "int64:\x01\x00\x00\x00\x00\x00\x00\x00", false},
+		{`int32(255)`, "int32:\xff\x00\x00\x00", false},
+		// basic string
+		{`"hello"`, "string:hello", false},
+		// string that contains bytes which look similar to an encoded int64 key.
+		{`"int64:\x01\x00\x00\x00\x00\x00\x00\x00"`, "string:int64:\x01\x00\x00\x00\x00\x00\x00\x00", false},
+		// NaN should be reported via isNaN == true and empty key.
+		{`func() float64 { p := float64(0); return 0/p }()`, MapKey(""), true},
+		{`func() float32 { p := float32(0); return 0/p }()`, MapKey(""), true},
+		// float negative zero normalization
+		{`float32(-0.0)`, "float32:\x00\x00\x00\x00", false},
+		{`float64(-0.0)`, "float64:\x00\x00\x00\x00\x00\x00\x00\x00", false},
+		// more examples
+		{`uint8(255)`, "uint8:\xff", false},
+		{`true`, "bool:\x01", false},
+		{`false`, "bool:\x00", false},
+		{`nil`, "nil", false},
+		{
+			`struct{a int; b bool}{1, true}`,
+			"struct{main.a int;main.b bool}:{\x08\x01\x00\x00\x00\x00\x00\x00\x00,\x01\x01}",
+			false,
+		},
+		{`[8]byte{'a', 'b'}`, "[8]uint8:[ab\x00\x00\x00\x00\x00\x00]", false},
+		{`[1]string{}`, "[1]string:[\x00]", false},
+		{`""`, "string:", false},
+		{`"\x00"`, "string:\x00", false},
+		{
+			`struct{a int; b string; c bool}{}`,
+			"struct{main.a int;main.b string;main.c bool}:{\x08\x00\x00\x00\x00\x00\x00\x00\x00,\x00,\x01\x00}",
+			false,
+		},
+		{
+			`[1][1]int{{42}}`,
+			"[1][1]int:[\x0b[\x08*\x00\x00\x00\x00\x00\x00\x00]]",
+			false,
+		},
+
+		// Regressions from https://github.com/gnolang/gno/issues/4567
+		{
+			`[2]string{"hi,wor", "ld"}`,
+			"[2]string:[\x06hi,wor,\x02ld]",
+			false,
+		},
+		{
+			`[2]string{"hi", "wor,ld"}`,
+			"[2]string:[\x02hi,\x06wor,ld]",
+			false,
+		},
+		{
+			`[2]string{"hi,\x07wor", "ld"}`,
+			"[2]string:[\x07hi,\x07wor,\x02ld]",
+			false,
+		},
+		{
+			`[2]string{"hi", "wor,\x02ld"}`,
+			"[2]string:[\x02hi,\x07wor,\x02ld]",
+			false,
+		},
+		{
+			`struct{a string; b string}{"x", "y,z"}`,
+			"struct{main.a string;main.b string}:{\x01x,\x03y,z}",
+			false,
+		},
+		{
+			`struct{a string; b string}{"x,y", "z"}`,
+			"struct{main.a string;main.b string}:{\x03x,y,\x01z}",
+			false,
+		},
+
+		// Check child types which use omitTypes. (because of interface)
+		{
+			`[2]interface{}{"hi,wor", int64(1)}`,
+			"[2]interface{}:[\rstring:hi,wor,\x0eint64:\x01\x00\x00\x00\x00\x00\x00\x00]",
+			false,
+		},
+		{
+			`struct{a interface{}; b interface{}}{"hi,wor", int64(1)}`,
+			"struct{main.a interface{};main.b interface{}}:{\rstring:hi,wor,\x0eint64:\x01\x00\x00\x00\x00\x00\x00\x00}",
+			false,
+		},
+
+		// NaN propagation
+		{
+			`func() struct{f float64} { p := float64(0); return struct{f float64}{0/p} }()`,
+			MapKey(""), true,
+		},
+		{
+			`func() [1]float64 { p := float64(0); return [1]float64{0/p} }()`,
+			MapKey(""), true,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.valX, func(t *testing.T) {
+			m := NewMachine("main", nil)
+			x := m.MustParseExpr(tc.valX)
+			vals := m.Eval(x)
+			require.Len(t, vals, 1)
+			mk, isNaN := vals[0].ComputeMapKey(nil, false)
+			assert.Equal(t, tc.want, mk)
+			assert.Equal(t, tc.isNaN, isNaN)
+		})
+	}
+}
+
+func TestComputeMapKey_collisions(t *testing.T) {
+	pairs := [][2]string{
+		{`[2]string{"", "abcd"}`, `[2]string{"abcd", ""}`},
+		{`[1]interface{}{int8(1)}`, `[1]interface{}{uint8(1)}`},
+		{`[1]interface{}{int8(1)}`, `[1]interface{}{true}`},
+		{`[2][1]int{{1}, {2}}`, `[2][1]int{{2}, {1}}`},
+	}
+	for _, pair := range pairs {
+		t.Run(pair[0]+" vs "+pair[1], func(t *testing.T) {
+			m := NewMachine("main", nil)
+			v1 := m.Eval(m.MustParseExpr(pair[0]))
+			v2 := m.Eval(m.MustParseExpr(pair[1]))
+			require.Len(t, v1, 1)
+			require.Len(t, v2, 1)
+			mk1, nan1 := v1[0].ComputeMapKey(nil, false)
+			mk2, nan2 := v2[0].ComputeMapKey(nil, false)
+			require.False(t, nan1)
+			require.False(t, nan2)
+			assert.NotEqual(t, mk1, mk2)
 		})
 	}
 }

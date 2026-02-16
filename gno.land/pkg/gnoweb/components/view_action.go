@@ -36,6 +36,14 @@ type HelpTocItem struct {
 	Text string
 }
 
+type CommandData struct {
+	FuncName   string
+	PkgPath    string
+	ParamNames []string
+	ChainId    string
+	Remote     string
+}
+
 type helpViewParams struct {
 	HelpData
 	Article      ArticleData
@@ -53,7 +61,7 @@ func registerHelpFuncs(funcs template.FuncMap) {
 
 	funcs["buildHelpURL"] = func(data HelpData, fn *doc.JSONFunc) string {
 		pkgPath := strings.TrimPrefix(data.PkgPath, data.Domain)
-		url := data.Domain + pkgPath + "$help&func=" + fn.Name
+		url := pkgPath + "$help&func=" + fn.Name
 		if len(fn.Params) > 0 {
 			url += "&"
 			for i, param := range fn.Params {
@@ -67,6 +75,23 @@ func registerHelpFuncs(funcs template.FuncMap) {
 			}
 		}
 		return url
+	}
+
+	funcs["buildCommandData"] = func(data HelpData, fn *doc.JSONFunc) CommandData {
+		// Extract parameter names
+		paramNames := make([]string, len(fn.Params))
+
+		for i, param := range fn.Params {
+			paramNames[i] = param.Name
+		}
+
+		return CommandData{
+			FuncName:   fn.Name,
+			PkgPath:    data.PkgPath,
+			ParamNames: paramNames,
+			ChainId:    data.ChainId,
+			Remote:     data.Remote,
+		}
 	}
 }
 

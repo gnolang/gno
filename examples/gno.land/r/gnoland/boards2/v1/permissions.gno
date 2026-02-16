@@ -1,87 +1,107 @@
 package boards2
 
-const (
-	PermissionBoardCreate         Permission = "board:create"
-	PermissionBoardFlaggingUpdate            = "board:flagging-update"
-	PermissionBoardFreeze                    = "board:freeze"
-	PermissionBoardRename                    = "board:rename"
-	PermissionMemberInvite                   = "member:invite"
-	PermissionMemberInviteRevoke             = "member:invite-remove"
-	PermissionMemberRemove                   = "member:remove"
-	PermissionPermissionsUpdate              = "permissions:update"
-	PermissionRealmHelp                      = "realm:help"
-	PermissionRealmLock                      = "realm:lock"
-	PermissionRealmNotice                    = "realm:notice"
-	PermissionReplyCreate                    = "reply:create"
-	PermissionReplyDelete                    = "reply:delete"
-	PermissionReplyFlag                      = "reply:flag"
-	PermissionReplyFreeze                    = "reply:freeze"
-	PermissionRoleChange                     = "role:change"
-	PermissionThreadCreate                   = "thread:create"
-	PermissionThreadDelete                   = "thread:delete"
-	PermissionThreadEdit                     = "thread:edit"
-	PermissionThreadFlag                     = "thread:flag"
-	PermissionThreadFreeze                   = "thread:freeze"
-	PermissionThreadRepost                   = "thread:repost"
-	PermissionUserBan                        = "user:ban"
-	PermissionUserUnban                      = "user:unban"
-)
+import "gno.land/r/gnoland/boards2/v1/permissions"
 
-const (
-	RoleGuest     Role = ""
-	RoleOwner          = "owner"
-	RoleAdmin          = "admin"
-	RoleModerator      = "moderator"
-)
+func createBasicBoardPermissions(owner address) *permissions.Permissions {
+	perms := permissions.New(
+		permissions.UseSingleUserRole(),
+		permissions.WithSuperRole(permissions.RoleOwner),
+	)
+	perms.AddRole(
+		permissions.RoleAdmin,
+		permissions.PermissionBoardRename,
+		permissions.PermissionBoardFlaggingUpdate,
+		permissions.PermissionMemberInvite,
+		permissions.PermissionMemberInviteRevoke,
+		permissions.PermissionMemberRemove,
+		permissions.PermissionThreadCreate,
+		permissions.PermissionThreadEdit,
+		permissions.PermissionThreadDelete,
+		permissions.PermissionThreadRepost,
+		permissions.PermissionThreadFlag,
+		permissions.PermissionThreadFreeze,
+		permissions.PermissionReplyCreate,
+		permissions.PermissionReplyDelete,
+		permissions.PermissionReplyFlag,
+		permissions.PermissionRoleChange,
+		permissions.PermissionUserBan,
+		permissions.PermissionUserUnban,
+	)
+	perms.AddRole(
+		permissions.RoleModerator,
+		permissions.PermissionThreadCreate,
+		permissions.PermissionThreadEdit,
+		permissions.PermissionThreadRepost,
+		permissions.PermissionThreadFlag,
+		permissions.PermissionReplyCreate,
+		permissions.PermissionReplyFlag,
+		permissions.PermissionUserBan,
+		permissions.PermissionUserUnban,
+	)
+	perms.AddRole(
+		permissions.RoleGuest,
+		permissions.PermissionThreadCreate,
+		permissions.PermissionThreadRepost,
+		permissions.PermissionReplyCreate,
+	)
+	perms.SetUserRoles(cross, owner, permissions.RoleOwner)
+	perms.ValidateFunc(permissions.PermissionBoardRename, validateBasicBoardRename)
+	perms.ValidateFunc(permissions.PermissionMemberInvite, validateBasicMemberInvite)
+	perms.ValidateFunc(permissions.PermissionRoleChange, validateBasicRoleChange)
+	return perms
+}
 
-type (
-	// Permission defines the type for permissions.
-	Permission string
-
-	// Role defines the type for user roles.
-	Role string
-
-	// Args is a list of generic arguments.
-	Args []interface{}
-
-	// User contains user info.
-	User struct {
-		Address address
-		Roles   []Role
-	}
-
-	// UsersIterFn defines a function type to iterate users.
-	UsersIterFn func(User) bool
-
-	// Permissions define an interface to for permissioned execution.
-	// TODO: Add crossing support to Permissions
-	Permissions interface {
-		// HasRole checks if a user has a specific role assigned.
-		HasRole(address, Role) bool
-
-		// HasPermission checks if a user has a specific permission.
-		HasPermission(address, Permission) bool
-
-		// WithPermission calls a callback when a user has a specific permission.
-		// It panics on error.
-		WithPermission(realm, address, Permission, Args, func(realm))
-
-		// SetUserRoles adds a new user when it doesn't exist and sets its roles.
-		// Method can also be called to change the roles of an existing user.
-		// It panics on error.
-		SetUserRoles(realm, address, ...Role)
-
-		// RemoveUser removes a user from the permissioner.
-		// It panics on error.
-		RemoveUser(realm, address) (removed bool)
-
-		// HasUser checks if a user exists.
-		HasUser(address) bool
-
-		// UsersCount returns the total number of users the permissioner contains.
-		UsersCount() int
-
-		// IterateUsers iterates permissions' users.
-		IterateUsers(start, count int, fn UsersIterFn) bool
-	}
-)
+func createOpenBoardPermissions(owner address) *permissions.Permissions {
+	perms := permissions.New(
+		permissions.UseSingleUserRole(),
+		permissions.WithSuperRole(permissions.RoleOwner),
+	)
+	perms.SetPublicPermissions(
+		permissions.PermissionThreadCreate,
+		permissions.PermissionReplyCreate,
+	)
+	perms.AddRole(
+		permissions.RoleAdmin,
+		permissions.PermissionBoardRename,
+		permissions.PermissionBoardFlaggingUpdate,
+		permissions.PermissionMemberInvite,
+		permissions.PermissionMemberInviteRevoke,
+		permissions.PermissionMemberRemove,
+		permissions.PermissionThreadCreate,
+		permissions.PermissionThreadEdit,
+		permissions.PermissionThreadDelete,
+		permissions.PermissionThreadRepost,
+		permissions.PermissionThreadFlag,
+		permissions.PermissionThreadFreeze,
+		permissions.PermissionReplyCreate,
+		permissions.PermissionReplyDelete,
+		permissions.PermissionReplyFlag,
+		permissions.PermissionRoleChange,
+		permissions.PermissionUserBan,
+		permissions.PermissionUserUnban,
+	)
+	perms.AddRole(
+		permissions.RoleModerator,
+		permissions.PermissionThreadCreate,
+		permissions.PermissionThreadEdit,
+		permissions.PermissionThreadRepost,
+		permissions.PermissionThreadFlag,
+		permissions.PermissionReplyCreate,
+		permissions.PermissionReplyFlag,
+		permissions.PermissionUserBan,
+		permissions.PermissionUserUnban,
+	)
+	perms.AddRole(
+		permissions.RoleGuest,
+		permissions.PermissionThreadCreate,
+		permissions.PermissionThreadRepost,
+		permissions.PermissionReplyCreate,
+	)
+	perms.SetUserRoles(cross, owner, permissions.RoleOwner)
+	perms.ValidateFunc(permissions.PermissionBoardRename, validateOpenBoardRename)
+	perms.ValidateFunc(permissions.PermissionMemberInvite, validateOpenMemberInvite)
+	perms.ValidateFunc(permissions.PermissionRoleChange, validateOpenRoleChange)
+	perms.ValidateFunc(permissions.PermissionThreadCreate, validateOpenThreadCreate)
+	perms.ValidateFunc(permissions.PermissionReplyCreate, validateOpenReplyCreate)
+	return perms
+}

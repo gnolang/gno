@@ -19,6 +19,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 	"github.com/gorilla/websocket"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -129,6 +130,8 @@ func funcReturnTypes(f any) []reflect.Type {
 // jsonrpc calls grab the given method's function info and runs reflect.Call
 func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		_, span := traces.Tracer().Start(r.Context(), traceMakeJSONRPCHandler)
+		defer span.End()
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			WriteRPCResponseHTTP(w, types.RPCInvalidRequestError(types.JSONRPCStringID(""), errors.Wrap(err, "error reading request body")))
@@ -175,6 +178,8 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 // If the request should produce a response, it returns a pointer to that response.
 // Otherwise (e.g. if the request is a notification or fails validation), it returns nil.
 func processRequest(r *http.Request, req types.RPCRequest, funcMap map[string]*RPCFunc, logger *slog.Logger) *types.RPCResponse {
+	_, span := traces.Tracer().Start(r.Context(), "processRequest")
+	defer span.End()
 	// Skip notifications (an empty ID indicates no response should be sent)
 	if req.ID == types.JSONRPCStringID("") {
 		logger.Debug("Skipping notification (empty ID)")
@@ -333,6 +338,8 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	// All other endpoints
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Debug("HTTP HANDLER", "req", r)
+		_, span := traces.Tracer().Start(r.Context(), traceMakeHTTPHandler)
+		defer span.End()
 
 		ctx := &types.Context{HTTPReq: r}
 		args := []reflect.Value{reflect.ValueOf(ctx)}
@@ -797,7 +804,7 @@ func (wsc *wsConnection) writeRoutine() {
 }
 
 // All writes to the websocket must (re)set the write deadline.
-// If some writes don't set it while others do, they may timeout incorrectly (https://github.com/gnolang/gno/tm2/pkg/bft/issues/553)
+// If some writes don't set it while others do, they may timeout incorrectly (https://github.com/tendermint/tendermint/issues/553)
 func (wsc *wsConnection) writeMessageWithDeadline(msgType int, msg []byte) error {
 	if err := wsc.baseConn.SetWriteDeadline(time.Now().Add(wsc.writeWait)); err != nil {
 		return err

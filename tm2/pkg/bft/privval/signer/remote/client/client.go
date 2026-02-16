@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
@@ -19,6 +18,7 @@ import (
 // RemoteSignerClient implements types.Signer by connecting to a RemoteSignerServer.
 type RemoteSignerClient struct {
 	// Required config.
+	ctx      context.Context
 	protocol string
 	address  string
 	logger   *slog.Logger
@@ -35,13 +35,11 @@ type RemoteSignerClient struct {
 	authorizedKeys []ed25519.PubKeyEd25519 // If empty, all keys are authorized.
 
 	// Internal.
-	conn          net.Conn
-	connLock      sync.RWMutex
-	dialer        net.Dialer
-	dialCtx       context.Context
-	cancelDialCtx context.CancelFunc
-	closed        atomic.Bool
-	cachedPubKey  crypto.PubKey
+	conn         net.Conn
+	connLock     sync.RWMutex
+	dialer       net.Dialer
+	cachedPubKey crypto.PubKey
+	cancelCtx    context.CancelFunc
 }
 
 // RemoteSignerClient type implements types.Signer.
@@ -49,10 +47,6 @@ var _ types.Signer = (*RemoteSignerClient)(nil)
 
 // PubKey implements types.Signer.
 func (rsc *RemoteSignerClient) PubKey() crypto.PubKey {
-	if rsc.isClosed() {
-		return nil
-	}
-
 	return rsc.cachedPubKey
 }
 
@@ -113,12 +107,12 @@ func (rsc *RemoteSignerClient) Sign(signBytes []byte) ([]byte, error) {
 // Close implements type.Signer.
 func (rsc *RemoteSignerClient) Close() error {
 	// Check if the client is already closed and set the closed state.
-	if !rsc.closed.CompareAndSwap(false, true) {
+	if rsc.ctx.Err() != nil {
 		return ErrClientAlreadyClosed
 	}
 
 	// Cancel the dial context.
-	rsc.cancelDialCtx()
+	rsc.cancelCtx()
 
 	// Close the connection.
 	err := rsc.setConnection(nil)
@@ -128,37 +122,10 @@ func (rsc *RemoteSignerClient) Close() error {
 	return err
 }
 
-// Ping sends a ping request to the server.
-func (rsc *RemoteSignerClient) Ping() error {
-	response, err := rsc.send(&r.PingRequest{})
-	if err != nil {
-		err = fmt.Errorf("%w: %w", ErrSendingRequestFailed, err)
-		if !errors.Is(err, ErrClientAlreadyClosed) {
-			rsc.logger.Error("Ping request failed", "error", err)
-		}
-		return err
-	}
-
-	if _, ok := response.(*r.PingResponse); !ok {
-		err = fmt.Errorf("%w: %T", ErrInvalidResponseType, response)
-		rsc.logger.Error("Ping request failed", "error", err)
-		return err
-	}
-
-	rsc.logger.Debug("Ping request succeeded")
-
-	return nil
-}
-
 // RemoteSignerClient type implements fmt.Stringer.
 var _ fmt.Stringer = (*RemoteSignerClient)(nil)
 
 // String implements fmt.Stringer.
 func (rsc *RemoteSignerClient) String() string {
 	return fmt.Sprintf("{Type: RemoteSigner, Addr: %s}", rsc.cachedPubKey.Address())
-}
-
-// isClosed returns true if the client is closed.
-func (rsc *RemoteSignerClient) isClosed() bool {
-	return rsc.closed.Load()
 }

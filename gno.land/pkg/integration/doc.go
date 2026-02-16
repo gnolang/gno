@@ -34,7 +34,7 @@
 //   - Must be run before `gnoland start`.
 //   - Loads a specific package from the 'examples' directory or from the working ($WORK) directory.
 //   - Can be used to load a single package or all packages within a directory.
-//   - If the target package has a `gno.mod`, all its dependencies (and their respective
+//   - If the target package has a `gnomod.toml`, all its dependencies (and their respective
 //     dependencies) will also be loaded.
 //   - The command takes either one or two arguments. The first argument is the name of the package(s),
 //     and the second (optional) argument is the path to the package(s).

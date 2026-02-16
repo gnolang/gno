@@ -15,6 +15,7 @@ var Redirects = map[string]string{
 	"/grants":                  "/partners",
 	"/language":                "/gnolang",
 	"/getting-started":         "/start",
+	"/newsletter":              "/r/gnoland/pages:p/newsletter",
 }
 
 // RedirectMiddleware redirects all incoming requests whose path matches
