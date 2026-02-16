@@ -93,8 +93,11 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 
 	defer seen.Pop()
 
-	ss := make([]string, len(av.List))
 	if av.Data == nil {
+		if len(av.List) > 256 {
+			return fmt.Sprintf("array[...(%d elements)]", len(av.List))
+		}
+		ss := make([]string, len(av.List))
 		for i, e := range av.List {
 			ss[i] = e.ProtectedString(seen)
 		}
@@ -133,6 +136,9 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 
 	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
+		if sv.Length > 256 {
+			return fmt.Sprintf("slice[...(%d elements)]", sv.Length)
+		}
 		ss := make([]string, sv.Length)
 		for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
 			ss[i] = e.ProtectedString(seen)
@@ -236,6 +242,9 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	}
 	defer seen.Pop()
 
+	if mv.GetLength() > 256 {
+		return fmt.Sprintf("map{...(%d entries)}", mv.GetLength())
+	}
 	ss := make([]string, 0, mv.GetLength())
 	next := mv.List.Head
 	for next != nil {
