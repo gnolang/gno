@@ -56,16 +56,28 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 		assertBoardIsNotFrozen(board)
 	}
 
-	thread, found := board.Threads.Get(threadID)
+	thread, found := getThread(board, threadID)
 	if !found {
 		panic("thread not found")
 	}
 
 	flagThread := func() {
+		// Hide thread when flagging threshold is reached.
+		// Realm owners can hide with a single flag.
 		hide := flagItem(thread, caller, reason, getFlaggingThreshold(board.ID))
 		if hide || isRealmOwner {
-			// Realm owners can hide with a single flag
+			// Remove thread from the list of visibe threads
+			thread, removed := board.Threads.Remove(threadID)
+			if !removed {
+				panic("thread not found")
+			}
+
+			// Mark thread as hidden to avoid rendering content
 			thread.Hidden = true
+
+			// Keep track of hidden the thread to be able to restore it after moderation disputes
+			meta := board.Meta.(*Meta)
+			meta.HiddenThreads.Add(thread)
 		}
 
 		chain.Emit(
