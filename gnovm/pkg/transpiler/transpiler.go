@@ -37,12 +37,10 @@ func TranspileImportPath(s string) string {
 //
 // TODO(morgan): move out, this should go in a "resolver" package.
 func PackageDirLocation(s string) string {
-	switch {
-	case !gno.IsStdlib(s):
-		return "examples/" + s
-	default:
+	if gno.IsStdlib(s) {
 		return "gnovm/stdlibs/" + s
 	}
+	return "examples/" + s
 }
 
 // Result is returned by Transpile, returning the file's imports and output
