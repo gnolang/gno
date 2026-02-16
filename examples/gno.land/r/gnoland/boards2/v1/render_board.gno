@@ -50,9 +50,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	render := func(thread *boards.Post) bool {
-		if !thread.Hidden {
-			res.Write(renderThreadSummary(thread) + "\n")
-		}
+		res.Write(renderThreadSummary(thread) + "\n")
 		return false
 	}
 

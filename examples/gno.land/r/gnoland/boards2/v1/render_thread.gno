@@ -27,7 +27,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread does not exist with ID: " + rawID)
 		return
@@ -116,7 +116,7 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread does not exist with ID: " + rawID)
 		return
@@ -173,7 +173,7 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread does not exist with ID: " + rawID)
 		return

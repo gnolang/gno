@@ -19,7 +19,7 @@ func renderPost(post *boards.Post, path, indent string, levels int) string {
 	title := post.Title
 	if boards.IsRepost(post) && title == "" {
 		if board, ok := gBoards.Get(post.OriginalBoardID); ok {
-			if src, ok := board.Threads.Get(post.ParentID); ok {
+			if src, ok := getThread(board, post.ParentID); ok {
 				title = src.Title
 			}
 		}
@@ -150,7 +150,7 @@ func renderPostInner(post *boards.Post) string {
 	var (
 		s         string
 		threadID  = post.ThreadID
-		thread, _ = post.Board.Threads.Get(threadID)
+		thread, _ = getThread(post.Board, threadID)
 	)
 
 	// Fully render parent if it's not a repost.
@@ -183,7 +183,7 @@ func renderSourcePost(post *boards.Post, indent string) (string, *boards.Post) {
 		return indentBody(indent, md.Italic("⚠ Source board has been deleted")+"\n"), nil
 	}
 
-	srcPost, ok := board.Threads.Get(post.ParentID)
+	srcPost, ok := getThread(board, post.ParentID)
 	if !ok {
 		return indentBody(indent, md.Italic("⚠ Source post has been deleted")+"\n"), nil
 	}
@@ -211,7 +211,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread does not exist with ID: " + rawID)
 		return
@@ -333,7 +333,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread does not exist with ID: " + rawID)
 		return
