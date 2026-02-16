@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -211,4 +212,153 @@ func TestComputeMapKey_collisions(t *testing.T) {
 			assert.NotEqual(t, mk1, mk2)
 		})
 	}
+}
+
+// makeTypedInt creates a TypedValue holding an int for use in test lists.
+func makeTypedInt(n int) TypedValue {
+	tv := TypedValue{T: IntType}
+	tv.SetInt(int64(n))
+	return tv
+}
+
+// makeTestMap creates a MapValue with n entries for testing ProtectedString.
+func makeTestMap(n int) *MapValue {
+	mv := &MapValue{}
+	mv.MakeMap(n)
+	for i := 0; i < n; i++ {
+		key := makeTypedInt(i)
+		item := mv.List.Append(nilAllocator, key)
+		item.Value = makeTypedInt(i * 10)
+		mk, _ := key.ComputeMapKey(nil, false)
+		mv.vmap[mk] = item
+	}
+	return mv
+}
+
+func makeIntSliceValue(n int) *SliceValue {
+	list := make([]TypedValue, n)
+	for i := range list {
+		list[i] = makeTypedInt(i)
+	}
+	return &SliceValue{
+		Base:   &ArrayValue{List: list},
+		Offset: 0,
+		Length: n,
+		Maxcap: n,
+	}
+}
+
+func makeIntArrayValue(n int) *ArrayValue {
+	list := make([]TypedValue, n)
+	for i := range list {
+		list[i] = makeTypedInt(i)
+	}
+	return &ArrayValue{List: list}
+}
+
+func TestProtectedStringTruncation(t *testing.T) {
+	// --- Slice: non-byte ---
+	t.Run("slice 256 not truncated", func(t *testing.T) {
+		sv := makeIntSliceValue(256)
+		result := sv.String()
+		assert.True(t, strings.HasPrefix(result, "slice[(0 int),"))
+		assert.False(t, strings.Contains(result, "..."))
+	})
+
+	t.Run("slice 257 truncated", func(t *testing.T) {
+		sv := makeIntSliceValue(257)
+		assert.Equal(t, "slice[...(257 elements)]", sv.String())
+	})
+
+	t.Run("slice 1000 truncated", func(t *testing.T) {
+		sv := makeIntSliceValue(1000)
+		assert.Equal(t, "slice[...(1000 elements)]", sv.String())
+	})
+
+	t.Run("slice small renders fully", func(t *testing.T) {
+		sv := makeIntSliceValue(3)
+		assert.Equal(t, "slice[(0 int),(1 int),(2 int)]", sv.String())
+	})
+
+	// --- Slice: byte ---
+	t.Run("byte slice 256 not truncated", func(t *testing.T) {
+		data := make([]byte, 256)
+		sv := &SliceValue{
+			Base:   &ArrayValue{Data: data},
+			Offset: 0,
+			Length: 256,
+			Maxcap: 256,
+		}
+		result := sv.String()
+		assert.True(t, strings.HasPrefix(result, "slice[0x"))
+		assert.False(t, strings.Contains(result, "..."))
+	})
+
+	t.Run("byte slice 257 truncated", func(t *testing.T) {
+		data := make([]byte, 257)
+		sv := &SliceValue{
+			Base:   &ArrayValue{Data: data},
+			Offset: 0,
+			Length: 257,
+			Maxcap: 257,
+		}
+		result := sv.String()
+		assert.Contains(t, result, "...(257)")
+	})
+
+	// --- Array: non-byte ---
+	t.Run("array 256 not truncated", func(t *testing.T) {
+		av := makeIntArrayValue(256)
+		result := av.String()
+		assert.True(t, strings.HasPrefix(result, "array[(0 int),"))
+		assert.False(t, strings.Contains(result, "..."))
+	})
+
+	t.Run("array 257 truncated", func(t *testing.T) {
+		av := makeIntArrayValue(257)
+		assert.Equal(t, "array[...(257 elements)]", av.String())
+	})
+
+	t.Run("array 1000 truncated", func(t *testing.T) {
+		av := makeIntArrayValue(1000)
+		assert.Equal(t, "array[...(1000 elements)]", av.String())
+	})
+
+	// --- Array: byte ---
+	t.Run("byte array 256 not truncated", func(t *testing.T) {
+		av := &ArrayValue{Data: make([]byte, 256)}
+		result := av.String()
+		assert.True(t, strings.HasPrefix(result, "array[0x"))
+		assert.False(t, strings.Contains(result, "..."))
+	})
+
+	t.Run("byte array 257 truncated", func(t *testing.T) {
+		av := &ArrayValue{Data: make([]byte, 257)}
+		result := av.String()
+		assert.Contains(t, result, "...")
+	})
+
+	// --- Map ---
+	t.Run("map 256 not truncated", func(t *testing.T) {
+		mv := makeTestMap(256)
+		result := mv.String()
+		assert.True(t, strings.HasPrefix(result, "map{("))
+		assert.False(t, strings.Contains(result, "..."))
+	})
+
+	t.Run("map 257 truncated", func(t *testing.T) {
+		mv := makeTestMap(257)
+		assert.Equal(t, "map{...(257 entries)}", mv.String())
+	})
+
+	t.Run("map 1000 truncated", func(t *testing.T) {
+		mv := makeTestMap(1000)
+		assert.Equal(t, "map{...(1000 entries)}", mv.String())
+	})
+
+	t.Run("map small renders fully", func(t *testing.T) {
+		mv := makeTestMap(1)
+		result := mv.String()
+		assert.Equal(t, "map{(0 int):(0 int)}", result)
+	})
 }
