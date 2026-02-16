@@ -361,6 +361,60 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 // Namespace can be either a user or crypto address.
 var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 
+// callRealmBool creates a Machine, imports pkgPath, calls funcName with args,
+// and expects a single bool return from funcName.
+func (vm *VMKeeper) callRealmBool(
+	ctx sdk.Context,
+	creator crypto.Address,
+	pkgPath, importAlias, funcName string,
+	args ...any,
+) (result bool, err error) {
+	chainDomain := vm.getChainDomainParam(ctx)
+	store := vm.getGnoTransactionStore(ctx)
+
+	msgCtx := stdlibs.ExecContext{
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     chainDomain,
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    creator.Bech32(),
+		OriginSendSpent: new(std.Coins),
+		Banker:          NewSDKBanker(vm, ctx),
+		Params:          NewSDKParams(vm.prmk, ctx),
+		EventLogger:     ctx.EventLogger(),
+	}
+
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:  "",
+			Output:   vm.Output,
+			Store:    store,
+			Context:  msgCtx,
+			Alloc:    store.GetAllocator(),
+			GasMeter: ctx.GasMeter(),
+		})
+	defer m.Release()
+	defer doRecover(m, &err)
+
+	mpv := gno.NewPackageNode("main", "main", nil).NewPackage(m.Alloc)
+	m.SetActivePackage(mpv)
+	m.RunDeclaration(gno.ImportD(importAlias, pkgPath))
+	x := gno.Call(
+		gno.Sel(gno.Nx(importAlias), funcName),
+		args...,
+	)
+
+	ret := m.Eval(x)
+	if len(ret) == 0 {
+		return false, fmt.Errorf("callRealmBool: invalid response length")
+	}
+	if ret[0].T.Kind() != gno.BoolKind {
+		return false, fmt.Errorf("callRealmBool: invalid response kind")
+	}
+
+	return ret[0].GetBool(), nil
+}
+
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
 	sysNamesPkg := vm.getSysNamesPkgParam(ctx)
@@ -391,53 +445,14 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		return nil
 	}
 
-	// Parse and run the files, construct *PV.
-	msgCtx := stdlibs.ExecContext{
-		ChainID:         ctx.ChainID(),
-		ChainDomain:     chainDomain,
-		Height:          ctx.BlockHeight(),
-		Timestamp:       ctx.BlockTime().Unix(),
-		OriginCaller:    creator.Bech32(),
-		OriginSendSpent: new(std.Coins),
-		// XXX: should we remove the banker ?
-		Banker:      NewSDKBanker(vm, ctx),
-		Params:      NewSDKParams(vm.prmk, ctx),
-		EventLogger: ctx.EventLogger(),
+	result, err := vm.callRealmBool(ctx, creator, sysNamesPkg, "names",
+		"IsAuthorizedAddressForNamespace",
+		gno.Str(creator.String()), gno.Str(namespace))
+	if err != nil {
+		return err
 	}
 
-	m := gno.NewMachineWithOptions(
-		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   vm.Output,
-			Store:    store,
-			Context:  msgCtx,
-			Alloc:    store.GetAllocator(),
-			GasMeter: ctx.GasMeter(),
-		})
-	defer m.Release()
-
-	// call sysNamesPkg.IsAuthorizedAddressForName("<user>")
-	// We only need to check by name here, as addresses have already been checked
-	mpv := gno.NewPackageNode("main", "main", nil).NewPackage(m.Alloc)
-	m.SetActivePackage(mpv)
-	m.RunDeclaration(gno.ImportD("names", sysNamesPkg))
-	x := gno.Call(
-		gno.Sel(gno.Nx("names"), "IsAuthorizedAddressForNamespace"),
-		gno.Str(creator.String()),
-		gno.Str(namespace),
-	)
-
-	ret := m.Eval(x)
-	if len(ret) == 0 {
-		panic("call: invalid response length")
-	}
-
-	useraddress := ret[0]
-	if useraddress.T.Kind() != gno.BoolKind {
-		panic("call: invalid response kind")
-	}
-
-	if isAuthorized := useraddress.GetBool(); !isAuthorized {
+	if !result {
 		return ErrUnauthorizedUser(
 			fmt.Sprintf("%s is not authorized to deploy packages to namespace `%s`",
 				creator.String(),
@@ -467,53 +482,14 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 		return nil
 	}
 
-	chainDomain := vm.getChainDomainParam(ctx)
-
-	// Create execution context
-	msgCtx := stdlibs.ExecContext{
-		ChainID:         ctx.ChainID(),
-		ChainDomain:     chainDomain,
-		Height:          ctx.BlockHeight(),
-		Timestamp:       ctx.BlockTime().Unix(),
-		OriginCaller:    creator.Bech32(),
-		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
+	result, err := vm.callRealmBool(ctx, creator, sysCLAPkg, "cla",
+		"HasValidSignature",
+		gno.Str(creator.String()))
+	if err != nil {
+		return err
 	}
 
-	// Create machine for realm call
-	m := gno.NewMachineWithOptions(
-		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   vm.Output,
-			Store:    store,
-			Context:  msgCtx,
-			Alloc:    store.GetAllocator(),
-			GasMeter: ctx.GasMeter(),
-		})
-	defer m.Release()
-
-	// Call cla.HasValidSignature(address)
-	mpv := gno.NewPackageNode("main", "main", nil).NewPackage(m.Alloc)
-	m.SetActivePackage(mpv)
-	m.RunDeclaration(gno.ImportD("cla", sysCLAPkg))
-	x := gno.Call(
-		gno.Sel(gno.Nx("cla"), "HasValidSignature"),
-		gno.Str(creator.String()),
-	)
-
-	ret := m.Eval(x)
-	if len(ret) == 0 {
-		panic("checkCLASignature: invalid response length")
-	}
-
-	hasValidSig := ret[0]
-	if hasValidSig.T.Kind() != gno.BoolKind {
-		panic("checkCLASignature: invalid response kind")
-	}
-
-	if !hasValidSig.GetBool() {
+	if !result {
 		return ErrUnauthorizedUser(
 			fmt.Sprintf("address %s has not signed the required CLA",
 				creator.String()))
