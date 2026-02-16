@@ -8,7 +8,7 @@ import (
 	"gno.land/p/nt/urequire"
 )
 
-var _ boards.Permissions = (*Permisions)(nil)
+var _ boards.Permissions = (*Permissions)(nil)
 
 func TestBasicPermissionsWithPermission(t *testing.T) {
 	cases := []struct {
@@ -16,7 +16,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 		user       address
 		permission boards.Permission
 		args       boards.Args
-		setup      func() *Permisions
+		setup      func() *Permissions
 		err        string
 		called     bool
 	}{
@@ -24,7 +24,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			name:       "ok",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("foo", "bar")
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
@@ -37,7 +37,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
 			args:       boards.Args{"a", "b"},
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("foo", "bar")
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
@@ -49,7 +49,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			name:       "no permission",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("foo", "bar")
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
@@ -61,7 +61,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			name:       "is not a DAO member",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				return New()
 			},
 			err: "unauthorized",
@@ -119,13 +119,13 @@ func TestBasicPermissionsGetUserRoles(t *testing.T) {
 		name  string
 		user  address
 		roles []string
-		setup func() *Permisions
+		setup func() *Permissions
 	}{
 		{
 			name:  "single role",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			roles: []string{"admin"},
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("admin", "x")
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")
@@ -136,7 +136,7 @@ func TestBasicPermissionsGetUserRoles(t *testing.T) {
 			name:  "multiple roles",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			roles: []string{"admin", "bar", "foo"},
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("admin", "x")
 				perms.AddRole("foo", "x")
@@ -148,7 +148,7 @@ func TestBasicPermissionsGetUserRoles(t *testing.T) {
 		{
 			name: "without roles",
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
@@ -157,7 +157,7 @@ func TestBasicPermissionsGetUserRoles(t *testing.T) {
 		{
 			name: "not a user",
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				return New()
 			},
 		},
@@ -165,7 +165,7 @@ func TestBasicPermissionsGetUserRoles(t *testing.T) {
 			name:  "multiple users",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			roles: []string{"admin"},
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("admin", "x")
 				perms.AddRole("bar", "x")
@@ -195,14 +195,14 @@ func TestBasicPermissionsHasRole(t *testing.T) {
 		name  string
 		user  address
 		role  boards.Role
-		setup func() *Permisions
+		setup func() *Permissions
 		want  bool
 	}{
 		{
 			name: "ok",
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			role: "admin",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("admin", "x")
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")
@@ -214,7 +214,7 @@ func TestBasicPermissionsHasRole(t *testing.T) {
 			name: "ok with multiple roles",
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			role: "foo",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("admin", "x")
 				perms.AddRole("foo", "x")
@@ -226,7 +226,7 @@ func TestBasicPermissionsHasRole(t *testing.T) {
 		{
 			name: "user without roles",
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
@@ -236,7 +236,7 @@ func TestBasicPermissionsHasRole(t *testing.T) {
 			name: "has no role",
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			role: "bar",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("foo", "x")
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
@@ -259,14 +259,14 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 		name       string
 		user       address
 		permission boards.Permission
-		setup      func() *Permisions
+		setup      func() *Permissions
 		want       bool
 	}{
 		{
 			name:       "ok",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("foo", "bar")
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
@@ -278,7 +278,7 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 			name:       "ok with multiple users",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("foo", "bar")
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
@@ -291,7 +291,7 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 			name:       "ok with multiple roles",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "other",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("foo", "bar")
 				perms.AddRole("baz", "other")
@@ -304,7 +304,7 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 			name:       "no permission",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "other",
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("foo", "bar")
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
@@ -324,27 +324,27 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 
 func TestBasicPermissionsSetUserRoles(t *testing.T) {
 	cases := []struct {
-		name  string
-		user  address
-		roles []boards.Role
-		setup func() *Permisions
-		err   string
+		name          string
+		user          address
+		expectedRoles []boards.Role
+		setup         func() *Permissions
+		err           string
 	}{
 		{
-			name:  "add user",
-			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			roles: []boards.Role{"a"},
-			setup: func() *Permisions {
+			name:          "add user",
+			user:          address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			expectedRoles: []boards.Role{"a"},
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("a", "permission1")
 				return perms
 			},
 		},
 		{
-			name:  "add user with multiple roles",
-			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			roles: []boards.Role{"a", "b"},
-			setup: func() *Permisions {
+			name:          "add user with multiple roles",
+			user:          address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			expectedRoles: []boards.Role{"a", "b"},
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("a", "permission1")
 				perms.AddRole("b", "permission2")
@@ -352,10 +352,10 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 			},
 		},
 		{
-			name:  "add when other users exists",
-			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			roles: []boards.Role{"a"},
-			setup: func() *Permisions {
+			name:          "add when other users exists",
+			user:          address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			expectedRoles: []boards.Role{"a"},
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("a", "permission1")
 				perms.SetUserRoles(cross, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "a")
@@ -364,11 +364,34 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 			},
 		},
 		{
-			name:  "update user roles",
-			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			roles: []boards.Role{"a", "b"},
-			setup: func() *Permisions {
+			name:          "add user using single role",
+			user:          address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			expectedRoles: []boards.Role{"a"},
+			setup: func() *Permissions {
+				perms := New(UseSingleUserRole())
+				perms.AddRole("a", "permission1")
+				return perms
+			},
+		},
+		{
+			name:          "update user roles",
+			user:          address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			expectedRoles: []boards.Role{"a", "b"},
+			setup: func() *Permissions {
 				perms := New()
+				perms.AddRole("a", "permission1")
+				perms.AddRole("b", "permission2")
+				perms.AddRole("c", "permission2")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "c")
+				return perms
+			},
+		},
+		{
+			name:          "update user roles using single role",
+			user:          address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			expectedRoles: []boards.Role{"b"},
+			setup: func() *Permissions {
+				perms := New(UseSingleUserRole())
 				perms.AddRole("a", "permission1")
 				perms.AddRole("b", "permission2")
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a")
@@ -376,10 +399,10 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 			},
 		},
 		{
-			name:  "clear user roles",
-			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			roles: []boards.Role{},
-			setup: func() *Permisions {
+			name:          "clear user roles",
+			user:          address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			expectedRoles: []boards.Role{},
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("a", "permission1")
 				perms.AddRole("b", "permission2")
@@ -388,15 +411,27 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 			},
 		},
 		{
-			name:  "set invalid role",
-			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			roles: []boards.Role{"a", "foo"},
-			setup: func() *Permisions {
+			name:          "set invalid role",
+			user:          address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			expectedRoles: []boards.Role{"a", "foo"},
+			setup: func() *Permissions {
 				perms := New()
 				perms.AddRole("a", "permission1")
 				return perms
 			},
 			err: "invalid role: foo",
+		},
+		{
+			name:          "use single role error",
+			user:          address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			expectedRoles: []boards.Role{"a", "b"},
+			setup: func() *Permissions {
+				perms := New(UseSingleUserRole())
+				perms.AddRole("a", "permission1")
+				perms.AddRole("b", "permission2")
+				return perms
+			},
+			err: "user can only have one role",
 		},
 	}
 
@@ -405,7 +440,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 			perms := tc.setup()
 
 			setUserRoles := func() {
-				perms.SetUserRoles(cross, tc.user, tc.roles...)
+				perms.SetUserRoles(cross, tc.user, tc.expectedRoles...)
 			}
 
 			if tc.err != "" {
@@ -416,9 +451,9 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 			}
 
 			roles := perms.GetUserRoles(tc.user)
-			uassert.Equal(t, len(tc.roles), len(roles))
+			uassert.Equal(t, len(tc.expectedRoles), len(roles))
 			for i, r := range roles {
-				urequire.Equal(t, string(tc.roles[i]), string(r))
+				urequire.Equal(t, string(tc.expectedRoles[i]), string(r))
 			}
 		})
 	}
@@ -428,13 +463,13 @@ func TestBasicPermissionsRemoveUser(t *testing.T) {
 	cases := []struct {
 		name  string
 		user  address
-		setup func() *Permisions
+		setup func() *Permissions
 		want  bool
 	}{
 		{
 			name: "ok",
 			user: address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				perms := New()
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
@@ -444,7 +479,7 @@ func TestBasicPermissionsRemoveUser(t *testing.T) {
 		{
 			name: "user not found",
 			user: address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			setup: func() *Permisions {
+			setup: func() *Permissions {
 				return New()
 			},
 		},
