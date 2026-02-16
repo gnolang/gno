@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/service"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // -----------------------------------------------------------------------------
@@ -23,7 +24,7 @@ import (
 //
 // If you want to be sure that the transaction is included in a block, you can
 // subscribe for the result using JSONRPC via a websocket. See
-// https://tendermint.com/docs/app-dev/subscribing-to-events-via-websocket.html
+// https://docs.tendermint.com/v0.34/tendermint-core/subscription.html
 // If you haven't received anything after a couple of blocks, resend it. If the
 // same happens again, send it to some other node. A few reasons why it could
 // happen:
@@ -31,11 +32,11 @@ import (
 // 1. malicious node can drop or pretend it had committed your tx
 // 2. malicious proposer (not necessary the one you're communicating with) can
 // drop transactions, which might become valid in the future
-// (https://github.com/gnolang/gno/tm2/pkg/bft/issues/3322)
+// (https://github.com/tendermint/tendermint/issues/3322)
 // 3. node can be offline
 //
 // Please refer to
-// https://tendermint.com/docs/tendermint-core/using-tendermint.html#formatting
+// https://docs.tendermint.com/v0.34/tendermint-core/using-tendermint.html#formatting
 // for formatting/encoding rules.
 //
 // ```shell
@@ -78,6 +79,8 @@ import (
 // |-----------+------+---------+----------+-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
 func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "BroadcastTxAsync")
+	defer span.End()
 	err := mempool.CheckTx(tx, nil)
 	if err != nil {
 		return nil, err
@@ -89,7 +92,7 @@ func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadca
 //
 // If you want to be sure that the transaction is included in a block, you can
 // subscribe for the result using JSONRPC via a websocket. See
-// https://tendermint.com/docs/app-dev/subscribing-to-events-via-websocket.html
+// https://docs.tendermint.com/v0.34/tendermint-core/subscription.html
 // If you haven't received anything after a couple of blocks, resend it. If the
 // same happens again, send it to some other node. A few reasons why it could
 // happen:
@@ -97,10 +100,10 @@ func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadca
 // 1. malicious node can drop or pretend it had committed your tx
 // 2. malicious proposer (not necessary the one you're communicating with) can
 // drop transactions, which might become valid in the future
-// (https://github.com/gnolang/gno/tm2/pkg/bft/issues/3322)
+// (https://github.com/tendermint/tendermint/issues/3322)
 //
 // Please refer to
-// https://tendermint.com/docs/tendermint-core/using-tendermint.html#formatting
+// https://docs.tendermint.com/v0.34/tendermint-core/using-tendermint.html#formatting
 // for formatting/encoding rules.
 //
 // ```shell
@@ -143,6 +146,8 @@ func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadca
 // |-----------+------+---------+----------+-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
 func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "BroadcastTxSync")
+	defer span.End()
 	resCh := make(chan abci.Response, 1)
 	err := mempool.CheckTx(tx, func(res abci.Response) {
 		resCh <- res
@@ -165,7 +170,7 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 // IMPORTANT: use only for testing and development. In production, use
 // BroadcastTxSync or BroadcastTxAsync. You can subscribe for the transaction
 // result using JSONRPC via a websocket. See
-// https://tendermint.com/docs/app-dev/subscribing-to-events-via-websocket.html
+// https://docs.tendermint.com/v0.34/tendermint-core/subscription.html
 //
 // CONTRACT: only returns error if mempool.CheckTx() errs or if we timeout
 // waiting for tx to commit.
@@ -174,7 +179,7 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 // will contain a non-OK ABCI code.
 //
 // Please refer to
-// https://tendermint.com/docs/tendermint-core/using-tendermint.html#formatting
+// https://docs.tendermint.com/v0.34/tendermint-core/using-tendermint.html#formatting
 // for formatting/encoding rules.
 //
 // ```shell
@@ -225,6 +230,8 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 // |-----------+------+---------+----------+-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
 func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "BroadcastTxCommit")
+	defer span.End()
 	// Broadcast tx and wait for CheckTx result
 	checkTxResCh := make(chan abci.Response, 1)
 	err := mempool.CheckTx(tx, func(res abci.Response) {
@@ -299,6 +306,8 @@ func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadc
 // | limit     | int  | 30      | false    | Maximum number of entries (max: 100) |
 // ```
 func UnconfirmedTxs(ctx *rpctypes.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "UnconfirmedTxs")
+	defer span.End()
 	// reuse per_page validator
 	limit = validatePerPage(limit)
 
@@ -344,6 +353,8 @@ func UnconfirmedTxs(ctx *rpctypes.Context, limit int) (*ctypes.ResultUnconfirmed
 //
 // ```
 func NumUnconfirmedTxs(ctx *rpctypes.Context) (*ctypes.ResultUnconfirmedTxs, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "NumUnconfirmedTxs")
+	defer span.End()
 	return &ctypes.ResultUnconfirmedTxs{
 		Count:      mempool.Size(),
 		Total:      mempool.Size(),

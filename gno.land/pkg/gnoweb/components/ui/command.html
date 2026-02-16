@@ -1,0 +1,21 @@
+{{ define "ui/command" }}
+<div class="b-code">
+    <button data-controller="copy" data-action="click->copy#copy" data-copy-remote-value="action-function-{{.FuncName}}"
+        data-copy-clean-value class="btn-copy" aria-label="Copy Command">
+        <svg class="c-icon">
+            <use href="#ico-copy" data-copy-target="icon"></use>
+            <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
+        </svg>
+    </button>
+    <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target="action-function-{{.FuncName}}"># WARNING: This command is running in an INSECURE mode.
+# It is strongly recommended to use a hardware device for signing
+# and avoid trusting any computer connected to the internet,
+# as your private keys could be exposed.
+
+gnokey maketx call -pkgpath "{{.PkgPath}}" -func "{{.FuncName}}"{{range .ParamNames}} -args $'<span data-action-function-target="arg" data-action-function-arg-value="{{.}}"></span>'{{end}} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" -broadcast -chainid "{{.ChainId}}" -remote "{{.Remote}}" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-{{.FuncName}}" class="u-inline">gnokey query -remote "{{.Remote}}" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
+gnokey maketx call -pkgpath "{{.PkgPath}}" -func "{{.FuncName}}"{{range .ParamNames}} -args $'<span data-action-function-target="arg" data-action-function-arg-value="{{.}}"></span>'{{end}} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" <span data-action-function-target="address">ADDRESS</span> > call.tx
+gnokey sign -tx-path call.tx -chainid "{{.ChainId}}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
+gnokey broadcast -remote "{{.Remote}}" call.tx
+  </span></code></pre>
+</div>
+{{ end }}

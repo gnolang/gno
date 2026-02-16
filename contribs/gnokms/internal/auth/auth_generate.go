@@ -48,22 +48,22 @@ func (f *authGenerateFlags) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execAuthGenerate(authGenFlags *authGenerateFlags, io commands.IO) error {
+func execAuthGenerate(authGenCfg *authGenerateFlags, io commands.IO) error {
 	// Check if the file already exists.
-	if osm.FileExists(authGenFlags.auth.AuthKeysFile) && !authGenFlags.overwrite {
+	if osm.FileExists(authGenCfg.auth.AuthKeysFile) && !authGenCfg.overwrite {
 		return fmt.Errorf("%s: %s\n%s",
-			"error: auth keys file already exists at path", authGenFlags.auth.AuthKeysFile,
+			"error: auth keys file already exists at path", authGenCfg.auth.AuthKeysFile,
 			"use 'gnokms auth generate -overwrite' to overwrite it",
 		)
 	}
 
 	// Generate a new auth keys file.
-	if _, err := common.GeneratePersistedAuthKeysFile(authGenFlags.auth.AuthKeysFile); err != nil {
+	if _, err := common.GeneratePersistedAuthKeysFile(authGenCfg.auth.AuthKeysFile); err != nil {
 		return fmt.Errorf("error generating auth keys file: %w", err)
 	}
 
 	// Print the path to the generated file.
-	io.Printfln("Generated auth keys file at path: %q", authGenFlags.auth.AuthKeysFile)
+	io.Printfln("Generated auth keys file at path: %q", authGenCfg.auth.AuthKeysFile)
 
 	return nil
 }

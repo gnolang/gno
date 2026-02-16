@@ -1,0 +1,59 @@
+loadpkg gno.land/r/demo/alice $WORK/alice
+loadpkg gno.land/p/demo/peter $WORK/peter
+loadpkg gno.land/r/demo/main $WORK/main
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/main -func ExecGood -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+! gnokey maketx call -pkgpath gno.land/r/demo/main -func ExecBad -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'cannot directly modify readonly tainted object'
+
+-- alice/alice.gno --
+package alice
+
+
+var AllowedList = []int{1, 2}
+
+func GetAllowedList() []int {
+	return AllowedList
+}
+
+var Closure func()
+
+func SetClosure(cur realm, f func()) {
+	Closure = f
+}
+
+func ExecuteClosure(cur realm) {
+	Closure()
+}
+
+-- peter/peter.gno --
+package peter
+
+func F(v []int) func()   {
+	return func()  {
+		v[0] = 5
+	}
+}
+
+-- main/main.gno --
+package main
+
+import (
+	"gno.land/r/demo/alice"
+	"gno.land/p/demo/peter"
+)
+
+func ExecGood(cur realm) []int {
+	alice.SetClosure(cross, peter.F(alice.GetAllowedList()))
+	alice.ExecuteClosure(cross)
+	return alice.AllowedList
+}
+
+func ExecBad(cur realm) []int {
+	alice.SetClosure(cross, peter.F(alice.AllowedList))
+	alice.ExecuteClosure(cross)
+	return alice.AllowedList
+}

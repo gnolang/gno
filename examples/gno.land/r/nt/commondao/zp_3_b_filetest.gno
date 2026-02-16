@@ -47,7 +47,7 @@ func main() {
 	// Make sure proposal doesn't exists in the SubDAO
 	println(subDAO.ActiveProposals().Get(pID) == nil)
 
-	println(p.Status() == pcommondao.StatusActive)
+	println(string(p.Status()))
 	println(p.Creator() == user)
 	println(p.Definition().Title() == ("Dissolve DAO: " + dao.Name()))
 	println(p.VotingDeadline())
@@ -56,7 +56,7 @@ func main() {
 
 // Output:
 // true
-// true
+// active
 // true
 // false
 // 2009-02-20 23:31:30 +0000 UTC

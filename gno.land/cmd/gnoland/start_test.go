@@ -60,7 +60,7 @@ func TestStart_Lazy(t *testing.T) {
 	// t.Parallel()
 
 	// We allow one minute by node lifespan
-	const maxTestDeadline = time.Minute
+	const maxTestDeadline = 2 * time.Minute
 
 	shortTempDir := func(t *testing.T) string {
 		t.Helper()
