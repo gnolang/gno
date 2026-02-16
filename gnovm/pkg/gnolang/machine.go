@@ -599,12 +599,29 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	// recursive function for var declarations.
 	var runDeclarationFor func(fn *FileNode, decl Decl)
 	runDeclarationFor = func(fn *FileNode, decl Decl) {
+		// Skip if already declared (e.g. as a dependency of another decl).
+		for _, n := range decl.GetDeclNames() {
+			if _, ok := fdeclared[n]; ok {
+				return
+			}
+		}
 		// get fileblock of fn.
 		// fb := pv.GetFileBlock(nil, fn.FileName)
 		// get dependencies of decl.
 		deps := make(map[Name]struct{})
 		findDependentNames(decl, deps)
+		// Sort dependencies for deterministic initialization order.
+		// Go map iteration is non-deterministic, which would cause
+		// different validators to initialize in different order,
+		// breaking consensus when init has side effects.
+		sortedDeps := make([]Name, 0, len(deps))
 		for dep := range deps {
+			sortedDeps = append(sortedDeps, dep)
+		}
+		slices.SortFunc(sortedDeps, func(a, b Name) int {
+			return strings.Compare(string(a), string(b))
+		})
+		for _, dep := range sortedDeps {
 			// if dep already defined as import, skip.
 			if _, ok := fn.GetLocalIndex(dep); ok {
 				continue
