@@ -435,6 +435,9 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
+	if m.Coverage != nil {
+		m.Coverage.HitStmt(s)
+	}
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {

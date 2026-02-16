@@ -147,6 +147,10 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Cover enables coverage analysis.
+	Cover bool
+	// Coverage collector shared across test runs for the package.
+	coverage *gno.CoverageCollector
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -157,6 +161,11 @@ type TestOptions struct {
 // [Test] is then able to swap it when needed.
 func (opts *TestOptions) WriterForStore() io.Writer {
 	return &opts.outWriter
+}
+
+// GetCoverage returns the coverage collector, if coverage is enabled.
+func (opts *TestOptions) GetCoverage() *gno.CoverageCollector {
+	return opts.coverage
 }
 
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
@@ -226,6 +235,11 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
 
+	// Initialize coverage collector if enabled (blocks registered after package load).
+	if opts.Cover {
+		opts.coverage = gno.NewCoverageCollector()
+	}
+
 	var errs error
 
 	// Create a common tcw/tgs for both the `pkg` tests as well as the
@@ -255,6 +269,22 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
 	if !tmpkg.IsEmptyOf(".gno") {
 		_, _ = m2.RunMemPackageWithOverrides(tmpkg, true)
+	}
+
+	// Register coverage blocks from the loaded package's AST.
+	// This must happen after RunMemPackageWithOverrides so we use the
+	// same AST node pointers the VM will execute against.
+	if opts.Cover && opts.coverage != nil {
+		pn := tgs.GetPackageNode(mpkg.Path)
+		if pn != nil && pn.FileSet != nil {
+			for _, fn := range pn.FileSet.Files {
+				if strings.HasSuffix(fn.FileName, "_test.gno") ||
+					strings.HasSuffix(fn.FileName, "_filetest.gno") {
+					continue
+				}
+				opts.coverage.RegisterFileBlocks(mpkg.Path, fn.FileName, fn)
+			}
+		}
 	}
 
 	// Eagerly load imports.
@@ -380,6 +410,7 @@ func (opts *TestOptions) runTestFiles(
 
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, nil)
+	m.Coverage = opts.coverage
 	m.Alloc = alloc
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
@@ -401,6 +432,7 @@ func (opts *TestOptions) runTestFiles(
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
+		m.Coverage = opts.coverage
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 

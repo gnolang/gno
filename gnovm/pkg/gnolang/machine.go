@@ -39,7 +39,8 @@ type Machine struct {
 	GCCycle       int64         // number of "gc" cycles
 	Stage         Stage         // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
-	Lastline      int           // the line the VM is currently executing
+	Lastline      int                // the line the VM is currently executing
+	Coverage      *CoverageCollector // coverage tracking (nil if disabled)
 
 	Debugger Debugger
 

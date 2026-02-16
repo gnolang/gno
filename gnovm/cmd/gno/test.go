@@ -33,6 +33,7 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+	cover               bool
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -178,6 +179,13 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.BoolVar(
+		&c.cover,
+		"cover",
+		false,
+		"enable coverage analysis",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -228,6 +236,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
+	opts.Cover = cmd.cover
 	cache := make(gno.TypeCheckCache, 64)
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
@@ -337,14 +346,20 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		// Print status with duration.
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
+		coverStr := ""
+		if cmd.cover {
+			if cov := opts.GetCoverage(); cov != nil && cov.HasBlocks() {
+				coverStr = fmt.Sprintf("\t%s", cov.String())
+			}
+		}
 		if didPanic || didError {
-			io.ErrPrintfln("FAIL    %s \t%s", prettyDir, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s%s", prettyDir, dstr, coverStr)
 			testErrCount++
 			if cmd.failfast {
 				return fail()
 			}
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", prettyDir, dstr)
+			io.ErrPrintfln("ok      %s \t%s%s", prettyDir, dstr, coverStr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {

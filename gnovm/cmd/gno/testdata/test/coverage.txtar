@@ -1,0 +1,41 @@
+# Test coverage flag
+
+gno test -cover .
+
+! stdout .+
+stderr 'ok      \. 	\d+\.\d\ds	coverage: \d+\.\d+% of statements'
+
+# Without -cover, no coverage output
+gno test .
+
+! stdout .+
+stderr 'ok      \. 	\d+\.\d\ds$'
+
+-- cover.gno --
+package cover
+
+func Add(a, b int) int {
+	return a + b
+}
+
+func Abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+-- cover_test.gno --
+package cover
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+	result := Add(2, 3)
+	if result != 5 {
+		t.Fatalf("expected 5, got %d", result)
+	}
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/cover'
