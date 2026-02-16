@@ -20,12 +20,12 @@ gnokey maketx call -pkgpath gno.land/r/demo/defi/atomicswap -func NewCoinSwap -g
 stdout '(1 int)'
 stdout ".*$test2_user_addr.*$test3_user_addr.*12345ugnot.*"
 stdout 'OK!'
-stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":453100\}.*\]'
+stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":452900\}.*\]'
 
 gnokey query vm/qrender --data 'gno.land/r/demo/defi/atomicswap:'
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*1008534555ugnot'
+stdout 'coins.*:.*1008534755ugnot'
 gnokey query auth/accounts/$test3_user_addr
 stdout 'coins.*:.*1010000000ugnot'
 
@@ -34,6 +34,6 @@ stdout 'OK!'
 stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":500\}.*\]'
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*1008534555ugnot'
+stdout 'coins.*:.*1008534755ugnot'
 gnokey query auth/accounts/$test3_user_addr
 stdout 'coins.*:.*1009011845ugnot'
