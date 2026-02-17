@@ -149,7 +149,7 @@
 
 /* ===== DARK THEME ===== */
 [data-theme="dark"] {
-	/* Base surfaces — smooth progression: 0.165 → 0.19 → 0.24 → 0.28 → 0.46 */
+	/* Base surfaces */
 	--s-color-bg-base: var(--g-color-gray-850);
 	--s-color-bg-base-dev: var(--g-color-gray-800);
 
@@ -182,7 +182,7 @@
 	--s-color-bg-active: var(--g-color-gray-700);
 	--s-color-bg-selected: var(--g-color-gray-700);
 
-	/* Text hierarchy — softer contrast with gray-100 instead of gray-50 */
+	/* Text hierarchy */
 	--s-color-text-primary: var(--g-color-gray-100);
 	--s-color-text-secondary: var(--g-color-gray-200);
 	--s-color-text-secondary-hover: var(--g-color-gray-100);
