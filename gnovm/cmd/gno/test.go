@@ -34,6 +34,7 @@ type testCmd struct {
 	debug               bool
 	debugAddr           string
 	cover               bool
+	coverProfile        string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -186,6 +187,13 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"enable coverage analysis",
 	)
+
+	fs.StringVar(
+		&c.coverProfile,
+		"coverprofile",
+		"",
+		"write a coverage profile to the file after all tests have passed",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -236,7 +244,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
-	opts.Cover = cmd.cover
+	opts.Cover = cmd.cover || cmd.coverProfile != ""
 	cache := make(gno.TypeCheckCache, 64)
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
@@ -347,7 +355,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 		coverStr := ""
-		if cmd.cover {
+		if cmd.cover || cmd.coverProfile != "" {
 			if cov := opts.GetCoverage(); cov != nil && cov.HasBlocks() {
 				coverStr = fmt.Sprintf("\t%s", cov.String())
 			}
@@ -364,6 +372,20 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
 		return fail()
+	}
+
+	// Write coverage profile if requested.
+	if cmd.coverProfile != "" {
+		if cov := opts.GetCoverage(); cov != nil && cov.HasBlocks() {
+			f, err := os.Create(cmd.coverProfile)
+			if err != nil {
+				return fmt.Errorf("creating cover profile: %w", err)
+			}
+			cov.WriteCoverProfile(f, "set")
+			if err := f.Close(); err != nil {
+				return fmt.Errorf("writing cover profile: %w", err)
+			}
+		}
 	}
 
 	return nil
