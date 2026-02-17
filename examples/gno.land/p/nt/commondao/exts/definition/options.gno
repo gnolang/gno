@@ -45,7 +45,7 @@ func WithVotingPeriod(period time.Duration) Option {
 	}
 }
 
-// WithTally configures a proposal definition to use a custom voties tallying.
+// WithTally configures a proposal definition to use a custom vote tallying.
 // New definitions tally using simple majority (51%) by default.
 // It panics when tally callback is nil.
 func WithTally(cb TallyFunc) Option {

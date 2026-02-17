@@ -8,7 +8,7 @@ an alternative approach to define custom proposal types.
 The `Definition` type is an implementation that allows creating custom proposal
 definitions using callback functions and definition options.
 
-CommonDAO package supports different proposal types though the
+CommonDAO package supports different proposal types through the
 `ProposalDefinition` interface, so new proposal types require the definition
 of a custom type that implements the interface. The `Definition` type is a
 callback based alternative to the type based approach.
