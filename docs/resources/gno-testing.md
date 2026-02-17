@@ -175,9 +175,15 @@ func main() {
 
 // Output:
 // 1
+```
 
-// Gas:
-// 1868332
+### Running filetests
+
+```bash
+# Only run the filetest for a package (from the package directory)
+gno test -run "_filetest.gno" .
+# Update expected values when output intentionally changes
+gno test --update-golden-tests .
 ```
 
 ### Directives
@@ -209,15 +215,6 @@ func main() {
 - `_long` suffix -- skipped with `-short`.
 - `_known` suffix -- skipped (known issues).
 - `_filetest.gno` suffix -- realm package filetests in `examples/`.
-
-### Running filetests
-
-```bash
-# Only run the filetest for a package (from the package directory)
-gno test -run "_filetest.gno" .
-# Update expected values when output intentionally changes
-gno test --update-golden-tests .
-```
 
 ## Final remarks
 
