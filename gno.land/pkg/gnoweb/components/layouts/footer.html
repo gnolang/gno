@@ -8,23 +8,21 @@
         {{ range .Links }}
         <li><a href="{{ .URL }}">{{ .Label }}</a></li>
         {{ end }}
-        {{ if eq .Title "Legal" }}
-        <li>
-          <button type="button" class="b-btn" data-controller="theme" data-action="click->theme#toggle"
-            aria-label="Toggle theme" title="Toggle theme">
-            <svg data-theme-target="sun" class="u-hidden c-icon">
-              <title>Light theme</title>
-              <use href="#ico-sun"></use>
-            </svg>
-            <svg data-theme-target="moon" class="c-icon">
-              <title>Dark theme</title>
-              <use href="#ico-moon"></use>
-            </svg>
-          </button>
-        </li>
-        {{ end }}
       </ul>
       {{ end }}
+      <div>
+        <button type="button" class="b-btn" data-controller="theme" data-action="click->theme#toggle"
+          aria-label="Toggle theme" aria-pressed="false" title="Toggle theme">
+          <svg data-theme-target="sun" class="u-hidden c-icon">
+            <title>Light theme</title>
+            <use href="#ico-sun"></use>
+          </svg>
+          <svg data-theme-target="moon" class="c-icon">
+            <title>Dark theme</title>
+            <use href="#ico-moon"></use>
+          </svg>
+        </button>
+      </div>
     </div>
   </nav>
 </footer>
