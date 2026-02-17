@@ -1,14 +1,16 @@
 package components
 
 import (
+	"regexp"
 	"strings"
 )
 
 const (
-	SourceViewType  ViewType = "source-view"
-	ReadmeFileName  string   = "README.md"
-	LicenseFileName string   = "LICENSE"
+	SourceViewType ViewType = "source-view"
+	ReadmeFileName string   = "README.md"
 )
+
+var ReLicenseFileName *regexp.Regexp = regexp.MustCompile(`(?i)^licen[cs]e(.md|.txt)?$`)
 
 // SourceData holds data for rendering a source code view.
 type SourceData struct {
@@ -82,9 +84,6 @@ func SourceView(data SourceData) *View {
 		case file == ReadmeFileName:
 			tocData.ReadmeFile = item
 
-		case file == LicenseFileName:
-			tocData.LicenseFile = item
-
 		case strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno"):
 			tocData.GnoTestFiles = append(tocData.GnoTestFiles, item)
 
@@ -93,6 +92,10 @@ func SourceView(data SourceData) *View {
 
 		case strings.HasSuffix(file, ".toml"):
 			tocData.TomlFiles = append(tocData.TomlFiles, item)
+		}
+
+		if ReLicenseFileName.MatchString(file) {
+			tocData.LicenseFile = item
 		}
 	}
 
