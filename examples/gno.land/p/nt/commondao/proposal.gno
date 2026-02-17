@@ -127,14 +127,9 @@ func MustValidate(v Validable) {
 }
 
 // MustExecute executes an executable proposal or panics on error.
-func MustExecute(exec any) {
-	if exec == nil {
+func MustExecute(e Executable) {
+	if e == nil {
 		panic("executable proposal definition is nil")
-	}
-
-	e, ok := exec.(Executable)
-	if !ok {
-		panic("proposal is not executable")
 	}
 
 	fn := e.Executor()
