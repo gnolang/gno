@@ -24,7 +24,7 @@ func NewChangeTiersRequest(tiers map[string]Tier) dao.ProposalRequest {
 	}
 
 	callback := func(cur realm) error {
-		Tiers = newTiers
+		setTiers(newTiers)
 
 		return nil
 	}
