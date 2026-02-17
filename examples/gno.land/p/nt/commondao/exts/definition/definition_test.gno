@@ -87,15 +87,15 @@ func TestDefinitionTally(t *testing.T) {
 		err    error
 	}{
 		{
-			name:   "passes",
+			name:   "proposal passes",
 			passes: true,
 		},
 		{
-			name:   "fails",
-			passes: true,
+			name:   "proposal fails",
+			passes: false,
 		},
 		{
-			name: "error",
+			name: "tally error",
 			err:  errors.New("no quorum"),
 		},
 	}
