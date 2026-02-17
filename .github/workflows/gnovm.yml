@@ -38,3 +38,9 @@ jobs:
     uses: ./.github/workflows/template_gnolint.yml
     with:
       path: "gnovm/stdlibs"
+
+  tests-test:
+    name: gnovm/tests - Run tests
+    uses: ./.github/workflows/template_gnotest.yml
+    with:
+      path: "gnovm/tests"
