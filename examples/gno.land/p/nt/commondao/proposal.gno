@@ -25,8 +25,7 @@ const (
 )
 
 const (
-	QuorumOneThird     float64 = 0.33 // percentage
-	QuorumHalf                 = 0.5
+	QuorumOneThird     float64 = 0.33 // percentage, checked as >= than quorum
 	QuorumMoreThanHalf         = 0.51
 	QuorumTwoThirds            = 0.66
 	QuorumThreeFourths         = 0.75

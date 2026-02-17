@@ -148,8 +148,8 @@ func TestIsQuorumReached(t *testing.T) {
 			fail: true,
 		},
 		{
-			name:   "half",
-			quorum: commondao.QuorumHalf,
+			name:   "simple majority",
+			quorum: commondao.QuorumMoreThanHalf,
 			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -165,11 +165,15 @@ func TestIsQuorumReached(t *testing.T) {
 					Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
 					Choice:  commondao.ChoiceNo,
 				},
+				{
+					Address: "g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
+					Choice:  commondao.ChoiceNo,
+				},
 			},
 		},
 		{
-			name:   "half no quorum",
-			quorum: commondao.QuorumHalf,
+			name:   "simple majority no quorum",
+			quorum: commondao.QuorumMoreThanHalf,
 			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -295,7 +299,7 @@ func TestIsQuorumReached(t *testing.T) {
 		},
 		{
 			name:   "no quorum with empty vote",
-			quorum: commondao.QuorumHalf,
+			quorum: commondao.QuorumMoreThanHalf,
 			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -310,7 +314,7 @@ func TestIsQuorumReached(t *testing.T) {
 		},
 		{
 			name:   "no quorum with abstention",
-			quorum: commondao.QuorumHalf,
+			quorum: commondao.QuorumMoreThanHalf,
 			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
