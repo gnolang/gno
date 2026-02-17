@@ -59,7 +59,7 @@
 	& > .inner {
 		position: relative;
 		align-items: center;
-		background-color: currentColor;
+		background-color: var(--s-color-bg-surface-secondary);
 		border: var(--s-border-secondary);
 		height: 100%;
 		padding-inline: var(--g-space-1-5);
@@ -107,8 +107,8 @@
 		top: 1px;
 		height: calc(100% - 2px);
 		padding: var(--g-space-1-5);
-		border-start-end-radius: var(--g-border-radius);
-		background-color: currentColor;
+		border-radius: var(--g-border-radius);
+		background-color: var(--g-color-transparent);
 		cursor: pointer;
 		z-index: var(--g-z-max);
 
