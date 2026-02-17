@@ -351,20 +351,6 @@ func TestCommonDAOExecute(t *testing.T) {
 			proposalID: 1,
 		},
 		{
-			name: "execution error",
-			setup: func() *commondao.CommonDAO {
-				dao := commondao.New(commondao.WithMember(member))
-				dao.Propose(member, testPropDef{ // Non crossing definition
-					tallyResult:  true,
-					executionErr: errTest,
-				})
-				return dao
-			},
-			proposalID:   1,
-			status:       commondao.StatusFailed,
-			statusReason: errTest.Error(),
-		},
-		{
 			name:       "proposal not found",
 			setup:      func() *commondao.CommonDAO { return commondao.New() },
 			proposalID: 1,

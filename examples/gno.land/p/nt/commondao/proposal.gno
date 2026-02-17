@@ -52,6 +52,9 @@ type (
 	// VoteChoice defines a type for proposal vote choices.
 	VoteChoice string
 
+	// ExecFunc defines a type for functions that executes proposals.
+	ExecFunc func(realm) error
+
 	// Proposal defines a DAO proposal.
 	Proposal struct {
 		id             uint64
@@ -97,22 +100,9 @@ type (
 
 	// Executable defines an interface for proposal definitions that modify state on approval.
 	// Once proposals are executed they are archived and considered finished.
-	//
-	// Execution doesn't cross when this interface is implemented, so if crossing is required to
-	// modify the state it has to be done explicitly within the `Execute()` implementation.
 	Executable interface {
-		// Execute executes the proposal.
-		Execute() error
-	}
-
-	// CrossExecutable defines an interface for proposal definitions that modify state on approval.
-	// Once proposals are executed they are archived and considered finished.
-	//
-	// Only proposal definitions defined within realms can implement this type of execution method
-	// because crossing methods (and functions) can only be defined within realms.
-	CrossExecutable interface {
-		// Execute executes the proposal.
-		Execute(realm) error
+		// Executor returns a function to execute the proposal.
+		Executor() ExecFunc
 	}
 
 	// CustomizableVoteChoices defines an interface for proposal definitions that want
@@ -137,23 +127,23 @@ func MustValidate(v Validable) {
 }
 
 // MustExecute executes an executable proposal or panics on error.
-// It only supports `Executable` and `CrossExecutable` implementations.
 func MustExecute(exec any) {
 	if exec == nil {
 		panic("executable proposal definition is nil")
 	}
 
-	switch e := exec.(type) {
-	case Executable:
-		if err := e.Execute(); err != nil {
-			panic(err)
-		}
-	case CrossExecutable:
-		if err := e.Execute(cross); err != nil {
-			panic(err)
-		}
-	default:
+	e, ok := exec.(Executable)
+	if !ok {
 		panic("proposal is not executable")
+	}
+
+	fn := e.Executor()
+	if fn == nil {
+		return
+	}
+
+	if err := fn(cross); err != nil {
+		panic(err)
 	}
 }
 

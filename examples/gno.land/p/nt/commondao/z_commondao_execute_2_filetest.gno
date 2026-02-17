@@ -23,13 +23,11 @@ func (testPropDef) Body() string                                { return "" }
 func (testPropDef) VotingPeriod() time.Duration                 { return time.Hour } // Voting ends in 1 hour
 func (testPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
 
-func (testPropDef) Execute() error {
-	// Use a crossing wrap function to cross back into "gno.land/r/test" to update the local state
-	func(realm) {
+func (testPropDef) Executor() commondao.ExecFunc {
+	return func(realm) error {
 		executed = true
-	}(cross)
-
-	return nil
+		return nil
+	}
 }
 
 func init() {

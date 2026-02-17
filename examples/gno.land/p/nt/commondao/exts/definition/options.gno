@@ -73,7 +73,7 @@ func WithValidation(cb func() error) Option {
 
 // WithExecutor configures a proposal definition to support proposal execution.
 // It panics when executor callback is nil.
-func WithExecutor(cb func(realm) error) Option {
+func WithExecutor(cb commondao.ExecFunc) Option {
 	if cb == nil {
 		panic("proposal executor callback is nil")
 	}

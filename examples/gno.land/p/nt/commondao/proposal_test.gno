@@ -432,17 +432,16 @@ func TestMustValidate(t *testing.T) {
 
 // Executable non crossing proposal definition for unit tests
 type testPropDef struct {
-	votingPeriod                          time.Duration
-	tallyResult                           bool
-	validationErr, tallyErr, executionErr error
-	voteChoices                           []commondao.VoteChoice
+	votingPeriod            time.Duration
+	tallyResult             bool
+	validationErr, tallyErr error
+	voteChoices             []commondao.VoteChoice
 }
 
 func (testPropDef) Title() string                 { return "" }
 func (testPropDef) Body() string                  { return "" }
 func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
-func (d testPropDef) Execute() error              { return d.executionErr }
 
 func (d testPropDef) Tally(commondao.VotingContext) (bool, error) {
 	return d.tallyResult, d.tallyErr

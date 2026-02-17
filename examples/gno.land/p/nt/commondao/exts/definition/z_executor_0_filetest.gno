@@ -10,9 +10,10 @@ func executor(realm) error {
 func main() {
 	// Arrange
 	def := definition.MustNew("Title", "Body", definition.WithExecutor(executor))
+	fn := def.Executor()
 
 	// Act
-	err := def.Execute()
+	err := fn(cross)
 
 	// Assert
 	println(err == nil)

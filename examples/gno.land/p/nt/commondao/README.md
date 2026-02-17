@@ -115,34 +115,23 @@ Proposal definitions have optional features that could be implemented to extend
 the proposal type behaviour. One of those is required to enable execution
 support.
 
-A proposal can be executable implementing either the **Executable** interface
-or the **CrossExecutable** one as part of the new proposal definition:
+A proposal can be executable implementing the **Executable** interface as part
+of the new proposal definition:
 
 ```go
 type Executable interface {
-    // Execute executes the proposal.
-    Execute() error
-}
-
-type CrossExecutable interface {
-    // Execute executes the proposal.
-    Execute(realm) error
+    // Executor returns a function to execute the proposal.
+    Executor() func(realm) error
 }
 ```
 
-**CrossExecutable** can only be implemented when the proposal definition is
-defined within a realm instead of a package, Gno only allows defining crossing
-functions and methods within realms. So, executable proposal definitions
-defined within packages must implement **Executable** instead, and when
-crossing is required it must be done explicitly within the `Execute()` method.
+The crossing function returned by the `Executor()` method is where the realm
+changes are made once the proposal is executed.
 
-The `Execute()` method is where the realm changes are made once the proposal is
-executed.
-
-Other features can be enabled by implementing the **Validable** interface and the
-**CustomizableVoteChoices** one, as a way to separate pre-execution validation and
-to support proposal voting choices different than the default ones (YES, NO and
-ABSTAIN).
+Other features can be enabled by implementing the **Validable** interface and
+the **CustomizableVoteChoices** one, as a way to separate pre-execution
+validation and to support proposal voting choices different than the default
+ones (YES, NO and ABSTAIN).
 
 ### 3. Proposal Type
 

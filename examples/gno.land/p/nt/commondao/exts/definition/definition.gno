@@ -73,7 +73,7 @@ type Definition struct {
 	voteChoices  []commondao.VoteChoice
 	tallyCb      TallyFunc
 	validateCb   func() error
-	executeCb    func(realm) error
+	executeCb    commondao.ExecFunc
 }
 
 // Title returns the proposal title.
@@ -109,12 +109,9 @@ func (d Definition) Validate() error {
 	return nil
 }
 
-// Execute executes the proposal.
-func (d Definition) Execute() error {
-	if d.executeCb != nil {
-		return d.executeCb(cross)
-	}
-	return nil
+// Executor returns a function to execute the proposal.
+func (d Definition) Executor() commondao.ExecFunc {
+	return d.executeCb
 }
 
 // TallyByAbsoluteMajority tallies votes by absolute majority.
