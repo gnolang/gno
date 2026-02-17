@@ -41,7 +41,8 @@ type Machine struct {
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
 	Lastline      int           // the line the VM is currently executing
 
-	Debugger Debugger
+	Debugger          Debugger
+	StatementCoverage *StatementCoverage
 
 	// Configuration
 	Output   io.Writer
