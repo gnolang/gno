@@ -149,19 +149,19 @@
 
 /* ===== DARK THEME ===== */
 [data-theme="dark"] {
-	/* Base surfaces */
-	--s-color-bg-base: var(--g-color-gray-900);
+	/* Base surfaces — smooth progression: 0.165 → 0.19 → 0.24 → 0.28 → 0.46 */
+	--s-color-bg-base: var(--g-color-gray-850);
 	--s-color-bg-base-dev: var(--g-color-gray-800);
 
 	/* Component surfaces */
 	--s-color-bg-surface-primary: var(--g-color-gray-800);
-	--s-color-bg-surface-primary-hover: var(--g-color-gray-700);
-	--s-color-bg-surface-secondary: var(--g-color-gray-700);
-	--s-color-bg-surface-secondary-hover: var(--g-color-gray-600);
-	--s-color-bg-surface-tertiary: var(--g-color-gray-600);
-	--s-color-bg-surface-tertiary-hover: var(--g-color-gray-500);
-	--s-color-bg-surface-quaternary: var(--g-color-gray-500);
-	--s-color-bg-surface-quaternary-hover: var(--g-color-gray-400);
+	--s-color-bg-surface-primary-hover: var(--g-color-gray-750);
+	--s-color-bg-surface-secondary: var(--g-color-gray-750);
+	--s-color-bg-surface-secondary-hover: var(--g-color-gray-700);
+	--s-color-bg-surface-tertiary: var(--g-color-gray-700);
+	--s-color-bg-surface-tertiary-hover: var(--g-color-gray-600);
+	--s-color-bg-surface-quaternary: var(--g-color-gray-600);
+	--s-color-bg-surface-quaternary-hover: var(--g-color-gray-500);
 
 	/* Semantic backgrounds */
 	--s-color-bg-brand-weak: var(--g-color-green-950);
@@ -170,20 +170,20 @@
 	--s-color-bg-warning-weak: var(--g-color-yellow-950);
 	--s-color-bg-caution-weak: var(--g-color-red-950);
 	--s-color-bg-tip-weak: var(--g-color-purple-950);
-	--s-color-bg-note-weak: var(--g-color-gray-700);
+	--s-color-bg-note-weak: var(--g-color-gray-750);
 
 	/* Form backgrounds */
-	--s-color-bg-input: var(--g-color-gray-800);
+	--s-color-bg-input: var(--g-color-gray-850);
 	--s-color-bg-input-disabled: var(--g-color-gray-900);
 	--s-color-bg-input-focus: var(--g-color-gray-800);
 
 	/* Interactive backgrounds */
-	--s-color-bg-hover: var(--g-color-gray-700);
-	--s-color-bg-active: var(--g-color-gray-600);
-	--s-color-bg-selected: var(--g-color-gray-600);
+	--s-color-bg-hover: var(--g-color-gray-750);
+	--s-color-bg-active: var(--g-color-gray-700);
+	--s-color-bg-selected: var(--g-color-gray-700);
 
-	/* Text hierarchy */
-	--s-color-text-primary: var(--g-color-gray-50);
+	/* Text hierarchy — softer contrast with gray-100 instead of gray-50 */
+	--s-color-text-primary: var(--g-color-gray-100);
 	--s-color-text-secondary: var(--g-color-gray-200);
 	--s-color-text-secondary-hover: var(--g-color-gray-100);
 	--s-color-text-tertiary: var(--g-color-gray-400);
@@ -211,21 +211,21 @@
 	--s-color-text-tip: var(--g-color-purple-400);
 
 	/* Border hierarchy */
-	--s-color-border-primary: var(--g-color-gray-600);
-	--s-color-border-secondary: var(--g-color-gray-700);
-	--s-color-border-tertiary: var(--g-color-gray-500);
-	--s-color-border-quaternary: var(--g-color-gray-400);
+	--s-color-border-primary: var(--g-color-gray-700);
+	--s-color-border-secondary: var(--g-color-gray-750);
+	--s-color-border-tertiary: var(--g-color-gray-600);
+	--s-color-border-quaternary: var(--g-color-gray-500);
 
 	/* Interactive borders */
-	--s-color-border-hover: var(--g-color-gray-500);
+	--s-color-border-hover: var(--g-color-gray-600);
 	--s-color-border-focus: var(--g-color-green-400);
 	--s-color-border-active: var(--g-color-gray-500);
 
 	/* Form borders */
-	--s-color-border-input: var(--g-color-gray-600);
-	--s-color-border-input-hover: var(--g-color-gray-500);
+	--s-color-border-input: var(--g-color-gray-700);
+	--s-color-border-input-hover: var(--g-color-gray-600);
 	--s-color-border-input-focus: var(--g-color-green-400);
-	--s-color-border-input-disabled: var(--g-color-gray-700);
+	--s-color-border-input-disabled: var(--g-color-gray-750);
 
 	/* Semantic borders */
 	--s-color-border-brand-default: var(--g-color-green-600);
@@ -234,5 +234,5 @@
 	--s-color-border-warning: var(--g-color-yellow-400);
 	--s-color-border-error: var(--g-color-red-400);
 	--s-color-border-tip: var(--g-color-purple-400);
-	--s-color-border-note: var(--g-color-gray-500);
+	--s-color-border-note: var(--g-color-gray-600);
 }
