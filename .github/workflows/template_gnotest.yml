@@ -39,4 +39,20 @@ jobs:
           echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
 
       - name: Run gno test
-        run: go run ./gnovm/cmd/gno test -C ${{ inputs.path }} -v -cover -print-runtime-metrics -print-events ./...
+        run: go run ./gnovm/cmd/gno test -C ${{ inputs.path }} -v -cover -covermode atomic -coverprofile coverage.out -print-runtime-metrics -print-events ./...
+
+      - name: Generate HTML coverage report
+        if: success() && inputs.path == './examples'
+        run: |
+          if [ -f coverage.out ]; then
+            go tool cover -html=coverage.out -o coverage.html
+          fi
+
+      - name: Upload coverage artifacts
+        if: success() && inputs.path == './examples'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.out
+            coverage.html

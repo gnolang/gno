@@ -1,0 +1,42 @@
+# Test -coverprofile flag
+
+gno test -coverprofile coverage.out .
+
+# Verify profile file was created
+exists coverage.out
+
+# Verify profile format: starts with mode line
+grep 'mode: set' coverage.out
+
+# Verify profile contains entries with the expected format
+grep 'gno.test/r/integ/coverprofile/main.gno:\d+\.\d+,\d+\.\d+ \d+ \d+' coverage.out
+
+# -coverprofile implies -cover
+gno test -coverprofile cov2.out -covermode count .
+exists cov2.out
+grep 'mode: count' cov2.out
+
+-- main.gno --
+package main
+
+func add(a int, b int) int {
+	return a + b
+}
+
+func sub(a int, b int) int {
+	return a - b
+}
+
+-- main_test.gno --
+package main
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+	if add(1, 2) != 3 {
+		t.Fatal("bad")
+	}
+}
+
+-- gnomod.toml --
+module = "gno.test/r/integ/coverprofile"

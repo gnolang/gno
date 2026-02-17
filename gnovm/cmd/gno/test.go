@@ -32,6 +32,8 @@ type testCmd struct {
 	printRuntimeMetrics bool
 	printEvents         bool
 	cover               bool
+	coverMode           string
+	coverProfile        string
 	debug               bool
 	debugAddr           string
 }
@@ -173,6 +175,20 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"enable statement coverage output",
 	)
 
+	fs.StringVar(
+		&c.coverMode,
+		"covermode",
+		"set",
+		`coverage mode: "set" (default), "count", or "atomic"`,
+	)
+
+	fs.StringVar(
+		&c.coverProfile,
+		"coverprofile",
+		"",
+		"write a coverage profile to the file after all tests have passed",
+	)
+
 	fs.BoolVar(
 		&c.debug,
 		"debug",
@@ -192,6 +208,17 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	// Default to current directory if no args provided
 	if len(args) == 0 {
 		args = []string{"."}
+	}
+
+	// Parse and validate covermode.
+	coverMode, err := gno.ParseCoverMode(cmd.coverMode)
+	if err != nil {
+		return err
+	}
+
+	// If -coverprofile is set, implicitly enable -cover.
+	if cmd.coverProfile != "" {
+		cmd.cover = true
 	}
 
 	// Guess opts.RootDir.
@@ -235,6 +262,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Metrics = cmd.printRuntimeMetrics
 	opts.Events = cmd.printEvents
 	opts.Cover = cmd.cover
+	opts.CoverMode = coverMode
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
 	cache := make(gno.TypeCheckCache, 64)
@@ -363,6 +391,16 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
 		return fail()
+	}
+
+	// Write cover profile if requested.
+	if cmd.coverProfile != "" {
+		profile := opts.CoverageProfile()
+		if profile != "" {
+			if err := os.WriteFile(cmd.coverProfile, []byte(profile), 0o644); err != nil {
+				return fmt.Errorf("writing coverprofile: %w", err)
+			}
+		}
 	}
 
 	return nil

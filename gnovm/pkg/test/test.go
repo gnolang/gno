@@ -149,10 +149,13 @@ type TestOptions struct {
 	Events bool
 	// Enables package statement coverage reporting.
 	Cover bool
+	// CoverMode controls coverage counting: set, count, or atomic.
+	CoverMode gno.CoverMode
 
 	filetestBuffer bytes.Buffer
 	coverage       *gno.StatementCoverage
 	coveragePct    float64
+	lastPkgPath    string
 	outWriter      proxyWriter
 	tcCache        gno.TypeCheckCache
 }
@@ -245,10 +248,15 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	opts.coverage = nil
 	opts.coveragePct = 0
+	opts.lastPkgPath = mpkg.Path
 	if opts.Cover {
-		opts.coverage = gno.NewStatementCoverage()
+		mode := opts.CoverMode
+		if mode == "" {
+			mode = gno.CoverModeSet
+		}
+		opts.coverage = gno.NewStatementCoverageWithMode(mode)
 		for _, fn := range pset.Files {
-			opts.coverage.TrackNode(fn)
+			opts.coverage.TrackNodeWithFile(fn, fn.FileName)
 		}
 	}
 
@@ -668,4 +676,12 @@ func fmtDuration(d time.Duration) string {
 
 func (opts *TestOptions) CoveragePercent() float64 {
 	return opts.coveragePct
+}
+
+// CoverageProfile returns the Go cover profile string for the last tested package.
+func (opts *TestOptions) CoverageProfile() string {
+	if opts.coverage == nil {
+		return ""
+	}
+	return opts.coverage.Profile(opts.lastPkgPath)
 }

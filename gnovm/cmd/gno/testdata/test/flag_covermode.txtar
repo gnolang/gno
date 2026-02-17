@@ -1,0 +1,41 @@
+# Test -covermode flag
+
+# Default mode (set)
+gno test -cover .
+! stdout .+
+stderr 'coverage: \d+\.\d% of statements'
+
+# Count mode
+gno test -cover -covermode count .
+! stdout .+
+stderr 'coverage: \d+\.\d% of statements'
+
+# Atomic mode (alias for count in single-threaded gno)
+gno test -cover -covermode atomic .
+! stdout .+
+stderr 'coverage: \d+\.\d% of statements'
+
+# Invalid mode should error
+! gno test -cover -covermode invalid .
+stderr 'invalid covermode'
+
+-- main.gno --
+package main
+
+func add(a int, b int) int {
+	return a + b
+}
+
+-- main_test.gno --
+package main
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+	if add(1, 2) != 3 {
+		t.Fatal("bad")
+	}
+}
+
+-- gnomod.toml --
+module = "gno.test/r/integ/covermode"
