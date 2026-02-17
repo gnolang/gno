@@ -148,7 +148,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	urequire.Equal(t, true, strings.Contains(dao.Render(""), "Prop #0 - New T2 Member Proposal"))
 	// urequire.Equal(t, true, strings.Contains(dao.Render(""), "Author: "+m1.String()))
 
-	urequire.AbortsWithMessage(t, "proposal didn't reach supermajority yet: 66", func() {
+	urequire.AbortsWithMessage(t, "proposal didn't reach supermajority yet: 66.66", func() {
 		dao.ExecuteProposal(cross, dao.ProposalID(0))
 	})
 

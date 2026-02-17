@@ -2,6 +2,7 @@
 DEV_REMOTE ?= 127.0.0.1:26657
 CHAIN_ID ?=
 PUBLIC_DIR ?= public
+ALIASES ?=
 
 # tools
 
@@ -104,13 +105,14 @@ $(out_dir_static)/%: $(src_dir_static)/%
 # Run the development dependencies in parallel
 dev.all: $(esbuild) $(PUBLIC_DIR)
 	@echo "-- starting development tools"
-	PUBLIC_DIR=$(cache_dir)/public $(MAKE) -j 3 dev.gnoweb dev.ts dev.maincss
+	PUBLIC_DIR=$(cache_dir)/public ALIASES="$(ALIASES)" $(MAKE) -j 3 dev.gnoweb dev.ts dev.maincss
 
 # Go server in development mode
 dev.gnoweb: generate
 	$(reflex) -s -r '.*\.(go|html)' -- \
 		go run -tags=noembed -ldflags="-X 'github.com/gnolang/gno/gno.land/pkg/gnoweb.AssetDir=${PUBLIC_DIR}'" ../../cmd/gnoweb \
 		-v -no-strict -chainid=${CHAIN_ID} -remote=${DEV_REMOTE} \
+		$(if $(ALIASES),-aliases="$(ALIASES)",) \
 		2>&1 | $(logname) gnoweb
 
 

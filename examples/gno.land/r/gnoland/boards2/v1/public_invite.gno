@@ -138,11 +138,12 @@ func RevokeInvite(_ realm, boardID boards.ID, user address) {
 }
 
 func inviteMembers(boardID boards.ID, invites ...Invite) {
-	assertMembersUpdateIsEnabled(boardID)
-
 	if len(invites) == 0 {
 		panic("one or more user invites are required")
 	}
+
+	assertMembersUpdateIsEnabled(boardID)
+	assertNoDuplicatedInvites(invites)
 
 	perms := mustGetPermissions(boardID)
 	caller := runtime.PreviousRealm().Address()
@@ -177,5 +178,20 @@ func assertInviteRequestExists(boardID boards.ID, user address) {
 	requests, found := getInviteRequests(boardID)
 	if !found || !requests.Has(invitee) {
 		panic("invite request not found")
+	}
+}
+
+func assertNoDuplicatedInvites(invites []Invite) {
+	if len(invites) == 1 {
+		return
+	}
+
+	seen := make(map[address]struct{}, len(invites))
+	for _, v := range invites {
+		if _, found := seen[v.User]; found {
+			panic("duplicated invite: " + v.User.String())
+		}
+
+		seen[v.User] = struct{}{}
 	}
 }

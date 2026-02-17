@@ -4,6 +4,7 @@ package main
 // SEND: 1000000ugnot
 
 import (
+	"chain"
 	"testing"
 
 	"gno.land/p/gnoland/boards"
@@ -28,6 +29,9 @@ func init() {
 	// Register a username which is required to be able to add a reply
 	testing.SetRealm(testing.NewUserRealm(user))
 	users.Register(cross, "user123")
+
+	// Make sure user account has the required amount of GNOT for open board actions
+	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})
 }
 
 func main() {
@@ -45,10 +49,10 @@ func main() {
 
 // Output:
 // true
-// # Boards › test123
+// # [Boards](/r/gnoland/boards2/v1) › [test123](/r/gnoland/boards2/v1:test123)
 // ## Test Thread
 //
+// **[@user123](/u/user123)** · 2009-02-13 11:31pm UTC
 // Test body
 //
-// Created by [@user123](/u/user123) on 2009-02-13 11:31pm UTC
-// [Flag](/r/gnoland/boards2/v1:test123/1/flag) • [Repost](/r/gnoland/boards2/v1:test123/1/repost) • [Comment](/r/gnoland/boards2/v1:test123/1/reply) • [Edit](/r/gnoland/boards2/v1:test123/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)
+// ↳ [Flag](/r/gnoland/boards2/v1:test123/1/flag) • [Repost](/r/gnoland/boards2/v1:test123/1/repost) • [Comment](/r/gnoland/boards2/v1:test123/1/reply) • [Edit](/r/gnoland/boards2/v1:test123/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)
