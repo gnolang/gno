@@ -145,37 +145,61 @@ connect with the blockchain.
 
 ## The Gno language
 
-The GnoVM and the gno.land chain support three different kinds of packages, which are distinguished on the base of their **package path**, often known in Go as just the import path.
-
-- Pure packages are prefixed with `gno.land/p/`. They can be deployed to the chain, and after [package initialization](#package-initialization) they contain only global variables that are completely immutable. Furthermore, they may not contain [crossing functions](#functions-frames-and-blocks). They can only import other pure packages. All [standard library packages](#standard-library) are pure packages.
-- Realms are prefixed with `gno.land/r/`. Their global variables are [persisted](#persistence-of-global-variables) and modifiable after package initialization, and may [interact with other realms](#cross-realm-interactions) and declare crossing functions. They may import realms and pure packages.
-- Ephemeral packages are prefixed with `gno.land/e/`. They are "temporary execution environments"; their values are entirely discarded after execution and their values may as such not be persisted in a realm. They can import realms and pure packages. They cannot be imported.
-
-The package path is controlled in local development through the [gnomod.toml](#gnomodtoml) file.
+Gno builds on Go with targeted changes for determinism and multi-user
+interaction. In this section, we deal with the fundamental changes to the
+language, which are important to keep in mind when working with Gno. They're
+also useful grounding concepts to know to better grasp the following sections,
+which delve deeper into how the virtual machine is implemented.
 
 ### Language changes
 
-Here's a list of Go features which are currently not supported in Gno:
+The following are the key differences between Gno and Go:
 
-- Complex numbers (types `complex64` and `complex128`) are not supported, as
-  well as their manipulation functions `real` and `imag`.
-- The `uintptr` type also does not exist.
-- Channel types are not supported, as such the send and receive syntax are not
-  supported (`ch <- x`, `<- ch`) and the `select` statement.
-- Built-in variables may not be shadowed; no user-defined identifier may be
+- Complex numbers (`complex64`, `complex128`) and the related built-ins `real`
+  and `imag` are not supported.
+- The `uintptr` type does not exist.
+- Channel types are not supported. Consequently, the send and receive operators
+  (`ch <- x`, `<-ch`) and the `select` statement are also absent.
+- Built-in identifiers may not be shadowed; no user-defined identifier may be
   given names such as `int`, `error`, `append`, but also `realm` and `cross`
   defined in the [additional built-ins](#additional-built-ins).
 - Dot imports (`import . "my/package"`) are not supported.
-- The `unsafe` package is not present, and as such its features are not
-  supported and Gno programs may generally not manipulate memory directly.
+- The `unsafe` package is not present; Gno programs cannot manipulate memory
+  directly.
 - Generics are not supported.
 
-There are a set of new identifiers added into the built-ins of the language.
-Those are described in the following section.
+Gno adds a set of new built-in identifiers, described in
+[Additional built-ins](#additional-built-ins).
+
+### Package types
+
+The GnoVM supports three different kinds of packages, which are distinguished by
+their **package path**, often known in Go as just the import path. The second
+element of their path, composed of just one character, is simply referred to as
+the _letter_. For instance, in "gno.land/r/john/doe", the letter is "r".
+
+- **Pure packages** use the letter `p`. After [package
+  initialization](#package-initialization), their global variables become
+  immutable. They may not contain [crossing
+  functions](#cross-realm-interactions). They can only import other pure
+  packages. All [standard library packages](#standard-library) are pure
+  packages.
+- **Realms** use the letter `r`. Their global variables are
+  [persisted](#persistence-of-global-variables) and remain modifiable after
+  package initialization. They may [interact with other
+  realms](#cross-realm-interactions) and declare crossing functions. They can
+  import realms and pure packages.
+- **Ephemeral packages** use the letter `e`. All values are discarded after
+  execution and cannot be persisted in a realm. They can import realms and pure
+  packages, but cannot themselves be imported.
+
+The package path is controlled in local development through the
+[gnomod.toml](#gnomodtoml) file.
 
 ### Additional built-ins
 
-These are the additional identifiers that are added to the [built-ins](https://pkg.go.dev/builtin) of the programming language.
+These are the identifiers Gno adds to Go's
+[built-ins](https://pkg.go.dev/builtin).
 
 #### type address
 
@@ -199,7 +223,7 @@ Simply converts `a` to a string.
 func (a address) IsValid() bool
 ```
 
-IsValid ensures that the address is a valid bech32 address.
+IsValid returns whether `a` is a valid bech32 address with a 20-byte payload.
 
 #### type gnocoin
 
@@ -234,9 +258,13 @@ type realm interface {
 }
 ```
 
-`realm` is used as the first argument for functions which support being called [cross-realm](#cross-realm-interactions). <!-- TODO: where can it be used in pure packages? -->
+`realm` is used as the first argument for functions which support being called
+[cross-realm](#cross-realm-interactions). The type can also be used in pure
+packages as a variable, struct field, or non-first parameter; the only
+restriction is that pure packages may not declare crossing functions.
 
-It currently only has one implementation, which panics on a function call of any of its methods with `"not yet implemented"`.
+The implementation provided by the GnoVM when `cross` is passed to a crossing
+function currently panics on all methods with `"not yet implemented"`.
 
 #### var cross
 
@@ -244,7 +272,9 @@ It currently only has one implementation, which panics on a function call of any
 var cross realm
 ```
 
-cross is a special identifier used to [cross a realm boundary](#cross-realm-interactions). The function receiving a `cross` realm will receive a newly created `realm` value.
+cross is a special identifier used to [cross a realm
+boundary](#cross-realm-interactions). The function receiving a `cross` realm
+will receive a newly created `realm` value.
 
 #### func attach
 
@@ -260,7 +290,9 @@ attach panics with `"attach() is not yet supported"`.
 func crossing()
 ```
 
-Reserved, deprecated identifier used in a previous version of [Cross-realm interactions](#cross-realm-interactions). Now simply panics.
+Reserved, deprecated identifier used in a previous version of [Cross-realm
+interactions](#cross-realm-interactions). Panics with `"crossing() is reserved
+but deprecated"`.
 
 #### func istypednil
 
@@ -268,7 +300,9 @@ Reserved, deprecated identifier used in a previous version of [Cross-realm inter
 func istypednil(x any) bool
 ```
 
-istypednil returns `true` if `x` is a nil pointer, slice, func, map or interface.[^2]
+istypednil returns `true` if `x` is a typed nil -- that is, an interface value
+holding a nil pointer, slice, func, or map. It returns `false` for an untyped
+nil (`interface{}(nil)`).[^2]
 
 #### func revive
 
@@ -276,59 +310,168 @@ istypednil returns `true` if `x` is a nil pointer, slice, func, map or interface
 func revive(fn func()) any
 ```
 
-revive executes `fn` and recovers any panic occurring within it that crosses a [realm boundary](#cross-realm-interactions). This function is only available in the [test context](#test-context).
+revive executes `fn` and recovers any panic occurring within it that crosses a
+[realm boundary](#cross-realm-interactions). This function is only available in
+the [test context](#test-context). Note that currently, `revive` does not roll
+back state mutations performed by `fn` before the panic; any side effects on
+global variables will persist.
 
 ### Cross-realm interactions
 
-While cross-realm interactions are a feature designed primarily for the multi-user ecosystem of the gno.land blockchain, their semantics and rules are implemented directly into the VM and also its local testing features (such as `gno test`), and as such it is important to be aware of them.
+Cross-realm interactions allow realms to call into each other while enforcing
+ownership and write-access rules. Their semantics are implemented directly in
+the VM and are also available in local testing (via `gno test`).
 
-There is a [lengthier specification](https://github.com/gnolang/gno/blob/master/docs/resources/gno-interrealm.md) which goes into more details; in this document, we'll explain the highest level rules and feature of cross-realm interactions for the developer of Gno smart contracts.
+A [lengthier specification](./gno-interrealm.md) goes into more detail; here we
+explain the high-level rules and features for the developer of Gno smart
+contracts.
 
-- The Virtual Machine is said to contain an **active realm**.
-	- A **realm** is considered to be any package which has a package path beginning with `gno.land/r/`. This is always known for a package deployed on a blockchain; during local development, it is generally controlled using the [gnomod.toml](#gnomodtoml) file.
-- The active realm may always **cross** into another realm, or even into itself, through the use of a cross-realm function call. Crossing **changes the active realm**, and by doing so **crosses a realm boundary**, which is a pivotal element of cross-realm interaction.
-- An **object** is a value which is individually and indivisibly stored in the [store](#storing-the-vms-data).
-	- An object can be **owned** by a realm, in which case it is called a **real object**, or be not (yet) owned, in which case it is called an **unreal object**.
-	- An object is the value of an array, struct, map or function (considering also the captured closure values), as well as the [`PackageValue`](#package-initialization) containing all of the global variables of the package.
-	- Unreal objects are generally considered writable by any realm, while real objects only if the active realm is the same as the object's owner.
-	- An object can be the **base** of a pointer (ie. to a specific index of the array or a field of a struct) or a slice (arrays most often represent the backing array of a slice rather than a proper array value). A value may be directly a base of itself.
-	- When considering a function value for a **closure**, the values referenced within the closure will be considered as part of the function's value.
-		- For instance, a closure value like `clos := func() string { return externalVariable }` will consider the `externalVariable` to be reachable by the FuncValue.
-		- To help imagine this, it may be useful to think of closures as methods on a struct type, which contains references to all the external names used within the closure.
-- When **returning from a realm boundary**, all **unreal objects** that are reachable through a descendant of the realm's main `PackageValue` become owned by the realm being crossed.
-	- This happens when returning from a function which was called through a cross-realm function call.
+- The Virtual Machine contains an **active realm**.
+	- A **realm** is any package whose [letter](#package-types) in the package
+	  path is `r`. This is always known for a package deployed on a blockchain;
+	  during local development, it is generally controlled using the
+	  [gnomod.toml](#gnomodtoml) file.
+- The active realm may **cross** into another realm, or even into itself,
+  through the use of a cross-realm function call. Crossing **changes the active
+  realm**, and by doing so **crosses a realm boundary**, which is a pivotal
+  element of cross-realm interaction.
+- An **object** is a value which is individually and indivisibly stored in the
+  [store](#storing-the-vms-data).
+	- An object can be **owned** by a realm, in which case it is called a **real
+	  object**, or not yet owned, in which case it is called an **unreal object**.
+	- Arrays, structs, maps, and functions (including captured closure values) are
+	  objects. The [`PackageValue`](#package-initialization) containing all of the
+	  global variables of the package is also an object.
+	- Unreal objects are generally considered writable by any realm, while real
+	  objects are writable only if the active realm is the same as the object's
+	  owner.
+	- An object can be the **base** of a pointer or a slice. A value may be
+	  directly a base of itself.
+		- A pointer's base is the object containing the pointed-to element (e.g. a
+		  specific index of an array or a field of a struct).
+		- A slice's base is the backing array. Arrays most often represent the
+		  backing array of a slice rather than a proper array value.
+	- When considering a function value for a **closure**, the values referenced
+	  within the closure will be considered as part of the function's value.
+		- For instance, a closure value like `clos := func() string { return
+		  externalVariable }` will consider the `externalVariable` to be reachable
+		  by the FuncValue.
+		- To help imagine this, it may be useful to think of closures as methods on
+		  a struct type that contains references to all the external names used
+		  within the closure.
+- When **returning from a realm boundary**, all **unreal objects** that are
+  reachable through a descendant of the realm's main `PackageValue` become owned
+  by the realm that was crossed into.
+	- This happens when returning from a function which was called through a
+	  cross-realm function call.
 	- This process is called **realm finalization**.
-- A **cross-realm function call** is either of:
-	- **Explicit crossing:** a call to a **crossing function**, which is a function whose first parameter is of the [`realm`](#type-realm) type and where the special identifier [`cross`](#var-cross) is passed for that parameter.
-		- For instance, the function call `users.Register(cross, "example")` to `gno.land/r/users`'s function `func Register(cur realm, name string)`.
+- A **cross-realm function call** can be:
+	- **Explicit crossing:** a call to a **crossing function**, which is a
+	  function whose first parameter is of the [`realm`](#type-realm) type and
+	  where the special identifier [`cross`](#var-cross) is passed for that
+	  parameter.
+		- For instance, the function call `users.Register(cross, "example")` to
+		  `gno.land/r/users`'s function `func Register(cur realm, name string)`.
 		- The active realm is switched to the realm where the function is declared.
 		- Explicit crossing takes precedence over implicit crossing.
-		- A crossing function calling another crossing function in the same realm may explicitly cross (with the `cross` identifier) OR remain in the same realm by using the `realm` value received as the first parameter.
-	- **Implicit crossing:** a call to a method whose receiver's base is real and different from the current active realm.
+		- A crossing function calling another crossing function in the same realm
+		  may explicitly cross (with the `cross` identifier) OR remain in the same
+		  realm by using the `realm` value received as the first parameter.
+	- **Implicit crossing:** a call to a method whose receiver's base is real and
+	  different from the current active realm.
 		- The receiver's type may be defined in a pure package or a realm.
 		- The active realm is switched to the realm which owns the receiver's base.
-- By using functions provided in the [standard library](#standard-library), any function can get information about the **explicit current realm**, as well as the **explicit previous realm**.
-	- This means that the two values, returned by `chain/runtime.CurrentRealm()` and `chain/runtime.PreviousRealm()`, are **only changed when performing an explicit crossing**; consequently, the explicit current realm may be different from the active realm and the explicit previous realm may be different from the realm being returned to when returning from a realm boundary.
-- Any reference to a [qualified identifier](https://go.dev/ref/spec#Qualified_identifiers) (`package.Variable`) referring to a package which is of a different realm than the active realm will be marked using the **readonly taint**.
+- The [standard library](#standard-library) exposes the **explicit current
+  realm** and the **explicit previous realm**.
+	- The two values, returned by `chain/runtime.CurrentRealm()` and
+	  `chain/runtime.PreviousRealm()`, are **only changed when performing an
+	  explicit crossing**. Consequently, the explicit current realm may be
+	  different from the active realm, and the explicit previous realm may be
+	  different from the realm being returned to when returning from a realm
+	  boundary.
+- Any reference to a [qualified
+  identifier](https://go.dev/ref/spec#Qualified_identifiers)
+  (`package.Variable`) referring to a package which is of a different realm than
+  the active realm will be marked using the **readonly taint**.
 	- The readonly taint makes it impossible to overwrite the given value.
-	- The readonly taint is set on the resulting value, but also on any other values derived from it (for instance, by accessing a field of a struct).
-	- The readonly taint persists even if passing a reference to another realm to that same realm. For instance, calling `externalrealm.Call(cross, &externalrealm.Value)` still marks the second parameter as read-only, as it was obtained by the current active realm which cannot write to `externalrealm.Value`.
-	- Methods can be used to allow modifications on their receivers, by using the implicit crossing mentioned above.
-	- A realm can return a reference to something contained within it, which will **not** be tainted.
-	- References include using a qualified identifier on the left-hand side of the assignment; for instance, writing `externalrealm.Value = 123` is illegal.
+	- The readonly taint is set on the resulting value, but also on any other
+	  values derived from it (for instance, by accessing a field of a struct).
+	- The readonly taint persists even when passing a tainted reference back to
+	  the realm that owns it. For instance, calling `externalrealm.Call(cross,
+	  &externalrealm.Value)` still marks the second parameter as read-only, as it
+	  was obtained by the current active realm which cannot write to
+	  `externalrealm.Value`.
+	- Methods can be used to allow modifications on their receivers, by using the
+	  implicit crossing mentioned above.
+	- A realm can return a reference to something contained within it, which will
+	  **not** be tainted.
+	- Assignment targets are also tainted; for instance, writing
+	  `externalrealm.Value = 123` is illegal.
 
 #### Principles for cross-realm development
 
-While it is important to know the rules outlined above, day-to-day development is likely to be more effective when thinking of principles: corollaries, consequences of the above rules to keep in mind to develop safe multi-user realms.
+While it is important to know the rules outlined above, day-to-day development
+is likely to be more effective when thinking of principles: corollaries of the
+above rules for developing safe multi-user realms.
 
-- All functions which should be available as transactions by end-users should be crossing functions.
-- A method can always modify its receiver, unless its signature is a crossing function.
-- An unknown function (like a closure) must have a crossing signature, otherwise you are yielding control of your realm to it.
+- All functions which should be available as transactions by end-users should be
+  crossing functions.
+- A method can always modify its receiver, unless its signature is a crossing
+  function.
+- An unknown function (like a closure) must have a crossing signature, otherwise
+  you are yielding control of your realm to it.
 - Copying code from a pure package to a realm is generally safe.
-- A realm may be a user of itself, by using the `cross` identifier, otherwise it should pass around the `cur` identifier received.
-- Enforcing a value to be attached is possible by wrapping the assignment in a crossing call, like `func(cur realm) { global = value }(cross)`.
+- A realm may be a user of itself, by using the `cross` identifier, otherwise it
+  should pass around the `cur` identifier received.
+- Forcing a value to become owned by the realm is possible by wrapping the
+  assignment in a crossing call, like `func(cur realm) { global = value
+  }(cross)`. This triggers [realm finalization](#cross-realm-interactions) and
+  makes the value a real object.
 
 ### gnomod.toml
+
+Every Gno package has a `gnomod.toml` file that defines its module path and
+metadata. It is typically generated with `gno mod init <pkgpath>`.
+
+The following fields are available:
+
+- **`module`** (string, required): the package path, e.g.
+  `"gno.land/r/demo/counter"`. Determines whether the package is a [pure
+  package, realm, or ephemeral package](#package-types).
+- **`gno`** (string): the Gno language version. Currently `"0.9"`.
+- **`draft`** (bool): marks the package as a draft. Draft packages can only be
+  added at genesis and cannot be imported by newly deployed packages.
+- **`private`** (bool): marks the package as private. Private packages cannot be
+  imported by other realms, and objects they own cannot be retained in external
+  realms.
+- **`ignore`** (bool): the package is ignored by the Gno toolchain but remains
+  usable in development environments.
+- **`replace`** (array of `{old, new}`): intended to redirect an import
+  path to another module or a local directory for local development.
+  Not yet functional in the toolchain. **A package with `replace`
+  directives cannot be deployed on-chain.**
+- **`[addpkg]`** (table): populated automatically by the chain when the package
+  is deployed. Contains `creator` (deployer address) and `height` (block height
+  at deployment). This field should not be set manually.
+
+A minimal example:
+
+```toml
+module = "gno.land/p/demo/avl"
+gno = "0.9"
+```
+
+A realm with the draft flag:
+
+```toml
+module = "gno.land/r/demo/draftrealm"
+gno = "0.9"
+draft = true
+```
+
+For the full specification of each field and advanced usage (including `replace`
+syntax and deployment workflows), see [Configuring Gno
+Projects](configuring-gno-projects.md).
 
 ### Standard library
 
@@ -431,11 +574,323 @@ Floating point arithmetic is always software-emulated on Gno, as it is considere
 
 ### Persistence of global variables
 
+The GnoVM distinguishes between pure packages and realms when it
+comes to global variable persistence:
+
+- **Pure packages** (`gno.land/p/`): after
+  [package initialization](#package-initialization), all global
+  variables are frozen. Any attempt to modify them results in a
+  panic.
+- **Realms** (`gno.land/r/`): global variables are automatically
+  persisted to the store at the end of every realm transaction and
+  restored on subsequent calls. This is what makes realms
+  "stateful".
+
+#### Realm finalization
+
+When a function returns across a
+[realm boundary](#cross-realm-interactions), the VM performs
+**realm finalization**
+(`Realm.FinalizeRealmTransaction`). This is the process that
+decides which objects to create, update, or delete in the
+[store](#storing-the-vms-data).
+
+During normal execution, the `Realm.DidUpdate` hook fires whenever
+a real object's child reference changes. `DidUpdate` receives
+three arguments: the parent object `po`, the old child `xo`, and
+the new child `co`. It performs the following bookkeeping:
+
+- The parent is marked **dirty**.
+- If the new child `co` is unreal (not yet persisted), it is
+  assigned an owner and marked **new-real** (appended to the
+  realm's `newCreated` list).
+- If the new child `co` already exists and gains a second
+  reference (`RefCount > 1`), it is marked **new-escaped**.
+- If the old child `xo` loses its last reference
+  (`RefCount == 0`), it is marked **new-deleted**.
+
+At finalization time, these marks are processed in order:
+
+1. **Process new-created marks:** crawl all newly created objects
+   and their descendants, assign each an `ObjectID`, and increment
+   reference counts recursively.
+2. **Process new-deleted marks:** crawl deleted objects and their
+   descendants, decrementing reference counts recursively.
+3. **Process new-escaped marks:** for objects whose reference
+   count settled back to 1 after the above steps, demote them
+   from escaped status.
+4. **Mark dirty ancestors:** walk the ownership chain from every
+   created or updated object up to the root `PackageValue`,
+   marking each ancestor dirty.
+5. **Save unsaved objects:** persist all created and updated
+   (dirty) objects to the store.
+6. **Save new-escaped objects:** write escaped-object hashes to
+   the IAVL store for merkle proofs.
+7. **Remove deleted objects:** delete objects from the store.
+8. **Clear marks:** reset all transient marks for the next
+   transaction.
+
+#### What is persisted
+
+The following value types are individually stored as objects:
+`PackageValue`, `Block`, `ArrayValue`, `StructValue`, `MapValue`,
+`FuncValue` (including captured closure values),
+`BoundMethodValue`, and `HeapItemValue`. Each object carries an
+`ObjectInfo` that tracks its `ObjectID`, owner, reference count,
+and dirty/escaped/deleted flags.
+
+For details on how these objects are serialized and keyed in the
+backing store, see [Storing the VM's data](#storing-the-vms-data).
+
 ### Storing the VM's data
+
+The `Store` interface is the bridge between the GnoVM and the
+underlying key-value storage (typically backed by the blockchain's
+state tree).
+
+#### What is stored
+
+The store manages four categories of data:
+
+- **Objects:** the persistent values described in
+  [Persistence of global variables](#persistence-of-global-variables)
+  (`PackageValue`, `Block`, `ArrayValue`, `StructValue`,
+  `MapValue`, `FuncValue`, `BoundMethodValue`, `HeapItemValue`).
+- **Types:** runtime type descriptors, keyed by `TypeID` (a
+  deterministic string representation of the type).
+- **Block nodes:** the AST node associated with each `Block`,
+  keyed by source `Location`.
+- **MemPackages:** the original source code of deployed packages,
+  including all `.gno` files.
+
+#### Object identity
+
+Every persisted object is identified by an `ObjectID`:
+
+```go
+type ObjectID struct {
+    PkgID   PkgID  // SHA256 hash of the package path
+    NewTime uint64  // monotonic counter per realm
+}
+```
+
+`PkgID` is derived from the package path by computing
+`SHA256(path)`. `NewTime` is a counter maintained by the realm
+and incremented each time a new object is created. The
+`PackageValue` itself always has `NewTime = 1`.
+
+#### Serialization
+
+Objects are serialized using the **Amino** binary codec (the same
+codec used throughout Tendermint2). Before encoding, all child
+object references within a value are replaced by `RefValue`
+placeholders:
+
+```go
+type RefValue struct {
+    ObjectID ObjectID  // identity of the referenced object
+    PkgPath  string    // set for package references
+    Hash     ValueHash // SHA256 of the referenced object
+}
+```
+
+After marshaling, a SHA256 hash of the serialized bytes is
+prepended, so the stored byte sequence is `hash || amino_bytes`.
+This hash is used for integrity checks and merkle proofs.
+
+#### Backing stores and key layout
+
+The `defaultStore` uses two backing stores:
+
+- **baseStore:** holds all objects, types, block nodes, and
+  packages. Keys use the following prefixes:
+  - `oid:<pkgid_hex>:<newtime>` for objects
+  - `tid:<typeid_string>` for types
+  - `node:<location_string>` for block nodes
+  - `pkgidx:` for package index entries
+- **iavlStore:** holds hashes of escaped objects (those with
+  `RefCount > 1`), enabling merkle proof generation for
+  cross-referenced values.
+
+#### Caching
+
+The store maintains several caches to minimize disk reads:
+
+- **Object cache** (`cacheObjects`): a `map[ObjectID]Object`
+  that is cleared at the start of every transaction.
+- **Type cache** (`cacheTypes`): persists across the transaction
+  boundary via a transaction log, so types loaded once remain
+  available.
+- **Node cache** (`cacheNodes`): similar to the type cache, also
+  transaction-logged.
+
+When an object is requested, the store checks the cache first. On
+a miss, it reads from `baseStore`, deserializes the Amino bytes,
+allocates the object in the [allocator](#the-allocation-tracker-and-the-garbage-collector),
+fills in type information, and caches the result.
+
+#### Gas costs for store operations
+
+Every read, write, and delete operation on the store consumes gas
+proportional to the size of the serialized data. The per-byte
+cost factors are defined in the `GasConfig` struct in `store.go`.
+Object deletion has a flat cost rather than a per-byte cost. See
+[Gas metering](#gas-metering) for more details.
 
 ### The allocation tracker and the garbage collector
 
+The `Allocator` tracks how much memory the VM has allocated during
+a transaction. It enforces a configurable limit (`maxBytes`) and
+integrates with the [gas meter](#gas-metering) to charge for
+memory usage.
+
+#### Allocator structure
+
+```go
+type Allocator struct {
+    maxBytes  int64
+    bytes     int64                        // current usage
+    peakBytes int64                        // high-water mark
+    collect   func() (left int64, ok bool) // GC callback
+    gasMeter  store.GasMeter
+}
+```
+
+- `bytes` increases with every allocation and decreases after GC.
+- `peakBytes` only ever increases. Gas is charged only for the
+  delta when `bytes` exceeds `peakBytes`, at a rate of
+  `GasCostPerByte` (1 gas per byte).
+- When `bytes + size` would exceed `maxBytes`, the allocator
+  invokes its `collect` callback (the garbage collector). If the
+  limit is still exceeded after GC, the allocator panics.
+
+#### Allocation sizes
+
+Each value type has a defined shallow allocation cost (in bytes).
+These constants are defined in `alloc.go`. A selection:
+
+| Value type     | Constant         | Bytes |
+| -------------- | ---------------- | ----- |
+| String (base)  | `allocString`    | 24    |
+| String (char)  | `allocStringByte`| 1     |
+| Pointer        | `allocPointer`   | 24    |
+| Array (base)   | `allocArray`     | 208   |
+| Array (item)   | `allocArrayItem` | 40    |
+| Slice          | `allocSlice`     | 72    |
+| Struct (base)  | `allocStruct`    | 184   |
+| Struct (field) | `allocStructField`| 40   |
+| Func           | `allocFunc`      | 344   |
+| Map (base)     | `allocMap`       | 176   |
+| Map (item)     | `allocMapItem`   | 120   |
+| Block (base)   | `allocBlock`     | 504   |
+| Block (item)   | `allocBlockItem` | 40    |
+| Package        | `allocPackage`   | 272   |
+| HeapItem       | `allocHeapItem`  | 72    |
+
+Composite values are charged the base cost plus per-element
+costs. For example, allocating a struct with 5 fields costs
+`allocStruct + 5 * allocStructField` = 384 bytes.
+
+#### Garbage collection
+
+When the allocator hits its limit, it invokes
+`Machine.GarbageCollect()`. The GC does not free host memory;
+instead it **recalculates** the allocator's `bytes` by walking all
+reachable values from the machine's roots.
+
+The algorithm proceeds as follows:
+
+1. Reset the allocator's `bytes` to zero.
+2. Increment the machine's `GCCycle` counter.
+3. Construct a visitor function (`GCVisitorFn`) that, for each
+   value:
+   - Checks `lastGCCycle` on Objects to skip already-visited
+     nodes (cycle detection).
+   - Increments a `visitCount`.
+   - Calls `Allocate(shallowSize)` to re-account for the value.
+   - Sets `lastGCCycle` to the current cycle.
+   - Recurses into associated values via `VisitAssociated`.
+4. Visit all roots: `Machine.Blocks`, `Machine.Frames`,
+   `Machine.Package`, the staging package, and
+   `Machine.Exception`.
+5. Purge stale entries from the object cache: any cached object
+   whose `lastGCCycle` is older than the current cycle is
+   removed.
+6. Charge gas for the GC work:
+   `visitCount * VisitCpuFactor * GasFactorCPU` (where
+   `VisitCpuFactor = 8`).
+
+The allocator is forked and reset at the start of each
+transaction (`Fork().Reset()`), so memory accounting does not
+carry over between transactions.
+
 ### Gas metering
+
+Gas metering limits the computational resources a transaction can
+consume. Gas is tracked by a `GasMeter` (defined in
+`tm2/pkg/store/types/gas.go`), which exposes:
+
+- `ConsumeGas(amount, descriptor)`: adds `amount` to the running
+  total; panics with `OutOfGasError` if the limit is exceeded.
+- `GasConsumed() Gas`: returns total gas consumed so far.
+- `Remaining() Gas`: returns `limit - consumed`.
+- `IsOutOfGas() bool`: true when consumed >= limit.
+
+#### Categories of gas consumption
+
+Gas is consumed from three main sources:
+
+1. **CPU cycles.** Every opcode executed by the VM has a defined
+   cycle cost. The `incrCPU(cycles)` function multiplies the
+   cycle count by `GasFactorCPU` and calls `ConsumeGas`. Costs
+   range widely: simple arithmetic like subtraction costs a few
+   cycles, while function calls, composite literals, and equality
+   comparisons cost significantly more. All per-opcode costs are
+   defined as `OpCPU*` constants in `machine.go`.
+
+2. **Storage I/O.** Reading and writing objects, types, packages,
+   and realms to the [store](#storing-the-vms-data) incurs
+   per-byte gas costs defined in the `GasConfig` struct in
+   `store.go`. Object deletion incurs a flat cost rather than a
+   per-byte cost. The cost factors for reads and writes differ by
+   data category (objects, types, packages/realms, mem-packages).
+
+3. **Memory allocation.** The
+   [allocator](#the-allocation-tracker-and-the-garbage-collector)
+   charges `GasCostPerByte` (1 gas per byte) for every byte that
+   exceeds the previous peak allocation. Garbage collection
+   visits also cost gas: `visitCount * VisitCpuFactor *
+   GasFactorCPU`.
+
+#### When gas runs out
+
+When `ConsumeGas` detects that consumed gas exceeds the limit,
+it panics with an `OutOfGasError`. This panic propagates up and
+aborts the transaction. The descriptor string in the error
+indicates which operation exhausted the gas (e.g., "CPUCycles",
+"memory allocation", "GetObjectPerByte").
+
+#### Optional metering
+
+A nil `GasMeter` disables all gas tracking. Every gas consumption
+site in the VM checks for nil before calling `ConsumeGas`. This
+is used during testing and local development where resource limits
+are not needed. An `InfiniteGasMeter` is also available: it tracks
+consumption but never enforces a limit.
+
+#### Where to find current costs
+
+The exact cost values are defined in source and may change between
+releases. The authoritative locations are:
+
+- **CPU opcode costs:** `gnovm/pkg/gnolang/machine.go`
+  (`OpCPU*` constants, `GasFactorCPU`)
+- **Store I/O costs:** `gnovm/pkg/gnolang/store.go`
+  (`GasConfig`, `DefaultGasConfig()`)
+- **Memory costs:** `gnovm/pkg/gnolang/alloc.go`
+  (`GasCostPerByte`)
+- **GC visit costs:** `gnovm/pkg/gnolang/garbage_collector.go`
+  (`VisitCpuFactor`)
 
 ### The execution context
 
@@ -546,7 +1001,7 @@ package banker // import "chain/banker"
 func bankerGetCoins(addr string) (denoms []string, amounts []int64)
 ```
 
-bankerGetCoins queries the banker module for the coins owned by the given addr. It returns the amounts and the denominations in two matching slices of the same size (ie., any amounts\[i] is specified in the corresponding denoms\[i]).
+bankerGetCoins queries the banker module for the coins owned by the given addr. It returns the amounts and the denominations in two matching slices of the same size (i.e., any amounts\[i] is specified in the corresponding denoms\[i]).
 
 ### func chain/banker.bankerIssueCoin
 
@@ -602,7 +1057,7 @@ package banker // import "chain/banker"
 func originSend() (denoms []string, amounts []int64)
 ```
 
-originSend returns the coins specified in the execution context variable OriginSend, which specifies the coins sent within the same transaction from the caller to the called realm. It returns the amounts and the denominations in two matching slices of the same size (ie., any amounts\[i] is specified in the corresponding denoms\[i]).
+originSend returns the coins specified in the execution context variable OriginSend, which specifies the coins sent within the same transaction from the caller to the called realm. It returns the amounts and the denominations in two matching slices of the same size (i.e., any amounts\[i] is specified in the corresponding denoms\[i]).
 
 ### func chain.emit
 
