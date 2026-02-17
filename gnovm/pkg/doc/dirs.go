@@ -126,6 +126,10 @@ func packageImportsRecursive(root string, pkgPath string) []string {
 		}
 
 		dirName := entry.Name()
+		if dirName == "filetests" {
+			// don't treat as a package dir
+			continue
+		}
 		sub := packageImportsRecursive(filepath.Join(root, dirName), path.Join(pkgPath, dirName))
 
 		for _, imp := range sub {
