@@ -1,0 +1,27 @@
+# Test -cover output
+
+gno test -cover .
+
+! stdout .+
+stderr 'ok      \. 	\d+\.\d\ds	coverage: \d+\.\d% of statements'
+
+-- main.gno --
+package main
+
+func add(a int, b int) int {
+	return a + b
+}
+
+-- main_test.gno --
+package main
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+	if add(1, 2) != 3 {
+		t.Fatal("bad")
+	}
+}
+
+-- gnomod.toml --
+module = "gno.test/r/integ/cover"

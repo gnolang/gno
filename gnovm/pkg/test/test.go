@@ -147,8 +147,12 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Enables package statement coverage reporting.
+	Cover bool
 
 	filetestBuffer bytes.Buffer
+	coverage       *gno.StatementCoverage
+	coveragePct    float64
 	outWriter      proxyWriter
 	tcCache        gno.TypeCheckCache
 }
@@ -234,6 +238,20 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	tcw := opts.BaseStore.CacheWrap()
 	tgs := opts.TestStore.BeginTransaction(tcw, tcw, nil)
 
+	// Stands for "test", "integration test", and "filetest".
+	// "integration test" are the test files with `package xxx_test` (they are
+	// not necessarily integration tests, it's just for our internal reference.)
+	tset, itset, pset, itfiles, ftfiles := parseMemPackageTests(mpkg)
+
+	opts.coverage = nil
+	opts.coveragePct = 0
+	if opts.Cover {
+		opts.coverage = gno.NewStatementCoverage()
+		for _, fn := range pset.Files {
+			opts.coverage.TrackNode(fn)
+		}
+	}
+
 	// Let opts.TestStore load itself.
 	// This needs to happen before LoadImports, as LoadImports will
 	// otherwise only load without *_test.gno files (but we want them for
@@ -250,6 +268,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		// will run the mempackage ourselves in the next line.
 		SkipPackage: true,
 	})
+	m2.StatementCoverage = opts.coverage
 	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
 	// If testing with only filetests, there will be no files.
 	tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
@@ -262,11 +281,6 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	if err := LoadImports(tgs, mpkg, abortOnError); err != nil {
 		return err
 	}
-
-	// Stands for "test", "integration test", and "filetest".
-	// "integration test" are the test files with `package xxx_test` (they are
-	// not necessarily integration tests, it's just for our internal reference.)
-	tset, itset, itfiles, ftfiles := parseMemPackageTests(mpkg)
 
 	// Testing with *_test.gno
 	if len(tset.Files)+len(itset.Files) > 0 {
@@ -344,6 +358,10 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		}
 	}
 
+	if opts.coverage != nil {
+		opts.coveragePct = opts.coverage.Percent()
+	}
+
 	return errs
 }
 
@@ -380,6 +398,7 @@ func (opts *TestOptions) runTestFiles(
 
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, nil)
+	m.StatementCoverage = opts.coverage
 	m.Alloc = alloc
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
@@ -401,6 +420,7 @@ func (opts *TestOptions) runTestFiles(
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
+		m.StatementCoverage = opts.coverage
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
@@ -575,9 +595,10 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 }
 
 // parseMemPackageTests parses test files (skipping filetests) in the mpkg.
-func parseMemPackageTests(mpkg *std.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*std.MemFile) {
+func parseMemPackageTests(mpkg *std.MemPackage) (tset, itset, pset *gno.FileSet, itfiles, ftfiles []*std.MemFile) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
+	pset = &gno.FileSet{}
 	var errs error
 	var m *gno.Machine
 	for _, mfile := range mpkg.Files {
@@ -602,6 +623,9 @@ func parseMemPackageTests(mpkg *std.MemPackage) (tset, itset *gno.FileSet, itfil
 			itset.AddFiles(n)
 			itfiles = append(itfiles, mfile)
 		case mpkg.Name == string(n.PkgName):
+			if !strings.HasSuffix(mfile.Name, "_test.gno") {
+				pset.AddFiles(n)
+			}
 			// normal package file
 		default:
 			panic(fmt.Sprintf(
@@ -640,4 +664,8 @@ func prettySize(nb int64) string {
 
 func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
+}
+
+func (opts *TestOptions) CoveragePercent() float64 {
+	return opts.coveragePct
 }

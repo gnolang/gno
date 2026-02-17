@@ -79,6 +79,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		Debug:         opts.Debug,
 		ReviveEnabled: true,
 	})
+	m.StatementCoverage = opts.coverage
 	defer m.Release()
 
 	// RUN THE FILETEST /////////////////////////////////////

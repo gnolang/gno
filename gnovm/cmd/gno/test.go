@@ -31,6 +31,7 @@ type testCmd struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	printEvents         bool
+	cover               bool
 	debug               bool
 	debugAddr           string
 }
@@ -166,6 +167,13 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
+		&c.cover,
+		"cover",
+		false,
+		"enable statement coverage output",
+	)
+
+	fs.BoolVar(
 		&c.debug,
 		"debug",
 		false,
@@ -226,6 +234,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Verbose = cmd.verbose
 	opts.Metrics = cmd.printRuntimeMetrics
 	opts.Events = cmd.printEvents
+	opts.Cover = cmd.cover
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
 	cache := make(gno.TypeCheckCache, 64)
@@ -337,14 +346,19 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		// Print status with duration.
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
+		coverageSuffix := ""
+		if cmd.cover {
+			coverageSuffix = fmt.Sprintf("\tcoverage: %.1f%% of statements", opts.CoveragePercent())
+		}
+
 		if didPanic || didError {
-			io.ErrPrintfln("FAIL    %s \t%s", prettyDir, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s%s", prettyDir, dstr, coverageSuffix)
 			testErrCount++
 			if cmd.failfast {
 				return fail()
 			}
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", prettyDir, dstr)
+			io.ErrPrintfln("ok      %s \t%s%s", prettyDir, dstr, coverageSuffix)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
