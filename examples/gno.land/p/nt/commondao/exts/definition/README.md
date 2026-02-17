@@ -58,7 +58,7 @@ func CreateMemberProposal(member address) uint64 {
   }
 
   // Define a function to validate that member doesn't exist within the DAO
-  validate = func() error {
+  validate := func() error {
     if dao.Members().Has(member) {
       return errors.New("member already exists within the DAO")
     }
@@ -73,6 +73,7 @@ func CreateMemberProposal(member address) uint64 {
   // Define an executor to add the new member to the DAO
   executor := func(realm) error {
     dao.Members().Add(member)
+    return nil
   }
 
   // Create a custom proposal definition for an example proposal type
