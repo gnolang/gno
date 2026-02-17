@@ -1,11 +1,14 @@
 package vm
 
 import (
+	"encoding/base64"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConvertEmptyNumbers(t *testing.T) {
@@ -34,6 +37,55 @@ func TestConvertEmptyNumbers(t *testing.T) {
 				_ = convertArgToGno("", tt.argT)
 			}
 			assert.PanicsWithValue(t, tt.expectedErr, run)
+		})
+	}
+}
+
+func TestConvertByteArrayLengthValidation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		declaredLen int
+		inputLen    int
+		shouldPanic bool
+	}{
+		{"exact match", 32, 32, false},
+		{"oversized input", 32, 100, true},
+		{"undersized input", 32, 16, true},
+		{"empty input", 32, 0, true},
+		{"one byte array exact", 1, 1, false},
+		{"one byte array oversized", 1, 2, true},
+		{"zero length array exact", 0, 0, false},
+		{"zero length array oversized", 0, 1, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			arrType := &gnolang.ArrayType{Len: tt.declaredLen, Elt: gnolang.Uint8Type}
+			input := make([]byte, tt.inputLen)
+			for i := range input {
+				input[i] = byte(i)
+			}
+			b64 := base64.StdEncoding.EncodeToString(input)
+
+			if tt.shouldPanic {
+				var recovered any
+				func() {
+					defer func() { recovered = recover() }()
+					convertArgToGno(b64, arrType)
+				}()
+				require.NotNil(t, recovered, "expected panic for [%d]byte with %d bytes input", tt.declaredLen, tt.inputLen)
+				require.True(t, strings.Contains(fmt.Sprint(recovered), "array length mismatch"),
+					"expected 'array length mismatch' in panic, got: %v", recovered)
+			} else {
+				tv := convertArgToGno(b64, arrType)
+				av, ok := tv.V.(*gnolang.ArrayValue)
+				require.True(t, ok)
+				assert.Equal(t, tt.declaredLen, av.GetLength())
+			}
 		})
 	}
 }
