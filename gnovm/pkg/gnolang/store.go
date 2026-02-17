@@ -157,7 +157,7 @@ type defaultStore struct {
 	// store configuration; cannot be modified in a transaction
 	pkgGetter      PackageGetter  // non-realm packages
 	nativeResolver NativeResolver // for injecting natives
-	aminoCache     *ristretto.Cache[[]byte, any]
+	aminoCache     *ristretto.Cache[[]byte, Type]
 
 	// transient
 	opslog  io.Writer // for logging store operations.
@@ -171,10 +171,10 @@ type defaultStore struct {
 	realmStorageDiffs map[string]int64 // maps realm path to size diff
 }
 
-var globalAminoCache = sync.OnceValue[*ristretto.Cache[[]byte, any]](func() *ristretto.Cache[[]byte, any] {
-	rc, err := ristretto.NewCache(&ristretto.Config[[]byte, any]{
+var globalAminoCache = sync.OnceValue[*ristretto.Cache[[]byte, Type]](func() *ristretto.Cache[[]byte, Type] {
+	rc, err := ristretto.NewCache(&ristretto.Config[[]byte, Type]{
 		NumCounters: 1_000_000,       // maximum number of keys in cache
-		MaxCost:     256 * (1 << 20), // 256 MB
+		MaxCost:     128 * (1 << 20), // 128 MB
 		BufferItems: 64,
 	})
 	if err != nil {
@@ -479,13 +479,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		var oo Object
 		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
-		cacheSum := sha256.Sum256(bz)
-		if cachedObj, ok := ds.aminoCache.Get(cacheSum[:]); ok {
-			oo = copyValueWithRefs(cachedObj.(Object)).(Object)
-		} else {
-			amino.MustUnmarshal(bz, &oo)
-			ds.aminoCache.Set(cacheSum[:], copyValueWithRefs(oo).(Object), int64(len(bz)))
-		}
+		amino.MustUnmarshal(bz, &oo)
 		if debug {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
@@ -693,9 +687,6 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		copy(hashbz[HashSize:], bz)
 		ds.baseStore.Set([]byte(key), hashbz)
 		size = len(hashbz)
-		// Setting aminoCache here currently results in realm ownership starting to fall apart.
-		// Probably ObjectInfo.Copy should not copy the unexported fields?
-		// ds.aminoCache.Set(mh, o2.(Object), int64(len(bz)))
 		oo.GetObjectInfo().LastObjectSize = int64(size)
 	}
 	// save object to cache.
@@ -796,7 +787,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 			cacheSum := sha256.Sum256(bz)
 			var tt Type
 			if val, ok := ds.aminoCache.Get(cacheSum[:]); ok {
-				tt = copyTypeWithRefs(val.(Type))
+				tt = copyTypeWithRefs(val)
 			} else {
 				amino.MustUnmarshal(bz, &tt)
 				// len(bz) is not the proper cost of tt, but is good enough
