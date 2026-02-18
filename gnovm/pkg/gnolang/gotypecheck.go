@@ -41,7 +41,7 @@ func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
 type realm interface {
     Address() address
     PkgPath() string
-    Coins() ([]string, []int64)
+    Coins() gnocoins
     Send(coins gnocoins, to address) error
     Previous() realm
     Origin() realm
@@ -55,12 +55,16 @@ func (a address) IsValid() bool { return false } // shim
 type Address = address
 
 type gnocoins []gnocoin
+
+func (cz gnocoins) String() string { return "" } // shim
 type Gnocoins = gnocoins
 
 type gnocoin struct {
     Denom string
     Amount int64
 }
+
+func (c gnocoin) String() string { return "" } // shim
 type Gnocoin = gnocoin
 `)
 	default:
