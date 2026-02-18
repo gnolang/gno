@@ -178,6 +178,7 @@ func RenameBoard(_ realm, name, newName string) {
 
 		board.Aliases = append(board.Aliases, board.Name)
 		board.Name = newName
+		board.UpdatedAt = time.Now()
 
 		// Index board for the new name keeping previous indexes for older names
 		gBoards.Add(board)
