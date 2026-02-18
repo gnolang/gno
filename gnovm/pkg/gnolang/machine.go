@@ -2086,7 +2086,7 @@ func (m *Machine) PeekFrameAndContinueFor() {
 	m.Ops = m.Ops[:fr.NumOps+1]
 	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
-	m.Stmts = m.Stmts[:fr.NumStmts+1]
+	m.Stmts = m.Stmts[:fr.NumStmts+1+1] // keep bodystmt in stack
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
 	ls := m.PeekStmt(1).(*bodyStmt)
 	ls.NextBodyIndex = ls.BodyLen
@@ -2261,6 +2261,24 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
 			ro = false // always mutable
+		case NameExprTypeLoopVarUse:
+			lb := m.LastBlock()
+			pv = lb.GetPointerTo(m.Store, lx.Path)
+			ro = false // always mutable
+		case NameExprTypeLoopVarHeapUse:
+			lb := m.LastBlock()
+			path := lx.Path
+			ptr := lb.GetPointerToDirect(m.Store, path)
+			hiv := &HeapItemValue{}
+			*ptr.TV = TypedValue{
+				T: heapItemType{},
+				V: hiv,
+			}
+			pv = PointerValue{
+				TV:    &hiv.Value,
+				Base:  hiv,
+				Index: 0,
+			}
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
