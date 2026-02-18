@@ -545,7 +545,11 @@ func handleCollision(
 		}
 	}
 
-	// Other cases -> prompt override (with warning if losing signing capability)
+	// Other cases -> prompt override
+	if hasSigningCapability(existingType) && !hasSigningCapability(newType) {
+		io.Printfln("\n  %s", boldForTerminal(
+			"⚠ Warning: this will replace a key with signing capability with one that cannot sign transactions.", io))
+	}
 	overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing key %q", existingName))
 	if err != nil {
 		return false, fmt.Errorf("unable to get confirmation, %w", err)
