@@ -46,11 +46,13 @@ func Render(path string) string {
 	router.HandleFunc("{board}/invite-member", renderInviteMember)
 	router.HandleFunc("{board}/{thread}", renderThread)
 	router.HandleFunc("{board}/{thread}/flag", renderFlagPost)
+	router.HandleFunc("{board}/{thread}/flagging-reasons", renderFlaggingReasonsPost)
 	router.HandleFunc("{board}/{thread}/reply", renderReplyPost)
 	router.HandleFunc("{board}/{thread}/edit", renderEditThread)
 	router.HandleFunc("{board}/{thread}/repost", renderRepostThread)
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
 	router.HandleFunc("{board}/{thread}/{reply}/flag", renderFlagPost)
+	router.HandleFunc("{board}/{thread}/{reply}/flagging-reasons", renderFlaggingReasonsPost)
 	router.HandleFunc("{board}/{thread}/{reply}/reply", renderReplyPost)
 	router.HandleFunc("{board}/{thread}/{reply}/edit", renderEditReply)
 
