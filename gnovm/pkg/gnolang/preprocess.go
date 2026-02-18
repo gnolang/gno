@@ -1194,9 +1194,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				rcx, ric := n.Right.(*ConstExpr)
 
 				if debug {
-					debug.Printf("Trans_leave, BinaryExpr, OP: %v, lx: %v, rx: %v, lt: %v, rt: %v, isLeftConstExpr: %v, isRightConstExpr %v, isLeftUntyped: %v, isRightUntyped: %v \n", n.Op, n.Left, n.Right, lt, rt, lic, ric, isUntyped(lt), isUntyped(rt))
+					debug.Printf("TRANS_LEAVE, BinaryExpr, OP: %v, lx: %v, rx: %v, lt: %v, rt: %v, isLeftConstExpr: %v, isRightConstExpr %v, isLeftUntyped: %v, isRightUntyped: %v \n", n.Op, n.Left, n.Right, lt, rt, lic, ric, isUntyped(lt), isUntyped(rt))
 				}
-
 				// Shift case.
 				if n.Op == SHL || n.Op == SHR {
 					n.assertShiftExprCompatible1(store, last, lt, rt)
@@ -1234,11 +1233,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if (lt == nil || lt.Kind() != InterfaceKind) &&
 							(rt == nil || rt.Kind() != InterfaceKind) {
 							if !shouldSwapOnSpecificity(lcx.T, rcx.T) {
-								// convert n.Left to right type.
-								checkOrConvertType(store, last, n, &n.Left, rcx.T)
+								checkOrConvertType(store, last, n, &n.Left, rt)
 							} else {
-								// convert n.Right to left type.
-								checkOrConvertType(store, last, n, &n.Right, lcx.T)
+								checkOrConvertType(store, last, n, &n.Right, lt)
 							}
 						}
 						// Then, evaluate the expression.
@@ -1247,6 +1244,20 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					} else if isUntyped(lcx.T) {
 						if !isUntyped(rt) { // right is typed
 							checkOrConvertType(store, last, n, &n.Left, rt)
+						} else {
+							// both untyped.
+							// no push context type to == != expr.
+							// fall through to default type of left or right.
+							if n.Op == EQL || n.Op == NEQ {
+								var dt Type
+								if !shouldSwapOnSpecificity(lt, rt) {
+									dt = defaultTypeOf(rt)
+								} else {
+									dt = defaultTypeOf(lt)
+								}
+								checkOrConvertType(store, last, n, &n.Right, dt)
+								checkOrConvertType(store, last, n, &n.Left, dt)
+							}
 						}
 					} else if lcx.T == nil { // LHS is nil.
 						// convert n.Left to typed-nil type.
@@ -1260,6 +1271,17 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if isUntyped(rcx.T) {
 						if !isUntyped(lt) { // left is typed non-const, right is untyped const.
 							checkOrConvertType(store, last, n, &n.Right, lt)
+						} else { // both untyped.
+							if n.Op == EQL || n.Op == NEQ {
+								var dt Type
+								if !shouldSwapOnSpecificity(lt, rt) {
+									dt = defaultTypeOf(rt)
+								} else {
+									dt = defaultTypeOf(lt)
+								}
+								checkOrConvertType(store, last, n, &n.Right, dt)
+								checkOrConvertType(store, last, n, &n.Left, dt)
+							}
 						}
 					} else if rcx.T == nil { // RHS is nil
 						// refer to tests/files/types/eql_0f20.gno
@@ -4043,7 +4065,6 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 	if debug {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	}
-	// fmt.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	if cx, ok := (*x).(*ConstExpr); ok {
 		// e.g. int(1) == int8(1)
 		mustAssignableTo(n, cx.T, t)
@@ -4101,19 +4122,6 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 					}
 					return
 				case EQL, LSS, GTR, NEQ, LEQ, GEQ:
-					lt := evalStaticTypeOf(store, last, bx.Left)
-					rt := evalStaticTypeOf(store, last, bx.Right)
-					if shouldSwapOnSpecificity(lt, rt) {
-						// In form of bx.Left == bx.Right.
-						checkOrConvertType(store, last, n, &bx.Left, nil)
-						checkOrConvertType(store, last, n, &bx.Right, lt)
-					} else {
-						checkOrConvertType(store, last, n, &bx.Left, rt)
-						checkOrConvertType(store, last, n, &bx.Right, nil)
-					}
-					// this is not a constant expression; the result here should
-					// always be a BoolType. (in this scenario, we may have some
-					// UntypedBoolTypes)
 					t = BoolType
 				default:
 					// do nothing

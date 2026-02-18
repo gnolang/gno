@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// main/shift_f1b.gno:7:2-18: operator << not defined on: Float64Kind
+// main/shift_f1b.gno:7:7-18: operator << not defined on: Float64Kind
 
 // TypeCheckError:
 // main/shift_f1b.gno:7:7: invalid operation: shifted operand 1.0 (type float64) must be integer

@@ -684,6 +684,18 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 	// Step2, check lhs type.
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if checker(lt) { // check pass
+			// // fmt.Println("---check pass...")
+			// t := evalStaticTypeOf(store, last, x.Left)
+			// // fmt.Println("!!!, t: ", t)
+			// if lic && ric {
+			// 	if isUntyped(lt) {
+			// 		convertConst(store, last, x, lcx, UntypedBigintType)
+			// 	}
+			// } else {
+			// 	if isUntyped(t) {
+			// 		checkOrConvertType(store, last, x, &(x.Left), IntType)
+			// 	}
+			// }
 			return
 		}
 
@@ -708,6 +720,13 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 			// convert lhs to untypedBigint so it can be evaluated as const later.
 			convertConst(store, last, x, lcx, UntypedBigintType)
 		}
+		// else { // Right not const.
+		// 	t := evalStaticTypeOf(store, last, x.Left)
+		// 	fmt.Println("!!!, t: ", t)
+		// 	if isUntyped(t) {
+		// 		checkOrConvertType(store, last, x, &(x.Left), IntType)
+		// 	}
+		// }
 		return
 	}
 	panic(fmt.Sprintf("checker for %s does not exist", x.Op))
@@ -717,6 +736,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 // shift expr is compatible with t, which is type info from context.
 // e.g. var y int = 1.0 << x.
 func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
+	// fmt.Println("---assertShfitExprCompatible2, t: ", t)
 	// check lhs type
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if !checker(t) {
