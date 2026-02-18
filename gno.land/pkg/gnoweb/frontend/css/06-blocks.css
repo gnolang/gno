@@ -640,6 +640,7 @@
 	padding: var(--g-space-1) var(--g-space-2);
 	gap: var(--g-space-1-5);
 	cursor: pointer;
+	min-width: max-content;
 
 	&:hover {
 		background-color: var(--s-color-bg-surface-primary-hover);
