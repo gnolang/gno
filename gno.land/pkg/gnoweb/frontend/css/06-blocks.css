@@ -1076,6 +1076,10 @@
 	}
 }
 
+[data-theme="dark"] .b-source-code > pre {
+	background-color: var(--s-color-bg-base);
+}
+
 pre.chroma-chroma {
 	.chroma-ln:target,
 	.chroma-line:has(.chroma-ln:target),
