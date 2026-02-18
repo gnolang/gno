@@ -32,13 +32,6 @@ func GimmeMoney(cur realm) string {
 -- secondrealm/realm.gno --
 package secondrealm
 
-import "chain"
-
 func GimmeMoney(cur realm) string {
-	denoms, amounts := cur.Coins()
-	coins := make(chain.Coins, len(denoms))
-	for i := range coins {
-		coins[i] = chain.Coin{Denom: denoms[i], Amount: amounts[i]}
-	}
-	return "send: " + coins.String()
+	return "send: " + cur.Coins().String()
 }

@@ -6,7 +6,7 @@ gnoland start
 
 ## user balance before realm send
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999998810700ugnot"'
+stdout '"coins": "9999998825200ugnot"'
 
 ## realm balance before realm send
 gnokey query auth/accounts/g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7
@@ -19,7 +19,7 @@ stdout '("send: 42ugnot")'
 ## user balance after realm send
 # reduced by -gas-fee AND -send
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999997810658ugnot"'
+stdout '"coins": "9999997825158ugnot"'
 
 ## realm balance after realm send
 gnokey query auth/accounts/g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7
@@ -29,13 +29,6 @@ stdout '"coins": "42ugnot"'
 -- realm/realm.gno --
 package call_realm
 
-import "chain"
-
 func GimmeMoney(cur realm) string {
-	denoms, amounts := cur.Coins()
-	coins := make(chain.Coins, len(denoms))
-	for i := range coins {
-		coins[i] = chain.Coin{Denom: denoms[i], Amount: amounts[i]}
-	}
-	return "send: " + coins.String()
+	return "send: " + cur.Coins().String()
 }

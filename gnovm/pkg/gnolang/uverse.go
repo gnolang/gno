@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"reflect"
+	"strconv"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -106,6 +106,14 @@ type OriginSendProvider interface {
 	GetOriginSend() std.Coins
 }
 
+// gnoCoinString formats a gnocoin StructValue as "amountdenom".
+// Used by both gnocoin.String() and gnocoins.String() native methods.
+func gnoCoinString(sv *StructValue) string {
+	denom := sv.Fields[0].GetString()
+	amount := sv.Fields[1].GetInt64()
+	return strconv.FormatInt(amount, 10) + denom
+}
+
 var gRealmType = &DeclaredType{
 	PkgPath: uversePkgPath,
 	Name:    "realm",
@@ -133,9 +141,7 @@ var gRealmType = &DeclaredType{
 				Type: &FuncType{
 					Params: nil,
 					Results: []FieldType{{
-						Type: &SliceType{Elt: StringType},
-					}, {
-						Type: &SliceType{Elt: Int64Type},
+						Type: gCoinsType,
 					}},
 				},
 			}, {
@@ -976,7 +982,41 @@ func makeUverseNode() {
 		},
 	)
 	def("gnocoin", asValue(gCoinType))
+	defNativeMethod("gnocoin", "String",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			m.PushValue(typedString(gnoCoinString(arg0.TV.V.(*StructValue))))
+		},
+	)
 	def("gnocoins", asValue(gCoinsType))
+	defNativeMethod("gnocoins", "String",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			sv, ok := arg0.TV.V.(*SliceValue)
+			if !ok || sv == nil || sv.GetLength() == 0 {
+				m.PushValue(typedString(""))
+				return
+			}
+			base := sv.GetBase(m.Store)
+			n := sv.GetLength()
+			var res string
+			for i := range n {
+				if i > 0 {
+					res += ","
+				}
+				res += gnoCoinString(base.List[sv.Offset+i].V.(*StructValue))
+			}
+			m.PushValue(typedString(res))
+		},
+	)
 	def("realm", asValue(gRealmType))
 	def(".grealm", asValue(gConcreteRealmType))
 	defNativeMethod(".grealm", "Address",
@@ -1000,39 +1040,40 @@ func makeUverseNode() {
 	defNativeMethod(".grealm", "Coins",
 		nil, // params
 		Flds( // results
-			"denoms", "[]string",
-			"amounts", "[]int64",
+			"", "gnocoins",
 		),
 		func(m *Machine) {
-			var (
-				denoms  []string
-				amounts []int64
-				// Only return coins if current pkg is the initial pkg that actually
-				// received the funds.
-				firstPkg = m.Frames[1].LastPackage.PkgPath
-				lastPkg  = m.Frames[m.NumFrames()-1].LastPackage.PkgPath
-			)
+			var coins std.Coins
+			// Only return coins if current pkg is the initial pkg that actually
+			// received the funds.
+			firstPkg := m.Frames[1].LastPackage.PkgPath
+			lastPkg := m.Frames[m.NumFrames()-1].LastPackage.PkgPath
 			if firstPkg == lastPkg {
 				if osp, ok := m.Context.(OriginSendProvider); ok {
-					coins := osp.GetOriginSend()
-					denoms = make([]string, len(coins))
-					amounts = make([]int64, len(coins))
-					for i, coin := range coins {
-						denoms[i] = coin.Denom
-						amounts[i] = coin.Amount
-					}
+					coins = osp.GetOriginSend()
 				}
 			}
-			m.PushValue(Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&denoms).Elem(),
-			))
-			m.PushValue(Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&amounts).Elem(),
-			))
+			// Manually construct a gnocoins TypedValue ([]gnocoin).
+			// Go2GnoValue cannot be used here because it doesn't support
+			// struct types; instead we build the value directly using the
+			// uverse gCoinType/gCoinsType declared types.
+			n := len(coins)
+			baseArray := m.Alloc.NewListArray(n)
+			for i, coin := range coins {
+				fields := m.Alloc.NewStructFields(2)
+				fields[0] = TypedValue{T: StringType}
+				fields[0].V = m.Alloc.NewString(coin.Denom)
+				fields[1] = TypedValue{T: Int64Type}
+				fields[1].SetInt64(coin.Amount)
+				baseArray.List[i] = TypedValue{
+					T: gCoinType,
+					V: m.Alloc.NewStruct(fields),
+				}
+			}
+			m.PushValue(TypedValue{
+				T: gCoinsType,
+				V: m.Alloc.NewSlice(baseArray, 0, n, n),
+			})
 		},
 	)
 	defNativeMethod(".grealm", "Send",
