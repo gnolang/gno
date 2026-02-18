@@ -66,7 +66,7 @@ func newSafeBoard(ref *boards.Board) Board {
 		ThreadCount: ref.Threads.Size(),
 		MemberCount: ref.Permissions.UsersCount(),
 		Creator:     ref.Creator,
-		CreatedAt:   ref.CreatedAt.Unix(),
-		UpdatedAt:   ref.UpdatedAt.Unix(),
+		CreatedAt:   timeToUnix(ref.CreatedAt),
+		UpdatedAt:   timeToUnix(ref.UpdatedAt),
 	}
 }
