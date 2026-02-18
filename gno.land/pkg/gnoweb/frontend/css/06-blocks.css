@@ -46,6 +46,11 @@
 		height: var(--g-space-10);
 		width: var(--g-space-10);
 		flex-shrink: 0;
+
+		& > svg {
+			width: 100%;
+			height: 100%;
+		}
 	}
 }
 
@@ -479,6 +484,7 @@
 		grid-column: span 2 / span 2;
 		width: 100%;
 		margin-block-end: var(--g-space-3);
+		color: var(--s-color-text-primary);
 
 		@media (--md) {
 			width: 50%;
@@ -838,7 +844,7 @@
 			height: var(--g-space-36);
 		}
 
-		img {
+		:is(img, svg) {
 			width: 100%;
 			height: 100%;
 			object-fit: cover;
