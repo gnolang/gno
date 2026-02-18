@@ -29,7 +29,6 @@ func GetRealmPermissions() boards.Permissions {
 // This is a protected function only callable by Boards2 sub realms.
 func GetBoard(boardID boards.ID) (_ *boards.Board, found bool) {
 	assertRealmHasBoardsNS(runtime.CurrentRealm())
-	// NOTE: Should we also check that origin caller is currently an owner within the board?
 	return gBoards.Get(boardID)
 }
 
@@ -37,7 +36,6 @@ func GetBoard(boardID boards.ID) (_ *boards.Board, found bool) {
 // This is a protected function only callable by Boards2 sub realms.
 func MustGetBoard(boardID boards.ID) *boards.Board {
 	assertRealmHasBoardsNS(runtime.CurrentRealm())
-	// NOTE: Should we also check that origin caller is currently an owner within the board?
 	return mustGetBoard(boardID)
 }
 
@@ -47,9 +45,6 @@ func MustGetBoard(boardID boards.ID) *boards.Board {
 // If the callback returns true, iteration is stopped.
 func Iterate(start, count int, fn boards.BoardIterFn) bool {
 	assertRealmHasBoardsNS(runtime.CurrentRealm())
-	// TODO: We should check that current realm is authorized to iterate boards
-	//       Realm must be reviewed before being authorized, to make sure boards
-	//       are actually independent and won't be modified indirectly.
 	return gBoards.Iterate(start, count, fn)
 }
 
