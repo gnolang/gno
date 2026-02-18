@@ -74,7 +74,7 @@ func newSafeComment(ref *boards.Post) Comment {
 		ReplyCount: ref.Replies.Size(),
 		FlagCount:  ref.Flags.Size(),
 		Creator:    ref.Creator,
-		CreatedAt:  ref.CreatedAt.Unix(),
-		UpdatedAt:  ref.UpdatedAt.Unix(),
+		CreatedAt:  timeToUnix(ref.CreatedAt),
+		UpdatedAt:  timeToUnix(ref.UpdatedAt),
 	}
 }
