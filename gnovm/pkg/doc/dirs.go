@@ -220,7 +220,7 @@ func (d *bfsDirs) bfsWalkRoot(root bfsDir) {
 				// Entry is a directory.
 
 				// Ignore same directories ignored by the go tool.
-				if name[0] == '.' || name[0] == '_' || name == "testdata" {
+				if name[0] == '.' || name[0] == '_' || name == "testdata" || name == "filetests" {
 					continue
 				}
 				// Remember this (fully qualified) directory for the next pass.
