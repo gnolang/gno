@@ -133,7 +133,6 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", match, err)
 			}
-			panic(fmt.Sprintf("dirs %w", dirs))
 			if len(dirs) == 0 {
 				fmt.Fprintf(out, "gno: warning: %q matched no packages\n", match)
 			}
