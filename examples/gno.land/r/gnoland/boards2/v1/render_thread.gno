@@ -148,7 +148,7 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 		"required", "true",
 	)
 	form.Textarea(
-		"bod",
+		"body",
 		"placeholder", "Content",
 		"rows", "10",
 		"value", thread.Body,
