@@ -1043,20 +1043,23 @@ func makeUverseNode() {
 			"", "gnocoins",
 		),
 		func(m *Machine) {
-			var coins std.Coins
-			// Only return coins if current pkg is the initial pkg that actually
-			// received the funds.
-			firstPkg := m.Frames[1].LastPackage.PkgPath
+			// Only return coins if current pkg is the first realm in the call
+			// stack, i.e. the realm that actually received the funds.
 			lastPkg := m.Frames[m.NumFrames()-1].LastPackage.PkgPath
-			if firstPkg == lastPkg {
+			var firstRealmPkg string
+			for i := 1; i < m.NumFrames(); i++ {
+				if pkg := m.Frames[i].LastPackage.PkgPath; IsRealmPath(pkg) {
+					firstRealmPkg = pkg
+					break
+				}
+			}
+			var coins std.Coins
+			if firstRealmPkg == lastPkg {
 				if osp, ok := m.Context.(OriginSendProvider); ok {
 					coins = osp.GetOriginSend()
 				}
 			}
-			// Manually construct a gnocoins TypedValue ([]gnocoin).
-			// Go2GnoValue cannot be used here because it doesn't support
-			// struct types; instead we build the value directly using the
-			// uverse gCoinType/gCoinsType declared types.
+			// Manually construct a gnocoins.
 			n := len(coins)
 			baseArray := m.Alloc.NewListArray(n)
 			for i, coin := range coins {

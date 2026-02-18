@@ -114,6 +114,14 @@ func IssueCoins(addr address, coins chain.Coins) {
 	testIssueCoins(addr.String(), denom, amt)
 }
 
+// OriginSend simulates a MsgCall send to a realm: it sets OriginSend in the
+// context and issues the coins to the banker balance of the realm at pkgPath,
+// matching the on-chain behavior where both are set together.
+func OriginSend(pkgPath string, coins chain.Coins) {
+	SetOriginSend(coins)
+	IssueCoins(chain.PackageAddress(pkgPath), coins)
+}
+
 // expandNative expands for usage within natively bound functions.
 func expandNative(coins chain.Coins) (denoms []string, amounts []int64) {
 	denoms = make([]string, len(coins))
