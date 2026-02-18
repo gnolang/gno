@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/backup"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/pelletier/go-toml"
 )
@@ -105,11 +104,6 @@ func ResetTestRoot(testName string) (*Config, string) {
 	// we always overwrite the priv val
 	osm.MustWriteFile(config.Consensus.PrivValidator.LocalSignerPath(), []byte(testPrivValidatorKey), 0o644)
 	osm.MustWriteFile(config.Consensus.PrivValidator.SignStatePath(), []byte(testPrivValidatorState), 0o644)
-
-	if config.Backup == nil {
-		config.Backup = &backup.Config{}
-	}
-	config.Backup.ListenAddress = "localhost:4242"
 
 	return config, genesisFilePath
 }

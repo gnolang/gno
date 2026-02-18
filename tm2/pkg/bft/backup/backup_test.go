@@ -3,7 +3,6 @@ package backup
 import (
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/stretchr/testify/require"
 )
@@ -31,9 +30,7 @@ func testWriteBlocks(t *testing.T, dir string, count int64, expectedStart int64)
 	require.NoError(t, WithWriter(dir, 0, 0, nil, func(startHeight int64, write Writer) error {
 		require.Equal(t, expectedStart, startHeight, "expected correct start height in callback")
 		for i := range count {
-			data, err := amino.Marshal(&types.Block{Header: types.Header{Height: i + startHeight}})
-			require.NoError(t, err)
-			if err := write(data); err != nil {
+			if err := write(&types.Block{Header: types.Header{Height: i + startHeight}}); err != nil {
 				return err
 			}
 		}

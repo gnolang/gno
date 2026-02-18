@@ -8,7 +8,7 @@ install:
 
 .PHONY: build
 build:
-	go build -o build/gnomigrate .
+	go build -o build/tm2backup .
 
 lint:
 	$(golangci_lint) --config ../../.github/golangci.yml run ./...

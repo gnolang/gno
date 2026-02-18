@@ -11,7 +11,6 @@ import (
 	"dario.cat/mergo"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/bft/backup"
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
@@ -56,7 +55,6 @@ type Config struct {
 	TxEventStore *eventstore.Config   `json:"tx_event_store" toml:"tx_event_store" comment:"##### event store #####"`
 	Telemetry    *telemetry.Config    `json:"telemetry" toml:"telemetry" comment:"##### node telemetry #####"`
 	Application  *sdk.AppConfig       `json:"application" toml:"application" comment:"##### app settings #####"`
-	Backup       *backup.Config       `json:"backup" toml:"backup" comment:"##### backup server configuration options #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -70,7 +68,6 @@ func DefaultConfig() *Config {
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
 		Telemetry:    telemetry.DefaultTelemetryConfig(),
 		Application:  sdk.DefaultAppConfig(),
-		Backup:       backup.DefaultConfig(),
 	}
 }
 
