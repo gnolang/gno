@@ -381,7 +381,7 @@ func printCollisionDiff(
 		// Represent zero addresses with a placeholder for better readability
 		addrStr := address.String()
 		if keyType == keys.TypeLedger && address.IsZero() {
-			addrStr = "(unknow - stored on ledger)"
+			addrStr = "(unknown - stored on ledger)"
 		} else if address.IsZero() {
 			addrStr = "(none)"
 		}
