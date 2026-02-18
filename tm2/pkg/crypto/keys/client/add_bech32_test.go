@@ -218,7 +218,7 @@ func TestAdd_Bech32(t *testing.T) {
 
 		// First create a local key using `add --recover`
 		io := commands.NewTestIO()
-		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\ntest1234\ntest1234\n"))
 
 		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
 		args := []string{
@@ -295,7 +295,7 @@ func TestAdd_Bech32(t *testing.T) {
 
 		// First create a local key
 		io := commands.NewTestIO()
-		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\ntest1234\ntest1234\n"))
 
 		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
 		args := []string{
@@ -360,7 +360,7 @@ func TestAdd_Bech32(t *testing.T) {
 
 		// First create a local key using `add --recover`
 		io := commands.NewTestIO()
-		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\ntest1234\ntest1234\n"))
 
 		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
 		args := []string{
@@ -428,7 +428,7 @@ func TestAdd_Bech32(t *testing.T) {
 
 		// Create a local key
 		io := commands.NewTestIO()
-		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\ntest1234\ntest1234\n"))
 
 		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
 		args := []string{

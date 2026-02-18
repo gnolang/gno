@@ -157,12 +157,6 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to read keybase, %w", err)
 	}
 
-	// Ask for a password when generating a local key
-	pw, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
-	if err != nil {
-		return err
-	}
-
 	var mnemonic string
 
 	switch {
@@ -212,6 +206,12 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		if handled {
 			return nil
 		}
+	}
+
+	// Ask for passphrase only when proceeding with key creation
+	pw, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
+	if err != nil {
+		return err
 	}
 
 	// Save the account

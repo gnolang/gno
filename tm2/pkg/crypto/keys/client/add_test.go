@@ -98,8 +98,8 @@ func TestAdd_Base_Add(t *testing.T) {
 		original, err := kb.GetByName(keyName)
 		require.NoError(t, err)
 
-		// Password first, then override confirmation (collision check happens after mnemonic derivation)
-		io.SetIn(strings.NewReader("test1234\ntest1234\ny\n"))
+		// Override confirmation first, then password (collision check happens before passphrase)
+		io.SetIn(strings.NewReader("y\ntest1234\ntest1234\n"))
 
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
 		require.NoError(t, cmd.ParseAndRun(ctx, args))
@@ -129,7 +129,7 @@ func TestAdd_Base_Add(t *testing.T) {
 		defer cancelFn()
 
 		io := commands.NewTestIO()
-		io.SetIn(strings.NewReader("test1234" + "\n" + "test1234" + "\n" + mnemonic + "\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\n" + "test1234" + "\n" + "test1234" + "\n"))
 
 		// Create the command
 		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
@@ -197,8 +197,8 @@ func TestAdd_Base_Add(t *testing.T) {
 		original, err := kb.GetByName(keyName)
 		require.NoError(t, err)
 
-		// Password first, then decline override
-		io.SetIn(strings.NewReader("test1234\ntest1234\nn\n"))
+		// Decline override (collision check happens before passphrase)
+		io.SetIn(strings.NewReader("n\n"))
 
 		// Confirm overwrite
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
@@ -235,10 +235,10 @@ func TestAdd_Base_Add(t *testing.T) {
 		baseIO.SetErr(commands.WriteNopCloser(&errBuf))
 
 		// Create mock IO that handles all password calls
-		// The order is: encryption password, repeat password, then mnemonic
+		// The order is: mnemonic, then encryption password, repeat password
 		mockIO := &mockPasswordIO{
 			IO:        baseIO,
-			passwords: []string{"test1234", "test1234", mnemonic},
+			passwords: []string{mnemonic, "test1234", "test1234"},
 		}
 
 		// Create the command
@@ -292,10 +292,10 @@ func TestAdd_Base_Add(t *testing.T) {
 		baseIO.SetErr(commands.WriteNopCloser(&errBuf))
 
 		// Create mock that handles password input for entropy
-		// Order: encryption password, repeat password, entropy
+		// Order: entropy, then encryption password, repeat password
 		mockIO := &mockPasswordIO{
 			IO:        baseIO,
-			passwords: []string{"test1234", "test1234", entropy},
+			passwords: []string{entropy, "test1234", "test1234"},
 		}
 		// For confirmation prompt after entropy
 		mockIO.SetIn(strings.NewReader("y\n"))
@@ -365,9 +365,9 @@ func TestAdd_Base_Add(t *testing.T) {
 		require.NoError(t, err)
 
 		// Try to add another key with the same name, confirm overwrite
-		// Password first, then override confirmation
+		// Override confirmation first, then password
 		mockOut.Reset()
-		io.SetIn(strings.NewReader("test1234\ntest1234\ny\n"))
+		io.SetIn(strings.NewReader("y\ntest1234\ntest1234\n"))
 
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
 		require.NoError(t, cmd.ParseAndRun(ctx, args))
@@ -396,7 +396,7 @@ func TestAdd_Base_Add(t *testing.T) {
 		io := commands.NewTestIO()
 
 		// Create initial key with mnemonic
-		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\ntest1234\ntest1234\n"))
 		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
 		args := []string{
 			"add",
@@ -410,7 +410,7 @@ func TestAdd_Base_Add(t *testing.T) {
 		require.NoError(t, cmd.ParseAndRun(ctx, args))
 
 		// Try to add another key with the same mnemonic (same address), decline rename
-		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\nn\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\nn\n"))
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
 		args2 := []string{
 			"add",
@@ -450,7 +450,7 @@ func TestAdd_Base_Add(t *testing.T) {
 		io := commands.NewTestIO()
 
 		// Create initial key with mnemonic
-		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\ntest1234\ntest1234\n"))
 		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
 		args := []string{
 			"add",
@@ -472,7 +472,7 @@ func TestAdd_Base_Add(t *testing.T) {
 
 		// Add key2 with same mnemonic, confirm rename
 		// Same address + same type + different name → rename prompt
-		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\ny\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\ny\n"))
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
 		args2 := []string{
 			"add",
@@ -518,7 +518,7 @@ func TestAdd_Base_Add(t *testing.T) {
 		io.SetOut(commands.WriteNopCloser(mockOut))
 
 		// Create initial key with mnemonic
-		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\ntest1234\ntest1234\n"))
 		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
 		args := []string{
 			"add",
@@ -533,7 +533,7 @@ func TestAdd_Base_Add(t *testing.T) {
 
 		// Recover with same name and same mnemonic → identical key, skip (no prompt)
 		mockOut.Reset()
-		io.SetIn(strings.NewReader("test1234\ntest1234\n" + mnemonic + "\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\n"))
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
 
 		require.NoError(t, cmd.ParseAndRun(ctx, args))
@@ -648,7 +648,7 @@ func TestAdd_Derive(t *testing.T) {
 		mockOut := bytes.NewBufferString("")
 
 		io := commands.NewTestIO()
-		io.SetIn(strings.NewReader(dummyPass + "\n" + dummyPass + "\n" + mnemonic + "\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\n" + dummyPass + "\n" + dummyPass + "\n"))
 		io.SetOut(commands.WriteNopCloser(mockOut))
 
 		// Create the command
@@ -707,7 +707,7 @@ func TestAdd_Derive(t *testing.T) {
 		mockOut := bytes.NewBufferString("")
 
 		io := commands.NewTestIO()
-		io.SetIn(strings.NewReader(dummyPass + "\n" + dummyPass + "\n" + mnemonic + "\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\n" + dummyPass + "\n" + dummyPass + "\n"))
 		io.SetOut(commands.WriteNopCloser(mockOut))
 
 		// Create the command
@@ -746,7 +746,7 @@ func TestAdd_Derive(t *testing.T) {
 		mockOut := bytes.NewBufferString("")
 
 		io := commands.NewTestIO()
-		io.SetIn(strings.NewReader(dummyPass + "\n" + dummyPass + "\n" + mnemonic + "\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\n" + dummyPass + "\n" + dummyPass + "\n"))
 		io.SetOut(commands.WriteNopCloser(mockOut))
 
 		// Create the command
