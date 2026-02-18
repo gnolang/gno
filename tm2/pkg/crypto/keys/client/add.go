@@ -533,12 +533,12 @@ func handleCollision(
 		}
 
 		switch strings.ToLower(strings.TrimSpace(choice)) {
-		case "r", "":
+		case "rename", "r", "":
 			if err := kb.Rename(existingName, newName); err != nil {
 				return false, err
 			}
 			return true, nil
-		case "o":
+		case "override", "o":
 			return false, nil
 		default:
 			return false, errOverwriteAborted
