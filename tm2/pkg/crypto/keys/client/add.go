@@ -5,8 +5,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
+
+	"golang.org/x/term"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -353,8 +356,24 @@ func hasSigningCapability(t keys.KeyType) bool {
 	return t == keys.TypeLocal || t == keys.TypeLedger
 }
 
-// bold returns the input string wrapped in bold ANSI escape codes
-func bold(s string) string {
+// useColor returns whether ANSI color codes should be emitted to the given output.
+// Returns false when NO_COLOR is set or the output is not a terminal.
+func useColor(cio commands.IO) bool {
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+	if f, ok := cio.Out().(*os.File); ok {
+		return term.IsTerminal(int(f.Fd()))
+	}
+	return false
+}
+
+// boldForTerminal returns the input string wrapped in bold ANSI escape codes
+// when the output supports color, otherwise returns the string unchanged.
+func boldForTerminal(s string, cio commands.IO) string {
+	if !useColor(cio) {
+		return s
+	}
 	const (
 		ansiBold  = "\033[1m"
 		ansiReset = "\033[0m"
@@ -388,13 +407,13 @@ func printCollisionDiff(
 
 		// Highlight differences in bold
 		if existingName != newName {
-			name = bold(name)
+			name = boldForTerminal(name, io)
 		}
 		if existingAddress != newAddress {
-			addrStr = bold(addrStr)
+			addrStr = boldForTerminal(addrStr, io)
 		}
 		if existingType != newType {
-			typeStr = bold(typeStr)
+			typeStr = boldForTerminal(typeStr, io)
 		}
 
 		// Print the key details
@@ -492,7 +511,7 @@ func handleCollision(
     (c)ancel: abort.
 
   Choose an action [R/o/c]: `,
-			existingName, newName, existingName, newName, bold("⚠ This will lose signing capability."),
+			existingName, newName, existingName, newName, boldForTerminal("⚠ This will lose signing capability.", io),
 		))
 		if err != nil {
 			return false, fmt.Errorf("unable to get choice, %w", err)
