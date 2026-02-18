@@ -235,4 +235,8 @@
 	--s-color-border-error: var(--g-color-red-400);
 	--s-color-border-tip: var(--g-color-purple-400);
 	--s-color-border-note: var(--g-color-gray-600);
+
+	/* Logo / gnome */
+	--s-logo-hat: #ffffff;
+	--s-logo-beard: #808080;
 }
