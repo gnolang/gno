@@ -160,7 +160,10 @@ func IsTestFile(file string) bool {
 
 var (
 	goodFiles = []string{
-		"LICENSE",
+		"license",
+		"license.txt",
+		"licence",
+		"licence.txt",
 		"gno.mod",
 	}
 	// NOTE: Xtn is easier to type than Extension due to proximity of 'e'
@@ -677,10 +680,11 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 	for _, file := range files {
 		// Ignore directories and hidden files, only include allowed files & extensions,
 		// then exclude files that are of the bad extensions.
+		// We do case ignore to check goodFiles. MemFile ValidateBasic will enforce case rules.
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
 			(!endsWithAny(file.Name(), goodFileXtns) &&
-				!slices.Contains(goodFiles, file.Name())) ||
+				!slices.Contains(goodFiles, strings.ToLower(file.Name()))) ||
 			endsWithAny(file.Name(), badFileXtns) {
 			continue
 		}
@@ -1031,7 +1035,7 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 			continue
 		}
 		if !endsWithAny(fname, goodFileXtns) {
-			if !slices.Contains(goodFiles, fname) {
+			if !slices.Contains(goodFiles, strings.ToLower(fname)) {
 				errs = multierr.Append(errs, fmt.Errorf("invalid file %q: unrecognized file type", fname))
 				continue
 			}
