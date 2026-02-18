@@ -85,10 +85,41 @@ func TestRenderer_RenderSource_UnsupportedLexer(t *testing.T) {
 	assert.Contains(t, w.String(), "chroma-")
 }
 
-func TestRenderer_WriteFormatterCSS(t *testing.T) {
-	r := newTestRenderer()
-	w := &bytes.Buffer{}
-	err := r.WriteChromaCSS(w)
-	require.NoError(t, err)
-	assert.Contains(t, w.String(), ".chroma-")
+func TestRenderer_WriteChromaCSS(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		darkStyle     bool
+		wantLightCSS  bool
+		wantDarkScope bool
+	}{
+		{"success: default config outputs light and dark CSS", true, true, true},
+		{"success: nil dark style outputs light CSS only", false, true, false},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := NewDefaultRenderConfig()
+			if !tc.darkStyle {
+				cfg.ChromaDarkStyle = nil
+			}
+			r := NewHTMLRenderer(slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)), cfg, nil)
+
+			w := &bytes.Buffer{}
+			err := r.WriteChromaCSS(w)
+			require.NoError(t, err)
+
+			css := w.String()
+			assert.True(t, tc.wantLightCSS, "light CSS should always be present")
+			assert.Contains(t, css, ".chroma-")
+
+			if tc.wantDarkScope {
+				assert.Contains(t, css, `[data-theme="dark"]`)
+			} else {
+				assert.NotContains(t, css, `[data-theme="dark"]`)
+			}
+		})
+	}
 }
