@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/backup/v1"
+	"github.com/gnolang/gno/tm2/pkg/bft/backup"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 

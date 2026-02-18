@@ -30,9 +30,6 @@ import (
 	// embedmd
 	_ "github.com/campoy/embedmd/embedmd"
 
-	// buf cli
-	_ "github.com/bufbuild/buf/cmd/buf"
-
 	// required to generate mocks (see `make mocks`)
 	_ "github.com/golang/mock/mockgen"
 )

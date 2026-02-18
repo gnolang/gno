@@ -2,66 +2,77 @@ package main
 
 import (
 	"context"
-	"net"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/backup"
-	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 func TestBackup(t *testing.T) {
-	store := &mockBlockStore{height: 5, blocks: map[int64]*types.Block{
-		1: {Header: types.Header{Height: 1}},
-		2: {Header: types.Header{Height: 2}},
-		3: {Header: types.Header{Height: 3}},
-		4: {Header: types.Header{Height: 4}},
-		5: {Header: types.Header{Height: 5}},
-	}}
-
-	server := grpc.NewServer()
-	backupService := backup.NewBackupServiceHandler(store)
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	backuppb.RegisterBackupServiceServer(server, backupService)
-	t.Cleanup(func() {
-		server.Stop()
-		_ = lis.Close()
-	})
-
-	go func() {
-		if err := server.Serve(lis); err != nil {
-			t.Error(err)
-		}
-	}()
+	mockedServer := mockWebsocketServer(t)
+	defer mockedServer.Close()
 
 	io := commands.NewTestIO()
 	io.SetOut(os.Stdout)
 	io.SetErr(os.Stderr)
 	outDir := t.TempDir()
+	url := strings.ReplaceAll(mockedServer.URL, "http:", "ws:")
 
-	err = newRootCmd(io).ParseAndRun(context.Background(), []string{
-		"--remote", lis.Addr().String(),
+	err := newRootCmd(io).ParseAndRun(context.Background(), []string{
+		"--remote", url,
 		"--o", outDir,
 	})
 	require.NoError(t, err)
 }
 
-type mockBlockStore struct {
-	height int64
-	blocks map[int64]*types.Block
-}
+// mockWebsocketServer will create a mock websocket server for testing
+// this will only return 5 blocks and then done
+func mockWebsocketServer(t *testing.T) *httptest.Server {
+	t.Helper()
 
-// Height implements blockStore.
-func (m *mockBlockStore) Height() int64 {
-	return m.height
-}
+	upgrader := websocket.Upgrader{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/websocket", r.URL.Path)
 
-// LoadBlock implements blockStore.
-func (m *mockBlockStore) LoadBlock(height int64) *types.Block {
-	return m.blocks[height]
+		conn, err := upgrader.Upgrade(w, r, nil)
+		require.NoError(t, err)
+		defer conn.Close()
+
+		_, requestMsg, err := conn.ReadMessage()
+		require.NoError(t, err)
+
+		var request rpctypes.RPCRequest
+		require.NoError(t, json.Unmarshal(requestMsg, &request))
+		require.Equal(t, "backup", request.Method)
+
+		for height := int64(1); height <= 5; height++ {
+			resp := rpctypes.NewRPCSuccessResponse(request.ID, &ctypes.ResultBackupBlock{
+				Height: height,
+				Block:  &types.Block{Header: types.Header{Height: height}},
+			})
+
+			respBz, err := json.Marshal(resp)
+			require.NoError(t, err)
+			require.NoError(t, conn.WriteMessage(websocket.TextMessage, respBz))
+		}
+
+		done := rpctypes.NewRPCSuccessResponse(request.ID, &ctypes.ResultBackupBlock{
+			Done: true,
+		})
+
+		doneBz, err := json.Marshal(done)
+		require.NoError(t, err)
+		require.NoError(t, conn.WriteMessage(websocket.TextMessage, doneBz))
+	}))
+
+	return server
 }
