@@ -63,8 +63,6 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 		panic("thread not found")
 	}
 
-	assertThreadIsNotFrozen(thread)
-
 	flagThread := func() {
 		// Hide thread when flagging threshold is reached.
 		// Realm owners can hide with a single flag.
@@ -119,13 +117,10 @@ func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 	}
 
 	thread := mustGetThread(board, threadID)
-	assertThreadIsNotFrozen(thread)
-
 	reply := mustGetReply(thread, replyID)
 	flagReply := func() {
 		hide := flagItem(reply, caller, reason, getFlaggingThreshold(board.ID))
 		if hide || isRealmOwner {
-			// Realm owners can hide with a single flag
 			reply.Hidden = true
 		}
 

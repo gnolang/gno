@@ -44,7 +44,7 @@ func main() {
 }
 
 // Output:
-// Thread with ID: 1 has been flagged as inappropriate
+// ⚠ Thread has been flagged as [inappropriate](/r/gnoland/boards2/v1:test-board/1/flagging-reasons)
 //
 // # [Boards](/r/gnoland/boards2/v1) › test-board
 // Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
