@@ -440,24 +440,39 @@ func handleCollision(
 	newName string, newAddress crypto.Address, newType keys.KeyType,
 	io commands.IO,
 ) (bool, error) {
-	var existing keys.Info
+	// Look for existing key by name
+	existingByName, err := kb.GetByName(newName)
+	if err != nil && !keyerror.IsErrKeyNotFound(err) {
+		return false, fmt.Errorf("unable to fetch key by name: %w", err)
+	}
 
-	// Look for existing key by name first
-	existing, err := kb.GetByName(newName)
-	if err != nil {
-		if !keyerror.IsErrKeyNotFound(err) {
-			return false, fmt.Errorf("unable to fetch key, %w", err)
+	// Look for existing key by address (if address is non-zero)
+	var existingByAddr keys.Info
+	if !newAddress.IsZero() {
+		existingByAddr, err = kb.GetByAddress(newAddress)
+		if err != nil && !keyerror.IsErrKeyNotFound(err) {
+			return false, fmt.Errorf("unable to fetch key by address: %w", err)
 		}
 	}
 
-	// If not found by name, look for existing key by address (if address is non-zero)
-	if existing == nil && !newAddress.IsZero() {
-		existing, err = kb.GetByAddress(newAddress)
-		if err != nil {
-			if !keyerror.IsErrKeyNotFound(err) {
-				return false, fmt.Errorf("unable to fetch key by address, %w", err)
-			}
-		}
+	// Detect double-collision: name matches one key, address matches a different key.
+	// This requires manual resolution since automatic handling could silently delete data.
+	if existingByName != nil && existingByAddr != nil &&
+		existingByName.GetName() != existingByAddr.GetName() {
+		return false, fmt.Errorf(
+			"double collision detected:\n"+
+				"  - Name %q is already used by a key with address %s\n"+
+				"  - Address %s is already used by key %q\n"+
+				"Resolve manually by deleting or renaming one of the conflicting keys",
+			newName, existingByName.GetAddress(),
+			newAddress, existingByAddr.GetName(),
+		)
+	}
+
+	// Use whichever collision was found (they point to the same key, or only one exists)
+	existing := existingByName
+	if existing == nil {
+		existing = existingByAddr
 	}
 
 	// No collision found
