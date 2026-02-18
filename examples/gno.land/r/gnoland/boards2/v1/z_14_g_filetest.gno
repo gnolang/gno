@@ -38,4 +38,4 @@ func main() {
 }
 
 // Output:
-// Reply does not exist with ID: 2
+// Reply not found
