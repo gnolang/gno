@@ -379,19 +379,23 @@ func NewNode(config *cfg.Config,
 		return nil, err
 	}
 
-	// Signal readiness when receiving the first block.
+	// Signal readiness when the node produces or receives its first block.
 	const readinessListenerID = "first_block_listener"
 
 	cFirstBlock := make(chan struct{})
-	var once sync.Once
-	evsw.AddListener(readinessListenerID, func(ev events.Event) {
-		if _, ok := ev.(types.EventNewBlock); ok {
-			once.Do(func() {
-				close(cFirstBlock)
-				evsw.RemoveListener(readinessListenerID)
-			})
-		}
-	})
+	if blockStore.Height() > 0 {
+		close(cFirstBlock)
+	} else {
+		var once sync.Once
+		evsw.AddListener(readinessListenerID, func(ev events.Event) {
+			if _, ok := ev.(types.EventNewBlock); ok {
+				once.Do(func() {
+					close(cFirstBlock)
+					evsw.RemoveListener(readinessListenerID)
+				})
+			}
+		})
+	}
 
 	// Transaction event storing
 	eventStoreService, txEventStore, err := createAndStartEventStoreService(config, evsw, logger)
@@ -751,7 +755,7 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 	config.MaxOpenConnections = n.config.RPC.MaxOpenConnections
 	// If necessary adjust global WriteTimeout to ensure it's greater than
 	// TimeoutBroadcastTxCommit.
-	// See https://github.com/gnolang/gno/tm2/pkg/bft/issues/3435
+	// See https://github.com/tendermint/tendermint/issues/3435
 	if config.WriteTimeout <= n.config.RPC.TimeoutBroadcastTxCommit {
 		config.WriteTimeout = n.config.RPC.TimeoutBroadcastTxCommit + 1*time.Second
 	}

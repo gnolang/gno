@@ -27,6 +27,10 @@ func NewProposalsStatuses() ProposalsStatuses {
 }
 
 func (pss ProposalsStatuses) GetStatus(id dao.ProposalID) *proposalStatus {
+	if pss.Tree == nil {
+		return nil
+	}
+
 	pids := id.String()
 	psv, ok := pss.Get(pids)
 	if !ok {
@@ -88,13 +92,8 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 func (ps *proposalStatus) YesPercent() float64 {
 	var yp float64
 
-	memberstore.Tiers.Iterate("", "", func(tn string, ti interface{}) bool {
-		tier, ok := ti.(memberstore.Tier)
-		if !ok {
-			panic("type must be memberstore.Tier")
-		}
-
-		power := tier.PowerHandler(getMembers(cross), memberstore.Tiers)
+	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
+		power := memberstore.GetTierPower(tn, getMembers(cross))
 		ts := ps.YesVotes.GetTierSize(tn)
 
 		yp = yp + (power * float64(ts))
@@ -108,13 +107,8 @@ func (ps *proposalStatus) YesPercent() float64 {
 func (ps *proposalStatus) NoPercent() float64 {
 	var np float64
 
-	memberstore.Tiers.Iterate("", "", func(tn string, ti interface{}) bool {
-		tier, ok := ti.(memberstore.Tier)
-		if !ok {
-			panic("type must be memberstore.Tier")
-		}
-
-		power := tier.PowerHandler(getMembers(cross), memberstore.Tiers)
+	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
+		power := memberstore.GetTierPower(tn, getMembers(cross))
 		ts := ps.NoVotes.GetTierSize(tn)
 		np = np + (power * float64(ts))
 
@@ -178,12 +172,12 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 		return
 	}
 	t.Iterate("", "", func(tn string, value interface{}) bool {
-		tier, ok := memberstore.Tiers.GetTier(tn)
+		_, ok := memberstore.GetTier(tn)
 		if !ok {
 			panic("tier not found")
 		}
 
-		power := tier.PowerHandler(getMembers(cross), memberstore.Tiers)
+		power := memberstore.GetTierPower(tn, getMembers(cross))
 
 		sb.WriteString(ufmt.Sprintf("%v from %v (VPPM %v):\n\n", title, tn, power))
 		ms, _ := value.(*avl.Tree)
@@ -218,5 +212,4 @@ This proposal contains the following metadata:
 	}
 
 	return out
-
 }
