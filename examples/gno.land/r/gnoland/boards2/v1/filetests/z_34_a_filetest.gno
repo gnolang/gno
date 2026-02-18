@@ -51,4 +51,4 @@ func main() {
 
 // Output:
 // true
-// Reply does not exist with ID: 2
+// Reply not found
