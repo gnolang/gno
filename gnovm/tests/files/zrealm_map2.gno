@@ -6,9 +6,7 @@ import (
 )
 
 func main(cur realm) {
-	// Create a map in this realm.
 	m := map[string]int{"admin": 1000}
-
 	crossrealm_b.SetObject(cross, m)
 
 	obj := crossrealm_b.GetObject()
