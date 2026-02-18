@@ -78,7 +78,7 @@ export class ThemeController extends BaseController {
 				: this.preference;
 
 		document.documentElement.setAttribute("data-theme", theme);
-		
+
 		for (const [el, pref] of [
 			[this.sun, Preference.Light],
 			[this.moon, Preference.Dark],
