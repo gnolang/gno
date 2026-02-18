@@ -486,6 +486,11 @@
 		margin-block-end: var(--g-space-3);
 		color: var(--s-color-text-primary);
 
+		&:hover {
+			color: var(--s-color-text-primary);
+			text-decoration: none;
+		}
+
 		@media (--md) {
 			width: 50%;
 		}
