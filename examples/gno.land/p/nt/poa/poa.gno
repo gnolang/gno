@@ -37,15 +37,16 @@ func NewPoA(opts ...Option) *PoA {
 }
 
 func (p *PoA) AddValidator(address_XXX address, pubKey string, power uint64) (validators.Validator, error) {
-	// Validate that the operation is a valid call.
-	// Check if the validator is already in the set
-	if p.IsValidator(address_XXX) {
-		return validators.Validator{}, validators.ErrValidatorExists
-	}
-
 	// Make sure the voting power > 0
 	if power == 0 {
 		return validators.Validator{}, ErrInvalidVotingPower
+	}
+
+	// If the validator already exists, update only if the voting power changed
+	if existing, err := p.GetValidator(address_XXX); err == nil {
+		if existing.VotingPower == power {
+			return validators.Validator{}, validators.ErrValidatorExists
+		}
 	}
 
 	v := validators.Validator{
@@ -54,7 +55,7 @@ func (p *PoA) AddValidator(address_XXX address, pubKey string, power uint64) (va
 		VotingPower: power,
 	}
 
-	// Add the validator to the set
+	// Add or update the validator in the set
 	p.validators.Set(address_XXX.String(), v)
 
 	return v, nil
