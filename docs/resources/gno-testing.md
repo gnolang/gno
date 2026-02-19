@@ -159,6 +159,11 @@ directives at the bottom of the file.
 Filetests use the `*_filetest.gno` suffix and are placed in a `filetests/`
 subdirectory of the realm package.
 
+:::warning Stability notice
+Filetests are primarily intended as an internal tool. Their API and behavior
+are not guaranteed to be as stable as standard `gno test` testing.
+:::
+
 ### Example
 
 ```go
@@ -210,11 +215,10 @@ gno test --update-golden-tests .
 | `Storage`        | Realm storage size diff.                      |
 | `TypeCheckError` | Go type-checker error.                        |
 
-### Naming conventions
-
-- `_long` suffix -- skipped with `-short`.
-- `_known` suffix -- skipped (known issues).
-- `_filetest.gno` suffix -- realm package filetests in `examples/`.
+:::info Pure package imports
+Imports of pure packages are processed separately. If a pure package contains a
+line like `println(1)`, its output cannot be checked by an `// Output:` directive.
+:::
 
 ## Final remarks
 
@@ -228,7 +232,3 @@ expression modifying a state variable twice, with the actual value staying uncha
 
 All imports used in your code are resolved from the GnoVM's installation
 directory.
-
-## Conclusion
-
-That's it. You've successfully run local tests and expressions using the `gno` binary.
