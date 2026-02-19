@@ -130,10 +130,6 @@ func BankerOriginSend(cur realm) string {
 	return banker.OriginSend().String()
 }
 
-func RealmBalance(cur realm) string {
-	return banker.NewBanker(banker.BankerTypeReadonly).GetCoins(runtime.CurrentRealm().Address()).String()
-}
-
 func RTestsRealmCoins(cur realm) string {
 	return rsubtests.RealmCoins(cross)
 }
