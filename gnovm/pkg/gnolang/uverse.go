@@ -1060,7 +1060,6 @@ func makeUverseNode() {
 					break
 				}
 			}
-			println("LAST PACKAGE", lastPkg, "FIRST REALM", firstRealmPkg)
 			var coins std.Coins
 			if lastPkg != "" && firstRealmPkg == lastPkg {
 				if osp, ok := m.Context.(OriginSendProvider); ok {
