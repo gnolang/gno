@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -76,6 +77,129 @@ func TestSignStaleUpperBytes(t *testing.T) {
 			var tv TypedValue
 			tt.setup(&tv)
 			tt.apply(&tv)
+
+			got := tv.Sign()
+			if got != tt.wantSign {
+				t.Errorf("Sign() = %d, want %d", got, tt.wantSign)
+			}
+		})
+	}
+}
+
+func TestSignFloat(t *testing.T) {
+	tests := []struct {
+		name           string
+		setup          func(tv *TypedValue)
+		wantSign       int
+		expectPanicMsg string
+	}{
+		{
+			name: "float32 positive",
+			setup: func(tv *TypedValue) {
+				tv.T = Float32Type
+				tv.SetFloat32(math.Float32bits(1.25))
+			},
+			wantSign: 1,
+		},
+		{
+			name: "float32 negative",
+			setup: func(tv *TypedValue) {
+				tv.T = Float32Type
+				tv.SetFloat32(math.Float32bits(-1.25))
+			},
+			wantSign: -1,
+		},
+		{
+			name: "float32 zero",
+			setup: func(tv *TypedValue) {
+				tv.T = Float32Type
+				tv.SetFloat32(math.Float32bits(0))
+			},
+			wantSign: 0,
+		},
+		{
+			name: "float64 positive",
+			setup: func(tv *TypedValue) {
+				tv.T = Float64Type
+				tv.SetFloat64(math.Float64bits(1.25))
+			},
+			wantSign: 1,
+		},
+		{
+			name: "float64 negative",
+			setup: func(tv *TypedValue) {
+				tv.T = Float64Type
+				tv.SetFloat64(math.Float64bits(-1.25))
+			},
+			wantSign: -1,
+		},
+		{
+			name: "float64 zero",
+			setup: func(tv *TypedValue) {
+				tv.T = Float64Type
+				tv.SetFloat64(math.Float64bits(0))
+			},
+			wantSign: 0,
+		},
+		{
+			name: "float32 +Inf",
+			setup: func(tv *TypedValue) {
+				tv.T = Float32Type
+				tv.SetFloat32(math.Float32bits(float32(math.Inf(1))))
+			},
+			wantSign: 1,
+		},
+		{
+			name: "float32 -Inf",
+			setup: func(tv *TypedValue) {
+				tv.T = Float32Type
+				tv.SetFloat32(math.Float32bits(float32(math.Inf(-1))))
+			},
+			wantSign: -1,
+		},
+		{
+			name: "float64 +Inf",
+			setup: func(tv *TypedValue) {
+				tv.T = Float64Type
+				tv.SetFloat64(math.Float64bits(math.Inf(1)))
+			},
+			wantSign: 1,
+		},
+		{
+			name: "float64 -Inf",
+			setup: func(tv *TypedValue) {
+				tv.T = Float64Type
+				tv.SetFloat64(math.Float64bits(math.Inf(-1)))
+			},
+			wantSign: -1,
+		},
+		{
+			name: "float32 NaN",
+			setup: func(tv *TypedValue) {
+				tv.T = Float32Type
+				tv.SetFloat32(math.Float32bits(float32(math.NaN())))
+			},
+			expectPanicMsg: "sign of NaN is undefined",
+		},
+		{
+			name: "float64 NaN",
+			setup: func(tv *TypedValue) {
+				tv.T = Float64Type
+				tv.SetFloat64(math.Float64bits(math.NaN()))
+			},
+			expectPanicMsg: "sign of NaN is undefined",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tv TypedValue
+			tt.setup(&tv)
+
+			if tt.expectPanicMsg != "" {
+				assert.PanicsWithValue(t, tt.expectPanicMsg, func() { tv.Sign() })
+				return
+			}
 
 			got := tv.Sign()
 			if got != tt.wantSign {
