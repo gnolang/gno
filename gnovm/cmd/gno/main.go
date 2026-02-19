@@ -97,7 +97,9 @@ func newGnocliCmd(io commands.IO) (*commands.Command, *rootConfig) {
 		newCleanCmd(io),
 		newDocCmd(io),
 		newEnvCmd(io),
-		newFixCmd(io),
+		// fix
+    newFixCmd(io),
+		newDoctestCmd(io),
 		newFmtCmd(io),
 		// generate
 		// get
