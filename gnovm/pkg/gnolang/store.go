@@ -48,13 +48,16 @@ type Store interface {
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
+	HasObject(oid ObjectID) bool
 	GetStagingPackage() *PackageValue
 	SetStagingPackage(pv *PackageValue)
 	DelObject(Object) int64 // returns size difference of the object
+	DelObjectByID(oid ObjectID)
 	GetType(tid TypeID) Type
 	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
 	SetType(Type)
+	DelTypeByID(tid TypeID)
 	GetPackageNode(pkgPath string) *PackageNode
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
@@ -65,6 +68,22 @@ type Store interface {
 	GetAllocator() *Allocator
 	SetAllocator(alloc *Allocator)
 	NumMemPackages() int64
+
+	// Some metrics for counting packages and objects,
+	// used for tracking and cleanup.
+	// Generates the next global sequence ID.
+	NextPackageGlobalID() int64
+	GetPackageGlobalID() int64
+	// Increments the revision for the specific package.
+	SetPackageRevision(pid PkgID, currentRev int64)
+	GetPackageRevision(pid PkgID) int64
+	AddPackageTypes(pid PkgID, typ TypeID)
+	GetPackageTypes(pid PkgID) []TypeID
+	ResetPackageTypes(pid PkgID)
+	// Object counts per package revision.
+	GetObjectCount(key string) uint64
+	ResetObjectCount(key string)
+
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
@@ -104,6 +123,7 @@ const (
 	GasAddMemPackageDesc   = "AddMemPackagePerByte"
 	GasGetMemPackageDesc   = "GetMemPackagePerByte"
 	GasDeleteObjectDesc    = "DeleteObjectFlat"
+	GasDeleteTypeDesc      = "DeleteTypeFlat"
 )
 
 // GasConfig defines gas cost for each operation on KVStores
@@ -117,6 +137,7 @@ type GasConfig struct {
 	GasAddMemPackage   int64
 	GasGetMemPackage   int64
 	GasDeleteObject    int64
+	GasDeleteType      int64
 }
 
 // DefaultGasConfig returns a default gas config for KVStores.
@@ -131,6 +152,7 @@ func DefaultGasConfig() GasConfig {
 		GasAddMemPackage:   8,    // per byte cost
 		GasGetMemPackage:   8,    // per byte cost
 		GasDeleteObject:    3715, // flat cost
+		GasDeleteType:      3715, // flat cost
 	}
 }
 
@@ -446,6 +468,17 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	return nil
 }
 
+// HasObject checks whether the object exists in cache or baseStore.
+func (ds *defaultStore) HasObject(oid ObjectID) bool {
+	// Check cache.
+	if _, exists := ds.cacheObjects[oid]; exists {
+		return true
+	}
+
+	key := backendObjectKey(oid)
+	return ds.baseStore.Has([]byte(key))
+}
+
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
@@ -702,6 +735,19 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		value = hash.Bytes()
 		ds.iavlStore.Set(key, value)
 	}
+
+	// If private package, update object count.
+	// Only private packages can be overridden.
+	// XXX, this can be further optimized by
+	// embedding the private logic into the pkgID.
+	poid := ObjectIDFromPkgID(oid.PkgID)
+	if oo := ds.GetObjectSafe(poid); oo != nil {
+		if pv := oo.(*PackageValue); pv.Private {
+			pid := oid.PkgID
+			pkgidx := ds.GetPackageRevision(pid)
+			ds.ensureObjectCount(backendObjectIndexKey(pid, pkgidx), oid.NewTime)
+		}
+	}
 	return diff
 }
 
@@ -745,6 +791,50 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 		fmt.Fprintf(ds.opslog, "d[%v](%d)\n", oo.GetObjectID(), -size)
 	}
 	return size
+}
+
+func (ds *defaultStore) DelObjectByID(oid ObjectID) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+	if bm.StorageEnabled {
+		bm.StartStore(bm.StoreDeleteObject)
+		defer func() {
+			// delete is a signle operation, not a func of size of bytes
+			bm.StopStore(0)
+		}()
+	}
+	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
+	// delete from cache.
+	delete(ds.cacheObjects, oid)
+	// delete from backend.
+	if ds.baseStore != nil {
+		key := backendObjectKey(oid)
+		ds.baseStore.Delete([]byte(key))
+	}
+}
+
+func (ds *defaultStore) DelTypeByID(tid TypeID) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+	if bm.StorageEnabled {
+		bm.StartStore(bm.StoreDeleteType)
+		defer func() {
+			// delete is a signle operation, not a func of size of bytes
+			bm.StopStore(0)
+		}()
+	}
+	ds.consumeGas(ds.gasConfig.GasDeleteType, GasDeleteTypeDesc)
+	// delete from cache.
+	ds.cacheTypes.Delete(tid)
+	// delete from backend.
+	if ds.baseStore != nil {
+		key := backendTypeKey(tid)
+		ds.baseStore.Delete([]byte(key))
+	}
 }
 
 // NOTE: not used quite yet.
@@ -925,21 +1015,129 @@ func (ds *defaultStore) NumMemPackages() int64 {
 	}
 }
 
-func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
+// Sequence for all packages.
+func (ds *defaultStore) NextPackageGlobalID() int64 {
+	ctrkey := []byte(backendPackageIndexCtrKey())
+	ctrbz := ds.baseStore.Get(ctrkey)
+
+	if ctrbz == nil {
+		ds.baseStore.Set(ctrkey, []byte("1"))
+		return 1
+	}
+
+	ctr, err := strconv.ParseInt(string(ctrbz), 10, 64)
+	if err != nil {
+		panic(fmt.Errorf("invalid counter: %w", err))
+	}
+
+	nextVal := ctr + 1
+
+	nextbz := strconv.FormatInt(nextVal, 10)
+	ds.baseStore.Set(ctrkey, []byte(nextbz))
+
+	return nextVal
+}
+
+func (ds *defaultStore) GetPackageGlobalID() int64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
-		nextbz := strconv.Itoa(1)
+		return 0
+	} else {
+		ctr, err := strconv.ParseInt(string(ctrbz), 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		return ctr
+	}
+}
+
+// Track declared types in a pacakge.
+func (ds *defaultStore) AddPackageTypes(pid PkgID, typ TypeID) {
+	tskey := []byte(backendPackageTypesKey(pid))
+	bz := ds.baseStore.Get(tskey)
+	typs := []TypeID{}
+	if bz != nil {
+		amino.MustUnmarshal(bz, &typs)
+		if slices.Contains(typs, typ) {
+			return
+		}
+	}
+	typs = append(typs, typ)
+	bz = amino.MustMarshal(typs)
+	ds.baseStore.Set(tskey, bz)
+}
+
+func (ds *defaultStore) GetPackageTypes(pid PkgID) []TypeID {
+	tskey := []byte(backendPackageTypesKey(pid))
+	bz := ds.baseStore.Get(tskey)
+	if bz == nil {
+		return nil
+	}
+	var typs []TypeID
+	amino.MustUnmarshal(bz, &typs)
+	return typs
+}
+
+func (ds *defaultStore) ResetPackageTypes(pid PkgID) {
+	tskey := []byte(backendPackageTypesKey(pid))
+	ds.baseStore.Delete(tskey)
+}
+
+// Index for a package.
+func (ds *defaultStore) SetPackageRevision(pid PkgID, ctr int64) {
+	ctrkey := []byte(backendPackageRevisionKey(pid))
+	ds.baseStore.Set(ctrkey, []byte(strconv.FormatInt(ctr, 10)))
+}
+
+func (ds *defaultStore) GetPackageRevision(pid PkgID) int64 {
+	ctrkey := []byte(backendPackageRevisionKey(pid))
+	ctrbz := ds.baseStore.Get(ctrkey)
+	if ctrbz == nil {
+		return 0
+	}
+	ctr, err := strconv.ParseInt(string(ctrbz), 10, 64)
+	if err != nil {
+		panic(fmt.Errorf("invalid counter: %w", err))
+	}
+	return ctr
+}
+
+// ensureObjectCount updates the max object index count if the provided count is greater.
+func (ds *defaultStore) ensureObjectCount(key string, count uint64) {
+	ctrkey := []byte(key)
+	ctrbz := ds.baseStore.Get(ctrkey)
+	var current uint64
+	if ctrbz != nil {
+		ctr, err := strconv.ParseUint(string(ctrbz), 10, 64)
+		if err != nil {
+			panic(fmt.Errorf("invalid counter: %w", err))
+		}
+		current = ctr
+	}
+
+	if count > current {
+		nextbz := strconv.FormatUint(count, 10)
 		ds.baseStore.Set(ctrkey, []byte(nextbz))
-		return 1
+	}
+}
+
+func (ds *defaultStore) ResetObjectCount(key string) {
+	ctrkey := []byte(key)
+	ds.baseStore.Set(ctrkey, []byte("0"))
+}
+
+func (ds *defaultStore) GetObjectCount(key string) uint64 {
+	ctrkey := []byte(key)
+	ctrbz := ds.baseStore.Get(ctrkey)
+	if ctrbz == nil {
+		return 0
 	} else {
 		ctr, err := strconv.Atoi(string(ctrbz))
 		if err != nil {
 			panic(err)
 		}
-		nextbz := strconv.Itoa(ctr + 1)
-		ds.baseStore.Set(ctrkey, []byte(nextbz))
-		return uint64(ctr) + 1
+		return uint64(ctr)
 	}
 }
 
@@ -974,8 +1172,15 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	if err != nil {
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}
-	ctr := ds.incGetPackageIndexCounter()
-	idxkey := []byte(backendPackageIndexKey(ctr))
+
+	var idx int64
+	// If package exists, reuse existing slot.
+	idx = ds.GetPackageRevision(PkgIDFromPkgPath(mpkg.Path))
+	if idx == 0 {
+		idx = ds.GetPackageGlobalID() // otherwise using a new slot.
+	}
+
+	idxkey := []byte(backendPackageIndexKey(idx))
 	bz := amino.MustMarshal(mpkg)
 	gas := overflow.Mulp(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAddMemPackageDesc)
@@ -1078,7 +1283,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 		}
 		ch := make(chan *std.MemPackage)
 		go func() {
-			for i := uint64(1); i <= uint64(ctr); i++ {
+			for i := int64(1); i <= int64(ctr); i++ {
 				idxkey := []byte(backendPackageIndexKey(i))
 				path := ds.baseStore.Get(idxkey)
 				if path == nil {
@@ -1204,8 +1409,12 @@ func backendPackageIndexCtrKey() string {
 	return "pkgidx:counter"
 }
 
-func backendPackageIndexKey(index uint64) string {
+func backendPackageIndexKey(index int64) string {
 	return fmt.Sprintf("pkgidx:%020d", index)
+}
+
+func backendObjectIndexKey(pid PkgID, index int64) string {
+	return fmt.Sprintf("%s:%020d", pid, index)
 }
 
 // We need to prefix stdlibs path with `_` to maitain them lexicographically
@@ -1225,6 +1434,14 @@ func backendPackageGlobalPath(path string) string { return "pkg:" + path }
 func decodeBackendPackagePathKey(key string) string {
 	path := strings.TrimPrefix(key, "pkg:")
 	return strings.TrimPrefix(path, "_/")
+}
+
+func backendPackageRevisionKey(pid PkgID) string {
+	return "pkgRev:" + pid.String()
+}
+
+func backendPackageTypesKey(pid PkgID) string {
+	return "pkgTypes:" + pid.String()
 }
 
 // ----------------------------------------

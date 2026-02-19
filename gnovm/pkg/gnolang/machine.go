@@ -274,6 +274,57 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		private = mod.Private
 	}
 
+	// If an old private package is overridden by a new package(now only private package).
+	// defer the clean operation.
+	if oid := ObjectIDFromPkgPath(mpkg.Path); m.Store.HasObject(oid) {
+		// Revision of old existing package.
+		pkgidx := m.Store.GetPackageRevision(oid.PkgID)
+		// Get count of object of the old package.
+		objctr := m.Store.GetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx))
+		m.Store.ResetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx))
+		// Get declared types of the old package.
+		dts := m.Store.GetPackageTypes(oid.PkgID)
+		// Reset package types.
+		m.Store.ResetPackageTypes(ObjectIDFromPkgPath(mpkg.Path).PkgID)
+
+		// Clean outdated Objects after new Objects are added.
+		defer func() {
+			if r := recover(); r != nil {
+				panic(r)
+			}
+			// If succeed, clean outdated objects.
+			// Package revision does not update while override.
+			objctr2 := m.Store.GetObjectCount(backendObjectIndexKey(oid.PkgID, pkgidx))
+
+			// If all old slots are overridden.
+			if objctr2 >= objctr {
+				return
+			}
+
+			// Else clean the outdated objects.
+			if debug {
+				debug.Printf("clean outdated object, origin count: %d, current count: %d, num to delete: %d\n", objctr, objctr2, objctr-objctr2)
+			}
+
+			for i := objctr2 + 1; i <= objctr; i++ {
+				oid := ObjectID{PkgID: oid.PkgID, NewTime: i}
+				m.Store.DelObjectByID(oid)
+			}
+
+			// Clean outdated declared types.
+			dts2 := m.Store.GetPackageTypes(oid.PkgID)
+			for _, dtid := range dts {
+				if !slices.Contains(dts2, dtid) {
+					m.Store.DelTypeByID(dtid)
+				}
+			}
+		}()
+	} else {
+		// If not override old package, increase index set revision for package.
+		idx := m.Store.NextPackageGlobalID() // global index of package.
+		m.Store.SetPackageRevision(oid.PkgID, idx)
+	}
+
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -717,6 +768,8 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 			if tvv, ok := tv.V.(TypeValue); ok {
 				if dt, ok := tvv.Type.(*DeclaredType); ok {
 					m.Store.SetType(dt)
+					// Track type as belonging to package.
+					m.Store.AddPackageTypes(ObjectIDFromPkgPath(dt.PkgPath).PkgID, dt.TypeID())
 				}
 			}
 		}
