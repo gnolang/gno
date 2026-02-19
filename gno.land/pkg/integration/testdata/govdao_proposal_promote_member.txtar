@@ -19,11 +19,11 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 stdout 'data: # GovDAO'
 
 # Register member with a namespace first
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test member
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 12000000 -broadcast -chainid=tendermint_test member
 stdout 'OK!'
 
 # Register withdrawmember with a namespace first
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "withdraw456" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test withdrawmember
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "withdraw456" -gas-fee 1000000ugnot -gas-wanted 12000000 -broadcast -chainid=tendermint_test withdrawmember
 stdout 'OK!'
 
 # add the proposal
