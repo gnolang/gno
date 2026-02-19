@@ -1,22 +1,24 @@
-package commondao
+package commondao_test
 
 import (
 	"testing"
 
 	"gno.land/p/nt/uassert"
 	"gno.land/p/nt/urequire"
+
+	"gno.land/p/nt/commondao"
 )
 
 func TestMemberGroupNew(t *testing.T) {
-	g, err := NewMemberGroup("", nil)
+	g, err := commondao.NewMemberGroup("", nil)
 	urequire.ErrorContains(t, err, "member storage is required")
 
-	storage := NewMemberStorage()
-	g, err = NewMemberGroup("", storage)
+	storage := commondao.NewMemberStorage()
+	g, err = commondao.NewMemberGroup("", storage)
 	urequire.ErrorContains(t, err, "member group name is required")
 
 	name := "Tier 1"
-	g, err = NewMemberGroup(name, storage)
+	g, err = commondao.NewMemberGroup(name, storage)
 	urequire.NoError(t, err, "expect no error")
 	uassert.Equal(t, name, g.Name(), "expect group name to match")
 	uassert.NotNil(t, g.Members(), "expect members to be not nil")
@@ -24,7 +26,7 @@ func TestMemberGroupNew(t *testing.T) {
 }
 
 func TestMemberGroupMeta(t *testing.T) {
-	g, err := NewMemberGroup("Test", NewMemberStorage())
+	g, err := commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
 	urequire.NoError(t, err, "expect no error")
 
 	g.SetMeta(42)

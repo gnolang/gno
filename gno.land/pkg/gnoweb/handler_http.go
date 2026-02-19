@@ -197,11 +197,32 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use form data as query
+	// Extract path from hidden form field if present.
+	// The value is HTML-escaped in the form and URL-encoded when building the redirect.
+	if gnoPath := r.PostForm.Get("__gno_path"); gnoPath != "" {
+		gnourl.Args = gnoPath
+		// Remove from form data so it's not included in query params
+		r.PostForm.Del("__gno_path")
+	}
+
+	// Use remaining form data as query
 	gnourl.Query = r.PostForm
 
+	// Build redirect URL using EncodeFormURL.
+	// url.PathEscape encodes slashes and delimiter characters; the args remain part of
+	// the path (e.g. /r/realm:args), not a URL scheme.
+	sanitizedRedirectURL := gnourl.EncodeFormURL()
+
+	// Defense-in-depth: validate redirect URL to prevent open redirects,
+	// This can happen when path is "/" and file is "evil.domain" -> "//evil.domain"
+	if strings.HasPrefix(sanitizedRedirectURL, "//") {
+		h.Logger.Warn("blocked unsafe redirect", "url", sanitizedRedirectURL)
+		http.Error(w, "invalid redirect", http.StatusBadRequest)
+		return
+	}
+
 	// Redirect to the new URL
-	http.Redirect(w, r, gnourl.EncodeWebURL(), http.StatusSeeOther)
+	http.Redirect(w, r, sanitizedRedirectURL, http.StatusSeeOther)
 }
 
 // prepareIndexBodyView prepares the data and main view for the index page.
@@ -246,7 +267,11 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
-	toc, err := h.Renderer.RenderRealm(&content, gnourl, []byte(mdContent))
+	toc, err := h.Renderer.RenderRealm(&content, gnourl, []byte(mdContent), RealmRenderContext{
+		ChainId: h.Static.ChainId,
+		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
+	})
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
@@ -302,7 +327,11 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	}
 
 	var content bytes.Buffer
-	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw)
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
+		ChainId: h.Static.ChainId,
+		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
+	})
 	if err != nil {
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
@@ -377,7 +406,11 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	// Render user profile realm
 	raw, err := h.Client.Realm(ctx, "/r/"+username+"/home", "")
 	if err == nil {
-		_, err = h.Renderer.RenderRealm(&content, gnourl, raw)
+		_, err = h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
+			ChainId: h.Static.ChainId,
+			Remote:  h.Static.RemoteHelp,
+			Domain:  h.Static.Domain,
+		})
 	}
 
 	if content.Len() == 0 {
@@ -399,7 +432,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	// Try to decode the bech32 address
 	username = CreateUsernameFromBech32(username)
 
-	//TODO: get from user r/profile and use placeholder if not set
+	// TODO: get from user r/profile and use placeholder if not set
 	handlename := "Gnome " + username
 
 	data := components.UserData{
@@ -481,7 +514,11 @@ func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, p
 	}
 
 	var buf bytes.Buffer
-	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file); err != nil {
+	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, RealmRenderContext{
+		ChainId: h.Static.ChainId,
+		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
+	}); err != nil {
 		h.Logger.Error("render README.md", "error", err)
 		return nil, nil
 	}

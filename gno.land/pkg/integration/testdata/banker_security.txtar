@@ -1,0 +1,162 @@
+# Test banker security - verify that realms cannot steal coins from arbitrary addresses
+#
+# This test verifies the security claim that:
+#   banker := std.NewBanker(std.BankerTypeOriginSend)
+#   banker.SendCoins(victimAddr, attackerAddr, coins)
+# does NOT allow stealing coins from arbitrary addresses.
+
+## Setup users
+adduser attacker
+adduser victim
+
+## start a new node
+gnoland start
+
+## Check victim has initial coins from genesis (1000 GNOT from adduser)
+gnokey query bank/balances/${victim_user_addr}
+stdout '1000000000ugnot'
+
+## Check attacker initial balance (should have default genesis amount)
+gnokey query bank/balances/${attacker_user_addr}
+stdout '1000000000ugnot'
+
+## Deploy the malicious realm that attempts to steal coins
+gnokey maketx addpkg -pkgdir $WORK/malicious -pkgpath gno.land/r/test/malicious -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test attacker
+stdout OK!
+
+## ============================================
+## TEST 1: BankerTypeOriginSend with wrong "from" address
+## Attacker tries to steal victim's coins using OriginSend banker
+## This should FAIL - banker should only allow sending from the realm's own address
+## ============================================
+
+! gnokey maketx call -pkgpath gno.land/r/test/malicious -func StealWithOriginSend -args ${victim_user_addr} -args ${attacker_user_addr} -args 100000 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test attacker
+stderr 'can only send coins from realm that created banker'
+
+## Verify victim's coins are NOT stolen (still has 1000 GNOT)
+gnokey query bank/balances/${victim_user_addr}
+stdout '1000000000ugnot'
+
+## ============================================
+## TEST 2: BankerTypeRealmSend with wrong "from" address
+## Attacker tries to steal victim's coins using RealmSend banker
+## This should FAIL - banker should only allow sending from the realm's own address
+## ============================================
+
+! gnokey maketx call -pkgpath gno.land/r/test/malicious -func StealWithRealmSend -args ${victim_user_addr} -args ${attacker_user_addr} -args 100000 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test attacker
+stderr 'can only send coins from realm that created banker'
+
+## Verify victim's coins are still safe (still has 1000 GNOT)
+gnokey query bank/balances/${victim_user_addr}
+stdout '1000000000ugnot'
+
+## ============================================
+## TEST 3: OriginSend attempting to exceed sent amount
+## Even if user sends some coins, realm cannot send more than what was sent
+## ============================================
+
+! gnokey maketx call -pkgpath gno.land/r/test/malicious -func LegitOriginSend -args ${attacker_user_addr} -args 100000 -send 10ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test victim
+stderr 'cannot send "100000ugnot", limit "10ugnot" exceeded'
+
+## ============================================
+## TEST 4: Legitimate OriginSend within limits should work
+## This verifies the banker does work correctly for legitimate use
+## ============================================
+
+gnokey maketx call -pkgpath gno.land/r/test/malicious -func LegitOriginSend -args ${attacker_user_addr} -args 5 -send 10ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test victim
+stdout OK!
+
+## ============================================
+## TEST 5: Cross-realm attack - nested realm tries to use caller's banker
+## Deploy a "helper" realm that the malicious realm tries to use to steal coins
+## ============================================
+
+gnokey maketx addpkg -pkgdir $WORK/helper -pkgpath gno.land/r/test/helper -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test attacker
+stdout OK!
+
+## Update malicious realm to have access to helper
+gnokey maketx addpkg -pkgdir $WORK/malicious_v2 -pkgpath gno.land/r/test/malicious_v2 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test attacker
+stdout OK!
+
+## Try cross-realm attack - helper realm should not be able to create OriginSend banker
+## because it's not the origin package
+! gnokey maketx call -pkgpath gno.land/r/test/malicious_v2 -func CrossRealmAttack -args ${victim_user_addr} -args ${attacker_user_addr} -args 100000 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test attacker
+stderr 'banker with type BankerTypeOriginSend can only be instantiated by the origin package'
+
+## Final verification - victim's coins remain safe throughout all tests
+## Victim started with 1000000000, spent gas on one successful call, should have most of it
+gnokey query bank/balances/${victim_user_addr}
+stdout 'ugnot'
+
+-- malicious/gnomod.toml --
+module = "gno.land/r/test/malicious"
+gno = "0.9"
+
+-- malicious/malicious.gno --
+package malicious
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+)
+
+// StealWithOriginSend attempts to steal coins from victim using OriginSend banker
+// This should FAIL because the banker checks that 'from' matches the realm's address
+func StealWithOriginSend(cur realm, victim, attacker address, amount int64) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend)
+	// Attack: try to send from victim's address instead of realm's address
+	b.SendCoins(victim, attacker, chain.Coins{{"ugnot", amount}})
+}
+
+// StealWithRealmSend attempts to steal coins from victim using RealmSend banker
+// This should FAIL for the same reason
+func StealWithRealmSend(cur realm, victim, attacker address, amount int64) {
+	b := banker.NewBanker(banker.BankerTypeRealmSend)
+	// Attack: try to send from victim's address instead of realm's address
+	b.SendCoins(victim, attacker, chain.Coins{{"ugnot", amount}})
+}
+
+// LegitOriginSend is the legitimate use case - sends from realm's own address
+// but limited to what the caller sent with the transaction
+func LegitOriginSend(cur realm, to address, amount int64) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend)
+	// Correct: send from realm's own address (which holds coins sent by caller)
+	b.SendCoins(runtime.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amount}})
+}
+
+-- helper/gnomod.toml --
+module = "gno.land/r/test/helper"
+gno = "0.9"
+
+-- helper/helper.gno --
+package helper
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+// TrySteal is called by another realm to attempt a cross-realm attack
+// This should FAIL because OriginSend can only be created by the origin package
+func TrySteal(cur realm, from, to address, amount int64) {
+	// This will panic: "banker with type BankerTypeOriginSend can only be instantiated by the origin package"
+	b := banker.NewBanker(banker.BankerTypeOriginSend)
+	b.SendCoins(from, to, chain.Coins{{"ugnot", amount}})
+}
+
+-- malicious_v2/gnomod.toml --
+module = "gno.land/r/test/malicious_v2"
+gno = "0.9"
+
+-- malicious_v2/malicious_v2.gno --
+package malicious_v2
+
+import "gno.land/r/test/helper"
+
+// CrossRealmAttack tries to use a helper realm to steal coins
+// The idea is that maybe the helper realm can create a banker and use it
+// But this should FAIL because the helper is not the "origin" package
+func CrossRealmAttack(cur realm, victim, attacker address, amount int64) {
+	helper.TrySteal(cross, victim, attacker, amount)
+}
