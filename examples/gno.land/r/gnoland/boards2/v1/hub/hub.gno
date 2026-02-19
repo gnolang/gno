@@ -8,7 +8,7 @@ import (
 
 // GetBoard returns a safe board.
 func GetBoard(id uint64) (Board, bool) {
-	b, found := boards2.GetBoard(boards.ID(id))
+	b, found := getBoard(id)
 	if !found {
 		return Board{}, false
 	}
@@ -24,21 +24,35 @@ func GetThread(boardID, threadID uint64) (Thread, bool) {
 	return newSafeThread(t), true
 }
 
+// GetComment returns a safe thread comment.
+func GetComment(boardID, threadID, commentID uint64) (Comment, bool) {
+	c, found := getComment(boardID, threadID, commentID)
+	if !found {
+		return Comment{}, false
+	}
+	return newSafeComment(c), true
+}
+
 // GetBoards returns a list with all boards.
 // To reverse iterate use a negative count.
 func GetBoards(start, count int) []Board {
 	var boards_ []Board
-	boards2.Iterate(start, count, func(b *boards.Board) bool {
-		boards_ = append(boards_, newSafeBoard(b))
-		return false
-	})
+
+	// Cross into current hub realm to be able to call protected `Iterate()` fucntion
+	func(realm) {
+		boards2.Iterate(start, count, func(b *boards.Board) bool {
+			boards_ = append(boards_, newSafeBoard(b))
+			return false
+		})
+	}(cross)
+
 	return boards_
 }
 
 // GetThreads returns a list with threads of a board.
 // To reverse iterate use a negative count.
 func GetThreads(boardID uint64, start, count int) []Thread {
-	b, found := boards2.GetBoard(boards.ID(boardID))
+	b, found := getBoard(boardID)
 	if !found {
 		return nil
 	}
@@ -54,7 +68,7 @@ func GetThreads(boardID uint64, start, count int) []Thread {
 // GetMembers returns a list with the members of a board.
 // To reverse iterate use a negative count.
 func GetMembers(boardID uint64, start, count int) []boards.User {
-	b, found := boards2.GetBoard(boards.ID(boardID))
+	b, found := getBoard(boardID)
 	if !found {
 		return nil
 	}
@@ -86,16 +100,29 @@ func GetReposts(boardID, threadID uint64, start, count int) []Thread {
 	return reposts
 }
 
-// GetFlag returns a list with thread moderation flags.
+// GetFlag returns a list with thread or comment moderation flags.
 // To reverse iterate use a negative count.
-func GetFlags(boardID, threadID uint64, start, count int) []boards.Flag {
-	t, found := getThread(boardID, threadID)
-	if !found {
-		return nil
+// Thread flags are returned when `commentID` is zero, or comment flags are returned otherwise.
+func GetFlags(boardID, threadID, commentID uint64, start, count int) []boards.Flag {
+	var storage boards.FlagStorage
+	if commentID == 0 {
+		t, found := getThread(boardID, threadID)
+		if !found {
+			return nil
+		}
+
+		storage = t.Flags
+	} else {
+		c, found := getComment(boardID, threadID, commentID)
+		if !found {
+			return nil
+		}
+
+		storage = c.Flags
 	}
 
 	var flags []boards.Flag
-	t.Flags.Iterate(start, count, func(f boards.Flag) bool {
+	storage.Iterate(start, count, func(f boards.Flag) bool {
 		flags = append(flags, f)
 		return false
 	})
@@ -122,7 +149,6 @@ func GetComments(boardID, threadID uint64, start, count int) []Comment {
 
 // GetReplies returns a list with top level comment replies.
 // To reverse iterate use a negative count.
-// Use `GetComments()` to get all thread comments and replies.
 func GetReplies(boardID, threadID, commentID uint64, start, count int) []Comment {
 	c, found := getComment(boardID, threadID, commentID)
 	if !found {
@@ -137,8 +163,15 @@ func GetReplies(boardID, threadID, commentID uint64, start, count int) []Comment
 	return replies
 }
 
+func getBoard(boardID uint64) (*boards.Board, bool) {
+	// Cross into current hub realm to be able to call protected `GetBoard()` fucntion
+	return func(realm) (*boards.Board, bool) {
+		return boards2.GetBoard(boards.ID(boardID))
+	}(cross)
+}
+
 func getThread(boardID, threadID uint64) (*boards.Post, bool) {
-	b, found := boards2.GetBoard(boards.ID(boardID))
+	b, found := getBoard(boardID)
 	if !found {
 		return nil, false
 	}
