@@ -46,7 +46,7 @@ type Board struct {
 // To reverse iterate use a negative count.
 func (b Board) IterateThreads(start, count int, fn func(Thread) bool) bool {
 	return b.ref.Threads.Iterate(start, count, func(thread *boards.Post) bool {
-		return fn(newSafeThread(thread))
+		return fn(NewSafeThread(thread))
 	})
 }
 
@@ -56,15 +56,26 @@ func (b Board) IterateMembers(start, count int, fn func(boards.User) bool) bool 
 	return b.ref.Permissions.IterateUsers(start, count, fn)
 }
 
-func newSafeBoard(ref *boards.Board) Board {
+// NewSafeBoard creates a safe board.
+func NewSafeBoard(ref *boards.Board) Board {
+	var usersCount int
+	if ref.Permissions != nil {
+		usersCount = ref.Permissions.UsersCount()
+	}
+
+	var threadCount int
+	if ref.Threads != nil {
+		threadCount = ref.Threads.Size()
+	}
+
 	return Board{
 		ref:         ref,
 		ID:          uint64(ref.ID),
 		Name:        ref.Name,
 		Aliases:     append([]string(nil), ref.Aliases...),
 		Readonly:    ref.Readonly,
-		ThreadCount: ref.Threads.Size(),
-		MemberCount: ref.Permissions.UsersCount(),
+		ThreadCount: threadCount,
+		MemberCount: usersCount,
 		Creator:     ref.Creator,
 		CreatedAt:   timeToUnix(ref.CreatedAt),
 		UpdatedAt:   timeToUnix(ref.UpdatedAt),

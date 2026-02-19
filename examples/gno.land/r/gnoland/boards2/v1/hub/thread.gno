@@ -76,11 +76,12 @@ func (t Thread) IterateReposts(start, count int, fn func(boardID, repostThreadID
 // To reverse iterate use a negative count.
 func (t Thread) IterateComments(start, count int, fn func(Comment) bool) bool {
 	return t.ref.Replies.Iterate(start, count, func(comment *boards.Post) bool {
-		return fn(newSafeComment(comment))
+		return fn(NewSafeComment(comment))
 	})
 }
 
-func newSafeThread(ref *boards.Post) Thread {
+// NewSafeThread creates a safe thread.
+func NewSafeThread(ref *boards.Post) Thread {
 	if !boards.IsThread(ref) {
 		panic("post is not a thread")
 	}
