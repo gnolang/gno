@@ -50,6 +50,10 @@ func main() {
 // Output:
 // true
 // # [Boards](/r/gnoland/boards2/v1) › [test123](/r/gnoland/boards2/v1:test123)
+//
+//
+// > [!NOTE] 2 THINGS YOU NEED TO GET STARTED
+// > To post and comment, **retrieve your Gno key** with [Adena](https://adena.app) or [gnokey](https://docs.gno.land/users/interact-with-gnokey). You need **at least 3,000 GNOT** in your account (balance requirement, not a transfer).
 // ## Test Thread
 //
 // **[@user123](/u/user123)** · 2009-02-13 11:31pm UTC

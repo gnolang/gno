@@ -31,6 +31,8 @@ func main() {
 // # Boards
 // [Create Board](/r/gnoland/boards2/v1:create-board) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
 //
+// > [!NOTE] 2 THINGS YOU NEED TO GET STARTED
+// > To post and comment, **retrieve your Gno key** with [Adena](https://adena.app) or [gnokey](https://docs.gno.land/users/interact-with-gnokey). You need **at least 3,000 GNOT** in your account (balance requirement, not a transfer).
 // ---
 // Sort by: [oldest first](/r/gnoland/boards2/v1:?order=desc)
 //

@@ -331,6 +331,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 		)
 	}
 
+	res.Write(getStartedAlert())
 	res.Write(form.String())
 	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to thread", makeThreadURI(thread)) + "\n")
 }
@@ -510,6 +511,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 		)
 	}
 
+	res.Write(getStartedAlert())
 	res.Write(form.String())
 	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to thread", makeThreadURI(thread)) + "\n")
 }
