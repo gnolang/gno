@@ -16,6 +16,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 )
@@ -372,7 +373,7 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 			realmCount++
 		}
 		contribs = append(contribs, components.UserContribution{
-			Title: path.Base(raw),
+			Title: displayPackageName(raw),
 			URL:   raw,
 			Type:  components.UserContributionType(ctype),
 			// TODO: size, description, date...
@@ -395,6 +396,19 @@ func CreateUsernameFromBech32(username string) string {
 	}
 
 	return username
+}
+
+// displayPackageName returns a display-friendly name for a package path.
+// For versioned paths like "/r/foo/v2", it returns "foo/v2".
+// For non-versioned paths like "/r/foo", it returns "foo".
+func displayPackageName(pkgPath string) string {
+	base := path.Base(pkgPath)
+	name := gno.LastPathElement(pkgPath)
+	if name != base {
+		// Versioned path: show "name/vN".
+		return name + "/" + base
+	}
+	return name
 }
 
 // GetUserView returns the user profile view for a given GnoURL.
@@ -489,7 +503,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		}
 	}
 
-	realmName := path.Base(gnourl.Path)
+	realmName := displayPackageName(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
