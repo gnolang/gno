@@ -61,7 +61,7 @@ func initRealmPermissions(owners ...address) boards.Permissions {
 	return perms
 }
 
-// getInvitesRequests returns invite requests for a board.
+// getInviteRequests returns invite requests for a board.
 func getInviteRequests(boardID boards.ID) (_ *avl.Tree, found bool) {
 	v, exists := gInviteRequests.Get(boardID.Key())
 	if !exists {

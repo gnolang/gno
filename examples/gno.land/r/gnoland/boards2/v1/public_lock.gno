@@ -16,12 +16,12 @@ import (
 //
 // Realm can also be locked without locking realm members.
 // Realm members can be locked when locking the realm or afterwards.
-// This is relevant for two reasons, one so members can be modified after lock.
-// The other is for realm owners, which can delete threads and comments after lock.
+// This is relevant for two reasons, one so that members can be modified after the lock.
+// The other is for realm owners, who can delete threads and comments after the lock.
 func LockRealm(_ realm, lockRealmMembers bool) {
 	assertRealmMembersAreNotLocked()
 
-	// If realm members are not being locked assert that realm is no locked.
+	// If realm members are not being locked assert that realm is not locked.
 	// Members can be locked after locking the realm, in a second `LockRealm` call.
 	if !lockRealmMembers {
 		assertRealmIsNotLocked()
@@ -45,7 +45,7 @@ func IsRealmLocked() bool {
 	return gLocked.realm
 }
 
-// AreRealmMembersLocked checks if realm members has been locked.
+// AreRealmMembersLocked checks if realm members have been locked.
 func AreRealmMembersLocked() bool {
 	return gLocked.realmMembers
 }
