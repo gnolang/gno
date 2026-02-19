@@ -25,4 +25,4 @@ func main() {
 //
 // ---
 // ### Currently there are no boards
-// Be the first to [create a new board](/r/gnoland/boards2/v1:create-board) !
+// Be the first to [create a new board](/r/gnoland/boards2/v1:create-board)!
