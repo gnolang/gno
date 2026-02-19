@@ -139,6 +139,7 @@ func (ps *proposalStatus) String() string {
 		if ps.DeniedReason != "" {
 			sb.WriteString("REASON: ")
 			sb.WriteString(ps.DeniedReason)
+			sb.WriteString("\n")
 		}
 	} else {
 		sb.WriteString("- **Proposal is open for votes**\n")
@@ -182,9 +183,7 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 		sb.WriteString(ufmt.Sprintf("%v from %v (VPPM %v):\n\n", title, tn, power))
 		ms, _ := value.(*avl.Tree)
 		ms.Iterate("", "", func(addr string, _ interface{}) bool {
-			sb.WriteString("\n")
 			sb.WriteString("- " + tryResolveAddr(address(addr)) + "\n")
-
 			return false
 		})
 
