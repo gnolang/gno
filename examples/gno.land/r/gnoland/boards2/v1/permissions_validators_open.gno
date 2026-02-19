@@ -1,9 +1,11 @@
 package boards2
 
 import (
+	"chain/banker"
 	"errors"
 
 	"gno.land/p/gnoland/boards"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/gnoland/boards2/v1/permissions"
 	"gno.land/r/sys/users"
@@ -115,11 +117,19 @@ func validateOpenThreadCreate(perms boards.Permissions, args boards.Args) error 
 		return errors.New("expected a valid caller address")
 	}
 
-	// Owners and admins can create threads without a regisrtered username
+	// Owners and admins can create threads without a registered username
 	if perms.HasRole(caller, permissions.RoleOwner) || perms.HasRole(caller, permissions.RoleAdmin) {
 		return nil
-	} else if users.ResolveAddress(caller) == nil {
+	}
+
+	// Require registered usernames to non members
+	if users.ResolveAddress(caller) == nil {
 		return errors.New("a registered username is required to create threads on open boards")
+	}
+
+	// Require non members to have some GNOT in their accounts
+	if err := checkAccountHasAmount(caller, gOpenAccountAmount); err != nil {
+		return ufmt.Errorf("caller is not allowed to create threads: %s", err)
 	}
 	return nil
 }
@@ -139,9 +149,29 @@ func validateOpenReplyCreate(perms boards.Permissions, args boards.Args) error {
 		return errors.New("expected a valid caller address")
 	}
 
-	// Board members can reply without a registered username
-	if !perms.HasUser(caller) && users.ResolveAddress(caller) == nil {
+	// All board members can reply
+	if perms.HasUser(caller) {
+		return nil
+	}
+
+	// Require registered usernames to non members
+	if users.ResolveAddress(caller) == nil {
 		return errors.New("a registered username is required to comment on open boards")
+	}
+
+	// Require non members to have some GNOT in their accounts
+	if err := checkAccountHasAmount(caller, gOpenAccountAmount); err != nil {
+		return ufmt.Errorf("caller is not allowed to comment: %s", err)
+	}
+	return nil
+}
+
+func checkAccountHasAmount(addr address, amount int64) error {
+	bnk := banker.NewBanker(banker.BankerTypeReadonly)
+	coins := bnk.GetCoins(addr)
+	if coins.AmountOf("ugnot") < gOpenAccountAmount {
+		amount = amount / 1_000_000 // ugnot -> GNOT
+		return ufmt.Errorf("account amount is lower than %d GNOT", amount)
 	}
 	return nil
 }

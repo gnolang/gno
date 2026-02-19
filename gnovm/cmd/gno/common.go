@@ -26,6 +26,7 @@ const (
 	gnoPreprocessError gnoCode = "gnoPreprocessError"
 	gnoParserError     gnoCode = "gnoParserError"
 	gnoTypeCheckError  gnoCode = "gnoTypeCheckError"
+	gnoLintError       gnoCode = "gnoLintError"
 
 	// TODO: add new gno codes here.
 )

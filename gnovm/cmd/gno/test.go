@@ -379,7 +379,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 				if cmd.coverage {
 					opts.TestPackagePath = mpkg.Path
 				}
-				errs := lintTypeCheck(io, pkg.Dir, mpkg, gno.TypeCheckOptions{
+				_, errs := lintTypeCheck(io, pkg.Dir, mpkg, gno.TypeCheckOptions{
 					Getter:     opts.TestStore,
 					TestGetter: opts.TestStore,
 					Mode:       gno.TCLatestRelaxed,
