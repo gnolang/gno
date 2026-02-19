@@ -53,13 +53,24 @@ func (c Comment) IterateFlags(start, count int, fn func(boards.Flag) bool) bool 
 // To reverse iterate use a negative count.
 func (t Comment) IterateReplies(start, count int, fn func(Comment) bool) bool {
 	return t.ref.Replies.Iterate(start, count, func(comment *boards.Post) bool {
-		return fn(newSafeComment(comment))
+		return fn(NewSafeComment(comment))
 	})
 }
 
-func newSafeComment(ref *boards.Post) Comment {
+// NewSafeComment creates a safe comment.
+func NewSafeComment(ref *boards.Post) Comment {
 	if boards.IsThread(ref) {
 		panic("post is not a comment or reply")
+	}
+
+	var replyCount int
+	if ref.Replies != nil {
+		replyCount = ref.Replies.Size()
+	}
+
+	var flagCount int
+	if ref.Flags != nil {
+		flagCount = ref.Flags.Size()
 	}
 
 	return Comment{
@@ -70,8 +81,8 @@ func newSafeComment(ref *boards.Post) Comment {
 		ParentID:   uint64(ref.ParentID),
 		Body:       ref.Body,
 		Hidden:     ref.Hidden,
-		ReplyCount: ref.Replies.Size(),
-		FlagCount:  ref.Flags.Size(),
+		ReplyCount: replyCount,
+		FlagCount:  flagCount,
 		Creator:    ref.Creator,
 		CreatedAt:  timeToUnix(ref.CreatedAt),
 		UpdatedAt:  timeToUnix(ref.UpdatedAt),

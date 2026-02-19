@@ -12,7 +12,7 @@ func GetBoard(id uint64) (Board, bool) {
 	if !found {
 		return Board{}, false
 	}
-	return newSafeBoard(b), true
+	return NewSafeBoard(b), true
 }
 
 // GetThread returns a safe board thread.
@@ -21,7 +21,7 @@ func GetThread(boardID, threadID uint64) (Thread, bool) {
 	if !found {
 		return Thread{}, false
 	}
-	return newSafeThread(t), true
+	return NewSafeThread(t), true
 }
 
 // GetComment returns a safe thread comment.
@@ -30,7 +30,7 @@ func GetComment(boardID, threadID, commentID uint64) (Comment, bool) {
 	if !found {
 		return Comment{}, false
 	}
-	return newSafeComment(c), true
+	return NewSafeComment(c), true
 }
 
 // GetBoards returns a list with all boards.
@@ -41,7 +41,7 @@ func GetBoards(start, count int) []Board {
 	// Cross into current hub realm to be able to call protected `Iterate()` fucntion
 	func(realm) {
 		boards2.Iterate(start, count, func(b *boards.Board) bool {
-			boards_ = append(boards_, newSafeBoard(b))
+			boards_ = append(boards_, NewSafeBoard(b))
 			return false
 		})
 	}(cross)
@@ -59,7 +59,7 @@ func GetThreads(boardID uint64, start, count int) []Thread {
 
 	var threads []Thread
 	b.Threads.Iterate(start, count, func(thread *boards.Post) bool {
-		threads = append(threads, newSafeThread(thread))
+		threads = append(threads, NewSafeThread(thread))
 		return false
 	})
 	return threads
@@ -141,7 +141,7 @@ func GetComments(boardID, threadID uint64, start, count int) []Comment {
 
 	var comments []Comment
 	t.Replies.Iterate(start, count, func(comment *boards.Post) bool {
-		comments = append(comments, newSafeComment(comment))
+		comments = append(comments, NewSafeComment(comment))
 		return false
 	})
 	return comments
@@ -157,7 +157,7 @@ func GetReplies(boardID, threadID, commentID uint64, start, count int) []Comment
 
 	var replies []Comment
 	c.Replies.Iterate(start, count, func(comment *boards.Post) bool {
-		replies = append(replies, newSafeComment(comment))
+		replies = append(replies, NewSafeComment(comment))
 		return false
 	})
 	return replies
