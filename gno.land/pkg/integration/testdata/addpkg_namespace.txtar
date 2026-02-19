@@ -79,6 +79,10 @@ stderr 'but got "gno.land/r/random!name/mypkg"'
 module = "gno.land/r/mypkg"
 gno = "0.9"
 
+-- one/gnomod.toml --
+module = "gno.land/r/one"
+gno = "0.9"
+
 -- one/one.gno --
 package one
 
