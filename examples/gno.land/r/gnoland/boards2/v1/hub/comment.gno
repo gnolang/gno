@@ -27,7 +27,7 @@ type Comment struct {
 	Hidden bool
 
 	// ReplyCount contains the number of comments replies.
-	// Total only includes top level replies, sub-replies are not included.
+	// Count only includes top level replies, sub-replies are not included.
 	ReplyCount int
 
 	// FlagCount contains the number of flags that comment has.
@@ -50,9 +50,8 @@ func (c Comment) IterateFlags(start, count int, fn func(boards.Flag) bool) bool 
 }
 
 // IterateReplies iterates comment replies (sub-comments).
-// Only top level replies are iterated, sub-replies are ignored.
 // To reverse iterate use a negative count.
-func (t Thread) IterateReplies(start, count int, fn func(Comment) bool) bool {
+func (t Comment) IterateReplies(start, count int, fn func(Comment) bool) bool {
 	return t.ref.Replies.Iterate(start, count, func(comment *boards.Post) bool {
 		return fn(newSafeComment(comment))
 	})

@@ -38,8 +38,8 @@ type Thread struct {
 	// Readonly indicates that thread is readonly.
 	Readonly bool
 
-	// CommentCount contains the total number of thread comments.
-	// Nested comments are also included within the total.
+	// CommentCount contains the number of thread comments.
+	// Count only includes top level comment, replies are not included.
 	CommentCount int
 
 	// RepostCount contains the number of times thread has been reposted.
@@ -72,7 +72,7 @@ func (t Thread) IterateReposts(start, count int, fn func(boardID, repostThreadID
 	})
 }
 
-// IterateComments iterates thread comments and sub-comments.
+// IterateComments iterates thread comments.
 // To reverse iterate use a negative count.
 func (t Thread) IterateComments(start, count int, fn func(Comment) bool) bool {
 	return t.ref.Replies.Iterate(start, count, func(comment *boards.Post) bool {
