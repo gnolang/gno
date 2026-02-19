@@ -10,8 +10,7 @@ var (
 	bech32PubKeyPrefix = "gpub"
 
 	// once guards ensure that setters can only be called once
-	onceBech32AddrPrefix   sync.Once
-	onceBech32PubKeyPrefix sync.Once
+	onceBech32Prefixes sync.Once
 )
 
 const (
@@ -23,28 +22,30 @@ const (
 	Bip44DefaultPath = "44'/118'/0'/0/0"
 )
 
-// GetBech32AddrPrefix returns the Bech32 address prefix.
-func GetBech32AddrPrefix() string {
+// Bech32AddrPrefix returns the Bech32 address prefix.
+func Bech32AddrPrefix() string {
 	return bech32AddrPrefix
 }
 
-// GetBech32PubKeyPrefix returns the Bech32 pubkey prefix.
-func GetBech32PubKeyPrefix() string {
+// Bech32PubKeyPrefix returns the Bech32 pubkey prefix.
+func Bech32PubKeyPrefix() string {
 	return bech32PubKeyPrefix
 }
 
-// SetBech32AddrPrefix sets the Bech32 address prefix.
-// This function can only be called once. Subsequent calls are no-ops.
-func SetBech32AddrPrefix(prefix string) {
-	onceBech32AddrPrefix.Do(func() {
-		bech32AddrPrefix = prefix
-	})
-}
+// SetBech32Prefixes sets the Bech32 address and pubkey prefixes.
+// This function can only be called once. Subsequent calls panic.
+func SetBech32AddrPrefix(addressPrefix, pubkeyPrefix string) {
+	if addressPrefix == "" || pubkeyPrefix == "" {
+		panic("bech32 prefixes cannot be empty")
+	}
 
-// SetBech32PubKeyPrefix sets the Bech32 pubkey prefix.
-// This function can only be called once. Subsequent calls are no-ops.
-func SetBech32PubKeyPrefix(prefix string) {
-	onceBech32PubKeyPrefix.Do(func() {
-		bech32PubKeyPrefix = prefix
+	var executed bool
+	onceBech32Prefixes.Do(func() {
+		bech32AddrPrefix = addressPrefix
+		bech32PubKeyPrefix = pubkeyPrefix
+		executed = true
 	})
+	if !executed {
+		panic("bech32 prefixes are already initialized and cannot be changed")
+	}
 }

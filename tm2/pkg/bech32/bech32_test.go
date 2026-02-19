@@ -37,7 +37,7 @@ var pubkeyBech32 = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqg5y7u93gpzug38
 // amino marshaled pubkey bytes. pubkey.Bytes()
 var (
 	pubkeyBytes  = "0A132F746D2E5075624B6579536563703235366B3112230A2102284F70B14045C444F6504F03C54A105BB2E96FC5CFEE98E780F3564F1F12A582"
-	pubkeyPrefix = crypto.GetBech32PubKeyPrefix()
+	pubkeyPrefix = crypto.Bech32PubKeyPrefix()
 )
 
 func TestEncode(t *testing.T) {
