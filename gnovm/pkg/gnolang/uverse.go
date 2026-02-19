@@ -1045,16 +1045,24 @@ func makeUverseNode() {
 		func(m *Machine) {
 			// Only return coins if current pkg is the first realm in the call
 			// stack, i.e. the realm that actually received the funds.
-			lastPkg := m.Frames[m.NumFrames()-1].LastPackage.PkgPath
+			var lastPkg string
+			if lp := m.Frames[m.NumFrames()-1].LastPackage; lp != nil {
+				lastPkg = lp.PkgPath
+			}
 			var firstRealmPkg string
 			for i := 1; i < m.NumFrames(); i++ {
-				if pkg := m.Frames[i].LastPackage.PkgPath; IsRealmPath(pkg) {
+				lp := m.Frames[i].LastPackage
+				if lp == nil {
+					continue
+				}
+				if pkg := lp.PkgPath; IsRealmPath(pkg) {
 					firstRealmPkg = pkg
 					break
 				}
 			}
+			println("LAST PACKAGE", lastPkg, "FIRST REALM", firstRealmPkg)
 			var coins std.Coins
-			if firstRealmPkg == lastPkg {
+			if lastPkg != "" && firstRealmPkg == lastPkg {
 				if osp, ok := m.Context.(OriginSendProvider); ok {
 					coins = osp.GetOriginSend()
 				}
