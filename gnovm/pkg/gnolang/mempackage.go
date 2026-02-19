@@ -174,17 +174,21 @@ func isVersionSuffix(s string) bool {
 // For versioned paths like "gno.land/r/foo/v2" or "gno.land/r/foo/v1", it
 // returns "foo" since version suffixes (v1, v2, ...) are skipped.
 func LastPathElement(pkgPath string) string {
-	parts := strings.Split(pkgPath, "/")
-	n := len(parts)
-	if n == 0 {
-		return ""
+	pos := strings.LastIndexByte(pkgPath, '/')
+	if pos < 0 {
+		return pkgPath
 	}
-	last := parts[n-1]
+	pkgPath, last := pkgPath[:pos], pkgPath[pos+1:]
+	if !isVersionSuffix(last) {
+		return last
+	}
 
-	if isVersionSuffix(last) && n >= 2 {
-		return parts[n-2]
+	// Version suffix found; return the element before it.
+	pos = strings.LastIndexByte(pkgPath, '/')
+	if pos < 0 {
+		return pkgPath
 	}
-	return last
+	return pkgPath[pos+1:]
 }
 
 // ValidatePkgNameMatchesPath ensures the declared package name matches the last path element.
