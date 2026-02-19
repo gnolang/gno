@@ -150,5 +150,6 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	} else {
 		io.Println(string(amino.MustMarshalJSON(tx)))
 	}
+
 	return nil
 }

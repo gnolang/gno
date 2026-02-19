@@ -33,11 +33,11 @@ func main(cur realm,) {
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](335)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](294)={
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
 //         "IsEscaped": true,
-//         "LastObjectSize": "335",
+//         "LastObjectSize": "294",
 //         "ModTime": "0",
 //         "RefCount": "2"
 //     },

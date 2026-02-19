@@ -559,7 +559,7 @@ func TestEndBlocker(t *testing.T) {
 			mockEventSwitch = newCommonEvSwitch()
 
 			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+				queryFn: func(_ sdk.Context, pkgPath, expr string, _ vm.QueryFormat) (string, error) {
 					vmCalled = true
 
 					require.Equal(t, valRealm, pkgPath)
@@ -606,7 +606,7 @@ func TestEndBlocker(t *testing.T) {
 			mockEventSwitch = newCommonEvSwitch()
 
 			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+				queryFn: func(_ sdk.Context, pkgPath, expr string, _ vm.QueryFormat) (string, error) {
 					vmCalled = true
 
 					require.Equal(t, valRealm, pkgPath)
@@ -649,7 +649,7 @@ func TestEndBlocker(t *testing.T) {
 			mockEventSwitch = newCommonEvSwitch()
 
 			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+				queryFn: func(_ sdk.Context, pkgPath, expr string, _ vm.QueryFormat) (string, error) {
 					require.Equal(t, valRealm, pkgPath)
 					require.NotEmpty(t, expr)
 
@@ -738,7 +738,7 @@ func TestEndBlocker(t *testing.T) {
 			mockEventSwitch = newCommonEvSwitch()
 
 			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+				queryFn: func(_ sdk.Context, pkgPath, expr string, _ vm.QueryFormat) (string, error) {
 					require.Equal(t, valRealm, pkgPath)
 					require.NotEmpty(t, expr)
 
@@ -804,7 +804,7 @@ func TestEndBlocker(t *testing.T) {
 			mockEventSwitch = newCommonEvSwitch()
 
 			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+				queryFn: func(_ sdk.Context, pkgPath, expr string, _ vm.QueryFormat) (string, error) {
 					require.Equal(t, valRealm, pkgPath)
 					require.NotEmpty(t, expr)
 
@@ -865,7 +865,7 @@ func TestEndBlocker(t *testing.T) {
 			mockEventSwitch = newCommonEvSwitch()
 
 			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+				queryFn: func(_ sdk.Context, pkgPath, expr string, _ vm.QueryFormat) (string, error) {
 					require.Equal(t, valRealm, pkgPath)
 					require.NotEmpty(t, expr)
 
