@@ -16,8 +16,8 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 )
 
@@ -398,9 +398,8 @@ func CreateUsernameFromBech32(username string) string {
 	return username
 }
 
-// displayPackageName returns a display-friendly name for a package path.
-// For versioned paths like "/r/foo/v2", it returns "foo/v2".
-// For non-versioned paths like "/r/foo", it returns "foo".
+// displayPackageName returns versioned name for a package path.
+// Examples: "gno.land/r/demo/foo/v2" → "foo/v2", "gno.land/r/demo/foo" → "foo".
 func displayPackageName(pkgPath string) string {
 	base := path.Base(pkgPath)
 	name := gno.LastPathElement(pkgPath)
