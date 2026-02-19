@@ -453,6 +453,21 @@ func gnokeyCmd(nodes *NodesManager) func(ts *testscript.TestScript, neg bool, ar
 
 		args = append(defaultArgs, args...)
 
+		defer func() {
+			if r := recover(); r != nil {
+				switch val := r.(type) {
+				case error:
+					err = val
+				case string:
+					err = fmt.Errorf("error: %s", val)
+				default:
+					err = fmt.Errorf("unknown error: %#v", val)
+				}
+
+				tsValidateError(ts, "gnokey", neg, err)
+			}
+		}()
+
 		err = cmd.ParseAndRun(context.Background(), args)
 		tsValidateError(ts, "gnokey", neg, err)
 	}
