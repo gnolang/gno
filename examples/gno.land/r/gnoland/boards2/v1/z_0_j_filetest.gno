@@ -30,7 +30,7 @@ func main() {
 //
 // ---
 // ### Currently there are no boards
-// Be the first to [create a new board](/r/gnoland/boards2/v1:create-board) !
+// Be the first to [create a new board](/r/gnoland/boards2/v1:create-board)!
 //
 // ==================
 // # [Boards](/r/gnoland/boards2/v1) › TestBoard
@@ -39,4 +39,4 @@ func main() {
 //
 // ---
 // ### This board doesn't have any threads
-// Do you want to [start a new conversation](/r/gnoland/boards2/v1:TestBoard/create-thread) in this board ?
+// Do you want to [start a new conversation](/r/gnoland/boards2/v1:TestBoard/create-thread) in this board?
