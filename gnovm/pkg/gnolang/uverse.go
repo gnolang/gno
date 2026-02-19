@@ -201,7 +201,7 @@ func NewConcreteRealm(pkgPath string) TypedValue {
 		V: &StructValue{
 			Fields: []TypedValue{
 				{T: gAddressType, V: nil}, // XXX
-				{T: StringType, V: StringValue(pkgPath)},
+				{T: StringType, V: NewStringValue(pkgPath)},
 				{T: gConcreteRealmType, V: nil}, // XXX
 			},
 		},
