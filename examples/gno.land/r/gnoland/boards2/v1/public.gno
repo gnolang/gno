@@ -97,7 +97,7 @@ func SetRealmNotice(_ realm, message string) {
 	})
 }
 
-// GetBoardIDFromName searches a board by name and returns it's ID.
+// GetBoardIDFromName searches a board by name and returns its ID.
 func GetBoardIDFromName(_ realm, name string) (_ boards.ID, found bool) {
 	board, found := gBoards.GetByName(name)
 	if !found {
@@ -161,7 +161,7 @@ func CreateBoard(_ realm, name string, listed, open bool) boards.ID {
 // RenameBoard changes the name of an existing board.
 //
 // A history of previous board names is kept when boards are renamed.
-// Because of that boards are also accesible using previous name(s).
+// Because of that boards are also accessible using previous name(s).
 func RenameBoard(_ realm, name, newName string) {
 	assertRealmIsNotLocked()
 
@@ -445,7 +445,7 @@ func DeleteReply(_ realm, boardID, threadID, replyID boards.ID) {
 	})
 }
 
-// EditThread updates the title and body of thread.
+// EditThread updates the title and body of a thread.
 //
 // Threads can be updated by the users who created them or otherwise by users with special permissions.
 func EditThread(_ realm, boardID, threadID boards.ID, title, body string) {
@@ -494,7 +494,7 @@ func EditThread(_ realm, boardID, threadID boards.ID, title, body string) {
 	})
 }
 
-// EditReply updates the body of comment or reply.
+// EditReply updates the body of a comment or reply.
 //
 // Replies can be updated only by the users who created them.
 func EditReply(_ realm, boardID, threadID, replyID boards.ID, body string) {
@@ -532,7 +532,7 @@ func EditReply(_ realm, boardID, threadID, replyID boards.ID, body string) {
 	)
 }
 
-// RemoveMember removes a member from the realm or a boards.
+// RemoveMember removes a member from the realm or a board.
 //
 // Board ID is only required when removing a member from board.
 func RemoveMember(_ realm, boardID boards.ID, member address) {
@@ -569,7 +569,7 @@ func RemoveMember(_ realm, boardID boards.ID, member address) {
 	})
 }
 
-// IsMember checks if an user is a member of the realm or a board.
+// IsMember checks if a user is a member of the realm or a board.
 //
 // Board ID is only required when checking if a user is a member of a board.
 func IsMember(boardID boards.ID, user address) bool {
