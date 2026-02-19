@@ -1539,11 +1539,9 @@ func (tv *TypedValue) Sign() int {
 	case Uint64Kind:
 		return signOfInteger(tv.GetUint64())
 	case Float32Kind:
-		// Will return an invalid result for NaN values; but it's OK for the
-		// current users of this function.
-		return signOfInteger(tv.GetFloat32())
+		return signOfFloat32Bits(tv.GetFloat32())
 	case Float64Kind:
-		return signOfInteger(tv.GetFloat64())
+		return signOfFloat64Bits(tv.GetFloat64())
 	case BigintKind:
 		v := tv.GetBigInt()
 		return v.Sign()
@@ -2767,4 +2765,32 @@ func signOfInteger[T interface {
 	default:
 		return 1
 	}
+}
+
+func signOfFloat32Bits(u32 uint32) int {
+	sign, mant, exp, _, nan := softfloat.Funpack32(u32)
+	if nan {
+		panic("sign of NaN is undefined")
+	}
+	if exp == 0 && mant == 0 {
+		return 0
+	}
+	if sign != 0 {
+		return -1
+	}
+	return 1
+}
+
+func signOfFloat64Bits(u64 uint64) int {
+	sign, mant, exp, _, nan := softfloat.Funpack64(u64)
+	if nan {
+		panic("sign of NaN is undefined")
+	}
+	if exp == 0 && mant == 0 {
+		return 0
+	}
+	if sign != 0 {
+		return -1
+	}
+	return 1
 }
