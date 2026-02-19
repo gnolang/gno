@@ -50,4 +50,4 @@ func main() {
 
 // Output:
 // true
-// Thread does not exist with ID: 1
+// Thread not found
