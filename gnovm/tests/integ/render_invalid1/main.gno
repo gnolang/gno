@@ -1,4 +1,4 @@
-package main
+package render_invalid1
 
 // Invalid 'Render' function: wrong parameter (int instead of string)
 
