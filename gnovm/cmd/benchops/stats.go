@@ -56,6 +56,8 @@ func stats(binFile string) {
 					opName = bm.StoreCodeString(record[1])
 				case byte(bm.TypeNative):
 					opName = bm.NativeCodeString(record[1])
+				case byte(bm.TypePreprocess):
+					opName = bm.PreprocessCodeString(record[1])
 				default:
 					panic(fmt.Sprintf("invalid record type: %d", record[0]))
 				}
