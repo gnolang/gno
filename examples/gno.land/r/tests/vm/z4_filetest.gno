@@ -8,8 +8,7 @@ import (
 )
 
 func main() {
-	testing.OriginSend("gno.land/r/tests/vm", chain.Coins{{Denom: "foo", Amount: 42}, {Denom: "ugnot", Amount: 100}})
-	println("tests.RealmBalance: " + tests.RealmBalance(cross))
+	testing.SetOriginSend(chain.Coins{{Denom: "foo", Amount: 42}, {Denom: "ugnot", Amount: 100}})
 	println("tests.RealmCoins: " + tests.RealmCoins(cross))
 	println("tests.BankerOriginSend: " + tests.BankerOriginSend(cross))
 
@@ -21,7 +20,6 @@ func main() {
 }
 
 // Output:
-// tests.RealmBalance: 42foo,100ugnot
 // tests.RealmCoins: 42foo,100ugnot
 // tests.BankerOriginSend: 42foo,100ugnot
 // tests.RTestsRealmCoins:
