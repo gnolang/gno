@@ -50,6 +50,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	render := func(thread *boards.Post) bool {
+		// TODO: Hidden threads should be stored separately to be able to properly page visible ones
 		if !thread.Hidden {
 			res.Write(renderThreadSummary(thread) + "\n")
 		}
@@ -136,7 +137,7 @@ func renderInviteMember(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("Board not found")
 		return
 	}
 

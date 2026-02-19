@@ -54,7 +54,7 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 }
 
 func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) dao.ProposalRequest {
-	_, ok := memberstore.Tiers.GetTier(tier)
+	_, ok := memberstore.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
 	}
@@ -219,17 +219,17 @@ func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
 func memberByTier(tier string) *memberstore.Member {
 	switch tier {
 	case memberstore.T1:
-		t, _ := memberstore.Tiers.GetTier(memberstore.T1)
+		t, _ := memberstore.GetTier(memberstore.T1)
 		return &memberstore.Member{
 			InvitationPoints: t.InvitationPoints,
 		}
 	case memberstore.T2:
-		t, _ := memberstore.Tiers.GetTier(memberstore.T2)
+		t, _ := memberstore.GetTier(memberstore.T2)
 		return &memberstore.Member{
 			InvitationPoints: t.InvitationPoints,
 		}
 	case memberstore.T3:
-		t, _ := memberstore.Tiers.GetTier(memberstore.T3)
+		t, _ := memberstore.GetTier(memberstore.T3)
 		return &memberstore.Member{
 			InvitationPoints: t.InvitationPoints,
 		}
