@@ -1244,20 +1244,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					} else if isUntyped(lcx.T) {
 						if !isUntyped(rt) { // right is typed
 							checkOrConvertType(store, last, n, &n.Left, rt)
-						} else {
+						} else if n.Op == EQL || n.Op == NEQ {
 							// both untyped.
 							// no push context type to == != expr.
 							// fall through to default type of left or right.
-							if n.Op == EQL || n.Op == NEQ {
-								var dt Type
-								if !shouldSwapOnSpecificity(lt, rt) {
-									dt = defaultTypeOf(rt)
-								} else {
-									dt = defaultTypeOf(lt)
-								}
-								checkOrConvertType(store, last, n, &n.Right, dt)
-								checkOrConvertType(store, last, n, &n.Left, dt)
+							dt := defaultTypeOf(rt)
+							if shouldSwapOnSpecificity(lt, rt) {
+								dt = defaultTypeOf(lt)
 							}
+							checkOrConvertType(store, last, n, &n.Right, dt)
+							checkOrConvertType(store, last, n, &n.Left, dt)
 						}
 					} else if lcx.T == nil { // LHS is nil.
 						// convert n.Left to typed-nil type.
@@ -1271,25 +1267,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if isUntyped(rcx.T) {
 						if !isUntyped(lt) { // left is typed non-const, right is untyped const.
 							checkOrConvertType(store, last, n, &n.Right, lt)
-						} else { // both untyped.
-							if n.Op == EQL || n.Op == NEQ {
-								var dt Type
-								if !shouldSwapOnSpecificity(lt, rt) {
-									dt = defaultTypeOf(rt)
-								} else {
-									dt = defaultTypeOf(lt)
-								}
-								checkOrConvertType(store, last, n, &n.Right, dt)
-								checkOrConvertType(store, last, n, &n.Left, dt)
+						} else if n.Op == EQL || n.Op == NEQ { // both untyped.
+							// both untyped.
+							// no push context type to == != expr.
+							// fall through to default type of left or right.
+							dt := defaultTypeOf(rt)
+							if shouldSwapOnSpecificity(lt, rt) {
+								dt = defaultTypeOf(lt)
 							}
+							checkOrConvertType(store, last, n, &n.Right, dt)
+							checkOrConvertType(store, last, n, &n.Left, dt)
 						}
 					} else if rcx.T == nil { // RHS is nil
 						// refer to tests/files/types/eql_0f20.gno
 						checkOrConvertType(store, last, n, &n.Right, lt)
-					} else { // left is not const, right is typed const
-						if isUntyped(lt) {
-							checkOrConvertType(store, last, n, &n.Left, rt)
-						}
+					} else if isUntyped(lt) { // left is not const, right is typed const
+						checkOrConvertType(store, last, n, &n.Left, rt)
 					}
 				} else {
 					// Left not const, Right not const ------------------
@@ -4556,7 +4549,7 @@ func checkOrConvertIntegerKind(store Store, last BlockNode, n Node, x Expr) {
 	} else if x != nil {
 		xt := evalStaticTypeOf(store, last, x)
 		if isUntyped(xt) {
-			dt := IntType // Convert to IntType dirrectly.
+			dt := IntType // Push IntType for untyped.
 			checkOrConvertType(store, last, n, &x, dt)
 		} else {
 			checkIntegerKind(xt)
