@@ -34,6 +34,9 @@ var (
 		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", // @devx
 		"g1manfred47kzduec920z88wfr64ylksmdcedlf5", // @moul
 	)
+
+	// TODO: Allow updating open account amount though a proposal (GovDAO, CommonDAO?)
+	gOpenAccountAmount = int64(3_000_000_000) // ugnot required for open board actions
 )
 
 func init() {
@@ -43,8 +46,10 @@ func init() {
 
 // initRealmPermissions returns the default realm permissions.
 func initRealmPermissions(owners ...address) boards.Permissions {
-	perms := permissions.New()
-	perms.SetSuperRole(permissions.RoleOwner)
+	perms := permissions.New(
+		permissions.UseSingleUserRole(),
+		permissions.WithSuperRole(permissions.RoleOwner),
+	)
 	perms.AddRole(permissions.RoleAdmin, permissions.PermissionBoardCreate)
 	for _, owner := range owners {
 		perms.SetUserRoles(cross, owner, permissions.RoleOwner)

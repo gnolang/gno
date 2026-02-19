@@ -94,6 +94,53 @@ func TestLintApp(t *testing.T) {
 			stderrShouldContain:  `package name "hello" does not match path element "goodbye" (code=gnoPackageNameMismatch)`,
 			errShouldBe:          "exit code: 1",
 		},
+		{
+			testDir:              "../../tests/integ/render_invalid1",
+			simulateExternalRepo: true,
+			stderrShouldBe:       "gno.land/r/test/render_invalid1/main.gno:5: invalid signature for the realm's Render function; must be of the form: func Render(string) string (code=gnoLintError)\n",
+			errShouldBe:          "exit code: 1",
+		},
+		{
+			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/render_invalid2",
+			simulateExternalRepo: true,
+			stderrShouldBe:       "gno.land/r/test/render_invalid2/main.gno:5: invalid signature for the realm's Render function; must be of the form: func Render(string) string (code=gnoLintError)\n",
+			errShouldBe:          "exit code: 1",
+		},
+		{
+			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/render_invalid3",
+			simulateExternalRepo: true,
+			stderrShouldBe:       "gno.land/r/test/render_invalid3/main.gno:5: invalid signature for the realm's Render function; must be of the form: func Render(string) string (code=gnoLintError)\n",
+			errShouldBe:          "exit code: 1",
+		},
+		{
+			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/render_invalid4",
+			simulateExternalRepo: true,
+			stderrShouldBe:       "gno.land/r/test/render_invalid4/main.gno:5: invalid signature for the realm's Render function; must be of the form: func Render(string) string (code=gnoLintError)\n",
+			errShouldBe:          "exit code: 1",
+		},
+		{
+			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/render_valid1",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/render_valid2",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/render_valid3",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/render_valid4",
+			simulateExternalRepo: true,
+		},
 
 		// TODO: 'gno mod' is valid?
 		// TODO: are dependencies valid?

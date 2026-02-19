@@ -13,8 +13,8 @@ func TestPower(t *testing.T) {
 	addMembers(ms, 100, T2)
 	addMembers(ms, 100, T3)
 
-	Tiers.Iterate("", "", func(key string, value interface{}) bool {
-		po := value.(Tier).PowerHandler(ms, Tiers)
+	tiers.Iterate("", "", func(key string, value interface{}) bool {
+		po := value.(Tier).PowerHandler(ms, tiers)
 		if key == T1 && po != 3.0 {
 			t.Fatal("wrong value for T1")
 		}
@@ -33,8 +33,8 @@ func TestPower(t *testing.T) {
 	addMembers(ms, 50, T2)
 	addMembers(ms, 10, T3)
 
-	Tiers.Iterate("", "", func(key string, value interface{}) bool {
-		po := value.(Tier).PowerHandler(ms, Tiers)
+	tiers.Iterate("", "", func(key string, value interface{}) bool {
+		po := value.(Tier).PowerHandler(ms, tiers)
 		if key == T1 && po != 3.0 {
 			t.Fatal("wrong value for T1")
 		}
@@ -53,8 +53,8 @@ func TestPower(t *testing.T) {
 	addMembers(ms, 200, T2)
 	addMembers(ms, 100, T3)
 
-	Tiers.Iterate("", "", func(key string, value interface{}) bool {
-		po := value.(Tier).PowerHandler(ms, Tiers)
+	tiers.Iterate("", "", func(key string, value interface{}) bool {
+		po := value.(Tier).PowerHandler(ms, tiers)
 		if key == T1 && po != 3.0 {
 			t.Fatal("wrong value for T1")
 		}
@@ -73,8 +73,8 @@ func TestPower(t *testing.T) {
 	addMembers(ms, 200, T2)
 	addMembers(ms, 1000, T3)
 
-	Tiers.Iterate("", "", func(key string, value interface{}) bool {
-		po := value.(Tier).PowerHandler(ms, Tiers)
+	tiers.Iterate("", "", func(key string, value interface{}) bool {
+		po := value.(Tier).PowerHandler(ms, tiers)
 		if key == T1 && po != 3.0 {
 			t.Fatal("wrong value for T1")
 		}

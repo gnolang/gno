@@ -27,6 +27,7 @@ const (
 	gnoParserError         gnoCode = "gnoParserError"
 	gnoTypeCheckError      gnoCode = "gnoTypeCheckError"
 	gnoPackageNameMismatch gnoCode = "gnoPackageNameMismatch"
+	gnoLintError           gnoCode = "gnoLintError"
 
 	// TODO: add new gno codes here.
 )

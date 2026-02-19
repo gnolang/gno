@@ -4,6 +4,7 @@ package main
 // SEND: 1000000ugnot
 
 import (
+	"chain"
 	"testing"
 
 	"gno.land/p/gnoland/boards"
@@ -26,6 +27,9 @@ func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test123", false, true)
 
+	// Make sure user account has the required amount of GNOT for open board actions
+	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})
+
 	// Register a username which is required to be able to add
 	// a reply and then create a new reply as a non member user.
 	testing.SetRealm(testing.NewUserRealm(user))
@@ -46,4 +50,4 @@ func main() {
 
 // Output:
 // true
-// Thread does not exist with ID: 1
+// Thread not found
