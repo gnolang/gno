@@ -101,7 +101,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		urequire.NoError(t, err, "proposal not found")
 
 		description := ufmt.Sprintf(
-			"Valoper profile: [%s](/r/gnops/valopers:%s)\n\n%s\n\n## Validator Updates\n- %s: add",
+			"Valoper profile: [%s](/r/gnops/valopers:%s)\n\n%s\n\n## Validator Updates\n- %s: add\n",
 			valoper.Moniker,
 			valoper.Address,
 			valoper.Render(),
