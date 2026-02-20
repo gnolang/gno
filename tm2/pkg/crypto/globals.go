@@ -4,12 +4,12 @@ import "sync"
 
 var (
 	// bech32AddrPrefix defines the Bech32 prefix of an address
-	bech32AddrPrefix = "g"
+	bech32AddrPrefix string
 
 	// bech32PubKeyPrefix defines the Bech32 prefix of a pubkey
-	bech32PubKeyPrefix = "gpub"
+	bech32PubKeyPrefix string
 
-	// once guards ensure that setters can only be called once
+	// onceBech32Prefixes ensures the prefixes are set exactly once
 	onceBech32Prefixes sync.Once
 )
 
@@ -22,19 +22,27 @@ const (
 	Bip44DefaultPath = "44'/118'/0'/0/0"
 )
 
+func setBech32Defaults() {
+	bech32AddrPrefix = "g"
+	bech32PubKeyPrefix = "gpub"
+}
+
 // Bech32AddrPrefix returns the Bech32 address prefix.
 func Bech32AddrPrefix() string {
+	onceBech32Prefixes.Do(setBech32Defaults)
 	return bech32AddrPrefix
 }
 
 // Bech32PubKeyPrefix returns the Bech32 pubkey prefix.
 func Bech32PubKeyPrefix() string {
+	onceBech32Prefixes.Do(setBech32Defaults)
 	return bech32PubKeyPrefix
 }
 
 // SetBech32Prefixes sets the Bech32 address and pubkey prefixes.
-// This function can only be called once. Subsequent calls panic.
-func SetBech32AddrPrefix(addressPrefix, pubkeyPrefix string) {
+// This function can only be called once, before any call to the getter functions.
+// Subsequent calls panic.
+func SetBech32Prefixes(addressPrefix, pubkeyPrefix string) {
 	if addressPrefix == "" || pubkeyPrefix == "" {
 		panic("bech32 prefixes cannot be empty")
 	}
