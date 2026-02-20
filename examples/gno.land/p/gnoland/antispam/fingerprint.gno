@@ -151,9 +151,7 @@ func (fs *FingerprintStore) Add(content string) {
 	}
 
 	// Evict oldest if at capacity.
-	// SAFETY: Remove-during-Iterate is safe here ONLY because we return true
-	// immediately, stopping iteration before the tree is re-traversed.
-	// Do NOT add logic after Remove or change the return value.
+	// Safe to remove during iteration because we return immediately after removal.
 	if fs.tree.Size() >= fpMaxStoreSize {
 		fs.tree.Iterate("", "", func(key string, _ interface{}) bool {
 			fs.tree.Remove(key)
