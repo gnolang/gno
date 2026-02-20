@@ -66,7 +66,7 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 		// Realm owners can hide with a single flag.
 		hide := flagItem(thread, caller, reason, getFlaggingThreshold(board.ID))
 		if hide || isRealmOwner {
-			// Remove thread from the list of visibe threads
+			// Remove thread from the list of visible threads
 			thread, removed := board.Threads.Remove(threadID)
 			if !removed {
 				panic("thread not found")
