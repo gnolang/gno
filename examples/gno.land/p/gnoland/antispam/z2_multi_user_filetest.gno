@@ -86,7 +86,7 @@ func main() {
 	println("─────────────────────────────────────")
 
 	establishedRep := antispam.ReputationData{
-		AccountAgeDays: 180,        // 6 months old
+		AccountAgeDays: 180,         // 6 months old
 		Balance:        50000000000, // 50k GNOT
 		FlaggedCount:   0,
 		TotalPosts:     200,
@@ -117,10 +117,10 @@ func main() {
 	println("─────────────────────────")
 
 	newAccountRep := antispam.ReputationData{
-		AccountAgeDays: 0,   // Just created
+		AccountAgeDays: 0,          // Just created
 		Balance:        1000000000, // 1 GNOT (low balance)
 		FlaggedCount:   0,
-		TotalPosts:     0,   // First post
+		TotalPosts:     0,     // First post
 		HasUsername:    false, // No username set
 		BanCount:       0,
 	}
