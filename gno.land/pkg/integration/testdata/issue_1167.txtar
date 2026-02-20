@@ -8,7 +8,7 @@ gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/xx -gas-fee 1000000u
 stdout OK!
 
 # execute New
-gnokey maketx call -pkgpath gno.land/r/demo/xx -func New -args X -gas-fee 1000000ugnot -gas-wanted 900000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func New -args X -gas-fee 10000000ugnot -gas-wanted 9000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # execute Delta for the first time
