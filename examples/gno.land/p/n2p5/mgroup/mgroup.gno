@@ -32,7 +32,7 @@ type ManagedGroup struct {
 // The owner is automatically added as a backup owner and member of the group.
 func New(ownerAddress address) *ManagedGroup {
 	g := &ManagedGroup{
-		owner:        ownable.NewWithAddress(ownerAddress),
+		owner:        ownable.NewWithAddressByPrevious(ownerAddress),
 		backupOwners: avl.NewTree(),
 		members:      avl.NewTree(),
 	}
@@ -92,7 +92,7 @@ func (g *ManagedGroup) ClaimOwnership() error {
 	if !g.IsBackupOwner(caller) {
 		return ErrNotMember
 	}
-	g.owner = ownable.NewWithAddress(caller)
+	g.owner = ownable.NewWithAddressByPrevious(caller)
 	err := g.addMember(caller)
 	return err
 }

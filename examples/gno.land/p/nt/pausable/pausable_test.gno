@@ -1,6 +1,7 @@
 package pausable
 
 import (
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/ownable"
@@ -49,4 +50,23 @@ func TestOwnable(t *testing.T) {
 	result := NewFromOwnable(o)
 
 	uassert.Equal(t, result.Ownable().Owner(), o.Owner())
+}
+
+func TestPauseRespectsPreviousMode(t *testing.T) {
+	prevOwned := ownable.NewWithAddressByPrevious(firstCaller)
+	result := NewFromOwnable(prevOwned)
+
+	testing.SetRealm(testing.NewUserRealm(firstCaller))
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		urequire.NoError(t, result.Pause())
+		uassert.True(t, result.IsPaused(), "Expected result to be paused")
+
+		urequire.NoError(t, result.Unpause())
+		uassert.False(t, result.IsPaused(), "Expected result to be unpaused")
+	})
+}
+
+func crossThrough(rlm runtime.Realm, cr func()) {
+	testing.SetRealm(rlm)
+	cr()
 }
