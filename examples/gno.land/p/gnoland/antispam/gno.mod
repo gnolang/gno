@@ -1,0 +1,3 @@
+module gno.land/p/gnoland/antispam
+
+gno 0.9
