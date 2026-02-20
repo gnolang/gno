@@ -174,7 +174,7 @@ func main() {
 		AccountAgeDays: 30,
 		Balance:        5000000000,
 		FlaggedCount:   20,
-		TotalPosts:     40,  // 50% flag ratio (> 30% threshold)
+		TotalPosts:     40, // 50% flag ratio (> 30% threshold)
 		HasUsername:    true,
 		BanCount:       2,
 	}
