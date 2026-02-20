@@ -1,0 +1,37 @@
+# Test that cur.Coins() returns nothing for other realm than called realm
+# load the package
+loadpkg gno.land/r/foo/secondrealm $WORK/secondrealm
+loadpkg gno.land/r/foo/firstrealm $WORK/firstrealm
+
+# start a new node
+gnoland start
+
+# call to firstrealm with -send
+gnokey maketx call -send 42ugnot -pkgpath gno.land/r/foo/firstrealm -func GimmeMoney -gas-fee 1000000ugnot -gas-wanted 3000000 -broadcast -chainid=tendermint_test test1
+# send should be empty cur.Coins is not invoked in the same realm as the 
+# initial realm
+stdout '("send: ")'
+
+## firstrealm balance after realm send
+gnokey query auth/accounts/g1d260hvgfya26huxscg80xckxh7ydsyy0tve4sp
+stdout '"coins": "42ugnot"'
+
+## secondrealm balance after realm send
+gnokey query auth/accounts/g17xvzxkz7lqm2mtmw3tvq0ajgx79phg24h60a9x
+stdout '"coins": ""'
+
+
+-- firstrealm/realm.gno --
+package firstrealm
+
+import "gno.land/r/foo/secondrealm"
+
+func GimmeMoney(cur realm) string {
+	return secondrealm.GimmeMoney(cross)
+}
+-- secondrealm/realm.gno --
+package secondrealm
+
+func GimmeMoney(cur realm) string {
+	return "send: " + cur.Coins().String()
+}

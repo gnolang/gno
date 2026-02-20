@@ -6,10 +6,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -96,6 +98,20 @@ var gCoinsType = &DeclaredType{
 	Name:    "gnocoins",
 	Base:    &SliceType{Elt: gCoinType},
 	sealed:  true,
+}
+
+// OriginSendProvider is an interface for contexts that can provide origin send information.
+// This interface is implemented by ExecContext to avoid import cycles.
+type OriginSendProvider interface {
+	GetOriginSend() std.Coins
+}
+
+// gnoCoinString formats a gnocoin StructValue as "amountdenom".
+// Used by both gnocoin.String() and gnocoins.String() native methods.
+func gnoCoinString(sv *StructValue) string {
+	denom := sv.Fields[0].GetString()
+	amount := sv.Fields[1].GetInt64()
+	return strconv.FormatInt(amount, 10) + denom
 }
 
 var gRealmType = &DeclaredType{
@@ -966,7 +982,41 @@ func makeUverseNode() {
 		},
 	)
 	def("gnocoin", asValue(gCoinType))
+	defNativeMethod("gnocoin", "String",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			m.PushValue(typedString(gnoCoinString(arg0.TV.V.(*StructValue))))
+		},
+	)
 	def("gnocoins", asValue(gCoinsType))
+	defNativeMethod("gnocoins", "String",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			sv, ok := arg0.TV.V.(*SliceValue)
+			if !ok || sv == nil || sv.GetLength() == 0 {
+				m.PushValue(typedString(""))
+				return
+			}
+			base := sv.GetBase(m.Store)
+			n := sv.GetLength()
+			var res string
+			for i := range n {
+				if i > 0 {
+					res += ","
+				}
+				res += gnoCoinString(base.List[sv.Offset+i].V.(*StructValue))
+			}
+			m.PushValue(typedString(res))
+		},
+	)
 	def("realm", asValue(gRealmType))
 	def(".grealm", asValue(gConcreteRealmType))
 	defNativeMethod(".grealm", "Address",
@@ -993,7 +1043,47 @@ func makeUverseNode() {
 			"", "gnocoins",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			// Only return coins if current pkg is the first realm in the call
+			// stack, i.e. the realm that actually received the funds.
+			var lastPkg string
+			if lp := m.Frames[m.NumFrames()-1].LastPackage; lp != nil {
+				lastPkg = lp.PkgPath
+			}
+			var firstRealmPkg string
+			for i := 1; i < m.NumFrames(); i++ {
+				lp := m.Frames[i].LastPackage
+				if lp == nil {
+					continue
+				}
+				if pkg := lp.PkgPath; IsRealmPath(pkg) {
+					firstRealmPkg = pkg
+					break
+				}
+			}
+			var coins std.Coins
+			if lastPkg != "" && firstRealmPkg == lastPkg {
+				if osp, ok := m.Context.(OriginSendProvider); ok {
+					coins = osp.GetOriginSend()
+				}
+			}
+			// Manually construct a gnocoins.
+			n := len(coins)
+			baseArray := m.Alloc.NewListArray(n)
+			for i, coin := range coins {
+				fields := m.Alloc.NewStructFields(2)
+				fields[0] = TypedValue{T: StringType}
+				fields[0].V = m.Alloc.NewString(coin.Denom)
+				fields[1] = TypedValue{T: Int64Type}
+				fields[1].SetInt64(coin.Amount)
+				baseArray.List[i] = TypedValue{
+					T: gCoinType,
+					V: m.Alloc.NewStruct(fields),
+				}
+			}
+			m.PushValue(TypedValue{
+				T: gCoinsType,
+				V: m.Alloc.NewSlice(baseArray, 0, n, n),
+			})
 		},
 	)
 	defNativeMethod(".grealm", "Send",
