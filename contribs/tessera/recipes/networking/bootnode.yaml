@@ -1,0 +1,59 @@
+name: bootnode
+description: Tests a cluster with one bootnode and three peers to verify basic connectivity
+
+cluster:
+  nodes:
+    - id: "*"
+      config:
+        consensus.timeout_commit: 100
+        consensus.create_empty_blocks: true
+        consensus.create_empty_blocks_interval: 0
+        p2p.seeds: [ "{{bootnode.p2p.laddr}}" ]
+        p2p.persistent_peers: [ "{{bootnode.p2p.laddr}}" ]
+        p2p.pex: false
+
+    - id: bootnode
+      role: bootnode
+
+    - id: peer1
+      role: validator
+
+    - id: peer2
+      role: validator
+
+    - id: peer3
+      role: validator
+
+scenarios:
+  # Wait for the initial network formation.
+  # The bootnode should have all 3 peers
+  - name: wait_for_peers
+    params:
+      targetId: bootnode
+      peerCount: 3
+      peersInclude: [ "{{peer1.p2p.laddr}}", "{{peer2.p2p.laddr}}", "{{peer3.p2p.laddr}}" ]
+      timeout: 30s
+
+  # Peer 1 should have only the bootnode
+  - name: wait_for_peers
+    params:
+      targetId: peer1
+      peerCount: 1
+      peersInclude: [ "{{bootnode.p2p.laddr}}" ]
+      timeout: 30s
+
+  # Peer 2 should have only the bootnode
+  - name: wait_for_peers
+    params:
+      targetId: peer2
+      peerCount: 1
+      peersInclude: [ "{{bootnode.p2p.laddr}}" ]
+      timeout: 30s
+
+  # Peer 3 should have only the bootnode
+  - name: wait_for_peers
+    params:
+      targetId: peer3
+      peerCount: 1
+      peersInclude: [ "{{bootnode.p2p.laddr}}" ]
+      timeout: 30s
