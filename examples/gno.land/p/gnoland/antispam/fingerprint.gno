@@ -9,7 +9,9 @@ const (
 	fpShingleSize = 3
 
 	// fpSignatureSize is the number of min-hash values to keep.
-	fpSignatureSize = 64
+	// 32 values provide sufficient accuracy for duplicate detection at ≥50%
+	// threshold while halving computation vs 64.
+	fpSignatureSize = 32
 
 	// fpDefaultThreshold is the default similarity threshold (0-100).
 	fpDefaultThreshold = 50
@@ -25,22 +27,11 @@ const (
 // ---- MinHash fingerprinting
 
 // Fingerprint computes a MinHash signature for a text.
-// It extracts character n-grams (shingles), hashes each one directly
-// from the rune slice (no string allocation per shingle), and keeps
-// the minimum hash value per hash function as the signature.
+// Uses a sliding window of 3 runes to avoid allocating a full []rune slice.
+// Hashes each shingle and keeps the minimum hash per hash function.
 // Returns nil for text too short to fingerprint.
 func Fingerprint(text string) []uint64 {
 	if len(text) < fpMinTextLen {
-		return nil
-	}
-
-	runes := []rune(text)
-	if len(runes) < fpShingleSize {
-		return nil
-	}
-
-	numShingles := len(runes) - fpShingleSize + 1
-	if numShingles <= 0 {
 		return nil
 	}
 
@@ -49,8 +40,17 @@ func Fingerprint(text string) []uint64 {
 		sig[i] = ^uint64(0) // max uint64
 	}
 
-	for i := 0; i < numShingles; i++ {
-		baseHash := hashRunes(runes[i : i+fpShingleSize])
+	// Sliding window: iterate runes without allocating []rune.
+	var w0, w1, w2 rune
+	count := 0
+	for _, r := range text {
+		w0, w1, w2 = w1, w2, r
+		count++
+		if count < fpShingleSize {
+			continue
+		}
+
+		baseHash := hashThreeRunes(w0, w1, w2)
 
 		for j := 0; j < fpSignatureSize; j++ {
 			// Different "hash function" by mixing with the index
@@ -65,35 +65,45 @@ func Fingerprint(text string) []uint64 {
 		}
 	}
 
+	if count < fpShingleSize {
+		return nil
+	}
+
 	return sig
 }
 
-// hashRunes computes FNV-1a hash directly from a rune slice.
-// Avoids string/[]byte allocation per shingle.
-// Always hashes 4 bytes per rune (big-endian, fixed layout) to avoid
+// hashThreeRunes computes FNV-1a hash for exactly 3 runes.
+// Each rune is hashed as 4 bytes (big-endian, fixed layout) to avoid
 // branching per byte in the GnoVM interpreter.
-func hashRunes(rs []rune) uint64 {
+func hashThreeRunes(a, b, c rune) uint64 {
 	h := uint64(14695981039346656037)
-	for _, r := range rs {
-		h ^= uint64(byte(r >> 24))
-		h *= 1099511628211
-		h ^= uint64(byte(r >> 16))
-		h *= 1099511628211
-		h ^= uint64(byte(r >> 8))
-		h *= 1099511628211
-		h ^= uint64(byte(r))
-		h *= 1099511628211
-	}
-	return h
-}
-
-// hashString computes a deterministic FNV-1a hash for a string.
-func hashString(s string) uint64 {
-	h := uint64(14695981039346656037)
-	for _, b := range []byte(s) {
-		h ^= uint64(b)
-		h *= 1099511628211
-	}
+	// Rune a
+	h ^= uint64(byte(a >> 24))
+	h *= 1099511628211
+	h ^= uint64(byte(a >> 16))
+	h *= 1099511628211
+	h ^= uint64(byte(a >> 8))
+	h *= 1099511628211
+	h ^= uint64(byte(a))
+	h *= 1099511628211
+	// Rune b
+	h ^= uint64(byte(b >> 24))
+	h *= 1099511628211
+	h ^= uint64(byte(b >> 16))
+	h *= 1099511628211
+	h ^= uint64(byte(b >> 8))
+	h *= 1099511628211
+	h ^= uint64(byte(b))
+	h *= 1099511628211
+	// Rune c
+	h ^= uint64(byte(c >> 24))
+	h *= 1099511628211
+	h ^= uint64(byte(c >> 16))
+	h *= 1099511628211
+	h ^= uint64(byte(c >> 8))
+	h *= 1099511628211
+	h ^= uint64(byte(c))
+	h *= 1099511628211
 	return h
 }
 
@@ -140,12 +150,14 @@ func (fs *FingerprintStore) Add(content string) {
 		return
 	}
 
-	// Evict oldest if at capacity
+	// Evict oldest if at capacity.
+	// SAFETY: Remove-during-Iterate is safe here ONLY because we return true
+	// immediately, stopping iteration before the tree is re-traversed.
+	// Do NOT add logic after Remove or change the return value.
 	if fs.tree.Size() >= fpMaxStoreSize {
-		// Find and remove the first (oldest) key
 		fs.tree.Iterate("", "", func(key string, _ interface{}) bool {
 			fs.tree.Remove(key)
-			return true // stop after first
+			return true
 		})
 	}
 

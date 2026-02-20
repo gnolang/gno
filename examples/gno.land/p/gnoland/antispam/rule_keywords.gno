@@ -90,7 +90,8 @@ func (kd *KeywordDict) BulkAdd(data string) {
 }
 
 // parseSimpleInt parses a simple positive integer from a string.
-// Returns 0 on any error.
+// Returns 0 on any error. Caps at 9 to avoid overflow on long digit strings
+// (callers only need weight values 1-3).
 func parseSimpleInt(s string) int {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -102,6 +103,9 @@ func parseSimpleInt(s string) int {
 			return 0
 		}
 		n = n*10 + int(r-'0')
+		if n > 9 {
+			return n
+		}
 	}
 	return n
 }

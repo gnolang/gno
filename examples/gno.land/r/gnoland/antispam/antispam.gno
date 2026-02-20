@@ -204,25 +204,19 @@ func AdminSetAdmin(_ realm, newAdmin address) {
 
 // ---- Render
 
-// Render displays the realm status and loaded default patterns.
+// Render displays the realm status and active patterns.
 func Render(_ string) string {
 	out := "# Anti-Spam Scoring Realm\n\n"
 	out += ufmt.Sprintf("**Admin:** `%s`\n\n", adminAddr.String())
 	out += ufmt.Sprintf("**Corpus size:** %d tokens\n\n", corpus.Size())
 	out += ufmt.Sprintf("**Fingerprint store:** %d entries\n\n", fps.Size())
 	out += ufmt.Sprintf("**Keyword dictionary:** %d words\n\n", keywords.Size())
-	out += "## Default Patterns\n\n"
-	out += "The following regex patterns are pre-loaded to catch common spam:\n\n"
-	out += "| Pattern | Description |\n"
-	out += "|---------|-------------|\n"
-	out += "| `(?i)send\\s+\\d+\\s*(gnot\\|token\\|coin)` | Crypto scam: send X tokens |\n"
-	out += "| `(?i)free\\s*(airdrop\\|token\\|nft\\|mint)` | Free airdrop/token scams |\n"
-	out += "| `(?i)(casino\\|poker\\|gambling\\|betting)\\s*(bonus\\|jackpot\\|win\\|payout)` | Gambling spam |\n"
-	out += "| `(?i)(telegram\\|discord\\|whatsapp)\\s*(group\\|channel\\|chat)\\s*.*https?://` | Social redirect spam |\n"
-	out += "| `(?i)double\\s+your\\s+(gnot\\|token\\|coin\\|crypto\\|money)` | Double-your-tokens scam |\n"
-	out += "| `(?i)send\\s+\\d+.*get\\s+\\d+.*back` | Send-get-back scam |\n"
-	out += "| `(?i)(connect\\|enter\\|verify)\\s+(your\\s+)?(wallet\\|seed\\s*phrase\\|private\\s*key\\|mnemonic)` | Phishing |\n"
-	out += "| `(?i)(100\\|1000)x\\s*(gem\\|token\\|coin\\|guaranteed\\|profit)` | Pump-and-dump |\n"
+	out += ufmt.Sprintf("**Active patterns:** %d\n\n", bl.PatternCount())
+	out += "## Patterns\n\n"
+	bl.IteratePatterns(func(pattern string) bool {
+		out += "- `" + pattern + "`\n"
+		return false
+	})
 	out += "\n## Usage\n\n"
 	out += "```gno\n"
 	out += "import antispamr \"gno.land/r/gnoland/antispam\"\n"

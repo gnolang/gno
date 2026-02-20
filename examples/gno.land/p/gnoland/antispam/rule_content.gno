@@ -17,24 +17,14 @@ const (
 )
 
 // ScoreContent checks content for spam heuristics.
-// Returns the combined score and the name of the highest-scoring rule.
-func ScoreContent(content string) (int, string) {
+// Returns individual RuleHit entries for each triggered rule.
+func ScoreContent(content string) []RuleHit {
 	content = strings.TrimSpace(content)
 	if len(content) == 0 {
-		return 0, ""
+		return nil
 	}
 
-	totalScore := 0
-	topScore := 0
-	topRule := ""
-
-	add := func(score int, rule string) {
-		totalScore += score
-		if score > topScore {
-			topScore = score
-			topRule = rule
-		}
-	}
+	var hits []RuleHit
 
 	// Single-pass: count upper/lower letters, punctuation, and URL occurrences,
 	// skipping URL ranges for letter counting (avoids allocating a stripped copy).
@@ -43,25 +33,25 @@ func ScoreContent(content string) (int, string) {
 	// ALL_CAPS check
 	totalLetters := upper + lower
 	if totalLetters >= minLettersForCaps && upper*100 > capsThresholdPct*totalLetters {
-		add(WeightAllCaps, "ALL_CAPS")
+		hits = append(hits, RuleHit{WeightAllCaps, "ALL_CAPS"})
 	}
 
 	// Excessive punctuation check
 	if nonSpace >= minCharsForPunct && punct*100 > punctThresholdPct*nonSpace {
-		add(WeightExcessivePunct, "EXCESSIVE_PUNCT")
+		hits = append(hits, RuleHit{WeightExcessivePunct, "EXCESSIVE_PUNCT"})
 	}
 
 	// Link-heavy check (uses pre-computed URL count)
 	if urlCount > linkMaxCount {
-		add(WeightLinkHeavy, "LINK_HEAVY")
+		hits = append(hits, RuleHit{WeightLinkHeavy, "LINK_HEAVY"})
 	}
 
 	// Short body with link
 	if len(content) <= shortBodyMaxLen && urlCount > 0 {
-		add(WeightShortWithLink, "SHORT_WITH_LINK")
+		hits = append(hits, RuleHit{WeightShortWithLink, "SHORT_WITH_LINK"})
 	}
 
-	return totalScore, topRule
+	return hits
 }
 
 // countContentStats performs a single pass over the content, counting:
@@ -135,33 +125,6 @@ func runeLen(r rune) int {
 }
 
 // ---- Helpers
-
-// stripURLs removes http:// and https:// URLs from text to avoid
-// skewing letter-ratio checks (URLs always contain lowercase).
-func stripURLs(text string) string {
-	var result strings.Builder
-	s := text
-	for {
-		i := strings.Index(s, "http")
-		if i == -1 {
-			result.WriteString(s)
-			break
-		}
-		rest := s[i:]
-		if strings.HasPrefix(rest, "https://") || strings.HasPrefix(rest, "http://") {
-			result.WriteString(s[:i])
-			end := strings.IndexFunc(rest, unicode.IsSpace)
-			if end == -1 {
-				break
-			}
-			s = rest[end:]
-		} else {
-			result.WriteString(s[:i+4])
-			s = s[i+4:]
-		}
-	}
-	return result.String()
-}
 
 // isPunct returns true if the rune is a common punctuation mark used in spam.
 func isPunct(r rune) bool {

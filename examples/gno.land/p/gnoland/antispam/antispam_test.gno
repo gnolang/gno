@@ -190,7 +190,7 @@ func TestScore(t *testing.T) {
 		{
 			name:    "edge: empty everything",
 			input:   ScoreInput{},
-			wantMin: 2, // NEW_ACCOUNT + NO_USERNAME
+			wantMin: 4, // NEW_ACCOUNT(2) + NO_USERNAME(1) + LOW_BALANCE(1)
 		},
 	}
 
@@ -213,6 +213,54 @@ func TestScore(t *testing.T) {
 			}
 		})
 	}
+
+	// ---- Triggered accuracy: individual rules must appear ----
+
+	t.Run("triggered: content rules listed individually", func(t *testing.T) {
+		result := Score(ScoreInput{
+			Author:  "g1user",
+			Content: "THIS IS ALL CAPS WITH http://a.com http://b.com http://c.com http://d.com",
+			Rate:    RateState{PostCount: 3, WindowSeconds: 3600},
+			Rep:     goodRep,
+			Corpus:  NewCorpus(),
+			Fps:     NewFingerprintStore(),
+			Bl:      NewBlocklist(),
+		})
+		wantRules := map[string]bool{"ALL_CAPS": false, "LINK_HEAVY": false}
+		for _, r := range result.Triggered {
+			if _, ok := wantRules[r]; ok {
+				wantRules[r] = true
+			}
+		}
+		for rule, found := range wantRules {
+			if !found {
+				t.Errorf("expected rule %q in Triggered, got %v", rule, result.Triggered)
+			}
+		}
+	})
+
+	t.Run("triggered: reputation rules listed individually", func(t *testing.T) {
+		result := Score(ScoreInput{
+			Author:  "g1newbie",
+			Content: "Hello everyone this is a perfectly normal message with enough length.",
+			Rate:    RateState{},
+			Rep:     ReputationData{AccountAgeDays: 0, TotalPosts: 0, HasUsername: false, Balance: 100},
+			Corpus:  NewCorpus(),
+			Fps:     NewFingerprintStore(),
+			Bl:      NewBlocklist(),
+		})
+		wantRules := map[string]bool{"NEW_ACCOUNT": false, "NO_USERNAME": false, "LOW_BALANCE": false}
+		for _, r := range result.Triggered {
+			if _, ok := wantRules[r]; ok {
+				wantRules[r] = true
+			}
+		}
+		for rule, found := range wantRules {
+			if !found {
+				t.Errorf("expected rule %q in Triggered, got %v", rule, result.Triggered)
+			}
+		}
+	})
 }
 
 // ---- False positive test suite ----

@@ -28,24 +28,60 @@ const (
 // ---- Tokenizer
 
 // Tokenize splits text into lowercase tokens, filtering short words and URLs.
+// Single-pass: inlines URL skipping and lowercasing to avoid two extra string
+// allocations (stripURLs + strings.ToLower).
 func Tokenize(text string) []string {
-	text = stripURLs(text)
-	text = strings.ToLower(text)
-
 	var tokens []string
 	var current strings.Builder
+	inURL := false
 
-	for _, r := range text {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			current.WriteRune(r)
+	for i := 0; i < len(text); {
+		// URL start detection (byte-level guard before prefix check)
+		if !inURL && text[i] == 'h' && i+7 < len(text) {
+			rest := text[i:]
+			if strings.HasPrefix(rest, "https://") || strings.HasPrefix(rest, "http://") {
+				// Flush pending token before skipping URL
+				if current.Len() >= tokenMinLen {
+					tokens = append(tokens, current.String())
+				}
+				current.Reset()
+				inURL = true
+			}
+		}
+
+		// Decode one rune
+		var r rune
+		var size int
+		if text[i] < 0x80 {
+			r = rune(text[i])
+			size = 1
 		} else {
+			for _, rr := range text[i:] {
+				r = rr
+				break
+			}
+			size = runeLen(r)
+		}
+
+		if unicode.IsSpace(r) {
+			inURL = false
 			if current.Len() >= tokenMinLen {
 				tokens = append(tokens, current.String())
 			}
 			current.Reset()
+		} else if !inURL {
+			if unicode.IsLetter(r) || unicode.IsDigit(r) {
+				current.WriteRune(unicode.ToLower(r))
+			} else {
+				if current.Len() >= tokenMinLen {
+					tokens = append(tokens, current.String())
+				}
+				current.Reset()
+			}
 		}
+
+		i += size
 	}
-	// last token
 	if current.Len() >= tokenMinLen {
 		tokens = append(tokens, current.String())
 	}
