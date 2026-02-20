@@ -422,7 +422,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 						return n, TRANS_CONTINUE
 					}
 					ipn = store.GetPackageNode(it.PkgPath)
-					inx1 := unconst(Preprocess(store, ipn, Nx(it.Name)).(Expr)).(*NameExpr)
+					inx1 := unconst(Preprocess(store, ipn, Nx(it.Name), nil).(Expr)).(*NameExpr)
 					ifn1, itx1 := ipn.GetTypeExprForExpr(store, inx1)
 					if ipn != skipFile(ifn1) {
 						panic("package mismatch")
