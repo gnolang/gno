@@ -30,7 +30,7 @@ type (
 
 var (
 	Ownable   = ownable.NewWithAddressByPrevious(address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")) // @leohhhn
-	events    = make(eventsSlice, 0)                                                        // sorted
+	events    = make(eventsSlice, 0)                                                                  // sorted
 	idCounter seqid.ID
 )
 
