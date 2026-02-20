@@ -423,6 +423,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 				"log", res.Log,
 				"error", res.Error,
 				"gas-used", res.GasUsed,
+				"addr", stdTx.GetSigners()[0].String(),
 			)
 		}
 
