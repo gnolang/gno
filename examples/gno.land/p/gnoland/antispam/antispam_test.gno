@@ -65,13 +65,7 @@ func TestScore(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		author   string
-		content  string
-		rate     RateState
-		rep      ReputationData
-		corpus   *Corpus
-		fps      *FingerprintStore
-		bl       *Blocklist
+		input    ScoreInput
 		wantMin  int
 		wantMax  int
 		wantZero bool
@@ -79,148 +73,115 @@ func TestScore(t *testing.T) {
 		// ---- Clean content, good user ----
 
 		{
-			name:     "clean: normal post from good user",
-			author:   "g1gooduser",
-			content:  "I think we should consider adjusting the staking rewards for validators.",
-			rate:     normalRate,
-			rep:      goodRep,
-			corpus:   emptyCorpus,
-			fps:      emptyFps,
-			bl:       emptyBl,
+			name: "clean: normal post from good user",
+			input: ScoreInput{
+				Author: "g1gooduser", Content: "I think we should consider adjusting the staking rewards for validators.",
+				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
+			},
 			wantZero: true,
 		},
 		{
-			name:     "clean: all nil state",
-			author:   "g1user",
-			content:  "Just saying hello to the community.",
-			rate:     zeroRate,
-			rep:      goodRep,
-			corpus:   nil,
-			fps:      nil,
-			bl:       nil,
+			name: "clean: all nil state",
+			input: ScoreInput{
+				Author: "g1user", Content: "Just saying hello to the community.",
+				Rate: zeroRate, Rep: goodRep,
+			},
 			wantZero: true,
 		},
 
 		// ---- Allowlisted user bypasses everything ----
 
 		{
-			name:     "allowed: admin posts spam-like content",
-			author:   "g1admin",
-			content:  "FREE AIRDROP BONUS for everyone!!! https://a.com https://b.com https://c.com https://d.com",
-			rate:     burstRate,
-			rep:      badRep,
-			corpus:   trainedCorpus,
-			fps:      spamFps,
-			bl:       blocklist,
+			name: "allowed: admin posts spam-like content",
+			input: ScoreInput{
+				Author: "g1admin", Content: "FREE AIRDROP BONUS for everyone!!! https://a.com https://b.com https://c.com https://d.com",
+				Rate: burstRate, Rep: badRep, Corpus: trainedCorpus, Fps: spamFps, Bl: blocklist,
+			},
 			wantZero: true,
 		},
 
 		// ---- Blocked user ----
 
 		{
-			name:    "blocked: known spammer",
-			author:  "g1spammer",
-			content: "Totally normal message.",
-			rate:    normalRate,
-			rep:     goodRep,
-			corpus:  emptyCorpus,
-			fps:     emptyFps,
-			bl:      blocklist,
+			name: "blocked: known spammer",
+			input: ScoreInput{
+				Author: "g1spammer", Content: "Totally normal message.",
+				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: blocklist,
+			},
 			wantMin: 99,
 		},
 
 		// ---- Content spam ----
 
 		{
-			name:    "spam: all caps flood",
-			author:  "g1user",
-			content: "THIS IS ALL CAPS SPAM MESSAGE THAT SHOULD BE DETECTED BY CONTENT RULES EASILY",
-			rate:    normalRate,
-			rep:     goodRep,
-			corpus:  emptyCorpus,
-			fps:     emptyFps,
-			bl:      emptyBl,
+			name: "spam: all caps flood",
+			input: ScoreInput{
+				Author: "g1user", Content: "THIS IS ALL CAPS SPAM MESSAGE THAT SHOULD BE DETECTED BY CONTENT RULES EASILY",
+				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
+			},
 			wantMin: 3,
 		},
 
 		// ---- Rate burst ----
 
 		{
-			name:    "spam: rate burst from good user",
-			author:  "g1user",
-			content: "Normal content but posted too fast.",
-			rate:    burstRate,
-			rep:     goodRep,
-			corpus:  emptyCorpus,
-			fps:     emptyFps,
-			bl:      emptyBl,
+			name: "spam: rate burst from good user",
+			input: ScoreInput{
+				Author: "g1user", Content: "Normal content but posted too fast.",
+				Rate: burstRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
+			},
 			wantMin: 4,
 		},
 
 		// ---- Bad reputation ----
 
 		{
-			name:    "suspicious: new account no username",
-			author:  "g1newbie",
-			content: "Hello everyone I just joined.",
-			rate:    zeroRate,
-			rep:     newAccountRep,
-			corpus:  emptyCorpus,
-			fps:     emptyFps,
-			bl:      emptyBl,
+			name: "suspicious: new account no username",
+			input: ScoreInput{
+				Author: "g1newbie", Content: "Hello everyone I just joined.",
+				Rate: zeroRate, Rep: newAccountRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
+			},
 			wantMin: 2,
 		},
 
 		// ---- Pattern match ----
 
 		{
-			name:    "spam: pattern match crypto scam",
-			author:  "g1user",
-			content: "Send 1000 GNOT to this address and get 5000 back guaranteed",
-			rate:    normalRate,
-			rep:     goodRep,
-			corpus:  emptyCorpus,
-			fps:     emptyFps,
-			bl:      blocklist,
+			name: "spam: pattern match crypto scam",
+			input: ScoreInput{
+				Author: "g1user", Content: "Send 1000 GNOT to this address and get 5000 back guaranteed",
+				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: blocklist,
+			},
 			wantMin: 5,
 		},
 
 		// ---- Near duplicate ----
 
 		{
-			name:    "spam: near duplicate of known spam",
-			author:  "g1user",
-			content: "free airdrop bonus click claim prize tokens quick",
-			rate:    normalRate,
-			rep:     goodRep,
-			corpus:  emptyCorpus,
-			fps:     spamFps,
-			bl:      emptyBl,
+			name: "spam: near duplicate of known spam",
+			input: ScoreInput{
+				Author: "g1user", Content: "free airdrop bonus click claim prize tokens quick",
+				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: spamFps, Bl: emptyBl,
+			},
 			wantMin: 4,
 		},
 
 		// ---- Multi-signal stacking ----
 
 		{
-			name:    "combined: new account + caps + rate burst",
-			author:  "g1newspammer",
-			content: "BUY NOW THIS IS THE BEST DEAL EVER YOU WILL NOT REGRET THIS AMAZING OPPORTUNITY",
-			rate:    burstRate,
-			rep:     newAccountRep,
-			corpus:  emptyCorpus,
-			fps:     emptyFps,
-			bl:      emptyBl,
+			name: "combined: new account + caps + rate burst",
+			input: ScoreInput{
+				Author: "g1newspammer", Content: "BUY NOW THIS IS THE BEST DEAL EVER YOU WILL NOT REGRET THIS AMAZING OPPORTUNITY",
+				Rate: burstRate, Rep: newAccountRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
+			},
 			wantMin: 9,
 		},
 		{
-			name:    "combined: bad rep + pattern + bayes",
-			author:  "g1baduser",
-			content: "Send 5000 GNOT and get free airdrop bonus click claim prize tokens",
-			rate:    normalRate,
-			rep:     badRep,
-			corpus:  trainedCorpus,
-			fps:     emptyFps,
-			bl:      blocklist,
+			name: "combined: bad rep + pattern + bayes",
+			input: ScoreInput{
+				Author: "g1baduser", Content: "Send 5000 GNOT and get free airdrop bonus click claim prize tokens",
+				Rate: normalRate, Rep: badRep, Corpus: trainedCorpus, Fps: emptyFps, Bl: blocklist,
+			},
 			wantMin: 10,
 		},
 
@@ -228,20 +189,14 @@ func TestScore(t *testing.T) {
 
 		{
 			name:    "edge: empty everything",
-			author:  "",
-			content: "",
-			rate:    zeroRate,
-			rep:     ReputationData{},
-			corpus:  nil,
-			fps:     nil,
-			bl:      nil,
+			input:   ScoreInput{},
 			wantMin: 2, // NEW_ACCOUNT + NO_USERNAME
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := Score(tt.author, tt.content, tt.rate, tt.rep, tt.corpus, tt.fps, tt.bl)
+			result := Score(tt.input)
 
 			if tt.wantZero {
 				if result.Total != 0 {
@@ -309,7 +264,10 @@ func TestFalsePositives(t *testing.T) {
 
 	for _, msg := range legitimateMessages {
 		t.Run(msg.name, func(t *testing.T) {
-			result := Score("g1legitimateuser", msg.content, normalRate, goodRep, corpus, fps, bl)
+			result := Score(ScoreInput{
+				Author: "g1legitimateuser", Content: msg.content,
+				Rate: normalRate, Rep: goodRep, Corpus: corpus, Fps: fps, Bl: bl,
+			})
 			if result.Total >= 5 {
 				t.Errorf("FALSE POSITIVE: %q scored %d (triggered: %v)", msg.name, result.Total, result.Triggered)
 			}

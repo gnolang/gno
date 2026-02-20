@@ -1,14 +1,18 @@
 package antispam
 
 import (
+	"errors"
 	"regexp"
 
 	"gno.land/p/nt/avl"
 )
 
+var errPatternCapReached = errors.New("pattern cap reached (30 max)")
+
 const (
-	WeightBlockedAddress = 99
-	WeightBlockedPattern = 5
+	// blMaxPatterns caps the number of regex patterns to prevent O(P*n)
+	// cost growth. Each pattern runs a full regex match against content.
+	blMaxPatterns = 30
 )
 
 // Blocklist manages blocked addresses, allowed addresses, and regex patterns.
@@ -66,14 +70,22 @@ func (bl *Blocklist) IsAllowed(addr string) bool {
 // ---- Pattern matching
 
 // AddPattern compiles and stores a regex pattern.
-// Returns an error if the pattern is invalid.
+// Returns an error if the pattern is invalid or the cap is reached.
 func (bl *Blocklist) AddPattern(pattern string) error {
+	if bl.patterns.Size() >= blMaxPatterns && !bl.patterns.Has(pattern) {
+		return errPatternCapReached
+	}
 	re, err := regexp.Compile(pattern)
 	if err != nil {
 		return err
 	}
 	bl.patterns.Set(pattern, re)
 	return nil
+}
+
+// PatternCount returns the number of stored patterns.
+func (bl *Blocklist) PatternCount() int {
+	return bl.patterns.Size()
 }
 
 // RemovePattern removes a regex pattern.

@@ -11,12 +11,6 @@ type ReputationData struct {
 }
 
 const (
-	WeightNewAccount    = 2
-	WeightNoUsername    = 1
-	WeightLowBalance   = 1
-	WeightBadReputation = 3
-
-	// Thresholds
 	repMinAgeDays      = 1   // accounts younger than this are "new"
 	repMinBalance      = 1000000000 // 1000 GNOT in ugnot
 	repFlagRatioPct    = 30  // flagged/total > this% → bad reputation
