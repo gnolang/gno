@@ -196,7 +196,8 @@ func TestScoreReputation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			score, rule := ScoreReputation(tt.rep)
+			hits := ScoreReputation(tt.rep)
+			score, rule := hitsTotal(hits)
 
 			if tt.wantZero {
 				if score != 0 {

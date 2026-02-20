@@ -88,6 +88,14 @@ func (bl *Blocklist) PatternCount() int {
 	return bl.patterns.Size()
 }
 
+// IteratePatterns calls fn for each stored pattern string.
+// Return true from fn to stop iteration early.
+func (bl *Blocklist) IteratePatterns(fn func(pattern string) bool) {
+	bl.patterns.Iterate("", "", func(key string, _ interface{}) bool {
+		return fn(key)
+	})
+}
+
 // RemovePattern removes a regex pattern.
 func (bl *Blocklist) RemovePattern(pattern string) {
 	bl.patterns.Remove(pattern)

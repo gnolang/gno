@@ -4,6 +4,19 @@ import (
 	"testing"
 )
 
+// hitsTotal sums a []RuleHit slice and returns the total score and highest-scoring rule.
+func hitsTotal(hits []RuleHit) (total int, topRule string) {
+	topScore := 0
+	for _, h := range hits {
+		total += h.Score
+		if h.Score > topScore {
+			topScore = h.Score
+			topRule = h.Rule
+		}
+	}
+	return
+}
+
 func TestScoreContent(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -290,7 +303,8 @@ func TestScoreContent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			score, rule := ScoreContent(tt.content)
+			hits := ScoreContent(tt.content)
+			score, rule := hitsTotal(hits)
 
 			if tt.wantZero {
 				if score != 0 {

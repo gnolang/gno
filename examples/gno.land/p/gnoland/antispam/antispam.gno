@@ -78,8 +78,17 @@ const (
 	WeightLowBalance     = 1
 )
 
+// RuleHit represents a single triggered anti-spam rule with its score.
+type RuleHit struct {
+	Score int
+	Rule  string
+}
+
 // ScoreInput holds all parameters for spam scoring.
 // State fields (Corpus, Fps, Bl, Dict) can be nil if not available.
+//
+// NOTE: Zero-value fields penalize. With Rep at zero-value, NEW_ACCOUNT(2) +
+// NO_USERNAME(1) + LOW_BALANCE(1) = 4 points. Callers must fill Rep accurately.
 type ScoreInput struct {
 	Author  string
 	Content string
@@ -121,6 +130,12 @@ func Score(in ScoreInput) SpamScore {
 		}
 	}
 
+	addHits := func(hits []RuleHit) {
+		for _, h := range hits {
+			add(h.Score, h.Rule)
+		}
+	}
+
 	// Blocklist (address + patterns)
 	if s, r := ScoreBlocklist(in.Author, in.Content, in.Bl); s > 0 {
 		add(s, r)
@@ -134,9 +149,7 @@ func Score(in ScoreInput) SpamScore {
 	tokens := dedup(Tokenize(in.Content))
 
 	// Content heuristics (single-pass: caps, punct, URLs)
-	if s, r := ScoreContent(in.Content); s > 0 {
-		add(s, r)
-	}
+	addHits(ScoreContent(in.Content))
 
 	// Rate limiting
 	if s, r := ScoreRate(in.Rate); s > 0 {
@@ -144,9 +157,7 @@ func Score(in ScoreInput) SpamScore {
 	}
 
 	// Reputation
-	if s, r := ScoreReputation(in.Rep); s > 0 {
-		add(s, r)
-	}
+	addHits(ScoreReputation(in.Rep))
 
 	// Bayesian filter (uses pre-computed deduplicated tokens)
 	if s, r := scoreBayesTokens(tokens, in.Corpus); s > 0 {
