@@ -800,6 +800,7 @@ func (cfg InitChainerConfig) deliverGenesisTx(
 			"log", res.Log,
 			"error", res.Error,
 			"gas-used", res.GasUsed,
+			"addr", stdTx.GetSigners()[0].String(),
 		)
 	}
 
