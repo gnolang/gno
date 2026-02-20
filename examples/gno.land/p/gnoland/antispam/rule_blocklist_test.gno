@@ -8,10 +8,10 @@ import (
 
 func TestBlocklistAddress(t *testing.T) {
 	tests := []struct {
-		name      string
-		setup     func() *Blocklist
-		addr      string
-		blocked   bool
+		name    string
+		setup   func() *Blocklist
+		addr    string
+		blocked bool
 	}{
 		{
 			name:    "success: empty blocklist not blocked",
@@ -183,7 +183,7 @@ func TestBlocklistPatterns(t *testing.T) {
 		{
 			name:      "success: no patterns, no match",
 			setup:     NewBlocklist,
-			content:      "Hello world",
+			content:   "Hello world",
 			wantMatch: false,
 		},
 		{
@@ -193,7 +193,7 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.AddPattern(`(?i)free\s*airdrop`)
 				return bl
 			},
-			content:        "Get your FREE AIRDROP now",
+			content:     "Get your FREE AIRDROP now",
 			wantMatch:   true,
 			wantPattern: `(?i)free\s*airdrop`,
 		},
@@ -204,7 +204,7 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.AddPattern(`https?://(www\.)?scam\.com`)
 				return bl
 			},
-			content:        "Visit https://www.scam.com for details",
+			content:     "Visit https://www.scam.com for details",
 			wantMatch:   true,
 			wantPattern: `https?://(www\.)?scam\.com`,
 		},
@@ -215,7 +215,7 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.AddPattern(`(?i)free\s*airdrop`)
 				return bl
 			},
-			content:      "This is a legitimate discussion about governance",
+			content:   "This is a legitimate discussion about governance",
 			wantMatch: false,
 		},
 		{
@@ -225,7 +225,7 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.AddPattern(`(?i)casino\s*bonus`)
 				return bl
 			},
-			content:        "Get your CASINO BONUS today",
+			content:     "Get your CASINO BONUS today",
 			wantMatch:   true,
 			wantPattern: `(?i)casino\s*bonus`,
 		},
@@ -237,7 +237,7 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.AddPattern(`(?i)scam`)
 				return bl
 			},
-			content:      "This is a scam message",
+			content:   "This is a scam message",
 			wantMatch: true,
 		},
 		{
@@ -248,7 +248,7 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.RemovePattern(`(?i)spam`)
 				return bl
 			},
-			content:      "This could be spam but pattern removed",
+			content:   "This could be spam but pattern removed",
 			wantMatch: false,
 		},
 		{
@@ -258,7 +258,7 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.AddPattern(`(?i)send\s+\d+\s*gnot`)
 				return bl
 			},
-			content:        "Send 1000 GNOT to this address and get 5000 back",
+			content:     "Send 1000 GNOT to this address and get 5000 back",
 			wantMatch:   true,
 			wantPattern: `(?i)send\s+\d+\s*gnot`,
 		},
@@ -269,7 +269,7 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.AddPattern(`(?i)spam`)
 				return bl
 			},
-			content:      "",
+			content:   "",
 			wantMatch: false,
 		},
 		{
@@ -279,7 +279,7 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.AddPattern(`(?i)spam`)
 				return bl
 			},
-			content:      "这是一条正常的中文消息",
+			content:   "这是一条正常的中文消息",
 			wantMatch: false,
 		},
 	}
@@ -322,14 +322,14 @@ func TestScoreBlocklist(t *testing.T) {
 			name:     "success: nil blocklist scores zero",
 			setup:    nil,
 			author:   "g1user",
-			content:     "hello",
+			content:  "hello",
 			wantZero: true,
 		},
 		{
 			name:     "success: empty blocklist scores zero",
 			setup:    NewBlocklist,
 			author:   "g1user",
-			content:     "hello",
+			content:  "hello",
 			wantZero: true,
 		},
 		{
@@ -340,7 +340,7 @@ func TestScoreBlocklist(t *testing.T) {
 				return bl
 			},
 			author:   "g1spammer",
-			content:     "totally normal message",
+			content:  "totally normal message",
 			wantMin:  99,
 			wantRule: "BLOCKED_ADDRESS",
 		},
@@ -352,7 +352,7 @@ func TestScoreBlocklist(t *testing.T) {
 				return bl
 			},
 			author:   "g1user",
-			content:     "Get your FREE AIRDROP now!",
+			content:  "Get your FREE AIRDROP now!",
 			wantMin:  5,
 			wantRule: "BLOCKED_PATTERN",
 		},
@@ -365,7 +365,7 @@ func TestScoreBlocklist(t *testing.T) {
 				return bl
 			},
 			author:   "g1admin",
-			content:     "FREE AIRDROP announcement from admin",
+			content:  "FREE AIRDROP announcement from admin",
 			wantZero: true,
 		},
 		{
@@ -377,7 +377,7 @@ func TestScoreBlocklist(t *testing.T) {
 				return bl
 			},
 			author:   "g1user",
-			content:     "message",
+			content:  "message",
 			wantZero: true,
 		},
 	}

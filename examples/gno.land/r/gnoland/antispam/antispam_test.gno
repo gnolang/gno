@@ -44,7 +44,7 @@ func setAdmin(t *testing.T) {
 
 func goodRep() engine.ReputationData {
 	return engine.ReputationData{
-		HasUsername:     true,
+		HasUsername:    true,
 		AccountAgeDays: 30,
 		Balance:        5000000000,
 	}
@@ -304,7 +304,7 @@ func TestScoreCleanContent(t *testing.T) {
 		Balance:        5000000000,
 		FlaggedCount:   0,
 		TotalPosts:     20,
-		HasUsername:     true,
+		HasUsername:    true,
 		BanCount:       0,
 	}
 
