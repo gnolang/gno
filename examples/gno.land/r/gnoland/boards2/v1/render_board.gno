@@ -9,7 +9,6 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mdalert"
 	"gno.land/p/nt/mux"
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
@@ -155,19 +154,19 @@ func renderInviteMember(res *mux.ResponseWriter, req *mux.Request) {
 	)
 	form.Select(
 		"role",
-		string(permissions.RoleOwner),
+		string(RoleOwner),
 	)
 	form.Select(
 		"role",
-		string(permissions.RoleAdmin),
+		string(RoleAdmin),
 	)
 	form.Select(
 		"role",
-		string(permissions.RoleModerator),
+		string(RoleModerator),
 	)
 	form.Select(
 		"role",
-		string(permissions.RoleGuest),
+		string(RoleGuest),
 		"selected", "true",
 	)
 
