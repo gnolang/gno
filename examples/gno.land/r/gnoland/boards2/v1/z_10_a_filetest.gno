@@ -46,4 +46,4 @@ func main() {
 //
 // ---
 // ### This board doesn't have any threads
-// Do you want to [start a new conversation](/r/gnoland/boards2/v1:test-board/create-thread) in this board ?
+// Do you want to [start a new conversation](/r/gnoland/boards2/v1:test-board/create-thread) in this board?
