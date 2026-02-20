@@ -5,45 +5,21 @@ package names
 import (
 	"strings"
 
-	"gno.land/p/nt/ownable"
-
 	"gno.land/r/sys/users"
-)
-
-var (
-	Ownable = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // dropped in genesis via Enable. XXX We should switch to something better once the GovDAO situation is stabilized.
-
-	enabled = false
 )
 
 // IsAuthorizedAddressForNamespace ensures that the given address has ownership of the given name.
 // A user's name found in r/sys/users is equivalent to their namespace.
+// Note: Whether namespace enforcement is enabled or not is controlled by the
+// VM param `sysnames_enabled`. The keeper only calls this function when enforcement is on.
 func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool {
-	return verifier(enabled, address_XXX, namespace)
-}
-
-// Enable enables the namespace check and drops centralized ownership of this realm.
-// The namespace check is disabled initially to ease txtar and other testing contexts,
-// but this function is meant to be called in the genesis of a chain.
-func Enable(cur realm) {
-	if err := Ownable.DropOwnershipByPrevious(); err != nil {
-		panic(err)
-	}
-	enabled = true
-}
-
-func IsEnabled() bool {
-	return enabled
+	return verifier(address_XXX, namespace)
 }
 
 // verifier checks the store to see that the
 // user has properly registered a given name/namespace.
 // This function considers as valid an `address` that matches the `namespace` (PA namespaces)
-func verifier(enabled bool, address_XXX address, namespace string) bool {
-	if !enabled {
-		return true // only in pre-genesis cases
-	}
-
+func verifier(address_XXX address, namespace string) bool {
 	if strings.TrimSpace(address_XXX.String()) == "" || strings.TrimSpace(namespace) == "" {
 		return false
 	}

@@ -1,45 +1,23 @@
 loadpkg gno.land/r/sys/names
 loadpkg gno.land/r/gnoland/users/v1
 
-adduser admin
 adduser gui
 
-patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $admin_user_addr # use our custom admin
-
-gnoland start
+gnoland start -sysnames-enabled
 
 # give gui user more tokens
 gnokey maketx send -send 1000000000ugnot -to $gui_user_addr  -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
 
-# Check if sys/names is disabled
-# qeval -> sys/names.IsEnabled
-gnokey query vm/qeval --data "gno.land/r/sys/names.IsEnabled()"
-stdout 'false bool'
+# Namespace enforcement is enabled via the -sysnames-enabled flag.
 
-# Gui should be able to addpkg on test1 addr
+# Gui should NOT be able to addpkg on test1 addr (not authorized)
 # gui addpkg -> gno.land/r/<addr_test1>/mysuperpkg
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 600000 -broadcast -chainid=tendermint_test gui
-stdout 'OK!'
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test gui
+stderr 'is not authorized to deploy packages to namespace'
 
-# Gui should be able to addpkg on random name
+# Gui should NOT be able to addpkg on random name (not authorized)
 # gui addpkg -> gno.land/r/randomname/mysuperpkg
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/randomname/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 550000 -broadcast -chainid=tendermint_test gui
-stdout 'OK!'
-
-# Enable `sys/names`
-# admin call -> sys/names.Enable
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
-stdout 'OK!'
-
-# Check that `sys/names` has been enabled
-# qeval -> sys/names.IsEnabled
-gnokey query vm/qeval --data "gno.land/r/sys/names.IsEnabled()"
-stdout 'true bool'
-
-
-# Try to add a pkg an with unregistered user
-# gui addpkg -> gno.land/r/<addr_test1>/one
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test gui
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/randomname/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test gui
 stderr 'is not authorized to deploy packages to namespace'
 
 # Try to add a pkg with an unregistered user, on their own address as namespace
@@ -49,10 +27,9 @@ stdout 'OK!'
 
 ## Test unregistered namespace
 
-# Call addpkg with admin user on gui namespace
-# admin addpkg -> gno.land/r/guiland/one
-# This is expected to fail at the transaction simulation stage, which is why we set gas-wanted to 1.
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
+# Call addpkg with test1 user on gui namespace
+# test1 addpkg -> gno.land/r/guiland/one
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stderr 'is not authorized to deploy packages to namespace'
 
 ## Test registered namespace
@@ -67,9 +44,9 @@ stdout 'OK!'
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/one -gas-fee 1000000ugnot -gas-wanted 3700000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
-# Test admin publishing on guigui123/two
-# admin addpkg -> gno.land/r/guigui123/two
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/two -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
+# Test test1 publishing on guigui123/two (should fail - not authorized)
+# test1 addpkg -> gno.land/r/guigui123/two
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/two -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stderr 'is not authorized to deploy packages to namespace'
 
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/random!name/mypkg -gas-fee 1000000ugnot -gas-wanted 550000 -broadcast -chainid=tendermint_test gui
