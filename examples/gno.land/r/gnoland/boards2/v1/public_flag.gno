@@ -6,8 +6,6 @@ import (
 	"strconv"
 
 	"gno.land/p/gnoland/boards"
-
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // SetFlaggingThreshold sets the number of flags required to hide a thread or comment.
@@ -25,7 +23,7 @@ func SetFlaggingThreshold(_ realm, boardID boards.ID, threshold int) {
 
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{board.ID, threshold}
-	board.Permissions.WithPermission(cross, caller, permissions.PermissionBoardFlaggingUpdate, args, func(realm) {
+	board.Permissions.WithPermission(caller, PermissionBoardFlaggingUpdate, args, crossingFn(func() {
 		assertRealmIsNotLocked()
 
 		gFlaggingThresholds.Set(boardID.String(), threshold)
@@ -36,7 +34,7 @@ func SetFlaggingThreshold(_ realm, boardID boards.ID, threshold int) {
 			"boardID", board.ID.String(),
 			"threshold", strconv.Itoa(threshold),
 		)
-	})
+	}))
 }
 
 // GetFlaggingThreshold returns the number of flags required to hide a thread or comment within a board.
@@ -52,7 +50,7 @@ func GetFlaggingThreshold(boardID boards.ID) int {
 func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 	caller := runtime.PreviousRealm().Address()
 	board := mustGetBoard(boardID)
-	isRealmOwner := gPerms.HasRole(caller, permissions.RoleOwner)
+	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
 		assertBoardIsNotFrozen(board)
@@ -86,9 +84,9 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reason}
-	board.Permissions.WithPermission(cross, caller, permissions.PermissionThreadFlag, args, func(realm) {
+	board.Permissions.WithPermission(caller, PermissionThreadFlag, args, crossingFn(func() {
 		flagThread()
-	})
+	}))
 }
 
 // FlagReply adds a new flag to a comment or reply.
@@ -98,7 +96,7 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 	caller := runtime.PreviousRealm().Address()
 	board := mustGetBoard(boardID)
-	isRealmOwner := gPerms.HasRole(caller, permissions.RoleOwner)
+	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
 		assertBoardIsNotFrozen(board)
@@ -129,7 +127,7 @@ func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reply.ID, reason}
-	board.Permissions.WithPermission(cross, caller, permissions.PermissionReplyFlag, args, func(realm) {
+	board.Permissions.WithPermission(caller, PermissionReplyFlag, args, crossingFn(func() {
 		flagReply()
-	})
+	}))
 }

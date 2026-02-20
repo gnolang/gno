@@ -7,7 +7,6 @@ import (
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/nt/ufmt"
 
-	"gno.land/r/gnoland/boards2/v1/permissions"
 	"gno.land/r/sys/users"
 )
 
@@ -57,9 +56,9 @@ func validateOpenMemberInvite(perms boards.Permissions, args boards.Args) error 
 	}
 
 	// Make sure that only owners invite other owners
-	callerIsOwner := perms.HasRole(caller, permissions.RoleOwner)
+	callerIsOwner := perms.HasRole(caller, RoleOwner)
 	for _, v := range invites {
-		if v.Role == permissions.RoleOwner && !callerIsOwner {
+		if v.Role == RoleOwner && !callerIsOwner {
 			return errors.New("only owners are allowed to invite other owners")
 		}
 	}
@@ -81,13 +80,13 @@ func validateOpenRoleChange(perms boards.Permissions, args boards.Args) error {
 
 	// Owners and Admins can change roles.
 	// Admins should not be able to assign or remove the Owner role from members.
-	if perms.HasRole(caller, permissions.RoleAdmin) {
+	if perms.HasRole(caller, RoleAdmin) {
 		role, ok := args[3].(boards.Role)
 		if !ok {
 			return errors.New("expected a valid member role")
 		}
 
-		if role == permissions.RoleOwner {
+		if role == RoleOwner {
 			return errors.New("admins are not allowed to promote members to Owner")
 		} else {
 			member, ok := args[2].(address)
@@ -95,7 +94,7 @@ func validateOpenRoleChange(perms boards.Permissions, args boards.Args) error {
 				return errors.New("expected a valid member address")
 			}
 
-			if perms.HasRole(member, permissions.RoleOwner) {
+			if perms.HasRole(member, RoleOwner) {
 				return errors.New("admins are not allowed to remove the Owner role")
 			}
 		}
@@ -118,7 +117,7 @@ func validateOpenThreadCreate(perms boards.Permissions, args boards.Args) error 
 	}
 
 	// Owners and admins can create threads without a registered username
-	if perms.HasRole(caller, permissions.RoleOwner) || perms.HasRole(caller, permissions.RoleAdmin) {
+	if perms.HasRole(caller, RoleOwner) || perms.HasRole(caller, RoleAdmin) {
 		return nil
 	}
 

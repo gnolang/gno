@@ -6,7 +6,6 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -24,7 +23,7 @@ func init() {
 	bid = boards2.CreateBoard(cross, "test-board", false, false)
 
 	// Invite a moderator to the new board
-	boards2.InviteMember(cross, bid, moderator, permissions.RoleModerator)
+	boards2.InviteMember(cross, bid, moderator, boards2.RoleModerator)
 
 	// Create a new thread as a moderator
 	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
