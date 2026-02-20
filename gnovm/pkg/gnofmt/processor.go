@@ -10,6 +10,7 @@ import (
 	"io"
 	"path/filepath"
 
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/imports"
 )
@@ -271,7 +272,7 @@ func (p *Processor) cleanupPreviousImports(node *ast.File, knownDecls declMap, u
 		for _, imp := range imps {
 			pkgpath := imp.Path.Value[1 : len(imp.Path.Value)-1] // unquote the value
 
-			name := filepath.Base(pkgpath)
+			name := gno.LastPathElement(pkgpath)
 			if pkg := p.resolver.ResolvePath(pkgpath); pkg != nil {
 				name = pkg.Name()
 			}

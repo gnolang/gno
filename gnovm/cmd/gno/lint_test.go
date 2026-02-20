@@ -89,6 +89,13 @@ func TestLintApp(t *testing.T) {
 		},
 		{
 			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/package_name_mismatch",
+			simulateExternalRepo: true,
+			stderrShouldContain:  `package name "hello" does not match path element "goodbye" (code=gnoPackageNameMismatch)`,
+			errShouldBe:          "exit code: 1",
+		},
+		{
+			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/render_invalid1",
 			simulateExternalRepo: true,
 			stderrShouldBe:       "gno.land/r/test/render_invalid1/main.gno:5: invalid signature for the realm's Render function; must be of the form: func Render(string) string (code=gnoLintError)\n",
