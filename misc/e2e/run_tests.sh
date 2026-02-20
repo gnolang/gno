@@ -58,7 +58,7 @@ echo "3. Importing test1 key..."
 # First, remove the key if it exists (ignore errors)
 /usr/bin/gnokey delete test1 -home /tmp/gnokey -force 2>/dev/null || true
 # Use printf to provide password twice (for password and confirmation)
-printf "test1234\ntest1234\n%s\n" "$TEST1_MNEMONIC" | /usr/bin/gnokey add test1 -recover -insecure-password-stdin=true -home /tmp/gnokey || { echo "Failed to import test1 key"; exit 1; }
+printf "%s\ntest1234\ntest1234\n" "$TEST1_MNEMONIC" | /usr/bin/gnokey add test1 -recover -insecure-password-stdin=true -home /tmp/gnokey || { echo "Failed to import test1 key"; exit 1; }
 
 # Make a simple transaction - send some coins
 echo "4. Sending coins to another address..."

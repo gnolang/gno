@@ -5,11 +5,10 @@ import (
 	"strings"
 
 	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/avl"
-
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // TODO: Refactor globals in favor of a cleaner pattern
@@ -43,7 +42,7 @@ func init() {
 	// Add an initial owner to the realm permissions for unit and integration tests
 	chainID := runtime.ChainID()
 	if chainID == "dev" || chainID == "tendermint_test" {
-		gPerms.SetUserRoles(cross, "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", permissions.RoleOwner)
+		gPerms.SetUserRoles("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", RoleOwner)
 	}
 }
 
@@ -51,16 +50,16 @@ func init() {
 func initRealmPermissions() boards.Permissions {
 	perms := permissions.New(
 		permissions.UseSingleUserRole(),
-		permissions.WithSuperRole(permissions.RoleOwner),
+		permissions.WithSuperRole(RoleOwner),
 	)
-	perms.AddRole(permissions.RoleAdmin, permissions.PermissionBoardCreate)
-	perms.ValidateFunc(permissions.PermissionBoardCreate, validateBasicBoardCreate)
-	perms.ValidateFunc(permissions.PermissionMemberInvite, validateBasicMemberInvite)
-	perms.ValidateFunc(permissions.PermissionRoleChange, validateBasicRoleChange)
+	perms.AddRole(RoleAdmin, PermissionBoardCreate)
+	perms.ValidateFunc(PermissionBoardCreate, validateBasicBoardCreate)
+	perms.ValidateFunc(PermissionMemberInvite, validateBasicMemberInvite)
+	perms.ValidateFunc(PermissionRoleChange, validateBasicRoleChange)
 	return perms
 }
 
-// getInvitesRequests returns invite requests for a board.
+// getInviteRequests returns invite requests for a board.
 func getInviteRequests(boardID boards.ID) (_ *avl.Tree, found bool) {
 	v, exists := gInviteRequests.Get(boardID.Key())
 	if !exists {
