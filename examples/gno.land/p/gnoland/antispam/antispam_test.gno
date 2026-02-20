@@ -37,7 +37,7 @@ func TestScore(t *testing.T) {
 		Balance:        10000000000,
 		FlaggedCount:   0,
 		TotalPosts:     50,
-		HasUsername:     true,
+		HasUsername:    true,
 		BanCount:       0,
 	}
 
@@ -46,7 +46,7 @@ func TestScore(t *testing.T) {
 		Balance:        3000000000,
 		FlaggedCount:   0,
 		TotalPosts:     0,
-		HasUsername:     false,
+		HasUsername:    false,
 		BanCount:       0,
 	}
 
@@ -55,7 +55,7 @@ func TestScore(t *testing.T) {
 		Balance:        3000000000,
 		FlaggedCount:   15,
 		TotalPosts:     20,
-		HasUsername:     true,
+		HasUsername:    true,
 		BanCount:       2,
 	}
 
@@ -272,7 +272,7 @@ func TestFalsePositives(t *testing.T) {
 		Balance:        5000000000,
 		FlaggedCount:   0,
 		TotalPosts:     20,
-		HasUsername:     true,
+		HasUsername:    true,
 		BanCount:       0,
 	}
 	normalRate := RateState{PostCount: 3, WindowSeconds: 3600}
