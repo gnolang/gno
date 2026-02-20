@@ -14,7 +14,7 @@ var config = Config{
 	Github:      "jjoptimist",
 }
 
-var Ownable = ownable.NewWithAddress(address("g16vfw3r7zuz43fhky3xfsuc2hdv9tnhvlkyn0nj"))
+var Ownable = ownable.NewWithAddressByPrevious(address("g16vfw3r7zuz43fhky3xfsuc2hdv9tnhvlkyn0nj"))
 
 func GetConfig() Config {
 	return config

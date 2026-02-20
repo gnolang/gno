@@ -16,7 +16,7 @@ import (
 
 var (
 	override string
-	Admin    = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
+	Admin    = ownable.NewWithAddressByPrevious("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
 )
 
 func Render(_ string) string {
@@ -237,4 +237,10 @@ func quoteOfTheBlock() string {
 func AdminSetOverride(cur realm, content string) {
 	Admin.AssertOwnedByPrevious()
 	override = content
+}
+
+func AdminTransferOwnership(cur realm, newOwner address) {
+	if err := Admin.TransferOwnershipByPrevious(newOwner); err != nil {
+		panic(err)
+	}
 }

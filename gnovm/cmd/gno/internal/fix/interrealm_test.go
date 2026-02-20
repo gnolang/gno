@@ -13,9 +13,9 @@ func Test_interrealm_PosBuilding(t *testing.T) {
 
 	const src = `package minisocial
 
-import "gno.land/p/demo/ownable"
+import "gno.land/p/nt/ownable"
 
-var Ownable = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
+var Ownable = ownable.NewWithAddressByPrevious("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
 
 // ResetPosts allows admin deletion of the posts
 func ResetPosts() {
@@ -26,9 +26,9 @@ func ResetPosts() {
 `
 	const want = `package minisocial
 
-import "gno.land/p/demo/ownable"
+import "gno.land/p/nt/ownable"
 
-var Ownable = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
+var Ownable = ownable.NewWithAddressByPrevious("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
 
 // ResetPosts allows admin deletion of the posts
 func ResetPosts(cur realm) {

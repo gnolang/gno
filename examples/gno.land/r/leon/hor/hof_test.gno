@@ -44,8 +44,10 @@ func TestRegister(t *testing.T) {
 
 	// Test register while paused
 	testing.SetRealm(adminRealm)
-	err := Pausable.Pause()
-	uassert.NoError(t, err)
+	crossThrough(testing.NewCodeRealm("gno.land/r/leon/hor"), func() {
+		err := Pausable.Pause()
+		uassert.NoError(t, err)
+	})
 
 	// Set legitimate caller
 	testing.SetRealm(testing.NewCodeRealm(rlmPath))
@@ -55,8 +57,10 @@ func TestRegister(t *testing.T) {
 
 	// Unpause
 	testing.SetRealm(adminRealm)
-	err = Pausable.Unpause()
-	uassert.NoError(t, err)
+	crossThrough(testing.NewCodeRealm("gno.land/r/leon/hor"), func() {
+		err := Pausable.Unpause()
+		uassert.NoError(t, err)
+	})
 
 	// Set legitimate caller
 	testing.SetRealm(testing.NewCodeRealm(rlmPath))
@@ -146,6 +150,11 @@ func itemExists(t *testing.T, rlmPath string) bool {
 	_, ok1 := exhibition.items.Get(rlmPath)
 
 	return ok1
+}
+
+func crossThrough(rlm runtime.Realm, cr func()) {
+	testing.SetRealm(rlm)
+	cr()
 }
 
 func TestgetVoteSortKey(t *testing.T) {

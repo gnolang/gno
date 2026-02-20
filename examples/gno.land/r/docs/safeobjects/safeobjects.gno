@@ -7,7 +7,7 @@ import (
 // ExposedSafeObject methods exposed to the public. However, the methods all
 // contain a caller check - making them, and the object itself "safe".
 // The methods are only callable by the current admin.
-// A prime example of a safe object can be found in "p/demo/ownable".
+// A prime example of a safe object can be found in "p/nt/ownable".
 var ExposedSafeObject = SafeObject{
 	privilegedData: "This message can only be set by the admin.",
 	admin:          address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"),
@@ -58,7 +58,7 @@ while still keeping the write access to their memory limited.
 Safe Objects allow only authorized users (like admins) can modify their
 internal state, even if they are exposed at the realm top level.
 
-A prime example of a commonly used safe object is the Ownable object, found under in [**p/demo/ownable**](/p/demo/ownable).
+A prime example of a commonly used safe object is the Ownable object, found under in [**p/nt/ownable**](/p/nt/ownable).
 
 To call methods on exposed safe objects, users need to use [MsgRun](/r/docs/complexargs).
 

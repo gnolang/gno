@@ -79,10 +79,17 @@ func TestTransferOwnershipUnauthorized(t *testing.T) {
 	// owner is alice, so bob is unauthorized.
 	uassert.ErrorContains(t, o.TransferOwnership(bob), ErrUnauthorized.Error())
 	uassert.ErrorContains(t, o.DropOwnershipByCurrent(), ErrUnauthorized.Error())
-	// Reset realm to alice.
+	// Reset realm to alice. NewWithOrigin is previous-auth only, so current-auth
+	// methods stay unauthorized even for the owner.
 	testing.SetRealm(testing.NewUserRealm(alice))
-	uassert.NoError(t, o.TransferOwnership(alice))
-	uassert.NoError(t, o.DropOwnershipByCurrent())
+	uassert.ErrorContains(t, o.TransferOwnership(alice), ErrUnauthorized.Error())
+	uassert.ErrorContains(t, o.DropOwnershipByCurrent(), ErrUnauthorized.Error())
+
+	// Previous-auth actions remain authorized.
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		uassert.NoError(t, o.TransferOwnershipByPrevious(alice))
+		uassert.NoError(t, o.DropOwnershipByPrevious())
+	})
 }
 
 func TestTransferOwnershipByPrevious(t *testing.T) {
@@ -131,6 +138,17 @@ func TestTransferOwnershipByPreviousInvalidAddress(t *testing.T) {
 	})
 }
 
+func TestTransferOwnershipByPreviousCurrentModeUnauthorized(t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao"))
+	o := New() // owned by /r/gov/dao and current-auth only
+
+	// Simulate /r/gov/dao crossing into another realm.
+	crossThrough(testing.NewCodeRealm("gno.land/r/attacker/realm"), func() {
+		uassert.ErrorContains(t, o.TransferOwnershipByPrevious(bob), ErrUnauthorized.Error())
+		uassert.ErrorContains(t, o.DropOwnershipByPrevious(), ErrUnauthorized.Error())
+	})
+}
+
 func TestOwnedByCurrent(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 	o := New()
@@ -138,13 +156,8 @@ func TestOwnedByCurrent(t *testing.T) {
 }
 
 func TestOwnedByCurrentUnauthorized(t *testing.T) {
-	testing.SetOriginCaller(alice)
 	testing.SetRealm(testing.NewUserRealm(alice))
-
-	var o *Ownable
-	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
-		o = NewWithOrigin()
-	})
+	o := New()
 
 	uassert.True(t, o.OwnedByCurrent())
 
@@ -154,17 +167,26 @@ func TestOwnedByCurrentUnauthorized(t *testing.T) {
 }
 
 func TestOwnedByPrevious(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm(alice))
-	o := New()
+	var o *Ownable
 
+	testing.SetRealm(testing.NewUserRealm(alice))
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		o = NewWithOrigin()
+	})
+
+	testing.SetRealm(testing.NewUserRealm(alice))
 	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
 		uassert.True(t, o.OwnedByPrevious())
+		uassert.False(t, o.OwnedByCurrent())
 	})
 }
 
 func TestOwnedByPreviousUnauthorized(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
-	o := New()
+	var o *Ownable
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		o = NewWithOrigin()
+	})
 
 	unauthorizedCaller := bob
 	testing.SetRealm(testing.NewUserRealm(unauthorizedCaller))
@@ -212,18 +234,42 @@ func TestAssertOwnedByCurrent(t *testing.T) {
 }
 
 func TestAssertOwnedByPrevious(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm(alice))
+	var o *Ownable
 
-	o := New()
+	testing.SetRealm(testing.NewUserRealm(alice))
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		o = NewWithOrigin()
+	})
+
+	testing.SetRealm(testing.NewUserRealm(alice))
 	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
 		// Should not panic when previous is owner
 		o.AssertOwnedByPrevious()
+	})
 
-		// Should panic when previous is not owner
-		testing.SetRealm(testing.NewUserRealm(bob))
+	testing.SetRealm(testing.NewUserRealm(bob))
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
 		uassert.PanicsWithMessage(t, ErrUnauthorized.Error(), func() {
-			o.AssertOwnedByCurrent()
+			o.AssertOwnedByPrevious()
 		})
+	})
+}
+
+func TestOwnedModeAware(t *testing.T) {
+	var prevOwned *Ownable
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	currentOwned := New()
+	uassert.True(t, currentOwned.Owned())
+
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		prevOwned = NewWithOrigin()
+	})
+
+	// previous-mode ownable requires previous-realm ownership.
+	uassert.False(t, prevOwned.Owned())
+	crossThrough(testing.NewCodeRealm("gno.land/r/test/test"), func() {
+		uassert.True(t, prevOwned.Owned())
 	})
 }
 

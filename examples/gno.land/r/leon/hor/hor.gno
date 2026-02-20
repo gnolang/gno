@@ -59,7 +59,7 @@ func init() {
 		itemsSortedByDownvotes: avl.NewTree(),
 	}
 
-	Ownable = ownable.NewWithAddress(config.OwnableMain.Owner()) // OrigSendOwnable?
+	Ownable = ownable.NewWithAddressByPrevious(config.OwnableMain.Owner()) // OrigSendOwnable?
 	Pausable = pausable.NewFromOwnable(Ownable)
 }
 
