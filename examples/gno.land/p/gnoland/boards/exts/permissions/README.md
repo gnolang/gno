@@ -18,9 +18,6 @@ import (
   "gno.land/p/gnoland/boards/exts/permissions"
 )
 
-// Example user account
-const user address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-
 // Define a foo permissions
 const PermissionFoo boards.Permissions = "foo"
 
@@ -37,16 +34,10 @@ validateFoo := func(_ boards.Permissions, args boards.Args) error {
 perms := permissions.New()
 perms.ValidateFunc(PermisionFoo, validateFoo)
 
-// Add foo permission to guests
-perms.AddRole(permissions.RoleGuest, PermissionFoo)
-
-// Add a guest user
-perms.SetUserRoles(cross, user, permissions.RoleGuest)
-
 // Call a permissioned callback
 args := boards.Args{"bar"}
 user := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-perms.WithPermission(user, PermisionFoo, args, func() {
+perms.WithPermission(user, PermisionFoo, args, func(realm) {
     println("Hello bar!")
 })
 ```
