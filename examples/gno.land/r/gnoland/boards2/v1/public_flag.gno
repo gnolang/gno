@@ -61,7 +61,15 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 		panic("thread not found")
 	}
 
+	if thread.Hidden {
+		panic("flagging hidden threads is not allowed")
+	}
+
 	flagThread := func() {
+		if thread.Hidden {
+			panic("flagged thread is already hidden")
+		}
+
 		// Hide thread when flagging threshold is reached.
 		// Realm owners can hide with a single flag.
 		hide := flagItem(thread, caller, reason, getFlaggingThreshold(board.ID))
@@ -116,7 +124,15 @@ func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
+	if reply.Hidden {
+		panic("flagging hidden comments or replies is not allowed")
+	}
+
 	flagReply := func() {
+		if reply.Hidden {
+			panic("flagged comment or reply is already hidden")
+		}
+
 		hide := flagItem(reply, caller, reason, getFlaggingThreshold(board.ID))
 		if hide || isRealmOwner {
 			reply.Hidden = true
