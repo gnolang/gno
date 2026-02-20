@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	vp      validators.ValsetProtocol // p is the underlying validator set protocol
-	changes *avl.Tree                 // changes holds any valset changes; seqid(block number) -> []change
+	vp            validators.ValsetProtocol // p is the underlying validator set protocol
+	changes       *avl.Tree                 // changes holds any valset changes; seqid(block number) -> []change
+	allowedRealms *avl.Tree                 // allowedRealms holds the whitelist of realm paths allowed to modify the validator set
 )
 
 // change represents a single valset change, tied to a specific block number
