@@ -1,6 +1,6 @@
-// Package authorizable is an extension of p/demo/ownable;
+// Package authorizable is an extension of p/nt/ownable;
 // It allows the user to instantiate an Authorizable struct, which extends
-// p/demo/ownable with a list of users that are authorized for something.
+// p/nt/ownable with a list of users that are authorized for something.
 // By using authorizable, you have a superuser (ownable), as well as another
 // authorization level, which can be used for adding moderators or similar to your realm.
 package authorizable

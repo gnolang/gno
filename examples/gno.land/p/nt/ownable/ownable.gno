@@ -11,12 +11,25 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // being embedded in a Gno object to manage per-object ownership.
 // Ownable is safe to export as a top-level object
 type Ownable struct {
-	owner address
+	owner    address
+	authMode authMode
 }
+
+// authMode defines which realm context is allowed to perform ownership checks.
+// authModeLegacy is kept for backward compatibility with previously persisted
+// instances that predate mode locking.
+type authMode uint8
+
+const (
+	authModeLegacy authMode = iota
+	authModeCurrent
+	authModePrevious
+)
 
 func New() *Ownable {
 	return &Ownable{
-		owner: runtime.CurrentRealm().Address(),
+		owner:    runtime.CurrentRealm().Address(),
+		authMode: authModeCurrent,
 	}
 }
 
@@ -27,13 +40,24 @@ func NewWithOrigin() *Ownable {
 		panic("NewWithOrigin() should be called from init() where std.PreviousRealm() is origin")
 	}
 	return &Ownable{
-		owner: origin,
+		owner:    origin,
+		authMode: authModePrevious,
 	}
 }
 
+// NewWithAddress keeps current-realm auth as default.
 func NewWithAddress(addr address) *Ownable {
 	return &Ownable{
-		owner: addr,
+		owner:    addr,
+		authMode: authModeCurrent,
+	}
+}
+
+// NewWithAddressByPrevious creates an Ownable bound to previous-realm auth.
+func NewWithAddressByPrevious(addr address) *Ownable {
+	return &Ownable{
+		owner:    addr,
+		authMode: authModePrevious,
 	}
 }
 
@@ -111,9 +135,36 @@ func (o *Ownable) Owner() address {
 	return o.owner
 }
 
+// Owned checks ownership according to the Ownable auth mode.
+func (o *Ownable) Owned() bool {
+	if o == nil {
+		return false
+	}
+
+	switch o.authMode {
+	case authModeCurrent:
+		return runtime.CurrentRealm().Address() == o.owner
+	case authModePrevious:
+		return o.ownedByPreviousRealm()
+	default:
+		// legacy mode keeps compatibility with pre-mode-lock behavior.
+		return runtime.CurrentRealm().Address() == o.owner || o.ownedByPreviousRealm()
+	}
+}
+
+// AssertOwned panics if the caller is not the owner according to auth mode.
+func (o *Ownable) AssertOwned() {
+	if !o.Owned() {
+		panic(ErrUnauthorized)
+	}
+}
+
 // OwnedByCurrent checks if the caller of the function is the Realm's owner
 func (o *Ownable) OwnedByCurrent() bool {
 	if o == nil {
+		return false
+	}
+	if !o.allowsCurrentRealmAuth() {
 		return false
 	}
 	return runtime.CurrentRealm().Address() == o.owner
@@ -131,7 +182,10 @@ func (o *Ownable) OwnedByPrevious() bool {
 	if o == nil {
 		return false
 	}
-	return runtime.PreviousRealm().Address() == o.owner
+	if !o.allowsPreviousRealmAuth() {
+		return false
+	}
+	return o.ownedByPreviousRealm()
 }
 
 // AssertOwnedByPrevious panics if the caller is not the owner
@@ -139,4 +193,22 @@ func (o *Ownable) AssertOwnedByPrevious() {
 	if !o.OwnedByPrevious() {
 		panic(ErrUnauthorized)
 	}
+}
+
+func (o *Ownable) allowsCurrentRealmAuth() bool {
+	return o.authMode != authModePrevious
+}
+
+func (o *Ownable) allowsPreviousRealmAuth() bool {
+	return o.authMode != authModeCurrent
+}
+
+func (o *Ownable) ownedByPreviousRealm() (owned bool) {
+	defer func() {
+		if recover() != nil {
+			owned = false
+		}
+	}()
+
+	return runtime.PreviousRealm().Address() == o.owner
 }
