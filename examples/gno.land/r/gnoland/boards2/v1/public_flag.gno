@@ -56,16 +56,36 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 		assertBoardIsNotFrozen(board)
 	}
 
-	thread, found := board.Threads.Get(threadID)
+	thread, found := getThread(board, threadID)
 	if !found {
 		panic("thread not found")
 	}
 
+	if thread.Hidden {
+		panic("flagging hidden threads is not allowed")
+	}
+
 	flagThread := func() {
+		if thread.Hidden {
+			panic("flagged thread is already hidden")
+		}
+
+		// Hide thread when flagging threshold is reached.
+		// Realm owners can hide with a single flag.
 		hide := flagItem(thread, caller, reason, getFlaggingThreshold(board.ID))
 		if hide || isRealmOwner {
-			// Realm owners can hide with a single flag
+			// Remove thread from the list of visible threads
+			thread, removed := board.Threads.Remove(threadID)
+			if !removed {
+				panic("thread not found")
+			}
+
+			// Mark thread as hidden to avoid rendering content
 			thread.Hidden = true
+
+			// Keep track of hidden the thread to be able to restore it after moderation disputes
+			meta := board.Meta.(*Meta)
+			meta.HiddenThreads.Add(thread)
 		}
 
 		chain.Emit(
@@ -104,7 +124,15 @@ func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
+	if reply.Hidden {
+		panic("flagging hidden comments or replies is not allowed")
+	}
+
 	flagReply := func() {
+		if reply.Hidden {
+			panic("flagged comment or reply is already hidden")
+		}
+
 		hide := flagItem(reply, caller, reason, getFlaggingThreshold(board.ID))
 		if hide || isRealmOwner {
 			reply.Hidden = true
