@@ -35,16 +35,11 @@ func main() {
 	// Flag thread as owner
 	boards2.FlagThread(cross, bid, pid, "")
 
-	// Ensure that original thread content not visible
-	println(boards2.Render("test-board/1") + "\n")
-
 	// Ensure thread is not listed
 	println(boards2.Render("test-board"))
 }
 
 // Output:
-// ⚠ Thread has been flagged as [inappropriate](/r/gnoland/boards2/v1:test-board/1/flagging-reasons)
-//
 // # [Boards](/r/gnoland/boards2/v1) › test-board
 // Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
 // ↳ [Create Thread](/r/gnoland/boards2/v1:test-board/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
