@@ -1,9 +1,9 @@
 {{ define "layouts/footer" }}
 <footer class="b-footer">
   <nav class="c-center c-view-grid">
-    <a class="logo" href="/">{{ template "ui/logo" }}</a>
-    <div class="menu c-view-grid">
-      {{ range .Sections }}
+    <div class="nav-primary">
+      <a class="logo" href="/">{{ template "ui/logo" }}</a>
+      {{ with index .Sections 0 }}
       <ul aria-label="{{ .Title }}">
         {{ range .Links }}
         <li><a href="{{ .URL }}">{{ .Label }}</a></li>
@@ -11,7 +11,22 @@
       </ul>
       {{ end }}
     </div>
+    {{ with index .Sections 1 }}
+    <ul class="nav-social" aria-label="{{ .Title }}">
+      {{ range .Links }}
+      <li><a href="{{ .URL }}">{{ .Label }}</a></li>
+      {{ end }}
+    </ul>
+    {{ end }}
   </nav>
+  <div class="legal c-center">
+    <p>{{ .LegalNotice }}</p>
+    <nav aria-label="Legal">
+      {{ range .LegalLinks }}
+      <a href="{{ .URL }}">{{ .Label }}</a>
+      {{ end }}
+    </nav>
+  </div>
 </footer>
 
 <!-- javascript module src -->

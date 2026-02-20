@@ -466,73 +466,59 @@
 	border-block-start: var(--s-border);
 	font-size: var(--g-font-size-100);
 
-	& > nav {
-		align-items: center;
-
-		@media (--md) {
-			padding-block-end: var(--g-space-0);
-		}
-	}
-
-	.logo {
-		align-self: flex-start;
-		grid-column: span 2 / span 2;
-		width: 100%;
-		margin-block-end: var(--g-space-3);
-
-		@media (--md) {
-			width: 50%;
-		}
-		@media (--lg) {
-			width: 100%;
-			margin-block-end: var(--g-space-2);
-		}
-
-		& > svg {
-			height: var(--g-space-7);
-		}
-	}
-
-	.menu {
-		grid-column: span 10 / span 10;
-		width: 100%;
+	.nav-primary {
+		grid-column: span 7 / span 7;
 		display: flex;
-		flex-direction: row;
-		justify-content: space-between;
+		flex-direction: column;
+		gap: var(--g-space-3);
 
-		@media (--lg) {
-			display: grid;
+		@media (--md) {
+			flex-direction: row;
+			align-items: center;
+			gap: var(--g-space-6);
+		}
+
+		& > .logo > svg {
+			height: var(--g-space-7);
 		}
 
 		& > ul {
 			display: flex;
-			flex-direction: column;
-			justify-content: flex-start;
-			margin-block-end: var(--g-space-2);
+			flex-wrap: wrap;
+			gap: var(--g-space-1) var(--g-space-3);
+		}
+	}
 
-			@media (--xl) {
-				flex-direction: row;
-				gap: var(--g-space-4);
-			}
+	.nav-social {
+		grid-column: span 3 / span 3;
+		display: flex;
+		flex-direction: column;
+		gap: var(--g-space-1);
 
-			&:nth-child(1) {
-				grid-column: span 4 / span 4;
-			}
+		@media (--xl) {
+			flex-direction: row;
+			flex-wrap: wrap;
+			gap: var(--g-space-1) var(--g-space-3);
+		}
+	}
 
-			&:nth-child(2) {
-				grid-column: span 3 / span 3;
+	.legal {
+		padding-block-start: var(--g-space-3);
+		margin-block-start: var(--g-space-3);
+		font-size: var(--g-font-size-50);
+		color: var(--s-color-text-tertiary);
 
-				@media (--xl) {
-					justify-content: flex-end;
-				}
-			}
+		& > nav {
+			display: flex;
+			flex-wrap: wrap;
+			gap: var(--g-space-1) var(--g-space-3);
+			margin-block-start: var(--g-space-2);
+			color: var(--s-color-text-secondary);
 
-			&:nth-child(3) {
-				grid-column: span 3 / span 3;
-			}
-
-			li {
-				margin-block: var(--g-space-2);
+			& > a + a::before {
+				content: "|";
+				margin-inline-end: var(--g-space-3);
+				color: var(--s-color-text-quaternary);
 			}
 		}
 	}

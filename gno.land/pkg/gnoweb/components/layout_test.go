@@ -82,9 +82,19 @@ func TestEnrichFooterData(t *testing.T) {
 
 	assert.NotEmpty(t, enrichedData.Sections, "expected sections to be populated")
 
-	expectedSections := []string{"Footer navigation", "Social media", "Legal"}
+	expectedSections := []string{"Footer navigation", "Social media"}
 	for i, section := range enrichedData.Sections {
 		assert.Equal(t, expectedSections[i], section.Title, "expected section title %s, got %s", expectedSections[i], section.Title)
+	}
+
+	assert.NotEmpty(t, enrichedData.LegalNotice, "expected legal notice to be populated")
+	assert.Contains(t, enrichedData.LegalNotice, "NewTendermint", "expected legal notice to mention NewTendermint")
+
+	assert.Len(t, enrichedData.LegalLinks, 3, "expected 3 legal links")
+	expectedLabels := []string{"Gno GPL License", "Gno.land Network Interaction Terms", "Gno.land Contributor License Agreement"}
+	for i, link := range enrichedData.LegalLinks {
+		assert.Equal(t, expectedLabels[i], link.Label, "expected legal link label %s, got %s", expectedLabels[i], link.Label)
+		assert.NotEmpty(t, link.URL, "expected legal link URL to be non-empty")
 	}
 }
 
