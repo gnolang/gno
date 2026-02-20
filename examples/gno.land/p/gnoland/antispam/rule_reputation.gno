@@ -6,15 +6,15 @@ type ReputationData struct {
 	Balance        int64
 	FlaggedCount   int
 	TotalPosts     int
-	HasUsername     bool
+	HasUsername    bool
 	BanCount       int
 }
 
 const (
-	repMinAgeDays      = 1   // accounts younger than this are "new"
-	repMinBalance      = 1000000000 // 1000 GNOT in ugnot
-	repFlagRatioPct    = 30  // flagged/total > this% → bad reputation
-	repBanPenalty      = 1   // additional score per past ban
+	repMinAgeDays   = 1          // accounts younger than this are "new"
+	repMinBalance   = 1000000000 // 1000 GNOT in ugnot
+	repFlagRatioPct = 30         // flagged/total > this% → bad reputation
+	repBanPenalty   = 1          // additional score per past ban
 )
 
 // ScoreReputation evaluates account reputation signals.
