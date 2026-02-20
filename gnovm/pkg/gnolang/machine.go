@@ -2269,9 +2269,18 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
-
-		ro = m.IsReadonly(xv)
+		if xv.T.Kind() == MapKind {
+			// For maps, GetPointerAtIndex unconditionally creates a new entry for
+			// missing keys. Check readonly before this mutation.
+			ro = m.IsReadonly(xv)
+			if ro {
+				return
+			}
+			pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+		} else {
+			pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+			ro = m.IsReadonly(xv)
+		}
 	case *SelectorExpr:
 		xv := m.PopValue()
 		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
