@@ -1,0 +1,408 @@
+package antispam
+
+import (
+	"testing"
+)
+
+// ---- Blocklist type tests ----
+
+func TestBlocklistAddress(t *testing.T) {
+	tests := []struct {
+		name      string
+		setup     func() *Blocklist
+		addr      string
+		blocked   bool
+	}{
+		{
+			name:    "success: empty blocklist not blocked",
+			setup:   NewBlocklist,
+			addr:    "g1user123",
+			blocked: false,
+		},
+		{
+			name: "success: blocked address is blocked",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.BlockAddress("g1spammer")
+				return bl
+			},
+			addr:    "g1spammer",
+			blocked: true,
+		},
+		{
+			name: "success: other address not blocked",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.BlockAddress("g1spammer")
+				return bl
+			},
+			addr:    "g1legit",
+			blocked: false,
+		},
+		{
+			name: "success: unblock removes block",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.BlockAddress("g1spammer")
+				bl.UnblockAddress("g1spammer")
+				return bl
+			},
+			addr:    "g1spammer",
+			blocked: false,
+		},
+		{
+			name: "success: multiple addresses",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.BlockAddress("g1spam1")
+				bl.BlockAddress("g1spam2")
+				bl.BlockAddress("g1spam3")
+				return bl
+			},
+			addr:    "g1spam2",
+			blocked: true,
+		},
+		{
+			name: "edge: unblock non-existent address",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.UnblockAddress("g1nobody")
+				return bl
+			},
+			addr:    "g1nobody",
+			blocked: false,
+		},
+		{
+			name: "edge: double block same address",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.BlockAddress("g1spammer")
+				bl.BlockAddress("g1spammer")
+				return bl
+			},
+			addr:    "g1spammer",
+			blocked: true,
+		},
+		{
+			name:    "edge: empty address",
+			setup:   NewBlocklist,
+			addr:    "",
+			blocked: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bl := tt.setup()
+			got := bl.IsBlocked(tt.addr)
+			if got != tt.blocked {
+				t.Errorf("IsBlocked(%q) = %v, want %v", tt.addr, got, tt.blocked)
+			}
+		})
+	}
+}
+
+func TestBlocklistAllowlist(t *testing.T) {
+	tests := []struct {
+		name    string
+		setup   func() *Blocklist
+		addr    string
+		allowed bool
+	}{
+		{
+			name:    "success: empty allowlist not allowed",
+			setup:   NewBlocklist,
+			addr:    "g1user",
+			allowed: false,
+		},
+		{
+			name: "success: allowed address is allowed",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AllowAddress("g1trusted")
+				return bl
+			},
+			addr:    "g1trusted",
+			allowed: true,
+		},
+		{
+			name: "success: remove allow",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AllowAddress("g1trusted")
+				bl.RemoveAllow("g1trusted")
+				return bl
+			},
+			addr:    "g1trusted",
+			allowed: false,
+		},
+		{
+			name: "success: allow takes priority over block",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.BlockAddress("g1user")
+				bl.AllowAddress("g1user")
+				return bl
+			},
+			addr:    "g1user",
+			allowed: true,
+		},
+		{
+			name: "success: multiple allowed addresses",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AllowAddress("g1admin1")
+				bl.AllowAddress("g1admin2")
+				bl.AllowAddress("g1admin3")
+				return bl
+			},
+			addr:    "g1admin2",
+			allowed: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bl := tt.setup()
+			got := bl.IsAllowed(tt.addr)
+			if got != tt.allowed {
+				t.Errorf("IsAllowed(%q) = %v, want %v", tt.addr, got, tt.allowed)
+			}
+		})
+	}
+}
+
+func TestBlocklistPatterns(t *testing.T) {
+	tests := []struct {
+		name        string
+		setup       func() *Blocklist
+		content     string
+		wantMatch   bool
+		wantPattern string
+	}{
+		{
+			name:      "success: no patterns, no match",
+			setup:     NewBlocklist,
+			content:      "Hello world",
+			wantMatch: false,
+		},
+		{
+			name: "success: simple word pattern matches",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AddPattern(`(?i)free\s*airdrop`)
+				return bl
+			},
+			content:        "Get your FREE AIRDROP now",
+			wantMatch:   true,
+			wantPattern: `(?i)free\s*airdrop`,
+		},
+		{
+			name: "success: URL pattern matches",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AddPattern(`https?://(www\.)?scam\.com`)
+				return bl
+			},
+			content:        "Visit https://www.scam.com for details",
+			wantMatch:   true,
+			wantPattern: `https?://(www\.)?scam\.com`,
+		},
+		{
+			name: "success: pattern does not match clean content",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AddPattern(`(?i)free\s*airdrop`)
+				return bl
+			},
+			content:      "This is a legitimate discussion about governance",
+			wantMatch: false,
+		},
+		{
+			name: "success: case insensitive pattern",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AddPattern(`(?i)casino\s*bonus`)
+				return bl
+			},
+			content:        "Get your CASINO BONUS today",
+			wantMatch:   true,
+			wantPattern: `(?i)casino\s*bonus`,
+		},
+		{
+			name: "success: multiple patterns, first match returned",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AddPattern(`(?i)spam`)
+				bl.AddPattern(`(?i)scam`)
+				return bl
+			},
+			content:      "This is a scam message",
+			wantMatch: true,
+		},
+		{
+			name: "success: remove pattern",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AddPattern(`(?i)spam`)
+				bl.RemovePattern(`(?i)spam`)
+				return bl
+			},
+			content:      "This could be spam but pattern removed",
+			wantMatch: false,
+		},
+		{
+			name: "success: crypto scam pattern",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AddPattern(`(?i)send\s+\d+\s*gnot`)
+				return bl
+			},
+			content:        "Send 1000 GNOT to this address and get 5000 back",
+			wantMatch:   true,
+			wantPattern: `(?i)send\s+\d+\s*gnot`,
+		},
+		{
+			name: "edge: empty content",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AddPattern(`(?i)spam`)
+				return bl
+			},
+			content:      "",
+			wantMatch: false,
+		},
+		{
+			name: "edge: unicode content with ascii pattern",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AddPattern(`(?i)spam`)
+				return bl
+			},
+			content:      "这是一条正常的中文消息",
+			wantMatch: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bl := tt.setup()
+			matched, pattern := bl.MatchesPattern(tt.content)
+			if matched != tt.wantMatch {
+				t.Errorf("MatchesPattern() matched = %v, want %v", matched, tt.wantMatch)
+			}
+			if tt.wantPattern != "" && pattern != tt.wantPattern {
+				t.Errorf("MatchesPattern() pattern = %q, want %q", pattern, tt.wantPattern)
+			}
+		})
+	}
+}
+
+func TestBlocklistAddPatternError(t *testing.T) {
+	bl := NewBlocklist()
+	err := bl.AddPattern(`[invalid`)
+	if err == nil {
+		t.Error("expected error for invalid regex, got nil")
+	}
+}
+
+// ---- ScoreBlocklist tests ----
+
+func TestScoreBlocklist(t *testing.T) {
+	tests := []struct {
+		name     string
+		setup    func() *Blocklist
+		author   string
+		content  string
+		wantMin  int
+		wantRule string
+		wantZero bool
+	}{
+		{
+			name:     "success: nil blocklist scores zero",
+			setup:    nil,
+			author:   "g1user",
+			content:     "hello",
+			wantZero: true,
+		},
+		{
+			name:     "success: empty blocklist scores zero",
+			setup:    NewBlocklist,
+			author:   "g1user",
+			content:     "hello",
+			wantZero: true,
+		},
+		{
+			name: "blocked: address in blocklist",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.BlockAddress("g1spammer")
+				return bl
+			},
+			author:   "g1spammer",
+			content:     "totally normal message",
+			wantMin:  99,
+			wantRule: "BLOCKED_ADDRESS",
+		},
+		{
+			name: "blocked: pattern matches",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AddPattern(`(?i)free\s*airdrop`)
+				return bl
+			},
+			author:   "g1user",
+			content:     "Get your FREE AIRDROP now!",
+			wantMin:  5,
+			wantRule: "BLOCKED_PATTERN",
+		},
+		{
+			name: "allowed: whitelisted address bypasses",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.AllowAddress("g1admin")
+				bl.AddPattern(`(?i)free\s*airdrop`)
+				return bl
+			},
+			author:   "g1admin",
+			content:     "FREE AIRDROP announcement from admin",
+			wantZero: true,
+		},
+		{
+			name: "allowed: whitelisted even if address also blocked",
+			setup: func() *Blocklist {
+				bl := NewBlocklist()
+				bl.BlockAddress("g1user")
+				bl.AllowAddress("g1user")
+				return bl
+			},
+			author:   "g1user",
+			content:     "message",
+			wantZero: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var bl *Blocklist
+			if tt.setup != nil {
+				bl = tt.setup()
+			}
+			score, rule := ScoreBlocklist(tt.author, tt.content, bl)
+
+			if tt.wantZero {
+				if score != 0 {
+					t.Errorf("expected score 0, got %d (rule: %s)", score, rule)
+				}
+				return
+			}
+
+			if score < tt.wantMin {
+				t.Errorf("expected score >= %d, got %d (rule: %s)", tt.wantMin, score, rule)
+			}
+			if tt.wantRule != "" && rule != tt.wantRule {
+				t.Errorf("expected rule %q, got %q", tt.wantRule, rule)
+			}
+		})
+	}
+}

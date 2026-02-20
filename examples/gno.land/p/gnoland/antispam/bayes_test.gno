@@ -1,0 +1,273 @@
+package antispam
+
+import (
+	"testing"
+)
+
+// ---- Tokenizer tests ----
+
+func TestTokenize(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		wantLen  int
+		contains []string
+		excludes []string
+	}{
+		{
+			name:     "success: simple sentence",
+			text:     "Hello world this is a test",
+			contains: []string{"hello", "world", "test"},
+			excludes: []string{"is", "a"}, // short words filtered
+		},
+		{
+			name:     "success: mixed case normalized",
+			text:     "HELLO World TeSt",
+			contains: []string{"hello", "world", "test"},
+		},
+		{
+			name:    "success: empty string",
+			text:    "",
+			wantLen: 0,
+		},
+		{
+			name:    "success: only short words",
+			text:    "I am a go to do",
+			wantLen: 0,
+		},
+		{
+			name:     "success: with punctuation",
+			text:     "Hello, world! This is great.",
+			contains: []string{"hello", "world", "this", "great"},
+		},
+		{
+			name:     "success: with URLs stripped",
+			text:     "Visit https://example.com for more info",
+			contains: []string{"visit", "more", "info"},
+			excludes: []string{"https", "example", "com"},
+		},
+		{
+			name:     "success: numbers preserved",
+			text:     "Send 1000 GNOT to address",
+			contains: []string{"send", "1000", "gnot", "address"},
+		},
+		{
+			name:     "success: duplicates preserved",
+			text:     "spam spam spam hello spam",
+			contains: []string{"spam", "hello"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tokens := Tokenize(tt.text)
+
+			if tt.wantLen > 0 && len(tokens) != tt.wantLen {
+				t.Errorf("expected %d tokens, got %d: %v", tt.wantLen, len(tokens), tokens)
+			}
+			if tt.wantLen == 0 && len(tt.contains) == 0 && len(tokens) != 0 {
+				t.Errorf("expected 0 tokens, got %d: %v", len(tokens), tokens)
+			}
+
+			for _, want := range tt.contains {
+				found := false
+				for _, tok := range tokens {
+					if tok == want {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected token %q not found in %v", want, tokens)
+				}
+			}
+
+			for _, exclude := range tt.excludes {
+				for _, tok := range tokens {
+					if tok == exclude {
+						t.Errorf("unexpected token %q found in %v", exclude, tokens)
+						break
+					}
+				}
+			}
+		})
+	}
+}
+
+// ---- Corpus tests ----
+
+func TestCorpus(t *testing.T) {
+	t.Run("success: new corpus is empty", func(t *testing.T) {
+		c := NewCorpus()
+		if c.Size() != 0 {
+			t.Errorf("expected size 0, got %d", c.Size())
+		}
+		spam, ham := c.GetTokenStats("hello")
+		if spam != 0 || ham != 0 {
+			t.Errorf("expected (0, 0), got (%d, %d)", spam, ham)
+		}
+	})
+
+	t.Run("success: train spam increases spam count", func(t *testing.T) {
+		c := NewCorpus()
+		c.Train("free airdrop bonus click now", true)
+		spam, ham := c.GetTokenStats("free")
+		if spam != 1 {
+			t.Errorf("expected spam=1, got %d", spam)
+		}
+		if ham != 0 {
+			t.Errorf("expected ham=0, got %d", ham)
+		}
+	})
+
+	t.Run("success: train ham increases ham count", func(t *testing.T) {
+		c := NewCorpus()
+		c.Train("legitimate governance proposal discussion", false)
+		spam, ham := c.GetTokenStats("governance")
+		if spam != 0 {
+			t.Errorf("expected spam=0, got %d", spam)
+		}
+		if ham != 1 {
+			t.Errorf("expected ham=1, got %d", ham)
+		}
+	})
+
+	t.Run("success: multiple trainings accumulate", func(t *testing.T) {
+		c := NewCorpus()
+		c.Train("free bonus airdrop click here", true)
+		c.Train("free tokens airdrop claim now", true)
+		c.Train("free speech is important topic", false)
+
+		spam, ham := c.GetTokenStats("free")
+		if spam != 2 {
+			t.Errorf("expected spam=2, got %d", spam)
+		}
+		if ham != 1 {
+			t.Errorf("expected ham=1, got %d", ham)
+		}
+	})
+
+	t.Run("success: size reflects unique tokens", func(t *testing.T) {
+		c := NewCorpus()
+		c.Train("hello world test", true)
+		c.Train("hello again more words", false)
+		if c.Size() < 4 {
+			t.Errorf("expected size >= 4, got %d", c.Size())
+		}
+	})
+
+	t.Run("edge: train empty string", func(t *testing.T) {
+		c := NewCorpus()
+		c.Train("", true)
+		if c.Size() != 0 {
+			t.Errorf("expected size 0 after empty train, got %d", c.Size())
+		}
+	})
+}
+
+// ---- ScoreBayes tests ----
+
+func TestScoreBayes(t *testing.T) {
+	// Build a trained corpus
+	trainedCorpus := func() *Corpus {
+		c := NewCorpus()
+		// Train with spam
+		c.Train("free airdrop bonus click claim tokens", true)
+		c.Train("free money send gnot prize winner", true)
+		c.Train("casino bonus jackpot free spin win", true)
+		c.Train("airdrop claim free tokens hurry limited", true)
+		c.Train("click here free prize bonus amazing", true)
+		// Train with ham
+		c.Train("governance proposal voting community discussion", false)
+		c.Train("validator staking delegation reward", false)
+		c.Train("development update release version changelog", false)
+		c.Train("question about using gnokey transaction", false)
+		c.Train("review this pull request changes code", false)
+		c.Train("interesting discussion about protocol design", false)
+		c.Train("thanks for the helpful explanation today", false)
+		return c
+	}
+
+	tests := []struct {
+		name     string
+		body     string
+		corpus   func() *Corpus
+		wantMin  int
+		wantRule string
+		wantZero bool
+	}{
+		{
+			name:     "success: nil corpus scores zero",
+			body:     "free airdrop bonus",
+			corpus:   nil,
+			wantZero: true,
+		},
+		{
+			name:     "success: empty corpus scores zero",
+			body:     "free airdrop bonus",
+			corpus:   func() *Corpus { return NewCorpus() },
+			wantZero: true,
+		},
+		{
+			name:     "spam: obvious spam words",
+			body:     "free airdrop bonus click claim prize",
+			corpus:   trainedCorpus,
+			wantMin:  3,
+			wantRule: "BAYES_SPAM",
+		},
+		{
+			name:     "ham: legitimate discussion",
+			body:     "governance proposal for community voting process",
+			corpus:   trainedCorpus,
+			wantZero: true,
+		},
+		{
+			name:     "ham: development talk",
+			body:     "development update and release changelog review",
+			corpus:   trainedCorpus,
+			wantZero: true,
+		},
+		{
+			name:     "mixed: some spam words in normal context",
+			body:     "this proposal is free for the community discussion",
+			corpus:   trainedCorpus,
+			wantZero: true,
+		},
+		{
+			name:     "edge: empty body",
+			body:     "",
+			corpus:   trainedCorpus,
+			wantZero: true,
+		},
+		{
+			name:     "edge: unknown words only",
+			body:     "xylophone zebra platypus kumquat",
+			corpus:   trainedCorpus,
+			wantZero: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var c *Corpus
+			if tt.corpus != nil {
+				c = tt.corpus()
+			}
+			score, rule := ScoreBayes(tt.body, c)
+
+			if tt.wantZero {
+				if score != 0 {
+					t.Errorf("expected score 0, got %d (rule: %s)", score, rule)
+				}
+				return
+			}
+
+			if score < tt.wantMin {
+				t.Errorf("expected score >= %d, got %d (rule: %s)", tt.wantMin, score, rule)
+			}
+			if tt.wantRule != "" && rule != tt.wantRule {
+				t.Errorf("expected rule %q, got %q", tt.wantRule, rule)
+			}
+		})
+	}
+}
