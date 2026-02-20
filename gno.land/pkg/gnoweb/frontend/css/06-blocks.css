@@ -778,7 +778,7 @@
 			border-top: var(--s-border);
 		}
 
-		& > a {
+		& > :where(a, div) {
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
@@ -790,6 +790,15 @@
 
 			.c-icon {
 				margin-inline-start: 0;
+			}
+
+			& > a {
+				flex: 1;
+				min-width: 0;
+
+				&:hover {
+					background-color: transparent;
+				}
 			}
 		}
 	}
