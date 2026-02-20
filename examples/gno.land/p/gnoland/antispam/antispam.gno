@@ -31,6 +31,9 @@
 //	if result.Total >= ThresholdHide {
 //	    // hide the post
 //	}
+//
+// Check the filetest.gno files for examples of how to use the package
+// and the scenarios it covers.
 package antispam
 
 // ---- Scoring thresholds (recommended defaults, callers can use their own)
