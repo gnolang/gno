@@ -45,6 +45,12 @@ type StoreOptions struct {
 	// When fixing code from an earler gno version. Not supported for stdlibs.
 	FixFrom string
 
+	// Coverage enables code coverage instrumentation
+	Coverage bool
+
+	// TestedPackagePath is the path of the package being tested (for coverage)
+	// This is used to prevent loading the package from disk when it's already instrumented
+	TestedPackagePath string
 	// Preloaded packages
 	Packages packages.PkgList
 
@@ -234,6 +240,15 @@ func StoreWithOptions(
 			// if examples package...
 			examplePath := filepath.Join(rootDir, "examples", pkgPath)
 			if osm.DirExists(examplePath) {
+				// Skip loading if this is the package being tested with coverage
+				// This ensures we use the instrumented version instead
+				if opts.Coverage && pkgPath == opts.TestedPackagePath {
+					if output != nil {
+						fmt.Fprintf(output, "[Coverage Debug] Skipping reload of tested package: %s\n", pkgPath)
+					}
+					return nil, nil
+				}
+
 				return loadFromDir(examplePath)
 			}
 		}
@@ -336,6 +351,12 @@ func (e *stackWrappedError) String() string {
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
 func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err error) {
+	return LoadImportsWithOptions(store, mpkg, abortOnError, false)
+}
+
+// LoadImportsWithOptions is like LoadImports but allows specifying whether to load realm dependencies.
+// This is needed for coverage testing of realms that depend on other realms.
+func LoadImportsWithOptions(store gno.Store, mpkg *std.MemPackage, abortOnError bool, loadRealmDeps bool) (err error) {
 	// If this gets out of hand (e.g. with nested catchPanic with need for
 	// selective catching) then pass in a bool instead.
 	// See also cmd/gno/common.go.
@@ -374,10 +395,20 @@ func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err 
 		packages.FileKindXTest,
 	)
 	for _, imp := range imports {
-		if gno.IsRealmPath(imp.PkgPath) {
-			// Don't eagerly load realms.
-			// Realms persist state and can change the state of other realms in initialization.
+		// Skip loading the package being tested itself as it's already instrumented
+		// This is crucial for coverage to work correctly
+		if imp.PkgPath == mpkg.Path {
 			continue
+		}
+		if gno.IsRealmPath(imp.PkgPath) {
+			if !loadRealmDeps {
+				// Don't eagerly load realms in normal mode.
+				// Realms persist state and can change the state of other realms in initialization.
+				continue
+			}
+			// In coverage mode or when explicitly requested, we need to load realm dependencies
+			// to avoid "unexpected node with location" panics when the tested realm
+			// calls functions from other realms.
 		}
 		if !abortOnError {
 			defer func() {

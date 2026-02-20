@@ -435,6 +435,12 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
+
+	// Track statement execution for coverage
+	if m.CoverageTracker.IsEnabled() {
+		m.trackCoverageForNode(s)
+	}
+
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {

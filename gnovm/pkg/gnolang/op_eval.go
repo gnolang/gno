@@ -23,6 +23,12 @@ func (m *Machine) doOpEval() {
 	if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 	}
+
+	// Track expression evaluation for coverage
+	if m.CoverageTracker.IsEnabled() {
+		m.trackCoverageForNode(x)
+	}
+
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {

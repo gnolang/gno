@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
+	vmcoverage "github.com/gnolang/gno/gnovm/pkg/test/coverage"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -33,6 +34,9 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+	coverage            bool
+	coverageOutput      string
+	show                string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -179,6 +183,27 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.BoolVar(
+		&c.coverage,
+		"cover",
+		false,
+		"enable coverage analysis",
+	)
+
+	fs.StringVar(
+		&c.coverageOutput,
+		"coverprofile",
+		"",
+		"write coverage profile to file",
+	)
+
+	fs.StringVar(
+		&c.show,
+		"show",
+		"",
+		"show coverage visualization for files matching pattern (e.g., '*.gno' or 'arithmetic.gno')",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -209,6 +234,36 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		return nil
 	}
 
+	// If only -show flag is specified, try to load from cache
+	if cmd.show != "" && cmd.coverage && !cmd.verbose {
+		// cache, err := vmcoverage.NewCache()
+		// if err == nil {
+		// 	defer cache.Close()
+
+		// 	// Try to load cached coverage for each path
+		// 	for _, path := range paths {
+		// 		entry, err := cache.Load(path)
+		// 		if err == nil && entry != nil {
+		// 			// Create a tracker with cached data
+		// 			tracker := vmcoverage.NewTracker()
+		// 			tracker.SetCoverageData(entry.Coverage)
+		// 			tracker.SetExecutableLines(entry.ExecutableLines)
+		// 			tracker.SetEnabled(true)
+
+		// 			// Show the cached coverage
+		// 			if err := tracker.ShowFileCoverage(cmd.rootDir, cmd.show, io.Err()); err != nil {
+		// 				io.ErrPrintfln("Error showing cached coverage: %v", err)
+		// 			} else {
+		// 				io.ErrPrintfln("(Using cached coverage data)")
+		// 				return nil
+		// 			}
+		// 		}
+		// 	}
+		// 	// If cache miss, continue with regular test execution
+		// 	io.ErrPrintfln("No cached coverage data found, running tests...")
+		// }
+	}
+
 	if cmd.timeout > 0 {
 		go func() {
 			time.Sleep(cmd.timeout)
@@ -229,6 +284,18 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
+	opts.Coverage = cmd.coverage
+	opts.CoverageOutput = cmd.coverageOutput
+
+	// If coverage is enabled, recreate the test store with coverage options
+	if cmd.coverage {
+		storeOpts := test.StoreOptions{
+			WithExamples: true,
+			Testing:      true,
+			Coverage:     true,
+		}
+		opts.BaseStore, opts.TestStore = test.StoreWithOptions(cmd.rootDir, opts.WriterForStore(), storeOpts)
+	}
 	cache := make(gno.TypeCheckCache, 64)
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
@@ -309,6 +376,10 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
 			if mod == nil || !mod.Ignore {
+				// Update opts with proper test store for coverage
+				if cmd.coverage {
+					opts.TestPackagePath = mpkg.Path
+				}
 				_, errs := lintTypeCheck(io, pkg.Dir, mpkg, gno.TypeCheckOptions{
 					Getter:     opts.TestStore,
 					TestGetter: opts.TestStore,
@@ -350,6 +421,52 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
 		return fail()
+	}
+
+	// print coverage results
+	if cmd.coverage {
+		// VM coverage will be printed by test.Test() when coverageOutput is set
+		if cmd.coverageOutput != "" && cmd.verbose {
+			io.ErrPrintfln("Coverage report written to: %s", cmd.coverageOutput)
+		}
+
+		// Save coverage data to cache
+		if opts.CoverageTracker != nil {
+			// if tracker, ok := opts.CoverageTracker.(*vmcoverage.Tracker); ok {
+			// 	cache, err := vmcoverage.NewCache()
+			// 	if err == nil {
+			// 		defer cache.Close()
+
+			// 		// Save coverage data for each tested path
+			// 		for _, path := range paths {
+			// 			covData := tracker.GetCoverageData()
+			// 			execLines := tracker.GetExecutableLines()
+			// 			if err := cache.Save(path, covData, execLines); err != nil {
+			// 				if cmd.verbose {
+			// 					io.ErrPrintfln("Warning: failed to cache coverage data: %v", err)
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// }
+		}
+
+		// Show coverage visualization for specific files
+		if cmd.show != "" {
+			// Get the coverage tracker from test options
+			if opts.CoverageTracker != nil {
+				if tracker, ok := opts.CoverageTracker.(*vmcoverage.Tracker); ok {
+					err := tracker.ShowFileCoverage(cmd.rootDir, cmd.show, io.Err())
+					if err != nil {
+						io.ErrPrintfln("Error showing coverage: %v", err)
+					}
+				} else {
+					io.ErrPrintfln("Coverage tracker is not a VM tracker")
+				}
+			} else {
+				io.ErrPrintfln("No coverage data available - did you run with -cover flag?")
+			}
+		}
 	}
 
 	return nil
