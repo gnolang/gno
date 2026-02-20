@@ -6,7 +6,6 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -25,7 +24,7 @@ func init() {
 	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
 
 	// Invite a member using a role with permission to flag threads
-	boards2.InviteMember(cross, bid, moderator, permissions.RoleModerator)
+	boards2.InviteMember(cross, bid, moderator, boards2.RoleModerator)
 }
 
 func main() {

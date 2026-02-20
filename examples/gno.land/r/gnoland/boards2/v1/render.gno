@@ -80,7 +80,7 @@ func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
 
 	link := gRealmLink.Call("SetHelp", "content", "")
 	res.Write(md.H3("Help content has not been uploaded"))
-	res.Write("Do you want to " + md.Link("upload boards help", link) + " ?")
+	res.Write("Do you want to " + md.Link("upload boards help", link) + "?")
 }
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
@@ -90,7 +90,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	if gListedBoardsByID.Size() == 0 {
 		res.Write(md.H3("Currently there are no boards"))
-		res.Write("Be the first to " + md.Link("create a new board", createBoardURI) + " !")
+		res.Write("Be the first to " + md.Link("create a new board", createBoardURI) + "!")
 		return
 	}
 
@@ -154,7 +154,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 		"listed",
 		"true",
 		"checked", "true",
-		"description", "Should board be publically listed?",
+		"description", "Should board be publicly listed?",
 	)
 	form.Radio(
 		"listed",
