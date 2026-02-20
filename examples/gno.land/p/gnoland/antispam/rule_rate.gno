@@ -7,8 +7,6 @@ type RateState struct {
 }
 
 const (
-	WeightRateBurst = 4
-
 	// rateMaxPerHour is the maximum posts per hour before scoring.
 	// Above this → RATE_BURST triggers.
 	rateMaxPerHour = 10

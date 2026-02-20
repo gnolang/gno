@@ -17,6 +17,8 @@ func resetState(t *testing.T) {
 	corpus = engine.NewCorpus()
 	fps = engine.NewFingerprintStore()
 	bl = engine.NewBlocklist()
+	keywords = engine.NewKeywordDict()
+	keywords.BulkAdd(defaultKeywords)
 
 	// Re-load default patterns
 	for _, p := range []string{
@@ -186,6 +188,98 @@ func TestDefaultPatternsLoaded(t *testing.T) {
 				t.Errorf("expected score >= %d, got %d (triggered: %v)", tt.wantMin, result.Total, result.Triggered)
 			}
 		})
+	}
+}
+
+// ---- default keywords
+
+func TestDefaultKeywordsLoaded(t *testing.T) {
+	if keywords.Size() < 100 {
+		t.Errorf("expected at least 100 default keywords, got %d", keywords.Size())
+	}
+
+	// Content with multiple default spam keywords should trigger
+	result := Score("g1user", "This is a phishing scam arnaque with ponzi scheme and ransomware", engine.RateState{}, goodRep(), nil, nil)
+	hasKeyword := false
+	for _, r := range result.Triggered {
+		if r == "KEYWORD_SPAM" {
+			hasKeyword = true
+		}
+	}
+	if !hasKeyword {
+		t.Errorf("expected KEYWORD_SPAM from defaults, got triggered: %v (score: %d)", result.Triggered, result.Total)
+	}
+}
+
+// ---- admin keyword management
+
+func TestAdminAddKeyword(t *testing.T) {
+	setAdmin(t)
+	AdminAddKeyword(cross, "customword1", 3)
+	AdminAddKeyword(cross, "customword2", 3)
+	AdminAddKeyword(cross, "customword3", 2)
+
+	// Content with multiple custom keywords should trigger
+	result := Score("g1user", "This has customword1 and customword2 plus customword3 inside it", engine.RateState{}, goodRep(), nil, nil)
+	hasKeyword := false
+	for _, r := range result.Triggered {
+		if r == "KEYWORD_SPAM" {
+			hasKeyword = true
+		}
+	}
+	if !hasKeyword {
+		t.Errorf("expected KEYWORD_SPAM rule, got triggered: %v", result.Triggered)
+	}
+
+	// Cleanup
+	AdminRemoveKeyword(cross, "customword1")
+	AdminRemoveKeyword(cross, "customword2")
+	AdminRemoveKeyword(cross, "customword3")
+}
+
+func TestAdminBulkAddKeywords(t *testing.T) {
+	setAdmin(t)
+	sizeBefore := keywords.Size()
+	AdminBulkAddKeywords(cross, "bulktest1:3\nbulktest2:2\nbulktest3:2\nbulktest4:3")
+
+	if keywords.Size() != sizeBefore+4 {
+		t.Errorf("expected size %d after bulk add, got %d", sizeBefore+4, keywords.Size())
+	}
+
+	// Content with bulk-added keywords should trigger
+	result := Score("g1user", "This bulktest1 message has bulktest2 and bulktest3 words inside", engine.RateState{}, goodRep(), nil, nil)
+	hasKeyword := false
+	for _, r := range result.Triggered {
+		if r == "KEYWORD_SPAM" {
+			hasKeyword = true
+		}
+	}
+	if !hasKeyword {
+		t.Errorf("expected KEYWORD_SPAM after bulk add, got triggered: %v", result.Triggered)
+	}
+
+	// Cleanup
+	AdminRemoveKeyword(cross, "bulktest1")
+	AdminRemoveKeyword(cross, "bulktest2")
+	AdminRemoveKeyword(cross, "bulktest3")
+	AdminRemoveKeyword(cross, "bulktest4")
+}
+
+func TestAdminRemoveKeyword(t *testing.T) {
+	setAdmin(t)
+	sizeBefore := keywords.Size()
+	AdminAddKeyword(cross, "testword", 3)
+	AdminAddKeyword(cross, "testother", 3)
+
+	if keywords.Size() != sizeBefore+2 {
+		t.Errorf("expected size %d after add, got %d", sizeBefore+2, keywords.Size())
+	}
+
+	AdminRemoveKeyword(cross, "testword")
+	AdminRemoveKeyword(cross, "testother")
+
+	if keywords.Size() != sizeBefore {
+		t.Errorf("expected size %d after removal, got %d", sizeBefore, keywords.Size())
 	}
 }
 

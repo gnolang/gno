@@ -5,8 +5,6 @@ import (
 )
 
 const (
-	WeightNearDuplicate = 4
-
 	// fpShingleSize is the character n-gram size for fingerprinting.
 	fpShingleSize = 3
 
@@ -18,13 +16,18 @@ const (
 
 	// fpMinTextLen is the minimum text length to fingerprint.
 	fpMinTextLen = 10
+
+	// fpMaxStoreSize caps the fingerprint store to prevent unbounded O(N)
+	// iteration in HasSimilar. Oldest entries are evicted (FIFO).
+	fpMaxStoreSize = 500
 )
 
 // ---- MinHash fingerprinting
 
 // Fingerprint computes a MinHash signature for a text.
-// It extracts character n-grams (shingles), hashes each one,
-// and keeps the K smallest hash values as the signature.
+// It extracts character n-grams (shingles), hashes each one directly
+// from the rune slice (no string allocation per shingle), and keeps
+// the minimum hash value per hash function as the signature.
 // Returns nil for text too short to fingerprint.
 func Fingerprint(text string) []uint64 {
 	if len(text) < fpMinTextLen {
@@ -36,22 +39,18 @@ func Fingerprint(text string) []uint64 {
 		return nil
 	}
 
-	// Compute shingle hashes
 	numShingles := len(runes) - fpShingleSize + 1
 	if numShingles <= 0 {
 		return nil
 	}
 
-	// Use multiple hash functions (simulated via different seeds)
-	// For each hash function, keep the minimum hash value across all shingles.
 	sig := make([]uint64, fpSignatureSize)
 	for i := range sig {
 		sig[i] = ^uint64(0) // max uint64
 	}
 
 	for i := 0; i < numShingles; i++ {
-		shingle := string(runes[i : i+fpShingleSize])
-		baseHash := hashString(shingle)
+		baseHash := hashRunes(runes[i : i+fpShingleSize])
 
 		for j := 0; j < fpSignatureSize; j++ {
 			// Different "hash function" by mixing with the index
@@ -69,8 +68,26 @@ func Fingerprint(text string) []uint64 {
 	return sig
 }
 
-// hashString computes a deterministic hash for a string.
-// Uses FNV-1a algorithm.
+// hashRunes computes FNV-1a hash directly from a rune slice.
+// Avoids string/[]byte allocation per shingle.
+// Always hashes 4 bytes per rune (big-endian, fixed layout) to avoid
+// branching per byte in the GnoVM interpreter.
+func hashRunes(rs []rune) uint64 {
+	h := uint64(14695981039346656037)
+	for _, r := range rs {
+		h ^= uint64(byte(r >> 24))
+		h *= 1099511628211
+		h ^= uint64(byte(r >> 16))
+		h *= 1099511628211
+		h ^= uint64(byte(r >> 8))
+		h *= 1099511628211
+		h ^= uint64(byte(r))
+		h *= 1099511628211
+	}
+	return h
+}
+
+// hashString computes a deterministic FNV-1a hash for a string.
 func hashString(s string) uint64 {
 	h := uint64(14695981039346656037)
 	for _, b := range []byte(s) {
@@ -99,9 +116,10 @@ func fingerprintSimilarity(a, b []uint64) int {
 	return same * 100 / n
 }
 
-// ---- FingerprintStore (AVL-tree-backed)
+// ---- FingerprintStore (AVL-tree-backed, capped)
 
 // FingerprintStore stores MinHash fingerprints of known spam content.
+// Capped at fpMaxStoreSize entries with FIFO eviction.
 type FingerprintStore struct {
 	tree  *avl.Tree // sequential key -> []uint64
 	count int
@@ -115,11 +133,22 @@ func NewFingerprintStore() *FingerprintStore {
 }
 
 // Add computes and stores the fingerprint of a text.
+// If the store is at capacity, the oldest entry is evicted.
 func (fs *FingerprintStore) Add(content string) {
 	fp := Fingerprint(content)
 	if fp == nil {
 		return
 	}
+
+	// Evict oldest if at capacity
+	if fs.tree.Size() >= fpMaxStoreSize {
+		// Find and remove the first (oldest) key
+		fs.tree.Iterate("", "", func(key string, _ interface{}) bool {
+			fs.tree.Remove(key)
+			return true // stop after first
+		})
+	}
+
 	key := intToKey(fs.count)
 	fs.tree.Set(key, fp)
 	fs.count++
@@ -148,23 +177,17 @@ func (fs *FingerprintStore) HasSimilar(content string, threshold int) bool {
 
 // Size returns the number of stored fingerprints.
 func (fs *FingerprintStore) Size() int {
-	return fs.count
+	return fs.tree.Size()
 }
 
 // intToKey converts an int to a zero-padded string key for AVL tree ordering.
 func intToKey(n int) string {
-	if n <= 0 {
-		return "0000000000"
-	}
-	s := ""
-	for n > 0 {
-		s = string(rune('0'+n%10)) + s
+	var buf [10]byte
+	for i := 9; i >= 0; i-- {
+		buf[i] = byte('0' + n%10)
 		n /= 10
 	}
-	for len(s) < 10 {
-		s = "0" + s
-	}
-	return s
+	return string(buf[:])
 }
 
 // ---- Scoring

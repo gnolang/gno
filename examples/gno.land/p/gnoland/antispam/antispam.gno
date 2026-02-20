@@ -1,13 +1,13 @@
 // Package antispam provides a multi-rule spam scoring engine for Gno realms.
 //
 // It combines content heuristics, rate limiting, reputation scoring,
-// Bayesian filtering, MinHash fingerprinting, and address/pattern blocklists
-// into a single weighted score. Each algorithm lives in its own file
-// for independent audit.
+// Bayesian filtering, MinHash fingerprinting, keyword dictionary,
+// and address/pattern blocklists into a single weighted score.
+// Each algorithm lives in its own file for independent audit.
 //
 // The package provides both pure scoring functions and AVL-tree-backed
-// state helpers (Corpus, FingerprintStore, Blocklist) that are owned
-// and persisted by the calling realm.
+// state helpers (Corpus, FingerprintStore, Blocklist, KeywordDict) that
+// are owned and persisted by the calling realm.
 //
 // Usage:
 //
@@ -15,20 +15,81 @@
 //	    corpus = antispam.NewCorpus()
 //	    fps    = antispam.NewFingerprintStore()
 //	    bl     = antispam.NewBlocklist()
+//	    kw     = antispam.NewKeywordDict()
 //	)
 //
-//	result := antispam.Score(author, content, rate, rep, corpus, fps, bl)
+//	result := antispam.Score(antispam.ScoreInput{
+//	    Author:  author,
+//	    Content: content,
+//	    Rate:    rate,
+//	    Rep:     rep,
+//	    Corpus:  corpus,
+//	    Fps:     fps,
+//	    Bl:      bl,
+//	    Dict:    kw,
+//	})
 //	if result.Total >= ThresholdHide {
 //	    // hide the post
 //	}
 package antispam
 
-// ---- Thresholds (recommended defaults, callers can use their own)
+// ---- Scoring thresholds (recommended defaults, callers can use their own)
 
 const (
 	ThresholdHide   = 5
 	ThresholdReject = 8
 )
+
+// ---- Rule weights (centralized for easy tuning)
+//
+// Each rule returns one of these weights when triggered.
+// The final score is the sum of all triggered rules.
+//
+//	Rule              Weight  Trigger
+//	BLOCKED_ADDRESS      99   Address in blocklist
+//	BLOCKED_PATTERN       5   Content matches regex pattern
+//	NEAR_DUPLICATE        4   MinHash similarity to known spam
+//	RATE_BURST            4   Posting frequency exceeds limit
+//	ALL_CAPS              3   >50% uppercase letters
+//	SHORT_WITH_LINK       3   Body ≤30 chars with a URL
+//	BAYES_SPAM            3   Bayesian classifier: spam-heavy tokens
+//	BAD_REPUTATION        3   High flag ratio or ban history
+//	KEYWORD_SPAM          3   Multiple spam keywords (co-occurrence)
+//	LINK_HEAVY            2   >3 URLs in content
+//	NEW_ACCOUNT           2   Account <1 day old with no posts
+//	EXCESSIVE_PUNCT       1   >20% punctuation characters
+//	NO_USERNAME           1   No registered username
+//	LOW_BALANCE           1   Balance < 1000 GNOT
+
+const (
+	WeightBlockedAddress = 99
+	WeightBlockedPattern = 5
+	WeightNearDuplicate  = 4
+	WeightRateBurst      = 4
+	WeightAllCaps        = 3
+	WeightShortWithLink  = 3
+	WeightBayesSpam      = 3
+	WeightBadReputation  = 3
+	WeightKeyword        = 3
+	WeightLinkHeavy      = 2
+	WeightNewAccount     = 2
+	WeightExcessivePunct = 1
+	WeightNoUsername     = 1
+	WeightLowBalance     = 1
+)
+
+// ScoreInput holds all parameters for spam scoring.
+// State fields (Corpus, Fps, Bl, Dict) can be nil if not available.
+type ScoreInput struct {
+	Author  string
+	Content string
+	Rate    RateState
+	Rep     ReputationData
+	Corpus  *Corpus
+	Fps     *FingerprintStore
+	Bl      *Blocklist
+	Dict    *KeywordDict
+}
 
 // SpamScore is the result of scoring content.
 type SpamScore struct {
@@ -39,21 +100,12 @@ type SpamScore struct {
 }
 
 // Score evaluates content against all anti-spam rules.
-// The content parameter is the full text to analyze (realm-agnostic).
-// State parameters (corpus, fps, bl) can be nil if not available.
 // Returns a SpamScore with the combined result.
-func Score(
-	author, content string,
-	rate RateState,
-	rep ReputationData,
-	corpus *Corpus,
-	fps *FingerprintStore,
-	bl *Blocklist,
-) SpamScore {
+func Score(in ScoreInput) SpamScore {
 	result := SpamScore{}
 
 	// Allowlist check: bypass all scoring
-	if bl != nil && bl.IsAllowed(author) {
+	if in.Bl != nil && in.Bl.IsAllowed(in.Author) {
 		return result
 	}
 
@@ -70,7 +122,7 @@ func Score(
 	}
 
 	// Blocklist (address + patterns)
-	if s, r := ScoreBlocklist(author, content, bl); s > 0 {
+	if s, r := ScoreBlocklist(in.Author, in.Content, in.Bl); s > 0 {
 		add(s, r)
 		// If address is blocked, no need to check further
 		if r == "BLOCKED_ADDRESS" {
@@ -78,28 +130,36 @@ func Score(
 		}
 	}
 
-	// Content heuristics
-	if s, r := ScoreContent(content); s > 0 {
+	// Pre-compute deduplicated tokens once (shared by Bayes + Keywords rules).
+	tokens := dedup(Tokenize(in.Content))
+
+	// Content heuristics (single-pass: caps, punct, URLs)
+	if s, r := ScoreContent(in.Content); s > 0 {
 		add(s, r)
 	}
 
 	// Rate limiting
-	if s, r := ScoreRate(rate); s > 0 {
+	if s, r := ScoreRate(in.Rate); s > 0 {
 		add(s, r)
 	}
 
 	// Reputation
-	if s, r := ScoreReputation(rep); s > 0 {
+	if s, r := ScoreReputation(in.Rep); s > 0 {
 		add(s, r)
 	}
 
-	// Bayesian filter
-	if s, r := ScoreBayes(content, corpus); s > 0 {
+	// Bayesian filter (uses pre-computed deduplicated tokens)
+	if s, r := scoreBayesTokens(tokens, in.Corpus); s > 0 {
 		add(s, r)
 	}
 
 	// Fingerprint near-duplicate detection
-	if s, r := ScoreFingerprint(content, fps); s > 0 {
+	if s, r := ScoreFingerprint(in.Content, in.Fps); s > 0 {
+		add(s, r)
+	}
+
+	// Keyword dictionary (uses pre-computed deduplicated tokens)
+	if s, r := scoreKeywordsTokens(tokens, in.Dict); s > 0 {
 		add(s, r)
 	}
 

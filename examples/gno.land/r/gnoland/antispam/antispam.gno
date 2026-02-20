@@ -1,19 +1,19 @@
 // Package antispam provides a shared on-chain anti-spam scoring realm.
 //
 // It wraps p/gnoland/antispam (the scoring engine) with shared state:
-// a Bayesian corpus, a fingerprint store, and a blocklist with
-// pre-loaded regex patterns for common crypto scams.
+// a Bayesian corpus, a fingerprint store, a keyword dictionary, and
+// a blocklist with pre-loaded regex patterns for common crypto scams.
 //
 // Any realm can call Score() to evaluate content.
-// Only the admin can modify the shared state (patterns, blocklist, training data).
+// Only the admin can modify the shared state (patterns, blocklist, keywords, training data).
 //
 // Usage from another realm:
 //
 //	import antispamr "gno.land/r/gnoland/antispam"
-//	import "gno.land/p/gnoland/antispam"
+//	import engine "gno.land/p/gnoland/antispam"
 //
 //	result := antispamr.Score(author, content, rate, rep, nil, nil)
-//	if result.Total >= antispam.ThresholdHide {
+//	if result.Total >= engine.ThresholdHide {
 //	    // hide the post
 //	}
 package antispam
@@ -33,6 +33,7 @@ var (
 	corpus    *engine.Corpus
 	fps       *engine.FingerprintStore
 	bl        *engine.Blocklist
+	keywords  *engine.KeywordDict
 
 	errUnauthorized = errors.New("unauthorized: not admin")
 )
@@ -42,6 +43,7 @@ func init() {
 	corpus = engine.NewCorpus()
 	fps = engine.NewFingerprintStore()
 	bl = engine.NewBlocklist()
+	keywords = engine.NewKeywordDict()
 
 	// Pre-load common crypto/web3 spam patterns.
 	// Admin can add/remove patterns at any time.
@@ -67,6 +69,10 @@ func init() {
 	for _, p := range defaultPatterns {
 		bl.AddPattern(p)
 	}
+
+	// Pre-load spam keyword dictionary (~180 words, multi-language).
+	// See default_keywords.gno for the full list and weight definitions.
+	keywords.BulkAdd(defaultKeywords)
 }
 
 func assertAdmin() {
@@ -77,7 +83,7 @@ func assertAdmin() {
 
 // ---- Public scoring
 
-// Score evaluates content using the shared corpus, fingerprint store, and blocklist.
+// Score evaluates content using the shared corpus, fingerprint store, keywords, and blocklist.
 // Callers can optionally pass their own corpus/fps to use instead of the shared ones.
 func Score(
 	author, content string,
@@ -94,7 +100,16 @@ func Score(
 	if callerFps != nil {
 		f = callerFps
 	}
-	return engine.Score(author, content, rate, rep, c, f, bl)
+	return engine.Score(engine.ScoreInput{
+		Author:  author,
+		Content: content,
+		Rate:    rate,
+		Rep:     rep,
+		Corpus:  c,
+		Fps:     f,
+		Bl:      bl,
+		Dict:    keywords,
+	})
 }
 
 // ---- Admin: blocklist management
@@ -140,6 +155,27 @@ func AdminRemovePattern(_ realm, pattern string) {
 	bl.RemovePattern(pattern)
 }
 
+// ---- Admin: keyword management
+
+// AdminAddKeyword adds a single keyword with a weight (1-3).
+func AdminAddKeyword(_ realm, word string, weight int) {
+	assertAdmin()
+	keywords.Add(word, weight)
+}
+
+// AdminRemoveKeyword removes a keyword from the dictionary.
+func AdminRemoveKeyword(_ realm, word string) {
+	assertAdmin()
+	keywords.Remove(word)
+}
+
+// AdminBulkAddKeywords adds keywords from a newline-separated "word:weight" list.
+// Words without :weight get default weight 1.
+func AdminBulkAddKeywords(_ realm, data string) {
+	assertAdmin()
+	keywords.BulkAdd(data)
+}
+
 // ---- Admin: Bayesian training
 
 // AdminTrain feeds content into the shared Bayesian corpus.
@@ -174,6 +210,7 @@ func Render(_ string) string {
 	out += ufmt.Sprintf("**Admin:** `%s`\n\n", adminAddr.String())
 	out += ufmt.Sprintf("**Corpus size:** %d tokens\n\n", corpus.Size())
 	out += ufmt.Sprintf("**Fingerprint store:** %d entries\n\n", fps.Size())
+	out += ufmt.Sprintf("**Keyword dictionary:** %d words\n\n", keywords.Size())
 	out += "## Default Patterns\n\n"
 	out += "The following regex patterns are pre-loaded to catch common spam:\n\n"
 	out += "| Pattern | Description |\n"
@@ -189,9 +226,9 @@ func Render(_ string) string {
 	out += "\n## Usage\n\n"
 	out += "```gno\n"
 	out += "import antispamr \"gno.land/r/gnoland/antispam\"\n"
-	out += "import \"gno.land/p/gnoland/antispam\"\n\n"
+	out += "import engine \"gno.land/p/gnoland/antispam\"\n\n"
 	out += "result := antispamr.Score(author, content, rate, rep, nil, nil)\n"
-	out += "if result.Total >= antispam.ThresholdHide {\n"
+	out += "if result.Total >= engine.ThresholdHide {\n"
 	out += "    // hide the post\n"
 	out += "}\n"
 	out += "```\n"
