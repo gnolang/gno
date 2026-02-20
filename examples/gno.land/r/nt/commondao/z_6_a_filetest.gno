@@ -28,9 +28,11 @@ func (propDef) VotingPeriod() time.Duration            { return 0 }
 func (propDef) Validate() error                        { return nil }
 func (propDef) Tally(pdao.VotingContext) (bool, error) { return true, nil }
 
-func (propDef) Execute(cur realm) error {
-	executed = true
-	return nil
+func (propDef) Executor() pdao.ExecFunc {
+	return func(realm) error {
+		executed = true
+		return nil
+	}
 }
 
 func init() {

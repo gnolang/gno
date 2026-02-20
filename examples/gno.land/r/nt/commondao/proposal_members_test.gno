@@ -211,8 +211,9 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 			}
 
 			p := newMembersUpdatePropDefinition(tc.dao, add, remove)
+			fn := p.Executor()
 
-			err := p.Execute(cross)
+			err := fn(cross)
 
 			if tc.errMsg != "" {
 				uassert.ErrorContains(t, err, tc.errMsg, "expect error")
