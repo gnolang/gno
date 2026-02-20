@@ -1,13 +1,11 @@
 package main
 
 import (
-	"strings"
 	"testing"
 
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -27,7 +25,7 @@ func init() {
 	rid = boards2.CreateReply(cross, bid, tid, 0, "body")
 
 	// Invite a member using a role with permission to flag replies
-	boards2.InviteMember(cross, bid, moderator, permissions.RoleModerator)
+	boards2.InviteMember(cross, bid, moderator, boards2.RoleModerator)
 }
 
 func main() {
@@ -36,9 +34,18 @@ func main() {
 	boards2.FlagReply(cross, bid, tid, rid, "")
 
 	// Render content must contain a message about the hidden reply
-	content := boards2.Render("test-board/1/2")
-	println(strings.Contains(content, "\n> *⚠ Reply is hidden as it has been flagged as inappropriate*\n"))
+	println(boards2.Render("test-board/1/2"))
 }
 
 // Output:
-// true
+// ## Foo
+//
+// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
+// bar
+//
+// ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) [1] • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1) • [Show all Replies](/r/gnoland/boards2/v1:test-board/1)
+//
+//
+// >
+// > **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC [#2](/r/gnoland/boards2/v1:test-board/1/2)
+// > ⚠ Reply is hidden as it has been flagged as [inappropriate](/r/gnoland/boards2/v1:test-board/1/2/flagging-reasons)

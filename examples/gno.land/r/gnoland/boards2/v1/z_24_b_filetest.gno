@@ -6,7 +6,6 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -20,7 +19,7 @@ func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	bid = boards2.CreateBoard(cross, "test123", false, false)
-	boards2.InviteMember(cross, bid, admin, permissions.RoleAdmin)
+	boards2.InviteMember(cross, bid, admin, boards2.RoleAdmin)
 }
 
 func main() {
