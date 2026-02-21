@@ -8,7 +8,6 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/permissions"
 	users "gno.land/r/gnoland/users/v1"
 )
 
@@ -25,7 +24,7 @@ func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	bid = boards2.CreateBoard(cross, name, false, false)
-	boards2.InviteMember(cross, bid, member, permissions.RoleOwner)
+	boards2.InviteMember(cross, bid, member, boards2.RoleOwner)
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
