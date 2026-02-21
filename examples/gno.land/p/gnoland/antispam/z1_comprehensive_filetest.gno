@@ -2,10 +2,10 @@ package main
 
 // Demonstration: Comprehensive Multi-Layer Spam Detection
 // ========================================================
-// This test exercises ALL antispam algorithms in combination, showing how
+// Overview test exercising ALL 18 antispam rules in combination, showing how
 // the multi-layer system catches spam that any single layer would miss.
 //
-// Every rule in the engine triggers at least once across these scenarios:
+// Every rule triggers at least once across 8 scenarios:
 //
 //   BLOCKED_ADDRESS (99)  BLOCKED_PATTERN (5)   NEAR_DUPLICATE (4)
 //   RATE_BURST (4)        ALL_CAPS (2)          SHORT_WITH_LINK (3)
@@ -14,14 +14,16 @@ package main
 //   INVISIBLE_CHARS (2)   HOMOGLYPH_MIX (2)    EXCESSIVE_PUNCT (1)
 //   NO_USERNAME (1)       LOW_BALANCE (1)        BANNED_BEFORE (1-3)
 //
-// All scenarios use EarlyExitAt=EarlyExitDisabled (default) to show
-// the complete score. With EarlyExitAt=ThresholdReject, scenario 3
-// would stop at phase 1 (score 13) and skip Bayes/keyword analysis.
+// Two-phase architecture:
+//   Phase 1 (cheap): content heuristics + rate + reputation
+//   Phase 2 (expensive): regex, Bayes, keywords, fingerprints
+//   EarlyExitAt skips Phase 2 when Phase 1 already exceeds threshold.
+//   See z8_early_exit_filetest.gno for gas optimization demo.
 //
 // Scenarios:
 // 1. Legitimate power user -> score 0
 // 2. New account spammer -> reputation + content + keywords + bayes + punct
-// 3. Spam flood from flagged user -> caps + links + rate + keywords + bayes + reputation + ban history
+// 3. Spam flood from flagged user -> caps + links + rate + keywords + bayes + reputation + ban
 // 4. Near-duplicate + pattern match -> fingerprint + regex
 // 5. Short link spam -> short body with URL
 // 6. Blocked address -> instant rejection

@@ -92,11 +92,37 @@ Scores accumulate across all triggered rules. Thresholds: **Hide >= 5**, **Rejec
 | `Blocklist` | Blocked addresses, allowlist, regex patterns | Patterns capped at 30 |
 | `KeywordDict` | Spam keywords with per-word weights (1-3) | Unbounded (caller manages) |
 
+## Gas Optimization
+
+Scoring cost depends on which rules are active. Control it with two levers:
+
+- **Nil state**: pass nil for `Corpus`, `Fps`, `Bl`, or `Dict` to skip those rules entirely. All-nil runs only cheap Phase 1 checks (content heuristics, rate, reputation).
+- **Early exit**: set `EarlyExitAt` to a threshold (e.g. `ThresholdReject`) to skip expensive Phase 2 rules when cheap rules already reach the threshold. Use `EarlyExitDisabled` for a complete score.
+
+```gno
+// Lightweight: Phase 1 only (nil state, cheapest)
+result := antispam.Score(antispam.ScoreInput{Content: content, Rate: rate, Rep: rep})
+
+// Standard: full state with early exit
+result := antispam.Score(antispam.ScoreInput{
+    Content: content, Rate: rate, Rep: rep,
+    Corpus: corpus, Fps: fps, Bl: bl, Dict: kw,
+    EarlyExitAt: antispam.ThresholdReject,
+})
+
+// Full: all rules, complete score
+result := antispam.Score(antispam.ScoreInput{
+    Content: content, Rate: rate, Rep: rep,
+    Corpus: corpus, Fps: fps, Bl: bl, Dict: kw,
+    EarlyExitAt: antispam.EarlyExitDisabled,
+})
+```
+
 ## Architecture
 
 - **Allowlist bypass**: allowed addresses skip all scoring
 - **Short-circuit**: `BLOCKED_ADDRESS` returns immediately, no further rules evaluated
-- **Two-phase scoring**: cheap rules (O(1) lookups, character scans) run first; expensive rules (regex, Bayes, keywords, fingerprints) run second. Set `EarlyExitAt` to a positive threshold (e.g. `ThresholdReject`) to skip phase 2 when cheap rules already reach it (gas optimization). Leave at `EarlyExitDisabled` for a complete score.
+- **Two-phase scoring**: cheap rules (O(1) lookups, character scans) run first; expensive rules (regex, Bayes, keywords, fingerprints) run second. Set `EarlyExitAt` to a positive threshold (e.g. `ThresholdReject`) to skip phase 2 when cheap rules already reach it. Leave at `EarlyExitDisabled` for a complete score.
 - **Single-pass content analysis**: caps, punctuation, links, and unicode abuse detected in one scan
 - **Rule independence**: each rule triggers and scores independently
 
@@ -104,10 +130,12 @@ Scores accumulate across all triggered rules. Thresholds: **Hide >= 5**, **Rejec
 
 The `z*_filetest.gno` files demonstrate real scenarios:
 
-- `z1` - Spam evolution: legitimate user turning into a spammer
+- `z1` - Comprehensive: all 18 rules firing across 8 scenarios (start here)
 - `z2` - Multi-user: concurrent users with different reputation profiles
 - `z3` - Bayes training: corpus training effects on detection
 - `z4` - Fingerprint: near-duplicate content detection
 - `z5` - Blocklist: address/pattern blocking and allowlist operations
-- `z6` - Comprehensive: all rules firing across 8 scenarios
+- `z6` - Spam evolution: legitimate user turning into a spammer
 - `z7` - Unicode abuse: zalgo text, invisible chars, homoglyph mixing
+- `z8` - Early exit: EarlyExitAt gas optimization (Phase 1 vs Phase 2)
+- `z9` - Pattern categories: all 20 regex categories + false positive checks

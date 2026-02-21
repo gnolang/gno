@@ -20,7 +20,7 @@ func resetState(t *testing.T) {
 	keywords = engine.NewKeywordDict()
 	keywords.BulkAdd(defaultKeywords)
 
-	// Re-load default patterns
+	// Re-load default patterns (simplified versions of the realm's mega-pattern categories)
 	for _, p := range []string{
 		`(?i)send\s+\d+\s*(gnot|token|coin)`,
 		`(?i)free\s*(airdrop|token|nft|mint)`,
@@ -28,8 +28,18 @@ func resetState(t *testing.T) {
 		`(?i)(telegram|discord|whatsapp)\s*(group|channel|chat)\s*.*https?://`,
 		`(?i)double\s+your\s+(gnot|token|coin|crypto|money)`,
 		`(?i)send\s+\d+.*get\s+\d+.*back`,
-		`(?i)(connect|enter|verify)\s+(your\s+)?(wallet|seed\s*phrase|private\s*key|mnemonic)`,
+		`(?i)(enter|verify)\s+(your\s+)?(wallet|seed\s*phrase|private\s*key|mnemonic)`,
 		`(?i)(100|1000)x\s*(gem|token|coin|guaranteed|profit)`,
+		`(?i)(complete|start)\s+(your\s+)?(kyc|verification).{0,30}https?://`,
+		`(?i)(trading|crypto)\s+(signal|tip)s?.{0,20}(guaranteed|free|join|vip)`,
+		`(?i)connect\s+(your\s+)?wallet\s+.{0,20}(claim|receive|mint|airdrop)`,
+		`(?i)(instant|fast|quick)\s+(loan|credit|cash).{0,20}(no\s+credit\s+check|approved|guaranteed)`,
+		`(?i)(buy|get|cheap)\s+(followers|likes|subscribers).{0,20}(cheap|fast|instant)`,
+		`(?i)(watch|download)\s+(free\s+)?(porn|hentai|xxx|sex\s+tape)`,
+		`(?i)(watch|see|real)\s+(execution|beheading|murder|torture)\s*(video|footage)`,
+		`(?i)(token|coin)\s+(just\s+)?(launched|deployed|listed).{0,20}(buy|invest|hurry|limited|moon)`,
+		`(?i)(official|admin|team)\s+(announcement|message|notice).{0,30}(send|transfer|click|verify)`,
+		`(?i)sugar\s+(daddy|mommy|mama|baby).{0,40}(pay|send|money|gift|dm|message)`,
 	} {
 		bl.AddPattern(p)
 	}
@@ -61,9 +71,6 @@ func TestAdminAddPattern(t *testing.T) {
 	if result.Total < 5 {
 		t.Errorf("expected blocked pattern score >= 5, got %d", result.Total)
 	}
-
-	// Cleanup
-	AdminRemovePattern(cross, `(?i)test\s+specific\s+pattern`)
 }
 
 func TestAdminRemovePattern(t *testing.T) {
@@ -95,9 +102,6 @@ func TestAdminBlockAddress(t *testing.T) {
 	if result.Total < 99 {
 		t.Errorf("expected blocked address score >= 99, got %d", result.Total)
 	}
-
-	// Cleanup
-	AdminUnblockAddress(cross, address("g1blocktest"))
 }
 
 func TestAdminUnblockAddress(t *testing.T) {
@@ -122,9 +126,6 @@ func TestAdminAllowAddress(t *testing.T) {
 	if result.Total != 0 {
 		t.Errorf("expected score 0 for allowed address, got %d (triggered: %v)", result.Total, result.Triggered)
 	}
-
-	// Cleanup
-	AdminRemoveAllow(cross, address("g1trusted"))
 }
 
 // ---- admin training
@@ -186,8 +187,18 @@ func TestDefaultPatternsLoaded(t *testing.T) {
 		{"success: telegram redirect", "Join our Telegram group https://t.me/scam", 5},
 		{"success: double your tokens", "Double your GNOT in 24 hours guaranteed", 5},
 		{"success: send get back scam", "Send 100 GNOT and get 500 back", 5},
-		{"success: wallet phishing", "Connect your wallet to claim rewards", 5},
+		{"success: credential phishing", "Enter your seed phrase to verify your wallet now", 5},
 		{"success: pump and dump", "This 100x gem token is guaranteed profit", 5},
+		{"success: fake KYC scam", "Complete your KYC verification at https://fake-kyc.com", 5},
+		{"success: trading signals", "Free crypto signals guaranteed join VIP group", 5},
+		{"success: wallet connect drain", "Connect your wallet to claim free airdrop tokens", 5},
+		{"success: loan scam", "Instant loan guaranteed no credit check apply now", 5},
+		{"success: engagement spam", "Buy cheap followers and likes instant delivery", 5},
+		{"success: porn solicitation", "Watch free porn videos and xxx content here", 5},
+		{"success: gore content", "Watch real execution video footage leaked online", 5},
+		{"success: fake token launch", "New token just launched on DEX buy now before moon", 5},
+		{"success: impersonation scam", "Official admin announcement please verify your account by clicking here", 5},
+		{"success: sugar scam", "Sugar daddy looking for baby to pay and send money weekly just dm me", 5},
 	}
 
 	for _, tt := range tests {
@@ -242,11 +253,6 @@ func TestAdminAddKeyword(t *testing.T) {
 	if !hasKeyword {
 		t.Errorf("expected KEYWORD_SPAM rule, got triggered: %v", result.Triggered)
 	}
-
-	// Cleanup
-	AdminRemoveKeyword(cross, "customword1")
-	AdminRemoveKeyword(cross, "customword2")
-	AdminRemoveKeyword(cross, "customword3")
 }
 
 func TestAdminBulkAddKeywords(t *testing.T) {
@@ -270,12 +276,6 @@ func TestAdminBulkAddKeywords(t *testing.T) {
 	if !hasKeyword {
 		t.Errorf("expected KEYWORD_SPAM after bulk add, got triggered: %v", result.Triggered)
 	}
-
-	// Cleanup
-	AdminRemoveKeyword(cross, "bulktest1")
-	AdminRemoveKeyword(cross, "bulktest2")
-	AdminRemoveKeyword(cross, "bulktest3")
-	AdminRemoveKeyword(cross, "bulktest4")
 }
 
 func TestAdminRemoveKeyword(t *testing.T) {
@@ -356,6 +356,76 @@ func TestAdminTransfer(t *testing.T) {
 	AdminSetAdmin(cross, address("g1admin"))
 }
 
+// ---- caller overrides
+
+func TestScoreCallerOverrides(t *testing.T) {
+	resetState(t)
+
+	// Create custom blocklist with a specific pattern
+	customBl := engine.NewBlocklist()
+	customBl.AddPattern(`(?i)custom\s+override\s+test`)
+
+	// Message that matches the custom pattern but NOT the default patterns
+	msg := "This is a custom override test message with enough length"
+
+	// Without override: should not trigger BLOCKED_PATTERN
+	result1 := Score(address("g1user"), msg, engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
+	for _, r := range result1.Triggered {
+		if r == "BLOCKED_PATTERN" {
+			t.Errorf("expected no BLOCKED_PATTERN without override, got triggered: %v", result1.Triggered)
+		}
+	}
+
+	// With custom blocklist override: should trigger BLOCKED_PATTERN
+	result2 := Score(address("g1user"), msg, engine.RateState{}, goodRep(), nil, nil, nil, customBl, engine.EarlyExitDisabled)
+	hasPattern := false
+	for _, r := range result2.Triggered {
+		if r == "BLOCKED_PATTERN" {
+			hasPattern = true
+		}
+	}
+	if !hasPattern {
+		t.Errorf("expected BLOCKED_PATTERN with custom blocklist, got triggered: %v", result2.Triggered)
+	}
+}
+
+// ---- early exit
+
+func TestScoreEarlyExit(t *testing.T) {
+	resetState(t)
+
+	// Bad reputation + rate burst = high Phase 1 score
+	badRep := engine.ReputationData{
+		AccountAgeDays: 0,
+		Balance:        100000000,
+		FlaggedCount:   10,
+		TotalPosts:     15,
+		HasUsername:    false,
+		BanCount:       1,
+	}
+	burstRate := engine.RateState{PostCount: 25, WindowSeconds: 3600}
+	msg := "FREE AIRDROP BONUS CLICK CLAIM PRIZE"
+
+	// Full scoring: Phase 2 runs (Bayes/keywords should trigger)
+	full := Score(address("g1spammer"), msg, burstRate, badRep, nil, nil, nil, nil, engine.EarlyExitDisabled)
+
+	// Early exit at ThresholdReject: Phase 1 score >= 8, Phase 2 skipped
+	early := Score(address("g1spammer"), msg, burstRate, badRep, nil, nil, nil, nil, engine.ThresholdReject)
+
+	// Both should exceed ThresholdReject
+	if full.Total < engine.ThresholdReject {
+		t.Errorf("full scoring: expected score >= %d, got %d", engine.ThresholdReject, full.Total)
+	}
+	if early.Total < engine.ThresholdReject {
+		t.Errorf("early exit: expected score >= %d, got %d", engine.ThresholdReject, early.Total)
+	}
+
+	// Early exit should have FEWER rules triggered (Phase 2 skipped)
+	if len(early.Triggered) >= len(full.Triggered) {
+		t.Errorf("expected early exit to trigger fewer rules: early=%v, full=%v", early.Triggered, full.Triggered)
+	}
+}
+
 // ---- render
 
 func TestRender(t *testing.T) {
@@ -364,5 +434,29 @@ func TestRender(t *testing.T) {
 	out := Render("")
 	if out == "" {
 		t.Error("expected non-empty Render output")
+	}
+
+	// Verify key sections are present
+	checks := []string{
+		"# Anti-Spam Scoring Realm",
+		"**Admin:**",
+		"**Corpus size:**",
+		"**Fingerprint store:**",
+		"**Keyword dictionary:**",
+		"**Active patterns:**",
+		"## Patterns",
+		"## Usage",
+	}
+	for _, check := range checks {
+		found := false
+		for i := 0; i < len(out)-len(check)+1; i++ {
+			if out[i:i+len(check)] == check {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Render output missing %q", check)
+		}
 	}
 }
