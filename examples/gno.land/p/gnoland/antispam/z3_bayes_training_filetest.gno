@@ -103,11 +103,11 @@ func main() {
 	// Train with spam
 	spamExamples := []string{
 		"free money airdrop claim bonus prize",
-		"limited offer exclusive deal act now",
-		"click here win jackpot casino gambling",
-		"send crypto double your tokens guaranteed",
-		"amazing opportunity earn passive income",
-		"congratulations you won claim reward",
+		"free airdrop bonus offer exclusive deal",
+		"click here earn income opportunity passive",
+		"earn income opportunity double tokens guaranteed",
+		"claim prize win casino jackpot gambling",
+		"free opportunity congratulations reward limited",
 	}
 
 	println("Training with SPAM examples:")
@@ -315,11 +315,11 @@ func containsRule(rules []string, target string) bool {
 // ───────────────
 // Training with SPAM examples:
 //   1. "free money airdrop claim bonus prize"
-//   2. "limited offer exclusive deal act now"
-//   3. "click here win jackpot casino gambling"
-//   4. "send crypto double your tokens guaranteed"
-//   5. "amazing opportunity earn passive income"
-//   6. "congratulations you won claim reward"
+//   2. "free airdrop bonus offer exclusive deal"
+//   3. "click here earn income opportunity passive"
+//   4. "earn income opportunity double tokens guaranteed"
+//   5. "claim prize win casino jackpot gambling"
+//   6. "free opportunity congratulations reward limited"
 //
 // Training with HAM examples:
 //   1. "governance proposal voting community discussion"

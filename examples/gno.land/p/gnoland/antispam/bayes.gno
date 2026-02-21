@@ -24,6 +24,11 @@ const (
 	// bayesMinSpamTokens is the minimum number of spam-indicating tokens
 	// needed to trigger the BAYES_SPAM rule.
 	bayesMinSpamTokens = 3
+
+	// bayesMinTokenOccurrences is the minimum total observations (spam + ham)
+	// for a token to be considered reliable. Tokens seen fewer times are
+	// ignored to prevent overfitting on small training sets.
+	bayesMinTokenOccurrences = 2
 )
 
 // ---- Tokenizer
@@ -168,7 +173,7 @@ func scoreBayesTokens(tokens []string, corpus *Corpus) (int, string) {
 	for _, tok := range tokens {
 		spam, ham := corpus.GetTokenStats(tok)
 		total := spam + ham
-		if total == 0 {
+		if total < bayesMinTokenOccurrences {
 			continue
 		}
 		if spam*100 > bayesSpamThresholdPct*total {

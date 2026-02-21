@@ -46,6 +46,7 @@ func Fingerprint(text string) []uint64 {
 
 		baseHash := hashThreeRunes(w0, w1, w2)
 
+		// Derive independent hash functions via SplitMix64 bit mixer.
 		for j := 0; j < fpSignatureSize; j++ {
 			h := baseHash ^ uint64(j)*0x9e3779b97f4a7c15
 			h = (h ^ (h >> 30)) * 0xbf58476d1ce4e5b9
@@ -117,7 +118,7 @@ func fingerprintSimilarity(a, b []uint64) int {
 // ---- FingerprintStore
 
 // FingerprintStore stores fingerprints of known spam content.
-// Capped at fpMaxStoreSize entries with oldest-first eviction.
+// Capped at fpMaxStoreSize entries; the oldest entry is evicted when full.
 type FingerprintStore struct {
 	tree  *avl.Tree
 	count int
@@ -138,7 +139,7 @@ func (fs *FingerprintStore) Add(content string) {
 		return
 	}
 
-	// Evict oldest if at capacity.
+	// Evict the oldest entry if at capacity.
 	if fs.tree.Size() >= fpMaxStoreSize {
 		fs.tree.Iterate("", "", func(key string, _ interface{}) bool {
 			fs.tree.Remove(key)

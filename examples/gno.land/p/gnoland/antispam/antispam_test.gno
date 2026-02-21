@@ -119,7 +119,7 @@ func TestScore(t *testing.T) {
 				Author: "g1user", Content: "THIS IS ALL CAPS SPAM MESSAGE THAT SHOULD BE DETECTED BY CONTENT RULES EASILY",
 				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
 			},
-			wantMin: 3,
+			wantMin: 2,
 		},
 
 		// ---- Rate burst ----

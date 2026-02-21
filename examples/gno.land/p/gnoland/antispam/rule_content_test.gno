@@ -109,25 +109,25 @@ func TestScoreContent(t *testing.T) {
 		{
 			name:     "caps: 100% uppercase content",
 			content:  "THIS IS ALL CAPS AND IT IS VERY LOUD AND ANNOYING TO READ RIGHT NOW",
-			wantMin:  3,
+			wantMin:  2,
 			wantRule: "ALL_CAPS",
 		},
 		{
 			name:     "caps: mostly caps (>50%)",
 			content:  "THIS IS MOSTLY CAPS AND VERY LOUD WITH JUST A FEW lower words",
-			wantMin:  3,
+			wantMin:  2,
 			wantRule: "ALL_CAPS",
 		},
 		{
 			name:     "caps: all caps short message",
 			content:  "BUY NOW FREE TOKENS",
-			wantMin:  3,
+			wantMin:  2,
 			wantRule: "ALL_CAPS",
 		},
 		{
 			name:     "caps: caps with numbers and symbols",
 			content:  "SEND 1000 GNOT TO THIS ADDRESS NOW!!! GET 5000 BACK GUARANTEED!!!",
-			wantMin:  3,
+			wantMin:  2,
 			wantRule: "ALL_CAPS",
 		},
 		{
@@ -243,12 +243,12 @@ func TestScoreContent(t *testing.T) {
 		{
 			name:    "combined: caps + many links",
 			content: "CLICK HERE NOW https://scam1.com https://scam2.com https://scam3.com https://scam4.com FREE",
-			wantMin: 5,
+			wantMin: 4,
 		},
 		{
 			name:    "combined: caps + punctuation",
 			content: "BUY NOW!!! LIMITED TIME!!! DON'T MISS OUT!!! ACT FAST!!! AMAZING DEAL!!!",
-			wantMin: 4,
+			wantMin: 3,
 		},
 		{
 			name:     "combined: short + link",

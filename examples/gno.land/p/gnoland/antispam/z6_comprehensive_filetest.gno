@@ -69,10 +69,11 @@ func main() {
 
 	// Bayesian corpus: trained with spam and ham vocabulary
 	corpus := antispam.NewCorpus()
-	corpus.Train("free airdrop bonus click claim tokens prize win", true)
-	corpus.Train("casino gambling jackpot money prize winner", true)
-	corpus.Train("limited time offer act now exclusive deal", true)
-	corpus.Train("amazing opportunity earn passive income guaranteed", true)
+	corpus.Train("free airdrop bonus click claim tokens prize", true)
+	corpus.Train("free bonus money prize casino jackpot gambling", true)
+	corpus.Train("free claim airdrop offer exclusive deal limited", true)
+	corpus.Train("free earn income opportunity passive guaranteed", true)
+	corpus.Train("earn income bonus airdrop prize opportunity", true)
 	corpus.Train("governance proposal voting community discussion", false)
 	corpus.Train("validator staking delegation reward system", false)
 	corpus.Train("development update release version changelog", false)
@@ -232,7 +233,6 @@ func main() {
 	println("Rules breakdown:")
 	println("  BLOCKED_PATTERN(5) = regex matched 'send X get Y' scam pattern")
 	println("  NEAR_DUPLICATE(4) = fingerprint matched known spam")
-	println("  BAYES_SPAM(3) = corpus recognizes spam vocabulary")
 	println("  Even a trusted user gets caught when content matches multiple layers")
 	println("Status:  🚫 REJECTED\n")
 
@@ -406,7 +406,7 @@ func main() {
 //
 // Author:  g1flooder (50% flag ratio, 2 past bans, 30 posts/hour)
 // Message: "FREE MONEY BONUS PRIZE AIRDROP CLICK NOW!!! http://spam1.com http://spam2.com http://spam3.com http://spam4.com"
-// Score:   20 | Triggered: [ALL_CAPS LINK_HEAVY RATE_BURST BAD_REPUTATION BANNED_BEFORE BAYES_SPAM KEYWORD_SPAM]
+// Score:   19 | Triggered: [ALL_CAPS LINK_HEAVY RATE_BURST BAD_REPUTATION BANNED_BEFORE BAYES_SPAM KEYWORD_SPAM]
 // Rules breakdown:
 //   ALL_CAPS(3) + LINK_HEAVY(2) = content heuristics
 //   RATE_BURST(4) = posting frequency
@@ -419,11 +419,10 @@ func main() {
 //
 // Author:  g1scammer (good reputation, normal rate)
 // Message: "Send 100 GNOT get 1000 GNOT back! Guaranteed returns! Act now!"
-// Score:   12 | Triggered: [BLOCKED_PATTERN BAYES_SPAM NEAR_DUPLICATE]
+// Score:   9 | Triggered: [BLOCKED_PATTERN NEAR_DUPLICATE]
 // Rules breakdown:
 //   BLOCKED_PATTERN(5) = regex matched 'send X get Y' scam pattern
 //   NEAR_DUPLICATE(4) = fingerprint matched known spam
-//   BAYES_SPAM(3) = corpus recognizes spam vocabulary
 //   Even a trusted user gets caught when content matches multiple layers
 // Status:  🚫 REJECTED
 //
@@ -481,8 +480,8 @@ func main() {
 // ────────  ─────  ───────────────
 // 1. Legit     0  []
 // 2. New acc  11  [EXCESSIVE_PUNCT NEW_ACCOUNT NO_USERNAME LOW_BALANCE BAYES_SPAM KEYWORD_SPAM]
-// 3. Flood   20  [ALL_CAPS LINK_HEAVY RATE_BURST BAD_REPUTATION BANNED_BEFORE BAYES_SPAM KEYWORD_SPAM]
-// 4. Dup+Pat  12  [BLOCKED_PATTERN BAYES_SPAM NEAR_DUPLICATE]
+// 3. Flood   19  [ALL_CAPS LINK_HEAVY RATE_BURST BAD_REPUTATION BANNED_BEFORE BAYES_SPAM KEYWORD_SPAM]
+// 4. Dup+Pat  9  [BLOCKED_PATTERN NEAR_DUPLICATE]
 // 5. Short    4  [EXCESSIVE_PUNCT SHORT_WITH_LINK]
 // 6. Blocked 99  [BLOCKED_ADDRESS]
 // 7. Allowed   0  []

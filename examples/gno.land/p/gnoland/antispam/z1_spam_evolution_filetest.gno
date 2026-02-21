@@ -59,9 +59,9 @@ func main() {
 
 	// Setup: Train a Bayesian corpus to recognize spam patterns
 	corpus := antispam.NewCorpus()
-	corpus.Train("free airdrop bonus click claim tokens prize win", true)
-	corpus.Train("casino gambling jackpot money prize winner", true)
-	corpus.Train("limited time offer act now exclusive deal", true)
+	corpus.Train("free airdrop bonus click claim tokens prize", true)
+	corpus.Train("free bonus casino money prize jackpot gambling", true)
+	corpus.Train("free claim airdrop offer exclusive deal limited", true)
 	corpus.Train("governance proposal voting community discussion", false)
 	corpus.Train("validator staking delegation reward system", false)
 	corpus.Train("development update release version changelog", false)
@@ -210,7 +210,7 @@ func main() {
 // PHASE 4: Confirmed Spam
 // ─────────────────────────
 // Post: "CLICK HERE NOW!!! FREE MONEY BONUS PRIZE AIRDROP!!! http://spam1.com http://spam2.com http://spam3.com"
-// Score: 13 | Triggered: [ALL_CAPS RATE_BURST BAYES_SPAM KEYWORD_SPAM]
+// Score: 12 | Triggered: [ALL_CAPS RATE_BURST BAYES_SPAM KEYWORD_SPAM]
 // Status: 🚫 REJECTED (score >= 8)
 // Analysis: Multiple compounding factors:
 //   - ALL_CAPS: Entire message capitalized
@@ -222,6 +222,6 @@ func main() {
 //
 // SUMMARY
 // ─────────
-// Score progression: 0 -> 0 -> 6 -> 13
+// Score progression: 0 -> 0 -> 6 -> 12
 // The system detected the behavioral shift from legitimate to spam
 // through gradual accumulation of multiple independent signals.

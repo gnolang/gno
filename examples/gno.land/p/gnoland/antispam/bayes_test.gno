@@ -345,4 +345,21 @@ func TestBayesThresholdBoundaries(t *testing.T) {
 			t.Errorf("expected rule BAYES_SPAM, got %q", rule)
 		}
 	})
+
+	t.Run("boundary: single-occurrence tokens are unreliable", func(t *testing.T) {
+		c := NewCorpus()
+		// Each spam token appears only once - insufficient evidence
+		c.Train("aaa bbb ccc ddd eee", true)
+		// Ham tokens to reach bayesMinCorpusSize=10
+		c.Train("fff ggg hhh iii jjj", false)
+		if c.Size() < 10 {
+			t.Fatalf("test setup: expected corpus size >= 10, got %d", c.Size())
+		}
+		// All tokens have total=1 (seen once). Despite 100% spam ratio,
+		// single observations are unreliable and should be ignored.
+		score, _ := ScoreBayes("aaa bbb ccc ddd eee", c)
+		if score != 0 {
+			t.Errorf("single-occurrence tokens should not trigger Bayes, got score %d", score)
+		}
+	})
 }
