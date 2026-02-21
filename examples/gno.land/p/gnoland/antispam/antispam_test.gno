@@ -381,7 +381,7 @@ func TestBlockedAddressShortCircuit(t *testing.T) {
 	if result.Total != WeightBlockedAddress {
 		t.Errorf("expected total %d, got %d", WeightBlockedAddress, result.Total)
 	}
-	if result.TopRule != "BLOCKED_ADDRESS" {
-		t.Errorf("expected top rule BLOCKED_ADDRESS, got %q", result.TopRule)
+	if result.TopRule != RuleBlockedAddress {
+		t.Errorf("expected top rule %q, got %q", RuleBlockedAddress, result.TopRule)
 	}
 }

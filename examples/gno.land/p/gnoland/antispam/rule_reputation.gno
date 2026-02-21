@@ -24,17 +24,17 @@ func ScoreReputation(rep ReputationData) []RuleHit {
 
 	// New account: young + no posts
 	if rep.AccountAgeDays < repMinAgeDays && rep.TotalPosts <= 0 {
-		hits = append(hits, RuleHit{WeightNewAccount, "NEW_ACCOUNT"})
+		hits = append(hits, RuleHit{WeightNewAccount, RuleNewAccount})
 	}
 
 	// No registered username
 	if !rep.HasUsername {
-		hits = append(hits, RuleHit{WeightNoUsername, "NO_USERNAME"})
+		hits = append(hits, RuleHit{WeightNoUsername, RuleNoUsername})
 	}
 
 	// Low balance
 	if rep.Balance < repMinBalance {
-		hits = append(hits, RuleHit{WeightLowBalance, "LOW_BALANCE"})
+		hits = append(hits, RuleHit{WeightLowBalance, RuleLowBalance})
 	}
 
 	// Bad flag ratio
@@ -44,11 +44,11 @@ func ScoreReputation(rep ReputationData) []RuleHit {
 			flagRatio = rep.FlaggedCount * 100 / rep.TotalPosts
 		}
 		if flagRatio > repFlagRatioPct {
-			hits = append(hits, RuleHit{WeightBadReputation, "BAD_REPUTATION"})
+			hits = append(hits, RuleHit{WeightBadReputation, RuleBadReputation})
 		}
 	} else if rep.TotalPosts == 0 && rep.FlaggedCount > 0 {
 		// Flags but no visible posts (all deleted?) -> suspicious
-		hits = append(hits, RuleHit{WeightBadReputation, "BAD_REPUTATION"})
+		hits = append(hits, RuleHit{WeightBadReputation, RuleBadReputation})
 	}
 
 	// Ban history penalty
@@ -57,7 +57,7 @@ func ScoreReputation(rep ReputationData) []RuleHit {
 		if penalty > WeightBadReputation {
 			penalty = WeightBadReputation
 		}
-		hits = append(hits, RuleHit{penalty, "BANNED_BEFORE"})
+		hits = append(hits, RuleHit{penalty, RuleBannedBefore})
 	}
 
 	return hits

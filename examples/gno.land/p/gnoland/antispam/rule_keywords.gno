@@ -72,9 +72,13 @@ func (kd *KeywordDict) BulkAdd(data string) {
 		}
 
 		idx := strings.LastIndex(line, ":")
-		if idx == -1 || idx == len(line)-1 {
-			// No colon or trailing colon -> default weight 1
+		if idx == -1 {
 			kd.Add(line, 1)
+			continue
+		}
+		if idx == len(line)-1 {
+			// Trailing colon with no weight -> strip colon, default weight 1
+			kd.Add(line[:idx], 1)
 			continue
 		}
 
@@ -88,8 +92,9 @@ func (kd *KeywordDict) BulkAdd(data string) {
 	}
 }
 
-// parseSimpleInt parses a simple positive integer from a string.
-// Returns 0 on any error.
+// parseSimpleInt parses a small positive integer from a string.
+// Returns early once the value exceeds 9 (sufficient for keyword weights
+// which are clamped to [1, 3]). Returns 0 on any error.
 func parseSimpleInt(s string) int {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -191,7 +196,7 @@ func scoreKeywordsTokens(tokens []string, dict *KeywordDict) (int, string) {
 	}
 
 	if matches >= keywordMinMatches && weightSum >= keywordSumThreshold {
-		return WeightKeyword, "KEYWORD_SPAM"
+		return WeightKeyword, RuleKeywordSpam
 	}
 	return 0, ""
 }

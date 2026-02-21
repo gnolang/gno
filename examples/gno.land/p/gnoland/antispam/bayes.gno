@@ -184,7 +184,7 @@ func scoreBayesTokens(tokens []string, corpus *Corpus) (int, string) {
 	}
 
 	if spamIndicators >= bayesMinSpamTokens && spamIndicators > hamIndicators {
-		return WeightBayesSpam, "BAYES_SPAM"
+		return WeightBayesSpam, RuleBayesSpam
 	}
 	return 0, ""
 }

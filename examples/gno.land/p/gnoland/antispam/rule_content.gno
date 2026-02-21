@@ -57,16 +57,16 @@ func hitsFromContentStats(content string, s contentStats) []RuleHit {
 
 	totalLetters := s.upper + s.lower
 	if totalLetters >= minLettersForCaps && s.upper*100 > capsThresholdPct*totalLetters {
-		hits = append(hits, RuleHit{WeightAllCaps, "ALL_CAPS"})
+		hits = append(hits, RuleHit{WeightAllCaps, RuleAllCaps})
 	}
 	if s.nonSpace >= minCharsForPunct && s.punct*100 > punctThresholdPct*s.nonSpace {
-		hits = append(hits, RuleHit{WeightExcessivePunct, "EXCESSIVE_PUNCT"})
+		hits = append(hits, RuleHit{WeightExcessivePunct, RuleExcessivePunct})
 	}
 	if s.urlCount > linkMaxCount {
-		hits = append(hits, RuleHit{WeightLinkHeavy, "LINK_HEAVY"})
+		hits = append(hits, RuleHit{WeightLinkHeavy, RuleLinkHeavy})
 	}
 	if len(content) <= shortBodyMaxLen && s.urlCount > 0 {
-		hits = append(hits, RuleHit{WeightShortWithLink, "SHORT_WITH_LINK"})
+		hits = append(hits, RuleHit{WeightShortWithLink, RuleShortWithLink})
 	}
 	return hits
 }
@@ -76,13 +76,13 @@ func hitsFromUnicodeStats(s contentStats) []RuleHit {
 	var hits []RuleHit
 
 	if s.maxConsecCombine >= zalgoMinCombining {
-		hits = append(hits, RuleHit{WeightZalgoText, "ZALGO_TEXT"})
+		hits = append(hits, RuleHit{WeightZalgoText, RuleZalgoText})
 	}
 	if s.invisibleCount >= invisibleMinCount {
-		hits = append(hits, RuleHit{WeightInvisibleChars, "INVISIBLE_CHARS"})
+		hits = append(hits, RuleHit{WeightInvisibleChars, RuleInvisibleChars})
 	}
 	if s.mixedWords > 0 {
-		hits = append(hits, RuleHit{WeightHomoglyphMix, "HOMOGLYPH_MIX"})
+		hits = append(hits, RuleHit{WeightHomoglyphMix, RuleHomoglyphMix})
 	}
 	return hits
 }

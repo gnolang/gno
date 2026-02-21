@@ -62,6 +62,7 @@ const (
 //	ZALGO_TEXT            3   Excessive combining diacritical marks (zalgo text)
 //	INVISIBLE_CHARS       2   Zero-width or directional override characters
 //	HOMOGLYPH_MIX        2   Mixed unicode scripts in single word (e.g. latin + cyrillic)
+//	BANNED_BEFORE       1-3   +1 per past ban, capped at 3
 //	EXCESSIVE_PUNCT       1   >20% punctuation characters
 //	NO_USERNAME           1   No registered username
 //	LOW_BALANCE           1   Balance < 1000 GNOT
@@ -84,6 +85,29 @@ const (
 	WeightExcessivePunct = 1
 	WeightNoUsername     = 1
 	WeightLowBalance     = 1
+)
+
+// ---- Rule names (used in SpamScore.Triggered and for programmatic checks)
+
+const (
+	RuleBlockedAddress = "BLOCKED_ADDRESS"
+	RuleBlockedPattern = "BLOCKED_PATTERN"
+	RuleNearDuplicate  = "NEAR_DUPLICATE"
+	RuleRateBurst      = "RATE_BURST"
+	RuleAllCaps        = "ALL_CAPS"
+	RuleShortWithLink  = "SHORT_WITH_LINK"
+	RuleBayesSpam      = "BAYES_SPAM"
+	RuleBadReputation  = "BAD_REPUTATION"
+	RuleKeywordSpam    = "KEYWORD_SPAM"
+	RuleLinkHeavy      = "LINK_HEAVY"
+	RuleNewAccount     = "NEW_ACCOUNT"
+	RuleZalgoText      = "ZALGO_TEXT"
+	RuleInvisibleChars = "INVISIBLE_CHARS"
+	RuleHomoglyphMix   = "HOMOGLYPH_MIX"
+	RuleExcessivePunct = "EXCESSIVE_PUNCT"
+	RuleNoUsername     = "NO_USERNAME"
+	RuleLowBalance     = "LOW_BALANCE"
+	RuleBannedBefore   = "BANNED_BEFORE"
 )
 
 // RuleHit represents a single triggered anti-spam rule with its score.
@@ -148,7 +172,7 @@ func Score(in ScoreInput) SpamScore {
 	if s, r := ScoreBlocklist(in.Author, in.Content, in.Bl); s > 0 {
 		add(s, r)
 		// If address is blocked, no need to check further
-		if r == "BLOCKED_ADDRESS" {
+		if r == RuleBlockedAddress {
 			return result
 		}
 	}
