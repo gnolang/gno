@@ -29,6 +29,9 @@ func Tx(ctx *rpctypes.Context, hash []byte) (*ctypes.ResultTx, error) {
 
 	// Load the block
 	block := blockStore.LoadBlock(height)
+	if block == nil {
+		return nil, fmt.Errorf("block not found for height %d", height)
+	}
 	numTxs := len(block.Txs)
 
 	if int(resultIndex.TxIndex) > numTxs || numTxs == 0 {
