@@ -86,8 +86,8 @@ func execBackup(ctx context.Context, c *backupCfg, cmdIO commands.IO) (resErr er
 
 	url := c.remote
 	// we need to add /websocket as the websocket handler is in this path
-	if !strings.HasSuffix(url, "/websocket"){
-		url += "/websocket" 
+	if !strings.HasSuffix(url, "/websocket") {
+		url += "/websocket"
 	}
 	logger.Info("connecting to RPC", zap.String("url", url))
 
