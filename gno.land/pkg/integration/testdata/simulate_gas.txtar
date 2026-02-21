@@ -12,6 +12,26 @@ stdout 'GAS USED:   110247'
 gnokey maketx call -pkgpath gno.land/r/simulate -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate skip test1
 stdout 'GAS USED:   110247' # same as simulate only
 
+# simulate only (again) with default 5% margin
+gnokey maketx call -pkgpath gno.land/r/simulate -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only test1
+stdout 'gas fee: 116ugnot'
+
+# simulate only with no gas fee margin. base gas fee is 111ugnot
+gnokey maketx call -pkgpath gno.land/r/simulate -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only -gas-fee-margin=0 test1
+stdout 'gas fee: 111ugnot'
+
+# the 5% margin was 5ugnot (116 - 111). the 10% margin should be about 10ugnot (11), total of 121
+gnokey maketx call -pkgpath gno.land/r/simulate -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only -gas-fee-margin=10 test1
+stdout 'gas fee: 122ugnot'
+
+# -gas-fee-margin should be a number
+! gnokey maketx call -pkgpath gno.land/r/simulate -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only -gas-fee-margin=zzz test1
+stderr 'invalid value'
+
+# -gas-fee-margin should be non-negative
+! gnokey maketx call -pkgpath gno.land/r/simulate -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only -gas-fee-margin=-10 test1
+stderr 'invalid value'
+
 -- package/package.gno --
 package call_package
 
