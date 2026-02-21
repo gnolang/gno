@@ -5,15 +5,15 @@ func init() {
 	title := "Contributor Ecosystem: Call for Contributions"
 	body := `
 
-gno.land puts at the center of its identity the contributors that help to create and shape the project into what it is; incentivizing those who contribute the most and help advance its vision. Eventually, contributions will be incentivized directly on-chain; in the meantime, this page serves to illustrate our current off-chain initiatives.
+Gno.land puts at the center of its identity the contributors that help to create and shape the project into what it is; incentivizing those who contribute the most and help advance its vision. Eventually, contributions will be incentivized directly on-chain; in the meantime, this page serves to illustrate our current off-chain initiatives.
 
-gno.land is still in full-steam development. For now, we're looking for the earliest of adopters; curious to explore a new way to build smart contracts and eager to make an impact. Joining gno.land's development now means you can help to shape the base of its development ecosystem, which will pave the way for the next generation of blockchain programming.
+Gno.land is still in full-steam development. For now, we're looking for the earliest of adopters; curious to explore a new way to build smart contracts and eager to make an impact. Joining gno.land's development now means you can help to shape the base of its development ecosystem, which will pave the way for the next generation of blockchain programming.
 
 As an open-source project, we welcome all contributions. On this page you can find some pointers on where to get started; as well as some incentives for the most valuable and important contributions.
 
 ## Where to get started
 
-If you are interested in contributing to gno.land, you can jump in on our [GitHub monorepo](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md) - where most development happens.
+If you are interested in contributing to Gno.land, you can jump in on our [GitHub monorepo](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md) - where most development happens.
 
 A good place to start are the issues tagged ["good first issue"](https://github.com/gnolang/gno/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22). They should allow you to make some impact on the Gno repository while you're still exploring the details of how everything works.
 
@@ -34,9 +34,9 @@ Community contributions remain strongly encouraged, particularly:
 
 These types of contributions are better aligned with Gno's goals than short-term bounties, and are very welcome provided they follow the [contributing guidelines](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md). Sustained, high-quality contributions will be rewarded over time via the gno.land GovDAO.
 
-## gno.land Grants
+## Gno.land Grants
 
-The gno.land grants program is to encourage and support the growth of the gno.land contributor community, and build out the usability of the platform and smart contract library. The program provides financial resources to contributors to explore the Gno tech stack, and build dApps, tooling, infrastructure, products, and smart contract libraries in gno.land.
+The Gno.land grants program is to encourage and support the growth of the gno.land contributor community, and build out the usability of the platform and smart contract library. The program provides financial resources to contributors to explore the Gno tech stack, and build dApps, tooling, infrastructure, products, and smart contract libraries in gno.land.
 
 For more details on gno.land grants, suggested topics, and how to apply, visit our grants [repository](https://github.com/gnolang/grants).
 
