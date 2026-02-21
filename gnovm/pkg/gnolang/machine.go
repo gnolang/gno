@@ -1138,30 +1138,31 @@ const (
 	OpCPUReturnToBlock       = 23
 
 	/* Unary & binary operators */
-	OpCPUUpos  = 7
-	OpCPUUneg  = 25
-	OpCPUUnot  = 6
-	OpCPUUxor  = 14
-	OpCPUUrecv = 1 // Not yet implemented
-	OpCPULor   = 26
-	OpCPULand  = 24
-	OpCPUEql   = 160
-	OpCPUNeq   = 95
-	OpCPULss   = 13
-	OpCPULeq   = 19
-	OpCPUGtr   = 20
-	OpCPUGeq   = 26
-	OpCPUAdd   = 18
-	OpCPUSub   = 6
-	OpCPUBor   = 23
-	OpCPUXor   = 13
-	OpCPUMul   = 19
-	OpCPUQuo   = 16
-	OpCPURem   = 18
-	OpCPUShl   = 22
-	OpCPUShr   = 20
-	OpCPUBand  = 9
-	OpCPUBandn = 15
+	OpCPUUpos       = 7
+	OpCPUUneg       = 25
+	OpCPUUnot       = 6
+	OpCPUUxor       = 14
+	OpCPUUrecv      = 1 // Not yet implemented
+	OpCPULor        = 26
+	OpCPULand       = 24
+	OpCPUEql        = 160
+	OpCPUEqlElement = 150 // per-element cost for array/struct equality comparisons
+	OpCPUNeq        = 95
+	OpCPULss        = 13
+	OpCPULeq        = 19
+	OpCPUGtr        = 20
+	OpCPUGeq        = 26
+	OpCPUAdd        = 18
+	OpCPUSub        = 6
+	OpCPUBor        = 23
+	OpCPUXor        = 13
+	OpCPUMul        = 19
+	OpCPUQuo        = 16
+	OpCPURem        = 18
+	OpCPUShl        = 22
+	OpCPUShr        = 20
+	OpCPUBand       = 9
+	OpCPUBandn      = 15
 
 	/* Other expression operators */
 	OpCPUEval        = 29
