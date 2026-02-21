@@ -129,3 +129,41 @@ func TestScoreRate(t *testing.T) {
 		})
 	}
 }
+
+// ---- Overflow guard test ----
+
+func TestRateOverflowGuard(t *testing.T) {
+	// Extremely high PostCount triggers the overflow guard (maxSafePostCount)
+	// instead of causing integer overflow in the PostCount*3600 multiplication.
+	score, rule := ScoreRate(RateState{
+		PostCount:     1 << 52,
+		WindowSeconds: 1,
+	})
+	if score != WeightRateBurst {
+		t.Errorf("expected score %d for overflow PostCount, got %d", WeightRateBurst, score)
+	}
+	if rule != "RATE_BURST" {
+		t.Errorf("expected rule RATE_BURST, got %q", rule)
+	}
+}
+
+// ---- Rate scaling boundary tests ----
+
+func TestRateScalingBoundary(t *testing.T) {
+	// 11 posts/hr → base weight (WeightRateBurst/2 = 2)
+	score11, _ := ScoreRate(RateState{PostCount: 11, WindowSeconds: 3600})
+	// 20 posts/hr → still base weight (rateMaxPerHour*2 = 20)
+	score20, _ := ScoreRate(RateState{PostCount: 20, WindowSeconds: 3600})
+	// 21 posts/hr → full weight (WeightRateBurst = 4)
+	score21, _ := ScoreRate(RateState{PostCount: 21, WindowSeconds: 3600})
+
+	if score11 != WeightRateBurst/2 {
+		t.Errorf("11 posts/hr: expected score %d, got %d", WeightRateBurst/2, score11)
+	}
+	if score20 != WeightRateBurst/2 {
+		t.Errorf("20 posts/hr: expected score %d, got %d", WeightRateBurst/2, score20)
+	}
+	if score21 != WeightRateBurst {
+		t.Errorf("21 posts/hr: expected score %d, got %d", WeightRateBurst, score21)
+	}
+}

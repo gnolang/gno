@@ -218,6 +218,61 @@ func TestNormalizeLeet(t *testing.T) {
 	}
 }
 
+func TestKeywordWeightClamping(t *testing.T) {
+	t.Parallel()
+
+	t.Run("weight above 3 clamped to 3", func(t *testing.T) {
+		t.Parallel()
+		dict := NewKeywordDict()
+		dict.Add("spam", 5)
+		w, ok := dict.GetWeight("spam")
+		if !ok {
+			t.Fatal("expected keyword to exist")
+		}
+		if w != 3 {
+			t.Errorf("expected weight 3 (clamped), got %d", w)
+		}
+	})
+
+	t.Run("weight 0 is ignored", func(t *testing.T) {
+		t.Parallel()
+		dict := NewKeywordDict()
+		dict.Add("ignore", 0)
+		if dict.Size() != 0 {
+			t.Errorf("expected size 0 for weight 0, got %d", dict.Size())
+		}
+	})
+
+	t.Run("negative weight is ignored", func(t *testing.T) {
+		t.Parallel()
+		dict := NewKeywordDict()
+		dict.Add("ignore", -1)
+		if dict.Size() != 0 {
+			t.Errorf("expected size 0 for negative weight, got %d", dict.Size())
+		}
+	})
+
+	t.Run("weight 3 is accepted as-is", func(t *testing.T) {
+		t.Parallel()
+		dict := NewKeywordDict()
+		dict.Add("word", 3)
+		w, ok := dict.GetWeight("word")
+		if !ok || w != 3 {
+			t.Errorf("expected (3, true), got (%d, %t)", w, ok)
+		}
+	})
+
+	t.Run("weight 1 is accepted as-is", func(t *testing.T) {
+		t.Parallel()
+		dict := NewKeywordDict()
+		dict.Add("word", 1)
+		w, ok := dict.GetWeight("word")
+		if !ok || w != 1 {
+			t.Errorf("expected (1, true), got (%d, %t)", w, ok)
+		}
+	})
+}
+
 func TestScoreKeywordsLeetSpeak(t *testing.T) {
 	t.Parallel()
 

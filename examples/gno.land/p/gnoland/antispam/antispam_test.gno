@@ -322,3 +322,66 @@ func TestFalsePositives(t *testing.T) {
 		})
 	}
 }
+
+// ---- Single-pass optimization verification ----
+
+func TestScoreContentAllEquivalence(t *testing.T) {
+	cases := []string{
+		"Normal text without any issues at all.",
+		"THIS IS ALL CAPS SPAM MESSAGE THAT SHOULD BE DETECTED BY THE CONTENT RULES",
+		"H\u0300\u0301\u0302\u0303\u0304ello with ze\u200Bro\u200Bwidth",
+		"Send p\u0430yment now — homoglyph mixing here",
+		"Check http://a.com http://b.com http://c.com http://d.com many links",
+		"!!!???...!!! excessive punctuation everywhere !!!???!!!",
+	}
+	for _, content := range cases {
+		contentHits := ScoreContent(content)
+		unicodeHits := ScoreUnicode(content)
+		allHits := scoreContentAll(content)
+
+		separateTotal := 0
+		for _, h := range contentHits {
+			separateTotal += h.Score
+		}
+		for _, h := range unicodeHits {
+			separateTotal += h.Score
+		}
+
+		allTotal := 0
+		for _, h := range allHits {
+			allTotal += h.Score
+		}
+
+		if separateTotal != allTotal {
+			t.Errorf("scoreContentAll != ScoreContent+ScoreUnicode for %q: %d vs %d", content[:20], allTotal, separateTotal)
+		}
+	}
+}
+
+// ---- BLOCKED_ADDRESS short-circuit verification ----
+
+func TestBlockedAddressShortCircuit(t *testing.T) {
+	bl := NewBlocklist()
+	bl.BlockAddress("g1spammer")
+
+	result := Score(ScoreInput{
+		Author:  "g1spammer",
+		Content: "totally normal message",
+		Rate:    RateState{PostCount: 50, WindowSeconds: 60},
+		Rep:     ReputationData{},
+		Corpus:  NewCorpus(),
+		Fps:     NewFingerprintStore(),
+		Bl:      bl,
+	})
+
+	// Only BLOCKED_ADDRESS should fire — no other rules
+	if len(result.Triggered) != 1 {
+		t.Errorf("expected exactly 1 triggered rule, got %d: %v", len(result.Triggered), result.Triggered)
+	}
+	if result.Total != WeightBlockedAddress {
+		t.Errorf("expected total %d, got %d", WeightBlockedAddress, result.Total)
+	}
+	if result.TopRule != "BLOCKED_ADDRESS" {
+		t.Errorf("expected top rule BLOCKED_ADDRESS, got %q", result.TopRule)
+	}
+}
