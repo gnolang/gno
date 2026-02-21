@@ -224,11 +224,9 @@ func Score(in ScoreInput) SpamScore {
 
 	// ---- Phase 2: expensive rules (regex, tokenization, AVL traversal, MinHash)
 
-	// Regex pattern matching (iterates all compiled patterns)
-	if in.Bl != nil {
-		if matched, _ := in.Bl.MatchesPattern(in.Content); matched {
-			add(WeightBlockedPattern, RuleBlockedPattern)
-		}
+	// Regex pattern matching (single combined regex scan)
+	if in.Bl != nil && in.Bl.MatchesPattern(in.Content) {
+		add(WeightBlockedPattern, RuleBlockedPattern)
 	}
 
 	if earlyExit() {

@@ -15,10 +15,14 @@ const (
 )
 
 // Blocklist manages blocked addresses, allowed addresses, and regex patterns.
+// Patterns are stored as strings for admin management (add/remove/iterate)
+// and compiled into a single combined regex for matching. One regex scan
+// per Score() call regardless of how many patterns are loaded.
 type Blocklist struct {
-	blocked  *avl.Tree // address -> true
-	allowed  *avl.Tree // address -> true
-	patterns *avl.Tree // pattern string -> *regexp.Regexp
+	blocked  *avl.Tree      // address -> true
+	allowed  *avl.Tree      // address -> true
+	patterns *avl.Tree      // pattern string -> true (strings only, for management)
+	combined *regexp.Regexp // single compiled (?:p1|p2|...|pN) for matching
 }
 
 // NewBlocklist creates an empty Blocklist.
@@ -77,17 +81,19 @@ func (bl *Blocklist) AllowedCount() int {
 
 // ---- Pattern matching
 
-// AddPattern compiles and stores a regex pattern.
-// Returns an error if the pattern is invalid or the cap is reached.
+// AddPattern validates and stores a regex pattern string.
+// Returns an error if the pattern is invalid regex or the cap is reached.
+// Rebuilds the single combined regex used for matching.
 func (bl *Blocklist) AddPattern(pattern string) error {
 	if bl.patterns.Size() >= blMaxPatterns && !bl.patterns.Has(pattern) {
 		return errPatternCapReached
 	}
-	re, err := regexp.Compile(pattern)
-	if err != nil {
+	// Validate the pattern compiles before storing.
+	if _, err := regexp.Compile(pattern); err != nil {
 		return err
 	}
-	bl.patterns.Set(pattern, re)
+	bl.patterns.Set(pattern, true)
+	bl.rebuildCombined()
 	return nil
 }
 
@@ -104,27 +110,40 @@ func (bl *Blocklist) IteratePatterns(fn func(pattern string) bool) {
 	})
 }
 
-// RemovePattern removes a regex pattern.
+// RemovePattern removes a regex pattern and rebuilds the combined regex.
 func (bl *Blocklist) RemovePattern(pattern string) {
 	bl.patterns.Remove(pattern)
+	bl.rebuildCombined()
 }
 
-// MatchesPattern checks content against all stored regex patterns.
-// Returns whether any pattern matched and the first matching pattern.
-func (bl *Blocklist) MatchesPattern(content string) (bool, string) {
-	if content == "" {
-		return false, ""
+// MatchesPattern checks content against the combined regex in a single scan.
+// Returns true if any stored pattern matches.
+func (bl *Blocklist) MatchesPattern(content string) bool {
+	if content == "" || bl.combined == nil {
+		return false
 	}
-	matched := false
-	matchedPattern := ""
-	bl.patterns.Iterate("", "", func(key string, value interface{}) bool {
-		re := value.(*regexp.Regexp)
-		if re.MatchString(content) {
-			matched = true
-			matchedPattern = key
-			return true // stop iteration
+	return bl.combined.MatchString(content)
+}
+
+// rebuildCombined compiles all patterns into a single alternation regex.
+// Called when patterns are added or removed. Compilation cost is paid once
+// at admin time, not per Score() call.
+func (bl *Blocklist) rebuildCombined() {
+	if bl.patterns.Size() == 0 {
+		bl.combined = nil
+		return
+	}
+	combined := "(?:"
+	first := true
+	bl.patterns.Iterate("", "", func(key string, _ interface{}) bool {
+		if !first {
+			combined += "|"
 		}
+		combined += key
+		first = false
 		return false
 	})
-	return matched, matchedPattern
+	combined += ")"
+	// Patterns were already validated in AddPattern, so this should not fail.
+	bl.combined, _ = regexp.Compile(combined)
 }

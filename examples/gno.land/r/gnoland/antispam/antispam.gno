@@ -45,35 +45,108 @@ func init() {
 	bl = engine.NewBlocklist()
 	keywords = engine.NewKeywordDict()
 
-	// Pre-load spam patterns (10/30 slots, leaving 20 for admin).
-	// Each pattern targets a specific scam category with tight alternations
-	// to minimize false positives on legitimate blockchain discussions.
-	defaultPatterns := []string{
-		// 1. Credential phishing: asks user to share wallet/key/seed
-		`(?i)(connect|enter|verify|confirm|provide|share|submit)\s+(your\s+)?(wallet|seed\s*phrase|private\s*key|mnemonic|password|credentials|recovery\s*phrase|login)`,
+	// Pre-load default spam pattern (1/30 slots, leaving 29 for admin).
+	// Single combined regex covering 20 scam categories. One pattern slot,
+	// one compiled regex, one scan per message. Categories:
+	//   1. Credential phishing     11. Fake KYC / verification
+	//   2. Social redirect + DM    12. Trading signals / pump group
+	//   3. Free crypto/airdrop     13. Wallet connect to claim
+	//   4. Crypto transfer scam    14. Loan / credit scam
+	//   5. Financial promises       15. Engagement spam (followers)
+	//   6. Fake tech support        16. Porn / adult solicitation
+	//   7. Gambling/adult/drugs     17. Gore / shock content
+	//   8. Urgency clickbait        18. Fake token launch / pump
+	//   9. Inheritance/wire fraud   19. Impersonation + scam CTA
+	//  10. Fake job / work from home 20. Romance / sugar scam
+	bl.AddPattern(`(?i)(?:` +
+		// 1. Credential phishing (connect handled by category 13 with scam CTA)
+		`(enter|verify|confirm|provide|share|submit|validate|restore|update|input)\s+(your\s+)?(wallet|seed\s*phrase|private\s*key|mnemonic|password|credentials|recovery\s*phrase|login)` +
+		`|` +
 		// 2. Social platform redirect + DM solicitation
-		`(?i)(telegram|discord|whatsapp|signal)\s*(group|channel|chat|link|community).{0,30}https?://|(dm|message|contact)\s+me\s+.{0,15}(telegram|discord|whatsapp|signal)`,
-		// 3. Free crypto/airdrop scam
-		`(?i)free\s+(airdrop|token|nft|mint|crypto|gnot|coin)`,
-		// 4. Crypto transfer scam (requires scam context: send+get back, or double)
-		`(?i)send\s+\d+.{0,30}(get\s+\d+|receive\s+\d+|return|reward)|double\s+your\s+(gnot|token|coin|crypto|money)`,
-		// 5. Financial promises: guaranteed returns, multiplier pump-and-dump
-		`(?i)(guaranteed|10+x)\s*.{0,15}(return|profit|income|roi|gem|token|coin|gain)`,
-		// 6. Fake tech support (requires scam-specific CTA after problem statement)
-		`(?i)(account|wallet)\s+(locked|suspended|compromised|hacked).{0,30}(click\s+(here|now|below)|restore\s+now|verify\s+(your|identity)|contact\s+(us|support)\s+at)`,
-		// 7. Illegal content: gambling promos, adult+URL, drug marketplace
-		`(?i)(casino|poker|gambling|betting|slots)\s*(bonus|jackpot|win|payout|free)|(live|hot|sexy|nude|xxx)\s+(cam|girl|webcam|chat|show|pics|video).{0,30}https?://|(buy|order|sell)\s+(cocaine|heroin|meth|pills|xanax|fentanyl|drugs)\s+(online|cheap|discreet)`,
-		// 8. Urgency clickbait + referral/promo spam
-		`(?i)click\s+(here|now|below).{0,30}(before|limited|expires?|hurry|urgent|last\s+chance)|(use|enter|try)\s+(my\s+)?(referral|invite|promo|discount)\s*(code|link)`,
-		// 9. Money scam: inheritance fraud, wire transfer with urgency
-		`(?i)(inherit|inheritance|beneficiary|next\s+of\s+kin).{0,30}(million|usd|\$\d+|fund)|(wire|transfer|send)\s+(money|funds|payment)\s+(immediately|urgent|now|asap)`,
+		`(telegram|discord|whatsapp|signal)\s*(group|channel|chat|link|community).{0,30}https?://` +
+		`|` +
+		`(dm|message|contact)\s+me\s+.{0,15}(telegram|discord|whatsapp|signal)` +
+		`|` +
+		// 3. Free crypto/airdrop (both word orders)
+		`free\s+(airdrop|token|nft|mint|crypto|gnot|coin)` +
+		`|` +
+		`claim\s+(your\s+)?free\s+(airdrop|token|nft|mint|crypto|gnot|coin)` +
+		`|` +
+		// 4. Crypto transfer scam (send+get back, double your)
+		`send\s+\d+.{0,30}(get\s+\d+|receive\s+\d+|return|reward)` +
+		`|` +
+		`double\s+your\s+(gnot|token|coin|crypto|money)` +
+		`|` +
+		// 5. Financial promises (guaranteed returns, multiplier, percentage)
+		`(guaranteed|\d+x)\s*.{0,15}(return|profit|income|roi|gem|token|coin|gain)` +
+		`|` +
+		`\d+%\s*(return|profit|daily|monthly|weekly|roi|gain)` +
+		`|` +
+		// 6. Fake tech support (problem + scam CTA)
+		`(account|wallet)\s+(locked|suspended|compromised|hacked).{0,30}(click\s+(here|now|below)|restore\s+now|verify\s+(your|identity)|contact\s+(us|support)\s+at)` +
+		`|` +
+		// 7. Gambling promos
+		`(casino|poker|gambling|betting|slots)\s*(bonus|jackpot|win|payout|free)` +
+		`|` +
+		// 7b. Adult content + URL
+		`(live|hot|sexy|nude|xxx)\s+(cam|girl|webcam|chat|show|pics|video).{0,30}https?://` +
+		`|` +
+		// 7c. Drug marketplace
+		`(buy|order|sell)\s+(cocaine|heroin|meth|pills|xanax|fentanyl|drugs)\s+(online|cheap|discreet)` +
+		`|` +
+		// 8. Urgency clickbait
+		`click\s+(here|now|below).{0,30}(before|limited|expires?|hurry|urgent|last\s+chance)` +
+		`|` +
+		// 8b. Referral/promo spam
+		`(use|enter|try)\s+(my\s+)?(referral|invite|promo|discount)\s*(code|link)` +
+		`|` +
+		// 9. Inheritance fraud
+		`(inherit|inheritance|beneficiary|next\s+of\s+kin).{0,30}(million|usd|\$\d+|fund)` +
+		`|` +
+		// 9b. Wire transfer with urgency
+		`(wire|transfer|send)\s+(money|funds|payment)\s+(immediately|urgent|now|asap)` +
+		`|` +
 		// 10. Fake job / work from home
-		`(?i)(earn|make)\s+\$?\d+.{0,20}(per|a)\s+(day|hour|week).{0,15}(home|online|remote)`,
-	}
-
-	for _, p := range defaultPatterns {
-		bl.AddPattern(p)
-	}
+		`(earn|make)\s+\$?\d+.{0,20}(per|a)\s+(day|hour|week).{0,15}(home|online|remote)` +
+		`|` +
+		// 11. Fake KYC / verification with URL
+		`(complete|start|begin|finish)\s+(your\s+)?(kyc|verification|identity\s+check).{0,30}https?://` +
+		`|` +
+		// 12. Trading signals / pump group
+		`(trading|crypto)\s+(signal|tip|alert|call)s?.{0,20}(guaranteed|accurate|free|join|vip)` +
+		`|` +
+		// 13. Wallet connect to claim (web3-specific drainer)
+		`connect\s+(your\s+)?wallet\s+.{0,20}(claim|receive|mint|airdrop|reward)` +
+		`|` +
+		// 14. Loan / credit scam
+		`(instant|fast|quick|easy)\s+(loan|credit|cash).{0,20}(no\s+credit\s+check|approved|guaranteed|bad\s+credit)` +
+		`|` +
+		// 15. Social media engagement spam
+		`(buy|get|cheap)\s+(followers|likes|subscribers|views|retweets).{0,20}(cheap|fast|instant|guaranteed|bulk)` +
+		`|` +
+		// 16. Porn / adult solicitation
+		`(watch|download|stream|access)\s+(free\s+)?(porn|hentai|xxx|sex\s+tape|adult\s+video)` +
+		`|` +
+		`(onlyfans|chaturbate|livejasmin|pornhub|xvideos)\s*(link|free|premium|account|access)` +
+		`|` +
+		`(leaked|private|stolen)\s+(nude|naked|nsfw|sex)\s*(pic|photo|video|tape|content)s?` +
+		`|` +
+		// 17. Gore / shock content
+		`(watch|see|real)\s+(execution|beheading|murder|torture|death)\s*(video|footage|clip|live)` +
+		`|` +
+		`(gore|snuff|graphic)\s+(video|footage|content|film)` +
+		`|` +
+		// 18. Fake token launch / pump and dump
+		`(token|coin)\s+(just\s+)?(launched|deployed|listed|live).{0,20}(buy|invest|hurry|limited|moon|\d+x)` +
+		`|` +
+		// 19. Impersonation with scam CTA
+		`(official|admin|team|staff|support)\s+(announcement|message|notice|update).{0,30}(send|transfer|click|visit|connect|verify)` +
+		`|` +
+		// 20. Romance / sugar scam
+		`sugar\s+(daddy|mommy|mama|baby).{0,40}(pay|send|money|gift|allowance|dm|message|contact)` +
+		`|` +
+		`(lonely|single)\s+(girl|woman|man|guy|lady).{0,40}(dm|message|contact|whatsapp|telegram)` +
+		`)`)
 
 	// Pre-load spam keyword dictionary (~400 words, multi-language).
 	// See default_keywords.gno for the full list and weight definitions.

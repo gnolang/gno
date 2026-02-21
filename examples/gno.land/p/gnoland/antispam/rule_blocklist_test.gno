@@ -174,11 +174,10 @@ func TestBlocklistAllowlist(t *testing.T) {
 
 func TestBlocklistPatterns(t *testing.T) {
 	tests := []struct {
-		name        string
-		setup       func() *Blocklist
-		content     string
-		wantMatch   bool
-		wantPattern string
+		name      string
+		setup     func() *Blocklist
+		content   string
+		wantMatch bool
 	}{
 		{
 			name:      "success: no patterns, no match",
@@ -193,9 +192,8 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.AddPattern(`(?i)free\s*airdrop`)
 				return bl
 			},
-			content:     "Get your FREE AIRDROP now",
-			wantMatch:   true,
-			wantPattern: `(?i)free\s*airdrop`,
+			content:   "Get your FREE AIRDROP now",
+			wantMatch: true,
 		},
 		{
 			name: "success: URL pattern matches",
@@ -204,9 +202,8 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.AddPattern(`https?://(www\.)?scam\.com`)
 				return bl
 			},
-			content:     "Visit https://www.scam.com for details",
-			wantMatch:   true,
-			wantPattern: `https?://(www\.)?scam\.com`,
+			content:   "Visit https://www.scam.com for details",
+			wantMatch: true,
 		},
 		{
 			name: "success: pattern does not match clean content",
@@ -225,12 +222,11 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.AddPattern(`(?i)casino\s*bonus`)
 				return bl
 			},
-			content:     "Get your CASINO BONUS today",
-			wantMatch:   true,
-			wantPattern: `(?i)casino\s*bonus`,
+			content:   "Get your CASINO BONUS today",
+			wantMatch: true,
 		},
 		{
-			name: "success: multiple patterns, first match returned",
+			name: "success: multiple patterns via combined regex",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AddPattern(`(?i)spam`)
@@ -241,7 +237,7 @@ func TestBlocklistPatterns(t *testing.T) {
 			wantMatch: true,
 		},
 		{
-			name: "success: remove pattern",
+			name: "success: remove pattern rebuilds combined",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AddPattern(`(?i)spam`)
@@ -258,9 +254,8 @@ func TestBlocklistPatterns(t *testing.T) {
 				bl.AddPattern(`(?i)send\s+\d+\s*gnot`)
 				return bl
 			},
-			content:     "Send 1000 GNOT to this address and get 5000 back",
-			wantMatch:   true,
-			wantPattern: `(?i)send\s+\d+\s*gnot`,
+			content:   "Send 1000 GNOT to this address and get 5000 back",
+			wantMatch: true,
 		},
 		{
 			name: "edge: empty content",
@@ -287,14 +282,61 @@ func TestBlocklistPatterns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bl := tt.setup()
-			matched, pattern := bl.MatchesPattern(tt.content)
-			if matched != tt.wantMatch {
-				t.Errorf("MatchesPattern() matched = %v, want %v", matched, tt.wantMatch)
-			}
-			if tt.wantPattern != "" && pattern != tt.wantPattern {
-				t.Errorf("MatchesPattern() pattern = %q, want %q", pattern, tt.wantPattern)
+			if got := bl.MatchesPattern(tt.content); got != tt.wantMatch {
+				t.Errorf("MatchesPattern() = %v, want %v", got, tt.wantMatch)
 			}
 		})
+	}
+}
+
+// ---- Combined regex tests
+
+func TestCombinedRegexBuilt(t *testing.T) {
+	bl := NewBlocklist()
+	bl.AddPattern(`(?i)free\s+airdrop`)
+	bl.AddPattern(`(?i)send\s+\d+\s*gnot`)
+	bl.AddPattern(`(?i)casino\s*bonus`)
+
+	if bl.combined == nil {
+		t.Fatal("expected combined regex to be built after AddPattern")
+	}
+
+	// Clean content: single scan, no match
+	if bl.MatchesPattern("I think we should improve the staking rewards formula.") {
+		t.Error("expected no match for clean content")
+	}
+
+	// Spam content: single scan, match
+	if !bl.MatchesPattern("Get your free airdrop now!") {
+		t.Error("expected match for spam content")
+	}
+}
+
+func TestCombinedRegexRebuildOnRemove(t *testing.T) {
+	bl := NewBlocklist()
+	bl.AddPattern(`(?i)spam`)
+	bl.AddPattern(`(?i)scam`)
+
+	if bl.combined == nil {
+		t.Fatal("expected combined regex after adding patterns")
+	}
+
+	// Remove one pattern, combined is rebuilt
+	bl.RemovePattern(`(?i)spam`)
+	if bl.MatchesPattern("this is spam") {
+		t.Error("expected no match after removing spam pattern")
+	}
+	if !bl.MatchesPattern("this is a scam") {
+		t.Error("expected match for remaining scam pattern")
+	}
+
+	// Remove all patterns, combined is nil
+	bl.RemovePattern(`(?i)scam`)
+	if bl.combined != nil {
+		t.Error("expected combined to be nil after removing all patterns")
+	}
+	if bl.MatchesPattern("any content here") {
+		t.Error("expected no match with no patterns")
 	}
 }
 
