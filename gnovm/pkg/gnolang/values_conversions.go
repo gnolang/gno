@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"unicode/utf8"
 
 	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
@@ -1029,14 +1030,17 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		case *SliceType:
 			switch cbt.Elt.Kind() {
 			case Uint8Kind:
-				tv.V = alloc.NewSliceFromData([]byte(tv.GetString()))
+				data := []byte(tv.GetString())
+				data = data[:len(data):len(data)] // force cap = len
+				tv.V = alloc.NewSliceFromData(data)
 				tv.T = t // after tv.GetString()
 			case Int32Kind:
-				runes := []TypedValue{}
 				str := tv.GetString()
+				runes := make([]TypedValue, 0, utf8.RuneCountInString(str))
 				for _, r := range str {
 					runes = append(runes, typedRune(r))
 				}
+				runes = runes[:len(runes):len(runes)] // force cap = len
 				tv.V = alloc.NewSliceFromList(runes)
 				tv.T = t // after tv.GetString()
 			default:

@@ -62,6 +62,8 @@ rune := rune('a')
 
 **\*:** depends on `T`/`T1`/`T2`
 
+Note: for determinism, converting a `string` to `[]byte` or `[]rune` produces a slice with `cap == len`.
+
 Additional builtin types:
 
 | type     | comment                                                                                    |
