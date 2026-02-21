@@ -5,7 +5,7 @@
 | Network | RPC Endpoint                             | Chain ID  |
 |---------|------------------------------------------|-----------|
 | Staging | https://rpc.gno.land:443                 | `staging` |
-| Test10  | https://rpc.test10.testnets.gno.land:443 | `test10`  |
+| Test11  | https://rpc.test11.testnets.gno.land:443 | `test11`  |
 
 ### WebSocket endpoints
 
