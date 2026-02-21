@@ -22,7 +22,7 @@ func ScoreRate(rate RateState) (int, string) {
 
 	const maxSafePostCount = (1 << 50) / 3600
 	if rate.PostCount > maxSafePostCount {
-		return WeightRateBurst, "RATE_BURST"
+		return WeightRateBurst, RuleRateBurst
 	}
 
 	var postsPerHour int
@@ -37,7 +37,7 @@ func ScoreRate(rate RateState) (int, string) {
 	}
 
 	if postsPerHour <= rateMaxPerHour*2 {
-		return WeightRateBurst / 2, "RATE_BURST"
+		return WeightRateBurst / 2, RuleRateBurst
 	}
-	return WeightRateBurst, "RATE_BURST"
+	return WeightRateBurst, RuleRateBurst
 }

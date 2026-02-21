@@ -137,12 +137,12 @@ func ScoreBlocklist(author, content string, bl *Blocklist) (int, string) {
 
 	// Blocked address
 	if bl.IsBlocked(author) {
-		return WeightBlockedAddress, "BLOCKED_ADDRESS"
+		return WeightBlockedAddress, RuleBlockedAddress
 	}
 
 	// Pattern matching
 	if matched, _ := bl.MatchesPattern(content); matched {
-		return WeightBlockedPattern, "BLOCKED_PATTERN"
+		return WeightBlockedPattern, RuleBlockedPattern
 	}
 
 	return 0, ""

@@ -66,33 +66,37 @@ func Fingerprint(text string) []uint64 {
 	return sig
 }
 
-// hashThreeRunes computes a hash for exactly 3 runes.
+// hashThreeRunes computes an FNV-1a hash for exactly 3 runes, processing 4 bytes per rune.
+// NOTE: byte(r >> 24) is always 0 for valid Unicode runes (max U+10FFFF = 21 bits).
+// The zero XOR still contributes mixing via the FNV prime multiply that follows.
 func hashThreeRunes(a, b, c rune) uint64 {
-	h := uint64(14695981039346656037)
+	const fnvOffsetBasis = 14695981039346656037
+	const fnvPrime = 1099511628211
+	h := uint64(fnvOffsetBasis)
 	h ^= uint64(byte(a >> 24))
-	h *= 1099511628211
+	h *= fnvPrime
 	h ^= uint64(byte(a >> 16))
-	h *= 1099511628211
+	h *= fnvPrime
 	h ^= uint64(byte(a >> 8))
-	h *= 1099511628211
+	h *= fnvPrime
 	h ^= uint64(byte(a))
-	h *= 1099511628211
+	h *= fnvPrime
 	h ^= uint64(byte(b >> 24))
-	h *= 1099511628211
+	h *= fnvPrime
 	h ^= uint64(byte(b >> 16))
-	h *= 1099511628211
+	h *= fnvPrime
 	h ^= uint64(byte(b >> 8))
-	h *= 1099511628211
+	h *= fnvPrime
 	h ^= uint64(byte(b))
-	h *= 1099511628211
+	h *= fnvPrime
 	h ^= uint64(byte(c >> 24))
-	h *= 1099511628211
+	h *= fnvPrime
 	h ^= uint64(byte(c >> 16))
-	h *= 1099511628211
+	h *= fnvPrime
 	h ^= uint64(byte(c >> 8))
-	h *= 1099511628211
+	h *= fnvPrime
 	h ^= uint64(byte(c))
-	h *= 1099511628211
+	h *= fnvPrime
 	return h
 }
 
@@ -141,10 +145,12 @@ func (fs *FingerprintStore) Add(content string) {
 
 	// Evict the oldest entry if at capacity.
 	if fs.tree.Size() >= fpMaxStoreSize {
+		var oldest string
 		fs.tree.Iterate("", "", func(key string, _ interface{}) bool {
-			fs.tree.Remove(key)
+			oldest = key
 			return true
 		})
+		fs.tree.Remove(oldest)
 	}
 
 	key := intToKey(fs.count)
@@ -179,9 +185,10 @@ func (fs *FingerprintStore) Size() int {
 }
 
 // intToKey converts an int to a zero-padded string key.
+// Uses 20 digits to cover the full int64 range.
 func intToKey(n int) string {
-	var buf [10]byte
-	for i := 9; i >= 0; i-- {
+	var buf [20]byte
+	for i := 19; i >= 0; i-- {
 		buf[i] = byte('0' + n%10)
 		n /= 10
 	}
@@ -196,7 +203,7 @@ func ScoreFingerprint(content string, fps *FingerprintStore) (int, string) {
 		return 0, ""
 	}
 	if fps.HasSimilar(content, fpDefaultThreshold) {
-		return WeightNearDuplicate, "NEAR_DUPLICATE"
+		return WeightNearDuplicate, RuleNearDuplicate
 	}
 	return 0, ""
 }
