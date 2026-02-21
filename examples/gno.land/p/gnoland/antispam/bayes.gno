@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"gno.land/p/nt/avl"
 )
@@ -49,19 +50,7 @@ func Tokenize(text string) []string {
 			}
 		}
 
-		// Decode one rune
-		var r rune
-		var size int
-		if text[i] < 0x80 {
-			r = rune(text[i])
-			size = 1
-		} else {
-			for _, rr := range text[i:] {
-				r = rr
-				break
-			}
-			size = runeLen(r)
-		}
+		r, size := utf8.DecodeRuneInString(text[i:])
 
 		if unicode.IsSpace(r) {
 			inURL = false

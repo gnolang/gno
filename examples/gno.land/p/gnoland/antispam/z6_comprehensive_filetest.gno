@@ -10,7 +10,8 @@ package main
 //   BLOCKED_ADDRESS (99)  BLOCKED_PATTERN (5)   NEAR_DUPLICATE (4)
 //   RATE_BURST (4)        ALL_CAPS (3)          SHORT_WITH_LINK (3)
 //   BAYES_SPAM (3)        BAD_REPUTATION (3)    KEYWORD_SPAM (3)
-//   LINK_HEAVY (2)        NEW_ACCOUNT (2)       EXCESSIVE_PUNCT (1)
+//   ZALGO_TEXT (3)        LINK_HEAVY (2)        NEW_ACCOUNT (2)
+//   INVISIBLE_CHARS (2)   HOMOGLYPH_MIX (2)    EXCESSIVE_PUNCT (1)
 //   NO_USERNAME (1)       LOW_BALANCE (1)        BANNED_BEFORE (1-3)
 //
 // Scenarios:
@@ -21,6 +22,7 @@ package main
 // 5. Short link spam → short body with URL
 // 6. Blocked address → instant rejection
 // 7. Allowlisted moderator → bypass all rules
+// 8. Unicode abuse → zalgo + invisible chars + homoglyph mixing
 
 import (
 	"gno.land/p/gnoland/antispam"
@@ -323,6 +325,37 @@ func main() {
 	println("Status:  ✓ BYPASSED\n")
 
 	// ========================================
+	// SCENARIO 8: Unicode Abuse
+	// ========================================
+
+	println("SCENARIO 8: Unicode Abuse (Zalgo + Invisible + Homoglyph)")
+	println("═════════════════════════════════════════════════════════\n")
+
+	// Zalgo (4 combining marks on S) + homoglyph (cyrillic а in "pаyment") + invisible (2x zero-width space)
+	unicodeMsg := "S\u0300\u0301\u0302\u0303end p\u0430yment\u200B\u200Bnow"
+
+	result8 := antispam.Score(antispam.ScoreInput{
+		Author:  "g1griefer",
+		Content: unicodeMsg,
+		Rate:    antispam.RateState{PostCount: 1, WindowSeconds: 3600},
+		Rep:     goodRep,
+		Corpus:  corpus,
+		Fps:     fps,
+		Bl:      bl,
+		Dict:    dict,
+	})
+
+	println("Author:  g1griefer (good reputation, normal rate)")
+	println("Message: contains zalgo text, cyrillic homoglyph, zero-width spaces")
+	println("Score:   " + intToString(result8.Total) + " | Triggered: " + sliceToString(result8.Triggered))
+	println("Rules breakdown:")
+	println("  ZALGO_TEXT(3) = stacked combining marks distort rendering")
+	println("  INVISIBLE_CHARS(2) = zero-width spaces for obfuscation")
+	println("  HOMOGLYPH_MIX(2) = cyrillic 'а' mixed with latin in same word")
+	println("  Good reputation irrelevant — unicode abuse is a content signal")
+	println("Status:  ⚠ HIDDEN (score ≥ " + intToString(antispam.ThresholdHide) + ")\n")
+
+	// ========================================
 	// SUMMARY
 	// ========================================
 
@@ -338,9 +371,10 @@ func main() {
 	println("5. Short    " + intToString(result5.Total) + "  " + sliceToString(result5.Triggered))
 	println("6. Blocked " + intToString(result6.Total) + "  " + sliceToString(result6.Triggered))
 	println("7. Allowed   " + intToString(result7.Total) + "  " + sliceToString(result7.Triggered))
+	println("8. Unicode   " + intToString(result8.Total) + "  " + sliceToString(result8.Triggered))
 	println("")
 
-	println("All 15 rules triggered at least once across these scenarios.")
+	println("All 18 rules triggered at least once across these scenarios.")
 	println("No single rule is sufficient — multi-layer detection is the key.")
 }
 
@@ -427,6 +461,19 @@ func main() {
 //   Use case: moderators, admins, emergency announcements
 // Status:  ✓ BYPASSED
 //
+// SCENARIO 8: Unicode Abuse (Zalgo + Invisible + Homoglyph)
+// ═════════════════════════════════════════════════════════
+//
+// Author:  g1griefer (good reputation, normal rate)
+// Message: contains zalgo text, cyrillic homoglyph, zero-width spaces
+// Score:   7 | Triggered: [ZALGO_TEXT INVISIBLE_CHARS HOMOGLYPH_MIX]
+// Rules breakdown:
+//   ZALGO_TEXT(3) = stacked combining marks distort rendering
+//   INVISIBLE_CHARS(2) = zero-width spaces for obfuscation
+//   HOMOGLYPH_MIX(2) = cyrillic 'а' mixed with latin in same word
+//   Good reputation irrelevant — unicode abuse is a content signal
+// Status:  ⚠ HIDDEN (score ≥ 5)
+//
 // RULE COVERAGE MATRIX
 // ════════════════════
 //
@@ -439,6 +486,7 @@ func main() {
 // 5. Short    4  [EXCESSIVE_PUNCT SHORT_WITH_LINK]
 // 6. Blocked 99  [BLOCKED_ADDRESS]
 // 7. Allowed   0  []
+// 8. Unicode   7  [ZALGO_TEXT INVISIBLE_CHARS HOMOGLYPH_MIX]
 //
-// All 15 rules triggered at least once across these scenarios.
+// All 18 rules triggered at least once across these scenarios.
 // No single rule is sufficient — multi-layer detection is the key.

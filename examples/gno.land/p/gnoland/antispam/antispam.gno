@@ -60,6 +60,9 @@ const (
 //	KEYWORD_SPAM          3   Multiple spam keywords (co-occurrence)
 //	LINK_HEAVY            2   >3 URLs in content
 //	NEW_ACCOUNT           2   Account <1 day old with no posts
+//	ZALGO_TEXT            3   Excessive combining diacritical marks (zalgo text)
+//	INVISIBLE_CHARS       2   Zero-width or directional override characters
+//	HOMOGLYPH_MIX        2   Mixed unicode scripts in single word (e.g. latin + cyrillic)
 //	EXCESSIVE_PUNCT       1   >20% punctuation characters
 //	NO_USERNAME           1   No registered username
 //	LOW_BALANCE           1   Balance < 1000 GNOT
@@ -74,8 +77,11 @@ const (
 	WeightBayesSpam      = 3
 	WeightBadReputation  = 3
 	WeightKeyword        = 3
+	WeightZalgoText      = 3
 	WeightLinkHeavy      = 2
 	WeightNewAccount     = 2
+	WeightInvisibleChars = 2
+	WeightHomoglyphMix   = 2
 	WeightExcessivePunct = 1
 	WeightNoUsername     = 1
 	WeightLowBalance     = 1
@@ -151,8 +157,8 @@ func Score(in ScoreInput) SpamScore {
 	// Pre-compute deduplicated tokens once (shared by Bayes + Keywords rules).
 	tokens := dedup(Tokenize(in.Content))
 
-	// Content heuristics (single-pass: caps, punct, URLs)
-	addHits(ScoreContent(in.Content))
+	// Content heuristics + unicode abuse (merged single-pass)
+	addHits(scoreContentAll(in.Content))
 
 	// Rate limiting
 	if s, r := ScoreRate(in.Rate); s > 0 {

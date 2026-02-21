@@ -110,17 +110,62 @@ func parseSimpleInt(s string) int {
 	return n
 }
 
+// ---- Leet speak normalization
+
+// normalizeLeet converts common leet speak digit substitutions back to letters.
+// Only handles digit-based leet (0→o, 1→i, 3→e, 4→a, 5→s, 7→t) since
+// symbol-based leet (@, $) is stripped during tokenization.
+func normalizeLeet(s string) string {
+	if s == "" {
+		return s
+	}
+	hasDigit := false
+	for i := 0; i < len(s); i++ {
+		if s[i] >= '0' && s[i] <= '9' {
+			hasDigit = true
+			break
+		}
+	}
+	if !hasDigit {
+		return s
+	}
+
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '0':
+			b.WriteByte('o')
+		case '1':
+			b.WriteByte('i')
+		case '3':
+			b.WriteByte('e')
+		case '4':
+			b.WriteByte('a')
+		case '5':
+			b.WriteByte('s')
+		case '7':
+			b.WriteByte('t')
+		default:
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
+}
+
 // ---- Scoring
 
 // ScoreKeywords checks content tokens against a keyword dictionary.
 // Uses co-occurrence: triggers only when multiple keywords are found
 // AND their combined weight exceeds the threshold.
 // Tokens are deduplicated — repeating a word doesn't increase the score.
+// Also checks leet-speak normalized variants of each token.
 func ScoreKeywords(content string, dict *KeywordDict) (int, string) {
 	return scoreKeywordsTokens(dedup(Tokenize(content)), dict)
 }
 
 // scoreKeywordsTokens scores pre-deduplicated tokens against the dictionary.
+// For each token, checks both the original and leet-normalized variant.
 // Tokens must already be deduplicated.
 func scoreKeywordsTokens(tokens []string, dict *KeywordDict) (int, string) {
 	if dict == nil || dict.Size() == 0 {
@@ -135,6 +180,13 @@ func scoreKeywordsTokens(tokens []string, dict *KeywordDict) (int, string) {
 
 	for _, tok := range tokens {
 		w, ok := dict.GetWeight(tok)
+		if !ok {
+			// Try leet-normalized variant.
+			norm := normalizeLeet(tok)
+			if norm != tok {
+				w, ok = dict.GetWeight(norm)
+			}
+		}
 		if ok {
 			weightSum += w
 			matches++
