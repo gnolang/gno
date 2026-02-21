@@ -669,8 +669,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	hasVarg := ft.HasVarg()
 	// NOTE: nargs = `cur` + user's len(args)
 	nargs := len(msg.Args) + 1
+	// If function is not variadic, it must have the same number of arguments.
 	if !hasVarg {
-		// If function is not variadic, it must have the same number of arguments.
 		if nargs != len(ft.Params) {
 			panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
 		}
