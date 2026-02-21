@@ -9,6 +9,18 @@ export class ActionFunctionController extends BaseController {
 	protected sendValue: string | null = null;
 	declare _funcName: string | null;
 	declare _pkgPath: string | null;
+	declare _paramInputsCache: HTMLInputElement[];
+	declare _params: Record<string, string>;
+
+	// Cached params inputs
+	private get _paramInputs(): HTMLInputElement[] {
+		if (!this._paramInputsCache) {
+			this._paramInputsCache = this.getTargets(
+				"param-input",
+			) as HTMLInputElement[];
+		}
+		return this._paramInputsCache;
+	}
 
 	protected connect(): void {
 		this.initializeDOM({
@@ -23,6 +35,9 @@ export class ActionFunctionController extends BaseController {
 
 		// Some functions may have no params, or all params already have values
 		this._updateQEvalResult();
+
+		// Dispatch initial params state for wallet integration
+		this._dispatchParamsChanged();
 	}
 
 	// listen for events from action-header controller
@@ -65,27 +80,12 @@ export class ActionFunctionController extends BaseController {
 		});
 	}
 
-	// sanitize the args input
-	private _sanitizeArgsInput(input: HTMLInputElement): {
-		paramName: string;
-		paramValue: string;
-	} {
-		const paramName = this.getValue("param", input) || "";
-		const paramValue = input.value.trim();
-
-		if (!paramName) {
-			console.warn("sanitizeArgsInput: param is missing in arg input dataset.");
-		}
-
-		return { paramName, paramValue };
-	}
-
 	// get current value for a param name (handles checkbox multiple values)
 	private _getParamCurrentValue(paramName: string): string {
 		// radio or checkbox multiple values
-		const inputs = this.getTargets("param-input")
-			.filter((inp) => this.getValue("param", inp) === paramName)
-			.map((inp) => inp as HTMLInputElement);
+		const inputs = this._paramInputs.filter(
+			(inp) => this.getValue("param", inp) === paramName,
+		);
 
 		if (!inputs.length) return "";
 
@@ -102,6 +102,7 @@ export class ActionFunctionController extends BaseController {
 		// Radio: find checked one
 		if (firstInput.type === "radio") {
 			const checked = inputs.find((inp) => inp.checked);
+
 			return checked?.value.trim() || "";
 		}
 
@@ -114,14 +115,15 @@ export class ActionFunctionController extends BaseController {
 		// multiple values (radio or checkbox) to be initialized only once
 		const processed = new Set<string>();
 
-		// initialize the args
-		this.getTargets("param-input").forEach((paramInput) => {
-			const input = paramInput as HTMLInputElement;
+		// Build params tree and initialize the args
+		this._params = {};
+		this._paramInputs.forEach((input) => {
 			const paramName = this.getValue("param", input) || "";
 
 			if (!paramName || processed.has(paramName)) return;
 
 			const paramValue = this._getParamCurrentValue(paramName);
+			this._params[paramName] = paramValue;
 			if (paramValue) this._updateArgInDOM(paramName, paramValue);
 
 			processed.add(paramName);
@@ -134,10 +136,23 @@ export class ActionFunctionController extends BaseController {
 			if (paramName) {
 				this._updateArgInDOM(paramName, paramValue);
 				this._updateQEvalResult();
+				this._dispatchParamsChanged();
 			}
 		},
 		50,
 	);
+
+	// Dispatch params:changed event uppon parameter updates.
+	private _dispatchParamsChanged(): void {
+		if (!this._funcName || !this._pkgPath) return;
+
+		this.dispatch("params:changed", {
+			pkgPath: this._pkgPath,
+			funcName: this._funcName,
+			params: { ...this._params },
+			send: this.sendValue || undefined,
+		});
+	}
 
 	// push args in DOM (in func code)
 	private _updateArgInDOM(paramName: string, paramValue: string): void {
@@ -150,29 +165,31 @@ export class ActionFunctionController extends BaseController {
 				arg.textContent = escapedValue || "";
 			});
 
-		// Update function links (execute and anchor) with new parameter value
-		const functionLinks = [
-			...this.getTargets("function-execute"),
-			...this.getTargets("function-anchor"),
-		] as HTMLAnchorElement[];
-		if (functionLinks.length > 0) {
-			functionLinks.forEach((functionLink) => {
-				const linkAttribute = functionLink.hasAttribute("href")
-					? "href"
-					: "data-copy-text-value";
-				const currentUrl = functionLink.getAttribute(linkAttribute);
-				if (!currentUrl) {
-					console.warn(
-						`No href or data-copy-text-value attribute found for the function link: ${functionLink}.`,
-					);
-					return;
-				}
+		// Update function execute (form) and anchor (copy button) with new parameter
+		const executeForm = this.getTarget("function-execute") as HTMLFormElement;
+		const anchorButton = this.getTarget("function-anchor") as HTMLButtonElement;
+		if (!executeForm && !anchorButton) return;
 
-				const u = new URL(currentUrl, window.location.origin);
-				u.searchParams.set(paramName, paramValue);
-				functionLink.setAttribute(linkAttribute, u.toString() || "");
-			});
+		const baseUrl =
+			executeForm?.getAttribute("action") ||
+			anchorButton?.getAttribute("data-copy-text-value");
+		if (!baseUrl) return;
+
+		const parts = baseUrl.split("&");
+		const encodedValue = encodeURIComponent(paramValue);
+		const index = parts.findIndex(
+			(part, i) => i > 0 && part.startsWith(`${paramName}=`),
+		);
+		if (index !== -1) {
+			parts[index] = `${paramName}=${encodedValue}`;
+		} else {
+			parts.push(`${paramName}=${encodedValue}`);
 		}
+
+		const updatedUrl = parts.join("&");
+
+		executeForm?.setAttribute("action", updatedUrl);
+		anchorButton?.setAttribute("data-copy-text-value", updatedUrl);
 	}
 
 	// Update the qeval result
@@ -211,7 +228,7 @@ export class ActionFunctionController extends BaseController {
 	// Fetch the qeval result from the remote
 	private async _fetchQEval(remote: string, data: string): Promise<string> {
 		try {
-			const url = `http://${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
+			const url = `${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
 			const response = await fetch(url);
 			if (!response.ok) return "";
 
@@ -229,8 +246,9 @@ export class ActionFunctionController extends BaseController {
 		const paramName = this.getValue("param", target);
 		if (!paramName) return;
 
-		// get the current value for the param name
+		// get the current value for the param name and update params tree
 		const paramValue = this._getParamCurrentValue(paramName);
+		this._params[paramName] = paramValue;
 		this._debouncedUpdateAllArgs(paramName, paramValue);
 	}
 
@@ -239,8 +257,10 @@ export class ActionFunctionController extends BaseController {
 		event: Event & { params?: Record<string, unknown> },
 	): void {
 		const send = (event.params?.send as boolean) || false;
+		this.sendValue = send ? this.getValue("send") : null;
 		this.getDOMArray("send-code").forEach((sendElement) => {
-			sendElement.textContent = send ? this.getValue("send") : "";
+			sendElement.textContent = this.sendValue || "";
 		});
+		this._dispatchParamsChanged();
 	}
 }

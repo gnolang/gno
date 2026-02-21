@@ -360,13 +360,43 @@ func FilterList(cur realm, testlist []string) { // blanks out blacklist items fr
 ```
 
 This is a toy example, but you can see that the intent of `FilterList()` is to
-modify an externally provided slice; yet if you call `alice.FilterList(cross,
-alice.GetBlacklist())` you can trick alice into modifying its own blacklist--the
-result is that alice.BlackList becomes full of blank values.
+modify an externally provided slice; yet if you call `alice.FilterList(cross, alice.GetBlacklist())` you can trick alice into modifying its own blacklist--the result is that alice.BlackList becomes full of blank values.
 
-With the readonly taint `var Blacklist []string` solves the problem for you;
-that is, /r/bob cannot successfully call `alice.FilterList(cross,
-alice.Blacklist)` because `alice.Blacklist` is readonly tainted for bob.
+With the readonly taint, `var Blacklist []string` solves the problem for you;
+that is, /r/bob cannot call `alice.FilterList(cross, alice.Blacklist)`, even
+though alice can call `FilterList(cur, Blacklist)` if it wants to (but that would
+simply be programmer error).
+
+Of course the problem remains if alice implements `func GetBlacklist() []string { return Blacklist }` since then /r/bob can call `alice.FilterList(cross, alice.GetBlacklist())` which would not be readonly tainted, but we should be adding the `readonly` modifier to support `func GetBlacklist() readonly []string`. TODO 
+
+## `fn(cross, ...)` and `func fn(cur realm, ...){...}` Specification
+
+Gno extends Go's type system with interrealm rules. These rules can be
+checked during the static type-checking phase (but at the moment they are
+partially dependent on runtime checks).
+
+All functions in Gno execute under a realm context as determined by the call
+stack. Objects that reside in a realm can only be modified if the realm context
+matches.
+
+A function declared in p packages when called: 
+
+ * inherits the last realm for package declared functions and closures.
+ * inherits the last realm when a method is called on unreal receiver.
+ * implicitly crosses to the receiver's resident realm when a method of the
+   receiver is called. The receiver's realm is also called the "borrow realm".
+
+A function declared in a realm package when called:
+
+ * explicitly crosses to the realm in which the function is declared if the
+   function is declared as `func fn(cur realm, ...){...}` (with `cur realm` as the 
+   first argument). The new realm is called the "current realm".
+ * otherwise follows the same rules as for p packages.
+
+The `cur realm` argument must appear as the first argument of a function's 
+parameter list. It is illegal to use anywhere else, and cannot be used in p
+packages. Functions that start with the `cur realm` argument as first argument
+are called "crossing functions". 
 
 The problem remains if alice implements `func GetBlacklist() []string { return
 Blacklist }` since then /r/bob can call `alice.FilterList(cross,

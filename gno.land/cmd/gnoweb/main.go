@@ -225,9 +225,9 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	// Setup app
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
-	appcfg.NodeRemote = cfg.remote
+	appcfg.NodeRemote = normalizeRemoteURL(cfg.remote)
 	appcfg.NodeRequestTimeout = cfg.remoteTimeout
-	appcfg.RemoteHelp = cfg.remoteHelp
+	appcfg.RemoteHelp = normalizeRemoteURL(cfg.remoteHelp)
 	if appcfg.RemoteHelp == "" {
 		appcfg.RemoteHelp = appcfg.NodeRemote
 	}
@@ -262,7 +262,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	logger.Info("Running", "listener", bindaddr.String())
 
 	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, cfg.remote)
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
 
 	// Setup server
 	server := &http.Server{
@@ -331,7 +331,7 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http
 	// scripts, styles, images, and other resources. This helps prevent
 	// cross-site scripting (XSS) and other code injection attacks.
 	csp := fmt.Sprintf(
-		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src %s/abci_query",
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src %s/abci_query; form-action 'self'",
 		imgSrc,
 		remote,
 	)
@@ -363,4 +363,28 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// normalizeRemoteURL ensures the remote URL has a valid HTTP(S) protocol.
+// - tcp:// is converted to http:// (RPC uses HTTP over TCP)
+// - No protocol defaults to http://
+// - http:// and https:// are kept as-is
+// - Any other protocol (e.g., unix://) will panic as it's not supported in web context
+func normalizeRemoteURL(remote string) string {
+	remote = strings.TrimSpace(remote)
+	if remote == "" {
+		return ""
+	}
+	protocol, rest, found := strings.Cut(remote, "://")
+	if !found {
+		return "http://" + remote
+	}
+	switch protocol {
+	case "tcp":
+		return "http://" + rest
+	case "http", "https":
+		return remote
+	default:
+		panic("unsupported protocol: " + protocol)
+	}
 }

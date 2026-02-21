@@ -11,9 +11,9 @@
 <span><span class="font-bold">/r/test</span> Exec: Transfer</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
-<div data-controller="action-function" data-action-function-name-value="Transfer">
+<div data-controller="action-function" data-action-function-name-value="Transfer" data-action-function-pkgpath-value="/r/test">
 <!-- Error: unexpected or invalid tag -->
-<div class="gno-form_input"><label for="to"> Recipient </label>
+<div class="gno-form_input"><label for="to">Recipient</label>
 <input type="text" id="to" name="to" placeholder="Recipient" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="to" />
 </div>
 <div class="gno-form_input"><input type="submit" value="Submit (Transfer Function)" /></div>
@@ -46,8 +46,8 @@
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.
 
-gnokey maketx call -pkgpath "/r/test" -func "Transfer" -args $'<span data-action-function-target="arg" data-action-function-arg-value="to"></span>' -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" -broadcast -chainid "dev" -remote "127.0.0.1:26657" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-Transfer" class="u-inline">gnokey query -remote "127.0.0.1:26657" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
-gnokey maketx call -pkgpath "/r/test" -func "Transfer" -args $'<span data-action-function-target="arg" data-action-function-arg-value="to"></span>' -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" <span data-action-function-target="address">ADDRESS</span> > call.tx
+gnokey maketx call -pkgpath "/r/test" -func "Transfer" -args $'<span data-action-function-target="arg" data-action-function-arg-value="to"></span>' -gas-fee 1000000ugnot -gas-wanted 1_000_000_000 -send "<span data-action-function-target="send-code"></span>" -broadcast -chainid "dev" -remote "127.0.0.1:26657" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-Transfer" class="u-inline">gnokey query -remote "127.0.0.1:26657" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
+gnokey maketx call -pkgpath "/r/test" -func "Transfer" -args $'<span data-action-function-target="arg" data-action-function-arg-value="to"></span>' -gas-fee 1000000ugnot -gas-wanted 1_000_000_000 -send "<span data-action-function-target="send-code"></span>" <span data-action-function-target="address">ADDRESS</span> > call.tx
 gnokey sign -tx-path call.tx -chainid "dev" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
 gnokey broadcast -remote "127.0.0.1:26657" call.tx
   </span></code></pre>

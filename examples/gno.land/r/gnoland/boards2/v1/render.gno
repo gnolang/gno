@@ -9,6 +9,7 @@ import (
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/nt/mux"
@@ -45,11 +46,13 @@ func Render(path string) string {
 	router.HandleFunc("{board}/invite-member", renderInviteMember)
 	router.HandleFunc("{board}/{thread}", renderThread)
 	router.HandleFunc("{board}/{thread}/flag", renderFlagPost)
+	router.HandleFunc("{board}/{thread}/flagging-reasons", renderFlaggingReasonsPost)
 	router.HandleFunc("{board}/{thread}/reply", renderReplyPost)
 	router.HandleFunc("{board}/{thread}/edit", renderEditThread)
 	router.HandleFunc("{board}/{thread}/repost", renderRepostThread)
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
 	router.HandleFunc("{board}/{thread}/{reply}/flag", renderFlagPost)
+	router.HandleFunc("{board}/{thread}/{reply}/flagging-reasons", renderFlaggingReasonsPost)
 	router.HandleFunc("{board}/{thread}/{reply}/reply", renderReplyPost)
 	router.HandleFunc("{board}/{thread}/{reply}/edit", renderEditReply)
 
@@ -77,7 +80,7 @@ func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
 
 	link := gRealmLink.Call("SetHelp", "content", "")
 	res.Write(md.H3("Help content has not been uploaded"))
-	res.Write("Do you want to " + md.Link("upload boards help", link) + " ?")
+	res.Write("Do you want to " + md.Link("upload boards help", link) + "?")
 }
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
@@ -87,7 +90,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	if gListedBoardsByID.Size() == 0 {
 		res.Write(md.H3("Currently there are no boards"))
-		res.Write("Be the first to " + md.Link("create a new board", createBoardURI) + " !")
+		res.Write("Be the first to " + md.Link("create a new board", createBoardURI) + "!")
 		return
 	}
 
@@ -101,7 +104,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		userLink := userLink(board.Creator)
 		date := board.CreatedAt.Format(dateFormat)
 
-		res.Write(md.Bold(md.Link(board.Name, makeBoardURI(board))) + "  \n")
+		res.Write(md.H6(md.Link(board.Name, makeBoardURI(board))))
 		res.Write("Created by " + userLink + " on " + date + ", #" + board.ID.String() + "  \n")
 
 		status := strconv.Itoa(board.Threads.Size()) + " threads"
@@ -145,12 +148,13 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 	form.Input(
 		"name",
 		"placeholder", "Board name",
+		"required", "true",
 	)
 	form.Radio(
 		"listed",
 		"true",
 		"checked", "true",
-		"description", "Should board be publically listed?",
+		"description", "Should board be publicly listed?",
 	)
 	form.Radio(
 		"listed",
@@ -168,6 +172,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 	)
 
 	res.Write(md.H1("Boards: Create Board"))
+	res.Write(md.Link("← Back to boards", gRealmPath) + "\n\n")
 	res.Write(
 		md.Paragraph(
 			"Boards are by default listed by the realm but they can optionally " +
@@ -181,6 +186,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 		),
 	)
 	res.Write(form.String())
+	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to boards", gRealmPath) + "\n")
 }
 
 func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
