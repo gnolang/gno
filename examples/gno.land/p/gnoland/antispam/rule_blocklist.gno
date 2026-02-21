@@ -47,6 +47,11 @@ func (bl *Blocklist) IsBlocked(addr string) bool {
 	return bl.blocked.Has(addr)
 }
 
+// BlockedCount returns the number of blocked addresses.
+func (bl *Blocklist) BlockedCount() int {
+	return bl.blocked.Size()
+}
+
 // ---- Address allowlisting (whitelist)
 
 // AllowAddress adds an address to the allowlist.
@@ -63,6 +68,11 @@ func (bl *Blocklist) RemoveAllow(addr string) {
 // IsAllowed returns true if the address is in the allowlist.
 func (bl *Blocklist) IsAllowed(addr string) bool {
 	return bl.allowed.Has(addr)
+}
+
+// AllowedCount returns the number of allowed addresses.
+func (bl *Blocklist) AllowedCount() int {
+	return bl.allowed.Size()
 }
 
 // ---- Pattern matching
@@ -117,33 +127,4 @@ func (bl *Blocklist) MatchesPattern(content string) (bool, string) {
 		return false
 	})
 	return matched, matchedPattern
-}
-
-// ---- Scoring
-
-// ScoreBlocklist evaluates author and content against the blocklist.
-// Allowed addresses return 0 immediately.
-// Blocked addresses return WeightBlockedAddress.
-// Pattern matches return WeightBlockedPattern.
-func ScoreBlocklist(author, content string, bl *Blocklist) (int, string) {
-	if bl == nil {
-		return 0, ""
-	}
-
-	// Allowlist bypasses everything
-	if bl.IsAllowed(author) {
-		return 0, ""
-	}
-
-	// Blocked address
-	if bl.IsBlocked(author) {
-		return WeightBlockedAddress, RuleBlockedAddress
-	}
-
-	// Pattern matching
-	if matched, _ := bl.MatchesPattern(content); matched {
-		return WeightBlockedPattern, RuleBlockedPattern
-	}
-
-	return 0, ""
 }

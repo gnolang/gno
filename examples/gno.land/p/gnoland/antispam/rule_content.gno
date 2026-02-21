@@ -12,7 +12,7 @@ const (
 	capsThresholdPct  = 50 // % of letters that are uppercase
 	punctThresholdPct = 20 // % of characters that are punctuation
 	linkMaxCount      = 3  // links above this count trigger LINK_HEAVY
-	shortBodyMaxLen   = 30 // body length below this with a link triggers SHORT_WITH_LINK
+	shortBodyMaxLen   = 30 // body byte length below this with a link triggers SHORT_WITH_LINK
 	minLettersForCaps = 10 // minimum letters to evaluate ALL_CAPS (avoid false positives on short text)
 	minCharsForPunct  = 10 // minimum characters to evaluate punctuation
 )
@@ -20,7 +20,7 @@ const (
 // contentStats holds all counters from content analysis.
 type contentStats struct {
 	upper, lower     int // letter case counts (URLs excluded)
-	punct, nonSpace  int // punctuation and non-space counts
+	punct, nonSpace  int // punctuation and non-space counts (URLs excluded)
 	urlCount         int // number of http/https URLs
 	invisibleCount   int // zero-width and directional override characters
 	maxConsecCombine int // longest run of combining marks on one character
@@ -88,8 +88,9 @@ func hitsFromUnicodeStats(s contentStats) []RuleHit {
 }
 
 // analyzeContent collects all stats for content heuristics and unicode abuse detection.
-// URLs are skipped for letter counting (to avoid skewing the caps ratio)
-// but script tracking continues (to detect homoglyphs in URLs).
+// URLs are skipped for letter, punctuation, and nonSpace counting (to avoid
+// skewing caps and punct ratios with URL syntax characters like ://?=&#).
+// Script tracking continues inside URLs to detect homoglyphs in IDN domains.
 func analyzeContent(content string) contentStats {
 	var s contentStats
 	pos := 0
@@ -138,17 +139,18 @@ func analyzeContent(content string) contentStats {
 			wordHasLatin = false
 			wordHasOther = false
 		} else {
-			s.nonSpace++
-			if isPunct(r) {
-				s.punct++
-			}
 			if !inURL {
+				s.nonSpace++
+				if isPunct(r) {
+					s.punct++
+				}
 				if unicode.IsUpper(r) {
 					s.upper++
 				} else if unicode.IsLower(r) {
 					s.lower++
 				}
 			}
+			// Script tracking runs inside URLs to detect homoglyphs in IDN domains.
 			if isLatin(r) {
 				wordHasLatin = true
 			} else if isCyrillic(r) || isGreek(r) {

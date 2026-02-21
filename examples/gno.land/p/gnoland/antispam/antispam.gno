@@ -31,6 +31,10 @@
 //	    // hide the post
 //	}
 //
+// For gas optimization, set EarlyExitAt to a positive threshold
+// (e.g. ThresholdReject) to skip expensive rules when cheap rules
+// already exceed it. Leave at EarlyExitDisabled for complete scoring.
+//
 // Check the filetest.gno files for examples of how to use the package
 // and the scenarios it covers.
 package antispam
@@ -40,6 +44,10 @@ package antispam
 const (
 	ThresholdHide   = 5
 	ThresholdReject = 8
+
+	// EarlyExitDisabled means all rules are evaluated (no early exit).
+	// Pass this as ScoreInput.EarlyExitAt for a complete score.
+	EarlyExitDisabled = 0
 )
 
 // ---- Rule weights (centralized for easy tuning)
@@ -119,17 +127,25 @@ type RuleHit struct {
 // ScoreInput holds all parameters for spam scoring.
 // State fields (Corpus, Fps, Bl, Dict) can be nil if not available.
 //
+// EarlyExitAt controls gas optimization: when set to a positive value
+// (e.g. ThresholdReject), expensive rules (regex, tokenization, Bayes,
+// keywords, fingerprints) are skipped once cheap rules reach that score.
+// Use EarlyExitDisabled (the zero-value default) to evaluate all rules
+// and get a complete score - required for multi-level decisions
+// (hide/reject/ban).
+//
 // NOTE: Zero-value fields penalize. With Rep at zero-value, NEW_ACCOUNT(2) +
 // NO_USERNAME(1) + LOW_BALANCE(1) = 4 points. Callers must fill Rep accurately.
 type ScoreInput struct {
-	Author  string
-	Content string
-	Rate    RateState
-	Rep     ReputationData
-	Corpus  *Corpus
-	Fps     *FingerprintStore
-	Bl      *Blocklist
-	Dict    *KeywordDict
+	Author      string
+	Content     string
+	Rate        RateState
+	Rep         ReputationData
+	Corpus      *Corpus
+	Fps         *FingerprintStore
+	Bl          *Blocklist
+	Dict        *KeywordDict
+	EarlyExitAt int // >0: skip expensive rules at this score; EarlyExitDisabled(0): evaluate all
 }
 
 // SpamScore is the result of scoring content.
@@ -141,7 +157,18 @@ type SpamScore struct {
 }
 
 // Score evaluates content against all anti-spam rules.
-// Returns a SpamScore with the combined result.
+//
+// Rules are ordered in two phases for gas efficiency:
+//
+//	Phase 1 (cheap): address blocklist, content heuristics, rate, reputation.
+//	  These are O(1) lookups and single-pass character scans.
+//
+//	Phase 2 (expensive): regex patterns, tokenization, Bayes, keywords, fingerprints.
+//	  These involve regex matching, AVL traversals, and MinHash computation.
+//
+// When EarlyExitAt is set to a positive threshold, phase 2 is skipped
+// if the score from phase 1 already reaches it. When EarlyExitAt is
+// EarlyExitDisabled (0, the default), all rules are always evaluated.
 func Score(in ScoreInput) SpamScore {
 	result := SpamScore{}
 
@@ -168,40 +195,64 @@ func Score(in ScoreInput) SpamScore {
 		}
 	}
 
-	// Blocklist (address + patterns)
-	if s, r := ScoreBlocklist(in.Author, in.Content, in.Bl); s > 0 {
-		add(s, r)
-		// If address is blocked, no need to check further
-		if r == RuleBlockedAddress {
-			return result
-		}
+	earlyExit := func() bool {
+		return in.EarlyExitAt > 0 && result.Total >= in.EarlyExitAt
 	}
 
-	tokens := dedup(Tokenize(in.Content))
+	// ---- Phase 1: cheap rules (O(1) lookups, linear scans)
 
-	// Content heuristics + unicode abuse
+	// Blocked address check (AVL lookup, no regex)
+	if in.Bl != nil && in.Bl.IsBlocked(in.Author) {
+		add(WeightBlockedAddress, RuleBlockedAddress)
+		return result
+	}
+
+	// Content heuristics + unicode abuse (single-pass character scan)
 	addHits(scoreContentAll(in.Content))
 
-	// Rate limiting
+	// Rate limiting (arithmetic comparison)
 	if s, r := ScoreRate(in.Rate); s > 0 {
 		add(s, r)
 	}
 
-	// Reputation
+	// Reputation (arithmetic comparisons)
 	addHits(ScoreReputation(in.Rep))
+
+	if earlyExit() {
+		return result
+	}
+
+	// ---- Phase 2: expensive rules (regex, tokenization, AVL traversal, MinHash)
+
+	// Regex pattern matching (iterates all compiled patterns)
+	if in.Bl != nil {
+		if matched, _ := in.Bl.MatchesPattern(in.Content); matched {
+			add(WeightBlockedPattern, RuleBlockedPattern)
+		}
+	}
+
+	if earlyExit() {
+		return result
+	}
+
+	// Tokenize only when needed by Bayes or keyword rules.
+	var tokens []string
+	if in.Corpus != nil || in.Dict != nil {
+		tokens = dedup(Tokenize(in.Content))
+	}
 
 	// Bayesian filter
 	if s, r := scoreBayesTokens(tokens, in.Corpus); s > 0 {
 		add(s, r)
 	}
 
-	// Fingerprint near-duplicate detection
-	if s, r := ScoreFingerprint(in.Content, in.Fps); s > 0 {
+	// Keyword dictionary
+	if s, r := scoreKeywordsTokens(tokens, in.Dict); s > 0 {
 		add(s, r)
 	}
 
-	// Keyword dictionary
-	if s, r := scoreKeywordsTokens(tokens, in.Dict); s > 0 {
+	// Fingerprint near-duplicate detection (MinHash computation)
+	if s, r := ScoreFingerprint(in.Content, in.Fps); s > 0 {
 		add(s, r)
 	}
 
