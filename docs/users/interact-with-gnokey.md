@@ -320,39 +320,33 @@ checks the `wugnot` balance of a specific address. This is discouraged, as
 check out the `vm/qeval` query section.
 
 ### Calling a variadic function
-Variadic functions are supported in Gno. To call a function with a variable
-number of arguments, pass one `-args` flag per element.
+Variadic functions are supported in Gno. To call a variadic function, pass one -args flag per variadic element.
+For example, given a function with the signature:
 
 For example, imagine the following Gno function:
 ```go
 func Add(cur realm, nums ...int) int {
-	res := 0
-
-	for _, num := range nums {
-		res += num
-	}
-
-	return res
-}
 ```
-In Go, you could call `Add(1, 3)` or even `Add()` (returning 0). The equivalent
-call in `gnokey` is:
+You can call it with any number of arguments:
 
 ```bash
+# Two variadic args
 gnokey maketx call \
--pkgpath gno.land/r/tests/vm/variadic \
--func Add \
--args 10 \
--args 20 \
--gas-fee 1000000ugnot \
--gas-wanted 10000000 \
--broadcast \
--chainid tendermint_test \
-WALLET_NAME
+  -pkgpath gno.land/r/demo/math \
+  -func Add \
+  -args 10 \
+  -args 20 \
+  ... # gas, broadcast, etc.
+
+# Zero variadic args (omit -args entirely)
+gnokey maketx call \
+  -pkgpath gno.land/r/demo/math \
+  -func Add \
+  ... # gas, broadcast, etc.
 ```
 
-Note: `MsgCall` does not support slice expansion (`...`), so pass each variadic
-argument separately.
+Note: Slice expansion (...) is not supported — pass each element as
+a separate -args flag.
 
 ## `Send`
 
