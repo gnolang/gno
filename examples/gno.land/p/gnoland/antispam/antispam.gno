@@ -52,7 +52,7 @@ const (
 //	BLOCKED_PATTERN       5   Content matches regex pattern
 //	NEAR_DUPLICATE        4   MinHash similarity to known spam
 //	RATE_BURST            4   Posting frequency exceeds limit
-//	ALL_CAPS              3   >50% uppercase letters
+//	ALL_CAPS              2   >50% uppercase letters
 //	SHORT_WITH_LINK       3   Body <=30 chars with a URL
 //	BAYES_SPAM            3   Bayesian classifier: spam-heavy tokens
 //	BAD_REPUTATION        3   High flag ratio or ban history
@@ -71,7 +71,7 @@ const (
 	WeightBlockedPattern = 5
 	WeightNearDuplicate  = 4
 	WeightRateBurst      = 4
-	WeightAllCaps        = 3
+	WeightAllCaps        = 2
 	WeightShortWithLink  = 3
 	WeightBayesSpam      = 3
 	WeightBadReputation  = 3
