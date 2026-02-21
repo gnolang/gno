@@ -13,7 +13,7 @@ type ReputationData struct {
 const (
 	repMinAgeDays   = 1          // accounts younger than this are "new"
 	repMinBalance   = 1000000000 // 1000 GNOT in ugnot
-	repFlagRatioPct = 30         // flagged/total > this% → bad reputation
+	repFlagRatioPct = 30         // flagged/total > this% -> bad reputation
 	repBanPenalty   = 1          // additional score per past ban
 )
 
@@ -37,11 +37,8 @@ func ScoreReputation(rep ReputationData) []RuleHit {
 		hits = append(hits, RuleHit{WeightLowBalance, "LOW_BALANCE"})
 	}
 
-	// Bad flag ratio: flaggedCount / totalPosts > threshold
-	// Rewritten as: flaggedCount * 100 > threshold * totalPosts to avoid overflow
-	// on the left side, we guard large FlaggedCount.
+	// Bad flag ratio
 	if rep.TotalPosts > 0 && rep.FlaggedCount > 0 {
-		// Guard: if FlaggedCount exceeds TotalPosts, ratio is >100% → always bad
 		flagRatio := 100
 		if rep.FlaggedCount <= rep.TotalPosts {
 			flagRatio = rep.FlaggedCount * 100 / rep.TotalPosts
@@ -50,7 +47,7 @@ func ScoreReputation(rep ReputationData) []RuleHit {
 			hits = append(hits, RuleHit{WeightBadReputation, "BAD_REPUTATION"})
 		}
 	} else if rep.TotalPosts == 0 && rep.FlaggedCount > 0 {
-		// Flags but no visible posts (all deleted?) → suspicious
+		// Flags but no visible posts (all deleted?) -> suspicious
 		hits = append(hits, RuleHit{WeightBadReputation, "BAD_REPUTATION"})
 	}
 

@@ -329,10 +329,10 @@ func main() {
 	println("")
 
 	println("Pattern Examples:")
-	println("  ✓ 'send X get Y'           → Caught investment scams")
-	println("  ✓ 'double your crypto'     → Caught multiplier scams")
-	println("  ✓ 'click here...guaranteed' → Caught phishing")
-	println("  ✓ Legitimate 'send'/'get'  → NOT flagged (different context)")
+	println("  ✓ 'send X get Y'           -> Caught investment scams")
+	println("  ✓ 'double your crypto'     -> Caught multiplier scams")
+	println("  ✓ 'click here...guaranteed' -> Caught phishing")
+	println("  ✓ Legitimate 'send'/'get'  -> NOT flagged (different context)")
 }
 
 func containsRule(rules []string, target string) bool {
@@ -457,7 +457,7 @@ func containsRule(rules []string, target string) bool {
 //   • Temporary overrides: Allowlist can override blocks
 //
 // Pattern Examples:
-//   ✓ 'send X get Y'           → Caught investment scams
-//   ✓ 'double your crypto'     → Caught multiplier scams
-//   ✓ 'click here...guaranteed' → Caught phishing
-//   ✓ Legitimate 'send'/'get'  → NOT flagged (different context)
+//   ✓ 'send X get Y'           -> Caught investment scams
+//   ✓ 'double your crypto'     -> Caught multiplier scams
+//   ✓ 'click here...guaranteed' -> Caught phishing
+//   ✓ Legitimate 'send'/'get'  -> NOT flagged (different context)

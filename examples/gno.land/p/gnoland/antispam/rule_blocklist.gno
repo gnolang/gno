@@ -10,13 +10,11 @@ import (
 var errPatternCapReached = errors.New("pattern cap reached (30 max)")
 
 const (
-	// blMaxPatterns caps the number of regex patterns to prevent O(P*n)
-	// cost growth. Each pattern runs a full regex match against content.
+	// blMaxPatterns caps the number of regex patterns.
 	blMaxPatterns = 30
 )
 
 // Blocklist manages blocked addresses, allowed addresses, and regex patterns.
-// It uses AVL trees for deterministic iteration.
 type Blocklist struct {
 	blocked  *avl.Tree // address -> true
 	allowed  *avl.Tree // address -> true

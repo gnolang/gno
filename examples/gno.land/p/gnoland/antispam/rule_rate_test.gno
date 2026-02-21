@@ -150,11 +150,11 @@ func TestRateOverflowGuard(t *testing.T) {
 // ---- Rate scaling boundary tests ----
 
 func TestRateScalingBoundary(t *testing.T) {
-	// 11 posts/hr → base weight (WeightRateBurst/2 = 2)
+	// 11 posts/hr -> base weight (WeightRateBurst/2 = 2)
 	score11, _ := ScoreRate(RateState{PostCount: 11, WindowSeconds: 3600})
-	// 20 posts/hr → still base weight (rateMaxPerHour*2 = 20)
+	// 20 posts/hr -> still base weight (rateMaxPerHour*2 = 20)
 	score20, _ := ScoreRate(RateState{PostCount: 20, WindowSeconds: 3600})
-	// 21 posts/hr → full weight (WeightRateBurst = 4)
+	// 21 posts/hr -> full weight (WeightRateBurst = 4)
 	score21, _ := ScoreRate(RateState{PostCount: 21, WindowSeconds: 3600})
 
 	if score11 != WeightRateBurst/2 {

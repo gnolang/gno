@@ -8,7 +8,7 @@ type RateState struct {
 
 const (
 	// rateMaxPerHour is the maximum posts per hour before scoring.
-	// Above this → RATE_BURST triggers.
+	// Above this -> RATE_BURST triggers.
 	rateMaxPerHour = 10
 )
 
@@ -20,20 +20,15 @@ func ScoreRate(rate RateState) (int, string) {
 		return 0, ""
 	}
 
-	// Guard against integer overflow: PostCount * 3600 can overflow int64.
-	// Any PostCount above this threshold is absurdly high → definitely spam.
 	const maxSafePostCount = (1 << 50) / 3600
 	if rate.PostCount > maxSafePostCount {
 		return WeightRateBurst, "RATE_BURST"
 	}
 
-	// Compute posts per hour.
-	// If window is zero or negative, treat as "all posts happened instantly" → spam.
 	var postsPerHour int
 	if rate.WindowSeconds <= 0 {
 		postsPerHour = rate.PostCount * 3600
 	} else {
-		// postsPerHour = postCount * 3600 / windowSeconds
 		postsPerHour = int(int64(rate.PostCount) * 3600 / rate.WindowSeconds)
 	}
 
@@ -41,8 +36,6 @@ func ScoreRate(rate RateState) (int, string) {
 		return 0, ""
 	}
 
-	// Score scales with how far over the limit:
-	// 11-20/hr → base weight (2), 21+/hr → double weight (4)
 	if postsPerHour <= rateMaxPerHour*2 {
 		return WeightRateBurst / 2, "RATE_BURST"
 	}

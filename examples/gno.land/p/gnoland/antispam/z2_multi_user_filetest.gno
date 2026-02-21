@@ -140,7 +140,7 @@ func main() {
 	println("Account Age: 0 days | Balance: 1 GNOT | Posts: 0 | Username: no")
 	println("Score: " + intToString(result2.Total) + " | Triggered: " + sliceToString(result2.Triggered))
 	if result2.Total >= antispam.ThresholdHide {
-		println("Status: ⛔ HIDDEN (score ≥ " + intToString(antispam.ThresholdHide) + ")")
+		println("Status: ⛔ HIDDEN (score >= " + intToString(antispam.ThresholdHide) + ")")
 		println("Reputation penalties applied:")
 		println("  - NEW_ACCOUNT: +2 (age < 7 days)")
 		println("  - NO_USERNAME: +1 (no username configured)")
@@ -176,7 +176,7 @@ func main() {
 	println("Address: g1spammer (BLOCKLISTED)")
 	println("Score: " + intToString(result3.Total) + " | Triggered: " + sliceToString(result3.Triggered))
 	if result3.Total >= antispam.ThresholdReject {
-		println("Status: 🚫 BLOCKED (score ≥ " + intToString(antispam.ThresholdReject) + ")")
+		println("Status: 🚫 BLOCKED (score >= " + intToString(antispam.ThresholdReject) + ")")
 		println("Blocklist entry overrides all other factors\n")
 	}
 
@@ -245,7 +245,7 @@ func main() {
 // Address: g1newbie42
 // Account Age: 0 days | Balance: 1 GNOT | Posts: 0 | Username: no
 // Score: 6 | Triggered: [NEW_ACCOUNT NO_USERNAME KEYWORD_SPAM]
-// Status: ⛔ HIDDEN (score ≥ 5)
+// Status: ⛔ HIDDEN (score >= 5)
 // Reputation penalties applied:
 //   - NEW_ACCOUNT: +2 (age < 7 days)
 //   - NO_USERNAME: +1 (no username configured)
@@ -256,7 +256,7 @@ func main() {
 // ────────────────────────────────────
 // Address: g1spammer (BLOCKLISTED)
 // Score: 99 | Triggered: [BLOCKED_ADDRESS]
-// Status: 🚫 BLOCKED (score ≥ 8)
+// Status: 🚫 BLOCKED (score >= 8)
 // Blocklist entry overrides all other factors
 //
 // USER 4: Moderator (Allowlisted)

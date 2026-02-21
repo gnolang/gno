@@ -141,7 +141,7 @@ func main() {
 	println("Post: \"" + msg3 + "\"")
 	println("Score: " + intToString(result3.Total) + " | Triggered: " + sliceToString(result3.Triggered))
 	if result3.Total >= antispam.ThresholdHide {
-		println("Status: ⛔ HIDDEN (score ≥ " + intToString(antispam.ThresholdHide) + ")")
+		println("Status: ⛔ HIDDEN (score >= " + intToString(antispam.ThresholdHide) + ")")
 	}
 	println("Analysis: Multiple spam signals detected:")
 	println("  - KEYWORD_SPAM: 'free', 'airdrop', 'bonus', 'claim'")
@@ -166,7 +166,7 @@ func main() {
 	println("Post: \"" + msg4 + "\"")
 	println("Score: " + intToString(result4.Total) + " | Triggered: " + sliceToString(result4.Triggered))
 	if result4.Total >= antispam.ThresholdReject {
-		println("Status: 🚫 REJECTED (score ≥ " + intToString(antispam.ThresholdReject) + ")")
+		println("Status: 🚫 REJECTED (score >= " + intToString(antispam.ThresholdReject) + ")")
 	}
 	println("Analysis: Multiple compounding factors:")
 	println("  - ALL_CAPS: Entire message capitalized")
@@ -178,7 +178,7 @@ func main() {
 
 	println("SUMMARY")
 	println("─────────")
-	println("Score progression: " + intToString(result1.Total) + " → " + intToString(result2.Total) + " → " + intToString(result3.Total) + " → " + intToString(result4.Total))
+	println("Score progression: " + intToString(result1.Total) + " -> " + intToString(result2.Total) + " -> " + intToString(result3.Total) + " -> " + intToString(result4.Total))
 	println("The system detected the behavioral shift from legitimate to spam")
 	println("through gradual accumulation of multiple independent signals.")
 }
@@ -202,7 +202,7 @@ func main() {
 // ─────────────────────────
 // Post: "FREE AIRDROP!!! Claim your bonus tokens now! Limited time offer! https://claim.example.com"
 // Score: 6 | Triggered: [BAYES_SPAM KEYWORD_SPAM]
-// Status: ⛔ HIDDEN (score ≥ 5)
+// Status: ⛔ HIDDEN (score >= 5)
 // Analysis: Multiple spam signals detected:
 //   - KEYWORD_SPAM: 'free', 'airdrop', 'bonus', 'claim'
 //   - BAYES_SPAM: High spam probability from trained corpus
@@ -211,7 +211,7 @@ func main() {
 // ─────────────────────────
 // Post: "CLICK HERE NOW!!! FREE MONEY BONUS PRIZE AIRDROP!!! http://spam1.com http://spam2.com http://spam3.com"
 // Score: 13 | Triggered: [ALL_CAPS RATE_BURST BAYES_SPAM KEYWORD_SPAM]
-// Status: 🚫 REJECTED (score ≥ 8)
+// Status: 🚫 REJECTED (score >= 8)
 // Analysis: Multiple compounding factors:
 //   - ALL_CAPS: Entire message capitalized
 //   - LINK_HEAVY: 3+ links in short message
@@ -222,6 +222,6 @@ func main() {
 //
 // SUMMARY
 // ─────────
-// Score progression: 0 → 0 → 6 → 13
+// Score progression: 0 -> 0 -> 6 -> 13
 // The system detected the behavioral shift from legitimate to spam
 // through gradual accumulation of multiple independent signals.

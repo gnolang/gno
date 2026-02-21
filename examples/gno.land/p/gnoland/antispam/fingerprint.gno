@@ -5,12 +5,10 @@ import (
 )
 
 const (
-	// fpShingleSize is the character n-gram size for fingerprinting.
+	// fpShingleSize is the character group size for fingerprinting.
 	fpShingleSize = 3
 
-	// fpSignatureSize is the number of min-hash values to keep.
-	// 32 values provide sufficient accuracy for duplicate detection at ≥50%
-	// threshold while halving computation vs 64.
+	// fpSignatureSize is the number of hash values kept per fingerprint.
 	fpSignatureSize = 32
 
 	// fpDefaultThreshold is the default similarity threshold (0-100).
@@ -19,16 +17,13 @@ const (
 	// fpMinTextLen is the minimum text length to fingerprint.
 	fpMinTextLen = 10
 
-	// fpMaxStoreSize caps the fingerprint store to prevent unbounded O(N)
-	// iteration in HasSimilar. Oldest entries are evicted (FIFO).
+	// fpMaxStoreSize caps the fingerprint store. Oldest entries are evicted.
 	fpMaxStoreSize = 500
 )
 
 // ---- MinHash fingerprinting
 
-// Fingerprint computes a MinHash signature for a text.
-// Uses a sliding window of 3 runes to avoid allocating a full []rune slice.
-// Hashes each shingle and keeps the minimum hash per hash function.
+// Fingerprint computes a signature for a text, used for duplicate detection.
 // Returns nil for text too short to fingerprint.
 func Fingerprint(text string) []uint64 {
 	if len(text) < fpMinTextLen {
@@ -40,7 +35,6 @@ func Fingerprint(text string) []uint64 {
 		sig[i] = ^uint64(0) // max uint64
 	}
 
-	// Sliding window: iterate runes without allocating []rune.
 	var w0, w1, w2 rune
 	count := 0
 	for _, r := range text {
@@ -53,7 +47,6 @@ func Fingerprint(text string) []uint64 {
 		baseHash := hashThreeRunes(w0, w1, w2)
 
 		for j := 0; j < fpSignatureSize; j++ {
-			// Different "hash function" by mixing with the index
 			h := baseHash ^ uint64(j)*0x9e3779b97f4a7c15
 			h = (h ^ (h >> 30)) * 0xbf58476d1ce4e5b9
 			h = (h ^ (h >> 27)) * 0x94d049bb133111eb
@@ -72,12 +65,9 @@ func Fingerprint(text string) []uint64 {
 	return sig
 }
 
-// hashThreeRunes computes FNV-1a hash for exactly 3 runes.
-// Each rune is hashed as 4 bytes (big-endian, fixed layout) to avoid
-// branching per byte in the GnoVM interpreter.
+// hashThreeRunes computes a hash for exactly 3 runes.
 func hashThreeRunes(a, b, c rune) uint64 {
 	h := uint64(14695981039346656037)
-	// Rune a
 	h ^= uint64(byte(a >> 24))
 	h *= 1099511628211
 	h ^= uint64(byte(a >> 16))
@@ -86,7 +76,6 @@ func hashThreeRunes(a, b, c rune) uint64 {
 	h *= 1099511628211
 	h ^= uint64(byte(a))
 	h *= 1099511628211
-	// Rune b
 	h ^= uint64(byte(b >> 24))
 	h *= 1099511628211
 	h ^= uint64(byte(b >> 16))
@@ -95,7 +84,6 @@ func hashThreeRunes(a, b, c rune) uint64 {
 	h *= 1099511628211
 	h ^= uint64(byte(b))
 	h *= 1099511628211
-	// Rune c
 	h ^= uint64(byte(c >> 24))
 	h *= 1099511628211
 	h ^= uint64(byte(c >> 16))
@@ -107,7 +95,7 @@ func hashThreeRunes(a, b, c rune) uint64 {
 	return h
 }
 
-// fingerprintSimilarity computes the Jaccard similarity between two MinHash signatures.
+// fingerprintSimilarity computes the similarity between two signatures.
 // Returns a percentage (0-100).
 func fingerprintSimilarity(a, b []uint64) int {
 	if len(a) == 0 || len(b) == 0 {
@@ -126,12 +114,12 @@ func fingerprintSimilarity(a, b []uint64) int {
 	return same * 100 / n
 }
 
-// ---- FingerprintStore (AVL-tree-backed, capped)
+// ---- FingerprintStore
 
-// FingerprintStore stores MinHash fingerprints of known spam content.
-// Capped at fpMaxStoreSize entries with FIFO eviction.
+// FingerprintStore stores fingerprints of known spam content.
+// Capped at fpMaxStoreSize entries with oldest-first eviction.
 type FingerprintStore struct {
-	tree  *avl.Tree // sequential key -> []uint64
+	tree  *avl.Tree
 	count int
 }
 
@@ -151,7 +139,6 @@ func (fs *FingerprintStore) Add(content string) {
 	}
 
 	// Evict oldest if at capacity.
-	// Safe to remove during iteration because we return immediately after removal.
 	if fs.tree.Size() >= fpMaxStoreSize {
 		fs.tree.Iterate("", "", func(key string, _ interface{}) bool {
 			fs.tree.Remove(key)
@@ -190,7 +177,7 @@ func (fs *FingerprintStore) Size() int {
 	return fs.tree.Size()
 }
 
-// intToKey converts an int to a zero-padded string key for AVL tree ordering.
+// intToKey converts an int to a zero-padded string key.
 func intToKey(n int) string {
 	var buf [10]byte
 	for i := 9; i >= 0; i-- {

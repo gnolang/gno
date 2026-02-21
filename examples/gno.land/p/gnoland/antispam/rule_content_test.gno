@@ -374,7 +374,7 @@ func TestContentThresholdBoundaries(t *testing.T) {
 	})
 
 	t.Run("punct: 9 nonSpace chars skips evaluation (below minCharsForPunct)", func(t *testing.T) {
-		// 9 nonSpace characters → below minCharsForPunct=10
+		// 9 nonSpace characters -> below minCharsForPunct=10
 		hits := ScoreContent("!?!?!?!?!")
 		for _, h := range hits {
 			if h.Rule == "EXCESSIVE_PUNCT" {

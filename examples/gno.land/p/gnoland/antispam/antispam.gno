@@ -1,12 +1,11 @@
 // Package antispam provides a multi-rule spam scoring engine for Gno realms.
 //
 // It combines content heuristics, rate limiting, reputation scoring,
-// Bayesian filtering, MinHash fingerprinting, keyword dictionary,
+// Bayesian filtering, duplicate detection, keyword dictionary,
 // and address/pattern blocklists into a single weighted score.
-// Each algorithm lives in its own file for independent audit.
 //
-// The package provides both pure scoring functions and AVL-tree-backed
-// state helpers (Corpus, FingerprintStore, Blocklist, KeywordDict) that
+// The package provides pure scoring functions and state helpers
+// (Corpus, FingerprintStore, Blocklist, KeywordDict) that
 // are owned and persisted by the calling realm.
 //
 // Usage:
@@ -54,7 +53,7 @@ const (
 //	NEAR_DUPLICATE        4   MinHash similarity to known spam
 //	RATE_BURST            4   Posting frequency exceeds limit
 //	ALL_CAPS              3   >50% uppercase letters
-//	SHORT_WITH_LINK       3   Body ≤30 chars with a URL
+//	SHORT_WITH_LINK       3   Body <=30 chars with a URL
 //	BAYES_SPAM            3   Bayesian classifier: spam-heavy tokens
 //	BAD_REPUTATION        3   High flag ratio or ban history
 //	KEYWORD_SPAM          3   Multiple spam keywords (co-occurrence)
@@ -111,10 +110,10 @@ type ScoreInput struct {
 
 // SpamScore is the result of scoring content.
 type SpamScore struct {
-	Total     int      // weighted sum of all rules
-	Triggered []string // names of rules that scored > 0
-	TopRule   string   // rule with highest individual score
-	TopScore  int      // score of the top rule
+	Total     int      // sum of all triggered rule weights
+	Triggered []string // names of rules that fired
+	TopRule   string   // highest-scoring rule
+	TopScore  int      // score of the highest-scoring rule
 }
 
 // Score evaluates content against all anti-spam rules.
@@ -154,10 +153,9 @@ func Score(in ScoreInput) SpamScore {
 		}
 	}
 
-	// Pre-compute deduplicated tokens once (shared by Bayes + Keywords rules).
 	tokens := dedup(Tokenize(in.Content))
 
-	// Content heuristics + unicode abuse (merged single-pass)
+	// Content heuristics + unicode abuse
 	addHits(scoreContentAll(in.Content))
 
 	// Rate limiting
@@ -168,7 +166,7 @@ func Score(in ScoreInput) SpamScore {
 	// Reputation
 	addHits(ScoreReputation(in.Rep))
 
-	// Bayesian filter (uses pre-computed deduplicated tokens)
+	// Bayesian filter
 	if s, r := scoreBayesTokens(tokens, in.Corpus); s > 0 {
 		add(s, r)
 	}
@@ -178,7 +176,7 @@ func Score(in ScoreInput) SpamScore {
 		add(s, r)
 	}
 
-	// Keyword dictionary (uses pre-computed deduplicated tokens)
+	// Keyword dictionary
 	if s, r := scoreKeywordsTokens(tokens, in.Dict); s > 0 {
 		add(s, r)
 	}
