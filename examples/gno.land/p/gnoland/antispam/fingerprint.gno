@@ -14,7 +14,7 @@ const (
 	// fpDefaultThreshold is the default similarity threshold (0-100).
 	fpDefaultThreshold = 50
 
-	// fpMinTextLen is the minimum text length to fingerprint.
+	// fpMinTextLen is the minimum text byte length to fingerprint.
 	fpMinTextLen = 10
 
 	// fpMaxStoreSize caps the fingerprint store. Oldest entries are evicted.

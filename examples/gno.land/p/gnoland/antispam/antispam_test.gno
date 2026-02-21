@@ -358,6 +358,68 @@ func TestScoreContentAllEquivalence(t *testing.T) {
 	}
 }
 
+// ---- EarlyExitAt verification ----
+
+func TestEarlyExitAt(t *testing.T) {
+	// Setup: a scenario where cheap rules score high (caps + rate + bad rep)
+	// and expensive rules would add more (bayes + keywords).
+	corpus := NewCorpus()
+	corpus.Train("free airdrop bonus click claim tokens", true)
+	corpus.Train("free money bonus prize casino jackpot", true)
+	corpus.Train("governance proposal voting community discussion", false)
+	corpus.Train("development update release version changelog", false)
+
+	dict := NewKeywordDict()
+	dict.BulkAdd("free:3\nairdrop:3\nbonus:3\nclaim:2\nprize:3")
+
+	bl := NewBlocklist()
+	bl.AddPattern(`(?i)send\s+\d+\s*gnot`)
+
+	badRep := ReputationData{
+		AccountAgeDays: 30,
+		Balance:        5000000000,
+		FlaggedCount:   15,
+		TotalPosts:     20,
+		HasUsername:    true,
+		BanCount:       2,
+	}
+	burstRate := RateState{PostCount: 30, WindowSeconds: 3600}
+
+	content := "FREE AIRDROP BONUS PRIZE CLAIM CLICK NOW HURRY FAST"
+
+	// EarlyExitDisabled: all rules evaluated, should include expensive rules
+	full := Score(ScoreInput{
+		Author: "g1user", Content: content,
+		Rate: burstRate, Rep: badRep,
+		Corpus: corpus, Dict: dict, Bl: bl,
+		EarlyExitAt: EarlyExitDisabled,
+	})
+
+	// EarlyExitAt=ThresholdReject: cheap rules alone should exceed 8,
+	// so expensive rules (bayes, keywords) should be skipped.
+	early := Score(ScoreInput{
+		Author: "g1user", Content: content,
+		Rate: burstRate, Rep: badRep,
+		Corpus: corpus, Dict: dict, Bl: bl,
+		EarlyExitAt: ThresholdReject,
+	})
+
+	// Full score must be >= early score (early skips rules)
+	if full.Total < early.Total {
+		t.Errorf("full score (%d) < early exit score (%d)", full.Total, early.Total)
+	}
+
+	// Early exit should have fewer triggered rules
+	if len(early.Triggered) >= len(full.Triggered) {
+		t.Errorf("expected early exit to trigger fewer rules: early=%v, full=%v", early.Triggered, full.Triggered)
+	}
+
+	// Early exit score should still be >= the threshold
+	if early.Total < ThresholdReject {
+		t.Errorf("expected early exit score >= %d, got %d", ThresholdReject, early.Total)
+	}
+}
+
 // ---- BLOCKED_ADDRESS short-circuit verification ----
 
 func TestBlockedAddressShortCircuit(t *testing.T) {

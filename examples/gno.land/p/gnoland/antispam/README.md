@@ -96,6 +96,7 @@ Scores accumulate across all triggered rules. Thresholds: **Hide >= 5**, **Rejec
 
 - **Allowlist bypass**: allowed addresses skip all scoring
 - **Short-circuit**: `BLOCKED_ADDRESS` returns immediately, no further rules evaluated
+- **Two-phase scoring**: cheap rules (O(1) lookups, character scans) run first; expensive rules (regex, Bayes, keywords, fingerprints) run second. Set `EarlyExitAt` to a positive threshold (e.g. `ThresholdReject`) to skip phase 2 when cheap rules already reach it (gas optimization). Leave at `EarlyExitDisabled` for a complete score.
 - **Single-pass content analysis**: caps, punctuation, links, and unicode abuse detected in one scan
 - **Rule independence**: each rule triggers and scores independently
 

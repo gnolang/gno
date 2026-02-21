@@ -53,10 +53,11 @@ func goodRep() engine.ReputationData {
 // ---- admin pattern management
 
 func TestAdminAddPattern(t *testing.T) {
+	resetState(t)
 	setAdmin(t)
 	AdminAddPattern(cross, `(?i)test\s+specific\s+pattern`)
 
-	result := Score("g1user", "this is a test specific pattern here", engine.RateState{}, goodRep(), nil, nil)
+	result := Score(address("g1user"), "this is a test specific pattern here", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
 	if result.Total < 5 {
 		t.Errorf("expected blocked pattern score >= 5, got %d", result.Total)
 	}
@@ -66,11 +67,12 @@ func TestAdminAddPattern(t *testing.T) {
 }
 
 func TestAdminRemovePattern(t *testing.T) {
+	resetState(t)
 	setAdmin(t)
 	AdminAddPattern(cross, `(?i)removable\s+pattern`)
 	AdminRemovePattern(cross, `(?i)removable\s+pattern`)
 
-	result := Score("g1user", "removable pattern here with enough length for content analysis", engine.RateState{}, goodRep(), nil, nil)
+	result := Score(address("g1user"), "removable pattern here with enough length for content analysis", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
 	hasBlockedPattern := false
 	for _, r := range result.Triggered {
 		if r == "BLOCKED_PATTERN" {
@@ -85,46 +87,50 @@ func TestAdminRemovePattern(t *testing.T) {
 // ---- admin address management
 
 func TestAdminBlockAddress(t *testing.T) {
+	resetState(t)
 	setAdmin(t)
-	AdminBlockAddress(cross, "g1blocktest")
+	AdminBlockAddress(cross, address("g1blocktest"))
 
-	result := Score("g1blocktest", "Normal message.", engine.RateState{}, goodRep(), nil, nil)
+	result := Score(address("g1blocktest"), "Normal message.", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
 	if result.Total < 99 {
 		t.Errorf("expected blocked address score >= 99, got %d", result.Total)
 	}
 
 	// Cleanup
-	AdminUnblockAddress(cross, "g1blocktest")
+	AdminUnblockAddress(cross, address("g1blocktest"))
 }
 
 func TestAdminUnblockAddress(t *testing.T) {
+	resetState(t)
 	setAdmin(t)
-	AdminBlockAddress(cross, "g1temp")
-	AdminUnblockAddress(cross, "g1temp")
+	AdminBlockAddress(cross, address("g1temp"))
+	AdminUnblockAddress(cross, address("g1temp"))
 
-	result := Score("g1temp", "Normal message from unblocked user with reasonable length.", engine.RateState{}, goodRep(), nil, nil)
+	result := Score(address("g1temp"), "Normal message from unblocked user with reasonable length.", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
 	if result.Total > 0 {
 		t.Errorf("expected score 0 after unblock, got %d (triggered: %v)", result.Total, result.Triggered)
 	}
 }
 
 func TestAdminAllowAddress(t *testing.T) {
+	resetState(t)
 	setAdmin(t)
-	AdminAllowAddress(cross, "g1trusted")
+	AdminAllowAddress(cross, address("g1trusted"))
 
 	// Allowed user should score 0 even with spam content
-	result := Score("g1trusted", "FREE AIRDROP BONUS CLICK NOW!!!", engine.RateState{PostCount: 50, WindowSeconds: 60}, engine.ReputationData{BanCount: 5}, nil, nil)
+	result := Score(address("g1trusted"), "FREE AIRDROP BONUS CLICK NOW!!!", engine.RateState{PostCount: 50, WindowSeconds: 60}, engine.ReputationData{BanCount: 5}, nil, nil, nil, nil, engine.EarlyExitDisabled)
 	if result.Total != 0 {
 		t.Errorf("expected score 0 for allowed address, got %d (triggered: %v)", result.Total, result.Triggered)
 	}
 
 	// Cleanup
-	AdminRemoveAllow(cross, "g1trusted")
+	AdminRemoveAllow(cross, address("g1trusted"))
 }
 
 // ---- admin training
 
 func TestAdminTrain(t *testing.T) {
+	resetState(t)
 	setAdmin(t)
 
 	// Train with spam examples
@@ -144,7 +150,7 @@ func TestAdminTrain(t *testing.T) {
 	AdminTrain(cross, "thanks for the helpful explanation today great", false)
 
 	// Spam-like content should score high via bayes
-	result := Score("g1user", "free airdrop bonus click claim prize", engine.RateState{}, goodRep(), nil, nil)
+	result := Score(address("g1user"), "free airdrop bonus click claim prize", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
 	if result.Total < 3 {
 		t.Errorf("expected bayes score >= 3 for spam content, got %d (triggered: %v)", result.Total, result.Triggered)
 	}
@@ -153,11 +159,12 @@ func TestAdminTrain(t *testing.T) {
 // ---- admin fingerprint management
 
 func TestAdminAddSpamFingerprint(t *testing.T) {
+	resetState(t)
 	setAdmin(t)
 	AdminAddSpamFingerprint(cross, "free airdrop bonus click claim prize tokens hurry now limited")
 
 	// Near-duplicate should be detected
-	result := Score("g1user", "free airdrop bonus click claim prize tokens quick now fast", engine.RateState{}, goodRep(), nil, nil)
+	result := Score(address("g1user"), "free airdrop bonus click claim prize tokens quick now fast", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
 	if result.Total < 4 {
 		t.Errorf("expected fingerprint score >= 4, got %d (triggered: %v)", result.Total, result.Triggered)
 	}
@@ -166,6 +173,8 @@ func TestAdminAddSpamFingerprint(t *testing.T) {
 // ---- default patterns
 
 func TestDefaultPatternsLoaded(t *testing.T) {
+	resetState(t)
+
 	tests := []struct {
 		name    string
 		content string
@@ -183,7 +192,7 @@ func TestDefaultPatternsLoaded(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := Score("g1user", tt.content, engine.RateState{}, goodRep(), nil, nil)
+			result := Score(address("g1user"), tt.content, engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
 			if result.Total < tt.wantMin {
 				t.Errorf("expected score >= %d, got %d (triggered: %v)", tt.wantMin, result.Total, result.Triggered)
 			}
@@ -194,12 +203,14 @@ func TestDefaultPatternsLoaded(t *testing.T) {
 // ---- default keywords
 
 func TestDefaultKeywordsLoaded(t *testing.T) {
+	resetState(t)
+
 	if keywords.Size() < 100 {
 		t.Errorf("expected at least 100 default keywords, got %d", keywords.Size())
 	}
 
 	// Content with multiple default spam keywords should trigger
-	result := Score("g1user", "This is a phishing scam arnaque with ponzi scheme and ransomware", engine.RateState{}, goodRep(), nil, nil)
+	result := Score(address("g1user"), "This is a phishing scam arnaque with ponzi scheme and ransomware", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
 	hasKeyword := false
 	for _, r := range result.Triggered {
 		if r == "KEYWORD_SPAM" {
@@ -214,13 +225,14 @@ func TestDefaultKeywordsLoaded(t *testing.T) {
 // ---- admin keyword management
 
 func TestAdminAddKeyword(t *testing.T) {
+	resetState(t)
 	setAdmin(t)
 	AdminAddKeyword(cross, "customword1", 3)
 	AdminAddKeyword(cross, "customword2", 3)
 	AdminAddKeyword(cross, "customword3", 2)
 
 	// Content with multiple custom keywords should trigger
-	result := Score("g1user", "This has customword1 and customword2 plus customword3 inside it", engine.RateState{}, goodRep(), nil, nil)
+	result := Score(address("g1user"), "This has customword1 and customword2 plus customword3 inside it", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
 	hasKeyword := false
 	for _, r := range result.Triggered {
 		if r == "KEYWORD_SPAM" {
@@ -238,6 +250,7 @@ func TestAdminAddKeyword(t *testing.T) {
 }
 
 func TestAdminBulkAddKeywords(t *testing.T) {
+	resetState(t)
 	setAdmin(t)
 	sizeBefore := keywords.Size()
 	AdminBulkAddKeywords(cross, "bulktest1:3\nbulktest2:2\nbulktest3:2\nbulktest4:3")
@@ -247,7 +260,7 @@ func TestAdminBulkAddKeywords(t *testing.T) {
 	}
 
 	// Content with bulk-added keywords should trigger
-	result := Score("g1user", "This bulktest1 message has bulktest2 and bulktest3 words inside", engine.RateState{}, goodRep(), nil, nil)
+	result := Score(address("g1user"), "This bulktest1 message has bulktest2 and bulktest3 words inside", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
 	hasKeyword := false
 	for _, r := range result.Triggered {
 		if r == "KEYWORD_SPAM" {
@@ -266,6 +279,7 @@ func TestAdminBulkAddKeywords(t *testing.T) {
 }
 
 func TestAdminRemoveKeyword(t *testing.T) {
+	resetState(t)
 	setAdmin(t)
 	sizeBefore := keywords.Size()
 	AdminAddKeyword(cross, "testword", 3)
@@ -286,19 +300,22 @@ func TestAdminRemoveKeyword(t *testing.T) {
 // ---- access control
 
 func TestNonAdminCannotModify(t *testing.T) {
+	resetState(t)
 	setAdmin(t) // ensure admin is g1admin
 
 	other := testutils.TestAddress("other")
 	testing.SetOriginCaller(other)
 
 	uassert.AbortsWithMessage(t, errUnauthorized.Error(), func() {
-		AdminBlockAddress(cross, "g1someone")
+		AdminBlockAddress(cross, address("g1someone"))
 	})
 }
 
 // ---- scoring
 
 func TestScoreCleanContent(t *testing.T) {
+	resetState(t)
+
 	rep := engine.ReputationData{
 		AccountAgeDays: 60,
 		Balance:        5000000000,
@@ -308,7 +325,7 @@ func TestScoreCleanContent(t *testing.T) {
 		BanCount:       0,
 	}
 
-	result := Score("g1legit", "I think we should consider adjusting the staking rewards.", engine.RateState{PostCount: 3, WindowSeconds: 3600}, rep, nil, nil)
+	result := Score(address("g1legit"), "I think we should consider adjusting the staking rewards.", engine.RateState{PostCount: 3, WindowSeconds: 3600}, rep, nil, nil, nil, nil, engine.EarlyExitDisabled)
 	if result.Total != 0 {
 		t.Errorf("expected score 0 for clean content, got %d (triggered: %v)", result.Total, result.Triggered)
 	}
@@ -317,6 +334,7 @@ func TestScoreCleanContent(t *testing.T) {
 // ---- admin transfer
 
 func TestAdminTransfer(t *testing.T) {
+	resetState(t)
 	setAdmin(t)
 
 	newAdmin := testutils.TestAddress("newadmin")
@@ -324,13 +342,13 @@ func TestAdminTransfer(t *testing.T) {
 
 	// New admin can operate
 	testing.SetOriginCaller(newAdmin)
-	AdminBlockAddress(cross, "g1transfertest")
-	AdminUnblockAddress(cross, "g1transfertest")
+	AdminBlockAddress(cross, address("g1transfertest"))
+	AdminUnblockAddress(cross, address("g1transfertest"))
 
 	// Old admin should fail
 	testing.SetOriginCaller(address("g1admin"))
 	uassert.AbortsWithMessage(t, errUnauthorized.Error(), func() {
-		AdminBlockAddress(cross, "g1shouldfail")
+		AdminBlockAddress(cross, address("g1shouldfail"))
 	})
 
 	// Restore for other tests
@@ -341,6 +359,7 @@ func TestAdminTransfer(t *testing.T) {
 // ---- render
 
 func TestRender(t *testing.T) {
+	resetState(t)
 	setAdmin(t)
 	out := Render("")
 	if out == "" {

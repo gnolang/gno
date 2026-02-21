@@ -120,6 +120,8 @@ func (c *Corpus) Train(content string, isSpam bool) {
 }
 
 // dedup removes duplicates from a string slice.
+// It sorts and modifies the input slice in-place; callers must not
+// retain references to the original ordering.
 func dedup(ss []string) []string {
 	if len(ss) <= 1 {
 		return ss

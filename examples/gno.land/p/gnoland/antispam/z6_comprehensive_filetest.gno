@@ -8,11 +8,15 @@ package main
 // Every rule in the engine triggers at least once across these scenarios:
 //
 //   BLOCKED_ADDRESS (99)  BLOCKED_PATTERN (5)   NEAR_DUPLICATE (4)
-//   RATE_BURST (4)        ALL_CAPS (3)          SHORT_WITH_LINK (3)
+//   RATE_BURST (4)        ALL_CAPS (2)          SHORT_WITH_LINK (3)
 //   BAYES_SPAM (3)        BAD_REPUTATION (3)    KEYWORD_SPAM (3)
 //   ZALGO_TEXT (3)        LINK_HEAVY (2)        NEW_ACCOUNT (2)
 //   INVISIBLE_CHARS (2)   HOMOGLYPH_MIX (2)    EXCESSIVE_PUNCT (1)
 //   NO_USERNAME (1)       LOW_BALANCE (1)        BANNED_BEFORE (1-3)
+//
+// All scenarios use EarlyExitAt=EarlyExitDisabled (default) to show
+// the complete score. With EarlyExitAt=ThresholdReject, scenario 3
+// would stop at phase 1 (score 13) and skip Bayes/keyword analysis.
 //
 // Scenarios:
 // 1. Legitimate power user -> score 0
@@ -199,7 +203,7 @@ func main() {
 	println("Message: \"" + floodMsg + "\"")
 	println("Score:   " + intToString(result3.Total) + " | Triggered: " + sliceToString(result3.Triggered))
 	println("Rules breakdown:")
-	println("  ALL_CAPS(3) + LINK_HEAVY(2) = content heuristics")
+	println("  ALL_CAPS(2) + LINK_HEAVY(2) = content heuristics")
 	println("  RATE_BURST(4) = posting frequency")
 	println("  BAD_REPUTATION(3) + BANNED_BEFORE(2) = reputation")
 	println("  KEYWORD_SPAM(3) + BAYES_SPAM(3) = vocabulary analysis")
@@ -261,7 +265,6 @@ func main() {
 	println("Score:   " + intToString(result5.Total) + " | Triggered: " + sliceToString(result5.Triggered))
 	println("Rules breakdown:")
 	println("  SHORT_WITH_LINK(3) = body <=30 chars with a URL")
-	println("  EXCESSIVE_PUNCT(1) = URL punctuation (://) inflates the ratio")
 	println("  Minimal content with a link is a common spam pattern")
 	println("Status:  ⚠ SUSPICIOUS (below reject, above normal)\n")
 
@@ -408,7 +411,7 @@ func main() {
 // Message: "FREE MONEY BONUS PRIZE AIRDROP CLICK NOW!!! http://spam1.com http://spam2.com http://spam3.com http://spam4.com"
 // Score:   19 | Triggered: [ALL_CAPS LINK_HEAVY RATE_BURST BAD_REPUTATION BANNED_BEFORE BAYES_SPAM KEYWORD_SPAM]
 // Rules breakdown:
-//   ALL_CAPS(3) + LINK_HEAVY(2) = content heuristics
+//   ALL_CAPS(2) + LINK_HEAVY(2) = content heuristics
 //   RATE_BURST(4) = posting frequency
 //   BAD_REPUTATION(3) + BANNED_BEFORE(2) = reputation
 //   KEYWORD_SPAM(3) + BAYES_SPAM(3) = vocabulary analysis
@@ -431,10 +434,9 @@ func main() {
 //
 // Author:  g1shortlink (good reputation)
 // Message: "Check this! http://x.co"
-// Score:   4 | Triggered: [EXCESSIVE_PUNCT SHORT_WITH_LINK]
+// Score:   3 | Triggered: [SHORT_WITH_LINK]
 // Rules breakdown:
 //   SHORT_WITH_LINK(3) = body <=30 chars with a URL
-//   EXCESSIVE_PUNCT(1) = URL punctuation (://) inflates the ratio
 //   Minimal content with a link is a common spam pattern
 // Status:  ⚠ SUSPICIOUS (below reject, above normal)
 //
@@ -482,7 +484,7 @@ func main() {
 // 2. New acc  11  [EXCESSIVE_PUNCT NEW_ACCOUNT NO_USERNAME LOW_BALANCE BAYES_SPAM KEYWORD_SPAM]
 // 3. Flood   19  [ALL_CAPS LINK_HEAVY RATE_BURST BAD_REPUTATION BANNED_BEFORE BAYES_SPAM KEYWORD_SPAM]
 // 4. Dup+Pat  9  [BLOCKED_PATTERN NEAR_DUPLICATE]
-// 5. Short    4  [EXCESSIVE_PUNCT SHORT_WITH_LINK]
+// 5. Short    3  [SHORT_WITH_LINK]
 // 6. Blocked 99  [BLOCKED_ADDRESS]
 // 7. Allowed   0  []
 // 8. Unicode   7  [ZALGO_TEXT INVISIBLE_CHARS HOMOGLYPH_MIX]

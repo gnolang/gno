@@ -295,6 +295,11 @@ func TestScoreContent(t *testing.T) {
 			wantZero: true,
 		},
 		{
+			name:     "edge: URL with complex query params does not inflate punct",
+			content:  "ok https://example.com/path?a=b&c=d&e=f&g=h&i=j",
+			wantZero: true,
+		},
+		{
 			name:     "edge: normal content with some caps words",
 			content:  "But the content is perfectly normal and reasonable text that should not trigger any spam rules.",
 			wantZero: true,
