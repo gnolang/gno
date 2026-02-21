@@ -184,3 +184,94 @@ func TestScoreKeywordsMultilingual(t *testing.T) {
 		t.Errorf("expected multilingual keyword score >= 3, got %d (rule: %s)", score, rule)
 	}
 }
+
+// ---- Leet speak normalization tests
+
+func TestNormalizeLeet(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"fr33", "free"},
+		{"sp4m", "spam"},
+		{"a1rdr0p", "airdrop"},
+		{"5c4m", "scam"},
+		{"b0nu5", "bonus"},
+		{"hello", "hello"},
+		{"normal", "normal"},
+		{"", ""},
+		{"1337", "ieet"},
+		{"7h3", "the"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+
+			got := normalizeLeet(tt.input)
+			if got != tt.want {
+				t.Errorf("normalizeLeet(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestScoreKeywordsLeetSpeak(t *testing.T) {
+	t.Parallel()
+
+	dict := NewKeywordDict()
+	dict.BulkAdd("free:2\nairdrop:2\nspam:3\nscam:2\nbonus:1")
+
+	tests := []struct {
+		name    string
+		content string
+		wantMin int
+		rule    string
+	}{
+		{
+			name:    "leet: fr33 a1rdr0p detected as free airdrop",
+			content: "Get fr33 a1rdr0p now for your wallet",
+			wantMin: 3,
+			rule:    "KEYWORD_SPAM",
+		},
+		{
+			name:    "leet: sp4m 5c4m detected",
+			content: "This is sp4m and 5c4m content watch out",
+			wantMin: 3,
+			rule:    "KEYWORD_SPAM",
+		},
+		{
+			name:    "leet: mixed normal and leet",
+			content: "Get free b0nu5 from this airdrop event",
+			wantMin: 3,
+			rule:    "KEYWORD_SPAM",
+		},
+		{
+			name:    "leet: single leet keyword not enough",
+			content: "I had a fr33 lunch today at the office",
+			wantMin: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			score, rule := ScoreKeywords(tt.content, dict)
+			if tt.wantMin > 0 {
+				if score < tt.wantMin {
+					t.Errorf("expected score >= %d, got %d (rule: %s)", tt.wantMin, score, rule)
+				}
+				if tt.rule != "" && rule != tt.rule {
+					t.Errorf("expected rule %q, got %q", tt.rule, rule)
+				}
+			} else {
+				if score != 0 {
+					t.Errorf("expected score 0, got %d (rule: %s)", score, rule)
+				}
+			}
+		})
+	}
+}

@@ -3,6 +3,7 @@ package antispam
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // ---- Thresholds
@@ -16,112 +17,162 @@ const (
 	minCharsForPunct  = 10 // minimum characters to evaluate punctuation
 )
 
-// ScoreContent checks content for spam heuristics.
-// Returns individual RuleHit entries for each triggered rule.
+// contentStats holds all counters from a single-pass content analysis.
+// Shared between content heuristics and unicode abuse detection.
+type contentStats struct {
+	upper, lower     int // letter counts (excluding URLs)
+	punct, nonSpace  int // punctuation and non-space character counts
+	urlCount         int // number of http/https URLs
+	invisibleCount   int // zero-width and directional override characters
+	maxConsecCombine int // max consecutive combining marks on one character
+	mixedWords       int // words with mixed Latin + Cyrillic/Greek
+}
+
+// ScoreContent checks content for spam heuristics (caps, punct, links).
 func ScoreContent(content string) []RuleHit {
 	content = strings.TrimSpace(content)
 	if len(content) == 0 {
 		return nil
 	}
+	s := analyzeContent(content)
+	return hitsFromContentStats(content, s)
+}
 
-	var hits []RuleHit
-
-	// Single-pass: count upper/lower letters, punctuation, and URL occurrences,
-	// skipping URL ranges for letter counting (avoids allocating a stripped copy).
-	upper, lower, punct, nonSpace, urlCount := countContentStats(content)
-
-	// ALL_CAPS check
-	totalLetters := upper + lower
-	if totalLetters >= minLettersForCaps && upper*100 > capsThresholdPct*totalLetters {
-		hits = append(hits, RuleHit{WeightAllCaps, "ALL_CAPS"})
+// scoreContentAll combines content heuristics and unicode abuse detection
+// in a single pass. Called by Score() to avoid scanning content twice.
+func scoreContentAll(content string) []RuleHit {
+	content = strings.TrimSpace(content)
+	if len(content) == 0 {
+		return nil
 	}
 
-	// Excessive punctuation check
-	if nonSpace >= minCharsForPunct && punct*100 > punctThresholdPct*nonSpace {
-		hits = append(hits, RuleHit{WeightExcessivePunct, "EXCESSIVE_PUNCT"})
-	}
+	s := analyzeContent(content)
 
-	// Link-heavy check (uses pre-computed URL count)
-	if urlCount > linkMaxCount {
-		hits = append(hits, RuleHit{WeightLinkHeavy, "LINK_HEAVY"})
-	}
-
-	// Short body with link
-	if len(content) <= shortBodyMaxLen && urlCount > 0 {
-		hits = append(hits, RuleHit{WeightShortWithLink, "SHORT_WITH_LINK"})
-	}
-
+	hits := hitsFromContentStats(content, s)
+	hits = append(hits, hitsFromUnicodeStats(s)...)
 	return hits
 }
 
-// countContentStats performs a single pass over the content, counting:
-// - upper: uppercase letters (excluding URL ranges)
-// - lower: lowercase letters (excluding URL ranges)
-// - punct: punctuation characters
-// - nonSpace: all non-space characters
-// - urls: number of http:// and https:// URLs
-// URLs are skipped for letter counting to avoid skewing the caps ratio.
-func countContentStats(content string) (upper, lower, punct, nonSpace, urls int) {
-	s := content
+// hitsFromContentStats derives content heuristic hits from analyzed stats.
+func hitsFromContentStats(content string, s contentStats) []RuleHit {
+	var hits []RuleHit
+
+	totalLetters := s.upper + s.lower
+	if totalLetters >= minLettersForCaps && s.upper*100 > capsThresholdPct*totalLetters {
+		hits = append(hits, RuleHit{WeightAllCaps, "ALL_CAPS"})
+	}
+	if s.nonSpace >= minCharsForPunct && s.punct*100 > punctThresholdPct*s.nonSpace {
+		hits = append(hits, RuleHit{WeightExcessivePunct, "EXCESSIVE_PUNCT"})
+	}
+	if s.urlCount > linkMaxCount {
+		hits = append(hits, RuleHit{WeightLinkHeavy, "LINK_HEAVY"})
+	}
+	if len(content) <= shortBodyMaxLen && s.urlCount > 0 {
+		hits = append(hits, RuleHit{WeightShortWithLink, "SHORT_WITH_LINK"})
+	}
+	return hits
+}
+
+// hitsFromUnicodeStats derives unicode abuse hits from analyzed stats.
+func hitsFromUnicodeStats(s contentStats) []RuleHit {
+	var hits []RuleHit
+
+	if s.maxConsecCombine >= zalgoMinCombining {
+		hits = append(hits, RuleHit{WeightZalgoText, "ZALGO_TEXT"})
+	}
+	if s.invisibleCount >= invisibleMinCount {
+		hits = append(hits, RuleHit{WeightInvisibleChars, "INVISIBLE_CHARS"})
+	}
+	if s.mixedWords > 0 {
+		hits = append(hits, RuleHit{WeightHomoglyphMix, "HOMOGLYPH_MIX"})
+	}
+	return hits
+}
+
+// analyzeContent performs a single pass over content, collecting all stats
+// for both content heuristics and unicode abuse detection.
+// URL ranges are skipped for letter counting (to avoid skewing the caps ratio)
+// but script tracking continues (to detect homoglyphs in URLs).
+func analyzeContent(content string) contentStats {
+	var s contentStats
 	pos := 0
 	inURL := false
 
-	for pos < len(s) {
-		// Check if we're at a URL start (guarded by cheap byte check)
-		if !inURL && s[pos] == 'h' && pos+7 < len(s) {
-			rest := s[pos:]
+	consecCombining := 0
+	wordHasLatin := false
+	wordHasOther := false
+
+	for pos < len(content) {
+		// URL start detection (byte-level guard before prefix check)
+		if !inURL && content[pos] == 'h' && pos+7 < len(content) {
+			rest := content[pos:]
 			if strings.HasPrefix(rest, "https://") || strings.HasPrefix(rest, "http://") {
 				inURL = true
-				urls++
+				s.urlCount++
 			}
 		}
 
-		r := rune(s[pos])
-		advance := 1
-		// Handle multi-byte runes
-		if r >= 0x80 {
-			for _, rr := range s[pos:] {
-				r = rr
-				advance = runeLen(rr)
-				break
+		r, advance := utf8.DecodeRuneInString(content[pos:])
+
+		// Combining marks (zalgo detection)
+		if isCombiningMark(r) {
+			consecCombining++
+			if consecCombining > s.maxConsecCombine {
+				s.maxConsecCombine = consecCombining
 			}
+			pos += advance
+			continue
 		}
+
+		// Invisible characters
+		if isInvisibleChar(r) {
+			s.invisibleCount++
+			consecCombining = 0
+			pos += advance
+			continue
+		}
+
+		consecCombining = 0
 
 		if unicode.IsSpace(r) {
 			if inURL {
-				inURL = false // URL ends at whitespace
+				inURL = false
 			}
+			// Word boundary: check for mixed scripts and reset.
+			if wordHasLatin && wordHasOther {
+				s.mixedWords++
+			}
+			wordHasLatin = false
+			wordHasOther = false
 		} else {
-			nonSpace++
+			s.nonSpace++
 			if isPunct(r) {
-				punct++
+				s.punct++
 			}
-			// Count letters only outside URLs
+			// Count letters and script only outside URLs
 			if !inURL {
 				if unicode.IsUpper(r) {
-					upper++
+					s.upper++
 				} else if unicode.IsLower(r) {
-					lower++
+					s.lower++
 				}
+			}
+			// Script tracking (always, even in URLs)
+			if isLatin(r) {
+				wordHasLatin = true
+			} else if isCyrillic(r) || isGreek(r) {
+				wordHasOther = true
 			}
 		}
 		pos += advance
 	}
-	return
-}
 
-// runeLen returns the UTF-8 byte length of a rune without allocating.
-func runeLen(r rune) int {
-	switch {
-	case r < 0x80:
-		return 1
-	case r < 0x800:
-		return 2
-	case r < 0x10000:
-		return 3
-	default:
-		return 4
+	// Flush last word.
+	if wordHasLatin && wordHasOther {
+		s.mixedWords++
 	}
+
+	return s
 }
 
 // ---- Helpers
