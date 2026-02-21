@@ -15,14 +15,14 @@ package main
 //   NO_USERNAME (1)       LOW_BALANCE (1)        BANNED_BEFORE (1-3)
 //
 // Scenarios:
-// 1. Legitimate power user → score 0
-// 2. New account spammer → reputation + content + keywords + bayes + punct
-// 3. Spam flood from flagged user → caps + links + rate + keywords + bayes + reputation + ban history
-// 4. Near-duplicate + pattern match → fingerprint + regex
-// 5. Short link spam → short body with URL
-// 6. Blocked address → instant rejection
-// 7. Allowlisted moderator → bypass all rules
-// 8. Unicode abuse → zalgo + invisible chars + homoglyph mixing
+// 1. Legitimate power user -> score 0
+// 2. New account spammer -> reputation + content + keywords + bayes + punct
+// 3. Spam flood from flagged user -> caps + links + rate + keywords + bayes + reputation + ban history
+// 4. Near-duplicate + pattern match -> fingerprint + regex
+// 5. Short link spam -> short body with URL
+// 6. Blocked address -> instant rejection
+// 7. Allowlisted moderator -> bypass all rules
+// 8. Unicode abuse -> zalgo + invisible chars + homoglyph mixing
 
 import (
 	"gno.land/p/gnoland/antispam"
@@ -163,7 +163,7 @@ func main() {
 	println("  NEW_ACCOUNT(2) + NO_USERNAME(1) + LOW_BALANCE(1) = reputation penalties")
 	println("  KEYWORD_SPAM(3) + BAYES_SPAM(3) = content detection")
 	println("  EXCESSIVE_PUNCT(1) = punctuation spam (>20% of characters)")
-	println("Status:  🚫 REJECTED (score ≥ " + intToString(antispam.ThresholdReject) + ")\n")
+	println("Status:  🚫 REJECTED (score >= " + intToString(antispam.ThresholdReject) + ")\n")
 
 	// ========================================
 	// SCENARIO 3: Spam Flood from Flagged User
@@ -212,7 +212,7 @@ func main() {
 	println("══════════════════════════════════════════════\n")
 
 	// This message matches both the stored fingerprint AND a regex pattern
-	// Pattern: send \d+ \w+ get \d+ — requires no extra words between GNOT and get
+	// Pattern: send \d+ \w+ get \d+ - requires no extra words between GNOT and get
 	dupPatternMsg := "Send 100 GNOT get 1000 GNOT back! Guaranteed returns! Act now!"
 
 	result4 := antispam.Score(antispam.ScoreInput{
@@ -260,7 +260,7 @@ func main() {
 	println("Message: \"" + shortLink + "\"")
 	println("Score:   " + intToString(result5.Total) + " | Triggered: " + sliceToString(result5.Triggered))
 	println("Rules breakdown:")
-	println("  SHORT_WITH_LINK(3) = body ≤30 chars with a URL")
+	println("  SHORT_WITH_LINK(3) = body <=30 chars with a URL")
 	println("  EXCESSIVE_PUNCT(1) = URL punctuation (://) inflates the ratio")
 	println("  Minimal content with a link is a common spam pattern")
 	println("Status:  ⚠ SUSPICIOUS (below reject, above normal)\n")
@@ -320,7 +320,7 @@ func main() {
 	println("Message: \"" + floodMsg + "\"")
 	println("Score:   " + intToString(result7.Total) + " | Triggered: " + sliceToString(result7.Triggered))
 	println("Rules breakdown:")
-	println("  Allowlist bypasses ALL rules — score is always 0")
+	println("  Allowlist bypasses ALL rules - score is always 0")
 	println("  Use case: moderators, admins, emergency announcements")
 	println("Status:  ✓ BYPASSED\n")
 
@@ -352,8 +352,8 @@ func main() {
 	println("  ZALGO_TEXT(3) = stacked combining marks distort rendering")
 	println("  INVISIBLE_CHARS(2) = zero-width spaces for obfuscation")
 	println("  HOMOGLYPH_MIX(2) = cyrillic 'а' mixed with latin in same word")
-	println("  Good reputation irrelevant — unicode abuse is a content signal")
-	println("Status:  ⚠ HIDDEN (score ≥ " + intToString(antispam.ThresholdHide) + ")\n")
+	println("  Good reputation irrelevant - unicode abuse is a content signal")
+	println("Status:  ⚠ HIDDEN (score >= " + intToString(antispam.ThresholdHide) + ")\n")
 
 	// ========================================
 	// SUMMARY
@@ -375,7 +375,7 @@ func main() {
 	println("")
 
 	println("All 18 rules triggered at least once across these scenarios.")
-	println("No single rule is sufficient — multi-layer detection is the key.")
+	println("No single rule is sufficient - multi-layer detection is the key.")
 }
 
 // Output:
@@ -399,7 +399,7 @@ func main() {
 //   NEW_ACCOUNT(2) + NO_USERNAME(1) + LOW_BALANCE(1) = reputation penalties
 //   KEYWORD_SPAM(3) + BAYES_SPAM(3) = content detection
 //   EXCESSIVE_PUNCT(1) = punctuation spam (>20% of characters)
-// Status:  🚫 REJECTED (score ≥ 8)
+// Status:  🚫 REJECTED (score >= 8)
 //
 // SCENARIO 3: Spam Flood from Flagged User
 // ═════════════════════════════════════════
@@ -434,7 +434,7 @@ func main() {
 // Message: "Check this! http://x.co"
 // Score:   4 | Triggered: [EXCESSIVE_PUNCT SHORT_WITH_LINK]
 // Rules breakdown:
-//   SHORT_WITH_LINK(3) = body ≤30 chars with a URL
+//   SHORT_WITH_LINK(3) = body <=30 chars with a URL
 //   EXCESSIVE_PUNCT(1) = URL punctuation (://) inflates the ratio
 //   Minimal content with a link is a common spam pattern
 // Status:  ⚠ SUSPICIOUS (below reject, above normal)
@@ -457,7 +457,7 @@ func main() {
 // Message: "FREE MONEY BONUS PRIZE AIRDROP CLICK NOW!!! http://spam1.com http://spam2.com http://spam3.com http://spam4.com"
 // Score:   0 | Triggered: []
 // Rules breakdown:
-//   Allowlist bypasses ALL rules — score is always 0
+//   Allowlist bypasses ALL rules - score is always 0
 //   Use case: moderators, admins, emergency announcements
 // Status:  ✓ BYPASSED
 //
@@ -471,8 +471,8 @@ func main() {
 //   ZALGO_TEXT(3) = stacked combining marks distort rendering
 //   INVISIBLE_CHARS(2) = zero-width spaces for obfuscation
 //   HOMOGLYPH_MIX(2) = cyrillic 'а' mixed with latin in same word
-//   Good reputation irrelevant — unicode abuse is a content signal
-// Status:  ⚠ HIDDEN (score ≥ 5)
+//   Good reputation irrelevant - unicode abuse is a content signal
+// Status:  ⚠ HIDDEN (score >= 5)
 //
 // RULE COVERAGE MATRIX
 // ════════════════════
@@ -489,4 +489,4 @@ func main() {
 // 8. Unicode   7  [ZALGO_TEXT INVISIBLE_CHARS HOMOGLYPH_MIX]
 //
 // All 18 rules triggered at least once across these scenarios.
-// No single rule is sufficient — multi-layer detection is the key.
+// No single rule is sufficient - multi-layer detection is the key.

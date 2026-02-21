@@ -17,15 +17,14 @@ const (
 	minCharsForPunct  = 10 // minimum characters to evaluate punctuation
 )
 
-// contentStats holds all counters from a single-pass content analysis.
-// Shared between content heuristics and unicode abuse detection.
+// contentStats holds all counters from content analysis.
 type contentStats struct {
-	upper, lower     int // letter counts (excluding URLs)
-	punct, nonSpace  int // punctuation and non-space character counts
+	upper, lower     int // letter case counts (URLs excluded)
+	punct, nonSpace  int // punctuation and non-space counts
 	urlCount         int // number of http/https URLs
 	invisibleCount   int // zero-width and directional override characters
-	maxConsecCombine int // max consecutive combining marks on one character
-	mixedWords       int // words with mixed Latin + Cyrillic/Greek
+	maxConsecCombine int // longest run of combining marks on one character
+	mixedWords       int // words mixing Latin + Cyrillic/Greek
 }
 
 // ScoreContent checks content for spam heuristics (caps, punct, links).
@@ -38,8 +37,7 @@ func ScoreContent(content string) []RuleHit {
 	return hitsFromContentStats(content, s)
 }
 
-// scoreContentAll combines content heuristics and unicode abuse detection
-// in a single pass. Called by Score() to avoid scanning content twice.
+// scoreContentAll combines content heuristics and unicode abuse detection.
 func scoreContentAll(content string) []RuleHit {
 	content = strings.TrimSpace(content)
 	if len(content) == 0 {
@@ -89,9 +87,8 @@ func hitsFromUnicodeStats(s contentStats) []RuleHit {
 	return hits
 }
 
-// analyzeContent performs a single pass over content, collecting all stats
-// for both content heuristics and unicode abuse detection.
-// URL ranges are skipped for letter counting (to avoid skewing the caps ratio)
+// analyzeContent collects all stats for content heuristics and unicode abuse detection.
+// URLs are skipped for letter counting (to avoid skewing the caps ratio)
 // but script tracking continues (to detect homoglyphs in URLs).
 func analyzeContent(content string) contentStats {
 	var s contentStats
@@ -103,7 +100,6 @@ func analyzeContent(content string) contentStats {
 	wordHasOther := false
 
 	for pos < len(content) {
-		// URL start detection (byte-level guard before prefix check)
 		if !inURL && content[pos] == 'h' && pos+7 < len(content) {
 			rest := content[pos:]
 			if strings.HasPrefix(rest, "https://") || strings.HasPrefix(rest, "http://") {
@@ -114,7 +110,6 @@ func analyzeContent(content string) contentStats {
 
 		r, advance := utf8.DecodeRuneInString(content[pos:])
 
-		// Combining marks (zalgo detection)
 		if isCombiningMark(r) {
 			consecCombining++
 			if consecCombining > s.maxConsecCombine {
@@ -124,7 +119,6 @@ func analyzeContent(content string) contentStats {
 			continue
 		}
 
-		// Invisible characters
 		if isInvisibleChar(r) {
 			s.invisibleCount++
 			consecCombining = 0
@@ -138,7 +132,6 @@ func analyzeContent(content string) contentStats {
 			if inURL {
 				inURL = false
 			}
-			// Word boundary: check for mixed scripts and reset.
 			if wordHasLatin && wordHasOther {
 				s.mixedWords++
 			}
@@ -149,7 +142,6 @@ func analyzeContent(content string) contentStats {
 			if isPunct(r) {
 				s.punct++
 			}
-			// Count letters and script only outside URLs
 			if !inURL {
 				if unicode.IsUpper(r) {
 					s.upper++
@@ -157,7 +149,6 @@ func analyzeContent(content string) contentStats {
 					s.lower++
 				}
 			}
-			// Script tracking (always, even in URLs)
 			if isLatin(r) {
 				wordHasLatin = true
 			} else if isCyrillic(r) || isGreek(r) {
@@ -167,7 +158,6 @@ func analyzeContent(content string) contentStats {
 		pos += advance
 	}
 
-	// Flush last word.
 	if wordHasLatin && wordHasOther {
 		s.mixedWords++
 	}
@@ -177,7 +167,7 @@ func analyzeContent(content string) contentStats {
 
 // ---- Helpers
 
-// isPunct returns true if the rune is a common punctuation mark used in spam.
+// isPunct returns true if the rune is a common punctuation mark.
 func isPunct(r rune) bool {
 	switch r {
 	case '!', '?', '.', ',', ';', ':', '-', '(', ')', '[', ']', '{', '}', '"', '\'', '`', '*', '~', '|', '/', '\\', '#', '@', '$', '%', '^', '&', '+', '=', '<', '>':

@@ -15,7 +15,7 @@ const (
 )
 
 // ScoreUnicode checks content for unicode abuse: zalgo text, invisible characters,
-// and homoglyph script mixing. Delegates to the shared analyzeContent pass.
+// and homoglyph script mixing.
 func ScoreUnicode(content string) []RuleHit {
 	content = strings.TrimSpace(content)
 	if len(content) == 0 {

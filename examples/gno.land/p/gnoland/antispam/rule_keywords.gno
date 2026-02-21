@@ -16,12 +16,11 @@ const (
 	keywordSumThreshold = 4
 )
 
-// ---- KeywordDict (AVL-tree-backed)
+// ---- KeywordDict
 
 // KeywordDict stores spam keywords with per-word weights.
-// Lookups are O(log n) via AVL tree — suitable for large dictionaries.
 type KeywordDict struct {
-	tree *avl.Tree // lowercase word -> weight (int)
+	tree *avl.Tree
 }
 
 // NewKeywordDict creates an empty KeywordDict.
@@ -30,7 +29,7 @@ func NewKeywordDict() *KeywordDict {
 }
 
 // Add inserts a keyword with a weight. The word is lowercased.
-// Weights are clamped to [1, 3]; values ≤0 are ignored, values >3 become 3.
+// Weights are clamped to [1, 3]; values <=0 are ignored, values >3 become 3.
 func (kd *KeywordDict) Add(word string, weight int) {
 	w := strings.ToLower(strings.TrimSpace(word))
 	if w == "" || weight <= 0 {
@@ -74,7 +73,7 @@ func (kd *KeywordDict) BulkAdd(data string) {
 
 		idx := strings.LastIndex(line, ":")
 		if idx == -1 || idx == len(line)-1 {
-			// No colon or trailing colon → default weight 1
+			// No colon or trailing colon -> default weight 1
 			kd.Add(line, 1)
 			continue
 		}
@@ -90,8 +89,7 @@ func (kd *KeywordDict) BulkAdd(data string) {
 }
 
 // parseSimpleInt parses a simple positive integer from a string.
-// Returns 0 on any error. Caps at 9 to avoid overflow on long digit strings
-// (callers only need weight values 1-3).
+// Returns 0 on any error.
 func parseSimpleInt(s string) int {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -113,7 +111,7 @@ func parseSimpleInt(s string) int {
 // ---- Leet speak normalization
 
 // normalizeLeet converts common leet speak digit substitutions back to letters.
-// Only handles digit-based leet (0→o, 1→i, 3→e, 4→a, 5→s, 7→t) since
+// Only handles digit-based leet (0->o, 1->i, 3->e, 4->a, 5->s, 7->t) since
 // symbol-based leet (@, $) is stripped during tokenization.
 func normalizeLeet(s string) string {
 	if s == "" {
@@ -158,7 +156,6 @@ func normalizeLeet(s string) string {
 // ScoreKeywords checks content tokens against a keyword dictionary.
 // Uses co-occurrence: triggers only when multiple keywords are found
 // AND their combined weight exceeds the threshold.
-// Tokens are deduplicated — repeating a word doesn't increase the score.
 // Also checks leet-speak normalized variants of each token.
 func ScoreKeywords(content string, dict *KeywordDict) (int, string) {
 	return scoreKeywordsTokens(dedup(Tokenize(content)), dict)

@@ -17,8 +17,8 @@ const (
 	// Prevents scoring with insufficient training data.
 	bayesMinCorpusSize = 10
 
-	// bayesSpamThresholdPct is the threshold for P(spam|tokens) expressed as integer percentage.
-	// Tokens with spamCount/(spamCount+hamCount) > this% are considered spam indicators.
+	// bayesSpamThresholdPct is the spam ratio threshold (percentage).
+	// Tokens appearing in spam more than this% of the time are considered spam indicators.
 	bayesSpamThresholdPct = 70
 
 	// bayesMinSpamTokens is the minimum number of spam-indicating tokens
@@ -29,19 +29,15 @@ const (
 // ---- Tokenizer
 
 // Tokenize splits text into lowercase tokens, filtering short words and URLs.
-// Single-pass: inlines URL skipping and lowercasing to avoid two extra string
-// allocations (stripURLs + strings.ToLower).
 func Tokenize(text string) []string {
 	var tokens []string
 	var current strings.Builder
 	inURL := false
 
 	for i := 0; i < len(text); {
-		// URL start detection (byte-level guard before prefix check)
 		if !inURL && text[i] == 'h' && i+7 < len(text) {
 			rest := text[i:]
 			if strings.HasPrefix(rest, "https://") || strings.HasPrefix(rest, "http://") {
-				// Flush pending token before skipping URL
 				if current.Len() >= tokenMinLen {
 					tokens = append(tokens, current.String())
 				}
@@ -78,7 +74,7 @@ func Tokenize(text string) []string {
 	return tokens
 }
 
-// ---- Corpus (AVL-tree-backed token frequency storage)
+// ---- Corpus
 
 // tokenStats holds spam and ham counts for a single token.
 type tokenStats struct {
@@ -89,7 +85,7 @@ type tokenStats struct {
 // Corpus stores token frequency data for Bayesian classification.
 // It is owned by the calling realm and persists across transactions.
 type Corpus struct {
-	tree *avl.Tree // token string -> *tokenStats
+	tree *avl.Tree
 }
 
 // NewCorpus creates an empty Corpus.
@@ -118,8 +114,7 @@ func (c *Corpus) Train(content string, isSpam bool) {
 	}
 }
 
-// dedup sorts a string slice and removes duplicates in-place.
-// Returns the deduplicated slice. Zero allocation beyond the sort.
+// dedup removes duplicates from a string slice.
 func dedup(ss []string) []string {
 	if len(ss) <= 1 {
 		return ss
@@ -153,15 +148,12 @@ func (c *Corpus) Size() int {
 // ---- Bayesian scoring
 
 // ScoreBayes evaluates content against the trained corpus.
-// It counts tokens that are strong spam indicators (high spam ratio)
-// and triggers BAYES_SPAM if enough are found.
-// All math is integer-based (no floats).
+// Triggers BAYES_SPAM if enough spam-indicating tokens are found.
 func ScoreBayes(content string, corpus *Corpus) (int, string) {
 	return scoreBayesTokens(dedup(Tokenize(content)), corpus)
 }
 
-// scoreBayesTokens scores pre-deduplicated tokens against the corpus.
-// Tokens must already be deduplicated.
+// scoreBayesTokens scores tokens against the corpus.
 func scoreBayesTokens(tokens []string, corpus *Corpus) (int, string) {
 	if corpus == nil || corpus.Size() < bayesMinCorpusSize {
 		return 0, ""

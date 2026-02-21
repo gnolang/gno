@@ -144,7 +144,7 @@ func main() {
 	})
 
 	println("Score: " + intToString(result1B.Total) + " | Triggered: " + sliceToString(result1B.Triggered))
-	println("Score change: " + intToString(result1A.Total) + " → " + intToString(result1B.Total) + " (unchanged)")
+	println("Score change: " + intToString(result1A.Total) + " -> " + intToString(result1B.Total) + " (unchanged)")
 	println("✓ Legitimate content correctly identified before and after training\n")
 
 	// ========================================
@@ -188,7 +188,7 @@ func main() {
 	if containsRule(result2B.Triggered, "BAYES_SPAM") {
 		println("✓ BAYES_SPAM triggered! Classifier learned spam patterns")
 	}
-	println("Score change: " + intToString(result2A.Total) + " → " + intToString(result2B.Total) + " (+" + intToString(result2B.Total-result2A.Total) + " points)")
+	println("Score change: " + intToString(result2A.Total) + " -> " + intToString(result2B.Total) + " (+" + intToString(result2B.Total-result2A.Total) + " points)")
 	println("✓ Training improved spam detection\n")
 
 	// ========================================
@@ -261,7 +261,7 @@ func main() {
 		println("✓ BAYES_SPAM did NOT trigger despite keywords")
 		println("  Classifier learned to recognize legitimate context")
 	}
-	println("Score change: " + intToString(result3A.Total) + " → " + intToString(result3B.Total) + " (" + intToString(result3B.Total-result3A.Total) + " points)")
+	println("Score change: " + intToString(result3A.Total) + " -> " + intToString(result3B.Total) + " (" + intToString(result3B.Total-result3A.Total) + " points)")
 	println("✓ Training reduced false positives\n")
 
 	// ========================================
@@ -273,9 +273,9 @@ func main() {
 
 	println("Training Results:")
 	println("")
-	println("  Scenario 1 (Baseline):        " + intToString(result1A.Total) + " → " + intToString(result1B.Total) + "  (no change, correct)")
-	println("  Scenario 2 (Spam Detection):  " + intToString(result2A.Total) + " → " + intToString(result2B.Total) + "  (+" + intToString(result2B.Total-result2A.Total) + ", improvement)")
-	println("  Scenario 3 (False Positive):  " + intToString(result3A.Total) + " → " + intToString(result3B.Total) + "  (" + intToString(result3B.Total-result3A.Total) + ", improvement)")
+	println("  Scenario 1 (Baseline):        " + intToString(result1A.Total) + " -> " + intToString(result1B.Total) + "  (no change, correct)")
+	println("  Scenario 2 (Spam Detection):  " + intToString(result2A.Total) + " -> " + intToString(result2B.Total) + "  (+" + intToString(result2B.Total-result2A.Total) + ", improvement)")
+	println("  Scenario 3 (False Positive):  " + intToString(result3A.Total) + " -> " + intToString(result3B.Total) + "  (" + intToString(result3B.Total-result3A.Total) + ", improvement)")
 	println("")
 
 	println("Key Insights:")
@@ -283,7 +283,7 @@ func main() {
 	println("  • Training catches previously missed spam (scenario 2)")
 	println("  • Training reduces false alarms on legitimate content (scenario 3)")
 	println("  • Bayesian classifier learns vocabulary context, not just keywords")
-	println("  • Requires ≥10 unique tokens in corpus before activating")
+	println("  • Requires >=10 unique tokens in corpus before activating")
 	println("  • More diverse training examples = better accuracy")
 	println("  • Works alongside other rules for comprehensive spam detection")
 }
@@ -332,7 +332,7 @@ func containsRule(rules []string, target string) bool {
 // AFTER TRAINING:
 // ───────────────
 // Score: 0 | Triggered: []
-// Score change: 0 → 0 (unchanged)
+// Score change: 0 -> 0 (unchanged)
 // ✓ Legitimate content correctly identified before and after training
 //
 // SCENARIO 2: Score Increases (Improved Spam Detection)
@@ -353,7 +353,7 @@ func containsRule(rules []string, target string) bool {
 //
 // Score: 3 | Triggered: [BAYES_SPAM]
 // ✓ BAYES_SPAM triggered! Classifier learned spam patterns
-// Score change: 0 → 3 (+3 points)
+// Score change: 0 -> 3 (+3 points)
 // ✓ Training improved spam detection
 //
 // SCENARIO 3: Score Decreases (False Positive Reduction)
@@ -377,7 +377,7 @@ func containsRule(rules []string, target string) bool {
 // Score: 0 | Triggered: []
 // ✓ BAYES_SPAM did NOT trigger despite keywords
 //   Classifier learned to recognize legitimate context
-// Score change: 0 → 0 (0 points)
+// Score change: 0 -> 0 (0 points)
 // ✓ Training reduced false positives
 //
 // COMPREHENSIVE SUMMARY
@@ -385,15 +385,15 @@ func containsRule(rules []string, target string) bool {
 //
 // Training Results:
 //
-//   Scenario 1 (Baseline):        0 → 0  (no change, correct)
-//   Scenario 2 (Spam Detection):  0 → 3  (+3, improvement)
-//   Scenario 3 (False Positive):  0 → 0  (0, improvement)
+//   Scenario 1 (Baseline):        0 -> 0  (no change, correct)
+//   Scenario 2 (Spam Detection):  0 -> 3  (+3, improvement)
+//   Scenario 3 (False Positive):  0 -> 0  (0, improvement)
 //
 // Key Insights:
 //   • Training preserves correct classifications (scenario 1)
 //   • Training catches previously missed spam (scenario 2)
 //   • Training reduces false alarms on legitimate content (scenario 3)
 //   • Bayesian classifier learns vocabulary context, not just keywords
-//   • Requires ≥10 unique tokens in corpus before activating
+//   • Requires >=10 unique tokens in corpus before activating
 //   • More diverse training examples = better accuracy
 //   • Works alongside other rules for comprehensive spam detection

@@ -94,7 +94,7 @@ func main() {
 
 	println("Test 1: Normal accented text (should pass)")
 	println("───────────────────────────────────────────")
-	r := score("Café résumé naïve — normal accented text is fine.")
+	r := score("Café résumé naïve - normal accented text is fine.")
 	println("Score: " + intToString(r.Total) + " | Rules: " + sliceToString(r.Triggered))
 	println("")
 
@@ -118,7 +118,7 @@ func main() {
 
 	println("Test 3: Text with zero-width spaces (obfuscation)")
 	println("──────────────────────────────────────────────────")
-	invisible := "He\u200Bllo wo\u200Brld — looks normal but has hidden chars"
+	invisible := "He\u200Bllo wo\u200Brld - looks normal but has hidden chars"
 	r = score(invisible)
 	println("Score: " + intToString(r.Total) + " | Rules: " + sliceToString(r.Triggered))
 	if containsRule(r.Triggered, "INVISIBLE_CHARS") {
@@ -145,7 +145,7 @@ func main() {
 
 	println("Test 5: Cyrillic 'a' substituted in Latin word")
 	println("───────────────────────────────────────────────")
-	// "p" + cyrillic а (U+0430) + "yment" — visually identical to "payment"
+	// "p" + cyrillic а (U+0430) + "yment" - visually identical to "payment"
 	homoglyph := "Send p\u0430yment to this address now"
 	r = score(homoglyph)
 	println("Score: " + intToString(r.Total) + " | Rules: " + sliceToString(r.Triggered))
@@ -156,7 +156,7 @@ func main() {
 
 	println("Test 6: Separate scripts (should pass)")
 	println("──────────────────────────────────────")
-	r = score("Hello Привет — two scripts in separate words is fine")
+	r = score("Hello Привет - two scripts in separate words is fine")
 	println("Score: " + intToString(r.Total) + " | Rules: " + sliceToString(r.Triggered))
 	println("")
 

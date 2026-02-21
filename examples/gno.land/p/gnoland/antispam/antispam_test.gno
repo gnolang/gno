@@ -330,7 +330,7 @@ func TestScoreContentAllEquivalence(t *testing.T) {
 		"Normal text without any issues at all.",
 		"THIS IS ALL CAPS SPAM MESSAGE THAT SHOULD BE DETECTED BY THE CONTENT RULES",
 		"H\u0300\u0301\u0302\u0303\u0304ello with ze\u200Bro\u200Bwidth",
-		"Send p\u0430yment now — homoglyph mixing here",
+		"Send p\u0430yment now - homoglyph mixing here",
 		"Check http://a.com http://b.com http://c.com http://d.com many links",
 		"!!!???...!!! excessive punctuation everywhere !!!???!!!",
 	}
@@ -374,7 +374,7 @@ func TestBlockedAddressShortCircuit(t *testing.T) {
 		Bl:      bl,
 	})
 
-	// Only BLOCKED_ADDRESS should fire — no other rules
+	// Only BLOCKED_ADDRESS should fire - no other rules
 	if len(result.Triggered) != 1 {
 		t.Errorf("expected exactly 1 triggered rule, got %d: %v", len(result.Triggered), result.Triggered)
 	}

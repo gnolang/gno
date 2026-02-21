@@ -8,20 +8,20 @@ package main
 // Scenario:
 // - Spammer posts known spam message (gets flagged, fingerprint stored)
 // - Spammer tries minor variations to evade detection
-// - System detects near-duplicates (≥50% similarity threshold)
+// - System detects near-duplicates (>=50% similarity threshold)
 // - Legitimate similar messages are NOT flagged (different fingerprints)
 //
 // Rules demonstrated:
-// - NEAR_DUPLICATE: Triggers when message matches stored fingerprint ≥50%
+// - NEAR_DUPLICATE: Triggers when message matches stored fingerprint >=50%
 // - MinHash algorithm: Creates compact fingerprint from character trigrams
 // - Evasion resistance: Catches reworded/modified spam
 // - Precision: Distinguishes similar topics from duplicate spam
 //
 // Known limitations (by design):
 // MinHash with character trigrams excels at catching exact copies and
-// word-reordered variants (same characters → same trigrams). It does NOT
+// word-reordered variants (same characters -> same trigrams). It does NOT
 // catch synonym substitution or heavy padding because these produce
-// entirely different trigrams. This is expected — other layers (BAYES_SPAM,
+// entirely different trigrams. This is expected - other layers (BAYES_SPAM,
 // KEYWORD_SPAM, BLOCKED_PATTERN) compensate for these evasion strategies.
 // See z6_comprehensive_filetest.gno for a multi-layer demonstration.
 
@@ -151,7 +151,7 @@ func main() {
 	println("Score: " + intToString(result3a.Total) + " | Triggered: " + sliceToString(result3a.Triggered))
 	if containsRule(result3a.Triggered, "NEAR_DUPLICATE") {
 		println("✓ NEAR_DUPLICATE triggered (detected reordering)")
-		println("Analysis: Same tokens, different order → same fingerprint\n")
+		println("Analysis: Same tokens, different order -> same fingerprint\n")
 	}
 
 	// Variation 2: Word substitution (synonyms)
@@ -174,8 +174,8 @@ func main() {
 
 	println("Score: " + intToString(result3b.Total) + " | Triggered: " + sliceToString(result3b.Triggered))
 	if containsRule(result3b.Triggered, "NEAR_DUPLICATE") {
-		println("✓ NEAR_DUPLICATE triggered (≥50% token overlap)")
-		println("Analysis: bonus→reward, click→tap, get→receive, instantly→now")
+		println("✓ NEAR_DUPLICATE triggered (>=50% token overlap)")
+		println("Analysis: bonus->reward, click->tap, get->receive, instantly->now")
 		println("           Despite changes, core spam structure remains\n")
 	}
 
@@ -324,7 +324,7 @@ func main() {
 	println("  • Synonym substitution and heavy padding change enough trigrams to evade")
 	println("  • MISSED results are expected: fingerprinting is one layer in a multi-layer")
 	println("    system. BAYES_SPAM, KEYWORD_SPAM, and BLOCKED_PATTERN cover these gaps.")
-	println("  • Fingerprints must be ≥10 characters to be valid")
+	println("  • Fingerprints must be >=10 characters to be valid")
 	println("  • Legitimate content on similar topics is not flagged")
 }
 
@@ -374,7 +374,7 @@ func containsRule(rules []string, target string) bool {
 //
 // Score: 4 | Triggered: [NEAR_DUPLICATE]
 // ✓ NEAR_DUPLICATE triggered (detected reordering)
-// Analysis: Same tokens, different order → same fingerprint
+// Analysis: Same tokens, different order -> same fingerprint
 //
 // Variation 2: Synonym Substitution
 // ──────────────────────────────────
@@ -436,5 +436,5 @@ func containsRule(rules []string, target string) bool {
 //   • Synonym substitution and heavy padding change enough trigrams to evade
 //   • MISSED results are expected: fingerprinting is one layer in a multi-layer
 //     system. BAYES_SPAM, KEYWORD_SPAM, and BLOCKED_PATTERN cover these gaps.
-//   • Fingerprints must be ≥10 characters to be valid
+//   • Fingerprints must be >=10 characters to be valid
 //   • Legitimate content on similar topics is not flagged
