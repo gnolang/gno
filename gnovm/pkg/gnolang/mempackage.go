@@ -160,8 +160,10 @@ func IsTestFile(file string) bool {
 
 var (
 	goodFiles = []string{
-		"LICENSE",
-		"README.md",
+		"license",
+		"license.txt",
+		"licence",
+		"licence.txt",
 		"gno.mod",
 	}
 	// NOTE: Xtn is easier to type than Extension due to proximity of 'e'
@@ -171,6 +173,7 @@ var (
 	goodFileXtns = []string{
 		".gno",
 		".toml",
+		".md",
 		// ".txtar", // XXX: to be considered
 	}
 	badFileXtns = []string{
@@ -640,7 +643,7 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // ReadMemPackage initializes a new MemPackage by reading the OS directory at
 // dir, and saving it with the given pkgPath (import path).  The resulting
 // MemPackage will contain the names and content of all *.gno files, and
-// additionally README.md, LICENSE.
+// additionally LICENSE, *.md and *.toml .
 //
 // ReadMemPackage only reads good file extensions or whitelisted good files,
 // and ignores bad file extensions. Validation will fail if any bad extensions
@@ -677,10 +680,11 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 	for _, file := range files {
 		// Ignore directories and hidden files, only include allowed files & extensions,
 		// then exclude files that are of the bad extensions.
+		// We do case ignore to check goodFiles. MemFile ValidateBasic will enforce case rules.
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
 			(!endsWithAny(file.Name(), goodFileXtns) &&
-				!slices.Contains(goodFiles, file.Name())) ||
+				!slices.Contains(goodFiles, strings.ToLower(file.Name()))) ||
 			endsWithAny(file.Name(), badFileXtns) {
 			continue
 		}
@@ -1031,7 +1035,7 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 			continue
 		}
 		if !endsWithAny(fname, goodFileXtns) {
-			if !slices.Contains(goodFiles, fname) {
+			if !slices.Contains(goodFiles, strings.ToLower(fname)) {
 				errs = multierr.Append(errs, fmt.Errorf("invalid file %q: unrecognized file type", fname))
 				continue
 			}
