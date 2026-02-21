@@ -226,6 +226,38 @@ func TestIsCombiningMark(t *testing.T) {
 	}
 }
 
+func TestUnicodeThresholdBoundaries(t *testing.T) {
+	t.Run("zalgo: exactly 3 combining marks triggers", func(t *testing.T) {
+		// zalgoMinCombining=3, exactly 3 consecutive combining marks
+		content := "A\u0300\u0301\u0302 normal text here"
+		hits := ScoreUnicode(content)
+		found := false
+		for _, h := range hits {
+			if h.Rule == "ZALGO_TEXT" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("exactly 3 combining marks should trigger ZALGO_TEXT")
+		}
+	})
+
+	t.Run("invisible: exactly 2 invisible chars triggers", func(t *testing.T) {
+		// invisibleMinCount=2, exactly 2 invisible characters
+		content := "Hello\u200B world\u200B normal text"
+		hits := ScoreUnicode(content)
+		found := false
+		for _, h := range hits {
+			if h.Rule == "INVISIBLE_CHARS" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("exactly 2 invisible chars should trigger INVISIBLE_CHARS")
+		}
+	})
+}
+
 func TestScriptDetection(t *testing.T) {
 	t.Parallel()
 

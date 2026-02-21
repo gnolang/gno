@@ -325,3 +325,92 @@ func TestScoreContent(t *testing.T) {
 		})
 	}
 }
+
+// ---- Threshold boundary tests ----
+
+func TestContentThresholdBoundaries(t *testing.T) {
+	t.Run("caps: exactly 50% uppercase is NOT triggered", func(t *testing.T) {
+		// 10 upper + 10 lower = 20 letters, exactly 50%
+		// upper*100 = 1000, capsThresholdPct*20 = 1000, 1000 > 1000 is false
+		hits := ScoreContent("ABCDE FGHIJ abcde fghij")
+		for _, h := range hits {
+			if h.Rule == "ALL_CAPS" {
+				t.Errorf("50%% caps should NOT trigger ALL_CAPS, got score %d", h.Score)
+			}
+		}
+	})
+
+	t.Run("caps: 9 letters all caps does NOT evaluate (below minLettersForCaps)", func(t *testing.T) {
+		hits := ScoreContent("ABCDEFGHI")
+		for _, h := range hits {
+			if h.Rule == "ALL_CAPS" {
+				t.Errorf("9 letters should skip ALL_CAPS evaluation, got score %d", h.Score)
+			}
+		}
+	})
+
+	t.Run("caps: 10 letters all caps DOES trigger", func(t *testing.T) {
+		hits := ScoreContent("ABCDEFGHIJ")
+		found := false
+		for _, h := range hits {
+			if h.Rule == "ALL_CAPS" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("10 uppercase letters should trigger ALL_CAPS")
+		}
+	})
+
+	t.Run("punct: exactly 20% punctuation is NOT triggered", func(t *testing.T) {
+		// 8 letters + 2 punct = 10 nonSpace, exactly 20%
+		// punct*100 = 200, punctThresholdPct*10 = 200, 200 > 200 is false
+		hits := ScoreContent("abcdefgh!?")
+		for _, h := range hits {
+			if h.Rule == "EXCESSIVE_PUNCT" {
+				t.Errorf("20%% punct should NOT trigger EXCESSIVE_PUNCT, got score %d", h.Score)
+			}
+		}
+	})
+
+	t.Run("punct: 9 nonSpace chars skips evaluation (below minCharsForPunct)", func(t *testing.T) {
+		// 9 nonSpace characters → below minCharsForPunct=10
+		hits := ScoreContent("!?!?!?!?!")
+		for _, h := range hits {
+			if h.Rule == "EXCESSIVE_PUNCT" {
+				t.Errorf("9 chars should skip EXCESSIVE_PUNCT evaluation, got score %d", h.Score)
+			}
+		}
+	})
+
+	t.Run("short+link: exactly 30 chars with link triggers", func(t *testing.T) {
+		// shortBodyMaxLen=30, condition is len(content) <= 30
+		content := "xxx http://abcdefghijklmnopqrs" // 30 bytes
+		if len(content) != 30 {
+			t.Fatalf("test setup: expected 30 chars, got %d", len(content))
+		}
+		hits := ScoreContent(content)
+		found := false
+		for _, h := range hits {
+			if h.Rule == "SHORT_WITH_LINK" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("content of exactly 30 chars with link should trigger SHORT_WITH_LINK")
+		}
+	})
+
+	t.Run("short+link: 31 chars with link does NOT trigger", func(t *testing.T) {
+		content := "xxxx http://abcdefghijklmnopqrs" // 31 bytes
+		if len(content) != 31 {
+			t.Fatalf("test setup: expected 31 chars, got %d", len(content))
+		}
+		hits := ScoreContent(content)
+		for _, h := range hits {
+			if h.Rule == "SHORT_WITH_LINK" {
+				t.Errorf("content of 31 chars should NOT trigger SHORT_WITH_LINK")
+			}
+		}
+	})
+}

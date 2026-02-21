@@ -143,6 +143,17 @@ func TestFingerprintStore(t *testing.T) {
 			t.Errorf("expected size 0 after adding empty, got %d", fs.Size())
 		}
 	})
+
+	t.Run("eviction: store caps at fpMaxStoreSize=500", func(t *testing.T) {
+		fs := NewFingerprintStore()
+		// Add 501 distinct fingerprints; oldest should be evicted
+		for i := 0; i < 501; i++ {
+			fs.Add("fingerprint test content number " + intToKey(i))
+		}
+		if fs.Size() != 500 {
+			t.Errorf("expected store capped at 500, got %d", fs.Size())
+		}
+	})
 }
 
 // ---- ScoreFingerprint tests ----

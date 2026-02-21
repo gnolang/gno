@@ -218,3 +218,131 @@ func TestScoreReputation(t *testing.T) {
 		})
 	}
 }
+
+// ---- Threshold boundary tests ----
+
+func TestReputationThresholdBoundaries(t *testing.T) {
+	t.Run("boundary: account age exactly 1 day is NOT new", func(t *testing.T) {
+		// repMinAgeDays=1, condition is AccountAgeDays < 1
+		hits := ScoreReputation(ReputationData{
+			AccountAgeDays: 1,
+			Balance:        5000000000,
+			TotalPosts:     0,
+			HasUsername:    true,
+		})
+		for _, h := range hits {
+			if h.Rule == "NEW_ACCOUNT" {
+				t.Error("account age 1 day should NOT trigger NEW_ACCOUNT")
+			}
+		}
+	})
+
+	t.Run("boundary: new account needs BOTH young AND no posts", func(t *testing.T) {
+		// NEW_ACCOUNT requires AccountAgeDays < 1 AND TotalPosts <= 0
+		hits := ScoreReputation(ReputationData{
+			AccountAgeDays: 0,
+			Balance:        5000000000,
+			TotalPosts:     1,
+			HasUsername:    true,
+		})
+		for _, h := range hits {
+			if h.Rule == "NEW_ACCOUNT" {
+				t.Error("age 0 with 1 post should NOT trigger NEW_ACCOUNT")
+			}
+		}
+	})
+
+	t.Run("boundary: balance exactly repMinBalance is NOT low", func(t *testing.T) {
+		// repMinBalance=1000000000, condition is Balance < repMinBalance
+		hits := ScoreReputation(ReputationData{
+			AccountAgeDays: 30,
+			Balance:        1000000000,
+			TotalPosts:     5,
+			HasUsername:    true,
+		})
+		for _, h := range hits {
+			if h.Rule == "LOW_BALANCE" {
+				t.Error("balance exactly 1000000000 should NOT trigger LOW_BALANCE")
+			}
+		}
+	})
+
+	t.Run("boundary: balance one below repMinBalance triggers", func(t *testing.T) {
+		hits := ScoreReputation(ReputationData{
+			AccountAgeDays: 30,
+			Balance:        999999999,
+			TotalPosts:     5,
+			HasUsername:    true,
+		})
+		found := false
+		for _, h := range hits {
+			if h.Rule == "LOW_BALANCE" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("balance 999999999 should trigger LOW_BALANCE")
+		}
+	})
+
+	t.Run("boundary: flag ratio exactly 30% is NOT bad", func(t *testing.T) {
+		// repFlagRatioPct=30, condition is flagRatio > 30
+		// 3 flags / 10 posts: 3*100/10 = 30, 30 > 30 is false
+		hits := ScoreReputation(ReputationData{
+			AccountAgeDays: 30,
+			Balance:        5000000000,
+			FlaggedCount:   3,
+			TotalPosts:     10,
+			HasUsername:    true,
+		})
+		for _, h := range hits {
+			if h.Rule == "BAD_REPUTATION" {
+				t.Error("30% flag ratio should NOT trigger BAD_REPUTATION")
+			}
+		}
+	})
+
+	t.Run("boundary: flag ratio 31% triggers BAD_REPUTATION", func(t *testing.T) {
+		// 31 flags / 100 posts: 31*100/100 = 31, 31 > 30 is true
+		hits := ScoreReputation(ReputationData{
+			AccountAgeDays: 30,
+			Balance:        5000000000,
+			FlaggedCount:   31,
+			TotalPosts:     100,
+			HasUsername:    true,
+		})
+		found := false
+		for _, h := range hits {
+			if h.Rule == "BAD_REPUTATION" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("31% flag ratio should trigger BAD_REPUTATION")
+		}
+	})
+
+	t.Run("boundary: ban penalty caps at WeightBadReputation", func(t *testing.T) {
+		// repBanPenalty=1, 5 bans: penalty=5, capped at WeightBadReputation=3
+		hits := ScoreReputation(ReputationData{
+			AccountAgeDays: 90,
+			Balance:        10000000000,
+			FlaggedCount:   0,
+			TotalPosts:     50,
+			HasUsername:    true,
+			BanCount:       5,
+		})
+		found := false
+		for _, h := range hits {
+			if h.Rule == "BANNED_BEFORE" {
+				found = true
+				if h.Score != WeightBadReputation {
+					t.Errorf("expected capped ban penalty %d, got %d", WeightBadReputation, h.Score)
+				}
+			}
+		}
+		if !found {
+			t.Error("5 bans should trigger BANNED_BEFORE")
+		}
+	})
+}

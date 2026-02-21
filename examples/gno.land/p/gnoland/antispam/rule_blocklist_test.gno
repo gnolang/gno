@@ -306,6 +306,37 @@ func TestBlocklistAddPatternError(t *testing.T) {
 	}
 }
 
+func TestBlocklistPatternCap(t *testing.T) {
+	bl := NewBlocklist()
+
+	// Add exactly blMaxPatterns=30 patterns
+	for i := 0; i < 30; i++ {
+		err := bl.AddPattern("pattern" + intToKey(i))
+		if err != nil {
+			t.Fatalf("adding pattern %d failed: %v", i, err)
+		}
+	}
+
+	if bl.PatternCount() != 30 {
+		t.Errorf("expected 30 patterns, got %d", bl.PatternCount())
+	}
+
+	// 31st NEW pattern should fail
+	err := bl.AddPattern("one_more_pattern")
+	if err == nil {
+		t.Error("expected error when exceeding pattern cap, got nil")
+	}
+	if bl.PatternCount() != 30 {
+		t.Errorf("expected 30 patterns after failed add, got %d", bl.PatternCount())
+	}
+
+	// Updating an existing pattern should still work
+	err = bl.AddPattern("pattern" + intToKey(0))
+	if err != nil {
+		t.Errorf("updating existing pattern should work, got error: %v", err)
+	}
+}
+
 // ---- ScoreBlocklist tests ----
 
 func TestScoreBlocklist(t *testing.T) {

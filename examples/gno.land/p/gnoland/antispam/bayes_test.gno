@@ -271,3 +271,78 @@ func TestScoreBayes(t *testing.T) {
 		})
 	}
 }
+
+// ---- Bayes threshold boundary tests ----
+
+func TestBayesThresholdBoundaries(t *testing.T) {
+	t.Run("boundary: corpus with 9 tokens does NOT score", func(t *testing.T) {
+		c := NewCorpus()
+		// 9 unique tokens: below bayesMinCorpusSize=10
+		c.Train("aaa bbb ccc ddd eee fff ggg hhh iii", true)
+		if c.Size() != 9 {
+			t.Fatalf("test setup: expected corpus size 9, got %d", c.Size())
+		}
+		score, _ := ScoreBayes("aaa bbb ccc ddd eee", c)
+		if score != 0 {
+			t.Errorf("corpus with 9 tokens should not score, got %d", score)
+		}
+	})
+
+	t.Run("boundary: corpus with 10 tokens DOES score spam", func(t *testing.T) {
+		c := NewCorpus()
+		// Spam: 5 tokens trained 3x (high spam ratio)
+		c.Train("aaa bbb ccc ddd eee", true)
+		c.Train("aaa bbb ccc ddd eee", true)
+		c.Train("aaa bbb ccc ddd eee", true)
+		// Ham: 5 different tokens (total unique: 10)
+		c.Train("fff ggg hhh iii jjj", false)
+		c.Train("fff ggg hhh iii jjj", false)
+		c.Train("fff ggg hhh iii jjj", false)
+		if c.Size() != 10 {
+			t.Fatalf("test setup: expected corpus size 10, got %d", c.Size())
+		}
+		// Content with 3+ spam tokens: should trigger
+		score, rule := ScoreBayes("aaa bbb ccc xxx yyy", c)
+		if score == 0 {
+			t.Error("corpus with 10 tokens should score spam content")
+		}
+		if rule != "BAYES_SPAM" {
+			t.Errorf("expected rule BAYES_SPAM, got %q", rule)
+		}
+	})
+
+	t.Run("boundary: only 2 spam tokens does NOT trigger", func(t *testing.T) {
+		c := NewCorpus()
+		c.Train("aaa bbb ccc ddd eee", true)
+		c.Train("aaa bbb ccc ddd eee", true)
+		c.Train("fff ggg hhh iii jjj", false)
+		c.Train("fff ggg hhh iii jjj", false)
+		if c.Size() < 10 {
+			t.Fatalf("test setup: expected corpus size >= 10, got %d", c.Size())
+		}
+		// Only 2 spam tokens (< bayesMinSpamTokens=3)
+		score, _ := ScoreBayes("aaa bbb xxx yyy zzz", c)
+		if score != 0 {
+			t.Errorf("only 2 spam tokens should not trigger, got score %d", score)
+		}
+	})
+
+	t.Run("boundary: exactly 3 spam tokens triggers", func(t *testing.T) {
+		c := NewCorpus()
+		c.Train("aaa bbb ccc ddd eee", true)
+		c.Train("aaa bbb ccc ddd eee", true)
+		c.Train("fff ggg hhh iii jjj", false)
+		c.Train("fff ggg hhh iii jjj", false)
+		if c.Size() < 10 {
+			t.Fatalf("test setup: expected corpus size >= 10, got %d", c.Size())
+		}
+		// Exactly 3 spam tokens (= bayesMinSpamTokens)
+		score, rule := ScoreBayes("aaa bbb ccc xxx yyy", c)
+		if score == 0 {
+			t.Error("exactly 3 spam tokens should trigger BAYES_SPAM")
+		}
+		if rule != "BAYES_SPAM" {
+			t.Errorf("expected rule BAYES_SPAM, got %q", rule)
+		}
+	})
+}
