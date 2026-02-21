@@ -15,3 +15,14 @@ func Add(cur realm, nums ...int) int {
 
 	return res
 }
+
+func And(cur realm, booleans ...bool) bool {
+
+	for _, boolean := range booleans {
+		if !boolean {
+			return false
+		}
+	}
+
+	return true
+}
