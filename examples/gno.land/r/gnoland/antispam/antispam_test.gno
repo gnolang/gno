@@ -3,6 +3,7 @@ package antispam
 import (
 	"testing"
 
+	"gno.land/p/nt/avl"
 	"gno.land/p/nt/testutils"
 	"gno.land/p/nt/uassert"
 
@@ -18,6 +19,7 @@ func resetState(t *testing.T) {
 	fps = engine.NewFingerprintStore()
 	bl = engine.NewBlocklist()
 	keywords = engine.NewKeywordDict()
+	reputations = avl.NewTree()
 	keywords.BulkAdd(defaultKeywords)
 
 	// Re-load default patterns (simplified versions of the realm's mega-pattern categories)
@@ -518,6 +520,7 @@ func TestRender(t *testing.T) {
 		"**Fingerprint store:**",
 		"**Keyword dictionary:**",
 		"**Active patterns:**",
+		"**Tracked addresses:**",
 		"## Patterns",
 		"## Usage",
 	}
