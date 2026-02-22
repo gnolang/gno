@@ -426,6 +426,70 @@ func TestScoreEarlyExit(t *testing.T) {
 	}
 }
 
+// ---- admin load defaults
+
+func TestAdminLoadDefaults(t *testing.T) {
+	// Start with completely empty state (no resetState which loads simplified patterns)
+	adminAddr = address("g1admin")
+	corpus = engine.NewCorpus()
+	fps = engine.NewFingerprintStore()
+	bl = engine.NewBlocklist()
+	keywords = engine.NewKeywordDict()
+
+	setAdmin(t)
+	AdminLoadDefaults(cross)
+
+	// Keywords should be loaded
+	if keywords.Size() < 100 {
+		t.Errorf("expected at least 100 keywords after LoadDefaults, got %d", keywords.Size())
+	}
+
+	// Pattern should be loaded
+	if bl.PatternCount() != 1 {
+		t.Errorf("expected 1 pattern after LoadDefaults, got %d", bl.PatternCount())
+	}
+
+	// Phishing content should be detected via the production mega-pattern
+	result := Score(address("g1user"), "Enter your seed phrase to verify your wallet", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
+	if result.Total < 5 {
+		t.Errorf("expected score >= 5 for phishing content, got %d (triggered: %v)", result.Total, result.Triggered)
+	}
+
+	// Multiple keywords should be detected
+	result2 := Score(address("g1user"), "This is a phishing scam with ponzi ransomware scheme", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
+	hasKeyword := false
+	for _, r := range result2.Triggered {
+		if r == "KEYWORD_SPAM" {
+			hasKeyword = true
+		}
+	}
+	if !hasKeyword {
+		t.Errorf("expected KEYWORD_SPAM after LoadDefaults, got triggered: %v", result2.Triggered)
+	}
+}
+
+func TestAdminLoadDefaultsIdempotent(t *testing.T) {
+	adminAddr = address("g1admin")
+	corpus = engine.NewCorpus()
+	fps = engine.NewFingerprintStore()
+	bl = engine.NewBlocklist()
+	keywords = engine.NewKeywordDict()
+
+	setAdmin(t)
+	AdminLoadDefaults(cross)
+	sizeAfterFirst := keywords.Size()
+	patternsAfterFirst := bl.PatternCount()
+
+	// Call again - should be safe
+	AdminLoadDefaults(cross)
+	if keywords.Size() != sizeAfterFirst {
+		t.Errorf("expected same keyword count after 2nd call: %d vs %d", sizeAfterFirst, keywords.Size())
+	}
+	if bl.PatternCount() != patternsAfterFirst {
+		t.Errorf("expected same pattern count after 2nd call: %d vs %d", patternsAfterFirst, bl.PatternCount())
+	}
+}
+
 // ---- render
 
 func TestRender(t *testing.T) {

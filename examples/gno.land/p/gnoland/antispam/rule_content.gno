@@ -101,12 +101,9 @@ func analyzeContent(content string) contentStats {
 	wordHasOther := false
 
 	for pos < len(content) {
-		if !inURL && content[pos] == 'h' && pos+7 < len(content) {
-			rest := content[pos:]
-			if strings.HasPrefix(rest, "https://") || strings.HasPrefix(rest, "http://") {
-				inURL = true
-				s.urlCount++
-			}
+		if !inURL && hasURLPrefix(content, pos) {
+			inURL = true
+			s.urlCount++
 		}
 
 		r, advance := utf8.DecodeRuneInString(content[pos:])
@@ -168,6 +165,32 @@ func analyzeContent(content string) contentStats {
 }
 
 // ---- Helpers
+
+// hasURLPrefix checks if text at position pos starts with "http://" or "https://".
+// Handles both lower and uppercase schemes. Avoids substring allocation.
+func hasURLPrefix(text string, pos int) bool {
+	rem := len(text) - pos
+	if rem < 7 {
+		return false
+	}
+	c := text[pos]
+	if c != 'h' && c != 'H' {
+		return false
+	}
+	if (text[pos+1] != 't' && text[pos+1] != 'T') ||
+		(text[pos+2] != 't' && text[pos+2] != 'T') ||
+		(text[pos+3] != 'p' && text[pos+3] != 'P') {
+		return false
+	}
+	if text[pos+4] == ':' && text[pos+5] == '/' && text[pos+6] == '/' {
+		return true
+	}
+	if rem >= 8 && (text[pos+4] == 's' || text[pos+4] == 'S') &&
+		text[pos+5] == ':' && text[pos+6] == '/' && text[pos+7] == '/' {
+		return true
+	}
+	return false
+}
 
 // isPunct returns true if the rune is a common punctuation mark.
 func isPunct(r rune) bool {

@@ -40,6 +40,32 @@ All state parameters (`Corpus`, `Fps`, `Bl`, `Dict`) can be nil: scoring degrade
 
 **Important:** A zero-value `ReputationData` triggers NEW_ACCOUNT(2) + NO_USERNAME(1) + LOW_BALANCE(1) = 4 points. Callers must fill `Rep` accurately to avoid false positives.
 
+## Realm Deployment
+
+State containers (`Blocklist`, `KeywordDict`, etc.) are created empty by default.
+
+**Recommended pattern:** create empty state in `init()`, then populate via a separate admin function post-deploy:
+
+```gno
+func init() {
+    adminAddr = runtime.OriginCaller()
+    corpus   = antispam.NewCorpus()
+    fps      = antispam.NewFingerprintStore()
+    bl       = antispam.NewBlocklist()
+    keywords = antispam.NewKeywordDict()
+}
+
+// AdminLoadDefaults loads regex patterns and keywords.
+// Called by admin after deployment (separate tx, separate storage deposit).
+func AdminLoadDefaults(_ realm) {
+    assertAdmin()
+    bl.AddPattern(defaultPattern)
+    keywords.BulkAdd(defaultKeywords)
+}
+```
+
+The `gno.land/r/gnoland/antispam` realm follows this pattern with ~400 pre-configured spam keywords and a combined regex covering 20 scam categories.
+
 ## Detection Strategies
 
 **Content checks** - Looks for shouting in all caps, excessive punctuation, link spam, and short posts with just a URL.
@@ -87,7 +113,7 @@ Scores accumulate across all triggered rules. Thresholds: **Hide >= 5**, **Rejec
 
 | Type | Purpose | Bounds |
 |------|---------|--------|
-| `Corpus` | Bayesian token statistics (spam/ham counts) | Unbounded (caller manages) |
+| `Corpus` | Bayesian token statistics (spam/ham counts) | Capped at 10,000 unique tokens |
 | `FingerprintStore` | MinHash signatures of known spam | Capped at 500 entries (LRU eviction) |
 | `Blocklist` | Blocked addresses, allowlist, regex patterns | Patterns capped at 30 |
 | `KeywordDict` | Spam keywords with per-word weights (1-3) | Unbounded (caller manages) |
@@ -96,6 +122,7 @@ Scores accumulate across all triggered rules. Thresholds: **Hide >= 5**, **Rejec
 
 Scoring cost depends on which rules are active. Control it with two levers:
 
+- **Input cap**: content is truncated to `MaxInputLength` (4096 bytes) to prevent gas abuse via oversized inputs.
 - **Nil state**: pass nil for `Corpus`, `Fps`, `Bl`, or `Dict` to skip those rules entirely. All-nil runs only cheap Phase 1 checks (content heuristics, rate, reputation).
 - **Early exit**: set `EarlyExitAt` to a threshold (e.g. `ThresholdReject`) to skip expensive Phase 2 rules when cheap rules already reach the threshold. Use `EarlyExitDisabled` for a complete score.
 

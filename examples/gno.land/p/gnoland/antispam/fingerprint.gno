@@ -66,30 +66,23 @@ func Fingerprint(text string) []uint64 {
 	return sig
 }
 
-// hashThreeRunes computes an FNV-1a hash for exactly 3 runes, processing 4 bytes per rune.
-// NOTE: byte(r >> 24) is always 0 for valid Unicode runes (max U+10FFFF = 21 bits).
-// The zero XOR still contributes mixing via the FNV prime multiply that follows.
+// hashThreeRunes computes an FNV-1a hash for exactly 3 runes, processing 3 bytes per rune.
+// Valid Unicode runes are max U+10FFFF (21 bits), so only the low 3 bytes carry data.
 func hashThreeRunes(a, b, c rune) uint64 {
 	const fnvOffsetBasis = 14695981039346656037
 	const fnvPrime = 1099511628211
 	h := uint64(fnvOffsetBasis)
-	h ^= uint64(byte(a >> 24))
-	h *= fnvPrime
 	h ^= uint64(byte(a >> 16))
 	h *= fnvPrime
 	h ^= uint64(byte(a >> 8))
 	h *= fnvPrime
 	h ^= uint64(byte(a))
 	h *= fnvPrime
-	h ^= uint64(byte(b >> 24))
-	h *= fnvPrime
 	h ^= uint64(byte(b >> 16))
 	h *= fnvPrime
 	h ^= uint64(byte(b >> 8))
 	h *= fnvPrime
 	h ^= uint64(byte(b))
-	h *= fnvPrime
-	h ^= uint64(byte(c >> 24))
 	h *= fnvPrime
 	h ^= uint64(byte(c >> 16))
 	h *= fnvPrime
