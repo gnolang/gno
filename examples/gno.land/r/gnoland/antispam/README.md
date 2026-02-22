@@ -28,7 +28,7 @@ if result.Total >= engine.ThresholdReject {
 
 // Record moderation decision (requires registration)
 if result.Total < engine.ThresholdHide {
-    antispamr.RecordAccepted(author)
+    antispamr.RecordAccepted(cross, author)
 }
 ```
 
@@ -38,10 +38,11 @@ if result.Total < engine.ThresholdHide {
 
 **Scoring:**
 ```gno
-Score(author address, content string, rate RateState, rep ReputationData,
-      callerCorpus *Corpus, callerFps *FingerprintStore,
-      callerDict *KeywordDict, callerBl *Blocklist,
-      earlyExitAt int) SpamScore
+Score(author address, content string,
+      rate engine.RateState, rep engine.ReputationData,
+      callerCorpus *engine.Corpus, callerFps *engine.FingerprintStore,
+      callerDict *engine.KeywordDict, callerBl *engine.Blocklist,
+      earlyExitAt int) engine.SpamScore
 ```
 - Evaluates content using shared state (or caller-provided state if not nil)
 - Auto-populates `FlaggedCount`, `BanCount`, `TotalAccepted` from internal reputation
@@ -51,7 +52,7 @@ Score(author address, content string, rate RateState, rep ReputationData,
 
 **Reputation queries:**
 ```gno
-GetReputation(addr address) ReputationData
+GetReputation(addr address) engine.ReputationData
 ReputationCount() int
 TrustedCallerCount() int
 ```
@@ -71,13 +72,13 @@ RecordBan(realm, addr address)       // Increment ban count (permanent)
 ```gno
 // After scoring
 if result.Total < engine.ThresholdHide {
-    antispamr.RecordAccepted(author)  // Content accepted
+    antispamr.RecordAccepted(cross, author)  // Content accepted
 } else if moderatorFlagged {
-    antispamr.RecordFlag(author)      // Moderator confirmed spam
+    antispamr.RecordFlag(cross, author)      // Moderator confirmed spam
 }
 
 if adminBanned {
-    antispamr.RecordBan(author)       // Admin banned (permanent)
+    antispamr.RecordBan(cross, author)       // Admin banned (permanent)
 }
 ```
 
@@ -210,15 +211,15 @@ The realm is deployed empty. Post-deployment setup:
 
 ```gno
 // 1. Admin loads default patterns and keywords
-antispamr.AdminLoadDefaults()
+antispamr.AdminLoadDefaults(cross)
 
 // 2. Admin registers trusted caller realms
-antispamr.AdminRegisterCaller(boardsRealmAddr)
-antispamr.AdminRegisterCaller(forumsRealmAddr)
+antispamr.AdminRegisterCaller(cross, boardsRealmAddr)
+antispamr.AdminRegisterCaller(cross, forumsRealmAddr)
 
 // 3. Optional: train Bayesian corpus with examples
-antispamr.AdminTrain("buy cheap viagra now!!!", true)  // spam
-antispamr.AdminTrain("governance proposal discussion", false)  // ham
+antispamr.AdminTrain(cross, "buy cheap viagra now!!!", true)  // spam
+antispamr.AdminTrain(cross, "governance proposal discussion", false)  // ham
 ```
 
 ## Examples
@@ -228,7 +229,7 @@ See filetests for complete examples:
 | Filetest | Demonstrates |
 |----------|--------------|
 | [z1_score_demo](z1_score_demo_filetest.gno) | Basic scoring + manual reputation recording workflow |
-| [z2_reputation_lifecycle](z2_reputation_lifecycle_filetest.gno) | Full lifecycle: register caller, record actions, score reflects reputation |
+| [z2_reputation_lifecycle](z2_reputation_lifecycle_filetest.gno) | How reputation data (flags, bans, account age) affects scoring |
 
 ## Technical Details
 
