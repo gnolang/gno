@@ -32,6 +32,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("Created by " + creatorLink + " on " + date + ", #" + board.ID.String())
 	res.Write("  \n" + renderBoardMenu(board, req))
+	res.Write("\n\n" + getStartedAlert())
 	res.Write(md.HorizontalRule())
 
 	if board.Threads.Size() == 0 {
@@ -185,5 +186,6 @@ func renderInviteMember(res *mux.ResponseWriter, req *mux.Request) {
 				"Member will be added to "+md.Link(board.Name, makeBoardURI(board))+" board.",
 			),
 	)
+	res.Write(getStartedAlert())
 	res.Write(form.String())
 }

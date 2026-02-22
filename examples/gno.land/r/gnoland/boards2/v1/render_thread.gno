@@ -40,6 +40,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write(md.H1(md.Link("Boards", gRealmPath) + " › " + md.Link(board.Name, makeBoardURI(board))))
+	res.Write("\n\n" + getStartedAlert())
 	res.Write(renderPost(thread, req.RawPath, "", 5))
 }
 
@@ -103,6 +104,7 @@ func renderCreateThread(res *mux.ResponseWriter, req *mux.Request) {
 			ufmt.Sprintf("Thread will be created in the board: %s", md.Link(board.Name, makeBoardURI(board))),
 		),
 	)
+	res.Write(getStartedAlert())
 	res.Write(form.String())
 	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to board", makeBoardURI(board)) + "\n")
 }
@@ -160,6 +162,7 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(
 		md.Paragraph("Editing " + md.Link(thread.Title, makeThreadURI(thread))),
 	)
+	res.Write(getStartedAlert())
 	res.Write(form.String())
 	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to thread", makeThreadURI(thread)) + "\n")
 }
@@ -229,6 +232,7 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 			ufmt.Sprintf("Reposting the thread: %s.", md.Link(thread.Title, makeThreadURI(thread))),
 		),
 	)
+	res.Write(getStartedAlert())
 	res.Write(form.String())
 	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to thread", makeThreadURI(thread)) + "\n")
 }

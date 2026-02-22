@@ -86,6 +86,7 @@ func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H1("Boards"))
 	renderBoardListMenu(res, req)
+	res.Write(getStartedAlert())
 	res.Write(md.HorizontalRule())
 
 	if gListedBoardsByID.Size() == 0 {
@@ -185,6 +186,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 				"new threads and also to comment on any thread within the open board.",
 		),
 	)
+	res.Write(getStartedAlert())
 	res.Write(form.String())
 	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to boards", gRealmPath) + "\n")
 }
@@ -358,6 +360,17 @@ func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
 func infoAlert(title, msg string) string {
 	header := strings.TrimSpace("[!INFO] " + title)
 	return md.Blockquote(header + "\n" + msg)
+}
+
+func noteAlert(title, msg string) string {
+	header := strings.TrimSpace("[!NOTE] " + title)
+	return md.Blockquote(header + "\n" + msg)
+}
+
+func getStartedAlert() string {
+	msg := "To post and comment, **retrieve your Gno key** with " + md.Link("Adena", "https://adena.app") + " or " + md.Link("gnokey", "https://docs.gno.land/users/interact-with-gnokey") + ". " +
+		"You need **at least 3,000 GNOT** in your account (balance requirement, not a transfer)."
+	return noteAlert("2 THINGS YOU NEED TO GET STARTED", msg)
 }
 
 func rolesToString(roles []boards.Role) string {
