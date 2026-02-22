@@ -17,6 +17,7 @@ SUBCOMMANDS
   bug      start a bug report
   clean    remove generated and cached data
   doc      show documentation for package or symbol
+  doctest  executes a specific code block from a markdown file
   env      print gno environment information
   fix      update and fix old gno source files
   fmt      gnofmt (reformat) package sources

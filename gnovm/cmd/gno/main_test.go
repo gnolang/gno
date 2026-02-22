@@ -41,6 +41,7 @@ type testMainCase struct {
 	stderrShouldContain  string
 	stdoutShouldBe       string
 	stdoutShouldContain  string
+	stdoutShouldMatch    string
 	stderrShouldBe       string
 	recoverShouldContain string
 	recoverShouldBe      string
@@ -54,7 +55,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 
 	for _, test := range tc {
 		errShouldBeEmpty := test.errShouldContain == "" && test.errShouldBe == ""
-		stdoutShouldBeEmpty := test.stdoutShouldContain == "" && test.stdoutShouldBe == ""
+		stdoutShouldBeEmpty := test.stdoutShouldContain == "" && test.stdoutShouldBe == "" && test.stdoutShouldMatch == ""
 		stderrShouldBeEmpty := test.stderrShouldContain == "" && test.stderrShouldBe == ""
 		recoverShouldBeEmpty := test.recoverShouldContain == "" && test.recoverShouldBe == ""
 
@@ -78,6 +79,9 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 					t.Log(divHeader("stdout"), mockOut.String())
 					if test.stdoutShouldContain != "" {
 						require.Contains(t, mockOut.String(), test.stdoutShouldContain, "stdout should contain")
+					}
+					if test.stdoutShouldMatch != "" {
+						require.Regexp(t, test.stdoutShouldMatch, mockOut.String(), "stdout should match pattern")
 					}
 					if test.stdoutShouldBe != "" {
 						require.Equal(t, test.stdoutShouldBe, mockOut.String(), "stdout should be")

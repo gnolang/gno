@@ -192,7 +192,7 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // This is a temporary measure until we optimize/make-lazy.
 //
 // NOTE: package paths not beginning with gno.land will be allowed to override,
-// to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
+// to support cases of stdlibs processed through [RunMemPackageWithOverrides].
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
