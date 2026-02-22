@@ -26,7 +26,7 @@ if result.Total >= engine.ThresholdReject {
 
 // Record moderation decision (requires registration via AdminRegisterCaller)
 if result.Total < engine.ThresholdHide {
-    antispamr.RecordAccepted(author)
+    antispamr.RecordAccepted(cross, author)
 }
 ```
 
@@ -146,13 +146,13 @@ result := antispamr.Score(author, content, rate, rep, nil, nil, nil, nil, engine
 
 // 3. Manually record the moderation decision
 if result.Total < engine.ThresholdHide {
-    antispamr.RecordAccepted(author)  // Content accepted
+    antispamr.RecordAccepted(cross, author)  // Content accepted
 } else if moderatorFlagged {
-    antispamr.RecordFlag(author)      // Moderator confirmed spam
+    antispamr.RecordFlag(cross, author)      // Moderator confirmed spam
 }
 
 if adminBanned {
-    antispamr.RecordBan(author)       // Admin banned (permanent)
+    antispamr.RecordBan(cross, author)       // Admin banned (permanent)
 }
 ```
 
@@ -303,4 +303,4 @@ The `z*_filetest.gno` files demonstrate real scenarios:
 | File | Demonstrates |
 |------|--------------|
 | `z1_score_demo` | Basic scoring via shared realm + manual reputation recording |
-| `z2_reputation_lifecycle` | Full reputation tracking workflow (register caller, record actions, score reflects reputation) |
+| `z2_reputation_lifecycle` | How reputation data (flags, bans, account age) affects scoring |
