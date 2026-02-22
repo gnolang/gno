@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -29,6 +32,14 @@ type BaseTxCfg struct {
 	AccountNumber  uint64 // Account number
 	SequenceNumber uint64 // Sequence number
 	Memo           string // Memo
+}
+
+type EstimateTxFeesResult struct {
+	GasUsed      int64
+	GasFee       std.Coin
+	StorageDelta int64
+	StorageFee   std.Coins
+	TotalFee     std.Coin
 }
 
 // Call executes one or more MsgCall calls on the blockchain
@@ -349,4 +360,53 @@ func (c *Client) Simulate(tx *std.Tx) (*abci.ResponseDeliverTx, error) {
 	}
 
 	return deliverTx, nil
+}
+
+// Simulate the transaction and fetch the gas price.
+// For "unlock" storage, the StorageDelta is negative and StorageFee is negative (or zero if unlock fees are withheld).
+// The TotalFee only includes StorageFee coins in ugnot.
+// The simulation process assumes the transaction signature has the proper public key
+func (c *Client) EstimateTxFees(tx *std.Tx, gasPriceMarginPercent int64) (*EstimateTxFeesResult, error) {
+	result := &EstimateTxFeesResult{}
+
+	deliverTx, err := c.Simulate(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	_, qres, err := c.QEval("auth/gasprice", "")
+	if err != nil {
+		return nil, errors.Wrap(err, "query gas price")
+	}
+	gp := std.GasPrice{}
+	err = amino.UnmarshalJSON(qres.Response.Data, &gp)
+	if err != nil {
+		return nil, errors.Wrap(err, "unmarshaling query gas price result")
+	}
+	if gp.Gas == 0 {
+		return nil, errors.New("gas price is not provided")
+	}
+	if gp.Price.Denom != ugnot.Denom {
+		return nil, errors.New("gas price is not provided in ugnot")
+	}
+
+	fee := deliverTx.GasUsed/gp.Gas + 1
+	fee = overflow.Mulp(fee, gp.Price.Amount)
+	// Fee buffer to cover the sudden change of gas price
+	feeBuffer := overflow.Mulp(fee, gasPriceMarginPercent) / 100
+	fee = overflow.Addp(fee, feeBuffer)
+	result.GasFee = std.NewCoin(gp.Price.Denom, fee)
+	result.TotalFee = std.NewCoin(gp.Price.Denom, fee)
+
+	if delta, storageFee, ok := keyscli.GetStorageInfo(deliverTx.Events); ok {
+		result.StorageDelta = delta
+		result.StorageFee = storageFee
+		for _, coin := range storageFee {
+			if coin.Denom == ugnot.Denom {
+				result.TotalFee.Amount += coin.Amount
+			}
+		}
+	}
+
+	return result, nil
 }
