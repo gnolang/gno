@@ -80,7 +80,7 @@ func main() {
 	println("Test message:")
 	println("\"" + cleanMsg + "\"\n")
 
-	// ---- 1A: Before Training ----
+	// 1A: Before Training
 	println("BEFORE TRAINING:")
 	println("────────────────")
 
@@ -94,7 +94,7 @@ func main() {
 	println("Score: " + intToString(result1A.Total) + " | Triggered: " + sliceToString(result1A.Triggered))
 	println("Analysis: Clean technical content, no spam signals\n")
 
-	// ---- 1B: Train with spam and ham ----
+	// 1B: Train with spam and ham
 	println("TRAINING PHASE:")
 	println("───────────────")
 
@@ -134,7 +134,7 @@ func main() {
 	}
 	println("")
 
-	// ---- 1C: After Training ----
+	// 1C: After Training
 	println("AFTER TRAINING:")
 	println("───────────────")
 
@@ -160,7 +160,7 @@ func main() {
 	println("Test message:")
 	println("\"" + sophisticatedSpam + "\"\n")
 
-	// ---- 2A: Before Training ----
+	// 2A: Before Training
 	println("BEFORE TRAINING:")
 	println("────────────────")
 
@@ -173,7 +173,7 @@ func main() {
 	println("Analysis: Sophisticated spam bypasses detection")
 	println("          No obvious keywords, capitalization, or links\n")
 
-	// ---- 2B: After Training ----
+	// 2B: After Training
 	println("AFTER TRAINING:")
 	println("───────────────")
 	println("(Using corpus trained with financial spam patterns)")
@@ -204,7 +204,7 @@ func main() {
 	println("Test message:")
 	println("\"" + legitimateWithKeywords + "\"\n")
 
-	// ---- 3A: Before Training ----
+	// 3A: Before Training
 	println("BEFORE TRAINING:")
 	println("────────────────")
 
@@ -219,7 +219,7 @@ func main() {
 		println("   Without context, classifier cannot distinguish intent\n")
 	}
 
-	// ---- 3B: Train with context ----
+	// 3B: Train with context
 	println("ADDITIONAL TRAINING:")
 	println("────────────────────")
 
@@ -247,7 +247,7 @@ func main() {
 	}
 	println("")
 
-	// ---- 3C: After Training ----
+	// 3C: After Training
 	println("AFTER TRAINING:")
 	println("───────────────")
 

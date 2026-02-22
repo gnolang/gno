@@ -12,7 +12,7 @@ import (
 	"gno.land/p/nt/ufmt"
 )
 
-// ---- Shared state
+// Shared state
 
 var (
 	adminAddr address
@@ -124,7 +124,7 @@ func assertAdmin() {
 	}
 }
 
-// ---- Admin: load defaults
+// Admin: load defaults
 
 // AdminLoadDefaults loads the pre-configured spam patterns and keywords
 // into the shared state. Called by admin after deployment to populate
@@ -136,7 +136,7 @@ func AdminLoadDefaults(_ realm) {
 	keywords.BulkAdd(defaultKeywords)
 }
 
-// ---- Public scoring
+// Public scoring
 
 // Score evaluates content using the shared corpus, fingerprint store, keywords, and blocklist.
 // Callers can optionally pass their own state to override the shared defaults.
@@ -196,7 +196,7 @@ func Score(
 	})
 }
 
-// ---- Admin: blocklist management
+// Admin: blocklist management
 
 // AdminBlockAddress adds an address to the blocklist.
 func AdminBlockAddress(_ realm, addr address) {
@@ -222,7 +222,7 @@ func AdminRemoveAllow(_ realm, addr address) {
 	bl.RemoveAllow(addr.String())
 }
 
-// ---- Admin: pattern management
+// Admin: pattern management
 
 // AdminAddPattern adds a regex pattern to the blocklist.
 // Panics if the pattern is invalid regex.
@@ -239,7 +239,7 @@ func AdminRemovePattern(_ realm, pattern string) {
 	bl.RemovePattern(pattern)
 }
 
-// ---- Admin: keyword management
+// Admin: keyword management
 
 // AdminAddKeyword adds a single keyword with a weight (1-3).
 func AdminAddKeyword(_ realm, word string, weight int) {
@@ -260,7 +260,7 @@ func AdminBulkAddKeywords(_ realm, data string) {
 	keywords.BulkAdd(data)
 }
 
-// ---- Admin: Bayesian training
+// Admin: Bayesian training
 
 // AdminTrain feeds content into the shared Bayesian corpus.
 // isSpam=true for spam examples, false for legitimate (ham) examples.
@@ -269,7 +269,7 @@ func AdminTrain(_ realm, content string, isSpam bool) {
 	corpus.Train(content, isSpam)
 }
 
-// ---- Admin: fingerprint management
+// Admin: fingerprint management
 
 // AdminAddSpamFingerprint registers a known spam content fingerprint.
 // Future content similar to this will be flagged as NEAR_DUPLICATE.
@@ -278,7 +278,7 @@ func AdminAddSpamFingerprint(_ realm, content string) {
 	fps.Add(content)
 }
 
-// ---- Admin: ownership
+// Admin: ownership
 
 // AdminSetAdmin transfers admin rights to a new address.
 func AdminSetAdmin(_ realm, newAdmin address) {
@@ -286,7 +286,7 @@ func AdminSetAdmin(_ realm, newAdmin address) {
 	adminAddr = newAdmin
 }
 
-// ---- Render
+// Render
 
 // Render displays the realm status and active patterns.
 func Render(_ string) string {

@@ -28,7 +28,7 @@ const (
 	keywordMaxSize = 10000
 )
 
-// ---- KeywordDict
+// KeywordDict
 
 // KeywordDict stores spam keywords with per-word weights.
 type KeywordDict struct {
@@ -138,7 +138,7 @@ func parseSimpleInt(s string) int {
 	return n
 }
 
-// ---- Leet speak normalization
+// Leet speak normalization
 
 // normalizeLeet converts common leet speak digit substitutions back to letters.
 // Only handles digit-based leet (0->o, 1->i, 3->e, 4->a, 5->s, 7->t) since
@@ -181,7 +181,7 @@ func normalizeLeet(s string) string {
 	return b.String()
 }
 
-// ---- Scoring
+// Scoring
 
 // ScoreKeywords checks content tokens against a keyword dictionary.
 // Uses co-occurrence: triggers only when multiple keywords are found

@@ -8,7 +8,7 @@ import (
 	engine "gno.land/p/gnoland/antispam"
 )
 
-// ---- Per-address reputation state
+// Per-address reputation state
 
 // addrReputation holds moderation data tracked by the realm.
 // Chain data (AccountAgeDays, Balance, HasUsername) must still
@@ -52,7 +52,7 @@ func assertTrustedCaller() {
 	}
 }
 
-// ---- Public: reputation recording (trusted callers only)
+// Public: reputation recording (trusted callers only)
 
 // RecordAccepted increments the accepted-content count for an address.
 // Caller realms should call this when content is accepted into the system.
@@ -78,7 +78,7 @@ func RecordBan(_ realm, addr address) {
 	rep.banCount++
 }
 
-// ---- Public: reputation queries
+// Public: reputation queries
 
 // GetReputation returns the moderation counters for an address.
 // Chain data fields (AccountAgeDays, Balance, HasUsername) are left
@@ -108,7 +108,7 @@ func TrustedCallerCount() int {
 	return trustedCallers.Size()
 }
 
-// ---- Admin: reputation management
+// Admin: reputation management
 
 // AdminResetReputation clears all moderation data for an address.
 func AdminResetReputation(_ realm, addr address) {
@@ -116,7 +116,7 @@ func AdminResetReputation(_ realm, addr address) {
 	reputations.Remove(addr.String())
 }
 
-// ---- Admin: trusted caller management
+// Admin: trusted caller management
 
 // AdminRegisterCaller adds a realm address to the trusted caller list.
 // Only registered callers can record reputation actions.

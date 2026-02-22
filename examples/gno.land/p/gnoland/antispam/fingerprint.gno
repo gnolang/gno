@@ -21,7 +21,7 @@ const (
 	fpMaxStoreSize = 500
 )
 
-// ---- MinHash fingerprinting
+// MinHash fingerprinting
 
 // Fingerprint computes a signature for a text, used for duplicate detection.
 // Returns nil for text too short to fingerprint.
@@ -112,7 +112,7 @@ func fingerprintSimilarity(a, b []uint64) int {
 	return same * 100 / n
 }
 
-// ---- FingerprintStore
+// FingerprintStore
 
 // FingerprintStore stores fingerprints of known spam content.
 // Capped at fpMaxStoreSize entries; the oldest entry is evicted when full.
@@ -188,7 +188,7 @@ func intToKey(n int) string {
 	return string(buf[:])
 }
 
-// ---- Scoring
+// Scoring
 
 // ScoreFingerprint checks if content is a near-duplicate of known spam.
 func ScoreFingerprint(content string, fps *FingerprintStore) (int, string) {

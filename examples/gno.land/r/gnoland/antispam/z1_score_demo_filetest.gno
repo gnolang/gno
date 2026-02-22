@@ -62,7 +62,7 @@ func sliceToString(arr []string) string {
 func main() {
 	println("=== SCORE DEMO: SHARED REALM ===\n")
 
-	// ---- Scenario 1: Established user posting a governance article
+	// Scenario 1: Established user posting a governance article
 
 	println("SCENARIO 1: Governance Article (Established User)")
 	println("--------------------------------------------------")
@@ -91,7 +91,7 @@ func main() {
 	println("Triggered: " + sliceToString(result1.Triggered))
 	println("Verdict:   CLEAN - legitimate content from established user\n")
 
-	// ---- Scenario 2: New account with suspicious indicators
+	// Scenario 2: New account with suspicious indicators
 
 	println("SCENARIO 2: Content from New Account")
 	println("--------------------------------------")
@@ -119,7 +119,7 @@ func main() {
 		println("Verdict:   HIDDEN (score >= " + intToString(engine.ThresholdHide) + ")\n")
 	}
 
-	// ---- Scenario 3: Same content, different reputation
+	// Scenario 3: Same content, different reputation
 
 	println("SCENARIO 3: Reputation Changes Everything")
 	println("-------------------------------------------")
@@ -139,7 +139,7 @@ func main() {
 	println("Triggered: " + sliceToString(result3.Triggered))
 	println("Difference: " + intToString(result2.Total-result3.Total) + " points less (no reputation penalties)\n")
 
-	// ---- Scenario 4: Recording moderation decisions
+	// Scenario 4: Recording moderation decisions
 	// Note: This demonstration shows the API, but cannot execute because
 	// we're not running as a registered trusted caller realm.
 
@@ -177,7 +177,7 @@ func main() {
 // === SCORE DEMO: SHARED REALM ===
 //
 // SCENARIO 1: Governance Article (Established User)
-// --------------------------------------------------
+//  ----------------------------------------------
 // Author:    g1contributor (180 days, 5000 GNOT, username)
 // Content:   Governance proposal (250 chars)
 // Score:     0
@@ -185,7 +185,7 @@ func main() {
 // Verdict:   CLEAN - legitimate content from established user
 //
 // SCENARIO 2: Content from New Account
-// --------------------------------------
+//  ----------------------------------
 // Author:    g1newuser (0 days, 100 GNOT, no username)
 // Content:   All caps shouting (80 chars)
 // Score:     10
@@ -193,14 +193,14 @@ func main() {
 // Verdict:   HIDDEN (score >= 5)
 //
 // SCENARIO 3: Reputation Changes Everything
-// -------------------------------------------
+//  ---------------------------------------
 // Same content, established user (180 days, 5000 GNOT, username)
 // Score:     2
 // Triggered: [ALL_CAPS]
 // Difference: 8 points less (no reputation penalties)
 //
 // SCENARIO 4: Manual Reputation Recording Workflow
-// -------------------------------------------------
+//  ---------------------------------------------
 // Score() is READ-ONLY - it does NOT automatically update reputation.
 // The calling realm must manually record moderation decisions:
 //

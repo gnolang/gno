@@ -6,7 +6,7 @@ import (
 	"unicode/utf8"
 )
 
-// ---- Thresholds
+// Thresholds
 
 const (
 	capsThresholdPct    = 50 // % of letters that are uppercase
@@ -185,7 +185,7 @@ func analyzeContent(content string) contentStats {
 	return s
 }
 
-// ---- Helpers
+// Helpers
 
 // hasURLPrefix checks if text at position pos starts with "http://" or "https://".
 // Handles both lower and uppercase schemes. Avoids substring allocation.

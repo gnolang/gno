@@ -3,7 +3,7 @@
 // See README for usage and examples.
 package antispam
 
-// ---- Scoring thresholds (recommended defaults, callers can use their own)
+// Scoring thresholds (recommended defaults, callers can use their own)
 
 const (
 	ThresholdHide   = 5
@@ -18,7 +18,7 @@ const (
 	MaxInputLength = 4096
 )
 
-// ---- Rule weights (centralized for easy tuning)
+// Rule weights (centralized for easy tuning)
 //
 // Each rule returns one of these weights when triggered.
 // The final score is the sum of all triggered rules.
@@ -65,7 +65,7 @@ const (
 	WeightLowBalance     = 1
 )
 
-// ---- Rule names (used in SpamScore.Triggered and for programmatic checks)
+// Rule names (used in SpamScore.Triggered and for programmatic checks)
 
 const (
 	RuleBlockedAddress = "BLOCKED_ADDRESS"
@@ -179,7 +179,7 @@ func Score(in ScoreInput) SpamScore {
 		return in.EarlyExitAt > 0 && result.Total >= in.EarlyExitAt
 	}
 
-	// ---- O(1) rules: lookups and arithmetic
+	// O(1) rules: lookups and arithmetic
 
 	// Blocked address (AVL lookup, instant kill)
 	if in.Bl != nil && in.Bl.IsBlocked(in.Author) {
@@ -199,7 +199,7 @@ func Score(in ScoreInput) SpamScore {
 		return result
 	}
 
-	// ---- O(n) single-pass: content heuristics + unicode abuse
+	// O(n) single-pass: content heuristics + unicode abuse
 
 	addHits(scoreContentAll(in.Content))
 
@@ -207,7 +207,7 @@ func Score(in ScoreInput) SpamScore {
 		return result
 	}
 
-	// ---- O(n) regex: blocklist pattern matching
+	// O(n) regex: blocklist pattern matching
 
 	if in.Bl != nil && in.Bl.MatchesPattern(in.Content) {
 		add(WeightBlockedPattern, RuleBlockedPattern)
@@ -217,7 +217,7 @@ func Score(in ScoreInput) SpamScore {
 		return result
 	}
 
-	// ---- O(n) tokenization + AVL: Bayes and keyword rules
+	// O(n) tokenization + AVL: Bayes and keyword rules
 
 	// Tokenize only when needed by Bayes or keyword rules.
 	var tokens []string
@@ -243,7 +243,7 @@ func Score(in ScoreInput) SpamScore {
 		return result
 	}
 
-	// ---- O(n) hashing: fingerprint near-duplicate detection
+	// O(n) hashing: fingerprint near-duplicate detection
 
 	if s, r := ScoreFingerprint(in.Content, in.Fps); s > 0 {
 		add(s, r)

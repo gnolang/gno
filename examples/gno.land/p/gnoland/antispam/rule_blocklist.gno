@@ -35,7 +35,7 @@ func NewBlocklist() *Blocklist {
 	}
 }
 
-// ---- Address blocking
+// Address blocking
 
 // BlockAddress adds an address to the blocklist.
 func (bl *Blocklist) BlockAddress(addr string) {
@@ -57,7 +57,7 @@ func (bl *Blocklist) BlockedCount() int {
 	return bl.blocked.Size()
 }
 
-// ---- Address allowlisting (whitelist)
+// Address allowlisting (whitelist)
 
 // AllowAddress adds an address to the allowlist.
 // Allowed addresses bypass all spam scoring.
@@ -80,7 +80,7 @@ func (bl *Blocklist) AllowedCount() int {
 	return bl.allowed.Size()
 }
 
-// ---- Pattern matching
+// Pattern matching
 
 // AddPattern validates and stores a regex pattern string.
 // Returns an error if the pattern is invalid regex or the cap is reached.

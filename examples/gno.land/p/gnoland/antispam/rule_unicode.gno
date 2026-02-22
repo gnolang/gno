@@ -2,7 +2,7 @@ package antispam
 
 import "strings"
 
-// ---- Thresholds
+// Thresholds
 
 const (
 	// zalgoMinCombining is the minimum consecutive combining marks to trigger ZALGO_TEXT.
@@ -24,7 +24,7 @@ func ScoreUnicode(content string) []RuleHit {
 	return hitsFromUnicodeStats(analyzeContent(content))
 }
 
-// ---- Character classification helpers
+// Character classification helpers
 
 // isCombiningMark returns true for Unicode combining diacritical marks.
 func isCombiningMark(r rune) bool {

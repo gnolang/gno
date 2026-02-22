@@ -43,7 +43,7 @@ const (
 	tokenMaxTotal = 100
 )
 
-// ---- Tokenizer
+// Tokenizer
 
 // Tokenize splits text into lowercase tokens, filtering short words and URLs.
 func Tokenize(text string) []string {
@@ -88,7 +88,7 @@ func Tokenize(text string) []string {
 	return tokens
 }
 
-// ---- Corpus
+// Corpus
 
 // tokenStats holds spam and ham counts for a single token.
 type tokenStats struct {
@@ -179,7 +179,7 @@ func (c *Corpus) Size() int {
 	return c.tree.Size()
 }
 
-// ---- Bayesian scoring
+// Bayesian scoring
 
 // ScoreBayes evaluates content against the trained corpus.
 // Triggers BAYES_SPAM if enough spam-indicating tokens are found.

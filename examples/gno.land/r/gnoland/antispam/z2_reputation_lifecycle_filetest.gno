@@ -64,7 +64,7 @@ func main() {
 	content := "This is a normal message about the latest governance proposal and validator staking options."
 	normalRate := engine.RateState{PostCount: 2, WindowSeconds: 3600}
 
-	// ---- Scenario 1: Established user with good history
+	// Scenario 1: Established user with good history
 
 	println("SCENARIO 1: Established User (Good History)")
 	println("---------------------------------------------")
@@ -90,7 +90,7 @@ func main() {
 	println("Triggered:  " + sliceToString(result1.Triggered))
 	println("Verdict:    CLEAN - no reputation penalties\n")
 
-	// ---- Scenario 2: Brand new account
+	// Scenario 2: Brand new account
 
 	println("SCENARIO 2: Brand New Account")
 	println("-------------------------------")
@@ -114,7 +114,7 @@ func main() {
 	println("Triggered:  " + sliceToString(result2.Triggered))
 	println("NEW_ACCOUNT(2) + NO_USERNAME(1) + LOW_BALANCE(1) = 4 points\n")
 
-	// ---- Scenario 3: Flagged user (bad flag ratio)
+	// Scenario 3: Flagged user (bad flag ratio)
 
 	println("SCENARIO 3: Flagged User (Bad Ratio)")
 	println("--------------------------------------")
@@ -139,7 +139,7 @@ func main() {
 	println("Triggered:  " + sliceToString(result3.Triggered))
 	println("BAD_REPUTATION(3) - flag ratio 50% exceeds 30% threshold\n")
 
-	// ---- Scenario 4: Previously banned user
+	// Scenario 4: Previously banned user
 
 	println("SCENARIO 4: Previously Banned User")
 	println("------------------------------------")
@@ -165,7 +165,7 @@ func main() {
 	println("Triggered:  " + sliceToString(result4.Triggered))
 	println("BANNED_BEFORE(2) - +1 per past ban, capped at 3\n")
 
-	// ---- Scenario 5: Worst case - new + flagged + banned
+	// Scenario 5: Worst case - new + flagged + banned
 
 	println("SCENARIO 5: Combined Reputation Penalties")
 	println("-------------------------------------------")
@@ -194,7 +194,7 @@ func main() {
 	}
 	println("")
 
-	// ---- Summary
+	// Summary
 
 	println("SUMMARY: Same Content, Different Reputation")
 	println("---------------------------------------------")
@@ -209,42 +209,42 @@ func main() {
 // === REPUTATION IMPACT DEMO ===
 //
 // SCENARIO 1: Established User (Good History)
-// ---------------------------------------------
+//  -----------------------------------------
 // Reputation: 180 days, 5000 GNOT, username, 50 accepted, 0 flags
 // Score:      0
 // Triggered:  []
 // Verdict:    CLEAN - no reputation penalties
 //
 // SCENARIO 2: Brand New Account
-// -------------------------------
+//  ---------------------------
 // Reputation: 0 days, 100 GNOT, no username, 0 accepted
 // Score:      4
 // Triggered:  [NEW_ACCOUNT NO_USERNAME LOW_BALANCE]
 // NEW_ACCOUNT(2) + NO_USERNAME(1) + LOW_BALANCE(1) = 4 points
 //
 // SCENARIO 3: Flagged User (Bad Ratio)
-// --------------------------------------
+//  ----------------------------------
 // Reputation: 60 days, 2000 GNOT, username, 10 accepted, 5 flags (50%)
 // Score:      3
 // Triggered:  [BAD_REPUTATION]
 // BAD_REPUTATION(3) - flag ratio 50% exceeds 30% threshold
 //
 // SCENARIO 4: Previously Banned User
-// ------------------------------------
+//  --------------------------------
 // Reputation: 90 days, 3000 GNOT, username, 20 accepted, 2 flags, 2 bans
 // Score:      2
 // Triggered:  [BANNED_BEFORE]
 // BANNED_BEFORE(2) - +1 per past ban, capped at 3
 //
 // SCENARIO 5: Combined Reputation Penalties
-// -------------------------------------------
+//  ---------------------------------------
 // Reputation: 0 days, 50 GNOT, no username, 0 accepted, 3 flags, 3 bans
 // Score:      10
 // Triggered:  [NEW_ACCOUNT NO_USERNAME LOW_BALANCE BAD_REPUTATION BANNED_BEFORE]
 // Verdict:    REJECTED (score >= 8)
 //
 // SUMMARY: Same Content, Different Reputation
-// ---------------------------------------------
+//  -----------------------------------------
 // Established:  score=0 (clean)
 // New account:  score=4 (caution)
 // Flagged:      score=3 (bad ratio)

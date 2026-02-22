@@ -81,7 +81,7 @@ func main() {
 	println("TEST MESSAGE (posted by 4 different users):")
 	println("\"" + testContent + "\"\n")
 
-	// ---- USER 1: Established, trusted user ----
+	// USER 1: Established, trusted user
 	println("USER 1: Established Community Member")
 	println("─────────────────────────────────────")
 
@@ -112,7 +112,7 @@ func main() {
 		println("Status: ✓ APPROVED (trusted user, benefit of the doubt)\n")
 	}
 
-	// ---- USER 2: Brand new account ----
+	// USER 2: Brand new account
 	println("USER 2: Brand New Account")
 	println("─────────────────────────")
 
@@ -148,7 +148,7 @@ func main() {
 		println("Combined with content signals, exceeds hide threshold\n")
 	}
 
-	// ---- USER 3: Known spammer (blocked) ----
+	// USER 3: Known spammer (blocked)
 	println("USER 3: Known Spammer (Blocklisted)")
 	println("────────────────────────────────────")
 
@@ -180,7 +180,7 @@ func main() {
 		println("Blocklist entry overrides all other factors\n")
 	}
 
-	// ---- USER 4: Moderator (allowlisted) ----
+	// USER 4: Moderator (allowlisted)
 	println("USER 4: Moderator (Allowlisted)")
 	println("────────────────────────────────")
 
@@ -211,7 +211,7 @@ func main() {
 		println("Status: ✓ BYPASSED (allowlist grants immunity to all rules)\n")
 	}
 
-	// ---- SUMMARY ----
+	// SUMMARY
 	println("COMPARATIVE ANALYSIS")
 	println("────────────────────")
 	println("Same content, different scores:")

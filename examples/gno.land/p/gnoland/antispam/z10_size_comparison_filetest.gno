@@ -60,7 +60,7 @@ func sliceToString(arr []string) string {
 func main() {
 	println("=== CONTENT SIZE COMPARISON ===\n")
 
-	// ---- Setup: populate all state to realistic sizes
+	// Setup: populate all state to realistic sizes
 
 	corpus := antispam.NewCorpus()
 	fps := antispam.NewFingerprintStore()
@@ -159,7 +159,7 @@ hurry:1`)
 	}
 	normalRate := antispam.RateState{PostCount: 3, WindowSeconds: 3600}
 
-	// ---- TEST 1: Short Spam (30 chars)
+	// TEST 1: Short Spam (30 chars)
 
 	println("TEST 1: Short Spam (30 chars)")
 	println("----")
@@ -182,7 +182,7 @@ hurry:1`)
 	println("Triggered: " + sliceToString(result1.Triggered))
 	println("")
 
-	// ---- TEST 2: Medium Legitimate (200 chars)
+	// TEST 2: Medium Legitimate (200 chars)
 
 	println("TEST 2: Medium Legitimate (200 chars)")
 	println("----")
@@ -205,7 +205,7 @@ hurry:1`)
 	println("Triggered: " + sliceToString(result2.Triggered))
 	println("")
 
-	// ---- TEST 3: Long Spam (repeating pattern)
+	// TEST 3: Long Spam (repeating pattern)
 
 	println("TEST 3: Long Spam (~1000 chars)")
 	println("----")
@@ -232,7 +232,7 @@ hurry:1`)
 	println("Triggered: " + sliceToString(result3.Triggered))
 	println("")
 
-	// ---- TEST 4: MaxInputLength (4096 chars, truncation path)
+	// TEST 4: MaxInputLength (4096 chars, truncation path)
 
 	println("TEST 4: MaxInputLength Content (4096 chars)")
 	println("----")
@@ -259,7 +259,7 @@ hurry:1`)
 	println("Triggered: " + sliceToString(result4.Triggered))
 	println("")
 
-	// ---- TEST 5: Early Exit Comparison
+	// TEST 5: Early Exit Comparison
 
 	println("TEST 5: Early Exit Comparison")
 	println("----")
@@ -301,7 +301,7 @@ hurry:1`)
 	println("Rules skipped: " + intToString(len(result5full.Triggered)-len(result5early.Triggered)))
 	println("")
 
-	// ---- SUMMARY
+	// SUMMARY
 
 	println("SUMMARY")
 	println("----")
@@ -320,37 +320,37 @@ hurry:1`)
 // State: corpus=95 tokens, fps=50 entries, keywords=30 entries
 //
 // TEST 1: Short Spam (30 chars)
-// ----
+//
 // Content:   "Free airdrop! Claim now!!!"
 // Score:     11
 // Triggered: [BLOCKED_PATTERN BAYES_SPAM KEYWORD_SPAM]
 //
 // TEST 2: Medium Legitimate (200 chars)
-// ----
+//
 // Content:   (200 chars, governance discussion)
 // Score:     0
 // Triggered: []
 //
 // TEST 3: Long Spam (~1000 chars)
-// ----
+//
 // Content:   (~1000 chars, repetitive spam keywords)
 // Score:     11
 // Triggered: [BLOCKED_PATTERN BAYES_SPAM KEYWORD_SPAM]
 //
 // TEST 4: MaxInputLength Content (4096 chars)
-// ----
+//
 // Content:   (4096+ chars, truncated at MaxInputLength)
 // Score:     0
 // Triggered: []
 //
 // TEST 5: Early Exit Comparison
-// ----
+//
 // Full scoring:  score=20 rules=[RATE_BURST NEW_ACCOUNT NO_USERNAME LOW_BALANCE BANNED_BEFORE BLOCKED_PATTERN BAYES_SPAM KEYWORD_SPAM]
 // Early exit:    score=9 rules=[RATE_BURST NEW_ACCOUNT NO_USERNAME LOW_BALANCE BANNED_BEFORE]
 // Rules skipped: 3
 //
 // SUMMARY
-// ----
+//
 // Test  Content        Score  Rules
 // 1     Short spam     11      [BLOCKED_PATTERN BAYES_SPAM KEYWORD_SPAM]
 // 2     Medium legit   0      []

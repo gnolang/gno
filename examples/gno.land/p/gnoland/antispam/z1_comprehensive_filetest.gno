@@ -72,7 +72,7 @@ func sliceToString(arr []string) string {
 func main() {
 	println("=== COMPREHENSIVE MULTI-LAYER SPAM DETECTION ===\n")
 
-	// ---- Shared setup
+	// Shared setup
 
 	// Bayesian corpus: trained with spam and ham vocabulary
 	corpus := antispam.NewCorpus()

@@ -58,7 +58,7 @@ func sliceToString(arr []string) string {
 func main() {
 	println("=== EARLY EXIT GAS OPTIMIZATION ===\n")
 
-	// ---- Shared setup
+	// Shared setup
 
 	corpus := antispam.NewCorpus()
 	corpus.Train("free airdrop bonus click claim tokens prize", true)
@@ -223,7 +223,7 @@ func main() {
 	println("=======\n")
 
 	println("Mode                          Score  Rules Evaluated")
-	println("----                          -----  ---------------")
+	println("----                           -   -----------")
 	println("A. Full (EarlyExitDisabled)    " + intToString(fullResult.Total) + "  All rules evaluated")
 	println("A. EarlyExit at Reject          " + intToString(earlyResult.Total) + "  Cheap rules only (expensive skipped)")
 	println("B. Full (subtle spam)           " + intToString(subtleFull.Total) + "  All rules (expensive needed)")
@@ -284,7 +284,7 @@ func main() {
 // =======
 //
 // Mode                          Score  Rules Evaluated
-// ----                          -----  ---------------
+//                           -   -----------
 // A. Full (EarlyExitDisabled)    18  All rules evaluated
 // A. EarlyExit at Reject          10  Cheap rules only (expensive skipped)
 // B. Full (subtle spam)           6  All rules (expensive needed)
