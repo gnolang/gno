@@ -7,8 +7,11 @@ package antispam
 //   - 1 = suspicious in combination, common alone
 //
 // The co-occurrence model requires at least 2 distinct keyword matches
-// AND combined weight >= 4 to trigger KEYWORD_SPAM. A single low-weight
-// word never triggers alone.
+// AND combined weight >= 4 to trigger KEYWORD_SPAM. The minimum match
+// count scales with content length (longer content needs more hits),
+// preventing false positives on legitimate articles that naturally
+// contain domain-specific words. A single low-weight word never
+// triggers alone.
 //
 // Categories: crypto scam, generic spam, financial fraud, urgency/pressure,
 // adult/pharma spam, gore/violence, harassment/hate, weapons, social engineering,

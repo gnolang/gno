@@ -273,6 +273,76 @@ func TestKeywordWeightClamping(t *testing.T) {
 	})
 }
 
+// ---- Length-scaled minMatches tests
+
+func TestScoreKeywordsLengthScaling(t *testing.T) {
+	t.Parallel()
+
+	dict := NewKeywordDict()
+	dict.BulkAdd("airdrop:2\nclaim:2\nmint:2\npresale:2\nwhitelist:2\nbonus:2\nfree:2\nprize:2\ncasino:3\njackpot:3")
+
+	t.Run("short spam: 2 keywords in few tokens still triggers", func(t *testing.T) {
+		t.Parallel()
+		// ~5 unique tokens, 2 keywords -> minMatches = 2 (unchanged)
+		score, rule := ScoreKeywords("claim your free airdrop now", dict)
+		if score != WeightKeyword {
+			t.Errorf("short content with 2 keywords should trigger, got score %d rule %q", score, rule)
+		}
+	})
+
+	t.Run("long content: 2 keywords in many tokens does not trigger", func(t *testing.T) {
+		t.Parallel()
+		// Build a long legitimate crypto blog post with exactly 2 keywords
+		// ("airdrop" and "claim") buried in ~100+ unique tokens.
+		long := "The governance proposal for increasing validator delegation limits has been " +
+			"submitted for community review and discussion among all stakeholders involved " +
+			"in the network operations and maintenance procedures that ensure smooth " +
+			"blockchain functionality across different regions and jurisdictions worldwide " +
+			"The technical specification details the exact parameters being modified " +
+			"including minimum stake requirements and maximum delegation ratios for each " +
+			"validator node operator participating in consensus and block production " +
+			"The upcoming airdrop distribution schedule will be announced next week " +
+			"Community members should review the documentation and prepare their wallets " +
+			"before the snapshot date to ensure eligibility for participation " +
+			"Validators who want to claim their additional staking rewards must submit " +
+			"their requests through the official portal before the deadline expires"
+		score, rule := ScoreKeywords(long, dict)
+		if score != 0 {
+			t.Errorf("long content with only 2 keywords should not trigger, got score %d rule %q", score, rule)
+		}
+	})
+
+	t.Run("long content: many keywords still triggers", func(t *testing.T) {
+		t.Parallel()
+		// Long content saturated with spam keywords should still trigger
+		long := "Amazing free airdrop happening right now where you can claim your bonus " +
+			"tokens and win a huge prize from our exclusive presale and whitelist event " +
+			"that gives you guaranteed casino jackpot winnings every single day " +
+			"The community discussion about governance and validator staking continues " +
+			"with important updates about network performance and technical improvements"
+		score, rule := ScoreKeywords(long, dict)
+		if score != WeightKeyword {
+			t.Errorf("long content saturated with keywords should trigger, got score %d rule %q", score, rule)
+		}
+	})
+
+	t.Run("medium content: 2 keywords in moderate tokens does not trigger", func(t *testing.T) {
+		t.Parallel()
+		// Medium-length content with exactly 2 keywords ("airdrop" + "claim")
+		// and enough unique tokens to scale minMatches above 2
+		medium := "The recent discussion about protocol upgrades has generated significant " +
+			"interest among developers and community members who are actively building " +
+			"applications on the platform and testing various features including smart " +
+			"contracts realms packages and other components that make the ecosystem great " +
+			"Validators should prepare their infrastructure before the upcoming airdrop " +
+			"distribution while stakers need to claim their accumulated rewards promptly"
+		score, rule := ScoreKeywords(medium, dict)
+		if score != 0 {
+			t.Errorf("medium content with only 2 keywords should not trigger, got score %d rule %q", score, rule)
+		}
+	})
+}
+
 // ---- KeywordDict cap tests ----
 
 func TestKeywordDictMaxSize(t *testing.T) {
