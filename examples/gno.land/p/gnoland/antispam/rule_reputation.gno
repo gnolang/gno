@@ -5,7 +5,7 @@ type ReputationData struct {
 	AccountAgeDays int
 	Balance        int64
 	FlaggedCount   int
-	TotalPosts     int
+	TotalAccepted  int
 	HasUsername    bool
 	BanCount       int
 }
@@ -23,7 +23,7 @@ func ScoreReputation(rep ReputationData) []RuleHit {
 	var hits []RuleHit
 
 	// New account: young + no posts
-	if rep.AccountAgeDays < repMinAgeDays && rep.TotalPosts <= 0 {
+	if rep.AccountAgeDays < repMinAgeDays && rep.TotalAccepted <= 0 {
 		hits = append(hits, RuleHit{WeightNewAccount, RuleNewAccount})
 	}
 
@@ -38,16 +38,16 @@ func ScoreReputation(rep ReputationData) []RuleHit {
 	}
 
 	// Bad flag ratio
-	if rep.TotalPosts > 0 && rep.FlaggedCount > 0 {
+	if rep.TotalAccepted > 0 && rep.FlaggedCount > 0 {
 		flagRatio := 100
-		if rep.FlaggedCount <= rep.TotalPosts {
-			flagRatio = rep.FlaggedCount * 100 / rep.TotalPosts
+		if rep.FlaggedCount <= rep.TotalAccepted {
+			flagRatio = rep.FlaggedCount * 100 / rep.TotalAccepted
 		}
 		if flagRatio > repFlagRatioPct {
 			hits = append(hits, RuleHit{WeightBadReputation, RuleBadReputation})
 		}
-	} else if rep.TotalPosts == 0 && rep.FlaggedCount > 0 {
-		// Flags but no visible posts (all deleted?) -> suspicious
+	} else if rep.TotalAccepted == 0 && rep.FlaggedCount > 0 {
+		// Flags but no accepted content (all deleted?) -> suspicious
 		hits = append(hits, RuleHit{WeightBadReputation, RuleBadReputation})
 	}
 

@@ -62,7 +62,7 @@ func main() {
 		AccountAgeDays: 90,
 		Balance:        10000000000,
 		FlaggedCount:   0,
-		TotalPosts:     50,
+		TotalAccepted:  50,
 		HasUsername:    true,
 		BanCount:       0,
 	}

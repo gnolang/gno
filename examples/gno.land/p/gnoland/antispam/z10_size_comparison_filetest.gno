@@ -1,9 +1,9 @@
 package main
 
-// Demonstration: Gas Benchmark for Full Pipeline
-// ===============================================
-// Exercises the complete antispam scoring pipeline with realistic data
-// volumes for gas profiling. All state containers are populated to
+// Demonstration: Content Size Comparison
+// ======================================
+// Exercises the complete antispam scoring pipeline with different content
+// sizes and realistic data volumes. All state containers are populated to
 // typical production sizes, then various content types are scored.
 //
 // State volumes:
@@ -58,7 +58,7 @@ func sliceToString(arr []string) string {
 }
 
 func main() {
-	println("=== GAS BENCHMARK: FULL PIPELINE ===\n")
+	println("=== CONTENT SIZE COMPARISON ===\n")
 
 	// ---- Setup: populate all state to realistic sizes
 
@@ -155,7 +155,7 @@ hurry:1`)
 		AccountAgeDays: 100,
 		Balance:        5000000000,
 		HasUsername:    true,
-		TotalPosts:     50,
+		TotalAccepted:  50,
 	}
 	normalRate := antispam.RateState{PostCount: 3, WindowSeconds: 3600}
 
@@ -315,7 +315,7 @@ hurry:1`)
 }
 
 // Output:
-// === GAS BENCHMARK: FULL PIPELINE ===
+// === CONTENT SIZE COMPARISON ===
 //
 // State: corpus=95 tokens, fps=50 entries, keywords=30 entries
 //

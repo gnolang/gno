@@ -36,7 +36,7 @@ func TestScore(t *testing.T) {
 		AccountAgeDays: 90,
 		Balance:        10000000000,
 		FlaggedCount:   0,
-		TotalPosts:     50,
+		TotalAccepted:  50,
 		HasUsername:    true,
 		BanCount:       0,
 	}
@@ -45,7 +45,7 @@ func TestScore(t *testing.T) {
 		AccountAgeDays: 0,
 		Balance:        3000000000,
 		FlaggedCount:   0,
-		TotalPosts:     0,
+		TotalAccepted:  0,
 		HasUsername:    false,
 		BanCount:       0,
 	}
@@ -54,7 +54,7 @@ func TestScore(t *testing.T) {
 		AccountAgeDays: 30,
 		Balance:        3000000000,
 		FlaggedCount:   15,
-		TotalPosts:     20,
+		TotalAccepted:  20,
 		HasUsername:    true,
 		BanCount:       2,
 	}
@@ -244,7 +244,7 @@ func TestScore(t *testing.T) {
 			Author:  "g1newbie",
 			Content: "Hello everyone this is a perfectly normal message with enough length.",
 			Rate:    RateState{},
-			Rep:     ReputationData{AccountAgeDays: 0, TotalPosts: 0, HasUsername: false, Balance: 100},
+			Rep:     ReputationData{AccountAgeDays: 0, TotalAccepted: 0, HasUsername: false, Balance: 100},
 			Corpus:  NewCorpus(),
 			Fps:     NewFingerprintStore(),
 			Bl:      NewBlocklist(),
@@ -271,7 +271,7 @@ func TestFalsePositives(t *testing.T) {
 		AccountAgeDays: 60,
 		Balance:        5000000000,
 		FlaggedCount:   0,
-		TotalPosts:     20,
+		TotalAccepted:  20,
 		HasUsername:    true,
 		BanCount:       0,
 	}
@@ -379,7 +379,7 @@ func TestEarlyExitAt(t *testing.T) {
 		AccountAgeDays: 30,
 		Balance:        5000000000,
 		FlaggedCount:   15,
-		TotalPosts:     20,
+		TotalAccepted:  20,
 		HasUsername:    true,
 		BanCount:       2,
 	}
@@ -441,7 +441,7 @@ func TestEarlyExitIntraPhase2(t *testing.T) {
 
 	goodRep := ReputationData{
 		AccountAgeDays: 90, Balance: 10000000000,
-		HasUsername: true, TotalPosts: 50,
+		HasUsername: true, TotalAccepted: 50,
 	}
 	normalRate := RateState{PostCount: 3, WindowSeconds: 3600}
 
@@ -511,7 +511,7 @@ func TestMaxInputLength(t *testing.T) {
 			Rate:    RateState{PostCount: 3, WindowSeconds: 3600},
 			Rep: ReputationData{
 				AccountAgeDays: 90, Balance: 10000000000,
-				HasUsername: true, TotalPosts: 50,
+				HasUsername: true, TotalAccepted: 50,
 			},
 			Corpus: NewCorpus(),
 			Fps:    NewFingerprintStore(),

@@ -111,7 +111,7 @@ func main() {
 		AccountAgeDays: 365,
 		Balance:        50000000000,
 		FlaggedCount:   0,
-		TotalPosts:     500,
+		TotalAccepted:  500,
 		HasUsername:    true,
 		BanCount:       0,
 	}
@@ -145,7 +145,7 @@ func main() {
 		AccountAgeDays: 0,
 		Balance:        500000000, // 500 GNOT (< 1000 threshold)
 		FlaggedCount:   0,
-		TotalPosts:     0,
+		TotalAccepted:  0,
 		HasUsername:    false,
 		BanCount:       0,
 	}
@@ -184,7 +184,7 @@ func main() {
 		AccountAgeDays: 30,
 		Balance:        5000000000,
 		FlaggedCount:   20,
-		TotalPosts:     40, // 50% flag ratio (> 30% threshold)
+		TotalAccepted:  40, // 50% flag ratio (> 30% threshold)
 		HasUsername:    true,
 		BanCount:       2,
 	}
@@ -312,7 +312,7 @@ func main() {
 			AccountAgeDays: 0,
 			Balance:        0,
 			FlaggedCount:   100,
-			TotalPosts:     0,
+			TotalAccepted:  0,
 			HasUsername:    false,
 			BanCount:       10,
 		},
