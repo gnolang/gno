@@ -100,9 +100,9 @@ func X_newRealm(m *gno.Machine, addr, pkgPath string) gno.TypedValue {
 		T: m.Store.GetType("chain/runtime.Realm"),
 		V: m.Alloc.NewStructWithFields(
 			// addr address
-			gno.TypedValue{T: m.Store.GetType(".uverse.address"), V: gno.StringValue(addr)},
+			gno.TypedValue{T: m.Store.GetType(".uverse.address"), V: gno.NewStringValue(addr)},
 			// pkgPath string
-			gno.TypedValue{T: gno.StringType, V: gno.StringValue(pkgPath)},
+			gno.TypedValue{T: gno.StringType, V: gno.NewStringValue(pkgPath)},
 		),
 	}
 }
