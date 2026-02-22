@@ -2,10 +2,10 @@ package main
 
 // Demonstration: Regex Pattern Categories
 // =========================================
-// This test exercises the blocklist regex patterns across all 20 scam
+// This test exercises the blocklist regex patterns across all 21 scam
 // categories, plus clean content that must NOT trigger false positives.
 //
-// The realm pre-loads 1 mega-pattern covering 20 categories in a single
+// The realm pre-loads 1 mega-pattern covering 21 categories in a single
 // compiled regex. This test validates each category independently using
 // separate patterns to confirm detection coverage.
 //
@@ -13,8 +13,9 @@ package main
 //   1-10: Phishing, social redirect, airdrops, transfer scam, financial
 //         promises, tech support, gambling/adult/drugs, urgency, inheritance,
 //         fake jobs
-//  11-20: Fake KYC, trading signals, wallet drain, loan scam, engagement
-//         spam, porn, gore, fake token launch, impersonation, romance scam
+//  11-21: Fake KYC, trading signals, wallet drain, loan scam, engagement
+//         spam, porn, gore, fake token launch, impersonation, romance scam,
+//         contact redirect (personal email)
 
 import (
 	"gno.land/p/gnoland/antispam"
@@ -93,6 +94,9 @@ func main() {
 	bl.AddPattern(`(?i)(official|admin|team)\s+(announcement|message|notice).{0,30}(send|transfer|click|verify)`)
 	bl.AddPattern(`(?i)sugar\s+(daddy|mommy|mama|baby).{0,40}(pay|send|money|gift|dm|message)`)
 
+	// Category 21: Contact redirect (personal email addresses)
+	bl.AddPattern(`(?i)[\w.+-]+@(gmail|yahoo|hotmail|outlook|proton|aol)\.(com|fr|net|org)`)
+
 	// Shared scoring state
 	goodRep := antispam.ReputationData{
 		AccountAgeDays: 60,
@@ -150,7 +154,7 @@ func main() {
 	// PHASE 2: Categories 11-20 (New)
 	// ========================================
 
-	println("PHASE 2: New Categories (11-20)")
+	println("PHASE 2: New Categories (11-21)")
 	println("================================\n")
 
 	cats2 := []struct {
@@ -168,6 +172,7 @@ func main() {
 		{18, "Fake token launch", "New token just launched on DEX buy now before moon"},
 		{19, "Impersonation", "Official admin announcement please verify your account by clicking"},
 		{20, "Romance/sugar scam", "Sugar daddy looking for a baby girl to send money and pay bills just dm me"},
+		{21, "Contact redirect", "Send payment proof to winner2024@gmail.com to claim your prize now"},
 	}
 
 	for _, c := range cats2 {
@@ -199,6 +204,7 @@ func main() {
 		{"Financial discussion", "The annual return on staking rewards is about 7% currently."},
 		{"Job posting", "We are hiring a senior Go developer to work on our remote team."},
 		{"Loan discussion", "I took out a small loan to invest in my validator setup."},
+		{"Email discussion", "You can reach the team via their official website or community forum."},
 	}
 
 	allClean := true
@@ -222,10 +228,10 @@ func main() {
 	println("=======\n")
 
 	println("Categories 1-10:  All detected via BLOCKED_PATTERN")
-	println("Categories 11-20: All detected via BLOCKED_PATTERN")
+	println("Categories 11-21: All detected via BLOCKED_PATTERN")
 	println("Clean content:    No false positives")
 	if allClean {
-		println("\nAll 20 categories detected. Zero false positives on clean content.")
+		println("\nAll 21 categories detected. Zero false positives on clean content.")
 	}
 
 	println("\n=== END ===")
@@ -277,7 +283,7 @@ func main() {
 //    "Earn $5000 per week from home online easily"
 //    Score: 5 | Rules: [BLOCKED_PATTERN]
 //
-// PHASE 2: New Categories (11-20)
+// PHASE 2: New Categories (11-21)
 // ================================
 //
 // 11. Fake KYC: HIT
@@ -320,6 +326,10 @@ func main() {
 //    "Sugar daddy looking for a baby girl to send money and pay bills just dm me"
 //    Score: 5 | Rules: [BLOCKED_PATTERN]
 //
+// 21. Contact redirect: HIT
+//    "Send payment proof to winner2024@gmail.com to claim your prize now"
+//    Score: 5 | Rules: [BLOCKED_PATTERN]
+//
 // PHASE 3: Clean Content (false positive check)
 // ==============================================
 //
@@ -351,13 +361,17 @@ func main() {
 //    "I took out a small loan to invest in my validator setup."
 //    Score: 0 | Rules: []
 //
+// Email discussion: CLEAN
+//    "You can reach the team via their official website or community forum."
+//    Score: 0 | Rules: []
+//
 // SUMMARY
 // =======
 //
 // Categories 1-10:  All detected via BLOCKED_PATTERN
-// Categories 11-20: All detected via BLOCKED_PATTERN
+// Categories 11-21: All detected via BLOCKED_PATTERN
 // Clean content:    No false positives
 //
-// All 20 categories detected. Zero false positives on clean content.
+// All 21 categories detected. Zero false positives on clean content.
 //
 // === END ===

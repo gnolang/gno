@@ -9,12 +9,13 @@ import (
 // ---- Thresholds
 
 const (
-	capsThresholdPct  = 50 // % of letters that are uppercase
-	punctThresholdPct = 20 // % of characters that are punctuation
-	linkMaxCount      = 3  // links above this count trigger LINK_HEAVY
-	shortBodyMaxLen   = 30 // body byte length below this with a link triggers SHORT_WITH_LINK
-	minLettersForCaps = 10 // minimum letters to evaluate ALL_CAPS (avoid false positives on short text)
-	minCharsForPunct  = 10 // minimum characters to evaluate punctuation
+	capsThresholdPct    = 50 // % of letters that are uppercase
+	punctThresholdPct   = 20 // % of characters that are punctuation
+	linkMaxCount        = 3  // links above this count trigger LINK_HEAVY
+	shortBodyMaxLen     = 30 // body byte length below this with a link triggers SHORT_WITH_LINK
+	minLettersForCaps   = 10 // minimum letters to evaluate ALL_CAPS (avoid false positives on short text)
+	minCharsForPunct    = 10 // minimum characters to evaluate punctuation
+	repeatedCharsMinRun = 4  // consecutive identical non-space chars to trigger REPEATED_CHARS
 )
 
 // contentStats holds all counters from content analysis.
@@ -25,6 +26,7 @@ type contentStats struct {
 	invisibleCount   int // zero-width and directional override characters
 	maxConsecCombine int // longest run of combining marks on one character
 	mixedWords       int // words mixing Latin + Cyrillic/Greek
+	maxRepeatedChars int // longest run of identical non-space characters (URLs excluded)
 }
 
 // ScoreContent checks content for spam heuristics (caps, punct, links).
@@ -65,6 +67,9 @@ func hitsFromContentStats(content string, s contentStats) []RuleHit {
 	if s.urlCount > linkMaxCount {
 		hits = append(hits, RuleHit{WeightLinkHeavy, RuleLinkHeavy})
 	}
+	if s.maxRepeatedChars >= repeatedCharsMinRun {
+		hits = append(hits, RuleHit{WeightRepeatedChars, RuleRepeatedChars})
+	}
 	if len(content) <= shortBodyMaxLen && s.urlCount > 0 {
 		hits = append(hits, RuleHit{WeightShortWithLink, RuleShortWithLink})
 	}
@@ -99,6 +104,9 @@ func analyzeContent(content string) contentStats {
 	consecCombining := 0
 	wordHasLatin := false
 	wordHasOther := false
+
+	var prevChar rune
+	consecSame := 0
 
 	for pos < len(content) {
 		if !inURL && hasURLPrefix(content, pos) {
@@ -135,6 +143,9 @@ func analyzeContent(content string) contentStats {
 			}
 			wordHasLatin = false
 			wordHasOther = false
+			// Reset repeated chars run on whitespace.
+			prevChar = 0
+			consecSame = 0
 		} else {
 			if !inURL {
 				s.nonSpace++
@@ -145,6 +156,16 @@ func analyzeContent(content string) contentStats {
 					s.upper++
 				} else if unicode.IsLower(r) {
 					s.lower++
+				}
+				// Track consecutive identical characters (URLs excluded).
+				if r == prevChar {
+					consecSame++
+				} else {
+					prevChar = r
+					consecSame = 1
+				}
+				if consecSame > s.maxRepeatedChars {
+					s.maxRepeatedChars = consecSame
 				}
 			}
 			// Script tracking runs inside URLs to detect homoglyphs in IDN domains.

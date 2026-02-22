@@ -210,7 +210,7 @@ func main() {
 // PHASE 4: Confirmed Spam
 // ─────────────────────────
 // Post: "CLICK HERE NOW!!! FREE MONEY BONUS PRIZE AIRDROP!!! http://spam1.com http://spam2.com http://spam3.com"
-// Score: 12 | Triggered: [ALL_CAPS RATE_BURST BAYES_SPAM KEYWORD_SPAM]
+// Score: 12 | Triggered: [RATE_BURST ALL_CAPS BAYES_SPAM KEYWORD_SPAM]
 // Status: 🚫 REJECTED (score >= 8)
 // Analysis: Multiple compounding factors:
 //   - ALL_CAPS: Entire message capitalized

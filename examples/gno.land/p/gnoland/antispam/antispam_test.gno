@@ -421,7 +421,7 @@ func TestEarlyExitAt(t *testing.T) {
 }
 
 func TestEarlyExitIntraPhase2(t *testing.T) {
-	// Scenario: Phase 1 scores 0 (good user), but Pattern(5) + Bayes(3) = 8.
+	// Scenario: cheap rules score 0 (good user), but Pattern(5) + Bayes(3) = 8.
 	// With EarlyExitAt=8, Keywords and Fingerprint should be skipped.
 	// With EarlyExitDisabled, Keywords also fires -> higher total.
 	corpus := NewCorpus()
