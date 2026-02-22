@@ -320,37 +320,37 @@ hurry:1`)
 // State: corpus=95 tokens, fps=50 entries, keywords=30 entries
 //
 // TEST 1: Short Spam (30 chars)
-//
+// ----
 // Content:   "Free airdrop! Claim now!!!"
 // Score:     11
 // Triggered: [BLOCKED_PATTERN BAYES_SPAM KEYWORD_SPAM]
 //
 // TEST 2: Medium Legitimate (200 chars)
-//
+// ----
 // Content:   (200 chars, governance discussion)
 // Score:     0
 // Triggered: []
 //
 // TEST 3: Long Spam (~1000 chars)
-//
+// ----
 // Content:   (~1000 chars, repetitive spam keywords)
 // Score:     11
 // Triggered: [BLOCKED_PATTERN BAYES_SPAM KEYWORD_SPAM]
 //
 // TEST 4: MaxInputLength Content (4096 chars)
-//
+// ----
 // Content:   (4096+ chars, truncated at MaxInputLength)
 // Score:     0
 // Triggered: []
 //
 // TEST 5: Early Exit Comparison
-//
+// ----
 // Full scoring:  score=20 rules=[RATE_BURST NEW_ACCOUNT NO_USERNAME LOW_BALANCE BANNED_BEFORE BLOCKED_PATTERN BAYES_SPAM KEYWORD_SPAM]
 // Early exit:    score=9 rules=[RATE_BURST NEW_ACCOUNT NO_USERNAME LOW_BALANCE BANNED_BEFORE]
 // Rules skipped: 3
 //
 // SUMMARY
-//
+// ----
 // Test  Content        Score  Rules
 // 1     Short spam     11      [BLOCKED_PATTERN BAYES_SPAM KEYWORD_SPAM]
 // 2     Medium legit   0      []

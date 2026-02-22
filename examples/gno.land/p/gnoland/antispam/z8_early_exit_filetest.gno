@@ -284,7 +284,7 @@ func main() {
 // =======
 //
 // Mode                          Score  Rules Evaluated
-//                           -   -----------
+// ----                           -   -----------
 // A. Full (EarlyExitDisabled)    18  All rules evaluated
 // A. EarlyExit at Reject          10  Cheap rules only (expensive skipped)
 // B. Full (subtle spam)           6  All rules (expensive needed)
