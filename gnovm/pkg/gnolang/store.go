@@ -42,6 +42,7 @@ type Store interface {
 	GetPackageGetter() PackageGetter
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string, isImport bool) *PackageValue
+	ConsumeGas(gas int64, descriptor string)
 	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
@@ -104,6 +105,7 @@ const (
 	GasAddMemPackageDesc   = "AddMemPackagePerByte"
 	GasGetMemPackageDesc   = "GetMemPackagePerByte"
 	GasDeleteObjectDesc    = "DeleteObjectFlat"
+	GasComputeMapKey       = "ComputeMapKey"
 )
 
 // GasConfig defines gas cost for each operation on KVStores
@@ -1099,6 +1101,10 @@ func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
 	if ds.gasMeter != nil {
 		ds.gasMeter.ConsumeGas(gas, descriptor)
 	}
+}
+
+func (ds *defaultStore) ConsumeGas(gas int64, descriptor string) {
+	ds.consumeGas(gas, descriptor)
 }
 
 // It resturns storage changes per realm within message
