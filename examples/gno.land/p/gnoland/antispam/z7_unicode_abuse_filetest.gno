@@ -67,7 +67,7 @@ func main() {
 		AccountAgeDays: 90,
 		Balance:        10000000000,
 		HasUsername:    true,
-		TotalPosts:     50,
+		TotalAccepted:  50,
 	}
 	normalRate := antispam.RateState{PostCount: 3, WindowSeconds: 3600}
 	bl := antispam.NewBlocklist()

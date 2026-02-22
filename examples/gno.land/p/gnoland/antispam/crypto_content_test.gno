@@ -65,7 +65,7 @@ func TestCryptoContentFalsePositives(t *testing.T) {
 		AccountAgeDays: 180,
 		Balance:        5000000000, // 5000 GNOT
 		HasUsername:    true,
-		TotalPosts:     50,
+		TotalAccepted:  50,
 	}
 	normalRate := RateState{PostCount: 2, WindowSeconds: 3600}
 

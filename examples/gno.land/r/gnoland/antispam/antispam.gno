@@ -3,28 +3,34 @@
 // It wraps p/gnoland/antispam (the scoring engine) with shared state:
 // a Bayesian corpus, a fingerprint store, a keyword dictionary,
 // a blocklist for regex patterns and address blocking, and
-// per-address reputation tracking (flags, bans, post counts).
+// per-address reputation tracking (flags, bans, accepted content counts).
 //
 // State containers are created empty on deployment. The admin must call
 // AdminLoadDefaults() post-deploy to populate the keyword dictionary
-// (~400 spam keywords) and the combined regex pattern (20 scam categories).
+// (~400 spam keywords) and the combined regex pattern (21 scam categories).
 // This deferred loading avoids exceeding storage deposit limits at genesis.
 //
 // Any realm can call Score() to evaluate content. Score() auto-populates
-// FlaggedCount, BanCount, and TotalPosts from internal reputation state;
+// FlaggedCount, BanCount, and TotalAccepted from internal reputation state;
 // callers only need to provide chain data (AccountAgeDays, Balance, HasUsername).
-// Only the admin can modify the shared state (patterns, blocklist, keywords, training data).
+//
+// Reputation recording (RecordAccepted, RecordFlag, RecordBan) requires the
+// caller realm to be registered via AdminRegisterCaller. This prevents
+// untrusted realms from poisoning reputation data.
+//
+// Only the admin can modify the shared state (patterns, blocklist, keywords,
+// training data, trusted callers).
 //
 // Usage from another realm:
 //
 //	import antispamr "gno.land/r/gnoland/antispam"
 //	import engine "gno.land/p/gnoland/antispam"
 //
-//	// Chain data only - FlaggedCount/BanCount/TotalPosts are auto-populated
+//	// Chain data only - FlaggedCount/BanCount/TotalAccepted are auto-populated
 //	rep := engine.ReputationData{AccountAgeDays: 30, Balance: 5000000000, HasUsername: true}
 //	result := antispamr.Score(author, content, rate, rep, nil, nil, nil, nil, engine.EarlyExitDisabled)
 //	if result.Total >= engine.ThresholdHide {
-//	    // hide the post
+//	    // hide the content
 //	}
 package antispam
 
@@ -197,14 +203,14 @@ func Score(
 	}
 	// Auto-populate moderation data from internal reputation state.
 	// Caller provides chain data (AccountAgeDays, Balance, HasUsername);
-	// realm fills in FlaggedCount, BanCount, TotalPosts.
+	// realm fills in FlaggedCount, BanCount, TotalAccepted.
 	key := author.String()
 	raw, ok := reputations.Get(key)
 	if ok {
 		ir := raw.(*addrReputation)
 		rep.FlaggedCount = ir.flaggedCount
 		rep.BanCount = ir.banCount
-		rep.TotalPosts = ir.totalPosts
+		rep.TotalAccepted = ir.totalAccepted
 	}
 
 	return engine.Score(engine.ScoreInput{
@@ -323,6 +329,7 @@ func Render(_ string) string {
 	out += ufmt.Sprintf("**Allowed addresses:** %d\n\n", bl.AllowedCount())
 	out += ufmt.Sprintf("**Active patterns:** %d\n\n", bl.PatternCount())
 	out += ufmt.Sprintf("**Tracked addresses:** %d\n\n", reputations.Size())
+	out += ufmt.Sprintf("**Trusted callers:** %d\n\n", trustedCallers.Size())
 	out += "## Patterns\n\n"
 	bl.IteratePatterns(func(pattern string) bool {
 		out += "- `" + pattern + "`\n"
@@ -332,14 +339,14 @@ func Render(_ string) string {
 	out += "```gno\n"
 	out += "import antispamr \"gno.land/r/gnoland/antispam\"\n"
 	out += "import engine \"gno.land/p/gnoland/antispam\"\n\n"
-	out += "// Chain data only - FlaggedCount/BanCount/TotalPosts auto-populated\n"
+	out += "// Chain data only - FlaggedCount/BanCount/TotalAccepted auto-populated\n"
 	out += "rep := engine.ReputationData{AccountAgeDays: 30, Balance: 5000000000, HasUsername: true}\n"
 	out += "result := antispamr.Score(author, content, rate, rep, nil, nil, nil, nil, engine.EarlyExitDisabled)\n"
 	out += "if result.Total >= engine.ThresholdHide {\n"
-	out += "    // hide the post\n"
+	out += "    // hide the content\n"
 	out += "}\n\n"
-	out += "// Record post for reputation tracking\n"
-	out += "antispamr.RecordPost(author)\n"
+	out += "// Record accepted content for reputation tracking\n"
+	out += "antispamr.RecordAccepted(author)\n"
 	out += "```\n"
 	return out
 }

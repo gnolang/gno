@@ -21,7 +21,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 90,
 				Balance:        10000000000,
 				FlaggedCount:   0,
-				TotalPosts:     50,
+				TotalAccepted:  50,
 				HasUsername:    true,
 				BanCount:       0,
 			},
@@ -33,7 +33,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 30,
 				Balance:        5000000000,
 				FlaggedCount:   0,
-				TotalPosts:     10,
+				TotalAccepted:  10,
 				HasUsername:    true,
 				BanCount:       0,
 			},
@@ -45,7 +45,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 7,
 				Balance:        3000000000,
 				FlaggedCount:   0,
-				TotalPosts:     2,
+				TotalAccepted:  2,
 				HasUsername:    true,
 				BanCount:       0,
 			},
@@ -60,7 +60,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 0,
 				Balance:        3000000000,
 				FlaggedCount:   0,
-				TotalPosts:     0,
+				TotalAccepted:  0,
 				HasUsername:    false,
 				BanCount:       0,
 			},
@@ -73,7 +73,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 0,
 				Balance:        100000000,
 				FlaggedCount:   0,
-				TotalPosts:     0,
+				TotalAccepted:  0,
 				HasUsername:    false,
 				BanCount:       0,
 			},
@@ -85,7 +85,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 60,
 				Balance:        5000000000,
 				FlaggedCount:   0,
-				TotalPosts:     5,
+				TotalAccepted:  5,
 				HasUsername:    false,
 				BanCount:       0,
 			},
@@ -101,7 +101,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 30,
 				Balance:        5000000000,
 				FlaggedCount:   10,
-				TotalPosts:     15,
+				TotalAccepted:  15,
 				HasUsername:    true,
 				BanCount:       0,
 			},
@@ -114,7 +114,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 60,
 				Balance:        5000000000,
 				FlaggedCount:   10,
-				TotalPosts:     20,
+				TotalAccepted:  20,
 				HasUsername:    true,
 				BanCount:       1,
 			},
@@ -126,7 +126,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 90,
 				Balance:        5000000000,
 				FlaggedCount:   20,
-				TotalPosts:     30,
+				TotalAccepted:  30,
 				HasUsername:    true,
 				BanCount:       3,
 			},
@@ -138,7 +138,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 10,
 				Balance:        3000000000,
 				FlaggedCount:   5,
-				TotalPosts:     5,
+				TotalAccepted:  5,
 				HasUsername:    true,
 				BanCount:       0,
 			},
@@ -160,7 +160,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 30,
 				Balance:        -1,
 				FlaggedCount:   0,
-				TotalPosts:     5,
+				TotalAccepted:  5,
 				HasUsername:    true,
 				BanCount:       0,
 			},
@@ -173,7 +173,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 30,
 				Balance:        5000000000,
 				FlaggedCount:   10,
-				TotalPosts:     5,
+				TotalAccepted:  5,
 				HasUsername:    true,
 				BanCount:       0,
 			},
@@ -186,7 +186,7 @@ func TestScoreReputation(t *testing.T) {
 				AccountAgeDays: 90,
 				Balance:        10000000000,
 				FlaggedCount:   1,
-				TotalPosts:     100,
+				TotalAccepted:  100,
 				HasUsername:    true,
 				BanCount:       0,
 			},
@@ -227,7 +227,7 @@ func TestReputationThresholdBoundaries(t *testing.T) {
 		hits := ScoreReputation(ReputationData{
 			AccountAgeDays: 1,
 			Balance:        5000000000,
-			TotalPosts:     0,
+			TotalAccepted:  0,
 			HasUsername:    true,
 		})
 		for _, h := range hits {
@@ -238,11 +238,11 @@ func TestReputationThresholdBoundaries(t *testing.T) {
 	})
 
 	t.Run("boundary: new account needs BOTH young AND no posts", func(t *testing.T) {
-		// NEW_ACCOUNT requires AccountAgeDays < 1 AND TotalPosts <= 0
+		// NEW_ACCOUNT requires AccountAgeDays < 1 AND TotalAccepted <= 0
 		hits := ScoreReputation(ReputationData{
 			AccountAgeDays: 0,
 			Balance:        5000000000,
-			TotalPosts:     1,
+			TotalAccepted:  1,
 			HasUsername:    true,
 		})
 		for _, h := range hits {
@@ -257,7 +257,7 @@ func TestReputationThresholdBoundaries(t *testing.T) {
 		hits := ScoreReputation(ReputationData{
 			AccountAgeDays: 30,
 			Balance:        1000000000,
-			TotalPosts:     5,
+			TotalAccepted:  5,
 			HasUsername:    true,
 		})
 		for _, h := range hits {
@@ -271,7 +271,7 @@ func TestReputationThresholdBoundaries(t *testing.T) {
 		hits := ScoreReputation(ReputationData{
 			AccountAgeDays: 30,
 			Balance:        999999999,
-			TotalPosts:     5,
+			TotalAccepted:  5,
 			HasUsername:    true,
 		})
 		found := false
@@ -292,7 +292,7 @@ func TestReputationThresholdBoundaries(t *testing.T) {
 			AccountAgeDays: 30,
 			Balance:        5000000000,
 			FlaggedCount:   3,
-			TotalPosts:     10,
+			TotalAccepted:  10,
 			HasUsername:    true,
 		})
 		for _, h := range hits {
@@ -308,7 +308,7 @@ func TestReputationThresholdBoundaries(t *testing.T) {
 			AccountAgeDays: 30,
 			Balance:        5000000000,
 			FlaggedCount:   31,
-			TotalPosts:     100,
+			TotalAccepted:  100,
 			HasUsername:    true,
 		})
 		found := false
@@ -328,7 +328,7 @@ func TestReputationThresholdBoundaries(t *testing.T) {
 			AccountAgeDays: 90,
 			Balance:        10000000000,
 			FlaggedCount:   0,
-			TotalPosts:     50,
+			TotalAccepted:  50,
 			HasUsername:    true,
 			BanCount:       5,
 		})

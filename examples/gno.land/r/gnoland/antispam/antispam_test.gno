@@ -15,11 +15,14 @@ import (
 func resetState(t *testing.T) {
 	t.Helper()
 	adminAddr = address("g1admin")
+	testing.SetOriginCaller(adminAddr)
+	testing.SetRealm(testing.NewUserRealm(adminAddr))
 	corpus = engine.NewCorpus()
 	fps = engine.NewFingerprintStore()
 	bl = engine.NewBlocklist()
 	keywords = engine.NewKeywordDict()
 	reputations = avl.NewTree()
+	trustedCallers = avl.NewTree()
 	keywords.BulkAdd(defaultKeywords)
 
 	// Re-load default patterns (simplified versions of the realm's mega-pattern categories)
@@ -325,7 +328,7 @@ func TestScoreCleanContent(t *testing.T) {
 		AccountAgeDays: 60,
 		Balance:        5000000000,
 		FlaggedCount:   0,
-		TotalPosts:     20,
+		TotalAccepted:  20,
 		HasUsername:    true,
 		BanCount:       0,
 	}
@@ -411,7 +414,7 @@ func TestScoreEarlyExit(t *testing.T) {
 		AccountAgeDays: 0,
 		Balance:        100000000,
 		FlaggedCount:   10,
-		TotalPosts:     15,
+		TotalAccepted:  15,
 		HasUsername:    false,
 		BanCount:       1,
 	}
@@ -521,6 +524,7 @@ func TestRender(t *testing.T) {
 		"**Keyword dictionary:**",
 		"**Active patterns:**",
 		"**Tracked addresses:**",
+		"**Trusted callers:**",
 		"## Patterns",
 		"## Usage",
 	}
@@ -536,4 +540,43 @@ func TestRender(t *testing.T) {
 			t.Errorf("Render output missing %q", check)
 		}
 	}
+}
+
+// ---- trusted caller management
+
+func TestAdminRegisterCaller(t *testing.T) {
+	resetState(t)
+	setAdmin(t)
+
+	callerAddr := testing.NewCodeRealm("gno.land/r/test/boards").Address()
+	AdminRegisterCaller(cross, callerAddr)
+
+	if TrustedCallerCount() != 1 {
+		t.Errorf("expected 1 trusted caller, got %d", TrustedCallerCount())
+	}
+}
+
+func TestAdminRemoveCaller(t *testing.T) {
+	resetState(t)
+	setAdmin(t)
+
+	callerAddr := testing.NewCodeRealm("gno.land/r/test/boards").Address()
+	AdminRegisterCaller(cross, callerAddr)
+	AdminRemoveCaller(cross, callerAddr)
+
+	if TrustedCallerCount() != 0 {
+		t.Errorf("expected 0 trusted callers after removal, got %d", TrustedCallerCount())
+	}
+}
+
+func TestNonAdminCannotRegisterCaller(t *testing.T) {
+	resetState(t)
+	setAdmin(t)
+
+	other := testutils.TestAddress("other")
+	testing.SetOriginCaller(other)
+
+	uassert.AbortsWithMessage(t, errUnauthorized.Error(), func() {
+		AdminRegisterCaller(cross, address("g1someone"))
+	})
 }

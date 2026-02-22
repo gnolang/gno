@@ -9,35 +9,47 @@ import (
 	engine "gno.land/p/gnoland/antispam"
 )
 
-// ---- RecordPost tests
+// ---- RecordAccepted tests
 
-func TestRecordPost(t *testing.T) {
+func TestRecordAccepted(t *testing.T) {
 	resetState(t)
-	user := address("g1poster")
+	setAdmin(t)
+	// Register test realm as trusted caller
+	testRealm := testing.NewCodeRealm("gno.land/r/test/reputation")
+	AdminRegisterCaller(cross, testRealm.Address())
 
-	t.Run("success: increments post count", func(t *testing.T) {
-		RecordPost(cross, user)
-		RecordPost(cross, user)
+	user := address("g1poster")
+	testing.SetRealm(testRealm)
+
+	t.Run("success: increments accepted count", func(t *testing.T) {
+		RecordAccepted(cross, user)
+		RecordAccepted(cross, user)
 
 		rep := GetReputation(user)
-		if rep.TotalPosts != 2 {
-			t.Errorf("expected TotalPosts=2, got %d", rep.TotalPosts)
+		if rep.TotalAccepted != 2 {
+			t.Errorf("expected TotalAccepted=2, got %d", rep.TotalAccepted)
 		}
 	})
 
 	t.Run("success: independent per address", func(t *testing.T) {
 		resetState(t)
-		RecordPost(cross, address("g1a"))
-		RecordPost(cross, address("g1a"))
-		RecordPost(cross, address("g1b"))
+		setAdmin(t)
+		// Register test realm as trusted caller
+		testRealmInner := testing.NewCodeRealm("gno.land/r/test/reputation")
+		AdminRegisterCaller(cross, testRealmInner.Address())
+		testing.SetRealm(testRealmInner)
+
+		RecordAccepted(cross, address("g1a"))
+		RecordAccepted(cross, address("g1a"))
+		RecordAccepted(cross, address("g1b"))
 
 		repA := GetReputation(address("g1a"))
 		repB := GetReputation(address("g1b"))
-		if repA.TotalPosts != 2 {
-			t.Errorf("expected g1a TotalPosts=2, got %d", repA.TotalPosts)
+		if repA.TotalAccepted != 2 {
+			t.Errorf("expected g1a TotalAccepted=2, got %d", repA.TotalAccepted)
 		}
-		if repB.TotalPosts != 1 {
-			t.Errorf("expected g1b TotalPosts=1, got %d", repB.TotalPosts)
+		if repB.TotalAccepted != 1 {
+			t.Errorf("expected g1b TotalAccepted=1, got %d", repB.TotalAccepted)
 		}
 	})
 }
@@ -46,7 +58,13 @@ func TestRecordPost(t *testing.T) {
 
 func TestRecordFlag(t *testing.T) {
 	resetState(t)
+	setAdmin(t)
+	// Register test realm as trusted caller
+	testRealm := testing.NewCodeRealm("gno.land/r/test/reputation")
+	AdminRegisterCaller(cross, testRealm.Address())
+
 	user := address("g1flagged")
+	testing.SetRealm(testRealm)
 
 	t.Run("success: increments flag count", func(t *testing.T) {
 		RecordFlag(cross, user)
@@ -60,11 +78,17 @@ func TestRecordFlag(t *testing.T) {
 	})
 }
 
-// ---- RecordBan / RecordUnban tests
+// ---- RecordBan tests
 
 func TestRecordBan(t *testing.T) {
 	resetState(t)
+	setAdmin(t)
+	// Register test realm as trusted caller
+	testRealm := testing.NewCodeRealm("gno.land/r/test/reputation")
+	AdminRegisterCaller(cross, testRealm.Address())
+
 	user := address("g1banned")
+	testing.SetRealm(testRealm)
 
 	t.Run("success: increments ban count", func(t *testing.T) {
 		RecordBan(cross, user)
@@ -83,47 +107,35 @@ func TestRecordBan(t *testing.T) {
 	})
 }
 
-func TestRecordUnban(t *testing.T) {
-	resetState(t)
-	user := address("g1unbanned")
-
-	t.Run("success: does not change ban count", func(t *testing.T) {
-		RecordBan(cross, user)
-		RecordBan(cross, user)
-		RecordUnban(cross, user)
-
-		// Unban removes from active ban but ban history persists
-		rep := GetReputation(user)
-		if rep.BanCount != 2 {
-			t.Errorf("expected BanCount=2 (history persists), got %d", rep.BanCount)
-		}
-	})
-}
-
 // ---- GetReputation tests
 
 func TestGetReputation(t *testing.T) {
 	resetState(t)
+	setAdmin(t)
+	// Register test realm as trusted caller
+	testRealm := testing.NewCodeRealm("gno.land/r/test/reputation")
+	AdminRegisterCaller(cross, testRealm.Address())
+	testing.SetRealm(testRealm)
 
 	t.Run("success: unknown address returns zero", func(t *testing.T) {
 		rep := GetReputation(address("g1unknown"))
-		if rep.TotalPosts != 0 || rep.FlaggedCount != 0 || rep.BanCount != 0 {
-			t.Errorf("expected all zeros for unknown address, got posts=%d flags=%d bans=%d",
-				rep.TotalPosts, rep.FlaggedCount, rep.BanCount)
+		if rep.TotalAccepted != 0 || rep.FlaggedCount != 0 || rep.BanCount != 0 {
+			t.Errorf("expected all zeros for unknown address, got accepted=%d flags=%d bans=%d",
+				rep.TotalAccepted, rep.FlaggedCount, rep.BanCount)
 		}
 	})
 
 	t.Run("success: returns accumulated data", func(t *testing.T) {
 		user := address("g1full")
-		RecordPost(cross, user)
-		RecordPost(cross, user)
-		RecordPost(cross, user)
+		RecordAccepted(cross, user)
+		RecordAccepted(cross, user)
+		RecordAccepted(cross, user)
 		RecordFlag(cross, user)
 		RecordBan(cross, user)
 
 		rep := GetReputation(user)
-		if rep.TotalPosts != 3 {
-			t.Errorf("expected TotalPosts=3, got %d", rep.TotalPosts)
+		if rep.TotalAccepted != 3 {
+			t.Errorf("expected TotalAccepted=3, got %d", rep.TotalAccepted)
 		}
 		if rep.FlaggedCount != 1 {
 			t.Errorf("expected FlaggedCount=1, got %d", rep.FlaggedCount)
@@ -134,16 +146,71 @@ func TestGetReputation(t *testing.T) {
 	})
 }
 
+// ---- Trusted caller access control
+
+func TestTrustedCallerAccess(t *testing.T) {
+	resetState(t)
+
+	// Register a realm as trusted caller
+	callerRealm := testing.NewCodeRealm("gno.land/r/test/boards")
+	AdminRegisterCaller(cross, callerRealm.Address())
+
+	// Switch to calling from the registered realm
+	testing.SetRealm(callerRealm)
+
+	// Registered caller can record
+	RecordAccepted(cross, address("g1user"))
+	RecordFlag(cross, address("g1user"))
+	RecordBan(cross, address("g1user"))
+
+	rep := GetReputation(address("g1user"))
+	if rep.TotalAccepted != 1 || rep.FlaggedCount != 1 || rep.BanCount != 1 {
+		t.Errorf("expected 1/1/1, got accepted=%d flags=%d bans=%d",
+			rep.TotalAccepted, rep.FlaggedCount, rep.BanCount)
+	}
+}
+
+func TestUntrustedRealmRejected(t *testing.T) {
+	resetState(t)
+
+	// Switch to an unregistered realm
+	untrusted := testing.NewCodeRealm("gno.land/r/evil/realm")
+	testing.SetRealm(untrusted)
+
+	uassert.AbortsWithMessage(t, errUnauthorized.Error(), func() {
+		RecordAccepted(cross, address("g1user"))
+	})
+}
+
+func TestUntrustedUserRejected(t *testing.T) {
+	resetState(t)
+
+	// Switch to a non-admin user
+	other := testutils.TestAddress("other")
+	testing.SetOriginCaller(other)
+	testing.SetRealm(testing.NewUserRealm(other))
+
+	uassert.AbortsWithMessage(t, errUnauthorized.Error(), func() {
+		RecordAccepted(cross, address("g1user"))
+	})
+}
+
 // ---- Score integration with reputation
 
 func TestScoreUsesInternalReputation(t *testing.T) {
 	resetState(t)
+	setAdmin(t)
+	// Register test realm as trusted caller
+	testRealm := testing.NewCodeRealm("gno.land/r/test/reputation")
+	AdminRegisterCaller(cross, testRealm.Address())
+	testing.SetRealm(testRealm)
+
 	user := address("g1spammy")
 
 	t.Run("success: bad flag ratio triggers BAD_REPUTATION", func(t *testing.T) {
-		// Create a user with 5 posts, 3 flagged -> 60% flag ratio > 30%
+		// Create a user with 5 accepted, 3 flagged -> 60% flag ratio > 30%
 		for i := 0; i < 5; i++ {
-			RecordPost(cross, user)
+			RecordAccepted(cross, user)
 		}
 		for i := 0; i < 3; i++ {
 			RecordFlag(cross, user)
@@ -174,10 +241,16 @@ func TestScoreUsesInternalReputation(t *testing.T) {
 
 	t.Run("success: ban history triggers BANNED_BEFORE", func(t *testing.T) {
 		resetState(t)
+		setAdmin(t)
+		// Register test realm as trusted caller
+		testRealmInner := testing.NewCodeRealm("gno.land/r/test/reputation")
+		AdminRegisterCaller(cross, testRealmInner.Address())
+		testing.SetRealm(testRealmInner)
+
 		banned := address("g1exbanned")
 		RecordBan(cross, banned)
 
-		result := Score(banned, "Posting again after ban with enough content for analysis.",
+		result := Score(banned, "Content again after ban with enough for analysis here.",
 			engine.RateState{},
 			engine.ReputationData{
 				AccountAgeDays: 30,
@@ -201,9 +274,15 @@ func TestScoreUsesInternalReputation(t *testing.T) {
 
 	t.Run("success: clean user has no reputation penalties", func(t *testing.T) {
 		resetState(t)
+		setAdmin(t)
+		// Register test realm as trusted caller
+		testRealmInner := testing.NewCodeRealm("gno.land/r/test/reputation")
+		AdminRegisterCaller(cross, testRealmInner.Address())
+		testing.SetRealm(testRealmInner)
+
 		clean := address("g1clean")
 		for i := 0; i < 10; i++ {
-			RecordPost(cross, clean)
+			RecordAccepted(cross, clean)
 		}
 
 		result := Score(clean, "This is a perfectly normal discussion about governance proposals.",
@@ -228,19 +307,23 @@ func TestScoreUsesInternalReputation(t *testing.T) {
 func TestAdminResetReputation(t *testing.T) {
 	resetState(t)
 	setAdmin(t)
+	// Register test realm as trusted caller
+	testRealm := testing.NewCodeRealm("gno.land/r/test/reputation")
+	AdminRegisterCaller(cross, testRealm.Address())
+	testing.SetRealm(testRealm)
 
 	user := address("g1resetme")
-	RecordPost(cross, user)
-	RecordPost(cross, user)
+	RecordAccepted(cross, user)
+	RecordAccepted(cross, user)
 	RecordFlag(cross, user)
 	RecordBan(cross, user)
 
 	AdminResetReputation(cross, user)
 
 	rep := GetReputation(user)
-	if rep.TotalPosts != 0 || rep.FlaggedCount != 0 || rep.BanCount != 0 {
-		t.Errorf("expected all zeros after reset, got posts=%d flags=%d bans=%d",
-			rep.TotalPosts, rep.FlaggedCount, rep.BanCount)
+	if rep.TotalAccepted != 0 || rep.FlaggedCount != 0 || rep.BanCount != 0 {
+		t.Errorf("expected all zeros after reset, got accepted=%d flags=%d bans=%d",
+			rep.TotalAccepted, rep.FlaggedCount, rep.BanCount)
 	}
 }
 
@@ -260,13 +343,18 @@ func TestAdminResetReputationNonAdmin(t *testing.T) {
 
 func TestReputationCount(t *testing.T) {
 	resetState(t)
+	setAdmin(t)
+	// Register test realm as trusted caller
+	testRealm := testing.NewCodeRealm("gno.land/r/test/reputation")
+	AdminRegisterCaller(cross, testRealm.Address())
+	testing.SetRealm(testRealm)
 
 	if ReputationCount() != 0 {
 		t.Errorf("expected 0 tracked addresses, got %d", ReputationCount())
 	}
 
-	RecordPost(cross, address("g1a"))
-	RecordPost(cross, address("g1b"))
+	RecordAccepted(cross, address("g1a"))
+	RecordAccepted(cross, address("g1b"))
 	RecordFlag(cross, address("g1c"))
 
 	if ReputationCount() != 3 {
