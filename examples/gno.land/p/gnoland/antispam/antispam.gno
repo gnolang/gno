@@ -1,42 +1,6 @@
-// Package antispam provides a multi-rule spam scoring engine for Gno realms.
-//
-// It combines content heuristics, rate limiting, reputation scoring,
-// Bayesian filtering, duplicate detection, keyword dictionary,
-// and address/pattern blocklists into a single weighted score.
-//
-// The package provides pure scoring functions and state helpers
-// (Corpus, FingerprintStore, Blocklist, KeywordDict) that
-// are owned and persisted by the calling realm.
-//
-// Usage:
-//
-//	var (
-//	    corpus = antispam.NewCorpus()
-//	    fps    = antispam.NewFingerprintStore()
-//	    bl     = antispam.NewBlocklist()
-//	    kw     = antispam.NewKeywordDict()
-//	)
-//
-//	result := antispam.Score(antispam.ScoreInput{
-//	    Author:  author,
-//	    Content: content,
-//	    Rate:    rate,
-//	    Rep:     rep,
-//	    Corpus:  corpus,
-//	    Fps:     fps,
-//	    Bl:      bl,
-//	    Dict:    kw,
-//	})
-//	if result.Total >= ThresholdHide {
-//	    // hide the post
-//	}
-//
-// For gas optimization, set EarlyExitAt to a positive threshold
-// (e.g. ThresholdReject) to skip expensive rules when cheap rules
-// already exceed it. Leave at EarlyExitDisabled for complete scoring.
-//
-// Check the filetest.gno files for examples of how to use the package
-// and the scenarios it covers.
+// Package antispam provides spam scoring for Gno realms.
+// Combines content checks, rate limits, reputation, Bayes filter, duplicates, keywords, and blocklists.
+// See README for usage and examples.
 package antispam
 
 // ---- Scoring thresholds (recommended defaults, callers can use their own)

@@ -1,16 +1,15 @@
 # antispam
 
-Multi-rule spam scoring engine for Gno realms. Combines content heuristics, rate limiting, reputation signals, Bayesian filtering, duplicate detection, keyword matching, and blocklists into a single weighted score.
+Multi-rule spam scoring for Gno realms. Combines content heuristics, rate limits, reputation, Bayesian filter, duplicates, keywords, and blocklists.
 
-## Quick Start
+## Usage
 
-**Option 1: Use the shared realm (recommended for most cases)**
+Most realms should use the shared realm at `r/gnoland/antispam`:
 
 ```gno
 import antispamr "gno.land/r/gnoland/antispam"
 import engine "gno.land/p/gnoland/antispam"
 
-// Score content - reputation auto-populated from shared state
 rep := engine.ReputationData{
     AccountAgeDays: 30,
     Balance:        5000000000,
@@ -21,21 +20,19 @@ result := antispamr.Score(author, content, rate, rep, nil, nil, nil, nil, engine
 if result.Total >= engine.ThresholdReject {
     // reject (score >= 8)
 } else if result.Total >= engine.ThresholdHide {
-    // hide from default view (score >= 5)
+    // hide (score >= 5)
 }
 
-// Record moderation decision (requires registration via AdminRegisterCaller)
 if result.Total < engine.ThresholdHide {
     antispamr.RecordAccepted(cross, author)
 }
 ```
 
-**Option 2: Self-hosted state (for custom rules or isolated scoring)**
+For custom rules or isolated scoring, host your own state:
 
 ```gno
 import "gno.land/p/gnoland/antispam"
 
-// Create persistent state in your realm
 var (
     corpus = antispam.NewCorpus()
     fps    = antispam.NewFingerprintStore()
@@ -43,7 +40,6 @@ var (
     kw     = antispam.NewKeywordDict()
 )
 
-// Score content
 result := antispam.Score(antispam.ScoreInput{
     Author:  author,
     Content: content,
@@ -56,175 +52,150 @@ result := antispam.Score(antispam.ScoreInput{
 })
 ```
 
-**Important:** A zero-value `ReputationData` triggers NEW_ACCOUNT(2) + NO_USERNAME(1) + LOW_BALANCE(1) = 4 points. Always fill `Rep` accurately to avoid false positives.
+Note: Zero-value ReputationData gives you 4 points (NEW_ACCOUNT + NO_USERNAME + LOW_BALANCE). Fill it properly to avoid false positives.
 
-## How It Works
+## How it works
 
-**Architecture:**
-- **Allowlist bypass** - Trusted addresses skip all scoring
-- **Short-circuit** - `BLOCKED_ADDRESS` returns immediately (score 99)
-- **Ascending-cost pipeline** - Cheap rules first (O(1) rate/reputation), then content scan (O(n)), then expensive rules (regex, Bayes, fingerprints)
-- **Single-pass content analysis** - Caps, punctuation, links, unicode abuse detected in one scan
-- **Rule independence** - Each rule triggers and scores independently
+Trusted addresses skip scoring entirely. Blocked addresses get 99 points immediately. Everyone else goes through a pipeline ordered by cost: cheap reputation/rate checks first, then content scan, then expensive rules (regex, Bayes, fingerprints).
 
-**Detection strategies:**
+Detection strategies:
 
-| Strategy | How it works |
-|----------|--------------|
-| **Content checks** | All caps, excessive punctuation, repeated chars ("BUYYYYYYY"), link spam, short content with just a URL |
-| **Unicode abuse** | Zalgo text (stacked diacritics), invisible chars (zero-width spaces), homoglyph mixing (Cyrillic "a" in Latin word) |
-| **Rate limiting** | Flags fast posting. Moderate bursts get half weight, heavy flooding gets full weight |
-| **Account reputation** | Age, balance, username, flag ratio, ban history. New accounts + no username + low balance = high score |
-| **Bayesian filter** | Trained on spam/ham examples. Needs 3+ spam-heavy words to trigger. Shares tokens with keyword rule |
-| **Duplicate detection** | MinHash fingerprints catch copy-paste spam waves across realms |
-| **Blocklists** | Regex patterns for scam formats ("send X tokens", "free airdrop", email addresses). Address blocklist for known spammers |
-| **Keyword detection** | Co-occurrence model: multiple spam keywords together trigger, single words don't. Minimum match count scales with content length to prevent false positives on long articles. Includes leet-speak normalization |
+- Content checks: all caps, excessive punctuation, repeated chars ("BUYYYYYYY"), link spam, short messages that are just a URL
+- Unicode abuse: zalgo text, invisible characters, homoglyphs (mixing Cyrillic "a" in Latin words)
+- Rate limiting: flags fast posting, scales weight based on severity
+- Account reputation: combines age, balance, username, flag ratio, ban history
+- Bayesian filter: trained on spam/ham, needs multiple spam-heavy words to trigger
+- Duplicates: MinHash fingerprints catch copy-paste spam across realms
+- Blocklists: regex patterns for scam formats, address blocklist for known spammers
+- Keywords: co-occurrence model where multiple spam words trigger together, minimum matches scale with content length
 
-## Scoring Rules
+## Scoring rules
 
-Scores accumulate across all triggered rules. **Thresholds: Hide >= 5, Reject >= 8**.
+Scores add up across triggered rules. Thresholds: hide at 5, reject at 8.
 
-| Rule | Weight | Trigger |
-|------|--------|---------|
-| BLOCKED_ADDRESS | 99 | Address in blocklist |
-| BLOCKED_PATTERN | 5 | Content matches a regex pattern |
-| NEAR_DUPLICATE | 4 | MinHash similarity to known spam |
-| RATE_BURST | 4 | >10 submissions/hour (half weight at 10-20) |
-| BAYES_SPAM | 3 | Bayesian classifier flags spam-heavy tokens |
-| BAD_REPUTATION | 3 | Flag ratio >30% or flags with no accepted content |
-| KEYWORD_SPAM | 3 | >=2 spam keywords with combined weight >=4 (min matches scales with content length) |
-| SHORT_WITH_LINK | 3 | Body <=30 chars with a URL |
-| ZALGO_TEXT | 3 | Excessive combining diacritical marks |
-| ALL_CAPS | 2 | >50% uppercase (min 10 letters) |
-| LINK_HEAVY | 2 | >3 URLs in content |
-| NEW_ACCOUNT | 2 | Account <1 day old with no accepted content |
-| INVISIBLE_CHARS | 2 | Zero-width or directional override characters |
-| HOMOGLYPH_MIX | 2 | Mixed scripts in a single word (latin + cyrillic) |
-| REPEATED_CHARS | 2 | 4+ consecutive identical characters |
-| BANNED_BEFORE | 1-3 | +1 per past ban, capped at 3 |
-| EXCESSIVE_PUNCT | 1 | >20% punctuation characters |
-| NO_USERNAME | 1 | No registered username |
-| LOW_BALANCE | 1 | Balance < 1000 GNOT |
+Rules and weights:
+- BLOCKED_ADDRESS (99) - address in blocklist
+- BLOCKED_PATTERN (5) - matches regex pattern
+- NEAR_DUPLICATE (4) - similar to known spam (MinHash)
+- RATE_BURST (4) - posting too fast
+- BAYES_SPAM (3) - Bayesian classifier flags it
+- BAD_REPUTATION (3) - high flag ratio or prior bans
+- KEYWORD_SPAM (3) - multiple spam keywords (min matches scale with length)
+- SHORT_WITH_LINK (3) - under 30 chars with a URL
+- ZALGO_TEXT (3) - excessive diacritical marks
+- ALL_CAPS (2) - over 50% uppercase
+- LINK_HEAVY (2) - more than 3 URLs
+- NEW_ACCOUNT (2) - under 1 day old, no accepted posts
+- INVISIBLE_CHARS (2) - zero-width or directional override chars
+- HOMOGLYPH_MIX (2) - mixed scripts in one word
+- REPEATED_CHARS (2) - 4+ consecutive identical chars
+- BANNED_BEFORE (1-3) - scales with ban count
+- EXCESSIVE_PUNCT (1) - over 20% punctuation
+- NO_USERNAME (1) - no registered username
+- LOW_BALANCE (1) - under 1000 GNOT
 
-## State Containers
+## State containers
 
-| Type | Purpose | Bounds |
-|------|---------|--------|
-| `Corpus` | Bayesian token statistics (spam/ham counts) | 10,000 tokens max |
-| `FingerprintStore` | MinHash signatures of known spam | 500 entries (LRU eviction) |
-| `Blocklist` | Blocked addresses, allowlist, regex patterns | 30 patterns max |
-| `KeywordDict` | Spam keywords with weights (1-3) | 10,000 keywords max |
-| `TrainingGuard` | Circuit breaker for safe auto-training | Configurable (default: 500 max trains) |
+You can pass nil for any state container and scoring works with what's available:
 
-All state parameters can be `nil` - scoring degrades gracefully using only available rules.
+- Corpus: Bayesian token stats (10k tokens max)
+- FingerprintStore: MinHash signatures (500 entries, LRU)
+- Blocklist: blocked addresses, allowlist, regex (30 patterns max)
+- KeywordDict: spam keywords with weights 1-3 (10k max)
+- TrainingGuard: circuit breaker for auto-training (default 500 trains max)
 
-## Shared Realm (`r/gnoland/antispam`)
+## Shared realm
 
-The `gno.land/r/gnoland/antispam` realm provides shared on-chain state (pre-trained corpus, ~400 keywords, 21 scam regex patterns) and per-address reputation tracking.
+The `r/gnoland/antispam` realm hosts shared state (pre-trained corpus, 400 keywords, 21 scam patterns) and tracks per-address reputation.
 
-**Trust model:**
-- **Scoring is public** - Any realm can call `Score()` (read-only, no side effects)
-- **Training is admin-only** - Corpus, patterns, keywords, blocklist modifications require admin
-- **Reputation recording requires registration** - Only realms registered via `AdminRegisterCaller()` can call `RecordAccepted()`, `RecordFlag()`, `RecordBan()`
+Trust model:
+- Anyone can call Score() (read-only, no side effects)
+- Only admin can train corpus, modify patterns/keywords/blocklist
+- Only registered realms can record reputation (RecordAccepted/Flag/Ban)
 
-**Reputation tracking:**
+Reputation tracking:
 
-The realm stores lightweight per-address counters (no content stored):
-- `TotalAccepted` - Content accepted into the system
-- `FlaggedCount` - Content flagged by moderators
-- `BanCount` - Times the address was banned (permanent history)
+The realm stores lightweight counters per address (no content):
+- TotalAccepted: content accepted
+- FlaggedCount: content flagged by mods
+- BanCount: times banned (permanent)
 
-**Reputation recording workflow:**
+Recording workflow:
 
-`Score()` is **read-only** and does NOT automatically update reputation. The calling realm must explicitly record moderation actions:
+Score() doesn't update reputation automatically. You have to record decisions explicitly:
 
 ```gno
-// 1. Score the content
 result := antispamr.Score(author, content, rate, rep, nil, nil, nil, nil, engine.EarlyExitDisabled)
 
-// 2. Decide based on score (Score() does NOT store anything)
-
-// 3. Manually record the moderation decision
 if result.Total < engine.ThresholdHide {
-    antispamr.RecordAccepted(cross, author)  // Content accepted
+    antispamr.RecordAccepted(cross, author)
 } else if moderatorFlagged {
-    antispamr.RecordFlag(cross, author)      // Moderator confirmed spam
+    antispamr.RecordFlag(cross, author)
 }
 
 if adminBanned {
-    antispamr.RecordBan(cross, author)       // Admin banned (permanent)
+    antispamr.RecordBan(cross, author)
 }
 ```
 
-**Why manual recording?**
-- Gives realms full control over moderation decisions
-- Prevents false positives from poisoning reputation data
-- Allows human review before reputation changes
-- Separates detection (scoring) from action (reputation update)
+Why manual? Gives you full control, prevents false positives from poisoning shared data, allows human review before changing reputation.
 
-**Future:** Auto-feedback could be added as an optional mode with safeguards against spiraling false positives.
+## Gas optimization
 
-## Advanced Usage
+Three ways to control cost:
 
-### Gas Optimization
+1. Input cap: content truncated at 4096 bytes automatically
 
-Control scoring cost with three levers:
-
-**1. Input cap** - Content is truncated to 4096 bytes to prevent gas abuse
-
-**2. Nil state** - Pass `nil` for expensive state containers to skip those rules:
+2. Nil state: pass nil for containers you don't want to use:
 
 ```gno
-// Lightweight: cheap rules only
+// Cheap rules only
 result := antispam.Score(antispam.ScoreInput{Content: content, Rate: rate, Rep: rep})
 
-// Standard: full state (corpus, keywords, etc.)
+// Full state
 result := antispam.Score(antispam.ScoreInput{
     Content: content, Rate: rate, Rep: rep,
     Corpus: corpus, Fps: fps, Bl: bl, Dict: kw,
 })
 ```
 
-**3. Early exit** - Set `EarlyExitAt` to stop scoring when threshold is reached:
+3. Early exit: stop when threshold reached:
 
 ```gno
-// Early exit at reject threshold (skip expensive rules if cheap rules already reach 8)
+// Stop at 8
 result := antispam.Score(antispam.ScoreInput{
     Content: content, Rate: rate, Rep: rep,
     Corpus: corpus, Fps: fps, Bl: bl, Dict: kw,
-    EarlyExitAt: antispam.ThresholdReject,  // Stop at score >= 8
+    EarlyExitAt: antispam.ThresholdReject,
 })
 
-// Full scoring (complete score, no early exit)
+// Full score
 result := antispam.Score(antispam.ScoreInput{
     Content: content, Rate: rate, Rep: rep,
     Corpus: corpus, Fps: fps, Bl: bl, Dict: kw,
-    EarlyExitAt: antispam.EarlyExitDisabled,  // Get complete score
+    EarlyExitAt: antispam.EarlyExitDisabled,
 })
 ```
 
-**User-based tiering** - Use reputation history to skip expensive rules for trusted users:
+User-based tiering:
 
 ```gno
 rep := antispamr.GetReputation(author)
 
 if rep.TotalAccepted > 10 && rep.FlaggedCount == 0 && chainData.AccountAgeDays > 30 {
-    // Established user: lightweight scoring
+    // Established user: cheap rules only
     result = antispamr.Score(author, content, rate, chainData,
-        nil, nil, nil, nil,  // Skip Bayes/keywords/fingerprints
-        engine.ThresholdReject,
-    )
+        nil, nil, nil, nil, engine.ThresholdReject)
 } else {
-    // New/suspicious user: full pipeline
+    // New/suspicious: full pipeline
     result = antispamr.Score(author, content, rate, chainData,
-        nil, nil, nil, nil, engine.EarlyExitDisabled,
-    )
+        nil, nil, nil, nil, engine.EarlyExitDisabled)
 }
 ```
 
-### Auto-Training Safety
+## Auto-training safety
 
-When auto-training the Corpus from moderation actions, use `TrainingGuard` to prevent feedback loops:
+Use TrainingGuard to prevent feedback loops when auto-training:
 
 ```gno
 var (
@@ -237,7 +208,7 @@ func ModerateContent(author, content string) {
 
     if score.Total >= antispam.ThresholdReject {
         if guard.ShouldTrain(score) {
-            corpus.Train(content, true)  // Train as spam
+            corpus.Train(content, true)
             guard.RecordTrain()
         }
     }
@@ -245,22 +216,22 @@ func ModerateContent(author, content string) {
 
 func AdminResetGuard(_ realm) {
     assertAdmin()
-    guard.Reset()  // Admin reviews and resets counter
+    guard.Reset()
 }
 ```
 
-**TrainingGuard safeguards:**
-1. **Minimum score** (default: 10) - Only train on clear spam, not borderline content
-2. **Multi-rule consensus** (default: 3 rules) - Require multiple signals, prevent single-rule bias
-3. **Circuit breaker** (default: 500 trains) - Cap total auto-trains until admin review
+TrainingGuard prevents:
+- Training on borderline content (default min score: 10)
+- Single-rule bias (default min rules: 3)
+- Runaway training (default max trains: 500 until admin review)
 
-Without `TrainingGuard`, auto-training creates feedback loops: borderline content -> trained as spam -> corpus bias -> more false positives -> more training -> amplified bias.
+Without it, you get feedback loops where false positives train the corpus, causing more false positives, causing more training.
 
-Use `NewTrainingGuardCustom(minScore, minRules, maxTrains)` to adjust thresholds.
+Use NewTrainingGuardCustom(minScore, minRules, maxTrains) to adjust.
 
-### Realm Deployment
+## Deployment
 
-State containers are created empty by default. For large datasets (keywords, patterns), populate via a separate admin function post-deploy to avoid exceeding storage deposit limits:
+State containers start empty. For large datasets, load them post-deploy to avoid storage deposit limits:
 
 ```gno
 func init() {
@@ -271,36 +242,28 @@ func init() {
     keywords = antispam.NewKeywordDict()
 }
 
-// Called by admin after deployment (separate tx, separate storage deposit)
 func AdminLoadDefaults(_ realm) {
     assertAdmin()
-    bl.AddPattern(defaultPattern)     // 21 scam categories
-    keywords.BulkAdd(defaultKeywords)  // ~400 spam keywords
+    bl.AddPattern(defaultPattern)
+    keywords.BulkAdd(defaultKeywords)
 }
 ```
 
-The `gno.land/r/gnoland/antispam` realm follows this pattern.
+## Examples
 
-## Filetests
+Check the filetest files for real scenarios:
 
-The `z*_filetest.gno` files demonstrate real scenarios:
+- z1_comprehensive: all 19 rules across 8 scenarios
+- z2_multi_user: different reputation profiles
+- z3_bayes_training: corpus training effects
+- z4_fingerprint: duplicate detection
+- z5_blocklist: blocking and allowlist
+- z6_spam_evolution: legitimate user going rogue
+- z7_unicode_abuse: zalgo, invisible chars, homoglyphs
+- z8_early_exit: gas optimization
+- z9_pattern_categories: all 21 regex patterns
+- z10_size_comparison: scoring at different content lengths
 
-| File | Demonstrates |
-|------|--------------|
-| `z1_comprehensive` | All 19 rules firing across 8 scenarios (start here) |
-| `z2_multi_user` | Concurrent users with different reputation profiles |
-| `z3_bayes_training` | Corpus training effects on detection |
-| `z4_fingerprint` | Near-duplicate content detection |
-| `z5_blocklist` | Address/pattern blocking and allowlist operations |
-| `z6_spam_evolution` | Legitimate user turning into a spammer |
-| `z7_unicode_abuse` | Zalgo text, invisible chars, homoglyph mixing |
-| `z8_early_exit` | EarlyExitAt gas optimization (cheap vs expensive rules) |
-| `z9_pattern_categories` | All 21 regex categories + false positive checks |
-| `z10_size_comparison` | Scoring across different content sizes (30-4096+ chars) |
-
-**Realm-specific filetests** (in `r/gnoland/antispam/`):
-
-| File | Demonstrates |
-|------|--------------|
-| `z1_score_demo` | Basic scoring via shared realm + manual reputation recording |
-| `z2_reputation_lifecycle` | How reputation data (flags, bans, account age) affects scoring |
+In r/gnoland/antispam:
+- z1_score_demo: basic scoring + reputation recording
+- z2_reputation_lifecycle: how reputation affects scores

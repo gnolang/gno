@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// ---- Fingerprint function tests ----
+// Fingerprint function tests
 
 func TestFingerprint(t *testing.T) {
 	t.Run("success: same text produces same fingerprint", func(t *testing.T) {
@@ -74,7 +74,7 @@ func TestFingerprint(t *testing.T) {
 	})
 }
 
-// ---- FingerprintStore tests ----
+// FingerprintStore tests
 
 func TestFingerprintStore(t *testing.T) {
 	t.Run("success: new store is empty", func(t *testing.T) {
@@ -156,7 +156,7 @@ func TestFingerprintStore(t *testing.T) {
 	})
 }
 
-// ---- ScoreFingerprint tests ----
+// ScoreFingerprint tests
 
 func TestScoreFingerprint(t *testing.T) {
 	tests := []struct {
@@ -168,13 +168,13 @@ func TestScoreFingerprint(t *testing.T) {
 		wantZero bool
 	}{
 		{
-			name:     "success: nil store scores zero",
+			name:     "nil store scores zero",
 			body:     "some text",
 			setup:    nil,
 			wantZero: true,
 		},
 		{
-			name:     "success: empty store scores zero",
+			name:     "empty store scores zero",
 			body:     "some text",
 			setup:    func() *FingerprintStore { return NewFingerprintStore() },
 			wantZero: true,
@@ -191,7 +191,7 @@ func TestScoreFingerprint(t *testing.T) {
 			wantRule: "NEAR_DUPLICATE",
 		},
 		{
-			name: "clean: different content",
+			name: "different content",
 			body: "governance proposal for community voting",
 			setup: func() *FingerprintStore {
 				fs := NewFingerprintStore()
@@ -201,7 +201,7 @@ func TestScoreFingerprint(t *testing.T) {
 			wantZero: true,
 		},
 		{
-			name:     "edge: empty body",
+			name:     "empty body",
 			body:     "",
 			setup:    func() *FingerprintStore { return NewFingerprintStore() },
 			wantZero: true,

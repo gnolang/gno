@@ -1,37 +1,7 @@
-// Package antispam provides a shared on-chain anti-spam scoring realm.
-//
-// It wraps p/gnoland/antispam (the scoring engine) with shared state:
-// a Bayesian corpus, a fingerprint store, a keyword dictionary,
-// a blocklist for regex patterns and address blocking, and
-// per-address reputation tracking (flags, bans, accepted content counts).
-//
-// State containers are created empty on deployment. The admin must call
-// AdminLoadDefaults() post-deploy to populate the keyword dictionary
-// (~400 spam keywords) and the combined regex pattern (21 scam categories).
-// This deferred loading avoids exceeding storage deposit limits at genesis.
-//
-// Any realm can call Score() to evaluate content. Score() auto-populates
-// FlaggedCount, BanCount, and TotalAccepted from internal reputation state;
-// callers only need to provide chain data (AccountAgeDays, Balance, HasUsername).
-//
-// Reputation recording (RecordAccepted, RecordFlag, RecordBan) requires the
-// caller realm to be registered via AdminRegisterCaller. This prevents
-// untrusted realms from poisoning reputation data.
-//
-// Only the admin can modify the shared state (patterns, blocklist, keywords,
-// training data, trusted callers).
-//
-// Usage from another realm:
-//
-//	import antispamr "gno.land/r/gnoland/antispam"
-//	import engine "gno.land/p/gnoland/antispam"
-//
-//	// Chain data only - FlaggedCount/BanCount/TotalAccepted are auto-populated
-//	rep := engine.ReputationData{AccountAgeDays: 30, Balance: 5000000000, HasUsername: true}
-//	result := antispamr.Score(author, content, rate, rep, nil, nil, nil, nil, engine.EarlyExitDisabled)
-//	if result.Total >= engine.ThresholdHide {
-//	    // hide the content
-//	}
+// Package antispam provides shared on-chain spam scoring for Gno realms.
+// Wraps p/gnoland/antispam with pre-trained state (corpus, keywords, patterns) and reputation tracking.
+// Anyone can score, only registered realms can record reputation, only admin can modify state.
+// See README for usage.
 package antispam
 
 import (

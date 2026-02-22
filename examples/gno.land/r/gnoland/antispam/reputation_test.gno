@@ -9,7 +9,7 @@ import (
 	engine "gno.land/p/gnoland/antispam"
 )
 
-// ---- RecordAccepted tests
+// RecordAccepted tests
 
 func TestRecordAccepted(t *testing.T) {
 	resetState(t)
@@ -21,7 +21,7 @@ func TestRecordAccepted(t *testing.T) {
 	user := address("g1poster")
 	testing.SetRealm(testRealm)
 
-	t.Run("success: increments accepted count", func(t *testing.T) {
+	t.Run("increments accepted count", func(t *testing.T) {
 		RecordAccepted(cross, user)
 		RecordAccepted(cross, user)
 
@@ -31,7 +31,7 @@ func TestRecordAccepted(t *testing.T) {
 		}
 	})
 
-	t.Run("success: independent per address", func(t *testing.T) {
+	t.Run("independent per address", func(t *testing.T) {
 		resetState(t)
 		setAdmin(t)
 		// Register test realm as trusted caller
@@ -54,7 +54,7 @@ func TestRecordAccepted(t *testing.T) {
 	})
 }
 
-// ---- RecordFlag tests
+// RecordFlag tests
 
 func TestRecordFlag(t *testing.T) {
 	resetState(t)
@@ -66,7 +66,7 @@ func TestRecordFlag(t *testing.T) {
 	user := address("g1flagged")
 	testing.SetRealm(testRealm)
 
-	t.Run("success: increments flag count", func(t *testing.T) {
+	t.Run("increments flag count", func(t *testing.T) {
 		RecordFlag(cross, user)
 		RecordFlag(cross, user)
 		RecordFlag(cross, user)
@@ -78,7 +78,7 @@ func TestRecordFlag(t *testing.T) {
 	})
 }
 
-// ---- RecordBan tests
+// RecordBan tests
 
 func TestRecordBan(t *testing.T) {
 	resetState(t)
@@ -90,7 +90,7 @@ func TestRecordBan(t *testing.T) {
 	user := address("g1banned")
 	testing.SetRealm(testRealm)
 
-	t.Run("success: increments ban count", func(t *testing.T) {
+	t.Run("increments ban count", func(t *testing.T) {
 		RecordBan(cross, user)
 		rep := GetReputation(user)
 		if rep.BanCount != 1 {
@@ -98,7 +98,7 @@ func TestRecordBan(t *testing.T) {
 		}
 	})
 
-	t.Run("success: multiple bans accumulate", func(t *testing.T) {
+	t.Run("multiple bans accumulate", func(t *testing.T) {
 		RecordBan(cross, user)
 		rep := GetReputation(user)
 		if rep.BanCount != 2 {
@@ -107,7 +107,7 @@ func TestRecordBan(t *testing.T) {
 	})
 }
 
-// ---- GetReputation tests
+// GetReputation tests
 
 func TestGetReputation(t *testing.T) {
 	resetState(t)
@@ -117,7 +117,7 @@ func TestGetReputation(t *testing.T) {
 	AdminRegisterCaller(cross, testRealm.Address())
 	testing.SetRealm(testRealm)
 
-	t.Run("success: unknown address returns zero", func(t *testing.T) {
+	t.Run("unknown address returns zero", func(t *testing.T) {
 		rep := GetReputation(address("g1unknown"))
 		if rep.TotalAccepted != 0 || rep.FlaggedCount != 0 || rep.BanCount != 0 {
 			t.Errorf("expected all zeros for unknown address, got accepted=%d flags=%d bans=%d",
@@ -125,7 +125,7 @@ func TestGetReputation(t *testing.T) {
 		}
 	})
 
-	t.Run("success: returns accumulated data", func(t *testing.T) {
+	t.Run("returns accumulated data", func(t *testing.T) {
 		user := address("g1full")
 		RecordAccepted(cross, user)
 		RecordAccepted(cross, user)
@@ -146,7 +146,7 @@ func TestGetReputation(t *testing.T) {
 	})
 }
 
-// ---- Trusted caller access control
+// Trusted caller access control
 
 func TestTrustedCallerAccess(t *testing.T) {
 	resetState(t)
@@ -195,7 +195,7 @@ func TestUntrustedUserRejected(t *testing.T) {
 	})
 }
 
-// ---- Score integration with reputation
+// Score integration with reputation
 
 func TestScoreUsesInternalReputation(t *testing.T) {
 	resetState(t)
@@ -207,7 +207,7 @@ func TestScoreUsesInternalReputation(t *testing.T) {
 
 	user := address("g1spammy")
 
-	t.Run("success: bad flag ratio triggers BAD_REPUTATION", func(t *testing.T) {
+	t.Run("bad flag ratio triggers BAD_REPUTATION", func(t *testing.T) {
 		// Create a user with 5 accepted, 3 flagged -> 60% flag ratio > 30%
 		for i := 0; i < 5; i++ {
 			RecordAccepted(cross, user)
@@ -239,7 +239,7 @@ func TestScoreUsesInternalReputation(t *testing.T) {
 		}
 	})
 
-	t.Run("success: ban history triggers BANNED_BEFORE", func(t *testing.T) {
+	t.Run("ban history triggers BANNED_BEFORE", func(t *testing.T) {
 		resetState(t)
 		setAdmin(t)
 		// Register test realm as trusted caller
@@ -272,7 +272,7 @@ func TestScoreUsesInternalReputation(t *testing.T) {
 		}
 	})
 
-	t.Run("success: clean user has no reputation penalties", func(t *testing.T) {
+	t.Run("clean user has no reputation penalties", func(t *testing.T) {
 		resetState(t)
 		setAdmin(t)
 		// Register test realm as trusted caller
@@ -302,7 +302,7 @@ func TestScoreUsesInternalReputation(t *testing.T) {
 	})
 }
 
-// ---- AdminResetReputation
+// AdminResetReputation
 
 func TestAdminResetReputation(t *testing.T) {
 	resetState(t)
@@ -339,7 +339,7 @@ func TestAdminResetReputationNonAdmin(t *testing.T) {
 	})
 }
 
-// ---- ReputationCount
+// ReputationCount
 
 func TestReputationCount(t *testing.T) {
 	resetState(t)

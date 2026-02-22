@@ -70,10 +70,10 @@ func TestScore(t *testing.T) {
 		wantMax  int
 		wantZero bool
 	}{
-		// ---- Clean content, good user ----
+		// Clean content, good user
 
 		{
-			name: "clean: normal post from good user",
+			name: "normal post from good user",
 			input: ScoreInput{
 				Author: "g1gooduser", Content: "I think we should consider adjusting the staking rewards for validators.",
 				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
@@ -81,7 +81,7 @@ func TestScore(t *testing.T) {
 			wantZero: true,
 		},
 		{
-			name: "clean: all nil state",
+			name: "all nil state",
 			input: ScoreInput{
 				Author: "g1user", Content: "Just saying hello to the community.",
 				Rate: zeroRate, Rep: goodRep,
@@ -89,10 +89,10 @@ func TestScore(t *testing.T) {
 			wantZero: true,
 		},
 
-		// ---- Allowlisted user bypasses everything ----
+		// Allowlisted user bypasses everything
 
 		{
-			name: "allowed: admin posts spam-like content",
+			name: "admin posts spam-like content",
 			input: ScoreInput{
 				Author: "g1admin", Content: "FREE AIRDROP BONUS for everyone!!! https://a.com https://b.com https://c.com https://d.com",
 				Rate: burstRate, Rep: badRep, Corpus: trainedCorpus, Fps: spamFps, Bl: blocklist,
@@ -100,10 +100,10 @@ func TestScore(t *testing.T) {
 			wantZero: true,
 		},
 
-		// ---- Blocked user ----
+		// Blocked user
 
 		{
-			name: "blocked: known spammer",
+			name: "known spammer",
 			input: ScoreInput{
 				Author: "g1spammer", Content: "Totally normal message.",
 				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: blocklist,
@@ -111,10 +111,10 @@ func TestScore(t *testing.T) {
 			wantMin: 99,
 		},
 
-		// ---- Content spam ----
+		// Content spam
 
 		{
-			name: "spam: all caps flood",
+			name: "all caps flood",
 			input: ScoreInput{
 				Author: "g1user", Content: "THIS IS ALL CAPS SPAM MESSAGE THAT SHOULD BE DETECTED BY CONTENT RULES EASILY",
 				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
@@ -122,10 +122,10 @@ func TestScore(t *testing.T) {
 			wantMin: 2,
 		},
 
-		// ---- Rate burst ----
+		// Rate burst
 
 		{
-			name: "spam: rate burst from good user",
+			name: "rate burst from good user",
 			input: ScoreInput{
 				Author: "g1user", Content: "Normal content but posted too fast.",
 				Rate: burstRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
@@ -133,10 +133,10 @@ func TestScore(t *testing.T) {
 			wantMin: 4,
 		},
 
-		// ---- Bad reputation ----
+		// Bad reputation
 
 		{
-			name: "suspicious: new account no username",
+			name: "new account no username",
 			input: ScoreInput{
 				Author: "g1newbie", Content: "Hello everyone I just joined.",
 				Rate: zeroRate, Rep: newAccountRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
@@ -144,10 +144,10 @@ func TestScore(t *testing.T) {
 			wantMin: 2,
 		},
 
-		// ---- Pattern match ----
+		// Pattern match
 
 		{
-			name: "spam: pattern match crypto scam",
+			name: "pattern match crypto scam",
 			input: ScoreInput{
 				Author: "g1user", Content: "Send 1000 GNOT to this address and get 5000 back guaranteed",
 				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: blocklist,
@@ -155,10 +155,10 @@ func TestScore(t *testing.T) {
 			wantMin: 5,
 		},
 
-		// ---- Near duplicate ----
+		// Near duplicate
 
 		{
-			name: "spam: near duplicate of known spam",
+			name: "near duplicate of known spam",
 			input: ScoreInput{
 				Author: "g1user", Content: "free airdrop bonus click claim prize tokens quick",
 				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: spamFps, Bl: emptyBl,
@@ -166,7 +166,7 @@ func TestScore(t *testing.T) {
 			wantMin: 4,
 		},
 
-		// ---- Multi-signal stacking ----
+		// Multi-signal stacking
 
 		{
 			name: "combined: new account + caps + rate burst",
@@ -185,10 +185,10 @@ func TestScore(t *testing.T) {
 			wantMin: 10,
 		},
 
-		// ---- Edge cases ----
+		// Edge cases
 
 		{
-			name:    "edge: empty everything",
+			name:    "empty everything",
 			input:   ScoreInput{},
 			wantMin: 4, // NEW_ACCOUNT(2) + NO_USERNAME(1) + LOW_BALANCE(1)
 		},
@@ -214,7 +214,7 @@ func TestScore(t *testing.T) {
 		})
 	}
 
-	// ---- Triggered accuracy: individual rules must appear ----
+	// Triggered accuracy: individual rules must appear
 
 	t.Run("triggered: content rules listed individually", func(t *testing.T) {
 		result := Score(ScoreInput{
@@ -263,7 +263,7 @@ func TestScore(t *testing.T) {
 	})
 }
 
-// ---- False positive test suite ----
+// False positive test suite
 
 func TestFalsePositives(t *testing.T) {
 	// Good reputation, normal rate, trained corpus, no blocklist
@@ -323,7 +323,7 @@ func TestFalsePositives(t *testing.T) {
 	}
 }
 
-// ---- Single-pass optimization verification ----
+// Single-pass optimization verification
 
 func TestScoreContentAllEquivalence(t *testing.T) {
 	cases := []string{
@@ -358,7 +358,7 @@ func TestScoreContentAllEquivalence(t *testing.T) {
 	}
 }
 
-// ---- EarlyExitAt verification ----
+// EarlyExitAt verification
 
 func TestEarlyExitAt(t *testing.T) {
 	// Setup: a scenario where cheap rules score high (caps + rate + bad rep)
@@ -496,7 +496,7 @@ func TestEarlyExitIntraPhase2(t *testing.T) {
 	}
 }
 
-// ---- MaxInputLength truncation ----
+// MaxInputLength truncation
 
 func TestMaxInputLength(t *testing.T) {
 	t.Run("long input is truncated without panic", func(t *testing.T) {
@@ -524,7 +524,7 @@ func TestMaxInputLength(t *testing.T) {
 	})
 }
 
-// ---- BLOCKED_ADDRESS short-circuit verification ----
+// BLOCKED_ADDRESS short-circuit verification
 
 func TestBlockedAddressShortCircuit(t *testing.T) {
 	bl := NewBlocklist()

@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// ---- Blocklist type tests ----
+// Blocklist type tests
 
 func TestBlocklistAddress(t *testing.T) {
 	tests := []struct {
@@ -14,13 +14,13 @@ func TestBlocklistAddress(t *testing.T) {
 		blocked bool
 	}{
 		{
-			name:    "success: empty blocklist not blocked",
+			name:    "empty blocklist not blocked",
 			setup:   NewBlocklist,
 			addr:    "g1user123",
 			blocked: false,
 		},
 		{
-			name: "success: blocked address is blocked",
+			name: "blocked address is blocked",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.BlockAddress("g1spammer")
@@ -30,7 +30,7 @@ func TestBlocklistAddress(t *testing.T) {
 			blocked: true,
 		},
 		{
-			name: "success: other address not blocked",
+			name: "other address not blocked",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.BlockAddress("g1spammer")
@@ -40,7 +40,7 @@ func TestBlocklistAddress(t *testing.T) {
 			blocked: false,
 		},
 		{
-			name: "success: unblock removes block",
+			name: "unblock removes block",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.BlockAddress("g1spammer")
@@ -51,7 +51,7 @@ func TestBlocklistAddress(t *testing.T) {
 			blocked: false,
 		},
 		{
-			name: "success: multiple addresses",
+			name: "multiple addresses",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.BlockAddress("g1spam1")
@@ -63,7 +63,7 @@ func TestBlocklistAddress(t *testing.T) {
 			blocked: true,
 		},
 		{
-			name: "edge: unblock non-existent address",
+			name: "unblock non-existent address",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.UnblockAddress("g1nobody")
@@ -73,7 +73,7 @@ func TestBlocklistAddress(t *testing.T) {
 			blocked: false,
 		},
 		{
-			name: "edge: double block same address",
+			name: "double block same address",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.BlockAddress("g1spammer")
@@ -84,7 +84,7 @@ func TestBlocklistAddress(t *testing.T) {
 			blocked: true,
 		},
 		{
-			name:    "edge: empty address",
+			name:    "empty address",
 			setup:   NewBlocklist,
 			addr:    "",
 			blocked: false,
@@ -110,13 +110,13 @@ func TestBlocklistAllowlist(t *testing.T) {
 		allowed bool
 	}{
 		{
-			name:    "success: empty allowlist not allowed",
+			name:    "empty allowlist not allowed",
 			setup:   NewBlocklist,
 			addr:    "g1user",
 			allowed: false,
 		},
 		{
-			name: "success: allowed address is allowed",
+			name: "allowed address is allowed",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AllowAddress("g1trusted")
@@ -126,7 +126,7 @@ func TestBlocklistAllowlist(t *testing.T) {
 			allowed: true,
 		},
 		{
-			name: "success: remove allow",
+			name: "remove allow",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AllowAddress("g1trusted")
@@ -137,7 +137,7 @@ func TestBlocklistAllowlist(t *testing.T) {
 			allowed: false,
 		},
 		{
-			name: "success: allow takes priority over block",
+			name: "allow takes priority over block",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.BlockAddress("g1user")
@@ -148,7 +148,7 @@ func TestBlocklistAllowlist(t *testing.T) {
 			allowed: true,
 		},
 		{
-			name: "success: multiple allowed addresses",
+			name: "multiple allowed addresses",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AllowAddress("g1admin1")
@@ -186,7 +186,7 @@ func TestBlocklistPatterns(t *testing.T) {
 			wantMatch: false,
 		},
 		{
-			name: "success: simple word pattern matches",
+			name: "simple word pattern matches",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AddPattern(`(?i)free\s*airdrop`)
@@ -196,7 +196,7 @@ func TestBlocklistPatterns(t *testing.T) {
 			wantMatch: true,
 		},
 		{
-			name: "success: URL pattern matches",
+			name: "URL pattern matches",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AddPattern(`https?://(www\.)?scam\.com`)
@@ -206,7 +206,7 @@ func TestBlocklistPatterns(t *testing.T) {
 			wantMatch: true,
 		},
 		{
-			name: "success: pattern does not match clean content",
+			name: "pattern does not match clean content",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AddPattern(`(?i)free\s*airdrop`)
@@ -216,7 +216,7 @@ func TestBlocklistPatterns(t *testing.T) {
 			wantMatch: false,
 		},
 		{
-			name: "success: case insensitive pattern",
+			name: "case insensitive pattern",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AddPattern(`(?i)casino\s*bonus`)
@@ -226,7 +226,7 @@ func TestBlocklistPatterns(t *testing.T) {
 			wantMatch: true,
 		},
 		{
-			name: "success: multiple patterns via combined regex",
+			name: "multiple patterns via combined regex",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AddPattern(`(?i)spam`)
@@ -237,7 +237,7 @@ func TestBlocklistPatterns(t *testing.T) {
 			wantMatch: true,
 		},
 		{
-			name: "success: remove pattern rebuilds combined",
+			name: "remove pattern rebuilds combined",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AddPattern(`(?i)spam`)
@@ -248,7 +248,7 @@ func TestBlocklistPatterns(t *testing.T) {
 			wantMatch: false,
 		},
 		{
-			name: "success: crypto scam pattern",
+			name: "crypto scam pattern",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AddPattern(`(?i)send\s+\d+\s*gnot`)
@@ -258,7 +258,7 @@ func TestBlocklistPatterns(t *testing.T) {
 			wantMatch: true,
 		},
 		{
-			name: "edge: empty content",
+			name: "empty content",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AddPattern(`(?i)spam`)
@@ -268,7 +268,7 @@ func TestBlocklistPatterns(t *testing.T) {
 			wantMatch: false,
 		},
 		{
-			name: "edge: unicode content with ascii pattern",
+			name: "unicode content with ascii pattern",
 			setup: func() *Blocklist {
 				bl := NewBlocklist()
 				bl.AddPattern(`(?i)spam`)
@@ -289,7 +289,7 @@ func TestBlocklistPatterns(t *testing.T) {
 	}
 }
 
-// ---- Combined regex tests
+// Combined regex tests
 
 func TestCombinedRegexBuilt(t *testing.T) {
 	bl := NewBlocklist()

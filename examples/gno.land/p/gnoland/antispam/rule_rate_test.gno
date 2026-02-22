@@ -13,94 +13,94 @@ func TestScoreRate(t *testing.T) {
 		wantRule string
 		wantZero bool
 	}{
-		// ---- Success: normal posting rates score zero ----
+		// Success: normal posting rates score zero
 
 		{
-			name:     "success: zero posts",
+			name:     "zero posts",
 			rate:     RateState{PostCount: 0, WindowSeconds: 3600},
 			wantZero: true,
 		},
 		{
-			name:     "success: one post in an hour",
+			name:     "one post in an hour",
 			rate:     RateState{PostCount: 1, WindowSeconds: 3600},
 			wantZero: true,
 		},
 		{
-			name:     "success: five posts in an hour",
+			name:     "five posts in an hour",
 			rate:     RateState{PostCount: 5, WindowSeconds: 3600},
 			wantZero: true,
 		},
 		{
-			name:     "success: ten posts in a day",
+			name:     "ten posts in a day",
 			rate:     RateState{PostCount: 10, WindowSeconds: 86400},
 			wantZero: true,
 		},
 		{
-			name:     "success: moderate activity over a week",
+			name:     "moderate activity over a week",
 			rate:     RateState{PostCount: 50, WindowSeconds: 604800},
 			wantZero: true,
 		},
 
-		// ---- Spam: high frequency posting ----
+		// Spam: high frequency posting
 
 		{
-			name:     "spam: 10+ posts in an hour",
+			name:     "10+ posts in an hour",
 			rate:     RateState{PostCount: 11, WindowSeconds: 3600},
 			wantMin:  2,
 			wantRule: "RATE_BURST",
 		},
 		{
-			name:     "spam: 20 posts in an hour (moderate burst)",
+			name:     "20 posts in an hour (moderate burst)",
 			rate:     RateState{PostCount: 20, WindowSeconds: 3600},
 			wantMin:  2,
 			wantMax:  2,
 			wantRule: "RATE_BURST",
 		},
 		{
-			name:     "spam: 50 posts in an hour (heavy flood)",
+			name:     "50 posts in an hour (heavy flood)",
 			rate:     RateState{PostCount: 50, WindowSeconds: 3600},
 			wantMin:  4,
 			wantRule: "RATE_BURST",
 		},
 		{
-			name:     "spam: 5 posts in one minute",
+			name:     "5 posts in one minute",
 			rate:     RateState{PostCount: 5, WindowSeconds: 60},
 			wantMin:  4,
 			wantRule: "RATE_BURST",
 		},
 		{
-			name:     "spam: 3 posts in 10 seconds",
+			name:     "3 posts in 10 seconds",
 			rate:     RateState{PostCount: 3, WindowSeconds: 10},
 			wantMin:  4,
 			wantRule: "RATE_BURST",
 		},
 
-		// ---- Edge cases ----
+		// Edge cases
 
 		{
-			name:     "edge: zero window seconds",
+			name:     "zero window seconds",
 			rate:     RateState{PostCount: 5, WindowSeconds: 0},
 			wantMin:  4,
 			wantRule: "RATE_BURST",
 		},
 		{
-			name:     "edge: negative window (treat as zero)",
+			name:     "negative window (treat as zero)",
 			rate:     RateState{PostCount: 5, WindowSeconds: -1},
 			wantMin:  4,
 			wantRule: "RATE_BURST",
 		},
 		{
-			name:     "edge: negative post count",
+			name:     "negative post count",
 			rate:     RateState{PostCount: -1, WindowSeconds: 3600},
 			wantZero: true,
 		},
 		{
-			name:     "edge: very large window makes rate low",
+			name:     "very large window makes rate low",
 			rate:     RateState{PostCount: 100, WindowSeconds: 2592000},
 			wantZero: true,
 		},
 		{
-			name:     "edge: boundary 10 posts in an hour",
+			name:     "boundary 10 posts in an hour",
 			rate:     RateState{PostCount: 10, WindowSeconds: 3600},
 			wantZero: true,
 		},
@@ -130,7 +130,7 @@ func TestScoreRate(t *testing.T) {
 	}
 }
 
-// ---- Overflow guard test ----
+// Overflow guard test
 
 func TestRateOverflowGuard(t *testing.T) {
 	// Extremely high PostCount triggers the overflow guard (maxSafePostCount)
@@ -147,7 +147,7 @@ func TestRateOverflowGuard(t *testing.T) {
 	}
 }
 
-// ---- Rate scaling boundary tests ----
+// Rate scaling boundary tests
 
 func TestRateScalingBoundary(t *testing.T) {
 	// 11 posts/hr -> base weight (WeightRateBurst/2 = 2)

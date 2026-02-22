@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// ---- KeywordDict tests
+// KeywordDict tests
 
 func TestKeywordDictAddAndSize(t *testing.T) {
 	t.Parallel()
@@ -80,7 +80,7 @@ func TestKeywordDictBulkAddDefaultWeight(t *testing.T) {
 	}
 }
 
-// ---- ScoreKeywords tests
+// ScoreKeywords tests
 
 func TestScoreKeywords(t *testing.T) {
 	t.Parallel()
@@ -96,34 +96,34 @@ func TestScoreKeywords(t *testing.T) {
 		rule    string
 	}{
 		{
-			name:    "success: multiple spam keywords",
+			name:    "multiple spam keywords",
 			content: "Get free airdrop bonus from this spam scam site",
 			wantMin: 3, // should trigger
 			rule:    "KEYWORD_SPAM",
 		},
 		{
-			name:    "success: high-weight keywords",
+			name:    "high-weight keywords",
 			content: "This is a spam phishing scam attempt against users",
 			wantMin: 3,
 			rule:    "KEYWORD_SPAM",
 		},
 		{
-			name:    "clean: no keywords in normal text",
+			name:    "no keywords in normal text",
 			content: "I think we should adjust the staking rewards for validators in the next upgrade.",
 			wantMax: 0,
 		},
 		{
-			name:    "clean: single keyword below threshold",
+			name:    "single keyword below threshold",
 			content: "This discussion is really interesting and I enjoyed the free coffee at the meetup today.",
 			wantMax: 0,
 		},
 		{
-			name:    "edge: empty content",
+			name:    "empty content",
 			content: "",
 			wantMax: 0,
 		},
 		{
-			name:    "edge: nil dict handled in caller",
+			name:    "nil dict handled in caller",
 			content: "spam scam free airdrop",
 			wantMax: 0, // tested separately below
 		},
@@ -185,7 +185,7 @@ func TestScoreKeywordsMultilingual(t *testing.T) {
 	}
 }
 
-// ---- Leet speak normalization tests
+// Leet speak normalization tests
 
 func TestNormalizeLeet(t *testing.T) {
 	t.Parallel()
@@ -273,7 +273,7 @@ func TestKeywordWeightClamping(t *testing.T) {
 	})
 }
 
-// ---- Length-scaled minMatches tests
+// Length-scaled minMatches tests
 
 func TestScoreKeywordsLengthScaling(t *testing.T) {
 	t.Parallel()
@@ -343,7 +343,7 @@ func TestScoreKeywordsLengthScaling(t *testing.T) {
 	})
 }
 
-// ---- KeywordDict cap tests ----
+// KeywordDict cap tests
 
 func TestKeywordDictMaxSize(t *testing.T) {
 	t.Run("cap: new keywords rejected at capacity", func(t *testing.T) {

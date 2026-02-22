@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// ---- Tokenizer tests ----
+// Tokenizer tests
 
 func TestTokenize(t *testing.T) {
 	tests := []struct {
@@ -15,44 +15,44 @@ func TestTokenize(t *testing.T) {
 		excludes []string
 	}{
 		{
-			name:     "success: simple sentence",
+			name:     "simple sentence",
 			text:     "Hello world this is a test",
 			contains: []string{"hello", "world", "test"},
 			excludes: []string{"is", "a"}, // short words filtered
 		},
 		{
-			name:     "success: mixed case normalized",
+			name:     "mixed case normalized",
 			text:     "HELLO World TeSt",
 			contains: []string{"hello", "world", "test"},
 		},
 		{
-			name:    "success: empty string",
+			name:    "empty string",
 			text:    "",
 			wantLen: 0,
 		},
 		{
-			name:    "success: only short words",
+			name:    "only short words",
 			text:    "I am a go to do",
 			wantLen: 0,
 		},
 		{
-			name:     "success: with punctuation",
+			name:     "with punctuation",
 			text:     "Hello, world! This is great.",
 			contains: []string{"hello", "world", "this", "great"},
 		},
 		{
-			name:     "success: with URLs stripped",
+			name:     "with URLs stripped",
 			text:     "Visit https://example.com for more info",
 			contains: []string{"visit", "more", "info"},
 			excludes: []string{"https", "example", "com"},
 		},
 		{
-			name:     "success: numbers preserved",
+			name:     "numbers preserved",
 			text:     "Send 1000 GNOT to address",
 			contains: []string{"send", "1000", "gnot", "address"},
 		},
 		{
-			name:     "success: duplicates preserved",
+			name:     "duplicates preserved",
 			text:     "spam spam spam hello spam",
 			contains: []string{"spam", "hello"},
 		},
@@ -94,7 +94,7 @@ func TestTokenize(t *testing.T) {
 	}
 }
 
-// ---- Corpus tests ----
+// Corpus tests
 
 func TestCorpus(t *testing.T) {
 	t.Run("success: new corpus is empty", func(t *testing.T) {
@@ -165,7 +165,7 @@ func TestCorpus(t *testing.T) {
 	})
 }
 
-// ---- ScoreBayes tests ----
+// ScoreBayes tests
 
 func TestScoreBayes(t *testing.T) {
 	// Build a trained corpus
@@ -197,19 +197,19 @@ func TestScoreBayes(t *testing.T) {
 		wantZero bool
 	}{
 		{
-			name:     "success: nil corpus scores zero",
+			name:     "nil corpus scores zero",
 			body:     "free airdrop bonus",
 			corpus:   nil,
 			wantZero: true,
 		},
 		{
-			name:     "success: empty corpus scores zero",
+			name:     "empty corpus scores zero",
 			body:     "free airdrop bonus",
 			corpus:   func() *Corpus { return NewCorpus() },
 			wantZero: true,
 		},
 		{
-			name:     "spam: obvious spam words",
+			name:     "obvious spam words",
 			body:     "free airdrop bonus click claim prize",
 			corpus:   trainedCorpus,
 			wantMin:  3,
@@ -234,13 +234,13 @@ func TestScoreBayes(t *testing.T) {
 			wantZero: true,
 		},
 		{
-			name:     "edge: empty body",
+			name:     "empty body",
 			body:     "",
 			corpus:   trainedCorpus,
 			wantZero: true,
 		},
 		{
-			name:     "edge: unknown words only",
+			name:     "unknown words only",
 			body:     "xylophone zebra platypus kumquat",
 			corpus:   trainedCorpus,
 			wantZero: true,
@@ -272,7 +272,7 @@ func TestScoreBayes(t *testing.T) {
 	}
 }
 
-// ---- Bayes threshold boundary tests ----
+// Bayes threshold boundary tests
 
 func TestBayesThresholdBoundaries(t *testing.T) {
 	t.Run("boundary: corpus with 9 tokens does NOT score", func(t *testing.T) {
@@ -364,7 +364,7 @@ func TestBayesThresholdBoundaries(t *testing.T) {
 	})
 }
 
-// ---- Corpus cap tests ----
+// Corpus cap tests
 
 func TestCorpusMaxSize(t *testing.T) {
 	t.Run("cap: existing tokens update beyond capacity", func(t *testing.T) {
@@ -393,7 +393,7 @@ func TestCorpusMaxSize(t *testing.T) {
 	})
 }
 
-// ---- Token decay tests ----
+// Token decay tests
 
 func TestCorpusTokenDecay(t *testing.T) {
 	t.Run("decay: counts stay bounded under heavy training", func(t *testing.T) {

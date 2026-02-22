@@ -1,254 +1,173 @@
 # r/gnoland/antispam
 
-Shared on-chain anti-spam scoring service for the Gno ecosystem. Provides pre-trained spam detection (Bayesian corpus, ~400 keywords, 21 scam regex patterns) and per-address reputation tracking.
+Shared spam scoring for Gno realms. Pre-trained corpus, 400 keywords, 21 scam patterns, reputation tracking.
 
-## Quick Start
+## Usage
 
 ```gno
 import antispamr "gno.land/r/gnoland/antispam"
 import engine "gno.land/p/gnoland/antispam"
 
-// Score content - reputation auto-populated from shared state
 rep := engine.ReputationData{
     AccountAgeDays: 30,
-    Balance:        5000000000,  // in ugnot
+    Balance:        5000000000,
     HasUsername:    true,
 }
-result := antispamr.Score(
-    author, content, rate, rep,
-    nil, nil, nil, nil,  // use shared state
-    engine.EarlyExitDisabled,
-)
+result := antispamr.Score(author, content, rate, rep, nil, nil, nil, nil, engine.EarlyExitDisabled)
 
 if result.Total >= engine.ThresholdReject {
-    // reject (score >= 8)
+    // reject (>= 8)
 } else if result.Total >= engine.ThresholdHide {
-    // hide (score >= 5)
+    // hide (>= 5)
 }
 
-// Record moderation decision (requires registration)
 if result.Total < engine.ThresholdHide {
     antispamr.RecordAccepted(cross, author)
 }
 ```
 
-## API Reference
+## API
 
-### Public Functions (anyone can call)
+Public (anyone can call):
 
-**Scoring:**
 ```gno
-Score(author address, content string,
-      rate engine.RateState, rep engine.ReputationData,
-      callerCorpus *engine.Corpus, callerFps *engine.FingerprintStore,
-      callerDict *engine.KeywordDict, callerBl *engine.Blocklist,
-      earlyExitAt int) engine.SpamScore
-```
-- Evaluates content using shared state (or caller-provided state if not nil)
-- Auto-populates `FlaggedCount`, `BanCount`, `TotalAccepted` from internal reputation
-- Caller only provides chain data: `AccountAgeDays`, `Balance`, `HasUsername`
-- Pass `nil` for all state params to use shared instances
-- **Read-only** - does NOT update reputation counters
-
-**Reputation queries:**
-```gno
-GetReputation(addr address) engine.ReputationData
+Score(author, content, rate, rep, corpus, fps, dict, bl, earlyExitAt) SpamScore
+GetReputation(addr) ReputationData
 ReputationCount() int
 TrustedCallerCount() int
 ```
 
-### Reputation Recording (trusted callers only)
+Score() auto-populates FlaggedCount, BanCount, TotalAccepted from internal state. You only provide chain data (AccountAgeDays, Balance, HasUsername). Pass nil for state params to use shared instances. Read-only, doesn't update reputation.
 
-**Registration required:** Call `AdminRegisterCaller(realm)` first to authorize your realm.
+Reputation recording (registered realms only):
 
 ```gno
-RecordAccepted(realm, addr address)  // Increment accepted content count
-RecordFlag(realm, addr address)      // Increment flagged content count
-RecordBan(realm, addr address)       // Increment ban count (permanent)
+RecordAccepted(realm, addr)
+RecordFlag(realm, addr)
+RecordBan(realm, addr)
 ```
 
-**IMPORTANT:** `Score()` does NOT automatically call these functions. You must manually record moderation decisions:
+Score() doesn't call these automatically. You record decisions manually:
 
 ```gno
-// After scoring
 if result.Total < engine.ThresholdHide {
-    antispamr.RecordAccepted(cross, author)  // Content accepted
+    antispamr.RecordAccepted(cross, author)
 } else if moderatorFlagged {
-    antispamr.RecordFlag(cross, author)      // Moderator confirmed spam
+    antispamr.RecordFlag(cross, author)
 }
 
 if adminBanned {
-    antispamr.RecordBan(cross, author)       // Admin banned (permanent)
+    antispamr.RecordBan(cross, author)
 }
 ```
 
-**Why manual recording?**
-- Gives realms full control over moderation decisions
-- Prevents false positives from poisoning shared reputation data
-- Allows human review before reputation changes
-- Separates detection (scoring) from action (reputation update)
+Why manual? Full control, prevents false positives from poisoning data, allows human review.
 
-### Admin Functions
+Admin functions:
 
-**Setup:**
-```gno
-AdminLoadDefaults(realm)  // Load pre-configured keywords and patterns (call post-deploy)
-AdminSetAdmin(realm, newAdmin address)
-```
+Setup:
+- AdminLoadDefaults(realm) - load keywords and patterns post-deploy
+- AdminSetAdmin(realm, newAdmin)
 
-**Reputation management:**
-```gno
-AdminResetReputation(realm, addr address)
-AdminRegisterCaller(realm, callerAddr address)   // Allow realm to record reputation
-AdminRemoveCaller(realm, callerAddr address)
-```
+Reputation:
+- AdminResetReputation(realm, addr)
+- AdminRegisterCaller(realm, callerAddr) - allow realm to record reputation
+- AdminRemoveCaller(realm, callerAddr)
 
-**Blocklist management:**
-```gno
-AdminBlockAddress(realm, addr address)
-AdminUnblockAddress(realm, addr address)
-AdminAllowAddress(realm, addr address)           // Bypass all scoring
-AdminRemoveAllow(realm, addr address)
-AdminAddPattern(realm, pattern string)           // Add regex pattern
-AdminRemovePattern(realm, pattern string)
-```
+Blocklist:
+- AdminBlockAddress(realm, addr)
+- AdminUnblockAddress(realm, addr)
+- AdminAllowAddress(realm, addr) - bypass scoring
+- AdminRemoveAllow(realm, addr)
+- AdminAddPattern(realm, pattern)
+- AdminRemovePattern(realm, pattern)
 
-**Keyword management:**
-```gno
-AdminAddKeyword(realm, word string, weight int)  // weight: 1-3
-AdminRemoveKeyword(realm, word string)
-AdminBulkAddKeywords(realm, data string)         // newline-separated "word:weight"
-```
+Keywords:
+- AdminAddKeyword(realm, word, weight) - weight 1-3
+- AdminRemoveKeyword(realm, word)
+- AdminBulkAddKeywords(realm, data) - newline-separated "word:weight"
 
-**Training:**
-```gno
-AdminTrain(realm, content string, isSpam bool)   // Train Bayesian corpus
-AdminAddSpamFingerprint(realm, content string)   // Add known spam fingerprint
-```
+Training:
+- AdminTrain(realm, content, isSpam)
+- AdminAddSpamFingerprint(realm, content)
 
-## Trust Model
+## Trust model
 
-| Action | Who can do it |
-|--------|---------------|
-| **Score content** | Anyone (public, read-only) |
-| **Query reputation** | Anyone (public, read-only) |
-| **Record reputation** | Registered realms only (via `AdminRegisterCaller`) |
-| **Modify shared state** | Admin only (patterns, blocklist, keywords, corpus) |
-| **Admin operations** | Admin only (set by `OriginCaller()` at deployment) |
+- Score/query: anyone (read-only)
+- Record reputation: registered realms only
+- Modify state: admin only
+- Admin ops: admin only (uses OriginCaller, not PreviousRealm)
 
-**Security:**
-- Reputation recording requires realm registration to prevent data poisoning
-- Admin operations use `OriginCaller()` (wallet signature), not `PreviousRealm()`
-- Blocklisted addresses short-circuit immediately (score 99, no further checks)
-- Allowlisted addresses bypass all scoring
+Security: reputation recording requires registration to prevent poisoning. Blocklisted addresses get 99 immediately. Allowlisted addresses skip all checks.
 
-## Shared State
+## State
 
 The realm maintains:
-- **Bayesian corpus** - Pre-trained on spam/ham examples
-- **Keyword dictionary** - ~400 spam keywords with weights (1-3)
-- **Blocklist** - Combined regex pattern covering 21 scam categories
-- **Fingerprint store** - MinHash signatures of known spam
-- **Reputation counters** - Per-address `TotalAccepted`, `FlaggedCount`, `BanCount`
+- Bayesian corpus (pre-trained)
+- Keyword dict (400 keywords, weights 1-3)
+- Blocklist (21 scam patterns)
+- Fingerprint store (MinHash)
+- Reputation counters (TotalAccepted, FlaggedCount, BanCount)
 
-State is created empty on deployment. Admin must call `AdminLoadDefaults()` post-deploy to populate keywords and patterns (separate tx to avoid storage deposit limits).
+State starts empty. Admin calls AdminLoadDefaults() post-deploy to populate keywords and patterns.
 
-## Reputation Counters
+## Reputation counters
 
-Lightweight per-address data (no content stored):
+Per-address (no content stored):
+- TotalAccepted: content accepted
+- FlaggedCount: content flagged
+- BanCount: times banned (permanent)
 
-| Counter | Meaning | Updated by |
-|---------|---------|------------|
-| `TotalAccepted` | Content accepted into the system | `RecordAccepted()` |
-| `FlaggedCount` | Content flagged by moderators | `RecordFlag()` |
-| `BanCount` | Times banned (permanent history) | `RecordBan()` |
+Used by:
+- NEW_ACCOUNT (2 pts): under 1 day with TotalAccepted == 0
+- BAD_REPUTATION (3 pts): FlaggedCount / TotalAccepted > 30%
+- BANNED_BEFORE (1-3 pts): +1 per ban
 
-Counters are used by the scoring rules:
-- `NEW_ACCOUNT` (2 pts) - Account < 1 day old with `TotalAccepted == 0`
-- `BAD_REPUTATION` (3 pts) - `FlaggedCount / TotalAccepted > 30%`
-- `BANNED_BEFORE` (1-3 pts) - +1 pt per ban, capped at 3
+## Gas optimization
 
-## Gas Optimization
-
-**Early exit** - Stop scoring when threshold is reached:
+Early exit:
 ```gno
-// Skip expensive rules if cheap rules already reach reject threshold
 result := antispamr.Score(author, content, rate, rep,
-    nil, nil, nil, nil,
-    engine.ThresholdReject,  // early exit at score >= 8
-)
+    nil, nil, nil, nil, engine.ThresholdReject)
 ```
 
-**User tiering** - Use reputation history to skip expensive rules for trusted users:
+User tiering:
 ```gno
 rep := antispamr.GetReputation(author)
 
 if rep.TotalAccepted > 10 && rep.FlaggedCount == 0 && chainData.AccountAgeDays > 30 {
-    // Established user: lightweight scoring
     result = antispamr.Score(author, content, rate, chainData,
         nil, nil, nil, nil, engine.ThresholdReject)
 } else {
-    // New/suspicious user: full pipeline
     result = antispamr.Score(author, content, rate, chainData,
         nil, nil, nil, nil, engine.EarlyExitDisabled)
 }
 ```
 
-**Custom state** - Override shared state with your own instances:
+Custom state:
 ```gno
-// Use shared Bayesian corpus but custom blocklist
 myBlocklist := engine.NewBlocklist()
-myBlocklist.AddPattern(`my-custom-pattern`)
+myBlocklist.AddPattern(`my-pattern`)
 
 result := antispamr.Score(author, content, rate, rep,
-    nil, nil, nil, myBlocklist,  // custom blocklist, rest shared
-    engine.EarlyExitDisabled)
+    nil, nil, nil, myBlocklist, engine.EarlyExitDisabled)
 ```
 
 ## Deployment
 
-The realm is deployed empty. Post-deployment setup:
+Realm starts empty. Post-deploy:
 
 ```gno
-// 1. Admin loads default patterns and keywords
 antispamr.AdminLoadDefaults(cross)
-
-// 2. Admin registers trusted caller realms
 antispamr.AdminRegisterCaller(cross, boardsRealmAddr)
-antispamr.AdminRegisterCaller(cross, forumsRealmAddr)
-
-// 3. Optional: train Bayesian corpus with examples
-antispamr.AdminTrain(cross, "buy cheap viagra now!!!", true)  // spam
-antispamr.AdminTrain(cross, "governance proposal discussion", false)  // ham
+antispamr.AdminTrain(cross, "spam example", true)
+antispamr.AdminTrain(cross, "ham example", false)
 ```
 
 ## Examples
 
-See filetests for complete examples:
+Filetests:
+- z1_score_demo: basic scoring + reputation recording
+- z2_reputation_lifecycle: how reputation affects scores
 
-| Filetest | Demonstrates |
-|----------|--------------|
-| [z1_score_demo](z1_score_demo_filetest.gno) | Basic scoring + manual reputation recording workflow |
-| [z2_reputation_lifecycle](z2_reputation_lifecycle_filetest.gno) | How reputation data (flags, bans, account age) affects scoring |
-
-## Technical Details
-
-For architecture, detection strategies, and scoring rules, see the package documentation:
-- [p/gnoland/antispam/README.md](../../p/gnoland/antispam/README.md)
-
-## On-Chain Status
-
-Visit the realm on-chain to see current state:
-```
-https://gno.land/r/gnoland/antispam
-```
-
-The `Render()` function displays:
-- Admin address
-- Corpus size (token count)
-- Fingerprint store size
-- Keyword dictionary size
-- Blocked/allowed address counts
-- Active regex patterns
-- Tracked addresses count
-- Trusted callers count
+See p/gnoland/antispam/README.md for architecture and rules.

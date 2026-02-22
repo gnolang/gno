@@ -13,10 +13,10 @@ func TestScoreReputation(t *testing.T) {
 		wantRule string
 		wantZero bool
 	}{
-		// ---- Success: good reputation scores zero ----
+		// Success: good reputation scores zero
 
 		{
-			name: "success: established user",
+			name: "established user",
 			rep: ReputationData{
 				AccountAgeDays: 90,
 				Balance:        10000000000,
@@ -28,7 +28,7 @@ func TestScoreReputation(t *testing.T) {
 			wantZero: true,
 		},
 		{
-			name: "success: moderate user",
+			name: "moderate user",
 			rep: ReputationData{
 				AccountAgeDays: 30,
 				Balance:        5000000000,
@@ -40,7 +40,7 @@ func TestScoreReputation(t *testing.T) {
 			wantZero: true,
 		},
 		{
-			name: "success: new but legitimate user",
+			name: "new but legitimate user",
 			rep: ReputationData{
 				AccountAgeDays: 7,
 				Balance:        3000000000,
@@ -52,10 +52,10 @@ func TestScoreReputation(t *testing.T) {
 			wantZero: true,
 		},
 
-		// ---- Suspicious: new account signals ----
+		// Suspicious: new account signals
 
 		{
-			name: "suspicious: brand new account no username",
+			name: "brand new account no username",
 			rep: ReputationData{
 				AccountAgeDays: 0,
 				Balance:        3000000000,
@@ -68,7 +68,7 @@ func TestScoreReputation(t *testing.T) {
 			wantRule: "NEW_ACCOUNT",
 		},
 		{
-			name: "suspicious: new account low balance",
+			name: "new account low balance",
 			rep: ReputationData{
 				AccountAgeDays: 0,
 				Balance:        100000000,
@@ -80,7 +80,7 @@ func TestScoreReputation(t *testing.T) {
 			wantMin: 3,
 		},
 		{
-			name: "suspicious: no username, old account",
+			name: "no username, old account",
 			rep: ReputationData{
 				AccountAgeDays: 60,
 				Balance:        5000000000,
@@ -93,7 +93,7 @@ func TestScoreReputation(t *testing.T) {
 			wantRule: "NO_USERNAME",
 		},
 
-		// ---- Bad reputation: flags and bans ----
+		// Bad reputation: flags and bans
 
 		{
 			name: "bad: many flags",
@@ -146,16 +146,16 @@ func TestScoreReputation(t *testing.T) {
 			wantRule: "BAD_REPUTATION",
 		},
 
-		// ---- Edge cases ----
+		// Edge cases
 
 		{
-			name:     "edge: all zeros",
+			name:     "all zeros",
 			rep:      ReputationData{},
 			wantMin:  2,
 			wantRule: "NEW_ACCOUNT",
 		},
 		{
-			name: "edge: negative balance",
+			name: "negative balance",
 			rep: ReputationData{
 				AccountAgeDays: 30,
 				Balance:        -1,
@@ -168,7 +168,7 @@ func TestScoreReputation(t *testing.T) {
 			wantRule: "LOW_BALANCE",
 		},
 		{
-			name: "edge: more flags than posts",
+			name: "more flags than posts",
 			rep: ReputationData{
 				AccountAgeDays: 30,
 				Balance:        5000000000,
@@ -181,7 +181,7 @@ func TestScoreReputation(t *testing.T) {
 			wantRule: "BAD_REPUTATION",
 		},
 		{
-			name: "edge: one flag out of many posts is fine",
+			name: "one flag out of many posts is fine",
 			rep: ReputationData{
 				AccountAgeDays: 90,
 				Balance:        10000000000,
@@ -219,7 +219,7 @@ func TestScoreReputation(t *testing.T) {
 	}
 }
 
-// ---- Threshold boundary tests ----
+// Threshold boundary tests
 
 func TestReputationThresholdBoundaries(t *testing.T) {
 	t.Run("boundary: account age exactly 1 day is NOT new", func(t *testing.T) {

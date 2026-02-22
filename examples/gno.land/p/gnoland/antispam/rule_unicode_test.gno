@@ -12,50 +12,50 @@ func TestScoreUnicode(t *testing.T) {
 		wantRule string
 		wantZero bool
 	}{
-		// ---- Success: legitimate content scores zero ----
+		// Success: legitimate content scores zero
 
 		{
-			name:     "success: normal english text",
+			name:     "normal english text",
 			content:  "Hello world, this is a normal post about governance.",
 			wantZero: true,
 		},
 		{
-			name:     "success: accented french text",
+			name:     "accented french text",
 			content:  "Café résumé naïve über straße. C'est très important.",
 			wantZero: true,
 		},
 		{
-			name:     "success: CJK text",
+			name:     "CJK text",
 			content:  "你好世界，这是关于治理的讨论。",
 			wantZero: true,
 		},
 		{
-			name:     "success: pure cyrillic text",
+			name:     "pure cyrillic text",
 			content:  "Привет мир, это обсуждение.",
 			wantZero: true,
 		},
 		{
-			name:     "success: pure greek text",
+			name:     "pure greek text",
 			content:  "Γεια σου κόσμε, αυτό είναι ένα μήνυμα.",
 			wantZero: true,
 		},
 		{
-			name:     "success: empty content",
+			name:     "empty content",
 			content:  "",
 			wantZero: true,
 		},
 		{
-			name:     "success: normal text with single accent",
+			name:     "normal text with single accent",
 			content:  "The word café has one accent and that is fine.",
 			wantZero: true,
 		},
 		{
-			name:     "success: numbers and ascii",
+			name:     "numbers and ascii",
 			content:  "Version 2.0 released on 2024-01-15 with 42 improvements.",
 			wantZero: true,
 		},
 
-		// ---- ZALGO_TEXT detection ----
+		// ZALGO_TEXT detection
 
 		{
 			name:     "zalgo: heavy combining marks on single char",
@@ -81,7 +81,7 @@ func TestScoreUnicode(t *testing.T) {
 			wantZero: true,
 		},
 
-		// ---- INVISIBLE_CHARS detection ----
+		// INVISIBLE_CHARS detection
 
 		{
 			name:     "invisible: zero-width spaces",
@@ -113,7 +113,7 @@ func TestScoreUnicode(t *testing.T) {
 			wantZero: true,
 		},
 
-		// ---- HOMOGLYPH_MIX detection ----
+		// HOMOGLYPH_MIX detection
 
 		{
 			name:     "homoglyph: cyrillic a in latin word",
@@ -150,7 +150,7 @@ func TestScoreUnicode(t *testing.T) {
 			wantZero: true,
 		},
 
-		// ---- Combined unicode abuse ----
+		// Combined unicode abuse
 
 		{
 			name:    "combined: zalgo + invisible chars",

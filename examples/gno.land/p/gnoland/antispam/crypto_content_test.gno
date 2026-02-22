@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// ---- Crypto content false positive tests ----
+// Crypto content false positive tests
 //
 // Validates that legitimate Gno ecosystem content (governance, staking,
 // token economics, airdrops) is not flagged as spam when using a keyword

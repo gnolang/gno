@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// ---- Constructor tests ----
+// Constructor tests
 
 func TestNewTrainingGuard(t *testing.T) {
 	t.Run("defaults: correct threshold values", func(t *testing.T) {
@@ -68,7 +68,7 @@ func TestNewTrainingGuardCustom(t *testing.T) {
 	})
 }
 
-// ---- ShouldTrain tests ----
+// ShouldTrain tests
 
 func TestShouldTrain(t *testing.T) {
 	t.Run("success: high score with multiple rules", func(t *testing.T) {
@@ -150,7 +150,7 @@ func TestShouldTrain(t *testing.T) {
 	})
 }
 
-// ---- RecordTrain and circuit breaker tests ----
+// RecordTrain and circuit breaker tests
 
 func TestRecordTrain(t *testing.T) {
 	t.Run("success: increments train count", func(t *testing.T) {
@@ -199,7 +199,7 @@ func TestRecordTrain(t *testing.T) {
 	})
 }
 
-// ---- Reset tests ----
+// Reset tests
 
 func TestTrainingGuardReset(t *testing.T) {
 	t.Run("success: clears train count", func(t *testing.T) {
@@ -246,7 +246,7 @@ func TestTrainingGuardReset(t *testing.T) {
 	})
 }
 
-// ---- Zero-value edge case ----
+// Zero-value edge case
 
 func TestTrainingGuardZeroValue(t *testing.T) {
 	t.Run("edge: zero-value guard rejects all", func(t *testing.T) {

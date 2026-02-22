@@ -10,7 +10,7 @@ import (
 	engine "gno.land/p/gnoland/antispam"
 )
 
-// ---- helpers
+// helpers
 
 func resetState(t *testing.T) {
 	t.Helper()
@@ -66,7 +66,7 @@ func goodRep() engine.ReputationData {
 	}
 }
 
-// ---- admin pattern management
+// admin pattern management
 
 func TestAdminAddPattern(t *testing.T) {
 	resetState(t)
@@ -97,7 +97,7 @@ func TestAdminRemovePattern(t *testing.T) {
 	}
 }
 
-// ---- admin address management
+// admin address management
 
 func TestAdminBlockAddress(t *testing.T) {
 	resetState(t)
@@ -134,7 +134,7 @@ func TestAdminAllowAddress(t *testing.T) {
 	}
 }
 
-// ---- admin training
+// admin training
 
 func TestAdminTrain(t *testing.T) {
 	resetState(t)
@@ -163,7 +163,7 @@ func TestAdminTrain(t *testing.T) {
 	}
 }
 
-// ---- admin fingerprint management
+// admin fingerprint management
 
 func TestAdminAddSpamFingerprint(t *testing.T) {
 	resetState(t)
@@ -177,7 +177,7 @@ func TestAdminAddSpamFingerprint(t *testing.T) {
 	}
 }
 
-// ---- default patterns
+// default patterns
 
 func TestDefaultPatternsLoaded(t *testing.T) {
 	resetState(t)
@@ -219,7 +219,7 @@ func TestDefaultPatternsLoaded(t *testing.T) {
 	}
 }
 
-// ---- default keywords
+// default keywords
 
 func TestDefaultKeywordsLoaded(t *testing.T) {
 	resetState(t)
@@ -241,7 +241,7 @@ func TestDefaultKeywordsLoaded(t *testing.T) {
 	}
 }
 
-// ---- admin keyword management
+// admin keyword management
 
 func TestAdminAddKeyword(t *testing.T) {
 	resetState(t)
@@ -305,7 +305,7 @@ func TestAdminRemoveKeyword(t *testing.T) {
 	}
 }
 
-// ---- access control
+// access control
 
 func TestNonAdminCannotModify(t *testing.T) {
 	resetState(t)
@@ -319,7 +319,7 @@ func TestNonAdminCannotModify(t *testing.T) {
 	})
 }
 
-// ---- scoring
+// scoring
 
 func TestScoreCleanContent(t *testing.T) {
 	resetState(t)
@@ -346,7 +346,7 @@ func TestScoreCleanContent(t *testing.T) {
 	}
 }
 
-// ---- admin transfer
+// admin transfer
 
 func TestAdminTransfer(t *testing.T) {
 	resetState(t)
@@ -371,7 +371,7 @@ func TestAdminTransfer(t *testing.T) {
 	AdminSetAdmin(cross, address("g1admin"))
 }
 
-// ---- caller overrides
+// caller overrides
 
 func TestScoreCallerOverrides(t *testing.T) {
 	resetState(t)
@@ -404,7 +404,7 @@ func TestScoreCallerOverrides(t *testing.T) {
 	}
 }
 
-// ---- early exit
+// early exit
 
 func TestScoreEarlyExit(t *testing.T) {
 	resetState(t)
@@ -441,7 +441,7 @@ func TestScoreEarlyExit(t *testing.T) {
 	}
 }
 
-// ---- admin load defaults
+// admin load defaults
 
 func TestAdminLoadDefaults(t *testing.T) {
 	// Start with completely empty state (no resetState which loads simplified patterns)
@@ -505,7 +505,7 @@ func TestAdminLoadDefaultsIdempotent(t *testing.T) {
 	}
 }
 
-// ---- render
+// render
 
 func TestRender(t *testing.T) {
 	resetState(t)
@@ -542,7 +542,7 @@ func TestRender(t *testing.T) {
 	}
 }
 
-// ---- trusted caller management
+// trusted caller management
 
 func TestAdminRegisterCaller(t *testing.T) {
 	resetState(t)
