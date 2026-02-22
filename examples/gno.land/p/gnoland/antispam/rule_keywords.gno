@@ -47,7 +47,15 @@ func (kd *KeywordDict) Remove(word string) {
 }
 
 // GetWeight returns the weight for a keyword and whether it exists.
+// Input is normalized (lowercased, trimmed) before lookup.
 func (kd *KeywordDict) GetWeight(word string) (int, bool) {
+	return kd.getWeightDirect(strings.ToLower(strings.TrimSpace(word)))
+}
+
+// getWeightDirect looks up a pre-normalized keyword without additional
+// string processing. Used by internal scoring paths where tokens are
+// already lowercase and trimmed from Tokenize().
+func (kd *KeywordDict) getWeightDirect(word string) (int, bool) {
 	v, ok := kd.tree.Get(word)
 	if !ok {
 		return 0, false
@@ -168,7 +176,8 @@ func ScoreKeywords(content string, dict *KeywordDict) (int, string) {
 
 // scoreKeywordsTokens scores pre-deduplicated tokens against the dictionary.
 // For each token, checks both the original and leet-normalized variant.
-// Tokens must already be deduplicated.
+// Uses getWeightDirect since tokens from Tokenize() are already lowercase.
+// Exits early once both co-occurrence thresholds are met.
 func scoreKeywordsTokens(tokens []string, dict *KeywordDict) (int, string) {
 	if dict == nil || dict.Size() == 0 {
 		return 0, ""
@@ -181,22 +190,22 @@ func scoreKeywordsTokens(tokens []string, dict *KeywordDict) (int, string) {
 	matches := 0
 
 	for _, tok := range tokens {
-		w, ok := dict.GetWeight(tok)
+		w, ok := dict.getWeightDirect(tok)
 		if !ok {
 			// Try leet-normalized variant.
 			norm := normalizeLeet(tok)
 			if norm != tok {
-				w, ok = dict.GetWeight(norm)
+				w, ok = dict.getWeightDirect(norm)
 			}
 		}
 		if ok {
 			weightSum += w
 			matches++
+			if matches >= keywordMinMatches && weightSum >= keywordSumThreshold {
+				return WeightKeyword, RuleKeywordSpam
+			}
 		}
 	}
 
-	if matches >= keywordMinMatches && weightSum >= keywordSumThreshold {
-		return WeightKeyword, RuleKeywordSpam
-	}
 	return 0, ""
 }

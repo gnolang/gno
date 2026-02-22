@@ -363,3 +363,32 @@ func TestBayesThresholdBoundaries(t *testing.T) {
 		}
 	})
 }
+
+// ---- Corpus cap tests ----
+
+func TestCorpusMaxSize(t *testing.T) {
+	t.Run("cap: existing tokens update beyond capacity", func(t *testing.T) {
+		c := NewCorpus()
+		c.Train("hello world test message here", true)
+		initialSpam, _ := c.GetTokenStats("hello")
+		if initialSpam != 1 {
+			t.Fatalf("expected initial spam=1, got %d", initialSpam)
+		}
+
+		// Fill corpus to capacity with many unique tokens.
+		for i := 0; i < 2500; i++ {
+			c.Train("tok"+intToKey(i)+"abc def"+intToKey(i+10000)+"ghi", true)
+		}
+
+		if c.Size() > corpusMaxSize {
+			t.Errorf("corpus exceeded max size: %d > %d", c.Size(), corpusMaxSize)
+		}
+
+		// Existing token "hello" should still be updatable
+		c.Train("hello world test message here", true)
+		updatedSpam, _ := c.GetTokenStats("hello")
+		if updatedSpam <= initialSpam {
+			t.Errorf("expected existing token to update beyond cap: initial=%d, updated=%d", initialSpam, updatedSpam)
+		}
+	})
+}

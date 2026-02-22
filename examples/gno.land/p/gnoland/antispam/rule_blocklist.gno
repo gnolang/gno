@@ -3,6 +3,7 @@ package antispam
 import (
 	"errors"
 	"regexp"
+	"strings"
 
 	"gno.land/p/nt/avl"
 )
@@ -133,17 +134,18 @@ func (bl *Blocklist) rebuildCombined() {
 		bl.combined = nil
 		return
 	}
-	combined := "(?:"
+	var b strings.Builder
+	b.WriteString("(?:")
 	first := true
 	bl.patterns.Iterate("", "", func(key string, _ interface{}) bool {
 		if !first {
-			combined += "|"
+			b.WriteByte('|')
 		}
-		combined += key
+		b.WriteString(key)
 		first = false
 		return false
 	})
-	combined += ")"
+	b.WriteByte(')')
 	// Patterns were already validated in AddPattern, so this should not fail.
-	bl.combined, _ = regexp.Compile(combined)
+	bl.combined, _ = regexp.Compile(b.String())
 }

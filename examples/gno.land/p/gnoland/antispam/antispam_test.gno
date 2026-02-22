@@ -420,6 +420,110 @@ func TestEarlyExitAt(t *testing.T) {
 	}
 }
 
+func TestEarlyExitIntraPhase2(t *testing.T) {
+	// Scenario: Phase 1 scores 0 (good user), but Pattern(5) + Bayes(3) = 8.
+	// With EarlyExitAt=8, Keywords and Fingerprint should be skipped.
+	// With EarlyExitDisabled, Keywords also fires -> higher total.
+	corpus := NewCorpus()
+	corpus.Train("free airdrop bonus click claim tokens", true)
+	corpus.Train("free money bonus prize casino jackpot", true)
+	corpus.Train("free claim airdrop offer exclusive deal limited", true)
+	corpus.Train("governance proposal voting community discussion", false)
+	corpus.Train("validator staking delegation reward system", false)
+	corpus.Train("development update release version changelog", false)
+	corpus.Train("thanks for the helpful explanation today", false)
+
+	dict := NewKeywordDict()
+	dict.BulkAdd("free:3\nairdrop:3\nbonus:3\nclaim:2\nprize:3")
+
+	bl := NewBlocklist()
+	bl.AddPattern(`(?i)send\s+\d+\s*gnot`)
+
+	goodRep := ReputationData{
+		AccountAgeDays: 90, Balance: 10000000000,
+		HasUsername: true, TotalPosts: 50,
+	}
+	normalRate := RateState{PostCount: 3, WindowSeconds: 3600}
+
+	// Content matches pattern AND has Bayes/keyword spam tokens.
+	content := "please send 100 gnot to claim your free airdrop bonus prize"
+
+	full := Score(ScoreInput{
+		Author: "g1user", Content: content,
+		Rate: normalRate, Rep: goodRep,
+		Corpus: corpus, Dict: dict, Bl: bl,
+		EarlyExitAt: EarlyExitDisabled,
+	})
+
+	early := Score(ScoreInput{
+		Author: "g1user", Content: content,
+		Rate: normalRate, Rep: goodRep,
+		Corpus: corpus, Dict: dict, Bl: bl,
+		EarlyExitAt: ThresholdReject,
+	})
+
+	// Full score should be higher (Keywords fires too)
+	if full.Total <= early.Total {
+		t.Errorf("full score (%d) should exceed early score (%d)", full.Total, early.Total)
+	}
+
+	// Early exit must reach the threshold
+	if early.Total < ThresholdReject {
+		t.Errorf("expected early score >= %d, got %d (rules: %v)", ThresholdReject, early.Total, early.Triggered)
+	}
+
+	// Full should include KEYWORD_SPAM, early should not
+	hasKeyword := false
+	for _, r := range full.Triggered {
+		if r == RuleKeywordSpam {
+			hasKeyword = true
+			break
+		}
+	}
+	if !hasKeyword {
+		t.Errorf("full score should include %s, got %v", RuleKeywordSpam, full.Triggered)
+	}
+
+	earlyHasKeyword := false
+	for _, r := range early.Triggered {
+		if r == RuleKeywordSpam {
+			earlyHasKeyword = true
+			break
+		}
+	}
+	if earlyHasKeyword {
+		t.Errorf("early exit should NOT include %s, got %v", RuleKeywordSpam, early.Triggered)
+	}
+}
+
+// ---- MaxInputLength truncation ----
+
+func TestMaxInputLength(t *testing.T) {
+	t.Run("long input is truncated without panic", func(t *testing.T) {
+		// Build input longer than MaxInputLength
+		long := ""
+		for len(long) < MaxInputLength+500 {
+			long += "spam spam spam spam spam spam spam spam spam spam "
+		}
+		result := Score(ScoreInput{
+			Author:  "g1user",
+			Content: long,
+			Rate:    RateState{PostCount: 3, WindowSeconds: 3600},
+			Rep: ReputationData{
+				AccountAgeDays: 90, Balance: 10000000000,
+				HasUsername: true, TotalPosts: 50,
+			},
+			Corpus: NewCorpus(),
+			Fps:    NewFingerprintStore(),
+			Bl:     NewBlocklist(),
+		})
+		// Should not panic and should produce a valid score
+		if result.Total < 0 {
+			t.Errorf("expected non-negative score, got %d", result.Total)
+		}
+	})
+}
+
 // ---- BLOCKED_ADDRESS short-circuit verification ----
 
 func TestBlockedAddressShortCircuit(t *testing.T) {

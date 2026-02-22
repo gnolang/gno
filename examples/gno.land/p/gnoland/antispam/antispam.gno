@@ -48,6 +48,10 @@ const (
 	// EarlyExitDisabled means all rules are evaluated (no early exit).
 	// Pass this as ScoreInput.EarlyExitAt for a complete score.
 	EarlyExitDisabled = 0
+
+	// MaxInputLength caps content length to prevent gas abuse via very long inputs.
+	// Content beyond this limit is truncated before scoring.
+	MaxInputLength = 4096
 )
 
 // ---- Rule weights (centralized for easy tuning)
@@ -170,6 +174,11 @@ type SpamScore struct {
 // if the score from phase 1 already reaches it. When EarlyExitAt is
 // EarlyExitDisabled (0, the default), all rules are always evaluated.
 func Score(in ScoreInput) SpamScore {
+	// Truncate oversized input to cap gas cost.
+	if len(in.Content) > MaxInputLength {
+		in.Content = in.Content[:MaxInputLength]
+	}
+
 	result := SpamScore{}
 
 	// Allowlist check: bypass all scoring
@@ -244,9 +253,17 @@ func Score(in ScoreInput) SpamScore {
 		add(s, r)
 	}
 
+	if earlyExit() {
+		return result
+	}
+
 	// Keyword dictionary
 	if s, r := scoreKeywordsTokens(tokens, in.Dict); s > 0 {
 		add(s, r)
+	}
+
+	if earlyExit() {
+		return result
 	}
 
 	// Fingerprint near-duplicate detection (MinHash computation)

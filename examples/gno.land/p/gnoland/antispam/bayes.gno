@@ -29,6 +29,11 @@ const (
 	// for a token to be considered reliable. Tokens seen fewer times are
 	// ignored to prevent overfitting on small training sets.
 	bayesMinTokenOccurrences = 2
+
+	// corpusMaxSize caps the number of unique tokens in the corpus.
+	// Existing tokens still get their counts updated; only new tokens
+	// are rejected when the cap is reached. Prevents unbounded storage growth.
+	corpusMaxSize = 10000
 )
 
 // ---- Tokenizer
@@ -40,15 +45,12 @@ func Tokenize(text string) []string {
 	inURL := false
 
 	for i := 0; i < len(text); {
-		if !inURL && text[i] == 'h' && i+7 < len(text) {
-			rest := text[i:]
-			if strings.HasPrefix(rest, "https://") || strings.HasPrefix(rest, "http://") {
-				if current.Len() >= tokenMinLen {
-					tokens = append(tokens, current.String())
-				}
-				current.Reset()
-				inURL = true
+		if !inURL && hasURLPrefix(text, i) {
+			if current.Len() >= tokenMinLen {
+				tokens = append(tokens, current.String())
 			}
+			current.Reset()
+			inURL = true
 		}
 
 		r, size := utf8.DecodeRuneInString(text[i:])
@@ -100,6 +102,8 @@ func NewCorpus() *Corpus {
 
 // Train updates the corpus with tokens from a text sample.
 // If isSpam is true, tokens are counted as spam indicators; otherwise as ham.
+// When the corpus reaches corpusMaxSize, existing tokens still get updated
+// but new tokens are ignored to prevent unbounded storage growth.
 func (c *Corpus) Train(content string, isSpam bool) {
 	tokens := dedup(Tokenize(content))
 	for _, tok := range tokens {
@@ -108,6 +112,9 @@ func (c *Corpus) Train(content string, isSpam bool) {
 		if ok {
 			stats = v.(*tokenStats)
 		} else {
+			if c.tree.Size() >= corpusMaxSize {
+				continue
+			}
 			stats = &tokenStats{}
 			c.tree.Set(tok, stats)
 		}
