@@ -419,3 +419,134 @@ func TestContentThresholdBoundaries(t *testing.T) {
 		}
 	})
 }
+
+// ---- REPEATED_CHARS tests ----
+
+func TestScoreContentRepeatedChars(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		wantRule bool
+	}{
+		// ---- Should trigger ----
+
+		{
+			name:     "repeated: 4 same letters",
+			content:  "BUYYYYYYY NOW this is spam with enough length for content",
+			wantRule: true,
+		},
+		{
+			name:     "repeated: lowercase repeated",
+			content:  "freeeeee tokens claim your prize right now today",
+			wantRule: true,
+		},
+		{
+			name:     "repeated: exclamation flood",
+			content:  "Buy now!!!!!!! best deal ever claim your prize today",
+			wantRule: true,
+		},
+		{
+			name:     "repeated: question marks",
+			content:  "Why would you miss this opportunity???????? act now",
+			wantRule: true,
+		},
+		{
+			name:     "repeated: digits",
+			content:  "send 1000000000000000 tokens to get free rewards now",
+			wantRule: true,
+		},
+
+		// ---- Should NOT trigger ----
+
+		{
+			name:     "clean: normal text",
+			content:  "I think we should consider adjusting the staking rewards for validators.",
+			wantRule: false,
+		},
+		{
+			name:     "clean: triple exclamation (3 is ok)",
+			content:  "This is great news!!! I love it so much right now.",
+			wantRule: false,
+		},
+		{
+			name:     "clean: triple letters",
+			content:  "Yesss this is good news for the community today",
+			wantRule: false,
+		},
+		{
+			name:     "clean: repeated spaces (whitespace excluded)",
+			content:  "text   with   extra   spaces   is   fine   here",
+			wantRule: false,
+		},
+		{
+			name:     "clean: URL with repeated chars",
+			content:  "Check https://www.gooooogle.example.com for the latest updates today",
+			wantRule: false,
+		},
+		{
+			name:     "clean: empty string",
+			content:  "",
+			wantRule: false,
+		},
+		{
+			name:     "clean: short triple char",
+			content:  "lol ooo",
+			wantRule: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hits := ScoreContent(tt.content)
+			found := false
+			for _, h := range hits {
+				if h.Rule == RuleRepeatedChars {
+					found = true
+				}
+			}
+			if tt.wantRule && !found {
+				t.Errorf("expected REPEATED_CHARS, got hits: %v", hits)
+			}
+			if !tt.wantRule && found {
+				t.Errorf("unexpected REPEATED_CHARS on %q", tt.content)
+			}
+		})
+	}
+}
+
+func TestRepeatedCharsThresholdBoundaries(t *testing.T) {
+	t.Run("boundary: exactly 3 repeated does NOT trigger", func(t *testing.T) {
+		hits := ScoreContent("This has ooo three repeated in a normal sentence here")
+		for _, h := range hits {
+			if h.Rule == RuleRepeatedChars {
+				t.Error("3 repeated chars should NOT trigger REPEATED_CHARS")
+			}
+		}
+	})
+
+	t.Run("boundary: exactly 4 repeated triggers", func(t *testing.T) {
+		hits := ScoreContent("This has oooo four repeated in a normal sentence here")
+		found := false
+		for _, h := range hits {
+			if h.Rule == RuleRepeatedChars {
+				found = true
+				if h.Score != WeightRepeatedChars {
+					t.Errorf("expected weight %d, got %d", WeightRepeatedChars, h.Score)
+				}
+			}
+		}
+		if !found {
+			t.Error("4 repeated chars should trigger REPEATED_CHARS")
+		}
+	})
+
+	t.Run("boundary: repeated chars in URL are skipped", func(t *testing.T) {
+		// URL internals should not count for repeated chars
+		hits := ScoreContent("Visit https://www.aaaaaa.example.com for more information today")
+		for _, h := range hits {
+			if h.Rule == RuleRepeatedChars {
+				t.Error("repeated chars inside URL should NOT trigger REPEATED_CHARS")
+			}
+		}
+	})
+}

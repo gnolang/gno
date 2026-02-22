@@ -2,7 +2,7 @@ package main
 
 // Demonstration: Comprehensive Multi-Layer Spam Detection
 // ========================================================
-// Overview test exercising ALL 18 antispam rules in combination, showing how
+// Overview test exercising ALL 19 antispam rules in combination, showing how
 // the multi-layer system catches spam that any single layer would miss.
 //
 // Every rule triggers at least once across 8 scenarios:
@@ -11,13 +11,14 @@ package main
 //   RATE_BURST (4)        ALL_CAPS (2)          SHORT_WITH_LINK (3)
 //   BAYES_SPAM (3)        BAD_REPUTATION (3)    KEYWORD_SPAM (3)
 //   ZALGO_TEXT (3)        LINK_HEAVY (2)        NEW_ACCOUNT (2)
-//   INVISIBLE_CHARS (2)   HOMOGLYPH_MIX (2)    EXCESSIVE_PUNCT (1)
-//   NO_USERNAME (1)       LOW_BALANCE (1)        BANNED_BEFORE (1-3)
+//   INVISIBLE_CHARS (2)   HOMOGLYPH_MIX (2)    REPEATED_CHARS (2)
+//   EXCESSIVE_PUNCT (1)   NO_USERNAME (1)       LOW_BALANCE (1)
+//   BANNED_BEFORE (1-3)
 //
-// Two-phase architecture:
-//   Phase 1 (cheap): content heuristics + rate + reputation
-//   Phase 2 (expensive): regex, Bayes, keywords, fingerprints
-//   EarlyExitAt skips Phase 2 when Phase 1 already exceeds threshold.
+// Ascending-cost pipeline with granular early exits:
+//   O(1): rate + reputation
+//   O(n): content heuristics, regex, tokenization + Bayes, keywords, fingerprints
+//   EarlyExitAt skips costlier rules when score already exceeds threshold.
 //   See z8_early_exit_filetest.gno for gas optimization demo.
 //
 // Scenarios:
@@ -149,8 +150,8 @@ func main() {
 		BanCount:       0,
 	}
 
-	// Message with spam keywords AND >20% punctuation (EXCESSIVE_PUNCT)
-	spamPunct := "FREE!!! AIRDROP!!! Claim your bonus prize now!!!"
+	// Message with spam keywords, >20% punctuation, and repeated chars (6x !)
+	spamPunct := "FREE!!!!!! AIRDROP!! Claim your bonus prize now!!!"
 
 	result2 := antispam.Score(antispam.ScoreInput{
 		Author:  "g1newspam",
@@ -169,7 +170,7 @@ func main() {
 	println("Rules breakdown:")
 	println("  NEW_ACCOUNT(2) + NO_USERNAME(1) + LOW_BALANCE(1) = reputation penalties")
 	println("  KEYWORD_SPAM(3) + BAYES_SPAM(3) = content detection")
-	println("  EXCESSIVE_PUNCT(1) = punctuation spam (>20% of characters)")
+	println("  REPEATED_CHARS(2) + EXCESSIVE_PUNCT(1) = content heuristics")
 	println("Status:  🚫 REJECTED (score >= " + intToString(antispam.ThresholdReject) + ")\n")
 
 	// ========================================
@@ -379,7 +380,7 @@ func main() {
 	println("8. Unicode   " + intToString(result8.Total) + "  " + sliceToString(result8.Triggered))
 	println("")
 
-	println("All 18 rules triggered at least once across these scenarios.")
+	println("All 19 rules triggered at least once across these scenarios.")
 	println("No single rule is sufficient - multi-layer detection is the key.")
 }
 
@@ -398,12 +399,12 @@ func main() {
 // ════════════════════════════════
 //
 // Author:  g1newspam (0 days, no username, low balance)
-// Message: "FREE!!! AIRDROP!!! Claim your bonus prize now!!!"
-// Score:   11 | Triggered: [EXCESSIVE_PUNCT NEW_ACCOUNT NO_USERNAME LOW_BALANCE BAYES_SPAM KEYWORD_SPAM]
+// Message: "FREE!!!!!! AIRDROP!! Claim your bonus prize now!!!"
+// Score:   13 | Triggered: [NEW_ACCOUNT NO_USERNAME LOW_BALANCE EXCESSIVE_PUNCT REPEATED_CHARS BAYES_SPAM KEYWORD_SPAM]
 // Rules breakdown:
 //   NEW_ACCOUNT(2) + NO_USERNAME(1) + LOW_BALANCE(1) = reputation penalties
 //   KEYWORD_SPAM(3) + BAYES_SPAM(3) = content detection
-//   EXCESSIVE_PUNCT(1) = punctuation spam (>20% of characters)
+//   REPEATED_CHARS(2) + EXCESSIVE_PUNCT(1) = content heuristics
 // Status:  🚫 REJECTED (score >= 8)
 //
 // SCENARIO 3: Spam Flood from Flagged User
@@ -411,7 +412,7 @@ func main() {
 //
 // Author:  g1flooder (50% flag ratio, 2 past bans, 30 posts/hour)
 // Message: "FREE MONEY BONUS PRIZE AIRDROP CLICK NOW!!! http://spam1.com http://spam2.com http://spam3.com http://spam4.com"
-// Score:   19 | Triggered: [ALL_CAPS LINK_HEAVY RATE_BURST BAD_REPUTATION BANNED_BEFORE BAYES_SPAM KEYWORD_SPAM]
+// Score:   19 | Triggered: [RATE_BURST BAD_REPUTATION BANNED_BEFORE ALL_CAPS LINK_HEAVY BAYES_SPAM KEYWORD_SPAM]
 // Rules breakdown:
 //   ALL_CAPS(2) + LINK_HEAVY(2) = content heuristics
 //   RATE_BURST(4) = posting frequency
@@ -483,13 +484,13 @@ func main() {
 // Scenario  Score  Rules Triggered
 // ────────  ─────  ───────────────
 // 1. Legit     0  []
-// 2. New acc  11  [EXCESSIVE_PUNCT NEW_ACCOUNT NO_USERNAME LOW_BALANCE BAYES_SPAM KEYWORD_SPAM]
-// 3. Flood   19  [ALL_CAPS LINK_HEAVY RATE_BURST BAD_REPUTATION BANNED_BEFORE BAYES_SPAM KEYWORD_SPAM]
+// 2. New acc  13  [NEW_ACCOUNT NO_USERNAME LOW_BALANCE EXCESSIVE_PUNCT REPEATED_CHARS BAYES_SPAM KEYWORD_SPAM]
+// 3. Flood   19  [RATE_BURST BAD_REPUTATION BANNED_BEFORE ALL_CAPS LINK_HEAVY BAYES_SPAM KEYWORD_SPAM]
 // 4. Dup+Pat  9  [BLOCKED_PATTERN NEAR_DUPLICATE]
 // 5. Short    3  [SHORT_WITH_LINK]
 // 6. Blocked 99  [BLOCKED_ADDRESS]
 // 7. Allowed   0  []
 // 8. Unicode   7  [ZALGO_TEXT INVISIBLE_CHARS HOMOGLYPH_MIX]
 //
-// All 18 rules triggered at least once across these scenarios.
+// All 19 rules triggered at least once across these scenarios.
 // No single rule is sufficient - multi-layer detection is the key.

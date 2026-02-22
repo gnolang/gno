@@ -64,11 +64,11 @@ func AdminLoadDefaults(_ realm) {
 }
 ```
 
-The `gno.land/r/gnoland/antispam` realm follows this pattern with ~400 pre-configured spam keywords and a combined regex covering 20 scam categories.
+The `gno.land/r/gnoland/antispam` realm follows this pattern with ~400 pre-configured spam keywords and a combined regex covering 21 scam categories.
 
 ## Detection Strategies
 
-**Content checks** - Looks for shouting in all caps, excessive punctuation, link spam, and short posts with just a URL.
+**Content checks** - Looks for shouting in all caps, excessive punctuation, repeated characters (e.g. "BUYYYYYYY"), link spam, and short posts with just a URL.
 
 **Unicode abuse** - Detects three forms of text manipulation: zalgo text (stacking combining diacritical marks to distort rendering), invisible characters (zero-width spaces, directional overrides used for obfuscation), and homoglyph mixing (substituting Latin characters with visually identical Cyrillic or Greek look-alikes in the same word, e.g. Latin "a" replaced by Cyrillic "a" in "payment").
 
@@ -80,7 +80,7 @@ The `gno.land/r/gnoland/antispam` realm follows this pattern with ~400 pre-confi
 
 **Duplicate detection** - Catches copy-paste spam waves where the same message is posted across threads. Compares MinHash fingerprints of new posts against recent spam. Threshold set to catch paraphrases but not unrelated content.
 
-**Blocklists/Allowlists** - Regex patterns catch common scam formats like "send X tokens" or "free airdrop". Address blocklist immediately rejects known bad actors (score 99) and short-circuits all further checks. Supports allowlisting trusted addresses to bypass scoring entirely.
+**Blocklists/Allowlists** - Regex patterns catch common scam formats like "send X tokens", "free airdrop", or personal email addresses (gmail, yahoo, etc.) used for off-platform contact redirection. Address blocklist immediately rejects known bad actors (score 99) and short-circuits all further checks. Supports allowlisting trusted addresses to bypass scoring entirely.
 
 **Keyword detection** - Uses a co-occurrence model: one suspicious word alone won't trigger, but multiple spam keywords together will. Keywords are weighted by how spam-specific they are. Includes leet-speak normalization (e.g. "fr33 a1rdr0p" is recognized as "free airdrop") to catch common bypass attempts.
 
@@ -104,6 +104,7 @@ Scores accumulate across all triggered rules. Thresholds: **Hide >= 5**, **Rejec
 | NEW_ACCOUNT | 2 | Account <1 day old with no posts |
 | INVISIBLE_CHARS | 2 | Zero-width or directional override characters |
 | HOMOGLYPH_MIX | 2 | Mixed scripts in a single word (latin + cyrillic) |
+| REPEATED_CHARS | 2 | 4+ consecutive identical characters |
 | BANNED_BEFORE | 1-3 | +1 per past ban, capped at 3 |
 | EXCESSIVE_PUNCT | 1 | >20% punctuation characters |
 | NO_USERNAME | 1 | No registered username |
@@ -123,11 +124,11 @@ Scores accumulate across all triggered rules. Thresholds: **Hide >= 5**, **Rejec
 Scoring cost depends on which rules are active. Control it with two levers:
 
 - **Input cap**: content is truncated to `MaxInputLength` (4096 bytes) to prevent gas abuse via oversized inputs.
-- **Nil state**: pass nil for `Corpus`, `Fps`, `Bl`, or `Dict` to skip those rules entirely. All-nil runs only cheap Phase 1 checks (content heuristics, rate, reputation).
-- **Early exit**: set `EarlyExitAt` to a threshold (e.g. `ThresholdReject`) to skip expensive Phase 2 rules when cheap rules already reach the threshold. Use `EarlyExitDisabled` for a complete score.
+- **Nil state**: pass nil for `Corpus`, `Fps`, `Bl`, or `Dict` to skip those rules entirely. All-nil runs only cheap rules (rate, reputation, content heuristics).
+- **Early exit**: set `EarlyExitAt` to a threshold (e.g. `ThresholdReject`) to skip expensive rules when cheap rules already reach the threshold. Use `EarlyExitDisabled` for a complete score.
 
 ```gno
-// Lightweight: Phase 1 only (nil state, cheapest)
+// Lightweight: cheap rules only (nil state, cheapest)
 result := antispam.Score(antispam.ScoreInput{Content: content, Rate: rate, Rep: rep})
 
 // Standard: full state with early exit
@@ -149,7 +150,7 @@ result := antispam.Score(antispam.ScoreInput{
 
 - **Allowlist bypass**: allowed addresses skip all scoring
 - **Short-circuit**: `BLOCKED_ADDRESS` returns immediately, no further rules evaluated
-- **Two-phase scoring**: cheap rules (O(1) lookups, character scans) run first; expensive rules (regex, Bayes, keywords, fingerprints) run second. Set `EarlyExitAt` to a positive threshold (e.g. `ThresholdReject`) to skip phase 2 when cheap rules already reach it. Leave at `EarlyExitDisabled` for a complete score.
+- **Ascending-cost pipeline**: rules ordered by cost (O(1) rate/reputation, O(n) content scan, regex, tokenization + Bayes, keywords, fingerprint hashing) with `earlyExit` checks between each group. Set `EarlyExitAt` to a positive threshold (e.g. `ThresholdReject`) to skip costlier rules when cheap rules already reach it. Leave at `EarlyExitDisabled` for a complete score.
 - **Single-pass content analysis**: caps, punctuation, links, and unicode abuse detected in one scan
 - **Rule independence**: each rule triggers and scores independently
 
@@ -157,12 +158,12 @@ result := antispam.Score(antispam.ScoreInput{
 
 The `z*_filetest.gno` files demonstrate real scenarios:
 
-- `z1` - Comprehensive: all 18 rules firing across 8 scenarios (start here)
+- `z1` - Comprehensive: all 19 rules firing across 8 scenarios (start here)
 - `z2` - Multi-user: concurrent users with different reputation profiles
 - `z3` - Bayes training: corpus training effects on detection
 - `z4` - Fingerprint: near-duplicate content detection
 - `z5` - Blocklist: address/pattern blocking and allowlist operations
 - `z6` - Spam evolution: legitimate user turning into a spammer
 - `z7` - Unicode abuse: zalgo text, invisible chars, homoglyph mixing
-- `z8` - Early exit: EarlyExitAt gas optimization (Phase 1 vs Phase 2)
-- `z9` - Pattern categories: all 20 regex categories + false positive checks
+- `z8` - Early exit: EarlyExitAt gas optimization (cheap vs expensive rules)
+- `z9` - Pattern categories: all 21 regex categories + false positive checks

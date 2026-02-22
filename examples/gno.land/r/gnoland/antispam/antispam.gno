@@ -43,7 +43,7 @@ var (
 	errUnauthorized = errors.New("unauthorized: not admin")
 )
 
-// defaultPattern is a combined regex covering 20 scam categories.
+// defaultPattern is a combined regex covering 21 scam categories.
 // Uses one pattern slot (1/30), one compiled regex, one scan per message.
 // Categories:
 //
@@ -57,6 +57,7 @@ var (
 //  8. Urgency clickbait        18. Fake token launch / pump
 //  9. Inheritance/wire fraud   19. Impersonation + scam CTA
 //  10. Fake job / work from home 20. Romance / sugar scam
+//  21. Contact redirect (personal email)
 const defaultPattern = `(?i)(?:` +
 	`(enter|verify|confirm|provide|share|submit|validate|restore|update|input)\s+(your\s+)?(wallet|seed\s*phrase|private\s*key|mnemonic|password|credentials|recovery\s*phrase|login)` +
 	`|` +
@@ -121,6 +122,8 @@ const defaultPattern = `(?i)(?:` +
 	`sugar\s+(daddy|mommy|mama|baby).{0,40}(pay|send|money|gift|allowance|dm|message|contact)` +
 	`|` +
 	`(lonely|single)\s+(girl|woman|man|guy|lady).{0,40}(dm|message|contact|whatsapp|telegram)` +
+	`|` +
+	`[\w.+-]+@(gmail|yahoo|hotmail|outlook|proton|aol)\.(com|fr|net|org)` +
 	`)`
 
 func init() {

@@ -2,20 +2,20 @@ package main
 
 // Demonstration: EarlyExitAt Gas Optimization
 // =============================================
-// This test shows how EarlyExitAt controls which scoring phases run.
-// The same spam message is scored three ways:
+// Rules are ordered by ascending cost with earlyExit checks between
+// each group. The same spam message is scored three ways:
 //
 //   1. Full scoring (EarlyExitDisabled) - all rules evaluated
-//   2. Early exit at ThresholdReject (8) - skip Phase 2 when Phase 1 >= 8
-//   3. Early exit at ThresholdHide (5) - skip Phase 2 when Phase 1 >= 5
+//   2. Early exit at ThresholdReject (8) - skip costly rules when score >= 8
+//   3. Early exit at ThresholdHide (5) - skip costly rules when score >= 5
 //
-// When cheap Phase 1 rules (content heuristics, rate, reputation) already
-// produce a high score, expensive Phase 2 rules (regex, Bayes, keywords,
-// fingerprints) are skipped - saving gas without changing the outcome.
+// When cheap rules (rate, reputation) already produce a high score,
+// costlier rules (content scan, regex, Bayes, keywords, fingerprints)
+// are skipped - saving gas without changing the outcome.
 //
-// Scenario A: Obvious spammer (Phase 1 score >= 8) -> Phase 2 skipped
-// Scenario B: Subtle spam (Phase 1 score < 5) -> Phase 2 needed to catch it
-// Scenario C: Lightweight mode (nil state) -> Phase 2 skipped entirely
+// Scenario A: Obvious spammer (cheap rules score >= 8) -> expensive rules skipped
+// Scenario B: Subtle spam (cheap rules score < 5) -> expensive rules needed
+// Scenario C: Lightweight mode (nil state) -> expensive rules skipped entirely
 
 import (
 	"gno.land/p/gnoland/antispam"
@@ -77,11 +77,11 @@ func main() {
 
 	// ========================================
 	// SCENARIO A: Obvious Spammer
-	// Phase 1 alone scores >= 8 (new account + caps + rate + reputation)
-	// -> Phase 2 skipped with EarlyExitAt=ThresholdReject
+	// Cheap rules alone score >= 8 (rate + reputation)
+	// -> expensive rules skipped with EarlyExitAt=ThresholdReject
 	// ========================================
 
-	println("SCENARIO A: Obvious Spammer (Phase 1 sufficient)")
+	println("SCENARIO A: Obvious Spammer (cheap rules sufficient)")
 	println("=================================================\n")
 
 	badRep := antispam.ReputationData{
@@ -108,7 +108,7 @@ func main() {
 		EarlyExitAt: antispam.EarlyExitDisabled,
 	})
 
-	// Early exit at ThresholdReject: skip Phase 2
+	// Early exit at ThresholdReject: skip expensive rules
 	earlyResult := antispam.Score(antispam.ScoreInput{
 		Author:      "g1spammer",
 		Content:     spamMsg,
@@ -126,20 +126,20 @@ func main() {
 
 	println("Full scoring (EarlyExitDisabled):")
 	println("  Score: " + intToString(fullResult.Total) + " | Rules: " + sliceToString(fullResult.Triggered))
-	println("  Phase 1 + Phase 2 both evaluated\n")
+	println("  All rules evaluated\n")
 
 	println("Early exit at ThresholdReject (" + intToString(antispam.ThresholdReject) + "):")
 	println("  Score: " + intToString(earlyResult.Total) + " | Rules: " + sliceToString(earlyResult.Triggered))
-	println("  Phase 1 already >= " + intToString(antispam.ThresholdReject) + " -> Phase 2 SKIPPED")
+	println("  Cheap rules already >= " + intToString(antispam.ThresholdReject) + " -> expensive rules SKIPPED")
 	println("  Outcome identical: REJECTED in both cases, but fewer rules evaluated\n")
 
 	// ========================================
 	// SCENARIO B: Subtle Spam
-	// Phase 1 score < 5 (good reputation, normal rate)
-	// -> Phase 2 needed to detect it
+	// Cheap rules score < 5 (good reputation, normal rate)
+	// -> expensive rules needed to detect it
 	// ========================================
 
-	println("SCENARIO B: Subtle Spam (Phase 2 needed)")
+	println("SCENARIO B: Subtle Spam (expensive rules needed)")
 	println("=========================================\n")
 
 	goodRep := antispam.ReputationData{
@@ -153,7 +153,7 @@ func main() {
 	normalRate := antispam.RateState{PostCount: 3, WindowSeconds: 3600}
 	subtleSpam := "Hey check out this free airdrop bonus claim your prize now"
 
-	// Full scoring: Phase 2 catches it
+	// Full scoring: expensive rules catch it
 	subtleFull := antispam.Score(antispam.ScoreInput{
 		Author:      "g1sneaky",
 		Content:     subtleSpam,
@@ -166,7 +166,7 @@ func main() {
 		EarlyExitAt: antispam.EarlyExitDisabled,
 	})
 
-	// Early exit at ThresholdReject: Phase 1 < 8, so Phase 2 runs too
+	// Early exit at ThresholdReject: score < 8, so expensive rules run too
 	subtleEarly := antispam.Score(antispam.ScoreInput{
 		Author:      "g1sneaky",
 		Content:     subtleSpam,
@@ -184,15 +184,15 @@ func main() {
 
 	println("Full scoring (EarlyExitDisabled):")
 	println("  Score: " + intToString(subtleFull.Total) + " | Rules: " + sliceToString(subtleFull.Triggered))
-	println("  Phase 2 detects spam vocabulary\n")
+	println("  Expensive rules detect spam vocabulary\n")
 
 	println("Early exit at ThresholdReject (" + intToString(antispam.ThresholdReject) + "):")
 	println("  Score: " + intToString(subtleEarly.Total) + " | Rules: " + sliceToString(subtleEarly.Triggered))
-	println("  Phase 1 score < " + intToString(antispam.ThresholdReject) + " -> Phase 2 RUNS (needed to catch subtle spam)\n")
+	println("  Cheap rules score < " + intToString(antispam.ThresholdReject) + " -> expensive rules RUN (needed to catch subtle spam)\n")
 
 	// ========================================
 	// SCENARIO C: Lightweight Mode (nil state)
-	// No Corpus/Fps/Bl/Dict -> Phase 2 skipped entirely
+	// No Corpus/Fps/Bl/Dict -> expensive rules skipped entirely
 	// ========================================
 
 	println("SCENARIO C: Lightweight Mode (nil state)")
@@ -203,7 +203,7 @@ func main() {
 		Content: spamMsg,
 		Rate:    burstRate,
 		Rep:     badRep,
-		// Corpus, Fps, Bl, Dict all nil -> Phase 2 impossible
+		// Corpus, Fps, Bl, Dict all nil -> expensive rules skipped
 	})
 
 	println("Message: \"" + spamMsg + "\"")
@@ -211,7 +211,7 @@ func main() {
 
 	println("Lightweight scoring (all state nil):")
 	println("  Score: " + intToString(lightResult.Total) + " | Rules: " + sliceToString(lightResult.Triggered))
-	println("  Only Phase 1 rules fire (content heuristics + rate + reputation)")
+	println("  Only cheap rules fire (rate + reputation + content heuristics)")
 	println("  No regex, no Bayes, no keywords, no fingerprints")
 	println("  Cheapest possible scoring mode\n")
 
@@ -224,11 +224,11 @@ func main() {
 
 	println("Mode                          Score  Rules Evaluated")
 	println("----                          -----  ---------------")
-	println("A. Full (EarlyExitDisabled)    " + intToString(fullResult.Total) + "  Phase 1 + Phase 2 (all rules)")
-	println("A. EarlyExit at Reject          " + intToString(earlyResult.Total) + "  Phase 1 only (Phase 2 skipped)")
-	println("B. Full (subtle spam)           " + intToString(subtleFull.Total) + "  Phase 1 + Phase 2 (needed)")
-	println("B. EarlyExit at Reject          " + intToString(subtleEarly.Total) + "  Phase 1 + Phase 2 (score < threshold)")
-	println("C. Lightweight (nil state)      " + intToString(lightResult.Total) + "  Phase 1 only (no state loaded)")
+	println("A. Full (EarlyExitDisabled)    " + intToString(fullResult.Total) + "  All rules evaluated")
+	println("A. EarlyExit at Reject          " + intToString(earlyResult.Total) + "  Cheap rules only (expensive skipped)")
+	println("B. Full (subtle spam)           " + intToString(subtleFull.Total) + "  All rules (expensive needed)")
+	println("B. EarlyExit at Reject          " + intToString(subtleEarly.Total) + "  All rules (score < threshold)")
+	println("C. Lightweight (nil state)      " + intToString(lightResult.Total) + "  Cheap rules only (no state loaded)")
 	println("")
 	println("EarlyExitAt saves gas on obvious spam without affecting detection of subtle spam.")
 	println("Lightweight mode (nil state) is the cheapest option for high-volume realms.")
@@ -239,22 +239,22 @@ func main() {
 // Output:
 // === EARLY EXIT GAS OPTIMIZATION ===
 //
-// SCENARIO A: Obvious Spammer (Phase 1 sufficient)
+// SCENARIO A: Obvious Spammer (cheap rules sufficient)
 // =================================================
 //
 // Message: "FREE MONEY BONUS PRIZE AIRDROP CLICK NOW!!!"
 // Author:  new account, no username, low balance, 1 ban, 25 posts/hour
 //
 // Full scoring (EarlyExitDisabled):
-//   Score: 18 | Rules: [ALL_CAPS RATE_BURST NO_USERNAME LOW_BALANCE BAD_REPUTATION BANNED_BEFORE BAYES_SPAM KEYWORD_SPAM]
-//   Phase 1 + Phase 2 both evaluated
+//   Score: 18 | Rules: [RATE_BURST NO_USERNAME LOW_BALANCE BAD_REPUTATION BANNED_BEFORE ALL_CAPS BAYES_SPAM KEYWORD_SPAM]
+//   All rules evaluated
 //
 // Early exit at ThresholdReject (8):
-//   Score: 12 | Rules: [ALL_CAPS RATE_BURST NO_USERNAME LOW_BALANCE BAD_REPUTATION BANNED_BEFORE]
-//   Phase 1 already >= 8 -> Phase 2 SKIPPED
+//   Score: 10 | Rules: [RATE_BURST NO_USERNAME LOW_BALANCE BAD_REPUTATION BANNED_BEFORE]
+//   Cheap rules already >= 8 -> expensive rules SKIPPED
 //   Outcome identical: REJECTED in both cases, but fewer rules evaluated
 //
-// SCENARIO B: Subtle Spam (Phase 2 needed)
+// SCENARIO B: Subtle Spam (expensive rules needed)
 // =========================================
 //
 // Message: "Hey check out this free airdrop bonus claim your prize now"
@@ -262,11 +262,11 @@ func main() {
 //
 // Full scoring (EarlyExitDisabled):
 //   Score: 6 | Rules: [BAYES_SPAM KEYWORD_SPAM]
-//   Phase 2 detects spam vocabulary
+//   Expensive rules detect spam vocabulary
 //
 // Early exit at ThresholdReject (8):
 //   Score: 6 | Rules: [BAYES_SPAM KEYWORD_SPAM]
-//   Phase 1 score < 8 -> Phase 2 RUNS (needed to catch subtle spam)
+//   Cheap rules score < 8 -> expensive rules RUN (needed to catch subtle spam)
 //
 // SCENARIO C: Lightweight Mode (nil state)
 // =========================================
@@ -275,8 +275,8 @@ func main() {
 // Author:  same obvious spammer as Scenario A
 //
 // Lightweight scoring (all state nil):
-//   Score: 12 | Rules: [ALL_CAPS RATE_BURST NO_USERNAME LOW_BALANCE BAD_REPUTATION BANNED_BEFORE]
-//   Only Phase 1 rules fire (content heuristics + rate + reputation)
+//   Score: 12 | Rules: [RATE_BURST NO_USERNAME LOW_BALANCE BAD_REPUTATION BANNED_BEFORE ALL_CAPS]
+//   Only cheap rules fire (rate + reputation + content heuristics)
 //   No regex, no Bayes, no keywords, no fingerprints
 //   Cheapest possible scoring mode
 //
@@ -285,11 +285,11 @@ func main() {
 //
 // Mode                          Score  Rules Evaluated
 // ----                          -----  ---------------
-// A. Full (EarlyExitDisabled)    18  Phase 1 + Phase 2 (all rules)
-// A. EarlyExit at Reject          12  Phase 1 only (Phase 2 skipped)
-// B. Full (subtle spam)           6  Phase 1 + Phase 2 (needed)
-// B. EarlyExit at Reject          6  Phase 1 + Phase 2 (score < threshold)
-// C. Lightweight (nil state)      12  Phase 1 only (no state loaded)
+// A. Full (EarlyExitDisabled)    18  All rules evaluated
+// A. EarlyExit at Reject          10  Cheap rules only (expensive skipped)
+// B. Full (subtle spam)           6  All rules (expensive needed)
+// B. EarlyExit at Reject          6  All rules (score < threshold)
+// C. Lightweight (nil state)      12  Cheap rules only (no state loaded)
 //
 // EarlyExitAt saves gas on obvious spam without affecting detection of subtle spam.
 // Lightweight mode (nil state) is the cheapest option for high-volume realms.

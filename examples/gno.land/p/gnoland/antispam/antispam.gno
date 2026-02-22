@@ -75,6 +75,7 @@ const (
 //	INVISIBLE_CHARS       2   Zero-width or directional override characters
 //	HOMOGLYPH_MIX        2   Mixed unicode scripts in single word (e.g. latin + cyrillic)
 //	BANNED_BEFORE       1-3   +1 per past ban, capped at 3
+//	REPEATED_CHARS        2   4+ consecutive identical characters
 //	EXCESSIVE_PUNCT       1   >20% punctuation characters
 //	NO_USERNAME           1   No registered username
 //	LOW_BALANCE           1   Balance < 1000 GNOT
@@ -94,6 +95,7 @@ const (
 	WeightNewAccount     = 2
 	WeightInvisibleChars = 2
 	WeightHomoglyphMix   = 2
+	WeightRepeatedChars  = 2
 	WeightExcessivePunct = 1
 	WeightNoUsername     = 1
 	WeightLowBalance     = 1
@@ -116,6 +118,7 @@ const (
 	RuleZalgoText      = "ZALGO_TEXT"
 	RuleInvisibleChars = "INVISIBLE_CHARS"
 	RuleHomoglyphMix   = "HOMOGLYPH_MIX"
+	RuleRepeatedChars  = "REPEATED_CHARS"
 	RuleExcessivePunct = "EXCESSIVE_PUNCT"
 	RuleNoUsername     = "NO_USERNAME"
 	RuleLowBalance     = "LOW_BALANCE"
@@ -162,17 +165,21 @@ type SpamScore struct {
 
 // Score evaluates content against all anti-spam rules.
 //
-// Rules are ordered in two phases for gas efficiency:
+// Rules are ordered by ascending cost with earlyExit checks between
+// each group, so expensive work is skipped as soon as possible:
 //
-//	Phase 1 (cheap): address blocklist, content heuristics, rate, reputation.
-//	  These are O(1) lookups and single-pass character scans.
+//  1. Address blocklist      O(1) AVL lookup   - immediate return
+//  2. Rate limiting          O(1) arithmetic
+//  3. Reputation             O(1) arithmetic
+//  4. Content heuristics     O(n) single-pass character scan
+//  5. Regex pattern matching O(n) compiled regex
+//  6. Tokenization + Bayes   O(n) + AVL traversals
+//  7. Keyword dictionary     AVL traversal (reuses tokens from 6)
+//  8. Fingerprint/MinHash    O(n) hashing
 //
-//	Phase 2 (expensive): regex patterns, tokenization, Bayes, keywords, fingerprints.
-//	  These involve regex matching, AVL traversals, and MinHash computation.
-//
-// When EarlyExitAt is set to a positive threshold, phase 2 is skipped
-// if the score from phase 1 already reaches it. When EarlyExitAt is
-// EarlyExitDisabled (0, the default), all rules are always evaluated.
+// When EarlyExitAt is set to a positive threshold, each earlyExit
+// check can short-circuit before reaching costlier rules.
+// Use EarlyExitDisabled (0, the default) to evaluate all rules.
 func Score(in ScoreInput) SpamScore {
 	// Truncate oversized input to cap gas cost.
 	if len(in.Content) > MaxInputLength {
@@ -208,16 +215,13 @@ func Score(in ScoreInput) SpamScore {
 		return in.EarlyExitAt > 0 && result.Total >= in.EarlyExitAt
 	}
 
-	// ---- Phase 1: cheap rules (O(1) lookups, linear scans)
+	// ---- O(1) rules: lookups and arithmetic
 
-	// Blocked address check (AVL lookup, no regex)
+	// Blocked address (AVL lookup, instant kill)
 	if in.Bl != nil && in.Bl.IsBlocked(in.Author) {
 		add(WeightBlockedAddress, RuleBlockedAddress)
 		return result
 	}
-
-	// Content heuristics + unicode abuse (single-pass character scan)
-	addHits(scoreContentAll(in.Content))
 
 	// Rate limiting (arithmetic comparison)
 	if s, r := ScoreRate(in.Rate); s > 0 {
@@ -231,9 +235,16 @@ func Score(in ScoreInput) SpamScore {
 		return result
 	}
 
-	// ---- Phase 2: expensive rules (regex, tokenization, AVL traversal, MinHash)
+	// ---- O(n) single-pass: content heuristics + unicode abuse
 
-	// Regex pattern matching (single combined regex scan)
+	addHits(scoreContentAll(in.Content))
+
+	if earlyExit() {
+		return result
+	}
+
+	// ---- O(n) regex: blocklist pattern matching
+
 	if in.Bl != nil && in.Bl.MatchesPattern(in.Content) {
 		add(WeightBlockedPattern, RuleBlockedPattern)
 	}
@@ -241,6 +252,8 @@ func Score(in ScoreInput) SpamScore {
 	if earlyExit() {
 		return result
 	}
+
+	// ---- O(n) tokenization + AVL: Bayes and keyword rules
 
 	// Tokenize only when needed by Bayes or keyword rules.
 	var tokens []string
@@ -266,7 +279,8 @@ func Score(in ScoreInput) SpamScore {
 		return result
 	}
 
-	// Fingerprint near-duplicate detection (MinHash computation)
+	// ---- O(n) hashing: fingerprint near-duplicate detection
+
 	if s, r := ScoreFingerprint(in.Content, in.Fps); s > 0 {
 		add(s, r)
 	}

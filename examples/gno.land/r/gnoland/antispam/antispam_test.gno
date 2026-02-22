@@ -40,6 +40,7 @@ func resetState(t *testing.T) {
 		`(?i)(token|coin)\s+(just\s+)?(launched|deployed|listed).{0,20}(buy|invest|hurry|limited|moon)`,
 		`(?i)(official|admin|team)\s+(announcement|message|notice).{0,30}(send|transfer|click|verify)`,
 		`(?i)sugar\s+(daddy|mommy|mama|baby).{0,40}(pay|send|money|gift|dm|message)`,
+		`(?i)[\w.+-]+@(gmail|yahoo|hotmail|outlook|proton|aol)\.(com|fr|net|org)`,
 	} {
 		bl.AddPattern(p)
 	}
@@ -199,6 +200,8 @@ func TestDefaultPatternsLoaded(t *testing.T) {
 		{"success: fake token launch", "New token just launched on DEX buy now before moon", 5},
 		{"success: impersonation scam", "Official admin announcement please verify your account by clicking here", 5},
 		{"success: sugar scam", "Sugar daddy looking for baby to pay and send money weekly just dm me", 5},
+		{"success: contact redirect gmail", "Send payment proof to winner2024@gmail.com to claim your prize", 5},
+		{"success: contact redirect yahoo", "Contact us at support@yahoo.com for urgent account verification", 5},
 	}
 
 	for _, tt := range tests {
@@ -324,10 +327,17 @@ func TestScoreCleanContent(t *testing.T) {
 		HasUsername:    true,
 		BanCount:       0,
 	}
+	rate := engine.RateState{PostCount: 3, WindowSeconds: 3600}
 
-	result := Score(address("g1legit"), "I think we should consider adjusting the staking rewards.", engine.RateState{PostCount: 3, WindowSeconds: 3600}, rep, nil, nil, nil, nil, engine.EarlyExitDisabled)
+	result := Score(address("g1legit"), "I think we should consider adjusting the staking rewards.", rate, rep, nil, nil, nil, nil, engine.EarlyExitDisabled)
 	if result.Total != 0 {
 		t.Errorf("expected score 0 for clean content, got %d (triggered: %v)", result.Total, result.Triggered)
+	}
+
+	// Mentioning email providers in discussion should not trigger CONTACT_REDIRECT.
+	result2 := Score(address("g1legit"), "You can reach the team via their official email or check the website for contact info.", rate, rep, nil, nil, nil, nil, engine.EarlyExitDisabled)
+	if result2.Total != 0 {
+		t.Errorf("expected score 0 for email discussion, got %d (triggered: %v)", result2.Total, result2.Triggered)
 	}
 }
 
