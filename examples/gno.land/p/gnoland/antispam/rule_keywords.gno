@@ -7,13 +7,20 @@ import (
 )
 
 const (
-	// keywordMinMatches is the minimum number of distinct keyword hits
-	// needed to trigger the rule. Prevents single-word false positives.
+	// keywordMinMatches is the base minimum number of distinct keyword hits
+	// needed to trigger the rule. The effective minimum scales with content
+	// length: minMatches = keywordMinMatches + uniqueTokens/keywordScaleDivisor.
 	keywordMinMatches = 2
 
 	// keywordSumThreshold is the minimum combined weight of matched keywords
 	// needed to trigger the rule. Higher-weight words reach it faster.
 	keywordSumThreshold = 4
+
+	// keywordScaleDivisor controls how minMatches scales with content length.
+	// For every N unique tokens, one additional keyword match is required.
+	// This prevents false positives on long content where a few crypto-related
+	// words (airdrop, claim, mint) appear naturally in legitimate articles.
+	keywordScaleDivisor = 50
 
 	// keywordMaxSize caps the number of keywords in the dictionary.
 	// Existing keywords still get their weights updated; only new
@@ -188,6 +195,11 @@ func ScoreKeywords(content string, dict *KeywordDict) (int, string) {
 // For each token, checks both the original and leet-normalized variant.
 // Uses getWeightDirect since tokens from Tokenize() are already lowercase.
 // Exits early once both co-occurrence thresholds are met.
+//
+// The minimum match count scales with content length: longer content needs
+// more keyword hits to trigger. This prevents false positives on legitimate
+// articles that naturally contain a few domain-specific words (e.g. "airdrop"
+// and "claim" in a crypto governance post).
 func scoreKeywordsTokens(tokens []string, dict *KeywordDict) (int, string) {
 	if dict == nil || dict.Size() == 0 {
 		return 0, ""
@@ -195,6 +207,8 @@ func scoreKeywordsTokens(tokens []string, dict *KeywordDict) (int, string) {
 	if len(tokens) == 0 {
 		return 0, ""
 	}
+
+	minMatches := keywordMinMatches + len(tokens)/keywordScaleDivisor
 
 	weightSum := 0
 	matches := 0
@@ -211,7 +225,7 @@ func scoreKeywordsTokens(tokens []string, dict *KeywordDict) (int, string) {
 		if ok {
 			weightSum += w
 			matches++
-			if matches >= keywordMinMatches && weightSum >= keywordSumThreshold {
+			if matches >= minMatches && weightSum >= keywordSumThreshold {
 				return WeightKeyword, RuleKeywordSpam
 			}
 		}

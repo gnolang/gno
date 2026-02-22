@@ -78,7 +78,7 @@ result := antispam.Score(antispam.ScoreInput{
 | **Bayesian filter** | Trained on spam/ham examples. Needs 3+ spam-heavy words to trigger. Shares tokens with keyword rule |
 | **Duplicate detection** | MinHash fingerprints catch copy-paste spam waves across realms |
 | **Blocklists** | Regex patterns for scam formats ("send X tokens", "free airdrop", email addresses). Address blocklist for known spammers |
-| **Keyword detection** | Co-occurrence model: multiple spam keywords together trigger, single words don't. Includes leet-speak normalization |
+| **Keyword detection** | Co-occurrence model: multiple spam keywords together trigger, single words don't. Minimum match count scales with content length to prevent false positives on long articles. Includes leet-speak normalization |
 
 ## Scoring Rules
 
@@ -92,7 +92,7 @@ Scores accumulate across all triggered rules. **Thresholds: Hide >= 5, Reject >=
 | RATE_BURST | 4 | >10 submissions/hour (half weight at 10-20) |
 | BAYES_SPAM | 3 | Bayesian classifier flags spam-heavy tokens |
 | BAD_REPUTATION | 3 | Flag ratio >30% or flags with no accepted content |
-| KEYWORD_SPAM | 3 | >=2 spam keywords with combined weight >=4 |
+| KEYWORD_SPAM | 3 | >=2 spam keywords with combined weight >=4 (min matches scales with content length) |
 | SHORT_WITH_LINK | 3 | Body <=30 chars with a URL |
 | ZALGO_TEXT | 3 | Excessive combining diacritical marks |
 | ALL_CAPS | 2 | >50% uppercase (min 10 letters) |
