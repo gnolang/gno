@@ -8,6 +8,7 @@ import (
 	gofmt "go/format"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -640,12 +641,17 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 	}
 }
 
-// ReadMemPackage initializes a new MemPackage by reading the OS directory at
+// ReadMemPackage is a wrapper around ReadFSMemPackage that uses the OS filesystem
+func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
+	return ReadFSMemPackage(os.DirFS("."), dir, pkgPath, mptype)
+}
+
+// ReadFSMemPackage initializes a new MemPackage by reading the FS directory at
 // dir, and saving it with the given pkgPath (import path).  The resulting
 // MemPackage will contain the names and content of all *.gno files, and
 // additionally LICENSE, *.md and *.toml .
 //
-// ReadMemPackage only reads good file extensions or whitelisted good files,
+// ReadFSMemPackage only reads good file extensions or whitelisted good files,
 // and ignores bad file extensions. Validation will fail if any bad extensions
 // are found, but otherwise new files may be added by various logic. It also
 // ignores and does not include files that wouldn't pass validation before any
@@ -653,9 +659,9 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // file must be consistent with others, or nil and an error is returned.
 //
 // Filtering, parsing, and validation is performed separately.
-func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
+func ReadFSMemPackage(fsys fs.FS, dir string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
 	mptype = mptype.Decide(pkgPath)
-	files, err := os.ReadDir(dir)
+	files, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		return nil, err
 	}
@@ -690,7 +696,7 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
-	return ReadMemPackageFromList(list, pkgPath, mptype)
+	return ReadMemPackageFromFSList(fsys, list, pkgPath, mptype)
 }
 
 func endsWithAny(str string, suffixes []string) bool {
@@ -708,6 +714,11 @@ func MustReadMemPackage(dir string, pkgPath string, mptype MemPackageType) *std.
 	return pkg
 }
 
+// ReadMemPackageFromList is a wrapper around ReadMemPackageFromFSList using the OS fs
+func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
+	return ReadMemPackageFromFSList(os.DirFS("."), list, pkgPath, mptype)
+}
+
 // ReadMemPackageFromList creates a new [std.MemPackage] with the specified
 // pkgPath, containing the contents of all the files provided in the list
 // slice.
@@ -723,7 +734,7 @@ func MustReadMemPackage(dir string, pkgPath string, mptype MemPackageType) *std.
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or
 // _, lowercase, and must start with a letter).
-func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
+func ReadMemPackageFromFSList(fsys fs.FS, list []string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
 	mptype.Validate(pkgPath)
 	mptype = mptype.Decide(pkgPath)
 	mpkg := &std.MemPackage{
@@ -737,7 +748,7 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 	var errs error            // all errors minus filetest pkg name errors.
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
-		bz, err := os.ReadFile(fpath)
+		bz, err := fs.ReadFile(fsys, fpath)
 		if err != nil {
 			return nil, err
 		}

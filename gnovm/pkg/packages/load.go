@@ -26,6 +26,7 @@ type LoadConfig struct {
 	Test                bool                       // load test dependencies
 	GnoRoot             string                     // used to override GNOROOT
 	ExtraWorkspaceRoots []string                   // extra workspaces root used to find dependencies
+	Overlay             map[string][]byte          // overlay files, used by LSPs for example
 }
 
 func (conf *LoadConfig) applyDefaults() error {
@@ -49,9 +50,15 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		return nil, err
 	}
 
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	ofs := newOverlayFS(conf.Overlay, wd)
+
 	// XXX: allow loading only stdlibs without a workspace (like go allow loading stdlibs without a go.mod)
 
-	loaderCtx, err := findLoaderContext()
+	loaderCtx, err := findLoaderContext(ofs, wd)
 	if err != nil {
 		return nil, err
 	}
@@ -61,12 +68,12 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		panic(fmt.Errorf("context root should be absolute at this point, got %q", loaderCtx.Root))
 	}
 
-	expanded, err := expandPatterns(conf.GnoRoot, loaderCtx, conf.Out, patterns...)
+	expanded, err := expandPatterns(conf.GnoRoot, loaderCtx, conf.Out, ofs, patterns...)
 	if err != nil {
 		return nil, err
 	}
 
-	pkgs, err := loadMatches(conf.Out, conf.Fetcher, expanded, conf.Fset)
+	pkgs, err := loadMatches(conf.Out, conf.Fetcher, expanded, ofs, conf.Fset)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +88,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 
 	// load deps
 
-	localDeps := discoverPkgsForLocalDeps(conf, loaderCtx)
+	localDeps := discoverPkgsForLocalDeps(conf, ofs, loaderCtx)
 
 	// mark all pattern packages for visit
 	toVisit := []*Package(pkgs)
@@ -126,7 +133,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 			// XXX: use a fetcher middleware?
 			if gnolang.IsStdlib(imp.PkgPath) {
 				dir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs", filepath.FromSlash(imp.PkgPath))
-				dirInfo, err := os.Stat(dir)
+				dirInfo, err := ofs.Stat(dir)
 				if err != nil || !dirInfo.IsDir() {
 					err := &Error{
 						Pos: filepath.Join(filepath.FromSlash(pkg.Dir), conf.Fset.Position(imp.Spec.Pos()).String()),
@@ -134,19 +141,19 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 					}
 					pkg.Errors = append(pkg.Errors, err)
 				}
-				markDepForVisit(loadSinglePkg(conf.Out, conf.Fetcher, dir, conf.Fset))
+				markDepForVisit(loadSinglePkg(conf.Out, conf.Fetcher, dir, ofs, conf.Fset))
 				continue
 			}
 
 			// check if this package is present in current workspace or extra workspace roots
 			if dir, ok := localDeps[imp.PkgPath]; ok {
-				markDepForVisit(loadSinglePkg(conf.Out, nil, dir, conf.Fset))
+				markDepForVisit(loadSinglePkg(conf.Out, nil, dir, ofs, conf.Fset))
 				continue
 			}
 
 			// attempt to download package
 			dir := PackageDir(imp.PkgPath)
-			markDepForVisit(loadSinglePkg(conf.Out, conf.Fetcher, dir, conf.Fset))
+			markDepForVisit(loadSinglePkg(conf.Out, conf.Fetcher, dir, ofs, conf.Fset))
 		}
 
 		loaded = append(loaded, pkg)
@@ -160,26 +167,19 @@ type loaderContext struct {
 	IsWorkspace bool
 }
 
-func findLoaderContext() (*loaderContext, error) {
-	wd, err := os.Getwd()
-	if err != nil {
+func findLoaderContext(ofs *overlayFS, wd string) (*loaderContext, error) {
+	dir, err := findWorkspaceRootDir(ofs, wd)
+	switch {
+	case err == nil:
+		return &loaderContext{Root: dir, IsWorkspace: true}, nil
+	case errors.Is(err, ErrGnoworkNotFound):
+		// continue
+	default:
 		return nil, err
 	}
 
-	{
-		dir, err := findWorkspaceRootDir(wd)
-		switch {
-		case err == nil:
-			return &loaderContext{Root: dir, IsWorkspace: true}, nil
-		case errors.Is(err, ErrGnoworkNotFound):
-			// continue
-		default:
-			return nil, err
-		}
-	}
-
 	gnomodPath := filepath.Join(wd, "gnomod.toml")
-	_, err = os.Stat(gnomodPath)
+	_, err = ofs.Stat(gnomodPath)
 	switch {
 	case err == nil:
 		return &loaderContext{Root: wd}, nil
@@ -198,7 +198,7 @@ var ErrGnoContextNotFound = errors.New("gnowork.toml file not found in current o
 
 // findWorkspaceRootDir determines the root directory of the project.
 // The given path must be absolute.
-func findWorkspaceRootDir(absPath string) (string, error) {
+func findWorkspaceRootDir(ofs *overlayFS, absPath string) (string, error) {
 	if !filepath.IsAbs(absPath) {
 		return "", errors.New("requires absolute path")
 	}
@@ -207,7 +207,7 @@ func findWorkspaceRootDir(absPath string) (string, error) {
 
 	for absPath != root {
 		modPath := filepath.Join(absPath, "gnowork.toml")
-		_, err := os.Stat(modPath)
+		_, err := ofs.Stat(modPath)
 		if errors.Is(err, os.ErrNotExist) {
 			absPath = filepath.Dir(absPath)
 			continue
@@ -240,7 +240,7 @@ func setAdd[T comparable](set map[T]struct{}, val T) bool {
 	return true
 }
 
-func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext) map[string]string {
+func discoverPkgsForLocalDeps(conf LoadConfig, ofs *overlayFS, loaderCtx *loaderContext) map[string]string {
 	// we swallow errors in this routine as we want the most packages we can get
 
 	roots := []string{}
@@ -255,7 +255,17 @@ func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext) map[str
 	for _, root := range roots {
 		root = filepath.Clean(root)
 
-		_ = fs.WalkDir(os.DirFS(root), ".", func(path string, d fs.DirEntry, err error) error {
+		rel, err := filepath.Rel(ofs.root, root)
+		if err != nil {
+			continue
+		}
+
+		walkFS, err := fs.Sub(ofs, rel)
+		if err != nil {
+			continue
+		}
+
+		_ = fs.WalkDir(walkFS, ".", func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return nil
 			}
@@ -265,7 +275,7 @@ func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext) map[str
 					return nil
 				}
 				subwork := filepath.Join(dir, "gnowork.toml")
-				_, err := os.Stat(subwork)
+				_, err := ofs.Stat(subwork)
 				switch {
 				case os.IsNotExist(err):
 					// not a sub-workspace, continue walking
@@ -290,7 +300,11 @@ func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext) map[str
 				}
 
 				// find pkg path
-				gm, err := gnomod.ParseDir(dir)
+				bz, err := fs.ReadFile(walkFS, path)
+				if err != nil {
+					return nil
+				}
+				gm, err := gnomod.ParseBytes(path, bz)
 				if err != nil {
 					// XXX: maybe store errors by dir to not silently ignore packages with invalid gnomod
 					return nil
