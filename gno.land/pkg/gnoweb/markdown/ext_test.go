@@ -37,9 +37,21 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 		GnoURL: gnourl,
 	}))
 
-	ext := NewGnoExtension(WithImageValidator(func(uri string) bool {
+	// Load content filter only for contentfilter tests
+	var opts []Option
+	opts = append(opts, WithImageValidator(func(uri string) bool {
 		return !strings.HasPrefix(uri, "https://") // disallow https
 	}))
+
+	if strings.Contains(t.Name(), "ext_contentfilter") {
+		// Load test patterns (stable, minimal set for validating filter mechanism)
+		filter, err := NewFilter("testdata/filter-patterns.txt")
+		if err == nil {
+			opts = append(opts, WithContentFilter(filter))
+		}
+	}
+
+	ext := NewGnoExtension(opts...)
 
 	// Create markdown processor with extensions and renderer options
 	m := goldmark.New()

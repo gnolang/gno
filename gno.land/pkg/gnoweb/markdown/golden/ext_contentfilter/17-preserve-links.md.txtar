@@ -1,0 +1,5 @@
+-- input.md --
+[Link text](https://good-site.com) and evil-site.com
+
+-- output.html --
+<p><a href="https://good-site.com" rel="noopener nofollow ugc">Link text<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a> and [blocked URL]</p>

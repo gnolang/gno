@@ -1,0 +1,11 @@
+-- input.md --
+```
+Code with evil-site.com should not be filtered
+```
+
+Text with evil-site.com should be filtered.
+
+-- output.html --
+<pre><code>Code with evil-site.com should not be filtered
+</code></pre>
+<p>Text with [blocked URL] should be filtered.</p>

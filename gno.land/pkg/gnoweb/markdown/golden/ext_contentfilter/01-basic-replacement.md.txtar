@@ -1,0 +1,5 @@
+-- input.md --
+This is a test with evil-site.com in it.
+
+-- output.html --
+<p>This is a test with [blocked URL] in it.</p>

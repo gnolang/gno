@@ -1,0 +1,5 @@
+-- input.md --
+Has evil-site.com which should be filtered despite bad lines.
+
+-- output.html --
+<p>Has [blocked URL] which should be filtered despite bad lines.</p>

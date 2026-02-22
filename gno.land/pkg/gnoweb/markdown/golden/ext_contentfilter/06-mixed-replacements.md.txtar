@@ -1,0 +1,5 @@
+-- input.md --
+Visit evil-site.com or send to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 now!
+
+-- output.html --
+<p>Visit [blocked URL] or send to <a href="/u/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5">[blocked address]<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a> now!</p>

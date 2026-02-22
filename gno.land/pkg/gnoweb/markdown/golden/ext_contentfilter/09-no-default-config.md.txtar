@@ -1,0 +1,5 @@
+-- input.md --
+Pattern evil-site.com should use default [filtered].
+
+-- output.html --
+<p>Pattern [blocked URL] should use default [filtered].</p>

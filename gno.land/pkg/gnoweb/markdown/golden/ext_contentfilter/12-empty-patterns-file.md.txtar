@@ -1,0 +1,5 @@
+-- input.md --
+No filtering should happen here.
+
+-- output.html --
+<p>No filtering should happen here.</p>

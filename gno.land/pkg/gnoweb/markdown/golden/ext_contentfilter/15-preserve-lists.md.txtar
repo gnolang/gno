@@ -1,0 +1,11 @@
+-- input.md --
+- Item one
+- Item with evil-site.com
+- Item three
+
+-- output.html --
+<ul>
+<li>Item one</li>
+<li>Item with [blocked URL]</li>
+<li>Item three</li>
+</ul>

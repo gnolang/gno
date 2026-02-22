@@ -1,0 +1,5 @@
+-- input.md --
+Content with evil-site.com matches.
+
+-- output.html --
+<p>Content with [blocked URL] matches.</p>

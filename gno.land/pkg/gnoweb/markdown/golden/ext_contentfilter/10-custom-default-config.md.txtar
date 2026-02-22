@@ -1,0 +1,5 @@
+-- input.md --
+Pattern evil-site.com uses custom default.
+
+-- output.html --
+<p>Pattern [blocked URL] uses custom default.</p>

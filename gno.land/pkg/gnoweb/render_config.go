@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"log"
 	"strings"
 
 	"github.com/alecthomas/chroma/v2"
@@ -37,6 +38,17 @@ func NewDefaultGoldmarkOptions() []goldmark.Option {
 		return !strings.HasPrefix(uri, "data:") || strings.HasPrefix(uri, "data:"+svgdata)
 	}
 
+	var opts []md.Option
+	opts = append(opts, md.WithImageValidator(allowSvgDataImage))
+
+	// Load content filter from default location
+	filter, err := md.NewFilter("misc/gnoweb/contentfilter-patterns.txt")
+	if err != nil {
+		log.Printf("warning: content filter file not loaded: %v", err)
+	} else {
+		opts = append(opts, md.WithContentFilter(filter))
+	}
+
 	return []goldmark.Option{
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithExtensions(
@@ -44,9 +56,7 @@ func NewDefaultGoldmarkOptions() []goldmark.Option {
 			extension.Table,
 			extension.Footnote,
 			extension.TaskList,
-			md.NewGnoExtension(
-				md.WithImageValidator(allowSvgDataImage),
-			),
+			md.NewGnoExtension(opts...),
 		),
 	}
 }

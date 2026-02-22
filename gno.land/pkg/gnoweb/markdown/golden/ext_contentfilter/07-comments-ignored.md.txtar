@@ -1,0 +1,5 @@
+-- input.md --
+Text with evil-site.com but not with commented-pattern.
+
+-- output.html --
+<p>Text with [blocked URL] but not with commented-pattern.</p>
