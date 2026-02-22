@@ -134,7 +134,7 @@ func TestScoreKeywords(t *testing.T) {
 			t.Parallel()
 
 			var d *KeywordDict
-			if tt.name != "edge: nil dict handled in caller" {
+			if tt.name != "nil dict handled in caller" {
 				d = dict
 			}
 			score, rule := ScoreKeywords(tt.content, d)
