@@ -14,6 +14,11 @@ const (
 	// keywordSumThreshold is the minimum combined weight of matched keywords
 	// needed to trigger the rule. Higher-weight words reach it faster.
 	keywordSumThreshold = 4
+
+	// keywordMaxSize caps the number of keywords in the dictionary.
+	// Existing keywords still get their weights updated; only new
+	// keywords are rejected when the cap is reached.
+	keywordMaxSize = 10000
 )
 
 // ---- KeywordDict
@@ -30,6 +35,8 @@ func NewKeywordDict() *KeywordDict {
 
 // Add inserts a keyword with a weight. The word is lowercased.
 // Weights are clamped to [1, 3]; values <=0 are ignored, values >3 become 3.
+// When the dictionary reaches keywordMaxSize, new keywords are ignored
+// but existing keywords still get their weights updated.
 func (kd *KeywordDict) Add(word string, weight int) {
 	w := strings.ToLower(strings.TrimSpace(word))
 	if w == "" || weight <= 0 {
@@ -37,6 +44,9 @@ func (kd *KeywordDict) Add(word string, weight int) {
 	}
 	if weight > 3 {
 		weight = 3
+	}
+	if kd.tree.Size() >= keywordMaxSize && !kd.tree.Has(w) {
+		return
 	}
 	kd.tree.Set(w, weight)
 }

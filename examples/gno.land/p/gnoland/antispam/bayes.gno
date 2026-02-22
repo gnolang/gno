@@ -34,6 +34,13 @@ const (
 	// Existing tokens still get their counts updated; only new tokens
 	// are rejected when the cap is reached. Prevents unbounded storage growth.
 	corpusMaxSize = 10000
+
+	// tokenMaxTotal caps the total (spam + ham) count per token.
+	// When reached, both counts are halved before the new observation
+	// is added. This gives recent observations more weight and makes
+	// corpus poisoning attacks temporary rather than permanent -
+	// critical when auto-training from moderation actions.
+	tokenMaxTotal = 100
 )
 
 // ---- Tokenizer
@@ -104,6 +111,12 @@ func NewCorpus() *Corpus {
 // If isSpam is true, tokens are counted as spam indicators; otherwise as ham.
 // When the corpus reaches corpusMaxSize, existing tokens still get updated
 // but new tokens are ignored to prevent unbounded storage growth.
+//
+// Per-token counts are capped at tokenMaxTotal. When the total (spam + ham)
+// for a token reaches the cap, both counts are halved before adding the
+// new observation. This decay gives recent observations more weight and
+// prevents corpus poisoning from being permanent - essential for
+// auto-training scenarios where moderation actions feed the corpus.
 func (c *Corpus) Train(content string, isSpam bool) {
 	tokens := dedup(Tokenize(content))
 	for _, tok := range tokens {
@@ -117,6 +130,13 @@ func (c *Corpus) Train(content string, isSpam bool) {
 			}
 			stats = &tokenStats{}
 			c.tree.Set(tok, stats)
+		}
+		// Decay: halve both counts when total reaches cap.
+		// Preserves the ratio while bounding growth and giving
+		// recent observations more influence.
+		if stats.spam+stats.ham >= tokenMaxTotal {
+			stats.spam /= 2
+			stats.ham /= 2
 		}
 		if isSpam {
 			stats.spam++
