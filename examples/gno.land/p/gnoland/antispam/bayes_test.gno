@@ -392,3 +392,65 @@ func TestCorpusMaxSize(t *testing.T) {
 		}
 	})
 }
+
+// ---- Token decay tests ----
+
+func TestCorpusTokenDecay(t *testing.T) {
+	t.Run("decay: counts stay bounded under heavy training", func(t *testing.T) {
+		c := NewCorpus()
+		n := 200
+		// Train a token as spam 200 times.
+		// Without decay, spam count would be 200.
+		for i := 0; i < n; i++ {
+			c.Train("target word here", true)
+		}
+		spam, _ := c.GetTokenStats("target")
+		// Decay halves counts at tokenMaxTotal, so spam stays
+		// at most tokenMaxTotal (can reach it, never exceeds).
+		if spam > tokenMaxTotal {
+			t.Errorf("expected spam <= %d (bounded by decay), got %d", tokenMaxTotal, spam)
+		}
+		// Verify decay actually happened: 200 trainings should NOT
+		// produce spam=200.
+		if spam >= n {
+			t.Errorf("expected spam < %d (decay should reduce), got %d", n, spam)
+		}
+	})
+
+	t.Run("decay: counter-training recovers from poisoning", func(t *testing.T) {
+		c := NewCorpus()
+		// Simulate poisoning attack: train "governance" as spam 100 times.
+		for i := 0; i < 100; i++ {
+			c.Train("governance target poison", true)
+		}
+		// Legitimate counter-training: 40 ham observations.
+		// Without decay: spam=100, ham=40 -> ratio=71.4% (above 70%, still poisoned).
+		// With decay: halving at total=100 reduces spam to 50, then ham=40
+		//   -> ratio=50/90=55.5% (below 70%, recovered).
+		for i := 0; i < 40; i++ {
+			c.Train("governance target poison", false)
+		}
+		spam, ham := c.GetTokenStats("governance")
+		total := spam + ham
+		if total == 0 {
+			t.Fatal("expected non-zero total for governance token")
+		}
+		ratio := spam * 100 / total
+		if ratio > bayesSpamThresholdPct {
+			t.Errorf("expected counter-training to reduce ratio below %d%%, got %d%% (spam=%d, ham=%d)",
+				bayesSpamThresholdPct, ratio, spam, ham)
+		}
+	})
+
+	t.Run("decay: small counts unaffected", func(t *testing.T) {
+		c := NewCorpus()
+		// Normal usage: a few trainings. Decay should not trigger.
+		c.Train("hello world test", true)
+		c.Train("hello world test", true)
+		c.Train("hello world test", false)
+		spam, ham := c.GetTokenStats("hello")
+		if spam != 2 || ham != 1 {
+			t.Errorf("expected (spam=2, ham=1) for small counts, got (%d, %d)", spam, ham)
+		}
+	})
+}

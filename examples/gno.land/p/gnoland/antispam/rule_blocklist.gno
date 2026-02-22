@@ -146,6 +146,12 @@ func (bl *Blocklist) rebuildCombined() {
 		return false
 	})
 	b.WriteByte(')')
-	// Patterns were already validated in AddPattern, so this should not fail.
-	bl.combined, _ = regexp.Compile(b.String())
+	// Patterns were individually validated in AddPattern. Compilation of
+	// (?:p1|p2|...) should always succeed. Panic on failure to surface
+	// bugs immediately rather than silently disabling pattern matching.
+	var err error
+	bl.combined, err = regexp.Compile(b.String())
+	if err != nil {
+		panic("antispam: combined pattern compile failed: " + err.Error())
+	}
 }

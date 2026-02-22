@@ -273,6 +273,49 @@ func TestKeywordWeightClamping(t *testing.T) {
 	})
 }
 
+// ---- KeywordDict cap tests ----
+
+func TestKeywordDictMaxSize(t *testing.T) {
+	t.Run("cap: new keywords rejected at capacity", func(t *testing.T) {
+		dict := NewKeywordDict()
+		for i := 0; i < keywordMaxSize; i++ {
+			dict.Add("word"+intToKey(i), 1)
+		}
+		if dict.Size() != keywordMaxSize {
+			t.Fatalf("expected size %d, got %d", keywordMaxSize, dict.Size())
+		}
+		// New keyword should be ignored at capacity.
+		dict.Add("newword", 2)
+		if dict.Size() != keywordMaxSize {
+			t.Errorf("expected size to stay at %d, got %d", keywordMaxSize, dict.Size())
+		}
+		_, ok := dict.GetWeight("newword")
+		if ok {
+			t.Error("expected new keyword to be rejected at capacity")
+		}
+	})
+
+	t.Run("cap: existing keywords update at capacity", func(t *testing.T) {
+		dict := NewKeywordDict()
+		dict.Add("existing", 1)
+		for i := 0; i < keywordMaxSize-1; i++ {
+			dict.Add("word"+intToKey(i), 1)
+		}
+		if dict.Size() != keywordMaxSize {
+			t.Fatalf("expected size %d, got %d", keywordMaxSize, dict.Size())
+		}
+		// Updating existing keyword weight should still work.
+		dict.Add("existing", 3)
+		w, ok := dict.GetWeight("existing")
+		if !ok || w != 3 {
+			t.Errorf("expected weight update to 3, got (%d, %t)", w, ok)
+		}
+		if dict.Size() != keywordMaxSize {
+			t.Errorf("expected size unchanged at %d, got %d", keywordMaxSize, dict.Size())
+		}
+	})
+}
+
 func TestScoreKeywordsLeetSpeak(t *testing.T) {
 	t.Parallel()
 
