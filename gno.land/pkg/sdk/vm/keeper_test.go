@@ -283,6 +283,20 @@ private = true`,
 		{
 			Name: "test.gno",
 			Body: `package test
+var root any
+var root2 any
+var root3 any
+
+type MyStruct struct {
+    Field1 string
+	Field2 int
+}
+
+func init() {
+	root = 1 // update does not count object count.
+	root2 = 2 
+	root3 = 3 
+}
 
 func Echo(cur realm) string {
 	return "hello world"
@@ -295,8 +309,89 @@ func Echo(cur realm) string {
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
+	pkgID := gnolang.PkgIDFromPkgPath(pkgPath)
+
+	store := env.vmk.getGnoTransactionStore(ctx)
+
+	backendObjectIndexKey := func(pid gnolang.PkgID, index int64) string {
+		return fmt.Sprintf("%s:%020d", pid, index)
+	}
+
+	pkgidx := store.GetPackageRevision(pkgID)
+	// Get count of object of the old package.
+	objctr := store.GetObjectCount(backendObjectIndexKey(pkgID, pkgidx))
+
+	// 8 is hardcode count of objects of the package.
+	var objCount uint64 = 8
+	assert.Equal(t, objCount, objctr, "num of object does not match")
+
 	// Re-upload the same private package with updated content.
 	files2 := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+var root any
+
+type MyStruct struct { // change struct.
+    Field1 bool
+	Field2 string
+}
+
+type MyStruct2 struct {
+    Field1 string
+	Field2 int
+}
+
+func Echo(cur realm) string {
+	return "hello updated world"
+}`,
+		},
+	}
+
+	msg2 := NewMsgAddPackage(addr, pkgPath, files2)
+	err = env.vmk.AddPackage(ctx, msg2)
+	assert.NoError(t, err)
+
+	// Verify the package was updated with the new content.
+
+	memFile := store.GetMemFile(pkgPath, "test.gno")
+	assert.NotNil(t, memFile)
+	expected := `package test
+var root any
+
+type MyStruct struct { // change struct.
+    Field1 bool
+	Field2 string
+}
+
+type MyStruct2 struct {
+    Field1 string
+	Field2 int
+}
+
+func Echo(cur realm) string {
+	return "hello updated world"
+}`
+	assert.Equal(t, expected, memFile.Body)
+
+	objctr = store.GetObjectCount(backendObjectIndexKey(pkgID, pkgidx))
+	objCount -= 3 // root2, root3 and init func GC'd.
+	assert.Equal(t, objCount, objctr, "num of object does not match")
+	ms := gnolang.TypeID("gno.land/r/test.MyStruct")
+	ms2 := gnolang.TypeID("gno.land/r/test.MyStruct2")
+	dts := store.GetTypeSafe(ms)
+	assert.NotNil(t, dts)
+	dts = store.GetTypeSafe(ms2)
+	assert.NotNil(t, dts)
+
+	// Re-upload the same private package with updated content.
+	files3 := []*std.MemFile{
 		{
 			Name: "gnomod.toml",
 			Body: `module = "gno.land/r/test"
@@ -313,20 +408,31 @@ func Echo(cur realm) string {
 		},
 	}
 
-	msg2 := NewMsgAddPackage(addr, pkgPath, files2)
-	err = env.vmk.AddPackage(ctx, msg2)
+	msg3 := NewMsgAddPackage(addr, pkgPath, files3)
+	err = env.vmk.AddPackage(ctx, msg3)
 	assert.NoError(t, err)
 
 	// Verify the package was updated with the new content.
-	store := env.vmk.getGnoTransactionStore(ctx)
-	memFile := store.GetMemFile(pkgPath, "test.gno")
+
+	memFile = store.GetMemFile(pkgPath, "test.gno")
 	assert.NotNil(t, memFile)
-	expected := `package test
+	expected = `package test
 
 func Echo(cur realm) string {
 	return "hello updated world"
 }`
 	assert.Equal(t, expected, memFile.Body)
+	objctr = store.GetObjectCount(backendObjectIndexKey(pkgID, pkgidx))
+	objCount -= 1 // root GC'd.
+	assert.Equal(t, objCount, objctr, "num of object does not match")
+
+	// Check declared types are cleared.
+	ms = gnolang.TypeID("gno.land/r/test.MyStruct")
+	ms2 = gnolang.TypeID("gno.land/r/test.MyStruct2")
+	dts = store.GetTypeSafe(ms)
+	assert.Nil(t, dts)
+	dts = store.GetTypeSafe(ms2)
+	assert.Nil(t, dts)
 }
 
 func TestVMKeeperAddPackage_ImportPrivate(t *testing.T) {
