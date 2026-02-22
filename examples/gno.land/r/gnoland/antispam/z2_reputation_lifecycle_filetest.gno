@@ -209,42 +209,42 @@ func main() {
 // === REPUTATION IMPACT DEMO ===
 //
 // SCENARIO 1: Established User (Good History)
-//  -----------------------------------------
+// ---------------------------------------------
 // Reputation: 180 days, 5000 GNOT, username, 50 accepted, 0 flags
 // Score:      0
 // Triggered:  []
 // Verdict:    CLEAN - no reputation penalties
 //
 // SCENARIO 2: Brand New Account
-//  ---------------------------
+// -------------------------------
 // Reputation: 0 days, 100 GNOT, no username, 0 accepted
 // Score:      4
 // Triggered:  [NEW_ACCOUNT NO_USERNAME LOW_BALANCE]
 // NEW_ACCOUNT(2) + NO_USERNAME(1) + LOW_BALANCE(1) = 4 points
 //
 // SCENARIO 3: Flagged User (Bad Ratio)
-//  ----------------------------------
+// --------------------------------------
 // Reputation: 60 days, 2000 GNOT, username, 10 accepted, 5 flags (50%)
 // Score:      3
 // Triggered:  [BAD_REPUTATION]
 // BAD_REPUTATION(3) - flag ratio 50% exceeds 30% threshold
 //
 // SCENARIO 4: Previously Banned User
-//  --------------------------------
+// ------------------------------------
 // Reputation: 90 days, 3000 GNOT, username, 20 accepted, 2 flags, 2 bans
 // Score:      2
 // Triggered:  [BANNED_BEFORE]
 // BANNED_BEFORE(2) - +1 per past ban, capped at 3
 //
 // SCENARIO 5: Combined Reputation Penalties
-//  ---------------------------------------
+// -------------------------------------------
 // Reputation: 0 days, 50 GNOT, no username, 0 accepted, 3 flags, 3 bans
 // Score:      10
 // Triggered:  [NEW_ACCOUNT NO_USERNAME LOW_BALANCE BAD_REPUTATION BANNED_BEFORE]
 // Verdict:    REJECTED (score >= 8)
 //
 // SUMMARY: Same Content, Different Reputation
-//  -----------------------------------------
+// ---------------------------------------------
 // Established:  score=0 (clean)
 // New account:  score=4 (caution)
 // Flagged:      score=3 (bad ratio)

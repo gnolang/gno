@@ -177,7 +177,7 @@ func main() {
 // === SCORE DEMO: SHARED REALM ===
 //
 // SCENARIO 1: Governance Article (Established User)
-//  ----------------------------------------------
+// --------------------------------------------------
 // Author:    g1contributor (180 days, 5000 GNOT, username)
 // Content:   Governance proposal (250 chars)
 // Score:     0
@@ -185,7 +185,7 @@ func main() {
 // Verdict:   CLEAN - legitimate content from established user
 //
 // SCENARIO 2: Content from New Account
-//  ----------------------------------
+// --------------------------------------
 // Author:    g1newuser (0 days, 100 GNOT, no username)
 // Content:   All caps shouting (80 chars)
 // Score:     10
@@ -193,14 +193,14 @@ func main() {
 // Verdict:   HIDDEN (score >= 5)
 //
 // SCENARIO 3: Reputation Changes Everything
-//  ---------------------------------------
+// -------------------------------------------
 // Same content, established user (180 days, 5000 GNOT, username)
 // Score:     2
 // Triggered: [ALL_CAPS]
 // Difference: 8 points less (no reputation penalties)
 //
 // SCENARIO 4: Manual Reputation Recording Workflow
-//  ---------------------------------------------
+// -------------------------------------------------
 // Score() is READ-ONLY - it does NOT automatically update reputation.
 // The calling realm must manually record moderation decisions:
 //
