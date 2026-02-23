@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/tests/vm
+// PKGPATH: gno.land/r/tests/tests
 package tests
 
 type Stringer interface {
@@ -25,5 +25,5 @@ func main() {
 	println("ok")
 }
 
-// Error:
-// invalid mempackage: package name "tests" does not match path element "vm"
+// Output:
+// ok
