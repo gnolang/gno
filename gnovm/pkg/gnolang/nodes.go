@@ -139,8 +139,10 @@ const (
 	ATTR_LAST_BLOCK_STMT       GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 	ATTR_PACKAGE_REF           GnoAttribute = "ATTR_PACKAGE_REF"
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
-	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH" // if name expr refers to package.
-	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"     // gno fix this version.
+	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH"     // if name expr refers to package.
+	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"         // gno fix this version.
+	ATTR_EXAMPLE_OUTPUT        GnoAttribute = "ATTR_EXAMPLE_OUTPUT"   // the expected output for an Example test function.
+	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // the expected output for an Example test function is unordered.
 )
 
 // Embedded in each Node.
