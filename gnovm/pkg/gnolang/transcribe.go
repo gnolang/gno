@@ -351,13 +351,18 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *AssignStmt:
 		for idx := range cnn.Lhs {
-			cnn.Lhs[idx] = transcribe(t, nns, TRANS_ASSIGN_LHS, idx, cnn.Lhs[idx], &c).(Expr)
-			if stopOrSkip(nc, c) {
-				return
+			// Start with Rhs for each pair.
+			// If len(cnn.Rhs) < len(cnn.Lhs), skips missing Rhs.
+			// Do not panic when there is a mismatch (e.g. LHS=3, RHS=2) here as
+			// the preprocessor will panic with better logging.
+			// NOTE: If len(Lhs) < len(Rhs), trailing Rhs will be skipped.
+			if idx < len(cnn.Rhs) {
+				cnn.Rhs[idx] = transcribe(t, nns, TRANS_ASSIGN_RHS, idx, cnn.Rhs[idx], &c).(Expr)
+				if stopOrSkip(nc, c) {
+					return
+				}
 			}
-		}
-		for idx := range cnn.Rhs {
-			cnn.Rhs[idx] = transcribe(t, nns, TRANS_ASSIGN_RHS, idx, cnn.Rhs[idx], &c).(Expr)
+			cnn.Lhs[idx] = transcribe(t, nns, TRANS_ASSIGN_LHS, idx, cnn.Lhs[idx], &c).(Expr)
 			if stopOrSkip(nc, c) {
 				return
 			}
@@ -652,15 +657,19 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-		// XXX consider RHS, LHS, RHS, LHS, ... order.
 		for idx := range cnn.NameExprs {
-			cnn.NameExprs[idx] = *(transcribe(t, nns, TRANS_VAR_NAME, idx, &cnn.NameExprs[idx], &c).(*NameExpr))
-		}
-		for idx := range cnn.Values {
-			cnn.Values[idx] = transcribe(t, nns, TRANS_VAR_VALUE, idx, cnn.Values[idx], &c).(Expr)
-			if stopOrSkip(nc, c) {
-				return
+			// Start with Values (Rhs) for each pair.
+			// If len(cnn.Values) < len(cnn.Lhs), skips missing Rhs.
+			// Do not panic when there is a mismatch (e.g. LHS=3, RHS=2) here as
+			// the preprocessor will panic with better logging.
+			// NOTE: If len(Lhs) < len(Values), trailing Values will be skipped.
+			if idx < len(cnn.Values) {
+				cnn.Values[idx] = transcribe(t, nns, TRANS_VAR_VALUE, idx, cnn.Values[idx], &c).(Expr)
+				if stopOrSkip(nc, c) {
+					return
+				}
 			}
+			cnn.NameExprs[idx] = *(transcribe(t, nns, TRANS_VAR_NAME, idx, &cnn.NameExprs[idx], &c).(*NameExpr))
 		}
 	case *TypeDecl:
 		cnn.Type = transcribe(t, nns, TRANS_TYPE_TYPE, 0, cnn.Type, &c).(Expr)
