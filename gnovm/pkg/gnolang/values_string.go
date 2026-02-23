@@ -20,8 +20,7 @@ const (
 	// if this increases significantly a map should be used instead
 	nestedLimit = 10
 
-	// printLimit is the maximum number of elements to print for arrays, slices, maps, and byte data.
-	// Collections exceeding this limit are truncated in their string representation.
+	// printLimit is the maximum number of elements to display in string representations.
 	printLimit = 256
 )
 
