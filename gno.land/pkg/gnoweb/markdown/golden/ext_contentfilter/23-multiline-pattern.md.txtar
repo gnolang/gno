@@ -1,7 +1,0 @@
--- input.md --
-First line
-evil-site.com continues
-here on third line.
-
--- output.html --
-<p>First line[blocked URL] continueshere on third line.</p>

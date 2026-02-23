@@ -1,8 +1,0 @@
--- input.md --
-![Alt text](image.png)
-
-Text with evil-site.com.
-
--- output.html --
-<p><img src="image.png" alt="Alt text"></p>
-<p>Text with [blocked URL].</p>

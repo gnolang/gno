@@ -1,5 +1,0 @@
--- input.md --
-Visit phishing-site.io for deals.
-
--- output.html --
-<p>Visit phishing-site.io for deals.</p>

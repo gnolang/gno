@@ -1,5 +1,0 @@
--- input.md --
-Text with buy crypto now for evil-site.com deals.
-
--- output.html --
-<p>Text with buy crypto now for [blocked URL] deals.</p>

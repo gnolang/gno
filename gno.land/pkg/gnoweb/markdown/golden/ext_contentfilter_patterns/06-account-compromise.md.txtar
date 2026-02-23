@@ -1,0 +1,7 @@
+-- input.md --
+Your account has been locked click here to restore access.
+
+Account settings and preferences page.
+-- output.html --
+<p>[urgency scam] access.</p>
+<p>Account settings and preferences page.</p>

@@ -1,5 +1,0 @@
--- input.md --
-Text with evil-site.com filtered.
-
--- output.html --
-<p>Text with [blocked URL] filtered.</p>

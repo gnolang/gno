@@ -1,0 +1,7 @@
+-- input.md --
+Visit evil-site.com for more details and information.
+
+Domain registration and management info.
+-- output.html --
+<p>Visit [blocked URL] for more details and information.</p>
+<p>Domain registration and management info.</p>

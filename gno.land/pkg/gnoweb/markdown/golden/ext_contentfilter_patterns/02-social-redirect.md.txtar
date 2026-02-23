@@ -1,0 +1,7 @@
+-- input.md --
+Join our telegram group now t.me/scamgroup for deals.
+
+Telegram is a messaging platform.
+-- output.html --
+<p>Join our [contact redirect]/scamgroup for deals.</p>
+<p>Telegram is a messaging platform.</p>

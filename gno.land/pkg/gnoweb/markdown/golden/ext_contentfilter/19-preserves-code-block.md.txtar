@@ -1,0 +1,6 @@
+-- input.md --
+    evil-site.com
+
+-- output.html --
+<pre><code>evil-site.com
+</code></pre>

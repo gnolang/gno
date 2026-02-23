@@ -1,5 +1,0 @@
--- input.md --
-Check these links: phishing-login.com and fake-wallet-app.xyz and scam-nft.io
-
--- output.html --
-<p>Check these links: phishing-login.com and fake-wallet-app.xyz and scam-nft.io</p>

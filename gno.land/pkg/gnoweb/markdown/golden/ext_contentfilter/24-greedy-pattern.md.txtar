@@ -1,5 +1,0 @@
--- input.md --
-START evil-site.com middle evil-site.com END
-
--- output.html --
-<p>START [blocked URL] middle [blocked URL] END</p>

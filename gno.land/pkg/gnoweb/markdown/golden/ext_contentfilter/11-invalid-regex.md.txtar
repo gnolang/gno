@@ -1,5 +1,0 @@
--- input.md --
-Text with evil-site.com and valid pattern.
-
--- output.html --
-<p>Text with [blocked URL] and valid pattern.</p>

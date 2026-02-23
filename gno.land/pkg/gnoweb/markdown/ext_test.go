@@ -56,7 +56,9 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 		return !strings.HasPrefix(uri, "https://") // disallow https
 	}))
 
-	if strings.Contains(t.Name(), "ext_contentfilter") {
+	if strings.Contains(t.Name(), "ext_contentfilter_patterns") {
+		opts = append(opts, WithContentFilter(DefaultContentFilter))
+	} else if strings.Contains(t.Name(), "ext_contentfilter") {
 		opts = append(opts, WithContentFilter(NewFilter(testFilterPatterns)))
 	}
 

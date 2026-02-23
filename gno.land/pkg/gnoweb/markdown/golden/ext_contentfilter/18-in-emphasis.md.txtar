@@ -1,0 +1,5 @@
+-- input.md --
+This is **evil-site.com** and *phishing-word* here.
+
+-- output.html --
+<p>This is <strong>[blocked URL]</strong> and <em>[blocked]</em> here.</p>

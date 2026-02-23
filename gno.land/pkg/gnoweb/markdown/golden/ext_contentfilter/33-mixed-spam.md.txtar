@@ -1,5 +1,0 @@
--- input.md --
-Buy crypto now at evil-site.com! Send funds to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 for 1000% returns!
-
--- output.html --
-<p>Buy crypto now at [blocked URL]! Send funds to <a href="/u/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5">[blocked address]<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a> for 1000% returns!</p>

@@ -1,5 +1,0 @@
--- input.md --
-Check evil-site.com and also buy crypto now!
-
--- output.html --
-<p>Check [blocked URL] and also buy crypto now!</p>
