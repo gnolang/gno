@@ -1064,6 +1064,13 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	if err := validatePkgName(Name(mpkg.Name)); err != nil {
 		return err
 	}
+	// Validate that package name matches path last element if not filetests.
+	// See https://github.com/gnolang/gno/issues/1571
+	if !mptype.IsFiletests() {
+		if err := ValidatePkgNameMatchesPath(Name(mpkg.Name), mpkg.Path); err != nil {
+			return err
+		}
+	}
 
 	// Validate files.
 	if mpkg.IsEmpty() {
