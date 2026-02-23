@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/nt/urequire"
 
 	"gno.land/r/gnoland/boards2/v1/hub"
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 func TestBoardIterateThreads(t *testing.T) {
@@ -93,7 +93,7 @@ func TestBoardIterateMembers(t *testing.T) {
 			var i int
 			perms := permissions.New()
 			for _, u := range tt.users {
-				perms.SetUserRoles(cross, u.Address)
+				perms.SetUserRoles(u.Address)
 			}
 
 			ref := boards.New(1)
