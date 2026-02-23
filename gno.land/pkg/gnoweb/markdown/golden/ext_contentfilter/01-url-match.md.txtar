@@ -2,4 +2,4 @@
 Visit evil-site.com for info.
 
 -- output.html --
-<p>Visit [blocked URL] for info.</p>
+<p>[blocked URL]</p>

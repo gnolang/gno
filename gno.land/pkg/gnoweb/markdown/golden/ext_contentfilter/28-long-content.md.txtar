@@ -7,6 +7,7 @@ This paragraph mentions evil-site.com buried in the middle of text.
 And this final paragraph is also completely clean and normal.
 
 -- output.html --
-<p>This is a long paragraph with lots of normal text before the pattern appears.Here is more normal text that should pass through unchanged.</p>
-<p>This paragraph mentions [blocked URL] buried in the middle of text.</p>
+<p>This is a long paragraph with lots of normal text before the pattern appears.
+Here is more normal text that should pass through unchanged.</p>
+<p>[blocked URL]</p>
 <p>And this final paragraph is also completely clean and normal.</p>

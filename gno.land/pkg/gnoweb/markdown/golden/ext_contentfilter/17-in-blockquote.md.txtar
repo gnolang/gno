@@ -3,5 +3,5 @@
 
 -- output.html --
 <blockquote>
-<p>Visit [blocked URL] for info.</p>
+<p>[blocked URL]</p>
 </blockquote>

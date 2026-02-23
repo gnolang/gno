@@ -2,4 +2,4 @@
 # Visit evil-site.com
 
 -- output.html --
-<h1>Visit [blocked URL]</h1>
+<h1>[blocked URL]</h1>

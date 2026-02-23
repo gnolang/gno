@@ -2,4 +2,4 @@
 Check out test-spam-url.xyz for deals.
 
 -- output.html --
-<p>Check out [filtered] for deals.</p>
+<p>[filtered]</p>

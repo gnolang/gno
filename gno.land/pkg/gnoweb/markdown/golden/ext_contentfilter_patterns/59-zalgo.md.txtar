@@ -3,5 +3,5 @@ Look at t̷̢̢̢͝͝͝e̷̢̢̢͝͝͝x̷̢̢̢͝͝͝t̷̢̢̢͝͝͝ with many c
 
 Normal accented text like cafe and resume.
 -- output.html --
-<p>Look at t[zalgo][zalgo][zalgo]̷̢̢̢͝͝͝ with many combining marks.</p>
+<p>[zalgo]</p>
 <p>Normal accented text like cafe and resume.</p>

@@ -2,4 +2,4 @@
 Click [evil-site.com](http://example.com) here.
 
 -- output.html --
-<p>Click <a href="http://example.com" rel="noopener nofollow ugc">[blocked URL]<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a> here.</p>
+<p>[blocked URL]</p>

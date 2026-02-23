@@ -2,4 +2,4 @@
 Detected phishing-word in message.
 
 -- output.html --
-<p>Detected [blocked] in message.</p>
+<p>[blocked]</p>

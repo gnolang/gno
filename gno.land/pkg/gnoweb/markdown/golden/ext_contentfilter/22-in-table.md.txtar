@@ -4,4 +4,4 @@
 | Site | evil-site.com |
 
 -- output.html --
-<p>| Header | Value ||--------|-------|| Site | [blocked URL] |</p>
+<p>[blocked URL]</p>

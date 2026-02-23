@@ -3,5 +3,5 @@ Check https://a.com and https://b.com and https://c.com and https://d.com now.
 
 Visit https://example.com for more details.
 -- output.html --
-<p>Check [links] now.</p>
+<p>[links]</p>
 <p>Visit https://example.com for more details.</p>

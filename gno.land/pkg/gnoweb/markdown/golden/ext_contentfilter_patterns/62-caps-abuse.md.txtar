@@ -3,5 +3,5 @@ THIS IS ALL CAPS TEXT THAT GOES ON AND ON VERY LONG.
 
 Title Case Is Perfectly Normal Text.
 -- output.html --
-<p>[caps] LONG.</p>
+<p>[caps]</p>
 <p>Title Case Is Perfectly Normal Text.</p>

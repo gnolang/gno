@@ -77,22 +77,22 @@ func NewFilter(content string) *Filter {
 	return f
 }
 
-// FilterText applies all loaded patterns to text and returns the filtered result.
-// Returns text unchanged if the Filter is nil.
-func (f *Filter) FilterText(text string) string {
+// Match returns the replacement for the first matching pattern, or ("", false).
+// Uses first-match-wins semantics to avoid cascading replacements.
+func (f *Filter) Match(text string) (string, bool) {
 	if f == nil {
-		return text
+		return "", false
 	}
-
-	filtered := text
 	for _, p := range f.patterns {
-		replacement := p.replacement
-		if replacement == "" {
-			replacement = f.defaultReplacement
+		if p.regex.MatchString(text) {
+			replacement := p.replacement
+			if replacement == "" {
+				replacement = f.defaultReplacement
+			}
+			return replacement, true
 		}
-		filtered = p.regex.ReplaceAllString(filtered, replacement)
 	}
-	return filtered
+	return "", false
 }
 
 type contentFilterRenderer struct {
@@ -100,26 +100,60 @@ type contentFilterRenderer struct {
 }
 
 func (r *contentFilterRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(ast.KindText, r.renderText)
+	reg.Register(ast.KindParagraph, r.renderParagraph)
+	reg.Register(ast.KindHeading, r.renderHeading)
+	reg.Register(ast.KindTextBlock, r.renderTextBlock)
 }
 
-func (r *contentFilterRenderer) renderText(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
-	if !entering {
-		return ast.WalkContinue, nil
-	}
-
-	n := node.(*ast.Text)
-	segment := n.Segment
-	value := string(segment.Value(source))
-
-	filtered := r.filter.FilterText(value)
-
-	if n.IsRaw() {
-		_, _ = w.Write([]byte(filtered))
+func (r *contentFilterRenderer) renderParagraph(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		blockText := string(nodeText(source, node))
+		if replacement, ok := r.filter.Match(blockText); ok {
+			_, _ = w.WriteString("<p>")
+			_, _ = w.WriteString(html.EscapeString(replacement))
+			return ast.WalkSkipChildren, nil
+		}
+		_, _ = w.WriteString("<p>")
 	} else {
-		_, _ = w.WriteString(html.EscapeString(filtered))
+		_, _ = w.WriteString("</p>\n")
 	}
+	return ast.WalkContinue, nil
+}
 
+func (r *contentFilterRenderer) renderHeading(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	n := node.(*ast.Heading)
+	if entering {
+		blockText := string(nodeText(source, node))
+		if replacement, ok := r.filter.Match(blockText); ok {
+			_, _ = w.WriteString("<h")
+			_ = w.WriteByte("0123456"[n.Level])
+			_ = w.WriteByte('>')
+			_, _ = w.WriteString(html.EscapeString(replacement))
+			return ast.WalkSkipChildren, nil
+		}
+		_, _ = w.WriteString("<h")
+		_ = w.WriteByte("0123456"[n.Level])
+		_ = w.WriteByte('>')
+	} else {
+		_, _ = w.WriteString("</h")
+		_ = w.WriteByte("0123456"[n.Level])
+		_, _ = w.WriteString(">\n")
+	}
+	return ast.WalkContinue, nil
+}
+
+func (r *contentFilterRenderer) renderTextBlock(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		blockText := string(nodeText(source, node))
+		if replacement, ok := r.filter.Match(blockText); ok {
+			_, _ = w.WriteString(html.EscapeString(replacement))
+			return ast.WalkSkipChildren, nil
+		}
+	} else {
+		if node.NextSibling() != nil && node.FirstChild() != nil {
+			_ = w.WriteByte('\n')
+		}
+	}
 	return ast.WalkContinue, nil
 }
 

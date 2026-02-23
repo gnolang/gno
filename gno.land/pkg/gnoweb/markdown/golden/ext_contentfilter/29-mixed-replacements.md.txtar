@@ -2,4 +2,4 @@
 Found evil-site.com and test-spam-url.xyz in same text.
 
 -- output.html --
-<p>Found [blocked URL] and [filtered] in same text.</p>
+<p>[blocked URL]</p>

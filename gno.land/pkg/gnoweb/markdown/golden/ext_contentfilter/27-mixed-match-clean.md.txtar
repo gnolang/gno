@@ -4,5 +4,5 @@ Visit evil-site.com for info.
 This paragraph is completely clean.
 
 -- output.html --
-<p>Visit [blocked URL] for info.</p>
+<p>[blocked URL]</p>
 <p>This paragraph is completely clean.</p>

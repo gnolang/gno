@@ -3,5 +3,5 @@
 
 Hello world in plain Latin alphabet.
 -- output.html --
-<p>[mixed script] world with mixed Cyrillic and Latin.</p>
+<p>[mixed script]</p>
 <p>Hello world in plain Latin alphabet.</p>

@@ -3,5 +3,5 @@ Text with hidden​​​ zero width characters inside.
 
 Standard text encoding and format.
 -- output.html --
-<p>Text with hidden[hidden] zero width characters inside.</p>
+<p>[hidden]</p>
 <p>Standard text encoding and format.</p>
