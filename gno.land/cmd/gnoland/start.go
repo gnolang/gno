@@ -22,9 +22,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
-
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
+
 	"go.uber.org/zap/zapcore"
 )
 
@@ -43,7 +43,7 @@ var startGraphic = strings.ReplaceAll(`
 // Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
 var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1)))
 
-type startCfg struct {
+type nodeCfg struct {
 	gnoRootDir                 string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
 	skipFailingGenesisTxs      bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
 	skipGenesisSigVerification bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
@@ -60,7 +60,7 @@ type startCfg struct {
 }
 
 func newStartCmd(io commands.IO) *commands.Command {
-	cfg := &startCfg{}
+	cfg := &nodeCfg{}
 
 	return commands.NewCommand(
 		commands.Metadata{
@@ -76,7 +76,7 @@ func newStartCmd(io commands.IO) *commands.Command {
 	)
 }
 
-func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *nodeCfg) RegisterFlags(fs *flag.FlagSet) {
 	gnoroot := gnoenv.RootDir()
 	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
 
@@ -165,23 +165,54 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
+func execStart(ctx context.Context, c *nodeCfg, io commands.IO) error {
+	gnoNode, err := createNode(ctx, c, io)
+	if err != nil {
+		return err
+	}
+
+	// Start the node (async)
+	if err := gnoNode.Start(); err != nil {
+		return fmt.Errorf("unable to start the Gnoland node, %w", err)
+	}
+
+	// Wait for the exit signal
+	<-ctx.Done()
+
+	if !gnoNode.IsRunning() {
+		return nil
+	}
+
+	// Gracefully stop the gno node
+	if err := gnoNode.Stop(); err != nil {
+		return fmt.Errorf("unable to gracefully stop the Gnoland node, %w", err)
+	}
+
+	// Gracefully stop the app
+	if err = gnoNode.Config().LocalApp.Close(); err != nil {
+		return fmt.Errorf("unable to gracefully close the Gnoland application: %w", err)
+	}
+
+	return nil
+}
+
+func createNode(ctx context.Context, c *nodeCfg, io commands.IO) (*node.Node, error) {
 	// Get the absolute path to the node's data directory
 	nodeDir, err := filepath.Abs(c.dataDir)
 	if err != nil {
-		return fmt.Errorf("unable to get absolute path for data directory, %w", err)
+		return nil, fmt.Errorf("unable to get absolute path for data directory, %w", err)
 	}
 
 	// Get the absolute path to the node's genesis.json
 	genesisPath, err := filepath.Abs(c.genesisFile)
 	if err != nil {
-		return fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
+		return nil, fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
 	}
 
 	// Initialize the logger
 	zapLogger, err := log.InitializeZapLogger(io.Out(), c.logLevel, c.logFormat)
 	if err != nil {
-		return fmt.Errorf("unable to initialize zap logger, %w", err)
+		return nil, fmt.Errorf("unable to initialize zap logger, %w", err)
 	}
 
 	defer func() {
@@ -194,37 +225,37 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 
 	if c.lazyInit {
 		if err := lazyInitNodeDir(io, nodeDir); err != nil {
-			return fmt.Errorf("unable to lazy-init the node directory, %w", err)
+			return nil, fmt.Errorf("unable to lazy-init the node directory, %w", err)
 		}
 	}
 
 	// Load the configuration
 	cfg, err := config.LoadConfig(nodeDir)
 	if err != nil {
-		return fmt.Errorf("%s, %w", tryConfigInit, err)
+		return nil, fmt.Errorf("%s, %w", tryConfigInit, err)
 	}
 
 	// Check if the genesis.json exists
 	if !osm.FileExists(genesisPath) {
 		if !c.lazyInit {
-			return errMissingGenesis
+			return nil, errMissingGenesis
 		}
 
 		// Get the node key for signer init
 		nodeKey, err := p2pTypes.LoadOrMakeNodeKey(cfg.NodeKeyFile())
 		if err != nil {
-			return fmt.Errorf("unable to load or make node key, %w", err)
+			return nil, fmt.Errorf("unable to load or make node key, %w", err)
 		}
 
 		// Init the signer based on the config
 		signer, err := privval.NewSignerFromConfig(ctx, cfg.Consensus.PrivValidator, nodeKey.PrivKey, logger)
 		if err != nil {
-			return fmt.Errorf("unable to instantiate signer based on config: %w", err)
+			return nil, fmt.Errorf("unable to instantiate signer based on config: %w", err)
 		}
 
 		// Init a new genesis.json
 		if err := lazyInitGenesis(io, c, genesisPath, signer); err != nil {
-			return fmt.Errorf("unable to initialize genesis.json, %w", err)
+			return nil, fmt.Errorf("unable to initialize genesis.json, %w", err)
 		}
 
 		// Close the signer
@@ -233,7 +264,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 
 	// Initialize telemetry
 	if err := telemetry.Init(*cfg.Telemetry); err != nil {
-		return fmt.Errorf("unable to initialize telemetry, %w", err)
+		return nil, fmt.Errorf("unable to initialize telemetry, %w", err)
 	}
 
 	defer telemetry.Shutdown()
@@ -258,38 +289,16 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		logger,
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create the Gnoland app, %w", err)
+		return nil, fmt.Errorf("unable to create the Gnoland app, %w", err)
 	}
 
 	// Create a default node, with the given setup
 	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger)
 	if err != nil {
-		return fmt.Errorf("unable to create the Gnoland node, %w", err)
+		return nil, fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
 
-	// Start the node (async)
-	if err := gnoNode.Start(); err != nil {
-		return fmt.Errorf("unable to start the Gnoland node, %w", err)
-	}
-
-	// Wait for the exit signal
-	<-ctx.Done()
-
-	if !gnoNode.IsRunning() {
-		return nil
-	}
-
-	// Gracefully stop the gno node
-	if err := gnoNode.Stop(); err != nil {
-		return fmt.Errorf("unable to gracefully stop the Gnoland node, %w", err)
-	}
-
-	// Gracefully stop the app
-	if err = cfg.LocalApp.Close(); err != nil {
-		return fmt.Errorf("unable to gracefully close the Gnoland application: %w", err)
-	}
-
-	return nil
+	return gnoNode, err
 }
 
 // lazyInitNodeDir initializes new secrets, and a default configuration
@@ -346,7 +355,7 @@ func lazyInitNodeDir(io commands.IO, nodeDir string) error {
 // lazyInitGenesis a new genesis.json file, with a single validator
 func lazyInitGenesis(
 	io commands.IO,
-	c *startCfg,
+	c *nodeCfg,
 	genesisPath string,
 	signer gnoland.GenesisSigner,
 ) error {
@@ -365,7 +374,7 @@ func lazyInitGenesis(
 	return nil
 }
 
-func generateGenesisFile(genesisFile string, signer gnoland.GenesisSigner, c *startCfg) error {
+func generateGenesisFile(genesisFile string, signer gnoland.GenesisSigner, c *nodeCfg) error {
 	var (
 		pubKey = signer.PubKey()
 		// There is an active constraint for gno.land transactions:

@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -359,6 +360,82 @@ FOR_LOOP:
 			break FOR_LOOP
 		}
 	}
+}
+
+type BlocksIterator func(yield func(block *types.Block) error) error
+
+func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator BlocksIterator, skipVerification bool) error {
+	var (
+		first   *types.Block
+		second  *types.Block
+		chainID = bcR.initialState.ChainID
+		state   = bcR.initialState
+		err     error
+	)
+
+	blockBatch := bcR.store.NewBatch()
+	blocksInBatch := 0
+	batchSize := 1000
+	saveBatch := func() error {
+		blockBatch.WriteSync()
+		err = blockBatch.Close()
+		if err != nil {
+			return err
+		}
+
+		blocksInBatch = 0
+		blockBatch = bcR.store.NewBatch()
+		return nil
+	}
+	return blocksIterator(func(block *types.Block) error {
+		defer func() {
+			if blocksInBatch > 0 {
+				err = saveBatch()
+				if err != nil {
+					panic(err)
+				}
+			}
+		}()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		if first == nil {
+			first = block
+			return nil
+		}
+		if blocksInBatch >= batchSize {
+			err = saveBatch()
+			if err != nil {
+				return err
+			}
+		}
+
+		second = block
+
+		firstParts := first.MakePartSet(types.BlockPartSizeBytes)
+		firstPartsHeader := firstParts.Header()
+		firstID := types.BlockID{Hash: first.Hash(), PartsHeader: firstPartsHeader}
+		if !skipVerification {
+			if err := state.Validators.VerifyCommit(
+				chainID, firstID, first.Height, second.LastCommit); err != nil {
+				return fmt.Errorf("invalid commit (%d:%X): %w", first.Height, first.Hash(), err)
+			}
+		}
+
+		bcR.store.SaveBlockWithBatch(blockBatch, first, firstParts, second.LastCommit)
+
+		state, err = bcR.blockExec.ApplyBlock(state, firstID, first)
+		if err != nil {
+			return fmt.Errorf("failed to process committed block (%d:%X): %w", first.Height, first.Hash(), err)
+		}
+
+		first = second
+		blocksInBatch++
+		return nil
+	})
 }
 
 // BroadcastStatusRequest broadcasts `BlockStore` height.
