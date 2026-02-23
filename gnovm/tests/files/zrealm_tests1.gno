@@ -26,7 +26,4 @@ func main() {
 }
 
 // Error:
-// expected package name [vm] but got [tests]
-
-// TypeCheckError:
-// gno.land/r/tests/vm/.gnobuiltins.gno:1:1: package vm; expected package tests
+// invalid mempackage: package name "tests" does not match path element "vm"

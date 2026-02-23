@@ -7,7 +7,4 @@ func main() {
 }
 
 // Error:
-// expected package name [goodbye] but got [hello]
-
-// TypeCheckError:
-// gno.land/r/demo/goodbye/.gnobuiltins.gno:1:1: package goodbye; expected package hello
+// invalid mempackage: package name "hello" does not match path element "goodbye"
