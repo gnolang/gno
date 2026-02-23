@@ -117,6 +117,24 @@ func FinishNative() {
 	}
 }
 
+func FinishPreprocess() {
+	for i := range 256 {
+		count := measure.preprocessCounts[i]
+
+		if count == 0 {
+			continue
+		}
+		code := [2]byte{byte(TypePreprocess), byte(i)}
+		fileWriter.export(code, measure.preprocessAccumDur[i]/time.Duration(measure.preprocessCounts[i]), 0)
+	}
+
+	measure.preprocessCounts = [256]int64{}
+	measure.preprocessAccumDur = [256]time.Duration{}
+	measure.curPreprocessCode = invalidCode
+	measure.isPreprocessCodeStarted = false
+	measure.preprocessStack = nil
+}
+
 // It reset each machine Runs
 func ResetRun() {
 	measure.opCounts = [256]int64{}

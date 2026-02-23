@@ -6,11 +6,11 @@ gnoland start
 
 # simulate only
 gnokey maketx call -pkgpath gno.land/r/simulate -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only test1
-stdout 'GAS USED:   110247'
+stdout 'GAS USED:   113916'
 
 # simulate skip
 gnokey maketx call -pkgpath gno.land/r/simulate -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate skip test1
-stdout 'GAS USED:   110247' # same as simulate only
+stdout 'GAS USED:   113916' # same as simulate only
 
 -- package/package.gno --
 package call_package

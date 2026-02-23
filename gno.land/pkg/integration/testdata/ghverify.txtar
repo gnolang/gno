@@ -28,11 +28,11 @@ gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint 
 stdout OK!
 
 # get verified github handle by gno address
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetHandleByAddress -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -gas-fee 1000000ugnot -gas-wanted 809000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetHandleByAddress -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -gas-fee 1000000ugnot -gas-wanted 810000 -broadcast -chainid=tendermint_test test1
 stdout "deelawn"
 
 # get verified gno address by github handle
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 1000000ugnot -gas-wanted 809000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 1000000ugnot -gas-wanted 810000 -broadcast -chainid=tendermint_test test1
 stdout "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
 gnokey query vm/qrender --data 'gno.land/r/gnoland/ghverify:'

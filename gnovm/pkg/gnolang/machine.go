@@ -203,7 +203,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
 			// Save Types to m.Store (while preprocessing).
-			fn = Preprocess(m.Store, pn, fn).(*FileNode)
+			fn = Preprocess(m.Store, pn, fn, m.GasMeter).(*FileNode)
 			// Save BlockNodes to m.Store.
 			SaveBlockNodes(m.Store, fn)
 		}
@@ -232,11 +232,14 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	if bm.OpsEnabled || bm.StorageEnabled || bm.NativeEnabled {
+	if bm.OpsEnabled || bm.StorageEnabled || bm.NativeEnabled || bm.PreprocessEnabled {
 		bm.InitMeasure()
 	}
 	if bm.StorageEnabled {
 		defer bm.FinishStore()
+	}
+	if bm.PreprocessEnabled {
+		defer bm.FinishPreprocess()
 	}
 	return m.runMemPackage(mpkg, save, false)
 }
@@ -494,7 +497,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	m.Store.SetBlockNode(pn)
 	PredefineFileSet(m.Store, pn, fset)
 	for _, fn := range fset.Files {
-		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+		fn = Preprocess(m.Store, pn, fn, m.GasMeter).(*FileNode)
 		// After preprocessing, save blocknodes to store.
 		SaveBlockNodes(m.Store, fn)
 		// Make block for fn.
@@ -575,7 +578,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		// runtime package value via PrepareNewValues.  Then,
 		// non-constant var declarations and file-level imports
 		// are re-set in runDeclaration(,true).
-		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+		fn = Preprocess(m.Store, pn, fn, m.GasMeter).(*FileNode)
 		if debug {
 			debug.Printf("PREPROCESSED FILE: %v\n", fn)
 		}
@@ -810,7 +813,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	}
 	// else,x already creates its own scope.
 	// Preprocess x.
-	x = Preprocess(m.Store, last, x).(Expr)
+	x = Preprocess(m.Store, last, x, m.GasMeter).(Expr)
 	// Evaluate x.
 	start := len(m.Values)
 	m.PushOp(OpHalt)
@@ -910,7 +913,7 @@ func (m *Machine) RunStatement(st Stage, s Stmt) {
 				lb.ExpandWith(m.Alloc, last)
 			}
 		}()
-		s = Preprocess(m.Store, last, s).(Stmt)
+		s = Preprocess(m.Store, last, s, m.GasMeter).(Stmt)
 	}()
 	// run s.
 	m.PushOp(OpHalt)
@@ -933,7 +936,7 @@ func (m *Machine) RunDeclaration(d Decl) {
 	// Preprocess input using package block.  There should only
 	// be one block right now, and it's a *PackageNode.
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
-	d = Preprocess(m.Store, pn, d).(Decl)
+	d = Preprocess(m.Store, pn, d, m.GasMeter).(Decl)
 	// do not SaveBlockNodes(m.Store, d).
 	pn.PrepareNewValues(m.Alloc, m.Package)
 	m.runDeclaration(d)

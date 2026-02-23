@@ -42,6 +42,74 @@ const (
 	invalidNativeCode string = "NativeInvalid"
 )
 
+// preprocess code
+const (
+	PreprocessEnter  byte = iota + 0x01 // enter a node
+	PreprocessBlock                     // enter a block
+	PreprocessBlock2                    // enter a block (2)
+	PreprocessLeave                     // leave a node
+
+	// TRANS_ENTER nodes
+	PreprocessEnterAssignStmt
+	PreprocessEnterImportDecl
+	PreprocessEnterValueDecl
+	PreprocessEnterTypeDecl
+	PreprocessEnterFuncDecl
+	PreprocessEnterFuncTypeExpr
+
+	// TRANS_BLOCK nodes
+	PreprocessBlockBlockStmt
+	PreprocessBlockForStmt
+	PreprocessBlockIfStmt
+	PreprocessBlockIfCaseStmt
+	PreprocessBlockRangeStmt
+	PreprocessBlockFuncLitExpr
+	PreprocessBlockSelectCaseStmt
+	PreprocessBlockSwitchStmt
+	PreprocessBlockSwitchClauseStmt
+	PreprocessBlockFuncDecl
+	PreprocessBlockFileNode
+
+	// TRANS_BLOCK2 nodes
+	PreprocessBlock2SwitchStmt
+
+	// TRANS_LEAVE nodes
+	PreprocessLeaveNameExpr
+	PreprocessLeaveBasicLitExpr
+	PreprocessLeaveBinaryExpr
+	PreprocessLeaveCallExpr
+	PreprocessLeaveIndexExpr
+	PreprocessLeaveSliceExpr
+	PreprocessLeaveTypeAssertExpr
+	PreprocessLeaveUnaryExpr
+	PreprocessLeaveCompositeLitExpr
+	PreprocessLeaveKeyValueExpr
+	PreprocessLeaveStarExpr
+	PreprocessLeaveSelectorExpr
+	PreprocessLeaveFieldTypeExpr
+	PreprocessLeaveArrayTypeExpr
+	PreprocessLeaveSliceTypeExpr
+	PreprocessLeaveInterfaceTypeExpr
+	PreprocessLeaveChanTypeExpr
+	PreprocessLeaveFuncTypeExpr
+	PreprocessLeaveMapTypeExpr
+	PreprocessLeaveStructTypeExpr
+	PreprocessLeaveAssignStmt
+	PreprocessLeaveBranchStmt
+	PreprocessLeaveIncDecStmt
+	PreprocessLeaveForStmt
+	PreprocessLeaveIfStmt
+	PreprocessLeaveRangeStmt
+	PreprocessLeaveReturnStmt
+	PreprocessLeaveSendStmt
+	PreprocessLeaveSelectCaseStmt
+	PreprocessLeaveSwitchStmt
+	PreprocessLeaveValueDecl
+	PreprocessLeaveTypeDecl
+
+	invalidPreprocessCode string = "PreprocessInvalid"
+)
+
 func GetNativePrintCode(size int) byte {
 	switch size {
 	case 1:
@@ -87,13 +155,72 @@ var nativeCodeNames = []string{
 	"NativePrint_10000",
 }
 
+var preprocessCodeNames = []string{
+	invalidPreprocessCode,
+	"PreprocessEnter",
+	"PreprocessBlock",
+	"PreprocessBlock2",
+	"PreprocessLeave",
+	"PreprocessEnterAssignStmt",
+	"PreprocessEnterImportDecl",
+	"PreprocessEnterValueDecl",
+	"PreprocessEnterTypeDecl",
+	"PreprocessEnterFuncDecl",
+	"PreprocessEnterFuncTypeExpr",
+	"PreprocessBlockBlockStmt",
+	"PreprocessBlockForStmt",
+	"PreprocessBlockIfStmt",
+	"PreprocessBlockIfCaseStmt",
+	"PreprocessBlockRangeStmt",
+	"PreprocessBlockFuncLitExpr",
+	"PreprocessBlockSelectCaseStmt",
+	"PreprocessBlockSwitchStmt",
+	"PreprocessBlockSwitchClauseStmt",
+	"PreprocessBlockFuncDecl",
+	"PreprocessBlockFileNode",
+	"PreprocessBlock2SwitchStmt",
+	"PreprocessLeaveNameExpr",
+	"PreprocessLeaveBasicLitExpr",
+	"PreprocessLeaveBinaryExpr",
+	"PreprocessLeaveCallExpr",
+	"PreprocessLeaveIndexExpr",
+	"PreprocessLeaveSliceExpr",
+	"PreprocessLeaveTypeAssertExpr",
+	"PreprocessLeaveUnaryExpr",
+	"PreprocessLeaveCompositeLitExpr",
+	"PreprocessLeaveKeyValueExpr",
+	"PreprocessLeaveStarExpr",
+	"PreprocessLeaveSelectorExpr",
+	"PreprocessLeaveFieldTypeExpr",
+	"PreprocessLeaveArrayTypeExpr",
+	"PreprocessLeaveSliceTypeExpr",
+	"PreprocessLeaveInterfaceTypeExpr",
+	"PreprocessLeaveChanTypeExpr",
+	"PreprocessLeaveFuncTypeExpr",
+	"PreprocessLeaveMapTypeExpr",
+	"PreprocessLeaveStructTypeExpr",
+	"PreprocessLeaveAssignStmt",
+	"PreprocessLeaveBranchStmt",
+	"PreprocessLeaveIncDecStmt",
+	"PreprocessLeaveForStmt",
+	"PreprocessLeaveIfStmt",
+	"PreprocessLeaveRangeStmt",
+	"PreprocessLeaveReturnStmt",
+	"PreprocessLeaveSendStmt",
+	"PreprocessLeaveSelectCaseStmt",
+	"PreprocessLeaveSwitchStmt",
+	"PreprocessLeaveValueDecl",
+	"PreprocessLeaveTypeDecl",
+}
+
 type Code [2]byte
 type Type byte
 
 const (
-	TypeOpCode Type = 0x01
-	TypeStore  Type = 0x02
-	TypeNative Type = 0x03
+	TypeOpCode     Type = 0x01
+	TypeStore      Type = 0x02
+	TypeNative     Type = 0x03
+	TypePreprocess Type = 0x04
 )
 
 func VMOpCode(opCode byte) Code {
@@ -108,6 +235,10 @@ func NativeCode(nativeCode byte) Code {
 	return [2]byte{byte(TypeNative), nativeCode}
 }
 
+func PreprocessCode(preprocessCode byte) Code {
+	return [2]byte{byte(TypePreprocess), preprocessCode}
+}
+
 func StoreCodeString(storeCode byte) string {
 	if int(storeCode) >= len(storeCodeNames) {
 		return invalidStoreCode
@@ -120,4 +251,11 @@ func NativeCodeString(nativeCode byte) string {
 		return invalidNativeCode
 	}
 	return nativeCodeNames[nativeCode]
+}
+
+func PreprocessCodeString(preprocessCode byte) string {
+	if int(preprocessCode) >= len(preprocessCodeNames) {
+		return invalidPreprocessCode
+	}
+	return preprocessCodeNames[preprocessCode]
 }

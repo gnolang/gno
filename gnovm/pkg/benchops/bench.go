@@ -31,15 +31,25 @@ type bench struct {
 	nativeStartTime [256]time.Time
 	isNativeStarted bool
 	curNativeCode   byte
+
+	preprocessCounts        [256]int64
+	preprocessAccumDur      [256]time.Duration
+	preprocessStartTime     [256]time.Time
+	isPreprocessCodeStarted bool
+	curPreprocessCode       byte
+	preprocessStack         []byte
 }
 
 func InitMeasure() {
 	measure = bench{
 		// this will be called to reset each benchmarking
-		isOpCodeStarted: false,
-		curOpCode:       invalidCode,
-		curStoreCode:    invalidCode,
-		curNativeCode:   invalidCode,
+		isOpCodeStarted:         false,
+		curOpCode:               invalidCode,
+		curStoreCode:            invalidCode,
+		curNativeCode:           invalidCode,
+		isPreprocessCodeStarted: false,
+		curPreprocessCode:       invalidCode,
+		preprocessStack:         nil,
 	}
 }
 
@@ -168,4 +178,72 @@ func StopNative() {
 	measure.nativeAccumDur[code] += time.Since(measure.nativeStartTime[code])
 	measure.nativeStartTime[code] = measure.timeZero // stop the timer
 	measure.curNativeCode = invalidCode
+}
+
+func StartPreprocess(code byte) {
+	if code == invalidCode {
+		panic("the Preprocess code is invalid")
+	}
+	if measure.isPreprocessCodeStarted {
+		// Allow nested preprocess measurements by pausing the current one.
+		PausePreprocess()
+	}
+	if !measure.preprocessStartTime[code].Equal(measure.timeZero) {
+		panic("Can not start a non-stopped timer")
+	}
+	measure.preprocessStartTime[code] = time.Now()
+	measure.preprocessCounts[code]++
+
+	measure.isPreprocessCodeStarted = true
+	measure.curPreprocessCode = code
+}
+
+// Stop the current measurement
+func StopPreprocess() {
+	code := measure.curPreprocessCode
+	if code == invalidCode {
+		return
+	}
+	if measure.preprocessStartTime[code].Equal(measure.timeZero) {
+		return
+	}
+	measure.preprocessAccumDur[code] += time.Since(measure.preprocessStartTime[code])
+	measure.preprocessStartTime[code] = measure.timeZero // stop the timer
+	measure.isPreprocessCodeStarted = false
+	measure.curPreprocessCode = invalidCode
+	ResumePreprocess()
+}
+
+// Pause current preprocess code measurement
+func PausePreprocess() {
+	if !measure.isPreprocessCodeStarted {
+		return
+	}
+	if measure.curPreprocessCode == invalidCode {
+		return
+	}
+	code := measure.curPreprocessCode
+	if measure.preprocessStartTime[code].Equal(measure.timeZero) {
+		return
+	}
+	measure.preprocessAccumDur[code] += time.Since(measure.preprocessStartTime[code])
+	measure.preprocessStartTime[code] = measure.timeZero
+	measure.preprocessStack = append(measure.preprocessStack, code)
+	measure.curPreprocessCode = invalidCode
+	measure.isPreprocessCodeStarted = false
+}
+
+// Resume resumes current measurement
+func ResumePreprocess() {
+	if len(measure.preprocessStack) == 0 {
+		return
+	}
+	code := measure.preprocessStack[len(measure.preprocessStack)-1]
+	measure.preprocessStack = measure.preprocessStack[:len(measure.preprocessStack)-1]
+	if measure.preprocessStartTime[code] != measure.timeZero {
+		panic("Should not resume a running timer")
+	}
+	measure.preprocessStartTime[code] = time.Now()
+	measure.curPreprocessCode = code
+	measure.isPreprocessCodeStarted = true
 }
