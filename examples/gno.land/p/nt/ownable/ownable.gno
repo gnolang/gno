@@ -16,13 +16,10 @@ type Ownable struct {
 }
 
 // authMode defines which realm context is allowed to perform ownership checks.
-// authModeLegacy is kept for backward compatibility with previously persisted
-// instances that predate mode locking.
 type authMode uint8
 
 const (
-	authModeLegacy authMode = iota
-	authModeCurrent
+	authModeCurrent authMode = iota
 	authModePrevious
 )
 
@@ -147,8 +144,7 @@ func (o *Ownable) Owned() bool {
 	case authModePrevious:
 		return o.ownedByPreviousRealm()
 	default:
-		// legacy mode keeps compatibility with pre-mode-lock behavior.
-		return runtime.CurrentRealm().Address() == o.owner || o.ownedByPreviousRealm()
+		return false
 	}
 }
 
@@ -196,11 +192,11 @@ func (o *Ownable) AssertOwnedByPrevious() {
 }
 
 func (o *Ownable) allowsCurrentRealmAuth() bool {
-	return o.authMode != authModePrevious
+	return o.authMode == authModeCurrent
 }
 
 func (o *Ownable) allowsPreviousRealmAuth() bool {
-	return o.authMode != authModeCurrent
+	return o.authMode == authModePrevious
 }
 
 func (o *Ownable) ownedByPreviousRealm() (owned bool) {
