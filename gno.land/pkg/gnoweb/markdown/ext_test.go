@@ -15,6 +15,20 @@ import (
 
 const testdataDir = "golden"
 
+// Stable, minimal set of patterns for validating the filter mechanism.
+// These patterns never change - production patterns are in contentfilter_patterns.txt.
+const testFilterPatterns = `
+DEFAULT_REPLACEMENT=[filtered]
+
+evil-site\.com -> [blocked URL]
+g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -> [blocked address]
+g1us8428u2a5satrlxzagqqa5m6vgwu63u3s5xn8 -> [blocked address]
+(?i)send\s+crypto -> [blocked keyword]
+test-spam-url\.xyz
+phishing-word -> [blocked]
+[\p{M}]{3,}\w+ -> [zalgo]
+`
+
 var (
 	update = flag.Bool("update-golden-tests", false, "update golden tests")
 	dump   = flag.Bool("dump", false, "dump ast tree after parsing")
@@ -37,18 +51,13 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 		GnoURL: gnourl,
 	}))
 
-	// Load content filter only for contentfilter tests
 	var opts []Option
 	opts = append(opts, WithImageValidator(func(uri string) bool {
 		return !strings.HasPrefix(uri, "https://") // disallow https
 	}))
 
 	if strings.Contains(t.Name(), "ext_contentfilter") {
-		// Load test patterns (stable, minimal set for validating filter mechanism)
-		filter, err := NewFilter("testdata/filter-patterns.txt")
-		if err == nil {
-			opts = append(opts, WithContentFilter(filter))
-		}
+		opts = append(opts, WithContentFilter(NewFilter(testFilterPatterns)))
 	}
 
 	ext := NewGnoExtension(opts...)

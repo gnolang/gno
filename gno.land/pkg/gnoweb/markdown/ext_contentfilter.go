@@ -1,13 +1,11 @@
 package markdown
 
 import (
-	"bufio"
-	"fmt"
+	_ "embed"
 	"html"
-	"os"
+	"log"
 	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -15,9 +13,15 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
+//go:embed contentfilter_patterns.txt
+var DefaultContentFilterPatterns string
+
+// DefaultContentFilter is the pre-compiled content filter using embedded patterns.
+var DefaultContentFilter = NewFilter(DefaultContentFilterPatterns)
+
 // Filter provides text content filtering for Markdown rendering.
+// Patterns are immutable after creation and safe for concurrent use.
 type Filter struct {
-	mu                 sync.RWMutex
 	patterns           []*compiledPattern
 	defaultReplacement string
 }
@@ -27,28 +31,18 @@ type compiledPattern struct {
 	replacement string
 }
 
-func NewFilter(filePath string) (*Filter, error) {
+// NewFilter creates a content filter by parsing pattern definitions from content.
+// Each line is a regex pattern, optionally followed by " -> " and a replacement.
+// Lines starting with # are comments. Empty lines are ignored.
+// Use DEFAULT_REPLACEMENT=... to set the fallback replacement text.
+// Invalid patterns are logged and skipped.
+func NewFilter(content string) *Filter {
 	f := &Filter{
 		defaultReplacement: "[filtered]",
 	}
-	if err := f.loadPatterns(filePath); err != nil {
-		return nil, err
-	}
-	return f, nil
-}
 
-func (f *Filter) loadPatterns(filePath string) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("open pattern file: %w", err)
-	}
-	defer file.Close()
-
-	var patterns []*compiledPattern
-	scanner := bufio.NewScanner(file)
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
 
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -60,9 +54,9 @@ func (f *Filter) loadPatterns(filePath string) error {
 		}
 
 		var patternStr, replacement string
-		if idx := strings.Index(line, " → "); idx != -1 {
+		if idx := strings.Index(line, " -> "); idx != -1 {
 			patternStr = strings.TrimSpace(line[:idx])
-			replacement = strings.TrimSpace(line[idx+len(" → "):])
+			replacement = strings.TrimSpace(line[idx+len(" -> "):])
 		} else {
 			patternStr = line
 			replacement = ""
@@ -70,29 +64,25 @@ func (f *Filter) loadPatterns(filePath string) error {
 
 		regex, err := regexp.Compile(patternStr)
 		if err != nil {
+			log.Printf("warning: invalid content filter pattern skipped: %q: %v", patternStr, err)
 			continue
 		}
 
-		patterns = append(patterns, &compiledPattern{
+		f.patterns = append(f.patterns, &compiledPattern{
 			regex:       regex,
 			replacement: replacement,
 		})
 	}
 
-	f.mu.Lock()
-	f.patterns = patterns
-	f.mu.Unlock()
-
-	return scanner.Err()
+	return f
 }
 
+// FilterText applies all loaded patterns to text and returns the filtered result.
+// Returns text unchanged if the Filter is nil.
 func (f *Filter) FilterText(text string) string {
 	if f == nil {
 		return text
 	}
-
-	f.mu.RLock()
-	defer f.mu.RUnlock()
 
 	filtered := text
 	for _, p := range f.patterns {
