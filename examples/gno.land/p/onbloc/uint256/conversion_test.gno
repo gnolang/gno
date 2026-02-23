@@ -57,6 +57,39 @@ func TestDec(t *testing.T) {
 	}
 }
 
+func TestHex(t *testing.T) {
+	tests := []struct {
+		name string
+		z    Uint
+		want string
+	}{
+		{
+			name: "zero",
+			z:    Uint{arr: [4]uint64{0, 0, 0, 0}},
+			want: "0x0",
+		},
+		{
+			name: "less than 20 digits",
+			z:    Uint{arr: [4]uint64{0xbebecaca, 0, 0, 0}},
+			want: "0xbebecaca",
+		},
+		{
+			name: "max possible value",
+			z:    Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}},
+			want: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.z.Hex()
+			if result != tt.want {
+				t.Errorf("Hex(%v) = %s, want %s", tt.z, result, tt.want)
+			}
+		})
+	}
+}
+
 func TestUint_Scan(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -117,6 +150,82 @@ func TestUint_Scan(t *testing.T) {
 				if !z.Eq(tt.want) {
 					t.Errorf("Scan() = %v, want %v", z, tt.want)
 				}
+			}
+		})
+	}
+}
+
+func TestBytes32(t *testing.T) {
+	tests := []struct {
+		name string
+		z    Uint
+		want [32]byte
+	}{
+		{
+			name: "zero",
+			z:    Uint{arr: [4]uint64{0, 0, 0, 0}},
+			want: [32]byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+		},
+		{
+			name: "less than 20 digits",
+			z:    Uint{arr: [4]uint64{0xbebecaca, 0, 0, 0}},
+			want: [32]byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xbe, 0xbe, 0xca, 0xca},
+		},
+		{
+			name: "max possible value",
+			z:    Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}},
+			want: [32]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.z.Bytes32()
+			if result != tt.want {
+				t.Errorf("Hex(%v) = %s, want %s", tt.z, result, tt.want)
+			}
+		})
+	}
+}
+func TestBytes(t *testing.T) {
+	tests := []struct {
+		name string
+		z    Uint
+		want []byte
+	}{
+		{
+			name: "zero",
+			z:    Uint{arr: [4]uint64{0, 0, 0, 0}},
+			want: []byte{},
+		},
+		{
+			name: "less than 20 digits",
+			z:    Uint{arr: [4]uint64{0xbebecaca, 0, 0, 0}},
+			want: []byte{0xbe, 0xbe, 0xca, 0xca},
+		},
+		{
+			name: "max possible value",
+			z:    Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}},
+			want: []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.z.Bytes()
+			err := false
+
+			if len(result) != len(tt.want) {
+				err = true
+			}
+			for i := 0; !err && i < len(result); i++ {
+				if result[i] != tt.want[i] {
+					err = true
+				}
+			}
+
+			if err {
+				t.Errorf("Bytes(%v) = %v, want %v", tt.z, result, tt.want)
 			}
 		})
 	}

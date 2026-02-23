@@ -610,7 +610,7 @@ func (n *Node) OnStart() error {
 		return err
 	}
 	if addr.Port == 0 {
-		// if the port we have from config.P2p.ListenAdress is 0,
+		// if the port we have from config.P2p.ListenAddress is 0,
 		// it means the port was selected when doing net.Listen (using autoselect on the kernel).
 		// fix the config variable using the correct address
 		na := n.transport.NetAddress()
