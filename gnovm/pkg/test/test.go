@@ -481,7 +481,9 @@ func (opts *TestOptions) runTestFiles(
 				},
 			},
 		))
-		fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
+		if opts.Verbose {
+			fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
+		}
 
 		if opts.Events {
 			events := m.Context.(*runtime.TestExecContext).EventLogger.Events()
@@ -537,6 +539,63 @@ func (opts *TestOptions) runTestFiles(
 		}
 	}
 
+	examples := loadExampleTestFuncs(files)
+	for _, fd := range examples {
+		if !fd.Attributes.HasAttribute(gno.ATTR_EXAMPLE_OUTPUT) {
+			// Don't run examples with no output.
+			continue
+		}
+
+		// Reset and start capturing stdout.
+		opts.filetestBuffer.Reset()
+		revert := opts.outWriter.tee(&opts.filetestBuffer)
+		defer revert()
+
+		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
+		m.Alloc = alloc.Reset()
+		m.SetActivePackage(pv)
+
+		if opts.Debug {
+			fileContent := func(ppath, name string) string {
+				p := filepath.Join(opts.RootDir, ppath, name)
+				b, err := os.ReadFile(p)
+				if err != nil {
+					p = filepath.Join(opts.RootDir, "gnovm", "stdlibs", ppath, name)
+					b, err = os.ReadFile(p)
+				}
+				if err != nil {
+					p = filepath.Join(opts.RootDir, "examples", ppath, name)
+					b, _ = os.ReadFile(p)
+				}
+				return string(b)
+			}
+			m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
+		}
+
+		fname := string(fd.Name)
+		startedAt := time.Now()
+		m.Eval(gno.Call(gno.Nx(fname)))
+		timeSpent := time.Since(startedAt)
+		if opts.Verbose {
+			fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
+		}
+
+		stdout := opts.filetestBuffer.String()
+		expected := fd.Attributes.GetAttribute(gno.ATTR_EXAMPLE_OUTPUT).(string)
+		unordered := fd.Attributes.HasAttribute(gno.ATTR_OUTPUT_UNORDERED) && fd.Attributes.GetAttribute(gno.ATTR_OUTPUT_UNORDERED).(bool)
+
+		ok := opts.processExampleResult(fname, stdout, expected, timeSpent, unordered, true, nil)
+		if !ok {
+			err := fmt.Errorf("failed: %q", fname)
+			errs = multierr.Append(errs, err)
+			if opts.FailfastFlag {
+				return errs
+			}
+		}
+
+		revert()
+	}
+
 	return errs
 }
 
@@ -567,6 +626,23 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 						Filename: tf.FileName,
 					}
 					rt = append(rt, tf)
+				}
+			}
+		}
+	}
+	return
+}
+
+func loadExampleTestFuncs(tfiles *gno.FileSet) (rt []*gno.FuncDecl) {
+	for _, tf := range tfiles.Files {
+		for _, d := range tf.Decls {
+			if fd, ok := d.(*gno.FuncDecl); ok {
+				if fd.IsMethod {
+					continue
+				}
+				fname := string(fd.Name)
+				if strings.HasPrefix(fname, "Example") && len(fd.Type.Params) == 0 {
+					rt = append(rt, fd)
 				}
 			}
 		}
