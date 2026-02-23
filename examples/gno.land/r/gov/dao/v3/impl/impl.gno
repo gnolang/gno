@@ -4,7 +4,6 @@ import (
 	"chain/runtime"
 
 	"gno.land/r/gov/dao/v3/memberstore"
-	"gno.land/r/sys/users"
 )
 
 var (
@@ -32,10 +31,6 @@ func AddMember(cur realm, addr address) {
 	m, t := memberstore.Get().GetMember(caller.Address())
 	if m == nil {
 		panic("caller is not a member")
-	}
-
-	if users.ResolveAddress(caller.Address()) == nil {
-		panic("caller should have a namespace")
 	}
 
 	if t != memberstore.T1 && t != memberstore.T2 {
