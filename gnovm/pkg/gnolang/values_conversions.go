@@ -1031,7 +1031,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			switch cbt.Elt.Kind() {
 			case Uint8Kind:
 				data := []byte(tv.GetString())
-				data = data[:len(data):len(data)] // force cap = len
+				data = data[:len(data):len(data)] // defensive: force cap = len (not guaranteed by Go spec)
 				tv.V = alloc.NewSliceFromData(data)
 				tv.T = t // after tv.GetString()
 			case Int32Kind:
