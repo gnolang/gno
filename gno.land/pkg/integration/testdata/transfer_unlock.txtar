@@ -40,8 +40,8 @@ gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000  -broadcast -chaini
 
 stdout 'OK!'
 
-# Register member with a namespace 
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular1
+# Register member with a namespace
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 10000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test regular1
 stdout 'OK!'
 
 ## Restricted transfer is unlocked, allowing simple token transfers for regular accounts.
