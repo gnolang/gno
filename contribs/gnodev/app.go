@@ -40,6 +40,7 @@ const (
 	AccountsLogName    = "Accounts"
 	LoaderLogName      = "Loader"
 	ProxyLogName       = "Proxy"
+	examplesDirName    = "examples"
 )
 
 type App struct {
@@ -151,8 +152,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	loggerEvents := ds.logger.WithGroup(EventServerLogName)
 	ds.emitterServer = emitter.NewServer(loggerEvents)
 
-	// XXX: it would be nice to not have this hardcoded
-	examplesDir := filepath.Join(ds.cfg.root, "examples")
+	examplesDir := filepath.Join(ds.cfg.root, examplesDirName)
 
 	// Setup loader and resolver
 	loaderLogger := ds.logger.WithGroup(LoaderLogName)

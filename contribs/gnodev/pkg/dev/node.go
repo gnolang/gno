@@ -82,6 +82,8 @@ type NodeConfig struct {
 	ChainDomain string
 }
 
+const exampleDirName = "example"
+
 func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	tmc := gnoland.NewDefaultTMConfig(rootdir)
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
@@ -96,7 +98,7 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 		},
 	}
 
-	exampleFolder := filepath.Join(gnoenv.RootDir(), "example") // XXX: we should avoid having to hardcoding this here
+	exampleFolder := filepath.Join(gnoenv.RootDir(), exampleDirName)
 	defaultLoader := packages.NewLoader(packages.NewRootResolver(exampleFolder))
 
 	return &NodeConfig{
