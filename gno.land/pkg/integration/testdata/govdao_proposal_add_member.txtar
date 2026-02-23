@@ -6,8 +6,6 @@ stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
-loadpkg gno.land/r/sys/users
-loadpkg gno.land/r/gnoland/users/v1
 
 # load specific govDAO implementation and needed users for your integration test
 loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
@@ -17,10 +15,6 @@ gnoland start
 # call gov/dao render to check everything is working as expected and the loader worked
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 stdout 'data: # GovDAO'
-
-# Register member with a namespace first
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 10000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member
-stdout 'OK!'
 
 # add the proposal (temporarily comment out to debug)
 # First run a debug script to understand the addresses
