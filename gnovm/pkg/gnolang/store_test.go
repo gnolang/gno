@@ -45,13 +45,9 @@ func TestTransactionStore(t *testing.T) {
 	assert.PanicsWithValue(t, "unexpected type with id gno.vm/t/hello.A", func() { st.GetType("gno.vm/t/hello.A") })
 
 	// Check that hello.A is set in txSt.
-	// Later, we will get hello.A from the parent store; that will do an amino
-	// unmarshal and as such Methods will be unmarshaled to []TypedValue{}.
-	// To make it match in the last assert.Equal, we set it to []TypedValue{} here.
 	stA := txSt.GetType("gno.vm/t/hello.A")
 	assert.NotNil(t, stA)
 	assert.Empty(t, stA.(*DeclaredType).Methods)
-	stA.(*DeclaredType).Methods = []TypedValue{}
 
 	// use write on the stores
 	txSt.Write()
@@ -63,7 +59,16 @@ func TestTransactionStore(t *testing.T) {
 	assert.Equal(t, txSt.GetMemPackage("gno.vm/t/hello"), res)
 	helloA := st.GetType("gno.vm/t/hello.A")
 	assert.NotNil(t, helloA)
-	assert.Equal(t, txSt.GetType("gno.vm/t/hello.A"), helloA)
+	// Normalize nil vs empty slice: amino-unmarshal of an empty repeated field
+	// returns nil, while the in-memory type retains nil from construction.
+	// Both represent "no methods" and are semantically equivalent.
+	if helloA.(*DeclaredType).Methods == nil {
+		helloA.(*DeclaredType).Methods = []TypedValue{}
+	}
+	if stA.(*DeclaredType).Methods == nil {
+		stA.(*DeclaredType).Methods = []TypedValue{}
+	}
+	assert.Equal(t, stA, helloA)
 }
 
 func TestTransactionStore_blockedMethods(t *testing.T) {
