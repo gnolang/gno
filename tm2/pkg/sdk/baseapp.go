@@ -3,7 +3,6 @@ package sdk
 import (
 	"fmt"
 	"log/slog"
-	"math"
 	"os"
 	"runtime/debug"
 	"sort"
@@ -763,26 +762,16 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		if r := recover(); r != nil {
 			switch ex := r.(type) {
 			case store.OutOfGasError:
-				gasUsed := ctx.GasMeter().GasConsumed()
-				maxGas := int64(-1)
-				if cp := ctx.ConsensusParams(); cp != nil {
-					maxGas = cp.Block.MaxGas
-				}
-				detail := "(hit tx gas limit)"
-				if maxGas > 0 && gasUsed >= maxGas {
-					detail = fmt.Sprintf("(hit consensus maxGas %d)", maxGas)
-				}
 				log := fmt.Sprintf(
-					"out of gas %s, gasWanted: %d, gasUsed: %d (until panic) location: %v",
-					detail,
+					"out of gas, gasWanted: %d, gasUsed: %d (until panic) location: %v",
 					gasWanted,
-					gasUsed,
+					ctx.GasMeter().GasConsumed(),
 					ex.Descriptor,
 				)
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
-				result.GasUsed = gasUsed
+				result.GasUsed = ctx.GasMeter().GasConsumed()
 				return
 			default:
 				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
@@ -873,38 +862,8 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
 
-	// Special case for simulation mode where the gas meter is infinite:
-	// if we used more gas than was requested, return an out of gas error.
-	if mode == RunTxModeSimulate && result.Error == nil &&
-		gasWanted > 0 && result.GasUsed > gasWanted {
-		log := fmt.Sprintf(
-			"out of gas during simulation; gasWanted: %d, gasUsed: %d",
-			gasWanted, result.GasUsed,
-		)
-		result.Error = ABCIError(std.ErrOutOfGas(log))
-		result.Log = log
-		suggested := int64(math.Ceil(float64(result.GasUsed) * 1.05)) // +5% ceil
-		msg := fmt.Sprintf("suggested gas-wanted (gas used + 5%%): %d", suggested)
-		if result.Info == "" {
-			result.Info = msg
-		} else {
-			result.Info = result.Info + ", " + msg
-		}
-
-		return result
-	}
-
 	// Safety check: don't write the cache state unless we're in DeliverTx.
 	if mode != RunTxModeDeliver {
-		if mode == RunTxModeSimulate {
-			suggested := int64(math.Ceil(float64(result.GasUsed) * 1.05)) // +5% ceil
-			msg := fmt.Sprintf("suggested gas-wanted (gas used + 5%%): %d", suggested)
-			if result.Info == "" {
-				result.Info = msg
-			} else {
-				result.Info = result.Info + ", " + msg
-			}
-		}
 		return result
 	}
 

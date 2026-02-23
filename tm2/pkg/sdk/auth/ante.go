@@ -408,15 +408,6 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 
 // SetGasMeter returns a new context with a gas meter set from a given context.
 func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
-	if ctx.Mode() == sdk.RunTxModeSimulate {
-		// Cap simulation gas to avoid unbounded consumption; use consensus maxGas
-		// as a ceiling. Ignore the tx gasLimit here so we can measure full gas usage.
-		if cp := ctx.ConsensusParams(); cp != nil && cp.Block.MaxGas != -1 {
-			return ctx.WithGasMeter(store.NewGasMeter(cp.Block.MaxGas))
-		}
-		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
-	}
-
 	// In various cases such as simulation and during the genesis block, we do not
 	// meter any gas utilization.
 	if ctx.BlockHeight() == 0 {
