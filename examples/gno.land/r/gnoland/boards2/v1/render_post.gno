@@ -298,7 +298,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(
 		md.Paragraph(
-			"Thread or comment moderation is done though flagging, which is usually done "+
+			"Thread or comment moderation is done through flagging, which is usually done "+
 				"by board members with the moderator role, though other roles could also potentially flag.",
 		) +
 			md.Paragraph(
@@ -324,7 +324,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(
 			md.Paragraph(
 				ufmt.Sprintf(
-					"⚠ You are flagging %s thread ⚠",
+					"⚠ You are flagging the thread: %s ⚠",
 					md.Link(thread.Title, makeThreadURI(thread)),
 				),
 			),
@@ -505,7 +505,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(backLink + "\n\n")
 		res.Write(
 			md.Paragraph(
-				ufmt.Sprintf("Commenting on %s thread", md.Link(thread.Title, makeThreadURI(thread))),
+				ufmt.Sprintf("Commenting on the thread: %s", md.Link(thread.Title, makeThreadURI(thread))),
 			),
 		)
 	}
