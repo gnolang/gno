@@ -2473,6 +2473,7 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 			return ptr
 		}
 	default:
+		fmt.Println(nx.Type, nx)
 		panic("unexpected NameExpr type for GetPointerToMaybeHeapDefine")
 	}
 }
