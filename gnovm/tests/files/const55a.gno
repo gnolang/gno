@@ -11,7 +11,7 @@ func main() {
 }
 
 // Error:
-// main/const55a.gno:5:2-9: assignment mismatch: 3 variable(s) but 2 value(s)
+// main/const55a.gno:10:10-11: name not defined: m
 
 // TypeCheckError:
 // main/const55a.gno:5:8: missing init expr for l
