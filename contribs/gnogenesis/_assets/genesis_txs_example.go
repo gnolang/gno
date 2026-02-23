@@ -1,6 +1,7 @@
 package example
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"slices"
@@ -42,12 +43,7 @@ func createGenesisTxsFile(outputPath string, privKey secp256k1.PrivKeySecp256k1,
 		if a.Metadata == nil || b.Metadata == nil {
 			return 0
 		}
-		if a.Metadata.Timestamp < b.Metadata.Timestamp {
-			return -1
-		} else if a.Metadata.Timestamp > b.Metadata.Timestamp {
-			return 1
-		}
-		return 0
+		return cmp.Compare(a.Metadata.Timestamp, b.Metadata.Timestamp)
 	})
 
 	// Sign transactions
