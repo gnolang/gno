@@ -4,7 +4,7 @@ loadpkg gno.land/r/gnoland/ghverify
 gnoland start
 
 # make a verification request
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func RequestVerification -args 'deelawn' -gas-fee 1000000ugnot -gas-wanted 6500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func RequestVerification -args 'deelawn' -gas-fee 10000000ugnot -gas-wanted 65000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # request tasks to complete (this is done by the agent)
@@ -12,11 +12,11 @@ gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint 
 stdout '\("\[\{\\"id\\":\\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\\",\\"type\\":\\"0\\",\\"value_type\\":\\"string\\",\\"tasks\\":\[\{\\"gno_address\\":\\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\\",\\"github_handle\\":\\"deelawn\\"\}\]\}\]" string\)'
 
 # a verification request was made but there should be no verified address
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetHandleByAddress -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -gas-fee 1000000ugnot -gas-wanted 800000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetHandleByAddress -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -gas-fee 10000000ugnot -gas-wanted 8000000 -broadcast -chainid=tendermint_test test1
 stdout ""
 
 # a verification request was made but there should be no verified handle
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 1000000ugnot -gas-wanted 800000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 10000000ugnot -gas-wanted 8000000 -broadcast -chainid=tendermint_test test1
 stdout ""
 
 # fail on ingestion with a bad task ID
@@ -28,11 +28,11 @@ gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint 
 stdout OK!
 
 # get verified github handle by gno address
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetHandleByAddress -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -gas-fee 1000000ugnot -gas-wanted 809000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetHandleByAddress -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stdout "deelawn"
 
 # get verified gno address by github handle
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 1000000ugnot -gas-wanted 809000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stdout "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
 gnokey query vm/qrender --data 'gno.land/r/gnoland/ghverify:'
