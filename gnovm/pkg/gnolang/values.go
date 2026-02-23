@@ -1537,6 +1537,12 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 	}
 }
 
+const (
+	// CPUComputeMapKey is the base gas cost for the ComputeMapKey function.
+	// TODO: fix an accurate value with benchmarks
+	CPUComputeMapKey = 10
+)
+
 // ComputeMapKey returns the value of tv, encoded as a string for usage inside
 // of a map.
 //
@@ -1544,6 +1550,7 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 // array or struct) are NaN's; this would make the same tv != to itself, and
 // so shouldn't be included within a vmap.
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isNaN bool) {
+	store.ConsumeGas(CPUComputeMapKey, GasComputeMapKey)
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -1599,6 +1606,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 				}
 			}
 		} else {
+			store.GetAllocator().Allocate(int64(len(av.Data)))
 			bz = append(bz, av.Data...)
 		}
 		bz = append(bz, ']')
