@@ -1064,9 +1064,9 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	if err := validatePkgName(Name(mpkg.Name)); err != nil {
 		return err
 	}
-	// Validate that package name matches path last element if not filetests.
+	// Validate that package name matches path last element for pkg meant to be deployed on-chain.
 	// See https://github.com/gnolang/gno/issues/1571
-	if !mptype.IsFiletests() {
+	if mptype == MPUserAll {
 		if err := ValidatePkgNameMatchesPath(Name(mpkg.Name), mpkg.Path); err != nil {
 			return err
 		}

@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// invalid mempackage: package name "hello" does not match path element "goodbye"
+// package name "hello" does not match path element "goodbye"

@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/tests/vm0
+// PKGPATH: gno.land/r/tests/tests0
 package tests0
 
 import (
@@ -17,5 +17,9 @@ func main(cur realm) {
 	println("end")
 }
 
-// Error:
-// invalid mempackage: package name "tests0" does not match path element "vm0"
+// Output:
+// 0: &FooStringer{one}
+// 1: &FooStringer{two}
+// 2: &FooStringer{three}
+//
+// end
