@@ -265,7 +265,7 @@ type runResult struct {
 }
 
 func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer, tcheck bool) (rr runResult) {
-	pkgName := gno.Name(gno.LastPathElement(pkgPath))
+	pkgName := gno.MustPackageNameFromFileBody(fname, string(content))
 	tcError := ""
 	fname = filepath.Base(fname)
 	if opts.tcCache == nil {

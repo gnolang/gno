@@ -18,7 +18,4 @@ func main(cur realm) {
 }
 
 // Error:
-// expected package name [vm0] but got [tests0]
-
-// TypeCheckError:
-// gno.land/r/tests/vm0/.gnobuiltins.gno:1:1: package vm0; expected package tests0; gno.land/r/tests/vm0/zrealm_tests0.gno:14:21: undefined: cross; gno.land/r/tests/vm0/zrealm_tests0.gno:14:21: undefined: cross
+// invalid mempackage: package name "tests0" does not match path element "vm0"
