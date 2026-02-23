@@ -15,15 +15,18 @@ func (abciError) AssertABCIError() {}
 // declare all script errors.
 // NOTE: these are meant to be used in conjunction with pkgs/errors.
 type (
-	InvalidPkgPathError   struct{ abciError }
-	NoRenderDeclError     struct{ abciError }
-	PkgExistError         struct{ abciError }
-	InvalidStmtError      struct{ abciError }
-	InvalidExprError      struct{ abciError }
-	UnauthorizedUserError struct{ abciError }
-	InvalidPackageError   struct{ abciError }
-	InvalidFileError      struct{ abciError }
-	TypeCheckError        struct {
+	InvalidPkgPathError        struct{ abciError }
+	NoRenderDeclError          struct{ abciError }
+	PkgExistError              struct{ abciError }
+	InvalidStmtError           struct{ abciError }
+	InvalidExprError           struct{ abciError }
+	ErrInvalidQueryFormatError struct{ abciError }
+	UnauthorizedUserError      struct{ abciError }
+	InvalidPackageError        struct{ abciError }
+	InvalidFileError           struct{ abciError }
+	ObjectNotFoundError        struct{ abciError }
+
+	TypeCheckError struct {
 		abciError
 		Errors []string `json:"errors"`
 	}
@@ -37,6 +40,7 @@ func (e InvalidFileError) Error() string      { return "file is not available" }
 func (e InvalidExprError) Error() string      { return "invalid expression" }
 func (e UnauthorizedUserError) Error() string { return "unauthorized user" }
 func (e InvalidPackageError) Error() string   { return "invalid package" }
+func (e ObjectNotFoundError) Error() string   { return "object not found" }
 func (e TypeCheckError) Error() string {
 	var bld strings.Builder
 	bld.WriteString("invalid gno package; type check errors:\n")
@@ -70,6 +74,14 @@ func ErrInvalidExpr(msg string) error {
 
 func ErrInvalidPackage(msg string) error {
 	return errors.Wrap(InvalidPackageError{}, msg)
+}
+
+func ErrInvalidQueryFormat(msg string) error {
+	return errors.Wrap(ErrInvalidQueryFormatError{}, msg)
+}
+
+func ErrObjectNotFound(msg string) error {
+	return errors.Wrap(ObjectNotFoundError{}, msg)
 }
 
 func ErrTypeCheck(err error) error {

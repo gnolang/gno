@@ -132,6 +132,10 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
+	if cfg.RootCfg.Json {
+		io.ErrPrintln("warning: -json flag has no effect on `add` command")
+	}
+
 	// Validate the derivation paths are correct
 	for _, path := range cfg.DerivationPath {
 		// Make sure the path is valid

@@ -49,7 +49,7 @@ func main(cur realm) {
 //     @@ -12,7 +12,7 @@
 //              "ID": "46279d1e03ecb38b84822f9caf584bd16913470d:19",
 //              "IsEscaped": true,
-//              "LastObjectSize": "222",
+//              "LastObjectSize": "181",
 //     -        "ModTime": "7",
 //     +        "ModTime": "19",
 //              "RefCount": "2"

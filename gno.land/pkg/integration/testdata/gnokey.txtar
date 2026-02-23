@@ -1,3 +1,5 @@
+loadpkg gno.land/r/dev/silo $WORK/silo
+
 # test basic gnokey integrations commands
 # golden files have been generated using UPDATE_SCRIPTS=true
 
@@ -7,6 +9,9 @@ adduser user1
 # start gnoland
 gnoland start
 
+# query
+
+## auth
 ## test1 account should be available on default
 gnokey query auth/accounts/$user1_user_addr
 stdout 'height: 0'
@@ -25,3 +30,79 @@ stdout '}'
 ! gnokey query foo/bar
 stdout 'Log:'
 stderr '"gnokey" error: unknown request error'
+
+## succeed json call: string
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.Hello(\"juliette\")"
+cmp stdout gnokey-json-call-string.stdout.golden
+cmp stderr gnokey-json-call-string.stderr.golden
+
+
+## succeed json call: error
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.Hello(\"bernard\")"
+cmp stdout gnokey-json-call-error.stdout.golden
+cmp stderr gnokey-json-call-error.stderr.golden
+
+
+## success json call: object
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.GetSilo()"
+cmp stdout gnokey-json-call-object.stdout.golden
+cmp stderr gnokey-json-call-object.stderr.golden
+
+
+## success json call: []byte
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.GetSiloData()"
+cmp stdout gnokey-json-call-bytes.stdout.golden
+cmp stderr gnokey-json-call-bytes.stderr.golden
+
+
+## success query: qobject (fetch persisted object by ObjectID)
+# The ObjectID comes from the GetSilo() response above
+gnokey query vm/qobject --data "6aed2eda72c79e411eec1ea7f661c5e30383fb59:3"
+cmp stdout gnokey-qobject.stdout.golden
+cmp stderr gnokey-qobject.stderr.golden
+
+-- silo/silo.gno --
+package silo
+
+import "errors"
+
+type Silo struct {
+	Data string
+}
+
+var mysilo = Silo{
+	Data: "secret message",
+}
+
+func Hello(name string) (string, error) {
+	if name == "bernard" {
+		return "", errors.New("not for you bernard!")
+	}
+
+	return "Hello "+name, nil
+}
+
+func GetSilo() *Silo {
+	return &mysilo
+}
+
+func GetSiloData() []byte {
+	return []byte(mysilo.Data)
+}
+
+-- gnokey-json-call-string.stdout.golden --
+{"response":{"ResponseBase":{"Error":null,"Data":"eyJyZXN1bHRzIjpbeyJUIjoic3RyaW5nIiwiViI6eyJAdHlwZSI6Ii9nb29nbGUucHJvdG9idWYuU3RyaW5nVmFsdWUiLCJ2YWx1ZSI6IkhlbGxvIGp1bGlldHRlIn19LHsiVCI6IiIsIlYiOm51bGx9XX0=","Events":null,"Log":"","Info":""},"Key":null,"Value":null,"Proof":null,"Height":"0"},"data":{"results":[{"T":"string","V":{"@type":"/google.protobuf.StringValue","value":"Hello juliette"}},{"T":"","V":null}]}}
+-- gnokey-json-call-string.stderr.golden --
+-- gnokey-json-call-error.stdout.golden --
+{"response":{"ResponseBase":{"Error":null,"Data":"eyJyZXN1bHRzIjpbeyJUIjoic3RyaW5nIiwiViI6eyJAdHlwZSI6Ii9nb29nbGUucHJvdG9idWYuU3RyaW5nVmFsdWUiLCJ2YWx1ZSI6IiJ9fSx7IlQiOiIqUmVmVHlwZXtlcnJvcnMuZXJyb3JTdHJpbmd9IiwiViI6eyJAdHlwZSI6Ii9nbm8uUG9pbnRlclZhbHVlIiwiVFYiOm51bGwsIkJhc2UiOnsiQHR5cGUiOiIvZ25vLkpTT05TdHJ1Y3RWYWx1ZSIsIk9iamVjdEluZm8iOnsiSUQiOiI6MSJ9LCJGaWVsZHMiOlt7Ik4iOiJzIiwiVCI6eyJAdHlwZSI6Ii9nbm8uUHJpbWl0aXZlVHlwZSIsInZhbHVlIjoiMTYifSwiViI6eyJAdHlwZSI6Ii9nb29nbGUucHJvdG9idWYuU3RyaW5nVmFsdWUiLCJ2YWx1ZSI6Im5vdCBmb3IgeW91IGJlcm5hcmQhIn19XX0sIkluZGV4IjoiMCJ9fV0sIkBlcnJvciI6Im5vdCBmb3IgeW91IGJlcm5hcmQhIn0=","Events":null,"Log":"","Info":""},"Key":null,"Value":null,"Proof":null,"Height":"0"},"data":{"results":[{"T":"string","V":{"@type":"/google.protobuf.StringValue","value":""}},{"T":"*RefType{errors.errorString}","V":{"@type":"/gno.PointerValue","TV":null,"Base":{"@type":"/gno.JSONStructValue","ObjectInfo":{"ID":":1"},"Fields":[{"N":"s","T":{"@type":"/gno.PrimitiveType","value":"16"},"V":{"@type":"/google.protobuf.StringValue","value":"not for you bernard!"}}]},"Index":"0"}}],"@error":"not for you bernard!"}}
+-- gnokey-json-call-error.stderr.golden --
+-- gnokey-json-call-object.stdout.golden --
+{"response":{"ResponseBase":{"Error":null,"Data":"eyJyZXN1bHRzIjpbeyJUIjoiKlJlZlR5cGV7Z25vLmxhbmQvci9kZXYvc2lsby5TaWxvfSIsIlYiOnsiQHR5cGUiOiIvZ25vLlBvaW50ZXJWYWx1ZSIsIlRWIjpudWxsLCJCYXNlIjp7IkB0eXBlIjoiL2duby5SZWZWYWx1ZSIsIk9iamVjdElEIjoiNmFlZDJlZGE3MmM3OWU0MTFlZWMxZWE3ZjY2MWM1ZTMwMzgzZmI1OTozIiwiSGFzaCI6ImVmYmYzMWI1NjFkMDg1ODc0MmJiN2M1MDA0NTA5Y2JhZGUxMDU5MDkifSwiSW5kZXgiOiIwIn19XX0=","Events":null,"Log":"","Info":""},"Key":null,"Value":null,"Proof":null,"Height":"0"},"data":{"results":[{"T":"*RefType{gno.land/r/dev/silo.Silo}","V":{"@type":"/gno.PointerValue","TV":null,"Base":{"@type":"/gno.RefValue","ObjectID":"6aed2eda72c79e411eec1ea7f661c5e30383fb59:3","Hash":"efbf31b561d0858742bb7c5004509cbade105909"},"Index":"0"}}]}}
+-- gnokey-json-call-object.stderr.golden --
+-- gnokey-json-call-bytes.stdout.golden --
+{"response":{"ResponseBase":{"Error":null,"Data":"eyJyZXN1bHRzIjpbeyJUIjoiW111aW50OCIsIlYiOnsiQHR5cGUiOiIvZ25vLlNsaWNlVmFsdWUiLCJCYXNlIjp7IkB0eXBlIjoiL2duby5BcnJheVZhbHVlIiwiT2JqZWN0SW5mbyI6eyJJRCI6IjowIiwiTW9kVGltZSI6IjAiLCJSZWZDb3VudCI6IjAiLCJMYXN0T2JqZWN0U2l6ZSI6IjAifSwiTGlzdCI6bnVsbCwiRGF0YSI6ImMyVmpjbVYwSUcxbGMzTmhaMlVBQUE9PSJ9LCJPZmZzZXQiOiIwIiwiTGVuZ3RoIjoiMTQiLCJNYXhjYXAiOiIxNiJ9fV19","Events":null,"Log":"","Info":""},"Key":null,"Value":null,"Proof":null,"Height":"0"},"data":{"results":[{"T":"[]uint8","V":{"@type":"/gno.SliceValue","Base":{"@type":"/gno.ArrayValue","ObjectInfo":{"ID":":0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"List":null,"Data":"c2VjcmV0IG1lc3NhZ2UAAA=="},"Offset":"0","Length":"14","Maxcap":"16"}}]}}
+-- gnokey-json-call-bytes.stderr.golden --
+-- gnokey-qobject.stdout.golden --
+height: 0
+data: {"objectid":"6aed2eda72c79e411eec1ea7f661c5e30383fb59:3","value":{"@type":"/gno.JSONStructValue","ObjectInfo":{"ID":"6aed2eda72c79e411eec1ea7f661c5e30383fb59:3","OwnerID":"6aed2eda72c79e411eec1ea7f661c5e30383fb59:2","RefCount":"1"},"Fields":[{"N":"Data","T":{"@type":"/gno.PrimitiveType","value":"16"},"V":{"@type":"/google.protobuf.StringValue","value":"secret message"}}]}}
+-- gnokey-qobject.stderr.golden --

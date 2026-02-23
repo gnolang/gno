@@ -118,12 +118,10 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
-		err := ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
-		if err != nil {
-			return err
-		}
-	} else {
-		io.Println(string(amino.MustMarshalJSON(tx)))
+		return ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 	}
+
+	io.Println(string(amino.MustMarshalJSON(tx)))
+
 	return nil
 }

@@ -60,6 +60,10 @@ func execImport(cfg *ImportCfg, io commands.IO) error {
 		return errors.New("name shouldn't be empty")
 	}
 
+	if cfg.RootCfg.Json {
+		io.ErrPrintln("warning: -json flag has no effect on `import` command")
+	}
+
 	// Create a new instance of the key-base
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {

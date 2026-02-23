@@ -33,7 +33,13 @@ func execList(cfg *BaseCfg, args []string, io commands.IO) error {
 	}
 
 	infos, err := kb.List()
-	if err == nil {
+	if err != nil {
+		return err
+	}
+
+	if cfg.Json {
+		printInfosJSON(infos, io)
+	} else {
 		printInfos(infos, io)
 	}
 
@@ -50,4 +56,19 @@ func printInfos(infos []keys.Info, io commands.IO) {
 		io.Printfln("%d. %s (%s) - addr: %v pub: %v, path: %v",
 			i, keyname, keytype, keyaddr, keypub, keypath)
 	}
+}
+
+func printInfosJSON(infos []keys.Info, io commands.IO) {
+	mapinfos := make([]map[string]any, len(infos))
+	for i, info := range infos {
+		keypath, _ := info.GetPath()
+		mapinfos[i] = map[string]any{
+			"name":    info.GetName(),
+			"type":    info.GetType(),
+			"pub_key": info.GetPubKey().Address().Bech32(),
+			"path":    keypath,
+		}
+	}
+
+	printJson(mapinfos, io)
 }
