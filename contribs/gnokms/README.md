@@ -2,7 +2,7 @@
 
 `gnokms` is a simple Key Management System (KMS) designed to securely manage signing keys for [gnoland](../../gno.land/cmd/gnoland) (TM2) validator nodes. Rather than storing a key in plain text on disk, a validator can run a `gnokms` server in a separate process or on a separate machine, delegating the responsibility of securely storing the signing key and using it for remote signing.
 
-`gnokms` also aims to provide several backends, including a local [gnokey](../../gno.land/cmd/gnokey) instance, a remote HSM, or a cloud-based KMS service.
+`gnokms` also aims to provide several backends, including a local [gnokey](../../gno.land/cmd/gnokey) instance, a Ledger Tendermint validator app (a local HSM‑class device), a remote HSM, or a cloud-based KMS service.
 
 Both TCP and Unix domain socket connections are supported for communication between the validator and the `gnokms` server. TCP connections are encrypted and can be mutually authenticated using Ed25519 keypairs and an authorized keys whitelist on both sides.
 
@@ -36,7 +36,7 @@ Both TCP and Unix domain socket connections are supported for communication betw
 
 ### Using `gnokms` with a gnoland validator
 
-**Note:** The only supported backend for now is [gnokey](../../gno.land/cmd/gnokey), so the following instructions will use it.
+### Using `gnokms` with gnokey
 
 1. Generate a signing key using [gnokey](../../gno.land/cmd/gnokey) if you do not already have one.
 2. Start a `gnokms` server with the [gnokey](../../gno.land/cmd/gnokey) backend using:
@@ -53,6 +53,24 @@ $ gnokms gnokey '<key_name>' -listener '<listen_address>'
 $ gnoland config set consensus.priv_validator.remote_signer.server_address '<gnokms_server_address>'
 Updated configuration saved at gnoland-data/config/config.toml
 ```
+
+### Using `gnokms` with Ledger Tendermint validator app
+
+1. Open the [tm-ledger-validator app](https://github.com/gnoverse/tm-ledger-validator) on your Ledger device.
+   - Only Ledger Nano S Plus is supported.
+   - The Ledger Nano X does not support sideloading developer apps, so the tm-ledger-validator app cannot be installed on it.
+   - Disable the PIN lock on the Ledger device.
+   - The first signature requires manual confirmation on the Ledger (it displays the height and round to initialize the validator state). Subsequent signatures proceed without user action.
+2. Start a `gnokms` server with the Ledger backend using:
+
+```shell
+$ gnokms ledger -listener '<listen_address>'
+# <listen_address> is the address on which the server should listen (e.g., 'tcp://127.0.0.1:26659' or 'unix:///tmp/gnokms.sock').
+```
+
+The Tendermint validator app uses the fixed BIP44 path `44'/118'/0'/0/0` and does not accept overrides.
+
+**Note:** Ledger support requires CGO-enabled builds and the Ledger HID dependencies (for example, `CGO_ENABLED=1` with the required system libraries installed).
 
 ### Genesis
 
