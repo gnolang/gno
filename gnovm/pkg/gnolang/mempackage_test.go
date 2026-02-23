@@ -297,7 +297,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type: MPUserProd,
 				Name: "hey",
-				Path: "gno.land/r/path/path",
+				Path: "gno.land/r/path/hey",
 				Files: []*std.MemFile{
 					{Name: "a.gno", Body: "package hey"},
 					{Name: "other.md", Body: "# Other markdown file"},
