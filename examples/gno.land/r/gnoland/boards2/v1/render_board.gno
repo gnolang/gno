@@ -9,7 +9,6 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mdalert"
 	"gno.land/p/nt/mux"
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
@@ -17,7 +16,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	board, found := gBoards.GetByName(name)
 	if !found {
 		res.Write(md.H3("The board you are looking for does not exist"))
-		res.Write("Do you want to " + md.Link("create a new board", createBoardURI) + " ?")
+		res.Write("Do you want to " + md.Link("create a new board", createBoardURI) + "?")
 		return
 	}
 
@@ -39,7 +38,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(md.H3("This board doesn't have any threads"))
 		if !board.Readonly {
 			startConversationLink := md.Link("start a new conversation", makeCreateThreadURI(board))
-			res.Write("Do you want to " + startConversationLink + " in this board ?")
+			res.Write("Do you want to " + startConversationLink + " in this board?")
 		}
 		return
 	}
@@ -50,6 +49,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	render := func(thread *boards.Post) bool {
+		// TODO: Hidden threads should be stored separately to be able to properly page visible ones
 		if !thread.Hidden {
 			res.Write(renderThreadSummary(thread) + "\n")
 		}
@@ -136,7 +136,7 @@ func renderInviteMember(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("Board not found")
 		return
 	}
 
@@ -154,19 +154,19 @@ func renderInviteMember(res *mux.ResponseWriter, req *mux.Request) {
 	)
 	form.Select(
 		"role",
-		string(permissions.RoleOwner),
+		string(RoleOwner),
 	)
 	form.Select(
 		"role",
-		string(permissions.RoleAdmin),
+		string(RoleAdmin),
 	)
 	form.Select(
 		"role",
-		string(permissions.RoleModerator),
+		string(RoleModerator),
 	)
 	form.Select(
 		"role",
-		string(permissions.RoleGuest),
+		string(RoleGuest),
 		"selected", "true",
 	)
 
