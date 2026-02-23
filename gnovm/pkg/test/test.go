@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"context"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
@@ -131,6 +132,8 @@ type TestOptions struct {
 	Error io.Writer
 	// Debug enables the interactive debugger on gno tests.
 	Debug bool
+	// TODO
+	Context context.Context
 
 	// Not set by NewTestOptions:
 
