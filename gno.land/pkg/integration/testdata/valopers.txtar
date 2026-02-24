@@ -1,16 +1,10 @@
 loadpkg gno.land/r/gnops/valopers
 loadpkg gno.land/r/gnops/valopers/proposal
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/sys/users
-loadpkg gno.land/r/gnoland/users/v1
 
 adduser regular1
 
 gnoland start
-
-# Register member with a namespace 
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular1
-stdout 'OK!'
 
 # Add user as a member for govdao
 gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/load_user.gno
