@@ -1860,7 +1860,7 @@ The community note by "Hillarious Wind Sandgrouse" only expressed her point of
 view and that she said the object was prohibited; but when I read the [article
 referenced by Sandgrouse himself](https://nebraskaexaminer.com/2026/01/07/nebraska-state-lawmaker-removes-part-of-conservative-pragerus-founders-museum/) it was made clear that the objects were never 
 prohibited, so therefore she was "vandalizing". So I looked further into his
-account and discovered that (a) Sandgrouse is a [prolific note contributor](./images/manifesto/twitter_jws_profile.png), and
+account and discovered that (a) Sandgrouse is a [prolific note contributor](./images/manifesto/twitter_hws_profile.png), and
 (b) Sandgrouse had been [spamming biased community notes](./images/manifesto/twitter_hws_example.jpeg) with absurd notes
 regarding a recent anti-ICE incident where he claimed that there is no evidence
 of race motive or anti-immigration sentiment even though he also wrote that a
@@ -1888,10 +1888,10 @@ few highlights.
    15th, 2023 has [many community notes](./images/manifesto/twitter_ftx.jpeg) that claim that Twitter had been
    suppressing the votes by removing likes and retweets.
 
- * I have experienced URL links posted on Twitter (which become shortened and
-   compressed with "..." so that you cannot even copy the original URL) magically
-   get replaced with another URL in the future; and when I asked Grok about it
-   [it refused to comment](./images/manifesto/twitter_grok_knows.jpeg).
+ * My followers count has been stuck at around ~26.5K users for years, whereas
+   it used to grow exponentially. This occurred around the time that I started
+   getting vocal about Covid19 vaccines and mandates (and it was revealed that
+   miliary agencies like DARPA was involved in suppressing accounts).
 
  * I have experienced seeing my tweet go viral, with 13 retweets within a few
    minutes, only to see the retweet count drop down to 2 within seconds.
@@ -1902,8 +1902,3 @@ few highlights.
 
  * This is why I created a new account in the first place, and my [old account](https://x.com/jaesustein)
    I can no longer access, and my email address is no longer associated with it.
-
- * My followers count has been stuck at around ~26.5K users for years, whereas
-   it used to grow exponentially. This occurred around the time that I started
-   getting vocal about Covid19 vaccines and mandates (and it was revealed that
-   miliary agencies like DARPA was involved in suppressing accounts).
