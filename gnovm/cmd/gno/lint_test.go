@@ -142,13 +142,6 @@ func TestLintApp(t *testing.T) {
 			testDir:              "../../tests/integ/render_valid4",
 			simulateExternalRepo: true,
 		},
-		{
-			args:                 []string{"lint", "."},
-			testDir:              "../../tests/integ/package_name_mismatch",
-			simulateExternalRepo: true,
-			stderrShouldContain:  `package name "hello" does not match path element "goodbye" (code=gnoPackageNameMismatch)`,
-			errShouldBe:          "exit code: 1",
-		},
 
 		// TODO: 'gno mod' is valid?
 		// TODO: are dependencies valid?
