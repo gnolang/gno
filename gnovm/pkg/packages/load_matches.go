@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/token"
 	"io"
+	"io/fs"
 	"path/filepath"
 	"strings"
 
@@ -14,21 +15,21 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-func loadMatches(out io.Writer, fetcher pkgdownload.PackageFetcher, matches []*pkgMatch, fset *token.FileSet) (PkgList, error) {
+func loadMatches(out io.Writer, fetcher pkgdownload.PackageFetcher, matches []*pkgMatch, ofs *overlayFS, fset *token.FileSet) (PkgList, error) {
 	if fset == nil {
 		fset = token.NewFileSet()
 	}
 
 	pkgs := make([]*Package, 0, len(matches))
 	for _, pkgMatch := range matches {
-		pkg := loadSinglePkg(out, fetcher, pkgMatch.Dir, fset)
+		pkg := loadSinglePkg(out, fetcher, pkgMatch.Dir, ofs, fset)
 		pkg.Match = pkgMatch.Match
 		pkgs = append(pkgs, pkg)
 	}
 	return pkgs, nil
 }
 
-func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir string, fset *token.FileSet) (pkg *Package) {
+func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir string, ofs *overlayFS, fset *token.FileSet) (pkg *Package) {
 	defer func() {
 		if pkg == nil {
 			return
@@ -93,7 +94,14 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 	default:
 		// attempt to load gnomod.toml if package is not stdlib
 		// get import path and flags from gnomod
-		mod, err := gnomod.ParseDir(pkg.Dir)
+		modfpath := filepath.Join(pkg.Dir, "gnomod.toml")
+		bz, err := fs.ReadFile(ofs, modfpath)
+		if err != nil {
+			// return partial package if invalid gnomod
+			pkg.Errors = append(pkg.Errors, &Error{Msg: "missing gnomod", Pos: pkg.Dir})
+			return pkg
+		}
+		mod, err := gnomod.ParseBytes(modfpath, bz)
 		if err != nil {
 			// return partial package if invalid gnomod
 			pkg.Errors = append(pkg.Errors, fromErr(err, pkg.Dir, false)...)
@@ -117,7 +125,7 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 				err = fmt.Errorf("read mempackage: %v", cret)
 			}
 		}()
-		return gnolang.ReadMemPackage(pkg.Dir, pkg.ImportPath, mptype)
+		return gnolang.ReadFSMemPackage(ofs, pkg.Dir, pkg.ImportPath, mptype)
 	}()
 	if err != nil {
 		pkg.Errors = append(pkg.Errors, fromErr(err, pkg.Dir, true)...)
