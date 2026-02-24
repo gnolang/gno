@@ -41,14 +41,14 @@ var (
 )
 
 result := antispam.Score(antispam.ScoreInput{
-    Author:  author,
-    Content: content,
-    Rate:    antispam.RateState{PostCount: 1, WindowSeconds: 3600},
-    Rep:     antispam.ReputationData{AccountAgeDays: 30, Balance: 5000000000, HasUsername: true},
-    Corpus:  corpus,
-    Fps:     fps,
-    Bl:      bl,
-    Dict:    kw,
+    Author:       author,
+    Content:      content,
+    Rate:         antispam.RateState{PostCount: 1, WindowSeconds: 3600},
+    Reputation:   antispam.ReputationData{AccountAgeDays: 30, Balance: 5000000000, HasUsername: true},
+    Corpus:       corpus,
+    Fingerprints: fps,
+    Blocklist:    bl,
+    Keywords:     kw,
 })
 ```
 
@@ -150,12 +150,17 @@ Three ways to control cost:
 
 ```gno
 // Cheap rules only
-result := antispam.Score(antispam.ScoreInput{Content: content, Rate: rate, Rep: rep})
+result := antispam.Score(antispam.ScoreInput{Content: content, Rate: rate, Reputation: rep})
 
 // Full state
 result := antispam.Score(antispam.ScoreInput{
-    Content: content, Rate: rate, Rep: rep,
-    Corpus: corpus, Fps: fps, Bl: bl, Dict: kw,
+    Content:      content,
+    Rate:         rate,
+    Reputation:   rep,
+    Corpus:       corpus,
+    Fingerprints: fps,
+    Blocklist:    bl,
+    Keywords:     kw,
 })
 ```
 
@@ -164,16 +169,26 @@ result := antispam.Score(antispam.ScoreInput{
 ```gno
 // Stop at 8
 result := antispam.Score(antispam.ScoreInput{
-    Content: content, Rate: rate, Rep: rep,
-    Corpus: corpus, Fps: fps, Bl: bl, Dict: kw,
-    EarlyExitAt: antispam.ThresholdReject,
+    Content:      content,
+    Rate:         rate,
+    Reputation:   rep,
+    Corpus:       corpus,
+    Fingerprints: fps,
+    Blocklist:    bl,
+    Keywords:     kw,
+    EarlyExitAt:  antispam.ThresholdReject,
 })
 
 // Full score
 result := antispam.Score(antispam.ScoreInput{
-    Content: content, Rate: rate, Rep: rep,
-    Corpus: corpus, Fps: fps, Bl: bl, Dict: kw,
-    EarlyExitAt: antispam.EarlyExitDisabled,
+    Content:      content,
+    Rate:         rate,
+    Reputation:   rep,
+    Corpus:       corpus,
+    Fingerprints: fps,
+    Blocklist:    bl,
+    Keywords:     kw,
+    EarlyExitAt:  antispam.EarlyExitDisabled,
 })
 ```
 
