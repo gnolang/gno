@@ -1,5 +1,4 @@
 loadpkg gno.land/r/sys/names
-loadpkg gno.land/r/gnoland/users/v1
 
 adduser admin
 adduser gui
@@ -37,41 +36,42 @@ gnokey query vm/qeval --data "gno.land/r/sys/names.IsEnabled()"
 stdout 'true bool'
 
 
-# Try to add a pkg an with unregistered user
+# Try to add a pkg with a user on someone else's address as namespace
 # gui addpkg -> gno.land/r/<addr_test1>/one
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test gui
 stderr 'is not authorized to deploy packages to namespace'
 
-# Try to add a pkg with an unregistered user, on their own address as namespace
+# Try to add a pkg on own address as namespace (PA namespace)
 # gui addpkg -> gno.land/r/<addr_gui>/one
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$gui_user_addr/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 ## Test unregistered namespace
 
-# Call addpkg with admin user on gui namespace
+# Call addpkg with admin user on arbitrary namespace
 # admin addpkg -> gno.land/r/guiland/one
-# This is expected to fail at the transaction simulation stage, which is why we set gas-wanted to 1.
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
 stderr 'is not authorized to deploy packages to namespace'
 
-## Test registered namespace
+## Test reserved namespaces
 
-# test gui register namespace
-# gui call -> gnoland/users/v1.Register
-gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 13000000 -broadcast -chainid=tendermint_test -args 'guigui123' gui
-stdout 'OK!'
-
-# Test gui publishing on guigui123/one
-# gui addpkg -> gno.land/r/guigui123/one
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/one -gas-fee 1000000ugnot -gas-wanted 3700000 -broadcast -chainid=tendermint_test gui
-stdout 'OK!'
-
-# Test admin publishing on guigui123/two
-# admin addpkg -> gno.land/r/guigui123/two
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/two -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
+# Deploying to reserved namespace 'gnoland' is denied
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/gnoland/mypkg -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
 stderr 'is not authorized to deploy packages to namespace'
 
+# Deploying to reserved namespace 'sys' is denied
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/sys/mypkg -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
+stderr 'is not authorized to deploy packages to namespace'
+
+# Deploying to reserved namespace 'nt' is denied
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/nt/mypkg -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
+stderr 'is not authorized to deploy packages to namespace'
+
+# Deploying to reserved namespace 'gov' is denied
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/gov/mypkg -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
+stderr 'is not authorized to deploy packages to namespace'
+
+# Invalid package path characters
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/random!name/mypkg -gas-fee 1000000ugnot -gas-wanted 550000 -broadcast -chainid=tendermint_test gui
 stderr 'but got "gno.land/r/random!name/mypkg"'
 

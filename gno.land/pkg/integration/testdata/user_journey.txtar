@@ -175,30 +175,30 @@ stdout 'OK!'
 # Add package / home #
 ######################
 
-# Enable `sys/names` to deploy packages to user namespace
+# Enable `sys/names` to enforce namespace restrictions
 gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test test1
 stdout 'OK!'
 
-# user2 publishes a custom home package to its namespace
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/user222/home -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+# user2 publishes a custom home package to its address namespace
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$user2_user_addr/home -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
 stdout 'OK!'
 
 # Render user2's home package
-gnokey query vm/qrender --data "gno.land/r/user222/home:"
+gnokey query vm/qrender --data "gno.land/r/$user2_user_addr/home:"
 stdout 'My awesome home package with admin: '${user2_user_addr}
 
 # user2's transfer ownership to user1
-gnokey maketx call -pkgpath gno.land/r/user222/home -func TransferOwnership -args "$user1_user_addr" -send 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+gnokey maketx call -pkgpath gno.land/r/$user2_user_addr/home -func TransferOwnership -args "$user1_user_addr" -send 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
 stdout 'OK!'
 
 # Wait for https://github.com/gnolang/gno/pull/4278 to be merged
 # # Render user2's home package again, the output should reflect admin change
-# gnokey query vm/qrender --data "gno.land/r/user222/home:"
+# gnokey query vm/qrender --data "gno.land/r/$user2_user_addr/home:"
 # stdout 'My awesome home package with admin: '${user1_user_addr}
 
 
 -- gnomod.toml --
-module = "gno.land/r/user222/home"
+module = "gno.land/r/home"
 gno = "0.9"
 
 -- home.gno --

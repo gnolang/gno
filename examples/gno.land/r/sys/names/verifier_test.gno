@@ -6,33 +6,39 @@ import (
 	"gno.land/p/nt/ownable"
 	"gno.land/p/nt/testutils"
 	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
-	"gno.land/r/sys/users"
 )
 
 var alice = testutils.TestAddress("alice")
 
 func TestDefaultVerifier(t *testing.T) {
-	// Check disabled, any case is true
+	// Disabled: any case is true
 	uassert.True(t, verifier(false, alice, alice.String()))
 	uassert.True(t, verifier(false, "", alice.String()))
 	uassert.True(t, verifier(false, alice, "somerandomusername"))
 
-	// Check enabled
-	// username + addr mismatch
-	uassert.False(t, verifier(true, alice, "notregistered"))
-	// PA namespace check
+	// Enabled: PA namespace check
 	uassert.True(t, verifier(true, alice, alice.String()))
 
-	// Empty name/address
+	// Enabled: non-PA namespaces denied
+	uassert.False(t, verifier(true, alice, "notregistered"))
+	uassert.False(t, verifier(true, alice, "alice"))
+
+	// Enabled: empty name/address
 	uassert.False(t, verifier(true, address(""), ""))
+	uassert.False(t, verifier(true, alice, ""))
+	uassert.False(t, verifier(true, address(""), "something"))
+}
 
-	// Register proper username
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
-	urequire.NoError(t, users.RegisterUser(cross, "alice", alice))
+func TestReservedNamespaces(t *testing.T) {
+	// Reserved namespaces denied when enabled
+	uassert.False(t, verifier(true, alice, "gnoland"))
+	uassert.False(t, verifier(true, alice, "nt"))
+	uassert.False(t, verifier(true, alice, "sys"))
+	uassert.False(t, verifier(true, alice, "gov"))
 
-	// Proper namespace
-	uassert.True(t, verifier(true, alice, "alice"))
+	// Reserved namespaces allowed when disabled (pre-genesis)
+	uassert.True(t, verifier(false, alice, "gnoland"))
+	uassert.True(t, verifier(false, alice, "sys"))
 }
 
 func TestEnable(t *testing.T) {
@@ -42,7 +48,7 @@ func TestEnable(t *testing.T) {
 		Enable(cross)
 	})
 
-	// Confirm enable drops ownerships
+	// Confirm enable drops ownership
 	uassert.Equal(t, Ownable.Owner().String(), "")
 	uassert.AbortsWithMessage(t, ownable.ErrUnauthorized.Error(), func() {
 		Enable(cross)
