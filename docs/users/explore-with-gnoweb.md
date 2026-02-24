@@ -35,9 +35,8 @@ Let's break it down:
   which could have different chain domains.
 - `type` represents the type of package found on this path. There are two available
   options - `p` & `r` - pure packages and realms, respectively.
-- `namespace` is the namespace of the package. Namespaces can be registered using
-  the `gno.land/r/gnoland/users` realms, granting a user permission to deploy under
-  that specific namespace.
+- `namespace` is the namespace of the package. Currently only address-prefix
+  namespaces are supported, where the namespace matches the deployer's address.
 - `package name` represents the name of the package found on the path. This part has
   to match the top-level package declaration in Gno files.
 

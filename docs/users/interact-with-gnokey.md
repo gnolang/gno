@@ -1362,8 +1362,6 @@ gno.land/r/gnoland/coins
 gno.land/r/gnoland/events
 gno.land/r/gnoland/home
 gno.land/r/gnoland/pages
-gno.land/r/gnoland/users
-gno.land/r/gnoland/users/v1
 ```
 
 The result limit can also be specified in the following manner (mind the added

@@ -305,8 +305,8 @@ The smallest unit of GNOT. 1 GNOT = 1,000,000 ugnot (micro-GNOT).
 
 ### User Registry
 
-A system realm that allows users to register usernames and claim matching
-namespaces for deploying code. List of releases found at `gno.land/r/gnoland/users`.
+A system realm (`gno.land/r/sys/users`) that stores username-to-address mappings.
+User registration is managed through whitelisted controller realms.
 See [Users and Teams](./users-and-teams.md) for details.
 
 ### wugnot

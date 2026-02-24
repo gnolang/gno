@@ -9,14 +9,16 @@ import (
 
 	"gno.land/p/nt/testutils"
 	"gno.land/r/archive/boards"
-	users "gno.land/r/gnoland/users/v1"
+	susers "gno.land/r/sys/users"
 )
 
 const admin = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 func main() {
 	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register(cross, "gnouser123")
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
+	susers.RegisterUser(cross, "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
 	// create board via registered user
 	bid := boards.CreateBoard(cross, "test_board")
 

@@ -9,7 +9,7 @@ import (
 
 	"gno.land/p/nt/testutils"
 	"gno.land/r/archive/groups"
-	users "gno.land/r/gnoland/users/v1"
+	susers "gno.land/r/sys/users"
 )
 
 var gid groups.GroupID
@@ -19,22 +19,30 @@ const admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 func main() {
 	caller := runtime.OriginCaller() // main
 	testing.SetRealm(testing.NewUserRealm(caller))
-	users.Register(cross, "main123")
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
+	susers.RegisterUser(cross, "main123", caller)
+	testing.SetRealm(testing.NewUserRealm(caller))
 
 	test1 := testutils.TestAddress("gnouser1")
 	testing.SetOriginCaller(test1)
 	testing.SetRealm(testing.NewUserRealm(test1))
-	users.Register(cross, "test123")
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
+	susers.RegisterUser(cross, "test123", test1)
+	testing.SetRealm(testing.NewUserRealm(test1))
 
 	test2 := testutils.TestAddress("gnouser2")
 	testing.SetOriginCaller(test2)
 	testing.SetRealm(testing.NewUserRealm(test2))
-	users.Register(cross, "test223")
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
+	susers.RegisterUser(cross, "test223", test2)
+	testing.SetRealm(testing.NewUserRealm(test2))
 
 	test3 := testutils.TestAddress("gnouser3")
 	testing.SetOriginCaller(test3)
 	testing.SetRealm(testing.NewUserRealm(test3))
-	users.Register(cross, "test323")
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
+	susers.RegisterUser(cross, "test323", test3)
+	testing.SetRealm(testing.NewUserRealm(test3))
 
 	testing.SetOriginCaller(caller)
 	testing.SetRealm(testing.NewUserRealm(caller))

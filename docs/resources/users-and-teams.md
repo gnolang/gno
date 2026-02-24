@@ -17,27 +17,8 @@ future.
 
 ### Registration Process
 
-To register a username:
-
-1. Visit the user registry realm at [`gno.land/r/gnoland/users/v1`](https://gno.land/r/gnoland/users/v1)
-2. Check if your desired username is available
-3. Register using transaction links & a web extension wallet, or with `gnokey` using the following command:
-
-```bash
-gnokey maketx call \
-  --pkgpath "gno.land/r/gnoland/users/v1" \
-  --func "Register" \
-  --args "YOUR_USERNAME" \
-  --gas-fee 1000000ugnot \
-  --gas-wanted 2000000 \
-  --send "1000000ugnot" \
-  --remote https://rpc.gno.land:443 \
-  --chainid staging \
-  YOUR_KEY_NAME
-```
-
-The registration costs 1 GNOT, which serves as an anti-spam measure and ensures
-users value their identities.
+Username registration is currently not available. A new registration controller
+will be introduced via GovDAO governance in the future.
 
 ## Address-Based Namespaces
 
@@ -83,4 +64,4 @@ For more information on users and namespaces, refer to:
 - [Realms](./realms.md) - Learn about stateful applications that can be deployed under your namespace
 - [Deploying Packages](../builders/deploy-packages.md) - Instructions for deploying code under your namespace
 
-To explore registered users, visit the [User Registry](https://gno.land/r/gnoland/users/v1) on the Staging network.
+To explore registered users, visit the [User Registry](https://gno.land/r/sys/users) on the Staging network.
