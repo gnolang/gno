@@ -155,21 +155,21 @@ func Score(
 	callerBl *engine.Blocklist,
 	earlyExitAt int,
 ) engine.SpamScore {
-	c := corpus
+	useCorpus := corpus
 	if callerCorpus != nil {
-		c = callerCorpus
+		useCorpus = callerCorpus
 	}
-	f := fps
+	useFps := fps
 	if callerFps != nil {
-		f = callerFps
+		useFps = callerFps
 	}
-	d := keywords
+	useKw := keywords
 	if callerDict != nil {
-		d = callerDict
+		useKw = callerDict
 	}
-	b := bl
+	useBl := bl
 	if callerBl != nil {
-		b = callerBl
+		useBl = callerBl
 	}
 	// Auto-populate moderation data from internal reputation state.
 	// Caller provides chain data (AccountAgeDays, Balance, HasUsername);
@@ -184,15 +184,15 @@ func Score(
 	}
 
 	return engine.Score(engine.ScoreInput{
-		Author:      author.String(),
-		Content:     content,
-		Rate:        rate,
-		Rep:         rep,
-		Corpus:      c,
-		Fps:         f,
-		Bl:          b,
-		Dict:        d,
-		EarlyExitAt: earlyExitAt,
+		Author:       author.String(),
+		Content:      content,
+		Rate:         rate,
+		Reputation:   rep,
+		Corpus:       useCorpus,
+		Fingerprints: useFps,
+		Blocklist:    useBl,
+		Keywords:     useKw,
+		EarlyExitAt:  earlyExitAt,
 	})
 }
 

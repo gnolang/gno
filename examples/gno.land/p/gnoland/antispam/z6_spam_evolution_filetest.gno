@@ -91,14 +91,14 @@ func main() {
 	// Post 1: Normal technical question
 	msg1 := "How do I configure my validator node for optimal performance?"
 	result1 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1user123",
-		Content: msg1,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1user123",
+		Content:      msg1,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 	println("Post: \"" + msg1 + "\"")
 	println("Score: " + intToString(result1.Total) + " | Triggered: " + sliceToString(result1.Triggered))
@@ -110,14 +110,14 @@ func main() {
 	// Post 2: Excited but legitimate (caps for emphasis)
 	msg2 := "JUST STAKED 5000 GNOT! The validator setup was easier than expected."
 	result2 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1user123",
-		Content: msg2,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1user123",
+		Content:      msg2,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 	println("Post: \"" + msg2 + "\"")
 	println("Score: " + intToString(result2.Total) + " | Triggered: " + sliceToString(result2.Triggered))
@@ -129,14 +129,14 @@ func main() {
 	// Post 3: Multiple spam signals appear
 	msg3 := "FREE AIRDROP!!! Claim your bonus tokens now! Limited time offer! https://claim.example.com"
 	result3 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1user123",
-		Content: msg3,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1user123",
+		Content:      msg3,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 	println("Post: \"" + msg3 + "\"")
 	println("Score: " + intToString(result3.Total) + " | Triggered: " + sliceToString(result3.Triggered))
@@ -154,14 +154,14 @@ func main() {
 	burstRate := antispam.RateState{PostCount: 25, WindowSeconds: 3600}
 	msg4 := "CLICK HERE NOW!!! FREE MONEY BONUS PRIZE AIRDROP!!! http://spam1.com http://spam2.com http://spam3.com"
 	result4 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1user123",
-		Content: msg4,
-		Rate:    burstRate, // Now posting rapidly
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1user123",
+		Content:      msg4,
+		Rate:         burstRate, // Now posting rapidly
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 	println("Post: \"" + msg4 + "\"")
 	println("Score: " + intToString(result4.Total) + " | Triggered: " + sliceToString(result4.Triggered))

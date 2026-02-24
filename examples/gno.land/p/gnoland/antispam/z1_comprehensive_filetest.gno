@@ -119,14 +119,14 @@ func main() {
 	legitMsg := "The governance proposal for validator delegation has been submitted. Please review and vote before the deadline."
 
 	result1 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1veteran",
-		Content: legitMsg,
-		Rate:    antispam.RateState{PostCount: 2, WindowSeconds: 3600},
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1veteran",
+		Content:      legitMsg,
+		Rate:         antispam.RateState{PostCount: 2, WindowSeconds: 3600},
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Author:  g1veteran (365 days, 500 posts, good standing)")
@@ -154,14 +154,14 @@ func main() {
 	spamPunct := "FREE!!!!!! AIRDROP!! Claim your bonus prize now!!!"
 
 	result2 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1newspam",
-		Content: spamPunct,
-		Rate:    antispam.RateState{PostCount: 5, WindowSeconds: 3600},
-		Rep:     newRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1newspam",
+		Content:      spamPunct,
+		Rate:         antispam.RateState{PostCount: 5, WindowSeconds: 3600},
+		Reputation:   newRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Author:  g1newspam (0 days, no username, low balance)")
@@ -192,14 +192,14 @@ func main() {
 	floodMsg := "FREE MONEY BONUS PRIZE AIRDROP CLICK NOW!!! http://spam1.com http://spam2.com http://spam3.com http://spam4.com"
 
 	result3 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1flooder",
-		Content: floodMsg,
-		Rate:    antispam.RateState{PostCount: 30, WindowSeconds: 3600},
-		Rep:     flaggedRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1flooder",
+		Content:      floodMsg,
+		Rate:         antispam.RateState{PostCount: 30, WindowSeconds: 3600},
+		Reputation:   flaggedRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Author:  g1flooder (50% flag ratio, 2 past bans, 30 posts/hour)")
@@ -224,14 +224,14 @@ func main() {
 	dupPatternMsg := "Send 100 GNOT get 1000 GNOT back! Guaranteed returns! Act now!"
 
 	result4 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1scammer",
-		Content: dupPatternMsg,
-		Rate:    antispam.RateState{PostCount: 3, WindowSeconds: 3600},
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1scammer",
+		Content:      dupPatternMsg,
+		Rate:         antispam.RateState{PostCount: 3, WindowSeconds: 3600},
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Author:  g1scammer (good reputation, normal rate)")
@@ -253,14 +253,14 @@ func main() {
 	shortLink := "Check this! http://x.co"
 
 	result5 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1shortlink",
-		Content: shortLink,
-		Rate:    antispam.RateState{PostCount: 3, WindowSeconds: 3600},
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1shortlink",
+		Content:      shortLink,
+		Rate:         antispam.RateState{PostCount: 3, WindowSeconds: 3600},
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Author:  g1shortlink (good reputation)")
@@ -279,14 +279,14 @@ func main() {
 	println("═══════════════════════════\n")
 
 	result6 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1blocked",
-		Content: legitMsg, // clean content doesn't matter
-		Rate:    antispam.RateState{PostCount: 1, WindowSeconds: 3600},
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1blocked",
+		Content:      legitMsg, // clean content doesn't matter
+		Rate:         antispam.RateState{PostCount: 1, WindowSeconds: 3600},
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Author:  g1blocked (BLOCKLISTED)")
@@ -308,7 +308,7 @@ func main() {
 		Author:  "g1admin",
 		Content: floodMsg, // obvious spam content
 		Rate:    antispam.RateState{PostCount: 50, WindowSeconds: 3600},
-		Rep: antispam.ReputationData{
+		Reputation: antispam.ReputationData{
 			AccountAgeDays: 0,
 			Balance:        0,
 			FlaggedCount:   100,
@@ -316,10 +316,10 @@ func main() {
 			HasUsername:    false,
 			BanCount:       10,
 		},
-		Corpus: corpus,
-		Fps:    fps,
-		Bl:     bl,
-		Dict:   dict,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Author:  g1admin (ALLOWLISTED)")
@@ -341,14 +341,14 @@ func main() {
 	unicodeMsg := "S\u0300\u0301\u0302\u0303end p\u0430yment\u200B\u200Bnow"
 
 	result8 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1griefer",
-		Content: unicodeMsg,
-		Rate:    antispam.RateState{PostCount: 1, WindowSeconds: 3600},
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1griefer",
+		Content:      unicodeMsg,
+		Rate:         antispam.RateState{PostCount: 1, WindowSeconds: 3600},
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Author:  g1griefer (good reputation, normal rate)")

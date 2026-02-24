@@ -108,13 +108,13 @@ func main() {
 	println("\"" + exactDuplicate + "\"\n")
 
 	result2 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1spammer",
-		Content: exactDuplicate,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1spammer",
+		Content:      exactDuplicate,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result2.Total) + " | Triggered: " + sliceToString(result2.Triggered))
@@ -139,13 +139,13 @@ func main() {
 	println("Message: \"" + reordered + "\"\n")
 
 	result3a := antispam.Score(antispam.ScoreInput{
-		Author:  "g1spammer",
-		Content: reordered,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1spammer",
+		Content:      reordered,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result3a.Total) + " | Triggered: " + sliceToString(result3a.Triggered))
@@ -163,13 +163,13 @@ func main() {
 	println("Message: \"" + synonyms + "\"\n")
 
 	result3b := antispam.Score(antispam.ScoreInput{
-		Author:  "g1spammer",
-		Content: synonyms,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1spammer",
+		Content:      synonyms,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result3b.Total) + " | Triggered: " + sliceToString(result3b.Triggered))
@@ -188,13 +188,13 @@ func main() {
 	println("Message: \"" + padding + "\"\n")
 
 	result3c := antispam.Score(antispam.ScoreInput{
-		Author:  "g1spammer",
-		Content: padding,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1spammer",
+		Content:      padding,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result3c.Total) + " | Triggered: " + sliceToString(result3c.Triggered))
@@ -217,13 +217,13 @@ func main() {
 	println("\"" + legitimateSimilar + "\"\n")
 
 	result4 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1moderator",
-		Content: legitimateSimilar,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1moderator",
+		Content:      legitimateSimilar,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result4.Total) + " | Triggered: " + sliceToString(result4.Triggered))
@@ -245,13 +245,13 @@ func main() {
 	println("Message: \"" + different + "\"\n")
 
 	result5 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1user",
-		Content: different,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1user",
+		Content:      different,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result5.Total) + " | Triggered: " + sliceToString(result5.Triggered))
@@ -285,13 +285,13 @@ func main() {
 	println("\"" + variant + "\"\n")
 
 	result6 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1scammer",
-		Content: variant,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1scammer",
+		Content:      variant,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result6.Total) + " | Triggered: " + sliceToString(result6.Triggered))

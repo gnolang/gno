@@ -109,25 +109,25 @@ func TestScoreContent(t *testing.T) {
 		{
 			name:     "caps: 100% uppercase content",
 			content:  "THIS IS ALL CAPS AND IT IS VERY LOUD AND ANNOYING TO READ RIGHT NOW",
-			wantMin:  2,
+			wantMin:  WeightAllCaps,
 			wantRule: "ALL_CAPS",
 		},
 		{
 			name:     "caps: mostly caps (>50%)",
 			content:  "THIS IS MOSTLY CAPS AND VERY LOUD WITH JUST A FEW lower words",
-			wantMin:  2,
+			wantMin:  WeightAllCaps,
 			wantRule: "ALL_CAPS",
 		},
 		{
 			name:     "caps: all caps short message",
 			content:  "BUY NOW FREE TOKENS",
-			wantMin:  2,
+			wantMin:  WeightAllCaps,
 			wantRule: "ALL_CAPS",
 		},
 		{
 			name:     "caps: caps with numbers and symbols",
 			content:  "SEND 1000 GNOT TO THIS ADDRESS NOW!!! GET 5000 BACK GUARANTEED!!!",
-			wantMin:  2,
+			wantMin:  WeightAllCaps,
 			wantRule: "ALL_CAPS",
 		},
 		{
@@ -141,31 +141,31 @@ func TestScoreContent(t *testing.T) {
 		{
 			name:     "punct: exclamation spam",
 			content:  "This is amazing!!! Check it out!!! You won't believe it!!! Click now!!! Hurry!!!",
-			wantMin:  1,
+			wantMin:  WeightExcessivePunct,
 			wantRule: "EXCESSIVE_PUNCT",
 		},
 		{
 			name:     "punct: question mark spam",
 			content:  "What??? Are you serious??? How is this possible??? Really??? Why???",
-			wantMin:  1,
+			wantMin:  WeightExcessivePunct,
 			wantRule: "EXCESSIVE_PUNCT",
 		},
 		{
 			name:     "punct: ellipsis heavy",
 			content:  "Well... I think... maybe... we should... probably... consider... this... option...",
-			wantMin:  1,
+			wantMin:  WeightExcessivePunct,
 			wantRule: "EXCESSIVE_PUNCT",
 		},
 		{
 			name:     "punct: mixed excessive punctuation",
 			content:  "Oh my god!!! Wow, really!?! How is this even possible?!?! No way!!! This is crazy!?!",
-			wantMin:  1,
+			wantMin:  WeightExcessivePunct,
 			wantRule: "EXCESSIVE_PUNCT",
 		},
 		{
 			name:     "punct: all punctuation",
 			content:  "!?!?!?...!!!???...!!!",
-			wantMin:  1,
+			wantMin:  WeightExcessivePunct,
 			wantRule: "EXCESSIVE_PUNCT",
 		},
 		{
@@ -179,25 +179,25 @@ func TestScoreContent(t *testing.T) {
 		{
 			name:     "links: four https links",
 			content:  "Visit https://spam1.com and https://spam2.com and https://spam3.com and https://spam4.com please",
-			wantMin:  2,
+			wantMin:  WeightLinkHeavy,
 			wantRule: "LINK_HEAVY",
 		},
 		{
 			name:     "links: five http links",
 			content:  "http://a.com http://b.com http://c.com http://d.com http://e.com",
-			wantMin:  2,
+			wantMin:  WeightLinkHeavy,
 			wantRule: "LINK_HEAVY",
 		},
 		{
 			name:     "links: mixed http and https",
 			content:  "Check http://one.com and https://two.com and http://three.com and https://four.com now",
-			wantMin:  2,
+			wantMin:  WeightLinkHeavy,
 			wantRule: "LINK_HEAVY",
 		},
 		{
 			name:     "links: many links in spam format",
 			content:  "https://buy.com\nhttps://cheap.com\nhttps://free.com\nhttps://win.com\nhttps://prize.com\nhttps://bonus.com",
-			wantMin:  2,
+			wantMin:  WeightLinkHeavy,
 			wantRule: "LINK_HEAVY",
 		},
 		{
@@ -211,25 +211,25 @@ func TestScoreContent(t *testing.T) {
 		{
 			name:     "short+link: very short with link",
 			content:  "Click https://scam.com",
-			wantMin:  3,
+			wantMin:  WeightShortWithLink,
 			wantRule: "SHORT_WITH_LINK",
 		},
 		{
 			name:     "short+link: just a URL",
 			content:  "https://spam.com",
-			wantMin:  3,
+			wantMin:  WeightShortWithLink,
 			wantRule: "SHORT_WITH_LINK",
 		},
 		{
 			name:     "short+link: short text with http",
 			content:  "see http://x.com",
-			wantMin:  3,
+			wantMin:  WeightShortWithLink,
 			wantRule: "SHORT_WITH_LINK",
 		},
 		{
 			name:     "short+link: emoji and link",
 			content:  "🔥 https://scam.io",
-			wantMin:  3,
+			wantMin:  WeightShortWithLink,
 			wantRule: "SHORT_WITH_LINK",
 		},
 		{
@@ -243,17 +243,17 @@ func TestScoreContent(t *testing.T) {
 		{
 			name:    "combined: caps + many links",
 			content: "CLICK HERE NOW https://scam1.com https://scam2.com https://scam3.com https://scam4.com FREE",
-			wantMin: 4,
+			wantMin: WeightAllCaps + WeightLinkHeavy,
 		},
 		{
 			name:    "combined: caps + punctuation",
 			content: "BUY NOW!!! LIMITED TIME!!! DON'T MISS OUT!!! ACT FAST!!! AMAZING DEAL!!!",
-			wantMin: 3,
+			wantMin: WeightAllCaps + WeightExcessivePunct,
 		},
 		{
 			name:     "combined: short + link",
 			content:  "GO https://scam.com",
-			wantMin:  3,
+			wantMin:  WeightShortWithLink,
 			wantRule: "SHORT_WITH_LINK",
 		},
 

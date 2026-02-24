@@ -187,7 +187,7 @@ func TestScoreFingerprint(t *testing.T) {
 				fs.Add("free airdrop bonus click claim prize tokens")
 				return fs
 			},
-			wantMin:  4,
+			wantMin:  WeightNearDuplicate,
 			wantRule: "NEAR_DUPLICATE",
 		},
 		{

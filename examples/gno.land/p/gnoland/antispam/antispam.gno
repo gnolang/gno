@@ -96,7 +96,7 @@ type RuleHit struct {
 }
 
 // ScoreInput holds all parameters for spam scoring.
-// State fields (Corpus, Fps, Bl, Dict) can be nil if not available.
+// State fields (Corpus, Fingerprints, Blocklist, Keywords) can be nil if not available.
 //
 // EarlyExitAt controls gas optimization: when set to a positive value
 // (e.g. ThresholdReject), expensive rules (regex, tokenization, Bayes,
@@ -105,26 +105,34 @@ type RuleHit struct {
 // and get a complete score - required for multi-level decisions
 // (hide/reject/ban).
 //
-// NOTE: Zero-value fields penalize. With Rep at zero-value, NEW_ACCOUNT(2) +
-// NO_USERNAME(1) + LOW_BALANCE(1) = 4 points. Callers must fill Rep accurately.
+// NOTE: Zero-value fields penalize. With Reputation at zero-value,
+// NEW_ACCOUNT(2) + NO_USERNAME(1) + LOW_BALANCE(1) = 4 points.
+// Callers must fill Reputation accurately.
 type ScoreInput struct {
-	Author      string
-	Content     string
-	Rate        RateState
-	Rep         ReputationData
-	Corpus      *Corpus
-	Fps         *FingerprintStore
-	Bl          *Blocklist
-	Dict        *KeywordDict
-	EarlyExitAt int // >0: skip expensive rules at this score; EarlyExitDisabled(0): evaluate all
+	Author       string
+	Content      string
+	Rate         RateState
+	Reputation   ReputationData
+	Corpus       *Corpus
+	Fingerprints *FingerprintStore
+	Blocklist    *Blocklist
+	Keywords     *KeywordDict
+	EarlyExitAt  int // >0: skip expensive rules at this score; EarlyExitDisabled(0): evaluate all
 }
 
 // SpamScore is the result of scoring content.
 type SpamScore struct {
-	Total     int      // sum of all triggered rule weights
-	Triggered []string // names of rules that fired
-	TopRule   string   // highest-scoring rule
-	TopScore  int      // score of the highest-scoring rule
+	// Total is the sum of all triggered rule weights.
+	Total int
+
+	// Triggered contains the names of rules that fired.
+	Triggered []string
+
+	// TopRule is the name of the highest-scoring rule.
+	TopRule string
+
+	// TopScore is the score of the highest-scoring rule.
+	TopScore int
 }
 
 // Score evaluates content against all anti-spam rules.
@@ -153,7 +161,7 @@ func Score(in ScoreInput) SpamScore {
 	result := SpamScore{}
 
 	// Allowlist check: bypass all scoring
-	if in.Bl != nil && in.Bl.IsAllowed(in.Author) {
+	if in.Blocklist != nil && in.Blocklist.IsAllowed(in.Author) {
 		return result
 	}
 
@@ -182,7 +190,7 @@ func Score(in ScoreInput) SpamScore {
 	// O(1) rules: lookups and arithmetic
 
 	// Blocked address (AVL lookup, instant kill)
-	if in.Bl != nil && in.Bl.IsBlocked(in.Author) {
+	if in.Blocklist != nil && in.Blocklist.IsBlocked(in.Author) {
 		add(WeightBlockedAddress, RuleBlockedAddress)
 		return result
 	}
@@ -193,7 +201,7 @@ func Score(in ScoreInput) SpamScore {
 	}
 
 	// Reputation (arithmetic comparisons)
-	addHits(ScoreReputation(in.Rep))
+	addHits(ScoreReputation(in.Reputation))
 
 	if earlyExit() {
 		return result
@@ -209,7 +217,7 @@ func Score(in ScoreInput) SpamScore {
 
 	// O(n) regex: blocklist pattern matching
 
-	if in.Bl != nil && in.Bl.MatchesPattern(in.Content) {
+	if in.Blocklist != nil && in.Blocklist.MatchesPattern(in.Content) {
 		add(WeightBlockedPattern, RuleBlockedPattern)
 	}
 
@@ -221,7 +229,7 @@ func Score(in ScoreInput) SpamScore {
 
 	// Tokenize only when needed by Bayes or keyword rules.
 	var tokens []string
-	if in.Corpus != nil || in.Dict != nil {
+	if in.Corpus != nil || in.Keywords != nil {
 		tokens = dedup(Tokenize(in.Content))
 	}
 
@@ -235,7 +243,7 @@ func Score(in ScoreInput) SpamScore {
 	}
 
 	// Keyword dictionary
-	if s, r := scoreKeywordsTokens(tokens, in.Dict); s > 0 {
+	if s, r := scoreKeywordsTokens(tokens, in.Keywords); s > 0 {
 		add(s, r)
 	}
 
@@ -245,7 +253,7 @@ func Score(in ScoreInput) SpamScore {
 
 	// O(n) hashing: fingerprint near-duplicate detection
 
-	if s, r := ScoreFingerprint(in.Content, in.Fps); s > 0 {
+	if s, r := ScoreFingerprint(in.Content, in.Fingerprints); s > 0 {
 		add(s, r)
 	}
 

@@ -74,8 +74,8 @@ func TestAdminAddPattern(t *testing.T) {
 	AdminAddPattern(cross, `(?i)test\s+specific\s+pattern`)
 
 	result := Score(address("g1user"), "this is a test specific pattern here", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
-	if result.Total < 5 {
-		t.Errorf("expected blocked pattern score >= 5, got %d", result.Total)
+	if result.Total < engine.WeightBlockedPattern {
+		t.Errorf("expected blocked pattern score >= %d, got %d", engine.WeightBlockedPattern, result.Total)
 	}
 }
 
@@ -105,8 +105,8 @@ func TestAdminBlockAddress(t *testing.T) {
 	AdminBlockAddress(cross, address("g1blocktest"))
 
 	result := Score(address("g1blocktest"), "Normal message.", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
-	if result.Total < 99 {
-		t.Errorf("expected blocked address score >= 99, got %d", result.Total)
+	if result.Total < engine.WeightBlockedAddress {
+		t.Errorf("expected blocked address score >= %d, got %d", engine.WeightBlockedAddress, result.Total)
 	}
 }
 
@@ -158,8 +158,8 @@ func TestAdminTrain(t *testing.T) {
 
 	// Spam-like content should score high via bayes
 	result := Score(address("g1user"), "free airdrop bonus click claim prize", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
-	if result.Total < 3 {
-		t.Errorf("expected bayes score >= 3 for spam content, got %d (triggered: %v)", result.Total, result.Triggered)
+	if result.Total < engine.WeightBayesSpam {
+		t.Errorf("expected bayes score >= %d for spam content, got %d (triggered: %v)", engine.WeightBayesSpam, result.Total, result.Triggered)
 	}
 }
 
@@ -172,8 +172,8 @@ func TestAdminAddSpamFingerprint(t *testing.T) {
 
 	// Near-duplicate should be detected
 	result := Score(address("g1user"), "free airdrop bonus click claim prize tokens quick now fast", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
-	if result.Total < 4 {
-		t.Errorf("expected fingerprint score >= 4, got %d (triggered: %v)", result.Total, result.Triggered)
+	if result.Total < engine.WeightNearDuplicate {
+		t.Errorf("expected fingerprint score >= %d, got %d (triggered: %v)", engine.WeightNearDuplicate, result.Total, result.Triggered)
 	}
 }
 
@@ -187,26 +187,26 @@ func TestDefaultPatternsLoaded(t *testing.T) {
 		content string
 		wantMin int
 	}{
-		{"success: crypto scam send gnot", "Send 1000 GNOT to this address", 5},
-		{"success: airdrop scam", "Get your FREE AIRDROP of tokens now", 5},
-		{"success: gambling spam", "Casino bonus jackpot win big today", 5},
-		{"success: telegram redirect", "Join our Telegram group https://t.me/scam", 5},
-		{"success: double your tokens", "Double your GNOT in 24 hours guaranteed", 5},
-		{"success: send get back scam", "Send 100 GNOT and get 500 back", 5},
-		{"success: credential phishing", "Enter your seed phrase to verify your wallet now", 5},
-		{"success: pump and dump", "This 100x gem token is guaranteed profit", 5},
-		{"success: fake KYC scam", "Complete your KYC verification at https://fake-kyc.com", 5},
-		{"success: trading signals", "Free crypto signals guaranteed join VIP group", 5},
-		{"success: wallet connect drain", "Connect your wallet to claim free airdrop tokens", 5},
-		{"success: loan scam", "Instant loan guaranteed no credit check apply now", 5},
-		{"success: engagement spam", "Buy cheap followers and likes instant delivery", 5},
-		{"success: porn solicitation", "Watch free porn videos and xxx content here", 5},
-		{"success: gore content", "Watch real execution video footage leaked online", 5},
-		{"success: fake token launch", "New token just launched on DEX buy now before moon", 5},
-		{"success: impersonation scam", "Official admin announcement please verify your account by clicking here", 5},
-		{"success: sugar scam", "Sugar daddy looking for baby to pay and send money weekly just dm me", 5},
-		{"success: contact redirect gmail", "Send payment proof to winner2024@gmail.com to claim your prize", 5},
-		{"success: contact redirect yahoo", "Contact us at support@yahoo.com for urgent account verification", 5},
+		{"success: crypto scam send gnot", "Send 1000 GNOT to this address", engine.WeightBlockedPattern},
+		{"success: airdrop scam", "Get your FREE AIRDROP of tokens now", engine.WeightBlockedPattern},
+		{"success: gambling spam", "Casino bonus jackpot win big today", engine.WeightBlockedPattern},
+		{"success: telegram redirect", "Join our Telegram group https://t.me/scam", engine.WeightBlockedPattern},
+		{"success: double your tokens", "Double your GNOT in 24 hours guaranteed", engine.WeightBlockedPattern},
+		{"success: send get back scam", "Send 100 GNOT and get 500 back", engine.WeightBlockedPattern},
+		{"success: credential phishing", "Enter your seed phrase to verify your wallet now", engine.WeightBlockedPattern},
+		{"success: pump and dump", "This 100x gem token is guaranteed profit", engine.WeightBlockedPattern},
+		{"success: fake KYC scam", "Complete your KYC verification at https://fake-kyc.com", engine.WeightBlockedPattern},
+		{"success: trading signals", "Free crypto signals guaranteed join VIP group", engine.WeightBlockedPattern},
+		{"success: wallet connect drain", "Connect your wallet to claim free airdrop tokens", engine.WeightBlockedPattern},
+		{"success: loan scam", "Instant loan guaranteed no credit check apply now", engine.WeightBlockedPattern},
+		{"success: engagement spam", "Buy cheap followers and likes instant delivery", engine.WeightBlockedPattern},
+		{"success: porn solicitation", "Watch free porn videos and xxx content here", engine.WeightBlockedPattern},
+		{"success: gore content", "Watch real execution video footage leaked online", engine.WeightBlockedPattern},
+		{"success: fake token launch", "New token just launched on DEX buy now before moon", engine.WeightBlockedPattern},
+		{"success: impersonation scam", "Official admin announcement please verify your account by clicking here", engine.WeightBlockedPattern},
+		{"success: sugar scam", "Sugar daddy looking for baby to pay and send money weekly just dm me", engine.WeightBlockedPattern},
+		{"success: contact redirect gmail", "Send payment proof to winner2024@gmail.com to claim your prize", engine.WeightBlockedPattern},
+		{"success: contact redirect yahoo", "Contact us at support@yahoo.com for urgent account verification", engine.WeightBlockedPattern},
 	}
 
 	for _, tt := range tests {
@@ -466,8 +466,8 @@ func TestAdminLoadDefaults(t *testing.T) {
 
 	// Phishing content should be detected via the production mega-pattern
 	result := Score(address("g1user"), "Enter your seed phrase to verify your wallet", engine.RateState{}, goodRep(), nil, nil, nil, nil, engine.EarlyExitDisabled)
-	if result.Total < 5 {
-		t.Errorf("expected score >= 5 for phishing content, got %d (triggered: %v)", result.Total, result.Triggered)
+	if result.Total < engine.WeightBlockedPattern {
+		t.Errorf("expected score >= %d for phishing content, got %d (triggered: %v)", engine.WeightBlockedPattern, result.Total, result.Triggered)
 	}
 
 	// Multiple keywords should be detected

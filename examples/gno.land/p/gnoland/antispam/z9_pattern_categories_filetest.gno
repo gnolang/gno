@@ -107,11 +107,11 @@ func main() {
 
 	score := func(content string) antispam.SpamScore {
 		return antispam.Score(antispam.ScoreInput{
-			Author:  "g1user",
-			Content: content,
-			Rate:    normalRate,
-			Rep:     goodRep,
-			Bl:      bl,
+			Author:     "g1user",
+			Content:    content,
+			Rate:       normalRate,
+			Reputation: goodRep,
+			Blocklist:  bl,
 		})
 	}
 

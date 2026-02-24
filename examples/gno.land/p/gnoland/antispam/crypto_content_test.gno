@@ -73,12 +73,12 @@ func TestCryptoContentFalsePositives(t *testing.T) {
 		content := "The governance proposal for increasing validator delegation limits has been submitted. Community voting starts tomorrow and runs for 7 days. Please review the changes before casting your vote."
 
 		result := Score(ScoreInput{
-			Author:  "g1contributor",
-			Content: content,
-			Rate:    normalRate,
-			Rep:     goodRep,
-			Corpus:  corpus,
-			Dict:    dict,
+			Author:     "g1contributor",
+			Content:    content,
+			Rate:       normalRate,
+			Reputation: goodRep,
+			Corpus:     corpus,
+			Keywords:   dict,
 		})
 
 		if result.Total >= ThresholdHide {
@@ -91,12 +91,12 @@ func TestCryptoContentFalsePositives(t *testing.T) {
 		content := "To claim your staking rewards, delegate to a validator and earn a commission based on their performance. Rewards are distributed proportionally to your stake amount."
 
 		result := Score(ScoreInput{
-			Author:  "g1validator",
-			Content: content,
-			Rate:    normalRate,
-			Rep:     goodRep,
-			Corpus:  corpus,
-			Dict:    dict,
+			Author:     "g1validator",
+			Content:    content,
+			Rate:       normalRate,
+			Reputation: goodRep,
+			Corpus:     corpus,
+			Keywords:   dict,
 		})
 
 		if result.Total >= ThresholdHide {
@@ -109,12 +109,12 @@ func TestCryptoContentFalsePositives(t *testing.T) {
 		content := "The proposed token emission schedule would mint 1000 tokens per block initially, with a halving every year. This deflationary model balances supply growth with long-term scarcity."
 
 		result := Score(ScoreInput{
-			Author:  "g1economist",
-			Content: content,
-			Rate:    normalRate,
-			Rep:     goodRep,
-			Corpus:  corpus,
-			Dict:    dict,
+			Author:     "g1economist",
+			Content:    content,
+			Rate:       normalRate,
+			Reputation: goodRep,
+			Corpus:     corpus,
+			Keywords:   dict,
 		})
 
 		if result.Total >= ThresholdHide {
@@ -127,12 +127,12 @@ func TestCryptoContentFalsePositives(t *testing.T) {
 		content := "The governance airdrop for early contributors will distribute tokens based on historical participation. Eligible addresses were snapshotted at block 500000. The distribution rationale is published on the forum."
 
 		result := Score(ScoreInput{
-			Author:  "g1coreteam",
-			Content: content,
-			Rate:    normalRate,
-			Rep:     goodRep,
-			Corpus:  corpus,
-			Dict:    dict,
+			Author:     "g1coreteam",
+			Content:    content,
+			Rate:       normalRate,
+			Reputation: goodRep,
+			Corpus:     corpus,
+			Keywords:   dict,
 		})
 
 		if result.Total >= ThresholdHide {
@@ -148,13 +148,13 @@ func TestCryptoContentFalsePositives(t *testing.T) {
 			Author:  "g1scammer",
 			Content: content,
 			Rate:    RateState{PostCount: 15, WindowSeconds: 3600},
-			Rep: ReputationData{
+			Reputation: ReputationData{
 				AccountAgeDays: 0,
 				Balance:        100000000, // 100 GNOT (low)
 				HasUsername:    false,
 			},
-			Corpus: corpus,
-			Dict:   dict,
+			Corpus:   corpus,
+			Keywords: dict,
 		})
 
 		if result.Total < ThresholdReject {
@@ -170,12 +170,12 @@ func TestCryptoContentFalsePositives(t *testing.T) {
 		content := "Mint new tokens then stake them to earn validator rewards."
 
 		result := Score(ScoreInput{
-			Author:  "g1user",
-			Content: content,
-			Rate:    normalRate,
-			Rep:     goodRep,
-			Corpus:  corpus,
-			Dict:    dict,
+			Author:     "g1user",
+			Content:    content,
+			Rate:       normalRate,
+			Reputation: goodRep,
+			Corpus:     corpus,
+			Keywords:   dict,
 		})
 
 		// Log for awareness regardless of outcome.

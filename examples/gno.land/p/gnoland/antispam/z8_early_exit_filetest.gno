@@ -97,28 +97,28 @@ func main() {
 
 	// Full scoring: all rules
 	fullResult := antispam.Score(antispam.ScoreInput{
-		Author:      "g1spammer",
-		Content:     spamMsg,
-		Rate:        burstRate,
-		Rep:         badRep,
-		Corpus:      corpus,
-		Fps:         fps,
-		Bl:          bl,
-		Dict:        dict,
-		EarlyExitAt: antispam.EarlyExitDisabled,
+		Author:       "g1spammer",
+		Content:      spamMsg,
+		Rate:         burstRate,
+		Reputation:   badRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
+		EarlyExitAt:  antispam.EarlyExitDisabled,
 	})
 
 	// Early exit at ThresholdReject: skip expensive rules
 	earlyResult := antispam.Score(antispam.ScoreInput{
-		Author:      "g1spammer",
-		Content:     spamMsg,
-		Rate:        burstRate,
-		Rep:         badRep,
-		Corpus:      corpus,
-		Fps:         fps,
-		Bl:          bl,
-		Dict:        dict,
-		EarlyExitAt: antispam.ThresholdReject,
+		Author:       "g1spammer",
+		Content:      spamMsg,
+		Rate:         burstRate,
+		Reputation:   badRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
+		EarlyExitAt:  antispam.ThresholdReject,
 	})
 
 	println("Message: \"" + spamMsg + "\"")
@@ -155,28 +155,28 @@ func main() {
 
 	// Full scoring: expensive rules catch it
 	subtleFull := antispam.Score(antispam.ScoreInput{
-		Author:      "g1sneaky",
-		Content:     subtleSpam,
-		Rate:        normalRate,
-		Rep:         goodRep,
-		Corpus:      corpus,
-		Fps:         fps,
-		Bl:          bl,
-		Dict:        dict,
-		EarlyExitAt: antispam.EarlyExitDisabled,
+		Author:       "g1sneaky",
+		Content:      subtleSpam,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
+		EarlyExitAt:  antispam.EarlyExitDisabled,
 	})
 
 	// Early exit at ThresholdReject: score < 8, so expensive rules run too
 	subtleEarly := antispam.Score(antispam.ScoreInput{
-		Author:      "g1sneaky",
-		Content:     subtleSpam,
-		Rate:        normalRate,
-		Rep:         goodRep,
-		Corpus:      corpus,
-		Fps:         fps,
-		Bl:          bl,
-		Dict:        dict,
-		EarlyExitAt: antispam.ThresholdReject,
+		Author:       "g1sneaky",
+		Content:      subtleSpam,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
+		EarlyExitAt:  antispam.ThresholdReject,
 	})
 
 	println("Message: \"" + subtleSpam + "\"")
@@ -199,11 +199,11 @@ func main() {
 	println("=========================================\n")
 
 	lightResult := antispam.Score(antispam.ScoreInput{
-		Author:  "g1spammer",
-		Content: spamMsg,
-		Rate:    burstRate,
-		Rep:     badRep,
-		// Corpus, Fps, Bl, Dict all nil -> expensive rules skipped
+		Author:     "g1spammer",
+		Content:    spamMsg,
+		Rate:       burstRate,
+		Reputation: badRep,
+		// Corpus, Fingerprints, Blocklist, Keywords all nil -> expensive rules skipped
 	})
 
 	println("Message: \"" + spamMsg + "\"")

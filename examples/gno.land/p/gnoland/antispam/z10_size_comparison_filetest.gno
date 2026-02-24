@@ -167,14 +167,14 @@ hurry:1`)
 	shortSpam := "Free airdrop! Claim now!!!"
 
 	result1 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1user1",
-		Content: shortSpam,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1user1",
+		Content:      shortSpam,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Content:   \"" + shortSpam + "\"")
@@ -190,14 +190,14 @@ hurry:1`)
 	mediumLegit := "The governance proposal for increasing validator delegation limits has been submitted for community review. Voting starts tomorrow and runs for 7 days. Please review the technical spec before voting."
 
 	result2 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1user2",
-		Content: mediumLegit,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1user2",
+		Content:      mediumLegit,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Content:   (200 chars, governance discussion)")
@@ -217,14 +217,14 @@ hurry:1`)
 	}
 
 	result3 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1user3",
-		Content: longSpam,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1user3",
+		Content:      longSpam,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Content:   (~1000 chars, repetitive spam keywords)")
@@ -244,14 +244,14 @@ hurry:1`)
 	}
 
 	result4 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1user4",
-		Content: maxContent,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1user4",
+		Content:      maxContent,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Content:   (4096+ chars, truncated at MaxInputLength)")
@@ -273,27 +273,27 @@ hurry:1`)
 	}
 
 	result5full := antispam.Score(antispam.ScoreInput{
-		Author:      "g1spammer",
-		Content:     shortSpam,
-		Rate:        burstRate,
-		Rep:         badRep,
-		Corpus:      corpus,
-		Fps:         fps,
-		Bl:          bl,
-		Dict:        dict,
-		EarlyExitAt: antispam.EarlyExitDisabled,
+		Author:       "g1spammer",
+		Content:      shortSpam,
+		Rate:         burstRate,
+		Reputation:   badRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
+		EarlyExitAt:  antispam.EarlyExitDisabled,
 	})
 
 	result5early := antispam.Score(antispam.ScoreInput{
-		Author:      "g1spammer",
-		Content:     shortSpam,
-		Rate:        burstRate,
-		Rep:         badRep,
-		Corpus:      corpus,
-		Fps:         fps,
-		Bl:          bl,
-		Dict:        dict,
-		EarlyExitAt: antispam.ThresholdReject,
+		Author:       "g1spammer",
+		Content:      shortSpam,
+		Rate:         burstRate,
+		Reputation:   badRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
+		EarlyExitAt:  antispam.ThresholdReject,
 	})
 
 	println("Full scoring:  score=" + intToString(result5full.Total) + " rules=" + sliceToString(result5full.Triggered))

@@ -95,14 +95,14 @@ func main() {
 	}
 
 	result1 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1veteran",
-		Content: testContent,
-		Rate:    normalRate,
-		Rep:     establishedRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1veteran",
+		Content:      testContent,
+		Rate:         normalRate,
+		Reputation:   establishedRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Address: g1veteran")
@@ -126,14 +126,14 @@ func main() {
 	}
 
 	result2 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1newbie42",
-		Content: testContent,
-		Rate:    normalRate,
-		Rep:     newAccountRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1newbie42",
+		Content:      testContent,
+		Rate:         normalRate,
+		Reputation:   newAccountRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Address: g1newbie42")
@@ -163,14 +163,14 @@ func main() {
 	}
 
 	result3 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1spammer",
-		Content: testContent,
-		Rate:    normalRate,
-		Rep:     goodStats,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1spammer",
+		Content:      testContent,
+		Rate:         normalRate,
+		Reputation:   goodStats,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Address: g1spammer (BLOCKLISTED)")
@@ -195,14 +195,14 @@ func main() {
 	}
 
 	result4 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1moderator",
-		Content: "FREE SPAM EVERYWHERE!!! CLICK NOW!!! http://spam.com", // Obviously spam
-		Rate:    antispam.RateState{PostCount: 50, WindowSeconds: 3600}, // Burst
-		Rep:     terribleStats,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
-		Dict:    dict,
+		Author:       "g1moderator",
+		Content:      "FREE SPAM EVERYWHERE!!! CLICK NOW!!! http://spam.com", // Obviously spam
+		Rate:         antispam.RateState{PostCount: 50, WindowSeconds: 3600}, // Burst
+		Reputation:   terribleStats,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
+		Keywords:     dict,
 	})
 
 	println("Address: g1moderator (ALLOWLISTED)")

@@ -46,32 +46,32 @@ func TestScoreRate(t *testing.T) {
 		{
 			name:     "10+ posts in an hour",
 			rate:     RateState{PostCount: 11, WindowSeconds: 3600},
-			wantMin:  2,
+			wantMin:  WeightRateBurst / 2,
 			wantRule: "RATE_BURST",
 		},
 		{
 			name:     "20 posts in an hour (moderate burst)",
 			rate:     RateState{PostCount: 20, WindowSeconds: 3600},
-			wantMin:  2,
-			wantMax:  2,
+			wantMin:  WeightRateBurst / 2,
+			wantMax:  WeightRateBurst / 2,
 			wantRule: "RATE_BURST",
 		},
 		{
 			name:     "50 posts in an hour (heavy flood)",
 			rate:     RateState{PostCount: 50, WindowSeconds: 3600},
-			wantMin:  4,
+			wantMin:  WeightRateBurst,
 			wantRule: "RATE_BURST",
 		},
 		{
 			name:     "5 posts in one minute",
 			rate:     RateState{PostCount: 5, WindowSeconds: 60},
-			wantMin:  4,
+			wantMin:  WeightRateBurst,
 			wantRule: "RATE_BURST",
 		},
 		{
 			name:     "3 posts in 10 seconds",
 			rate:     RateState{PostCount: 3, WindowSeconds: 10},
-			wantMin:  4,
+			wantMin:  WeightRateBurst,
 			wantRule: "RATE_BURST",
 		},
 
@@ -80,13 +80,13 @@ func TestScoreRate(t *testing.T) {
 		{
 			name:     "zero window seconds",
 			rate:     RateState{PostCount: 5, WindowSeconds: 0},
-			wantMin:  4,
+			wantMin:  WeightRateBurst,
 			wantRule: "RATE_BURST",
 		},
 		{
 			name:     "negative window (treat as zero)",
 			rate:     RateState{PostCount: 5, WindowSeconds: -1},
-			wantMin:  4,
+			wantMin:  WeightRateBurst,
 			wantRule: "RATE_BURST",
 		},
 		{

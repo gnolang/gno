@@ -64,7 +64,7 @@ func TestScoreReputation(t *testing.T) {
 				HasUsername:    false,
 				BanCount:       0,
 			},
-			wantMin:  2,
+			wantMin:  WeightNewAccount,
 			wantRule: "NEW_ACCOUNT",
 		},
 		{
@@ -89,7 +89,7 @@ func TestScoreReputation(t *testing.T) {
 				HasUsername:    false,
 				BanCount:       0,
 			},
-			wantMin:  1,
+			wantMin:  WeightNoUsername,
 			wantRule: "NO_USERNAME",
 		},
 
@@ -105,7 +105,7 @@ func TestScoreReputation(t *testing.T) {
 				HasUsername:    true,
 				BanCount:       0,
 			},
-			wantMin:  3,
+			wantMin:  WeightBadReputation,
 			wantRule: "BAD_REPUTATION",
 		},
 		{
@@ -142,7 +142,7 @@ func TestScoreReputation(t *testing.T) {
 				HasUsername:    true,
 				BanCount:       0,
 			},
-			wantMin:  3,
+			wantMin:  WeightBadReputation,
 			wantRule: "BAD_REPUTATION",
 		},
 
@@ -151,7 +151,7 @@ func TestScoreReputation(t *testing.T) {
 		{
 			name:     "all zeros",
 			rep:      ReputationData{},
-			wantMin:  2,
+			wantMin:  WeightNewAccount,
 			wantRule: "NEW_ACCOUNT",
 		},
 		{
@@ -164,7 +164,7 @@ func TestScoreReputation(t *testing.T) {
 				HasUsername:    true,
 				BanCount:       0,
 			},
-			wantMin:  1,
+			wantMin:  WeightLowBalance,
 			wantRule: "LOW_BALANCE",
 		},
 		{
@@ -177,7 +177,7 @@ func TestScoreReputation(t *testing.T) {
 				HasUsername:    true,
 				BanCount:       0,
 			},
-			wantMin:  3,
+			wantMin:  WeightBadReputation,
 			wantRule: "BAD_REPUTATION",
 		},
 		{

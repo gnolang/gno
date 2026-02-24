@@ -212,7 +212,7 @@ func TestScoreBayes(t *testing.T) {
 			name:     "obvious spam words",
 			body:     "free airdrop bonus click claim prize",
 			corpus:   trainedCorpus,
-			wantMin:  3,
+			wantMin:  WeightBayesSpam,
 			wantRule: "BAYES_SPAM",
 		},
 		{

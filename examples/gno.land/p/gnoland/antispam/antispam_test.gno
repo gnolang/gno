@@ -76,7 +76,7 @@ func TestScore(t *testing.T) {
 			name: "normal post from good user",
 			input: ScoreInput{
 				Author: "g1gooduser", Content: "I think we should consider adjusting the staking rewards for validators.",
-				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
+				Rate: normalRate, Reputation: goodRep, Corpus: emptyCorpus, Fingerprints: emptyFps, Blocklist: emptyBl,
 			},
 			wantZero: true,
 		},
@@ -84,7 +84,7 @@ func TestScore(t *testing.T) {
 			name: "all nil state",
 			input: ScoreInput{
 				Author: "g1user", Content: "Just saying hello to the community.",
-				Rate: zeroRate, Rep: goodRep,
+				Rate: zeroRate, Reputation: goodRep,
 			},
 			wantZero: true,
 		},
@@ -95,7 +95,7 @@ func TestScore(t *testing.T) {
 			name: "admin posts spam-like content",
 			input: ScoreInput{
 				Author: "g1admin", Content: "FREE AIRDROP BONUS for everyone!!! https://a.com https://b.com https://c.com https://d.com",
-				Rate: burstRate, Rep: badRep, Corpus: trainedCorpus, Fps: spamFps, Bl: blocklist,
+				Rate: burstRate, Reputation: badRep, Corpus: trainedCorpus, Fingerprints: spamFps, Blocklist: blocklist,
 			},
 			wantZero: true,
 		},
@@ -106,9 +106,9 @@ func TestScore(t *testing.T) {
 			name: "known spammer",
 			input: ScoreInput{
 				Author: "g1spammer", Content: "Totally normal message.",
-				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: blocklist,
+				Rate: normalRate, Reputation: goodRep, Corpus: emptyCorpus, Fingerprints: emptyFps, Blocklist: blocklist,
 			},
-			wantMin: 99,
+			wantMin: WeightBlockedAddress,
 		},
 
 		// Content spam
@@ -117,9 +117,9 @@ func TestScore(t *testing.T) {
 			name: "all caps flood",
 			input: ScoreInput{
 				Author: "g1user", Content: "THIS IS ALL CAPS SPAM MESSAGE THAT SHOULD BE DETECTED BY CONTENT RULES EASILY",
-				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
+				Rate: normalRate, Reputation: goodRep, Corpus: emptyCorpus, Fingerprints: emptyFps, Blocklist: emptyBl,
 			},
-			wantMin: 2,
+			wantMin: WeightAllCaps,
 		},
 
 		// Rate burst
@@ -128,9 +128,9 @@ func TestScore(t *testing.T) {
 			name: "rate burst from good user",
 			input: ScoreInput{
 				Author: "g1user", Content: "Normal content but posted too fast.",
-				Rate: burstRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
+				Rate: burstRate, Reputation: goodRep, Corpus: emptyCorpus, Fingerprints: emptyFps, Blocklist: emptyBl,
 			},
-			wantMin: 4,
+			wantMin: WeightRateBurst,
 		},
 
 		// Bad reputation
@@ -139,9 +139,9 @@ func TestScore(t *testing.T) {
 			name: "new account no username",
 			input: ScoreInput{
 				Author: "g1newbie", Content: "Hello everyone I just joined.",
-				Rate: zeroRate, Rep: newAccountRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
+				Rate: zeroRate, Reputation: newAccountRep, Corpus: emptyCorpus, Fingerprints: emptyFps, Blocklist: emptyBl,
 			},
-			wantMin: 2,
+			wantMin: WeightNewAccount,
 		},
 
 		// Pattern match
@@ -150,9 +150,9 @@ func TestScore(t *testing.T) {
 			name: "pattern match crypto scam",
 			input: ScoreInput{
 				Author: "g1user", Content: "Send 1000 GNOT to this address and get 5000 back guaranteed",
-				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: blocklist,
+				Rate: normalRate, Reputation: goodRep, Corpus: emptyCorpus, Fingerprints: emptyFps, Blocklist: blocklist,
 			},
-			wantMin: 5,
+			wantMin: WeightBlockedPattern,
 		},
 
 		// Near duplicate
@@ -161,9 +161,9 @@ func TestScore(t *testing.T) {
 			name: "near duplicate of known spam",
 			input: ScoreInput{
 				Author: "g1user", Content: "free airdrop bonus click claim prize tokens quick",
-				Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: spamFps, Bl: emptyBl,
+				Rate: normalRate, Reputation: goodRep, Corpus: emptyCorpus, Fingerprints: spamFps, Blocklist: emptyBl,
 			},
-			wantMin: 4,
+			wantMin: WeightNearDuplicate,
 		},
 
 		// Multi-signal stacking
@@ -172,7 +172,7 @@ func TestScore(t *testing.T) {
 			name: "combined: new account + caps + rate burst",
 			input: ScoreInput{
 				Author: "g1newspammer", Content: "BUY NOW THIS IS THE BEST DEAL EVER YOU WILL NOT REGRET THIS AMAZING OPPORTUNITY",
-				Rate: burstRate, Rep: newAccountRep, Corpus: emptyCorpus, Fps: emptyFps, Bl: emptyBl,
+				Rate: burstRate, Reputation: newAccountRep, Corpus: emptyCorpus, Fingerprints: emptyFps, Blocklist: emptyBl,
 			},
 			wantMin: 9,
 		},
@@ -180,7 +180,7 @@ func TestScore(t *testing.T) {
 			name: "combined: bad rep + pattern + bayes",
 			input: ScoreInput{
 				Author: "g1baduser", Content: "Send 5000 GNOT and get free airdrop bonus click claim prize tokens",
-				Rate: normalRate, Rep: badRep, Corpus: trainedCorpus, Fps: emptyFps, Bl: blocklist,
+				Rate: normalRate, Reputation: badRep, Corpus: trainedCorpus, Fingerprints: emptyFps, Blocklist: blocklist,
 			},
 			wantMin: 10,
 		},
@@ -218,13 +218,13 @@ func TestScore(t *testing.T) {
 
 	t.Run("triggered: content rules listed individually", func(t *testing.T) {
 		result := Score(ScoreInput{
-			Author:  "g1user",
-			Content: "THIS IS ALL CAPS WITH http://a.com http://b.com http://c.com http://d.com",
-			Rate:    RateState{PostCount: 3, WindowSeconds: 3600},
-			Rep:     goodRep,
-			Corpus:  NewCorpus(),
-			Fps:     NewFingerprintStore(),
-			Bl:      NewBlocklist(),
+			Author:       "g1user",
+			Content:      "THIS IS ALL CAPS WITH http://a.com http://b.com http://c.com http://d.com",
+			Rate:         RateState{PostCount: 3, WindowSeconds: 3600},
+			Reputation:   goodRep,
+			Corpus:       NewCorpus(),
+			Fingerprints: NewFingerprintStore(),
+			Blocklist:    NewBlocklist(),
 		})
 		wantRules := map[string]bool{"ALL_CAPS": false, "LINK_HEAVY": false}
 		for _, r := range result.Triggered {
@@ -241,13 +241,13 @@ func TestScore(t *testing.T) {
 
 	t.Run("triggered: reputation rules listed individually", func(t *testing.T) {
 		result := Score(ScoreInput{
-			Author:  "g1newbie",
-			Content: "Hello everyone this is a perfectly normal message with enough length.",
-			Rate:    RateState{},
-			Rep:     ReputationData{AccountAgeDays: 0, TotalAccepted: 0, HasUsername: false, Balance: 100},
-			Corpus:  NewCorpus(),
-			Fps:     NewFingerprintStore(),
-			Bl:      NewBlocklist(),
+			Author:       "g1newbie",
+			Content:      "Hello everyone this is a perfectly normal message with enough length.",
+			Rate:         RateState{},
+			Reputation:   ReputationData{AccountAgeDays: 0, TotalAccepted: 0, HasUsername: false, Balance: 100},
+			Corpus:       NewCorpus(),
+			Fingerprints: NewFingerprintStore(),
+			Blocklist:    NewBlocklist(),
 		})
 		wantRules := map[string]bool{"NEW_ACCOUNT": false, "NO_USERNAME": false, "LOW_BALANCE": false}
 		for _, r := range result.Triggered {
@@ -314,7 +314,7 @@ func TestFalsePositives(t *testing.T) {
 		t.Run(msg.name, func(t *testing.T) {
 			result := Score(ScoreInput{
 				Author: "g1legitimateuser", Content: msg.content,
-				Rate: normalRate, Rep: goodRep, Corpus: corpus, Fps: fps, Bl: bl,
+				Rate: normalRate, Reputation: goodRep, Corpus: corpus, Fingerprints: fps, Blocklist: bl,
 			})
 			if result.Total >= 5 {
 				t.Errorf("FALSE POSITIVE: %q scored %d (triggered: %v)", msg.name, result.Total, result.Triggered)
@@ -390,8 +390,8 @@ func TestEarlyExitAt(t *testing.T) {
 	// EarlyExitDisabled: all rules evaluated, should include expensive rules
 	full := Score(ScoreInput{
 		Author: "g1user", Content: content,
-		Rate: burstRate, Rep: badRep,
-		Corpus: corpus, Dict: dict, Bl: bl,
+		Rate: burstRate, Reputation: badRep,
+		Corpus: corpus, Keywords: dict, Blocklist: bl,
 		EarlyExitAt: EarlyExitDisabled,
 	})
 
@@ -399,8 +399,8 @@ func TestEarlyExitAt(t *testing.T) {
 	// so expensive rules (bayes, keywords) should be skipped.
 	early := Score(ScoreInput{
 		Author: "g1user", Content: content,
-		Rate: burstRate, Rep: badRep,
-		Corpus: corpus, Dict: dict, Bl: bl,
+		Rate: burstRate, Reputation: badRep,
+		Corpus: corpus, Keywords: dict, Blocklist: bl,
 		EarlyExitAt: ThresholdReject,
 	})
 
@@ -450,15 +450,15 @@ func TestEarlyExitIntraPhase2(t *testing.T) {
 
 	full := Score(ScoreInput{
 		Author: "g1user", Content: content,
-		Rate: normalRate, Rep: goodRep,
-		Corpus: corpus, Dict: dict, Bl: bl,
+		Rate: normalRate, Reputation: goodRep,
+		Corpus: corpus, Keywords: dict, Blocklist: bl,
 		EarlyExitAt: EarlyExitDisabled,
 	})
 
 	early := Score(ScoreInput{
 		Author: "g1user", Content: content,
-		Rate: normalRate, Rep: goodRep,
-		Corpus: corpus, Dict: dict, Bl: bl,
+		Rate: normalRate, Reputation: goodRep,
+		Corpus: corpus, Keywords: dict, Blocklist: bl,
 		EarlyExitAt: ThresholdReject,
 	})
 
@@ -509,13 +509,13 @@ func TestMaxInputLength(t *testing.T) {
 			Author:  "g1user",
 			Content: long,
 			Rate:    RateState{PostCount: 3, WindowSeconds: 3600},
-			Rep: ReputationData{
+			Reputation: ReputationData{
 				AccountAgeDays: 90, Balance: 10000000000,
 				HasUsername: true, TotalAccepted: 50,
 			},
-			Corpus: NewCorpus(),
-			Fps:    NewFingerprintStore(),
-			Bl:     NewBlocklist(),
+			Corpus:       NewCorpus(),
+			Fingerprints: NewFingerprintStore(),
+			Blocklist:    NewBlocklist(),
 		})
 		// Should not panic and should produce a valid score
 		if result.Total < 0 {
@@ -531,13 +531,13 @@ func TestBlockedAddressShortCircuit(t *testing.T) {
 	bl.BlockAddress("g1spammer")
 
 	result := Score(ScoreInput{
-		Author:  "g1spammer",
-		Content: "totally normal message",
-		Rate:    RateState{PostCount: 50, WindowSeconds: 60},
-		Rep:     ReputationData{},
-		Corpus:  NewCorpus(),
-		Fps:     NewFingerprintStore(),
-		Bl:      bl,
+		Author:       "g1spammer",
+		Content:      "totally normal message",
+		Rate:         RateState{PostCount: 50, WindowSeconds: 60},
+		Reputation:   ReputationData{},
+		Corpus:       NewCorpus(),
+		Fingerprints: NewFingerprintStore(),
+		Blocklist:    bl,
 	})
 
 	// Only BLOCKED_ADDRESS should fire - no other rules

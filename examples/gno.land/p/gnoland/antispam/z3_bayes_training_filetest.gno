@@ -88,7 +88,7 @@ func main() {
 
 	result1A := antispam.Score(antispam.ScoreInput{
 		Author: "g1user", Content: cleanMsg,
-		Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: fps, Bl: bl,
+		Rate: normalRate, Reputation: goodRep, Corpus: emptyCorpus, Fingerprints: fps, Blocklist: bl,
 	})
 
 	println("Score: " + intToString(result1A.Total) + " | Triggered: " + sliceToString(result1A.Triggered))
@@ -140,7 +140,7 @@ func main() {
 
 	result1B := antispam.Score(antispam.ScoreInput{
 		Author: "g1user", Content: cleanMsg,
-		Rate: normalRate, Rep: goodRep, Corpus: corpus, Fps: fps, Bl: bl,
+		Rate: normalRate, Reputation: goodRep, Corpus: corpus, Fingerprints: fps, Blocklist: bl,
 	})
 
 	println("Score: " + intToString(result1B.Total) + " | Triggered: " + sliceToString(result1B.Triggered))
@@ -166,7 +166,7 @@ func main() {
 
 	result2A := antispam.Score(antispam.ScoreInput{
 		Author: "g1user", Content: sophisticatedSpam,
-		Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: fps, Bl: bl,
+		Rate: normalRate, Reputation: goodRep, Corpus: emptyCorpus, Fingerprints: fps, Blocklist: bl,
 	})
 
 	println("Score: " + intToString(result2A.Total) + " | Triggered: " + sliceToString(result2A.Triggered))
@@ -181,7 +181,7 @@ func main() {
 
 	result2B := antispam.Score(antispam.ScoreInput{
 		Author: "g1user", Content: sophisticatedSpam,
-		Rate: normalRate, Rep: goodRep, Corpus: corpus, Fps: fps, Bl: bl,
+		Rate: normalRate, Reputation: goodRep, Corpus: corpus, Fingerprints: fps, Blocklist: bl,
 	})
 
 	println("Score: " + intToString(result2B.Total) + " | Triggered: " + sliceToString(result2B.Triggered))
@@ -210,7 +210,7 @@ func main() {
 
 	result3A := antispam.Score(antispam.ScoreInput{
 		Author: "g1user", Content: legitimateWithKeywords,
-		Rate: normalRate, Rep: goodRep, Corpus: emptyCorpus, Fps: fps, Bl: bl,
+		Rate: normalRate, Reputation: goodRep, Corpus: emptyCorpus, Fingerprints: fps, Blocklist: bl,
 	})
 
 	println("Score: " + intToString(result3A.Total) + " | Triggered: " + sliceToString(result3A.Triggered))
@@ -253,7 +253,7 @@ func main() {
 
 	result3B := antispam.Score(antispam.ScoreInput{
 		Author: "g1user", Content: legitimateWithKeywords,
-		Rate: normalRate, Rep: goodRep, Corpus: contextCorpus, Fps: fps, Bl: bl,
+		Rate: normalRate, Reputation: goodRep, Corpus: contextCorpus, Fingerprints: fps, Blocklist: bl,
 	})
 
 	println("Score: " + intToString(result3B.Total) + " | Triggered: " + sliceToString(result3B.Triggered))

@@ -95,13 +95,13 @@ func main() {
 	println("Author: g1spammer123 (BLOCKED)\n")
 
 	result1 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1spammer123",
-		Content: cleanMsg,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1spammer123",
+		Content:      cleanMsg,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result1.Total) + " | Triggered: " + sliceToString(result1.Triggered))
@@ -118,13 +118,13 @@ func main() {
 	println("Author: g1regularuser (not blocked)\n")
 
 	result2 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1regularuser",
-		Content: cleanMsg,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1regularuser",
+		Content:      cleanMsg,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result2.Total) + " | Triggered: " + sliceToString(result2.Triggered))
@@ -157,7 +157,7 @@ func main() {
 		Author:  "g1moderator",
 		Content: obviousSpam,
 		Rate:    antispam.RateState{PostCount: 50, WindowSeconds: 3600}, // Burst
-		Rep: antispam.ReputationData{ // Terrible stats
+		Reputation: antispam.ReputationData{ // Terrible stats
 			AccountAgeDays: 0,
 			Balance:        0,
 			FlaggedCount:   100,
@@ -165,9 +165,9 @@ func main() {
 			HasUsername:    false,
 			BanCount:       10,
 		},
-		Corpus: corpus,
-		Fps:    fps,
-		Bl:     bl,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result3.Total) + " | Triggered: " + sliceToString(result3.Triggered))
@@ -204,13 +204,13 @@ func main() {
 	println("Author: g1user\n")
 
 	result4 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1user",
-		Content: sendGetScam,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1user",
+		Content:      sendGetScam,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result4.Total) + " | Triggered: " + sliceToString(result4.Triggered))
@@ -229,13 +229,13 @@ func main() {
 	println("Author: g1user\n")
 
 	result5 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1user",
-		Content: doubleCrypto,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1user",
+		Content:      doubleCrypto,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result5.Total) + " | Triggered: " + sliceToString(result5.Triggered))
@@ -254,13 +254,13 @@ func main() {
 	println("Author: g1user\n")
 
 	result6 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1user",
-		Content: legitimate,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1user",
+		Content:      legitimate,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result6.Total) + " | Triggered: " + sliceToString(result6.Triggered))
@@ -289,13 +289,13 @@ func main() {
 	println("Author: g1testuser\n")
 
 	result7 := antispam.Score(antispam.ScoreInput{
-		Author:  "g1testuser",
-		Content: obviousSpam,
-		Rate:    normalRate,
-		Rep:     goodRep,
-		Corpus:  corpus,
-		Fps:     fps,
-		Bl:      bl,
+		Author:       "g1testuser",
+		Content:      obviousSpam,
+		Rate:         normalRate,
+		Reputation:   goodRep,
+		Corpus:       corpus,
+		Fingerprints: fps,
+		Blocklist:    bl,
 	})
 
 	println("Score: " + intToString(result7.Total) + " | Triggered: " + sliceToString(result7.Triggered))
