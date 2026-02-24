@@ -340,33 +340,16 @@ func TestCommonDAOExecute(t *testing.T) {
 		statusReason string
 		err          error
 	}{
-		// TODO: Execution success and error are implemented as filetests
-		//       This is done because proposal definition's Execute() must be
-		//       crossing which is not possible without defining it within a realm.
-		// {
-		// 	name: "success",
-		// 	setup: func() *commondao.CommonDAO {
-		// 		dao := commondao.New(commondao.WithMember(member))
-		// 		dao.Propose(member, testPropDef{tallyResult: true})
-		// 		return dao
-		// 	},
-		// 	status:     StatusPassed,
-		// 	proposalID: 1,
-		// },
-		// {
-		// 	name: "execution error",
-		// 	setup: func() *commondao.CommonDAO {
-		// 		dao := commondao.New(commondao.WithMember(member))
-		// 		dao.Propose(member, testPropDef{
-		// 			tallyResult:  true,
-		// 			executionErr: errTest,
-		// 		})
-		// 		return dao
-		// 	},
-		// 	proposalID:   1,
-		// 	status:       StatusFailed,
-		// 	statusReason: errTest.Error(),
-		// },
+		{
+			name: "success",
+			setup: func() *commondao.CommonDAO {
+				dao := commondao.New(commondao.WithMember(member))
+				dao.Propose(member, testPropDef{tallyResult: true}) // Non crossing definition
+				return dao
+			},
+			status:     commondao.StatusExecuted,
+			proposalID: 1,
+		},
 		{
 			name:       "proposal not found",
 			setup:      func() *commondao.CommonDAO { return commondao.New() },

@@ -2,6 +2,7 @@ package chain
 
 import (
 	"math/overflow"
+	"sort"
 	"strconv"
 )
 
@@ -57,7 +58,7 @@ func (c Coin) Add(other Coin) Coin {
 
 	sum, ok := overflow.Add64(c.Amount, other.Amount)
 	if !ok {
-		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " +/- " + strconv.Itoa(int(other.Amount)))
+		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " + " + strconv.Itoa(int(other.Amount)))
 	}
 
 	c.Amount = sum
@@ -73,7 +74,7 @@ func (c Coin) Sub(other Coin) Coin {
 
 	dff, ok := overflow.Sub64(c.Amount, other.Amount)
 	if !ok {
-		panic("coin sub overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " +/- " + strconv.Itoa(int(other.Amount)))
+		panic("coin sub overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " - " + strconv.Itoa(int(other.Amount)))
 	}
 	c.Amount = dff
 
@@ -104,28 +105,45 @@ func mustMatchDenominations(denomA, denomB string) {
 // Coins is a set of Coin, one per currency
 type Coins []Coin
 
-// NewCoins returns a new set of Coins given one or more Coins
-// Consolidates any denom duplicates into one, keeping the properties of a mathematical set
+// NewCoins returns a new set of Coins given one or more Coins.
+// Internally, it joins coins with the same mechanism as [Coins.Add], so the
+// resulting [Coins] will be sorted and one per coin, with the caveats mentioned
+// in [Coins.Add]'s godoc.
+//
+// If passing in a slice instead of variadic parameters (ie. `NewCoins(myVar...)`),
+// the slice will be modified in-place.
 func NewCoins(coins ...Coin) Coins {
-	coinMap := make(map[string]int64)
+	cz := Coins(coins)
+	return cz.sortAndJoin()
+}
 
-	for _, coin := range coins {
-		if currentAmount, exists := coinMap[coin.Denom]; exists {
-			var ok bool
-			if coinMap[coin.Denom], ok = overflow.Add64(currentAmount, coin.Amount); !ok {
-				panic("coin sub overflow/underflow: " + strconv.Itoa(int(currentAmount)) + " +/- " + strconv.Itoa(int(coin.Amount)))
+func (cz Coins) sortAndJoin() Coins {
+	sort.Sort(coinsSort(cz))
+
+	// Join each coin in cz[i] with cz[i+1] if possible.
+	for i := 0; i+1 < len(cz); {
+		current, next := cz[i], cz[i+1]
+		if current.Denom == next.Denom {
+			// Consolidate next into current.
+			sum, ok := overflow.Add64(current.Amount, next.Amount)
+			if !ok {
+				panic("coin add overflow/underflow: " + strconv.Itoa(int(current.Amount)) +
+					" + " + strconv.Itoa(int(next.Amount)) + " " + next.Denom)
+			}
+			if sum == 0 {
+				// current + next cancel each other out. Remove both.
+				cz = append(cz[:i], cz[i+2:]...)
+			} else {
+				cz[i].Amount = sum
+				// Remove next from the slice.
+				cz = append(cz[:i+1], cz[i+2:]...)
 			}
 		} else {
-			coinMap[coin.Denom] = coin.Amount
+			// Move onto next coin.
+			i++
 		}
 	}
-
-	var setCoins Coins
-	for denom, amount := range coinMap {
-		setCoins = append(setCoins, NewCoin(denom, amount))
-	}
-
-	return setCoins
+	return cz[:len(cz):len(cz)]
 }
 
 // String returns the string representation of Coins
@@ -162,23 +180,28 @@ func (cz Coins) AmountOf(denom string) int64 {
 	return amt
 }
 
-// Add adds a Coin to the Coins set
+// Add adds the given Coins to the set.
+//
+// The coins of the receiver and the argument are added together into a new
+// Coins slice. Coins are then sorted and all coins with the same denom are
+// joined together in one single denom. Consequently:
+//
+//   - If cz or b contain multiple coins with the same Denom (though generally
+//     obtained as a result of an incorrect operation), they will be joined
+//     together.
+//   - Operations may unexpectedly overflow in some edge cases depending on the
+//     ordering of values after sorting (only if there are coins with duplicate
+//     denoms).
+//   - The resulting Coins slice will be sorted by ascending denoms.
+//   - If any coin has an amount of 0 after it is joined with another coin with
+//     the same denom, it will be removed.
+//   - The receiver and the parameter will not be modified.
 func (cz Coins) Add(b Coins) Coins {
-	c := Coins{}
-	for _, ac := range cz {
-		bc := b.AmountOf(ac.Denom)
-		ac.Amount += bc
-		c = append(c, ac)
-	}
-
-	for _, bc := range b {
-		cc := c.AmountOf(bc.Denom)
-		if cc == 0 {
-			c = append(c, bc)
-		}
-	}
-
-	return c
+	// Create dst then sort to have O(n*log(n)) complexity.
+	dst := make(Coins, len(cz)+len(b))
+	copy(dst[:len(cz)], cz)
+	copy(dst[len(cz):], b)
+	return dst.sortAndJoin()
 }
 
 // IsZero returns true if there are no coins or all coins are zero.
@@ -189,6 +212,18 @@ func (coins Coins) IsZero() bool {
 		}
 	}
 	return true
+}
+
+type coinsSort []Coin
+
+func (coins coinsSort) Len() int { return len(coins) }
+
+func (coins coinsSort) Less(i, j int) bool {
+	return coins[i].Denom < coins[j].Denom
+}
+
+func (coins coinsSort) Swap(i, j int) {
+	coins[i], coins[j] = coins[j], coins[i]
 }
 
 func CoinDenom(pkgPath, coinName string) string {
