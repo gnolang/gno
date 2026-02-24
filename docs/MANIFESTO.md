@@ -36,7 +36,7 @@ centralized abuse of the "moat" the norm rather than exception.
 
 The only way to overcome the "satanification" of our devices and the internet,
 the bedrock of the information age, is to invert control by being
-_uncompromising_ in the Seven Pillars of Good:
+_uncompromising_ in the Seven Pillars of Good Systems:
 
  * FOSS (free & open source) software & hardware
  * security (simplicity, audits, formal verification, absolute Kelvin versioning)
@@ -67,8 +67,8 @@ persistence (and so of ORMs or alternatives) making smart contract development
 in Go or Rust just as complex as server-side Web2 programming if not moreso.
 
 Gno.land solves the problem by virtue of a new VM design that interprets Gno.
-The Gno language is Go but extended with minimal changes to make Go aware of
-different user agent contexts in exeecution and user storage realm contexts in
+The Gno language is Go but extended minimally to make Go aware of different
+user agent contexts in exeecution and user storage realm contexts in
 persistence for security; and the Gno VM keeps track of creations, updates, and
 deletions of runtime objects at user transaction boundaries and throughout each
 transaction for automatic persistence that also computes Merkle hashes
@@ -83,9 +83,9 @@ realm functions), and the serialization and persistence of data (or any mapping
 between memory objects and persistent data). As compared to Ethereum Solidity,
 Gno programming is not only familiar to Go developers also with ports of many
 of the great tooling that developers love in Go; Gno also lets you write
-complex applications in significantly less time and lines of code.o
+complex applications in significantly less time and lines of code.
 
-Like when Ethereum was first released implemented in Python, at first Gno.land
+As when Ethereum was first released implemented in Python, at first Gno.land
 may not be able to compete in transaction throughput as compared to Solana or
 other smart contract blockchains optimized for speed. However as the ecosystem
 of Gno applications and libraries grow, so too will the set of alternative
@@ -94,7 +94,7 @@ will be offered in partnership with the AtomOne chain the Gno.land ecosystem
 will over time become a major competitor among existing and new smart contract
 systems. Furthermore the GnoVM and Gno's unique features open the door to
 applications outside of the blockchain context even for the home that follow
-the Seven Pillars of Good.
+the Seven Pillars of Good Systems.
 
 ## Problem: Misinformation and Loss of Trust
 
@@ -391,7 +391,7 @@ responses could be stored directly on Gno.land but they could also be stored
 and indexed in another archive that specializes in the accountable memoization
 of common queries.
 
-## The Gno Language
+## Gno Language
 
 _We could not have arrived at the final design of the Gno language without the
 help of the many developers who gave much time of their lives to contribute to
@@ -1320,9 +1320,24 @@ Gno.land can be used to host any other smart-contract application supported by
 Ethereum written in Solidity, such as Defi applications, name-resolution
 systems, DAOs and governance applications, etc.
 
-You can explore the various dapps including sample implementations of ERC equivalents in the
-[examples directory](https://github.com/gnolang/gno/tree/master/examples/gno.land). _Note that these prototypes have not yet been audited unless
-otherwise specified!_
+You can explore the various dapps including sample implementations of ERC
+equivalents in the [examples
+directory](https://github.com/gnolang/gno/tree/master/examples/gno.land). _Note
+that these prototypes have not yet been audited unless otherwise specified!_
+
+There are also many good use-cases for integrating the GnoVM in client or
+server side programming where deterministic gas-limited (for CPU, disk, memory)
+execution of logic is desired. In particular Gno and the Gno VM can be ideal
+for scripting in the gaming context for multi-player games. There are many
+games like Minecraft (with JavaScript) or Second Life (with LSL) that offer
+scripting in the game, but they are usually not both deterministic and
+gas-counted; but these are the properties you may need in a multi-player game
+if you also want to provide fault-tolerant, accountability, and replayability
+guarantees (with or without decentralization or replication). 
+
+The main feature of Gno is its multi-user context awareness. Where-ever you
+want user provided logic directly interacting with those of another user Gno
+solutions will be more succinct, elegant, and easy to develop and maintain.
 
 ### Gno.land Constitution
 
