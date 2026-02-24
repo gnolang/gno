@@ -29,7 +29,6 @@ func TestDefaultVerifier(t *testing.T) {
 	uassert.False(t, verifier(true, address(""), "something"))
 }
 
-
 func TestEnable(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 
