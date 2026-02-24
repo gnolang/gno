@@ -433,8 +433,10 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 
 		ls := m.PeekStmt(1)
 		if bs, ok := ls.(*bodyStmt); ok {
-			stacktrace.LastLine = bs.LastStmt().GetLine()
-			return
+			if bs.NextBodyIndex > 0 {
+				stacktrace.LastLine = bs.LastStmt().GetLine()
+				return
+			}
 		}
 	}
 	return

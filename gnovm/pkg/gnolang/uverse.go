@@ -663,6 +663,9 @@ func makeUverseNode() {
 			itv := arg1.Deref()
 			switch baseOf(arg0.TV.T).(type) {
 			case *MapType:
+				if arg0.TV.V == nil {
+					return // delete on nil map is a no-op, matching Go behavior.
+				}
 				mv := arg0.TV.V.(*MapValue)
 
 				// Guard for protecting map against mutation by external realms.
