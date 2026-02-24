@@ -7,7 +7,8 @@ import (
 // ValsetProtocol defines the validator set protocol (PoA / PoS / PoC / ?)
 type ValsetProtocol interface {
 	// AddValidator adds a new validator to the validator set.
-	// If the validator is already present, the method should error out
+	// If the validator is already present *AND* has the same voting power,
+	// the method should error out, otherwise update the validator's voting power
 	//
 	// TODO: This API is not ideal -- the address should be derived from
 	// the public key, and not be passed in as such, but currently Gno
