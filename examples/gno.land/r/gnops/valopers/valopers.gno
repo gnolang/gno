@@ -233,7 +233,7 @@ func renderHome(path string) string {
 	for _, item := range page.Items {
 		v := item.Value.(Valoper)
 		output += ufmt.Sprintf(" * [%s](/r/gnops/valopers:%s) - [profile](/r/demo/profile:u/%s)\n",
-			v.Moniker, v.Address, v.Auth().Owner())
+			v.Moniker, v.Address, v.Address)
 	}
 
 	output += "\n"

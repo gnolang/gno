@@ -7,7 +7,6 @@ import (
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/moul/md"
 
-	"gno.land/r/gnoland/boards2/v1/permissions"
 	"gno.land/r/sys/users"
 )
 
@@ -70,13 +69,13 @@ func getRoleBadge(post *boards.Post) string {
 	creator := post.Creator
 
 	// Check roles in order of priority
-	if perms.HasRole(creator, permissions.RoleOwner) {
+	if perms.HasRole(creator, RoleOwner) {
 		return " `owner`"
 	}
-	if perms.HasRole(creator, permissions.RoleAdmin) {
+	if perms.HasRole(creator, RoleAdmin) {
 		return " `admin`"
 	}
-	if perms.HasRole(creator, permissions.RoleModerator) {
+	if perms.HasRole(creator, RoleModerator) {
 		return " `mod`"
 	}
 	return ""

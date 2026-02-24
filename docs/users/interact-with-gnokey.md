@@ -1022,12 +1022,14 @@ types of queries to a Gno.land network.
 Below is a list of queries a user can make with `gnokey`:
 
 - `auth/accounts/{ADDRESS}` - returns information about an account
+- `auth/gasprice` - returns the current minimum gas price required for transactions
 - `bank/balances/{ADDRESS}` - returns balances of an account
 - `vm/qfuncs` - returns the exported functions for a given pkgpath
 - `vm/qfile` - returns package contents for a given pkgpath
 - `vm/qdoc` - Returns the JSON of the doc for a given pkgpath, suitable for printing
 - `vm/qeval` - evaluates an expression in read-only mode on and returns the results
 - `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
+- `vm/qpaths` - lists all existing package paths
 - `vm/qstorage` - returns storage usage and deposit locked in a realm
 
 Let's see how we can use them.
@@ -1092,6 +1094,40 @@ data: "227984898927ugnot"
 ```
 
 The data field will contain the coins the address owns.
+
+### `auth/gasprice`
+
+The `auth/gasprice` query allows you to fetch the minimum gas price currently
+required for transactions. This is useful for ensuring your `--gas-fee` meets
+the network's requirements when submitting transactions. To call it, we can run the following command:
+
+```bash
+gnokey query auth/gasprice -remote https://rpc.gno.land:443
+```
+
+If everything went correctly, we should get an output similar to the following:
+
+```bash
+height: 0
+data: {
+  "gas": 1000,
+  "price": "100ugnot"
+}
+```
+
+The return data will contain the following fields:
+- `height` - the height at which the query was executed. This is currently not
+  supported and is `0` by default.
+- `data` - contains the result of the query.
+
+The `data` field returns a `GasPrice` object, which contains:
+- `gas` - the gas units
+- `price` - the price for those gas units in the form of a [coin](../resources/gno-stdlibs.md#coin)
+
+The network adjusts the gas price after each block based on demand. This query returns
+the gas price calculated from the most recently completed block, which is the minimum
+gas price required for new transactions.
+For a deeper explanation, see [Gas Price](../resources/gas-fees.md#gas-price).
 
 ### `vm/qfuncs`
 
