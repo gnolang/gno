@@ -1511,7 +1511,6 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 }
 
 // Sign returns the sign of the given numeric tv.
-// Floating points are not correctly handled for NaN values.
 func (tv *TypedValue) Sign() int {
 	if tv.T == nil {
 		panic("type should not be nil")
