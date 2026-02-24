@@ -4,8 +4,16 @@
 
 In Gno.land, users can register a unique username that:
 - Provides a more readable identity than a blockchain address
-- Grants the exclusive right to deploy code under a matching namespace
-- Can be used in social contexts across the ecosystem
+- Can be used in social contexts across the ecosystem (e.g., discussion boards)
+
+:::info
+
+Username-based namespaces for package deployment are **not currently supported**.
+Only address-prefix namespaces are valid for deploying code. Username-based
+namespaces will be revisited and may be introduced via GovDAO governance in the
+future.
+
+:::
 
 ### Registration Process
 
@@ -28,31 +36,29 @@ gnokey maketx call \
   YOUR_KEY_NAME
 ```
 
-The registration costs 1 GNOT, which serves as an anti-spam measure and ensures 
+The registration costs 1 GNOT, which serves as an anti-spam measure and ensures
 users value their identities.
 
-## Username Ownership
+## Address-Based Namespaces
 
-Once registered, a username is permanently linked to the registering address. This address:
-
-- Has exclusive rights to deploy packages under that namespace
-- Can manage that username's profile
-- and more to come.
-
-### Namespace Access
-
-Your registered username becomes an exclusive namespace where you can deploy both realms and pure packages:
+All addresses can deploy under their own address-based namespace:
 
 ```
-gno.land/p/YOUR_USERNAME/...  # Pure packages
-gno.land/r/YOUR_USERNAME/...  # Realms
+gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/...
+gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/...
 ```
 
-For example, a user with the username "alice" could deploy:
-- `gno.land/r/alice/blog` - A personal blog realm
-- `gno.land/p/alice/utils` - A utility package
+This is currently the only way to deploy packages on Gno.land. The namespace
+is automatically derived from the deployer's address -- no registration is needed.
 
-Only the address that registered the username can deploy to these paths, ensuring security and preventing impersonation.
+### Reserved Namespaces
+
+The following namespaces are reserved and cannot be claimed by any user:
+
+- `gnoland` -- core Gno.land infrastructure
+- `nt` -- standard library packages
+- `sys` -- system-level realms
+- `gov` -- governance-related packages
 
 ## Teams and Collaborative Development
 
@@ -68,17 +74,6 @@ Until full team support is available, collaborative development can be achieved 
 1. **Account sharing** - Multiple developers using the same key (not recommended for security reasons)
 2. **Multi-signature wallets** - Using multi-sig wallets to control deployment to a shared namespace
 3. **Development on branches** - Developing under individual namespaces and then migrating to a main namespace
-
-## Public Anonymous Namespaces
-
-In addition to registered usernames, all addresses can deploy under their own address-based namespace:
-
-```
-gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/...
-gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/...
-```
-
-This allows for permissionless deployment even without a registered username, though these long namespaces are less user-friendly.
 
 ## Related Resources
 
