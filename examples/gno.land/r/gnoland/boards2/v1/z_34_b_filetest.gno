@@ -35,6 +35,7 @@ func init() {
 	// Register a username which is required to be able to add
 	// a reply and then create a new reply as a non member user.
 	uinit.RegisterUser(cross, "user123", user)
+	testing.SetRealm(testing.NewUserRealm(user))
 	rid = boards2.CreateReply(cross, bid, tid, 0, "Comment")
 }
 
