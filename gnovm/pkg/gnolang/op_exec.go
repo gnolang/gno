@@ -147,7 +147,8 @@ func (m *Machine) doOpExec(op Op) {
 			var dv *TypedValue
 			if op == OpRangeIterArrayPtr {
 				if xv.V == nil {
-					panic(&Exception{Value: typedString("nil pointer dereference")})
+					m.pushPanic(typedString("nil pointer dereference"))
+					return
 				}
 				dv = xv.V.(PointerValue).TV
 				*xv = *dv
