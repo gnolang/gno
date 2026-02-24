@@ -6,6 +6,7 @@ func Render(path string) string {
 	}
 
 	output := "# Gno CLA Registry\n\n**Status:** CLA enforcement is ENABLED\n\n"
+	output += "**Required Hash:** " + requiredHash + "\n"
 	if claURL != "" {
 		output += "**CLA Document:** " + claURL + "\n"
 	}

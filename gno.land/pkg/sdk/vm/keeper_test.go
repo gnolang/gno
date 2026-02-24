@@ -1600,7 +1600,8 @@ func Hello(cur realm) string { return "hello" }`},
 	assert.NoError(t, err, "should allow deployment when CLA is disabled again")
 }
 
-// TestVMKeeperCLASignature_RealmNotDeployed tests that CLA check passes when realm doesn't exist.
+// TestVMKeeperCLASignature_RealmNotDeployed tests that CLA check is skipped
+// when the CLA realm is not yet deployed (bootstrap scenario).
 func TestVMKeeperCLASignature_RealmNotDeployed(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -1611,8 +1612,8 @@ func TestVMKeeperCLASignature_RealmNotDeployed(t *testing.T) {
 	env.acck.SetAccount(ctx, userAcc)
 	env.bankk.SetCoins(ctx, user, initialBalance)
 
-	// CLA realm is not deployed, but SysCLAPkgPath is set (default)
-	// User should still be able to deploy packages
+	// CLA realm is not deployed, but SysCLAPkgPath is set (default).
+	// This must succeed to allow bootstrap (deploying the CLA realm itself).
 
 	const userPkgPath = "gno.land/r/user/pkg1"
 	userFiles := []*std.MemFile{
@@ -1622,7 +1623,7 @@ func Hello(cur realm) string { return "hello" }`},
 	}
 	userMsg := NewMsgAddPackage(user, userPkgPath, userFiles)
 	err := env.vmk.AddPackage(ctx, userMsg)
-	assert.NoError(t, err, "should allow deployment when CLA realm is not deployed")
+	assert.NoError(t, err, "should allow deployment when CLA realm is not deployed (bootstrap)")
 }
 
 // TestVMKeeperCLASignature_TransferOwnership tests CLA ownership transfer behavior.

@@ -1,9 +1,13 @@
 package cla
 
 import (
+	"chain"
+
 	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/ownable"
 )
+
+const RequiredHashChangedEvent = "CLARequiredHashChanged"
 
 var owner = ownable.NewWithAddress("g1replacemewithmultisig")
 
@@ -12,8 +16,15 @@ var owner = ownable.NewWithAddress("g1replacemewithmultisig")
 // Set to empty string to disable CLA enforcement.
 func SetRequiredHash(cur realm, newHash string) {
 	owner.AssertOwnedByPrevious()
+	prevHash := requiredHash
 	requiredHash = newHash
 	signatures = addrset.Set{} // reset all signatures
+
+	chain.Emit(
+		RequiredHashChangedEvent,
+		"from", prevHash,
+		"to", newHash,
+	)
 }
 
 // SetCLAURL updates the URL where the CLA document can be found.
@@ -26,8 +37,7 @@ func SetCLAURL(cur realm, url string) {
 // TransferOwnership transfers ownership to a new address.
 // Only callable by the current owner.
 func TransferOwnership(cur realm, newOwner address) {
-	err := owner.TransferOwnershipByPrevious(newOwner)
-	if err != nil {
+	if err := owner.TransferOwnershipByPrevious(newOwner); err != nil {
 		panic(err)
 	}
 }

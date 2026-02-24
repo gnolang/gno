@@ -362,7 +362,7 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 
 // callRealmBool creates a Machine, imports pkgPath, calls funcName with args,
-// and expects a single bool return from funcName.
+// and expects a single bool return value.
 func (vm *VMKeeper) callRealmBool(
 	ctx sdk.Context,
 	creator crypto.Address,
@@ -466,7 +466,8 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 // checkCLASignature verifies the creator has signed the required CLA.
 // Returns nil if:
 // - SysCLAPkgPath parameter is empty (CLA enforcement disabled)
-// - CLA realm is not deployed yet
+// - CLA realm is not deployed yet (needed for bootstrap: the CLA realm
+//   itself must be deployable before it exists on-chain)
 // - Creator has a valid CLA signature
 func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) error {
 	sysCLAPkg := vm.getSysCLAPkgParam(ctx)
@@ -476,7 +477,10 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 
 	store := vm.getGnoTransactionStore(ctx)
 
-	// If CLA realm does not exist -> skip validation
+	// If CLA realm does not exist -> skip validation.
+	// This is required for bootstrap: the CLA realm itself needs to be
+	// deployable before it exists on-chain. Once deployed, all subsequent
+	// deployments will be checked.
 	claPkg := store.GetPackage(sysCLAPkg, false)
 	if claPkg == nil {
 		return nil

@@ -30,7 +30,7 @@ stdout 'OK!'
 # ============================================================
 
 # Admin sets required CLA hash
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetRequiredHash -args "abc123hash" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetRequiredHash -args "abc123hash" -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test admin
 stdout 'OK!'
 
 # Alice's signature is now invalid (hasn't signed)
@@ -62,7 +62,7 @@ stdout 'OK!'
 # ============================================================
 
 # Admin updates the required hash - resets all signatures
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetRequiredHash -args "newhash456" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetRequiredHash -args "newhash456" -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test admin
 stdout 'OK!'
 
 # Alice's signature was reset
@@ -86,7 +86,7 @@ stdout 'OK!'
 # ============================================================
 
 # Admin clears the required hash to disable enforcement
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetRequiredHash -args "" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetRequiredHash -args "" -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test admin
 stdout 'OK!'
 
 # Anyone passes validation when enforcement is disabled
