@@ -8,8 +8,8 @@ func Test_newRealm(t *testing.T) {
 	if ur.String() != urExpected {
 		t.Errorf("got %q want %q", ur.String(), urExpected)
 	}
-	cr := testing.NewCodeRealm("gno.land/r/gnoland/users")
-	const crExpected = "CodeRealm{ g139h767xe0n2rtl2zntn8qjrkxrehfaaglep245, gno.land/r/gnoland/users }"
+	cr := testing.NewCodeRealm("gno.land/r/sys/users")
+	const crExpected = "CodeRealm{ g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4, gno.land/r/sys/users }"
 	if cr.String() != crExpected {
 		t.Errorf("got %q want %q", cr.String(), crExpected)
 	}

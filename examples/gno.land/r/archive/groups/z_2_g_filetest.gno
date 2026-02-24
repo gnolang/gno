@@ -10,7 +10,7 @@ import (
 
 	"gno.land/p/nt/testutils"
 	"gno.land/r/archive/groups"
-	susers "gno.land/r/sys/users"
+	uinit "gno.land/r/sys/users/init"
 )
 
 var gid groups.GroupID
@@ -18,9 +18,7 @@ var gid groups.GroupID
 func main() {
 	caller := runtime.OriginCaller()
 	testing.SetRealm(testing.NewUserRealm(caller))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
-	susers.RegisterUser(cross, "gnouser123", caller)
-	testing.SetRealm(testing.NewUserRealm(caller))
+	uinit.RegisterUser(cross, "gnouser123", caller)
 
 	gid = groups.CreateGroup(cross, "test_group")
 	println(gid)

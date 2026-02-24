@@ -10,7 +10,7 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	susers "gno.land/r/sys/users"
+	uinit "gno.land/r/sys/users/init"
 )
 
 const (
@@ -27,9 +27,7 @@ func init() {
 	bid = boards2.CreateBoard(cross, "test123", false, true)
 
 	// Register a username which is required to be able to add a reply
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
-	susers.RegisterUser(cross, "user123", user)
-	testing.SetRealm(testing.NewUserRealm(user))
+	uinit.RegisterUser(cross, "user123", user)
 
 	// Make sure user account has the required amount of GNOT for open board actions
 	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})

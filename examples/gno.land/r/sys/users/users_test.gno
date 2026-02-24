@@ -9,7 +9,7 @@ import (
 )
 
 func TestResolveName(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(defaultControllerPath))
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
@@ -64,7 +64,7 @@ func TestResolveName(t *testing.T) {
 }
 
 func TestResolveAddress(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(defaultControllerPath))
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
@@ -114,7 +114,7 @@ func TestResolveAddress(t *testing.T) {
 }
 
 func TestROStores(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(defaultControllerPath))
 	cleanStore(t)
 
 	urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
@@ -168,7 +168,7 @@ func TestROStores(t *testing.T) {
 }
 
 func TestResolveAny(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(defaultControllerPath))
 
 	t.Run("name", func(t *testing.T) {
 		cleanStore(t)

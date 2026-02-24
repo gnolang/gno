@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	susers "gno.land/r/sys/users"
+	uinit "gno.land/r/sys/users/init"
 )
 
 const (
@@ -22,9 +22,7 @@ func init() {
 	// so a new member must register a user with the new board name.
 	boards2.InviteMember(cross, 0, member, boards2.RoleOwner) // Operate on realm DAO members instead of individual boards
 
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
-	susers.RegisterUser(cross, name, member)
-	testing.SetRealm(testing.NewUserRealm(member))
+	uinit.RegisterUser(cross, name, member)
 }
 
 func main() {

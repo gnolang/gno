@@ -8,7 +8,7 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	susers "gno.land/r/sys/users"
+	uinit "gno.land/r/sys/users/init"
 )
 
 const (
@@ -28,9 +28,7 @@ func init() {
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
-	susers.RegisterUser(cross, newName, member)
-	testing.SetRealm(testing.NewUserRealm(member))
+	uinit.RegisterUser(cross, newName, member)
 
 	// Invite a new member that doesn't own the user that matches the new board name
 	boards2.InviteMember(cross, bid, member2, boards2.RoleOwner)

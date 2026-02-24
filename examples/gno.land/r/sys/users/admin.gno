@@ -2,17 +2,23 @@ package users
 
 import (
 	"chain"
+	"chain/runtime"
 
 	"gno.land/p/moul/addrset"
 	"gno.land/r/gov/dao"
 )
 
-const gUsersV1Path = "gno.land/r/gnoland/users/v1" // preregistered with store write perms
+const defaultControllerPath = "gno.land/r/sys/users/init"
 
 var controllers = addrset.Set{} // caller whitelist
 
 func init() {
-	controllers.Add(chain.PackageAddress(gUsersV1Path)) // initially whitelisted
+	// On dev/test chains, auto-whitelist the init controller for bootstrapping.
+	// On production, the whitelist starts empty; controllers are added via GovDAO proposals.
+	chainID := runtime.ChainID()
+	if chainID == "dev" || chainID == "tendermint_test" {
+		controllers.Add(chain.PackageAddress(defaultControllerPath))
+	}
 }
 
 // ProposeNewController allows GovDAO to add a whitelisted caller

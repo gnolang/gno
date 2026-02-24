@@ -16,11 +16,11 @@ var (
 	bob       = "bob"
 	bobAddr   = testutils.TestAddress(bob)
 
-	whitelistedCallerAddr = chain.PackageAddress(gUsersV1Path)
+	whitelistedCallerAddr = chain.PackageAddress(defaultControllerPath)
 )
 
 func TestRegister(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(defaultControllerPath))
 
 	t.Run("valid_registration", func(t *testing.T) {
 		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
@@ -88,7 +88,7 @@ func TestRegister(t *testing.T) {
 }
 
 func TestUpdateName(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(defaultControllerPath))
 
 	t.Run("valid_direct_alias", func(t *testing.T) {
 		cleanStore(t)
@@ -184,7 +184,7 @@ func TestUpdateName(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(defaultControllerPath))
 
 	t.Run("non_existent_user", func(t *testing.T) {
 		cleanStore(t)

@@ -8,13 +8,12 @@ import (
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/uassert"
 	"gno.land/p/nt/urequire"
-	susers "gno.land/r/sys/users"
+	uinit "gno.land/r/sys/users/init"
 )
 
 func init() {
 	// Pre-register "demo" user for render tests
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
-	susers.RegisterUser(cross, "demo", address("g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"))
+	uinit.RegisterUser(cross, "demo", address("g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"))
 }
 
 var (

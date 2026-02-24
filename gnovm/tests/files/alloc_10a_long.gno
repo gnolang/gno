@@ -8,7 +8,7 @@ import (
 
 	"gno.land/p/nt/testutils"
 	"gno.land/r/archive/boards"
-	susers "gno.land/r/sys/users"
+	uinit "gno.land/r/sys/users/init"
 )
 
 func main() {
@@ -16,10 +16,7 @@ func main() {
 
 	// TestSetRealm sets the realm caller, in this case Alice
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
-
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
-	susers.RegisterUser(cross, "alice_123", aliceAddr)
-	testing.SetRealm(testing.NewUserRealm(aliceAddr))
+	uinit.RegisterUser(cross, "alice_123", aliceAddr)
 
 	bid := boards.CreateBoard(cross, "testboard")
 	boards.CreateThread(cross, bid, "testthread", "testbody")
