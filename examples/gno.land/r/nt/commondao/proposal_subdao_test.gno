@@ -106,7 +106,9 @@ func TestSubDAOPropDefinitionTally(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(members))
+			ctx := commondao.MustNewVotingContext(&record, members)
+
+			success, err := p.Tally(ctx)
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err, "expect an error")
@@ -133,7 +135,8 @@ func TestSubDAOPropDefinitionExecute(t *testing.T) {
 	// Create the proposal and execute it
 	name := "Bar"
 	p := newSubDAOPropDefinition(parentDAO, name, &members)
-	err := p.Execute(cross)
+	fn := p.Executor()
+	err := fn(cross)
 	urequire.NoError(t, err, "expected no execution error")
 
 	// Expect SubDAO to be created
@@ -252,7 +255,9 @@ func TestDissolvePropDefinitionTally(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(members))
+			ctx := commondao.MustNewVotingContext(&record, members)
+
+			success, err := p.Tally(ctx)
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err, "expect an error")
@@ -271,7 +276,8 @@ func TestDissolvePropDefinitionExecute(t *testing.T) {
 	urequire.False(t, dao.IsDeleted(), "expected DAO not to be soft deleted by default")
 
 	p := newDissolvePropDefinition(dao)
-	err := p.Execute(cross)
+	fn := p.Executor()
+	err := fn(cross)
 	urequire.NoError(t, err, "expected no execution error")
 
 	uassert.True(t, dao.IsDeleted(), "expected DAO to be soft deleted")

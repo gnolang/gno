@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -12,13 +14,13 @@ const (
 )
 
 var (
-	bid boards2.BoardID
-	pid boards2.PostID
+	bid boards.ID
+	pid boards.ID
 )
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
 
 	// Invite a member using a role with permission to flag threads
@@ -35,4 +37,4 @@ func main() {
 }
 
 // Output:
-// Thread with ID: 1 has been flagged as inappropriate
+// ⚠ Thread has been flagged as [inappropriate](/r/gnoland/boards2/v1:test-board/1/flagging-reasons)

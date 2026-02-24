@@ -4,6 +4,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -12,13 +14,13 @@ const (
 	boardName         = "BoardName"
 )
 
-var threadID boards2.PostID
+var threadID boards.ID
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a readonly board and then add a thread
-	boardID := boards2.CreateBoard(cross, boardName, false)
+	boardID := boards2.CreateBoard(cross, boardName, false, false)
 	threadID = boards2.CreateThread(cross, boardID, "Foo", "Body")
 
 	// Flag the thread
@@ -32,4 +34,4 @@ func main() {
 }
 
 // Output:
-// Thread with ID: 1 has been flagged as inappropriate
+// ⚠ Thread has been flagged as [inappropriate](/r/gnoland/boards2/v1:BoardName/1/flagging-reasons)

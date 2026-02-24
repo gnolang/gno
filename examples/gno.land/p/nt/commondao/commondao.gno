@@ -11,13 +11,14 @@ import (
 const PathSeparator = "/"
 
 var (
+	ErrExecutionNotAllowed  = errors.New("proposal must pass before execution")
 	ErrInvalidVoteChoice    = errors.New("invalid vote choice")
 	ErrNotMember            = errors.New("account is not a member of the DAO")
 	ErrOverflow             = errors.New("next ID overflows uint64")
-	ErrProposalFailed       = errors.New("proposal failed to pass")
 	ErrProposalNotFound     = errors.New("proposal not found")
 	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
 	ErrVotingDeadlinePassed = errors.New("voting deadline has passed")
+	ErrWithdrawalNotAllowed = errors.New("withdrawal not allowed for proposals with votes")
 )
 
 // CommonDAO defines a DAO.
@@ -166,6 +167,25 @@ func (dao CommonDAO) GetProposal(proposalID uint64) *Proposal {
 	return dao.finishedProposals.Get(proposalID)
 }
 
+// Withdraw withdraws a proposal that has no votes.
+// Only proposals without votes can be withdrawn, and once
+// withdrawn they are considered finished.
+func (dao *CommonDAO) Withdraw(proposalID uint64) error {
+	p := dao.activeProposals.Get(proposalID)
+	if p == nil {
+		return ErrProposalNotFound
+	}
+
+	if p.VotingRecord().Size() > 0 {
+		return ErrWithdrawalNotAllowed
+	}
+
+	p.status = StatusWithdrawn
+	dao.activeProposals.Remove(p.id)
+	dao.finishedProposals.Add(p)
+	return nil
+}
+
 // Vote submits a new vote for a proposal.
 //
 // By default votes are only allowed to members of the DAO when the proposal is active,
@@ -197,27 +217,6 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 	return nil
 }
 
-// Tally counts votes and validates if a proposal passes.
-func (dao *CommonDAO) Tally(proposalID uint64) (passes bool, _ error) {
-	p := dao.activeProposals.Get(proposalID)
-	if p == nil {
-		return false, ErrProposalNotFound
-	}
-
-	if p.Status() != StatusActive {
-		return false, ErrStatusIsNotActive
-	}
-
-	if err := dao.checkProposalPasses(p); err != nil {
-		// Don't return an error if proposal failed to pass when tallying
-		if err == ErrProposalFailed {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
 // Execute executes a proposal.
 //
 // By default active proposals can only be executed after their voting deadline passes.
@@ -228,25 +227,37 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 		return ErrProposalNotFound
 	}
 
-	if p.Status() != StatusActive {
-		return ErrStatusIsNotActive
+	// Proposal must be active or have passed to be executed
+	if p.status != StatusActive && p.status != StatusPassed {
+		return ErrExecutionNotAllowed
 	}
 
+	// Execution must be done after voting deadline
 	if !dao.disableVotingDeadlineCheck && !p.HasVotingDeadlinePassed() {
 		return ErrVotingDeadlineNotMet
 	}
 
-	// From this point any error results in a proposal failure and successful execution
+	// IMPORTANT, from this point on, any error is going to result
+	// in a proposal failure and execute will succeed.
+
+	// Validate proposal before execution
 	err := p.Validate()
 
+	// Tally votes and update proposal status to "passed" or "rejected"
 	if err == nil {
-		err = dao.checkProposalPasses(p)
+		err = p.Tally(dao.Members())
+		if err == nil && p.Status() == StatusRejected {
+			// Don't try to execute proposal if it's been rejected
+			return nil
+		}
 	}
 
+	// Execute proposal only if it's executable
 	if err == nil {
-		// Execute proposal only if it's executable
 		if e, ok := p.Definition().(Executable); ok {
-			err = e.Execute(cross)
+			if fn := e.Executor(); fn != nil {
+				err = fn(cross)
+			}
 		}
 	}
 
@@ -255,26 +266,12 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 		p.status = StatusFailed
 		p.statusReason = err.Error()
 	} else {
-		p.status = StatusPassed
+		p.status = StatusExecuted
 	}
 
 	// Whichever the outcome of the validation, tallying
 	// and execution consider the proposal finished.
 	dao.activeProposals.Remove(p.id)
 	dao.finishedProposals.Add(p)
-	return nil
-}
-
-func (dao *CommonDAO) checkProposalPasses(p *Proposal) error {
-	record := p.VotingRecord().Readonly()
-	members := NewMemberSet(dao.Members())
-	passes, err := p.Definition().Tally(record, members)
-	if err != nil {
-		return err
-	}
-
-	if !passes {
-		return ErrProposalFailed
-	}
 	return nil
 }

@@ -3,6 +3,7 @@ package test
 
 import (
 	"errors"
+	"testing"
 	"time"
 
 	"gno.land/p/nt/commondao"
@@ -10,19 +11,21 @@ import (
 
 type testPropDef struct{}
 
-func (testPropDef) Title() string               { return "" }
-func (testPropDef) Body() string                { return "" }
-func (testPropDef) VotingPeriod() time.Duration { return 0 }
+func (testPropDef) Title() string                               { return "" }
+func (testPropDef) Body() string                                { return "" }
+func (testPropDef) VotingPeriod() time.Duration                 { return 0 }
+func (testPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
 
-func (testPropDef) Tally(commondao.ReadonlyVotingRecord, commondao.MemberSet) (bool, error) {
-	return true, nil
-}
-
-func (testPropDef) Execute(cur realm) error {
-	return errors.New("boom!")
+func (testPropDef) Executor() commondao.ExecFunc {
+	return func(realm) error {
+		return errors.New("boom!")
+	}
 }
 
 func main() {
+	// Make sure proposal is executed in a realm different than the one where definition has been defined
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/testing/dao"))
+
 	commondao.MustExecute(testPropDef{})
 }
 

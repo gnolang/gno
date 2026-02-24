@@ -22,8 +22,7 @@ UI - TOC Realm component
 {{ define "ui/toc_realm" }}
 <ul class="b-toc">{{- range .Items }}
   <li>
-    <a href="{{ .Anchor }}"> {{ printf "%s" .Title }}
-    </a>
+    <a href="{{ .Anchor }}">{{ .Title }}</a>
     {{ if .Items }} {{ template "ui/toc_realm" . }} {{ end }}
   </li>
   {{ end }}
@@ -58,6 +57,16 @@ UI - TOC Source component
     </li>
     {{ end }}
   </ul>
+
+  <!-- LICENSE File Section -->
+  {{ if .LicenseFile.Link }}
+  <a class="c-with-icon" href="{{ .LicenseFile.Link }}">
+    <svg class="c-icon">
+      <use href="#ico-{{ $.Icon }}"></use>
+    </svg>
+    {{ .LicenseFile.Text }}
+  </a>
+  {{ end }}
 
   <!-- Test Files Section -->
   {{ if .GnoTestFiles }}

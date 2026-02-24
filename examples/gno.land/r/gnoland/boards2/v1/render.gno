@@ -6,7 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"gno.land/p/gnoland/boards"
+	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/nt/mux"
@@ -19,6 +22,12 @@ const (
 
 const menuManageBoard = "manageBoard"
 
+var (
+	createBoardURI = gRealmPath + ":create-board"
+	adminUsersURI  = gRealmPath + ":admin-users"
+	helpURI        = gRealmPath + ":help"
+)
+
 func Render(path string) string {
 	var (
 		b      strings.Builder
@@ -28,12 +37,24 @@ func Render(path string) string {
 	router.HandleFunc("", renderBoardsList)
 	router.HandleFunc("help", renderHelp)
 	router.HandleFunc("admin-users", renderMembers)
+	router.HandleFunc("create-board", renderCreateBoard)
 	router.HandleFunc("{board}", renderBoard)
 	router.HandleFunc("{board}/members", renderMembers)
 	router.HandleFunc("{board}/invites", renderInvites)
 	router.HandleFunc("{board}/banned-users", renderBannedUsers)
+	router.HandleFunc("{board}/create-thread", renderCreateThread)
+	router.HandleFunc("{board}/invite-member", renderInviteMember)
 	router.HandleFunc("{board}/{thread}", renderThread)
+	router.HandleFunc("{board}/{thread}/flag", renderFlagPost)
+	router.HandleFunc("{board}/{thread}/flagging-reasons", renderFlaggingReasonsPost)
+	router.HandleFunc("{board}/{thread}/reply", renderReplyPost)
+	router.HandleFunc("{board}/{thread}/edit", renderEditThread)
+	router.HandleFunc("{board}/{thread}/repost", renderRepostThread)
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
+	router.HandleFunc("{board}/{thread}/{reply}/flag", renderFlagPost)
+	router.HandleFunc("{board}/{thread}/{reply}/flagging-reasons", renderFlaggingReasonsPost)
+	router.HandleFunc("{board}/{thread}/{reply}/reply", renderReplyPost)
+	router.HandleFunc("{board}/{thread}/{reply}/edit", renderEditReply)
 
 	router.NotFoundHandler = func(res *mux.ResponseWriter, _ *mux.Request) {
 		res.Write(md.Blockquote("Path not found"))
@@ -59,7 +80,7 @@ func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
 
 	link := gRealmLink.Call("SetHelp", "content", "")
 	res.Write(md.H3("Help content has not been uploaded"))
-	res.Write("Do you want to " + md.Link("upload boards help", link) + " ?")
+	res.Write("Do you want to " + md.Link("upload boards help", link) + "?")
 }
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
@@ -67,28 +88,26 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	renderBoardListMenu(res, req)
 	res.Write(md.HorizontalRule())
 
-	boards := gListedBoardsByID
-	if boards.Size() == 0 {
-		link := gRealmLink.Call("CreateBoard", "name", "", "listed", "true")
+	if gListedBoardsByID.Size() == 0 {
 		res.Write(md.H3("Currently there are no boards"))
-		res.Write("Be the first to " + md.Link("create a new board", link) + " !")
+		res.Write("Be the first to " + md.Link("create a new board", createBoardURI) + "!")
 		return
 	}
 
-	p, err := pager.New(req.RawPath, boards.Size(), pager.WithPageSize(pageSizeDefault))
+	p, err := pager.New(req.RawPath, gListedBoardsByID.Size(), pager.WithPageSize(pageSizeDefault))
 	if err != nil {
 		panic(err)
 	}
 
 	render := func(_ string, v any) bool {
-		board := v.(*Board)
+		board := v.(*boards.Board)
 		userLink := userLink(board.Creator)
-		date := board.CreatedAt().Format(dateFormat)
+		date := board.CreatedAt.Format(dateFormat)
 
-		res.Write(md.Bold(md.Link(board.Name, makeBoardURI(board))) + "  \n")
+		res.Write(md.H6(md.Link(board.Name, makeBoardURI(board))))
 		res.Write("Created by " + userLink + " on " + date + ", #" + board.ID.String() + "  \n")
 
-		status := strconv.Itoa(board.ThreadsCount()) + " threads"
+		status := strconv.Itoa(board.Threads.Size()) + " threads"
 		if board.Readonly {
 			status += ", read-only"
 		}
@@ -102,11 +121,11 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
 		res.Write(md.Link("newest first", r.String()) + "\n\n")
-		boards.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
+		gListedBoardsByID.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 	} else {
 		r.Query.Set("order", "desc")
 		res.Write(md.Link("oldest first", r.String()) + "\n\n")
-		boards.IterateByOffset(p.Offset(), p.PageSize(), render)
+		gListedBoardsByID.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
 
 	if p.HasPages() {
@@ -116,152 +135,73 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
-	path := strings.TrimPrefix(string(gRealmLink), "gno.land")
-
-	res.Write(md.Link("Create Board", gRealmLink.Call("CreateBoard", "name", "", "listed", "true")))
+	res.Write(md.Link("Create Board", createBoardURI))
 	res.Write(" • ")
-	res.Write(md.Link("List Admin Users", path+":admin-users"))
+	res.Write(md.Link("List Admin Users", adminUsersURI))
 	res.Write(" • ")
-	res.Write(md.Link("Help", path+":help"))
+	res.Write(md.Link("Help", helpURI))
 	res.Write("\n\n")
 }
 
-func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
-	name := req.GetVar("board")
-	board, found := getBoardByName(name)
-	if !found {
-		link := md.Link("create a new board", gRealmLink.Call("CreateBoard", "name", name, "listed", "true"))
-		res.Write(md.H3("The board you are looking for does not exist"))
-		res.Write("Do you want to " + link + " ?")
-		return
-	}
-
-	menu := renderBoardMenu(board, req)
-	res.Write(board.Render(req.RawPath, menu))
-}
-
-func renderBoardMenu(board *Board, req *mux.Request) string {
-	var (
-		b               strings.Builder
-		boardMembersURL = makeBoardURI(board) + "/members"
+func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
+	form := mdform.New("exec", "CreateBoard")
+	form.Input(
+		"name",
+		"placeholder", "Board name",
+		"required", "true",
+	)
+	form.Radio(
+		"listed",
+		"true",
+		"checked", "true",
+		"description", "Should board be publicly listed?",
+	)
+	form.Radio(
+		"listed",
+		"false",
+	)
+	form.Radio(
+		"open",
+		"true",
+		"description", "Should anyone be allowed to create threads and comments?",
+	)
+	form.Radio(
+		"open",
+		"false",
+		"checked", "true",
 	)
 
-	if board.Readonly {
-		b.WriteString(md.Link("List Members", boardMembersURL))
-		b.WriteString(" • ")
-		b.WriteString(md.Link("Unfreeze Board", makeUnfreezeBoardURI(board)))
-		b.WriteString("\n")
-	} else {
-		b.WriteString(md.Link("Create Thread", makeCreateThreadURI(board)))
-		b.WriteString(" • ")
-		b.WriteString(md.Link("Request Invite", makeRequestInviteURI(board)))
-		b.WriteString(" • ")
-
-		menu := getCurrentMenu(req.RawPath)
-		if menu == menuManageBoard {
-			b.WriteString(md.Bold("Manage Board"))
-		} else {
-			b.WriteString(md.Link("Manage Board", menuURL(menuManageBoard)))
-		}
-
-		b.WriteString("  \n")
-
-		if menu == menuManageBoard {
-			b.WriteString("↳")
-			b.WriteString(md.Link("Invite Member", makeInviteMemberURI(board)))
-			b.WriteString(" • ")
-			b.WriteString(md.Link("List Invite Requests", makeBoardURI(board)+"/invites"))
-			b.WriteString(" • ")
-			b.WriteString(md.Link("List Members", boardMembersURL))
-			b.WriteString(" • ")
-			b.WriteString(md.Link("List Banned Users", makeBoardURI(board)+"/banned-users"))
-			b.WriteString(" • ")
-			b.WriteString(md.Link("Freeze Board", makeFreezeBoardURI(board)))
-			b.WriteString("\n")
-		}
-	}
-
-	return b.String()
-}
-
-func renderThread(res *mux.ResponseWriter, req *mux.Request) {
-	name := req.GetVar("board")
-	board, found := getBoardByName(name)
-	if !found {
-		res.Write("Board does not exist: " + name)
-		return
-	}
-
-	rawID := req.GetVar("thread")
-	tID, err := strconv.Atoi(rawID)
-	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
-		return
-	}
-
-	thread, found := board.GetThread(PostID(tID))
-	if !found {
-		res.Write("Thread does not exist with ID: " + rawID)
-	} else if thread.Hidden {
-		res.Write("Thread with ID: " + rawID + " has been flagged as inappropriate")
-	} else {
-		res.Write(thread.Render(req.RawPath, "", 5))
-	}
-}
-
-func renderReply(res *mux.ResponseWriter, req *mux.Request) {
-	name := req.GetVar("board")
-	board, found := getBoardByName(name)
-	if !found {
-		res.Write("Board does not exist: " + name)
-		return
-	}
-
-	rawID := req.GetVar("thread")
-	tID, err := strconv.Atoi(rawID)
-	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
-		return
-	}
-
-	rawID = req.GetVar("reply")
-	rID, err := strconv.Atoi(rawID)
-	if err != nil {
-		res.Write("Invalid reply ID: " + rawID)
-		return
-	}
-
-	thread, found := board.GetThread(PostID(tID))
-	if !found {
-		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
-		return
-	}
-
-	reply, found := thread.GetReply(PostID(rID))
-	if !found {
-		res.Write("Reply does not exist with ID: " + rawID)
-		return
-	}
-
-	// Call render even for hidden replies to display children.
-	// Original comment content will be hidden under the hood.
-	// See: #3480
-	res.Write(reply.RenderInner())
+	res.Write(md.H1("Boards: Create Board"))
+	res.Write(md.Link("← Back to boards", gRealmPath) + "\n\n")
+	res.Write(
+		md.Paragraph(
+			"Boards are by default listed by the realm but they can optionally " +
+				"be created so they are only found by their URL.",
+		),
+	)
+	res.Write(
+		md.Paragraph(
+			"They can also be created to be open so anyone is allowed to create " +
+				"new threads and also to comment on any thread within the open board.",
+		),
+	)
+	res.Write(form.String())
+	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to boards", gRealmPath) + "\n")
 }
 
 func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
-	boardID := BoardID(0)
+	boardID := boards.ID(0)
 	perms := gPerms
 	name := req.GetVar("board")
 	if name != "" {
-		board, found := getBoardByName(name)
+		board, found := gBoards.GetByName(name)
 		if !found {
 			res.Write(md.H3("Board not found"))
 			return
 		}
 
 		boardID = board.ID
-		perms = board.perms
+		perms = board.Permissions
 
 		res.Write(md.H1(board.Name + " Members"))
 		res.Write(md.H3("These are the board members"))
@@ -282,7 +222,7 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 		Headers: []string{"Member", "Role", "Actions"},
 	}
 
-	perms.IterateUsers(p.Offset(), p.PageSize(), func(u User) bool {
+	perms.IterateUsers(p.Offset(), p.PageSize(), func(u boards.User) bool {
 		actions := []string{
 			md.Link("remove", gRealmLink.Call(
 				"RemoveMember",
@@ -313,7 +253,7 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 
 func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
-	board, found := getBoardByName(name)
+	board, found := gBoards.GetByName(name)
 	if !found {
 		res.Write(md.H3("Board not found"))
 		return
@@ -369,7 +309,7 @@ func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
 
 func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
-	board, found := getBoardByName(name)
+	board, found := gBoards.GetByName(name)
 	if !found {
 		res.Write(md.H3("Board not found"))
 		return
@@ -420,7 +360,7 @@ func infoAlert(title, msg string) string {
 	return md.Blockquote(header + "\n" + msg)
 }
 
-func rolesToString(roles []Role) string {
+func rolesToString(roles []boards.Role) string {
 	if len(roles) == 0 {
 		return ""
 	}

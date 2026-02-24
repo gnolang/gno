@@ -88,9 +88,9 @@ type ProposalDefinition interface {
     VotingPeriod() time.Duration
 
     // Tally counts the number of votes and verifies if proposal passes.
-    // It receives a readonly record containing the votes that has been
-    // submitted for the proposal and also the list of current DAO members.
-    Tally(ReadonlyVotingRecord, MemberSet) (passes bool, _ error)
+    // It receives a voting context containing a readonly record with the votes
+    // that has been submitted for the proposal and also the list of DAO members.
+    Tally(VotingContext) (passes bool, _ error)
 }
 ```
 
@@ -120,18 +120,18 @@ of the new proposal definition:
 
 ```go
 type Executable interface {
-    // Execute executes the proposal.
-    Execute(realm) error
+    // Executor returns a function to execute the proposal.
+    Executor() func(realm) error
 }
 ```
 
-The `Execute()` method is where the realm changes are made once the proposal is
-executed.
+The crossing function returned by the `Executor()` method is where the realm
+changes are made once the proposal is executed.
 
-Other features can be enabled by implementing the **Validable** interface and the
-**CustomizableVoteChoices** one, as a way to separate pre-execution validation and
-to support proposal voting choices different than the default ones (YES, NO and
-ABSTAIN).
+Other features can be enabled by implementing the **Validable** interface and
+the **CustomizableVoteChoices** one, as a way to separate pre-execution
+validation and to support proposal voting choices different than the default
+ones (YES, NO and ABSTAIN).
 
 ### 3. Proposal Type
 
@@ -145,8 +145,6 @@ using `CommonDAO.ActiveProposals().Add()`.
 
 ```go
 import (
-    "std"
-
     "gno.land/p/nt/commondao"
     "gno.land/r/example/mydao"
 )

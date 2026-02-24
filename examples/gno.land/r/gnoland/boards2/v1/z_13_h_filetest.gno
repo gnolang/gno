@@ -1,8 +1,9 @@
 package main
 
 import (
-	"strings"
 	"testing"
+
+	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
@@ -13,14 +14,14 @@ const (
 )
 
 var (
-	bid      boards2.BoardID
-	rid, tid boards2.PostID
+	bid      boards.ID
+	rid, tid boards.ID
 )
 
 func init() {
 	// Created a board with flagging threshold greater than 1
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	boards2.SetFlaggingThreshold(cross, bid, 2)
 
 	// Create a reply so the realm owner can flag and hide it with a single flag
@@ -36,9 +37,18 @@ func main() {
 	boards2.FlagReply(cross, bid, tid, rid, "")
 
 	// Render content must contain a message about the hidden reply
-	content := boards2.Render("test-board/1/2")
-	println(strings.Contains(content, "> *⚠ Reply is hidden as it has been flagged as inappropriate*"))
+	println(boards2.Render("test-board/1/2"))
 }
 
 // Output:
-// true
+// ## Foo
+//
+// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
+// bar
+//
+// ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) • [Show all Replies](/r/gnoland/boards2/v1:test-board/1)
+//
+//
+// >
+// > **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC [#2](/r/gnoland/boards2/v1:test-board/1/2)
+// > ⚠ Reply is hidden as it has been flagged as [inappropriate](/r/gnoland/boards2/v1:test-board/1/2/flagging-reasons)

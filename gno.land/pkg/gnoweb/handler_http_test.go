@@ -78,7 +78,7 @@ func (s *stubClient) ListPaths(ctx context.Context, prefix string, limit int) ([
 
 type rawRenderer struct{}
 
-func (rawRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error) {
+func (rawRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx gnoweb.RealmRenderContext) (md.Toc, error) {
 	_, err := w.Write(src)
 	return md.Toc{}, err
 }
@@ -1044,4 +1044,217 @@ func TestHTTPHandler_DownloadWithContext(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.True(t, contextReceived)
 	assert.Contains(t, rr.Body.String(), content)
+}
+
+// TestHTTPHandler_Post_OpenRedirectBlocked tests that protocol-relative URLs
+// are blocked as a defense-in-depth measure.
+func TestHTTPHandler_Post_OpenRedirectBlocked(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/test",
+		Files: map[string]string{
+			"render.gno": `package main`,
+		},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	cases := []struct {
+		name       string
+		path       string
+		formData   string
+		wantStatus int
+		wantIn     string // substring that should be in response
+	}{
+		{
+			name:       "valid path allowed",
+			path:       "/r/test:validpath",
+			formData:   "field=value",
+			wantStatus: http.StatusSeeOther,
+		},
+		{
+			// Defense-in-depth: block protocol-relative URLs that would redirect externally
+			// This catches edge cases where the URL encodes to //evil.domain
+			name:       "protocol relative URL blocked",
+			path:       "/evil.domain",
+			formData:   "field=value",
+			wantStatus: http.StatusBadRequest,
+			wantIn:     "invalid",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.formData))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			rr := httptest.NewRecorder()
+
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, tc.wantStatus, rr.Code, "unexpected status code for path %s", tc.path)
+			if tc.wantIn != "" {
+				assert.Contains(t, rr.Body.String(), tc.wantIn)
+			}
+		})
+	}
+}
+
+// TestHTTPHandler_Post_HiddenPathField tests that the __gno_path hidden form field
+// is properly extracted and encoded in the redirect URL.
+func TestHTTPHandler_Post_HiddenPathField(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/test",
+		Files: map[string]string{
+			"render.gno": `package main`,
+		},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	cases := []struct {
+		name            string
+		urlPath         string
+		formData        string
+		wantStatus      int
+		wantRedirectURL string
+	}{
+		{
+			name:            "simple path from hidden field",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=submit&name=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:submit?name=test",
+		},
+		{
+			name:            "path with slashes encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=foo/bar/baz&name=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:foo%2Fbar%2Fbaz?name=test",
+		},
+		{
+			name:            "path with dots encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=../../../foo&name=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:..%2F..%2F..%2Ffoo?name=test",
+		},
+		{
+			name:            "hidden field not included in query params",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=mypath&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:mypath?field=value",
+		},
+		{
+			name:            "no hidden field - no args in redirect",
+			urlPath:         "/r/test",
+			formData:        "field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test?field=value",
+		},
+		{
+			name:            "query in path is encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=submit?evil=injection&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:submit%3Fevil=injection?field=value",
+		},
+		{
+			name:            "PoC path traversal attack neutralized",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=user../../../../../evil.domain.com#&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:user..%2F..%2F..%2F..%2F..%2Fevil.domain.com%23?field=value",
+		},
+		{
+			name:            "protocol-relative URL encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=//evil.com/steal&data=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:%2F%2Fevil.com%2Fsteal?data=test",
+		},
+		{
+			name:            "full URL with protocol encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=https://evil.com/steal&data=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:https:%2F%2Fevil.com%2Fsteal?data=test",
+		},
+		{
+			name:            "javascript URI neutralized",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=javascript:alert(1)&data=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:javascript:alert%281%29?data=test",
+		},
+		{
+			name:            "data URI neutralized",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=data:text/html,<script>alert(1)</script>&data=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:data:text%2Fhtml%2C%3Cscript%3Ealert%281%29%3C%2Fscript%3E?data=test",
+		},
+		{
+			name:            "fragment in path encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=submit#fragment&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:submit%23fragment?field=value",
+		},
+		{
+			name:            "complex attack vector encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=../..//evil.com#@victim.com&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:..%2F..%2F%2Fevil.com%23@victim.com?field=value",
+		},
+		{
+			name:            "null byte injection stays encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=submit%00evil&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:submit%00evil?field=value",
+		},
+		{
+			name:            "unicode domain encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=submit/παράδειγμα.δοκιμή&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:submit%2F%CF%80%CE%B1%CF%81%CE%AC%CE%B4%CE%B5%CE%B9%CE%B3%CE%BC%CE%B1.%CE%B4%CE%BF%CE%BA%CE%B9%CE%BC%CE%AE?field=value",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodPost, tc.urlPath, strings.NewReader(tc.formData))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			rr := httptest.NewRecorder()
+
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, tc.wantStatus, rr.Code, "unexpected status code")
+			if tc.wantStatus == http.StatusSeeOther {
+				location := rr.Header().Get("Location")
+				assert.Equal(t, tc.wantRedirectURL, location, "unexpected redirect URL")
+			}
+		})
+	}
 }

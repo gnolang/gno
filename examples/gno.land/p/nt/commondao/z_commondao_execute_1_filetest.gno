@@ -8,7 +8,7 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
-const member = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const member address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 
 var (
 	dao      *commondao.CommonDAO
@@ -17,16 +17,15 @@ var (
 
 type testPropDef struct{}
 
-func (testPropDef) Title() string               { return "" }
-func (testPropDef) Body() string                { return "" }
-func (testPropDef) VotingPeriod() time.Duration { return 0 }
+func (testPropDef) Title() string                               { return "" }
+func (testPropDef) Body() string                                { return "" }
+func (testPropDef) VotingPeriod() time.Duration                 { return 0 }
+func (testPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
 
-func (testPropDef) Tally(commondao.ReadonlyVotingRecord, commondao.MemberSet) (bool, error) {
-	return true, nil
-}
-
-func (testPropDef) Execute(cur realm) error {
-	return errors.New("test error")
+func (testPropDef) Executor() commondao.ExecFunc {
+	return func(realm) error {
+		return errors.New("test error")
+	}
 }
 
 func init() {
@@ -36,13 +35,14 @@ func init() {
 
 func main() {
 	err := dao.Execute(proposal.ID())
+	if err != nil {
+		panic(err)
+	}
 
-	println(err == nil)
 	println(string(proposal.Status()))
 	println(proposal.StatusReason())
 }
 
 // Output:
-// true
 // failed
 // test error

@@ -4,6 +4,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // Query the application for some information.
@@ -56,6 +57,8 @@ import (
 // | height    | int64  | 0       | false    | Height (0 means latest)                        |
 // | prove     | bool   | false   | false    | Includes proof if true                         |
 func ABCIQuery(ctx *rpctypes.Context, path string, data []byte, height int64, prove bool) (*ctypes.ResultABCIQuery, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "ABCIQuery")
+	defer span.End()
 	resQuery, err := proxyAppQuery.QuerySync(abci.RequestQuery{
 		Path:   path,
 		Data:   data,
@@ -104,6 +107,8 @@ func ABCIQuery(ctx *rpctypes.Context, path string, data []byte, height int64, pr
 //
 // ```
 func ABCIInfo(ctx *rpctypes.Context) (*ctypes.ResultABCIInfo, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "ABCIInfo")
+	defer span.End()
 	resInfo, err := proxyAppQuery.InfoSync(abci.RequestInfo{})
 	if err != nil {
 		return nil, err

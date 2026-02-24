@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -13,13 +15,13 @@ const (
 )
 
 var (
-	bid boards2.BoardID
-	pid boards2.PostID
+	bid boards.ID
+	pid boards.ID
 )
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	pid = boards2.CreateThread(cross, bid, title, body)
 }
 
@@ -33,4 +35,4 @@ func main() {
 }
 
 // Output:
-// Thread does not exist with ID: 1
+// Thread not found

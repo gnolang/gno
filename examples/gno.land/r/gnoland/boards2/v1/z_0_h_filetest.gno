@@ -29,7 +29,7 @@ func init() {
 func main() {
 	testing.SetRealm(testing.NewUserRealm(member))
 
-	bid := boards2.CreateBoard(cross, name, false)
+	bid := boards2.CreateBoard(cross, name, false, false)
 	println("ID =", bid)
 }
 

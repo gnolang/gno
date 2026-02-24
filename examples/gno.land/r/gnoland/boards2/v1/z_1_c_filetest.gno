@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -13,11 +15,11 @@ const (
 	role          = boards2.RoleAdmin
 )
 
-var bid boards2.BoardID // Operate on board DAO
+var bid boards.ID // Operate on board DAO
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false)
+	bid = boards2.CreateBoard(cross, "test123", false, false)
 
 	// Add an admin member
 	boards2.InviteMember(cross, bid, admin, boards2.RoleAdmin)

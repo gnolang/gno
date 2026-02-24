@@ -22,15 +22,17 @@ var (
 
 type propDef struct{}
 
-func (propDef) Title() string                                                 { return "" }
-func (propDef) Body() string                                                  { return "" }
-func (propDef) VotingPeriod() time.Duration                                   { return 0 }
-func (propDef) Validate() error                                               { return nil }
-func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return true, nil }
+func (propDef) Title() string                          { return "" }
+func (propDef) Body() string                           { return "" }
+func (propDef) VotingPeriod() time.Duration            { return 0 }
+func (propDef) Validate() error                        { return nil }
+func (propDef) Tally(pdao.VotingContext) (bool, error) { return true, nil }
 
-func (propDef) Execute(cur realm) error {
-	executed = true
-	return nil
+func (propDef) Executor() pdao.ExecFunc {
+	return func(realm) error {
+		executed = true
+		return nil
+	}
 }
 
 func init() {
@@ -60,10 +62,10 @@ func main() {
 		panic("expected proposal to be finished")
 	}
 
-	println(p.Status() == pdao.StatusPassed)
+	println(string(p.Status()))
 	println(executed)
 }
 
 // Output:
-// true
+// executed
 // true

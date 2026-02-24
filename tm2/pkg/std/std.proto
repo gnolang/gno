@@ -15,15 +15,26 @@ message BaseAccount {
 	uint64 sequence = 5;
 }
 
+message Coin {
+	string value = 1;
+}
+
+message GasPrice {
+	sint64 gas = 1;
+	string price = 2;
+}
+
 message MemFile {
-	string name = 1 [json_name = "Name"];
-	string body = 2 [json_name = "Body"];
+	string name = 1;
+	string body = 2;
 }
 
 message MemPackage {
-	string name = 1 [json_name = "Name"];
-	string path = 2 [json_name = "Path"];
-	repeated MemFile files = 3 [json_name = "Files"];
+	string name = 1;
+	string path = 2;
+	repeated MemFile files = 3;
+	google.protobuf.Any type = 4;
+	google.protobuf.Any info = 5;
 }
 
 message InternalError {
@@ -78,4 +89,7 @@ message NoSignaturesError {
 }
 
 message GasOverflowError {
+}
+
+message RestrictedTransferError {
 }

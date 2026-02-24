@@ -8,9 +8,12 @@ import (
 )
 
 const (
-	StatusActive ProposalStatus = "active"
-	StatusFailed                = "failed"
-	StatusPassed                = "passed"
+	StatusActive    ProposalStatus = "active"
+	StatusPassed                   = "passed"
+	StatusRejected                 = "rejected"
+	StatusExecuted                 = "executed"
+	StatusFailed                   = "failed"
+	StatusWithdrawn                = "withdrawn"
 )
 
 const (
@@ -22,8 +25,8 @@ const (
 )
 
 const (
-	QuorumOneThird     float64 = 0.33 // percentage
-	QuorumHalf                 = 0.5
+	QuorumOneThird     float64 = 0.33 // percentage, checked as >= than quorum
+	QuorumMoreThanHalf         = 0.51
 	QuorumTwoThirds            = 0.66
 	QuorumThreeFourths         = 0.75
 	QuorumFull                 = 1
@@ -47,6 +50,9 @@ type (
 
 	// VoteChoice defines a type for proposal vote choices.
 	VoteChoice string
+
+	// ExecFunc defines a type for functions that executes proposals.
+	ExecFunc func(realm) error
 
 	// Proposal defines a DAO proposal.
 	Proposal struct {
@@ -79,9 +85,9 @@ type (
 		VotingPeriod() time.Duration
 
 		// Tally counts the number of votes and verifies if proposal passes.
-		// It receives a readonly record containing the votes that has been
-		// submitted for the proposal and also the list of current DAO members.
-		Tally(ReadonlyVotingRecord, MemberSet) (passes bool, _ error)
+		// It receives a voting context containing a readonly record with the votes
+		// that has been submitted for the proposal and also the list of DAO members.
+		Tally(VotingContext) (passes bool, _ error)
 	}
 
 	// Validable defines an interface for proposal definitions that require state validation.
@@ -94,8 +100,8 @@ type (
 	// Executable defines an interface for proposal definitions that modify state on approval.
 	// Once proposals are executed they are archived and considered finished.
 	Executable interface {
-		// Execute executes the proposal.
-		Execute(realm) error
+		// Executor returns a function to execute the proposal.
+		Executor() ExecFunc
 	}
 
 	// CustomizableVoteChoices defines an interface for proposal definitions that want
@@ -125,7 +131,12 @@ func MustExecute(e Executable) {
 		panic("executable proposal definition is nil")
 	}
 
-	if err := e.Execute(cross); err != nil {
+	fn := e.Executor()
+	if fn == nil {
+		return
+	}
+
+	if err := fn(cross); err != nil {
 		panic(err)
 	}
 }
@@ -247,8 +258,30 @@ func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
 }
 
+// Tally counts votes and updates proposal status with the current outcome.
+// Proposal status is updated to "passed" when proposal is approved
+// or to "rejected" if proposal doesn't pass.
+func (p *Proposal) Tally(members MemberStorage) error {
+	if p.status != StatusActive {
+		return ErrStatusIsNotActive
+	}
+
+	ctx := MustNewVotingContext(p.VotingRecord(), members)
+	passes, err := p.Definition().Tally(ctx)
+	if err != nil {
+		return err
+	}
+
+	if passes {
+		p.status = StatusPassed
+	} else {
+		p.status = StatusRejected
+	}
+	return nil
+}
+
 // IsQuorumReached checks if a participation quorum is reach.
-func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members MemberSet) bool {
+func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMemberStorage) bool {
 	if members.Size() <= 0 || quorum <= 0 {
 		return false
 	}

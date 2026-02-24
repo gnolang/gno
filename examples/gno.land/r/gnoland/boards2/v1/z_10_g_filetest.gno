@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -12,14 +14,14 @@ const (
 )
 
 var (
-	bid boards2.BoardID
-	pid boards2.PostID
+	bid boards.ID
+	pid boards.ID
 )
 
 func init() {
 	// Created a board with a specific flagging threshold
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	boards2.SetFlaggingThreshold(cross, bid, 2)
 
 	// Invite a moderator to the new board
@@ -38,4 +40,4 @@ func main() {
 }
 
 // Error:
-// item has been already flagged by g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj
+// post has been already flagged by g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj

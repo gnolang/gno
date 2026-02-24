@@ -110,7 +110,9 @@ func TestMembersPropDefinitionTally(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(members))
+			ctx := commondao.MustNewVotingContext(&record, members)
+
+			success, err := p.Tally(ctx)
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err, "expect an error")
@@ -209,8 +211,9 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 			}
 
 			p := newMembersUpdatePropDefinition(tc.dao, add, remove)
+			fn := p.Executor()
 
-			err := p.Execute(cross)
+			err := fn(cross)
 
 			if tc.errMsg != "" {
 				uassert.ErrorContains(t, err, tc.errMsg, "expect error")

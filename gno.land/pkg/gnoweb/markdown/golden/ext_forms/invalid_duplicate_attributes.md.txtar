@@ -6,11 +6,11 @@
 -- output.html --
 <form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
 <div class="gno-form_header">
-<span><span>/r/test</span> Form</span>
-<span class="tooltip" data-tooltip-target="info" data-tooltip="Processed securely by /r/test"><svg class="c-icon"><use href="#ico-info"></use></svg></span>
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
-<div class="gno-form_input"><label for="duplicate2"> test </label>
+<div class="gno-form_input"><label for="duplicate2">test</label>
 <input type="text" id="duplicate2" name="duplicate2" placeholder="test" />
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

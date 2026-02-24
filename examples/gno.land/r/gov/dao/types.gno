@@ -108,7 +108,7 @@ func (p *Proposal) ExecutorCreationRealm() string {
 }
 
 func (p *Proposal) AllowedDAOs() []string {
-	return p.allowedDAOs
+	return append([]string(nil), p.allowedDAOs...)
 }
 
 type Proposals struct {
@@ -146,6 +146,10 @@ type Executor interface {
 }
 
 func NewSimpleExecutor(callback func(realm) error, description string) *SimpleExecutor {
+	if callback == nil {
+		panic("executor callback must not be nil")
+	}
+
 	return &SimpleExecutor{
 		callback:      callback,
 		desc:          description,
@@ -162,6 +166,11 @@ type SimpleExecutor struct {
 }
 
 func (e *SimpleExecutor) Execute(cur realm) error {
+	// Check if executor was created using the constructor func
+	if e.callback == nil {
+		return nil
+	}
+
 	return e.callback(cross)
 }
 
