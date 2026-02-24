@@ -1,2 +1,2 @@
-module = "gno.vm/t/integ/several_files_multiple_errors"
+module = "gno.vm/t/integ/main"
 gno = "0.9"

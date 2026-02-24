@@ -12,7 +12,7 @@ gnokey maketx call -pkgpath gno.land/r/demo/realm --func UnFill --gas-fee 100000
 
 
 -- realm.gno --
-package main
+package realm
 
 type A struct {
 	A string

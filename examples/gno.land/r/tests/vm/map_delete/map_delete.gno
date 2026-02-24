@@ -1,4 +1,4 @@
-package mapdelete
+package map_delete
 
 var mapus map[uint64]string = make(map[uint64]string)
 

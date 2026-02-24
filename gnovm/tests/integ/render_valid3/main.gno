@@ -1,4 +1,4 @@
-package main
+package render_valid3
 
 // Valid 'Render' pkg scope function
 

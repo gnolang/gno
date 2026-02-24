@@ -1,12 +1,12 @@
-// PKGPATH: gno.land/r/tests
-package tests
+// PKGPATH: gno.land/r/tests_z3
+package tests_z3
 
 import (
 	"chain"
 	"testing"
 
 	"gno.land/p/nt/testutils"
-	tests "gno.land/r/tests/vm"
+	"gno.land/r/tests/vm"
 )
 
 func main() {
@@ -16,11 +16,11 @@ func main() {
 	)
 	testing.SetOriginCaller(eoa)
 	// Contrarily to z2_filetest.gno we EXPECT GetPreviousRealms != eoa (#1704)
-	if addr := tests.GetPreviousRealm(cross).Address(); addr != eoa {
-		println("want tests.GetPreviousRealm().Address ==", eoa, "got", addr)
+	if addr := vm.GetPreviousRealm(cross).Address(); addr != eoa {
+		println("want vm.GetPreviousRealm().Address ==", eoa, "got", addr)
 	}
 	// When 2 or more realms in the frames, it is also different
-	if addr := tests.GetRSubtestsPreviousRealm(cross).Address(); addr != rTestsAddr {
+	if addr := vm.GetRSubtestsPreviousRealm(cross).Address(); addr != rTestsAddr {
 		println("want GetRSubtestsPreviousRealm().Address ==", rTestsAddr, "got", addr)
 	}
 	println("Done.")
