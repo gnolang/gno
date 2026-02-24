@@ -1,6 +1,5 @@
 // Package names enforces namespace permissions for package deployment.
-// Only address-prefix (PA) namespaces are allowed. Reserved namespaces
-// are blocked from all users.
+// Only address-prefix (PA) namespaces are allowed.
 package names
 
 import (
@@ -13,19 +12,8 @@ var (
 	enabled = false
 )
 
-// isReservedNamespace reports whether namespace is reserved for system use.
-// Reserved namespaces cannot be claimed by any user.
-func isReservedNamespace(namespace string) bool {
-	switch namespace {
-	case "gnoland", "nt", "sys", "gov":
-		return true
-	default:
-		return false
-	}
-}
-
 // IsAuthorizedAddressForNamespace checks if the given address can deploy to the given namespace.
-// Only the address's own PA namespace is permitted. Reserved namespaces are always denied.
+// Only the address's own PA namespace is permitted.
 func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool {
 	return verifier(enabled, address_XXX, namespace)
 }
@@ -45,18 +33,13 @@ func IsEnabled() bool {
 }
 
 // verifier checks namespace deployment permissions.
-// An address matching the namespace (PA namespace) is the only allowed case.
-// Reserved namespaces are denied for all users.
+// An address matching the namespace is the only allowed case.
 func verifier(isEnabled bool, address_XXX address, namespace string) bool {
 	if !isEnabled {
 		return true // only in pre-genesis cases
 	}
 
 	if address_XXX.String() == "" || namespace == "" {
-		return false
-	}
-
-	if isReservedNamespace(namespace) {
 		return false
 	}
 

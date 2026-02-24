@@ -103,12 +103,10 @@ TX HASH:    11fWJtYXQlyFcHY12HU1ECYs2GPo/e2z/Fdw6I8rwNs=
 ## Choosing a Package Path
 
 When deploying to Gno.land, you need to specify a package path. Currently, only
-address-based namespaces are supported:
+address-based namespaces are supported under `gno.land/[r|p]/YOUR_ADDRESS/...`
 
-- **Use your address namespace** - Deploy under `gno.land/[r|p]/YOUR_ADDRESS/...`
-
-Username-based namespaces are not currently supported and will be revisited in the
-future via GovDAO governance. For more information on namespaces, see the
+Username-based namespaces will be revisited in the future via GovDAO governance.
+For more information on namespaces, see the
 [Users and Teams documentation](../resources/users-and-teams.md).
 
 ## Understanding Deployment Parameters
@@ -148,6 +146,5 @@ a third-party web extension wallet, such as Adena.
 
 [^1]: Read more about package paths [here](../resources/gno-packages.md).
 [^2]: Other network configurations can be found [here](../resources/gnoland-networks.md).
-[^3]: Address namespaces ([PA namespaces](../resources/gno-packages.md#package-path-structure)) are automatically granted to
-users. Username-based namespaces are not currently supported.
+[^3]: Address namespaces ([PA namespaces](../resources/gno-packages.md#package-path-structure)) are automatically granted to users.
 [^4]: Gas estimation is explained [here](../resources/gas-fees.md#gas-estimation).

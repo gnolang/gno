@@ -29,17 +29,6 @@ func TestDefaultVerifier(t *testing.T) {
 	uassert.False(t, verifier(true, address(""), "something"))
 }
 
-func TestReservedNamespaces(t *testing.T) {
-	// Reserved namespaces denied when enabled
-	uassert.False(t, verifier(true, alice, "gnoland"))
-	uassert.False(t, verifier(true, alice, "nt"))
-	uassert.False(t, verifier(true, alice, "sys"))
-	uassert.False(t, verifier(true, alice, "gov"))
-
-	// Reserved namespaces allowed when disabled (pre-genesis)
-	uassert.True(t, verifier(false, alice, "gnoland"))
-	uassert.True(t, verifier(false, alice, "sys"))
-}
 
 func TestEnable(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))

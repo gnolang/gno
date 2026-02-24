@@ -14,7 +14,6 @@ var controllers = addrset.Set{} // caller whitelist
 
 func init() {
 	// On dev/test chains, auto-whitelist the init controller for bootstrapping.
-	// On production, the whitelist starts empty; controllers are added via GovDAO proposals.
 	chainID := runtime.ChainID()
 	if chainID == "dev" || chainID == "tendermint_test" {
 		controllers.Add(chain.PackageAddress(defaultControllerPath))
