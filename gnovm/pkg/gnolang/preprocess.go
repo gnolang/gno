@@ -740,6 +740,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					xt = xt.Elem()
 					n.IsArrayPtr = true
+				case ArrayKind, SliceKind:
+				default:
+					panic(fmt.Sprintf(
+						"range iteration requires map, string, array, slice, or pointer to array; got %s",
+						xt.Kind().String(),
+					))
 				}
 				// key value if define.
 				if n.Op == DEFINE {
@@ -1480,7 +1486,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if isUntyped(at) {
 							switch arg0.Op {
 							case EQL, NEQ, LSS, GTR, LEQ, GEQ:
-								assertAssignableTo(n, at, ct)
+								mustAssignableTo(n, at, ct)
 							default:
 								checkOrConvertType(store, last, n, &n.Args[0], ct)
 							}
@@ -1510,7 +1516,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					_, atIface := atBase.(*InterfaceType)
 					if ctIface {
 						// e.g. <iface type>(...)
-						assertAssignableTo(n, at, ct)
+						mustAssignableTo(n, at, ct)
 						// The conversion is legal, set the target type.
 						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return n, TRANS_CONTINUE
@@ -1888,12 +1894,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						for i, tv := range argTVs {
 							if hasVarg {
 								if (len(spts) - 1) <= i {
-									assertAssignableTo(n, tv.T, spts[len(spts)-1].Type.Elem())
+									mustAssignableTo(n, tv.T, spts[len(spts)-1].Type.Elem())
 								} else {
-									assertAssignableTo(n, tv.T, spts[i].Type)
+									mustAssignableTo(n, tv.T, spts[i].Type)
 								}
 							} else {
-								assertAssignableTo(n, tv.T, spts[i].Type)
+								mustAssignableTo(n, tv.T, spts[i].Type)
 							}
 						}
 					} else {
@@ -2911,7 +2917,10 @@ func parseMultipleAssignFromOneExpr(
 	for i := range nameExprs {
 		if st != nil {
 			tt := tuple.Elts[i]
-			if checkAssignableTo(n, tt, st) != nil {
+			if err := checkAssignableTo(n, tt, st); err != nil {
+				if debug {
+					debug.Printf("checkAssignableTo fail: %v\n", err)
+				}
 				panic(
 					fmt.Sprintf(
 						"cannot use %v (value of type %s) as %s value in assignment",
@@ -4660,7 +4669,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 	}
 	if cx, ok := (*x).(*ConstExpr); ok {
 		// e.g. int(1) == int8(1)
-		assertAssignableTo(n, cx.T, t)
+		mustAssignableTo(n, cx.T, t)
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		xt := evalStaticTypeOf(store, last, *x)
 		if debug {
@@ -4668,7 +4677,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 		}
 		if isUntyped(xt) {
 			// check assignable first, see: types/shift_b6.gno
-			assertAssignableTo(n, xt, t)
+			mustAssignableTo(n, xt, t)
 
 			if t == nil || t.Kind() == InterfaceKind {
 				t = defaultTypeOf(xt)
@@ -4677,13 +4686,13 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			bx.assertShiftExprCompatible2(t)
 			checkOrConvertType(store, last, n, &bx.Left, t)
 		} else {
-			assertAssignableTo(n, xt, t)
+			mustAssignableTo(n, xt, t)
 		}
 		return
 	} else if *x != nil {
 		xt := evalStaticTypeOf(store, last, *x)
 		if t != nil {
-			assertAssignableTo(n, xt, t)
+			mustAssignableTo(n, xt, t)
 		}
 		if isUntyped(xt) {
 			// Push type into expr if qualifying binary expr.
@@ -4735,7 +4744,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			} else if ux, ok := (*x).(*UnaryExpr); ok {
 				xt := evalStaticTypeOf(store, last, *x)
 				// check assignable first
-				assertAssignableTo(n, xt, t)
+				mustAssignableTo(n, xt, t)
 
 				if t == nil || t.Kind() == InterfaceKind {
 					t = defaultTypeOf(xt)
@@ -4832,7 +4841,7 @@ func convertIfConst(store Store, last BlockNode, n Node, x Expr) {
 func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 	if t != nil && t.Kind() == InterfaceKind {
 		if cx.T != nil {
-			assertAssignableTo(n, cx.T, t)
+			mustAssignableTo(n, cx.T, t)
 		}
 		t = nil // signifies to convert to default type.
 	}

@@ -114,7 +114,11 @@ func (membersUpdatePropDefinition) Tally(ctx commondao.VotingContext) (bool, err
 	return false, nil
 }
 
-func (p membersUpdatePropDefinition) Execute(realm) error {
+func (p membersUpdatePropDefinition) Executor() commondao.ExecFunc {
+	return p.execute
+}
+
+func (p membersUpdatePropDefinition) execute(realm) error {
 	members := p.dao.Members()
 
 	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr address) bool {

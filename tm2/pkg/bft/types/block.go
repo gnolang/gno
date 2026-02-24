@@ -377,7 +377,7 @@ func (h *Header) StringIndented(indent string) string {
 // For now, it is identical to a vote,
 // but in the future it will contain fewer fields
 // to eliminate the redundancy in commits.
-// See https://github.com/tendermint/classic/issues/1648.
+// See https://github.com/tendermint/tendermint/issues/1648.
 type CommitSig Vote
 
 // String returns the underlying Vote.String()

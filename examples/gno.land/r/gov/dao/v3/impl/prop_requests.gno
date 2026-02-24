@@ -2,6 +2,7 @@ package impl
 
 import (
 	"chain/runtime"
+	"strings"
 
 	"gno.land/p/aeddi/panictoerr"
 	"gno.land/p/moul/md"
@@ -13,14 +14,14 @@ import (
 	"gno.land/r/gov/dao/v3/treasury"
 )
 
-func NewChangeLawRequest(_ realm, newLaw *Law) dao.ProposalRequest {
+func NewChangeLawRequest(_ realm, newLaw Law) dao.ProposalRequest {
 	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
 	cb := func(_ realm) error {
-		law = newLaw
+		law = &newLaw
 		return nil
 	}
 
@@ -53,7 +54,7 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 }
 
 func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) dao.ProposalRequest {
-	_, ok := memberstore.Tiers.GetTier(tier)
+	_, ok := memberstore.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
 	}
@@ -99,6 +100,7 @@ func NewWithdrawMemberRequest(_ realm, addr address, reason string) dao.Proposal
 		panic("user we want to remove not found")
 	}
 
+	reason = strings.TrimSpace(reason)
 	if tier == memberstore.T1 && reason == "" {
 		panic("T1 user removals must contains a reason.")
 	}
@@ -148,6 +150,7 @@ func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.Propo
 		panic("banker not registered in treasury with ID: " + payment.BankerID())
 	}
 
+	reason = strings.TrimSpace(reason)
 	if reason == "" {
 		panic("treasury payment request requires a reason")
 	}
@@ -181,6 +184,10 @@ func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.Propo
 // NewTreasuryGRC20TokensUpdate creates a proposal request to update the list of GRC20 tokens registry
 // keys used by the treasury. The new list, if voted and accepted, will overwrite the current one.
 func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
+	if len(newTokenKeys) == 0 {
+		panic("the list of new tokens is empty")
+	}
+
 	cb := func(_ realm) error {
 		return panictoerr.PanicToError(func() {
 			// NOTE:: Consider checking if the newTokenKeys are already registered
@@ -212,17 +219,17 @@ func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
 func memberByTier(tier string) *memberstore.Member {
 	switch tier {
 	case memberstore.T1:
-		t, _ := memberstore.Tiers.GetTier(memberstore.T1)
+		t, _ := memberstore.GetTier(memberstore.T1)
 		return &memberstore.Member{
 			InvitationPoints: t.InvitationPoints,
 		}
 	case memberstore.T2:
-		t, _ := memberstore.Tiers.GetTier(memberstore.T2)
+		t, _ := memberstore.GetTier(memberstore.T2)
 		return &memberstore.Member{
 			InvitationPoints: t.InvitationPoints,
 		}
 	case memberstore.T3:
-		t, _ := memberstore.Tiers.GetTier(memberstore.T3)
+		t, _ := memberstore.GetTier(memberstore.T3)
 		return &memberstore.Member{
 			InvitationPoints: t.InvitationPoints,
 		}

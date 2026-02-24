@@ -43,24 +43,26 @@ func main() {
 }
 
 // Output:
-// # Boards › test-board
+// # [Boards](/r/gnoland/boards2/v1) › [test\-board](/r/gnoland/boards2/v1:test-board)
 // ## Foo
 //
+// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
 // Body
 //
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, 1 repost(s)
-// [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)
+// ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) [1] • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)
 //
 // >>><<<
 //
-// # Boards › test-board-2
+// # [Boards](/r/gnoland/boards2/v1) › [test\-board\-2](/r/gnoland/boards2/v1:test-board-2)
 // ## Bar
 //
-//
-// This thread is a repost of [another thread](/r/gnoland/boards2/v1:test-board/1):
-// > Body
+// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
+// > [!INFO]- Thread Repost
+// > Original thread is [Foo](/r/gnoland/boards2/v1:test-board/1)
+// > Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
 //
 // Body2
 //
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
-// [Flag](/r/gnoland/boards2/v1:test-board-2/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board-2/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board-2/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board-2/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=2&threadID=1)
+// > Body
+//
+// ↳ [Flag](/r/gnoland/boards2/v1:test-board-2/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board-2/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board-2/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board-2/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=2&threadID=1)

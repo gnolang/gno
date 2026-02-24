@@ -15,6 +15,7 @@ var g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h
 const (
 	validMoniker     = "test-1"
 	validDescription = "test-1's description"
+	validServerType  = valopers.ServerTypeOnPrem
 	validAddress     = address("g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h")
 	validPubKey      = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
 )
@@ -23,7 +24,7 @@ func init() {
 	testing.SetOriginCaller(g1user)
 
 	// Register a validator and add the proposal
-	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
+	valopers.Register(cross, validMoniker, validDescription, validServerType, validAddress, validPubKey)
 }
 
 func main() {
@@ -56,11 +57,17 @@ func main() {
 //   - **Max length**: **2048 characters**
 //   - Must include answers to the questions listed below
 //
+// - **Server Type** (Infrastructure Type)
+//   - Must be one of the following values:
+//     - **cloud**: For validators running on cloud infrastructure (AWS, GCP, Azure, etc.)
+//     - **on-prem**: For validators running on on-premises infrastructure
+//     - **data-center**: For validators running in dedicated data centers
+//
 // - **Validator Address**
-//   - Your validator node’s address
+//   - Your validator node's address
 //
 // - **Validator Public Key**
-//   - Your validator node’s public key
+//   - Your validator node's public key
 //
 // ### ✍️ Required Information for the Description
 //
@@ -101,4 +108,4 @@ func main() {
 //
 //
 //
-//  * [test-1](/r/gnops/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h) - [profile](/r/demo/profile:u/g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w)
+//  * [test-1](/r/gnops/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h) - [profile](/r/demo/profile:u/g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)

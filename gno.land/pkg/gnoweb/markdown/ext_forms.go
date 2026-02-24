@@ -69,6 +69,7 @@ type FormInput struct {
 	Value       string
 	Checked     bool
 	Readonly    bool
+	Required    bool
 	Description string
 	Error       error
 }
@@ -91,6 +92,9 @@ func (e FormInput) String() string {
 	if e.Readonly {
 		s += " (readonly=true)"
 	}
+	if e.Required {
+		s += " (required=true)"
+	}
 	return s
 }
 
@@ -101,6 +105,7 @@ type FormTextarea struct {
 	Rows        int
 	Value       string
 	Readonly    bool
+	Required    bool
 	Description string
 	Error       error
 }
@@ -118,6 +123,9 @@ func (e FormTextarea) String() string {
 	if e.Readonly {
 		s += " (readonly=true)"
 	}
+	if e.Required {
+		s += " (required=true)"
+	}
 	return s
 }
 
@@ -127,6 +135,7 @@ type FormSelect struct {
 	Value       string
 	Selected    bool
 	Readonly    bool
+	Required    bool
 	Description string
 	Error       error
 }
@@ -143,6 +152,9 @@ func (e FormSelect) String() string {
 	}
 	if e.Readonly {
 		s += " (readonly=true)"
+	}
+	if e.Required {
+		s += " (required=true)"
 	}
 	return s
 }
@@ -208,8 +220,11 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 
 	node := &FormNode{usedNames: make(map[string]bool)}
 
-	// Extract attributes
+	// Extract path attribute and strip any query string
 	node.RenderPath, _ = ExtractAttr(tok.Attr, "path")
+	node.RenderPath, _, _ = strings.Cut(node.RenderPath, "?")
+
+	// Get RealmName from context
 	if gnourl, ok := getUrlFromContext(pc); ok {
 		node.RealmName = gnourl.Path
 	}
@@ -296,6 +311,7 @@ func (p *FormParser) parseInput(node *FormNode, tok html.Token) {
 	input.Value = attrs["value"]
 	input.Checked = attrs["checked"] == "true"
 	input.Readonly = attrs["readonly"] == "true"
+	input.Required = attrs["required"] == "true"
 
 	// Validate
 	if err := node.validateName(input.Name, input.Type); err != nil {
@@ -369,6 +385,8 @@ func (p *FormParser) parseTextarea(node *FormNode, tok html.Token) {
 			textarea.Description = strings.TrimSpace(attr.Val)
 		case "readonly":
 			textarea.Readonly = strings.TrimSpace(attr.Val) == "true"
+		case "required":
+			textarea.Required = strings.TrimSpace(attr.Val) == "true"
 		}
 	}
 
@@ -400,6 +418,8 @@ func (p *FormParser) parseSelect(node *FormNode, tok html.Token) {
 			sel.Description = strings.TrimSpace(attr.Val)
 		case "readonly":
 			sel.Readonly = strings.TrimSpace(attr.Val) == "true"
+		case "required":
+			sel.Required = strings.TrimSpace(attr.Val) == "true"
 		}
 	}
 
@@ -438,11 +458,9 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 		return ast.WalkContinue, nil
 	}
 
-	// Build form action
+	// Form action is just the realm path (no args) to prevent browser path normalization
+	// The path is passed via hidden field instead
 	action := n.RealmName
-	if n.RenderPath != "" {
-		action += ":" + strings.TrimPrefix(n.RenderPath, "/")
-	}
 
 	// Render form opening
 	fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s" autocomplete="off" spellcheck="false"`, HTMLEscapeString(action))
@@ -450,6 +468,12 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 		fmt.Fprintf(w, ` data-controller="form-exec"`)
 	}
 	fmt.Fprintf(w, `>`+"\n")
+
+	// Add hidden field for path if specified (transmitted via POST body to avoid browser normalization)
+	if n.RenderPath != "" {
+		fmt.Fprintf(w, `<input type="hidden" name="__gno_path" value="%s" />`+"\n", HTMLEscapeString(n.RenderPath))
+	}
+
 	headerLabel := "Form"
 	if n.ExecFunc != "" {
 		headerLabel = fmt.Sprintf("Exec: %s", HTMLEscapeString(titleCase(n.ExecFunc)))
@@ -461,7 +485,8 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 `, HTMLEscapeString(n.RealmName), headerLabel, HTMLEscapeString(n.RealmName))
 
 	if n.ExecFunc != "" {
-		fmt.Fprintf(w, `<div data-controller="action-function" data-action-function-name-value="%s">`+"\n", HTMLEscapeString(n.ExecFunc))
+		pkgPath := n.Domain + n.RealmName
+		fmt.Fprintf(w, `<div data-controller="action-function" data-action-function-name-value="%s" data-action-function-pkgpath-value="%s">`+"\n", HTMLEscapeString(n.ExecFunc), HTMLEscapeString(pkgPath))
 	}
 
 	// Track select elements that have been rendered
@@ -570,15 +595,20 @@ func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
 }
 
 func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastDescID *string, isExec bool) {
-	// Description
+	isSelectable := e.Type == "radio" || e.Type == "checkbox"
+	isRadio := e.Type == "radio"
+
+	// Description (for radio only, add required badge in description since it applies to group)
 	if e.Description != "" {
 		descID := fmt.Sprintf("desc_%s_%d", e.Name, idx)
-		fmt.Fprintf(w, `<div id="%s" class="gno-form_description">%s</div>`+"\n",
-			HTMLEscapeString(descID), HTMLEscapeString(e.Description))
+		requiredBadge := ""
+		if isRadio && e.Required {
+			requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
+		}
+		fmt.Fprintf(w, `<div id="%s" class="gno-form_description">%s%s</div>`+"\n",
+			HTMLEscapeString(descID), HTMLEscapeString(e.Description), requiredBadge)
 		*lastDescID = descID
 	}
-
-	isSelectable := e.Type == "radio" || e.Type == "checkbox"
 
 	if isSelectable {
 		uniqueID := fmt.Sprintf("%s_%d", e.Name, idx)
@@ -598,6 +628,9 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 		if e.Readonly {
 			fmt.Fprint(w, ` disabled`)
 		}
+		if e.Required {
+			fmt.Fprint(w, ` required`)
+		}
 		if isExec {
 			fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="change->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
 		}
@@ -610,26 +643,40 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 		}
 		readonlyBadge := ""
 		if e.Readonly {
-			readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
+			readonlyBadge = `<span class="gno-form_info-badge">(readonly)</span>`
 		}
-		fmt.Fprintf(w, `<label for="%s"> %s %s</label>
+
+		requiredBadge := ""
+		if !isRadio && e.Required {
+			requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
+		}
+		fmt.Fprintf(w, `<label for="%s">%s%s%s</label>
 </div>
-`, HTMLEscapeString(uniqueID), HTMLEscapeString(label), readonlyBadge)
+`, HTMLEscapeString(uniqueID), HTMLEscapeString(label), requiredBadge, readonlyBadge)
 	} else {
 		readonlyBadge := ""
 		if e.Readonly {
-			readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
+			readonlyBadge = `<span class="gno-form_info-badge">(readonly)</span>`
 		}
-		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s %s</label>
+		requiredBadge := ""
+		placeholder := e.Placeholder
+		if e.Required {
+			requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
+			placeholder += " (required)"
+		}
+		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s">%s%s%s</label>
 <input type="%s" id="%s" name="%s" placeholder="%s"`,
-			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder), readonlyBadge,
+			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder), requiredBadge, readonlyBadge,
 			HTMLEscapeString(e.Type), HTMLEscapeString(e.Name),
-			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder))
+			HTMLEscapeString(e.Name), HTMLEscapeString(placeholder))
 		if e.Value != "" {
 			fmt.Fprintf(w, ` value="%s"`, HTMLEscapeString(e.Value))
 		}
 		if e.Readonly {
 			fmt.Fprint(w, ` readonly`)
+		}
+		if e.Required {
+			fmt.Fprint(w, ` required`)
 		}
 		if isExec {
 			fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
@@ -649,16 +696,25 @@ func (r *FormRenderer) renderTextarea(w util.BufWriter, e FormTextarea, idx int,
 
 	readonlyBadge := ""
 	if e.Readonly {
-		readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
+		readonlyBadge = `<span class="gno-form_info-badge">(readonly)</span>`
+	}
+	requiredBadge := ""
+	placeholder := e.Placeholder
+	if e.Required {
+		requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
+		placeholder += " (required)"
 	}
 
-	fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s %s</label>
+	fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s">%s%s%s</label>
 <textarea id="%s" name="%s" placeholder="%s" rows="%d"`,
-		HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder), readonlyBadge,
+		HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder), requiredBadge, readonlyBadge,
 		HTMLEscapeString(e.Name), HTMLEscapeString(e.Name),
-		HTMLEscapeString(e.Placeholder), e.Rows)
+		HTMLEscapeString(placeholder), e.Rows)
 	if e.Readonly {
 		fmt.Fprint(w, ` readonly`)
+	}
+	if e.Required {
+		fmt.Fprint(w, ` required`)
 	}
 	if isExec {
 		fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
@@ -679,11 +735,15 @@ func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e 
 	label := titleCase(strings.ReplaceAll(e.Name, "_", " "))
 	readonlyBadge := ""
 	if e.Readonly {
-		readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
+		readonlyBadge = `<span class="gno-form_info-badge">(readonly)</span>`
 	}
-	fmt.Fprintf(w, `<div class="gno-form_select"><label for="%s"> %s %s</label>
+	requiredBadge := ""
+	if e.Required {
+		requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
+	}
+	fmt.Fprintf(w, `<div class="gno-form_select"><label for="%s">%s%s%s</label>
 <select id="%s" name="%s"`,
-		HTMLEscapeString(e.Name), HTMLEscapeString(label), readonlyBadge,
+		HTMLEscapeString(e.Name), HTMLEscapeString(label), requiredBadge, readonlyBadge,
 		HTMLEscapeString(e.Name), HTMLEscapeString(e.Name))
 
 	if *lastDescID != "" {
@@ -692,14 +752,21 @@ func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e 
 	if e.Readonly {
 		fmt.Fprint(w, ` disabled`)
 	}
+	if e.Required {
+		fmt.Fprint(w, ` required`)
+	}
 	if isExec {
 		fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="change->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
 	}
 	fmt.Fprintln(w, `>`)
 
 	article := GetWordArticle(label)
-	fmt.Fprintf(w, `<option value="">Select %s %s</option>`+"\n",
-		article, HTMLEscapeString(label))
+	defaultOptionText := fmt.Sprintf("Select %s %s", article, label)
+	if e.Required {
+		defaultOptionText += " (required)"
+	}
+	fmt.Fprintf(w, `<option value="">%s</option>`+"\n",
+		HTMLEscapeString(defaultOptionText))
 
 	// Collect all options for this select
 	for _, elem := range elements {
