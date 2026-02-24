@@ -8,7 +8,7 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-const defaultControllerPath = "gno.land/r/sys/users/init"
+const testControllerPath = "gno.land/r/sys/users/init"
 
 var controllers = addrset.Set{} // caller whitelist
 
@@ -16,7 +16,7 @@ func init() {
 	// On dev/test chains, auto-whitelist the init controller for bootstrapping.
 	chainID := runtime.ChainID()
 	if chainID == "dev" || chainID == "tendermint_test" {
-		controllers.Add(chain.PackageAddress(defaultControllerPath))
+		controllers.Add(chain.PackageAddress(testControllerPath))
 	}
 }
 
