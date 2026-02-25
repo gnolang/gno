@@ -1010,6 +1010,9 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 }
 
 func (x *bodyStmt) LastStmt() Stmt {
+	if x.NextBodyIndex <= 0 {
+		return nil
+	}
 	return x.Body[x.NextBodyIndex-1]
 }
 
