@@ -21,7 +21,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
-	"github.com/rs/cors"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bc "github.com/gnolang/gno/tm2/pkg/bft/blockchain"

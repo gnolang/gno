@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"io"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/log"
@@ -21,6 +23,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -166,7 +169,7 @@ func (c *nodeCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStart(ctx context.Context, c *nodeCfg, io commands.IO) error {
-	gnoNode, err := createNode(c, io)
+	gnoNode, err := createNode(ctx, c, io)
 	if err != nil {
 		return err
 	}
@@ -196,7 +199,7 @@ func execStart(ctx context.Context, c *nodeCfg, io commands.IO) error {
 	return nil
 }
 
-func createNode(c *nodeCfg, io commands.IO) (*node.Node, error) {
+func createNode(ctx context.Context, c *nodeCfg, io commands.IO) (*node.Node, error) {
 	// Get the absolute path to the node's data directory
 	nodeDir, err := filepath.Abs(c.dataDir)
 	if err != nil {
@@ -241,14 +244,20 @@ func createNode(c *nodeCfg, io commands.IO) (*node.Node, error) {
 			return nil, errMissingGenesis
 		}
 
-		// Load the private validator secrets
-		privateKey := privval.LoadFilePV(
-			cfg.PrivValidatorKeyFile(),
-			cfg.PrivValidatorStateFile(),
-		)
+		// Get the node key for signer init
+		nodeKey, err := p2pTypes.LoadOrMakeNodeKey(cfg.NodeKeyFile())
+		if err != nil {
+			return nil, fmt.Errorf("unable to load or make node key, %w", err)
+		}
+
+		// Init the signer based on the config
+		signer, err := privval.NewSignerFromConfig(ctx, cfg.Consensus.PrivValidator, nodeKey.PrivKey, logger)
+		if err != nil {
+			return nil, fmt.Errorf("unable to instantiate signer based on config: %w", err)
+		}
 
 		// Init a new genesis.json
-		if err := lazyInitGenesis(io, c, genesisPath, privateKey.Key.PrivKey); err != nil {
+		if err := lazyInitGenesis(io, c, genesisPath, signer); err != nil {
 			return nil, fmt.Errorf("unable to initialize genesis.json, %w", err)
 		}
 	}
@@ -265,7 +274,6 @@ func createNode(c *nodeCfg, io commands.IO) (*node.Node, error) {
 
 	// Create a top-level shared event switch
 	evsw := events.NewEventSwitch()
-	minGasPrices := cfg.Application.MinGasPrices
 
 	// Create application and node
 	cfg.LocalApp, err = gnoland.NewApp(
@@ -274,9 +282,9 @@ func createNode(c *nodeCfg, io commands.IO) (*node.Node, error) {
 			SkipFailingTxs:      c.skipFailingGenesisTxs,
 			SkipSigVerification: c.skipGenesisSigVerification,
 		},
+		cfg.Application,
 		evsw,
 		logger,
-		minGasPrices,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the Gnoland app, %w", err)
@@ -380,7 +388,7 @@ func initializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logge
 	return log.GetZapLoggerFn(format)(io, level), nil
 }
 
-func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *nodeCfg) error {
+func generateGenesisFile(genesisFile string, signer gnoland.GenesisSigner, c *nodeCfg) error {
 	var (
 		pubKey = signer.PubKey()
 		// There is an active constraint for gno.land transactions:
