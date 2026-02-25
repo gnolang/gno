@@ -1225,6 +1225,9 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				depositUnlocked = int64(rlm.Deposit)
 			} else {
 				// Partial free: deposit * released / storage
+				// Integer division truncates, so small dust amounts (< 1 ugnot per operation)
+				// may accumulate in the realm's deposit over successive partial frees.
+				// This is negligible in practice relative to deposit sizes.
 				result := new(big.Int).SetUint64(rlm.Deposit)
 				result.Mul(result, big.NewInt(released))
 				result.Div(result, new(big.Int).SetUint64(rlm.Storage))
