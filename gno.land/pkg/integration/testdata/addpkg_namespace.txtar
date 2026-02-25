@@ -57,6 +57,10 @@ stderr 'is not authorized to deploy packages to namespace'
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/random!name/mypkg -gas-fee 1000000ugnot -gas-wanted 550000 -broadcast -chainid=tendermint_test gui
 stderr 'but got "gno.land/r/random!name/mypkg"'
 
+# Test that publishing to filetests is prohibited
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/filetests -gas-fee 1000000ugnot -gas-wanted 3700000 -broadcast -chainid=tendermint_test gui
+stderr 'but got "gno.land/r/guigui123/filetests" ending in filetests'
+
 -- gnomod.toml --
 module = "gno.land/r/mypkg"
 gno = "0.9"
