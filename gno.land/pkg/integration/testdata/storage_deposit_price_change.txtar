@@ -48,13 +48,12 @@ stdout 'OK!'
 gnokey query params/vm:p:storage_price
 stdout '1000ugnot'
 
-## Step 3: Free the large allocation — with proportional refund this should SUCCEED
+## Step 3: Free the large allocation
 gnokey maketx call -pkgpath gno.land/r/test/storage -func Free -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'STORAGE REFUND: 50031600ugnot'
 
 ## Step 4: Verify storage was released and deposit refunded proportionally
-
 gnokey query vm/qeval --data "gno.land/r/test/storage.DataLen()"
 stdout '0 int'
 
