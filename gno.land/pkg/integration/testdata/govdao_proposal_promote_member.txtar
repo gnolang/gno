@@ -44,7 +44,7 @@ stderr 'member not found, so cannot be promoted'
 # call gov/dao render to check everything the proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:1'
 stdout 'Proposal #1 - Member Promotion Proposal'
-stdout 'This is a proposal to promote \[@withdraw456\]\(\/u\/withdraw456\) from \*\*T2\*\* to \*\*T3\*\*.'
+stdout 'This is a proposal to promote g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 from \*\*T2\*\* to \*\*T3\*\*.'
 
 # vote on the proposal 1
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -args YES -broadcast -chainid=tendermint_test member

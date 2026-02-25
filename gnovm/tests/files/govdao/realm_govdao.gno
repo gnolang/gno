@@ -79,6 +79,6 @@ func Render() {
 //
 // ### [Proposal Title: Dummy proposal](/r/gov/dao:0)
 //
-// **Proposal #0** | ACCEPTED | by [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// **Proposal #0** | ACCEPTED | by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // ---

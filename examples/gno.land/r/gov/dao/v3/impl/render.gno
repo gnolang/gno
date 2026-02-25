@@ -138,6 +138,9 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 		out += "```\n"
 		out += executorMeta
 		out += "\n```\n\n"
+		if creationRealm := p.ExecutorCreationRealm(); creationRealm != "" {
+			out += "Executor created in: " + creationRealm + "\n\n"
+		}
 	}
 
 	// Voting Statistics

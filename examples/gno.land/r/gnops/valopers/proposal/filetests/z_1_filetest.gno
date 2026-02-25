@@ -54,7 +54,7 @@ func main() {
 //
 // ### [Add valoper test-1 to the valset](/r/gov/dao:0)
 //
-// **Proposal #0** | ACTIVE | by [@1vuch2um9wf047h6lta047h6lta047h6l2ewm6w](/u/1vuch2um9wf047h6lta047h6lta047h6l2ewm6w)
+// **Proposal #0** | ACTIVE | by g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 //
 // **YES:** 3 (0.0%) | **NO:** 3 (0.0%) | _Eligible: T1, T2, T3_
 //

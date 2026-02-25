@@ -72,7 +72,7 @@ func main() {
 //
 // ### [User Registry V1: Delete user `alice123`](/r/gov/dao:0)
 //
-// **Proposal #0** | ACTIVE | by [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// **Proposal #0** | ACTIVE | by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // **YES:** 3 (0.0%) | **NO:** 3 (0.0%) | _Eligible: T1, T2, T3_
 //
@@ -91,7 +91,7 @@ func main() {
 //
 // | | |
 // |---|---|
-// | **Author** | [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm) |
+// | **Author** | g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm |
 // | **Status** | ACTIVE |
 // | **Eligible Tiers** | T1, T2, T3 |
 // | **YES** | 0.00% |
@@ -133,7 +133,7 @@ func main() {
 //
 // | | |
 // |---|---|
-// | **Author** | [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm) |
+// | **Author** | g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm |
 // | **Status** | ACTIVE |
 // | **Eligible Tiers** | T1, T2, T3 |
 // | **YES** | 100.00% |
@@ -175,7 +175,7 @@ func main() {
 //
 // | | |
 // |---|---|
-// | **Author** | [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm) |
+// | **Author** | g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm |
 // | **Status** | ACCEPTED |
 // | **Eligible Tiers** | T1, T2, T3 |
 //
