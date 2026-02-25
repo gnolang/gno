@@ -1356,6 +1356,39 @@ func Echo(cur realm, msg string){
 	assert.True(t, depDeltaTest.Add(depDeltaFoo).IsEqual(msg2.MaxDeposit))
 }
 
+// TestProcessStorageDepositWithInvalidParams verifies that VM operations fail
+// when StoragePrice is set to an invalid value through the governance path.
+// TODO: remove this test once the crash is confirmed and the fix is applied.
+func TestProcessStorageDepositWithInvalidParams(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+
+	// Deploy a package with valid params
+	pkgPath := "gno.land/r/test/hello"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "hello.gno", Body: `package hello
+func SayHello(cur realm) string { return "hello world" }`},
+	}
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+
+	// Set invalid StoragePrice through governance path
+	env.prmk.SetString(ctx, "vm:p:storage_price", "invalid")
+
+	// MsgCall should fail with invalid coin expression
+	callMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "SayHello", nil)
+	_, err = env.vmk.Call(ctx, callMsg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid coin expression")
+}
+
 // TestVMKeeper_RealmDiffIterationDeterminism is a regression test for issue #4580.
 // It verifies that the processStorageDeposit function iterates over realms
 // in a deterministic order by sorting the realm paths before iteration.

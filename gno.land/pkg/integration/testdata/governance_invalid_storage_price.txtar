@@ -1,0 +1,155 @@
+## Governance proposal sets an invalid StoragePrice, all VM operations should
+## reject the invalid value. If the value is persisted, MsgCall, MsgRun and
+## MsgAddPackage fail because processStorageDeposit calls MustParseCoin on it.
+## TODO: remove this test once the crash is confirmed and the fix is applied.
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/params
+
+patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+adduser test2
+
+gnoland start
+
+## Step 1: deploy a realm and verify it works (baseline)
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/test/hello -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'hello world'
+
+## Step 2: governance sets StoragePrice to "invalid"
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_invalid.gno
+stdout OK!
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_yes.gno
+stdout OK!
+
+gnokey query params/vm:p:storage_price
+stdout '100ugnot'
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/execute_proposal.gno
+stdout OK!
+
+gnokey query params/vm:p:storage_price
+stdout 'invalid'
+
+## Step 3: all VM operations should fail
+! gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'invalid coin expression'
+
+! gnokey maketx addpkg -pkgdir $WORK/hello2 -pkgpath gno.land/r/test/hello2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'invalid coin expression'
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1 $WORK/run/simple_run.gno
+stderr 'invalid coin expression'
+
+## Step 4: non-VM operations still work
+gnokey maketx send -send 1ugnot -to $test2_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## Step 5: corrective governance proposal also fails (deadlock)
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_fix.gno
+stderr 'invalid coin expression'
+
+-- hello/gnomod.toml --
+module = "gno.land/r/test/hello"
+gno = "0.9"
+
+-- hello/hello.gno --
+package hello
+
+func SayHello(cur realm) string {
+	return "hello world"
+}
+
+-- hello2/gnomod.toml --
+module = "gno.land/r/test/hello2"
+gno = "0.9"
+
+-- hello2/hello2.gno --
+package hello2
+
+func SayHello() string {
+	return "hello again"
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), &memberstore.Member{InvitationPoints: 3})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
+
+-- run/propose_invalid.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main() {
+	prop := params.NewSysParamStringPropRequest("vm", "p", "storage_price", "invalid")
+	dao.MustCreateProposal(cross, prop)
+}
+
+-- run/vote_yes.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main() {
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: dao.ProposalID(0),
+	})
+}
+
+-- run/execute_proposal.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main() {
+	dao.ExecuteProposal(cross, dao.ProposalID(0))
+}
+
+-- run/simple_run.gno --
+package main
+
+func main() {
+	println("this should not run")
+}
+
+-- run/propose_fix.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main() {
+	prop := params.NewSysParamStringPropRequest("vm", "p", "storage_price", "100ugnot")
+	dao.MustCreateProposal(cross, prop)
+}
