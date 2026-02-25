@@ -5,11 +5,10 @@ import (
 	"strings"
 
 	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/avl"
-
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // TODO: Refactor globals in favor of a cleaner pattern
@@ -48,20 +47,20 @@ func init() {
 func initRealmPermissions(owners ...address) boards.Permissions {
 	perms := permissions.New(
 		permissions.UseSingleUserRole(),
-		permissions.WithSuperRole(permissions.RoleOwner),
+		permissions.WithSuperRole(RoleOwner),
 	)
-	perms.AddRole(permissions.RoleAdmin, permissions.PermissionBoardCreate)
+	perms.AddRole(RoleAdmin, PermissionBoardCreate)
 	for _, owner := range owners {
-		perms.SetUserRoles(cross, owner, permissions.RoleOwner)
+		perms.SetUserRoles(owner, RoleOwner)
 	}
 
-	perms.ValidateFunc(permissions.PermissionBoardCreate, validateBasicBoardCreate)
-	perms.ValidateFunc(permissions.PermissionMemberInvite, validateBasicMemberInvite)
-	perms.ValidateFunc(permissions.PermissionRoleChange, validateBasicRoleChange)
+	perms.ValidateFunc(PermissionBoardCreate, validateBasicBoardCreate)
+	perms.ValidateFunc(PermissionMemberInvite, validateBasicMemberInvite)
+	perms.ValidateFunc(PermissionRoleChange, validateBasicRoleChange)
 	return perms
 }
 
-// getInvitesRequests returns invite requests for a board.
+// getInviteRequests returns invite requests for a board.
 func getInviteRequests(boardID boards.ID) (_ *avl.Tree, found bool) {
 	v, exists := gInviteRequests.Get(boardID.Key())
 	if !exists {
@@ -97,9 +96,20 @@ func mustGetBoard(id boards.ID) *boards.Board {
 	return board
 }
 
+// getThread returns a board thread.
+func getThread(board *boards.Board, threadID boards.ID) (*boards.Post, bool) {
+	thread, found := board.Threads.Get(threadID)
+	if !found {
+		// When thread is not found search it within hidden threads
+		meta := board.Meta.(*Meta)
+		thread, found = meta.HiddenThreads.Get(threadID)
+	}
+	return thread, found
+}
+
 // mustGetThread returns a thread or panics when it's not found.
 func mustGetThread(board *boards.Board, threadID boards.ID) *boards.Post {
-	thread, found := board.Threads.Get(threadID)
+	thread, found := getThread(board, threadID)
 	if !found {
 		panic("thread does not exist with ID: " + threadID.String())
 	}

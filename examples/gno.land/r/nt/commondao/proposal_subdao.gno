@@ -91,7 +91,11 @@ func (subDAOPropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
 	return false, nil
 }
 
-func (p subDAOPropDefinition) Execute(realm) error {
+func (p subDAOPropDefinition) Executor() commondao.ExecFunc {
+	return p.execute
+}
+
+func (p subDAOPropDefinition) execute(realm) error {
 	subDAO := createSubDAO(p.parent, p.name, nil)
 
 	if p.members != nil {
@@ -150,7 +154,11 @@ func (dissolvePropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
 	return false, nil
 }
 
-func (p dissolvePropDefinition) Execute(realm) error {
+func (p dissolvePropDefinition) Executor() commondao.ExecFunc {
+	return p.execute
+}
+
+func (p dissolvePropDefinition) execute(realm) error {
 	p.dao.SetDeleted(true)
 	return nil
 }

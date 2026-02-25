@@ -17,7 +17,7 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("Board not found")
 		return
 	}
 
@@ -35,15 +35,15 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
-		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
+		res.Write("Thread not found")
 		return
 	}
 
 	reply, found := thread.Replies.Get(boards.ID(replyID))
 	if !found {
-		res.Write("Reply does not exist with ID: " + rawID)
+		res.Write("Reply not found")
 		return
 	}
 
@@ -113,7 +113,7 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("Board not found")
 		return
 	}
 
@@ -131,15 +131,15 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
-		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
+		res.Write("Thread not found")
 		return
 	}
 
 	reply, found := thread.Replies.Get(boards.ID(replyID))
 	if !found {
-		res.Write("Reply does not exist with ID: " + rawID)
+		res.Write("Reply not found")
 		return
 	}
 
@@ -163,7 +163,7 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 		"readonly", "true",
 	)
 	form.Textarea(
-		"bod",
+		"body",
 		"placeholder", "Comment",
 		"value", reply.Body,
 		"required", "true",
@@ -173,7 +173,7 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.Link("← Back to thread", makeThreadURI(thread)) + "\n\n")
 	res.Write(
 		md.Paragraph(
-			ufmt.Sprintf("Editing comment from %s thread", md.Link(thread.Title, makeThreadURI(thread))),
+			ufmt.Sprintf("Editing a comment from the thread: %s", md.Link(thread.Title, makeThreadURI(thread))),
 		),
 	)
 	res.Write(form.String())
