@@ -1217,11 +1217,11 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 					"not enough storage to be released for realm %s, realm storage %d bytes; requested release: %d bytes",
 					rlmPath, rlm.Storage, released))
 			}
-			// Proportional refund: refund based on actual deposit ratio, not current price.
+			// Proportional refund based on actual deposit ratio, not current price.
 			// This ensures price governance changes don't lock or orphan deposits.
 			var depositUnlocked int64
 			if rlm.Storage == uint64(released) {
-				// Freeing all storage: refund entire deposit (avoids rounding loss)
+				// Freeing all storage, refund entire deposit (avoids rounding loss)
 				depositUnlocked = int64(rlm.Deposit)
 			} else {
 				// Partial free: deposit * released / storage
