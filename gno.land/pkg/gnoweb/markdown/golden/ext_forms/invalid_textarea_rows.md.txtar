@@ -12,16 +12,16 @@
 <span><span class="font-bold">/r/test</span> Form</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
-<div class="gno-form_input"><label for="test1"> Too few rows </label>
+<div class="gno-form_input"><label for="test1">Too few rows</label>
 <textarea id="test1" name="test1" placeholder="Too few rows" rows="2"></textarea>
 </div>
-<div class="gno-form_input"><label for="test2"> Too many rows </label>
+<div class="gno-form_input"><label for="test2">Too many rows</label>
 <textarea id="test2" name="test2" placeholder="Too many rows" rows="10"></textarea>
 </div>
-<div class="gno-form_input"><label for="test3"> Invalid rows </label>
+<div class="gno-form_input"><label for="test3">Invalid rows</label>
 <textarea id="test3" name="test3" placeholder="Invalid rows" rows="4"></textarea>
 </div>
-<div class="gno-form_input"><label for="test4"> Valid rows </label>
+<div class="gno-form_input"><label for="test4">Valid rows</label>
 <textarea id="test4" name="test4" placeholder="Valid rows" rows="5"></textarea>
 </div>
 <div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>

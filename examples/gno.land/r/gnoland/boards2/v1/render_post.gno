@@ -6,7 +6,10 @@ import (
 
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/jeronimoalbi/mdform"
+	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
+	"gno.land/p/moul/mdtable"
+	"gno.land/p/nt/mdalert"
 	"gno.land/p/nt/mux"
 	"gno.land/p/nt/ufmt"
 )
@@ -18,7 +21,7 @@ func renderPost(post *boards.Post, path, indent string, levels int) string {
 	title := post.Title
 	if boards.IsRepost(post) && title == "" {
 		if board, ok := gBoards.Get(post.OriginalBoardID); ok {
-			if src, ok := board.Threads.Get(post.ParentID); ok {
+			if src, ok := getThread(board, post.ParentID); ok {
 				title = src.Title
 			}
 		}
@@ -52,59 +55,77 @@ func renderPost(post *boards.Post, path, indent string, levels int) string {
 func renderPostContent(post *boards.Post, indent string, levels int) string {
 	var b strings.Builder
 
+	// Author and date header
+	creatorLink := userLink(post.Creator)
+	roleBadge := getRoleBadge(post)
+	date := post.CreatedAt.Format(dateFormat)
+	b.WriteString(indent)
+	b.WriteString(md.Bold(creatorLink) + roleBadge + " · " + date)
+	if !boards.IsThread(post) {
+		b.WriteString(" " + md.Link("#"+post.ID.String(), makeReplyURI(post)))
+	}
+	b.WriteString("  \n")
+
+	// Flagged comment should be hidden, but replies still visible (see: #3480)
+	// Flagged threads will be hidden by render function caller.
 	if post.Hidden {
-		// Flagged comment should be hidden, but replies still visible (see: #3480)
-		// Flagged threads will be hidden by render function caller.
-		return indentBody(indent, md.Italic("⚠ Reply is hidden as it has been flagged as inappropriate")) + "\n"
+		link := md.Link("inappropriate", makeFlaggingReasonsURI(post))
+		b.WriteString(indentBody(indent, "⚠ Reply is hidden as it has been flagged as "+link))
+		b.WriteString("\n")
+		return b.String()
 	}
 
 	srcContent, srcPost := renderSourcePost(post, indent)
 	if boards.IsRepost(post) && srcPost != nil {
-		originLink := md.Link("another thread", makeThreadURI(srcPost))
-		b.WriteString("  \nThis thread is a repost of " + originLink + ": \n")
+		msg := ufmt.Sprintf(
+			"Original thread is %s  \nCreated by %s on %s",
+			md.Link(srcPost.Title, makeThreadURI(srcPost)),
+			userLink(srcPost.Creator),
+			srcPost.CreatedAt.Format(dateFormat),
+		)
+
+		b.WriteString(mdalert.New(mdalert.TypeInfo, "Thread Repost", msg, true).String())
+		b.WriteString("\n")
+	}
+
+	// Render repost body before original thread's body
+	if post.Body != "" {
+		b.WriteString(indentBody(indent, post.Body) + "\n")
+		if srcContent != "" {
+			// Add extra line to separate repost content from original thread content
+			b.WriteString("\n")
+		}
 	}
 
 	b.WriteString(srcContent)
 
+	// Add a newline to separate source deleted message from repost body content
 	if boards.IsRepost(post) && srcPost == nil && len(post.Body) > 0 {
-		// Add a newline to separate source deleted message from repost body content
+		b.WriteString("\n\n")
+	}
+
+	// Split thread content and actions
+	if boards.IsThread(post) && !boards.IsRepost(post) {
 		b.WriteString("\n")
 	}
 
-	b.WriteString(indentBody(indent, post.Body))
-	b.WriteString("\n")
-
-	if boards.IsThread(post) {
-		// Split content and controls for threads.
-		b.WriteString("\n")
-	}
-
-	// Buttons & counters
+	// Action buttons
 	b.WriteString(indent)
-	if !boards.IsThread(post) {
+	if !boards.IsThread(post) { // is comment
 		b.WriteString("  \n")
 		b.WriteString(indent)
 	}
-
-	creatorLink := userLink(post.Creator)
-	date := post.CreatedAt.Format(dateFormat)
-	b.WriteString("Created by " + creatorLink + " on " + date)
-
-	// Add a reply view link to each top level reply
-	if !boards.IsThread(post) {
-		b.WriteString(", " + md.Link("#"+post.ID.String(), makeReplyURI(post)))
-	} else if post.Reposts.Size() > 0 { // Post is a thread
-		b.WriteString(", " + strconv.Itoa(post.Reposts.Size()) + " repost(s)")
-	}
-
-	b.WriteString("  \n")
 
 	actions := []string{
 		md.Link("Flag", makeFlagURI(post)),
 	}
 
 	if boards.IsThread(post) {
-		actions = append(actions, md.Link("Repost", makeCreateRepostURI(post)))
+		repostAction := md.Link("Repost", makeCreateRepostURI(post))
+		if post.Reposts.Size() > 0 {
+			repostAction += " [" + strconv.Itoa(post.Reposts.Size()) + "]"
+		}
+		actions = append(actions, repostAction)
 	}
 
 	isReadonly := post.Readonly || post.Board.Readonly
@@ -113,10 +134,15 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 		if boards.IsThread(post) {
 			replyLabel = "Comment"
 		}
+		replyAction := md.Link(replyLabel, makeCreateReplyURI(post))
+		// Add reply count if any
+		if post.Replies.Size() > 0 {
+			replyAction += " [" + strconv.Itoa(post.Replies.Size()) + "]"
+		}
 
 		actions = append(
 			actions,
-			md.Link(replyLabel, makeCreateReplyURI(post)),
+			replyAction,
 			md.Link("Edit", makeEditPostURI(post)),
 			md.Link("Delete", makeDeletePostURI(post)),
 		)
@@ -130,7 +156,7 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 		}
 	}
 
-	b.WriteString(strings.Join(actions, " • ") + " \n")
+	b.WriteString("↳ " + strings.Join(actions, " • ") + "\n")
 	return b.String()
 }
 
@@ -142,7 +168,7 @@ func renderPostInner(post *boards.Post) string {
 	var (
 		s         string
 		threadID  = post.ThreadID
-		thread, _ = post.Board.Threads.Get(threadID)
+		thread, _ = getThread(post.Board, threadID)
 	)
 
 	// Fully render parent if it's not a repost.
@@ -172,26 +198,26 @@ func renderSourcePost(post *boards.Post, indent string) (string, *boards.Post) {
 	board, ok := gBoards.Get(post.OriginalBoardID)
 	if !ok {
 		// TODO: Boards can't be deleted so this might be redundant
-		return indentBody(indent, md.Italic("⚠ Source board has been deleted")+"\n"), nil
+		return indentBody(indent, "⚠ Source board has been deleted"), nil
 	}
 
-	srcPost, ok := board.Threads.Get(post.ParentID)
+	srcPost, ok := getThread(board, post.ParentID)
 	if !ok {
-		return indentBody(indent, md.Italic("⚠ Source post has been deleted")+"\n"), nil
+		return indentBody(indent, "⚠ Source post has been deleted"), nil
 	}
 
 	if srcPost.Hidden {
-		return indentBody(indent, md.Italic("⚠ Source post has been flagged as inappropriate")+"\n"), nil
+		return indentBody(indent, "⚠ Source post has been flagged as inappropriate"), nil
 	}
 
-	return indentBody(indent, srcPost.Summary()) + "\n\n", srcPost
+	return indentBody(indent, srcPost.Body) + "\n\n", srcPost
 }
 
 func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("Board not found")
 		return
 	}
 
@@ -203,9 +229,9 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
-		res.Write("Thread does not exist with ID: " + rawID)
+		res.Write("Thread not found")
 		return
 	}
 
@@ -222,7 +248,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 
 		reply, _ = thread.Replies.Get(boards.ID(replyID))
 		if reply == nil {
-			res.Write("Reply does not exist with ID: " + rawID)
+			res.Write("Reply not found")
 			return
 		}
 	}
@@ -260,15 +286,19 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 		"placeholder", "Flagging Reason",
 	)
 
+	// Breadcrumb navigation
+	backLink := md.Link("← Back to thread", makeThreadURI(thread))
+
 	if isReply {
 		res.Write(md.H1(board.Name + ": Flag Comment"))
 	} else {
 		res.Write(md.H1(board.Name + ": Flag Thread"))
 	}
+	res.Write(backLink + "\n\n")
 
 	res.Write(
 		md.Paragraph(
-			"Thread or comment moderation is done though flagging, which is usually done "+
+			"Thread or comment moderation is done through flagging, which is usually done "+
 				"by board members with the moderator role, though other roles could also potentially flag.",
 		) +
 			md.Paragraph(
@@ -284,7 +314,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(
 			md.Paragraph(
 				ufmt.Sprintf(
-					"⚠ Your are flagging a %s from %s ⚠",
+					"⚠ You are flagging a %s from %s ⚠",
 					md.Link("comment", makeReplyURI(reply)),
 					userLink(reply.Creator),
 				),
@@ -294,7 +324,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(
 			md.Paragraph(
 				ufmt.Sprintf(
-					"⚠ Your are flagging %s thread ⚠",
+					"⚠ You are flagging the thread: %s ⚠",
 					md.Link(thread.Title, makeThreadURI(thread)),
 				),
 			),
@@ -302,13 +332,93 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write(form.String())
+	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to thread", makeThreadURI(thread)) + "\n")
+}
+
+func renderFlaggingReasonsPost(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	board, found := gBoards.GetByName(name)
+	if !found {
+		res.Write("Board not found")
+		return
+	}
+
+	// Thread ID must always be available
+	rawID := req.GetVar("thread")
+	threadID, err := strconv.Atoi(rawID)
+	if err != nil {
+		res.Write("Invalid thread ID: " + rawID)
+		return
+	}
+
+	thread, found := getThread(board, boards.ID(threadID))
+	if !found {
+		res.Write("Thread not found")
+		return
+	}
+
+	flags := thread.Flags
+
+	// Parse reply ID when post is a reply
+	var reply *boards.Post
+	rawID = req.GetVar("reply")
+	isReply := rawID != ""
+	if isReply {
+		replyID, err := strconv.Atoi(rawID)
+		if err != nil {
+			res.Write("Invalid reply ID: " + rawID)
+			return
+		}
+
+		reply, found = thread.Replies.Get(boards.ID(replyID))
+		if !found {
+			res.Write("Reply not found")
+			return
+		}
+
+		flags = reply.Flags
+	}
+
+	table := mdtable.Table{
+		Headers: []string{"Moderator", "Reason"},
+	}
+
+	flags.Iterate(0, flags.Size(), func(f boards.Flag) bool {
+		table.Append([]string{userLink(f.User), f.Reason})
+		return false
+	})
+
+	// Breadcrumb navigation
+	backLink := md.Link("← Back to thread", makeThreadURI(thread))
+
+	res.Write(md.H1("Flagging Reasons"))
+	res.Write(backLink + "\n\n")
+	if isReply {
+		res.Write(
+			md.Paragraph(
+				ufmt.Sprintf(
+					"Moderation flags for a %s submitted by %s",
+					md.Link("comment", makeReplyURI(reply)),
+					userLink(reply.Creator),
+				),
+			),
+		)
+	} else {
+		res.Write(
+			md.Paragraph(
+				// Intentionally hide flagged thread title
+				ufmt.Sprintf("Moderation flags for %s", md.Link("thread", makeThreadURI(thread))),
+			),
+		)
+	}
+	res.Write(table.String())
 }
 
 func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("Board not found")
 		return
 	}
 
@@ -322,7 +432,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 
 	thread, found := board.Threads.Get(boards.ID(threadID))
 	if !found {
-		res.Write("Thread does not exist with ID: " + rawID)
+		res.Write("Thread not found")
 		return
 	}
 
@@ -339,7 +449,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 
 		reply, _ = thread.Replies.Get(boards.ID(replyID))
 		if reply == nil {
-			res.Write("Reply does not exist with ID: " + rawID)
+			res.Write("Reply not found")
 			return
 		}
 	}
@@ -377,22 +487,29 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 	form.Textarea(
 		"body",
 		"placeholder", "Comment",
+		"required", "true",
 	)
+
+	// Breadcrumb navigation
+	backLink := md.Link("← Back to thread", makeThreadURI(thread))
 
 	if isReply {
 		res.Write(md.H1(board.Name + ": Reply"))
+		res.Write(backLink + "\n\n")
 		res.Write(
 			md.Paragraph(ufmt.Sprintf("Replying to a comment posted by %s:", userLink(reply.Creator))) +
 				md.Blockquote(reply.Body),
 		)
 	} else {
 		res.Write(md.H1(board.Name + ": Comment"))
+		res.Write(backLink + "\n\n")
 		res.Write(
 			md.Paragraph(
-				ufmt.Sprintf("Commenting on %s thread", md.Link(thread.Title, makeThreadURI(thread))),
+				ufmt.Sprintf("Commenting on the thread: %s", md.Link(thread.Title, makeThreadURI(thread))),
 			),
 		)
 	}
 
 	res.Write(form.String())
+	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to thread", makeThreadURI(thread)) + "\n")
 }
