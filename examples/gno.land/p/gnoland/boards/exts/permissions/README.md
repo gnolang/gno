@@ -4,8 +4,9 @@ This is a `gno.land/p/gnoland/boards` package extension that provides a custom
 `Permissions` implementation that uses an underlying DAO to manage users and
 roles.
 
-This implementation is used by default when creating boards, to organize board members, roles and
-permissions. It uses an underlying DAO to manage users, roles and to allow running proposals.
+It also supports optionally setting validation functions to be triggered by the
+`WithPermission()` method before a callback is called. Validators allows adding
+custom checks and requirements before the callback is called.
 
 Usage Example:
 
@@ -16,9 +17,6 @@ import (
   "gno.land/p/gnoland/boards"
   "gno.land/p/gnoland/boards/exts/permissions"
 )
-
-// Example user account
-const user address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
 // Define a foo permissions
 const PermissionFoo boards.Permissions = "foo"
@@ -36,15 +34,10 @@ validateFoo := func(_ boards.Permissions, args boards.Args) error {
 perms := permissions.New()
 perms.ValidateFunc(PermisionFoo, validateFoo)
 
-// Add foo permission to guests
-perms.AddRole(permissions.RoleGuest, PermissionFoo)
-
-// Add a guest user
-perms.SetUserRoles(cross, user, permissions.RoleGuest)
-
 // Call a permissioned callback
 args := boards.Args{"bar"}
-perms.WithPermission(cross, user, PermisionFoo, args, func(realm) {
+user := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+perms.WithPermission(user, PermisionFoo, args, func(realm) {
     println("Hello bar!")
 })
 ```
