@@ -1544,7 +1544,7 @@ func TestStorageDepositPriceIncrease(t *testing.T) {
 	require.Equal(t, storageAfterAlloc, storageUnchanged, "price change should not affect storage")
 	require.Equal(t, depositAfterAlloc, depositUnchanged, "price change should not affect deposit")
 
-	// Step 4: Free data after price increase — exercises proportional refund path.
+	// Step 4: Free data after price increase
 	userBalanceBefore := env.bankk.GetCoins(ctx, addr)
 	freeMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Free", []string{})
 	freeMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(1_000_000))
@@ -1570,9 +1570,15 @@ func TestStorageDepositPriceIncrease(t *testing.T) {
 	// The diff comes from ~5 bytes of variable reference overhead.
 	require.True(t, diff < 1000, "refund should match data deposit within rounding tolerance")
 
-	// Remaining deposit should cover only the base package storage.
+	// Remaining deposit should be close to the base package deposit recorded after addpkg.
 	depositAddr := env.bankk.GetCoins(ctx, depAddr)
-	require.True(t, depositAddr.AmountOf(ugnot.Denom) > 0, "base package deposit should remain")
+	remaining := depositAddr.AmountOf(ugnot.Denom)
+	baseDiff := remaining - int64(baseDeposit)
+	if baseDiff < 0 {
+		baseDiff = -baseDiff
+	}
+	require.True(t, baseDiff < 1000,
+		"remaining deposit should approximate base package deposit")
 }
 
 // TestStorageDepositPriceDecrease verifies that decreasing StoragePrice via
@@ -1622,7 +1628,7 @@ func TestStorageDepositPriceDecrease(t *testing.T) {
 	err = env.vmk.SetParams(ctx, params)
 	require.NoError(t, err)
 
-	// Step 4: Free data after price decrease — exercises proportional refund path.
+	// Step 4: Free data after price decrease.
 	userBalanceBefore := env.bankk.GetCoins(ctx, addr)
 	freeMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Free", []string{})
 	freeMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(1_000_000))
@@ -1642,11 +1648,15 @@ func TestStorageDepositPriceDecrease(t *testing.T) {
 	// The diff comes from ~5 bytes of variable reference overhead.
 	require.True(t, diff < 10000, "refund should match data deposit within rounding tolerance")
 
-	// Remaining deposit should cover only base package storage — no orphaned funds.
+	// Remaining deposit should be close to the base package deposit recorded after addpkg.
 	depositAddr := env.bankk.GetCoins(ctx, depAddr)
-	remainingRatio := float64(depositAddr.AmountOf(ugnot.Denom)) / float64(depositAfterAlloc)
-	require.True(t, remainingRatio < 0.05,
-		"less than 5%% of original deposit should remain (only base package storage)")
+	remaining := depositAddr.AmountOf(ugnot.Denom)
+	baseDiff := remaining - int64(baseDeposit)
+	if baseDiff < 0 {
+		baseDiff = -baseDiff
+	}
+	require.True(t, baseDiff < 10000,
+		"remaining deposit should approximate base package deposit")
 }
 
 // parseStorageInfo parses the "storage: X, deposit: Y" string from QueryStorage
