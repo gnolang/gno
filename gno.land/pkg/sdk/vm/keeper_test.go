@@ -1568,8 +1568,6 @@ func TestStorageDepositPriceIncrease(t *testing.T) {
 	_, err = env.vmk.Call(ctx, freeMsg)
 	require.NoError(t, err, "Free should succeed after price increase")
 
-	info, err = env.vmk.QueryStorage(ctx, pkgPath)
-	require.NoError(t, err)
 	userBalanceAfter = env.bankk.GetCoins(ctx, addr)
 	fullRefund := userBalanceAfter.AmountOf(ugnot.Denom) - userBalanceBefore.AmountOf(ugnot.Denom)
 	require.True(t, fullRefund > 0, "user should receive remaining refund")
