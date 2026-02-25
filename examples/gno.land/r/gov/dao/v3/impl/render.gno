@@ -98,6 +98,17 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 	out += p.Description()
 	out += "\n\n"
 
+	// Add executor metadata if available
+	if p.ExecutorString() != "" {
+		out += ufmt.Sprintf(`This proposal contains the following metadata:
+
+%s
+
+Executor created in: %s
+`, p.ExecutorString(), p.ExecutorCreationRealm())
+		out += "\n\n"
+	}
+
 	out += "\n\n---\n\n"
 	out += ps.String()
 	out += "\n"
