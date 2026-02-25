@@ -17,7 +17,7 @@ var (
 func memberByTier(tier string) *memberstore.Member {
 	switch tier {
 	case memberstore.T1:
-		t, _ := memberstore.Tiers.GetTier(memberstore.T1)
+		t, _ := memberstore.GetTier(memberstore.T1)
 		return &memberstore.Member{
 			InvitationPoints: t.InvitationPoints,
 		}
