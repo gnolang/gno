@@ -29,4 +29,4 @@ func main() {
 }
 
 // Error:
-// flag count threshold exceeded: 1
+// flagging hidden threads is not allowed
