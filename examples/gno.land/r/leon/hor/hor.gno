@@ -59,7 +59,7 @@ func init() {
 		itemsSortedByDownvotes: avl.NewTree(),
 	}
 
-	Ownable = ownable.NewWithAddress(config.OwnableMain.Owner()) // OrigSendOwnable?
+	Ownable = ownable.NewWithAddressByPrevious(config.OwnableMain.Owner()) // OrigSendOwnable?
 	Pausable = pausable.NewFromOwnable(Ownable)
 }
 
@@ -158,7 +158,7 @@ func Downvote(cur realm, pkgpath string) {
 }
 
 func Delete(cur realm, pkgpath string) {
-	if !Ownable.OwnedByPrevious() {
+	if !Ownable.Owned() {
 		panic(ownable.ErrUnauthorized)
 	}
 
