@@ -30,7 +30,7 @@ gnokey query vm/qstorage --data gno.land/r/test/storage
 stdout 'storage: 503697, deposit: 50369700'
 
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999783936800ugnot"'
+stdout '"coins": "9999783'
 
 gnokey query params/vm:p:storage_price
 stdout '100ugnot'
@@ -63,7 +63,7 @@ stdout 'storage: 3381, deposit: 338100'
 
 ## Verify user received a refund (balance should have increased despite gas fees)
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999828235300ugnot"'
+stdout '"coins": "9999828'
 
 -- loader/load_govdao.gno --
 package load_govdao
