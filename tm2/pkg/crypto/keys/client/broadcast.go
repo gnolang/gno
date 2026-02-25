@@ -139,10 +139,7 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		if simGasWanted != originalGasWanted && res != nil {
 			res.DeliverTx.GasWanted = originalGasWanted
 			if originalGasWanted > 0 && res.DeliverTx.Error == nil && res.DeliverTx.GasUsed > originalGasWanted {
-				log := fmt.Sprintf(
-					"out of gas during simulation; gasWanted: %d, gasUsed: %d",
-					originalGasWanted, res.DeliverTx.GasUsed,
-				)
+				log := outOfGasLog(res.DeliverTx.GasUsed, originalGasWanted, cfg.simulateMaxGas, "simulation")
 				res.DeliverTx.Error = abci.ABCIErrorOrStringError(std.ErrOutOfGas(log))
 				res.DeliverTx.Log = log
 			}
@@ -209,6 +206,25 @@ func appendSuggestedGasWanted(bres *ctypes.ResultBroadcastTxCommit) {
 	} else {
 		bres.DeliverTx.Info = bres.DeliverTx.Info + ", " + msg
 	}
+}
+
+func outOfGasLog(gasUsed, gasWanted, maxGas int64, operation string) string {
+	if maxGas > 0 && gasWanted == maxGas {
+		return fmt.Sprintf(
+			"gas used (%d) exceeds max block gas (%d) during operation: %v",
+			gasUsed, gasWanted, operation,
+		)
+	}
+	if maxGas > 0 {
+		return fmt.Sprintf(
+			"gas used (%d) exceeds tx's gas wanted (%d) during operation: %v; simulate with consensus maximum (%d) to get real transaction usage",
+			gasUsed, gasWanted, operation, maxGas,
+		)
+	}
+	return fmt.Sprintf(
+		"gas used (%d) exceeds tx's gas wanted (%d) during operation: %v",
+		gasUsed, gasWanted, operation,
+	)
 }
 
 func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit) error {

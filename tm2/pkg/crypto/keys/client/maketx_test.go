@@ -122,3 +122,18 @@ func TestAppendSuggestedGasWantedAppendsExistingInfo(t *testing.T) {
 	appendSuggestedGasWanted(bres)
 	require.Equal(t, "estimated gas usage: 100, suggested gas-wanted (gas used + 5%): 105", bres.DeliverTx.Info)
 }
+
+func TestOutOfGasLogTxGasWanted(t *testing.T) {
+	log := outOfGasLog(120, 100, 200, "simulation")
+	require.Equal(t, "gas used (120) exceeds tx's gas wanted (100) during operation: simulation; simulate with consensus maximum (200) to get real transaction usage", log)
+}
+
+func TestOutOfGasLogMaxBlockGas(t *testing.T) {
+	log := outOfGasLog(120, 100, 100, "simulation")
+	require.Equal(t, "gas used (120) exceeds max block gas (100) during operation: simulation", log)
+}
+
+func TestOutOfGasLogNoConsensusMaxGas(t *testing.T) {
+	log := outOfGasLog(120, 100, -1, "simulation")
+	require.Equal(t, "gas used (120) exceeds tx's gas wanted (100) during operation: simulation", log)
+}
