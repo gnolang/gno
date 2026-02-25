@@ -21,7 +21,7 @@ gnokey query bank/balances/g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4
 stdout '1000000000ugnot'
 
 gnokey query auth/accounts/$user3_user_addr
-stdout 'height: 1'
+stdout 'height: 2'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
 stdout '    "address": "g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp",'
