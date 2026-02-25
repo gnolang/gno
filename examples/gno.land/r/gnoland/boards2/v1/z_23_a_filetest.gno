@@ -15,7 +15,7 @@ const (
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.InviteMember(cross, bid, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", permissions.RoleAdmin)
+	boards2.InviteMember(cross, bid, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", boards2.RoleAdmin)
 }
 
 func main() {
