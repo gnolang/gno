@@ -505,9 +505,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 				if bn, ok := n.(BlockNode); ok {
 					// findGotoLoopDefines(ctx, bn)
-					findHeapDefinesByUse(ctx, bn)
-					findHeapUsesDemoteDefines(ctx, bn)
-					findPackageSelectors(bn)
+					codaHeapDefinesByUse(ctx, bn)
+					codaHeapUsesDemoteDefines(ctx, bn)
+					codaPackageSelectors(bn)
 					return n, TRANS_SKIP
 				}
 				return n, TRANS_CONTINUE
