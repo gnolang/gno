@@ -10,6 +10,7 @@ custom checks and requirements before the callback is called.
 
 Usage Example:
 
+[embedmd]:# (filetests/z_readme_filetest.gno go)
 ```go
 package main
 
@@ -26,7 +27,7 @@ const user address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 // Define a role
 const RoleExample boards.Role = "example"
 
-// Define a permission
+// Define a permissions
 const PermissionFoo boards.Permission = "foo"
 
 func main() {
@@ -43,7 +44,7 @@ func main() {
 	perms := permissions.New()
 	perms.ValidateFunc(PermissionFoo, validateFoo)
 
-	// Add foo permission to example role
+	// Add foo permission to guests
 	perms.AddRole(RoleExample, PermissionFoo)
 
 	// Add a guest user
@@ -51,9 +52,11 @@ func main() {
 
 	// Call a permissioned callback
 	args := boards.Args{"bob"}
-	addr := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	perms.WithPermission(addr, PermissionFoo, args, func() {
+	perms.WithPermission(user, PermissionFoo, args, func() {
 		println("Hello Bob!")
 	})
 }
+
+// Output:
+// Hello Bob!
 ```

@@ -38,7 +38,6 @@ func main() {
 
 	// Call a permissioned callback
 	args := boards.Args{"bob"}
-	user := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	perms.WithPermission(user, PermissionFoo, args, func() {
 		println("Hello Bob!")
 	})
