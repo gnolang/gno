@@ -986,7 +986,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					assertValidAssignLhs(store, last, lx)
 					lt := evalStaticTypeOf(store, last, lx)
 					rt := evalStaticTypeOf(store, last, x.Rhs[i])
-					assertAssignableTo(x, rt, lt)
+					mustAssignableTo(x, rt, lt)
 				}
 			}
 		}
