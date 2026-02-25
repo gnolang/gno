@@ -1356,7 +1356,6 @@ func Echo(cur realm, msg string){
 	assert.True(t, depDeltaTest.Add(depDeltaFoo).IsEqual(msg2.MaxDeposit))
 }
 
-
 // TestVMKeeper_RealmDiffIterationDeterminism is a regression test for issue #4580.
 // It verifies that the processStorageDeposit function iterates over realms
 // in a deterministic order by sorting the realm paths before iteration.
