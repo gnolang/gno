@@ -16,24 +16,8 @@ import (
 // Test updating a name via GovDAO
 var c address = runtime.OriginCaller()
 
-const gUsersV1Path = "gno.land/r/gnoland/users/v1"
-
-// Register a namespace for every addresses
-// Necessary to test GovDAO Vote
-func registerTestUser(addrs ...address) {
-	// Set realm to users admin to register test user
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
-	for _, addr := range addrs {
-		err := susers.RegisterUser(cross, addr.String()[1:], addr)
-		if err != nil {
-			panic(err.Error() + " : " + addr.String())
-		}
-	}
-}
-
 func init() {
 	daov3init.InitWithUsers(c)
-	registerTestUser(c)
 
 	alice := testutils.TestAddress("alice")
 
@@ -83,7 +67,7 @@ func main() {
 // [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
 // ## Proposals
 // ### [Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`](/r/gov/dao:0)
-// Author: [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // Status: ACTIVE
 //
@@ -94,7 +78,7 @@ func main() {
 //
 // --
 // ## Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`
-// Author: [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 //
 //
@@ -116,12 +100,10 @@ func main() {
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
 // WARNING: Please double check transaction data before voting.
-//
-// **New**: Members **must** have a namespace to vote to enforce simpler tracking.
 // --
 // --
 // ## Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`
-// Author: [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 //
 //
@@ -143,12 +125,10 @@ func main() {
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
 // WARNING: Please double check transaction data before voting.
-//
-// **New**: Members **must** have a namespace to vote to enforce simpler tracking.
 // --
 // --
 // ## Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`
-// Author: [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 //
 //
@@ -170,6 +150,4 @@ func main() {
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
 // WARNING: Please double check transaction data before voting.
-//
-// **New**: Members **must** have a namespace to vote to enforce simpler tracking.
 // g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh

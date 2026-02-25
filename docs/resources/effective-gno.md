@@ -408,8 +408,8 @@ structure as follows:
 gno.land/p/nt/seqid
 ├── generator
 └── internal
-    ├── base32
-    └── cford32
+	├── base32
+	└── cford32
 ```
 
 The `seqid/internal`, `seqid/internal/base32`, and `seqid/internal/cford32`
@@ -527,19 +527,19 @@ of block #43 will contain the following data:
 ```json
 {
   "Events": [
-    {
-      "@type": "/tm.gnoEvent",
-      "type": "OwnershipChange",
-      "pkg_path": "gno.",
-      "func": "ChangeOwner",
-      "attrs": [
-        {
-          "key": "newOwner",
-          "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
-        }
-      ]
-    }
-    // other events
+	{
+	  "@type": "/tm.gnoEvent",
+	  "type": "OwnershipChange",
+	  "pkg_path": "gno.",
+	  "func": "ChangeOwner",
+	  "attrs": [
+		{
+		  "key": "newOwner",
+		  "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
+		}
+	  ]
+	}
+	// other events
   ]
 }
 ```
@@ -625,59 +625,83 @@ By using these access control mechanisms, you can ensure that your contract's
 functionality is accessible only to the intended users, providing a secure and
 reliable way to manage access to your contract.
 
-### Using avl.Tree for efficient data retrieval
+### Prefer avl.Tree over map for scalable storage
 
-In Gno, the `avl.Tree` data structure is a powerful tool for optimizing data
-retrieval. It works by lazily resolving information, which means it only loads
-the data you need when you need it. This allows you to scale your application
-and pay less gas for data retrieval.
+An `avl.Tree` works like a `map` for storing key-value pairs. `maps` store all
+entries in one object (accessing any value loads everything), while AVL trees
+store each node separately (accessing a value loads only the search path).
+This makes `avl.Tree` significantly more efficient in both gas usage and
+runtime performance for large or growing datasets.
 
-[AVL is short for Adelson-Velsky and Landis:][avl-wiki] under the hood, it is an
-implementation of a self-balancing binary tree.
-[avl-wiki]: https://en.wikipedia.org/wiki/AVL_tree
+**Key differences**:
 
-The `avl.Tree` can be used like a map, where you can store key-value pairs and
-retrieve an entry with a simple key. However, unlike a traditional map, the
-`avl.Tree` doesn't load unnecessary data. This makes it particularly efficient
-for large data sets where you only need to access a small subset of the data at
-a time.
+- **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
+- **Maps**: O(1) lookup, type safety, iterate in **unspecified order**.
 
-Here's an example of how you can use `avl.Tree`:
+**Use `avl.Tree` when you need**:
+
+- Lazy loading (efficient for large datasets - only loads the search path)
+- Efficient range queries (find all keys between "bob" and "charlie")
+- Data that grows over time (user registries, leaderboards)
+- Sorted iteration by key value
+
+**Use `map` when you need**:
+
+- O(1) fast lookups
+- Small bounded datasets (e.g.: configuration values)
+- Type safety (AVL values are `any` and require type assertions)
 
 ```go
-import "avl"
-
-var tree avl.Tree
-
-func GetPost(id string) *Post {
-	return tree.Get(id).(*Post)
+// Map example
+users := make(map[string]User)
+users["bob"] = User{}
+users["alice"] = User{}
+for name := range users { // unspecified order
+	// ...
 }
+user := users["alice"] // O(1) direct access
 
-func AddPost(_ realm, id string, post *Post) {
-	tree.Set(id, post)
+// AVL example
+var users avl.Tree
+users.Set("bob", &User{})
+users.Set("alice", &User{})
+users.Set("charlie", &User{})
+
+// Iterate all users (sorted alphabetically)
+users.Iterate("", "", func(name string, value any) bool {
+	// Order: alice, bob, charlie (sorted by key)
+	user := value.(*User) // Type assertion required - values are interface{}
+	return false // return true to stop iteration
+})
+
+// Range query: get users from "bob" to "charlie" (inclusive)
+// This is O(log n + k) where k = results in range
+users.Iterate("bob", "charlie", func(name string, value any) bool {
+	// Only visits: bob, charlie
+	user := value.(*User) 
+	return false
+})
+
+// Get a specific user (O(log n))
+value, exists := users.Get("alice")
+if !exists {
+	return nil
+}
+return value.(*User)
+
+// Multi-index example - search the same data in different ways
+var (
+	usersById   avl.Tree // Find user by ID
+	usersByName avl.Tree // Find user by name
+)
+
+func AddUser(id, name string) {
+	usersById.Set(id, name)     // Can search by ID
+	usersByName.Set(name, id)   // Can search by name
 }
 ```
 
-In this example, `GetPost` is a function that retrieves a post from the
-`avl.Tree` using an ID. It only loads the post with the specified ID, without
-loading any other posts.
-
-In the future, we plan to add built-in "map" support that will match the
-efficiency of an `avl.Tree` while offering a more intuitive API. Until then, if
-you're dealing with a compact dataset, it's probably best to use slices.
-For larger datasets where you need to quickly retrieve elements by keys,
-`avl.Tree` is the way to go.
-
-You can also create SQL-like indexes by having multiple `avl.Tree` instances for
-different fields. For example, you can have an `avl.Tree` for ID to *post, then
-an `avl.Tree` for Tags, etc. Then, you can create reader methods that will just
-retrieve what you need, similar to SQL indexes.
-
-By using `avl.Tree` and other efficient data structures, you can optimize your
-Gno code for performance and cost-effectiveness, making your applications more
-scalable and efficient.
-
-TODO: multi-indices example
+For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/README.md).
 
 ### Construct "safe" objects
 
