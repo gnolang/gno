@@ -538,9 +538,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						return n, TRANS_CONTINUE
 					}
 					if bn, ok := n.(*ForStmt); ok {
-						findContinue(ctx, bn)
-						rewriteContinue(ctx, bn)
-						markLoopvarHeapDefine(ctx, bn)
+						copyOutLoopvar(ctx, bn)
 						return n, TRANS_CONTINUE
 					}
 					return n, TRANS_CONTINUE
@@ -3198,7 +3196,7 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 }
 
 // Find continue statements that need loop variable state copy-out.
-func findContinue(ctx BlockNode, bn BlockNode) {
+func copyOutLoopvar(ctx BlockNode, bn BlockNode) {
 	// Iterate over all nodes recursively.
 	_ = TranscribeB(ctx, bn, func(
 		ns []Node,
@@ -3220,7 +3218,7 @@ func findContinue(ctx BlockNode, bn BlockNode) {
 		case TRANS_BLOCK:
 
 		// ----------------------------------------
-		case TRANS_LEAVE:
+		case TRANS_ENTER:
 			switch n := n.(type) {
 			case *BranchStmt:
 				body := last.GetBody()
@@ -3285,34 +3283,6 @@ func findContinue(ctx BlockNode, bn BlockNode) {
 
 				return n, TRANS_CONTINUE
 			}
-		}
-		return n, TRANS_CONTINUE
-	})
-}
-
-// Rewrite continue statements by injecting copy-out stmt before continue.
-func rewriteContinue(ctx BlockNode, bn BlockNode) {
-	// Iterate over all nodes recursively.
-	_ = TranscribeB(ctx, bn, func(
-		ns []Node,
-		stack []BlockNode,
-		last BlockNode,
-		ftype TransField,
-		index int,
-		n Node,
-		stage TransStage,
-	) (Node, TransCtrl) {
-		defer doRecover(stack, n)
-
-		if debug {
-			debug.Printf("rewriteContinue %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
-		}
-
-		switch stage {
-		// ----------------------------------------
-		case TRANS_BLOCK:
-
-		// ----------------------------------------
 		case TRANS_LEAVE:
 			switch bn := n.(type) {
 			case BlockNode:
@@ -3326,71 +3296,38 @@ func rewriteContinue(ctx BlockNode, bn BlockNode) {
 				}
 				// Delete attrs.
 				bn.DelAttribute(ATTR_CONTINUE_INSERT)
+
+				if n, ok := bn.(*ForStmt); ok {
+					body := n.Body
+					// get names to redefine.
+					hlns := getLoopvarAttrs(n, ATTR_HEAP_DEFINE_LOOPVAR)
+					if len(hlns) == 0 {
+						return n, TRANS_CONTINUE
+					}
+
+					rewrite := func(names []Name) {
+						for _, rn := range names {
+							// Copy-out state from redefine to loopvar at end of body.
+							lhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
+							rhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
+							lhs2.Type = NameExprTypeLoopVarHeapDefine
+							rhs2.Type = NameExprTypeNormal
+							as2 := A(lhs2, "=", rhs2)
+							body = slices.Insert(body, len(body), Stmt(as2))
+							n.Body = body
+						}
+					}
+					rewrite(hlns)
+
+					// Delete attr.
+					n.DelAttribute(ATTR_HEAP_DEFINE_LOOPVAR)
+				}
+
 				return n, TRANS_CONTINUE
 			}
 		}
 		return n, TRANS_CONTINUE
 	})
-}
-
-// Copy out loopvar to a new slot of heapItemValue.
-func markLoopvarHeapDefine(ctx BlockNode, bn BlockNode) (stop bool) {
-	// Iterate over all nodes recursively.
-	_ = TranscribeB(ctx, bn, func(
-		ns []Node,
-		stack []BlockNode,
-		last BlockNode,
-		ftype TransField,
-		index int,
-		n Node,
-		stage TransStage,
-	) (Node, TransCtrl) {
-		defer doRecover(stack, n)
-
-		if debug {
-			debug.Printf("markLoopvarHeapDefine %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
-		}
-
-		switch stage {
-		// ----------------------------------------
-
-		case TRANS_BLOCK:
-
-		// ----------------------------------------
-		case TRANS_LEAVE:
-			switch n := n.(type) {
-			case *ForStmt:
-				body := n.Body
-
-				// get names to redefine.
-				hlns := getLoopvarAttrs(n, ATTR_HEAP_DEFINE_LOOPVAR)
-				if len(hlns) == 0 {
-					return n, TRANS_CONTINUE
-				}
-
-				rewrite := func(names []Name) {
-					for _, rn := range names {
-						// Copy-out state from redefine to loopvar at end of body.
-						lhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
-						rhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
-						lhs2.Type = NameExprTypeLoopVarHeapDefine
-						rhs2.Type = NameExprTypeNormal
-						as2 := A(lhs2, "=", rhs2)
-						body = slices.Insert(body, len(body), Stmt(as2))
-						n.Body = body
-					}
-				}
-
-				rewrite(hlns)
-
-				// Delete attr.
-				n.DelAttribute(ATTR_HEAP_DEFINE_LOOPVAR)
-			}
-			return n, TRANS_CONTINUE
-		}
-		return n, TRANS_CONTINUE
-	})
-	return
 }
 
 // Fill path for injected name.
