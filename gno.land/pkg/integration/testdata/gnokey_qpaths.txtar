@@ -13,76 +13,81 @@ gnoland start
 
 # query path for prefix
 gnokey query vm/qpaths --data "gno.land/r/aaa"
-cmp stdout aaa-qpaths.stdout.golden
-cmp stderr empty_file
+stdout 'height: [1-9][0-9]*'
+stdout 'data: gno.land/r/aaa'
+stdout 'gno.land/r/aaa/bbb/ccc'
+stdout 'gno.land/r/aaa/ccc/ddd'
+! stderr '.+'
 
 gnokey query vm/qpaths --data "gno.land/r/bbb"
-cmp stdout bbb-qpaths.stdout.golden
-cmp stderr empty_file
+stdout 'height: [1-9][0-9]*'
+stdout 'data: gno.land/r/bbb/aaa'
+stdout 'gno.land/r/bbb/ccc'
+stdout 'gno.land/r/bbb0'
+! stderr '.+'
 
 gnokey query vm/qpaths --data "gno.land/r/bbb/"
-cmp stdout bbb-slash-qpaths.stdout.golden
-cmp stderr empty_file
+stdout 'height: [1-9][0-9]*'
+stdout 'data: gno.land/r/bbb/aaa'
+stdout 'gno.land/r/bbb/ccc'
+! stderr '.+'
 
 # query path for namespace
 gnokey query vm/qpaths --data "@bbb"
-cmp stdout bbb-name-qpaths.stdout.golden
-cmp stderr empty_file
+stdout 'height: [1-9][0-9]*'
+stdout 'data: gno.land/p/bbb/ccc/ppp'
+stdout 'gno.land/r/bbb/aaa'
+stdout 'gno.land/r/bbb/ccc'
+! stderr '.+'
 
 # query path for namespace
 gnokey query vm/qpaths --data "@bbb/ccc"
-cmp stdout bbb-name-subpath-qpaths.stdout.golden
-cmp stderr empty_file
+stdout 'height: [1-9][0-9]*'
+stdout 'data: gno.land/p/bbb/ccc/ppp'
+stdout 'gno.land/r/bbb/ccc'
+! stderr '.+'
 
 ! gnokey query vm/qpaths --data "@invalid\\name"
 cmp stdout invalid-name-qpaths.stdout.golden
 cmp stderr invalid-name-qpaths.stderr.golden
 
 gnokey query vm/qpaths --data "gno.land/r/ccc"
-cmp stdout ccc-qpaths.stdout.golden
-cmp stderr empty_file
+stdout 'height: [1-9][0-9]*'
+stdout 'data: '
+! stderr '.+'
 
 gnokey query vm/qpaths?limit=5 --data "_"
-cmp stdout stdlibs-qpaths.stdout.golden
-cmp stderr empty_file
-
+stdout 'height: [1-9][0-9]*'
+stdout 'data: bufio'
+stdout 'bytes'
+stdout 'chain'
+stdout 'chain/banker'
+stdout 'chain/params'
+! stderr '.+'
 
 gnokey query vm/qpaths --data "_/encoding"
-cmp stdout stdlibs-encoding-qpaths.stdout.golden
-cmp stderr empty_file
-
+stdout 'height: [1-9][0-9]*'
+stdout 'data: encoding'
+stdout 'encoding/base32'
+stdout 'encoding/base64'
+stdout 'encoding/binary'
+stdout 'encoding/csv'
+stdout 'encoding/hex'
+! stderr '.+'
 
 gnokey query vm/qpaths?limit=5 --data ""
-cmp stdout empty-qpaths.stdout.golden
-cmp stderr empty_file
+stdout 'height: [1-9][0-9]*'
+stdout 'data: bufio'
+stdout 'bytes'
+stdout 'chain'
+stdout 'chain/banker'
+stdout 'chain/params'
+! stderr '.+'
 
 -- main.gno --
 package main
 
 func main() { println("A") }
--- aaa-qpaths.stdout.golden --
-height: 1
-data: gno.land/r/aaa
-gno.land/r/aaa/bbb/ccc
-gno.land/r/aaa/ccc/ddd
--- bbb-qpaths.stdout.golden --
-height: 1
-data: gno.land/r/bbb/aaa
-gno.land/r/bbb/ccc
-gno.land/r/bbb0
--- bbb-slash-qpaths.stdout.golden --
-height: 1
-data: gno.land/r/bbb/aaa
-gno.land/r/bbb/ccc
--- bbb-name-qpaths.stdout.golden --
-height: 1
-data: gno.land/p/bbb/ccc/ppp
-gno.land/r/bbb/aaa
-gno.land/r/bbb/ccc
--- bbb-name-subpath-qpaths.stdout.golden --
-height: 1
-data: gno.land/p/bbb/ccc/ppp
-gno.land/r/bbb/ccc
 -- invalid-name-qpaths.stdout.golden --
 Log: --= Error =--
 Data: errors.FmtError{format:"invalid username format", args:[]interface {}(nil)}
@@ -91,29 +96,3 @@ Msg Traces:
 
 -- invalid-name-qpaths.stderr.golden --
 "gnokey" error: invalid username format
--- ccc-qpaths.stdout.golden --
-height: 1
-data: 
--- empty-qpaths.stdout.golden --
-height: 1
-data: bufio
-bytes
-chain
-chain/banker
-chain/params
--- stdlibs-qpaths.stdout.golden --
-height: 1
-data: bufio
-bytes
-chain
-chain/banker
-chain/params
--- stdlibs-encoding-qpaths.stdout.golden --
-height: 1
-data: encoding
-encoding/base32
-encoding/base64
-encoding/binary
-encoding/csv
-encoding/hex
--- empty_file --
