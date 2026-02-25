@@ -2,8 +2,6 @@
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
 loadpkg gno.land/r/sys/params
-loadpkg gno.land/r/sys/users
-loadpkg gno.land/r/gnoland/users/v1
 
 patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
@@ -18,6 +16,7 @@ stdout OK!
 
 ## Propose to update default deposit.
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
+
 stdout OK!
 
 ## Vote "update default deposit"

@@ -5,11 +5,10 @@ import (
 	"strings"
 
 	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/avl"
-
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // TODO: Refactor globals in favor of a cleaner pattern
@@ -34,6 +33,9 @@ var (
 		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", // @devx
 		"g1manfred47kzduec920z88wfr64ylksmdcedlf5", // @moul
 	)
+
+	// TODO: Allow updating open account amount though a proposal (GovDAO, CommonDAO?)
+	gOpenAccountAmount = int64(3_000_000_000) // ugnot required for open board actions
 )
 
 func init() {
@@ -43,20 +45,22 @@ func init() {
 
 // initRealmPermissions returns the default realm permissions.
 func initRealmPermissions(owners ...address) boards.Permissions {
-	perms := permissions.New()
-	perms.SetSuperRole(permissions.RoleOwner)
-	perms.AddRole(permissions.RoleAdmin, permissions.PermissionBoardCreate)
+	perms := permissions.New(
+		permissions.UseSingleUserRole(),
+		permissions.WithSuperRole(RoleOwner),
+	)
+	perms.AddRole(RoleAdmin, PermissionBoardCreate)
 	for _, owner := range owners {
-		perms.SetUserRoles(cross, owner, permissions.RoleOwner)
+		perms.SetUserRoles(owner, RoleOwner)
 	}
 
-	perms.ValidateFunc(permissions.PermissionBoardCreate, validateBasicBoardCreate)
-	perms.ValidateFunc(permissions.PermissionMemberInvite, validateBasicMemberInvite)
-	perms.ValidateFunc(permissions.PermissionRoleChange, validateBasicRoleChange)
+	perms.ValidateFunc(PermissionBoardCreate, validateBasicBoardCreate)
+	perms.ValidateFunc(PermissionMemberInvite, validateBasicMemberInvite)
+	perms.ValidateFunc(PermissionRoleChange, validateBasicRoleChange)
 	return perms
 }
 
-// getInvitesRequests returns invite requests for a board.
+// getInviteRequests returns invite requests for a board.
 func getInviteRequests(boardID boards.ID) (_ *avl.Tree, found bool) {
 	v, exists := gInviteRequests.Get(boardID.Key())
 	if !exists {

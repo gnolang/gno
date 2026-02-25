@@ -17,13 +17,13 @@ func RenderCharts(members MembersByTier) string {
 	pieSlicesTp := make([]piechart.PieSlice, 0, len(tierNames))
 
 	for _, tn := range tierNames {
-		tier, ok := Tiers.GetTier(tn)
+		tier, ok := tiers.GetTier(tn)
 		if !ok {
 			return ""
 		}
 
 		ts := float64(members.GetTierSize(tn))
-		tp := tier.PowerHandler(members, Tiers) * ts
+		tp := tier.PowerHandler(members, tiers) * ts
 
 		pieSlicesTs = append(pieSlicesTs, piechart.PieSlice{
 			Value: ts,

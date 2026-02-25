@@ -6,7 +6,7 @@ stdout 'hey'
 stdout '^hru\?'
 
 stderr '=== RUN   ./x_filetest.gno'
-stderr '--- PASS: ./x_filetest.gno \(\d+\.\d\ds\)'
+stderr '--- PASS: ./x_filetest.gno \(elapsed: \d+\.\d\ds, gas: \d+\)'
 stderr 'ok      \. 	\d+\.\d\ds'
 
 cmp x_filetest.gno x_filetest.gno.golden

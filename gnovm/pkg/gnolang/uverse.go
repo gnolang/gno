@@ -664,11 +664,14 @@ func makeUverseNode() {
 			switch baseOf(arg0.TV.T).(type) {
 			case *MapType:
 				mv := arg0.TV.V.(*MapValue)
+
+				// Guard for protecting map against mutation by external realms.
+				m.Realm.DidUpdate(mv, nil, nil)
+
 				val, ok := mv.GetValueForKey(m.Store, &itv)
 				if !ok {
 					return
 				}
-
 				// delete
 				mv.DeleteForKey(m.Store, &itv)
 

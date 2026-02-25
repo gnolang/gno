@@ -6,7 +6,6 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -26,7 +25,7 @@ func init() {
 	boards2.SetFlaggingThreshold(cross, bid, 2)
 
 	// Invite a moderator to the new board
-	boards2.InviteMember(cross, bid, moderator, permissions.RoleModerator)
+	boards2.InviteMember(cross, bid, moderator, boards2.RoleModerator)
 
 	// Create a new thread and flag it as a moderator
 	testing.SetRealm(testing.NewUserRealm(moderator))

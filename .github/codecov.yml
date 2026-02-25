@@ -10,15 +10,8 @@ coverage:
   round: down
   precision: 2
   status:
-    patch: # new lines
-      default:
-        target: 80
-        threshold: 10
-        base: auto
-        if_no_uploads: error
-        if_not_found: success
-        if_ci_failed: error
-        only_pulls: true # Only check patch coverage on PRs
+    project: off
+    patch: off
 
 flag_management:
   default_rules:

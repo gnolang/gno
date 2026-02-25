@@ -108,4 +108,4 @@ func main() {
 //
 //
 //
-//  * [test-1](/r/gnops/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h) - [profile](/r/demo/profile:u/g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w)
+//  * [test-1](/r/gnops/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h) - [profile](/r/demo/profile:u/g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)
