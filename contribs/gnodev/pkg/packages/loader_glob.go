@@ -68,6 +68,11 @@ func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
 				return fs.SkipDir
 			}
 
+			if d.Name() == "filetests" {
+				// We don't need to load file tests
+				return filepath.SkipDir
+			}
+
 			if gpath.Match(path) {
 				mpaths = append(mpaths, path)
 			}
