@@ -9,7 +9,6 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/ufmt"
 
-	"gno.land/r/gnoland/boards2/v1/permissions"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -49,7 +48,7 @@ func ProposeRealmMembersAdd(users ...address) dao.ProposalRequest {
 				return errors.New("user is already a member: " + addr.String())
 			}
 
-			gPerms.SetUserRoles(cross, addr, permissions.RoleOwner)
+			gPerms.SetUserRoles(addr, RoleOwner)
 		}
 		return nil
 	}
@@ -95,7 +94,7 @@ func ProposeRealmMembersRemove(members ...address) dao.ProposalRequest {
 				return errors.New("user is not a member: " + addr.String())
 			}
 
-			gPerms.RemoveUser(cross, addr)
+			gPerms.RemoveUser(addr)
 		}
 		return nil
 	}
