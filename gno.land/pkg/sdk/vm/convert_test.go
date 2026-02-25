@@ -3,7 +3,6 @@ package vm
 import (
 	"encoding/base64"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -72,14 +71,9 @@ func TestConvertByteArrayLengthValidation(t *testing.T) {
 			b64 := base64.StdEncoding.EncodeToString(input)
 
 			if tt.shouldPanic {
-				var recovered any
-				func() {
-					defer func() { recovered = recover() }()
+				require.PanicsWithValue(t, fmt.Sprintf("array length mismatch: declared [%d]byte, got %d bytes", tt.declaredLen, tt.inputLen), func() {
 					convertArgToGno(b64, arrType)
-				}()
-				require.NotNil(t, recovered, "expected panic for [%d]byte with %d bytes input", tt.declaredLen, tt.inputLen)
-				require.True(t, strings.Contains(fmt.Sprint(recovered), "array length mismatch"),
-					"expected 'array length mismatch' in panic, got: %v", recovered)
+				})
 			} else {
 				tv := convertArgToGno(b64, arrType)
 				av, ok := tv.V.(*gnolang.ArrayValue)
