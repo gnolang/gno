@@ -13,7 +13,7 @@ import (
 	"gno.land/r/gov/dao/v3/treasury"
 )
 
-func NewChangeLawRequest(_ realm, newLaw *Law) dao.ProposalRequest {
+func NewChangeLawRequest(_ realm, newLaw Law) dao.ProposalRequest {
 	cb := func(_ realm) error {
 		law = &newLaw
 		return nil
