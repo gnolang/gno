@@ -1544,46 +1544,31 @@ func TestStorageDepositPriceIncrease(t *testing.T) {
 	require.Equal(t, storageAfterAlloc, storageUnchanged, "price change should not affect storage")
 	require.Equal(t, depositAfterAlloc, depositUnchanged, "price change should not affect deposit")
 
-	// Step 4: Partial free — Resize from 500KB to 200KB (exercises math/big proportional path).
+	// Step 4: Free data after price increase — exercises proportional refund path.
 	userBalanceBefore := env.bankk.GetCoins(ctx, addr)
-	resizeMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Resize", []string{"200000"})
-	resizeMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(1_000_000))
-	_, err = env.vmk.Call(ctx, resizeMsg)
-	require.NoError(t, err, "Resize should succeed after price increase with proportional refund")
-
-	info, err = env.vmk.QueryStorage(ctx, pkgPath)
-	require.NoError(t, err)
-	storageAfterResize, depositAfterResize := parseStorageInfo(t, info)
-	userBalanceAfter := env.bankk.GetCoins(ctx, addr)
-	partialRefund := userBalanceAfter.AmountOf(ugnot.Denom) - userBalanceBefore.AmountOf(ugnot.Denom)
-
-	require.True(t, storageAfterResize < storageAfterAlloc, "storage should decrease after resize")
-	require.True(t, depositAfterResize < depositAfterAlloc, "deposit should decrease after resize")
-	require.True(t, partialRefund > 0, "user should receive partial proportional refund")
-
-	// Step 5: Full free — release all remaining data (exercises full-refund shortcut).
-	userBalanceBefore = env.bankk.GetCoins(ctx, addr)
 	freeMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Free", []string{})
 	freeMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(1_000_000))
 	_, err = env.vmk.Call(ctx, freeMsg)
-	require.NoError(t, err, "Free should succeed after price increase")
+	require.NoError(t, err, "Free should succeed after price increase with proportional refund")
 
-	userBalanceAfter = env.bankk.GetCoins(ctx, addr)
-	fullRefund := userBalanceAfter.AmountOf(ugnot.Denom) - userBalanceBefore.AmountOf(ugnot.Denom)
-	require.True(t, fullRefund > 0, "user should receive remaining refund")
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageFinal, depositFinal := parseStorageInfo(t, info)
+	userBalanceAfter := env.bankk.GetCoins(ctx, addr)
+	refund := userBalanceAfter.AmountOf(ugnot.Denom) - userBalanceBefore.AmountOf(ugnot.Denom)
 
-	// Total refund (partial + full) should equal deposit charged for data (not base package).
-	totalRefund := partialRefund + fullRefund
+	require.True(t, storageFinal < storageAfterAlloc, "storage should decrease after free")
+	require.True(t, depositFinal < depositAfterAlloc, "deposit should decrease after free")
+	require.True(t, refund > 0, "user should receive proportional refund")
+
+	// Refund should approximate deposit charged for data (not base package).
 	depositForData := int64(depositAfterAlloc - baseDeposit)
-
-	// Allow small rounding tolerance (proportional math may lose a few ugnot).
-	diff := totalRefund - depositForData
+	diff := refund - depositForData
 	if diff < 0 {
 		diff = -diff
 	}
-	// Allow tolerance for variable reference overhead: Resize/Free calls update
-	// the slice header metadata, adding a few bytes that shift the base slightly.
-	require.True(t, diff < 1000, "total refund should match data deposit within rounding tolerance")
+	// The diff comes from ~5 bytes of variable reference overhead.
+	require.True(t, diff < 1000, "refund should match data deposit within rounding tolerance")
 
 	// Remaining deposit should cover only the base package storage.
 	depositAddr := env.bankk.GetCoins(ctx, depAddr)
@@ -1637,37 +1622,25 @@ func TestStorageDepositPriceDecrease(t *testing.T) {
 	err = env.vmk.SetParams(ctx, params)
 	require.NoError(t, err)
 
-	// Step 4: Partial free — Resize from 500KB to 200KB.
+	// Step 4: Free data after price decrease — exercises proportional refund path.
 	userBalanceBefore := env.bankk.GetCoins(ctx, addr)
-	resizeMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Resize", []string{"200000"})
-	resizeMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(1_000_000))
-	_, err = env.vmk.Call(ctx, resizeMsg)
-	require.NoError(t, err, "Resize should succeed after price decrease")
-
-	userBalanceAfter := env.bankk.GetCoins(ctx, addr)
-	partialRefund := userBalanceAfter.AmountOf(ugnot.Denom) - userBalanceBefore.AmountOf(ugnot.Denom)
-	require.True(t, partialRefund > 0, "user should receive partial proportional refund")
-
-	// Step 5: Full free — release all remaining data.
-	userBalanceBefore = env.bankk.GetCoins(ctx, addr)
 	freeMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Free", []string{})
 	freeMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(1_000_000))
 	_, err = env.vmk.Call(ctx, freeMsg)
 	require.NoError(t, err, "Free should succeed after price decrease")
 
-	userBalanceAfter = env.bankk.GetCoins(ctx, addr)
-	fullRefund := userBalanceAfter.AmountOf(ugnot.Denom) - userBalanceBefore.AmountOf(ugnot.Denom)
+	userBalanceAfter := env.bankk.GetCoins(ctx, addr)
+	refund := userBalanceAfter.AmountOf(ugnot.Denom) - userBalanceBefore.AmountOf(ugnot.Denom)
+	require.True(t, refund > 0, "user should receive proportional refund")
 
-	// Total refund should match deposit charged for data.
-	totalRefund := partialRefund + fullRefund
+	// Refund should approximate deposit charged for data (not base package).
 	depositForData := int64(depositAfterAlloc - baseDeposit)
-	diff := totalRefund - depositForData
+	diff := refund - depositForData
 	if diff < 0 {
 		diff = -diff
 	}
-	// Allow tolerance for variable reference overhead: Resize/Free calls update
-	// the slice header metadata, adding a few bytes that shift the base slightly.
-	require.True(t, diff < 10000, "total refund should match data deposit within rounding tolerance")
+	// The diff comes from ~5 bytes of variable reference overhead.
+	require.True(t, diff < 10000, "refund should match data deposit within rounding tolerance")
 
 	// Remaining deposit should cover only base package storage — no orphaned funds.
 	depositAddr := env.bankk.GetCoins(ctx, depAddr)
@@ -1686,7 +1659,7 @@ func parseStorageInfo(t *testing.T, info string) (storage uint64, deposit uint64
 }
 
 // storageRealmFiles returns the .gno files for a test realm that can allocate
-// and resize a byte slice. Used by storage deposit price change tests.
+// and free a byte slice. Used by storage deposit price change tests.
 func storageRealmFiles(pkgName, pkgPath string) []*std.MemFile {
 	return []*std.MemFile{
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
@@ -1697,10 +1670,6 @@ func storageRealmFiles(pkgName, pkgPath string) []*std.MemFile {
 var data []byte
 
 func Allocate(cur realm, size int) {
-	data = make([]byte, size)
-}
-
-func Resize(cur realm, size int) {
 	data = make([]byte, size)
 }
 
