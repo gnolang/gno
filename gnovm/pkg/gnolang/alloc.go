@@ -300,6 +300,9 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 // `make()` and `append()`. Using `Alloc.NewListArray` can be used is most cases
 // to allocate the space for the `TypedValue` list before doing the allocation
 // in the go runtime -- see the `make()` code in uverse.go.
+// NOTE: cap(list) is propagated directly into the Gno SliceValue.Maxcap.
+// Callers must ensure cap(list) == len(list) to produce deterministic results
+// across Go versions (Go's append growth strategy is unspecified).
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
