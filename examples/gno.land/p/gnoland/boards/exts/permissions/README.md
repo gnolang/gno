@@ -27,7 +27,7 @@ const user address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 // Define a role
 const RoleExample boards.Role = "example"
 
-// Define a permissions
+// Define a permission
 const PermissionFoo boards.Permission = "foo"
 
 func main() {
@@ -44,7 +44,7 @@ func main() {
 	perms := permissions.New()
 	perms.ValidateFunc(PermissionFoo, validateFoo)
 
-	// Add foo permission to guests
+	// Add foo permission to example role
 	perms.AddRole(RoleExample, PermissionFoo)
 
 	// Add a guest user
