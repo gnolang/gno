@@ -32,6 +32,6 @@ func main() {
 // true 0
 // true 0
 // true 0
-// s1[0] is: 3
-// s1[1] is: 3
+// s1[0] is: 1
+// s1[1] is: 2
 // s1[2] is: 3

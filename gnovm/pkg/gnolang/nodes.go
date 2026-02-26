@@ -992,6 +992,7 @@ type bodyStmt struct {
 	NumStmts      int          // number of Stmts, for goto
 	Cond          Expr         // for ForStmt
 	Post          Stmt         // for ForStmt
+	NumInit       int          // for ForStmt
 	Active        Stmt         // for PopStmt()
 	Key           Expr         // for RangeStmt
 	Value         Expr         // for RangeStmt
