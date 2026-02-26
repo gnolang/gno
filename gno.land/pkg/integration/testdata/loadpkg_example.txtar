@@ -4,7 +4,7 @@ loadpkg gno.land/p/nt/ufmt
 ## start a new node
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/importtest -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/importtest -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stdout OK!
 
 ## execute Render

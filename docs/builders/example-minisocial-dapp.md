@@ -211,7 +211,6 @@ gnokey maketx call \
 -func "CreatePost" \
 -args "This is my first post" \
 -gas-fee 1000000ugnot -gas-wanted 5000000 \
--broadcast \
 -chainid "dev" \
 -remote "tcp://127.0.0.1:26657" \
 {MYKEY}

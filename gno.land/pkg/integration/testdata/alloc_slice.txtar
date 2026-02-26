@@ -2,7 +2,7 @@ loadpkg gno.land/r/alloc $WORK
 
 gnoland start
 
-! gnokey maketx call -pkgpath gno.land/r/alloc -func DoAlloc -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/alloc -func DoAlloc -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stderr 'Data: allocation limit exceeded'
 
 -- alloc.gno --

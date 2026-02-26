@@ -23,7 +23,7 @@ gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
 stdout 'data: ""'
 
 # member send 42 ugnot to treasury realm
-gnokey maketx send -send 42ugnot -to g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test member
+gnokey maketx send -send 42ugnot -to g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid tendermint_test member
 
 # 2/3 verify receiver and treasury balances
 gnokey query bank/balances/${receiver_user_addr}
@@ -32,7 +32,7 @@ gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
 stdout 'data: "42ugnot"'
 
 # add the proposal
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
 # call gov/dao render to check the proposal was created
@@ -41,11 +41,11 @@ stdout 'Reason: integration test payment'
 stdout 'Payment: 42ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 # vote on the proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
 # call proposal execution
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -chainid=tendermint_test member
 stdout OK!
 
 # check output

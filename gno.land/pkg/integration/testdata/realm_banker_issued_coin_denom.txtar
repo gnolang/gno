@@ -7,40 +7,40 @@ adduser test2
 gnoland start
 
 ## add realm_banker
-gnokey maketx addpkg -pkgdir $WORK/short -pkgpath gno.land/r/test/realm_banker -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/short -pkgpath gno.land/r/test/realm_banker -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
 
 ## add realm_banker with long package_name
-gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
 
 ## add invalid realm_denom
-gnokey maketx addpkg -pkgdir $WORK/invalid_realm_denom -pkgpath gno.land/r/test/invalid_realm_denom -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/invalid_realm_denom -pkgpath gno.land/r/test/invalid_realm_denom -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
 
 ## test2 spend all balance
-gnokey maketx send -send "999990000ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx send -send "999990000ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -chainid=tendermint_test test2
 
 ## check test2 balance
 gnokey query bank/balances/${test2_user_addr}
 stdout ''
 
 ## mint coin from banker
-gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Mint -args ${test2_user_addr} -args "ugnot" -args "31337" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Mint -args ${test2_user_addr} -args "ugnot" -args "31337" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 
 ## check balance after minting, without patching banker will return '31337ugnot'
 gnokey query bank/balances/${test2_user_addr}
 stdout '"31337/gno.land/r/test/realm_banker:ugnot"'
 
 ## burn coin
-gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Burn -args ${test2_user_addr} -args "ugnot" -args "7" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Burn -args ${test2_user_addr} -args "ugnot" -args "7" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 
 ## check balance after burning
 gnokey query bank/balances/${test2_user_addr}
 stdout '"31330/gno.land/r/test/realm_banker:ugnot"'
 
 ## transfer 100000ugnot to test2 for gas-fee of below tx
-gnokey maketx send -send "100000ugnot" -to ${test2_user_addr} -gas-fee 100000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx send -send "100000ugnot" -to ${test2_user_addr} -gas-fee 100000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 
 ## transfer coin
-gnokey maketx send -send "1330/gno.land/r/test/realm_banker:ugnot" -to g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0 -gas-fee 100000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx send -send "1330/gno.land/r/test/realm_banker:ugnot" -to g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0 -gas-fee 100000ugnot -gas-wanted 10000000 -chainid=tendermint_test test2
 
 ## check sender balance
 gnokey query bank/balances/${test2_user_addr}
@@ -51,24 +51,24 @@ gnokey query bank/balances/g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0
 stdout '"1330/gno.land/r/test/realm_banker:ugnot"'
 
 ## mint coin from long named package with banker
-gnokey maketx call -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 gnokey query bank/balances/g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7
 stdout '"100/gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890:ugnot"'
 
 ## mint invalid base denom
-! gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "2gnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "2gnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'cannot issue coins with invalid denom base name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits'
 
 ## burn invalid base denom
-! gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Burn -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "2gnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Burn -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "2gnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'cannot issue coins with invalid denom base name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits'
 
 ## mint invalid realm denom
-! gnokey maketx call -pkgpath gno.land/r/test/invalid_realm_denom -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/test/invalid_realm_denom -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 
 ## burn invalid realm denom
-! gnokey maketx call -pkgpath gno.land/r/test/invalid_realm_denom -func Burn -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/test/invalid_realm_denom -func Burn -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 
 -- short/gnomod.toml --
