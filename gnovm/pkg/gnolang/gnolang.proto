@@ -455,16 +455,17 @@ message bodyStmt {
 	sint64 num_stmts = 8 [json_name = "NumStmts"];
 	google.protobuf.Any cond = 9 [json_name = "Cond"];
 	google.protobuf.Any post = 10 [json_name = "Post"];
-	google.protobuf.Any active = 11 [json_name = "Active"];
-	google.protobuf.Any key = 12 [json_name = "Key"];
-	google.protobuf.Any value = 13 [json_name = "Value"];
-	sint64 op = 14 [json_name = "Op"];
-	sint64 list_len = 15 [json_name = "ListLen"];
-	sint64 list_index = 16 [json_name = "ListIndex"];
-	MapListItem next_item = 17 [json_name = "NextItem"];
-	sint64 str_len = 18 [json_name = "StrLen"];
-	sint64 str_index = 19 [json_name = "StrIndex"];
-	sint32 next_rune = 20 [json_name = "NextRune"];
+	sint64 num_init = 11 [json_name = "NumInit"];
+	google.protobuf.Any active = 12 [json_name = "Active"];
+	google.protobuf.Any key = 13 [json_name = "Key"];
+	google.protobuf.Any value = 14 [json_name = "Value"];
+	sint64 op = 15 [json_name = "Op"];
+	sint64 list_len = 16 [json_name = "ListLen"];
+	sint64 list_index = 17 [json_name = "ListIndex"];
+	MapListItem next_item = 18 [json_name = "NextItem"];
+	sint64 str_len = 19 [json_name = "StrLen"];
+	sint64 str_index = 20 [json_name = "StrIndex"];
+	sint32 next_rune = 21 [json_name = "NextRune"];
 }
 
 message FuncDecl {
