@@ -82,7 +82,7 @@ func (m *Machine) doOpEql() {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
 	// set result in lv.
-	res := isEql(m, m.Store, lv, rv)
+	res := isEql(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -99,7 +99,7 @@ func (m *Machine) doOpNeq() {
 	}
 
 	// set result in lv.
-	res := !isEql(m, m.Store, lv, rv)
+	res := !isEql(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -341,7 +341,8 @@ func (m *Machine) doOpBandn() {
 // logic functions
 
 // TODO: can be much faster.
-func isEql(m *Machine, store Store, lv, rv *TypedValue) bool {
+func isEql(m *Machine, lv, rv *TypedValue) bool {
+	store := m.Store
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultTypedValue along the way.
 	lvu := lv.IsUndefined()
@@ -406,10 +407,10 @@ func isEql(m *Machine, store Store, lv, rv *TypedValue) bool {
 			}
 		}
 		for i := range la.GetLength() {
-			m.incrCPU(OpCPUEqlElement)
+			m.incrCPU(OpCPUEqlElem)
 			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
 			ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()
-			if !isEql(m, store, &li, &ri) {
+			if !isEql(m, &li, &ri) {
 				return false
 			}
 		}
@@ -431,7 +432,7 @@ func isEql(m *Machine, store Store, lv, rv *TypedValue) bool {
 			m.incrCPU(OpCPUEqlElem)
 			lf := ls.GetPointerToInt(store, i).Deref()
 			rf := rs.GetPointerToInt(store, i).Deref()
-			if !isEql(m, store, &lf, &rf) {
+			if !isEql(m, &lf, &rf) {
 				return false
 			}
 		}
