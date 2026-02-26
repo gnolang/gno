@@ -466,9 +466,12 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 				if fd.Recv != nil && fd.Name.String() == "String" {
 					for _, stmt := range fd.Body.List {
 						if call, ok := stmt.(*ast.ExprStmt); ok {
-							funcName := call.X.(*ast.CallExpr).Fun.(*ast.Ident).Name
-							if funcName == "print" ||
-								funcName == "println" {
+							funcIden, ok := call.X.(*ast.CallExpr).Fun.(*ast.Ident)
+							if !ok {
+								continue
+							}
+							if funcIden.Name == "print" ||
+								funcIden.Name == "println" {
 								receiverName := fd.Recv.List[0].Names[0].Name
 								for _, arg := range call.X.(*ast.CallExpr).Args {
 									identifier, ok := arg.(*ast.Ident)
