@@ -1898,7 +1898,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				switch t.Kind() {
 				case PointerKind:
 					if t.Elem().Kind() != ArrayKind {
-						panic("slice pointer requires array elem type")
+						panic(fmt.Sprintf("cannot slice variable of type %v", t))
 					}
 				case SliceKind, ArrayKind, StringKind:
 					// good.
