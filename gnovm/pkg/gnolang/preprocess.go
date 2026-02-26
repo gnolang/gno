@@ -224,15 +224,23 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 						as := ns[len(ns)-1].(*AssignStmt)
 						if as.Op == DEFINE {
 							if n.Name == loopvar {
-								return n, TRANS_SKIP
+								// remember to skip body stmts after assign.
+								as.SetAttribute(ATTR_LOOPVAR_SKIP, true)
+								return n, TRANS_CONTINUE
 							}
 						} else {
-							if n.Name == loopvar {
+							if n.Name == loopvar && !as.HasAttribute(ATTR_LOOPVAR_SKIP) {
 								n.Name += ".loopvar"
 							}
 						}
-					case TRANS_VAR_NAME,
-						TRANS_RANGE_KEY,
+					case TRANS_VAR_NAME:
+						if n.Name == loopvar {
+							// remember to skip body stmts after value decl.
+							vd := ns[len(ns)-1].(*ValueDecl)
+							vd.SetAttribute(ATTR_LOOPVAR_SKIP, true)
+							return n, TRANS_CONTINUE
+						}
+					case TRANS_RANGE_KEY,
 						TRANS_RANGE_VALUE:
 						if n.Name == loopvar {
 							return n, TRANS_SKIP
@@ -245,6 +253,11 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 						if n.Name == loopvar {
 							n.Name += ".loopvar"
 						}
+					}
+				case *AssignStmt, *ValueDecl:
+					if n.HasAttribute(ATTR_LOOPVAR_SKIP) {
+						n.DelAttribute(ATTR_LOOPVAR_SKIP)
+						return n, TRANS_SKIP
 					}
 				case *TypeDecl:
 					nx := &n.NameExpr
