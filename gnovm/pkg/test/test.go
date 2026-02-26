@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/stdlibs"
@@ -579,10 +578,10 @@ func (opts *TestOptions) runTestFiles(
 
 		stdout := opts.filetestBuffer.String()
 		expected := ""
-		if fd.Attributes.HasAttribute(gnolang.ATTR_EXAMPLE_OUTPUT) {
-			expected = fd.Attributes.GetAttribute(gnolang.ATTR_EXAMPLE_OUTPUT).(string)
+		if fd.Attributes.HasAttribute(gno.ATTR_EXAMPLE_OUTPUT) {
+			expected = fd.Attributes.GetAttribute(gno.ATTR_EXAMPLE_OUTPUT).(string)
 		}
-		unordered := fd.Attributes.HasAttribute(gnolang.ATTR_OUTPUT_UNORDERED) && fd.Attributes.GetAttribute(gnolang.ATTR_OUTPUT_UNORDERED).(bool)
+		unordered := fd.Attributes.HasAttribute(gno.ATTR_OUTPUT_UNORDERED) && fd.Attributes.GetAttribute(gno.ATTR_OUTPUT_UNORDERED).(bool)
 
 		ok := processExampleResult(fname, stdout, expected, timeSpent, unordered, opts.Verbose, true, nil)
 		if !ok {
