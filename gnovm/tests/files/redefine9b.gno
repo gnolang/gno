@@ -12,3 +12,10 @@ func main() {
     fmt.Println("Hello, 世界")
     println("ok")
 }
+
+// Output:
+// 0
+// 1
+// 2
+// Hello, 世界
+// ok

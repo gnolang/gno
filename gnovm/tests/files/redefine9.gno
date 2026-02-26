@@ -1,6 +1,6 @@
 package main
 
-import "fmt"
+// import "fmt"
 
 func main() {
     s := []int{1, 2, 3}
@@ -13,7 +13,7 @@ func main() {
             println(v)
         }()
     }
-    fmt.Println("Hello, 世界")
+    // fmt.Println("Hello, 世界")
     println("ok")
 }
 
@@ -24,5 +24,4 @@ func main() {
 // 2
 // 3
 // 3
-// Hello, 世界
 // ok

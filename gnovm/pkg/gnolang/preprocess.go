@@ -193,7 +193,7 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 						if ln == blankIdentifier {
 							continue
 						}
-						if !isLocallyDefined2(last, ln) {
+						if !isLocallyReserved(last, ln) {
 							if ftype == TRANS_FOR_INIT {
 								ln = Name(fmt.Sprintf(".loopvar_%s", ln)) // rename to .loopvar_x.
 								nx.Type = NameExprTypeLoopVarDefine       // demoted after transform loopvar.
@@ -202,6 +202,8 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 								nx.Type = NameExprTypeDefine
 							}
 							last.Reserve(false, nx, n, NSDefine, i)
+						} else {
+							nx.Type = NameExprTypeDefine // if alreay reserved. set type.
 						}
 						// else do nothing.
 					}
@@ -5850,7 +5852,7 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 
 // r := 0
 // r, ok := 1, true
-func isLocallyDefined2(bn BlockNode, n Name) bool {
+func isLocallyReserved(bn BlockNode, n Name) bool {
 	_, isLocal := bn.GetLocalIndex(n)
 	return isLocal
 }
