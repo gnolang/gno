@@ -194,12 +194,17 @@ loop:
 	debugUpdateLocation(m)
 
 	// Keep track of exact locations when performing calls.
+	if len(m.Ops) == 0 {
+		return
+	}
 	op := m.Ops[len(m.Ops)-1]
 	switch op {
 	case OpCall:
 		m.Debugger.call = append(m.Debugger.call, m.Debugger.loc)
 	case OpReturn, OpReturnFromBlock:
-		m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
+		if len(m.Debugger.call) > 0 {
+			m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
+		}
 	}
 }
 
@@ -878,7 +883,7 @@ func debugFrameFunc(m *Machine, n int) *FuncValue {
 }
 
 func debugFrameLoc(m *Machine, n int) Location {
-	if n == 0 || len(m.Debugger.call) == 0 {
+	if n == 0 || n > len(m.Debugger.call) {
 		return m.Debugger.loc
 	}
 	return m.Debugger.call[len(m.Debugger.call)-n]
