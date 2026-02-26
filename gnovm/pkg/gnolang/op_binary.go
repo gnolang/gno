@@ -428,7 +428,7 @@ func isEql(m *Machine, store Store, lv, rv *TypedValue) bool {
 			}
 		}
 		for i := range ls.Fields {
-			m.incrCPU(OpCPUEqlElement)
+			m.incrCPU(OpCPUEqlElem)
 			lf := ls.GetPointerToInt(store, i).Deref()
 			rf := rs.GetPointerToInt(store, i).Deref()
 			if !isEql(m, store, &lf, &rf) {
