@@ -145,11 +145,15 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		}
 		params.StoragePrice = s
 	case "p:storage_fee_collector":
-		s, ok := value.(crypto.Address)
+		s, ok := value.(string)
 		if !ok {
-			panic(fmt.Sprintf("invalid type for storage_fee_collector param: expected crypto.Address, got %T", value))
+			panic(fmt.Sprintf("invalid type for storage_fee_collector param: expected string, got %T", value))
 		}
-		params.StorageFeeCollector = s
+		addr, err := crypto.AddressFromString(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid storage_fee_collector address: %v", err))
+		}
+		params.StorageFeeCollector = addr
 	default:
 		// unknown parameter keys are OK
 		return
