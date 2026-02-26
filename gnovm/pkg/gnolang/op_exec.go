@@ -89,9 +89,7 @@ func (m *Machine) doOpExec(op Op) {
 		last := m.LastBlock()
 		bs := last.GetBodyStmt()
 		// evaluate .Cond.
-		isInit := false
 		if bs.NextBodyIndex == -2 { // init
-			isInit = true
 			bs.NumOps = len(m.Ops)
 			bs.NumValues = len(m.Values)
 			bs.NumExprs = len(m.Exprs)
@@ -108,21 +106,6 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			bs.NextBodyIndex++
-			// unless isInit, copy heap item defines
-			// in init stmt to new heap items.
-			if !isInit {
-				for i := 0; i < bs.NumInit; i++ {
-					hiv, ok := last.Values[i].V.(*HeapItemValue)
-					if !ok {
-						continue
-					}
-					last.Values[i].V = &HeapItemValue{
-						Value: hiv.Value,
-					}
-				}
-			} else {
-				isInit = false
-			}
 		}
 		// execute body statement.
 		if bs.NextBodyIndex < bs.BodyLen {
@@ -138,6 +121,17 @@ func (m *Machine) doOpExec(op Op) {
 				m.PushExpr(bs.Cond)
 				m.PushOp(OpEval)
 			}
+			// copy heap item defines in init to new heap items.
+			for i := 0; i < bs.NumInit; i++ {
+				hiv, ok := last.Values[i].V.(*HeapItemValue)
+				if !ok {
+					continue
+				}
+				last.Values[i].V = &HeapItemValue{
+					Value: hiv.Value,
+				}
+			}
+			// run post if exists.
 			bs.NextBodyIndex = -1
 			if next := bs.Post; next == nil {
 				bs.Active = nil
