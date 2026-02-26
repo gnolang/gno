@@ -52,7 +52,9 @@ SelectStmt ->
 
 func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
-	m.Lastline = s.GetLine()
+	if line := s.GetLine(); line != 0 {
+		m.Lastline = line
+	}
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Printf("%v\n", m)
@@ -146,6 +148,10 @@ func (m *Machine) doOpExec(op Op) {
 			var ll int
 			var dv *TypedValue
 			if op == OpRangeIterArrayPtr {
+				if xv.V == nil {
+					m.pushPanic(typedString("nil pointer dereference"))
+					return
+				}
 				dv = xv.V.(PointerValue).TV
 				*xv = *dv
 			} else {
