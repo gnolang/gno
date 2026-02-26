@@ -407,7 +407,7 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 			}
 		}
 		for i := range la.GetLength() {
-			m.incrCPU(OpCPUEqlElem)
+			m.incrCPU(OpCPUEql)
 			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
 			ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()
 			if !isEql(m, &li, &ri) {
@@ -429,7 +429,7 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 			}
 		}
 		for i := range ls.Fields {
-			m.incrCPU(OpCPUEqlElem)
+			m.incrCPU(OpCPUEql)
 			lf := ls.GetPointerToInt(store, i).Deref()
 			rf := rs.GetPointerToInt(store, i).Deref()
 			if !isEql(m, &lf, &rf) {
