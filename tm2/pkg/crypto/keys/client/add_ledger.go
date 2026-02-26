@@ -56,7 +56,7 @@ func execAddLedger(cfg *AddCfg, args []string, io commands.IO) error {
 	info, err := kb.CreateLedger(
 		name,
 		keys.Secp256k1,
-		crypto.Bech32AddrPrefix,
+		crypto.Bech32AddrPrefix(),
 		uint32(cfg.Account),
 		uint32(cfg.Index),
 	)
