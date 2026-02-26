@@ -6,7 +6,7 @@ func main() {
 }
 
 // TypeCheckError:
-// main/slice_3.gno:5:6: cannot slice p (variable of type int)
+// main/slice_3.gno:5:6: invalid operation: cannot slice p (variable of type int)
 
 // Error:
 // main/slice_3.gno:5:6-12: cannot slice variable of type int
