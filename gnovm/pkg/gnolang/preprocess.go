@@ -167,11 +167,8 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 }
 
 func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
-	// fmt.Println("BBB", nn, "CTX", ctx, "NN", nn)
 	initStaticBlocks1(store, ctx, nn)
-	// fmt.Println("QQQ", nn)
 	initStaticBlocks2(store, ctx, nn)
-	// fmt.Println("ZZZ", nn)
 }
 
 // Replace ForStmt and RangeStmt declared names with <name>+.loop. This is to
@@ -197,11 +194,31 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 			}
 
 			switch stage {
+			case TRANS_ENTER:
+				if last == bn && (ftype == TRANS_FOR_INIT || ftype == TRANS_RANGE_X ||
+					ftype == TRANS_RANGE_KEY ||
+					ftype == TRANS_RANGE_VALUE) {
+					return n, TRANS_SKIP
+				}
+				switch n := n.(type) {
+				case *FuncLitExpr:
+					for i := range n.Type.Params {
+						px := &n.Type.Params[i].NameExpr
+						if px.Name == loopvar {
+							return n, TRANS_SKIP
+						}
+					}
+					for i := range n.Type.Results {
+						rx := &n.Type.Results[i].NameExpr
+						if rx.Name == loopvar {
+							return n, TRANS_SKIP
+						}
+					}
+				}
 			// ----------------------------------------
 			case TRANS_LEAVE:
 				switch n := n.(type) {
 				case *NameExpr:
-					// fmt.Println("TRIYING", n, ftype.String())
 					switch ftype {
 					case TRANS_ASSIGN_LHS:
 						as := ns[len(ns)-1].(*AssignStmt)
@@ -217,14 +234,6 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 					case TRANS_VAR_NAME,
 						TRANS_RANGE_KEY,
 						TRANS_RANGE_VALUE:
-						if n.Name == loopvar {
-							return n, TRANS_SKIP
-						}
-					case TRANS_FUNCTYPE_PARAM,
-						TRANS_FUNCTYPE_RESULT:
-						// for FUNCTYPE_PARAM and _RESULT
-						// if type decl, doesn't matter;
-						// but if FuncLitExpr will skip correctly.
 						if n.Name == loopvar {
 							return n, TRANS_SKIP
 						}
@@ -275,40 +284,55 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 			case *ForStmt:
 				switch fsinit := n.Init.(type) {
 				case *AssignStmt:
-					if fsinit.Op == DEFINE {
-						for _, lx := range fsinit.Lhs {
-							nx := lx.(*NameExpr)
-							ln := nx.Name
-							if ln == blankIdentifier {
-								continue
-							}
-							if strings.HasSuffix(string(ln), ".loopvar") {
-								continue
-							}
-							// replace all ln w/ <ln>.loopvar
-							replaceAllLoopvar(last, n, ln)
-							nx.Name += ".loopvar"
+					if fsinit.Op != DEFINE {
+						return n, TRANS_CONTINUE
+					}
+					for _, lx := range fsinit.Lhs {
+						nx := lx.(*NameExpr)
+						ln := nx.Name
+						if ln == blankIdentifier {
+							continue
 						}
+						if strings.HasSuffix(string(ln), ".loopvar") {
+							// for idempotency (already converted)
+							continue
+						}
+						// replace all ln w/ <ln>.loopvar
+						nx.Name += ".loopvar"
+						replaceAllLoopvar(last, n, ln)
 					}
 				case *SendStmt:
 					panic("not yet implemented")
 				}
 			case *RangeStmt:
+				if n.Op != DEFINE {
+					return n, TRANS_CONTINUE
+				}
 				if n.Key != nil {
-					// replace all n.Key w/ <n.Key>.loopvar
-					if strings.HasSuffix(string(n.Key.(*NameExpr).Name), ".loopvar") {
+					ln := n.Key.(*NameExpr).Name
+					if ln == blankIdentifier {
 						return n, TRANS_CONTINUE
 					}
-					replaceAllLoopvar(last, n, n.Key.(*NameExpr).Name)
+					if strings.HasSuffix(string(ln), ".loopvar") {
+						// for idempotency (already converted)
+						return n, TRANS_CONTINUE
+					}
+					// replace all n.Key w/ <n.Key>.loopvar
 					n.Key.(*NameExpr).Name += ".loopvar"
+					replaceAllLoopvar(last, n, ln)
 				}
 				if n.Value != nil {
-					// replace all n.Value w/ <n.Value>.loopvar
-					if strings.HasSuffix(string(n.Value.(*NameExpr).Name), ".loopvar") {
+					ln := n.Value.(*NameExpr).Name
+					if ln == blankIdentifier {
 						return n, TRANS_CONTINUE
 					}
-					replaceAllLoopvar(last, n, n.Value.(*NameExpr).Name)
+					if strings.HasSuffix(string(ln), ".loopvar") {
+						// for idempotency (already converted)
+						return n, TRANS_CONTINUE
+					}
+					// replace all n.Value w/ <n.Value>.loopvar
 					n.Value.(*NameExpr).Name += ".loopvar"
+					replaceAllLoopvar(last, n, ln)
 				}
 			}
 		}
@@ -660,8 +684,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 			return n, TRANS_CONTINUE
 		})
-
-	// fmt.Println("PREPROCESSED", n)
 
 	return n
 }
