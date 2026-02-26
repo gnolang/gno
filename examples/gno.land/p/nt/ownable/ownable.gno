@@ -37,27 +37,12 @@ func NewWithAddress(addr address) *Ownable {
 	}
 }
 
-// TransferOwnership transfers ownership of the Ownable to a new address.
-// It checks that runtime.CurrentRealm() matches the current owner.
+// TransferOwnership transfers ownership of the Ownable struct to a new address
 func (o *Ownable) TransferOwnership(newOwner address) error {
 	if !o.OwnedByCurrent() {
 		return ErrUnauthorized
 	}
-	return o.transferOwnership(newOwner)
-}
 
-// TransferOwnershipByPrevious transfers ownership of the Ownable to a new address.
-// It checks that runtime.PreviousRealm() matches the current owner.
-// This is symmetric with DropOwnershipByPrevious and has the same safety
-// profile: only the actual owner (as PreviousRealm) can succeed.
-func (o *Ownable) TransferOwnershipByPrevious(newOwner address) error {
-	if !o.OwnedByPrevious() {
-		return ErrUnauthorized
-	}
-	return o.transferOwnership(newOwner)
-}
-
-func (o *Ownable) transferOwnership(newOwner address) error {
 	if !newOwner.IsValid() {
 		return ErrInvalidAddress
 	}

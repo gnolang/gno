@@ -27,7 +27,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user
 stdout 'true bool'
 
 # Alice should be able to addpkg when CLA is disabled
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg1 -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test alice
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg1 -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test alice
 stdout 'OK!'
 
 # ============================================================
@@ -35,7 +35,7 @@ stdout 'OK!'
 # ============================================================
 
 # Create proposal to set required CLA hash and URL
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/propose_cla1.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/propose_cla1.gno
 stdout OK!
 
 # Vote and execute proposal 0
@@ -50,7 +50,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user
 stdout 'false bool'
 
 # Alice tries to deploy without signing CLA - should FAIL
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
 stderr 'has not signed the required CLA'
 
 # ============================================================
@@ -66,7 +66,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user
 stdout 'true bool'
 
 # Now Alice should be able to deploy
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg3 -gas-fee 1000000ugnot -gas-wanted 1500000 -broadcast -chainid=tendermint_test alice
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg3 -gas-fee 1000000ugnot -gas-wanted 1500000 -broadcast -chainid=tendermint_test alice
 stdout 'OK!'
 
 # ============================================================
@@ -74,7 +74,7 @@ stdout 'OK!'
 # ============================================================
 
 # Create proposal to update hash
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/propose_cla2.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/propose_cla2.gno
 stdout OK!
 
 # Vote and execute proposal 1
@@ -89,7 +89,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user
 stdout 'false bool'
 
 # Alice tries to deploy - should FAIL
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg4 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg4 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
 stderr 'has not signed the required CLA'
 
 # Alice re-signs with new hash
@@ -97,7 +97,7 @@ gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "newhash456" -ga
 stdout 'OK!'
 
 # Now Alice can deploy again
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg5 -gas-fee 1000000ugnot -gas-wanted 1500000 -broadcast -chainid=tendermint_test alice
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg5 -gas-fee 1000000ugnot -gas-wanted 1500000 -broadcast -chainid=tendermint_test alice
 stdout 'OK!'
 
 # ============================================================
@@ -105,7 +105,7 @@ stdout 'OK!'
 # ============================================================
 
 # Create proposal to clear hash
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/propose_cla_clear.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/propose_cla_clear.gno
 stdout OK!
 
 # Vote and execute proposal 2
@@ -120,10 +120,10 @@ gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$test1_user
 stdout 'true bool'
 
 # Any user can deploy when enforcement is disabled (even test1 who never signed)
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/pkg1 -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$test1_user_addr/pkg1 -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
--- propose_cla1.gno --
+-- proposer/propose_cla1.gno --
 package main
 
 import (
@@ -136,7 +136,7 @@ func main() {
 	dao.MustCreateProposal(cross, preq)
 }
 
--- propose_cla2.gno --
+-- proposer/propose_cla2.gno --
 package main
 
 import (
@@ -149,7 +149,7 @@ func main() {
 	dao.MustCreateProposal(cross, preq)
 }
 
--- propose_cla_clear.gno --
+-- proposer/propose_cla_clear.gno --
 package main
 
 import (
@@ -184,11 +184,11 @@ func init() {
 	})
 }
 
--- gnomod.toml --
+-- pkg/gnomod.toml --
 module = "gno.land/r/mypkg"
 gno = "0.9"
 
--- one.gno --
+-- pkg/one.gno --
 package one
 
 func Render(path string) string {
