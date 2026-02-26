@@ -175,7 +175,6 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 // disambiguate such names from the same name declared within the body of the
 // same block.
 func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
-
 	// helper to replace all instances of 'n' with <n>.loopvar
 	// where appropriate (skipping once shadowed).
 	replaceAllLoopvar := func(ctx BlockNode, bn BlockNode, loopvar Name) {
@@ -274,7 +273,6 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 		})
 
 	}
-
 	// iterate over all nodes recursively.
 	_ = TranscribeB(ctx, nn, func(
 		ns []Node,
