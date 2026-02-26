@@ -4,18 +4,29 @@ import (
 	"chain"
 
 	"gno.land/p/moul/addrset"
-	"gno.land/p/nt/ownable"
+	"gno.land/r/gov/dao"
 )
 
 const RequiredHashChangedEvent = "CLARequiredHashChanged"
 
-var owner = ownable.NewWithAddress("g1replacemewithmultisig")
+// ProposeNewCLA creates a govdao proposal to update the CLA document hash and URL.
+// When executed, it resets all existing signatures.
+// Propose an empty hash to disable CLA enforcement.
+func ProposeNewCLA(newHash, newURL string) dao.ProposalRequest {
+	cb := func(cur realm) error {
+		setRequiredHash(newHash)
+		claURL = newURL
+		return nil
+	}
 
-// SetRequiredHash updates the required CLA document hash and resets all signatures.
-// Only callable by the owner.
-// Set to empty string to disable CLA enforcement.
-func SetRequiredHash(cur realm, newHash string) {
-	owner.AssertOwnedByPrevious()
+	return dao.NewProposalRequest(
+		"Update CLA requirement",
+		"",
+		dao.NewSimpleExecutor(cb, ""),
+	)
+}
+
+func setRequiredHash(newHash string) {
 	prevHash := requiredHash
 	requiredHash = newHash
 	signatures = addrset.Set{} // reset all signatures
@@ -25,19 +36,4 @@ func SetRequiredHash(cur realm, newHash string) {
 		"from", prevHash,
 		"to", newHash,
 	)
-}
-
-// SetCLAURL updates the URL where the CLA document can be found.
-// Only callable by the owner.
-func SetCLAURL(cur realm, url string) {
-	owner.AssertOwnedByPrevious()
-	claURL = url
-}
-
-// TransferOwnership transfers ownership to a new address.
-// Only callable by the current owner.
-func TransferOwnership(cur realm, newOwner address) {
-	if err := owner.TransferOwnershipByPrevious(newOwner); err != nil {
-		panic(err)
-	}
 }

@@ -1,17 +1,28 @@
 # Test CLA enforcement during package deployment
-# Verifies VMKeeper->r/sys/cla integration
+# Verifies VMKeeper->r/sys/cla integration with govdao-based admin
 
-loadpkg gno.land/r/sys/cla
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 
-adduser admin
 adduser alice
 
-patchpkg "g1replacemewithmultisig" $admin_user_addr # use our custom admin
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/gnoland/users/v1
+loadpkg gno.land/r/sys/cla
+
+# Load govdao implementation with member as T1 member
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 
 gnoland start
 
-# Give alice user more tokens for gas
+# Give alice more tokens for gas
 gnokey maketx send -send 1000000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
+
+# Register member with a namespace (required for govdao proposals)
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
+stdout 'OK!'
 
 # ============================================================
 # Test 1: CLA enforcement disabled (no required hash set)
@@ -26,12 +37,19 @@ gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg1 -ga
 stdout 'OK!'
 
 # ============================================================
-# Test 2: Enable CLA enforcement, block unsigned deployer
+# Test 2: Enable CLA enforcement via govdao, block unsigned deployer
 # ============================================================
 
-# Admin sets required CLA hash
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetRequiredHash -args "abc123hash" -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test admin
-stdout 'OK!'
+# Create proposal to set required CLA hash and URL
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/propose_cla1.gno
+stdout OK!
+
+# Vote and execute proposal 0
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
 
 # Alice's signature is now invalid (hasn't signed)
 gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user_addr\")"
@@ -58,12 +76,19 @@ gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg3 -ga
 stdout 'OK!'
 
 # ============================================================
-# Test 4: CLA hash update resets all signatures
+# Test 4: CLA hash update resets all signatures (via govdao)
 # ============================================================
 
-# Admin updates the required hash - resets all signatures
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetRequiredHash -args "newhash456" -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test admin
-stdout 'OK!'
+# Create proposal to update hash
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/propose_cla2.gno
+stdout OK!
+
+# Vote and execute proposal 1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -broadcast -chainid=tendermint_test member
+stdout OK!
 
 # Alice's signature was reset
 gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user_addr\")"
@@ -82,12 +107,19 @@ gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$alice_user_addr/pkg5 -ga
 stdout 'OK!'
 
 # ============================================================
-# Test 5: Disable enforcement by clearing hash
+# Test 5: Disable enforcement by clearing hash (via govdao)
 # ============================================================
 
-# Admin clears the required hash to disable enforcement
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetRequiredHash -args "" -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test admin
-stdout 'OK!'
+# Create proposal to clear hash
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/propose_cla_clear.gno
+stdout OK!
+
+# Vote and execute proposal 2
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 2 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 2 -broadcast -chainid=tendermint_test member
+stdout OK!
 
 # Anyone passes validation when enforcement is disabled
 gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$test1_user_addr\")"
@@ -97,22 +129,66 @@ stdout 'true bool'
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/pkg1 -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-# ============================================================
-# Test 6: TransferOwnership behavior
-# ============================================================
+-- propose_cla1.gno --
+package main
 
-# Admin attempts to transfer ownership to alice.
-# Transfer succeeds.
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func TransferOwnership -args "$alice_user_addr" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
-stdout 'OK!'
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/cla"
+)
 
-# Previous owner can no longer update settings.
-! gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetCLAURL -args "https://example.com/cla-v1" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
-stderr 'caller is not owner'
+func main() {
+	preq := cla.ProposeNewCLA("abc123hash", "https://example.com/cla-v1")
+	dao.MustCreateProposal(cross, preq)
+}
 
-# New owner (alice) can update settings.
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func SetCLAURL -args "https://example.com/cla-v2" -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test alice
-stdout 'OK!'
+-- propose_cla2.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/cla"
+)
+
+func main() {
+	preq := cla.ProposeNewCLA("newhash456", "https://example.com/cla-v2")
+	dao.MustCreateProposal(cross, preq)
+}
+
+-- propose_cla_clear.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/cla"
+)
+
+func main() {
+	preq := cla.ProposeNewCLA("", "")
+	dao.MustCreateProposal(cross, preq)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
 
 -- gnomod.toml --
 module = "gno.land/r/mypkg"

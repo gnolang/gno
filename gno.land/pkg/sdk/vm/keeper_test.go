@@ -1492,6 +1492,8 @@ func UpdateAll(cur realm) {
 }
 
 // TestVMKeeperCLASignature tests CLA enforcement during package deployment.
+// Uses a minimal inline CLA realm to test the keeper's CLA check mechanism
+// without requiring the full govdao dependency chain.
 func TestVMKeeperCLASignature(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -1509,22 +1511,47 @@ func TestVMKeeperCLASignature(t *testing.T) {
 	env.acck.SetAccount(ctx, userAcc)
 	env.bankk.SetCoins(ctx, user, initialBalance)
 
-	// Deploy dependency packages from examples directory: avl -> addrset -> ownable -> cla
-	err := deployExamplePackage(env, ctx, admin, "gno.land/p/nt/avl")
-	require.NoError(t, err, "failed to deploy avl package")
-
-	err = deployExamplePackage(env, ctx, admin, "gno.land/p/moul/addrset")
-	require.NoError(t, err, "failed to deploy addrset package")
-
-	err = deployExamplePackage(env, ctx, admin, "gno.land/p/nt/ownable")
-	require.NoError(t, err, "failed to deploy ownable package")
-
-	// Deploy CLA realm with the placeholder owner replaced by our test admin address
+	// Deploy a minimal inline CLA realm for testing.
+	// This avoids deploying the full govdao dependency chain; the keeper test
+	// only needs HasValidSignature, Sign, and a way to set the required hash.
 	const claPkgPath = "gno.land/r/sys/cla"
-	err = deployExamplePackageWithPatch(env, ctx, admin, claPkgPath, map[string]string{
-		"g1replacemewithmultisig": admin.String(),
-	})
-	require.NoError(t, err, "failed to deploy cla realm")
+	claFiles := []*std.MemFile{
+		{Name: "cla.gno", Body: `package cla
+
+import "chain/runtime"
+
+var (
+	requiredHash string
+	signatures   map[address]bool
+)
+
+func init() { signatures = make(map[address]bool) }
+
+func SetRequiredHash(cur realm, newHash string) {
+	requiredHash = newHash
+	signatures = make(map[address]bool)
+}
+
+func Sign(cur realm, hash string) {
+	if hash != requiredHash {
+		panic("hash does not match required CLA hash")
+	}
+	caller := runtime.PreviousRealm().Address()
+	signatures[caller] = true
+}
+
+func HasValidSignature(addr address) bool {
+	if requiredHash == "" {
+		return true
+	}
+	return signatures[addr]
+}
+`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(claPkgPath)},
+	}
+	claMsg := NewMsgAddPackage(admin, claPkgPath, claFiles)
+	err := env.vmk.AddPackage(ctx, claMsg)
+	require.NoError(t, err, "failed to deploy inline cla realm")
 
 	// Test 1: CLA disabled (empty hash) - user can deploy
 	const userPkgPath1 = "gno.land/r/user/pkg1"
@@ -1538,7 +1565,6 @@ func Hello(cur realm) string { return "hello" }`},
 	assert.NoError(t, err, "should allow deployment when CLA is disabled")
 
 	// Test 2: Enable CLA - user should be blocked
-	// Admin sets required hash
 	setHashMsg := NewMsgCall(admin, nil, claPkgPath, "SetRequiredHash", []string{"testhash123"})
 	_, err = env.vmk.Call(ctx, setHashMsg)
 	require.NoError(t, err)
@@ -1626,54 +1652,3 @@ func Hello(cur realm) string { return "hello" }`},
 	assert.NoError(t, err, "should allow deployment when CLA realm is not deployed (bootstrap)")
 }
 
-// TestVMKeeperCLASignature_TransferOwnership tests CLA ownership transfer behavior.
-func TestVMKeeperCLASignature_TransferOwnership(t *testing.T) {
-	env := setupTestEnv()
-	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-	// Create admin and alice addresses.
-	admin := crypto.AddressFromPreimage([]byte("admin"))
-	alice := crypto.AddressFromPreimage([]byte("alice"))
-
-	// Set up accounts with initial balance.
-	adminAcc := env.acck.NewAccountWithAddress(ctx, admin)
-	env.acck.SetAccount(ctx, adminAcc)
-	env.bankk.SetCoins(ctx, admin, initialBalance)
-
-	aliceAcc := env.acck.NewAccountWithAddress(ctx, alice)
-	env.acck.SetAccount(ctx, aliceAcc)
-	env.bankk.SetCoins(ctx, alice, initialBalance)
-
-	// Deploy dependency packages from examples directory: avl -> addrset -> ownable -> cla.
-	err := deployExamplePackage(env, ctx, admin, "gno.land/p/nt/avl")
-	require.NoError(t, err, "failed to deploy avl package")
-
-	err = deployExamplePackage(env, ctx, admin, "gno.land/p/moul/addrset")
-	require.NoError(t, err, "failed to deploy addrset package")
-
-	err = deployExamplePackage(env, ctx, admin, "gno.land/p/nt/ownable")
-	require.NoError(t, err, "failed to deploy ownable package")
-
-	// Deploy CLA realm with the placeholder owner replaced by our test admin address.
-	const claPkgPath = "gno.land/r/sys/cla"
-	err = deployExamplePackageWithPatch(env, ctx, admin, claPkgPath, map[string]string{
-		"g1replacemewithmultisig": admin.String(),
-	})
-	require.NoError(t, err, "failed to deploy cla realm")
-
-	// Transfer ownership from admin to alice.
-	transferMsg := NewMsgCall(admin, nil, claPkgPath, "TransferOwnership", []string{alice.String()})
-	_, err = env.vmk.Call(ctx, transferMsg)
-	require.NoError(t, err)
-
-	// Old owner should no longer be able to update CLA URL.
-	setURLByAdmin := NewMsgCall(admin, nil, claPkgPath, "SetCLAURL", []string{"https://example.com/cla-v1"})
-	_, err = env.vmk.Call(ctx, setURLByAdmin)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "caller is not owner")
-
-	// New owner should be able to update CLA URL.
-	setURLByAlice := NewMsgCall(alice, nil, claPkgPath, "SetCLAURL", []string{"https://example.com/cla-v2"})
-	_, err = env.vmk.Call(ctx, setURLByAlice)
-	require.NoError(t, err)
-}
