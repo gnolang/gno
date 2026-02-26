@@ -2,9 +2,14 @@ package main
 
 func main() {
 	var p *[3]int
-	for range p {
+	for i := range p {
+		println(i)
 	}
+	println("ok")
 }
 
-// Error:
-// nil pointer dereference
+// Output:
+// 0
+// 1
+// 2
+// ok
