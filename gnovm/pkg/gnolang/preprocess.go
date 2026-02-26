@@ -3142,7 +3142,7 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 					}
 
 					origName := strings.TrimPrefix(string(nx.Name), ".loopvar_")
-					addLoopvarAttrs(dbn, ATTR_HEAP_DEFINE_LOOPVAR, Name(origName))
+					addLoopvarAttrs(dbn, Name(origName))
 					stop = true
 				}
 			case *NameExpr:
@@ -3181,7 +3181,7 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 					}
 
 					origName := strings.TrimPrefix(string(n.Name), ".loopvar_")
-					addLoopvarAttrs(dbn, ATTR_HEAP_DEFINE_LOOPVAR, Name(origName))
+					addLoopvarAttrs(dbn, Name(origName))
 					stop = true
 
 					// Loop again for more closures.
@@ -3253,7 +3253,7 @@ func copyOutLoopvar(ctx BlockNode, bn BlockNode) {
 				}
 
 				// bn is the *ForStmt.
-				hlns := getLoopvarAttrs(tbn, ATTR_HEAP_DEFINE_LOOPVAR)
+				hlns := getLoopvarAttrs(tbn)
 
 				if len(hlns) == 0 {
 					return n, TRANS_CONTINUE
@@ -3273,7 +3273,7 @@ func copyOutLoopvar(ctx BlockNode, bn BlockNode) {
 							idx:  idx,
 							stmt: as,
 						}
-						addStmtInjectionAttr(last, ATTR_CONTINUE_INSERT, si)
+						addStmtInjectionAttr(last, si)
 					}
 				}
 
@@ -3284,7 +3284,8 @@ func copyOutLoopvar(ctx BlockNode, bn BlockNode) {
 		case TRANS_LEAVE:
 			switch bn := n.(type) {
 			case BlockNode:
-				sis := getStmtInjectionAttr(bn, ATTR_CONTINUE_INSERT)
+				// Copy out loopvar before continue.
+				sis := getStmtInjectionAttr(bn)
 				if len(sis) > 0 {
 					body := bn.GetBody()
 					for _, si := range sis {
@@ -3295,17 +3296,17 @@ func copyOutLoopvar(ctx BlockNode, bn BlockNode) {
 				// Delete attrs.
 				bn.DelAttribute(ATTR_CONTINUE_INSERT)
 
+				// Copy-out loopvar state at end of body.
 				if n, ok := bn.(*ForStmt); ok {
 					body := n.Body
 					// get names to redefine.
-					hlns := getLoopvarAttrs(n, ATTR_HEAP_DEFINE_LOOPVAR)
+					hlns := getLoopvarAttrs(n)
 					if len(hlns) == 0 {
 						return n, TRANS_CONTINUE
 					}
 
 					rewrite := func(names []Name) {
 						for _, rn := range names {
-							// Copy-out state from redefine to loopvar at end of body.
 							lhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
 							rhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
 							lhs2.Type = NameExprTypeLoopVarHeapDefine

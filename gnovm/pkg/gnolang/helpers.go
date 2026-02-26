@@ -904,8 +904,8 @@ type StmtInjection struct {
 	idx  int // position to insert
 }
 
-func addStmtInjectionAttr(bn BlockNode, key GnoAttribute, si *StmtInjection) {
-	val := bn.GetAttribute(key)
+func addStmtInjectionAttr(bn BlockNode, si *StmtInjection) {
+	val := bn.GetAttribute(ATTR_CONTINUE_INSERT)
 	sis, _ := val.([]*StmtInjection)
 	if slices.Contains(sis, si) {
 		return
@@ -913,23 +913,23 @@ func addStmtInjectionAttr(bn BlockNode, key GnoAttribute, si *StmtInjection) {
 	bn.SetAttribute(ATTR_CONTINUE_INSERT, append(sis, si))
 }
 
-func getStmtInjectionAttr(bn BlockNode, key GnoAttribute) []*StmtInjection {
-	sis, _ := bn.GetAttribute(key).([]*StmtInjection)
+func getStmtInjectionAttr(bn BlockNode) []*StmtInjection {
+	sis, _ := bn.GetAttribute(ATTR_CONTINUE_INSERT).([]*StmtInjection)
 	return sis
 }
 
 // Loopvar attrs.
-func addLoopvarAttrs(bn BlockNode, key GnoAttribute, name Name) {
-	val := bn.GetAttribute(key)
+func addLoopvarAttrs(bn BlockNode, name Name) {
+	val := bn.GetAttribute(ATTR_HEAP_DEFINE_LOOPVAR)
 	ns, _ := val.([]Name)
 	if slices.Contains(ns, name) {
 		return
 	}
 	ns = append(ns, name)
-	bn.SetAttribute(key, ns)
+	bn.SetAttribute(ATTR_HEAP_DEFINE_LOOPVAR, ns)
 }
 
-func getLoopvarAttrs(bn BlockNode, key GnoAttribute) []Name {
-	names, _ := bn.GetAttribute(key).([]Name)
+func getLoopvarAttrs(bn BlockNode) []Name {
+	names, _ := bn.GetAttribute(ATTR_HEAP_DEFINE_LOOPVAR).([]Name)
 	return names
 }
