@@ -25,7 +25,7 @@ func main() {
 // You can tell by the preprocess printout of z<!~...> and z<~...>.
 
 // Preprocessed:
-// file{ package main; import fmt fmt; var s1<!~VPBlock(2,0)> []*((const-type int)); func forLoopRef() { defer func func(){ for i<!VPBlock(1,0)>, e<!VPBlock(1,1)> := range (const (ref(main) package{})).s1 { (const (ref(fmt) package{})).Printf((const ("s1[%d] is: %d\n" string)), i<VPBlock(1,0)>, *(e<VPBlock(1,1)>)) } }(); for i<!VPBlock(1,0)> := (const (0 int)); i<VPBlock(1,0)> < (const (3 int)); i<VPBlock(1,0)>++ { z<!~VPBlock(1,1)> := i<VPBlock(1,0)> + (const (1 int)); s1<~VPBlock(4,0)> = (const (append func([]*int, ...*int) []*int))(s1<~VPBlock(4,0)>, &(z<~VPBlock(1,1)>)) } }; func main() { forLoopRef<VPBlock(3,1)>() } }
+// file{ package main; import fmt fmt; var s1<!~VPBlock(2,0)> []*((const-type int)); func forLoopRef() { defer func func(){ for i.loopvar<!VPBlock(1,0)>, e.loopvar<!VPBlock(1,1)> := range (const (ref(main) package{})).s1 { (const (ref(fmt) package{})).Printf((const ("s1[%d] is: %d\n" string)), i.loopvar<VPBlock(1,0)>, *(e.loopvar<VPBlock(1,1)>)) } }(); for i.loopvar<!VPBlock(1,0)> := (const (0 int)); i.loopvar<VPBlock(1,0)> < (const (3 int)); i.loopvar<VPBlock(1,0)>++ { z<!~VPBlock(1,1)> := i.loopvar<VPBlock(1,0)> + (const (1 int)); s1<~VPBlock(4,0)> = (const (append func([]*int, ...*int) []*int))(s1<~VPBlock(4,0)>, &(z<~VPBlock(1,1)>)) } }; func main() { forLoopRef<VPBlock(3,1)>() } }
 
 // Output:
 // s1[0] is: 1

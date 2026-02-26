@@ -114,8 +114,8 @@ const (
 // Returns:
 //   - TRANS_CONTINUE to visit children recursively;
 //   - TRANS_SKIP to skip the following stages for the node
-//     (BLOCK/BLOCK2/LEAVE), but a skip from LEAVE will
-//     skip the following stages of the parent.
+//     (BLOCK/BLOCK2/LEAVE), but a skip from LEAVE will skip the following stages
+//     of the parent (and TRANS_CONTINUE from the parent thereafter)
 //   - TRANS_EXIT to stop traversing altogether.
 //
 // XXX Replace usage of Transcribe() with TranscribeB().

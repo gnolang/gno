@@ -141,6 +141,7 @@ const (
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
 	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH" // if name expr refers to package.
 	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"     // gno fix this version.
+	ATTR_LOOPVAR_SKIP          GnoAttribute = "ATTR_LOOPVAR_SKIP" // temp only
 )
 
 // Embedded in each Node.
@@ -991,6 +992,7 @@ type bodyStmt struct {
 	NumStmts      int          // number of Stmts, for goto
 	Cond          Expr         // for ForStmt
 	Post          Stmt         // for ForStmt
+	NumInit       int          // for ForStmt
 	Active        Stmt         // for PopStmt()
 	Key           Expr         // for RangeStmt
 	Value         Expr         // for RangeStmt
