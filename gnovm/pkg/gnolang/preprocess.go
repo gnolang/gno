@@ -271,8 +271,8 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 			}
 			return n, TRANS_CONTINUE
 		})
-
 	}
+
 	// iterate over all nodes recursively.
 	_ = TranscribeB(ctx, nn, func(
 		ns []Node,
