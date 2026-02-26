@@ -1146,7 +1146,7 @@ const (
 	OpCPULor     = 26
 	OpCPULand    = 24
 	OpCPUEql     = 160
-	OpCPUEqlElem = 15 // per-element cost for array/struct equality comparisons
+	OpCPUEqlElem = 75 // per-element cost for array/struct equality comparisons
 	OpCPUNeq     = 95
 	OpCPULss     = 13
 	OpCPULeq     = 19
