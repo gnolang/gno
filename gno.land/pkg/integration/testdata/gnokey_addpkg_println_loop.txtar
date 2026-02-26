@@ -1,0 +1,30 @@
+# test for gnokey maketx addpkg on a infinite recursive Method
+
+# start a new node
+gnoland start
+
+# attempt adding the "recursive" package.
+# the package has an infinite loop in String Method
+! gnokey maketx addpkg -pkgdir $WORK/recursive -pkgpath gno.land/r/recursive -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate test test1
+
+stderr 'arg r causes recursive call to \(Recursive\)\.String method'
+
+
+-- recursive/recursive.gno --
+package recursive
+
+type Recursive struct{}
+
+func (r Recursive) String() string {
+	println(r)
+	return ""
+}
+
+func Trigger(cur realm) {
+	r := Recursive{}
+	println(r)
+}
+
+-- recursive/gnomod.toml --
+module = "recursive"
+gno = "0.9"
