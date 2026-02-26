@@ -146,13 +146,23 @@ func (m *Machine) doOpExec(op Op) {
 			var ll int
 			var dv *TypedValue
 			if op == OpRangeIterArrayPtr {
-				dv = xv.V.(PointerValue).TV
-				*xv = *dv
+				if xv.V == nil {
+					// In Go, `for range nilPtr` and `for i := range nilPtr`
+					// work fine (length is known from the type), but
+					// `for i, v := range nilPtr` panics because accessing
+					// values requires dereferencing the nil pointer.
+					// We defer that panic to the value-assignment phase below.
+					ll = baseOf(xv.T.Elem()).(*ArrayType).Len
+				} else {
+					dv = xv.V.(PointerValue).TV
+					*xv = *dv
+					ll = dv.GetLength()
+				}
 			} else {
 				dv = xv
 				*xv = xv.Copy(m.Alloc)
+				ll = dv.GetLength()
 			}
-			ll = dv.GetLength()
 			if ll == 0 { // early termination
 				m.PopFrameAndReset()
 				return
@@ -180,6 +190,12 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			if bs.Value != nil {
+				// In Go, `for i, v := range nilPtrToArray` panics because
+				// reading `v` requires dereferencing the nil pointer.
+				if op == OpRangeIterArrayPtr && xv.V == nil {
+					m.pushPanic(typedString("nil pointer dereference"))
+					return
+				}
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
 				ev := xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &iv).Deref()

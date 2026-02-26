@@ -1010,6 +1010,12 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 }
 
 func (x *bodyStmt) LastStmt() Stmt {
+	if x.NextBodyIndex <= 0 {
+		if len(x.Body) == 0 {
+			return nil
+		}
+		return x.Body[0]
+	}
 	return x.Body[x.NextBodyIndex-1]
 }
 
@@ -1024,7 +1030,7 @@ func (x *bodyStmt) String() string {
 	}
 	active := ""
 	if x.Active != nil {
-		if x.NextBodyIndex < 0 || x.NextBodyIndex == len(x.Body) {
+		if x.NextBodyIndex <= 0 || x.NextBodyIndex == len(x.Body) {
 			// none
 		} else if x.Body[x.NextBodyIndex-1] == x.Active {
 			active = "*"
