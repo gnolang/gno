@@ -18,12 +18,12 @@ stdout 'false bool'
 
 # Gui should be able to addpkg on test1 addr
 # gui addpkg -> gno.land/r/<addr_test1>/mysuperpkg
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 600000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Gui should be able to addpkg on random name
 # gui addpkg -> gno.land/r/randomname/mysuperpkg
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/randomname/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 550000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/randomname/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Enable `sys/names`
@@ -72,7 +72,7 @@ stdout 'OK!'
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/two -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
 stderr 'is not authorized to deploy packages to namespace'
 
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/random!name/mypkg -gas-fee 1000000ugnot -gas-wanted 550000 -broadcast -chainid=tendermint_test gui
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/random!name/mypkg -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
 stderr 'but got "gno.land/r/random!name/mypkg"'
 
 # Test that publishing to filetests is prohibited

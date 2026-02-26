@@ -8,8 +8,6 @@ adduser alice
 
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
-loadpkg gno.land/r/sys/users
-loadpkg gno.land/r/gnoland/users/v1
 loadpkg gno.land/r/sys/cla
 
 # Load govdao implementation with member as T1 member
@@ -19,10 +17,6 @@ gnoland start
 
 # Give alice more tokens for gas
 gnokey maketx send -send 1000000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
-
-# Register member with a namespace (required for govdao proposals)
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
-stdout 'OK!'
 
 # ============================================================
 # Test 1: CLA enforcement disabled (no required hash set)

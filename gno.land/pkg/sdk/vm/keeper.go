@@ -465,10 +465,10 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 
 // checkCLASignature verifies the creator has signed the required CLA.
 // Returns nil if:
-// - SysCLAPkgPath parameter is empty (CLA enforcement disabled)
-// - CLA realm is not deployed yet (needed for bootstrap: the CLA realm
-//   itself must be deployable before it exists on-chain)
-// - Creator has a valid CLA signature
+//   - SysCLAPkgPath parameter is empty (CLA enforcement disabled)
+//   - CLA realm is not deployed yet (needed for bootstrap: the CLA realm
+//     itself must be deployable before it exists on-chain)
+//   - Creator has a valid CLA signature
 func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) error {
 	sysCLAPkg := vm.getSysCLAPkgParam(ctx)
 	if sysCLAPkg == "" {

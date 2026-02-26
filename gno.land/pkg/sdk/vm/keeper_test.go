@@ -1651,4 +1651,3 @@ func Hello(cur realm) string { return "hello" }`},
 	err := env.vmk.AddPackage(ctx, userMsg)
 	assert.NoError(t, err, "should allow deployment when CLA realm is not deployed (bootstrap)")
 }
-
