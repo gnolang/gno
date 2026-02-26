@@ -1,17 +1,3 @@
-# Boards Permissions Extension
-
-This is a `gno.land/p/gnoland/boards` package extension that provides a custom
-`Permissions` implementation that uses an underlying DAO to manage users and
-roles.
-
-It also supports optionally setting validation functions to be triggered by the
-`WithPermission()` method before a callback is called. Validators allows adding
-custom checks and requirements before the callback is called.
-
-Usage Example:
-
-[embedmd]:# (filetests/z_readme_filetest.gno go)
-```go
 package main
 
 import (
@@ -59,4 +45,3 @@ func main() {
 
 // Output:
 // Hello Bob!
-```
