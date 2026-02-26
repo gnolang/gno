@@ -2,7 +2,6 @@ package users
 
 import (
 	"chain"
-	"errors"
 
 	"gno.land/p/moul/addrset"
 	"gno.land/r/gov/dao"
