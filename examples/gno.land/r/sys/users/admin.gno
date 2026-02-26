@@ -36,7 +36,7 @@ func ProposeControllerRemoval(addr address) dao.ProposalRequest {
 	}
 
 	cb := func(cur realm) error {
-		return deleteFromwhitelist(addr)
+		return deleteFromWhitelist(addr)
 	}
 
 	return dao.NewProposalRequest("Remove a whitelisted caller from sys/users realm", "", dao.NewSimpleExecutor(cb, ""))
@@ -54,7 +54,7 @@ func ProposeControllerAdditionAndRemoval(toAdd, toRemove address) dao.ProposalRe
 			return err
 		}
 
-		return deleteFromwhitelist(toRemove)
+		return deleteFromWhitelist(toRemove)
 	}
 
 	return dao.NewProposalRequest("Add and Remove whitelisted caller from sys/users realm", "", dao.NewSimpleExecutor(cb, ""))
@@ -62,7 +62,7 @@ func ProposeControllerAdditionAndRemoval(toAdd, toRemove address) dao.ProposalRe
 
 // Helpers
 
-func deleteFromwhitelist(addr address) error {
+func deleteFromWhitelist(addr address) error {
 	if !controllers.Has(addr) {
 		return NewErrNotWhitelisted()
 	}
