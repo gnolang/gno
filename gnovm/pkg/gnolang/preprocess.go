@@ -3221,18 +3221,16 @@ func copyOutLoopvar(ctx BlockNode, bn BlockNode) {
 		case TRANS_ENTER:
 			switch n := n.(type) {
 			case *BranchStmt:
-				body := last.GetBody()
 				var (
 					idx   = -1
 					label Name
 				)
-				for i, s := range body {
-					if bs, ok := s.(*BranchStmt); ok && bs.Op == CONTINUE && s == n {
-						idx = i
-						label = bs.Label
-						break
-					}
+
+				if n.Op == CONTINUE {
+					idx = index
+					label = n.Label
 				}
+
 				if idx == -1 {
 					return n, TRANS_CONTINUE
 				}
