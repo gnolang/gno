@@ -4,6 +4,8 @@ import (
 	"chain"
 
 	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/ufmt"
+
 	"gno.land/r/gov/dao"
 )
 
@@ -25,7 +27,8 @@ func ProposeNewController(addr address) dao.ProposalRequest {
 		return addToWhitelist(addr)
 	}
 
-	return dao.NewProposalRequest("Add a new whitelisted caller at sys/users realm", "", dao.NewSimpleExecutor(cb, ""))
+	desc := "This proposal adds " + addr.String() + " to `sys/users` realm's callers whitelist."
+	return dao.NewProposalRequest("Add Whitelisted Caller to \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
 }
 
 // ProposeControllerRemoval allows GovDAO to add a whitelisted caller
@@ -38,7 +41,8 @@ func ProposeControllerRemoval(addr address) dao.ProposalRequest {
 		return deleteFromWhitelist(addr)
 	}
 
-	return dao.NewProposalRequest("Remove a whitelisted caller from sys/users realm", "", dao.NewSimpleExecutor(cb, ""))
+	desc := "This proposal removes " + addr.String() + " from `sys/users` realm's callers whitelist."
+	return dao.NewProposalRequest("Remove Whitelisted Caller From \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
 }
 
 // ProposeControllerAdditionAndRemoval allows GovDAO to add a new caller and remove an old caller in the same proposal.
@@ -56,7 +60,12 @@ func ProposeControllerAdditionAndRemoval(toAdd, toRemove address) dao.ProposalRe
 		return deleteFromWhitelist(toRemove)
 	}
 
-	return dao.NewProposalRequest("Add and Remove whitelisted caller from sys/users realm", "", dao.NewSimpleExecutor(cb, ""))
+	desc := ufmt.Sprint(
+		"This proposal adds %s and removes %s from `sys/users` realm's callers whitelist.",
+		toAdd,
+		toRemove,
+	)
+	return dao.NewProposalRequest("Add and Remove Whitelisted Callers From \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
 }
 
 // Helpers
