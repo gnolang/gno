@@ -542,6 +542,11 @@ func (opts *TestOptions) runTestFiles(
 
 	examples := loadExampleTestFuncs(files)
 	for _, fd := range examples {
+		if !fd.Attributes.HasAttribute(gno.ATTR_EXAMPLE_OUTPUT) {
+			// Don't run examples with no output.
+			continue
+		}
+
 		// Reset and start capturing stdout.
 		opts.filetestBuffer.Reset()
 		revert := opts.outWriter.tee(&opts.filetestBuffer)
@@ -577,10 +582,7 @@ func (opts *TestOptions) runTestFiles(
 		}
 
 		stdout := opts.filetestBuffer.String()
-		expected := ""
-		if fd.Attributes.HasAttribute(gno.ATTR_EXAMPLE_OUTPUT) {
-			expected = fd.Attributes.GetAttribute(gno.ATTR_EXAMPLE_OUTPUT).(string)
-		}
+		expected := fd.Attributes.GetAttribute(gno.ATTR_EXAMPLE_OUTPUT).(string)
 		unordered := fd.Attributes.HasAttribute(gno.ATTR_OUTPUT_UNORDERED) && fd.Attributes.GetAttribute(gno.ATTR_OUTPUT_UNORDERED).(bool)
 
 		ok := processExampleResult(fname, stdout, expected, timeSpent, unordered, opts.Verbose, true, nil)
