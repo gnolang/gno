@@ -1,0 +1,117 @@
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/sys/users
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+adduserfrom user2 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1 1
+stdout 'g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp'
+
+gnoland start
+
+# Initialize GovDAO members
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
+stdout OK!
+
+# Render GovDAO to check it's working
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
+stdout 'data: # GovDAO'
+
+# Create proposal to add @test1 as controller
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_controller_add_proposal.gno
+stdout OK!
+
+# Check proposal exists
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'Add Whitelisted Caller to \"sys/users\" Realm'
+
+# Vote on proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Execute proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Register a new user as a controller
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/register_user1.gno
+stdout OK!
+
+# Create proposal to remove @test1 from controllers
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_controller_remove_proposal.gno
+stdout OK!
+
+# Check proposal exists
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:1'
+stdout 'Remove Whitelisted Caller From \"sys/users\" Realm'
+
+# Vote on proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -args YES -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Execute proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 1 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Try to register a new user as a non controller
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/register_user2.gno
+stderr 'panic: r/sys/users: current realm/user does not exist in whitelist'
+
+-- run/init_govdao.gno --
+package main
+
+import dao "gno.land/r/gov/dao/v3/init"
+
+func main() {
+	dao.InitWithUsers("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+}
+
+-- run/create_controller_add_proposal.gno --
+package main
+
+import (
+  "gno.land/r/sys/users"
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	r := users.ProposeNewController("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	dao.MustCreateProposal(cross, r)
+}
+
+-- run/create_controller_remove_proposal.gno --
+package main
+
+import (
+  "gno.land/r/sys/users"
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	r := users.ProposeControllerRemoval("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	dao.MustCreateProposal(cross, r)
+}
+
+-- run/register_user1.gno --
+package main
+
+import "gno.land/r/sys/users"
+
+func main() {
+	if err := users.RegisterUser(cross, "user001", "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"); err != nil {
+    panic(err.Error())
+  }
+}
+
+-- run/register_user2.gno --
+package main
+
+import "gno.land/r/sys/users"
+
+func main() {
+	if err := users.RegisterUser(cross, "user002", "g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp"); err != nil {
+    panic(err.Error())
+  }
+}
