@@ -19,6 +19,9 @@ const (
 	// nestedLimit indicates the maximum nested level when printing a deeply recursive value.
 	// if this increases significantly a map should be used instead
 	nestedLimit = 10
+
+	// printLimit is the maximum number of elements to display in string representations.
+	printLimit = 256
 )
 
 type seenValues struct {
@@ -93,8 +96,11 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 
 	defer seen.Pop()
 
-	ss := make([]string, len(av.List))
 	if av.Data == nil {
+		if len(av.List) > printLimit {
+			return fmt.Sprintf("array[...(%d elements)]", len(av.List))
+		}
+		ss := make([]string, len(av.List))
 		for i, e := range av.List {
 			ss[i] = e.ProtectedString(seen)
 		}
@@ -103,8 +109,8 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 		// This may be helpful for testing implementation behavior.
 		return "array[" + strings.Join(ss, ",") + "]"
 	}
-	if len(av.Data) > 256 {
-		return fmt.Sprintf("array[0x%X...]", av.Data[:256])
+	if len(av.Data) > printLimit {
+		return fmt.Sprintf("array[0x%X...]", av.Data[:printLimit])
 	}
 	return fmt.Sprintf("array[0x%X]", av.Data)
 }
@@ -133,14 +139,17 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 
 	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
+		if sv.Length > printLimit {
+			return fmt.Sprintf("slice[...(%d elements)]", sv.Length)
+		}
 		ss := make([]string, sv.Length)
 		for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
 			ss[i] = e.ProtectedString(seen)
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
 	}
-	if sv.Length > 256 {
-		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+256], sv.Length)
+	if sv.Length > printLimit {
+		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+printLimit], sv.Length)
 	}
 	return fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length])
 }
@@ -236,6 +245,9 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	}
 	defer seen.Pop()
 
+	if mv.GetLength() > printLimit {
+		return fmt.Sprintf("map{...(%d entries)}", mv.GetLength())
+	}
 	ss := make([]string, 0, mv.GetLength())
 	next := mv.List.Head
 	for next != nil {
