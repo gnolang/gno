@@ -96,9 +96,20 @@ func mustGetBoard(id boards.ID) *boards.Board {
 	return board
 }
 
+// getThread returns a board thread.
+func getThread(board *boards.Board, threadID boards.ID) (*boards.Post, bool) {
+	thread, found := board.Threads.Get(threadID)
+	if !found {
+		// When thread is not found search it within hidden threads
+		meta := board.Meta.(*Meta)
+		thread, found = meta.HiddenThreads.Get(threadID)
+	}
+	return thread, found
+}
+
 // mustGetThread returns a thread or panics when it's not found.
 func mustGetThread(board *boards.Board, threadID boards.ID) *boards.Post {
-	thread, found := board.Threads.Get(threadID)
+	thread, found := getThread(board, threadID)
 	if !found {
 		panic("thread does not exist with ID: " + threadID.String())
 	}
