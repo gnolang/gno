@@ -2761,8 +2761,8 @@ func signOfInteger[T interface {
 		return 1
 	} else if v < 0 {
 		return -1
-	default:
-		return 1
+	} else {
+		return 0
 	}
 }
 
