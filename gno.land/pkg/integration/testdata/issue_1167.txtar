@@ -4,25 +4,25 @@ loadpkg gno.land/p/nt/avl
 gnoland start
 
 # add contract
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/xx -gas-fee 1000000ugnot -gas-wanted 9000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/xx -gas-fee 1000000ugnot -gas-wanted 9000000 -chainid=tendermint_test test1
 stdout OK!
 
 # execute New
-gnokey maketx call -pkgpath gno.land/r/demo/xx -func New -args X -gas-fee 10000000ugnot -gas-wanted 9000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func New -args X -gas-fee 10000000ugnot -gas-wanted 9000000 -chainid=tendermint_test test1
 stdout OK!
 
 # execute Delta for the first time
-gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 3500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 3500000 -chainid=tendermint_test test1
 stdout OK!
 stdout '"1,1,1;'
 
 # execute Delta for the second time
-gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 3500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 3500000 -chainid=tendermint_test test1
 stdout OK!
 stdout '1,1,1;2,2,2;'
 
 # execute Delta for the third time
-gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 3500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 3500000 -chainid=tendermint_test test1
 stdout OK!
 stdout '1,1,1;2,2,2;3,3,3;'
 

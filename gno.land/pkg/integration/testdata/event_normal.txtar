@@ -4,7 +4,7 @@ loadpkg gno.land/r/demo/ee $WORK
 # start a new node
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/demo/ee -func Foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/ee -func Foo -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED:   \d+'
@@ -12,7 +12,7 @@ stdout 'HEIGHT:     \d+'
 stdout 'EVENTS:     \[{\"type\":\"foo\",\"attrs\":\[{\"key\":\"key1\",\"value\":\"value1\"},{\"key\":\"key2\",\"value\":\"value2\"},{\"key\":\"key3\",\"value\":\"value3\"}\],\"pkg_path\":\"gno.land/r/demo/ee\"},{\"type\":\"bar\",\"attrs\":\[{\"key\":\"bar\",\"value\":\"baz\"}\],\"pkg_path\":\"gno.land/r/demo/ee\"}\]'
 stdout 'TX HASH:    '
 
-gnokey maketx call -pkgpath gno.land/r/demo/ee -func Bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/ee -func Bar -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED:   \d+'

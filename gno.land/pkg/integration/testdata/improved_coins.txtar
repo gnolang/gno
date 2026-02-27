@@ -2,32 +2,32 @@ loadpkg gno.land/r/demo/coins $WORK
 
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "MakeNewCoins" -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "MakeNewCoins" -gas-fee 1000000ugnot -gas-wanted 4000000 -chainid=tendermint_test test1
 stdout '(300 int64)'
 stdout '(321 int64)'
 stdout '("ugnot" string)'
 stdout '("example" string)'
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "AddCoin" -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "AddCoin" -gas-fee 1000000ugnot -gas-wanted 4000000 -chainid=tendermint_test test1
 stdout '(300 int64)'
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "SubCoin" -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "SubCoin" -gas-fee 1000000ugnot -gas-wanted 4000000 -chainid=tendermint_test test1
 stdout '(123 int64)'
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "StringZeroCoin" -gas-fee 1000000ugnot -gas-wanted 3000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "StringZeroCoin" -gas-fee 1000000ugnot -gas-wanted 3000000 -chainid=tendermint_test test1
 stdout '("0ugnot" string)'
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "IsZero" -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "IsZero" -gas-fee 1000000ugnot -gas-wanted 4000000 -chainid=tendermint_test test1
 stdout '(true bool)'
 stdout '(false bool)'
 stdout '(false bool)'
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "IsPositive" -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "IsPositive" -gas-fee 1000000ugnot -gas-wanted 4000000 -chainid=tendermint_test test1
 stdout '(false bool)'
 stdout '(false bool)'
 stdout '(true bool)'
 
-gnokey maketx call -pkgpath gno.land/r/demo/coins -func "IsNegative" -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/coins -func "IsNegative" -gas-fee 1000000ugnot -gas-wanted 4000000 -chainid=tendermint_test test1
 stdout '(true bool)'
 stdout '(false bool)'
 stdout '(false bool)'

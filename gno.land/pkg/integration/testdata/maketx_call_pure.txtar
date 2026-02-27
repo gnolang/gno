@@ -10,19 +10,19 @@ gnokey query vm/qeval --data 'gno.land/p/foo/call_pure.Hello()'
 stdout 'notok'
 
 # 2. call to pure package ERROR
-! gnokey maketx call -pkgpath gno.land/p/foo/call_pure -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/p/foo/call_pure -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stderr '"gnokey" error: --= Error =--\nData: invalid package path'
 
 # 3. call to stdlibs ERROR
-! gnokey maketx call -pkgpath strconv -func Itoa -args 11 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath strconv -func Itoa -args 11 -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stderr '"gnokey" error: --= Error =--\nData: invalid package path'
 
 # 4. normal call to realm ERROR (need crossing)
-! gnokey maketx call -pkgpath gno.land/r/foo/call_realm -func Render2 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/foo/call_realm -func Render2 -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stderr 'function Render2 is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun'
 
 # 5. normal call to realm ERROR (need crossing)
-! gnokey maketx call -pkgpath gno.land/r/foo/call_realm -func Render -args "" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/foo/call_realm -func Render -args "" -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stderr 'function Render is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun'
 # XXX: While the error is correct, the correct message should be something like the message below:
 # stderr 'cannot cross-call a non-crossing function gno.land/r/foo/call_realm.Render from <no realm>'

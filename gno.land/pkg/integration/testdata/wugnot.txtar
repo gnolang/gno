@@ -21,7 +21,7 @@ gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user1_user
 stdout '0 int64'
 
 # Deposit using user1
-gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 10000ugnot -gas-fee 100000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 10000ugnot -gas-fee 100000ugnot -gas-wanted 50000000 -chainid=tendermint_test user1
 stdout 'OK!'
 
 gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user1_user_addr}\")"
@@ -37,7 +37,7 @@ gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user2_user
 stdout '0 int64'
 
 # Deposit using user2
-gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 10000ugnot -gas-fee 10000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test user2
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 10000ugnot -gas-fee 10000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test user2
 stdout 'OK!'
 
 gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user1_user_addr}\")"
@@ -52,7 +52,7 @@ stdout 'Total supply..: 20000'
 stdout 'Known accounts..: 2'
 
 
-gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Transfer -gas-fee 11000ugnot -gas-wanted 11_000_000 -args ${user3_user_addr} -args '10000' -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Transfer -gas-fee 11000ugnot -gas-wanted 11_000_000 -args ${user3_user_addr} -args '10000' -chainid=tendermint_test user1
 stdout 'OK!'
 
 gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:"
@@ -60,7 +60,7 @@ stdout 'Total supply..: 20000'
 stdout 'Known accounts..: 2' # user1 is no longer known, as they transferred all their balance
 
 # XXX: use test3 instead (depends on https://github.com/gnolang/gno/issues/1269#issuecomment-1806386069)
-gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Withdraw -args 10000 -gas-fee 11000ugnot -gas-wanted 11_000_000 -broadcast -chainid=tendermint_test user3
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Withdraw -args 10000 -gas-fee 11000ugnot -gas-wanted 11_000_000 -chainid=tendermint_test user3
 stdout 'OK!'
 
 gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:"
