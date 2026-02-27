@@ -11,6 +11,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
+
 func assertNoPlusPrefix(s string) {
 	if strings.HasPrefix(s, "+") {
 		panic("numbers cannot start with +")
@@ -204,6 +205,18 @@ func convertFloat(value string, precision int) float64 {
 	f64, err := strconv.ParseFloat(dec.String(), precision)
 	if err != nil {
 		panic(fmt.Sprintf("error value exceeds float%d precision %q: %v", precision, value, err))
+	}
+
+	if math.IsNaN(f64) {
+		panic(fmt.Sprintf("float%d does not accept NaN", precision))
+	}
+	if math.IsInf(f64, 0) {
+		panic(fmt.Sprintf("float%d does not accept Inf", precision))
+	}
+	// Canonicalize -0 to 0 to prevent malleability: -0.0 and 0.0 are
+	// mathematically equal but have different bit patterns.
+	if f64 == 0 && math.Signbit(f64) {
+		f64 = 0
 	}
 
 	return f64

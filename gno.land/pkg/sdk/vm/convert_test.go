@@ -2,10 +2,12 @@ package vm
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConvertEmptyNumbers(t *testing.T) {
@@ -34,6 +36,56 @@ func TestConvertEmptyNumbers(t *testing.T) {
 				_ = convertArgToGno("", tt.argT)
 			}
 			assert.PanicsWithValue(t, tt.expectedErr, run)
+		})
+	}
+}
+
+func TestConvertFloatInvalidValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		arg         string
+		argT        gnolang.Type
+		expectedErr string
+	}{
+		// NaN
+		{"float64 NaN", "NaN", gnolang.Float64Type, "float64 does not accept NaN"},
+		{"float32 NaN", "NaN", gnolang.Float32Type, "float32 does not accept NaN"},
+		// Inf
+		{"float64 Inf", "Inf", gnolang.Float64Type, "float64 does not accept Inf"},
+		{"float32 Inf", "Inf", gnolang.Float32Type, "float32 does not accept Inf"},
+		{"float64 -Inf", "-Inf", gnolang.Float64Type, "float64 does not accept Inf"},
+		{"float32 -Inf", "-Inf", gnolang.Float32Type, "float32 does not accept Inf"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.PanicsWithValue(t, tt.expectedErr, func() {
+				convertArgToGno(tt.arg, tt.argT)
+			})
+		})
+	}
+}
+
+func TestConvertFloatNegativeZeroCanonicalized(t *testing.T) {
+	t.Parallel()
+
+	// -0.0 and -0 must both produce positive zero bits to prevent malleability.
+	for _, arg := range []string{"-0.0", "-0"} {
+		t.Run(arg, func(t *testing.T) {
+			t.Parallel()
+
+			tv64 := convertArgToGno(arg, gnolang.Float64Type)
+			bits64 := tv64.GetFloat64()
+			require.False(t, math.Signbit(math.Float64frombits(bits64)),
+				"float64 %q: expected positive zero bits, got 0x%016X", arg, bits64)
+
+			tv32 := convertArgToGno(arg, gnolang.Float32Type)
+			bits32 := tv32.GetFloat32()
+			require.False(t, math.Signbit(float64(math.Float32frombits(bits32))),
+				"float32 %q: expected positive zero bits, got 0x%08X", arg, bits32)
 		})
 	}
 }
