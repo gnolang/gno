@@ -67,13 +67,16 @@ func (p Params) Validate() error {
 	if p.ChainDomain != "" && !ASCIIDomain.MatchString(p.ChainDomain) {
 		return fmt.Errorf("invalid chain domain %q, failed to match %q", p.ChainDomain, ASCIIDomain)
 	}
-	coins, err := std.ParseCoins(p.DefaultDeposit)
-	if len(coins) == 0 || err != nil {
+	defaultDepositCoins, err := std.ParseCoins(p.DefaultDeposit)
+	if len(defaultDepositCoins) == 0 || err != nil {
 		return fmt.Errorf("invalid default storage deposit %q", p.DefaultDeposit)
 	}
-	coins, err = std.ParseCoins(p.StoragePrice)
-	if len(coins) == 0 || err != nil {
+	storagePriceCoins, err := std.ParseCoins(p.StoragePrice)
+	if len(storagePriceCoins) == 0 || err != nil {
 		return fmt.Errorf("invalid storage price %q", p.StoragePrice)
+	}
+	if !storagePriceCoins.DenomsSubsetOf(defaultDepositCoins) {
+		return fmt.Errorf("storage price %q coins must be a subset of default deposit %q coins", storagePriceCoins, defaultDepositCoins)
 	}
 	if p.StorageFeeCollector.IsZero() {
 		return fmt.Errorf("invalid storage fee collector, cannot be empty")
