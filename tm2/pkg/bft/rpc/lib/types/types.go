@@ -42,6 +42,8 @@ func parseID(idValue any) (JSONRPCID, error) {
 		// but the JSONRPC2.0 spec says the id SHOULD NOT contain
 		// decimals - so we truncate the decimals here.
 		return JSONRPCIntID(int(id)), nil
+	case nil:
+		return nil, errors.New("request ID cannot be nil")
 	default:
 		typ := reflect.TypeOf(id)
 		return nil, fmt.Errorf("JSON-RPC ID (%v) is of unknown type (%v)", id, typ)
@@ -74,11 +76,6 @@ func (request *RPCRequest) UnmarshalJSON(data []byte) error {
 	request.JSONRPC = unsafeReq.JSONRPC
 	request.Method = unsafeReq.Method
 	request.Params = unsafeReq.Params
-
-	// Check if the ID is set
-	if unsafeReq.ID == nil {
-		return nil
-	}
 
 	// Parse the ID
 	id, err := parseID(unsafeReq.ID)
@@ -173,14 +170,12 @@ func (response *RPCResponse) UnmarshalJSON(data []byte) error {
 	response.Error = unsafeResp.Error
 	response.Result = unsafeResp.Result
 
-	// Check if any response ID is set
-	if unsafeResp.ID == nil {
-		return nil
-	}
-
 	// Parse the ID
 	id, err := parseID(unsafeResp.ID)
 	if err != nil {
+		if response.Error != nil {
+			return response.Error
+		}
 		return fmt.Errorf("unable to parse response ID, %w", err)
 	}
 

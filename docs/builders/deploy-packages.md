@@ -135,10 +135,10 @@ For more details on gas fees and optimization strategies, see the [Gas Fees
 documentation](../resources/gas-fees.md).
 
 With the optional `-max-deposit` flag in `gnokey`, you can specify the maximum
-storage deposit that may be locked when deploying a package,since the package
+storage deposit that may be locked when deploying a package, since the package
 consumes on-chain storage. The
 transaction will fail if the chain attempts to lock more tokens than the
-specified limit, protecting you from locking more tokens than they are willing
+specified limit, protecting you from locking more tokens than you are willing
 to tolerate. Learn about [storage deposits](../resources/storage-deposit.md).
 
 ## Conclusion

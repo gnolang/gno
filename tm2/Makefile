@@ -49,7 +49,7 @@ test: _test.pkg.amino _test.pkg.bft _test.pkg.db _test.pkg.others _test.flappy
 _test.flappy:
 	# flappy tests should work "sometimes" (at least once).
 	# TODO: support coverage for flappy tests.
-	TEST_STABILITY=flappy $(rundep) moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
+	STABILITY_FILTER=flappy $(rundep) moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
 		./pkg/bft/consensus ./pkg/bft/blockchain ./pkg/bft/mempool ./pkg/p2p ./pkg/bft/privval
 
 _test.pkg.others:;  go test $(GOTEST_FLAGS) `go list ./pkg/... | grep -Ev 'pkg/(amino|bft|db|iavl/benchmarks)(/|$$)'`

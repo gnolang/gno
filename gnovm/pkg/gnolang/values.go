@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
-	"strconv"
 	"unsafe"
 
 	"github.com/cockroachdb/apd/v3"
@@ -1020,19 +1019,6 @@ func (tv *TypedValue) IsNilInterface() bool {
 	return false
 }
 
-func (tv *TypedValue) IsNaN() bool {
-	switch tv.T.Kind() {
-	case Float32Kind:
-		_, _, _, _, nan := softfloat.Funpack32(tv.GetFloat32())
-		return nan
-	case Float64Kind:
-		_, _, _, _, nan := softfloat.Funpack64(tv.GetFloat64())
-		return nan
-	default:
-		return false
-	}
-}
-
 func (tv *TypedValue) HasKind(k Kind) bool {
 	if tv.T == nil {
 		return false
@@ -1100,35 +1086,50 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 
 // Returns encoded bytes for primitive values.
 // These are used for computing map keys.
-func (tv *TypedValue) PrimitiveBytes(bz []byte) []byte {
+// If NaN float32|float64 returns bz unchanged and isNaN=true.
+func (tv *TypedValue) MapKeyBytes(bz []byte) (bz2 []byte, isNaN bool) {
 	switch bt := baseOf(tv.T); bt {
 	case BoolType:
 		if tv.GetBool() {
-			return append(bz, 0x01)
+			return append(bz, 0x01), false
 		}
-		return append(bz, 0x00)
+		return append(bz, 0x00), false
 	case StringType:
-		return append(bz, tv.GetString()...)
+		return append(bz, tv.GetString()...), false
 	case Int8Type:
-		return append(bz, uint8(tv.GetInt8()))
+		return append(bz, uint8(tv.GetInt8())), false
 	case Int16Type:
-		return binary.LittleEndian.AppendUint16(bz, uint16(tv.GetInt16()))
+		return binary.LittleEndian.AppendUint16(bz, uint16(tv.GetInt16())), false
 	case Int32Type:
-		return binary.LittleEndian.AppendUint32(bz, uint32(tv.GetInt32()))
+		return binary.LittleEndian.AppendUint32(bz, uint32(tv.GetInt32())), false
 	case IntType, Int64Type:
-		return binary.LittleEndian.AppendUint64(bz, uint64(tv.GetInt()))
+		return binary.LittleEndian.AppendUint64(bz, uint64(tv.GetInt())), false
 	case Uint8Type:
-		return append(bz, tv.GetUint8())
+		return append(bz, tv.GetUint8()), false
 	case Uint16Type:
-		return binary.LittleEndian.AppendUint16(bz, tv.GetUint16())
+		return binary.LittleEndian.AppendUint16(bz, tv.GetUint16()), false
 	case Uint32Type:
-		return binary.LittleEndian.AppendUint32(bz, tv.GetUint32())
+		return binary.LittleEndian.AppendUint32(bz, tv.GetUint32()), false
 	case UintType, Uint64Type:
-		return binary.LittleEndian.AppendUint64(bz, tv.GetUint())
+		return binary.LittleEndian.AppendUint64(bz, tv.GetUint()), false
 	case Float32Type:
-		return binary.LittleEndian.AppendUint32(bz, tv.GetFloat32())
+		u32 := tv.GetFloat32()
+		if u32 == 0 || u32 == (1<<31) { // 0 or -0 normalized to 0
+			return binary.LittleEndian.AppendUint32(bz, 0), false
+		}
+		if _, _, _, _, isNaN = softfloat.Funpack32(u32); isNaN {
+			return bz, true
+		}
+		return binary.LittleEndian.AppendUint32(bz, u32), false
 	case Float64Type:
-		return binary.LittleEndian.AppendUint64(bz, tv.GetFloat64())
+		u64 := tv.GetFloat64()
+		if u64 == 0 || u64 == (1<<63) { // 0 or -0 normalized to 0
+			return binary.LittleEndian.AppendUint64(bz, 0), false
+		}
+		if _, _, _, _, isNaN = softfloat.Funpack64(u64); isNaN {
+			return bz, true
+		}
+		return binary.LittleEndian.AppendUint64(bz, u64), false
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
@@ -1443,7 +1444,7 @@ func (tv *TypedValue) GetUint64() uint64 {
 	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetFloat32(n uint32) {
+func (tv *TypedValue) SetFloat32(u32 uint32) {
 	if debug {
 		if tv.T.Kind() != Float32Kind {
 			panic(fmt.Sprintf(
@@ -1451,7 +1452,7 @@ func (tv *TypedValue) SetFloat32(n uint32) {
 				tv.T.String()))
 		}
 	}
-	*(*uint32)(unsafe.Pointer(&tv.N)) = n
+	*(*uint32)(unsafe.Pointer(&tv.N)) = u32
 }
 
 func (tv *TypedValue) GetFloat32() uint32 {
@@ -1465,7 +1466,7 @@ func (tv *TypedValue) GetFloat32() uint32 {
 	return *(*uint32)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetFloat64(n uint64) {
+func (tv *TypedValue) SetFloat64(u64 uint64) {
 	if debug {
 		if tv.T.Kind() != Float64Kind {
 			panic(fmt.Sprintf(
@@ -1473,7 +1474,7 @@ func (tv *TypedValue) SetFloat64(n uint64) {
 				tv.T.String()))
 		}
 	}
-	*(*uint64)(unsafe.Pointer(&tv.N)) = n
+	*(*uint64)(unsafe.Pointer(&tv.N)) = u64
 }
 
 func (tv *TypedValue) GetFloat64() uint64 {
@@ -1555,38 +1556,17 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 	// General case.
 	bz := make([]byte, 0, 64)
 	if !omitType {
+		// TypeID is human readable and balanced, so appending ":" works.
+		// This keeps ComputeMapKey somewhat human readable esp w/
+		// colors.ColoredBytes().
 		bz = append(bz, tv.T.TypeID().Bytes()...)
 		bz = append(bz, ':') // type/value separator
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		const (
-			fourZeroes  = "\x00\x00\x00\x00"
-			eightZeroes = fourZeroes + fourZeroes
-		)
-		// For float types, return isNaN = true if there is a nan value,
-		// normalize to 0 if negative zero.
-		switch bt {
-		case Float32Type:
-			if tv.IsNaN() {
-				return "", true
-			}
-			if tv.GetFloat32() == (1 << 31) {
-				bz = append(bz, fourZeroes...)
-			} else {
-				bz = tv.PrimitiveBytes(bz)
-			}
-		case Float64Type:
-			if tv.IsNaN() {
-				return "", true
-			}
-			if tv.GetFloat64() == (1 << 63) {
-				bz = append(bz, eightZeroes...)
-			} else {
-				bz = tv.PrimitiveBytes(bz)
-			}
-		default:
-			bz = tv.PrimitiveBytes(bz)
+		bz, isNaN = tv.MapKeyBytes(bz)
+		if isNaN {
+			return "", true
 		}
 	case *PointerType:
 		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
@@ -1602,6 +1582,9 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		al := av.GetLength()
 		bz = append(bz, '[')
 		if av.Data == nil {
+			if tv.T.Elem().Kind() == Uint8Kind {
+				panic("should not happen; unexpected list array for array with uint8 element kind")
+			}
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := range al {
 				ev := fillValueTV(store, &av.List[i])
@@ -1609,6 +1592,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 				if isNaN {
 					return "", true
 				}
+				bz = binary.AppendUvarint(bz, uint64(len(mk)))
 				bz = append(bz, mk...)
 				if i != al-1 {
 					bz = append(bz, ',')
@@ -1631,21 +1615,13 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			if isNaN {
 				return "", true
 			}
+			bz = binary.AppendUvarint(bz, uint64(len(mk)))
 			bz = append(bz, mk...)
 			if i != sl-1 {
 				bz = append(bz, ',')
 			}
 		}
 		bz = append(bz, '}')
-	case *FuncType:
-		panic("func type cannot be used as map key")
-	case *MapType:
-		panic("map type cannot be used as map key")
-	case *InterfaceType:
-		panic("should not happen")
-	case *PackageType:
-		pv := tv.V.(*PackageValue)
-		bz = append(bz, []byte(strconv.Quote(pv.PkgPath))...)
 	case *ChanType:
 		panic("not yet implemented")
 	default:

@@ -173,6 +173,11 @@ func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
 		}
 
 		if d.IsDir() {
+			if d.Name() == "filetests" {
+				// This dir shouldn't have gnomod.toml and should be skipped below, but skip just to be sure
+				return fs.SkipDir
+			}
+
 			dir := filepath.Join(patternRoot, path)
 			if dir == workspaceRoot {
 				return nil

@@ -57,3 +57,10 @@ func makeFlagURI(p *boards.Post) string {
 	}
 	return makeReplyURI(p) + "/flag"
 }
+
+func makeFlaggingReasonsURI(p *boards.Post) string {
+	if boards.IsThread(p) {
+		return makeThreadURI(p) + "/flagging-reasons"
+	}
+	return makeReplyURI(p) + "/flagging-reasons"
+}
