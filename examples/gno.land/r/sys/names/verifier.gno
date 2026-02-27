@@ -39,7 +39,7 @@ func verifier(isEnabled bool, address_XXX address, namespace string) bool {
 		return true // only in pre-genesis cases
 	}
 
-	if address_XXX.String() == "" || namespace == "" {
+	if namespace == "" || !address_XXX.IsValid() {
 		return false
 	}
 
