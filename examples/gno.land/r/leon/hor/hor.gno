@@ -157,6 +157,14 @@ func Downvote(cur realm, pkgpath string) {
 	exhibition.itemsSortedByDownvotes.Set(getVoteSortKey(item.downvote.Size(), item.id), item)
 }
 
+func Pause(cur realm) error {
+	return Pausable.Pause()
+}
+
+func Unpause(cur realm) error {
+	return Pausable.Unpause()
+}
+
 func Delete(cur realm, pkgpath string) {
 	if !Ownable.Owned() {
 		panic(ownable.ErrUnauthorized)
