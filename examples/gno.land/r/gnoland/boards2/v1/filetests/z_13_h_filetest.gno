@@ -34,7 +34,7 @@ func init() {
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.FlagReply(cross, bid, tid, rid, "")
+	boards2.FlagReply(cross, bid, tid, rid, "Reason")
 
 	// Render content must contain a message about the hidden reply
 	println(boards2.Render("test-board/1/2"))

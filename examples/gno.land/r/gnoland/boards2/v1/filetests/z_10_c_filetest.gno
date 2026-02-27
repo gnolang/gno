@@ -28,7 +28,7 @@ func main() {
 	// Make the next call as an uninvited user
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	boards2.FlagThread(cross, bid, pid, "")
+	boards2.FlagThread(cross, bid, pid, "Reason")
 }
 
 // Error:

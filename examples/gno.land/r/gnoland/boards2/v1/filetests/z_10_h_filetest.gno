@@ -30,7 +30,7 @@ func init() {
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.FlagThread(cross, bid, pid, "")
+	boards2.FlagThread(cross, bid, pid, "Reason")
 
 	// Ensure that original thread content not visible
 	println(boards2.Render("test-board/1"))

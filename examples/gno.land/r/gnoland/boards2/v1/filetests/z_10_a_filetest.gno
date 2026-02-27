@@ -33,7 +33,7 @@ func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Flag thread as owner
-	boards2.FlagThread(cross, bid, pid, "")
+	boards2.FlagThread(cross, bid, pid, "Reason")
 
 	// Ensure thread is not listed
 	println(boards2.Render("test-board"))

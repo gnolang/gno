@@ -20,7 +20,7 @@ func init() {
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.FlagThread(cross, bid, 404, "")
+	boards2.FlagThread(cross, bid, 404, "Reason")
 }
 
 // Error:

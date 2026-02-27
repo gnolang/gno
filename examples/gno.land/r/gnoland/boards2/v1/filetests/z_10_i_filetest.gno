@@ -12,20 +12,20 @@ const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 
 var (
 	bid boards.ID
-	tid boards.ID
+	pid boards.ID
 )
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test-board", false, false)
-	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
+	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
 }
 
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.FlagReply(cross, bid, tid, 404, "Reason")
+	boards2.FlagThread(cross, bid, pid, "")
 }
 
 // Error:
-// reply does not exist with ID: 404
+// flagging reason is required

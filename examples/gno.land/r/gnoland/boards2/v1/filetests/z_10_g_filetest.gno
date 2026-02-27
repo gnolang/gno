@@ -30,13 +30,13 @@ func init() {
 	// Create a new thread and flag it as a moderator
 	testing.SetRealm(testing.NewUserRealm(moderator))
 	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
-	boards2.FlagThread(cross, bid, pid, "")
+	boards2.FlagThread(cross, bid, pid, "Reason")
 }
 
 func main() {
 	testing.SetRealm(testing.NewUserRealm(moderator))
 
-	boards2.FlagThread(cross, bid, pid, "")
+	boards2.FlagThread(cross, bid, pid, "Reason")
 }
 
 // Error:

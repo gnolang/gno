@@ -30,7 +30,7 @@ func init() {
 
 	// Flag original thread
 	boards2.SetFlaggingThreshold(cross, boardID, 1)
-	boards2.FlagThread(cross, boardID, threadID, "")
+	boards2.FlagThread(cross, boardID, threadID, "Reason")
 }
 
 func main() {
