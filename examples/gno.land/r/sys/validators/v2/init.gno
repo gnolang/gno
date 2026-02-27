@@ -11,4 +11,7 @@ func init() {
 
 	// No changes to apply initially
 	changes = avl.NewTree()
+
+	// No realms are allowed to modify the validator set initially
+	allowedRealms = avl.NewTree()
 }
