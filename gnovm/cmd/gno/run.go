@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -18,11 +19,13 @@ import (
 )
 
 type runCmd struct {
-	verbose   bool
-	rootDir   string
-	expr      string
-	debug     bool
-	debugAddr string
+	verbose    bool
+	rootDir    string
+	expr       string
+	debug      bool
+	debugAddr  string
+	dapMode    bool
+	attachMode bool
 }
 
 func newRunCmd(cio commands.IO) *commands.Command {
@@ -75,6 +78,20 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 		"debug-addr",
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
+	)
+
+	fs.BoolVar(
+		&c.dapMode,
+		"dap",
+		false,
+		"enable Debug Adapter Protocol mode for IDE integration",
+	)
+
+	fs.BoolVar(
+		&c.attachMode,
+		"attach",
+		false,
+		"attach to an already running debug session (requires --dap)",
 	)
 }
 
@@ -225,8 +242,52 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 
 	// If the debug address is set, the debugger waits for a remote client to connect to it.
 	if cfg.debugAddr != "" {
-		if err := m.Debugger.Serve(cfg.debugAddr); err != nil {
-			return err
+		if cfg.dapMode {
+			// In DAP mode, run the program in a goroutine and start the DAP server
+			// The DAP server will control program execution via debug commands
+			programDone := make(chan error, 1)
+
+			if !cfg.attachMode {
+				// Launch mode: start program execution automatically
+				go func() {
+					// Wait for DAP server to be initialized
+					for m.Debugger.DAPServer() == nil {
+						time.Sleep(10 * time.Millisecond)
+					}
+					// Small additional delay to ensure DAP server is fully ready
+					time.Sleep(50 * time.Millisecond)
+
+					m.RunFiles(files...)
+					err := runExpr(m, cfg.expr)
+
+					// Send terminated event if DAP server is active
+					if dapServer := m.Debugger.DAPServer(); dapServer != nil {
+						dapServer.SendTerminatedEvent()
+					}
+
+					programDone <- err
+				}()
+			}
+			// In attach mode, don't start program execution - wait for attach request
+
+			// Start DAP server mode in another goroutine
+			serverDone := make(chan error, 1)
+			go func() {
+				serverDone <- m.Debugger.ServeDAP(m, cfg.debugAddr, cfg.attachMode, files, cfg.expr)
+			}()
+
+			// Wait for either program completion or server error
+			select {
+			case err := <-programDone:
+				return err
+			case err := <-serverDone:
+				return err
+			}
+		} else {
+			// Start traditional debugger mode
+			if err := m.Debugger.Serve(cfg.debugAddr); err != nil {
+				return err
+			}
 		}
 	}
 
