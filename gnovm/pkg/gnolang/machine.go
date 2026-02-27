@@ -2212,9 +2212,13 @@ func (m *Machine) PushForPointer(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
-		m.Panic(typedString("cannot directly modify readonly tainted object (w/o method): " + lx.String()))
+		m.Panic(typedString(readonlyAccessPanic(lx)))
 	}
 	return pv
+}
+
+func readonlyAccessPanic(x Expr) string {
+	return "cannot directly modify readonly tainted object (w/o method): " + x.String()
 }
 
 // Returns true iff:
@@ -2274,7 +2278,8 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			// missing keys. Check readonly before this mutation.
 			ro = m.IsReadonly(xv)
 			if ro {
-				return
+				// Ensure we always panic, without expecting the caller to do it.
+				m.Panic(typedString(readonlyAccessPanic(lx)))
 			}
 			pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
 		} else {
