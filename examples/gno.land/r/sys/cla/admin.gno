@@ -4,6 +4,7 @@ import (
 	"chain"
 
 	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/helplink"
 	"gno.land/r/gov/dao"
 )
 
@@ -19,10 +20,27 @@ func ProposeNewCLA(newHash, newURL string) dao.ProposalRequest {
 		return nil
 	}
 
+	desc := "Propose updating the CLA requirement.\n\n"
+	if requiredHash != "" {
+		desc += "Current hash: " + requiredHash + "\n"
+	}
+	if claURL != "" {
+		desc += "Current URL: " + claURL + "\n"
+	}
+	if newHash != "" {
+		desc += "New hash: " + newHash + "\n"
+	}
+	if newURL != "" {
+		desc += "New URL: " + newURL + "\n"
+	}
+	if newHash == "" {
+		desc += "This proposal disables CLA enforcement.\n"
+	}
+
 	return dao.NewProposalRequest(
 		"Update CLA requirement",
-		"",
-		dao.NewSimpleExecutor(cb, ""),
+		desc,
+		dao.NewSimpleExecutor(cb, helplink.Realm("gno.land/r/sys/cla").Home()),
 	)
 }
 
