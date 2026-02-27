@@ -162,6 +162,11 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					"error parsing byte array %q: %v",
 					arg, err))
 			}
+			if len(bz) != bt.Len {
+				panic(fmt.Sprintf(
+					"array length mismatch: declared [%d]byte, got %d bytes",
+					bt.Len, len(bz)))
+			}
 			tv.V = &gno.ArrayValue{
 				Data: bz,
 			}
