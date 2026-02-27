@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 	user  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 	user2 address = "g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt"
 )
