@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -107,6 +108,20 @@ func generateBalances(bk *address.Book, cfg *AppConfig) (gnoland.Balances, error
 	return blsFile, nil
 }
 
+func getCoins(ctx context.Context, address string) (std.Coins, error) {
+	qres, err := client.NewLocal().ABCIQuery(ctx, "auth/accounts/"+address, []byte{})
+	if err != nil {
+		return nil, fmt.Errorf("unable to query account: %w", err)
+	}
+
+	var qret struct{ BaseAccount std.BaseAccount }
+	if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal query response: %w", err)
+	}
+
+	return qret.BaseAccount.GetCoins(), nil
+}
+
 func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, _ *dev.Node) error {
 	var tab strings.Builder
 	tabw := tabwriter.NewWriter(&tab, 0, 0, 2, ' ', tabwriter.TabIndent)
@@ -117,27 +132,20 @@ func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, _
 
 	for _, entry := range entries {
 		address := entry.Address.String()
-		qres, err := client.NewLocal().ABCIQuery(ctx, "auth/accounts/"+address, []byte{})
+		coins, err := getCoins(ctx, address)
 		if err != nil {
-			return fmt.Errorf("unable to query account %q: %w", address, err)
-		}
-
-		var qret struct{ BaseAccount std.BaseAccount }
-		if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
-			return fmt.Errorf("unable to unmarshal query response: %w", err)
+			return fmt.Errorf("unable to get coins for address %q: %w", address, err)
 		}
 
 		if len(entry.Names) == 0 {
 			// Insert row with name, address, and balance amount.
-			fmt.Fprintf(tabw, "%s\t%s\t%s\n", "_", address, qret.BaseAccount.GetCoins().String())
+			fmt.Fprintf(tabw, "%s\t%s\t%s\n", "_", address, coins.String())
 			continue
 		}
 
 		for _, name := range entry.Names {
 			// Insert row with name, address, and balance amount.
-			fmt.Fprintf(tabw, "%s\t%s\t%s\n", name,
-				address,
-				qret.BaseAccount.GetCoins().String())
+			fmt.Fprintf(tabw, "%s\t%s\t%s\n", name, address, coins.String())
 		}
 	}
 
@@ -147,4 +155,34 @@ func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, _
 	headline := fmt.Sprintf("(%d) known keys", len(entries))
 	logger.Info(headline, "table", tab.String())
 	return nil
+}
+
+type AccountBalance struct {
+	Names   []string  `json:"names,omitempty"`
+	Address string    `json:"address"`
+	Balance std.Coins `json:"balance"`
+}
+
+func marshalJSONAccounts(ctx context.Context, book *address.Book) ([]byte, error) {
+	var (
+		entries  = book.List()
+		accounts = make([]AccountBalance, 0, len(entries))
+	)
+
+	for _, entry := range entries {
+		address := entry.Address.String()
+
+		coins, err := getCoins(ctx, address)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get coins for address %q: %w", address, err)
+		}
+
+		accounts = append(accounts, AccountBalance{
+			Names:   entry.Names,
+			Address: address,
+			Balance: coins,
+		})
+	}
+
+	return json.Marshal(accounts)
 }
