@@ -10,9 +10,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 /*
@@ -55,12 +56,16 @@ func (a address) IsValid() bool { return false } // shim
 type Address = address
 
 type gnocoins []gnocoin
+func (cz gnocoins) String() string { return "" } // shim
+
 type Gnocoins = gnocoins
 
 type gnocoin struct {
     Denom string
     Amount int64
 }
+func (c gnocoin) String() string { return "" } // shim
+
 type Gnocoin = gnocoin
 `)
 	default:
