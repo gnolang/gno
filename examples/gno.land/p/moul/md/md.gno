@@ -319,3 +319,131 @@ func ColumnsN(content []string, colsPerRow int, padded bool) string {
 	}
 	return sb.String()
 }
+
+// FormInputType defines the type of a form input element.
+// It is used to differentiate between types such as text, number, email, etc.
+type FormInputType string
+
+const (
+	// FormText represents a plain text input.
+	// Example: "hello"
+	FormText FormInputType = "text"
+
+	// FormNumber represents a numeric input.
+	// Example: 42
+	FormNumber = "number"
+
+	// FormEmail represents an input that expects an email address.
+	// Must match regex: '^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$'
+	FormEmail = "email"
+
+	// FormTel represents a telephone number input.
+	// Example: "+33 6 12 34 56 78"
+	FormTel = "tel"
+
+	// FormPassword represents a password input.
+	// The value is hidden from display.
+	FormPassword = "password"
+)
+
+// Used to check for the validity of a FormInput in O(n)
+var validFormInputSet = map[FormInputType]struct{}{
+	FormText: {}, FormNumber: {}, FormEmail: {}, FormTel: {}, FormPassword: {},
+}
+
+// FormInput represents a single form input field.
+// Name is the input name, PlaceHolder is the placeholder text,
+// and Type determines the input type (text, number, etc.).
+type FormInput struct {
+	Name        string
+	PlaceHolder string
+	Type        FormInputType
+}
+
+// Form represents an entire form block with a path and multiple input fields.
+// The form can be rendered as a string in a structured format.
+type Form struct {
+	Path   string
+	Inputs []FormInput
+}
+
+func escapeValue(text string) string {
+	replacer := strings.NewReplacer(
+		`<`, "&#x3c",
+		`=`, "&#x3d",
+		`>`, "&#x3e",
+		`"`, "&#x22",
+		`\`, "&#x5c",
+		`/`, "&#x2f",
+	)
+	return replacer.Replace(text)
+}
+
+// SetPath defines the form submission path.
+// This path determines the endpoint to which the form will send data.
+// If unset, the form uses the current page path.
+func (f *Form) SetPath(path string) {
+	f.Path = path
+}
+
+// AddInput adds a generic input to the form.
+// The inputType can be as follows:
+// - `FormText` - adds a text input field to the form.
+// - `FormNumber` - adds a numeric input field to the form.
+// - `FormEmail` - adds an email input field to the form.
+// - `FormTel` - adds a telephone number input field to the form.
+// - `FormPassword` - adds a password input field to the form.
+func (f *Form) AddInput(inputType FormInputType, name, placeholder string) {
+	f.Inputs = append(f.Inputs, FormInput{
+		Name:        name,
+		PlaceHolder: placeholder,
+		Type:        inputType,
+	})
+}
+
+// String returns the form as a Gno-formatted string.
+// It generates the <gno-form> block with all included inputs.
+// Example output:
+// <gno-form path="/submit">
+//
+//	<gno-input name="email" placeholder="Your email" type="email" />
+//
+// </gno-form>
+func (f Form) String() string {
+	// Check if no inputs
+	if len(f.Inputs) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	
+	// Write the begin of the form
+	str := "<gno-form"
+	if f.Path != "" {
+		str += " path=\"" + escapeValue(f.Path) + "\""
+	}
+	str += ">\n"
+	sb.WriteString(str)
+
+	// Generate input lines
+	for _, v := range f.Inputs {
+		// Use text by default
+		x := v.Type
+		if _, ok := validFormInputSet[v.Type]; !ok {
+			x = FormText
+		}
+
+		// Write the line
+		sb.WriteString(`  <gno-input name="` +
+			escapeValue(v.Name) +
+			`" type="` +
+			string(x) +
+			`" placeholder="` +
+			escapeValue(v.PlaceHolder) +
+			`" />` + "\n",
+		)
+	}
+
+	// Write the end of the form
+	sb.WriteString("</gno-form>\n")
+	return sb.String()
+}
