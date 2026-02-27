@@ -11,7 +11,7 @@ import (
 
 const (
 	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
-	admin address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
+	user  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 )
 
 var bid boards.ID // Operate on board DAO
@@ -20,14 +20,18 @@ func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test123", false, false)
 
-	boards2.InviteMember(cross, bid, admin, permissions.RoleGuest)
+	boards2.InviteMember(cross, bid, user, permissions.RoleGuest)
 }
 
 func main() {
-	testing.SetRealm(testing.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(user))
 
-	boards2.ChangeMemberRole(cross, bid, admin, boards.Role("foo"))
+	// Users must be able to remove themselves without permissions
+	boards2.RemoveMember(cross, bid, user)
+
+	// Check that user is not a member
+	println(boards2.IsMember(bid, user))
 }
 
-// Error:
-// invalid role: foo
+// Output:
+// false

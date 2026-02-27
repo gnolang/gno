@@ -288,7 +288,7 @@ func TestDataExpandPatterns(t *testing.T) {
 
 			warn := &strings.Builder{}
 			// TODO: test single-package mode
-			res, err := expandPatterns(gnoRoot, &loaderContext{IsWorkspace: true, Root: workroot}, warn, tc.patterns...)
+			res, err := expandPatterns(gnoRoot, &loaderContext{IsWorkspace: true, Root: workroot}, nil, warn, tc.patterns...)
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)
 			} else {

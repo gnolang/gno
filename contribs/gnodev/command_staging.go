@@ -3,10 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"path"
-	"path/filepath"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -28,11 +25,9 @@ var defaultStagingOptions = AppConfig{
 	root:                gnoenv.RootDir(),
 	interactive:         false,
 	unsafeAPI:           false,
-	lazyLoader:          false,
-	paths:               path.Join(DefaultDomain, "/**"), // Load every package under the main domain},
+	loadMode:            LoadModeFull, // Pre-load all packages
 	emptyBlocks:         false,
 	emptyBlocksInterval: 1,
-
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app
 	nodeP2PListenerAddr:      "tcp://127.0.0.1:0",
@@ -51,9 +46,13 @@ func NewStagingCmd(io commands.IO) *commands.Command {
 This mode is designed for stability and security, suitable for pre-deployment testing.
 Interactive mode and unsafe API access are disabled to ensure a secure environment.
 The log format is set to JSON, facilitating integration with logging systems.
-Since lazy-load is disabled in this mode, the entire example folder from "gnoroot" is loaded by default.
 
-Additionally, you can specify an additional package directory to load.
+PACKAGE LOADING:
+This mode uses -load=full by default, which pre-loads all discovered packages.
+The lazy loading proxy is disabled in this mode.
+
+Additional package directories can be passed as arguments.
+Use -load=auto or -load=lazy to change the loading behavior.
 `,
 			NoParentFlags: true,
 		},
@@ -69,16 +68,5 @@ func (c *StagingAppConfig) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStagingCmd(cfg *StagingAppConfig, args []string, io commands.IO) error {
-	// If no resolvers is defined, use gno example as root resolver
-	if len(cfg.AppConfig.resolvers) == 0 {
-		gnoroot, err := gnoenv.GuessRootDir()
-		if err != nil {
-			return err
-		}
-
-		exampleRoot := filepath.Join(gnoroot, "examples")
-		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, packages.NewRootResolver(exampleRoot))
-	}
-
 	return runApp(&cfg.AppConfig, io, args...)
 }

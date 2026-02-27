@@ -96,8 +96,10 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 		},
 	}
 
-	exampleFolder := filepath.Join(gnoenv.RootDir(), "example") // XXX: we should avoid having to hardcoding this here
-	defaultLoader := packages.NewLoader(packages.NewRootResolver(exampleFolder))
+	examplesDir := filepath.Join(gnoenv.RootDir(), "examples")
+	defaultLoader := packages.NewNativeLoader(packages.NativeLoaderConfig{
+		ExtraWorkspaces: []string{examplesDir},
+	})
 
 	return &NodeConfig{
 		Logger:                log.NewNoopLogger(),
@@ -124,7 +126,7 @@ type Node struct {
 	client       client.Client
 	logger       *slog.Logger
 	loader       packages.Loader
-	pkgs         []packages.Package
+	pkgs         []*packages.Package
 	pkgsModifier map[string]QueryPath // path -> QueryPath
 	paths        []string
 
@@ -185,7 +187,7 @@ func (n *Node) Close() error {
 	return n.Node.Stop()
 }
 
-func (n *Node) ListPkgs() []packages.Package {
+func (n *Node) ListPkgs() []*packages.Package {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
 
@@ -225,7 +227,7 @@ func (n *Node) HasPackageLoaded(path string) bool {
 	defer n.muNode.RUnlock()
 
 	for _, pkg := range n.pkgs {
-		if pkg.MemPackage.Path == path {
+		if pkg.ImportPath == path {
 			return true
 		}
 	}
@@ -425,16 +427,25 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata
 	return state, nil
 }
 
-func (n *Node) generateTxs(fee std.Fee, pkgs []packages.Package) []gnoland.TxWithMetadata {
+// generateTxs creates transactions for packages. Packages that fail to read
+// are logged and skipped, allowing deployment to proceed with available packages.
+func (n *Node) generateTxs(fee std.Fee, pkgs []*packages.Package) []gnoland.TxWithMetadata {
 	metatxs := make([]gnoland.TxWithMetadata, 0, len(pkgs))
 	for _, pkg := range pkgs {
+		// Read full MemPackage content on demand
+		mempkg, err := pkg.ToMemPackage()
+		if err != nil {
+			n.logger.Error("failed to read package", "path", pkg.ImportPath, "err", err)
+			continue
+		}
+
 		msg := vm.MsgAddPackage{
 			Creator:    n.config.DefaultCreator,
 			MaxDeposit: n.config.DefaultDeposit,
-			Package:    &pkg.MemPackage,
+			Package:    mempkg,
 		}
 
-		if m, ok := n.pkgsModifier[pkg.Path]; ok {
+		if m, ok := n.pkgsModifier[pkg.ImportPath]; ok {
 			if !m.Creator.IsZero() {
 				msg.Creator = m.Creator
 			}
@@ -444,7 +455,7 @@ func (n *Node) generateTxs(fee std.Fee, pkgs []packages.Package) []gnoland.TxWit
 			}
 
 			n.logger.Debug("applying pkgs modifier",
-				"path", pkg.Path,
+				"path", pkg.ImportPath,
 				"creator", msg.Creator,
 				"deposit", msg.MaxDeposit,
 			)
@@ -601,6 +612,8 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	// Execute node creation and handle any errors.
 	defer recoverFromError()
 
+	n.logger.Info("starting node", "pkgs", len(genesis.Txs))
+
 	// XXX: Redirect the node log somewhere else
 	node, nodeErr := gnoland.NewInMemoryNode(noopLogger, nodeConfig)
 	if nodeErr != nil {
@@ -621,6 +634,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 		return ctx.Err()
 	}
 
+	n.logger.Info("node ready")
 	return nil
 }
 

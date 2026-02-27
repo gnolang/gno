@@ -28,6 +28,9 @@ type (
 		HasPermission(address, Permission) bool
 
 		// WithPermission calls a callback when a user has a specific permission.
+		// Crossing when calling this method is required to allow implementations
+		// to update their internal state, for example to create proposals that
+		// when approved execute the permissioned callback.
 		// It panics on error.
 		//
 		// An inline crossing function call can be used by the implementation if

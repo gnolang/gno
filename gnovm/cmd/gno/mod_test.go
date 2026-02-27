@@ -203,7 +203,7 @@ valid.gno
 			args:                 []string{"mod", "graph"},
 			testDir:              "../../tests/integ/valid2",
 			simulateExternalRepo: true,
-			stderrShouldBe:       "gno: downloading gno.land/p/nt/avl\n",
+			stderrShouldBe:       "gno: downloading gno.land/p/nt/avl\ngno: downloading gno.land/p/nt/ufmt\n",
 			stdoutShouldBe: `gno.land/p/integ/valid gno.land/p/integ/valid
 gno.land/p/integ/valid gno.land/p/nt/avl
 gno.land/p/integ/valid testing
@@ -212,19 +212,35 @@ gno.land/p/nt/avl gno.land/p/nt/ufmt
 gno.land/p/nt/avl sort
 gno.land/p/nt/avl strings
 gno.land/p/nt/avl testing
+gno.land/p/nt/ufmt bytes
+gno.land/p/nt/ufmt errors
+gno.land/p/nt/ufmt fmt
+gno.land/p/nt/ufmt io
+gno.land/p/nt/ufmt strconv
+gno.land/p/nt/ufmt strings
+gno.land/p/nt/ufmt testing
+gno.land/p/nt/ufmt unicode/utf8
 `,
 		},
 		{
 			args:                 []string{"mod", "graph"},
 			testDir:              "../../tests/integ/require_remote_module",
 			simulateExternalRepo: true,
-			stderrShouldBe:       "gno: downloading gno.land/p/nt/avl\n",
+			stderrShouldBe:       "gno: downloading gno.land/p/nt/avl\ngno: downloading gno.land/p/nt/ufmt\n",
 			stdoutShouldBe: `gno.land/t/importavl gno.land/p/nt/avl
 gno.land/p/nt/avl gno.land/p/nt/avl
 gno.land/p/nt/avl gno.land/p/nt/ufmt
 gno.land/p/nt/avl sort
 gno.land/p/nt/avl strings
 gno.land/p/nt/avl testing
+gno.land/p/nt/ufmt bytes
+gno.land/p/nt/ufmt errors
+gno.land/p/nt/ufmt fmt
+gno.land/p/nt/ufmt io
+gno.land/p/nt/ufmt strconv
+gno.land/p/nt/ufmt strings
+gno.land/p/nt/ufmt testing
+gno.land/p/nt/ufmt unicode/utf8
 `,
 		},
 		{

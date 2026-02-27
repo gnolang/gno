@@ -43,7 +43,7 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 		ImportsSpecs: ImportsMap{},
 	}
 
-	mptype := gnolang.MPUserAll
+	mptype := gnolang.MPAnyAll
 
 	// get package from modcache if the dir is in it
 	modCachePath := gnomod.ModCachePath()
