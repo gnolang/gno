@@ -1,8 +1,12 @@
-loadpkg gno.land/r/gnoland/users/v1
 loadpkg gno.land/r/archive/boards
+loadpkg gno.land/r/sys/users/init
 
 # start a new node
 gnoland start -no-parallel
+
+# Register test1 for boards (requires registered user)
+gnokey maketx call -pkgpath gno.land/r/sys/users/init -func RegisterUser -args "test1" -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
 
 gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateBoard -args 'testboard' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'

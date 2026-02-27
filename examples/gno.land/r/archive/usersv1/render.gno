@@ -29,7 +29,7 @@ func renderHomePage() string {
 	if paused {
 		out += md.HorizontalRule()
 		out += md.H2("This realm is paused.")
-		out += md.Paragraph("Check out [`gno.land/r/gnoland/users`](/r/gnoland/users) for newer versions of the registry.")
+		out += md.Paragraph("Check out [`gno.land/r/sys/users`](/r/sys/users) for the current user registry.")
 		out += md.HorizontalRule()
 	}
 

@@ -102,23 +102,12 @@ TX HASH:    11fWJtYXQlyFcHY12HU1ECYs2GPo/e2z/Fdw6I8rwNs=
 
 ## Choosing a Package Path
 
-When deploying to Gno.land, you need to specify a package path. You have two
-options:
+When deploying to Gno.land, you need to specify a package path. Currently, only
+address-based namespaces are supported under `gno.land/[r|p]/YOUR_ADDRESS/...`
 
-1. **Use your registered username** - If you've registered a username, you can deploy under `gno.land/[r|p]/YOUR_USERNAME/...`
-2. **Use your address namespace** - Without a username, you can deploy under `gno.land/[r|p]/YOUR_ADDRESS/...`
-
-For more information on registering usernames and namespace ownership, see the
+Username-based namespaces will be revisited in the future via GovDAO governance.
+For more information on namespaces, see the
 [Users and Teams documentation](../resources/users-and-teams.md).
-
-## Registering a Namespace
-
-For production packages, you'll want your own namespace:
-
-1. Follow the [Username Registration](../resources/users-and-teams.md#registration-process) instructions
-2. Once registered, deploy under `gno.land/[r|p]/YOUR_USERNAME/...`
-
-This gives you a more human-readable package path and establishes your identity in the ecosystem.
 
 ## Understanding Deployment Parameters
 
@@ -157,7 +146,5 @@ a third-party web extension wallet, such as Adena.
 
 [^1]: Read more about package paths [here](../resources/gno-packages.md).
 [^2]: Other network configurations can be found [here](../resources/gnoland-networks.md).
-[^3]: Address namespaces ([PA namespaces](../resources/gno-packages.md#package-path-structure)) are automatically granted to
-users. Users can register a username using the [Gno.land user registry](https://gno.land/r/gnoland/users),
-which will grant them access to a matching namespace for that specific network.
+[^3]: Address namespaces ([PA namespaces](../resources/gno-packages.md#package-path-structure)) are automatically granted to users.
 [^4]: Gas estimation is explained [here](../resources/gas-fees.md#gas-estimation).

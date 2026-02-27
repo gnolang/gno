@@ -1,4 +1,4 @@
-module = "gno.land/r/gnoland/users/v1"
+module = "gno.land/r/archive/usersv1"
 gno = "0.9"
 
 [addpkg]

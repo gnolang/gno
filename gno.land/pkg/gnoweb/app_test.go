@@ -28,7 +28,7 @@ func TestRoutes(t *testing.T) {
 		uuid1   = xid.New()
 		uuid2   = xid.New()
 		aliases = map[string]AliasTarget{
-			"/test1": {Value: "/r/gnoland/users/v1", Kind: GnowebPath},
+			"/test1": {Value: "/r/sys/users", Kind: GnowebPath},
 			"/test2": {Value: uuid1.String(), Kind: StaticMarkdown},
 			"/test3": {Value: "/r/not/found", Kind: GnowebPath},
 			"/test4": {Value: uuid2.String(), Kind: StaticMarkdown},
@@ -47,9 +47,8 @@ func TestRoutes(t *testing.T) {
 			{"/r/gnoland/blog$help&func=Render", ok, "Render(path)"},
 			{"/r/gnoland/blog$help&func=Render&path=foo/bar", ok, `value="foo/bar"`},
 			// {"/r/gnoland/blog$help&func=NonExisting", ok, "NonExisting not found"}, // XXX(TODO)
-			{"/r/gnoland/users/v1:archive", ok, "Address"},
-			{"/r/gnoland/users/v1", ok, "registry"},
-			{"/r/gnoland/users/v1/users.gno", ok, "reValidUsername"},
+			{"/r/sys/users", ok, "r/sys/users"},
+			{"/r/sys/users/users.gno", ok, "ResolveName"},
 			{"/r/tests/vm/deep/very/deep", ok, "it works!"},
 			{"/r/tests/vm/deep/very/deep?arg1=val1&arg2=val2", ok, "hi ?arg1=val1&amp;arg2=val2"},
 			{"/r/tests/vm/deep/very/deep:bob", ok, "hi bob"},
@@ -80,7 +79,7 @@ func TestRoutes(t *testing.T) {
 			// Test Toc
 			{"/", ok, `href="#learn-about-gnoland"`},
 			// Test aliased path and static file
-			{"/test1", ok, "registry"},     // Alias "/test1" points to "/r/gnoland/users/v1"
+			{"/test1", ok, "r/sys/users"},  // Alias "/test1" points to "/r/sys/users"
 			{"/test2", ok, uuid1.String()}, // Alias "/test2" points to static file containing an uuid
 			{"/test3", notFound, ""},       // Alias "/test3" points to "/r/not/found" which doesn't exist
 			{"/test4", ok, uuid2.String()}, // Alias "/test2_b" points to another static file containing an uuid
@@ -132,7 +131,7 @@ func TestAnalytics(t *testing.T) {
 		// Realm, source, help page
 		"/r/gnoland/blog",
 		"/r/gnoland/blog/admin.gno",
-		"/r/gnoland/users/v1",
+		"/r/sys/users",
 		"/r/gnoland/blog$help",
 
 		// Special pages
