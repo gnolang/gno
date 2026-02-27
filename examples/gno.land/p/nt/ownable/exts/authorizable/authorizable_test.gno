@@ -3,6 +3,7 @@ package authorizable
 import (
 	"testing"
 
+	"gno.land/p/nt/ownable"
 	"gno.land/p/nt/testutils"
 	"gno.land/p/nt/uassert"
 )
@@ -13,20 +14,10 @@ var (
 	charlie = testutils.TestAddress("charlie")
 )
 
-func TestNewAuthorizable(t *testing.T) {
+func TestNew(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 
-	a := NewAuthorizable()
-	got := a.Owner()
-
-	if alice != got {
-		t.Fatalf("Expected %s, got: %s", alice, got)
-	}
-}
-
-func TestNewAuthorizableWithAddress(t *testing.T) {
-	a := NewAuthorizableWithAddress(alice)
-
+	a := New(ownable.NewWithAddress(alice))
 	got := a.Owner()
 
 	if alice != got {
@@ -35,7 +26,7 @@ func TestNewAuthorizableWithAddress(t *testing.T) {
 }
 
 func TestOnAuthList(t *testing.T) {
-	a := NewAuthorizableWithAddress(alice)
+	a := New(ownable.NewWithAddress(alice))
 	testing.SetRealm(testing.NewUserRealm(alice))
 
 	if err := a.OnAuthList(); err == ErrNotInAuthList {
@@ -44,7 +35,7 @@ func TestOnAuthList(t *testing.T) {
 }
 
 func TestNotOnAuthList(t *testing.T) {
-	a := NewAuthorizableWithAddress(alice)
+	a := New(ownable.NewWithAddress(alice))
 	testing.SetRealm(testing.NewUserRealm(bob))
 
 	if err := a.OnAuthList(); err == nil {
@@ -53,7 +44,7 @@ func TestNotOnAuthList(t *testing.T) {
 }
 
 func TestAddToAuthList(t *testing.T) {
-	a := NewAuthorizableWithAddress(alice)
+	a := New(ownable.NewWithAddress(alice))
 	testing.SetRealm(testing.NewUserRealm(alice))
 
 	if err := a.AddToAuthList(bob); err != nil {
@@ -68,7 +59,7 @@ func TestAddToAuthList(t *testing.T) {
 }
 
 func TestDeleteFromList(t *testing.T) {
-	a := NewAuthorizableWithAddress(alice)
+	a := New(ownable.NewWithAddress(alice))
 	testing.SetRealm(testing.NewUserRealm(alice))
 
 	if err := a.AddToAuthList(bob); err != nil {
@@ -94,9 +85,7 @@ func TestDeleteFromList(t *testing.T) {
 }
 
 func TestAssertOnList(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm(alice))
-
-	a := NewAuthorizableWithAddress(alice)
+	a := New(ownable.NewWithAddress(alice))
 
 	testing.SetRealm(testing.NewUserRealm(bob))
 

@@ -12,6 +12,7 @@ import (
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/pager"
 	"gno.land/p/nt/combinederr"
+	"gno.land/p/nt/ownable"
 	"gno.land/p/nt/ownable/exts/authorizable"
 	"gno.land/p/nt/ufmt"
 )
@@ -99,7 +100,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 		Address:     address_XXX,
 		PubKey:      pubKey,
 		KeepRunning: true,
-		auth:        authorizable.NewAuthorizableWithOrigin(),
+		auth:        authorizable.New(ownable.NewWithOrigin()),
 	}
 
 	if err := v.Validate(); err != nil {
