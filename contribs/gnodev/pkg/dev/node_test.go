@@ -1,8 +1,10 @@
 package dev
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -82,6 +84,89 @@ func Render(_ string) string { return "foo" }
 	assert.Equal(t, render, "foo")
 
 	require.NoError(t, node.Close())
+}
+
+// TestNewNode_WithPackage tests the NewDevNode with a single package.
+func TestNewNode_ConflictPackage(t *testing.T) {
+	// Define 2 packages with same path
+	fooPkg := std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/r/dev/foo",
+		Files: []*std.MemFile{
+			{
+				Name: "foo.gno",
+				Body: `package foo
+func Render(_ string) string { return "foo" }
+`,
+			},
+		},
+	}
+
+	conflictPkg := std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/r/dev/foo",
+		Files: []*std.MemFile{
+			{
+				Name: "foo.gno",
+				Body: `package foo
+	func Render(_ string) string { return "conflict" }
+	`,
+			},
+		},
+	}
+
+	node, emitter := newTestingDevNode(t)
+
+	// Create a message to add the package
+	pkg := vm.MsgAddPackage{
+		Package: &fooPkg,
+		Deposit: std.Coins{{Denom: "ugnot", Amount: 1000}},
+	}
+
+	// Add the realm to the node
+	res, err := testingAddRealm(t, node, pkg)
+	require.NoError(t, err)
+	require.NoError(t, res.CheckTx.Error)
+	require.NoError(t, res.DeliverTx.Error)
+	assert.Equal(t, emitter.NextEvent().Type(), events.EvtTxResult)
+
+	// Check that the realm has been added
+	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	require.NoError(t, err)
+	require.Equal(t, "foo", render)
+
+	// Update the node's loader with the conflicting package
+	conflictLoader := packages.NewLoader(packages.NewMockResolver(&conflictPkg))
+	node.loader = conflictLoader
+
+	node.AddPackagePaths(conflictPkg.Path)
+
+	// Create a buffer to capture logs
+	var logBuffer bytes.Buffer
+
+	// Create a custom logger that writes to the buffer
+	customLogger := slog.New(slog.NewTextHandler(&logBuffer, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
+
+	node.logger = customLogger
+
+	// Reload the node to apply changes from the new loader
+	err = node.Reload(context.Background())
+	require.Equal(t, true, node.cachepath.Get("gno.land/r/dev/foo"))
+
+	require.NoError(t, err)
+	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReload)
+
+	// Check the log buffer to confirm the error was logged
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "Can't reload package, package conflict in")
+	assert.Contains(t, logOutput, "gno.land/r/dev/foo")
+
+	// Check the realm after reload
+	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	require.NoError(t, err)
+	require.Equal(t, "foo", render)
 }
 
 func TestNodeAddPackage(t *testing.T) {
@@ -593,6 +678,42 @@ func testingCallRealmWithConfig(t *testing.T, node *Node, bcfg gnoclient.BaseTxC
 	}
 
 	return cli.Call(bcfg, vmMsgs...)
+}
+
+func testingAddRealm(t *testing.T, node *Node, msgs ...vm.MsgAddPackage) (*core_types.ResultBroadcastTxCommit, error) {
+	t.Helper()
+
+	defaultCfg := gnoclient.BaseTxCfg{
+		GasFee:    ugnot.ValueString(1000000), // Gas fee
+		GasWanted: 3_000_000,                  // Gas wanted
+	}
+
+	return testingAddRealmWithConfig(t, node, defaultCfg, msgs...)
+}
+
+func testingAddRealmWithConfig(t *testing.T, node *Node, bcfg gnoclient.BaseTxCfg, msgs ...vm.MsgAddPackage) (*core_types.ResultBroadcastTxCommit, error) {
+	t.Helper()
+
+	signer := newInMemorySigner(t, node.Config().ChainID())
+	cli := gnoclient.Client{
+		Signer:    signer,
+		RPCClient: node.Client(),
+	}
+
+	// Set Creator in the msgs
+	caller, err := signer.Info()
+	require.NoError(t, err)
+
+	// Create new messages with the caller set as Creator
+	newMsgs := make([]vm.MsgAddPackage, 0, len(msgs))
+	for _, msg := range msgs {
+		newMsg := msg
+		newMsg.Creator = caller.GetAddress()
+		newMsgs = append(newMsgs, newMsg)
+	}
+
+	// Call AddPackage
+	return cli.AddPackage(bcfg, newMsgs...)
 }
 
 func newTestingNodeConfig(pkgs ...*std.MemPackage) *NodeConfig {
