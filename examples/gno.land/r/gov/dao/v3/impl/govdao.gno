@@ -2,6 +2,7 @@ package impl
 
 import (
 	"chain"
+	"chain/banker"
 	"chain/runtime"
 	"errors"
 
@@ -11,6 +12,9 @@ import (
 )
 
 var ErrMemberNotFound = errors.New("member not found")
+
+// ProposalFeeAmount is the fee required for non-members to create proposals (in ugnot)
+var ProposalFeeAmount int64 = 1_000_000 // 1 GNOT
 
 type GovDAO struct {
 	pss    ProposalsStatuses
@@ -63,11 +67,18 @@ func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (address, error) {
 			runtime.CurrentRealm(), runtime.PreviousRealm()))
 	}
 
-	// Verify that the one creating the proposal is a member.
 	caller := runtime.OriginCaller()
 	mem, _ := getMembers(cross).GetMember(caller)
+
+	// If the caller is not a member, they must pay a fee
 	if mem == nil {
-		return caller, errors.New("only members can create new proposals")
+		sent := banker.OriginSend()
+		if len(sent) == 0 || sent.AmountOf("ugnot") < ProposalFeeAmount {
+			return caller, errors.New(ufmt.Sprintf(
+				"non-members must send %dugnot to create a proposal",
+				ProposalFeeAmount,
+			))
+		}
 	}
 
 	return caller, nil
