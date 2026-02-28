@@ -15,11 +15,6 @@ rundep=go run -modfile ../misc/devdeps/go.mod
 # cases, and is not strictly required by any tm2 code.
 CGO_ENABLED ?= 0
 export CGO_ENABLED
-# Force the Go toolchain to match the version in go.mod, so filetest
-# TypeCheckError messages match CI. Override with GOTOOLCHAIN=local to use
-# your local Go version instead.
-GOTOOLCHAIN ?= $(shell grep '^toolchain' $(GNOROOT_DIR)/go.mod | awk '{print $$2}')
-export GOTOOLCHAIN
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # used to set the default GNOROOT. This helps on local development, as it sets
