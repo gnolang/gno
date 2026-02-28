@@ -1,0 +1,7 @@
+-- input.md --
+Неllo world with mixed Cyrillic and Latin.
+
+Hello world in plain Latin alphabet.
+-- output.html --
+<p>[mixed script]</p>
+<p>Hello world in plain Latin alphabet.</p>

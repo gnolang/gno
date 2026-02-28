@@ -1,0 +1,7 @@
+-- input.md --
+> Visit evil-site.com for info.
+
+-- output.html --
+<blockquote>
+<p>[blocked URL]</p>
+</blockquote>

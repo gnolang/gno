@@ -1,0 +1,5 @@
+-- input.md --
+Send to g1abcdef1234567890abcdef1234567890abcdef12 please.
+
+-- output.html --
+<p>Send to g1abcdef1234567890abcdef1234567890abcdef12 please.</p>

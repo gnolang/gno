@@ -1,0 +1,7 @@
+-- input.md --
+| Header | Value |
+|--------|-------|
+| Site | evil-site.com |
+
+-- output.html --
+<p>[blocked URL]</p>

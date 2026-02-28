@@ -1,0 +1,5 @@
+-- input.md --
+Detected phishing-word in message.
+
+-- output.html --
+<p>[blocked]</p>

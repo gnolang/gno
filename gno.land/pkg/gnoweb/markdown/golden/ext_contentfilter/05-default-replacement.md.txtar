@@ -1,0 +1,5 @@
+-- input.md --
+Check out test-spam-url.xyz for deals.
+
+-- output.html --
+<p>[filtered]</p>
