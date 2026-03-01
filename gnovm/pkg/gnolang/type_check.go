@@ -648,68 +648,73 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 }
 
 // ===========================================================
-// this check happens while trans_leave binary expression.
-// it checks if type of RHS is valid.
-// Check part of the LHS to ensure it is of a numeric type.
-// More stringent checks will be performed in the subsequent stage in
-// assertShiftExprCompatible2.
+// assertShiftExprCompatible1 check happens while trans_leave binary expression.
+// it checks both lhs and rhs types of shift expression.
 func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type) {
-	// check rhs type
 	if rt == nil {
 		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
 	}
 
 	lcx, lic := x.Left.(*ConstExpr)
 	_, ric := x.Right.(*ConstExpr)
-	// step1, check RHS type
-	// special case when rhs is not integer
+	// Step1, check RHS type.
+	// Must be numeric.
 	if !isNumeric(rt) {
 		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
 	}
-	if !isIntNum(rt) {
-		var isIntValue bool
-		// special case for num like 1.0, it will be converted to uint later
-		if ric {
-			rv := evalConst(store, last, x.Right)
-			if bd, ok := rv.V.(BigdecValue); ok {
-				if isInteger(bd.V) {
-					isIntValue = true
-				}
-			}
-		}
-		if !isIntValue {
-			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
-		}
-	} else if ric { // is integer, check negative
+	// If not const, must be IntNum.
+	if !isIntNum(rt) && !ric {
+		panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
+	}
+
+	if ric {
 		rv := evalConst(store, last, x.Right)
 		if rv.Sign() < 0 {
 			panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Right))
 		}
+
+		if isIntNum(rt) {
+			// Good.
+		} else if !IsExactBigDec(rv.V) { // e.g. 1.0 .
+			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
+		}
 	}
 
-	// step2, check lhs type
+	// Step2, check lhs type.
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if checker(lt) { // check pass
 			return
 		}
-		// special case for 1.0
-		if lt == UntypedBigdecType {
-			// 1.0 << 1
-			if lic && ric {
-				convertConst(store, last, x, lcx, UntypedBigintType)
-				return
+
+		// If lhs not IntNum, it must be const.
+		if !lic {
+			if isUntyped(lt) {
+				lt = defaultTypeOf(lt)
 			}
+			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
 		}
-		// not const, e.g. 1.0 << x, see types/shift_d5.gno
-		if isNumeric(lt) {
-			return
+
+		// LHS is const.
+		// Special case for untyped const lhs.
+		lv := evalConst(store, last, lcx)
+		if !IsExactBigDec(lv.V) {
+			panic(fmt.Sprintf("invalid operation: shifted operand %v (%v) must be integer", lv, lt))
 		}
-		panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
+
+		// Both const. left is untypedBigDec & exact integer.
+		if ric {
+			// Representable as an integer. e.g. 1.0 << 1.
+			// convert lhs to untypedBigint so it can be evaluated as const later.
+			convertConst(store, last, x, lcx, UntypedBigintType)
+		}
+		return
 	}
 	panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 }
 
-// used in checkOrConvertType, only check lhs type
+// assertShiftExprCompatible2 checks if untyped (non-const)
+// shift expr is compatible with t finally, which is type info
+// from context. e.g. var y int = 1.0 << x.
 func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
 	// check lhs type
 	if checker, ok := binaryChecker[x.Op]; ok {
@@ -977,8 +982,11 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 		} else { // len(Lhs) == len(Rhs)
 			if x.Op == ASSIGN {
 				// assert valid left value
-				for _, lx := range x.Lhs {
+				for i, lx := range x.Lhs {
 					assertValidAssignLhs(store, last, lx)
+					lt := evalStaticTypeOf(store, last, lx)
+					rt := evalStaticTypeOf(store, last, x.Rhs[i])
+					mustAssignableTo(x, rt, lt)
 				}
 			}
 		}

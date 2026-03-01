@@ -1494,3 +1494,10 @@ func toBigInt(d *apd.Decimal) *big.Int {
 	}
 	return bi
 }
+
+func IsExactBigDec(v Value) bool {
+	if bd, ok := v.(BigdecValue); ok {
+		return isInteger(bd.V)
+	}
+	return false
+}
