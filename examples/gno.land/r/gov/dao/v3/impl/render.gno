@@ -6,11 +6,13 @@ import (
 	"strings"
 
 	"gno.land/p/moul/helplink"
+	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/pager"
 	"gno.land/p/nt/mux"
 	"gno.land/p/nt/seqid"
 	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/memberstore"
 	"gno.land/r/sys/users"
 )
 
@@ -29,6 +31,10 @@ func NewRender(d *GovDAO) *render {
 
 	r.HandleFunc("", func(rw *mux.ResponseWriter, req *mux.Request) {
 		rw.Write(ren.renderActiveProposals(req.RawPath, d))
+	})
+
+	r.HandleFunc("activity", func(rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(ren.renderActivityPage(req.RawPath, d))
 	})
 
 	r.HandleFunc("{pid}", func(rw *mux.ResponseWriter, req *mux.Request) {
@@ -57,6 +63,7 @@ func (ren *render) Render(pkgPath string, path string) string {
 
 func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 	out := "# GovDAO\n"
+	out += "[> View Activity <](" + ren.relativeRealmPath + ":activity)\n\n"
 	out += "## Members\n"
 	out += "[> Go to Memberstore <](/r/gov/dao/v3/memberstore)\n"
 	out += "## Proposals\n"
@@ -116,6 +123,82 @@ Executor created in: %s
 	out += "\n\n---\n\n"
 
 	out += renderActionBar(ufmt.Sprintf("%v", pid))
+
+	return out
+}
+
+type memberActivity struct {
+	addr      address
+	tier      string
+	available uint32
+	votes     uint32
+}
+
+func (ren *render) renderActivityPage(path string, d *GovDAO) string {
+	out := "# GovDAO Activity\n\n"
+	out += "## Members Activity\n\n"
+
+	tiers := memberstore.Get()
+	if tiers.Size() == 0 {
+		out += "### No members available\n"
+		return out
+	}
+
+	var activities []memberActivity
+	tiers.Iterate("", "", func(tierName string, tierValue any) bool {
+		memberTree, ok := tierValue.(*avl.Tree)
+		if !ok {
+			return false
+		}
+
+		memberTree.Iterate("", "", func(addrKey string, _ any) bool {
+			memberAddr := address(addrKey)
+
+			activity := GetMemberActivity(memberAddr)
+
+			activities = append(activities, memberActivity{
+				addr:      memberAddr,
+				tier:      tierName,
+				available: activity.Available,
+				votes:     activity.Votes,
+			})
+
+			return false
+		})
+		return false
+	})
+
+	activityTree := avl.NewTree()
+	var index int
+	for _, ma := range activities {
+		activityTree.Set(ufmt.Sprintf("%05d", index), ma)
+		index++
+	}
+
+	activityPager := pager.NewPager(activityTree, 15, false)
+	page := activityPager.MustGetPageByPath(path)
+
+	for _, item := range page.Items {
+		ma, ok := item.Value.(memberActivity)
+		if !ok {
+			continue
+		}
+
+		percentage := float64(0)
+		if ma.available > 0 {
+			percentage = (float64(ma.votes) / float64(ma.available)) * 100.0
+		}
+
+		out += ufmt.Sprintf("**%s** (%s): %d/%d votes (%.2f%%)\n\n",
+			tryResolveAddr(ma.addr), ma.tier, ma.votes, ma.available, percentage)
+	}
+
+	out += "\n\n" + page.Picker("") + "\n\n"
+
+	startIdx := (page.PageNumber-1)*page.PageSize + 1
+	endIdx := startIdx + len(page.Items) - 1
+	out += ufmt.Sprintf("_Showing %d-%d of %d members_\n\n",
+		startIdx, endIdx, len(activities))
 
 	return out
 }
