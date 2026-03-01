@@ -14,7 +14,7 @@ gnoland start
 
 # call gov/dao render to check everything is working as expected and the loader worked
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
-stdout 'data: # GovDAO'
+stdout 'data: # Governance DAO'
 
 # add the proposal
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_invalid_proposal.gno
@@ -22,7 +22,7 @@ stdout OK!
 
 # call gov/dao render to check the proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
-stdout 'Prop #0 - Member Promotion Proposal'
+stdout 'Proposal #0 - Member Promotion Proposal'
 stdout 'This is a proposal to promote g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r from \*\*T3\*\* to \*\*T2\*\*.'
 
 # vote on the proposal 1
@@ -43,7 +43,7 @@ stderr 'member not found, so cannot be promoted'
 
 # call gov/dao render to check everything the proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:1'
-stdout 'Prop #1 - Member Promotion Proposal'
+stdout 'Proposal #1 - Member Promotion Proposal'
 stdout 'This is a proposal to promote g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 from \*\*T2\*\* to \*\*T3\*\*.'
 
 # vote on the proposal 1
@@ -60,7 +60,7 @@ stdout OK!
 
 # check output
 gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/memberstore:'
-stdout 'Tier T2 contains 0 members'
+stdout 'T2 | 0 |'
 
 -- proposer/create_invalid_proposal.gno --
 package main

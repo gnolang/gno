@@ -46,15 +46,16 @@ func main() {
 
 // Output:
 // OK
-// # GovDAO
-// ## Members
-// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// # Governance DAO
+//
+// **1** proposals total | **1** active | **0** completed | [Members](/r/gov/dao/v3/memberstore)
+//
 // ## Proposals
-// ### [Prop #0 - Add valoper test-1 to the valset](/r/gov/dao:0)
-// Author: g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 //
-// Status: ACTIVE
+// ### [Add valoper test-1 to the valset](/r/gov/dao:0)
 //
-// Tiers eligible to vote: T1, T2, T3
+// **Proposal #0** | ACTIVE | by g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
+//
+// **YES:** 3 (0.0%) | **NO:** 3 (0.0%) | _Eligible: T1, T2, T3_
 //
 // ---
