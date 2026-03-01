@@ -1,0 +1,213 @@
+name: Test install.sh script
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  test-go-requirements:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test install.sh fails without Go
+        run: |
+          if bash misc/install.sh 2>&1; then
+            echo "ERROR: Script should have failed without Go"
+            exit 1
+          else
+            echo "SUCCESS: Script correctly failed without Go"
+          fi
+
+      - name: Set up old Go version
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.17'
+
+      - name: Test install.sh fails with old Go version
+        run: |
+          if bash misc/install.sh 2>&1; then
+            echo "ERROR: Script should have failed with Go 1.17"
+            exit 1
+          else
+            echo "SUCCESS: Script correctly failed with old Go version"
+          fi
+
+  test-individual-tool:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tool: [gno, gnokey, gnodev, gnobro]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test installing ${{ matrix.tool }}
+        run: |
+          bash misc/install.sh --${{ matrix.tool }}
+
+      - name: Verify ${{ matrix.tool }} is installed
+        run: |
+          if ! command -v ${{ matrix.tool }} >/dev/null 2>&1; then
+            echo "ERROR: ${{ matrix.tool }} not found in PATH"
+            exit 1
+          fi
+          echo "SUCCESS: ${{ matrix.tool }} is installed and accessible"
+
+      - name: Uninstall ${{ matrix.tool }}
+        run: bash misc/install.sh --uninstall
+
+      - name: Verify ${{ matrix.tool }} is uninstalled
+        run: |
+          if command -v ${{ matrix.tool }} >/dev/null 2>&1; then
+            echo "ERROR: ${{ matrix.tool }} still found in PATH after uninstall"
+            exit 1
+          fi
+          echo "SUCCESS: ${{ matrix.tool }} correctly uninstalled"
+
+      - name: Verify source directory is removed
+        run: |
+          if [ -d "$HOME/.gno/src" ]; then
+            echo "ERROR: Source directory still exists after uninstall"
+            exit 1
+          fi
+          echo "SUCCESS: Source directory correctly removed"
+
+  test-all-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test installing all tools (default behavior)
+        run: bash misc/install.sh
+
+      - name: Verify all tools are installed
+        run: |
+          tools=(gno gnokey gnodev gnobro)
+          for tool in "${tools[@]}"; do
+            if ! command -v "$tool" >/dev/null 2>&1; then
+              echo "ERROR: $tool not found in PATH"
+              exit 1
+            fi
+            echo "SUCCESS: $tool is installed and accessible"
+          done
+
+      - name: Uninstall tools
+        run: bash misc/install.sh --uninstall
+
+      - name: Verify tools are uninstalled
+        run: |
+          tools=(gno gnokey gnodev gnobro)
+          for tool in "${tools[@]}"; do
+            if command -v "$tool" >/dev/null 2>&1; then
+              echo "ERROR: $tool still found in PATH after uninstall"
+              exit 1
+            fi
+          done
+          echo "SUCCESS: All tools correctly uninstalled"
+
+      - name: Verify source directory is removed
+        run: |
+          if [ -d "$HOME/.gno/src" ]; then
+            echo "ERROR: Source directory still exists after uninstall"
+            exit 1
+          fi
+          echo "SUCCESS: Source directory correctly removed"
+
+      - name: Test reinstalling all tools
+        run: bash misc/install.sh
+
+      - name: Verify all tools are reinstalled
+        run: |
+          tools=(gno gnokey gnodev gnobro)
+          for tool in "${tools[@]}"; do
+            if ! command -v "$tool" >/dev/null 2>&1; then
+              echo "ERROR: $tool not found in PATH"
+              exit 1
+            fi
+            echo "SUCCESS: $tool is installed and accessible"
+          done
+
+  test-custom-gno-dir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test custom GNOROOT installation
+        env:
+          GNOROOT: /tmp/custom-gno
+        run: |
+          bash misc/install.sh --gno
+
+      - name: Verify custom GNOROOT is used
+        run: |
+          if [ ! -d "/tmp/custom-gno" ]; then
+            echo "ERROR: Custom GNOROOT not created"
+            exit 1
+          fi
+          if [ ! -d "/tmp/custom-gno/.git" ]; then
+            echo "ERROR: Git repository not found in custom GNOROOT"
+            exit 1
+          fi
+          if ! gno env GNOROOT | grep -q '/tmp/custom-gno'; then
+            echo "ERROR: gno env does not point to custom GNOROOT"
+            exit 1
+          fi
+          echo "SUCCESS: Custom GNOROOT correctly used"
+
+  test-mixed-flags:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test installing only gno and gnokey
+        run: bash misc/install.sh --gno --gnokey
+
+      - name: Verify only gno and gnokey are installed
+        run: |
+          if ! command -v gno >/dev/null 2>&1; then
+            echo "ERROR: gno not installed"
+            exit 1
+          fi
+          if ! command -v gnokey >/dev/null 2>&1; then
+            echo "ERROR: gnokey not installed"
+            exit 1
+          fi
+          if command -v gnodev >/dev/null 2>&1; then
+            echo "ERROR: gnodev should not be installed"
+            exit 1
+          fi
+          if command -v gnobro >/dev/null 2>&1; then
+            echo "ERROR: gnobro should not be installed"
+            exit 1
+          fi
+          echo "SUCCESS: Only requested tools are installed"
