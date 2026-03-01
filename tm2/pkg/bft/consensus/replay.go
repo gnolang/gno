@@ -421,6 +421,9 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, app
 	for i := appBlockHeight + 1; i <= finalBlock; i++ {
 		h.logger.Info("Applying block", "height", i)
 		block := h.store.LoadBlock(i)
+		if block == nil {
+			return nil, fmt.Errorf("block not found for height %d", i)
+		}
 		// Extra check to ensure the app was not changed in a way it shouldn't have.
 		if len(appHash) > 0 {
 			assertAppHashEqualsOneFromBlock(appHash, block)
@@ -450,7 +453,13 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, app
 // ApplyBlock on the proxyApp with the last block.
 func (h *Handshaker) replayBlock(state sm.State, height int64, proxyApp appconn.Consensus) (sm.State, error) {
 	block := h.store.LoadBlock(height)
+	if block == nil {
+		return sm.State{}, fmt.Errorf("block not found for height %d", height)
+	}
 	meta := h.store.LoadBlockMeta(height)
+	if meta == nil {
+		return sm.State{}, fmt.Errorf("block meta not found for height %d", height)
+	}
 
 	blockExec := sm.NewBlockExecutor(h.stateDB, h.logger, proxyApp, mock.Mempool{})
 	blockExec.SetEventSwitch(h.evsw)

@@ -105,6 +105,9 @@ func Status(ctx *rpctypes.Context, heightGtePtr *int64) (*ctypes.ResultStatus, e
 	)
 	if latestHeight != 0 {
 		latestBlockMeta = blockStore.LoadBlockMeta(latestHeight)
+		if latestBlockMeta == nil {
+			return nil, fmt.Errorf("block meta not found for height %d", latestHeight)
+		}
 		latestBlockHash = latestBlockMeta.BlockID.Hash
 		latestAppHash = latestBlockMeta.Header.AppHash
 		latestBlockTimeNano = latestBlockMeta.Header.Time.UnixNano()
