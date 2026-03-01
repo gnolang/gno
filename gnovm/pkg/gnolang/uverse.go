@@ -868,7 +868,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			if m.Output == io.Discard {
+			if m.Output == io.Discard && !bm.NativeEnabled {
 				// Output is already discarded in this mode, so skip print
 				// formatting work to avoid unnecessary runtime/gas overhead.
 				return
@@ -895,7 +895,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			if m.Output == io.Discard {
+			if m.Output == io.Discard && !bm.NativeEnabled {
 				// Output is already discarded in this mode, so skip println
 				// formatting work to avoid unnecessary runtime/gas overhead.
 				return
