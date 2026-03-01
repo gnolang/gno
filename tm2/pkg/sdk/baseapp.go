@@ -741,6 +741,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 
 	if mode == RunTxModeDeliver {
 		gasleft := ctx.BlockGasMeter().Remaining()
+		println("runTx gas left", gasleft)
 		ctx = ctx.WithGasMeter(store.NewPassthroughGasMeter(
 			ctx.GasMeter(),
 			gasleft,
@@ -772,6 +773,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 				result.Log = log
 				result.GasWanted = gasWanted
 				result.GasUsed = ctx.GasMeter().GasConsumed()
+				println("runTx gas consumed", result.GasUsed)
 				return
 			default:
 				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))

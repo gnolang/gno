@@ -102,7 +102,11 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return newCtx, abciResult(err), true
 		}
 
-		newCtx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*store.Gas(len(newCtx.TxBytes())), "txSize")
+		txLen := len(newCtx.TxBytes())
+		println("newCtx.TxBytes() length: ", txLen, "\ncontent: ", string(newCtx.TxBytes()))
+		newCtx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*store.Gas(txLen), "txSize")
+		// newCtx.GasMeter().ConsumeGas(store.Gas(txLen), "txSize")
+		println("xxxxxxxx ante gas consumed", newCtx.GasMeter().GasConsumed())
 
 		if res := ValidateMemo(tx, params); !res.IsOK() {
 			return newCtx, res, true
