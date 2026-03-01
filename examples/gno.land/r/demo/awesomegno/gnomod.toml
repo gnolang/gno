@@ -1,5 +1,6 @@
-module = "gno.land/r/matijamarjanovic/home"
+module = "gno.land/r/demo/awesomegno"
 gno = "0.9"
 
 [addpkg]
   creator = "g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"
+
