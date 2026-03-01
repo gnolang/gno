@@ -26,8 +26,8 @@ func TestCondition(t *testing.T) {
 		"finance.invest": daocond.Or(financeOfficer, membersMajority),
 	}
 
-	urequire.Equal(t, "[1 public-relationships AND 60% of members]", ressources["social.post"].Render())
-	urequire.Equal(t, "[1 finance-officer OR 60% of members]", ressources["finance.invest"].Render())
+	urequire.Equal(t, "**[** 1 public-relationships **AND** 60% of members **]**", ressources["social.post"].Render())
+	urequire.Equal(t, "**[** 1 finance-officer **OR** 60% of members **]**", ressources["finance.invest"].Render())
 }
 
 func TestEval(t *testing.T) {

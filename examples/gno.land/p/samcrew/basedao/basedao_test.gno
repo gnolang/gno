@@ -18,7 +18,7 @@ var (
 
 func TestNewDAO(t *testing.T) {
 	initialRoles := []RoleInfo{
-		{Name: "admin", Description: "Admin is the superuser"},
+		{Name: "admin", Description: "Admin is the superuser", Color: "#329175"},
 	}
 	initialMembers := []Member{
 		{alice.String(), []string{"admin"}},
@@ -54,7 +54,7 @@ func TestNewDAO(t *testing.T) {
 		}
 	}
 
-	urequire.Equal(t, 4, dao.Core.ResourcesCount(), "expected 4 resources")
+	urequire.Equal(t, 4, dao.Core.Resources.Tree.Size(), "expected 4 resources")
 	urequire.Equal(t, dao.Realm.PkgPath(), daoRealm.PkgPath())
 
 	// XXX: check realm and profile
@@ -674,7 +674,7 @@ type testingDAOContext struct {
 }
 
 func newTestingDAO(t *testing.T, threshold float64, members []Member) *testingDAOContext {
-	roles := []RoleInfo{{Name: "admin", Description: "Admin is the superuser"}}
+	roles := []RoleInfo{{Name: "admin", Description: "Admin is the superuser", Color: "#329175"}}
 	membersStore := NewMembersStore(roles, members)
 	initialCondition := daocond.MembersThreshold(threshold, membersStore.IsMember, membersStore.MembersCount)
 
