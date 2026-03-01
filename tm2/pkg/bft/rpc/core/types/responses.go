@@ -43,6 +43,13 @@ type ResultBlockResults struct {
 	Results *state.ABCIResponses `json:"results"`
 }
 
+// Stream payload for a backed-up block.
+type ResultBackupBlock struct {
+	Height int64        `json:"height"`
+	Block  *types.Block `json:"block"`
+	Done   bool         `json:"done"`
+}
+
 // NewResultCommit is a helper to initialize the ResultCommit with
 // the embedded struct
 func NewResultCommit(header *types.Header, commit *types.Commit,
