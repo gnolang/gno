@@ -365,6 +365,30 @@ func TestHTTPHandler_DirectoryViewErrorTotal(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "internal error")
 }
 
+// TestHTTPHandler_RealmExplorerWithRender tests realms with Render() show realm icon and Source button.
+func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
+	t.Parallel()
+
+	realmWithRender := &gnoweb.MockPackage{
+		Domain: "gno.land",
+		Path:   "/r/demo/withrender",
+		Files:  map[string]string{"render.gno": `package withrender`},
+		Functions: []*doc.JSONFunc{{
+			Name:    "Render",
+			Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
+			Results: []*doc.JSONField{{Type: "string"}},
+		}},
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, gnoweb.NewMockClient(realmWithRender)))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/withrender", nil))
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Source")
+	assert.Contains(t, rr.Body.String(), "Action")
+}
+
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
 func TestHTTPHandler_NewInvalidConfig(t *testing.T) {
 	t.Parallel()
