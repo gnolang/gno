@@ -43,6 +43,7 @@ module.exports = (ctx) => {
 						"u-hidden",
 						"dev-mode",
 						"u-sr-only",
+						"data-theme",
 					],
 					deep: [/c-realm-view\b/, /c-readme-view\b/],
 				},

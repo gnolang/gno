@@ -248,7 +248,7 @@
 
 	/* Base styles for all headings */
 	:is(h1, h2, h3, h4) {
-		color: var(--g-color-gray-900);
+		color: var(--s-color-text-primary);
 		margin-block-start: var(--cr-space-4);
 		line-height: var(--g-line-height-tight);
 	}
@@ -281,7 +281,7 @@
 
 	/* H3 & H4 - Subsection headings with common properties */
 	:is(h3, h4) {
-		color: var(--g-color-gray-600);
+		color: var(--s-color-text-secondary);
 		font-weight: var(--g-font-semibold);
 	}
 
@@ -333,7 +333,7 @@
 
 	figcaption {
 		font-size: var(--g-font-size-100);
-		color: var(--g-color-gray-600);
+		color: var(--s-color-text-secondary);
 	}
 
 	video {
@@ -367,7 +367,7 @@
 	blockquote {
 		border-inline-start: solid var(--g-space-0-5) var(--s-color-border-tertiary);
 		padding-inline-start: var(--g-space-3);
-		color: var(--g-color-gray-600);
+		color: var(--s-color-text-secondary);
 		margin-block: var(--cr-space-4);
 
 		& > blockquote {
@@ -377,7 +377,7 @@
 
 	caption {
 		font-size: var(--g-font-size-100);
-		color: var(--g-color-gray-600);
+		color: var(--s-color-text-secondary);
 		margin-block-start: var(--cr-space-2);
 		text-align: left;
 	}
@@ -468,7 +468,7 @@
 	}
 
 	pre {
-		background-color: var(--g-color-gray-50);
+		background-color: var(--s-color-bg-surface-primary);
 		padding: var(--cr-space-4);
 		margin-block: var(--cr-space-3);
 		border-radius: var(--g-border-radius-sm);
@@ -479,7 +479,7 @@
 		font-size: 0.96em;
 		padding: var(--cr-space-0-5) var(--cr-space-1);
 		border-radius: var(--g-border-radius-sm);
-		background-color: var(--g-color-gray-100);
+		background-color: var(--s-color-bg-surface-secondary);
 	}
 
 	a code {
@@ -509,7 +509,7 @@
 	}
 
 	th {
-		background-color: var(--g-color-gray-100);
+		background-color: var(--s-color-bg-surface-secondary);
 		font-weight: var(--g-font-bold);
 	}
 
@@ -522,8 +522,8 @@
 		appearance: none;
 		padding-inline: var(--cr-space-4);
 		padding-block: var(--cr-space-2);
-		border: var(--g-border-gray-300);
-		background-color: var(--g-color-light);
+		border: var(--s-border);
+		background-color: var(--s-color-bg-input);
 	}
 
 	> *:first-child:not(.realm-view__btns),
