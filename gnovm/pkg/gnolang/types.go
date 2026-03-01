@@ -663,7 +663,7 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 		// Pointer to declared types and structs
 		// expose embedded methods and fields.
 		// See tests/selector_test.go for examples.
-		trail, hasPtr, rcvr, field, accessError = findEmbeddedFieldType(callerPath, cet, n, m)
+		trail, hasPtr, rcvr, field, accessError = findEmbeddedFieldType(cet.GetPkgPath(), cet, n, m)
 		if trail != nil { // found
 			hasPtr = true // pt *is* a pointer.
 			switch trail[0].Type {
@@ -1004,7 +1004,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 		}
 		if et, ok := baseOf(im.Type).(*InterfaceType); ok {
 			// embedded interfaces must be recursively searched.
-			trail, hasPtr, rcvr, ft, accessError = et.FindEmbeddedFieldType(callerPath, n, m)
+			trail, hasPtr, rcvr, ft, accessError = et.FindEmbeddedFieldType(et.PkgPath, n, m)
 			if accessError {
 				// XXX make test case and check against go
 				return nil, false, nil, nil, true
@@ -1701,7 +1701,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 		}
 	}
 	// Otherwise, search base.
-	trail, hasPtr, rcvr, ft, accessError = findEmbeddedFieldType(callerPath, dt.Base, n, m)
+	trail, hasPtr, rcvr, ft, accessError = findEmbeddedFieldType(dt.PkgPath, dt.Base, n, m)
 	if trail == nil {
 		return nil, false, nil, nil, accessError
 	}
