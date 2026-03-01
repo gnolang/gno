@@ -319,6 +319,35 @@ checks the `wugnot` balance of a specific address. This is discouraged, as
 `maketx call` actually uses gas. To call a read-only function without spending gas,
 check out the `vm/qeval` query section.
 
+### Calling a variadic function
+Variadic functions are supported in Gno. To call a variadic function, pass one -args flag per variadic element.
+For example, given a function with the signature:
+
+For example, imagine the following Gno function:
+```go
+func Add(cur realm, nums ...int) int {
+```
+You can call it with any number of arguments:
+
+```bash
+# Two variadic args
+gnokey maketx call \
+  -pkgpath gno.land/r/demo/math \
+  -func Add \
+  -args 10 \
+  -args 20 \
+  ... # gas, broadcast, etc.
+
+# Zero variadic args (omit -args entirely)
+gnokey maketx call \
+  -pkgpath gno.land/r/demo/math \
+  -func Add \
+  ... # gas, broadcast, etc.
+```
+
+Note: Slice expansion (...) is not supported — pass each element as
+a separate -args flag.
+
 ## `Send`
 
 We can use the `Send` message type to access the TM2 [Banker](../resources/gno-stdlibs.md#banker)
