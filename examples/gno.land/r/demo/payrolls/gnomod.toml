@@ -1,0 +1,2 @@
+module = "gno.land/r/demo/payrolls"
+gno = "0.9"
