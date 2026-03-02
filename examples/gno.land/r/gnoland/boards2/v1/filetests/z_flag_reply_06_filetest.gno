@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 	moderator address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 )
 
@@ -31,7 +31,7 @@ func init() {
 func main() {
 	testing.SetRealm(testing.NewUserRealm(moderator))
 
-	boards2.FlagReply(cross, bid, tid, rid, "")
+	boards2.FlagReply(cross, bid, tid, rid, "Reason")
 
 	// Render content must contain a message about the hidden reply
 	println(boards2.Render("test-board/1/2"))
