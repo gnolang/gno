@@ -23,18 +23,13 @@ concurrency:
 
 jobs:
   gno2go:
-    strategy:
-      fail-fast: false
-      matrix:
-        goversion:
-          - "1.23.x"
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.goversion }}
+          go-version-file: go.mod
       - run: go install -v ./gnovm/cmd/gno
       - run: go run ./gnovm/cmd/gno tool transpile -v --gobuild ./examples
   test:
@@ -43,14 +38,12 @@ jobs:
     with:
       debug: ${{ inputs.debug || false }}
       path: "examples"
-      go-version: "1.23.x"
 
   lint:
     name: Run gno lint
     uses: ./.github/workflows/template_gnolint.yml
     with:
       path: "examples"
-      go-version: "1.23.x"
     # TODO: consider running lint on every other directories, maybe in "warning" mode?
     # TODO: track coverage
 
@@ -65,20 +58,14 @@ jobs:
     uses: ./.github/workflows/template_build.yml
     with:
       modulepath: "examples"
-      go-version: "1.23.x"
 
   mod-tidy:
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: ["1.23.x"]
-        # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version-file: go.mod
       - uses: actions/checkout@v5
       - working-directory: ./examples
         run: |
