@@ -658,7 +658,7 @@ This section shows the simplest multisig flow:
 1) creating a **local multisig key** in each participant's keybase
 2) creating a tx **unsigned** (shared payload)
 3) each signer produces an **individual signature document**
-4) combining signatures with `multisign` (ordering matters)
+4) combining signatures with `multisign`
 5) broadcasting
 
 ### 1. Create the local multisig representation
@@ -668,38 +668,54 @@ This section shows the simplest multisig flow:
 - `gnokey`
 - their own private key (from mnemonic or existing)
 - the other signers' **pubkeys** (added as bech32 keys) present in the keybase
-- agreement on **threshold** and **key ordering**
+- agreement on **threshold** and the **member set**
 
-**The single most important rule: key ordering**
+**Recommended: use a dedicated key for multisig**
 
-The multisig is defined by the **ordered list of member keys**.
+Avoid reusing your primary key for multisig. Create a fresh key or derive a new
+one from your mnemonic, then use that key for multisig participation.
 
-All participants must use the **exact same order** when running:
+Example (derive a new key from an existing mnemonic):
+
+```sh
+gnokey add my-msig-key --recover --account 0 --index 1
+```
+
+Example (explicit derivation path):
+
+```sh
+gnokey add my-msig-key --recover --derivation-path "44'/118'/0'/0/1"
+```
+
+#### Key ordering
+
+By default, `gnokey add multisig` sorts member pubkeys (`-nosort=false`). That
+means the multisig has a deterministic member order based on pubkey sorting, not
+on the CLI order you provide.
+
+All participants must use the **exact same member set** and threshold when running:
 
 - `gnokey add multisig ...`
-- later, `gnokey multisign ...` expects signatures that correspond to that same ordering
+- later, `gnokey multisign ...` will match signatures to those members
 
-If the order differs between participants, you will *not* end up with the same multisig public key/address, and signing
-will fail.
+If the member set or threshold differs between participants, you will *not* end
+up with the same multisig public key/address, and signing will fail.
 
-#### Example ordering used here
+If you set `-nosort`, then ordering matters and everyone must use the same
+explicit order.
 
-We'll use this canonical order everywhere:
+#### Example members used here
 
-1. `alice`
-2. `multisig-bob`
-3. `multisig-charlie`
-
-That means:
+We'll use the following members everywhere:
 
 - Alice's keybase contains:
     - `alice` (local private key)
     - `multisig-bob` (Bob pubkey, present in Alice's keybase)
     - `multisig-charlie` (Charlie pubkey, present in Alice's keybase)
-    - multisig key `multisig-abc` created in that order
+    - multisig key `multisig-abc` created from these members
 
-Bob and Charlie must create `multisig-abc` using the *same ordered members*, even though their local private key name
-differs.
+Bob and Charlie must create `multisig-abc` using the *same members*, even though
+their local private key name differs.
 
 #### Alice keybase
 
@@ -714,7 +730,7 @@ echo "\n\n$ALICE_MNEMONIC" | gnokey add --recover "alice" --home "./alice-kb" -i
 gnokey add bech32 --home "./alice-kb" -pubkey "$BOB_PUBKEY" multisig-bob
 gnokey add bech32 --home "./alice-kb" -pubkey "$CHARLIE_PUBKEY" multisig-charlie
 
-# Create multisig (ORDER MATTERS)
+# Create multisig
 gnokey add multisig --home "./alice-kb" \
   --multisig alice \
   --multisig multisig-bob \
@@ -725,7 +741,7 @@ gnokey add multisig --home "./alice-kb" \
 
 #### Bob keybase
 
-Bob must reproduce the *same multisig members in the same order*.
+Bob must reproduce the *same multisig members*.
 
 ```sh
 rm -rf ./bob-kb && mkdir ./bob-kb
@@ -735,8 +751,7 @@ echo "\n\n$BOB_MNEMONIC" | gnokey add --recover "bob" --home "./bob-kb" -insecur
 gnokey add bech32 --home "./bob-kb" -pubkey "$ALICE_PUBKEY" multisig-alice
 gnokey add bech32 --home "./bob-kb" -pubkey "$CHARLIE_PUBKEY" multisig-charlie
 
-# Same ORDER as Alice's multisig definition:
-# 1) alice 2) bob 3) charlie
+# Same members as Alice's multisig definition
 gnokey add multisig --home "./bob-kb" \
   --multisig multisig-alice \
   --multisig bob \
@@ -757,8 +772,7 @@ echo "\n\n$CHARLIE_MNEMONIC" | gnokey add --recover "charlie" --home "./charlie-
 gnokey add bech32 --home "./charlie-kb" -pubkey "$ALICE_PUBKEY" multisig-alice
 gnokey add bech32 --home "./charlie-kb" -pubkey "$BOB_PUBKEY" multisig-bob
 
-# Same ORDER as Alice's multisig definition:
-# 1) alice 2) bob 3) charlie
+# Same members as Alice's multisig definition
 gnokey add multisig --home "./charlie-kb" \
   --multisig multisig-alice \
   --multisig multisig-bob \
@@ -833,17 +847,10 @@ echo "\n\n" | gnokey sign --tx-path "$TX_PAYLOAD" --home "./bob-kb" bob --accoun
 
 ### 3. Combine signatures with the multisig
 
-**The second most important rule: signature order must match multisig member order**
-
-When you call `gnokey multisign`, the signatures must correspond to the multisig's **ordered members**.
-
-If your multisig was defined as: `alice, bob, charlie`, then:
-
-- Alice's signature corresponds to slot 1
-- Bob's signature corresponds to slot 2
-- Charlie's signature corresponds to slot 3
-
-You can provide signatures in any CLI order, but they must be valid for members of that multisig.
+Order is handled automatically (see [Key ordering](#key-ordering)).
+When you call `gnokey multisign`, you can pass signature files in any order; `gnokey`
+matches each signature to its corresponding member pubkey. Just ensure the
+signatures are from members of that multisig.
 
 #### Multisign (Alice + Bob example)
 
@@ -870,13 +877,13 @@ flowchart TD
   C --> D1[Alice signs payload with gnokey sign using multisig account_number and sequence, produces <br/>alice-sig.json]
   C --> D2[Bob signs payload with gnokey sign using multisig account_number and sequence, produces <br/>bob-sig.json]
   C --> D3[Charlie optionally signs the payload, produces <br/>charlie-sig.json]
-  D1 --> E[Combine signatures with gnokey multisign.<br/>Signature slots must match multisig member order]
+  D1 --> E[Combine signatures with gnokey multisign.<br/>Signatures are matched to member pubkeys]
   D2 --> E
   D3 -. optional .-> E
   E --> F[Broadcast TX<br/>gnokey broadcast]
   F --> G[Done]
 
-  H[Critical rule: multisig member ordering] --- B
+  H[Critical rule: same member set + threshold] --- B
   H --- E
 ```
 
