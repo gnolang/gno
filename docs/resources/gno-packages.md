@@ -169,8 +169,7 @@ func Get(key string) int {
 }
 ```
 
-View the package on the [Staging network](https://gno.land/p/nt/avl/v0)
-or on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/nt/avl/v0).
+View the package source on [GitHub](../../examples/gno.land/p/nt/avl/v0).
 
 ### Package `ufmt`
 
@@ -184,8 +183,7 @@ Deployed under `gno.land/p/nt/ufmt/v0`, this package is a minimal version of the
 package ufmt
 ```
 
-View the package on the [Staging network](https://gno.land/p/nt/ufmt/v0) or
-on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/nt/ufmt/v0).
+View the package source on [GitHub](../../examples/gno.land/p/nt/ufmt/v0).
 
 ### Package `seqid`
 
@@ -207,8 +205,7 @@ have sequential IDs in Gno:
 package seqid
 ```
 
-View the package on the [Staging network](https://gno.land/p/nt/seqid/v0) or
-on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/nt/seqid/v0).
+View the package source on [GitHub](../../examples/gno.land/p/nt/seqid/v0).
 
 ## Exploring Deployed Packages
 
