@@ -10,6 +10,7 @@ import (
 
 const (
 	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	admin             = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 	moderator         = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
 )
 
@@ -20,13 +21,15 @@ func init() {
 	boardID := boards2.CreateBoard(cross, "test123", false, false)
 	threadID := boards2.CreateThread(cross, boardID, "Title", "Body")
 
-	// Invite member
+	// Invite members
+	boards2.InviteMember(cross, boardID, admin, "admin")
 	boards2.InviteMember(cross, boardID, moderator, "moderator")
 
 	// Update flagging threshold to two flags
 	boards2.SetFlaggingThreshold(cross, boardID, 2)
 
 	// Add first flag
+	testing.SetRealm(testing.NewUserRealm(admin))
 	boards2.FlagThread(cross, boardID, threadID, "Reason 1")
 
 	// Add second flag
@@ -48,5 +51,5 @@ func main() {
 }
 
 // Output:
-// g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq Reason 1
+// g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 Reason 1
 // g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj Reason 2
