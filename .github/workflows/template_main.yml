@@ -14,7 +14,7 @@ on:
         description: "Go version to use"
         required: false
         type: string
-        default: "1.23.x"
+        default: ""
     secrets:
       codecov-token:
         required: true

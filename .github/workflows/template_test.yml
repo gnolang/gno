@@ -8,8 +8,9 @@ on:
         required: true
         type: string
       go-version:
-        required: true
+        required: false
         type: string
+        default: ""
       tests-ts-seq: # execute txtar sequentially
         required: false
         type: boolean
@@ -30,6 +31,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
+          go-version-file: go.mod
       - name: Go test
         working-directory: ${{ inputs.modulepath }}
         env:
