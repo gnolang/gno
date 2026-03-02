@@ -158,6 +158,9 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 			env.Values[envKeyExecBin] = gnolandBin
 		}
 
+		// Store the resolved command kind so setupNode can read it later.
+		env.Values[envKeyExecCommand] = cmd
+
 		tmpdir, dbdir := t.TempDir(), t.TempDir()
 		gnoHomeDir := filepath.Join(tmpdir, "gno")
 

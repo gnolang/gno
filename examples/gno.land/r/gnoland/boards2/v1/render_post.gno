@@ -21,7 +21,7 @@ func renderPost(post *boards.Post, path, indent string, levels int) string {
 	title := post.Title
 	if boards.IsRepost(post) && title == "" {
 		if board, ok := gBoards.Get(post.OriginalBoardID); ok {
-			if src, ok := board.Threads.Get(post.ParentID); ok {
+			if src, ok := getThread(board, post.ParentID); ok {
 				title = src.Title
 			}
 		}
@@ -168,7 +168,7 @@ func renderPostInner(post *boards.Post) string {
 	var (
 		s         string
 		threadID  = post.ThreadID
-		thread, _ = post.Board.Threads.Get(threadID)
+		thread, _ = getThread(post.Board, threadID)
 	)
 
 	// Fully render parent if it's not a repost.
@@ -201,7 +201,7 @@ func renderSourcePost(post *boards.Post, indent string) (string, *boards.Post) {
 		return indentBody(indent, "⚠ Source board has been deleted"), nil
 	}
 
-	srcPost, ok := board.Threads.Get(post.ParentID)
+	srcPost, ok := getThread(board, post.ParentID)
 	if !ok {
 		return indentBody(indent, "⚠ Source post has been deleted"), nil
 	}
@@ -229,7 +229,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread not found")
 		return
@@ -298,7 +298,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(
 		md.Paragraph(
-			"Thread or comment moderation is done though flagging, which is usually done "+
+			"Thread or comment moderation is done through flagging, which is usually done "+
 				"by board members with the moderator role, though other roles could also potentially flag.",
 		) +
 			md.Paragraph(
@@ -324,7 +324,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(
 			md.Paragraph(
 				ufmt.Sprintf(
-					"⚠ You are flagging %s thread ⚠",
+					"⚠ You are flagging the thread: %s ⚠",
 					md.Link(thread.Title, makeThreadURI(thread)),
 				),
 			),
@@ -351,7 +351,7 @@ func renderFlaggingReasonsPost(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread not found")
 		return
@@ -505,7 +505,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(backLink + "\n\n")
 		res.Write(
 			md.Paragraph(
-				ufmt.Sprintf("Commenting on %s thread", md.Link(thread.Title, makeThreadURI(thread))),
+				ufmt.Sprintf("Commenting on the thread: %s", md.Link(thread.Title, makeThreadURI(thread))),
 			),
 		)
 	}
