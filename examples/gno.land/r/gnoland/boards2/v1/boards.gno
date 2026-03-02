@@ -31,7 +31,7 @@ var (
 	gRealmPath      = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land")
 	gPerms          = initRealmPermissions(
 		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-		"g1manfred47kzduec920z88wfr64ylksmdcedlf5",
+		"g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", // govdao t1 multisig
 	)
 
 	// TODO: Allow updating open account amount though a proposal (GovDAO, CommonDAO?)

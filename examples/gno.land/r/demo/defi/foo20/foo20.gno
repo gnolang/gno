@@ -15,7 +15,7 @@ import (
 var (
 	Token, privateLedger = grc20.NewToken("Foo", "FOO", 4)
 	UserTeller           = Token.CallerTeller()
-	Ownable              = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @manfred
+	Ownable              = ownable.NewWithAddress("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 )
 
 func init() {
