@@ -56,7 +56,7 @@ func (rs *Roles) CreateRole(name string) (*Role, error) {
 		return nil, ErrNameRole
 	}
 
-	if !rs.Ownable.OwnedByCurrent() {
+	if !rs.Ownable.Owned() {
 		return nil, ErrNotOwner
 	}
 
@@ -105,7 +105,7 @@ func (rs *Roles) GrantRole(name string, account address) error {
 		return ErrRoleNotFound
 	}
 
-	if !r.Ownable.OwnedByCurrent() {
+	if !r.Ownable.Owned() {
 		return ErrNotOwner
 	}
 
@@ -136,7 +136,7 @@ func (rs *Roles) RevokeRole(name string, account address) error {
 		return ErrRoleNotFound
 	}
 
-	if !r.Ownable.OwnedByCurrent() {
+	if !r.Ownable.Owned() {
 		return ErrNotOwner
 	}
 

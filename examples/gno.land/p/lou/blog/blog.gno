@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ownable"
 	"gno.land/p/nt/ownable/exts/authorizable"
 	"gno.land/p/nt/seqid"
 	"gno.land/p/nt/ufmt"
@@ -56,7 +57,7 @@ func NewBlog(title string, owner address, opts ...Options) (*Blog, error) {
 		return nil, ErrEmptyPrefix
 	}
 
-	auth := authorizable.NewAuthorizableWithAddress(owner)
+	auth := authorizable.New(ownable.NewWithAddress(owner))
 	blog := &Blog{
 		Authorizable:     auth,
 		title:            title,
