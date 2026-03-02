@@ -26,6 +26,7 @@ type AppConfig struct {
 	webRemoteHelperAddr string
 	webWithHTML         bool
 	webHome             string
+	webCustomJS         string
 
 	// Resolver
 	resolvers varResolver
@@ -110,6 +111,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"web-home",
 		defaultCfg.webHome,
 		"gnoweb: set default home page, use `/` or `:none:` to use default web home redirect",
+	)
+
+	fs.StringVar(
+		&c.webCustomJS,
+		"web-custom-js",
+		defaultCfg.webCustomJS,
+		"gnoweb: path to custom JavaScript script to inject into pages",
 	)
 
 	fs.Var(
