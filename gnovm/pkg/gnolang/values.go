@@ -1590,12 +1590,29 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			return "", true
 		}
 	case *PointerType:
-		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
-		if tv.V != nil {
-			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
-			ptrBytes = uintptrToBytes(&ptr)
+		if tv.V == nil {
+			var ptrBytes [sizeOfUintPtr]byte
+			bz = append(bz, ptrBytes[:]...)
+		} else {
+			pv := tv.V.(PointerValue)
+			if pv.TV != nil && pv.TV.T == DataByteType {
+				// TV is freshly allocated per access (see GetPointerAtIndexInt2);
+				// so we cannot simply convert to uintptr.
+				// We instead use the pointer to Base + concat with Index.
+				// This causes a longer pointer value, but does not cause issues
+				// because when we encode pointers in arrays or structs they are
+				// length-prefixed.
+				dbv := pv.TV.V.(DataByteValue)
+				base := uintptr(unsafe.Pointer(dbv.Base))
+				baseBytes := uintptrToBytes(&base)
+				bz = append(bz, baseBytes[:]...)
+				bz = binary.AppendUvarint(bz, uint64(dbv.Index))
+			} else {
+				ptr := uintptr(unsafe.Pointer(pv.TV))
+				ptrBytes := uintptrToBytes(&ptr)
+				bz = append(bz, ptrBytes[:]...)
+			}
 		}
-		bz = append(bz, ptrBytes[:]...)
 	case FieldType:
 		panic("field (pseudo)type cannot be used as map key")
 	case *ArrayType:
