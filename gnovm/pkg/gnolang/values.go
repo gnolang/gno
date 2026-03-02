@@ -1510,16 +1510,37 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
+// Sign returns the sign of the given numeric tv.
 func (tv *TypedValue) Sign() int {
 	if tv.T == nil {
 		panic("type should not be nil")
 	}
 
 	switch tv.T.Kind() {
-	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-		return signOfUnsignedBytes(tv.N)
-	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, Float32Kind, Float64Kind:
-		return signOfSignedBytes(tv.N)
+	case IntKind:
+		return signOfInteger(tv.GetInt())
+	case Int8Kind:
+		return signOfInteger(int64(tv.GetInt8()))
+	case Int16Kind:
+		return signOfInteger(int64(tv.GetInt16()))
+	case Int32Kind:
+		return signOfInteger(int64(tv.GetInt32()))
+	case Int64Kind:
+		return signOfInteger(tv.GetInt64())
+	case UintKind:
+		return signOfInteger(tv.GetUint())
+	case Uint8Kind:
+		return signOfInteger(uint64(tv.GetUint8()))
+	case Uint16Kind:
+		return signOfInteger(uint64(tv.GetUint16()))
+	case Uint32Kind:
+		return signOfInteger(uint64(tv.GetUint32()))
+	case Uint64Kind:
+		return signOfInteger(tv.GetUint64())
+	case Float32Kind:
+		return signOfFloat32Bits(tv.GetFloat32())
+	case Float64Kind:
+		return signOfFloat64Bits(tv.GetFloat64())
 	case BigintKind:
 		v := tv.GetBigInt()
 		return v.Sign()
@@ -2732,21 +2753,43 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 
 // ----------------------------------------
 // Utility
-func signOfSignedBytes(n [8]byte) int {
-	si := *(*int64)(unsafe.Pointer(&n[0]))
-	switch {
-	case si == 0:
-		return 0
-	case si < 0:
-		return -1
-	default:
+func signOfInteger[T interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
+}](v T) int {
+	if v > 0 {
 		return 1
+	} else if v < 0 {
+		return -1
+	} else {
+		return 0
 	}
 }
 
-func signOfUnsignedBytes(n [8]byte) int {
-	if *(*uint64)(unsafe.Pointer(&n[0])) == 0 {
+func signOfFloat32Bits(u32 uint32) int {
+	sign, mant, exp, _, nan := softfloat.Funpack32(u32)
+	if nan {
+		panic("sign of NaN is undefined")
+	}
+	if exp == 0 && mant == 0 {
 		return 0
+	}
+	if sign != 0 {
+		return -1
+	}
+	return 1
+}
+
+func signOfFloat64Bits(u64 uint64) int {
+	sign, mant, exp, _, nan := softfloat.Funpack64(u64)
+	if nan {
+		panic("sign of NaN is undefined")
+	}
+	if exp == 0 && mant == 0 {
+		return 0
+	}
+	if sign != 0 {
+		return -1
 	}
 	return 1
 }
