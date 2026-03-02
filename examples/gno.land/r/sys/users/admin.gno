@@ -4,6 +4,8 @@ import (
 	"chain"
 
 	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/ufmt"
+
 	"gno.land/r/gov/dao"
 )
 
@@ -17,55 +19,70 @@ func init() {
 
 // ProposeNewController allows GovDAO to add a whitelisted caller
 func ProposeNewController(addr address) dao.ProposalRequest {
+	if !addr.IsValid() {
+		panic(ErrInvalidAddress)
+	}
+
 	cb := func(cur realm) error {
 		return addToWhitelist(addr)
 	}
 
-	return dao.NewProposalRequest("Add a new whitelisted caller at sys/users realm", "", dao.NewSimpleExecutor(cb, ""))
+	desc := "This proposal adds " + addr.String() + " to `sys/users` realm's callers whitelist."
+	return dao.NewProposalRequest("Add Whitelisted Caller to \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
 }
 
 // ProposeControllerRemoval allows GovDAO to add a whitelisted caller
 func ProposeControllerRemoval(addr address) dao.ProposalRequest {
-	cb := func(cur realm) error {
-		return deleteFromwhitelist(addr)
+	if !addr.IsValid() {
+		panic(ErrInvalidAddress)
 	}
 
-	return dao.NewProposalRequest("Remove a whitelisted caller from sys/users realm", "", dao.NewSimpleExecutor(cb, ""))
+	cb := func(cur realm) error {
+		return deleteFromWhitelist(addr)
+	}
+
+	desc := "This proposal removes " + addr.String() + " from `sys/users` realm's callers whitelist."
+	return dao.NewProposalRequest("Remove Whitelisted Caller From \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
 }
 
 // ProposeControllerAdditionAndRemoval allows GovDAO to add a new caller and remove an old caller in the same proposal.
 func ProposeControllerAdditionAndRemoval(toAdd, toRemove address) dao.ProposalRequest {
+	if !toAdd.IsValid() || !toRemove.IsValid() {
+		panic(ErrInvalidAddress)
+	}
+
 	cb := func(cur realm) error {
 		err := addToWhitelist(toAdd)
 		if err != nil {
 			return err
 		}
 
-		return deleteFromwhitelist(toRemove)
+		return deleteFromWhitelist(toRemove)
 	}
 
-	return dao.NewProposalRequest("Add and Remove whitelisted caller from sys/users realm", "", dao.NewSimpleExecutor(cb, ""))
+	desc := ufmt.Sprint(
+		"This proposal adds %s and removes %s from `sys/users` realm's callers whitelist.",
+		toAdd,
+		toRemove,
+	)
+	return dao.NewProposalRequest("Add and Remove Whitelisted Callers From \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
 }
 
 // Helpers
 
-func deleteFromwhitelist(addr address) error {
+func deleteFromWhitelist(addr address) error {
 	if !controllers.Has(addr) {
 		return NewErrNotWhitelisted()
 	}
 
 	if ok := controllers.Remove(addr); !ok {
-		panic("failed to remove address from whitelist")
+		return ErrWhitelistRemoveFailed
 	}
 
 	return nil
 }
 
 func addToWhitelist(newCaller address) error {
-	if !newCaller.IsValid() {
-		return ErrInvalidAddress
-	}
-
 	if !controllers.Add(newCaller) {
 		return ErrAlreadyWhitelisted
 	}
