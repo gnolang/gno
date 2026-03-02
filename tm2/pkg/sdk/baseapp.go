@@ -762,16 +762,16 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		if r := recover(); r != nil {
 			switch ex := r.(type) {
 			case store.OutOfGasError:
-				log := fmt.Sprintf(
-					"out of gas, gasWanted: %d, gasUsed: %d location: %v",
-					gasWanted,
-					ctx.GasMeter().GasConsumed(),
-					ex.Descriptor,
-				)
+				gasUsed := ctx.GasMeter().GasConsumed()
+				maxGas := int64(-1)
+				if cp := ctx.ConsensusParams(); cp != nil && cp.Block != nil {
+					maxGas = cp.Block.MaxGas
+				}
+				log := outOfGasLog(gasUsed, gasWanted, maxGas, ex.Descriptor)
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
-				result.GasUsed = ctx.GasMeter().GasConsumed()
+				result.GasUsed = gasUsed
 				return
 			default:
 				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
@@ -877,6 +877,25 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 	}
 
 	return result
+}
+
+func outOfGasLog(gasUsed, gasWanted, maxGas int64, operation string) string {
+	if maxGas > 0 && gasWanted == maxGas {
+		return fmt.Sprintf(
+			"gas used (%d) exceeds max block gas (%d) during operation: %v",
+			gasUsed, gasWanted, operation,
+		)
+	}
+	if maxGas > 0 {
+		return fmt.Sprintf(
+			"gas used (%d) exceeds tx's gas wanted (%d) during operation: %v; simulate with consensus maximum (%d) to get real transaction usage",
+			gasUsed, gasWanted, operation, maxGas,
+		)
+	}
+	return fmt.Sprintf(
+		"gas used (%d) exceeds tx's gas wanted (%d) during operation: %v",
+		gasUsed, gasWanted, operation,
+	)
 }
 
 // EndBlock implements the ABCI interface.

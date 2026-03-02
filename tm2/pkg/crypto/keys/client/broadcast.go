@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -28,7 +29,11 @@ type BroadcastCfg struct {
 	// If true, simulation is attempted but not printed;
 	// the result is only returned in case of an error.
 	testSimulate bool
+	// max gas limit to use for simulation (optional).
+	simulateMaxGas int64
 }
+
+const simulationMaxGasFallback = int64(math.MaxInt64)
 
 func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 	cfg := &BroadcastCfg{
@@ -124,7 +129,24 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	// However, DryRun always returns here, while in case of success
 	// testSimulate continues onto broadcasting the transaction.
 	if cfg.DryRun || cfg.testSimulate {
-		res, err := SimulateTx(cli, bz)
+		simBz, simGasWanted, err := buildSimulationTxBytes(cfg.tx, bz, cfg.simulateMaxGas)
+		if err != nil {
+			return nil, err
+		}
+
+		originalGasWanted := cfg.tx.Fee.GasWanted
+		res, err := SimulateTx(cli, simBz)
+		if simGasWanted != originalGasWanted && res != nil {
+			res.DeliverTx.GasWanted = originalGasWanted
+			if originalGasWanted > 0 && res.DeliverTx.Error == nil && res.DeliverTx.GasUsed > originalGasWanted {
+				log := outOfGasLog(res.DeliverTx.GasUsed, originalGasWanted, cfg.simulateMaxGas, "simulation")
+				res.DeliverTx.Error = abci.ABCIErrorOrStringError(std.ErrOutOfGas(log))
+				res.DeliverTx.Log = log
+			}
+		}
+		if res != nil {
+			appendSuggestedGasWanted(res)
+		}
 		hasError := err != nil || res.CheckTx.IsErr() || res.DeliverTx.IsErr()
 		if hasError {
 			return res, err
@@ -141,6 +163,68 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	}
 
 	return bres, nil
+}
+
+// buildSimulationTxBytes returns tx bytes to use for simulation, overriding
+// GasWanted to consensus maxGas. If consensus maxGas is undefined, it falls
+// back to the maximum int64 value.
+func buildSimulationTxBytes(tx *std.Tx, txBytes []byte, maxGas int64) ([]byte, int64, error) {
+	originalGasWanted := tx.Fee.GasWanted
+	if maxGas <= 0 {
+		maxGas = simulationMaxGasFallback
+	}
+
+	simGasWanted := originalGasWanted
+	if maxGas > 0 && (originalGasWanted <= 0 || originalGasWanted < maxGas) {
+		simGasWanted = maxGas
+	}
+
+	if simGasWanted == originalGasWanted {
+		return txBytes, simGasWanted, nil
+	}
+
+	simTx := *tx
+	simTx.Fee.GasWanted = simGasWanted
+	simBz, err := amino.Marshal(&simTx)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "remarshaling tx binary bytes for simulation")
+	}
+
+	return simBz, simGasWanted, nil
+}
+
+func appendSuggestedGasWanted(bres *ctypes.ResultBroadcastTxCommit) {
+	gasUsed := bres.DeliverTx.GasUsed
+	margin := gasUsed / 20
+	if gasUsed%20 != 0 {
+		margin = overflow.Addp(margin, int64(1))
+	}
+	suggested := overflow.Addp(gasUsed, margin)
+	msg := fmt.Sprintf("suggested gas-wanted (gas used + 5%%): %d", suggested)
+	if bres.DeliverTx.Info == "" {
+		bres.DeliverTx.Info = msg
+	} else {
+		bres.DeliverTx.Info = bres.DeliverTx.Info + ", " + msg
+	}
+}
+
+func outOfGasLog(gasUsed, gasWanted, maxGas int64, operation string) string {
+	if maxGas > 0 && gasWanted == maxGas {
+		return fmt.Sprintf(
+			"gas used (%d) exceeds max block gas (%d) during operation: %v",
+			gasUsed, gasWanted, operation,
+		)
+	}
+	if maxGas > 0 {
+		return fmt.Sprintf(
+			"gas used (%d) exceeds tx's gas wanted (%d) during operation: %v; simulate with consensus maximum (%d) to get real transaction usage",
+			gasUsed, gasWanted, operation, maxGas,
+		)
+	}
+	return fmt.Sprintf(
+		"gas used (%d) exceeds tx's gas wanted (%d) during operation: %v",
+		gasUsed, gasWanted, operation,
+	)
 }
 
 func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit) error {
@@ -164,7 +248,11 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit)
 	feeBuffer := overflow.Mulp(fee, 5) / 100
 	fee = overflow.Addp(fee, feeBuffer)
 	s := fmt.Sprintf("estimated gas usage: %d, gas fee: %d%s, current gas price: %s\n", bres.DeliverTx.GasUsed, fee, gp.Price.Denom, gp.String())
-	bres.DeliverTx.Info = s
+	if bres.DeliverTx.Info == "" {
+		bres.DeliverTx.Info = s
+	} else {
+		bres.DeliverTx.Info = bres.DeliverTx.Info + ", " + s
+	}
 	return nil
 }
 
