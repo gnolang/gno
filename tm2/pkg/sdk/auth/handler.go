@@ -75,6 +75,7 @@ func (ah authHandler) queryAccount(ctx sdk.Context, req abci.RequestQuery) (res 
 		return
 	}
 
+	res.Height = req.Height
 	res.Data = bz
 	return
 }
@@ -91,6 +92,7 @@ func (ah authHandler) queryGasPrice(ctx sdk.Context, req abci.RequestQuery) (res
 		return
 	}
 
+	res.Height = req.Height
 	res.Data = bz
 	return
 }

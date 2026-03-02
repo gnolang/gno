@@ -1063,9 +1063,7 @@ data: {
 ```
 
 The return data will contain the following fields:
-
-- `height` - the height at which the query was executed. This is currently not
-  supported and is `0` by default.
+- `height` - the height at which the query was executed.
 - `data` - contains the result of the query.
 
 The `data` field returns a `BaseAccount`, which is the main struct used in Tendermint2
