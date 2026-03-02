@@ -405,11 +405,11 @@ func (vm *VMKeeper) callRealmBool(
 	)
 
 	ret := m.Eval(x)
-	if len(ret) == 0 {
-		return false, fmt.Errorf("callRealmBool: invalid response length")
+	if len(ret) != 1 {
+		return false, fmt.Errorf("callRealmBool: expected 1 return value, got %d", len(ret))
 	}
 	if ret[0].T.Kind() != gno.BoolKind {
-		return false, fmt.Errorf("callRealmBool: invalid response kind")
+		return false, fmt.Errorf("callRealmBool: expected bool return value, got %s", ret[0].T.Kind())
 	}
 
 	return ret[0].GetBool(), nil
