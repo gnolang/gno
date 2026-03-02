@@ -1,0 +1,18 @@
+name: single-node-boot
+description: Tests a single gno.land node (validator) reaching a specific block height
+
+cluster:
+  nodes:
+    - id: "peer1"
+      role: validator
+      config:
+        consensus.timeout_commit: 100
+        consensus.create_empty_blocks: true
+        consensus.create_empty_blocks_interval: 0
+
+scenarios:
+  # Wait for the node to start producing blocks (single validator)
+  - name: wait_for_height
+    params:
+      height: 20
+      timeout: 30s

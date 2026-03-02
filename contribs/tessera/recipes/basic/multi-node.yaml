@@ -1,0 +1,37 @@
+name: multi-node-boot
+description: Tests a cluster with 4 peers to verify basic network boot
+
+cluster:
+  nodes:
+    - id: "*"
+      config:
+        consensus.timeout_commit: 100
+        consensus.create_empty_blocks: true
+        consensus.create_empty_blocks_interval: 0
+        p2p.persistent_peers: [ "{{peer1.p2p.laddr}}", "{{peer2.p2p.laddr}}", "{{peer3.p2p.laddr}}", "{{peer4.p2p.laddr}}" ]
+
+    - id: peer1
+      role: validator
+
+    - id: peer2
+      role: validator
+
+    - id: peer3
+      role: validator
+
+    - id: peer4
+      role: validator
+
+scenarios:
+  # Wait for the initial network formation
+  - name: wait_for_peers
+    params:
+      peerCount: 3
+      peersInclude: [ "{{peer1.p2p.laddr}}", "{{peer2.p2p.laddr}}", "{{peer3.p2p.laddr}}", "{{peer4.p2p.laddr}}" ]
+      timeout: 30s
+
+  # Wait for some blocks to be produced
+  - name: wait_for_height
+    params:
+      height: 5
+      timeout: 30s
