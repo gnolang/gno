@@ -89,14 +89,13 @@ func TestWillSetParam(t *testing.T) {
 			isUpdated:   false,
 			isEqual:     false,
 		},
-		/* XXX add verification in willSetParam().
 		{
 			name:        "invalid pkgpath panics",
-			key:         "sysusers_pkgpath",
+			key:         "sysnames_pkgpath",
 			value:       "path/to/pkg",
 			shouldPanic: true,
 			isUpdated:   false,
-			isEqual:     false, // Not applicable
+			isEqual:     false,
 		},
 		{
 			name:        "invalid domain panics",
@@ -104,9 +103,24 @@ func TestWillSetParam(t *testing.T) {
 			value:       "example/com",
 			shouldPanic: true,
 			isUpdated:   false,
-			isEqual:     false, // Not applicable
+			isEqual:     false,
 		},
-		*/
+		{
+			name:        "invalid storage_price panics",
+			key:         "storage_price",
+			value:       "invalid",
+			shouldPanic: true,
+			isUpdated:   false,
+			isEqual:     false,
+		},
+		{
+			name:        "invalid default_deposit panics",
+			key:         "default_deposit",
+			value:       "garbage",
+			shouldPanic: true,
+			isUpdated:   false,
+			isEqual:     false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -127,6 +141,54 @@ func TestWillSetParam(t *testing.T) {
 						assert.Equal(t, tt.value, actual, "expected values to match")
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestParamsValidate(t *testing.T) {
+	valid := DefaultParams()
+
+	tests := []struct {
+		name    string
+		modify  func(p Params) Params
+		wantErr bool
+	}{
+		{
+			name:    "valid default params",
+			modify:  func(p Params) Params { return p },
+			wantErr: false,
+		},
+		{
+			name:    "invalid storage_price",
+			modify:  func(p Params) Params { p.StoragePrice = "invalid"; return p },
+			wantErr: true,
+		},
+		{
+			name:    "empty storage_price",
+			modify:  func(p Params) Params { p.StoragePrice = ""; return p },
+			wantErr: true,
+		},
+		{
+			name:    "invalid chain_domain",
+			modify:  func(p Params) Params { p.ChainDomain = "not/a/domain"; return p },
+			wantErr: true,
+		},
+		{
+			name:    "invalid default_deposit",
+			modify:  func(p Params) Params { p.DefaultDeposit = "garbage"; return p },
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := tt.modify(valid)
+			err := p.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

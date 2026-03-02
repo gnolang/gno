@@ -1,0 +1,104 @@
+## Setting an invalid VM parameter through governance should be rejected.
+## After a rejected proposal execution, VM operations should keep working.
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/params
+
+patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+## Deploy a realm and verify it works
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/test/hello -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'hello world'
+
+## Propose setting StoragePrice to an invalid value
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_invalid.gno
+stdout OK!
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_yes.gno
+stdout OK!
+
+## Executing the proposal should fail because the value is invalid
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/execute_proposal.gno
+
+## StoragePrice should remain unchanged
+gnokey query params/vm:p:storage_price
+stdout '100ugnot'
+
+## VM operations should still work
+gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'hello world'
+
+-- hello/gnomod.toml --
+module = "gno.land/r/test/hello"
+gno = "0.9"
+
+-- hello/hello.gno --
+package hello
+
+func SayHello(cur realm) string {
+	return "hello world"
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), &memberstore.Member{InvitationPoints: 3})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
+
+-- run/propose_invalid.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main() {
+	prop := params.NewSysParamStringPropRequest("vm", "p", "storage_price", "invalid")
+	dao.MustCreateProposal(cross, prop)
+}
+
+-- run/vote_yes.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main() {
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: dao.ProposalID(0),
+	})
+}
+
+-- run/execute_proposal.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main() {
+	dao.ExecuteProposal(cross, dao.ProposalID(0))
+}
