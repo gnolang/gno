@@ -58,7 +58,7 @@ func (i ProcessConfig) validate() error {
 	return nil
 }
 
-// RunNode initializes and runs a gnoaland node with the provided configuration.
+// RunNode initializes and runs a gnoland node with the provided configuration.
 func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Writer) error {
 	// Setup logger based on verbosity
 	var handler slog.Handler

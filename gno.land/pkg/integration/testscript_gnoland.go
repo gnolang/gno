@@ -283,6 +283,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
 			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
 			noParallel := fs.Bool("no-parallel", false, "don't run this node in parallel with other testing nodes")
+			sysNamesEnabled := fs.Bool("sysnames-enabled", false, "enable namespace enforcement")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
@@ -301,6 +302,10 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			genesis.Balances = append(genesis.Balances, tsGenesis.Balances...)
 			if *lockTransfer {
 				genesis.Bank.Params.RestrictedDenoms = []string{"ugnot"}
+			}
+			genesis.VM.Params = tsGenesis.VM.Params
+			if *sysNamesEnabled {
+				genesis.VM.Params.SysNamesEnabled = true
 			}
 			genesis.VM.RealmParams = append(genesis.VM.RealmParams, tsGenesis.VM.RealmParams...)
 
