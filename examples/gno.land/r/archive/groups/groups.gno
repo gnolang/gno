@@ -3,7 +3,7 @@ package groups
 import (
 	"regexp"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 //----------------------------------------

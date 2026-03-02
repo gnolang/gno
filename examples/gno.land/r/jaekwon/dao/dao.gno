@@ -3,7 +3,7 @@ package dao
 import (
 	"fmt"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 const (

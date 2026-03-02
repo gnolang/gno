@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/seqid"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/seqid/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type (

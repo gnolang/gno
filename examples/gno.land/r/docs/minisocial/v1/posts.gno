@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/moul/helplink"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var posts []*Post // inefficient for large amounts of posts; see v2

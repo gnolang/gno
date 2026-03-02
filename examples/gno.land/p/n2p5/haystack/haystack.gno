@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"gno.land/p/n2p5/haystack/needle"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 var (

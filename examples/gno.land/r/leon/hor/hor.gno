@@ -10,10 +10,10 @@ import (
 	"strings"
 
 	"gno.land/p/moul/addrset"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/pausable"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/pausable/v0"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/r/leon/config"
 )
 

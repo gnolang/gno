@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // NewReplyStorage creates a new storage for thread replies.

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // Invite contains a user invitation.

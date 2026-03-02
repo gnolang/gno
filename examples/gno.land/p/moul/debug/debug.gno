@@ -16,7 +16,7 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Debug encapsulates debug information, including logs and metadata.

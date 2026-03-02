@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ownable/v0"
 )
 
 func TestSign(t *testing.T) {

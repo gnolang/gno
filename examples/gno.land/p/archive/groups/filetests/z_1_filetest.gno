@@ -3,7 +3,7 @@ package groups_test
 
 import (
 	"gno.land/p/archive/groups"
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 )
 
 var vset groups.VoteSet

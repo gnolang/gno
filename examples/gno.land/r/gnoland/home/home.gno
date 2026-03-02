@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"gno.land/p/moul/dynreplacer"
-	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/ownable/v0"
 	blog "gno.land/r/gnoland/blog"
 
 	"gno.land/p/leon/svgbtn"

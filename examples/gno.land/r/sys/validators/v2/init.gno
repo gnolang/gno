@@ -1,8 +1,8 @@
 package validators
 
 import (
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/poa"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/poa/v0"
 )
 
 func init() {

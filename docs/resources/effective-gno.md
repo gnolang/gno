@@ -399,13 +399,13 @@ don't expect that other people will use your helpers, then you should probably
 use subdirectories like `p/NAMESPACE/DAPP/foo/bar/baz`.
 
 Packages which contain `internal` as an element of the path (ie. at the end, or
-in between, like `gno.land/p/nt/seqid/internal`, or
-`gno.land/p/nt/seqid/internal/base32`) can only be imported by packages
+in between, like `gno.land/p/nt/seqid/v0/internal`, or
+`gno.land/p/nt/seqid/v0/internal/base32`) can only be imported by packages
 sharing the same root as the `internal` package. That is, given a package
 structure as follows:
 
 ```
-gno.land/p/nt/seqid
+gno.land/p/nt/seqid/v0
 ├── generator
 └── internal
 	├── base32
@@ -701,7 +701,7 @@ func AddUser(id, name string) {
 }
 ```
 
-For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/README.md).
+For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/v0/README.md).
 
 ### Construct "safe" objects
 

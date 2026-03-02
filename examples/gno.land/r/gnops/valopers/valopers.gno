@@ -9,11 +9,11 @@ import (
 	"regexp"
 
 	"gno.land/p/moul/realmpath"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/avl/pager"
-	"gno.land/p/nt/combinederr"
-	"gno.land/p/nt/ownable/exts/authorizable"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/combinederr/v0"
+	"gno.land/p/nt/ownable/v0/exts/authorizable"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 const (

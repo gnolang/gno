@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"time"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Swap represents an atomic swap contract.

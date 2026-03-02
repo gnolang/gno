@@ -5,7 +5,7 @@ import (
 	"chain"
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	tests "gno.land/r/tests/vm"
 )
 

@@ -3,7 +3,7 @@ package users
 import (
 	"errors"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var (

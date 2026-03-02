@@ -4,12 +4,12 @@ import (
 	"chain/runtime"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/fqname"
+	"gno.land/p/nt/fqname/v0"
 	"gno.land/r/demo/defi/grc20reg"
 
 	"gno.land/p/demo/tokens/grc1155"
 	"gno.land/p/demo/tokens/grc721"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 
 	"gno.land/r/leon/hor"
 )

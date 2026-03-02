@@ -1,6 +1,6 @@
 package grc721
 
-import "gno.land/p/nt/avl"
+import "gno.land/p/nt/avl/v0"
 
 // metadataNFT represents an NFT with metadata extensions.
 type metadataNFT struct {

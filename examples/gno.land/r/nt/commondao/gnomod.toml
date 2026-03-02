@@ -1,5 +1,0 @@
-module = "gno.land/r/nt/commondao"
-gno = "0.9"
-
-[addpkg]
-  creator = "g15ge0ae9077eh40erwrn2eq0xw6wupwqthpv34l"

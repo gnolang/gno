@@ -47,7 +47,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/require_remote_module",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "gno: downloading gno.land/p/nt/avl",
+			stderrShouldContain:  "gno: downloading gno.land/p/nt/avl/v0",
 		},
 		{
 			args:                 []string{"mod", "download"},
@@ -70,7 +70,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/replace_with_module",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "gno: downloading gno.land/p/nt/avl",
+			stderrShouldContain:  "gno: downloading gno.land/p/nt/avl/v0",
 		},
 		// TODO: that functionality is not available on gnomod.toml anymore. should we remove this?
 		// {
@@ -174,13 +174,13 @@ func TestModApp(t *testing.T) {
 `,
 		},
 		{
-			args:                 []string{"mod", "why", "std", "gno.land/p/nt/avl"},
+			args:                 []string{"mod", "why", "std", "gno.land/p/nt/avl/v0"},
 			testDir:              "../../tests/integ/valid2",
 			simulateExternalRepo: true,
 			stdoutShouldBe: `# std
 (module gno.land/p/integ/valid does not need package std)
 
-# gno.land/p/nt/avl
+# gno.land/p/nt/avl/v0
 valid.gno
 `,
 		},
@@ -203,42 +203,42 @@ valid.gno
 			args:                 []string{"mod", "graph"},
 			testDir:              "../../tests/integ/valid2",
 			simulateExternalRepo: true,
-			stderrShouldBe:       "gno: downloading gno.land/p/nt/avl\n",
+			stderrShouldBe:       "gno: downloading gno.land/p/nt/avl/v0\n",
 			stdoutShouldBe: `gno.land/p/integ/valid gno.land/p/integ/valid
-gno.land/p/integ/valid gno.land/p/nt/avl
+gno.land/p/integ/valid gno.land/p/nt/avl/v0
 gno.land/p/integ/valid testing
-gno.land/p/nt/avl gno.land/p/nt/avl
-gno.land/p/nt/avl gno.land/p/nt/ufmt
-gno.land/p/nt/avl sort
-gno.land/p/nt/avl strings
-gno.land/p/nt/avl testing
+gno.land/p/nt/avl/v0 gno.land/p/nt/avl/v0
+gno.land/p/nt/avl/v0 gno.land/p/nt/ufmt/v0
+gno.land/p/nt/avl/v0 sort
+gno.land/p/nt/avl/v0 strings
+gno.land/p/nt/avl/v0 testing
 `,
 		},
 		{
 			args:                 []string{"mod", "graph"},
 			testDir:              "../../tests/integ/require_remote_module",
 			simulateExternalRepo: true,
-			stderrShouldBe:       "gno: downloading gno.land/p/nt/avl\n",
-			stdoutShouldBe: `gno.land/t/importavl gno.land/p/nt/avl
-gno.land/p/nt/avl gno.land/p/nt/avl
-gno.land/p/nt/avl gno.land/p/nt/ufmt
-gno.land/p/nt/avl sort
-gno.land/p/nt/avl strings
-gno.land/p/nt/avl testing
+			stderrShouldBe:       "gno: downloading gno.land/p/nt/avl/v0\n",
+			stdoutShouldBe: `gno.land/t/importavl gno.land/p/nt/avl/v0
+gno.land/p/nt/avl/v0 gno.land/p/nt/avl/v0
+gno.land/p/nt/avl/v0 gno.land/p/nt/ufmt/v0
+gno.land/p/nt/avl/v0 sort
+gno.land/p/nt/avl/v0 strings
+gno.land/p/nt/avl/v0 testing
 `,
 		},
 		{
-			// gno.land/p/nt/avl is included from the test in the filetests subdir
+			// gno.land/p/nt/avl/v0 is included from the test in the filetests subdir
 			args:                 []string{"mod", "graph"},
 			testDir:              "../../tests/integ/valid3",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "gno: downloading gno.land/p/nt/avl\n",
-			stdoutShouldBe: `gno.land/p/integ/valid3 gno.land/p/nt/avl
-gno.land/p/nt/avl gno.land/p/nt/avl
-gno.land/p/nt/avl gno.land/p/nt/ufmt
-gno.land/p/nt/avl sort
-gno.land/p/nt/avl strings
-gno.land/p/nt/avl testing
+			stderrShouldContain:  "gno: downloading gno.land/p/nt/avl/v0\n",
+			stdoutShouldBe: `gno.land/p/integ/valid3 gno.land/p/nt/avl/v0
+gno.land/p/nt/avl/v0 gno.land/p/nt/avl/v0
+gno.land/p/nt/avl/v0 gno.land/p/nt/ufmt/v0
+gno.land/p/nt/avl/v0 sort
+gno.land/p/nt/avl/v0 strings
+gno.land/p/nt/avl/v0 testing
 `,
 		},
 	}

@@ -174,7 +174,7 @@ func foo() { _ = v1.Register }
 			source: `
 package foo
 
-import "gno.land/p/nt/avl"
+import "gno.land/p/nt/avl/v0"
 
 func foo() { _ = avl.NewTree("hey", 1) }
 `,
@@ -184,7 +184,7 @@ func foo() { _ = avl.NewTree("hey", 1) }
 //line foo.gno:1:1
 package foo
 
-import "github.com/gnolang/gno/examples/gno.land/p/nt/avl"
+import "github.com/gnolang/gno/examples/gno.land/p/nt/avl/v0"
 
 func foo() { _ = avl.NewTree("hey", 1) }
 `,
@@ -193,7 +193,7 @@ func foo() { _ = avl.NewTree("hey", 1) }
 					Path: &ast.BasicLit{
 						ValuePos: 21,
 						Kind:     9,
-						Value:    `"github.com/gnolang/gno/examples/gno.land/p/nt/avl"`,
+						Value:    `"github.com/gnolang/gno/examples/gno.land/p/nt/avl/v0"`,
 					},
 				},
 			},

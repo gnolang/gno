@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/fqname"
-	"gno.land/p/nt/testutils"
-	trs_pkg "gno.land/p/nt/treasury"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/fqname/v0"
+	"gno.land/p/nt/testutils/v0"
+	trs_pkg "gno.land/p/nt/treasury/v0"
+	"gno.land/p/nt/uassert/v0"
 
 	"gno.land/r/demo/defi/grc20reg"
 	"gno.land/r/gov/dao"

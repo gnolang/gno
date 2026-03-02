@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/testutils" // Provides testing utilities
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/testutils/v0" // Provides testing utilities
+	"gno.land/p/nt/uassert/v0"
 )
 
 func TestCreatePostSingle(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"gno.land/p/jeronimoalbi/mdform"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 func TestNew(t *testing.T) {

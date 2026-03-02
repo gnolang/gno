@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"gno.land/p/moul/authz"
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 )
 
 var (

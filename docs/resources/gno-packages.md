@@ -19,7 +19,7 @@ code. Here are the defining features of pure packages:
 - Users cannot call functions in pure packages directly
 - Documentation should be contained within package code as comments, following the [Go doc standard](https://tip.golang.org/doc/comment)
 
-Example: `gno.land/p/nt/avl` (An AVL tree implementation)
+Example: `gno.land/p/nt/avl/v0` (An AVL tree implementation)
 
 ### Realms (`/r/`)
 
@@ -65,7 +65,7 @@ gno.land/[r|p|e]/[namespace]/[package-name]
 For example:
 - `gno.land/r/gnoland/home` is the gno.land home realm
 - `gno.land/r/leon/hor` is the Hall of Realms
-- `gno.land/p/nt/avl` is the AVL tree package
+- `gno.land/p/nt/avl/v0` is the AVL tree package
 - `gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run` is a user's ephemeral run script
 
 The components of these paths are:
@@ -120,7 +120,7 @@ Gno packages can import other packages using standard Go import syntax:
 
 ```go
 import (
-    "gno.land/p/nt/avl"          // Pure package import
+    "gno.land/p/nt/avl/v0"          // Pure package import
     "gno.land/r/demo/users"      // Realm import (access exported functions)
 )
 ```
@@ -133,11 +133,11 @@ folder.
 
 ### Package `avl`
 
-Deployed under `gno.land/p/nt/avl`, the AVL package provides a gas-efficient sorted tree 
+Deployed under `gno.land/p/nt/avl/v0`, the AVL package provides a gas-efficient sorted tree 
 structure for storing key-value data. Useful when you need access to large datasets.
 
 See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for usage guidance 
-and the [package README](../../examples/gno.land/p/nt/avl/README.md) for technical details.
+and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for technical details.
 
 #### Usage example:
 
@@ -145,7 +145,7 @@ and the [package README](../../examples/gno.land/p/nt/avl/README.md) for technic
 package myrealm
 
 import (
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // This AVL tree will be persisted after transaction calls
@@ -169,12 +169,11 @@ func Get(key string) int {
 }
 ```
 
-View the package on the [Staging network](https://gno.land/p/nt/avl)
-or on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/nt/avl).
+View the package source on [GitHub](../../examples/gno.land/p/nt/avl/v0).
 
 ### Package `ufmt`
 
-Deployed under `gno.land/p/nt/ufmt`, this package is a minimal version of the
+Deployed under `gno.land/p/nt/ufmt/v0`, this package is a minimal version of the
 `fmt` package:
 
 ```go
@@ -184,12 +183,11 @@ Deployed under `gno.land/p/nt/ufmt`, this package is a minimal version of the
 package ufmt
 ```
 
-View the package on the [Staging network](https://gno.land/p/nt/ufmt) or
-on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/nt/ufmt).
+View the package source on [GitHub](../../examples/gno.land/p/nt/ufmt/v0).
 
 ### Package `seqid`
 
-Deployed under `gno.land/p/nt/seqid`, this package provides a simple way to
+Deployed under `gno.land/p/nt/seqid/v0`, this package provides a simple way to
 have sequential IDs in Gno:
 
 ```go
@@ -207,8 +205,7 @@ have sequential IDs in Gno:
 package seqid
 ```
 
-View the package on the [Staging network](https://gno.land/p/nt/seqid) or
-on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/nt/seqid).
+View the package source on [GitHub](../../examples/gno.land/p/nt/seqid/v0).
 
 ## Exploring Deployed Packages
 

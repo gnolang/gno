@@ -646,7 +646,7 @@ func TestRunSingle(t *testing.T) {
 	fileBody := `package main
 import (
 	"std"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/tests/vm/deep/very/deep"
 )
 func main() {
@@ -723,7 +723,7 @@ func TestRunMultiple(t *testing.T) {
 	fileBody := `package main
 import (
 	"std"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/tests/vm/deep/very/deep"
 )
 func main() {

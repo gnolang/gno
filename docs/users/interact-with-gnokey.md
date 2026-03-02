@@ -426,7 +426,7 @@ to the following example realm:
 ```go
 package foo
 
-import "gno.land/p/nt/ufmt"
+import "gno.land/p/nt/ufmt/v0"
 
 var (
 	MainFoo *Foo
@@ -1200,8 +1200,8 @@ import (
         "std"
         "strings"
 
-        "gno.land/p/nt/grc/grc20"
-        "gno.land/p/nt/ufmt"
+        "gno.land/p/nt/grc/v0/grc20"
+        "gno.land/p/nt/ufmt/v0"
         pusers "gno.land/p/demo/users"
         "gno.land/r/demo/users"
 )

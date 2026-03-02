@@ -1,8 +1,8 @@
 package guestbook
 
 import (
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/seqid/v0"
 )
 
 var owner = ownable.NewWithOrigin()

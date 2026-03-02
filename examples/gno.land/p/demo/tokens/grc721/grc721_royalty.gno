@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"math/overflow"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // royaltyNFT represents a non-fungible token (NFT) with royalty functionality.
