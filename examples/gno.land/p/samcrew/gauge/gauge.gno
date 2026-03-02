@@ -3,7 +3,7 @@ package gauge
 
 import (
 	"gno.land/p/demo/svg"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type Config struct {

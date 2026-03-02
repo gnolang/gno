@@ -3,7 +3,7 @@ package grc20
 import (
 	"errors"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // Teller interface defines the methods that a GRC20 token must implement. It

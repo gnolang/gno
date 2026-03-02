@@ -4,8 +4,8 @@ import (
 	"errors"
 
 	"gno.land/p/moul/collection"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
 )
 
 // ErrUndefinedField indicates that a field in not defined in a record's schema.

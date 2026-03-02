@@ -10,7 +10,7 @@
 adduserfrom runner 'apart roast chief monitor bundle auto fade double valid budget able average onion slam rice flame despair wage uphold nominee proud alien spider useful'
 stdout 'g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80'
 
-loadpkg gno.land/p/nt/ufmt
+loadpkg gno.land/p/nt/ufmt/v0
 
 ## start a new node
 gnoland start
@@ -471,7 +471,7 @@ gno = "0.9"
 -- bob/bob.gno --
 package bob
 
-import 	"gno.land/p/nt/ufmt"
+import 	"gno.land/p/nt/ufmt/v0"
 
 func Do(fn func()) {
 	// Normal non-crossing function doesn't change the current or

@@ -2,7 +2,7 @@
 package main
 
 import (
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 func main(cur realm) {

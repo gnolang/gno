@@ -2,9 +2,9 @@ package permissions
 
 import (
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/commondao"
-	"gno.land/p/nt/commondao/exts/storage"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/commondao/v0"
+	"gno.land/p/nt/commondao/v0/exts/storage"
 )
 
 // ValidatorFunc defines a function type for permissions validators.

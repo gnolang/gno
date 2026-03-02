@@ -6,7 +6,7 @@ import (
 	"gno.land/p/demo/tokens/grc1155"
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/demo/tokens/grc721"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/demo/defi/grc20reg"
 	"gno.land/r/sys/users"
 )

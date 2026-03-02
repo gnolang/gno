@@ -4,8 +4,8 @@ import (
 	// The standard Gno package
 	"time" // For handling time operations
 
-	"gno.land/p/nt/seqid"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/seqid/v0"
+	"gno.land/p/nt/ufmt/v0"
 
 	"gno.land/r/sys/users"
 )

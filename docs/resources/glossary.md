@@ -32,10 +32,10 @@ See [Third-party wallets](../users/third-party-wallets.md).
 Data structure commonly used instead of the native `map` for
 key-value storage. It is efficient in both gas cost and runtime performance,
 particularly suited for large or growing datasets. Deployed under
-`gno.land/p/nt/avl`.
+`gno.land/p/nt/avl/v0`.
 
 See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for usage guidance 
-and the [package README](../../examples/gno.land/p/nt/avl/README.md) for technical details.
+and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for technical details.
 
 ## B
 

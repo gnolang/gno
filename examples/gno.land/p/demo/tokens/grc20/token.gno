@@ -7,7 +7,7 @@ import (
 	"math/overflow"
 	"strconv"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // NewToken creates a new Token.

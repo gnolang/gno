@@ -6,7 +6,7 @@ import (
 	"gno.land/p/demo/gnorkle/ingester"
 	"gno.land/p/demo/gnorkle/ingesters/single"
 	"gno.land/p/demo/gnorkle/storage/simple"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/uassert/v0"
 )
 
 func TestValueIngester(t *testing.T) {

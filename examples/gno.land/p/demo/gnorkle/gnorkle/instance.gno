@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/gnorkle/agent"
 	"gno.land/p/demo/gnorkle/feed"
 	"gno.land/p/demo/gnorkle/message"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // Instance is a single instance of an oracle.

@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/seqid"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
+	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/thox/accesscontrol"
 )
 

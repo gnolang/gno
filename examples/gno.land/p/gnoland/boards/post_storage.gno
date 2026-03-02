@@ -3,7 +3,7 @@ package boards
 import (
 	"errors"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 type (

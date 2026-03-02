@@ -3,8 +3,8 @@ package params
 import (
 	"testing"
 
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/urequire/v0"
 	"gno.land/r/gov/dao"
 	ini "gno.land/r/gov/dao/v3/init"
 )

@@ -31,7 +31,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/nt/avl.Node"
+//                     "ID": "gno.land/p/nt/avl/v0.Node"
 //                 }
 //             }
 //         }
@@ -69,7 +69,7 @@ func main(cur realm) {
 //         {
 //             "T": {
 //                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/p/nt/avl.Tree"
+//                 "ID": "gno.land/p/nt/avl/v0.Tree"
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
@@ -155,7 +155,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/nt/avl.Node"
+//                     "ID": "gno.land/p/nt/avl/v0.Node"
 //                 }
 //             }
 //         },
@@ -164,7 +164,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/nt/avl.Node"
+//                     "ID": "gno.land/p/nt/avl/v0.Node"
 //                 }
 //             }
 //         }
@@ -188,7 +188,7 @@ func main(cur realm) {
 //     "Value": {
 //         "T": {
 //             "@type": "/gno.RefType",
-//             "ID": "gno.land/p/nt/avl.Node"
+//             "ID": "gno.land/p/nt/avl/v0.Node"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
@@ -223,7 +223,7 @@ func main(cur realm) {
 // u[1ffd45e074aa1b8df562907c95ad97526b7ca187:9](135)=
 //     @@ -7,13 +7,23 @@
 //                          "@type": "/gno.RefType",
-//                          "ID": "gno.land/p/nt/avl.Node"
+//                          "ID": "gno.land/p/nt/avl/v0.Node"
 //                      }
 //     +            },
 //     +            "V": {

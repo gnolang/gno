@@ -6,7 +6,7 @@ package boards_test
 import (
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/archive/boards"
 )
 

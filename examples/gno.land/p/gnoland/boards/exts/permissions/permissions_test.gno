@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 var _ boards.Permissions = (*Permissions)(nil)
