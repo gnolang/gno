@@ -2,8 +2,6 @@ module github.com/gnolang/gno
 
 go 1.24.4
 
-toolchain go1.24.4
-
 require (
 	dario.cat/mergo v1.0.1
 	github.com/alecthomas/chroma/v2 v2.15.0
