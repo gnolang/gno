@@ -1,6 +1,5 @@
 package gnolang
 
-
 import (
 	"bytes"
 	"fmt"
