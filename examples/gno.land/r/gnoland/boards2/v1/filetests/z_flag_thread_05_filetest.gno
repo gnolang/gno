@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 	moderator address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 )
 
@@ -31,7 +31,7 @@ func main() {
 	testing.SetRealm(testing.NewUserRealm(moderator))
 
 	// Flag thread as moderator
-	boards2.FlagThread(cross, bid, pid, "")
+	boards2.FlagThread(cross, bid, pid, "Reason")
 
 	// Ensure that original thread content not visible
 	println(boards2.Render("test-board/1"))

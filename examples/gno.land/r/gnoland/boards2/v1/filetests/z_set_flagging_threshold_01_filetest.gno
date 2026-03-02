@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner address   = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	owner address   = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 	bid   boards.ID = 404
 )
 
