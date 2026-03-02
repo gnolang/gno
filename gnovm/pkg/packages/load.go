@@ -56,6 +56,16 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		return nil, err
 	}
 
+	// override rpcs if requested and possible
+	rpcOverrides := loaderCtx.Gnowork.rpcOverrides()
+	if len(rpcOverrides) != 0 {
+		if cpf, ok := conf.Fetcher.(pkgdownload.RPCPackageFetcher); ok {
+			cpf.OverrideDomainsRPCs(rpcOverrides)
+		} else {
+			fmt.Fprintf(conf.Out, "gno: warning: ignored rpc overrides, fetcher has no support for it")
+		}
+	}
+
 	// sanity assert
 	if !filepath.IsAbs(loaderCtx.Root) {
 		panic(fmt.Errorf("context root should be absolute at this point, got %q", loaderCtx.Root))
@@ -158,6 +168,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 type loaderContext struct {
 	Root        string
 	IsWorkspace bool
+	Gnowork     *Gnowork
 }
 
 func findLoaderContext() (*loaderContext, error) {
@@ -170,7 +181,11 @@ func findLoaderContext() (*loaderContext, error) {
 		dir, err := findWorkspaceRootDir(wd)
 		switch {
 		case err == nil:
-			return &loaderContext{Root: dir, IsWorkspace: true}, nil
+			gnowork, err := ReadGnowork(filepath.Join(dir, "gnowork.toml"))
+			if err != nil {
+				return nil, err
+			}
+			return &loaderContext{Root: dir, IsWorkspace: true, Gnowork: gnowork}, nil
 		case errors.Is(err, ErrGnoworkNotFound):
 			// continue
 		default:
