@@ -1200,7 +1200,7 @@ import (
         "std"
         "strings"
 
-        "gno.land/p/nt/grc/v0/grc20"
+        "gno.land/p/demo/tokens/grc20"
         "gno.land/p/nt/ufmt/v0"
         pusers "gno.land/p/demo/users"
         "gno.land/r/demo/users"
