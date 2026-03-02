@@ -868,6 +868,11 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
+			if m.Output == io.Discard && !bm.NativeEnabled {
+				// Output is already discarded in this mode, so skip print
+				// formatting work to avoid unnecessary runtime/gas overhead.
+				return
+			}
 			// Todo: should stop op code benchmarking here.
 			if bm.NativeEnabled {
 				arg0 := m.LastBlock().GetParams1(m.Store)
@@ -890,6 +895,11 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
+			if m.Output == io.Discard && !bm.NativeEnabled {
+				// Output is already discarded in this mode, so skip println
+				// formatting work to avoid unnecessary runtime/gas overhead.
+				return
+			}
 			// Todo: should stop op code benchmarking here.
 			if bm.NativeEnabled {
 				arg0 := m.LastBlock().GetParams1(m.Store)
