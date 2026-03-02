@@ -11,7 +11,6 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
-
 func assertNoPlusPrefix(s string) {
 	if strings.HasPrefix(s, "+") {
 		panic("numbers cannot start with +")
