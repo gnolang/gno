@@ -276,7 +276,21 @@ func (f *GHFetcher) iterateEvents(ctx context.Context, pipe redis.Pipeliner, org
 				continue
 			}
 
-			f.logger.Info("processing new event", "event", *ev.Type, "user", *ev.Actor.Login, "org", org, "repo", repo)
+			var eType, login string
+
+			if ev.Type != nil {
+				eType = *ev.Type
+			} else {
+				eType = "UNKNOWN"
+			}
+
+			if ev.Actor != nil && ev.Actor.Login != nil {
+				login = *ev.Actor.Login
+			} else {
+				login = "UNKNOWN"
+			}
+
+			f.logger.Info("processing new event", "event", eType, "user", login, "org", org, "repo", repo)
 
 			et, err := ev.ParsePayload()
 			if err != nil {
@@ -286,6 +300,10 @@ func (f *GHFetcher) iterateEvents(ctx context.Context, pipe redis.Pipeliner, org
 
 			switch pe := et.(type) {
 			case *github.IssuesEvent:
+				if pe.Action == nil {
+					continue
+				}
+
 				if *pe.Action != "opened" {
 					continue
 				}
@@ -302,6 +320,10 @@ func (f *GHFetcher) iterateEvents(ctx context.Context, pipe redis.Pipeliner, org
 					continue
 				}
 
+				if pr.Merged == nil {
+					continue
+				}
+
 				if !*pr.Merged {
 					continue
 				}
@@ -310,6 +332,10 @@ func (f *GHFetcher) iterateEvents(ctx context.Context, pipe redis.Pipeliner, org
 			case *github.PullRequestReviewEvent:
 				review := pe.Review
 				if review == nil {
+					continue
+				}
+
+				if review.State == nil {
 					continue
 				}
 
