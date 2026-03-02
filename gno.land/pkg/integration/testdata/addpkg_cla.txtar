@@ -1,0 +1,196 @@
+# Test CLA enforcement during package deployment
+# Verifies VMKeeper->r/sys/cla integration with govdao-based admin
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+adduser alice
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/cla
+
+# Load govdao implementation with member as T1 member
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Give alice more tokens for gas
+gnokey maketx send -send 1000000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
+
+# ============================================================
+# Test 1: CLA enforcement disabled (no required hash set)
+# ============================================================
+
+# Check CLA is disabled by default (HasValidSignature returns true for anyone)
+gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user_addr\")"
+stdout 'true bool'
+
+# Alice should be able to addpkg when CLA is disabled
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg1 -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test alice
+stdout 'OK!'
+
+# ============================================================
+# Test 2: Enable CLA enforcement via govdao, block unsigned deployer
+# ============================================================
+
+# Create proposal to set required CLA hash and URL
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/propose_cla1.gno
+stdout OK!
+
+# Vote and execute proposal 0
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Alice's signature is now invalid (hasn't signed)
+gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user_addr\")"
+stdout 'false bool'
+
+# Alice tries to deploy without signing CLA - should FAIL
+! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stderr 'has not signed the required CLA'
+
+# ============================================================
+# Test 3: Sign CLA, then deploy successfully
+# ============================================================
+
+# Alice signs the CLA with correct hash
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "abc123hash" -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+# Verify Alice's signature
+gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user_addr\")"
+stdout 'true bool'
+
+# Now Alice should be able to deploy
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg3 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test alice
+stdout 'OK!'
+
+# ============================================================
+# Test 4: CLA hash update resets all signatures (via govdao)
+# ============================================================
+
+# Create proposal to update hash
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/propose_cla2.gno
+stdout OK!
+
+# Vote and execute proposal 1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Alice's signature was reset
+gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user_addr\")"
+stdout 'false bool'
+
+# Alice tries to deploy - should FAIL
+! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg4 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stderr 'has not signed the required CLA'
+
+# Alice re-signs with new hash
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "newhash456" -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+# Now Alice can deploy again
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg5 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test alice
+stdout 'OK!'
+
+# ============================================================
+# Test 5: Disable enforcement by clearing hash (via govdao)
+# ============================================================
+
+# Create proposal to clear hash
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/propose_cla_clear.gno
+stdout OK!
+
+# Vote and execute proposal 2
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 2 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 2 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Anyone passes validation when enforcement is disabled
+gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$test1_user_addr\")"
+stdout 'true bool'
+
+# Any user can deploy when enforcement is disabled (even test1 who never signed)
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$test1_user_addr/pkg1 -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+-- proposer/propose_cla1.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/cla"
+)
+
+func main() {
+	preq := cla.ProposeNewCLA("abc123hash", "https://example.com/cla-v1")
+	dao.MustCreateProposal(cross, preq)
+}
+
+-- proposer/propose_cla2.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/cla"
+)
+
+func main() {
+	preq := cla.ProposeNewCLA("newhash456", "https://example.com/cla-v2")
+	dao.MustCreateProposal(cross, preq)
+}
+
+-- proposer/propose_cla_clear.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/cla"
+)
+
+func main() {
+	preq := cla.ProposeNewCLA("", "")
+	dao.MustCreateProposal(cross, preq)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
+
+-- pkg/gnomod.toml --
+module = "gno.land/r/mypkg"
+gno = "0.9"
+
+-- pkg/one.gno --
+package one
+
+func Render(path string) string {
+    return "# Hello"
+}
