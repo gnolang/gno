@@ -104,6 +104,11 @@ func GetBoardIDFromName(_ realm, name string) (_ boards.ID, found bool) {
 	return board.ID, true
 }
 
+// BoardCount returns the total number of boards.
+func BoardCount() int {
+	return gBoards.Size()
+}
+
 // CreateBoard creates a new board.
 //
 // Listed boards are included in the realm's list of boards.
@@ -176,6 +181,7 @@ func RenameBoard(_ realm, name, newName string) {
 
 		board.Aliases = append(board.Aliases, board.Name)
 		board.Name = newName
+		board.UpdatedAt = time.Now()
 
 		// Index board for the new name keeping previous indexes for older names
 		gBoards.Add(board)
@@ -621,22 +627,6 @@ func ChangeMemberRole(_ realm, boardID boards.ID, member address, role boards.Ro
 			"newRole", string(role),
 		)
 	}))
-}
-
-// IterateRealmMembers iterates boards realm members.
-// The iteration is done only for realm members, board members are not iterated.
-func IterateRealmMembers(offset int, fn boards.UsersIterFn) (halted bool) {
-	count := gPerms.UsersCount() - offset
-	return gPerms.IterateUsers(offset, count, fn)
-}
-
-// GetBoard returns a single board.
-func GetBoard(boardID boards.ID) *boards.Board {
-	board := mustGetBoard(boardID)
-	if !board.Permissions.HasRole(runtime.OriginCaller(), RoleOwner) {
-		panic("forbidden")
-	}
-	return board
 }
 
 // Wraps a function to cross back to Boards2 realm.

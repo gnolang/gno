@@ -18,11 +18,11 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(testing.NewUserRealm(owner))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 
-	// Calling as an owner should succeed
-	board := boards2.GetBoard(bid)
-	if board == nil {
+	// Calling as a Boards2 sub realm should succeed
+	board, found := boards2.GetBoard(bid)
+	if !found {
 		return
 	}
 
