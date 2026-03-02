@@ -1804,6 +1804,33 @@ func TestStateOutputVoteStats(t *testing.T) {
 	}
 }
 
+// TestConflictingVotesDoNotPanic verifies that receiving two conflicting votes
+// (double-signing) from the same validator does not panic the consensus state.
+// This is a regression test for the panic("not yet implemented") that previously
+// existed in tryAddVote when handling VoteConflictingVotesError.
+func TestConflictingVotesDoNotPanic(t *testing.T) {
+	t.Parallel()
+
+	cs, vss := randConsensusState(2)
+	peer := p2pmock.Peer{}
+
+	// First vote from vss[1]: prevote for block hash "blockA".
+	voteA := signVote(vss[1], types.PrevoteType, []byte("blockA"), types.PartSetHeader{})
+
+	// Inject voteA — this should succeed normally.
+	cs.handleMsg(msgInfo{&VoteMessage{voteA}, peer.ID()})
+
+	// Second vote from the same validator for a different block hash.
+	// This constitutes double-signing and must not panic.
+	voteB := signVote(vss[1], types.PrevoteType, []byte("blockB"), types.PartSetHeader{})
+
+	// This previously triggered panic("not yet implemented").
+	// After the fix, it should log the double-signing and return gracefully.
+	assert.NotPanics(t, func() {
+		cs.handleMsg(msgInfo{&VoteMessage{voteB}, peer.ID()})
+	}, "handleMsg must not panic on conflicting votes (double-signing)")
+}
+
 func subscribe(evsw events.EventSwitch, protoevent events.Event) <-chan events.Event {
 	return events.SubscribeToEvent(evsw, testSubscriber, protoevent)
 }
