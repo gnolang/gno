@@ -142,9 +142,9 @@ func (m *Machine) doOpInterfaceType() {
 	}
 	// push interface type
 	it := &InterfaceType{
-		PkgPath: m.Package.PkgPath,
-		Methods: methods,
-		Generic: x.Generic,
+		PkgPath:    m.Package.PkgPath,
+		FieldTypes: methods,
+		Generic:    x.Generic,
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,

@@ -904,9 +904,9 @@ func (pt *PackageType) IsNamed() bool {
 // Interface type
 
 type InterfaceType struct {
-	PkgPath string
-	Methods []FieldType
-	Generic Name // for uverse "generics"
+	PkgPath    string
+	FieldTypes []FieldType
+	Generic    Name // for uverse "generics"
 
 	typeid TypeID
 }
@@ -914,7 +914,7 @@ type InterfaceType struct {
 // General empty interface.
 
 func (it *InterfaceType) IsEmptyInterface() bool {
-	return len(it.Methods) == 0
+	return len(it.FieldTypes) == 0
 }
 
 func (it *InterfaceType) Kind() Kind {
@@ -932,7 +932,7 @@ func (it *InterfaceType) TypeID() TypeID {
 		// packages may have the same TypeID if and only if
 		// neither have unexported fields.  pt.Path is only
 		// included in field names that are not uppercase.
-		ms := FieldTypeList(it.Methods)
+		ms := FieldTypeList(it.FieldTypes)
 		// XXX pre-sort.
 		sort.Sort(ms)
 		it.typeid = typeid("interface{" + ms.TypeIDForPackage(it.PkgPath).String() + "}")
@@ -941,8 +941,8 @@ func (it *InterfaceType) TypeID() TypeID {
 }
 
 func (it *InterfaceType) GetMethodFieldType(mname Name) *FieldType {
-	for i := range it.Methods {
-		im := &it.Methods[i]
+	for i := range it.FieldTypes {
+		im := &it.FieldTypes[i]
 		if im.Name == mname {
 			return im
 		}
@@ -954,10 +954,10 @@ func (it *InterfaceType) String() string {
 	if it.Generic != "" {
 		return fmt.Sprintf("<%s>{%s}",
 			it.Generic,
-			FieldTypeList(it.Methods).String())
+			FieldTypeList(it.FieldTypes).String())
 	} else {
 		return fmt.Sprintf("interface {%s}",
-			FieldTypeList(it.Methods).String())
+			FieldTypeList(it.FieldTypes).String())
 	}
 }
 
@@ -985,7 +985,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 		m[it] = struct{}{}
 	}
 	// ...
-	for _, im := range it.Methods {
+	for _, im := range it.FieldTypes {
 		if im.Name == n {
 			// Ensure exposed or package match.
 			if !isUpper(string(n)) && it.PkgPath != callerPath {
@@ -1024,7 +1024,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 // For run-time type assertion.
 // TODO: optimize somehow.
 func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
-	for _, im := range it.Methods {
+	for _, im := range it.FieldTypes {
 		if im.Type.Kind() == InterfaceKind {
 			// field is embedded interface...
 			im2 := baseOf(im.Type).(*InterfaceType)

@@ -1267,9 +1267,9 @@ func copyTypeWithRefs(typ Type) Type {
 		}
 	case *InterfaceType:
 		return &InterfaceType{
-			PkgPath: ct.PkgPath,
-			Methods: copyFieldsWithRefs(ct.Methods),
-			Generic: ct.Generic,
+			PkgPath:    ct.PkgPath,
+			FieldTypes: copyFieldsWithRefs(ct.FieldTypes),
+			Generic:    ct.Generic,
 		}
 	case *TypeType:
 		return &TypeType{}
@@ -1522,8 +1522,8 @@ func fillType(store Store, typ Type) Type {
 		ct.Value = fillType(store, ct.Value)
 		return ct
 	case *InterfaceType:
-		for i, mthd := range ct.Methods {
-			ct.Methods[i].Type = fillType(store, mthd.Type)
+		for i, mthd := range ct.FieldTypes {
+			ct.FieldTypes[i].Type = fillType(store, mthd.Type)
 		}
 		return ct
 	case *TypeType:
