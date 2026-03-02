@@ -818,8 +818,12 @@ func (m *Machine) doOpTypeSwitch() {
 		match := false
 		cs := &ss.Clauses[i]
 		if len(cs.Cases) > 0 {
+			// Charge gas per clause iteration (same cost as expression switch clause).
+			m.incrCPU(OpCPUSwitchClause)
 			// see if any clause cases match.
 			for _, cx := range cs.Cases {
+				// Charge gas per case check (same cost as expression switch case).
+				m.incrCPU(OpCPUSwitchClauseCase)
 				if debug {
 					if !isConstType(cx) {
 						panic(fmt.Sprintf(
@@ -835,7 +839,15 @@ func (m *Machine) doOpTypeSwitch() {
 					}
 				} else if ct.Kind() == InterfaceKind {
 					gnot := ct
-					if baseOf(gnot).(*InterfaceType).IsImplementedBy(xv.T) {
+					it := baseOf(gnot).(*InterfaceType)
+					// Charge gas proportional to the number of
+					// interface methods that must be checked.
+					// This reflects the O(M) work done by
+					// IsImplementedBy -> VerifyImplementedBy.
+					// Reuses OpCPUTypeAssert1 as the per-method cost
+					// since interface method checking is equivalent work.
+					m.incrCPU(OpCPUTypeAssert1 * int64(len(it.Methods)))
+					if it.IsImplementedBy(xv.T) {
 						// match
 						match = true
 					}
