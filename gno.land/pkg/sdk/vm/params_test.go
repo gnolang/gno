@@ -45,6 +45,7 @@ func TestWillSetParam(t *testing.T) {
 		isUpdated        bool
 		isEqual          bool
 	}{
+		// sysnames_pkgpath
 		{
 			name:  "update sysnames_pkgpath",
 			key:   "sysnames_pkgpath",
@@ -57,6 +58,15 @@ func TestWillSetParam(t *testing.T) {
 			isEqual:     true,
 		},
 		{
+			name:        "invalid pkgpath panics",
+			key:         "sysnames_pkgpath",
+			value:       "path/to/pkg",
+			shouldPanic: true,
+			isUpdated:   false,
+			isEqual:     false,
+		},
+		// chain_domain
+		{
 			name:  "update chain_domain",
 			key:   "chain_domain",
 			value: "example.com",
@@ -67,36 +77,6 @@ func TestWillSetParam(t *testing.T) {
 			isUpdated:   true,
 			isEqual:     true,
 		},
-		/* unknown parameter keys are OK
-		{
-			name:             "unknown parameter key panics",
-			key:              "unknown_key",
-			value:            "some value",
-			getExpectedValue: nil,
-			shouldPanic:      true,
-			isUpdated:        false,
-			isEqual:          false, // Not applicable, but included for consistency
-		},
-		*/
-		{
-			name:  "non-empty realm does not update params",
-			key:   "gno.land/r/sys/params.sysnames_pkgpath",
-			value: "gno.land/r/foo",
-			getExpectedValue: func(prms Params) string {
-				return prms.SysNamesPkgPath // Expect unchanged value
-			},
-			shouldPanic: false,
-			isUpdated:   false,
-			isEqual:     false,
-		},
-		{
-			name:        "invalid pkgpath panics",
-			key:         "sysnames_pkgpath",
-			value:       "path/to/pkg",
-			shouldPanic: true,
-			isUpdated:   false,
-			isEqual:     false,
-		},
 		{
 			name:        "invalid domain panics",
 			key:         "chain_domain",
@@ -104,6 +84,18 @@ func TestWillSetParam(t *testing.T) {
 			shouldPanic: true,
 			isUpdated:   false,
 			isEqual:     false,
+		},
+		// storage_price
+		{
+			name:  "update storage_price",
+			key:   "storage_price",
+			value: "200ugnot",
+			getExpectedValue: func(prms Params) string {
+				return prms.StoragePrice
+			},
+			shouldPanic: false,
+			isUpdated:   true,
+			isEqual:     true,
 		},
 		{
 			name:        "invalid storage_price panics",
@@ -113,6 +105,18 @@ func TestWillSetParam(t *testing.T) {
 			isUpdated:   false,
 			isEqual:     false,
 		},
+		// default_deposit
+		{
+			name:  "update default_deposit",
+			key:   "default_deposit",
+			value: "500000000ugnot",
+			getExpectedValue: func(prms Params) string {
+				return prms.DefaultDeposit
+			},
+			shouldPanic: false,
+			isUpdated:   true,
+			isEqual:     true,
+		},
 		{
 			name:        "invalid default_deposit panics",
 			key:         "default_deposit",
@@ -121,10 +125,43 @@ func TestWillSetParam(t *testing.T) {
 			isUpdated:   false,
 			isEqual:     false,
 		},
+		// storage_fee_collector
+		{
+			name:  "update storage_fee_collector",
+			key:   "storage_fee_collector",
+			value: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			getExpectedValue: func(prms Params) string {
+				return prms.StorageFeeCollector.String()
+			},
+			shouldPanic: false,
+			isUpdated:   true,
+			isEqual:     true,
+		},
+		{
+			name:        "invalid storage_fee_collector panics",
+			key:         "storage_fee_collector",
+			value:       "invalid_address",
+			shouldPanic: true,
+			isUpdated:   false,
+			isEqual:     false,
+		},
+		// unknown
+		{
+			name:  "unknown param does not panic and does not update",
+			key:   "unknown_param",
+			value: "gno.land/r/foo",
+			getExpectedValue: func(prms Params) string {
+				return prms.SysNamesPkgPath
+			},
+			shouldPanic: false,
+			isUpdated:   false,
+			isEqual:     false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			vmk.SetParams(ctx, dps)
 			if tt.shouldPanic {
 				assert.Panics(t, func() {
 					prmk.SetString(ctx, "vm:p:"+tt.key, tt.value)
