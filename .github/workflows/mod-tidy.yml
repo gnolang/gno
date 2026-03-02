@@ -19,20 +19,21 @@ on:
         description: "Go version to use"
         required: false
         type: string
-        default: "1.23.x"
+        default: ""
 
 jobs:
   main:
     name: Ensure go.mods are tidied
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ inputs.go-version || '1.23.x' }}
-
-      - name: Checkout code
-        uses: actions/checkout@v5
+          go-version: ${{ inputs.go-version }}
+          go-version-file: go.mod
 
       - name: Check go.mod files are up to date
         run: |

@@ -33,21 +33,16 @@ jobs:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   gnoweb_generate:
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: ["1.23.x"]
-        # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version-file: go.mod
       - uses: actions/setup-node@v4
         with:
           node-version: lts/Jod # (22.x) https://github.com/nodejs/Release
-      - uses: actions/checkout@v5
       - run: |
           make -C gno.land/pkg/gnoweb fclean generate
           # Check if there are changes after running generate.gnoweb
