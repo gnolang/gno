@@ -1101,14 +1101,12 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	if filename != "" {
 		memFile := store.GetMemFile(dirpath, filename)
 		if memFile == nil {
-			// TODO: XSS protection
 			return "", errors.Wrapf(&InvalidFileError{}, "file %q is not available", filepath)
 		}
 		return memFile.Body, nil
 	} else {
 		memPkg := store.GetMemPackage(dirpath)
 		if memPkg == nil {
-			// TODO: XSS protection
 			return "", errors.Wrapf(&InvalidPackageError{}, "package %q is not available", dirpath)
 		}
 		for i, memfile := range memPkg.Files {
