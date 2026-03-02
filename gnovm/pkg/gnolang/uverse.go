@@ -1,6 +1,5 @@
 package gnolang
 
-// XXX append and delete need checks too.
 
 import (
 	"bytes"
@@ -428,6 +427,9 @@ func makeUverseNode() {
 							// DEFENSIVE: in this case, we're writing data directly
 							// into the backing array of arg0. Ensure we can write
 							// to it.
+							if m.IsReadonly(arg0.TV) {
+								m.Panic(typedString("cannot append to readonly tainted slice"))
+							}
 							m.Realm.DidUpdate(arg0Base, nil, nil)
 
 							if arg0Base.Data == nil {
@@ -605,7 +607,9 @@ func makeUverseNode() {
 					return
 				}
 				dstv := dst.TV.V.(*SliceValue)
-				// Guard for protecting dst against mutation by external realms.
+				if m.IsReadonly(dst.TV) {
+					m.Panic(typedString("cannot copy to readonly tainted slice"))
+				}
 				dstBase := dstv.GetBase(m.Store)
 				m.Realm.DidUpdate(dstBase, nil, nil)
 				// TODO: consider an optimization if dstv.Data != nil.
@@ -631,7 +635,9 @@ func makeUverseNode() {
 					return
 				}
 				dstv := dst.TV.V.(*SliceValue)
-				// Guard for protecting dst against mutation by external realms.
+				if m.IsReadonly(dst.TV) {
+					m.Panic(typedString("cannot copy to readonly tainted slice"))
+				}
 				dstBase := dstv.GetBase(m.Store)
 				m.Realm.DidUpdate(dstBase, nil, nil)
 				srcv := src.TV.V.(*SliceValue)
@@ -665,7 +671,9 @@ func makeUverseNode() {
 			case *MapType:
 				mv := arg0.TV.V.(*MapValue)
 
-				// Guard for protecting map against mutation by external realms.
+				if m.IsReadonly(arg0.TV) {
+					m.Panic(typedString("cannot delete from readonly tainted map"))
+				}
 				m.Realm.DidUpdate(mv, nil, nil)
 
 				val, ok := mv.GetValueForKey(m.Store, &itv)
