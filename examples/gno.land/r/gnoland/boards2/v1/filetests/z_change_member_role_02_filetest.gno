@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner  address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	owner  address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 	owner2 address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 	admin  address = "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"
 )

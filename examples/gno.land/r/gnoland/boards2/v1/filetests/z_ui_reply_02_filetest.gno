@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 	boardName         = "test-board"
 )
 
@@ -31,7 +31,7 @@ func init() {
 	boards2.CreateReply(cross, boardID, threadID, replyID, "Third comment")
 
 	// Flag the comment
-	boards2.FlagReply(cross, boardID, threadID, replyID, "")
+	boards2.FlagReply(cross, boardID, threadID, replyID, "Reason")
 }
 
 func main() {
