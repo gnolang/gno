@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner   address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	owner   address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 	comment         = "Second comment"
 )
 
@@ -25,7 +25,7 @@ func init() {
 	rid = boards2.CreateReply(cross, bid, tid, 0, "Parent comment")
 
 	// Flag parent post so it's hidden
-	boards2.FlagReply(cross, bid, tid, rid, "")
+	boards2.FlagReply(cross, bid, tid, rid, "Reason")
 }
 
 func main() {

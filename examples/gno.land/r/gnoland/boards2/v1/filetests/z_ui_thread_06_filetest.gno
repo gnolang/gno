@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	owner        address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	owner        address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 	srcBoardName         = "test-board"
 	dstBoardName         = "test-board-2"
 )
@@ -30,7 +30,7 @@ func init() {
 
 	// Flag original thread
 	boards2.SetFlaggingThreshold(cross, boardID, 1)
-	boards2.FlagThread(cross, boardID, threadID, "")
+	boards2.FlagThread(cross, boardID, threadID, "Reason")
 }
 
 func main() {

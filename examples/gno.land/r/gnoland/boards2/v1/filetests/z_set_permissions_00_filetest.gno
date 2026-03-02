@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
-	bid           = boards.ID(0)                               // Operate on realm instead of individual boards
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	bid           = boards.ID(0) // Operate on realm instead of individual boards
 )
 
 var perms boards.Permissions
