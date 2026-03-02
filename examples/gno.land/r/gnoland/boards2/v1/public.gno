@@ -130,6 +130,9 @@ func CreateBoard(_ realm, name string, listed, open bool) boards.ID {
 
 		board.Name = name
 		board.Creator = caller
+		board.Meta = &Meta{
+			HiddenThreads: boards.NewPostStorage(),
+		}
 
 		if open {
 			board.Permissions = createOpenBoardPermissions(caller)
@@ -724,7 +727,7 @@ func assertBoardNameNotExists(name string) {
 }
 
 func assertThreadExists(b *boards.Board, threadID boards.ID) {
-	if _, found := b.Threads.Get(threadID); !found {
+	if _, found := getThread(b, threadID); !found {
 		panic("thread not found: " + threadID.String())
 	}
 }

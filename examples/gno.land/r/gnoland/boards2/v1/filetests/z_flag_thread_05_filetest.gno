@@ -30,6 +30,7 @@ func init() {
 func main() {
 	testing.SetRealm(testing.NewUserRealm(moderator))
 
+	// Flag thread as moderator
 	boards2.FlagThread(cross, bid, pid, "")
 
 	// Ensure that original thread content not visible
