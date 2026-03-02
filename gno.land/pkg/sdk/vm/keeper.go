@@ -11,6 +11,7 @@ import (
 	"iter"
 	"log/slog"
 	"maps"
+	"math/big"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -1216,7 +1217,22 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 					"not enough storage to be released for realm %s, realm storage %d bytes; requested release: %d bytes",
 					rlmPath, rlm.Storage, released))
 			}
-			depositUnlocked := overflow.Mulp(released, price.Amount)
+			// Proportional refund based on actual deposit ratio, not current price.
+			// This ensures price governance changes don't lock or orphan deposits.
+			var depositUnlocked int64
+			if rlm.Storage == uint64(released) {
+				// Freeing all storage, refund entire deposit (avoids rounding loss)
+				depositUnlocked = int64(rlm.Deposit)
+			} else {
+				// Partial free: deposit * released / storage
+				// Integer division truncates, so small dust amounts (< 1 ugnot per operation)
+				// may accumulate in the realm's deposit over successive partial frees.
+				// This is negligible in practice relative to deposit sizes.
+				result := new(big.Int).SetUint64(rlm.Deposit)
+				result.Mul(result, big.NewInt(released))
+				result.Div(result, new(big.Int).SetUint64(rlm.Storage))
+				depositUnlocked = result.Int64()
+			}
 			if rlm.Deposit < uint64(depositUnlocked) {
 				panic(fmt.Sprintf(
 					"not enough deposit to be unlocked for realm %s, realm deposit %d%s; required to unlock: %d%s",

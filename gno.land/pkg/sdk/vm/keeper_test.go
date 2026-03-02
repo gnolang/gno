@@ -1490,3 +1490,202 @@ func UpdateAll(cur realm) {
 	// All runs produced identical results - this is expected with the fix applied
 	t.Logf("SUCCESS: All %d runs produced identical results, confirming deterministic behavior", numRuns)
 }
+
+// TestStorageDepositPriceIncrease verifies that increasing StoragePrice via
+// governance does NOT prevent realms from releasing storage. The proportional
+// refund ensures users get back what they deposited regardless of price changes.
+func TestStorageDepositPriceIncrease(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10_000_000_000)))
+
+	// Step 1: Deploy realm at default StoragePrice (100 ugnot/byte).
+	const pkgPath = "gno.land/r/test/priceup"
+	files := storageRealmFiles("priceup", pkgPath)
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+
+	depAddr := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+
+	// Record base storage from package deployment.
+	info, err := env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	baseStorage, baseDeposit := parseStorageInfo(t, info)
+	require.True(t, baseStorage > 0, "package deployment should use storage")
+	require.Equal(t, baseStorage*100, baseDeposit, "deposit should equal storage * price(100)")
+
+	// Step 2: Allocate 500KB of data.
+	callMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Allocate", []string{"500000"})
+	callMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(5_000_000_000))
+	_, err = env.vmk.Call(ctx, callMsg)
+	require.NoError(t, err)
+
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageAfterAlloc, depositAfterAlloc := parseStorageInfo(t, info)
+	require.True(t, storageAfterAlloc > baseStorage+400000, "storage should grow by ~500KB")
+
+	// Step 3: Increase StoragePrice to 1000 ugnot/byte (10x increase).
+	params := env.vmk.GetParams(ctx)
+	params.StoragePrice = "1000ugnot"
+	err = env.vmk.SetParams(ctx, params)
+	require.NoError(t, err)
+
+	// Verify price change doesn't affect stored realm state.
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageUnchanged, depositUnchanged := parseStorageInfo(t, info)
+	require.Equal(t, storageAfterAlloc, storageUnchanged, "price change should not affect storage")
+	require.Equal(t, depositAfterAlloc, depositUnchanged, "price change should not affect deposit")
+
+	// Step 4: Free data after price increase
+	userBalanceBefore := env.bankk.GetCoins(ctx, addr)
+	freeMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Free", []string{})
+	freeMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(1_000_000))
+	_, err = env.vmk.Call(ctx, freeMsg)
+	require.NoError(t, err, "Free should succeed after price increase with proportional refund")
+
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageFinal, depositFinal := parseStorageInfo(t, info)
+	userBalanceAfter := env.bankk.GetCoins(ctx, addr)
+	refund := userBalanceAfter.AmountOf(ugnot.Denom) - userBalanceBefore.AmountOf(ugnot.Denom)
+
+	require.True(t, storageFinal < storageAfterAlloc, "storage should decrease after free")
+	require.True(t, depositFinal < depositAfterAlloc, "deposit should decrease after free")
+	require.True(t, refund > 0, "user should receive proportional refund")
+
+	// Refund should approximate deposit charged for data (not base package).
+	depositForData := int64(depositAfterAlloc - baseDeposit)
+	diff := refund - depositForData
+	if diff < 0 {
+		diff = -diff
+	}
+	// The diff comes from ~5 bytes of variable reference overhead.
+	require.True(t, diff < 1000, "refund should match data deposit within rounding tolerance")
+
+	// Remaining deposit should be close to the base package deposit recorded after addpkg.
+	depositAddr := env.bankk.GetCoins(ctx, depAddr)
+	remaining := depositAddr.AmountOf(ugnot.Denom)
+	baseDiff := remaining - int64(baseDeposit)
+	if baseDiff < 0 {
+		baseDiff = -baseDiff
+	}
+	require.True(t, baseDiff < 1000,
+		"remaining deposit should approximate base package deposit")
+}
+
+// TestStorageDepositPriceDecrease verifies that decreasing StoragePrice via
+// governance does NOT cause permanent fund loss. The proportional refund
+// ensures users get back what they deposited regardless of price changes.
+func TestStorageDepositPriceDecrease(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10_000_000_000)))
+
+	// Step 1: Set high price and deploy realm at StoragePrice=1000.
+	params := env.vmk.GetParams(ctx)
+	params.StoragePrice = "1000ugnot"
+	err := env.vmk.SetParams(ctx, params)
+	require.NoError(t, err)
+
+	const pkgPath = "gno.land/r/test/pricedown"
+	files := storageRealmFiles("pricedown", pkgPath)
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err = env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+
+	depAddr := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+
+	info, err := env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	baseStorage, baseDeposit := parseStorageInfo(t, info)
+	require.Equal(t, baseStorage*1000, baseDeposit, "deposit should equal storage * price(1000)")
+
+	// Step 2: Allocate 500KB of data.
+	callMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Allocate", []string{"500000"})
+	callMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(5_000_000_000))
+	_, err = env.vmk.Call(ctx, callMsg)
+	require.NoError(t, err)
+
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	_, depositAfterAlloc := parseStorageInfo(t, info)
+
+	// Step 3: Decrease StoragePrice to 100 ugnot/byte (10x decrease).
+	params.StoragePrice = "100ugnot"
+	err = env.vmk.SetParams(ctx, params)
+	require.NoError(t, err)
+
+	// Step 4: Free data after price decrease.
+	userBalanceBefore := env.bankk.GetCoins(ctx, addr)
+	freeMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Free", []string{})
+	freeMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(1_000_000))
+	_, err = env.vmk.Call(ctx, freeMsg)
+	require.NoError(t, err, "Free should succeed after price decrease")
+
+	userBalanceAfter := env.bankk.GetCoins(ctx, addr)
+	refund := userBalanceAfter.AmountOf(ugnot.Denom) - userBalanceBefore.AmountOf(ugnot.Denom)
+	require.True(t, refund > 0, "user should receive proportional refund")
+
+	// Refund should approximate deposit charged for data (not base package).
+	depositForData := int64(depositAfterAlloc - baseDeposit)
+	diff := refund - depositForData
+	if diff < 0 {
+		diff = -diff
+	}
+	// The diff comes from ~5 bytes of variable reference overhead.
+	require.True(t, diff < 10000, "refund should match data deposit within rounding tolerance")
+
+	// Remaining deposit should be close to the base package deposit recorded after addpkg.
+	depositAddr := env.bankk.GetCoins(ctx, depAddr)
+	remaining := depositAddr.AmountOf(ugnot.Denom)
+	baseDiff := remaining - int64(baseDeposit)
+	if baseDiff < 0 {
+		baseDiff = -baseDiff
+	}
+	require.True(t, baseDiff < 10000,
+		"remaining deposit should approximate base package deposit")
+}
+
+// parseStorageInfo parses the "storage: X, deposit: Y" string from QueryStorage
+// into storage and deposit values.
+func parseStorageInfo(t *testing.T, info string) (storage uint64, deposit uint64) {
+	t.Helper()
+	_, err := fmt.Sscanf(info, "storage: %d, deposit: %d", &storage, &deposit)
+	require.NoError(t, err, "failed to parse storage info: %s", info)
+	return
+}
+
+// storageRealmFiles returns the .gno files for a test realm that can allocate
+// and free a byte slice. Used by storage deposit price change tests.
+func storageRealmFiles(pkgName, pkgPath string) []*std.MemFile {
+	return []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "store.gno",
+			Body: fmt.Sprintf(`package %s
+
+var data []byte
+
+func Allocate(cur realm, size int) {
+	data = make([]byte, size)
+}
+
+func Free(cur realm) {
+	data = nil
+}`, pkgName),
+		},
+	}
+}

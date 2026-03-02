@@ -1,0 +1,147 @@
+## Test that changing StoragePrice via governance does NOT break storage release.
+## With proportional refund, realms that locked deposits at the old price
+## can still release storage after a price change.
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/params
+
+patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+## Step 1: Deploy a realm at default StoragePrice (100 ugnot/byte)
+gnokey maketx addpkg -pkgdir $WORK/storage -pkgpath gno.land/r/test/storage -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 600000000ugnot -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/test/storage.DataLen()"
+stdout '0 int'
+
+gnokey maketx call -pkgpath gno.land/r/test/storage -func Allocate -args 500000 -gas-fee 1000000ugnot -gas-wanted 100000000 -max-deposit 600000000ugnot -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'STORAGE FEE:'
+
+gnokey query vm/qeval --data "gno.land/r/test/storage.DataLen()"
+stdout '500000 int'
+
+gnokey query vm/qstorage --data gno.land/r/test/storage
+stdout 'storage: 503697, deposit: 50369700'
+
+gnokey query auth/accounts/$test1_user_addr
+stdout '"coins": "9999783'
+
+gnokey query params/vm:p:storage_price
+stdout '100ugnot'
+
+## Step 2: Propose to change StoragePrice from 100 to 1000 (10x increase)
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_price.gno
+stdout OK!
+
+gnokey maketx run -gas-fee 95000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 20000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
+stdout 'OK!'
+
+gnokey query params/vm:p:storage_price
+stdout '1000ugnot'
+
+## Step 3: Free the large allocation
+gnokey maketx call -pkgpath gno.land/r/test/storage -func Free -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'STORAGE REFUND: 50031600ugnot'
+
+## Step 4: Verify storage was released and deposit refunded proportionally
+gnokey query vm/qeval --data "gno.land/r/test/storage.DataLen()"
+stdout '0 int'
+
+## Storage should be back to base package level (not 500K+)
+gnokey query vm/qstorage --data gno.land/r/test/storage
+stdout 'storage: 3381, deposit: 338100'
+
+## Verify user received a refund (balance should have increased despite gas fees)
+gnokey query auth/accounts/$test1_user_addr
+stdout '"coins": "9999828'
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), &memberstore.Member{InvitationPoints: 3})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
+-- run/propose_price.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main() {
+	prop := params.NewSysParamStringPropRequest("vm", "p", "storage_price", "1000ugnot")
+	dao.MustCreateProposal(cross, prop)
+}
+
+-- run/vote_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: dao.ProposalID(0),
+	})
+}
+
+-- run/exec_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	dao.ExecuteProposal(cross, dao.ProposalID(0))
+}
+
+-- storage/gnomod.toml --
+module = "gno.land/r/test/storage"
+
+gno = "0.9"
+
+-- storage/storage.gno --
+package storage
+
+var data []byte
+
+func Allocate(cur realm, size int) {
+	data = make([]byte, size)
+}
+
+func Free(cur realm) {
+	data = nil
+}
+
+func DataLen() int {
+	return len(data)
+}
