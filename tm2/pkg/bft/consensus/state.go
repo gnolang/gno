@@ -1525,21 +1525,33 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2pTypes.ID) (bool
 	added, err := cs.addVote(vote, peerID)
 	if err != nil {
 		// If the vote height is off, we'll just ignore it,
-		// But if it's a conflicting sig, add it to the cs.mempool.
+		// But if it's a conflicting sig, log it as double-signing evidence.
 		// If it's otherwise invalid, punish peer.
 		if goerrors.Is(err, ErrVoteHeightMismatch) {
 			return added, err
-		} else if _, ok := err.(*types.VoteConflictingVotesError); ok {
-			/* XXX
-			addr := cs.privValidator.GetPubKey().Address()
-			if bytes.Equal(vote.ValidatorAddress, addr) {
-				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
+		} else if voteErr, ok := err.(*types.VoteConflictingVotesError); ok {
+			addr := cs.privValidator.PubKey().Address()
+			if vote.ValidatorAddress == addr {
+				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?",
+					"height", vote.Height,
+					"round", vote.Round,
+					"type", vote.Type,
+					"voteA", voteErr.VoteA,
+					"voteB", voteErr.VoteB)
 				return added, err
 			}
-			cs.evpool.AddEvidence(voteErr.DuplicateVoteEvidence)
+			cs.Logger.Warn("Found conflicting vote from validator (double-signing)",
+				"peer", peerID,
+				"validator", vote.ValidatorAddress,
+				"height", vote.Height,
+				"round", vote.Round,
+				"type", vote.Type,
+				"voteA", voteErr.VoteA,
+				"voteB", voteErr.VoteB,
+			)
+			// TODO: submit evidence to an evidence pool for validator slashing.
+			// cs.evpool.AddEvidence(voteErr.DuplicateVoteEvidence)
 			return added, err
-			*/
-			panic("not yet implemented")
 		} else {
 			// Either
 			// 1) bad peer OR
