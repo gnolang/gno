@@ -8,7 +8,7 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 
 var (
 	bid      boards.ID
@@ -20,13 +20,13 @@ func init() {
 	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
 	rid = boards2.CreateReply(cross, bid, tid, 0, "body")
-	boards2.FlagReply(cross, bid, tid, rid, "")
+	boards2.FlagReply(cross, bid, tid, rid, "Reason")
 }
 
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.FlagReply(cross, bid, tid, rid, "")
+	boards2.FlagReply(cross, bid, tid, rid, "Reason")
 }
 
 // Error:

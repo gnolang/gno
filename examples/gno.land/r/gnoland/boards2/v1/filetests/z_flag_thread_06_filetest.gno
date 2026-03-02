@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 	moderator address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 )
 
@@ -30,13 +30,13 @@ func init() {
 	// Create a new thread and flag it as a moderator
 	testing.SetRealm(testing.NewUserRealm(moderator))
 	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
-	boards2.FlagThread(cross, bid, pid, "")
+	boards2.FlagThread(cross, bid, pid, "Reason")
 }
 
 func main() {
 	testing.SetRealm(testing.NewUserRealm(moderator))
 
-	boards2.FlagThread(cross, bid, pid, "")
+	boards2.FlagThread(cross, bid, pid, "Reason")
 }
 
 // Error:

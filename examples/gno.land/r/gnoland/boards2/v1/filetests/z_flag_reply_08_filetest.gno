@@ -10,18 +10,23 @@ import (
 
 const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 
-var bid boards.ID
+var (
+	bid      boards.ID
+	rid, tid boards.ID
+)
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
+	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
+	rid = boards2.CreateReply(cross, bid, tid, 0, "body")
 }
 
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateReply(cross, bid, 404, 0, "comment")
+	boards2.FlagReply(cross, bid, tid, rid, "")
 }
 
 // Error:
-// thread does not exist with ID: 404
+// flagging reason is required
