@@ -323,9 +323,8 @@ check out the `vm/qeval` query section.
 Variadic functions are supported in Gno. To call a variadic function, pass one -args flag per variadic element.
 For example, given a function with the signature:
 
-For example, imagine the following Gno function:
 ```go
-func Add(cur realm, nums ...int) int {
+func Add(cur realm, nums ...int) int
 ```
 You can call it with any number of arguments:
 
