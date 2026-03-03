@@ -82,11 +82,15 @@ gnokey maketx addpkg \
 MyKey
 ```
 
-To go into more detail:
-- Since we're deploying a realm, the pkgpath must start with `r/`.
-- You can only deploy code within your own namespace, which is based on your address[^3].
-- `gas-fee` and `gas-wanted` must be set manually. If you run into an `out of gas`
-error, try increasing the `gas-wanted` value [^4].
+A few important notes about the package path:
+- It must start with `gno.land/r/` for realms or `gno.land/p/` for packages.
+- You can only deploy under your own address-based namespace
+  (e.g. `gno.land/r/YOUR_ADDRESS/counter`).
+- Username-based namespaces are not currently supported; see
+  [Custom Namespaces](../resources/gno-packages.md#custom-namespaces) for details.
+
+Note that `gas-fee` and `gas-wanted` must be set manually. If you run into an
+`out of gas` error, try increasing the `gas-wanted` value [^4].
 
 After entering your password, you will have successfully deployed the `Counter`
 realm to the Staging network:
@@ -99,15 +103,6 @@ HEIGHT:     955
 EVENTS:     []
 TX HASH:    11fWJtYXQlyFcHY12HU1ECYs2GPo/e2z/Fdw6I8rwNs=
 ```
-
-## Choosing a Package Path
-
-When deploying to Gno.land, you need to specify a package path. Currently, only
-address-based namespaces are supported under `gno.land/[r|p]/YOUR_ADDRESS/...`
-
-Username-based namespaces will be revisited in the future via GovDAO governance.
-For more information on namespaces, see the
-[Users and Teams documentation](../resources/users-and-teams.md).
 
 ## Understanding Deployment Parameters
 
@@ -146,5 +141,4 @@ a third-party web extension wallet, such as Adena.
 
 [^1]: Read more about package paths [here](../resources/gno-packages.md).
 [^2]: Other network configurations can be found [here](../resources/gnoland-networks.md).
-[^3]: Address namespaces ([PA namespaces](../resources/gno-packages.md#package-path-structure)) are automatically granted to users.
 [^4]: Gas estimation is explained [here](../resources/gas-fees.md#gas-estimation).
