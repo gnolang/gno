@@ -88,6 +88,9 @@ func BlockchainInfo(ctx *rpctypes.Context, minHeight, maxHeight int64) (*ctypes.
 	blockMetas := []*types.BlockMeta{}
 	for height := maxHeight; height >= minHeight; height-- {
 		blockMeta := blockStore.LoadBlockMeta(height)
+		if blockMeta == nil {
+			return nil, fmt.Errorf("block meta not found for height %d", height)
+		}
 		blockMetas = append(blockMetas, blockMeta)
 	}
 
