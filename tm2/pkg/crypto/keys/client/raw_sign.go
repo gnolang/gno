@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -118,7 +119,7 @@ func execRawSign(cfg *RawSignCfg, args []string, io commands.IO) error {
 			return fmt.Errorf("plaintext is not valid JSON %w", err)
 		}
 		// Bytes to sign are the JSON bytes.
-		signBytes = plainBytes
+		signBytes = []byte(strings.TrimSpace(string(plainBytes)))
 	} else if cfg.PlainEncoding == "hex" {
 		decoded, err := hex.DecodeString(string(plainBytes))
 		if err != nil {

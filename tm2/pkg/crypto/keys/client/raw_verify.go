@@ -101,7 +101,7 @@ func execRawVerify(ctx context.Context, cfg *RawVerifyCfg, args []string, io com
 			return fmt.Errorf("plaintext is not valid JSON %w", err)
 		}
 		// Bytes to verify are the JSON bytes.
-		signBytes = plainBytes
+		signBytes = []byte(strings.TrimSpace(string(plainBytes)))
 	} else if cfg.PlainEncoding == "hex" {
 		decoded, err := hex.DecodeString(string(plainBytes))
 		if err != nil {
