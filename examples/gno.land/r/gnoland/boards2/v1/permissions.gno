@@ -1,103 +1,143 @@
 package boards2
 
-import "gno.land/r/gnoland/boards2/v1/permissions"
+import (
+	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/exts/permissions"
+)
 
-func createBasicBoardPermissions(owner address) *permissions.Permisions {
-	perms := permissions.New()
-	perms.SetSuperRole(permissions.RoleOwner)
-	perms.AddRole(
-		permissions.RoleAdmin,
-		permissions.PermissionBoardRename,
-		permissions.PermissionBoardFlaggingUpdate,
-		permissions.PermissionMemberInvite,
-		permissions.PermissionMemberInviteRevoke,
-		permissions.PermissionMemberRemove,
-		permissions.PermissionThreadCreate,
-		permissions.PermissionThreadEdit,
-		permissions.PermissionThreadDelete,
-		permissions.PermissionThreadRepost,
-		permissions.PermissionThreadFlag,
-		permissions.PermissionThreadFreeze,
-		permissions.PermissionReplyCreate,
-		permissions.PermissionReplyDelete,
-		permissions.PermissionReplyFlag,
-		permissions.PermissionRoleChange,
-		permissions.PermissionUserBan,
-		permissions.PermissionUserUnban,
+const (
+	RoleOwner     boards.Role = "owner"
+	RoleAdmin                 = "admin"
+	RoleModerator             = "moderator"
+	RoleGuest                 = "guest"
+)
+
+const (
+	PermissionBoardCreate         boards.Permission = "board:create"
+	PermissionBoardFlaggingUpdate                   = "board:flagging-update"
+	PermissionBoardFreeze                           = "board:freeze"
+	PermissionBoardRename                           = "board:rename"
+	PermissionMemberInvite                          = "member:invite"
+	PermissionMemberInviteRevoke                    = "member:invite-remove"
+	PermissionMemberRemove                          = "member:remove"
+	PermissionPermissionsUpdate                     = "permissions:update"
+	PermissionRealmHelp                             = "realm:help"
+	PermissionRealmLock                             = "realm:lock"
+	PermissionRealmNotice                           = "realm:notice"
+	PermissionReplyCreate                           = "reply:create"
+	PermissionReplyDelete                           = "reply:delete"
+	PermissionReplyFlag                             = "reply:flag"
+	PermissionRoleChange                            = "role:change"
+	PermissionThreadCreate                          = "thread:create"
+	PermissionThreadDelete                          = "thread:delete"
+	PermissionThreadEdit                            = "thread:edit"
+	PermissionThreadFlag                            = "thread:flag"
+	PermissionThreadFreeze                          = "thread:freeze"
+	PermissionThreadRepost                          = "thread:repost"
+	PermissionUserBan                               = "user:ban"
+	PermissionUserUnban                             = "user:unban"
+)
+
+func createBasicBoardPermissions(owner address) *permissions.Permissions {
+	perms := permissions.New(
+		permissions.UseSingleUserRole(),
+		permissions.WithSuperRole(RoleOwner),
 	)
 	perms.AddRole(
-		permissions.RoleModerator,
-		permissions.PermissionThreadCreate,
-		permissions.PermissionThreadEdit,
-		permissions.PermissionThreadRepost,
-		permissions.PermissionThreadFlag,
-		permissions.PermissionReplyCreate,
-		permissions.PermissionReplyFlag,
-		permissions.PermissionUserBan,
-		permissions.PermissionUserUnban,
+		RoleAdmin,
+		PermissionBoardRename,
+		PermissionBoardFlaggingUpdate,
+		PermissionMemberInvite,
+		PermissionMemberInviteRevoke,
+		PermissionMemberRemove,
+		PermissionThreadCreate,
+		PermissionThreadEdit,
+		PermissionThreadDelete,
+		PermissionThreadRepost,
+		PermissionThreadFlag,
+		PermissionThreadFreeze,
+		PermissionReplyCreate,
+		PermissionReplyDelete,
+		PermissionReplyFlag,
+		PermissionRoleChange,
+		PermissionUserBan,
+		PermissionUserUnban,
 	)
 	perms.AddRole(
-		permissions.RoleGuest,
-		permissions.PermissionThreadCreate,
-		permissions.PermissionThreadRepost,
-		permissions.PermissionReplyCreate,
+		RoleModerator,
+		PermissionThreadCreate,
+		PermissionThreadEdit,
+		PermissionThreadRepost,
+		PermissionThreadFlag,
+		PermissionReplyCreate,
+		PermissionReplyFlag,
+		PermissionUserBan,
+		PermissionUserUnban,
 	)
-	perms.SetUserRoles(cross, owner, permissions.RoleOwner)
-	perms.ValidateFunc(permissions.PermissionBoardRename, validateBasicBoardRename)
-	perms.ValidateFunc(permissions.PermissionMemberInvite, validateBasicMemberInvite)
-	perms.ValidateFunc(permissions.PermissionRoleChange, validateBasicRoleChange)
+	perms.AddRole(
+		RoleGuest,
+		PermissionThreadCreate,
+		PermissionThreadRepost,
+		PermissionReplyCreate,
+	)
+	perms.SetUserRoles(owner, RoleOwner)
+	perms.ValidateFunc(PermissionBoardRename, validateBasicBoardRename)
+	perms.ValidateFunc(PermissionMemberInvite, validateBasicMemberInvite)
+	perms.ValidateFunc(PermissionRoleChange, validateBasicRoleChange)
 	return perms
 }
 
-func createOpenBoardPermissions(owner address) *permissions.Permisions {
-	perms := permissions.New()
-	perms.SetSuperRole(permissions.RoleOwner)
+func createOpenBoardPermissions(owner address) *permissions.Permissions {
+	perms := permissions.New(
+		permissions.UseSingleUserRole(),
+		permissions.WithSuperRole(RoleOwner),
+	)
 	perms.SetPublicPermissions(
-		permissions.PermissionThreadCreate,
-		permissions.PermissionReplyCreate,
+		PermissionThreadCreate,
+		PermissionReplyCreate,
 	)
 	perms.AddRole(
-		permissions.RoleAdmin,
-		permissions.PermissionBoardRename,
-		permissions.PermissionBoardFlaggingUpdate,
-		permissions.PermissionMemberInvite,
-		permissions.PermissionMemberInviteRevoke,
-		permissions.PermissionMemberRemove,
-		permissions.PermissionThreadCreate,
-		permissions.PermissionThreadEdit,
-		permissions.PermissionThreadDelete,
-		permissions.PermissionThreadRepost,
-		permissions.PermissionThreadFlag,
-		permissions.PermissionThreadFreeze,
-		permissions.PermissionReplyCreate,
-		permissions.PermissionReplyDelete,
-		permissions.PermissionReplyFlag,
-		permissions.PermissionRoleChange,
-		permissions.PermissionUserBan,
-		permissions.PermissionUserUnban,
+		RoleAdmin,
+		PermissionBoardRename,
+		PermissionBoardFlaggingUpdate,
+		PermissionMemberInvite,
+		PermissionMemberInviteRevoke,
+		PermissionMemberRemove,
+		PermissionThreadCreate,
+		PermissionThreadEdit,
+		PermissionThreadDelete,
+		PermissionThreadRepost,
+		PermissionThreadFlag,
+		PermissionThreadFreeze,
+		PermissionReplyCreate,
+		PermissionReplyDelete,
+		PermissionReplyFlag,
+		PermissionRoleChange,
+		PermissionUserBan,
+		PermissionUserUnban,
 	)
 	perms.AddRole(
-		permissions.RoleModerator,
-		permissions.PermissionThreadCreate,
-		permissions.PermissionThreadEdit,
-		permissions.PermissionThreadRepost,
-		permissions.PermissionThreadFlag,
-		permissions.PermissionReplyCreate,
-		permissions.PermissionReplyFlag,
-		permissions.PermissionUserBan,
-		permissions.PermissionUserUnban,
+		RoleModerator,
+		PermissionThreadCreate,
+		PermissionThreadEdit,
+		PermissionThreadRepost,
+		PermissionThreadFlag,
+		PermissionReplyCreate,
+		PermissionReplyFlag,
+		PermissionUserBan,
+		PermissionUserUnban,
 	)
 	perms.AddRole(
-		permissions.RoleGuest,
-		permissions.PermissionThreadCreate,
-		permissions.PermissionThreadRepost,
-		permissions.PermissionReplyCreate,
+		RoleGuest,
+		PermissionThreadCreate,
+		PermissionThreadRepost,
+		PermissionReplyCreate,
 	)
-	perms.SetUserRoles(cross, owner, permissions.RoleOwner)
-	perms.ValidateFunc(permissions.PermissionBoardRename, validateOpenBoardRename)
-	perms.ValidateFunc(permissions.PermissionMemberInvite, validateOpenMemberInvite)
-	perms.ValidateFunc(permissions.PermissionRoleChange, validateOpenRoleChange)
-	perms.ValidateFunc(permissions.PermissionThreadCreate, validateOpenThreadCreate)
-	perms.ValidateFunc(permissions.PermissionReplyCreate, validateOpenReplyCreate)
+	perms.SetUserRoles(owner, RoleOwner)
+	perms.ValidateFunc(PermissionBoardRename, validateOpenBoardRename)
+	perms.ValidateFunc(PermissionMemberInvite, validateOpenMemberInvite)
+	perms.ValidateFunc(PermissionRoleChange, validateOpenRoleChange)
+	perms.ValidateFunc(PermissionThreadCreate, validateOpenThreadCreate)
+	perms.ValidateFunc(PermissionReplyCreate, validateOpenReplyCreate)
 	return perms
 }

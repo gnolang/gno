@@ -16,7 +16,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("Board not found")
 		return
 	}
 
@@ -27,14 +27,15 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
-		res.Write("Thread does not exist with ID: " + rawID)
+		res.Write("Thread not found")
 		return
 	}
 
 	if thread.Hidden {
-		res.Write("Thread with ID: " + rawID + " has been flagged as inappropriate")
+		link := md.Link("inappropriate", makeFlaggingReasonsURI(thread))
+		res.Write("⚠ Thread has been flagged as " + link)
 		return
 	}
 
@@ -52,6 +53,11 @@ func renderThreadSummary(thread *boards.Post) string {
 		date        = thread.CreatedAt.Format(dateFormat)
 	)
 
+	if boards.IsRepost(thread) {
+		summary += ` ⟳`
+		postURI += ` "This is a thread repost"`
+	}
+
 	b.WriteString(md.H6(md.Link(summary, postURI)))
 	b.WriteString("Created by " + creatorLink + roleBadge + " on " + date + "  \n")
 
@@ -67,7 +73,7 @@ func renderCreateThread(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("Board not found")
 		return
 	}
 
@@ -94,7 +100,7 @@ func renderCreateThread(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.Link("← Back to board", makeBoardURI(board)) + "\n\n")
 	res.Write(
 		md.Paragraph(
-			ufmt.Sprintf("Thread will be created in %s board", md.Link(board.Name, makeBoardURI(board))),
+			ufmt.Sprintf("Thread will be created in the board: %s", md.Link(board.Name, makeBoardURI(board))),
 		),
 	)
 	res.Write(form.String())
@@ -105,7 +111,7 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("Board not found")
 		return
 	}
 
@@ -116,9 +122,9 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
-		res.Write("Thread does not exist with ID: " + rawID)
+		res.Write("Thread not found")
 		return
 	}
 
@@ -142,7 +148,7 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 		"required", "true",
 	)
 	form.Textarea(
-		"bod",
+		"body",
 		"placeholder", "Content",
 		"rows", "10",
 		"value", thread.Body,
@@ -162,7 +168,7 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("Board not found")
 		return
 	}
 
@@ -173,9 +179,9 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
-		res.Write("Thread does not exist with ID: " + rawID)
+		res.Write("Thread not found")
 		return
 	}
 
@@ -200,6 +206,7 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 	)
 	form.Input(
 		"title",
+		"value", thread.Title,
 		"placeholder", "Title",
 		"required", "true",
 	)
@@ -219,7 +226,7 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 	)
 	res.Write(
 		md.Paragraph(
-			ufmt.Sprintf("Reposting %s thread.", md.Link(thread.Title, makeThreadURI(thread))),
+			ufmt.Sprintf("Reposting the thread: %s.", md.Link(thread.Title, makeThreadURI(thread))),
 		),
 	)
 	res.Write(form.String())
