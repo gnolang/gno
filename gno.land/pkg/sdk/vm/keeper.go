@@ -679,14 +679,20 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		// on the function we can simply avoid the variadic argument.
 		panic(fmt.Sprintf("insufficient number of arguments in call to %s: must be at least %d, got %d", fnc, len(ft.Params)-1, nargs))
 	}
+
+	var vargType gno.Type
+	if hasVarg {
+		// For the variadic argument, we need to use the type of the
+		// elements contained on the slice.
+		vargType = ft.Params[len(ft.Params)-1].Type.(*gno.SliceType).Elt
+	}
+
 	// Convert Args to gno values.
 	for i, arg := range msg.Args {
 		paramIndex := i + 1
 		var argType gno.Type
 		if hasVarg && paramIndex >= len(ft.Params)-1 {
-			// For the variadic argument, we need to use the type of the
-			// elements contained on the slice.
-			argType = ft.Params[len(ft.Params)-1].Type.(*gno.SliceType).Elt
+			argType = vargType
 		} else {
 			argType = ft.Params[paramIndex].Type
 		}
