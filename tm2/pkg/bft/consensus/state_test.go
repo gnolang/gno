@@ -1804,31 +1804,77 @@ func TestStateOutputVoteStats(t *testing.T) {
 	}
 }
 
-// TestConflictingVotesDoNotPanic verifies that receiving two conflicting votes
-// (double-signing) from the same validator does not panic the consensus state.
-// This is a regression test for the panic("not yet implemented") that previously
-// existed in tryAddVote when handling VoteConflictingVotesError.
-func TestConflictingVotesDoNotPanic(t *testing.T) {
+// TestConflictingVotesFromPeer verifies that receiving two conflicting votes
+// (double-signing) from another validator is handled gracefully: the vote set
+// retains the original vote and the conflicting one does not replace it.
+func TestConflictingVotesFromPeer(t *testing.T) {
+	t.Parallel()
+
+	cs, vss := randConsensusState(2)
+	peerAddr := vss[1].PubKey().Address()
+	peer := p2pmock.Peer{}
+
+	// First vote from vss[1]: prevote for block hash "blockA".
+	voteA := signVote(vss[1], types.PrevoteType, []byte("blockA"), types.PartSetHeader{})
+	cs.handleMsg(msgInfo{&VoteMessage{voteA}, peer.ID()})
+
+	// The vote set should contain voteA.
+	prevotes := cs.Votes.Prevotes(0)
+	stored := prevotes.GetByAddress(peerAddr)
+	require.NotNil(t, stored, "first vote should be present in the vote set")
+	assert.Equal(t, voteA.BlockID.Hash, stored.BlockID.Hash,
+		"stored vote should match the first vote's block hash")
+
+	// Second vote from the same validator for a different block hash.
+	// This constitutes double-signing.
+	voteB := signVote(vss[1], types.PrevoteType, []byte("blockB"), types.PartSetHeader{})
+	cs.handleMsg(msgInfo{&VoteMessage{voteB}, peer.ID()})
+
+	// The vote set should still hold the original vote, not the conflicting one.
+	stored = prevotes.GetByAddress(peerAddr)
+	require.NotNil(t, stored, "vote should still be present after conflicting vote")
+	assert.Equal(t, voteA.BlockID.Hash, stored.BlockID.Hash,
+		"stored vote should still be the original, not the conflicting one")
+}
+
+// TestConflictingVotesFromOurselves verifies that receiving two conflicting
+// votes from the node's own validator (e.g. after an unsafe_reset) is handled
+// gracefully: the vote set retains the original vote.
+func TestConflictingVotesFromOurselves(t *testing.T) {
 	t.Parallel()
 
 	cs, vss := randConsensusState(2)
 	peer := p2pmock.Peer{}
 
-	// First vote from vss[1]: prevote for block hash "blockA".
-	voteA := signVote(vss[1], types.PrevoteType, []byte("blockA"), types.PartSetHeader{})
+	// vss[0] is the same validator as cs.privValidator (our own node).
+	// Set its height to 1 to match the consensus state's initial height.
+	vss[0].Height = 1
+	ownAddr := vss[0].PubKey().Address()
 
-	// Inject voteA — this should succeed normally.
+	// Verify this is indeed our own validator address.
+	require.Equal(t, cs.privValidator.PubKey().Address(), ownAddr,
+		"vss[0] should share the same address as cs.privValidator")
+
+	// First vote from our own validator: prevote for block hash "blockA".
+	voteA := signVote(vss[0], types.PrevoteType, []byte("blockA"), types.PartSetHeader{})
 	cs.handleMsg(msgInfo{&VoteMessage{voteA}, peer.ID()})
 
-	// Second vote from the same validator for a different block hash.
-	// This constitutes double-signing and must not panic.
-	voteB := signVote(vss[1], types.PrevoteType, []byte("blockB"), types.PartSetHeader{})
+	// The vote set should contain voteA.
+	prevotes := cs.Votes.Prevotes(0)
+	stored := prevotes.GetByAddress(ownAddr)
+	require.NotNil(t, stored, "first vote should be present in the vote set")
+	assert.Equal(t, voteA.BlockID.Hash, stored.BlockID.Hash,
+		"stored vote should match the first vote's block hash")
 
-	// This previously triggered panic("not yet implemented").
-	// After the fix, it should log the double-signing and return gracefully.
-	assert.NotPanics(t, func() {
-		cs.handleMsg(msgInfo{&VoteMessage{voteB}, peer.ID()})
-	}, "handleMsg must not panic on conflicting votes (double-signing)")
+	// Second conflicting vote from our own validator for a different block hash.
+	voteB := signVote(vss[0], types.PrevoteType, []byte("blockB"), types.PartSetHeader{})
+	cs.handleMsg(msgInfo{&VoteMessage{voteB}, peer.ID()})
+
+	// The vote set should still hold the original vote, not the conflicting one.
+	stored = prevotes.GetByAddress(ownAddr)
+	require.NotNil(t, stored, "vote should still be present after conflicting self-vote")
+	assert.Equal(t, voteA.BlockID.Hash, stored.BlockID.Hash,
+		"stored vote should still be the original, not the conflicting one")
 }
 
 func subscribe(evsw events.EventSwitch, protoevent events.Event) <-chan events.Event {
