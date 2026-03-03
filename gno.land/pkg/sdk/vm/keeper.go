@@ -728,19 +728,19 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	hasVarg := ft.HasVarg()
 	// NOTE: nargs = `cur` + user's len(args)
 	nargs := len(msg.Args) + 1
+	var vargType gno.Type
 	// If function is not variadic, it must have the same number of arguments.
 	if !hasVarg {
 		if nargs != len(ft.Params) {
 			panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
 		}
-	} else if nargs < len(ft.Params)-1 {
-		// If function is variadic, it must have at least the number of arguments-1.
-		// on the function we can simply avoid the variadic argument.
-		panic(fmt.Sprintf("insufficient number of arguments in call to %s: must be at least %d, got %d", fnc, len(ft.Params)-1, nargs))
-	}
+	} else {
+		if nargs < len(ft.Params)-1 {
+			// If function is variadic, it must have at least the number of arguments-1.
+			// on the function we can simply avoid the variadic argument.
+			panic(fmt.Sprintf("insufficient number of arguments in call to %s: must be at least %d, got %d", fnc, len(ft.Params)-1, nargs))
+		}
 
-	var vargType gno.Type
-	if hasVarg {
 		// For the variadic argument, we need to use the type of the
 		// elements contained on the slice.
 		vargType = ft.Params[len(ft.Params)-1].Type.(*gno.SliceType).Elt
