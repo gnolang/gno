@@ -51,7 +51,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 
 	prmk := pm.NewParamsKeeper(iavlCapKey)
 	acck := authm.NewAccountKeeper(iavlCapKey, prmk.ForModule(authm.ModuleName), std.ProtoBaseAccount)
-	bankk := bankm.NewBankKeeper(acck, prmk.ForModule(bankm.ModuleName))
+	bankk := bankm.NewBankKeeper(iavlCapKey, acck, prmk.ForModule(bankm.ModuleName))
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bankk, prmk)
 
 	prmk.Register(authm.ModuleName, acck)

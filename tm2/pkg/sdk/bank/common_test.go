@@ -34,7 +34,7 @@ func setupTestEnv() testEnv {
 
 	prmk := params.NewParamsKeeper(authCapKey)
 	acck := auth.NewAccountKeeper(authCapKey, prmk.ForModule(auth.ModuleName), std.ProtoBaseAccount)
-	bankk := NewBankKeeper(acck, prmk.ForModule(ModuleName))
+	bankk := NewBankKeeper(authCapKey, acck, prmk.ForModule(ModuleName))
 
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(ModuleName, bankk)
