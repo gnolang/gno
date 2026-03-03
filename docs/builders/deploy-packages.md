@@ -84,8 +84,9 @@ MyKey
 
 A few important notes about the package path:
 - It must start with `gno.land/r/` for realms or `gno.land/p/` for packages.
-- You can only deploy under your own address-based namespace
-  (e.g. `gno.land/r/YOUR_ADDRESS/counter`).
+- You can only deploy under your own address-based namespace.
+- You can deploy to any package (or subpackage) name under your
+  namespace. (e.g `gno.land/r/<your_address>/counter/v1`)
 - Username-based namespaces are not currently supported; see
   [Custom Namespaces](../resources/gno-packages.md#custom-namespaces) for details.
 
