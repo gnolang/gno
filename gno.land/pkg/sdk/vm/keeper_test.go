@@ -1490,3 +1490,164 @@ func UpdateAll(cur realm) {
 	// All runs produced identical results - this is expected with the fix applied
 	t.Logf("SUCCESS: All %d runs produced identical results, confirming deterministic behavior", numRuns)
 }
+
+// TestVMKeeperCLASignature tests CLA enforcement during package deployment.
+// Uses a minimal inline CLA realm to test the keeper's CLA check mechanism
+// without requiring the full govdao dependency chain.
+func TestVMKeeperCLASignature(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Create admin and user addresses
+	admin := crypto.AddressFromPreimage([]byte("admin"))
+	user := crypto.AddressFromPreimage([]byte("user"))
+
+	// Set up accounts with initial balance
+	adminAcc := env.acck.NewAccountWithAddress(ctx, admin)
+	env.acck.SetAccount(ctx, adminAcc)
+	env.bankk.SetCoins(ctx, admin, initialBalance)
+
+	userAcc := env.acck.NewAccountWithAddress(ctx, user)
+	env.acck.SetAccount(ctx, userAcc)
+	env.bankk.SetCoins(ctx, user, initialBalance)
+
+	// Deploy a minimal inline CLA realm for testing.
+	// This avoids deploying the full govdao dependency chain; the keeper test
+	// only needs HasValidSignature, Sign, and a way to set the required hash.
+	const claPkgPath = "gno.land/r/sys/cla"
+	claFiles := []*std.MemFile{
+		{Name: "cla.gno", Body: `package cla
+
+import "chain/runtime"
+
+var (
+	requiredHash string
+	signatures   map[address]bool
+)
+
+func init() { signatures = make(map[address]bool) }
+
+func SetRequiredHash(cur realm, newHash string) {
+	requiredHash = newHash
+	signatures = make(map[address]bool)
+}
+
+func Sign(cur realm, hash string) {
+	if hash != requiredHash {
+		panic("hash does not match required CLA hash")
+	}
+	caller := runtime.PreviousRealm().Address()
+	signatures[caller] = true
+}
+
+func HasValidSignature(addr address) bool {
+	if requiredHash == "" {
+		return true
+	}
+	return signatures[addr]
+}
+`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(claPkgPath)},
+	}
+	claMsg := NewMsgAddPackage(admin, claPkgPath, claFiles)
+	err := env.vmk.AddPackage(ctx, claMsg)
+	require.NoError(t, err, "failed to deploy inline cla realm")
+
+	// Test 1: CLA disabled (empty hash) - user can deploy
+	const userPkgPath1 = "gno.land/r/user/pkg1"
+	userFiles1 := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(userPkgPath1)},
+		{Name: "pkg.gno", Body: `package pkg1
+func Hello(cur realm) string { return "hello" }`},
+	}
+	userMsg1 := NewMsgAddPackage(user, userPkgPath1, userFiles1)
+	err = env.vmk.AddPackage(ctx, userMsg1)
+	assert.NoError(t, err, "should allow deployment when CLA is disabled")
+
+	// Test 2: Enable CLA - user should be blocked
+	setHashMsg := NewMsgCall(admin, nil, claPkgPath, "SetRequiredHash", []string{"testhash123"})
+	_, err = env.vmk.Call(ctx, setHashMsg)
+	require.NoError(t, err)
+
+	const userPkgPath2 = "gno.land/r/user/pkg2"
+	userFiles2 := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(userPkgPath2)},
+		{Name: "pkg.gno", Body: `package pkg2
+func Hello(cur realm) string { return "hello" }`},
+	}
+	userMsg2 := NewMsgAddPackage(user, userPkgPath2, userFiles2)
+	err = env.vmk.AddPackage(ctx, userMsg2)
+	require.Error(t, err, "should block deployment when user hasn't signed CLA")
+	assert.True(t, errors.Is(err, UnauthorizedUserError{}), "error should be UnauthorizedUserError, got: %v", err)
+
+	// Test 3: User signs CLA - can deploy
+	signMsg := NewMsgCall(user, nil, claPkgPath, "Sign", []string{"testhash123"})
+	_, err = env.vmk.Call(ctx, signMsg)
+	require.NoError(t, err)
+
+	const userPkgPath3 = "gno.land/r/user/pkg3"
+	userFiles3 := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(userPkgPath3)},
+		{Name: "pkg.gno", Body: `package pkg3
+func Hello(cur realm) string { return "hello" }`},
+	}
+	userMsg3 := NewMsgAddPackage(user, userPkgPath3, userFiles3)
+	err = env.vmk.AddPackage(ctx, userMsg3)
+	assert.NoError(t, err, "should allow deployment after signing CLA")
+
+	// Test 4: Admin changes hash - user signature reset, blocked again
+	setHashMsg2 := NewMsgCall(admin, nil, claPkgPath, "SetRequiredHash", []string{"newhash456"})
+	_, err = env.vmk.Call(ctx, setHashMsg2)
+	require.NoError(t, err)
+
+	const userPkgPath4 = "gno.land/r/user/pkg4"
+	userFiles4 := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(userPkgPath4)},
+		{Name: "pkg.gno", Body: `package pkg4
+func Hello(cur realm) string { return "hello" }`},
+	}
+	userMsg4 := NewMsgAddPackage(user, userPkgPath4, userFiles4)
+	err = env.vmk.AddPackage(ctx, userMsg4)
+	assert.Error(t, err, "should block after hash change resets signatures")
+
+	// Test 5: Disable CLA - user can deploy again
+	setHashMsg3 := NewMsgCall(admin, nil, claPkgPath, "SetRequiredHash", []string{""})
+	_, err = env.vmk.Call(ctx, setHashMsg3)
+	require.NoError(t, err)
+
+	const userPkgPath5 = "gno.land/r/user/pkg5"
+	userFiles5 := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(userPkgPath5)},
+		{Name: "pkg.gno", Body: `package pkg5
+func Hello(cur realm) string { return "hello" }`},
+	}
+	userMsg5 := NewMsgAddPackage(user, userPkgPath5, userFiles5)
+	err = env.vmk.AddPackage(ctx, userMsg5)
+	assert.NoError(t, err, "should allow deployment when CLA is disabled again")
+}
+
+// TestVMKeeperCLASignature_RealmNotDeployed tests that CLA check is skipped
+// when the CLA realm is not yet deployed (bootstrap scenario).
+func TestVMKeeperCLASignature_RealmNotDeployed(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Create user account
+	user := crypto.AddressFromPreimage([]byte("user"))
+	userAcc := env.acck.NewAccountWithAddress(ctx, user)
+	env.acck.SetAccount(ctx, userAcc)
+	env.bankk.SetCoins(ctx, user, initialBalance)
+
+	// CLA realm is not deployed, but SysCLAPkgPath is set (default).
+	// This must succeed to allow bootstrap (deploying the CLA realm itself).
+
+	const userPkgPath = "gno.land/r/user/pkg1"
+	userFiles := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(userPkgPath)},
+		{Name: "pkg.gno", Body: `package pkg1
+func Hello(cur realm) string { return "hello" }`},
+	}
+	userMsg := NewMsgAddPackage(user, userPkgPath, userFiles)
+	err := env.vmk.AddPackage(ctx, userMsg)
+	assert.NoError(t, err, "should allow deployment when CLA realm is not deployed (bootstrap)")
+}
