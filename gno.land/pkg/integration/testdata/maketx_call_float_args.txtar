@@ -41,10 +41,17 @@ stdout '("0" string)'
 gnokey maketx call -pkgpath gno.land/r/test/floatargs -func EchoFloat32 -args '-0.0' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stdout '("0" string)'
 
+# -0.0 must have its sign bit cleared before being passed to the function.
+gnokey maketx call -pkgpath gno.land/r/test/floatargs -func CheckSignBitFloat32 -args '-0.0' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("false" string)'
+
 -- realm/realm.gno --
 package floatargs
 
-import "strconv"
+import (
+	"math"
+	"strconv"
+)
 
 func EchoFloat64(cur realm, x float64) string {
 	return strconv.FormatFloat(x, 'f', -1, 64)
@@ -52,4 +59,8 @@ func EchoFloat64(cur realm, x float64) string {
 
 func EchoFloat32(cur realm, x float32) string {
 	return strconv.FormatFloat(float64(x), 'f', -1, 32)
+}
+
+func CheckSignBitFloat32(cur realm, x float32) string {
+	return strconv.FormatBool(math.Signbit(float64(x)))
 }
