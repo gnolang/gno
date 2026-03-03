@@ -106,9 +106,8 @@ depth as long as the full package path doesn't exceed `256` characters.
 
 ### Custom Namespaces
 
-Username-based namespaces are **not currently supported** for package deployment.
-Only address-prefix namespaces are valid. Custom namespace support via registered
-usernames will be revisited and may be introduced via GovDAO governance in the future.
+Custom namespaces are **not currently supported** but are planned to be introduced via GovDAO
+governance in the future.
 
 ## Importing Packages
 

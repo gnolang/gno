@@ -303,10 +303,5 @@ or calling a realm function.
 ### ugnot
 The smallest unit of GNOT. 1 GNOT = 1,000,000 ugnot (micro-GNOT).
 
-### User Registry
-
-An upcoming feature that will allow registering usernames on-chain.
-See [Users and Teams](./users-and-teams.md) for details.
-
 ### wugnot
 Wrapped version of `ugnot`, following the GRC20 standard.

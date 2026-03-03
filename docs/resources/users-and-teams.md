@@ -14,7 +14,7 @@ no registration is needed. These address-based namespaces allow for
 permissionless deployment.
 
 Username-based namespaces (e.g. `gno.land/r/myusername/myrealm`) are not
-currently supported and will be revisited via GovDAO governance.
+currently supported but are planned to be introduced via GovDAO governance.
 
 ## Teams and Collaborative Development
 
