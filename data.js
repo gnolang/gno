@@ -1,416 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772511665203,
+  "lastUpdate": 1772547589432,
   "repoUrl": "https://github.com/gnolang/gno",
   "entries": {
     "Go Benchmarks": [
-      {
-        "commit": {
-          "author": {
-            "email": "d4ryl00@gmail.com",
-            "name": "Rémi BARBERO",
-            "username": "D4ryl00"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "cbf04f19ddee592dd90f36e92a14dc15606aa3bb",
-          "message": "fix: `gnokey verify`: single-sig now works; multisig supported; new flags; base64 signatures (#4741)\n\nFixes https://github.com/gnolang/gno/issues/4719\n\n## Summary\n\n`gnokey verify` was unable to validate even single-sig transactions\nbecause it didn’t reconstruct the original sign-bytes. This PR fixes\nsingle-sig verification, adds coverage for multisig transactions, and\nstreamlines the CLI to be less error-prone.\n\n## What changed\n\n* **Correct sign-bytes reconstruction** so verification matches what was\nsigned. (single-sig now passes)\n* **Key lookup by name *or* address** (`<name|address>`).\n* **Flags & defaults**\n\n* `-chainid` (string). If omitted, we **query the node** via `-remote`\nand **error** if we cannot fetch it.\n* `-tx-path` (string). The path to the transaction file, by default\nempty (required). (Amino JSON `std.Tx`)\n* `-account-number`, `-account-sequence` now use a custom\n`commands.Uint64Flag` to detect whether the user actually set the flag\nvs. left it unset (so we can safely auto-query when unset).\n* If either account flag is **unset**, we query the account and fill\nvalues; on failure, we proceed with defaults and print a warning.\n* **Input simplification**\n\n  * **Positional args:** `verify [flags] <name|address>`.\n* **Signature source:** use `-sig-path` (Amino JSON `std.Signature`) or\ndefault to `tx.Signatures[0]`.\n* **Removed:** `-signature` (base64 string) and reading tx from\n**stdin**.\n* **Multisig:** verification now works for multisig transactions; added\na dedicated test.\n\n## CLI\n\n```bash\n# Auto-resolve chain-id from the node; use the first signature in the tx\ngnokey -remote http://127.0.0.1:26657 verify alice -tx-path ./tx.json\n\n# Provide explicit parameters and a separate signature file\ngnokey verify g1abcd... -tx-path ./tx.json -sig-path ./sig.json -chain-id mychain -account-number 12 -account-sequence 34\n```\n\n---------\n\nSigned-off-by: D4ryl00 <d4ryl00@gmail.com>\nCo-authored-by: Miloš Živković <milos.zivkovic@tendermint.com>",
-          "timestamp": "2025-09-16T15:37:48+02:00",
-          "tree_id": "119e8fa8bb2fa8f44fe95cc2ca5a5f019d873917",
-          "url": "https://github.com/gnolang/gno/commit/cbf04f19ddee592dd90f36e92a14dc15606aa3bb"
-        },
-        "date": 1758029915756,
-        "tool": "go",
-        "benches": [
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4",
-            "value": 12428,
-            "unit": "ns/op\t   11520 B/op\t      36 allocs/op",
-            "extra": "94132 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4 - ns/op",
-            "value": 12428,
-            "unit": "ns/op",
-            "extra": "94132 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4 - B/op",
-            "value": 11520,
-            "unit": "B/op",
-            "extra": "94132 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4 - allocs/op",
-            "value": 36,
-            "unit": "allocs/op",
-            "extra": "94132 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4",
-            "value": 9716,
-            "unit": "ns/op\t   11520 B/op\t      36 allocs/op",
-            "extra": "121932 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4 - ns/op",
-            "value": 9716,
-            "unit": "ns/op",
-            "extra": "121932 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4 - B/op",
-            "value": 11520,
-            "unit": "B/op",
-            "extra": "121932 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4 - allocs/op",
-            "value": 36,
-            "unit": "allocs/op",
-            "extra": "121932 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8",
-            "value": 94886,
-            "unit": "ns/op\t   85761 B/op\t     268 allocs/op",
-            "extra": "12747 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8 - ns/op",
-            "value": 94886,
-            "unit": "ns/op",
-            "extra": "12747 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8 - B/op",
-            "value": 85761,
-            "unit": "B/op",
-            "extra": "12747 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8 - allocs/op",
-            "value": 268,
-            "unit": "allocs/op",
-            "extra": "12747 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8",
-            "value": 71374,
-            "unit": "ns/op\t   85763 B/op\t     268 allocs/op",
-            "extra": "16464 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8 - ns/op",
-            "value": 71374,
-            "unit": "ns/op",
-            "extra": "16464 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8 - B/op",
-            "value": 85763,
-            "unit": "B/op",
-            "extra": "16464 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8 - allocs/op",
-            "value": 268,
-            "unit": "allocs/op",
-            "extra": "16464 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16",
-            "value": 4474665,
-            "unit": "ns/op\t 4087155 B/op\t   12773 allocs/op",
-            "extra": "264 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16 - ns/op",
-            "value": 4474665,
-            "unit": "ns/op",
-            "extra": "264 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16 - B/op",
-            "value": 4087155,
-            "unit": "B/op",
-            "extra": "264 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16 - allocs/op",
-            "value": 12773,
-            "unit": "allocs/op",
-            "extra": "264 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16",
-            "value": 3403005,
-            "unit": "ns/op\t 4087206 B/op\t   12776 allocs/op",
-            "extra": "349 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16 - ns/op",
-            "value": 3403005,
-            "unit": "ns/op",
-            "extra": "349 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16 - B/op",
-            "value": 4087206,
-            "unit": "B/op",
-            "extra": "349 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16 - allocs/op",
-            "value": 12776,
-            "unit": "allocs/op",
-            "extra": "349 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno",
-            "value": 86.44,
-            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
-            "extra": "13442637 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno - ns/op",
-            "value": 86.44,
-            "unit": "ns/op",
-            "extra": "13442637 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno - B/op",
-            "value": 0,
-            "unit": "B/op",
-            "extra": "13442637 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno - allocs/op",
-            "value": 0,
-            "unit": "allocs/op",
-            "extra": "13442637 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno",
-            "value": 86.87,
-            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
-            "extra": "13708621 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno - ns/op",
-            "value": 86.87,
-            "unit": "ns/op",
-            "extra": "13708621 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno - B/op",
-            "value": 0,
-            "unit": "B/op",
-            "extra": "13708621 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno - allocs/op",
-            "value": 0,
-            "unit": "allocs/op",
-            "extra": "13708621 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3",
-            "value": 239361,
-            "unit": "ns/op\t  108867 B/op\t     534 allocs/op",
-            "extra": "4779 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3 - ns/op",
-            "value": 239361,
-            "unit": "ns/op",
-            "extra": "4779 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3 - B/op",
-            "value": 108867,
-            "unit": "B/op",
-            "extra": "4779 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3 - allocs/op",
-            "value": 534,
-            "unit": "allocs/op",
-            "extra": "4779 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3",
-            "value": 190236,
-            "unit": "ns/op\t  108868 B/op\t     534 allocs/op",
-            "extra": "6028 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3 - ns/op",
-            "value": 190236,
-            "unit": "ns/op",
-            "extra": "6028 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3 - B/op",
-            "value": 108868,
-            "unit": "B/op",
-            "extra": "6028 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3 - allocs/op",
-            "value": 534,
-            "unit": "allocs/op",
-            "extra": "6028 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4",
-            "value": 632640,
-            "unit": "ns/op\t  287193 B/op\t    1180 allocs/op",
-            "extra": "1825 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4 - ns/op",
-            "value": 632640,
-            "unit": "ns/op",
-            "extra": "1825 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4 - B/op",
-            "value": 287193,
-            "unit": "B/op",
-            "extra": "1825 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4 - allocs/op",
-            "value": 1180,
-            "unit": "allocs/op",
-            "extra": "1825 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4",
-            "value": 500018,
-            "unit": "ns/op\t  287196 B/op\t    1180 allocs/op",
-            "extra": "2286 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4 - ns/op",
-            "value": 500018,
-            "unit": "ns/op",
-            "extra": "2286 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4 - B/op",
-            "value": 287196,
-            "unit": "B/op",
-            "extra": "2286 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4 - allocs/op",
-            "value": 1180,
-            "unit": "allocs/op",
-            "extra": "2286 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5",
-            "value": 2265182,
-            "unit": "ns/op\t 1137049 B/op\t    4142 allocs/op",
-            "extra": "524 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5 - ns/op",
-            "value": 2265182,
-            "unit": "ns/op",
-            "extra": "524 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5 - B/op",
-            "value": 1137049,
-            "unit": "B/op",
-            "extra": "524 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5 - allocs/op",
-            "value": 4142,
-            "unit": "allocs/op",
-            "extra": "524 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5",
-            "value": 1816813,
-            "unit": "ns/op\t 1137061 B/op\t    4143 allocs/op",
-            "extra": "654 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5 - ns/op",
-            "value": 1816813,
-            "unit": "ns/op",
-            "extra": "654 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5 - B/op",
-            "value": 1137061,
-            "unit": "B/op",
-            "extra": "654 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5 - allocs/op",
-            "value": 4143,
-            "unit": "allocs/op",
-            "extra": "654 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6",
-            "value": 11676941,
-            "unit": "ns/op\t 6302265 B/op\t   22022 allocs/op",
-            "extra": "100 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6 - ns/op",
-            "value": 11676941,
-            "unit": "ns/op",
-            "extra": "100 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6 - B/op",
-            "value": 6302265,
-            "unit": "B/op",
-            "extra": "100 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6 - allocs/op",
-            "value": 22022,
-            "unit": "allocs/op",
-            "extra": "100 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6",
-            "value": 9607957,
-            "unit": "ns/op\t 6302325 B/op\t   22026 allocs/op",
-            "extra": "124 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6 - ns/op",
-            "value": 9607957,
-            "unit": "ns/op",
-            "extra": "124 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6 - B/op",
-            "value": 6302325,
-            "unit": "B/op",
-            "extra": "124 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6 - allocs/op",
-            "value": 22026,
-            "unit": "allocs/op",
-            "extra": "124 times\n2 procs"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -40786,6 +40378,414 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkBenchdata/matrix.gno_param:6 - ns/op",
             "value": 8376722,
+            "unit": "ns/op",
+            "extra": "142 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6 - B/op",
+            "value": 6302223,
+            "unit": "B/op",
+            "extra": "142 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6 - allocs/op",
+            "value": 22022,
+            "unit": "allocs/op",
+            "extra": "142 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e5aab1d62fa9cb7e509180291e4442051c3539a8",
+          "message": "chore(deps): bump the everything-else group across 1 directory with 21 updates (#5004)\n\nBumps the everything-else group with 12 updates in the / directory:\n\n| Package | From | To |\n| --- | --- | --- |\n| [dario.cat/mergo](https://github.com/imdario/mergo) | `1.0.1` |\n`1.0.2` |\n|\n[github.com/alecthomas/chroma/v2](https://github.com/alecthomas/chroma)\n| `2.15.0` | `2.21.1` |\n| [github.com/btcsuite/btcd/btcec/v2](https://github.com/btcsuite/btcd)\n| `2.3.4` | `2.3.6` |\n|\n[github.com/cosmos/ledger-cosmos-go](https://github.com/cosmos/ledger-cosmos-go)\n| `0.14.0` | `1.0.0` |\n| [github.com/emicklei/dot](https://github.com/emicklei/dot) | `1.6.2` |\n`1.10.0` |\n| [github.com/gofrs/flock](https://github.com/gofrs/flock) | `0.12.1` |\n`0.13.0` |\n| [github.com/yuin/goldmark](https://github.com/yuin/goldmark) | `1.7.8`\n| `1.7.13` |\n| [go.etcd.io/bbolt](https://github.com/etcd-io/bbolt) | `1.3.11` |\n`1.4.3` |\n|\n[go.opentelemetry.io/otel](https://github.com/open-telemetry/opentelemetry-go)\n| `1.38.0` | `1.39.0` |\n|\n[go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp](https://github.com/open-telemetry/opentelemetry-go)\n| `1.34.0` | `1.39.0` |\n|\n[go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp](https://github.com/open-telemetry/opentelemetry-go)\n| `1.38.0` | `1.39.0` |\n| [go.uber.org/zap](https://github.com/uber-go/zap) | `1.27.0` |\n`1.27.1` |\n\n\nUpdates `dario.cat/mergo` from 1.0.1 to 1.0.2\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/imdario/mergo/releases\">dario.cat/mergo's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v1.0.2</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>Drops <code>gopkg.in/yaml.v3</code>, only used for loading fixtures.\nThanks <a href=\"https://github.com/trim21\"><code>@​trim21</code></a> for\nbringing to my attention (<a\nhref=\"https://redirect.github.com/imdario/mergo/issues/262\">#262</a>)\nthat this library is no longer maintained.</li>\n</ul>\n<p><strong>Full Changelog</strong>: <a\nhref=\"https://github.com/darccio/mergo/compare/v1.0.1...v1.0.2\">https://github.com/darccio/mergo/compare/v1.0.1...v1.0.2</a></p>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/darccio/mergo/commit/7b33b2b01026fbbbbfcfbb1ee2c9c0a5e0c9a9f7\"><code>7b33b2b</code></a>\nrefactor: migrate from YAML to JSON for test data and update related\nfunctions</li>\n<li><a\nhref=\"https://github.com/darccio/mergo/commit/229a2148678d4519fffd30dff24685551e57544a\"><code>229a214</code></a>\nchore(.well-known): add funding manifest URLs file</li>\n<li><a\nhref=\"https://github.com/darccio/mergo/commit/6be20c6d7d20645054fcc648b9226ae11d48ad27\"><code>6be20c6</code></a>\nchore(SECURITY.md): update supported versions to reflect current\nversioning</li>\n<li><a\nhref=\"https://github.com/darccio/mergo/commit/9007623e5248b4a61fff3b3969168d1dc313df9e\"><code>9007623</code></a>\nchore(README) : remove kubernetes from the list of users</li>\n<li><a\nhref=\"https://github.com/darccio/mergo/commit/2b1eb9c67d7332f286430af241180c5005a6a5a4\"><code>2b1eb9c</code></a>\nUpdate FUNDING.yml</li>\n<li><a\nhref=\"https://github.com/darccio/mergo/commit/2ceb99467bfe70a74b30b1194774ac63f1888632\"><code>2ceb994</code></a>\nCreate FUNDING.json</li>\n<li>See full diff in <a\nhref=\"https://github.com/imdario/mergo/compare/v1.0.1...v1.0.2\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `github.com/alecthomas/chroma/v2` from 2.15.0 to 2.21.1\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/alecthomas/chroma/releases\">github.com/alecthomas/chroma/v2's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v2.21.1</h2>\n<h2>Changelog</h2>\n<ul>\n<li>0fe6941 fix(styles): use kebab-case for style name in Aura Theme\nvariants (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1183\">#1183</a>)</li>\n<li>2408917 chore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1178\">#1178</a>)</li>\n<li>b527a28 Update lexer lox (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1175\">#1175</a>)</li>\n</ul>\n<h2>v2.21.0</h2>\n<h2>Changelog</h2>\n<ul>\n<li>26a0cc1 feat(styles): add Aura Theme primary variants (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1177\">#1177</a>)</li>\n<li>fc10487 Fix (D): multiline comments (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1173\">#1173</a>)</li>\n<li>aec4bfc Add support for Device tree (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1172\">#1172</a>)</li>\n<li>8ea696b chore(deps): update actions/checkout action to v6 (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1167\">#1167</a>)</li>\n<li>a40a9d3 chore(deps): update dependency binaryen to v125 (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1168\">#1168</a>)</li>\n<li>5486d21 chore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1164\">#1164</a>)</li>\n<li>42c2aa1 Add helper script to generate supported langs markdown table\n(<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1170\">#1170</a>)</li>\n<li>e799618 chore(deps): update actions/checkout digest to 93cb6ef (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1163\">#1163</a>)</li>\n<li>6b58845 Add Ashen style (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1169\">#1169</a>)</li>\n<li>8b8574c Add Protocol Buffer Text Format Language (txtpb) (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1165\">#1165</a>)</li>\n<li>c07ef4b chore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1160\">#1160</a>)</li>\n<li>3b5a164 Add lexer for WebAssembly Text Format (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1161\">#1161</a>)</li>\n<li>84d187e github style: background should be grey (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1159\">#1159</a>)</li>\n<li>60e616c Add an alias for Starlark and match *.star files (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1158\">#1158</a>)</li>\n<li>6e68adb chore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1157\">#1157</a>)</li>\n<li>9297a7c chore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1155\">#1155</a>)</li>\n<li>1074a2a fix(Kotlin): Number literals (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1139\">#1139</a>)</li>\n<li>9c8da0f chore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1153\">#1153</a>)</li>\n<li>fa92e28 Add file extensions for systemd units using Podman Quadlet\n(<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1151\">#1151</a>)</li>\n<li>57823f0 Add Kakoune lexer (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1150\">#1150</a>)</li>\n<li>1c5b8cb chore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1149\">#1149</a>)</li>\n<li>c688d92 feat: add support for C3 (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1148\">#1148</a>)</li>\n<li>ba111b7 chore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1147\">#1147</a>)</li>\n<li>b05fcfb tango: Don't underline whitespace (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1146\">#1146</a>)</li>\n<li>daa879b chore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1141\">#1141</a>)</li>\n<li>a5dc086 Add argparse to pygemnts2chroma_xml.py script (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1140\">#1140</a>)</li>\n<li>3f991b1 chore(deps): update dependency binaryen to v124 (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1138\">#1138</a>)</li>\n<li>0ae5ef0 chore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1137\">#1137</a>)</li>\n<li>8f9e82f Update Core lexer to adjust for removed keyword\n<code>enum</code> (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1136\">#1136</a>)</li>\n<li>685ad2c Update Core lexer to adjust for removed keyword\n<code>const</code> (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1134\">#1134</a>)</li>\n<li>e9ffd5a fix: don't emit empty tail tokens (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1121\">#1121</a>)</li>\n<li>4e1403e Add lexer for Ring Language (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1133\">#1133</a>)</li>\n<li>66a939a Add lexer for Game Boy Development System ASM. (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1117\">#1117</a>)</li>\n<li>2984b60 chore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1132\">#1132</a>)</li>\n<li>260fa90 update css.xml with current properties (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1130\">#1130</a>)</li>\n<li>70521cf Modelica language support <a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1122\">alecthomas/chroma#1122</a>\n(<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1129\">#1129</a>)</li>\n<li>09cd573 update css.xml for current grid gap properties (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1128\">#1128</a>)</li>\n<li>339bd37 Fixed **free analysis in RPGLE (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1116\">#1116</a>)</li>\n<li>ff52be8 chore(deps): update actions/checkout action to v5 (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1127\">#1127</a>)</li>\n<li>254ca83 Update Core lexer to incorporate change of keyword from\n<code>use</code> to <code>import</code> (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1124\">#1124</a>)</li>\n<li>2d9c0d1 chore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1123\">#1123</a>)</li>\n<li>bd10a05 <code>moar</code> has been renamed to <code>moor</code> (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1125\">#1125</a>)</li>\n</ul>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/alecthomas/chroma/commit/0fe6941eebfadf00c2f6f749e47ee2c0eb98b679\"><code>0fe6941</code></a>\nfix(styles): use kebab-case for style name in Aura Theme variants (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1183\">#1183</a>)</li>\n<li><a\nhref=\"https://github.com/alecthomas/chroma/commit/24089176a39cf660d52be2edd3c26682f880cef9\"><code>2408917</code></a>\nchore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1178\">#1178</a>)</li>\n<li><a\nhref=\"https://github.com/alecthomas/chroma/commit/b527a28b873fa09d8fbce859b5e1775b7a1a640e\"><code>b527a28</code></a>\nUpdate lexer lox (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1175\">#1175</a>)</li>\n<li><a\nhref=\"https://github.com/alecthomas/chroma/commit/26a0cc1d1fe62cf4e6f7a6fe28467b64ebfddd30\"><code>26a0cc1</code></a>\nfeat(styles): add Aura Theme primary variants (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1177\">#1177</a>)</li>\n<li><a\nhref=\"https://github.com/alecthomas/chroma/commit/fc10487dde8e622a144864e505084a362b2c4bfc\"><code>fc10487</code></a>\nFix (D): multiline comments (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1173\">#1173</a>)</li>\n<li><a\nhref=\"https://github.com/alecthomas/chroma/commit/aec4bfcd508608e23aa1bff8fbffb6bb44ff8b1f\"><code>aec4bfc</code></a>\nAdd support for Device tree (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1172\">#1172</a>)</li>\n<li><a\nhref=\"https://github.com/alecthomas/chroma/commit/8ea696b6ec12a28753842711966c5407ee5acc91\"><code>8ea696b</code></a>\nchore(deps): update actions/checkout action to v6 (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1167\">#1167</a>)</li>\n<li><a\nhref=\"https://github.com/alecthomas/chroma/commit/a40a9d34aab3c2f5091e2ec92be3dc4239e7bfde\"><code>a40a9d3</code></a>\nchore(deps): update dependency binaryen to v125 (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1168\">#1168</a>)</li>\n<li><a\nhref=\"https://github.com/alecthomas/chroma/commit/5486d215daf2bdf27a4858ce66b0e44cc2c21eeb\"><code>5486d21</code></a>\nchore(deps): update all non-major dependencies (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1164\">#1164</a>)</li>\n<li><a\nhref=\"https://github.com/alecthomas/chroma/commit/42c2aa1c7efe1fea7e3f97204e7ee599704aeca3\"><code>42c2aa1</code></a>\nAdd helper script to generate supported langs markdown table (<a\nhref=\"https://redirect.github.com/alecthomas/chroma/issues/1170\">#1170</a>)</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/alecthomas/chroma/compare/v2.15.0...v2.21.1\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `github.com/btcsuite/btcd/btcec/v2` from 2.3.4 to 2.3.6\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/btcsuite/btcd/commit/442ef28bcf03797e845c8e957e5cd6d4bffb5764\"><code>442ef28</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/btcsuite/btcd/issues/2443\">#2443</a>\nfrom sputn1ck/musig2_sign_with_agg_nonce</li>\n<li><a\nhref=\"https://github.com/btcsuite/btcd/commit/21eb99e3bc0b4b6e0f948578ed6f1997908c5b16\"><code>21eb99e</code></a>\nmusig2: add combinedNonce getter</li>\n<li><a\nhref=\"https://github.com/btcsuite/btcd/commit/8f54cc6edab2d4f9348098c60c2d477c2950bbda\"><code>8f54cc6</code></a>\nmusig2: add Session.RegisterCombinedNonce</li>\n<li><a\nhref=\"https://github.com/btcsuite/btcd/commit/b7d070601def0f94e3713879b19f1678949a8d68\"><code>b7d0706</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/btcsuite/btcd/issues/2430\">#2430</a>\nfrom Roasbeef/v-0-25-0-rc1</li>\n<li><a\nhref=\"https://github.com/btcsuite/btcd/commit/31a762b3f67baa7ebcf357562eba74e5e3a5fb89\"><code>31a762b</code></a>\nbuild: bump version to v0.25.0-beta.rc1</li>\n<li><a\nhref=\"https://github.com/btcsuite/btcd/commit/e8097a1b044c3c0b3843b2aba377e87eb5fc4f9f\"><code>e8097a1</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/btcsuite/btcd/issues/2410\">#2410</a>\nfrom mohamedawnallah/fallback-to-GOPATH-bin-dir</li>\n<li><a\nhref=\"https://github.com/btcsuite/btcd/commit/29f421534c8c6c47588c2cc08741df956225e52c\"><code>29f4215</code></a>\nMakefile+workflows: fallback to <code>GOPATH/bin</code> on non-existent\n<code>GOBIN</code></li>\n<li><a\nhref=\"https://github.com/btcsuite/btcd/commit/a4ddae2ba1b6f0cc8fe31e48e50cef018affe670\"><code>a4ddae2</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/btcsuite/btcd/issues/2409\">#2409</a>\nfrom gosunuts/fix/dockerfile-go-version</li>\n<li><a\nhref=\"https://github.com/btcsuite/btcd/commit/2577dd3ee3e40cd6914731386d1f95d200026508\"><code>2577dd3</code></a>\nDockerfile: update go base image</li>\n<li><a\nhref=\"https://github.com/btcsuite/btcd/commit/c002ea3196bc883a7936e07a04f0790bc8c2bf2d\"><code>c002ea3</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/btcsuite/btcd/issues/2320\">#2320</a>\nfrom gosunuts/feature/fix-ci</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/btcsuite/btcd/compare/btcec/v2.3.4...btcec/v2.3.6\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `github.com/cosmos/ledger-cosmos-go` from 0.14.0 to 1.0.0\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/cosmos/ledger-cosmos-go/releases\">github.com/cosmos/ledger-cosmos-go's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v1.0.0</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>Remove v1 code by <a\nhref=\"https://github.com/abenso\"><code>@​abenso</code></a> in <a\nhref=\"https://redirect.github.com/cosmos/ledger-cosmos-go/pull/84\">cosmos/ledger-cosmos-go#84</a></li>\n</ul>\n<h2>New Contributors</h2>\n<ul>\n<li><a href=\"https://github.com/abenso\"><code>@​abenso</code></a> made\ntheir first contribution in <a\nhref=\"https://redirect.github.com/cosmos/ledger-cosmos-go/pull/84\">cosmos/ledger-cosmos-go#84</a></li>\n</ul>\n<p><strong>Full Changelog</strong>: <a\nhref=\"https://github.com/cosmos/ledger-cosmos-go/compare/v0.16.0...v1.0.0\">https://github.com/cosmos/ledger-cosmos-go/compare/v0.16.0...v1.0.0</a></p>\n<h2>v0.16.0</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>Use chunk processing functions from ledger_go by <a\nhref=\"https://github.com/chcmedeiros\"><code>@​chcmedeiros</code></a> in\n<a\nhref=\"https://redirect.github.com/cosmos/ledger-cosmos-go/pull/82\">cosmos/ledger-cosmos-go#82</a></li>\n</ul>\n<p><strong>Full Changelog</strong>: <a\nhref=\"https://github.com/cosmos/ledger-cosmos-go/compare/v0.15.0...v0.16.0\">https://github.com/cosmos/ledger-cosmos-go/compare/v0.15.0...v0.16.0</a></p>\n<h2>v0.15.0</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>chore: clean up and prep for new release by <a\nhref=\"https://github.com/aljo242\"><code>@​aljo242</code></a> in <a\nhref=\"https://redirect.github.com/cosmos/ledger-cosmos-go/pull/81\">cosmos/ledger-cosmos-go#81</a></li>\n</ul>\n<h2>New Contributors</h2>\n<ul>\n<li><a href=\"https://github.com/aljo242\"><code>@​aljo242</code></a> made\ntheir first contribution in <a\nhref=\"https://redirect.github.com/cosmos/ledger-cosmos-go/pull/81\">cosmos/ledger-cosmos-go#81</a></li>\n</ul>\n<p><strong>Full Changelog</strong>: <a\nhref=\"https://github.com/cosmos/ledger-cosmos-go/compare/v0.14.0...v0.15.0\">https://github.com/cosmos/ledger-cosmos-go/compare/v0.14.0...v0.15.0</a></p>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/cosmos/ledger-cosmos-go/commit/fe0199f16fcf4674b569748ed5bb9f7148ac0992\"><code>fe0199f</code></a>\nRemove v1 code (<a\nhref=\"https://redirect.github.com/cosmos/ledger-cosmos-go/issues/84\">#84</a>)</li>\n<li><a\nhref=\"https://github.com/cosmos/ledger-cosmos-go/commit/9e3c918a05e0f84ce4205215d71c731f23888ec9\"><code>9e3c918</code></a>\nUse chunk processing functions from ledger_go (<a\nhref=\"https://redirect.github.com/cosmos/ledger-cosmos-go/issues/82\">#82</a>)</li>\n<li><a\nhref=\"https://github.com/cosmos/ledger-cosmos-go/commit/7e25098fed439ec6df3873bf688911a50865a96c\"><code>7e25098</code></a>\nchore: clean up and prep for new release (<a\nhref=\"https://redirect.github.com/cosmos/ledger-cosmos-go/issues/81\">#81</a>)</li>\n<li>See full diff in <a\nhref=\"https://github.com/cosmos/ledger-cosmos-go/compare/v0.14.0...v1.0.0\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `github.com/davecgh/go-spew` from 1.1.1 to\n1.1.2-0.20180830191138-d8f796af33cc\n<details>\n<summary>Commits</summary>\n<ul>\n<li>See full diff in <a\nhref=\"https://github.com/davecgh/go-spew/commits\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `github.com/decred/dcrd/dcrec/secp256k1/v4` from 4.3.0 to 4.4.0\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/decred/dcrd/commit/f98d08ef138a99711dbbc86c569935ded8d6a986\"><code>f98d08e</code></a>\nsecp256k1: Prepare v4.4.0.</li>\n<li><a\nhref=\"https://github.com/decred/dcrd/commit/cb51153239a666e46f98c6834fdd7ea71d086221\"><code>cb51153</code></a>\nmixing: Prepare v0.5.0.</li>\n<li><a\nhref=\"https://github.com/decred/dcrd/commit/35c5572f652a1837326c85d9c8811f1394ddea2e\"><code>35c5572</code></a>\ncrypto/rand: Prepare v1.0.1.</li>\n<li><a\nhref=\"https://github.com/decred/dcrd/commit/1ddfc95a4dc8e0139aa7a6af863a0f2b64e86638\"><code>1ddfc95</code></a>\nmixclient: Wait for runs to finish before closing client</li>\n<li><a\nhref=\"https://github.com/decred/dcrd/commit/b77edc3a837d42ea46e0bfecb05189feecd7de4c\"><code>b77edc3</code></a>\nmixclient: Wait for KEs from all attempted sessions</li>\n<li><a\nhref=\"https://github.com/decred/dcrd/commit/921b7c30aec1a1fde2afef1dfc82b70cf8e16d73\"><code>921b7c3</code></a>\ndocs: Update README.md to required Go 1.23/1.24.</li>\n<li><a\nhref=\"https://github.com/decred/dcrd/commit/bcb663b5aaf8ab63699e2669b90e94c7e872ef1d\"><code>bcb663b</code></a>\nbuild: Test against Go 1.24.</li>\n<li><a\nhref=\"https://github.com/decred/dcrd/commit/53648fbb64ed48aead8b3619bdd24392891fe1f6\"><code>53648fb</code></a>\nbuild: Update golangci-lint to v1.64.5.</li>\n<li><a\nhref=\"https://github.com/decred/dcrd/commit/ecc32f7dcccc77331dde0a2c4725288f6a678e7e\"><code>ecc32f7</code></a>\ncertgen: Use t.TempDir in tests.</li>\n<li><a\nhref=\"https://github.com/decred/dcrd/commit/a7466552329ebddbaf7abfe18e4c89477eaa11f8\"><code>a746655</code></a>\nbuild: Update to latest action versions.</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/decred/dcrd/compare/dcrec/secp256k1/v4.3.0...dcrec/secp256k1/v4.4.0\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `github.com/emicklei/dot` from 1.6.2 to 1.10.0\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/emicklei/dot/blob/master/CHANGES.md\">github.com/emicklei/dot's\nchangelog</a>.</em></p>\n<blockquote>\n<h2>v1.10.0 - 2025-12-03</h2>\n<ul>\n<li>add Node.Apply</li>\n<li>add Edge.Apply</li>\n<li>handle Mermaid linkStyle for Edge</li>\n<li>handle Mermaid animate for Edge</li>\n<li>spaces around Mermaid edges</li>\n</ul>\n<h2>v1.9.2 - 2025-10-07</h2>\n<ul>\n<li>add Node.HasDefaultLabel()</li>\n</ul>\n<h2>v1.9.1 - 2025-09-14</h2>\n<ul>\n<li>do not use exe permission on exported dot files (thx come-maiz)</li>\n</ul>\n<h2>v1.9.0 - 2025-07-25</h2>\n<ul>\n<li>add Graph.WalkEdges(func(edge Edge) bool)</li>\n</ul>\n<h2>v1.8.0</h2>\n<ul>\n<li>add Graph.DeepCopy(func(edge Edge) bool) (thx <a\nhref=\"https://github.com/jasonmadigan\"><code>@​jasonmadigan</code></a>)</li>\n</ul>\n<h2>v1.7.0</h2>\n<ul>\n<li>add GetAttributes (Node and Edge) (thx <a\nhref=\"https://github.com/jasonmadigan\"><code>@​jasonmadigan</code></a>)</li>\n</ul>\n<h2>v1.6.4</h2>\n<ul>\n<li>fix mermaid generation with string shape in node (issue <a\nhref=\"https://redirect.github.com/emicklei/dot/issues/40\">#40</a>)</li>\n</ul>\n<h2>v1.6.3</h2>\n<ul>\n<li>fix empty label for mermaid</li>\n<li>allow link attribute for edge in mermaid</li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/emicklei/dot/commit/498a54443dafe67d08829fe46a7093bca1e35bbb\"><code>498a544</code></a>\nupdate mermaid attr examples</li>\n<li><a\nhref=\"https://github.com/emicklei/dot/commit/18ea73f697d648a3c00b7500399df4f0073a2844\"><code>18ea73f</code></a>\nadd Apply,linkStyle,animate</li>\n<li><a\nhref=\"https://github.com/emicklei/dot/commit/90f43ba0a340cf4de3f628f58c0647111a0b12d3\"><code>90f43ba</code></a>\nadd Node.HasDefaultLabel()</li>\n<li><a\nhref=\"https://github.com/emicklei/dot/commit/cc10c09582d5b65ba1319cf2f47bae140b99629c\"><code>cc10c09</code></a>\nfix flaky test due to map order</li>\n<li><a\nhref=\"https://github.com/emicklei/dot/commit/c803cf523fe705bde4cc62557bd7eec64dafd95e\"><code>c803cf5</code></a>\nclean up files after test</li>\n<li><a\nhref=\"https://github.com/emicklei/dot/commit/67f2dc8733a1d435092a488d4a4cc7e1c4b35136\"><code>67f2dc8</code></a>\nWrite files without execution permission (<a\nhref=\"https://redirect.github.com/emicklei/dot/issues/44\">#44</a>)</li>\n<li><a\nhref=\"https://github.com/emicklei/dot/commit/6eb95e12cb6d03c5add90cc43cc78a80bd39e15c\"><code>6eb95e1</code></a>\nfix edge walk</li>\n<li><a\nhref=\"https://github.com/emicklei/dot/commit/491db7f62cc3f3efdde2b50d9024948071fbc127\"><code>491db7f</code></a>\nadd WalkEdges</li>\n<li><a\nhref=\"https://github.com/emicklei/dot/commit/257576b148c4f91cf4f21ed46eb2768f62fdf8f7\"><code>257576b</code></a>\nupdate hist</li>\n<li><a\nhref=\"https://github.com/emicklei/dot/commit/4ecf62eff316639eac92a6e981f61635ea00459e\"><code>4ecf62e</code></a>\nadded deepcopy (<a\nhref=\"https://redirect.github.com/emicklei/dot/issues/42\">#42</a>)</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/emicklei/dot/compare/v1.6.2...v1.10.0\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `github.com/gofrs/flock` from 0.12.1 to 0.13.0\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/gofrs/flock/releases\">github.com/gofrs/flock's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v0.13.0</h2>\n<h2>What's Changed</h2>\n<p>Minimum Go version 1.24</p>\n<ul>\n<li>feat: add Stat method by <a\nhref=\"https://github.com/ferhatelmas\"><code>@​ferhatelmas</code></a> in\n<a\nhref=\"https://redirect.github.com/gofrs/flock/pull/127\">gofrs/flock#127</a></li>\n<li>chore(deps): bump golang.org/x/sys from 0.22.0 to 0.37.0</li>\n</ul>\n<p><strong>Full Changelog</strong>: <a\nhref=\"https://github.com/gofrs/flock/compare/v0.12.1...v0.13.0\">https://github.com/gofrs/flock/compare/v0.12.1...v0.13.0</a></p>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/gofrs/flock/commit/bfec60bb026171031050af631b6dec974f14e9fa\"><code>bfec60b</code></a>\nchore(deps): bump golang.org/x/sys from 0.36.0 to 0.37.0 in the gomod\ngroup (...</li>\n<li><a\nhref=\"https://github.com/gofrs/flock/commit/7094284415ad11369be4662a7c12be25963b4ea5\"><code>7094284</code></a>\nchore: update linter</li>\n<li><a\nhref=\"https://github.com/gofrs/flock/commit/8111aec69ca1501f26bb5198ed02673e87806e65\"><code>8111aec</code></a>\nfeat: add Stat method (<a\nhref=\"https://redirect.github.com/gofrs/flock/issues/127\">#127</a>)</li>\n<li><a\nhref=\"https://github.com/gofrs/flock/commit/6f0f0ed4e14d546b238ae500710aba38b924e135\"><code>6f0f0ed</code></a>\nchore(deps): bump the github-actions group with 4 updates (<a\nhref=\"https://redirect.github.com/gofrs/flock/issues/126\">#126</a>)</li>\n<li><a\nhref=\"https://github.com/gofrs/flock/commit/fe44231e563ec57fda028bc2484140fb1f24a6d1\"><code>fe44231</code></a>\nchore(deps): bump golang.org/x/sys from 0.35.0 to 0.36.0 in the gomod\ngroup (...</li>\n<li><a\nhref=\"https://github.com/gofrs/flock/commit/f74f0fb0332646c6b3730bfe9cce6fc0badc52c6\"><code>f74f0fb</code></a>\nchore(deps): bump github.com/stretchr/testify from 1.10.0 to 1.11.1 in\nthe go...</li>\n<li><a\nhref=\"https://github.com/gofrs/flock/commit/c1f6d161c8e3b29a4d612e34ff17b37d00d4cd2f\"><code>c1f6d16</code></a>\nchore(deps): bump golang.org/x/sys from 0.34.0 to 0.35.0 in the gomod\ngroup (...</li>\n<li><a\nhref=\"https://github.com/gofrs/flock/commit/c542c57ff5f6af1d62b6864144170b612731796a\"><code>c542c57</code></a>\nchore(deps): bump github/codeql-action from 3.29.2 to 3.29.5 in the\ngithub-ac...</li>\n<li><a\nhref=\"https://github.com/gofrs/flock/commit/425570ba9b698b04bb9506c4906f137fb34ac7e0\"><code>425570b</code></a>\nchore(deps): bump golang.org/x/sys from 0.33.0 to 0.34.0 in the gomod\ngroup (...</li>\n<li><a\nhref=\"https://github.com/gofrs/flock/commit/12753ea298e1aeb97f0881ff3fc07eabcb2b86e5\"><code>12753ea</code></a>\nchore(deps): bump github/codeql-action from 3.28.18 to 3.29.2 in the\ngithub-a...</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/gofrs/flock/compare/v0.12.1...v0.13.0\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `github.com/pmezard/go-difflib` from 1.0.0 to\n1.0.1-0.20181226105442-5d4384ee4fb2\n<details>\n<summary>Commits</summary>\n<ul>\n<li>See full diff in <a\nhref=\"https://github.com/pmezard/go-difflib/commits\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `github.com/yuin/goldmark` from 1.7.8 to 1.7.13\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/yuin/goldmark/commit/9a7f4c9419f73381f0e7fa6899554fe21c4074cf\"><code>9a7f4c9</code></a>\nfix: panics when negative indent with tabs in fenced code block. Fixes\n<a\nhref=\"https://redirect.github.com/yuin/goldmark/issues/522\">#522</a></li>\n<li><a\nhref=\"https://github.com/yuin/goldmark/commit/96760213a2312b20e0914ed4b79488d5479c1b02\"><code>9676021</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/yuin/goldmark/issues/517\">#517</a>\nfrom wjkoh/add-treeblood</li>\n<li><a\nhref=\"https://github.com/yuin/goldmark/commit/8422226125e68575a7711ab0e3fe9e475ce5666f\"><code>8422226</code></a>\nAdd goldmark-treeblood extension</li>\n<li><a\nhref=\"https://github.com/yuin/goldmark/commit/afcb7ff3664e9957d62aeaba9b90dc439a1d5c1c\"><code>afcb7ff</code></a>\nUpdate issue templates</li>\n<li><a\nhref=\"https://github.com/yuin/goldmark/commit/25aa7730769b0855145addfe7d623eb9afa9d8f1\"><code>25aa773</code></a>\nFixes <a\nhref=\"https://redirect.github.com/yuin/goldmark/issues/509\">#509</a></li>\n<li><a\nhref=\"https://github.com/yuin/goldmark/commit/31bbeb28fd68f795f8890542359fb5090e3adc81\"><code>31bbeb2</code></a>\nCleanup codes</li>\n<li><a\nhref=\"https://github.com/yuin/goldmark/commit/85b270b4721a772ac3c7ec06ba26238c06b50bcc\"><code>85b270b</code></a>\nFixes <a\nhref=\"https://redirect.github.com/yuin/goldmark/issues/503\">#503</a></li>\n<li><a\nhref=\"https://github.com/yuin/goldmark/commit/af6c0b5d619008eff8630f092143286355894cd8\"><code>af6c0b5</code></a>\nFix bug in AST names</li>\n<li><a\nhref=\"https://github.com/yuin/goldmark/commit/6951ff3bd1825c85dc9a0197ff9b33825588c26f\"><code>6951ff3</code></a>\nImprove static map builds</li>\n<li><a\nhref=\"https://github.com/yuin/goldmark/commit/04410ff159c9f5fd61c2988402355e44ec9197f5\"><code>04410ff</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/yuin/goldmark/issues/487\">#487</a>\nfrom n-peugnet/patch-1</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/yuin/goldmark/compare/v1.7.8...v1.7.13\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `go.etcd.io/bbolt` from 1.3.11 to 1.4.3\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/etcd-io/bbolt/releases\">go.etcd.io/bbolt's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v1.4.3</h2>\n<p>See the <a\nhref=\"https://github.com/etcd-io/bbolt/blob/main/CHANGELOG/CHANGELOG-1.4.md#v1432025-08-19\">CHANGELOG/v1.4.3</a>\nfor more details.</p>\n<h2>v1.4.2</h2>\n<p>See the <a\nhref=\"https://github.com/etcd-io/bbolt/blob/main/CHANGELOG/CHANGELOG-1.4.md#v1422025-06-27\">CHANGELOG/v1.4.2</a>\nfor more details.</p>\n<h2>v1.4.1</h2>\n<p>See the <a\nhref=\"https://github.com/etcd-io/bbolt/blob/main/CHANGELOG/CHANGELOG-1.4.md#v1412025-06-10\">CHANGELOG/v1.4.1</a>\nfor more details.</p>\n<h2>v1.4.0</h2>\n<p>See the <a\nhref=\"https://github.com/etcd-io/bbolt/blob/main/CHANGELOG/CHANGELOG-1.4.md#v1402025-02-05\">CHANGELOG/v1.4.0</a>\nfor more details.</p>\n<h2>v1.4.0-beta.0</h2>\n<p>See the <a\nhref=\"https://github.com/etcd-io/bbolt/blob/main/CHANGELOG/CHANGELOG-1.4.md#v140-beta02024-11-04\">CHANGELOG/v1.4.0-beta.0</a>\nfor more details.</p>\n<h2>v1.3.12</h2>\n<p>See the <a\nhref=\"https://github.com/etcd-io/bbolt/blob/main/CHANGELOG/CHANGELOG-1.3.md#v13122025-08-19\">CHANGELOG/v1.3.12</a>\nfor more details.</p>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/etcd-io/bbolt/commit/68e6b96e6b74ebc396ac1aa7186c92e616960bd1\"><code>68e6b96</code></a>\nUpdate version to v1.4.3</li>\n<li><a\nhref=\"https://github.com/etcd-io/bbolt/commit/599de69b93e15d16f9b2a46c3e1b6819d5ca9890\"><code>599de69</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/etcd-io/bbolt/issues/1058\">#1058</a>\nfrom ahrtr/20250818_writeto_1.4</li>\n<li><a\nhref=\"https://github.com/etcd-io/bbolt/commit/8fd1b83bf70c9ae0f8aeedc8560dc6e9381a9dea\"><code>8fd1b83</code></a>\nUpdate (*Tx)WriteTo to reuse the already opened file if WriteFlag not\nset</li>\n<li><a\nhref=\"https://github.com/etcd-io/bbolt/commit/76cd3d49f2412b69e462a9a839448038a9e20409\"><code>76cd3d4</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/etcd-io/bbolt/issues/1049\">#1049</a>\nfrom hwdef/release14-bump-go-12312</li>\n<li><a\nhref=\"https://github.com/etcd-io/bbolt/commit/af33d7d4708aada6929f01efa4209497835f45ec\"><code>af33d7d</code></a>\nBump Go to 1.23.12</li>\n<li><a\nhref=\"https://github.com/etcd-io/bbolt/commit/60b43b81831cece156e24dda2b772f1565a6ff31\"><code>60b43b8</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/etcd-io/bbolt/issues/1050\">#1050</a>\nfrom Elbehery/20250811_bump_windows_timeout</li>\n<li><a\nhref=\"https://github.com/etcd-io/bbolt/commit/79638fd413e2c0e4b33f1c04b53de28c684be445\"><code>79638fd</code></a>\n[release-1.4]:chore(test): bump_windows_test_timeout</li>\n<li><a\nhref=\"https://github.com/etcd-io/bbolt/commit/804e1709676dcf57e5aa35fa011f3757c91ffb6d\"><code>804e170</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/etcd-io/bbolt/issues/1046\">#1046</a>\nfrom ahrtr/20250809_hugesize_test_1.4</li>\n<li><a\nhref=\"https://github.com/etcd-io/bbolt/commit/0307cfd51edc3f6757a8a5a4896eeb9f1907646c\"><code>0307cfd</code></a>\nFix test case TestDB_HugeValue for 32 bit systems</li>\n<li><a\nhref=\"https://github.com/etcd-io/bbolt/commit/4c57e50812d1759c2ebab0ddb92e6b37a93af09a\"><code>4c57e50</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/etcd-io/bbolt/issues/1024\">#1024</a>\nfrom hwdef/bump-go-12311-release-14</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/etcd-io/bbolt/compare/v1.3.11...v1.4.3\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `go.opentelemetry.io/otel` from 1.38.0 to 1.39.0\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/blob/main/CHANGELOG.md\">go.opentelemetry.io/otel's\nchangelog</a>.</em></p>\n<blockquote>\n<h2>[1.39.0/0.61.0/0.15.0/0.0.14] 2025-12-05</h2>\n<h3>Added</h3>\n<ul>\n<li>Greatly reduce the cost of recording metrics in\n<code>go.opentelemetry.io/otel/sdk/metric</code> using hashing for map\nkeys. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7175\">#7175</a>)</li>\n<li>Add <code>WithInstrumentationAttributeSet</code> option to\n<code>go.opentelemetry.io/otel/log</code>,\n<code>go.opentelemetry.io/otel/metric</code>, and\n<code>go.opentelemetry.io/otel/trace</code> packages.\nThis provides a concurrent-safe and performant alternative to\n<code>WithInstrumentationAttributes</code> by accepting a\npre-constructed <code>attribute.Set</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7287\">#7287</a>)</li>\n<li>Add experimental observability for the Prometheus exporter in\n<code>go.opentelemetry.io/otel/exporters/prometheus</code>.\nCheck the\n<code>go.opentelemetry.io/otel/exporters/prometheus/internal/x</code>\npackage documentation for more information. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7345\">#7345</a>)</li>\n<li>Add experimental observability metrics in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7353\">#7353</a>)</li>\n<li>Add temporality selector functions\n<code>DeltaTemporalitySelector</code>,\n<code>CumulativeTemporalitySelector</code>,\n<code>LowMemoryTemporalitySelector</code> to\n<code>go.opentelemetry.io/otel/sdk/metric</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7434\">#7434</a>)</li>\n<li>Add experimental observability metrics for simple log processor in\n<code>go.opentelemetry.io/otel/sdk/log</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7548\">#7548</a>)</li>\n<li>Add experimental observability metrics in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7459\">#7459</a>)</li>\n<li>Add experimental observability metrics in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7486\">#7486</a>)</li>\n<li>Add experimental observability metrics for simple span processor in\n<code>go.opentelemetry.io/otel/sdk/trace</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7374\">#7374</a>)</li>\n<li>Add experimental observability metrics in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7512\">#7512</a>)</li>\n<li>Add experimental observability metrics for manual reader in\n<code>go.opentelemetry.io/otel/sdk/metric</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7524\">#7524</a>)</li>\n<li>Add experimental observability metrics for periodic reader in\n<code>go.opentelemetry.io/otel/sdk/metric</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7571\">#7571</a>)</li>\n<li>Support <code>OTEL_EXPORTER_OTLP_LOGS_INSECURE</code> and\n<code>OTEL_EXPORTER_OTLP_INSECURE</code> environmental variables in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7608\">#7608</a>)</li>\n<li>Add <code>Enabled</code> method to the <code>Processor</code>\ninterface in <code>go.opentelemetry.io/otel/sdk/log</code>.\nAll <code>Processor</code> implementations now include an\n<code>Enabled</code> method. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7639\">#7639</a>)</li>\n<li>The <code>go.opentelemetry.io/otel/semconv/v1.38.0</code> package.\nThe package contains semantic conventions from the <code>v1.38.0</code>\nversion of the OpenTelemetry Semantic Conventions.\nSee the <a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/blob/main/semconv/v1.38.0/MIGRATION.md\">migration\ndocumentation</a> for information on how to upgrade from\n<code>go.opentelemetry.io/otel/semconv/v1.37.0.</code>(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7648\">#7648</a>)</li>\n</ul>\n<h3>Changed</h3>\n<ul>\n<li><code>Distinct</code> in\n<code>go.opentelemetry.io/otel/attribute</code> is no longer guaranteed\nto uniquely identify an attribute set.\nCollisions between <code>Distinct</code> values for different Sets are\npossible with extremely high cardinality (billions of series per\ninstrument), but are highly unlikely. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7175\">#7175</a>)</li>\n<li><code>WithInstrumentationAttributes</code> in\n<code>go.opentelemetry.io/otel/trace</code> synchronously de-duplicates\nthe passed attributes instead of delegating it to the returned\n<code>TracerOption</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7266\">#7266</a>)</li>\n<li><code>WithInstrumentationAttributes</code> in\n<code>go.opentelemetry.io/otel/meter</code> synchronously de-duplicates\nthe passed attributes instead of delegating it to the returned\n<code>MeterOption</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7266\">#7266</a>)</li>\n<li><code>WithInstrumentationAttributes</code> in\n<code>go.opentelemetry.io/otel/log</code> synchronously de-duplicates\nthe passed attributes instead of delegating it to the returned\n<code>LoggerOption</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7266\">#7266</a>)</li>\n<li>Rename the <code>OTEL_GO_X_SELF_OBSERVABILITY</code> environment\nvariable to <code>OTEL_GO_X_OBSERVABILITY</code> in\n<code>go.opentelemetry.io/otel/sdk/trace</code>,\n<code>go.opentelemetry.io/otel/sdk/log</code>, and\n<code>go.opentelemetry.io/otel/exporters/stdout/stdouttrace</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7302\">#7302</a>)</li>\n<li>Improve performance of histogram <code>Record</code> in\n<code>go.opentelemetry.io/otel/sdk/metric</code> when min and max are\ndisabled using <code>NoMinMax</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7306\">#7306</a>)</li>\n<li>Improve error handling for dropped data during translation by using\n<code>prometheus.NewInvalidMetric</code> in\n<code>go.opentelemetry.io/otel/exporters/prometheus</code>.\n⚠️ <strong>Breaking Change:</strong> Previously, these cases were only\nlogged and scrapes succeeded.\nNow, when translation would drop data (e.g., invalid label/value), the\nexporter emits a <code>NewInvalidMetric</code>, and Prometheus scrapes\n<strong>fail with HTTP 500</strong> by default.\nTo preserve the prior behavior (scrapes succeed while errors are\nlogged), configure your Prometheus HTTP handler with:\n<code>promhttp.HandlerOpts{ ErrorHandling: promhttp.ContinueOnError\n}</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7363\">#7363</a>)</li>\n<li>Replace fnv hash with xxhash in\n<code>go.opentelemetry.io/otel/attribute</code> for better performance.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7371\">#7371</a>)</li>\n<li>The default <code>TranslationStrategy</code> in\n<code>go.opentelemetry.io/exporters/prometheus</code> is changed from\n<code>otlptranslator.NoUTF8EscapingWithSuffixes</code> to\n<code>otlptranslator.UnderscoreEscapingWithSuffixes</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7421\">#7421</a>)</li>\n<li>Improve performance of concurrent measurements in\n<code>go.opentelemetry.io/otel/sdk/metric</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7427\">#7427</a>)</li>\n<li>Include W3C TraceFlags (bits 0–7) in the OTLP\n<code>Span.Flags</code> field in\n<code>go.opentelemetry.io/exporters/otlp/otlptrace/otlptracehttp</code>\nand\n<code>go.opentelemetry.io/exporters/otlp/otlptrace/otlptracegrpc</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7438\">#7438</a>)</li>\n<li>The <code>ErrorType</code> function in\n<code>go.opentelemetry.io/otel/semconv/v1.37.0</code> now handles custom\nerror types.\nIf an error implements an <code>ErrorType() string</code> method, the\nreturn value of that method will be used as the error type. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7442\">#7442</a>)</li>\n</ul>\n<h3>Fixed</h3>\n<ul>\n<li>Fix <code>WithInstrumentationAttributes</code> options in\n<code>go.opentelemetry.io/otel/trace</code>,\n<code>go.opentelemetry.io/otel/metric</code>, and\n<code>go.opentelemetry.io/otel/log</code> to properly merge attributes\nwhen passed multiple times instead of replacing them.\nAttributes with duplicate keys will use the last value passed. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7300\">#7300</a>)</li>\n<li>The equality of <code>attribute.Set</code> when using the\n<code>Equal</code> method is not affected by the user overriding the\nempty set pointed to by <code>attribute.EmptySet</code> in\n<code>go.opentelemetry.io/otel/attribute</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7357\">#7357</a>)</li>\n</ul>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/6ce14298b9d58647295280560205307768400496\"><code>6ce1429</code></a>\nRelease v1.39.0 (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7676\">#7676</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/12e421a7061c1ab5c25a1851ca168e1c3ac11bbb\"><code>12e421a</code></a>\nsdk/log: move Enabled method from FilterProcessor to Processor (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7639\">#7639</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/5982f16d244fafebffcfc92b4673dbeb565b4e7b\"><code>5982f16</code></a>\nfix(deps): update module golang.org/x/sys to v0.39.0 (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7684\">#7684</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/928837830da34dea636b48a468149d480cc41058\"><code>9288378</code></a>\nchore(deps): update module golang.org/x/sync to v0.19.0 (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7683\">#7683</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/ee3dfef45d9462e209d92e0651a58d2417c1305f\"><code>ee3dfef</code></a>\nchore(deps): update github.com/securego/gosec/v2 digest to 41f28e2 (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7682\">#7682</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/9345d1f64d874fa8df5f6ca4e14acaeb44532cd3\"><code>9345d1f</code></a>\nfix(deps): update module github.com/golangci/golangci-lint/v2 to v2.7.2\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7680\">#7680</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/d03b03395dc9436d79d5ba7b5ea77053b18a9915\"><code>d03b033</code></a>\nCheck context prior to delaying retry in OTLP exporters (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7678\">#7678</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/61765e78a620994b5922e34e776e029da1a2b983\"><code>61765e7</code></a>\nFix flaky <code>TestClientInstrumentation</code> (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7677\">#7677</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/a54721cc8052fcd497d6f637a463d1aba787012c\"><code>a54721c</code></a>\nchore(deps): update module github.com/go-git/go-billy/v5 to v5.7.0 (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7679\">#7679</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/746d0860d70bb9c1e875afe1c7e41e9060387d46\"><code>746d086</code></a>\nchore(deps): update github/codeql-action action to v4.31.7 (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7675\">#7675</a>)</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/compare/v1.38.0...v1.39.0\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates\n`go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc` from\n1.34.0 to 1.37.0\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/blob/main/CHANGELOG.md\">go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc's\nchangelog</a>.</em></p>\n<blockquote>\n<h2>[1.37.0/0.59.0/0.13.0] 2025-06-25</h2>\n<h3>Added</h3>\n<ul>\n<li>The <code>go.opentelemetry.io/otel/semconv/v1.33.0</code> package.\nThe package contains semantic conventions from the <code>v1.33.0</code>\nversion of the OpenTelemetry Semantic Conventions.\nSee the <a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/blob/main/semconv/v1.33.0/MIGRATION.md\">migration\ndocumentation</a> for information on how to upgrade from\n<code>go.opentelemetry.io/otel/semconv/v1.32.0.</code>(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6799\">#6799</a>)</li>\n<li>The <code>go.opentelemetry.io/otel/semconv/v1.34.0</code> package.\nThe package contains semantic conventions from the <code>v1.34.0</code>\nversion of the OpenTelemetry Semantic Conventions. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6812\">#6812</a>)</li>\n<li>Add metric's schema URL as <code>otel_scope_schema_url</code> label\nin <code>go.opentelemetry.io/otel/exporters/prometheus</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/5947\">#5947</a>)</li>\n<li>Add metric's scope attributes as <code>otel_scope_[attribute]</code>\nlabels in <code>go.opentelemetry.io/otel/exporters/prometheus</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/5947\">#5947</a>)</li>\n<li>Add <code>EventName</code> to <code>EnabledParameters</code> in\n<code>go.opentelemetry.io/otel/log</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6825\">#6825</a>)</li>\n<li>Add <code>EventName</code> to <code>EnabledParameters</code> in\n<code>go.opentelemetry.io/otel/sdk/log</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6825\">#6825</a>)</li>\n<li>Changed handling of\n<code>go.opentelemetry.io/otel/exporters/prometheus</code> metric\nrenaming to add unit suffixes when it doesn't match one of the\npre-defined values in the unit suffix map. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6839\">#6839</a>)</li>\n</ul>\n<h3>Changed</h3>\n<ul>\n<li>The semantic conventions have been upgraded from\n<code>v1.26.0</code> to <code>v1.34.0</code> in\n<code>go.opentelemetry.io/otel/bridge/opentracing</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6827\">#6827</a>)</li>\n<li>The semantic conventions have been upgraded from\n<code>v1.26.0</code> to <code>v1.34.0</code> in\n<code>go.opentelemetry.io/otel/exporters/zipkin</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6829\">#6829</a>)</li>\n<li>The semantic conventions have been upgraded from\n<code>v1.26.0</code> to <code>v1.34.0</code> in\n<code>go.opentelemetry.io/otel/metric</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6832\">#6832</a>)</li>\n<li>The semantic conventions have been upgraded from\n<code>v1.26.0</code> to <code>v1.34.0</code> in\n<code>go.opentelemetry.io/otel/sdk/resource</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6834\">#6834</a>)</li>\n<li>The semantic conventions have been upgraded from\n<code>v1.26.0</code> to <code>v1.34.0</code> in\n<code>go.opentelemetry.io/otel/sdk/trace</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6835\">#6835</a>)</li>\n<li>The semantic conventions have been upgraded from\n<code>v1.26.0</code> to <code>v1.34.0</code> in\n<code>go.opentelemetry.io/otel/trace</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6836\">#6836</a>)</li>\n<li><code>Record.Resource</code> now returns\n<code>*resource.Resource</code> instead of\n<code>resource.Resource</code> in\n<code>go.opentelemetry.io/otel/sdk/log</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6864\">#6864</a>)</li>\n<li>Retry now shows error cause for context timeout in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc</code>,\n<code>go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc</code>,\n<code>go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc</code>,\n<code>go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp</code>,\n<code>go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp</code>,\n<code>go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6898\">#6898</a>)</li>\n</ul>\n<h3>Fixed</h3>\n<ul>\n<li>Stop stripping trailing slashes from configured endpoint URL in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6710\">#6710</a>)</li>\n<li>Stop stripping trailing slashes from configured endpoint URL in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6710\">#6710</a>)</li>\n<li>Stop stripping trailing slashes from configured endpoint URL in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6710\">#6710</a>)</li>\n<li>Stop stripping trailing slashes from configured endpoint URL in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6710\">#6710</a>)</li>\n<li>Validate exponential histogram scale range for Prometheus\ncompatibility in\n<code>go.opentelemetry.io/otel/exporters/prometheus</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6822\">#6822</a>)</li>\n<li>Context cancellation during metric pipeline produce does not corrupt\ndata in <code>go.opentelemetry.io/otel/sdk/metric</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6914\">#6914</a>)</li>\n</ul>\n<h3>Removed</h3>\n<ul>\n<li><code>go.opentelemetry.io/otel/exporters/prometheus</code> no longer\nexports <code>otel_scope_info</code> metric. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6770\">#6770</a>)</li>\n</ul>\n<h2>[0.12.2] 2025-05-22</h2>\n<h3>Fixed</h3>\n<ul>\n<li>Retract <code>v0.12.0</code> release of\n<code>go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc</code>\nmodule that contains invalid dependencies. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6804\">#6804</a>)</li>\n<li>Retract <code>v0.12.0</code> release of\n<code>go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp</code>\nmodule that contains invalid dependencies. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6804\">#6804</a>)</li>\n<li>Retract <code>v0.12.0</code> release of\n<code>go.opentelemetry.io/otel/exporters/stdout/stdoutlog</code> module\nthat contains invalid dependencies. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6804\">#6804</a>)</li>\n</ul>\n<h2>[0.12.1] 2025-05-21</h2>\n<h3>Fixes</h3>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/69e81088ad40f45a0764597326722dea8f3f00a8\"><code>69e8108</code></a>\nRelease 1.37.0/0.59.0/0.13.0 (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6925\">#6925</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/67ca271b2c716fa4b3cc3c9c9c76fa41a1d49429\"><code>67ca271</code></a>\nchore(deps): update golang.org/x/telemetry digest to fef9409 (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6929\">#6929</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/b4fad0aef80597799f0760d516e18a849425e4c9\"><code>b4fad0a</code></a>\nchore(deps): update module github.com/grpc-ecosystem/grpc-gateway/v2 to\nv2.27...</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/553779c161e9bb7bbc1670b3a92a1bf3ceefb859\"><code>553779c</code></a>\nchore: add missing ) in GPG hyperlink (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6928\">#6928</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/351a51f1ed18f0e35b1cf85400834d5c75d71322\"><code>351a51f</code></a>\nUse existing schema URLs in tests (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6924\">#6924</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/a365d8505dcacd384f674bd8a69fa961d0be576a\"><code>a365d85</code></a>\nAdd test for logging from a span in the opentracing bridge (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6919\">#6919</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/787518f061916a334e0175cd7391f02ca5659ff1\"><code>787518f</code></a>\nchore(deps): update google.golang.org/genproto/googleapis/rpc digest to\n513f2...</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/fbfb44a20ffb5d29bd5f6aab670832ed3ee4e7de\"><code>fbfb44a</code></a>\nchore(deps): update golang.org/x (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6923\">#6923</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/98f76937b89ed889763a782428d5c5f499077c46\"><code>98f7693</code></a>\nchore: flatten bridge/opentracing/internal package (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6916\">#6916</a>)</li>\n<li><a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/commit/1b803e1a59be88aec93a2158def43b6964b7a9d5\"><code>1b803e1</code></a>\nfix(deps): update module github.com/prometheus/common to v0.65.0 (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/6921\">#6921</a>)</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/compare/v1.34.0...v1.37.0\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates\n`go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp` from\n1.34.0 to 1.39.0\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/blob/main/CHANGELOG.md\">go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp's\nchangelog</a>.</em></p>\n<blockquote>\n<h2>[1.39.0/0.61.0/0.15.0/0.0.14] 2025-12-05</h2>\n<h3>Added</h3>\n<ul>\n<li>Greatly reduce the cost of recording metrics in\n<code>go.opentelemetry.io/otel/sdk/metric</code> using hashing for map\nkeys. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7175\">#7175</a>)</li>\n<li>Add <code>WithInstrumentationAttributeSet</code> option to\n<code>go.opentelemetry.io/otel/log</code>,\n<code>go.opentelemetry.io/otel/metric</code>, and\n<code>go.opentelemetry.io/otel/trace</code> packages.\nThis provides a concurrent-safe and performant alternative to\n<code>WithInstrumentationAttributes</code> by accepting a\npre-constructed <code>attribute.Set</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7287\">#7287</a>)</li>\n<li>Add experimental observability for the Prometheus exporter in\n<code>go.opentelemetry.io/otel/exporters/prometheus</code>.\nCheck the\n<code>go.opentelemetry.io/otel/exporters/prometheus/internal/x</code>\npackage documentation for more information. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7345\">#7345</a>)</li>\n<li>Add experimental observability metrics in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7353\">#7353</a>)</li>\n<li>Add temporality selector functions\n<code>DeltaTemporalitySelector</code>,\n<code>CumulativeTemporalitySelector</code>,\n<code>LowMemoryTemporalitySelector</code> to\n<code>go.opentelemetry.io/otel/sdk/metric</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7434\">#7434</a>)</li>\n<li>Add experimental observability metrics for simple log processor in\n<code>go.opentelemetry.io/otel/sdk/log</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7548\">#7548</a>)</li>\n<li>Add experimental observability metrics in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7459\">#7459</a>)</li>\n<li>Add experimental observability metrics in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7486\">#7486</a>)</li>\n<li>Add experimental observability metrics for simple span processor in\n<code>go.opentelemetry.io/otel/sdk/trace</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7374\">#7374</a>)</li>\n<li>Add experimental observability metrics in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7512\">#7512</a>)</li>\n<li>Add experimental observability metrics for manual reader in\n<code>go.opentelemetry.io/otel/sdk/metric</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7524\">#7524</a>)</li>\n<li>Add experimental observability metrics for periodic reader in\n<code>go.opentelemetry.io/otel/sdk/metric</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7571\">#7571</a>)</li>\n<li>Support <code>OTEL_EXPORTER_OTLP_LOGS_INSECURE</code> and\n<code>OTEL_EXPORTER_OTLP_INSECURE</code> environmental variables in\n<code>go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7608\">#7608</a>)</li>\n<li>Add <code>Enabled</code> method to the <code>Processor</code>\ninterface in <code>go.opentelemetry.io/otel/sdk/log</code>.\nAll <code>Processor</code> implementations now include an\n<code>Enabled</code> method. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7639\">#7639</a>)</li>\n<li>The <code>go.opentelemetry.io/otel/semconv/v1.38.0</code> package.\nThe package contains semantic conventions from the <code>v1.38.0</code>\nversion of the OpenTelemetry Semantic Conventions.\nSee the <a\nhref=\"https://github.com/open-telemetry/opentelemetry-go/blob/main/semconv/v1.38.0/MIGRATION.md\">migration\ndocumentation</a> for information on how to upgrade from\n<code>go.opentelemetry.io/otel/semconv/v1.37.0.</code>(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7648\">#7648</a>)</li>\n</ul>\n<h3>Changed</h3>\n<ul>\n<li><code>Distinct</code> in\n<code>go.opentelemetry.io/otel/attribute</code> is no longer guaranteed\nto uniquely identify an attribute set.\nCollisions between <code>Distinct</code> values for different Sets are\npossible with extremely high cardinality (billions of series per\ninstrument), but are highly unlikely. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7175\">#7175</a>)</li>\n<li><code>WithInstrumentationAttributes</code> in\n<code>go.opentelemetry.io/otel/trace</code> synchronously de-duplicates\nthe passed attributes instead of delegating it to the returned\n<code>TracerOption</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7266\">#7266</a>)</li>\n<li><code>WithInstrumentationAttributes</code> in\n<code>go.opentelemetry.io/otel/meter</code> synchronously de-duplicates\nthe passed attributes instead of delegating it to the returned\n<code>MeterOption</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7266\">#7266</a>)</li>\n<li><code>WithInstrumentationAttributes</code> in\n<code>go.opentelemetry.io/otel/log</code> synchronously de-duplicates\nthe passed attributes instead of delegating it to the returned\n<code>LoggerOption</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7266\">#7266</a>)</li>\n<li>Rename the <code>OTEL_GO_X_SELF_OBSERVABILITY</code> environment\nvariable to <code>OTEL_GO_X_OBSERVABILITY</code> in\n<code>go.opentelemetry.io/otel/sdk/trace</code>,\n<code>go.opentelemetry.io/otel/sdk/log</code>, and\n<code>go.opentelemetry.io/otel/exporters/stdout/stdouttrace</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7302\">#7302</a>)</li>\n<li>Improve performance of histogram <code>Record</code> in\n<code>go.opentelemetry.io/otel/sdk/metric</code> when min and max are\ndisabled using <code>NoMinMax</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7306\">#7306</a>)</li>\n<li>Improve error handling for dropped data during translation by using\n<code>prometheus.NewInvalidMetric</code> in\n<code>go.opentelemetry.io/otel/exporters/prometheus</code>.\n⚠️ <strong>Breaking Change:</strong> Previously, these cases were only\nlogged and scrapes succeeded.\nNow, when translation would drop data (e.g., invalid label/value), the\nexporter emits a <code>NewInvalidMetric</code>, and Prometheus scrapes\n<strong>fail with HTTP 500</strong> by default.\nTo preserve the prior behavior (scrapes succeed while errors are\nlogged), configure your Prometheus HTTP handler with:\n<code>promhttp.HandlerOpts{ ErrorHandling: promhttp.ContinueOnError\n}</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7363\">#7363</a>)</li>\n<li>Replace fnv hash with xxhash in\n<code>go.opentelemetry.io/otel/attribute</code> for better performance.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7371\">#7371</a>)</li>\n<li>The default <code>TranslationStrategy</code> in\n<code>go.opentelemetry.io/exporters/prometheus</code> is changed from\n<code>otlptranslator.NoUTF8EscapingWithSuffixes</code> to\n<code>otlptranslator.UnderscoreEscapingWithSuffixes</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7421\">#7421</a>)</li>\n<li>Improve performance of concurrent measurements in\n<code>go.opentelemetry.io/otel/sdk/metric</code>. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7427\">#7427</a>)</li>\n<li>Include W3C TraceFlags (bits 0–7) in the OTLP\n<code>Span.Flags</code> field in\n<code>go.opentelemetry.io/exporters/otlp/otlptrace/otlptracehttp</code>\nand\n<code>go.opentelemetry.io/exporters/otlp/otlptrace/otlptracegrpc</code>.\n(<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7438\">#7438</a>)</li>\n<li>The <code>ErrorType</code> function in\n<code>go.opentelemetry.io/otel/semconv/v1.37.0</code> now handles custom\nerror types.\nIf an error implements an <code>ErrorType() string</code> method, the\nreturn value of that method will be used as the error type. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7442\">#7442</a>)</li>\n</ul>\n<h3>Fixed</h3>\n<ul>\n<li>Fix <code>WithInstrumentationAttributes</code> options in\n<code>go.opentelemetry.io/otel/trace</code>,\n<code>go.opentelemetry.io/otel/metric</code>, and\n<code>go.opentelemetry.io/otel/log</code> to properly merge attributes\nwhen passed multiple times instead of replacing them.\nAttributes with duplicate keys will use the last value passed. (<a\nhref=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/7300\">#7300</a>)</li>\n<li>The equality of <code>attribute.Set</code> when using the\n<code>Equal</code> method is not affected by the user overriding the\nem…",
+          "timestamp": "2026-03-03T15:18:59+01:00",
+          "tree_id": "f9aa9de8a37387899303c8239fcea758a142b1e7",
+          "url": "https://github.com/gnolang/gno/commit/e5aab1d62fa9cb7e509180291e4442051c3539a8"
+        },
+        "date": 1772547588661,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4",
+            "value": 10020,
+            "unit": "ns/op\t   11520 B/op\t      36 allocs/op",
+            "extra": "115258 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4 - ns/op",
+            "value": 10020,
+            "unit": "ns/op",
+            "extra": "115258 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4 - B/op",
+            "value": 11520,
+            "unit": "B/op",
+            "extra": "115258 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4 - allocs/op",
+            "value": 36,
+            "unit": "allocs/op",
+            "extra": "115258 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4",
+            "value": 7521,
+            "unit": "ns/op\t   11520 B/op\t      36 allocs/op",
+            "extra": "155227 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4 - ns/op",
+            "value": 7521,
+            "unit": "ns/op",
+            "extra": "155227 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4 - B/op",
+            "value": 11520,
+            "unit": "B/op",
+            "extra": "155227 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4 - allocs/op",
+            "value": 36,
+            "unit": "allocs/op",
+            "extra": "155227 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8",
+            "value": 73508,
+            "unit": "ns/op\t   85761 B/op\t     268 allocs/op",
+            "extra": "16272 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8 - ns/op",
+            "value": 73508,
+            "unit": "ns/op",
+            "extra": "16272 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8 - B/op",
+            "value": 85761,
+            "unit": "B/op",
+            "extra": "16272 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8 - allocs/op",
+            "value": 268,
+            "unit": "allocs/op",
+            "extra": "16272 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8",
+            "value": 55275,
+            "unit": "ns/op\t   85761 B/op\t     268 allocs/op",
+            "extra": "20649 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8 - ns/op",
+            "value": 55275,
+            "unit": "ns/op",
+            "extra": "20649 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8 - B/op",
+            "value": 85761,
+            "unit": "B/op",
+            "extra": "20649 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8 - allocs/op",
+            "value": 268,
+            "unit": "allocs/op",
+            "extra": "20649 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16",
+            "value": 3477252,
+            "unit": "ns/op\t 4087135 B/op\t   12772 allocs/op",
+            "extra": "343 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16 - ns/op",
+            "value": 3477252,
+            "unit": "ns/op",
+            "extra": "343 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16 - B/op",
+            "value": 4087135,
+            "unit": "B/op",
+            "extra": "343 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16 - allocs/op",
+            "value": 12772,
+            "unit": "allocs/op",
+            "extra": "343 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16",
+            "value": 2623640,
+            "unit": "ns/op\t 4087131 B/op\t   12773 allocs/op",
+            "extra": "454 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16 - ns/op",
+            "value": 2623640,
+            "unit": "ns/op",
+            "extra": "454 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16 - B/op",
+            "value": 4087131,
+            "unit": "B/op",
+            "extra": "454 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16 - allocs/op",
+            "value": 12773,
+            "unit": "allocs/op",
+            "extra": "454 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno",
+            "value": 92.79,
+            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
+            "extra": "13036048 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno - ns/op",
+            "value": 92.79,
+            "unit": "ns/op",
+            "extra": "13036048 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "13036048 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "13036048 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno",
+            "value": 91.89,
+            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
+            "extra": "13050394 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno - ns/op",
+            "value": 91.89,
+            "unit": "ns/op",
+            "extra": "13050394 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "13050394 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "13050394 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3",
+            "value": 216433,
+            "unit": "ns/op\t  108866 B/op\t     534 allocs/op",
+            "extra": "5845 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3 - ns/op",
+            "value": 216433,
+            "unit": "ns/op",
+            "extra": "5845 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3 - B/op",
+            "value": 108866,
+            "unit": "B/op",
+            "extra": "5845 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3 - allocs/op",
+            "value": 534,
+            "unit": "allocs/op",
+            "extra": "5845 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3",
+            "value": 165404,
+            "unit": "ns/op\t  108866 B/op\t     534 allocs/op",
+            "extra": "6614 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3 - ns/op",
+            "value": 165404,
+            "unit": "ns/op",
+            "extra": "6614 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3 - B/op",
+            "value": 108866,
+            "unit": "B/op",
+            "extra": "6614 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3 - allocs/op",
+            "value": 534,
+            "unit": "allocs/op",
+            "extra": "6614 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4",
+            "value": 583286,
+            "unit": "ns/op\t  287192 B/op\t    1180 allocs/op",
+            "extra": "2102 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4 - ns/op",
+            "value": 583286,
+            "unit": "ns/op",
+            "extra": "2102 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4 - B/op",
+            "value": 287192,
+            "unit": "B/op",
+            "extra": "2102 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4 - allocs/op",
+            "value": 1180,
+            "unit": "allocs/op",
+            "extra": "2102 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4",
+            "value": 448702,
+            "unit": "ns/op\t  287191 B/op\t    1180 allocs/op",
+            "extra": "2569 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4 - ns/op",
+            "value": 448702,
+            "unit": "ns/op",
+            "extra": "2569 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4 - B/op",
+            "value": 287191,
+            "unit": "B/op",
+            "extra": "2569 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4 - allocs/op",
+            "value": 1180,
+            "unit": "allocs/op",
+            "extra": "2569 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5",
+            "value": 2106385,
+            "unit": "ns/op\t 1137046 B/op\t    4142 allocs/op",
+            "extra": "564 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5 - ns/op",
+            "value": 2106385,
+            "unit": "ns/op",
+            "extra": "564 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5 - B/op",
+            "value": 1137046,
+            "unit": "B/op",
+            "extra": "564 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5 - allocs/op",
+            "value": 4142,
+            "unit": "allocs/op",
+            "extra": "564 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5",
+            "value": 1629344,
+            "unit": "ns/op\t 1137041 B/op\t    4142 allocs/op",
+            "extra": "729 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5 - ns/op",
+            "value": 1629344,
+            "unit": "ns/op",
+            "extra": "729 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5 - B/op",
+            "value": 1137041,
+            "unit": "B/op",
+            "extra": "729 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5 - allocs/op",
+            "value": 4142,
+            "unit": "allocs/op",
+            "extra": "729 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6",
+            "value": 10782953,
+            "unit": "ns/op\t 6302266 B/op\t   22022 allocs/op",
+            "extra": "100 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6 - ns/op",
+            "value": 10782953,
+            "unit": "ns/op",
+            "extra": "100 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6 - B/op",
+            "value": 6302266,
+            "unit": "B/op",
+            "extra": "100 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6 - allocs/op",
+            "value": 22022,
+            "unit": "allocs/op",
+            "extra": "100 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6",
+            "value": 8362265,
+            "unit": "ns/op\t 6302223 B/op\t   22022 allocs/op",
+            "extra": "142 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6 - ns/op",
+            "value": 8362265,
             "unit": "ns/op",
             "extra": "142 times\n2 procs"
           },
