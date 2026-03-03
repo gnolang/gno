@@ -5,7 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"chain"
+
 	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/uassert"
 	"gno.land/p/nt/urequire"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -70,7 +73,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T3, portfolio))
 	})
 
-	urequire.AbortsWithMessage(t, "proposer is not a member", func(cur realm) {
+	uassert.AbortsContains(t, "proposal creation must be done directly by a user or through the r/gov/dao proxy", func(cur realm) {
 		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
 	})
 
@@ -246,9 +249,8 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	testing.SetOriginCaller(noMember)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
-		NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
-	})
+	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: ProposalFeeAmount}}) // 1 GNOT
+	NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
@@ -304,6 +306,38 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	urequire.Equal(t, true, accepted)
 	urequire.Equal(t, true, contains(dao.Render("8"), "**PROPOSAL HAS BEEN ACCEPTED**"))
 	urequire.Equal(t, true, contains(dao.Render("8"), "YES PERCENT: 68.42105263157895%"))
+}
+
+func TestNonMemberProposalFee(cur realm, t *testing.T) {
+	loadMembers()
+
+	portfolio := "# This is my portfolio:\n\n- THINGS"
+
+	testing.SetOriginCaller(noMember)
+
+	// Test: Non-member without fee should fail with fee message
+	_, err := govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.Error(t, err)
+	urequire.ErrorContains(t, err, "non-members must send 1000000ugnot to create a proposal")
+
+	// Test: Non-member with insufficient fee should fail
+	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: 500000}}) // 0.5 GNOT - insufficient
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.Error(t, err)
+	urequire.ErrorContains(t, err, "non-members must send 1000000ugnot to create a proposal")
+
+	// Test: Non-member with correct fee should succeed
+	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: ProposalFeeAmount}}) // 1 GNOT
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.NoError(t, err)
+
+	// Reset OrigSend
+	testing.SetOriginSend(chain.Coins{})
+
+	// Test: Members don't need to pay a fee
+	testing.SetOriginCaller(m1)
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, m1, memberstore.T2, portfolio))
+	urequire.NoError(t, err)
 }
 
 func contains(s, substr string) bool {

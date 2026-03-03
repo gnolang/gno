@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"chain/runtime"
 	"strings"
 
 	"gno.land/p/aeddi/panictoerr"
@@ -15,11 +14,6 @@ import (
 )
 
 func NewChangeLawRequest(_ realm, newLaw Law) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
-	if member == nil {
-		panic("proposer is not a member")
-	}
-
 	cb := func(_ realm) error {
 		law = &newLaw
 		return nil
@@ -31,11 +25,6 @@ func NewChangeLawRequest(_ realm, newLaw Law) dao.ProposalRequest {
 }
 
 func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
-	if member == nil {
-		panic("proposer is not a member")
-	}
-
 	cb := func(_ realm) error {
 		// dao.UpdateImpl() must be cross-called from v3/impl but
 		// what calls this cb function is r/gov/dao.
@@ -67,17 +56,7 @@ func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) d
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
-	if member == nil {
-		panic("proposer is not a member")
-	}
-
-	if member.InvitationPoints <= 0 {
-		panic("proposer does not have enough invitation points for inviting new people to the board")
-	}
-
 	cb := func(_ realm) error {
-		member.RemoveInvitationPoint()
 		err := memberstore.Get().SetMember(tier, addr, memberByTier(tier))
 
 		return err
@@ -211,6 +190,43 @@ func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
 		ufmt.Sprintf(
 			"This proposal is looking to update the list of GRC20 tokens used by the treasury.\n\nNew Token Keys:\n%s",
 			bulletList,
+		),
+		e,
+	)
+}
+
+// NewProposalFeeAmountRequest creates a proposal request to update the proposal fee amount
+// required for non-members to create proposals.
+func NewProposalFeeAmountRequest(newAmount int64, reason string) dao.ProposalRequest {
+	if newAmount < 0 {
+		panic("proposal fee amount must be non-negative")
+	}
+
+	if reason == "" {
+		panic("proposal fee amount change requires a reason")
+	}
+
+	cb := func(_ realm) error {
+		ProposalFeeAmount = newAmount
+		return nil
+	}
+
+	e := dao.NewSimpleExecutor(
+		cb,
+		ufmt.Sprintf(
+			"The proposal fee amount for non-members will be changed to %d ugnot.\n\nReason: %s",
+			newAmount,
+			reason,
+		),
+	)
+
+	return dao.NewProposalRequest(
+		"Proposal Fee Amount Change",
+		ufmt.Sprintf(
+			"This proposal is looking to change the proposal fee amount for non-members from %d ugnot to %d ugnot.\n\nReason: %s",
+			ProposalFeeAmount,
+			newAmount,
+			reason,
 		),
 		e,
 	)
