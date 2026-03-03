@@ -30,8 +30,8 @@ var (
 	gBoardsSequence = boards.NewIdentifierGenerator()
 	gRealmPath      = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land")
 	gPerms          = initRealmPermissions(
-		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", // @devx
-		"g1manfred47kzduec920z88wfr64ylksmdcedlf5", // @moul
+		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+		"g1manfred47kzduec920z88wfr64ylksmdcedlf5",
 	)
 
 	// TODO: Allow updating open account amount though a proposal (GovDAO, CommonDAO?)
