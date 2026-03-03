@@ -362,11 +362,12 @@ func TestComputeMapKey(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.valX, func(t *testing.T) {
-			m := NewMachine("main", nil)
+			store := NewStore(nil, nil, nil)
+			m := NewMachine("main", store)
 			x := m.MustParseExpr(tc.valX)
 			vals := m.Eval(x)
 			require.Len(t, vals, 1)
-			mk, isNaN := vals[0].ComputeMapKey(nil, false)
+			mk, isNaN := vals[0].ComputeMapKey(store, false)
 			assert.Equal(t, tc.want, mk)
 			assert.Equal(t, tc.isNaN, isNaN)
 		})
@@ -382,13 +383,14 @@ func TestComputeMapKey_collisions(t *testing.T) {
 	}
 	for _, pair := range pairs {
 		t.Run(pair[0]+" vs "+pair[1], func(t *testing.T) {
-			m := NewMachine("main", nil)
+			store := NewStore(nil, nil, nil)
+			m := NewMachine("main", store)
 			v1 := m.Eval(m.MustParseExpr(pair[0]))
 			v2 := m.Eval(m.MustParseExpr(pair[1]))
 			require.Len(t, v1, 1)
 			require.Len(t, v2, 1)
-			mk1, nan1 := v1[0].ComputeMapKey(nil, false)
-			mk2, nan2 := v2[0].ComputeMapKey(nil, false)
+			mk1, nan1 := v1[0].ComputeMapKey(store, false)
+			mk2, nan2 := v2[0].ComputeMapKey(store, false)
 			require.False(t, nan1)
 			require.False(t, nan2)
 			assert.NotEqual(t, mk1, mk2)
