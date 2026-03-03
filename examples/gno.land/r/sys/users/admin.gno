@@ -8,16 +8,30 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-const testControllerPath = "gno.land/r/sys/users/init"
+const initControllerPath = "gno.land/r/sys/users/init"
 
 var controllers = addrset.Set{} // caller whitelist
 
 func init() {
-	// On dev/test chains, auto-whitelist the init controller for bootstrapping.
-	chainID := runtime.ChainID()
-	if chainID == "dev" || chainID == "tendermint_test" {
-		controllers.Add(chain.PackageAddress(testControllerPath))
+	// auto-whitelist the init controller for bootstrapping for testing chain.
+	if chainID := runtime.ChainID(); chainID == "dev" {
+		controllers.Add(chain.PackageAddress(initControllerPath))
 	}
+}
+
+// AddControllerAtGenesis allows adding a controller during chain genesis (height 0).
+// This is mostly useful for testing.
+func AddControllerAtGenesis(_ realm, addr address) {
+	height := runtime.ChainHeight()
+	if height > 0 {
+		panic("AddControllerAtGenesis can only be called at genesis (height 0)")
+	}
+
+	if !addr.IsValid() {
+		panic(ErrInvalidAddress)
+	}
+
+	controllers.Add(addr)
 }
 
 // ProposeNewController allows GovDAO to add a whitelisted caller

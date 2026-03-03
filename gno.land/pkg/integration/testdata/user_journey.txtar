@@ -7,6 +7,9 @@ loadpkg gno.land/r/archive/boards
 loadpkg gno.land/r/sys/users/init
 loadpkg gno.land/r/sys/names
 
+# Bootstrap the init controller for user registration
+genesiscall gno.land/r/sys/users/init Bootstrap
+
 # Override admin address in r/sys/names with test1 address
 patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $test1_user_addr
 

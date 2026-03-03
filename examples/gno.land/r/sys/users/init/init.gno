@@ -1,8 +1,16 @@
-// Package init provides user registration for dev and test chains.
-// It is pre-whitelisted as a controller in r/sys/users.
+// Package init provides basic user registration.
 package init
 
-import "gno.land/r/sys/users"
+import (
+	"chain"
+
+	"gno.land/r/sys/users"
+)
+
+// Bootstrap registers this package as a controller in r/sys/users.
+func Bootstrap(_ realm) {
+	users.AddControllerAtGenesis(cross, chain.PackageAddress("gno.land/r/sys/users/init"))
+}
 
 // RegisterUser registers a new user in r/sys/users.
 func RegisterUser(_ realm, name string, addr address) {

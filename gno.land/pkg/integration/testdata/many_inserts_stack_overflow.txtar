@@ -1,6 +1,9 @@
 loadpkg gno.land/r/archive/boards
 loadpkg gno.land/r/sys/users/init
 
+# Bootstrap the init controller for user registration
+genesiscall gno.land/r/sys/users/init Bootstrap
+
 # start a new node
 gnoland start -no-parallel
 
