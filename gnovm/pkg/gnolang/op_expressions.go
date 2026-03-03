@@ -106,6 +106,10 @@ func (m *Machine) doOpSlice() {
 			return
 		}
 		// simply deref xv.
+		if xv.V == nil {
+			m.pushPanic(typedString("nil pointer dereference"))
+			return
+		}
 		*xv = xv.V.(PointerValue).Deref()
 		// check array also for ro.
 		if !ro {
