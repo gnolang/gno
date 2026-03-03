@@ -674,10 +674,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		if nargs != len(ft.Params) {
 			panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
 		}
+	} else if nargs < len(ft.Params)-1 {
 		// If function is variadic, it must have at least the number of arguments-1.
 		// on the function we can simply avoid the variadic argument.
-	} else if nargs < len(ft.Params)-1 {
-		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params)-1, nargs))
+		panic(fmt.Sprintf("insufficient number of arguments in call to %s: must be at least %d, got %d", fnc, len(ft.Params)-1, nargs))
 	}
 	// Convert Args to gno values.
 	for i, arg := range msg.Args {
