@@ -36,7 +36,7 @@ all subaccounts before the test begins.
 
 Based on the selected mode, supernova constructs and signs transactions.
 
-## Stress Testing Modes
+#### Stress Testing Modes
 
 | Mode | What it Does | Best For |
 |------|--------------|----------|
