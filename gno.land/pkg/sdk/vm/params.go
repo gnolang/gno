@@ -136,6 +136,8 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	switch key {
 	case "p:sysnames_pkgpath":
 		params.SysNamesPkgPath = mustParamString("sysnames_pkgpath", value)
+	case "p:syscla_pkgpath":
+		params.SysCLAPkgPath = mustParamString("syscla_pkgpath", value)
 	case "p:chain_domain":
 		params.ChainDomain = mustParamString("chain_domain", value)
 	case "p:default_deposit":

@@ -66,6 +66,26 @@ func TestWillSetParam(t *testing.T) {
 			isUpdated:   false,
 			isEqual:     false,
 		},
+		// syscla_pkgpath
+		{
+			name:  "update syscla_pkgpath",
+			key:   "syscla_pkgpath",
+			value: "gno.land/r/sys/newcla",
+			getExpectedValue: func(prms Params) string {
+				return prms.SysCLAPkgPath
+			},
+			shouldPanic: false,
+			isUpdated:   true,
+			isEqual:     true,
+		},
+		{
+			name:        "invalid syscla_pkgpath panics",
+			key:         "syscla_pkgpath",
+			value:       "path/to/pkg",
+			shouldPanic: true,
+			isUpdated:   false,
+			isEqual:     false,
+		},
 		// chain_domain
 		{
 			name:  "update chain_domain",
