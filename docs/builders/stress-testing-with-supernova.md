@@ -97,7 +97,7 @@ correlate supernova's transaction metrics with internal node metrics like:
 
 ### Prerequisites
 
-- Go 1.19 or higher
+- Go (see `go.mod` for the minimum version)
 - A running Gno node (e.g., via `gnodev` or `gnoland start`)
 - A funded mnemonic (the first derived address needs funds for distribution)
 
@@ -130,6 +130,10 @@ exhibit title speed wink action roast" \
 
 You can check the results in `results.json`. For production-grade
 testing, increase `-sub-accounts` (50-100) and `-transactions` (5000+).
+
+**Note:** The mnemonic above corresponds to `test1`, which is a pre-registered
+and funded account on default deployments of gno.land (e.g., when using
+`gnodev` or local testnets).
 
 ### CLI Flags
 
