@@ -168,13 +168,10 @@ func TestWillSetParam(t *testing.T) {
 		},
 		// unknown
 		{
-			name:  "unknown param does not panic and does not update",
-			key:   "unknown_param",
-			value: "gno.land/r/foo",
-			getExpectedValue: func(prms Params) string {
-				return prms.SysNamesPkgPath
-			},
-			shouldPanic: false,
+			name:        "unknown param panics",
+			key:         "unknown_param",
+			value:       "gno.land/r/foo",
+			shouldPanic: true,
 			isUpdated:   false,
 			isEqual:     false,
 		},

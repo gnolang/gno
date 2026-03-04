@@ -152,8 +152,7 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		}
 		params.StorageFeeCollector = addr
 	default:
-		// unknown parameter keys are OK
-		return
+		panic(fmt.Sprintf("unknown vm param key: %q", key))
 	}
 	if err := params.Validate(); err != nil {
 		panic("invalid param: " + err.Error())
