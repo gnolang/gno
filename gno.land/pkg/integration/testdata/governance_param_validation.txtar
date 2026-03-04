@@ -27,6 +27,7 @@ stdout OK!
 
 ## Executing the proposal should fail because the value is invalid
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/execute_proposal.gno
+stderr 'invalid param'
 
 ## StoragePrice should remain unchanged
 gnokey query params/vm:p:storage_price
