@@ -1208,3 +1208,93 @@ type initChainApp struct {
 func (m initChainApp) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
 	return m.initChain(req)
 }
+
+// nilReturningBlockStore is a mock that returns nil for LoadBlock/LoadBlockMeta
+// at specified heights, to test nil guard paths.
+type nilReturningBlockStore struct {
+	height         int64
+	nilBlockAt     int64 // height at which LoadBlock returns nil
+	nilBlockMetaAt int64 // height at which LoadBlockMeta returns nil
+}
+
+func (bs *nilReturningBlockStore) Height() int64 { return bs.height }
+func (bs *nilReturningBlockStore) LoadBlock(height int64) *types.Block {
+	if height == bs.nilBlockAt {
+		return nil
+	}
+	return &types.Block{Header: types.Header{Height: height}}
+}
+
+func (bs *nilReturningBlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
+	if height == bs.nilBlockMetaAt {
+		return nil
+	}
+	return &types.BlockMeta{
+		Header: types.Header{Height: height},
+	}
+}
+
+func (bs *nilReturningBlockStore) LoadBlockPart(int64, int) *types.Part { return nil }
+func (bs *nilReturningBlockStore) LoadBlockCommit(int64) *types.Commit  { return nil }
+func (bs *nilReturningBlockStore) LoadSeenCommit(int64) *types.Commit   { return nil }
+func (bs *nilReturningBlockStore) SaveBlock(*types.Block, *types.PartSet, *types.Commit) {
+}
+
+func TestReplayNilGuards(t *testing.T) {
+	t.Parallel()
+
+	testCfg, genesisFile := ResetConfig("replay_nil_guards_test")
+	t.Cleanup(func() { os.RemoveAll(testCfg.RootDir) })
+
+	genesisState, _ := sm.MakeGenesisStateFromFile(genesisFile)
+	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
+
+	tests := []struct {
+		name           string
+		store          *nilReturningBlockStore
+		stateHeight    int64 // override state.LastBlockHeight (0 = use genesis)
+		appBlockHeight int64
+		wantErr        string
+	}{
+		{
+			// replayBlocks loop: storeHeight == stateHeight, appBlockHeight < storeHeight
+			name:           "nil block in replayBlocks loop",
+			store:          &nilReturningBlockStore{height: 5, nilBlockAt: 3},
+			stateHeight:    5,
+			appBlockHeight: 2,
+			wantErr:        "block not found for height 3",
+		},
+		{
+			// replayBlock (singular): storeHeight == stateHeight+1, appBlockHeight == stateHeight
+			name:    "nil block in replayBlock",
+			store:   &nilReturningBlockStore{height: 1, nilBlockAt: 1},
+			wantErr: "block not found for height 1",
+		},
+		{
+			// replayBlock (singular): storeHeight == stateHeight+1, appBlockHeight == stateHeight
+			name:    "nil block meta in replayBlock",
+			store:   &nilReturningBlockStore{height: 1, nilBlockMetaAt: 1},
+			wantErr: "block meta not found for height 1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stateDB := memdb.NewMemDB()
+			state := genesisState
+			state.LastBlockHeight = tt.stateHeight
+			sm.SaveState(stateDB, state)
+
+			handshaker := NewHandshaker(stateDB, state, tt.store, genDoc)
+			handshaker.SetLogger(log.NewNoopLogger())
+
+			proxyApp := appconn.NewAppConns(proxy.NewLocalClientCreator(kvstore.NewKVStoreApplication()))
+			require.NoError(t, proxyApp.Start())
+			defer proxyApp.Stop()
+
+			_, err := handshaker.ReplayBlocks(state, nil, tt.appBlockHeight, proxyApp)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}

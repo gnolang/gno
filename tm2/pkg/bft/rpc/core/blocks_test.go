@@ -3,7 +3,12 @@ package core
 import (
 	"fmt"
 	"testing"
+	"time"
 
+	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -91,4 +96,145 @@ func TestGetHeight(t *testing.T) {
 
 func int64Ptr(v int64) *int64 {
 	return &v
+}
+
+func TestBlockchainInfoHandler(t *testing.T) {
+	t.Run("nil block meta in range", func(t *testing.T) {
+		var storeHeight int64 = 10
+
+		SetLogger(log.NewNoopLogger())
+		SetBlockStore(&mockBlockStore{
+			heightFn: func() int64 { return storeHeight },
+			loadBlockMetaFn: func(h int64) *types.BlockMeta {
+				if h == 8 {
+					return nil // simulate missing block meta at height 8
+				}
+				return &types.BlockMeta{Header: types.Header{Height: h, Time: time.Now()}}
+			},
+		})
+
+		result, err := BlockchainInfo(&rpctypes.Context{}, 5, 10)
+		require.Nil(t, result)
+		assert.ErrorContains(t, err, "block meta not found for height 8")
+	})
+
+	t.Run("all block metas present", func(t *testing.T) {
+		var storeHeight int64 = 5
+
+		SetLogger(log.NewNoopLogger())
+		SetBlockStore(&mockBlockStore{
+			heightFn: func() int64 { return storeHeight },
+			loadBlockMetaFn: func(h int64) *types.BlockMeta {
+				return &types.BlockMeta{Header: types.Header{Height: h, Time: time.Now()}}
+			},
+		})
+
+		result, err := BlockchainInfo(&rpctypes.Context{}, 1, 5)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Len(t, result.BlockMetas, 5)
+	})
+}
+
+func TestBlockHandler(t *testing.T) {
+	t.Run("nil block meta", func(t *testing.T) {
+		var height int64 = 5
+
+		SetBlockStore(&mockBlockStore{
+			heightFn:        func() int64 { return height },
+			loadBlockMetaFn: func(int64) *types.BlockMeta { return nil },
+		})
+
+		result, err := Block(&rpctypes.Context{}, &height)
+		require.Nil(t, result)
+		assert.ErrorContains(t, err, "block meta not found for height 5")
+	})
+
+	t.Run("nil block", func(t *testing.T) {
+		var height int64 = 5
+
+		SetBlockStore(&mockBlockStore{
+			heightFn: func() int64 { return height },
+			loadBlockMetaFn: func(int64) *types.BlockMeta {
+				return &types.BlockMeta{Header: types.Header{Height: height}}
+			},
+			loadBlockFn: func(int64) *types.Block { return nil },
+		})
+
+		result, err := Block(&rpctypes.Context{}, &height)
+		require.Nil(t, result)
+		assert.ErrorContains(t, err, "block not found for height 5")
+	})
+
+	t.Run("success", func(t *testing.T) {
+		var height int64 = 5
+
+		SetBlockStore(&mockBlockStore{
+			heightFn: func() int64 { return height },
+			loadBlockMetaFn: func(int64) *types.BlockMeta {
+				return &types.BlockMeta{Header: types.Header{Height: height}}
+			},
+			loadBlockFn: func(int64) *types.Block {
+				return &types.Block{Header: types.Header{Height: height}}
+			},
+		})
+
+		result, err := Block(&rpctypes.Context{}, &height)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, height, result.BlockMeta.Header.Height)
+		assert.Equal(t, height, result.Block.Header.Height)
+	})
+}
+
+func TestCommitHandler(t *testing.T) {
+	t.Run("nil block meta", func(t *testing.T) {
+		var height int64 = 5
+
+		SetBlockStore(&mockBlockStore{
+			heightFn:        func() int64 { return height },
+			loadBlockMetaFn: func(int64) *types.BlockMeta { return nil },
+		})
+
+		result, err := Commit(&rpctypes.Context{}, &height)
+		require.Nil(t, result)
+		assert.ErrorContains(t, err, "block meta not found for height 5")
+	})
+
+	t.Run("success canonical commit", func(t *testing.T) {
+		var (
+			height      int64 = 5
+			storeHeight int64 = 10
+		)
+
+		SetBlockStore(&mockBlockStore{
+			heightFn: func() int64 { return storeHeight },
+			loadBlockMetaFn: func(int64) *types.BlockMeta {
+				return &types.BlockMeta{Header: types.Header{Height: height}}
+			},
+			loadBlockCommitFn: func(int64) *types.Commit { return &types.Commit{} },
+		})
+
+		result, err := Commit(&rpctypes.Context{}, &height)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.True(t, result.CanonicalCommit)
+	})
+
+	t.Run("success non-canonical commit", func(t *testing.T) {
+		var height int64 = 10
+
+		SetBlockStore(&mockBlockStore{
+			heightFn: func() int64 { return height }, // storeHeight == height
+			loadBlockMetaFn: func(int64) *types.BlockMeta {
+				return &types.BlockMeta{Header: types.Header{Height: height}}
+			},
+			loadSeenCommitFn: func(int64) *types.Commit { return &types.Commit{} },
+		})
+
+		result, err := Commit(&rpctypes.Context{}, &height)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.False(t, result.CanonicalCommit)
+	})
 }
