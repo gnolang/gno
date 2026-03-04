@@ -135,34 +135,15 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	params := vm.GetParams(ctx)
 	switch key {
 	case "p:sysnames_pkgpath":
-		s, ok := value.(string)
-		if !ok {
-			panic(fmt.Sprintf("invalid type for sysnames_pkgpath param: expected string, got %T", value))
-		}
-		params.SysNamesPkgPath = s
+		params.SysNamesPkgPath = mustParamString("sysnames_pkgpath", value)
 	case "p:chain_domain":
-		s, ok := value.(string)
-		if !ok {
-			panic(fmt.Sprintf("invalid type for chain_domain param: expected string, got %T", value))
-		}
-		params.ChainDomain = s
+		params.ChainDomain = mustParamString("chain_domain", value)
 	case "p:default_deposit":
-		s, ok := value.(string)
-		if !ok {
-			panic(fmt.Sprintf("invalid type for default_deposit param: expected string, got %T", value))
-		}
-		params.DefaultDeposit = s
+		params.DefaultDeposit = mustParamString("default_deposit", value)
 	case "p:storage_price":
-		s, ok := value.(string)
-		if !ok {
-			panic(fmt.Sprintf("invalid type for storage_price param: expected string, got %T", value))
-		}
-		params.StoragePrice = s
+		params.StoragePrice = mustParamString("storage_price", value)
 	case "p:storage_fee_collector":
-		s, ok := value.(string)
-		if !ok {
-			panic(fmt.Sprintf("invalid type for storage_fee_collector param: expected string, got %T", value))
-		}
+		s := mustParamString("storage_fee_collector", value)
 		addr, err := crypto.AddressFromString(s)
 		if err != nil {
 			panic(fmt.Sprintf("invalid storage_fee_collector address: %v", err))
@@ -175,4 +156,12 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	if err := params.Validate(); err != nil {
 		panic("invalid param: " + err.Error())
 	}
+}
+
+func mustParamString(key string, value any) string {
+	s, ok := value.(string)
+	if !ok {
+		panic(fmt.Sprintf("invalid type for %s param: expected string, got %T", key, value))
+	}
+	return s
 }
