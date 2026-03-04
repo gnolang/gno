@@ -614,6 +614,14 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		// Go map iteration is non-deterministic, which would cause
 		// different validators to initialize in different order,
 		// breaking consensus when init has side effects.
+		// TODO: Replace this recursive dependency-chasing approach with a
+		// Go-spec-compliant "ready variable" algorithm that collects all
+		// declarations across files in declaration order, then repeatedly
+		// initializes the earliest variable whose transitive dependencies
+		// (including through function bodies) are all satisfied. This would
+		// eliminate the need for map sorting entirely and correctly handle
+		// cases like diamond dependencies, multi-var-block ordering, and
+		// side-effect-only initializers (see Go spec: "Package initialization").
 		sortedDeps := make([]Name, 0, len(deps))
 		for dep := range deps {
 			sortedDeps = append(sortedDeps, dep)
