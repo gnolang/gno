@@ -2,7 +2,7 @@
 
 ## Namespaces
 
-All addresses can deploy under their own address-based namespace:
+In Gno.land, anyone can deploy under their own address-based namespace:
 
 ```
 gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/...
