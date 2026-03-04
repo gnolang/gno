@@ -8,7 +8,6 @@ import (
 	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
-	"gno.land/r/sys/users"
 )
 
 var ErrMemberNotFound = errors.New("member not found")
@@ -91,7 +90,6 @@ func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
 	g.pss.Set(pid.String(), newProposalStatus(tatv))
 }
 
-// Members **must** have a namespace to vote to enforce simpler tracking.
 func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	if !g.isValidCall() {
 		return errors.New("proposal voting must be done directly by a user")
@@ -101,10 +99,6 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	mem, tie := getMembers(cross).GetMember(caller)
 	if mem == nil {
 		return ErrMemberNotFound
-	}
-
-	if users.ResolveAddress(caller) == nil {
-		return errors.New("voter should have a namespace")
 	}
 
 	status := g.pss.GetStatus(r.ProposalID)

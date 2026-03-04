@@ -13,72 +13,32 @@ As an open-source project, we welcome all contributions. On this page you can fi
 
 ## Where to get started
 
-If you are interested in contributing to Gno.land, you can jump on in on our [GitHub monorepo](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md) - where most development happens.
+If you are interested in contributing to Gno.land, you can jump in on our [GitHub monorepo](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md) - where most development happens.
 
-A good place where to start are the issues tagged ["good first issue"](https://github.com/gnolang/gno/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22). They should allow you to make some impact on the Gno repository while you're still exploring the details of how everything works.
+A good place to start are the issues tagged ["good first issue"](https://github.com/gnolang/gno/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22). They should allow you to make some impact on the Gno repository while you're still exploring the details of how everything works.
 
 ## Gno Bounties
 
-Additionally, you can look out to help on specific issues labeled as bounties. The Gno bounty program is a good way to find interesting challenges in Gno, and get rewarded for helping us advance the project. We will maintain open and rewardable bounties in the gnolang/gno repository, and you can search all available bounties by using the ["bounty" label](https://github.com/gnolang/gno/labels/bounty). For more detals on the categories and types of bounties, we have a [bounties README](https://github.com/gnolang/bounties).  
+> **Note: The Gno Bounty Program is currently paused until further notice.**
 
-Recommendations on participating in the Gno.land Bounty Program:
+Two reasons prompted this pause:
 
-- Identify the bounty you want to work on, and join in the discussion on the issue for anything that is unclear; or where you want to more clearly define the work to be done. At this stage, you can also start working on an initial implementation in your local enviornment.
-- Once you have spent time on the code related to the bounty, we recommend submitting a 'draft' PR as soon as possible.
-    - The draft PR doesn't indicate that the bounty has been assigned to you, others are free to work on other draft PRs for the bounty.
-    - Make sure to reference the bounty issue on the PR description you're writing.
-    - After submitting the 'draft' PR, continue working until you are ready to mark the PR as "ready for review".
-    - The core team will review the bounty PR submission after the work on the bounty has been completed, and determine if it qualifies for the bounty reward.
-- Ask for clarification early if an element on the requirements or implementation design is unclear.
-    - Aside from publishing the PR early, keeping regular updates with the core team on the bounty issue is key to being on the right track.
-    - As part of the requirements, you must adhere to the [contributing guidelines](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md); additionally, it is expected that any newly added code or functionality is properly documented, tested and covered, at least in 80% of added code.
-    - You're welcome to propose additional features and work on an issue should you envision a plausible expansion or change in scope. The core team may assign a bounty to the additional work, or change the bounty with respect to the changed scope.
+- **Focus on Mainnet.** The team is fully focused on the Gno.land Beta Mainnet launch — the highest priority — as well as the critical post-beta work required to deliver a complete Mainnet.
+- **Decline in submission quality.** The bounty program was created to encourage innovative, creative, and technical contributions that meaningfully advance Gno.land. However, with the rise of generative AI, the overall quality of submissions has declined significantly. A large portion of entries are clearly AI-generated; others, though less obviously so, are often inaccurate upon review due to overreliance on AI. Reviewing and validating these submissions has become increasingly time-consuming, diverting focus from development work.
 
-You may make your submission at any time; however we invite you to publish your draft PR very early in the development process. This will make your work public, so you can easily get help by the core team and other community members. Additionally, your work can be continued by other people should you get stuck or no longer be willing to work on the bounty. Likewise, you can continue the abandoned or stuck work that someone else worked on.
+Community contributions remain strongly encouraged, particularly:
 
-Don't fear your work being "stolen": if a submission is the result of multiple people's efforts, we will look to split the bounty in a way that is fair and recognises each participant in creating the final outcome. Here are some examples of how that can happen:
+- Tooling and infrastructure projects
+- Application-focused development
+- Longer-term, high-quality initiatives
 
-- If Alice does most of the work and abandons it; then Bob comes around and finishes the job, then Bob's PR will be merged. But the core team will propose a split like 70% for Alice and 30% for Bob (depending, of course, on the relative effort undertaken by both).
-- If Alice makes a PR that does only 50% of the work outlined in the requirements for the original issue, she will get 50%. Someone can still come up and finish the job; and claim the remaining part.
-	- If you, for instance, cannot complete the entirety of the task or, as a non-developer, can only contribute a part of the specification/implementation, you may still be awarded a bounty for your input in the contribution.
-- If Alice makes a PR that aside from implementing what's required, also undertakes creating useful tools among the way, she may qualify for an "outstanding contribution"; and may be awarded up to 25% more of the original bounty's value. Or she may also ask if the team would be willing to offer a different bounty for the implementation of the tools.
-
-Participants in the Gno.land Bounty Program must meet the legal Terms and Conditions referenced [here](https://docs.google.com/document/d/e/2PACX-1vSUF-JwIXGscrNsc5QBD7Pa6i83mXUGogAEIf1wkeb_w42UgL3Lj6jFKMlNTdwEMUnhsLkjRlhe25K4/pub).
-
-### Bounty sizes
-
-Each bounty is associated with a size, to which corresponds the maximum compensation for the work involved on the bounty. A bounty size may under rare occasion be revisited to a bigger or smaller size; hence why it's important to talk about your proposed solution with the core team ahead of time.
-
-In some cases, the work associated with a bounty may be outstanding. When that happens, the core team can decide to award up to 25% of the bounty's value to the recipient.
-
-The value of the bounty, aside from the material completion of the task, considers the involved time in managing the created pull request and iterating on feedback.
-
-
-t-shirt size | expected compensation
--------------|-----------------------
-[XS]         | $ 500
-[S]          | $ 1000
-[M]          | $ 2000
-[L]          | $ 4000
-[XL]         | $ 8000
-_[XXL]_ \*   | $ 16000
-_[3XL]_ \*   | $ 32000
-
-[XS]:  https://github.com/gnolang/gno/labels/bounty%2FXS
-[S]:   https://github.com/gnolang/gno/labels/bounty%2FS
-[M]:   https://github.com/gnolang/gno/labels/bounty%2FM
-[L]:   https://github.com/gnolang/gno/labels/bounty%2FL
-[XL]:  https://github.com/gnolang/gno/labels/bounty%2FXL
-[XXL]: https://github.com/gnolang/gno/labels/bounty%2FXXL
-[3XL]: https://github.com/gnolang/gno/labels/bounty%2F3XL
-
-\*: XXL and 3XL bounties are exceptional. Almost no issues will have these sizes; most will be broken down into smaller bounties.
+These types of contributions are better aligned with Gno's goals than short-term bounties, and are very welcome provided they follow the [contributing guidelines](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md). Sustained, high-quality contributions will be rewarded over time via the Gno.land GovDAO.
 
 ## Gno.land Grants
 
 The Gno.land grants program is to encourage and support the growth of the Gno.land contributor community, and build out the usability of the platform and smart contract library. The program provides financial resources to contributors to explore the Gno tech stack, and build dApps, tooling, infrastructure, products, and smart contract libraries in Gno.land.
 
-For more details on Gno.land grants, suggested topics, and how to apply, visit our grants [repository](https://github.com/gnolang/grants). 
+For more details on Gno.land grants, suggested topics, and how to apply, visit our grants [repository](https://github.com/gnolang/grants).
 
 ## Join Game of Realms
 

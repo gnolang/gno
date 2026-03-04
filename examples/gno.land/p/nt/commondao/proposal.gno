@@ -25,8 +25,8 @@ const (
 )
 
 const (
-	QuorumOneThird     float64 = 0.33 // percentage
-	QuorumHalf                 = 0.5
+	QuorumOneThird     float64 = 0.33 // percentage, checked as >= than quorum
+	QuorumMoreThanHalf         = 0.51
 	QuorumTwoThirds            = 0.66
 	QuorumThreeFourths         = 0.75
 	QuorumFull                 = 1
@@ -50,6 +50,9 @@ type (
 
 	// VoteChoice defines a type for proposal vote choices.
 	VoteChoice string
+
+	// ExecFunc defines a type for functions that executes proposals.
+	ExecFunc func(realm) error
 
 	// Proposal defines a DAO proposal.
 	Proposal struct {
@@ -97,8 +100,8 @@ type (
 	// Executable defines an interface for proposal definitions that modify state on approval.
 	// Once proposals are executed they are archived and considered finished.
 	Executable interface {
-		// Execute executes the proposal.
-		Execute(realm) error
+		// Executor returns a function to execute the proposal.
+		Executor() ExecFunc
 	}
 
 	// CustomizableVoteChoices defines an interface for proposal definitions that want
@@ -128,7 +131,12 @@ func MustExecute(e Executable) {
 		panic("executable proposal definition is nil")
 	}
 
-	if err := e.Execute(cross); err != nil {
+	fn := e.Executor()
+	if fn == nil {
+		return
+	}
+
+	if err := fn(cross); err != nil {
 		panic(err)
 	}
 }
