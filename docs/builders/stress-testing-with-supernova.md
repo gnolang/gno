@@ -137,8 +137,8 @@ testing, increase `-sub-accounts` (50-100) and `-transactions` (5000+).
 |------|---------|-------------|
 | `-url` | (required) | JSON-RPC URL of the Gno node |
 | `-mnemonic` | (required) | Mnemonic for deriving accounts |
-| `-sub-accounts` | 1 | Number of accounts sending transactions |
-| `-transactions` | 10 | Total transactions to send |
+| `-sub-accounts` | 10 | Number of accounts sending transactions |
+| `-transactions` | 100 | Total transactions to send |
 | `-mode` | REALM_DEPLOYMENT | Transaction mode (see Modes section) |
 | `-batch` | 100 | Batch size for JSON-RPC calls |
 | `-chain-id` | dev | Chain ID of the network |
