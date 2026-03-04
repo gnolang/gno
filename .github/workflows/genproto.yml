@@ -17,23 +17,24 @@ on:
         description: "Go version to use"
         required: false
         type: string
-        default: "1.23.x"
+        default: ""
 
 jobs:
   main:
     name: Ensure .proto files are updated
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ inputs.go-version || '1.23.x' }}
+          go-version: ${{ inputs.go-version }}
+          go-version-file: go.mod
 
       - name: Install protoc
         run: sudo apt update && sudo apt install -y libprotobuf-dev protobuf-compiler
-
-      - name: Checkout code
-        uses: actions/checkout@v5
 
       - name: Install devdeps
         run: |

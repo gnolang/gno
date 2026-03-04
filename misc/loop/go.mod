@@ -1,8 +1,6 @@
 module github.com/gnolang/gno/misc/loop
 
-go 1.24.0
-
-toolchain go1.24.4
+go 1.24.4
 
 require (
 	github.com/docker/docker v25.0.6+incompatible

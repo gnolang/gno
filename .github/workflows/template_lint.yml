@@ -5,8 +5,9 @@ on:
         required: true
         type: string
       go-version:
-        required: true
+        required: false
         type: string
+        default: ""
 
 jobs:
   lint:
@@ -18,6 +19,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
+          go-version-file: go.mod
       - name: Lint
         uses: golangci/golangci-lint-action@v8
         with:

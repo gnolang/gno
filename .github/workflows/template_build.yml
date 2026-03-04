@@ -5,8 +5,9 @@ on:
               required: true
               type: string
             go-version:
-              required: true
+              required: false
               type: string
+              default: ""
 
 jobs:
     generated:
@@ -19,6 +20,7 @@ jobs:
             uses: actions/setup-go@v5
             with:
               go-version: ${{ inputs.go-version }}
+              go-version-file: go.mod
 
           - name: Check generated files are up to date
             working-directory: ${{ inputs.modulepath }}
