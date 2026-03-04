@@ -1,9 +1,10 @@
 package client
 
 import (
+	"context"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"golang.org/x/net/context"
 )
 
 // Client defines the client interface for fetching chain data

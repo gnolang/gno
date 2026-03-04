@@ -5,12 +5,12 @@ on:
     branches:
       - master
     paths:
-      - '**/*.go'
-      - 'misc/genproto/**'
+      - "**/*.go"
+      - "misc/genproto/**"
   pull_request:
     paths:
-      - '**/*.go'
-      - 'misc/genproto/**'
+      - "**/*.go"
+      - "misc/genproto/**"
   workflow_dispatch:
     inputs:
       go-version:
@@ -30,7 +30,7 @@ jobs:
           go-version: ${{ inputs.go-version || '1.23.x' }}
 
       - name: Install protoc
-        run: sudo apt install -y libprotobuf-dev protobuf-compiler
+        run: sudo apt update && sudo apt install -y libprotobuf-dev protobuf-compiler
 
       - name: Checkout code
         uses: actions/checkout@v5
