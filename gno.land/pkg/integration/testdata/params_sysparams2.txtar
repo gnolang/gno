@@ -32,7 +32,7 @@ stdout 'data: \n'
 
 # set wrong type for restricted_denoms
 ! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetRestrictedDenomsWrongType -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'invalid type for restricted_denoms: expected \[\]string, got string'
+stderr 'invalid type for restricted_denoms param: expected \[\]string, got string'
 
 gnokey query params/bank:p:restricted_denoms
 stdout 'data: \[\]' # still the same, value was not written.
