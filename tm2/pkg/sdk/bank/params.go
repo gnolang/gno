@@ -61,8 +61,12 @@ func (bank BankKeeper) GetParams(ctx sdk.Context) Params {
 
 func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	switch key {
-	case "p:restricted_denoms": // XXX test
-		bank.WillSetRestrictedDenoms(ctx, value.([]string))
+	case "p:restricted_denoms":
+		denoms, ok := value.([]string)
+		if !ok {
+			panic(fmt.Sprintf("invalid type for restricted_denoms: expected []string, got %T", value))
+		}
+		bank.WillSetRestrictedDenoms(ctx, denoms)
 	default:
 		// Allow setting non-existent key.
 	}

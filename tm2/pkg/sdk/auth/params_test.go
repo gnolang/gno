@@ -112,6 +112,47 @@ func TestNewParams(t *testing.T) {
 	}
 }
 
+func TestWillSetParam(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	tests := []struct {
+		name        string
+		key         string
+		value       any
+		shouldPanic bool
+	}{
+		{
+			name:        "valid unrestricted_addrs",
+			key:         "p:unrestricted_addrs",
+			value:       []string{},
+			shouldPanic: false,
+		},
+		{
+			name:        "wrong type for unrestricted_addrs",
+			key:         "p:unrestricted_addrs",
+			value:       "not_a_slice",
+			shouldPanic: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.shouldPanic {
+				require.Panics(t, func() {
+					env.acck.WillSetParam(ctx, tt.key, tt.value)
+				})
+			} else {
+				require.NotPanics(t, func() {
+					env.acck.WillSetParam(ctx, tt.key, tt.value)
+				})
+			}
+		})
+	}
+}
+
 func TestParamsString(t *testing.T) {
 	cases := []struct {
 		name   string

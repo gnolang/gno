@@ -158,7 +158,7 @@ func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	case "p:unrestricted_addrs":
 		addrs, ok := value.([]string)
 		if !ok {
-			return
+			panic(fmt.Sprintf("invalid type for unrestricted_addrs: expected []string, got %T", value))
 		}
 		ak.applyUnrestrictedAddrsChange(ctx, addrs)
 	default:

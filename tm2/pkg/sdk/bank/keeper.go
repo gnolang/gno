@@ -58,8 +58,10 @@ func (bank BankKeeper) SetRestrictedDenoms(ctx sdk.Context, restrictedDenoms []s
 
 // This will get called whenever the restricted denoms parameter is changed.
 func (bank BankKeeper) WillSetRestrictedDenoms(ctx sdk.Context, restrictedDenoms []string) {
-	// XXX nothing to do yet, nothing cached.
-	// XXX validate input.
+	params := NewParams(restrictedDenoms)
+	if err := params.Validate(); err != nil {
+		panic("invalid param: " + err.Error())
+	}
 }
 
 func (bank BankKeeper) RestrictedDenoms(ctx sdk.Context) []string {
