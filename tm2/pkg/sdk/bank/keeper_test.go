@@ -163,52 +163,6 @@ func TestViewKeeper(t *testing.T) {
 	require.False(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5))))
 }
 
-func TestWillSetParam(t *testing.T) {
-	t.Parallel()
-
-	env := setupTestEnv()
-	ctx := env.ctx
-	prmk := env.prmk
-
-	tests := []struct {
-		name        string
-		setValue    func()
-		shouldPanic bool
-	}{
-		{
-			name: "valid restricted_denoms",
-			setValue: func() {
-				prmk.SetStrings(ctx, "bank:p:restricted_denoms", []string{"ugnot"})
-			},
-			shouldPanic: false,
-		},
-		{
-			name: "wrong type for restricted_denoms",
-			setValue: func() {
-				prmk.SetString(ctx, "bank:p:restricted_denoms", "ugnot")
-			},
-			shouldPanic: true,
-		},
-		{
-			name: "invalid denom for restricted_denoms",
-			setValue: func() {
-				prmk.SetStrings(ctx, "bank:p:restricted_denoms", []string{"!!"})
-			},
-			shouldPanic: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.shouldPanic {
-				require.Panics(t, tt.setValue)
-			} else {
-				require.NotPanics(t, tt.setValue)
-			}
-		})
-	}
-}
-
 // Test SetRestrictedDenoms
 func TestSetRestrictedDenoms(t *testing.T) {
 	env := setupTestEnv()

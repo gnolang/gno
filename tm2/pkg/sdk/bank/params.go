@@ -68,6 +68,6 @@ func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		}
 		bank.WillSetRestrictedDenoms(ctx, denoms)
 	default:
-		// Allow setting non-existent key.
+		panic(fmt.Sprintf("unknown bank param key: %q", key))
 	}
 }

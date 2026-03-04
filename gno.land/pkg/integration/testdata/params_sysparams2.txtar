@@ -17,11 +17,8 @@ gnokey query params/bank:p:restricted_denoms
 stdout 'data: \[""\]'
 
 # set non-existing module param
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBankArbitrary -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-#stderr 'invalid bank parameter name: newkey'
-
-gnokey query params/bank:p:newkey
-stdout 'data: "foo"'
+! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBankArbitrary -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'unknown bank param key: "p:newkey"'
 
 # set invalid key
 ! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetInvalidKey -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
