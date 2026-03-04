@@ -7,15 +7,15 @@ other user comments.
 
 Discussions happen within different boards, where each board is an independent self managed community.
 
-By default Boards2 allows users to create two types of boards, one is the invite only board where only
-invited users can create threads and comment, and where non invited users can only read the content and
-discussions; The other type of board is the open board where any user with a registered Gno.land username
-and a specific amount of GNOT in their account can create threads, repost and comment.
+Boards2 allows users to create two types of boards, one is the invite only board where only invited users
+can create threads and comment, and where non invited users can only read the content and discussions; The
+other type of board is the open board where any user with a registered Gno.land username and a specific
+amount of GNOT in their account can create threads, repost and comment.
 
 ## Open Boards Quick Start
 
 If you don’t have a registered Gno.land username, or are new to Gno.land in general, the quick start guide
-below can help you get started quickly.
+below can help you get started.
 
 What you need to create threads and start commenting within open boards is a registered username and having
 a specific amount of GNOT in your Gno.land user account, which by default initially is 3000 GNOT. This
@@ -76,7 +76,8 @@ has the `owner` role, which grants all permissions within that board.
 
 Members of a board with the `owner` or `admin` role, independently of the board type, can invite other
 members, or otherwise users can request being invited to be a member by visiting the board and clicking the
-"Request Invite" link. Requested invites can be accepted or revoked using these public realm functions:
+"Request Invite" link. Requested invites can be accepted or revoked though the board's "Invite Requests" view
+or using these public realm functions:
 
 ```go
 // AcceptInvite accepts a board invite request.
@@ -94,8 +95,10 @@ There are four possible roles that invited users can have when they are members 
   flag content.
 - `guest`: Grants basic permissions that allow creating threads, reposting and commenting.
 
+Default board configuration, permissions and roles are defined in the [permissions file].
+
 No roles or number of members is enforced for boards, so technically a board can be updated to have no
-members, or for example boards could exists without any "owner" if all members with `owner` role are removed
+members, or for example, boards could exists without any "owner" if all members with `owner` role are removed
 from it.
 
 Other custom user defined roles can exists on top of the default ones though [custom board] implementations.
@@ -137,12 +140,12 @@ can be imported by realms and used to implement custom boards.
 By default boards are created with an undelying DAO, so each new board is linked to an independent DAO which
 is used to organize members by role, and can also be used to update boards in a permissionless manner.
 
-Current Boards2 realm implementation doesn't run proposals, but some of the current mechanics will rely on
-DAO proposals to actually execute changes.
-
 Right now is possible to integrate with the underlying DAO and change the default board mechanics to rely on
 proposals using a [custom board] implementation, by creating a new realm that imports and uses the
 [gno.land/r/gnoland/boards2/v1/permissions] realm, which exposes the underlying DAO.
+
+> Current Boards2 realm implementation doesn't run proposals, but some of the current mechanics will rely on
+> DAO proposals to actually execute changes.
 
 ## Moderation
 
@@ -177,8 +180,8 @@ a user within a board.
 Users can be banned with a reason for any number of hours. Within this period banned users are not allowed
 to interact or make any changes.
 
-Only invited guest members and open board users can be banned, banning board owners, admins and moderators is
-not allowed.
+Only invited `guest` members and open board users can be banned, banning board owners, admins and moderators
+is not allowed.
 
 Banning and unbanning can be done by calling these public realm functions:
 
@@ -213,8 +216,9 @@ func UnfreezeThread(_ realm, boardID, threadID boards.ID)
 
 
 [users realm]: https://gno.land/r/gnoland/users/v1
+[permissions file]: https://gno.land/r/gnoland/boards2/v1$source&file=permissions.gno
 [gno.land/r/gnoland/boards2/v1/permissions]: https://gno.land/r/gnoland/boards2/v1/permissions/
-[custom board]: #custom-board-permissions
+[custom board]: #custom-boards
 [Adena]: https://www.adena.app/
 [Faucet Hub]: https://faucet.gno.land/
 [gno.land/p/gnoland/boards]: https://gno.land/p/gnoland/boards
