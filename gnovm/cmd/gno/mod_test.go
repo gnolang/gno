@@ -227,6 +227,20 @@ gno.land/p/nt/avl strings
 gno.land/p/nt/avl testing
 `,
 		},
+		{
+			// gno.land/p/nt/avl is included from the test in the filetests subdir
+			args:                 []string{"mod", "graph"},
+			testDir:              "../../tests/integ/valid3",
+			simulateExternalRepo: true,
+			stderrShouldContain:  "gno: downloading gno.land/p/nt/avl\n",
+			stdoutShouldBe: `gno.land/p/integ/valid3 gno.land/p/nt/avl
+gno.land/p/nt/avl gno.land/p/nt/avl
+gno.land/p/nt/avl gno.land/p/nt/ufmt
+gno.land/p/nt/avl sort
+gno.land/p/nt/avl strings
+gno.land/p/nt/avl testing
+`,
+		},
 	}
 
 	testMainCaseRun(t, tc)
