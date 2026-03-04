@@ -49,10 +49,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	render := func(thread *boards.Post) bool {
-		// TODO: Hidden threads should be stored separately to be able to properly page visible ones
-		if !thread.Hidden {
-			res.Write(renderThreadSummary(thread) + "\n")
-		}
+		res.Write(renderThreadSummary(thread) + "\n")
 		return false
 	}
 
