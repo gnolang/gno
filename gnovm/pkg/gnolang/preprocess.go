@@ -1895,6 +1895,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				checkOrConvertIntegerKind(store, last, n, n.Max)
 
 				t := evalStaticTypeOf(store, last, n.X)
+				switch t.Kind() {
+				case PointerKind:
+					if t.Elem().Kind() != ArrayKind {
+						panic(fmt.Sprintf("cannot slice variable of type %v", t))
+					}
+				case SliceKind, ArrayKind, StringKind:
+					// good.
+				default:
+					panic(fmt.Sprintf("cannot slice variable of type %v", t))
+				}
 
 				// if n.X is untyped, convert to corresponding type
 				if isUntyped(t) {
