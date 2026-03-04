@@ -12,9 +12,9 @@ gnokey query params/bank:p:restricted_denoms
 stdout 'data: \["ugnot"\]'
 
 # unlock transfer
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/params -func UnlockTransfer -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 gnokey query params/bank:p:restricted_denoms
-stdout 'data: \[""\]'
+stdout 'data: \[\]'
 
 # set non-existing module param
 ! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBankArbitrary -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
@@ -25,7 +25,7 @@ stderr 'unknown bank param key: "p:newkey"'
 stderr 'invalid param name: bank:restricted_denoms'
 
 gnokey query params/bank:p:restricted_denoms
-stdout 'data: \[""\]' # still the same.
+stdout 'data: \[\]' # still the same.
 
 gnokey query params/bank:restricted_denoms
 stdout 'data: \n'
@@ -35,7 +35,7 @@ stdout 'data: \n'
 stderr 'invalid type for restricted_denoms: expected \[\]string, got string'
 
 gnokey query params/bank:p:restricted_denoms
-stdout 'data: \[""\]' # still the same, value was not written.
+stdout 'data: \[\]' # still the same, value was not written.
 
 # ---- 2 Test sys/params.SetSysParamXXX when called outside of gno.land/r/sys/params
 gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
@@ -86,6 +86,10 @@ import (
 // This should succeed if it is called from gno.land/r/sys/params
 func SetLockTransfer(cur realm, denom string) {
 	params.SetSysParamStrings("bank","p", "restricted_denoms", []string{denom})
+}
+
+func UnlockTransfer(cur realm) {
+	params.SetSysParamStrings("bank","p", "restricted_denoms", []string{})
 }
 
 // SetRestrictedDenomsWrongType uses SetSysParamString (string) instead of

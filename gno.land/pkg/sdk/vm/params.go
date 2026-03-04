@@ -152,7 +152,11 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		}
 		params.StorageFeeCollector = addr
 	default:
-		panic(fmt.Sprintf("unknown vm param key: %q", key))
+		if strings.HasPrefix(key, "p:") {
+			panic(fmt.Sprintf("unknown vm param key: %q", key))
+		}
+		// Allow realm-scoped params through without validation.
+		return
 	}
 	if err := params.Validate(); err != nil {
 		panic("invalid param: " + err.Error())
