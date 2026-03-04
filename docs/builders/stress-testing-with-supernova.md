@@ -147,5 +147,4 @@ testing, increase `-sub-accounts` (50-100) and `-transactions` (5000+).
 ### Resources
 
 - [Supernova GitHub repository](https://github.com/gnolang/supernova)
-- [Benchmark reports](
-  https://github.com/gnolang/benchmarks/tree/main/reports/supernova)
+- [Benchmark reports](https://github.com/gnolang/benchmarks/tree/main/reports/supernova)
