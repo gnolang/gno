@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -63,11 +64,7 @@ func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	params := bank.GetParams(ctx)
 	switch key {
 	case "p:restricted_denoms":
-		denoms, ok := value.([]string)
-		if !ok {
-			panic(fmt.Sprintf("invalid type for restricted_denoms: expected []string, got %T", value))
-		}
-		params.RestrictedDenoms = denoms
+		params.RestrictedDenoms = sdkparams.MustParamStrings("restricted_denoms", value)
 	default:
 		panic(fmt.Sprintf("unknown bank param key: %q", key))
 	}

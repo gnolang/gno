@@ -115,9 +115,6 @@ func TestNewParams(t *testing.T) {
 func TestWillSetParam(t *testing.T) {
 	t.Parallel()
 
-	env := setupTestEnv()
-	ctx := env.ctx
-
 	tests := []struct {
 		name        string
 		key         string
@@ -211,13 +208,14 @@ func TestWillSetParam(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			env := setupTestEnv()
 			if tt.shouldPanic {
 				require.Panics(t, func() {
-					env.acck.WillSetParam(ctx, tt.key, tt.value)
+					env.acck.WillSetParam(env.ctx, tt.key, tt.value)
 				})
 			} else {
 				require.NotPanics(t, func() {
-					env.acck.WillSetParam(ctx, tt.key, tt.value)
+					env.acck.WillSetParam(env.ctx, tt.key, tt.value)
 				})
 			}
 		})
