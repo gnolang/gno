@@ -1,13 +1,5 @@
 # GNO.LAND CONSTITUTION
 
-_This Constitution is still a draft and until $GNOT is transferrable any
-Constitutional Amendments shall require the pre-approval of NT,LLC, or an
-amendment shall be approved with a Majority Decision by GovDAO if proposed by
-NT,LLC. When there are any ambiguities or conflicts within this document NT,LLC
-reserves the right to clarify them until $GNOT is transferrable. After $GNOT is
-made transferrable the normal mechanism of Constitutional Amendments will
-apply._
-
 ## Declaration of Intent
 
 We the gnomes of Gno.land, to bring to life a virtual world of structured
@@ -40,8 +32,8 @@ this Constitution for Gno.land.
    governing rules must be specified within the living Constitution directly;
    Not in any Laws, Bylaws, or Mandates.
 
- * Majority, Supermajority, and Constitutional Majority Decision: See "GovDAO
-   Decisions" and "Common DAO Spec" // XXX also link to committees
+ * Simple Majority, Supermajority, and Constitutional Majority Decision: See
+   "GovDAO Decisions" and "Common DAO Spec"
 
  * Oversight Body: Initially NT,LLC as represented by a multisig account, but
    eventually represented by an Oversight DAO on Gno.land.
@@ -73,39 +65,29 @@ this Constitution for Gno.land.
 
  * Fully Audited: See "Software Security".
 
- * XXX
-
 ## Genesis Allocation
 
 At Gno.land Genesis there will be one billion $GNOT tokens.
 
  * Airdrop1:               35.0% - from partial Cosmos governance snapshot 3 years ago
  * Airdrop2:               23.1% - from recent AtomOne snapshot prior to launch
- * EcosystemContributors:  11.9% - for prior and future Gno.land ecosystem contributors
+ * Ecosystem Treasury:     11.9% - for prior and future Gno.land ecosystem development
  * Investors:               7.0% - reserved for current and future investments
  * NT,LLC:                 23.0% - of which a significant portion is allocated for prior loans
 
 $GNOT will not be transferrable initially except for whitelisted addresses.
-Whitelisted addresses include "GovDAO" and "Investors" funds and any additional
-addresses dedicated for faucets.
+Whitelisted addresses include "Ecosystem" and "Investors" funds and any
+additional addresses needed for the operation of the chain.
 
 The 7% (qualfied, private) investors allocation will be held by NT,LLC in a
 segregated account. Proceeds of sales of these tokens will go toward NT,LLC for
-past or future development of Gno.land, Gno, Tendermin2, other Core Software,
+past or future development of Gno.land, Gno, Tendermint2, other Core Software,
 and ecosystem development.
 
-GovDAO is responsible for distributing the $GNOT of the Ecosystem Contributors
-Treasury allocation to prior and future Gno.land ecosystem contributors (as
-well as those contributing to the blockchain stack, including external
-contributors to Tendermint2, GnoVM, Gno.land server and tooling, GnoWeb) with
-the exclusion of existing GovDAO members. At least one-quarter and up to
-one-third of the GovDAO 11.9% genesis allocation will be distributed to prior
-contributors by GovDAO Supermajority Decision. Present GovDAO members are not
-eligible for any allocation from the EcosystemContributors genesis allocation.
-
-NT,LLC owes around $20M worth of $GNOT to All in Bits,Inc at the "fair market
-value" of $GNOT at a 25% discount for a "fair market value" which is yet to be
-determined as of the date of this writing.
+GovDAO is responsible for distributing the $GNOT of the Ecosystem Treasury
+allocation to prior and future Gno.land ecosystem contributors (as well as
+those contributing to the Core Software). For more information see "Gno.land
+Treasuries".
 
 ## Gno.land Tokenomics
 
@@ -147,10 +129,10 @@ token.
  * The $GNOT inflation schedule will never change, thus the total created $GNOT
    will never exceed 1.333~ billion $GNOT.
  * The $GNOT Storage Deposit Price (per byte) will never increase.
- * The $GNOT Storage Deposit Price will be such that the total remaining $GNOT.
-   and all future inflationary $GNOT never exceeds the size of a typical
-   consumer internal hard-disk or solid-state drive. See also "Gno.land Storage
-   Capacity".
+ * The $GNOT Storage Deposit Price may decrease by at most 10% a year.
+ * The $GNOT Storage Deposit Price may not decrease if the total existing
+   storage exceeds the size of a typical consumer internal hard-disk or
+   solid-state drive. See also "Gno.land Storage Capacity".
 
 Gno.land is obligated to migrate to be hosted/secured by Atom.One ICS when it
 is deemed ready according to this Constitution by GovDAO by Supermajority
@@ -194,7 +176,7 @@ The inflated tokens will be distributed as follows:
 
  * One third to the Core Software Treasury.
  * One third to the Essential Services Treasury.
- * One third to the Ecosystem Contributors Treasury.
+ * One third to the Ecosystem Treasury.
 
 ## Gno.land Treasuries
 
@@ -202,7 +184,7 @@ The Gno.land Treasuries are as follows:
 
  * Core Software Treasury
  * Essential Services Treasury
- * Ecosystem Contributors Treasury
+ * Ecosystem Treasury
  * Validator Services Treasury (ValTreasury for short)
  * GovDAO Pay Treasury (PayTreasury for short)
  * Ecosystem Audit Treasury
@@ -236,8 +218,8 @@ Software Treasury directly unless otherwise specified in the Constitution.
 
 Funds from Gno.and Treasuries may be transferred to another Core subDAO
 ultimately managed by GovDAO such that the funds of any Core subDAO may be
-frozen or returned to the origin Treasury at any time with a Majority Decision
-of the responsible Core DAO.
+frozen or returned to the origin Treasury at any time with a Simple Majority
+Decision of the responsible Core DAO.
 
 Funds that are transferred or assigned to any of these treasuries but not yet
 used (e.g. by a decision to fund an entity or a DAO) may not be clawed back or
@@ -332,22 +314,28 @@ Funding from the Essential Services Treasury may also go toward validation
 services on an emergency basis if the Validator Services Treasury is
 insufficient.
 
-### Ecosystem Contributors Treasury
+### Ecosystem Treasury
 
-These funds are reserved for rewarding the creators of External Contributions
-defined as contributions of Open Source IP mentioned in any of the Governing
-Documents created by individuals or entities who are not owners of the original
-IP nor employees of the owners nor stakeholders of the original IP; or any Gno
-code uploaded to Gno.land; and in all cases were not otherwise contracted to
-develop said IP and at the time of contribution was not a member of GovDAO.
+These funds are primarily reserved for rewarding the creators of External
+Contributions defined as contributions of Open Source IP mentioned in any of
+the Governing Documents and Gno software not already paid for by other means.
 
-All funding decisions from the Ecosystem Contributors Treasury require a
+XXX
+
+In all cases were not otherwise contracted to develop said IP and at the time
+of contribution was not a member of GovDAO.
+
+At most one-third of the GovDAO 11.9% genesis allocation may be distributed to
+prior contributors by GovDAO Supermajority Decision. Present GovDAO members are
+not eligible for any allocation from the Ecosystem Treasury genesis allocation.
+
+All funding decisions from the Ecosystem Treasury require a
 Supermajority Decision by GovDAO. 
 
-All funding from the Ecosystem Contributors Treasury must go to past
+All funding from the Ecosystem Treasury must go to past
 contributions. That is, no funding may go toward future contributions.
 
-All funding decisions from the Ecosystem Contributors Treasury must be based on
+All funding decisions from the Ecosystem Treasury must be based on
 well defined heuristics as defined in the Constitution Alone, or based on
 quality as assessed by the review of council members of the relevant GovDAO
 DAO. Naturally council members must abstain from voting on matters with any
@@ -355,16 +343,16 @@ conflict of interests, but the Oversight Body is specifically responsible for
 (and has the authority for) ensuring that council members do not collude to
 reward each other unfairly in any given proposal nor over multiple proposals.
 
-No heuristic for funding shall be based on code line-count nor the number of
+No heuristic for funding may be based on code line-count nor the number of
 individual contributors.
 
-No funding shall be made in proportion or algorithmic relation to runtime
-metrics of gas, storage, nor fees; nor to any measure of financial value (e.g.
-managed by a realm or in relation to any transaction); nor to metrics of usage
-by import; except that such metrics and measures may be used for the purpose of
+No funding may be made in proportion or algorithmic relation to runtime metrics
+of gas, storage, nor fees; nor to any measure of financial value (e.g.  managed
+by a realm or in relation to any transaction); nor to metrics of usage by
+import; except that such metrics and measures may be used for the purpose of
 categorization or filtering.
 
-All funding from the Ecosystem Contributors Treasury must go to contributors
+All funding from the Ecosystem Treasury must go to contributors
 whose real human identity is known and recorded in accordance with the
 Constitution or relevant Laws of Gno.land.
 
@@ -373,9 +361,9 @@ Constitution or relevant Laws of Gno.land.
 The Validator Services Treasury may only be used to pay for validation
 services.
 
-No Core DAO shall be responsible for voting for funding decisions from the
-Validator Services Treasury except immediately after genesis until automated
-payment mechanisms are implemented.
+No Core DAO may vote for funding decisions from the Validator Services Treasury
+except immediately after genesis until automated payment mechanisms are
+implemented.
 
 See also "Gno.land Pre-Migration Validators" and "Essential Services Treasury".
 
@@ -427,7 +415,7 @@ The Ecosystem Audit Treasury may only be used to fund of the auditing of code
 deployed to Gno.land by Qualified Auditors, or to assess and reward Bonded
 Auditors who submit valid Bonded Vulnerability Reports.
 
-All funding decisions from the Ecosystem Contributors Treasury require a
+All funding decisions from the Ecosystem Treasury require a
 Supermajority Decision by GovDAO.
 
 GovDAO by Supermajority Decision may choose to burn tokens from the Ecosystem
@@ -552,7 +540,7 @@ determined by GovDAO Supermajority Decision.
 
 Priority should be given to Atom.One validators and Gno.land core developers.
 
-The number of validators prior to migration shall not exceed 50.
+The number of validators prior to migration may not exceed 50.
 
 No validators may operate on any cloud hosting provider, but must run their own
 hardware where they have physical access to the server at all times (such as in
@@ -562,10 +550,10 @@ Atom.One migration is not contingent on all of its validators running their
 their own hardware as above, but GovDAO may impose a requirement by Majority
 Decision for Atom.One to have a completed roadmap specified to get there.
 
-Atom.One ICS shall not be deemed suitable unless the Gno.land chain
-remains whole (not part of any "mega-block" system where the consensus engine
-process is shared with other applications) and Gno.land may migrate away from
-Atom.One by on-chain transactions.
+Atom.One ICS may not be deemed suitable unless the Gno.land chain remains whole
+(not part of any "mega-block" system where the consensus engine process is
+shared with other applications) and Gno.land may migrate away from Atom.One by
+on-chain transactions.
 
 If Atom.One validators do not largely (> 90% by voting power) run on their own
 hardware where validators have physical access to their server at all times 2
@@ -586,7 +574,7 @@ voted in favor of this requirement); provided that GovDAO first submits
 reasonabe proposals to Atom.One that get rejected by Atom.One.
 
 In the case of an Atom.One fork initiated by GovDAO by the above, the fork need
-not run any chain except those that run Gno. The constitution of the fork shall
+not run any chain except those that run Gno. The constitution of the fork may
 be determined by Supermajority Decision of GovDAO and respect the rights of
 NT,LLC with respect to the "Gno" word mark.
 
@@ -596,7 +584,7 @@ Services Treasury. See also "Validator Services Treasury".
 ## Atom.One ICS Migration
 
 Gno.land is obligated to migrate to Atom.One when declared ready by GovDAO
-simple majority decision.
+Simple Majority decision.
 
 In the case of a fork of Atom.One the target chain may be changed by a
 Constitutional Amendment to be one of the forks of Atom.One. Any GovDAO members
@@ -613,7 +601,7 @@ There are three tiers: T1, T2, and T3.
 T1 is the highest tier, T3 the lowest.
 
  * T1: self-selecting "core" with supermajority vote from T1.
- * T2: selected by GovDAO w/ T3 abstaining, with simple majority vote.
+ * T2: selected by GovDAO w/ T3 abstaining, with a Simple Majority Decision.
  * T3: permissionless invitation from T1 and T2 according to a delegation
    mechanism.
 
@@ -628,9 +616,9 @@ Members may resign at any time with a signed transaction. Resigned members may
 be reinstated with a Supermajority Devision of GovDAO.
 
 T1 members may not be actively contributing to the project but they must still
-be active in voting or their membership shall be suspended if they miss 3
+be active in voting or their membership may be suspended if they miss 3
 GovDAO proposal votes in a row until they return to activity with a simple
-declaration. The activity status of T1 or their suspension shall not be deemed
+declaration. The activity status of T1 or their suspension may not be deemed
 cause for removal from T1. In this way T1 is like "tenure", and generally the
 T1 members are expected to have made significant contributions to the project.
 The exception to this rule is described in "US Preference Option".
@@ -722,14 +710,15 @@ Oversight Body and other terms and conditions of this Constitution.
 
 ### GovDAO Decisions
 
-A majority decision of GovDAO requires more than 1/2 of voting power of T1, T2,
-and T3 members according to the scoring mechanism defined in this Constitution.
-
-A supermajority decision of GovDAO requires more than 2/3 of voting power of
+A Simple Majority Decision of GovDAO requires more than 1/2 of voting power of
 T1, T2, and T3 members according to the scoring mechanism defined in this
 Constitution.
 
-A constitutional majority decision of GovDAO requires more than 9/10 of voting
+A Supermajority Decision of GovDAO requires more than 2/3 of voting power of
+T1, T2, and T3 members according to the scoring mechanism defined in this
+Constitution. Most decisions require a Supermajority Decision.
+
+A Constitutional Majority Decision of GovDAO requires more than 9/10 of voting
 power of T1, T2, and T3 members according to the scoring mechanism defined in
 this Constitution.
 
@@ -778,11 +767,6 @@ candidates:
  * No candidate is eligible who has been convicted of a violent, property,
    white-collar, organized, or cyber crime.
 
-   * Any existing member(s) who gets convicted of these crimes must declare so
-     and resign or provide the details of the charges and the judgement.
-     Thereafter GovDAO minus these members must vote on whether to eject the
-     member with a majority decision.
-
 The general requirements for T1, T2, and T3 membership are as follows:
 
  * All members must be publicly identifiable persons and declare their country
@@ -810,8 +794,8 @@ The general requirements for T1, T2, and T3 membership are as follows:
    resume/portfolio application document.
 
  * Any members who have been proven to have lied or not disclosed material
-   information must be demoted or ejected with a majority decision with a
-   pre-approval from the Oversight Body contingent on proof and evaluation.
+   information must be demoted or ejected with a Simple Majority Decision with
+   a pre-approval from the Oversight Body contingent on proof and evaluation.
 
  * Ejected members are never again eligible for membership in T1, T2, or T3.
 
@@ -838,9 +822,9 @@ candidate.
    until there are as many US citizen members of T1 (or T2) of any other
    country or union after such appointment.
 
- * Dual citizens shall be counted as fractions where the denominator is the
+ * Dual citizens may be counted as fractions where the denominator is the
    number of citizenships and the numerator is one. Automatic eligibility for
-   citizenship based on birthrights shall count as citizenship.
+   citizenship based on birthrights may count as citizenship.
 
  * Appointment may happen at any time and is not limited by the Diversification
    Requirements. Specifically the appointment may be made concurrently with any
@@ -850,7 +834,7 @@ candidate.
 
  * NT,LLC may decide at its option to delegate the US Preference Option to the
    subset of current T1 and T2 members who are US citizen residents (US
-   Preference Option Default Committee). These members shall have voting power
+   Preference Option Default Committee). These members may have voting power
    ratio of 3:2. The delegation is temporary (per quarter) unless otherwise
    specified. The US Preference Option Default Committee may only elect up to 2
    T1 members and 2 T2 members per quarter.
@@ -892,7 +876,7 @@ Documents with priority given to the Consitutiton in case of any conflicts.
 The Oversight Body is initially NT,LLC as represented by a multisig account
 approved by NT,LLC. NT,LLC multisig signers must have an agreement with NT,LLC
 and only sign transactions explicitly pre-approved by NT,LLC. In the case of a
-breach of this requirement its signature shall have no effect or its effect
+breach of this requirement its signature may have no effect or its effect
 must be reversed promptly by GovDAO before any other decision.
 
 Within 2 years after launch NT,LLC must delegate its Oversight Body role to a
@@ -900,32 +884,32 @@ DAO (the Oversight Body DAO) on Gno.land, or by by declaring its members in
 accordance with all requirements.
 
 If after 2 years after launch NT,LLC does not determine the Oversight Body DAO
-or its members, GovDAO shall remind NT,LLC to determine the Oversight Body DAO
+or its members, GovDAO must remind NT,LLC to determine the Oversight Body DAO
 members. If after a month such members are not decided by NT,LLC, the Oversight
-Body DAO shall be determined by a Supermajority Decision of GovDAO, and no
+Body DAO may be determined by a Supermajority Decision of GovDAO, and no
 further decisions may be made by GovDAO until an Oversight Body DAO is
 determined that satisfies the requirements.
 
 The Oversight Body DAO committee Requirements are as follows:
 
- * One Oversight Body DAO member shall be from T1 or T2 (First Oversight Member).
- * One Oversight Body DAO member shall be from T1 or T2 (Second Oversight Member).
- * One Oversight Body DAO member shall not be a GovDAO member but otherwise be
+ * One Oversight Body DAO member must be from T1 or T2 (First Oversight Member).
+ * One Oversight Body DAO member must be from T1 or T2 (Second Oversight Member).
+ * One Oversight Body DAO member must not be a GovDAO member but otherwise be
    a Qualified Candidate with no significant conflict of interests such as by
    being invested in a competing crypto project (Third Oversight Member).
 
 Furhermore,
 
  * Each member gets 1 vote. All decisions require 2 YES votes.
- * Two or more members shall not reside in the same country at the time of
+ * Two or more members may not reside in the same country at the time of
    appointment.
- * Two or more members shall not be citizens of (or be automatically eligible
+ * Two or more members may not be citizens of (or be automatically eligible
    for citizenship by birthright of) the same country or union.
  * All Oversight Body DAO members must fully understand the Constitution and
    Laws as assessed in a live interview test with T1 members.
- * Each member shall serve a maximum term of three years, thereafter shall not
+ * Each member may serve a maximum term of three years, thereafter may not
    be eligible for re-election for another three years.
- * All members shall be considered working full time and paid as a typical T1
+ * All members must be considered working full time and paid as a typical T1
    GovDAO member (including the Third Oversight Member) from the PayTreasury.
 
 After the initial establishment of an Oversight Body DAO:
@@ -940,12 +924,12 @@ After the initial establishment of an Oversight Body DAO:
    pre-approval of NT,LLC.
 
 After any election by GnotDAO the candidate must pass the live interview test
-with T1 members (as determined by a Majority Decision by GovDAO), and the test
-must be recorded and result shared with the public. The Third Oversight Member
-candidate who gets rejected in the live interview cannot be re-elected for
-another one year.
+with T1 members (as determined by a Simple Majority Decision by GovDAO), and
+the test must be recorded and result shared with the public. The Third
+Oversight Member candidate who gets rejected in the live interview cannot be
+re-elected for another one year.
 
-Any Oversight Member who gets replaced shall be deemed to have served their
+Any Oversight Member who gets replaced will be deemed to have served their
 full term and cannot be re-elected for another three years.
 
 A vacancy (e.g. from resignment, incapacitation, disqualification, ejection
@@ -959,13 +943,13 @@ vacancy arises after which the two remaining members may self-elect by
 consensus a temporary Qualified Candidate (the Temporary Oversight Member)
 without restriction. This Temporary Oversight Member is expected to get
 superceded (or be voted in) by the usual election rules, but such a member
-shall not be deemed to have been "replaced": they may be elected again soon
+will not be deemed to have been "replaced": they may be elected again soon
 after. Temporary Oversight Members may vote to elect more Temporary Oversight
 Members with any more vacancies.
 
 With the exception of any Oversight Body DAO election proposals, the Oversight
-Body or its subDAOs shall have the authority to (and must block) any decision
-by GovDAO or Core DAOs if such decisions are determined to be:
+Body or its subDAOs have the authority to (and must block) any decision by
+GovDAO or Core DAOs if such decisions are determined to be:
 
  * in violation of the Constitution or the spirit of the Constitution
  * in violation of any Laws
@@ -974,7 +958,7 @@ by GovDAO or Core DAOs if such decisions are determined to be:
 The Oversight Body may block any proposals that have otherwise passed in the
 prior month unless otherwise specified or a pre-approval was already granted.
 This is especially important for proposals that immediately pass due to a
-supermajority decision. XXX improve this by improving the Common DAO Spec.
+Supermajority Decision. XXX improve this by improving the Common DAO Spec.
 
 The Oversight Body does NOT have the sole authority to transfer, spend, freeze,
 or burn any funds or property.
@@ -1012,7 +996,7 @@ For a period of 4 years after launch NT,LLC has the sole authority to determine
 reasonable guidelines for the content of the main entry pages ("gno.land" and
 "www.gno.land"). Thereafter the content of these main entry pages are
 determined by this Constitution and applicable laws and overseen by the
-Oversight Body. All Qualified Forks of Gno.land shall be listed on these main
+Oversight Body. All Qualified Forks of Gno.land must be listed on these main
 pages at all times.
 
 Gno.land and its Qualified Forks may only use the "Gno" word mark and brand and
@@ -1031,22 +1015,22 @@ Nothing prohibites Gno.land from changing its identity and adopting a different
 name that does not include the "Gno" wordmark and brand. GovDAO may choose to
 do so by a Constitutional Amendment. However in this case NT,LLC reserves the
 right to determine a fork of the Gno.land chain with any modifications to the
-constitution and with a new governance body. Such a fork shall be considered a
+constitution and with a new governance body. Such a fork will be considered a
 Qualified Fork even if its governance member set is completely independent of
 the orignal GovDAO members.
 
-No Constitutional Amendment shall be valid that restricts the rights of NT,LLC
-or reduces its powers or authority as declared in this Constitution nor alter
-the US Preference Option without the express permission of NT,LLC. This
+No Constitutional Amendment is considered valid that restricts the rights of
+NT,LLC or reduces its powers or authority as declared in this Constitution nor
+alter the US Preference Option without the express permission of NT,LLC. This
 includes any modifications to the structure and voting rules of GovDAO.
 
 All GovDAO members agree to help enforce these rights of NT,LLC.
 
 ## Principle of the Chain
 
-In all cases the latest released Gno.land node software shall be able to run
-the transactions from the first Genesis launch until current lastest
-transaction. This is achieved by the following:
+In all cases the latest released Gno.land node software must be able to run the
+transactions from the first Genesis launch until current lastest transaction.
+This is achieved by the following:
 
  * A chain upgrade may have a sequential number in the chain ID.
  * Each unique chain ID has its own Genesis State & transactions from index 0.
@@ -1076,21 +1060,24 @@ state may be derived from the snapshot.
 All upgrades to the Gno.land Node Software must be for Fully Audited Open
 Source IP (as any official software release) approved by GovDAO Supermajority
 Decision that includes the exact commit hash of the software release. The only
-exception to the Fully Audited requirement shall be for emergency security
+exception to the Fully Audited requirement will be for emergency security
 patches as approved by Law.
 
-No node operator shall be required to run Gno.land Node Software that cannot be
+No node operator may be required to run Gno.land Node Software that cannot be
 deterministically built with the source even in the case of security issues.
 
 ### Gno.land Storage Capacity
 
-The $GNOT Storage Deposit Price will be such that the total remaining $GNOT.
-and all future inflationary $GNOT does not exceed the size of a typical
-affordable consumer internal hard-disk or solid-state drive available for
-purchase by anyone for a PC; where such a storage drive is manufactured by
-independent manufacturers of at least three independent manufacturers and in
-three different countries; and such a storage drive is at least as good as the
-following in key performance metrics:
+The $GNOT Storage Deposit Price (per byte) will never increase.
+
+The $GNOT Storage Deposit Price may decrease by at most 10% a year.
+
+The $GNOT Storage Deposit Price may not decrease if the total presently used
+storage exceeds the size of a typical consumer internal hard-disk or
+solid-state drive available for purchase by anyone for a PC; where such a
+storage drive is manufactured by independent manufacturers of at least three
+independent manufacturers and in three different countries; and such a storage
+drive is at least as good as the following in key performance metrics:
 
  * Western Digital 10TB WD\_Black Performance Internal Hard Drive HDD - 7200
    RPM, SATA 6 Gb/s, 512 MB Cache, 3.5" - WD102FZBX
@@ -1103,8 +1090,8 @@ collapses.
 
 State Purge Transactions are blockchain transactions for deleting state from a
 Gno.land realm or package. Transactions that depend on state purged by State
-Purge Transactions shall fail with a special transaction response code.  The
-Merkle-tree root hash shall be derivable as if the data was there even after
+Purge Transactions must fail with a special transaction response code.  The
+Merkle-tree root hash must be derivable as if the data was there even after
 purge by State Purge Transactions. This helps preserve the integrity of the
 chain state for valid use-cases and makes it easier to undo when needed.
 
@@ -1125,17 +1112,17 @@ false-positives (due to non-determinism bugs or due to the wrongful signing of
 State Purge Transactions). False Positive Purge Detection Transactions may be
 signed and submitted by active validators as well as any GovDAO delegated
 authority; but whether such transactions have any immediate effect or whether
-node operators must check the integrity of the transaction shall be determined
+node operators must check the integrity of the transaction will be determined
 by future Constitutional Amendments. False Positive Detection Transactions that
 are shown to be valid must be addressed by GovDAO.
 
-All AI models used for the purpose of automated moderation shall be registered
-on chain by the hash of its bytes and shall be static and not automatically
+All AI models used for the purpose of automated moderation must be registered
+on chain by the hash of its bytes and must be static and not automatically
 trained and updated with new transactions such that anyone can check the
 integrity of State Purge Transactions easily with the exct AI model registered
 on chain at the time of purge. AI models may be replaced with newer models or
 be trained with blockchain data and periodically be registered with the chain.
-All AI models used for the purpose of automated moderation shall be made
+All AI models used for the purpose of automated moderation must be made
 available for anyone on demand with any reasonable fees for the transmission of
 its bytes.
 
@@ -1150,9 +1137,9 @@ See "Transaction Replay Forks".
 ## Amendments to the Constitution 
 
 All amendments (modifications) to this Constitution incuding changes to any
-definitions shall require a Constitutional Amendment pre-approved by the
-Oversight Body and passed by a Constitutional Majority Decision of GovDAO
-following all the rules of this Constitution.
+definitions require a Constitutional Amendment pre-approved by the Oversight
+Body and passed by a Constitutional Majority Decision of GovDAO following all
+the rules of this Constitution.
 
 Amendments to this Constitution must belong to one of severeal categories:
 
@@ -1164,10 +1151,10 @@ Amendments to this Constitution must belong to one of severeal categories:
  3. Additions and deletions of portions of the Constitution without any other
     restructuring or rewordings.
 
-Furthermore the Constitution shall be one single markdown file and the latest
-constitution shall be present in the repository under docs/CONSTITUTION.md.
+Furthermore the Constitution must be one single markdown file and the latest
+constitution must be present in the repository under docs/CONSTITUTION.md.
 
-Each amendment shall be composed of up to three diff patches, one for each of
+Each amendment must be composed of up to three diff patches, one for each of
 the three categories in the order as declared above.
 
 ## User Rights and Limitations
@@ -1195,7 +1182,7 @@ Law:
 Gore material is defined as follows:
 
  * realistic depictions of gore whether photographic, video, animated, or AI
-   rendered, and whether embedded in a movie or in a game; and shall exclude
+   rendered, and whether embedded in a movie or in a game; and excludes
    material that is submitted for educational purposes especially those related
    to political conflicts or abuses of power.
 
@@ -1212,7 +1199,7 @@ Material. Banned Offensive Material as determined by the relevant GovDAO DAO or
 as determined by the Oversight Body may be filtered by GnoWeb or the blockchain
 node in API responses in such a way that anyone who runs GnoWeb or the
 blockchain node can also replicate the filter without pay or conditions and
-without relying on any external service. This shall not include hatespeech or
+without relying on any external service. This does not include hatespeech or
 misinformation: neither GovDAO nor the Oversight Body nor any Core DAOs may
 determine what is hatespeech or misinformation. This is to ensure freedom of
 speech.
@@ -1229,14 +1216,14 @@ Only Banned Offensive Material and harmful material may be purged
 from the blockchain state by marking code packages or state objects (including
 entire realms) as such with a [State Purge Transaction](#state-purge-transactions).
 
-The Princple of the Chain shall be preserved at all times; that is, the
+The Princple of the Chain must be preserved at all times; that is, the
 blockchain of blocks of transactions will not itself be modified (but the state
 may be with subsequent transactions). See also "Principle of the Chain".
 
 Code packages and realms that are primarily designed or used to bypass these
 checks may also be frozen with a State Freeze Transaction with a future
 Constitutional Amendment that defines the procedure and limitations but in no
-case shall any state be purged except for the Banned Offensive Material. A porn
+case may any state be purged except for the Banned Offensive Material. A porn
 realm may have all of its pornographic material purged but comments about the
 porn do not fall in this category so therefore cannot be purged. This is to
 prevent abuse and censorship of legitimate discussions.
@@ -1253,7 +1240,7 @@ material that may be pruged from blockchain state with a Purge Transaction but
 only after a heirarchical bonded system of manual review first takes place to
 filter for a strict subset of DMCA or GDPR or similiar requests in accordance
 with terms defined in the Constitution under "User Rights and Limitations". In
-no case shall there be an automated system that purges such state, nor any
+no case will there be an automated system that purges such state, nor any
 guarantees of timeliness of processing such material be offered or required.
 
 Notwithstanding the above, such material may be filtered by GnoWeb.
@@ -1267,9 +1254,9 @@ Transaction nor determined to be a false-positive by this Constitution or the
 Oversight Body) may only be used for the purpose of developing or acquiring
 self-contained open-source AI models and tools for automated or semi-automatic
 purging of state; or be used to pay a moderation team as determined by this
-Constitution. The confiscation of deposited $GNOT for such purposes shall
+Constitution. The confiscation of deposited $GNOT for such purposes must
 require a special Purge Deposit Confiscation Transaction signed by any parties
-as determined by this Constitution, and shall fail if the purge occured less
+as determined by this Constitution, and will fail if the purge occured less
 than 6 months ago or if the state was marked since by a False Positive Purge
 Detection Transaction.
 
@@ -1279,8 +1266,8 @@ automated systems. The Oversight Body may redirect a third of these funds to
 fund for the development or acquisition of alternative moderation systems that
 conform to all requirements of this Constitution if it determines that the
 existing moderation system is not effective, or has an unacceptable amount of
-false-positives; but the adoption of any alternative system shall require a
-GovDAO majority decision contingent on there being no more false-positive
+false-positives; but the adoption of any alternative system must require a
+GovDAO Simple Majority Decision contingent on there being no more false-positive
 purges and no more false-negatives as determined by this Constitution and the
 GovDAO voting members. The Oversight Body may also block the submission of any
 or all Purge Deposit Confiscation Transactions at any time if it determines
@@ -1300,27 +1287,27 @@ transferred to unrelated parties may be frozen by a State Freeze Transaction or
 the funds used to recompense associated victims as determined by a future
 Constitutional Amendment and governed by the Constitution Alone.
 
-Each recompense decision shall be independent of another and require a
-Supermajorithy Decision of GovDAO. The public shall be provided sufficient
+Each recompense decision must be independent of another and require a
+Supermajorithy Decision of GovDAO. The public must be provided sufficient
 information to judge the soundness of each decision.
 
 ### Transaction Replay Forks
 
-At any time GovDAO by Supermajority Decision shall have the right and authority
+At any time GovDAO by Supermajority Decision will have the right and authority
 to address bugs in the Core Software including the GnoVM, node software, and
 systems Gno code by filtering or annotating transactions or making adjustments
-to state (Transaction Replay Forks). This shall not apply to general Gno
+to state (Transaction Replay Forks). This does not apply to general Gno
 ecosystem Gno code issues.
 
 Before and until 1 year after $GNOT is transferrable GovDAO by Supermajority
-Decision shall have the right and authority to make Transaction Replay Forks
-for the purpose of addressing hacks, thefts, and exploits or other problems in
-the spirit of the Constitution.
+Decision has the right and authority to make Transaction Replay Forks for the
+purpose of addressing hacks, thefts, and exploits or other problems in the
+spirit of the Constitution.
 
 The extra-blockchain information of a Transaction Replay Fork such as
-transaction annotations, filters, and state adjustments shall be considered a
-part of the node software and not a part of the blockchain structure (of blocks
-of transactions) itself, so as to preserve the Principle of the Chain.
+transaction annotations, filters, and state adjustments is considered a part of
+the node software and not a part of the blockchain structure (of blocks of
+transactions) itself, so as to preserve the Principle of the Chain.
 
 These terms are expected to be modified before the 1 year mark to clarify or
 modify the Transaction Replay Fork rules.
@@ -1385,9 +1372,9 @@ still in good standing, and no Bonded Vulnerability Reports have been submitted
 either that has not been dismissed explicitly as a false-positive for the code
 and all of its dependencies. Furthermore such a status or badge or anything
 that can be construed as such may only be displayed if manually reviewed by at
-least three GovDAO members two of whom are T1 or T2 members; and they shall
+least three GovDAO members two of whom are T1 or T2 members; and they will
 each be responsible for ensuring that all the conditions are satisifed; however
-they shall not be responsible for the correctness of each Qualified Audit
+they will not be responsible for the correctness of each Qualified Audit
 Report.
 
 ## Realm Upgrading
@@ -1420,27 +1407,24 @@ TODO Rest to be determined after launch by a Constitutional Amendment.
 
 ## Name Registration
 
-The primary purpose shall be for providing human readible names for package
-paths (e.g. `org\_name` in `"gno.land/r/org_name/pkg_name"`).
+The primary purpose is for providing human readible names for package paths
+(e.g. `org\_name` in `"gno.land/r/org_name/pkg_name"`).
 
 Name registration will not intially be implemented.
 
-There shall be at most one core name registration system for Gno.land, though
+There will be at most one core name registration system for Gno.land, though
 anyone may deploy their own for any purpose not managed by Gno.land, and as per
-the Seven Mandates of Gno.land no name shall be required for any core services
-(such as MsgAddPackage or MsgExec).
+the Seven Mandates of Gno.land no name is required for any core services (such
+as MsgAddPackage or MsgExec).
 
-The name registration system shall satisfy the following:
+The name registration system must satisfy the following:
 
  * Only lowercase alphabetic ASCII characters are allowed with underscores not
    as the first character.
 
  * The length is between 5 and 25 characters.
 
- * The name shall be canonicalized such that 'l' and 'i' are the same, and the
-   canonicalized name shall be used to enforce uniqueness.
-
- * The canonicalized name shall not start with any of:
+ * The canonicalized name must not start with any of:
    * "gl" (and neither "gi", so as to be distinct from "g1..." addresses)
    * "gno"
    * "cosmos"
@@ -1452,7 +1436,7 @@ The name registration system shall satisfy the following:
 
  * Notwithstanding the above NT,LLC may reserve names that start with "gno".
 
- * The canonicalized name shall not include (as prefix or suffix or otherwise)
+ * The canonicalized name must not include (as prefix or suffix or otherwise)
    the canonicalized form of any reserved names as defined by
    https://github.com/handshake-org/hsd/pull/819 without an on-chain
    transparent process approved by GovDAO to respect trademarks with priority
@@ -1460,7 +1444,7 @@ The name registration system shall satisfy the following:
    sufficiently unique by a reasonable algorithm implemented on chain but still
    preventing collisions in the canonicalized form; or on a case-by-case basis.
 
- * The registration of the name shall be permanent. Names may be disabled by a
+ * A registration of the name is permanent. Names may be disabled by a
    procedure defined by a Constitutional Amendment that defines the criteria
    for such disablement, but such names cannot be used again by anyone else.
 
@@ -1470,11 +1454,11 @@ The name registration system shall satisfy the following:
 ## Treasury diversification
 
 Each of the above mentioned treasuries may be separately diversified by
-supermajority vote of one proposal per treasury by GovDAO in accordance with
-the Constitution--but all GovDAO members with any conflicts of tokens (except
-$GNOT) above 3 months of salary for a typical senior software developer MUST
-abstain from voting. If a quorum cannot possibly be reached due to conflict of
-interests the Oversight Body may waive the quorum requirement.
+Supermajority Decision by GovDAO of one proposal per treasury in accordance
+with the Constitution--but all GovDAO members with any conflicts of tokens
+(except $GNOT) above 3 months of salary for a typical senior software developer
+MUST abstain from voting. If a quorum cannot possibly be reached due to
+conflict of interests the Oversight Body may waive the quorum requirement.
 
 Diversification for each treasury must adhere to an Treasury Diversification
 Template listed explicitly in this Constitution by a future amendment that
@@ -1482,7 +1466,7 @@ declares the desired target ratio of Approved Treasury Diversification Tokens,
 and the following:
 
  * Besides $GNOT or the top two dominant Bitcoin fork tokens (presently $BTC
-   and $BCH but may change in the future) which shall always be approved, all
+   and $BCH but may change in the future) which will always be approved, all
    other tokens of the Approved Treasury Diversifiction Tokens must be
    stablecoins FULLY backed by collateral.
    * Coins that are FULLY backed by silver via decentralized and publicly
@@ -1499,11 +1483,11 @@ and the following:
 
  * $ATONE tokens or any other staking tokens are not allowed.
 
- * In no case shall the amount of $GNOT sold per treasury per month for
+ * In no case may the amount of $GNOT sold per treasury per month for
    diversification purposes exceed 1% of $GNOT of that treasury as measured at
    the beginning of each month.
 
- * In no case shall the total amount of $GNOT sold for all treasuries per month
+ * In no case may the total amount of $GNOT sold for all treasuries per month
    for diversification purposes exceed 50% of the average of ($GNOT inflation
    rate, and the past month's transaction fee revenue), with priority given to
    ValTreasury, then to PayTreasury, then to ServicesTreasury.
@@ -1560,7 +1544,7 @@ may vote YES or NO on one or both proposals.
    * If neither can keep the "Gno.land" name, the "Gno.land" name is deprecated
      and cannot be used by any chain ever again; and the exiting chain may be
      required to change its chain ID; and the Gno.land domain will be managed
-     by NewTendermint,LLC to point to both chains; and both chains shall be
+     by NewTendermint,LLC to point to both chains; and both chains will be
      deemed to be Qualified Forks. Any royalty payments due to the original
      chain may be directed to either fork or split between the two forks as
      determined by NewTendermint,LLC; or even nullified but only if
@@ -1595,7 +1579,7 @@ from strong attribution in this way. The policies may be updated by
 NewTendermint,LLC from time to time; and the goal is to finalize portions of
 the policy such that they may be embedded into the Gno.land Constitution.
 
-These terms shall be made clear in GnoWeb and gnocli for anyone submitting code
+These terms must be made clear in GnoWeb and gnocli for anyone submitting code
 or any transaction. Specifically for anyone uploading realm or library packages
 to Gno.land using gnocli they must first sign an approved CLA compatible with
 the above and include a hash of the CLA with each transaction.
@@ -1609,12 +1593,12 @@ before any funding decisions are approved by any Core DAO.
 
 Fully Audited means that all dependencies of the software are also audited by a
 Qualified Auditor unless excempt by the Constitution or Law. This requirement
-shall be relaxed for a period of 4 years after launch for existing software
+may be relaxed for a period of 4 years after launch for existing software
 unless otherwise stated by Law.
 
-External dependencies shall be regulated such that every update to the external
-dependency shall require audits as well or manual review of each minimal
-security patch. No major or minor version upgrades shall be allowed
+External dependencies must be regulated such that every update to the external
+dependency requires audits as well or manual review of each minimal
+security patch. No major or minor version upgrades will be allowed
 automatically for releases; that is, development branches may allow such
 automated updates but the release process must include a procedure for vetting
 any changes to dependencies since the last version.
@@ -1643,10 +1627,10 @@ for the major version number of that software.
 
 ### Private Key Security
 
-At no point shall a GovDAO or Gno.land fund for the development of any software
+At no point may a GovDAO or Gno.land fund for the development of any software
 or team or anything else that allows or encourages the user to enter their
 private key or mnemonic on any online computer or mobile network-capable
-device. The only exception shall be for existing hardware wallets that allow
+device. The only exception is for existing hardware wallets that allow
 for bluetooth, as some of these devices already support bluetooth, as long as
 bluetooth can be disabled.
 
@@ -1656,7 +1640,7 @@ Ephemeral private keys with limited capabilities and default reasonable
 limitations on losses (in the case of theft or exploit) may be generated on
 online computers or mobile network-capable devices, but no ephemeral keys may
 be imported manually by the user nor converted into a mnemonic so as to prevent
-any confusion. The term "mnemonic" shall only refer to their master private
+any confusion. The term "mnemonic" must only refer to their master private
 key.
 
 GovDAO must maintain a simple guide for users to harden their security including:
@@ -1685,13 +1669,13 @@ manufactuer.
 
 ### Safety Wrapper Contracts
 
-GovDAO shall ensure the timely development of conventions, protocols, and
+GovDAO must ensure the timely development of conventions, protocols, and
 libraries for realm and library logic to support the freezing of user accounts
 or native tokens or application tokens/property in such a way to minimize harm
 for unrelated parties.
 
 For the purpose of protecting users from theft or loss resulting from exploits,
-hacks, or even user error GovDAO shall fund for the development of multiple
+hacks, or even user error GovDAO must fund for the development of multiple
 competing implementations of wrapper contracts that address one or more of the
 following concerns:
 
@@ -1790,7 +1774,7 @@ the development of the above is NT,LLC. Failing the above GovDAO may decide to
 fork Tendermint2 on a branch with a unique name with the above as priorities.
 
 No development or endorsement of quantum-proof modifications to Gno.land Core
-Software or any consensus engine shall take place without the pre-approval of
+Software or any consensus engine may take place without the pre-approval of
 NT,LLC (or its delegate) of its design specification. GovDAO must use a
 reasonable amount of funds (under the typical salary for a software architect
 for a year) to collect proposals for such specifications to be approved by
@@ -1811,7 +1795,7 @@ met by the existing core software.
 
 New cryptographic primitives for when an old primitive is deemeed
 insufficiently secure (e.g. when quantum computers break secp256k1 given
-pubkey) then both the old and new pubkeys shall be independently derived and
+pubkey) then both the old and new pubkeys must be independently derived and
 both required for a testing period of 7 years with significant economic
 incentivecs such as with bounties rewarded for cracking challenge keys. This
 helps prevent the adoption of primitives or implementations with unknown or
@@ -1874,7 +1858,7 @@ attribution.
 All open hardware must be formally verified by standard formal verification
 software before release.
 
-No one shall be required to use the these products.
+No one is required to use the these products.
 
 ### Forensic Analysis of Common Hardware
 
@@ -1905,7 +1889,7 @@ products.
    photography.
 
 All of the procedures, software, and materials used by the forensic analysis
-team shall be made public and free such that any team may use them to offer
+team must be made public and free such that any team may use them to offer
 their own forensic analysis.
 
 # Appendix
@@ -1914,12 +1898,12 @@ their own forensic analysis.
 
 This is based off of atomone-hub/genesis/CONSTITUTION.md and simplified.
 
-These common DAO specifications shall apply for all Core DAOs unless otherwise
+These common DAO specifications apply for all Core DAOs unless otherwise
 specified, Special Purpose DAOs, and all sub-DAOs of these DAOs. Other DAOs
 that are not Core DAOs or Special Purpose DAOs or Descendants of these DAOs
 need not implement these specifications.
 
-## Common DAO Spec - version gno.land/genesis
+## Common DAO Spec - version "Gno.land Genesis"
 
 All sub-DAOs have parent DAOs. The parent DAO of the Core DAOs and Special
 Purpose DAOs are the governance of the AtomOne Hub itself. Therefore all Core
@@ -1936,8 +1920,8 @@ files. The Bylaws and Mandates must be named plaintext files or folders of
 plaintext files, or folders of folders.
 
 A DAO’s Charter, Bylaws, and Mandates may be changed by a Simple Majority vote
-from any of the DAO’s ancestors, except from AtomOne Hub Governance which shall
-require a Supermajority vote.
+from any of the DAO’s ancestors, except from AtomOne Hub Governance which 
+requires a Supermajority vote.
 
 A DAO’s Bylaws, Mandates, and the Bylaws and Mandates of its ancestor DAOs, the
 relevant Laws, and this Constitution, altogether are called the Governing
@@ -1960,26 +1944,26 @@ A Supermajority in DAO governance is defined to be exactly "two thirds or
 more". This is distinct from a Supermajority in Hub Governance.
 
 By default, unless specified otherwise in its Governing Documents, the
-following rules shall apply for Council voting:
+following rules apply for Council voting:
 
-- each member shall have equal voting power (no member may occupy multiple
+- each member has equal voting power (no member may occupy multiple
   seats)  
 - a Council member may resign and thereby remove themselves from the Council  
 - vote options are YES, NO, or ABSTAIN
 - the tally denominator is the total number of voters (ABSTAINS do not count).
 - voting for proposals are open until they are decided immediately by a
-  supermajority of YES votes, or dismissed immediately by a majority of NO
-  votes, or otherwise the voting period has passed.
+  supermajority of YES votes, or dismissed immediately by a simple majority of
+  NO votes, or otherwise the voting period has passed.
 
 By default, unless specified otherwise in its Governing Documents, the
-following rules shall apply for Council membership election:
+following rules apply for Council membership election:
 
 - the Council may elect one or more new members, and/or remove one or more
   members, by Super Majority vote. (self mutating).   
 - the DAO’s Ancestors may modify the Council membership with a Super Majority
   vote.
 
-Each DAO shall have an associated crypto address which can hold any number of
+Each DAO may have an associated crypto address which can hold any number of
 tokens.  
 
 DAOs may operate with logic on core shards, or, represented as a m-of-n
@@ -1987,101 +1971,3 @@ multisig account on the AtomOne hub where the signers are each members of the
 DAO’s council, where m is more than ½ n and also m is 3 or more. In all cases
 financial transactions from the DAO’s treasury must follow the passage of
 governance proposals on the DAO.
-
-### Section 4.b: Core DAOs with Special Powers
-
-As stated, the AtomOne Hub Governance structure will include several DAOs, to
-provide guidance, oversight, and support for various aspects of governance and
-operations. 
-
-The Core DAO Council has the authority to make decisions for the Core DAO
-through a Simple Majority vote of its members, as well as update the Bylaws,
-but cannot update its Charter or Mandates. 
-
-All Core DAOs and their sub-DAOs shall be composed of Cosmonauts, and the DAO
-Councils be composed of Citizens. All Cosmonauts and Citizens of these DAOs
-must have public and known real human identities.
-
-Members are encouraged to engage in multiple DAOs within the AtomOne Hub to
-foster collaboration, innovation, and the exchange of ideas. However, to
-maintain the integrity of governance, members must declare their conflicts of
-interest  and are required to comply with the conflict of interest policies
-outlined in this Constitution, the Laws, and applicable Governing Documents.
-Members must recuse themselves by not voting or voting ABSTAIN on proposals
-that pose a conflict of interest.
-
-The following are Core DAOs of AtomOne:
-
-- Steering DAO and its subDAOs  
-- Oversight DAOs and their subDAOs  
-- Special Purpose DAOs and their subDAOs
-
-While Core DAOs are non-person entities and may hold ATONE tokens in its
-treasury, unlike other DAOs, Core DAOs may not stake ATONE tokens.
-
-All Core DAOs must manage the financial resources of its treasury efficiently
-and transparently at all times. 
-
-#### Steering DAO
-
-There is only ever one Steering DAO.
-
-The Steering DAO is responsible for providing guidance and advisory annotations
-on proposals and funding reports, helping to steer the overall direction and
-priorities of the AtomOne Hub.
-
-The Steering DAO can:
-
-- publish publish periodic announcements on chain  
-- annotate all core DAO proposals with advisory notes to provide context,
-  guidance, and recommendations, offering a non-binding perspective to aid
-  decision-making.  
-- annotate funding reports to highlight key insights, concerns, and
-  recommendations.  
-- adjust AtomOne Hub Governance proposal timelines ("bend time") to provide
-  additional time for consideration, though this power cannot be used to
-  indefinitely prevent proposals from being addressed.  
-- reduce the threshold needed to pass new laws from a Constitutional Majority
-  to a Supermajority.
-
-
-The mostly advisory nature of the Steering DAO's annotations ensures they guide
-but do not dictate decisions, and specific limitations on the power to adjust
-proposal timelines must be defined to prevent abuse.
-
-Upon genesis there will be no Steering DAO. A Steering DAO may be created,
-dismissed, or replaced by a Supermajority vote on AtomOne hub governance. 
-
-For the purpose of cohesion, before the Steering DAO can be created (or
-replaced), its initial (or new) set of Council members must have all agreed to
-joining that Council by cryptographically signing a list of all the council
-members, along with the DAO’s identifier.
-
-#### Oversight DAOs
-
-An Oversight DAO is responsible for ensuring that all laws, bylaws, mandates,
-and core DAO governance proposals as well as AtomOne Hub governance proposals
-within the scope of its mandate) are in compliance with their respective
-Governing Documents. 
-
-There can be one or more Oversight DAOs.
-
-Any Oversight DAO can (within the scope of its mandate):
-
-- veto any proposal or transaction of any Core DAO or AtomOne Hub with proof of
-  its violation of Governing Documents.  
-- adjust Core DAO or AtomOne Hub proposal timelines ("bend time") to provide
-  additional time for consideration, ensure thorough review, and ensure all
-  Core DAO and AtomOne Hub proposals comply with its Governing Documents.  
-- as exceptions to the above rules, no Oversight DAO may affect any proposals
-  to change any Oversight DAO’s Council membership, or any proposals to suspend
-  or dismiss any Oversight DAO; both of which either require the passage of new
-  law, or specific proposal types with the same criteria as passing new law.
-
-The broad veto power of Oversight DAOs ensures that no single proposal can
-override constitutional principles or violate the Constitution, but vetoes
-should be used sparingly and with justification.
-
-Upon genesis there will be no Oversight DAOs. An Oversight DAO may be created,
-dismissed, or replaced by a Supermajority vote on AtomOne hub governance. 
-
