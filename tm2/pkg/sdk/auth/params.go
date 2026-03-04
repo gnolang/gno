@@ -153,18 +153,63 @@ func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 
 // WillSetParam defines what needs to be done when the parameter is set.
 func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
-	logger := ak.Logger(ctx)
+	params := ak.GetParams(ctx)
 	switch key {
-	case "p:unrestricted_addrs":
-		addrs, ok := value.([]string)
-		if !ok {
-			panic(fmt.Sprintf("invalid type for unrestricted_addrs: expected []string, got %T", value))
+	case "p:max_memo_bytes":
+		params.MaxMemoBytes = mustParamInt64("max_memo_bytes", value)
+	case "p:tx_sig_limit":
+		params.TxSigLimit = mustParamInt64("tx_sig_limit", value)
+	case "p:tx_size_cost_per_byte":
+		params.TxSizeCostPerByte = mustParamInt64("tx_size_cost_per_byte", value)
+	case "p:sig_verify_cost_ed25519":
+		params.SigVerifyCostED25519 = mustParamInt64("sig_verify_cost_ed25519", value)
+	case "p:sig_verify_cost_secp256k1":
+		params.SigVerifyCostSecp256k1 = mustParamInt64("sig_verify_cost_secp256k1", value)
+	case "p:gas_price_change_compressor":
+		params.GasPricesChangeCompressor = mustParamInt64("gas_price_change_compressor", value)
+	case "p:target_gas_ratio":
+		params.TargetGasRatio = mustParamInt64("target_gas_ratio", value)
+	case feeCollectorPath:
+		s := mustParamString("fee_collector", value)
+		addr, err := crypto.AddressFromString(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid fee_collector address: %v", err))
 		}
+		params.FeeCollector = addr
+	case "p:unrestricted_addrs":
+		addrs := mustParamStrings("unrestricted_addrs", value)
 		ak.applyUnrestrictedAddrsChange(ctx, addrs)
+		return // unrestricted_addrs has its own validation in applyUnrestrictedAddrsChange
 	default:
-		// No-op for unrecognized keys
-		logger.Error("No-op for unrecognized keys", "key", key)
+		panic(fmt.Sprintf("unknown auth param key: %q", key))
 	}
+	if err := params.Validate(); err != nil {
+		panic("invalid param: " + err.Error())
+	}
+}
+
+func mustParamString(key string, value any) string {
+	s, ok := value.(string)
+	if !ok {
+		panic(fmt.Sprintf("invalid type for %s param: expected string, got %T", key, value))
+	}
+	return s
+}
+
+func mustParamInt64(key string, value any) int64 {
+	i, ok := value.(int64)
+	if !ok {
+		panic(fmt.Sprintf("invalid type for %s param: expected int64, got %T", key, value))
+	}
+	return i
+}
+
+func mustParamStrings(key string, value any) []string {
+	s, ok := value.([]string)
+	if !ok {
+		panic(fmt.Sprintf("invalid type for %s param: expected []string, got %T", key, value))
+	}
+	return s
 }
 
 func (ak AccountKeeper) applyUnrestrictedAddrsChange(ctx sdk.Context, newAddrs []string) {
