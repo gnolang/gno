@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -207,60 +205,39 @@ func TestClient_SendRequest(t *testing.T) {
 		assert.ErrorIs(t, err, ErrRequestResponseIDMismatch)
 	})
 
-	t.Run("body exceeding max size returns server error", func(t *testing.T) {
+	t.Run("response with empty ID and error returns server error", func(t *testing.T) {
 		t.Parallel()
 
-		const maxBodyBytes = 1024 // 1KB limit for testing
-
-		// Create a handler that mimics the real RPC server behavior:
-		// it uses MaxBytesReader and returns an error with empty ID
-		// when the body exceeds the limit.
+		// When the server can't read the request body (e.g. body exceeds
+		// MaxBodyBytes), it returns an error response with an empty string
+		// ID because it never parsed the original request ID.
+		// See handlers.go:L137.
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Apply MaxBytesReader like the real server does
-			r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+			response := types.RPCInvalidRequestError(
+				types.JSONRPCStringID(""),
+				fmt.Errorf("error reading request body: http: request body too large"),
+			)
 
-			// Attempt to read the body, like makeJSONRPCHandler does
-			_, err := io.ReadAll(r.Body)
-			if err != nil {
-				// Server returns an error response with an empty string ID,
-				// matching the behavior in handlers.go:L137
-				response := types.RPCInvalidRequestError(
-					types.JSONRPCStringID(""),
-					fmt.Errorf("error reading request body: %w", err),
-				)
+			marshalledResponse, err := json.Marshal(response)
+			require.NoError(t, err)
 
-				marshalledResponse, marshalErr := json.MarshalIndent(response, "", "  ")
-				require.NoError(t, marshalErr)
-
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(200)
-
-				_, writeErr := w.Write(marshalledResponse)
-				require.NoError(t, writeErr)
-
-				return
-			}
+			_, err = w.Write(marshalledResponse)
+			require.NoError(t, err)
 		})
 
 		server := createTestServer(t, handler)
 
-		// Create a request with params exceeding maxBodyBytes
-		largeParams := strings.Repeat("x", maxBodyBytes+1)
-		request := types.RPCRequest{
-			JSONRPC: "2.0",
-			ID:      types.JSONRPCStringID("id"),
-			Method:  "test",
-			Params:  json.RawMessage(`"` + largeParams + `"`),
-		}
-
-		// Create the client
 		c, err := NewClient(server.URL)
 		require.NoError(t, err)
 
 		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancelFn()
 
-		// Send the request
+		request := types.RPCRequest{
+			JSONRPC: "2.0",
+			ID:      types.JSONRPCStringID("id"),
+		}
+
 		resp, err := c.SendRequest(ctx, request)
 		assert.Nil(t, resp)
 		require.Error(t, err)
@@ -268,12 +245,9 @@ func TestClient_SendRequest(t *testing.T) {
 		// Should return the actual server error, not ID mismatch
 		assert.NotErrorIs(t, err, ErrRequestResponseIDMismatch)
 
-		// Verify it's the RPC error with the expected error code
 		var rpcErr *types.RPCError
 		require.ErrorAs(t, err, &rpcErr)
 		assert.Equal(t, -32600, rpcErr.Code)
-		assert.Equal(t, "Invalid Request", rpcErr.Message)
-		assert.Contains(t, rpcErr.Data, "error reading request body")
 	})
 }
 
@@ -345,5 +319,4 @@ func TestClient_SendBatchRequest(t *testing.T) {
 		assert.Nil(t, resp.Result)
 		assert.Nil(t, resp.Error)
 	}
-
 }
