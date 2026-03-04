@@ -51,17 +51,8 @@ func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeperI) BankKeeper 
 
 // This is a convenience function for manually setting the restricted denoms.
 // Useful for testing and initchain setup.
-// The ParamKeeper will call WillSetRestrictedDenoms() before writing.
 func (bank BankKeeper) SetRestrictedDenoms(ctx sdk.Context, restrictedDenoms []string) {
 	bank.prmk.SetStrings(ctx, "p:restricted_denoms", restrictedDenoms)
-}
-
-// This will get called whenever the restricted denoms parameter is changed.
-func (bank BankKeeper) WillSetRestrictedDenoms(ctx sdk.Context, restrictedDenoms []string) {
-	params := NewParams(restrictedDenoms)
-	if err := params.Validate(); err != nil {
-		panic("invalid param: " + err.Error())
-	}
 }
 
 func (bank BankKeeper) RestrictedDenoms(ctx sdk.Context) []string {

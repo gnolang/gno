@@ -60,14 +60,18 @@ func (bank BankKeeper) GetParams(ctx sdk.Context) Params {
 }
 
 func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
+	params := bank.GetParams(ctx)
 	switch key {
 	case "p:restricted_denoms":
 		denoms, ok := value.([]string)
 		if !ok {
 			panic(fmt.Sprintf("invalid type for restricted_denoms: expected []string, got %T", value))
 		}
-		bank.WillSetRestrictedDenoms(ctx, denoms)
+		params.RestrictedDenoms = denoms
 	default:
 		panic(fmt.Sprintf("unknown bank param key: %q", key))
+	}
+	if err := params.Validate(); err != nil {
+		panic("invalid param: " + err.Error())
 	}
 }
