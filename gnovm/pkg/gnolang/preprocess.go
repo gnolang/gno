@@ -1233,8 +1233,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if (lt == nil || lt.Kind() != InterfaceKind) &&
 							(rt == nil || rt.Kind() != InterfaceKind) {
 							if !shouldSwapOnSpecificity(lcx.T, rcx.T) {
+								// convert n.Left to right type.
 								checkOrConvertType(store, last, n, &n.Left, rt)
 							} else {
+								// convert n.Right to left type.
 								checkOrConvertType(store, last, n, &n.Right, lt)
 							}
 						}
@@ -4071,6 +4073,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			if t == nil || t.Kind() == InterfaceKind {
 				t = defaultTypeOf(xt)
 			}
+			// t is the type from context or default.
 			bx.assertShiftExprCompatible2(t)
 
 			// Convert untyped to typed.

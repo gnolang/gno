@@ -2,7 +2,7 @@ package main
 
 func main() {
 	var s uint = 33
-	var u2 = 1<<s + 1.0
+	var u2 = 1<<s + 1.0 // no type from context, fall through to default.
 	println(u2)
 }
 // Error:

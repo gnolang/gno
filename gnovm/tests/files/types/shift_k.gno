@@ -1,12 +1,14 @@
 package main
 
 func main() {
-	var a uint = 1
+	i := int(1)
+	a := +(1.0 << i)
 
-	b := make([]byte, 1.0<<a)
-
-	println(b)
+	println(a)
 }
 
 // Error:
-// main/shift_k.gno:6:7-27: operator << not defined on: Float64Kind
+// main/shift_k.gno:5:2-18: operator << not defined on: Float64Kind
+
+// TypeCheckError:
+// main/shift_k.gno:5:9: invalid operation: shifted operand 1.0 (type float64) must be integer

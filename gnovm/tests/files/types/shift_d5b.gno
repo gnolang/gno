@@ -2,10 +2,12 @@ package main
 
 func main() {
 	x := 11
-	var y int
-	y = 1.0 << x // no const
+	y := float32(1.0 << x)
 	println(y)
 }
 
-// Output:
-// 2048
+// Error:
+// main/shift_d5b.gno:5:7-24: operator << not defined on: Float32Kind
+
+// TypeCheckError:
+// main/shift_d5b.gno:5:15: invalid operation: shifted operand 1.0 (type float32) must be integer
