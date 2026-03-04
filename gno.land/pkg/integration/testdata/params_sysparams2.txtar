@@ -33,7 +33,7 @@ stdout 'data: \[""\]' # still the same.
 gnokey query params/bank:restricted_denoms
 stdout 'data: \n'
 
-# set wrong type: SetSysParamString (string) instead of SetSysParamStrings ([]string) for restricted_denoms
+# set wrong type for restricted_denoms
 ! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetRestrictedDenomsWrongType -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stderr 'invalid type for restricted_denoms: expected \[\]string, got string'
 
