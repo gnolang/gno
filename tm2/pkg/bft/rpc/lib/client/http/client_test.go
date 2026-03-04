@@ -3,9 +3,10 @@ package http
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -205,24 +206,31 @@ func TestClient_SendRequest(t *testing.T) {
 		assert.ErrorIs(t, err, ErrRequestResponseIDMismatch)
 	})
 
-	t.Run("response with empty ID and error returns server error", func(t *testing.T) {
+	t.Run("body too large returns server error", func(t *testing.T) {
 		t.Parallel()
 
-		// When the server can't read the request body (e.g. body exceeds
-		// MaxBodyBytes), it returns an error response with an empty string
-		// ID because it never parsed the original request ID.
-		// See handlers.go:L137.
+		const maxBodyBytes = 1024
+
+		// Mimic the real RPC server: apply MaxBytesReader, then
+		// attempt to read the body like makeJSONRPCHandler does.
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			response := types.RPCInvalidRequestError(
-				types.JSONRPCStringID(""),
-				fmt.Errorf("error reading request body: http: request body too large"),
-			)
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 
-			marshalledResponse, err := json.Marshal(response)
-			require.NoError(t, err)
+			_, err := io.ReadAll(r.Body)
+			if err != nil {
+				resp := types.RPCInvalidRequestError(
+					types.JSONRPCStringID(""),
+					err,
+				)
 
-			_, err = w.Write(marshalledResponse)
-			require.NoError(t, err)
+				data, marshalErr := json.Marshal(resp)
+				require.NoError(t, marshalErr)
+
+				_, writeErr := w.Write(data)
+				require.NoError(t, writeErr)
+
+				return
+			}
 		})
 
 		server := createTestServer(t, handler)
@@ -236,13 +244,14 @@ func TestClient_SendRequest(t *testing.T) {
 		request := types.RPCRequest{
 			JSONRPC: "2.0",
 			ID:      types.JSONRPCStringID("id"),
+			Method:  "test",
+			Params:  json.RawMessage(`"` + strings.Repeat("x", maxBodyBytes+1) + `"`),
 		}
 
 		resp, err := c.SendRequest(ctx, request)
 		assert.Nil(t, resp)
 		require.Error(t, err)
 
-		// Should return the actual server error, not ID mismatch
 		assert.NotErrorIs(t, err, ErrRequestResponseIDMismatch)
 
 		var rpcErr *types.RPCError
