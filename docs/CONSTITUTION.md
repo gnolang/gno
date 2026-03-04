@@ -1,5 +1,9 @@
 # GNO.LAND CONSTITUTION
 
+_This Constitution is still being worked on and is expected to be ratified
+after Gno.land genesis by a Supermajority Decision of GovDAO with NT,LLC
+approval._
+
 ## Declaration of Intent
 
 We the gnomes of Gno.land, to bring to life a virtual world of structured
@@ -316,45 +320,29 @@ insufficient.
 
 ### Ecosystem Treasury
 
-These funds are primarily reserved for rewarding the creators of External
-Contributions defined as contributions of Open Source IP mentioned in any of
-the Governing Documents and Gno software not already paid for by other means.
+These funds are primarily reserved for long-term rewarding the creators of
+External Contributions defined as contributions of Open Source IP mentioned in
+any of the Governing Documents and Gno software not already paid for by other
+means. 
 
-XXX
+At most 1/4 of the GovDAO 11.9% genesis allocation may be distributed to prior
+contributors by GovDAO Supermajority Decision. Present GovDAO members are not
+eligible for any allocation from the Ecosystem Treasury genesis allocation.
 
-In all cases were not otherwise contracted to develop said IP and at the time
-of contribution was not a member of GovDAO.
+All funding decisions from the Ecosystem Treasury require a Supermajority
+Decision by GovDAO. 
 
-At most one-third of the GovDAO 11.9% genesis allocation may be distributed to
-prior contributors by GovDAO Supermajority Decision. Present GovDAO members are
-not eligible for any allocation from the Ecosystem Treasury genesis allocation.
+All funding decisions from the Ecosystem Treasury must be based on well defined
+heuristics as defined in the Constitution Alone, or based on quality as
+assessed by the review of council members of the relevant GovDAO DAO. Naturally
+council members must abstain from voting on matters with any conflict of
+interests, but the Oversight Body is specifically responsible for (and has the
+authority for) ensuring that council members do not collude to reward each
+other unfairly in any given proposal nor over multiple proposals.
 
-All funding decisions from the Ecosystem Treasury require a
-Supermajority Decision by GovDAO. 
-
-All funding from the Ecosystem Treasury must go to past
-contributions. That is, no funding may go toward future contributions.
-
-All funding decisions from the Ecosystem Treasury must be based on
-well defined heuristics as defined in the Constitution Alone, or based on
-quality as assessed by the review of council members of the relevant GovDAO
-DAO. Naturally council members must abstain from voting on matters with any
-conflict of interests, but the Oversight Body is specifically responsible for
-(and has the authority for) ensuring that council members do not collude to
-reward each other unfairly in any given proposal nor over multiple proposals.
-
-No heuristic for funding may be based on code line-count nor the number of
-individual contributors.
-
-No funding may be made in proportion or algorithmic relation to runtime metrics
-of gas, storage, nor fees; nor to any measure of financial value (e.g.  managed
-by a realm or in relation to any transaction); nor to metrics of usage by
-import; except that such metrics and measures may be used for the purpose of
-categorization or filtering.
-
-All funding from the Ecosystem Treasury must go to contributors
-whose real human identity is known and recorded in accordance with the
-Constitution or relevant Laws of Gno.land.
+All funding from the Ecosystem Treasury must go to contributors whose real
+human identity is known and recorded in accordance with the Constitution or
+relevant Laws of Gno.land.
 
 ### Validator Services Treasury
 
@@ -451,17 +439,17 @@ Constitutional Majority Decision.
 Transaction fees collected in $GNOT or $PHOTON on Gno.land are called Revenue.
 The Revenue is distributed according to the following rules in order:
 
- 1. ValTreasury is funded with 75% of Revenue if ValTreasury has less than 1 year of runway, or
- 2. ValTreasury is funded with 50% of Revenue if ValTreasury has less than 4 years of runway, or
- 3. ValTreasury is funded with 25% of Revenue if ValTreasury has less than 7 years of runway, or
- 4. ValTreasury is funded with 10% of Revenue if ValTreasury has more than 7 years of runway.
+ 1. ValTreasury is funded with 50% of Revenue if ValTreasury has less than 1 year of runway, or
+ 2. ValTreasury is funded with 25% of Revenue if ValTreasury has less than 2 years of runway, or
+ 3. ValTreasury is funded with 10% of Revenue if ValTreasury has less than 3 years of runway, or
+ 4. ValTreasury is funded with 5% of Revenue if ValTreasury has more than 3 years of runway.
 
 The portion of Revenue that is not allocated to ValTreasury is called Remaining Revenue 1.
 
- 5. PayTreasury is funded with 75% of Remaining Revenue 1 if PayTreasury has less than 1 year of runway, or
- 6. PayTreasury is funded with 50% of Remaining Revenue 1 if PayTreasury has less than 4 years of runway, or
- 7. PayTreasury is funded with 25% of Remaining Revenue 1 if PayTreasury has less than 7 years of runway, or
- 8. PayTreasury is funded with 10% of Remaining Revenue 1 if PayTreasury has more than 7 years of runway.
+ 5. PayTreasury is funded with 50% of Remaining Revenue 1 if PayTreasury has less than 1 year of runway, or
+ 6. PayTreasury is funded with 25% of Remaining Revenue 1 if PayTreasury has less than 2 years of runway, or
+ 7. PayTreasury is funded with 10% of Remaining Revenue 1 if PayTreasury has less than 3 years of runway, or
+ 8. PayTreasury is funded with 5% of Remaining Revenue 1 if PayTreasury has more than 3 years of runway.
 
 PayTreasury has strictly lower priority than ValTreasury because GovDAO members
 can theoretically still function without pay, whereas the blockchain cannot
@@ -499,8 +487,6 @@ approve of other official burn mechanisms that are reasonable, VOLUNTARY, and
 EXPLICIT. Such burning mechanisms may be used to yield storage deposit tokens
 on other chains.
 
-XXX Include a standard burn address and/or burn transaction type.
-
 The $GNOT token should not be used as a storage deposit token or for any other
 chain except the original Gno.land chain, nor be used as a staking/bonding
 token as this limits the utility (accessible storage capacity) of Gno.land
@@ -515,7 +501,7 @@ excess $GNOT deposits per realm. This is not considered part of Revenue.
 
 When the $GNOT storage deposit rate decreases (not automatically by the $GNOT
 burn mechanism described below, but by the decision of GovDAO to lower the
-rate) 25% of the excess $GNOT goes into the Ecosystem Audit Treasury, 25% of
+rate) 15% of the excess $GNOT goes into the Ecosystem Audit Treasury, 10% of
 the excess $GNOT goes into the Recompense Treasury, and the remainer goes to
 the each seggregated virtual account per realm ($GNOT of the realm's SDDCA) to
 be used only for future discounts on transactions for that specific realm.
@@ -958,7 +944,7 @@ GovDAO or Core DAOs if such decisions are determined to be:
 The Oversight Body may block any proposals that have otherwise passed in the
 prior month unless otherwise specified or a pre-approval was already granted.
 This is especially important for proposals that immediately pass due to a
-Supermajority Decision. XXX improve this by improving the Common DAO Spec.
+Supermajority Decision.
 
 The Oversight Body does NOT have the sole authority to transfer, spend, freeze,
 or burn any funds or property.
@@ -1602,10 +1588,6 @@ security patch. No major or minor version upgrades will be allowed
 automatically for releases; that is, development branches may allow such
 automated updates but the release process must include a procedure for vetting
 any changes to dependencies since the last version.
-
-Concurrently GovDAO must contribute to Atom.One such that the validators are
-incentivized and over time required to run on their own dedicated machines. XXX
-move.
 
 ### Software Finalization
 
