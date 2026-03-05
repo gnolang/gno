@@ -1,0 +1,9 @@
+-- input.md --
+- Visit evil-site.com
+- Normal item
+
+-- output.html --
+<ul>
+<li>[blocked URL]</li>
+<li>Normal item</li>
+</ul>

@@ -1,0 +1,5 @@
+-- input.md --
+Found evil-site.com and test-spam-url.xyz in same text.
+
+-- output.html --
+<p>[blocked URL]</p>

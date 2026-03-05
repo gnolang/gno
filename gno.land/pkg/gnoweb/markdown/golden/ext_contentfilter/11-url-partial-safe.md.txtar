@@ -1,0 +1,5 @@
+-- input.md --
+Check out test-spam-url.com for info.
+
+-- output.html --
+<p>Check out test-spam-url.com for info.</p>

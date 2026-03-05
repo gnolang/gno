@@ -37,6 +37,11 @@ func NewDefaultGoldmarkOptions() []goldmark.Option {
 		return !strings.HasPrefix(uri, "data:") || strings.HasPrefix(uri, "data:"+svgdata)
 	}
 
+	var opts []md.Option
+	opts = append(opts, md.WithImageValidator(allowSvgDataImage))
+
+	opts = append(opts, md.WithContentFilter(md.DefaultContentFilter))
+
 	return []goldmark.Option{
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithExtensions(
@@ -44,9 +49,7 @@ func NewDefaultGoldmarkOptions() []goldmark.Option {
 			extension.Table,
 			extension.Footnote,
 			extension.TaskList,
-			md.NewGnoExtension(
-				md.WithImageValidator(allowSvgDataImage),
-			),
+			md.NewGnoExtension(opts...),
 		),
 	}
 }

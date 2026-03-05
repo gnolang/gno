@@ -1,0 +1,7 @@
+-- input.md --
+Look at t̷̢̢̢͝͝͝e̷̢̢̢͝͝͝x̷̢̢̢͝͝͝t̷̢̢̢͝͝͝ with many combining marks.
+
+Normal accented text like cafe and resume.
+-- output.html --
+<p>[zalgo]</p>
+<p>Normal accented text like cafe and resume.</p>
