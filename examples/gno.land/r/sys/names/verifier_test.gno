@@ -3,7 +3,6 @@ package names
 import (
 	"testing"
 
-	"gno.land/p/nt/ownable"
 	"gno.land/p/nt/testutils"
 	"gno.land/p/nt/uassert"
 	"gno.land/p/nt/urequire"
@@ -36,15 +35,16 @@ func TestDefaultVerifier(t *testing.T) {
 }
 
 func TestEnable(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
+	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("random")))
+	uassert.AbortsWithMessage(t, "caller is not admin", func() {
+		Enable(cross)
+	})
+	uassert.False(t, IsEnabled())
+
+	testing.SetRealm(testing.NewUserRealm(admin))
 
 	uassert.NotPanics(t, func() {
 		Enable(cross)
 	})
-
-	// Confirm enable drops ownerships
-	uassert.Equal(t, Ownable.Owner().String(), "")
-	uassert.AbortsWithMessage(t, ownable.ErrUnauthorized.Error(), func() {
-		Enable(cross)
-	})
+	uassert.True(t, IsEnabled())
 }
