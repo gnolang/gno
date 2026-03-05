@@ -1,8 +1,7 @@
 # GNO.LAND CONSTITUTION
 
 _This Constitution is still being worked on and is expected to be ratified
-after Gno.land genesis by a Supermajority Decision of GovDAO with NT,LLC
-approval._
+after Gno.land genesis by a Supermajority Decision of GovDAO._
 
 ## Declaration of Intent
 
@@ -471,29 +470,6 @@ instead (especially with the help of GovDAO members); and services should
 generally pay for themselves with micropayments or subscriptions or by other
 means.
 
-## $GNOT Burn Mechanisms
-
-The $GNOT token should not be used as a storage deposit token or for any other
-chain except the original Gno.land chain, nor be used as a staking/bonding
-token as this limits the utility (accessible storage capacity) of Gno.land
-itself.
-
-$GNOT is only considered "burned" and according to approved burn mechanisms or
-transactions (like $ATONE "burn" to $PHOTON except $GNOT burning does not yield
-any new tokens or rights on Gno.land). The automatic burning of $GNOT in a
-every Realms' SDDCAs (Storage Deposit Discoungt Credit Accounts) are the only
-automatic burn mechanism of $GNOT but the Gno.land Constitution may also
-approve of other official burn mechanisms that are reasonable, VOLUNTARY, and
-EXPLICIT. Such burning mechanisms may be used to yield storage deposit tokens
-on other chains.
-
-The $GNOT token should not be used as a storage deposit token or for any other
-chain except the original Gno.land chain, nor be used as a staking/bonding
-token as this limits the utility (accessible storage capacity) of Gno.land
-itself. It may make sense to burn $GNOT via approved burn mechisms to acquire
-secondary tokens that can be used for storage deposit on other GnoVM (and
-non-Gno) chains hosted on Atom.One. See "$GNOT Burn Mechanisms".
-
 ## Excess $GNOT Deposits
 
 When the $GNOT storage deposit rate per byte is decreased this results in
@@ -607,7 +583,6 @@ GovDAO proposal votes in a row until they return to activity with a simple
 declaration. The activity status of T1 or their suspension may not be deemed
 cause for removal from T1. In this way T1 is like "tenure", and generally the
 T1 members are expected to have made significant contributions to the project.
-The exception to this rule is described in "US Preference Option".
 
 ## GovDAO Voting Power.
 
@@ -656,17 +631,13 @@ If the target minimum is not reached AND there are Qualified Candidates AND
 four quarters have passed with no new T1 members elected, 1 additional
 Qualified Candidate may be elected by GnotDAO.
 
-None of the above per-quarter appointment count limitations apply for the US
-Preference Option.
-
 ### T2 Membership Size
 
 The T2 membership size target minimum is floor(size(T1)/4). The T2 membership
 size target maximum is 2 x size(T1).
 
 While size(T2) can be greater than 2 x size(T1) or less than 2 x size(T1), no
-more members may be added to T2 if size(T2) is greater than 2 x size(T1).  This
-limitation does not apply for the US Preference Option.
+more members may be added to T2 if size(T2) is greater than 2 x size(T1).
 
 ### T3 Membership Size
 
@@ -796,44 +767,6 @@ body.
 
  * No new candidates for T1 (or T2) may be proposed if their country or union
    of residence represents more than one third of T1 (or T2).
-
-#### US Preference Option
-
-The US Preference Option exists as an exception to the Diversification
-Requirements and any other restrictions on membership size limitations or rate
-of election, but must satisfy the General Membership Criteria as any other
-candidate.
-
- * NT,LLC has the option to appoint as many US sole-citizen T1 (or T2) members
-   until there are as many US citizen members of T1 (or T2) of any other
-   country or union after such appointment.
-
- * Dual citizens may be counted as fractions where the denominator is the
-   number of citizenships and the numerator is one. Automatic eligibility for
-   citizenship based on birthrights may count as citizenship.
-
- * Appointment may happen at any time and is not limited by the Diversification
-   Requirements. Specifically the appointment may be made concurrently with any
-   new appointments to T1 (or T2) or ejections from T1 (or T2) as long as the
-   appointment is announced prior to the conclusion of the election or ejection
-   process.
-
- * NT,LLC may decide at its option to delegate the US Preference Option to the
-   subset of current T1 and T2 members who are US citizen residents (US
-   Preference Option Default Committee). These members may have voting power
-   ratio of 3:2. The delegation is temporary (per quarter) unless otherwise
-   specified. The US Preference Option Default Committee may only elect up to 2
-   T1 members and 2 T2 members per quarter.
-
- * If NT,LLC fails to exercise the US Preference Option when it is otherwise
-   possible (e.g. there are eligible Qualified Candidates who are US citizen
-   residents) for a continuous period of 2 years AND there are at least 5 US
-   citizen residents in T1 or T2, the US Preference Option defaults to the US
-   Preference Option Default Commitee.
-
- * The US Preference Option may not be changed even by a Constitutional
-   Amendment except with pre-approval by NT,LLC. This ensures that the will of
-   the founder to ensure US representation in GovDAO is preserved at all times.
 
 #### Conflict of Interest Policy
 
@@ -968,6 +901,23 @@ or chosen an implementation of GnotDAO where:
 No Constitutional Amendments may inflate the $GNOT supply above what is already
 declared even with Constitutional Amendments.
 
+## Gno.land Laws
+
+While Gno.land Constitutional Amendments require a Constitutional Majority
+Decision, Law Amendments only require a Supermajority Decision by GovDAO.
+Otherwise the procedure for making Law Amendments are similar to those for
+Constitutional Amendments.
+
+Laws may apply to GovDAO, the Oversight Body, all Core DAOs and also all users
+and service providers of Gno.land.
+
+If there are any conflicts between the Constitution and Laws the Constitution
+takes precendence over the Laws. Likewise if there are any conflicts between
+Bylaws of Core DAOs and Laws, the Laws take precendece over Bylaws.
+
+Both GovDAO and the Oversight Body are responsible for ensuring that new Law
+Amendments are consistent with the Constitution.
+
 ## Role and Rights of NT,LLC
 
 NT,LLC retains the excusive rights to word mark and brand "Gno", and "\*Gno\*".
@@ -1006,9 +956,9 @@ Qualified Fork even if its governance member set is completely independent of
 the orignal GovDAO members.
 
 No Constitutional Amendment is considered valid that restricts the rights of
-NT,LLC or reduces its powers or authority as declared in this Constitution nor
-alter the US Preference Option without the express permission of NT,LLC. This
-includes any modifications to the structure and voting rules of GovDAO.
+NT,LLC or reduces its powers or authority as declared in this Constitution
+without the express permission of NT,LLC. This includes any modifications to
+the structure and voting rules of GovDAO.
 
 All GovDAO members agree to help enforce these rights of NT,LLC.
 
