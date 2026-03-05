@@ -204,7 +204,7 @@ gno = "0.9"
 -- home.gno --
 package home
 
-import "gno.land/p/nt/ownable"
+import "gno.land/p/nt/ownable/v0"
 
 var admin = ownable.NewWithOrigin()
 

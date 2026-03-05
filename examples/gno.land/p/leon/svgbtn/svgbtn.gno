@@ -18,7 +18,7 @@ package svgbtn
 
 import (
 	"gno.land/p/demo/svg"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Button creates a base SVG button with given size, colors, label, and link.
