@@ -31,7 +31,7 @@ import (
 	"math"
 
 	"gno.land/p/demo/entropy"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type Xorshiftr128Plus struct {
