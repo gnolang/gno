@@ -30,5 +30,5 @@ func main(cur realm) {
 }
 
 // Output:
-// caught panic: cannot modify external-realm or non-realm object
+// caught panic: cannot delete from readonly tainted map
 // after: m[admin] = 1000
