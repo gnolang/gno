@@ -30,8 +30,8 @@ var (
 	gBoardsSequence = boards.NewIdentifierGenerator()
 	gRealmPath      = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land")
 	gPerms          = initRealmPermissions(
-		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", // @devx
-		"g1manfred47kzduec920z88wfr64ylksmdcedlf5", // @moul
+		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+		"g1manfred47kzduec920z88wfr64ylksmdcedlf5",
 	)
 
 	// TODO: Allow updating open account amount though a proposal (GovDAO, CommonDAO?)
@@ -96,9 +96,20 @@ func mustGetBoard(id boards.ID) *boards.Board {
 	return board
 }
 
+// getThread returns a board thread.
+func getThread(board *boards.Board, threadID boards.ID) (*boards.Post, bool) {
+	thread, found := board.Threads.Get(threadID)
+	if !found {
+		// When thread is not found search it within hidden threads
+		meta := board.Meta.(*Meta)
+		thread, found = meta.HiddenThreads.Get(threadID)
+	}
+	return thread, found
+}
+
 // mustGetThread returns a thread or panics when it's not found.
 func mustGetThread(board *boards.Board, threadID boards.ID) *boards.Post {
-	thread, found := board.Threads.Get(threadID)
+	thread, found := getThread(board, threadID)
 	if !found {
 		panic("thread does not exist with ID: " + threadID.String())
 	}

@@ -563,6 +563,9 @@ func (mptype MemPackageType) Validate(pkgPath string) {
 	// Check if MPUser*.
 	switch {
 	case mptype.IsUserlib():
+		if strings.HasSuffix(pkgPath, "/filetests") {
+			panic(fmt.Sprintf("expected user package path for %q but got %q ending in filetests", mptype, pkgPath))
+		}
 		if !IsUserlib(pkgPath) {
 			panic(fmt.Sprintf("expected user package path for %q but got %q", mptype, pkgPath))
 		}
@@ -644,6 +647,7 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // dir, and saving it with the given pkgPath (import path).  The resulting
 // MemPackage will contain the names and content of all *.gno files, and
 // additionally LICENSE, *.md and *.toml .
+// All *_filetest.gno files are added from subdirectory filetests.
 //
 // ReadMemPackage only reads good file extensions or whitelisted good files,
 // and ignores bad file extensions. Validation will fail if any bad extensions
@@ -677,7 +681,13 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 	}
 	// Construct list of files to add to mpkg.
 	list := make([]string, 0, len(files))
+	filetestsDir := ""
 	for _, file := range files {
+		if file.IsDir() && file.Name() == "filetests" {
+			// Process filetests dir below
+			filetestsDir = filepath.Join(dir, file.Name())
+			continue
+		}
 		// Ignore directories and hidden files, only include allowed files & extensions,
 		// then exclude files that are of the bad extensions.
 		// We do case ignore to check goodFiles. MemFile ValidateBasic will enforce case rules.
@@ -689,6 +699,22 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
+	}
+	if filetestsDir != "" {
+		// Add filetest files from the subdir
+		filetestsFiles, err := os.ReadDir(filetestsDir)
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range filetestsFiles {
+			if strings.HasSuffix(file.Name(), "_filetest.gno") {
+				checkPath := filepath.Join(dir, file.Name())
+				if slices.Contains(list, checkPath) {
+					return nil, fmt.Errorf("cannot add %q in filetests: same filename in package dir %q", file.Name(), dir)
+				}
+				list = append(list, filepath.Join(filetestsDir, file.Name()))
+			}
+		}
 	}
 	return ReadMemPackageFromList(list, pkgPath, mptype)
 }
