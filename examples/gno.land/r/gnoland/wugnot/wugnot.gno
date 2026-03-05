@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/demo/defi/grc20reg"
 )
 
