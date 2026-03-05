@@ -166,19 +166,208 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	}
 }
 
+func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
+	initStaticBlocks1(store, ctx, nn)
+	initStaticBlocks2(store, ctx, nn)
+}
+
+// Replace ForStmt and RangeStmt declared names with <name>+.loop. This is to
+// disambiguate such names from the same name declared within the body of the
+// same block.
+func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
+	// helper to replace all instances of 'n' with <n>.loopvar
+	// where appropriate (skipping once shadowed).
+	replaceAllLoopvar := func(ctx BlockNode, bn BlockNode, loopvar Name) {
+		_ = TranscribeB(ctx, bn, func(
+			ns []Node,
+			stack []BlockNode,
+			last BlockNode,
+			ftype TransField,
+			index int,
+			n Node,
+			stage TransStage,
+		) (Node, TransCtrl) {
+			defer doRecover(stack, n)
+			if debug {
+				debug.Printf("replaceAllLoopvar %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			}
+
+			switch stage {
+			case TRANS_ENTER:
+				if last == bn && (ftype == TRANS_FOR_INIT || ftype == TRANS_RANGE_X ||
+					ftype == TRANS_RANGE_KEY ||
+					ftype == TRANS_RANGE_VALUE) {
+					return n, TRANS_SKIP
+				}
+				switch n := n.(type) {
+				case *FuncLitExpr:
+					for i := range n.Type.Params {
+						px := &n.Type.Params[i].NameExpr
+						if px.Name == loopvar {
+							return n, TRANS_SKIP
+						}
+					}
+					for i := range n.Type.Results {
+						rx := &n.Type.Results[i].NameExpr
+						if rx.Name == loopvar {
+							return n, TRANS_SKIP
+						}
+					}
+				}
+			// ----------------------------------------
+			case TRANS_LEAVE:
+				switch n := n.(type) {
+				case *NameExpr:
+					switch ftype {
+					case TRANS_ASSIGN_LHS:
+						as := ns[len(ns)-1].(*AssignStmt)
+						if as.Op == DEFINE {
+							if n.Name == loopvar {
+								// remember to skip body stmts after assign.
+								as.SetAttribute(ATTR_LOOPVAR_SKIP, true)
+								return n, TRANS_CONTINUE
+							}
+						} else {
+							if n.Name == loopvar && !as.HasAttribute(ATTR_LOOPVAR_SKIP) {
+								n.Name += ".loopvar"
+							}
+						}
+					case TRANS_VAR_NAME:
+						if n.Name == loopvar {
+							// remember to skip body stmts after value decl.
+							vd := ns[len(ns)-1].(*ValueDecl)
+							vd.SetAttribute(ATTR_LOOPVAR_SKIP, true)
+							return n, TRANS_CONTINUE
+						}
+					case TRANS_RANGE_KEY,
+						TRANS_RANGE_VALUE:
+						if n.Name == loopvar {
+							return n, TRANS_SKIP
+						}
+					default:
+						// All other name exprs transcribed
+						// should be replaced.
+						// NOTE: TypeDecl and SwitchStmt
+						// are handled later.
+						if n.Name == loopvar {
+							n.Name += ".loopvar"
+						}
+					}
+				case *AssignStmt, *ValueDecl:
+					if n.HasAttribute(ATTR_LOOPVAR_SKIP) {
+						n.DelAttribute(ATTR_LOOPVAR_SKIP)
+						return n, TRANS_SKIP
+					}
+				case *TypeDecl:
+					nx := &n.NameExpr
+					if nx.Name == loopvar {
+						return n, TRANS_SKIP
+					}
+				case *SwitchStmt:
+					if n.VarName == loopvar {
+						return n, TRANS_SKIP
+					}
+				}
+			}
+			return n, TRANS_CONTINUE
+		})
+	}
+
+	// iterate over all nodes recursively.
+	_ = TranscribeB(ctx, nn, func(
+		ns []Node,
+		stack []BlockNode,
+		last BlockNode,
+		ftype TransField,
+		index int,
+		n Node,
+		stage TransStage,
+	) (Node, TransCtrl) {
+		defer doRecover(stack, n)
+		if debug {
+			debug.Printf("initStaticBlocks1 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		}
+
+		switch stage {
+		// ----------------------------------------
+		case TRANS_ENTER:
+			switch n := n.(type) {
+			case *ForStmt:
+				switch fsinit := n.Init.(type) {
+				case *AssignStmt:
+					if fsinit.Op != DEFINE {
+						return n, TRANS_CONTINUE
+					}
+					for _, lx := range fsinit.Lhs {
+						nx := lx.(*NameExpr)
+						ln := nx.Name
+						if ln == blankIdentifier {
+							continue
+						}
+						if strings.HasSuffix(string(ln), ".loopvar") {
+							// for idempotency (already converted)
+							continue
+						}
+						// replace all ln w/ <ln>.loopvar
+						nx.Name += ".loopvar"
+						replaceAllLoopvar(last, n, ln)
+					}
+				case *SendStmt:
+					panic("not yet implemented")
+				}
+			case *RangeStmt:
+				if n.Op != DEFINE {
+					return n, TRANS_CONTINUE
+				}
+				if n.Key != nil {
+					ln := n.Key.(*NameExpr).Name
+					if ln == blankIdentifier {
+						return n, TRANS_CONTINUE
+					}
+					if strings.HasSuffix(string(ln), ".loopvar") {
+						// for idempotency (already converted)
+						return n, TRANS_CONTINUE
+					}
+					// replace all n.Key w/ <n.Key>.loopvar
+					n.Key.(*NameExpr).Name += ".loopvar"
+					replaceAllLoopvar(last, n, ln)
+				}
+				if n.Value != nil {
+					ln := n.Value.(*NameExpr).Name
+					if ln == blankIdentifier {
+						return n, TRANS_CONTINUE
+					}
+					if strings.HasSuffix(string(ln), ".loopvar") {
+						// for idempotency (already converted)
+						return n, TRANS_CONTINUE
+					}
+					// replace all n.Value w/ <n.Value>.loopvar
+					n.Value.(*NameExpr).Name += ".loopvar"
+					replaceAllLoopvar(last, n, ln)
+				}
+			}
+		}
+		return n, TRANS_CONTINUE
+	})
+}
+
 // Initialize static blocks, and also reserves all names.
 // TODO: ensure and keep idempotent.
 // PrpedefineFileSet may precede Preprocess.
-func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
-	// create stack of BlockNodes.
-	last := ctx
-	stack := append(make([]BlockNode, 0, 32), last)
-
+func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 	// iterate over all nodes recursively.
-	_ = Transcribe(nn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	_ = TranscribeB(ctx, nn, func(
+		ns []Node,
+		stack []BlockNode,
+		last BlockNode,
+		ftype TransField,
+		index int,
+		n Node,
+		stage TransStage,
+	) (Node, TransCtrl) {
 		defer doRecover(stack, n)
 		if debug {
-			debug.Printf("initStaticBlocks %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("initStaticBlocks2 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -506,6 +695,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 			return n, TRANS_CONTINUE
 		})
+
 	return n
 }
 
