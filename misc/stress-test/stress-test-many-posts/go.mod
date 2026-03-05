@@ -1,8 +1,6 @@
 module stress_test_many_posts
 
-go 1.24.0
-
-toolchain go1.24.4
+go 1.25.0
 
 require (
 	connectrpc.com/connect v1.16.2
@@ -65,7 +63,7 @@ require (
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/mobile v0.0.0-20230531173138-3c911d8e3eda // indirect
 	golang.org/x/mod v0.32.0 // indirect
-	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect

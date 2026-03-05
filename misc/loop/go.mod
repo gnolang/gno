@@ -1,11 +1,9 @@
 module github.com/gnolang/gno/misc/loop
 
-go 1.24.0
-
-toolchain go1.24.4
+go 1.25.0
 
 require (
-	github.com/docker/docker v25.0.6+incompatible
+	github.com/docker/docker v25.0.13+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gnolang/gno v0.1.0-nightly.20240627
 	github.com/gnolang/gno/contribs/tx-archive v0.5.0
@@ -95,7 +93,7 @@ require (
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/mod v0.32.0 // indirect
-	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/term v0.40.0 // indirect
