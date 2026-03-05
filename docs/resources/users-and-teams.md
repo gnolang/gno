@@ -9,9 +9,8 @@ gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/...
 gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/...
 ```
 
-The namespace is automatically derived from the deployer's address --
-no registration is needed. These address-based namespaces allow for
-permissionless deployment.
+There's no registration needed for deployment because address-based
+namespaces allow permissionless deployment.
 
 Username-based namespaces (e.g. `gno.land/r/myusername/myrealm`) are not
 currently supported but are planned to be introduced via GovDAO governance.
