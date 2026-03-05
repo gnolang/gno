@@ -839,9 +839,7 @@ func makeUverseNode() {
 					panic("make() of map type takes 1 or 2 arguments")
 				}
 			case *ChanType:
-
-				panic("channel operations are not yet supported"")
-
+				panic("channel operations are not yet supported")
 			default:
 				panic(fmt.Sprintf(
 					"cannot make type %s kind %v",
