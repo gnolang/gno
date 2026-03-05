@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	Ownable = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // dropped in genesis via Enable. XXX We should switch to something better once the GovDAO situation is stabilized.
+	Ownable = ownable.NewWithAddressByPrevious("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // dropped in genesis via Enable. XXX We should switch to something better once the GovDAO situation is stabilized.
 
 	enabled = false
 )
@@ -26,7 +26,7 @@ func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool
 // The namespace check is disabled initially to ease txtar and other testing contexts,
 // but this function is meant to be called in the genesis of a chain.
 func Enable(cur realm) {
-	if err := Ownable.DropOwnershipByPrevious(); err != nil {
+	if err := Ownable.DropOwnership(); err != nil {
 		panic(err)
 	}
 	enabled = true

@@ -15,7 +15,7 @@ import (
 var (
 	Token, privateLedger = grc20.NewToken("Foo", "FOO", 4)
 	UserTeller           = Token.CallerTeller()
-	Ownable              = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @manfred
+	Ownable              = ownable.NewWithAddressByPrevious("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @manfred
 )
 
 func init() {
@@ -56,12 +56,12 @@ func Faucet(cur realm) {
 }
 
 func Mint(cur realm, to address, amount int64) {
-	Ownable.AssertOwnedByPrevious()
+	Ownable.AssertOwned()
 	checkErr(privateLedger.Mint(to, amount))
 }
 
 func Burn(cur realm, from address, amount int64) {
-	Ownable.AssertOwnedByPrevious()
+	Ownable.AssertOwned()
 	checkErr(privateLedger.Burn(from, amount))
 }
 

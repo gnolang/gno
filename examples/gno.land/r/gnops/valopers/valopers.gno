@@ -12,6 +12,7 @@ import (
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/pager"
 	"gno.land/p/nt/combinederr"
+	"gno.land/p/nt/ownable"
 	"gno.land/p/nt/ownable/exts/authorizable"
 	"gno.land/p/nt/ufmt"
 )
@@ -63,14 +64,14 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 
 func AddToAuthList(cur realm, address_XXX address, member address) {
 	v := GetByAddr(address_XXX)
-	if err := v.Auth().AddToAuthListByPrevious(member); err != nil {
+	if err := v.Auth().AddToAuthList(member); err != nil {
 		panic(err)
 	}
 }
 
 func DeleteFromAuthList(cur realm, address_XXX address, member address) {
 	v := GetByAddr(address_XXX)
-	if err := v.Auth().DeleteFromAuthListByPrevious(member); err != nil {
+	if err := v.Auth().DeleteFromAuthList(member); err != nil {
 		panic(err)
 	}
 }
@@ -99,7 +100,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 		Address:     address_XXX,
 		PubKey:      pubKey,
 		KeepRunning: true,
-		auth:        authorizable.NewAuthorizableWithOrigin(),
+		auth:        authorizable.New(ownable.NewWithOrigin()),
 	}
 
 	if err := v.Validate(); err != nil {
