@@ -1957,14 +1957,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				switch cclt := baseOf(clt).(type) {
 				case *StructType:
 					if n.IsKeyed() {
+						// NOTE: unexported field check for keyed literals
+						// is handled in TRANS_COMPOSITE_KEY (*NameExpr).
 						for i := range n.Elts {
 							key := n.Elts[i].Key.(*NameExpr).Name
-							// Check for unexported fields from external packages.
-							if !isUpper(string(key)) && cclt.PkgPath != ctxpn.PkgPath {
-								panic(fmt.Sprintf(
-									"cannot refer to unexported field %s in struct literal of type %s",
-									key, cclt.String()))
-							}
 							path := cclt.GetPathForName(key)
 							ft := cclt.GetStaticTypeOfAt(path)
 							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
