@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 
 	"gno.land/r/sys/users"
 )

@@ -467,12 +467,17 @@
 	font-size: var(--g-font-size-100);
 
 	.nav-primary {
-		grid-column: span 7 / span 7;
+		grid-column: span 6 / span 6;
 		display: flex;
 		flex-direction: column;
 		gap: var(--g-space-3);
 
-		@media (--md) {
+		@media (--sm) {
+			grid-column: span 5 / span 5;
+		}
+
+		@media (--xl) {
+			grid-column: span 7 / span 7;
 			flex-direction: row;
 			align-items: center;
 			gap: var(--g-space-6);
@@ -490,14 +495,28 @@
 	}
 
 	.nav-social {
+		height: 100%;
 		grid-column: span 3 / span 3;
 		display: flex;
-		flex-direction: column;
-		gap: var(--g-space-1);
+		flex-direction: row;
+		gap: var(--g-space-3);
+		margin-block-start: var(--g-space-3);
+		align-items: start;
+
+		@media (--md) {
+			grid-column: span 5;
+			align-items: end;
+			justify-content: end;
+			align-self: end;
+			margin-inline-start: auto;
+		}
 
 		@media (--xl) {
-			flex-direction: row;
+			grid-column: span 3;
 			flex-wrap: wrap;
+			align-self: center;
+			margin: 0;
+			justify-content: start;
 			gap: var(--g-space-1) var(--g-space-3);
 		}
 	}
@@ -510,15 +529,19 @@
 
 		& > nav {
 			display: flex;
+			flex-direction: column;
 			flex-wrap: wrap;
 			gap: var(--g-space-1) var(--g-space-3);
 			margin-block-start: var(--g-space-2);
 			color: var(--s-color-text-secondary);
 
-			& > a + a::before {
-				content: "|";
-				margin-inline-end: var(--g-space-3);
-				color: var(--s-color-text-quaternary);
+			@media (--md) {
+				flex-direction: row;
+				& > a + a::before {
+					content: "|";
+					margin-inline-end: var(--g-space-3);
+					color: var(--s-color-text-quaternary);
+				}
 			}
 		}
 	}

@@ -1,6 +1,6 @@
 adduser test2
 
-loadpkg gno.land/p/nt/ufmt
+loadpkg gno.land/p/nt/ufmt/v0
 
 ## start a new node
 gnoland start
@@ -69,7 +69,7 @@ package callerrealm
 import (
  	"gno.land/p/test/utils"
 	"gno.land/r/test/borrowrealm"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrealm.ObjectImpl{}
@@ -130,7 +130,7 @@ package borrowrealm
 
 import (
  	"gno.land/p/test/utils"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var Object ObjectImplem
