@@ -1241,7 +1241,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					clt := evalStaticType(store, last, clx.Type)
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
-						n.Path = bt.GetPathForName(n.Name)
+						// Struct field keys are not variable references.
+						// Strip any .loopvar suffix that replaceAllLoopvar may have
+						// added (it cannot distinguish struct keys from map keys at
+						// the time of the rename pass).
+						fieldName := n.Name
+						if strings.HasSuffix(string(fieldName), ".loopvar") {
+							fieldName = Name(strings.TrimSuffix(string(fieldName), ".loopvar"))
+							n.Name = fieldName
+						}
+						n.Path = bt.GetPathForName(fieldName)
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
