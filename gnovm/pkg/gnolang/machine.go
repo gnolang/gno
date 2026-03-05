@@ -2427,6 +2427,10 @@ func (m *Machine) Recover() *Exception {
 	// may become re-set during PopFrameAndReturn() (returning from a defer
 	// call) to an older value when popping a frame with .LastException set
 	// from doOpReturnCallDefers() > m.PushFrameCall(isDefer=true).
+
+	if ex.Previous != nil {
+		ex.Previous.Next = nil
+	}
 	m.Exception = nil
 	return ex
 }

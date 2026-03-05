@@ -291,6 +291,9 @@ func (e *Exception) WithPrevious(e2 *Exception) *Exception {
 	if e2 == nil {
 		return e
 	}
+	if e2.Next != nil {
+		panic("exception e2 already has a next link")
+	}
 	e.Previous = e2
 	e2.Next = e
 	return e
