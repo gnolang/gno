@@ -1,0 +1,23 @@
+# Test with a passing example_test.gno file
+
+gno test -v .
+
+stderr '--- PASS: ExampleTestPassing .+'
+
+-- passing_example_test.gno --
+package passing
+
+import "fmt"
+
+func ExampleTestPassing() {
+	fmt.Println("foo")
+	fmt.Println("bar")
+	// Output:
+	// foo
+	// bar
+}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/example_tst"
+gno = "0.9"
