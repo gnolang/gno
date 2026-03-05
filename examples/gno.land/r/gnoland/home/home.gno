@@ -52,7 +52,7 @@ using fully transparent, auditable code that anyone can inspect and reuse.
 
 Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes
 censorship-resistant platforms accessible to everyone. If you want to help lay
-the foundations of a fairer and freer world, join us today. 
+the foundations of a fairer and freer world, join us today.
 
 
 <gno-columns>
@@ -84,7 +84,7 @@ the foundations of a fairer and freer world, join us today.
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
 - [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
-- [Testnet 10](https://test10.testnets.gno.land/)
+- [Testnet 11](https://test11.testnets.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
 - [Boards](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions): community forum
 
@@ -102,7 +102,7 @@ the foundations of a fairer and freer world, join us today.
 
 :upcoming-events:
 
-||| 
+|||
 
 ## [Hall of Realms](/r/leon/hor)
 

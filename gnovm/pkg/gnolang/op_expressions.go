@@ -14,13 +14,17 @@ func (m *Machine) doOpIndex1() {
 	ro := m.IsReadonly(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
-		mv := xv.V.(*MapValue)
-		vv, exists := mv.GetValueForKey(m.Store, iv)
-		if exists {
-			*xv = vv // reuse as result
-		} else {
-			vt := ct.Value
+		vt := ct.Value
+		if xv.V == nil { // uninitialized map
 			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
+		} else {
+			mv := xv.V.(*MapValue)
+			vv, exists := mv.GetValueForKey(m.Store, iv)
+			if exists {
+				*xv = vv // reuse as result
+			} else {
+				*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
+			}
 		}
 	default:
 		// NOTE: nilRealm is OK, not setting a map (w/ new key).
@@ -98,6 +102,10 @@ func (m *Machine) doOpSlice() {
 	if xv.T.Kind() == PointerKind &&
 		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
+		if xv.V == nil {
+			m.pushPanic(typedString("nil pointer dereference"))
+			return
+		}
 		*xv = xv.V.(PointerValue).Deref()
 		// check array also for ro.
 		if !ro {

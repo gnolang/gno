@@ -69,3 +69,7 @@ tidy:
 generate:
 	go generate ./...
 	$(MAKE) fmt
+
+.PHONY: embed_markdown
+embed_markdown:
+	$(rundep) github.com/campoy/embedmd -w `find . -name "*.md"`
