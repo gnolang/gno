@@ -1628,6 +1628,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
 							// reserve attach() so we can support it later.
 							panic("attach() not yet supported")
+						} else if fv.PkgPath == uversePkgPath && fv.Name == "make" {
+							if len(n.Args) > 0 {
+								mt := evalStaticType(store, last, n.Args[0])
+								if _, ok := baseOf(mt).(*ChanType); ok {
+									panic("channel operations are not yet supported")
+								}
+							}
 						}
 					}
 
