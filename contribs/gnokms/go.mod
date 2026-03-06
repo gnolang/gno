@@ -1,8 +1,6 @@
 module github.com/gnolang/gno/contribs/gnokms
 
-go 1.24.0
-
-toolchain go1.24.4
+go 1.25.0
 
 replace github.com/gnolang/gno => ../..
 
@@ -41,7 +39,7 @@ require (
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v1.0.1 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
-	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/term v0.40.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
