@@ -1241,6 +1241,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					clt := evalStaticType(store, last, clx.Type)
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
+						// Check for unexported fields from external packages.
+						if !isUpper(string(n.Name)) && bt.PkgPath != ctxpn.PkgPath {
+							panic(fmt.Sprintf(
+								"cannot refer to unexported field %s in struct literal of type %s",
+								n.Name, bt.String()))
+						}
 						n.Path = bt.GetPathForName(n.Name)
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
@@ -2130,6 +2136,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				switch cclt := baseOf(clt).(type) {
 				case *StructType:
 					if n.IsKeyed() {
+						// NOTE: unexported field check for keyed literals
+						// is handled in TRANS_COMPOSITE_KEY (*NameExpr).
 						for i := range n.Elts {
 							key := n.Elts[i].Key.(*NameExpr).Name
 							path := cclt.GetPathForName(key)
@@ -2137,6 +2145,17 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
 						}
 					} else {
+						// Check for unexported fields in unkeyed struct literals
+						// from external packages (implicit assignment).
+						// Empty struct literals (T{}) are always allowed, even
+						// from external packages, as they are zero-value initializations.
+						if len(n.Elts) > 0 &&
+							FieldTypeList(cclt.Fields).HasUnexported() &&
+							cclt.PkgPath != ctxpn.PkgPath {
+							panic(fmt.Sprintf(
+								"implicit assignment to unexported field in struct literal of type %s",
+								cclt.String()))
+						}
 						for i := range n.Elts {
 							ft := cclt.Fields[i].Type
 							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
@@ -2285,7 +2304,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						setPreprocessed(n.X)
 					}
 					// bound method or underlying.
-					// TODO check for unexported fields.
+					// NOTE: unexported field access is already checked
+					// by findEmbeddedFieldType above (aerr).
 					n.Path = tr[len(tr)-1]
 					// n.Path = cxt.GetPathForName(n.Sel)
 				case *PackageType:
