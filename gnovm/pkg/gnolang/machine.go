@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"io"
+	"maps"
 	"path"
 	"reflect"
 	"runtime"
@@ -594,75 +595,142 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	// Get new values across all files in package.
 	updates := pn.PrepareNewValues(m.Alloc, pv)
 
-	// to detect loops in var declarations.
-	loopfindr := []Name{}
-	// recursive function for var declarations.
-	var runDeclarationFor func(fn *FileNode, decl Decl)
-	runDeclarationFor = func(fn *FileNode, decl Decl) {
-		// get fileblock of fn.
-		// fb := pv.GetFileBlock(nil, fn.FileName)
-		// get dependencies of decl.
-		deps := make(map[Name]struct{})
-		findDependentNames(decl, deps)
-		for dep := range deps {
-			// if dep already defined as import, skip.
-			if _, ok := fn.GetLocalIndex(dep); ok {
-				continue
+	// To initialize package variables, Go's spec says the following:
+	//    Within a package, package-level variable initialization proceeds
+	//    stepwise, with each step selecting the variable earliest in declaration
+	//    order which has no dependencies on uninitialized variables.
+	// Thus, we begin by making an ordered list of all the declarations in the
+	// file; and then we perform initialization as described above.
+
+	// Build ordered pending list from all non-FuncDecl decls, preserving source
+	// declaration order.
+	var pending []pendingInitDecl
+	for _, fn := range fns {
+		for _, decl := range fn.Decls {
+			if _, ok := decl.(*FuncDecl); ok {
+				continue // FuncDecls need no runtime init (no-op)
 			}
-			// if dep already in fdeclared, skip.
-			if _, ok := fdeclared[dep]; ok {
-				continue
+			deps := make(map[Name]struct{})
+			// From the dependent names, filter only for those we haven't
+			// resolved yet and we infer must be of a declaration.
+			findDependentNames(decl, deps)
+			if err := filterGlobalUnresolvedDeps(pn, fn, deps, fdeclared); err != nil {
+				panic(fmt.Sprintf("%s/%s:%s: %v", pv.PkgPath, fn.FileName, decl.GetPos().String(), err))
 			}
-			fn, depdecl, exists := pn.FileSet.GetDeclForSafe(dep)
-			// special case: if doesn't exist:
-			if !exists {
-				if isUverseName(dep) { // then is reserved keyword in uverse.
-					continue
-				} else { // is an undefined dependency.
-					panic(fmt.Sprintf(
-						"%s/%s:%s: dependency %s not defined in fileset with files %v",
-						pv.PkgPath, fn.FileName, decl.GetPos().String(), dep, fs.FileNames()))
-				}
-			}
-			// if dep already in loopfindr, abort.
-			if slices.Contains(loopfindr, dep) {
-				if _, ok := (*depdecl).(*FuncDecl); ok {
-					// recursive function dependencies
-					// are OK with func decls.
-					continue
-				} else {
-					panic(fmt.Sprintf(
-						"%s/%s:%s: loop in variable initialization: dependency trail %v circularly depends on %s",
-						pv.PkgPath, fn.FileName, decl.GetPos().String(), loopfindr, dep))
-				}
-			}
-			// run dependency declaration
-			loopfindr = append(loopfindr, dep)
-			runDeclarationFor(fn, *depdecl)
-			loopfindr = loopfindr[:len(loopfindr)-1]
-		}
-		// run declaration
-		fb := pv.GetFileBlock(m.Store, fn.FileName)
-		m.PushBlock(fb)
-		m.runDeclaration(decl)
-		m.PopBlock()
-		for _, n := range decl.GetDeclNames() {
-			fdeclared[n] = struct{}{}
+			// Resolve dependencies we have because we're executing function
+			// bodies which may depend on other globals.
+			resolveTransitiveDeps(pv, pn, deps, fdeclared)
+			pending = append(pending, pendingInitDecl{fn, decl, deps})
 		}
 	}
 
-	// Declarations (and variable initializations).  This must happen
-	// after all files are preprocessed, because value decl may be out of
-	// order and depend on other files.
-
-	// Run declarations.
-	for _, fn := range fns {
-		for _, decl := range fn.Decls {
-			runDeclarationFor(fn, decl)
+	// Ready-variable loop (Go spec algorithm).
+	for len(pending) > 0 {
+		pos := slices.IndexFunc(pending, func(pid pendingInitDecl) bool {
+			for dep := range pid.deps {
+				if _, ok := fdeclared[dep]; !ok {
+					return false
+				}
+			}
+			return true
+		})
+		if pos < 0 {
+			// Circular dependency - collect remaining names for error.
+			var remaining []Name
+			for _, pd := range pending {
+				remaining = append(remaining, pd.decl.GetDeclNames()...)
+			}
+			// TODO: better error message?
+			panic(fmt.Sprintf(
+				"%s: loop in variable initialization: remaining declarations %v have circular dependencies",
+				pv.PkgPath, remaining))
+		}
+		pd := pending[pos]
+		pending = slices.Delete(pending, pos, pos+1)
+		fb := pv.GetFileBlock(m.Store, pd.fn.FileName)
+		m.PushBlock(fb)
+		m.runDeclaration(pd.decl)
+		m.PopBlock()
+		for _, n := range pd.decl.GetDeclNames() {
+			fdeclared[n] = struct{}{}
+		}
+		// Update remaining pending entries: remove newly declared names
+		// from their effective deps so the next iteration sees them as
+		// satisfied.
+		for i := range pending {
+			for _, n := range pd.decl.GetDeclNames() {
+				delete(pending[i].deps, n)
+			}
 		}
 	}
 
 	return updates
+}
+
+// pendingInitDecl holds a declaration that is waiting for its dependencies to
+// be satisfied before it can be initialized.
+type pendingInitDecl struct {
+	fn   *FileNode
+	decl Decl
+	deps map[Name]struct{} // effective (variable/type) deps not yet satisfied
+}
+
+// filterGlobalUnresolvedDeps removes from deps any name that is a file-local import,
+// already declared, or a uverse name. Returns an error for any name that is
+// none of the above and also absent from the fileset.
+func filterGlobalUnresolvedDeps(pn *PackageNode, fn *FileNode, deps, fdeclared map[Name]struct{}) error {
+	for dep := range deps {
+		if isUverseName(dep) {
+			delete(deps, dep)
+		} else if _, ok := fdeclared[dep]; ok {
+			delete(deps, dep) // already declared
+		} else if _, ok := fn.GetLocalIndex(dep); ok {
+			delete(deps, dep) // file-local import
+		} else if _, _, exists := pn.FileSet.GetDeclForSafe(dep); !exists {
+			return fmt.Errorf("dependency %s not defined", dep)
+		}
+	}
+	return nil
+}
+
+// resolveTransitiveDeps expands deps in place by tracing through non-method
+// FuncDecl bodies: each function-name dep is replaced with the function's
+// transitive variable deps.
+func resolveTransitiveDeps(pv *PackageValue, pn *PackageNode, deps, fdeclared map[Name]struct{}) {
+	// TODO: Simplify this
+	work := maps.Clone(deps)
+	clear(deps)
+	for len(work) > 0 {
+		var dep Name
+		for d := range work {
+			dep = d
+			break
+		}
+		delete(work, dep)
+		fn, declPtr, exists := pn.FileSet.GetDeclForSafe(dep)
+		if fd, ok := (*declPtr).(*FuncDecl); exists && ok && !fd.IsMethod {
+			deps[dep] = struct{}{} // mark as processed; prevents cycles when raw deps loop back
+			raw := make(map[Name]struct{})
+			findDependentNames(fd, raw)
+			if err := filterGlobalUnresolvedDeps(pn, fn, raw, fdeclared); err != nil {
+				panic(fmt.Sprintf("%s/%s:%s: %v", pv.PkgPath, fn.FileName, fd.GetPos().String(), err))
+			}
+			for d := range raw {
+				if _, already := deps[d]; !already {
+					work[d] = struct{}{}
+				}
+			}
+		} else {
+			deps[dep] = struct{}{}
+		}
+	}
+	// Remove the temporary FuncDecl markers; only variable deps should remain.
+	for dep := range deps {
+		_, declPtr, exists := pn.FileSet.GetDeclForSafe(dep)
+		if fd, ok := (*declPtr).(*FuncDecl); exists && ok && !fd.IsMethod {
+			delete(deps, dep)
+		}
+	}
 }
 
 // Run new init functions.
