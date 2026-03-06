@@ -1,0 +1,64 @@
+package antispam
+
+// ReputationData holds caller-provided account context for an author.
+type ReputationData struct {
+	AccountAgeDays int
+	Balance        int64
+	FlaggedCount   int
+	TotalAccepted  int
+	HasUsername    bool
+	BanCount       int
+}
+
+const (
+	repMinAgeDays   = 1          // accounts younger than this are "new"
+	repMinBalance   = 1000000000 // 1000 GNOT in ugnot
+	repFlagRatioPct = 30         // flagged/total > this% -> bad reputation
+	repBanPenalty   = 1          // additional score per past ban
+)
+
+// ScoreReputation evaluates account reputation signals.
+// Returns individual RuleHit entries for each triggered rule.
+func ScoreReputation(rep ReputationData) []RuleHit {
+	var hits []RuleHit
+
+	// New account: young + no posts
+	if rep.AccountAgeDays < repMinAgeDays && rep.TotalAccepted <= 0 {
+		hits = append(hits, RuleHit{WeightNewAccount, RuleNewAccount})
+	}
+
+	// No registered username
+	if !rep.HasUsername {
+		hits = append(hits, RuleHit{WeightNoUsername, RuleNoUsername})
+	}
+
+	// Low balance
+	if rep.Balance < repMinBalance {
+		hits = append(hits, RuleHit{WeightLowBalance, RuleLowBalance})
+	}
+
+	// Bad flag ratio
+	if rep.TotalAccepted > 0 && rep.FlaggedCount > 0 {
+		flagRatio := 100
+		if rep.FlaggedCount <= rep.TotalAccepted {
+			flagRatio = rep.FlaggedCount * 100 / rep.TotalAccepted
+		}
+		if flagRatio > repFlagRatioPct {
+			hits = append(hits, RuleHit{WeightBadReputation, RuleBadReputation})
+		}
+	} else if rep.TotalAccepted == 0 && rep.FlaggedCount > 0 {
+		// Flags but no accepted content (all deleted?) -> suspicious
+		hits = append(hits, RuleHit{WeightBadReputation, RuleBadReputation})
+	}
+
+	// Ban history penalty
+	if rep.BanCount > 0 {
+		penalty := rep.BanCount * repBanPenalty
+		if penalty > WeightBadReputation {
+			penalty = WeightBadReputation
+		}
+		hits = append(hits, RuleHit{penalty, RuleBannedBefore})
+	}
+
+	return hits
+}
