@@ -437,15 +437,15 @@ func makeUverseNode() {
 								list := arg0Base.List
 								if arg1Base.Data == nil {
 									dstStart := arg0Offset + arg0Length
-									dstEnd := dstStart + arg1Length
 									srcStart := arg1Offset
 									srcEnd := arg1Offset + arg1Length
-									overlap := arg0Base == arg1Base && dstStart < srcEnd && srcStart < dstEnd
+
 									step := 1
 									start := 0
 									end := arg1Length
 									// Overlap-safe copy: copy backward when dst starts after src to avoid clobbering.
-									if overlap && dstStart > srcStart {
+									requiresBackwardCopy := arg0Base == arg1Base && dstStart > srcStart && dstStart < srcEnd
+									if requiresBackwardCopy {
 										step = -1
 										start = arg1Length - 1
 										end = -1
