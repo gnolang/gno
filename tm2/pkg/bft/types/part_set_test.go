@@ -30,7 +30,8 @@ func TestBasicPartSet(t *testing.T) {
 	assert.Equal(t, 100, partSet.Count())
 
 	// Test adding parts to a new partSet.
-	partSet2 := NewPartSetFromHeader(partSet.Header())
+	partSet2, err := NewPartSetFromHeader(partSet.Header())
+	require.NoError(t, err)
 
 	assert.True(t, partSet2.HasHeader(partSet.Header()))
 	for i := range partSet.Total() {
@@ -70,7 +71,8 @@ func TestWrongProof(t *testing.T) {
 	partSet := NewPartSetFromData(data, testPartSize)
 
 	// Test adding a part with wrong data.
-	partSet2 := NewPartSetFromHeader(partSet.Header())
+	partSet2, err := NewPartSetFromHeader(partSet.Header())
+	require.NoError(t, err)
 
 	// Test adding a part with wrong trail.
 	part := partSet.GetPart(0)
@@ -147,4 +149,20 @@ func TestPartValidateBasic(t *testing.T) {
 			assert.Equal(t, tc.expectErr, part.ValidateBasic() != nil, "Validate Basic had an unexpected result")
 		})
 	}
+}
+
+func TestNewPartSetFromHeaderMaxBlockPartsCount(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewPartSetFromHeader(PartSetHeader{
+		Total: MaxBlockPartsCount,
+		Hash:  random.RandBytes(32),
+	})
+	require.NoError(t, err)
+
+	_, err = NewPartSetFromHeader(PartSetHeader{
+		Total: MaxBlockPartsCount + 1,
+		Hash:  random.RandBytes(32),
+	})
+	require.ErrorIs(t, err, ErrPartSetTooBig)
 }
