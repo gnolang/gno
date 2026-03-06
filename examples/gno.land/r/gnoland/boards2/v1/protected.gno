@@ -51,6 +51,6 @@ func Iterate(start, count int, fn boards.BoardIterFn) bool {
 // assertRealmHasBoardsNS asserts that a realm lives within Boards2 namespace.
 func assertRealmHasBoardsNS(r runtime.Realm) {
 	if !strings.HasPrefix(r.PkgPath(), boardsNS) {
-		panic("forbidden")
+		panic("forbidden, caller should live within \"" + boardsNS + "\" namespace")
 	}
 }
