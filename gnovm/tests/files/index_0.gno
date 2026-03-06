@@ -8,7 +8,7 @@ func main() {
 }
 
 // Error:
-// main/index_0.gno:5:8-13: invalid argument, index must not be negative: (-1 int)
+// main/index_0.gno:5:8-13: invalid argument: index must not be negative: (-1 <untyped> bigint)
 
 // TypeCheckError:
 // main/index_0.gno:5:10: invalid argument: index -1 (constant of type int) must not be negative
