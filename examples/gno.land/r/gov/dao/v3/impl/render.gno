@@ -98,6 +98,17 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 	out += p.Description()
 	out += "\n\n"
 
+	// Add executor metadata if available
+	if p.ExecutorString() != "" {
+		out += ufmt.Sprintf(`This proposal contains the following metadata:
+
+%s
+
+Executor created in: %s
+`, p.ExecutorString(), p.ExecutorCreationRealm())
+		out += "\n\n"
+	}
+
 	out += "\n\n---\n\n"
 	out += ps.String()
 	out += "\n"
@@ -177,8 +188,7 @@ func renderActionBar(sPid string) string {
 	out += proxy.Func("Vote ABSTAIN", "MustVoteOnProposalSimple", "pid", sPid, "option", "ABSTAIN")
 
 	out += "\n\n"
-	out += "WARNING: Please double check transaction data before voting.\n\n"
-	out += "**New**: Members **must** have a namespace to vote to enforce simpler tracking."
+	out += "WARNING: Please double check transaction data before voting."
 	return out
 }
 

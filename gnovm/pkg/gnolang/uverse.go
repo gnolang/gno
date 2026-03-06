@@ -1,7 +1,5 @@
 package gnolang
 
-// XXX append and delete need checks too.
-
 import (
 	"bytes"
 	"fmt"
@@ -428,10 +426,14 @@ func makeUverseNode() {
 							// DEFENSIVE: in this case, we're writing data directly
 							// into the backing array of arg0. Ensure we can write
 							// to it.
-							m.Realm.DidUpdate(arg0Base, nil, nil)
+							if m.IsReadonly(arg0.TV) {
+								m.Panic(typedString("cannot append to readonly tainted slice"))
+							}
 
 							if arg0Base.Data == nil {
 								// append(*SliceValue.List, *SliceValue) ---------
+								// Per-element DidUpdate calls below are sufficient
+								// to mark arg0Base dirty; no top-level call needed.
 								list := arg0Base.List
 								if arg1Base.Data == nil {
 									for i := range arg1Length {
@@ -455,6 +457,10 @@ func makeUverseNode() {
 								}
 							} else {
 								// append(*SliceValue.Data, *SliceValue) ---------
+								// DidUpdate is required here: raw byte copies do not
+								// go through Assign2, so arg0Base would not be marked
+								// dirty otherwise.
+								m.Realm.DidUpdate(arg0Base, nil, nil)
 								data := arg0Base.Data
 								if arg1Base.Data == nil {
 									copyListToData(
@@ -605,8 +611,15 @@ func makeUverseNode() {
 					return
 				}
 				dstv := dst.TV.V.(*SliceValue)
-				// Guard for protecting dst against mutation by external realms.
+				if m.IsReadonly(dst.TV) {
+					m.Panic(typedString("cannot copy to readonly tainted slice"))
+				}
 				dstBase := dstv.GetBase(m.Store)
+				// DidUpdate is required here even though Assign2 is called per
+				// element below: for byte slices (Data != nil), GetPointerAtIndexInt2
+				// returns a DataByteType pointer and Assign2 returns early for that
+				// case without calling DidUpdate. The top-level call ensures the
+				// backing array is always marked dirty in the realm store.
 				m.Realm.DidUpdate(dstBase, nil, nil)
 				// TODO: consider an optimization if dstv.Data != nil.
 				for i := range minl {
@@ -631,8 +644,11 @@ func makeUverseNode() {
 					return
 				}
 				dstv := dst.TV.V.(*SliceValue)
-				// Guard for protecting dst against mutation by external realms.
+				if m.IsReadonly(dst.TV) {
+					m.Panic(typedString("cannot copy to readonly tainted slice"))
+				}
 				dstBase := dstv.GetBase(m.Store)
+				// Same as above: DidUpdate is required for the DataByte case.
 				m.Realm.DidUpdate(dstBase, nil, nil)
 				srcv := src.TV.V.(*SliceValue)
 				for i := range minl {
@@ -664,11 +680,15 @@ func makeUverseNode() {
 			switch baseOf(arg0.TV.T).(type) {
 			case *MapType:
 				mv := arg0.TV.V.(*MapValue)
+
+				if m.IsReadonly(arg0.TV) {
+					m.Panic(typedString("cannot delete from readonly tainted map"))
+				}
+
 				val, ok := mv.GetValueForKey(m.Store, &itv)
 				if !ok {
 					return
 				}
-
 				// delete
 				mv.DeleteForKey(m.Store, &itv)
 
