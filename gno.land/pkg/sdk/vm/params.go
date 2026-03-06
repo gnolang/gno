@@ -152,7 +152,7 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		}
 		params.StorageFeeCollector = addr
 	default:
-		// Allow unknown and realm-scoped params through without validation.
+		// Allow unknown params key
 		return
 	}
 	if err := params.Validate(); err != nil {
