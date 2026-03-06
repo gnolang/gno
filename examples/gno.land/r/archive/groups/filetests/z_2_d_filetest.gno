@@ -7,7 +7,7 @@ import (
 	"chain"
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/archive/groups"
 	users "gno.land/r/gnoland/users/v1"
 )
