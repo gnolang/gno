@@ -458,6 +458,36 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 
 	// STEP 3: Prepare for Go type-checking.
 	for _, gof := range allgofs {
+		for _, decl := range gof.Decls {
+			if fd, ok := decl.(*ast.FuncDecl); ok {
+				// Here the String method is defined for a  given receiver
+				// we need to verify the receiver is not used as an argument
+				// to a print or println function as it will create a infinite recursive call
+				if fd.Recv != nil && fd.Name.String() == "String" {
+					for _, stmt := range fd.Body.List {
+						if call, ok := stmt.(*ast.ExprStmt); ok {
+							funcIden, ok := call.X.(*ast.CallExpr).Fun.(*ast.Ident)
+							if !ok {
+								continue
+							}
+							if funcIden.Name == "print" ||
+								funcIden.Name == "println" {
+								receiverName := fd.Recv.List[0].Names[0].Name
+								for _, arg := range call.X.(*ast.CallExpr).Args {
+									identifier, ok := arg.(*ast.Ident)
+									if !ok {
+										continue
+									}
+									if receiverName == identifier.Name {
+										panic(fmt.Errorf("arg %s causes recursive call to (%s).String method", identifier.Name, fd.Recv.List[0].Type))
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 		err := prepareGoGno0p9(gof)
 		if err != nil {
 			panic(fmt.Sprintf("unexpected error: %v", err))
