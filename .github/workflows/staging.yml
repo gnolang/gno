@@ -19,10 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -30,7 +30,7 @@ jobs:
 
       - name: Docker metadata portalloopd
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}/portalloopd
           tags: |
@@ -38,7 +38,7 @@ jobs:
             type=semver,pattern=v{{version}}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           target: portalloopd
           tags: ${{ steps.meta.outputs.tags }}
@@ -50,7 +50,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: "Setup The staging docker compose"
         # Pull the current Docker image of Gnoland to allow the loop application
