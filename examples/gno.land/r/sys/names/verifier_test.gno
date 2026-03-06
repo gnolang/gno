@@ -36,7 +36,7 @@ func TestDefaultVerifier(t *testing.T) {
 }
 
 func TestEnable(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
+	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
 
 	uassert.NotPanics(t, func() {
 		Enable(cross)

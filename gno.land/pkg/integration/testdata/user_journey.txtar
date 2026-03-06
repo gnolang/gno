@@ -8,7 +8,7 @@ loadpkg gno.land/r/archive/boards
 loadpkg gno.land/r/sys/names
 
 # Override admin address in r/sys/names with test1 address
-patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $test1_user_addr
+patchpkg "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" $test1_user_addr
 
 # Add 3 users with different balances
 adduser user1 1ugnot
