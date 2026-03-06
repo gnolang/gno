@@ -289,6 +289,9 @@ func (pool *BlockPool) SetPeerHeight(peerID p2pTypes.ID, height int64) {
 
 	if height > pool.maxPeerHeight {
 		pool.maxPeerHeight = height
+	} else if height < pool.maxPeerHeight {
+		// A peer lowered its height; recalculate in case it held the current maximum.
+		pool.updateMaxPeerHeight()
 	}
 }
 
