@@ -25,6 +25,7 @@ import (
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var config *cfg.Config
@@ -388,6 +389,86 @@ func TestBcStatusResponseMessageValidateBasic(t *testing.T) {
 			assert.Equal(t, tc.expectErr, response.ValidateBasic() != nil, "Validate Basic had an unexpected result")
 		})
 	}
+}
+
+func TestRestore(t *testing.T) {
+	t.Parallel()
+
+	config, _ = cfg.ResetTestRoot("blockchain_reactor_test")
+	defer os.RemoveAll(config.RootDir)
+	genDoc, privVals := randGenesisDoc(1, false, 30)
+
+	logger := log.NewNoopLogger()
+
+	reactor := newBlockchainReactor(logger, genDoc, privVals, 0)
+
+	stateDB := memdb.NewMemDB()
+	state, err := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
+	require.NoError(t, err)
+
+	app := &testApp{}
+	cc := proxy.NewLocalClientCreator(app)
+	proxyApp := appconn.NewAppConns(cc)
+	require.NoError(t, proxyApp.Start())
+
+	// we generate blocks using another executor and then restore using the test reactor that has it's own executor
+	db := memdb.NewMemDB()
+	blockExec := sm.NewBlockExecutor(db, logger, proxyApp.Consensus(), mock.Mempool{})
+	sm.SaveState(db, state)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var (
+		lastBlock     *types.Block
+		lastBlockMeta *types.BlockMeta
+		blockHeight   int64 = 1
+	)
+	generateBlock := func() *types.Block {
+		t.Helper()
+
+		lastCommit := types.NewCommit(types.BlockID{}, nil)
+		if blockHeight > 1 {
+			vote, err := types.MakeVote(lastBlock.Header.Height, lastBlockMeta.BlockID, state.Validators, privVals[0], lastBlock.Header.ChainID)
+			require.NoError(t, err)
+			voteCommitSig := vote.CommitSig()
+			lastCommit = types.NewCommit(lastBlockMeta.BlockID, []*types.CommitSig{voteCommitSig})
+		}
+
+		thisBlock := makeBlock(blockHeight, state, lastCommit)
+
+		thisParts := thisBlock.MakePartSet(types.BlockPartSizeBytes)
+		blockID := types.BlockID{Hash: thisBlock.Hash(), PartsHeader: thisParts.Header()}
+
+		state, err = blockExec.ApplyBlock(state, blockID, thisBlock)
+		require.NoError(t, err)
+
+		lastBlock = thisBlock
+		lastBlockMeta = &types.BlockMeta{BlockID: blockID, Header: lastBlock.Header}
+
+		blockHeight++
+
+		return thisBlock
+	}
+
+	numBlocks := 50
+
+	err = reactor.reactor.Restore(ctx, func(yield func(block *types.Block) error) error {
+		for range numBlocks {
+			block := generateBlock()
+
+			err := yield(block)
+			require.NoError(t, err)
+
+			if blockHeight > 2 {
+				require.NotNil(t, reactor.reactor.store.LoadBlock(blockHeight-2))
+			}
+
+			require.Equal(t, blockHeight-2, reactor.reactor.store.Height())
+		}
+		return nil
+	}, false)
+	require.NoError(t, err)
 }
 
 // ----------------------------------------------
