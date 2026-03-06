@@ -2,9 +2,7 @@
 // Only address-prefix (PA) namespaces are allowed.
 package names
 
-import (
-	"gno.land/p/nt/ownable"
-)
+import "gno.land/p/nt/ownable/v0"
 
 var (
 	Ownable = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // dropped in genesis via Enable

@@ -5,9 +5,9 @@ import (
 
 	"gno.land/p/jeronimoalbi/datasource"
 	"gno.land/p/moul/addrset"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
 	uinit "gno.land/r/sys/users/init"
 )
 

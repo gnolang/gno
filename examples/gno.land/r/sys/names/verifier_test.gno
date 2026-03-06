@@ -3,9 +3,9 @@ package names
 import (
 	"testing"
 
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 )
 
 var alice = testutils.TestAddress("alice")
