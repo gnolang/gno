@@ -1,6 +1,6 @@
 package home
 
-import "gno.land/p/nt/ownable"
+import "gno.land/p/nt/ownable/v0"
 
 type Config struct {
 	Title       string
