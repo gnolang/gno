@@ -1505,7 +1505,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
-				// fmt.Println("===TRANS_LEAVE CallExpr, n: ", n)
 				// Func type evaluation.
 				nft := evalStaticTypeOf(store, last, n.Func)
 				switch bnft := baseOf(nft).(type) {
@@ -4289,7 +4288,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 
 			// Convert untyped to typed.
 			checkOrConvertType(store, last, n, &bx.Left, t)
-			bx.SetAttribute(ATTR_TYPEOF_VALUE, t)
+			bx.SetAttribute(ATTR_TYPEOF_VALUE, t) // XXX, test this.
 		} else {
 			mustAssignableTo(n, xt, t)
 		}
