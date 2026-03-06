@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// forbidden
+// forbidden, caller should live within "gno.land/r/gnoland/boards2/" namespace
