@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"bytes"
 	"path/filepath"
 	"testing"
 
@@ -289,6 +290,8 @@ func TestRunSingle_Integration(t *testing.T) {
 	// Setup packages
 	rootdir := gnoenv.RootDir()
 	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	var output bytes.Buffer
+	config.VMOutput = &output
 	meta := loadpkgs(t, rootdir, "gno.land/p/nt/ufmt/v0", "gno.land/r/tests/vm")
 	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
 	state.Txs = append(state.Txs, meta...)
@@ -352,12 +355,16 @@ func main() {
 	res, err := client.Run(baseCfg, msg)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, string(res.DeliverTx.Data), "- before: 0\n- after: 10\n")
+	assert.Equal(t, "", string(res.DeliverTx.Data))
+	assert.Equal(t, "- before: 0\n- after: 10\n", output.String())
+
+	output.Reset()
 
 	res, err = runSigningSeparately(t, client, baseCfg, msg)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, string(res.DeliverTx.Data), "- before: 10\n- after: 20\n")
+	assert.Equal(t, "", string(res.DeliverTx.Data))
+	assert.Equal(t, "- before: 10\n- after: 20\n", output.String())
 }
 
 // Run tests
@@ -365,6 +372,8 @@ func TestRunMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
 	rootdir := gnoenv.RootDir()
 	config := integration.TestingMinimalNodeConfig(rootdir)
+	var output bytes.Buffer
+	config.VMOutput = &output
 	meta := loadpkgs(t, rootdir,
 		"gno.land/p/nt/ufmt/v0",
 		"gno.land/r/tests/vm",
@@ -451,18 +460,19 @@ func main() {
 		Send: nil,
 	}
 
-	expected := "- before: 0\n- after: 10\nhi gnoclient!\n"
-
 	res, err := client.Run(baseCfg, msg1, msg2)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, expected, string(res.DeliverTx.Data))
+	assert.Equal(t, "", string(res.DeliverTx.Data))
+	assert.Equal(t, "- before: 0\n- after: 10\nhi gnoclient!\n", output.String())
+
+	output.Reset()
 
 	res, err = runSigningSeparately(t, client, baseCfg, msg1, msg2)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	expected2 := "- before: 10\n- after: 20\nhi gnoclient!\n"
-	assert.Equal(t, expected2, string(res.DeliverTx.Data))
+	assert.Equal(t, "", string(res.DeliverTx.Data))
+	assert.Equal(t, "- before: 10\n- after: 20\nhi gnoclient!\n", output.String())
 }
 
 func TestAddPackageSingle_Integration(t *testing.T) {
