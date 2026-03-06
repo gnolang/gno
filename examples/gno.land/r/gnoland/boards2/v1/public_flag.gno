@@ -4,6 +4,7 @@ import (
 	"chain"
 	"chain/runtime"
 	"strconv"
+	"strings"
 
 	"gno.land/p/gnoland/boards"
 )
@@ -48,6 +49,11 @@ func GetFlaggingThreshold(boardID boards.ID) int {
 // Flagging requires special permissions and hides the thread when
 // the number of flags reaches a pre-defined flagging threshold.
 func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		panic("flagging reason is required")
+	}
+
 	caller := runtime.PreviousRealm().Address()
 	board := mustGetBoard(boardID)
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
@@ -114,6 +120,11 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 // Flagging requires special permissions and hides the comment or reply
 // when the number of flags reaches a pre-defined flagging threshold.
 func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		panic("flagging reason is required")
+	}
+
 	caller := runtime.PreviousRealm().Address()
 	board := mustGetBoard(boardID)
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)

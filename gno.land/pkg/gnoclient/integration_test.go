@@ -292,7 +292,7 @@ func TestRunSingle_Integration(t *testing.T) {
 	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
 	var output bytes.Buffer
 	config.VMOutput = &output
-	meta := loadpkgs(t, rootdir, "gno.land/p/nt/ufmt", "gno.land/r/tests/vm")
+	meta := loadpkgs(t, rootdir, "gno.land/p/nt/ufmt/v0", "gno.land/r/tests/vm")
 	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
 	state.Txs = append(state.Txs, meta...)
 	config.Genesis.AppState = state
@@ -322,7 +322,7 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	fileBody := `package main
 import (
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	tests "gno.land/r/tests/vm"
 )
 func main() {
@@ -375,7 +375,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 	var output bytes.Buffer
 	config.VMOutput = &output
 	meta := loadpkgs(t, rootdir,
-		"gno.land/p/nt/ufmt",
+		"gno.land/p/nt/ufmt/v0",
 		"gno.land/r/tests/vm",
 		"gno.land/r/tests/vm/deep/very/deep",
 	)
@@ -407,7 +407,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	fileBody1 := `package main
 import (
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	tests "gno.land/r/tests/vm"
 )
 func main() {
@@ -420,7 +420,7 @@ func main() {
 
 	fileBody2 := `package main
 import (
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/tests/vm/deep/very/deep"
 )
 func main() {
