@@ -15,7 +15,7 @@ gnokey maketx send -send 1000000000ugnot -to $user1_user_addr  -gas-fee 1000000u
 # tx1 out of gas
 gnokey sign -tx-path $WORK/tx1.tx -chainid tendermint_test -account-sequence 0 -account-number 58 user1
 ! gnokey broadcast $WORK/tx1.tx
-stderr 'out of gas'
+stderr 'gas used .* exceeds tx.s gas wanted .* during operation: .*'
 
 # tx2 OK
 gnokey sign -tx-path $WORK/tx2.tx -chainid tendermint_test -account-sequence 1 -account-number 58 user1

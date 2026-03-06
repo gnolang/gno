@@ -1037,6 +1037,87 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	}
 }
 
+func TestOOGLogSuggestsConsensusMaxGas(t *testing.T) {
+	t.Parallel()
+
+	maxGas := int64(50)
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			res.GasWanted = 100
+			newCtx = ctx.WithGasMeter(store.NewGasMeter(maxGas))
+			return newCtx, res, false
+		})
+	}
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.GasMeter().ConsumeGas(maxGas+1, "burn beyond consensus maxGas")
+			return Result{}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{MaxGas: maxGas},
+		},
+	})
+
+	header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+
+	txBytes, err := amino.Marshal(newTxCounter(0, 1))
+	require.NoError(t, err)
+
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, res.IsErr())
+	_, ok := res.Error.(std.OutOfGasError)
+	require.True(t, ok)
+	assert.Contains(t, res.Log, "gas used")
+	assert.Contains(t, res.Log, "exceeds tx's gas wanted (100)")
+	assert.Contains(t, res.Log, "simulate with consensus maximum (50) to get real transaction usage")
+}
+
+func TestOOGLogUsesMaxBlockGas(t *testing.T) {
+	t.Parallel()
+
+	maxGas := int64(50)
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			res.GasWanted = maxGas
+			newCtx = ctx.WithGasMeter(store.NewGasMeter(maxGas))
+			return newCtx, res, false
+		})
+	}
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.GasMeter().ConsumeGas(maxGas+1, "burn beyond consensus maxGas")
+			return Result{}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{MaxGas: maxGas},
+		},
+	})
+
+	header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+
+	txBytes, err := amino.Marshal(newTxCounter(0, 1))
+	require.NoError(t, err)
+
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, res.IsErr())
+	_, ok := res.Error.(std.OutOfGasError)
+	require.True(t, ok)
+	assert.Contains(t, res.Log, "exceeds max block gas (50)")
+	assert.NotContains(t, res.Log, "simulate with consensus maximum")
+}
+
 func TestBaseAppAnteHandler(t *testing.T) {
 	t.Parallel()
 
