@@ -7,7 +7,6 @@ stdout '"coins": "10000000000000ugnot"'
 
 ## run script/script.gno with send flag
 gnokey maketx run -send 42ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
-stdout 'send: 42ugnot'
 
 ## user balance after realm send
 # only reduced by -gas-fee, -send does not affect balance since the ephemeral
@@ -21,5 +20,7 @@ package main
 import "chain/banker"
 
 func main() {
-	println("send:", banker.OriginSend())
+	if got, want := banker.OriginSend().String(), "42ugnot"; got != want {
+		panic("unexpected origin send: got=" + got + " want=" + want)
+	}
 }

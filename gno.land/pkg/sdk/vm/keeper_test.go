@@ -3,6 +3,7 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"path"
@@ -896,10 +897,13 @@ func main() {
 	}
 
 	coins := std.MustParseCoins("")
+	var out bytes.Buffer
+	env.vmk.Output = &out
 	msg2 := NewMsgRun(addr, coins, files)
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, "hello world!\n", res)
+	assert.Equal(t, "", res)
+	assert.Equal(t, "hello world!\n", out.String())
 }
 
 // Call Run with stdlibs.
@@ -918,6 +922,8 @@ func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
 	t.Helper()
 
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	var out bytes.Buffer
+	env.vmk.Output = &out
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -943,8 +949,8 @@ func main() {
 	msg2 := NewMsgRun(addr, coins, files)
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
-	expectedString := fmt.Sprintf("hello world! %s\n", addr.String())
-	assert.Equal(t, expectedString, res)
+	assert.Equal(t, "", res)
+	assert.Equal(t, fmt.Sprintf("hello world! %s\n", addr.String()), out.String())
 }
 
 func TestVMKeeperRunImportDraft(t *testing.T) {
@@ -985,6 +991,8 @@ func Echo(cur realm) string {
 
 	// Msg Run Echo function.
 	coins := std.MustParseCoins("")
+	var out bytes.Buffer
+	env.vmk.Output = &out
 	files = []*std.MemFile{
 		{
 			Name: "main.gno",
@@ -1003,7 +1011,8 @@ func main() {
 	msg2 := NewMsgRun(addr, coins, files)
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, "hello world\n", res)
+	assert.Equal(t, "", res)
+	assert.Equal(t, "hello world\n", out.String())
 }
 
 func TestVMKeeperRunImportPrivate(t *testing.T) {

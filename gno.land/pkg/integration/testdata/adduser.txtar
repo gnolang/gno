@@ -10,7 +10,6 @@ gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/foobar/bar -gas-fee 1
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test8 $WORK/script/script.gno
 
 ## compare render
-stdout 'main: --- hello from foo ---'
 stdout 'OK!'
 stdout 'GAS WANTED: 200000'
 stdout 'GAS USED: '
@@ -36,5 +35,7 @@ package main
 import "gno.land/r/foobar/bar"
 
 func main() {
-	println("main: ---", bar.Render(""), "---")
+	if got, want := bar.Render(""), "hello from foo"; got != want {
+		panic("unexpected render value: got=" + got + " want=" + want)
+	}
 }
