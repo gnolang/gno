@@ -5,7 +5,7 @@ package names
 import (
 	"strings"
 
-	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/ownable/v0"
 
 	"gno.land/r/sys/users"
 )
