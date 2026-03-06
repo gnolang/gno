@@ -132,5 +132,38 @@ func (vm *VMKeeper) getSysCLAPkgParam(ctx sdk.Context) string {
 }
 
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
-	// XXX validate input?
+	params := vm.GetParams(ctx)
+	switch key {
+	case "p:sysnames_pkgpath":
+		params.SysNamesPkgPath = mustParamString("sysnames_pkgpath", value)
+	case "p:syscla_pkgpath":
+		params.SysCLAPkgPath = mustParamString("syscla_pkgpath", value)
+	case "p:chain_domain":
+		params.ChainDomain = mustParamString("chain_domain", value)
+	case "p:default_deposit":
+		params.DefaultDeposit = mustParamString("default_deposit", value)
+	case "p:storage_price":
+		params.StoragePrice = mustParamString("storage_price", value)
+	case "p:storage_fee_collector":
+		s := mustParamString("storage_fee_collector", value)
+		addr, err := crypto.AddressFromString(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid storage_fee_collector address: %v", err))
+		}
+		params.StorageFeeCollector = addr
+	default:
+		// Allow unknown and realm-scoped params through without validation.
+		return
+	}
+	if err := params.Validate(); err != nil {
+		panic("invalid param: " + err.Error())
+	}
+}
+
+func mustParamString(key string, value any) string {
+	s, ok := value.(string)
+	if !ok {
+		panic(fmt.Sprintf("invalid type for %s param: expected string, got %T", key, value))
+	}
+	return s
 }
