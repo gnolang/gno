@@ -738,9 +738,6 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			vargs := arg1
-			fmt.Println("===Uverse, make...")
-			fmt.Println("===Uverse, arg0: ", arg0)
-			fmt.Println("===Uverse, vargs: ", vargs)
 			vargsl := vargs.TV.GetLength()
 			tt := arg0.TV.GetType()
 			switch bt := baseOf(tt).(type) {

@@ -716,8 +716,6 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 // shift expr is compatible with t finally, which is type info
 // from context. e.g. var y int = 1.0 << x.
 func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
-	fmt.Println("---assertShiftExprCompatible2, x: ", x)
-	fmt.Println("---assertShiftExprCompatible2, t: ", t)
 	// check lhs type
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if !checker(t) {

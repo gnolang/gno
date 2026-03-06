@@ -1505,6 +1505,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
+				// fmt.Println("===TRANS_LEAVE CallExpr, n: ", n)
 				// Func type evaluation.
 				nft := evalStaticTypeOf(store, last, n.Func)
 				switch bnft := baseOf(nft).(type) {
@@ -1714,6 +1715,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// LEAVE (FUNC) CALL EXPR SPECIAL CASES:
 					//----------------------------------------
 
+					isBuiltinMake := false
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
@@ -1773,18 +1775,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								}
 							}
 						} else if fv.PkgPath == uversePkgPath && fv.Name == "make" {
-							fmt.Println("---len of args: ", len(n.Args))
-							for i := 1; i < len(n.Args); i++ {
-								at := evalStaticTypeOf(store, last, n.Args[i])
-								fmt.Println("===arg: ", n.Args[i])
-								fmt.Println("===at: ", at)
-								if isUntyped(at) {
-									fmt.Println("---untyped...")
-									checkOrConvertType(store, last, n, &n.Args[i], IntType)
-								}
-								at2 := evalStaticTypeOf(store, last, n.Args[i])
-								fmt.Println("===at2: ", at2)
-							}
+							isBuiltinMake = true
 						} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
 							panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
 						} else if fv.PkgPath == uversePkgPath && fv.Name == "_cross_gno0p0" {
@@ -2026,8 +2017,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										}
 										checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
 									} else {
-										checkOrConvertType(store, last, n, &n.Args[i],
-											spts[len(spts)-1].Type.Elem())
+										expectedType := spts[len(spts)-1].Type.Elem()
+
+										// SPECIAL CASE: 'make' variadic arguments are untyped sizes
+										// that must default to 'int' if no type is explicitly provided.
+										if isBuiltinMake && isUntyped(evalStaticTypeOf(store, last, n.Args[i])) {
+											expectedType = IntType
+										}
+
+										checkOrConvertType(store, last, n, &n.Args[i], expectedType)
 									}
 								} else {
 									checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
@@ -4273,13 +4271,11 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 	if debug {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	}
-	fmt.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	if cx, ok := (*x).(*ConstExpr); ok {
 		// e.g. int(1) == int8(1)
 		mustAssignableTo(n, cx.T, t)
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		xt := evalStaticTypeOf(store, last, *x)
-		fmt.Println("---xt: ", xt)
 		if debug {
 			debug.Printf("shift, xt: %v, Op: %v, t: %v \n", xt, bx.Op, t)
 		}
@@ -4293,6 +4289,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 
 			// Convert untyped to typed.
 			checkOrConvertType(store, last, n, &bx.Left, t)
+			bx.SetAttribute(ATTR_TYPEOF_VALUE, t)
 		} else {
 			mustAssignableTo(n, xt, t)
 		}

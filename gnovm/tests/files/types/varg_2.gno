@@ -7,7 +7,7 @@ func main() {
 }
 
 // Error:
-// cannot convert StringKind to IntKind
+// main/varg_2.gno:4:7-24: cannot use untyped string as IntKind
 
 // TypeCheckError:
-// main/shift_k2.gno:4:20: cannot convert "h" (untyped string constant) to type int
+// main/varg_2.gno:4:20: cannot convert "h" (untyped string constant) to type int
