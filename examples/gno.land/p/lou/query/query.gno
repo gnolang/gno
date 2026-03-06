@@ -26,7 +26,7 @@ func HasQueryKey(params url.Values, key string) bool {
 // GetQueryValueFromURL retrieves a single query value from the raw URL.
 // If the URL is invalid or the parameter does not exist, it returns an empty string.
 //
-//	 value := ParseQueryParams("user", "https://example.com/?user=john")
+//	 value := GetQueryValueFromURL("user", "https://example.com/?user=john")
 //		// value == "john"
 func GetQueryValueFromURL(key, rawPath string) (string, error) {
 	u, err := url.Parse(rawPath)
@@ -34,6 +34,16 @@ func GetQueryValueFromURL(key, rawPath string) (string, error) {
 		return "", err
 	}
 	return u.Query().Get(key), nil
+}
+
+// GetQuery retrieves a single query parameter value from the raw URL.
+// If the URL is invalid or the parameter does not exist, it returns an empty string.
+func GetQuery(key, rawPath string) string {
+	u, err := url.Parse(rawPath)
+	if err != nil {
+		return ""
+	}
+	return u.Query().Get(key)
 }
 
 // ParseQueryFirstValuesMap returns a map of the first values for all query parameters.

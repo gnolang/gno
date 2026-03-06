@@ -3,7 +3,7 @@ package memberstore
 import (
 	"errors"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 type ErrMemberAlreadyExists struct {
@@ -135,13 +135,13 @@ func (mbt MembersByTier) RemoveMember(addr address) (t string) {
 func (mbt MembersByTier) GetTotalPower() float64 {
 	var out float64
 	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
-		tier, ok := Tiers.GetTier(tn)
+		tier, ok := tiers.GetTier(tn)
 		if !ok {
 			// tier does not exists, so we cannot count power from this tier
 			return false
 		}
 
-		out = out + (tier.PowerHandler(mbt, Tiers) * float64(mbt.GetTierSize(tn)))
+		out = out + (tier.PowerHandler(mbt, tiers) * float64(mbt.GetTierSize(tn)))
 
 		return false
 	})

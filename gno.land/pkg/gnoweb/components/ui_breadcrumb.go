@@ -20,6 +20,6 @@ type BreadcrumbData struct {
 	Queries  []QueryParam
 }
 
-func RenderBreadcrumpComponent(w io.Writer, data BreadcrumbData) error {
+func RenderBreadcrumbComponent(w io.Writer, data BreadcrumbData) error {
 	return tmpl.ExecuteTemplate(w, "Breadcrumb", data)
 }

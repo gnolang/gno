@@ -1,7 +1,5 @@
 package gnolang
 
-// XXX append and delete need checks too.
-
 import (
 	"bytes"
 	"fmt"
@@ -404,6 +402,8 @@ func makeUverseNode() {
 				arg0Offset := arg0Value.Offset
 				arg0Capacity := arg0Value.Maxcap
 				arg0Base := arg0Value.GetBase(m.Store)
+				// NOTE, ANY MODIFICATION TO arg0 SHOULD ALWAYS CALL
+				// m.Realm.DidUpdate(arg0Base, nil, nil) FIRST TO CHECK WRITE PERMISSIONS.
 				switch arg1Value := arg1.TV.V.(type) {
 				// ------------------------------------------------------------
 				// append(*SliceValue, nil)
@@ -423,8 +423,17 @@ func makeUverseNode() {
 					if arg0Length+arg1Length <= arg0Capacity {
 						// append(*SliceValue, *SliceValue) w/i capacity -----
 						if 0 < arg1Length { // implies 0 < xvc
+							// DEFENSIVE: in this case, we're writing data directly
+							// into the backing array of arg0. Ensure we can write
+							// to it.
+							if m.IsReadonly(arg0.TV) {
+								m.Panic(typedString("cannot append to readonly tainted slice"))
+							}
+
 							if arg0Base.Data == nil {
 								// append(*SliceValue.List, *SliceValue) ---------
+								// Per-element DidUpdate calls below are sufficient
+								// to mark arg0Base dirty; no top-level call needed.
 								list := arg0Base.List
 								if arg1Base.Data == nil {
 									for i := range arg1Length {
@@ -445,16 +454,18 @@ func makeUverseNode() {
 										list[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.Data[arg1Offset:arg1Offset+arg1Length],
 										arg0Type.Elem())
-									m.Realm.DidUpdate(arg1Base, nil, nil)
 								}
 							} else {
 								// append(*SliceValue.Data, *SliceValue) ---------
+								// DidUpdate is required here: raw byte copies do not
+								// go through Assign2, so arg0Base would not be marked
+								// dirty otherwise.
+								m.Realm.DidUpdate(arg0Base, nil, nil)
 								data := arg0Base.Data
 								if arg1Base.Data == nil {
 									copyListToData(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.List[arg1Offset:arg1Offset+arg1Length])
-									m.Realm.DidUpdate(arg0Base, nil, nil)
 								} else {
 									copy(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
@@ -576,70 +587,82 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			dst, src := arg0, arg1
-			switch bdt := baseOf(dst.TV.T).(type) {
-			case *SliceType:
-				switch bst := baseOf(src.TV.T).(type) {
-				case PrimitiveType:
-					if debug {
-						debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
-					}
-					if bst.Kind() != StringKind {
-						panic("should not happen")
-					}
-					if bdt.Elt != Uint8Type {
-						panic("should not happen")
-					}
-					// NOTE: this implementation is almost identical to the next one.
-					// note that in some cases optimization
-					// is possible if dstv.Data != nil.
-					dstl := dst.TV.GetLength()
-					srcl := src.TV.GetLength()
-					minl := min(srcl, dstl)
-					if minl == 0 {
-						// return 0.
-						m.PushValue(defaultTypedValue(m.Alloc, IntType))
-						return
-					}
-					dstv := dst.TV.V.(*SliceValue)
-					// TODO: consider an optimization if dstv.Data != nil.
-					for i := range minl {
-						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-						srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
-						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
-					}
-					res0 := TypedValue{
-						T: IntType,
-						V: nil,
-					}
-					res0.SetInt(int64(minl))
-					m.PushValue(res0)
-					return
-				case *SliceType:
-					dstl := dst.TV.GetLength()
-					srcl := src.TV.GetLength()
-					minl := min(srcl, dstl)
-					if minl == 0 {
-						// return 0.
-						m.PushValue(defaultTypedValue(m.Alloc, IntType))
-						return
-					}
-					dstv := dst.TV.V.(*SliceValue)
-					srcv := src.TV.V.(*SliceValue)
-					for i := range minl {
-						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
-					}
-					res0 := TypedValue{
-						T: IntType,
-						V: nil,
-					}
-					res0.SetInt(int64(minl))
-					m.PushValue(res0)
-					return
-				default:
+			bdt := baseOf(dst.TV.T).(*SliceType)
+			switch bst := baseOf(src.TV.T).(type) {
+			case PrimitiveType:
+				if debug {
+					debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
+				}
+				if bst.Kind() != StringKind {
 					panic("should not happen")
 				}
+				if bdt.Elt != Uint8Type {
+					panic("should not happen")
+				}
+				// NOTE: this implementation is almost identical to the next one.
+				// note that in some cases optimization
+				// is possible if dstv.Data != nil.
+				dstl := dst.TV.GetLength()
+				srcl := src.TV.GetLength()
+				minl := min(srcl, dstl)
+				if minl == 0 {
+					// return 0.
+					m.PushValue(defaultTypedValue(m.Alloc, IntType))
+					return
+				}
+				dstv := dst.TV.V.(*SliceValue)
+				if m.IsReadonly(dst.TV) {
+					m.Panic(typedString("cannot copy to readonly tainted slice"))
+				}
+				dstBase := dstv.GetBase(m.Store)
+				// DidUpdate is required here even though Assign2 is called per
+				// element below: for byte slices (Data != nil), GetPointerAtIndexInt2
+				// returns a DataByteType pointer and Assign2 returns early for that
+				// case without calling DidUpdate. The top-level call ensures the
+				// backing array is always marked dirty in the realm store.
+				m.Realm.DidUpdate(dstBase, nil, nil)
+				// TODO: consider an optimization if dstv.Data != nil.
+				for i := range minl {
+					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+					srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
+					dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				}
+				res0 := TypedValue{
+					T: IntType,
+					V: nil,
+				}
+				res0.SetInt(int64(minl))
+				m.PushValue(res0)
+				return
+			case *SliceType:
+				dstl := dst.TV.GetLength()
+				srcl := src.TV.GetLength()
+				minl := min(srcl, dstl)
+				if minl == 0 {
+					// return 0.
+					m.PushValue(defaultTypedValue(m.Alloc, IntType))
+					return
+				}
+				dstv := dst.TV.V.(*SliceValue)
+				if m.IsReadonly(dst.TV) {
+					m.Panic(typedString("cannot copy to readonly tainted slice"))
+				}
+				dstBase := dstv.GetBase(m.Store)
+				// Same as above: DidUpdate is required for the DataByte case.
+				m.Realm.DidUpdate(dstBase, nil, nil)
+				srcv := src.TV.V.(*SliceValue)
+				for i := range minl {
+					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+					srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
+					dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				}
+				res0 := TypedValue{
+					T: IntType,
+					V: nil,
+				}
+				res0.SetInt(int64(minl))
+				m.PushValue(res0)
+				return
 			default:
 				panic("should not happen")
 			}
@@ -657,11 +680,15 @@ func makeUverseNode() {
 			switch baseOf(arg0.TV.T).(type) {
 			case *MapType:
 				mv := arg0.TV.V.(*MapValue)
+
+				if m.IsReadonly(arg0.TV) {
+					m.Panic(typedString("cannot delete from readonly tainted map"))
+				}
+
 				val, ok := mv.GetValueForKey(m.Store, &itv)
 				if !ok {
 					return
 				}
-
 				// delete
 				mv.DeleteForKey(m.Store, &itv)
 
@@ -1159,6 +1186,8 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 	consumeGas(m, NativeCPUUversePrintInit)
 	output := formatUverseOutput(m, xv, newline)
 	consumeGas(m, overflow.Divp(types.Gas(len(output)), NativeCPUUversePrintCharsPerGas))
+	// For debugging:
+	// fmt.Println(colors.Cyan(string(output)))
 	m.Output.Write(output)
 }
 

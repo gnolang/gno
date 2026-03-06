@@ -139,6 +139,20 @@ func (vm *VMKeeper) Initialize(
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
 
+		opts := gno.TypeCheckOptions{
+			Getter:     vm.gnoStore,
+			TestGetter: vm.testStdlibCache.memPackageGetter(vm.gnoStore),
+			Mode:       gno.TCLatestStrict,
+			Cache:      vm.typeCheckCache,
+		}
+		for _, stdlib := range stdlibs.InitOrder() {
+			mp := vm.gnoStore.GetMemPackage(stdlib)
+			_, err := gno.TypeCheckMemPackage(mp, opts)
+			if err != nil {
+				panic(fmt.Errorf("intialization error type checking %q: %w", stdlib, err))
+			}
+		}
+
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
@@ -152,14 +166,20 @@ type stdlibCache struct {
 }
 
 var (
-	cachedStdlibOnce sync.Once
-	cachedStdlib     stdlibCache
-	// XXX: this is shared across different goroutines, in txtar tests.
-	// need to find a better way, or put a lock.
-	sharedTypeCheckCache gno.TypeCheckCache
+	cachedStdlibOnce         sync.Once
+	cachedStdlib             stdlibCache
+	cachedInitTypeCheckCache gno.TypeCheckCache
 )
 
-// LoadStdlib loads the Gno standard library into the given store.
+// LoadStdlibCached loads the Gno standard library into the given store.
+//
+// This works differently from [VMKeeper.LoadStdlib] as it performs an initial
+// loading of the stdlib, which is then copied for future use.
+//
+// LoadStdlibCached is more efficient for programs which have to load a fresh
+// keeper many times (including tests and gnodev). For normal node execution,
+// LoadStdlib should be used instead, for lower memory consumption and faster
+// cold start.
 func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 	cachedStdlibOnce.Do(func() {
 		cachedStdlib = stdlibCache{
@@ -171,8 +191,20 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 		gs := gno.NewStore(nil, cachedStdlib.base, cachedStdlib.iavl)
 		gs.SetNativeResolver(stdlibs.NativeResolver)
 		loadStdlib(gs, stdlibDir)
+		cachedInitTypeCheckCache = make(gno.TypeCheckCache)
+		opts := gno.TypeCheckOptions{
+			Getter:     gs,
+			TestGetter: vm.testStdlibCache.memPackageGetter(gs),
+			Mode:       gno.TCLatestStrict,
+			Cache:      cachedInitTypeCheckCache,
+		}
+		for _, lib := range stdlibs.InitOrder() {
+			_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+			if err != nil {
+				panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
+			}
+		}
 		cachedStdlib.gno = gs
-		sharedTypeCheckCache = make(gno.TypeCheckCache)
 	})
 
 	if stdlibDir != cachedStdlib.dir {
@@ -184,13 +216,27 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 
 	gs := vm.getGnoTransactionStore(ctx)
 	gno.CopyFromCachedStore(gs, cachedStdlib.gno, cachedStdlib.base, cachedStdlib.iavl)
-	vm.typeCheckCache = sharedTypeCheckCache
+	vm.typeCheckCache = maps.Clone(cachedInitTypeCheckCache)
 }
 
-// LoadStdlib loads the Gno standard library into the given store.
+// LoadStdlib loads the Gno standard library into the given store. It will
+// additionally execute type checking on the mempackages in the standard
+// library.
 func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 	gs := vm.getGnoTransactionStore(ctx)
 	loadStdlib(gs, stdlibDir)
+	opts := gno.TypeCheckOptions{
+		Getter:     gs,
+		TestGetter: vm.testStdlibCache.memPackageGetter(gs),
+		Mode:       gno.TCLatestStrict,
+		Cache:      vm.getTypeCheckCache(ctx),
+	}
+	for _, lib := range stdlibs.InitOrder() {
+		_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+		if err != nil {
+			panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
+		}
+	}
 }
 
 func loadStdlib(store gno.Store, stdlibDir string) {
@@ -299,17 +345,6 @@ func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
 }
 
 func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
-	tcc := vm.getTypeCheckCache(ctx)
-	for k, v := range tcc {
-		if vm.typeCheckCache[k] != nil {
-			continue
-		}
-		// only add stdlibs to the type check cache.
-		rawK, _, _ := strings.Cut(k, ":")
-		if gno.IsStdlib(rawK) {
-			vm.typeCheckCache[k] = v
-		}
-	}
 	vm.getGnoTransactionStore(ctx).Write()
 }
 
@@ -325,6 +360,60 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 
 // Namespace can be either a user or crypto address.
 var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
+
+// callRealmBool creates a Machine, imports pkgPath, calls funcName with args,
+// and expects a single bool return value.
+func (vm *VMKeeper) callRealmBool(
+	ctx sdk.Context,
+	creator crypto.Address,
+	pkgPath, importAlias, funcName string,
+	args ...any,
+) (result bool, err error) {
+	chainDomain := vm.getChainDomainParam(ctx)
+	store := vm.getGnoTransactionStore(ctx)
+
+	msgCtx := stdlibs.ExecContext{
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     chainDomain,
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    creator.Bech32(),
+		OriginSendSpent: new(std.Coins),
+		Banker:          NewSDKBanker(vm, ctx),
+		Params:          NewSDKParams(vm.prmk, ctx),
+		EventLogger:     ctx.EventLogger(),
+	}
+
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:  "",
+			Output:   vm.Output,
+			Store:    store,
+			Context:  msgCtx,
+			Alloc:    store.GetAllocator(),
+			GasMeter: ctx.GasMeter(),
+		})
+	defer m.Release()
+	defer doRecover(m, &err)
+
+	mpv := gno.NewPackageNode("main", "main", nil).NewPackage(m.Alloc)
+	m.SetActivePackage(mpv)
+	m.RunDeclaration(gno.ImportD(importAlias, pkgPath))
+	x := gno.Call(
+		gno.Sel(gno.Nx(importAlias), funcName),
+		args...,
+	)
+
+	ret := m.Eval(x)
+	if len(ret) != 1 {
+		return false, fmt.Errorf("callRealmBool: expected 1 return value, got %d", len(ret))
+	}
+	if ret[0].T.Kind() != gno.BoolKind {
+		return false, fmt.Errorf("callRealmBool: expected bool return value, got %s", ret[0].T.Kind())
+	}
+
+	return ret[0].GetBool(), nil
+}
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
@@ -356,58 +445,58 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		return nil
 	}
 
-	// Parse and run the files, construct *PV.
-	msgCtx := stdlibs.ExecContext{
-		ChainID:         ctx.ChainID(),
-		ChainDomain:     chainDomain,
-		Height:          ctx.BlockHeight(),
-		Timestamp:       ctx.BlockTime().Unix(),
-		OriginCaller:    creator.Bech32(),
-		OriginSendSpent: new(std.Coins),
-		// XXX: should we remove the banker ?
-		Banker:      NewSDKBanker(vm, ctx),
-		Params:      NewSDKParams(vm.prmk, ctx),
-		EventLogger: ctx.EventLogger(),
+	result, err := vm.callRealmBool(ctx, creator, sysNamesPkg, "names",
+		"IsAuthorizedAddressForNamespace",
+		gno.Str(creator.String()), gno.Str(namespace))
+	if err != nil {
+		return err
 	}
 
-	m := gno.NewMachineWithOptions(
-		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   vm.Output,
-			Store:    store,
-			Context:  msgCtx,
-			Alloc:    store.GetAllocator(),
-			GasMeter: ctx.GasMeter(),
-		})
-	defer m.Release()
-
-	// call sysNamesPkg.IsAuthorizedAddressForName("<user>")
-	// We only need to check by name here, as addresses have already been checked
-	mpv := gno.NewPackageNode("main", "main", nil).NewPackage(m.Alloc)
-	m.SetActivePackage(mpv)
-	m.RunDeclaration(gno.ImportD("names", sysNamesPkg))
-	x := gno.Call(
-		gno.Sel(gno.Nx("names"), "IsAuthorizedAddressForNamespace"),
-		gno.Str(creator.String()),
-		gno.Str(namespace),
-	)
-
-	ret := m.Eval(x)
-	if len(ret) == 0 {
-		panic("call: invalid response length")
-	}
-
-	useraddress := ret[0]
-	if useraddress.T.Kind() != gno.BoolKind {
-		panic("call: invalid response kind")
-	}
-
-	if isAuthorized := useraddress.GetBool(); !isAuthorized {
+	if !result {
 		return ErrUnauthorizedUser(
 			fmt.Sprintf("%s is not authorized to deploy packages to namespace `%s`",
 				creator.String(),
 				namespace,
 			))
+	}
+
+	return nil
+}
+
+// checkCLASignature verifies the creator has signed the required CLA.
+// Returns nil if:
+//   - SysCLAPkgPath parameter is empty (CLA enforcement disabled)
+//   - CLA realm is not deployed yet (needed for bootstrap: the CLA realm
+//     itself must be deployable before it exists on-chain)
+//   - Creator has a valid CLA signature
+func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) error {
+	sysCLAPkg := vm.getSysCLAPkgParam(ctx)
+	if sysCLAPkg == "" {
+		return nil // CLA enforcement disabled
+	}
+
+	store := vm.getGnoTransactionStore(ctx)
+
+	// If CLA realm does not exist -> skip validation.
+	// This is required for bootstrap: the CLA realm itself needs to be
+	// deployable before it exists on-chain. Once deployed, all subsequent
+	// deployments will be checked.
+	claPkg := store.GetPackage(sysCLAPkg, false)
+	if claPkg == nil {
+		return nil
+	}
+
+	result, err := vm.callRealmBool(ctx, creator, sysCLAPkg, "cla",
+		"HasValidSignature",
+		gno.Str(creator.String()))
+	if err != nil {
+		return err
+	}
+
+	if !result {
+		return ErrUnauthorizedUser(
+			fmt.Sprintf("address %s has not signed the required CLA",
+				creator.String()))
 	}
 
 	return nil
@@ -440,9 +529,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
-	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
+
+	pv := gnostore.GetPackage(pkgPath, false)
+	if pv != nil && !pv.Private {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 	}
+
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
 		return ErrInvalidPkgPath("package path must be valid realm or p package path")
 	}
@@ -476,6 +568,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
 	}
+	if pv != nil && pv.Private && !gm.Private {
+		return ErrInvalidPackage("a private package cannot be overridden by a public package")
+	}
 	if gm.Private && !gno.IsRealmPath(pkgPath) {
 		return ErrInvalidPackage("private packages must be realm packages")
 	}
@@ -501,6 +596,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// - if r/system/names does not exists -> skip validation.
 	// - loads r/system/names data state.
 	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
+		return err
+	}
+
+	// Check CLA signature
+	if err := vm.checkCLASignature(ctx, creator); err != nil {
 		return err
 	}
 
@@ -567,6 +667,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pl := gno.PackageNodeLocation(pkgPath)
 	pn := gnostore.GetBlockNode(pl).(*gno.PackageNode)
 	ft := pn.GetStaticTypeOf(gnostore, gno.Name(fnc)).(*gno.FuncType)
+	if len(ft.Params) == 0 || ft.Params[0].Type.String() != ".uverse.realm" {
+		panic(fmt.Sprintf("function %s is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun", fnc))
+	}
+
 	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
@@ -1056,14 +1160,12 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	if filename != "" {
 		memFile := store.GetMemFile(dirpath, filename)
 		if memFile == nil {
-			// TODO: XSS protection
 			return "", errors.Wrapf(&InvalidFileError{}, "file %q is not available", filepath)
 		}
 		return memFile.Body, nil
 	} else {
 		memPkg := store.GetMemPackage(dirpath)
 		if memPkg == nil {
-			// TODO: XSS protection
 			return "", errors.Wrapf(&InvalidPackageError{}, "package %q is not available", dirpath)
 		}
 		for i, memfile := range memPkg.Files {

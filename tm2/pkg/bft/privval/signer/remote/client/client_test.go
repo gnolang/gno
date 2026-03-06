@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -45,10 +46,13 @@ func testUnixSocket(t *testing.T) string {
 	return fmt.Sprintf("unix://%s", filePath)
 }
 
-func newRemoteSignerClient(t *testing.T, address string) *RemoteSignerClient {
+func newRemoteSignerClient(t *testing.T, address string) (*RemoteSignerClient, context.CancelFunc) {
 	t.Helper()
 
+	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+
 	rsc, err := NewRemoteSignerClient(
+		ctx,
 		address,
 		log.NewNoopLogger(),
 		WithDialMaxRetries(3),
@@ -59,7 +63,7 @@ func newRemoteSignerClient(t *testing.T, address string) *RemoteSignerClient {
 	)
 	require.NoError(t, err)
 
-	return rsc
+	return rsc, cancelFn
 }
 
 func newRemoteSignerServer(t *testing.T, address string, signer types.Signer) *s.RemoteSignerServer {
@@ -95,16 +99,16 @@ func TestCloseState(t *testing.T) {
 		defer rss.Stop()
 
 		// Init a new remote signer client.
-		rsc := newRemoteSignerClient(t, unixSocket)
-		require.False(t, rsc.isClosed())
+		rsc, cancelFn := newRemoteSignerClient(t, unixSocket)
+		defer cancelFn()
+		require.NoError(t, rsc.ctx.Err())
 
 		// Close it.
 		require.NoError(t, rsc.Close())
-		require.True(t, rsc.isClosed())
+		require.Error(t, rsc.ctx.Err())
 
 		// Try to close it again.
 		require.Error(t, rsc.Close())
-		assert.True(t, rsc.isClosed())
 	})
 
 	t.Run("connection cleanup", func(t *testing.T) {
@@ -116,18 +120,20 @@ func TestCloseState(t *testing.T) {
 		rss := newRemoteSignerServer(t, unixSocket, nil)
 		require.NoError(t, rss.Start())
 		defer rss.Stop()
-		rsc := newRemoteSignerClient(t, unixSocket)
+		rsc, cancelFn := newRemoteSignerClient(t, unixSocket)
+		defer cancelFn()
 
 		// Trigger a connection.
-		require.NoError(t, rsc.Ping())
+		_, err := rsc.Sign([]byte("test"))
+		require.NoError(t, err)
 		rsc.connLock.RLock()
 		require.NotNil(t, rsc.conn)
 		rsc.connLock.RUnlock()
-		require.False(t, rsc.isClosed())
+		require.NoError(t, rsc.ctx.Err())
 
 		// Close and check if connexion is closed.
 		require.NoError(t, rsc.Close())
-		require.True(t, rsc.isClosed())
+		require.Error(t, rsc.ctx.Err())
 		rsc.connLock.RLock()
 		assert.Nil(t, rsc.conn)
 		rsc.connLock.RUnlock()
@@ -224,7 +230,8 @@ func TestClientRequest(t *testing.T) {
 		// Init a new remote signer server and client.
 		rss := newRemoteSignerServer(t, unixSocket, signer)
 		require.NoError(t, rss.Start())
-		rsc := newRemoteSignerClient(t, unixSocket)
+		rsc, cancelFn := newRemoteSignerClient(t, unixSocket)
+		defer cancelFn()
 
 		// Test a valid PubKey request.
 		remotePK := rsc.PubKey()
@@ -248,7 +255,8 @@ func TestClientRequest(t *testing.T) {
 		// Init a new remote signer server and client.
 		rss := newRemoteSignerServer(t, unixSocket, signer)
 		require.NoError(t, rss.Start())
-		rsc := newRemoteSignerClient(t, unixSocket)
+		rsc, cancelFn := newRemoteSignerClient(t, unixSocket)
+		defer cancelFn()
 
 		// Test a valid Sign request.
 		remoteSignature, err := rsc.Sign([]byte("sign bytes"))
@@ -264,7 +272,8 @@ func TestClientRequest(t *testing.T) {
 		// Init a erroring remote signer server and a regular client.
 		unixSocket = testUnixSocket(t)
 		chanCloser := newFaultyRemoteSignerServer(t, unixSocket, true, wg)
-		rsc = newRemoteSignerClient(t, unixSocket)
+		rsc, cancelFn = newRemoteSignerClient(t, unixSocket)
+		defer cancelFn()
 		require.NoError(t, rsc.ensureConnection())
 		closer := <-chanCloser
 
@@ -279,7 +288,8 @@ func TestClientRequest(t *testing.T) {
 		// Init a invalid remote signer server and a regular client.
 		unixSocket = testUnixSocket(t)
 		chanCloser = newFaultyRemoteSignerServer(t, unixSocket, false, wg)
-		rsc = newRemoteSignerClient(t, unixSocket)
+		rsc, cancelFn = newRemoteSignerClient(t, unixSocket)
+		defer cancelFn()
 		require.NoError(t, rsc.ensureConnection())
 		closer = <-chanCloser
 
@@ -298,46 +308,6 @@ func TestClientRequest(t *testing.T) {
 		wg.Wait()
 	})
 
-	t.Run("Ping request", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			unixSocket = testUnixSocket(t)
-			signer     = types.NewMockSigner()
-			wg         = new(sync.WaitGroup)
-		)
-
-		// Init a new remote signer server and client.
-		rss := newRemoteSignerServer(t, unixSocket, signer)
-		require.NoError(t, rss.Start())
-		rsc := newRemoteSignerClient(t, unixSocket)
-
-		// Test a valid Ping request.
-		err := rsc.Ping()
-		require.NoError(t, err)
-		rss.Stop()
-		rsc.Close()
-
-		// Init a erroring remote signer server and a regular client.
-		unixSocket = testUnixSocket(t)
-		chanCloser := newFaultyRemoteSignerServer(t, unixSocket, false, wg)
-		rsc = newRemoteSignerClient(t, unixSocket)
-		require.NoError(t, rsc.ensureConnection())
-		closer := <-chanCloser
-
-		// Test an invalid Ping request.
-		err = rsc.Ping()
-		require.ErrorIs(t, err, ErrInvalidResponseType)
-		closer()
-
-		// Test a failed Ping request.
-		rsc.Close()
-		err = rsc.Ping()
-		assert.ErrorIs(t, err, ErrSendingRequestFailed)
-
-		wg.Wait()
-	})
-
 	t.Run("String method and cache", func(t *testing.T) {
 		t.Parallel()
 
@@ -349,7 +319,8 @@ func TestClientRequest(t *testing.T) {
 		// Init a new remote signer server and client.
 		rss := newRemoteSignerServer(t, unixSocket, signer)
 		require.NoError(t, rss.Start())
-		rsc := newRemoteSignerClient(t, unixSocket)
+		rsc, cancelFn := newRemoteSignerClient(t, unixSocket)
+		defer cancelFn()
 
 		// Check if the public key is cached.
 		require.NotNil(t, rsc.cachedPubKey)
@@ -381,7 +352,11 @@ func TestClientConnection(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
 		serverPort := rss.ListenAddress(t).(*net.TCPAddr).Port
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		rsc, err := NewRemoteSignerClient(
+			ctx,
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			WithAuthorizedKeys([]ed25519.PubKeyEd25519{serverPrivKey.PubKey().(ed25519.PubKeyEd25519)}),
@@ -404,7 +379,11 @@ func TestClientConnection(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
 		serverPort = rss.ListenAddress(t).(*net.TCPAddr).Port
+
+		ctx, cancelFn = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		rsc, err = NewRemoteSignerClient(
+			ctx,
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			WithClientPrivKey(clientPrivKey),
@@ -423,7 +402,11 @@ func TestClientConnection(t *testing.T) {
 		rss := newRemoteSignerServer(t, tcpLocalhost+":0", types.NewMockSigner())
 		require.NoError(t, rss.Start())
 		serverPort := rss.ListenAddress(t).(*net.TCPAddr).Port
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		rsc, err := NewRemoteSignerClient(
+			ctx,
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			WithAuthorizedKeys([]ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}),

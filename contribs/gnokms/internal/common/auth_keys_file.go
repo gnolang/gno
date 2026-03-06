@@ -76,7 +76,7 @@ func (akf *AuthKeysFile) validate() error {
 
 	// Check if the address can be encoded using bech32.
 	addr := derivedPubKey.Address()
-	if _, err := bech32.Encode(crypto.Bech32AddrPrefix, addr[:]); err != nil {
+	if _, err := bech32.Encode(crypto.Bech32AddrPrefix(), addr[:]); err != nil {
 		return fmt.Errorf("%w: unable to encode address: %w", errInvalidPublicKeyType, err)
 	}
 

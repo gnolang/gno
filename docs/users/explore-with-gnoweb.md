@@ -107,4 +107,4 @@ who prefer working in the terminal can use `gnobro` - a terminal user interface
 - SSH access for remote browsing
 
 To learn more about `gnobro`, see the [gnobro
-documentation](../../contribs/gnobro/README.md).
+documentation](https://github.com/gnolang/gno/blob/master/contribs/gnobro/README.md).

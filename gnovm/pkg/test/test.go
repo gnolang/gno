@@ -22,6 +22,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"go.uber.org/multierr"
 )
@@ -71,13 +72,14 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *runti
 
 // Machine is a minimal machine, set up with just the Store, Output and Context.
 // It is only used for linting/preprocessing.
-func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool) *gno.Machine {
+func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool, gasMeter store.GasMeter) *gno.Machine {
 	return gno.NewMachineWithOptions(gno.MachineOptions{
 		Store:         testStore,
 		Output:        output,
 		Context:       Context("", pkgPath, nil),
 		Debug:         debug,
 		ReviveEnabled: true,
+		GasMeter:      gasMeter,
 	})
 }
 
@@ -318,7 +320,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			tcheck := false // already type-checked e.g. by cmd/gno/test.go
 			// We can not use shared tx gno store (tgs) between _filetest.gno since we need to
 			// isolate the state between them
-			changed, err := opts.runFiletest(
+			changed, gas, err := opts.runFiletest(
 				testFileName, []byte(testFile.Body), opts.TestStore, tcheck)
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
@@ -331,11 +333,11 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
 			if err != nil {
-				fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", testName, dstr)
+				fmt.Fprintf(opts.Error, "--- FAIL: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
 				fmt.Fprintln(opts.Error, err.Error())
 				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
 			} else if opts.Verbose {
-				fmt.Fprintf(opts.Error, "--- PASS: %s (%s)\n", testName, dstr)
+				fmt.Fprintf(opts.Error, "--- PASS: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
 			}
 
 			// XXX: add per-test metrics
@@ -377,7 +379,7 @@ func (opts *TestOptions) runTestFiles(
 	opts.TestStore.SetLogStoreOps(nil)
 
 	// Check if we already have the package - it may have been eagerly loaded.
-	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
+	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, nil)
 	m.Alloc = alloc
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
@@ -398,7 +400,7 @@ func (opts *TestOptions) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
+		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
@@ -479,6 +481,7 @@ func (opts *TestOptions) runTestFiles(
 				},
 			},
 		))
+		fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
 
 		if opts.Events {
 			events := m.Context.(*runtime.TestExecContext).EventLogger.Events()

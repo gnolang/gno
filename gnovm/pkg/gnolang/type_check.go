@@ -207,9 +207,12 @@ func checkSame(at, bt Type, msg string) error {
 	return nil
 }
 
-func assertAssignableTo(n Node, xt, dt Type, autoNative bool) {
-	err := checkAssignableTo(n, xt, dt, autoNative)
+func mustAssignableTo(n Node, xt, dt Type) {
+	err := checkAssignableTo(n, xt, dt)
 	if err != nil {
+		if debug {
+			debug.Printf("checkAssignableTo fail: %v\n", err)
+		}
 		panic(err.Error())
 	}
 }
@@ -408,9 +411,7 @@ func checkValDefineMismatch(n Node) {
 }
 
 // Assert that xt can be assigned as dt (dest type).
-// If autoNative is true, a broad range of xt can match against
-// a target native dt type, if and only if dt is a native type.
-func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
+func checkAssignableTo(n Node, xt, dt Type) (err error) {
 	if debug {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
@@ -582,7 +583,7 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			return checkAssignableTo(n, pt.Elt, cdt.Elt, false)
+			return checkAssignableTo(n, pt.Elt, cdt.Elt)
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
@@ -604,7 +605,7 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
 			if cdt.Vrd {
-				return checkAssignableTo(n, st.Elt, cdt.Elt, false)
+				return checkAssignableTo(n, st.Elt, cdt.Elt)
 			} else {
 				err := checkSame(st.Elt, cdt.Elt, "")
 				if err != nil {
@@ -647,68 +648,73 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 }
 
 // ===========================================================
-// this check happens while trans_leave binary expression.
-// it checks if type of RHS is valid.
-// Check part of the LHS to ensure it is of a numeric type.
-// More stringent checks will be performed in the subsequent stage in
-// assertShiftExprCompatible2.
+// assertShiftExprCompatible1 check happens while trans_leave binary expression.
+// it checks both lhs and rhs types of shift expression.
 func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type) {
-	// check rhs type
 	if rt == nil {
 		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
 	}
 
 	lcx, lic := x.Left.(*ConstExpr)
 	_, ric := x.Right.(*ConstExpr)
-	// step1, check RHS type
-	// special case when rhs is not integer
+	// Step1, check RHS type.
+	// Must be numeric.
 	if !isNumeric(rt) {
 		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
 	}
-	if !isIntNum(rt) {
-		var isIntValue bool
-		// special case for num like 1.0, it will be converted to uint later
-		if ric {
-			rv := evalConst(store, last, x.Right)
-			if bd, ok := rv.V.(BigdecValue); ok {
-				if isInteger(bd.V) {
-					isIntValue = true
-				}
-			}
-		}
-		if !isIntValue {
-			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
-		}
-	} else if ric { // is integer, check negative
+	// If not const, must be IntNum.
+	if !isIntNum(rt) && !ric {
+		panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
+	}
+
+	if ric {
 		rv := evalConst(store, last, x.Right)
 		if rv.Sign() < 0 {
 			panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Right))
 		}
+
+		if isIntNum(rt) {
+			// Good.
+		} else if !IsExactBigDec(rv.V) { // e.g. 1.0 .
+			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
+		}
 	}
 
-	// step2, check lhs type
+	// Step2, check lhs type.
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if checker(lt) { // check pass
 			return
 		}
-		// special case for 1.0
-		if lt == UntypedBigdecType {
-			// 1.0 << 1
-			if lic && ric {
-				convertConst(store, last, x, lcx, UntypedBigintType)
-				return
+
+		// If lhs not IntNum, it must be const.
+		if !lic {
+			if isUntyped(lt) {
+				lt = defaultTypeOf(lt)
 			}
+			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
 		}
-		// not const, e.g. 1.0 << x, see types/shift_d5.gno
-		if isNumeric(lt) {
-			return
+
+		// LHS is const.
+		// Special case for untyped const lhs.
+		lv := evalConst(store, last, lcx)
+		if !IsExactBigDec(lv.V) {
+			panic(fmt.Sprintf("invalid operation: shifted operand %v (%v) must be integer", lv, lt))
 		}
-		panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
+
+		// Both const. left is untypedBigDec & exact integer.
+		if ric {
+			// Representable as an integer. e.g. 1.0 << 1.
+			// convert lhs to untypedBigint so it can be evaluated as const later.
+			convertConst(store, last, x, lcx, UntypedBigintType)
+		}
+		return
 	}
 	panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 }
 
-// used in checkOrConvertType, only check lhs type
+// assertShiftExprCompatible2 checks if untyped (non-const)
+// shift expr is compatible with t finally, which is type info
+// from context. e.g. var y int = 1.0 << x.
 func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
 	// check lhs type
 	if checker, ok := binaryChecker[x.Op]; ok {
@@ -735,8 +741,12 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 		switch x.Op {
 		case EQL, NEQ:
 			assertComparable(xt, dt)
-			if !isUntyped(xt) && !isUntyped(dt) {
-				assertAssignableTo(x, xt, dt, false)
+			err := checkAssignableTo(x, xt, dt)
+			if err != nil {
+				if debug {
+					debug.Printf("checkAssignableTo fail: %v\n", err)
+				}
+				panic(fmt.Sprintf("invalid operation: (mismatched types %v and %v)", xt, dt))
 			}
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[x.Op]; ok {
@@ -793,8 +803,11 @@ func (x *BinaryExpr) checkCompatibility(n Node, xt, dt Type, checker func(t Type
 
 	// if both typed
 	if !isUntyped(xt) && !isUntyped(dt) {
-		err := checkAssignableTo(n, xt, dt, false)
+		err := checkAssignableTo(n, xt, dt)
 		if err != nil {
+			if debug {
+				debug.Printf("checkAssignableTo fail: %v\n", err)
+			}
 			if swapped {
 				panic(fmt.Sprintf("invalid operation: %v (mismatched types %v and %v)", n, dt, untypedNil(xt)))
 			} else {
@@ -852,19 +865,19 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	xt := evalStaticTypeOf(store, last, x.X)
 	switch cxt := xt.(type) {
 	case *MapType:
-		assertAssignableTo(x, cxt.Key, kt, false)
+		mustAssignableTo(x, cxt.Key, kt)
 		if vt != nil {
-			assertAssignableTo(x, cxt.Value, vt, false)
+			mustAssignableTo(x, cxt.Value, vt)
 		}
 	case *SliceType:
 		assertIndexTypeIsInt(kt)
 		if vt != nil {
-			assertAssignableTo(x, cxt.Elt, vt, false)
+			mustAssignableTo(x, cxt.Elt, vt)
 		}
 	case *ArrayType:
 		assertIndexTypeIsInt(kt)
 		if vt != nil {
-			assertAssignableTo(x, cxt.Elt, vt, false)
+			mustAssignableTo(x, cxt.Elt, vt)
 		}
 	case PrimitiveType:
 		if cxt.Kind() == StringKind {
@@ -904,7 +917,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 						assertValidAssignLhs(store, last, lx)
 						if !isBlankIdentifier(lx) {
 							lxt := evalStaticTypeOf(store, last, lx)
-							assertAssignableTo(x, cft.Results[i].Type, lxt, false)
+							mustAssignableTo(x, cft.Results[i].Type, lxt)
 						}
 					}
 				}
@@ -919,7 +932,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					if !isBlankIdentifier(x.Lhs[0]) { // see composite3.gno
 						dt := evalStaticTypeOf(store, last, x.Lhs[0])
 						ift := evalStaticTypeOf(store, last, cx)
-						assertAssignableTo(x, ift, dt, false)
+						mustAssignableTo(x, ift, dt)
 					}
 					// check second value
 					assertValidAssignLhs(store, last, x.Lhs[1])
@@ -942,12 +955,12 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 						if _, ok := cx.X.(*NameExpr); ok {
 							rt := evalStaticTypeOf(store, last, cx.X)
 							if mt, ok := rt.(*MapType); ok {
-								assertAssignableTo(x, mt.Value, lt, false)
+								mustAssignableTo(x, mt.Value, lt)
 							}
 						} else if _, ok := cx.X.(*CompositeLitExpr); ok {
 							cpt := evalStaticTypeOf(store, last, cx.X)
 							if mt, ok := cpt.(*MapType); ok {
-								assertAssignableTo(x, mt.Value, lt, false)
+								mustAssignableTo(x, mt.Value, lt)
 							} else {
 								panic("should not happen")
 							}
@@ -969,8 +982,11 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 		} else { // len(Lhs) == len(Rhs)
 			if x.Op == ASSIGN {
 				// assert valid left value
-				for _, lx := range x.Lhs {
+				for i, lx := range x.Lhs {
 					assertValidAssignLhs(store, last, lx)
+					lt := evalStaticTypeOf(store, last, lx)
+					rt := evalStaticTypeOf(store, last, x.Rhs[i])
+					mustAssignableTo(x, rt, lt)
 				}
 			}
 		}

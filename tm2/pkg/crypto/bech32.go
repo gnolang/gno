@@ -9,7 +9,7 @@ import (
 )
 
 func AddressToBech32(addr Address) string {
-	bech32Addr, err := bech32.Encode(Bech32AddrPrefix, addr[:])
+	bech32Addr, err := bech32.Encode(Bech32AddrPrefix(), addr[:])
 	if err != nil {
 		panic(err)
 	}
@@ -17,7 +17,7 @@ func AddressToBech32(addr Address) string {
 }
 
 func AddressFromBech32(bech32str string) (Address, error) {
-	bz, err := GetFromBech32(bech32str, Bech32AddrPrefix)
+	bz, err := GetFromBech32(bech32str, Bech32AddrPrefix())
 	if err != nil {
 		return Address{}, err
 	} else {
@@ -26,7 +26,7 @@ func AddressFromBech32(bech32str string) (Address, error) {
 }
 
 func PubKeyToBech32(pub PubKey) string {
-	bech32PubKey, err := bech32.Encode(Bech32PubKeyPrefix, pub.Bytes())
+	bech32PubKey, err := bech32.Encode(Bech32PubKeyPrefix(), pub.Bytes())
 	if err != nil {
 		panic(err)
 	}
@@ -34,7 +34,7 @@ func PubKeyToBech32(pub PubKey) string {
 }
 
 func PubKeyFromBech32(bech32str string) (pubKey PubKey, err error) {
-	bz, err := GetFromBech32(bech32str, Bech32PubKeyPrefix)
+	bz, err := GetFromBech32(bech32str, Bech32PubKeyPrefix())
 	if err != nil {
 		return PubKey(nil), err
 	} else {

@@ -3,7 +3,7 @@ package proposal
 import (
 	"errors"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	pVals "gno.land/p/sys/validators"
 	valopers "gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
@@ -79,7 +79,7 @@ func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) da
 	return dao.NewProposalRequest(title, description, e)
 }
 
-// ProposeNewMinFee creates a proposal to the GovDAO
+// ProposeNewMinFeeProposalRequest creates a proposal to the GovDAO
 // for updating the minimum fee to register a new valoper.
 func ProposeNewMinFeeProposalRequest(cur realm, newMinFee int64) dao.ProposalRequest {
 	cb := valopers.NewMinFeeProposalCallback(newMinFee)

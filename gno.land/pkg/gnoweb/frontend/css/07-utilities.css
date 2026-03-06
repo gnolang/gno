@@ -36,6 +36,10 @@
 	color: var(--s-color-bg-brand-default);
 }
 
+.u-color-danger {
+	color: var(--s-color-text-caution);
+}
+
 .u-quotes::before,
 .u-quotes::after {
 	content: '"';
