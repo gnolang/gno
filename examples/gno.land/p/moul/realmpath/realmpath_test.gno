@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"gno.land/p/moul/realmpath"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 func TestExample(t *testing.T) {
