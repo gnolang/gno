@@ -1,6 +1,8 @@
 package std
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -153,6 +155,42 @@ func TestMemPackage_Validate(t *testing.T) {
 				assert.ErrorContains(t, err, tc.errContains)
 			}
 		})
+	}
+}
+
+func TestWriteTo_RejectsPathTraversal(t *testing.T) {
+	t.Parallel()
+
+	// Create:
+	//   tmp/
+	//     target/       <- dir passed to WriteTo
+	//     sibling/
+	//       legit.gno   <- should not be overwritten
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "target")
+	siblingFile := filepath.Join(tmp, "sibling", "legit.gno")
+
+	os.MkdirAll(filepath.Join(tmp, "sibling"), 0o744)
+	os.MkdirAll(dir, 0o744)
+	os.WriteFile(siblingFile, []byte("ORIGINAL"), 0o644)
+
+	mpkg := &MemPackage{
+		Name: "evil",
+		Path: "gno.land/p/evil",
+		Files: []*MemFile{
+			{Name: "../sibling/legit.gno", Body: "BACKDOORED"},
+		},
+	}
+
+	err := mpkg.WriteTo(dir)
+	if err == nil {
+		data, _ := os.ReadFile(siblingFile)
+		t.Fatalf("WriteTo should have rejected traversal, legit.gno is now: %s", data)
+	}
+
+	data, _ := os.ReadFile(siblingFile)
+	if string(data) != "ORIGINAL" {
+		t.Fatalf("legit.gno was modified despite error, content: %s", data)
 	}
 }
 
