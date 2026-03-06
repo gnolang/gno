@@ -667,15 +667,15 @@ func makeUverseNode() {
 				srcv := src.TV.V.(*SliceValue)
 				srcBase := srcv.GetBase(m.Store)
 				dstStart := dstv.Offset
-				dstEnd := dstStart + minl
 				srcStart := srcv.Offset
 				srcEnd := srcStart + minl
-				overlap := dstBase == srcBase && dstStart < srcEnd && srcStart < dstEnd
+
 				step := 1
 				start := 0
 				end := minl
 				// Overlap-safe copy: copy backward when dst starts after src to avoid clobbering.
-				if overlap && dstStart > srcStart {
+				requiresBackwardCopy := dstBase == srcBase && dstStart > srcStart && dstStart < srcEnd
+				if requiresBackwardCopy {
 					step = -1
 					start = minl - 1
 					end = -1
