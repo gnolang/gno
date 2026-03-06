@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // bank.Keeper defines a module interface that facilitates the transfer of
@@ -24,6 +27,8 @@ type BankKeeperI interface {
 	SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
 	SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 
+	TotalCoin(ctx sdk.Context, denom string) int64
+
 	InitGenesis(ctx sdk.Context, data GenesisState)
 	GetParams(ctx sdk.Context) Params
 }
@@ -35,15 +40,17 @@ var _ BankKeeperI = &BankKeeper{}
 type BankKeeper struct {
 	ViewKeeper
 
+	key  store.StoreKey
 	acck auth.AccountKeeper
 	// The keeper used to store parameters
 	prmk params.ParamsKeeperI
 }
 
 // NewBankKeeper returns a new BankKeeper.
-func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeperI) BankKeeper {
+func NewBankKeeper(key store.StoreKey, acck auth.AccountKeeper, pk params.ParamsKeeperI) BankKeeper {
 	return BankKeeper{
 		ViewKeeper: NewViewKeeper(acck),
+		key:        key,
 		acck:       acck,
 		prmk:       pk,
 	}
@@ -247,6 +254,10 @@ func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 		acc = bank.acck.NewAccountWithAddress(ctx, addr)
 	}
 
+	// Update supply index: compute delta between old and new balances.
+	oldCoins := acc.GetCoins()
+	bank.updateSupply(ctx, oldCoins, amt)
+
 	err := acc.SetCoins(amt)
 	if err != nil {
 		panic(err)
@@ -254,6 +265,72 @@ func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 
 	bank.acck.SetAccount(ctx, acc)
 	return nil
+}
+
+// updateSupply adjusts the per-denomination supply index based on the delta
+// between the old and new coin balances for an account.
+// Panics on overflow, as exceeding int64 range indicates a broken invariant.
+func (bank BankKeeper) updateSupply(ctx sdk.Context, oldCoins, newCoins std.Coins) {
+	// Collect all denoms that appear in either old or new.
+	denoms := make(map[string]struct{})
+	for _, c := range oldCoins {
+		denoms[c.Denom] = struct{}{}
+	}
+	for _, c := range newCoins {
+		denoms[c.Denom] = struct{}{}
+	}
+
+	stor := ctx.Store(bank.key)
+	for denom := range denoms {
+		oldAmt := oldCoins.AmountOf(denom)
+		newAmt := newCoins.AmountOf(denom)
+		delta, ok := overflow.Sub(newAmt, oldAmt)
+		if !ok {
+			panic(fmt.Sprintf("supply delta overflow for denom %q: %d - %d", denom, newAmt, oldAmt))
+		}
+		if delta == 0 {
+			continue
+		}
+		supply := bank.getSupply(stor, denom)
+		newSupply, ok := overflow.Add(supply, delta)
+		if !ok {
+			panic(fmt.Sprintf("total supply overflow for denom %q: %d + %d", denom, supply, delta))
+		}
+		bank.setSupply(stor, denom, newSupply)
+	}
+}
+
+// getSupply reads the total supply of a denomination from the store.
+func (bank BankKeeper) getSupply(stor store.Store, denom string) int64 {
+	bz := stor.Get(SupplyStoreKey(denom))
+	if bz == nil {
+		return 0
+	}
+	var supply int64
+	err := amino.Unmarshal(bz, &supply)
+	if err != nil {
+		panic(fmt.Errorf("failed to unmarshal supply for denom %q: %w", denom, err))
+	}
+	return supply
+}
+
+// setSupply writes the total supply of a denomination to the store.
+// If supply is zero, the key is deleted to avoid storing nil values.
+func (bank BankKeeper) setSupply(stor store.Store, denom string, supply int64) {
+	key := SupplyStoreKey(denom)
+	if supply == 0 {
+		stor.Delete(key)
+		return
+	}
+	bz := amino.MustMarshal(supply)
+	stor.Set(key, bz)
+}
+
+// TotalCoin returns the total supply of a given coin denomination.
+// This is an O(1) read from the supply index.
+func (bank BankKeeper) TotalCoin(ctx sdk.Context, denom string) int64 {
+	stor := ctx.Store(bank.key)
+	return bank.getSupply(stor, denom)
 }
 
 // ----------------------------------------

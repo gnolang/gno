@@ -1,6 +1,7 @@
 package bank
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -185,4 +186,55 @@ func TestSetRestrictedDenoms(t *testing.T) {
 	prmk.SetStrings(ctx, "bank:p:restricted_denoms", []string{})
 	params = bankk.GetParams(ctx)
 	require.Empty(t, params.RestrictedDenoms)
+}
+
+func TestUpdateSupplyOverflow(t *testing.T) {
+	t.Parallel()
+
+	t.Run("supply addition overflow panics", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		ctx := env.ctx
+
+		addr1 := crypto.AddressFromPreimage([]byte("supply-addr1"))
+		addr2 := crypto.AddressFromPreimage([]byte("supply-addr2"))
+		acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+		acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
+		env.acck.SetAccount(ctx, acc1)
+		env.acck.SetAccount(ctx, acc2)
+
+		// Set first account near max to push total supply high.
+		env.bankk.SetCoins(ctx, addr1, std.NewCoins(std.NewCoin("ugnot", math.MaxInt64-1)))
+
+		// Setting second account's coins should overflow the total supply.
+		require.PanicsWithValue(t,
+			`total supply overflow for denom "ugnot": 9223372036854775806 + 2`,
+			func() {
+				env.bankk.SetCoins(ctx, addr2, std.NewCoins(std.NewCoin("ugnot", 2)))
+			},
+		)
+	})
+
+	t.Run("normal supply update succeeds", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		ctx := env.ctx
+
+		addr := crypto.AddressFromPreimage([]byte("normal-addr"))
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+
+		// Normal operations should work fine.
+		require.NotPanics(t, func() {
+			env.bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("ugnot", 100)))
+		})
+		require.Equal(t, int64(100), env.bankk.TotalCoin(ctx, "ugnot"))
+
+		require.NotPanics(t, func() {
+			env.bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("ugnot", 50)))
+		})
+		require.Equal(t, int64(50), env.bankk.TotalCoin(ctx, "ugnot"))
+	})
 }

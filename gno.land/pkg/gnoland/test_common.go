@@ -30,7 +30,7 @@ func setupTestEnv() testEnv {
 	ms.LoadLatestVersion()
 	prmk := params.NewParamsKeeper(authCapKey)
 	acck := auth.NewAccountKeeper(authCapKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
-	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	bankk := bank.NewBankKeeper(authCapKey, acck, prmk.ForModule(bank.ModuleName))
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 

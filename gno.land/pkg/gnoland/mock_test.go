@@ -153,6 +153,10 @@ func (m *mockBankKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.
 	return true
 }
 
+func (m *mockBankKeeper) TotalCoin(ctx sdk.Context, denom string) int64 {
+	return 0
+}
+
 type mockAuthKeeper struct{}
 
 func (m *mockAuthKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account {
