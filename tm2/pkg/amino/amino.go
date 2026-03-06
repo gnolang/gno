@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -924,6 +925,9 @@ func GetCallersDirname() string {
 	dirname = filepath.Dir(filename)
 	if filename == "" || dirname == "" {
 		panic("could not derive caller's package directory")
+	}
+	if !path.IsAbs(dirname) {
+		dirname = "" // if relative, assume from module and return empty string
 	}
 	return dirname
 }

@@ -1,13 +1,12 @@
 package grc20
 
 import (
-	"std"
 	"testing"
 
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/ufmt"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 func TestCallerTellerImpl(t *testing.T) {
@@ -116,16 +115,16 @@ func TestCallerTeller(t *testing.T) {
 	checkAllowances(0, 0, 0, 0, 0, 0)
 
 	tellerThrough := func(action func()) {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/realm_exposing_the_teller"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/realm_exposing_the_teller"))
 		action()
 	}
 
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	tellerThrough(func() { urequire.NoError(t, teller.Approve(bob, 600)) })
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
 
-	testing.SetRealm(std.NewUserRealm(bob))
+	testing.SetRealm(testing.NewUserRealm(bob))
 	tellerThrough(func() { urequire.Error(t, teller.TransferFrom(alice, carl, 700)) })
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)

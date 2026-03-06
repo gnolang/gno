@@ -1,14 +1,14 @@
 package microblog
 
 import (
+	"chain/runtime"
 	"errors"
 	"sort"
-	"std"
 	"strings"
 	"time"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var (
@@ -48,7 +48,7 @@ func (m *Microblog) GetPages() []*Page {
 }
 
 func (m *Microblog) NewPost(text string) error {
-	author := std.OriginCaller()
+	author := runtime.OriginCaller()
 	_, found := m.Pages.Get(author.String())
 	if !found {
 		// make a new page for the new author
@@ -75,7 +75,7 @@ func (m *Microblog) GetPage(author string) (*Page, error) {
 
 type Page struct {
 	ID         int
-	Author     std.Address
+	Author     address
 	CreatedAt  time.Time
 	LastPosted time.Time
 	Posts      avl.Tree // time -> Post

@@ -1,10 +1,8 @@
 package evaluation
 
 import (
-	"std"
-
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type Evaluation struct {
@@ -24,7 +22,7 @@ func NewEvalutaion() *Evaluation {
 	return e
 }
 
-func (e *Evaluation) AddContribution(pr *PullRequest, contributor std.Address) (int, bool) {
+func (e *Evaluation) AddContribution(pr *PullRequest, contributor address) (int, bool) {
 	id := pr.Id()
 	e.pullrequests.Set(ufmt.Sprintf("%d", id), pr)
 	c := NewContribution(id, contributor)

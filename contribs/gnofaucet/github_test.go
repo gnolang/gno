@@ -33,9 +33,9 @@ func TestServeGithub(t *testing.T) {
 			"dev",
 			"--mnemonic",
 			defaultAccount_Seed,
-			"--github-client-id",
-			"mock",
 		}
+		t.Setenv(envGithubClientID, "mock")
+
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		assert.ErrorIs(t, cmdErr, errGithubClientSecretMissing)
@@ -49,9 +49,8 @@ func TestServeGithub(t *testing.T) {
 			"dev",
 			"--mnemonic",
 			defaultAccount_Seed,
-			"--github-client-id",
-			"mock",
 		}
+		t.Setenv(envGithubClientID, "mock")
 		t.Setenv(envGithubClientSecret, "mock")
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
@@ -67,10 +66,9 @@ func TestServeGithub(t *testing.T) {
 			"dev",
 			"--mnemonic",
 			defaultAccount_Seed,
-			"--github-client-id",
-			"mock",
 		}
 		t.Setenv(envGithubClientSecret, "mock")
+		t.Setenv(envGithubClientID, "mock")
 		t.Setenv(envRedisAddr, redisServer.Addr())
 		// Run the command
 		ctx, cancel := context.WithCancel(context.Background())

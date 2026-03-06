@@ -1,25 +1,43 @@
 module github.com/gnolang/gno/contribs/gnofaucet
 
-go 1.23.6
+go 1.24.0
+
+toolchain go1.24.3
 
 require (
+	github.com/Khan/genqlient v0.8.1
 	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/gnolang/faucet v0.5.3
 	github.com/gnolang/gno v0.0.0-20250901125041-596de150f06c
 	github.com/google/go-github/v64 v64.0.0
+	github.com/google/go-github/v74 v74.0.0
+	github.com/google/uuid v1.6.0
+	github.com/jferrl/go-githubauth v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.12.1
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
+	golang.org/x/oauth2 v0.30.0
 	golang.org/x/time v0.12.0
 )
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
+	github.com/google/go-github/v69 v69.2.0 // indirect
+	github.com/vektah/gqlparser/v2 v2.5.19 // indirect
+)
+
+require (
+	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/cockroachdb/errors v1.12.0 // indirect
+	github.com/cockroachdb/fifo v0.0.0-20240816210425-c5d0cb0b6fc0 // indirect
+	github.com/cockroachdb/redact v1.1.6 // indirect
+	github.com/cockroachdb/tokenbucket v0.0.0-20250429170803-42689b6311bb // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
@@ -28,15 +46,16 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/prometheus/client_golang v1.23.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b // indirect
+	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect

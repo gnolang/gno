@@ -1,69 +1,67 @@
 package boards2
 
 import (
-	"std"
+	"chain/runtime"
+	"strings"
 
+	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // TODO: Refactor globals in favor of a cleaner pattern
 var (
-	gPerms            Permissions
 	gRealmLink        txlink.Realm
 	gNotice           string
 	gHelp             string
-	gLastReservedID   BoardID
-	gBoardsByID       avl.Tree // string(id) -> *Board
-	gListedBoardsByID avl.Tree // string(id) -> *Board
-	gBoardsByName     avl.Tree // string(name) -> *Board
-	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(std.Address -> time.Time)
-	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(std.Address -> time.Time)
+	gListedBoardsByID avl.Tree // string(id) -> *boards.Board
+	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
+	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
 	gLocked           struct {
 		realm        bool
 		realmMembers bool
 	}
 )
 
+var (
+	gBoards         = boards.NewStorage()
+	gBoardsSequence = boards.NewIdentifierGenerator()
+	gRealmPath      = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land")
+	gPerms          = initRealmPermissions(
+		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+		"g1manfred47kzduec920z88wfr64ylksmdcedlf5",
+	)
+
+	// TODO: Allow updating open account amount though a proposal (GovDAO, CommonDAO?)
+	gOpenAccountAmount = int64(3_000_000_000) // ugnot required for open board actions
+)
+
 func init() {
 	// Save current realm path so it's available during render calls
-	gRealmLink = txlink.Realm(std.CurrentRealm().PkgPath())
-
-	// Initialize default realm permissions
-	gPerms = initRealmPermissions(
-		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", // @devx
-		"g1manfred47kzduec920z88wfr64ylksmdcedlf5", // @moul
-	)
+	gRealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
 }
 
 // initRealmPermissions returns the default realm permissions.
-func initRealmPermissions(owners ...std.Address) *BasicPermissions {
-	perms := createBasicPermissions(owners...)
-	perms.ValidateFunc(PermissionBoardCreate, validateBoardCreate)
-	perms.ValidateFunc(PermissionMemberInvite, validateMemberInvite)
-	perms.ValidateFunc(PermissionRoleChange, validateRoleChange)
+func initRealmPermissions(owners ...address) boards.Permissions {
+	perms := permissions.New(
+		permissions.UseSingleUserRole(),
+		permissions.WithSuperRole(RoleOwner),
+	)
+	perms.AddRole(RoleAdmin, PermissionBoardCreate)
+	for _, owner := range owners {
+		perms.SetUserRoles(owner, RoleOwner)
+	}
+
+	perms.ValidateFunc(PermissionBoardCreate, validateBasicBoardCreate)
+	perms.ValidateFunc(PermissionMemberInvite, validateBasicMemberInvite)
+	perms.ValidateFunc(PermissionRoleChange, validateBasicRoleChange)
 	return perms
 }
 
-// reserveBoardID returns a new board ID which won't be used by another board.
-// Reserving IDs is necessary because boards can be created asynchronically.
-func reserveBoardID() BoardID {
-	gLastReservedID++
-	return gLastReservedID
-}
-
-// getBoard returns a board for a specific ID.
-func getBoard(id BoardID) (_ *Board, found bool) {
-	v, exists := gBoardsByID.Get(id.Key())
-	if !exists {
-		return nil, false
-	}
-	return v.(*Board), true
-}
-
-// getInvitesRequests returns invite requests for a board.
-func getInviteRequests(boardID BoardID) (_ *avl.Tree, found bool) {
+// getInviteRequests returns invite requests for a board.
+func getInviteRequests(boardID boards.ID) (_ *avl.Tree, found bool) {
 	v, exists := gInviteRequests.Get(boardID.Key())
 	if !exists {
 		return nil, false
@@ -72,7 +70,7 @@ func getInviteRequests(boardID BoardID) (_ *avl.Tree, found bool) {
 }
 
 // getBannedUsers returns banned users within a board.
-func getBannedUsers(boardID BoardID) (_ *avl.Tree, found bool) {
+func getBannedUsers(boardID boards.ID) (_ *avl.Tree, found bool) {
 	v, exists := gBannedUsers.Get(boardID.Key())
 	if !exists {
 		return nil, false
@@ -81,26 +79,37 @@ func getBannedUsers(boardID BoardID) (_ *avl.Tree, found bool) {
 }
 
 // mustGetBoardByName returns a board or panics when it's not found.
-func mustGetBoardByName(name string) *Board {
-	v, found := gBoardsByName.Get(name)
+func mustGetBoardByName(name string) *boards.Board {
+	board, found := gBoards.GetByName(name)
 	if !found {
 		panic("board does not exist with name: " + name)
 	}
-	return v.(*Board)
+	return board
 }
 
 // mustGetBoard returns a board or panics when it's not found.
-func mustGetBoard(id BoardID) *Board {
-	board, found := getBoard(id)
+func mustGetBoard(id boards.ID) *boards.Board {
+	board, found := gBoards.Get(id)
 	if !found {
 		panic("board does not exist with ID: " + id.String())
 	}
 	return board
 }
 
+// getThread returns a board thread.
+func getThread(board *boards.Board, threadID boards.ID) (*boards.Post, bool) {
+	thread, found := board.Threads.Get(threadID)
+	if !found {
+		// When thread is not found search it within hidden threads
+		meta := board.Meta.(*Meta)
+		thread, found = meta.HiddenThreads.Get(threadID)
+	}
+	return thread, found
+}
+
 // mustGetThread returns a thread or panics when it's not found.
-func mustGetThread(board *Board, threadID PostID) *Post {
-	thread, found := board.GetThread(threadID)
+func mustGetThread(board *boards.Board, threadID boards.ID) *boards.Post {
+	thread, found := getThread(board, threadID)
 	if !found {
 		panic("thread does not exist with ID: " + threadID.String())
 	}
@@ -108,18 +117,18 @@ func mustGetThread(board *Board, threadID PostID) *Post {
 }
 
 // mustGetReply returns a reply or panics when it's not found.
-func mustGetReply(thread *Post, replyID PostID) *Post {
-	reply, found := thread.GetReply(replyID)
+func mustGetReply(thread *boards.Post, replyID boards.ID) *boards.Post {
+	reply, found := thread.Replies.Get(replyID)
 	if !found {
 		panic("reply does not exist with ID: " + replyID.String())
 	}
 	return reply
 }
 
-func mustGetPermissions(bid BoardID) Permissions {
+func mustGetPermissions(bid boards.ID) boards.Permissions {
 	if bid != 0 {
 		board := mustGetBoard(bid)
-		return board.perms
+		return board.Permissions
 	}
 	return gPerms
 }

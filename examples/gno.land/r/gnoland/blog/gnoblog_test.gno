@@ -3,21 +3,19 @@ package gnoblog
 import (
 	"strings"
 	"testing"
-
-	"std"
 )
 
 func TestPackage(cur realm, t *testing.T) {
 	clearState(t)
 
 	testing.SetOriginCaller(adminAddr)
-	testing.SetRealm(std.NewUserRealm(adminAddr))
+	testing.SetRealm(testing.NewUserRealm(adminAddr))
 
 	// by default, no posts.
 	{
 		got := Render("")
 		expected := `
-# gno.land's blog
+# Gno.land's blog
 
 No posts.
 `
@@ -30,7 +28,7 @@ No posts.
 		ModAddPost(cross, "slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
 		got := Render("")
 		expected := `
-			# gno.land's blog
+			# Gno.land's blog
 
 <gno-columns>
 ### [title2](/r/gnoland/blog:p/slug2)
@@ -63,7 +61,7 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to gno.land's blog
+Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
@@ -78,12 +76,12 @@ Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to gno.land's blog
 	// list by tags.
 	{
 		got := Render("t/invalid")
-		expected := "# [gno.land's blog](/r/gnoland/blog:) / t / invalid\n\nNo posts."
+		expected := "# [Gno.land's blog](/r/gnoland/blog:) / t / invalid\n\nNo posts."
 		assertMDEquals(t, got, expected)
 
 		got = Render("t/tag2")
 		expected = `
-# [gno.land's blog](/r/gnoland/blog:) / t / tag2
+# [Gno.land's blog](/r/gnoland/blog:) / t / tag2
 
 
 ### [title1](/r/gnoland/blog:p/slug1)
@@ -112,7 +110,7 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to gno.land's blog
+Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
@@ -155,7 +153,7 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
 
 Written by manfred on 20 May 2022
 
-Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to gno.land's blog
+Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gno.land's blog
 
 ---
 <details><summary>Comment section</summary>

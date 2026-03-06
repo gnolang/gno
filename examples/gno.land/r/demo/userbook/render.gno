@@ -7,8 +7,8 @@ import (
 	"gno.land/r/sys/users"
 
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/avl/pager"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 const usersLink = "/r/gnoland/users/v1"

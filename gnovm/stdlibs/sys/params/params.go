@@ -4,43 +4,49 @@ import (
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
 )
 
 func X_setSysParamString(m *gno.Machine, module, submodule, name, val string) {
 	assertSysParamsRealm(m)
 	pk := prmkey(module, submodule, name)
-	std.GetContext(m).Params.SetString(pk, val)
+	execctx.GetContext(m).Params.SetString(pk, val)
 }
 
 func X_setSysParamBool(m *gno.Machine, module, submodule, name string, val bool) {
 	assertSysParamsRealm(m)
 	pk := prmkey(module, submodule, name)
-	std.GetContext(m).Params.SetBool(pk, val)
+	execctx.GetContext(m).Params.SetBool(pk, val)
 }
 
 func X_setSysParamInt64(m *gno.Machine, module, submodule, name string, val int64) {
 	assertSysParamsRealm(m)
 	pk := prmkey(module, submodule, name)
-	std.GetContext(m).Params.SetInt64(pk, val)
+	execctx.GetContext(m).Params.SetInt64(pk, val)
 }
 
 func X_setSysParamUint64(m *gno.Machine, module, submodule, name string, val uint64) {
 	assertSysParamsRealm(m)
 	pk := prmkey(module, submodule, name)
-	std.GetContext(m).Params.SetUint64(pk, val)
+	execctx.GetContext(m).Params.SetUint64(pk, val)
 }
 
 func X_setSysParamBytes(m *gno.Machine, module, submodule, name string, val []byte) {
 	assertSysParamsRealm(m)
 	pk := prmkey(module, submodule, name)
-	std.GetContext(m).Params.SetBytes(pk, val)
+	execctx.GetContext(m).Params.SetBytes(pk, val)
 }
 
 func X_setSysParamStrings(m *gno.Machine, module, submodule, name string, val []string) {
 	assertSysParamsRealm(m)
 	pk := prmkey(module, submodule, name)
-	std.GetContext(m).Params.SetStrings(pk, val)
+	execctx.GetContext(m).Params.SetStrings(pk, val)
+}
+
+func X_updateSysParamStrings(m *gno.Machine, module, submodule, name string, val []string, add bool) {
+	assertSysParamsRealm(m)
+	pk := prmkey(module, submodule, name)
+	execctx.GetContext(m).Params.UpdateStrings(pk, val, add)
 }
 
 func assertSysParamsRealm(m *gno.Machine) {

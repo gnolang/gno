@@ -4,7 +4,7 @@ package keyscli
 import (
 	"encoding/base64"
 
-	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -95,11 +95,11 @@ func GetStorageInfo(events []abci.Event) (int64, std.Coins, bool) {
 
 	for _, event := range events {
 		switch storageEvent := event.(type) {
-		case gnostd.StorageDepositEvent:
+		case chain.StorageDepositEvent:
 			bytesDelta += storageEvent.BytesDelta
 			coinsDelta = coinsDelta.AddUnsafe(std.Coins{storageEvent.FeeDelta})
 			hasEvents = true
-		case gnostd.StorageUnlockEvent:
+		case chain.StorageUnlockEvent:
 			bytesDelta += storageEvent.BytesDelta
 			if !storageEvent.RefundWithheld {
 				coinsDelta = coinsDelta.SubUnsafe(std.Coins{storageEvent.FeeRefund})

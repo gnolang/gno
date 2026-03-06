@@ -20,7 +20,7 @@ The "std" package is defined by the gno code in stdlibs/std/. </br> Self explana
 
 ```go
 type activity struct {
-    caller   std.Address
+    caller   address
     sent     std.Coins
     returned std.Coins
     time     time.Time

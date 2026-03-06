@@ -6,11 +6,10 @@ func TestCheckAssignableTo(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name       string
-		xt         Type
-		dt         Type
-		autoNative bool
-		wantError  string
+		name      string
+		xt        Type
+		dt        Type
+		wantError string
 	}{
 		{
 			name: "nil to nil",
@@ -44,7 +43,7 @@ func TestCheckAssignableTo(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			err := checkAssignableTo(nil, tt.xt, tt.dt, tt.autoNative)
+			err := checkAssignableTo(nil, tt.xt, tt.dt)
 			if tt.wantError != "" {
 				if err.Error() != tt.wantError {
 					t.Errorf("checkAssignableTo() returned wrong error: want: %v got: %v", tt.wantError, err.Error())

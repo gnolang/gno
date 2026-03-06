@@ -23,9 +23,7 @@ stdout 'TX HASH:    '
 -- ee.gno --
 package ee
 
-import (
-	"std"
-)
+import "chain"
 
 const (
 	EventFoo = "foo"
@@ -38,7 +36,7 @@ func Foo(cur realm) {
 }
 
 func SubFoo() {
-	std.Emit(
+	chain.Emit(
 		EventFoo,
 		"key1", "value1",
 		"key2", "value2",
@@ -47,14 +45,14 @@ func SubFoo() {
 }
 
 func SubBar() {
-	std.Emit(
+	chain.Emit(
 		EventBar,
 		"bar", "baz",
 	)
 }
 
 func Bar(cur realm) {
-	std.Emit(
+	chain.Emit(
 		EventBar,
 		"foo", "bar",
 	)

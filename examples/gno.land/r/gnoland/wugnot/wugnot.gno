@@ -1,11 +1,13 @@
 package wugnot
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/demo/defi/grc20reg"
 )
 
@@ -21,8 +23,12 @@ func init() {
 }
 
 func Deposit(cur realm) {
-	caller := std.PreviousRealm().Address()
-	sent := std.OriginSend()
+	// Prevent cross-realm MITM: without this, an intermediary could
+	// deposit on behalf of the caller and mint wugnot to itself
+	// instead of the actual sender.
+	runtime.AssertOriginCall()
+	caller := runtime.PreviousRealm().Address()
+	sent := banker.OriginSend()
 	amount := sent.AmountOf("ugnot")
 
 	require(int64(amount) >= ugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d ugnot.", amount, ugnotMinDeposit))
@@ -31,16 +37,17 @@ func Deposit(cur realm) {
 }
 
 func Withdraw(cur realm, amount int64) {
+	runtime.AssertOriginCall()
 	require(amount >= wugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d wugnot.", amount, wugnotMinDeposit))
 
-	caller := std.PreviousRealm().Address()
-	pkgaddr := std.CurrentRealm().Address()
+	caller := runtime.PreviousRealm().Address()
+	pkgaddr := runtime.CurrentRealm().Address()
 	callerBal := Token.BalanceOf(caller)
 	require(amount <= callerBal, ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
 
 	// send swapped ugnots to qcaller
-	stdBanker := std.NewBanker(std.BankerTypeRealmSend)
-	send := std.Coins{{"ugnot", int64(amount)}}
+	stdBanker := banker.NewBanker(banker.BankerTypeRealmSend)
+	send := chain.Coins{{"ugnot", int64(amount)}}
 	stdBanker.SendCoins(pkgaddr, caller, send)
 	checkErr(adm.Burn(caller, amount))
 }
@@ -53,7 +60,7 @@ func Render(path string) string {
 	case path == "":
 		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := std.Address(parts[1])
+		owner := address(parts[1])
 		balance := Token.BalanceOf(owner)
 		return ufmt.Sprintf("%d", balance)
 	default:
@@ -65,25 +72,25 @@ func TotalSupply() int64 {
 	return Token.TotalSupply()
 }
 
-func BalanceOf(owner std.Address) int64 {
+func BalanceOf(owner address) int64 {
 	return Token.BalanceOf(owner)
 }
 
-func Allowance(owner, spender std.Address) int64 {
+func Allowance(owner, spender address) int64 {
 	return Token.Allowance(owner, spender)
 }
 
-func Transfer(cur realm, to std.Address, amount int64) {
+func Transfer(cur realm, to address, amount int64) {
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.Transfer(to, amount))
 }
 
-func Approve(cur realm, spender std.Address, amount int64) {
+func Approve(cur realm, spender address, amount int64) {
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.Approve(spender, amount))
 }
 
-func TransferFrom(cur realm, from, to std.Address, amount int64) {
+func TransferFrom(cur realm, from, to address, amount int64) {
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.TransferFrom(from, to, amount))
 }

@@ -92,9 +92,9 @@ func IsEphemeralPath(pkgPath string) bool {
 }
 
 // IsGnoRunPath returns true if it's a run (MsgRun) package path.
-// DerivePkgAddr() returns the embedded address such that the run package can
+// DerivePkgAddress() returns the embedded address such that the run package can
 // receive coins on behalf of the user.
-// XXX XXX XXX XXX change DerivePkgAddr().
+// XXX XXX XXX XXX change DerivePkgAddress().
 func IsGnoRunPath(pkgPath string) (addr string, ok bool) {
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	if match == nil || match.Get("LETTER") != "e" || match.Get("REPO") != "run" {
@@ -160,8 +160,10 @@ func IsTestFile(file string) bool {
 
 var (
 	goodFiles = []string{
-		"LICENSE",
-		"README.md",
+		"license",
+		"license.txt",
+		"licence",
+		"licence.txt",
 		"gno.mod",
 	}
 	// NOTE: Xtn is easier to type than Extension due to proximity of 'e'
@@ -171,6 +173,7 @@ var (
 	goodFileXtns = []string{
 		".gno",
 		".toml",
+		".md",
 		// ".txtar", // XXX: to be considered
 	}
 	badFileXtns = []string{
@@ -560,6 +563,9 @@ func (mptype MemPackageType) Validate(pkgPath string) {
 	// Check if MPUser*.
 	switch {
 	case mptype.IsUserlib():
+		if strings.HasSuffix(pkgPath, "/filetests") {
+			panic(fmt.Sprintf("expected user package path for %q but got %q ending in filetests", mptype, pkgPath))
+		}
 		if !IsUserlib(pkgPath) {
 			panic(fmt.Sprintf("expected user package path for %q but got %q", mptype, pkgPath))
 		}
@@ -640,7 +646,8 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // ReadMemPackage initializes a new MemPackage by reading the OS directory at
 // dir, and saving it with the given pkgPath (import path).  The resulting
 // MemPackage will contain the names and content of all *.gno files, and
-// additionally README.md, LICENSE.
+// additionally LICENSE, *.md and *.toml .
+// All *_filetest.gno files are added from subdirectory filetests.
 //
 // ReadMemPackage only reads good file extensions or whitelisted good files,
 // and ignores bad file extensions. Validation will fail if any bad extensions
@@ -674,17 +681,40 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 	}
 	// Construct list of files to add to mpkg.
 	list := make([]string, 0, len(files))
+	filetestsDir := ""
 	for _, file := range files {
+		if file.IsDir() && file.Name() == "filetests" {
+			// Process filetests dir below
+			filetestsDir = filepath.Join(dir, file.Name())
+			continue
+		}
 		// Ignore directories and hidden files, only include allowed files & extensions,
 		// then exclude files that are of the bad extensions.
+		// We do case ignore to check goodFiles. MemFile ValidateBasic will enforce case rules.
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
 			(!endsWithAny(file.Name(), goodFileXtns) &&
-				!slices.Contains(goodFiles, file.Name())) ||
+				!slices.Contains(goodFiles, strings.ToLower(file.Name()))) ||
 			endsWithAny(file.Name(), badFileXtns) {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
+	}
+	if filetestsDir != "" {
+		// Add filetest files from the subdir
+		filetestsFiles, err := os.ReadDir(filetestsDir)
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range filetestsFiles {
+			if strings.HasSuffix(file.Name(), "_filetest.gno") {
+				checkPath := filepath.Join(dir, file.Name())
+				if slices.Contains(list, checkPath) {
+					return nil, fmt.Errorf("cannot add %q in filetests: same filename in package dir %q", file.Name(), dir)
+				}
+				list = append(list, filepath.Join(filetestsDir, file.Name()))
+			}
+		}
 	}
 	return ReadMemPackageFromList(list, pkgPath, mptype)
 }
@@ -855,8 +885,8 @@ func MustReadMemPackageFromList(list []string, pkgPath string, mptype MemPackage
 //
 // If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackageAsType panics.
-func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
-	return ParseMemPackageAsType(mpkg, mpkg.Type.(MemPackageType))
+func (m *Machine) ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
+	return m.ParseMemPackageAsType(mpkg, mpkg.Type.(MemPackageType))
 }
 
 // ParseMemPackageAsType executes [ParseFile] on each file of the mpkg, with
@@ -865,7 +895,7 @@ func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
 //
 // If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackageAsType panics.
-func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
+func (m *Machine) ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
 	pkgPath := mpkg.Path
 	mptype.Validate(pkgPath)
 	mpkg.Type.(MemPackageType).AssertCompatible(mpkg.Path, mptype)
@@ -903,7 +933,7 @@ func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *F
 		// NOTE: the above is (almost) duplicated in ReadMemPackageFromList().
 		//--------------------------------------------------------------------------------
 		// Parse the file.
-		n, err := ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -925,7 +955,7 @@ func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *F
 
 // ParseMemPackageTests parses test files (skipping filetests) in the mpkg and splits
 // the files into categories for testing.
-func ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, ftfiles []*std.MemFile) {
+func (m *Machine) ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, ftfiles []*std.MemFile) {
 	tset = &FileSet{}
 	itset = &FileSet{}
 	var errs error
@@ -934,7 +964,7 @@ func ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, 
 			continue // skip this file.
 		}
 
-		n, err := ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -1031,7 +1061,7 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 			continue
 		}
 		if !endsWithAny(fname, goodFileXtns) {
-			if !slices.Contains(goodFiles, fname) {
+			if !slices.Contains(goodFiles, strings.ToLower(fname)) {
 				errs = multierr.Append(errs, fmt.Errorf("invalid file %q: unrecognized file type", fname))
 				continue
 			}

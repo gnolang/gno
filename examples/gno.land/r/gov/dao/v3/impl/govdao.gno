@@ -1,13 +1,13 @@
 package impl
 
 import (
+	"chain"
+	"chain/runtime"
 	"errors"
-	"std"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
-	"gno.land/r/sys/users"
 )
 
 var ErrMemberNotFound = errors.New("member not found")
@@ -57,14 +57,14 @@ func NewGovDAO() *GovDAO {
 // realm. TODO replace with future `attach()`.
 var _govdao *GovDAO
 
-func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (std.Address, error) {
+func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (address, error) {
 	if !g.isValidCall() {
 		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: %v; previous realm: %v",
-			std.CurrentRealm(), std.PreviousRealm()))
+			runtime.CurrentRealm(), runtime.PreviousRealm()))
 	}
 
 	// Verify that the one creating the proposal is a member.
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	mem, _ := getMembers(cross).GetMember(caller)
 	if mem == nil {
 		return caller, errors.New("only members can create new proposals")
@@ -90,23 +90,21 @@ func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
 	g.pss.Set(pid.String(), newProposalStatus(tatv))
 }
 
-// Members **must** have a namespace to vote to enforce simpler tracking.
 func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	if !g.isValidCall() {
 		return errors.New("proposal voting must be done directly by a user")
 	}
 
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	mem, tie := getMembers(cross).GetMember(caller)
 	if mem == nil {
 		return ErrMemberNotFound
 	}
 
-	if users.ResolveAddress(caller) == nil {
-		return errors.New("voter should have a namespace")
-	}
-
 	status := g.pss.GetStatus(r.ProposalID)
+	if status == nil {
+		return errors.New("proposal not found")
+	}
 
 	if status.Denied || status.Accepted {
 		return errors.New(ufmt.Sprintf("proposal closed. Accepted: %v", status.Accepted))
@@ -175,12 +173,12 @@ func (g *GovDAO) isValidCall() bool {
 	// 2: r/gov/dao/v3/impl methods called directly by an user
 
 	// case 1
-	if std.CurrentRealm().PkgPath() == "gno.land/r/gov/dao" {
+	if runtime.CurrentRealm().PkgPath() == "gno.land/r/gov/dao" {
 		// called directly by an user through MsgCall
-		if std.PreviousRealm().IsUser() {
+		if runtime.PreviousRealm().IsUser() {
 			return true
 		}
-		isMsgRun := std.DerivePkgAddr(std.PreviousRealm().PkgPath()) == std.OriginCaller()
+		isMsgRun := chain.PackageAddress(runtime.PreviousRealm().PkgPath()) == runtime.OriginCaller()
 		// called directly by an user through MsgRun
 		if isMsgRun {
 			return true
@@ -188,7 +186,7 @@ func (g *GovDAO) isValidCall() bool {
 	}
 
 	// case 2
-	if std.CurrentRealm().IsUser() {
+	if runtime.CurrentRealm().IsUser() {
 		return true
 	}
 

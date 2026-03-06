@@ -1,4 +1,5 @@
 {{ define "layouts/head" }}
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -6,7 +7,8 @@
 
   <!-- Preload -->
   <link rel="preload" href="{{ .AssetsPath }}fonts/intervar/Intervar.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2" as="font" type="font/woff2"
+    crossorigin />
 
   <!-- Meta description -->
   <meta name="description" content="{{ .Description }}" />
@@ -39,7 +41,7 @@
   <link rel="stylesheet" href="{{ .ChromaPath }}" />
 
   <!-- web assets -->
-  <link rel="stylesheet" href="{{ .AssetsPath }}styles.css" />
+  <link rel="stylesheet" href="{{ .AssetsPath }}main.css?v={{ .BuildTime }}" />
 
   <!-- wallet integrations -->
   <meta name="gnoconnect:rpc" content="{{ .Remote }}" />

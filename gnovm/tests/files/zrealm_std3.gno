@@ -1,16 +1,14 @@
 // PKGPATH: gno.land/r/std
 package std
 
-import (
-	"std"
-)
+import "chain/runtime"
 
 func foo() {
-	println("foo", std.CurrentRealm().PkgPath())
+	println("foo", runtime.CurrentRealm().PkgPath())
 }
 
 func main(cur realm) {
-	println("main", std.CurrentRealm().PkgPath())
+	println("main", runtime.CurrentRealm().PkgPath())
 	foo()
 }
 

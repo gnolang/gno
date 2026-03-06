@@ -1,17 +1,16 @@
 package forms
 
 import (
-	"std"
 	"testing"
 
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 func TestCreateForm(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 
 	db := NewDB()
 	title := "Simple Form"

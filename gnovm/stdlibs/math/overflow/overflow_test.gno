@@ -1,9 +1,10 @@
-package overflow
+package overflow_test
 
 import (
 	"math"
+	"math/overflow"
 	"math/rand"
-	testing "testing/base"
+	"testing"
 )
 
 func TestSigned(t *testing.T) {
@@ -16,19 +17,19 @@ func TestSigned(t *testing.T) {
 	}{
 		{
 			"Add",
-			Add8, Add16, Add32, Add64,
+			overflow.Add8, overflow.Add16, overflow.Add32, overflow.Add64,
 		},
 		{
 			"Sub",
-			Sub8, Sub16, Sub32, Sub64,
+			overflow.Sub8, overflow.Sub16, overflow.Sub32, overflow.Sub64,
 		},
 		{
 			"Mul",
-			Mul8, Mul16, Mul32, Mul64,
+			overflow.Mul8, overflow.Mul16, overflow.Mul32, overflow.Mul64,
 		},
 		{
 			"Div",
-			Div8, Div16, Div32, Div64,
+			overflow.Div8, overflow.Div16, overflow.Div32, overflow.Div64,
 		},
 	}
 	mk := func(i int64) int64 {
@@ -141,19 +142,19 @@ func TestUnsigned(t *testing.T) {
 	}{
 		{
 			"Add",
-			Addu8, Addu16, Addu32, Addu64,
+			overflow.Addu8, overflow.Addu16, overflow.Addu32, overflow.Addu64,
 		},
 		{
 			"Sub",
-			Subu8, Subu16, Subu32, Subu64,
+			overflow.Subu8, overflow.Subu16, overflow.Subu32, overflow.Subu64,
 		},
 		{
 			"Mul",
-			Mulu8, Mulu16, Mulu32, Mulu64,
+			overflow.Mulu8, overflow.Mulu16, overflow.Mulu32, overflow.Mulu64,
 		},
 		{
 			"Div",
-			Divu8, Divu16, Divu32, Divu64,
+			overflow.Divu8, overflow.Divu16, overflow.Divu32, overflow.Divu64,
 		},
 	}
 	mk := func(i uint64) uint64 {

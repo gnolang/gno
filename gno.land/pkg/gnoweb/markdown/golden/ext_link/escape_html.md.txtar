@@ -1,0 +1,9 @@
+-- input.md --
+
+## My Realm
+
+[Bad Link]("/></a><button>Hello</button>)
+
+-- output.html --
+<h2>My Realm</h2>
+<p><a href="%22/%3E%3C/a%3E%3Cbutton%3EHello%3C/button%3E">Bad Link</a></p>

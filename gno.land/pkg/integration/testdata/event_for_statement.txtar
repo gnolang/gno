@@ -23,11 +23,11 @@ stdout 'TX HASH:    '
 -- foree.gno --
 package foree
 
-import "std"
+import "chain"
 
 func Foo(cur realm) {
 	for i := 0; i < 10; i++ {
-		std.Emit("testing", "foo", "bar")
+		chain.Emit("testing", "foo", "bar")
 	}
 }
 
@@ -44,13 +44,13 @@ func (c *contractA) Foo(cur realm, cb func()) {
 }
 
 func subFoo() {
-	std.Emit(eventFoo, "k1", "v1", "k2", "v2")
+	chain.Emit(eventFoo, "k1", "v1", "k2", "v2")
 }
 
 type contractB struct{}
 
 func (c *contractB) subBar() {
-	std.Emit(eventBar, "bar", "baz")
+	chain.Emit(eventBar, "bar", "baz")
 }
 
 func Bar(cur realm) {

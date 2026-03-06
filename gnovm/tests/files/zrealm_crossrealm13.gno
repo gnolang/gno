@@ -1,34 +1,34 @@
 package main
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 )
 
 func main() {
 	println("From main:")
 	PrintRealm()
-	println(pad("CurrentRealm:"), std.CurrentRealm())
-	println(pad("PreviousRealm:"), std.PreviousRealm())
+	println(pad("CurrentRealm:"), runtime.CurrentRealm())
+	println(pad("PreviousRealm:"), runtime.PreviousRealm())
 	println("")
 
 	println("From g1user origin:")
-	testing.SetRealm(std.NewUserRealm("g1user"))
-	println(pad("CurrentRealm:"), std.CurrentRealm())
+	testing.SetRealm(testing.NewUserRealm("g1user"))
+	println(pad("CurrentRealm:"), runtime.CurrentRealm())
 	func() {
 		defer func() {
 			r := recover()
 			println(pad("PreviousRealm:"), r)
 		}()
-		println(pad("PreviousRealm:"), std.PreviousRealm())
+		println(pad("PreviousRealm:"), runtime.PreviousRealm())
 	}()
 	println("")
 
 	println("From gno.land/r/sys/users realm:")
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 	PrintRealm()
-	println(pad("CurrentRealm:"), std.CurrentRealm())
-	println(pad("PreviousRealm:"), std.PreviousRealm())
+	println(pad("CurrentRealm:"), runtime.CurrentRealm())
+	println(pad("PreviousRealm:"), runtime.PreviousRealm())
 }
 
 func pad(s string) string {
@@ -39,8 +39,8 @@ func pad(s string) string {
 }
 
 func PrintRealm() {
-	println(pad("PR() CurrentRealm:"), std.CurrentRealm())
-	println(pad("PR() PreviousRealm:"), std.PreviousRealm())
+	println(pad("PR() CurrentRealm:"), runtime.CurrentRealm())
+	println(pad("PR() PreviousRealm:"), runtime.PreviousRealm())
 }
 
 // Output:

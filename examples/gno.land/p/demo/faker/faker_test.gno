@@ -1,11 +1,10 @@
 package faker
 
 import (
-	"std"
 	"testing"
 
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 func TestNewGenerator(t *testing.T) {
@@ -87,7 +86,7 @@ type goldenValues struct {
 	dateTime       string
 	email          string
 	phone          string
-	stdAddress     std.Address
+	stdAddress     address
 	username       string
 }
 

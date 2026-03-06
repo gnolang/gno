@@ -6,13 +6,20 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/gnolang/faucet"
 	"github.com/gnolang/faucet/spec"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/google/go-github/v64/github"
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
+
+	igh "github.com/gnolang/gno/contribs/gnofaucet/github"
 )
 
 // type to scope the context.Context values to this package.
@@ -21,6 +28,23 @@ type faucetContextKey string
 // ghUsernameKey is the context key for storing the GH username between
 // http and RPC GitHub middleware handlers
 const ghUsernameKey faucetContextKey = "gh-username"
+
+// claimRPCMethod is a method that is exactly like the default drip method but without any amount set
+const claimRPCMethod = "claim"
+
+// getClaimRPCMethod is a method that returns the amount that the user will be able to claim
+const getClaimRPCMethod = "checkClaim"
+
+var allowedMethods = []string{faucet.DefaultDripMethod, claimRPCMethod, getClaimRPCMethod}
+
+func getMiddlewares(rr igh.Rewarder, cooldownLimiter cooldownLimiter) []faucet.Middleware {
+	return []faucet.Middleware{
+		invalidMethodMiddleware(),
+		gitHubClaimRewardsMiddleware(rr),
+		gitHubClaimMiddleware(cooldownLimiter),
+		gitHubCheckRewardsMiddleware(rr),
+	}
+}
 
 // gitHubUsernameMiddleware sets up authentication middleware for GitHub OAuth.
 // If clientID and secret are empty, the middleware does nothing.
@@ -32,10 +56,32 @@ const ghUsernameKey faucetContextKey = "gh-username"
 // GitHub OAuth applications require a client ID and secret to authenticate users securely.
 // These credentials are obtained when registering an application on GitHub at:
 // https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authenticating-to-the-rest-api-with-an-oauth-app#registering-your-app
-func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) func(next http.Handler) http.Handler {
+func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn, logger *slog.Logger, rdb *redis.Client) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
+				coo, err := r.Cookie(string(ghUsernameKey))
+				if coo != nil {
+					logger.Debug("cookie obtained", "name", coo.Name, "value", coo.Value)
+
+					username, rerr := rdb.Get(r.Context(), redisSessionKey(coo.Value)).Result()
+					if rerr == nil && username != "" {
+						updatedCtx := context.WithValue(r.Context(), ghUsernameKey, username)
+						next.ServeHTTP(w, r.WithContext(updatedCtx))
+						return
+					}
+					if rerr != nil && !errors.Is(rerr, redis.Nil) {
+						logger.Debug("user from cookie not found", "err", rerr)
+					}
+				}
+
+				if errors.Is(err, http.ErrNoCookie) {
+					logger.Debug("cookie not present", "err", err)
+				}
+				if err != nil {
+					logger.Debug("cookie error", "err", err)
+				}
+
 				w.Header().Set("Content-Type", "text/plain")
 
 				// Extracts the authorization code returned by the GitHub OAuth flow.
@@ -62,6 +108,30 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) 
 					return
 				}
 
+				sessionID := uuid.NewString()
+				ttlSeconds := 3600
+				if err := rdb.Set(
+					r.Context(),
+					redisSessionKey(sessionID),
+					user.GetLogin(),
+					time.Duration(ttlSeconds)*time.Second,
+				).Err(); err != nil {
+					http.Error(w, "unable to persist session", http.StatusInternalServerError)
+				}
+
+				c := &http.Cookie{
+					Name:     string(ghUsernameKey),
+					Value:    sessionID,
+					MaxAge:   ttlSeconds,
+					HttpOnly: true,
+					Secure:   true,
+					SameSite: http.SameSiteLaxMode,
+				}
+
+				http.SetCookie(w, c)
+
+				logger.Debug("cookie set!", "cookie", c)
+
 				// Save the username in the context
 				updatedCtx := context.WithValue(r.Context(), ghUsernameKey, user.GetLogin())
 
@@ -72,14 +142,40 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) 
 	}
 }
 
+func redisSessionKey(id string) string { return "gh-session:" + id }
+
 type cooldownLimiter interface {
 	checkCooldown(context.Context, string, int64) (bool, error)
 }
 
-// gitHubClaimMiddleware is the GitHub claim validation middleware, based on the provided username
-func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter) faucet.Middleware {
+// invalidMethodMiddleware is the middleware that checks if the method is valid.
+// If the method is not valid, it will return an error.
+// If the method is valid, it will call the next middleware.
+func invalidMethodMiddleware() faucet.Middleware {
 	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
 		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+			if !slices.Contains(allowedMethods, req.Method) {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("invalid method requested", spec.InvalidRequestErrorCode),
+				)
+			}
+
+			return next(ctx, req)
+		}
+	}
+}
+
+// gitHubCheckRewardsMiddleware is the middleware that is being called
+// from the frontend to check if the pending user's rewards.
+func gitHubCheckRewardsMiddleware(rewarder igh.Rewarder) faucet.Middleware {
+	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
+		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+			if req.Method != getClaimRPCMethod {
+				return next(ctx, req)
+			}
+
 			// Grab the username from the context
 			username, ok := ctx.Value(ghUsernameKey).(string)
 			if !ok {
@@ -90,12 +186,97 @@ func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter) faucet.Middleware {
 				)
 			}
 
-			// Make sure the method is "drip"
-			if req.Method != faucet.DefaultDripMethod {
+			reward, err := rewarder.GetReward(ctx, username)
+			if err != nil {
 				return spec.NewJSONResponse(
 					req.ID,
 					nil,
-					spec.NewJSONError("invalid method requested", spec.InvalidRequestErrorCode),
+					spec.NewJSONError(fmt.Sprintf("unable to get reward: %v", err), spec.ServerErrorCode),
+				)
+			}
+
+			return spec.NewJSONResponse(req.ID, reward, nil)
+		}
+	}
+}
+
+// gitHubClaimRewardsMiddleware is the middleware that claims rewards for the user.
+// Using the github username, it will check Redis to see if the user has already claimed rewards.
+func gitHubClaimRewardsMiddleware(rewarder igh.Rewarder) faucet.Middleware {
+	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
+		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+			if req.Method != claimRPCMethod {
+				return next(ctx, req)
+			}
+
+			// Grab the username from the context
+			username, ok := ctx.Value(ghUsernameKey).(string)
+			if !ok {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("invalid username value", spec.InvalidRequestErrorCode),
+				)
+			}
+
+			if len(req.Params) != 1 {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("params must contain only the address", spec.InvalidParamsErrorCode),
+				)
+			}
+			reward, err := rewarder.GetReward(ctx, username)
+			if err != nil {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError(fmt.Sprintf("unable to get reward: %v", err), spec.ServerErrorCode),
+				)
+			}
+
+			if reward == 0 {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("no GNOTs to reward.", spec.ServerErrorCode),
+				)
+			}
+
+			req.Method = faucet.DefaultDripMethod
+
+			c := std.NewCoin("ugnot", int64(reward)).String()
+			req.Params = append(req.Params, c)
+
+			// TODO: this should be called AFTER the faucet successfully gives tokens to the requester
+			if err := rewarder.Apply(ctx, username, reward); err != nil {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError(fmt.Sprintf("unable to apply reward: %v", err), spec.ServerErrorCode),
+				)
+			}
+
+			return next(ctx, req)
+		}
+	}
+}
+
+// gitHubClaimMiddleware is the GitHub claim validation middleware, based on the provided username
+func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter) faucet.Middleware {
+	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
+		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+			if req.Method != faucet.DefaultDripMethod {
+				return next(ctx, req)
+			}
+
+			// Grab the username from the context
+			username, ok := ctx.Value(ghUsernameKey).(string)
+			if !ok {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("invalid username value", spec.InvalidRequestErrorCode),
 				)
 			}
 

@@ -39,21 +39,16 @@ func execAddLedger(cfg *AddCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to read keybase, %w", err)
 	}
 
-	// Check if the key exists
-	exists, err := kb.HasByName(name)
-	if err != nil {
-		return fmt.Errorf("unable to fetch key, %w", err)
-	}
-
-	// Get overwrite confirmation, if any
-	if exists {
-		overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
+	// If not forcing, check for collisions with existing keys
+	if !cfg.Force {
+		// Handle name collision if any
+		handled, err := handleCollision(kb, name, crypto.Address{}, keys.TypeLedger, io)
 		if err != nil {
-			return fmt.Errorf("unable to get confirmation, %w", err)
+			return err
 		}
-
-		if !overwrite {
-			return errOverwriteAborted
+		// If a collision was found and handled, we can skip saving the new key
+		if handled {
+			return nil
 		}
 	}
 
@@ -61,7 +56,7 @@ func execAddLedger(cfg *AddCfg, args []string, io commands.IO) error {
 	info, err := kb.CreateLedger(
 		name,
 		keys.Secp256k1,
-		crypto.Bech32AddrPrefix,
+		crypto.Bech32AddrPrefix(),
 		uint32(cfg.Account),
 		uint32(cfg.Index),
 	)

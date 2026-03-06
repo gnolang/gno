@@ -40,6 +40,7 @@ type HeadData struct {
 	Analytics   bool
 	Remote      string
 	ChainId     string
+	BuildTime   string
 }
 
 type IndexData struct {
@@ -56,6 +57,7 @@ type indexLayoutParams struct {
 	// Additional data
 	IsDevmodView bool
 	ViewType     string
+	JSController string
 }
 
 func IndexLayout(data IndexData) Component {

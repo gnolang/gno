@@ -7,13 +7,6 @@ import (
 	"strings"
 )
 
-// mostly for the "testing" package, these only exist as Gno native injections
-var nativeInjections = []string{
-	"fmt",
-	"os",
-	"encoding/json",
-}
-
 // sortPackages sorts pkgs into their initialization order.
 func sortPackages(pkgs []*pkgData) []string {
 	res := make([]string, 0, len(pkgs))
@@ -33,11 +26,6 @@ func sortPackages(pkgs []*pkgData) []string {
 		imports := slices.Sorted(maps.Keys(pkg.imports))
 		for _, imp := range imports {
 			if slices.Contains(res, imp) {
-				continue
-			}
-			if (pkg.importPath == "testing" ||
-				pkg.importPath == "testing/base") &&
-				slices.Contains(nativeInjections, imp) {
 				continue
 			}
 

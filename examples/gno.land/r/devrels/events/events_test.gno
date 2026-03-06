@@ -1,17 +1,16 @@
 package events
 
 import (
-	"std"
 	"strings"
 	"testing"
 	"time"
 
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 var (
-	suRealm          = std.NewUserRealm(std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"))
+	suRealm          = testing.NewUserRealm(address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"))
 	now              = "2009-02-13T23:31:30Z" // time.Now() is hardcoded to this value in the gno test machine currently
 	parsedTimeNow, _ = time.Parse(time.RFC3339, now)
 )

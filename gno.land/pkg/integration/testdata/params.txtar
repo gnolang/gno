@@ -75,33 +75,31 @@ gno = "0.9"
 -- params/setter.gno --
 package params
 
-import (
-	"std"
-)
+import params_ "chain/params"
 
 func SetFoo(cur realm, newFoo string) {
-	std.SetParamString("foo", newFoo)
+	params_.SetString("foo", newFoo)
 }
 
-func SetBar(cur realm, newBar bool)   {
-	std.SetParamBool("bar", newBar)
+func SetBar(cur realm, newBar bool) {
+	params_.SetBool("bar", newBar)
 }
 
-func SetBaz(cur realm, newBaz int64)  {
-	std.SetParamInt64("baz", newBaz)
+func SetBaz(cur realm, newBaz int64) {
+	params_.SetInt64("baz", newBaz)
 }
 
-func SetUint64(newBaz uint64)  { std.SetParamUint64("baz", newBaz) }
-func SetBytes()  { std.SetParamBytes("baz", []byte{255,255}) }
+func SetUint64(newBaz uint64) { params_.SetUint64("baz", newBaz) }
+func SetBytes()               { params_.SetBytes("baz", []byte{255, 255}) }
 
-func SetLockTransfer(cur realm, denom string)  {
-	std.SetParamString("bank:p:lockTransfer", denom)
+func SetLockTransfer(cur realm, denom string) {
+	params_.SetString("bank:p:lockTransfer", denom)
 }
 
-func SetInvalidString(cur realm, denom string)  {
-	std.SetParamString("bank:p:lockTransfer", denom)
+func SetInvalidString(cur realm, denom string) {
+	params_.SetString("bank:p:lockTransfer", denom)
 }
 
-func SetValidString(cur realm, denom string)  {
-	std.SetParamString("bank_lockTransfer", denom)
+func SetValidString(cur realm, denom string) {
+	params_.SetString("bank_lockTransfer", denom)
 }

@@ -3,10 +3,9 @@ package profile
 import (
 	"bytes"
 	"net/url"
-	"std"
 
-	"gno.land/p/nt/mux"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/mux/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 const (
@@ -48,7 +47,7 @@ func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 
 	b.WriteString(ufmt.Sprintf("# Profile %s\n", addr))
 
-	address_XXX := std.Address(addr)
+	address_XXX := address(addr)
 
 	for field := range stringFields {
 		value := GetStringField(address_XXX, field, "n/a")
@@ -78,7 +77,7 @@ func fieldHandler(res *mux.ResponseWriter, req *mux.Request) {
 
 	b.WriteString(ufmt.Sprintf("# Field %s for %s\n", field, addr))
 
-	address_XXX := std.Address(addr)
+	address_XXX := address(addr)
 	value := "n/a"
 	var editLink string
 

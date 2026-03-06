@@ -1,11 +1,11 @@
 package dao
 
 import (
+	"chain/runtime"
 	"errors"
-	"std"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
 )
 
 type ProposalID int64
@@ -70,7 +70,7 @@ func (p *ProposalRequest) Filter() Filter {
 }
 
 type Proposal struct {
-	author std.Address
+	author address
 
 	title       string
 	description string
@@ -79,7 +79,7 @@ type Proposal struct {
 	allowedDAOs []string
 }
 
-func (p *Proposal) Author() std.Address {
+func (p *Proposal) Author() address {
 	return p.author
 }
 
@@ -99,8 +99,16 @@ func (p *Proposal) ExecutorString() string {
 	return ""
 }
 
+func (p *Proposal) ExecutorCreationRealm() string {
+	if p.executor != nil {
+		return p.executor.CreationRealm()
+	}
+
+	return ""
+}
+
 func (p *Proposal) AllowedDAOs() []string {
-	return p.allowedDAOs
+	return append([]string(nil), p.allowedDAOs...)
 }
 
 type Proposals struct {
@@ -134,28 +142,44 @@ func (ps *Proposals) GetProposal(pid ProposalID) *Proposal {
 type Executor interface {
 	Execute(cur realm) error
 	String() string
+	CreationRealm() string
 }
 
 func NewSimpleExecutor(callback func(realm) error, description string) *SimpleExecutor {
+	if callback == nil {
+		panic("executor callback must not be nil")
+	}
+
 	return &SimpleExecutor{
-		callback: callback,
-		desc:     description,
+		callback:      callback,
+		desc:          description,
+		creationRealm: runtime.CurrentRealm().PkgPath(),
 	}
 }
 
 // SimpleExecutor implements the Executor interface using
 // a callback function and a description string.
 type SimpleExecutor struct {
-	callback func(realm) error
-	desc     string
+	callback      func(realm) error
+	desc          string
+	creationRealm string
 }
 
 func (e *SimpleExecutor) Execute(cur realm) error {
+	// Check if executor was created using the constructor func
+	if e.callback == nil {
+		return nil
+	}
+
 	return e.callback(cross)
 }
 
 func (e *SimpleExecutor) String() string {
 	return e.desc
+}
+
+func (e *SimpleExecutor) CreationRealm() string {
+	return e.creationRealm
 }
 
 func NewSafeExecutor(e Executor) *SafeExecutor {
@@ -172,7 +196,7 @@ type SafeExecutor struct {
 
 func (e *SafeExecutor) Execute(cur realm) error {
 	// Verify the caller is an adequate Realm
-	if !InAllowedDAOs(std.PreviousRealm().PkgPath()) {
+	if !InAllowedDAOs(runtime.PreviousRealm().PkgPath()) {
 		return errors.New("execution only allowed by validated govDAOs")
 	}
 
@@ -183,12 +207,16 @@ func (e *SafeExecutor) String() string {
 	return e.e.String()
 }
 
+func (e *SafeExecutor) CreationRealm() string {
+	return e.e.CreationRealm()
+}
+
 type DAO interface {
 	// PreCreateProposal is called just before creating a new Proposal
-	// It is intended to be used to get the std.Address of the proposal, that
+	// It is intended to be used to get the address of the proposal, that
 	// may vary depending on the DAO implementation, and to validate that
 	// the requester is allowed to do a proposal
-	PreCreateProposal(r ProposalRequest) (std.Address, error)
+	PreCreateProposal(r ProposalRequest) (address, error)
 
 	// PostCreateProposal is called after creating the Proposal. It is
 	// intended to be used as a way to store a new proposal status, that

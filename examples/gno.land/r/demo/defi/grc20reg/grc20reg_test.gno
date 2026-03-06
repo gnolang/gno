@@ -1,19 +1,19 @@
 package grc20reg
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/urequire/v0"
 )
 
 func TestRegistry(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/foo"))
-	realmAddr := std.CurrentRealm().PkgPath()
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foo"))
+	realmAddr := runtime.CurrentRealm().PkgPath()
 	token, ledger := grc20.NewToken("TestToken", "TST", 4)
-	ledger.Mint(std.CurrentRealm().Address(), 1234567)
+	ledger.Mint(runtime.CurrentRealm().Address(), 1234567)
 	// register
 	Register(cross, token, "")
 	regToken := Get(realmAddr)

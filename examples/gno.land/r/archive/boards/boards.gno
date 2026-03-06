@@ -1,11 +1,11 @@
 package boards
 
 import (
+	"chain/runtime"
 	"regexp"
-	"std"
 
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 //----------------------------------------
@@ -26,5 +26,5 @@ var reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{2,29}$`)
 
 func init() {
 	// Keep track of the realm package path to make it available on render
-	gRealmLink = txlink.Realm(std.CurrentRealm().PkgPath())
+	gRealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
 }

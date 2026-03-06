@@ -1,16 +1,15 @@
 package users
 
 import (
-	"std"
 	"strconv"
 	"testing"
 
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 func TestResolveName(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
@@ -65,7 +64,7 @@ func TestResolveName(t *testing.T) {
 }
 
 func TestResolveAddress(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
@@ -115,7 +114,7 @@ func TestResolveAddress(t *testing.T) {
 }
 
 func TestROStores(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 	cleanStore(t)
 
 	urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
@@ -169,7 +168,7 @@ func TestROStores(t *testing.T) {
 }
 
 func TestResolveAny(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 
 	t.Run("name", func(t *testing.T) {
 		cleanStore(t)

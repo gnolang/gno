@@ -22,7 +22,7 @@ const (
 var (
 	// See also gnovm/pkg/gnolang/mempackage.go.
 	// NOTE: DO NOT MODIFY without a pre/post ADR and discussions with core GnoVM and gno.land teams.
-	reFileName   = regexp.MustCompile(`^(([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.[a-z0-9_]{1,7}|LICENSE|README)$`)
+	reFileName   = regexp.MustCompile(`^(([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.[a-z0-9_]{1,7}|LICENSE|license|LICENCE|licence|README)$`)
 	rePkgName    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	rePkgPathURL = regexp.MustCompile(`^([a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}(\/[a-z0-9\-_]+)+$`)
 	rePkgPathStd = regexp.MustCompile(`^([a-z][a-z0-9_]*\/)*[a-z][a-z0-9_]+$`)
@@ -88,11 +88,11 @@ func (mfile *MemFile) Copy() *MemFile {
 // NOTE: in the future, a MemPackage may represent updates/additional-files for
 // an existing package.
 type MemPackage struct {
-	Name  string     `json:"name" yaml:"name"`   // package name as declared by `package`
-	Path  string     `json:"path" yaml:"path"`   // import path
-	Files []*MemFile `json:"files" yaml:"files"` // plain file system files.
-	Type  any        `json:"type" yaml:"type"`   // (user defined) package type.
-	Info  any        `json:"info" yaml:"info"`   // (user defined) extra information.
+	Name  string     `json:"name" yaml:"name"`           // package name as declared by `package`
+	Path  string     `json:"path" yaml:"path"`           // import path
+	Files []*MemFile `json:"files" yaml:"files"`         // plain file system files.
+	Type  any        `json:"type,omitempty" yaml:"type"` // (user defined) package type.
+	Info  any        `json:"info,omitempty" yaml:"info"` // (user defined) extra information.
 }
 
 // Package Name must be lower_case, can have digits & underscores.
@@ -126,9 +126,6 @@ func (mpkg *MemPackage) ValidateBasic() error {
 		},
 	)
 	if !sorted {
-		for i := 0; i < len(mpkg.Files); i++ {
-			fmt.Println("memfile", i, ":", mpkg.Files[i].Name)
-		}
 		return fmt.Errorf("mempackage %q has unsorted files", mpkg.Path)
 	}
 

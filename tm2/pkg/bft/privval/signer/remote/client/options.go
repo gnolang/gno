@@ -82,6 +82,7 @@ func WithAuthorizedKeys(keys []ed25519.PubKeyEd25519) Option {
 // NewRemoteSignerClient creates a new RemoteSignerClient with the required server address and
 // logger. The client can be further configured using functional options.
 func NewRemoteSignerClient(
+	ctx context.Context,
 	serverAddress string,
 	logger *slog.Logger,
 	options ...Option,
@@ -113,8 +114,8 @@ func NewRemoteSignerClient(
 		option(rsc)
 	}
 
-	// Set a cancelable context for dialing the server.
-	rsc.dialCtx, rsc.cancelDialCtx = context.WithCancel(context.Background())
+	// Set a cancelable context for the client.
+	rsc.ctx, rsc.cancelCtx = context.WithCancel(ctx)
 
 	// Fetch the public key from the server and cache it.
 	if err := rsc.cachePubKey(); err != nil {

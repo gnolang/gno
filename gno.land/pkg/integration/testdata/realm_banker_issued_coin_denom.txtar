@@ -79,19 +79,19 @@ gno = "0.9"
 package realm_banker
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 )
 
-func Mint(cur realm, addr std.Address, denom string, amount int64) {
-	banker := std.NewBanker(std.BankerTypeRealmIssue)
-	banker.IssueCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
+func Mint(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_.IssueCoin(addr, runtime.CurrentRealm().CoinDenom(denom), amount)
 }
 
-func Burn(cur realm, addr std.Address, denom string, amount int64) {
-  banker := std.NewBanker(std.BankerTypeRealmIssue)
-  banker.RemoveCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
+func Burn(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_.RemoveCoin(addr, runtime.CurrentRealm().CoinDenom(denom), amount)
 }
-
 -- long/gnomod.toml --
 module = "gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890"
 gno = "0.9"
@@ -101,19 +101,19 @@ gno = "0.9"
 package package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 )
 
-func Mint(cur realm, addr std.Address, denom string, amount int64) {
-	banker := std.NewBanker(std.BankerTypeRealmIssue)
-	banker.IssueCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
+func Mint(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_.IssueCoin(addr, runtime.CurrentRealm().CoinDenom(denom), amount)
 }
 
-func Burn(cur realm, addr std.Address, denom string, amount int64) {
-  banker := std.NewBanker(std.BankerTypeRealmIssue)
-  banker.RemoveCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
+func Burn(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_.RemoveCoin(addr, runtime.CurrentRealm().CoinDenom(denom), amount)
 }
-
 -- invalid_realm_denom/gnomod.toml --
 module = "gno.land/r/test/invalid_realm_denom"
 gno = "0.9"
@@ -121,16 +121,14 @@ gno = "0.9"
 -- invalid_realm_denom/realm_banker.gno --
 package invalid_realm_denom
 
-import (
-	"std"
-)
+import "chain/banker"
 
-func Mint(cur realm, addr std.Address, denom string, amount int64) {
-	banker := std.NewBanker(std.BankerTypeRealmIssue)
-	banker.IssueCoin(addr, denom, amount)
+func Mint(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_.IssueCoin(addr, denom, amount)
 }
 
-func Burn(cur realm, addr std.Address, denom string, amount int64) {
-  banker := std.NewBanker(std.BankerTypeRealmIssue)
-  banker.RemoveCoin(addr, denom, amount)
+func Burn(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_.RemoveCoin(addr, denom, amount)
 }

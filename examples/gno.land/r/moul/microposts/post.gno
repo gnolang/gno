@@ -1,13 +1,12 @@
 package microposts
 
 import (
-	"std"
 	"time"
 )
 
 type Post struct {
 	text      string
-	author    std.Address
+	author    address
 	createdAt time.Time
 }
 

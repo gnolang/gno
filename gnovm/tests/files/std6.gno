@@ -1,11 +1,11 @@
 package main
 
-import "std"
+import "chain/runtime"
 
 func inner() {
-	realm1 := std.CurrentRealm()
+	realm1 := runtime.CurrentRealm()
 	println(realm1)
-	realm2 := std.PreviousRealm()
+	realm2 := runtime.PreviousRealm()
 	println(realm2)
 }
 

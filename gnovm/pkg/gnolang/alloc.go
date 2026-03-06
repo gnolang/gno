@@ -3,6 +3,9 @@ package gnolang
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // Keeps track of in-memory allocations.
@@ -12,7 +15,13 @@ import (
 type Allocator struct {
 	maxBytes int64
 	bytes    int64
-	collect  func() (left int64, ok bool) // gc callback
+	// `peakBytes` represents the maximum memory
+	// usage during a single transaction, and is used
+	// to calculate the corresponding gas usage.
+	// It increases monotonically.
+	peakBytes int64
+	collect   func() (left int64, ok bool) // gc callback
+	gasMeter  store.GasMeter
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -73,6 +82,8 @@ const (
 	allocTypedValue  = _allocTypedValue
 )
 
+const GasCostPerByte = 1 // gas cost per byte allocated
+
 func NewAllocator(maxBytes int64) *Allocator {
 	if maxBytes == 0 {
 		return nil
@@ -84,6 +95,10 @@ func NewAllocator(maxBytes int64) *Allocator {
 
 func (alloc *Allocator) SetGCFn(f func() (int64, bool)) {
 	alloc.collect = f
+}
+
+func (alloc *Allocator) SetGasMeter(gasMeter store.GasMeter) {
+	alloc.gasMeter = gasMeter
 }
 
 func (alloc *Allocator) MemStats() string {
@@ -121,7 +136,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		// this can happen for map items just prior to assignment.
 		return
 	}
-	if alloc.bytes+size > alloc.maxBytes {
+	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
 		if left, ok := alloc.collect(); !ok {
 			panic("should not happen, allocation limit exceeded while gc.")
 		} else {
@@ -137,10 +152,20 @@ func (alloc *Allocator) Allocate(size int64) {
 	} else {
 		alloc.bytes += size
 	}
+	// The value of `bytes` decreases during GC, and fees
+	// are only charged when it exceeds peakBytes (again).
+	if alloc.bytes > alloc.peakBytes {
+		if alloc.gasMeter != nil {
+			change := alloc.bytes - alloc.peakBytes
+			alloc.gasMeter.ConsumeGas(overflow.Mulp(change, GasCostPerByte), "memory allocation")
+		}
+
+		alloc.peakBytes = alloc.bytes
+	}
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
-	alloc.Allocate(allocString + allocStringByte*size)
+	alloc.Allocate(overflow.Addp(allocString, overflow.Mulp(allocStringByte, size)))
 }
 
 func (alloc *Allocator) AllocatePointer() {
@@ -148,11 +173,11 @@ func (alloc *Allocator) AllocatePointer() {
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Allocate(allocArray + size)
+	alloc.Allocate(overflow.Addp(allocArray, size))
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(allocArray + allocArrayItem*items)
+	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem, items)))
 }
 
 func (alloc *Allocator) AllocateSlice() {
@@ -165,7 +190,7 @@ func (alloc *Allocator) AllocateStruct() {
 }
 
 func (alloc *Allocator) AllocateStructFields(fields int64) {
-	alloc.Allocate(allocStructField * fields)
+	alloc.Allocate(overflow.Mulp(allocStructField, fields))
 }
 
 func (alloc *Allocator) AllocateFunc() {
@@ -173,7 +198,7 @@ func (alloc *Allocator) AllocateFunc() {
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
-	alloc.Allocate(allocMap + allocMapItem*items)
+	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)))
 }
 
 func (alloc *Allocator) AllocateMapItem() {
@@ -189,11 +214,11 @@ func (alloc *Allocator) AllocatePackageValue() {
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
-	alloc.Allocate(allocBlock + allocBlockItem*items)
+	alloc.Allocate(overflow.Addp(allocBlock, overflow.Mulp(allocBlockItem, items)))
 }
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
-	alloc.Allocate(allocBlockItem * items)
+	alloc.Allocate(overflow.Mulp(allocBlockItem, items))
 }
 
 /* NOTE: Not used, account for with AllocatePointer.
@@ -276,6 +301,9 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 // `make()` and `append()`. Using `Alloc.NewListArray` can be used is most cases
 // to allocate the space for the `TypedValue` list before doing the allocation
 // in the go runtime -- see the `make()` code in uverse.go.
+// NOTE: cap(list) is propagated directly into the Gno SliceValue.Maxcap.
+// Callers must ensure cap(list) == len(list) to produce deterministic results
+// across Go versions (Go's append growth strategy is unspecified).
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))

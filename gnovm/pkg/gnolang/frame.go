@@ -77,10 +77,11 @@ func (fr *Frame) PushDefer(dfr Defer) {
 }
 
 func (fr *Frame) PopDefer() (res Defer, ok bool) {
-	if len(fr.Defers) > 0 {
+	lenDefers := len(fr.Defers)
+	if lenDefers > 0 {
 		ok = true
-		res = fr.Defers[len(fr.Defers)-1]
-		fr.Defers = fr.Defers[:len(fr.Defers)-1]
+		res = fr.Defers[lenDefers-1]
+		fr.Defers = fr.Defers[:lenDefers-1]
 	}
 	return
 }
@@ -131,6 +132,8 @@ func (s Stacktrace) IsZero() bool {
 	return s.Calls == nil && s.NumFramesElided == 0 && s.LastLine == 0
 }
 
+const stackRecursiveTraceLimit = 100
+
 func (s Stacktrace) String() string {
 	var builder strings.Builder
 
@@ -148,7 +151,7 @@ func (s Stacktrace) String() string {
 		if call.IsDefer {
 			fmt.Fprintf(&builder, "defer ")
 		}
-		fmt.Fprintf(&builder, "%s\n", toExprTrace(call.CallExpr))
+		fmt.Fprintf(&builder, "%s\n", toExprTrace(call.CallExpr, stackRecursiveTraceLimit))
 		if line == -1 { // special line for native
 			fmt.Fprintf(&builder, "    gonative:%s/%s\n", call.FuncLoc.PkgPath, call.FuncLoc.File)
 		} else {
@@ -158,37 +161,40 @@ func (s Stacktrace) String() string {
 	return builder.String()
 }
 
-func toExprTrace(ex Expr) string {
+func toExprTrace(ex Expr, limit int) string {
+	if limit < 0 {
+		return "..." // Reached recursivity limit.
+	}
 	switch ex := ex.(type) {
 	case *CallExpr:
 		s := make([]string, len(ex.Args))
 		for i, arg := range ex.Args {
-			s[i] = toExprTrace(arg)
+			s[i] = toExprTrace(arg, limit-1)
 		}
-		return fmt.Sprintf("%s(%s)", toExprTrace(ex.Func), strings.Join(s, ","))
+		return fmt.Sprintf("%s(%s)", toExprTrace(ex.Func, limit-1), strings.Join(s, ","))
 	case *BinaryExpr:
-		return fmt.Sprintf("%s %s %s", toExprTrace(ex.Left), ex.Op.TokenString(), toExprTrace(ex.Right))
+		return fmt.Sprintf("%s %s %s", toExprTrace(ex.Left, limit-1), ex.Op.TokenString(), toExprTrace(ex.Right, limit-1))
 	case *UnaryExpr:
-		return fmt.Sprintf("%s%s", ex.Op.TokenString(), toExprTrace(ex.X))
+		return fmt.Sprintf("%s%s", ex.Op.TokenString(), toExprTrace(ex.X, limit-1))
 	case *SelectorExpr:
-		return fmt.Sprintf("%s.%s", toExprTrace(ex.X), ex.Sel)
+		return fmt.Sprintf("%s.%s", toExprTrace(ex.X, limit-1), ex.Sel)
 	case *IndexExpr:
-		return fmt.Sprintf("%s[%s]", toExprTrace(ex.X), toExprTrace(ex.Index))
+		return fmt.Sprintf("%s[%s]", toExprTrace(ex.X, limit-1), toExprTrace(ex.Index, limit-1))
 	case *StarExpr:
-		return fmt.Sprintf("*%s", toExprTrace(ex.X))
+		return fmt.Sprintf("*%s", toExprTrace(ex.X, limit-1))
 	case *RefExpr:
-		return fmt.Sprintf("&%s", toExprTrace(ex.X))
+		return fmt.Sprintf("&%s", toExprTrace(ex.X, limit-1))
 	case *CompositeLitExpr:
 		lenEl := len(ex.Elts)
 		if ex.Type == nil {
 			return fmt.Sprintf("<elided><len=%d>", lenEl)
 		}
 
-		return fmt.Sprintf("%s<len=%d>", toExprTrace(ex.Type), lenEl)
+		return fmt.Sprintf("%s<len=%d>", toExprTrace(ex.Type, limit-1), lenEl)
 	case *FuncLitExpr:
-		return fmt.Sprintf("%s{ ... }", toExprTrace(&ex.Type))
+		return fmt.Sprintf("%s{ ... }", toExprTrace(&ex.Type, limit-1))
 	case *TypeAssertExpr:
-		return fmt.Sprintf("%s.(%s)", toExprTrace(ex.X), toExprTrace(ex.Type))
+		return fmt.Sprintf("%s.(%s)", toExprTrace(ex.X, limit-1), toExprTrace(ex.Type, limit-1))
 	case *ConstExpr:
 		return toConstExpTrace(ex)
 	case *NameExpr, *BasicLitExpr, *SliceExpr:

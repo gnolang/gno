@@ -1,0 +1,290 @@
+/* ==========================================================================
+   01-SETTINGS - Global configuration switches and defaults
+   ========================================================================== */
+
+/* ===== GLOBAL SETTINGS ===== */
+:root {
+	/* Base font size */
+	--g-px-base: 16;
+
+	/* Base spacing unit */
+	--g-space-mult: 4;
+	--g-spacing-base: 1;
+	--g-space-base: calc(1rem / var(--g-space-mult));
+	--g-space-gap: 1rem;
+
+	/* Breakpoints (defaults, overridden by tokens.css) */
+	--g-breakpoint-xs: calc(360 / var(--g-px-base) * 1rem); /* 22.5rem */
+	--g-breakpoint-sm: calc(480 / var(--g-px-base) * 1rem); /* 30rem */
+	--g-breakpoint-md: calc(640 / var(--g-px-base) * 1rem); /* 40rem */
+	--g-breakpoint-lg: calc(820 / var(--g-px-base) * 1rem); /* 51.25rem */
+	--g-breakpoint-xl: calc(1020 / var(--g-px-base) * 1rem); /* 63.75rem */
+	--g-breakpoint-2xl: calc(1366 / var(--g-px-base) * 1rem); /* 85.375rem */
+	--g-breakpoint-max: calc(1580 / var(--g-px-base) * 1rem); /* 98.75rem */
+
+	/* Container settings */
+	--g-container-padding: 2.5rem; /* 40px */
+	--g-container-center: true;
+
+	/* Z-index layers */
+	--g-z-auto: auto;
+	--g-z-min: -1;
+	--g-z-0: 0;
+	--g-z-1: 1;
+	--g-z-2: 2;
+	--g-z-10: 10;
+	--g-z-20: 20;
+	--g-z-30: 30;
+	--g-z-40: 40;
+	--g-z-50: 50;
+	--g-z-100: 100;
+	--g-z-max: 9999;
+
+	/* Transitions */
+	--g-transition-duration: 150ms;
+	--g-transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+	--g-transition-all: all var(--g-transition-duration)
+		var(--g-transition-timing);
+	--g-transition-colors:
+		color var(--g-transition-duration) var(--g-transition-timing),
+		background-color var(--g-transition-duration) var(--g-transition-timing),
+		border-color var(--g-transition-duration) var(--g-transition-timing);
+	--g-transition-opacity: opacity var(--g-transition-duration)
+		var(--g-transition-timing);
+	--g-transition-transform: transform var(--g-transition-duration)
+		var(--g-transition-timing);
+
+	/* Animation durations */
+	--g-duration-75: 75ms;
+	--g-duration-100: 100ms;
+	--g-duration-150: 150ms;
+	--g-duration-200: 200ms;
+	--g-duration-300: 300ms;
+	--g-duration-500: 500ms;
+	--g-duration-700: 700ms;
+	--g-duration-1000: 1000ms;
+
+	/* Easing functions */
+	--g-ease-linear: linear;
+	--g-ease-in: cubic-bezier(0.4, 0, 1, 1);
+	--g-ease-out: cubic-bezier(0, 0, 0.2, 1);
+	--g-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+	/* Opacities */
+	--g-opacity-0: 0;
+	--g-opacity-5: 0.05;
+	--g-opacity-10: 0.1;
+	--g-opacity-20: 0.2;
+	--g-opacity-25: 0.25;
+	--g-opacity-30: 0.3;
+	--g-opacity-40: 0.4;
+	--g-opacity-50: 0.5;
+	--g-opacity-60: 0.6;
+	--g-opacity-70: 0.7;
+	--g-opacity-75: 0.75;
+	--g-opacity-80: 0.8;
+	--g-opacity-90: 0.9;
+	--g-opacity-95: 0.95;
+	--g-opacity-100: 1;
+
+	/* Blur values */
+	--g-blur-none: 0;
+	--g-blur-sm: 4px;
+	--g-blur: 8px;
+	--g-blur-md: 12px;
+	--g-blur-lg: 16px;
+	--g-blur-xl: 24px;
+	--g-blur-2xl: 40px;
+	--g-blur-3xl: 64px;
+
+	/* Scale values */
+	--g-scale-0: 0;
+	--g-scale-50: 0.5;
+	--g-scale-75: 0.75;
+	--g-scale-90: 0.9;
+	--g-scale-95: 0.95;
+	--g-scale-100: 1;
+	--g-scale-105: 1.05;
+	--g-scale-110: 1.1;
+	--g-scale-125: 1.25;
+	--g-scale-150: 1.5;
+
+	/* Rotate values */
+	--g-rotate-0: 0deg;
+	--g-rotate-1: 1deg;
+	--g-rotate-2: 2deg;
+	--g-rotate-3: 3deg;
+	--g-rotate-6: 6deg;
+	--g-rotate-12: 12deg;
+	--g-rotate-45: 45deg;
+	--g-rotate-90: 90deg;
+	--g-rotate-180: 180deg;
+
+	/* Skew values */
+	--g-skew-0: 0deg;
+	--g-skew-1: 1deg;
+	--g-skew-2: 2deg;
+	--g-skew-3: 3deg;
+	--g-skew-6: 6deg;
+	--g-skew-12: 12deg;
+
+	/* Grid templates */
+	--g-grid-1: repeat(1, minmax(0, 1fr));
+	--g-grid-2: repeat(2, minmax(0, 1fr));
+	--g-grid-3: repeat(3, minmax(0, 1fr));
+	--g-grid-4: repeat(4, minmax(0, 1fr));
+	--g-grid-5: repeat(5, minmax(0, 1fr));
+	--g-grid-6: repeat(6, minmax(0, 1fr));
+	--g-grid-7: repeat(7, minmax(0, 1fr));
+	--g-grid-8: repeat(8, minmax(0, 1fr));
+	--g-grid-9: repeat(9, minmax(0, 1fr));
+	--g-grid-10: repeat(10, minmax(0, 1fr));
+	--g-grid-11: repeat(11, minmax(0, 1fr));
+	--g-grid-12: repeat(12, minmax(0, 1fr));
+
+	/* Container sizes */
+	--g-container-xs: calc(20 / var(--g-px-base) * 1rem);
+	--g-container-sm: calc(24 / var(--g-px-base) * 1rem);
+	--g-container-md: calc(28 / var(--g-px-base) * 1rem);
+	--g-container-lg: calc(32 / var(--g-px-base) * 1rem);
+	--g-container-xl: calc(36 / var(--g-px-base) * 1rem);
+	--g-container-2xl: calc(42 / var(--g-px-base) * 1rem);
+	--g-container-3xl: calc(48 / var(--g-px-base) * 1rem);
+	--g-container-4xl: calc(56 / var(--g-px-base) * 1rem);
+	--g-container-5xl: calc(64 / var(--g-px-base) * 1rem);
+	--g-container-6xl: calc(72 / var(--g-px-base) * 1rem);
+	--g-container-7xl: calc(80 / var(--g-px-base) * 1rem);
+	--g-container-full: 100%;
+
+	/* Spacing scale (calculated from base) */
+	--g-space-0: 0;
+	--g-space-px: 1px;
+	--g-space-0-5: calc(var(--g-space-base) * 0.5);
+	--g-space-1: var(--g-space-base);
+	--g-space-1-5: calc(var(--g-space-base) * 1.5);
+	--g-space-2: calc(var(--g-space-base) * 2);
+	--g-space-2-5: calc(var(--g-space-base) * 2.5);
+	--g-space-3: calc(var(--g-space-base) * 3);
+	--g-space-3-5: calc(var(--g-space-base) * 3.5);
+	--g-space-4: calc(var(--g-space-base) * 4);
+	--g-space-4-5: calc(var(--g-space-base) * 4.5);
+	--g-space-5: calc(var(--g-space-base) * 5);
+	--g-space-6: calc(var(--g-space-base) * 6);
+	--g-space-7: calc(var(--g-space-base) * 7);
+	--g-space-8: calc(var(--g-space-base) * 8);
+	--g-space-9: calc(var(--g-space-base) * 9);
+	--g-space-10: calc(var(--g-space-base) * 10);
+	--g-space-11: calc(var(--g-space-base) * 11);
+	--g-space-12: calc(var(--g-space-base) * 12);
+	--g-space-14: calc(var(--g-space-base) * 14);
+	--g-space-16: calc(var(--g-space-base) * 16);
+	--g-space-20: calc(var(--g-space-base) * 20);
+	--g-space-24: calc(var(--g-space-base) * 24);
+	--g-space-28: calc(var(--g-space-base) * 28);
+	--g-space-32: calc(var(--g-space-base) * 32);
+	--g-space-36: calc(var(--g-space-base) * 36);
+	--g-space-40: calc(var(--g-space-base) * 40);
+	--g-space-44: calc(var(--g-space-base) * 44);
+	--g-space-48: calc(var(--g-space-base) * 48);
+	--g-space-52: calc(var(--g-space-base) * 52);
+	--g-space-56: calc(var(--g-space-base) * 56);
+	--g-space-60: calc(var(--g-space-base) * 60);
+	--g-space-64: calc(var(--g-space-base) * 64);
+	--g-space-72: calc(var(--g-space-base) * 72);
+	--g-space-80: calc(var(--g-space-base) * 80);
+	--g-space-96: calc(var(--g-space-base) * 96);
+
+	/* ===== FONT ===== */
+	/* Font sizes */
+	--g-font-size-0: 0;
+	--g-font-size-50: calc(12 / var(--g-px-base) * 1rem); /* 12px */
+	--g-font-size-100: calc(14 / var(--g-px-base) * 1rem); /* 14px - DEFAULT */
+	--g-font-size-200: calc(16 / var(--g-px-base) * 1rem); /* 16px */
+	--g-font-size-300: calc(18 / var(--g-px-base) * 1rem); /* 18px */
+	--g-font-size-400: calc(20 / var(--g-px-base) * 1rem); /* 20px */
+	--g-font-size-500: calc(22 / var(--g-px-base) * 1rem); /* 22px */
+	--g-font-size-600: calc(24 / var(--g-px-base) * 1rem); /* 24px */
+	--g-font-size-700: calc(32 / var(--g-px-base) * 1rem); /* 32px */
+	--g-font-size-800: calc(38 / var(--g-px-base) * 1rem); /* 38px */
+	--g-font-size-900: calc(42 / var(--g-px-base) * 1rem); /* 42px */
+
+	/* Font families */
+	--g-font-family-mono:
+		"Roboto",
+		'Menlo, Consolas, "Ubuntu Mono", "Roboto Mono", "DejaVu Sans Mono", monospace';
+	--g-font-family-inter-var:
+		"Inter",
+		'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif';
+
+	/* Font weights */
+	--g-font-thin: 100;
+	--g-font-extralight: 200;
+	--g-font-light: 300;
+	--g-font-normal: 400;
+	--g-font-medium: 500;
+	--g-font-semibold: 600;
+	--g-font-bold: 700;
+	--g-font-extrabold: 800;
+	--g-font-black: 900;
+
+	/* Font styles */
+	--g-italic: oblique 14deg;
+
+	/* Line heights */
+	--g-line-height-tight: 1.25;
+	--g-line-height-snug: 1.375;
+	--g-line-height-normal: 1.5;
+	--g-line-height-relaxed: 1.625;
+	--g-line-height-loose: 2;
+
+	/* Border radius */
+	--g-border-radius-sm: calc(4 / var(--g-px-base) * 1rem); /* 4px */
+	--g-border-radius: calc(6 / var(--g-px-base) * 1rem); /* 6px - DEFAULT */
+	--g-border-radius-full: 9999px;
+
+	/* ===== COLORS ===== */
+	--g-color-current: currentColor;
+	--g-color-inherit: inherit;
+	--g-color-light: oklch(1 0 0);
+	--g-color-transparent: transparent;
+
+	/* Gray scale */
+	--g-color-gray-50: oklch(0.9551 0 0); /* #F0F0F0 - Background color */
+	--g-color-gray-100: oklch(0.9128 0 0); /* #E2E2E2 - Title dark color */
+	--g-color-gray-200: oklch(0.7984 0 0); /* #BDBDBD - Content dark color */
+	--g-color-gray-300: oklch(0.683 0 0); /* #999999 - Muted color */
+	--g-color-gray-400: oklch(0.5863 0 0); /* #7C7C7C - Border color */
+	--g-color-gray-600: oklch(0.4609 0.0091 241.82); /* #54595D - Content color */
+	--g-color-gray-800: oklch(0.1867 0 0); /* #131313 - Background dark color */
+	--g-color-gray-900: oklch(0.1349 0.0024 286.07); /* #080809 - Title color */
+
+	/* Green scale */
+	--g-color-green-50: oklch(94.553% 0.00891 180.286); /* #F0F9FF */
+	--g-color-green-400: oklch(0.6863 0.0819 173.69); /* #60AB96 - Primary dark color */
+	--g-color-green-600: oklch(0.4798 0.0801 170.52); /* #226C57 - Primary light color */
+	--g-color-green-900: oklch(0.3401 0.0544 170.75); /* #144134 */
+
+	/* Blue scale */
+	--g-color-blue-50: oklch(0.9771 0.0125 236.62); /* #F0F9FF */
+	--g-color-blue-400: oklch(0.7197 0.128 238.18); /* #49AFEB */
+	--g-color-blue-600: oklch(0.6422 0.1129 237.73); /* #3E96C9 - Note alert color */
+	--g-color-blue-900: oklch(0.4116 0.068 236.91); /* #21506B */
+
+	/* Yellow scale */
+	--g-color-yellow-50: oklch(0.98 0.02 80); /* #FFFCF1 */
+	--g-color-yellow-400: oklch(0.8616 0.164 90.76); /* #FACC32 */
+	--g-color-yellow-600: oklch(0.8369 0.1644 84.43); /* #FBBF24 */
+	--g-color-yellow-900: oklch(0.4522 0.0988 64.15); /* #7b4807 */
+
+	/* Red scale */
+	--g-color-red-50: oklch(0.98 0.015 20); /* #FEF2F2 */
+	--g-color-red-400: oklch(0.6786 0.1655 36.32); /* #EB6C49 - Caution alert color */
+	--g-color-red-600: oklch(0.6045 0.1462 36.31); /* #C95C3E - Caution alert color */
+	--g-color-red-900: oklch(0.3691 0.101 26.47); /* #6B2521 */
+
+	/* Purple scale */
+	--g-color-purple-50: oklch(0.96 0.02 280); /* #F5F3FF */
+	--g-color-purple-400: oklch(0.56 0.2289 292.75); /* #7F49EB */
+	--g-color-purple-600: oklch(0.4994 0.2025 292.73); /* #6C3EC9 - Tip alert color */
+	--g-color-purple-900: oklch(0.3245 0.1221 293.31); /* #39216B */
+}

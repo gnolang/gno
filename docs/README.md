@@ -30,6 +30,7 @@ Gno-specific features, connect to Gno apps with clients, and more.
 - [Example `minisocial` dApp](builders/example-minisocial-dapp.md) - Build a complete social media application while learning the full local development workflow for Gno packages.
 - [Deploying Gno packages](builders/deploy-packages.md) - Learn how to deploy your code to Gno.land networks using `gnokey` and understand gas requirements.
 - [Connecting clients](builders/connect-clients-and-apps.md) - Discover how to connect external applications to Gno.land networks using both Go and JavaScript clients.
+- [Stress testing with Supernova](builders/stress-testing-with-supernova.md) - Learn how to stress test your Gno network using `supernova` to measure performance.
 - [Become a Gnome](builders/become-a-gnome.md) - Learn what makes a great Gno.land contributor and how to showcase your work in the ecosystem.
 
 ## Resources
@@ -38,6 +39,7 @@ Learn about core concepts found in Gno.land & Gno.
 
 - [Effective Gno](resources/effective-gno.md) - Learn how to write Gno following best practices, including counter-intuitive good practices specific to blockchain
 - [Packages](resources/gno-packages.md) - Learn about realms, pure packages, smart contracts, dApps and how they're organized in the Gno.land ecosystem.
+- [Data Structures](resources/gno-data-structures.md) - Learn about arrays, slices, maps, structs, pointers, and when to use AVL trees for efficient storage.
 - [Networks](resources/gnoland-networks.md) - Discover different Gno.land networks (testnets, devnets) and their purposes, including network configurations.
 - [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the Gno.land ecosystem.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in Gno.land.

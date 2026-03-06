@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -38,6 +39,7 @@ type Machine struct {
 	GCCycle       int64         // number of "gc" cycles
 	Stage         Stage         // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
+	Lastline      int           // the line the VM is currently executing
 
 	Debugger Debugger
 
@@ -129,6 +131,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Alloc = alloc
 	if mm.Alloc != nil {
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
+		mm.Alloc.SetGasMeter(vmGasMeter)
 	}
 	mm.Output = output
 	mm.Store = store
@@ -194,7 +197,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
 		mpkg = MPFProd.FilterMemPackage(mpkg)
-		fset := ParseMemPackage(mpkg)
+		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
@@ -229,7 +232,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	if bm.OpsEnabled || bm.StorageEnabled {
+	if bm.OpsEnabled || bm.StorageEnabled || bm.NativeEnabled {
 		bm.InitMeasure()
 	}
 	if bm.StorageEnabled {
@@ -264,7 +267,13 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	// sort mpkg.
 	mpkg.Sort()
 	// parse files.
-	files := ParseMemPackageAsType(mpkg, mptype)
+	files := m.ParseMemPackageAsType(mpkg, mptype)
+	mod, err := gnomod.ParseMemPackage(mpkg)
+	private := false
+	if err == nil && mod != nil {
+		private = mod.Private
+	}
+
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -275,6 +284,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	} else {
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
 		pv = pn.NewPackage(m.Alloc)
+		pv.SetPrivate(private)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 	}
@@ -413,36 +423,20 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 
 	stacktrace.Calls = calls
 
-	// XXX move to machine.LastLine()?
 	if m.LastFrame().Func != nil && m.LastFrame().Func.IsNative() {
 		stacktrace.LastLine = -1 // special line for native.
 	} else {
-		if len(m.Stmts) > 0 {
-			ls := m.PeekStmt(1)
-			if bs, ok := ls.(*bodyStmt); ok {
-				stacktrace.LastLine = bs.LastStmt().GetLine()
-			} else {
-				goto NOTPANIC // not a panic call
-			}
-		} else {
-			goto NOTPANIC // not a panic call
+		if m.Lastline != 0 {
+			stacktrace.LastLine = m.Lastline
+			return
 		}
-	NOTPANIC:
-		if len(m.Exprs) > 0 {
-			stacktrace.LastLine = m.PeekExpr(1).GetLine()
-		} else if len(m.Stmts) > 0 {
-			stmt := m.PeekStmt(1)
-			if bs, ok := stmt.(*bodyStmt); ok {
-				if 0 <= bs.NextBodyIndex-1 {
-					stmt = bs.Body[bs.NextBodyIndex-1]
-				}
-			}
-			stacktrace.LastLine = stmt.GetLine()
-		} else {
-			stacktrace.LastLine = 0 // dunno
+
+		ls := m.PeekStmt(1)
+		if bs, ok := ls.(*bodyStmt); ok {
+			stacktrace.LastLine = bs.LastStmt().GetLine()
+			return
 		}
 	}
-
 	return
 }
 
@@ -465,6 +459,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if rlm != nil {
 		pb := pv.GetBlock(m.Store)
 		for _, update := range updates {
+			// XXX simplify.
 			if hiv, ok := update.V.(*HeapItemValue); ok {
 				rlm.DidUpdate(pb, nil, hiv)
 			} else {
@@ -1122,7 +1117,7 @@ const (
 	OpCPUPrecall             = 207
 	OpCPUEnterCrossing       = 100 // XXX
 	OpCPUCall                = 256
-	OpCPUCallNativeBody      = 424
+	OpCPUCallNativeBody      = 424 // Todo benchmark this properly
 	OpCPUDefer               = 64
 	OpCPUCallDeferNativeBody = 33
 	OpCPUGo                  = 1 // Not yet implemented
@@ -1243,6 +1238,12 @@ func (m *Machine) Run(st Stage) {
 		defer func() {
 			// output each machine run results to file
 			bm.FinishRun()
+		}()
+	}
+	if bm.NativeEnabled {
+		defer func() {
+			// output each machine run results to file
+			bm.FinishNative()
 		}()
 	}
 	defer func() {
@@ -2211,33 +2212,41 @@ func (m *Machine) PushForPointer(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
-		m.Panic(typedString("cannot directly modify readonly tainted object (w/o method): " + lx.String()))
+		m.Panic(typedString(readonlyAccessPanic(lx)))
 	}
 	return pv
 }
 
-// Returns true if tv is N_Readonly or, its "first object" resides in a
-// different non-zero realm. Returns false for non-N_Readonly StringValue, free
-// floating pointers, and unreal objects.
+func readonlyAccessPanic(x Expr) string {
+	return "cannot directly modify readonly tainted object (w/o method): " + x.String()
+}
+
+// Returns true iff:
+//   - m.Realm is nil (single user mode), or
+//   - tv is a ref to (external) package path, or
+//   - tv is N_Readonly, or
+//   - tv is not an object ("first object" ID is zero), or
+//   - tv is an unreal object (no object id), or
+//   - tv is an object residing in external realm
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
+	// Returns true iff:
+	//  - m.Realm is nil (single user mode)
 	if m.Realm == nil {
 		return false
 	}
-	if tv.IsReadonly() {
-		return true
+	//  - tv is a ref to package path
+	if rv, ok := tv.V.(RefValue); ok && rv.PkgPath != "" {
+		if rv.PkgPath == m.Package.PkgPath {
+			return false // local package
+		} else {
+			return true // external package
+		}
 	}
-	tvoid, ok := tv.GetFirstObjectID()
-	if !ok {
-		// e.g. if tv is a string, or free floating pointers.
-		return false
-	}
-	if tvoid.IsZero() {
-		return false
-	}
-	if tvoid.PkgID != m.Realm.ID {
-		return true
-	}
-	return false
+	//   - tv is N_Readonly, or
+	//   - tv is not an object ("first object" ID is zero), or
+	//   - tv is an unreal object (no object id), or
+	//   - tv is an object residing in external realm
+	return tv.IsReadonlyBy(m.Realm.ID)
 }
 
 // Returns ro = true if the base is readonly,
@@ -2264,16 +2273,32 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
-
-		ro = m.IsReadonly(xv)
+		if xv.T.Kind() == MapKind {
+			// For maps, GetPointerAtIndex unconditionally creates a new entry for
+			// missing keys. Check readonly before this mutation.
+			ro = m.IsReadonly(xv)
+			if ro {
+				// Ensure we always panic, without expecting the caller to do it.
+				m.Panic(typedString(readonlyAccessPanic(lx)))
+			}
+			pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+		} else {
+			pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+			ro = m.IsReadonly(xv)
+		}
 	case *SelectorExpr:
 		xv := m.PopValue()
 		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
 		xv := m.PopValue()
-		pv = xv.V.(PointerValue)
+		var ok bool
+		if pv, ok = xv.V.(PointerValue); !ok {
+			if xv.V == nil {
+				m.Panic(typedString("nil pointer dereference"))
+			}
+			panic("should not happen, not pointer nor nil")
+		}
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
@@ -2320,6 +2345,10 @@ func (m *Machine) CheckEmpty() error {
 	} else {
 		return nil
 	}
+}
+
+func (m *Machine) PanicString(ex string) {
+	m.Panic(typedString(ex))
 }
 
 // This function does go-panic.

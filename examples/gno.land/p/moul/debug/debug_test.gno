@@ -1,21 +1,20 @@
 package debug
 
 import (
-	"std"
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/uassert/v0"
 )
 
 func TestPackage(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(testing.NewUserRealm("g1user"))
 
 	testPackage(t)
 }
 
 func testPackage(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 
 	// no debug
 	got := Render("")

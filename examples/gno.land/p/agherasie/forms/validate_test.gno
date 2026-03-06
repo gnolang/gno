@@ -1,12 +1,11 @@
 package forms
 
 import (
-	"std"
 	"testing"
 )
 
 func TestAnswerFormInvalidForm(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(testing.NewUserRealm("g1user"))
 	db := NewDB()
 
 	dataAllTypes := `[

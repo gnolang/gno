@@ -70,7 +70,7 @@ func TestRoutes(t *testing.T) {
 			{"/\u269B\uFE0F", notFound, ""}, // Unicode
 			{"/p/demo/flow/LICENSE", ok, "BSD 3-Clause"},
 			// Test assets
-			{"/public/styles.css", ok, ""},
+			{"/public/main.css", ok, ""},
 			{"/public/js/index.js", ok, ""},
 			{"/public/_chroma/style.css", ok, ""},
 			{"/public/imgs/gnoland.svg", ok, ""},
