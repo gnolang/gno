@@ -62,7 +62,7 @@ package memo
 
 import (
 	"gno.land/p/demo/btree"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Record implements the btree.Record interface for our cache entries

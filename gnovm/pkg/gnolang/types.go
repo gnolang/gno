@@ -2197,7 +2197,6 @@ func fillEmbeddedName(ft *FieldType) {
 	ft.Embedded = true
 }
 
-// TODO: empty interface? refer to assertAssignableTo
 func IsImplementedBy(it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
