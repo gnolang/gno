@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot copy to readonly tainted slice

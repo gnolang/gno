@@ -9,7 +9,7 @@ package loci
 import (
 	"chain/runtime"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // LociStore is a simple key-value store that uses
