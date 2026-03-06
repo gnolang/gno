@@ -7,7 +7,7 @@ import (
 	"chain/runtime"
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/archive/groups"
 	uinit "gno.land/r/sys/users/init"
 )

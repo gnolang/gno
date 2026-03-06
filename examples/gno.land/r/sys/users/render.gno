@@ -1,6 +1,6 @@
 package users
 
-import "gno.land/p/nt/ufmt"
+import "gno.land/p/nt/ufmt/v0"
 
 func Render(_ string) string {
 	out := "# r/sys/users\n\n"
