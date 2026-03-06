@@ -166,10 +166,10 @@ func TestWillSetParam(t *testing.T) {
 			isUpdated:   false,
 			isEqual:     false,
 		},
-		// realm-scoped params pass through
+		// unknown param pass through without panic and no update
 		{
 			name:  "non-empty realm does not update params",
-			key:   "gno.land/r/sys/params.sysnames_pkgpath",
+			key:   "unknown_param",
 			value: "gno.land/r/foo",
 			getExpectedValue: func(prms Params) string {
 				return prms.SysNamesPkgPath // Expect unchanged value
