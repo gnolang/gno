@@ -711,6 +711,8 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 
 // used in checkOrConvertType, only check lhs type
 func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
+	fmt.Println("---assertShiftExprCompatible2, x: ", x)
+	fmt.Println("---assertShiftExprCompatible2, t: ", t)
 	// check lhs type
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if !checker(t) {
