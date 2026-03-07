@@ -80,11 +80,16 @@ gnokey maketx addpkg \
 MyKey
 ```
 
-To go into more detail:
-- Since we're deploying a realm, the pkgpath must start with `r/`.
-- You can only deploy code within your own namespace, which is based on your address[^3].
-- `gas-fee` and `gas-wanted` must be set manually. If you run into an `out of gas`
-error, try increasing the `gas-wanted` value [^4].
+A few important notes about the package path:
+- It must start with `gno.land/r/` for realms or `gno.land/p/` for packages.
+- You can only deploy under your own address-based namespace.
+- You can deploy to any package (or subpackage) name under your
+  namespace. (e.g `gno.land/r/<your_address>/counter/v1`)
+- Username-based namespaces are not currently supported; see
+  [Custom Namespaces](../resources/gno-packages.md#custom-namespaces) for details.
+
+Note that `gas-fee` and `gas-wanted` must be set manually. If you run into an
+`out of gas` error, try increasing the `gas-wanted` value [^4].
 
 After entering your password, you will have successfully deployed the `Counter`
 realm to the Staging network:
@@ -97,26 +102,6 @@ HEIGHT:     955
 EVENTS:     []
 TX HASH:    11fWJtYXQlyFcHY12HU1ECYs2GPo/e2z/Fdw6I8rwNs=
 ```
-
-## Choosing a Package Path
-
-When deploying to Gno.land, you need to specify a package path. You have two
-options:
-
-1. **Use your registered username** - If you've registered a username, you can deploy under `gno.land/[r|p]/YOUR_USERNAME/...`
-2. **Use your address namespace** - Without a username, you can deploy under `gno.land/[r|p]/YOUR_ADDRESS/...`
-
-For more information on registering usernames and namespace ownership, see the
-[Users and Teams documentation](../resources/users-and-teams.md).
-
-## Registering a Namespace
-
-For production packages, you'll want your own namespace:
-
-1. Follow the [Username Registration](../resources/users-and-teams.md#registration-process) instructions
-2. Once registered, deploy under `gno.land/[r|p]/YOUR_USERNAME/...`
-
-This gives you a more human-readable package path and establishes your identity in the ecosystem.
 
 ## Understanding Deployment Parameters
 
@@ -155,7 +140,4 @@ a third-party web extension wallet, such as Adena.
 
 [^1]: Read more about package paths [here](../resources/gno-packages.md).
 [^2]: Other network configurations can be found [here](../resources/gnoland-networks.md).
-[^3]: Address namespaces ([PA namespaces](../resources/gno-packages.md#package-path-structure)) are automatically granted to
-users. Users can register a username using the [Gno.land user registry](https://gno.land/r/gnoland/users),
-which will grant them access to a matching namespace for that specific network.
 [^4]: Gas estimation is explained [here](../resources/gas-fees.md#gas-estimation).

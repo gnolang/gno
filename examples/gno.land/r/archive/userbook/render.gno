@@ -11,7 +11,7 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-const usersLink = "/r/gnoland/users/v1"
+const usersLink = "/r/sys/users"
 
 func Render(path string) string {
 	p := pager.NewPager(signupsTree, 20, true)
