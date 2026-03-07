@@ -183,17 +183,27 @@ func (conR *ConsensusReactor) AddPeer(peer p2p.PeerConn) {
 	}
 }
 
-// RemovePeer is a noop.
+// RemovePeer cleans up the peer's consensus state to prevent memory leaks
+// and stale peer tracking. The per-peer gossip goroutines will terminate
+// on their own via the peer.IsRunning() check, but we must still clean up
+// the PeerState to break reference cycles and release resources promptly.
 func (conR *ConsensusReactor) RemovePeer(peer p2p.PeerConn, reason any) {
 	if !conR.IsRunning() {
 		return
 	}
-	// TODO
-	// ps, ok := peer.Get(PeerStateKey).(*PeerState)
-	// if !ok {
-	// 	panic(fmt.Sprintf("Peer %v has no state", peer))
-	// }
-	// ps.Disconnect()
+
+	ps, ok := peer.Get(types.PeerStateKey).(*PeerState)
+	if !ok {
+		return
+	}
+
+	// Signal the PeerState that this peer has been removed.
+	ps.Disconnect()
+
+	// Clear the peer state from the peer's data store to break
+	// the reference cycle (peer -> PeerState -> peer) and allow
+	// the PeerState to be garbage collected promptly.
+	peer.Set(types.PeerStateKey, nil)
 }
 
 // Receive implements Reactor
@@ -455,7 +465,7 @@ func (conR *ConsensusReactor) gossipDataRoutine(peer p2p.PeerConn, ps *PeerState
 OUTER_LOOP:
 	for {
 		// Manage disconnects from self or peer.
-		if !peer.IsRunning() || !conR.IsRunning() {
+		if ps.IsDisconnected() || !peer.IsRunning() || !conR.IsRunning() {
 			logger.Info("Stopping gossipDataRoutine for peer")
 			return
 		}
@@ -595,7 +605,7 @@ func (conR *ConsensusReactor) gossipVotesRoutine(peer p2p.PeerConn, ps *PeerStat
 OUTER_LOOP:
 	for {
 		// Manage disconnects from self or peer.
-		if !peer.IsRunning() || !conR.IsRunning() {
+		if ps.IsDisconnected() || !peer.IsRunning() || !conR.IsRunning() {
 			logger.Info("Stopping gossipVotesRoutine for peer")
 			return
 		}
@@ -719,7 +729,7 @@ func (conR *ConsensusReactor) queryMaj23Routine(peer p2p.PeerConn, ps *PeerState
 OUTER_LOOP:
 	for {
 		// Manage disconnects from self or peer.
-		if !peer.IsRunning() || !conR.IsRunning() {
+		if ps.IsDisconnected() || !peer.IsRunning() || !conR.IsRunning() {
 			logger.Info("Stopping queryMaj23Routine for peer")
 			return
 		}
@@ -884,6 +894,9 @@ type PeerState struct {
 	peer   p2p.PeerConn
 	logger *slog.Logger
 
+	closer   chan struct{} // closed when the peer is removed
+	closerMu sync.Once     // ensures closer is closed exactly once
+
 	mtx sync.Mutex // NOTE: Modify below using setters, never directly.
 	cstypes.PeerStateExposed
 }
@@ -893,6 +906,7 @@ func NewPeerState(peer p2p.PeerConn) *PeerState {
 	return &PeerState{
 		peer:   peer,
 		logger: log.NewNoopLogger(),
+		closer: make(chan struct{}),
 		PeerStateExposed: cstypes.PeerStateExposed{
 			PRS: cstypes.PeerRoundState{
 				Round:              -1,
@@ -910,6 +924,25 @@ func NewPeerState(peer p2p.PeerConn) *PeerState {
 func (ps *PeerState) SetLogger(logger *slog.Logger) *PeerState {
 	ps.logger = logger
 	return ps
+}
+
+// Disconnect signals that this peer has been removed. It is safe to call
+// multiple times. After Disconnect is called, IsDisconnected returns true
+// and the Closer channel is closed.
+func (ps *PeerState) Disconnect() {
+	ps.closerMu.Do(func() {
+		close(ps.closer)
+	})
+}
+
+// IsDisconnected returns true if the peer has been removed.
+func (ps *PeerState) IsDisconnected() bool {
+	select {
+	case <-ps.closer:
+		return true
+	default:
+		return false
+	}
 }
 
 // GetRoundState returns an shallow copy of the PeerRoundState.
