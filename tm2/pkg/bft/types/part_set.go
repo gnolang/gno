@@ -15,6 +15,7 @@ import (
 var (
 	ErrPartSetUnexpectedIndex = errors.New("Error part set unexpected index")
 	ErrPartSetInvalidProof    = errors.New("Error part set invalid proof")
+	ErrPartSetTooBig          = errors.New("Error part set too big")
 )
 
 type Part struct {
@@ -127,14 +128,17 @@ func NewPartSetFromData(data []byte, partSize int) *PartSet {
 }
 
 // Returns an empty PartSet ready to be populated.
-func NewPartSetFromHeader(header PartSetHeader) *PartSet {
+func NewPartSetFromHeader(header PartSetHeader) (*PartSet, error) {
+	if header.Total > MaxBlockPartsCount {
+		return nil, fmt.Errorf("blockParts bit array is too big: %d, max: %d: %w", header.Total, MaxBlockPartsCount, ErrPartSetTooBig)
+	}
 	return &PartSet{
 		total:         header.Total,
 		hash:          header.Hash,
 		parts:         make([]*Part, header.Total),
 		partsBitArray: bitarray.NewBitArray(header.Total),
 		count:         0,
-	}
+	}, nil
 }
 
 func (ps *PartSet) Header() PartSetHeader {
