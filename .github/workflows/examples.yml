@@ -9,6 +9,8 @@ on:
       # any change to gnovm code can make examples fail
       - gnovm/**
       - examples/**
+      - misc/deployments/**
+      - contribs/gnogenesis/**
   workflow_dispatch:
     inputs:
       debug:
@@ -66,6 +68,28 @@ jobs:
     with:
       modulepath: "examples"
       go-version: "1.23.x"
+
+  deployments:
+    name: Validate deployments
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+      - name: Run deployment generate & test
+        run: |
+          for dir in misc/deployments/*/; do
+            if [ -f "$dir/Makefile" ]; then
+              echo "=== $dir ==="
+              make -C "$dir" generate
+              if make -C "$dir" -n test >/dev/null 2>&1; then
+                make -C "$dir" test
+              fi
+              make -C "$dir" clean
+            fi
+          done
 
   mod-tidy:
     strategy:
