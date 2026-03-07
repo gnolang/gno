@@ -1,13 +1,13 @@
 gnoland start
 
 # addpkg with anotherdomain.land
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath anotherdomain.land/r/foobar/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath anotherdomain.land/r/foobar/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stdout 'TX HASH:'
 stderr 'invalid package path'
 stderr 'invalid domain: anotherdomain.land/r/foobar/bar'
 
 # addpkg with gno.land
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foobar/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foobar/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stdout 'OK!'
 
 -- gnomod.toml --

@@ -8,7 +8,7 @@ patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $admin_user_addr # use our c
 gnoland start
 
 # give gui user more tokens
-gnokey maketx send -send 1000000000ugnot -to $gui_user_addr  -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
+gnokey maketx send -send 1000000000ugnot -to $gui_user_addr  -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid tendermint_test test1
 
 # Check if sys/names is disabled
 # qeval -> sys/names.IsEnabled
@@ -17,17 +17,17 @@ stdout 'false bool'
 
 # Gui should be able to addpkg on test1 addr
 # gui addpkg -> gno.land/r/<addr_test1>/mysuperpkg
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 1000000 -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Gui should be able to addpkg on random name
 # gui addpkg -> gno.land/r/randomname/mysuperpkg
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/randomname/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/randomname/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 1000000 -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Enable `sys/names`
 # admin call -> sys/names.Enable
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1500000 -chainid tendermint_test admin
 stdout 'OK!'
 
 # Check that `sys/names` has been enabled
@@ -38,27 +38,27 @@ stdout 'true bool'
 
 # Try to add a pkg with a user on someone else's address as namespace
 # gui addpkg -> gno.land/r/<addr_test1>/one
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test gui
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/one -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test gui
 stderr 'is not authorized to deploy packages to namespace'
 
 # Try to add a pkg on own address as namespace (PA namespace)
 # gui addpkg -> gno.land/r/<addr_gui>/one
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$gui_user_addr/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$gui_user_addr/one -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test gui
 stdout 'OK!'
 
 ## Test non-PA namespace
 
 # Call addpkg with admin user on arbitrary namespace
 # admin addpkg -> gno.land/r/guiland/one
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test admin
 stderr 'is not authorized to deploy packages to namespace'
 
 # Invalid package path characters
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/random!name/mypkg -gas-fee 1000000ugnot -gas-wanted 550000 -broadcast -chainid=tendermint_test gui
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/random!name/mypkg -gas-fee 1000000ugnot -gas-wanted 550000 -chainid=tendermint_test gui
 stderr 'but got "gno.land/r/random!name/mypkg"'
 
 # Test that publishing to filetests is prohibited
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$gui_user_addr/filetests -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test gui
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$gui_user_addr/filetests -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test gui
 stderr 'ending in filetests'
 
 -- gnomod.toml --

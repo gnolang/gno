@@ -4,7 +4,7 @@
 gnoland start
 
 # add bar package located in $WORK directory as gno.land/r/foobar/bar
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foobar/bar -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foobar/bar -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
 
 # check error message
 stdout 'TX HASH:    '
