@@ -88,7 +88,8 @@ func (m *Machine) doOpExec(op Op) {
 			return
 		}
 	case OpForLoop:
-		bs := m.LastBlock().GetBodyStmt()
+		last := m.LastBlock()
+		bs := last.GetBodyStmt()
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
 			bs.NumOps = len(m.Ops)
@@ -122,6 +123,17 @@ func (m *Machine) doOpExec(op Op) {
 				m.PushExpr(bs.Cond)
 				m.PushOp(OpEval)
 			}
+			// copy heap item defines in init to new heap items.
+			for i := 0; i < bs.NumInit; i++ {
+				hiv, ok := last.Values[i].V.(*HeapItemValue)
+				if !ok {
+					continue
+				}
+				last.Values[i].V = &HeapItemValue{
+					Value: hiv.Value,
+				}
+			}
+			// run post if exists.
 			bs.NextBodyIndex = -1
 			if next := bs.Post; next == nil {
 				bs.Active = nil
@@ -517,10 +529,15 @@ EXEC_SWITCH:
 	case *ForStmt:
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		numInit := 0
+		if as, ok := cs.Init.(*AssignStmt); ok && as.Op == DEFINE {
+			numInit = len(as.Lhs)
+		}
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
 			NextBodyIndex: -2,
+			NumInit:       numInit,
 			Cond:          cs.Cond,
 			Post:          cs.Post,
 		}

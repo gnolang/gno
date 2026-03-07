@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/uassert/v0"
 )
 
 func TestNewQuery(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"chain/runtime"
 	"strings"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/nemanya/config"
 )
 

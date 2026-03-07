@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ownable/v0"
 )
 
 func TestSign(t *testing.T) {
@@ -32,7 +32,7 @@ func TestSign(t *testing.T) {
 }
 
 func TestSign_FromRealm(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users/init"))
 
 	rec := revive(func() { Sign(cross, "Hey!") })
 	if rec == nil {
