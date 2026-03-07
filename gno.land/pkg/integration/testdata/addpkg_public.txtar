@@ -1,7 +1,7 @@
 # Test public realm functionality without privacy enforcement
 # This test verifies that public realms can store any data when privacy is not enforced
 
-loadpkg gno.land/p/nt/avl
+loadpkg gno.land/p/nt/avl/v0
 
 # start a new node
 gnoland start
@@ -60,7 +60,7 @@ gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveValueFromNor
 stdout OK!
 
 gnokey query vm/qeval --data 'gno.land/r/foobar/normalrealm.GetTreePointer()'
-stdout 'gno.land/p/nt/avl.Tree'
+stdout 'gno.land/p/nt/avl/v0.Tree'
 
 -- normalrealm/gnomod.toml --
 module = "gno.land/r/foobar/normalrealm"
@@ -70,7 +70,7 @@ gno = "0.9"
 package normalrealm
 
 import (
-    "gno.land/p/nt/avl"
+    "gno.land/p/nt/avl/v0"
     "gno.land/r/foobar/publicrealm"
 )
 
@@ -204,7 +204,7 @@ gno = "0.9"
 package publicrealm
 
 import (
-    "gno.land/p/nt/avl"
+    "gno.land/p/nt/avl/v0"
 )
 
 var savedTree *avl.Tree
