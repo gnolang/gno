@@ -46,6 +46,8 @@ func NewRootCmdWithBaseConfig(io commands.IO, base BaseOptions) *commands.Comman
 		NewRotateCmd(cfg, io),
 		NewSignCmd(cfg, io),
 		NewVerifyCmd(cfg, io),
+		NewRawSignCmd(cfg, io),
+		NewRawVerifyCmd(cfg, io),
 		NewQueryCmd(cfg, io),
 		NewBroadcastCmd(cfg, io),
 		NewMakeTxCmd(cfg, io),
