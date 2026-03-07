@@ -1,0 +1,133 @@
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/gnoland/users/v1
+loadpkg gno.land/r/gnoland/boards2/v1
+
+adduser member1
+adduser member2
+
+# Initialize GovDAO members
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+patchpkg "g1member1" $member1_user_addr
+patchpkg "g1member2" $member2_user_addr
+
+gnoland start
+
+# render GovDAO to check it's working
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
+stdout 'data: # GovDAO'
+
+# Register member1 with a namespace first
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "member001" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test member1
+stdout 'OK!'
+
+# Register member2 with a namespace first
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "member002" -gas-fee 1000000ugnot -gas-wanted 12000000 -broadcast -chainid=tendermint_test member2
+stdout 'OK!'
+
+# Create proposal to add Boards2 members
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member1 $WORK/proposer/create_member_add_proposal.gno
+stdout OK!
+
+# Check proposal exists
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'Add Boards2 realm members'
+
+# First vote on proposal 0
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member1
+stdout OK!
+
+# Second vote on proposal 0
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member2
+stdout OK!
+
+# Execute proposal 0
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -broadcast -chainid=tendermint_test member1
+stdout OK!
+
+# Check output
+gnokey query vm/qeval -data "gno.land/r/gnoland/boards2/v1.IsMember(0, \"g1sfxum26eev5ew9pgscg0hthe22saxqjta5ntcd\")"
+stdout '(true bool)'
+
+# Check output
+gnokey query vm/qeval -data "gno.land/r/gnoland/boards2/v1.IsMember(0, \"g1uaek64qssvpdtvscv87r7lhcj52h46asmva7m4\")"
+stdout '(true bool)'
+
+# Create proposal to remove Boards2 members
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member1 $WORK/proposer/create_member_remove_proposal.gno
+stdout OK!
+
+# Check proposal exists
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:1'
+stdout 'Remove Boards2 realm members'
+
+# First vote on proposal 1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -args YES -broadcast -chainid=tendermint_test member1
+stdout OK!
+
+# Second vote on proposal 1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -args YES -broadcast -chainid=tendermint_test member2
+stdout OK!
+
+# Execute proposal 1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 1 -broadcast -chainid=tendermint_test member1
+stdout OK!
+
+# Check output
+gnokey query vm/qeval -data "gno.land/r/gnoland/boards2/v1.IsMember(0, \"g1sfxum26eev5ew9pgscg0hthe22saxqjta5ntcd\")"
+stdout '(false bool)'
+
+# Check output
+gnokey query vm/qeval -data "gno.land/r/gnoland/boards2/v1.IsMember(0, \"g1uaek64qssvpdtvscv87r7lhcj52h46asmva7m4\")"
+stdout '(false bool)'
+
+-- proposer/create_member_add_proposal.gno --
+package main
+
+import (
+	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	r := boards2.ProposeRealmMembersAdd("g1sfxum26eev5ew9pgscg0hthe22saxqjta5ntcd", "g1uaek64qssvpdtvscv87r7lhcj52h46asmva7m4")
+	dao.MustCreateProposal(cross, r)
+}
+
+-- proposer/create_member_remove_proposal.gno --
+package main
+
+import (
+	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	r := boards2.ProposeRealmMembersRemove("g1sfxum26eev5ew9pgscg0hthe22saxqjta5ntcd", "g1uaek64qssvpdtvscv87r7lhcj52h46asmva7m4")
+	dao.MustCreateProposal(cross, r)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, "g1member1", &memberstore.Member{InvitationPoints: 3})
+	memberstore.Get().SetMember(memberstore.T2, "g1member2", &memberstore.Member{InvitationPoints: 2})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}

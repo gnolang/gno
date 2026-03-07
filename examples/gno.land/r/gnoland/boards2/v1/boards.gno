@@ -29,10 +29,7 @@ var (
 	gBoards         = boards.NewStorage()
 	gBoardsSequence = boards.NewIdentifierGenerator()
 	gRealmPath      = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land")
-	gPerms          = initRealmPermissions(
-		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-		"g1manfred47kzduec920z88wfr64ylksmdcedlf5",
-	)
+	gPerms          = initRealmPermissions()
 
 	// TODO: Allow updating open account amount though a proposal (GovDAO, CommonDAO?)
 	gOpenAccountAmount = int64(3_000_000_000) // ugnot required for open board actions
@@ -41,19 +38,21 @@ var (
 func init() {
 	// Save current realm path so it's available during render calls
 	gRealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
+
+	// Add an initial owner to the realm permissions for unit and integration tests
+	chainID := runtime.ChainID()
+	if chainID == "dev" || chainID == "tendermint_test" {
+		gPerms.SetUserRoles("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", RoleOwner)
+	}
 }
 
 // initRealmPermissions returns the default realm permissions.
-func initRealmPermissions(owners ...address) boards.Permissions {
+func initRealmPermissions() boards.Permissions {
 	perms := permissions.New(
 		permissions.UseSingleUserRole(),
 		permissions.WithSuperRole(RoleOwner),
 	)
 	perms.AddRole(RoleAdmin, PermissionBoardCreate)
-	for _, owner := range owners {
-		perms.SetUserRoles(owner, RoleOwner)
-	}
-
 	perms.ValidateFunc(PermissionBoardCreate, validateBasicBoardCreate)
 	perms.ValidateFunc(PermissionMemberInvite, validateBasicMemberInvite)
 	perms.ValidateFunc(PermissionRoleChange, validateBasicRoleChange)
