@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -18,9 +19,10 @@ type Allocator struct {
 	// usage during a single transaction, and is used
 	// to calculate the corresponding gas usage.
 	// It increases monotonically.
-	peakBytes int64
-	collect   func() (left int64, ok bool) // gc callback
-	gasMeter  store.GasMeter
+	peakBytes   int64
+	collect     func() (left int64, ok bool) // gc callback
+	gasMeter    store.GasMeter
+	stringCache map[uintptr]struct{} // cache pointer to the underlying immutable of a string
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -88,7 +90,8 @@ func NewAllocator(maxBytes int64) *Allocator {
 		return nil
 	}
 	return &Allocator{
-		maxBytes: maxBytes,
+		maxBytes:    maxBytes,
+		stringCache: make(map[uintptr]struct{}),
 	}
 }
 
@@ -125,8 +128,9 @@ func (alloc *Allocator) Fork() *Allocator {
 		return nil
 	}
 	return &Allocator{
-		maxBytes: alloc.maxBytes,
-		bytes:    alloc.bytes,
+		maxBytes:    alloc.maxBytes,
+		bytes:       alloc.bytes,
+		stringCache: alloc.stringCache,
 	}
 }
 
@@ -150,6 +154,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		}
 	} else {
 		alloc.bytes += size
+		// fmt.Println("======allocated size: ", size)
 	}
 	// The value of `bytes` decreases during GC, and fees
 	// are only charged when it exceeds peakBytes (again).
@@ -161,6 +166,24 @@ func (alloc *Allocator) Allocate(size int64) {
 
 		alloc.peakBytes = alloc.bytes
 	}
+}
+
+func (alloc *Allocator) CacheString(str string) {
+	if alloc == nil {
+		return
+	}
+	// p points to the underlying immutable
+	p := uintptr(unsafe.Pointer(unsafe.StringData(str)))
+	alloc.stringCache[p] = struct{}{}
+}
+
+func (alloc *Allocator) GetString(str string) bool {
+	p := uintptr(unsafe.Pointer(unsafe.StringData(str)))
+	_, exist := alloc.stringCache[p]
+	if exist {
+		delete(alloc.stringCache, p)
+	}
+	return exist
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
@@ -239,6 +262,7 @@ func (alloc *Allocator) AllocateHeapItem() {
 
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
+	alloc.CacheString(s)
 	return StringValue(s)
 }
 
@@ -484,7 +508,8 @@ func (fv *FuncValue) GetShallowSize() int64 {
 }
 
 func (sv StringValue) GetShallowSize() int64 {
-	return allocString + allocStringByte*int64(len(sv))
+	// return allocString + allocStringByte*int64(len(sv))
+	return allocString
 }
 
 func (biv BigintValue) GetShallowSize() int64 {
