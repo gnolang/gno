@@ -1,10 +1,10 @@
 package minisocial
 
 import (
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/avl/pager"
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/seqid/v0"
 )
 
 var Ownable = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
