@@ -13,7 +13,7 @@ var b = func() {
 }
 
 // Error:
-// main/closure.gno:7:5: loop in variable initialization: dependency trail [b a] circularly depends on b
+// main: loop in variable initialization: remaining declarations [a b] have circular dependencies
 
 // TypeCheckError:
 // main/closure.gno:7:5: initialization cycle for a; main/closure.gno:7:5: 	a refers to b; main/closure.gno:11:5: 	b refers to a
