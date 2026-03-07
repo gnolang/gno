@@ -34,9 +34,13 @@ func ipMiddleware(behindProxy bool, st *ipThrottler) func(next http.Handler) htt
 					return
 				}
 
-				// Check if the request is behind a proxy
-				if xff := r.Header.Get("X-Forwarded-For"); xff != "" && behindProxy {
-					host = xff
+				// Use the rightmost X-Forwarded-For IP, appended by the trusted proxy.
+				// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For#selecting_an_ip_address
+				if behindProxy {
+					if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+						parts := strings.Split(xff, ",")
+						host = strings.TrimSpace(parts[len(parts)-1])
+					}
 				}
 
 				// If the host is empty or IPv6 loopback, set it to IPv4 loopback
