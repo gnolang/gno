@@ -101,6 +101,10 @@ func (m *Machine) doOpSlice() {
 	// XXX fix this in precompile instead.
 	if xv.T.Kind() == PointerKind &&
 		xv.T.Elem().Kind() == ArrayKind {
+		if xv.V == nil {
+			m.pushPanic(typedString("nil pointer dereference"))
+			return
+		}
 		// simply deref xv.
 		if xv.V == nil {
 			m.pushPanic(typedString("nil pointer dereference"))
