@@ -10,9 +10,9 @@ import (
 	"chain/runtime"
 	"time"
 
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/ufmt"
-	"gno.land/p/nt/watchdog"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/p/nt/watchdog/v0"
 )
 
 var (
