@@ -20,8 +20,14 @@ const (
 	// if this increases significantly a map should be used instead
 	nestedLimit = 10
 
-	// printLimit is the maximum number of elements to display in string representations.
-	printLimit = 256
+	// printByteLimit is the maximum number of bytes to display in string representations
+	// of byte-backed arrays and slices.
+	printByteLimit = 512
+
+	// printElementLimit is the maximum number of elements to display in string
+	// representations of value-backed arrays, slices, and maps. This is lower
+	// than printByteLimit because each element can be a complex nested structure.
+	printElementLimit = 256
 )
 
 type seenValues struct {
@@ -97,7 +103,7 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 	defer seen.Pop()
 
 	if av.Data == nil {
-		if len(av.List) > printLimit {
+		if len(av.List) > printElementLimit {
 			return fmt.Sprintf("array[...(%d elements)]", len(av.List))
 		}
 		ss := make([]string, len(av.List))
@@ -109,8 +115,8 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 		// This may be helpful for testing implementation behavior.
 		return "array[" + strings.Join(ss, ",") + "]"
 	}
-	if len(av.Data) > printLimit {
-		return fmt.Sprintf("array[0x%X...(%d)]", av.Data[:printLimit], len(av.Data))
+	if len(av.Data) > printByteLimit {
+		return fmt.Sprintf("array[0x%X...(%d)]", av.Data[:printByteLimit], len(av.Data))
 	}
 	return fmt.Sprintf("array[0x%X]", av.Data)
 }
@@ -139,7 +145,7 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 
 	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
-		if sv.Length > printLimit {
+		if sv.Length > printElementLimit {
 			return fmt.Sprintf("slice[...(%d elements)]", sv.Length)
 		}
 		ss := make([]string, sv.Length)
@@ -148,8 +154,8 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
 	}
-	if sv.Length > printLimit {
-		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+printLimit], sv.Length)
+	if sv.Length > printByteLimit {
+		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+printByteLimit], sv.Length)
 	}
 	return fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length])
 }
@@ -245,7 +251,7 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	}
 	defer seen.Pop()
 
-	if mv.GetLength() > printLimit {
+	if mv.GetLength() > printElementLimit {
 		return fmt.Sprintf("map{...(%d entries)}", mv.GetLength())
 	}
 	ss := make([]string, 0, mv.GetLength())
