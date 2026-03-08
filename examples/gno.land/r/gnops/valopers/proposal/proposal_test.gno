@@ -4,9 +4,9 @@ import (
 	"chain"
 	"testing"
 
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/ufmt"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/p/nt/urequire/v0"
 	"gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed

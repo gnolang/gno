@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 
 	"gno.land/p/demo/tamagotchi"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var t *tamagotchi.Tamagotchi

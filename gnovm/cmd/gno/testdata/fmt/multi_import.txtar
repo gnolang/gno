@@ -62,7 +62,7 @@ import (
 	// This comment should stay above the declaration
 	avl "gno.land/my/import/does/not/exist"
 	"gno.land/p/demo/blog"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Pkg Is already imported
