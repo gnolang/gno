@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/uassert/v0"
 )
 
 func TestGenerateLineChart_Basic(t *testing.T) {
