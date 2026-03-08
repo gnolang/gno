@@ -20,14 +20,14 @@ const (
 	// if this increases significantly a map should be used instead
 	nestedLimit = 10
 
-	// printByteLimit is the maximum number of bytes to display in string representations
-	// of byte-backed arrays and slices.
-	printByteLimit = 512
+	// printLimit is the maximum number of elements (or bytes for byte-backed data)
+	// to display in string representations of arrays, slices, and maps.
+	printLimit = 256
 
-	// printElementLimit is the maximum number of elements to display in string
-	// representations of value-backed arrays, slices, and maps. This is lower
-	// than printByteLimit because each element can be a complex nested structure.
-	printElementLimit = 256
+	// printOutputLimit is the maximum length of a final printed string returned
+	// by a String() entry point. This acts as a safety net to prevent
+	// combinatorial explosion from nested structures.
+	printOutputLimit = 64_000
 )
 
 type seenValues struct {
@@ -71,6 +71,16 @@ func newSeenValues() *seenValues {
 	}
 }
 
+// truncateOutput caps the output string at printOutputLimit, appending an
+// ellipsis indicator if truncated. Applied at String() entry points as a
+// safety net against combinatorial explosion from nested structures.
+func truncateOutput(s string) string {
+	if len(s) > printOutputLimit {
+		return s[:printOutputLimit] + "...(truncated)"
+	}
+	return s
+}
+
 func (sv StringValue) String() string {
 	return strconv.Quote(string(sv))
 }
@@ -88,7 +98,7 @@ func (dbv DataByteValue) String() string {
 }
 
 func (av *ArrayValue) String() string {
-	return av.ProtectedString(newSeenValues())
+	return truncateOutput(av.ProtectedString(newSeenValues()))
 }
 
 func (av *ArrayValue) ProtectedString(seen *seenValues) string {
@@ -103,7 +113,7 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 	defer seen.Pop()
 
 	if av.Data == nil {
-		if len(av.List) > printElementLimit {
+		if len(av.List) > printLimit {
 			return fmt.Sprintf("array[...(%d elements)]", len(av.List))
 		}
 		ss := make([]string, len(av.List))
@@ -115,14 +125,14 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 		// This may be helpful for testing implementation behavior.
 		return "array[" + strings.Join(ss, ",") + "]"
 	}
-	if len(av.Data) > printByteLimit {
-		return fmt.Sprintf("array[0x%X...(%d)]", av.Data[:printByteLimit], len(av.Data))
+	if len(av.Data) > printLimit {
+		return fmt.Sprintf("array[0x%X...(%d)]", av.Data[:printLimit], len(av.Data))
 	}
 	return fmt.Sprintf("array[0x%X]", av.Data)
 }
 
 func (sv *SliceValue) String() string {
-	return sv.ProtectedString(newSeenValues())
+	return truncateOutput(sv.ProtectedString(newSeenValues()))
 }
 
 func (sv *SliceValue) ProtectedString(seen *seenValues) string {
@@ -145,7 +155,7 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 
 	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
-		if sv.Length > printElementLimit {
+		if sv.Length > printLimit {
 			return fmt.Sprintf("slice[...(%d elements)]", sv.Length)
 		}
 		ss := make([]string, sv.Length)
@@ -154,14 +164,14 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
 	}
-	if sv.Length > printByteLimit {
-		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+printByteLimit], sv.Length)
+	if sv.Length > printLimit {
+		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+printLimit], sv.Length)
 	}
 	return fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length])
 }
 
 func (pv PointerValue) String() string {
-	return pv.ProtectedString(newSeenValues())
+	return truncateOutput(pv.ProtectedString(newSeenValues()))
 }
 
 func (pv PointerValue) ProtectedString(seen *seenValues) string {
@@ -183,7 +193,7 @@ func (pv PointerValue) ProtectedString(seen *seenValues) string {
 }
 
 func (sv *StructValue) String() string {
-	return sv.ProtectedString(newSeenValues())
+	return truncateOutput(sv.ProtectedString(newSeenValues()))
 }
 
 func (sv *StructValue) ProtectedString(seen *seenValues) string {
@@ -196,9 +206,6 @@ func (sv *StructValue) ProtectedString(seen *seenValues) string {
 	}
 	defer seen.Pop()
 
-	if len(sv.Fields) > printElementLimit {
-		return fmt.Sprintf("struct{...(%d fields)}", len(sv.Fields))
-	}
 	ss := make([]string, len(sv.Fields))
 	for i, f := range sv.Fields {
 		ss[i] = f.ProtectedString(seen)
@@ -237,7 +244,7 @@ func (bmv *BoundMethodValue) String() string {
 }
 
 func (mv *MapValue) String() string {
-	return mv.ProtectedString(newSeenValues())
+	return truncateOutput(mv.ProtectedString(newSeenValues()))
 }
 
 func (mv *MapValue) ProtectedString(seen *seenValues) string {
@@ -254,7 +261,7 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	}
 	defer seen.Pop()
 
-	if mv.GetLength() > printElementLimit {
+	if mv.GetLength() > printLimit {
 		return fmt.Sprintf("map{...(%d entries)}", mv.GetLength())
 	}
 	ss := make([]string, 0, mv.GetLength())
@@ -477,7 +484,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 
 // For gno debugging/testing.
 func (tv TypedValue) String() string {
-	return tv.ProtectedString(newSeenValues())
+	return truncateOutput(tv.ProtectedString(newSeenValues()))
 }
 
 func (tv TypedValue) ProtectedString(seen *seenValues) string {
