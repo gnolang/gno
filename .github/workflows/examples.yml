@@ -81,7 +81,7 @@ jobs:
       - name: Run deployment generate & test
         run: |
           for dir in misc/deployments/*/; do
-            if [ -f "$dir/Makefile" ]; then
+            if [ -f "$dir/Makefile" ] && make -C "$dir" -n generate >/dev/null 2>&1; then
               echo "=== $dir ==="
               make -C "$dir" generate
               if make -C "$dir" -n test >/dev/null 2>&1; then
