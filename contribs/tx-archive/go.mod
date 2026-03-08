@@ -1,8 +1,6 @@
 module github.com/gnolang/gno/contribs/tx-archive
 
-go 1.24.0
-
-toolchain go1.24.4
+go 1.24.4
 
 require (
 	github.com/gnolang/gno v0.0.0-20250528110257-f6b725541d59

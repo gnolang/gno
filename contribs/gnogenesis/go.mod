@@ -1,8 +1,6 @@
 module github.com/gnolang/contribs/gnogenesis
 
-go 1.24.0
-
-toolchain go1.24.4
+go 1.24.4
 
 require (
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000

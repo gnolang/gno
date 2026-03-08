@@ -9,7 +9,7 @@ on:
         description: "Go version to use"
         required: false
         type: string
-        default: "1.23.x"
+        default: ""
       debug:
         description: "Enable debug logs"
         required: false
@@ -29,6 +29,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
+          go-version-file: go.mod
 
       - name: Setup debug env
         if: inputs.debug

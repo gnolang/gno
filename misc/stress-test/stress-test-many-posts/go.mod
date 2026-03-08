@@ -1,8 +1,6 @@
 module stress_test_many_posts
 
-go 1.24.0
-
-toolchain go1.24.4
+go 1.24.4
 
 require (
 	connectrpc.com/connect v1.16.2
