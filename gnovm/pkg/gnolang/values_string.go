@@ -110,7 +110,7 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 		return "array[" + strings.Join(ss, ",") + "]"
 	}
 	if len(av.Data) > printLimit {
-		return fmt.Sprintf("array[0x%X...]", av.Data[:printLimit])
+		return fmt.Sprintf("array[0x%X...(%d)]", av.Data[:printLimit], len(av.Data))
 	}
 	return fmt.Sprintf("array[0x%X]", av.Data)
 }

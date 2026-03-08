@@ -335,7 +335,7 @@ func TestProtectedStringTruncation(t *testing.T) {
 	t.Run("byte array 257 truncated", func(t *testing.T) {
 		av := &ArrayValue{Data: make([]byte, 257)}
 		result := av.String()
-		assert.Contains(t, result, "...")
+		assert.Contains(t, result, "...(257)")
 	})
 
 	// --- Map ---
@@ -360,5 +360,22 @@ func TestProtectedStringTruncation(t *testing.T) {
 		mv := makeTestMap(1)
 		result := mv.String()
 		assert.Equal(t, "map{(0 int):(0 int)}", result)
+	})
+
+	// --- Nested slices ---
+	t.Run("nested slice with inner >256 elements", func(t *testing.T) {
+		// Create a slice of slices where inner slices have >256 elements
+		innerSlice := makeIntSliceValue(300)
+		outerList := []TypedValue{
+			{T: &SliceType{Elt: IntType}, V: innerSlice},
+		}
+		outerSv := &SliceValue{
+			Base:   &ArrayValue{List: outerList},
+			Offset: 0,
+			Length: 1,
+			Maxcap: 1,
+		}
+		result := outerSv.String()
+		assert.Contains(t, result, "slice[...(300 elements)]")
 	})
 }
