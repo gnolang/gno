@@ -2,8 +2,8 @@ package gnolang
 
 import (
 	"fmt"
-	"strings"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -543,6 +543,27 @@ func TestProtectedStringTruncation(t *testing.T) {
 		mv := makeTestMap(1)
 		result := mv.String()
 		assert.Equal(t, "map{(0 int):(0 int)}", result)
+	})
+
+	// --- Struct ---
+	t.Run("struct at element limit not truncated", func(t *testing.T) {
+		fields := make([]TypedValue, printElementLimit)
+		for i := range fields {
+			fields[i] = makeTypedInt(i)
+		}
+		sv := &StructValue{Fields: fields}
+		result := sv.String()
+		assert.True(t, strings.HasPrefix(result, "struct{(0 int),"))
+		assert.False(t, strings.Contains(result, "..."))
+	})
+
+	t.Run("struct above element limit truncated", func(t *testing.T) {
+		fields := make([]TypedValue, printElementLimit+1)
+		for i := range fields {
+			fields[i] = makeTypedInt(i)
+		}
+		sv := &StructValue{Fields: fields}
+		assert.Equal(t, fmt.Sprintf("struct{...(%d fields)}", printElementLimit+1), sv.String())
 	})
 
 	// --- Nested slices ---

@@ -196,6 +196,9 @@ func (sv *StructValue) ProtectedString(seen *seenValues) string {
 	}
 	defer seen.Pop()
 
+	if len(sv.Fields) > printElementLimit {
+		return fmt.Sprintf("struct{...(%d fields)}", len(sv.Fields))
+	}
 	ss := make([]string, len(sv.Fields))
 	for i, f := range sv.Fields {
 		ss[i] = f.ProtectedString(seen)
