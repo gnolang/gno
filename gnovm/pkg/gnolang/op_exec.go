@@ -846,7 +846,7 @@ func (m *Machine) doOpTypeSwitch() {
 					// IsImplementedBy -> VerifyImplementedBy.
 					// Reuses OpCPUTypeAssert1 as the per-method cost
 					// since interface method checking is equivalent work.
-					m.incrCPU(OpCPUTypeAssert1 * int64(len(it.Methods)))
+					m.incrCPU(OpCPUTypeAssert1 * int64(it.TotalMethodCount()))
 					if it.IsImplementedBy(xv.T) {
 						// match
 						match = true
