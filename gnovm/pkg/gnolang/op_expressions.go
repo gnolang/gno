@@ -102,6 +102,10 @@ func (m *Machine) doOpSlice() {
 	if xv.T.Kind() == PointerKind &&
 		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
+		if xv.V == nil {
+			m.pushPanic(typedString("nil pointer dereference"))
+			return
+		}
 		*xv = xv.V.(PointerValue).Deref()
 		// check array also for ro.
 		if !ro {

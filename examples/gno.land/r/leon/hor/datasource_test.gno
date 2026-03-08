@@ -5,11 +5,16 @@ import (
 
 	"gno.land/p/jeronimoalbi/datasource"
 	"gno.land/p/moul/addrset"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
-	_ "gno.land/r/gnoland/users/v1" // initialize pre-populated user store
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
+	uinit "gno.land/r/sys/users/init"
 )
+
+func init() {
+	// Pre-register "demo" user for render tests
+	uinit.RegisterUser(cross, "demo", address("g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"))
+}
 
 var (
 	_ datasource.Datasource    = (*Datasource)(nil)
