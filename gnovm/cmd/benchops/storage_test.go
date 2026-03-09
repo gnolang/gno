@@ -20,7 +20,7 @@ func TestBenchStoreSet(t *testing.T) {
 	// load  stdlibs
 	loadStdlibs(bstore)
 	avlPkgDir := filepath.Join(dir, "avl")
-	addPackage(gstore, avlPkgDir, "gno.land/p/nt/avl")
+	addPackage(gstore, avlPkgDir, "gno.land/p/nt/avl/v0")
 
 	storagePkgDir := filepath.Join(dir, "storage")
 	pv := addPackage(gstore, storagePkgDir, storagePkgPath)

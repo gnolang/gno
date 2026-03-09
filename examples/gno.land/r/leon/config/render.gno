@@ -6,8 +6,8 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
-	p "gno.land/p/nt/avl/pager"
-	"gno.land/p/nt/ufmt"
+	p "gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var (
