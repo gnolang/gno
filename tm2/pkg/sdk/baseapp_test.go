@@ -1037,20 +1037,21 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	}
 }
 
-func TestOOGLogSuggestsConsensusMaxGas(t *testing.T) {
+func TestOOGLogBeyondGasWanted(t *testing.T) {
 	t.Parallel()
 
-	maxGas := int64(50)
+	maxGas := int64(200)
+	gasWanted := int64(100)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-			res.GasWanted = 100
-			newCtx = ctx.WithGasMeter(store.NewGasMeter(maxGas))
+			res.GasWanted = gasWanted
+			newCtx = ctx.WithGasMeter(store.NewGasMeter(gasWanted))
 			return newCtx, res, false
 		})
 	}
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
-			ctx.GasMeter().ConsumeGas(maxGas+1, "burn beyond consensus maxGas")
+			ctx.GasMeter().ConsumeGas(gasWanted+1, "burn beyond tx gas wanted")
 			return Result{}
 		}))
 	}
@@ -1075,7 +1076,7 @@ func TestOOGLogSuggestsConsensusMaxGas(t *testing.T) {
 	require.True(t, ok)
 	assert.Contains(t, res.Log, "gas used")
 	assert.Contains(t, res.Log, "exceeds tx's gas wanted (100)")
-	assert.Contains(t, res.Log, "simulate with consensus maximum (50) to get real transaction usage")
+	assert.Contains(t, res.Log, "simulate with consensus maximum (200) to get real transaction usage")
 }
 
 func TestOOGLogUsesMaxBlockGas(t *testing.T) {

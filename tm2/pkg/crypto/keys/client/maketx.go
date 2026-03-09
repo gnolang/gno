@@ -287,7 +287,7 @@ func fetchConsensusMaxGas(remote string) (int64, error) {
 		return 0, err
 	}
 
-	res, err := cli.ConsensusParams(context.Background(), nil)
+	res, err := cli.ConsensusParams(context.TODO(), nil)
 	if err != nil {
 		return 0, err
 	}

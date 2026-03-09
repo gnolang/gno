@@ -11,6 +11,7 @@ import (
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 func TestHandleDeliverResultCallsOnFailure(t *testing.T) {
@@ -66,9 +67,9 @@ func TestBuildSimulationTxBytesUsesConsensusMaxGas(t *testing.T) {
 	bz, err := amino.Marshal(&tx)
 	require.NoError(t, err)
 
-	simBz, simGasWanted, err := buildSimulationTxBytes(&tx, bz, 25)
+	simBz, rewritten, err := buildSimulationTxBytes(&tx, bz, 25)
 	require.NoError(t, err)
-	require.Equal(t, int64(25), simGasWanted)
+	require.True(t, rewritten)
 
 	var simTx std.Tx
 	require.NoError(t, amino.Unmarshal(simBz, &simTx))
@@ -80,9 +81,9 @@ func TestBuildSimulationTxBytesUsesFallbackWhenConsensusMaxGasUndefined(t *testi
 	bz, err := amino.Marshal(&tx)
 	require.NoError(t, err)
 
-	simBz, simGasWanted, err := buildSimulationTxBytes(&tx, bz, -1)
+	simBz, rewritten, err := buildSimulationTxBytes(&tx, bz, -1)
 	require.NoError(t, err)
-	require.Equal(t, simulationMaxGasFallback, simGasWanted)
+	require.True(t, rewritten)
 
 	var simTx std.Tx
 	require.NoError(t, amino.Unmarshal(simBz, &simTx))
@@ -94,9 +95,9 @@ func TestBuildSimulationTxBytesKeepsHigherOriginalGasWanted(t *testing.T) {
 	bz, err := amino.Marshal(&tx)
 	require.NoError(t, err)
 
-	simBz, simGasWanted, err := buildSimulationTxBytes(&tx, bz, 25)
+	simBz, rewritten, err := buildSimulationTxBytes(&tx, bz, 25)
 	require.NoError(t, err)
-	require.Equal(t, int64(100), simGasWanted)
+	require.False(t, rewritten)
 	require.Equal(t, bz, simBz)
 }
 
@@ -124,16 +125,26 @@ func TestAppendSuggestedGasWantedAppendsExistingInfo(t *testing.T) {
 }
 
 func TestOutOfGasLogTxGasWanted(t *testing.T) {
-	log := outOfGasLog(120, 100, 200, "simulation")
+	log := store.OutOfGasLog(120, 100, 200, "simulation", true)
 	require.Equal(t, "gas used (120) exceeds tx's gas wanted (100) during operation: simulation; simulate with consensus maximum (200) to get real transaction usage", log)
 }
 
 func TestOutOfGasLogMaxBlockGas(t *testing.T) {
-	log := outOfGasLog(120, 100, 100, "simulation")
+	log := store.OutOfGasLog(120, 100, 100, "simulation", true)
+	require.Equal(t, "gas used (120) exceeds max block gas (100) during operation: simulation", log)
+}
+
+func TestOutOfGasLogMaxBlockGasWhenWantedHigher(t *testing.T) {
+	log := store.OutOfGasLog(120, 150, 100, "simulation", true)
 	require.Equal(t, "gas used (120) exceeds max block gas (100) during operation: simulation", log)
 }
 
 func TestOutOfGasLogNoConsensusMaxGas(t *testing.T) {
-	log := outOfGasLog(120, 100, -1, "simulation")
+	log := store.OutOfGasLog(120, 100, -1, "simulation", true)
+	require.Equal(t, "gas used (120) exceeds tx's gas wanted (100) during operation: simulation", log)
+}
+
+func TestOutOfGasLogNoSimulateHintWhenDisabled(t *testing.T) {
+	log := store.OutOfGasLog(120, 100, 200, "simulation", false)
 	require.Equal(t, "gas used (120) exceeds tx's gas wanted (100) during operation: simulation", log)
 }

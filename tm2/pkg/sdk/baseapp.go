@@ -767,7 +767,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 				if cp := ctx.ConsensusParams(); cp != nil && cp.Block != nil {
 					maxGas = cp.Block.MaxGas
 				}
-				log := outOfGasLog(gasUsed, gasWanted, maxGas, ex.Descriptor)
+				log := store.OutOfGasLog(gasUsed, gasWanted, maxGas, ex.Descriptor, true)
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
@@ -877,25 +877,6 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 	}
 
 	return result
-}
-
-func outOfGasLog(gasUsed, gasWanted, maxGas int64, operation string) string {
-	if maxGas > 0 && gasWanted == maxGas {
-		return fmt.Sprintf(
-			"gas used (%d) exceeds max block gas (%d) during operation: %v",
-			gasUsed, gasWanted, operation,
-		)
-	}
-	if maxGas > 0 {
-		return fmt.Sprintf(
-			"gas used (%d) exceeds tx's gas wanted (%d) during operation: %v; simulate with consensus maximum (%d) to get real transaction usage",
-			gasUsed, gasWanted, operation, maxGas,
-		)
-	}
-	return fmt.Sprintf(
-		"gas used (%d) exceeds tx's gas wanted (%d) during operation: %v",
-		gasUsed, gasWanted, operation,
-	)
 }
 
 // EndBlock implements the ABCI interface.

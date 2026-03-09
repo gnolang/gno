@@ -82,7 +82,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 					if cp := newCtx.ConsensusParams(); cp != nil && cp.Block != nil {
 						maxGas = cp.Block.MaxGas
 					}
-					log := outOfGasLog(gasUsed, tx.Fee.GasWanted, maxGas, ex.Descriptor)
+					log := store.OutOfGasLog(gasUsed, tx.Fee.GasWanted, maxGas, ex.Descriptor, true)
 					res = abciResult(std.ErrOutOfGas(log))
 
 					res.GasWanted = tx.Fee.GasWanted
@@ -445,23 +445,4 @@ func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]b
 
 func abciResult(err error) sdk.Result {
 	return sdk.ABCIResultFromError(err)
-}
-
-func outOfGasLog(gasUsed, gasWanted, maxGas int64, operation string) string {
-	if maxGas > 0 && gasWanted == maxGas {
-		return fmt.Sprintf(
-			"gas used (%d) exceeds max block gas (%d) during operation: %v",
-			gasUsed, gasWanted, operation,
-		)
-	}
-	if maxGas > 0 {
-		return fmt.Sprintf(
-			"gas used (%d) exceeds tx's gas wanted (%d) during operation: %v; simulate with consensus maximum (%d) to get real transaction usage",
-			gasUsed, gasWanted, operation, maxGas,
-		)
-	}
-	return fmt.Sprintf(
-		"gas used (%d) exceeds tx's gas wanted (%d) during operation: %v",
-		gasUsed, gasWanted, operation,
-	)
 }
