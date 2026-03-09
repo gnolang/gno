@@ -25,6 +25,7 @@ func Download(pkgPath string, dst string, fetcher PackageFetcher) error {
 		return fmt.Errorf("resolve absolute path for dst %q: %w", dst, err)
 	}
 
+	// Validate all file paths upfront before any write to avoid partially written state.
 	for _, file := range files {
 		fileDst := filepath.Join(dst, file.Name)
 		absFileDst, err := filepath.Abs(fileDst)
@@ -36,6 +37,10 @@ func Download(pkgPath string, dst string, fetcher PackageFetcher) error {
 		if !strings.HasPrefix(absFileDst, absDst+string(filepath.Separator)) {
 			return fmt.Errorf("path traversal detected: file name %q resolves outside destination directory", file.Name)
 		}
+	}
+
+	for _, file := range files {
+		fileDst := filepath.Join(dst, file.Name)
 		if err := os.WriteFile(fileDst, []byte(file.Body), 0o644); err != nil {
 			return fmt.Errorf("write file at %q: %w", fileDst, err)
 		}

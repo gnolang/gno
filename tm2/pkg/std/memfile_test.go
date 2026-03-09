@@ -194,6 +194,52 @@ func TestWriteTo_RejectsPathTraversal(t *testing.T) {
 	}
 }
 
+func TestWriteTo_NoPartialWriteOnTraversal(t *testing.T) {
+	t.Parallel()
+
+	// Ensure that when a malicious file is mixed with legitimate files,
+	// no files are written at all (upfront validation prevents partial state).
+	//
+	//   tmp/
+	//     target/       <- dir passed to WriteTo
+	//     sibling/
+	//       legit.gno   <- should not be overwritten
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "target")
+	siblingFile := filepath.Join(tmp, "sibling", "legit.gno")
+
+	os.MkdirAll(filepath.Join(tmp, "sibling"), 0o744)
+	os.MkdirAll(dir, 0o744)
+	os.WriteFile(siblingFile, []byte("ORIGINAL"), 0o644)
+
+	mpkg := &MemPackage{
+		Name: "evil",
+		Path: "gno.land/p/evil",
+		Files: []*MemFile{
+			{Name: "safe.gno", Body: "package evil"},           // legitimate file first
+			{Name: "../sibling/legit.gno", Body: "BACKDOORED"}, // malicious file second
+		},
+	}
+
+	err := mpkg.WriteTo(dir)
+	if err == nil {
+		t.Fatal("WriteTo should have rejected traversal")
+	}
+
+	// The legitimate file must NOT have been written because
+	// validation happens upfront before any write.
+	safeFile := filepath.Join(dir, "safe.gno")
+	if _, err := os.Stat(safeFile); err == nil {
+		t.Fatalf("safe.gno should not exist: upfront validation should prevent any writes")
+	}
+
+	// The target file must remain untouched.
+	data, _ := os.ReadFile(siblingFile)
+	if string(data) != "ORIGINAL" {
+		t.Fatalf("legit.gno was modified despite error, content: %s", data)
+	}
+}
+
 func TestSplitFilepath(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
