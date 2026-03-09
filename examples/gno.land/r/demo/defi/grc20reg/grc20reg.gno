@@ -5,10 +5,10 @@ import (
 	"chain/runtime"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/avl/rotree"
-	"gno.land/p/nt/fqname"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/avl/v0/rotree"
+	"gno.land/p/nt/fqname/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var registry = avl.NewTree() // rlmPath[.slug] -> *Token (slug is optional)
