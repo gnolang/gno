@@ -1178,9 +1178,6 @@ const (
 	// verifying that a type implements an interface (via VerifyImplementedBy).
 	// Used as a multiplier on the total method count in type assertions
 	// and type switch interface cases.
-	// Calibrated via benchops linear regression across TypeAssert1, TypeAssert2,
-	// and TypeSwitch: per-method cost ≈ 1x OpAdd on the benchmark machine,
-	// scaled to the same units as the existing OpCPU* constants.
 	OpCPUInterfaceMethodCheck = 20
 	// TODO: OpCPUStaticTypeOf is an arbitrary number.
 	// A good way to benchmark this is yet to be determined.
