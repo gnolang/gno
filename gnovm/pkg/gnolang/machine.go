@@ -1174,6 +1174,11 @@ const (
 	OpCPURef         = 125
 	OpCPUTypeAssert1 = 30
 	OpCPUTypeAssert2 = 25
+	// OpCPUInterfaceMethodCheck is the per-method cost charged when
+	// verifying that a type implements an interface (via VerifyImplementedBy).
+	// Used as a multiplier on the total method count in type assertions
+	// and type switch interface cases.
+	OpCPUInterfaceMethodCheck = 30
 	// TODO: OpCPUStaticTypeOf is an arbitrary number.
 	// A good way to benchmark this is yet to be determined.
 	OpCPUStaticTypeOf = 100
