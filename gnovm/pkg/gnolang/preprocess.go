@@ -5537,8 +5537,37 @@ func findDependentNames(decl Node, dst dependencySet, pn *PackageNode, fn *FileN
 			// for top-level function calls via addName.
 			switch cn.Path.Type {
 			case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
-				typeof := cn.X.GetAttribute(ATTR_TYPEOF_VALUE)
-				method := typeof.(*DeclaredType).GetStaticValueAt(cn.Path).V.(*FuncValue)
+				var dt *DeclaredType
+				x := cn.X.GetAttribute(ATTR_TYPEOF_VALUE)
+				if tt, ok := x.(*tupleType); ok {
+					if len(tt.Elts) > 1 {
+						panic("invalid number of values in tuple")
+					}
+					x = tt.Elts[0]
+				}
+				switch tp := x.(type) {
+				case *DeclaredType:
+					dt = tp
+				case *PointerType:
+					dt = tp.Elt.(*DeclaredType)
+				case *tupleType:
+					// TODO: Why?
+					dt = tp.Elts[0].(*DeclaredType)
+				default:
+					panic(fmt.Sprintf(
+						"%s/%s:%s: unexpected type in selectorexpr: %T",
+						pn.PkgPath,
+						fn.FileName,
+						cn.Pos.String(),
+						tp,
+					))
+				}
+				if dt.PkgPath != pn.PkgPath {
+					// It's from another package; we shouldn't traverse into
+					// it.
+					break
+				}
+				method := dt.Methods[cn.Path.Index].V.(*FuncValue)
 				fd := method.Source.(*FuncDecl)
 				findDependentNames(fd, dst, pn, fd.Parent.(*FileNode), fdeclared)
 			}
