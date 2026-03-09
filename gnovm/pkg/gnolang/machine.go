@@ -627,7 +627,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 			}
 			// free up remaining part of the slice for GC
 			unresolved = unresolved[:len(unresolved):len(unresolved)]
-			// sort for determinsm (though order should not be relevant here)
+			// sort for determinism (though order should not be relevant here)
 			slices.Sort(unresolved)
 			pending = append(pending, pendingInitDecl{fn, decl, unresolved})
 		}

@@ -5469,7 +5469,8 @@ type dependencyValue uint8
 
 const (
 	// Zero value for what isn't in the set of dependencies.
-	dependencyNotFound dependencyValue = iota
+	// Used to avoid distinguishing between '0' and key not in map.
+	_ dependencyValue = iota
 	// Dependency isn't resolved to any declaration.
 	dependencyUnresolved
 	// Dependency is uverse, a declared function, a local package name or
