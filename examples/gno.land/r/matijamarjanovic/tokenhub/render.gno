@@ -7,9 +7,9 @@ import (
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/avl/pager"
-	"gno.land/p/nt/fqname"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/fqname/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/demo/defi/grc20reg"
 )
 

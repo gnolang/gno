@@ -6,8 +6,8 @@ import (
 
 	"gno.land/p/aeddi/panictoerr"
 	"gno.land/p/moul/md"
-	trs_pkg "gno.land/p/nt/treasury"
-	"gno.land/p/nt/ufmt"
+	trs_pkg "gno.land/p/nt/treasury/v0"
+	"gno.land/p/nt/ufmt/v0"
 
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"

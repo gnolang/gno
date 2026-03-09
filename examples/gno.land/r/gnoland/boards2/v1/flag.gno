@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // DefaultFlaggingThreshold defines the default number of flags that hides flaggable items.

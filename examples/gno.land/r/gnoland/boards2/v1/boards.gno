@@ -8,7 +8,7 @@ import (
 	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // TODO: Refactor globals in favor of a cleaner pattern
