@@ -2,7 +2,9 @@ package main
 
 func main() {
 	var p *[3]int
-	_ = p[1:2]
+	for i, v := range p {
+		println(i, v)
+	}
 }
 
 // Error:

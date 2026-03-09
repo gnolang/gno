@@ -1,17 +1,15 @@
 package main
 
 func main() {
-	defer func() {
-		rec := recover()
-		if rec != nil {
-			println("recovered", rec)
-		}
-	}()
 	var p *[3]int
-	for i, v := range p {
-		println(i, v)
+	for i := range p {
+		println(i)
 	}
+	println("ok")
 }
 
 // Output:
-// recovered nil pointer dereference
+// 0
+// 1
+// 2
+// ok
