@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Generate betanet genesis.json with only the realms listed in packages.yml
+# Generate betanet genesis.json with only the realms listed in packages.txt
 # and their transitive dependencies (auto-resolved via `gno tool deplist`).
 
 set -e
@@ -11,17 +11,19 @@ EXAMPLES_DIR="$REPO_ROOT/examples"
 
 CHAIN_ID="${CHAIN_ID:-betanet}"
 GENESIS_FILE="${GENESIS_FILE:-$SCRIPT_DIR/genesis.json}"
-MANIFEST="${MANIFEST:-$SCRIPT_DIR/packages.yml}"
+MANIFEST="${MANIFEST:-$SCRIPT_DIR/packages.txt}"
 
-# Parse realm directories from packages.yml (lines matching "  - r/...")
+# Read package list: one entry per line, skip blanks and comments.
 patterns=()
 while IFS= read -r line; do
-    dir=$(echo "$line" | sed 's/^[[:space:]]*-[[:space:]]*//' | sed 's/[[:space:]]*#.*//')
-    [[ -n "$dir" ]] && patterns+=("./gno.land/$dir/...")
-done < <(grep '^[[:space:]]*-[[:space:]]*r/' "$MANIFEST")
+    line="${line%%#*}"          # strip comments
+    line="${line## }"           # trim
+    line="${line%% }"
+    [[ -n "$line" ]] && patterns+=("./gno.land/$line/...")
+done < "$MANIFEST"
 
 if [[ ${#patterns[@]} -eq 0 ]]; then
-    echo "ERROR: no realms found in $MANIFEST" >&2
+    echo "ERROR: no packages found in $MANIFEST" >&2
     exit 1
 fi
 

@@ -4,7 +4,7 @@ REPO_ROOT := $(shell cd ../../.. && pwd)
 
 generate: genesis.json
 
-genesis.json: packages.yml gen-genesis.sh
+genesis.json: packages.txt gen-genesis.sh
 	@# Ensure gno and gnogenesis are available.
 	cd $(REPO_ROOT)/gnovm && go install ./cmd/gno
 	cd $(REPO_ROOT)/contribs/gnogenesis && go install .
