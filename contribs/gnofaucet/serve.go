@@ -56,7 +56,7 @@ type serveCfg struct {
 	numAccounts   uint64
 
 	remote        string
-	isBehindProxy bool
+	trustedProxyCount uint64
 }
 
 func newServeCmd() *commands.Command {
@@ -123,11 +123,11 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"the static max send amount (native currency)",
 	)
 
-	fs.BoolVar(
-		&c.isBehindProxy,
-		"is-behind-proxy",
-		false,
-		"use X-Forwarded-For IP for throttling",
+	fs.Uint64Var(
+		&c.trustedProxyCount,
+		"trusted-proxy-count",
+		0,
+		"number of trusted reverse proxies; when > 0, the client IP is extracted from X-Forwarded-For for throttling",
 	)
 }
 

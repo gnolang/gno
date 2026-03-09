@@ -30,7 +30,7 @@ func TestIPMiddleware(t *testing.T) {
 		t.Parallel()
 
 		st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
-		mw := ipMiddleware(false, st)
+		mw := ipMiddleware(0, st)
 		xff := map[string]string{"X-Forwarded-For": "9.9.9.9"}
 
 		for i := 0; i < maxRequestsPerMinute; i++ {
@@ -42,11 +42,11 @@ func TestIPMiddleware(t *testing.T) {
 		}))
 	})
 
-	t.Run("behind proxy uses rightmost XFF", func(t *testing.T) {
+	t.Run("single proxy uses rightmost XFF", func(t *testing.T) {
 		t.Parallel()
 
 		st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
-		mw := ipMiddleware(true, st)
+		mw := ipMiddleware(1, st)
 
 		// Exhaust rate limit for 10.0.0.1 (rightmost) with different spoofed leftmost IPs
 		for i := 0; i < maxRequestsPerMinute; i++ {
@@ -60,22 +60,22 @@ func TestIPMiddleware(t *testing.T) {
 		}))
 	})
 
-	t.Run("behind proxy with single XFF value", func(t *testing.T) {
+	t.Run("single proxy with single XFF value", func(t *testing.T) {
 		t.Parallel()
 
 		st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
-		mw := ipMiddleware(true, st)
+		mw := ipMiddleware(1, st)
 
 		assert.Equal(t, http.StatusOK, sendRequest(mw, "172.16.0.1:12345", map[string]string{
 			"X-Forwarded-For": "10.0.0.2",
 		}))
 	})
 
-	t.Run("not behind proxy ignores XFF", func(t *testing.T) {
+	t.Run("no proxy ignores XFF", func(t *testing.T) {
 		t.Parallel()
 
 		st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
-		mw := ipMiddleware(false, st)
+		mw := ipMiddleware(0, st)
 
 		for i := 0; i < maxRequestsPerMinute; i++ {
 			assert.Equal(t, http.StatusOK, sendRequest(mw, "192.168.1.3:12345", nil))
@@ -83,6 +83,42 @@ func TestIPMiddleware(t *testing.T) {
 		// Still rate limited on RemoteAddr, XFF ignored since not behind proxy
 		assert.Equal(t, http.StatusUnauthorized, sendRequest(mw, "192.168.1.3:12345", map[string]string{
 			"X-Forwarded-For": "10.0.0.5",
+		}))
+	})
+
+	t.Run("multi-proxy uses correct XFF entry", func(t *testing.T) {
+		t.Parallel()
+
+		st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+		mw := ipMiddleware(2, st) // 2 trusted proxies
+
+		// XFF: "spoofed, real-client, proxy1" — with 2 trusted proxies, idx = 3-2 = 1 → real-client
+		for i := 0; i < maxRequestsPerMinute; i++ {
+			assert.Equal(t, http.StatusOK, sendRequest(mw, "172.16.0.1:12345", map[string]string{
+				"X-Forwarded-For": "8.8.8.8, 10.0.0.1, 192.168.1.1",
+			}))
+		}
+		// Rate limited on real client IP (10.0.0.1) regardless of spoofed leftmost
+		assert.Equal(t, http.StatusUnauthorized, sendRequest(mw, "172.16.0.1:12345", map[string]string{
+			"X-Forwarded-For": "1.1.1.1, 10.0.0.1, 192.168.1.1",
+		}))
+	})
+
+	t.Run("multi-proxy falls back to RemoteAddr when XFF too short", func(t *testing.T) {
+		t.Parallel()
+
+		st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+		mw := ipMiddleware(3, st) // 3 trusted proxies
+
+		// XFF has only 2 entries, fewer than trustedProxyCount=3 → fall back to RemoteAddr
+		for i := 0; i < maxRequestsPerMinute; i++ {
+			assert.Equal(t, http.StatusOK, sendRequest(mw, "192.168.1.4:12345", map[string]string{
+				"X-Forwarded-For": "10.0.0.1, 10.0.0.2",
+			}))
+		}
+		// Rate limited on RemoteAddr, not any XFF entry
+		assert.Equal(t, http.StatusUnauthorized, sendRequest(mw, "192.168.1.4:12345", map[string]string{
+			"X-Forwarded-For": "10.0.0.3, 10.0.0.4",
 		}))
 	})
 }
