@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log/slog"
@@ -115,6 +116,24 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 }
 
 // WriteChromaCSS writes the CSS for syntax highlighting to the provided writer.
+// It outputs the light theme by default and, if configured, the dark theme
+// scoped under [data-theme="dark"] using CSS nesting.
 func (r *HTMLRenderer) WriteChromaCSS(w io.Writer) error {
-	return r.ch.WriteCSS(w, r.cfg.ChromaStyle)
+	if err := r.ch.WriteCSS(w, r.cfg.ChromaStyle); err != nil {
+		return fmt.Errorf("writing light chroma CSS: %w", err)
+	}
+
+	if r.cfg.ChromaDarkStyle != nil {
+		var buf bytes.Buffer
+		buf.WriteString("\n[data-theme=\"dark\"] {\n")
+		if err := r.ch.WriteCSS(&buf, r.cfg.ChromaDarkStyle); err != nil {
+			return fmt.Errorf("writing dark chroma CSS: %w", err)
+		}
+		buf.WriteString("}\n")
+		if _, err := buf.WriteTo(w); err != nil {
+			return fmt.Errorf("writing dark chroma CSS: %w", err)
+		}
+	}
+
+	return nil
 }
