@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
