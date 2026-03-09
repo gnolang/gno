@@ -467,7 +467,8 @@
 		font-family: var(--g-font-family-mono);
 	}
 
-	pre {
+	pre,
+	pre.chroma-chroma {
 		background-color: var(--s-color-bg-surface-primary);
 		padding: var(--cr-space-4);
 		margin-block: var(--cr-space-3);
