@@ -5478,8 +5478,12 @@ const (
 	dependencyResolved
 )
 
-// findDependentNames fills `dst` with the dependencies of `n`, excluding
-// uverse names
+// findDependentNames fills `dst` with the dependencies of `n`. Dependencies are
+// categorized into [dependencyResolved], which marks dependencies already in
+// `fdeclared`, names of package imports, function declarations or uverse names.
+// Names marked with [dependencyUnresolved] are instead for names which are yet
+// to be associated with a declaration/definition, and that should be processed
+// before decl.
 func findDependentNames(decl Node, dst dependencySet, pn *PackageNode, fn *FileNode, fdeclared map[Name]struct{}) {
 	addName := func(n Node, name Name) {
 		if _, ok := dst[name]; ok {
@@ -5528,6 +5532,16 @@ func findDependentNames(decl Node, dst dependencySet, pn *PackageNode, fn *FileN
 			queue = append(queue, cn.Left, cn.Right)
 		case *SelectorExpr:
 			queue = append(queue, cn.X)
+			// For method calls, recurse into the method body to pick up
+			// transitive package-level variable dependencies — exactly as we do
+			// for top-level function calls via addName.
+			switch cn.Path.Type {
+			case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
+				typeof := cn.X.GetAttribute(ATTR_TYPEOF_VALUE)
+				method := typeof.(*DeclaredType).GetStaticValueAt(cn.Path).V.(*FuncValue)
+				fd := method.Source.(*FuncDecl)
+				findDependentNames(fd, dst, pn, fd.Parent.(*FileNode), fdeclared)
+			}
 		case *SliceExpr:
 			queue = append(queue, cn.X)
 			if cn.Low != nil {
@@ -5596,7 +5610,6 @@ func findDependentNames(decl Node, dst dependencySet, pn *PackageNode, fn *FileN
 				queue = append(queue, &cn.Fields[i])
 			}
 		case *CallExpr:
-			// TODO: findDependentNames
 			queue = append(queue, cn.Func)
 			for i := range cn.Args {
 				queue = append(queue, cn.Args[i])
