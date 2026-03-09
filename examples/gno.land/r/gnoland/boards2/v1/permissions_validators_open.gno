@@ -6,8 +6,6 @@ import (
 
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/nt/ufmt/v0"
-
-	"gno.land/r/sys/users"
 )
 
 // validateOpenBoardRename validates PermissionBoardRename.
@@ -121,11 +119,6 @@ func validateOpenThreadCreate(perms boards.Permissions, args boards.Args) error 
 		return nil
 	}
 
-	// Require registered usernames to non members
-	if users.ResolveAddress(caller) == nil {
-		return errors.New("a registered username is required to create threads on open boards")
-	}
-
 	// Require non members to have some GNOT in their accounts
 	if err := checkAccountHasAmount(caller, gOpenAccountAmount); err != nil {
 		return ufmt.Errorf("caller is not allowed to create threads: %s", err)
@@ -151,11 +144,6 @@ func validateOpenReplyCreate(perms boards.Permissions, args boards.Args) error {
 	// All board members can reply
 	if perms.HasUser(caller) {
 		return nil
-	}
-
-	// Require registered usernames to non members
-	if users.ResolveAddress(caller) == nil {
-		return errors.New("a registered username is required to comment on open boards")
 	}
 
 	// Require non members to have some GNOT in their accounts
