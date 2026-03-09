@@ -1,0 +1,95 @@
+# Verify that a type switch with more clauses and interface cases costs more gas.
+# The small switch (2 cases + default) should cost less than the large switch
+# (7 cases including interfaces with varying method counts + default).
+
+gno test -v .
+
+stderr '--- PASS: ./small_filetest.gno \(elapsed: \d+\.\d\ds, gas: 4846\)'
+stderr '--- PASS: ./large_filetest.gno \(elapsed: \d+\.\d\ds, gas: 5927\)'
+
+-- small_filetest.gno --
+package main
+
+type I1 interface {
+	A()
+}
+
+type S struct{}
+
+func (S) A() {}
+
+func main() {
+	var x interface{} = S{}
+
+	switch x.(type) {
+	case int:
+		println("int")
+	case I1:
+		println("I1")
+	default:
+		println("default")
+	}
+}
+
+// Output:
+// I1
+
+// Gas:
+// 4846
+
+-- large_filetest.gno --
+package main
+
+type I1 interface {
+	A()
+}
+
+type I2 interface {
+	A()
+	B()
+}
+
+type I3 interface {
+	A()
+	B()
+	C()
+}
+
+type S struct{}
+
+func (S) A() {}
+func (S) B() {}
+func (S) C() {}
+
+func main() {
+	var x interface{} = S{}
+
+	switch x.(type) {
+	case int:
+		println("int")
+	case string:
+		println("string")
+	case bool:
+		println("bool")
+	case float64:
+		println("float64")
+	case I1:
+		println("I1")
+	case I2:
+		println("I2")
+	case I3:
+		println("I3")
+	default:
+		println("default")
+	}
+}
+
+// Output:
+// I1
+
+// Gas:
+// 5927
+
+-- gnomod.toml --
+module = "gno.test/r/integ/typeswitch_gas"
+gno = "0.9"
