@@ -242,7 +242,6 @@ func (mpkg *MemPackage) WriteTo(dir string) error {
 		return fmt.Errorf("resolve absolute path for dir %q: %w", dir, err)
 	}
 
-	// Validate all file paths upfront before any write to avoid partially written state.
 	for _, mfile := range mpkg.Files {
 		fpath := filepath.Join(dir, mfile.Name)
 		absFpath, err := filepath.Abs(fpath)

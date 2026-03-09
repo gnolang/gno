@@ -25,7 +25,6 @@ func Download(pkgPath string, dst string, fetcher PackageFetcher) error {
 		return fmt.Errorf("resolve absolute path for dst %q: %w", dst, err)
 	}
 
-	// Validate all file paths upfront before any write to avoid partially written state.
 	for _, file := range files {
 		fileDst := filepath.Join(dst, file.Name)
 		absFileDst, err := filepath.Abs(fileDst)
