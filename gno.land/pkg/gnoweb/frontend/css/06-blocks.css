@@ -1334,6 +1334,7 @@ main.dev-mode .b-toc a {
 		label {
 			border: none;
 			background-color: var(--s-color-bg-warning-action);
+			color: var(--s-color-bg-warning-weak);
 			cursor: pointer;
 		}
 
@@ -2141,7 +2142,7 @@ main.dev-mode .b-toc a {
 			left: var(--g-space-5);
 			transform: translateY(-50%);
 			color: var(--s-color-text-tertiary);
-			background-color: var(--s-color-bg-base);
+			background-color: var(--s-color-bg-input);
 			padding-inline: var(--g-space-1);
 			font-size: var(--g-font-size-50);
 		}
@@ -2172,7 +2173,8 @@ main.dev-mode .b-toc a {
 		display: block;
 		padding: var(--g-space-2);
 		border-radius: var(--s-rounded-sm);
-		border: var(--s-border-secondary);
+		border: var(--g-space-px) solid var(--s-color-border-input);
+		background-color: var(--s-color-bg-input);
 		color: var(--s-color-text-primary);
 		outline: none;
 		margin-block: var(--g-space-4);
@@ -2230,7 +2232,7 @@ main.dev-mode .b-toc a {
 	}
 
 	.gno-form_description {
-		color: var(--s-color-text-tertiary);
+		color: var(--s-color-text-secondary);
 		margin-block-start: var(--g-space-5);
 		margin-block-end: var(--g-space-2);
 		padding-inline-start: var(--g-space-4);

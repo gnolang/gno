@@ -164,7 +164,7 @@
 	--cr-space-80: calc(var(--cr-space-base) * 80);
 	--cr-space-96: calc(var(--cr-space-base) * 96);
 
-	--cr-color-brand-default: var(--s-color-bg-brand-default);
+	--cr-color-brand-default: var(--s-color-text-link);
 
 	display: block;
 	font-size: calc(var(--cr-px-base) * 1px);

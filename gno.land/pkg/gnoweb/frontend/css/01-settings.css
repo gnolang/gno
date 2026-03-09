@@ -265,6 +265,7 @@
 	/* Green scale */
 	--g-color-green-50: oklch(94.553% 0.00891 180.286); /* #F0F9FF */
 	--g-color-green-400: oklch(0.6863 0.0819 173.69); /* #60AB96 - Primary dark color */
+	--g-color-green-500: oklch(52.603% 0.08865 170.311);
 	--g-color-green-600: oklch(0.4798 0.0801 170.52); /* #226C57 - Primary light color */
 	--g-color-green-900: oklch(0.3401 0.0544 170.75); /* #144134 */
 	--g-color-green-950: oklch(0.26 0.055 170); /* Deep green tint */
