@@ -7,7 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
-//XXX: benchmark the real cost
+// XXX: benchmark the real cost
 const GasCostEd25519VerifyPerByte int64 = 1
 
 func X_verify(m *gno.Machine, publicKey []byte, message []byte, signature []byte) bool {

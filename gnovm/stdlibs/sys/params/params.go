@@ -8,7 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
-//XXX: benchmark the real cost
+// XXX: benchmark the real cost
 const GasCostParamPerByte int64 = 1
 
 func X_setSysParamString(m *gno.Machine, module, submodule, name, val string) {

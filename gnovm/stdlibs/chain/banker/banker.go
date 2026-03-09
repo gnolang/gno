@@ -39,7 +39,7 @@ func X_bankerGetCoins(m *gno.Machine, bt uint8, addr string) (denoms []string, a
 	return ExpandCoins(coins)
 }
 
-//XXX: benchmark the real cost
+// XXX: benchmark the real cost
 const GasCostBankerSendPerByte int64 = 1
 
 func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []string, amounts []int64) {
