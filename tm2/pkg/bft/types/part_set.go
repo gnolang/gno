@@ -77,6 +77,9 @@ func (psh PartSetHeader) ValidateBasic() error {
 	if psh.Total < 0 {
 		return errors.New("Negative Total")
 	}
+	if psh.Total > MaxBlockPartsCount {
+		return fmt.Errorf("BlockParts bit array is too big: %d, max: %d: %w", psh.Total, MaxBlockPartsCount, ErrPartSetTooBig)
+	}
 	// Hash can be empty in case of POLBlockID.PartsHeader in Proposal.
 	if err := ValidateHash(psh.Hash); err != nil {
 		return errors.Wrap(err, "Wrong Hash")
@@ -130,7 +133,7 @@ func NewPartSetFromData(data []byte, partSize int) *PartSet {
 // Returns an empty PartSet ready to be populated.
 func NewPartSetFromHeader(header PartSetHeader) (*PartSet, error) {
 	if header.Total > MaxBlockPartsCount {
-		return nil, fmt.Errorf("blockParts bit array is too big: %d, max: %d: %w", header.Total, MaxBlockPartsCount, ErrPartSetTooBig)
+		return nil, fmt.Errorf("BlockParts bit array is too big: %d, max: %d: %w", header.Total, MaxBlockPartsCount, ErrPartSetTooBig)
 	}
 	return &PartSet{
 		total:         header.Total,
