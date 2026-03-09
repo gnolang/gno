@@ -5463,133 +5463,183 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 	}
 }
 
-// This is to be run *after* preprocessing is done,
-// to determine the order of var decl execution
-// (which may include functions which may refer to package vars).
-func findDependentNames(n Node, dst map[Name]struct{}) {
-	switch cn := n.(type) {
-	case *NameExpr:
-		dst[cn.Name] = struct{}{}
-	case *BasicLitExpr:
-	case *BinaryExpr:
-		findDependentNames(cn.Left, dst)
-		findDependentNames(cn.Right, dst)
-	case *SelectorExpr:
-		findDependentNames(cn.X, dst)
-	case *SliceExpr:
-		findDependentNames(cn.X, dst)
-		if cn.Low != nil {
-			findDependentNames(cn.Low, dst)
+type dependencySet map[Name]dependencyValue
+
+type dependencyValue uint8
+
+const (
+	// Zero value for what isn't in the set of dependencies.
+	dependencyNotFound dependencyValue = iota
+	// Dependency isn't resolved to any declaration.
+	dependencyUnresolved
+	// Dependency is uverse, a declared function, a local package name or
+	// already in fdeclared.
+	dependencyResolved
+)
+
+// findDependentNames fills `dst` with the dependencies of `n`, excluding
+// uverse names
+func findDependentNames(decl Node, dst dependencySet, pn *PackageNode, fn *FileNode, fdeclared map[Name]struct{}) {
+	addName := func(n Node, name Name) {
+		if _, ok := dst[name]; ok {
+			return
 		}
-		if cn.High != nil {
-			findDependentNames(cn.High, dst)
+
+		if isUverseName(name) {
+			dst[name] = dependencyResolved
+			return
+		} else if _, ok := fdeclared[name]; ok {
+			dst[name] = dependencyResolved
+			return
+		} else if _, ok := fn.GetLocalIndex(name); ok {
+			dst[name] = dependencyResolved
+			return
 		}
-		if cn.Max != nil {
-			findDependentNames(cn.Max, dst)
+		subFn, subDecl, exists := pn.FileSet.GetDeclForSafe(name)
+		if !exists {
+			panic(fmt.Sprintf(
+				"%s/%s:%s: dependency %s not defined",
+				pn.PkgPath,
+				fn.FileName,
+				n.GetPos().String(),
+				name,
+			))
 		}
-	case *StarExpr:
-		findDependentNames(cn.X, dst)
-	case *RefExpr:
-		findDependentNames(cn.X, dst)
-	case *TypeAssertExpr:
-		findDependentNames(cn.X, dst)
-		findDependentNames(cn.Type, dst)
-	case *UnaryExpr:
-		findDependentNames(cn.X, dst)
-	case *CompositeLitExpr:
-		findDependentNames(cn.Type, dst)
-		ct := getType(cn.Type)
-		switch ct.Kind() {
-		case ArrayKind, SliceKind, MapKind:
-			for _, kvx := range cn.Elts {
-				if kvx.Key != nil {
-					findDependentNames(kvx.Key, dst)
-				}
-				findDependentNames(kvx.Value, dst)
+		// If we found the name, but it is a func decl, then traverse into
+		// the function calling findDependentNames recursively.
+		if fd, ok := (*subDecl).(*FuncDecl); ok {
+			dst[name] = dependencyResolved
+			findDependentNames(fd, dst, pn, subFn, fdeclared)
+		} else {
+			dst[name] = dependencyUnresolved
+		}
+	}
+	queue := append(make([]Node, 0, 16), decl)
+	for len(queue) > 0 {
+		last := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+
+		switch cn := last.(type) {
+		case *NameExpr:
+			addName(cn, cn.Name)
+		case *BasicLitExpr:
+		case *BinaryExpr:
+			queue = append(queue, cn.Left, cn.Right)
+		case *SelectorExpr:
+			queue = append(queue, cn.X)
+		case *SliceExpr:
+			queue = append(queue, cn.X)
+			if cn.Low != nil {
+				queue = append(queue, cn.Low)
 			}
-		case StructKind:
-			for _, kvx := range cn.Elts {
-				findDependentNames(kvx.Value, dst)
+			if cn.High != nil {
+				queue = append(queue, cn.High)
+			}
+			if cn.Max != nil {
+				queue = append(queue, cn.Max)
+			}
+		case *StarExpr:
+			queue = append(queue, cn.X)
+		case *RefExpr:
+			queue = append(queue, cn.X)
+		case *TypeAssertExpr:
+			queue = append(queue, cn.X, cn.Type)
+		case *UnaryExpr:
+			queue = append(queue, cn.X)
+		case *CompositeLitExpr:
+			queue = append(queue, cn.Type)
+			ct := getType(cn.Type)
+			switch ct.Kind() {
+			case ArrayKind, SliceKind, MapKind:
+				for _, kvx := range cn.Elts {
+					if kvx.Key != nil {
+						queue = append(queue, kvx.Key)
+					}
+					queue = append(queue, kvx.Value)
+				}
+			case StructKind:
+				for _, kvx := range cn.Elts {
+					queue = append(queue, kvx.Value)
+				}
+			default:
+				panic(fmt.Sprintf(
+					"unexpected composite lit type %s",
+					ct.String()))
+			}
+		case *FieldTypeExpr:
+			queue = append(queue, cn.Type)
+		case *ArrayTypeExpr:
+			queue = append(queue, cn.Elt)
+			if cn.Len != nil {
+				queue = append(queue, cn.Len)
+			}
+		case *SliceTypeExpr:
+			queue = append(queue, cn.Elt)
+		case *InterfaceTypeExpr:
+			for i := range cn.Methods {
+				queue = append(queue, &cn.Methods[i])
+			}
+		case *ChanTypeExpr:
+			queue = append(queue, cn.Value)
+		case *FuncTypeExpr:
+			for i := range cn.Params {
+				queue = append(queue, &cn.Params[i])
+			}
+			for i := range cn.Results {
+				queue = append(queue, &cn.Results[i])
+			}
+		case *MapTypeExpr:
+			queue = append(queue, cn.Key, cn.Value)
+		case *StructTypeExpr:
+			for i := range cn.Fields {
+				queue = append(queue, &cn.Fields[i])
+			}
+		case *CallExpr:
+			// TODO: findDependentNames
+			queue = append(queue, cn.Func)
+			for i := range cn.Args {
+				queue = append(queue, cn.Args[i])
+			}
+		case *IndexExpr:
+			queue = append(queue, cn.X, cn.Index)
+		case *FuncLitExpr:
+			queue = append(queue, &cn.Type)
+			for _, n := range cn.GetExternNames() {
+				addName(cn, n)
+			}
+		case *constTypeExpr:
+		case *ConstExpr:
+		case *ImportDecl:
+		case *ValueDecl:
+			if cn.Type != nil {
+				queue = append(queue, cn.Type)
+			}
+			for _, vx := range cn.Values {
+				queue = append(queue, vx)
+			}
+		case *TypeDecl:
+			queue = append(queue, cn.Type)
+		case *FuncDecl:
+			queue = append(queue, &cn.Type)
+			if cn.IsMethod {
+				queue = append(queue, &cn.Recv)
+				for _, n := range cn.GetExternNames() {
+					addName(cn, n)
+				}
+			} else {
+				for _, n := range cn.GetExternNames() {
+					if n == cn.Name {
+						// top-level function referring to itself
+					} else {
+						addName(cn, n)
+					}
+				}
 			}
 		default:
 			panic(fmt.Sprintf(
-				"unexpected composite lit type %s",
-				ct.String()))
+				"unexpected node: %v (%v)",
+				decl, reflect.TypeOf(decl)))
 		}
-	case *FieldTypeExpr:
-		findDependentNames(cn.Type, dst)
-	case *ArrayTypeExpr:
-		findDependentNames(cn.Elt, dst)
-		if cn.Len != nil {
-			findDependentNames(cn.Len, dst)
-		}
-	case *SliceTypeExpr:
-		findDependentNames(cn.Elt, dst)
-	case *InterfaceTypeExpr:
-		for i := range cn.Methods {
-			findDependentNames(&cn.Methods[i], dst)
-		}
-	case *ChanTypeExpr:
-		findDependentNames(cn.Value, dst)
-	case *FuncTypeExpr:
-		for i := range cn.Params {
-			findDependentNames(&cn.Params[i], dst)
-		}
-		for i := range cn.Results {
-			findDependentNames(&cn.Results[i], dst)
-		}
-	case *MapTypeExpr:
-		findDependentNames(cn.Key, dst)
-		findDependentNames(cn.Value, dst)
-	case *StructTypeExpr:
-		for i := range cn.Fields {
-			findDependentNames(&cn.Fields[i], dst)
-		}
-	case *CallExpr:
-		findDependentNames(cn.Func, dst)
-		for i := range cn.Args {
-			findDependentNames(cn.Args[i], dst)
-		}
-	case *IndexExpr:
-		findDependentNames(cn.X, dst)
-		findDependentNames(cn.Index, dst)
-	case *FuncLitExpr:
-		findDependentNames(&cn.Type, dst)
-		for _, n := range cn.GetExternNames() {
-			dst[n] = struct{}{}
-		}
-	case *constTypeExpr:
-	case *ConstExpr:
-	case *ImportDecl:
-	case *ValueDecl:
-		if cn.Type != nil {
-			findDependentNames(cn.Type, dst)
-		}
-		for _, vx := range cn.Values {
-			findDependentNames(vx, dst)
-		}
-	case *TypeDecl:
-		findDependentNames(cn.Type, dst)
-	case *FuncDecl:
-		findDependentNames(&cn.Type, dst)
-		if cn.IsMethod {
-			findDependentNames(&cn.Recv, dst)
-			for _, n := range cn.GetExternNames() {
-				dst[n] = struct{}{}
-			}
-		} else {
-			for _, n := range cn.GetExternNames() {
-				if n == cn.Name {
-					// top-level function referring to itself
-				} else {
-					dst[n] = struct{}{}
-				}
-			}
-		}
-	default:
-		panic(fmt.Sprintf(
-			"unexpected node: %v (%v)",
-			n, reflect.TypeOf(n)))
 	}
 }
 
