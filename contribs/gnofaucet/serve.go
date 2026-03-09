@@ -55,7 +55,7 @@ type serveCfg struct {
 	maxSendAmount string
 	numAccounts   uint64
 
-	remote        string
+	remote            string
 	trustedProxyCount uint64
 }
 
