@@ -28,12 +28,12 @@ done <<< "$pkg_dirs"
 
 # Build genesis.
 gnogenesis generate -chain-id betanet -output-path "$SCRIPT_DIR/genesis.json"
-gnogenesis validator add \
-    -name placeholder \
-    -power 1 \
-    -address g1foobar \
-    -pub-key g1pubbaz \
-    --genesis-path "$SCRIPT_DIR/genesis.json"
+#gnogenesis validator add \
+#    -name placeholder \
+#    -power 1 \
+#    -address g1foobar \
+#    -pub-key g1pubbaz \
+#    --genesis-path "$SCRIPT_DIR/genesis.json"
 gnogenesis txs add packages "$STAGING" \
     --genesis-path "$SCRIPT_DIR/genesis.json"
 
