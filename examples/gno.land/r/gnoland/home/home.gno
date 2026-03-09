@@ -10,7 +10,6 @@ import (
 
 	"gno.land/p/leon/svgbtn"
 	"gno.land/r/devrels/events"
-	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/leon/hor"
 )
 
@@ -33,9 +32,6 @@ func Render(_ string) string {
 	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
 	r.RegisterCallback(":newsletter-button:", newsletterButton)
-	r.RegisterCallback(":latest-gnomes:", func() string {
-		return users.RenderLatestUsersWidget(5)
-	})
 	r.RegisterCallback(":chain-height:", func() string {
 		return strconv.Itoa(int(runtime.ChainHeight()))
 	})
@@ -166,13 +162,6 @@ Pure packages for demo purposes.
 ---
 
 <gno-columns>
-## Latest Gnomes
-
-Latest Gnomes in the [registry](/r/gnoland/users/v1).
-
-:latest-gnomes:
-
-|||
 
 ## Socials
 
