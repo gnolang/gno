@@ -497,52 +497,28 @@ No validators may operate on any cloud hosting provider, but must run their own
 hardware where they have physical access to the server at all times (such as in
 a co-location provider with 24/hour access).
 
-Atom.One migration is not contingent on all of its validators running their own hardware as above, but GovDAO may impose a requirement by Majority
-Decision for Atom.One to have a completed roadmap specified to get there.
-
 Atom.One ICS may not be deemed suitable unless the Gno.land chain remains whole
 (not part of any "mega-block" system where the consensus engine process is
 shared with other applications) and Gno.land may migrate away from Atom.One by
 on-chain transactions.
 
-If Atom.One validators do not largely (> 90% by voting power) run on their own
-hardware where validators have physical access to their server at all times 2
-years after migration or 4 years after Gno.land launch whichever is sooner,
-GovDAO with a Supermajority Decision may choose to fund the development of a
-fork Atom.One in the likeness of the Cosmos -> Atom.One fork with a relevant
-governance proposal on Atom.One (with preference to the class of voters who
-voted in favor of this requirement); provided that GovDAO first submits
-reasonable proposals to Atom.One that get rejected by Atom.One.
-
-Likewise if the Atom.One staking incentive system is not such that the top
-validator has at most three times the voting power of the lowest validator 2
-years after migration or 4 years after Gno.land launch whichever is sooner,
-GovDAO with a Supermajority Decision may choose to fund the development of a
-fork Atom.One in the likeness of the Cosmos -> Atom.One fork with a relevant
-governance proposal on Atom.One (with preference to the class of voters who
-voted in favor of this requirement); provided that GovDAO first submits
-reasonable proposals to Atom.One that get rejected by Atom.One.
-
-In the case of an Atom.One fork initiated by GovDAO by the above, the fork need
-not run any chain except those that run Gno. The constitution of the fork may
-be determined by Supermajority Decision of GovDAO and respect the rights of
-NT,LLC with respect to the "Gno" word mark.
+GovDAO by Supermajority Decision may migrate Gno.land away from Atom.One ICS
+or fund the development of a fork of Atom.One if Atom.One fails to meet
+Gno.land's security or decentralization requirements. Such requirements include
+but are not limited to validators running their own hardware and reasonable
+limits on validator power concentration.
 
 Pre-migration and post-migration validators are paid from the Validator
 Services Treasury. See also "Validator Services Treasury".
 
 ## Atom.One ICS Migration
 
-Gno.land is obligated to migrate to Atom.One when declared ready by GovDAO
-Simple Majority decision.
-
-In the case of a fork of Atom.One the target chain may be changed by a
-Constitutional Amendment to be one of the forks of Atom.One. Any GovDAO members
-who are involved in the creation or development of such a fork or have any
-additional relative ownership of staking tokens or fee tokens of the fork are
-considered to have a conflict of interest and must disclose so and abstain from
-voting. If a quorum cannot be reached due to this the quorum requirement may be waived
-by the Oversight Body.
+In the case of a fork of Atom.One the migration target chain may be changed by
+a Constitutional Amendment. Any GovDAO members who are involved in the creation
+or development of such a fork or have any additional relative ownership of
+staking tokens or fee tokens of the fork are considered to have a conflict of
+interest and must disclose so and abstain from voting. If a quorum cannot be
+reached due to this the quorum requirement may be waived by the Oversight Body.
 
 ## GovDAO Structure
 
