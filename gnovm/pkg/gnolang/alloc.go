@@ -417,8 +417,6 @@ func (b *Block) GetShallowSize() int64 {
 	}
 
 	var ss int64
-	// RefNode is not value, put it here
-	// for convinence
 	if _, ok := b.Source.(RefNode); ok {
 		ss += allocRefNode
 	}
@@ -506,8 +504,8 @@ func (tv TypeValue) GetShallowSize() int64 {
 	return 0
 }
 
-// returns the size of object's refvalues.
-func getRefSize(val Value) int64 {
+// Returns the size of object's RefValue(s).
+func internalRefSize(val Value) int64 {
 	var size int64
 	switch v := val.(type) {
 	case *PackageValue:

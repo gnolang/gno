@@ -485,7 +485,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		}
 
 		ss := oo.GetShallowSize()
-		rs := getRefSize(oo)
+		rs := internalRefSize(oo)
 		ds.alloc.Allocate(ss + rs)
 
 		if debug {
