@@ -18,7 +18,7 @@ func NewJSONReporter(w io.Writer) *JSONReporter {
 }
 
 func (r *JSONReporter) Flush() error {
-	issues, _, _, _ := r.sortAndReset()
+	issues := r.sortAndReset()
 
 	encoder := json.NewEncoder(r.w)
 	encoder.SetIndent("", "\t")

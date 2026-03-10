@@ -18,7 +18,8 @@ func NewTextReporter(w io.Writer) *TextReporter {
 }
 
 func (r *TextReporter) Flush() error {
-	issues, info, warnings, errors := r.sortAndReset()
+	info, warnings, errors := r.Summary()
+	issues := r.sortAndReset()
 
 	for _, issue := range issues {
 		_, _ = fmt.Fprintln(r.w, issue.String())
