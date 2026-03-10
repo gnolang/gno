@@ -506,7 +506,7 @@ func (tv TypeValue) GetShallowSize() int64 {
 	return 0
 }
 
-// returns the size of object's refvalues
+// returns the size of object's refvalues.
 func getRefSize(val Value) int64 {
 	var size int64
 	switch v := val.(type) {
