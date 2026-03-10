@@ -413,37 +413,39 @@ Constitutional Majority Decision.
 ## Gno.land Revenue
 
 Transaction fees collected in $GNOT or $PHOTON on Gno.land are called Revenue.
-The Revenue is distributed according to the following rules in order:
+Revenue is distributed in the following priority order. Each treasury receives
+its share from whatever remains after higher-priority treasuries have been
+funded.
 
- 1. ValTreasury is funded with 50% of Revenue if ValTreasury has less than 1 year of runway, or
- 2. ValTreasury is funded with 25% of Revenue if ValTreasury has less than 2 years of runway, or
- 3. ValTreasury is funded with 10% of Revenue if ValTreasury has less than 3 years of runway, or
- 4. ValTreasury is funded with 5% of Revenue if ValTreasury has more than 3 years of runway.
+ 1. **ValTreasury** receives a runway-based share of Revenue:
+    * 50% if less than 1 year of runway, or
+    * 25% if less than 2 years of runway, or
+    * 10% if less than 3 years of runway, or
+    *  5% if more than 3 years of runway.
 
-The portion of Revenue that is not allocated to ValTreasury is called Remaining Revenue 1.
+ 2. **PayTreasury** receives a runway-based share of the remainder:
+    * 50% if less than 1 year of runway, or
+    * 25% if less than 2 years of runway, or
+    * 10% if less than 3 years of runway, or
+    *  5% if more than 3 years of runway.
 
- 5. PayTreasury is funded with 50% of Remaining Revenue 1 if PayTreasury has less than 1 year of runway, or
- 6. PayTreasury is funded with 25% of Remaining Revenue 1 if PayTreasury has less than 2 years of runway, or
- 7. PayTreasury is funded with 10% of Remaining Revenue 1 if PayTreasury has less than 3 years of runway, or
- 8. PayTreasury is funded with 5% of Remaining Revenue 1 if PayTreasury has more than 3 years of runway.
+ 3. **Core Treasury** receives up to 25% of total Revenue from the remainder.
 
-PayTreasury has strictly lower priority than ValTreasury because GovDAO members
-can theoretically still function without pay, whereas the blockchain cannot
-function securely without validators. The PayTreasury runway must take into
-account future projected growth of the paid T1 and T2 members.
+ 4. **Security Treasury** receives 10% of the remainder.
 
-The portion of Remaining Revenue 1 that is not allocated to PayTreasury is
-called Remaining Revenue 2.
+ 5. **Reserve Treasury** receives anything left over.
 
- 9. Core Treasury is funded with min(Remaining Revenue 2, 25% of Revenue).
- 10. Reserve Treasury is funded with the remainder from above.
+ValTreasury has the highest priority because the blockchain cannot function
+securely without validators. PayTreasury is next because GovDAO members can
+theoretically still function without pay but not indefinitely. The PayTreasury
+runway must take into account future projected growth of the paid T1 and T2
+members.
 
-Core Treasury has strictly lower priority than ValTreasury or PayTreasury in
-the revenue waterfall because GovDAO members can theoretically still function
-without essential services, whereas they cannot without validators or pay; and
-essential services should generally pay for themselves with micropayments or
-subscriptions or by other means. The Core Treasury also receives one third of
-inflation.
+Core Treasury has lower priority because essential services should generally
+pay for themselves with micropayments or subscriptions or by other means, and
+the Core Treasury also receives one third of inflation. The Security Treasury
+receives a modest share to ensure ongoing funding for audits and recompense
+independent of excess $GNOT deposit events.
 
 ## Excess $GNOT Deposits
 
@@ -505,7 +507,12 @@ staking tokens or fee tokens of the fork are considered to have a conflict of
 interest and must disclose so and abstain from voting. If a quorum cannot be
 reached due to this the quorum requirement may be waived by the Oversight Body.
 
-## GovDAO Structure
+## GovDAO
+
+GovDAO is the primary governing body of Gno.land with limitations by the
+Oversight Body and other terms and conditions of this Constitution.
+
+### GovDAO Structure
 
 There are three tiers: T1, T2, and T3.
 
@@ -533,7 +540,7 @@ declaration. The activity status of T1 or their suspension may not be deemed
 cause for removal from T1. In this way T1 is like "tenure", and generally the
 T1 members are expected to have made significant contributions to the project.
 
-## GovDAO Voting Power.
+### GovDAO Voting Power
 
 In general,
  * a T1 member gets 3 votes.
@@ -565,7 +572,7 @@ Example 4:
  * T2 200 members  --> 200 VP,   1 votes per member *
  * T3 1000 members --> 100 VP, 0.1 votes per member *
 
-### T1 Membership Size
+#### T1 Membership Size
 
 The target T1 membership size is a minimum 70 members in 7 years.
 
@@ -580,7 +587,7 @@ If the target minimum is not reached AND there are Qualified Candidates AND
 four quarters have passed with no new T1 members elected, 1 additional
 Qualified Candidate may be elected by GnotDAO.
 
-### T2 Membership Size
+#### T2 Membership Size
 
 The T2 membership size target minimum is floor(size(T1)/4). The T2 membership
 size target maximum is 2 x size(T1).
@@ -588,7 +595,7 @@ size target maximum is 2 x size(T1).
 While size(T2) can be greater than 2 x size(T1) or less than 2 x size(T1), no
 more members may be added to T2 if size(T2) is greater than 2 x size(T1).
 
-### T3 Membership Size
+#### T3 Membership Size
 
 T3 membership is decided automatically based on a delegation system where:
 
@@ -605,14 +612,9 @@ thus a T3 member may lose their membership immediately as a consequence of
 undelegation, and this may cause another T3 member to lose their membership
 concurrently.
 
-### Payment to GovDAO Members
+#### Payment to GovDAO Members
 
 See "GovDAO Pay Treasury".
-
-## GovDAO
-
-GovDAO is the primary governing body of Gno.land with limitations by the
-Oversight Body and other terms and conditions of this Constitution.
 
 ### GovDAO Decisions
 
@@ -1534,12 +1536,11 @@ need not implement these specifications.
 ## Common DAO Spec - version "Gno.land Genesis"
 
 All sub-DAOs have parent DAOs. The parent DAO of the Core DAOs and Special
-Purpose DAOs are the governance of the AtomOne Hub itself. Therefore all Core
-DAOs and Special Purpose DAOs as well as their sub-DAOs and the Hub Governance
-itself altogether form a tree structure. The parent DAO and the parent DAO’s
-parent DAO and so on, all the way up to Hub Governance are altogether called
-the Ancestors of a DAO. The sub-DAOs and their sub-DAOs and so on are called
-the Descendants of a DAO.
+Purpose DAOs is GovDAO itself. Therefore all Core DAOs and Special Purpose DAOs
+as well as their sub-DAOs and GovDAO itself altogether form a tree structure.
+The parent DAO and the parent DAO’s parent DAO and so on, all the way up to
+GovDAO are altogether called the Ancestors of a DAO. The sub-DAOs and their
+sub-DAOs and so on are called the Descendants of a DAO.
 
 Every DAO, upon creation, must have a Charter (which is composed of Purpose and
 Description), an initial set of Council members (which may be empty) and may
@@ -1548,8 +1549,7 @@ files. The Bylaws and Mandates must be named plaintext files or folders of
 plaintext files, or folders of folders.
 
 A DAO’s Charter, Bylaws, and Mandates may be changed by a Simple Majority vote
-from any of the DAO’s ancestors, except from AtomOne Hub Governance which 
-requires a Supermajority vote.
+from any of the DAO’s ancestors, except from GovDAO which requires a Supermajority vote.
 
 A DAO’s Bylaws, Mandates, and the Bylaws and Mandates of its ancestor DAOs, the
 relevant Laws, and this Constitution, altogether are called the Governing
@@ -1569,7 +1569,7 @@ members are also subject to the ancestor DAOs’ bylaws and mandates.
 
 A Simple Majority in DAO governance is defined to be exactly “more than half”.
 A Supermajority in DAO governance is defined to be exactly "two thirds or
-more". This is distinct from a Supermajority in Hub Governance.
+more". This is distinct from a Supermajority Decision of GovDAO.
 
 By default, unless specified otherwise in its Governing Documents, the
 following rules apply for Council voting:
@@ -1594,8 +1594,8 @@ following rules apply for Council membership election:
 Each DAO may have an associated crypto address which can hold any number of
 tokens.  
 
-DAOs may operate with logic on core shards, or, represented as a m-of-n
-multisig account on the AtomOne hub where the signers are each members of the
+DAOs may operate with logic on Gno.land, or, represented as a m-of-n
+multisig account on Gno.land where the signers are each members of the
 DAO’s council, where m is more than ½ n and also m is 3 or more. In all cases
 financial transactions from the DAO’s treasury must follow the passage of
 governance proposals on the DAO.
