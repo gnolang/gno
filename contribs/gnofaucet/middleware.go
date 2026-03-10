@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"strings"
 	"time"
 
@@ -110,7 +111,7 @@ func captchaMiddleware(secret string) faucet.Middleware {
 			}
 
 			// Verify the captcha response
-			if err := checkRecaptcha(secret, strings.TrimSpace(meta.Captcha)); err != nil {
+			if err := checkHcaptcha(secret, strings.TrimSpace(meta.Captcha)); err != nil {
 				return spec.NewJSONResponse(
 					req.ID,
 					nil,
@@ -124,28 +125,29 @@ func captchaMiddleware(secret string) faucet.Middleware {
 	}
 }
 
-// checkRecaptcha checks the captcha challenge
-func checkRecaptcha(secret, response string) error {
+// checkHcaptcha checks the captcha challenge
+func checkHcaptcha(secret, response string) error {
 	// Create an HTTP client with a timeout
 	client := &http.Client{
 		Timeout: time.Second * 10,
 	}
 
+	// Craft the form-encoded request body
+	form := url.Values{}
+	form.Set("secret", secret)
+	form.Set("response", response)
+
 	// Create the request
 	req, err := http.NewRequest(
 		http.MethodPost,
 		siteVerifyURL,
-		nil,
+		strings.NewReader(form.Encode()),
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create request, %w", err)
 	}
 
-	// Craft the request query string
-	q := req.URL.Query()
-	q.Add("secret", secret)
-	q.Add("response", response)
-	req.URL.RawQuery = q.Encode()
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	// Execute the verify request
 	resp, err := client.Do(req)
@@ -165,7 +167,7 @@ func checkRecaptcha(secret, response string) error {
 		return fmt.Errorf("failed to decode response, %w", err)
 	}
 
-	// Check if the recaptcha verification was successful
+	// Check if the hcaptcha verification was successful
 	if !body.Success {
 		return errInvalidCaptcha
 	}
