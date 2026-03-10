@@ -308,7 +308,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAnyAll)
 		var didPanic, didError bool
 		startedAt := time.Now()
-		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
+		didPanic = catchPanicWithReporter(reporters.NewDirectReporter(io.Err()), pkg.Dir, pkgPath, func() {
 			if mod == nil || !mod.Ignore {
 				errs := lintTypeCheck(reporters.NewDirectReporter(io.Err()), pkg.Dir, mpkg, gno.TypeCheckOptions{
 					Getter:     opts.TestStore,
