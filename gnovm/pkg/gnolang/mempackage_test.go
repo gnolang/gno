@@ -341,7 +341,7 @@ func TestIsVersionSuffix(t *testing.T) {
 		{"v10", true},
 		{"v99", true},
 		{"v0", true}, // v0 is a version suffix
-		{"v", false},  // incomplete
+		{"v", false}, // incomplete
 		{"v2beta", false},
 		{"2", false}, // missing v prefix
 		{"", false},
