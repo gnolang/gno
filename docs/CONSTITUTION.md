@@ -33,10 +33,10 @@ this Constitution for Gno.land.
 
  * Constitution Only: When something is governed by the "Constitution Only" its
    governing rules must be specified within the living Constitution directly;
-   Not in any Laws, Bylaws, or Mandates.
+   not in any Laws, Bylaws, or Mandates.
 
  * Simple Majority, Supermajority, and Constitutional Majority Decision: See
-   "GovDAO Decisions" and "Common DAO Spec"
+   "GovDAO Decisions" and "Common DAO Spec".
 
  * Oversight Body: Initially NT,LLC as represented by a multisig account, but
    eventually represented by an Oversight DAO on Gno.land.
@@ -221,7 +221,7 @@ $GNOT is made transferrable._
 
 No spending proposal should be voted on unless an accountability framework is
 first defined by a Constitutional Amendment pre-approved by the Oversight Body
-such that all spending is reviewed by an independent committees or entities
+such that all spending is reviewed by independent committees or entities
 before and after the spending decision.
 
 No subDAO of a top-level Core DAO may make funding decisions from the Core
@@ -258,7 +258,7 @@ for the Gno.land blockchain and its users and includes (and must prioritize):
  * Atom.One IBC and ICS
  * Official standard reference browser extension wallet
  * Official standard hardware wallet software
- * All other software mentioned in the Constitution Alone
+ * All other software mentioned in the Constitution Only
 
 Essential Services are the set of services rendered by machine or man that are
 deemed essential for the operation of Gno.land and for users to securely
@@ -319,7 +319,7 @@ All funding decisions from the Ecosystem Treasury require a Supermajority
 Decision by GovDAO. 
 
 All funding decisions from the Ecosystem Treasury must be based on well defined
-heuristics as defined in the Constitution Alone, or based on quality as
+heuristics as defined in the Constitution Only, or based on quality as
 assessed by the review of council members of the relevant GovDAO DAO. Naturally
 council members must abstain from voting on matters with any conflict of
 interests, but the Oversight Body is specifically responsible for (and has the
@@ -473,7 +473,7 @@ See also "Security Treasury".
 
 ## Gno.land Pre-Migration Validators 
 
-Until Atom.One ICS is ready Gno.land the validator selection mechanism is
+Until Atom.One ICS is ready, Gno.land's validator selection mechanism is
 determined by GovDAO Supermajority Decision.
 
 Priority should be given to Atom.One validators and Gno.land core developers.
@@ -601,7 +601,7 @@ T3 membership is decided automatically based on a delegation system where:
 
  * T1 members get 3 invitation points.
  * T2 members get 2 invitation points.
- * T3 members get 1 invitation points.
+ * T3 members get 1 invitation point.
 
 At least 2 invitation points from at least 2 members must be delegated for T3
 membership. Invitation points are whole numbers; they are not divisible.
@@ -850,7 +850,7 @@ or chosen an implementation of GnotDAO where:
    users the $GNOT may be returned to the user immediately.
 
 No Constitutional Amendments may inflate the $GNOT supply above what is already
-declared even with Constitutional Amendments.
+declared.
 
 ## Gno.land Laws
 
@@ -924,7 +924,7 @@ This is achieved by the following:
    includes the blockchain of blocks of txs and a partial Genesis State that
    omits the End State of the previous chain ID; and also the last node release
    for that chain ID.
- * A simple bash script that to derive the latest state from the first Genesis
+ * A simple bash script to derive the latest state from the first Genesis
    by running all txs in sequence from the first chain ID to the last.
 
 Blockchain nodes that have the full transaction history will always be able to
@@ -1028,7 +1028,7 @@ Law:
    the year 1985.
 
  * photographs or animated or AI rendered depictions of naked minors under the
-   age of 18 or humanoid figures that could reasonably construed to be a minor
+   age of 18 or humanoid figures that could reasonably be construed to be a minor
    including games or movies that include such material; except of classic
    sculptures hand-made prior to the year 1985.
 
@@ -1065,7 +1065,7 @@ international security, and as such they belong on Gno.land as do any
 discussions. The privacy of individuals mentioned in those files is not yet
 protected by this Constitution but should be clarified with an amendment.
 
-Only Banned Offensive Material and harmful material may be purged
+Only Banned Offensive Material may be purged
 from the blockchain state by marking code packages or state objects (including
 entire realms) as such with a [State Purge Transaction](#state-purge-transactions).
 
@@ -1138,7 +1138,7 @@ User or realm tokens or property that are determined to be derived from any
 hacks, thefts, or exploits and are not determined to have already been
 transferred to unrelated parties may be frozen by a State Freeze Transaction or
 the funds used to recompense associated victims as determined by a future
-Constitutional Amendment and governed by the Constitution Alone.
+Constitutional Amendment and governed by the Constitution Only.
 
 Each recompense decision must be independent of another and require a
 Supermajority Decision of GovDAO. The public must be provided sufficient
@@ -1171,7 +1171,7 @@ GovDAO is responsible for ensuring that GnoWeb and Gno.land track audit reports
 of all code uploaded to Gno as well as the code of the blockchain and VM
 itself.
 
-All auditing entity must be qualified; they must be vetted and whitelisted by
+All auditing entities must be qualified; they must be vetted and whitelisted by
 GovDAO Supermajority Decision on a Gno.land realm managed directly by GovDAO
 (the Auditor and Audits Registry). The auditing entity must be vetted with
 sufficient due diligence and already have a good reputation and track record.
@@ -1260,7 +1260,7 @@ TODO Rest to be determined after launch by a Constitutional Amendment.
 ## Name Registration
 
 The primary purpose is for providing human readable names for package paths
-(e.g. `org\_name` in `"gno.land/r/org_name/pkg_name"`).
+(e.g. `org_name` in `"gno.land/r/org_name/pkg_name"`).
 
 Name registration will not initially be implemented.
 
@@ -1312,7 +1312,7 @@ with the Constitution--but all GovDAO members with any conflicts of tokens
 MUST abstain from voting. If a quorum cannot possibly be reached due to
 conflict of interests the Oversight Body may waive the quorum requirement.
 
-Diversification for each treasury must adhere to an Treasury Diversification
+Diversification for each treasury must adhere to a Treasury Diversification
 Template listed explicitly in this Constitution by a future amendment that
 declares the desired target ratio of Approved Treasury Diversification Tokens,
 and the following:
@@ -1544,7 +1544,7 @@ sub-DAOs and so on are called the Descendants of a DAO.
 
 Every DAO, upon creation, must have a Charter (which is composed of Purpose and
 Description), an initial set of Council members (which may be empty) and may
-also have  Bylaws and Mandates, The Purpose and Description must be plaintext
+also have Bylaws and Mandates. The Purpose and Description must be plaintext
 files. The Bylaws and Mandates must be named plaintext files or folders of
 plaintext files, or folders of folders.
 
@@ -1587,8 +1587,8 @@ By default, unless specified otherwise in its Governing Documents, the
 following rules apply for Council membership election:
 
 - the Council may elect one or more new members, and/or remove one or more
-  members, by Super Majority vote. (self mutating).   
-- the DAO’s Ancestors may modify the Council membership with a Super Majority
+  members, by Supermajority vote. (self mutating).   
+- the DAO’s Ancestors may modify the Council membership with a Supermajority
   vote.
 
 Each DAO may have an associated crypto address which can hold any number of
