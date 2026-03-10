@@ -68,6 +68,15 @@ this Constitution for Gno.land.
 
  * Fully Audited: See "Software Security".
 
+ * Seven Mandates of Gno.land: The following immutable mandates:
+   1. Protect the user; preserve user data and intent.
+   2. Preserve the spirit of the Genesis Constitution.
+   3. Safety over everything else, followed by intuitive simplicity.
+   4. Factor (keep minimal) Constitutional and Legislative Amendments.
+   5. Do not require a name or identity for any core services.
+   6. Aim to be perfect to serve one thousand years.
+   7. Expand the light unto the multitude and nations.
+
 ## Genesis Allocation
 
 At Gno.land Genesis there will be one billion $GNOT tokens.
@@ -160,9 +169,10 @@ $GNOT, or even those forked of Gno.land and the GnoVM in the future.
 
 ## $GNOT (Deflationary) Inflation
 
-From the date of launch every year 33.33*(0.9^Y) million $GNOT 3.333% of the
-Gno.land Genesis $GNOT supply will be inflated continuously as follows (where Y
-is the year from launch starting from 0). Any inflationary $GNOT not
+From the date of launch every year 33.33*(0.9^Y) million $GNOT will be inflated
+continuously (where Y is the year from launch starting from 0). This is 3.333%
+of the Gno.land Genesis $GNOT supply in the first year, decaying by 10% each
+subsequent year. Any inflationary $GNOT not
 transferred will accrue until the Gno.land software is updated to transfer such
 funds.
 
@@ -443,8 +453,7 @@ excess $GNOT deposits per realm. This is not considered part of Revenue.
 When the $GNOT storage deposit rate decreases (not automatically by the $GNOT
 burn mechanism described below, but by the decision of GovDAO to lower the
 rate) 25% of the excess $GNOT goes into the Security Treasury and the remainder
-goes to
-the each segregated virtual account per realm ($GNOT of the realm's SDDCA) to
+goes to each segregated virtual account per realm ($GNOT of the realm's SDDCA) to
 be used only for future discounts on transactions for that specific realm.
 These SDDCA $GNOT tokens may be transferred to other SDDCAs by rules defined in
 the Governing Documents but their $GNOT may never be withdrawn even upon
@@ -455,7 +464,7 @@ DDCA $GNOTs may be burned automatically by a rate set by an amendment to the
 Gno.land Constitution not to exceed 10% a year. This is to prevent stagnant
 $GNOT from limiting the allocated storage capacity of Gno.land and thereby
 reducing its utility. $GNOT burned in this way will also reduce the $GNOT
-storage deposit rate automatically but not trigger any of the the mechanisms
+storage deposit rate automatically but not trigger any of the mechanisms
 described here.
 
 See also "Security Treasury".
@@ -1098,7 +1107,7 @@ self-contained open-source AI models and tools for automated or semi-automatic
 purging of state; or be used to pay a moderation team as determined by this
 Constitution. The confiscation of deposited $GNOT for such purposes must
 require a special Purge Deposit Confiscation Transaction signed by any parties
-as determined by this Constitution, and will fail if the purge occured less
+as determined by this Constitution, and will fail if the purge occurred less
 than 6 months ago or if the state was marked since by a False Positive Purge
 Detection Transaction.
 
@@ -1194,8 +1203,7 @@ warrantees.
 
 Audit reports from non-qualified auditors may also be displayed on GnoWeb+Alts,
 but they must be folded away and require at least one more click or user action
-to show along with a prominent warning that those auditors have not been vetted
-nor unqualified.
+to show along with a prominent warning that those auditors have not been vetted.
 
 GnoWeb+Alts may display with any Gno code any overall audit status, badge, or
 similar (Audit Status) derived from all Qualified Audits and any standing
@@ -1252,7 +1260,7 @@ TODO Rest to be determined after launch by a Constitutional Amendment.
 The primary purpose is for providing human readable names for package paths
 (e.g. `org\_name` in `"gno.land/r/org_name/pkg_name"`).
 
-Name registration will not intially be implemented.
+Name registration will not initially be implemented.
 
 There will be at most one core name registration system for Gno.land, though
 anyone may deploy their own for any purpose not managed by Gno.land, and as per
@@ -1332,7 +1340,7 @@ and the following:
  * In no case may the total amount of $GNOT sold for all treasuries per month
    for diversification purposes exceed 50% of the average of ($GNOT inflation
    rate, and the past month's transaction fee revenue), with priority given to
-   ValTreasury, then to PayTreasury, then to ServicesTreasury.
+   ValTreasury, then to PayTreasury, then to CoreTreasury.
 
  * All trades for diversification purposes must be performed by audited and
    approved Gno logic for Gno AMM contracts running on Gno.land. No person or
