@@ -342,10 +342,11 @@ repos already hosted under the organization.
 
 ### Ecosystem Treasury
 
-These funds are primarily reserved for long-term rewarding the creators of
-External Contributions defined as contributions of Open Source IP mentioned in
-any of the Governing Documents and Gno software not already paid for by other
-means. 
+These funds are reserved for rewarding the creators of External Contributions
+defined as contributions of Open Source IP mentioned in any of the Governing
+Documents and Gno software not already paid for by other means. Recognizing
+and rewarding contributors is essential to the long-term health of Gno.land
+and its ecosystem.
 
 At most 1/4 of the GovDAO 11.9% genesis allocation may be distributed to prior
 contributors by GovDAO Supermajority Decision. Present GovDAO members are not
@@ -465,23 +466,19 @@ funded.
     * 10% if less than 3 years of runway, or
     *  5% if more than 3 years of runway.
 
- 3. **Core Treasury** receives up to 25% of total Revenue from the remainder.
+ 3. The remainder is split equally:
+    * **Core Treasury**: 25%
+    * **Security Treasury**: 25%
+    * **Ecosystem Treasury**: 25%
+    * **Reserve Treasury**: 25%
 
- 4. **Security Treasury** receives 10% of the remainder.
-
- 5. **Reserve Treasury** receives anything left over.
-
-ValTreasury has the highest priority because the blockchain cannot function
-securely without validators. PayTreasury is next because GovDAO members can
-theoretically still function without pay but not indefinitely. The PayTreasury
-runway must take into account future projected growth of the paid T1 and T2
-members.
-
-Core Treasury has lower priority because essential services should generally
-pay for themselves with micropayments or subscriptions or by other means, and
-the Core Treasury also receives one third of inflation. The Security Treasury
-receives a modest share to ensure ongoing funding for audits and recompense
-independent of excess $GNOT deposit events.
+ValTreasury and PayTreasury have priority because the blockchain cannot
+function without validators or governance. The PayTreasury runway must take
+into account future projected growth of the paid T1 and T2 members. The
+remaining revenue is split equally among the four other treasuries. The Core
+Treasury also receives one third of inflation; the equal split ensures that
+Security, Ecosystem, and Reserve receive meaningful perpetual funding
+independent of decaying inflation.
 
 ## Excess $GNOT Deposits
 
