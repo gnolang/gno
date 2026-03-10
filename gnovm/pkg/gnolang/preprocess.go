@@ -5539,9 +5539,12 @@ func findDependentNames(decl Node, dst dependencySet, pn *PackageNode, fn *FileN
 			case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
 				var dt *DeclaredType
 				x := cn.X.GetAttribute(ATTR_TYPEOF_VALUE)
+				// A CallExpr stores its return type(s) as *tupleType; unwrap a
+				// single-element tuple to reach the actual receiver type.
+				// (e.g. var A = getT().Method() where getT returns T)
 				if tt, ok := x.(*tupleType); ok {
-					if len(tt.Elts) > 1 {
-						panic("invalid number of values in tuple")
+					if len(tt.Elts) != 1 {
+						break // multi-return used as receiver is a compile error
 					}
 					x = tt.Elts[0]
 				}
@@ -5550,21 +5553,13 @@ func findDependentNames(decl Node, dst dependencySet, pn *PackageNode, fn *FileN
 					dt = tp
 				case *PointerType:
 					dt = tp.Elt.(*DeclaredType)
-				case *tupleType:
-					// TODO: Why?
-					dt = tp.Elts[0].(*DeclaredType)
 				default:
-					panic(fmt.Sprintf(
-						"%s/%s:%s: unexpected type in selectorexpr: %T",
-						pn.PkgPath,
-						fn.FileName,
-						cn.Pos.String(),
-						tp,
-					))
+					break // unexpected type; skip analysis
 				}
-				if dt.PkgPath != pn.PkgPath {
-					// It's from another package; we shouldn't traverse into
-					// it.
+				if dt == nil || dt.PkgPath != pn.PkgPath {
+					// dt is nil (unexpected type) or from another package;
+					// cross-package methods cannot reference current-package
+					// variables, so they add no ordering constraints here.
 					break
 				}
 				method := dt.Methods[cn.Path.Index].V.(*FuncValue)
