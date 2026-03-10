@@ -366,9 +366,9 @@ are the same.
 
 The current realm and previous realm do not depend on any implicit crossing to
 the receiver's borrowed/storage realm even if the borrowed realm is the last
-realm of the call stack equal to `m.Realm`. In other words `runtime.CurrentRealm()`
-may be different from `m.Realm` (the borrow realm) when a receiver is called on
-a foreign object.
+realm of the call stack. In other words `runtime.CurrentRealm()` may differ
+from the Machine's active storage realm (internally `m.Realm`, i.e. the borrow
+realm) when a method is called on a receiver residing in a foreign realm.
 
 ### Implicit Realm-Storage Borrowing
 
@@ -466,7 +466,7 @@ belongs to the other person.) In the future the `attach()` function will
 prevent a new unreal object from being taken.
 
 For how crossing rules apply to MsgCall, MsgRun, and package initialization,
-see [Application](#application).
+see [Guidelines](#guidelines).
 
 ## Realm Boundaries
 
@@ -653,7 +653,7 @@ For now this can be simulated by implementing an (immutable non-upgradeable)
 realm crossing-function that cross-calls into itself once more before calling
 the callback function.
 
-## Application
+## Guidelines
 
 P package code cannot contain crossing functions. P package code also cannot
 import R realm packages. But code can call named crossing functions e.g.
@@ -681,9 +681,6 @@ declared, by crossing? That's intrusive, but sometimes desired.
 
 You can always cross-call a method from a non-crossing method if you need it.
 
-`runtime.CurrentRealm()` shifts to `runtime.PreviousRealm()` if and only if a
-function is called like `fn(cross, ...)`.
-
 ### MsgCall
 
 MsgCall may only call crossing functions. This is to prevent potential
@@ -702,7 +699,7 @@ func Public(_ realm) {
     runtime.PreviousRealm()
 
     // Returns (
-    //     addr:<derived_from "gno.land/r/test/test">,
+    //     addr:chain.PackageAddress("gno.land/r/test/test"),
     //     pkgpath:"gno.land/r/test/test"
     // ) == testing.NewCodeRealm("gno.land/r/test/test")
     runtime.CurrentRealm()
@@ -784,7 +781,7 @@ func init() {
     runtime.PreviousRealm()
 
     // Returns (
-    //     addr:<derived_from "gno.land/r/test/test">,
+    //     addr:chain.PackageAddress("gno.land/r/test/test"),
     //     pkgpath:"gno.land/r/test/test"
     // ) == testing.NewCodeRealm("gno.land/r/test/test")
     runtime.CurrentRealm()
@@ -928,11 +925,10 @@ directory, while overrides for testing are defined in
 `gnovm/tests/stdlibs/testing/context_testing.gno`. All stdlibs functions are
 available unless overridden by the latter.
 
-## Future Work
+## Proposed Changes
 
-`testing.SetOriginCaller()` should maybe be deprecated in favor of
-`testing.SetRealm(testing.NewUserRealm(user))` renamed to
+`testing.SetOriginCaller()` may be deprecated in favor of
 `testing.SetRealm(testing.NewOriginRealm(user))`.
 
-`testing.SetRealm(testing.NewCodeRealm(path))` renamed to
-`testing.SetRealm(testing.NewPackageRealm(path))`.
+`testing.NewCodeRealm(path)` may be renamed to
+`testing.NewPackageRealm(path)`.
