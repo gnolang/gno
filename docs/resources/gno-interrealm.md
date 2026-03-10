@@ -375,23 +375,22 @@ realm) when a method is called on a receiver residing in a foreign realm.
 Besides (explicit) realm-context changes via the `fn(cross, ...)` cross-call
 syntax, implicit realm-storage-context changes occur when calling a
 non-crossing method of a receiver object residing in different realm-storage.
-This change in realm-storage-context allows any non-crossing method to directly
-modify its receiver (and also any objects directly reachable and residing in
-the same realm-storage) without changing the realm-context (so
-`runtime.CurrentRealm()` and `runtime.PreviousRealm()` do not change; the
-agency of the caller remains the same). This allows non-crossing methods of
-receivers to behave the same whether declared in a realm package or p package
-such that p package code copied over to a realm package or realm package code
-copied over to another realm have the exact same behavior. Crossing methods of
-a realm package would still behave differently when copied over to another
-realm as crossing-methods always change the realm-context and
-realm-storage-context to the declared realm.
-
-While the borrowed realm-storage-context allows the method to modify the
-receiver and objects in the same realm, objects reachable from the receiver but
-residing in a different realm-storage cannot be directly modified — the
+The realm-storage-context "borrows" to the receiver's realm, which allows the
+method to directly modify its receiver and any objects reachable from it that
+reside in the same realm-storage. The realm-context does not change (so
+`runtime.CurrentRealm()` and `runtime.PreviousRealm()` are unaffected; the
+agency of the caller remains the same). However, objects reachable from the
+receiver but residing in a *different* realm-storage cannot be modified — the
 `DidUpdate()` guard in the runtime enforces that only objects belonging to the
-current realm-storage-context (the borrowed realm) can be mutated.
+borrowed realm can be mutated.
+
+This borrowing behavior allows non-crossing methods of receivers to behave the
+same whether declared in a realm package or p package: p package code copied
+over to a realm package, or realm package code copied over to another realm,
+have the exact same behavior. Crossing methods of a realm package would still
+behave differently when copied over to another realm, as crossing-methods
+always change the realm-context and realm-storage-context to the declared
+realm.
 
 ### Crossing-Method Semantics
 
