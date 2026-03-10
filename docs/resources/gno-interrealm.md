@@ -40,6 +40,41 @@ and call functions in other realms while leveraging the language syntax rules of
 Go, enabling complex multi-user interactions while maintaining clear boundaries
 and permissions.
 
+### Realm-Context and Realm-Storage-Context
+
+All logic in Gno executes under two contexts that together govern identity and
+persistence:
+
+**Realm-context** determines `runtime.CurrentRealm()` and
+`runtime.PreviousRealm()`. It controls identity and agency: who is the current
+actor and who called them. The realm-context has an associated Gno address from
+which native coins can be sent and received. It changes only on explicit
+cross-calls (`fn(cross, ...)`).
+
+**Realm-storage-context** determines where new and modified objects are
+persisted during realm-transaction finalization. It changes on explicit
+cross-calls *and* on implicit borrow-crosses (calling a non-crossing method on
+a real object residing in a different realm). The realm-storage-context is not
+directly accessible at runtime and has no associated address.
+
+After an explicit cross-call, both contexts refer to the same realm. They
+diverge when calling a non-crossing method of a real object residing in a
+different realm — the realm-storage-context shifts to the receiver's realm
+while the realm-context stays the same.
+
+| Call type | Realm-context changes? | Realm-storage-context changes? |
+|---|---|---|
+| `fn(cross, ...)` to same realm | Yes* | No |
+| `fn(cross, ...)` to different realm | Yes | Yes |
+| `fn(nil, ...)` (non-crossing-call) | No | No |
+| Non-crossing method on real receiver in same realm | No | No |
+| Non-crossing method on real receiver in different realm | No | Yes |
+| Non-crossing method on unreal receiver | No | No |
+| Non-crossing function | No | No |
+
+\* `runtime.CurrentRealm()` returns the same realm, but `runtime.PreviousRealm()`
+shifts — what was current becomes previous.
+
 ```go
 // realm /r/alice/alice
 package alice
@@ -73,12 +108,6 @@ func Register(cur realm, name string) {
     alice.SetObject(cross, prof)
 }
 ```
-
-All logic in Gno executes under a current realm-context and
-realm-storage-context. The realm-context and realm-storage-context refer to the
-same realm after a crossing-call of a function or method, but they may diverge
-when calling a non-crossing method of a real object residing in a different
-realm than the current realm-context. More on this later.
 
 The Gno language is extended to support a `context.Context`-like argument to
 denote the current realm-context of a Gno function. This allows a user realm
