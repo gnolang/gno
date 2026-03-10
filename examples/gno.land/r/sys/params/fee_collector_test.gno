@@ -29,7 +29,7 @@ func TestSetFeeCollector(t *testing.T) {
 	urequire.NotPanics(
 		t,
 		func() {
-			dao.ExecuteProposal(cross, id)
+			dao.ExecuteProposal(cross, id, false)
 		},
 	)
 

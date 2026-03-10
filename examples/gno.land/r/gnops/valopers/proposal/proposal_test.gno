@@ -111,7 +111,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 			})
 
 			// Execute the proposal
-			dao.ExecuteProposal(cross, dao.ProposalID(0))
+			dao.ExecuteProposal(cross, dao.ProposalID(0), false)
 		})
 
 		// Send coins to be able to make a proposal
