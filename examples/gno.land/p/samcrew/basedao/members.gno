@@ -3,7 +3,7 @@ package basedao
 import (
 	"chain"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 	"gno.land/p/onbloc/json"
 )
 
