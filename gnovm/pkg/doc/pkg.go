@@ -50,7 +50,7 @@ func newPkgData(dir bfsDir, unexported bool) (*pkgData, error) {
 func newPkgDataFromMemPkg(mpkg *std.MemPackage, unexported bool) (*pkgData, error) {
 	pkg := &pkgData{
 		dir: bfsDir{
-			importPath: mpkg.Name,
+			importPath: mpkg.Path,
 			dir:        mpkg.Path,
 		},
 		fset: token.NewFileSet(),
