@@ -386,10 +386,11 @@ a realm package would still behave differently when copied over to another
 realm as crossing-methods always change the realm-context and
 realm-storage-context to the declared realm.
 
-If the receiver resides in realm-storage that differs from the caller's
-realm-storage-context such a receiver's non-crossing method cannot directly
-modify the receiver (nor any reachable object that resides in any realm-storage
-besides that of the caller's own realm-storage-context).
+While the borrowed realm-storage-context allows the method to modify the
+receiver and objects in the same realm, objects reachable from the receiver but
+residing in a different realm-storage cannot be directly modified — the
+`DidUpdate()` guard in the runtime enforces that only objects belonging to the
+current realm-storage-context (the borrowed realm) can be mutated.
 
 ### Crossing-Method Semantics
 
@@ -414,6 +415,47 @@ A crossing method declared in a realm cannot modify the receiver if the object
 resides in a different realm. However not all methods are required to be
 crossing methods, and crossing methods may still read the state of the receiver
 (and in general anything reachable is readable).
+
+```go
+// Type and methods declared in /r/alice/tokens
+package tokens
+
+type Token struct {
+    Owner   string
+    Balance int
+}
+
+// Non-crossing method: borrows receiver's storage realm.
+func (t *Token) Debit(amount int) {
+    t.Balance -= amount
+}
+
+// Crossing method: realm-context and realm-storage-context
+// shift to /r/alice/tokens (where the type is declared).
+func (t *Token) Transfer(cur realm, to string, amount int) {
+    t.Balance -= amount // FAILS if receiver resides outside /r/alice/tokens
+}
+```
+
+```go
+// /r/bob/bob stores a Token
+package bob
+
+import "gno.land/r/alice/tokens"
+
+var myToken *tokens.Token // persisted in /r/bob/bob
+
+func Spend(_ realm) {
+    // Non-crossing call: storage-context borrows to /r/bob/bob
+    // (receiver's realm). Debit() CAN modify myToken.
+    myToken.Debit(10) // ok: borrowed storage matches receiver
+
+    // Crossing call: storage-context shifts to /r/alice/tokens
+    // (where the type is declared), not /r/bob/bob (where myToken resides).
+    // Transfer() CANNOT directly modify myToken.
+    myToken.Transfer(cross, "g1...", 10) // fails: receiver in external realm
+}
+```
 
 New unreal objects reachable from the borrowed realm (or current realm if there
 was no method call that borrowed) become persisted in the borrowed realm (or
