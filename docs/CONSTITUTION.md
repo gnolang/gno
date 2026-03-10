@@ -223,9 +223,18 @@ token similar to Bitcoin.
 
 The inflated tokens will be distributed as follows:
 
- * One third to the Core Treasury.
- * One third to the Ecosystem Treasury.
- * One third to the Reserve Treasury.
+ * 10% to the Validator Services Treasury.
+ * 18% to the Core Treasury.
+ * 18% to the Ecosystem Treasury.
+ * 18% to the GovDAO Pay Treasury.
+ * 18% to the Security Treasury.
+ * 18% to the Reserve Treasury.
+
+The ValTreasury and PayTreasury inflation shares are each scaled linearly from
+100% at zero years of runway to 0% at five years of runway; the unallocated
+portion is redirected to the Ecosystem Treasury. This prevents these treasuries
+from accumulating excessive surpluses during periods of high $GNOT valuation
+while directing the surplus toward ecosystem contributor rewards.
 
 ## Gno.land Treasuries
 
@@ -399,7 +408,7 @@ into account the latest estimated projections including new T1 and T2 members.
 That said, T3 members may get paid by other means outside of the GovDAO Pay
 Treasury.
 
-Payment for any member from the GovDAO Pay Treasury may not exceed the 90th
+Payment for any member from the GovDAO Pay Treasury may not exceed the 75th
 percentile of senior software architect roles in the second highest paid city
 globally.
 
@@ -423,9 +432,9 @@ more than 25% of full-time to maintain any status regarding activity.
 ### Security Treasury
 
 The Security Treasury may only be used to fund the auditing of code deployed
-to Gno.land by Qualified Auditors, to assess and reward Bonded Auditors who
-submit valid Bonded Vulnerability Reports, and to recompense victims of
-exploits and fraud.
+to Gno.land by Qualified Auditors, to fund the development of AI-based
+auditing systems, to assess and reward Bonded Auditors who submit valid Bonded
+Vulnerability Reports, and to recompense victims of exploits and fraud.
 
 All funding decisions from the Security Treasury require a Supermajority
 Decision by GovDAO (naturally with members with any conflict of interests
@@ -458,27 +467,29 @@ funded.
     * 50% if less than 1 year of runway, or
     * 25% if less than 2 years of runway, or
     * 10% if less than 3 years of runway, or
-    *  5% if more than 3 years of runway.
+    *  5% if less than 5 years of runway, or
+    *  0% if more than 5 years of runway.
 
  2. **PayTreasury** receives a runway-based share of the remainder:
     * 50% if less than 1 year of runway, or
     * 25% if less than 2 years of runway, or
     * 10% if less than 3 years of runway, or
-    *  5% if more than 3 years of runway.
+    *  5% if less than 5 years of runway, or
+    *  0% if more than 5 years of runway.
 
- 3. The remainder is split equally:
-    * **Core Treasury**: 25%
+ 3. The remainder is split as follows:
+    * **Core Treasury**: 20%
     * **Security Treasury**: 25%
-    * **Ecosystem Treasury**: 25%
-    * **Reserve Treasury**: 25%
+    * **Ecosystem Treasury**: 40%
+    * **Reserve Treasury**: 15%
 
 ValTreasury and PayTreasury have priority because the blockchain cannot
 function without validators or governance. The PayTreasury runway must take
 into account future projected growth of the paid T1 and T2 members. The
-remaining revenue is split equally among the four other treasuries. The Core
-Treasury also receives one third of inflation; the equal split ensures that
-Security, Ecosystem, and Reserve receive meaningful perpetual funding
-independent of decaying inflation.
+Ecosystem Treasury receives the largest share of the remainder to ensure
+meaningful and perpetual funding for contributor rewards. All four treasuries
+also receive inflation shares, and inflation surplus from treasuries with
+sufficient runway is redirected to the Ecosystem Treasury.
 
 ## Excess $GNOT Deposits
 
