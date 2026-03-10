@@ -5,14 +5,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/lint"
+	"github.com/gnolang/gno/gnovm/pkg/lint/reporters"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -272,7 +272,7 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	}
 
 	// read files
-	files, err := parseFiles(m, args, stderr)
+	files, err := parseFiles(m, args, reporters.NewDirectReporter(stderr))
 	if err != nil {
 		return err
 	}
@@ -306,36 +306,7 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	return runExpr(m, cfg.expr)
 }
 
-// derivePkgPath derives the package path of the files to run from the first
-// argument: from its "// PKGPATH:" directive if it is a (file)test file, or
-// else from the module path of the gnomod.toml file in its directory.
-// It returns "" if neither is found.
-func derivePkgPath(arg string) (string, error) {
-	dir := arg
-	if s, err := os.Stat(arg); err != nil {
-		return "", err
-	} else if !s.IsDir() {
-		dir = filepath.Dir(arg)
-		body, err := os.ReadFile(arg)
-		if err != nil {
-			return "", err
-		}
-		pkgPath, err := parsePkgPathDirective(string(body), "")
-		if err != nil || pkgPath != "" {
-			return pkgPath, err
-		}
-	}
-	mod, err := gnomod.ParseDir(dir)
-	switch {
-	case errors.Is(err, gnomod.ErrNoModFile):
-		return "", nil
-	case err != nil:
-		return "", err
-	}
-	return mod.Module, nil
-}
-
-func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
+func parseFiles(m *gno.Machine, fpaths []string, reporter lint.Reporter) ([]*gno.FileNode, error) {
 	files := make([]*gno.FileNode, 0, len(fpaths))
 	var didPanic bool
 	for _, fpath := range fpaths {
@@ -344,7 +315,7 @@ func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser) ([]*gno.
 			if err != nil {
 				return nil, err
 			}
-			subFiles, err := parseFiles(m, subFns, stderr)
+			subFiles, err := parseFiles(m, subFns, reporter)
 			if err != nil {
 				return nil, err
 			}
@@ -357,7 +328,7 @@ func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser) ([]*gno.
 		}
 
 		dir, fname := filepath.Split(fpath)
-		didPanic = catchPanic(dir, fname, stderr, func() {
+		didPanic = catchPanicWithReporter(reporter, dir, fname, func() {
 			files = append(files, m.MustReadFile(fpath))
 		})
 	}

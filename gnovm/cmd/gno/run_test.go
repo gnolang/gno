@@ -94,10 +94,10 @@ func TestRunApp(t *testing.T) {
 			args: []string{"run", "../../tests/integ/several-files-multiple-errors/"},
 			stderrShouldContain: func() string {
 				lines := []string{
-					"../../tests/integ/several-files-multiple-errors/file2.gno:3:5: expected 'IDENT', found '{' (code=gnoParserError)",
-					"../../tests/integ/several-files-multiple-errors/file2.gno:5:1: expected type, found '}' (code=gnoParserError)",
-					"../../tests/integ/several-files-multiple-errors/main.gno:5:5: expected ';', found example (code=gnoParserError)",
-					"../../tests/integ/several-files-multiple-errors/main.gno:6:2: expected '}', found 'EOF' (code=gnoParserError)",
+					"../../tests/integ/several-files-multiple-errors/file2.gno:3:5: error: expected 'IDENT', found '{' (gnoParserError)",
+					"../../tests/integ/several-files-multiple-errors/file2.gno:5:1: error: expected type, found '}' (gnoParserError)",
+					"../../tests/integ/several-files-multiple-errors/main.gno:5:5: error: expected ';', found example (gnoParserError)",
+					"../../tests/integ/several-files-multiple-errors/main.gno:6:2: error: expected '}', found 'EOF' (gnoParserError)",
 				}
 				return strings.Join(lines, "\n") + "\n"
 			}(),
