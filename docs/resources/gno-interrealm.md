@@ -465,7 +465,7 @@ belongs to the other person.) In the future the `attach()` function will
 prevent a new unreal object from being taken.
 
 For how crossing rules apply to MsgCall, MsgRun, and package initialization,
-see [Guidelines](#guidelines).
+see [Message Types and Testing](#message-types-and-testing).
 
 ## Realm Boundaries
 
@@ -679,6 +679,8 @@ quasi-realm self-encapsulated object in need to modify the realm in which it is
 declared, by crossing? That's intrusive, but sometimes desired.
 
 You can always cross-call a method from a non-crossing method if you need it.
+
+## Message Types and Testing
 
 ### MsgCall
 
