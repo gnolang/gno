@@ -465,6 +465,21 @@ Guilhem, Ray, and Omar._
 
 **Gno is the first general purpose _multi-user_ programming language.**
 
+By "multi-user" we mean a language where (1) multiple users' code and data
+coexist in a shared persistent heap, (2) trust boundaries between users are
+enforced by the language itself--not by the operating system, a hypervisor, or
+ad-hoc middleware--and (3) inter-user interoperability uses the same syntax and
+type system as intra-user code. Prior systems have achieved subsets of these
+properties: MUMPS (1966) shares persistent global state across users but has no
+language-level trust boundaries; MOO (1990) and LPC (1989) provide multi-user
+object ownership in virtual worlds but are domain-specific MUD languages, not
+general purpose; Erlang (1986) excels at concurrency but all processes are
+equally trusted with no per-user security model; Solidity (2015) and Move
+(2019) handle multi-user smart contracts but lack transparent inter-module
+interoperability with a shared heap (as detailed [below](#gno-vs-existing-smart-contract-platforms)).
+Gno is the first language to combine all three properties in a general purpose
+language based on an existing mainstream language (Go).
+
 Gno is a minimal extension of the Go language for multi-user programming. Gno
 allows a massive number of programmers to iteratively and interactively develop
 a single shared program such as Gno.land (making it ideal for interoperable
