@@ -266,11 +266,6 @@ deemed Core Software GovDAO must ensure the continuous and timely monitoring of
 future improvements and updates by reasonable funding if necessary from the
 Core Software Treasury to keep Gno.land and its users safe.
 
-Funding decisions for any implementations of any consensus engine (such as
-Tendermint2), GnoVM, the "gno" cli, or any alternative implementations of Gno
-(whether compiler or interpreter) require NT,LLC pre-approval for a period of 4
-years. Funding for the monitoring of improvements and updates to these software
-do not require NT,LLC pre-approval.
 
 GovDAO is required to use a legal entity such as NT,LLC or any new entities
 (Proxy Entity) to keep ownership of IP on behalf of the Gno.land chain. New
@@ -280,17 +275,11 @@ may occur without the prior approval of the relevant GovDAO DAO and Oversight
 Body. Each IP repo must have a top-level Markdown file describing the proxy
 relationship (except for Tendermint2 and the GnoVM) 
 
-Refactoring of projects out of the genesis monorepo should be coordinated with
-NT,LLC but in such a way that preserves the history of all prior commits
-relevant to all the files of each project (via the git "--follow" flag) or
-otherwise as agreed with NT,LLC. The ownership of the genesis monorepo and its
-containing organization (e.g. "gnolang" on Github) and repos under this
-organization is by NT,LLC; changes to the ownership of any of these repos
-require NT,LLC approval. That said Gno.land is not required to use these
-particular repos as long as the commit history is preserved in any forks
-thereof. The expectation is for NT,LLC and GovDAO to come to agreement about
-NT,LLC serving as the Proxy Entity for some or most of the repos already hosted
-under the organization.
+Refactoring of projects out of the genesis monorepo should preserve the
+history of all prior commits relevant to all the files of each project (via the
+git "--follow" flag). The expectation is for the Proxy Entity and GovDAO to
+come to agreement about serving as the Proxy Entity for some or most of the
+repos already hosted under the organization.
 
 ### Essential Services Treasury
 
@@ -954,12 +943,6 @@ constitution and with a new governance body. Such a fork will be considered a
 Qualified Fork even if its governance member set is completely independent of
 the original GovDAO members.
 
-No Constitutional Amendment is considered valid that restricts the rights of
-NT,LLC or reduces its powers or authority as declared in this Constitution
-without the express permission of NT,LLC. This includes any modifications to
-the structure and voting rules of GovDAO.
-
-All GovDAO members agree to help enforce these rights of NT,LLC.
 
 ## Principle of the Chain
 
@@ -1405,7 +1388,7 @@ and the following:
    other tokens of the Approved Treasury Diversification Tokens must be
    stablecoins FULLY backed by collateral.
    * Coins that are FULLY backed by silver via decentralized and publicly
-     auditable depositories approved by GovDAO AND NewTendermint,LLC are also
+     auditable depositories approved by GovDAO are also
      considered stablecoins.
    * Tether and all stablecoins backed by any amount of Tether are never
      permitted.
@@ -1482,8 +1465,7 @@ may vote YES or NO on one or both proposals.
      by NewTendermint,LLC to point to both chains; and both chains will be
      deemed to be Qualified Forks. Any royalty payments due to the original
      chain may be directed to either fork or split between the two forks as
-     determined by NewTendermint,LLC; or even nullified but only if
-     NewTendermint,LLC does not have any conflict of interest.
+     determined by NewTendermint,LLC.
 
 In all cases any new forks that include "Gno" in the name or chain ID must get
 approved by NewTendermint,LLC.
@@ -1704,22 +1686,14 @@ Tendermint2 like the GnoVM is owned by and funded by NT,LLC. The funding for
 the development of the above is NT,LLC. Failing the above GovDAO may decide to
 fork Tendermint2 on a branch with a unique name with the above as priorities.
 
-No development or endorsement of quantum-proof modifications to Gno.land Core
-Software or any consensus engine may take place without the pre-approval of
-NT,LLC (or its delegate) of its design specification. GovDAO must use a
-reasonable amount of funds (under the typical salary for a software architect
-for a year) to collect proposals for such specifications to be approved by
-NT,LLC (or its delegate) before funding for its development.
-
 ### New Cryptographic Primitives or Implementations
 
-Any new cryptographic primitives or implementations must require NT,LLC
-pre-approval unless NT,LLC designates this role to a Cryptography Committee
-also approved by GovDAO with at least 3 T1 or T2 members who are respected and
-have well-cited publications in the field of cryptography and at least a
-doctorate degree in cryptography or relevant fields in mathematics, and at
-least 1 T1 or T2 members who are equally expert in the field of quantum
-computing.
+Any new cryptographic primitives or implementations must be approved by
+a Cryptography Committee approved by GovDAO with at least 3 T1 or T2 members
+who are respected and have well-cited publications in the field of cryptography
+and at least a doctorate degree in cryptography or relevant fields in
+mathematics, and at least 1 T1 or T2 members who are equally expert in the
+field of quantum computing.
 
 Such new cryptographic primitives or implementations have a need that is not
 met by the existing core software.
