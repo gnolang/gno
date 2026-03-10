@@ -829,6 +829,7 @@ become deprecated.
 package myrealm
 
 import (
+    "chain/runtime"
     "testing"
 )
 
@@ -869,6 +870,7 @@ func TestFoo(t *testing.T) {
 package test
 
 import (
+    "chain/runtime"
     "testing"
 
     "gno.land/r/user/myrealm"
