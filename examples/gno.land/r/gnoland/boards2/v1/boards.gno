@@ -107,6 +107,12 @@ func getThread(board *boards.Board, threadID boards.ID) (*boards.Post, bool) {
 	return thread, found
 }
 
+// getReply returns a thread comment or reply.
+func getReply(thread *boards.Post, replyID boards.ID) (*boards.Post, bool) {
+	meta := thread.Meta.(*ThreadMeta)
+	return meta.AllReplies.Get(replyID)
+}
+
 // mustGetThread returns a thread or panics when it's not found.
 func mustGetThread(board *boards.Board, threadID boards.ID) *boards.Post {
 	thread, found := getThread(board, threadID)
@@ -118,7 +124,7 @@ func mustGetThread(board *boards.Board, threadID boards.ID) *boards.Post {
 
 // mustGetReply returns a reply or panics when it's not found.
 func mustGetReply(thread *boards.Post, replyID boards.ID) *boards.Post {
-	reply, found := thread.Replies.Get(replyID)
+	reply, found := getReply(thread, replyID)
 	if !found {
 		panic("reply does not exist with ID: " + replyID.String())
 	}
