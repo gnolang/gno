@@ -19,6 +19,7 @@ type RuleInfo struct {
 
 type RuleContext struct {
 	PkgPath string
+	IsTest  bool
 	File    *gnolang.FileNode
 	Source  string
 	Parents []gnolang.Node
