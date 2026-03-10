@@ -257,7 +257,10 @@ From a popular meme regarding surveillance technology:
 
 Recent Amazon datacenter outages were caused by administrative error where
 internal AI was allowed to make changes to production systems without human
-oversight. AI armageddon global scenarios are much more terrifying when
+oversight. In February 2026 Kim Dotcom [claimed that Palantir was hacked by an
+AI agent that gained super-user access](https://x.com/KimDotcom/status/2023165849721536672),
+alleging mass surveillance of world leaders including backdoored devices, cars,
+and jets. AI armageddon global scenarios are much more terrifying when
 considering all the backdoors that could be exploited by rogue AGI. Some of
 these backdoors may even be hijacked to cause physiological and psychological
 effects upon nearby people. All of these backdoors create more surface area for
@@ -460,6 +463,15 @@ same application. Generally interoperability between different modules are
 implemented with extra-language frameworks and libraries on top of an
 incomplete or primitive message-passing agent architecture; such interop
 function calls generally do not share the same call-stack nor memory space.
+Solidity's implicit `msg.sender` changes on external calls have caused billions
+of dollars in exploits (reentrancy, confused-deputy attacks). In Gno the
+programmer writes `cross` at each call site that changes the realm-context,
+making every trust boundary visible in the source code and checkable by the
+compiler--a small syntactic cost for a huge safety gain. Move (used by Sui and
+Aptos) improves on Solidity with a linear type system that prevents reentrancy,
+but at the cost of a bespoke language unfamiliar to most developers and without
+a shared persistent object graph; inter-module calls in Move still pass values
+by copy or move rather than by shared reference.
 
 Second, **Solidity and other existing smart-contract languages/platforms do not
 support the automatic persistence and Merkle-ization of in-memory (heap)
@@ -470,7 +482,11 @@ collector or similar memory-management primitives. WASM-based smart contract
 systems do not support automatic persistence of objects without persisting the
 entire memory state of the module. This requires a specialized virtual machine
 such as the Gno VM which keeps track of every object created, modified, and
-deleted.
+deleted. Solidity developers manage storage slots and mappings manually; Move
+developers serialize structs into global storage with explicit `move_to` and
+`borrow_global` calls. Gno developers write ordinary Go structs and they
+persist automatically with Merkle-ization--a major reduction in complexity for
+the common case.
 
 The automatic persistence of in-memory objects of the GnoVM is like a memristor
 simulator. The advent of AI has created a new market for memristor-based memory
@@ -486,6 +502,15 @@ external-user objects in a uniform manner by language rules**. Alice cannot
 simply declare a structure object that references the structure object
 persisted in Bob's application and trust the garbage collector to retain Bob's
 object for as long as Alice's object is retained.
+
+Fourth, **the split between immutable p-packages (`gno.land/p/`) and mutable
+r-realms (`gno.land/r/`) solves a real trust problem that no other smart
+contract platform addresses at the package-system level.** Two mutable realms
+cannot trustlessly cooperate because either could upgrade its code, but an
+immutable p-package can enforce a contract between them. In Solidity, library
+contracts can be proxied and upgraded, undermining any guarantees they were
+supposed to provide. In Move, modules are also upgradeable by default. Gno
+bakes the immutability guarantee into the package path convention itself.
 
 **The above differentiating factors of the Gno language allows for the most
 succinct expression of a single-user application or multi-user application
@@ -1018,9 +1043,9 @@ Consider the following thought statement tree/graph:
        * [Wikipedia incorrectly states](https://en.wikipedia.org/wiki/Coinage_Act_of_1873) that bimetalism ended with the Coinage Act of 1873, and [prevents](https://en.wikipedia.org/wiki/Talk:Coinage_Act_of_1873) users from correcting the record.
        * By 1973, the U.S. dollar was fully decoupled from gold, transitioning to
          a fiat currency not backed by physical commodities.
-     * JP Morgan intentionally sank the Titanic to murder opposition such as
-       Straus and Astor, specifically to debase the dollar and to steal the works
-       of Nikola Tesla.
+     * Hypothesis: JP Morgan intentionally sank the Titanic to murder
+       opposition such as Straus and Astor, specifically to debase the dollar
+       and to steal the works of Nikola Tesla.
        * JP Morgan sank the Titanic to debase the dollar.
          * John Jacob Astor IV was the world's richest man; he opposed the
            Treasury and WWI.
@@ -1041,6 +1066,8 @@ Consider the following thought statement tree/graph:
                photographs of the Titanic showed fire damage during boarding.
                * The OceanGate submersible that later imploded on the way to view
                  the Titanic had in its board of directors a Rothschild.
+                 (See also [Babylon in Banking](https://ephesus.church#babylon-in-banking)
+                 and [The Rothschild Dynasty](https://ephesus.church#the-rothschild-dynasty).)
          * The year following the sinking of the Titanic saw the unconstitutional
            passage of the Federal Reserve act in December 23, 1913.
              * The Federal Reserve Act was drafted in secret on Jekyll Island and
@@ -1048,7 +1075,7 @@ Consider the following thought statement tree/graph:
          * Less than one year after the passage of the Federal Reserve Act began
            World War I in July 28, 1914; and thus began the significant dilution
            of the dollar via the sale of government war bonds.
-       * JPMorgan sank the Titanic to steal the works of Nikola Tesla.
+       * Hypothesis: JPMorgan sank the Titanic to steal the works of Nikola Tesla.
          * John Jacob Astor IV was Tesla's primary patron.
          * Tesla died on 7 January 1943, at the age of 86, penniless.
          * Two days after his death the FBI ordered the Alien Property
