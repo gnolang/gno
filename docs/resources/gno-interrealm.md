@@ -422,15 +422,8 @@ current realm) upon finalization of the foreign object's method (or function).
 belongs to the other person.) In the future the `attach()` function will
 prevent a new unreal object from being taken.
 
-MsgCall can only call crossing-functions.
-
-MsgRun will run a file's `main()` function in the user's realm-context and may
-call both crossing and non-crossing functions and methods.
-
-A realm package's initialization (including `init()` calls) executes with
-current realm-context of itself, and its `runtime.PreviousRealm()` will panic
-unless the call stack includes a crossing function called like `fn(cross,
-...)`.
+For how crossing rules apply to MsgCall, MsgRun, and package initialization,
+see [Application](#application).
 
 ## Realm Boundaries
 
@@ -781,10 +774,11 @@ the address is the same.
 
 ### MsgAddPackage
 
-During MsgAddPackage `runtime.PreviousRealm()` refers to the package deployer both
-in global var decls and inside `init()` functions. After that the
-package deployer is no longer provided, so packages need to remember the
-deployer in the initialization phase if needed.
+A realm package's initialization (including `init()` calls) executes with
+current realm-context of itself. `runtime.PreviousRealm()` refers to the
+package deployer both in global var decls and inside `init()` functions. After
+that the package deployer is no longer provided, so packages need to remember
+the deployer in the initialization phase if needed.
 
 ```go
 // PKGPATH: gno.land/r/test/test
