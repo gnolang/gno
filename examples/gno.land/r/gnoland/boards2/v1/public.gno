@@ -696,7 +696,7 @@ func assertIsValidBoardName(name string) {
 	}
 
 	if !reBoardName.MatchString(name) {
-		panic("board name contains invalid characters")
+		panic("board name must start with a letter and have letters, numbers, \"-\" and \"_\"")
 	}
 }
 

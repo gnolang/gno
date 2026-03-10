@@ -1,7 +1,7 @@
 # Test private realm privacy enforcement
 # This test verifies that public realms cannot persist references to private realm objects
 
-loadpkg gno.land/p/nt/avl
+loadpkg gno.land/p/nt/avl/v0
 
 # start a new node
 gnoland start
@@ -150,7 +150,7 @@ stderr 'cannot persist object of type defined in the private realm gno.land/r/fo
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr $WORK/msgrun/run.gno
 
 gnokey query vm/qeval --data 'gno.land/r/foobar/privaterealm.GetTreePointer()'
-stdout 'gno.land/p/nt/avl.Tree'
+stdout 'gno.land/p/nt/avl/v0.Tree'
 
 -- privaterealm/gnomod.toml --
 module = "gno.land/r/foobar/privaterealm"
@@ -161,7 +161,7 @@ private = true
 package privaterealm
 
 import (
-    "gno.land/p/nt/avl"
+    "gno.land/p/nt/avl/v0"
     "gno.land/r/foobar/publicrealm"
 )
 
@@ -519,7 +519,7 @@ gno = "0.9"
 package publicrealm
 
 import (
-    "gno.land/p/nt/avl"
+    "gno.land/p/nt/avl/v0"
 )
 
 var savedTree *avl.Tree

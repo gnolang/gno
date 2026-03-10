@@ -1,0 +1,12 @@
+package main
+
+func main() {
+	var p *[]int
+	_ = p[0:1]
+}
+
+// Error:
+// main/slice_0.gno:5:6-12: cannot slice variable of type *[]int
+
+// TypeCheckError:
+// main/slice_0.gno:5:6: invalid operation: cannot slice p (variable of type *[]int)
