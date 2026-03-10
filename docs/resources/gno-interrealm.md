@@ -751,48 +751,11 @@ func main() {
 }
 ```
 
-Notice in `gnovm/pkg/gnolang/misc.go`, the following:
+Realm addresses are derived from package paths via `chain.PackageAddress()`
+(defined in `gnovm/stdlibs/chain/address.gno`):
 
-```go
-// For keeping record of package & realm coins.
-// If you need the bech32 address it is faster to call DerivePkgBech32Addr().
-func DerivePkgCryptoAddr(pkgPath string) crypto.Address {
-	b32addr, ok := IsGnoRunPath(pkgPath)
-	if ok {
-		addr, err := crypto.AddressFromBech32(b32addr)
-		if err != nil {
-			panic("invalid bech32 address in run path: " + pkgPath)
-		}
-		return addr
-	}
-	// NOTE: must not collide with pubkey addrs.
-	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
-}
-
-func DerivePkgBech32Addr(pkgPath string) crypto.Bech32Address {
-	b32addr, ok := IsGnoRunPath(pkgPath)
-	if ok {
-		return crypto.Bech32Address(b32addr)
-	}
-	// NOTE: must not collide with pubkey addrs.
-	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath)).Bech32()
-}
-```
-
-These function names are distinct from what is available in Gno
-from `gnovm/stdlibs/chain/address.gno`:
-
-```go
-// Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
-// in which case the address is extracted from the path.
-func PackageAddress(pkgPath string) Address {
-	addr := packageAddress(pkgPath) // calls gno.DerivePkgBech32Addr()
-	return Address(addr)
-}
-```
-
-1. `chain.PackageAddress("gno.land/r/name123/realm")` - bech32 from hash(path)
-2. `chain.PackageAddress("gno.land/e/g1user/run")` - bech32 substring "g1user"
+- `chain.PackageAddress("gno.land/r/name123/realm")` — bech32 from hash(path)
+- `chain.PackageAddress("gno.land/e/g1user/run")` — bech32 substring "g1user"
 
 Therefore in the MsgRun file's `init()` function the previous realm and current
 realm have different pkgpaths (the origin caller always has empty pkgpath) but
