@@ -25,11 +25,8 @@ func NewServer(logger *slog.Logger) *Server {
 	return &Server{
 		logger:  logger,
 		clients: make(map[*websocket.Conn]struct{}),
-		upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
-				return true // XXX: adjust this
-			},
-		},
+		// Use the default websocket.Upgrader which validates that
+		// the Origin header matches the Host header (same-origin check).
 	}
 }
 

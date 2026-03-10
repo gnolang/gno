@@ -261,14 +261,105 @@ func TestWebsocketManagerHandler(t *testing.T) {
 }
 
 func newWSServer() *httptest.Server {
+	return newWSServerWithOrigins([]string{"*"})
+}
+
+func newWSServerWithOrigins(allowedOrigins []string) *httptest.Server {
 	funcMap := map[string]*rs.RPCFunc{
 		"c": rs.NewWSRPCFunc(func(ctx *types.Context, s string, i int) (string, error) { return "foo", nil }, "s,i"),
 	}
-	wm := rs.NewWebsocketManager(funcMap)
+	wm := rs.NewWebsocketManager(funcMap, allowedOrigins)
 	wm.SetLogger(log.NewNoopLogger())
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/websocket", wm.WebsocketHandler)
 
 	return httptest.NewServer(mux)
+}
+
+func TestWebsocketManagerCheckOrigin(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		allowedOrigins []string
+		origin         string
+		expectAllowed  bool
+	}{
+		{
+			name:           "wildcard allows all origins",
+			allowedOrigins: []string{"*"},
+			origin:         "http://evil.com",
+			expectAllowed:  true,
+		},
+		{
+			name:           "no origin header is allowed",
+			allowedOrigins: []string{},
+			origin:         "",
+			expectAllowed:  true,
+		},
+		{
+			name:           "exact origin match",
+			allowedOrigins: []string{"http://example.com"},
+			origin:         "http://example.com",
+			expectAllowed:  true,
+		},
+		{
+			name:           "wildcard subdomain match",
+			allowedOrigins: []string{"http://*.example.com"},
+			origin:         "http://foo.example.com",
+			expectAllowed:  true,
+		},
+		{
+			name:           "deep subdomain wildcard match",
+			allowedOrigins: []string{"http://*.example.com"},
+			origin:         "http://a.b.example.com",
+			expectAllowed:  true,
+		},
+		{
+			name:           "empty allowed origins defaults to allow all",
+			allowedOrigins: []string{},
+			origin:         "http://evil.com",
+			expectAllowed:  true,
+		},
+		{
+			name:           "non-matching origin rejected",
+			allowedOrigins: []string{"http://good.com"},
+			origin:         "http://evil.com",
+			expectAllowed:  false,
+		},
+		{
+			name:           "partial name does not match wildcard",
+			allowedOrigins: []string{"http://*.example.com"},
+			origin:         "http://evil-example.com",
+			expectAllowed:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := newWSServerWithOrigins(tt.allowedOrigins)
+			defer s.Close()
+
+			dialer := websocket.Dialer{}
+			header := http.Header{}
+			if tt.origin != "" {
+				header.Set("Origin", tt.origin)
+			}
+
+			conn, resp, err := dialer.Dial("ws://"+s.Listener.Addr().String()+"/websocket", header)
+			if tt.expectAllowed {
+				require.NoError(t, err, "expected WebSocket upgrade to succeed")
+				require.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
+				conn.Close()
+			} else {
+				require.Error(t, err, "expected WebSocket upgrade to be rejected")
+				if resp != nil {
+					require.Equal(t, http.StatusForbidden, resp.StatusCode)
+				}
+			}
+		})
+	}
 }
