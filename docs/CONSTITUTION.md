@@ -1516,9 +1516,9 @@ Laws.
 ### Quantum Proof Cryptography
 
 Gno.land is committed to quantum-proof readiness for both user accounts and
-validators. The re-use of public keys will be prohibited, and Merkle hash
-based commitments will be explored for account recovery after quantum
-breakthroughs. The detailed roadmap is defined in the Laws.
+validators. The re-use of public keys should be prohibited when feasible, and
+Merkle hash based commitments should be explored for account recovery after
+quantum breakthroughs. The detailed roadmap is defined in the Laws.
 
 ### New Cryptographic Primitives or Implementations
 

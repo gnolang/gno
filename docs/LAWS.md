@@ -89,42 +89,38 @@ compromising on security.
 
 ## Quantum Proof Cryptography Roadmap
 
-The following is the roadmap for quantum proofing Gno.land. It may be modified
-with a Law Amendment by GovDAO and also the pre-approval of the Oversight Body.
+The following is the advisory roadmap for quantum proofing Gno.land. GovDAO
+should pursue these milestones and adjust timelines as the quantum threat
+evolves.
 
 ### User Accounts
 
-   * Within 1 year after launch:
-     * Determine a protocol to register each account with two Merkle tree hash
-       commits of at least 64 distinct Lamport signature public keys with one
-       commit using only the sha256 hash function and the other commit using a
-       different hash function family such as sha3 (Quantum Recovery Commit)
-       that can be used to securely register/sign-for at least 64 new arbitrary
-       (e.g. quantum-proof) public key bytes of any length determined in the
-       future (e.g. after "D-day") for each commit.
-   * Within 2 years after launch:
-     * Deploy the aforementioned Quantum Recovery Commit registration system
-       and require its usage for all validators and also new user accounts
-       before any new transactions are accepted.
-     * Determine node, client, and hardware wallet software changes to prevent
-       the re-use of public keys for user transactions without relying on new
-       or unproven cryptography. Each account is associated with the next
-       deterministic 20-byte or larger address committed by each transaction
-       based on the strictly sequential account sequence number.
-     * Begin work with reputable cryptographers with recent relevant
-       publications to determine the number of bytes (currently 20) needed and
-       ideal hash function for account addresses as determined by the best
-       theoretical attacks, and assuming the most optimistic/advanced estimates
-       and projections for quantum computers developed in secret by nation
-       state actors.
-   * Within 3 years after launch:
-     * Deploy the aforementioned node, client, and hardware wallet software
-       changes to prevent the re-use of public keys for user transactions.
-   * Within 4 years after launch:
-     * Disable the re-use of public keys for all user transactions.
-     * Freeze all accounts that do not yet have a Quantum Recovery Commit. This
-       is to prevent future mass hacking of accounts by quantum computers which
-       can destroy the economy of the chain.
+   * Determine a protocol to register each account with two Merkle tree hash
+     commits of at least 64 distinct Lamport signature public keys with one
+     commit using only the sha256 hash function and the other commit using a
+     different hash function family such as sha3 (Quantum Recovery Commit)
+     that can be used to securely register/sign-for at least 64 new arbitrary
+     (e.g. quantum-proof) public key bytes of any length determined in the
+     future (e.g. after "D-day") for each commit.
+   * Deploy the aforementioned Quantum Recovery Commit registration system
+     and require its usage for all validators and also new user accounts
+     before any new transactions are accepted.
+   * Determine node, client, and hardware wallet software changes to prevent
+     the re-use of public keys for user transactions without relying on new
+     or unproven cryptography. Each account is associated with the next
+     deterministic 20-byte or larger address committed by each transaction
+     based on the strictly sequential account sequence number.
+   * Begin work with reputable cryptographers with recent relevant
+     publications to determine the number of bytes (currently 20) needed and
+     ideal hash function for account addresses as determined by the best
+     theoretical attacks, and assuming the most optimistic/advanced estimates
+     and projections for quantum computers developed in secret by nation
+     state actors.
+   * Deploy the aforementioned node, client, and hardware wallet software
+     changes to prevent the re-use of public keys for user transactions.
+   * When warranted by a demonstrated quantum threat, GovDAO by Supermajority
+     Decision may disable the re-use of public keys for all user transactions
+     and freeze accounts that do not yet have a Quantum Recovery Commit.
    * Users may continue to use secp256k1 hash addresses as long as those
      addresses are not re-used, the address has sufficient byte length given
      the best known theoretical attacks, and attacks for a given address has
@@ -143,20 +139,13 @@ wallets; and they must remain secure even after public key exposure for
 light-client/IBC-bridges and for double-signing slashing/jailing mechanics) so
 require a different path for post-quantum readiness.
 
-   * Within 2 years after launch:
-     * Investigate changes to Tendermint2 with NT,LLC to support pluggable
-       quantum proof cryptography.
-   * Within 3 years after launch:
-     * Complete or approve an initial draft modification of Tendermint2 also
-       approved by NT,LLC to support pluggable quantum proof cryptography.
-   * Within 4 years after launch:
-     * Support and test final release of Tendermint2 by NT,LLC to support
-       pluggable quantum proof cryptography.
-   * Within 5 years after launch:
-     * Require validators to run Tendermint2 with quantum proof cryptography.
-       If Atom.One does not allow post-quantum Tendermint2 by this time and
-       Gno.land runs on Atom.One ICS, Gno.land must migrate away from Atom.One
-       ICS.
+   * Investigate changes to Tendermint2 with NT,LLC to support pluggable
+     quantum proof cryptography.
+   * Complete or approve an initial draft modification of Tendermint2 also
+     approved by NT,LLC to support pluggable quantum proof cryptography.
+   * Support and test final release of Tendermint2 by NT,LLC to support
+     pluggable quantum proof cryptography.
+   * Require validators to run Tendermint2 with quantum proof cryptography.
 
 Tendermint2 like the GnoVM is owned by and funded by NT,LLC. The funding for
 the development of the above is NT,LLC. Failing the above GovDAO may decide to
