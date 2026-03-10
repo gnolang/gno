@@ -1,0 +1,74 @@
+loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/gov/dao
+
+gnoland start
+
+# Init GovDAO members
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/init_govdao_members.gno
+
+# Deploy the realm that defines the proposal request
+gnokey maketx addpkg -pkgdir $WORK/request -pkgpath gno.land/r/test/request -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Create proposal that fails on execution
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_proposal.gno
+stdout OK!
+
+# Vote on proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Try to execute proposal using "execErrorRejects=false"
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -args false -broadcast -chainid=tendermint_test test1
+stderr 'Boom!'
+
+# Execute proposal changing its status to rejected using "execErrorRejects=true"
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -args true -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Check that proposal was rejected
+gnokey query vm/qeval --data "gno.land/r/gov/dao.Render(\"0\")"
+stdout 'Stats\\n- \*\*PROPOSAL HAS BEEN DENIED\*\*\\nREASON: execution failed: Boom!'
+
+-- run/init_govdao_members.gno --
+package main
+
+import dao "gno.land/r/gov/dao/v3/init"
+
+func main() {
+	dao.InitWithUsers("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+}
+
+-- run/create_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/test/request"
+)
+
+func main() {
+	dao.MustCreateProposal(cross, request.NewProposalRequest())
+}
+
+-- request/gnomod.toml --
+module = "gno.land/r/test/request"
+gno = "0.9"
+
+-- request/request.gno --
+package request
+
+import (
+	"errors"
+
+	"gno.land/r/gov/dao"
+)
+
+func NewProposalRequest() dao.ProposalRequest {
+	cb := func(realm) error {
+		return errors.New("Boom!")
+	}
+
+	e := dao.NewSimpleExecutor(cb, "")
+	return dao.NewProposalRequest("Test Proposal", "This proposal always fails on execution", e)
+}
