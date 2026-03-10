@@ -850,9 +850,10 @@ func TestAdd_Derive(t *testing.T) {
 		t.Parallel()
 
 		var (
-			kbHome      = t.TempDir()
-			mnemonic    = generateTestMnemonic(t)
-			baseOptions = BaseOptions{
+			kbHome           = t.TempDir()
+			existingMnemonic = generateTestMnemonic(t)
+			mnemonic         = generateTestMnemonic(t)
+			baseOptions      = BaseOptions{
 				InsecurePasswordStdin: true,
 				Home:                  kbHome,
 			}
@@ -864,14 +865,14 @@ func TestAdd_Derive(t *testing.T) {
 		kb, err := keys.NewKeyBaseFromDir(kbHome)
 		require.NoError(t, err)
 
-		_, err = kb.CreateAccount(keyName, mnemonic, "", "encrypt", 0, 0)
+		_, err = kb.CreateAccount(keyName, existingMnemonic, "", "encrypt", 0, 0)
 		require.NoError(t, err)
 
 		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFn()
 
 		io := commands.NewTestIO()
-		io.SetIn(strings.NewReader("n\n"))
+		io.SetIn(strings.NewReader(mnemonic + "\nn\n"))
 
 		// Create the command
 		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
@@ -888,6 +889,66 @@ func TestAdd_Derive(t *testing.T) {
 		}
 
 		require.ErrorIs(t, cmd.ParseAndRun(ctx, args), errOverwriteAborted)
+	})
+
+	t.Run("derivation path address collision renames existing key", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			mnemonic    = generateTestMnemonic(t)
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+			path = "44'/118'/0'/0/0"
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		io := commands.NewTestIO()
+
+		io.SetIn(strings.NewReader(mnemonic + "\ntest1234\ntest1234\n"))
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+		args := []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			"key1",
+		}
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		original, err := kb.GetByName("key1")
+		require.NoError(t, err)
+
+		// Same mnemonic and path produce the same address, so collision handling
+		// should rename the existing key without prompting for a passphrase.
+		io.SetIn(strings.NewReader(mnemonic + "\ny\n"))
+		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
+		args = []string{
+			"add",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--recover",
+			"key2",
+			"--derivation-path",
+			path,
+		}
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		renamed, err := kb.GetByName("key2")
+		require.NoError(t, err)
+		assert.Equal(t, original.GetAddress(), renamed.GetAddress())
+
+		_, err = kb.GetByName("key1")
+		require.Error(t, err)
 	})
 
 	t.Run("derivation path passphrase preflight", func(t *testing.T) {

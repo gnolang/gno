@@ -258,30 +258,6 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 			params *hd.BIP44Params
 		}
 
-		confirmOverwrite := func(keyName string) error {
-			if cfg.Force {
-				return nil
-			}
-
-			exists, err := kb.HasByName(keyName)
-			if err != nil {
-				return fmt.Errorf("unable to fetch key, %w", err)
-			}
-
-			if exists {
-				overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", keyName))
-				if err != nil {
-					return fmt.Errorf("unable to get confirmation, %w", err)
-				}
-
-				if !overwrite {
-					return errOverwriteAborted
-				}
-			}
-
-			return nil
-		}
-
 		entries := make([]deriveEntry, 0, len(cfg.DerivationPath))
 
 		for _, path := range cfg.DerivationPath {
@@ -291,9 +267,6 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 			}
 
 			derivedName := deriveKeyName(name, params, len(cfg.DerivationPath))
-			if err := confirmOverwrite(derivedName); err != nil {
-				return err
-			}
 
 			entries = append(entries, deriveEntry{
 				name:   derivedName,
@@ -304,6 +277,27 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		mnemonic, err = getMnemonic()
 		if err != nil {
 			return err
+		}
+
+		if !cfg.Force {
+			seed := bip39.NewSeed(mnemonic, "")
+			pendingEntries := make([]deriveEntry, 0, len(entries))
+
+			for _, entry := range entries {
+				address := generateKeyFromSeed(seed, entry.params.String()).PubKey().Address()
+
+				handled, err := handleCollision(kb, entry.name, address, keys.TypeLocal, io)
+				if err != nil {
+					return err
+				}
+				if handled {
+					continue
+				}
+
+				pendingEntries = append(pendingEntries, entry)
+			}
+
+			entries = pendingEntries
 		}
 
 		infos = make([]keys.Info, 0, len(entries))
