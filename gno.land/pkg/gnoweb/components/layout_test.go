@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIndexLayout(t *testing.T) {
@@ -294,6 +295,60 @@ func TestViewModePredicates(t *testing.T) {
 			assert.Equal(t, tc.wantPackage, tc.mode.IsPackage(), "IsPackage")
 			assert.Equal(t, tc.wantHome, tc.mode.IsHome(), "IsHome")
 			assert.Equal(t, tc.wantUser, tc.mode.IsUser(), "IsUser")
+		})
+	}
+}
+
+func TestIndexLayout_ThemePropagation(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		theme     string
+		wantTheme string
+	}{
+		{
+			name:      "success: dark theme propagated",
+			theme:     "dark",
+			wantTheme: "dark",
+		},
+		{
+			name:      "success: light theme propagated",
+			theme:     "light",
+			wantTheme: "light",
+		},
+		{
+			name:      "edge: empty theme propagated as empty",
+			theme:     "",
+			wantTheme: "",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := IndexData{
+				HeadData: HeadData{
+					Title: "Test",
+				},
+				Mode:  ViewModeHome,
+				Theme: tc.theme,
+				BodyView: &View{
+					Type:      "test-view",
+					Component: NewReaderComponent(strings.NewReader("testdata")),
+				},
+			}
+
+			component := IndexLayout(data)
+			templateComponent, ok := component.(*TemplateComponent)
+			require.True(t, ok, "expected TemplateComponent type")
+
+			params, ok := templateComponent.data.(indexLayoutParams)
+			require.True(t, ok, "expected indexLayoutParams type")
+
+			assert.Equal(t, tc.wantTheme, params.Theme)
 		})
 	}
 }
