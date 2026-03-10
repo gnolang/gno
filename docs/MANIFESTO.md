@@ -54,7 +54,7 @@ also inevitable.
 
 The Gno virtual machine and language was created to address one of the key
 problems of blockchain smart-contract systems: the lack of a good familiar
-modern-day geneneral purpose programming language for Ethereum Solidity-like
+modern-day general purpose programming language for Ethereum Solidity-like
 massive multi-user dapp development where integration with external dapp logic
 as dependencies is native to the language itself. You can develop dapps in Go
 or Rust for WASM modules today but this approach is limited--each
@@ -64,17 +64,17 @@ is limited. Furthermore unlike Solidity where contract data is automatically
 persisted to disk at the end of a transaction, developing in Go or Rust
 contracts for WASM inherits all the burdens of data serialization and
 persistence (and so of ORMs or alternatives) making smart contract development
-in Go or Rust just as complex as server-side Web2 programming if not moreso.
+in Go or Rust just as complex as server-side Web2 programming if not more so.
 
 Gno.land solves the problem by virtue of a new VM design that interprets Gno.
 The Gno language is Go but extended minimally to make Go aware of different
-user agent contexts in exeecution and user storage realm contexts in
+user agent contexts in execution and user storage realm contexts in
 persistence for security; and the Gno VM keeps track of creations, updates, and
 deletions of runtime objects at user transaction boundaries and throughout each
 transaction for automatic persistence that also computes Merkle hashes
 according to the shape of the object graph. In other words, the Gno VM
 simulates a machine that unifies disk and memory (i.e. simulates memristors
-which will become more dominent in the future with progress in AI).
+which will become more dominant in the future with progress in AI).
 
 The major benefit of dapp development in Gno therefore is the ease of
 programming where multiple layers of complexity are all but eliminated--the
@@ -126,17 +126,17 @@ profiles:
 > is: to what extent are we susceptible to such behavioural manipulation?" -
 > Joe Westby
 
-Trust in our institutions are at an all time low. CIA director William Casey
+Trust in our institutions is at an all-time low. CIA director William Casey
 was accused of saying that "we’ll know our disinformation program is complete
 when everything the American public believes is false." by Barbara Honegger,
-assistant to the chief domestic policy advisor to President Raegan. 
+assistant to the chief domestic policy advisor to President Reagan. 
 The [quote is contested](https://truthstreammedia.com/2015/01/13/cia-flashback-well-know-our-disinformation-program-is-complete-when-everything-the-american-public-believes-is-false/) but we know now about illegal mass mind control
 projects like MKUltra (by the CIA), and also that the Smith-Mundt Modernization
 Act of 2013 lifted the ban on domestic dissemination of propaganda in the US,
 reversing the original Smith-Mundt Act of 1948. Whether the quote is true or
 not, the substance is clearly true today.
 
-## Problem: AI Armegeddon
+## Problem: AI Armageddon
 
 By [the latest projections ("There is no AI
 Bubble")](https://www.youtube.com/watch?v=wDBy2bUICQY) 2027 AI will be able to
@@ -164,13 +164,13 @@ posting convincing posts including age progression. On 5 February 2025,
 Alphabet, which owns Google, [reneged on its pledge to not use AI for
 weapons](https://www.stopkillerrobots.org/news/alphabet-rollback-on-policy-to-not-use-ai-for-weapons/).
 Eric Schmidt former CEO of Google now runs an AI drone company and is a
-licensed arms dealer. Boston Dyanmics develops the Atlas humanoid robot that
+licensed arms dealer. Boston Dynamics develops the Atlas humanoid robot that
 can be even [more agile](https://www.youtube.com/watch?v=tjFHRVr7aNE) than
 humans, and the US military works with many robotics companies such as with
 Foundation Future Industries Inc. which develops the Phantom MK1 designed for
 military applications including carrying firearms.
 
-Here are some of the things to look forward to in the coming AI armegeddon.
+Here are some of the things to look forward to in the coming AI armageddon.
 
  * internet discourse taken over by AI
  * fake news indistinguishable from real news
@@ -181,7 +181,7 @@ Here are some of the things to look forward to in the coming AI armegeddon.
  * mass hysteria
  * military takeover for continuity of government
  * hacked robots coordinated by malicious AGI
- * inadvertant nuclear war
+ * inadvertent nuclear war
 
 We have largely speaking two paths to follow. The best path is to enact
 regulations to curtail the AI arms race. Ex-Google design ethicist and AI
@@ -193,7 +193,7 @@ expert Tristan Harris [makes a convincing case for AI regulation](https://youtu.
 > would build. So I don't see a way out of this without there being some
 > agreement or negotiation between powers and countries.
 > ...
-> We've done this before [with flourocarbines and non-proliveration of arms].
+> We've done this before [with fluorocarbons and non-proliferation of arms].
 
 However as also noted by Tristan it would be the most difficult coordination
 problem that humanity has ever solved on a global scale just given the economic
@@ -216,7 +216,7 @@ or controls more easily than humans can. In short the set of potential
 interested and capable parties for conducting a mass hack of military
 contractors creating killer drones and android humanoid robots and chips is
 huge, while defensive capabilities (e.g. by formally verified hardware and
-software) are severely stricted in adoption in this capitalistic profit-centric
+software) are severely restricted in adoption in this capitalistic profit-centric
 environment.
 
 > ‘No regrets,’ says Edward Snowden, after 10 years in exile But whistleblower
@@ -231,7 +231,7 @@ From a popular meme regarding surveillance technology:
 > * The NSA has forced Intel, AMD, and chip makers to backdoor their CPUs and
 >   allow them to access your computer even if it is "turned off" (as long as
 >   it has access to electricity) [Intel ME, AMD PSP]
-> * The NSA has also forced hadrware manufacturers to backdoor their 'Random
+> * The NSA has also forced hardware manufacturers to backdoor their 'Random
 >   Number Generators' to allow them to break RSA encryption [Dual Elliptic
 >   Curve]
 > * American-made electronics transmit radio frequencies which allow the FBI
@@ -242,7 +242,7 @@ From a popular meme regarding surveillance technology:
 >   [TAO team]
 > * If you are a "Person of Interest" the NSA is intercepting your mail,
 >   opening them up, and installing bugs on any electronics you order over the
->   internet (e.g. TVs, microwaves, phones, video games, smart refridgerators)
+>   internet (e.g. TVs, microwaves, phones, video games, smart refrigerators)
 >   [ANT/TAO Catalog]
 > * The NSA has already broken Tor networks and can identify you and attack you
 >   if you use Tor; ISP companies like Verizon, AT&T, Comcast assist with this
@@ -264,10 +264,10 @@ effects upon nearby people. All of these backdoors create more surface area for
 vulnerability making AI armageddon more certain and more deadly. 
 
 More concretely and without speculation, our civilization is at risk of a
-global catastrophy on par or much worst than the historic burning of the
+global catastrophe on par or much worse than the historic burning of the
 Library of Alexandria (the largest and most significant library of the ancient
 world). Like the burning of the Library of Alexandria, the loss of our digital
-knowledge is likely to be accidental, simply because we did not preprare enough
+knowledge is likely to be accidental, simply because we did not prepare enough
 for it. My greatest desire is for Gno.land to help decentralize the internet
 archives for preservation and processing for the benefit of future generations.
 
@@ -324,7 +324,7 @@ can only know if the AI is being truthful:
 By making everything deterministic, by committing the Merkle root of each data
 collection (whether Library Genesis or the Epstein files) and also committing
 the Merkle roots of all the relevant AI code and design (for deterministic
-build, but also audits for each release version), the training corpusa, and all
+build, but also audits for each release version), the training corpora, and all
 other information needed to inspect the substance of the AI image and also to
 deterministically build it and use it; only then can we be given some
 assurances about the answer. If we don't know likewise how the answer was
@@ -336,13 +336,13 @@ the WHO regarding infectious diseases.
 For this purpose Gno contracts should incentivize more IPFS and torrent seed
 nodes for sharing public archive files while keeping the files off the main
 blockchain. While such projects surely already exist, applications and
-libraries are much easier to develop in a general purpose langauge like Go/Gno,
+libraries are much easier to develop in a general purpose language like Go/Gno,
 and Gno's innovative multi-user awareness makes it the ideal language for
 building complex applications composed of interoperable modules.
 
 While one set of modules on Gno.land can help manage the availability of data,
 another set of modules can process the data and build artifacts to be stored
-themselves as archiveal files. Open source tokenized indexers can create search
+themselves as archival files. Open source tokenized indexers can create search
 indices on these archives, even those populated by web crawlers. By decomposing
 the search engine and inverting control away from centralized entities to
 public accountable micro-services registered on chain users have the power to
@@ -363,7 +363,7 @@ having alternatives that are provably trustworthy.
 Furthermore we should also develop malware exploit detection tools to scan
 these files of these archives (especially the PDF files, but for all types of
 files) for malware and exploit hacks; anti-virus for public documents without
-replying on any central party. Clearly all popular technology is compromised
+relying on any central party. Clearly all popular technology is compromised
 and we need to get back to basics, even avoid the usage of PDF files and
 complex ever-changing web browsers entirely; but in practice our ability to
 avoid exploits [is almost nil](https://cryptome.org/2013/12/appelbaum-30c3.pdf) in the face of
@@ -375,9 +375,9 @@ software that doesn't mutate with the latest trends) foundational open-source
 software implementations that all align with "small. simple. secure."
 philosophy of projects like Tendermint or [Alpine Linux](https://alpinelinux.org).
 
-We also have the ability to construct *new* small/simple/scure composable
+We also have the ability to construct *new* small/simple/secure composable
 modules (in Gno and Go) for the new opportunities of today (such as processing
-these archives w/ fully accountable determinstic AI). Once we have attained
+these archives w/ fully accountable deterministic AI). Once we have attained
 some level of financial power as a community we can also start funding the
 completion of foundational software projects written in more modern memory-safe
 languages, formally verify their safety, and even use AI to help secure them to
@@ -434,7 +434,7 @@ By making inter-user interoperability native to the language and also by
 removing the distinction between volatile and persistent memory
 
 The GnoVM is implemented purely in Go and is a Gno AST interpreter. It is
-implemented to serve as an reference implementation suitable for production and
+implemented to serve as a reference implementation suitable for production and
 tinkering. The GnoVM opcodes are expected to change over time to balance
 simplicity, efficiency, and transpilation targets--perhaps even to hardware.
 Just as Ethereum was originally implemented in Python we expect future software
@@ -446,13 +446,13 @@ docs/resources directory](https://github.com/gnolang/gno/tree/master/docs/resour
 
 ### Gno vs Existing Smart Contract Platforms
 
-Smart contract platforms like Ethereum allows for many users to upload their
+Smart contract platforms like Ethereum allow for many users to upload their
 application and call other user application logic functions, but Solidity is
 not a general purpose programming language and has severe limitations that make
 it suboptimal for solving the task at hand.
 
 First, **Solidity and other existing smart-contract languages/platforms do not
-allow support transparent inter-module (inter-user) interoperability with the
+support transparent inter-module (inter-user) interoperability with the
 same language rules as for intra-module dependencies.** That is, an application
 developer for a smart-contract cannot simply import and call/use another user
 application's functions and types as if they were library dependencies of the
@@ -478,7 +478,7 @@ systems where the distinction between RAM volatile memory and persistent disk
 storage is removed. Urbit is similar but is not based on any general purpose
 programming language. With memristor-based memory the GnoVM can be further
 simplified and the performance of applications can be vastly improved without
-any changes to the Gno langauge specification.
+any changes to the Gno language specification.
 
 Third, **Solidity and other existing smart-contract languages/platforms
 do not support a shared heap memory space for objects to be referenced by
@@ -539,50 +539,23 @@ references across the entire persisted disk store space, and does not require
 any additional language syntax such as with the `externref` keyword, and
 supports the normal course of type-checking already familiar to Go developers.
 
-### Interrealm Programming Context
+### Interrealm Programming
 
-Gno.land supports three types of packages:
-- **Realms (`/r/`)**: Stateful user applications (smart contracts) that
-  maintain persistent state between transactions
-- **Pure Packages (`/p/`)**: Stateless libraries that provide reusable 
-  functionality
-- **Ephemeral Packages (`/e/`)**: Temporary code execution with MsgRun
-  which allows a custom main() function to be run instead of a single
-  function call as with MsgExec.
+Gno extends Go with explicit multi-user realm awareness. The key concepts:
 
-For an overview of the different package types in Gno (`/p/`, `/r/`, and 
-`/e/`), see [Anatomy of a Gno Package](./builders/anatomy-of-a-gno-package.md).
-
-Interrealm programming refers to the ability of one realm to call functions 
-in another realm. This can occur between:
-- Regular realms (`/r/`) calling other regular realms via MsgExec and MsgRun.
-- Ephemeral realms (`/e/`) calling regular realms via MsgRun (like main.go)
-
-The key concept is that code executing in one realm context can interact with
-and call functions in other realms while leverage the language syntax rules of
-Go, enabling complex multi-user interactions while maintaining clear boundaries
-and permissions.
-
-```go
-// realm /r/alice/alice
-package alice
-
-var object any
-
-func SetObject(cur realm, obj any) {
-    object = obj
-}
-```
-
-```go
-// package /p/bob/types
-package types
-
-type UserProfile struct {
-    Name string
-    ...
-}
-```
+- **Realm-context**: determines `runtime.CurrentRealm()` and
+  `runtime.PreviousRealm()`, controlling identity and agency.
+- **Realm-storage-context**: determines where new and modified objects are
+  persisted during finalization.
+- **Crossing-functions**: declared with `func fn(cur realm, ...)` and called
+  with `fn(cross, ...)` to explicitly change both contexts.
+- **Readonly taint**: values accessed via dot-selectors or index-expressions
+  on external realm objects are tainted read-only, preventing direct mutation
+  even by logic declared in the same realm. This protects against a class of
+  exploits where a realm is tricked into mutating its own objects.
+- **Realm-transaction finalization**: at realm boundaries, new objects are
+  assigned IDs and persisted, ref-count-zero objects are deleted, and Merkle
+  hashes are recomputed.
 
 ```go
 // realm /r/bob/bob
@@ -593,467 +566,27 @@ import "gno.land/p/bob/types"   // import external library package
 
 func Register(cur realm, name string) {
     prof := types.UserProfile{Name: name}
-    alice.SetObject(cross, prof)
+    alice.SetObject(cross, prof) // explicit realm crossing
 }
 ```
 
-All logic in Gno execute under a current realm-context and
-realm-storage-context. The realm-context and realm-storage-context refer to the
-same realm after a crossing-call of a function or method, but they may diverge
-when calling a non-crossing method of a real object residing in a different
-realm than the current realm-context. More on this later.
-
-The Gno language is extended to support a `context.Context`-like argument to
-denote the current realm-context of a Gno function. This allows a user realm
-function to call itself safely as if it were being called by an external user,
-and helps avoid a class of security issues that would otherwise exist.
-
-```go
-// realm /r/alice/mail
-
-func SendMail(cur realm, text string) {
-    if text == "" {
-        // runtime.PreviousRealm() is preserved for recursive call.
-        SendMail(nil, "<empty>")
-    }
-    caller := runtime.PreviousRealm()
-    if inBlacklist(caller) {
-        // runtime.PreviousRealm() becomes self; message from self to self.
-        SendMail(cross, fmt.Sprintf("blacklisted caller %v blocked", caller))
-    } else {
-        // sendMailPrivate not exposed to external callers.
-        sendMailPrivate(text)
-    }
-}
-```
-
-### Realm-Storage Write Access
-
-Every object in Gno is persisted in disk with additional metadata including the
-object ID and an optional OwnerID (if persisted with a ref-count of exactly 1).
-The object ID is only set at the end of a realm-transaction during
-realm-transaction finalization (more on that later). A GnoVM transaction is
-composed of one or many scoped (stacked) realm-transactions.
-
-```go
-type ObjectInfo struct {
-	ID       ObjectID  // set if real.
-	Hash     ValueHash `json:",omitempty"` // zero if dirty.
-	OwnerID  ObjectID  `json:",omitempty"` // parent in the ownership tree.
-	ModTime  uint64    // time last updated.
-	RefCount int       // for persistence. deleted/gc'd if 0.
-
-	// Object has multiple references (refcount > 1) and is persisted separately
-	IsEscaped bool `json:",omitempty"` // hash in iavl.
-    ...
-}
-```
-
-When an object is persisted during realm-transaction finalization the object
-becomes "real" (as in it is really persisted in the virtual machine state) and
-is said to "reside" in the realm; and otherwise is considered "unreal". New
-objects instantiated during a transaction are always unreal; and during
-finalization such objects are either discarded (transaction-level garbage
-collected) or become persisted and real.
-
-Unreal (new) objects that become referenced by a real (persisted) object at
-runtime will get their OwnerID set to the parent object's storage realm, but
-will not yet have its object ID set before realm-transaction finalization.
-Subsequent references at runtime of such an unreal object by real objects
-residing in other realms do not override the OwnerID intially set, so during
-realm-transaction finalization it ends up residing in the first realm it became
-associated with (referenced from). Unreal objects that become persisted but was
-never directly referenced by any real object during runtime will only get its
-OwnerID set to the realm of the first real ancestor.
-
-Real objects with ref-count of 1 have their hash included in the sole parent
-object's serialized byte form, thus an object tree of only ref-count 1
-descendants are Merkle-hashed completely.
-
-When a real or unreal object ends up with a ref-count of 2 or greater during
-realm-transaction finalization its OwnerID is set to zero and the object is
-considered to have "escaped". When such a real object is persisted with
-ref-count of 2 or greater it is forever considered escaped even if its
-ref-count is in later transactions is reduced to 1. Escaped real objects do not
-have their hash included in the parent objects' serialized byte form but
-instead are Merkle-ized separately in an iavl tree of escaped object hashes
-(keyed by the escaped object's ID) for each realm package. (This is implemented
-as a stub but not yet implemented for the initial release of Gno.land)
-
-Go's language rules for value access through dot-selectors & index-expressions
-are the same within the same realm, but exposed values through dot-selector &
-index-expressions are tainted read-only when performed by external realm logic.
-
-**A real object can only be directly mutated through dot-selectors and
-index-expressions if the object resides in the same realm as the current
-realm-storage-context. Unreal objects can always be directly mutated if its
-elements are directly exposed.**
-
-### Crossing-Functions and Crossing-Methods
-
-A crossing-function or crossing-method is that which is declared in a realm and
-has as its first argument `cur realm`. The `cur realm` argument must appear as
-the first argument of a crossing-function or crossing-method's argument
-parameter list. To prevent confusion it is illegal to use anywhere else, and
-cannot be used in p packages. 
-
-The current realm-context and realm-storage-context changes when a
-crossing-function or crossing-method is called with the `cross` keyword in the
-first argument as in `fn(cross, ...)`. Such a call is called a "cross-call" or
-"crossing-call".
-
-```go
-package main
-import "gno.land/r/alice/extrealm"
-
-func MyMakeBread(cur realm, ingredients ...any) { ... }
-
-func main(cur realm) {
-    MyMakeBread(cross, "flour", "water") // ok -- cross into self.
-    extrealm.MakeBread(cross, "flour", "water") // ok -- cross into extrealm
-}
-```
-
-(In Linux/Unix operating systems user processes can cross-call into the kernel
-by calling special syscall functions, but user processes cannot directly
-cross-call into other users' processes. This makes the GnoVM a more complete
-multi-user operating system than traditional operating systems.)
-
-When a crossing-function or crossing-method is called with `nil` as the first
-argument instead of `cross` it is called a non-crossing-call; and no
-realm-context nor realm-storage-context changes takes place.
-
-```go
-package main
-import "gno.land/r/alice/extrealm"
-
-func MyMakeBread(cur realm, ingredients ...any) { ... }
-
-func main(cur realm) {
-    MyMakeBread(nil, "flour", "water") // ok -- non-crossing.
-    extrealm.MakeBread(nil, "flour", "water") // invalid -- external realm function
-}
-```
-
-To prevent confusion a non-crossing-call of a crossing-function or
-crossing-method declared in a realm different than that of the caller's
-realm-context and realm-storage-context will result in either a type-check
-error; or a runtime error if the crossing-function or crossing-method is
-variable.
-
-`runtime.CurrentRealm()` returns the current realm-context that was last
-cross-called to. `runtime.PreviousRealm()` returns the realm-context cross-called
-to before the last cross-call. All cross-calls are explicit with the `cross`
-keyword, as well as non-crossing-calls of crossing-functions and
-crossing-methods with `nil` instead of `cross`.
-
-Besides (explicit) realm-context changes via the `fn(cross, ...)` cross-call
-syntax, implicit realm-storage-context changes occurs when calling a
-non-crossing method of a receiver object residing in different realm-storage.
-This change in realm-storage-context allows any non-crossing method to directly
-modify its receiver (and also any objects directly reachable and residing in
-the same realm-storage) without changing the realm-context (so
-`runtime.CurrentRealm()` and `runtime.PreviousRealm()` do not change; the
-agency of the caller remains the same). This allows non-crossing methods of
-receivers to behave the same whether declared in a realm package or p package
-such that p package code copied over to a realm package r realm package code
-copied over to another realm have the exact same behavior. Crossing methods of
-a realm package would still behave differently when copied over to another
-realm as crossing-methods always change the realm-context and
-realm-storage-context to the declared realm.
-
-If the receiver resides in realm-storage that differs from the caller's
-realm-storage-context such a receiver's non-crossing method cannot directly
-modify the receiver (nor any reachable object that resides in any realm-storage
-besides that of the caller's own realm-storage-context). 
-
-On the other hand if the method is a crossing-method as in
-`receiver.Method(cross, args...)` and the method is cross-called both the
-realm-context and realm-storage-context changes to that of the realm package in
-which the type/method is declared (which is not necessarily the same as where
-the receiver resides). Such a crossing method-call cannot directly modify the
-real receiver if it happens to reside in an external realm that differs from
-where the type and methods are declared; but it can modify any unreal receiver
-or unreal reachable objects. As mentioned previously a non-crossing-call of a
-crossing-method will fail at during type-checking or at runtime if the receiver
-resides in an external realm-storage.
-
-MsgCall can only call crossing-functions.
-
-MsgRun will run a file's `main()` function in the user's realm-context and may
-call both crossing and non-crossing functions and methods.
-
-A realm package's initialization (including `init()` calls) executes with
-current realm-context of itself, and its `runtime.PreviousRealm()` will panic
-unless the call stack includes a crossing function called like `fn(cross,
-...)`.
-
-### Realm Boundaries
-
-The current and previous runtime realm-context have an associated Gno address
-from which native coins can be sent from and received to. Such native coins can
-only be sent from a banker instantiated with either realm-context.  The
-realm-storage-context is not accessible at runtime and so there is no
-associated Gno address.
-
-When a crossing-function or crossing-method is cross-called it shifts the
-"current" runtime realm-context to the "previous" runtime realm-context such
-that `runtime.PreviousRealm()` returns what used to be returned with
-`runtime.CurrentRealm()` before the realm boundary. The current
-realm-storage-context is always set to that of realm-context after
-cross-calling.
-
-Every crossing-call of a crossing-function or crossing-method creates a new
-realm boundary even when there is no resulting change/shift in realm-context or
-realm-storage-context.
-
-A realm boundary also exists for every call that results in a change of
-realm-storage-context: whether with a crossing-call to another realm-context
-and realm-storage context or with a (non-crossing) call of a non-crossing
-method of a real receiver residing in another realm-storage than the current
-realm-storage-context. No realm boundary occurs when calling a non-crossing
-method of an unreal receiver or a non-crossing function.
-
-A realm boundary does not always change the realm-context nor always change the
-realm-storage-context. A crossing-call into the same realm-context never
-changes the realm-context and may not change the realm-storage-context either;
-a crossing-call into a different realm always changes the realm-context but may
-not change the realm-storage-context; a (non-crossing) call of a method of a
-real object residing in an external realm-storage never changes the
-realm-context but changes the realm-storage-context. However, a
-non-crossing-call of a crossing-function or crossing-method will never create a
-realm boundary.
-
-No realm boundary is created for non-crossing functions and non-crossing
-methods of unreal receivers.
-
-### Realm-Transaction Finalization
-
-Realm-transaction finalization occurs when returning from a realm
-boundary. When returning from a cross-call (with `cross`) realm-transaction
-finalization will occur even with no change of realm-context or
-realm-storage-context. Realm-transaction finalization does NOT occur when
-returning from a non-crossing-call of a method of an unreal receiver or a real
-receiver that resides in the same realm-storage-context as that of the caller.
-
-During realm-transaction finalization all new reachable objects are assigned
-object IDs and stored in the current realm-storage-context; and ref-count-zero
-objects deleted (full "disk-persistent cycle GC" will come after launch); and
-any modified ref-counts and new Merkle hash root computed. 
-
-### Readonly Taint Specification
-
-Go's language rules for value access through dot-selectors & index-expressions
-are the same within the same realm, but exposed values through dot-selector &
-index-expressions are tainted read-only when performed by an external realm.
-
-The readonly taint prevents the direct modification of real objects by any
-logic, even from logic declared in the same realm as that of the object's
-storage-realm.
-
-A realm cannot directly modify another realm's objects without calling a
-function that gives permission for the modification to occur.
-
-For example `externalrealm.Foo` is a dot-selector expression on an external
-object (package) so the value is tainted with the `N_Readonly` attribute.
-
-The same is true for `externalobject.FieldA` where `externalobject` resides in
-an external realm.
-
-The same is true for `externalobject[0]`: direct index expressions also taint
-the resulting value with the `N_Readonly` attribute. 
-
-The same is true for `externalobject.FieldA.FieldB[0]`: the readonly taint
-persists for any subsequent direct access, so even if FieldA or FieldB resided in
-the caller's own realm-context or realm-storage the result is tainted readonly.
-
-A Gno package's global variables even when exposed (e.g. `package realm1; var
-MyGlobal int = 1`) are safe from external manipulation (e.g. `import
-"xxx/realm1"; realm1.MyGlobal = 2`) by the readonly taint when accessed
-directly by dot-selector or index-expression from external realm logic; and
-also by a separate `DidUpdate()` guard when accessed by other means such as by
-return value of a function and the return value is real and external.
-
-A function or method's arguments and return values retain and pass through any
-readonly taint from caller to callee. Even if realm's function (or method)
-returns an untainted real object, the runtime guard in `DidUpdate()` prevents
-it from being modified by an external realm-storage-context.
-
-For a realm (user) to manipulate an untainted object residing in an external
-realm, a function (or method) can be declared in the external realm which
-references and modifies the aforementioned untainted object directly (by a name
-declared outside of the scope of said function or method). Or, the function can
-take in as argument an untainted real object returned by another function.
-
-Besides protecting against writing by direct access, the readonly taint also
-helps prevent a class of security issue where a realm may be tricked into
-modifying something that it otherwise would not want to modify. Since the
-readonly taint prohibits mutations even from logic declared in the same realm,
-it protects realms against mutating its own object that it doesn't intend to:
-such as when a realm's real object is passed as an argument to a mutator
-function where the object happens to match the type of the argument.
-
-Objects returned from functions or methods are not readonly tainted. So if
-`func (eo object) GetA() any { return eo.FieldA }` then `externalobject.GetA()`
-returns an object that is not tainted assuming eo.FieldA was not otherwise
-tainted. While the parent object `eo` is still protected from direct
-modification by external realm logic, the returned object from `GetA()` can be
-passed as an argument to logic declared in the residing realm of `eo.FieldA`
-for direct mutation.
-
-Whether or not an object is readonly tainted it can always be mutated by a
-method declared on the receiver.
-
-```go
-// /r/alice
-
-var blacklist []string
-
-func GetBlacklist() []string {
-    return blacklist
-}
-
-func FilterList(cur realm, testlist []string) { // blanks out blacklist items from testlist
-    for i, item := range testlist {
-        if contains(blacklist, item) {
-            testlist[i] = ""
-        }
-    }
-}
-```
-
-This is a toy example, but you can see that the intent of `FilterList()` is to
-modify an externally provided slice; yet if you call `alice.FilterList(cross,
-alice.GetBlacklist())` you can trick alice into modifying its own blacklist--the
-result is that alice.BlackList becomes full of blank values.
-
-With the readonly taint `var Blacklist []string` solves the problem for you;
-that is, /r/bob cannot successfully call `alice.FilterList(cross,
-alice.Blacklist)` because `alice.Blacklist` is readonly tainted for bob.
-
-The problem remains if alice implements `func GetBlacklist() []string { return
-Blacklist }` since then /r/bob can call `alice.FilterList(cross,
-alice.GetBlacklist())` and the argument is not readonly tainted.
-
-Future versions of Gno may also expose a new modifier keyword `readonly` to
-allow for return values of functions to be tainted as readonly. Then with `func
-GetBlacklist() readonly []string` the return value would be readonly tainted
-for both bob and alice.
-
-### Interrealm Specfication Design Goals
-
-**Caveat: The interrealm specification does not secure applications against
-arbitrary code execution. It is important for realm logic (and even p package
-logic) to ensure that arbitrary (variable) functions (and similarly arbitrary
-interface methods) are not provided by malicious callers; such arbitrary
-functions and methods whether crossing (or non-crossing) will inherit the
-previous realm (or both current and previous realms) and could abuse these
-realm-contexts.** It does not make sense for any realm user to cross-call an
-arbitrary function or method as it loses agency while being marked as the
-responsible caller by the callee's runtime previous realm. This problem is
-worse when calling a non-crossing function or method. It can be reasonable when
-such variable functions or interface values are restricted in other ways such
-as by whitelisting by a DAO upon careful inspection of every such variable
-function or interface value (both its type declaration as well as its state).
-
-P package code should behave the same even when copied verbatim in a realm
-package; and likewise non-crossing code should behave the same when copied
-verbatim from one realm to another. Otherwise there will be lots of security
-related bugs from user error.
-
-Realm crossing with respect to `runtime.CurrentRealm()` and
-`runtime.PreviousRealm()` must be explicit and warrants type-checking; because
-a crossing-function of a realm should be able to call another crossing-function
-of the same realm without necessarily crossing (changing the realm-context).
-Sometimes the previous realm and current realm must be the same realm, such as
-when a realm consumes a service that it offers to external realms and users.
-
-Where a real object resides should not matter too much, as it is often
-difficult to predict. Thus the realm-context as returned by
-`runtime.PreviousRealm()` and `runtime.CurrentRealm()` should not change with
-non-crossing method calls, and the realm-storage-context should be determined
-for non-crossing methods only by the realm-storage of the receiver. The
-realm-storage of a receiver should only matter for when elements reside in
-external realm-storage and direct dot-selector or index-expression access of
-sub-elements are desired of the aforementioned element.
-
-A method should be able to modify the receiver and associated objects of the
-same realm-storage as that of the receiver.
-
-A method should be able to create new objects that reside in the same realm by
-association in order to maintain storage realm consistency and encapsulation
-and reduce fragmentation.
-
-It is difficult to migrate an object from one realm to another even when its
-ref-count is 1; such an object may be deep with many descendants of ref-count 1
-and so performance is unpredictable.
-
-Code declared in p packages (or declared in "immutable" realm packages) can
-help different realms enforce contracts trustlessly, even those that involve
-the caller's current realm. Otherwise two mutable (upgradeable) realms cannot
-export trust unto the chain because functions declared in those two realms can
-be upgraded.
-
-Both `fn(cross, ...)` and `func fn(cur realm, ...){...}` may become special
-syntax in future Gno versions.
-
-### `panic()` and `revive(fn)`
-
-`panic()` behaves the same within the same realm boundary, but when a panic
-crosses a realm boundary (as defined in [Realm Boundries](#realm-boundaries))
-the Machine aborts the program. This is because in a multi-user environment it
-isn't safe to let the caller recover from realm panics that often leave the
-state in an invalid state.
-
-This would be sufficient, but we also want to write our tests to be able
-to detect such aborts and make assertions. For this reason Gno provides
-the `revive(fn)` builtin.
-
-```go
-abort := revive(func() {
-    cross(func(_ realm) {
-        panic("cross-realm panic")
-    })
-})
-abort == "cross-realm panic"
-```
-
-`revive(fn)` will execute 'fn' and return the exception that crossed a realm
-boundary during finalization.
-
-This is only enabled in testing mode (for now), behavior is only partially
-implemented. In the future `revive(fn)` will be available for non-testing code,
-and the behavior will change such that `fn()` is run in transactional
-(cache-wrapped) memory context and any mutations discarded if and only if there
-was an abort.
-
-TL;DR: `revive(fn)` is Gno's builtin for STM (software transactional memory).
-
-### `attach()`
-
-In future releases of Gno the `attach()` function can be used to associate
-unreal objects to the current realm-storage-context before being passed into
-function declared in an external realm package, or into a method of a real
-receiver residing in an exteral realm-context.
-
-### `safely(cb func())`
-
-In future releases of Gno the `safely(cb func())` function may be used to clear
-the current and previous realm-context as well as any realm-storage-context
-such that no matter what `cb func()` does the caller does not yield agency to
-the callee.
-
-For now this can be simulated by implementing an (immutable non-upgradeable)
-realm crossing-function that cross-calls into itself once more before calling
-the callback function.
-
-XXX Ensure that both `attach` and `safely` are reserved keywords for the
-preprocessor.
+Non-crossing methods on receivers residing in external realms implicitly change
+only the realm-storage-context (not the realm-context), allowing methods to
+behave identically whether declared in a p package or realm package. Panics
+that cross realm boundaries abort the program; `revive(fn)` provides software
+transactional memory semantics for testing (and eventually production use).
+Future builtins include `attach()` for binding unreal objects to a
+realm-storage-context, and `safely(cb)` for clearing realm-contexts to prevent
+yielding agency to callees.
+
+For the full specification including the object model (real/unreal/escaped
+objects), readonly taint rules, crossing semantics, and design goals, see the
+[Interrealm Specification](./resources/gno-interrealm.md).
 
 ## Gno.land Blockchain
 
 Tendermint solved proof-of-stake by innovating upon classical Byzantine
-fault-tolerant consensus algorithms published by Dword, Lynch, and Stockmeyer
+fault-tolerant consensus algorithms published by Dwork, Lynch, and Stockmeyer
 in 1988 (originally funded by Darpa for missile defense systems) for
 blockchains. It paved the way for the Cosmos Hub, the first proof-of-stake IBC
 hub, and Cosmos the internet of blockchains. Also of note, when Binance first
@@ -1062,8 +595,8 @@ launched they used the CosmosSDK and Tendermint.
 Gno.land builds upon Tendermint2 and aims to shift the paradigm of programming
 languages in general: Gno is the first _multi-user_ programming language, making
 it a superior smart contracting language as compared to any existing solution.
-Thus **Gno.land is the first multi-user langauge-based operating system**. Its
-ultimate goal is to be the world's open knowledge base for the next millenium.
+Thus **Gno.land is the first multi-user language-based operating system**. Its
+ultimate goal is to be the world's open knowledge base for the next millennium.
 
 ### Use Case: Open Programmable Knowledge Base
 
@@ -1089,7 +622,7 @@ type Thought struct {
 The above allows for a simple tree structure, but it would be better to
 annotate each child node (thought statement) with the type of relation to the
 parent node-- for example whether a child node represents an example, a caveat,
-a corrolary, or supporting evidence and so on.
+a corollary, or supporting evidence and so on.
 
 ```go
 // Option "Denormalized Thought"
@@ -1097,7 +630,7 @@ type Thought struct {
     Statement   string
     Examples    []*Thought
     Caveats     []*Thought
-    Correlaries []*Thought
+    Corollaries []*Thought
     Support     []*Thought
 }
 ```
@@ -1112,7 +645,7 @@ type Thought struct {
     TypedSupport []*Thought
 }
 
-type ThoughtType string // examples, caveats, corrolaries, support
+type ThoughtType string // examples, caveats, corollaries, support
 
 type TypedThought struct {
     Type    ThoughtType
@@ -1157,7 +690,7 @@ func (th *Thought) AddCounterArgument(cth *Thought) {
 }
 ```
 
-This works but not well--it only if the owner of the parent node wants the
+This works but not well--it only works if the owner of the parent node wants the
 counter-argument to be registered. Even if counter-arguments were not
 registered as an assocation on chain, it is still possible for any Gno.land
 state indexer to separately index the reverse association of reference to the
@@ -1235,7 +768,7 @@ yet._
 
 Finally, consider for example the numbered sequence of verses of a book of the
 bible, or the deep tree of statements in Wittgenstein's Tractatus. In order to
-faciliate the efficient forking of such large lists or graphs of objects it is
+facilitate the efficient forking of such large lists or graphs of objects it is
 necessary to avoid the usage of slices. Even the avl.Tree (as provided in the
 Gno monorepo under the examples directory) is not sufficient as it is a mutable
 tree. However a fork of the avl.Tree into an immutable tree (or likewise a port
@@ -1247,7 +780,7 @@ So far I have illustrated a way for multiple users to construct their thought
 statement graphs independently while also allowing for counter-arguments to be
 registered/associated permissionlessly. More design and exploration is needed
 to create a fully functional permissionlessly extensible thought statement
-graph system; and in the primodrial soup of Gno ecosystem eventually one or
+graph system; and in the primordial soup of Gno ecosystem eventually one or
 more designs will become dominant in usage by evolution. The reader is
 encouraged to explore the above template and measure success by references and
 by forks. See also [Use Case: 95 Facts](#use-case-95-facts).
@@ -1269,7 +802,7 @@ to sort your mail and analyze for targeted advertising.
 Imagine a black box local GnoVM you run at home. You can have the
 `/r/home/email` realm store your emails at home on your own home server. The
 same blockchain node logic can run on its own as a single-validator _home
-chain_ which naturally supports backups as seecondary full nodes, or you can
+chain_ which naturally supports backups as secondary full nodes, or you can
 even make your home chain byzantine fault-tolerant for better uptime.
 
  1. Install in your home GnoVM chain a service plugin: /s/email/indexer, not
@@ -1283,7 +816,7 @@ even make your home chain byzantine fault-tolerant for better uptime.
    `/s/email/indexer.AddEmail()`.
 
  * /s/email/indexer also imports /d/email/indexer which is an off-chain daemon
-   component. Here /d/\* represents a hyptoethical prefix for Gno code to be
+   component. Here /d/\* represents a hypothetical prefix for Gno code to be
    run off-chain with arbitrary Go native functions available for import that
    would otherwise not be possible on gno.land (since a blockchain can only
    support deterministic logic).
@@ -1346,7 +879,7 @@ genesis, tokenomics, governance, and more.
 
 #### Separation of Church and State
 
-Madison separated church and state in the US Constitution albiet there is a
+Madison separated church and state in the US Constitution albeit there is a
 hint of the Christian spirit by the way in which the constitution was signed:
 "... in the Year of the Lord...". All the founders were Christian including
 Jefferson and Madison, and in particular the primary author of the US
@@ -1364,7 +897,7 @@ above.
 Gno.land should not censor speech, even if the speech is wrong. However, it
 should ban all porn and try to limit external links to porn sites as porn is
 not speech and is dangerous to civilization. Whether hate-speech is tolerated
-shoud be determined by each realm but also by the living Gno.land constitution
+should be determined by each realm but also by the living Gno.land constitution
 and by GovDAO vote to amend the constitution and laws of Gno.land.
 
 ### GnoWeb Browser
@@ -1448,7 +981,7 @@ Consider the following thought statement tree/graph:
      * The first "greenback" paper dollar issued in 1862 was a bill of credit
        backed by the federal government's promise to pay the bearer gold or
        silver.
-   * Neither Article 1, Section 8, Clase 5 nor Article 1, section 10, Clause 1
+   * Neither Article 1, Section 8, Clause 5 nor Article 1, section 10, Clause 1
      of the US Constitution give the federal government the authority to stray
      from the "bimetalic" spirit of the U.S. Constitution.
    * Paper fiat dollar bills are not coins.
@@ -1467,7 +1000,7 @@ Consider the following thought statement tree/graph:
      * The Bretton Woods system was an international monetary system established
        in 1944 that set rules for commercial and financial relations among the
        major industrial states pegging the dollar to gold.
-       * It created created a system of fixed exchange rates, with the U.S.
+       * It created a system of fixed exchange rates, with the U.S.
          dollar pegged to gold and other currencies pegged to the dollar, and
          established the International Monetary Fund (IMF) and the
          World Bank "to promote economic stability and growth".
@@ -1480,14 +1013,14 @@ Consider the following thought statement tree/graph:
          convertibility on August 15, 1971, effectively marked the collapse of the
          system, transitioning the world to floating exchange rates.
      * The Coinage Act of 1963 removed silver from dimes and quarters and
-       reduced the silver content of of half-dollars to 40%, more or less
-       completing the destruction silver coin as money and ending bimetalism.
-       * [Wikpedia incorrectly states](https://en.wikipedia.org/wiki/Coinage_Act_of_1873) that bimetalism ended with the Coinage Act of 1873, and [prevents](https://en.wikipedia.org/wiki/Talk:Coinage_Act_of_1873) users from correcting the record.
+       reduced the silver content of half-dollars to 40%, more or less
+       completing the destruction silver coin as money and ending bimetallism.
+       * [Wikipedia incorrectly states](https://en.wikipedia.org/wiki/Coinage_Act_of_1873) that bimetalism ended with the Coinage Act of 1873, and [prevents](https://en.wikipedia.org/wiki/Talk:Coinage_Act_of_1873) users from correcting the record.
        * By 1973, the U.S. dollar was fully decoupled from gold, transitioning to
          a fiat currency not backed by physical commodities.
      * JP Morgan intentionally sank the Titanic to murder opposition such as
        Straus and Astor, specifically to debase the dollar and to steal the works
-       of Nikolas Tesla.
+       of Nikola Tesla.
        * JP Morgan sank the Titanic to debase the dollar.
          * John Jacob Astor IV was the world's richest man; he opposed the
            Treasury and WWI.
@@ -1495,7 +1028,7 @@ Consider the following thought statement tree/graph:
            National Citizen's League for the promotion of a Sound Banking System
            who corresponded with the editor of the New York Times and [made a call
            to action in and around 10/16/1911](./images/manifesto/isador_straus.jpeg) of the public for open discussion to prevent the adoption of an unaccountable federal reserve act.
-         * Less than one year after Isador Straus declared the call to action to
+         * Less than one year after Isidor Straus declared the call to action to
            the public, the Titanic sunk in April 15, 1912 after boarding members
            invited by JP Morgan who himself dipped out of the party at the last
            minute--knowing that there was an engine room fire as logged by logs.
@@ -1505,20 +1038,20 @@ Consider the following thought statement tree/graph:
              for white flares that looked like fireworks.
              * The recent 3D scan of the sunken Titanic reveals an outward blowing
                out of the ship's hull where the engine room was, exactly where
-               photographs of the Titanic showed fire damange during boarding.
+               photographs of the Titanic showed fire damage during boarding.
                * The OceanGate submersible that later imploded on the way to view
                  the Titanic had in its board of directors a Rothschild.
          * The year following the sinking of the Titanic saw the unconstitutional
            passage of the Federal Reserve act in December 23, 1913.
-             * The Federal Reserve Act was drafted in secret in Jeckyll Island and
+             * The Federal Reserve Act was drafted in secret on Jekyll Island and
                overseen by banking elites including the Rothschilds.
          * Less than one year after the passage of the Federal Reserve Act began
-           World War I in July 28, 1914; and thus began the signficant dillution
+           World War I in July 28, 1914; and thus began the significant dilution
            of the dollar via the sale of government war bonds.
-       * JPMorgan sank the Titanic to steal the works of Nikolas Tesla.
+       * JPMorgan sank the Titanic to steal the works of Nikola Tesla.
          * John Jacob Astor IV was Tesla's primary patron.
          * Tesla died on 7 January 1943, at the age of 86, penniless.
-         * Two days later his death the FBI ordered the Alien Property
+         * Two days after his death the FBI ordered the Alien Property
            Custodian to seize Tesla’s belongings, even though Tesla was an
            American citizen.
          * Tesla’s entire estate from the Hotel New Yorker and other New York
@@ -1540,7 +1073,7 @@ Consider the following thought statement tree/graph:
        At the price of silver today at $84 per troy ounce, a silver dollar
        today would be worth $64, roughly representing about 6 halvings
        of the purchasing power of the dollar, or 1.56%.
-     * The gold dollar used to weigh 1.672 grams of which 90% was silver.
+     * The gold dollar used to weigh 1.672 grams of which 90% was gold.
        At the price of gold today at $4,590 per troy ounce, a gold dollar 
        today would be worth $244, roughly representing about 8 halvings
        of the purchasing power of the dollar, or 0.41%.
@@ -1565,13 +1098,13 @@ widely understood that the US empire is in rapid decline and that much of the
 world will experience economic struggle as the once mighty petrodollar (and
 thus by extension the fiat money of other nations) collapses.
 
-Furthermore silver is becoming increasingly important for industrual uses,
+Furthermore silver is becoming increasingly important for industrial uses,
 especially with new silver-based solid state batteries entering the market that
 are superior to other battery systems, making the return of silver coin as
 money inevitable.
 
 Thus far in human history the powers that be have been able to control public
-consciousness and thus human behavior; even grandually and systematically
+consciousness and thus human behavior; even gradually and systematically
 moving away from the gold and silver coin monetary system mandated by the US
 constitution; but we live in a different post-singularity era of the
 information age where complete censorship is all but impossible, and the people
@@ -1582,7 +1115,7 @@ that are much more resilient to censorship than centralized systems.
 In the information age it is completely feasible (and eventually inevitable)
 that we evolve beyond the age of empires and build a global community not based
 on any centralized global governance system or even based on the might of any
-military or police force, but instead based the development, propagation, and
+military or police force, but instead based on the development, propagation, and
 voluntary adoption of protocols of game-theoretic Nash equilibrium for the
 world's benefit. But to solve a civilization level problem first the people
 need to understand the problem.
@@ -1605,7 +1138,7 @@ subjected to a universal state controlled identification system as they are
 likely to be used to increasingly censor speech and worse--this is the "mark of
 the beast" in the book of revelation.
 
-To guarantee our safety in the face of potentially tyranical governments we
+To guarantee our safety in the face of potentially tyrannical governments we
 need to collectively create a large variety of alternative protocols and
 applications built from the ground up, and simultaneously avoid using centrally
 mandated solutions. Even with proof-of-human protocols the AI problem cannot be
@@ -1633,7 +1166,7 @@ may be more quantum resistant.
 See also:
  * ["A Decentralized Federated Learning using
    Reputation"](https://eprint.iacr.org/2024/506.pdf) - "federated learning
-   (FL) and fully homomorphic encryption (FHE) can be a components of a a
+   (FL) and fully homomorphic encryption (FHE) can be components of a
    quantum-safe solution for privacy preserving reputation computations."
  * [Privacy Preserving PageRank Algorithm By Using Secure Multi-Party
    Computation](https://www.semanticscholar.org/reader/ac0990f7a063a02222982f798be4bfa206728df2)
@@ -1659,7 +1192,7 @@ applications, and this can all happen without any government mandated digital
 ID system.
 
 Other types of components to be implemented include:
- * Heirarchical chain of accountability systems (e.g. large corporation)
+ * Hierarchical chain of accountability systems (e.g. large corporation)
  * Oracles for Web2.0 accounts
  * Oracles for citizenship or residency
  * Reputation scoring based on source of funds
@@ -1687,7 +1220,7 @@ obviously associated with each other and may have the capital to take down the
 whole board because of its insufficient moderation ability. 
 
 With insufficient moderation Gno.land ends up being harmful to users, just as
-4chan.org is dangerous to browse (albiet for the same reason that it is useful
+4chan.org is dangerous to browse (albeit for the same reason that it is useful
 due to its relative lack of censorship); to create a platform where
 alternatives can be implemented but with a slight improvement to eliminate porn
 and gore without risking freedom-of-speech is an unstated objective of my
@@ -1821,7 +1354,7 @@ the opening of the Lamb's book of life where names and deeds are written of
 those who are saved. Any system that tries to duplicate any universal
 identification system for the purpose of local governance voting, UBI, or
 proof-of-person even to distinguish AI bots from humans has the potential to
-become a mandated opporessive solution. The key message of the Book of
+become a mandated oppressive solution. The key message of the Book of
 Revelation and the life of Jesus as written is against such universal mandatory
 registries. In short, any information (identifier) that can be used against
 someone *will* be used against them especially in AI armageddon scenarios.
@@ -1835,8 +1368,8 @@ that defers controls to each zone). Yes, but contingent on GovDAO's good
 judgement on enforcing a middle ground between insufficient moderation and
 authoritarian moderation. Not as the day to day arbiter (except in the
 beginning) but as the final court of justice of a system of controls designed
-to enforce the spirit of the consitution. If not, GovDAO itself should fork,
-and failing that, users should fork the chain or seek alternartives.
+to enforce the spirit of the constitution. If not, GovDAO itself should fork,
+and failing that, users should fork the chain or seek alternatives.
 
 ### On Manufactured Discontent
 
@@ -1906,7 +1439,7 @@ few highlights.
  * My followers count has been stuck at around ~26.5K users for years, whereas
    it used to grow exponentially. This occurred around the time that I started
    getting vocal about Covid19 vaccines and mandates (and it was revealed that
-   miliary agencies like DARPA was involved in suppressing accounts).
+   military agencies like DARPA was involved in suppressing accounts).
 
  * I have experienced seeing my tweet go viral, with 13 retweets within a few
    minutes, only to see the retweet count drop down to 2 within seconds.
