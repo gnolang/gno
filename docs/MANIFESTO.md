@@ -136,6 +136,30 @@ Act of 2013 lifted the ban on domestic dissemination of propaganda in the US,
 reversing the original Smith-Mundt Act of 1948. Whether the quote is true or
 not, the substance is clearly true today.
 
+### Health Sovereignty
+
+The WHO Pandemic Agreement was adopted by the World Health Assembly in May 2025
+despite the non-participation of the United States and the abstention of 11
+other countries citing sovereignty concerns. Although the agreement claims that
+nothing in it grants the WHO authority to "direct, order, alter or otherwise
+prescribe" national law or to "mandate or impose" specific actions such as
+vaccination mandates or lockdowns, the very existence of binding international
+frameworks for pandemic response centralizes authority in an institution that
+has already demonstrated willingness to suppress dissenting scientific views
+during Covid19. Furthermore the agreement's pathogen access and benefit-sharing
+provisions create new obligations around technology transfer and intellectual
+property that could be weaponized against nations that do not comply.
+
+Given the track record of institutional capture by pharmaceutical interests and
+the censorship of legitimate scientific debate during the Covid19 pandemic, any
+centralized health governance framework--no matter how carefully worded--poses
+an existential risk to medical freedom and informed consent. Decentralized
+systems for publishing, verifying, and discussing scientific research are
+therefore not merely useful but necessary to preserve health sovereignty. Gno
+contracts can host transparent peer-review systems, accountable clinical trial
+registries, and censorship-resistant repositories of medical literature that no
+single authority can suppress or alter.
+
 ## Problem: AI Armageddon
 
 By [the latest projections ("There is no AI
@@ -264,7 +288,44 @@ and jets. AI armageddon global scenarios are much more terrifying when
 considering all the backdoors that could be exploited by rogue AGI. Some of
 these backdoors may even be hijacked to cause physiological and psychological
 effects upon nearby people. All of these backdoors create more surface area for
-vulnerability making AI armageddon more certain and more deadly. 
+vulnerability making AI armageddon more certain and more deadly.
+
+## Problem: Central Bank Digital Currencies
+
+Central Bank Digital Currencies (CBDCs) represent perhaps the most immediate
+threat to individual financial freedom. As of 2025, 137 countries and currency
+unions are exploring CBDCs. China's digital yuan pilot has processed over 7
+trillion e-CNY (~$986 billion) in transactions. Russia plans Digital Ruble
+transactions by September 2026. Brazil's Drex CBDC launches in 2026. The
+European Central Bank's digital euro is expected between 2026 and 2029. The
+UAE's Digital Dirham targets a full launch by late 2026.
+
+Unlike physical cash or even existing bank deposits, CBDCs are *programmable
+money*: governments can program expiration dates, restrict what you can
+purchase, freeze accounts instantly without judicial process, implement
+negative interest rates that force spending, and surveil every transaction in
+real time. This is not speculation--these are documented design features.
+China's e-CNY already implements programmable restrictions. The Bank for
+International Settlements (BIS) has [explicitly
+stated](https://www.bis.org/speeches/sp220118.htm) that a "key difference with
+CBDCs is that the central bank will have absolute control on the rules and
+regulations that will determine the use of that expression of central bank
+liability, and also, we will have the technology to enforce that."
+
+CBDCs are the technological infrastructure for the "social credit" model of
+governance: comply, and your money works; dissent, and your money stops. This
+is the "mark of the beast" not as metaphor but as monetary engineering. During
+the Canadian trucker protests of 2022 the government froze bank accounts of
+protesters and donors--with CBDCs such actions require no cooperation from
+banks at all.
+
+The antidote is sound money that no central authority controls: gold, silver,
+Bitcoin, and well-governed blockchain-based financial systems. Gno.land can
+host DeFi applications, stablecoins backed by real assets, and governance
+systems for community-managed currencies that operate outside the CBDC
+paradigm. The ease of developing complex financial applications in Gno as
+compared to Solidity makes it uniquely suited for the rapid development of
+these alternatives before the window closes.
 
 More concretely and without speculation, our civilization is at risk of a
 global catastrophe on par or much worse than the historic burning of the
@@ -871,6 +932,38 @@ Here are some benefits of GnoVM home computing:
  * Byzantine fault-tolerance comes out of the box for zero downtime.
  * Inversion of control with public key cryptography for everything: no more
    password management.
+ * Resilience against infrastructure failures: home chains continue operating
+   during internet outages, power grid disruptions, or state-level network
+   shutdowns. Combined with mesh networking and local power (solar, battery),
+   GnoVM home chains can form the backbone of community-level communication
+   and coordination when centralized infrastructure fails.
+
+### Use Case: Supply Chain Transparency and Food Sovereignty
+
+The fragility of global supply chains has become impossible to ignore. From
+semiconductor shortages to food supply disruptions, dependency on opaque,
+centralized, and geographically concentrated supply chains puts populations at
+the mercy of forces they cannot see, verify, or influence. The geopolitical
+tension surrounding Taiwan and TSMC, the concentration of pharmaceutical
+manufacturing in China and India, and the consolidation of food production
+under a handful of multinational corporations all represent single points of
+failure with civilizational consequences.
+
+Gno contracts can implement transparent, accountable supply chain tracking
+where every step from origin to consumer is recorded with cryptographic
+accountability. Unlike centralized supply chain solutions (which are only as
+trustworthy as the company operating them), Gno-based supply chain modules are
+open source, auditable, and composable. A food provenance realm can import a
+certification realm which imports a reputation realm--all with type-safe
+interoperability and no middleware.
+
+For food sovereignty specifically, local communities can use Gno.land to
+coordinate direct farmer-to-consumer networks, manage community-supported
+agriculture (CSA) memberships, and maintain transparent records of growing
+practices--all without depending on any centralized platform that could
+deplatform them or change terms of service. When combined with home computing
+chains, local food networks can operate entirely independently of the global
+internet if necessary.
 
 ### Other Use Cases
 
@@ -969,14 +1062,57 @@ interactivity.
  * Gno2.
  * Open hardware.
 
+## How to Participate
+
+The problems outlined in this manifesto are immense but so is the opportunity.
+Every line of Gno code, every realm deployed, every node operated is a brick
+in the foundation of a more resilient civilization. Here is how you can
+contribute:
+
+ * **Learn Gno.** If you know Go you already know most of Gno. Start with the
+   [examples directory](https://github.com/gnolang/gno/tree/master/examples/gno.land)
+   and the [Gno by Example](https://gno-by-example.com/) tutorials.
+ * **Write a realm.** Build something useful--a board, a registry, a token, a
+   game, a supply chain tracker, a reputation module. Deploy it to the testnet.
+   The ecosystem grows one realm at a time.
+ * **Run a node.** Validator nodes secure the network. Full nodes preserve the
+   state. Home chain nodes give you sovereignty. The more nodes the more
+   resilient the network.
+ * **Audit and review.** Read other people's realms. Find bugs. Suggest
+   improvements. Good code review is as valuable as new code.
+ * **Fork.** If you disagree with the direction of Gno.land, fork it. The
+   constitution explicitly protects this right. Forkability is not a threat to
+   the project--it is the ultimate guarantee of its integrity.
+ * **Build offline-first.** Develop applications that work on home chains and
+   mesh networks. When the internet goes down these applications become the
+   infrastructure that communities depend on.
+ * **Spread the word.** Share this manifesto. Translate it. Discuss it. The
+   ideas here only matter if people know about them.
+
+You do not need permission to participate. That is the point.
+
 ## Summary
+
+The convergence of AI-driven threats, the collapse of dollar hegemony, the
+rise of CBDCs and programmable surveillance money, institutional capture of
+health and information systems, and the fragility of centralized
+infrastructure all point to the same conclusion: we need to build alternatives
+now, not after the crisis arrives.
 
 There is only so much that we can do as individuals, and it is not clear what
 we can do even as a well organized collective when the incentives are stacked
 against the masses. But we need not feel disheartened because there is much to
 be built in the domain of open source foundational tooling for our present and
 future civilizations. We can always find joy in constructing a better future
-brick by brick, metaphorically speaking. With that,
+brick by brick, metaphorically speaking.
+
+Gno.land is not merely a blockchain or a programming language. It is an
+operating system for human coordination that does not require trust in any
+central authority. Every realm is a small act of sovereignty. Every p-package
+is a shared agreement that cannot be unilaterally altered. Every home chain is
+a household that owns its own data and computation. Together they form
+something that no corporation, government, or rogue AI can easily destroy:
+a distributed, forkable, accountable foundation for the next civilization.
 
  * Gno is the next C for multi-user environments.
  * Gno.land is the world's new open programmable knowledge base.
@@ -1129,6 +1265,25 @@ Furthermore silver is becoming increasingly important for industrial uses,
 especially with new silver-based solid state batteries entering the market that
 are superior to other battery systems, making the return of silver coin as
 money inevitable.
+
+The collapse of dollar hegemony is not a future prediction--it is happening
+now. The BRICS nations (Brazil, Russia, India, China, South Africa, and
+expanding membership) are actively constructing alternatives to the
+dollar-based financial system. In 2025 BRICS central banks added nearly 800
+metric tonnes of gold to their reserves, with combined holdings now exceeding
+6,000 tonnes. China and Russia now conduct most of their bilateral trade in
+yuan and rubles, bypassing the dollar entirely. In October 2025 the bloc
+piloted the "Unit", a settlement instrument backed by a 40% gold and 60%
+BRICS-currency basket, signaling a structural move toward de-dollarization.
+Meanwhile BRICS Pay, a blockchain-based decentralized payment messaging system,
+is being developed to circumvent Western-controlled systems like SWIFT.
+
+The implications are profound: as the dollar loses reserve status the US
+government's ability to finance its debt through inflation is curtailed, which
+means either severe austerity, debt default, or hyperinflation--none of which
+end well for ordinary people holding dollar-denominated assets. This is not a
+distant scenario; it is the trajectory we are on. The need for decentralized,
+sound-money alternatives and the tools to build them is urgent.
 
 Thus far in human history the powers that be have been able to control public
 consciousness and thus human behavior; even gradually and systematically
