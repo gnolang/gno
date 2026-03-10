@@ -317,10 +317,10 @@ func TestWebsocketManagerCheckOrigin(t *testing.T) {
 			expectAllowed:  true,
 		},
 		{
-			name:           "empty allowed origins defaults to allow all",
+			name:           "empty allowed origins rejects cross-origin",
 			allowedOrigins: []string{},
 			origin:         "http://evil.com",
-			expectAllowed:  true,
+			expectAllowed:  false,
 		},
 		{
 			name:           "non-matching origin rejected",

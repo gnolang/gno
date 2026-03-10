@@ -831,13 +831,19 @@ type WebsocketManager struct {
 // allowedOrigins is used to validate the Origin header on WebSocket upgrade
 // requests. Use []string{"*"} to allow all origins.
 func NewWebsocketManager(funcMap map[string]*RPCFunc, allowedOrigins []string, wsConnOptions ...func(*wsConnection)) *WebsocketManager {
-	corsValidator := cors.New(cors.Options{
-		AllowedOrigins: allowedOrigins,
-	})
+	// nil defaults to gorilla/websocket's same-origin check.
+	var checkOrigin func(r *http.Request) bool
+	if len(allowedOrigins) > 0 {
+		corsValidator := cors.New(cors.Options{
+			AllowedOrigins: allowedOrigins,
+		})
+		checkOrigin = corsValidator.OriginAllowed
+	}
+
 	return &WebsocketManager{
 		funcMap: funcMap,
 		Upgrader: websocket.Upgrader{
-			CheckOrigin: corsValidator.OriginAllowed,
+			CheckOrigin: checkOrigin,
 		},
 		logger:        log.NewNoopLogger(),
 		wsConnOptions: wsConnOptions,

@@ -736,8 +736,14 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 		mux := http.NewServeMux()
 		rpcLogger := n.Logger.With("module", "rpc-server")
 		wmLogger := rpcLogger.With("protocol", "websocket")
+
+		var wsAllowedOrigins []string
+		if n.config.RPC.IsCorsEnabled() {
+			wsAllowedOrigins = n.config.RPC.CORSAllowedOrigins
+		}
+
 		wm := rpcserver.NewWebsocketManager(rpccore.Routes,
-			n.config.RPC.CORSAllowedOrigins,
+			wsAllowedOrigins,
 			rpcserver.OnDisconnect(func(remoteAddr string) {
 				// any cleanup...
 				// (we used to unsubscribe from all event subscriptions)
