@@ -327,7 +327,7 @@ paradigm. The ease of developing complex financial applications in Gno as
 compared to Solidity makes it uniquely suited for the rapid development of
 these alternatives before the window closes.
 
-More concretely and without speculation, our civilization is at risk of a
+Beyond financial sovereignty, our civilization is at risk of a
 global catastrophe on par or much worse than the historic burning of the
 Library of Alexandria (the largest and most significant library of the ancient
 world). Like the burning of the Library of Alexandria, the loss of our digital
@@ -463,7 +463,7 @@ this project and the design of the language; specifically the NewTendermint Gno
 team and Gno community, and especially Manfred, Morgan, Maxwell, Milos,
 Guilhem, Ray, and Omar._
 
-**Gno is the first general purpose _multi-user_ programming language.** And
+**Gno is the first general purpose _multi-user_ programming language.**
 
 Gno is a minimal extension of the Go language for multi-user programming. Gno
 allows a massive number of programmers to iteratively and interactively develop
@@ -492,10 +492,10 @@ serialization generally unnecessary. GnoVM at the end of realm transaction
 boundaries will "finalize" by scanning all new, modified, and deleted objects
 and will automatically persist what needs to be saved along with meta
 information like the Merkle hash, ref count, associated realm and unique number
-of each object. This 
-
-By making inter-user interoperability native to the language and also by
-removing the distinction between volatile and persistent memory
+of each object. By making inter-user interoperability native to the language
+and also by removing the distinction between volatile and persistent memory,
+Gno eliminates much of the accidental complexity that plagues traditional
+multi-service and smart-contract development.
 
 The GnoVM is implemented purely in Go and is a Gno AST interpreter. It is
 implemented to serve as a reference implementation suitable for production and
@@ -1130,7 +1130,7 @@ a distributed, forkable, accountable foundation for the next civilization.
 
 Consider the following thought statement tree/graph: 
 
- * The Federal Reserve and the fiat dollar is unconstitional and therefore
+ * The Federal Reserve and the fiat dollar is unconstitutional and therefore
    illegitimate.
    * The US Constitution Article 1, Section 8, Clause 5 explicitly states that
      "The Congress shall have Power... To coin Money, regulate the Value
@@ -1417,7 +1417,7 @@ not just on Gno.land. Gno.land GovDAO should not require any specific
 whitelisting policy or set of policies. Even if a realm is being abused ideally
 its legitimate usage should not be affected and state only purged of specific
 offending material following strict procedure; but in practice this may be
-difficult to enforce especially when the the app is designed such that it
+difficult to enforce especially when the app is designed such that it
 blends legitimate and illegitimate use cases together.
 
 The partial solution to the authoritarian moderation problem is for neither
@@ -1586,7 +1586,7 @@ pen name to preserve privacy--mine is "Charitable Star Piculet") that seemed
 interesting by DerrickEvans4WV about [Senator Machaela Cavanaugh who the
 original poster said "vandalized" a Declaration of Independence exhibit at the
 state capital building](https://x.com/i/communitynotes/t/2009097879106015609).
-The community note by "Hillarious Wind Sandgrouse" only expressed her point of 
+The community note by "Hilarious Wind Sandgrouse" only expressed her point of 
 view and that she said the object was prohibited; but when I read the [article
 referenced by Sandgrouse himself](https://nebraskaexaminer.com/2026/01/07/nebraska-state-lawmaker-removes-part-of-conservative-pragerus-founders-museum/) it was made clear that the objects were never 
 prohibited, so therefore she was "vandalizing". So I looked further into his
