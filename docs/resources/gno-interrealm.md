@@ -723,12 +723,9 @@ func AnotherPublic(_ realm) {
 import "gno.land/r/realmA"
 
 func main() {
-    // There is assumed to be in "frame -1"
-    // a crossing from UserRealm(g1user) to
-    // CodeRealm(gno.land/e/g1user/run) before
-    // main() is called, so crossing() here
-    // is redundant.
-    // crossing()
+    // Before main() is called there is an implicit
+    // crossing from UserRealm(g1user) to
+    // CodeRealm(gno.land/e/g1user/run).
 
     // Returns (
     //     addr:g1user,
@@ -739,7 +736,7 @@ func main() {
     // Returns (
     //     addr:g1user,
     //     pkgpath:"gno.land/e/g1user/run"
-    // ) == testing.NewUserRealm(g1user, "gno.land/e/g1user/run")
+    // ) == testing.NewCodeRealm("gno.land/e/g1user/run")
     runtime.CurrentRealm()
 
     realmA.PublicNoncrossing()
