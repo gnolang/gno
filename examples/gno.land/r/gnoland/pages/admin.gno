@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"strings"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 var (

@@ -392,6 +392,8 @@ func TestValidatePkgNameMatchesPath(t *testing.T) {
 	}{
 		{"match", "counter", "gno.land/r/demo/counter", ""},
 		{"mismatch", "hello", "gno.land/r/demo/goodbye", "does not match path element"},
+		{"version_suffix_v0_match", "foo", "gno.land/r/demo/foo/v0", ""},
+		{"version_suffix_v0_mismatch", "bar", "gno.land/r/demo/foo/v0", "does not match path element"},
 		{"version_suffix_v1_match", "foo", "gno.land/r/demo/foo/v1", ""},
 		{"version_suffix_v1_mismatch", "bar", "gno.land/r/demo/foo/v1", "does not match path element"},
 		{"version_suffix_v2_match", "foo", "gno.land/r/demo/foo/v2", ""},

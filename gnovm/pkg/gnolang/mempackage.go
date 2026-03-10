@@ -160,19 +160,19 @@ func IsTestFile(file string) bool {
 // Package name and path validation helpers.
 // See https://github.com/gnolang/gno/issues/1571
 
-// reVersionSuffix matches version suffixes (v1, v2, v3, v10, v11, ...).
+// reVersionSuffix matches version suffixes (v0, v1, v2, v3, v10, v11, ...).
 // Note: Go convention says v1 should not appear in paths, but Gno allows it
 // for backwards compatibility with existing versioned packages.
-var reVersionSuffix = regexp.MustCompile(`^v([1-9][0-9]*)$`)
+var reVersionSuffix = regexp.MustCompile(`^v([0-9]+)$`)
 
-// isVersionSuffix returns true if s is a version suffix (v1, v2, v3, ...).
+// isVersionSuffix returns true if s is a version suffix (v0, v1, v2, v3, ...).
 func isVersionSuffix(s string) bool {
 	return reVersionSuffix.MatchString(s)
 }
 
 // LastPathElement extracts the last meaningful element from a package path.
-// For versioned paths like "gno.land/r/foo/v2" or "gno.land/r/foo/v1", it
-// returns "foo" since version suffixes (v1, v2, ...) are skipped.
+// For versioned paths like "gno.land/r/foo/v2" or "gno.land/r/foo/v0", it
+// returns "foo" since version suffixes (v0, v1, v2, ...) are skipped.
 func LastPathElement(pkgPath string) string {
 	pos := strings.LastIndexByte(pkgPath, '/')
 	if pos < 0 {
@@ -193,7 +193,7 @@ func LastPathElement(pkgPath string) string {
 
 // ValidatePkgNameMatchesPath ensures the declared package name matches the last path element.
 // This prevents confusion where a package at "gno.land/r/foo" declares "package bar".
-// For versioned paths (v1, v2, ...), the package name must match the element before
+// For versioned paths (v0, v1, v2, ...), the package name must match the element before
 // the version suffix (e.g., "gno.land/r/foo/v2" expects "package foo").
 func ValidatePkgNameMatchesPath(pkgName Name, pkgPath string) error {
 	expectedName := LastPathElement(pkgPath)
@@ -614,6 +614,9 @@ func (mptype MemPackageType) Validate(pkgPath string) {
 	// Check if MPUser*.
 	switch {
 	case mptype.IsUserlib():
+		if strings.HasSuffix(pkgPath, "/filetests") {
+			panic(fmt.Sprintf("expected user package path for %q but got %q ending in filetests", mptype, pkgPath))
+		}
 		if !IsUserlib(pkgPath) {
 			panic(fmt.Sprintf("expected user package path for %q but got %q", mptype, pkgPath))
 		}
@@ -695,6 +698,7 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // dir, and saving it with the given pkgPath (import path).  The resulting
 // MemPackage will contain the names and content of all *.gno files, and
 // additionally LICENSE, *.md and *.toml .
+// All *_filetest.gno files are added from subdirectory filetests.
 //
 // ReadMemPackage only reads good file extensions or whitelisted good files,
 // and ignores bad file extensions. Validation will fail if any bad extensions
@@ -728,7 +732,13 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 	}
 	// Construct list of files to add to mpkg.
 	list := make([]string, 0, len(files))
+	filetestsDir := ""
 	for _, file := range files {
+		if file.IsDir() && file.Name() == "filetests" {
+			// Process filetests dir below
+			filetestsDir = filepath.Join(dir, file.Name())
+			continue
+		}
 		// Ignore directories and hidden files, only include allowed files & extensions,
 		// then exclude files that are of the bad extensions.
 		// We do case ignore to check goodFiles. MemFile ValidateBasic will enforce case rules.
@@ -740,6 +750,22 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
+	}
+	if filetestsDir != "" {
+		// Add filetest files from the subdir
+		filetestsFiles, err := os.ReadDir(filetestsDir)
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range filetestsFiles {
+			if strings.HasSuffix(file.Name(), "_filetest.gno") {
+				checkPath := filepath.Join(dir, file.Name())
+				if slices.Contains(list, checkPath) {
+					return nil, fmt.Errorf("cannot add %q in filetests: same filename in package dir %q", file.Name(), dir)
+				}
+				list = append(list, filepath.Join(filetestsDir, file.Name()))
+			}
+		}
 	}
 	return ReadMemPackageFromList(list, pkgPath, mptype)
 }

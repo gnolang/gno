@@ -8,7 +8,7 @@ stderr 'file1.gno:9:12: expected type, found'
 -- file1.gno --
 package testdata
 
-import "gno.land/p/nt/avl"
+import "gno.land/p/nt/avl/v0"
 
 // invalid syntax
 myVar + avl.Node

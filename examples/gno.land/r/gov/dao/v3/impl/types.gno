@@ -3,8 +3,8 @@ package impl
 import (
 	"strings"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
@@ -206,8 +206,10 @@ func StringifyProposal(p *dao.Proposal) string {
 		out += ufmt.Sprintf(`
 This proposal contains the following metadata:
 
-%s	
-`, p.ExecutorString())
+%s
+
+Executor created in: %s
+`, p.ExecutorString(), p.ExecutorCreationRealm())
 	}
 
 	return out
