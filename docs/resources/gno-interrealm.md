@@ -75,6 +75,63 @@ while the realm-context stays the same.
 \* `runtime.CurrentRealm()` returns the same realm, but `runtime.PreviousRealm()`
 shifts — what was current becomes previous.
 
+### Design Goals
+
+**Caveat: The interrealm specification does not secure applications against
+arbitrary code execution. It is important for realm logic (and even p package
+logic) to ensure that arbitrary (variable) functions (and similarly arbitrary
+interface methods) are not provided by malicious callers; such arbitrary
+functions and methods whether crossing (or non-crossing) will inherit the
+previous realm (or both current and previous realms) and could abuse these
+realm-contexts.** It does not make sense for any realm user to cross-call an
+arbitrary function or method as it loses agency while being marked as the
+responsible caller by the callee's runtime previous realm. This problem is
+worse when calling a non-crossing function or method. It can be reasonable when
+such variable functions or interface values are restricted in other ways such
+as by whitelisting by a DAO upon careful inspection of every such variable
+function or interface value (both its type declaration as well as its state).
+
+P package code should behave the same even when copied verbatim in a realm
+package; and likewise non-crossing code should behave the same when copied
+verbatim from one realm to another. Otherwise there will be lots of security
+related bugs from user error.
+
+Realm crossing with respect to `runtime.CurrentRealm()` and
+`runtime.PreviousRealm()` must be explicit and warrants type-checking; because
+a crossing-function of a realm should be able to call another crossing-function
+of the same realm without necessarily crossing (changing the realm-context).
+Sometimes the previous realm and current realm must be the same realm, such as
+when a realm consumes a service that it offers to external realms and users.
+
+Where a real object resides should not matter too much, as it is often
+difficult to predict. Thus the realm-context as returned by
+`runtime.PreviousRealm()` and `runtime.CurrentRealm()` should not change with
+non-crossing method calls, and the realm-storage-context should be determined
+for non-crossing methods only by the realm-storage of the receiver. The
+realm-storage of a receiver should only matter for when elements reside in
+external realm-storage and direct dot-selector or index-expression access of
+sub-elements are desired of the aforementioned element.
+
+A method should be able to modify the receiver and associated objects of the
+same realm-storage as that of the receiver.
+
+A method should be able to create new objects that reside in the same realm by
+association in order to maintain storage realm consistency and encapsulation
+and reduce fragmentation.
+
+It is difficult to migrate an object from one realm to another even when its
+ref-count is 1; such an object may be deep with many descendants of ref-count 1
+and so performance is unpredictable.
+
+Code declared in p packages (or declared in "immutable" realm packages) can
+help different realms enforce contracts trustlessly, even those that involve
+the caller's current realm. Otherwise two mutable (upgradeable) realms cannot
+export trust unto the chain because functions declared in those two realms can
+be upgraded.
+
+Both `fn(cross, ...)` and `func fn(cur realm, ...){...}` may become special
+syntax in future Gno versions.
+
 ```go
 // realm /r/alice/alice
 package alice
@@ -530,63 +587,6 @@ Future versions of Gno may also expose a new modifier keyword `readonly` to
 allow for return values of functions to be tainted as readonly. Then with `func
 GetBlacklist() readonly []string` the return value would be readonly tainted
 for both bob and alice.
-
-## `fn(cross, ...)` and `func fn(cur realm, ...){...}` Design Goals
-
-**Caveat: The interrealm specification does not secure applications against
-arbitrary code execution. It is important for realm logic (and even p package
-logic) to ensure that arbitrary (variable) functions (and similarly arbitrary
-interface methods) are not provided by malicious callers; such arbitrary
-functions and methods whether crossing (or non-crossing) will inherit the
-previous realm (or both current and previous realms) and could abuse these
-realm-contexts.** It does not make sense for any realm user to cross-call an
-arbitrary function or method as it loses agency while being marked as the
-responsible caller by the callee's runtime previous realm. This problem is
-worse when calling a non-crossing function or method. It can be reasonable when
-such variable functions or interface values are restricted in other ways such
-as by whitelisting by a DAO upon careful inspection of every such variable
-function or interface value (both its type declaration as well as its state).
-
-P package code should behave the same even when copied verbatim in a realm
-package; and likewise non-crossing code should behave the same when copied
-verbatim from one realm to another. Otherwise there will be lots of security
-related bugs from user error.
-
-Realm crossing with respect to `runtime.CurrentRealm()` and
-`runtime.PreviousRealm()` must be explicit and warrants type-checking; because
-a crossing-function of a realm should be able to call another crossing-function
-of the same realm without necessarily crossing (changing the realm-context).
-Sometimes the previous realm and current realm must be the same realm, such as
-when a realm consumes a service that it offers to external realms and users.
-
-Where a real object resides should not matter too much, as it is often
-difficult to predict. Thus the realm-context as returned by
-`runtime.PreviousRealm()` and `runtime.CurrentRealm()` should not change with
-non-crossing method calls, and the realm-storage-context should be determined
-for non-crossing methods only by the realm-storage of the receiver. The
-realm-storage of a receiver should only matter for when elements reside in
-external realm-storage and direct dot-selector or index-expression access of
-sub-elements are desired of the aforementioned element.
-
-A method should be able to modify the receiver and associated objects of the
-same realm-storage as that of the receiver.
-
-A method should be able to create new objects that reside in the same realm by
-association in order to maintain storage realm consistency and encapsulation
-and reduce fragmentation.
-
-It is difficult to migrate an object from one realm to another even when its
-ref-count is 1; such an object may be deep with many descendants of ref-count 1
-and so performance is unpredictable.
-
-Code declared in p packages (or declared in "immutable" realm packages) can
-help different realms enforce contracts trustlessly, even those that involve
-the caller's current realm. Otherwise two mutable (upgradeable) realms cannot
-export trust unto the chain because functions declared in those two realms can
-be upgraded.
-
-Both `fn(cross, ...)` and `func fn(cur realm, ...){...}` may become special
-syntax in future Gno versions.
 
 ## `panic()` and `revive(fn)`
 
