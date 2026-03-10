@@ -133,7 +133,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	// urequire.Equal(t, true, strings.Contains(dao.Render(""), "Author: "+m1.String()))
 
 	urequire.AbortsWithMessage(t, "proposal didn't reach supermajority yet: 66.66", func() {
-		dao.ExecuteProposal(cross, dao.ProposalID(0))
+		dao.ExecuteProposal(cross, dao.ProposalID(0), false)
 	})
 
 	testing.SetOriginCaller(m1111)
@@ -142,7 +142,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 		ProposalID: dao.ProposalID(0),
 	})
 
-	accepted := dao.ExecuteProposal(cross, dao.ProposalID(0))
+	accepted := dao.ExecuteProposal(cross, dao.ProposalID(0), false)
 	urequire.Equal(t, false, accepted)
 
 	urequire.Equal(t, true, contains(dao.Render("0"), "**PROPOSAL HAS BEEN DENIED**"))
@@ -300,7 +300,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("8"), "68.42105263157895%"))
 	urequire.Equal(t, true, contains(dao.Render("8"), "0%"))
 
-	accepted := dao.ExecuteProposal(cross, dao.ProposalID(pid))
+	accepted := dao.ExecuteProposal(cross, dao.ProposalID(pid), false)
 	urequire.Equal(t, true, accepted)
 	urequire.Equal(t, true, contains(dao.Render("8"), "**PROPOSAL HAS BEEN ACCEPTED**"))
 	urequire.Equal(t, true, contains(dao.Render("8"), "YES PERCENT: 68.42105263157895%"))

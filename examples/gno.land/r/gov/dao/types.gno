@@ -241,6 +241,11 @@ type DAO interface {
 	// Is intended to be used to validate who can trigger the proposal execution.
 	PreExecuteProposal(pid ProposalID) (bool, error)
 
+	// ExecuteProposal executes the proposal executor and on error changes proposal
+	// status to denied with the error message being the denial reason.
+	// It returns the executor error when it fails.
+	ExecuteProposal(pid ProposalID, e Executor) error
+
 	// Render will return a human-readable string in markdown format that
 	// will be used to show new data through the dao proxy entrypoint.
 	Render(pkgpath string, path string) string

@@ -47,8 +47,13 @@ func MustCreateProposal(cur realm, r ProposalRequest) ProposalID {
 
 // ExecuteProposal will try to execute the proposal with the provided ProposalID.
 // If the proposal was denied, it will return false. If the proposal is correctly
-// executed, it will return true. If something happens this function will panic.
-func ExecuteProposal(cur realm, pid ProposalID) bool {
+// executed, it will return true. If something happens this function will panic,
+// unless `execErrorRejects` is true, in which case proposal is rejected with the
+// error as the reason when the proposal executor fails.
+// Using `execErrorRejects` allows to finish proposals by rejecting them when there
+// is a state change or an error in the proposal parameters that make execution
+// fail, leaving proposal active forever because it can't be successfully executed.
+func ExecuteProposal(cur realm, pid ProposalID, execErrorRejects bool) bool {
 	if dao == nil {
 		return false
 	}
@@ -64,7 +69,13 @@ func ExecuteProposal(cur realm, pid ProposalID) bool {
 	if err != nil {
 		panic(err.Error())
 	}
-	if err := prop.executor.Execute(cross); err != nil {
+
+	err = dao.ExecuteProposal(pid, prop.executor)
+	if err != nil {
+		if execErrorRejects {
+			return false
+		}
+
 		panic(err.Error())
 	}
 	return true
