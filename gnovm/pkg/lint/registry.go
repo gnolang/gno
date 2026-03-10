@@ -1,6 +1,9 @@
 package lint
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 type Registry struct {
 	rules map[string]Rule
@@ -39,6 +42,9 @@ func (r *Registry) All() []Rule {
 	for _, rule := range r.rules {
 		rules = append(rules, rule)
 	}
+	sort.Slice(rules, func(i, j int) bool {
+		return rules[i].Info().ID < rules[j].Info().ID
+	})
 	return rules
 }
 

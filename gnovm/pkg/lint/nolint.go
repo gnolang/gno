@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-var nolintPattern = regexp.MustCompile(`^//\s*nolint(?::([A-Za-z0-9,]+))?`)
+var nolintPattern = regexp.MustCompile(`^//\s*nolint(?::([A-Za-z0-9_,]+))?`)
 
 type NolintDirective struct {
 	Line  int

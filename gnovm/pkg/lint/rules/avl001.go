@@ -6,7 +6,9 @@ import (
 )
 
 const (
-	avlPkgPath  = "gno.land/p/nt/avl"
+	// TODO: When PR #5048 is merged, use gnolang.LastPathElement() to strip
+	// version suffixes and match the avl package path without hardcoding the version.
+	avlPkgPath  = "gno.land/p/nt/avl/v0"
 	avlTreeName = "Tree"
 )
 
@@ -66,6 +68,13 @@ func (AVL001) Check(ctx *lint.RuleContext, node gnolang.Node) []lint.Issue {
 }
 
 func getTypeOf(x gnolang.Expr) gnolang.Type {
+	if ref, ok := x.(*gnolang.RefExpr); ok {
+		inner := getTypeOf(ref.X)
+		if inner != nil {
+			return &gnolang.PointerType{Elt: inner}
+		}
+		return nil
+	}
 	t, _ := x.GetAttribute(gnolang.ATTR_TYPEOF_VALUE).(gnolang.Type)
 	return t
 }

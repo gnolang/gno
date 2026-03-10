@@ -1,0 +1,69 @@
+package reporters
+
+import (
+	"fmt"
+	"sort"
+
+	"github.com/gnolang/gno/gnovm/pkg/lint"
+)
+
+// baseReporter provides buffered issue collection with deduplication,
+// severity counting, and sorted output. Embedded by TextReporter and JSONReporter.
+type baseReporter struct {
+	issues   []lint.Issue
+	seen     map[string]bool
+	info     int
+	warnings int
+	errors   int
+}
+
+func newBaseReporter() baseReporter {
+	return baseReporter{
+		issues: make([]lint.Issue, 0),
+		seen:   make(map[string]bool),
+	}
+}
+
+func (b *baseReporter) Report(issue lint.Issue) {
+	key := fmt.Sprintf("%s:%d:%d:%s", issue.Filename, issue.Line, issue.Column, issue.RuleID)
+	if b.seen[key] {
+		return
+	}
+	b.seen[key] = true
+
+	b.issues = append(b.issues, issue)
+
+	switch issue.Severity {
+	case lint.SeverityInfo:
+		b.info++
+	case lint.SeverityWarning:
+		b.warnings++
+	case lint.SeverityError:
+		b.errors++
+	}
+}
+
+func (b *baseReporter) Summary() (info, warnings, errors int) {
+	return b.info, b.warnings, b.errors
+}
+
+// sortAndReset sorts the buffered issues by filename then line,
+// returns them along with severity counts, and resets all state.
+func (b *baseReporter) sortAndReset() (issues []lint.Issue, info, warnings, errors int) {
+	sort.Slice(b.issues, func(i, j int) bool {
+		if b.issues[i].Filename != b.issues[j].Filename {
+			return b.issues[i].Filename < b.issues[j].Filename
+		}
+		return b.issues[i].Line < b.issues[j].Line
+	})
+
+	issues = make([]lint.Issue, len(b.issues))
+	copy(issues, b.issues)
+	info, warnings, errors = b.info, b.warnings, b.errors
+
+	b.issues = b.issues[:0]
+	clear(b.seen)
+	b.info, b.warnings, b.errors = 0, 0, 0
+
+	return
+}

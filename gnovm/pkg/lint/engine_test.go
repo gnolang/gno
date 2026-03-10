@@ -65,7 +65,7 @@ func TestEngine_Run_NoRules(t *testing.T) {
 	fset := &gnolang.FileSet{}
 	sources := map[string]string{}
 
-	count := engine.Run("", fset, sources)
+	count := engine.Run("", false, fset, sources)
 	if count != 0 {
 		t.Errorf("Run() returned %d, want 0 for no rules", count)
 	}
@@ -82,7 +82,7 @@ func TestEngine_Run_NoFiles(t *testing.T) {
 	fset := &gnolang.FileSet{} // empty fileset
 	sources := map[string]string{}
 
-	count := engine.Run("", fset, sources)
+	count := engine.Run("", false, fset, sources)
 	if count != 0 {
 		t.Errorf("Run() returned %d, want 0 for no files", count)
 	}

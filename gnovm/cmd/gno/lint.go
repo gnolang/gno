@@ -380,17 +380,17 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 
 		pkgPath := ppkg.MPkg.Path
 		if ppkg.Prod.Fset != nil {
-			engine.Run(pkgPath, ppkg.Prod.Fset, sources)
+			engine.Run(pkgPath, false, ppkg.Prod.Fset, sources)
 		}
 		if ppkg.Test.Fset != nil {
-			engine.Run(pkgPath, ppkg.Test.Fset, sources)
+			engine.Run(pkgPath, true, ppkg.Test.Fset, sources)
 		}
 		if ppkg.XTest.Fset != nil {
-			engine.Run(pkgPath, ppkg.XTest.Fset, sources)
+			engine.Run(pkgPath, true, ppkg.XTest.Fset, sources)
 		}
 		for _, ftest := range ppkg.FTest {
 			if ftest.Fset != nil {
-				engine.Run(pkgPath, ftest.Fset, sources)
+				engine.Run(pkgPath, true, ftest.Fset, sources)
 			}
 		}
 	}

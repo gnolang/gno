@@ -38,6 +38,10 @@ func (RENDER001) Check(ctx *lint.RuleContext, node gnolang.Node) []lint.Issue {
 		return nil
 	}
 
+	if ctx.IsTest {
+		return nil
+	}
+
 	if !gnolang.IsRealmPath(ctx.PkgPath) {
 		return nil
 	}

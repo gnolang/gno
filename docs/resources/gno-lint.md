@@ -140,6 +140,8 @@ func (MyRule) Check(ctx *lint.RuleContext, node gnolang.Node) []lint.Issue {
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `PkgPath` | `string` | Package path of the current package |
+| `IsTest` | `bool` | Whether the file belongs to a test fileset |
 | `File` | `*gnolang.FileNode` | Current file being analyzed |
 | `Source` | `string` | Raw source code |
 | `Parents` | `[]gnolang.Node` | Parent node stack (innermost last) |
