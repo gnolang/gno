@@ -340,7 +340,7 @@ func TestIsVersionSuffix(t *testing.T) {
 		{"v3", true},
 		{"v10", true},
 		{"v99", true},
-		{"v0", false}, // v0 is NOT a version suffix
+		{"v0", true}, // v0 is a version suffix
 		{"v", false},  // incomplete
 		{"v2beta", false},
 		{"2", false}, // missing v prefix
@@ -364,6 +364,7 @@ func TestLastPathElement(t *testing.T) {
 	}{
 		{"gno.land/r/demo/counter", "counter"},
 		{"gno.land/p/demo/avl", "avl"},
+		{"gno.land/r/demo/foo/v0", "foo"},  // v0 is version suffix, return foo
 		{"gno.land/r/demo/foo/v1", "foo"},  // v1 is version suffix, return foo
 		{"gno.land/r/demo/foo/v2", "foo"},  // v2 is version suffix, return foo
 		{"gno.land/r/demo/foo/v10", "foo"}, // multi-digit version
