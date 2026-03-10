@@ -14,13 +14,13 @@ this Constitution for Gno.land.
 
  * AIB,Inc: All in Bits, Inc.
 
- * NT,LLC: NewTendermint, LLC.
+ * Bonded Auditor: A sufficiently $GNOT bonded user who submits newly
+   discovered vulnerabilities to the Auditor and Audits Registry. See
+   "Software Audits".
 
- * Governing Documents: This Gno.land Constitution, its Laws, and any
-   applicable Mandates and Bylaws (altogether Governing Documents).
-
- * Core Software: The minimal set of reference or standard software needed for
-   the Gno.land blockchain and its users. See "Software Security".
+ * Bonded Vulnerability Report: A vulnerability report submitted by a Bonded
+   Auditor for a vulnerability missed by any audit report. See "Software
+   Audits".
 
  * Constitution: This Gno.land constitution document including modifications by
    Constitutional Amendments. This Constitution is considered independent of
@@ -35,38 +35,62 @@ this Constitution for Gno.land.
    governing rules must be specified within the living Constitution directly;
    not in any Laws, Bylaws, or Mandates.
 
- * Simple Majority, Supermajority, and Constitutional Majority Decision: See
-   "GovDAO Decisions" and "Common DAO Spec".
+ * Core DAO: GovDAO, the Oversight Body DAO, or any subDAO created or managed
+   by any Core DAO implemented on Gno.land conforming to the Common DAO Spec.
 
- * Oversight Body: Initially NT,LLC as represented by a multisig account, but
-   eventually represented by an Oversight DAO on Gno.land.
+ * Core Software: The minimal set of reference or standard software needed for
+   the Gno.land blockchain and its users. See "Software Security".
 
- * Treasury: See "Gno.land Treasuries".
+ * Fully Audited: See "Software Security".
+
+ * GnotDAO: A $GNOT-bonded on-chain voting DAO for broader community
+   participation in certain governance decisions. See "GnotDAO".
 
  * GovDAO DAO: "All GovDAO DAOs" or "GovDAO DAO Set" refers to GovDAO and all
    descendant subDAOs ultimately created or managed by GovDAO. "A GovDAO DAO"
    (or "relevant GovDAO DAOs") refers to one DAO within the GovDAO DAO Set (or
    any number of DAOs within the GovDAO DAO Set) that has a Mandate that
    matches the given scope.
- 
- * Core DAO: GovDAO, the Oversight Body DAO, or any subDAO created or managed
-   by any Core DAO implemented on Gno.land conforming to the Common DAO Spec.
+
+ * Governing Documents: This Gno.land Constitution, its Laws, and any
+   applicable Mandates and Bylaws (altogether Governing Documents).
 
  * ICS: Inter-Chain-Security, or the general service of validating a chain with
    the validator set of another chain, or a subset thereof.
 
- * Simple Replicated ICS: ICS but where the same validator set of the original (hub) 
-   is used to secure the other (consumer) chain.
+ * Law Amendment: A modification to the Laws by a Supermajority Decision of
+   GovDAO. The procedure is similar to Constitutional Amendments. See
+   "Gno.land Laws".
 
- * SDDCAs (Storage Deposit Discount Credit Accounts): Excess $GNOT deposits
-   from the reduction in price of $GNOT/byte deposit ($GNOT Storage Deposit
-   Price). See "Excess $GNOT Deposits".
+ * NT,LLC: NewTendermint, LLC.
 
  * Open Source IP: Intellectual Property that is made available freely under
    the Gno Network GPL or any liberal license compatible with the Gno Network
    GPL.
 
- * Fully Audited: See "Software Security".
+ * Oversight Body: Initially NT,LLC as represented by a multisig account, but
+   eventually represented by an Oversight DAO on Gno.land.
+
+ * Qualified Auditor: An auditing entity vetted and whitelisted by GovDAO
+   Supermajority Decision on the Auditor and Audits Registry. See "Software
+   Audits".
+
+ * Qualified Audit Report: An audit report produced by a Qualified Auditor.
+   See "Software Audits".
+
+ * Qualified Candidate: A candidate who meets all GovDAO Membership Criteria
+   including General Membership Criteria and Diversification Requirements. See
+   "GovDAO Membership Criteria".
+
+ * Qualified Fork: A fork of Gno.land created through the procedures defined
+   in "Forking Gno.land".
+
+ * Revenue: Transaction fees collected in $GNOT or $PHOTON on Gno.land. See
+   "Gno.land Revenue".
+
+ * SDDCAs (Storage Deposit Discount Credit Accounts): Excess $GNOT deposits
+   from the reduction in price of $GNOT/byte deposit ($GNOT Storage Deposit
+   Price). See "Excess $GNOT Deposits".
 
  * Seven Mandates of Gno.land: The following immutable mandates:
    1. Protect the user; preserve user data and intent.
@@ -76,6 +100,18 @@ this Constitution for Gno.land.
    5. Do not require a name or identity for any core services.
    6. Aim to be perfect to serve one thousand years.
    7. Expand the light unto the multitude and nations.
+
+ * Simple Majority, Supermajority, and Constitutional Majority Decision: See
+   "GovDAO Decisions" and "Common DAO Spec".
+
+ * State Freeze Transaction: A blockchain transaction that freezes a realm,
+   package, or account, preventing further mutations without purging state.
+   See "User Rights and Limitations".
+
+ * State Purge Transaction: A blockchain transaction for deleting state from a
+   Gno.land realm or package. See "State Purge Transactions".
+
+ * Treasury: See "Gno.land Treasuries".
 
 ## Genesis Allocation
 
