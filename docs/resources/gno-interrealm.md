@@ -62,18 +62,19 @@ diverge when calling a non-crossing method of a real object residing in a
 different realm — the realm-storage-context shifts to the receiver's realm
 while the realm-context stays the same.
 
-| Call type | Realm-context changes? | Realm-storage-context changes? |
-|---|---|---|
-| `fn(cross, ...)` to same realm | Yes* | No |
-| `fn(cross, ...)` to different realm | Yes | Yes |
-| `fn(nil, ...)` (non-crossing-call) | No | No |
-| Non-crossing method on real receiver in same realm | No | No |
-| Non-crossing method on real receiver in different realm | No | Yes |
-| Non-crossing method on unreal receiver | No | No |
-| Non-crossing function | No | No |
+| Call type | Realm-context changes? | Storage-context changes? | Boundary? | Finalizes? |
+|---|---|---|---|---|
+| `fn(cross, ...)` to same realm | Yes* | No | Yes | Yes |
+| `fn(cross, ...)` to different realm | Yes | Yes | Yes | Yes |
+| `fn(nil, ...)` (non-crossing-call) | No | No | No | No |
+| Non-crossing method, real receiver in same realm | No | No | No | No |
+| Non-crossing method, real receiver in different realm | No | Yes | Yes | Yes |
+| Non-crossing method, unreal receiver | No | No | No | No |
+| Non-crossing function | No | No | No | No |
 
 \* `runtime.CurrentRealm()` returns the same realm, but `runtime.PreviousRealm()`
-shifts — what was current becomes previous.
+shifts — what was current becomes previous. See [Realm Boundaries](#realm-boundaries)
+for definitions of boundary and finalization.
 
 ### Design Goals
 
@@ -481,21 +482,10 @@ that `runtime.PreviousRealm()` returns what used to be returned with
 realm-storage-context is always set to that of realm-context after
 cross-calling.
 
-| Call type | Boundary created? | Realm-context changes? | Storage-context changes? | Finalizes? |
-|---|---|---|---|---|
-| `fn(cross, ...)` to same realm | Yes | Yes* | No | Yes |
-| `fn(cross, ...)` to different realm | Yes | Yes | Yes | Yes |
-| `fn(nil, ...)` (non-crossing-call) | No | No | No | No |
-| Non-crossing method, real receiver in same realm | No | No | No | No |
-| Non-crossing method, real receiver in different realm | Yes | No | Yes | Yes |
-| Non-crossing method, unreal receiver | No | No | No | No |
-| Non-crossing function | No | No | No | No |
-
-\* CurrentRealm stays the same but PreviousRealm shifts (see
-[above](#realm-context-and-realm-storage-context)).
-
-Every crossing-call creates a realm boundary even when there is no resulting
-change in realm-context or realm-storage-context. A non-crossing-call of a
+For which call types create boundaries, see the
+[summary table](#realm-context-and-realm-storage-context) above. Every
+crossing-call creates a realm boundary even when there is no resulting change
+in realm-context or realm-storage-context. A non-crossing-call of a
 crossing-function or crossing-method (`fn(nil, ...)`) never creates a realm
 boundary.
 
