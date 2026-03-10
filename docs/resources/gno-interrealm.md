@@ -190,7 +190,7 @@ func SendMail(cur realm, text string) {
 }
 ```
 
-### Realm-Storage Write Access
+## Object Model and Realm Storage
 
 Every object in Gno is persisted on disk with additional metadata including the
 object ID and an optional OwnerID (if persisted with a ref-count of exactly 1).
@@ -243,21 +243,16 @@ instead are Merkle-ized separately in an iavl tree of escaped object hashes
 (keyed by the escaped object's ID) for each realm package. (This is implemented
 as a stub but not yet implemented for the initial release of Gno.land.)
 
-Go's language rules for value access through dot-selectors & index-expressions
-are the same within the same realm, but exposed values through dot-selector &
-index-expressions are tainted read-only when performed by external realm logic.
-A Gno package's global variables even when exposed (e.g. `package realm1; var
-MyGlobal int = 1`) are safe from external manipulation (e.g. `import
-"xxx/realm1"; realm1.MyGlobal = 2`) by the readonly taint when accessed
-directly by dot-selector or index-expression from external realm logic; and
-also by a separate `DidUpdate()` guard when accessed by other means such as by
-return value of a function and the return value is real and external. For
-users to manipulate them a function or method *must* be provided.
-
 **A real object can only be directly mutated through dot-selectors and
 index-expressions if the object resides in the same realm as the current
 realm-storage-context. Unreal objects can always be directly mutated if their
 elements are directly exposed.**
+
+Exposed values accessed through dot-selectors and index-expressions from
+external realm logic are tainted read-only. For the full rules see
+[Readonly Taint Specification](#readonly-taint-specification).
+
+## Crossing-Functions and Crossing-Methods
 
 Realm crossing occurs when a crossing function (declared as
 `func fn(cur realm, ...){...}`)
@@ -289,7 +284,7 @@ change unless a method is called like `receiver.Method(cross, args...)`.
 Realms hold objects in residence and they also have a Gno address to send and
 receive coins from. Coins can only be spent from the current realm context.
 
-## Crossing-Functions and Crossing-Methods
+### Definition
 
 A crossing-function or crossing-method is that which is declared in a realm and
 has as its first argument `cur realm`. The `cur realm` argument must appear as
@@ -432,12 +427,6 @@ unless the call stack includes a crossing function called like `fn(cross,
 ...)`.
 
 ## Realm Boundaries
-
-The current and previous runtime realm-context have an associated Gno address
-from which native coins can be sent from and received to. Such native coins can
-only be sent from a banker instantiated with either realm-context. The
-realm-storage-context is not accessible at runtime and so there is no
-associated Gno address.
 
 A realm boundary is defined as a change in realm in the call frame stack
 from one realm to another, whether explicitly crossed with `fn(cross, ...)`
