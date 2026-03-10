@@ -4,8 +4,8 @@ import (
 	"chain/banker"
 	"chain/runtime"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ownable/v0"
 )
 
 // LifetimeSubscription represents a subscription that requires only a one-time payment.
@@ -68,7 +68,7 @@ func (ls *LifetimeSubscription) HasValidSubscription(addr address) error {
 
 // UpdateAmount allows the owner of the LifetimeSubscription contract to update the subscription price.
 func (ls *LifetimeSubscription) UpdateAmount(newAmount int64) error {
-	if !ls.OwnedByCurrent() {
+	if !ls.Owned() {
 		return ErrNotAuthorized
 	}
 

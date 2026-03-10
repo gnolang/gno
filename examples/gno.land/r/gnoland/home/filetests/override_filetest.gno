@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/gnoland/home"
 )
 
@@ -15,7 +15,7 @@ func main() {
 	println(home.Render(""))
 
 	newAdmin := testutils.TestAddress("newAdmin")
-	home.Admin.TransferOwnership(newAdmin)
+	home.AdminTransferOwnership(cross, newAdmin)
 	if err := revive(func() {
 		home.AdminSetOverride(cross, "Not admin anymore")
 	}); err == nil {
