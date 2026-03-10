@@ -104,6 +104,12 @@ of the same realm without necessarily crossing (changing the realm-context).
 Sometimes the previous realm and current realm must be the same realm, such as
 when a realm consumes a service that it offers to external realms and users.
 
+For Go developers familiar with blockchain VMs like the EVM: in Solidity,
+calling another contract implicitly shifts `msg.sender`, making it easy to
+introduce reentrancy bugs or misattribute the caller. Gno's `cross` keyword
+makes every realm-context transition visible in source code and verifiable by
+the compiler, eliminating this class of bugs by construction.
+
 Where a real object resides should not matter too much, as it is often
 difficult to predict. Thus the realm-context as returned by
 `runtime.PreviousRealm()` and `runtime.CurrentRealm()` should not change with
@@ -128,7 +134,10 @@ Code declared in p packages (or declared in "immutable" realm packages) can
 help different realms enforce contracts trustlessly, even those that involve
 the caller's current realm. Otherwise two mutable (upgradeable) realms cannot
 export trust unto the chain because functions declared in those two realms can
-be upgraded.
+be upgraded. This is analogous to Go interfaces but stronger: a Go interface
+guarantees method signatures, while a Gno p-package guarantees *behavior* —
+the implementation is immutable on-chain, so both parties can trust the logic
+without trusting each other.
 
 Both `fn(cross, ...)` and `func fn(cur realm, ...){...}` may become special
 syntax in future Gno versions.
@@ -192,6 +201,13 @@ func SendMail(cur realm, text string) {
 ```
 
 ## Object Model and Realm Storage
+
+Unlike other blockchain platforms where developers must manually serialize state
+into key-value stores, Gno persists ordinary Go structs and slices
+automatically. A Go developer can write familiar data structures — trees,
+linked lists, maps of structs — and they survive across transactions with no
+explicit marshaling. The runtime handles Merkle-ization and garbage collection
+transparently.
 
 Every object in Gno is persisted on disk with additional metadata including the
 object ID and an optional OwnerID (if persisted with a ref-count of exactly 1).
