@@ -177,21 +177,19 @@ token similar to Bitcoin.
 
 The inflated tokens will be distributed as follows:
 
- * One third to the Core Software Treasury.
- * One third to the Essential Services Treasury.
+ * One third to the Core Treasury.
  * One third to the Ecosystem Treasury.
+ * One third to the Reserve Treasury.
 
 ## Gno.land Treasuries
 
 The Gno.land Treasuries are as follows:
 
- * Core Software Treasury
- * Essential Services Treasury
+ * Core Treasury
  * Ecosystem Treasury
  * Validator Services Treasury (ValTreasury for short)
  * GovDAO Pay Treasury (PayTreasury for short)
- * Ecosystem Audit Treasury
- * Recompense Treasury
+ * Security Treasury
  * Reserve Treasury
 
 A Treasury is defined as account or DAO that can hold funds where its type,
@@ -217,7 +215,7 @@ such that all spending is reviewed by an independent committees or entities
 before and after the spending decision.
 
 No subDAO of a top-level Core DAO may make funding decisions from the Core
-Software Treasury directly unless otherwise specified in the Constitution.
+Treasury directly unless otherwise specified in the Constitution.
 
 Funds from Gno.land Treasuries may be transferred to another Core subDAO
 ultimately managed by GovDAO such that the funds of any Core subDAO may be
@@ -231,12 +229,13 @@ Amendment.
 
 All spending for software or other IP must be for Open Source IP.
 
-### Core Software Treasury
+### Core Treasury
 
-These funds are reserved for the development of Core Software.
+These funds are reserved for the development of Core Software and Essential
+Services.
 
-All funding decisions from the Core Software Treasury require a Supermajority
-Decision by GovDAO. 
+All funding decisions from the Core Treasury require a Supermajority Decision
+by GovDAO.
 
 The Core Software is the minimal set of reference or standard software needed
 for the Gno.land blockchain and its users and includes (and must prioritize):
@@ -251,6 +250,15 @@ for the Gno.land blockchain and its users and includes (and must prioritize):
  * Official standard hardware wallet software
  * All other software mentioned in the Constitution Alone
 
+Essential Services are the set of services rendered by machine or man that are
+deemed essential for the operation of Gno.land and for users to securely
+interact with Gno.land and includes (and must prioritize):
+
+ * Blockchain explorers
+ * Blockchain indexers
+ * User (customer) support
+ * Official community activities
+
 All Core Software must be released under the Gno Network GPL License with the
 appropriate strong attribution clauses as determined by the owner of the
 software, except for pre-existing software that is already released with a
@@ -264,8 +272,13 @@ entities) within reason as needed to complete the objectives mentioned in the
 relevant Governing Documents; and thereafter for as long as the software is
 deemed Core Software GovDAO must ensure the continuous and timely monitoring of
 future improvements and updates by reasonable funding if necessary from the
-Core Software Treasury to keep Gno.land and its users safe.
+Core Treasury to keep Gno.land and its users safe.
 
+Funding from the Core Treasury for Essential Services software may only go
+toward Open Source IP that is fully audited.
+
+Funding from the Core Treasury may also go toward validation services on an
+emergency basis if the Validator Services Treasury is insufficient.
 
 GovDAO is required to use a legal entity such as NT,LLC or any new entities
 (Proxy Entity) to keep ownership of IP on behalf of the Gno.land chain. New
@@ -273,38 +286,13 @@ Proxy Entities must be proven to be subservient to GovDAO in accordance with
 the Constitution such that no transfers of IP nor any changes to license terms
 may occur without the prior approval of the relevant GovDAO DAO and Oversight
 Body. Each IP repo must have a top-level Markdown file describing the proxy
-relationship (except for Tendermint2 and the GnoVM) 
+relationship (except for Tendermint2 and the GnoVM)
 
 Refactoring of projects out of the genesis monorepo should preserve the
 history of all prior commits relevant to all the files of each project (via the
 git "--follow" flag). The expectation is for the Proxy Entity and GovDAO to
 come to agreement about serving as the Proxy Entity for some or most of the
 repos already hosted under the organization.
-
-### Essential Services Treasury
-
-These funds are reserved for the development of Essential Services.
-
-All funding decisions from the Essential Services Treasury require a Supermajority
-Decision by GovDAO.
-
-Essential Services are the set of services rendered by machine or man that are
-deemed to essential for the operation of Gno.land and for users to securely
-interact with Gno.land and includes (and must prioritize):
-
- * Blockchain explorers
- * Blockchain indexers
- * User (customer) support
- * Official community activities 
-
-Funding from the Essential Services Treasury for any software services may only
-go toward Open Source IP that is fully audited. They may not be used for any
-development or auditing unless the development or auditing is necessary and
-cannot be funded by other means.
-
-Funding from the Essential Services Treasury may also go toward validation
-services on an emergency basis if the Validator Services Treasury is
-insufficient.
 
 ### Ecosystem Treasury
 
@@ -341,7 +329,7 @@ No Core DAO may vote for funding decisions from the Validator Services Treasury
 except immediately after genesis until automated payment mechanisms are
 implemented.
 
-See also "Gno.land Pre-Migration Validators" and "Essential Services Treasury".
+See also "Gno.land Pre-Migration Validators" and "Core Treasury".
 
 ### GovDAO Pay Treasury
 
@@ -385,24 +373,14 @@ Members who lose their pay due to inadequate funds of the GovDAO Pay Treasury
 do not automatically lose their membership; and must not be required to work
 more than 25% of full-time to maintain any status regarding activity.
 
-### Ecosystem Audit Treasury
+### Security Treasury
 
-The Ecosystem Audit Treasury may only be used to fund of the auditing of code
-deployed to Gno.land by Qualified Auditors, or to assess and reward Bonded
-Auditors who submit valid Bonded Vulnerability Reports.
+The Security Treasury may only be used to fund the auditing of code deployed
+to Gno.land by Qualified Auditors, to assess and reward Bonded Auditors who
+submit valid Bonded Vulnerability Reports, and to recompense victims of
+exploits and fraud.
 
-All funding decisions from the Ecosystem Audit Treasury require a
-Supermajority Decision by GovDAO.
-
-GovDAO by Supermajority Decision may choose to burn tokens from the Ecosystem
-Audit Treasury at a rate not exceeding 10% a year.
-
-### Recompense Treasury
-
-The Recompense Treasury may only be used to recompense victims of exploits and
-fraud.
-
-All funding decisions from the Recompense Treasury require a Supermajority
+All funding decisions from the Security Treasury require a Supermajority
 Decision by GovDAO (naturally with members with any conflict of interests
 abstaining).
 
@@ -414,7 +392,7 @@ and tasking of a task-force to recover any ill-gotten gains and at least two
 weeks for all relevant parties to review the analysis and task-force for
 approval.
 
-GovDAO by Supermajority Decision may choose to burn tokens from the Recompense
+GovDAO by Supermajority Decision may choose to burn tokens from the Security
 Treasury at a rate not exceeding 10% a year.
 
 ### Reserve Treasury
@@ -447,17 +425,15 @@ account future projected growth of the paid T1 and T2 members.
 The portion of Remaining Revenue 1 that is not allocated to PayTreasury is
 called Remaining Revenue 2.
 
- 9. Essential Services Treasury is funded with min(Remaining Revenue 2, 25% of
-    Revenue).
+ 9. Core Treasury is funded with min(Remaining Revenue 2, 25% of Revenue).
  10. Reserve Treasury is funded with the remainder from above.
 
-Essential Services Treasury has strictly lower priority than ValTreasury or
-PayTreasury because there is some elasticity to the variety of services that
-can be offered, much of which should become mature and finalized; and some of
-the essential services could be migrated to be offered by all of the validators
-instead (especially with the help of GovDAO members); and services should
-generally pay for themselves with micropayments or subscriptions or by other
-means.
+Core Treasury has strictly lower priority than ValTreasury or PayTreasury in
+the revenue waterfall because GovDAO members can theoretically still function
+without essential services, whereas they cannot without validators or pay; and
+essential services should generally pay for themselves with micropayments or
+subscriptions or by other means. The Core Treasury also receives one third of
+inflation.
 
 ## Excess $GNOT Deposits
 
@@ -466,8 +442,8 @@ excess $GNOT deposits per realm. This is not considered part of Revenue.
 
 When the $GNOT storage deposit rate decreases (not automatically by the $GNOT
 burn mechanism described below, but by the decision of GovDAO to lower the
-rate) 15% of the excess $GNOT goes into the Ecosystem Audit Treasury, 10% of
-the excess $GNOT goes into the Recompense Treasury, and the remainder goes to
+rate) 25% of the excess $GNOT goes into the Security Treasury and the remainder
+goes to
 the each segregated virtual account per realm ($GNOT of the realm's SDDCA) to
 be used only for future discounts on transactions for that specific realm.
 These SDDCA $GNOT tokens may be transferred to other SDDCAs by rules defined in
@@ -482,7 +458,7 @@ reducing its utility. $GNOT burned in this way will also reduce the $GNOT
 storage deposit rate automatically but not trigger any of the the mechanisms
 described here.
 
-See also "Ecosystem Audit Treasury" and "Recompense Treasury".
+See also "Security Treasury".
 
 ## Gno.land Pre-Migration Validators 
 
