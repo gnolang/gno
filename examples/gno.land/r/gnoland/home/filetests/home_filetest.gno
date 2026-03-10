@@ -135,13 +135,6 @@ func main() {
 // ---
 //
 // <gno-columns>
-// ## Latest Gnomes
-//
-// Latest Gnomes in the [registry](/r/gnoland/users/v1).
-//
-// No registered users.
-//
-// |||
 //
 // ## Socials
 //
