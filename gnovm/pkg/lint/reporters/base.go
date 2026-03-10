@@ -48,8 +48,9 @@ func (b *baseReporter) Summary() (info, warnings, errors int) {
 }
 
 // sortAndReset sorts the buffered issues by filename then line,
-// returns them along with severity counts, and resets all state.
-func (b *baseReporter) sortAndReset() (issues []lint.Issue, info, warnings, errors int) {
+// returns them, and resets all state (including severity counts).
+// Callers needing counts should call Summary() before sortAndReset().
+func (b *baseReporter) sortAndReset() []lint.Issue {
 	sort.Slice(b.issues, func(i, j int) bool {
 		if b.issues[i].Filename != b.issues[j].Filename {
 			return b.issues[i].Filename < b.issues[j].Filename
@@ -57,13 +58,12 @@ func (b *baseReporter) sortAndReset() (issues []lint.Issue, info, warnings, erro
 		return b.issues[i].Line < b.issues[j].Line
 	})
 
-	issues = make([]lint.Issue, len(b.issues))
+	issues := make([]lint.Issue, len(b.issues))
 	copy(issues, b.issues)
-	info, warnings, errors = b.info, b.warnings, b.errors
 
 	b.issues = b.issues[:0]
 	clear(b.seen)
 	b.info, b.warnings, b.errors = 0, 0, 0
 
-	return
+	return issues
 }
