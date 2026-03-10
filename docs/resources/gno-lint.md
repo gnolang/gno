@@ -49,6 +49,7 @@ gno lint --list-rules
 
 - **AVL001** (warning): Unbounded AVL tree iteration - detects `avl.Tree.Iterate()` or `ReverseIterate()` with empty bounds (`"", ""`)
 - **GLOBAL001** (warning): Exported package-level variable - detects exported (uppercase) `var` declarations at package level
+- **RENDER001** (error): Invalid Render function signature - detects `Render` functions in realms that don't match `func Render(string) string`
 
 ## Suppressing Issues
 
