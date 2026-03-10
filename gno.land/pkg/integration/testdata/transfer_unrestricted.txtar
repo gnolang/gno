@@ -2,8 +2,6 @@
 loadpkg gno.land/r/sys/params
 loadpkg gno.land/r/gov/dao/v3/init
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gnoland/users/v1
-
 # add user regular1
 adduserfrom regular1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
 stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
