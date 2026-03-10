@@ -14,6 +14,7 @@ pkg_dirs=$(cd "$EXAMPLES_DIR" && gno tool deplist \
     ./gno.land/r/gnoland/wugnot/... \
     ./gno.land/r/gnoland/coins/... \
     ./gno.land/r/gnoland/boards2/... \
+    ./gno.land/r/gnops/valopers/... \
 )
 
 # Save resolved package list for inspection.
