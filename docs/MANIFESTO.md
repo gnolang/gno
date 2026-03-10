@@ -1066,16 +1066,68 @@ interactivity.
 
 ## Future Work
 
- * Access control systems.
- * Persistent garbage collector
- * (and possibly a tx based cyclic garbage collector)
- * Name registry for realm and package paths.
- * Realm upgrading.
- * Realm data browser.
- * Deterministic concurrency.
- * Joeson parser.
- * Gno2.
- * Open hardware.
+ * **Access control systems.** A composable library of membership,
+   reputation, and moderation primitives that realms can import and combine
+   without any single mandated identity system. Components include
+   web-of-trust scoring, deposit-based access, viral invitation trees,
+   hierarchical accountability chains, and oracle-backed attestations.
+   The goal is a free market of access control policies rather than a
+   universal gatekeeping layer. [GnoAuth](https://github.com/jaekwon/gnoauth)
+   is a first step: an OAuth identity oracle that binds Web2.0 accounts
+   (e.g. GitHub) to Gno addresses with signed attestations and
+   sybil-resistance metadata.
+
+ * **Persistent garbage collector.** The current implementation persists
+   objects with reference counting and deletes zero-ref-count objects at
+   realm-transaction finalization, but does not yet collect reference
+   cycles. A full persistent cycle-detecting garbage collector will
+   reclaim storage for cyclic structures that become unreachable. A
+   transaction-scoped cyclic GC may also be implemented as a lighter
+   alternative for common cases.
+
+ * **Name registry for realm and package paths.** A decentralized naming
+   system for mapping human-readable names to realm and package paths,
+   enabling stable references even when packages are re-deployed or
+   versioned. This would function similarly to DNS but for the Gno
+   package namespace.
+
+ * **Realm upgrading.** A mechanism for upgrading mutable realm code
+   while preserving existing state and object references. This requires
+   careful design to maintain type safety across upgrades and to ensure
+   that dependent realms are not broken by upstream changes. Migration
+   functions and versioned type schemas are under consideration.
+
+ * **Realm data browser.** A general-purpose state explorer for
+   inspecting any realm's persisted object graph, not limited to
+   Render() output. This would allow developers and users to browse the
+   full object tree, inspect individual objects, view ownership and
+   reference graphs, and trace cross-realm references.
+
+ * **Deterministic concurrency.** Extending Gno with deterministic
+   concurrency primitives that preserve the reproducibility required for
+   consensus while enabling parallel execution of independent realm
+   transactions. This could unlock significant throughput improvements
+   without sacrificing the determinism guarantee.
+
+ * **Joeson parser.** A general-purpose parser library implemented in Gno
+   for on-chain parsing of structured data formats, domain-specific
+   languages, and protocol messages. This enables realms to define and
+   interpret custom grammars without relying on off-chain tooling.
+
+ * **Gno2.** A future major revision of the Gno language incorporating
+   lessons learned from production use. Potential additions include a
+   `readonly` modifier for function return types, native syntax for
+   `cross` and `cur realm` (replacing the current overloaded function
+   argument convention), and further language-level support for
+   multi-user patterns that emerge from ecosystem usage.
+
+ * **Open hardware.** Memristor-based memory systems eliminate the
+   distinction between volatile RAM and persistent storage, which aligns
+   naturally with the GnoVM's automatic persistence model. Purpose-built
+   hardware could further simplify the VM and dramatically improve
+   performance. Open hardware designs for validator nodes would also
+   strengthen decentralization by reducing dependence on proprietary
+   chip manufacturers.
 
 ## How to Participate
 
@@ -1390,11 +1442,23 @@ ID system.
 
 Other types of components to be implemented include:
  * Hierarchical chain of accountability systems (e.g. large corporation)
- * Oracles for Web2.0 accounts
+ * Oracles for Web2.0 accounts.
+   [GnoAuth](https://github.com/jaekwon/gnoauth) is a reference
+   implementation of an OAuth identity oracle for gno.land. Users
+   authenticate through GitHub OAuth and the server signs a secp256k1
+   attestation binding their GitHub identity (along with account metadata
+   such as creation date, follower count, and repository count) to their
+   Gno address. The on-chain realm verifies the signature and timestamp
+   freshness and stores the binding. This pattern generalizes to any OAuth
+   provider and provides sybil-resistance signals without requiring a
+   universal identity system. The same oracle pattern can be extended to
+   other Web2.0 platforms (e.g. Google, Twitter/X, GitLab) by adding
+   provider-specific OAuth flows while reusing the same on-chain
+   verification realm.
  * Oracles for citizenship or residency
  * Reputation scoring based on source of funds
  * Deposit or purchase based systems
- * Viral invitation based systems ([prototype WIP](https://gist.github.com/jaekwon/410a552ce9363d49790ea444a3c00c99))
+ * Viral invitation based systems
 
 These are some of the types of components that we need in order to have a well
 functioning blockchain for coordination when other systems fail in the AI
