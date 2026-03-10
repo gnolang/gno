@@ -312,8 +312,7 @@ func queryQDoc(pkg string, queryClient ABCIQueryClient) (*JSONDocumentation, err
 	}
 
 	const qpath = "vm/qdoc"
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
 	qres, err := queryClient.ABCIQuery(ctx, qpath, []byte(pkg))
 	if err != nil {
 		return nil, fmt.Errorf("unable to query qdoc for %q: %w", pkg, err)
