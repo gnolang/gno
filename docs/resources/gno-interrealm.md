@@ -331,6 +331,8 @@ realm-context and realm-storage-context will result in either a type-check
 error; or a runtime error if the crossing-function or crossing-method is
 variable.
 
+### Realm-Context Rules
+
 All functions in Gno execute under a realm context as determined by the call
 stack. Objects that reside in a realm can only be modified if the realm context
 matches.
@@ -367,6 +369,8 @@ realm of the call stack equal to `m.Realm`. In other words `runtime.CurrentRealm
 may be different from `m.Realm` (the borrow realm) when a receiver is called on
 a foreign object.
 
+### Implicit Realm-Storage Borrowing
+
 Besides (explicit) realm-context changes via the `fn(cross, ...)` cross-call
 syntax, implicit realm-storage-context changes occur when calling a
 non-crossing method of a receiver object residing in different realm-storage.
@@ -387,11 +391,13 @@ realm-storage-context such a receiver's non-crossing method cannot directly
 modify the receiver (nor any reachable object that resides in any realm-storage
 besides that of the caller's own realm-storage-context).
 
-On the other hand if the method is a crossing-method as in
-`receiver.Method(cross, args...)` and the method is cross-called both the
-realm-context and realm-storage-context changes to that of the realm package in
-which the type/method is declared (which is not necessarily the same as where
-the receiver resides). Such a crossing method-call cannot directly modify the
+### Crossing-Method Semantics
+
+When a method is a crossing-method called as
+`receiver.Method(cross, args...)`, both the realm-context and
+realm-storage-context change to that of the realm package in which the
+type/method is declared (which is not necessarily the same as where the
+receiver resides). Such a crossing method-call cannot directly modify the
 real receiver if it happens to reside in an external realm that differs from
 where the type and methods are declared; but it can modify any unreal receiver
 or unreal reachable objects. As mentioned previously a non-crossing-call of a
