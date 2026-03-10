@@ -18,7 +18,7 @@ func NewEngine(config *Config, registry *Registry, reporter Reporter) *Engine {
 	}
 }
 
-func (e *Engine) Run(fset *gnolang.FileSet, sources map[string]string) int {
+func (e *Engine) Run(pkgPath string, fset *gnolang.FileSet, sources map[string]string) int {
 	issueCount := 0
 
 	rules := e.getEnabledRules()
@@ -30,7 +30,7 @@ func (e *Engine) Run(fset *gnolang.FileSet, sources map[string]string) int {
 		source := sources[fn.FileName]
 		nolint := NewNolintParser(source)
 
-		issueCount += e.runOnFile(fn, source, nolint, rules)
+		issueCount += e.runOnFile(pkgPath, fn, source, nolint, rules)
 	}
 
 	return issueCount
@@ -49,7 +49,7 @@ func (e *Engine) getEnabledRules() []Rule {
 	return enabled
 }
 
-func (e *Engine) runOnFile(fn *gnolang.FileNode, source string, nolint *NolintParser, rules []Rule) int {
+func (e *Engine) runOnFile(pkgPath string, fn *gnolang.FileNode, source string, nolint *NolintParser, rules []Rule) int {
 	issueCount := 0
 
 	gnolang.Transcribe(fn, func(ns []gnolang.Node, ftype gnolang.TransField, index int, n gnolang.Node, stage gnolang.TransStage) (gnolang.Node, gnolang.TransCtrl) {
@@ -58,6 +58,7 @@ func (e *Engine) runOnFile(fn *gnolang.FileNode, source string, nolint *NolintPa
 		}
 
 		ctx := &RuleContext{
+			PkgPath: pkgPath,
 			File:    fn,
 			Source:  source,
 			Parents: ns,

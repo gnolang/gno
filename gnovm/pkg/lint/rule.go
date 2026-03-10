@@ -7,6 +7,7 @@ type RuleCategory string
 const (
 	CategoryAVL     RuleCategory = "AVL"
 	CategoryGeneral RuleCategory = "General"
+	CategoryRender  RuleCategory = "Render"
 )
 
 type RuleInfo struct {
@@ -17,6 +18,7 @@ type RuleInfo struct {
 }
 
 type RuleContext struct {
+	PkgPath string
 	File    *gnolang.FileNode
 	Source  string
 	Parents []gnolang.Node
