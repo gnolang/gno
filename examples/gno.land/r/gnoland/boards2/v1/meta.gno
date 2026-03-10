@@ -2,8 +2,8 @@ package boards2
 
 import "gno.land/p/gnoland/boards"
 
-// Meta defines a type for board metadata.
-type Meta struct {
+// BoardMeta defines a type for board metadata.
+type BoardMeta struct {
 	// HiddenThreads contains hidden board threads.
 	HiddenThreads boards.PostStorage
 }

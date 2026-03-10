@@ -125,7 +125,7 @@ func CreateBoard(_ realm, name string, listed, open bool) boards.ID {
 
 		board.Name = name
 		board.Creator = caller
-		board.Meta = &Meta{
+		board.Meta = &BoardMeta{
 			HiddenThreads: boards.NewPostStorage(),
 		}
 
