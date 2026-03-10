@@ -481,29 +481,23 @@ that `runtime.PreviousRealm()` returns what used to be returned with
 realm-storage-context is always set to that of realm-context after
 cross-calling.
 
-Every crossing-call of a crossing-function or crossing-method creates a new
-realm boundary even when there is no resulting change/shift in realm-context or
-realm-storage-context.
+| Call type | Boundary created? | Realm-context changes? | Storage-context changes? | Finalizes? |
+|---|---|---|---|---|
+| `fn(cross, ...)` to same realm | Yes | Yes* | No | Yes |
+| `fn(cross, ...)` to different realm | Yes | Yes | Yes | Yes |
+| `fn(nil, ...)` (non-crossing-call) | No | No | No | No |
+| Non-crossing method, real receiver in same realm | No | No | No | No |
+| Non-crossing method, real receiver in different realm | Yes | No | Yes | Yes |
+| Non-crossing method, unreal receiver | No | No | No | No |
+| Non-crossing function | No | No | No | No |
 
-A realm boundary also exists for every call that results in a change of
-realm-storage-context: whether with a crossing-call to another realm-context
-and realm-storage context or with a (non-crossing) call of a non-crossing
-method of a real receiver residing in another realm-storage than the current
-realm-storage-context. No realm boundary occurs when calling a non-crossing
-method of an unreal receiver or a non-crossing function.
+\* CurrentRealm stays the same but PreviousRealm shifts (see
+[above](#realm-context-and-realm-storage-context)).
 
-A realm boundary does not always change the realm-context nor always change the
-realm-storage-context. A crossing-call into the same realm-context never
-changes the realm-context and may not change the realm-storage-context either;
-a crossing-call into a different realm always changes the realm-context but may
-not change the realm-storage-context; a (non-crossing) call of a method of a
-real object residing in an external realm-storage never changes the
-realm-context but changes the realm-storage-context. However, a
-non-crossing-call of a crossing-function or crossing-method will never create a
-realm boundary.
-
-No realm boundary is created for non-crossing functions and non-crossing
-methods of unreal receivers.
+Every crossing-call creates a realm boundary even when there is no resulting
+change in realm-context or realm-storage-context. A non-crossing-call of a
+crossing-function or crossing-method (`fn(nil, ...)`) never creates a realm
+boundary.
 
 ## Realm-Transaction Finalization
 
