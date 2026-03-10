@@ -7,7 +7,7 @@ import (
 
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/leon/hor"
 )
 

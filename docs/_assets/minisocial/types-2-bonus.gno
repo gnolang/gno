@@ -3,7 +3,7 @@ package minisocial
 import (
 	"time" // For handling time operations
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/sys/users"
 )
 
