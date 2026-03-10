@@ -88,7 +88,7 @@ import (
 )
 
 func main() {
-	ok := dao.ExecuteProposal(cross, dao.ProposalID(0))
+  ok := dao.ExecuteProposal(cross, dao.ProposalID(0), false)
   if ok {
     println("OK!")
   }

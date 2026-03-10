@@ -61,7 +61,7 @@ func VoteProposal(pid dao.ProposalID) {
 }
 
 func ExecuteProposal(pid dao.ProposalID) bool {
-	accepted := dao.ExecuteProposal(cross, pid)
+	accepted := dao.ExecuteProposal(cross, pid, false)
 	return accepted
 }
 
