@@ -5478,12 +5478,16 @@ const (
 	dependencyResolved
 )
 
-// findDependentNames fills `dst` with the dependencies of `n`. Dependencies are
-// categorized into [dependencyResolved], which marks dependencies already in
-// `fdeclared`, names of package imports, function declarations or uverse names.
-// Names marked with [dependencyUnresolved] are instead for names which are yet
-// to be associated with a declaration/definition, and that should be processed
-// before decl.
+// findDependentNames fills `dst` with the package-level dependencies of `n`.
+// Dependencies are categorized into [dependencyResolved], which marks
+// dependencies already in `fdeclared`, names of package imports, function
+// declarations or uverse names. Names marked with [dependencyUnresolved] are
+// instead for names which are yet to be associated with a
+// declaration/definition, and that should be processed before decl.
+//
+// Keeping the names which are marked as dependencyResolved in `dst` is done for
+// memoization, avoiding duplicate work on determining whether those names are
+// a real package-level dependency.
 func findDependentNames(decl Node, dst dependencySet, pn *PackageNode, fn *FileNode, fdeclared map[Name]struct{}) {
 	addName := func(n Node, name Name) {
 		if _, ok := dst[name]; ok {
