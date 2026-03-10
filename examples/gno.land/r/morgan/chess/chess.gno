@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"gno.land/p/morgan/chess"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
 )
 
 // realm state

@@ -12,7 +12,7 @@ import (
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
-	"gno.land/p/nt/mux"
+	"gno.land/p/nt/mux/v0"
 )
 
 const (
