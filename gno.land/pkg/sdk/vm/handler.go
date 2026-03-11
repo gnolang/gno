@@ -71,13 +71,15 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 
 // query paths
 const (
-	QueryRender  = "qrender"
-	QueryFuncs   = "qfuncs"
-	QueryEval    = "qeval"
-	QueryFile    = "qfile"
-	QueryDoc     = "qdoc"
-	QueryPaths   = "qpaths"
-	QueryStorage = "qstorage"
+	QueryRender   = "qrender"
+	QueryFuncs    = "qfuncs"
+	QueryEval     = "qeval"
+	QueryEvalJSON = "qeval_json"
+	QueryObject   = "qobject"
+	QueryFile     = "qfile"
+	QueryDoc      = "qdoc"
+	QueryPaths    = "qpaths"
+	QueryStorage  = "qstorage"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -93,6 +95,10 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		res = vh.queryFuncs(ctx, req)
 	case QueryEval:
 		res = vh.queryEval(ctx, req)
+	case QueryEvalJSON:
+		res = vh.queryEvalJSON(ctx, req)
+	case QueryObject:
+		res = vh.queryObject(ctx, req)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
 	case QueryDoc:
@@ -186,6 +192,30 @@ func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci
 func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	pkgPath, expr := parseQueryEvalData(string(req.Data))
 	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryEvalJSON evaluates any expression in readonly mode and returns JSON results.
+func (vh vmHandler) queryEvalJSON(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	pkgPath, expr := parseQueryEvalData(string(req.Data))
+	result, err := vh.vm.QueryEvalJSON(ctx, pkgPath, expr)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryObject retrieves a persisted object by ObjectID and returns its JSON representation.
+func (vh vmHandler) queryObject(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	oidStr := string(req.Data)
+	result, err := vh.vm.QueryObject(ctx, oidStr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
