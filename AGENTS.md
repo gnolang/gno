@@ -106,6 +106,7 @@ Skip ADRs for: trivial bug fixes, formatting, simple tests, docs-only changes.
 
 ## Don'ts
 
+- `git push --force` — never force push unless explicitly asked.
 - `go generate` — slow, large diffs. Only if explicitly asked.
 - Modify `gno.land/genesis/` — only if that's the task.
 - Goroutines/OS calls in `.gno` — never works.
