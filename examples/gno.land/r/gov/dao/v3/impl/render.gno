@@ -184,8 +184,7 @@ func renderActionBar(sPid string) string {
 
 	proxy := helplink.Realm("gno.land/r/gov/dao")
 	out += proxy.Func("Vote YES", "MustVoteOnProposalSimple", "pid", sPid, "option", "YES") + " | "
-	out += proxy.Func("Vote NO", "MustVoteOnProposalSimple", "pid", sPid, "option", "NO") + " | "
-	out += proxy.Func("Vote ABSTAIN", "MustVoteOnProposalSimple", "pid", sPid, "option", "ABSTAIN")
+	out += proxy.Func("Vote NO", "MustVoteOnProposalSimple", "pid", sPid, "option", "NO")
 
 	out += "\n\n"
 	out += "WARNING: Please double check transaction data before voting."
