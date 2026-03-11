@@ -1,10 +1,37 @@
 package bank
 
 import (
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+// TestWillSetParamExhaustive ensures every Params field has a WillSetParam case.
+func TestWillSetParamExhaustive(t *testing.T) {
+	env := setupTestEnv()
+
+	validValues := map[string]any{
+		"restricted_denoms": []string{"ugnot"},
+	}
+
+	typ := reflect.TypeOf(Params{})
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		jsonTag := strings.Split(field.Tag.Get("json"), ",")[0]
+		value, ok := validValues[jsonTag]
+		require.True(t, ok,
+			"field %s (param key p:%s) has no WillSetParam handler and is then unsettable",
+			field.Name, jsonTag)
+
+		t.Run(jsonTag, func(t *testing.T) {
+			require.NotPanics(t, func() {
+				env.bankk.WillSetParam(env.ctx, "p:"+jsonTag, value)
+			})
+		})
+	}
+}
 
 func TestWillSetParam(t *testing.T) {
 	env := setupTestEnv()

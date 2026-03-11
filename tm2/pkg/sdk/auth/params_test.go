@@ -2,6 +2,7 @@ package auth
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -196,6 +197,25 @@ func TestWillSetParam(t *testing.T) {
 			value:       int64(150),
 			shouldPanic: true,
 		},
+		// initial_gasprice
+		{
+			name:        "valid initial_gasprice",
+			key:         "p:initial_gasprice",
+			value:       "1ugnot/1gas",
+			shouldPanic: false,
+		},
+		{
+			name:        "wrong type for initial_gasprice",
+			key:         "p:initial_gasprice",
+			value:       int64(123),
+			shouldPanic: true,
+		},
+		{
+			name:        "invalid initial_gasprice format",
+			key:         "p:initial_gasprice",
+			value:       "invalid",
+			shouldPanic: true,
+		},
 		// unknown key
 		{
 			name:        "unknown param key panics",
@@ -216,6 +236,40 @@ func TestWillSetParam(t *testing.T) {
 					env.acck.WillSetParam(env.ctx, tt.key, tt.value)
 				})
 			}
+		})
+	}
+}
+
+// TestWillSetParamExhaustive ensures every Params field has a WillSetParam case.
+func TestWillSetParamExhaustive(t *testing.T) {
+	env := setupTestEnv()
+
+	validValues := map[string]any{
+		"max_memo_bytes":              int64(65536),
+		"tx_sig_limit":                int64(7),
+		"tx_size_cost_per_byte":       int64(10),
+		"sig_verify_cost_ed25519":     int64(590),
+		"sig_verify_cost_secp256k1":   int64(1000),
+		"gas_price_change_compressor": int64(10),
+		"target_gas_ratio":            int64(70),
+		"initial_gasprice":            "1ugnot/1gas",
+		"unrestricted_addrs":          []string{},
+		"fee_collector":               "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+	}
+
+	typ := reflect.TypeOf(Params{})
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		jsonTag := strings.Split(field.Tag.Get("json"), ",")[0]
+		value, ok := validValues[jsonTag]
+		require.True(t, ok,
+			"field %s (param key p:%s) has no WillSetParam handler and is then unsettable",
+			field.Name, jsonTag)
+
+		t.Run(jsonTag, func(t *testing.T) {
+			require.NotPanics(t, func() {
+				env.acck.WillSetParam(env.ctx, "p:"+jsonTag, value)
+			})
 		})
 	}
 }

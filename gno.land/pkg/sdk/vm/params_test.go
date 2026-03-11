@@ -2,9 +2,12 @@ package vm
 
 import (
 	"fmt"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestParamsString verifies the output of the String method.
@@ -197,6 +200,38 @@ func TestWillSetParam(t *testing.T) {
 					}
 				}
 			}
+		})
+	}
+}
+
+// TestWillSetParamExhaustive ensures every Params field has a WillSetParam case.
+func TestWillSetParamExhaustive(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	vmk := env.vmk
+	vmk.SetParams(ctx, DefaultParams())
+
+	validValues := map[string]any{
+		"sysnames_pkgpath": "gno.land/r/sys/names",
+		"syscla_pkgpath":   "gno.land/r/sys/cla",
+		"chain_domain":     "gno.land",
+		"default_deposit":  "600000000ugnot",
+		"storage_price":    "100ugnot",
+	}
+
+	typ := reflect.TypeOf(Params{})
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		jsonTag := strings.Split(field.Tag.Get("json"), ",")[0]
+		value, ok := validValues[jsonTag]
+		require.True(t, ok,
+			"field %s (param key p:%s) has no WillSetParam handler and is then unsettable",
+			field.Name, jsonTag)
+
+		t.Run(jsonTag, func(t *testing.T) {
+			require.NotPanics(t, func() {
+				vmk.WillSetParam(ctx, "p:"+jsonTag, value)
+			})
 		})
 	}
 }
