@@ -10,13 +10,12 @@ import (
 
 	"gno.land/p/leon/svgbtn"
 	"gno.land/r/devrels/events"
-	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/leon/hor"
 )
 
 var (
 	override string
-	Admin    = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
+	Admin    = ownable.NewWithAddressByPrevious("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
 )
 
 func Render(_ string) string {
@@ -33,9 +32,6 @@ func Render(_ string) string {
 	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
 	r.RegisterCallback(":newsletter-button:", newsletterButton)
-	r.RegisterCallback(":latest-gnomes:", func() string {
-		return users.RenderLatestUsersWidget(5)
-	})
 	r.RegisterCallback(":chain-height:", func() string {
 		return strconv.Itoa(int(runtime.ChainHeight()))
 	})
@@ -166,13 +162,6 @@ Pure packages for demo purposes.
 ---
 
 <gno-columns>
-## Latest Gnomes
-
-Latest Gnomes in the [registry](/r/gnoland/users/v1).
-
-:latest-gnomes:
-
-|||
 
 ## Socials
 
@@ -235,6 +224,12 @@ func quoteOfTheBlock() string {
 }
 
 func AdminSetOverride(cur realm, content string) {
-	Admin.AssertOwnedByPrevious()
+	Admin.AssertOwned()
 	override = content
+}
+
+func AdminTransferOwnership(cur realm, newOwner address) {
+	if err := Admin.TransferOwnership(newOwner); err != nil {
+		panic(err)
+	}
 }
