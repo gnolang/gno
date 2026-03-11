@@ -1,10 +1,12 @@
 package bank
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -12,23 +14,25 @@ import (
 func TestWillSetParamExhaustive(t *testing.T) {
 	env := setupTestEnv()
 
-	validValues := map[string]any{
-		"restricted_denoms": []string{"ugnot"},
+	call := func(param string) (pnc any) {
+		defer func() {
+			pnc = recover()
+		}()
+		env.bankk.WillSetParam(env.ctx, param, "")
+		return nil
 	}
+
+	// baseline: ensure a non-existant key has the expected error.
+	const format = "unknown bank param key: %q"
+	assert.Equal(t, fmt.Sprintf(format, "doesnotexist"), call("doesnotexist"))
 
 	typ := reflect.TypeOf(Params{})
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
-		jsonTag := strings.Split(field.Tag.Get("json"), ",")[0]
-		value, ok := validValues[jsonTag]
-		require.True(t, ok,
-			"field %s (param key p:%s) has no WillSetParam handler and is then unsettable",
-			field.Name, jsonTag)
+		jsonTag, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 
 		t.Run(jsonTag, func(t *testing.T) {
-			require.NotPanics(t, func() {
-				env.bankk.WillSetParam(env.ctx, "p:"+jsonTag, value)
-			})
+			assert.NotEqual(t, fmt.Sprintf(format, "p:"+jsonTag), call("p:"+jsonTag))
 		})
 	}
 }

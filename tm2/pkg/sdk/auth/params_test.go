@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -244,32 +245,25 @@ func TestWillSetParam(t *testing.T) {
 func TestWillSetParamExhaustive(t *testing.T) {
 	env := setupTestEnv()
 
-	validValues := map[string]any{
-		"max_memo_bytes":              int64(65536),
-		"tx_sig_limit":                int64(7),
-		"tx_size_cost_per_byte":       int64(10),
-		"sig_verify_cost_ed25519":     int64(590),
-		"sig_verify_cost_secp256k1":   int64(1000),
-		"gas_price_change_compressor": int64(10),
-		"target_gas_ratio":            int64(70),
-		"initial_gasprice":            "1ugnot/1gas",
-		"unrestricted_addrs":          []string{},
-		"fee_collector":               "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+	call := func(param string) (pnc any) {
+		defer func() {
+			pnc = recover()
+		}()
+		env.acck.WillSetParam(env.ctx, param, "")
+		return nil
 	}
+
+	// baseline: ensure a non-existant key has the expected error.
+	const format = "unknown auth param key: %q"
+	assert.Equal(t, fmt.Sprintf(format, "doesnotexist"), call("doesnotexist"))
 
 	typ := reflect.TypeOf(Params{})
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
-		jsonTag := strings.Split(field.Tag.Get("json"), ",")[0]
-		value, ok := validValues[jsonTag]
-		require.True(t, ok,
-			"field %s (param key p:%s) has no WillSetParam handler and is then unsettable",
-			field.Name, jsonTag)
+		jsonTag, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 
 		t.Run(jsonTag, func(t *testing.T) {
-			require.NotPanics(t, func() {
-				env.acck.WillSetParam(env.ctx, "p:"+jsonTag, value)
-			})
+			assert.NotEqual(t, fmt.Sprintf(format, "p:"+jsonTag), call("p:"+jsonTag))
 		})
 	}
 }

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TestParamsString verifies the output of the String method.
@@ -211,28 +210,25 @@ func TestWillSetParamExhaustive(t *testing.T) {
 	vmk := env.vmk
 	vmk.SetParams(ctx, DefaultParams())
 
-	validValues := map[string]any{
-		"sysnames_pkgpath":      "gno.land/r/sys/names",
-		"syscla_pkgpath":        "gno.land/r/sys/cla",
-		"chain_domain":          "gno.land",
-		"default_deposit":       "600000000ugnot",
-		"storage_price":         "100ugnot",
-		"storage_fee_collector": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+	call := func(param string) (pnc any) {
+		defer func() {
+			pnc = recover()
+		}()
+		vmk.WillSetParam(ctx, param, "")
+		return nil
 	}
+
+	// baseline: ensure a non-existant key has the expected error.
+	const format = "unknown vm param key: %q"
+	assert.Equal(t, fmt.Sprintf(format, "p:doesnotexist"), call("p:doesnotexist"))
 
 	typ := reflect.TypeOf(Params{})
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
-		jsonTag := strings.Split(field.Tag.Get("json"), ",")[0]
-		value, ok := validValues[jsonTag]
-		require.True(t, ok,
-			"field %s (param key p:%s) has no WillSetParam handler and is then unsettable",
-			field.Name, jsonTag)
+		jsonTag, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 
 		t.Run(jsonTag, func(t *testing.T) {
-			require.NotPanics(t, func() {
-				vmk.WillSetParam(ctx, "p:"+jsonTag, value)
-			})
+			assert.NotEqual(t, fmt.Sprintf(format, "p:"+jsonTag), call("p:"+jsonTag))
 		})
 	}
 }
