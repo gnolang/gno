@@ -190,7 +190,7 @@ func (m *mockParamsKeeper) SetAny(ctx sdk.Context, key string, value any) {}
 
 type mockGasPriceKeeper struct{}
 
-func (m *mockGasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice    { return std.GasPrice{} }
+func (m *mockGasPriceKeeper) LastGasPrices(ctx sdk.Context) []std.GasPrice { return nil }
 func (m *mockGasPriceKeeper) SetGasPrice(ctx sdk.Context, gp std.GasPrice) {}
 func (m *mockGasPriceKeeper) UpdateGasPrice(ctx sdk.Context)               {}
 

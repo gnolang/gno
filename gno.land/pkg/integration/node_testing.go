@@ -105,7 +105,7 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
 	authGen := auth.DefaultGenesisState()
 	authGen.Params.UnrestrictedAddrs = []crypto.Address{crypto.MustAddressFromString(DefaultAccount_Address)}
-	authGen.Params.InitialGasPrice = std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 1, Denom: "ugnot"}}
+	authGen.Params.InitialGasPrices = []std.GasPrice{{Gas: 1000, Price: std.Coin{Amount: 1, Denom: "ugnot"}}}
 	genState := gnoland.DefaultGenState()
 	genState.Balances = []gnoland.Balance{
 		{

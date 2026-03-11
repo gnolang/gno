@@ -177,16 +177,17 @@ type GasPriceKeeper struct {
 	key store.StoreKey
 }
 
-// GasPriceKeeper
-// The GasPriceKeeper stores the history of gas prices and calculates
-// new gas price with formula parameters
+// NewGasPriceKeeper creates a new GasPriceKeeper.
+// The GasPriceKeeper stores per-denom gas prices and adjusts them each block
+// based on gas usage. See tm2/adr/adr-001-multi-denom-gas-fees.md.
 func NewGasPriceKeeper(key store.StoreKey) GasPriceKeeper {
 	return GasPriceKeeper{
 		key: key,
 	}
 }
 
-// SetGasPrice is called in InitChainer to store initial gas price set in the genesis
+// SetGasPrice stores the gas price for a specific denomination.
+// The price is keyed by denom so multiple denominations can be tracked independently.
 func (gk GasPriceKeeper) SetGasPrice(ctx sdk.Context, gp std.GasPrice) {
 	if (gp == std.GasPrice{}) {
 		return
@@ -196,14 +197,24 @@ func (gk GasPriceKeeper) SetGasPrice(ctx sdk.Context, gp std.GasPrice) {
 	if err != nil {
 		panic(err)
 	}
-	stor.Set([]byte(GasPriceKey), bz)
+	stor.Set([]byte(GasPriceKeyPrefix+gp.Price.Denom), bz)
 }
 
-// We store the history. If the formula changes, we can replay blocks
-// and apply the formula to a specific block range. The new gas price is
-// calculated in EndBlock().
+// UpdateGasPrice adjusts gas prices for all tracked denominations based on
+// block gas usage. Each denom is adjusted independently using the same formula.
+// Called in EndBlock().
 func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 	params := ctx.Value(AuthParamsContextKey{}).(Params)
+
+	// Seed any new denoms from InitialGasPrices that aren't yet tracked.
+	// This handles denoms added via governance after genesis.
+	existing := gk.LastGasPrices(ctx)
+	for _, igp := range params.InitialGasPrices {
+		if findGasPrice(existing, igp.Price.Denom) == nil {
+			gk.SetGasPrice(ctx, igp)
+		}
+	}
+
 	gasUsed := ctx.BlockGasMeter().GasConsumed()
 
 	// Only update gas price if gas was consumed to avoid changing AppHash
@@ -213,14 +224,16 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 	}
 
 	maxBlockGas := ctx.ConsensusParams().Block.MaxGas
-	lgp := gk.LastGasPrice(ctx)
-	newGasPrice := gk.calcBlockGasPrice(lgp, gasUsed, maxBlockGas, params)
-	gk.SetGasPrice(ctx, newGasPrice)
-	logTelemetry(newGasPrice,
-		attribute.KeyValue{
-			Key:   "func",
-			Value: attribute.StringValue("UpdateGasPrice"),
-		})
+	for _, lgp := range gk.LastGasPrices(ctx) {
+		initGP := findInitialGasPrice(params.InitialGasPrices, lgp.Price.Denom)
+		newGasPrice := gk.calcBlockGasPrice(lgp, gasUsed, maxBlockGas, params, initGP)
+		gk.SetGasPrice(ctx, newGasPrice)
+		logTelemetry(newGasPrice,
+			attribute.KeyValue{
+				Key:   "func",
+				Value: attribute.StringValue("UpdateGasPrice"),
+			})
+	}
 }
 
 // calcBlockGasPrice calculates the minGasPrice for the txs to be included in the next block.
@@ -234,7 +247,7 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 // instead of round down for the integer divisions, and in the second case, we should set a floor
 // as the target gas price. This is just a starting point. Down the line, the solution might not be even
 // representable by one simple formula
-func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed int64, maxGas int64, params Params) std.GasPrice {
+func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed int64, maxGas int64, params Params, initialGasPrice std.GasPrice) std.GasPrice {
 	// If no block gas price is set, there is no need to change the last gas price.
 	if lastGasPrice.Price.Amount == 0 {
 		return lastGasPrice
@@ -281,9 +294,9 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		// XXX should we cap it with a max gas price?
 	} else { // gas used is less than the target
 		// decrease gas price down to initial gas price
-		initPriceInt := big.NewInt(params.InitialGasPrice.Price.Amount)
+		initPriceInt := big.NewInt(initialGasPrice.Price.Amount)
 		if lastPriceInt.Cmp(initPriceInt) == -1 {
-			return params.InitialGasPrice
+			return initialGasPrice
 		}
 		num.Sub(targetGasInt, gasUsedInt)
 		num.Mul(num, lastPriceInt)
@@ -311,25 +324,48 @@ func maxBig(x, y *big.Int) *big.Int {
 	return x
 }
 
-// It returns the gas price for the last block.
-func (gk GasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice {
+// LastGasPrices returns the gas prices for all tracked denominations from the last block.
+func (gk GasPriceKeeper) LastGasPrices(ctx sdk.Context) []std.GasPrice {
 	stor := ctx.Store(gk.key)
-	bz := stor.Get([]byte(GasPriceKey))
-	if bz == nil {
-		return std.GasPrice{}
-	}
+	iter := store.PrefixIterator(stor, []byte(GasPriceKeyPrefix))
+	defer iter.Close()
 
-	gp := std.GasPrice{}
-	err := amino.Unmarshal(bz, &gp)
-	if err != nil {
-		panic(err)
+	var prices []std.GasPrice
+	for ; iter.Valid(); iter.Next() {
+		var gp std.GasPrice
+		err := amino.Unmarshal(iter.Value(), &gp)
+		if err != nil {
+			panic(err)
+		}
+		logTelemetry(gp,
+			attribute.KeyValue{
+				Key:   "func",
+				Value: attribute.StringValue("LastGasPrices"),
+			})
+		prices = append(prices, gp)
 	}
-	logTelemetry(gp,
-		attribute.KeyValue{
-			Key:   "func",
-			Value: attribute.StringValue("LastGasPrice"),
-		})
-	return gp
+	return prices
+}
+
+// findInitialGasPrice returns the initial gas price for the given denom.
+// If not found, returns a zero GasPrice.
+func findInitialGasPrice(initPrices []std.GasPrice, denom string) std.GasPrice {
+	for _, gp := range initPrices {
+		if gp.Price.Denom == denom {
+			return gp
+		}
+	}
+	return std.GasPrice{}
+}
+
+// findGasPrice returns a pointer to the gas price for the given denom, or nil if not found.
+func findGasPrice(prices []std.GasPrice, denom string) *std.GasPrice {
+	for i := range prices {
+		if prices[i].Price.Denom == denom {
+			return &prices[i]
+		}
+	}
+	return nil
 }
 
 func logTelemetry(gp std.GasPrice, kv attribute.KeyValue) {

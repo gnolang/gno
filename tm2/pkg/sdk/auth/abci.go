@@ -11,9 +11,10 @@ func EndBlocker(ctx sdk.Context, gk GasPriceKeeperI) {
 	gk.UpdateGasPrice(ctx)
 }
 
-// InitChainer is called in the InitChain(), it set the initial gas price in the
-// GasPriceKeeper store
-// for the next gas price
-func InitChainer(ctx sdk.Context, gk GasPriceKeeperI, gp std.GasPrice) {
-	gk.SetGasPrice(ctx, gp)
+// InitChainer is called in the InitChain(), it sets the initial gas prices
+// for all accepted fee denominations in the GasPriceKeeper store.
+func InitChainer(ctx sdk.Context, gk GasPriceKeeperI, gps []std.GasPrice) {
+	for _, gp := range gps {
+		gk.SetGasPrice(ctx, gp)
+	}
 }

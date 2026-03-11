@@ -198,7 +198,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 
 		genesis := gnoland.DefaultGenState()
 		genesis.Balances = LoadDefaultGenesisBalanceFile(t, gnoRootDir)
-		genesis.Auth.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
+		genesis.Auth.Params.InitialGasPrices = []std.GasPrice{{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}}
 		genesis.Txs = []gnoland.TxWithMetadata{}
 		LoadDefaultGenesisParamFile(t, gnoRootDir, &genesis)
 

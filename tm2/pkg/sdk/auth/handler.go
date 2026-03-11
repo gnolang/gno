@@ -79,11 +79,10 @@ func (ah authHandler) queryAccount(ctx sdk.Context, req abci.RequestQuery) (res 
 	return
 }
 
-// queryGasPrice fetch a gas price of the last block.
+// queryGasPrice fetches gas prices for all accepted denominations from the last block.
 func (ah authHandler) queryGasPrice(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	// get account from addr.
 	bz, err := amino.MarshalJSONIndent(
-		ah.gpKpr.LastGasPrice(ctx),
+		ah.gpKpr.LastGasPrices(ctx),
 		"", "  ")
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(

@@ -167,15 +167,15 @@ func TestParamsSetCmd(t *testing.T) {
 		assert.Equal(t, int64(4096), state.Auth.Params.MaxMemoBytes)
 	})
 
-	t.Run("set gas price field", func(t *testing.T) {
+	t.Run("set gas prices field", func(t *testing.T) {
 		t.Parallel()
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
 		genesis := common.DefaultGenesis()
 		appState := genesis.AppState.(gnoland.GnoGenesisState)
-		appState.Auth.Params.InitialGasPrice = std.GasPrice{
-			Gas: 10, Price: std.MustParseCoin("3ugnot"),
+		appState.Auth.Params.InitialGasPrices = []std.GasPrice{
+			{Gas: 10, Price: std.MustParseCoin("3ugnot")},
 		}
 		genesis.AppState = appState
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
@@ -186,18 +186,17 @@ func TestParamsSetCmd(t *testing.T) {
 		io := commands.NewTestIO()
 		cmd := newParamsSetCmd(cfg, io)
 
-		newGas := std.GasPrice{
-			Gas: 2000, Price: std.MustParseCoin("400ugnot"),
-		}
+		newGasPrices := "400ugnot/2000gas;200uphoton/1000gas"
 
-		args := []string{"auth.initial_gasprice", newGas.String()}
+		args := []string{"auth.initial_gasprices", newGasPrices}
 		err := cmd.ParseAndRun(context.Background(), args)
 		require.NoError(t, err)
 
 		updated, err := types.GenesisDocFromFile(tempGenesis.Name())
 		require.NoError(t, err)
 		state := updated.AppState.(gnoland.GnoGenesisState)
-		assert.Equal(t, newGas, state.Auth.Params.InitialGasPrice)
+		expected, _ := std.ParseGasPrices(newGasPrices)
+		assert.Equal(t, expected, state.Auth.Params.InitialGasPrices)
 	})
 
 	t.Run("invalid type", func(t *testing.T) {

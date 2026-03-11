@@ -81,12 +81,13 @@ func TestQueryGasPrice(t *testing.T) {
 	}
 	env.gk.SetGasPrice(env.ctx, gp)
 
-	var gp2 std.GasPrice
+	var gps []std.GasPrice
 	res = h.Query(env.ctx, req)
 	require.Nil(t, res.Error)
 	require.NotNil(t, res)
-	require.NoError(t, amino.UnmarshalJSON(res.Data, &gp2))
-	require.True(t, gp == gp2)
+	require.NoError(t, amino.UnmarshalJSON(res.Data, &gps))
+	require.Len(t, gps, 1)
+	require.True(t, gp == gps[0])
 }
 
 func TestQuerierRouteNotFound(t *testing.T) {

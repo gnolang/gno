@@ -1014,7 +1014,7 @@ func TestGasPriceUpdate(t *testing.T) {
 	replayBlock(t, baseApp, 8000, 4)
 	replayBlock(t, baseApp, 6000, 5)
 
-	key := []byte("gasPrice")
+	key := []byte("gasPrice:ugnot")
 	query := abci.RequestQuery{
 		Path: ".store/main/key",
 		Data: key,
@@ -1082,8 +1082,8 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
-			// Add last gas price in the context
-			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
+			// Add last gas prices for all accepted fee denominations
+			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrices(ctx))
 
 			// Override auth params.
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
@@ -1178,10 +1178,10 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
     "auth": {
       "params": {
         "gas_price_change_compressor": "8",
-        "initial_gasprice": {
+        "initial_gasprices": [{
           "gas": "1000",
           "price": "100ugnot"
-        },
+        }],
         "max_memo_bytes": "65536",
         "sig_verify_cost_ed25519": "590",
         "sig_verify_cost_secp256k1": "1000",
