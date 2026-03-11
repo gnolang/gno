@@ -303,24 +303,25 @@ func TestIndexLayout_ThemePropagation(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name      string
-		theme     string
-		wantTheme string
+		name          string
+		theme         string
+		wantAttr      string
+		wantNoDataTag bool
 	}{
 		{
-			name:      "success: dark theme propagated",
-			theme:     "dark",
-			wantTheme: "dark",
+			name:     "success: dark theme rendered in HTML",
+			theme:    "dark",
+			wantAttr: `data-theme="dark"`,
 		},
 		{
-			name:      "success: light theme propagated",
-			theme:     "light",
-			wantTheme: "light",
+			name:     "success: light theme rendered in HTML",
+			theme:    "light",
+			wantAttr: `data-theme="light"`,
 		},
 		{
-			name:      "edge: empty theme propagated as empty",
-			theme:     "",
-			wantTheme: "",
+			name:          "edge: empty theme omits data-theme attribute",
+			theme:         "",
+			wantNoDataTag: true,
 		},
 	}
 
@@ -342,13 +343,17 @@ func TestIndexLayout_ThemePropagation(t *testing.T) {
 			}
 
 			component := IndexLayout(data)
-			templateComponent, ok := component.(*TemplateComponent)
-			require.True(t, ok, "expected TemplateComponent type")
 
-			params, ok := templateComponent.data.(indexLayoutParams)
-			require.True(t, ok, "expected indexLayoutParams type")
+			var buf strings.Builder
+			err := component.Render(&buf)
+			require.NoError(t, err, "expected no render error")
 
-			assert.Equal(t, tc.wantTheme, params.Theme)
+			output := buf.String()
+			if tc.wantNoDataTag {
+				assert.NotContains(t, output, `data-theme=`, "expected no data-theme attribute")
+			} else {
+				assert.Contains(t, output, tc.wantAttr, "expected HTML to contain %s", tc.wantAttr)
+			}
 		})
 	}
 }
