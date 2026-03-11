@@ -307,6 +307,11 @@ func (hiv *HeapItemValue) String() string {
 // ----------------------------------------
 // *TypedValue.Sprint
 
+// ImplError returns true if the TypedValue's type implements the error interface.
+func (tv *TypedValue) ImplError() bool {
+	return IsImplementedBy(gErrorType, tv.T)
+}
+
 // for print() and println().
 func (tv *TypedValue) Sprint(m *Machine) string {
 	// if undefined, just "undefined".

@@ -45,6 +45,15 @@ var gErrorType = &DeclaredType{
 	sealed: true,
 }
 
+// IsErrorType returns true if the given type implements the error interface.
+// This is useful for checking function return types without a TypedValue.
+func IsErrorType(t Type) bool {
+	if t == nil {
+		return false
+	}
+	return IsImplementedBy(gErrorType, t)
+}
+
 var gStringerType = &DeclaredType{
 	PkgPath: uversePkgPath,
 	Name:    "stringer",

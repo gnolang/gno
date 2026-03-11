@@ -26,6 +26,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -1208,6 +1209,45 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 	return res, nil
 }
 
+// QueryEvalJSON evaluates a gno expression and returns JSON (Amino-encoded) results.
+func (vm *VMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
+	if err != nil {
+		return "", err
+	}
+	return stringifyJSONResults(nil, rtvs, nil), nil
+}
+
+// QueryObject retrieves an object by ObjectID and returns its JSON representation.
+func (vm *VMKeeper) QueryObject(ctx sdk.Context, oidStr string) (res string, err error) {
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	// Parse ObjectID
+	var oid gno.ObjectID
+	if err := oid.UnmarshalAmino(oidStr); err != nil {
+		return "", ErrInvalidExpr(fmt.Sprintf("invalid object id %q: %v", oidStr, err))
+	}
+
+	// Retrieve object
+	obj := gnostore.GetObjectSafe(oid)
+	if obj == nil {
+		return "", ErrObjectNotFound(fmt.Sprintf("object not found: %s", oidStr))
+	}
+
+	// Export object: one level deep, nested persisted objects stay as RefValues.
+	exported := gno.ExportObject(obj)
+
+	// Serialize with Amino JSON (includes @type tags).
+	jsonBytes, err := amino.MarshalJSONAny(exported)
+	if err != nil {
+		return "", err
+	}
+
+	// Wrap with objectid
+	result := fmt.Sprintf(`{"objectid":%q,"value":%s}`, oidStr, string(jsonBytes))
+	return result, nil
+}
 // processStorageDeposit processes storage deposit adjustments for package realms based on
 // storage size changes tracked within the gnoStore.
 //

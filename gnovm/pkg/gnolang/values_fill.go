@@ -72,6 +72,10 @@ func (rv RefValue) DeepFill(store Store) Value {
 	return store.GetObject(rv.ObjectID)
 }
 
+func (erv ExportRefValue) DeepFill(_ Store) Value {
+	return erv // export-only; no store lookup
+}
+
 func (hiv *HeapItemValue) DeepFill(store Store) Value {
 	if hiv.Value.V != nil {
 		hiv.Value.V = hiv.Value.V.DeepFill(store)

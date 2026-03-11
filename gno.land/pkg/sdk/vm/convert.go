@@ -2,6 +2,8 @@ package vm
 
 import (
 	"encoding/base64"
+	"encoding/json"
+	goerrors "errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -9,6 +11,8 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 func assertNoPlusPrefix(s string) {
@@ -212,4 +216,82 @@ func convertFloat(value string, precision int) float64 {
 	}
 
 	return f64
+}
+
+type jsonResults struct {
+	Results json.RawMessage `json:"results"`
+	Error   *string         `json:"@error,omitempty"`
+}
+
+// stringifyJSONResults converts TypedValues to JSON format using Amino encoding.
+// It first exports values (replacing persisted objects with RefValues and
+// breaking ephemeral cycles), then serializes with amino.MarshalJSON.
+// ft is the function type (if available) used for signature-based error detection.
+func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, ft *gno.FuncType) string {
+	jres := jsonResults{Results: []byte("[]")}
+	if len(tvs) > 0 {
+		// Export values: replace persisted objects with RefValues,
+		// break ephemeral cycles with synthetic ":N" RefValues.
+		exported := gno.ExportValues(tvs)
+
+		bz, err := amino.MarshalJSON(exported)
+		if err != nil {
+			panic("unable to marshal results: " + err.Error())
+		}
+		jres.Results = bz
+
+		// Check for error based on function signature. If the func return type's last
+		// element is exactly a named or unnamed interface type which implements error,
+		// then .Error() is called.
+		last := tvs[len(tvs)-1]
+		shouldExtractError := false
+		if ft != nil && len(ft.Results) > 0 {
+			// Signature-based: check if declared return type implements error
+			lastReturnType := ft.Results[len(ft.Results)-1].Type
+			shouldExtractError = gno.IsErrorType(lastReturnType)
+		} else {
+			// Fallback for QueryEval: value-based detection
+			shouldExtractError = last.ImplError()
+		}
+
+		if shouldExtractError {
+			if errStr, ok := tryGetError(m, last); ok {
+				jres.Error = &errStr
+			}
+		}
+	}
+
+	s, err := json.Marshal(jres)
+	if err != nil {
+		panic("unable to marshal result")
+	}
+
+	return string(s)
+}
+
+func tryGetError(m *gno.Machine, tv gno.TypedValue) (errStr string, ok bool) {
+	// Check if type implements error interface
+	if !tv.ImplError() {
+		return "", false
+	}
+
+	// Call .Error() in a panic-safe context. If .Error() panics due to
+	// out-of-gas, re-panic so the caller's gas handling works correctly
+	// (tx: doRecover repanics for BaseApp; query: doRecoverQuery returns error).
+	// For other panics (buggy .Error()), gracefully degrade: no @error field.
+	defer func() {
+		if r := recover(); r != nil {
+			if err, isErr := r.(error); isErr {
+				var oog stypes.OutOfGasError
+				if goerrors.As(err, &oog) {
+					panic(oog)
+				}
+			}
+			errStr = ""
+			ok = false
+		}
+	}()
+
+	res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
+	return res[0].GetString(), true
 }
