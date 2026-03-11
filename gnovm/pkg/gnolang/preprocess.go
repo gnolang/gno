@@ -321,32 +321,6 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 				if n.Op != DEFINE {
 					return n, TRANS_CONTINUE
 				}
-				// if n.Key != nil {
-				// 	ln := n.Key.(*NameExpr).Name
-				// 	if ln == blankIdentifier {
-				// 		return n, TRANS_CONTINUE
-				// 	}
-				// 	if strings.HasSuffix(string(ln), ".loopvar") {
-				// 		// for idempotency (already converted)
-				// 		return n, TRANS_CONTINUE
-				// 	}
-				// 	// replace all n.Key w/ <n.Key>.loopvar
-				// 	n.Key.(*NameExpr).Name += ".loopvar"
-				// 	replaceAllLoopvar(last, n, ln)
-				// }
-				// if n.Value != nil {
-				// 	ln := n.Value.(*NameExpr).Name
-				// 	if ln == blankIdentifier {
-				// 		return n, TRANS_CONTINUE
-				// 	}
-				// 	if strings.HasSuffix(string(ln), ".loopvar") {
-				// 		// for idempotency (already converted)
-				// 		return n, TRANS_CONTINUE
-				// 	}
-				// 	// replace all n.Value w/ <n.Value>.loopvar
-				// 	n.Value.(*NameExpr).Name += ".loopvar"
-				// 	replaceAllLoopvar(last, n, ln)
-				// }
 			}
 		}
 		return n, TRANS_CONTINUE
