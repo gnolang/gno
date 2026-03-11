@@ -1,0 +1,40 @@
+# Test vm/qobject_json and vm/qobject_binary endpoints.
+
+loadpkg gno.land/r/test/obj $WORK/realm
+
+gnoland start
+
+# qobject_json: invalid ObjectID format should error
+! gnokey query vm/qobject_json --data "invalid"
+stderr 'invalid expression'
+
+# qobject_json: valid format but non-existent object
+! gnokey query vm/qobject_json --data "0000000000000000000000000000000000000000:999"
+stderr 'object not found'
+
+# qobject_binary: invalid ObjectID format should error
+! gnokey query vm/qobject_binary --data "invalid"
+stderr 'invalid expression'
+
+# qeval_json: verify RefValue with ObjectID appears for persisted pointer
+gnokey query vm/qeval_json --data "gno.land/r/test/obj.GetPointer()"
+stdout 'RefValue'
+stdout 'ObjectID'
+
+-- realm/gnomod.toml --
+module = "gno.land/r/test/obj"
+gno = "0.9"
+
+-- realm/realm.gno --
+package obj
+
+type Item struct {
+	Name  string
+	Value int
+}
+
+var myItem = &Item{Name: "test", Value: 123}
+
+func GetPointer() *Item {
+	return myItem
+}

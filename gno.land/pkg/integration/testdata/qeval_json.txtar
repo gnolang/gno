@@ -1,0 +1,72 @@
+# Test vm/qeval_json returns Amino JSON for various value types.
+
+loadpkg gno.land/r/test/json $WORK/realm
+
+gnoland start
+
+# Query primitive int — returns Amino JSON with PrimitiveType and base64 N field
+gnokey query vm/qeval_json --data "gno.land/r/test/json.GetInt()"
+stdout '"results":\['
+stdout 'PrimitiveType'
+
+# Query string — value appears as StringValue
+gnokey query vm/qeval_json --data "gno.land/r/test/json.GetString()"
+stdout 'hello'
+
+# Query bool
+gnokey query vm/qeval_json --data "gno.land/r/test/json.GetBool()"
+stdout 'PrimitiveType'
+
+# Query struct — should contain StructValue with fields
+gnokey query vm/qeval_json --data "gno.land/r/test/json.GetStruct()"
+stdout 'StructValue'
+stdout 'alice'
+
+# Query slice — should contain SliceValue
+gnokey query vm/qeval_json --data "gno.land/r/test/json.GetSlice()"
+stdout 'SliceValue'
+
+# Query multiple return values — results array has multiple elements
+gnokey query vm/qeval_json --data "gno.land/r/test/json.GetMulti()"
+stdout 'hello'
+stdout 'PrimitiveType'
+
+# Error case: invalid expression
+! gnokey query vm/qeval_json --data "gno.land/r/test/json.NonExistent()"
+stderr 'NonExistent not declared'
+
+-- realm/gnomod.toml --
+module = "gno.land/r/test/json"
+gno = "0.9"
+
+-- realm/realm.gno --
+package json
+
+type User struct {
+	Name string
+	Age  int
+}
+
+func GetInt() int {
+	return 42
+}
+
+func GetString() string {
+	return "hello"
+}
+
+func GetBool() bool {
+	return true
+}
+
+func GetStruct() User {
+	return User{Name: "alice", Age: 30}
+}
+
+func GetSlice() []int {
+	return []int{1, 2, 3}
+}
+
+func GetMulti() (string, int) {
+	return "hello", 42
+}
