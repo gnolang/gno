@@ -35,7 +35,7 @@ type Params struct {
 	SigVerifyCostSecp256k1    int64            `json:"sig_verify_cost_secp256k1" yaml:"sig_verify_cost_secp256k1"`
 	GasPricesChangeCompressor int64            `json:"gas_price_change_compressor" yaml:"gas_price_change_compressor"`
 	TargetGasRatio            int64            `json:"target_gas_ratio" yaml:"target_gas_ratio"`
-	InitialGasPrice           std.GasPrice     `json:"initial_gasprice"`
+	InitialGasPrices          []std.GasPrice   `json:"initial_gasprices"` // see tm2/adr/adr-001-multi-denom-gas-fees.md
 	UnrestrictedAddrs         []crypto.Address `json:"unrestricted_addrs" yaml:"unrestricted_addrs"`
 	FeeCollector              crypto.Address   `json:"fee_collector" yaml:"fee_collector"`
 }
@@ -88,6 +88,7 @@ func (p Params) String() string {
 	fmt.Fprintf(sb, "SigVerifyCostSecp256k1: %d\n", p.SigVerifyCostSecp256k1)
 	fmt.Fprintf(sb, "GasPricesChangeCompressor: %d\n", p.GasPricesChangeCompressor)
 	fmt.Fprintf(sb, "TargetGasRatio: %d\n", p.TargetGasRatio)
+	fmt.Fprintf(sb, "InitialGasPrices: %v\n", p.InitialGasPrices)
 	fmt.Fprintf(sb, "FeeCollector: %s\n", p.FeeCollector.String())
 	return sb.String()
 }
@@ -116,6 +117,23 @@ func (p Params) Validate() error {
 	}
 	if p.FeeCollector.IsZero() {
 		return fmt.Errorf("invalid fee collector, cannot be empty")
+	}
+	// Validate InitialGasPrices: no duplicate denoms, positive gas and amounts.
+	seenDenoms := make(map[string]struct{}, len(p.InitialGasPrices))
+	for _, gp := range p.InitialGasPrices {
+		if gp.Price.Denom == "" {
+			return fmt.Errorf("initial gas price has empty denom")
+		}
+		if _, dup := seenDenoms[gp.Price.Denom]; dup {
+			return fmt.Errorf("duplicate initial gas price denom: %s", gp.Price.Denom)
+		}
+		seenDenoms[gp.Price.Denom] = struct{}{}
+		if gp.Gas <= 0 {
+			return fmt.Errorf("initial gas price for %s has non-positive gas: %d", gp.Price.Denom, gp.Gas)
+		}
+		if gp.Price.Amount < 0 {
+			return fmt.Errorf("initial gas price for %s has negative amount: %d", gp.Price.Denom, gp.Price.Amount)
+		}
 	}
 	return nil
 }

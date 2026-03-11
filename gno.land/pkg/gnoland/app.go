@@ -132,8 +132,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
-			// Add last gas price in the context
-			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
+			// Add last gas prices for all accepted fee denominations
+			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrices(ctx))
 			// Override auth params.
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 
@@ -388,7 +388,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 	params := cfg.acck.GetParams(ctx)
 	ctx = ctx.WithValue(auth.AuthParamsContextKey{}, params)
-	auth.InitChainer(ctx, cfg.gpk, params.InitialGasPrice)
+	auth.InitChainer(ctx, cfg.gpk, params.InitialGasPrices)
 
 	// Replay genesis txs.
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
@@ -460,8 +460,8 @@ func EndBlocker(
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
 	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
-		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
-		// the params to calculate the updated gas price.
+		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrices in
+		// the params to calculate the updated gas prices for each accepted fee denom.
 		if acck != nil {
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 		}

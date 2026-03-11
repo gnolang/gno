@@ -16,8 +16,9 @@ const (
 
 	// AddressStoreKeyPrefix prefix for account-by-address store
 	AddressStoreKeyPrefix = "/a/"
-	// key for gas price
-	GasPriceKey = "gasPrice"
+	// prefix for per-denom gas price keys (e.g. "gasPrice:ugnot").
+	// See tm2/adr/adr-001-multi-denom-gas-fees.md.
+	GasPriceKeyPrefix = "gasPrice:"
 	// param key for global account number
 	GlobalAccountNumberKey = "globalAccountNumber"
 )

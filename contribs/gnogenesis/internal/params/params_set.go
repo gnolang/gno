@@ -157,13 +157,13 @@ func saveStringToValue(vals []string, dstValue reflect.Value) error {
 		}
 		dstValue.Set(reflect.ValueOf(addrs))
 
-	case std.GasPrice:
-		gas, err := std.ParseGasPrice(vals[0])
+	case []std.GasPrice:
+		gasPrices, err := std.ParseGasPrices(vals[0])
 		if err != nil {
-			return fmt.Errorf("unable to parse gas price %q: %w", vals[0], err)
+			return fmt.Errorf("unable to parse gas prices %q: %w", vals[0], err)
 		}
 
-		dstValue.Set(reflect.ValueOf(gas))
+		dstValue.Set(reflect.ValueOf(gasPrices))
 	case time.Duration:
 		d, err := time.ParseDuration(vals[0])
 		if err != nil {

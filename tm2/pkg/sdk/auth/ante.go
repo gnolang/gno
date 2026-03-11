@@ -339,7 +339,7 @@ func DeductFees(bk BankKeeperI, ctx sdk.Context, acc std.Account, collector cryp
 // consensus.
 func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 	minGasPrices := ctx.MinGasPrices()
-	blockGasPrice := ctx.Value(GasPriceContextKey{}).(std.GasPrice)
+	blockGasPrices := ctx.Value(GasPriceContextKey{}).([]std.GasPrice)
 	feeGasPrice := std.GasPrice{
 		Gas: fee.GasWanted,
 		Price: std.Coin{
@@ -347,21 +347,27 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 			Denom:  fee.GasFee.Denom,
 		},
 	}
-	// check the block gas price
-	if blockGasPrice.Price.IsValid() && !blockGasPrice.Price.IsZero() {
-		ok, err := feeGasPrice.IsGTE(blockGasPrice)
-		if err != nil {
-			return abciResult(std.ErrInsufficientFee(
-				err.Error(),
-			))
+	// check the block gas price for the fee's denom
+	for _, blockGasPrice := range blockGasPrices {
+		if blockGasPrice.Price.Denom != fee.GasFee.Denom {
+			continue
 		}
-		if !ok {
-			return abciResult(std.ErrInsufficientFee(
-				fmt.Sprintf(
-					"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %+v as block gas price", feeGasPrice.Gas, feeGasPrice.Price, blockGasPrice,
-				),
-			))
+		if blockGasPrice.Price.IsValid() && !blockGasPrice.Price.IsZero() {
+			ok, err := feeGasPrice.IsGTE(blockGasPrice)
+			if err != nil {
+				return abciResult(std.ErrInsufficientFee(
+					err.Error(),
+				))
+			}
+			if !ok {
+				return abciResult(std.ErrInsufficientFee(
+					fmt.Sprintf(
+						"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %+v as block gas price", feeGasPrice.Gas, feeGasPrice.Price, blockGasPrice,
+					),
+				))
+			}
 		}
+		break
 	}
 	// check min gas price set by the node.
 	if len(minGasPrices) == 0 {

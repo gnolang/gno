@@ -85,6 +85,37 @@ func TestAccountKeeperParams(t *testing.T) {
 	require.True(t, dp.Equals(dp2))
 }
 
+func TestParamsValidateInitialGasPrices(t *testing.T) {
+	valid := DefaultParams()
+	valid.InitialGasPrices = []std.GasPrice{
+		{Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 1}},
+		{Gas: 1000, Price: std.Coin{Denom: "uphoton", Amount: 5}},
+	}
+	require.NoError(t, valid.Validate())
+
+	// Duplicate denom
+	dup := DefaultParams()
+	dup.InitialGasPrices = []std.GasPrice{
+		{Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 1}},
+		{Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 2}},
+	}
+	require.ErrorContains(t, dup.Validate(), "duplicate initial gas price denom")
+
+	// Empty denom
+	empty := DefaultParams()
+	empty.InitialGasPrices = []std.GasPrice{
+		{Gas: 1000, Price: std.Coin{Denom: "", Amount: 1}},
+	}
+	require.ErrorContains(t, empty.Validate(), "empty denom")
+
+	// Non-positive gas
+	badGas := DefaultParams()
+	badGas.InitialGasPrices = []std.GasPrice{
+		{Gas: 0, Price: std.Coin{Denom: "ugnot", Amount: 1}},
+	}
+	require.ErrorContains(t, badGas.Validate(), "non-positive gas")
+}
+
 func TestGasPrice(t *testing.T) {
 	env := setupTestEnv()
 	gp := std.GasPrice{
@@ -95,8 +126,60 @@ func TestGasPrice(t *testing.T) {
 		},
 	}
 	env.gk.SetGasPrice(env.ctx, gp)
-	gp2 := env.gk.LastGasPrice(env.ctx)
-	require.True(t, gp == gp2)
+	gps := env.gk.LastGasPrices(env.ctx)
+	require.Len(t, gps, 1)
+	require.True(t, gp == gps[0])
+}
+
+func TestGasPriceMultiDenom(t *testing.T) {
+	env := setupTestEnv()
+	gpUgnot := std.GasPrice{
+		Gas:   1000,
+		Price: std.Coin{Denom: "ugnot", Amount: 1},
+	}
+	gpPhoton := std.GasPrice{
+		Gas:   1000,
+		Price: std.Coin{Denom: "uphoton", Amount: 5},
+	}
+	env.gk.SetGasPrice(env.ctx, gpUgnot)
+	env.gk.SetGasPrice(env.ctx, gpPhoton)
+
+	gps := env.gk.LastGasPrices(env.ctx)
+	require.Len(t, gps, 2)
+
+	// Verify both denoms are present (order from iterator is lexicographic by key)
+	denomMap := make(map[string]std.GasPrice)
+	for _, gp := range gps {
+		denomMap[gp.Price.Denom] = gp
+	}
+	require.Equal(t, gpUgnot, denomMap["ugnot"])
+	require.Equal(t, gpPhoton, denomMap["uphoton"])
+
+	// Update one denom independently
+	gpPhoton.Price.Amount = 8
+	env.gk.SetGasPrice(env.ctx, gpPhoton)
+
+	gps = env.gk.LastGasPrices(env.ctx)
+	require.Len(t, gps, 2)
+	denomMap = make(map[string]std.GasPrice)
+	for _, gp := range gps {
+		denomMap[gp.Price.Denom] = gp
+	}
+	require.Equal(t, int64(1), denomMap["ugnot"].Price.Amount, "ugnot should be unchanged")
+	require.Equal(t, int64(8), denomMap["uphoton"].Price.Amount, "uphoton should be updated")
+}
+
+func TestFindInitialGasPrice(t *testing.T) {
+	initPrices := []std.GasPrice{
+		{Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 1}},
+		{Gas: 1000, Price: std.Coin{Denom: "uphoton", Amount: 5}},
+	}
+	// Found
+	gp := findInitialGasPrice(initPrices, "uphoton")
+	require.Equal(t, int64(5), gp.Price.Amount)
+	// Not found returns zero
+	gp = findInitialGasPrice(initPrices, "uatom")
+	require.Equal(t, std.GasPrice{}, gp)
 }
 
 func TestMax(t *testing.T) {
@@ -142,6 +225,12 @@ func TestCalcBlockGasPrice(t *testing.T) {
 			Denom:  "atom",
 		},
 	}
+	initGasPrice := std.GasPrice{
+		Price: std.Coin{
+			Amount: 1,
+			Denom:  "atom",
+		},
+	}
 	gasUsed := int64(5000)
 	maxGas := int64(10000)
 	params := Params{
@@ -150,7 +239,7 @@ func TestCalcBlockGasPrice(t *testing.T) {
 	}
 
 	// Test with normal parameters
-	newGasPrice := gk.calcBlockGasPrice(lastGasPrice, gasUsed, maxGas, params)
+	newGasPrice := gk.calcBlockGasPrice(lastGasPrice, gasUsed, maxGas, params, initGasPrice)
 	expectedAmount := big.NewInt(100)
 	num := big.NewInt(gasUsed - maxGas*params.TargetGasRatio/100)
 	num.Mul(num, expectedAmount)
@@ -161,18 +250,18 @@ func TestCalcBlockGasPrice(t *testing.T) {
 
 	// Test with lastGasPrice amount as 0
 	lastGasPrice.Price.Amount = 0
-	newGasPrice = gk.calcBlockGasPrice(lastGasPrice, gasUsed, maxGas, params)
+	newGasPrice = gk.calcBlockGasPrice(lastGasPrice, gasUsed, maxGas, params, initGasPrice)
 	require.Equal(t, int64(0), newGasPrice.Price.Amount)
 
 	// Test with TargetGasRatio as 0 (should not change the last price)
 	params.TargetGasRatio = 0
-	newGasPrice = gk.calcBlockGasPrice(lastGasPrice, gasUsed, maxGas, params)
+	newGasPrice = gk.calcBlockGasPrice(lastGasPrice, gasUsed, maxGas, params, initGasPrice)
 	require.Equal(t, int64(0), newGasPrice.Price.Amount)
 
 	// Test with gasUsed as 0 (should not change the last price)
 	params.TargetGasRatio = 50
 	lastGasPrice.Price.Amount = 100
 	gasUsed = 0
-	newGasPrice = gk.calcBlockGasPrice(lastGasPrice, gasUsed, maxGas, params)
+	newGasPrice = gk.calcBlockGasPrice(lastGasPrice, gasUsed, maxGas, params, initGasPrice)
 	require.Equal(t, int64(100), newGasPrice.Price.Amount)
 }

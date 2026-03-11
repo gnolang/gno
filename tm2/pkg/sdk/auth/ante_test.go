@@ -813,7 +813,7 @@ func TestEnsureSufficientMempoolFees(t *testing.T) {
 		{std.NewFee(200000, std.NewCoin("atom", 5)), false},
 	}
 	// Do not set the block gas price
-	ctx = ctx.WithValue(GasPriceContextKey{}, std.GasPrice{})
+	ctx = ctx.WithValue(GasPriceContextKey{}, []std.GasPrice{})
 
 	for i, tc := range testCases {
 		res := EnsureSufficientMempoolFees(ctx, tc.input)
@@ -912,7 +912,7 @@ func TestEnsureBlockGasPrice(t *testing.T) {
 		ctx = ctx.WithMinGasPrices(
 			[]std.GasPrice{c.minGasPrice},
 		)
-		ctx = ctx.WithValue(GasPriceContextKey{}, c.blockGasPrice)
+		ctx = ctx.WithValue(GasPriceContextKey{}, []std.GasPrice{c.blockGasPrice})
 
 		res := EnsureSufficientMempoolFees(ctx, c.input)
 		require.Equal(
@@ -939,12 +939,12 @@ func TestInvalidUserFee(t *testing.T) {
 	ctx = ctx.WithMinGasPrices(
 		[]std.GasPrice{minGasPrice},
 	)
-	ctx = ctx.WithValue(GasPriceContextKey{}, blockGasPrice)
+	ctx = ctx.WithValue(GasPriceContextKey{}, []std.GasPrice{blockGasPrice})
 	res1 := EnsureSufficientMempoolFees(ctx, userFee1)
 	require.False(t, res1.IsOK())
 	assert.Contains(t, res1.Log, "GasPrice.Gas cannot be zero;")
 
 	res2 := EnsureSufficientMempoolFees(ctx, userFee2)
 	require.False(t, res2.IsOK())
-	assert.Contains(t, res2.Log, "Gas price denominations should be equal;")
+	assert.Contains(t, res2.Log, "insufficient fees")
 }

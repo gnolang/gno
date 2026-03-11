@@ -19,7 +19,7 @@ import (
 	"github.com/pelletier/go-toml"
 )
 
-const initGasPrice = "1ugnot/1000gas"
+const initGasPrices = "1ugnot/1000gas"
 
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
 func LoadGenesisBalancesFile(path string) (Balances, error) {
@@ -245,11 +245,11 @@ func LoadPackage(mpkg *std.MemPackage, creator bft.Address, fee std.Fee, deposit
 
 func DefaultGenState() GnoGenesisState {
 	authGen := auth.DefaultGenesisState()
-	gp, err := std.ParseGasPrice(initGasPrice)
+	gps, err := std.ParseGasPrices(initGasPrices)
 	if err != nil {
 		panic(err)
 	}
-	authGen.Params.InitialGasPrice = gp
+	authGen.Params.InitialGasPrices = gps
 
 	gs := GnoGenesisState{
 		Balances: []Balance{},
