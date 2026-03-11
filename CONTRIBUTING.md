@@ -121,3 +121,5 @@ GitHub discussions, and other communication channels.
 ---
 
 For more documentation, see the [docs](./docs/) folder.
+
+> For maintainers with merge access, see [MAINTAINERS.md](MAINTAINERS.md) for internal processes (versioning, branching, release workflow).
