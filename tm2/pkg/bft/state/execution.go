@@ -7,7 +7,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
-	"github.com/gnolang/gno/tm2/pkg/bft/fail"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	typesver "github.com/gnolang/gno/tm2/pkg/bft/types/version"
@@ -97,8 +96,6 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 		return state, ProxyAppConnError(err)
 	}
 
-	fail.Fail() // XXX
-
 	// Save the results by height
 	SaveABCIResponses(blockExec.db, block.Height, abciResponses)
 
@@ -113,8 +110,6 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 			},
 		)
 	}
-
-	fail.Fail() // XXX
 
 	// validate the validator updates and convert to tendermint types
 	abciValUpdates := abciResponses.EndBlock.ValidatorUpdates
@@ -138,13 +133,9 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 		return state, fmt.Errorf("Commit failed for application: %w", err)
 	}
 
-	fail.Fail() // XXX
-
 	// Update the app hash and save the state.
 	state.AppHash = appHash
 	SaveState(blockExec.db, state)
-
-	fail.Fail() // XXX
 
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
