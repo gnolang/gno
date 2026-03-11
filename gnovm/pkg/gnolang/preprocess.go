@@ -219,6 +219,8 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 				switch n := n.(type) {
 				case *NameExpr:
 					switch ftype {
+					case TRANS_COMPOSITE_KEY:
+						return n, TRANS_CONTINUE
 					case TRANS_ASSIGN_LHS:
 						as := ns[len(ns)-1].(*AssignStmt)
 						if as.Op == DEFINE {
@@ -319,32 +321,32 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 				if n.Op != DEFINE {
 					return n, TRANS_CONTINUE
 				}
-				if n.Key != nil {
-					ln := n.Key.(*NameExpr).Name
-					if ln == blankIdentifier {
-						return n, TRANS_CONTINUE
-					}
-					if strings.HasSuffix(string(ln), ".loopvar") {
-						// for idempotency (already converted)
-						return n, TRANS_CONTINUE
-					}
-					// replace all n.Key w/ <n.Key>.loopvar
-					n.Key.(*NameExpr).Name += ".loopvar"
-					replaceAllLoopvar(last, n, ln)
-				}
-				if n.Value != nil {
-					ln := n.Value.(*NameExpr).Name
-					if ln == blankIdentifier {
-						return n, TRANS_CONTINUE
-					}
-					if strings.HasSuffix(string(ln), ".loopvar") {
-						// for idempotency (already converted)
-						return n, TRANS_CONTINUE
-					}
-					// replace all n.Value w/ <n.Value>.loopvar
-					n.Value.(*NameExpr).Name += ".loopvar"
-					replaceAllLoopvar(last, n, ln)
-				}
+				// if n.Key != nil {
+				// 	ln := n.Key.(*NameExpr).Name
+				// 	if ln == blankIdentifier {
+				// 		return n, TRANS_CONTINUE
+				// 	}
+				// 	if strings.HasSuffix(string(ln), ".loopvar") {
+				// 		// for idempotency (already converted)
+				// 		return n, TRANS_CONTINUE
+				// 	}
+				// 	// replace all n.Key w/ <n.Key>.loopvar
+				// 	n.Key.(*NameExpr).Name += ".loopvar"
+				// 	replaceAllLoopvar(last, n, ln)
+				// }
+				// if n.Value != nil {
+				// 	ln := n.Value.(*NameExpr).Name
+				// 	if ln == blankIdentifier {
+				// 		return n, TRANS_CONTINUE
+				// 	}
+				// 	if strings.HasSuffix(string(ln), ".loopvar") {
+				// 		// for idempotency (already converted)
+				// 		return n, TRANS_CONTINUE
+				// 	}
+				// 	// replace all n.Value w/ <n.Value>.loopvar
+				// 	n.Value.(*NameExpr).Name += ".loopvar"
+				// 	replaceAllLoopvar(last, n, ln)
+				// }
 			}
 		}
 		return n, TRANS_CONTINUE
@@ -387,6 +389,8 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 							// NameExprTypeHeapDefine later.
 							nx.Type = NameExprTypeDefine
 							last.Reserve(false, nx, n, NSDefine, i)
+						} else {
+							nx.Type = NameExprTypeDefine
 						}
 					}
 				}
@@ -1241,16 +1245,17 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					clt := evalStaticType(store, last, clx.Type)
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
-						// Struct field keys are not variable references.
-						// Strip any .loopvar suffix that replaceAllLoopvar may have
-						// added (it cannot distinguish struct keys from map keys at
-						// the time of the rename pass).
-						fieldName := n.Name
-						if strings.HasSuffix(string(fieldName), ".loopvar") {
-							fieldName = Name(strings.TrimSuffix(string(fieldName), ".loopvar"))
-							n.Name = fieldName
-						}
-						n.Path = bt.GetPathForName(fieldName)
+						n.Path = bt.GetPathForName(n.Name)
+						// // Struct field keys are not variable references.
+						// // Strip any .loopvar suffix that replaceAllLoopvar may have
+						// // added (it cannot distinguish struct keys from map keys at
+						// // the time of the rename pass).
+						// fieldName := n.Name
+						// if strings.HasSuffix(string(fieldName), ".loopvar") {
+						// 	fieldName = Name(strings.TrimSuffix(string(fieldName), ".loopvar"))
+						// 	n.Name = fieldName
+						// }
+						// n.Path = bt.GetPathForName(fieldName)
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
