@@ -82,7 +82,7 @@ make fmt                        # Format all code
 
 ## Architecture Decision Records (ADRs)
 
-**Every AI-assisted PR must include an ADR.**
+**Every Non-trivial AI-assisted PR must include an ADR.**
 This documents what the AI understood so reviewers can verify assumptions and future contributors can build on it.
 
 | Scope | Directory |
