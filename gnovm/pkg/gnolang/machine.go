@@ -627,13 +627,15 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 			}
 			// free up remaining part of the slice for GC
 			unresolved = unresolved[:len(unresolved):len(unresolved)]
-			// sort for determinism (though order should not be relevant here)
-			slices.Sort(unresolved)
+			// unresolved is in map-order (random); any usage of deps
+			// should work independently of the order of the values
 			pending = append(pending, pendingInitDecl{fn, decl, unresolved})
 		}
 	}
 
 	// Ready-variable loop (Go spec algorithm).
+	// Repeatedly pick the earliest-in-declaration-order pending entry
+	// whose dependencies are all satisfied, and initialize it.
 	for len(pending) > 0 {
 		pos := slices.IndexFunc(pending, func(pid pendingInitDecl) bool {
 			for _, dep := range pid.deps {
@@ -659,18 +661,18 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		m.PushBlock(fb)
 		m.runDeclaration(pd.decl)
 		m.PopBlock()
-		for _, n := range pd.decl.GetDeclNames() {
+		declNames := pd.decl.GetDeclNames()
+		for _, n := range declNames {
 			fdeclared[n] = struct{}{}
 		}
 		// Update remaining pending entries: remove newly declared names
 		// from their effective deps so the next iteration sees them as
 		// satisfied.
 		for i := range pending {
-			for _, n := range pd.decl.GetDeclNames() {
-				pending[i].deps = slices.DeleteFunc(pending[i].deps, func(n2 Name) bool {
-					return n2 == n
-				})
-			}
+			pending[i].deps = slices.DeleteFunc(pending[i].deps, func(n Name) bool {
+				_, ok := fdeclared[n]
+				return ok
+			})
 		}
 	}
 
