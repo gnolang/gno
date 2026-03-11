@@ -146,6 +146,17 @@ pass, tests must be included, conventional commits must be used.
 
 If using AI, point your agent at [AGENTS.md](./AGENTS.md).
 
+## Documentation Philosophy
+
+`docs/` is optimized for humans, readable by agents.
+`AGENTS.md` is optimized for agents, readable by humans.
+
+When writing documentation, keep human docs in `docs/` — narrative,
+examples, context. Avoid bloating `AGENTS.md` with content better suited
+for `docs/`. Conversely, a few lines of concise, direct rules in
+`AGENTS.md` is far better than pointing agents to multiple human-oriented
+documents they'd have to parse in full.
+
 ---
 
 For more documentation, see the [docs](./docs/) folder.
