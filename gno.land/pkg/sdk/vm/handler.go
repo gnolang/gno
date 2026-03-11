@@ -75,7 +75,7 @@ const (
 	QueryFuncs    = "qfuncs"
 	QueryEval     = "qeval"
 	QueryEvalJSON = "qeval_json"
-	QueryObject   = "qobject"
+	QueryObject   = "qobject_json"
 	QueryFile     = "qfile"
 	QueryDoc      = "qdoc"
 	QueryPaths    = "qpaths"
