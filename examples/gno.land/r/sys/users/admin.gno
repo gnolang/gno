@@ -2,6 +2,7 @@ package users
 
 import (
 	"chain"
+	"chain/runtime"
 
 	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/ufmt"
@@ -9,12 +10,30 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-const gUsersV1Path = "gno.land/r/gnoland/users/v1" // preregistered with store write perms
+const initControllerPath = "gno.land/r/sys/users/init"
 
 var controllers = addrset.Set{} // caller whitelist
 
 func init() {
-	controllers.Add(chain.PackageAddress(gUsersV1Path)) // initially whitelisted
+	// auto-whitelist the init controller for bootstrapping for testing chain.
+	if chainID := runtime.ChainID(); chainID == "dev" {
+		controllers.Add(chain.PackageAddress(initControllerPath))
+	}
+}
+
+// AddControllerAtGenesis allows adding a controller during chain genesis (height 0).
+// This is mostly useful for testing.
+func AddControllerAtGenesis(_ realm, addr address) {
+	height := runtime.ChainHeight()
+	if height > 0 {
+		panic("AddControllerAtGenesis can only be called at genesis (height 0)")
+	}
+
+	if !addr.IsValid() {
+		panic(ErrInvalidAddress)
+	}
+
+	controllers.Add(addr)
 }
 
 // ProposeNewController allows GovDAO to add a whitelisted caller

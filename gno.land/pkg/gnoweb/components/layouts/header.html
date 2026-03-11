@@ -6,7 +6,7 @@ LAYOUT - Header component
   <nav class="c-center c-view-grid" aria-label="Package navigation">
     <div class="main-nav {{ if .Mode.IsExplorer }}main-nav--explorer{{ end }}">
       <a href="/" class="user-picture">
-        <img src="/public/imgs/gnoland.svg" alt="Gno username profile pic" width="40px" height="40px" />
+        {{ template "ui/gnome" }}
       </a>
 
       <div class="b-main-navigation">

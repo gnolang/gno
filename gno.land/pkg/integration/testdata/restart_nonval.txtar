@@ -1,5 +1,5 @@
 # This txtar tests for starting up a non-validator node; then also restarting it.
-loadpkg gno.land/p/nt/avl
+loadpkg gno.land/p/nt/avl/v0
 
 gnoland start -non-validator -no-parallel
 gnoland restart

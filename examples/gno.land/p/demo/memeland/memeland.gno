@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/seqid/v0"
 )
 
 const (
@@ -160,7 +160,7 @@ func (m *Memeland) RemovePost(id string) string {
 		panic("id cannot be empty")
 	}
 
-	if !m.OwnedByCurrent() {
+	if !m.Owned() {
 		panic(ownable.ErrUnauthorized)
 	}
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIndexLayout(t *testing.T) {
@@ -82,9 +83,19 @@ func TestEnrichFooterData(t *testing.T) {
 
 	assert.NotEmpty(t, enrichedData.Sections, "expected sections to be populated")
 
-	expectedSections := []string{"Footer navigation", "Social media", "Legal"}
+	expectedSections := []string{"Footer navigation", "Social media"}
 	for i, section := range enrichedData.Sections {
 		assert.Equal(t, expectedSections[i], section.Title, "expected section title %s, got %s", expectedSections[i], section.Title)
+	}
+
+	assert.NotEmpty(t, enrichedData.LegalNotice, "expected legal notice to be populated")
+	assert.Contains(t, enrichedData.LegalNotice, "NewTendermint", "expected legal notice to mention NewTendermint")
+
+	assert.Len(t, enrichedData.LegalLinks, 3, "expected 3 legal links")
+	expectedLabels := []string{"Gno GPL License", "Gno.land Network Interaction Terms", "Gno.land Contributor License Agreement"}
+	for i, link := range enrichedData.LegalLinks {
+		assert.Equal(t, expectedLabels[i], link.Label, "expected legal link label %s, got %s", expectedLabels[i], link.Label)
+		assert.NotEmpty(t, link.URL, "expected legal link URL to be non-empty")
 	}
 }
 
@@ -284,6 +295,65 @@ func TestViewModePredicates(t *testing.T) {
 			assert.Equal(t, tc.wantPackage, tc.mode.IsPackage(), "IsPackage")
 			assert.Equal(t, tc.wantHome, tc.mode.IsHome(), "IsHome")
 			assert.Equal(t, tc.wantUser, tc.mode.IsUser(), "IsUser")
+		})
+	}
+}
+
+func TestIndexLayout_ThemePropagation(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name          string
+		theme         string
+		wantAttr      string
+		wantNoDataTag bool
+	}{
+		{
+			name:     "success: dark theme rendered in HTML",
+			theme:    "dark",
+			wantAttr: `data-theme="dark"`,
+		},
+		{
+			name:     "success: light theme rendered in HTML",
+			theme:    "light",
+			wantAttr: `data-theme="light"`,
+		},
+		{
+			name:          "edge: empty theme omits data-theme attribute",
+			theme:         "",
+			wantNoDataTag: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := IndexData{
+				HeadData: HeadData{
+					Title: "Test",
+				},
+				Mode:  ViewModeHome,
+				Theme: tc.theme,
+				BodyView: &View{
+					Type:      "test-view",
+					Component: NewReaderComponent(strings.NewReader("testdata")),
+				},
+			}
+
+			component := IndexLayout(data)
+
+			var buf strings.Builder
+			err := component.Render(&buf)
+			require.NoError(t, err, "expected no render error")
+
+			output := buf.String()
+			if tc.wantNoDataTag {
+				assert.NotContains(t, output, `data-theme=`, "expected no data-theme attribute")
+			} else {
+				assert.Contains(t, output, tc.wantAttr, "expected HTML to contain %s", tc.wantAttr)
+			}
 		})
 	}
 }
