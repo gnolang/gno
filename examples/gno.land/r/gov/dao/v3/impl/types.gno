@@ -46,9 +46,10 @@ func (pss ProposalsStatuses) GetStatus(id dao.ProposalID) *proposalStatus {
 }
 
 type proposalStatus struct {
-	YesVotes memberstore.MembersByTier
-	NoVotes  memberstore.MembersByTier
-	AllVotes memberstore.MembersByTier
+	YesVotes     memberstore.MembersByTier
+	NoVotes      memberstore.MembersByTier
+	AbstainVotes memberstore.MembersByTier
+	AllVotes     memberstore.MembersByTier
 
 	Accepted bool
 	Denied   bool
@@ -73,15 +74,20 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 	nv.SetTier(memberstore.T1)
 	nv.SetTier(memberstore.T2)
 	nv.SetTier(memberstore.T3)
+	abstv := memberstore.NewMembersByTier()
+	abstv.SetTier(memberstore.T1)
+	abstv.SetTier(memberstore.T2)
+	abstv.SetTier(memberstore.T3)
 	av := memberstore.NewMembersByTier()
 	av.SetTier(memberstore.T1)
 	av.SetTier(memberstore.T2)
 	av.SetTier(memberstore.T3)
 
 	return &proposalStatus{
-		YesVotes: yv,
-		NoVotes:  nv,
-		AllVotes: av,
+		YesVotes:     yv,
+		NoVotes:      nv,
+		AbstainVotes: abstv,
+		AllVotes:     av,
 
 		TiersAllowedToVote: allowedToVote,
 
@@ -118,6 +124,20 @@ func (ps *proposalStatus) NoPercent() float64 {
 	return (np / ps.TotalPower) * 100
 }
 
+func (ps *proposalStatus) AbstainPercent() float64 {
+	var ap float64
+
+	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
+		power := memberstore.GetTierPower(tn, getMembers(cross))
+		ts := ps.AbstainVotes.GetTierSize(tn)
+		ap = ap + (power * float64(ts))
+
+		return false
+	})
+
+	return (ap / ps.TotalPower) * 100
+}
+
 func (ps *proposalStatus) IsAllowed(tier string) bool {
 	for _, ta := range ps.TiersAllowedToVote {
 		if ta == tier {
@@ -151,6 +171,7 @@ func (ps *proposalStatus) String() string {
 
 	sb.WriteString(ufmt.Sprintf("- YES PERCENT: %v%%\n", ps.YesPercent()))
 	sb.WriteString(ufmt.Sprintf("- NO PERCENT: %v%%\n", ps.NoPercent()))
+	sb.WriteString(ufmt.Sprintf("- ABSTAIN PERCENT: %v%%\n", ps.AbstainPercent()))
 
 	return sb.String()
 }
@@ -160,6 +181,7 @@ func StringifyVotes(ps *proposalStatus) string {
 
 	writeVotes(&sb, ps.YesVotes, "YES")
 	writeVotes(&sb, ps.NoVotes, "NO")
+	writeVotes(&sb, ps.AbstainVotes, "ABSTAIN")
 
 	if sb.String() == "" {
 		return "No one voted yet."
