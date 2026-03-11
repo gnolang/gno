@@ -1250,6 +1250,7 @@ func (vm *VMKeeper) QueryObject(ctx sdk.Context, oidStr string) (res string, err
 	result := fmt.Sprintf(`{"objectid":%q,"value":%s}`, oidStr, string(jsonBytes))
 	return result, nil
 }
+
 // processStorageDeposit processes storage deposit adjustments for package realms based on
 // storage size changes tracked within the gnoStore.
 //

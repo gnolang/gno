@@ -88,6 +88,7 @@ func TestConvertByteArrayLengthValidation(t *testing.T) {
 		})
 	}
 }
+
 // ============================================================================
 // Error Type Tests
 // ============================================================================
@@ -889,7 +890,7 @@ var Value = AllPrivate{privateA: "a", privateB: 42}`
 		// Struct should have all fields (Amino includes unexported fields)
 		require.Contains(t, rep, `"ID":"testdata.AllPrivate"`)
 		require.Contains(t, rep, `"ObjectInfo"`)
-		require.Contains(t, rep, `"a"`)          // privateA value
+		require.Contains(t, rep, `"a"`)         // privateA value
 		require.Contains(t, rep, `"Fields":[{`) // has fields
 	})
 }
