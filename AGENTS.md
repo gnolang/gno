@@ -72,14 +72,6 @@ make fmt                        # Format all code
 - Be respectful and helpful in PR comments and reviews — optimize for the reviewer's time, especially human maintainers.
 - See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-### Claude
-- Don't skip hooks (`--no-verify`).
-- Existing ADRs (`gnovm/adr/`, `gno.land/adr/`) and `docs/` may have useful context for your task.
-
-### Copilot
-- Never suggest Go patterns (goroutines, `os`, `net`) in `.gno` files.
-- Autocomplete imports as `gno.land/{p,r}/...`, not `github.com/...`.
-
 ---
 
 ## Architecture Decision Records (ADRs)
@@ -107,6 +99,7 @@ Skip ADRs for: trivial bug fixes, formatting, simple tests, docs-only changes.
 ## Don'ts
 
 - `git push --force` — never force push unless explicitly asked.
+- `--no-verify` — never skip hooks.
 - `go generate` — slow, large diffs. Only if explicitly asked.
 - Modify `gno.land/genesis/` — only if that's the task.
 - Goroutines/OS calls in `.gno` — never works.
