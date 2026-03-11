@@ -9,15 +9,12 @@ contributors build up over time.
 
 Key problems agents face in this repo:
 
-1. **Gnolang vs Go confusion.** Agents see `.gno` files that look like Go and
-   assume standard Go rules apply. They try to use goroutines, `os` packages,
-   `go test`, and `github.com/...` import paths — all wrong for Gno.
-2. **Architecture discovery.** The repo has three pillars (gnovm, gno.land,
+1. **Architecture discovery.** The repo has three pillars (gnovm, gno.land,
    tm2) with distinct roles. Without a guide, agents waste context window
    exploring the wrong directories.
-3. **Convention gaps.** Agents don't know about ADRs, conventional commits, or
+2. **Convention gaps.** Agents don't know about ADRs, conventional commits, or
    the testing patterns (filetests, `.txtar` integration tests) unless told.
-4. **No accountability trail.** When agents make architectural decisions,
+3. **No accountability trail.** When agents make architectural decisions,
    there's no record of *why* — making review and future maintenance harder.
 
 ## Decision
