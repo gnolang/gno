@@ -358,7 +358,7 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 						if ln == blankIdentifier {
 							continue
 						}
-						if !isLocallyDefined2(last, ln) {
+						if !isLocallyReserved(last, ln) {
 							// if loopvar, will promote to
 							// NameExprTypeHeapDefine later.
 							nx.Type = NameExprTypeDefine
@@ -1220,16 +1220,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
 						n.Path = bt.GetPathForName(n.Name)
-						// // Struct field keys are not variable references.
-						// // Strip any .loopvar suffix that replaceAllLoopvar may have
-						// // added (it cannot distinguish struct keys from map keys at
-						// // the time of the rename pass).
-						// fieldName := n.Name
-						// if strings.HasSuffix(string(fieldName), ".loopvar") {
-						// 	fieldName = Name(strings.TrimSuffix(string(fieldName), ".loopvar"))
-						// 	n.Name = fieldName
-						// }
-						// n.Path = bt.GetPathForName(fieldName)
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
@@ -5601,9 +5591,8 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 	return t != nil
 }
 
-// r := 0
-// r, ok := 1, true
-func isLocallyDefined2(bn BlockNode, n Name) bool {
+// if name is is reserved.
+func isLocallyReserved(bn BlockNode, n Name) bool {
 	_, isLocal := bn.GetLocalIndex(n)
 	return isLocal
 }
