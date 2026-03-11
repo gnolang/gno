@@ -13,7 +13,7 @@ Thank you for contributing to Gno! This guide will help you get started.
 
 ### Prerequisites
 
-- Go 1.24+
+- Go 1.23+
 - Unix environment (Linux/macOS/WSL2)
 - `make` command
 
@@ -117,6 +117,33 @@ Avoid superficial changes aimed at farming airdrops or karma.
 
 See the [Community section](./README.md#community) in our README for Discord,
 GitHub discussions, and other communication channels.
+
+## Architecture Decision Records (ADRs)
+
+Non-trivial changes should include an ADR documenting the context and
+reasoning behind the work. ADRs go in the component's `adr/` folder:
+
+- `gnovm/adr/` — VM, interpreter, type-checker, transpiler
+- `gno.land/adr/` — node, SDK, keeper, RPC, genesis
+- `tm2/adr/` — consensus, p2p, mempool, crypto
+
+See [AGENTS.md](./AGENTS.md#architecture-decision-records-adrs) for format
+details.
+
+## AI-Assisted Contributions
+
+AI coding agents (Claude, Copilot, etc.) are welcome tools for contributing
+to Gno. **A human is always responsible for AI-assisted work.** Contributions
+must be submitted under the responsible human's GitHub account. If an
+autonomous agent submits work independently, it must clearly disclose its
+human owner in the PR description.
+
+AI-assisted PRs must include an ADR documenting the context the AI operated
+under (see above). The human is responsible for reviewing the output for
+correctness, style, and security. All the same standards apply: CI must pass,
+tests must be included, conventional commits must be used.
+
+If using AI, point your agent at [AGENTS.md](./AGENTS.md).
 
 ---
 
