@@ -65,78 +65,39 @@ func getMembers(cur realm) memberstore.MembersByTier {
 	return memberstore.Get()
 }
 
+func newEmptyVoteStore() memberstore.MembersByTier {
+	mbt := memberstore.NewMembersByTier()
+	mbt.SetTier(memberstore.T1)
+	mbt.SetTier(memberstore.T2)
+	mbt.SetTier(memberstore.T3)
+	return mbt
+}
+
 func newProposalStatus(allowedToVote []string) *proposalStatus {
-	yv := memberstore.NewMembersByTier()
-	yv.SetTier(memberstore.T1)
-	yv.SetTier(memberstore.T2)
-	yv.SetTier(memberstore.T3)
-	nv := memberstore.NewMembersByTier()
-	nv.SetTier(memberstore.T1)
-	nv.SetTier(memberstore.T2)
-	nv.SetTier(memberstore.T3)
-	abstv := memberstore.NewMembersByTier()
-	abstv.SetTier(memberstore.T1)
-	abstv.SetTier(memberstore.T2)
-	abstv.SetTier(memberstore.T3)
-	av := memberstore.NewMembersByTier()
-	av.SetTier(memberstore.T1)
-	av.SetTier(memberstore.T2)
-	av.SetTier(memberstore.T3)
-
 	return &proposalStatus{
-		YesVotes:     yv,
-		NoVotes:      nv,
-		AbstainVotes: abstv,
-		AllVotes:     av,
-
+		YesVotes:           newEmptyVoteStore(),
+		NoVotes:            newEmptyVoteStore(),
+		AbstainVotes:       newEmptyVoteStore(),
+		AllVotes:           newEmptyVoteStore(),
 		TiersAllowedToVote: allowedToVote,
-
-		TotalPower: getMembers(cross).GetTotalPower(),
+		TotalPower:         getMembers(cross).GetTotalPower(),
 	}
 }
 
-func (ps *proposalStatus) YesPercent() float64 {
-	var yp float64
-
+func (ps *proposalStatus) votePowerPercent(votes memberstore.MembersByTier) float64 {
+	var vp float64
 	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
 		power := memberstore.GetTierPower(tn, getMembers(cross))
-		ts := ps.YesVotes.GetTierSize(tn)
-
-		yp = yp + (power * float64(ts))
-
+		ts := votes.GetTierSize(tn)
+		vp = vp + (power * float64(ts))
 		return false
 	})
-
-	return (yp / ps.TotalPower) * 100
+	return (vp / ps.TotalPower) * 100
 }
 
-func (ps *proposalStatus) NoPercent() float64 {
-	var np float64
-
-	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
-		power := memberstore.GetTierPower(tn, getMembers(cross))
-		ts := ps.NoVotes.GetTierSize(tn)
-		np = np + (power * float64(ts))
-
-		return false
-	})
-
-	return (np / ps.TotalPower) * 100
-}
-
-func (ps *proposalStatus) AbstainPercent() float64 {
-	var ap float64
-
-	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
-		power := memberstore.GetTierPower(tn, getMembers(cross))
-		ts := ps.AbstainVotes.GetTierSize(tn)
-		ap = ap + (power * float64(ts))
-
-		return false
-	})
-
-	return (ap / ps.TotalPower) * 100
-}
+func (ps *proposalStatus) YesPercent() float64     { return ps.votePowerPercent(ps.YesVotes) }
+func (ps *proposalStatus) NoPercent() float64      { return ps.votePowerPercent(ps.NoVotes) }
+func (ps *proposalStatus) AbstainPercent() float64  { return ps.votePowerPercent(ps.AbstainVotes) }
 
 func (ps *proposalStatus) IsAllowed(tier string) bool {
 	for _, ta := range ps.TiersAllowedToVote {
