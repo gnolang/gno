@@ -212,11 +212,12 @@ func TestWillSetParamExhaustive(t *testing.T) {
 	vmk.SetParams(ctx, DefaultParams())
 
 	validValues := map[string]any{
-		"sysnames_pkgpath": "gno.land/r/sys/names",
-		"syscla_pkgpath":   "gno.land/r/sys/cla",
-		"chain_domain":     "gno.land",
-		"default_deposit":  "600000000ugnot",
-		"storage_price":    "100ugnot",
+		"sysnames_pkgpath":      "gno.land/r/sys/names",
+		"syscla_pkgpath":        "gno.land/r/sys/cla",
+		"chain_domain":          "gno.land",
+		"default_deposit":       "600000000ugnot",
+		"storage_price":         "100ugnot",
+		"storage_fee_collector": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 	}
 
 	typ := reflect.TypeOf(Params{})
