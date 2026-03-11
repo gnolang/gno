@@ -51,11 +51,12 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 
 	validate := func(from Kind, to Kind, cmp func() bool) {
 		if isConst {
-			msg := fmt.Sprintf("cannot convert constant of type %s to %s", from, to)
-			if cmp != nil && cmp() {
-				return
+			if cmp == nil {
+				panic(fmt.Sprintf("cannot convert constant of type %s to %s", from, to))
 			}
-			panic(msg)
+			if !cmp() {
+				panic(fmt.Sprintf("constant %s overflows %s", tv.ProtectedSprint(newSeenValues(), false), to))
+			}
 		}
 	}
 
@@ -723,25 +724,25 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 	case Uint64Kind:
 		switch k {
 		case IntKind:
-			validate(Uint64Kind, IntKind, func() bool { return int64(tv.GetUint64()) <= math.MaxInt })
+			validate(Uint64Kind, IntKind, func() bool { return tv.GetUint64() <= math.MaxInt })
 
 			x := int64(tv.GetUint64())
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
-			validate(Uint64Kind, Int8Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxInt8 })
+			validate(Uint64Kind, Int8Kind, func() bool { return tv.GetUint64() <= math.MaxInt8 })
 
 			x := int8(tv.GetUint64())
 			tv.T = t
 			tv.SetInt8(x)
 		case Int16Kind:
-			validate(Uint64Kind, Int16Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxInt16 })
+			validate(Uint64Kind, Int16Kind, func() bool { return tv.GetUint64() <= math.MaxInt16 })
 
 			x := int16(tv.GetUint64())
 			tv.T = t
 			tv.SetInt16(x)
 		case Int32Kind:
-			validate(Uint64Kind, Int32Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxInt32 })
+			validate(Uint64Kind, Int32Kind, func() bool { return tv.GetUint64() <= math.MaxInt32 })
 
 			x := int32(tv.GetUint64())
 			tv.T = t
@@ -759,13 +760,13 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetUint64(x)
 		case Uint8Kind:
-			validate(Uint64Kind, Uint8Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxUint8 })
+			validate(Uint64Kind, Uint8Kind, func() bool { return tv.GetUint64() <= math.MaxUint8 })
 
 			x := uint8(tv.GetUint64())
 			tv.T = t
 			tv.SetUint8(x)
 		case Uint16Kind:
-			validate(Uint64Kind, Uint16Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxUint16 })
+			validate(Uint64Kind, Uint16Kind, func() bool { return tv.GetUint64() <= math.MaxUint16 })
 
 			x := uint16(tv.GetUint64())
 			tv.T = t

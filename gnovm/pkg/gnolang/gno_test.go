@@ -330,7 +330,7 @@ func TestConvertTo(t *testing.T) {
 			const a int = -1
 		   println(uint(a))
 		}`,
-			`test/main.go:5:14-21: cannot convert constant of type IntKind to UintKind`,
+			`test/main.go:5:14-21: constant -1 overflows UintKind`,
 		},
 		{
 			`package test
@@ -339,7 +339,7 @@ func TestConvertTo(t *testing.T) {
 			const a int = -1
 		   println(uint8(a))
 		}`,
-			`test/main.go:5:14-22: cannot convert constant of type IntKind to Uint8Kind`,
+			`test/main.go:5:14-22: constant -1 overflows Uint8Kind`,
 		},
 		{
 			`package test
@@ -348,7 +348,7 @@ func TestConvertTo(t *testing.T) {
 			const a int = -1
 		   println(uint16(a))
 		}`,
-			`test/main.go:5:14-23: cannot convert constant of type IntKind to Uint16Kind`,
+			`test/main.go:5:14-23: constant -1 overflows Uint16Kind`,
 		},
 		{
 			`package test
@@ -357,7 +357,7 @@ func TestConvertTo(t *testing.T) {
 			const a int = -1
 		   println(uint32(a))
 		}`,
-			`test/main.go:5:14-23: cannot convert constant of type IntKind to Uint32Kind`,
+			`test/main.go:5:14-23: constant -1 overflows Uint32Kind`,
 		},
 		{
 			`package test
@@ -366,7 +366,7 @@ func TestConvertTo(t *testing.T) {
 			const a int = -1
 		   println(uint64(a))
 		}`,
-			`test/main.go:5:14-23: cannot convert constant of type IntKind to Uint64Kind`,
+			`test/main.go:5:14-23: constant -1 overflows Uint64Kind`,
 		},
 		{
 			`package test
@@ -375,7 +375,7 @@ func TestConvertTo(t *testing.T) {
 			const a float32 = 1.5
 		   println(int32(a))
 		}`,
-			`test/main.go:5:14-22: cannot convert constant of type Float32Kind to Int32Kind`,
+			`test/main.go:5:14-22: constant 1.5 overflows Int32Kind`,
 		},
 		{
 			`package test
@@ -392,7 +392,7 @@ func TestConvertTo(t *testing.T) {
 			const a float64 = 1.5
 		   println(int64(a))
 		}`,
-			`test/main.go:5:14-22: cannot convert constant of type Float64Kind to Int64Kind`,
+			`test/main.go:5:14-22: constant 1.5 overflows Int64Kind`,
 		},
 		{
 			`package test
@@ -410,6 +410,61 @@ func TestConvertTo(t *testing.T) {
 				   println(int64(f))
 				}`,
 			``,
+		},
+		// const uint64 overflow to smaller types
+		{
+			`package test
+
+		func main() {
+			const a uint64 = 18446744073709551615
+			println(int(a))
+		}`,
+			`test/main.go:5:12-18: constant 18446744073709551615 overflows IntKind`,
+		},
+		{
+			`package test
+
+		func main() {
+			const a uint64 = 18446744073709551615
+			println(int8(a))
+		}`,
+			`test/main.go:5:12-19: constant 18446744073709551615 overflows Int8Kind`,
+		},
+		{
+			`package test
+
+		func main() {
+			const a uint64 = 18446744073709551615
+			println(int16(a))
+		}`,
+			`test/main.go:5:12-20: constant 18446744073709551615 overflows Int16Kind`,
+		},
+		{
+			`package test
+
+		func main() {
+			const a uint64 = 18446744073709551615
+			println(int32(a))
+		}`,
+			`test/main.go:5:12-20: constant 18446744073709551615 overflows Int32Kind`,
+		},
+		{
+			`package test
+
+		func main() {
+			const a uint64 = 18446744073709551615
+			println(uint8(a))
+		}`,
+			`test/main.go:5:12-20: constant 18446744073709551615 overflows Uint8Kind`,
+		},
+		{
+			`package test
+
+		func main() {
+			const a uint64 = 18446744073709551615
+			println(uint16(a))
+		}`,
+			`test/main.go:5:12-21: constant 18446744073709551615 overflows Uint16Kind`,
 		},
 	}
 
