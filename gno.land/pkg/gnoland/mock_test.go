@@ -89,7 +89,7 @@ func (m *mockVMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath, expr string) (res
 	return "", nil
 }
 
-func (m *mockVMKeeper) QueryObject(ctx sdk.Context, oidStr string) (res string, err error) {
+func (m *mockVMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error) {
 	return "", nil
 }
 

@@ -56,7 +56,7 @@ type VMKeeperI interface {
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
 	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
 	QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
-	QueryObject(ctx sdk.Context, oidStr string) (res string, err error)
+	QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
@@ -1220,8 +1220,8 @@ func (vm *VMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) 
 	return stringifyJSONResults(nil, rtvs, nil), nil
 }
 
-// QueryObject retrieves an object by ObjectID and returns its JSON representation.
-func (vm *VMKeeper) QueryObject(ctx sdk.Context, oidStr string) (res string, err error) {
+// QueryObjectJSON retrieves an object by ObjectID and returns its JSON representation.
+func (vm *VMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error) {
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 

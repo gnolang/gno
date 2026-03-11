@@ -75,7 +75,7 @@ const (
 	QueryFuncs    = "qfuncs"
 	QueryEval     = "qeval"
 	QueryEvalJSON = "qeval_json"
-	QueryObject   = "qobject_json"
+	QueryObjectJSON   = "qobject_json"
 	QueryFile     = "qfile"
 	QueryDoc      = "qdoc"
 	QueryPaths    = "qpaths"
@@ -97,7 +97,7 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		res = vh.queryEval(ctx, req)
 	case QueryEvalJSON:
 		res = vh.queryEvalJSON(ctx, req)
-	case QueryObject:
+	case QueryObjectJSON:
 		res = vh.queryObject(ctx, req)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
@@ -215,7 +215,7 @@ func (vh vmHandler) queryEvalJSON(ctx sdk.Context, req abci.RequestQuery) (res a
 // queryObject retrieves a persisted object by ObjectID and returns its JSON representation.
 func (vh vmHandler) queryObject(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	oidStr := string(req.Data)
-	result, err := vh.vm.QueryObject(ctx, oidStr)
+	result, err := vh.vm.QueryObjectJSON(ctx, oidStr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

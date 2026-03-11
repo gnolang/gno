@@ -2250,7 +2250,7 @@ func GetRoot() *L1 {
 	require.NotEmpty(t, oid, "Should have ObjectID for *L1 HeapItemValue")
 
 	// Step 2: Query the HeapItemValue for *L1 (pure Amino: no auto-unwrapping)
-	res, err = env.vmk.QueryObject(env.ctx, oid)
+	res, err = env.vmk.QueryObjectJSON(env.ctx, oid)
 	require.NoError(t, err)
 	t.Logf("Step 2 - HeapItemValue for *L1:\n%s\n", res)
 	assert.Contains(t, res, `/gno.HeapItemValue`)
@@ -2260,7 +2260,7 @@ func GetRoot() *L1 {
 	require.NotEmpty(t, oid, "Should have ObjectID for L1 StructValue")
 
 	// Step 3: Query L1 StructValue
-	res, err = env.vmk.QueryObject(env.ctx, oid)
+	res, err = env.vmk.QueryObjectJSON(env.ctx, oid)
 	require.NoError(t, err)
 	t.Logf("Step 3 - L1 StructValue:\n%s\n", res)
 	assert.Contains(t, res, `/gno.StructValue`)
@@ -2271,7 +2271,7 @@ func GetRoot() *L1 {
 	require.NotEmpty(t, oid, "Should have ObjectID for *L2 HeapItemValue")
 
 	// Step 4: Query *L2 HeapItemValue
-	res, err = env.vmk.QueryObject(env.ctx, oid)
+	res, err = env.vmk.QueryObjectJSON(env.ctx, oid)
 	require.NoError(t, err)
 	t.Logf("Step 4 - HeapItemValue for *L2:\n%s\n", res)
 
@@ -2280,7 +2280,7 @@ func GetRoot() *L1 {
 	require.NotEmpty(t, oid, "Should have ObjectID for L2 StructValue")
 
 	// Step 5: Query L2 StructValue
-	res, err = env.vmk.QueryObject(env.ctx, oid)
+	res, err = env.vmk.QueryObjectJSON(env.ctx, oid)
 	require.NoError(t, err)
 	t.Logf("Step 5 - L2 StructValue:\n%s\n", res)
 	assert.Contains(t, res, `/gno.StructValue`)
@@ -2290,7 +2290,7 @@ func GetRoot() *L1 {
 	require.NotEmpty(t, oid, "Should have ObjectID for *L3 HeapItemValue")
 
 	// Step 6: Query *L3 HeapItemValue
-	res, err = env.vmk.QueryObject(env.ctx, oid)
+	res, err = env.vmk.QueryObjectJSON(env.ctx, oid)
 	require.NoError(t, err)
 	t.Logf("Step 6 - HeapItemValue for *L3:\n%s\n", res)
 
@@ -2299,7 +2299,7 @@ func GetRoot() *L1 {
 	require.NotEmpty(t, oid, "Should have ObjectID for L3 StructValue")
 
 	// Step 7: Query L3 StructValue (final)
-	res, err = env.vmk.QueryObject(env.ctx, oid)
+	res, err = env.vmk.QueryObjectJSON(env.ctx, oid)
 	require.NoError(t, err)
 	t.Logf("Step 7 - L3 StructValue (final):\n%s\n", res)
 	assert.Contains(t, res, `/gno.StructValue`)
