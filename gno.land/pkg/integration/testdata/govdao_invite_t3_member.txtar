@@ -19,23 +19,23 @@ gnoland start
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
 # Call from a non-member
-! gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -broadcast -chainid=tendermint_test newmember2
+! gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -chainid=tendermint_test newmember2
 stderr 'caller is not a member'
 
 # Call from with a proxy realm
-! gnokey maketx call -pkgpath gno.land/r/demo/proxy -func CreateMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -broadcast -chainid=tendermint_test member
+! gnokey maketx call -pkgpath gno.land/r/demo/proxy -func CreateMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -chainid=tendermint_test member
 stderr 'this function must be called by an EOA through msg call or msg run'
 
 # Add a T3 member with invitation points
-gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -chainid=tendermint_test member
 stdout OK!
 
 # No invitation point left for the member
-! gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args ${newmember2_user_addr} -broadcast -chainid=tendermint_test member
+! gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args ${newmember2_user_addr} -chainid=tendermint_test member
 stderr 'not enough invitation points'
 
 # Call from a T3 member
-! gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args ${newmember2_user_addr} -broadcast -chainid=tendermint_test newmember
+! gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args ${newmember2_user_addr} -chainid=tendermint_test newmember
 stderr 'caller is not on T1 or T2. To add members, propose them through proposals'
 
 # check output

@@ -11,16 +11,16 @@ loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 gnoland start
 
 ## add a contract
-gnokey maketx addpkg -pkgdir $WORK/storage -pkgpath gno.land/r/storage -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/storage -pkgpath gno.land/r/storage -gas-fee 1000000ugnot -gas-wanted 10000000  -chainid=tendermint_test test1
 stdout OK!
 
 ## Propose to update default deposit.
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
 
 stdout OK!
 
 ## Vote "update default deposit"
-gnokey maketx run  -gas-fee 95000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
+gnokey maketx run  -gas-fee 95000ugnot -gas-wanted 95000000 -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
 
 stdout 'OK!'
 
@@ -29,7 +29,7 @@ gnokey query params/vm:p:default_deposit
 stdout '600000000ugnot'
 
 ## Execute "update default deposit" proposal
-gnokey maketx run  -gas-fee 20000ugnot -gas-wanted 20000000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
+gnokey maketx run  -gas-fee 20000ugnot -gas-wanted 20000000  -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
 
 stdout 'OK!'
 
@@ -40,7 +40,7 @@ stdout '1ugnot'
 
 ## failed due to not providing enough default deposit
 
-! gnokey maketx call -pkgpath gno.land/r/storage -func SetName -args "hellooo"  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/storage -func SetName -args "hellooo"  -gas-fee 1000000ugnot -gas-wanted 10000000  -chainid=tendermint_test test1
 
 stderr 'not enough deposit to cover the storage usage'
 
