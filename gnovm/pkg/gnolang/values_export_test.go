@@ -186,6 +186,230 @@ func (e *E) String() string { return e.S }
 	})
 }
 
+func TestExportValuesMap(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+var Value = map[string]int{"a": 1, "b": 2}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Sel(Nx("testdata"), "Value"))
+	require.Len(t, tps, 1)
+
+	bz := exportAndMarshal(t, tps)
+	t.Logf("Map output: %s", string(bz))
+
+	var result []json.RawMessage
+	require.NoError(t, json.Unmarshal(bz, &result))
+	require.Len(t, result, 1)
+	require.Contains(t, string(result[0]), "MapValue")
+}
+
+func TestExportValuesFunc(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+func myFunc(x int) int { return x + 1 }
+var Value = myFunc
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Sel(Nx("testdata"), "Value"))
+	require.Len(t, tps, 1)
+
+	bz := exportAndMarshal(t, tps)
+	t.Logf("Func output: %s", string(bz))
+
+	var result []json.RawMessage
+	require.NoError(t, json.Unmarshal(bz, &result))
+	require.Len(t, result, 1)
+	require.Contains(t, string(result[0]), "FuncValue")
+}
+
+func TestExportValuesClosure(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+func makeClosure() func() int {
+	x := 42
+	return func() int { return x }
+}
+var Value = makeClosure()
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Sel(Nx("testdata"), "Value"))
+	require.Len(t, tps, 1)
+
+	bz := exportAndMarshal(t, tps)
+	t.Logf("Closure output: %s", string(bz))
+
+	var result []json.RawMessage
+	require.NoError(t, json.Unmarshal(bz, &result))
+	require.Len(t, result, 1)
+	require.Contains(t, string(result[0]), "FuncValue")
+}
+
+func TestExportValuesInterface(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+type Stringer interface { String() string }
+type MyStr struct { S string }
+func (ms MyStr) String() string { return ms.S }
+var Value Stringer = MyStr{S: "hello"}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Sel(Nx("testdata"), "Value"))
+	require.Len(t, tps, 1)
+
+	bz := exportAndMarshal(t, tps)
+	t.Logf("Interface output: %s", string(bz))
+
+	var result []json.RawMessage
+	require.NoError(t, json.Unmarshal(bz, &result))
+	require.Len(t, result, 1)
+	require.Contains(t, string(result[0]), "hello")
+}
+
+func TestExportValuesIntSlice(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+var Value = []int{10, 20, 30}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Sel(Nx("testdata"), "Value"))
+	require.Len(t, tps, 1)
+
+	bz := exportAndMarshal(t, tps)
+	t.Logf("Int slice output: %s", string(bz))
+
+	var result []json.RawMessage
+	require.NoError(t, json.Unmarshal(bz, &result))
+	require.Len(t, result, 1)
+	require.Contains(t, string(result[0]), "SliceValue")
+	require.Contains(t, string(result[0]), "ArrayValue")
+}
+
+func TestExportValuesMultiReturn(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+func Multi() (string, int, bool) { return "hi", 99, true }
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Call(Sel(Nx("testdata"), "Multi")))
+	require.Len(t, tps, 3)
+
+	bz := exportAndMarshal(t, tps)
+	t.Logf("Multi return output: %s", string(bz))
+
+	var result []json.RawMessage
+	require.NoError(t, json.Unmarshal(bz, &result))
+	require.Len(t, result, 3)
+	require.Contains(t, string(result[0]), "hi")
+}
+
+func TestExportValuesListArray(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+var Value = [3]int{1, 2, 3}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Sel(Nx("testdata"), "Value"))
+	require.Len(t, tps, 1)
+
+	bz := exportAndMarshal(t, tps)
+	t.Logf("List array output: %s", string(bz))
+
+	var result []json.RawMessage
+	require.NoError(t, json.Unmarshal(bz, &result))
+	require.Len(t, result, 1)
+	require.Contains(t, string(result[0]), "ArrayValue")
+}
+
+func TestExportObjectStruct(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+type Item struct { Name string; Count int }
+var Value = &Item{Name: "widget", Count: 5}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Sel(Nx("testdata"), "Value"))
+	require.Len(t, tps, 1)
+
+	// Get the underlying struct object
+	pv, ok := tps[0].V.(PointerValue)
+	require.True(t, ok)
+	obj, ok := pv.Base.(Object)
+	require.True(t, ok)
+
+	// ExportObject should expand it inline
+	exported := ExportObject(obj)
+	require.NotNil(t, exported)
+
+	bz, err := amino.MarshalJSONAny(exported)
+	require.NoError(t, err)
+	t.Logf("ExportObject output: %s", string(bz))
+
+	require.Contains(t, string(bz), "StructValue")
+	require.Contains(t, string(bz), "widget")
+}
+
+func TestExportValuesHeapItem(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+func makeHeap() func() int {
+	x := 10
+	return func() int {
+		x++
+		return x
+	}
+}
+var Value = makeHeap()
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Sel(Nx("testdata"), "Value"))
+	require.Len(t, tps, 1)
+
+	bz := exportAndMarshal(t, tps)
+	t.Logf("Heap item output: %s", string(bz))
+
+	var result []json.RawMessage
+	require.NoError(t, json.Unmarshal(bz, &result))
+	require.Len(t, result, 1)
+	require.Contains(t, string(result[0]), "FuncValue")
+}
+
 func TestExportValuesRecursiveStruct(t *testing.T) {
 	const RecursiveValueFile = `
 package testdata
