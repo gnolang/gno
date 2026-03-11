@@ -97,7 +97,7 @@ func (ps *proposalStatus) votePowerPercent(votes memberstore.MembersByTier) floa
 
 func (ps *proposalStatus) YesPercent() float64     { return ps.votePowerPercent(ps.YesVotes) }
 func (ps *proposalStatus) NoPercent() float64      { return ps.votePowerPercent(ps.NoVotes) }
-func (ps *proposalStatus) AbstainPercent() float64  { return ps.votePowerPercent(ps.AbstainVotes) }
+func (ps *proposalStatus) AbstainPercent() float64 { return ps.votePowerPercent(ps.AbstainVotes) }
 
 func (ps *proposalStatus) IsAllowed(tier string) bool {
 	for _, ta := range ps.TiersAllowedToVote {
