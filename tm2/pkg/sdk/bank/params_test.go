@@ -22,7 +22,7 @@ func TestWillSetParamExhaustive(t *testing.T) {
 		return nil
 	}
 
-	// baseline: ensure a non-existant key has the expected error.
+	// baseline: ensure a non-existent key has the expected error.
 	const format = "unknown bank param key: %q"
 	assert.Equal(t, fmt.Sprintf(format, "doesnotexist"), call("doesnotexist"))
 
