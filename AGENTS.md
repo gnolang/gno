@@ -22,9 +22,6 @@ Other directories: `examples/` (sample realms/packages), `contribs/` (tools: gno
 
 ## .gno Files Are NOT Go
 
-> **The #1 mistake agents make.**
-> Read this carefully.
-
 - `.gno` looks like Go but runs in a deterministic VM.
 - **No goroutines, channels, `unsafe`, `net`, `os`**.
 - **Realms** (`r/`) are stateful (on-chain state).
