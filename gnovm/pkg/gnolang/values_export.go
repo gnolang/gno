@@ -14,8 +14,10 @@ type ExportRefValue struct {
 	ObjectID string `json:"ObjectID"` // ":1", ":2", etc.
 }
 
-func (ExportRefValue) assertValue()                           {}
-func (erv ExportRefValue) String() string                      { return fmt.Sprintf("exportref(%s)", erv.ObjectID) }
+func (ExportRefValue) assertValue() {}
+func (erv ExportRefValue) String() string {
+	return fmt.Sprintf("exportref(%s)", erv.ObjectID)
+}
 func (erv ExportRefValue) VisitAssociated(_ Visitor) (stop bool) { return false }
 
 // ExportValues exports multiple TypedValues for JSON serialization.
