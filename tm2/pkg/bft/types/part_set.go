@@ -131,17 +131,14 @@ func NewPartSetFromData(data []byte, partSize int) *PartSet {
 }
 
 // Returns an empty PartSet ready to be populated.
-func NewPartSetFromHeader(header PartSetHeader) (*PartSet, error) {
-	if header.Total > MaxBlockPartsCount {
-		return nil, fmt.Errorf("BlockParts bit array is too big: %d, max: %d: %w", header.Total, MaxBlockPartsCount, ErrPartSetTooBig)
-	}
+func NewPartSetFromHeader(header PartSetHeader) *PartSet {
 	return &PartSet{
 		total:         header.Total,
 		hash:          header.Hash,
 		parts:         make([]*Part, header.Total),
 		partsBitArray: bitarray.NewBitArray(header.Total),
 		count:         0,
-	}, nil
+	}
 }
 
 func (ps *PartSet) Header() PartSetHeader {

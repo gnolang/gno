@@ -1742,9 +1742,8 @@ func TestStateOutputsBlockPartsStats(t *testing.T) {
 		Round:  0,
 		Part:   parts.GetPart(0),
 	}
-	var err error
-	cs.ProposalBlockParts, err = types.NewPartSetFromHeader(parts.Header())
-	require.NoError(t, err)
+
+	cs.ProposalBlockParts = types.NewPartSetFromHeader(parts.Header())
 	cs.handleMsg(msgInfo{msg, peer.ID()})
 
 	statsMessage := <-cs.statsMsgQueue

@@ -1190,12 +1190,8 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 	cs.LockedBlock = nil
 	cs.LockedBlockParts = nil
 	if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
-		var err error
 		cs.ProposalBlock = nil
-		cs.ProposalBlockParts, err = types.NewPartSetFromHeader(blockID.PartsHeader)
-		if err != nil {
-			panic(fmt.Sprintf("enterPrecommit: invalid block parts header: %v", err))
-		}
+		cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
 	}
 	cs.evsw.FireEvent(cstypes.EventUnlock{HRS: cs.RoundState.GetHRS()})
 	cs.signAddVote(types.PrecommitType, nil, types.PartSetHeader{})
@@ -1268,15 +1264,11 @@ func (cs *ConsensusState) enterCommit(height int64, commitRound int) {
 	// If we don't have the block being committed, set up to get it.
 	if !cs.ProposalBlock.HashesTo(blockID.Hash) {
 		if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
-			var err error
 			logger.Info("Commit is for a block we don't know about. Set ProposalBlock=nil", "proposal", cs.ProposalBlock.Hash(), "commit", blockID.Hash)
 			// We're getting the wrong block.
 			// Set up ProposalBlockParts and keep waiting.
 			cs.ProposalBlock = nil
-			cs.ProposalBlockParts, err = types.NewPartSetFromHeader(blockID.PartsHeader)
-			if err != nil {
-				panic(fmt.Sprintf("enterCommit: invalid block parts header: %v", err))
-			}
+			cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
 			cs.evsw.FireEvent(cs.EventNewValidBlock())
 		}
 		// else {
@@ -1442,11 +1434,7 @@ func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
 	// This happens if we're already in cstypes.RoundStepCommit or if there is a valid block in the current round.
 	// TODO: We can check if Proposal is for a different block as this is a sign of misbehavior!
 	if cs.ProposalBlockParts == nil {
-		var err error
-		cs.ProposalBlockParts, err = types.NewPartSetFromHeader(proposal.BlockID.PartsHeader)
-		if err != nil {
-			return err
-		}
+		cs.ProposalBlockParts = types.NewPartSetFromHeader(proposal.BlockID.PartsHeader)
 	}
 
 	cs.Logger.Info(
@@ -1659,10 +1647,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2pTypes.ID) (added b
 					cs.ProposalBlock = nil
 				}
 				if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
-					cs.ProposalBlockParts, err = types.NewPartSetFromHeader(blockID.PartsHeader)
-					if err != nil {
-						return
-					}
+					cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
 				}
 				cs.evsw.FireEvent(cs.EventNewValidBlock())
 			}
