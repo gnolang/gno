@@ -650,72 +650,76 @@ Make sure the signature is in the `hex` format.
 gnokey verify -docpath userbook.tx mykey <signature>
 ```
 
-## Using a k-of-n multisig
+## Using a k-of-n multi-signature key
 
-The multisig being created for this section is a 2-of-3 multisig, with Alice / Bob / Charlie.
+A k-of-n multisig key is a shared key built from `n` member keys, where any `k`
+of those members must sign before a transaction sent from the corresponding
+multisig address is valid.
+
+In this example, Alice, Bob, and Charlie create a 2-of-3 multisig key:
+
+- the `member set` is Alice, Bob, and Charlie
+- the `threshold` is `2`
+- any 2 of the 3 members can approve a transaction
+
 This section shows the simplest multisig flow:
 
-1) creating a **local multisig key** in each participant's keybase
-2) creating a tx **unsigned** (shared payload)
-3) each signer produces an **individual signature document**
-4) combining signatures with `multisign`
-5) broadcasting
+1. create the same local multisig key reference in each participant's keybase
+2. create one unsigned transaction payload and share it with the signers
+3. have each signer produce an individual signature document
+4. combine those signatures with `gnokey multisign`
+5. broadcast the signed transaction
 
-### 1. Create the local multisig representation
+### 1. Create the local multisig key representation
 
-**What each signer needs:**
+Each signer needs:
 
 - `gnokey`
-- their own private key (from mnemonic or existing)
-- the other signers' **pubkeys** (added as bech32 keys) present in the keybase
-- agreement on **threshold** and the **member set**
+- their own private key (from a mnemonic or an existing key)
+- the other signers' pubkeys, added to the local keybase with `gnokey add bech32`
+- agreement on the threshold and the member set
 
-**Recommended: use a dedicated key for multisig**
+In this walkthrough, that means agreeing on the same 3 members (Alice, Bob, and
+Charlie) and the same threshold (`2`).
 
-Avoid reusing your primary key for multisig. Create a fresh key or derive a new
-one from your mnemonic, then use that key for multisig participation.
+#### Recommended setup: use a dedicated signer key
 
-Example (derive a new key from an existing mnemonic):
+This is not required by the protocol, but it is usually easier to operate safely
+if each participant creates a fresh key dedicated to multisig signing instead of
+reusing a main or shared company key. That keeps personal activity separate from
+multisig activity and makes rotation or auditing simpler later.
 
-```sh
-gnokey add my-msig-key --recover --account 0 --index 1
-```
+If you need to create a new key first, see [Generating a key pair](#generating-a-key-pair).
 
-Example (explicit derivation path):
+#### Creating the same multisig key on every machine
 
-```sh
-gnokey add my-msig-key --recover --derivation-path "44'/118'/0'/0/1"
-```
+By default, `gnokey add multisig` sorts the member pubkeys (`-nosort=false`) by
+their derived addresses before creating the multisig key.
 
-#### Key ordering
+To create the same multisig key on every machine:
 
-By default, `gnokey add multisig` sorts member pubkeys (`-nosort=false`). That
-means the multisig has a deterministic member order based on pubkey sorting, not
-on the CLI order you provide.
+- use the same member set
+- use the same threshold
+- keep the default sorting behavior
 
-All participants must use the **exact same member set** and threshold when running:
+With that default, participants can pass `--multisig` entries in different CLI
+orders and still derive the same multisig public key and multisig address.
 
-- `gnokey add multisig ...`
-- later, `gnokey multisign ...` will match signatures to those members
+If you set `-nosort`, then everyone must provide the members in the same explicit
+order.
 
-If the member set or threshold differs between participants, you will *not* end
-up with the same multisig public key/address, and signing will fail.
+#### Names used in this walkthrough
 
-If you set `-nosort`, then ordering matters and everyone must use the same
-explicit order.
+The commands below use these local names:
 
-#### Example members used here
+- Alice stores her private key as `alice`
+- Bob's pubkey is stored in Alice's keybase as `multisig-bob`
+- Charlie's pubkey is stored in Alice's keybase as `multisig-charlie`
+- the local multisig key reference is named `multisig-abc`
 
-We'll use the following members everywhere:
-
-- Alice's keybase contains:
-    - `alice` (local private key)
-    - `multisig-bob` (Bob pubkey, present in Alice's keybase)
-    - `multisig-charlie` (Charlie pubkey, present in Alice's keybase)
-    - multisig key `multisig-abc` created from these members
-
-Bob and Charlie must create `multisig-abc` using the *same members*, even though
-their local private key name differs.
+Bob and Charlie can use different local names for their own private keys, but
+they must still create `multisig-abc` from the same three member pubkeys and the
+same threshold.
 
 #### Alice keybase
 
@@ -781,13 +785,15 @@ gnokey add multisig --home "./charlie-kb" \
   multisig-abc
 ```
 
-### 2. Create a transaction and produce individual signatures
+### 2. Create the shared transaction and produce individual signatures
 
 #### Create the shared tx payload (unsigned)
 
-Create the tx once (any participant can do it), then distribute the JSON to signers.
+Create the transaction once (any participant can do it), then distribute the JSON
+to the signers.
 
-**NOTE: Notice how the origin of the transaction is the multisig account (address)**
+The sender in this transaction is the multisig address derived from the multisig
+key, not Alice's personal address.
 
 ```sh
 TX_PAYLOAD="./multisig-abc-send.json"
@@ -796,17 +802,18 @@ rm -f "$TX_PAYLOAD"
 gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss multisig-abc > "$TX_PAYLOAD"
 ```
 
-**Important: sign using the multisig account number + sequence**
+Every signer must sign with the current `account_number` and `sequence` of the
+multisig address, not their personal account values.
 
-Every signer must sign using the **multisig address** `account_number` and `sequence`, not their personal address.
-
-The `account_number` and `account_sequence` can be fetched with `gnokey`:
+Fetch those values from the chain using the multisig address:
 
 ```sh
-gnokey query auth/accounts/"$addr"
+gnokey query auth/accounts/"$MULTISIG_ADDR"
 ```
 
-which should produce a result such as:
+Here, `$MULTISIG_ADDR` is the address of `multisig-abc`.
+
+This should produce a result such as:
 
 ```sh
 height: 0
@@ -822,10 +829,11 @@ data: {
 }
 ```
 
-#### Alice signs (produces a signature document)
+#### Alice signs the shared payload
 
-`$MULTISIG_ACC_NUM` and `$MULTISIG_ACC_SEQ` in the command below correspond to the most up-to-date account information
-fetched as shown before.
+`$MULTISIG_ACC_NUM` and `$MULTISIG_ACC_SEQ` in the command below correspond to
+the latest account information fetched for the multisig address in the previous
+step.
 
 ```sh
 ALICE_SIG="./alice-sig.json"
@@ -834,7 +842,7 @@ rm -f "$ALICE_SIG"
 echo "\n\n" | gnokey sign --tx-path "$TX_PAYLOAD" --home "./alice-kb" alice --account-number "$MULTISIG_ACC_NUM" --account-sequence "$MULTISIG_ACC_SEQ" -insecure-password-stdin -quiet --output-document "$ALICE_SIG"
 ```
 
-#### Bob signs
+#### Bob signs the shared payload
 
 ```sh
 BOB_SIG="./bob-sig.json"
@@ -843,14 +851,21 @@ rm -f "$BOB_SIG"
 echo "\n\n" | gnokey sign --tx-path "$TX_PAYLOAD" --home "./bob-kb" bob --account-number "$MULTISIG_ACC_NUM" --account-sequence "$MULTISIG_ACC_SEQ" -insecure-password-stdin -quiet --output-document "$BOB_SIG"
 ```
 
-(Charlie would do the same, producing `charlie-sig.json`, but you only need 2 signatures for a 2-of-3.)
+(Charlie would do the same, producing `charlie-sig.json`, but a 2-of-3 multisig
+only needs 2 signatures.)
 
-### 3. Combine signatures with the multisig
+### 3. Combine the signatures with the multisig
 
-Order is handled automatically (see [Key ordering](#key-ordering)).
-When you call `gnokey multisign`, you can pass signature files in any order; `gnokey`
-matches each signature to its corresponding member pubkey. Just ensure the
-signatures are from members of that multisig.
+Order is handled automatically (see [Creating the same multisig key on every machine](#creating-the-same-multisig-key-on-every-machine)).
+When you call `gnokey multisign`, you can pass signature files in any order.
+`gnokey` matches each signature to the corresponding member pubkey in
+`multisig-abc`.
+
+For a correct multisign, each signature must:
+
+- come from a member of that multisig
+- be produced from the same transaction payload
+- use the same multisig `account_number` and `sequence`
 
 #### Multisign (Alice + Bob example)
 
@@ -862,7 +877,8 @@ gnokey multisign --tx-path "$TX_PAYLOAD" --home "./alice-kb" --signature "$ALICE
 
 ### 4. Broadcast the signed tx
 
-Now that the multisig account has officially signed the transaction, it's valid and can be broadcast to the network.
+Now that the multisig key has produced a valid multisignature for the transaction,
+it can be broadcast to the network.
 
 ```sh
 gnokey broadcast "$TX_PAYLOAD" --home "./alice-kb"
@@ -873,9 +889,9 @@ gnokey broadcast "$TX_PAYLOAD" --home "./alice-kb"
 ```mermaid
 flowchart TD
   A[Start] --> B[Create unsigned TX payload with gnokey maketx ..., and distribute it to all members to sign]
-  B --> C[Query the chain for the latest multisig account number and account sequence]
-  C --> D1[Alice signs payload with gnokey sign using multisig account_number and sequence, produces <br/>alice-sig.json]
-  C --> D2[Bob signs payload with gnokey sign using multisig account_number and sequence, produces <br/>bob-sig.json]
+  B --> C[Query the chain for the latest account number and sequence of the multisig address]
+  C --> D1[Alice signs payload with gnokey sign using the multisig address account_number and sequence, produces <br/>alice-sig.json]
+  C --> D2[Bob signs payload with gnokey sign using the multisig address account_number and sequence, produces <br/>bob-sig.json]
   C --> D3[Charlie optionally signs the payload, produces <br/>charlie-sig.json]
   D1 --> E[Combine signatures with gnokey multisign.<br/>Signatures are matched to member pubkeys]
   D2 --> E
