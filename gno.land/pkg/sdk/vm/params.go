@@ -24,7 +24,7 @@ const (
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
 
-// Params defines the parameters for the bank module.
+// Params defines the parameters for the vm module.
 type Params struct {
 	SysNamesPkgPath     string         `json:"sysnames_pkgpath" yaml:"sysnames_pkgpath"`
 	SysCLAPkgPath       string         `json:"syscla_pkgpath" yaml:"syscla_pkgpath"`
