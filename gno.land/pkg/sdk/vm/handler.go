@@ -71,15 +71,16 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 
 // query paths
 const (
-	QueryRender   = "qrender"
-	QueryFuncs    = "qfuncs"
-	QueryEval     = "qeval"
-	QueryEvalJSON = "qeval_json"
+	QueryRender       = "qrender"
+	QueryFuncs        = "qfuncs"
+	QueryEval         = "qeval"
+	QueryEvalJSON     = "qeval_json"
 	QueryObjectJSON   = "qobject_json"
-	QueryFile     = "qfile"
-	QueryDoc      = "qdoc"
-	QueryPaths    = "qpaths"
-	QueryStorage  = "qstorage"
+	QueryObjectBinary = "qobject_binary"
+	QueryFile         = "qfile"
+	QueryDoc          = "qdoc"
+	QueryPaths        = "qpaths"
+	QueryStorage      = "qstorage"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -98,7 +99,9 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 	case QueryEvalJSON:
 		res = vh.queryEvalJSON(ctx, req)
 	case QueryObjectJSON:
-		res = vh.queryObject(ctx, req)
+		res = vh.queryObjectJSON(ctx, req)
+	case QueryObjectBinary:
+		res = vh.queryObjectBinary(ctx, req)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
 	case QueryDoc:
@@ -212,8 +215,8 @@ func (vh vmHandler) queryEvalJSON(ctx sdk.Context, req abci.RequestQuery) (res a
 	return
 }
 
-// queryObject retrieves a persisted object by ObjectID and returns its JSON representation.
-func (vh vmHandler) queryObject(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+// queryObjectJSON retrieves a persisted object by ObjectID and returns its Amino JSON representation.
+func (vh vmHandler) queryObjectJSON(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	oidStr := string(req.Data)
 	result, err := vh.vm.QueryObjectJSON(ctx, oidStr)
 	if err != nil {
@@ -221,6 +224,18 @@ func (vh vmHandler) queryObject(ctx sdk.Context, req abci.RequestQuery) (res abc
 		return
 	}
 	res.Data = []byte(result)
+	return
+}
+
+// queryObjectBinary retrieves a persisted object by ObjectID and returns its Amino binary representation.
+func (vh vmHandler) queryObjectBinary(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	oidStr := string(req.Data)
+	result, err := vh.vm.QueryObjectBinary(ctx, oidStr)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = result
 	return
 }
 

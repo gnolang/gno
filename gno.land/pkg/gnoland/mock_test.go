@@ -93,6 +93,10 @@ func (m *mockVMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res stri
 	return "", nil
 }
 
+func (m *mockVMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byte, err error) {
+	return nil, nil
+}
+
 func (m *mockVMKeeper) Run(ctx sdk.Context, msg vm.MsgRun) (res string, err error) {
 	if m.runFn != nil {
 		return m.runFn(ctx, msg)

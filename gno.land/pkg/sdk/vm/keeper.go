@@ -57,6 +57,7 @@ type VMKeeperI interface {
 	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
 	QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
 	QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error)
+	QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byte, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
@@ -1220,35 +1221,48 @@ func (vm *VMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) 
 	return stringifyJSONResults(nil, rtvs, nil), nil
 }
 
-// QueryObjectJSON retrieves an object by ObjectID and returns its JSON representation.
-func (vm *VMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error) {
+// exportObject retrieves and exports an object by ObjectID string.
+func (vm *VMKeeper) exportObject(ctx sdk.Context, oidStr string) (gno.Value, error) {
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
-	// Parse ObjectID
 	var oid gno.ObjectID
 	if err := oid.UnmarshalAmino(oidStr); err != nil {
-		return "", ErrInvalidExpr(fmt.Sprintf("invalid object id %q: %v", oidStr, err))
+		return nil, ErrInvalidExpr(fmt.Sprintf("invalid object id %q: %v", oidStr, err))
 	}
 
-	// Retrieve object
 	obj := gnostore.GetObjectSafe(oid)
 	if obj == nil {
-		return "", ErrObjectNotFound(fmt.Sprintf("object not found: %s", oidStr))
+		return nil, ErrObjectNotFound(fmt.Sprintf("object not found: %s", oidStr))
 	}
 
-	// Export object: one level deep, nested persisted objects stay as RefValues.
-	exported := gno.ExportObject(obj)
+	return gno.ExportObject(obj), nil
+}
 
-	// Serialize with Amino JSON (includes @type tags).
+// QueryObjectJSON retrieves an object by ObjectID and returns its Amino JSON representation.
+func (vm *VMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error) {
+	exported, err := vm.exportObject(ctx, oidStr)
+	if err != nil {
+		return "", err
+	}
+
 	jsonBytes, err := amino.MarshalJSONAny(exported)
 	if err != nil {
 		return "", err
 	}
 
-	// Wrap with objectid
 	result := fmt.Sprintf(`{"objectid":%q,"value":%s}`, oidStr, string(jsonBytes))
 	return result, nil
+}
+
+// QueryObjectBinary retrieves an object by ObjectID and returns its Amino binary representation.
+func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byte, err error) {
+	exported, err := vm.exportObject(ctx, oidStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return amino.MarshalAny(exported)
 }
 
 // processStorageDeposit processes storage deposit adjustments for package realms based on
