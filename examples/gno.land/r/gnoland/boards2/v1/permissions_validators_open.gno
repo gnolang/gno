@@ -114,7 +114,7 @@ func validateOpenThreadCreate(perms boards.Permissions, args boards.Args) error 
 		return errors.New("expected a valid caller address")
 	}
 
-	// Owners and admins can create threads without a registered username
+	// Owners and admins can create threads without special requirements
 	if perms.HasRole(caller, RoleOwner) || perms.HasRole(caller, RoleAdmin) {
 		return nil
 	}
