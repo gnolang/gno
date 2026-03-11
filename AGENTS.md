@@ -57,6 +57,12 @@ make fmt                        # Format all code
 - Format: `gno fmt`.
 - Import paths: `gno.land/{p,r}/...` only.
 - No OS/network access.
+- Before writing Gno code, read the relevant docs in `docs/resources/`:
+  - `gno-interrealm.md` — cross-realm calls, `cross`/`realm` semantics
+  - `effective-gno.md` — idiomatic Gno patterns
+  - `go-gno-compatibility.md` — what works and what doesn't vs Go
+  - `gno-testing.md` — testing patterns for `.gno` files
+  - `gno-packages.md` — package structure and conventions
 
 ### Go (.go)
 - Format: `gofmt`/`goimports`.
