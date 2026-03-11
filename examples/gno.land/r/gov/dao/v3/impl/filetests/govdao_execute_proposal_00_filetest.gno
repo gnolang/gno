@@ -8,7 +8,7 @@ import (
 
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
-	daoinit "gno.land/r/gov/dao/v3/init"
+	"gno.land/r/gov/dao/v3/memberstore"
 )
 
 const user address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
@@ -22,7 +22,10 @@ var (
 
 func init() {
 	// Initialize GovDAO members
-	daoinit.InitWithUsers(user)
+	memberstore.Get().DeleteAll()
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetMember(memberstore.T1, user, &memberstore.Member{InvitationPoints: 3})
+	dao.UpdateImpl(cross, dao.UpdateRequest{DAO: impl.NewGovDAO()})
 
 	// Create an executor that always fails
 	cb := func(realm) error { return errors.New("Boom!") }
