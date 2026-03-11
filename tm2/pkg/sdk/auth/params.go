@@ -118,6 +118,12 @@ func (p Params) Validate() error {
 	if p.FeeCollector.IsZero() {
 		return fmt.Errorf("invalid fee collector, cannot be empty")
 	}
+	if p.InitialGasPrice.Gas < 0 {
+		return fmt.Errorf("invalid initial gas price: gas must be non-negative, got %d", p.InitialGasPrice.Gas)
+	}
+	if p.InitialGasPrice.Price.Amount < 0 {
+		return fmt.Errorf("invalid initial gas price: price amount must be non-negative, got %d", p.InitialGasPrice.Price.Amount)
+	}
 	return nil
 }
 
@@ -176,10 +182,16 @@ func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 			panic(fmt.Sprintf("invalid fee_collector address: %v", err))
 		}
 		params.FeeCollector = addr
+	case "p:initial_gasprice":
+		s := sdkparams.MustParamString("initial_gasprice", value)
+		gp, err := std.ParseGasPrice(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid initial_gasprice: %v", err))
+		}
+		params.InitialGasPrice = gp
 	case "p:unrestricted_addrs":
 		addrs := sdkparams.MustParamStrings("unrestricted_addrs", value)
 		ak.applyUnrestrictedAddrsChange(ctx, addrs)
-		return // unrestricted_addrs has its own validation in applyUnrestrictedAddrsChange
 	default:
 		panic(fmt.Sprintf("unknown auth param key: %q", key))
 	}
