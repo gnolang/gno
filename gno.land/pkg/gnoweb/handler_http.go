@@ -116,6 +116,15 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
+	// Read theme preference from cookie for server-side rendering.
+	// Prevents FOUC by embedding data-theme in the HTML before CSS loads.
+	var theme string
+	if c, err := r.Cookie("theme"); err == nil {
+		if c.Value == "light" || c.Value == "dark" {
+			theme = c.Value
+		}
+	}
+
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
 			AssetsPath: h.Static.AssetsPath,
@@ -129,6 +138,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			AssetsPath: h.Static.AssetsPath,
 			BuildTime:  h.Static.BuildTime,
 		},
+		Theme: theme,
 	}
 
 	// Parse the URL
