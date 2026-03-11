@@ -118,8 +118,8 @@ func (p Params) Validate() error {
 	if p.FeeCollector.IsZero() {
 		return fmt.Errorf("invalid fee collector, cannot be empty")
 	}
-	if p.InitialGasPrice.Gas < 0 {
-		return fmt.Errorf("invalid initial gas price: gas must be non-negative, got %d", p.InitialGasPrice.Gas)
+	if p.InitialGasPrice.Gas <= 0 {
+		return fmt.Errorf("invalid initial gas price: gas must be larger than 0, got %d", p.InitialGasPrice.Gas)
 	}
 	if p.InitialGasPrice.Price.Amount < 0 {
 		return fmt.Errorf("invalid initial gas price: price amount must be non-negative, got %d", p.InitialGasPrice.Price.Amount)
