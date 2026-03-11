@@ -119,7 +119,7 @@ Skip ADRs for: trivial bug fixes, formatting, simple tests, docs-only changes.
 | What | Where |
 |------|-------|
 | Understand a realm | Read its main `.gno` file |
-| VM internals | `gnovm/pkg/gnolang/machine.go` |
+| VM internals | `gnovm/pkg/gnolang/machine.go`, `gnovm/pkg/gnolang/preprocess.go` |
 | Node/keeper | `gno.land/pkg/sdk/vm/keeper.go` |
 | Client/RPC | `gno.land/pkg/gnoclient/` |
 | Example patterns | `examples/gno.land/p/nt/ownable/` |
