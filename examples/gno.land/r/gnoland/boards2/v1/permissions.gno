@@ -94,6 +94,7 @@ func createOpenBoardPermissions(owner address) *permissions.Permissions {
 	)
 	perms.SetPublicPermissions(
 		PermissionThreadCreate,
+		PermissionThreadRepost,
 		PermissionReplyCreate,
 	)
 	perms.AddRole(
