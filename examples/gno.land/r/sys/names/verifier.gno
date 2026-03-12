@@ -5,7 +5,7 @@ package names
 import "chain/runtime"
 
 var (
-	admin = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+	admin   = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 	enabled = false
 )
 
