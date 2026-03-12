@@ -5,11 +5,12 @@ REPO_ROOT := $(shell cd ../../.. && pwd)
 generate: genesis.json
 
 genesis.json: gen-genesis.sh
-	@# Ensure gno, gnoland, and gnogenesis are available.
-	cd $(REPO_ROOT)/gnovm && go install ./cmd/gno
-	cd $(REPO_ROOT)/gno.land && go install ./cmd/gnoland
-	cd $(REPO_ROOT)/contribs/gnogenesis && go install .
 	./gen-genesis.sh
+
+generate-txs: genesis_txs.jsonl
+
+genesis_txs.jsonl: gen-genesis.sh
+	./gen-genesis.sh --txs-only
 
 test: genesis.json
 	@test -s genesis.json || (echo "FAIL: genesis.json is empty" && exit 1)
@@ -29,4 +30,4 @@ test: genesis.json
 	echo "OK: genesis.json is valid (node booted successfully)"
 
 clean:
-	rm -f genesis.json packages.gen.txt
+	rm -rf genesis.json packages.gen.txt genesis_txs.jsonl genesis-work
