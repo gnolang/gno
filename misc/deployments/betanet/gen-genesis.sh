@@ -242,7 +242,7 @@ run "$GNOGENESIS_BIN" validator add \
   -genesis-path "$BALANCES_TMP_GENESIS"
 
 printf "  Starting node (run 1: measure gas costs)...\n"
-run "$GNOLAND_BIN" start --skip-genesis-sig-verification -data-dir "$BALANCES_TMP_GNOLAND_DATA" -genesis "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GNOLAND_LOG" 2>&1 &
+"$GNOLAND_BIN" start --skip-genesis-sig-verification -data-dir "$BALANCES_TMP_GNOLAND_DATA" -genesis "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GNOLAND_LOG" 2>&1 &
 NODE_PID=$!
 
 elapsed=0
@@ -320,7 +320,7 @@ run "$GNOGENESIS_BIN" validator add \
   -genesis-path "$BALANCES_TMP_GENESIS"
 
 printf "  Starting node (run 2: verify zero balances)...\n"
-run "$GNOLAND_BIN" start --skip-genesis-sig-verification -data-dir "$BALANCES_TMP_GNOLAND_DATA" -genesis "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GNOLAND_LOG" 2>&1 &
+"$GNOLAND_BIN" start --skip-genesis-sig-verification -data-dir "$BALANCES_TMP_GNOLAND_DATA" -genesis "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GNOLAND_LOG" 2>&1 &
 NODE_PID=$!
 
 elapsed=0
