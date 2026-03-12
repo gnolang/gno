@@ -108,7 +108,7 @@ fi
 printf "\n=== Step 2/7: Generating addpkg txs ===\n"
 
 printf "  Resolving dependencies...\n"
-pkg_dirs=$(cd "$EXAMPLES_DIR" && run "$GNO_BIN" tool deplist "${FILTERED_PACKAGES[@]}")
+pkg_dirs=$(cd "$EXAMPLES_DIR" && "$GNO_BIN" tool deplist "${FILTERED_PACKAGES[@]}")
 pkg_count=$(echo "$pkg_dirs" | wc -l | tr -d ' ')
 printf "  Resolved %s packages in topological order\n" "$pkg_count"
 
@@ -277,7 +277,7 @@ while IFS= read -r addr; do
       tail -20 "$BALANCES_TMP_GNOLAND_LOG"
       exit 1
     fi
-    query_output=$(run $GNOKEY_BIN query "bank/balances/$addr" 2>&1 || true)
+    query_output=$("$GNOKEY_BIN" query "bank/balances/$addr" 2>&1 || true)
     if echo "$query_output" | grep -q '^data:'; then
       remaining=$(echo "$query_output" | sed -n 's/.*"\([0-9]*\)ugnot".*/\1/p' | head -1)
       # Empty data field means 0 balance
@@ -355,7 +355,7 @@ while IFS= read -r addr; do
       tail -20 "$BALANCES_TMP_GNOLAND_LOG"
       exit 1
     fi
-    query_output=$(run $GNOKEY_BIN query "bank/balances/$addr" 2>&1 || true)
+    query_output=$("$GNOKEY_BIN" query "bank/balances/$addr" 2>&1 || true)
     if echo "$query_output" | grep -q '^data:'; then
       remaining=$(echo "$query_output" | sed -n 's/.*"\([0-9]*\)ugnot".*/\1/p' | head -1)
       # Empty data field means 0 balance
