@@ -129,11 +129,6 @@ while IFS= read -r dir; do
   cp -r "$dir" "$WORK_DIR_EXAMPLES/$rel"
 done <<<"$pkg_dirs"
 
-# Strip test files — they pull in deps (like uassert) not needed in genesis.
-printf "  Stripping test files...\n"
-find "$WORK_DIR_EXAMPLES" -name '*_test.gno' -delete
-find "$WORK_DIR_EXAMPLES" -name '*_filetest.gno' -delete
-
 # Create deployer key (needed to sign MsgAddPackage and MsgRun txs).
 printf "  Creating deployer key...\n"
 WORK_DIR_GNOKEY_HOME="$WORK_DIR/gnokey-home"
