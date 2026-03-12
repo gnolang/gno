@@ -658,26 +658,26 @@ multisig address is valid.
 
 In this example, Alice, Bob, and Charlie create a 2-of-3 multisig key:
 
-- the `member set` is Alice, Bob, and Charlie
-- the `threshold` is `2`
-- any 2 of the 3 members can approve a transaction
+- The `member set` is Alice, Bob, and Charlie
+- The `threshold` is `2`
+- Any 2 of the 3 members can approve a transaction
 
 This section shows the simplest multisig flow:
 
-1. create the same local multisig key reference in each participant's keybase
-2. create one unsigned transaction payload and share it with the signers
-3. have each signer produce an individual signature document
-4. combine those signatures with `gnokey multisign`
-5. broadcast the signed transaction
+1. Create the same local multisig key reference in each participant's keybase
+2. Create one unsigned transaction payload and share it with the signers
+3. Have each signer produce an individual signature document
+4. Combine those signatures with `gnokey multisign`
+5. Broadcast the signed transaction
 
 ### 1. Create the local multisig key representation
 
 Each signer needs:
 
 - `gnokey`
-- their own private key (from a mnemonic or an existing key)
-- the other signers' pubkeys, added to the local keybase with `gnokey add bech32`
-- agreement on the threshold and the member set
+- Their own private key (from a mnemonic or an existing key)
+- The other signers' pubkeys, added to the local keybase with `gnokey add bech32`
+- Agreement on the threshold and the member set
 
 In this walkthrough, that means agreeing on the same 3 members (Alice, Bob, and
 Charlie) and the same threshold (`2`).
@@ -698,9 +698,9 @@ their derived addresses before creating the multisig key.
 
 To create the same multisig key on every machine:
 
-- use the same member set
-- use the same threshold
-- keep the default sorting behavior
+- Use the same member set
+- Use the same threshold
+- Keep the default sorting behavior
 
 With that default, participants can pass `--multisig` entries in different CLI
 orders and still derive the same multisig public key and multisig address.
@@ -715,7 +715,7 @@ The commands below use these local names:
 - Alice stores her private key as `alice`
 - Bob's pubkey is stored in Alice's keybase as `multisig-bob`
 - Charlie's pubkey is stored in Alice's keybase as `multisig-charlie`
-- the local multisig key reference is named `multisig-abc`
+- The local multisig key reference is named `multisig-abc`
 
 Bob and Charlie can use different local names for their own private keys, but
 they must still create `multisig-abc` from the same three member pubkeys and the
@@ -863,9 +863,9 @@ When you call `gnokey multisign`, you can pass signature files in any order.
 
 For a correct multisign, each signature must:
 
-- come from a member of that multisig
-- be produced from the same transaction payload
-- use the same multisig `account_number` and `sequence`
+- Come from a member of that multisig
+- Be produced from the same transaction payload
+- Use the same multisig `account_number` and `sequence`
 
 #### Multisign (Alice + Bob example)
 
