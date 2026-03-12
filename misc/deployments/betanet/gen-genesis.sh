@@ -57,21 +57,33 @@ rm -rf "$WORK_DIR"
 
 # ---- 1. Build binaries from source to ensure we have the right versions.
 
-printf "\nBuilding binaries from source...\n\n"
-
+printf "\n=== Step 1/7: Building binaries ===\n"
 mkdir -p "$WORK_DIR_BIN"
 
+printf "  gno...        "
 go build -C "$GNO_CMD" -o "$GNO_BIN" .
+printf "ok\n"
+
+printf "  gnokey...     "
 go build -C "$GNOKEY_CMD" -o "$GNOKEY_BIN" .
+printf "ok\n"
+
+printf "  gnoland...    "
 go build -C "$GNOLAND_CMD" -o "$GNOLAND_BIN" .
+printf "ok\n"
+
+printf "  gnogenesis... "
 go build -C "$GNOGENESIS_CMD" -o "$GNOGENESIS_BIN" .
+printf "ok\n"
 
 # ---- 2. Generate filtered examples genesis txs.
 
-printf "\nGenerating genesis addpkg txs for filtered examples...\n\n"
+printf "\n=== Step 2/7: Generating addpkg txs ===\n"
 
-# Resolve listed realms + all transitive deps in topological order.
+printf "  Resolving dependencies...\n"
 pkg_dirs=$(cd "$EXAMPLES_DIR" && "$GNO_BIN" tool deplist "${FILTERED_PACKAGES[@]}")
+pkg_count=$(echo "$pkg_dirs" | wc -l | tr -d ' ')
+printf "  Resolved %s packages in topological order\n" "$pkg_count"
 
 # Save resolved package list for inspection.
 {
@@ -80,6 +92,7 @@ pkg_dirs=$(cd "$EXAMPLES_DIR" && "$GNO_BIN" tool deplist "${FILTERED_PACKAGES[@]
 } >"$WORK_DIR/packages.gen.txt"
 
 # Copy resolved packages into the working directory.
+printf "  Copying packages to staging...\n"
 WORK_DIR_EXAMPLES="$WORK_DIR/examples"
 mkdir -p "$WORK_DIR_EXAMPLES"
 while IFS= read -r dir; do
@@ -90,27 +103,33 @@ while IFS= read -r dir; do
 done <<<"$pkg_dirs"
 
 # Strip test files — they pull in deps (like uassert) not needed in genesis.
+printf "  Stripping test files...\n"
 find "$WORK_DIR_EXAMPLES" -name '*_test.gno' -delete
 find "$WORK_DIR_EXAMPLES" -name '*_filetest.gno' -delete
 
 # Create deployer key (needed to sign MsgAddPackage and MsgRun txs).
+printf "  Creating deployer key...\n"
 WORK_DIR_GNOKEY_HOME="$WORK_DIR/gnokey-home"
 WORK_DIR_GENESIS="$WORK_DIR/genesis.json"
 WORK_DIR_GENESIS_TXS="$WORK_DIR/genesis_txs.jsonl"
-printf '%s\n\n' "$DEPLOYER_MNEMONIC" | "$GNOKEY_BIN" add --recover GenesisDeployer --home "$WORK_DIR_GNOKEY_HOME" --insecure-password-stdin
-"$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$GENESIS_TIME" --output-path "$WORK_DIR_GENESIS"
-echo "" | "$GNOGENESIS_BIN" txs add packages "$WORK_DIR_EXAMPLES" -gno-home "$WORK_DIR_GNOKEY_HOME" -key-name GenesisDeployer --genesis-path "$WORK_DIR_GENESIS" --insecure-password-stdin
-"$GNOGENESIS_BIN" txs export "$WORK_DIR_GENESIS_TXS" --genesis-path "$WORK_DIR_GENESIS"
+printf '%s\n\n' "$DEPLOYER_MNEMONIC" | "$GNOKEY_BIN" add --recover GenesisDeployer --home "$WORK_DIR_GNOKEY_HOME" --insecure-password-stdin 2>&1 | sed 's/^/    /'
+
+printf "  Generating empty genesis...\n"
+"$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$GENESIS_TIME" --output-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
+
+printf "  Adding %s packages to genesis...\n" "$pkg_count"
+echo "" | "$GNOGENESIS_BIN" txs add packages "$WORK_DIR_EXAMPLES" -gno-home "$WORK_DIR_GNOKEY_HOME" -key-name GenesisDeployer --genesis-path "$WORK_DIR_GENESIS" --insecure-password-stdin 2>&1 | sed 's/^/    /'
+
+printf "  Exporting txs...\n"
+"$GNOGENESIS_BIN" txs export "$WORK_DIR_GENESIS_TXS" --genesis-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
 
 # ---- 3. Generate setup transaction (validators, members, deployer cleanup)
 
-printf "\nGenerating genesis run tx for initial setup...\n\n"
+printf "\n=== Step 3/7: Generating MsgRun setup tx (govdao_prop1.gno) ===\n"
 
-# Use the static govdao_prop1.gno file — it contains hardcoded validators,
-# members, and deployer address. No substitutions needed.
 SETUP_FILE="$SCRIPT_DIR/govdao_prop1.gno"
 
-# Generate MsgRun tx (unsigned — genesis uses --skip-genesis-sig-verification).
+printf "  Generating MsgRun tx from %s...\n" "$(basename "$SETUP_FILE")"
 SETUP_TX_FILE="$WORK_DIR/genesis_setup_tx.jsonl"
 "$GNOKEY_BIN" maketx run \
     --gas-wanted 100000000 \
@@ -120,22 +139,26 @@ SETUP_TX_FILE="$WORK_DIR/genesis_setup_tx.jsonl"
     GenesisDeployer \
     "$SETUP_FILE" | jq -c '{tx: .}' > "$SETUP_TX_FILE"
 
-# Add setup tx to genesis and to the exported tx sheet (for balance calculation).
-"$GNOGENESIS_BIN" txs add sheets "$SETUP_TX_FILE" --genesis-path "$WORK_DIR_GENESIS"
+printf "  Adding setup tx to genesis...\n"
+"$GNOGENESIS_BIN" txs add sheets "$SETUP_TX_FILE" --genesis-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
 cat "$SETUP_TX_FILE" >> "$WORK_DIR_GENESIS_TXS"
+
+tx_count=$(wc -l < "$WORK_DIR_GENESIS_TXS" | tr -d ' ')
+printf "  Total txs so far: %s\n" "$tx_count"
 
 if [ "$STOP_AFTER_TXS_EXPORT" = true ]; then
   cp "$WORK_DIR/packages.gen.txt" "$SCRIPT_DIR/packages.gen.txt"
   cp "$WORK_DIR_GENESIS_TXS" "$SCRIPT_DIR/genesis_txs.jsonl"
-  echo "Done (--txs-only):"
-  echo "  -> $SCRIPT_DIR/packages.gen.txt"
-  echo "  -> $SCRIPT_DIR/genesis_txs.jsonl"
+  printf "\n=== Done (--txs-only) ===\n"
+  printf "  %s txs exported\n" "$tx_count"
+  printf "  -> packages.gen.txt\n"
+  printf "  -> genesis_txs.jsonl\n"
   exit 0
 fi
 
 # ---- 4. Calculate the deployers balances
 
-printf "\nGenerating genesis balance sheet for deployers...\n\n"
+printf "\n=== Step 4/7: Calculating deployer balances ===\n"
 
 WORK_DIR_GENESIS_BALANCES="$WORK_DIR/genesis_balances.txt"
 BALANCES_TMP_DIR="$WORK_DIR/balances-work"
@@ -147,24 +170,23 @@ BALANCES_TMP_CREATOR_ADDRESSES="$BALANCES_TMP_DIR/gen-creators.txt"
 INITIAL_BALANCE=1000000000000000
 NODE_TIMEOUT=120
 
-# Extract and deduplicate creator addresses
-
 rm -rf "$BALANCES_TMP_DIR"
 mkdir -p "$BALANCES_TMP_DIR"
 
+printf "  Extracting creator addresses...\n"
 # Extract addresses from both MsgAddPackage ("creator") and MsgRun ("caller") txs.
 grep -oE '"(creator|caller)":"[^"]*"' "$WORK_DIR_GENESIS_TXS" |
   sed 's/"creator":"//;s/"caller":"//;s/"//g' |
   sort -u >"$BALANCES_TMP_CREATOR_ADDRESSES"
+addr_count=$(wc -l < "$BALANCES_TMP_CREATOR_ADDRESSES" | tr -d ' ')
+printf "  Found %s unique creator/caller addresses\n" "$addr_count"
 
-# Generate over provisionned balances file
-
+printf "  Generating over-provisioned balances...\n"
 while IFS= read -r addr; do
   echo "${addr}=${INITIAL_BALANCE}ugnot" >>"$BALANCES_TMP_FILE"
 done <"$BALANCES_TMP_CREATOR_ADDRESSES"
 
-# Set up gnoland node working directory
-
+printf "  Setting up temporary node...\n"
 "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)" -output-path "$BALANCES_TMP_GENESIS"
 "$GNOGENESIS_BIN" txs add sheets "$WORK_DIR_GENESIS_TXS" -genesis-path "$BALANCES_TMP_GENESIS"
 "$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS"
@@ -177,8 +199,7 @@ done <"$BALANCES_TMP_CREATOR_ADDRESSES"
   --power 1 \
   -genesis-path "$BALANCES_TMP_GENESIS"
 
-# Start the node (first run) and wait for "This node is a validator"
-
+printf "  Starting node (run 1: measure gas costs)...\n"
 "$GNOLAND_BIN" start --skip-genesis-sig-verification -data-dir "$BALANCES_TMP_GNOLAND_DATA" -genesis "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GNOLAND_LOG" 2>&1 &
 NODE_PID=$!
 
@@ -204,9 +225,9 @@ if [ "$node_started" = false ]; then
   tail -20 "$BALANCES_TMP_GNOLAND_LOG"
   exit 1
 fi
+printf "  Node ready (%ss)\n" "$elapsed"
 
-# Query remaining balances and compute final balances
-
+printf "  Querying remaining balances...\n"
 rm -f "$BALANCES_TMP_FILE"
 while IFS= read -r addr; do
   remaining=""
@@ -234,14 +255,14 @@ while IFS= read -r addr; do
     exit 1
   fi
   final=$((INITIAL_BALANCE - remaining))
+  printf "    %s = %s ugnot\n" "$addr" "$final"
   echo "${addr}=${final}ugnot" >>"$BALANCES_TMP_FILE"
 done <"$BALANCES_TMP_CREATOR_ADDRESSES"
 
 kill "$NODE_PID" 2>/dev/null || true
 wait "$NODE_PID" 2>/dev/null || true
 
-# Regenerate genesis with calculated balances
-
+printf "  Setting up temporary node (run 2: verify)...\n"
 rm -rf "$BALANCES_TMP_GNOLAND_DATA" "$BALANCES_TMP_GENESIS"
 
 "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)" -output-path "$BALANCES_TMP_GENESIS"
@@ -256,8 +277,7 @@ rm -rf "$BALANCES_TMP_GNOLAND_DATA" "$BALANCES_TMP_GENESIS"
   --power 1 \
   -genesis-path "$BALANCES_TMP_GENESIS"
 
-# Start the node (second run) and verify all balances are zero
-
+printf "  Starting node (run 2: verify zero balances)...\n"
 "$GNOLAND_BIN" start --skip-genesis-sig-verification -data-dir "$BALANCES_TMP_GNOLAND_DATA" -genesis "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GNOLAND_LOG" 2>&1 &
 NODE_PID=$!
 
@@ -283,7 +303,9 @@ if [ "$node_started" = false ]; then
   tail -20 "$BALANCES_TMP_GNOLAND_LOG"
   exit 1
 fi
+printf "  Node ready (%ss)\n" "$elapsed"
 
+printf "  Verifying all balances are zero...\n"
 all_zero=true
 while IFS= read -r addr; do
   remaining=""
@@ -311,8 +333,10 @@ while IFS= read -r addr; do
     exit 1
   fi
   if [ "$remaining" -ne 0 ]; then
-    echo "WARNING: $addr has non-zero balance: ${remaining}ugnot"
+    printf "    FAIL: %s has %sugnot remaining\n" "$addr" "$remaining"
     all_zero=false
+  else
+    printf "    ok: %s\n" "$addr"
   fi
 done <"$BALANCES_TMP_CREATOR_ADDRESSES"
 
@@ -320,21 +344,24 @@ kill "$NODE_PID" 2>/dev/null || true
 wait "$NODE_PID" 2>/dev/null || true
 
 if [ "$all_zero" = true ]; then
+  printf "  All balances zero — deployer costs verified\n"
   cp "$BALANCES_TMP_FILE" "$WORK_DIR_GENESIS_BALANCES"
 else
   echo "ERROR: Some balances are not zero after replay. Check $BALANCES_TMP_FILE."
   exit 1
 fi
 
+printf "  Adding deployer balances to genesis...\n"
 "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_GENESIS_BALANCES" --genesis-path "$WORK_DIR_GENESIS"
 
 # ---- 5. Download and add the airdrop balances
 
-printf "\nDownloading and adding airdrop balances...\n\n"
+printf "\n=== Step 5/7: Downloading airdrop balances ===\n"
 
 AIRDROP_BALANCES_GZ="$WORK_DIR/airdrop_balances.txt.gz"
 AIRDROP_BALANCES_TXT="$WORK_DIR/airdrop_balances.txt"
 
+printf "  Downloading...\n"
 curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
 gzip -dc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
 
@@ -342,27 +369,33 @@ gzip -dc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
 rg '^[^=]{40}=' "$AIRDROP_BALANCES_TXT" | cut -d: -f1 >/tmp/airdrop_addresses.txt
 mv /tmp/airdrop_addresses.txt "$AIRDROP_BALANCES_TXT"
 
+airdrop_count=$(wc -l < "$AIRDROP_BALANCES_TXT" | tr -d ' ')
+printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
 "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS"
 
 # ---- 6. Add the initial validator set to the genesis file
 
-printf "\nAdding initial validator set to genesis...\n\n"
+printf "\n=== Step 6/7: Adding validators ===\n"
 
 for validator in "${INITIAL_VALSET[@]}"; do
   read -r name power address pub_key <<<"$validator"
+  printf "  %s (power=%s, %s)\n" "$name" "$power" "$address"
   "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
 done
 
 # ---- 7. Verify the generated genesis file
 
-printf "\nVerifying generated genesis...\n\n"
+printf "\n=== Step 7/7: Verifying genesis ===\n"
 
 "$GNOGENESIS_BIN" verify -genesis-path "$WORK_DIR_GENESIS"
+printf "  Verification passed\n"
 
 cp "$WORK_DIR_GENESIS" "$GENESIS_FILE"
 cp "$WORK_DIR/packages.gen.txt" "$SCRIPT_DIR/packages.gen.txt"
 cp "$WORK_DIR_GENESIS_TXS" "$SCRIPT_DIR/genesis_txs.jsonl"
 
-echo "Done: $GENESIS_FILE (sha256: $(shasum -a 256 "$GENESIS_FILE" | awk '{print $1}'))"
-echo "  -> $SCRIPT_DIR/packages.gen.txt"
-echo "  -> $SCRIPT_DIR/genesis_txs.jsonl"
+printf "\n=== Done ===\n"
+printf "  sha256: %s\n" "$(shasum -a 256 "$GENESIS_FILE" | awk '{print $1}')"
+printf "  -> genesis.json\n"
+printf "  -> packages.gen.txt\n"
+printf "  -> genesis_txs.jsonl\n"
