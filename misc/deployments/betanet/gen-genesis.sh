@@ -2,6 +2,16 @@
 # Generate betanet genesis.json.
 set -e
 
+# ---- Flags
+
+STOP_AFTER_TXS_EXPORT=false
+for arg in "$@"; do
+  case "$arg" in
+    --txs-only) STOP_AFTER_TXS_EXPORT=true ;;
+    *) echo "Unknown argument: $arg"; exit 1 ;;
+  esac
+done
+
 # ---- Config
 
 CHAIN_ID=betanet
@@ -96,6 +106,11 @@ printf '%s\n\n' "$DEPLOYER_MNEMONIC" | "$GNOKEY_BIN" add --recover GenesisDeploy
 "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$GENESIS_TIME" --output-path "$WORK_DIR_GENESIS"
 echo "" | "$GNOGENESIS_BIN" txs add packages "$WORK_DIR_EXAMPLES" -gno-home "$WORK_DIR_GNOKEY_HOME" -key-name GenesisDeployer --genesis-path "$WORK_DIR_GENESIS" --insecure-password-stdin
 "$GNOGENESIS_BIN" txs export "$WORK_DIR_GENESIS_TXS" --genesis-path "$WORK_DIR_GENESIS"
+
+if [ "$STOP_AFTER_TXS_EXPORT" = true ]; then
+  echo "Done: $WORK_DIR_GENESIS_TXS (--txs-only flag set, stopping here)"
+  exit 0
+fi
 
 # ---- 3. Generate setup transaction (initial validator set, etc.)
 
