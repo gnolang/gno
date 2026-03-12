@@ -11,7 +11,8 @@ import (
 )
 
 type deplistCfg struct {
-	json bool
+	json    bool
+	testDep bool
 }
 
 func newDeplistCmd(io commands.IO) *commands.Command {
@@ -32,6 +33,7 @@ func newDeplistCmd(io commands.IO) *commands.Command {
 
 func (c *deplistCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.json, "json", false, "output in JSON format")
+	fs.BoolVar(&c.testDep, "test-dep", false, "include test dependencies")
 }
 
 func execDeplist(cfg *deplistCfg, args []string, io commands.IO) error {
@@ -42,6 +44,7 @@ func execDeplist(cfg *deplistCfg, args []string, io commands.IO) error {
 	loadCfg := packages.LoadConfig{
 		Fetcher: testPackageFetcher,
 		Deps:    true,
+		Test:    cfg.testDep,
 		Out:     io.Err(),
 	}
 	pkgs, err := packages.Load(loadCfg, args...)
@@ -58,8 +61,9 @@ func execDeplist(cfg *deplistCfg, args []string, io commands.IO) error {
 		userPkgs = append(userPkgs, pkg)
 	}
 
-	// Topological sort. We can't use PkgList.Sort() directly because
-	// Imports maps still reference stdlib paths that we filtered out.
+	// Topological sort by source imports only. Test deps may form cycles
+	// (e.g. avl_test → uassert → avl) which is fine — they expand the
+	// package set but don't affect deployment order.
 	sorted, err := sortSkipMissing(userPkgs)
 	if err != nil {
 		return err

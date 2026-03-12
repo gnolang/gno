@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Generate gnoland1 genesis.json.
-set -e
+set -eo pipefail
 
 # ---- Flags
 
@@ -108,7 +108,7 @@ fi
 printf "\n=== Step 2/7: Generating addpkg txs ===\n"
 
 printf "  Resolving dependencies...\n"
-pkg_dirs=$(cd "$EXAMPLES_DIR" && "$GNO_BIN" tool deplist "${FILTERED_PACKAGES[@]}")
+pkg_dirs=$(cd "$EXAMPLES_DIR" && "$GNO_BIN" tool deplist -test-dep "${FILTERED_PACKAGES[@]}")
 pkg_count=$(echo "$pkg_dirs" | wc -l | tr -d ' ')
 printf "  Resolved %s packages in topological order\n" "$pkg_count"
 
@@ -128,6 +128,14 @@ while IFS= read -r dir; do
   mkdir -p "$(dirname "$WORK_DIR_EXAMPLES/$rel")"
   cp -r "$dir" "$WORK_DIR_EXAMPLES/$rel"
 done <<<"$pkg_dirs"
+
+# Strip test files from staging — gnogenesis resolves all imports including
+# from test files, which can pull in packages not in our set (e.g. r/tests/vm).
+# The -test-dep flag above already ensured test *dependencies* (like uassert)
+# are included; we just can't ship the test files themselves.
+printf "  Stripping test files from staging...\n"
+find "$WORK_DIR_EXAMPLES" -name '*_test.gno' -delete
+find "$WORK_DIR_EXAMPLES" -name '*_filetest.gno' -delete
 
 # Create deployer key (needed to sign MsgAddPackage and MsgRun txs).
 printf "  Creating deployer key...\n"
