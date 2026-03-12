@@ -509,8 +509,7 @@ message StaticBlock {
 	repeated bool heap_items = 7 [json_name = "HeapItems"];
 	repeated string unassignable_names = 8 [json_name = "UnassignableNames"];
 	repeated string consts = 9 [json_name = "Consts"];
-	repeated string externs = 10 [json_name = "Externs"];
-	google.protobuf.Any parent = 11 [json_name = "Parent"];
+	google.protobuf.Any parent = 10 [json_name = "Parent"];
 }
 
 message FileSet {
