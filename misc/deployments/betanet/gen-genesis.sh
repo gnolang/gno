@@ -36,11 +36,6 @@ INITIAL_VALSET=(
   "gnocore-val-02 1 g18k5nz67cg03lrdkwnf9qmdfzf0ptaq7lxefe4y gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0mxx3hhmy5hsl9kv8ne2ch46l8uk3kpnwc8kr900066ejz3zlhqcj6wjna"
 )
 
-UNRESTRICTED_ADDRESSES=(
-  g148583t5x66zs6p90ehad6l4qefeyaf54s69wql
-  g1manfred47kzduec920z88wfr64ylksmdcedlf5
-)
-
 # ---- Internal (do not edit)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -358,17 +353,7 @@ for validator in "${INITIAL_VALSET[@]}"; do
   "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
 done
 
-# ---- 7. Add the required genesis parameters
-
-printf "\nAdding genesis parameters...\n\n"
-
-"$GNOGENESIS_BIN" params set auth.unrestricted_addrs "$(
-  IFS=,
-  echo "${UNRESTRICTED_ADDRESSES[*]}"
-)" --genesis-path "$WORK_DIR_GENESIS"
-"$GNOGENESIS_BIN" params set bank.restricted_denoms "ugnot" --genesis-path "$WORK_DIR_GENESIS"
-
-# ---- 8. Verify the generated genesis file
+# ---- 7. Verify the generated genesis file
 
 printf "\nVerifying generated genesis...\n\n"
 

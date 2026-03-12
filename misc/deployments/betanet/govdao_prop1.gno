@@ -9,15 +9,17 @@
 //  1. Add a temporary deployer as T1 member (100% supermajority).
 //  2. Create a proposal to register the initial validator set, vote YES,
 //     and execute it immediately.
-//  3. Add the real govDAO T1 members directly to the memberstore.
-//  4. Remove the temporary deployer from the memberstore.
-//  5. Lock down memberstore access by setting AllowedDAOs.
+//  3. Set chain params (unrestricted addrs, restricted denoms) via proposals.
+//  4. Add the real govDAO T1 members directly to the memberstore.
+//  5. Remove the temporary deployer from the memberstore.
+//  6. Lock down memberstore access by setting AllowedDAOs.
 package main
 
 import (
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/sys/params"
 	valr "gno.land/r/sys/validators/v2"
 )
 
@@ -60,7 +62,22 @@ func main() {
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
 	dao.ExecuteProposal(cross, pid)
 
-	// ---- 3. Add govDAO T1 members ----
+	// ---- 3. Set chain parameters via governance proposals ----
+
+	// Unrestricted addresses (can transfer ugnot even when bank is locked).
+	pid = dao.MustCreateProposal(cross, params.ProposeAddUnrestrictedAcctsRequest(
+		address("g148583t5x66zs6p90ehad6l4qefeyaf54s69wql"),
+		address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"),
+	))
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross, pid)
+
+	// Lock ugnot transfers (restricted denom).
+	pid = dao.MustCreateProposal(cross, params.ProposeLockTransferRequest())
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross, pid)
+
+	// ---- 4. Add govDAO T1 members ----
 	must(ms.SetMember(memberstore.T1, address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"), &memberstore.Member{InvitationPoints: 3})) // Jae
 	must(ms.SetMember(memberstore.T1, address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), &memberstore.Member{InvitationPoints: 3})) // moul
 	must(ms.SetMember(memberstore.T1, address("g1m0rgan0rla00ygmdmp55f5m0unvsvknluyg2a4"), &memberstore.Member{InvitationPoints: 3})) // Morgan
@@ -69,10 +86,10 @@ func main() {
 	must(ms.SetMember(memberstore.T1, address("g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq"), &memberstore.Member{InvitationPoints: 3})) // Maxwell
 	must(ms.SetMember(memberstore.T1, address("g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2"), &memberstore.Member{InvitationPoints: 3})) // Milos
 
-	// ---- 4. Remove the genesis deployer ----
+	// ---- 5. Remove the genesis deployer ----
 	ms.RemoveMember(genesisDeployerAddr)
 
-	// ---- 5. Lock down memberstore access ----
+	// ---- 6. Lock down memberstore access ----
 	// From this point on, only gno.land/r/gov/dao/v3/impl can call
 	// memberstore.Get() — matching the production AllowedDAOs configuration.
 	dao.UpdateImpl(cross, dao.UpdateRequest{
