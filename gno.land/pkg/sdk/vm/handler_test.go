@@ -353,6 +353,145 @@ func TestVmHandlerQuery_File(t *testing.T) {
 	}
 }
 
+func TestVmHandlerQuery_EvalJSON(t *testing.T) {
+	tt := []struct {
+		input              []byte
+		expectedContains   []string
+		expectedErrorMatch string
+	}{
+		{
+			input:            []byte(`gno.land/r/hello.Echo("hello")`),
+			expectedContains: []string{`"results":[`, `echo:hello`},
+		},
+		{
+			input:            []byte(`gno.land/r/hello.GetCounter()`),
+			expectedContains: []string{`"results":[`, `PrimitiveType`},
+		},
+		{
+			input:            []byte(`gno.land/r/hello.myStructInst`),
+			expectedContains: []string{`RefValue`, `ObjectID`},
+		},
+		{
+			input:              []byte(`gno.land/r/doesnotexist.Foo`),
+			expectedErrorMatch: `invalid package path`,
+		},
+		{
+			input:              []byte(`gno.land/r/hello.doesnotexist`),
+			expectedErrorMatch: `doesnotexist not declared`,
+		},
+	}
+
+	for _, tc := range tt {
+		name := string(tc.input)
+		t.Run(name, func(t *testing.T) {
+			env := setupTestEnv()
+			ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+			vmHandler := env.vmh
+
+			addr := crypto.AddressFromPreimage([]byte("addr1"))
+			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			env.acck.SetAccount(ctx, acc)
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+
+			const pkgpath = "gno.land/r/hello"
+			files := []*std.MemFile{
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgpath)},
+				{Name: "hello.gno", Body: `
+package hello
+
+type myStruct struct{a int}
+var myStructInst = myStruct{a: 1000}
+func (ms myStruct) Foo() string { return "myStruct.Foo" }
+var counter int = 42
+func Echo(msg string) string { return "echo:"+msg }
+func GetCounter() int { return counter }
+`},
+			}
+			msg1 := NewMsgAddPackage(addr, pkgpath, files)
+			err := env.vmk.AddPackage(ctx, msg1)
+			assert.NoError(t, err)
+			env.vmk.CommitGnoTransactionStore(ctx)
+
+			req := abci.RequestQuery{
+				Path: "vm/qeval_json",
+				Data: tc.input,
+			}
+
+			res := vmHandler.Query(env.ctx, req)
+			if tc.expectedErrorMatch == "" {
+				assert.True(t, res.IsOK(), "should not have error")
+				for _, s := range tc.expectedContains {
+					assert.Contains(t, string(res.Data), s)
+				}
+			} else {
+				assert.False(t, res.IsOK(), "should have an error")
+				assert.Regexp(t, tc.expectedErrorMatch, res.Error.Error())
+			}
+		})
+	}
+}
+
+func TestVmHandlerQuery_ObjectJSON(t *testing.T) {
+	tt := []struct {
+		input              []byte
+		expectedErrorMatch string
+	}{
+		{
+			input:              []byte(`invalid`),
+			expectedErrorMatch: `invalid expression`,
+		},
+		{
+			input:              []byte(`0000000000000000000000000000000000000000:999`),
+			expectedErrorMatch: `object not found`,
+		},
+	}
+
+	for _, tc := range tt {
+		name := string(tc.input)
+		t.Run(name, func(t *testing.T) {
+			env := setupTestEnv()
+			vmHandler := env.vmh
+
+			req := abci.RequestQuery{
+				Path: "vm/qobject_json",
+				Data: tc.input,
+			}
+
+			res := vmHandler.Query(env.ctx, req)
+			assert.False(t, res.IsOK(), "should have an error")
+			assert.Regexp(t, tc.expectedErrorMatch, res.Error.Error())
+		})
+	}
+}
+
+func TestVmHandlerQuery_ObjectBinary(t *testing.T) {
+	env := setupTestEnv()
+	vmHandler := env.vmh
+
+	req := abci.RequestQuery{
+		Path: "vm/qobject_binary",
+		Data: []byte(`invalid`),
+	}
+
+	res := vmHandler.Query(env.ctx, req)
+	assert.False(t, res.IsOK(), "should have an error")
+	assert.Regexp(t, `invalid expression`, res.Error.Error())
+}
+
+func TestVmHandlerQuery_UnknownEndpoint(t *testing.T) {
+	env := setupTestEnv()
+	vmHandler := env.vmh
+
+	req := abci.RequestQuery{
+		Path: "vm/qunknown",
+		Data: []byte(`test`),
+	}
+
+	res := vmHandler.Query(env.ctx, req)
+	assert.False(t, res.IsOK(), "should have an error")
+	assert.Contains(t, res.Error.Error(), "unknown request")
+}
+
 func TestVmHandlerQuery_Doc(t *testing.T) {
 	expected := &doc.JSONDocumentation{
 		PackagePath: "gno.land/r/hello",
