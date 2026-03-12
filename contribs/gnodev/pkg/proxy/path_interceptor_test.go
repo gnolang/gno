@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -249,4 +250,90 @@ func Render(_ string) string { return foo.Render("bar") }`,
 		default:
 		}
 	})
+}
+
+// TestProxyQuerySurvivesNodeRestart reproduces the lazy loading bug:
+// when a PathHandler triggers a node reload (stop old node + start new node),
+// the query that triggered it must still get a valid response.
+// With the old TCP proxy, the persistent outConn died during reload
+// and the response was lost.
+func TestProxyRestart(t *testing.T) {
+	const targetPath = "gno.land/r/target/foo"
+
+	pkg := std.MemPackage{
+		Name: "foo",
+		Path: targetPath,
+		Files: []*std.MemFile{
+			{
+				Name: "foo.gno",
+				Body: `package foo
+
+func Render(_ string) string { return "foo" }
+`,
+			},
+		},
+	}
+	pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
+	pkg.Sort()
+
+	rootdir := gnoenv.RootDir()
+	cfg := integration.TestingMinimalNodeConfig(rootdir)
+	logger := log.NewTestingLogger(t)
+
+	tmp := t.TempDir()
+	sock := filepath.Join(tmp, "node.sock")
+	addr, err := net.ResolveUnixAddr("unix", sock)
+	require.NoError(t, err)
+
+	// Create proxy
+	interceptor, err := proxy.NewPathInterceptor(logger, addr)
+	require.NoError(t, err)
+	defer interceptor.Close()
+	cfg.TMConfig.RPC.ListenAddress = interceptor.ProxyAddress()
+	cfg.SkipGenesisSigVerification = true
+
+	// Setup genesis
+	privKey := secp256k1.GenPrivKey()
+	cfg.Genesis.AppState = integration.GenerateTestingGenesisState(privKey, pkg)
+
+	// Start the initial node
+	node, _ := integration.TestingInMemoryNode(t, logger, cfg)
+
+	// Register a handler that restarts the node (simulating devNode.Reload)
+	restarted := make(chan struct{}, 1)
+	interceptor.HandlePath(func(paths ...string) {
+		// Stop the current node — this kills the RPC server
+		require.NoError(t, node.Stop())
+
+		// Start a fresh node on the same address (same cfg)
+		newNode, err := gnoland.NewInMemoryNode(logger, cfg)
+		require.NoError(t, err)
+		require.NoError(t, newNode.Start())
+		select {
+		case <-newNode.Ready():
+		case <-time.After(10 * time.Second):
+			t.Fatal("node didn't become ready after restart")
+		}
+		node = newNode
+		t.Cleanup(func() { newNode.Stop() })
+
+		restarted <- struct{}{}
+	})
+
+	cli, err := client.NewHTTPClient(interceptor.TargetAddress())
+	require.NoError(t, err)
+
+	// This query triggers the handler which restarts the node mid-request.
+	// With the HTTP reverse proxy, the forward happens AFTER the restart,
+	// so it connects to the new node and succeeds.
+	res, err := cli.ABCIQuery(context.Background(), "vm/qrender", []byte(targetPath+":\n"))
+	require.NoError(t, err, "query must succeed even after node restart")
+	assert.Nil(t, res.Response.Error)
+
+	select {
+	case <-restarted:
+		// Good — handler restarted the node before the query was forwarded
+	default:
+		t.Fatal("handler was not called")
+	}
 }
