@@ -413,13 +413,13 @@ run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --gene
 
 # ---- 6. Add the initial validator set to the genesis file
 
-printf "\n=== Step 6/7: Adding validators ===\n"
+#printf "\n=== Step 6/7: Adding validators ===\n"
 
-for validator in "${INITIAL_VALSET[@]}"; do
-  read -r name power address pub_key <<<"$validator"
-  printf "  %s (power=%s, %s)\n" "$name" "$power" "$address"
-  run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
-done
+#for validator in "${INITIAL_VALSET[@]}"; do
+#  read -r name power address pub_key <<<"$validator"
+#  printf "  %s (power=%s, %s)\n" "$name" "$power" "$address"
+#  run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
+#done
 
 # ---- 7. Verify the generated genesis file
 
