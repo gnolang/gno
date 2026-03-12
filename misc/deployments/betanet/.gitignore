@@ -1,5 +1,2 @@
 genesis-work/
-
-# Uncomment before merging to avoid large files in the repo:
-# genesis.json
-# genesis_txs.jsonl
+genesis.json

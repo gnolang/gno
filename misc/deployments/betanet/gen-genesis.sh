@@ -27,13 +27,18 @@ run() {
   "$@"
 }
 
+# Clean up background node on exit.
+NODE_PID=""
+cleanup() { [ -n "$NODE_PID" ] && kill "$NODE_PID" 2>/dev/null || true; }
+trap cleanup EXIT
+
 # ---- Config
 
 CHAIN_ID=gnoland1
 GENESIS_TIME=1770883200 # Thursday, February 12th 2026 09:00 GMT+0100 (Central European Standard Time)
 DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
 BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/9dec38a4a72c9e84db7e78ae010370de250f2d64/mkgenesis/balances.txt.gz"
-GENESIS_FILE=./genesis.json
+GENESIS_FILE=genesis.json  # set to absolute path below, after SCRIPT_DIR
 
 FILTERED_PACKAGES=(
   ./gno.land/r/sys/...
@@ -54,6 +59,7 @@ INITIAL_VALSET=(
 # ---- Internal (do not edit)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GENESIS_FILE="$SCRIPT_DIR/$GENESIS_FILE"
 WORK_DIR="$SCRIPT_DIR/genesis-work"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 EXAMPLES_DIR="$REPO_ROOT/examples"
@@ -214,6 +220,10 @@ BALANCES_TMP_GENESIS="$BALANCES_TMP_DIR/genesis.json"
 BALANCES_TMP_CREATOR_ADDRESSES="$BALANCES_TMP_DIR/gen-creators.txt"
 INITIAL_BALANCE=1000000000000000
 NODE_TIMEOUT=120
+# Pick a free port for the temporary node (avoid collisions with running nodes).
+NODE_RPC_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')
+NODE_P2P_PORT=$((NODE_RPC_PORT + 1))
+NODE_RPC_ADDR="127.0.0.1:$NODE_RPC_PORT"
 
 rm -rf "$BALANCES_TMP_DIR"
 mkdir -p "$BALANCES_TMP_DIR"
@@ -236,6 +246,8 @@ run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)"
 run "$GNOGENESIS_BIN" txs add sheets "$WORK_DIR_GENESIS_TXS" -genesis-path "$BALANCES_TMP_GENESIS"
 run "$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS"
 run "$GNOLAND_BIN" config init -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
+run "$GNOLAND_BIN" config set rpc.laddr "tcp://$NODE_RPC_ADDR" -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
+run "$GNOLAND_BIN" config set p2p.laddr "tcp://127.0.0.1:$NODE_P2P_PORT" -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
 run "$GNOLAND_BIN" secrets init -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets"
 run "$GNOGENESIS_BIN" validator add \
   --address "$("$GNOLAND_BIN" secrets get validator_key.address --raw -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets")" \
@@ -256,7 +268,7 @@ while [ "$elapsed" -lt "$NODE_TIMEOUT" ]; do
     tail -20 "$BALANCES_TMP_GNOLAND_LOG"
     exit 1
   fi
-  if grep -q "This node is a validator" "$BALANCES_TMP_GNOLAND_LOG" 2>/dev/null; then
+  if curl -sf "http://$NODE_RPC_ADDR/status" >/dev/null 2>&1; then
     node_started=true
     break
   fi
@@ -283,7 +295,7 @@ while IFS= read -r addr; do
       tail -20 "$BALANCES_TMP_GNOLAND_LOG"
       exit 1
     fi
-    query_output=$("$GNOKEY_BIN" query "bank/balances/$addr" 2>&1 || true)
+    query_output=$("$GNOKEY_BIN" query -remote "$NODE_RPC_ADDR" "bank/balances/$addr" 2>&1 || true)
     if echo "$query_output" | grep -q '^data:'; then
       remaining=$(echo "$query_output" | sed -n 's/.*"\([0-9]*\)ugnot".*/\1/p' | head -1)
       # Empty data field means 0 balance
@@ -306,14 +318,22 @@ done <"$BALANCES_TMP_CREATOR_ADDRESSES"
 
 kill "$NODE_PID" 2>/dev/null || true
 wait "$NODE_PID" 2>/dev/null || true
+NODE_PID=""
 
 printf "  Setting up temporary node (run 2: verify)...\n"
 rm -rf "$BALANCES_TMP_GNOLAND_DATA" "$BALANCES_TMP_GENESIS"
+
+# Pick fresh ports for run 2 (previous ports may be in TIME_WAIT).
+NODE_RPC_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')
+NODE_P2P_PORT=$((NODE_RPC_PORT + 1))
+NODE_RPC_ADDR="127.0.0.1:$NODE_RPC_PORT"
 
 run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)" -output-path "$BALANCES_TMP_GENESIS"
 run "$GNOGENESIS_BIN" txs add sheets "$WORK_DIR_GENESIS_TXS" -genesis-path "$BALANCES_TMP_GENESIS"
 run "$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS"
 run "$GNOLAND_BIN" config init -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
+run "$GNOLAND_BIN" config set rpc.laddr "tcp://$NODE_RPC_ADDR" -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
+run "$GNOLAND_BIN" config set p2p.laddr "tcp://127.0.0.1:$NODE_P2P_PORT" -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
 run "$GNOLAND_BIN" secrets init -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets"
 run "$GNOGENESIS_BIN" validator add \
   --address "$("$GNOLAND_BIN" secrets get validator_key.address --raw -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets")" \
@@ -334,7 +354,7 @@ while [ "$elapsed" -lt "$NODE_TIMEOUT" ]; do
     tail -20 "$BALANCES_TMP_GNOLAND_LOG"
     exit 1
   fi
-  if grep -q "This node is a validator" "$BALANCES_TMP_GNOLAND_LOG" 2>/dev/null; then
+  if curl -sf "http://$NODE_RPC_ADDR/status" >/dev/null 2>&1; then
     node_started=true
     break
   fi
@@ -361,7 +381,7 @@ while IFS= read -r addr; do
       tail -20 "$BALANCES_TMP_GNOLAND_LOG"
       exit 1
     fi
-    query_output=$("$GNOKEY_BIN" query "bank/balances/$addr" 2>&1 || true)
+    query_output=$("$GNOKEY_BIN" query -remote "$NODE_RPC_ADDR" "bank/balances/$addr" 2>&1 || true)
     if echo "$query_output" | grep -q '^data:'; then
       remaining=$(echo "$query_output" | sed -n 's/.*"\([0-9]*\)ugnot".*/\1/p' | head -1)
       # Empty data field means 0 balance
@@ -387,6 +407,7 @@ done <"$BALANCES_TMP_CREATOR_ADDRESSES"
 
 kill "$NODE_PID" 2>/dev/null || true
 wait "$NODE_PID" 2>/dev/null || true
+NODE_PID=""
 
 if [ "$all_zero" = true ]; then
   printf "  All balances zero — deployer costs verified\n"
@@ -435,8 +456,12 @@ cp "$WORK_DIR_GENESIS" "$GENESIS_FILE"
 cp "$WORK_DIR/packages.gen.txt" "$SCRIPT_DIR/packages.gen.txt"
 cp "$WORK_DIR_GENESIS_TXS" "$SCRIPT_DIR/genesis_txs.jsonl"
 
+# Generate a redacted genesis (no airdrop balances) for version control.
+jq '.app_state.balances = (.app_state.balances[:10])' "$GENESIS_FILE" >"$SCRIPT_DIR/genesis-redacted.json"
+
 printf "\n=== Done ===\n"
 printf "  sha256: %s\n" "$(shasum -a 256 "$GENESIS_FILE" | awk '{print $1}')"
-printf "  -> genesis.json\n"
+printf "  -> genesis.json (gitignored, %s)\n" "$(du -h "$GENESIS_FILE" | cut -f1)"
+printf "  -> genesis-redacted.json (%s)\n" "$(du -h "$SCRIPT_DIR/genesis-redacted.json" | cut -f1)"
 printf "  -> packages.gen.txt\n"
 printf "  -> genesis_txs.jsonl\n"
