@@ -618,8 +618,6 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 				continue // FuncDecls need no runtime init (no-op)
 			}
 			unresolved := findUnresolvedDeps(decl, pn, fdeclared)
-			// unresolved is in map-order (random); any usage of deps
-			// should work independently of the order of the values
 			pending = append(pending, pendingInitDecl{fn, decl, unresolved})
 		}
 	}
@@ -660,14 +658,6 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		declNames := pd.decl.GetDeclNames()
 		for _, n := range declNames {
 			fdeclared[n] = struct{}{}
-		}
-		// Update remaining pending entries: remove newly declared names
-		// from their effective deps so the next iteration sees them as
-		// satisfied.
-		for i := range pending {
-			pending[i].deps = slices.DeleteFunc(pending[i].deps, func(n Decl) bool {
-				return n == pd.decl
-			})
 		}
 	}
 

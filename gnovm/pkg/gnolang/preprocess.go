@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"math/big"
 	"reflect"
@@ -1352,9 +1353,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					// Special handling of packages
 					nt := evalStaticTypeOf(store, last, n)
-					if k := nt.Kind(); k != TypeKind && k != PackageKind {
-						globalUse(n.Path)
-					}
 					if nt == nil {
 						// this is fine, e.g. for TRANS_ASSIGN_LHS (define) etc.
 					} else if nt.Kind() == PackageKind {
@@ -1379,6 +1377,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						pref := RefValueFromPackage(pv)
 						n.SetAttribute(ATTR_PACKAGE_REF, pref)
 						n.SetAttribute(ATTR_PACKAGE_PATH, pv.PkgPath)
+					} else if nt.Kind() != TypeKind {
+						globalUse(n.Path)
 					}
 				}
 
@@ -5509,7 +5509,12 @@ func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{})
 		}
 		onStack[d] = true
 		m, _ := d.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
-		for name := range m {
+		// Sort dependency names for deterministic DFS traversal order.
+		// Without sorting, Go map iteration is non-deterministic, which makes
+		// the cycle error message vary across runs.
+		names := slices.Collect(maps.Keys(m))
+		slices.Sort(names)
+		for _, name := range names {
 			dep := resolveDeclDep(name, pn)
 			switch dep := dep.(type) {
 			case *FuncDecl:
@@ -5520,16 +5525,18 @@ func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{})
 				}
 			case *ValueDecl:
 				if onStack[dep] {
-					// Build the cycle chain: path already holds the names leading
-					// to d; appending name closes the loop back to dep.
+					// Prefix with the root decl's source position so the error
+					// is easy to locate, then list the simple name chain.
 					bld := strings.Builder{}
-					bld.WriteString("circular dependency: ")
-					for i, n := range path {
-						if i > 0 {
-							bld.WriteString(" -> ")
-						}
-						bld.WriteString(string(n))
+					if fn, _, ok := pn.FileSet.GetDeclForSafe(path[0]); ok {
+						fmt.Fprintf(&bld, "%s/%s:%s: ", pn.PkgPath, fn.FileName, decl.GetSpan().Pos.String())
 					}
+					bld.WriteString("circular dependency: ")
+					for _, n := range path {
+						bld.WriteString(string(n))
+						bld.WriteString(" -> ")
+					}
+					bld.WriteString(string(name))
 					panic(bld.String())
 				}
 				dv := Decl(dep)
