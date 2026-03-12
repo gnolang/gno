@@ -5,12 +5,22 @@ set -e
 # ---- Flags
 
 STOP_AFTER_TXS_EXPORT=false
+DEBUG=false
 for arg in "$@"; do
   case "$arg" in
     --txs-only) STOP_AFTER_TXS_EXPORT=true ;;
+    --debug) DEBUG=true ;;
     *) echo "Unknown argument: $arg"; exit 1 ;;
   esac
 done
+
+# run executes a command, printing it first when --debug is set.
+run() {
+  if [ "$DEBUG" = true ]; then
+    printf "    \033[2m\$ %s\033[0m\n" "$*" >&2
+  fi
+  "$@"
+}
 
 # ---- Config
 
@@ -61,19 +71,19 @@ printf "\n=== Step 1/7: Building binaries ===\n"
 mkdir -p "$WORK_DIR_BIN"
 
 printf "  gno...        "
-go build -C "$GNO_CMD" -o "$GNO_BIN" .
+run go build -C "$GNO_CMD" -o "$GNO_BIN" .
 printf "ok\n"
 
 printf "  gnokey...     "
-go build -C "$GNOKEY_CMD" -o "$GNOKEY_BIN" .
+run go build -C "$GNOKEY_CMD" -o "$GNOKEY_BIN" .
 printf "ok\n"
 
 printf "  gnoland...    "
-go build -C "$GNOLAND_CMD" -o "$GNOLAND_BIN" .
+run go build -C "$GNOLAND_CMD" -o "$GNOLAND_BIN" .
 printf "ok\n"
 
 printf "  gnogenesis... "
-go build -C "$GNOGENESIS_CMD" -o "$GNOGENESIS_BIN" .
+run go build -C "$GNOGENESIS_CMD" -o "$GNOGENESIS_BIN" .
 printf "ok\n"
 
 # ---- 2. Generate filtered examples genesis txs.
@@ -81,7 +91,7 @@ printf "ok\n"
 printf "\n=== Step 2/7: Generating addpkg txs ===\n"
 
 printf "  Resolving dependencies...\n"
-pkg_dirs=$(cd "$EXAMPLES_DIR" && "$GNO_BIN" tool deplist "${FILTERED_PACKAGES[@]}")
+pkg_dirs=$(cd "$EXAMPLES_DIR" && run "$GNO_BIN" tool deplist "${FILTERED_PACKAGES[@]}")
 pkg_count=$(echo "$pkg_dirs" | wc -l | tr -d ' ')
 printf "  Resolved %s packages in topological order\n" "$pkg_count"
 
@@ -112,16 +122,16 @@ printf "  Creating deployer key...\n"
 WORK_DIR_GNOKEY_HOME="$WORK_DIR/gnokey-home"
 WORK_DIR_GENESIS="$WORK_DIR/genesis.json"
 WORK_DIR_GENESIS_TXS="$WORK_DIR/genesis_txs.jsonl"
-printf '%s\n\n' "$DEPLOYER_MNEMONIC" | "$GNOKEY_BIN" add --recover GenesisDeployer --home "$WORK_DIR_GNOKEY_HOME" --insecure-password-stdin 2>&1 | sed 's/^/    /'
+printf '%s\n\n' "$DEPLOYER_MNEMONIC" | run "$GNOKEY_BIN" add --recover GenesisDeployer --home "$WORK_DIR_GNOKEY_HOME" --insecure-password-stdin 2>&1 | sed 's/^/    /'
 
 printf "  Generating empty genesis...\n"
-"$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$GENESIS_TIME" --output-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
+run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$GENESIS_TIME" --output-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
 
 printf "  Adding %s packages to genesis...\n" "$pkg_count"
-echo "" | "$GNOGENESIS_BIN" txs add packages "$WORK_DIR_EXAMPLES" -gno-home "$WORK_DIR_GNOKEY_HOME" -key-name GenesisDeployer --genesis-path "$WORK_DIR_GENESIS" --insecure-password-stdin 2>&1 | sed 's/^/    /'
+echo "" | run "$GNOGENESIS_BIN" txs add packages "$WORK_DIR_EXAMPLES" -gno-home "$WORK_DIR_GNOKEY_HOME" -key-name GenesisDeployer --genesis-path "$WORK_DIR_GENESIS" --insecure-password-stdin 2>&1 | sed 's/^/    /'
 
 printf "  Exporting txs...\n"
-"$GNOGENESIS_BIN" txs export "$WORK_DIR_GENESIS_TXS" --genesis-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
+run "$GNOGENESIS_BIN" txs export "$WORK_DIR_GENESIS_TXS" --genesis-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
 
 # ---- 3. Generate setup transaction (validators, members, deployer cleanup)
 
@@ -131,7 +141,7 @@ SETUP_FILE="$SCRIPT_DIR/govdao_prop1.gno"
 
 printf "  Generating MsgRun tx from %s...\n" "$(basename "$SETUP_FILE")"
 SETUP_TX_FILE="$WORK_DIR/genesis_setup_tx.jsonl"
-"$GNOKEY_BIN" maketx run \
+run "$GNOKEY_BIN" maketx run \
     --gas-wanted 100000000 \
     --gas-fee 1ugnot \
     --chainid "$CHAIN_ID" \
@@ -140,7 +150,7 @@ SETUP_TX_FILE="$WORK_DIR/genesis_setup_tx.jsonl"
     "$SETUP_FILE" | jq -c '{tx: .}' > "$SETUP_TX_FILE"
 
 printf "  Adding setup tx to genesis...\n"
-"$GNOGENESIS_BIN" txs add sheets "$SETUP_TX_FILE" --genesis-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
+run "$GNOGENESIS_BIN" txs add sheets "$SETUP_TX_FILE" --genesis-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
 cat "$SETUP_TX_FILE" >> "$WORK_DIR_GENESIS_TXS"
 
 tx_count=$(wc -l < "$WORK_DIR_GENESIS_TXS" | tr -d ' ')
@@ -187,12 +197,12 @@ while IFS= read -r addr; do
 done <"$BALANCES_TMP_CREATOR_ADDRESSES"
 
 printf "  Setting up temporary node...\n"
-"$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)" -output-path "$BALANCES_TMP_GENESIS"
-"$GNOGENESIS_BIN" txs add sheets "$WORK_DIR_GENESIS_TXS" -genesis-path "$BALANCES_TMP_GENESIS"
-"$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS"
-"$GNOLAND_BIN" config init -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
-"$GNOLAND_BIN" secrets init -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets"
-"$GNOGENESIS_BIN" validator add \
+run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)" -output-path "$BALANCES_TMP_GENESIS"
+run "$GNOGENESIS_BIN" txs add sheets "$WORK_DIR_GENESIS_TXS" -genesis-path "$BALANCES_TMP_GENESIS"
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS"
+run "$GNOLAND_BIN" config init -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
+run "$GNOLAND_BIN" secrets init -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets"
+run "$GNOGENESIS_BIN" validator add \
   --address "$("$GNOLAND_BIN" secrets get validator_key.address --raw -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets")" \
   --pub-key "$("$GNOLAND_BIN" secrets get validator_key.pub_key --raw -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets")" \
   --name balance_generator \
@@ -200,7 +210,7 @@ printf "  Setting up temporary node...\n"
   -genesis-path "$BALANCES_TMP_GENESIS"
 
 printf "  Starting node (run 1: measure gas costs)...\n"
-"$GNOLAND_BIN" start --skip-genesis-sig-verification -data-dir "$BALANCES_TMP_GNOLAND_DATA" -genesis "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GNOLAND_LOG" 2>&1 &
+run "$GNOLAND_BIN" start --skip-genesis-sig-verification -data-dir "$BALANCES_TMP_GNOLAND_DATA" -genesis "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GNOLAND_LOG" 2>&1 &
 NODE_PID=$!
 
 elapsed=0
@@ -238,7 +248,7 @@ while IFS= read -r addr; do
       tail -20 "$BALANCES_TMP_GNOLAND_LOG"
       exit 1
     fi
-    query_output=$($GNOKEY_BIN query "bank/balances/$addr" 2>&1 || true)
+    query_output=$(run $GNOKEY_BIN query "bank/balances/$addr" 2>&1 || true)
     if echo "$query_output" | grep -q '^data:'; then
       remaining=$(echo "$query_output" | sed -n 's/.*"\([0-9]*\)ugnot".*/\1/p' | head -1)
       # Empty data field means 0 balance
@@ -265,12 +275,12 @@ wait "$NODE_PID" 2>/dev/null || true
 printf "  Setting up temporary node (run 2: verify)...\n"
 rm -rf "$BALANCES_TMP_GNOLAND_DATA" "$BALANCES_TMP_GENESIS"
 
-"$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)" -output-path "$BALANCES_TMP_GENESIS"
-"$GNOGENESIS_BIN" txs add sheets "$WORK_DIR_GENESIS_TXS" -genesis-path "$BALANCES_TMP_GENESIS"
-"$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS"
-"$GNOLAND_BIN" config init -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
-"$GNOLAND_BIN" secrets init -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets"
-"$GNOGENESIS_BIN" validator add \
+run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)" -output-path "$BALANCES_TMP_GENESIS"
+run "$GNOGENESIS_BIN" txs add sheets "$WORK_DIR_GENESIS_TXS" -genesis-path "$BALANCES_TMP_GENESIS"
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS"
+run "$GNOLAND_BIN" config init -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
+run "$GNOLAND_BIN" secrets init -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets"
+run "$GNOGENESIS_BIN" validator add \
   --address "$("$GNOLAND_BIN" secrets get validator_key.address --raw -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets")" \
   --pub-key "$("$GNOLAND_BIN" secrets get validator_key.pub_key --raw -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets")" \
   --name balance_generator \
@@ -278,7 +288,7 @@ rm -rf "$BALANCES_TMP_GNOLAND_DATA" "$BALANCES_TMP_GENESIS"
   -genesis-path "$BALANCES_TMP_GENESIS"
 
 printf "  Starting node (run 2: verify zero balances)...\n"
-"$GNOLAND_BIN" start --skip-genesis-sig-verification -data-dir "$BALANCES_TMP_GNOLAND_DATA" -genesis "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GNOLAND_LOG" 2>&1 &
+run "$GNOLAND_BIN" start --skip-genesis-sig-verification -data-dir "$BALANCES_TMP_GNOLAND_DATA" -genesis "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GNOLAND_LOG" 2>&1 &
 NODE_PID=$!
 
 elapsed=0
@@ -316,7 +326,7 @@ while IFS= read -r addr; do
       tail -20 "$BALANCES_TMP_GNOLAND_LOG"
       exit 1
     fi
-    query_output=$($GNOKEY_BIN query "bank/balances/$addr" 2>&1 || true)
+    query_output=$(run $GNOKEY_BIN query "bank/balances/$addr" 2>&1 || true)
     if echo "$query_output" | grep -q '^data:'; then
       remaining=$(echo "$query_output" | sed -n 's/.*"\([0-9]*\)ugnot".*/\1/p' | head -1)
       # Empty data field means 0 balance
@@ -352,7 +362,7 @@ else
 fi
 
 printf "  Adding deployer balances to genesis...\n"
-"$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_GENESIS_BALANCES" --genesis-path "$WORK_DIR_GENESIS"
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_GENESIS_BALANCES" --genesis-path "$WORK_DIR_GENESIS"
 
 # ---- 5. Download and add the airdrop balances
 
@@ -362,7 +372,7 @@ AIRDROP_BALANCES_GZ="$WORK_DIR/airdrop_balances.txt.gz"
 AIRDROP_BALANCES_TXT="$WORK_DIR/airdrop_balances.txt"
 
 printf "  Downloading...\n"
-curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
+run curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
 gzip -dc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
 
 # TODO: remove this two lines once independence-day airdrop balances file is fixed
@@ -371,7 +381,7 @@ mv /tmp/airdrop_addresses.txt "$AIRDROP_BALANCES_TXT"
 
 airdrop_count=$(wc -l < "$AIRDROP_BALANCES_TXT" | tr -d ' ')
 printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
-"$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS"
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS"
 
 # ---- 6. Add the initial validator set to the genesis file
 
@@ -380,14 +390,14 @@ printf "\n=== Step 6/7: Adding validators ===\n"
 for validator in "${INITIAL_VALSET[@]}"; do
   read -r name power address pub_key <<<"$validator"
   printf "  %s (power=%s, %s)\n" "$name" "$power" "$address"
-  "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
+  run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
 done
 
 # ---- 7. Verify the generated genesis file
 
 printf "\n=== Step 7/7: Verifying genesis ===\n"
 
-"$GNOGENESIS_BIN" verify -genesis-path "$WORK_DIR_GENESIS"
+run "$GNOGENESIS_BIN" verify -genesis-path "$WORK_DIR_GENESIS"
 printf "  Verification passed\n"
 
 cp "$WORK_DIR_GENESIS" "$GENESIS_FILE"
