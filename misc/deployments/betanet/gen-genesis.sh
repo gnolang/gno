@@ -7,7 +7,7 @@ set -e
 CHAIN_ID=betanet
 GENESIS_TIME=1770883200 # Thursday, February 12th 2026 09:00 GMT+0100 (Central European Standard Time)
 DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
-BALANCES_FILE=./genesis_balances.txt
+BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/6fa54377fd370801f023182ceacef50d70c3efee/consolidate/genbalance.txt.gz"
 GENESIS_FILE=./genesis.json
 WORK_DIR=./genesis-work
 
@@ -305,11 +305,21 @@ else
   exit 1
 fi
 
-# TODO: Append the user balances files to the deployer balance sheet
-
 "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_GENESIS_BALANCES" --genesis-path "$WORK_DIR_GENESIS"
 
-# ---- 5. Add the initial validator set to the genesis file
+# ---- 5. Download and add the airdrop balances
+
+echo "Downloading and adding airdrop balances..."
+
+AIRDROP_BALANCES_GZ="$WORK_DIR/airdrop_balances.txt.gz"
+AIRDROP_BALANCES_TXT="$WORK_DIR/airdrop_balances.txt"
+
+curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
+gzip -dc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
+
+"$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS"
+
+# ---- 6. Add the initial validator set to the genesis file
 
 echo "Adding initial validator set to genesis..."
 
@@ -318,7 +328,7 @@ for validator in "${VALIDATORS[@]}"; do
   "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
 done
 
-# ---- 6. Add the required genesis parameters
+# ---- 7. Add the required genesis parameters
 
 echo "Adding genesis parameters..."
 
@@ -328,7 +338,7 @@ echo "Adding genesis parameters..."
 )" --genesis-path "$WORK_DIR_GENESIS"
 "$GNOGENESIS_BIN" params set bank.restricted_denoms "ugnot" --genesis-path "$WORK_DIR_GENESIS"
 
-# ---- 7. Verify the generated genesis file
+# ---- 8. Verify the generated genesis file
 
 echo "Verifying generated genesis..."
 
