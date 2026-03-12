@@ -7,7 +7,7 @@ set -e
 CHAIN_ID=betanet
 GENESIS_TIME=1770883200 # Thursday, February 12th 2026 09:00 GMT+0100 (Central European Standard Time)
 DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
-BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/6fa54377fd370801f023182ceacef50d70c3efee/mkgenesis/balances.txt.gz"
+BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/9dec38a4a72c9e84db7e78ae010370de250f2d64/mkgenesis/balances.txt.gz"
 GENESIS_FILE=./genesis.json
 
 FILTERED_PACKAGES=(
@@ -377,10 +377,6 @@ AIRDROP_BALANCES_TXT="$WORK_DIR/airdrop_balances.txt"
 printf "  Downloading...\n"
 run curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
 gzip -dc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
-
-# TODO: remove this two lines once independence-day airdrop balances file is fixed
-rg '^[^=]{40}=' "$AIRDROP_BALANCES_TXT" | cut -d: -f1 >/tmp/airdrop_addresses.txt
-mv /tmp/airdrop_addresses.txt "$AIRDROP_BALANCES_TXT"
 
 airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
 printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
