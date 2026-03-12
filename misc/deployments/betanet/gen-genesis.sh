@@ -102,15 +102,6 @@ printf '%s\n\n' "$DEPLOYER_MNEMONIC" | "$GNOKEY_BIN" add --recover GenesisDeploy
 echo "" | "$GNOGENESIS_BIN" txs add packages "$WORK_DIR_EXAMPLES" -gno-home "$WORK_DIR_GNOKEY_HOME" -key-name GenesisDeployer --genesis-path "$WORK_DIR_GENESIS" --insecure-password-stdin
 "$GNOGENESIS_BIN" txs export "$WORK_DIR_GENESIS_TXS" --genesis-path "$WORK_DIR_GENESIS"
 
-if [ "$STOP_AFTER_TXS_EXPORT" = true ]; then
-  cp "$WORK_DIR/packages.gen.txt" "$SCRIPT_DIR/packages.gen.txt"
-  cp "$WORK_DIR_GENESIS_TXS" "$SCRIPT_DIR/genesis_txs.jsonl"
-  echo "Done (--txs-only):"
-  echo "  -> $SCRIPT_DIR/packages.gen.txt"
-  echo "  -> $SCRIPT_DIR/genesis_txs.jsonl"
-  exit 0
-fi
-
 # ---- 3. Generate setup transaction (validators, members, deployer cleanup)
 
 printf "\nGenerating genesis run tx for initial setup...\n\n"
@@ -124,7 +115,7 @@ SETUP_TX_FILE="$WORK_DIR/genesis_setup_tx.jsonl"
 "$GNOKEY_BIN" maketx run \
     --gas-wanted 100000000 \
     --gas-fee 1ugnot \
-    --chain-id "$CHAIN_ID" \
+    --chainid "$CHAIN_ID" \
     --home "$WORK_DIR_GNOKEY_HOME" \
     GenesisDeployer \
     "$SETUP_FILE" | jq -c '{tx: .}' > "$SETUP_TX_FILE"
@@ -132,6 +123,15 @@ SETUP_TX_FILE="$WORK_DIR/genesis_setup_tx.jsonl"
 # Add setup tx to genesis and to the exported tx sheet (for balance calculation).
 "$GNOGENESIS_BIN" txs add sheets "$SETUP_TX_FILE" --genesis-path "$WORK_DIR_GENESIS"
 cat "$SETUP_TX_FILE" >> "$WORK_DIR_GENESIS_TXS"
+
+if [ "$STOP_AFTER_TXS_EXPORT" = true ]; then
+  cp "$WORK_DIR/packages.gen.txt" "$SCRIPT_DIR/packages.gen.txt"
+  cp "$WORK_DIR_GENESIS_TXS" "$SCRIPT_DIR/genesis_txs.jsonl"
+  echo "Done (--txs-only):"
+  echo "  -> $SCRIPT_DIR/packages.gen.txt"
+  echo "  -> $SCRIPT_DIR/genesis_txs.jsonl"
+  exit 0
+fi
 
 # ---- 4. Calculate the deployers balances
 
