@@ -1,5 +1,5 @@
 // govdao_prop1.gno is executed via MsgRun during genesis to bootstrap the
-// betanet governance state.
+// gnoland1 governance state.
 //
 // At this point the loader has initialised the DAO and tier structure but
 // has NOT added any members and has NOT set AllowedDAOs (the empty-list
@@ -51,7 +51,7 @@ func main() {
 			}
 		},
 		"Add initial validator set",
-		"Bootstrap the betanet initial validator set",
+		"Bootstrap the gnoland1 initial validator set",
 	))
 
 	// ---- 3. Set chain parameters via governance proposals ----

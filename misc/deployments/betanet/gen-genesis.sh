@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate betanet genesis.json.
+# Generate gnoland1 genesis.json.
 set -e
 
 # ---- Flags
@@ -26,7 +26,7 @@ run() {
 
 # ---- Config
 
-CHAIN_ID=betanet
+CHAIN_ID=gnoland1
 GENESIS_TIME=1770883200 # Thursday, February 12th 2026 09:00 GMT+0100 (Central European Standard Time)
 DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
 BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/9dec38a4a72c9e84db7e78ae010370de250f2d64/mkgenesis/balances.txt.gz"
