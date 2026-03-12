@@ -5,7 +5,7 @@ import (
 	"chain/runtime"
 
 	"gno.land/p/moul/addrset"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 
 	"gno.land/r/gov/dao"
 )
