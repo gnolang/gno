@@ -606,7 +606,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	type pendingInitDecl struct {
 		fn   *FileNode
 		decl Decl
-		deps []Name // effective (variable/type) deps not yet satisfied
+		deps []Decl // effective (variable/type) deps not yet satisfied
 	}
 
 	// Build ordered pending list from all non-FuncDecl decls, preserving source
@@ -617,16 +617,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 			if _, ok := decl.(*FuncDecl); ok {
 				continue // FuncDecls need no runtime init (no-op)
 			}
-			deps := make(dependencySet)
-			findDependentNames(decl, deps, pn, fn, fdeclared)
-			unresolved := make([]Name, 0, len(deps))
-			for name, dv := range deps {
-				if dv == dependencyUnresolved {
-					unresolved = append(unresolved, name)
-				}
-			}
-			// free up remaining part of the slice for GC
-			unresolved = unresolved[:len(unresolved):len(unresolved)]
+			unresolved := findUnresolvedDeps(decl, pn, fdeclared)
 			// unresolved is in map-order (random); any usage of deps
 			// should work independently of the order of the values
 			pending = append(pending, pendingInitDecl{fn, decl, unresolved})
@@ -639,8 +630,11 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	for len(pending) > 0 {
 		pos := slices.IndexFunc(pending, func(pid pendingInitDecl) bool {
 			for _, dep := range pid.deps {
-				if _, ok := fdeclared[dep]; !ok {
-					return false
+				names := dep.(Decl).GetDeclNames()
+				for _, name := range names {
+					if _, ok := fdeclared[name]; !ok {
+						return false
+					}
 				}
 			}
 			return true
@@ -669,9 +663,8 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		// from their effective deps so the next iteration sees them as
 		// satisfied.
 		for i := range pending {
-			pending[i].deps = slices.DeleteFunc(pending[i].deps, func(n Name) bool {
-				_, ok := fdeclared[n]
-				return ok
+			pending[i].deps = slices.DeleteFunc(pending[i].deps, func(n Decl) bool {
+				return n == pd.decl
 			})
 		}
 	}

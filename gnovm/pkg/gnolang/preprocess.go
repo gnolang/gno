@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"math/big"
 	"reflect"
@@ -1230,6 +1231,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						panic("cannot use _ as value or type")
 					}
 				}
+				globalUse := func(path ValuePath) {
+					bn := last.GetBlockNodeForPath(nil, path)
+					if bn == ctxpn {
+						addDependencyToTopDecl(ns, n.Name)
+					}
+				}
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -1245,6 +1252,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
+						globalUse(n.Path)
 						if last.GetIsConst(store, n.Name) {
 							cx := evalConst(store, last, n)
 							return cx, TRANS_CONTINUE
@@ -1303,6 +1311,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					case TRANS_ASSIGN_LHS:
 						as := ns[len(ns)-1].(*AssignStmt)
 						fillNameExprPath(last, n, as.Op == DEFINE)
+						if as.Op != DEFINE {
+							globalUse(n.Path)
+						}
 						return n, TRANS_CONTINUE
 					case TRANS_VAR_NAME:
 						fillNameExprPath(last, n, true)
@@ -1342,6 +1353,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					// Special handling of packages
 					nt := evalStaticTypeOf(store, last, n)
+					if k := nt.Kind(); k != TypeKind && k != PackageKind {
+						globalUse(n.Path)
+					}
 					if nt == nil {
 						// this is fine, e.g. for TRANS_ASSIGN_LHS (define) etc.
 					} else if nt.Kind() == PackageKind {
@@ -2287,6 +2301,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// bound method or underlying.
 					// TODO check for unexported fields.
 					n.Path = tr[len(tr)-1]
+					if rcvr != nil {
+						destarRcvr := rcvr
+						if pt, ok := destarRcvr.(*PointerType); ok {
+							destarRcvr = pt.Elt
+						}
+						dt := destarRcvr.(*DeclaredType)
+						if dt.PkgPath == ctxpn.PkgPath {
+							addDependencyToTopDecl(ns, dt.Name+"."+n.Sel)
+						}
+					}
 					// n.Path = cxt.GetPathForName(n.Sel)
 				case *PackageType:
 					var pv *PackageValue
@@ -5435,226 +5459,86 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 	}
 }
 
-type dependencySet map[Name]dependencyValue
-
-type dependencyValue uint8
-
-const (
-	// Zero value for what isn't in the set of dependencies.
-	// Used to avoid distinguishing between '0' and key not in map.
-	_ dependencyValue = iota
-	// Dependency isn't resolved to any declaration.
-	dependencyUnresolved
-	// Dependency is uverse, a declared function, a local package name or
-	// already in fdeclared.
-	dependencyResolved
-)
-
-// findDependentNames fills `dst` with the package-level dependencies of `n`.
-// Dependencies are categorized into [dependencyResolved], which marks
-// dependencies already in `fdeclared`, names of package imports, function
-// declarations or uverse names. Names marked with [dependencyUnresolved] are
-// instead for names which are yet to be associated with a
-// declaration/definition, and that should be processed before decl.
-//
-// Keeping the names which are marked as dependencyResolved in `dst` is done for
-// memoization, avoiding duplicate work on determining whether those names are
-// a real package-level dependency.
-func findDependentNames(decl Node, dst dependencySet, pn *PackageNode, fn *FileNode, fdeclared map[Name]struct{}) {
-	addName := func(n Node, name Name) {
-		if _, ok := dst[name]; ok {
+func addDependencyToTopDecl(ns []Node, name Name) {
+	for _, n := range ns {
+		switch val := n.(type) {
+		case *FuncDecl, *ValueDecl:
+			dd, _ := val.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
+			if dd == nil {
+				dd = make(map[Name]struct{})
+				val.SetAttribute(ATTR_DECL_DEPS, dd)
+			}
+			dd[name] = struct{}{}
 			return
-		}
-
-		if isUverseName(name) {
-			dst[name] = dependencyResolved
-			return
-		} else if _, ok := fdeclared[name]; ok {
-			dst[name] = dependencyResolved
-			return
-		} else if _, ok := fn.GetLocalIndex(name); ok {
-			dst[name] = dependencyResolved
-			return
-		}
-		subFn, subDecl, exists := pn.FileSet.GetDeclForSafe(name)
-		if !exists {
-			panic(fmt.Sprintf(
-				"%s/%s:%s: dependency %s not defined",
-				pn.PkgPath,
-				fn.FileName,
-				n.GetPos().String(),
-				name,
-			))
-		}
-		// If we found the name, but it is a func decl, then traverse into
-		// the function calling findDependentNames recursively.
-		if fd, ok := (*subDecl).(*FuncDecl); ok {
-			dst[name] = dependencyResolved
-			findDependentNames(fd, dst, pn, subFn, fdeclared)
-		} else {
-			dst[name] = dependencyUnresolved
 		}
 	}
-	queue := append(make([]Node, 0, 16), decl)
-	for len(queue) > 0 {
-		last := queue[len(queue)-1]
-		queue = queue[:len(queue)-1]
+}
 
-		switch cn := last.(type) {
-		case *NameExpr:
-			addName(cn, cn.Name)
-		case *BasicLitExpr:
-		case *BinaryExpr:
-			queue = append(queue, cn.Left, cn.Right)
-		case *SelectorExpr:
-			queue = append(queue, cn.X)
-			// For method calls, recurse into the method body to pick up
-			// transitive package-level variable dependencies — exactly as we do
-			// for top-level function calls via addName.
-			switch cn.Path.Type {
-			case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
-				var dt *DeclaredType
-				x := cn.X.GetAttribute(ATTR_TYPEOF_VALUE)
-				// A CallExpr stores its return type(s) as *tupleType; unwrap a
-				// single-element tuple to reach the actual receiver type.
-				// (e.g. var A = getT().Method() where getT returns T)
-				if tt, ok := x.(*tupleType); ok {
-					if len(tt.Elts) != 1 {
-						break // multi-return used as receiver is a compile error
+func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{}) []Decl {
+	stack := []Decl{decl}
+	traversed := map[Decl]bool{}
+	var ret []Decl
+	for pop := stack[0]; len(stack) > 0; pop, stack = stack[len(stack)-1], stack[:len(stack)-1] {
+		m, _ := pop.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
+		if m == nil {
+			continue
+		}
+		names := maps.Keys(m)
+		for name := range names {
+			var dep Decl
+			id, sel, isMethod := strings.Cut(string(name), ".")
+			if isMethod {
+				idx := slices.IndexFunc(pn.Types, func(t Type) bool {
+					// TODO: why does pn.Types contain non-declaredtypes?
+					dt, ok := t.(*DeclaredType)
+					if !ok {
+						return false
 					}
-					x = tt.Elts[0]
+					return dt.Name == Name(id)
+				})
+				if idx < 0 {
+					panic(fmt.Sprintf("type %s not found in package %s", id, pn.PkgName))
 				}
-				switch tp := x.(type) {
-				case *DeclaredType:
-					dt = tp
-				case *PointerType:
-					dt = tp.Elt.(*DeclaredType)
-				default:
-					break // unexpected type; skip analysis
+				dt := pn.Types[idx].(*DeclaredType)
+				idx = slices.IndexFunc(dt.Methods, func(m TypedValue) bool {
+					return m.V.(*FuncValue).Name == Name(sel)
+				})
+				if idx < 0 {
+					panic(fmt.Sprintf("method %s not found in type %s", sel, id))
 				}
-				if dt == nil || dt.PkgPath != pn.PkgPath {
-					// dt is nil (unexpected type) or from another package;
-					// cross-package methods cannot reference current-package
-					// variables, so they add no ordering constraints here.
-					break
+				dep = dt.Methods[idx].V.(*FuncValue).Source.(*FuncDecl)
+			} else {
+				li, found := pn.GetLocalIndex(name)
+				if !found {
+					panic(fmt.Sprintf("name %s not found in package %s", name, pn.PkgName))
 				}
-				method := dt.Methods[cn.Path.Index].V.(*FuncValue)
-				fd := method.Source.(*FuncDecl)
-				findDependentNames(fd, dst, pn, fd.Parent.(*FileNode), fdeclared)
+				dep = pn.NameSources[li].Origin.(Decl)
 			}
-		case *SliceExpr:
-			queue = append(queue, cn.X)
-			if cn.Low != nil {
-				queue = append(queue, cn.Low)
-			}
-			if cn.High != nil {
-				queue = append(queue, cn.High)
-			}
-			if cn.Max != nil {
-				queue = append(queue, cn.Max)
-			}
-		case *StarExpr:
-			queue = append(queue, cn.X)
-		case *RefExpr:
-			queue = append(queue, cn.X)
-		case *TypeAssertExpr:
-			queue = append(queue, cn.X, cn.Type)
-		case *UnaryExpr:
-			queue = append(queue, cn.X)
-		case *CompositeLitExpr:
-			queue = append(queue, cn.Type)
-			ct := getType(cn.Type)
-			switch ct.Kind() {
-			case ArrayKind, SliceKind, MapKind:
-				for _, kvx := range cn.Elts {
-					if kvx.Key != nil {
-						queue = append(queue, kvx.Key)
-					}
-					queue = append(queue, kvx.Value)
+			switch d := dep.(type) {
+			case *FuncDecl:
+				// Do not add to resulting ret stack; add to the local stack.
+				if !traversed[dep] {
+					stack = append(stack, d)
+					traversed[dep] = true
 				}
-			case StructKind:
-				for _, kvx := range cn.Elts {
-					queue = append(queue, kvx.Value)
+			case *ValueDecl:
+				if dep == decl {
+					// TODO: can this happen? can it happen here?
+					panic("circular dependency")
+				}
+				if !slices.Contains(ret, dep) {
+					ret = append(ret, dep)
+				}
+				if !traversed[dep] {
+					stack = append(stack, dep)
+					traversed[dep] = true
 				}
 			default:
-				panic(fmt.Sprintf(
-					"unexpected composite lit type %s",
-					ct.String()))
+				panic(fmt.Sprintf("unexpected gnolang.Decl: %#v", d))
 			}
-		case *FieldTypeExpr:
-			queue = append(queue, cn.Type)
-		case *ArrayTypeExpr:
-			queue = append(queue, cn.Elt)
-			if cn.Len != nil {
-				queue = append(queue, cn.Len)
-			}
-		case *SliceTypeExpr:
-			queue = append(queue, cn.Elt)
-		case *InterfaceTypeExpr:
-			for i := range cn.Methods {
-				queue = append(queue, &cn.Methods[i])
-			}
-		case *ChanTypeExpr:
-			queue = append(queue, cn.Value)
-		case *FuncTypeExpr:
-			for i := range cn.Params {
-				queue = append(queue, &cn.Params[i])
-			}
-			for i := range cn.Results {
-				queue = append(queue, &cn.Results[i])
-			}
-		case *MapTypeExpr:
-			queue = append(queue, cn.Key, cn.Value)
-		case *StructTypeExpr:
-			for i := range cn.Fields {
-				queue = append(queue, &cn.Fields[i])
-			}
-		case *CallExpr:
-			queue = append(queue, cn.Func)
-			for i := range cn.Args {
-				queue = append(queue, cn.Args[i])
-			}
-		case *IndexExpr:
-			queue = append(queue, cn.X, cn.Index)
-		case *FuncLitExpr:
-			queue = append(queue, &cn.Type)
-			for _, n := range cn.GetExternNames() {
-				addName(cn, n)
-			}
-		case *constTypeExpr:
-		case *ConstExpr:
-		case *ImportDecl:
-		case *ValueDecl:
-			if cn.Type != nil {
-				queue = append(queue, cn.Type)
-			}
-			for _, vx := range cn.Values {
-				queue = append(queue, vx)
-			}
-		case *TypeDecl:
-			queue = append(queue, cn.Type)
-		case *FuncDecl:
-			queue = append(queue, &cn.Type)
-			if cn.IsMethod {
-				queue = append(queue, &cn.Recv)
-				for _, n := range cn.GetExternNames() {
-					addName(cn, n)
-				}
-			} else {
-				for _, n := range cn.GetExternNames() {
-					if n == cn.Name {
-						// top-level function referring to itself
-					} else {
-						addName(cn, n)
-					}
-				}
-			}
-		default:
-			panic(fmt.Sprintf(
-				"unexpected node: %v (%v)",
-				decl, reflect.TypeOf(decl)))
 		}
 	}
+	return ret
 }
 
 // A name is locally defined on a block node

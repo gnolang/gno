@@ -1,5 +1,7 @@
 package main
 
+// Tests init order with multiple vars all depending on the same function,
+// which itself depends on a package-level var (transitive dep through function).
 // Vars without unsatisfied deps are initialized in declaration order.
 // Detailed order:
 //   - events: no deps, initialized first (zero value, no emit call).
