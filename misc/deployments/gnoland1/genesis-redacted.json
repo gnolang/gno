@@ -41,14 +41,14 @@
     "@type": "/gno.GenesisState",
     "balances": [
       "g1qqqqr2u6rfydqjkm56a7s54397vfp4kmvnuwev=21227098ugnot",
-      "g1qqqp39zy24fqcpsps20f9avfa7mln42nplxmql=1549955ugnot",
+      "g1qqqp39zy24fqcpsps20f9avfa7mln42nplxmql=1621289ugnot",
       "g1qqqpusmpej89a5rm4d6kc2l35u9r2ur0pa7adf=13ugnot",
-      "g1qqqpu6cr8965q9edhpp2t4n3j22vghnzmjxfgp=15279777ugnot",
+      "g1qqqpu6cr8965q9edhpp2t4n3j22vghnzmjxfgp=15848064ugnot",
       "g1qqqzhvucv6375szzc5mh7n0290fd4j38jsx8uk=12240ugnot",
       "g1qqqz7yq2aq4ua2fsv4u7vpz50u6cnq7xcvg852=3406ugnot",
-      "g1qqqyfe3l7xpxurw9e7lmplwj837uy5nul0rvsk=149338ugnot",
-      "g1qqqytevyr0gv3zsmfcrmdvwh5ha0zzexcps4py=2943432ugnot",
-      "g1qqq9txnw4c77sdvzx0tkedsafl5s3vk7jatf0t=59615300ugnot",
+      "g1qqqyfe3l7xpxurw9e7lmplwj837uy5nul0rvsk=154892ugnot",
+      "g1qqqytevyr0gv3zsmfcrmdvwh5ha0zzexcps4py=3052904ugnot",
+      "g1qqq9txnw4c77sdvzx0tkedsafl5s3vk7jatf0t=60005357ugnot",
       "g1qqq9vfsqnqz89d0fdjyn7y425hy5m823a7x9xj=39440296ugnot"
     ],
     "txs": [
