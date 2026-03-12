@@ -108,7 +108,11 @@ echo "" | "$GNOGENESIS_BIN" txs add packages "$WORK_DIR_EXAMPLES" -gno-home "$WO
 "$GNOGENESIS_BIN" txs export "$WORK_DIR_GENESIS_TXS" --genesis-path "$WORK_DIR_GENESIS"
 
 if [ "$STOP_AFTER_TXS_EXPORT" = true ]; then
-  echo "Done: $WORK_DIR_GENESIS_TXS (--txs-only flag set, stopping here)"
+  cp "$WORK_DIR/packages.gen.txt" "$SCRIPT_DIR/packages.gen.txt"
+  cp "$WORK_DIR_GENESIS_TXS" "$SCRIPT_DIR/genesis_txs.jsonl"
+  echo "Done (--txs-only):"
+  echo "  -> $SCRIPT_DIR/packages.gen.txt"
+  echo "  -> $SCRIPT_DIR/genesis_txs.jsonl"
   exit 0
 fi
 
@@ -371,4 +375,9 @@ printf "\nVerifying generated genesis...\n\n"
 "$GNOGENESIS_BIN" verify -genesis-path "$WORK_DIR_GENESIS"
 
 cp "$WORK_DIR_GENESIS" "$GENESIS_FILE"
+cp "$WORK_DIR/packages.gen.txt" "$SCRIPT_DIR/packages.gen.txt"
+cp "$WORK_DIR_GENESIS_TXS" "$SCRIPT_DIR/genesis_txs.jsonl"
+
 echo "Done: $GENESIS_FILE (sha256: $(shasum -a 256 "$GENESIS_FILE" | awk '{print $1}'))"
+echo "  -> $SCRIPT_DIR/packages.gen.txt"
+echo "  -> $SCRIPT_DIR/genesis_txs.jsonl"
