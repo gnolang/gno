@@ -2486,27 +2486,17 @@ main.dev-mode .b-toc a {
 /* ===== STATE EXPLORER ===== */
 .c-state-explorer {
 	padding: var(--g-spacing-200) 0;
+	grid-column: 1 / -1;
 }
 
 .c-state-explorer__header {
-	margin-block-end: var(--g-spacing-200);
-}
-
-.c-state-explorer__meta {
-	display: flex;
-	align-items: baseline;
-	gap: 1em;
-	margin-block-start: 0.25rem;
-}
-
-.c-state-explorer__pkg {
-	font-size: var(--g-font-size-100);
-	color: var(--s-color-text-secondary);
+	margin-block-end: var(--g-spacing-100);
 }
 
 .c-state-explorer__count {
 	font-size: var(--g-font-size-90);
 	color: var(--s-color-text-secondary);
+	white-space: nowrap;
 }
 
 .c-state-tree {
@@ -2519,6 +2509,7 @@ main.dev-mode .b-toc a {
 .c-state-row__line {
 	display: flex;
 	align-items: baseline;
+	flex-wrap: nowrap;
 	gap: 0 0.4em;
 	padding: 0.2rem 0;
 	border-radius: 3px;

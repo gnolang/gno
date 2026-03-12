@@ -3,11 +3,7 @@
   data-controller="state-explorer"
   data-state-explorer-pkg-path-value="{{ .PkgPath }}">
   <header class="c-state-explorer__header">
-    <h1 class="b-content-h1">State Explorer</h1>
-    <div class="c-state-explorer__meta">
-      <code class="c-state-explorer__pkg">{{ .PkgPath }}</code>
-      <span class="c-state-explorer__count" data-state-explorer-target="count"></span>
-    </div>
+    <span class="c-state-explorer__count" data-state-explorer-target="count"></span>
   </header>
   <div data-state-explorer-target="tree" class="c-state-tree"></div>
   <script type="application/json" data-state-explorer-target="initial-data">{{ .NodesJSON }}</script>
