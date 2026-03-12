@@ -592,3 +592,156 @@ func init() {
 	require.Contains(t, string(result[0]), "StructValue")
 	require.Contains(t, string(result[0]), "ExportRefValue")
 }
+
+// TestExportCopyTypeWithRefs_InterfaceType exercises the *InterfaceType case
+// in exportCopyTypeWithRefs by constructing a raw InterfaceType (not wrapped
+// in a DeclaredType) and exporting it.
+func TestExportCopyTypeWithRefs_InterfaceType(t *testing.T) {
+	seen := make(map[Object]int)
+	iface := &InterfaceType{
+		PkgPath: "test",
+		Methods: []FieldType{
+			{Name: "Foo", Type: PrimitiveType(IntType)},
+		},
+		Generic: "bar",
+	}
+	copied := exportCopyTypeWithRefs(iface, seen)
+	ct, ok := copied.(*InterfaceType)
+	require.True(t, ok, "expected *InterfaceType, got %T", copied)
+	require.Equal(t, "test", ct.PkgPath)
+	require.Equal(t, Name("bar"), ct.Generic)
+	require.Len(t, ct.Methods, 1)
+	require.Equal(t, Name("Foo"), ct.Methods[0].Name)
+}
+
+// TestExportCopyTypeWithRefs_ChanType exercises the *ChanType case
+// in exportCopyTypeWithRefs.
+func TestExportCopyTypeWithRefs_ChanType(t *testing.T) {
+	seen := make(map[Object]int)
+	ch := &ChanType{
+		Dir: SEND | RECV,
+		Elt: PrimitiveType(IntType),
+	}
+	copied := exportCopyTypeWithRefs(ch, seen)
+	ct, ok := copied.(*ChanType)
+	require.True(t, ok, "expected *ChanType, got %T", copied)
+	require.Equal(t, SEND|RECV, ct.Dir)
+	require.Equal(t, PrimitiveType(IntType), ct.Elt)
+}
+
+// TestExportCopyTypeWithRefs_tupleType exercises the *tupleType case
+// in exportCopyTypeWithRefs.
+func TestExportCopyTypeWithRefs_tupleType(t *testing.T) {
+	seen := make(map[Object]int)
+	tt := &tupleType{
+		Elts: []Type{
+			PrimitiveType(StringType),
+			PrimitiveType(IntType),
+			PrimitiveType(BoolType),
+		},
+	}
+	copied := exportCopyTypeWithRefs(tt, seen)
+	ct, ok := copied.(*tupleType)
+	require.True(t, ok, "expected *tupleType, got %T", copied)
+	require.Len(t, ct.Elts, 3)
+	require.Equal(t, PrimitiveType(StringType), ct.Elts[0])
+	require.Equal(t, PrimitiveType(IntType), ct.Elts[1])
+	require.Equal(t, PrimitiveType(BoolType), ct.Elts[2])
+}
+
+// TestExportCopyValue_BigintValueNilV exercises the BigintValue case in
+// exportCopyValue when V is nil (zero-value BigintValue).
+func TestExportCopyValue_BigintValueNilV(t *testing.T) {
+	seen := make(map[Object]int)
+	biv := BigintValue{V: nil}
+	copied := exportCopyValue(biv, seen)
+	cb, ok := copied.(BigintValue)
+	require.True(t, ok, "expected BigintValue, got %T", copied)
+	require.Nil(t, cb.V)
+}
+
+// TestExportCopyValue_UintValues exercises uint primitive values through
+// the full ExportValues pipeline.
+func TestExportCopyValue_UintValues(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+func GetUints() (uint8, uint16, uint32, uint64) {
+	return 1, 2, 3, 4
+}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Call(Sel(Nx("testdata"), "GetUints")))
+	require.Len(t, tps, 4)
+
+	bz := exportAndMarshal(t, tps)
+	t.Logf("Uint values output: %s", string(bz))
+
+	var result []json.RawMessage
+	require.NoError(t, json.Unmarshal(bz, &result))
+	require.Len(t, result, 4)
+}
+
+// TestExportObjectToValue_Block exercises the *Block case in
+// exportCopyValue when called via ExportObject. We get a real Block
+// by extracting the closure's capture which contains a HeapItemValue
+// pointing to a Block through the parent chain.
+func TestExportObjectToValue_Block(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+func makeClosure() func() int {
+	x := 99
+	return func() int { return x }
+}
+var Value = makeClosure()
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Sel(Nx("testdata"), "Value"))
+	require.Len(t, tps, 1)
+
+	// The FuncValue is a closure; walk its captures to find a Block.
+	fv, ok := tps[0].V.(*FuncValue)
+	require.True(t, ok, "expected *FuncValue, got %T", tps[0].V)
+
+	// Find a *Block in the value tree: check Captures and Parent
+	var block *Block
+	if fv.Parent != nil {
+		if b, ok := fv.Parent.(*Block); ok {
+			block = b
+		}
+	}
+	for _, cap := range fv.Captures {
+		if hiv, ok := cap.V.(*HeapItemValue); ok {
+			if b, ok := hiv.Value.V.(*Block); ok {
+				block = b
+			}
+		}
+	}
+	// If we still don't have a block, get the package block
+	if block == nil {
+		// Use the machine's package block instead
+		pkg := m.Package
+		require.NotNil(t, pkg)
+		block = pkg.GetBlock(m.Store)
+	}
+	require.NotNil(t, block, "could not find a *Block to test")
+
+	exported := ExportObject(block)
+	require.NotNil(t, exported)
+	eb, ok := exported.(*Block)
+	require.True(t, ok, "expected *Block, got %T", exported)
+	require.NotEmpty(t, eb.Values)
+}
+
+// TestExportObjectToValue_Nil exercises the nil case in exportObjectToValue.
+func TestExportObjectToValue_Nil(t *testing.T) {
+	exported := ExportObject(nil)
+	require.Nil(t, exported)
+}
