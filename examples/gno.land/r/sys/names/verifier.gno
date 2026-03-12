@@ -5,8 +5,7 @@ package names
 import "gno.land/p/nt/ownable/v0"
 
 var (
-	Ownable = ownable.NewWithAddressByPrevious("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // dropped in genesis via Enable. XXX We should switch to something better once the GovDAO situation is stabilized.
-
+	Ownable = ownable.NewWithAddressByPrevious("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig — dropped in genesis via Enable.
 	enabled = false
 )
 
