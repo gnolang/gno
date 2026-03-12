@@ -98,7 +98,7 @@ done <<<"$pkg_dirs"
 find "$WORK_DIR_EXAMPLES" -name '*_test.gno' -delete
 find "$WORK_DIR_EXAMPLES" -name '*_filetest.gno' -delete
 
-# Export genesis txs for filtered packages.
+# Create deployer key (needed to sign MsgAddPackage and MsgRun txs).
 WORK_DIR_GNOKEY_HOME="$WORK_DIR/gnokey-home"
 WORK_DIR_GENESIS="$WORK_DIR/genesis.json"
 WORK_DIR_GENESIS_TXS="$WORK_DIR/genesis_txs.jsonl"
@@ -112,24 +112,27 @@ if [ "$STOP_AFTER_TXS_EXPORT" = true ]; then
   exit 0
 fi
 
-# ---- 3. Generate setup transaction (initial validator set, etc.)
+# ---- 3. Generate setup transaction (validators, members, deployer cleanup)
 
 printf "\nGenerating genesis run tx for initial setup...\n\n"
 
-# TODO:
-# - Remove the list of members hardcoded in the loader.gno file in the govdao realm
-# - Add the genesis_deployer key as the unique initial member of the govdao realm
-# - Write a gnolang file which:
-#   1. create an initial govdao prop which:
-#     - Add the govdao members
-#     - Add the initial validator set
-#     - Remove the genesis_deployer from the govdao members
-#   2. vote and execute the prop
-# - Add a GOVDAO_MEMBERS variable to the config of the current bash script
-# - Sed the gnolang file to add the values from INITIAL_VALSET and GOVDAO_MEMBERS
-# - Generate a tx using `gnokey maketx run` that run the gnolang file
-# - Append the generated tx to a genesis_setup_tx.jsonl file, then run:
-#   "$GNOGENESIS_BIN" txs add sheets genesis_setup_tx.jsonl --genesis-path "$WORK_DIR_GENESIS"
+# Use the static govdao_prop1.gno file — it contains hardcoded validators,
+# members, and deployer address. No substitutions needed.
+SETUP_FILE="$SCRIPT_DIR/govdao_prop1.gno"
+
+# Generate MsgRun tx (unsigned — genesis uses --skip-genesis-sig-verification).
+SETUP_TX_FILE="$WORK_DIR/genesis_setup_tx.jsonl"
+"$GNOKEY_BIN" maketx run \
+    --gas-wanted 100000000 \
+    --gas-fee 1ugnot \
+    --chain-id "$CHAIN_ID" \
+    --home "$WORK_DIR_GNOKEY_HOME" \
+    GenesisDeployer \
+    "$SETUP_FILE" | jq -c '{tx: .}' > "$SETUP_TX_FILE"
+
+# Add setup tx to genesis and to the exported tx sheet (for balance calculation).
+"$GNOGENESIS_BIN" txs add sheets "$SETUP_TX_FILE" --genesis-path "$WORK_DIR_GENESIS"
+cat "$SETUP_TX_FILE" >> "$WORK_DIR_GENESIS_TXS"
 
 # ---- 4. Calculate the deployers balances
 
@@ -150,8 +153,9 @@ NODE_TIMEOUT=120
 rm -rf "$BALANCES_TMP_DIR"
 mkdir -p "$BALANCES_TMP_DIR"
 
-grep -o '"creator":"[^"]*"' "$WORK_DIR_GENESIS_TXS" |
-  sed 's/"creator":"//;s/"//' |
+# Extract addresses from both MsgAddPackage ("creator") and MsgRun ("caller") txs.
+grep -oE '"(creator|caller)":"[^"]*"' "$WORK_DIR_GENESIS_TXS" |
+  sed 's/"creator":"//;s/"caller":"//;s/"//g' |
   sort -u >"$BALANCES_TMP_CREATOR_ADDRESSES"
 
 # Generate over provisionned balances file
