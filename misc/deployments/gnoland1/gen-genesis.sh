@@ -25,11 +25,9 @@ FILTERED_PACKAGES=(
 )
 
 # Initial validator set. Format: "name power address pub_key"
+# More validators will be added post-genesis via govDAO proposals.
 INITIAL_VALSET=(
-  "gnocore-val-01 1 g1euw20dwq4yt3zvjl0kl725me0lfrjf5lzaws4z gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqty3jnuspxthzmqyvjgxcwlu90pq8atj8lda7a2wsr2gqmpa47pdj2jvqrc"
-  "gnocore-val-02 1 g1maa9t9ew7v3xj0cmnuyrr7frjguzykqeykjh0n gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqwdr6r6rr5eyrcrmletzk3rpnxvcupppu20tkhh4fzqlnx6erzazvhsf25g"
-  "gnocore-val-03 1 g1hcmvuk3g03hdf95lqevg7r2068y8fg8rjlue5k gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqwvkx5r8ma97250jluze98v5dzag3h95nqurk8nfr2sar6jchf9ejgevudz"
-  "gnocore-val-04 1 g1kfzcpr5pkh7cul0exfcswe923z3659g937jayk gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqtc9p3fw9tzmscv3p3pmrl70l852c6tpwkkstuqavja8ca3qgpd55pmw5mu"
+  "berty 1 g1ce64dwqsqtzq5nr9hf5zryxp9zyh6n56gz4dnu gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqzjn7qu3nk0ys7k5ayrlzw03mghff7e8ydesag80xt2f5y4ufn6dndghaq"
 )
 
 # Chain parameters.
