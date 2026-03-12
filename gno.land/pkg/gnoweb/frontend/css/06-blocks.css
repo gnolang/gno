@@ -2482,3 +2482,144 @@ main.dev-mode .b-toc a {
 		}
 	}
 }
+
+/* ===== STATE EXPLORER ===== */
+.c-state-explorer {
+	padding: var(--g-spacing-200) 0;
+}
+
+.c-state-explorer__header {
+	margin-block-end: var(--g-spacing-200);
+}
+
+.c-state-explorer__meta {
+	display: flex;
+	align-items: baseline;
+	gap: 1em;
+	margin-block-start: 0.25rem;
+}
+
+.c-state-explorer__pkg {
+	font-size: var(--g-font-size-100);
+	color: var(--s-color-text-secondary);
+}
+
+.c-state-explorer__count {
+	font-size: var(--g-font-size-90);
+	color: var(--s-color-text-secondary);
+}
+
+.c-state-tree {
+	font-family: var(--g-font-family-mono);
+	font-size: var(--g-font-size-90);
+	line-height: 1;
+}
+
+/* Row = line + children */
+.c-state-row__line {
+	display: flex;
+	align-items: baseline;
+	gap: 0 0.4em;
+	padding: 0.2rem 0;
+	border-radius: 3px;
+}
+
+.c-state-row__line:hover {
+	background-color: var(--s-color-bg-alt);
+}
+
+/* Toggle arrow */
+.c-state-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1em;
+	flex-shrink: 0;
+	font-size: 0.65em;
+	color: var(--s-color-text-secondary);
+	user-select: none;
+	cursor: pointer;
+}
+
+.c-state-toggle:hover {
+	color: var(--s-color-text-primary);
+}
+
+.c-state-toggle:empty {
+	cursor: default;
+}
+
+.c-state-toggle--loading {
+	animation: state-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes state-pulse {
+	0%, 100% { opacity: 0.3; }
+	50% { opacity: 1; }
+}
+
+/* Name */
+.c-state-name {
+	font-weight: 600;
+	color: var(--s-color-text-primary);
+}
+
+/* Separator */
+.c-state-sep {
+	color: var(--s-color-text-secondary);
+	opacity: 0.5;
+}
+
+/* Type — colored by kind */
+.c-state-type {
+	font-style: italic;
+}
+
+.c-state-kind--struct  { color: #8250df; }
+.c-state-kind--map     { color: #cf222e; }
+.c-state-kind--array   { color: #1a7f37; }
+.c-state-kind--slice   { color: #1a7f37; }
+.c-state-kind--pointer { color: #bf8700; }
+.c-state-kind--func    { color: #6639ba; }
+.c-state-kind--nil     { color: var(--s-color-text-secondary); }
+.c-state-kind--primitive { color: var(--s-color-text-secondary); }
+
+/* Metadata (length, etc) */
+.c-state-meta {
+	color: var(--s-color-text-secondary);
+	font-size: 0.85em;
+}
+
+/* Values — colored by kind */
+.c-state-val {
+	word-break: break-all;
+}
+
+.c-state-val--primitive { color: #0550ae; }
+.c-state-val--nil       { color: var(--s-color-text-secondary); font-style: italic; }
+.c-state-val--func      { color: #6639ba; }
+
+/* ObjectID — subtle, appears on hover */
+.c-state-oid {
+	font-size: 0.75em;
+	color: var(--s-color-text-secondary);
+	opacity: 0;
+	cursor: pointer;
+	transition: opacity 0.15s;
+}
+
+.c-state-row__line:hover .c-state-oid {
+	opacity: 0.5;
+}
+
+.c-state-oid:hover {
+	opacity: 1 !important;
+	text-decoration: underline;
+}
+
+/* Error */
+.c-state-err {
+	color: #cf222e;
+	font-style: italic;
+	padding-left: 1.5rem;
+}

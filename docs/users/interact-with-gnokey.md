@@ -1032,6 +1032,10 @@ Below is a list of queries a user can make with `gnokey`:
 - `vm/qpaths` - lists all existing package paths
 - `vm/qstorage` - returns storage usage and deposit locked in a realm
 
+For JSON-structured endpoints designed for programmatic access (`vm/qeval_json`,
+`vm/qpkg_json`, `vm/qobject_json`, `vm/qtype_json`), see
+[Querying On-Chain State (JSON APIs)](../builders/query-state-api.md).
+
 Let's see how we can use them.
 
 ### `auth/accounts`

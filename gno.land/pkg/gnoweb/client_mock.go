@@ -138,6 +138,25 @@ func (m *MockClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentati
 	return &doc.JSONDocumentation{Funcs: pkg.Functions}, nil
 }
 
+// StatePkg returns mock package state data for testing.
+func (m *MockClient) StatePkg(_ context.Context, path string) ([]byte, error) {
+	_, exists := m.Packages[path]
+	if !exists {
+		return nil, ErrClientPackageNotFound
+	}
+	return []byte(`[]`), nil
+}
+
+// StateObject returns mock object state data for testing.
+func (m *MockClient) StateObject(_ context.Context, _ string) ([]byte, error) {
+	return []byte(`[]`), nil
+}
+
+// StateType returns mock type data for testing.
+func (m *MockClient) StateType(_ context.Context, _ string) ([]byte, error) {
+	return []byte(`{}`), nil
+}
+
 // Helper: check if package has a Render(string) string function.
 func pkgHasRender(pkg *MockPackage) bool {
 	if len(pkg.Functions) == 0 {

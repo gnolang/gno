@@ -2339,3 +2339,135 @@ func extractNestedRefValueObjectID(t *testing.T, jsonStr string) string {
 
 	return searchFrom[start : start+end]
 }
+
+func TestQueryPkg(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("qpkg-test"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10_000_000)))
+
+	const pkgPath = "gno.land/r/test/qpkg"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "pkg.gno",
+			Body: `package qpkg
+
+type MyStruct struct {
+	Name string
+	Age  int
+}
+
+var (
+	myInt    int    = 42
+	myStr    string = "hello"
+	myStruct MyStruct
+)
+
+func init() {
+	myStruct = MyStruct{Name: "Alice", Age: 30}
+}
+
+func Render(path string) string { return "qpkg test" }
+`,
+		},
+	}
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	// Query via qpkg
+	res, err := env.vmk.QueryPkg(env.ctx, pkgPath)
+	require.NoError(t, err)
+	t.Logf("QueryPkg result:\n%s\n", res)
+
+	// Verify it's valid JSON with names and values
+	assert.Contains(t, res, `"names"`)
+	assert.Contains(t, res, `"values"`)
+	assert.Contains(t, res, `"myInt"`)
+	assert.Contains(t, res, `"myStr"`)
+	assert.Contains(t, res, `"myStruct"`)
+
+	// Parse and verify structure
+	var parsed struct {
+		Names  []string          `json:"names"`
+		Values []json.RawMessage `json:"values"`
+	}
+	err = json.Unmarshal([]byte(res), &parsed)
+	require.NoError(t, err)
+	assert.Equal(t, len(parsed.Names), len(parsed.Values))
+	assert.Contains(t, parsed.Names, "myInt")
+	assert.Contains(t, parsed.Names, "myStr")
+	assert.Contains(t, parsed.Names, "myStruct")
+}
+
+func TestQueryPkgNotFound(t *testing.T) {
+	env := setupTestEnv()
+
+	_, err := env.vmk.QueryPkg(env.ctx, "gno.land/r/nonexistent/pkg")
+	assert.Error(t, err)
+}
+
+func TestQueryType(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("qtype-test"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10_000_000)))
+
+	const pkgPath = "gno.land/r/test/qtype"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "types.gno",
+			Body: `package qtype
+
+type Board struct {
+	Name    string
+	Creator string
+	Posts   int
+}
+
+var board Board
+
+func init() {
+	board = Board{Name: "general", Creator: "alice", Posts: 5}
+}
+
+func Render(path string) string { return "qtype test" }
+`,
+		},
+	}
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	// Query type by TypeID
+	tidStr := pkgPath + ".Board"
+	res, err := env.vmk.QueryType(env.ctx, tidStr)
+	require.NoError(t, err)
+	t.Logf("QueryType result:\n%s\n", res)
+
+	// Verify it contains the type definition with field names
+	assert.Contains(t, res, `"typeid"`)
+	assert.Contains(t, res, tidStr)
+	assert.Contains(t, res, `"Name"`)
+	assert.Contains(t, res, `"Creator"`)
+	assert.Contains(t, res, `"Posts"`)
+}
+
+func TestQueryTypeNotFound(t *testing.T) {
+	env := setupTestEnv()
+
+	_, err := env.vmk.QueryType(env.ctx, "gno.land/r/nonexistent.FakeType")
+	assert.Error(t, err)
+}

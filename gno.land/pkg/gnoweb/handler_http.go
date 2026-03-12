@@ -116,15 +116,6 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
-	// Read theme preference from cookie for server-side rendering.
-	// Prevents FOUC by embedding data-theme in the HTML before CSS loads.
-	var theme string
-	if c, err := r.Cookie("theme"); err == nil {
-		if c.Value == "light" || c.Value == "dark" {
-			theme = c.Value
-		}
-	}
-
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
 			AssetsPath: h.Static.AssetsPath,
@@ -138,7 +129,6 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			AssetsPath: h.Static.AssetsPath,
 			BuildTime:  h.Static.BuildTime,
 		},
-		Theme: theme,
 	}
 
 	// Parse the URL
@@ -158,6 +148,12 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
+		return
+	}
+
+	// Handle state JSON API request outside of component rendering flow.
+	if gnourl.WebQuery.Has("state") && gnourl.WebQuery.Has("json") {
+		h.ServeStateJSON(r.Context(), gnourl, w)
 		return
 	}
 
@@ -298,6 +294,11 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
+	}
+
+	// Handle State explorer page
+	if gnourl.WebQuery.Has("state") {
+		return h.GetStateView(ctx, gnourl)
 	}
 
 	// Handle Source page
@@ -682,6 +683,48 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 		indexData.Mode,
 		readmeComp,
 	)
+}
+
+// GetStateView returns the state explorer view for a package.
+func (h *HTTPHandler) GetStateView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+	raw, err := h.Client.StatePkg(ctx, gnourl.Path)
+	if err != nil {
+		h.Logger.Error("unable to fetch state", "error", err, "path", gnourl.EncodeURL())
+		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	return http.StatusOK, components.StateView(components.StateData{
+		PkgPath:   gnourl.Path,
+		NodesJSON: string(raw),
+	})
+}
+
+// ServeStateJSON serves state tree data as JSON for dynamic tree expansion.
+// Supports three modes via query params:
+//   - ?state&oid=<objectid>&json → drill into an object by ObjectID
+//   - ?state&tid=<typeid>&json   → resolve a type by TypeID (for struct field names)
+//   - ?state&json (no oid/tid)   → package root (same as initial page load)
+func (h *HTTPHandler) ServeStateJSON(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
+	var raw []byte
+	var err error
+
+	if oid := gnourl.WebQuery.Get("oid"); oid != "" {
+		raw, err = h.Client.StateObject(ctx, oid)
+	} else if tid := gnourl.WebQuery.Get("tid"); tid != "" {
+		raw, err = h.Client.StateType(ctx, tid)
+	} else {
+		raw, err = h.Client.StatePkg(ctx, gnourl.Path)
+	}
+
+	if err != nil {
+		h.Logger.Error("unable to fetch state JSON", "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error":%q}`, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(raw)
 }
 
 // ServeSourceDownload handles downloading a source file as plain text.

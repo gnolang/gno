@@ -81,6 +81,8 @@ const (
 	QueryDoc          = "qdoc"
 	QueryPaths        = "qpaths"
 	QueryStorage      = "qstorage"
+	QueryPkgJSON      = "qpkg_json"
+	QueryTypeJSON     = "qtype_json"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -110,6 +112,10 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		res = vh.queryPaths(ctx, req)
 	case QueryStorage:
 		res = vh.queryStorage(ctx, req)
+	case QueryPkgJSON:
+		res = vh.queryPkg(ctx, req)
+	case QueryTypeJSON:
+		res = vh.queryType(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -292,6 +298,30 @@ func (vh vmHandler) queryDoc(ctx sdk.Context, req abci.RequestQuery) (res abci.R
 func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	pkgpath := string(req.Data)
 	result, err := vh.vm.QueryStorage(ctx, pkgpath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryPkg returns the named block variables of a package as Amino JSON.
+func (vh vmHandler) queryPkg(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	pkgPath := string(req.Data)
+	result, err := vh.vm.QueryPkg(ctx, pkgPath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryType returns a type definition by TypeID as Amino JSON.
+func (vh vmHandler) queryType(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	tidStr := string(req.Data)
+	result, err := vh.vm.QueryType(ctx, tidStr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

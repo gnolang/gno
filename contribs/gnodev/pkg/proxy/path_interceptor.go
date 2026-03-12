@@ -312,7 +312,9 @@ func handleQuery(path string, data []byte, upaths uniqPaths) error {
 	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval":
 		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out
 		upaths.addPath(path)
-	case "vm/qobject": // ignore
+	case "vm/qpkg_json":
+		upaths.addPath(string(data))
+	case "vm/qobject", "vm/qobject_json", "vm/qtype_json": // operate on already-loaded state
 	default:
 		return fmt.Errorf("unhandled: %q", path)
 	}

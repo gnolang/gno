@@ -1265,6 +1265,122 @@ func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byt
 	return amino.MarshalAny(exported)
 }
 
+// QueryPkg returns the named block variables of a package as Amino JSON.
+// This is the entry point for the state explorer: given a package path,
+// return variable names alongside their exported Amino JSON values.
+func (vm *VMKeeper) QueryPkg(ctx sdk.Context, pkgPath string) (res string, err error) {
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	pv := gnostore.GetPackage(pkgPath, false)
+	if pv == nil {
+		return "", ErrInvalidPkgPath(fmt.Sprintf("package not found: %s", pkgPath))
+	}
+
+	block := resolveBlock(gnostore, pv.Block)
+	if block == nil {
+		return "", fmt.Errorf("package block not found for %s", pkgPath)
+	}
+
+	// Resolve Source: it may be a RefNode (lazy reference to the PackageNode).
+	source := resolveBlockNode(gnostore, block.Source)
+	if source == nil {
+		return "", fmt.Errorf("block source not found for %s", pkgPath)
+	}
+	sb := source.GetStaticBlock()
+	names := sb.Names
+
+	// Collect variable names and their exported values.
+	varNames := make([]string, 0, len(block.Values))
+	varValues := make([]gno.TypedValue, 0, len(block.Values))
+	for i, tv := range block.Values {
+		if i >= len(names) {
+			break
+		}
+		name := string(names[i])
+		if name == "" || name == "_" {
+			continue
+		}
+		// Unwrap heap items.
+		if tv.T != nil && tv.T.Kind() == gno.HeapItemKind {
+			if hiv, ok := tv.V.(*gno.HeapItemValue); ok {
+				tv = hiv.Value
+			}
+		}
+		varNames = append(varNames, name)
+		varValues = append(varValues, tv)
+	}
+
+	// Export values (replace persisted objects with RefValues, etc.)
+	exported := gno.ExportValues(varValues)
+
+	// Serialize values with Amino JSON.
+	valuesJSON, err := amino.MarshalJSON(exported)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal values: %w", err)
+	}
+
+	// Serialize names.
+	namesJSON, err := amino.MarshalJSON(varNames)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal names: %w", err)
+	}
+
+	result := fmt.Sprintf(`{"names":%s,"values":%s}`, string(namesJSON), string(valuesJSON))
+	return result, nil
+}
+
+// QueryType retrieves a type by TypeID and returns its Amino JSON representation.
+// This resolves RefType references in exported values: given a TypeID like
+// "gno.land/r/demo/boards.Board", return the full type definition with field names.
+func (vm *VMKeeper) QueryType(ctx sdk.Context, tidStr string) (res string, err error) {
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	tid := gno.TypeID(tidStr)
+	tt := gnostore.GetTypeSafe(tid)
+	if tt == nil {
+		return "", ErrInvalidExpr(fmt.Sprintf("type not found: %s", tidStr))
+	}
+
+	// Serialize with Amino JSON (types are already Amino-registered).
+	jsonBytes, err := amino.MarshalJSON(tt)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal type: %w", err)
+	}
+
+	result := fmt.Sprintf(`{"typeid":%q,"type":%s}`, tidStr, string(jsonBytes))
+	return result, nil
+}
+
+// resolveBlockNode resolves a BlockNode that may be a RefNode (lazy reference).
+func resolveBlockNode(store gno.Store, bn gno.BlockNode) gno.BlockNode {
+	if bn == nil {
+		return nil
+	}
+	if _, ok := bn.(gno.RefNode); ok {
+		loc := bn.GetLocation()
+		return store.GetBlockNodeSafe(loc)
+	}
+	return bn
+}
+
+// resolveBlock extracts a *Block from a Value which may be a RefValue.
+func resolveBlock(store gno.Store, v gno.Value) *gno.Block {
+	switch cv := v.(type) {
+	case *gno.Block:
+		return cv
+	case gno.RefValue:
+		obj := store.GetObject(cv.ObjectID)
+		if b, ok := obj.(*gno.Block); ok {
+			return b
+		}
+		return nil
+	default:
+		return nil
+	}
+}
+
 // processStorageDeposit processes storage deposit adjustments for package realms based on
 // storage size changes tracked within the gnoStore.
 //
