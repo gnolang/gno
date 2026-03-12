@@ -32,8 +32,8 @@ FILTERED_PACKAGES=(
 
 INITIAL_VALSET=(
   # Values: "name power address pub_key"
-  "gnocore-val-01 1 g1e8j30772p4fvjd27eqq0e50vs74ekst50f5hz6 gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqdw9mje8pwpd8p6pu3h0ke9mxp3s7l5vr6jtsffyd9wazpgxufwrssj367n"
-  "gnocore-val-02 1 g18k5nz67cg03lrdkwnf9qmdfzf0ptaq7lxefe4y gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0mxx3hhmy5hsl9kv8ne2ch46l8uk3kpnwc8kr900066ejz3zlhqcj6wjna"
+  "gnocore-val-01 1 g1euw20dwq4yt3zvjl0kl725me0lfrjf5lzaws4z gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqty3jnuspxthzmqyvjgxcwlu90pq8atj8lda7a2wsr2gqmpa47pdj2jvqrc"
+  "gnocore-val-02 1 g1maa9t9ew7v3xj0cmnuyrr7frjguzykqeykjh0n gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqwdr6r6rr5eyrcrmletzk3rpnxvcupppu20tkhh4fzqlnx6erzazvhsf25g"
 )
 
 # ---- Internal (do not edit)
