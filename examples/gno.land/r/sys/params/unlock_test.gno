@@ -35,7 +35,7 @@ func TestFailUnlockTransfer(t *testing.T) {
 		t,
 		"proposal didn't reach supermajority yet: 66.66",
 		func() {
-			dao.ExecuteProposal(cross, id, false)
+			dao.ExecuteProposal(cross, id)
 		},
 	)
 }
@@ -62,7 +62,7 @@ func TestExeUnlockTransfer(t *testing.T) {
 	urequire.NotPanics(
 		t,
 		func() {
-			dao.ExecuteProposal(cross, id, false)
+			dao.ExecuteProposal(cross, id)
 		},
 	)
 }

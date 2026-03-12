@@ -18,12 +18,12 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-# Try to execute proposal using "execErrorRejects=false"
-! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -args false -broadcast -chainid=tendermint_test test1
+# Try to execute proposal, it should fail because execution returns an error
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -broadcast -chainid=tendermint_test test1
 stderr 'Boom!'
 
-# Execute proposal changing its status to rejected using "execErrorRejects=true"
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -args true -broadcast -chainid=tendermint_test test1
+# Execute proposal changing its status to rejected
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteOrRejectProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # Check that proposal was rejected

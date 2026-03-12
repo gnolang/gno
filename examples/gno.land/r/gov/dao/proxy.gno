@@ -47,38 +47,21 @@ func MustCreateProposal(cur realm, r ProposalRequest) ProposalID {
 
 // ExecuteProposal will try to execute the proposal with the provided ProposalID.
 // If the proposal was denied, it will return false. If the proposal is correctly
-// executed, it will return true. If something happens this function will panic,
-// unless `execErrorRejects` is true, in which case proposal is rejected with the
-// error as the reason when the proposal executor fails.
-// Using `execErrorRejects` allows to finish proposals by rejecting them when there
-// is a state change or an error in the proposal parameters that make execution
-// fail, leaving proposal active forever because it can't be successfully executed.
-func ExecuteProposal(cur realm, pid ProposalID, execErrorRejects bool) bool {
-	if dao == nil {
-		return false
-	}
-	execute, err := dao.PreExecuteProposal(pid)
-	if err != nil {
-		panic(err.Error())
-	}
+// executed, it will return true. If something happens this function will panic.
+func ExecuteProposal(cur realm, pid ProposalID) bool {
+	return executeProposal(cur, pid, false)
+}
 
-	if !execute {
-		return false
-	}
-	prop, err := GetProposal(cur, pid)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	err = dao.ExecuteProposal(pid, prop.executor)
-	if err != nil {
-		if execErrorRejects {
-			return false
-		}
-
-		panic(err.Error())
-	}
-	return true
+// ExecuteOrRejectProposal executes the proposal with the provided ProposalID or rejects
+// it when there is an execution error.
+// If the proposal was denied, it will return false. If the proposal is correctly
+// executed, it will return true, unless execution fails with an error, in which case
+// proposal is rejected with the error as the reason.
+// This function allows to finish proposals by rejecting them when there is a state
+// change or an error in the proposal parameters that makes execution fail, potentially
+// leaving the proposal active forever because it can't be successfully executed.
+func ExecuteOrRejectProposal(cur realm, pid ProposalID) bool {
+	return executeProposal(cur, pid, true)
 }
 
 // CreateProposal will try to create a new proposal, that will be validated by the actual
@@ -203,4 +186,32 @@ func InAllowedDAOs(pkg string) bool {
 		}
 	}
 	return false
+}
+
+func executeProposal(cur realm, pid ProposalID, execErrorRejects bool) bool {
+	if dao == nil {
+		return false
+	}
+	execute, err := dao.PreExecuteProposal(pid)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	if !execute {
+		return false
+	}
+	prop, err := GetProposal(cur, pid)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	err = dao.ExecuteProposal(pid, prop.executor)
+	if err != nil {
+		if execErrorRejects {
+			return false
+		}
+
+		panic(err.Error())
+	}
+	return true
 }

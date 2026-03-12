@@ -101,5 +101,5 @@ package main
 import "gno.land/r/gov/dao"
 
 func main() {
-	dao.ExecuteProposal(cross, dao.ProposalID(0), false)
+	dao.ExecuteProposal(cross, dao.ProposalID(0))
 }

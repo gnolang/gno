@@ -38,7 +38,7 @@ gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chaini
 stdout OK!
 
 # call proposal execution
-! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args false -broadcast -chainid=tendermint_test member
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test member
 stderr 'member not found, so cannot be promoted'
 
 # call gov/dao render to check everything the proposal was created
@@ -55,7 +55,7 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -g
 stdout OK!
 
 # call proposal execution
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -args false -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # check output

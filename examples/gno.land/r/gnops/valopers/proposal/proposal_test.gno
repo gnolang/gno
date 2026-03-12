@@ -111,7 +111,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 			})
 
 			// Execute the proposal
-			dao.ExecuteProposal(cross, dao.ProposalID(0), false)
+			dao.ExecuteProposal(cross, dao.ProposalID(0))
 		})
 
 		// Send coins to be able to make a proposal
@@ -211,7 +211,7 @@ func TestValopers_ProposeNewValidator2(t *testing.T) {
 		// Execute proposal with admin rights
 		urequire.NotPanics(t, func() {
 			std.TestSetOrigCaller(std.Admin)
-			cross(dao.ExecuteProposal)(dao.ProposalID(0), false)
+			cross(dao.ExecuteProposal)(dao.ProposalID(0))
 		})
 		// Check if valoper was updated
 		urequire.NotPanics(t, func() {
@@ -222,7 +222,7 @@ func TestValopers_ProposeNewValidator2(t *testing.T) {
 
 		// Expect ExecuteProposal to pass
 		urequire.NotPanics(t, func() {
-			cross(dao.ExecuteProposal)(dao.ProposalID(0), false)
+			cross(dao.ExecuteProposal)(dao.ProposalID(0))
 		})
 		// Check if valoper was updated
 		urequire.NotPanics(t, func() {
@@ -233,7 +233,7 @@ func TestValopers_ProposeNewValidator2(t *testing.T) {
 		// Execute proposal with admin rights
 		urequire.NotPanics(t, func() {
 			std.TestSetOrigCaller(std.Admin)
-			cross(dao.ExecuteProposal)(dao.ProposalID(0), false)
+			cross(dao.ExecuteProposal)(dao.ProposalID(0))
 		})
 	})
 }
