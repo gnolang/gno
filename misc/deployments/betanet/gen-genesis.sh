@@ -2,26 +2,6 @@
 # Generate betanet genesis.json.
 set -e
 
-# ---- Flags
-
-STOP_AFTER_TXS_EXPORT=false
-DEBUG=false
-for arg in "$@"; do
-  case "$arg" in
-    --txs-only) STOP_AFTER_TXS_EXPORT=true ;;
-    --debug) DEBUG=true ;;
-    *) echo "Unknown argument: $arg"; exit 1 ;;
-  esac
-done
-
-# run executes a command, printing it first when --debug is set.
-run() {
-  if [ "$DEBUG" = true ]; then
-    printf "    \033[2m\$ %s\033[0m\n" "$*" >&2
-  fi
-  "$@"
-}
-
 # ---- Config
 
 CHAIN_ID=betanet
@@ -45,6 +25,29 @@ INITIAL_VALSET=(
   "gnocore-val-01 1 g1euw20dwq4yt3zvjl0kl725me0lfrjf5lzaws4z gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqty3jnuspxthzmqyvjgxcwlu90pq8atj8lda7a2wsr2gqmpa47pdj2jvqrc"
   "gnocore-val-02 1 g1maa9t9ew7v3xj0cmnuyrr7frjguzykqeykjh0n gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqwdr6r6rr5eyrcrmletzk3rpnxvcupppu20tkhh4fzqlnx6erzazvhsf25g"
 )
+
+# ---- Flags
+
+STOP_AFTER_TXS_EXPORT=false
+DEBUG=false
+for arg in "$@"; do
+  case "$arg" in
+  --txs-only) STOP_AFTER_TXS_EXPORT=true ;;
+  --debug) DEBUG=true ;;
+  *)
+    echo "Unknown argument: $arg"
+    exit 1
+    ;;
+  esac
+done
+
+# run executes a command, printing it first when --debug is set.
+run() {
+  if [ "$DEBUG" = true ]; then
+    printf "    \033[2m\$ %s\033[0m\n" "$*" >&2
+  fi
+  "$@"
+}
 
 # ---- Internal (do not edit)
 
@@ -142,18 +145,18 @@ SETUP_FILE="$SCRIPT_DIR/govdao_prop1.gno"
 printf "  Generating MsgRun tx from %s...\n" "$(basename "$SETUP_FILE")"
 SETUP_TX_FILE="$WORK_DIR/genesis_setup_tx.jsonl"
 run "$GNOKEY_BIN" maketx run \
-    --gas-wanted 100000000 \
-    --gas-fee 1ugnot \
-    --chainid "$CHAIN_ID" \
-    --home "$WORK_DIR_GNOKEY_HOME" \
-    GenesisDeployer \
-    "$SETUP_FILE" | jq -c '{tx: .}' > "$SETUP_TX_FILE"
+  --gas-wanted 100000000 \
+  --gas-fee 1ugnot \
+  --chainid "$CHAIN_ID" \
+  --home "$WORK_DIR_GNOKEY_HOME" \
+  GenesisDeployer \
+  "$SETUP_FILE" | jq -c '{tx: .}' >"$SETUP_TX_FILE"
 
 printf "  Adding setup tx to genesis...\n"
 run "$GNOGENESIS_BIN" txs add sheets "$SETUP_TX_FILE" --genesis-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
-cat "$SETUP_TX_FILE" >> "$WORK_DIR_GENESIS_TXS"
+cat "$SETUP_TX_FILE" >>"$WORK_DIR_GENESIS_TXS"
 
-tx_count=$(wc -l < "$WORK_DIR_GENESIS_TXS" | tr -d ' ')
+tx_count=$(wc -l <"$WORK_DIR_GENESIS_TXS" | tr -d ' ')
 printf "  Total txs so far: %s\n" "$tx_count"
 
 if [ "$STOP_AFTER_TXS_EXPORT" = true ]; then
@@ -188,7 +191,7 @@ printf "  Extracting creator addresses...\n"
 grep -oE '"(creator|caller)":"[^"]*"' "$WORK_DIR_GENESIS_TXS" |
   sed 's/"creator":"//;s/"caller":"//;s/"//g' |
   sort -u >"$BALANCES_TMP_CREATOR_ADDRESSES"
-addr_count=$(wc -l < "$BALANCES_TMP_CREATOR_ADDRESSES" | tr -d ' ')
+addr_count=$(wc -l <"$BALANCES_TMP_CREATOR_ADDRESSES" | tr -d ' ')
 printf "  Found %s unique creator/caller addresses\n" "$addr_count"
 
 printf "  Generating over-provisioned balances...\n"
@@ -379,7 +382,7 @@ gzip -dc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
 rg '^[^=]{40}=' "$AIRDROP_BALANCES_TXT" | cut -d: -f1 >/tmp/airdrop_addresses.txt
 mv /tmp/airdrop_addresses.txt "$AIRDROP_BALANCES_TXT"
 
-airdrop_count=$(wc -l < "$AIRDROP_BALANCES_TXT" | tr -d ' ')
+airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
 printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
 run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS"
 
