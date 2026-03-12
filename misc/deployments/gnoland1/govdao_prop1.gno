@@ -5,13 +5,16 @@
 // has NOT added any members and has NOT set AllowedDAOs (the empty-list
 // corner case in proxy.gno:InAllowedDAOs lets any caller through).
 //
+// NOTE: Temporarily, manfred (moul) is the sole govDAO T1 member. He will
+// craft proposals to add validators and other members, executing them alone
+// until the DAO is large enough to enable real multi-party voting.
+//
 // Steps:
 //  1. Add a temporary deployer as T1 member (100% supermajority).
-//  2. Create a proposal to register the initial validator set, vote YES,
-//     and execute it immediately.
+//  2. Register the initial validator set via governance proposal.
 //  3. Set chain params (unrestricted addrs, restricted denoms) via proposals.
 //  4. Enable namespace enforcement (r/sys/names).
-//  5. Add the real govDAO T1 members directly to the memberstore.
+//  5. Add the real govDAO T1 member (manfred) directly to the memberstore.
 //  6. Remove the temporary deployer from the memberstore.
 //  7. Lock down memberstore access by setting AllowedDAOs.
 package main
@@ -37,6 +40,8 @@ func main() {
 	must(ms.SetMember(memberstore.T1, genesisDeployerAddr, &memberstore.Member{InvitationPoints: 0}))
 
 	// ---- 2. Register the initial validator set via governance proposal ----
+	// Additional validators can be added post-genesis via govDAO proposals
+	// (see add-validator.sh).
 	govExec(valr.NewPropRequest(
 		func() []validators.Validator {
 			return []validators.Validator{
@@ -82,14 +87,11 @@ func main() {
 	// Must be called during genesis; after this, package paths require registration.
 	names.Enable(cross)
 
-	// ---- 5. Add govDAO T1 members ----
-	must(ms.SetMember(memberstore.T1, address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"), &memberstore.Member{InvitationPoints: 3})) // Jae
+	// ---- 5. Add govDAO T1 member ----
+	// Temporarily manfred (moul) is the sole govDAO member. He will manually
+	// craft and execute proposals to onboard validators and additional members
+	// until the DAO is large enough for real multi-party governance.
 	must(ms.SetMember(memberstore.T1, address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), &memberstore.Member{InvitationPoints: 3})) // moul
-	must(ms.SetMember(memberstore.T1, address("g1m0rgan0rla00ygmdmp55f5m0unvsvknluyg2a4"), &memberstore.Member{InvitationPoints: 3})) // Morgan
-	must(ms.SetMember(memberstore.T1, address("g1mx4pum9976th863jgry4sdjzfwu03qan5w2v9j"), &memberstore.Member{InvitationPoints: 3})) // Ray
-	must(ms.SetMember(memberstore.T1, address("g12vx7dn3dqq89mz550zwunvg4qw6epq73d9csay"), &memberstore.Member{InvitationPoints: 3})) // Dongwon
-	must(ms.SetMember(memberstore.T1, address("g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq"), &memberstore.Member{InvitationPoints: 3})) // Maxwell
-	must(ms.SetMember(memberstore.T1, address("g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2"), &memberstore.Member{InvitationPoints: 3})) // Milos
 
 	// ---- 6. Remove the genesis deployer ----
 	ms.RemoveMember(genesisDeployerAddr)
