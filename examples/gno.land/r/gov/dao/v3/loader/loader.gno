@@ -5,11 +5,11 @@
 // for any caller (see r/gov/dao/proxy.gno), which lets a subsequent MsgRun
 // bootstrap the member set and then lock things down.
 //
-// Bootstrap flow (betanet genesis):
+// Bootstrap flow (official network genesis or local dev):
 //
 //  1. All packages — including this loader — are deployed via MsgAddPackage.
 //     The loader sets up tier entries and the DAO implementation.
-//  2. A MsgRun executes govdao_prop1.gno which:
+//  2. A MsgRun executes a setup script (e.g. govdao_prop1.gno) which:
 //     a. Adds a temporary deployer as T1 member (for supermajority).
 //     b. Creates a governance proposal to register validators, votes YES,
 //        and executes it.
@@ -17,16 +17,7 @@
 //     d. Removes the temporary deployer.
 //     e. Calls dao.UpdateImpl to set AllowedDAOs, locking down access.
 //
-// Genesis deployer mnemonic (for reproducibility):
-//
-//   anchor hurt name seed oak spread anchor filter lesson shaft wasp home
-//   improve text behind toe segment lamp turn marriage female royal twice wealth
-//
-// Derived address: g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p
-//
-// To regenerate the genesis:
-//
-//   cd misc/deployments/betanet && make generate
+// See misc/deployments/ for concrete genesis generation examples.
 package loader
 
 import (
