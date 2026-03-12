@@ -4,13 +4,14 @@ import (
 	"chain/runtime"
 	"errors"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 const prefix = "r/sys/users: "
 
 var (
-	ErrAlreadyWhitelisted = errors.New(prefix + "already whitelisted")
+	ErrAlreadyWhitelisted    = errors.New(prefix + "already whitelisted")
+	ErrWhitelistRemoveFailed = errors.New(prefix + "failed to remove address from whitelist")
 
 	ErrNameTaken      = errors.New(prefix + "name/Alias already taken")
 	ErrInvalidAddress = errors.New(prefix + "invalid address")

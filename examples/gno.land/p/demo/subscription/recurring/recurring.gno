@@ -5,8 +5,8 @@ import (
 	"chain/runtime"
 	"time"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ownable/v0"
 )
 
 // RecurringSubscription represents a subscription that requires periodic payments.
@@ -91,7 +91,7 @@ func (rs *RecurringSubscription) GetExpiration(addr address) (time.Time, error) 
 
 // UpdateAmount allows the owner of the subscription contract to change the required subscription amount.
 func (rs *RecurringSubscription) UpdateAmount(newAmount int64) error {
-	if !rs.OwnedByCurrent() {
+	if !rs.Owned() {
 		return ErrNotAuthorized
 	}
 

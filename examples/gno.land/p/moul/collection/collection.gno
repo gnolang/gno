@@ -66,8 +66,8 @@ import (
 	"errors"
 	"strings"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
 )
 
 // New creates a new Collection instance with an initialized ID index.
