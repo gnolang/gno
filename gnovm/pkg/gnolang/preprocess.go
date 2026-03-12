@@ -5488,19 +5488,15 @@ func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{})
 			var dep Decl
 			id, sel, isMethod := strings.Cut(string(name), ".")
 			if isMethod {
-				idx := slices.IndexFunc(pn.Types, func(t Type) bool {
-					// TODO: why does pn.Types contain non-declaredtypes?
-					dt, ok := t.(*DeclaredType)
-					if !ok {
-						return false
-					}
-					return dt.Name == Name(id)
-				})
-				if idx < 0 {
+				li, found := pn.GetLocalIndex(Name(id))
+				if !found || pn.NameSources[li].Type != NSTypeDecl {
 					panic(fmt.Sprintf("type %s not found in package %s", id, pn.PkgName))
 				}
-				dt := pn.Types[idx].(*DeclaredType)
-				idx = slices.IndexFunc(dt.Methods, func(m TypedValue) bool {
+				dt, ok := pn.Types[li].(*DeclaredType)
+				if !ok {
+					panic(fmt.Sprintf("type %s is not a *DeclaredType in package %s", id, pn.PkgName))
+				}
+				idx := slices.IndexFunc(dt.Methods, func(m TypedValue) bool {
 					return m.V.(*FuncValue).Name == Name(sel)
 				})
 				if idx < 0 {
