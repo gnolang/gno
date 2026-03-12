@@ -269,7 +269,7 @@ nonce. Used to protect against replay attacks.
 See [Realm](#realm).
 
 ### Staging network
-The main Gno.land chain for testing, accessible at [gno.land](https://gno.land).
+The main Gno.land chain for testing, accessible at [staging.gno.land](https://staging.gno.land).
 
 ### Standard Library
 Built-in packages that provide core functionality to Gno programs without

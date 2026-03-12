@@ -78,7 +78,7 @@ gnokey maketx addpkg \
 -gas-wanted 8000000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 MyKey
 ```
 

@@ -4,7 +4,7 @@
 
 | Network | RPC Endpoint                             | Chain ID  |
 |---------|------------------------------------------|-----------|
-| Staging | https://rpc.gno.land:443                 | `staging` |
+| Staging | https://rpc.staging.gno.land:443         | `staging` |
 | Test11  | https://rpc.test11.testnets.gno.land:443 | `test11`  |
 
 ### WebSocket endpoints
@@ -68,8 +68,8 @@ After genesis has been replayed, the chain continues working as normal.
 
 ### Using the Staging network
 
-The Staging network deployment can be found at [gno.land](https://gno.land), while
-the exposed RPC endpoints can be found on `https://rpc.gno.land:443`.
+The Staging network deployment can be found at [staging.gno.land](https://staging.gno.land), while
+the exposed RPC endpoints can be found on `https://rpc.staging.gno.land:443`.
 
 #### A warning note
 
@@ -113,7 +113,7 @@ Below you can find a breakdown of each existing testnet by these categories.
 ### Staging chain
 
 The Staging chain is an always up-to-date rolling testnet. It is meant to be used as
-a nightly build of the Gno tech stack. The home page of [gno.land](https://gno.land)
+a nightly build of the Gno tech stack. The home page of [staging.gno.land](https://staging.gno.land)
 is the `gnoweb` render of the Staging testnet.
 
 - **Persistence of state:**
