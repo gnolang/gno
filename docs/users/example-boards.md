@@ -8,7 +8,7 @@ interacting with the Boards realm.
 ## Finding Boards
 
 The main Boards application can be found at
-[gno.land/r/gnoland/boards2/v1](https://staging.gno.land/r/gnoland/boards2/v1). When you visit this
+[gno.land/r/gnoland/boards2/v1](https://gno.land/r/gnoland/boards2/v1). When you visit this
 URL, you'll see the rendered output of the Boards realm's `Render()` function,
 which displays the current state of the forum.
 
@@ -50,7 +50,7 @@ list.
 
 Inspired by the Boards realm? You can create your own version by:
 
-1. Studying the [source code](https://staging.gno.land/r/gnoland/boards2/v1$source&file=public.gno)
+1. Studying the [source code](https://gno.land/r/gnoland/boards2/v1$source&file=public.gno)
 2. Deploying a modified version to your own namespace
 3. Adding your own features and improvements
 
