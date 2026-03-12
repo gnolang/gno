@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - chain/test*
+      - chain/gnoland*
   workflow_dispatch:
 
 permissions:
