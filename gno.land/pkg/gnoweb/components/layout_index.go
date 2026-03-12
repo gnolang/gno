@@ -49,6 +49,7 @@ type IndexData struct {
 	FooterData
 	BodyView *View
 	Mode     ViewMode
+	Theme    string
 }
 
 type indexLayoutParams struct {
@@ -58,6 +59,7 @@ type indexLayoutParams struct {
 	IsDevmodView bool
 	ViewType     string
 	JSController string
+	Theme        string
 }
 
 func IndexLayout(data IndexData) Component {
@@ -67,6 +69,7 @@ func IndexLayout(data IndexData) Component {
 	dataLayout := indexLayoutParams{
 		IndexData: data,
 		ViewType:  data.BodyView.String(),
+		Theme:     data.Theme,
 	}
 
 	// Set dev mode based on view type and mode

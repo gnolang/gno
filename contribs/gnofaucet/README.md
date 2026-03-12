@@ -8,14 +8,14 @@ Make sure you have started gnoland
 
 ## Step2:
 
-Start the faucet. This repository provides middleware for integrating GitHub OAuth authentication or reCAPTCHA verification into the Gno.land faucet. This ensures security by preventing abuse while enabling users to claim tokens securely.
-#### Running Recapcha protected faucet:
+Start the faucet. This repository provides middleware for integrating GitHub OAuth authentication or hCaptcha verification into the Gno.land faucet. This ensures security by preventing abuse while enabling users to claim tokens securely.
+#### Running hCaptcha protected faucet:
 
-    ./build/gnofaucet serve captcha  -chain-id dev -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast" --captcha-secret=<RECAPTCHA_SECRET>
-    
+    ./build/gnofaucet serve captcha  -chain-id dev -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast" --captcha-secret=<HCAPTCHA_SECRET>
+
 | Flag                 | Type      | Default       | Description |
 |----------------------|-----------|--------------|-------------|
-| `--captcha-secret`  | `string`  | `""` (empty) | reCAPTCHA secret key. If empty, an errCaptchaMissing error is returned. |
+| `--captcha-secret`  | `string`  | `""` (empty) | hCaptcha secret key. If empty, an errCaptchaMissing error is returned. |
 
 
 #### Running Github Oauth protected faucet:

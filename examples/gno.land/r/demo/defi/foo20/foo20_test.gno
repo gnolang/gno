@@ -3,13 +3,13 @@ package foo20
 import (
 	"testing"
 
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 )
 
 func TestReadOnlyPublicMethods(t *testing.T) {
 	var (
-		admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		admin = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 		alice = testutils.TestAddress("alice")
 		bob   = testutils.TestAddress("bob")
 	)
@@ -57,7 +57,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 func TestErrConditions(t *testing.T) {
 	var (
-		admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		admin = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 		empty = address("")
 	)
 

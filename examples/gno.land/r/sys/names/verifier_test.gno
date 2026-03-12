@@ -3,35 +3,29 @@ package names
 import (
 	"testing"
 
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
-	"gno.land/r/sys/users"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 )
 
 var alice = testutils.TestAddress("alice")
 
 func TestDefaultVerifier(t *testing.T) {
-	// Check disabled, any case is true
+	// Disabled: any case is true
 	uassert.True(t, verifier(false, alice, alice.String()))
 	uassert.True(t, verifier(false, "", alice.String()))
 	uassert.True(t, verifier(false, alice, "somerandomusername"))
 
-	// Check enabled
-	// username + addr mismatch
-	uassert.False(t, verifier(true, alice, "notregistered"))
-	// PA namespace check
+	// Enabled: PA namespace check
 	uassert.True(t, verifier(true, alice, alice.String()))
 
-	// Empty name/address
+	// Enabled: non-PA namespaces denied
+	uassert.False(t, verifier(true, alice, "notregistered"))
+	uassert.False(t, verifier(true, alice, "alice"))
+
+	// Enabled: empty name/address
 	uassert.False(t, verifier(true, address(""), ""))
-
-	// Register proper username
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
-	urequire.NoError(t, users.RegisterUser(cross, "alice", alice))
-
-	// Proper namespace
-	uassert.True(t, verifier(true, alice, "alice"))
+	uassert.False(t, verifier(true, alice, ""))
+	uassert.False(t, verifier(true, address(""), "something"))
 }
 
 func TestEnable(t *testing.T) {
@@ -47,4 +41,7 @@ func TestEnable(t *testing.T) {
 		Enable(cross)
 	})
 	uassert.True(t, IsEnabled())
+	uassert.NotPanics(t, func() {
+		Enable(cross)
+	})
 }
