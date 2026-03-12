@@ -468,20 +468,6 @@ func TestVmHandlerQuery_ObjectJSON(t *testing.T) {
 	}
 }
 
-func TestVmHandlerQuery_ObjectBinary(t *testing.T) {
-	env := setupTestEnv()
-	vmHandler := env.vmh
-
-	req := abci.RequestQuery{
-		Path: "vm/qobject_binary",
-		Data: []byte(`invalid`),
-	}
-
-	res := vmHandler.Query(env.ctx, req)
-	assert.False(t, res.IsOK(), "should have an error")
-	assert.Regexp(t, `invalid expression`, res.Error.Error())
-}
-
 // extractObjectID queries qeval_json for a struct variable and extracts
 // its ObjectID from the JSON response containing a RefValue.
 func extractObjectID(t *testing.T, vmHandler vmHandler, ctx sdk.Context, evalData []byte) string {

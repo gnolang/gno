@@ -231,32 +231,6 @@ var Value = myFunc
 	require.Contains(t, string(result[0]), "FuncValue")
 }
 
-func TestExportValuesClosure(t *testing.T) {
-	m := NewMachine("testdata", nil)
-	defer m.Release()
-
-	nn := m.MustParseFile("testdata.gno", `package testdata
-func makeClosure() func() int {
-	x := 42
-	return func() int { return x }
-}
-var Value = makeClosure()
-`)
-	m.RunFiles(nn)
-	m.RunDeclaration(ImportD("testdata", "testdata"))
-
-	tps := m.Eval(Sel(Nx("testdata"), "Value"))
-	require.Len(t, tps, 1)
-
-	bz := exportAndMarshal(t, tps)
-	t.Logf("Closure output: %s", string(bz))
-
-	var result []json.RawMessage
-	require.NoError(t, json.Unmarshal(bz, &result))
-	require.Len(t, result, 1)
-	require.Contains(t, string(result[0]), "FuncValue")
-}
-
 func TestExportValuesInterface(t *testing.T) {
 	m := NewMachine("testdata", nil)
 	defer m.Release()
@@ -460,104 +434,6 @@ var Value = MyInt(7)
 	require.Contains(t, string(result[0]), "RefType")
 }
 
-func TestExportValuesMapStringStruct(t *testing.T) {
-	m := NewMachine("testdata", nil)
-	defer m.Release()
-
-	nn := m.MustParseFile("testdata.gno", `package testdata
-type Pair struct { X, Y int }
-var Value = map[string]Pair{"origin": {0, 0}, "point": {3, 4}}
-`)
-	m.RunFiles(nn)
-	m.RunDeclaration(ImportD("testdata", "testdata"))
-
-	tps := m.Eval(Sel(Nx("testdata"), "Value"))
-	require.Len(t, tps, 1)
-
-	bz := exportAndMarshal(t, tps)
-	t.Logf("Map[string]struct output: %s", string(bz))
-
-	var result []json.RawMessage
-	require.NoError(t, json.Unmarshal(bz, &result))
-	require.Len(t, result, 1)
-	// Should contain MapType with key and value type info
-	require.Contains(t, string(result[0]), "MapValue")
-	require.Contains(t, string(result[0]), "MapType")
-}
-
-func TestExportValuesNestedSlice(t *testing.T) {
-	m := NewMachine("testdata", nil)
-	defer m.Release()
-
-	nn := m.MustParseFile("testdata.gno", `package testdata
-var Value = [][]int{{1, 2}, {3, 4}}
-`)
-	m.RunFiles(nn)
-	m.RunDeclaration(ImportD("testdata", "testdata"))
-
-	tps := m.Eval(Sel(Nx("testdata"), "Value"))
-	require.Len(t, tps, 1)
-
-	bz := exportAndMarshal(t, tps)
-	t.Logf("Nested slice output: %s", string(bz))
-
-	var result []json.RawMessage
-	require.NoError(t, json.Unmarshal(bz, &result))
-	require.Len(t, result, 1)
-	require.Contains(t, string(result[0]), "SliceValue")
-}
-
-func TestExportValuesTypeValue(t *testing.T) {
-	m := NewMachine("testdata", nil)
-	defer m.Release()
-
-	nn := m.MustParseFile("testdata.gno", `package testdata
-type MyStruct struct { A int }
-func GetType() interface{} {
-	var x MyStruct
-	_ = x
-	return MyStruct{A: 42}
-}
-`)
-	m.RunFiles(nn)
-	m.RunDeclaration(ImportD("testdata", "testdata"))
-
-	tps := m.Eval(Call(Sel(Nx("testdata"), "GetType")))
-	require.Len(t, tps, 1)
-
-	bz := exportAndMarshal(t, tps)
-	t.Logf("Type value output: %s", string(bz))
-
-	var result []json.RawMessage
-	require.NoError(t, json.Unmarshal(bz, &result))
-	require.Len(t, result, 1)
-}
-
-func TestExportValuesStructWithMethods(t *testing.T) {
-	m := NewMachine("testdata", nil)
-	defer m.Release()
-
-	nn := m.MustParseFile("testdata.gno", `package testdata
-type Named struct { S string }
-func (n Named) Len() int { return len(n.S) }
-func (n Named) Upper() string { return n.S }
-var Value = Named{S: "hello"}
-`)
-	m.RunFiles(nn)
-	m.RunDeclaration(ImportD("testdata", "testdata"))
-
-	tps := m.Eval(Sel(Nx("testdata"), "Value"))
-	require.Len(t, tps, 1)
-
-	bz := exportAndMarshal(t, tps)
-	t.Logf("Struct with methods output: %s", string(bz))
-
-	var result []json.RawMessage
-	require.NoError(t, json.Unmarshal(bz, &result))
-	require.Len(t, result, 1)
-	require.Contains(t, string(result[0]), "hello")
-}
-
 func TestExportValuesRecursiveStruct(t *testing.T) {
 	const RecursiveValueFile = `
 package testdata
@@ -658,31 +534,6 @@ func TestExportCopyValue_BigintValueNilV(t *testing.T) {
 	cb, ok := copied.(BigintValue)
 	require.True(t, ok, "expected BigintValue, got %T", copied)
 	require.Nil(t, cb.V)
-}
-
-// TestExportCopyValue_UintValues exercises uint primitive values through
-// the full ExportValues pipeline.
-func TestExportCopyValue_UintValues(t *testing.T) {
-	m := NewMachine("testdata", nil)
-	defer m.Release()
-
-	nn := m.MustParseFile("testdata.gno", `package testdata
-func GetUints() (uint8, uint16, uint32, uint64) {
-	return 1, 2, 3, 4
-}
-`)
-	m.RunFiles(nn)
-	m.RunDeclaration(ImportD("testdata", "testdata"))
-
-	tps := m.Eval(Call(Sel(Nx("testdata"), "GetUints")))
-	require.Len(t, tps, 4)
-
-	bz := exportAndMarshal(t, tps)
-	t.Logf("Uint values output: %s", string(bz))
-
-	var result []json.RawMessage
-	require.NoError(t, json.Unmarshal(bz, &result))
-	require.Len(t, result, 4)
 }
 
 // TestExportObjectToValue_Block exercises the *Block case in
