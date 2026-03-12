@@ -9,10 +9,13 @@ DEBUG=false
 NO_INSTALL=false
 for arg in "$@"; do
   case "$arg" in
-    --txs-only) STOP_AFTER_TXS_EXPORT=true ;;
-    --debug) DEBUG=true ;;
-    --no-install) NO_INSTALL=true ;;
-    *) echo "Unknown argument: $arg"; exit 1 ;;
+  --txs-only) STOP_AFTER_TXS_EXPORT=true ;;
+  --debug) DEBUG=true ;;
+  --no-install) NO_INSTALL=true ;;
+  *)
+    echo "Unknown argument: $arg"
+    exit 1
+    ;;
   esac
 done
 
@@ -163,23 +166,23 @@ printf "  Generating MsgRun tx from %s...\n" "$(basename "$SETUP_FILE")"
 SETUP_TX="$WORK_DIR/genesis_setup_tx.json"
 SETUP_TX_FILE="$WORK_DIR/genesis_setup_tx.jsonl"
 run "$GNOKEY_BIN" maketx run \
-    --gas-wanted 100000000 \
-    --gas-fee 1ugnot \
-    --chainid "$CHAIN_ID" \
-    --home "$WORK_DIR_GNOKEY_HOME" \
-    GenesisDeployer \
-    "$SETUP_FILE" > "$SETUP_TX"
+  --gas-wanted 100000000 \
+  --gas-fee 1ugnot \
+  --chainid "$CHAIN_ID" \
+  --home "$WORK_DIR_GNOKEY_HOME" \
+  GenesisDeployer \
+  "$SETUP_FILE" >"$SETUP_TX"
 
 printf "  Signing tx...\n"
 echo "" | run "$GNOKEY_BIN" sign \
-    --tx-path "$SETUP_TX" \
-    --chainid "$CHAIN_ID" \
-    --account-number 0 \
-    --account-sequence 0 \
-    --home "$WORK_DIR_GNOKEY_HOME" \
-    --insecure-password-stdin \
-    GenesisDeployer
-jq -c '{tx: .}' < "$SETUP_TX" > "$SETUP_TX_FILE"
+  --tx-path "$SETUP_TX" \
+  --chainid "$CHAIN_ID" \
+  --account-number 0 \
+  --account-sequence 0 \
+  --home "$WORK_DIR_GNOKEY_HOME" \
+  --insecure-password-stdin \
+  GenesisDeployer
+jq -c '{tx: .}' <"$SETUP_TX" >"$SETUP_TX_FILE"
 
 printf "  Adding setup tx to genesis...\n"
 run "$GNOGENESIS_BIN" txs add sheets "$SETUP_TX_FILE" --genesis-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
@@ -413,13 +416,13 @@ run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --gene
 
 # ---- 6. Add the initial validator set to the genesis file
 
-#printf "\n=== Step 6/7: Adding validators ===\n"
+printf "\n=== Step 6/7: Adding validators ===\n"
 
-#for validator in "${INITIAL_VALSET[@]}"; do
-#  read -r name power address pub_key <<<"$validator"
-#  printf "  %s (power=%s, %s)\n" "$name" "$power" "$address"
-#  run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
-#done
+for validator in "${INITIAL_VALSET[@]}"; do
+  read -r name power address pub_key <<<"$validator"
+  printf "  %s (power=%s, %s)\n" "$name" "$power" "$address"
+  run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
+done
 
 # ---- 7. Verify the generated genesis file
 
