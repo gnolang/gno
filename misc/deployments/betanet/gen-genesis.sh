@@ -2,6 +2,28 @@
 # Generate betanet genesis.json.
 set -e
 
+# ---- Flags
+
+STOP_AFTER_TXS_EXPORT=false
+DEBUG=false
+NO_INSTALL=false
+for arg in "$@"; do
+  case "$arg" in
+    --txs-only) STOP_AFTER_TXS_EXPORT=true ;;
+    --debug) DEBUG=true ;;
+    --no-install) NO_INSTALL=true ;;
+    *) echo "Unknown argument: $arg"; exit 1 ;;
+  esac
+done
+
+# run executes a command, printing it first when --debug is set.
+run() {
+  if [ "$DEBUG" = true ]; then
+    printf "    \033[2m\$ %s\033[0m\n" "$*" >&2
+  fi
+  "$@"
+}
+
 # ---- Config
 
 CHAIN_ID=betanet
@@ -26,29 +48,6 @@ INITIAL_VALSET=(
   "gnocore-val-02 1 g1maa9t9ew7v3xj0cmnuyrr7frjguzykqeykjh0n gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqwdr6r6rr5eyrcrmletzk3rpnxvcupppu20tkhh4fzqlnx6erzazvhsf25g"
 )
 
-# ---- Flags
-
-STOP_AFTER_TXS_EXPORT=false
-DEBUG=false
-for arg in "$@"; do
-  case "$arg" in
-  --txs-only) STOP_AFTER_TXS_EXPORT=true ;;
-  --debug) DEBUG=true ;;
-  *)
-    echo "Unknown argument: $arg"
-    exit 1
-    ;;
-  esac
-done
-
-# run executes a command, printing it first when --debug is set.
-run() {
-  if [ "$DEBUG" = true ]; then
-    printf "    \033[2m\$ %s\033[0m\n" "$*" >&2
-  fi
-  "$@"
-}
-
 # ---- Internal (do not edit)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -65,29 +64,44 @@ GNOKEY_BIN="$WORK_DIR_BIN/gnokey"
 GNOLAND_BIN="$WORK_DIR_BIN/gnoland"
 GNOGENESIS_BIN="$WORK_DIR_BIN/gnogenesis"
 
-# Clean up previous work directory if it exists.
-rm -rf "$WORK_DIR"
+# Clean up previous work directory (preserve bin/ when --no-install).
+if [ "$NO_INSTALL" = true ]; then
+  # Keep binaries, remove everything else.
+  find "$WORK_DIR" -mindepth 1 -maxdepth 1 ! -name bin -exec rm -rf {} + 2>/dev/null || true
+else
+  rm -rf "$WORK_DIR"
+fi
 
 # ---- 1. Build binaries from source to ensure we have the right versions.
 
-printf "\n=== Step 1/7: Building binaries ===\n"
-mkdir -p "$WORK_DIR_BIN"
+if [ "$NO_INSTALL" = true ]; then
+  printf "\n=== Step 1/7: Skipping build (--no-install) ===\n"
+  for bin in "$GNO_BIN" "$GNOKEY_BIN" "$GNOLAND_BIN" "$GNOGENESIS_BIN"; do
+    if [ ! -x "$bin" ]; then
+      echo "ERROR: --no-install but $bin not found. Run without --no-install first."
+      exit 1
+    fi
+  done
+else
+  printf "\n=== Step 1/7: Building binaries ===\n"
+  mkdir -p "$WORK_DIR_BIN"
 
-printf "  gno...        "
-run go build -C "$GNO_CMD" -o "$GNO_BIN" .
-printf "ok\n"
+  printf "  gno...        "
+  run go build -C "$GNO_CMD" -o "$GNO_BIN" .
+  printf "ok\n"
 
-printf "  gnokey...     "
-run go build -C "$GNOKEY_CMD" -o "$GNOKEY_BIN" .
-printf "ok\n"
+  printf "  gnokey...     "
+  run go build -C "$GNOKEY_CMD" -o "$GNOKEY_BIN" .
+  printf "ok\n"
 
-printf "  gnoland...    "
-run go build -C "$GNOLAND_CMD" -o "$GNOLAND_BIN" .
-printf "ok\n"
+  printf "  gnoland...    "
+  run go build -C "$GNOLAND_CMD" -o "$GNOLAND_BIN" .
+  printf "ok\n"
 
-printf "  gnogenesis... "
-run go build -C "$GNOGENESIS_CMD" -o "$GNOGENESIS_BIN" .
-printf "ok\n"
+  printf "  gnogenesis... "
+  run go build -C "$GNOGENESIS_CMD" -o "$GNOGENESIS_BIN" .
+  printf "ok\n"
+fi
 
 # ---- 2. Generate filtered examples genesis txs.
 
@@ -143,14 +157,26 @@ printf "\n=== Step 3/7: Generating MsgRun setup tx (govdao_prop1.gno) ===\n"
 SETUP_FILE="$SCRIPT_DIR/govdao_prop1.gno"
 
 printf "  Generating MsgRun tx from %s...\n" "$(basename "$SETUP_FILE")"
+SETUP_TX="$WORK_DIR/genesis_setup_tx.json"
 SETUP_TX_FILE="$WORK_DIR/genesis_setup_tx.jsonl"
 run "$GNOKEY_BIN" maketx run \
-  --gas-wanted 100000000 \
-  --gas-fee 1ugnot \
-  --chainid "$CHAIN_ID" \
-  --home "$WORK_DIR_GNOKEY_HOME" \
-  GenesisDeployer \
-  "$SETUP_FILE" | jq -c '{tx: .}' >"$SETUP_TX_FILE"
+    --gas-wanted 100000000 \
+    --gas-fee 1ugnot \
+    --chainid "$CHAIN_ID" \
+    --home "$WORK_DIR_GNOKEY_HOME" \
+    GenesisDeployer \
+    "$SETUP_FILE" > "$SETUP_TX"
+
+printf "  Signing tx...\n"
+echo "" | run "$GNOKEY_BIN" sign \
+    --tx-path "$SETUP_TX" \
+    --chainid "$CHAIN_ID" \
+    --account-number 0 \
+    --account-sequence 0 \
+    --home "$WORK_DIR_GNOKEY_HOME" \
+    --insecure-password-stdin \
+    GenesisDeployer
+jq -c '{tx: .}' < "$SETUP_TX" > "$SETUP_TX_FILE"
 
 printf "  Adding setup tx to genesis...\n"
 run "$GNOGENESIS_BIN" txs add sheets "$SETUP_TX_FILE" --genesis-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
