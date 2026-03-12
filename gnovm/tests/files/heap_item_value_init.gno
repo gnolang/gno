@@ -19,7 +19,7 @@ func main(cur realm,) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4](137)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4|blk.b](137)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
@@ -46,7 +46,7 @@ func main(cur realm,) {
 //              }
 //          }
 //      }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:8](7)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:8|blk.a.heap](7)=
 //     @@ -1,10 +1,11 @@
 //      {
 //          "ObjectInfo": {

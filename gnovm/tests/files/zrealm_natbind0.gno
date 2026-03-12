@@ -26,7 +26,7 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](-1)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3|blk.node](-1)=
 //     @@ -17,7 +17,7 @@
 //                          "Tag": "",
 //                          "Type": {
@@ -45,7 +45,7 @@ func main(cur realm) {
 //              }
 //          }
 //      }
-// u[c09c8277a76bf0c457fdf56bd592edcdcf839a50:5](7)=
+// u[c09c8277a76bf0c457fdf56bd592edcdcf839a50:5|blk.ChainID](7)=
 //     @@ -8,10 +8,11 @@
 //          "NativePkg": "chain/runtime",
 //          "ObjectInfo": {
@@ -60,7 +60,7 @@ func main(cur realm) {
 //          },
 //          "Parent": {
 //              "@type": "/gno.RefValue",
-// u[c09c8277a76bf0c457fdf56bd592edcdcf839a50:8](0)=
+// u[c09c8277a76bf0c457fdf56bd592edcdcf839a50:8|blk.ChainHeight](0)=
 //     @@ -12,7 +12,7 @@
 //              "LastObjectSize": "473",
 //              "ModTime": "6",

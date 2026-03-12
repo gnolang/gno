@@ -26,7 +26,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:8](227)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:8|blk.zero.heap.heap.field](227)={
 //     "Data": null,
 //     "List": [
 //         {
@@ -44,7 +44,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](359)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:7|blk.zero.heap.heap](359)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -72,7 +72,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6](335)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6|blk.zero.heap](335)={
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //         "LastObjectSize": "335",
@@ -92,7 +92,7 @@ func main() {
 //         }
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](134)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3|blk.zero](134)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",

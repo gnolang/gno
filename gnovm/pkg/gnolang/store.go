@@ -648,8 +648,8 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		obj := o2.(Object)
 		if oo.GetIsNewReal() {
 			obj.GetObjectInfo().LastObjectSize += diff
-			fmt.Fprintf(ds.opslog, "c[%v](%d)=%s\n",
-				obj.GetObjectID(),
+			fmt.Fprintf(ds.opslog, "c[%s](%d)=%s\n",
+				ds.fmtObjTag(oo),
 				diff,
 				prettyJSON(amino.MustMarshalJSON(obj)))
 		} else {
@@ -672,10 +672,10 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 				panic(err)
 			}
 			if s == "" {
-				fmt.Fprintf(ds.opslog, "u[%v]=(noop)\n", obj.GetObjectID())
+				fmt.Fprintf(ds.opslog, "u[%s]=(noop)\n", ds.fmtObjTag(oo))
 			} else {
 				s = "    " + strings.TrimSpace(strings.ReplaceAll(s, "\n", "\n    "))
-				fmt.Fprintf(ds.opslog, "u[%v](%d)=\n%s\n", obj.GetObjectID(), diff, s)
+				fmt.Fprintf(ds.opslog, "u[%s](%d)=\n%s\n", ds.fmtObjTag(oo), diff, s)
 			}
 		}
 	}
@@ -713,6 +713,205 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	return diff
 }
 
+// resolveObjectTag returns a human-readable tag for an object by walking
+// the ownership chain. Used only for debug logging (opslog).
+// Every object gets a tag — never returns empty string.
+func (ds *defaultStore) resolveObjectTag(oo Object) string {
+	// Build path segments from child to root.
+	var segments []string
+	cur := oo
+	for range 20 {
+		// Try in-memory owner first, then fall back to OwnerID lookup.
+		owner := cur.GetOwner()
+		if owner == nil {
+			ownerID := cur.GetObjectInfo().OwnerID
+			if ownerID.IsZero() {
+				// Also try the live GetOwnerID() which uses the in-memory ref.
+				ownerID = cur.GetOwnerID()
+			}
+			if !ownerID.IsZero() {
+				if cached, ok := ds.cacheObjects[ownerID]; ok {
+					owner = cached
+				}
+			}
+		}
+		if owner == nil {
+			// Reached the top — label the root object by type.
+			segments = append(segments, objectTypeTag(cur))
+			break
+		}
+		// Determine the segment name based on how the owner contains cur.
+		segment := ds.findChildSegment(owner, cur)
+		segments = append(segments, segment)
+		cur = owner
+	}
+	// Reverse to get root-to-leaf order.
+	for i, j := 0, len(segments)-1; i < j; i, j = i+1, j-1 {
+		segments[i], segments[j] = segments[j], segments[i]
+	}
+	// Join with "." but skip the first separator for array/map indexing.
+	var b strings.Builder
+	b.WriteString(segments[0])
+	for _, s := range segments[1:] {
+		if len(s) > 0 && s[0] == '[' {
+			b.WriteString(s)
+		} else {
+			b.WriteByte('.')
+			b.WriteString(s)
+		}
+	}
+	return b.String()
+}
+
+// findChildSegment determines how child is referenced within owner
+// and returns a descriptive path segment.
+func (ds *defaultStore) findChildSegment(owner, child Object) string {
+	childID := child.GetObjectID()
+	switch ov := owner.(type) {
+	case *PackageValue:
+		// Child is the package block itself.
+		if _, ok := child.(*Block); ok {
+			return "blk"
+		}
+		// Check FBlocks (file blocks).
+		for i, fb := range ov.FBlocks {
+			if fbObj, ok := fb.(Object); ok && fbObj.GetObjectID() == childID {
+				if i < len(ov.FNames) {
+					return fmt.Sprintf("file(%s)", ov.FNames[i])
+				}
+				return fmt.Sprintf("fblk[%d]", i)
+			}
+			if ref, ok := fb.(RefValue); ok && ref.ObjectID == childID {
+				if i < len(ov.FNames) {
+					return fmt.Sprintf("file(%s)", ov.FNames[i])
+				}
+				return fmt.Sprintf("fblk[%d]", i)
+			}
+		}
+		return fmt.Sprintf("pkg(%s)", ov.PkgPath)
+	case *Block:
+		// Look up the variable name from the block's source.
+		for i, tv := range ov.Values {
+			if matchesObject(tv, childID) {
+				name := ds.blockIndexName(ov, i)
+				if name != "" {
+					return name
+				}
+				return fmt.Sprintf("[%d]", i)
+			}
+		}
+		// Could be the parent block.
+		if pb, ok := ov.Parent.(Object); ok && pb.GetObjectID() == childID {
+			return "parent"
+		}
+		return "blk"
+	case *ArrayValue:
+		for i, tv := range ov.List {
+			if matchesObject(tv, childID) {
+				return fmt.Sprintf("[%d]", i)
+			}
+		}
+		return "elem"
+	case *StructValue:
+		for i, tv := range ov.Fields {
+			if matchesObject(tv, childID) {
+				return fmt.Sprintf("field[%d]", i)
+			}
+		}
+		return "field"
+	case *MapValue:
+		return "mapval"
+	case *FuncValue:
+		// Check captures.
+		for i, tv := range ov.Captures {
+			if matchesObject(tv, childID) {
+				return fmt.Sprintf("capture[%d]", i)
+			}
+		}
+		if ov.Name != "" {
+			return string(ov.Name)
+		}
+		return "closure"
+	case *BoundMethodValue:
+		if matchesObject(ov.Receiver, childID) {
+			return "receiver"
+		}
+		return "bound"
+	case *HeapItemValue:
+		return "heap"
+	default:
+		return "child"
+	}
+}
+
+// blockIndexName resolves the name of the i-th value in a block
+// by looking up the block's source (BlockNode).
+func (ds *defaultStore) blockIndexName(b *Block, index int) string {
+	src := b.Source
+	if src == nil {
+		return ""
+	}
+	if rn, ok := src.(RefNode); ok {
+		src = ds.GetBlockNodeSafe(rn.GetLocation())
+		if src == nil {
+			return ""
+		}
+	}
+	names := src.GetBlockNames()
+	if index < len(names) {
+		n := names[index]
+		if n != "" {
+			return string(n)
+		}
+	}
+	return ""
+}
+
+// objectTypeTag returns a type-based label for a root/ownerless object.
+func objectTypeTag(oo Object) string {
+	switch cv := oo.(type) {
+	case *PackageValue:
+		return fmt.Sprintf("pkg(%s)", cv.PkgPath)
+	case *Block:
+		return "blk"
+	case *ArrayValue:
+		return "array"
+	case *StructValue:
+		return "struct"
+	case *MapValue:
+		return "map"
+	case *FuncValue:
+		if cv.Name != "" {
+			return fmt.Sprintf("func(%s)", cv.Name)
+		}
+		return "func"
+	case *BoundMethodValue:
+		return "bound"
+	case *HeapItemValue:
+		return "heapitem"
+	default:
+		return "obj"
+	}
+}
+
+// matchesObject checks if a TypedValue contains an object with the given ID.
+func matchesObject(tv TypedValue, oid ObjectID) bool {
+	switch cv := tv.V.(type) {
+	case Object:
+		return cv.GetObjectID() == oid
+	case RefValue:
+		return cv.ObjectID == oid
+	default:
+		return false
+	}
+}
+
+// fmtObjTag formats an ObjectID with its resolved tag for log output.
+func (ds *defaultStore) fmtObjTag(oo Object) string {
+	tag := ds.resolveObjectTag(oo)
+	return fmt.Sprintf("%v|%s", oo.GetObjectID(), tag)
+}
+
 func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 	key := backendObjectKey(oid)
 	hashbz := ds.baseStore.Get([]byte(key))
@@ -741,16 +940,16 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
 	oid := oo.GetObjectID()
 	size := oo.GetObjectInfo().LastObjectSize
+	// make realm op log entry (before cache delete so owner is still findable).
+	if ds.opslog != nil {
+		fmt.Fprintf(ds.opslog, "d[%s](%d)\n", ds.fmtObjTag(oo), -size)
+	}
 	// delete from cache.
 	delete(ds.cacheObjects, oid)
 	// delete from backend.
 	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
 		ds.baseStore.Delete([]byte(key))
-	}
-	// make realm op log entry
-	if ds.opslog != nil {
-		fmt.Fprintf(ds.opslog, "d[%v](%d)\n", oo.GetObjectID(), -size)
 	}
 	return size
 }

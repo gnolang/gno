@@ -19,7 +19,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/xx"]
-// c[aea84df38908f9569d0f552575606e6e6e7e22dd:9](253)={
+// c[aea84df38908f9569d0f552575606e6e6e7e22dd:9|blk.is.heap](253)={
 //     "Data": null,
 //     "List": [
 //         {
@@ -44,7 +44,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[aea84df38908f9569d0f552575606e6e6e7e22dd:10](303)={
+// c[aea84df38908f9569d0f552575606e6e6e7e22dd:10|blk.ss.heap](303)={
 //     "Data": null,
 //     "List": [
 //         {
@@ -76,7 +76,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// u[aea84df38908f9569d0f552575606e6e6e7e22dd:3](5)=
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:3|blk.i](5)=
 //     @@ -2,11 +2,12 @@
 //          "ObjectInfo": {
 //              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:3",
@@ -91,7 +91,7 @@ func main() {
 //              "T": {
 //                  "@type": "/gno.PrimitiveType",
 //                  "value": "64"
-// u[aea84df38908f9569d0f552575606e6e6e7e22dd:4](137)=
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:4|blk.is](137)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:4",
@@ -119,7 +119,7 @@ func main() {
 //              }
 //          }
 //      }
-// u[aea84df38908f9569d0f552575606e6e6e7e22dd:5](30)=
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:5|blk.s](30)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:5",
@@ -140,7 +140,7 @@ func main() {
 //              }
 //          }
 //      }
-// u[aea84df38908f9569d0f552575606e6e6e7e22dd:6](138)=
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:6|blk.ss](138)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:6",
