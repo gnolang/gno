@@ -233,7 +233,7 @@ fi
 
 printf "\n=== Step 4/7: Calculating deployer balances ===\n"
 
-WORK_DIR_GENESIS_BALANCES="$WORK_DIR/genesis_balances.txt"
+WORK_DIR_DEPLOYER_BALANCES="$WORK_DIR/deployers_balances.txt"
 BALANCES_TMP_DIR="$WORK_DIR/balances-work"
 BALANCES_TMP_FILE="$BALANCES_TMP_DIR/balances.txt"
 BALANCES_TMP_GNOLAND_DATA="$BALANCES_TMP_DIR/gnoland-data"
@@ -433,14 +433,14 @@ NODE_PID=""
 
 if [ "$all_zero" = true ]; then
   printf "  All balances zero — deployer costs verified\n"
-  cp "$BALANCES_TMP_FILE" "$WORK_DIR_GENESIS_BALANCES"
+  cp "$BALANCES_TMP_FILE" "$WORK_DIR_DEPLOYER_BALANCES"
 else
   echo "ERROR: Some balances are not zero after replay. Check $BALANCES_TMP_FILE."
   exit 1
 fi
 
 printf "  Adding deployer balances to genesis...\n"
-run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_GENESIS_BALANCES" --genesis-path "$WORK_DIR_GENESIS"
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_DEPLOYER_BALANCES" --genesis-path "$WORK_DIR_GENESIS"
 
 # ---- 5. Download and add the airdrop balances
 
@@ -454,6 +454,8 @@ run curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
 gzip -dc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
 
 airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
+# TODO: We need to verify if there is a colision between deployer and airdrop addresses.
+# See: https://github.com/gnolang/gno/pull/5250/changes#discussion_r2925485031
 printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
 run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS"
 
