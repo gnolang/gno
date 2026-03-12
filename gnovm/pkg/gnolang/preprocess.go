@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"maps"
 	"math"
 	"math/big"
 	"reflect"
@@ -5474,66 +5473,94 @@ func addDependencyToTopDecl(ns []Node, name Name) {
 	}
 }
 
-func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{}) []Decl {
-	stack := []Decl{decl}
-	traversed := map[Decl]bool{}
-	var ret []Decl
-	for pop := stack[0]; len(stack) > 0; pop, stack = stack[len(stack)-1], stack[:len(stack)-1] {
-		m, _ := pop.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
-		if m == nil {
-			continue
+// resolveDeclDep resolves a dependency name (as stored in ATTR_DECL_DEPS) to
+// the corresponding Decl in pn. Method dependencies are encoded as "Type.Method".
+func resolveDeclDep(name Name, pn *PackageNode) Decl {
+	id, sel, isMethod := strings.Cut(string(name), ".")
+	if isMethod {
+		li, found := pn.GetLocalIndex(Name(id))
+		if !found || pn.NameSources[li].Type != NSTypeDecl {
+			panic(fmt.Sprintf("type %s not found in package %s", id, pn.PkgName))
 		}
-		names := maps.Keys(m)
-		for name := range names {
-			var dep Decl
-			id, sel, isMethod := strings.Cut(string(name), ".")
-			if isMethod {
-				li, found := pn.GetLocalIndex(Name(id))
-				if !found || pn.NameSources[li].Type != NSTypeDecl {
-					panic(fmt.Sprintf("type %s not found in package %s", id, pn.PkgName))
-				}
-				dt, ok := pn.Types[li].(*DeclaredType)
-				if !ok {
-					panic(fmt.Sprintf("type %s is not a *DeclaredType in package %s", id, pn.PkgName))
-				}
-				idx := slices.IndexFunc(dt.Methods, func(m TypedValue) bool {
-					return m.V.(*FuncValue).Name == Name(sel)
-				})
-				if idx < 0 {
-					panic(fmt.Sprintf("method %s not found in type %s", sel, id))
-				}
-				dep = dt.Methods[idx].V.(*FuncValue).Source.(*FuncDecl)
-			} else {
-				li, found := pn.GetLocalIndex(name)
-				if !found {
-					panic(fmt.Sprintf("name %s not found in package %s", name, pn.PkgName))
-				}
-				dep = pn.NameSources[li].Origin.(Decl)
-			}
-			switch d := dep.(type) {
+		dt, ok := pn.Types[li].(*DeclaredType)
+		if !ok {
+			panic(fmt.Sprintf("type %s is not a *DeclaredType in package %s", id, pn.PkgName))
+		}
+		idx := slices.IndexFunc(dt.Methods, func(m TypedValue) bool {
+			return m.V.(*FuncValue).Name == Name(sel)
+		})
+		if idx < 0 {
+			panic(fmt.Sprintf("method %s not found in type %s", sel, id))
+		}
+		return dt.Methods[idx].V.(*FuncValue).Source.(*FuncDecl)
+	}
+	li, found := pn.GetLocalIndex(name)
+	if !found {
+		panic(fmt.Sprintf("name %s not found in package %s", name, pn.PkgName))
+	}
+	return pn.NameSources[li].Origin.(Decl)
+}
+
+// findUnresolvedDeps returns all ValueDecl dependencies of decl that are not
+// yet in fdeclared, traversing transitively through FuncDecl call edges.
+// It panics with a descriptive chain if a circular variable-initialization
+// dependency is detected.
+func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{}) []Decl {
+	var ret []Decl
+	onStack := map[Decl]bool{} // grey: currently in the DFS call path
+	done := map[Decl]bool{}    // black: fully explored
+
+	var walk func(d Decl, path []Name)
+	walk = func(d Decl, path []Name) {
+		if done[d] {
+			return
+		}
+		onStack[d] = true
+		m, _ := d.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
+		for name := range m {
+			dep := resolveDeclDep(name, pn)
+			switch dep := dep.(type) {
 			case *FuncDecl:
-				// Do not add to resulting ret stack; add to the local stack.
-				if !traversed[dep] {
-					stack = append(stack, d)
-					traversed[dep] = true
+				// Mutually recursive functions are fine; only skip if already
+				// on the current path or fully explored.
+				if !onStack[dep] && !done[dep] {
+					walk(dep, append(path, name))
 				}
 			case *ValueDecl:
-				if dep == decl {
-					// TODO: can this happen? can it happen here?
-					panic("circular dependency")
+				if onStack[dep] {
+					// Build the cycle chain: path already holds the names leading
+					// to d; appending name closes the loop back to dep.
+					bld := strings.Builder{}
+					bld.WriteString("circular dependency: ")
+					for i, n := range path {
+						if i > 0 {
+							bld.WriteString(" -> ")
+						}
+						bld.WriteString(string(n))
+					}
+					panic(bld.String())
 				}
-				if !slices.Contains(ret, dep) {
-					ret = append(ret, dep)
+				dv := Decl(dep)
+				if !slices.Contains(ret, dv) {
+					ret = append(ret, dv)
 				}
-				if !traversed[dep] {
-					stack = append(stack, dep)
-					traversed[dep] = true
+				if !done[dep] {
+					walk(dep, append(path, name))
 				}
 			default:
-				panic(fmt.Sprintf("unexpected gnolang.Decl: %#v", d))
+				panic(fmt.Sprintf("unexpected gnolang.Decl: %#v", dep))
 			}
 		}
+		onStack[d] = false
+		done[d] = true
 	}
+
+	rootNames := decl.GetDeclNames()
+	rootName := Name("_")
+	if len(rootNames) > 0 {
+		rootName = rootNames[0]
+	}
+	walk(decl, []Name{rootName})
 	return ret
 }
 
