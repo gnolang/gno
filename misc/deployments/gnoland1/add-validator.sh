@@ -14,8 +14,9 @@ set -eo pipefail
 
 GNOKEY_NAME="${GNOKEY_NAME:-moul}"
 CHAIN_ID="${CHAIN_ID:-gnoland1}"
-REMOTE="${REMOTE:-127.0.0.1:26657}"
-GAS_WANTED="${GAS_WANTED:-10000000}"
+#REMOTE="${REMOTE:-https://rpc.betanet.testnets.gno.land:443}"
+REMOTE="${REMOTE:-https://sentry1.gnoland1.gno.berty.io:26657}"
+GAS_WANTED="${GAS_WANTED:-100000000}"
 GAS_FEE="${GAS_FEE:-1000000ugnot}"
 
 if [ $# -lt 2 ]; then
