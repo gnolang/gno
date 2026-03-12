@@ -5493,7 +5493,7 @@ func resolveDeclDep(name Name, pn *PackageNode) Decl {
 	return pn.NameSources[li].Origin.(Decl)
 }
 
-// findUnresolvedDeps returns all ValueDecl dependencies of decl that are not
+// findUnresolvedDeps returns the ValueDecl dependencies of decl that are not
 // yet in fdeclared, traversing transitively through FuncDecl call edges.
 // It panics with a descriptive chain if a circular variable-initialization
 // dependency is detected.
@@ -5501,6 +5501,19 @@ func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{})
 	var ret []Decl
 	onStack := map[Decl]bool{} // grey: currently in the DFS call path
 	done := map[Decl]bool{}    // black: fully explored
+
+	// inFDeclared reports whether all names declared by d are already in
+	// fdeclared, meaning d has already been initialized and its deps are
+	// satisfied. Used to prune the DFS and avoid false circular-dep panics
+	// through already-resolved nodes.
+	inFDeclared := func(d *ValueDecl) bool {
+		for _, n := range d.GetDeclNames() {
+			if _, ok := fdeclared[n]; !ok {
+				return false
+			}
+		}
+		return true
+	}
 
 	var walk func(d Decl, path []Name)
 	walk = func(d Decl, path []Name) {
@@ -5538,6 +5551,12 @@ func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{})
 					}
 					bld.WriteString(string(name))
 					panic(bld.String())
+				}
+				// Already initialized: treat as done and skip its transitive
+				// deps entirely — there is nothing left to resolve through it.
+				if inFDeclared(dep) {
+					done[dep] = true
+					continue
 				}
 				dv := Decl(dep)
 				if !slices.Contains(ret, dv) {

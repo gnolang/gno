@@ -3,9 +3,9 @@ package main
 // Tests cross-file transitive dependency through a function.
 // extern/initorder_crossfn: a.gno has A = GetB(), b.gno has B = 42 and
 // func GetB() int { return B }.
-// findDependentNames must follow GetB (a FuncDecl in b.gno) into its body
-// using the correct file context (subFn = b.gno) to find that A depends on B.
-// Init order within the package: B, then A.
+// During preprocessing of b.gno, addDependencyToTopDecl records that GetB
+// uses B, so A's ATTR_DECL_DEPS includes both GetB and (transitively) B.
+// Init order within the package: B (no deps), then A (deps GetB and B).
 
 import "filetests/extern/initorder_crossfn"
 
