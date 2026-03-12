@@ -630,7 +630,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	for len(pending) > 0 {
 		pos := slices.IndexFunc(pending, func(pid pendingInitDecl) bool {
 			for _, dep := range pid.deps {
-				names := dep.(Decl).GetDeclNames()
+				names := dep.GetDeclNames()
 				for _, name := range names {
 					if _, ok := fdeclared[name]; !ok {
 						return false

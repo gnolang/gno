@@ -5341,14 +5341,6 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	nx.Path = last.GetPathForName(nil, nx.Name)
 }
 
-func isFile(n BlockNode) bool {
-	if _, ok := n.(*FileNode); ok {
-		return true
-	} else {
-		return false
-	}
-}
-
 func skipFile(n BlockNode) BlockNode {
 	if fn, ok := n.(*FileNode); ok {
 		return packageOf(fn)
