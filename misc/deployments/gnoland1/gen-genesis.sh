@@ -1,12 +1,55 @@
 #!/usr/bin/env bash
 # Generate gnoland1 genesis.json.
+#
+# Usage:
+#   ./gen-genesis.sh              # full build + genesis generation
+#   ./gen-genesis.sh --debug      # show every command being run
+#   ./gen-genesis.sh --txs-only   # stop after generating txs (skip balance calculation)
+#   ./gen-genesis.sh --no-install # reuse previously built binaries
 set -eo pipefail
+
+# =============================================================================
+# REVIEW THIS SECTION — update before each genesis generation.
+# =============================================================================
+
+# Packages to include in genesis (resolved with transitive dependencies).
+# Use "..." suffix to match all sub-packages.
+FILTERED_PACKAGES=(
+  ./gno.land/r/sys/...
+  ./gno.land/r/gov/...
+  ./gno.land/r/gnoland/blog/...
+  ./gno.land/r/gnoland/wugnot/...
+  ./gno.land/r/gnoland/coins/...
+  ./gno.land/r/gnoland/boards2/...
+  ./gno.land/r/gnops/valopers/...
+)
+
+# Initial validator set. Format: "name power address pub_key"
+INITIAL_VALSET=(
+  "gnocore-val-01 1 g1euw20dwq4yt3zvjl0kl725me0lfrjf5lzaws4z gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqty3jnuspxthzmqyvjgxcwlu90pq8atj8lda7a2wsr2gqmpa47pdj2jvqrc"
+  "gnocore-val-02 1 g1maa9t9ew7v3xj0cmnuyrr7frjguzykqeykjh0n gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqwdr6r6rr5eyrcrmletzk3rpnxvcupppu20tkhh4fzqlnx6erzazvhsf25g"
+)
+
+# Chain parameters.
+CHAIN_ID=gnoland1
+GENESIS_TIME=1770883200 # Thursday, February 12th 2026 09:00 GMT+0100 (CET)
+
+# Airdrop balances (independence-day snapshot).
+BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/9dec38a4a72c9e84db7e78ae010370de250f2d64/mkgenesis/balances.txt.gz"
+
+# Deployer key mnemonic (deterministic — used only for genesis tx signing).
+DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
+
+# =============================================================================
+# INTERNAL — everything below is glue, you shouldn't need to change it.
+# =============================================================================
 
 # ---- Flags
 
 STOP_AFTER_TXS_EXPORT=false
 DEBUG=false
 NO_INSTALL=false
+GENESIS_FILE=genesis.json # set to absolute path below, after SCRIPT_DIR
 for arg in "$@"; do
   case "$arg" in
   --txs-only) STOP_AFTER_TXS_EXPORT=true ;;
@@ -32,31 +75,7 @@ NODE_PID=""
 cleanup() { [ -n "$NODE_PID" ] && kill "$NODE_PID" 2>/dev/null || true; }
 trap cleanup EXIT
 
-# ---- Config
-
-CHAIN_ID=gnoland1
-GENESIS_TIME=1770883200 # Thursday, February 12th 2026 09:00 GMT+0100 (Central European Standard Time)
-DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
-BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/4b120443184e8178647124ddff9948fe311d224d/mkgenesis/balances.txt.gz"
-GENESIS_FILE=genesis.json # set to absolute path below, after SCRIPT_DIR
-
-FILTERED_PACKAGES=(
-  ./gno.land/r/sys/...
-  ./gno.land/r/gov/...
-  ./gno.land/r/gnoland/blog/...
-  ./gno.land/r/gnoland/wugnot/...
-  ./gno.land/r/gnoland/coins/...
-  ./gno.land/r/gnoland/boards2/...
-  ./gno.land/r/gnops/valopers/...
-)
-
-INITIAL_VALSET=(
-  # Values: "name power address pub_key"
-  "gnocore-val-01 1 g1euw20dwq4yt3zvjl0kl725me0lfrjf5lzaws4z gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqty3jnuspxthzmqyvjgxcwlu90pq8atj8lda7a2wsr2gqmpa47pdj2jvqrc"
-  "gnocore-val-02 1 g1maa9t9ew7v3xj0cmnuyrr7frjguzykqeykjh0n gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqwdr6r6rr5eyrcrmletzk3rpnxvcupppu20tkhh4fzqlnx6erzazvhsf25g"
-)
-
-# ---- Internal (do not edit)
+# ---- Derived paths (do not edit)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GENESIS_FILE="$SCRIPT_DIR/$GENESIS_FILE"
