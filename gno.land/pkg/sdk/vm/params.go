@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -23,7 +24,7 @@ const (
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
 
-// Params defines the parameters for the bank module.
+// Params defines the parameters for the vm module.
 type Params struct {
 	SysNamesPkgPath     string         `json:"sysnames_pkgpath" yaml:"sysnames_pkgpath"`
 	SysCLAPkgPath       string         `json:"syscla_pkgpath" yaml:"syscla_pkgpath"`
@@ -132,5 +133,33 @@ func (vm *VMKeeper) getSysCLAPkgParam(ctx sdk.Context) string {
 }
 
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
-	// XXX validate input?
+	params := vm.GetParams(ctx)
+	switch key {
+	case "p:sysnames_pkgpath":
+		params.SysNamesPkgPath = sdkparams.MustParamString("sysnames_pkgpath", value)
+	case "p:syscla_pkgpath":
+		params.SysCLAPkgPath = sdkparams.MustParamString("syscla_pkgpath", value)
+	case "p:chain_domain":
+		params.ChainDomain = sdkparams.MustParamString("chain_domain", value)
+	case "p:default_deposit":
+		params.DefaultDeposit = sdkparams.MustParamString("default_deposit", value)
+	case "p:storage_price":
+		params.StoragePrice = sdkparams.MustParamString("storage_price", value)
+	case "p:storage_fee_collector":
+		s := sdkparams.MustParamString("storage_fee_collector", value)
+		addr, err := crypto.AddressFromString(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid storage_fee_collector address: %v", err))
+		}
+		params.StorageFeeCollector = addr
+	default:
+		if strings.HasPrefix(key, "p:") {
+			panic(fmt.Sprintf("unknown vm param key: %q", key))
+		}
+		// Allow realm-scoped params through without validation.
+		return
+	}
+	if err := params.Validate(); err != nil {
+		panic("invalid param: " + err.Error())
+	}
 }

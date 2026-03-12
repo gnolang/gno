@@ -1,6 +1,6 @@
 {{ define "index" -}}
 <!doctype html>
-<html lang="en">
+<html lang="en"{{ with .Theme }} data-theme="{{ . }}"{{ end }}>
 {{ template "layouts/head" .IndexData.HeadData -}}
 
 <body>

@@ -7,6 +7,8 @@ enum Preference {
 }
 
 const STORAGE_KEY = "theme";
+const COOKIE_KEY = "theme";
+const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year in seconds
 const DEFAULT_PREFERENCE = Preference.System;
 const CYCLE_ORDER = [
 	Preference.System,
@@ -69,15 +71,19 @@ export class ThemeController extends BaseController {
 		this.applyTheme();
 	}
 
-	private applyTheme(): void {
-		const theme =
-			this.preference === Preference.System
-				? window.matchMedia("(prefers-color-scheme: dark)").matches
-					? "dark"
-					: "light"
-				: this.preference;
+	private resolveTheme(): "light" | "dark" {
+		if (this.preference === Preference.System) {
+			return window.matchMedia("(prefers-color-scheme: dark)").matches
+				? "dark"
+				: "light";
+		}
+		return this.preference === Preference.Dark ? "dark" : "light";
+	}
 
+	private applyTheme(): void {
+		const theme = this.resolveTheme();
 		document.documentElement.setAttribute("data-theme", theme);
+		this.setCookie(theme, COOKIE_MAX_AGE);
 
 		for (const [el, pref] of [
 			[this.sun, Preference.Light],
@@ -86,5 +92,10 @@ export class ThemeController extends BaseController {
 		] as [HTMLElement | null, Preference][]) {
 			el?.classList.toggle("u-hidden", this.preference !== pref);
 		}
+	}
+
+	private setCookie(value: string, maxAge: number): void {
+		const secure = location.protocol === "https:" ? ";Secure" : "";
+		document.cookie = `${COOKIE_KEY}=${value};path=/;max-age=${maxAge};SameSite=Lax${secure}`;
 	}
 }
