@@ -27,12 +27,6 @@ import (
 // mnemonic.  See loader.gno for the full mnemonic.
 const genesisDeployerAddr = address("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p")
 
-func must(err error) {
-	if err != nil {
-		panic(err.Error())
-	}
-}
-
 func main() {
 	ms := memberstore.Get()
 
@@ -41,7 +35,7 @@ func main() {
 	must(ms.SetMember(memberstore.T1, genesisDeployerAddr, &memberstore.Member{InvitationPoints: 0}))
 
 	// ---- 2. Register the initial validator set via governance proposal ----
-	pid := dao.MustCreateProposal(cross, valr.NewPropRequest(
+	govExec(valr.NewPropRequest(
 		func() []validators.Validator {
 			return []validators.Validator{
 				{
@@ -59,23 +53,17 @@ func main() {
 		"Add initial validator set",
 		"Bootstrap the betanet initial validator set",
 	))
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
 
 	// ---- 3. Set chain parameters via governance proposals ----
 
 	// Unrestricted addresses (can transfer ugnot even when bank is locked).
-	pid = dao.MustCreateProposal(cross, params.ProposeAddUnrestrictedAcctsRequest(
+	govExec(params.ProposeAddUnrestrictedAcctsRequest(
 		address("g148583t5x66zs6p90ehad6l4qefeyaf54s69wql"),
 		address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"),
 	))
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
 
 	// Lock ugnot transfers (restricted denom).
-	pid = dao.MustCreateProposal(cross, params.ProposeLockTransferRequest())
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	govExec(params.ProposeLockTransferRequest())
 
 	// ---- 4. Add govDAO T1 members ----
 	must(ms.SetMember(memberstore.T1, address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"), &memberstore.Member{InvitationPoints: 3})) // Jae
@@ -95,4 +83,18 @@ func main() {
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})
+}
+
+// govExec creates a proposal, votes YES, and executes it immediately.
+// Works because the deployer is the sole T1 member (100% supermajority).
+func govExec(r dao.ProposalRequest) {
+	pid := dao.MustCreateProposal(cross, r)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross, pid)
+}
+
+func must(err error) {
+	if err != nil {
+		panic(err.Error())
+	}
 }
