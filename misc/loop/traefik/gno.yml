@@ -42,7 +42,7 @@ http:
       service: gno-portal-loop
       tls:
         certResolver: le
-      rule: "Host(`rpc.gno.land`) || Host(`rpc.staging.gno.land`)"
+      rule: "Host(`rpc.staging.gno.land`)"
       entrypoints: [ "web", "websecure" ]
       middlewares: []
 

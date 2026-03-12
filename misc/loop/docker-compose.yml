@@ -57,14 +57,14 @@ services:
       - --remote=traefik:26657
       - --chainid=staging
       - --with-analytics
-      - --faucet-url=https://faucet-api.gno.land
-      - --help-remote=https://rpc.gno.land:443
+      - --faucet-url=https://faucet-api.staging.gno.land
+      - --help-remote=https://rpc.staging.gno.land
     networks:
       - portal-loop
     labels:
       - traefik.enable=true
       - traefik.http.routers.gnoweb.entrypoints=web,websecure
-      - traefik.http.routers.gnoweb.rule=Host(`gno.land`) || Host(`www.gno.land`) || Host(`staging.gno.land`)
+      - traefik.http.routers.gnoweb.rule=Host(`www.staging.gno.land`) || Host(`staging.gno.land`)
       - traefik.http.routers.gnoweb.tls=true
       - traefik.http.routers.gnoweb.tls.certresolver=le
       # Secure headers
