@@ -37,8 +37,8 @@ trap cleanup EXIT
 CHAIN_ID=gnoland1
 GENESIS_TIME=1770883200 # Thursday, February 12th 2026 09:00 GMT+0100 (Central European Standard Time)
 DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
-BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/9dec38a4a72c9e84db7e78ae010370de250f2d64/mkgenesis/balances.txt.gz"
-GENESIS_FILE=genesis.json  # set to absolute path below, after SCRIPT_DIR
+BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/4b120443184e8178647124ddff9948fe311d224d/mkgenesis/balances.txt.gz"
+GENESIS_FILE=genesis.json # set to absolute path below, after SCRIPT_DIR
 
 FILTERED_PACKAGES=(
   ./gno.land/r/sys/...
