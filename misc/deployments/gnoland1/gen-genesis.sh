@@ -37,12 +37,12 @@ GENESIS_TIME=1770883200 # Thursday, February 12th 2026 09:00 GMT+0100 (CET)
 # Airdrop balances (independence-day snapshot).
 BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/9dec38a4a72c9e84db7e78ae010370de250f2d64/mkgenesis/balances.txt.gz"
 
-# Deployer key mnemonic (deterministic — used only for genesis tx signing).
-DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
-
 # =============================================================================
 # INTERNAL — everything below is glue, you shouldn't need to change it.
 # =============================================================================
+
+# Deployer key mnemonic (deterministic — used only for genesis tx signing).
+DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
 
 # ---- Flags
 
