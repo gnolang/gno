@@ -50,6 +50,16 @@ func main() {
 					PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqwdr6r6rr5eyrcrmletzk3rpnxvcupppu20tkhh4fzqlnx6erzazvhsf25g",
 					VotingPower: 1,
 				},
+				{
+					Address:     address("g1hcmvuk3g03hdf95lqevg7r2068y8fg8rjlue5k"),
+					PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqwvkx5r8ma97250jluze98v5dzag3h95nqurk8nfr2sar6jchf9ejgevudz",
+					VotingPower: 1,
+				},
+				{
+					Address:     address("g1kfzcpr5pkh7cul0exfcswe923z3659g937jayk"),
+					PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqtc9p3fw9tzmscv3p3pmrl70l852c6tpwkkstuqavja8ca3qgpd55pmw5mu",
+					VotingPower: 1,
+				},
 			}
 		},
 		"Add initial validator set",
