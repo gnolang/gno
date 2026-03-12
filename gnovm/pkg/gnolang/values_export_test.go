@@ -477,7 +477,7 @@ func TestExportCopyTypeWithRefs_InterfaceType(t *testing.T) {
 	iface := &InterfaceType{
 		PkgPath: "test",
 		Methods: []FieldType{
-			{Name: "Foo", Type: PrimitiveType(IntType)},
+			{Name: "Foo", Type: IntType},
 		},
 		Generic: "bar",
 	}
@@ -496,13 +496,13 @@ func TestExportCopyTypeWithRefs_ChanType(t *testing.T) {
 	seen := make(map[Object]int)
 	ch := &ChanType{
 		Dir: SEND | RECV,
-		Elt: PrimitiveType(IntType),
+		Elt: IntType,
 	}
 	copied := exportCopyTypeWithRefs(ch, seen)
 	ct, ok := copied.(*ChanType)
 	require.True(t, ok, "expected *ChanType, got %T", copied)
 	require.Equal(t, SEND|RECV, ct.Dir)
-	require.Equal(t, PrimitiveType(IntType), ct.Elt)
+	require.Equal(t, IntType, ct.Elt)
 }
 
 // TestExportCopyTypeWithRefs_tupleType exercises the *tupleType case
@@ -511,18 +511,18 @@ func TestExportCopyTypeWithRefs_tupleType(t *testing.T) {
 	seen := make(map[Object]int)
 	tt := &tupleType{
 		Elts: []Type{
-			PrimitiveType(StringType),
-			PrimitiveType(IntType),
-			PrimitiveType(BoolType),
+			StringType,
+			IntType,
+			BoolType,
 		},
 	}
 	copied := exportCopyTypeWithRefs(tt, seen)
 	ct, ok := copied.(*tupleType)
 	require.True(t, ok, "expected *tupleType, got %T", copied)
 	require.Len(t, ct.Elts, 3)
-	require.Equal(t, PrimitiveType(StringType), ct.Elts[0])
-	require.Equal(t, PrimitiveType(IntType), ct.Elts[1])
-	require.Equal(t, PrimitiveType(BoolType), ct.Elts[2])
+	require.Equal(t, StringType, ct.Elts[0])
+	require.Equal(t, IntType, ct.Elts[1])
+	require.Equal(t, BoolType, ct.Elts[2])
 }
 
 // TestExportCopyValue_BigintValueNilV exercises the BigintValue case in
