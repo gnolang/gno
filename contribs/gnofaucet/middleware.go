@@ -17,7 +17,7 @@ import (
 )
 
 // ipMiddleware returns the IP verification middleware, using the given subnet throttler
-func ipMiddleware(behindProxy bool, st *ipThrottler) func(next http.Handler) http.Handler {
+func ipMiddleware(trustedProxyCount uint64, st *ipThrottler) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -35,9 +35,25 @@ func ipMiddleware(behindProxy bool, st *ipThrottler) func(next http.Handler) htt
 					return
 				}
 
-				// Check if the request is behind a proxy
-				if xff := r.Header.Get("X-Forwarded-For"); xff != "" && behindProxy {
-					host = xff
+				// Extract the client IP from X-Forwarded-For based on the number of trusted proxies.
+				// For N trusted proxies, the client IP is at index len(parts) - N.
+				// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For#selecting_an_ip_address
+				if trustedProxyCount > 0 {
+					if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+						parts := strings.Split(xff, ",")
+						if uint64(len(parts)) >= trustedProxyCount {
+							idx := uint64(len(parts)) - trustedProxyCount
+							host = strings.TrimSpace(parts[idx])
+							if host == "" {
+								http.Error(
+									w,
+									"invalid X-Forwarded-For header: empty IP",
+									http.StatusUnauthorized,
+								)
+								return
+							}
+						}
+					}
 				}
 
 				// If the host is empty or IPv6 loopback, set it to IPv4 loopback

@@ -78,7 +78,7 @@ services:
       - captcha
       - --listen-address=0.0.0.0:5050
       - --chain-id=staging
-      - --is-behind-proxy=true
+      - --trusted-proxy-count=1
       - --mnemonic=${FAUCET_MNEMONIC}
       - --num-accounts=1
       - --remote=http://traefik:26657
