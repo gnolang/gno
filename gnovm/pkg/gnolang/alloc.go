@@ -159,12 +159,6 @@ func (alloc *Allocator) Allocate(size int64) {
 	if alloc.gasMeter != nil {
 		alloc.gasMeter.ConsumeGas(overflow.Mulp(size, GasCostPerByte), "memory allocation (cpu)")
 	}
-
-	// TODO: consider adding a peakBytes-based scarcity gas charge.
-	// The idea: track the high-water mark of alloc.bytes (peakBytes),
-	// and only charge scarcity gas when bytes exceeds peakBytes again
-	// after GC. This would charge for capacity/scarcity (peak memory
-	// held) separately from the per-allocation cpu gas above.
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
