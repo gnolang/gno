@@ -69,3 +69,10 @@ gno.land/p/nt/testutils/v0
 gno.land/p/onbloc/diff
 gno.land/p/nt/uassert/v0
 gno.land/p/nt/urequire/v0
+gno.land/p/demo/nestedpkg
+gno.land/r/tests/vm/subtests
+gno.land/r/tests/vm
+gno.land/r/demo/defi/grc20factory
+gno.land/p/sunspirit/table
+gno.land/p/jeronimoalbi/expect
+gno.land/p/moul/typeutil

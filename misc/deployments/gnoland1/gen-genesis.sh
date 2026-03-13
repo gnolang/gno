@@ -159,18 +159,12 @@ mkdir -p "$WORK_DIR_EXAMPLES"
 while IFS= read -r dir; do
   [[ -z "$dir" ]] && continue
   rel="${dir#$EXAMPLES_DIR/}"
-  mkdir -p "$(dirname "$WORK_DIR_EXAMPLES/$rel")"
-  cp -r "$dir" "$WORK_DIR_EXAMPLES/$rel"
+  dest="$WORK_DIR_EXAMPLES/$rel"
+  mkdir -p "$dest"
+  # Copy only regular files (skip subdirectories), except preserve filetests/.
+  find "$dir" -maxdepth 1 -type f -exec cp {} "$dest/" \;
+  [[ -d "$dir/filetests" ]] && cp -r "$dir/filetests" "$dest/filetests"
 done <<<"$pkg_dirs"
-
-# BUG: we need to figure out a way of not having to do this.
-# Strip test files from staging — gnogenesis resolves all imports including
-# from test files, which can pull in packages not in our set (e.g. r/tests/vm).
-# The -test-dep flag above already ensured test *dependencies* (like uassert)
-# are included; we just can't ship the test files themselves.
-printf "  Stripping test files from staging...\n"
-find "$WORK_DIR_EXAMPLES" -name '*_test.gno' -delete
-find "$WORK_DIR_EXAMPLES" -name '*_filetest.gno' -delete
 
 # Create deployer key (needed to sign MsgAddPackage and MsgRun txs).
 printf "  Creating deployer key...\n"
