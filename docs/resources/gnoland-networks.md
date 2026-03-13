@@ -2,10 +2,11 @@
 
 ## Network configurations
 
-| Network | RPC Endpoint                             | Chain ID  |
-|---------|------------------------------------------|-----------|
-| Staging | https://rpc.staging.gno.land:443         | `staging` |
-| Test11  | https://rpc.test11.testnets.gno.land:443 | `test11`  |
+| Network | RPC Endpoint                             |  Chain ID  |
+|---------|------------------------------------------|------------|
+| Betanet | https://rpc.gno.land:443                 | `gnoland1` |
+| Staging | https://rpc.staging.gno.land:443         | `staging`  |
+| Test11  | https://rpc.test11.testnets.gno.land:443 | `test11`   |
 
 ### WebSocket endpoints
 
