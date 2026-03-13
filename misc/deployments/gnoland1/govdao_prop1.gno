@@ -46,23 +46,23 @@ func main() {
 		func() []validators.Validator {
 			return []validators.Validator{
 				{
-					Address:     address("g1euw20dwq4yt3zvjl0kl725me0lfrjf5lzaws4z"),
-					PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqty3jnuspxthzmqyvjgxcwlu90pq8atj8lda7a2wsr2gqmpa47pdj2jvqrc",
+					Address:     address("g1vta7dwp4guuhkfzksenfcheky4xf9hue8mgne4"),
+					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpu5muc9ksphk3cayrduhathd2rw4talmtedpef3a44c2qfzzqalgl4c55y",
 					VotingPower: 1,
 				},
 				{
-					Address:     address("g1maa9t9ew7v3xj0cmnuyrr7frjguzykqeykjh0n"),
-					PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqwdr6r6rr5eyrcrmletzk3rpnxvcupppu20tkhh4fzqlnx6erzazvhsf25g",
+					Address:     address("g1d5hh9fw3l00gugfzafskaxqlmsyvxfaj6l2q60"),
+					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpnj5vt2vkv94exe6cmdgqgtxmyfkvlhztnl0kj4xv97uz2t0muwe9mka0q",
 					VotingPower: 1,
 				},
 				{
-					Address:     address("g1hcmvuk3g03hdf95lqevg7r2068y8fg8rjlue5k"),
-					PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqwvkx5r8ma97250jluze98v5dzag3h95nqurk8nfr2sar6jchf9ejgevudz",
+					Address:     address("g1wu87cyc08tzs9wvj8twu30njxp87urq0e526ud"),
+					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqs5fenpsq0ttj87nmpmvumvfd0f6wyqlv5kxxspazj8s5gjfmc7qdn9gv2",
 					VotingPower: 1,
 				},
 				{
-					Address:     address("g1kfzcpr5pkh7cul0exfcswe923z3659g937jayk"),
-					PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqtc9p3fw9tzmscv3p3pmrl70l852c6tpwkkstuqavja8ca3qgpd55pmw5mu",
+					Address:     address("g15sdr5dxpnwxwy28wqfxj488h3jsq3vkce5szv8"),
+					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp858jgym22kr0vapu0nye4ruwcq6epdqkn2aat0weqsvxedn67pgp4ld6j",
 					VotingPower: 1,
 				},
 			}
