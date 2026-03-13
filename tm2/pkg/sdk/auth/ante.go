@@ -77,14 +77,16 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			if r := recover(); r != nil {
 				switch ex := r.(type) {
 				case store.OutOfGasError:
-					log := fmt.Sprintf(
-						"out of gas in location: %v; gasWanted: %d, gasUsed: %d",
-						ex.Descriptor, tx.Fee.GasWanted, newCtx.GasMeter().GasConsumed(),
-					)
+					gasUsed := newCtx.GasMeter().GasConsumed()
+					maxGas := int64(-1)
+					if cp := newCtx.ConsensusParams(); cp != nil && cp.Block != nil {
+						maxGas = cp.Block.MaxGas
+					}
+					log := store.OutOfGasLog(gasUsed, tx.Fee.GasWanted, maxGas, ex.Descriptor, true)
 					res = abciResult(std.ErrOutOfGas(log))
 
 					res.GasWanted = tx.Fee.GasWanted
-					res.GasUsed = newCtx.GasMeter().GasConsumed()
+					res.GasUsed = gasUsed
 					abort = true
 				default:
 					panic(r)

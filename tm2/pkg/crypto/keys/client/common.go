@@ -14,6 +14,9 @@ type BaseOptions struct {
 	// OnTxSuccess is called when the transaction tx succeeds. It can, for example,
 	// print info in the result. If OnTxSuccess is nil, print basic info.
 	OnTxSuccess func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit)
+	// OnTxFailure is called when the transaction tx fails. If nil, failure output
+	// is minimal.
+	OnTxFailure func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit)
 }
 
 var DefaultBaseOptions = BaseOptions{
