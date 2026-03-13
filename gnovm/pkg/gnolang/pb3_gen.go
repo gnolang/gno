@@ -1954,54 +1954,6 @@ func (goo *RefValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo ExportRefValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
-	var err error
-	if goo.ObjectID != "" {
-		offset = amino.PrependString(buf, offset, string(goo.ObjectID))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
-	}
-	return offset, err
-}
-
-func (goo ExportRefValue) SizeBinary2(cdc *amino.Codec) int {
-	var s int
-	if goo.ObjectID != "" {
-		s += 1 + amino.UvarintSize(uint64(len(goo.ObjectID))) + len(goo.ObjectID)
-	}
-	return s
-}
-
-func (goo *ExportRefValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	var lastFieldNum uint32
-	for len(bz) > 0 {
-		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
-		if err != nil {
-			return err
-		}
-		if fnum < lastFieldNum {
-			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
-		}
-		lastFieldNum = fnum
-		bz = bz[n:]
-		switch fnum {
-		case 1:
-			v, n, err := amino.DecodeString(bz)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
-			goo.ObjectID = string(v)
-		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
-		}
-	}
-	return nil
-}
-
 func (goo HeapItemValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	{

@@ -114,10 +114,6 @@ message RefValue {
 	string hash = 4 [json_name = "Hash"];
 }
 
-message ExportRefValue {
-	string object_id = 1 [json_name = "ObjectID"];
-}
-
 message HeapItemValue {
 	ObjectInfo object_info = 1 [json_name = "ObjectInfo"];
 	TypedValue value = 2 [json_name = "Value"];
