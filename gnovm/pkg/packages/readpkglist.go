@@ -59,11 +59,12 @@ func ReadPkgListFromDir(dir string, mptype gnolang.MemPackageType) (gnomod.PkgLi
 				// ignore imports on error
 				importsMap = nil
 			}
+			// Only use production source imports for dependency sorting.
+			// Test files are still included in the MemPackage (for on-chain
+			// discoverability) but their imports (e.g. "testing") are not
+			// required to be present in the package set.
 			importsRaw := importsMap.Merge(
-				FileKindFiletest,
 				FileKindPackageSource,
-				FileKindTest,
-				FileKindXTest,
 			)
 
 			imports := make([]string, 0, len(importsRaw))

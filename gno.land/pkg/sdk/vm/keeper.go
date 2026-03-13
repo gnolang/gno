@@ -554,7 +554,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, opts)
+	// Type-check using MPUserProd to skip test file imports (e.g. "testing")
+	// which aren't available on-chain. The stored package retains all files
+	// (MPUserAll) so test files remain accessible for on-chain discoverability.
+	tcPkg := gno.MPFProd.FilterMemPackage(memPkg)
+	_, err = gno.TypeCheckMemPackage(tcPkg, opts)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
