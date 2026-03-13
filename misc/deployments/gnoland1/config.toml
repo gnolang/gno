@@ -147,7 +147,7 @@ max_num_outbound_peers = 40 # Advised value is 40
 max_packet_msg_payload_size = 1024
 
 # Comma separated list of nodes to keep persistent connections to
-persistent_peers = "g19v5h4fn72p3zud6qasqtrq3j5vrvdkeuad2jm7@a0b79bfc6d72f433f8bb03266a99efe6-7dc905702bf8c0a0.elb.eu-west-1.amazonaws.com:26656"
+persistent_peers = "g14t27l6t5s8cyuu3w6sjw4qmznvghfdh8k0gavr@gnoland1.moul.p2p.team:26656"
 
 # Set true to enable the peer-exchange reactor
 pex = true
@@ -159,7 +159,7 @@ private_peer_ids = ""
 recv_rate = 5120000
 
 # Comma separated list of seed nodes to connect to
-seeds = "g19v5h4fn72p3zud6qasqtrq3j5vrvdkeuad2jm7@a0b79bfc6d72f433f8bb03266a99efe6-7dc905702bf8c0a0.elb.eu-west-1.amazonaws.com:26656"
+seeds = "g14t27l6t5s8cyuu3w6sjw4qmznvghfdh8k0gavr@gnoland1.moul.p2p.team:26656"
 
 # Rate at which packets can be sent, in bytes/second
 send_rate = 5120000
