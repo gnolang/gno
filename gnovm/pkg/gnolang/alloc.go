@@ -115,10 +115,10 @@ func (alloc *Allocator) Reset() *Allocator {
 	return alloc
 }
 
-// Reclaim adds size to bytes without charging gas.
+// Recount adds size to bytes without charging gas.
 // Used during GC re-walk to re-count surviving objects
 // without double-charging for already-paid allocations.
-func (alloc *Allocator) Reclaim(size int64) {
+func (alloc *Allocator) Recount(size int64) {
 	alloc.bytes += size
 }
 
