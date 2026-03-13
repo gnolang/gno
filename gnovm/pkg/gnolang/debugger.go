@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -59,6 +60,10 @@ type Debugger struct {
 	nextDepth   int                         // function call depth at the 'next' command
 	getSrc      func(string, string) string // helper to access source from repl or others
 	rootDir     string
+
+	// DAP server integration
+	dapServer *DAPServer // optional DAP server instance
+	dapMode   bool       // true when running in DAP mode
 }
 
 // Enable makes the debugger d active, using in as input reader, out as output writer and f as a source helper.
@@ -77,6 +82,11 @@ func (d *Debugger) Disable() {
 	d.loc = Location{}
 	d.prevLoc = Location{}
 	d.nextLoc = Location{}
+}
+
+// DAPServer returns the DAP server instance if running in DAP mode.
+func (d *Debugger) DAPServer() *DAPServer {
+	return d.dapServer
 }
 
 type debugCommand struct {
@@ -140,12 +150,45 @@ loop:
 		switch m.Debugger.state {
 		case DebugAtInit:
 			debugUpdateLocation(m)
-			fmt.Fprintln(m.Debugger.out, "Welcome to the Gnovm debugger. Type 'help' for list of commands.")
-			m.Debugger.scanner = bufio.NewScanner(m.Debugger.in)
+			if !m.Debugger.dapMode {
+				fmt.Fprintln(m.Debugger.out, "Welcome to the Gnovm debugger. Type 'help' for list of commands.")
+				m.Debugger.scanner = bufio.NewScanner(m.Debugger.in)
+			}
 			m.Debugger.state = DebugAtCmd
 		case DebugAtCmd:
-			if err := debugCmd(m); err != nil {
-				fmt.Fprintln(m.Debugger.out, "Command failed:", err)
+			if m.Debugger.dapMode && m.Debugger.dapServer != nil {
+				// In DAP mode, send a stopped event only once
+				reason := "entry"
+				if m.Debugger.prevLoc != (Location{}) {
+					if atBreak(m) {
+						reason = "breakpoint"
+					} else if m.Debugger.lastCmd == "step" || m.Debugger.lastCmd == "next" || m.Debugger.lastCmd == "stepout" {
+						reason = "step"
+					}
+				}
+				m.Debugger.dapServer.SendStoppedEvent(reason, "")
+
+				// Wait for DAP command to change state
+				// In DAP mode, we block here until a DAP command handler
+				// sets the state to DebugAtRun
+				// Add timeout to prevent infinite blocking in test environments
+				timeout := time.After(5 * time.Second)
+			dapWaitLoop:
+				for m.Debugger.state == DebugAtCmd && m.Debugger.enabled {
+					select {
+					case <-timeout:
+						// Timeout reached, break out of the loop
+						break dapWaitLoop
+					default:
+						// Small delay to prevent busy waiting
+						time.Sleep(1 * time.Millisecond)
+					}
+				}
+			} else {
+				// Traditional debugger mode
+				if err := debugCmd(m); err != nil {
+					fmt.Fprintln(m.Debugger.out, "Command failed:", err)
+				}
 			}
 		case DebugAtRun:
 			if !m.Debugger.enabled {
@@ -154,12 +197,16 @@ loop:
 			switch m.Debugger.lastCmd {
 			case "si", "stepi":
 				m.Debugger.state = DebugAtCmd
-				debugLineInfo(m)
+				if !m.Debugger.dapMode {
+					debugLineInfo(m)
+				}
 			case "s", "step":
 				if m.Debugger.loc != m.Debugger.prevLoc && m.Debugger.loc.File != "" {
 					m.Debugger.state = DebugAtCmd
 					m.Debugger.prevLoc = m.Debugger.loc
-					debugList(m, "")
+					if !m.Debugger.dapMode {
+						debugList(m, "")
+					}
 					continue loop
 				}
 			case "n", "next":
@@ -167,21 +214,27 @@ loop:
 					(m.Debugger.nextDepth == 0 || !sameLine(m.Debugger.loc, m.Debugger.nextLoc) && callDepth(m) <= m.Debugger.nextDepth) {
 					m.Debugger.state = DebugAtCmd
 					m.Debugger.prevLoc = m.Debugger.loc
-					debugList(m, "")
+					if !m.Debugger.dapMode {
+						debugList(m, "")
+					}
 					continue loop
 				}
 			case "stepout", "so":
 				if callDepth(m) < m.Debugger.nextDepth {
 					m.Debugger.state = DebugAtCmd
 					m.Debugger.prevLoc = m.Debugger.loc
-					debugList(m, "")
+					if !m.Debugger.dapMode {
+						debugList(m, "")
+					}
 					continue loop
 				}
 			default:
 				if atBreak(m) {
 					m.Debugger.state = DebugAtCmd
 					m.Debugger.prevLoc = m.Debugger.loc
-					debugList(m, "")
+					if !m.Debugger.dapMode {
+						debugList(m, "")
+					}
 					continue loop
 				}
 			}
@@ -226,12 +279,83 @@ func atBreak(m *Machine) bool {
 	if loc == m.Debugger.prevLoc {
 		return false
 	}
+
 	for _, b := range m.Debugger.breakpoints {
-		if loc.File == b.File && loc.Line == b.Line {
+		if matchLocation(loc, b) {
 			return true
 		}
 	}
 	return false
+}
+
+// matchLocation checks if two locations refer to the same source position.
+func matchLocation(loc, bp Location) bool {
+	// First check line numbers - both locations must have valid line numbers
+	locLine := getLine(loc)
+	bpLine := getLine(bp)
+	if locLine == 0 || bpLine == 0 || locLine != bpLine {
+		return false
+	}
+
+	// Then check file paths
+	return matchFilePath(loc.File, bp.File)
+}
+
+// getLine returns the line number from a Location, preferring Line over Pos.Line.
+func getLine(loc Location) int {
+	if loc.Line > 0 {
+		return loc.Line
+	}
+	return loc.Pos.Line
+}
+
+// matchFilePath checks if two file paths refer to the same file.
+// It handles cases where one might be absolute and the other relative,
+// or where one might be just a basename.
+func matchFilePath(path1, path2 string) bool {
+	if path1 == "" || path2 == "" {
+		return false
+	}
+
+	// Exact match
+	if path1 == path2 {
+		return true
+	}
+
+	// Compare basenames
+	base1, base2 := filepath.Base(path1), filepath.Base(path2)
+	if base1 == base2 {
+		return true
+	}
+
+	// Check if one path is a suffix of the other
+	// This handles cases like "sample.gno" matching "/path/to/sample.gno"
+	if strings.HasSuffix(path1, path2) || strings.HasSuffix(path2, path1) {
+		return true
+	}
+
+	// Check if paths end with the same relative path
+	// This handles cases like "foo/bar.gno" matching "/path/to/foo/bar.gno"
+	return hasSameRelativeSuffix(path1, path2)
+}
+
+// hasSameRelativeSuffix checks if two paths share a common relative suffix.
+func hasSameRelativeSuffix(path1, path2 string) bool {
+	parts1 := strings.Split(filepath.Clean(path1), string(filepath.Separator))
+	parts2 := strings.Split(filepath.Clean(path2), string(filepath.Separator))
+
+	// Compare from the end
+	i, j := len(parts1)-1, len(parts2)-1
+	matchCount := 0
+
+	for i >= 0 && j >= 0 && parts1[i] == parts2[j] {
+		matchCount++
+		i--
+		j--
+	}
+
+	// Consider it a match if at least the filename and one directory level match
+	return matchCount >= 2
 }
 
 // debugCmd processes a debugger REPL command. It displays a prompt, then
@@ -285,6 +409,19 @@ func (d *Debugger) Serve(addr string) error {
 	println(" connected!")
 	d.in, d.out = conn, conn
 	return nil
+}
+
+// ServeDAP starts a DAP server for the debugger
+func (d *Debugger) ServeDAP(m *Machine, addr string, attachMode bool, files []*FileNode, mainExpr string) error {
+	d.dapMode = true
+	d.dapServer = NewDAPServer(d, m)
+	d.dapServer.attachMode = attachMode
+	if attachMode {
+		d.dapServer.SetProgramFiles(files, mainExpr)
+	}
+	// Enable debugger so that program execution will wait
+	d.enabled = true
+	return d.dapServer.Serve(DAPModeTCP, addr)
 }
 
 // debugUpdateLocation computes the source code location for the current VM state.
