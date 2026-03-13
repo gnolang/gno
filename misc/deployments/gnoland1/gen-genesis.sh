@@ -26,11 +26,14 @@ FILTERED_PACKAGES=(
 
 # Initial validator set. Format: "name power address pub_key"
 # More validators can be added post-genesis via govDAO proposals (see govdao-scripts/add-validator.sh).
+# 6 validators — BFT 2/3 threshold means 4 nodes must be up for consensus.
 INITIAL_VALSET=(
   "gnocore-val-01 1 g1vta7dwp4guuhkfzksenfcheky4xf9hue8mgne4 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpu5muc9ksphk3cayrduhathd2rw4talmtedpef3a44c2qfzzqalgl4c55y"
   "gnocore-val-02 1 g1d5hh9fw3l00gugfzafskaxqlmsyvxfaj6l2q60 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpnj5vt2vkv94exe6cmdgqgtxmyfkvlhztnl0kj4xv97uz2t0muwe9mka0q"
-  "gnocore-val-03 1 g1wu87cyc08tzs9wvj8twu30njxp87urq0e526ud gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqs5fenpsq0ttj87nmpmvumvfd0f6wyqlv5kxxspazj8s5gjfmc7qdn9gv2"
-  "gnocore-val-04 1 g15sdr5dxpnwxwy28wqfxj488h3jsq3vkce5szv8 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp858jgym22kr0vapu0nye4ruwcq6epdqkn2aat0weqsvxedn67pgp4ld6j"
+  "moul-val-01 1 g1uhv7wr7nku89se3t7v8fpquc7n5sf8rfkywxpc gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqavtgten8l8k4f72j8klpu4l7tk2qw4kl8394krsaysmz2q0765ynvjag0"
+  "aeddi-val-01 1 g10jdd8vlgydfypynrk23ul90jnsg5twrtvmcmh4 gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqve8jffvhy97sfc5gyvag09h8g9g3d9e4cta7s7m6vcmzug84kjywg7fn2y"
+  "berty-val-01 1 g1jyaxj5t95dhlp9f8edkm0p0evw87qejluld86p gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq0wm4ysder0sgvre9qrahcz9fsg5qkdxuxetm5kmwaaul4e4e5p0rsx5f3"
+  "samourai-val-01 1 g1kn7p0wqumvqlcqzhkwnavkhf0z4qnr73ltwsae gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpufsm93d5fmzxrug76esaxsdsmw0guy9e6geypw7ekz92sl3mte492q62e"
 )
 
 # Chain parameters.
