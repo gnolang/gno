@@ -1,5 +1,5 @@
 REPO_ROOT := $(shell cd ../../.. && pwd)
-GENESIS_SHA256 := 2b1a48bd9a47c1e48f3190754fc7982872c08b347c434048889449c1207117af
+GENESIS_SHA256 := ab4cddcbcf31fc7db7e638fadbcc53a1c813fb4c9d34a788ba99afd0121e8dd3
 
 .PHONY: help generate generate-txs test clean
 
@@ -8,8 +8,8 @@ help: ## Show available targets
 
 generate: genesis.json ## Generate genesis.json and verify checksum
 	@echo "Verifying genesis.json checksum..."
+	@shasum -a 256 genesis.json
 	@echo '$(GENESIS_SHA256)  genesis.json' | shasum -a 256 -c
-	@echo "OK"
 
 genesis.json: gen-genesis.sh
 	./gen-genesis.sh
