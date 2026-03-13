@@ -25,7 +25,7 @@ fast_sync = true
 home = ""
 
 # A custom human readable name for this node
-moniker = "" # Change me!
+moniker = "" # TODO: Change me!
 
 # Path to the JSON file containing the private key to use for node authentication in the p2p protocol
 node_key_file = "secrets/node_key.json"
@@ -128,7 +128,7 @@ wal_dir = ""
 # If empty, will use the same port as the laddr,
 # and will introspect on the listener or use UPnP
 # to figure out the address.
-external_address = "" # Change me!
+external_address = "" # TODO: Change me!
 
 # Time to wait before flushing messages out on the connection
 flush_throttle_timeout = "10ms" # Do NOT change me, leave me at 10ms!
@@ -147,7 +147,7 @@ max_num_outbound_peers = 40 # Advised value is 40
 max_packet_msg_payload_size = 1024
 
 # Comma separated list of nodes to keep persistent connections to
-persistent_peers = "" # Change me!
+persistent_peers = "g19v5h4fn72p3zud6qasqtrq3j5vrvdkeuad2jm7@a0b79bfc6d72f433f8bb03266a99efe6-7dc905702bf8c0a0.elb.eu-west-1.amazonaws.com:26656"
 
 # Set true to enable the peer-exchange reactor
 pex = true
@@ -159,7 +159,7 @@ private_peer_ids = ""
 recv_rate = 5120000
 
 # Comma separated list of seed nodes to connect to
-seeds = "" # Change me!
+seeds = "g19v5h4fn72p3zud6qasqtrq3j5vrvdkeuad2jm7@a0b79bfc6d72f433f8bb03266a99efe6-7dc905702bf8c0a0.elb.eu-west-1.amazonaws.com:26656"
 
 # Rate at which packets can be sent, in bytes/second
 send_rate = 5120000
@@ -213,7 +213,7 @@ max_open_connections = 900
 # How long to wait for a tx to be committed during /broadcast_tx_commit.
 # WARNING: Using a value larger than 10s will result in increasing the
 # global HTTP write timeout, which applies to all connections and endpoints.
-# See https://github.com/tendermint/classic/issues/3435
+# See https://github.com/tendermint/tendermint/issues/3435
 timeout_broadcast_tx_commit = "10s"
 
 # The path to a file containing certificate that is used to create the HTTPS server.
@@ -234,11 +234,10 @@ unsafe = false
 
 ##### node telemetry #####
 [telemetry]
-metrics_enabled = true # Advised to be `true`
-
 # the endpoint to export metrics to, like a local OpenTelemetry collector
 exporter_endpoint = "" # Change me to the OTEL endpoint!
 meter_name = "gnoland1"
+metrics_enabled = false # Advised to be `true`
 
 # the ID helps to distinguish instances of the same service that exist at the same time (e.g. instances of a horizontally scaled service), in Prometheus this is transformed into the label 'exported_instance
 service_instance_id = "gno-node-1" # Change me!
