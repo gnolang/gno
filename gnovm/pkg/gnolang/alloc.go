@@ -14,8 +14,8 @@ import (
 type Allocator struct {
 	maxBytes int64
 	bytes    int64
-	collect func() (left int64, ok bool) // gc callback
-	gasMeter  store.GasMeter
+	collect  func() (left int64, ok bool) // gc callback
+	gasMeter store.GasMeter
 }
 
 // for gonative, which doesn't consider the allocator.
