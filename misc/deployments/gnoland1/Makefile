@@ -1,6 +1,6 @@
 REPO_ROOT := $(shell cd ../../.. && pwd)
 
-.PHONY: generate test clean
+.PHONY: generate genesis-txs test clean
 
 generate: genesis.json
 
