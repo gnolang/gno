@@ -876,3 +876,52 @@ func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
 		})
 	}
 }
+
+// -------------------------------------------------------------
+// PeerState disconnect tests
+
+func TestPeerStateDisconnect(t *testing.T) {
+	t.Parallel()
+
+	peer := p2pTesting.NewPeer(t)
+	ps := NewPeerState(peer).SetLogger(log.NewNoopLogger())
+
+	// Initially not disconnected
+	assert.False(t, ps.IsDisconnected())
+
+	// After Disconnect, IsDisconnected returns true
+	ps.Disconnect()
+	assert.True(t, ps.IsDisconnected())
+
+	// Calling Disconnect again should not panic
+	assert.NotPanics(t, func() {
+		ps.Disconnect()
+	})
+	assert.True(t, ps.IsDisconnected())
+}
+
+func TestRemovePeerCleansUpState(t *testing.T) {
+	t.Parallel()
+
+	N := 1
+	css, cleanup := randConsensusNet(N, "consensus_remove_peer_test", newMockTickerFunc(true), newCounter)
+	defer cleanup()
+	reactors, _, eventSwitches, p2pSwitches := startConsensusNet(t, css, N)
+	defer stopConsensusNet(log.NewTestingLogger(t), reactors, eventSwitches, p2pSwitches)
+
+	reactor := reactors[0]
+	peer := p2pTesting.NewPeer(t)
+
+	// InitPeer + AddPeer to set up PeerState
+	reactor.InitPeer(peer)
+	ps, ok := peer.Get(types.PeerStateKey).(*PeerState)
+	assert.True(t, ok)
+	assert.NotNil(t, ps)
+	assert.False(t, ps.IsDisconnected())
+
+	// RemovePeer should signal disconnect and clear the peer state key
+	reactor.RemovePeer(peer, "test removal")
+
+	assert.True(t, ps.IsDisconnected())
+	assert.Nil(t, peer.Get(types.PeerStateKey))
+}
