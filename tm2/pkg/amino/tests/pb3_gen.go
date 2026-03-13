@@ -6687,6 +6687,64 @@ func (goo *PointersStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 		}
 	}
+	if goo.Int8Pt == nil {
+		goo.Int8Pt = new(int8)
+	}
+	if goo.Int16Pt == nil {
+		goo.Int16Pt = new(int16)
+	}
+	if goo.Int32Pt == nil {
+		goo.Int32Pt = new(int32)
+	}
+	if goo.Int32FixedPt == nil {
+		goo.Int32FixedPt = new(int32)
+	}
+	if goo.Int64Pt == nil {
+		goo.Int64Pt = new(int64)
+	}
+	if goo.Int64FixedPt == nil {
+		goo.Int64FixedPt = new(int64)
+	}
+	if goo.IntPt == nil {
+		goo.IntPt = new(int)
+	}
+	if goo.BytePt == nil {
+		goo.BytePt = new(uint8)
+	}
+	if goo.Uint8Pt == nil {
+		goo.Uint8Pt = new(uint8)
+	}
+	if goo.Uint16Pt == nil {
+		goo.Uint16Pt = new(uint16)
+	}
+	if goo.Uint32Pt == nil {
+		goo.Uint32Pt = new(uint32)
+	}
+	if goo.Uint32FixedPt == nil {
+		goo.Uint32FixedPt = new(uint32)
+	}
+	if goo.Uint64Pt == nil {
+		goo.Uint64Pt = new(uint64)
+	}
+	if goo.Uint64FixedPt == nil {
+		goo.Uint64FixedPt = new(uint64)
+	}
+	if goo.UintPt == nil {
+		goo.UintPt = new(uint)
+	}
+	if goo.StrPt == nil {
+		goo.StrPt = new(string)
+	}
+	if goo.BytesPt == nil {
+		goo.BytesPt = new([]uint8)
+	}
+	if goo.TimePt == nil {
+		v := time.Unix(0, 0).UTC()
+		goo.TimePt = &v
+	}
+	if goo.DurationPt == nil {
+		goo.DurationPt = new(time.Duration)
+	}
 	return nil
 }
 

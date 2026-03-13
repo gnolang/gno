@@ -650,7 +650,7 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 		return
 	}
 
-	// Roundtrip unmarshal.
+	// Roundtrip: unmarshal with genproto2, re-encode with genproto2.
 	rt := reflect.TypeOf(orig)
 	decoded := reflect.New(rt)
 	umsg := decoded.Interface().(amino.PBMessager2)
@@ -658,9 +658,7 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 		t.Fatalf("%s: UnmarshalBinary2: %v", name, err)
 	}
 
-	// Re-encode the decoded value and compare.
 	var buf2 bytes.Buffer
-	// Get the value (not pointer) for marshal.
 	decodedVal := decoded.Elem().Interface()
 	msg2, ok := decodedVal.(amino.PBMessager2)
 	if !ok {
@@ -671,7 +669,18 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 	if err := msg2.MarshalBinary2(cdc, &buf2); err != nil {
 		t.Fatalf("%s: MarshalBinary2 after unmarshal: %v", name, err)
 	}
-	if !bytes.Equal(bz1, buf2.Bytes()) {
-		t.Errorf("%s: roundtrip bytes mismatch:\n  original:  %X\n  roundtrip: %X", name, bz1, buf2.Bytes())
+
+	// Compare against amino reflect's roundtrip (unmarshal fills in default
+	// pointer values, so re-encoded bytes may differ from original).
+	decodedAmino := reflect.New(rt)
+	if err := cdc.Unmarshal(bz1, decodedAmino.Interface()); err != nil {
+		t.Fatalf("%s: amino Unmarshal: %v", name, err)
+	}
+	bzAminoRT, err := cdc.MarshalReflect(decodedAmino.Interface())
+	if err != nil {
+		t.Fatalf("%s: amino MarshalReflect after roundtrip: %v", name, err)
+	}
+	if !bytes.Equal(bzAminoRT, buf2.Bytes()) {
+		t.Errorf("%s: roundtrip bytes mismatch vs amino:\n  amino-rt:    %X\n  genproto2-rt: %X", name, bzAminoRT, buf2.Bytes())
 	}
 }

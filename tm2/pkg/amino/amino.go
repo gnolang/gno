@@ -340,6 +340,11 @@ func (cdc *Codec) MarshalAnySizedWriter(w io.Writer, o any) (n int64, err error)
 func (cdc *Codec) Marshal(o any) ([]byte, error) {
 	cdc.doAutoseal()
 
+	// Try genproto2 direct encoding (fastest path).
+	if pbm2, ok := o.(PBMessager2); ok {
+		return cdc.MarshalBinary2(pbm2)
+	}
+
 	if cdc.usePBBindings {
 		pbm, ok := o.(PBMessager)
 		if ok {
@@ -418,6 +423,20 @@ func (cdc *Codec) MarshalPBBindings(pbm PBMessager) ([]byte, error) {
 	}
 	bz, err := proto.Marshal(pbo)
 	return bz, err
+}
+
+// Use genproto2 direct encoding.
+func (cdc *Codec) MarshalBinary2(pbm2 PBMessager2) ([]byte, error) {
+	var buf bytes.Buffer
+	err := pbm2.MarshalBinary2(cdc, &buf)
+	if err != nil {
+		return nil, err
+	}
+	bz := buf.Bytes()
+	if len(bz) == 0 {
+		bz = nil
+	}
+	return bz, nil
 }
 
 // Panics if error.
@@ -613,6 +632,11 @@ func (cdc *Codec) UnmarshalAnySized(bz []byte, ptr any) error {
 // Unmarshal will panic if ptr is a nil-pointer.
 func (cdc *Codec) Unmarshal(bz []byte, ptr any) error {
 	cdc.doAutoseal()
+
+	// Try genproto2 direct decoding (fastest path).
+	if pbm2, ok := ptr.(PBMessager2); ok {
+		return pbm2.UnmarshalBinary2(cdc, bz)
+	}
 
 	if cdc.usePBBindings {
 		pbm, ok := ptr.(PBMessager)

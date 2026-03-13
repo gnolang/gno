@@ -190,11 +190,11 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 		}
 	}
 
-	// Initialize time.Time fields to amino's "empty" time (1970, not 0001).
+	// Initialize non-pointer time.Time fields to amino's "empty" time (1970, not 0001).
 	for _, field := range info.Fields {
 		ft := field.Type
 		if ft.Kind() == reflect.Ptr {
-			continue // pointer time fields are nil by default, handled elsewhere
+			continue
 		}
 		rinfo := field.TypeInfo.ReprType
 		if rinfo.Type == reflect.TypeOf(time.Time{}) {
@@ -256,6 +256,25 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 	sb.WriteString("\t\t\tbz = bz[n:]\n")
 	sb.WriteString("\t\t}\n")
 	sb.WriteString("\t}\n")
+
+	// Initialize pointer fields that were not decoded from wire data.
+	// Amino's defaultValue() allocates non-nil pointers for missing fields:
+	//   *time.Time   → &time.Unix(0,0).UTC()
+	//   *<struct>    → nil (stays nil)
+	//   *<non-struct> → new(T) (non-nil pointer to zero value)
+	for _, field := range info.Fields {
+		ft := field.Type
+		if ft.Kind() != reflect.Ptr {
+			continue
+		}
+		ert := ft.Elem()
+		accessor := fmt.Sprintf("%s.%s", recv, field.Name)
+		if ert == reflect.TypeOf(time.Time{}) {
+			sb.WriteString(fmt.Sprintf("\tif %s == nil {\n\t\tv := time.Unix(0, 0).UTC()\n\t\t%s = &v\n\t}\n", accessor, accessor))
+		} else if ert.Kind() != reflect.Struct {
+			sb.WriteString(fmt.Sprintf("\tif %s == nil {\n\t\t%s = new(%s)\n\t}\n", accessor, accessor, ctx.goTypeName(ert)))
+		}
+	}
 }
 
 func (ctx *P3Context2) writeFieldUnmarshal(sb *strings.Builder, accessor string, finfo *amino.TypeInfo, fopts amino.FieldOptions, indent string) {
