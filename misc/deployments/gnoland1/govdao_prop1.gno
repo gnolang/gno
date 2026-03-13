@@ -11,7 +11,7 @@
 //
 // Steps:
 //  1. Add a temporary deployer as T1 member (100% supermajority).
-//  2. Register the initial validator via governance proposal.
+//  2. Register the initial validator set via governance proposal.
 //  3. Set chain params (unrestricted addrs, restricted denoms) via proposals.
 //  4. Enable namespace enforcement (r/sys/names).
 //  5. Add the real govDAO T1 member (manfred) directly to the memberstore.
@@ -39,20 +39,31 @@ func main() {
 	// This gives the deployer 100% supermajority so proposals pass.
 	must(ms.SetMember(memberstore.T1, genesisDeployerAddr, &memberstore.Member{InvitationPoints: 0}))
 
-	// ---- 2. Register the initial validator via governance proposal ----
-	// Additional validators will be added post-genesis via govDAO proposals.
+	// ---- 2. Register the initial validator set via governance proposal ----
+	// Additional validators can be added post-genesis via govDAO proposals
+	// (see add-validator.sh).
 	govExec(valr.NewPropRequest(
 		func() []validators.Validator {
 			return []validators.Validator{
 				{
-					Address:     address("g1ce64dwqsqtzq5nr9hf5zryxp9zyh6n56gz4dnu"),
-					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqzjn7qu3nk0ys7k5ayrlzw03mghff7e8ydesag80xt2f5y4ufn6dndghaq",
+					Address:     address("g1uhv7wr7nku89se3t7v8fpquc7n5sf8rfkywxpc"),
+					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqavtgten8l8k4f72j8klpu4l7tk2qw4kl8394krsaysmz2q0765ynvjag0",
+					VotingPower: 1,
+				},
+				{
+					Address:     address("g1jyaxj5t95dhlp9f8edkm0p0evw87qejluld86p"),
+					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq0wm4ysder0sgvre9qrahcz9fsg5qkdxuxetm5kmwaaul4e4e5p0rsx5f3",
+					VotingPower: 1,
+				},
+				{
+					Address:     address("g10jdd8vlgydfypynrk23ul90jnsg5twrtvmcmh4"),
+					PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqve8jffvhy97sfc5gyvag09h8g9g3d9e4cta7s7m6vcmzug84kjywg7fn2y",
 					VotingPower: 1,
 				},
 			}
 		},
-		"Add initial validator (berty)",
-		"Bootstrap the gnoland1 initial validator",
+		"Add initial validator set",
+		"Bootstrap the gnoland1 initial validator set",
 	))
 
 	// ---- 3. Set chain parameters via governance proposals ----

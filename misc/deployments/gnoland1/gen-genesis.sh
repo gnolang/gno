@@ -27,7 +27,9 @@ FILTERED_PACKAGES=(
 # Initial validator set. Format: "name power address pub_key"
 # More validators will be added post-genesis via govDAO proposals.
 INITIAL_VALSET=(
-  "berty 1 g1ce64dwqsqtzq5nr9hf5zryxp9zyh6n56gz4dnu gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqzjn7qu3nk0ys7k5ayrlzw03mghff7e8ydesag80xt2f5y4ufn6dndghaq"
+  "moul-val-01 1 g1uhv7wr7nku89se3t7v8fpquc7n5sf8rfkywxpc gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqavtgten8l8k4f72j8klpu4l7tk2qw4kl8394krsaysmz2q0765ynvjag0"
+  "berty-val-01 1 g1jyaxj5t95dhlp9f8edkm0p0evw87qejluld86p gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq0wm4ysder0sgvre9qrahcz9fsg5qkdxuxetm5kmwaaul4e4e5p0rsx5f3"
+  "aeddi-val-01 1 g10jdd8vlgydfypynrk23ul90jnsg5twrtvmcmh4 gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqve8jffvhy97sfc5gyvag09h8g9g3d9e4cta7s7m6vcmzug84kjywg7fn2y"
 )
 
 # Chain parameters.
@@ -157,6 +159,7 @@ while IFS= read -r dir; do
   cp -r "$dir" "$WORK_DIR_EXAMPLES/$rel"
 done <<<"$pkg_dirs"
 
+# BUG: we need to figure out a way of not having to do this.
 # Strip test files from staging — gnogenesis resolves all imports including
 # from test files, which can pull in packages not in our set (e.g. r/tests/vm).
 # The -test-dep flag above already ensured test *dependencies* (like uassert)
@@ -230,7 +233,7 @@ fi
 
 printf "\n=== Step 4/7: Calculating deployer balances ===\n"
 
-WORK_DIR_GENESIS_BALANCES="$WORK_DIR/genesis_balances.txt"
+WORK_DIR_DEPLOYER_BALANCES="$WORK_DIR/deployers_balances.txt"
 BALANCES_TMP_DIR="$WORK_DIR/balances-work"
 BALANCES_TMP_FILE="$BALANCES_TMP_DIR/balances.txt"
 BALANCES_TMP_GNOLAND_DATA="$BALANCES_TMP_DIR/gnoland-data"
@@ -430,14 +433,14 @@ NODE_PID=""
 
 if [ "$all_zero" = true ]; then
   printf "  All balances zero — deployer costs verified\n"
-  cp "$BALANCES_TMP_FILE" "$WORK_DIR_GENESIS_BALANCES"
+  cp "$BALANCES_TMP_FILE" "$WORK_DIR_DEPLOYER_BALANCES"
 else
   echo "ERROR: Some balances are not zero after replay. Check $BALANCES_TMP_FILE."
   exit 1
 fi
 
 printf "  Adding deployer balances to genesis...\n"
-run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_GENESIS_BALANCES" --genesis-path "$WORK_DIR_GENESIS"
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_DEPLOYER_BALANCES" --genesis-path "$WORK_DIR_GENESIS"
 
 # ---- 5. Download and add the airdrop balances
 
@@ -451,6 +454,8 @@ run curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
 gzip -dc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
 
 airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
+# TODO: We need to verify if there is a colision between deployer and airdrop addresses.
+# See: https://github.com/gnolang/gno/pull/5250/changes#discussion_r2925485031
 printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
 run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS"
 
