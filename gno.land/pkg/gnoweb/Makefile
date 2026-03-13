@@ -36,6 +36,7 @@ output_static := $(patsubst $(src_dir_static)/%, $(out_dir_static)/%, $(input_st
 src_dir_js := frontend/js
 out_dir_js := $(PUBLIC_DIR)/js
 input_js := $(shell find $(src_dir_js) -name '*.ts')
+gnojs_src := $(shell find ../../../misc/gnojs/src -name '*.ts' 2>/dev/null)
 # Separate shared and controller files
 shared_js := $(src_dir_js)/controller.ts
 controller_js := $(filter-out $(shared_js),$(input_js))
@@ -88,7 +89,7 @@ $(out_dir_js)/controller.js: $(shared_js) $(esbuild)
 	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --minify
 
 # Build controller files with shared chunk reference
-$(out_dir_js)/%.js: $(src_dir_js)/%.ts $(out_dir_js)/controller.js
+$(out_dir_js)/%.js: $(src_dir_js)/%.ts $(out_dir_js)/controller.js $(gnojs_src)
 	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:process.env.NODE_ENV="\"production\"" --minify --external:./controller.js
 
 # Rule to copy static files while preserving directory structure

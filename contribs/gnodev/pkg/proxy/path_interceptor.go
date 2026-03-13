@@ -1,10 +1,8 @@
 package proxy
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -12,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	gopath "path"
 	"strconv"
 	"strings"
@@ -28,10 +27,11 @@ type PathHandler func(path ...string)
 type PathInterceptor struct {
 	proxyAddr, targetAddr net.Addr
 
-	logger     *slog.Logger
-	listener   net.Listener
-	handlers   []PathHandler
-	muHandlers sync.RWMutex
+	logger       *slog.Logger
+	server       *http.Server
+	reverseProxy *httputil.ReverseProxy
+	handlers     []PathHandler
+	muHandlers   sync.RWMutex
 }
 
 // NewPathInterceptor creates a new path proxy interceptor.
@@ -51,14 +51,31 @@ func NewPathInterceptor(logger *slog.Logger, target net.Addr) (*PathInterceptor,
 	// Immediately close this listener after proxy initialization
 	defer targetListener.Close()
 
+	targetHost := proxyAddr.String()
+
 	proxy := &PathInterceptor{
-		listener:   proxyListener,
 		logger:     logger,
 		targetAddr: target,
 		proxyAddr:  proxyAddr,
+		reverseProxy: &httputil.ReverseProxy{
+			Director: func(req *http.Request) {
+				req.URL.Scheme = "http"
+				req.URL.Host = targetHost
+				req.Host = targetHost
+			},
+			// Disable keep-alive so each request gets a fresh connection.
+			// The target node may restart at any time (during lazy-load reload),
+			// which would leave pooled connections dead.
+			// Cost is negligible since the target is always localhost.
+			Transport: &http.Transport{DisableKeepAlives: true},
+		},
 	}
 
-	go proxy.handleConnections()
+	proxy.server = &http.Server{
+		Handler: proxy,
+	}
+
+	go proxy.server.Serve(proxyListener)
 
 	return proxy, nil
 }
@@ -80,133 +97,84 @@ func (proxy *PathInterceptor) TargetAddress() string {
 	return fmt.Sprintf("%s://%s", proxy.targetAddr.Network(), proxy.targetAddr.String())
 }
 
-// handleConnections manages incoming connections to the proxy.
-func (proxy *PathInterceptor) handleConnections() {
-	defer proxy.listener.Close()
-
-	for {
-		conn, err := proxy.listener.Accept()
-		if err != nil {
-			if !errors.Is(err, net.ErrClosed) {
-				proxy.logger.Debug("failed to accept connection", "error", err)
-			}
-
-			return
-		}
-
-		proxy.logger.Debug("new connection", "remote", conn.RemoteAddr())
-		go proxy.handleConnection(conn)
-	}
-}
-
-// handleConnection processes a single connection between client and target.
-func (proxy *PathInterceptor) handleConnection(inConn net.Conn) {
-	logger := proxy.logger.With(slog.String("in", inConn.RemoteAddr().String()))
-
-	// Establish a connection to the target
-	outConn, err := net.Dial(proxy.proxyAddr.Network(), proxy.proxyAddr.String())
-	if err != nil {
-		logger.Error("target connection failed", "target", proxy.proxyAddr.String(), "error", err)
-		inConn.Close()
+// ServeHTTP intercepts HTTP requests, extracts package paths, and forwards to the target.
+func (proxy *PathInterceptor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Handle WebSocket upgrades via raw TCP pipe
+	if isWebSocket(r) {
+		proxy.handleWebSocket(w, r)
 		return
 	}
-	logger = logger.With(slog.String("out", outConn.RemoteAddr().String()))
 
-	// Coordinate connection closure
-	var closeOnce sync.Once
-	closeConnections := func() {
-		inConn.Close()
-		outConn.Close()
+	// Read body for path interception
+	body, err := io.ReadAll(r.Body)
+	r.Body.Close()
+	if err != nil {
+		proxy.logger.Debug("body read failed", "error", err)
+		http.Error(w, "failed to read body", http.StatusBadGateway)
+		return
 	}
 
-	// Setup bidirectional copying
-	var wg sync.WaitGroup
-	wg.Add(2)
+	// Intercept paths — this may trigger a synchronous node reload
+	if err := proxy.handleRequest(body); err != nil {
+		proxy.logger.Debug("request handler warning", "error", err)
+	}
 
-	// Response path (target -> client)
-	go func() {
-		defer wg.Done()
-		defer closeOnce.Do(closeConnections)
+	// Restore body for forwarding
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	r.ContentLength = int64(len(body))
 
-		_, err := io.Copy(inConn, outConn)
-		if err == nil || errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-			return // Connection has been closed
-		}
-
-		logger.Debug("response copy error", "error", err)
-	}()
-
-	// Request path (client -> target)
-	go func() {
-		defer wg.Done()
-		defer closeOnce.Do(closeConnections)
-
-		var buffer bytes.Buffer
-		tee := io.TeeReader(inConn, &buffer)
-		reader := bufio.NewReader(tee)
-
-		// Process HTTP requests
-		if err := proxy.processHTTPRequests(reader, &buffer, outConn); err != nil {
-			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-				return // Connection has been closed
-			}
-
-			if _, isNetError := err.(net.Error); isNetError {
-				logger.Debug("request processing error", "error", err)
-				return
-			}
-
-			// Continue processing the connection if not a network error
-		}
-
-		// Forward remaining data after HTTP processing
-		if buffer.Len() > 0 {
-			if _, err := outConn.Write(buffer.Bytes()); err != nil {
-				logger.Debug("buffer flush failed", "error", err)
-			}
-		}
-
-		// Directly pipe remaining traffic
-		if _, err := io.Copy(outConn, inConn); err != nil && !errors.Is(err, net.ErrClosed) {
-			logger.Debug("raw copy failed", "error", err)
-		}
-	}()
-
-	wg.Wait()
-	logger.Debug("connection closed")
+	// Forward to the target node (fresh connection per request)
+	proxy.reverseProxy.ServeHTTP(w, r)
 }
 
-// processHTTPRequests handles the HTTP request/response cycle.
-func (proxy *PathInterceptor) processHTTPRequests(reader *bufio.Reader, buffer *bytes.Buffer, outConn net.Conn) error {
-	for {
-		request, err := http.ReadRequest(reader)
-		if err != nil {
-			return fmt.Errorf("read request failed: %w", err)
-		}
-
-		// Check for websocket upgrade
-		if isWebSocket(request) {
-			return errors.New("websocket upgrade requested")
-		}
-
-		// Read and process the request body
-		body, err := io.ReadAll(request.Body)
-		request.Body.Close()
-		if err != nil {
-			return fmt.Errorf("body read failed: %w", err)
-		}
-
-		if err := proxy.handleRequest(body); err != nil {
-			proxy.logger.Debug("request handler warning", "error", err)
-		}
-
-		// Forward the original request bytes
-		if _, err := outConn.Write(buffer.Bytes()); err != nil {
-			return fmt.Errorf("request forward failed: %w", err)
-		}
-
-		buffer.Reset() // Prepare for the next request
+// handleWebSocket hijacks the client connection and pipes data to the target.
+func (proxy *PathInterceptor) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	// Dial the target
+	targetConn, err := net.Dial(proxy.proxyAddr.Network(), proxy.proxyAddr.String())
+	if err != nil {
+		proxy.logger.Debug("websocket upstream dial failed", "error", err)
+		http.Error(w, "upstream dial failed", http.StatusBadGateway)
+		return
 	}
+
+	// Hijack the client connection
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		proxy.logger.Debug("hijacking not supported")
+		http.Error(w, "hijacking not supported", http.StatusInternalServerError)
+		targetConn.Close()
+		return
+	}
+
+	clientConn, _, err := hijacker.Hijack()
+	if err != nil {
+		proxy.logger.Debug("hijack failed", "error", err)
+		http.Error(w, "hijack failed", http.StatusInternalServerError)
+		targetConn.Close()
+		return
+	}
+
+	// Forward the original upgrade request to the target
+	if err := r.Write(targetConn); err != nil {
+		clientConn.Close()
+		targetConn.Close()
+		return
+	}
+
+	// Bidirectional copy
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		io.Copy(targetConn, clientConn)
+		targetConn.Close()
+	}()
+	go func() {
+		defer wg.Done()
+		io.Copy(clientConn, targetConn)
+		clientConn.Close()
+	}()
+	wg.Wait()
 }
 
 func isWebSocket(req *http.Request) bool {
@@ -223,7 +191,6 @@ func (upaths uniqPaths) list() []string {
 	return paths
 }
 
-// Add a path to
 func (upaths uniqPaths) addPath(path string) {
 	path = cleanupPath(path)
 	upaths[path] = struct{}{}
@@ -272,9 +239,9 @@ func (proxy *PathInterceptor) handleRequest(body []byte) error {
 	return nil
 }
 
-// Close closes the proxy listener.
+// Close closes the proxy server and listener.
 func (proxy *PathInterceptor) Close() error {
-	return proxy.listener.Close()
+	return proxy.server.Close()
 }
 
 // parseRPCRequest unmarshals and processes RPC requests, returning paths.
@@ -342,17 +309,16 @@ func handleQuery(path string, data []byte, upaths uniqPaths) error {
 	switch path {
 	case ".app/simulate":
 		return handleTx(data, upaths)
-
 	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval":
 		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out
 		upaths.addPath(path)
-		return nil
-
+	case "vm/qpkg_json":
+		upaths.addPath(string(data))
+	case "vm/qobject", "vm/qobject_json", "vm/qtype_json": // operate on already-loaded state
 	default:
 		return fmt.Errorf("unhandled: %q", path)
 	}
-
-	// XXX: handle more cases
+	return nil
 }
 
 func cleanupPath(path string) string {

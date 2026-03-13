@@ -48,6 +48,18 @@ type ClientAdapter interface {
 	// Doc retrieves the JSON doc suitable for printing from a
 	// specified package path.
 	Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error)
+
+	// StatePkg retrieves the root state tree for a package.
+	// Returns raw JSON bytes of the package block variables.
+	StatePkg(ctx context.Context, path string) ([]byte, error)
+
+	// StateObject retrieves the children of an object by ObjectID.
+	// Returns raw JSON bytes of the object's fields/elements.
+	StateObject(ctx context.Context, oid string) ([]byte, error)
+
+	// StateType retrieves a type definition by TypeID.
+	// Returns raw JSON bytes of the type (for resolving struct field names).
+	StateType(ctx context.Context, typeId string) ([]byte, error)
 }
 
 type rpcClient struct {
@@ -169,6 +181,29 @@ func (c *rpcClient) Doc(ctx context.Context, pkgPath string) (*doc.JSONDocumenta
 	}
 
 	return jdoc, nil
+}
+
+// StatePkg retrieves root state tree for a package via vm/qpkg_json.
+func (c *rpcClient) StatePkg(ctx context.Context, path string) ([]byte, error) {
+	const qpath = "vm/qpkg_json"
+
+	path = strings.Trim(path, "/")
+	data := fmt.Sprintf("%s/%s", c.domain, path)
+	return c.query(ctx, qpath, []byte(data))
+}
+
+// StateObject retrieves an object by ObjectID via vm/qobject_json.
+func (c *rpcClient) StateObject(ctx context.Context, oid string) ([]byte, error) {
+	const qpath = "vm/qobject_json"
+
+	return c.query(ctx, qpath, []byte(oid))
+}
+
+// StateType retrieves a type definition by TypeID via vm/qtype_json.
+func (c *rpcClient) StateType(ctx context.Context, typeId string) ([]byte, error) {
+	const qpath = "vm/qtype_json"
+
+	return c.query(ctx, qpath, []byte(typeId))
 }
 
 // query sends a query to the RPC client and returns the response

@@ -1,0 +1,12 @@
+{{ define "renderState" }}
+<article class="b-state-explorer"
+  data-controller="state-explorer"
+  data-state-explorer-pkg-path-value="{{ .PkgPath }}">
+  <header class="b-state-explorer__header">
+    <div class="b-state-explorer__path" data-state-explorer-target="path-info"></div>
+    <span class="b-state-explorer__count" data-state-explorer-target="count"></span>
+  </header>
+  <div data-state-explorer-target="tree" class="b-state-tree"></div>
+  <script type="application/json" data-state-explorer-target="initial-data">{{ .NodesJSON }}</script>
+</article>
+{{ end }}

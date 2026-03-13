@@ -11,6 +11,7 @@ import (
 	"path"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -116,15 +117,6 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
-	// Read theme preference from cookie for server-side rendering.
-	// Prevents FOUC by embedding data-theme in the HTML before CSS loads.
-	var theme string
-	if c, err := r.Cookie("theme"); err == nil {
-		if c.Value == "light" || c.Value == "dark" {
-			theme = c.Value
-		}
-	}
-
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
 			AssetsPath: h.Static.AssetsPath,
@@ -138,7 +130,6 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			AssetsPath: h.Static.AssetsPath,
 			BuildTime:  h.Static.BuildTime,
 		},
-		Theme: theme,
 	}
 
 	// Parse the URL
@@ -158,6 +149,12 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
+		return
+	}
+
+	// Handle state JSON API request outside of component rendering flow.
+	if gnourl.WebQuery.Has("state") && gnourl.WebQuery.Has("json") {
+		h.ServeStateJSON(r.Context(), gnourl, w)
 		return
 	}
 
@@ -298,6 +295,11 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
+	}
+
+	// Handle State explorer page
+	if gnourl.WebQuery.Has("state") {
+		return h.GetStateView(ctx, gnourl)
 	}
 
 	// Handle Source page
@@ -682,6 +684,78 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 		indexData.Mode,
 		readmeComp,
 	)
+}
+
+// GetStateView returns the state explorer view for a package.
+func (h *HTTPHandler) GetStateView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+	raw, err := h.Client.StatePkg(ctx, gnourl.Path)
+	if err != nil {
+		h.Logger.Error("unable to fetch state", "error", err, "path", gnourl.EncodeURL())
+		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	return http.StatusOK, components.StateView(components.StateData{
+		PkgPath:   gnourl.Path,
+		NodesJSON: string(raw),
+	})
+}
+
+// ServeStateJSON serves state tree data as JSON for dynamic tree expansion.
+func (h *HTTPHandler) ServeStateJSON(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
+	// Source file request — return syntax-highlighted HTML for a line range.
+	if fileName := gnourl.WebQuery.Get("file"); fileName != "" {
+		source, _, err := h.Client.File(ctx, gnourl.Path, fileName)
+		if err != nil {
+			h.Logger.Warn("unable to fetch source file", "file", fileName, "error", err)
+			http.Error(w, "file not found", http.StatusNotFound)
+			return
+		}
+
+		// Extract line range if provided.
+		startLine, _ := strconv.Atoi(gnourl.WebQuery.Get("start"))
+		endLine, _ := strconv.Atoi(gnourl.WebQuery.Get("end"))
+		if startLine > 0 && endLine >= startLine {
+			lines := strings.Split(string(source), "\n")
+			if startLine <= len(lines) {
+				end := endLine
+				if end > len(lines) {
+					end = len(lines)
+				}
+				source = []byte(strings.Join(lines[startLine-1:end], "\n"))
+			}
+		}
+
+		// Render with syntax highlighting.
+		var buf bytes.Buffer
+		if err := h.Renderer.RenderSource(&buf, fileName, source); err != nil {
+			h.Logger.Warn("unable to render source file", "file", fileName, "error", err)
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Write(source)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(buf.Bytes())
+		return
+	}
+
+	var raw []byte
+	var err error
+
+	if oid := gnourl.WebQuery.Get("oid"); oid != "" {
+		raw, err = h.Client.StateObject(ctx, oid)
+	} else if tid := gnourl.WebQuery.Get("tid"); tid != "" {
+		raw, err = h.Client.StateType(ctx, tid)
+	} else {
+		raw, err = h.Client.StatePkg(ctx, gnourl.Path)
+	}
+
+	if err != nil {
+		h.Logger.Warn("unable to fetch state data", "error", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(raw)
 }
 
 // ServeSourceDownload handles downloading a source file as plain text.

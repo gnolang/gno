@@ -1,5 +1,8 @@
 {
 	"name": "gnoweb",
+	"dependencies": {
+		"@gnojs/amino": "file:../../../../misc/gnojs"
+	},
 	"devDependencies": {
 		"@biomejs/biome": "2.0.5",
 		"@fullhuman/postcss-purgecss": "^7.0.2",
