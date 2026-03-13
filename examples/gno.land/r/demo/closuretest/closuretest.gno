@@ -19,9 +19,12 @@ func init() {
 		return count
 	}
 
-	history = make([]int, 0, 10)
+	maxLen := 10
+	history = make([]int, 0, maxLen)
 	accumulator = func(val int) {
-		history = append(history, val)
+		if len(history) < maxLen {
+			history = append(history, val)
+		}
 	}
 }
 

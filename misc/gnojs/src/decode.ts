@@ -228,12 +228,23 @@ export function decodeTypedValue(name: string, tv: AminoTypedValue): StateNode {
     return { name, type: tName, kind: "pointer", value: "nil", expandable: false };
   }
 
-  // ---- Func ----
+  // ---- Func / Closure ----
   if (v && v["@type"] === "/gno.FuncValue") {
     const fv = v as AminoFuncValue;
     const sig = fv.Type ? funcSignature(fv.Type) : `func ${fv.Name}()`;
     const source = extractFuncSource(fv);
-    return { name, type: sig, kind: "func", expandable: !!source, source };
+    const hasCaps = fv.Captures && fv.Captures.length > 0;
+    const kind = hasCaps ? "closure" : "func";
+
+    // Decode closure captures as inline children
+    if (hasCaps) {
+      const children = fv.Captures.map((cap, i) =>
+        decodeTypedValue(`value`, cap),
+      );
+      return { name, type: sig, kind, expandable: true, source, children };
+    }
+
+    return { name, type: sig, kind, expandable: !!source, source };
   }
 
   // ---- Zero value (type but no value) ----
@@ -262,7 +273,17 @@ function extractFuncSource(fv: AminoFuncValue): StateNode["source"] | undefined 
 export function decodeFuncObject(v: AminoFuncValue): StateNode {
   const sig = v.Type ? funcSignature(v.Type) : `func ${v.Name}()`;
   const source = extractFuncSource(v);
-  return { name: v.Name, type: sig, kind: "func", expandable: false, source };
+  const hasCaps = v.Captures && v.Captures.length > 0;
+  const kind = hasCaps ? "closure" : "func";
+
+  if (hasCaps) {
+    const children = v.Captures.map((cap, i) =>
+      decodeTypedValue(`value`, cap),
+    );
+    return { name: v.Name, type: sig, kind, expandable: true, source, children };
+  }
+
+  return { name: v.Name, type: sig, kind, expandable: false, source };
 }
 
 /** Decode the children of a raw Amino Value (from qobject_json). */

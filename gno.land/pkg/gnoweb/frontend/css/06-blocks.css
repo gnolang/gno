@@ -2597,6 +2597,7 @@ main.dev-mode .b-toc a {
 .b-state-kind--slice     { color: var(--s-color-text-success); }
 .b-state-kind--pointer   { color: var(--s-color-text-warning); }
 .b-state-kind--func      { color: var(--s-color-text-tip); }
+.b-state-kind--closure   { color: var(--s-color-text-info); }
 .b-state-kind--nil       { color: var(--s-color-text-secondary); }
 .b-state-kind--primitive { color: var(--s-color-text-secondary); }
 
@@ -2614,6 +2615,7 @@ main.dev-mode .b-toc a {
 .b-state-val--primitive { color: var(--s-color-text-info); }
 .b-state-val--nil       { color: var(--s-color-text-secondary); font-style: italic; }
 .b-state-val--func      { color: var(--s-color-text-tip); }
+.b-state-val--closure   { color: var(--s-color-text-info); }
 
 /* ObjectID — subtle, appears on hover */
 .b-state-oid {
@@ -2686,6 +2688,15 @@ main.dev-mode .b-toc a {
 .b-state-srclink:hover {
 	color: var(--s-color-text-link);
 	text-decoration: underline;
+}
+
+/* Closure captures label */
+.b-state-captures-label {
+	color: var(--s-color-text-info);
+	font-size: 0.85em;
+	font-style: italic;
+	margin-top: var(--g-space-2);
+	margin-bottom: var(--g-space-1);
 }
 
 /* Error */

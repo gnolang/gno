@@ -112,7 +112,7 @@ func TestEnrichHeaderData(t *testing.T) {
 	enrichedData := EnrichHeaderData(data, ViewModeHome)
 
 	assert.NotEmpty(t, enrichedData.Links.General, "expected general links to be populated")
-	assert.Len(t, enrichedData.Links.Dev, 3, "expected dev links with Actions for home mode")
+	assert.Len(t, enrichedData.Links.Dev, 4, "expected dev links with State and Actions for home mode")
 }
 
 func TestIsActive(t *testing.T) {
@@ -161,6 +161,22 @@ func TestIsActive(t *testing.T) {
 			expected: true,
 		},
 		{
+			name: "State active when state present",
+			query: url.Values{
+				"state": []string{""},
+			},
+			label:    "State",
+			expected: true,
+		},
+		{
+			name: "Content inactive when state present",
+			query: url.Values{
+				"state": []string{""},
+			},
+			label:    "Content",
+			expected: false,
+		},
+		{
 			name:     "Unknown label returns false",
 			query:    url.Values{},
 			label:    "Unknown",
@@ -186,10 +202,11 @@ func TestStaticHeaderDevLinks_WithRealmMode(t *testing.T) {
 
 	// Test realm mode (default case)
 	links := StaticHeaderDevLinks(u, ViewModeRealm)
-	assert.Len(t, links, 3, "expected Content, Source, and Actions links")
+	assert.Len(t, links, 4, "expected Content, State, Source, and Actions links")
 	assert.Equal(t, "Content", links[0].Label)
-	assert.Equal(t, "Source", links[1].Label)
-	assert.Equal(t, "Actions", links[2].Label)
+	assert.Equal(t, "State", links[1].Label)
+	assert.Equal(t, "Source", links[2].Label)
+	assert.Equal(t, "Actions", links[3].Label)
 }
 
 func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
@@ -231,7 +248,7 @@ func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
 	enriched := EnrichHeaderData(data, ViewModeRealm)
 	assert.Equal(t, "/r/test/pkg", enriched.RealmPath)
 	assert.Empty(t, enriched.Links.General)
-	assert.Len(t, enriched.Links.Dev, 3, "expected Content, Source, and Actions links")
+	assert.Len(t, enriched.Links.Dev, 4, "expected Content, State, Source, and Actions links")
 }
 
 func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {

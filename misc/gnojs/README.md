@@ -24,13 +24,14 @@ This library handles all of that and produces flat `StateNode` objects:
 interface StateNode {
   name: string;        // "myVar", "Name", "0", '"key"'
   type: string;        // "int", "boards.Board", "*string"
-  kind: string;        // "primitive", "struct", "map", "pointer", ...
-  value?: string;      // "42", '"hello"', "true", "func Render()"
+  kind: string;        // "primitive", "struct", "map", "pointer", "func", "closure", ...
+  value?: string;      // "42", '"hello"', "true"
   expandable: boolean; // true if children can be loaded
   children?: StateNode[];
   objectId?: string;   // for lazy-loading via qobject_json
   typeId?: string;     // for resolving field names via qtype_json
   length?: number;     // for collections
+  source?: { file: string; startLine: number; endLine: number }; // for functions
 }
 ```
 
@@ -108,6 +109,28 @@ Full TypeScript type definitions for all Amino JSON wire types — `AminoTypedVa
 2. **Structs** with `RefType` in `T` → use `qtype_json` to get field names
 3. **Persisted objects** with `RefValue` in `V` → use `qobject_json` to expand children
 4. **Repeat** step 2–3 for each level of the tree (lazy loading)
+
+## Functions and closures
+
+Functions decode to kind `"func"` with an optional `source` location (file, start/end line). When stored as a `RefValue` at the package level, they are expandable — fetching the object returns the full `FuncValue` with source info.
+
+Closures are detected by the presence of a non-empty `Captures` array in the `FuncValue` (not by the `IsClosure` boolean, which is unreliable in persisted state). When captures are present, the decoder assigns kind `"closure"` and includes the captured variables as `children`:
+
+```typescript
+const node = decodeTypedValue("stepper", closureTv);
+// → {
+//     name: "stepper",
+//     type: "func() int",
+//     kind: "closure",           // not "func"
+//     expandable: true,
+//     source: { file: "main.gno", startLine: 17, endLine: 20 },
+//     children: [
+//       { name: "value", type: "heapItemType", expandable: true, objectId: "abc:13" }
+//     ]
+//   }
+```
+
+Each capture is a `TypedValue` with `T: heapItemType` and `V: RefValue` pointing to the heap item holding the captured variable's value.
 
 ## Amino JSON format reference
 

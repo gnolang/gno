@@ -192,37 +192,65 @@ export class StateExplorerController extends BaseController {
 
 		if (isHidden) {
 			// Expand — lazy-fetch if needed
-			if (kids.children.length === 0 && node.objectId) {
-				toggle.classList.add("b-state-toggle--loading");
-				try {
-					const url = `${this.pkgPath}$state&oid=${encodeURIComponent(node.objectId)}&json`;
-					const resp = await fetch(url);
-					if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-					const raw: QobjectResponse = await resp.json();
-
-					if (node.kind === "func") {
-						await this._expandFunc(raw.value as AminoFuncValue, kids, depth);
-					} else {
-						let childNodes = decodeObject(raw);
-
-						// Resolve struct field names via qtype_json if parent has a typeId
-						if (node.typeId && childNodes.length > 0) {
-							childNodes = await this._resolveFieldNames(
-								node.typeId,
-								childNodes,
-							);
-						}
-
-						this._renderNodes(childNodes, kids, depth + 1);
+			if (kids.children.length === 0) {
+				// Closures with inline children: render source + captures
+				if (
+					node.kind === "closure" &&
+					node.children &&
+					node.children.length > 0
+				) {
+					if (node.source) {
+						await this._renderSourceBlock(
+							node.source.file,
+							node.source.startLine,
+							node.source.endLine,
+							kids,
+							depth,
+						);
 					}
-				} catch (err) {
-					console.error("State fetch error:", err);
-					const errEl = document.createElement("span");
-					errEl.className = "b-state-err";
-					errEl.textContent = "Failed to load";
-					kids.appendChild(errEl);
+					// Render capture label + children
+					const label = document.createElement("div");
+					label.className = "b-state-captures-label";
+					label.style.paddingLeft = `${(depth + 1) * 1.25 + 0.25}rem`;
+					label.textContent = "Captured variables:";
+					kids.appendChild(label);
+					this._renderNodes(node.children, kids, depth + 1);
+				} else if (node.objectId) {
+					toggle.classList.add("b-state-toggle--loading");
+					try {
+						const url = `${this.pkgPath}$state&oid=${encodeURIComponent(node.objectId)}&json`;
+						const resp = await fetch(url);
+						if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+						const raw: QobjectResponse = await resp.json();
+
+						if (node.kind === "func" || node.kind === "closure") {
+							await this._expandFunc(
+								raw.value as AminoFuncValue,
+								kids,
+								depth,
+							);
+						} else {
+							let childNodes = decodeObject(raw);
+
+							// Resolve struct field names via qtype_json if parent has a typeId
+							if (node.typeId && childNodes.length > 0) {
+								childNodes = await this._resolveFieldNames(
+									node.typeId,
+									childNodes,
+								);
+							}
+
+							this._renderNodes(childNodes, kids, depth + 1);
+						}
+					} catch (err) {
+						console.error("State fetch error:", err);
+						const errEl = document.createElement("span");
+						errEl.className = "b-state-err";
+						errEl.textContent = "Failed to load";
+						kids.appendChild(errEl);
+					}
+					toggle.classList.remove("b-state-toggle--loading");
 				}
-				toggle.classList.remove("b-state-toggle--loading");
 			}
 			kids.hidden = false;
 			toggle.textContent = ARROW_DOWN;
@@ -232,29 +260,14 @@ export class StateExplorerController extends BaseController {
 		}
 	}
 
-	// Fetch syntax-highlighted source and display it inline.
-	private async _expandFunc(
-		fv: AminoFuncValue,
+	// Render a syntax-highlighted source block inline.
+	private async _renderSourceBlock(
+		file: string,
+		startLine: number,
+		endLine: number,
 		container: HTMLElement,
 		depth: number,
 	): Promise<void> {
-		const loc = fv.Source?.Location;
-		if (!loc?.File || !loc?.Span) {
-			const info = decodeFuncObject(fv);
-			if (info.source) {
-				const el = document.createElement("a");
-				el.className = "b-state-meta b-state-srclink";
-				el.textContent = `${info.source.file}:${info.source.startLine}`;
-				el.href = `${this.pkgPath}$source&file=${encodeURIComponent(info.source.file)}#L${info.source.startLine}`;
-				container.appendChild(el);
-			}
-			return;
-		}
-
-		const file = loc.File;
-		const startLine = parseInt(loc.Span.Pos.Line) || 1;
-		const endLine = parseInt(loc.Span.End.Line) || startLine;
-
 		try {
 			const html = await this._fetchSourceHTML(file, startLine, endLine);
 
@@ -281,6 +294,59 @@ export class StateExplorerController extends BaseController {
 			errEl.className = "b-state-err";
 			errEl.textContent = `Failed to load source: ${err instanceof Error ? err.message : String(err)}`;
 			container.appendChild(errEl);
+		}
+	}
+
+	// Fetch syntax-highlighted source and display it inline, plus captures for closures.
+	private async _expandFunc(
+		fv: AminoFuncValue,
+		container: HTMLElement,
+		depth: number,
+	): Promise<void> {
+		const loc = fv.Source?.Location;
+		if (!loc?.File || !loc?.Span) {
+			const info = decodeFuncObject(fv);
+			if (info.source) {
+				const el = document.createElement("a");
+				el.className = "b-state-meta b-state-srclink";
+				el.textContent = `${info.source.file}:${info.source.startLine}`;
+				el.href = `${this.pkgPath}$source&file=${encodeURIComponent(info.source.file)}#L${info.source.startLine}`;
+				container.appendChild(el);
+			}
+			// Still show captures even without source location
+			if (fv.Captures && fv.Captures.length > 0) {
+				this._renderCaptures(fv, container, depth);
+			}
+			return;
+		}
+
+		const file = loc.File;
+		const startLine = parseInt(loc.Span.Pos.Line) || 1;
+		const endLine = parseInt(loc.Span.End.Line) || startLine;
+
+		await this._renderSourceBlock(file, startLine, endLine, container, depth);
+
+		// Show captures for closures
+		if (fv.Captures && fv.Captures.length > 0) {
+			this._renderCaptures(fv, container, depth);
+		}
+	}
+
+	// Render closure captures as child nodes.
+	private _renderCaptures(
+		fv: AminoFuncValue,
+		container: HTMLElement,
+		depth: number,
+	): void {
+		const label = document.createElement("div");
+		label.className = "b-state-captures-label";
+		label.style.paddingLeft = `${(depth + 1) * 1.25 + 0.25}rem`;
+		label.textContent = "Captured variables:";
+		container.appendChild(label);
+
+		const decoded = decodeFuncObject(fv);
+		if (decoded.children && decoded.children.length > 0) {
+			this._renderNodes(decoded.children, container, depth + 1);
 		}
 	}
 

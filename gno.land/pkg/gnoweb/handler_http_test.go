@@ -1058,6 +1058,179 @@ func TestHTTPHandler_DownloadWithContext(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), content)
 }
 
+// TestHTTPHandler_GetStateView tests the state explorer page.
+func TestHTTPHandler_GetStateView(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"render.gno": `package main; func Render(path string) string { return "hi" }`,
+			"gno.mod":    `module example.com/r/mock/path`,
+		},
+		Functions: []*doc.JSONFunc{
+			{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Name: "", Type: "string"}}},
+		},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/mock/path$state", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.Contains(t, body, "state-explorer", "should contain the state explorer controller")
+	assert.Contains(t, body, "/r/mock/path", "should contain the package path")
+}
+
+// TestHTTPHandler_GetStateView_NotFound tests state view for a missing package.
+func TestHTTPHandler_GetStateView_NotFound(t *testing.T) {
+	t.Parallel()
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient())
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/nonexistent$state", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+// TestHTTPHandler_ServeStateJSON tests the state JSON API endpoints.
+func TestHTTPHandler_ServeStateJSON(t *testing.T) {
+	t.Parallel()
+
+	stateJSON := `{"names":["x"],"values":[{"T":{"@type":"/gno.PrimitiveType","value":"32"}}]}`
+	objectJSON := `{"objectid":"abc:1","value":{"@type":"/gno.StructValue","Fields":[]}}`
+	typeJSON := `{"typeid":"gno.land/r/test.Foo","type":{"@type":"/gno.StructType","PkgPath":"gno.land/r/test","Fields":[]}}`
+
+	client := &stubClient{
+		realmFunc: func(ctx context.Context, path, args string) ([]byte, error) {
+			return []byte("realm"), nil
+		},
+	}
+
+	// Override state methods with real data
+	statePkgFunc := func(_ context.Context, path string) ([]byte, error) {
+		if path == "/r/test/pkg" {
+			return []byte(stateJSON), nil
+		}
+		return nil, gnoweb.ErrClientPackageNotFound
+	}
+	stateObjectFunc := func(_ context.Context, oid string) ([]byte, error) {
+		if oid == "abc:1" {
+			return []byte(objectJSON), nil
+		}
+		return nil, fmt.Errorf("not found")
+	}
+	stateTypeFunc := func(_ context.Context, tid string) ([]byte, error) {
+		if tid == "gno.land/r/test.Foo" {
+			return []byte(typeJSON), nil
+		}
+		return nil, fmt.Errorf("not found")
+	}
+
+	// We can't set these on stubClient since the methods are defined on the type,
+	// so use a wrapper that implements the interface.
+	wrapper := &stateStubClient{
+		stubClient:      client,
+		statePkgFunc:    statePkgFunc,
+		stateObjectFunc: stateObjectFunc,
+		stateTypeFunc:   stateTypeFunc,
+	}
+
+	config := newTestHandlerConfig(t, wrapper)
+
+	cases := []struct {
+		Path        string
+		Status      int
+		ContentType string
+		Contain     string
+	}{
+		// Package state JSON
+		{
+			Path:        "/r/test/pkg$state&json",
+			Status:      http.StatusOK,
+			ContentType: "application/json",
+			Contain:     `"names"`,
+		},
+		// Object state JSON (colon in OID must be URL-encoded)
+		{
+			Path:        "/r/test/pkg$state&oid=abc%3A1&json",
+			Status:      http.StatusOK,
+			ContentType: "application/json",
+			Contain:     `"objectid"`,
+		},
+		// Type JSON
+		{
+			Path:        "/r/test/pkg$state&tid=gno.land/r/test.Foo&json",
+			Status:      http.StatusOK,
+			ContentType: "application/json",
+			Contain:     `"typeid"`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(strings.TrimPrefix(tc.Path, "/"), func(t *testing.T) {
+			t.Parallel()
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
+			require.NoError(t, err)
+
+			req, err := http.NewRequest(http.MethodGet, tc.Path, nil)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, tc.Status, rr.Code)
+			if tc.ContentType != "" {
+				assert.Equal(t, tc.ContentType, rr.Header().Get("Content-Type"))
+			}
+			assert.Contains(t, rr.Body.String(), tc.Contain)
+		})
+	}
+}
+
+// stateStubClient wraps stubClient but overrides state methods with custom functions.
+type stateStubClient struct {
+	*stubClient
+	statePkgFunc    func(context.Context, string) ([]byte, error)
+	stateObjectFunc func(context.Context, string) ([]byte, error)
+	stateTypeFunc   func(context.Context, string) ([]byte, error)
+}
+
+func (s *stateStubClient) StatePkg(ctx context.Context, path string) ([]byte, error) {
+	if s.statePkgFunc != nil {
+		return s.statePkgFunc(ctx, path)
+	}
+	return s.stubClient.StatePkg(ctx, path)
+}
+
+func (s *stateStubClient) StateObject(ctx context.Context, oid string) ([]byte, error) {
+	if s.stateObjectFunc != nil {
+		return s.stateObjectFunc(ctx, oid)
+	}
+	return s.stubClient.StateObject(ctx, oid)
+}
+
+func (s *stateStubClient) StateType(ctx context.Context, tid string) ([]byte, error) {
+	if s.stateTypeFunc != nil {
+		return s.stateTypeFunc(ctx, tid)
+	}
+	return s.stubClient.StateType(ctx, tid)
+}
+
 // TestHTTPHandler_Post_OpenRedirectBlocked tests that protocol-relative URLs
 // are blocked as a defense-in-depth measure.
 func TestHTTPHandler_Post_OpenRedirectBlocked(t *testing.T) {

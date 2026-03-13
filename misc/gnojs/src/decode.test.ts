@@ -231,6 +231,111 @@ function testDecodeSliceRefBase(): void {
   console.log("  testDecodeSliceRefBase: PASS");
 }
 
+function testDecodeFuncInline(): void {
+  const node = decodeTypedValue("myFunc", {
+    T: { "@type": "/gno.FuncType", Params: [{ Name: "x", Type: { "@type": "/gno.PrimitiveType", value: "32" }, Embedded: false, Tag: "" }], Results: [{ Name: ".res.0", Type: { "@type": "/gno.PrimitiveType", value: "32" }, Embedded: false, Tag: "" }] },
+    V: {
+      "@type": "/gno.FuncValue",
+      Type: { "@type": "/gno.FuncType", Params: [{ Name: "x", Type: { "@type": "/gno.PrimitiveType", value: "32" }, Embedded: false, Tag: "" }], Results: [{ Name: ".res.0", Type: { "@type": "/gno.PrimitiveType", value: "32" }, Embedded: false, Tag: "" }] },
+      Name: "myFunc",
+      Source: { "@type": "/gno.RefNode", Location: { PkgPath: "gno.land/r/test", File: "test.gno", Span: { Pos: { Line: "5", Column: "1" }, End: { Line: "7", Column: "1" }, Num: "0" } }, BlockNode: null },
+    },
+  });
+
+  assertEqual(node.kind, "func", "inline func kind");
+  assert(node.source !== undefined, "inline func should have source");
+  assertEqual(node.source!.file, "test.gno", "func source file");
+  assertEqual(node.source!.startLine, 5, "func source start line");
+
+  console.log("  testDecodeFuncInline: PASS");
+}
+
+function testDecodeFuncRefValue(): void {
+  // Func stored as RefValue (top-level package func) — expandable to show source
+  const node = decodeTypedValue("Render", {
+    T: { "@type": "/gno.FuncType", Params: [{ Name: "path", Type: { "@type": "/gno.PrimitiveType", value: "16" }, Embedded: false, Tag: "" }], Results: [{ Name: ".res.0", Type: { "@type": "/gno.PrimitiveType", value: "16" }, Embedded: false, Tag: "" }] },
+    V: { "@type": "/gno.RefValue", ObjectID: "abc:9", Hash: "xyz" },
+  });
+
+  assertEqual(node.kind, "func", "func ref kind");
+  assert(node.expandable, "func ref should be expandable");
+  assertEqual(node.objectId, "abc:9", "func ref objectId");
+  assert(node.type.includes("func("), "func type should include signature");
+
+  console.log("  testDecodeFuncRefValue: PASS");
+}
+
+function testDecodeClosureWithCaptures(): void {
+  // Closure with captures — the FuncValue has Captures field
+  const node = decodeTypedValue("stepper", {
+    T: { "@type": "/gno.FuncType", Params: [], Results: [{ Name: ".res.0", Type: { "@type": "/gno.PrimitiveType", value: "32" }, Embedded: false, Tag: "" }] },
+    V: {
+      "@type": "/gno.FuncValue",
+      Type: { "@type": "/gno.FuncType", Params: [], Results: [{ Name: ".res.0", Type: { "@type": "/gno.PrimitiveType", value: "32" }, Embedded: false, Tag: "" }] },
+      Name: "",
+      IsClosure: false,
+      Captures: [
+        { T: { "@type": "/gno.heapItemType" }, V: { "@type": "/gno.RefValue", ObjectID: "abc:13", Hash: "def" } },
+      ],
+      Source: { "@type": "/gno.RefNode", Location: { PkgPath: "gno.land/r/test", File: "test.gno", Span: { Pos: { Line: "17", Column: "12" }, End: { Line: "20", Column: "3" }, Num: "0" } }, BlockNode: null },
+    },
+  });
+
+  assertEqual(node.kind, "closure", "closure kind");
+  assert(node.expandable, "closure should be expandable");
+  assert(node.source !== undefined, "closure should have source");
+  assert(node.children !== undefined, "closure should have children from captures");
+  assertEqual(node.children!.length, 1, "closure should have 1 capture");
+  assertEqual(node.children![0].name, "value", "capture child name");
+  assert(node.children![0].expandable, "capture with RefValue should be expandable");
+  assertEqual(node.children![0].objectId, "abc:13", "capture objectId");
+
+  console.log("  testDecodeClosureWithCaptures: PASS");
+}
+
+function testDecodeFuncNoCapturesNotClosure(): void {
+  // Regular func with no captures — should be "func" not "closure"
+  const node = decodeTypedValue("init", {
+    T: { "@type": "/gno.FuncType", Params: [], Results: [] },
+    V: {
+      "@type": "/gno.FuncValue",
+      Type: { "@type": "/gno.FuncType", Params: [], Results: [] },
+      Name: "init",
+      Captures: [],
+      Source: { "@type": "/gno.RefNode", Location: { PkgPath: "gno.land/r/test", File: "test.gno", Span: { Pos: { Line: "1", Column: "1" }, End: { Line: "3", Column: "1" }, Num: "0" } }, BlockNode: null },
+    },
+  });
+
+  assertEqual(node.kind, "func", "func without captures is not closure");
+  assert(node.children === undefined || node.children.length === 0, "no children for non-closure");
+
+  console.log("  testDecodeFuncNoCapturesNotClosure: PASS");
+}
+
+function testDecodeClosureMultipleCaptures(): void {
+  // Closure with multiple captures
+  const node = decodeTypedValue("accumulator", {
+    T: { "@type": "/gno.FuncType", Params: [{ Name: "val", Type: { "@type": "/gno.PrimitiveType", value: "32" }, Embedded: false, Tag: "" }], Results: [] },
+    V: {
+      "@type": "/gno.FuncValue",
+      Type: { "@type": "/gno.FuncType", Params: [{ Name: "val", Type: { "@type": "/gno.PrimitiveType", value: "32" }, Embedded: false, Tag: "" }], Results: [] },
+      Name: "",
+      Captures: [
+        { T: { "@type": "/gno.heapItemType" }, V: { "@type": "/gno.RefValue", ObjectID: "abc:16", Hash: "aaa" } },
+        { T: { "@type": "/gno.heapItemType" }, V: { "@type": "/gno.RefValue", ObjectID: "abc:17", Hash: "bbb" } },
+      ],
+      Source: { "@type": "/gno.RefNode", Location: { PkgPath: "gno.land/r/test", File: "test.gno", Span: { Pos: { Line: "23", Column: "16" }, End: { Line: "25", Column: "3" }, Num: "0" } }, BlockNode: null },
+    },
+  });
+
+  assertEqual(node.kind, "closure", "multi-capture closure kind");
+  assertEqual(node.children!.length, 2, "should have 2 captures");
+  assertEqual(node.children![0].objectId, "abc:16", "first capture objectId");
+  assertEqual(node.children![1].objectId, "abc:17", "second capture objectId");
+
+  console.log("  testDecodeClosureMultipleCaptures: PASS");
+}
+
 // ---- Run all tests ----
 
 console.log("decode.test.ts:");
@@ -243,4 +348,9 @@ testDecodeInlineStruct();
 testDecodeCycleRef();
 testDecodeNil();
 testDecodeSliceRefBase();
+testDecodeFuncInline();
+testDecodeFuncRefValue();
+testDecodeClosureWithCaptures();
+testDecodeFuncNoCapturesNotClosure();
+testDecodeClosureMultipleCaptures();
 console.log("All tests passed.");

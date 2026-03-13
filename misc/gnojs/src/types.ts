@@ -203,6 +203,8 @@ export interface AminoFuncValue {
   ObjectInfo?: AminoObjectInfo;
   Type?: AminoFuncType;
   Name: string;
+  IsClosure?: boolean;
+  Captures?: AminoTypedValue[];
   PkgPath?: string;
   FileName?: string;
   NativePkg?: string;
