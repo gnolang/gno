@@ -2,27 +2,10 @@
 
 Scripts for govDAO members to manage the gnoland1 chain. If you're a validator operator (valoper), you can ignore this directory.
 
-## Scripts
-
-- **add-validator.sh** - Add a validator to the active set via govDAO proposal
-- **rm-validator.sh** - Remove a validator from the active set via govDAO proposal
-
-## Usage
+All scripts default to `GNOKEY_NAME=moul`, `CHAIN_ID=gnoland1`, and `REMOTE=https://rpc.betanet.testnets.gno.land:443`. Override via env vars.
 
 ```bash
-# Add a validator
-./add-validator.sh <address> <pub_key> [voting_power]
-
-# Remove a validator
-./rm-validator.sh <address>
+./add-validator-from-valopers.sh ADDR        # add a validator registered at r/gnops/valopers
+./add-validator.sh ADDR PUBKEY [POWER]       # add a validator with explicit pub_key
+./rm-validator.sh ADDR                       # remove a validator
 ```
-
-## Environment Variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `GNOKEY_NAME` | `moul` | gnokey key name |
-| `CHAIN_ID` | `gnoland1` | Chain ID |
-| `REMOTE` | `https://rpc.betanet.testnets.gno.land:443` | RPC endpoint |
-| `GAS_WANTED` | `10000000` | Gas limit |
-| `GAS_FEE` | `1000000ugnot` | Gas fee |
