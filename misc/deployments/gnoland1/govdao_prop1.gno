@@ -67,8 +67,8 @@ func main() {
 					VotingPower: 1,
 				},
 				{
-					Address:     address("g1jyaxj5t95dhlp9f8edkm0p0evw87qejluld86p"),
-					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq0wm4ysder0sgvre9qrahcz9fsg5qkdxuxetm5kmwaaul4e4e5p0rsx5f3",
+					Address:     address("g1eueypc9w524ctda3y0kwd4jruw5p4zqpjna0jq"),
+					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqsdatvn76ru9pck7zrt7zc33y8p2kweaujx82utgmtwljypuz9p8uctk3m",
 					VotingPower: 1,
 				},
 				{
