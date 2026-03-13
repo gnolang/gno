@@ -36,7 +36,7 @@ gnoland secrets init
 
 For **remote signing** via `gnokms`, refer to the [gnokms documentation](../../../contribs/gnokms/README.md) for setup instructions.
 
-Then use the provided `config.toml` as your base configuration. For most setups, editing only the fields marked with `# TODO` comments is sufficient.
+Then use the provided `config.toml` in this directory as your base configuration. For most setups, editing only the fields marked with `# TODO` comments is sufficient.
 
 ## 4. Run Your Node
 
