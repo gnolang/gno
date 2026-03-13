@@ -1,5 +1,5 @@
 REPO_ROOT := $(shell cd ../../.. && pwd)
-GENESIS_SHA256 := ab4cddcbcf31fc7db7e638fadbcc53a1c813fb4c9d34a788ba99afd0121e8dd3
+GENESIS_SHA256 := e6b7db33b1492db875f8cdf8add7d28fe884ec39196459718eba3464cfd43ba0
 
 .PHONY: help generate generate-txs test clean
 

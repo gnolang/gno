@@ -40,7 +40,7 @@ func main() {
 	must(ms.SetMember(memberstore.T1, genesisDeployerAddr, &memberstore.Member{InvitationPoints: 0}))
 
 	// ---- 2. Register the initial validator set via governance proposal ----
-	// 7 validators — BFT 2/3 threshold means 5 nodes must be up for consensus.
+	// 6 validators — BFT 2/3 threshold means 4 nodes must be up for consensus.
 	// Additional validators can be added post-genesis via govDAO proposals
 	// (see govdao-scripts/add-validator.sh).
 	govExec(valr.NewPropRequest(
@@ -57,6 +57,11 @@ func main() {
 					VotingPower: 1,
 				},
 				{
+					Address:     address("g16wh3t370fctrukvvdslsz9uc76tfpy0ggrm5hr"),
+					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp0768mk3fg7dkprgkl5twxzhn2hlef27mzt46qea8z4qv0ltwstuy9qk62",
+					VotingPower: 1,
+				},
+				{
 					Address:     address("g1uhv7wr7nku89se3t7v8fpquc7n5sf8rfkywxpc"),
 					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqavtgten8l8k4f72j8klpu4l7tk2qw4kl8394krsaysmz2q0765ynvjag0",
 					VotingPower: 1,
@@ -69,16 +74,6 @@ func main() {
 				{
 					Address:     address("g1eueypc9w524ctda3y0kwd4jruw5p4zqpjna0jq"),
 					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqsdatvn76ru9pck7zrt7zc33y8p2kweaujx82utgmtwljypuz9p8uctk3m",
-					VotingPower: 1,
-				},
-				{
-					Address:     address("g1kn7p0wqumvqlcqzhkwnavkhf0z4qnr73ltwsae"),
-					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpufsm93d5fmzxrug76esaxsdsmw0guy9e6geypw7ekz92sl3mte492q62e",
-					VotingPower: 1,
-				},
-				{
-					Address:     address("g1waazuzqs7tzpdfa0qwxvctms0f9ccarg58ussh"),
-					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp2ecmrs79k4snhuu4xlyrrmmc0ykzmd05m5nyxv0grc3kdhxw0m2pld7c3",
 					VotingPower: 1,
 				},
 			}
