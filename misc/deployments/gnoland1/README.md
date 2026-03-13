@@ -23,7 +23,7 @@ make build.gnoland
 **Docker image** — from the repository root:
 
 ```shell
-docker build -t gnoland .
+docker build -t gnoland --target gnoland .
 ```
 
 ## 3. Initialize Secrets and Configure
