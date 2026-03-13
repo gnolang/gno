@@ -6,7 +6,7 @@ to explore the blockchain ecosystem.
 
 ## Networks
 
-The main gnoweb instance is available at [staging.gno.land](https://staging.gno.land), which serves the Staging network.
+The main gnoweb instance is available at [gno.land](https://gno.land).
 
 For a complete list of all available networks (testnets and more), see [Networks](../resources/gnoland-networks.md).
 

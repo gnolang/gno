@@ -130,7 +130,7 @@ to tolerate. Learn about [storage deposits](../resources/storage-deposit.md).
 
 Congratulations! If everything went as expected, you've successfully deployed a
 realm to the Staging network. To see it on `gnoweb` for the Staging chain,
-append `r/<your_address>/counter` to https://gno.land in your browser.
+append `r/<your_address>/counter` to https://staging.gno.land in your browser.
 
 :::info
 

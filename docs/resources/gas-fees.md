@@ -86,7 +86,7 @@ To calculate the minimum fee manually:
 
 You can query the current network gas price using:
 ```bash
-gnokey query auth/gasprice -remote https://rpc.staging.gno.land:443
+gnokey query auth/gasprice -remote https://rpc.gno.land:443
 ```
 
 This returns the gas price calculated from the most recently completed block,
@@ -133,9 +133,9 @@ gnokey maketx addpkg \
   -pkgpath gno.land/r/hello \
   -gas-wanted 2000000 \
   -gas-fee 1000000ugnot \
-  -remote https://rpc.staging.gno.land:443 \
+  -remote https://rpc.gno.land:443 \
   -broadcast \
-  -chainid staging \
+  -chainid gnoland1 \
   -simulate only \
   YOUR_KEY_NAME
 ```

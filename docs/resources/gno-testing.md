@@ -148,7 +148,7 @@ func Render(_ string) string {
 ```
 
 The `run` subcommand also supports a full GnoVM debugger, which can be started
-with the `-debug` flag. Read more about it [here](https://staging.gno.land/r/gnoland/blog:p/gno-debugger).
+with the `-debug` flag. Read more about it [here](https://gno.land/r/gnoland/blog:p/gno-debugger).
 
 ## Filetests
 

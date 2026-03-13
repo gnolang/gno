@@ -205,7 +205,7 @@ View the package source on [GitHub](../../examples/gno.land/p/nt/seqid/v0).
 ## Exploring Deployed Packages
 
 You can explore all deployed packages using gnoweb. For example, you can visit the
-[`gnoland`](https://staging.gno.land/r/gnoland/) namespace to see all packages that have 
+[`gnoland`](https://gno.land/r/gnoland/) namespace to see all packages that have 
 been deployed there.
 
 This provides transparency and allows you to learn from existing code.

@@ -1040,10 +1040,10 @@ We can obtain information about a specific address using this subquery. To call 
 we can run the following command:
 
 ```bash
-gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.staging.gno.land:443
+gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
 ```
 
-With this, we are asking the Staging network to deliver information about the
+With this, we are asking the network to deliver information about the
 specified address. If everything went correctly, we should get output similar to the following:
 
 ```bash
@@ -1083,7 +1083,7 @@ With this query, we can fetch [coin](../resources/gno-stdlibs.md#coin) balances
 of a specific account. To call it, we can run the following command:
 
 ```bash
-gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.staging.gno.land:443
+gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
 ```
 
 If everything went correctly, we should get an output similar to the following:
@@ -1102,7 +1102,7 @@ required for transactions. This is useful for ensuring your `--gas-fee` meets
 the network's requirements when submitting transactions. To call it, we can run the following command:
 
 ```bash
-gnokey query auth/gasprice -remote https://rpc.staging.gno.land:443
+gnokey query auth/gasprice -remote https://rpc.gno.land:443
 ```
 
 If everything went correctly, we should get an output similar to the following:
@@ -1135,7 +1135,7 @@ Using the `vm/qfuncs` query, we can fetch exported functions from a specific pac
 path. To specify the path we want to query, we can use the `-data` flag:
 
 ```bash
-gnokey query vm/qfuncs --data "gno.land/r/gnoland/wugnot" -remote https://rpc.staging.gno.land:443
+gnokey query vm/qfuncs --data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
 ```
 
 The output is a string containing all exported functions for the `wugnot` realm:
@@ -1170,7 +1170,7 @@ specific package path. To specify the path we want to query, we can use the
 `-data` flag:
 
 ```bash
-gnokey query vm/qfile -data "gno.land/r/gnoland/wugnot" -remote https://rpc.staging.gno.land:443
+gnokey query vm/qfile -data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
 ```
 
 If the `-data` field contains only the package path, the output is a list of all
@@ -1187,7 +1187,7 @@ If the `-data` field also specifies a file name after the path, the source code
 of the file will be retrieved:
 
 ```bash
-gnokey query vm/qfile -data "gno.land/r/gnoland/wugnot/wugnot.gno" -remote https://rpc.staging.gno.land:443
+gnokey query vm/qfile -data "gno.land/r/gnoland/wugnot/wugnot.gno" -remote https://rpc.gno.land:443
 ```
 
 Output:
@@ -1224,7 +1224,7 @@ Using the `vm/qdoc` query, we can fetch the docs, for functions, types and varia
 package path. To specify the path we want to query, we can use the `-data` flag:
 
 ```bash
-gnokey query vm/qdoc --data "gno.land/r/gnoland/valopers/v2" -remote https://rpc.staging.gno.land:443
+gnokey query vm/qdoc --data "gno.land/r/gnoland/valopers/v2" -remote https://rpc.gno.land:443
 ```
 
 The output is a JSON string containing doc strings of the package, functions, etc., including comments for `valopers`
@@ -1295,7 +1295,7 @@ data: {
 in read-only mode. For example:
 
 ```bash
-gnokey query vm/qeval -remote https://rpc.staging.gno.land:443 -data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
+gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 ```
 
 This command will return the `wugnot` balance of the above address without using gas.
@@ -1309,7 +1309,7 @@ Currently, `vm/qeval` only supports primitive types in expressions.
 We can use it like this:
 
 ```bash
-gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.staging.gno.land:443
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.gno.land:443
 ```
 
 Running this command will display the current `Render()` output of the WUGNOT
@@ -1332,7 +1332,7 @@ address in its `Render()` function. We can fetch the balance of an account by
 providing the following custom pattern to the `wugnot` realm:
 
 ```bash
-gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:balance/g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" -remote https://rpc.staging.gno.land:443
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:balance/g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" -remote https://rpc.gno.land:443
 ```
 
 To see how this was achieved, check out `wugnot`'s `Render()` function.
