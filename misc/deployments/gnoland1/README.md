@@ -13,7 +13,7 @@ make generate
 Verify the hash matches the expected value:
 
 ```shell
-echo 'e45ca91785c0d2a0365b02920e0ab8f31f41defe00cea3b89847b970327fb8d8  genesis.json' | shasum -a 256 -c
+echo '2b1a48bd9a47c1e48f3190754fc7982872c08b347c434048889449c1207117af  genesis.json' | shasum -a 256 -c
 # genesis.json: OK
 ```
 
