@@ -37,7 +37,7 @@ func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 			Name:       "verify",
 			ShortUsage: "verify [flags] <key-name or address>",
 			ShortHelp:  "verifies the transaction signature",
-			LongHelp:   "Verifies a signature of a <Amino JSON format transaction> against <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number, --account-sequence or --chain-id are not set, the command queries the chain (via --remote) to fill them; if the query fails, default values are used. Provide the signature via --sigpath; otherwise the first signature in the tx (tx.Signatures[0]) is used.",
+			LongHelp:   "Verifies a signature of a <Amino JSON format transaction> with pubkey identified by <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number, --account-sequence or --chain-id are not set, the command queries the chain (via --remote) to fill them; if the query fails, default values are used. Provide the signature via --sigpath; otherwise the first signature in the tx (tx.Signatures[0]) is used.",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
