@@ -163,15 +163,6 @@ while IFS= read -r dir; do
   cp -r "$dir" "$WORK_DIR_EXAMPLES/$rel"
 done <<<"$pkg_dirs"
 
-# BUG: we need to figure out a way of not having to do this.
-# Strip test files from staging — gnogenesis resolves all imports including
-# from test files, which can pull in packages not in our set (e.g. r/tests/vm).
-# The -test-dep flag above already ensured test *dependencies* (like uassert)
-# are included; we just can't ship the test files themselves.
-printf "  Stripping test files from staging...\n"
-find "$WORK_DIR_EXAMPLES" -name '*_test.gno' -delete
-find "$WORK_DIR_EXAMPLES" -name '*_filetest.gno' -delete
-
 # Create deployer key (needed to sign MsgAddPackage and MsgRun txs).
 printf "  Creating deployer key...\n"
 WORK_DIR_GNOKEY_HOME="$WORK_DIR/gnokey-home"
