@@ -25,7 +25,7 @@ FILTERED_PACKAGES=(
 )
 
 # Initial validator set. Format: "name power address pub_key"
-# More validators can be added post-genesis via govDAO proposals (see add-validator.sh).
+# More validators can be added post-genesis via govDAO proposals (see govdao-scripts/add-validator.sh).
 INITIAL_VALSET=(
   "gnocore-val-01 1 g1vta7dwp4guuhkfzksenfcheky4xf9hue8mgne4 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpu5muc9ksphk3cayrduhathd2rw4talmtedpef3a44c2qfzzqalgl4c55y"
   "gnocore-val-02 1 g1d5hh9fw3l00gugfzafskaxqlmsyvxfaj6l2q60 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpnj5vt2vkv94exe6cmdgqgtxmyfkvlhztnl0kj4xv97uz2t0muwe9mka0q"

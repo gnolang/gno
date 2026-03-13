@@ -41,7 +41,7 @@ func main() {
 
 	// ---- 2. Register the initial validator set via governance proposal ----
 	// Additional validators can be added post-genesis via govDAO proposals
-	// (see add-validator.sh).
+	// (see govdao-scripts/add-validator.sh).
 	govExec(valr.NewPropRequest(
 		func() []validators.Validator {
 			return []validators.Validator{
