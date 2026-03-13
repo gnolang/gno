@@ -105,6 +105,26 @@ EVENTS:     []
 TX HASH:    11fWJtYXQlyFcHY12HU1ECYs2GPo/e2z/Fdw6I8rwNs=
 ```
 
+## Package Name Requirements
+
+When deploying a package, the package name declared in your source code must
+match the last element of the package path. For example:
+
+- `gno.land/r/demo/counter` requires `package counter`
+- `gno.land/p/demo/mylib` requires `package mylib`
+
+### Version Suffixes
+
+Paths can include version suffixes for versioned packages:
+
+- `gno.land/r/demo/mylib/v0` requires `package mylib` (v0 is a version suffix)
+- `gno.land/r/demo/mylib/v1` requires `package mylib` (v1 is a version suffix)
+- `gno.land/r/demo/mylib/v2` requires `package mylib` (v2 is a version suffix)
+- `gno.land/r/demo/mylib/v10` requires `package mylib` (v10 is a version suffix)
+
+The `gno lint` command will warn you about package name mismatches before
+deployment.
+
 ## Understanding Deployment Parameters
 
 - `--pkgpath` - The on-chain path where your code will be stored

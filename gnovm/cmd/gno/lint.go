@@ -179,6 +179,22 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			continue
 		}
 
+		// Check package name matches path element.
+		// This is also enforced in ValidateMemPackageAny, but we check here
+		// to provide a specific lint error code before other processing.
+		// See https://github.com/gnolang/gno/issues/1571
+		if err := gno.ValidatePkgNameMatchesPath(gno.Name(mpkg.Name), mpkg.Path); err != nil {
+			issue := gnoIssue{
+				Code:       gnoPackageNameMismatch,
+				Confidence: 1,
+				Location:   dir,
+				Msg:        err.Error(),
+			}
+			io.ErrPrintln(issue)
+			hasError = true
+			continue
+		}
+
 		// Skip processing for ignored modules
 		if mod.Ignore {
 			if cmd.verbose {

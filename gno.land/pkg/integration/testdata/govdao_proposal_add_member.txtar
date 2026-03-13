@@ -70,8 +70,8 @@ func main() {
 	currentRealm := runtime.CurrentRealm()
 	println("Current realm:", currentRealm.String())
 }
--- loader/load_govdao.gno --
-package load_govdao
+-- loader/loader.gno --
+package loader
 
 import (
 	"gno.land/r/gov/dao"

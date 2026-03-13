@@ -11,7 +11,6 @@ import (
 	goscanner "go/scanner"
 	"go/token"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -187,7 +186,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 					ctx.stdlibImports[importSpec.Name.Name] = importPath
 				} else {
 					// XXX: imperfect, see comment on transformCallExpr
-					ctx.stdlibImports[path.Base(importPath)] = importPath
+					ctx.stdlibImports[gno.LastPathElement(importPath)] = importPath
 				}
 			}
 

@@ -777,7 +777,7 @@ func TestVMKeeperParams(t *testing.T) {
 	files := []*std.MemFile{
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
-package params
+package myrealm
 
 import "chain/params"
 

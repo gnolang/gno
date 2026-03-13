@@ -35,7 +35,7 @@ module = "gno.land/r/bar"
 gno = "0.9"
 
 -- bar/storage.gno --
-package foo
+package bar
 
 var record *S
 type S struct{

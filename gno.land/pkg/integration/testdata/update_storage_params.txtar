@@ -58,8 +58,8 @@ func main() {
   dao.MustCreateProposal(cross,prop)
 }
 
--- loader/load_govdao.gno --
-package load_govdao
+-- loader/loader.gno --
+package loader
 
 import (
 	"gno.land/r/gov/dao"
