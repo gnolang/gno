@@ -21,6 +21,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 	"github.com/gorilla/websocket"
+	"github.com/rs/cors"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
@@ -827,14 +828,22 @@ type WebsocketManager struct {
 
 // NewWebsocketManager returns a new WebsocketManager that passes a map of
 // functions, connection options and logger to new WS connections.
-func NewWebsocketManager(funcMap map[string]*RPCFunc, wsConnOptions ...func(*wsConnection)) *WebsocketManager {
+// allowedOrigins is used to validate the Origin header on WebSocket upgrade
+// requests. Use []string{"*"} to allow all origins.
+func NewWebsocketManager(funcMap map[string]*RPCFunc, allowedOrigins []string, wsConnOptions ...func(*wsConnection)) *WebsocketManager {
+	// nil defaults to gorilla/websocket's same-origin check.
+	var checkOrigin func(r *http.Request) bool
+	if len(allowedOrigins) > 0 {
+		corsValidator := cors.New(cors.Options{
+			AllowedOrigins: allowedOrigins,
+		})
+		checkOrigin = corsValidator.OriginAllowed
+	}
+
 	return &WebsocketManager{
 		funcMap: funcMap,
 		Upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
-				// TODO ???
-				return true
-			},
+			CheckOrigin: checkOrigin,
 		},
 		logger:        log.NewNoopLogger(),
 		wsConnOptions: wsConnOptions,
