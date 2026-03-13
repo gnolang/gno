@@ -153,3 +153,76 @@ func TestIsGnoRunPath(t *testing.T) {
 		})
 	}
 }
+
+func TestLeftmostX(t *testing.T) {
+	t.Parallel()
+
+	// helper functions in this test context.
+	name := func(n string) *NameExpr { return &NameExpr{Name: Name(n)} }
+	sel := func(x Expr, s string) *SelectorExpr { return &SelectorExpr{X: x, Sel: Name(s)} }
+	idx := func(x, i Expr) *IndexExpr { return &IndexExpr{X: x, Index: i} }
+	slc := func(x, low, high, max Expr) *SliceExpr {
+		return &SliceExpr{X: x, Low: low, High: high, Max: max}
+	}
+	call := func(fn Expr, args ...Expr) *CallExpr { return &CallExpr{Func: fn, Args: args} }
+	star := func(x Expr) *StarExpr { return &StarExpr{X: x} }
+
+	cases := []struct {
+		name string
+		in   Expr
+		want Expr
+	}{
+		{
+			name: "simple selector a.b.c -> a",
+			in:   sel(sel(name("a"), "b"), "c"),
+			want: name("a"),
+		},
+		{
+			name: "index then selectors a[0].b.c -> a",
+			in:   sel(sel(idx(name("a"), name("0")), "b"), "c"),
+			want: name("a"),
+		},
+		{
+			name: "slice then selector a[:].b -> a",
+			in:   sel(slc(name("a"), nil, nil, nil), "b"),
+			want: name("a"),
+		},
+		{
+			name: "call boundary f().b -> f()",
+			in:   sel(call(name("f")), "b"),
+			want: call(name("f")),
+		},
+		{
+			name: "deref preserved (*a).b -> *a",
+			in:   sel(star(name("a")), "b"),
+			want: star(name("a")),
+		},
+		{
+			name: "nested index in selector a.b[c.d].e -> a",
+			in:   sel(idx(sel(name("a"), "b"), sel(name("c"), "d")), "e"),
+			want: name("a"),
+		},
+		{
+			name: "type assert boundary v.(T).field -> v.(T)",
+			in:   sel(TypeAssert(name("v"), "T"), "field"),
+			want: TypeAssert(name("v"), "T"),
+		},
+		{
+			name: "map index then selector m[k].field -> m",
+			in:   sel(idx(name("m"), name("k")), "field"),
+			want: name("m"),
+		},
+		{
+			name: "method call boundary ptr.Method().field -> ptr.Method()",
+			in:   sel(call(sel(name("ptr"), "Method")), "field"),
+			want: call(sel(name("ptr"), "Method")),
+		},
+	}
+
+	for _, tc := range cases {
+		got := LeftmostX(tc.in)
+		if gotStr, wantStr := toExprTrace(got), toExprTrace(tc.want); gotStr != wantStr {
+			t.Fatalf("%s: leftmost mismatch\n got:  %s\n want: %s", tc.name, gotStr, wantStr)
+		}
+	}
+}
