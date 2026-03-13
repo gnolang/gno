@@ -190,6 +190,8 @@ func TestDocument(t *testing.T) {
 		contains []string
 	}{
 		{"base", &Documentable{bfsDir: dir}, nil, []string{"func Crypto", "!Crypto symbol", "func NewRand", "!unexp", "type Flag", "!Name"}},
+		// Regression: import path in package line must be the full path (e.g. "crypto/rand"), not just the package name ("rand").
+		{"importPath", &Documentable{bfsDir: dir}, nil, []string{`// import "crypto/rand"`, `!// import "rand"`}},
 		{"func", &Documentable{bfsDir: dir, symbol: "crypto"}, nil, []string{"Crypto symbol", "func Crypto", "!func NewRand", "!type Flag"}},
 		{"funcWriter", &Documentable{bfsDir: dir, symbol: "NewWriter"}, nil, []string{"func NewWriter() io.Writer", "!func Crypto", "!// crossing"}},
 		{"tp", &Documentable{bfsDir: dir, symbol: "Rand"}, nil, []string{"type Rand", "comment1", "!func Crypto", "!unexp  ", "!comment4", "Has unexported"}},
