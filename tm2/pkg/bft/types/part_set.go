@@ -15,6 +15,7 @@ import (
 var (
 	ErrPartSetUnexpectedIndex = errors.New("Error part set unexpected index")
 	ErrPartSetInvalidProof    = errors.New("Error part set invalid proof")
+	ErrPartSetTooBig          = errors.New("Error part set too big")
 )
 
 type Part struct {
@@ -75,6 +76,9 @@ func (psh PartSetHeader) Equals(other PartSetHeader) bool {
 func (psh PartSetHeader) ValidateBasic() error {
 	if psh.Total < 0 {
 		return errors.New("Negative Total")
+	}
+	if psh.Total > MaxBlockPartsCount {
+		return fmt.Errorf("PartSetHeader total is too big: %d, max: %d: %w", psh.Total, MaxBlockPartsCount, ErrPartSetTooBig)
 	}
 	// Hash can be empty in case of POLBlockID.PartsHeader in Proposal.
 	if err := ValidateHash(psh.Hash); err != nil {
