@@ -159,9 +159,9 @@ All benchmarks run on Apple M1, Go 1.22, `-benchmem -count=1`.
 | PrimitivesStruct | 288 | 1,685 | 565 | 5.9x | 2.0x | 1/50/4 |
 | ShortArraysStruct | 4.5 | 295 | 34 | 65x | 7.6x | 0/0/0 |
 | ArraysStruct | 1,062 | 6,914 | 2,207 | 6.5x | 2.1x | 1/158/32 |
-| ArraysArraysStruct | 10,491 | 16,522 | 5,582 | 1.6x | 0.5x | 159/269/106 |
+| ArraysArraysStruct | 1,606 | 16,522 | 5,582 | 10x | 3.2x | 1/269/106 |
 | SlicesStruct | 1,395 | 7,967 | 3,271 | 5.7x | 2.3x | 1/180/31 |
-| SlicesSlicesStruct | 43,226 | 45,458 | 18,237 | 1.1x | 0.4x | 900/940/210 |
+| SlicesSlicesStruct | 7,124 | 45,458 | 18,237 | 6.4x | 2.6x | 2/940/210 |
 | PointersStruct | 342 | 1,942 | 643 | 5.7x | 1.9x | 1/49/5 |
 | PointerSlicesStruct | 1,411 | 7,986 | 3,251 | 5.7x | 2.3x | 1/172/32 |
 | ComplexSt | 3,202 | 19,931 | 7,807 | 6.2x | 2.4x | 1/438/70 |
@@ -181,9 +181,7 @@ All benchmarks run on Apple M1, Go 1.22, `-benchmem -count=1`.
 | ComplexSt | 6,795 | 19,057 | 8,020 | 2.8x | 1.2x | 136/320/150 |
 | FuzzDeepNest | 12,847 | 24,597 | 14,821 | 1.9x | 1.2x | 258/319/236 |
 
-genproto2 encode typically uses **1 alloc/op** (the pre-sized output buffer).
-The two regressions (ArraysArraysStruct, SlicesSlicesStruct) are nested-list
-types where proto3's implicit struct wrapper requires per-element allocation.
+genproto2 encode typically uses **1–2 allocs/op** (the pre-sized output buffer).
 
 ## Consequences
 
