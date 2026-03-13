@@ -12,7 +12,7 @@
 //  2. A MsgRun executes a setup script (e.g. govdao_prop1.gno) which:
 //     a. Adds a temporary deployer as T1 member (for supermajority).
 //     b. Creates a governance proposal to register validators, votes YES,
-//        and executes it.
+//     and executes it.
 //     c. Adds the real govDAO members directly via memberstore.Get().
 //     d. Removes the temporary deployer.
 //     e. Calls dao.UpdateImpl to set AllowedDAOs, locking down access.
