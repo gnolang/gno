@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino/genproto"
 )
 
 // P3Context2 holds state for generating protobuf3 direct-encoding methods.
@@ -128,6 +129,12 @@ func (ctx *P3Context2) WriteProtobuf3(pkg *amino.Package) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// WriteProto3Schema generates the .proto schema file for a package,
+// exactly as genproto.WriteProto3Schema does.
+func (ctx *P3Context2) WriteProto3Schema(pkg *amino.Package) {
+	genproto.WriteProto3Schema(pkg)
 }
 
 // WriteProtobuf3ForTypes generates and writes source to the given filename.

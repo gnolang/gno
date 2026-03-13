@@ -69,6 +69,7 @@ func execGen(_ context.Context, _ []string) error {
 
 	ctx := genproto2.NewP3Context2(cdc)
 	for _, pkg := range pkgs {
+		ctx.WriteProto3Schema(pkg)
 		ctx.WriteProtobuf3(pkg)
 	}
 
