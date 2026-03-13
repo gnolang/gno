@@ -201,10 +201,24 @@ export interface AminoMapValue {
 export interface AminoFuncValue {
   "@type": "/gno.FuncValue";
   ObjectInfo?: AminoObjectInfo;
+  Type?: AminoFuncType;
   Name: string;
   PkgPath?: string;
+  FileName?: string;
   NativePkg?: string;
   NativeName?: string;
+  Source?: {
+    "@type": string;
+    Location?: {
+      PkgPath: string;
+      File: string;
+      Span: {
+        Pos: { Line: string; Column: string };
+        End: { Line: string; Column: string };
+        Num: string;
+      };
+    };
+  };
   [key: string]: unknown;
 }
 

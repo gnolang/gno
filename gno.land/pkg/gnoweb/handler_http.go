@@ -11,6 +11,7 @@ import (
 	"path"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -700,11 +701,43 @@ func (h *HTTPHandler) GetStateView(ctx context.Context, gnourl *weburl.GnoURL) (
 }
 
 // ServeStateJSON serves state tree data as JSON for dynamic tree expansion.
-// Supports three modes via query params:
-//   - ?state&oid=<objectid>&json → drill into an object by ObjectID
-//   - ?state&tid=<typeid>&json   → resolve a type by TypeID (for struct field names)
-//   - ?state&json (no oid/tid)   → package root (same as initial page load)
 func (h *HTTPHandler) ServeStateJSON(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
+	// Source file request — return syntax-highlighted HTML for a line range.
+	if fileName := gnourl.WebQuery.Get("file"); fileName != "" {
+		source, _, err := h.Client.File(ctx, gnourl.Path, fileName)
+		if err != nil {
+			h.Logger.Warn("unable to fetch source file", "file", fileName, "error", err)
+			http.Error(w, "file not found", http.StatusNotFound)
+			return
+		}
+
+		// Extract line range if provided.
+		startLine, _ := strconv.Atoi(gnourl.WebQuery.Get("start"))
+		endLine, _ := strconv.Atoi(gnourl.WebQuery.Get("end"))
+		if startLine > 0 && endLine >= startLine {
+			lines := strings.Split(string(source), "\n")
+			if startLine <= len(lines) {
+				end := endLine
+				if end > len(lines) {
+					end = len(lines)
+				}
+				source = []byte(strings.Join(lines[startLine-1:end], "\n"))
+			}
+		}
+
+		// Render with syntax highlighting.
+		var buf bytes.Buffer
+		if err := h.Renderer.RenderSource(&buf, fileName, source); err != nil {
+			h.Logger.Warn("unable to render source file", "file", fileName, "error", err)
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Write(source)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(buf.Bytes())
+		return
+	}
+
 	var raw []byte
 	var err error
 
@@ -717,10 +750,8 @@ func (h *HTTPHandler) ServeStateJSON(ctx context.Context, gnourl *weburl.GnoURL,
 	}
 
 	if err != nil {
-		h.Logger.Error("unable to fetch state JSON", "error", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, `{"error":%q}`, err.Error())
+		h.Logger.Warn("unable to fetch state data", "error", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

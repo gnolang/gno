@@ -320,6 +320,15 @@ func (vh vmHandler) queryPkg(ctx sdk.Context, req abci.RequestQuery) (res abci.R
 
 // queryType returns a type definition by TypeID as Amino JSON.
 func (vh vmHandler) queryType(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	// Recover from panics (e.g. stack overflow from circular type references
+	// like time.Time) so the server stays alive.
+	defer func() {
+		if r := recover(); r != nil {
+			res = sdk.ABCIResponseQueryFromError(
+				fmt.Errorf("queryType panic for %q: %v", string(req.Data), r))
+		}
+	}()
+
 	tidStr := string(req.Data)
 	result, err := vh.vm.QueryType(ctx, tidStr)
 	if err != nil {

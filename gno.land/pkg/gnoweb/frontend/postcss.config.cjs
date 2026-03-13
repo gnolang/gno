@@ -45,7 +45,7 @@ module.exports = (ctx) => {
 						"u-sr-only",
 						"data-theme",
 					],
-					deep: [/c-realm-view\b/, /c-readme-view\b/],
+					deep: [/c-realm-view\b/, /c-readme-view\b/, /b-state-/],
 				},
 				variables: true,
 				defaultExtractor: (content) => content.match(/[\w-:/%.]+(?<!:)/g) || [],

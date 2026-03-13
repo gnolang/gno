@@ -24,7 +24,7 @@ import type {
   QobjectResponse,
 } from "./types.js";
 import { PrimitiveTypes, decodeN } from "./primitives.js";
-import { typeName, typeKind, baseType, structFieldNames, getTypeId } from "./type-utils.js";
+import { typeName, typeKind, baseType, structFieldNames, getTypeId, funcSignature } from "./type-utils.js";
 
 // ---- Output model ----
 
@@ -48,6 +48,8 @@ export interface StateNode {
   typeId?: string;
   /** Length for collections. */
   length?: number;
+  /** Source location for functions. */
+  source?: { file: string; startLine: number; endLine: number };
 }
 
 // ---- Decoder ----
@@ -82,6 +84,13 @@ export function decodeTypedValue(name: string, tv: AminoTypedValue): StateNode {
   const kind = typeKind(t);
   const bt = baseType(t);
   const typeId = getTypeId(t);
+
+  // ---- FuncType stored as RefValue: expandable to show source ----
+  if (kind === "func" && v && v["@type"] === "/gno.RefValue") {
+    const rv = v as AminoRefValue;
+    const sig = funcSignature(t);
+    return { name, type: sig, kind: "func", expandable: true, objectId: rv.ObjectID };
+  }
 
   // ---- RefValue: persisted object reference ----
   if (v && v["@type"] === "/gno.RefValue") {
@@ -222,7 +231,9 @@ export function decodeTypedValue(name: string, tv: AminoTypedValue): StateNode {
   // ---- Func ----
   if (v && v["@type"] === "/gno.FuncValue") {
     const fv = v as AminoFuncValue;
-    return { name, type: tName, kind: "func", value: `func ${fv.Name}()`, expandable: false };
+    const sig = fv.Type ? funcSignature(fv.Type) : `func ${fv.Name}()`;
+    const source = extractFuncSource(fv);
+    return { name, type: sig, kind: "func", expandable: !!source, source };
   }
 
   // ---- Zero value (type but no value) ----
@@ -235,6 +246,24 @@ export function decodeTypedValue(name: string, tv: AminoTypedValue): StateNode {
 }
 
 // ---- Internal helpers ----
+
+/** Extract source location from a FuncValue. */
+function extractFuncSource(fv: AminoFuncValue): StateNode["source"] | undefined {
+  const loc = fv.Source?.Location;
+  if (!loc?.File || !loc?.Span) return undefined;
+  return {
+    file: loc.File,
+    startLine: parseInt(loc.Span.Pos.Line) || 0,
+    endLine: parseInt(loc.Span.End.Line) || 0,
+  };
+}
+
+/** Decode a FuncValue (from qobject_json) into a StateNode with source info. */
+export function decodeFuncObject(v: AminoFuncValue): StateNode {
+  const sig = v.Type ? funcSignature(v.Type) : `func ${v.Name}()`;
+  const source = extractFuncSource(v);
+  return { name: v.Name, type: sig, kind: "func", expandable: false, source };
+}
 
 /** Decode the children of a raw Amino Value (from qobject_json). */
 function decodeValueChildren(v: AminoValue): StateNode[] {

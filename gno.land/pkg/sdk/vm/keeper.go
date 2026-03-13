@@ -1343,14 +1343,75 @@ func (vm *VMKeeper) QueryType(ctx sdk.Context, tidStr string) (res string, err e
 		return "", ErrInvalidExpr(fmt.Sprintf("type not found: %s", tidStr))
 	}
 
-	// Serialize with Amino JSON (types are already Amino-registered).
-	jsonBytes, err := amino.MarshalJSON(tt)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal type: %w", err)
-	}
+	// Use a custom serializer instead of amino.MarshalJSON to avoid fatal
+	// stack overflow from circular type references (e.g. time.Time).
+	var buf bytes.Buffer
+	marshalTypeJSON(&buf, tt, 0)
 
-	result := fmt.Sprintf(`{"typeid":%q,"type":%s}`, tidStr, string(jsonBytes))
+	result := fmt.Sprintf(`{"typeid":%q,"type":%s}`, tidStr, buf.String())
 	return result, nil
+}
+
+const maxTypeDepth = 8
+
+// marshalTypeJSON writes a safe JSON representation of a gno.Type.
+// It limits recursion depth to avoid stack overflow from circular references.
+func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
+	if t == nil || depth > maxTypeDepth {
+		buf.WriteString("null")
+		return
+	}
+	switch ct := t.(type) {
+	case gno.PrimitiveType:
+		fmt.Fprintf(buf, `{"@type":"/gno.PrimitiveType","value":"%d"}`, int(ct))
+	case *gno.PointerType:
+		buf.WriteString(`{"@type":"/gno.PointerType","Elt":`)
+		marshalTypeJSON(buf, ct.Elt, depth+1)
+		buf.WriteByte('}')
+	case *gno.ArrayType:
+		fmt.Fprintf(buf, `{"@type":"/gno.ArrayType","Len":"%d","Elt":`, ct.Len)
+		marshalTypeJSON(buf, ct.Elt, depth+1)
+		buf.WriteByte('}')
+	case *gno.SliceType:
+		buf.WriteString(`{"@type":"/gno.SliceType","Elt":`)
+		marshalTypeJSON(buf, ct.Elt, depth+1)
+		buf.WriteByte('}')
+	case *gno.StructType:
+		buf.WriteString(`{"@type":"/gno.StructType","Fields":[`)
+		for i, f := range ct.Fields {
+			if i > 0 {
+				buf.WriteByte(',')
+			}
+			fmt.Fprintf(buf, `{"Name":%q,"Type":`, string(f.Name))
+			marshalTypeJSON(buf, f.Type, depth+1)
+			buf.WriteByte('}')
+		}
+		buf.WriteString("]}")
+	case *gno.MapType:
+		buf.WriteString(`{"@type":"/gno.MapType","Key":`)
+		marshalTypeJSON(buf, ct.Key, depth+1)
+		buf.WriteString(`,"Value":`)
+		marshalTypeJSON(buf, ct.Value, depth+1)
+		buf.WriteByte('}')
+	case *gno.FuncType:
+		buf.WriteString(`{"@type":"/gno.FuncType"}`)
+	case *gno.InterfaceType:
+		buf.WriteString(`{"@type":"/gno.InterfaceType"}`)
+	case *gno.DeclaredType:
+		fmt.Fprintf(buf, `{"@type":"/gno.DeclaredType","PkgPath":%q,"Name":%q,"Base":`,
+			ct.PkgPath, string(ct.Name))
+		marshalTypeJSON(buf, ct.Base, depth+1)
+		buf.WriteByte('}')
+	case *gno.PackageType:
+		buf.WriteString(`{"@type":"/gno.PackageType"}`)
+	case *gno.ChanType:
+		buf.WriteString(`{"@type":"/gno.ChanType","Elt":`)
+		marshalTypeJSON(buf, ct.Elt, depth+1)
+		buf.WriteByte('}')
+	default:
+		// RefType or unknown — emit type ID if available
+		fmt.Fprintf(buf, `{"@type":"/gno.RefType","ID":%q}`, t.TypeID())
+	}
 }
 
 // resolveBlockNode resolves a BlockNode that may be a RefNode (lazy reference).

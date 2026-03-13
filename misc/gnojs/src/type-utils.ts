@@ -108,3 +108,25 @@ export function getTypeId(t: AminoType | undefined): string | undefined {
 export function isPrimitive(t: AminoType | undefined): t is AminoPrimitiveType {
   return t !== undefined && t["@type"] === "/gno.PrimitiveType";
 }
+
+/** Build a human-readable function signature from a FuncType. */
+export function funcSignature(t: AminoType | undefined): string {
+  if (!t || t["@type"] !== "/gno.FuncType") return "func()";
+  const ft = t as import("./types.js").AminoFuncType;
+  const params = (ft.Params || [])
+    .filter(p => !(p.Name.startsWith("cur") && p.Type?.["@type"] === "/gno.RefType"))
+    .map(p => {
+      const tn = typeName(p.Type);
+      return p.Name && !p.Name.startsWith(".") ? `${p.Name} ${tn}` : tn;
+    })
+    .join(", ");
+  const results = (ft.Results || [])
+    .map(r => {
+      const tn = typeName(r.Type);
+      return r.Name && !r.Name.startsWith(".") ? `${r.Name} ${tn}` : tn;
+    });
+  const retStr = results.length === 0 ? ""
+    : results.length === 1 ? ` ${results[0]}`
+    : ` (${results.join(", ")})`;
+  return `func(${params})${retStr}`;
+}

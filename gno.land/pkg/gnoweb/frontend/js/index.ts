@@ -5,6 +5,9 @@ declare const process: { env: { NODE_ENV: string } };
 (() => {
 	// TODO: Make CONTROLLER_PATH build-safe (BASE_URL, CDN, hashing, etc.)
 	const CONTROLLER_PATH = "/public/js/controller-";
+	// Extract version from our own script src (?v=...) for cache busting dynamic imports.
+	const selfScript = document.querySelector('script[src*="index.js"]') as HTMLScriptElement | null;
+	const versionSuffix = selfScript?.src.match(/(\?v=[^&]*)/)?.[1] || "";
 	const modulePromises = new Map<string, Promise<Record<string, unknown>>>();
 
 	// load one controller for a provided set of elements (no re-query)
@@ -26,7 +29,7 @@ declare const process: { env: { NODE_ENV: string } };
 		const pascal = camel.charAt(0).toUpperCase() + camel.slice(1);
 
 		// Only kebab-case file naming, prefixed with "controller-"
-		const path = `${CONTROLLER_PATH}${kebab}.js`;
+		const path = `${CONTROLLER_PATH}${kebab}.js${versionSuffix}`;
 
 		// import the controller module with promise cache (dedupe concurrent imports)
 		let modulePromise = modulePromises.get(path);

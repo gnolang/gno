@@ -4,8 +4,8 @@
 // into clean, UI-friendly StateNode trees.
 
 export { PrimitiveTypes, primitiveTypeName, decodeN } from "./primitives.js";
-export { typeName, typeKind, baseType, structFieldNames, getTypeId, isPrimitive } from "./type-utils.js";
-export { decodePkg, decodeObject, decodeTypedValue } from "./decode.js";
+export { typeName, typeKind, baseType, structFieldNames, getTypeId, isPrimitive, funcSignature } from "./type-utils.js";
+export { decodePkg, decodeObject, decodeTypedValue, decodeFuncObject } from "./decode.js";
 export type { StateNode } from "./decode.js";
 export type {
   AminoTypedValue,
