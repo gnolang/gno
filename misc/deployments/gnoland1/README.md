@@ -1,51 +1,68 @@
 # gnoland1 Validator Setup
 
-This guide walks you through setting up a validator node for the `gnoland1` network. The steps below cover genesis generation, node build, secrets initialization, and connecting to the network.
+Basic, tested instructions for joining the `gnoland1` network as a validator. Advanced operators may adapt these steps to their own infrastructure (Docker, systemd, etc.) at their discretion.
 
 ## 1. Generate the Genesis
 
-Every validator must generate the same genesis file to ensure they are on the same chain. You can generate the genesis file using the provided `make generate` target and verify the sha256 hash of the generated `genesis.json` file matches the expected value: `ac530875f51afaae015cbf54b298bfd7254ac537b0c5f1fd99bfa30bad8d398e`
+Every validator must produce the same `genesis.json`. Run from this directory:
 
 ```shell
 make generate
-echo 'ac530875f51afaae015cbf54b298bfd7254ac537b0c5f1fd99bfa30bad8d398e  genesis.json' | shasum -a 256 -c
-# genesis.json: OK  <- this should be the output
 ```
 
-## 2. Build the Node
-
-**Binary** — from the `gno.land/` directory at the repository root:
+Verify the hash matches the expected value:
 
 ```shell
-make build.gnoland
+echo 'e45ca91785c0d2a0365b02920e0ab8f31f41defe00cea3b89847b970327fb8d8  genesis.json' | shasum -a 256 -c
+# genesis.json: OK
 ```
 
-**Docker image** — from the repository root:
+## 2. Build & Install the Node
+
+From the **repository root** (`gno/`):
 
 ```shell
-docker build -t gnoland --target gnoland .
+make install.gnoland install.gnokey
 ```
+
+This installs `gnoland` and `gnokey` to your `$GOPATH/bin`.
 
 ## 3. Initialize Secrets and Configure
-
-Initialize your node secrets for **local signing**:
 
 ```shell
 gnoland secrets init
 ```
 
-For **remote signing** via `gnokms`, refer to the [gnokms documentation](../../../contribs/gnokms/README.md) for setup instructions.
+For remote signing via `gnokms`, see the [gnokms documentation](../../../contribs/gnokms/README.md).
 
-Then use the provided `config.toml` in this directory as your base configuration. For most setups, editing only the fields marked with `# TODO` comments is sufficient.
-
-## 4. Run Your Node
-
-1. Start the node with the `--skip-genesis-sig-verification` flag (required due to a known incompatibility between genesis signatures and custom package metadata):
+Copy the provided config and edit the `# TODO` fields:
 
 ```shell
-gnoland start --skip-genesis-sig-verification --genesis genesis.json
+mkdir -p gnoland-data/config
+cp config.toml gnoland-data/config/config.toml
+grep -n TODO gnoland-data/config/config.toml   # shows what to change
 ```
 
-2. Ensure that **your RPC status page is reachable** so the team can verify your validator node's sync status. The following endpoint must be publicly accessible: `http(s)://<hostname-or-public-ip>:26657/status`
+## 4. Start the Node
 
-3. Once your node is fully synced, ping **Manfred on Signal** and we'll work on adding you as a validator through a GovDAO proposal.
+```shell
+gnoland start \
+  --skip-genesis-sig-verification \
+  --genesis genesis.json \
+  --data-dir gnoland-data
+```
+
+The `--skip-genesis-sig-verification` flag is required (known incompatibility between genesis signatures and custom package metadata).
+
+## 5. Verify & Join
+
+1. After block 1, verify the AppHash at block 2 matches (confirms deterministic genesis execution):
+
+   ```shell
+   curl -s http://localhost:26657/block?height=2 | jq -r '.result.block.header.app_hash'
+   # expected: TBD
+   ```
+
+2. Confirm your node is syncing — `latest_block_height` should be increasing and eventually match [the network RPC](https://rpc.betanet.gno.land/status).
+3. Make sure your RPC endpoint is publicly reachable: `http(s)://<your-host>:26657/status`
+4. Ping the team on the validators Signal group so we can add you via a GovDAO proposal.

@@ -444,7 +444,7 @@ else
 fi
 
 printf "  Adding deployer balances to genesis...\n"
-run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_DEPLOYER_BALANCES" --genesis-path "$WORK_DIR_GENESIS"
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_DEPLOYER_BALANCES" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 
 # ---- 5. Download and add the airdrop balances
 
@@ -461,7 +461,7 @@ airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
 # TODO: We need to verify if there is a colision between deployer and airdrop addresses.
 # See: https://github.com/gnolang/gno/pull/5250/changes#discussion_r2925485031
 printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
-run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS"
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 
 # ---- 6. Add the initial validator set to the genesis file
 
