@@ -123,7 +123,7 @@ Skip ADRs for: trivial bug fixes, formatting, simple tests, docs-only changes.
 | Node/keeper | `gno.land/pkg/sdk/vm/keeper.go` |
 | Client/RPC | `gno.land/pkg/gnoclient/` |
 | Example patterns | `examples/gno.land/p/nt/ownable/` |
-| Past decisions | `gnovm/adr/` and `gno.land/adr/` |
+| Past decisions | `gnovm/adr/`, `gno.land/adr/` and `tm2/adr/` |
 
 ---
 
