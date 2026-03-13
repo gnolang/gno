@@ -5,6 +5,10 @@ on:
   push:
     branches:
       - chain/test*
+      - master
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
 
 permissions:
@@ -19,7 +23,20 @@ jobs:
         image: [gnoland,gnokey,gnoweb,gno,gnofaucet,gnodev,gnocontribs]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check if this is a release branch
+        id: check-release
+        run: |
+          if [[ "${{ github.ref }}" =~ ^refs/heads/chain/test.* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Login to GitHub Container Registry
+        if: steps.check-release.outputs.is_release == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -53,7 +70,7 @@ jobs:
             misc/deployments/bake/docker-bake.hcl
             cwd://${{ steps.meta.outputs.bake-file-tags }}
             cwd://${{ steps.meta.outputs.bake-file-labels }}
-          push: true
+          push: ${{ steps.check-release.outputs.is_release == 'true' }}
           targets: ${{ matrix.image }}
           set: |
             *.cache-from=type=gha
