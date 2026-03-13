@@ -11,8 +11,9 @@ import (
 )
 
 type captchaCfg struct {
-	rootCfg       *serveCfg
-	captchaSecret string
+	rootCfg        *serveCfg
+	captchaSecret  string
+	captchaSitekey string
 }
 
 var errCaptchaMissing = fmt.Errorf("captcha secret is required")
@@ -23,6 +24,13 @@ func (c *captchaCfg) RegisterFlags(fs *flag.FlagSet) {
 		"captcha-secret",
 		"",
 		"hcaptcha secret key (if empty, captcha are disabled)",
+	)
+
+	fs.StringVar(
+		&c.captchaSitekey,
+		"captcha-sitekey",
+		"",
+		"hcaptcha site key; when set, tokens issued for other site keys are rejected",
 	)
 }
 
@@ -59,7 +67,7 @@ func execCaptcha(ctx context.Context, cfg *captchaCfg, io commands.IO) error {
 	}
 
 	rpcMiddlewares := []faucet.Middleware{
-		captchaMiddleware(cfg.captchaSecret),
+		captchaMiddleware(cfg.captchaSecret, cfg.captchaSitekey),
 	}
 
 	return serveFaucet(

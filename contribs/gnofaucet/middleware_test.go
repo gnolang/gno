@@ -37,6 +37,8 @@ func TestCheckHcaptcha(t *testing.T) {
 
 			assert.Equal(t, "test-secret", vals.Get("secret"))
 			assert.Equal(t, "test-response", vals.Get("response"))
+			assert.Empty(t, vals.Get("remoteip"))
+			assert.Empty(t, vals.Get("sitekey"))
 
 			// Verify no query params were used
 			assert.Empty(t, r.URL.RawQuery)
@@ -50,7 +52,30 @@ func TestCheckHcaptcha(t *testing.T) {
 		siteVerifyURL = srv.URL
 		defer func() { siteVerifyURL = orig }()
 
-		require.NoError(t, checkHcaptcha("test-secret", "test-response"))
+		require.NoError(t, checkHcaptcha("test-secret", "test-response", "", ""))
+	})
+
+	t.Run("success with remoteip and sitekey", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			vals, err := url.ParseQuery(string(body))
+			require.NoError(t, err)
+
+			assert.Equal(t, "1.2.3.4", vals.Get("remoteip"))
+			assert.Equal(t, "test-sitekey", vals.Get("sitekey"))
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(SiteVerifyResponse{Success: true})
+		}))
+		defer srv.Close()
+
+		orig := siteVerifyURL
+		siteVerifyURL = srv.URL
+		defer func() { siteVerifyURL = orig }()
+
+		require.NoError(t, checkHcaptcha("test-secret", "test-response", "1.2.3.4", "test-sitekey"))
 	})
 
 	t.Run("verification failure", func(t *testing.T) {
@@ -64,7 +89,7 @@ func TestCheckHcaptcha(t *testing.T) {
 		siteVerifyURL = srv.URL
 		defer func() { siteVerifyURL = orig }()
 
-		err := checkHcaptcha("test-secret", "bad-token")
+		err := checkHcaptcha("test-secret", "bad-token", "", "")
 		assert.Equal(t, errInvalidCaptcha, err)
 	})
 
@@ -78,7 +103,7 @@ func TestCheckHcaptcha(t *testing.T) {
 		siteVerifyURL = srv.URL
 		defer func() { siteVerifyURL = orig }()
 
-		err := checkHcaptcha("test-secret", "test-response")
+		err := checkHcaptcha("test-secret", "test-response", "", "")
 		assert.ErrorContains(t, err, "unexpected status code")
 	})
 
@@ -89,6 +114,6 @@ func TestCheckHcaptcha(t *testing.T) {
 			t.Skip("skipping network test in short mode")
 		}
 
-		require.NoError(t, checkHcaptcha(hcaptchaTestSecret, hcaptchaTestResponse))
+		require.NoError(t, checkHcaptcha(hcaptchaTestSecret, hcaptchaTestResponse, "", ""))
 	})
 }

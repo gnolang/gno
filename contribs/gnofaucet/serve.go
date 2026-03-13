@@ -27,7 +27,7 @@ const (
 )
 
 // url & struct for verify captcha
-var siteVerifyURL = "https://hcaptcha.com/siteverify"
+var siteVerifyURL = "https://api.hcaptcha.com/siteverify"
 
 const (
 	ipv6Loopback = "::1"
