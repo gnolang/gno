@@ -1,18 +1,25 @@
 REPO_ROOT := $(shell cd ../../.. && pwd)
+GENESIS_SHA256 := 2b1a48bd9a47c1e48f3190754fc7982872c08b347c434048889449c1207117af
 
-.PHONY: generate genesis-txs test clean
+.PHONY: help generate generate-txs test clean
 
-generate: genesis.json
+help: ## Show available targets
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
+
+generate: genesis.json ## Generate genesis.json and verify checksum
+	@echo "Verifying genesis.json checksum..."
+	@echo '$(GENESIS_SHA256)  genesis.json' | shasum -a 256 -c
+	@echo "OK"
 
 genesis.json: gen-genesis.sh
 	./gen-genesis.sh
 
-generate-txs: genesis_txs.jsonl
+generate-txs: genesis_txs.jsonl ## Generate genesis transactions only
 
 genesis_txs.jsonl: gen-genesis.sh
 	./gen-genesis.sh --txs-only
 
-test: genesis.json
+test: genesis.json ## Verify genesis syntax and boot a node
 	@test -s genesis.json || (echo "FAIL: genesis.json is empty" && exit 1)
 	@gnogenesis verify -genesis-path genesis.json
 	@# Boot a node to validate genesis block execution (not just syntax).
@@ -29,5 +36,5 @@ test: genesis.json
 	rm -rf "$$DATA" && \
 	echo "OK: genesis.json is valid (node booted successfully)"
 
-clean:
+clean: ## Remove generated files
 	rm -rf genesis.json packages.gen.txt genesis_txs.jsonl genesis-work

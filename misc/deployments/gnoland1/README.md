@@ -10,12 +10,7 @@ Every validator must produce the same `genesis.json`. Run from this directory:
 make generate
 ```
 
-Verify the hash matches the expected value:
-
-```shell
-echo '2b1a48bd9a47c1e48f3190754fc7982872c08b347c434048889449c1207117af  genesis.json' | shasum -a 256 -c
-# genesis.json: OK
-```
+This generates the genesis and verifies the sha256 checksum automatically.
 
 ## 2. Build & Install the Node
 
