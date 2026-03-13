@@ -147,21 +147,69 @@ after the decode loop.
 
 Run all fuzz testers: `make fuzz` (default 1 hour, configurable via `FUZZTIME`).
 
+## Benchmarks
+
+All benchmarks run on Apple M1, Go 1.22, `-benchmem -count=1`.
+
+### Encode (ns/op)
+
+| Type | genproto2 | reflect | pbbindings | vs reflect | vs pbbindings | allocs (g/r/p) |
+|------|-----------|---------|------------|-----------|--------------|----------------|
+| EmptyStruct | 3.7 | 74 | 33 | 20x | 9.0x | 0/0/0 |
+| PrimitivesStruct | 288 | 1,685 | 565 | 5.9x | 2.0x | 1/50/4 |
+| ShortArraysStruct | 4.5 | 295 | 34 | 65x | 7.6x | 0/0/0 |
+| ArraysStruct | 1,062 | 6,914 | 2,207 | 6.5x | 2.1x | 1/158/32 |
+| ArraysArraysStruct | 10,491 | 16,522 | 5,582 | 1.6x | 0.5x | 159/269/106 |
+| SlicesStruct | 1,395 | 7,967 | 3,271 | 5.7x | 2.3x | 1/180/31 |
+| SlicesSlicesStruct | 43,226 | 45,458 | 18,237 | 1.1x | 0.4x | 900/940/210 |
+| PointersStruct | 342 | 1,942 | 643 | 5.7x | 1.9x | 1/49/5 |
+| PointerSlicesStruct | 1,411 | 7,986 | 3,251 | 5.7x | 2.3x | 1/172/32 |
+| ComplexSt | 3,202 | 19,931 | 7,807 | 6.2x | 2.4x | 1/438/70 |
+| EmbeddedSt1 | 322 | 1,910 | 653 | 5.9x | 2.0x | 1/52/5 |
+| FuzzDeepNest | 5,087 | 42,914 | 16,694 | 8.4x | 3.3x | 1/767/167 |
+| FuzzPtrNest | 224 | 1,378 | 610 | 6.2x | 2.7x | 1/30/7 |
+
+### Decode (ns/op)
+
+| Type | genproto2 | reflect | pbbindings | vs reflect | vs pbbindings | allocs (g/r/p) |
+|------|-----------|---------|------------|-----------|--------------|----------------|
+| EmptyStruct | 14 | 52 | 77 | 3.8x | 5.7x | 0/0/1 |
+| PrimitivesStruct | 468 | 1,153 | 587 | 2.5x | 1.3x | 5/8/6 |
+| ArraysStruct | 1,983 | 4,956 | 3,372 | 2.5x | 1.7x | 32/42/52 |
+| SlicesStruct | 4,018 | 13,464 | 4,754 | 3.4x | 1.2x | 75/246/69 |
+| SlicesSlicesStruct | 39,088 | 77,212 | 27,154 | 2.0x | 0.7x | 697/1372/446 |
+| ComplexSt | 6,795 | 19,057 | 8,020 | 2.8x | 1.2x | 136/320/150 |
+| FuzzDeepNest | 12,847 | 24,597 | 14,821 | 1.9x | 1.2x | 258/319/236 |
+
+genproto2 encode typically uses **1 alloc/op** (the pre-sized output buffer).
+The two regressions (ArraysArraysStruct, SlicesSlicesStruct) are nested-list
+types where proto3's implicit struct wrapper requires per-element allocation.
+
 ## Consequences
 
 ### Positive
 
-- No `protoc` dependency
+- No `protoc` dependency for encoding/decoding
 - No intermediate PB struct allocation — direct Go struct → wire bytes
 - Simpler generated code (single `pb3_gen.go` per package vs `.pb.go` + pbbindings)
 - Faster marshal/unmarshal (single allocation, no reflection, no io.Writer dispatch)
-- ~2x faster encode than pbbindings, ~6x faster than reflect
+- ~2–3x faster encode than pbbindings, ~6x faster than reflect (typical types)
 - Complete replacement for genproto in production use
 
 ### Negative
 
-- genproto must be kept around for pbbindings fuzz testing (3-way comparison)
 - Generated code is tightly coupled to amino's wire format semantics
+
+### Why genproto and protobuf are retained
+
+- **Interoperability**: the protobuf dependency (`google.golang.org/protobuf`) is
+  kept so that users who want to use protobuf for other purposes (gRPC, external
+  APIs, cross-language communication) can do so without adding a separate dependency.
+- **3-way fuzz testing**: genproto's pbbindings provide an independent encoding
+  path for byte-exact comparison against genproto2 and amino reflect, catching
+  bugs that roundtrip tests alone would miss.
+- **`.proto` schema generation**: genproto2 delegates `.proto` file generation to
+  genproto's existing code, avoiding duplication.
 
 ### Neutral
 
