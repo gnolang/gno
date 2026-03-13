@@ -646,11 +646,11 @@ func (cdc *Codec) Unmarshal(bz []byte, ptr any) error {
 		// Else, fall back to using reflection for native primitive types.
 	}
 
-	return cdc.unmarshalReflect(bz, ptr)
+	return cdc.UnmarshalReflect(bz, ptr)
 }
 
 // Use reflection.
-func (cdc *Codec) unmarshalReflect(bz []byte, ptr any) error {
+func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 	rv := reflect.ValueOf(ptr)
 	if rv.Kind() != reflect.Ptr {
 		return ErrNoPointer
