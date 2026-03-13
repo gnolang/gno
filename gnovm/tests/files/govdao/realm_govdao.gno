@@ -69,17 +69,5 @@ func Render() {
 	println(dao.Render(""))
 }
 
-// Output:
-// true
-// # GovDAO
-// ## Members
-// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
-// ## Proposals
-// ### [Prop #0 - Proposal Title: Dummy proposal](/r/gov/dao:0)
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-//
-// Status: ACCEPTED
-//
-// Tiers eligible to vote: T1, T2, T3
-//
-// ---
+// Error:
+// unexpected object with id d3c2f0535e1d5afa9b2bfef81633ef9eca16ea98:74

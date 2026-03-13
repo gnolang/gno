@@ -246,3 +246,60 @@ func main(cur realm) {
 //              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:8",
 //              "RefCount": "1"
 //          }
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:7](5)=
+//     @@ -2,7 +2,7 @@
+//          "ObjectInfo": {
+//              "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7",
+//              "LastObjectSize": "343",
+//     -        "ModTime": "0",
+//     +        "ModTime": "14",
+//              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:3",
+//              "RefCount": "1"
+//          },
+//     @@ -13,7 +13,7 @@
+//              },
+//              "V": {
+//                  "@type": "/gno.RefValue",
+//     -            "Hash": "c6843bf0fe0cc1546315f5b53a0e1217a5296b7e",
+//     +            "Hash": "2d0d8ccbb6e189357736df7b998060b18505fbe3",
+//                  "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:8"
+//              }
+//          }
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:3](0)=
+//     @@ -2,7 +2,7 @@
+//          "ObjectInfo": {
+//              "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:3",
+//              "LastObjectSize": "393",
+//     -        "ModTime": "6",
+//     +        "ModTime": "14",
+//              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:2",
+//              "RefCount": "1"
+//          },
+//     @@ -18,7 +18,7 @@
+//                  "@type": "/gno.PointerValue",
+//                  "Base": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "aa4247f0fc89c9747982dca6f88d57b5a860175a",
+//     +                "Hash": "f0ac2be39dc1f9c89b6abce1155dbd685819aa2e",
+//                      "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7"
+//                  },
+//                  "Index": "0",
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:2](0)=
+//     @@ -4,7 +4,7 @@
+//              "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:2",
+//              "IsEscaped": true,
+//              "LastObjectSize": "680",
+//     -        "ModTime": "9",
+//     +        "ModTime": "14",
+//              "RefCount": "2"
+//          },
+//          "Parent": null,
+//     @@ -34,7 +34,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "1fbaf4a3f57bd7462e872f8775fd0f90c3f9281a",
+//     +                "Hash": "3a8d5652d0c8aeec53cf0961ec1a05fd44b305e0",
+//                      "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:3"
+//                  }
+//              },

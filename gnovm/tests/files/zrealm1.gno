@@ -71,3 +71,22 @@ func main(cur realm,) {
 //     +        }
 //     +    }
 //      }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2](5)=
+//     @@ -4,7 +4,7 @@
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "IsEscaped": true,
+//              "LastObjectSize": "1058",
+//     -        "ModTime": "0",
+//     +        "ModTime": "6",
+//              "RefCount": "2"
+//          },
+//          "Parent": null,
+//     @@ -34,7 +34,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "2d044dfd73eaf05cac73abf912aff927d41afbc6",
+//     +                "Hash": "b1bda3c9c9501b57ffd6bded6d78a7a19dc6026f",
+//                      "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                  }
+//              },

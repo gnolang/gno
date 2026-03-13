@@ -335,5 +335,24 @@ func main(cur realm) {
 //                  },
 //                  "Index": "0",
 //                  "TV": null
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2](0)=
+//     @@ -4,7 +4,7 @@
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "IsEscaped": true,
+//              "LastObjectSize": "677",
+//     -        "ModTime": "12",
+//     +        "ModTime": "18",
+//              "RefCount": "2"
+//          },
+//          "Parent": null,
+//     @@ -34,7 +34,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "16b23fc5783065d6631b3f8d47ff4d0372308bb8",
+//     +                "Hash": "13609f4faffea506817cc8d90a2c9e22f3c0aac7",
+//                      "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                  }
+//              },
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](-341)
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:8](-748)

@@ -90,6 +90,26 @@ func main(cur realm,) {
 //          },
 //          "Value": {
 //              "T": {
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:6](0)=
+//     @@ -21,7 +21,7 @@
+//              },
+//              "V": {
+//                  "@type": "/gno.RefValue",
+//     -            "Hash": "5ac17791bcab54da7779fa8d8b23cdd3052a6992",
+//     +            "Hash": "48d38e60d2e1b42b26183a0b4093db7eb1edb79a",
+//                  "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
+//              }
+//          }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2](0)=
+//     @@ -44,7 +44,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "3f6f8d7c57c5a4a8b8cdf95915cff0aa824bfdb0",
+//     +                "Hash": "6955eedbc8d53c6520df46c52fdeb8be4b8cf720",
+//                      "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
+//                  }
+//              },
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:11](-335)
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:12](-444)
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:13](-335)
