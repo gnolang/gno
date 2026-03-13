@@ -428,6 +428,12 @@ var StructTypes = []any{
 	(*AminoMarshalerInt5)(nil),
 	(*AminoMarshalerStruct6)(nil),
 	(*AminoMarshalerStruct7)(nil),
+	// GnoVM-inspired condensed types (no genproto pbbindings,
+	// but tested by genproto2 via PBMessager2).
+	(*FuzzStructInfo)(nil),
+	(*FuzzBlock)(nil),
+	(*FuzzDeepNest)(nil),
+	(*FuzzPtrNest)(nil),
 }
 
 // ----------------------------------------

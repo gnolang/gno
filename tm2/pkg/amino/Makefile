@@ -23,6 +23,21 @@ test:
 	go test $(shell go list ./... | grep -v vendor | grep -v fuzz)
 	go test $(shell go list ./... | grep -v vendor | grep fuzz)
 
+FUZZTIME ?= 1h
+
+# Run all fuzz testers: 3-way comparison (amino reflect vs pbbindings vs genproto2)
+# and native Go fuzzer for random-bytes crash testing.
+# Usage: make fuzz [FUZZTIME=30m]
+fuzz:
+	@echo "=== Fuzz: 3-way comparison (amino reflect / pbbindings / genproto2) ==="
+	@echo "=== Running TestCodecStruct and TestCodecDef for $(FUZZTIME) ==="
+	@go test -v ./... -run 'TestCodec(Struct|Def)' -count=999999 -timeout=$(FUZZTIME) 2>&1 \
+		| grep -E '^\s*--- (PASS|FAIL)'; echo "3-way fuzz done (ran for $(FUZZTIME))."
+	@echo ""
+	@echo "=== Fuzz: native Go fuzzer (random bytes → UnmarshalBinary2) ==="
+	@echo "=== Running FuzzUnmarshalBinary2 for $(FUZZTIME) ==="
+	go test ./tests/fuzz/binary/ -fuzz=FuzzUnmarshalBinary2 -fuzztime=$(FUZZTIME) -timeout=0
+
 gofuzz_binary:
 	rm -rf tests/fuzz/binary/corpus/
 	rm -rf tests/fuzz/binary/crashers/
@@ -56,4 +71,4 @@ lint:
 # To avoid unintended conflicts with file names, always add to .PHONY
 # unless there is a reason not to.
 # https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html
-.PHONY: build install check_tools get_tools fmt lint test
+.PHONY: build install check_tools get_tools fmt lint test fuzz

@@ -343,6 +343,183 @@ message InterfaceFieldsStruct {
 	google.protobuf.Any f4 = 4 [json_name = "F4"];
 }
 
+message GnoVMPos {
+	sint64 line = 1 [json_name = "Line"];
+	sint64 column = 2 [json_name = "Column"];
+}
+
+message GnoVMSpan {
+	GnoVMPos gno_vm_pos = 1 [json_name = "GnoVMPos"];
+	GnoVMPos end = 2 [json_name = "End"];
+	sint64 num = 3 [json_name = "Num"];
+}
+
+message GnoVMLocation {
+	string pkg_path = 1 [json_name = "PkgPath"];
+	string file = 2 [json_name = "File"];
+	GnoVMSpan gno_vm_span = 3 [json_name = "GnoVMSpan"];
+}
+
+message GnoVMAttrs {
+	GnoVMLocation gno_vm_location = 1 [json_name = "GnoVMLocation"];
+	string label = 2 [json_name = "Label"];
+	sint64 line = 3 [json_name = "Line"];
+}
+
+message GnoVMObjectID {
+	bytes pkg_id = 1 [json_name = "PkgID"];
+	uint64 new_time = 2 [json_name = "NewTime"];
+}
+
+message GnoVMObjectInfo {
+	GnoVMObjectID id = 1 [json_name = "ID"];
+	bytes hash = 2 [json_name = "Hash"];
+	GnoVMObjectID owner_id = 3 [json_name = "OwnerID"];
+	uint64 mod_time = 4 [json_name = "ModTime"];
+}
+
+message GnoVMTypedValue {
+	google.protobuf.Any t = 1 [json_name = "T"];
+	google.protobuf.Any v = 2 [json_name = "V"];
+	bytes n = 3 [json_name = "N"];
+}
+
+message GnoVMBlock {
+	GnoVMObjectInfo gno_vm_object_info = 1 [json_name = "GnoVMObjectInfo"];
+	google.protobuf.Any source = 2 [json_name = "Source"];
+	repeated GnoVMTypedValue values = 3 [json_name = "Values"];
+}
+
+message GnoVMFuncValue {
+	GnoVMObjectInfo gno_vm_object_info = 1 [json_name = "GnoVMObjectInfo"];
+	google.protobuf.Any type = 2 [json_name = "Type"];
+	bool is_method = 3 [json_name = "IsMethod"];
+	bool is_closure = 4 [json_name = "IsClosure"];
+	string name = 5 [json_name = "Name"];
+	google.protobuf.Any parent = 6 [json_name = "Parent"];
+	repeated GnoVMTypedValue captures = 7 [json_name = "Captures"];
+	string pkg_path = 8 [json_name = "PkgPath"];
+}
+
+message GnoVMDeclaredType {
+	string pkg_path = 1 [json_name = "PkgPath"];
+	string name = 2 [json_name = "Name"];
+	GnoVMLocation parent_loc = 3 [json_name = "ParentLoc"];
+	google.protobuf.Any base = 4 [json_name = "Base"];
+	repeated GnoVMTypedValue methods = 5 [json_name = "Methods"];
+}
+
+message GnoVMRefValue {
+	GnoVMObjectID object_id = 1 [json_name = "ObjectID"];
+	bool escaped = 2 [json_name = "Escaped"];
+	string pkg_path = 3 [json_name = "PkgPath"];
+	bytes hash = 4 [json_name = "Hash"];
+}
+
+message GnoVMFieldType {
+	string name = 1 [json_name = "Name"];
+	google.protobuf.Any type = 2 [json_name = "Type"];
+	bool embedded = 3 [json_name = "Embedded"];
+	string tag = 4 [json_name = "Tag"];
+}
+
+message GnoVMStructType {
+	string pkg_path = 1 [json_name = "PkgPath"];
+	repeated GnoVMFieldType fields = 2 [json_name = "Fields"];
+}
+
+message GnoVMFileNode {
+	GnoVMAttrs gno_vm_attrs = 1 [json_name = "GnoVMAttrs"];
+	string file_name = 2 [json_name = "FileName"];
+	string pkg_name = 3 [json_name = "PkgName"];
+	repeated google.protobuf.Any decls = 4 [json_name = "Decls"];
+}
+
+message GnoVMPointerValue {
+	GnoVMTypedValue tv = 1 [json_name = "TV"];
+	google.protobuf.Any base = 2 [json_name = "Base"];
+	sint64 index = 3 [json_name = "Index"];
+}
+
+message GnoVMSliceValue {
+	google.protobuf.Any base = 1 [json_name = "Base"];
+	sint64 offset = 2 [json_name = "Offset"];
+	sint64 length = 3 [json_name = "Length"];
+	sint64 maxcap = 4 [json_name = "Maxcap"];
+}
+
+message GnoVMMapEntry {
+	GnoVMTypedValue key = 1 [json_name = "Key"];
+	GnoVMTypedValue value = 2 [json_name = "Value"];
+}
+
+message GnoVMNode {
+	GnoVMAttrs gno_vm_attrs = 1 [json_name = "GnoVMAttrs"];
+	sint32 op = 2 [json_name = "Op"];
+	google.protobuf.Any left = 3 [json_name = "Left"];
+	google.protobuf.Any right = 4 [json_name = "Right"];
+	repeated google.protobuf.Any args = 5 [json_name = "Args"];
+}
+
+message FuzzFieldInfo {
+	string name = 1 [json_name = "Name"];
+	bool embedded = 2 [json_name = "Embedded"];
+	string tag = 3 [json_name = "Tag"];
+	sint64 index = 4 [json_name = "Index"];
+}
+
+message FuzzStructInfo {
+	string pkg_path = 1 [json_name = "PkgPath"];
+	repeated FuzzFieldInfo fields = 2 [json_name = "Fields"];
+}
+
+message FuzzValueEntry {
+	bytes n = 1 [json_name = "N"];
+	GnoVMLocation loc = 2 [json_name = "Loc"];
+	sint32 kind = 3 [json_name = "Kind"];
+	bytes data = 4 [json_name = "Data"];
+}
+
+message FuzzBlock {
+	GnoVMObjectInfo gno_vm_object_info = 1 [json_name = "GnoVMObjectInfo"];
+	repeated FuzzValueEntry values = 2 [json_name = "Values"];
+	string name = 3 [json_name = "Name"];
+}
+
+message FuzzFuncInfo {
+	GnoVMObjectInfo gno_vm_object_info = 1 [json_name = "GnoVMObjectInfo"];
+	bool is_method = 2 [json_name = "IsMethod"];
+	bool is_closure = 3 [json_name = "IsClosure"];
+	string name = 4 [json_name = "Name"];
+	string pkg_path = 5 [json_name = "PkgPath"];
+	repeated FuzzValueEntry captures = 6 [json_name = "Captures"];
+}
+
+message FuzzDeclInfo {
+	string pkg_path = 1 [json_name = "PkgPath"];
+	string name = 2 [json_name = "Name"];
+	GnoVMLocation parent_loc = 3 [json_name = "ParentLoc"];
+	repeated FuzzValueEntry methods = 4 [json_name = "Methods"];
+}
+
+message FuzzFileInfo {
+	GnoVMAttrs gno_vm_attrs = 1 [json_name = "GnoVMAttrs"];
+	string file_name = 2 [json_name = "FileName"];
+	string pkg_name = 3 [json_name = "PkgName"];
+	repeated FuzzFieldInfo decls = 4 [json_name = "Decls"];
+}
+
+message FuzzPtrNest {
+	FuzzValueEntry entry = 1 [json_name = "Entry"];
+	sint64 index = 2 [json_name = "Index"];
+	string name = 3 [json_name = "Name"];
+}
+
+message FuzzDeepNest {
+	repeated FuzzBlock blocks = 1 [json_name = "Blocks"];
+	GnoVMAttrs meta = 2 [json_name = "Meta"];
+}
+
 message TESTS_BytesList {
 	repeated bytes Value = 1;
 }
