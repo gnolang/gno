@@ -1344,12 +1344,16 @@ func (goo ArraysArraysStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 	for i := len(goo.EmptyArAr) - 1; i >= 0; i-- {
 		elem := goo.EmptyArAr[i]
 		before := offset
-		{
-			bz, merr := cdc.Marshal(elem)
-			if merr != nil {
-				return offset, merr
+		for ii := len(elem) - 1; ii >= 0; ii-- {
+			ie := elem[ii]
+			ieBefore := offset
+			offset, err = ie.MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			offset = amino.PrependBytes(buf, offset, bz)
+			ieLen := ieBefore - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(ieLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 		dataLen := before - offset
 		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
@@ -1358,12 +1362,16 @@ func (goo ArraysArraysStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 	for i := len(goo.DurationArAr) - 1; i >= 0; i-- {
 		elem := goo.DurationArAr[i]
 		before := offset
-		{
-			bz, merr := cdc.Marshal(elem)
-			if merr != nil {
-				return offset, merr
+		for ii := len(elem) - 1; ii >= 0; ii-- {
+			ie := elem[ii]
+			ieBefore := offset
+			offset, err = amino.PrependDuration(buf, offset, ie)
+			if err != nil {
+				return offset, err
 			}
-			offset = amino.PrependBytes(buf, offset, bz)
+			ieLen := ieBefore - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(ieLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 		dataLen := before - offset
 		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
@@ -1372,12 +1380,16 @@ func (goo ArraysArraysStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 	for i := len(goo.TimeArAr) - 1; i >= 0; i-- {
 		elem := goo.TimeArAr[i]
 		before := offset
-		{
-			bz, merr := cdc.Marshal(elem)
-			if merr != nil {
-				return offset, merr
+		for ii := len(elem) - 1; ii >= 0; ii-- {
+			ie := elem[ii]
+			ieBefore := offset
+			offset, err = amino.PrependTime(buf, offset, ie)
+			if err != nil {
+				return offset, err
 			}
-			offset = amino.PrependBytes(buf, offset, bz)
+			ieLen := ieBefore - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(ieLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 		dataLen := before - offset
 		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
@@ -1386,12 +1398,10 @@ func (goo ArraysArraysStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 	for i := len(goo.BytesArAr) - 1; i >= 0; i-- {
 		elem := goo.BytesArAr[i]
 		before := offset
-		{
-			bz, merr := cdc.Marshal(elem)
-			if merr != nil {
-				return offset, merr
-			}
-			offset = amino.PrependBytes(buf, offset, bz)
+		for ii := len(elem) - 1; ii >= 0; ii-- {
+			ie := elem[ii]
+			offset = amino.PrependByteSlice(buf, offset, ie)
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 		dataLen := before - offset
 		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
@@ -1400,12 +1410,10 @@ func (goo ArraysArraysStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 	for i := len(goo.StrArAr) - 1; i >= 0; i-- {
 		elem := goo.StrArAr[i]
 		before := offset
-		{
-			bz, merr := cdc.Marshal(elem)
-			if merr != nil {
-				return offset, merr
-			}
-			offset = amino.PrependBytes(buf, offset, bz)
+		for ii := len(elem) - 1; ii >= 0; ii-- {
+			ie := elem[ii]
+			offset = amino.PrependString(buf, offset, string(ie))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 		dataLen := before - offset
 		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
@@ -1804,23 +1812,23 @@ func (goo ArraysArraysStruct) SizeBinary2(cdc *amino.Codec) int {
 		s += 1 + amino.UvarintSize(uint64(iss)) + iss
 	}
 	for _, elem := range goo.StrArAr {
-		cs := func() int { bz, _ := cdc.Marshal(elem); return len(bz) }()
+		cs := func() int { var cs int; for _, ie := range elem { cs += 1 + amino.UvarintSize(uint64(len(ie))) + len(ie) }; return cs }()
 		s += 2 + amino.UvarintSize(uint64(cs)) + cs
 	}
 	for _, elem := range goo.BytesArAr {
-		cs := func() int { bz, _ := cdc.Marshal(elem); return len(bz) }()
+		cs := func() int { var cs int; for _, ie := range elem { cs += 1 + amino.ByteSliceSize(ie) }; return cs }()
 		s += 2 + amino.UvarintSize(uint64(cs)) + cs
 	}
 	for _, elem := range goo.TimeArAr {
-		cs := func() int { bz, _ := cdc.Marshal(elem); return len(bz) }()
+		cs := func() int { var cs int; for _, ie := range elem { ts := amino.TimeSize(ie); cs += 1 + amino.UvarintSize(uint64(ts)) + ts }; return cs }()
 		s += 2 + amino.UvarintSize(uint64(cs)) + cs
 	}
 	for _, elem := range goo.DurationArAr {
-		cs := func() int { bz, _ := cdc.Marshal(elem); return len(bz) }()
+		cs := func() int { var cs int; for _, ie := range elem { ds := amino.DurationSize(ie); cs += 1 + amino.UvarintSize(uint64(ds)) + ds }; return cs }()
 		s += 2 + amino.UvarintSize(uint64(cs)) + cs
 	}
 	for _, elem := range goo.EmptyArAr {
-		cs := func() int { bz, _ := cdc.Marshal(elem); return len(bz) }()
+		cs := func() int { var cs int; for _, ie := range elem { es := ie.SizeBinary2(cdc); cs += 1 + amino.UvarintSize(uint64(es)) + es }; return cs }()
 		s += 2 + amino.UvarintSize(uint64(cs)) + cs
 	}
 	return s
@@ -4061,12 +4069,16 @@ func (goo SlicesSlicesStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 	for i := len(goo.EmptySlSl) - 1; i >= 0; i-- {
 		elem := goo.EmptySlSl[i]
 		before := offset
-		{
-			bz, merr := cdc.Marshal(elem)
-			if merr != nil {
-				return offset, merr
+		for ii := len(elem) - 1; ii >= 0; ii-- {
+			ie := elem[ii]
+			ieBefore := offset
+			offset, err = ie.MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			offset = amino.PrependBytes(buf, offset, bz)
+			ieLen := ieBefore - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(ieLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 		dataLen := before - offset
 		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
@@ -4075,12 +4087,16 @@ func (goo SlicesSlicesStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 	for i := len(goo.DurationSlSl) - 1; i >= 0; i-- {
 		elem := goo.DurationSlSl[i]
 		before := offset
-		{
-			bz, merr := cdc.Marshal(elem)
-			if merr != nil {
-				return offset, merr
+		for ii := len(elem) - 1; ii >= 0; ii-- {
+			ie := elem[ii]
+			ieBefore := offset
+			offset, err = amino.PrependDuration(buf, offset, ie)
+			if err != nil {
+				return offset, err
 			}
-			offset = amino.PrependBytes(buf, offset, bz)
+			ieLen := ieBefore - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(ieLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 		dataLen := before - offset
 		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
@@ -4089,12 +4105,16 @@ func (goo SlicesSlicesStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 	for i := len(goo.TimeSlSl) - 1; i >= 0; i-- {
 		elem := goo.TimeSlSl[i]
 		before := offset
-		{
-			bz, merr := cdc.Marshal(elem)
-			if merr != nil {
-				return offset, merr
+		for ii := len(elem) - 1; ii >= 0; ii-- {
+			ie := elem[ii]
+			ieBefore := offset
+			offset, err = amino.PrependTime(buf, offset, ie)
+			if err != nil {
+				return offset, err
 			}
-			offset = amino.PrependBytes(buf, offset, bz)
+			ieLen := ieBefore - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(ieLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 		dataLen := before - offset
 		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
@@ -4103,12 +4123,10 @@ func (goo SlicesSlicesStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 	for i := len(goo.BytesSlSl) - 1; i >= 0; i-- {
 		elem := goo.BytesSlSl[i]
 		before := offset
-		{
-			bz, merr := cdc.Marshal(elem)
-			if merr != nil {
-				return offset, merr
-			}
-			offset = amino.PrependBytes(buf, offset, bz)
+		for ii := len(elem) - 1; ii >= 0; ii-- {
+			ie := elem[ii]
+			offset = amino.PrependByteSlice(buf, offset, ie)
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 		dataLen := before - offset
 		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
@@ -4117,12 +4135,10 @@ func (goo SlicesSlicesStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 	for i := len(goo.StrSlSl) - 1; i >= 0; i-- {
 		elem := goo.StrSlSl[i]
 		before := offset
-		{
-			bz, merr := cdc.Marshal(elem)
-			if merr != nil {
-				return offset, merr
-			}
-			offset = amino.PrependBytes(buf, offset, bz)
+		for ii := len(elem) - 1; ii >= 0; ii-- {
+			ie := elem[ii]
+			offset = amino.PrependString(buf, offset, string(ie))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 		dataLen := before - offset
 		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
@@ -4521,23 +4537,23 @@ func (goo SlicesSlicesStruct) SizeBinary2(cdc *amino.Codec) int {
 		s += 1 + amino.UvarintSize(uint64(iss)) + iss
 	}
 	for _, elem := range goo.StrSlSl {
-		cs := func() int { bz, _ := cdc.Marshal(elem); return len(bz) }()
+		cs := func() int { var cs int; for _, ie := range elem { cs += 1 + amino.UvarintSize(uint64(len(ie))) + len(ie) }; return cs }()
 		s += 2 + amino.UvarintSize(uint64(cs)) + cs
 	}
 	for _, elem := range goo.BytesSlSl {
-		cs := func() int { bz, _ := cdc.Marshal(elem); return len(bz) }()
+		cs := func() int { var cs int; for _, ie := range elem { cs += 1 + amino.ByteSliceSize(ie) }; return cs }()
 		s += 2 + amino.UvarintSize(uint64(cs)) + cs
 	}
 	for _, elem := range goo.TimeSlSl {
-		cs := func() int { bz, _ := cdc.Marshal(elem); return len(bz) }()
+		cs := func() int { var cs int; for _, ie := range elem { ts := amino.TimeSize(ie); cs += 1 + amino.UvarintSize(uint64(ts)) + ts }; return cs }()
 		s += 2 + amino.UvarintSize(uint64(cs)) + cs
 	}
 	for _, elem := range goo.DurationSlSl {
-		cs := func() int { bz, _ := cdc.Marshal(elem); return len(bz) }()
+		cs := func() int { var cs int; for _, ie := range elem { ds := amino.DurationSize(ie); cs += 1 + amino.UvarintSize(uint64(ds)) + ds }; return cs }()
 		s += 2 + amino.UvarintSize(uint64(cs)) + cs
 	}
 	for _, elem := range goo.EmptySlSl {
-		cs := func() int { bz, _ := cdc.Marshal(elem); return len(bz) }()
+		cs := func() int { var cs int; for _, ie := range elem { es := ie.SizeBinary2(cdc); cs += 1 + amino.UvarintSize(uint64(es)) + es }; return cs }()
 		s += 2 + amino.UvarintSize(uint64(cs)) + cs
 	}
 	return s

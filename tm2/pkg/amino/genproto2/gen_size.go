@@ -470,8 +470,35 @@ func (ctx *P3Context2) elementContentSizeExpr(accessor string, einfo *amino.Type
 	case rinfo.Type.Kind() == reflect.Struct:
 		return fmt.Sprintf("%s.SizeBinary2(cdc)", accessor)
 	case isListType(rinfo.Type) && rinfo.Type.Elem().Kind() != reflect.Uint8:
-		// Nested list: use cdc.MarshalSizeOf or marshal+len.
-		return fmt.Sprintf("func() int { bz, _ := cdc.Marshal(%s); return len(bz) }()", accessor)
+		// Nested list: compute implicit struct content size inline.
+		innerEinfo := einfo.Elem
+		if innerEinfo == nil {
+			return fmt.Sprintf("func() int { bz, _ := cdc.Marshal(%s); return len(bz) }()", accessor)
+		}
+		innerTyp3 := innerEinfo.GetTyp3(fopts)
+		innerRinfo := innerEinfo.ReprType
+		ifks := fieldKeySize(1, amino.Typ3ByteLength)
+		if innerTyp3 != amino.Typ3ByteLength {
+			// Packed: single field 1 entry.
+			innerSizeExpr := ctx.primitiveValueSizeExpr("ie", innerEinfo, fopts)
+			return fmt.Sprintf("func() int { var cs int; for _, ie := range %s { cs += %s }; if cs > 0 { cs = %d + amino.UvarintSize(uint64(cs)) + cs }; return cs }()",
+				accessor, innerSizeExpr, ifks)
+		}
+		// ByteLength: repeated field 1 entries.
+		switch {
+		case innerRinfo.Type == reflect.TypeOf(time.Time{}):
+			return fmt.Sprintf("func() int { var cs int; for _, ie := range %s { ts := amino.TimeSize(ie); cs += %d + amino.UvarintSize(uint64(ts)) + ts }; return cs }()",
+				accessor, ifks)
+		case innerRinfo.Type == reflect.TypeOf(time.Duration(0)):
+			return fmt.Sprintf("func() int { var cs int; for _, ie := range %s { ds := amino.DurationSize(ie); cs += %d + amino.UvarintSize(uint64(ds)) + ds }; return cs }()",
+				accessor, ifks)
+		case innerRinfo.Type.Kind() == reflect.Struct:
+			return fmt.Sprintf("func() int { var cs int; for _, ie := range %s { es := ie.SizeBinary2(cdc); cs += %d + amino.UvarintSize(uint64(es)) + es }; return cs }()",
+				accessor, ifks)
+		default:
+			return fmt.Sprintf("func() int { var cs int; for _, ie := range %s { cs += %d + %s }; return cs }()",
+				accessor, ifks, ctx.primitiveValueSizeExpr("ie", innerEinfo, fopts))
+		}
 	default:
 		return ctx.primitiveValueSizeExpr(accessor, einfo, fopts)
 	}

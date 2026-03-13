@@ -547,12 +547,64 @@ func (ctx *P3Context2) writeElementEncode(sb *strings.Builder, accessor string, 
 		sb.WriteString(fmt.Sprintf("%soffset, err = %s.MarshalBinary2(cdc, buf, offset)\n", indent, accessor))
 		sb.WriteString(fmt.Sprintf("%sif err != nil {\n%s\treturn offset, err\n%s}\n", indent, indent, indent))
 	case isListType(rinfo.Type) && rinfo.Type.Elem().Kind() != reflect.Uint8:
-		// Nested list element: fall back to cdc.Marshal, then prepend bytes.
-		sb.WriteString(fmt.Sprintf("%s{\n", indent))
-		sb.WriteString(fmt.Sprintf("%s\tbz, merr := cdc.Marshal(%s)\n", indent, accessor))
-		sb.WriteString(fmt.Sprintf("%s\tif merr != nil {\n%s\t\treturn offset, merr\n%s\t}\n", indent, indent, indent))
-		sb.WriteString(fmt.Sprintf("%s\toffset = amino.PrependBytes(buf, offset, bz)\n", indent))
-		sb.WriteString(fmt.Sprintf("%s}\n", indent))
+		// Nested list element: encode as implicit struct content inline.
+		// The caller handles the outer length prefix and field key.
+		innerEinfo := einfo.Elem
+		if innerEinfo == nil {
+			// Fallback for unexpected cases.
+			sb.WriteString(fmt.Sprintf("%s{\n", indent))
+			sb.WriteString(fmt.Sprintf("%s\tbz, merr := cdc.Marshal(%s)\n", indent, accessor))
+			sb.WriteString(fmt.Sprintf("%s\tif merr != nil {\n%s\t\treturn offset, merr\n%s\t}\n", indent, indent, indent))
+			sb.WriteString(fmt.Sprintf("%s\toffset = amino.PrependBytes(buf, offset, bz)\n", indent))
+			sb.WriteString(fmt.Sprintf("%s}\n", indent))
+			return
+		}
+		innerTyp3 := innerEinfo.GetTyp3(fopts)
+		innerRinfo := innerEinfo.ReprType
+		if innerTyp3 != amino.Typ3ByteLength {
+			// Packed inner elements: single field 1 + length prefix.
+			sb.WriteString(fmt.Sprintf("%s{\n", indent))
+			sb.WriteString(fmt.Sprintf("%s\tpkBefore := offset\n", indent))
+			sb.WriteString(fmt.Sprintf("%s\tfor ii := len(%s) - 1; ii >= 0; ii-- {\n", indent, accessor))
+			sb.WriteString(fmt.Sprintf("%s\t\tie := %s[ii]\n", indent, accessor))
+			ctx.writePrimitiveEncode(sb, "ie", innerEinfo, fopts, indent+"\t\t")
+			sb.WriteString(fmt.Sprintf("%s\t}\n", indent))
+			sb.WriteString(fmt.Sprintf("%s\tpkLen := pkBefore - offset\n", indent))
+			sb.WriteString(fmt.Sprintf("%s\tif pkLen > 0 {\n", indent))
+			sb.WriteString(fmt.Sprintf("%s\t\toffset = amino.PrependUvarint(buf, offset, uint64(pkLen))\n", indent))
+			sb.WriteString(fmt.Sprintf("%s\t\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)\n", indent))
+			sb.WriteString(fmt.Sprintf("%s\t}\n", indent))
+			sb.WriteString(fmt.Sprintf("%s}\n", indent))
+		} else {
+			// ByteLength inner elements: repeated field 1 entries.
+			sb.WriteString(fmt.Sprintf("%sfor ii := len(%s) - 1; ii >= 0; ii-- {\n", indent, accessor))
+			sb.WriteString(fmt.Sprintf("%s\tie := %s[ii]\n", indent, accessor))
+			switch {
+			case innerRinfo.Type == reflect.TypeOf(time.Time{}):
+				sb.WriteString(fmt.Sprintf("%s\tieBefore := offset\n", indent))
+				sb.WriteString(fmt.Sprintf("%s\toffset, err = amino.PrependTime(buf, offset, ie)\n", indent))
+				sb.WriteString(fmt.Sprintf("%s\tif err != nil {\n%s\t\treturn offset, err\n%s\t}\n", indent, indent, indent))
+				sb.WriteString(fmt.Sprintf("%s\tieLen := ieBefore - offset\n", indent))
+				sb.WriteString(fmt.Sprintf("%s\toffset = amino.PrependUvarint(buf, offset, uint64(ieLen))\n", indent))
+			case innerRinfo.Type == reflect.TypeOf(time.Duration(0)):
+				sb.WriteString(fmt.Sprintf("%s\tieBefore := offset\n", indent))
+				sb.WriteString(fmt.Sprintf("%s\toffset, err = amino.PrependDuration(buf, offset, ie)\n", indent))
+				sb.WriteString(fmt.Sprintf("%s\tif err != nil {\n%s\t\treturn offset, err\n%s\t}\n", indent, indent, indent))
+				sb.WriteString(fmt.Sprintf("%s\tieLen := ieBefore - offset\n", indent))
+				sb.WriteString(fmt.Sprintf("%s\toffset = amino.PrependUvarint(buf, offset, uint64(ieLen))\n", indent))
+			case innerRinfo.Type.Kind() == reflect.Struct:
+				sb.WriteString(fmt.Sprintf("%s\tieBefore := offset\n", indent))
+				sb.WriteString(fmt.Sprintf("%s\toffset, err = ie.MarshalBinary2(cdc, buf, offset)\n", indent))
+				sb.WriteString(fmt.Sprintf("%s\tif err != nil {\n%s\t\treturn offset, err\n%s\t}\n", indent, indent, indent))
+				sb.WriteString(fmt.Sprintf("%s\tieLen := ieBefore - offset\n", indent))
+				sb.WriteString(fmt.Sprintf("%s\toffset = amino.PrependUvarint(buf, offset, uint64(ieLen))\n", indent))
+			default:
+				// String, []byte: writePrimitiveEncode includes own length prefix.
+				ctx.writePrimitiveEncode(sb, "ie", innerEinfo, fopts, indent+"\t")
+			}
+			sb.WriteString(fmt.Sprintf("%s\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)\n", indent))
+			sb.WriteString(fmt.Sprintf("%s}\n", indent))
+		}
 	default:
 		ctx.writePrimitiveEncode(sb, accessor, einfo, fopts, indent)
 	}
