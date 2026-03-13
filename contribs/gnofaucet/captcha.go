@@ -23,7 +23,7 @@ func (c *captchaCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.captchaSecret,
 		"captcha-secret",
 		"",
-		"hcaptcha secret key (if empty, captcha are disabled)",
+		"hcaptcha secret key (required)",
 	)
 
 	fs.StringVar(
@@ -57,6 +57,11 @@ func execCaptcha(ctx context.Context, cfg *captchaCfg, io commands.IO) error {
 		return errCaptchaMissing
 	}
 
+	logger, err := cfg.rootCfg.newLogger(io)
+	if err != nil {
+		return err
+	}
+
 	// Start the IP throttler
 	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
 	st.start(ctx)
@@ -67,13 +72,13 @@ func execCaptcha(ctx context.Context, cfg *captchaCfg, io commands.IO) error {
 	}
 
 	rpcMiddlewares := []faucet.Middleware{
-		captchaMiddleware(cfg.captchaSecret, cfg.captchaSitekey),
+		captchaMiddleware(cfg.captchaSecret, cfg.captchaSitekey, logger),
 	}
 
 	return serveFaucet(
 		ctx,
 		cfg.rootCfg,
-		io,
+		logger,
 		faucet.WithHTTPMiddlewares(httpMiddlewares),
 		faucet.WithMiddlewares(rpcMiddlewares),
 	)

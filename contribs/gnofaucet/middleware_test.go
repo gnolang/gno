@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// discardLogger is a no-op logger for use in tests.
+var discardLogger = slog.New(slog.NewTextHandler(io.Discard, nil))
 
 // hCaptcha test credentials — always pass verification without a real browser.
 // See: https://docs.hcaptcha.com/#integration-testing-test-keys
@@ -52,7 +56,7 @@ func TestCheckHcaptcha(t *testing.T) {
 		siteVerifyURL = srv.URL
 		defer func() { siteVerifyURL = orig }()
 
-		require.NoError(t, checkHcaptcha("test-secret", "test-response", "", ""))
+		require.NoError(t, checkHcaptcha("test-secret", "test-response", "", "", discardLogger))
 	})
 
 	t.Run("success with remoteip and sitekey", func(t *testing.T) {
@@ -75,7 +79,7 @@ func TestCheckHcaptcha(t *testing.T) {
 		siteVerifyURL = srv.URL
 		defer func() { siteVerifyURL = orig }()
 
-		require.NoError(t, checkHcaptcha("test-secret", "test-response", "1.2.3.4", "test-sitekey"))
+		require.NoError(t, checkHcaptcha("test-secret", "test-response", "1.2.3.4", "test-sitekey", discardLogger))
 	})
 
 	t.Run("verification failure", func(t *testing.T) {
@@ -89,7 +93,7 @@ func TestCheckHcaptcha(t *testing.T) {
 		siteVerifyURL = srv.URL
 		defer func() { siteVerifyURL = orig }()
 
-		err := checkHcaptcha("test-secret", "bad-token", "", "")
+		err := checkHcaptcha("test-secret", "bad-token", "", "", discardLogger)
 		assert.Equal(t, errInvalidCaptcha, err)
 	})
 
@@ -103,7 +107,7 @@ func TestCheckHcaptcha(t *testing.T) {
 		siteVerifyURL = srv.URL
 		defer func() { siteVerifyURL = orig }()
 
-		err := checkHcaptcha("test-secret", "test-response", "", "")
+		err := checkHcaptcha("test-secret", "test-response", "", "", discardLogger)
 		assert.ErrorContains(t, err, "unexpected status code")
 	})
 
@@ -114,6 +118,6 @@ func TestCheckHcaptcha(t *testing.T) {
 			t.Skip("skipping network test in short mode")
 		}
 
-		require.NoError(t, checkHcaptcha(hcaptchaTestSecret, hcaptchaTestResponse, "", ""))
+		require.NoError(t, checkHcaptcha(hcaptchaTestSecret, hcaptchaTestResponse, "", "", discardLogger))
 	})
 }

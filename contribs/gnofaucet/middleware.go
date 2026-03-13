@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
@@ -85,7 +86,7 @@ func ipMiddleware(behindProxy bool, st *ipThrottler) func(next http.Handler) htt
 }
 
 // captchaMiddleware returns the captcha middleware, if any
-func captchaMiddleware(secret, sitekey string) faucet.Middleware {
+func captchaMiddleware(secret, sitekey string, logger *slog.Logger) faucet.Middleware {
 	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
 		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
 			// Parse the request meta to extract the captcha secret
@@ -106,7 +107,7 @@ func captchaMiddleware(secret, sitekey string) faucet.Middleware {
 			remoteIP, _ := ctx.Value(remoteIPContextKey).(string)
 
 			// Verify the captcha response
-			if err := checkHcaptcha(secret, strings.TrimSpace(meta.Captcha), remoteIP, sitekey); err != nil {
+			if err := checkHcaptcha(secret, strings.TrimSpace(meta.Captcha), remoteIP, sitekey, logger); err != nil {
 				return spec.NewJSONResponse(
 					req.ID,
 					nil,
@@ -121,7 +122,7 @@ func captchaMiddleware(secret, sitekey string) faucet.Middleware {
 }
 
 // checkHcaptcha checks the captcha challenge
-func checkHcaptcha(secret, response, remoteIP, sitekey string) error {
+func checkHcaptcha(secret, response, remoteIP, sitekey string, logger *slog.Logger) error {
 	// Create an HTTP client with a timeout
 	client := &http.Client{
 		Timeout: time.Second * 10,
@@ -137,6 +138,12 @@ func checkHcaptcha(secret, response, remoteIP, sitekey string) error {
 	if sitekey != "" {
 		form.Set("sitekey", sitekey)
 	}
+
+	logger.Debug("sending hcaptcha verification request",
+		slog.String("remoteip", remoteIP),
+		slog.Bool("secret_set", secret != ""),
+		slog.Bool("sitekey_set", sitekey != ""),
+	)
 
 	// Create the request
 	req, err := http.NewRequest(
@@ -167,6 +174,13 @@ func checkHcaptcha(secret, response, remoteIP, sitekey string) error {
 	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return fmt.Errorf("failed to decode response, %w", err)
 	}
+
+	logger.Debug("received hcaptcha verification response",
+		slog.String("remoteip", remoteIP),
+		slog.Bool("success", body.Success),
+		slog.String("hostname", body.Hostname),
+		slog.Any("error_codes", body.ErrorCodes),
+	)
 
 	// Check if the hcaptcha verification was successful
 	if !body.Success {
