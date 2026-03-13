@@ -6,6 +6,7 @@ import (
 
 	"github.com/gnolang/gno/contribs/gnokms/internal/auth"
 	"github.com/gnolang/gno/contribs/gnokms/internal/gnokey"
+	"github.com/gnolang/gno/contribs/gnokms/internal/ledger"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -24,6 +25,7 @@ func main() {
 	cmd.AddSubCommands(
 		auth.NewAuthCmd(io),
 		gnokey.NewGnokeyCmd(io),
+		ledger.NewLedgerCmd(io),
 	)
 
 	cmd.Execute(context.Background(), os.Args[1:])
