@@ -52,11 +52,6 @@ func main() {
 					VotingPower: 1,
 				},
 				{
-					Address:     address("g1d5hh9fw3l00gugfzafskaxqlmsyvxfaj6l2q60"),
-					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpnj5vt2vkv94exe6cmdgqgtxmyfkvlhztnl0kj4xv97uz2t0muwe9mka0q",
-					VotingPower: 1,
-				},
-				{
 					Address:     address("g1uhv7wr7nku89se3t7v8fpquc7n5sf8rfkywxpc"),
 					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqavtgten8l8k4f72j8klpu4l7tk2qw4kl8394krsaysmz2q0765ynvjag0",
 					VotingPower: 1,
@@ -74,6 +69,11 @@ func main() {
 				{
 					Address:     address("g1kn7p0wqumvqlcqzhkwnavkhf0z4qnr73ltwsae"),
 					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpufsm93d5fmzxrug76esaxsdsmw0guy9e6geypw7ekz92sl3mte492q62e",
+					VotingPower: 1,
+				},
+				{
+					Address:     address("g1waazuzqs7tzpdfa0qwxvctms0f9ccarg58ussh"),
+					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp2ecmrs79k4snhuu4xlyrrmmc0ykzmd05m5nyxv0grc3kdhxw0m2pld7c3",
 					VotingPower: 1,
 				},
 			}
