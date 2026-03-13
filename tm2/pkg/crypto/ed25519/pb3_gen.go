@@ -4,15 +4,11 @@ package ed25519
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 )
 
-var _ io.Writer
 var _ fmt.Stringer
 var _ *amino.Codec
-var _ bytes.Buffer
 var _ = errors.New
 

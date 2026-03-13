@@ -4,60 +4,37 @@ package hd
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 )
 
-var _ io.Writer
 var _ fmt.Stringer
 var _ *amino.Codec
-var _ bytes.Buffer
 var _ = errors.New
 
-func (goo BIP44Params) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	if goo.Purpose != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeUvarint(w, uint64(goo.Purpose)); err != nil {
-			return err
-		}
-	}
-	if goo.CoinType != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeUvarint(w, uint64(goo.CoinType)); err != nil {
-			return err
-		}
-	}
-	if goo.Account != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeUvarint(w, uint64(goo.Account)); err != nil {
-			return err
-		}
+func (goo BIP44Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.AddressIndex != 0 {
+		offset = amino.PrependUvarint(buf, offset, uint64(goo.AddressIndex))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3Varint)
 	}
 	if goo.Change {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 4, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeBool(w, bool(goo.Change)); err != nil {
-			return err
-		}
+		offset = amino.PrependBool(buf, offset, bool(goo.Change))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3Varint)
 	}
-	if goo.AddressIndex != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 5, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeUvarint(w, uint64(goo.AddressIndex)); err != nil {
-			return err
-		}
+	if goo.Account != 0 {
+		offset = amino.PrependUvarint(buf, offset, uint64(goo.Account))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
 	}
-	return nil
+	if goo.CoinType != 0 {
+		offset = amino.PrependUvarint(buf, offset, uint64(goo.CoinType))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+	}
+	if goo.Purpose != 0 {
+		offset = amino.PrependUvarint(buf, offset, uint64(goo.Purpose))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+	}
+	return offset, err
 }
 
 func (goo BIP44Params) SizeBinary2(cdc *amino.Codec) int {

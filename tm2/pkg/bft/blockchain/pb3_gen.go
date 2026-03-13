@@ -4,31 +4,24 @@ package blockchain
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"time"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
-var _ io.Writer
 var _ fmt.Stringer
 var _ *amino.Codec
-var _ bytes.Buffer
 var _ = errors.New
 var _ time.Time
 
-func (goo bcBlockRequestMessage) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
+func (goo bcBlockRequestMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
 	if goo.Height != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.Height)); err != nil {
-			return err
-		}
+		offset = amino.PrependVarint(buf, offset, int64(goo.Height))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
 	}
-	return nil
+	return offset, err
 }
 
 func (goo bcBlockRequestMessage) SizeBinary2(cdc *amino.Codec) int {
@@ -70,23 +63,21 @@ func (goo *bcBlockRequestMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte) 
 	return nil
 }
 
-func (goo bcBlockResponseMessage) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
+func (goo bcBlockResponseMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
 	if goo.Block != nil {
 		{
-			var buf bytes.Buffer
-			if err := (*goo.Block).MarshalBinary2(cdc, &buf); err != nil {
-				return err
+			before := offset
+			offset, err = (*goo.Block).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 	}
-	return nil
+	return offset, err
 }
 
 func (goo bcBlockResponseMessage) SizeBinary2(cdc *amino.Codec) int {
@@ -137,16 +128,13 @@ func (goo *bcBlockResponseMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte)
 	return nil
 }
 
-func (goo bcNoBlockResponseMessage) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
+func (goo bcNoBlockResponseMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
 	if goo.Height != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.Height)); err != nil {
-			return err
-		}
+		offset = amino.PrependVarint(buf, offset, int64(goo.Height))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
 	}
-	return nil
+	return offset, err
 }
 
 func (goo bcNoBlockResponseMessage) SizeBinary2(cdc *amino.Codec) int {
@@ -188,16 +176,13 @@ func (goo *bcNoBlockResponseMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byt
 	return nil
 }
 
-func (goo bcStatusRequestMessage) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
+func (goo bcStatusRequestMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
 	if goo.Height != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.Height)); err != nil {
-			return err
-		}
+		offset = amino.PrependVarint(buf, offset, int64(goo.Height))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
 	}
-	return nil
+	return offset, err
 }
 
 func (goo bcStatusRequestMessage) SizeBinary2(cdc *amino.Codec) int {
@@ -239,16 +224,13 @@ func (goo *bcStatusRequestMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte)
 	return nil
 }
 
-func (goo bcStatusResponseMessage) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
+func (goo bcStatusResponseMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
 	if goo.Height != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.Height)); err != nil {
-			return err
-		}
+		offset = amino.PrependVarint(buf, offset, int64(goo.Height))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
 	}
-	return nil
+	return offset, err
 }
 
 func (goo bcStatusResponseMessage) SizeBinary2(cdc *amino.Codec) int {

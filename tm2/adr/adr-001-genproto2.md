@@ -34,11 +34,15 @@ Each registered struct type gets three methods:
 
 ```go
 type PBMessager2 interface {
-    MarshalBinary2(cdc *Codec, w io.Writer) error
+    MarshalBinary2(cdc *Codec, buf []byte, offset int) (int, error)
     SizeBinary2(cdc *Codec) int
     UnmarshalBinary2(cdc *Codec, bz []byte) error
 }
 ```
+
+`MarshalBinary2` writes backward into a pre-allocated buffer (see
+[Backward encoding](#backward-encoding) below). `SizeBinary2` computes the
+exact encoded size so the buffer can be allocated once.
 
 ### Integration with Codec
 
@@ -52,6 +56,13 @@ func (cdc *Codec) Marshal(o any) ([]byte, error) {
     }
     if cdc.usePBBindings { ... }
     return cdc.MarshalReflect(o)
+}
+
+func (cdc *Codec) MarshalBinary2(pbm2 PBMessager2) ([]byte, error) {
+    n := pbm2.SizeBinary2(cdc)
+    buf := make([]byte, n)
+    offset, err := pbm2.MarshalBinary2(cdc, buf, n)
+    return buf[offset:], err
 }
 ```
 
@@ -79,6 +90,26 @@ across 10,000 random inputs per type.
 
 The standalone generator lives at `misc/genproto2/` and produces `pb3_gen.go`
 and `.proto` files for all 17 registered amino packages.
+
+## Backward encoding
+
+`MarshalBinary2` writes fields **backward** into a pre-sized `[]byte` buffer,
+processing struct fields in reverse order. Each field's value is written first,
+then its length prefix (for ByteLength types), then its field key. This design
+has two key advantages over forward writing:
+
+1. **No temporary buffers for nested structs.** Length-prefixed fields (nested
+   structs, time, duration) require knowing the encoded size before writing the
+   length prefix. Forward encoding must encode into a temporary buffer to learn
+   the size, then copy. Backward encoding writes the nested data first — the
+   size is simply `before - offset`.
+
+2. **No `io.Writer` interface dispatch.** All writes are direct `[]byte` slice
+   operations via `Prepend*` helper functions (`encoder.go`), eliminating
+   virtual method call overhead.
+
+The buffer is pre-allocated via `SizeBinary2()`, giving a single allocation per
+marshal call. The final encoded bytes are `buf[offset:]`.
 
 ## Encoding details
 
@@ -123,7 +154,8 @@ Run all fuzz testers: `make fuzz` (default 1 hour, configurable via `FUZZTIME`).
 - No `protoc` dependency
 - No intermediate PB struct allocation — direct Go struct → wire bytes
 - Simpler generated code (single `pb3_gen.go` per package vs `.pb.go` + pbbindings)
-- Faster marshal/unmarshal (fewer allocations, no reflection)
+- Faster marshal/unmarshal (single allocation, no reflection, no io.Writer dispatch)
+- ~2x faster encode than pbbindings, ~6x faster than reflect
 - Complete replacement for genproto in production use
 
 ### Negative

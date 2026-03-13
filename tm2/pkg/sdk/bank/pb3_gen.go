@@ -4,20 +4,17 @@ package bank
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 )
 
-var _ io.Writer
 var _ fmt.Stringer
 var _ *amino.Codec
-var _ bytes.Buffer
 var _ = errors.New
 
-func (goo NoInputsError) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	return nil
+func (goo NoInputsError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
 }
 
 func (goo NoInputsError) SizeBinary2(cdc *amino.Codec) int {
@@ -49,8 +46,9 @@ func (goo *NoInputsError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo NoOutputsError) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	return nil
+func (goo NoOutputsError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
 }
 
 func (goo NoOutputsError) SizeBinary2(cdc *amino.Codec) int {
@@ -82,8 +80,9 @@ func (goo *NoOutputsError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo InputOutputMismatchError) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	return nil
+func (goo InputOutputMismatchError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
 }
 
 func (goo InputOutputMismatchError) SizeBinary2(cdc *amino.Codec) int {
@@ -115,44 +114,33 @@ func (goo *InputOutputMismatchError) UnmarshalBinary2(cdc *amino.Codec, bz []byt
 	return nil
 }
 
-func (goo MsgSend) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	if goo.FromAddress != [20]byte{} {
-		repr, err := goo.FromAddress.MarshalAmino()
+func (goo MsgSend) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if len(goo.Amount) != 0 {
+		repr, err := goo.Amount.MarshalAmino()
 		if err != nil {
-			return err
+			return offset, err
 		}
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(repr)); err != nil {
-			return err
-		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 	}
 	if goo.ToAddress != [20]byte{} {
 		repr, err := goo.ToAddress.MarshalAmino()
 		if err != nil {
-			return err
+			return offset, err
 		}
-		if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(repr)); err != nil {
-			return err
-		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 	}
-	if len(goo.Amount) != 0 {
-		repr, err := goo.Amount.MarshalAmino()
+	if goo.FromAddress != [20]byte{} {
+		repr, err := goo.FromAddress.MarshalAmino()
 		if err != nil {
-			return err
+			return offset, err
 		}
-		if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(repr)); err != nil {
-			return err
-		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 	}
-	return nil
+	return offset, err
 }
 
 func (goo MsgSend) SizeBinary2(cdc *amino.Codec) int {

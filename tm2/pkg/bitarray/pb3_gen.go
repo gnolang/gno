@@ -4,45 +4,33 @@ package bitarray
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 )
 
-var _ io.Writer
 var _ fmt.Stringer
 var _ *amino.Codec
-var _ bytes.Buffer
 var _ = errors.New
 
-func (goo BitArray) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	if goo.Bits != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.Bits)); err != nil {
-			return err
-		}
-	}
+func (goo BitArray) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
 	if len(goo.Elems) != 0 {
 		{
-			var buf bytes.Buffer
-			for _, e := range goo.Elems {
-				if err := amino.EncodeUvarint(&buf, uint64(e)); err != nil {
-					return err
-				}
+			before := offset
+			for i := len(goo.Elems) - 1; i >= 0; i-- {
+				e := goo.Elems[i]
+				offset = amino.PrependUvarint(buf, offset, uint64(e))
 			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		}
 	}
-	return nil
+	if goo.Bits != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.Bits))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+	}
+	return offset, err
 }
 
 func (goo BitArray) SizeBinary2(cdc *amino.Codec) int {

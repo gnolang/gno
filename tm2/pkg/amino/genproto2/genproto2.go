@@ -46,9 +46,7 @@ func (ctx *P3Context2) GenerateProtobuf3ForTypes(pkg string, rtz ...reflect.Type
 
 	// Initialize imports with always-needed packages.
 	ctx.imports = map[string]string{
-		"io":     "io",
 		"fmt":    "fmt",
-		"bytes":  "bytes",
 		"errors": "errors",
 		"amino":  "github.com/gnolang/gno/tm2/pkg/amino",
 	}
@@ -106,10 +104,8 @@ func (ctx *P3Context2) GenerateProtobuf3ForTypes(pkg string, rtz ...reflect.Type
 	sb.WriteString(")\n\n")
 
 	// Suppress unused import warnings.
-	sb.WriteString("var _ io.Writer\n")
 	sb.WriteString("var _ fmt.Stringer\n")
 	sb.WriteString("var _ *amino.Codec\n")
-	sb.WriteString("var _ bytes.Buffer\n")
 	sb.WriteString("var _ = errors.New\n")
 	if _, ok := ctx.imports["time"]; ok {
 		sb.WriteString("var _ time.Time\n")

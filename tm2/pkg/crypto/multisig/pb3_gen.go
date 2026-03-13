@@ -4,47 +4,35 @@ package multisig
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"bytes"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"errors"
 	"fmt"
-	"io"
 )
 
-var _ io.Writer
 var _ fmt.Stringer
 var _ *amino.Codec
-var _ bytes.Buffer
 var _ = errors.New
 
-func (goo PubKeyMultisigThreshold) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	if goo.K != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeUvarint(w, uint64(goo.K)); err != nil {
-			return err
-		}
-	}
-	for _, elem := range goo.PubKeys {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3ByteLength); err != nil {
-			return err
-		}
+func (goo PubKeyMultisigThreshold) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	for i := len(goo.PubKeys) - 1; i >= 0; i-- {
+		elem := goo.PubKeys[i]
 		if elem != nil {
 			anyBz, err := cdc.MarshalAny(elem)
 			if err != nil {
-				return err
+				return offset, err
 			}
-			if err := amino.EncodeByteSlice(w, anyBz); err != nil {
-				return err
-			}
+			offset = amino.PrependByteSlice(buf, offset, anyBz)
 		} else {
-			if err := amino.EncodeByte(w, 0x00); err != nil {
-				return err
-			}
+			offset = amino.PrependByte(buf, offset, 0x00)
 		}
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 	}
-	return nil
+	if goo.K != 0 {
+		offset = amino.PrependUvarint(buf, offset, uint64(goo.K))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+	}
+	return offset, err
 }
 
 func (goo PubKeyMultisigThreshold) SizeBinary2(cdc *amino.Codec) int {

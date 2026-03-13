@@ -632,11 +632,10 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 		}
 	}
 
-	var buf bytes.Buffer
-	if err := msg.MarshalBinary2(cdc, &buf); err != nil {
+	bz2, err := cdc.MarshalBinary2(msg)
+	if err != nil {
 		t.Fatalf("%s: MarshalBinary2: %v", name, err)
 	}
-	bz2 := buf.Bytes()
 
 	// Check SizeBinary2 matches actual marshal length.
 	sizeResult := msg.SizeBinary2(cdc)
@@ -658,7 +657,6 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 		t.Fatalf("%s: UnmarshalBinary2: %v", name, err)
 	}
 
-	var buf2 bytes.Buffer
 	decodedVal := decoded.Elem().Interface()
 	msg2, ok := decodedVal.(amino.PBMessager2)
 	if !ok {
@@ -666,7 +664,8 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 		rv.Elem().Set(reflect.ValueOf(decodedVal))
 		msg2 = rv.Interface().(amino.PBMessager2)
 	}
-	if err := msg2.MarshalBinary2(cdc, &buf2); err != nil {
+	bz2rt, err := cdc.MarshalBinary2(msg2)
+	if err != nil {
 		t.Fatalf("%s: MarshalBinary2 after unmarshal: %v", name, err)
 	}
 
@@ -680,7 +679,7 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 	if err != nil {
 		t.Fatalf("%s: amino MarshalReflect after roundtrip: %v", name, err)
 	}
-	if !bytes.Equal(bzAminoRT, buf2.Bytes()) {
-		t.Errorf("%s: roundtrip bytes mismatch vs amino:\n  amino-rt:    %X\n  genproto2-rt: %X", name, bzAminoRT, buf2.Bytes())
+	if !bytes.Equal(bzAminoRT, bz2rt) {
+		t.Errorf("%s: roundtrip bytes mismatch vs amino:\n  amino-rt:    %X\n  genproto2-rt: %X", name, bzAminoRT, bz2rt)
 	}
 }

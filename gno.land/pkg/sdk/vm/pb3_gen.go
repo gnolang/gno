@@ -4,81 +4,55 @@ package vm
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var _ io.Writer
 var _ fmt.Stringer
 var _ *amino.Codec
-var _ bytes.Buffer
 var _ = errors.New
 
-func (goo MsgCall) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	if goo.Caller != [20]byte{} {
-		repr, err := goo.Caller.MarshalAmino()
-		if err != nil {
-			return err
-		}
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(repr)); err != nil {
-			return err
-		}
+func (goo MsgCall) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	for i := len(goo.Args) - 1; i >= 0; i-- {
+		elem := goo.Args[i]
+		offset = amino.PrependString(buf, offset, string(elem))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3ByteLength)
 	}
-	if len(goo.Send) != 0 {
-		repr, err := goo.Send.MarshalAmino()
-		if err != nil {
-			return err
-		}
-		if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(repr)); err != nil {
-			return err
-		}
+	if goo.Func != "" {
+		offset = amino.PrependString(buf, offset, string(goo.Func))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+	}
+	if goo.PkgPath != "" {
+		offset = amino.PrependString(buf, offset, string(goo.PkgPath))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
 	}
 	if len(goo.MaxDeposit) != 0 {
 		repr, err := goo.MaxDeposit.MarshalAmino()
 		if err != nil {
-			return err
+			return offset, err
 		}
-		if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(repr)); err != nil {
-			return err
-		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 	}
-	if goo.PkgPath != "" {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 4, amino.Typ3ByteLength); err != nil {
-			return err
+	if len(goo.Send) != 0 {
+		repr, err := goo.Send.MarshalAmino()
+		if err != nil {
+			return offset, err
 		}
-		if err := amino.EncodeString(w, string(goo.PkgPath)); err != nil {
-			return err
-		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 	}
-	if goo.Func != "" {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 5, amino.Typ3ByteLength); err != nil {
-			return err
+	if goo.Caller != [20]byte{} {
+		repr, err := goo.Caller.MarshalAmino()
+		if err != nil {
+			return offset, err
 		}
-		if err := amino.EncodeString(w, string(goo.Func)); err != nil {
-			return err
-		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 	}
-	for _, elem := range goo.Args {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 6, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(elem)); err != nil {
-			return err
-		}
-	}
-	return nil
+	return offset, err
 }
 
 func (goo MsgCall) SizeBinary2(cdc *amino.Codec) int {
@@ -216,59 +190,45 @@ func (goo *MsgCall) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo MsgRun) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	if goo.Caller != [20]byte{} {
-		repr, err := goo.Caller.MarshalAmino()
-		if err != nil {
-			return err
-		}
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(repr)); err != nil {
-			return err
-		}
-	}
-	if len(goo.Send) != 0 {
-		repr, err := goo.Send.MarshalAmino()
-		if err != nil {
-			return err
-		}
-		if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(repr)); err != nil {
-			return err
+func (goo MsgRun) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.Package != nil {
+		{
+			before := offset
+			offset, err = (*goo.Package).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
 		}
 	}
 	if len(goo.MaxDeposit) != 0 {
 		repr, err := goo.MaxDeposit.MarshalAmino()
 		if err != nil {
-			return err
+			return offset, err
 		}
-		if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(repr)); err != nil {
-			return err
-		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 	}
-	if goo.Package != nil {
-		{
-			var buf bytes.Buffer
-			if err := (*goo.Package).MarshalBinary2(cdc, &buf); err != nil {
-				return err
-			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 4, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+	if len(goo.Send) != 0 {
+		repr, err := goo.Send.MarshalAmino()
+		if err != nil {
+			return offset, err
 		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 	}
-	return nil
+	if goo.Caller != [20]byte{} {
+		repr, err := goo.Caller.MarshalAmino()
+		if err != nil {
+			return offset, err
+		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+	}
+	return offset, err
 }
 
 func (goo MsgRun) SizeBinary2(cdc *amino.Codec) int {
@@ -373,59 +333,45 @@ func (goo *MsgRun) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo MsgAddPackage) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	if goo.Creator != [20]byte{} {
-		repr, err := goo.Creator.MarshalAmino()
+func (goo MsgAddPackage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if len(goo.MaxDeposit) != 0 {
+		repr, err := goo.MaxDeposit.MarshalAmino()
 		if err != nil {
-			return err
+			return offset, err
 		}
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(repr)); err != nil {
-			return err
-		}
-	}
-	if goo.Package != nil {
-		{
-			var buf bytes.Buffer
-			if err := (*goo.Package).MarshalBinary2(cdc, &buf); err != nil {
-				return err
-			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
 	}
 	if len(goo.Send) != 0 {
 		repr, err := goo.Send.MarshalAmino()
 		if err != nil {
-			return err
+			return offset, err
 		}
-		if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(repr)); err != nil {
-			return err
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+	}
+	if goo.Package != nil {
+		{
+			before := offset
+			offset, err = (*goo.Package).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		}
 	}
-	if len(goo.MaxDeposit) != 0 {
-		repr, err := goo.MaxDeposit.MarshalAmino()
+	if goo.Creator != [20]byte{} {
+		repr, err := goo.Creator.MarshalAmino()
 		if err != nil {
-			return err
+			return offset, err
 		}
-		if err := amino.EncodeFieldNumberAndTyp3(w, 4, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(repr)); err != nil {
-			return err
-		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 	}
-	return nil
+	return offset, err
 }
 
 func (goo MsgAddPackage) SizeBinary2(cdc *amino.Codec) int {
@@ -530,8 +476,9 @@ func (goo *MsgAddPackage) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo InvalidPkgPathError) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	return nil
+func (goo InvalidPkgPathError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
 }
 
 func (goo InvalidPkgPathError) SizeBinary2(cdc *amino.Codec) int {
@@ -563,8 +510,9 @@ func (goo *InvalidPkgPathError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) er
 	return nil
 }
 
-func (goo NoRenderDeclError) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	return nil
+func (goo NoRenderDeclError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
 }
 
 func (goo NoRenderDeclError) SizeBinary2(cdc *amino.Codec) int {
@@ -596,8 +544,9 @@ func (goo *NoRenderDeclError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 	return nil
 }
 
-func (goo PkgExistError) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	return nil
+func (goo PkgExistError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
 }
 
 func (goo PkgExistError) SizeBinary2(cdc *amino.Codec) int {
@@ -629,8 +578,9 @@ func (goo *PkgExistError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo InvalidStmtError) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	return nil
+func (goo InvalidStmtError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
 }
 
 func (goo InvalidStmtError) SizeBinary2(cdc *amino.Codec) int {
@@ -662,8 +612,9 @@ func (goo *InvalidStmtError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 	return nil
 }
 
-func (goo InvalidExprError) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	return nil
+func (goo InvalidExprError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
 }
 
 func (goo InvalidExprError) SizeBinary2(cdc *amino.Codec) int {
@@ -695,16 +646,14 @@ func (goo *InvalidExprError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 	return nil
 }
 
-func (goo TypeCheckError) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	for _, elem := range goo.Errors {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(elem)); err != nil {
-			return err
-		}
+func (goo TypeCheckError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	for i := len(goo.Errors) - 1; i >= 0; i-- {
+		elem := goo.Errors[i]
+		offset = amino.PrependString(buf, offset, string(elem))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 	}
-	return nil
+	return offset, err
 }
 
 func (goo TypeCheckError) SizeBinary2(cdc *amino.Codec) int {
@@ -768,8 +717,9 @@ func (goo *TypeCheckError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo UnauthorizedUserError) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	return nil
+func (goo UnauthorizedUserError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
 }
 
 func (goo UnauthorizedUserError) SizeBinary2(cdc *amino.Codec) int {
@@ -801,8 +751,9 @@ func (goo *UnauthorizedUserError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) 
 	return nil
 }
 
-func (goo InvalidPackageError) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	return nil
+func (goo InvalidPackageError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
 }
 
 func (goo InvalidPackageError) SizeBinary2(cdc *amino.Codec) int {
@@ -834,8 +785,9 @@ func (goo *InvalidPackageError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) er
 	return nil
 }
 
-func (goo InvalidFileError) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	return nil
+func (goo InvalidFileError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
 }
 
 func (goo InvalidFileError) SizeBinary2(cdc *amino.Codec) int {

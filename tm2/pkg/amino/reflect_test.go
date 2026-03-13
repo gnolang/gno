@@ -1,7 +1,6 @@
 package amino_test
 
 import (
-	"bytes"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -191,11 +190,9 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 			if !ok {
 				continue
 			}
-			var buf bytes.Buffer
-			err = pbm2.MarshalBinary2(cdc, &buf)
+			bz2, err := cdc.MarshalBinary2(pbm2)
 			require.NoError(t, err,
 				"MarshalBinary2 failed for %v: %v\n", spw(ptr), err)
-			bz2 := buf.Bytes()
 			require.Equal(t, bz, bz2,
 				"genproto2 bytes mismatch.\nbz(amino): %X\nbz(genproto2): %X\nstart(goo): %v\n",
 				bz, bz2, spw(ptr))
@@ -206,12 +203,11 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 			err = ptr5.(amino.PBMessager2).UnmarshalBinary2(cdc, bz)
 			require.NoError(t, err,
 				"UnmarshalBinary2 failed: %v\nbz: %X\n", err, bz)
-			var buf2 bytes.Buffer
-			err = ptr5.(amino.PBMessager2).MarshalBinary2(cdc, &buf2)
+			bz2rt, err := cdc.MarshalBinary2(ptr5.(amino.PBMessager2))
 			require.NoError(t, err)
-			require.Equal(t, bz, buf2.Bytes(),
+			require.Equal(t, bz, bz2rt,
 				"genproto2 roundtrip bytes mismatch.\nbz(amino): %X\nbz(roundtrip): %X\nstart(goo): %v\nend(goo): %v\n",
-				bz, buf2.Bytes(), spw(ptr), spw(ptr5))
+				bz, bz2rt, spw(ptr), spw(ptr5))
 		}
 	}
 }

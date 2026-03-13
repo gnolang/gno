@@ -4,53 +4,39 @@ package sdk
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 )
 
-var _ io.Writer
 var _ fmt.Stringer
 var _ *amino.Codec
-var _ bytes.Buffer
 var _ = errors.New
 
-func (goo Result) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	{
-		var buf bytes.Buffer
-		if err := goo.ResponseBase.MarshalBinary2(cdc, &buf); err != nil {
-			return err
-		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
-		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
+func (goo Result) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.GasUsed != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.GasUsed))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
 	}
 	if goo.GasWanted != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3Varint); err != nil {
-			return err
+		offset = amino.PrependVarint(buf, offset, int64(goo.GasWanted))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+	}
+	{
+		before := offset
+		offset, err = goo.ResponseBase.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
 		}
-		if err := amino.EncodeVarint(w, int64(goo.GasWanted)); err != nil {
-			return err
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
 		}
 	}
-	if goo.GasUsed != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.GasUsed)); err != nil {
-			return err
-		}
-	}
-	return nil
+	return offset, err
 }
 
 func (goo Result) SizeBinary2(cdc *amino.Codec) int {

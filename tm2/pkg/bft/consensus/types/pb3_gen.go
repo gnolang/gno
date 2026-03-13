@@ -6,277 +6,207 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft_types "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/bitarray"
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"time"
 )
 
-var _ io.Writer
 var _ fmt.Stringer
 var _ *amino.Codec
-var _ bytes.Buffer
 var _ = errors.New
 var _ time.Time
 
-func (goo RoundState) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	if goo.Height != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.Height)); err != nil {
-			return err
-		}
+func (goo RoundState) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.TriggeredTimeoutPrecommit {
+		offset = amino.PrependBool(buf, offset, bool(goo.TriggeredTimeoutPrecommit))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 20, amino.Typ3Varint)
 	}
-	if goo.Round != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.Round)); err != nil {
-			return err
-		}
-	}
-	if goo.Step != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeUvarint(w, uint64(goo.Step)); err != nil {
-			return err
-		}
-	}
-	{
-		var buf bytes.Buffer
-		if err := amino.EncodeTime(&buf, goo.StartTime); err != nil {
-			return err
-		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
-		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 4, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	{
-		var buf bytes.Buffer
-		if err := amino.EncodeTime(&buf, goo.CommitTime); err != nil {
-			return err
-		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
-		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 5, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if goo.Validators != nil {
+	if goo.LastValidators != nil {
 		{
-			var buf bytes.Buffer
-			if err := (*goo.Validators).MarshalBinary2(cdc, &buf); err != nil {
-				return err
+			before := offset
+			offset, err = (*goo.LastValidators).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 6, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if goo.Proposal != nil {
-		{
-			var buf bytes.Buffer
-			if err := (*goo.Proposal).MarshalBinary2(cdc, &buf); err != nil {
-				return err
-			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 7, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if goo.ProposalBlock != nil {
-		{
-			var buf bytes.Buffer
-			if err := (*goo.ProposalBlock).MarshalBinary2(cdc, &buf); err != nil {
-				return err
-			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 8, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if goo.ProposalBlockParts != nil {
-		{
-			var buf bytes.Buffer
-			if err := (*goo.ProposalBlockParts).MarshalBinary2(cdc, &buf); err != nil {
-				return err
-			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 9, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if goo.LockedRound != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 10, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.LockedRound)); err != nil {
-			return err
-		}
-	}
-	if goo.LockedBlock != nil {
-		{
-			var buf bytes.Buffer
-			if err := (*goo.LockedBlock).MarshalBinary2(cdc, &buf); err != nil {
-				return err
-			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 11, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if goo.LockedBlockParts != nil {
-		{
-			var buf bytes.Buffer
-			if err := (*goo.LockedBlockParts).MarshalBinary2(cdc, &buf); err != nil {
-				return err
-			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 12, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if goo.ValidRound != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 13, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.ValidRound)); err != nil {
-			return err
-		}
-	}
-	if goo.ValidBlock != nil {
-		{
-			var buf bytes.Buffer
-			if err := (*goo.ValidBlock).MarshalBinary2(cdc, &buf); err != nil {
-				return err
-			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 14, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if goo.ValidBlockParts != nil {
-		{
-			var buf bytes.Buffer
-			if err := (*goo.ValidBlockParts).MarshalBinary2(cdc, &buf); err != nil {
-				return err
-			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 15, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if goo.Votes != nil {
-		{
-			var buf bytes.Buffer
-			if err := (*goo.Votes).MarshalBinary2(cdc, &buf); err != nil {
-				return err
-			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 16, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if goo.CommitRound != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 17, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.CommitRound)); err != nil {
-			return err
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 19, amino.Typ3ByteLength)
 		}
 	}
 	if goo.LastCommit != nil {
 		{
-			var buf bytes.Buffer
-			if err := (*goo.LastCommit).MarshalBinary2(cdc, &buf); err != nil {
-				return err
+			before := offset
+			offset, err = (*goo.LastCommit).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 18, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 18, amino.Typ3ByteLength)
 		}
 	}
-	if goo.LastValidators != nil {
+	if goo.CommitRound != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.CommitRound))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 17, amino.Typ3Varint)
+	}
+	if goo.Votes != nil {
 		{
-			var buf bytes.Buffer
-			if err := (*goo.LastValidators).MarshalBinary2(cdc, &buf); err != nil {
-				return err
+			before := offset
+			offset, err = (*goo.Votes).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 19, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 16, amino.Typ3ByteLength)
 		}
 	}
-	if goo.TriggeredTimeoutPrecommit {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 20, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeBool(w, bool(goo.TriggeredTimeoutPrecommit)); err != nil {
-			return err
+	if goo.ValidBlockParts != nil {
+		{
+			before := offset
+			offset, err = (*goo.ValidBlockParts).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 15, amino.Typ3ByteLength)
 		}
 	}
-	return nil
+	if goo.ValidBlock != nil {
+		{
+			before := offset
+			offset, err = (*goo.ValidBlock).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 14, amino.Typ3ByteLength)
+		}
+	}
+	if goo.ValidRound != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.ValidRound))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 13, amino.Typ3Varint)
+	}
+	if goo.LockedBlockParts != nil {
+		{
+			before := offset
+			offset, err = (*goo.LockedBlockParts).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 12, amino.Typ3ByteLength)
+		}
+	}
+	if goo.LockedBlock != nil {
+		{
+			before := offset
+			offset, err = (*goo.LockedBlock).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 11, amino.Typ3ByteLength)
+		}
+	}
+	if goo.LockedRound != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.LockedRound))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3Varint)
+	}
+	if goo.ProposalBlockParts != nil {
+		{
+			before := offset
+			offset, err = (*goo.ProposalBlockParts).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 9, amino.Typ3ByteLength)
+		}
+	}
+	if goo.ProposalBlock != nil {
+		{
+			before := offset
+			offset, err = (*goo.ProposalBlock).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 8, amino.Typ3ByteLength)
+		}
+	}
+	if goo.Proposal != nil {
+		{
+			before := offset
+			offset, err = (*goo.Proposal).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3ByteLength)
+		}
+	}
+	if goo.Validators != nil {
+		{
+			before := offset
+			offset, err = (*goo.Validators).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3ByteLength)
+		}
+	}
+	{
+		before := offset
+		offset, err = amino.PrependTime(buf, offset, goo.CommitTime)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	{
+		before := offset
+		offset, err = amino.PrependTime(buf, offset, goo.StartTime)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	if goo.Step != 0 {
+		offset = amino.PrependUvarint(buf, offset, uint64(goo.Step))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
+	}
+	if goo.Round != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.Round))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+	}
+	if goo.Height != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.Height))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+	}
+	return offset, err
 }
 
 func (goo RoundState) SizeBinary2(cdc *amino.Codec) int {
@@ -623,32 +553,21 @@ func (goo *RoundState) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo HRS) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	if goo.Height != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.Height)); err != nil {
-			return err
-		}
+func (goo HRS) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.Step != 0 {
+		offset = amino.PrependUvarint(buf, offset, uint64(goo.Step))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
 	}
 	if goo.Round != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.Round)); err != nil {
-			return err
-		}
+		offset = amino.PrependVarint(buf, offset, int64(goo.Round))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
 	}
-	if goo.Step != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeUvarint(w, uint64(goo.Step)); err != nil {
-			return err
-		}
+	if goo.Height != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.Height))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
 	}
-	return nil
+	return offset, err
 }
 
 func (goo HRS) SizeBinary2(cdc *amino.Codec) int {
@@ -710,72 +629,51 @@ func (goo *HRS) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo RoundStateSimple) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	if goo.HeightRoundStep != "" {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeString(w, string(goo.HeightRoundStep)); err != nil {
-			return err
-		}
-	}
-	{
-		var buf bytes.Buffer
-		if err := amino.EncodeTime(&buf, goo.StartTime); err != nil {
-			return err
-		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
-		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3ByteLength); err != nil {
-				return err
+func (goo RoundStateSimple) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.Votes != nil {
+		{
+			before := offset
+			offset, err = (*goo.Votes).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if len(goo.ProposalBlockHash) != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeByteSlice(w, goo.ProposalBlockHash); err != nil {
-			return err
-		}
-	}
-	if len(goo.LockedBlockHash) != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 4, amino.Typ3ByteLength); err != nil {
-			return err
-		}
-		if err := amino.EncodeByteSlice(w, goo.LockedBlockHash); err != nil {
-			return err
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3ByteLength)
 		}
 	}
 	if len(goo.ValidBlockHash) != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 5, amino.Typ3ByteLength); err != nil {
-			return err
+		offset = amino.PrependByteSlice(buf, offset, goo.ValidBlockHash)
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+	}
+	if len(goo.LockedBlockHash) != 0 {
+		offset = amino.PrependByteSlice(buf, offset, goo.LockedBlockHash)
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+	}
+	if len(goo.ProposalBlockHash) != 0 {
+		offset = amino.PrependByteSlice(buf, offset, goo.ProposalBlockHash)
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+	}
+	{
+		before := offset
+		offset, err = amino.PrependTime(buf, offset, goo.StartTime)
+		if err != nil {
+			return offset, err
 		}
-		if err := amino.EncodeByteSlice(w, goo.ValidBlockHash); err != nil {
-			return err
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		} else {
+			offset = before
 		}
 	}
-	if goo.Votes != nil {
-		{
-			var buf bytes.Buffer
-			if err := (*goo.Votes).MarshalBinary2(cdc, &buf); err != nil {
-				return err
-			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 6, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
+	if goo.HeightRoundStep != "" {
+		offset = amino.PrependString(buf, offset, string(goo.HeightRoundStep))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 	}
-	return nil
+	return offset, err
 }
 
 func (goo RoundStateSimple) SizeBinary2(cdc *amino.Codec) int {
@@ -896,188 +794,137 @@ func (goo *RoundStateSimple) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 	return nil
 }
 
-func (goo PeerRoundState) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	if goo.Height != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.Height)); err != nil {
-			return err
-		}
-	}
-	if goo.Round != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.Round)); err != nil {
-			return err
-		}
-	}
-	if goo.Step != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeUvarint(w, uint64(goo.Step)); err != nil {
-			return err
-		}
-	}
-	{
-		var buf bytes.Buffer
-		if err := amino.EncodeTime(&buf, goo.StartTime); err != nil {
-			return err
-		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
-		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 4, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if goo.Proposal {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 5, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeBool(w, bool(goo.Proposal)); err != nil {
-			return err
-		}
-	}
-	{
-		var buf bytes.Buffer
-		if err := goo.ProposalBlockPartsHeader.MarshalBinary2(cdc, &buf); err != nil {
-			return err
-		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
-		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 6, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	if goo.ProposalBlockParts != nil {
+func (goo PeerRoundState) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.CatchupCommit != nil {
 		{
-			var buf bytes.Buffer
-			if err := (*goo.ProposalBlockParts).MarshalBinary2(cdc, &buf); err != nil {
-				return err
+			before := offset
+			offset, err = (*goo.CatchupCommit).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 7, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 15, amino.Typ3ByteLength)
 		}
 	}
-	if goo.ProposalPOLRound != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 8, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.ProposalPOLRound)); err != nil {
-			return err
-		}
+	if goo.CatchupCommitRound != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.CatchupCommitRound))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 14, amino.Typ3Varint)
 	}
-	if goo.ProposalPOL != nil {
+	if goo.LastCommit != nil {
 		{
-			var buf bytes.Buffer
-			if err := (*goo.ProposalPOL).MarshalBinary2(cdc, &buf); err != nil {
-				return err
+			before := offset
+			offset, err = (*goo.LastCommit).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 9, amino.Typ3ByteLength); err != nil {
-				return err
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 13, amino.Typ3ByteLength)
+		}
+	}
+	if goo.LastCommitRound != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.LastCommitRound))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 12, amino.Typ3Varint)
+	}
+	if goo.Precommits != nil {
+		{
+			before := offset
+			offset, err = (*goo.Precommits).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 11, amino.Typ3ByteLength)
 		}
 	}
 	if goo.Prevotes != nil {
 		{
-			var buf bytes.Buffer
-			if err := (*goo.Prevotes).MarshalBinary2(cdc, &buf); err != nil {
-				return err
+			before := offset
+			offset, err = (*goo.Prevotes).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 10, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3ByteLength)
 		}
 	}
-	if goo.Precommits != nil {
+	if goo.ProposalPOL != nil {
 		{
-			var buf bytes.Buffer
-			if err := (*goo.Precommits).MarshalBinary2(cdc, &buf); err != nil {
-				return err
+			before := offset
+			offset, err = (*goo.ProposalPOL).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 11, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 9, amino.Typ3ByteLength)
 		}
 	}
-	if goo.LastCommitRound != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 12, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.LastCommitRound)); err != nil {
-			return err
-		}
+	if goo.ProposalPOLRound != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.ProposalPOLRound))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 8, amino.Typ3Varint)
 	}
-	if goo.LastCommit != nil {
+	if goo.ProposalBlockParts != nil {
 		{
-			var buf bytes.Buffer
-			if err := (*goo.LastCommit).MarshalBinary2(cdc, &buf); err != nil {
-				return err
+			before := offset
+			offset, err = (*goo.ProposalBlockParts).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 13, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3ByteLength)
 		}
 	}
-	if goo.CatchupCommitRound != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 14, amino.Typ3Varint); err != nil {
-			return err
+	{
+		before := offset
+		offset, err = goo.ProposalBlockPartsHeader.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
 		}
-		if err := amino.EncodeVarint(w, int64(goo.CatchupCommitRound)); err != nil {
-			return err
-		}
-	}
-	if goo.CatchupCommit != nil {
-		{
-			var buf bytes.Buffer
-			if err := (*goo.CatchupCommit).MarshalBinary2(cdc, &buf); err != nil {
-				return err
-			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 15, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3ByteLength)
+		} else {
+			offset = before
 		}
 	}
-	return nil
+	if goo.Proposal {
+		offset = amino.PrependBool(buf, offset, bool(goo.Proposal))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3Varint)
+	}
+	{
+		before := offset
+		offset, err = amino.PrependTime(buf, offset, goo.StartTime)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	if goo.Step != 0 {
+		offset = amino.PrependUvarint(buf, offset, uint64(goo.Step))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
+	}
+	if goo.Round != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.Round))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+	}
+	if goo.Height != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.Height))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+	}
+	return offset, err
 }
 
 func (goo PeerRoundState) SizeBinary2(cdc *amino.Codec) int {
@@ -1326,8 +1173,9 @@ func (goo *PeerRoundState) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo HeightVoteSet) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	return nil
+func (goo HeightVoteSet) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
 }
 
 func (goo HeightVoteSet) SizeBinary2(cdc *amino.Codec) int {
@@ -1359,41 +1207,31 @@ func (goo *HeightVoteSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo EventNewRoundStep) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	{
-		var buf bytes.Buffer
-		if err := goo.HRS.MarshalBinary2(cdc, &buf); err != nil {
-			return err
-		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
-		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
+func (goo EventNewRoundStep) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.LastCommitRound != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.LastCommitRound))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
 	}
 	if goo.SecondsSinceStartTime != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3Varint); err != nil {
-			return err
+		offset = amino.PrependVarint(buf, offset, int64(goo.SecondsSinceStartTime))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+	}
+	{
+		before := offset
+		offset, err = goo.HRS.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
 		}
-		if err := amino.EncodeVarint(w, int64(goo.SecondsSinceStartTime)); err != nil {
-			return err
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
 		}
 	}
-	if goo.LastCommitRound != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3Varint); err != nil {
-			return err
-		}
-		if err := amino.EncodeVarint(w, int64(goo.LastCommitRound)); err != nil {
-			return err
-		}
-	}
-	return nil
+	return offset, err
 }
 
 func (goo EventNewRoundStep) SizeBinary2(cdc *amino.Codec) int {
@@ -1460,65 +1298,53 @@ func (goo *EventNewRoundStep) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 	return nil
 }
 
-func (goo EventNewValidBlock) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	{
-		var buf bytes.Buffer
-		if err := goo.HRS.MarshalBinary2(cdc, &buf); err != nil {
-			return err
-		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
-		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	{
-		var buf bytes.Buffer
-		if err := goo.BlockPartsHeader.MarshalBinary2(cdc, &buf); err != nil {
-			return err
-		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
-		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
+func (goo EventNewValidBlock) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.IsCommit {
+		offset = amino.PrependBool(buf, offset, bool(goo.IsCommit))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3Varint)
 	}
 	if goo.BlockParts != nil {
 		{
-			var buf bytes.Buffer
-			if err := (*goo.BlockParts).MarshalBinary2(cdc, &buf); err != nil {
-				return err
+			before := offset
+			offset, err = (*goo.BlockParts).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
 			}
-			bz := buf.Bytes()
-			if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 		}
 	}
-	if goo.IsCommit {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 4, amino.Typ3Varint); err != nil {
-			return err
+	{
+		before := offset
+		offset, err = goo.BlockPartsHeader.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
 		}
-		if err := amino.EncodeBool(w, bool(goo.IsCommit)); err != nil {
-			return err
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		} else {
+			offset = before
 		}
 	}
-	return nil
+	{
+		before := offset
+		offset, err = goo.HRS.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
 }
 
 func (goo EventNewValidBlock) SizeBinary2(cdc *amino.Codec) int {
@@ -1609,50 +1435,41 @@ func (goo *EventNewValidBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 	return nil
 }
 
-func (goo EventNewRound) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
-	{
-		var buf bytes.Buffer
-		if err := goo.HRS.MarshalBinary2(cdc, &buf); err != nil {
-			return err
-		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
-		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
-	{
-		var buf bytes.Buffer
-		if err := goo.Proposer.MarshalBinary2(cdc, &buf); err != nil {
-			return err
-		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
-		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
-		}
-	}
+func (goo EventNewRound) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
 	if goo.ProposerIndex != 0 {
-		if err := amino.EncodeFieldNumberAndTyp3(w, 3, amino.Typ3Varint); err != nil {
-			return err
+		offset = amino.PrependVarint(buf, offset, int64(goo.ProposerIndex))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
+	}
+	{
+		before := offset
+		offset, err = goo.Proposer.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
 		}
-		if err := amino.EncodeVarint(w, int64(goo.ProposerIndex)); err != nil {
-			return err
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		} else {
+			offset = before
 		}
 	}
-	return nil
+	{
+		before := offset
+		offset, err = goo.HRS.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
 }
 
 func (goo EventNewRound) SizeBinary2(cdc *amino.Codec) int {
@@ -1724,42 +1541,37 @@ func (goo *EventNewRound) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
-func (goo EventCompleteProposal) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
+func (goo EventCompleteProposal) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
 	{
-		var buf bytes.Buffer
-		if err := goo.HRS.MarshalBinary2(cdc, &buf); err != nil {
-			return err
+		before := offset
+		offset, err = goo.BlockID.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
 		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			offset = before
 		}
 	}
 	{
-		var buf bytes.Buffer
-		if err := goo.BlockID.MarshalBinary2(cdc, &buf); err != nil {
-			return err
+		before := offset
+		offset, err = goo.HRS.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
 		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 2, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			offset = before
 		}
 	}
-	return nil
+	return offset, err
 }
 
 func (goo EventCompleteProposal) SizeBinary2(cdc *amino.Codec) int {
@@ -1821,25 +1633,23 @@ func (goo *EventCompleteProposal) UnmarshalBinary2(cdc *amino.Codec, bz []byte) 
 	return nil
 }
 
-func (goo EventTimeoutPropose) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
+func (goo EventTimeoutPropose) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
 	{
-		var buf bytes.Buffer
-		if err := goo.HRS.MarshalBinary2(cdc, &buf); err != nil {
-			return err
+		before := offset
+		offset, err = goo.HRS.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
 		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			offset = before
 		}
 	}
-	return nil
+	return offset, err
 }
 
 func (goo EventTimeoutPropose) SizeBinary2(cdc *amino.Codec) int {
@@ -1886,25 +1696,23 @@ func (goo *EventTimeoutPropose) UnmarshalBinary2(cdc *amino.Codec, bz []byte) er
 	return nil
 }
 
-func (goo EventTimeoutWait) MarshalBinary2(cdc *amino.Codec, w io.Writer) error {
+func (goo EventTimeoutWait) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
 	{
-		var buf bytes.Buffer
-		if err := goo.HRS.MarshalBinary2(cdc, &buf); err != nil {
-			return err
+		before := offset
+		offset, err = goo.HRS.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
 		}
-		bz := buf.Bytes()
-		if len(bz) == 0 || (len(bz) == 1 && bz[0] == 0x00) {
-			// skip empty
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
-			if err := amino.EncodeFieldNumberAndTyp3(w, 1, amino.Typ3ByteLength); err != nil {
-				return err
-			}
-			if err := amino.EncodeByteSlice(w, bz); err != nil {
-				return err
-			}
+			offset = before
 		}
 	}
-	return nil
+	return offset, err
 }
 
 func (goo EventTimeoutWait) SizeBinary2(cdc *amino.Codec) int {
