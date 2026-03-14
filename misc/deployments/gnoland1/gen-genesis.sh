@@ -438,35 +438,43 @@ else
   exit 1
 fi
 
-printf "  Adding deployer balances to genesis...\n"
-run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_DEPLOYER_BALANCES" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
+# ---- 5. Add the initial validator set to the genesis file
+# (Done before balances — gnogenesis is O(filesize) per call, so adding
+# validators while the file is still small saves ~6 minutes.)
 
-# ---- 5. Download and add the airdrop balances
-
-printf "\n=== Step 5/7: Downloading airdrop balances ===\n"
-
-AIRDROP_BALANCES_GZ="$WORK_DIR/airdrop_balances.txt.gz"
-AIRDROP_BALANCES_TXT="$WORK_DIR/airdrop_balances.txt"
-
-printf "  Downloading...\n"
-run curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
-gzip -dc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
-
-airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
-# TODO: We need to verify if there is a colision between deployer and airdrop addresses.
-# See: https://github.com/gnolang/gno/pull/5250/changes#discussion_r2925485031
-printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
-run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
-
-# ---- 6. Add the initial validator set to the genesis file
-
-printf "\n=== Step 6/7: Adding validators ===\n"
+printf "\n=== Step 5/7: Adding validators ===\n"
 
 for validator in "${INITIAL_VALSET[@]}"; do
   read -r name power address pub_key <<<"$validator"
   printf "  %s (power=%s, %s)\n" "$name" "$power" "$address"
   run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
 done
+
+# ---- 6. Add balances (deployer + airdrop)
+# These are added last since they bloat the genesis file and make
+# subsequent gnogenesis calls slow.
+
+printf "\n=== Step 6/7: Adding balances ===\n"
+
+printf "  Adding deployer balances to genesis...\n"
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_DEPLOYER_BALANCES" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
+
+AIRDROP_BALANCES_GZ="$SCRIPT_DIR/airdrop_balances.txt.gz"
+AIRDROP_BALANCES_TXT="$WORK_DIR/airdrop_balances.txt"
+
+if [ -f "$AIRDROP_BALANCES_GZ" ]; then
+  printf "  Using cached airdrop balances\n"
+else
+  printf "  Downloading airdrop balances...\n"
+  run curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
+fi
+gzip -dkc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
+
+airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
+# TODO: We need to verify if there is a colision between deployer and airdrop addresses.
+# See: https://github.com/gnolang/gno/pull/5250/changes#discussion_r2925485031
+printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 
 # ---- 7. Verify the generated genesis file
 
