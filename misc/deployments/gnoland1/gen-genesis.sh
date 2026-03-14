@@ -28,9 +28,6 @@ FILTERED_PACKAGES=(
 # More validators can be added post-genesis via govDAO proposals (see govdao-scripts/add-validator.sh).
 # 7 validators — BFT >2/3 threshold (floor(2n/3)+1) means 5 nodes must be up for consensus.
 INITIAL_VALSET=(
-  "gnocore-val-01 1 g1vta7dwp4guuhkfzksenfcheky4xf9hue8mgne4 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpu5muc9ksphk3cayrduhathd2rw4talmtedpef3a44c2qfzzqalgl4c55y"
-  "gnocore-val-02 1 g1d5hh9fw3l00gugfzafskaxqlmsyvxfaj6l2q60 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpnj5vt2vkv94exe6cmdgqgtxmyfkvlhztnl0kj4xv97uz2t0muwe9mka0q"
-  "gnocore-val-03 1 g16wh3t370fctrukvvdslsz9uc76tfpy0ggrm5hr gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp0768mk3fg7dkprgkl5twxzhn2hlef27mzt46qea8z4qv0ltwstuy9qk62"
   "moul-val-01 1 g1uhv7wr7nku89se3t7v8fpquc7n5sf8rfkywxpc gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqavtgten8l8k4f72j8klpu4l7tk2qw4kl8394krsaysmz2q0765ynvjag0"
   "aeddi-val-01 1 g10jdd8vlgydfypynrk23ul90jnsg5twrtvmcmh4 gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqve8jffvhy97sfc5gyvag09h8g9g3d9e4cta7s7m6vcmzug84kjywg7fn2y"
   "berty-val-01 1 g1eueypc9w524ctda3y0kwd4jruw5p4zqpjna0jq gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqsdatvn76ru9pck7zrt7zc33y8p2kweaujx82utgmtwljypuz9p8uctk3m"
@@ -39,7 +36,7 @@ INITIAL_VALSET=(
 
 # Chain parameters.
 CHAIN_ID=gnoland1
-GENESIS_TIME=1773495000 # Saturday, March 14th 2026 14:30 GMT+0100 (CET)
+GENESIS_TIME=1773487200 # Saturday, March 14th 2026 12:20 GMT+0100 (CET)
 
 # Airdrop balances (independence-day snapshot).
 BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/9dec38a4a72c9e84db7e78ae010370de250f2d64/mkgenesis/balances.txt.gz"
