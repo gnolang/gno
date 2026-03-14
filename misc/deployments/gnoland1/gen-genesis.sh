@@ -26,7 +26,7 @@ FILTERED_PACKAGES=(
 
 # Initial validator set. Format: "name power address pub_key"
 # More validators can be added post-genesis via govDAO proposals (see govdao-scripts/add-validator.sh).
-# 7 validators — BFT >2/3 threshold (floor(2n/3)+1) means 5 nodes must be up for consensus.
+# 4 validators — BFT >2/3 threshold (floor(2n/3)+1) means 3 nodes must be up for consensus.
 INITIAL_VALSET=(
   "moul-val-01 1 g1uhv7wr7nku89se3t7v8fpquc7n5sf8rfkywxpc gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqavtgten8l8k4f72j8klpu4l7tk2qw4kl8394krsaysmz2q0765ynvjag0"
   "aeddi-val-01 1 g10jdd8vlgydfypynrk23ul90jnsg5twrtvmcmh4 gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqve8jffvhy97sfc5gyvag09h8g9g3d9e4cta7s7m6vcmzug84kjywg7fn2y"
