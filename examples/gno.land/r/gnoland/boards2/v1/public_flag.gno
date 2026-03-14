@@ -90,7 +90,7 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 			thread.Hidden = true
 
 			// Keep track of hidden the thread to be able to restore it after moderation disputes
-			meta := board.Meta.(*Meta)
+			meta := board.Meta.(*BoardMeta)
 			meta.HiddenThreads.Add(thread)
 		}
 

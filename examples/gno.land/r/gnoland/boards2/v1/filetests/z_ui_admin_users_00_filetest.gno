@@ -15,4 +15,4 @@ func main() {
 // | Member | Role | Actions |
 // | --- | --- | --- |
 // | [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) | owner | [remove](/r/gnoland/boards2/v1$help&func=RemoveMember&boardID=0&member=g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) • [change role](/r/gnoland/boards2/v1$help&func=ChangeMemberRole&boardID=0&member=g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq&role=) |
-// | [g1manfred47kzduec920z88wfr64ylksmdcedlf5](/u/g1manfred47kzduec920z88wfr64ylksmdcedlf5) | owner | [remove](/r/gnoland/boards2/v1$help&func=RemoveMember&boardID=0&member=g1manfred47kzduec920z88wfr64ylksmdcedlf5) • [change role](/r/gnoland/boards2/v1$help&func=ChangeMemberRole&boardID=0&member=g1manfred47kzduec920z88wfr64ylksmdcedlf5&role=) |
+// | [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) | owner | [remove](/r/gnoland/boards2/v1$help&func=RemoveMember&boardID=0&member=g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) • [change role](/r/gnoland/boards2/v1$help&func=ChangeMemberRole&boardID=0&member=g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh&role=) |
