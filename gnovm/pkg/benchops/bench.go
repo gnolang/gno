@@ -121,9 +121,10 @@ func StartNative(nativeCode byte) byte {
 	if nativeCode == invalidCode {
 		panic("the NativeCode is invalid")
 	}
-	runtime.GC()
 	old := measure.curOpCode
-	now := finalizeCurrent()
+	finalizeCurrent() // finalize previous op BEFORE GC
+	runtime.GC()
+	now := time.Now() // fresh timestamp after GC
 	measure.curOpCode = invalidCode
 	measure.nativeCounts[nativeCode]++
 	measure.curStart = now
