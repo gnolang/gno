@@ -2,7 +2,7 @@
 package main
 
 func main() {
-	alloc(12499894) // 12499894 is the threshold to reach the allocation limit
+	alloc(12499872) // 12499872 is the threshold to reach the allocation limit
 }
 
 func alloc(n int) {

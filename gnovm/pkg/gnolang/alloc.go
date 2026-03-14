@@ -21,59 +21,111 @@ type Allocator struct {
 // for gonative, which doesn't consider the allocator.
 var nilAllocator = (*Allocator)(nil)
 
+// Allocation size constants for gas metering.
+//
+// Raw sizes (_alloc*) are unsafe.Sizeof for each GnoVM value type.
+// These must be updated when struct fields change.
+// Run `go run misc/devtools/checksize.go` to verify.
+//
+// Composite sizes (alloc*) represent total heap cost:
+//
+//	_allocHeap: Go runtime per-object overhead (conservative).
+//
+//	By-pointer types (*StructValue, *FuncValue, etc.) implement
+//	Value with pointer receivers. Creating one heap-allocates the
+//	struct. Cost: _allocHeap + sizeof.
+//
+//	By-value types (PointerValue, RefValue, etc.) implement Value
+//	with value receivers. Storing in TypedValue.V (an interface)
+//	escapes them to heap. Cost: _allocHeap + sizeof.
+//
+//	BigintValue/BigdecValue are pointer-sized (8 bytes) and don't
+//	escape, but their internal *big.Int/*apd.Decimal are heap-
+//	allocated. _allocBigint/_allocBigdec estimate that cost.
+//
+//	Variable-size components (string bytes, slice items, struct
+//	fields, map items) are counted separately per element.
 const (
-	// go elemental
-	_allocBase    = 24 // defensive... XXX
-	_allocPointer = 8
-	// gno types
-	_allocSlice            = 24
-	_allocPointerValue     = 40
-	_allocStructValue      = 152
-	_allocArrayValue       = 176
-	_allocSliceValue       = 40
-	_allocFuncValue        = 312
-	_allocMapValue         = 144
-	_allocBoundMethodValue = 176
-	_allocBlock            = 472
-	_allocPackageValue     = 240
-	_allocTypeValue        = 16
-	_allocTypedValue       = 40
-	_allocRefValue         = 72
-	_allocRefNode          = 88
-	_allocBigint           = 200 // XXX
-	_allocBigdec           = 200 // XXX
-	_allocType             = 200 // XXX
-	_allocAny              = 200 // XXX
-	_allocValue            = 16  // interface
-	_allocName             = 16  // string
+	_allocHeap = 32 // Go heap allocation overhead (conservative)
+
+	// By-value types (value receivers on Value interface).
+	// Escape to heap when stored in TypedValue.V.
+	_allocPointerValue = 32 // unsafe.Sizeof(PointerValue{})
+	_allocRefValue     = 80 // unsafe.Sizeof(RefValue{})
+	_allocTypeValue    = 16 // unsafe.Sizeof(TypeValue{})
+	_allocTypedValue   = 40 // unsafe.Sizeof(TypedValue{})
+
+	// By-pointer types (pointer receivers on Value interface).
+	// Heap-allocated; *T stored in TypedValue.V.
+	_allocStructValue      = 176 // unsafe.Sizeof(StructValue{})
+	_allocArrayValue       = 200 // unsafe.Sizeof(ArrayValue{})
+	_allocSliceValue       = 40  // unsafe.Sizeof(SliceValue{})
+	_allocFuncValue        = 352 // unsafe.Sizeof(FuncValue{})
+	_allocMapValue         = 168 // unsafe.Sizeof(MapValue{})
+	_allocBoundMethodValue = 200 // unsafe.Sizeof(BoundMethodValue{})
+	_allocBlock            = 528 // unsafe.Sizeof(Block{})
+	_allocPackageValue     = 272 // unsafe.Sizeof(PackageValue{})
+	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
+	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{}) -- TODO verify
+
+	// Estimated heap sizes for pointed-to objects.
+	// BigintValue and BigdecValue are just 8-byte pointers;
+	// these estimate the *big.Int / *apd.Decimal internals.
+	_allocBigint = 200 // estimated: big.Int + typical nat slice
+	_allocBigdec = 200 // estimated: apd.Decimal + internals
+	_allocType   = 200 // estimated: average Type implementation
+	_allocAny    = 200 // estimated: generic fallback
+
+	// Go primitives.
+	_allocSlice = 24 // Go slice header (ptr + len + cap)
+	_allocValue = 16 // Go interface (type ptr + data ptr)
+	_allocName  = 16 // Go string header (ptr + len)
 )
 
 const (
-	allocString      = _allocBase
-	allocStringByte  = 1
-	allocBigint      = _allocBase + _allocPointer + _allocBigint
-	allocBigintByte  = 1
-	allocBigdec      = _allocBase + _allocPointer + _allocBigdec
-	allocBigdecByte  = 1
-	allocPointer     = _allocBase
-	allocArray       = _allocBase + _allocPointer + _allocArrayValue
+	// StringValue is a Go string (16 bytes, by value).
+	// Bytes are counted separately via allocStringByte.
+	allocString     = _allocHeap + 16
+	allocStringByte = 1
+
+	// BigintValue (8 bytes, fits in interface word, no escape).
+	// Cost is the internal *big.Int heap object.
+	allocBigint     = _allocHeap + _allocBigint
+	allocBigintByte = 1
+
+	// BigdecValue (8 bytes, fits in interface word, no escape).
+	// Cost is the internal *apd.Decimal heap object.
+	allocBigdec     = _allocHeap + _allocBigdec
+	allocBigdecByte = 1
+
+	// PointerValue (32 bytes, by value, escapes to heap via interface).
+	allocPointer = _allocHeap + _allocPointerValue
+
+	// By-pointer types: _allocHeap + sizeof.
+	allocArray       = _allocHeap + _allocArrayValue
 	allocArrayItem   = _allocTypedValue
-	allocSlice       = _allocBase + _allocPointer + _allocSliceValue
-	allocStruct      = _allocBase + _allocPointer + _allocStructValue
+	allocSlice       = _allocHeap + _allocSliceValue
+	allocStruct      = _allocHeap + _allocStructValue
 	allocStructField = _allocTypedValue
-	allocFunc        = _allocBase + _allocPointer + _allocFuncValue
-	allocMap         = _allocBase + _allocPointer + _allocMapValue
-	allocMapItem     = _allocTypedValue * 3 // XXX
-	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
-	allocBlock       = _allocBase + _allocPointer + _allocBlock
+	allocFunc        = _allocHeap + _allocFuncValue
+	allocMap         = _allocHeap + _allocMapValue
+	allocMapItem     = _allocTypedValue * 2 // key + value TypedValues
+	allocBoundMethod = _allocHeap + _allocBoundMethodValue
+	allocBlock       = _allocHeap + _allocBlock
 	allocBlockItem   = _allocTypedValue
-	allocRefValue    = _allocBase + _allocRefValue
-	allocRefNode     = _allocBase + _allocRefNode
-	allocType        = _allocBase + _allocPointer + _allocType
-	allocDataByte    = 1
-	allocPackage     = _allocBase + _allocPointer + _allocPackageValue
-	allocHeapItem    = _allocBase + _allocPointer + _allocTypedValue
-	allocTypedValue  = _allocTypedValue
+	allocHeapItem    = _allocHeap + _allocHeapItemValue
+	allocPackage     = _allocHeap + _allocPackageValue
+
+	// RefValue (80 bytes, by value, escapes to heap via interface).
+	allocRefValue = _allocHeap + _allocRefValue
+	// RefNode (88 bytes, by value).
+	allocRefNode = _allocHeap + _allocRefNode
+
+	// Type is an interface; implementations vary.
+	allocType = _allocHeap + _allocType
+
+	allocDataByte   = 1
+	allocTypedValue = _allocTypedValue
 )
 
 const GasCostPerByte = 1 // gas cost per byte allocated
