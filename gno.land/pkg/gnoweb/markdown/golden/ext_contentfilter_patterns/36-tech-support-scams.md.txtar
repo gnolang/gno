@@ -1,0 +1,7 @@
+-- input.md --
+Microsoft support critical alert warning detected call now.
+
+Getting help with common software issues.
+-- output.html --
+<p>[tech support scam]</p>
+<p>Getting help with common software issues.</p>
