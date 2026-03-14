@@ -18,20 +18,21 @@ type codeStats struct {
 	avgTime    int64
 	avgSize    int64
 	timeStdDev int64
-	count      int
+	count      int64
 }
 
 type codeRecord struct {
-	codeName string
-	elapsed  uint32
-	size     uint32
+	codeName  string
+	totalTime uint32
+	totalSize uint32
+	count     uint32
 }
 
-// It reads binary record, calcuate and output the statistics of operations
+// It reads binary records, calculates and outputs the statistics of operations
 func stats(binFile string) {
 	in, err := os.Open(binFile)
 	if err != nil {
-		panic("could not create benchmark file: " + err.Error())
+		panic("could not open benchmark file: " + err.Error())
 	}
 	defer in.Close()
 
@@ -60,30 +61,31 @@ func stats(binFile string) {
 					panic(fmt.Sprintf("invalid record type: %d", record[0]))
 				}
 
-				elapsedTime := binary.LittleEndian.Uint32(record[2:])
-				size := binary.LittleEndian.Uint32(record[6:])
-				outputCh <- codeRecord{opName, elapsedTime, size}
+				totalTime := binary.LittleEndian.Uint32(record[2:])
+				totalSize := binary.LittleEndian.Uint32(record[6:])
+				count := binary.LittleEndian.Uint32(record[10:])
+				outputCh <- codeRecord{opName, totalTime, totalSize, count}
 			}
 			wg.Done()
 		}()
 	}
 
 	crs := []codeRecord{}
-	// out put
+	// output
 	go func() {
 		out, err := os.Create(*outFlag)
 		if err != nil {
 			panic("could not create readable output file: " + err.Error())
 		}
 		defer out.Close()
-		fmt.Fprintln(out, "op,elapsedTime,diskIOBytes")
+		fmt.Fprintln(out, "op,totalTime,totalSize,count")
 
 		for {
 			output, ok := <-outputCh
 			if !ok {
 				break
 			}
-			csv := output.codeName + "," + fmt.Sprint(output.elapsed) + "," + fmt.Sprint(output.size)
+			csv := output.codeName + "," + fmt.Sprint(output.totalTime) + "," + fmt.Sprint(output.totalSize) + "," + fmt.Sprint(output.count)
 			fmt.Fprintln(out, csv)
 			crs = append(crs, output)
 		}
@@ -160,34 +162,44 @@ func addSuffix(filename string) string {
 	// Find the position of the last dot
 	dotPos := strings.LastIndex(filename, ".")
 	if dotPos == -1 {
-		// No dot found, return the original filename with '_status' appended
+		// No dot found, return the original filename with '_stats' appended
 		return filename + "_stats"
 	}
-	// Insert '_status' before the last suffix
+	// Insert '_stats' before the last suffix
 	return filename[:dotPos] + "_stats" + filename[dotPos:]
 }
 
-// calcuate the average and standard deviation in  time of a code name
-
+// calculate computes weighted average and standard deviation across runs.
+// Each record contains totals and count from a single Machine.Run().
 func calculate(codeName string, crs []codeRecord) codeStats {
-	// Calculate average
+	if len(crs) == 0 {
+		return codeStats{codeName: codeName}
+	}
+
+	// Weighted average: sum(totalTime) / sum(count)
 	var sumTime int64
 	var sumSize int64
+	var sumCount int64
 	for _, cr := range crs {
-		t := cr.elapsed
-		s := cr.size
-		sumTime += int64(t)
-		sumSize += int64(s)
+		sumTime += int64(cr.totalTime)
+		sumSize += int64(cr.totalSize)
+		sumCount += int64(cr.count)
 	}
-	avgTime := float64(sumTime) / float64(len(crs))
-	avgSize := float64(sumSize) / float64(len(crs))
+	avgTime := float64(sumTime) / float64(sumCount)
+	avgSize := float64(sumSize) / float64(sumCount)
 
-	// Calculate standard deviation of duration in time
+	// Stddev of per-run averages (run-to-run variance)
 	var varianceSum float64
 	for _, cr := range crs {
-		varianceSum += math.Pow(float64(cr.elapsed)-avgTime, 2)
+		if cr.count == 0 {
+			continue
+		}
+		runAvg := float64(cr.totalTime) / float64(cr.count)
+		d := runAvg - avgTime
+		varianceSum += d * d
 	}
 	variance := varianceSum / float64(len(crs))
 	stdDev := math.Sqrt(variance)
-	return codeStats{codeName, int64(avgTime), int64(avgSize), int64(stdDev), len(crs)}
+
+	return codeStats{codeName, int64(avgTime), int64(avgSize), int64(stdDev), sumCount}
 }

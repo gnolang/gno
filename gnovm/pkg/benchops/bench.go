@@ -12,160 +12,130 @@ const (
 var measure bench
 
 type bench struct {
-	opCounts        [256]int64
-	opAccumDur      [256]time.Duration
-	opStartTime     [256]time.Time
-	isOpCodeStarted bool
-	curOpCode       byte
-	timeZero        time.Time
+	// Opcode timing: single timeline, always one op active.
+	opCounts   [256]int64
+	opAccumDur [256]time.Duration
+	curOpCode  byte
+	curStart   time.Time
+	timeZero   time.Time
 
-	storeCounts         [256]int64
-	storeAccumDur       [256]time.Duration
-	storeAccumSize      [256]int64
-	storeStartTime      [256]time.Time
-	storeRecursionDepth [256]int
-	curStoreCode        byte
+	// Store timing: own accumulators, uses SwitchOpCode for handoff.
+	storeCounts    [256]int64
+	storeAccumDur  [256]time.Duration
+	storeAccumSize [256]int64
 
-	nativeCounts    [256]int64
-	nativeAccumDur  [256]time.Duration
-	nativeStartTime [256]time.Time
-	isNativeStarted bool
-	curNativeCode   byte
+	// Native timing.
+	nativeCounts   [256]int64
+	nativeAccumDur [256]time.Duration
 }
 
 func InitMeasure() {
 	measure = bench{
-		// this will be called to reset each benchmarking
-		isOpCodeStarted: false,
-		curOpCode:       invalidCode,
-		curStoreCode:    invalidCode,
-		curNativeCode:   invalidCode,
+		curOpCode: invalidCode,
 	}
 }
 
-func StartOpCode(code byte) {
+// finalizeCurrent attributes elapsed time since curStart to
+// curOpCode and returns the snapshot time.
+func finalizeCurrent() time.Time {
+	now := time.Now()
+	if measure.curOpCode != invalidCode && measure.curStart != measure.timeZero {
+		measure.opAccumDur[measure.curOpCode] += now.Sub(measure.curStart)
+	}
+	measure.curStart = measure.timeZero
+	return now
+}
+
+// BeginOpCode starts timing the first op in a run loop.
+func BeginOpCode(code byte) {
 	if code == invalidCode {
 		panic("the OpCode is invalid")
 	}
-	if !measure.opStartTime[code].Equal(measure.timeZero) {
-		panic("cannot start a running timer")
-	}
-	measure.opStartTime[code] = time.Now()
-	measure.opCounts[code]++
-
-	measure.isOpCodeStarted = true
 	measure.curOpCode = code
+	measure.curStart = time.Now()
+	measure.opCounts[code]++
 }
 
-// Stop the current measurement
-func StopOpCode() {
-	code := measure.curOpCode
-	if measure.opStartTime[code].Equal(measure.timeZero) {
-		panic("cannot stop a stopped timer")
-	}
-	measure.opAccumDur[code] += time.Since(measure.opStartTime[code])
-	measure.opStartTime[code] = measure.timeZero // stop the timer
-	measure.isOpCodeStarted = false
-}
-
-// Pause current opcode measurement
-func PauseOpCode() {
-	if !measure.isOpCodeStarted {
-		return
-	}
-	if measure.curOpCode == invalidCode {
-		panic("cannot pause timer of an invalid OpCode")
-	}
-	code := measure.curOpCode
-	if measure.opStartTime[code].Equal(measure.timeZero) {
-		panic("cannot pause a stopped timer")
-	}
-	measure.opAccumDur[code] += time.Since(measure.opStartTime[code])
-	measure.opStartTime[code] = measure.timeZero
-}
-
-// Resume resumes current measurement
-func ResumeOpCode() {
-	if !measure.isOpCodeStarted {
-		return
-	}
-	if measure.curOpCode == invalidCode {
-		panic("cannot resume timer of an invalid OpCode")
-	}
-
-	code := measure.curOpCode
-
-	if measure.opStartTime[code] != measure.timeZero {
-		panic("should not resume a running timer")
-	}
-	measure.opStartTime[code] = time.Now()
-}
-
-func StartStore(code byte) {
-	// Increment recursion depth for this store operation
-	measure.storeRecursionDepth[code]++
-
-	// Only start the timer on the first (outermost) call
-	if measure.storeRecursionDepth[code] == 1 {
-		if measure.storeStartTime[code] != measure.timeZero {
-			panic("cannot start a non-stopped timer")
-		}
-		measure.storeStartTime[code] = time.Now()
-		measure.storeCounts[code]++
-		measure.curStoreCode = code
-	}
-}
-
-func StopStore(size int) {
-	code := measure.curStoreCode
-
-	// Always accumulate size for all operations (including nested)
-	measure.storeAccumSize[code] += int64(size)
-
-	// Decrement recursion depth
-	measure.storeRecursionDepth[code]--
-
-	// Only stop the timer when returning from the outermost call (depth becomes 0)
-	if measure.storeRecursionDepth[code] == 0 {
-		if measure.storeStartTime[code].Equal(measure.timeZero) {
-			panic("cannot stop a stopped timer")
-		}
-		measure.storeAccumDur[code] += time.Since(measure.storeStartTime[code])
-		measure.storeStartTime[code] = measure.timeZero // stop the timer
-		measure.curStoreCode = invalidCode
-	}
-}
-
-func StartNative(code byte) {
+// SwitchOpCode finalizes the current op's elapsed time and
+// starts timing a new op. Returns the old op code so the
+// caller can pass it to ResumeOpCode when done.
+func SwitchOpCode(code byte) byte {
 	if code == invalidCode {
 		panic("the OpCode is invalid")
 	}
-	if !measure.nativeStartTime[code].Equal(measure.timeZero) {
-		panic("cannot start a non-stopped timer")
-	}
-	runtime.GC() // run GC before starting native code timing
-	measure.nativeStartTime[code] = time.Now()
-	measure.nativeCounts[code]++
-
-	measure.isNativeStarted = true
-	measure.curNativeCode = code
+	old := measure.curOpCode
+	now := finalizeCurrent()
+	measure.curOpCode = code
+	measure.curStart = now
+	measure.opCounts[code]++
+	return old
 }
 
-func StopNative() {
-	if !measure.isNativeStarted {
-		return
-	}
-	if measure.curNativeCode == invalidCode {
-		panic("cannot stop timer of an invalid OpCode")
-	}
+// ResumeOpCode finalizes the current op's elapsed time and
+// resumes a previous op without incrementing its count.
+func ResumeOpCode(code byte) {
+	now := finalizeCurrent()
+	measure.curOpCode = code
+	measure.curStart = now
+}
 
-	code := measure.curNativeCode
+// StopOpCode finalizes the current op. Used at OpHalt/return.
+func StopOpCode() {
+	finalizeCurrent()
+	measure.curOpCode = invalidCode
+}
 
-	if measure.nativeStartTime[code].Equal(measure.timeZero) {
-		panic("cannot stop a stopped timer")
+// ---- Store operations ----
+
+// StartStore suspends the current VM op timer and begins a
+// store operation. Returns the old op code for ResumeOpCode.
+func StartStore(storeCode byte) byte {
+	old := measure.curOpCode
+	// Finalize the VM op's time up to now.
+	now := finalizeCurrent()
+	// Park the timeline — store tracks its own duration.
+	measure.curOpCode = invalidCode
+	measure.storeCounts[storeCode]++
+	// Store the start time in curStart temporarily;
+	// StopStore will read it.
+	measure.curStart = now
+	return old
+}
+
+// StopStore ends the store operation, records its duration
+// and size, then resumes the previous VM op.
+func StopStore(storeCode byte, old byte, size int) {
+	now := time.Now()
+	if measure.curStart != measure.timeZero {
+		measure.storeAccumDur[storeCode] += now.Sub(measure.curStart)
 	}
+	measure.storeAccumSize[storeCode] += int64(size)
+	// Resume the VM op.
+	measure.curOpCode = old
+	measure.curStart = now
+}
 
-	measure.nativeAccumDur[code] += time.Since(measure.nativeStartTime[code])
-	measure.nativeStartTime[code] = measure.timeZero // stop the timer
-	measure.curNativeCode = invalidCode
+// ---- Native operations ----
+
+func StartNative(nativeCode byte) byte {
+	if nativeCode == invalidCode {
+		panic("the NativeCode is invalid")
+	}
+	old := measure.curOpCode
+	finalizeCurrent() // finalize previous op BEFORE GC
+	runtime.GC()
+	now := time.Now() // fresh timestamp after GC
+	measure.curOpCode = invalidCode
+	measure.nativeCounts[nativeCode]++
+	measure.curStart = now
+	return old
+}
+
+func StopNative(nativeCode byte, old byte) {
+	now := time.Now()
+	if measure.curStart != measure.timeZero {
+		measure.nativeAccumDur[nativeCode] += now.Sub(measure.curStart)
+	}
+	measure.curOpCode = old
+	measure.curStart = now
 }
