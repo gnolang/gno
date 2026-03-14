@@ -4,6 +4,7 @@ type Realm interface {
 	Address() Address
 	PkgPath() string
 	Coins() Gnocoins
+	SentCoins() Gnocoins
 	Send(coins Gnocoins, to Address) error
 	Previous() Realm
 	Origin() Realm
@@ -17,7 +18,11 @@ func (a Address) IsValid() bool  { return false }
 
 type Gnocoins []Gnocoin
 
+func (cz Gnocoins) String() string { return "" }
+
 type Gnocoin struct {
 	Denom  string
 	Amount int64
 }
+
+func (c Gnocoin) String() string { return "" }
