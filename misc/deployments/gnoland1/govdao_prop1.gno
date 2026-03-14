@@ -40,7 +40,7 @@ func main() {
 	must(ms.SetMember(memberstore.T1, genesisDeployerAddr, &memberstore.Member{InvitationPoints: 0}))
 
 	// ---- 2. Register the initial validator set via governance proposal ----
-	// 6 validators — BFT >2/3 threshold (floor(2n/3)+1) means 5 nodes must be up for consensus.
+	// 7 validators — BFT >2/3 threshold (floor(2n/3)+1) means 5 nodes must be up for consensus.
 	// Additional validators can be added post-genesis via govDAO proposals
 	// (see govdao-scripts/add-validator.sh).
 	govExec(valr.NewPropRequest(
@@ -74,6 +74,11 @@ func main() {
 				{
 					Address:     address("g1eueypc9w524ctda3y0kwd4jruw5p4zqpjna0jq"),
 					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqsdatvn76ru9pck7zrt7zc33y8p2kweaujx82utgmtwljypuz9p8uctk3m",
+					VotingPower: 1,
+				},
+				{
+					Address:     address("g1kn7p0wqumvqlcqzhkwnavkhf0z4qnr73ltwsae"),
+					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpufsm93d5fmzxrug76esaxsdsmw0guy9e6geypw7ekz92sl3mte492q62e",
 					VotingPower: 1,
 				},
 			}
