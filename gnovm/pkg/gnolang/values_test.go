@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -394,4 +395,192 @@ func TestComputeMapKey_collisions(t *testing.T) {
 			assert.NotEqual(t, mk1, mk2)
 		})
 	}
+}
+
+// makeTypedInt creates a TypedValue holding an int for use in test lists.
+func makeTypedInt(n int) TypedValue {
+	tv := TypedValue{T: IntType}
+	tv.SetInt(int64(n))
+	return tv
+}
+
+// makeTestMap creates a MapValue with n entries for testing ProtectedString.
+func makeTestMap(n int) *MapValue {
+	mv := &MapValue{}
+	mv.MakeMap(n)
+	for i := 0; i < n; i++ {
+		key := makeTypedInt(i)
+		item := mv.List.Append(nilAllocator, key)
+		item.Value = makeTypedInt(i * 10)
+		mk, _ := key.ComputeMapKey(nil, false)
+		mv.vmap[mk] = item
+	}
+	return mv
+}
+
+func makeIntSliceValue(n int) *SliceValue {
+	list := make([]TypedValue, n)
+	for i := range list {
+		list[i] = makeTypedInt(i)
+	}
+	return &SliceValue{
+		Base:   &ArrayValue{List: list},
+		Offset: 0,
+		Length: n,
+		Maxcap: n,
+	}
+}
+
+func makeIntArrayValue(n int) *ArrayValue {
+	list := make([]TypedValue, n)
+	for i := range list {
+		list[i] = makeTypedInt(i)
+	}
+	return &ArrayValue{List: list}
+}
+
+func TestProtectedStringTruncation(t *testing.T) {
+	// --- Slice: non-byte ---
+	t.Run("slice at limit not truncated", func(t *testing.T) {
+		sv := makeIntSliceValue(printLimit)
+		result := sv.String()
+		assert.True(t, strings.HasPrefix(result, "slice[(0 int),"))
+		assert.False(t, strings.Contains(result, "..."))
+	})
+
+	t.Run("slice above limit truncated", func(t *testing.T) {
+		sv := makeIntSliceValue(printLimit + 1)
+		assert.Equal(t, fmt.Sprintf("slice[...(%d elements)]", printLimit+1), sv.String())
+	})
+
+	t.Run("slice 1000 truncated", func(t *testing.T) {
+		sv := makeIntSliceValue(1000)
+		assert.Equal(t, "slice[...(1000 elements)]", sv.String())
+	})
+
+	t.Run("slice small renders fully", func(t *testing.T) {
+		sv := makeIntSliceValue(3)
+		assert.Equal(t, "slice[(0 int),(1 int),(2 int)]", sv.String())
+	})
+
+	// --- Slice: byte ---
+	t.Run("byte slice at limit not truncated", func(t *testing.T) {
+		data := make([]byte, printLimit)
+		sv := &SliceValue{
+			Base:   &ArrayValue{Data: data},
+			Offset: 0,
+			Length: printLimit,
+			Maxcap: printLimit,
+		}
+		result := sv.String()
+		assert.True(t, strings.HasPrefix(result, "slice[0x"))
+		assert.False(t, strings.Contains(result, "..."))
+	})
+
+	t.Run("byte slice above limit truncated", func(t *testing.T) {
+		data := make([]byte, printLimit+1)
+		sv := &SliceValue{
+			Base:   &ArrayValue{Data: data},
+			Offset: 0,
+			Length: printLimit + 1,
+			Maxcap: printLimit + 1,
+		}
+		result := sv.String()
+		assert.Contains(t, result, fmt.Sprintf("...(%d)", printLimit+1))
+	})
+
+	// --- Array: non-byte ---
+	t.Run("array at limit not truncated", func(t *testing.T) {
+		av := makeIntArrayValue(printLimit)
+		result := av.String()
+		assert.True(t, strings.HasPrefix(result, "array[(0 int),"))
+		assert.False(t, strings.Contains(result, "..."))
+	})
+
+	t.Run("array above limit truncated", func(t *testing.T) {
+		av := makeIntArrayValue(printLimit + 1)
+		assert.Equal(t, fmt.Sprintf("array[...(%d elements)]", printLimit+1), av.String())
+	})
+
+	t.Run("array 1000 truncated", func(t *testing.T) {
+		av := makeIntArrayValue(1000)
+		assert.Equal(t, "array[...(1000 elements)]", av.String())
+	})
+
+	// --- Array: byte ---
+	t.Run("byte array at limit not truncated", func(t *testing.T) {
+		av := &ArrayValue{Data: make([]byte, printLimit)}
+		result := av.String()
+		assert.True(t, strings.HasPrefix(result, "array[0x"))
+		assert.False(t, strings.Contains(result, "..."))
+	})
+
+	t.Run("byte array above limit truncated", func(t *testing.T) {
+		av := &ArrayValue{Data: make([]byte, printLimit+1)}
+		result := av.String()
+		assert.Contains(t, result, fmt.Sprintf("...(%d)", printLimit+1))
+	})
+
+	// --- Map ---
+	t.Run("map at limit not truncated", func(t *testing.T) {
+		mv := makeTestMap(printLimit)
+		result := mv.String()
+		assert.True(t, strings.HasPrefix(result, "map{("))
+		assert.False(t, strings.Contains(result, "..."))
+	})
+
+	t.Run("map above limit truncated", func(t *testing.T) {
+		mv := makeTestMap(printLimit + 1)
+		assert.Equal(t, fmt.Sprintf("map{...(%d entries)}", printLimit+1), mv.String())
+	})
+
+	t.Run("map 1000 truncated", func(t *testing.T) {
+		mv := makeTestMap(1000)
+		assert.Equal(t, "map{...(1000 entries)}", mv.String())
+	})
+
+	t.Run("map small renders fully", func(t *testing.T) {
+		mv := makeTestMap(1)
+		result := mv.String()
+		assert.Equal(t, "map{(0 int):(0 int)}", result)
+	})
+
+	// --- Nested slices ---
+	t.Run("[][]int 2 elems with inner 300 truncated", func(t *testing.T) {
+		// [][]int with 2 outer elements, each inner slice has 300 elements
+		inner1 := makeIntSliceValue(300)
+		inner2 := makeIntSliceValue(300)
+		outerList := []TypedValue{
+			{T: &SliceType{Elt: IntType}, V: inner1},
+			{T: &SliceType{Elt: IntType}, V: inner2},
+		}
+		outerSv := &SliceValue{
+			Base:   &ArrayValue{List: outerList},
+			Offset: 0,
+			Length: 2,
+			Maxcap: 2,
+		}
+		result := outerSv.String()
+		// Both inner slices should be truncated; TypedValue wraps with type info
+		assert.Equal(t, "slice[(slice[...(300 elements)] []int),(slice[...(300 elements)] []int)]", result)
+	})
+}
+
+func TestTruncateOutput(t *testing.T) {
+	t.Run("short string unchanged", func(t *testing.T) {
+		s := "hello"
+		assert.Equal(t, s, truncateOutput(s))
+	})
+
+	t.Run("string at limit unchanged", func(t *testing.T) {
+		s := strings.Repeat("x", printOutputLimit)
+		assert.Equal(t, s, truncateOutput(s))
+	})
+
+	t.Run("string over limit truncated", func(t *testing.T) {
+		s := strings.Repeat("x", printOutputLimit+100)
+		result := truncateOutput(s)
+		assert.Equal(t, printOutputLimit+len("...(truncated)"), len(result))
+		assert.True(t, strings.HasSuffix(result, "...(truncated)"))
+	})
 }
