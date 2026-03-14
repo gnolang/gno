@@ -9,5 +9,5 @@ const (
 
 // SupplyStoreKey returns the store key for a denomination's total supply.
 func SupplyStoreKey(denom string) []byte {
-	return append([]byte(SupplyStoreKeyPrefix), []byte(denom)...)
+	return []byte(SupplyStoreKeyPrefix + denom)
 }
