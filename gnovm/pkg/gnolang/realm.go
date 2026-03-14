@@ -176,12 +176,12 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	if rlm == nil {
 		return
+	}
+	if bm.Enabled {
+		old := bm.StartStore(bm.RealmDidUpdate)
+		defer func() { bm.StopStore(bm.RealmDidUpdate, old, 0) }()
 	}
 	if debugRealm {
 		if co != nil && co.GetIsDeleted() {
@@ -340,9 +340,9 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(store Store) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
+	if bm.Enabled {
+		old := bm.StartStore(bm.RealmFinalizeTx)
+		defer func() { bm.StopStore(bm.RealmFinalizeTx, old, 0) }()
 	}
 
 	if debugRealm {

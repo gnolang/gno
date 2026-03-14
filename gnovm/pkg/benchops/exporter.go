@@ -60,17 +60,11 @@ func (e *exporter) close() {
 func FinishStore() {
 	for i := range 256 {
 		count := measure.storeCounts[i]
-
 		if count == 0 {
 			continue
 		}
-		// check unstopped timer
-		if measure.storeStartTime[i] != measure.timeZero {
-			panic("timer should have stopped before FinishRun")
-		}
 
-		code := [2]byte{byte(TypeNative), byte(i)}
-
+		code := [2]byte{byte(TypeStore), byte(i)}
 		fileWriter.export(
 			code,
 			measure.storeAccumDur[i]/time.Duration(count),
@@ -80,13 +74,14 @@ func FinishStore() {
 }
 
 func FinishRun() {
+	// Ensure the timeline is stopped.
+	if measure.curOpCode != invalidCode {
+		StopOpCode()
+	}
+
 	for i := range 256 {
 		if measure.opCounts[i] == 0 {
 			continue
-		}
-		// check unstopped timer
-		if measure.opStartTime[i] != measure.timeZero {
-			panic("timer should have stopped before FinishRun")
 		}
 
 		code := [2]byte{byte(TypeOpCode), byte(i)}
@@ -98,17 +93,11 @@ func FinishRun() {
 func FinishNative() {
 	for i := range 256 {
 		count := measure.nativeCounts[i]
-
 		if count == 0 {
 			continue
 		}
-		// check unstopped timer
-		if measure.nativeStartTime[i] != measure.timeZero {
-			panic("timer should have stopped before FinishRun")
-		}
 
 		code := [2]byte{byte(TypeNative), byte(i)}
-
 		fileWriter.export(
 			code,
 			measure.nativeAccumDur[i]/time.Duration(count),
@@ -117,13 +106,12 @@ func FinishNative() {
 	}
 }
 
-// It reset each machine Runs
+// ResetRun resets opcode measurements between machine runs.
 func ResetRun() {
 	measure.opCounts = [256]int64{}
 	measure.opAccumDur = [256]time.Duration{}
-	measure.opStartTime = [256]time.Time{}
 	measure.curOpCode = invalidCode
-	measure.isOpCodeStarted = false
+	measure.curStart = measure.timeZero
 }
 
 func Finish() {
