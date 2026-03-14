@@ -1061,6 +1061,23 @@ func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 	return it.VerifyImplementedBy(ot) == nil
 }
 
+// TotalMethodCount returns the total number of methods in the interface,
+// recursively counting methods from embedded interfaces.
+// This is used for accurate gas metering in type assertions and type switches.
+func (it *InterfaceType) TotalMethodCount() int {
+	count := 0
+	for _, im := range it.Methods {
+		if im.Type.Kind() == InterfaceKind {
+			// Recursively count methods from embedded interface.
+			embedded := baseOf(im.Type).(*InterfaceType)
+			count += embedded.TotalMethodCount()
+		} else {
+			count++
+		}
+	}
+	return count
+}
+
 func (it *InterfaceType) GetPathForName(n Name) ValuePath {
 	return NewValuePathInterface(n)
 }

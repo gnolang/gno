@@ -216,6 +216,8 @@ func (m *Machine) doOpTypeAssert1() {
 		}
 
 		if it, ok := baseOf(t).(*InterfaceType); ok {
+			// Charge gas proportional to the total number of interface methods.
+			m.incrCPU(OpCPUInterfaceMethodCheck * int64(it.TotalMethodCount()))
 			// An interface type assertion on a value that doesn't have a concrete base
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
@@ -296,6 +298,8 @@ func (m *Machine) doOpTypeAssert2() {
 		}
 
 		if it, ok := baseOf(t).(*InterfaceType); ok {
+			// Charge gas proportional to the total number of interface methods.
+			m.incrCPU(OpCPUInterfaceMethodCheck * int64(it.TotalMethodCount()))
 			// An interface type assertion on a value that doesn't have a concrete base
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
