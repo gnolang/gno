@@ -1,0 +1,112 @@
+# Test TotalCoin - verify that total supply tracking works end-to-end
+#
+# This test verifies:
+#   1. TotalCoin returns 0 for a realm-issued denom that doesn't exist yet
+#   2. After minting coins, TotalCoin reflects the minted amount
+#   3. After minting more coins to a different address, TotalCoin accumulates
+#   4. After burning coins, TotalCoin decreases accordingly
+#   5. ugnot total supply reflects genesis balances
+
+## Setup users
+adduser test2
+
+## start a new node
+gnoland start
+
+## deploy the supply tracker realm
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/test/supply_tracker -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## ============================================
+## TEST 1: TotalCoin for non-existent denom returns 0
+## ============================================
+
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func GetTotalSupply -args "nonexistent" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '\(0 int64\)'
+
+## ============================================
+## TEST 2: Mint coins and verify TotalCoin increases
+## ============================================
+
+## mint 1000 realm coins to test1
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func Mint -args ${test1_user_addr} -args "token" -args "1000" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## check total supply after minting — use the full qualified denom with leading /
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func GetTotalSupply -args "/gno.land/r/test/supply_tracker:token" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '\(1000 int64\)'
+
+## ============================================
+## TEST 3: Mint more coins to a different address, supply accumulates
+## ============================================
+
+## mint 500 realm coins to test2
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func Mint -args ${test2_user_addr} -args "token" -args "500" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## total supply should now be 1500
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func GetTokenSupply -args "token" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '\(1500 int64\)'
+
+## ============================================
+## TEST 4: Burn coins and verify TotalCoin decreases
+## ============================================
+
+## burn 300 realm coins from test1
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func Burn -args ${test1_user_addr} -args "token" -args "300" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## total supply should now be 1200
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func GetTokenSupply -args "token" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '\(1200 int64\)'
+
+## ============================================
+## TEST 5: ugnot total supply reflects genesis balances
+## ============================================
+
+## ugnot supply should be non-zero (genesis balances exist)
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func CheckUgnotSupply -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '\(true bool\)'
+
+-- gnomod.toml --
+module = "gno.land/r/test/supply_tracker"
+gno = "0.9"
+
+-- supply_tracker.gno --
+package supply_tracker
+
+import (
+	"chain/banker"
+	"chain/runtime"
+)
+
+// GetTotalSupply returns the total supply of the given denomination (raw denom).
+func GetTotalSupply(cur realm, denom string) int64 {
+	b := banker.NewBanker(banker.BankerTypeReadonly)
+	return b.TotalCoin(denom)
+}
+
+// GetTokenSupply returns the total supply of a realm-issued token by base name.
+// It constructs the full qualified denom using CoinDenom (which adds the "/<pkgpath>:" prefix).
+func GetTokenSupply(cur realm, baseDenom string) int64 {
+	b := banker.NewBanker(banker.BankerTypeReadonly)
+	return b.TotalCoin(runtime.CurrentRealm().CoinDenom(baseDenom))
+}
+
+// Mint issues new realm coins to the given address.
+func Mint(cur realm, addr address, baseDenom string, amount int64) {
+	b := banker.NewBanker(banker.BankerTypeRealmIssue)
+	b.IssueCoin(addr, runtime.CurrentRealm().CoinDenom(baseDenom), amount)
+}
+
+// Burn removes realm coins from the given address.
+func Burn(cur realm, addr address, baseDenom string, amount int64) {
+	b := banker.NewBanker(banker.BankerTypeRealmIssue)
+	b.RemoveCoin(addr, runtime.CurrentRealm().CoinDenom(baseDenom), amount)
+}
+
+// CheckUgnotSupply returns true if the total ugnot supply is positive.
+func CheckUgnotSupply(cur realm) bool {
+	b := banker.NewBanker(banker.BankerTypeReadonly)
+	return b.TotalCoin("ugnot") > 0
+}
