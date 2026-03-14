@@ -29,6 +29,10 @@ const (
 
 	FinalizeTx byte = 0x13 // finalize transaction
 
+	// realm operations
+	RealmDidUpdate  byte = 0x14 // realm dirty tracking / escape analysis
+	RealmFinalizeTx byte = 0x15 // realm transaction finalization
+
 	invalidStoreCode string = "StoreInvalid"
 )
 
@@ -77,6 +81,8 @@ var storeCodeNames = []string{
 	"StoreGet",
 	"StoreSet",
 	"FinalizeTx",
+	"RealmDidUpdate",
+	"RealmFinalizeTx",
 }
 
 var nativeCodeNames = []string{
