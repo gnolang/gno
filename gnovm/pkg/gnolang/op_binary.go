@@ -1160,121 +1160,103 @@ func xorAssign(lv, rv *TypedValue) {
 	}
 }
 
+// maxBigintShift caps shift amounts for UntypedBigintType to prevent
+// DoS via huge allocations (e.g., 1 << 1_000_000_000).
+const maxBigintShift = 10000
+
+// shlCheckOverflow panics with "constant overflows" if val << shift > maxVal.
+// For shifts larger than 64, any non-zero value overflows any fixed-width
+// integer type, avoiding expensive big.Int computation.
+func shlCheckOverflow(val *big.Int, shift uint64, maxVal *big.Int) {
+	if val.Sign() == 0 {
+		return // 0 << anything = 0
+	}
+	if shift > 64 || new(big.Int).Lsh(val, uint(shift)).Cmp(maxVal) == 1 {
+		panic(`constant overflows`)
+	}
+}
+
+// shrCheckOverflow panics with "constant overflows" if val >> shift > maxVal.
+func shrCheckOverflow(val *big.Int, shift uint64, maxVal *big.Int) {
+	r := new(big.Int).Rsh(val, uint(shift))
+	if r.Cmp(maxVal) == 1 {
+		panic(`constant overflows`)
+	}
+}
+
 // for doOpShl and doOpShlAssign.
 func shlAssign(m *Machine, lv, rv *TypedValue) {
 	rv.AssertNonNegative("runtime error: negative shift amount")
 
-	checkOverflow := func(v func() bool) {
-		if m.Stage == StagePre && !v() {
-			panic(`constant overflows`)
-		}
-	}
+	shift := rv.GetUint()
 
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
 	switch baseOf(lv.T) {
 	case IntType:
-		checkOverflow(func() bool {
-			l := big.NewInt(lv.GetInt())
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt)) != 1
-		})
-
-		lv.SetInt(lv.GetInt() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(big.NewInt(lv.GetInt()), shift, big.NewInt(math.MaxInt))
+		}
+		lv.SetInt(lv.GetInt() << shift)
 	case Int8Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt8()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt8)) != 1
-		})
-
-		lv.SetInt8(lv.GetInt8() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(big.NewInt(int64(lv.GetInt8())), shift, big.NewInt(math.MaxInt8))
+		}
+		lv.SetInt8(lv.GetInt8() << shift)
 	case Int16Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt16()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt16)) != 1
-		})
-
-		lv.SetInt16(lv.GetInt16() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(big.NewInt(int64(lv.GetInt16())), shift, big.NewInt(math.MaxInt16))
+		}
+		lv.SetInt16(lv.GetInt16() << shift)
 	case Int32Type, UntypedRuneType:
-		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt32()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt32)) != 1
-		})
-
-		lv.SetInt32(lv.GetInt32() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(big.NewInt(int64(lv.GetInt32())), shift, big.NewInt(math.MaxInt32))
+		}
+		lv.SetInt32(lv.GetInt32() << shift)
 	case Int64Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(lv.GetInt64())
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt64)) != 1
-		})
-
-		lv.SetInt64(lv.GetInt64() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(big.NewInt(lv.GetInt64()), shift, big.NewInt(math.MaxInt64))
+		}
+		lv.SetInt64(lv.GetInt64() << shift)
 	case UintType:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(lv.GetUint())
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint)) != 1
-		})
-
-		lv.SetUint(lv.GetUint() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(new(big.Int).SetUint64(lv.GetUint()), shift, new(big.Int).SetUint64(math.MaxUint))
+		}
+		lv.SetUint(lv.GetUint() << shift)
 	case Uint8Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint8()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
-		})
-
-		lv.SetUint8(lv.GetUint8() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetUint8())), shift, big.NewInt(math.MaxUint8))
+		}
+		lv.SetUint8(lv.GetUint8() << shift)
 	case DataByteType:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetDataByte()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
-		})
-
-		lv.SetDataByte(lv.GetDataByte() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetDataByte())), shift, big.NewInt(math.MaxUint8))
+		}
+		lv.SetDataByte(lv.GetDataByte() << shift)
 	case Uint16Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint16()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint16)) != 1
-		})
-
-		lv.SetUint16(lv.GetUint16() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetUint16())), shift, big.NewInt(math.MaxUint16))
+		}
+		lv.SetUint16(lv.GetUint16() << shift)
 	case Uint32Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint32()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint32)) != 1
-		})
-
-		lv.SetUint32(lv.GetUint32() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetUint32())), shift, big.NewInt(math.MaxUint32))
+		}
+		lv.SetUint32(lv.GetUint32() << shift)
 	case Uint64Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(lv.GetUint64())
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint64)) != 1
-		})
-
-		lv.SetUint64(lv.GetUint64() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(new(big.Int).SetUint64(lv.GetUint64()), shift, new(big.Int).SetUint64(math.MaxUint64))
+		}
+		lv.SetUint64(lv.GetUint64() << shift)
 	case UntypedBigintType:
+		if shift > maxBigintShift {
+			panic(fmt.Sprintf(
+				"shift amount %d exceeds maximum %d",
+				shift, maxBigintShift,
+			))
+		}
 		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Lsh(lb, uint(rv.GetUint()))
+		lb = new(big.Int).Lsh(lb, uint(shift))
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
@@ -1288,117 +1270,69 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 func shrAssign(m *Machine, lv, rv *TypedValue) {
 	rv.AssertNonNegative("runtime error: negative shift amount")
 
-	checkOverflow := func(v func() bool) {
-		if m.Stage == StagePre && !v() {
-			panic(`constant overflows`)
-		}
-	}
+	shift := rv.GetUint()
 
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
 	switch baseOf(lv.T) {
 	case IntType:
-		checkOverflow(func() bool {
-			l := big.NewInt(lv.GetInt())
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt)) != 1
-		})
-
-		lv.SetInt(lv.GetInt() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(big.NewInt(lv.GetInt()), shift, big.NewInt(math.MaxInt))
+		}
+		lv.SetInt(lv.GetInt() >> shift)
 	case Int8Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt8()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt8)) != 1
-		})
-
-		lv.SetInt8(lv.GetInt8() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(big.NewInt(int64(lv.GetInt8())), shift, big.NewInt(math.MaxInt8))
+		}
+		lv.SetInt8(lv.GetInt8() >> shift)
 	case Int16Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt16()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt16)) != 1
-		})
-
-		lv.SetInt16(lv.GetInt16() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(big.NewInt(int64(lv.GetInt16())), shift, big.NewInt(math.MaxInt16))
+		}
+		lv.SetInt16(lv.GetInt16() >> shift)
 	case Int32Type, UntypedRuneType:
-		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt32()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt32)) != 1
-		})
-
-		lv.SetInt32(lv.GetInt32() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(big.NewInt(int64(lv.GetInt32())), shift, big.NewInt(math.MaxInt32))
+		}
+		lv.SetInt32(lv.GetInt32() >> shift)
 	case Int64Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(lv.GetInt64())
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt64)) != 1
-		})
-
-		lv.SetInt64(lv.GetInt64() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(big.NewInt(lv.GetInt64()), shift, big.NewInt(math.MaxInt64))
+		}
+		lv.SetInt64(lv.GetInt64() >> shift)
 	case UintType:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(lv.GetUint())
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint)) != 1
-		})
-
-		lv.SetUint(lv.GetUint() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(new(big.Int).SetUint64(lv.GetUint()), shift, new(big.Int).SetUint64(math.MaxUint))
+		}
+		lv.SetUint(lv.GetUint() >> shift)
 	case Uint8Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint8()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
-		})
-
-		lv.SetUint8(lv.GetUint8() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetUint8())), shift, big.NewInt(math.MaxUint8))
+		}
+		lv.SetUint8(lv.GetUint8() >> shift)
 	case DataByteType:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetDataByte()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
-		})
-
-		lv.SetDataByte(lv.GetDataByte() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetDataByte())), shift, big.NewInt(math.MaxUint8))
+		}
+		lv.SetDataByte(lv.GetDataByte() >> shift)
 	case Uint16Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint16()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint16)) != 1
-		})
-
-		lv.SetUint16(lv.GetUint16() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetUint16())), shift, big.NewInt(math.MaxUint16))
+		}
+		lv.SetUint16(lv.GetUint16() >> shift)
 	case Uint32Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint32()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint32)) != 1
-		})
-
-		lv.SetUint32(lv.GetUint32() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetUint32())), shift, big.NewInt(math.MaxUint32))
+		}
+		lv.SetUint32(lv.GetUint32() >> shift)
 	case Uint64Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(lv.GetUint64())
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint64)) != 1
-		})
-
-		lv.SetUint64(lv.GetUint64() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(new(big.Int).SetUint64(lv.GetUint64()), shift, new(big.Int).SetUint64(math.MaxUint64))
+		}
+		lv.SetUint64(lv.GetUint64() >> shift)
 	case UntypedBigintType:
 		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Rsh(lb, uint(rv.GetUint()))
+		lb = new(big.Int).Rsh(lb, uint(shift))
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
