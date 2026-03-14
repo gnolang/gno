@@ -31,7 +31,7 @@ func generateTestValidators(count int) []validators.Validator {
 func TestPoA_AddValidator_Invalid(t *testing.T) {
 	t.Parallel()
 
-	t.Run("validator already in set", func(t *testing.T) {
+	t.Run("validator already in set with same power", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -47,7 +47,7 @@ func TestPoA_AddValidator_Invalid(t *testing.T) {
 		// Create the protocol with an initial set
 		p := NewPoA(WithInitialSet(initialSet))
 
-		// Attempt to add the validator
+		// Attempt to add the validator with the same power
 		_, err := p.AddValidator(proposalAddress, proposalKey, 1)
 		uassert.ErrorIs(t, err, validators.ErrValidatorExists)
 	})
@@ -67,6 +67,46 @@ func TestPoA_AddValidator_Invalid(t *testing.T) {
 		_, err := p.AddValidator(proposalAddress, proposalKey, 0)
 		uassert.ErrorIs(t, err, ErrInvalidVotingPower)
 	})
+}
+
+func TestPoA_AddValidator_UpdatePower(t *testing.T) {
+	t.Parallel()
+
+	var (
+		proposalAddress = testutils.TestAddress("caller")
+		proposalKey     = "public-key"
+		initialPower    = uint64(1)
+		updatedPower    = uint64(100)
+
+		initialSet = generateTestValidators(1)
+	)
+
+	initialSet[0].Address = proposalAddress
+	initialSet[0].PubKey = proposalKey
+	initialSet[0].VotingPower = initialPower
+
+	// Create the protocol with an initial set
+	p := NewPoA(WithInitialSet(initialSet))
+
+	// Verify the initial voting power
+	val, err := p.GetValidator(proposalAddress)
+	urequire.NoError(t, err)
+	uassert.Equal(t, val.VotingPower, initialPower)
+
+	// Update the validator with a new voting power
+	updatedVal, err := p.AddValidator(proposalAddress, proposalKey, updatedPower)
+	urequire.NoError(t, err)
+	uassert.Equal(t, updatedVal.VotingPower, updatedPower)
+
+	// Verify the validator set size didn't change
+	if p.validators.Size() != 1 {
+		t.Fatal("validator set size changed after update")
+	}
+
+	// Verify the updated voting power is persisted
+	val, err = p.GetValidator(proposalAddress)
+	urequire.NoError(t, err)
+	uassert.Equal(t, val.VotingPower, updatedPower)
 }
 
 func TestPoA_AddValidator(t *testing.T) {
