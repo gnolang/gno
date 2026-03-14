@@ -13,6 +13,11 @@ const RecordSize int = 14
 
 var fileWriter *exporter
 
+// Recording controls whether measurements are exported.
+// Set to false during package loading to avoid contaminating
+// benchmark data with init-phase store operations.
+var Recording bool
+
 func initExporter(fileName string) {
 	file, err := os.Create(fileName)
 	if err != nil {
@@ -65,6 +70,9 @@ func (e *exporter) close() {
 }
 
 func FinishStore() {
+	if !Recording {
+		return
+	}
 	for i := range 256 {
 		count := measure.storeCounts[i]
 		if count == 0 {
@@ -82,6 +90,9 @@ func FinishStore() {
 }
 
 func FinishRun() {
+	if !Recording {
+		return
+	}
 	// Ensure the timeline is stopped.
 	if measure.curOpCode != invalidCode {
 		StopOpCode()
@@ -100,6 +111,9 @@ func FinishRun() {
 }
 
 func FinishNative() {
+	if !Recording {
+		return
+	}
 	for i := range 256 {
 		count := measure.nativeCounts[i]
 		if count == 0 {

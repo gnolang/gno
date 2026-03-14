@@ -103,10 +103,10 @@ Any operation exceeding ~4.29 seconds causes `log.Fatalf`. Real-world store oper
 
 Fixed: export format expanded to 14 bytes with (totalDuration, totalSize, count). Stats computes proper weighted averages and per-run stddev.
 
-### M4. Package loading contaminates store measurements
-**File:** `gnovm/cmd/benchops/run.go:106-122`
+### M4. ~~Package loading contaminates store measurements~~ DONE
+**File:** `gnovm/cmd/benchops/run.go`
 
-`addPackage()` → `RunMemPackage()` triggers store operations that accumulate in the global store counters. These init-phase measurements mix with actual benchmark measurements in the exported data.
+Fixed: all packages loaded before `bm.Init()` creates the exporter. Export functions guard against nil fileWriter so package-loading measurements are silently discarded.
 
 ### M5. Benchmark contracts have limited coverage
 - Opcodes: doesn't cover all 256 possible opcodes, misses edge cases
