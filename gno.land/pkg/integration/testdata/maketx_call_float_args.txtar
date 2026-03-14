@@ -1,0 +1,66 @@
+# Verify that MsgCall correctly validates float32 and float64 arguments:
+# - NaN and Inf are rejected
+# - negative zero (-0.0) is canonicalized to positive zero
+
+loadpkg gno.land/r/test/floatargs $WORK/realm
+
+gnoland start
+
+# Valid float64 argument succeeds.
+gnokey maketx call -pkgpath gno.land/r/test/floatargs -func EchoFloat64 -args '1.5' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("1.5" string)'
+
+# Valid float32 argument succeeds.
+gnokey maketx call -pkgpath gno.land/r/test/floatargs -func EchoFloat32 -args '1.5' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("1.5" string)'
+
+# float64 NaN must be rejected.
+! gnokey maketx call -pkgpath gno.land/r/test/floatargs -func EchoFloat64 -args 'NaN' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'float64 does not accept NaN'
+
+# float32 NaN must be rejected.
+! gnokey maketx call -pkgpath gno.land/r/test/floatargs -func EchoFloat32 -args 'NaN' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'float32 does not accept NaN'
+
+# float64 Inf must be rejected.
+! gnokey maketx call -pkgpath gno.land/r/test/floatargs -func EchoFloat64 -args 'Inf' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'float64 does not accept Inf'
+
+# float64 -Inf must be rejected.
+! gnokey maketx call -pkgpath gno.land/r/test/floatargs -func EchoFloat64 -args '-Inf' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'float64 does not accept Inf'
+
+# float32 Inf must be rejected.
+! gnokey maketx call -pkgpath gno.land/r/test/floatargs -func EchoFloat32 -args 'Inf' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'float32 does not accept Inf'
+
+# -0.0 must be canonicalized to 0 (malleability: same value, different bits).
+gnokey maketx call -pkgpath gno.land/r/test/floatargs -func EchoFloat64 -args '-0.0' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("0" string)'
+
+gnokey maketx call -pkgpath gno.land/r/test/floatargs -func EchoFloat32 -args '-0.0' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("0" string)'
+
+# -0.0 must have its sign bit cleared before being passed to the function.
+gnokey maketx call -pkgpath gno.land/r/test/floatargs -func CheckSignBitFloat32 -args '-0.0' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("false" string)'
+
+-- realm/realm.gno --
+package floatargs
+
+import (
+	"math"
+	"strconv"
+)
+
+func EchoFloat64(cur realm, x float64) string {
+	return strconv.FormatFloat(x, 'f', -1, 64)
+}
+
+func EchoFloat32(cur realm, x float32) string {
+	return strconv.FormatFloat(float64(x), 'f', -1, 32)
+}
+
+func CheckSignBitFloat32(cur realm, x float32) string {
+	return strconv.FormatBool(math.Signbit(float64(x)))
+}

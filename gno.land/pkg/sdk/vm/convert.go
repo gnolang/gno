@@ -211,5 +211,17 @@ func convertFloat(value string, precision int) float64 {
 		panic(fmt.Sprintf("error value exceeds float%d precision %q: %v", precision, value, err))
 	}
 
+	if math.IsNaN(f64) {
+		panic(fmt.Sprintf("float%d does not accept NaN", precision))
+	}
+	if math.IsInf(f64, 0) {
+		panic(fmt.Sprintf("float%d does not accept Inf", precision))
+	}
+	// Canonicalize -0 to 0 to prevent malleability: -0.0 and 0.0 are
+	// mathematically equal but have different bit patterns.
+	if f64 == 0 && math.Signbit(f64) {
+		f64 = 0
+	}
+
 	return f64
 }
