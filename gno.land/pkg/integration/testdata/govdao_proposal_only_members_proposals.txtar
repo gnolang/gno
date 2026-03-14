@@ -17,7 +17,9 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
 # try to add the proposal using a non-member
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test newmember $WORK/proposer/create_proposal.gno
-stdout 'only members can create new proposals'
+
+# proposal should not exist
+! gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 
 -- proposer/create_proposal.gno --
 package main
@@ -32,8 +34,8 @@ func main() {
 	// The error should come from PreCreateProposal before executor is validated
 	pr := dao.NewProposalRequest("Test Proposal", "This is a test proposal", nil)
 	_, err := dao.CreateProposal(cross, pr)
-	if err != nil {
-		println(err.Error())
+	if err == nil {
+		panic("expected non-member proposal creation to fail")
 	}
 }
 

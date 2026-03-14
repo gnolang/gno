@@ -3,7 +3,6 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
-	"bytes"
 	"context"
 	goerrors "errors"
 	"fmt"
@@ -875,9 +874,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		EventLogger:     ctx.EventLogger(),
 	}
 
-	buf := new(bytes.Buffer)
-	output := io.Writer(buf)
-
 	// XXX: see reason of private for run msg here: https://github.com/gnolang/gno/pull/4594
 	gm := new(gnomod.File)
 	gm.Module = memPkg.Path
@@ -889,13 +885,10 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// Run as self-executing closure to have own function for doRecover / m.Release defers.
 	pv := func() *gno.PackageValue {
 		// Parse and run the files, construct *PV.
-		if vm.Output != nil {
-			output = io.MultiWriter(buf, vm.Output)
-		}
 		m := gno.NewMachineWithOptions(
 			gno.MachineOptions{
 				PkgPath:  "",
-				Output:   output,
+				Output:   vm.Output,
 				Store:    gnostore,
 				Alloc:    alloc,
 				Context:  msgCtx,
@@ -915,7 +908,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   output,
+			Output:   vm.Output,
 			Store:    gnostore,
 			Alloc:    alloc,
 			Context:  msgCtx,
@@ -925,7 +918,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	m2.SetActivePackage(pv)
 	defer doRecover(m2, &err)
 	m2.RunMain()
-	res = buf.String()
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
 	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
