@@ -47,21 +47,6 @@ func main() {
 		func() []validators.Validator {
 			return []validators.Validator{
 				{
-					Address:     address("g1vta7dwp4guuhkfzksenfcheky4xf9hue8mgne4"),
-					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpu5muc9ksphk3cayrduhathd2rw4talmtedpef3a44c2qfzzqalgl4c55y",
-					VotingPower: 1,
-				},
-				{
-					Address:     address("g1d5hh9fw3l00gugfzafskaxqlmsyvxfaj6l2q60"),
-					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpnj5vt2vkv94exe6cmdgqgtxmyfkvlhztnl0kj4xv97uz2t0muwe9mka0q",
-					VotingPower: 1,
-				},
-				{
-					Address:     address("g16wh3t370fctrukvvdslsz9uc76tfpy0ggrm5hr"),
-					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp0768mk3fg7dkprgkl5twxzhn2hlef27mzt46qea8z4qv0ltwstuy9qk62",
-					VotingPower: 1,
-				},
-				{
 					Address:     address("g1uhv7wr7nku89se3t7v8fpquc7n5sf8rfkywxpc"),
 					PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqavtgten8l8k4f72j8klpu4l7tk2qw4kl8394krsaysmz2q0765ynvjag0",
 					VotingPower: 1,
