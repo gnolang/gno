@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math/bits"
 	"unsafe"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -150,7 +151,68 @@ func init() {
 	check("_allocHeapItemValue", _allocHeapItemValue, unsafe.Sizeof(HeapItemValue{}))
 }
 
-const GasCostPerByte = 1 // gas cost per byte allocated
+// allocGasTable[k] = gas for a Go heap allocation of 2^k bytes.
+// Calibrated from Go 1.24 / linux / amd64 benchmarks on DigitalOcean Dedicated (2-core).
+// CPU: Intel Xeon Platinum 8168 @ 2.70GHz.
+// cpuBaseNs = 5.2 ns/gas (weighted average from benchops on same hardware).
+//
+// Model: entries [0]-[5] (1B-32B) are exact benchmark medians. Entries [6]-[30]
+// use a power-law fit: ns = 0.47 × size^0.925 (straight line in log-log space).
+// At runtime, allocGas uses bits.Len64 + linear interpolation (O(1), ~1.5ns).
+//
+// See gnovm/cmd/calibrate/ for benchmarks, data, and regeneration instructions.
+var allocGasTable = [32]int64{
+	2,             // 2^0  =       1B   (12ns)
+	2,             // 2^1  =       2B   (13ns)
+	2,             // 2^2  =       4B   (13ns)
+	2,             // 2^3  =       8B   (15ns)
+	4,             // 2^4  =      16B   (23ns)
+	5,             // 2^5  =      32B   (27ns)
+	5,             // 2^6  =      64B   (36ns)
+	8,             // 2^7  =     128B   (52ns)
+	15,            // 2^8  =     256B   (82ns)
+	29,            // 2^9  =     512B   (145ns)
+	55,            // 2^10 =      1KB   (241ns)
+	104,           // 2^11 =      2KB   (458ns)
+	198,           // 2^12 =      4KB   (848ns)
+	377,           // 2^13 =      8KB   (1637ns)
+	716,           // 2^14 =     16KB   (2798ns)
+	1359,          // 2^15 =     32KB   (5520ns)
+	2580,          // 2^16 =     64KB   (10611ns)
+	4899,          // 2^17 =    128KB   (23513ns)
+	9301,          // 2^18 =    256KB   (49114ns)
+	17659,         // 2^19 =    512KB   (75155ns)
+	33524,         // 2^20 =      1MB   (195342ns)
+	63644,         // 2^21 =      2MB   (171176ns)
+	120826,        // 2^22 =      4MB   (275629ns)
+	229381,        // 2^23 =      8MB   (1188110ns)
+	435468,        // 2^24 =     16MB   (2544343ns)
+	826711,        // 2^25 =     32MB   (4987722ns)
+	1569463,       // 2^26 =     64MB   (9789111ns)
+	2979536,       // 2^27 =    128MB   (19398830ns)
+	5656479,       // 2^28 =    256MB   (38412058ns)
+	10738500,      // 2^29 =    512MB   (76146343ns)
+	20386424,      // 2^30 =      1GB   (153376629ns)
+	38702454,      // 2^31 =      2GB   (power-law extrapolation)
+}
+
+// allocGas returns the gas cost for a heap allocation of the given size
+// in bytes. Uses a lookup table indexed by floor(log2(size)) with linear
+// interpolation, giving O(1) cost (~1.5ns via CLZ instruction).
+func allocGas(size int64) int64 {
+	if size <= 1 {
+		return allocGasTable[0]
+	}
+	k := bits.Len64(uint64(size)) - 1 // floor(log2(size))
+	if k >= 31 {
+		return allocGasTable[31]
+	}
+	lo := allocGasTable[k]
+	hi := allocGasTable[k+1]
+	frac := size - (int64(1) << k)
+	span := int64(1) << k
+	return lo + (hi-lo)*frac/span
+}
 
 func NewAllocator(maxBytes int64) *Allocator {
 	if maxBytes == 0 {
@@ -232,10 +294,10 @@ func (alloc *Allocator) Allocate(size int64) {
 		alloc.bytes += size
 	}
 
-	// Charge gas for every allocation unconditionally (cpu/throughput).
-	// This ensures repeated allocate-then-GC cycles are not free.
+	// Charge allocation gas based on calibrated lookup table.
+	// Models actual CPU time of Go's malloc + zero-fill.
 	if alloc.gasMeter != nil {
-		alloc.gasMeter.ConsumeGas(overflow.Mulp(size, GasCostPerByte), "memory allocation (cpu)")
+		alloc.gasMeter.ConsumeGas(allocGas(size), "memory allocation")
 	}
 }
 
