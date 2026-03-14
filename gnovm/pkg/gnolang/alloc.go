@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -127,6 +128,27 @@ const (
 	allocDataByte   = 1
 	allocTypedValue = _allocTypedValue
 )
+
+func init() {
+	check := func(name string, constant uintptr, actual uintptr) {
+		if constant != actual {
+			panic("alloc constant " + name + " is stale; update to match unsafe.Sizeof")
+		}
+	}
+	check("_allocPointerValue", _allocPointerValue, unsafe.Sizeof(PointerValue{}))
+	check("_allocStructValue", _allocStructValue, unsafe.Sizeof(StructValue{}))
+	check("_allocArrayValue", _allocArrayValue, unsafe.Sizeof(ArrayValue{}))
+	check("_allocSliceValue", _allocSliceValue, unsafe.Sizeof(SliceValue{}))
+	check("_allocFuncValue", _allocFuncValue, unsafe.Sizeof(FuncValue{}))
+	check("_allocMapValue", _allocMapValue, unsafe.Sizeof(MapValue{}))
+	check("_allocBoundMethodValue", _allocBoundMethodValue, unsafe.Sizeof(BoundMethodValue{}))
+	check("_allocBlock", _allocBlock, unsafe.Sizeof(Block{}))
+	check("_allocPackageValue", _allocPackageValue, unsafe.Sizeof(PackageValue{}))
+	check("_allocTypeValue", _allocTypeValue, unsafe.Sizeof(TypeValue{}))
+	check("_allocTypedValue", _allocTypedValue, unsafe.Sizeof(TypedValue{}))
+	check("_allocRefValue", _allocRefValue, unsafe.Sizeof(RefValue{}))
+	check("_allocHeapItemValue", _allocHeapItemValue, unsafe.Sizeof(HeapItemValue{}))
+}
 
 const GasCostPerByte = 1 // gas cost per byte allocated
 
