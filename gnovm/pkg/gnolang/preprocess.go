@@ -219,6 +219,8 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 				switch n := n.(type) {
 				case *NameExpr:
 					switch ftype {
+					case TRANS_COMPOSITE_KEY:
+						return n, TRANS_CONTINUE
 					case TRANS_ASSIGN_LHS:
 						as := ns[len(ns)-1].(*AssignStmt)
 						if as.Op == DEFINE {
@@ -319,32 +321,6 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 				if n.Op != DEFINE {
 					return n, TRANS_CONTINUE
 				}
-				if n.Key != nil {
-					ln := n.Key.(*NameExpr).Name
-					if ln == blankIdentifier {
-						return n, TRANS_CONTINUE
-					}
-					if strings.HasSuffix(string(ln), ".loopvar") {
-						// for idempotency (already converted)
-						return n, TRANS_CONTINUE
-					}
-					// replace all n.Key w/ <n.Key>.loopvar
-					n.Key.(*NameExpr).Name += ".loopvar"
-					replaceAllLoopvar(last, n, ln)
-				}
-				if n.Value != nil {
-					ln := n.Value.(*NameExpr).Name
-					if ln == blankIdentifier {
-						return n, TRANS_CONTINUE
-					}
-					if strings.HasSuffix(string(ln), ".loopvar") {
-						// for idempotency (already converted)
-						return n, TRANS_CONTINUE
-					}
-					// replace all n.Value w/ <n.Value>.loopvar
-					n.Value.(*NameExpr).Name += ".loopvar"
-					replaceAllLoopvar(last, n, ln)
-				}
 			}
 		}
 		return n, TRANS_CONTINUE
@@ -382,11 +358,13 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 						if ln == blankIdentifier {
 							continue
 						}
-						if !isLocallyDefined2(last, ln) {
+						if !isLocallyReserved(last, ln) {
 							// if loopvar, will promote to
 							// NameExprTypeHeapDefine later.
 							nx.Type = NameExprTypeDefine
 							last.Reserve(false, nx, n, NSDefine, i)
+						} else {
+							nx.Type = NameExprTypeDefine
 						}
 					}
 				}
@@ -2843,6 +2821,12 @@ func defineOrDecl(
 
 	if numVals > 1 && numNames != numVals {
 		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numVals))
+	}
+	if isConst && numVals == 0 && numNames > 0 && typeExpr == nil {
+		// This occurs when a const group line inherits values from the previous
+		// line but the number of names doesn't match (go2gno sets Values to nil
+		// in that case). Report a proper error instead of a confusing internal panic.
+		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but 0 value(s)", numNames))
 	}
 
 	sts := make([]Type, numNames) // static types
@@ -5579,9 +5563,8 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 	return t != nil
 }
 
-// r := 0
-// r, ok := 1, true
-func isLocallyDefined2(bn BlockNode, n Name) bool {
+// if name is is reserved.
+func isLocallyReserved(bn BlockNode, n Name) bool {
 	_, isLocal := bn.GetLocalIndex(n)
 	return isLocal
 }
