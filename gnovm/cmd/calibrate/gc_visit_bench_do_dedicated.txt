@@ -1,0 +1,24 @@
+goos: linux
+goarch: amd64
+pkg: github.com/gnolang/gno/gnovm/pkg/gnolang
+cpu: Intel(R) Xeon(R) Platinum 8168 CPU @ 2.70GHz
+BenchmarkGCVisit_100-2             1677492          2136 ns/op            29.26 ns/visit            73.00 visits/op
+BenchmarkGCVisit_100-2             1705290          2150 ns/op            29.45 ns/visit            73.00 visits/op
+BenchmarkGCVisit_100-2             1685748          2124 ns/op            29.09 ns/visit            73.00 visits/op
+BenchmarkGCVisit_1000-2             154602         21671 ns/op            39.91 ns/visit           543.0 visits/op
+BenchmarkGCVisit_1000-2             167743         21862 ns/op            40.26 ns/visit           543.0 visits/op
+BenchmarkGCVisit_1000-2             164251         21952 ns/op            40.43 ns/visit           543.0 visits/op
+BenchmarkGCVisit_10000-2              7275        491868 ns/op            91.37 ns/visit          5383 visits/op
+BenchmarkGCVisit_10000-2              7210        487433 ns/op            90.55 ns/visit          5383 visits/op
+BenchmarkGCVisit_10000-2              7290        490212 ns/op            91.07 ns/visit          5383 visits/op
+BenchmarkGCVisit_100000-2              327      10846347 ns/op           196.4 ns/visit         55229 visits/op
+BenchmarkGCVisit_100000-2              316      10964782 ns/op           198.5 ns/visit         55229 visits/op
+BenchmarkGCVisit_100000-2              307      10816361 ns/op           195.8 ns/visit         55229 visits/op
+BenchmarkGCVisit_1000000-2              16     210231620 ns/op           380.3 ns/visit        552735 visits/op
+BenchmarkGCVisit_1000000-2              16     210646608 ns/op           381.1 ns/visit        552735 visits/op
+BenchmarkGCVisit_1000000-2              16     210156594 ns/op           380.2 ns/visit        552735 visits/op
+BenchmarkGCVisit_10000000-2              1    3967477335 ns/op           715.6 ns/visit       5543981 visits/op
+BenchmarkGCVisit_10000000-2              1    3817928143 ns/op           688.7 ns/visit       5543981 visits/op
+BenchmarkGCVisit_10000000-2              1    3851604968 ns/op           694.7 ns/visit       5543981 visits/op
+PASS
+ok      github.com/gnolang/gno/gnovm/pkg/gnolang    113.420s
