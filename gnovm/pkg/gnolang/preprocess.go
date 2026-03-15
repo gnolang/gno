@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"math/big"
 	"reflect"
@@ -1230,6 +1231,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						panic("cannot use _ as value or type")
 					}
 				}
+				globalUse := func(path ValuePath) {
+					bn := last.GetBlockNodeForPath(nil, path)
+					if bn == ctxpn {
+						addDependencyToTopDecl(ns, n.Name)
+					}
+				}
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -1245,6 +1252,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
+						globalUse(n.Path)
 						if last.GetIsConst(store, n.Name) {
 							cx := evalConst(store, last, n)
 							return cx, TRANS_CONTINUE
@@ -1303,6 +1311,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					case TRANS_ASSIGN_LHS:
 						as := ns[len(ns)-1].(*AssignStmt)
 						fillNameExprPath(last, n, as.Op == DEFINE)
+						if as.Op != DEFINE {
+							globalUse(n.Path)
+						}
 						return n, TRANS_CONTINUE
 					case TRANS_VAR_NAME:
 						fillNameExprPath(last, n, true)
@@ -1366,6 +1377,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						pref := RefValueFromPackage(pv)
 						n.SetAttribute(ATTR_PACKAGE_REF, pref)
 						n.SetAttribute(ATTR_PACKAGE_PATH, pv.PkgPath)
+					} else if nt.Kind() != TypeKind {
+						globalUse(n.Path)
 					}
 				}
 
@@ -2287,6 +2300,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// bound method or underlying.
 					// TODO check for unexported fields.
 					n.Path = tr[len(tr)-1]
+					if rcvr != nil {
+						destarRcvr := rcvr
+						if pt, ok := destarRcvr.(*PointerType); ok {
+							destarRcvr = pt.Elt
+						}
+						dt := destarRcvr.(*DeclaredType)
+						if dt.PkgPath == ctxpn.PkgPath {
+							addDependencyToTopDecl(ns, dt.Name+"."+n.Sel)
+						}
+					}
 					// n.Path = cxt.GetPathForName(n.Sel)
 				case *PackageType:
 					var pv *PackageValue
@@ -5318,14 +5341,6 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	nx.Path = last.GetPathForName(nil, nx.Name)
 }
 
-func isFile(n BlockNode) bool {
-	if _, ok := n.(*FileNode); ok {
-		return true
-	} else {
-		return false
-	}
-}
-
 func skipFile(n BlockNode) BlockNode {
 	if fn, ok := n.(*FileNode); ok {
 		return packageOf(fn)
@@ -5435,134 +5450,136 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 	}
 }
 
-// This is to be run *after* preprocessing is done,
-// to determine the order of var decl execution
-// (which may include functions which may refer to package vars).
-func findDependentNames(n Node, dst map[Name]struct{}) {
-	switch cn := n.(type) {
-	case *NameExpr:
-		dst[cn.Name] = struct{}{}
-	case *BasicLitExpr:
-	case *BinaryExpr:
-		findDependentNames(cn.Left, dst)
-		findDependentNames(cn.Right, dst)
-	case *SelectorExpr:
-		findDependentNames(cn.X, dst)
-	case *SliceExpr:
-		findDependentNames(cn.X, dst)
-		if cn.Low != nil {
-			findDependentNames(cn.Low, dst)
-		}
-		if cn.High != nil {
-			findDependentNames(cn.High, dst)
-		}
-		if cn.Max != nil {
-			findDependentNames(cn.Max, dst)
-		}
-	case *StarExpr:
-		findDependentNames(cn.X, dst)
-	case *RefExpr:
-		findDependentNames(cn.X, dst)
-	case *TypeAssertExpr:
-		findDependentNames(cn.X, dst)
-		findDependentNames(cn.Type, dst)
-	case *UnaryExpr:
-		findDependentNames(cn.X, dst)
-	case *CompositeLitExpr:
-		findDependentNames(cn.Type, dst)
-		ct := getType(cn.Type)
-		switch ct.Kind() {
-		case ArrayKind, SliceKind, MapKind:
-			for _, kvx := range cn.Elts {
-				if kvx.Key != nil {
-					findDependentNames(kvx.Key, dst)
-				}
-				findDependentNames(kvx.Value, dst)
+func addDependencyToTopDecl(ns []Node, name Name) {
+	for _, n := range ns {
+		switch val := n.(type) {
+		case *FuncDecl, *ValueDecl:
+			dd, _ := val.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
+			if dd == nil {
+				dd = make(map[Name]struct{})
+				val.SetAttribute(ATTR_DECL_DEPS, dd)
 			}
-		case StructKind:
-			for _, kvx := range cn.Elts {
-				findDependentNames(kvx.Value, dst)
-			}
-		default:
-			panic(fmt.Sprintf(
-				"unexpected composite lit type %s",
-				ct.String()))
+			dd[name] = struct{}{}
+			return
 		}
-	case *FieldTypeExpr:
-		findDependentNames(cn.Type, dst)
-	case *ArrayTypeExpr:
-		findDependentNames(cn.Elt, dst)
-		if cn.Len != nil {
-			findDependentNames(cn.Len, dst)
-		}
-	case *SliceTypeExpr:
-		findDependentNames(cn.Elt, dst)
-	case *InterfaceTypeExpr:
-		for i := range cn.Methods {
-			findDependentNames(&cn.Methods[i], dst)
-		}
-	case *ChanTypeExpr:
-		findDependentNames(cn.Value, dst)
-	case *FuncTypeExpr:
-		for i := range cn.Params {
-			findDependentNames(&cn.Params[i], dst)
-		}
-		for i := range cn.Results {
-			findDependentNames(&cn.Results[i], dst)
-		}
-	case *MapTypeExpr:
-		findDependentNames(cn.Key, dst)
-		findDependentNames(cn.Value, dst)
-	case *StructTypeExpr:
-		for i := range cn.Fields {
-			findDependentNames(&cn.Fields[i], dst)
-		}
-	case *CallExpr:
-		findDependentNames(cn.Func, dst)
-		for i := range cn.Args {
-			findDependentNames(cn.Args[i], dst)
-		}
-	case *IndexExpr:
-		findDependentNames(cn.X, dst)
-		findDependentNames(cn.Index, dst)
-	case *FuncLitExpr:
-		findDependentNames(&cn.Type, dst)
-		for _, n := range cn.GetExternNames() {
-			dst[n] = struct{}{}
-		}
-	case *constTypeExpr:
-	case *ConstExpr:
-	case *ImportDecl:
-	case *ValueDecl:
-		if cn.Type != nil {
-			findDependentNames(cn.Type, dst)
-		}
-		for _, vx := range cn.Values {
-			findDependentNames(vx, dst)
-		}
-	case *TypeDecl:
-		findDependentNames(cn.Type, dst)
-	case *FuncDecl:
-		findDependentNames(&cn.Type, dst)
-		if cn.IsMethod {
-			findDependentNames(&cn.Recv, dst)
-			for _, n := range cn.GetExternNames() {
-				dst[n] = struct{}{}
-			}
-		} else {
-			for _, n := range cn.GetExternNames() {
-				if n == cn.Name {
-					// top-level function referring to itself
-				} else {
-					dst[n] = struct{}{}
-				}
-			}
-		}
-	default:
-		panic(fmt.Sprintf(
-			"unexpected node: %v (%v)",
-			n, reflect.TypeOf(n)))
 	}
+}
+
+// resolveDeclDep resolves a dependency name (as stored in ATTR_DECL_DEPS) to
+// the corresponding Decl in pn. Method dependencies are encoded as "Type.Method".
+func resolveDeclDep(name Name, pn *PackageNode) Decl {
+	id, sel, isMethod := strings.Cut(string(name), ".")
+	if isMethod {
+		li, found := pn.GetLocalIndex(Name(id))
+		if !found || pn.NameSources[li].Type != NSTypeDecl {
+			panic(fmt.Sprintf("type %s not found in package %s", id, pn.PkgName))
+		}
+		dt, ok := pn.Types[li].(*DeclaredType)
+		if !ok {
+			panic(fmt.Sprintf("type %s is not a *DeclaredType in package %s", id, pn.PkgName))
+		}
+		idx := slices.IndexFunc(dt.Methods, func(m TypedValue) bool {
+			return m.V.(*FuncValue).Name == Name(sel)
+		})
+		if idx < 0 {
+			panic(fmt.Sprintf("method %s not found in type %s", sel, id))
+		}
+		return dt.Methods[idx].V.(*FuncValue).Source.(*FuncDecl)
+	}
+	li, found := pn.GetLocalIndex(name)
+	if !found {
+		panic(fmt.Sprintf("name %s not found in package %s", name, pn.PkgName))
+	}
+	return pn.NameSources[li].Origin.(Decl)
+}
+
+// findUnresolvedDeps returns the ValueDecl dependencies of decl that are not
+// yet in fdeclared, traversing transitively through FuncDecl call edges.
+// It panics with a descriptive chain if a circular variable-initialization
+// dependency is detected.
+func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{}) []Decl {
+	var ret []Decl
+	onStack := map[Decl]bool{} // grey: currently in the DFS call path
+	done := map[Decl]bool{}    // black: fully explored
+
+	// inFDeclared reports whether all names declared by d are already in
+	// fdeclared, meaning d has already been initialized and its deps are
+	// satisfied. Used to prune the DFS and avoid false circular-dep panics
+	// through already-resolved nodes.
+	inFDeclared := func(d *ValueDecl) bool {
+		for _, n := range d.GetDeclNames() {
+			if _, ok := fdeclared[n]; !ok {
+				return false
+			}
+		}
+		return true
+	}
+
+	var walk func(d Decl, path []Name)
+	walk = func(d Decl, path []Name) {
+		if done[d] {
+			return
+		}
+		onStack[d] = true
+		m, _ := d.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
+		// Sort dependency names for deterministic DFS traversal order.
+		// Without sorting, Go map iteration is non-deterministic, which makes
+		// the cycle error message vary across runs.
+		names := slices.Collect(maps.Keys(m))
+		slices.Sort(names)
+		for _, name := range names {
+			dep := resolveDeclDep(name, pn)
+			switch dep := dep.(type) {
+			case *FuncDecl:
+				// Mutually recursive functions are fine; only skip if already
+				// on the current path or fully explored.
+				if !onStack[dep] && !done[dep] {
+					walk(dep, append(path, name))
+				}
+			case *ValueDecl:
+				if onStack[dep] {
+					// Prefix with the root decl's source position so the error
+					// is easy to locate, then list the simple name chain.
+					bld := strings.Builder{}
+					if fn, _, ok := pn.FileSet.GetDeclForSafe(path[0]); ok {
+						fmt.Fprintf(&bld, "%s/%s:%s: ", pn.PkgPath, fn.FileName, decl.GetSpan().Pos.String())
+					}
+					bld.WriteString("circular dependency: ")
+					for _, n := range path {
+						bld.WriteString(string(n))
+						bld.WriteString(" -> ")
+					}
+					bld.WriteString(string(name))
+					panic(bld.String())
+				}
+				// Already initialized: treat as done and skip its transitive
+				// deps entirely — there is nothing left to resolve through it.
+				if inFDeclared(dep) {
+					done[dep] = true
+					continue
+				}
+				dv := Decl(dep)
+				if !slices.Contains(ret, dv) {
+					ret = append(ret, dv)
+				}
+				if !done[dep] {
+					walk(dep, append(path, name))
+				}
+			default:
+				panic(fmt.Sprintf("unexpected gnolang.Decl: %#v", dep))
+			}
+		}
+		onStack[d] = false
+		done[d] = true
+	}
+
+	rootNames := decl.GetDeclNames()
+	rootName := Name("_")
+	if len(rootNames) > 0 {
+		rootName = rootNames[0]
+	}
+	walk(decl, []Name{rootName})
+	return ret
 }
 
 // A name is locally defined on a block node
