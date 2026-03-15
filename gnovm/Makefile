@@ -106,7 +106,7 @@ calibrate.alloc:
 
 # Full gas calibration: run op benchmarks, allocation benchmarks, and analysis.
 .PHONY: calibrate.gas
-calibrate.gas: run.bench.opcode
+calibrate.gas:
 	@echo "=== Running op handler benchmarks ==="
 	go test -tags benchmarkingops -bench=BenchmarkOp -benchmem -count=3 -timeout=30m \
 		./pkg/gnolang/ | tee $(CALIBRATE_DIR)/op_bench_local.txt

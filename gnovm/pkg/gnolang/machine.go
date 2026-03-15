@@ -1105,10 +1105,7 @@ func (m *Machine) incrCPUBigInt(lv, rv *TypedValue, slopePerKb int64) {
 	if lv.T == UntypedBigintType {
 		lb := int64(lv.GetBigInt().BitLen())
 		rb := int64(rv.GetBigInt().BitLen())
-		if rb > lb {
-			lb = rb
-		}
-		m.incrCPU(lb * slopePerKb / 1024)
+		m.incrCPU(max(lb, rb) * slopePerKb / 1024)
 	}
 }
 
@@ -1127,10 +1124,7 @@ func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 	if lv.T == UntypedBigdecType {
 		lb := lv.GetBigDec().NumDigits()
 		rb := rv.GetBigDec().NumDigits()
-		if rb > lb {
-			lb = rb
-		}
-		m.incrCPU(lb * slopePer100 / 100)
+		m.incrCPU(max(lb, rb) * slopePer100 / 100)
 	}
 }
 
@@ -1147,7 +1141,7 @@ func (m *Machine) incrCPUBigDecQuad(lv, rv *TypedValue, slope int64) {
 // incrCPUBigUnary charges per-kilobit CPU gas for unary BigInt ops.
 func (m *Machine) incrCPUBigUnary(xv *TypedValue, slopePerKb int64) {
 	if xv.T == UntypedBigintType {
-		bits := int64(xv.V.(BigintValue).V.BitLen())
+		bits := int64(xv.GetBigInt().BitLen())
 		m.incrCPU(bits * slopePerKb / 1024)
 	}
 }
@@ -1155,7 +1149,7 @@ func (m *Machine) incrCPUBigUnary(xv *TypedValue, slopePerKb int64) {
 // incrCPUBigDecUnary charges per-100-digit CPU gas for unary BigDec ops.
 func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
 	if xv.T == UntypedBigdecType {
-		digits := xv.V.(BigdecValue).V.NumDigits()
+		digits := xv.GetBigDec().NumDigits()
 		m.incrCPU(digits * slopePer100 / 100)
 	}
 }
