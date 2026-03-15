@@ -320,7 +320,15 @@ BIGINT_FAMILIES = [
         ('BenchmarkOpQuo_BigInt_1024x64', 1024), ('BenchmarkOpQuo_BigInt_4096x64', 4096),
         ('BenchmarkOpQuo_BigInt_4096x256', 4096)]),
     ('Rem (BigInt)', [
+        ('BenchmarkOpRem_BigInt_64', 64), ('BenchmarkOpRem_BigInt_256', 256),
+        ('BenchmarkOpRem_BigInt_1024', 1024), ('BenchmarkOpRem_BigInt_4096', 4096),
         ('BenchmarkOpRem_BigInt_4096x64', 4096), ('BenchmarkOpRem_BigInt_4096x256', 4096)]),
+    ('Shl (BigInt)', [
+        ('BenchmarkOpShl_BigInt_10', 10), ('BenchmarkOpShl_BigInt_100', 100),
+        ('BenchmarkOpShl_BigInt_1000', 1000), ('BenchmarkOpShl_BigInt_10000', 10000)]),
+    ('Shr (BigInt)', [
+        ('BenchmarkOpShr_BigInt_10', 10), ('BenchmarkOpShr_BigInt_100', 100),
+        ('BenchmarkOpShr_BigInt_1000', 1000), ('BenchmarkOpShr_BigInt_10000', 10000)]),
     ('Eql (BigInt)', [
         ('BenchmarkOpEql_BigInt_64', 64), ('BenchmarkOpEql_BigInt_256', 256),
         ('BenchmarkOpEql_BigInt_1024', 1024), ('BenchmarkOpEql_BigInt_4096', 4096)]),

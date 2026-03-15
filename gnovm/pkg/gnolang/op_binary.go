@@ -302,6 +302,9 @@ func (m *Machine) doOpRem() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	// Per-N gas for BigInt (quadratic, similar to Quo).
+	m.incrCPUBigIntQuad(lv, rv, OpCPUSlopeBigIntRemQ)
+
 	// lv % rv
 	err := remAssign(lv, rv)
 	if err != nil {
@@ -321,6 +324,11 @@ func (m *Machine) doOpShl() {
 		}
 	}
 
+	// Per-N gas for BigInt Shl: charge per-kilobit of shift amount.
+	if lv.T == UntypedBigintType {
+		m.incrCPU(int64(rv.GetUint()) * OpCPUSlopeBigIntShl / 1024)
+	}
+
 	// lv << rv
 	shlAssign(m, lv, rv)
 }
@@ -336,6 +344,9 @@ func (m *Machine) doOpShr() {
 			panic("should not happen")
 		}
 	}
+
+	// Per-N gas for BigInt Shr: charge per-kilobit of input bit width.
+	m.incrCPUBigUnary(lv, OpCPUSlopeBigIntShr)
 
 	// lv >> rv
 	shrAssign(m, lv, rv)

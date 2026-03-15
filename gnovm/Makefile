@@ -96,6 +96,33 @@ calibrate.plot:
 	python3 $(CALIBRATE_DIR)/plot_fits.py $(BENCH_DATA) $(CALIBRATE_DIR)/op_gas_fits.png
 	@echo "Plot saved to $(CALIBRATE_DIR)/op_gas_fits.png"
 
+# Run allocation benchmarks and generate allocGasTable.
+.PHONY: calibrate.alloc
+calibrate.alloc:
+	@mkdir -p .tmp
+	go test -bench=BenchmarkAlloc -benchmem -count=5 -timeout=10m \
+		./$(CALIBRATE_DIR)/ | tee .tmp/alloc_bench.txt
+	python3 $(CALIBRATE_DIR)/gen_alloc_table.py .tmp/alloc_bench.txt
+
+# Full gas calibration: run op benchmarks, allocation benchmarks, and analysis.
+.PHONY: calibrate.gas
+calibrate.gas: run.bench.opcode
+	@echo "=== Running op handler benchmarks ==="
+	go test -tags benchmarkingops -bench=BenchmarkOp -benchmem -count=3 -timeout=30m \
+		./pkg/gnolang/ | tee $(CALIBRATE_DIR)/op_bench_local.txt
+	@echo "=== Running allocation benchmarks ==="
+	go test -bench=BenchmarkAlloc -benchmem -count=5 -timeout=10m \
+		./$(CALIBRATE_DIR)/ | tee $(CALIBRATE_DIR)/alloc_bench_local.txt
+	@echo "=== Generating analysis ==="
+	python3 $(CALIBRATE_DIR)/gen_analysis.py $(CALIBRATE_DIR)/op_bench_local.txt $(MACHINE_GO)
+	python3 $(CALIBRATE_DIR)/gen_alloc_table.py $(CALIBRATE_DIR)/alloc_bench_local.txt
+	@echo "=== Generating plots ==="
+	python3 $(CALIBRATE_DIR)/plot_fits.py $(CALIBRATE_DIR)/op_bench_local.txt $(CALIBRATE_DIR)/op_gas_fits_local.png
+	@echo ""
+	@echo "Calibration complete. Review the analysis output above."
+	@echo "Update constants in pkg/gnolang/machine.go and pkg/gnolang/alloc.go as needed."
+	@echo "Then run: go test ./pkg/gnolang/ -run TestFiles -test.short --update-golden-tests"
+
 ########################################
 # Test suite
 .PHONY: test

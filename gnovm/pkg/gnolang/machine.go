@@ -1337,6 +1337,11 @@ const (
 	// Mul: 0.000026/bit^2. At 32-bit granularity: 0.000026 * 32^2 = 0.0266 per (32b)^2.
 	// Scaled by /32: 0.0266*32 = 0.85 → 1.
 	OpCPUSlopeBigIntMulQ = 1 // per (bits/32)^2 / 32
+	OpCPUSlopeBigIntRemQ = 1 // per (bits/32)^2 / 32, similar to Quo
+	// Shift ops: Shl charges per-kilobit of shift amount (output growth).
+	// Shr charges per-kilobit of input bit width.
+	OpCPUSlopeBigIntShl = 8  // 0.038 ns/bit → 38/5.2 ≈ 7.3, round to 8
+	OpCPUSlopeBigIntShr = 10 // 0.049 ns/bit → 49/5.2 ≈ 9.4, round to 10
 
 	// BigDec per-digit slopes: gas = digits * slope / 100.
 	OpCPUSlopeBigDecAdd  = 72 // 0.7216 * 100 = 72.2
