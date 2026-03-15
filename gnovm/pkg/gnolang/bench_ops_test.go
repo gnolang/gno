@@ -5303,22 +5303,37 @@ func BenchmarkOpSliceType(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpFuncType(b *testing.B) {
+func benchOpFuncType(b *testing.B, nParams, nResults int) {
 	m := benchMachine()
 	defer m.Release()
-	x := &FuncTypeExpr{
-		Params:  []FieldTypeExpr{{NameExpr: NameExpr{Name: "x"}}, {NameExpr: NameExpr{Name: "y"}}},
-		Results: []FieldTypeExpr{{NameExpr: NameExpr{Name: "r"}}},
+
+	params := make([]FieldTypeExpr, nParams)
+	for i := range nParams {
+		params[i] = FieldTypeExpr{NameExpr: NameExpr{Name: Name("p" + string(rune('a'+i)))}}
 	}
-	p1 := FieldType{Name: "x", Type: IntType}
-	p2 := FieldType{Name: "y", Type: IntType}
-	r1 := FieldType{Name: "r", Type: IntType}
+	results := make([]FieldTypeExpr, nResults)
+	for i := range nResults {
+		results[i] = FieldTypeExpr{NameExpr: NameExpr{Name: Name("r" + string(rune('a'+i)))}}
+	}
+	x := &FuncTypeExpr{Params: params, Results: results}
+
+	// Pre-build the FieldType values to push.
+	fieldTVs := make([]TypedValue, nParams+nResults)
+	for i := range nParams {
+		ft := FieldType{Name: Name("p" + string(rune('a'+i))), Type: IntType}
+		fieldTVs[i] = TypedValue{T: gTypeType, V: toTypeValue(ft)}
+	}
+	for i := range nResults {
+		ft := FieldType{Name: Name("r" + string(rune('a'+i))), Type: IntType}
+		fieldTVs[nParams+i] = TypedValue{T: gTypeType, V: toTypeValue(ft)}
+	}
+
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
-		m.PushValue(TypedValue{T: gTypeType, V: toTypeValue(p1)})
-		m.PushValue(TypedValue{T: gTypeType, V: toTypeValue(p2)})
-		m.PushValue(TypedValue{T: gTypeType, V: toTypeValue(r1)})
+		for _, tv := range fieldTVs {
+			m.PushValue(tv)
+		}
 		m.PushExpr(x)
 		bm.SwitchOpCode(bmTarget)
 		m.doOpFuncType()
@@ -5327,6 +5342,16 @@ func BenchmarkOpFuncType(b *testing.B) {
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpFuncType_0Params_0Results(b *testing.B)    { benchOpFuncType(b, 0, 0) }
+func BenchmarkOpFuncType_1Params_0Results(b *testing.B)    { benchOpFuncType(b, 1, 0) }
+func BenchmarkOpFuncType_10Params_0Results(b *testing.B)   { benchOpFuncType(b, 10, 0) }
+func BenchmarkOpFuncType_100Params_0Results(b *testing.B)  { benchOpFuncType(b, 100, 0) }
+func BenchmarkOpFuncType_1000Params_0Results(b *testing.B) { benchOpFuncType(b, 1000, 0) }
+func BenchmarkOpFuncType_0Params_1Results(b *testing.B)    { benchOpFuncType(b, 0, 1) }
+func BenchmarkOpFuncType_0Params_10Results(b *testing.B)   { benchOpFuncType(b, 0, 10) }
+func BenchmarkOpFuncType_0Params_100Results(b *testing.B)  { benchOpFuncType(b, 0, 100) }
+func BenchmarkOpFuncType_0Params_1000Results(b *testing.B) { benchOpFuncType(b, 0, 1000) }
 
 func BenchmarkOpMapType(b *testing.B) {
 	m := benchMachine()
