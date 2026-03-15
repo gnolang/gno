@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -395,7 +396,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		la := lv.V.(*ArrayValue)
 		ra := rv.V.(*ArrayValue)
 		at := baseOf(lv.T).(*ArrayType)
-		et := at.Elt
 		if debug {
 			if la.GetLength() != ra.GetLength() {
 				panic("comparison on arrays of unequal length")
@@ -405,6 +405,11 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("comparison on arrays of unequal type")
 			}
 		}
+		// Fast path for byte arrays (Data representation).
+		if la.Data != nil {
+			return bytes.Equal(la.Data, ra.Data)
+		}
+		et := at.Elt
 		for i := range la.GetLength() {
 			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
 			ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()

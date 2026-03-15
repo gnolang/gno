@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cockroachdb/apd/v3"
+
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
@@ -67,38 +69,12 @@ func BenchmarkOpAdd_Int(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpAdd_String(b *testing.B) {
+func benchOpAdd_String(b *testing.B, length int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	sv1 := m.Alloc.NewString("hello")
-	sv2 := m.Alloc.NewString(" world")
-
-	bm.InitMeasure()
-	bm.BeginOpCode(bmSetup)
-	for range b.N {
-		m.PushValue(TypedValue{T: StringType, V: sv1})
-		m.PushValue(TypedValue{T: StringType, V: sv2})
-		m.PushExpr(expr)
-		bm.SwitchOpCode(bmTarget)
-		m.doOpAdd()
-		bm.SwitchOpCode(bmSetup)
-		res := m.PeekValue(1)
-		if res.GetString() != "hello world" {
-			b.Fatalf("expected 'hello world', got %q", res.GetString())
-		}
-		m.Values = m.Values[:0]
-	}
-	reportBenchops(b)
-}
-
-// Long string concatenation — allocates proportional to total length.
-func BenchmarkOpAdd_LongString(b *testing.B) {
-	m := benchMachine()
-	defer m.Release()
-	expr := &BinaryExpr{}
-	s1 := strings.Repeat("a", 100)
-	s2 := strings.Repeat("b", 100)
+	s1 := strings.Repeat("a", length)
+	s2 := strings.Repeat("b", length)
 	sv1 := m.Alloc.NewString(s1)
 	sv2 := m.Alloc.NewString(s2)
 
@@ -112,13 +88,18 @@ func BenchmarkOpAdd_LongString(b *testing.B) {
 		m.doOpAdd()
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
-		if len(res.GetString()) != 200 {
-			b.Fatalf("expected len 200, got %d", len(res.GetString()))
+		if len(res.GetString()) != 2*length {
+			b.Fatalf("expected len %d, got %d", 2*length, len(res.GetString()))
 		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpAdd_String_10(b *testing.B)    { benchOpAdd_String(b, 10) }
+func BenchmarkOpAdd_String_100(b *testing.B)   { benchOpAdd_String(b, 100) }
+func BenchmarkOpAdd_String_1000(b *testing.B)  { benchOpAdd_String(b, 1000) }
+func BenchmarkOpAdd_String_10000(b *testing.B) { benchOpAdd_String(b, 10000) }
 
 func BenchmarkOpAdd_Float64(b *testing.B) {
 	m := benchMachine()
@@ -147,16 +128,12 @@ func BenchmarkOpAdd_Float64(b *testing.B) {
 	reportBenchops(b)
 }
 
-// Large BigInt operands: 512-bit numbers (16 limbs on 64-bit).
-// BigInt add is O(n) in limbs — test with large numbers.
-func BenchmarkOpAdd_BigIntLarge(b *testing.B) {
+func benchOpAdd_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	// 512-bit numbers
-	v1 := new(big.Int).Lsh(big.NewInt(1), 512)
-	v1.Sub(v1, big.NewInt(1)) // 2^512 - 1
-	v2 := new(big.Int).Set(v1)
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
 	bv1 := BigintValue{V: v1}
 	bv2 := BigintValue{V: v2}
 	expected := new(big.Int).Add(v1, v2)
@@ -171,21 +148,28 @@ func BenchmarkOpAdd_BigIntLarge(b *testing.B) {
 		m.doOpAdd()
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
-		got := res.V.(BigintValue).V
-		if got.Cmp(expected) != 0 {
-			b.Fatalf("unexpected result")
+		if res.V.(BigintValue).V.Cmp(expected) != 0 {
+			b.Fatal("unexpected result")
 		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
 
-func BenchmarkOpAdd_BigInt(b *testing.B) {
+func BenchmarkOpAdd_BigInt_64(b *testing.B)   { benchOpAdd_BigInt(b, 64) }
+func BenchmarkOpAdd_BigInt_256(b *testing.B)  { benchOpAdd_BigInt(b, 256) }
+func BenchmarkOpAdd_BigInt_1024(b *testing.B) { benchOpAdd_BigInt(b, 1024) }
+func BenchmarkOpAdd_BigInt_4096(b *testing.B) { benchOpAdd_BigInt(b, 4096) }
+
+func benchOpAdd_BigInt_Asym(b *testing.B, bitsA, bitsB int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	bv1 := BigintValue{V: big.NewInt(1_000_000_000)}
-	bv2 := BigintValue{V: big.NewInt(2_000_000_000)}
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bitsA)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bitsB)), big.NewInt(1))
+	bv1 := BigintValue{V: v1}
+	bv2 := BigintValue{V: v2}
+	expected := new(big.Int).Add(v1, v2)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -197,14 +181,16 @@ func BenchmarkOpAdd_BigInt(b *testing.B) {
 		m.doOpAdd()
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
-		got := res.V.(BigintValue).V.Int64()
-		if got != 3_000_000_000 {
-			b.Fatalf("expected 3000000000, got %d", got)
+		if res.V.(BigintValue).V.Cmp(expected) != 0 {
+			b.Fatal("unexpected result")
 		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpAdd_BigInt_64x4096(b *testing.B)  { benchOpAdd_BigInt_Asym(b, 64, 4096) }
+func BenchmarkOpAdd_BigInt_256x4096(b *testing.B) { benchOpAdd_BigInt_Asym(b, 256, 4096) }
 
 // ---------------------------------------------------------------------------
 // doOpSub: PopExpr, PopValue(rv), PeekValue(lv); lv = lv - rv
@@ -259,12 +245,15 @@ func BenchmarkOpSub_Float64(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpSub_BigInt(b *testing.B) {
+func benchOpSub_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	bv1 := BigintValue{V: big.NewInt(3_000_000_000)}
-	bv2 := BigintValue{V: big.NewInt(1_000_000_000)}
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	bv1 := BigintValue{V: v1}
+	bv2 := BigintValue{V: v2}
+	expected := new(big.Int).Sub(v1, v2)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -276,14 +265,18 @@ func BenchmarkOpSub_BigInt(b *testing.B) {
 		m.doOpSub()
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
-		got := res.V.(BigintValue).V.Int64()
-		if got != 2_000_000_000 {
-			b.Fatalf("expected 2000000000, got %d", got)
+		if res.V.(BigintValue).V.Cmp(expected) != 0 {
+			b.Fatal("unexpected result")
 		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpSub_BigInt_64(b *testing.B)   { benchOpSub_BigInt(b, 64) }
+func BenchmarkOpSub_BigInt_256(b *testing.B)  { benchOpSub_BigInt(b, 256) }
+func BenchmarkOpSub_BigInt_1024(b *testing.B) { benchOpSub_BigInt(b, 1024) }
+func BenchmarkOpSub_BigInt_4096(b *testing.B) { benchOpSub_BigInt(b, 4096) }
 
 // ---------------------------------------------------------------------------
 // doOpMul: PopExpr, PopValue(rv), PeekValue(lv); lv = lv * rv
@@ -338,41 +331,12 @@ func BenchmarkOpMul_Float64(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpMul_BigInt(b *testing.B) {
+func benchOpMul_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	bv1 := BigintValue{V: big.NewInt(1_000_000)}
-	bv2 := BigintValue{V: big.NewInt(2_000_000)}
-
-	bm.InitMeasure()
-	bm.BeginOpCode(bmSetup)
-	for range b.N {
-		m.PushValue(TypedValue{T: UntypedBigintType, V: bv1})
-		m.PushValue(TypedValue{T: UntypedBigintType, V: bv2})
-		m.PushExpr(expr)
-		bm.SwitchOpCode(bmTarget)
-		m.doOpMul()
-		bm.SwitchOpCode(bmSetup)
-		res := m.PeekValue(1)
-		got := res.V.(BigintValue).V.Int64()
-		if got != 2_000_000_000_000 {
-			b.Fatalf("expected 2000000000000, got %d", got)
-		}
-		m.Values = m.Values[:0]
-	}
-	reportBenchops(b)
-}
-
-// Mul with 512-bit operands: O(n²) in limbs — much more expensive than small BigInt.
-func BenchmarkOpMul_BigIntLarge(b *testing.B) {
-	m := benchMachine()
-	defer m.Release()
-	expr := &BinaryExpr{}
-	v1 := new(big.Int).Lsh(big.NewInt(1), 512)
-	v1.Sub(v1, big.NewInt(3))
-	v2 := new(big.Int).Lsh(big.NewInt(1), 512)
-	v2.Sub(v2, big.NewInt(5))
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
 	bv1 := BigintValue{V: v1}
 	bv2 := BigintValue{V: v2}
 	expected := new(big.Int).Mul(v1, v2)
@@ -394,6 +358,44 @@ func BenchmarkOpMul_BigIntLarge(b *testing.B) {
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpMul_BigInt_64(b *testing.B)   { benchOpMul_BigInt(b, 64) }
+func BenchmarkOpMul_BigInt_256(b *testing.B)  { benchOpMul_BigInt(b, 256) }
+func BenchmarkOpMul_BigInt_1024(b *testing.B) { benchOpMul_BigInt(b, 1024) }
+func BenchmarkOpMul_BigInt_4096(b *testing.B) { benchOpMul_BigInt(b, 4096) }
+
+func benchOpMul_BigInt_Asym(b *testing.B, bitsA, bitsB int) {
+	m := benchMachine()
+	defer m.Release()
+	expr := &BinaryExpr{}
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bitsA)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bitsB)), big.NewInt(1))
+	bv1 := BigintValue{V: v1}
+	bv2 := BigintValue{V: v2}
+	expected := new(big.Int).Mul(v1, v2)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: UntypedBigintType, V: bv1})
+		m.PushValue(TypedValue{T: UntypedBigintType, V: bv2})
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpMul()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if res.V.(BigintValue).V.Cmp(expected) != 0 {
+			b.Fatal("unexpected result")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpMul_BigInt_64x4096(b *testing.B)  { benchOpMul_BigInt_Asym(b, 64, 4096) }
+func BenchmarkOpMul_BigInt_256x4096(b *testing.B) { benchOpMul_BigInt_Asym(b, 256, 4096) }
+func BenchmarkOpMul_BigInt_64x1024(b *testing.B)  { benchOpMul_BigInt_Asym(b, 64, 1024) }
+func BenchmarkOpMul_BigInt_256x1024(b *testing.B) { benchOpMul_BigInt_Asym(b, 256, 1024) }
 
 // ---------------------------------------------------------------------------
 // doOpQuo: PopExpr, PopValue(rv), PeekValue(lv); lv = lv / rv
@@ -448,40 +450,17 @@ func BenchmarkOpQuo_Float64(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpQuo_BigInt(b *testing.B) {
+func benchOpQuo_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	bv1 := BigintValue{V: big.NewInt(1_000_000_000)}
-	bv2 := BigintValue{V: big.NewInt(7)}
-
-	bm.InitMeasure()
-	bm.BeginOpCode(bmSetup)
-	for range b.N {
-		m.PushValue(TypedValue{T: UntypedBigintType, V: bv1})
-		m.PushValue(TypedValue{T: UntypedBigintType, V: bv2})
-		m.PushExpr(expr)
-		bm.SwitchOpCode(bmTarget)
-		m.doOpQuo()
-		bm.SwitchOpCode(bmSetup)
-		res := m.PeekValue(1)
-		got := res.V.(BigintValue).V.Int64()
-		if got != 142857142 {
-			b.Fatalf("expected 142857142, got %d", got)
-		}
-		m.Values = m.Values[:0]
+	// dividend: bits-wide; divisor: bits/2-wide (min 32)
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	divisorBits := bits / 2
+	if divisorBits < 32 {
+		divisorBits = 32
 	}
-	reportBenchops(b)
-}
-
-// 1024-bit / 512-bit division — expensive.
-func BenchmarkOpQuo_BigIntLarge(b *testing.B) {
-	m := benchMachine()
-	defer m.Release()
-	expr := &BinaryExpr{}
-	v1 := new(big.Int).Lsh(big.NewInt(1), 1024)
-	v2 := new(big.Int).Lsh(big.NewInt(1), 512)
-	v2.Sub(v2, big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(divisorBits)), big.NewInt(1))
 	bv1 := BigintValue{V: v1}
 	bv2 := BigintValue{V: v2}
 	expected := new(big.Int).Quo(v1, v2)
@@ -503,6 +482,44 @@ func BenchmarkOpQuo_BigIntLarge(b *testing.B) {
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpQuo_BigInt_64(b *testing.B)   { benchOpQuo_BigInt(b, 64) }
+func BenchmarkOpQuo_BigInt_256(b *testing.B)  { benchOpQuo_BigInt(b, 256) }
+func BenchmarkOpQuo_BigInt_1024(b *testing.B) { benchOpQuo_BigInt(b, 1024) }
+func BenchmarkOpQuo_BigInt_4096(b *testing.B) { benchOpQuo_BigInt(b, 4096) }
+
+func benchOpQuo_BigInt_Asym(b *testing.B, bitsA, bitsB int) {
+	m := benchMachine()
+	defer m.Release()
+	expr := &BinaryExpr{}
+	// bitsA = dividend, bitsB = divisor
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bitsA)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bitsB)), big.NewInt(1))
+	bv1 := BigintValue{V: v1}
+	bv2 := BigintValue{V: v2}
+	expected := new(big.Int).Quo(v1, v2)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: UntypedBigintType, V: bv1})
+		m.PushValue(TypedValue{T: UntypedBigintType, V: bv2})
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpQuo()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if res.V.(BigintValue).V.Cmp(expected) != 0 {
+			b.Fatal("unexpected result")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpQuo_BigInt_4096x64(b *testing.B)  { benchOpQuo_BigInt_Asym(b, 4096, 64) }
+func BenchmarkOpQuo_BigInt_4096x256(b *testing.B) { benchOpQuo_BigInt_Asym(b, 4096, 256) }
+func BenchmarkOpQuo_BigInt_1024x64(b *testing.B)  { benchOpQuo_BigInt_Asym(b, 1024, 64) }
 
 // ---------------------------------------------------------------------------
 // doOpRem: PopExpr, PopValue(rv), PeekValue(lv); lv = lv % rv
@@ -531,12 +548,20 @@ func BenchmarkOpRem_Int(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpRem_BigInt(b *testing.B) {
+func benchOpRem_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	bv1 := BigintValue{V: big.NewInt(1_000_000_000)}
-	bv2 := BigintValue{V: big.NewInt(7)}
+	// dividend: bits-wide; divisor: bits/2-wide (min 32)
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	divisorBits := bits / 2
+	if divisorBits < 32 {
+		divisorBits = 32
+	}
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(divisorBits)), big.NewInt(1))
+	bv1 := BigintValue{V: v1}
+	bv2 := BigintValue{V: v2}
+	expected := new(big.Int).Rem(v1, v2)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -548,14 +573,50 @@ func BenchmarkOpRem_BigInt(b *testing.B) {
 		m.doOpRem()
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
-		got := res.V.(BigintValue).V.Int64()
-		if got != 6 { // 1000000000 % 7 = 6
-			b.Fatalf("expected 6, got %d", got)
+		if res.V.(BigintValue).V.Cmp(expected) != 0 {
+			b.Fatal("unexpected result")
 		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpRem_BigInt_64(b *testing.B)   { benchOpRem_BigInt(b, 64) }
+func BenchmarkOpRem_BigInt_256(b *testing.B)  { benchOpRem_BigInt(b, 256) }
+func BenchmarkOpRem_BigInt_1024(b *testing.B) { benchOpRem_BigInt(b, 1024) }
+func BenchmarkOpRem_BigInt_4096(b *testing.B) { benchOpRem_BigInt(b, 4096) }
+
+func benchOpRem_BigInt_Asym(b *testing.B, bitsA, bitsB int) {
+	m := benchMachine()
+	defer m.Release()
+	expr := &BinaryExpr{}
+	// bitsA = dividend, bitsB = divisor
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bitsA)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bitsB)), big.NewInt(1))
+	bv1 := BigintValue{V: v1}
+	bv2 := BigintValue{V: v2}
+	expected := new(big.Int).Rem(v1, v2)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: UntypedBigintType, V: bv1})
+		m.PushValue(TypedValue{T: UntypedBigintType, V: bv2})
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpRem()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if res.V.(BigintValue).V.Cmp(expected) != 0 {
+			b.Fatal("unexpected result")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpRem_BigInt_4096x64(b *testing.B)  { benchOpRem_BigInt_Asym(b, 4096, 64) }
+func BenchmarkOpRem_BigInt_4096x256(b *testing.B) { benchOpRem_BigInt_Asym(b, 4096, 256) }
 
 // ---------------------------------------------------------------------------
 // doOpBand: PopExpr, PopValue(rv), PeekValue(lv); lv = lv & rv
@@ -722,57 +783,35 @@ func BenchmarkOpEql_Int(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpEql_String(b *testing.B) {
+func benchOpEql_String(b *testing.B, length int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	sv1 := m.Alloc.NewString("hello world foo bar")
-	sv2 := m.Alloc.NewString("hello world foo baz")
+	s := strings.Repeat("x", length)
+	sv := m.Alloc.NewString(s)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
-		m.PushValue(TypedValue{T: StringType, V: sv1})
-		m.PushValue(TypedValue{T: StringType, V: sv2})
+		m.PushValue(TypedValue{T: StringType, V: sv})
+		m.PushValue(TypedValue{T: StringType, V: sv})
 		m.PushExpr(expr)
 		bm.SwitchOpCode(bmTarget)
 		m.doOpEql()
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
-		if res.GetBool() {
-			b.Fatal("expected false")
+		if !res.GetBool() {
+			b.Fatal("expected true")
 		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
 
-// Long strings that differ only at the very end — worst case for == comparison.
-func BenchmarkOpEql_LongString(b *testing.B) {
-	m := benchMachine()
-	defer m.Release()
-	expr := &BinaryExpr{}
-	base := strings.Repeat("abcdefghij", 10) // 100 chars
-	sv1 := m.Alloc.NewString(base + "a")
-	sv2 := m.Alloc.NewString(base + "b")
-
-	bm.InitMeasure()
-	bm.BeginOpCode(bmSetup)
-	for range b.N {
-		m.PushValue(TypedValue{T: StringType, V: sv1})
-		m.PushValue(TypedValue{T: StringType, V: sv2})
-		m.PushExpr(expr)
-		bm.SwitchOpCode(bmTarget)
-		m.doOpEql()
-		bm.SwitchOpCode(bmSetup)
-		res := m.PeekValue(1)
-		if res.GetBool() {
-			b.Fatal("expected false")
-		}
-		m.Values = m.Values[:0]
-	}
-	reportBenchops(b)
-}
+func BenchmarkOpEql_String_10(b *testing.B)    { benchOpEql_String(b, 10) }
+func BenchmarkOpEql_String_100(b *testing.B)   { benchOpEql_String(b, 100) }
+func BenchmarkOpEql_String_1000(b *testing.B)  { benchOpEql_String(b, 1000) }
+func BenchmarkOpEql_String_10000(b *testing.B) { benchOpEql_String(b, 10000) }
 
 // ---------------------------------------------------------------------------
 // doOpNeq: PopExpr, PopValue(rv), PeekValue(lv); lv = (lv != rv)
@@ -828,14 +867,14 @@ func BenchmarkOpLss(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpLss_String(b *testing.B) {
+func benchOpLss_String(b *testing.B, length int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	// Long nearly-equal strings that differ at the end — worst case for comparison.
-	base := strings.Repeat("abcdefghij", 10) // 100 chars
-	sv1 := m.Alloc.NewString(base + "a")
-	sv2 := m.Alloc.NewString(base + "b")
+	s1 := strings.Repeat("a", length)
+	s2 := strings.Repeat("a", length-1) + "b"
+	sv1 := m.Alloc.NewString(s1)
+	sv2 := m.Alloc.NewString(s2)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -854,6 +893,11 @@ func BenchmarkOpLss_String(b *testing.B) {
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpLss_String_10(b *testing.B)    { benchOpLss_String(b, 10) }
+func BenchmarkOpLss_String_100(b *testing.B)   { benchOpLss_String(b, 100) }
+func BenchmarkOpLss_String_1000(b *testing.B)  { benchOpLss_String(b, 1000) }
+func BenchmarkOpLss_String_10000(b *testing.B) { benchOpLss_String(b, 10000) }
 
 // ---------------------------------------------------------------------------
 // doOpLeq: PopExpr, PopValue(rv), PeekValue(lv); lv = (lv <= rv)
@@ -1013,11 +1057,13 @@ func BenchmarkOpUneg(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpUneg_BigInt(b *testing.B) {
+func benchOpUneg_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &UnaryExpr{}
-	bv := BigintValue{V: big.NewInt(1_000_000_000)}
+	v := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	bv := BigintValue{V: v}
+	expected := new(big.Int).Neg(v)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -1028,14 +1074,18 @@ func BenchmarkOpUneg_BigInt(b *testing.B) {
 		m.doOpUneg()
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
-		got := res.V.(BigintValue).V.Int64()
-		if got != -1_000_000_000 {
-			b.Fatalf("expected -1000000000, got %d", got)
+		if res.V.(BigintValue).V.Cmp(expected) != 0 {
+			b.Fatal("unexpected result")
 		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpUneg_BigInt_64(b *testing.B)   { benchOpUneg_BigInt(b, 64) }
+func BenchmarkOpUneg_BigInt_256(b *testing.B)  { benchOpUneg_BigInt(b, 256) }
+func BenchmarkOpUneg_BigInt_1024(b *testing.B) { benchOpUneg_BigInt(b, 1024) }
+func BenchmarkOpUneg_BigInt_4096(b *testing.B) { benchOpUneg_BigInt(b, 4096) }
 
 // ---------------------------------------------------------------------------
 // doOpUnot: PopExpr(UnaryExpr), PeekValue(1); xv = !xv
@@ -1115,11 +1165,13 @@ func BenchmarkOpUxor(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpUxor_BigInt(b *testing.B) {
+func benchOpUxor_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &UnaryExpr{}
-	bv := BigintValue{V: big.NewInt(0x0F)}
+	v := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	bv := BigintValue{V: v}
+	expected := new(big.Int).Not(v)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -1130,14 +1182,18 @@ func BenchmarkOpUxor_BigInt(b *testing.B) {
 		m.doOpUxor()
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
-		got := res.V.(BigintValue).V.Int64()
-		if got != ^int64(0x0F) {
-			b.Fatalf("expected %d, got %d", ^int64(0x0F), got)
+		if res.V.(BigintValue).V.Cmp(expected) != 0 {
+			b.Fatal("unexpected result")
 		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpUxor_BigInt_64(b *testing.B)   { benchOpUxor_BigInt(b, 64) }
+func BenchmarkOpUxor_BigInt_256(b *testing.B)  { benchOpUxor_BigInt(b, 256) }
+func BenchmarkOpUxor_BigInt_1024(b *testing.B) { benchOpUxor_BigInt(b, 1024) }
+func BenchmarkOpUxor_BigInt_4096(b *testing.B) { benchOpUxor_BigInt(b, 4096) }
 
 // ---------------------------------------------------------------------------
 // doOpSliceLit: PopExpr(CompositeLitExpr), pop N values, pop type, push slice.
@@ -1358,6 +1414,35 @@ func BenchmarkOpIndex1_Array(b *testing.B) {
 	reportBenchops(b)
 }
 
+func BenchmarkOpIndex1_ByteArray(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+	expr := &IndexExpr{}
+
+	at := &ArrayType{Elt: Uint8Type, Len: 100}
+	av := m.Alloc.NewDataArray(100)
+	for i := range av.Data {
+		av.Data[i] = byte(i % 256)
+	}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: at, V: av})
+		m.PushValue(TypedValue{T: IntType, N: i2n(42)})
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpIndex1()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if res.GetUint8() != 42 {
+			b.Fatalf("expected 42, got %d", res.GetUint8())
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
 func BenchmarkOpIndex1_Slice(b *testing.B) {
 	m := benchMachine()
 	defer m.Release()
@@ -1461,7 +1546,7 @@ func BenchmarkOpIndex1_MapMiss(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpIndex1_MapStringKey(b *testing.B) {
+func benchOpIndex1_MapStringKey(b *testing.B, keyLen int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &IndexExpr{}
@@ -1469,14 +1554,13 @@ func BenchmarkOpIndex1_MapStringKey(b *testing.B) {
 	mt := &MapType{Key: StringType, Value: IntType}
 	mv := &MapValue{}
 	mv.MakeMap(10)
-	keys := []string{"alpha", "bravo", "charlie", "delta", "echo",
-		"foxtrot", "golf", "hotel", "india", "juliet"}
-	for i, k := range keys {
+	for i := range 10 {
+		k := strings.Repeat("x", keyLen-1) + string(rune('A'+i))
 		kv := TypedValue{T: StringType, V: m.Alloc.NewString(k)}
 		pv := mv.GetPointerForKey(m.Alloc, m.Store, kv)
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
-	lookupKey := m.Alloc.NewString("echo")
+	lookupKey := m.Alloc.NewString(strings.Repeat("x", keyLen-1) + string(rune('A'+5)))
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -1488,49 +1572,18 @@ func BenchmarkOpIndex1_MapStringKey(b *testing.B) {
 		m.doOpIndex1()
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
-		if res.GetInt() != 4 {
-			b.Fatalf("expected 4, got %d", res.GetInt())
+		if res.GetInt() != 5 {
+			b.Fatalf("expected 5, got %d", res.GetInt())
 		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
 
-// Long string keys — ComputeMapKey appends key bytes, longer keys = more work.
-func BenchmarkOpIndex1_MapLongStringKey(b *testing.B) {
-	m := benchMachine()
-	defer m.Release()
-	expr := &IndexExpr{}
-
-	mt := &MapType{Key: StringType, Value: IntType}
-	mv := &MapValue{}
-	mv.MakeMap(100)
-	// 100-char keys
-	for i := range 100 {
-		k := strings.Repeat("x", 99) + string(rune('A'+i%26)) + string(rune('0'+i/26))
-		kv := TypedValue{T: StringType, V: m.Alloc.NewString(k)}
-		pv := mv.GetPointerForKey(m.Alloc, m.Store, kv)
-		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i))}
-	}
-	lookupKey := m.Alloc.NewString(strings.Repeat("x", 99) + string(rune('A'+50%26)) + string(rune('0'+50/26)))
-
-	bm.InitMeasure()
-	bm.BeginOpCode(bmSetup)
-	for range b.N {
-		m.PushValue(TypedValue{T: mt, V: mv})
-		m.PushValue(TypedValue{T: StringType, V: lookupKey})
-		m.PushExpr(expr)
-		bm.SwitchOpCode(bmTarget)
-		m.doOpIndex1()
-		bm.SwitchOpCode(bmSetup)
-		res := m.PeekValue(1)
-		if res.GetInt() != 50 {
-			b.Fatalf("expected 50, got %d", res.GetInt())
-		}
-		m.Values = m.Values[:0]
-	}
-	reportBenchops(b)
-}
+func BenchmarkOpIndex1_MapStringKey_10(b *testing.B)    { benchOpIndex1_MapStringKey(b, 10) }
+func BenchmarkOpIndex1_MapStringKey_100(b *testing.B)   { benchOpIndex1_MapStringKey(b, 100) }
+func BenchmarkOpIndex1_MapStringKey_1000(b *testing.B)  { benchOpIndex1_MapStringKey(b, 1000) }
+func BenchmarkOpIndex1_MapStringKey_10000(b *testing.B) { benchOpIndex1_MapStringKey(b, 10000) }
 
 // ---------------------------------------------------------------------------
 // doOpSelector: PopExpr(SelectorExpr), PeekValue(1); *xv = field value
@@ -1790,6 +1843,40 @@ func BenchmarkOpSlice_Array(b *testing.B) {
 	reportBenchops(b)
 }
 
+func BenchmarkOpSlice_ByteArray(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+	sliceExpr := &SliceExpr{
+		Low:  &ConstExpr{},
+		High: &ConstExpr{},
+	}
+
+	at := &ArrayType{Elt: Uint8Type, Len: 100}
+	av := m.Alloc.NewDataArray(100)
+	for i := range av.Data {
+		av.Data[i] = byte(i)
+	}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: at, V: av})          // base
+		m.PushValue(TypedValue{T: IntType, N: i2n(10)}) // low
+		m.PushValue(TypedValue{T: IntType, N: i2n(50)}) // high
+		m.PushExpr(sliceExpr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpSlice()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		sv := res.V.(*SliceValue)
+		if sv.Length != 40 {
+			b.Fatalf("expected len 40, got %d", sv.Length)
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
 func BenchmarkOpSlice_Slice(b *testing.B) {
 	m := benchMachine()
 	defer m.Release()
@@ -1825,7 +1912,7 @@ func BenchmarkOpSlice_Slice(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpSlice_String(b *testing.B) {
+func benchOpSlice_String(b *testing.B, length int) {
 	m := benchMachine()
 	defer m.Release()
 	sliceExpr := &SliceExpr{
@@ -1833,27 +1920,33 @@ func BenchmarkOpSlice_String(b *testing.B) {
 		High: &ConstExpr{},
 	}
 
-	s := strings.Repeat("abcdefghij", 10) // 100 chars
+	s := strings.Repeat("x", length)
 	sv := m.Alloc.NewString(s)
+	half := length / 2
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
-		m.PushValue(TypedValue{T: StringType, V: sv})   // base
-		m.PushValue(TypedValue{T: IntType, N: i2n(10)}) // low
-		m.PushValue(TypedValue{T: IntType, N: i2n(50)}) // high
+		m.PushValue(TypedValue{T: StringType, V: sv})          // base
+		m.PushValue(TypedValue{T: IntType, N: i2n(0)})         // low
+		m.PushValue(TypedValue{T: IntType, N: i2n(int64(half))}) // high
 		m.PushExpr(sliceExpr)
 		bm.SwitchOpCode(bmTarget)
 		m.doOpSlice()
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
-		if len(res.GetString()) != 40 {
-			b.Fatalf("expected len 40, got %d", len(res.GetString()))
+		if len(res.GetString()) != half {
+			b.Fatalf("expected len %d, got %d", half, len(res.GetString()))
 		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpSlice_String_10(b *testing.B)    { benchOpSlice_String(b, 10) }
+func BenchmarkOpSlice_String_100(b *testing.B)   { benchOpSlice_String(b, 100) }
+func BenchmarkOpSlice_String_1000(b *testing.B)  { benchOpSlice_String(b, 1000) }
+func BenchmarkOpSlice_String_10000(b *testing.B) { benchOpSlice_String(b, 10000) }
 
 // ---------------------------------------------------------------------------
 // doOpStar: PopValue, dereference pointer or get pointer-to type.
@@ -1991,12 +2084,12 @@ func BenchmarkOpConvert_IntToInt64(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpConvert_StringToBytes(b *testing.B) {
+func benchOpConvert_StringToBytes(b *testing.B, length int) {
 	m := benchMachine()
 	defer m.Release()
 
 	uint8SliceType := &SliceType{Elt: Uint8Type}
-	sv := m.Alloc.NewString("hello world")
+	sv := m.Alloc.NewString(strings.Repeat("x", length))
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -2008,13 +2101,18 @@ func BenchmarkOpConvert_StringToBytes(b *testing.B) {
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
 		rsv := res.V.(*SliceValue)
-		if rsv.Length != 11 {
-			b.Fatalf("expected len 11, got %d", rsv.Length)
+		if rsv.Length != length {
+			b.Fatalf("expected len %d, got %d", length, rsv.Length)
 		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpConvert_StringToBytes_10(b *testing.B)    { benchOpConvert_StringToBytes(b, 10) }
+func BenchmarkOpConvert_StringToBytes_100(b *testing.B)   { benchOpConvert_StringToBytes(b, 100) }
+func BenchmarkOpConvert_StringToBytes_1000(b *testing.B)  { benchOpConvert_StringToBytes(b, 1000) }
+func BenchmarkOpConvert_StringToBytes_10000(b *testing.B) { benchOpConvert_StringToBytes(b, 10000) }
 
 // ---------------------------------------------------------------------------
 // doOpInc/doOpDec: PopStmt(IncDecStmt), PopAsPointer(s.X); mutate in place.
@@ -2466,13 +2564,15 @@ func BenchmarkOpAssign_100(b *testing.B) { benchOpAssign(b, 100) }
 
 // --- BigInt bitwise ops (all allocate big.NewInt(0).Op) ---
 
-func BenchmarkOpBand_BigInt(b *testing.B) {
+func benchOpBand_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	bv1 := BigintValue{V: new(big.Int).SetBytes([]byte{0xFF, 0xAA, 0x55, 0xFF, 0xAA, 0x55, 0xFF, 0xAA})}
-	bv2 := BigintValue{V: new(big.Int).SetBytes([]byte{0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F})}
-	expected := new(big.Int).And(bv1.V, bv2.V)
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	bv1 := BigintValue{V: v1}
+	bv2 := BigintValue{V: v2}
+	expected := new(big.Int).And(v1, v2)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -2492,13 +2592,20 @@ func BenchmarkOpBand_BigInt(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpBor_BigInt(b *testing.B) {
+func BenchmarkOpBand_BigInt_64(b *testing.B)   { benchOpBand_BigInt(b, 64) }
+func BenchmarkOpBand_BigInt_256(b *testing.B)  { benchOpBand_BigInt(b, 256) }
+func BenchmarkOpBand_BigInt_1024(b *testing.B) { benchOpBand_BigInt(b, 1024) }
+func BenchmarkOpBand_BigInt_4096(b *testing.B) { benchOpBand_BigInt(b, 4096) }
+
+func benchOpBor_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	bv1 := BigintValue{V: new(big.Int).SetBytes([]byte{0xF0, 0xF0, 0xF0, 0xF0})}
-	bv2 := BigintValue{V: new(big.Int).SetBytes([]byte{0x0F, 0x0F, 0x0F, 0x0F})}
-	expected := new(big.Int).Or(bv1.V, bv2.V)
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	bv1 := BigintValue{V: v1}
+	bv2 := BigintValue{V: v2}
+	expected := new(big.Int).Or(v1, v2)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -2518,13 +2625,20 @@ func BenchmarkOpBor_BigInt(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpXor_BigInt(b *testing.B) {
+func BenchmarkOpBor_BigInt_64(b *testing.B)   { benchOpBor_BigInt(b, 64) }
+func BenchmarkOpBor_BigInt_256(b *testing.B)  { benchOpBor_BigInt(b, 256) }
+func BenchmarkOpBor_BigInt_1024(b *testing.B) { benchOpBor_BigInt(b, 1024) }
+func BenchmarkOpBor_BigInt_4096(b *testing.B) { benchOpBor_BigInt(b, 4096) }
+
+func benchOpXor_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	bv1 := BigintValue{V: new(big.Int).SetBytes([]byte{0xFF, 0xFF, 0xFF, 0xFF})}
-	bv2 := BigintValue{V: new(big.Int).SetBytes([]byte{0x0F, 0x0F, 0x0F, 0x0F})}
-	expected := new(big.Int).Xor(bv1.V, bv2.V)
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	bv1 := BigintValue{V: v1}
+	bv2 := BigintValue{V: v2}
+	expected := new(big.Int).Xor(v1, v2)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -2544,13 +2658,20 @@ func BenchmarkOpXor_BigInt(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpBandn_BigInt(b *testing.B) {
+func BenchmarkOpXor_BigInt_64(b *testing.B)   { benchOpXor_BigInt(b, 64) }
+func BenchmarkOpXor_BigInt_256(b *testing.B)  { benchOpXor_BigInt(b, 256) }
+func BenchmarkOpXor_BigInt_1024(b *testing.B) { benchOpXor_BigInt(b, 1024) }
+func BenchmarkOpXor_BigInt_4096(b *testing.B) { benchOpXor_BigInt(b, 4096) }
+
+func benchOpBandn_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	bv1 := BigintValue{V: new(big.Int).SetBytes([]byte{0xFF, 0xFF, 0xFF, 0xFF})}
-	bv2 := BigintValue{V: new(big.Int).SetBytes([]byte{0x0F, 0x0F, 0x0F, 0x0F})}
-	expected := new(big.Int).AndNot(bv1.V, bv2.V)
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	bv1 := BigintValue{V: v1}
+	bv2 := BigintValue{V: v2}
+	expected := new(big.Int).AndNot(v1, v2)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -2570,33 +2691,12 @@ func BenchmarkOpBandn_BigInt(b *testing.B) {
 	reportBenchops(b)
 }
 
+func BenchmarkOpBandn_BigInt_64(b *testing.B)   { benchOpBandn_BigInt(b, 64) }
+func BenchmarkOpBandn_BigInt_256(b *testing.B)  { benchOpBandn_BigInt(b, 256) }
+func BenchmarkOpBandn_BigInt_1024(b *testing.B) { benchOpBandn_BigInt(b, 1024) }
+func BenchmarkOpBandn_BigInt_4096(b *testing.B) { benchOpBandn_BigInt(b, 4096) }
+
 // --- Shr BigInt ---
-
-func BenchmarkOpShr_BigInt(b *testing.B) {
-	m := benchMachine()
-	defer m.Release()
-	expr := &BinaryExpr{}
-	v := new(big.Int).Lsh(big.NewInt(1), 512)
-	bv := BigintValue{V: v}
-	expected := new(big.Int).Rsh(v, 256)
-
-	bm.InitMeasure()
-	bm.BeginOpCode(bmSetup)
-	for range b.N {
-		m.PushValue(TypedValue{T: UntypedBigintType, V: bv})
-		m.PushValue(TypedValue{T: UintType, N: u2n(256)})
-		m.PushExpr(expr)
-		bm.SwitchOpCode(bmTarget)
-		m.doOpShr()
-		bm.SwitchOpCode(bmSetup)
-		res := m.PeekValue(1)
-		if res.V.(BigintValue).V.Cmp(expected) != 0 {
-			b.Fatal("unexpected result")
-		}
-		m.Values = m.Values[:0]
-	}
-	reportBenchops(b)
-}
 
 // --- Float64 and BigInt comparisons (softfloat / big.Cmp) ---
 
@@ -2625,12 +2725,16 @@ func BenchmarkOpEql_Float64(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpEql_BigInt(b *testing.B) {
+func benchOpEql_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	bv1 := BigintValue{V: big.NewInt(1_000_000_000)}
-	bv2 := BigintValue{V: big.NewInt(1_000_000_001)}
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	// Make them differ so result is false.
+	v2.Sub(v2, big.NewInt(1))
+	bv1 := BigintValue{V: v1}
+	bv2 := BigintValue{V: v2}
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -2649,6 +2753,11 @@ func BenchmarkOpEql_BigInt(b *testing.B) {
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpEql_BigInt_64(b *testing.B)   { benchOpEql_BigInt(b, 64) }
+func BenchmarkOpEql_BigInt_256(b *testing.B)  { benchOpEql_BigInt(b, 256) }
+func BenchmarkOpEql_BigInt_1024(b *testing.B) { benchOpEql_BigInt(b, 1024) }
+func BenchmarkOpEql_BigInt_4096(b *testing.B) { benchOpEql_BigInt(b, 4096) }
 
 func BenchmarkOpLss_Float64(b *testing.B) {
 	m := benchMachine()
@@ -2675,12 +2784,16 @@ func BenchmarkOpLss_Float64(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpLss_BigInt(b *testing.B) {
+func benchOpLss_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
-	bv1 := BigintValue{V: big.NewInt(1_000_000_000)}
-	bv2 := BigintValue{V: big.NewInt(2_000_000_000)}
+	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	// Make v1 < v2.
+	v1.Sub(v1, big.NewInt(1))
+	bv1 := BigintValue{V: v1}
+	bv2 := BigintValue{V: v2}
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -2699,6 +2812,11 @@ func BenchmarkOpLss_BigInt(b *testing.B) {
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpLss_BigInt_64(b *testing.B)   { benchOpLss_BigInt(b, 64) }
+func BenchmarkOpLss_BigInt_256(b *testing.B)  { benchOpLss_BigInt(b, 256) }
+func BenchmarkOpLss_BigInt_1024(b *testing.B) { benchOpLss_BigInt(b, 1024) }
+func BenchmarkOpLss_BigInt_4096(b *testing.B) { benchOpLss_BigInt(b, 4096) }
 
 func BenchmarkOpGtr_Float64(b *testing.B) {
 	m := benchMachine()
@@ -2750,28 +2868,35 @@ func BenchmarkOpInc_Float64(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpInc_BigInt(b *testing.B) {
+func benchOpInc_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 
 	blk, nx := benchBlockVar(m)
 	stmt := &IncDecStmt{X: nx}
+	v := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	expected := new(big.Int).Add(v, big.NewInt(1))
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
-		blk.Values[0] = TypedValue{T: UntypedBigintType, V: BigintValue{V: big.NewInt(100)}}
+		blk.Values[0] = TypedValue{T: UntypedBigintType, V: BigintValue{V: new(big.Int).Set(v)}}
 		m.PushStmt(stmt)
 		bm.SwitchOpCode(bmTarget)
 		m.doOpInc()
 		bm.SwitchOpCode(bmSetup)
-		got := blk.Values[0].V.(BigintValue).V.Int64()
-		if got != 101 {
-			b.Fatalf("expected 101, got %d", got)
+		got := blk.Values[0].V.(BigintValue).V
+		if got.Cmp(expected) != 0 {
+			b.Fatal("unexpected result")
 		}
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpInc_BigInt_64(b *testing.B)   { benchOpInc_BigInt(b, 64) }
+func BenchmarkOpInc_BigInt_256(b *testing.B)  { benchOpInc_BigInt(b, 256) }
+func BenchmarkOpInc_BigInt_1024(b *testing.B) { benchOpInc_BigInt(b, 1024) }
+func BenchmarkOpInc_BigInt_4096(b *testing.B) { benchOpInc_BigInt(b, 4096) }
 
 func BenchmarkOpDec_Float64(b *testing.B) {
 	m := benchMachine()
@@ -2796,55 +2921,247 @@ func BenchmarkOpDec_Float64(b *testing.B) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpDec_BigInt(b *testing.B) {
+func benchOpDec_BigInt(b *testing.B, bits int) {
 	m := benchMachine()
 	defer m.Release()
 
 	blk, nx := benchBlockVar(m)
 	stmt := &IncDecStmt{X: nx}
+	v := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
+	expected := new(big.Int).Sub(v, big.NewInt(1))
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
-		blk.Values[0] = TypedValue{T: UntypedBigintType, V: BigintValue{V: big.NewInt(100)}}
+		blk.Values[0] = TypedValue{T: UntypedBigintType, V: BigintValue{V: new(big.Int).Set(v)}}
 		m.PushStmt(stmt)
 		bm.SwitchOpCode(bmTarget)
 		m.doOpDec()
 		bm.SwitchOpCode(bmSetup)
-		got := blk.Values[0].V.(BigintValue).V.Int64()
-		if got != 99 {
-			b.Fatalf("expected 99, got %d", got)
+		got := blk.Values[0].V.(BigintValue).V
+		if got.Cmp(expected) != 0 {
+			b.Fatal("unexpected result")
 		}
 	}
 	reportBenchops(b)
 }
 
-// --- Convert with long string (cost scales with length) ---
+func BenchmarkOpDec_BigInt_64(b *testing.B)   { benchOpDec_BigInt(b, 64) }
+func BenchmarkOpDec_BigInt_256(b *testing.B)  { benchOpDec_BigInt(b, 256) }
+func BenchmarkOpDec_BigInt_1024(b *testing.B) { benchOpDec_BigInt(b, 1024) }
+func BenchmarkOpDec_BigInt_4096(b *testing.B) { benchOpDec_BigInt(b, 4096) }
 
-func BenchmarkOpConvert_LongStringToBytes(b *testing.B) {
+// ---------------------------------------------------------------------------
+// BigDec benchmarks parameterized by number of decimal digits
+// ---------------------------------------------------------------------------
+
+// makeBigDec creates a BigdecValue with approximately `digits` decimal digits.
+// Uses strings.Repeat to build a number like "1234567890123..." of the given length.
+func makeBigDec(digits int) BigdecValue {
+	s := strings.Repeat("1234567890", (digits/10)+1)[:digits]
+	d, _, err := apd.NewFromString(s)
+	if err != nil {
+		panic(err)
+	}
+	return BigdecValue{V: d}
+}
+
+// --- doOpAdd BigDec ---
+
+func benchOpAdd_BigDec(b *testing.B, digits int) {
 	m := benchMachine()
 	defer m.Release()
-
-	uint8SliceType := &SliceType{Elt: Uint8Type}
-	sv := m.Alloc.NewString(strings.Repeat("x", 1000))
+	expr := &BinaryExpr{}
+	bv1 := makeBigDec(digits)
+	bv2 := makeBigDec(digits)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
-		m.PushValue(asValue(uint8SliceType))
-		m.PushValue(TypedValue{T: StringType, V: sv})
+		m.PushValue(TypedValue{T: UntypedBigdecType, V: bv1})
+		m.PushValue(TypedValue{T: UntypedBigdecType, V: bv2})
+		m.PushExpr(expr)
 		bm.SwitchOpCode(bmTarget)
-		m.doOpConvert()
+		m.doOpAdd()
 		bm.SwitchOpCode(bmSetup)
-		res := m.PeekValue(1)
-		rsv := res.V.(*SliceValue)
-		if rsv.Length != 1000 {
-			b.Fatalf("expected len 1000, got %d", rsv.Length)
-		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpAdd_BigDec_10(b *testing.B)    { benchOpAdd_BigDec(b, 10) }
+func BenchmarkOpAdd_BigDec_100(b *testing.B)   { benchOpAdd_BigDec(b, 100) }
+func BenchmarkOpAdd_BigDec_1000(b *testing.B)  { benchOpAdd_BigDec(b, 1000) }
+func BenchmarkOpAdd_BigDec_10000(b *testing.B) { benchOpAdd_BigDec(b, 10000) }
+
+// --- doOpSub BigDec ---
+
+func benchOpSub_BigDec(b *testing.B, digits int) {
+	m := benchMachine()
+	defer m.Release()
+	expr := &BinaryExpr{}
+	bv1 := makeBigDec(digits)
+	bv2 := makeBigDec(digits)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: UntypedBigdecType, V: bv1})
+		m.PushValue(TypedValue{T: UntypedBigdecType, V: bv2})
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpSub()
+		bm.SwitchOpCode(bmSetup)
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpSub_BigDec_10(b *testing.B)    { benchOpSub_BigDec(b, 10) }
+func BenchmarkOpSub_BigDec_100(b *testing.B)   { benchOpSub_BigDec(b, 100) }
+func BenchmarkOpSub_BigDec_1000(b *testing.B)  { benchOpSub_BigDec(b, 1000) }
+func BenchmarkOpSub_BigDec_10000(b *testing.B) { benchOpSub_BigDec(b, 10000) }
+
+// --- doOpMul BigDec ---
+
+func benchOpMul_BigDec(b *testing.B, digits int) {
+	m := benchMachine()
+	defer m.Release()
+	expr := &BinaryExpr{}
+	bv1 := makeBigDec(digits)
+	bv2 := makeBigDec(digits)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: UntypedBigdecType, V: bv1})
+		m.PushValue(TypedValue{T: UntypedBigdecType, V: bv2})
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpMul()
+		bm.SwitchOpCode(bmSetup)
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpMul_BigDec_10(b *testing.B)    { benchOpMul_BigDec(b, 10) }
+func BenchmarkOpMul_BigDec_100(b *testing.B)   { benchOpMul_BigDec(b, 100) }
+func BenchmarkOpMul_BigDec_1000(b *testing.B)  { benchOpMul_BigDec(b, 1000) }
+func BenchmarkOpMul_BigDec_10000(b *testing.B) { benchOpMul_BigDec(b, 10000) }
+
+// --- doOpQuo BigDec ---
+
+func benchOpQuo_BigDec(b *testing.B, digits int) {
+	m := benchMachine()
+	defer m.Release()
+	expr := &BinaryExpr{}
+	bv1 := makeBigDec(digits)
+	// Divisor: smaller but non-trivial
+	divisorDigits := digits / 2
+	if divisorDigits < 5 {
+		divisorDigits = 5
+	}
+	bv2 := makeBigDec(divisorDigits)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: UntypedBigdecType, V: bv1})
+		m.PushValue(TypedValue{T: UntypedBigdecType, V: bv2})
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpQuo()
+		bm.SwitchOpCode(bmSetup)
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpQuo_BigDec_10(b *testing.B)    { benchOpQuo_BigDec(b, 10) }
+func BenchmarkOpQuo_BigDec_100(b *testing.B)   { benchOpQuo_BigDec(b, 100) }
+func BenchmarkOpQuo_BigDec_1000(b *testing.B)  { benchOpQuo_BigDec(b, 1000) }
+func BenchmarkOpQuo_BigDec_10000(b *testing.B) { benchOpQuo_BigDec(b, 10000) }
+
+// --- doOpUneg BigDec ---
+
+func benchOpUneg_BigDec(b *testing.B, digits int) {
+	m := benchMachine()
+	defer m.Release()
+	expr := &UnaryExpr{}
+	bv := makeBigDec(digits)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: UntypedBigdecType, V: bv})
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpUneg()
+		bm.SwitchOpCode(bmSetup)
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpUneg_BigDec_10(b *testing.B)    { benchOpUneg_BigDec(b, 10) }
+func BenchmarkOpUneg_BigDec_100(b *testing.B)   { benchOpUneg_BigDec(b, 100) }
+func BenchmarkOpUneg_BigDec_1000(b *testing.B)  { benchOpUneg_BigDec(b, 1000) }
+func BenchmarkOpUneg_BigDec_10000(b *testing.B) { benchOpUneg_BigDec(b, 10000) }
+
+// --- doOpInc BigDec ---
+
+func benchOpInc_BigDec(b *testing.B, digits int) {
+	m := benchMachine()
+	defer m.Release()
+
+	blk, nx := benchBlockVar(m)
+	stmt := &IncDecStmt{X: nx}
+	bv := makeBigDec(digits)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		blk.Values[0] = TypedValue{T: UntypedBigdecType, V: bv}
+		m.PushStmt(stmt)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpInc()
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpInc_BigDec_10(b *testing.B)    { benchOpInc_BigDec(b, 10) }
+func BenchmarkOpInc_BigDec_100(b *testing.B)   { benchOpInc_BigDec(b, 100) }
+func BenchmarkOpInc_BigDec_1000(b *testing.B)  { benchOpInc_BigDec(b, 1000) }
+func BenchmarkOpInc_BigDec_10000(b *testing.B) { benchOpInc_BigDec(b, 10000) }
+
+// --- doOpDec BigDec ---
+
+func benchOpDec_BigDec(b *testing.B, digits int) {
+	m := benchMachine()
+	defer m.Release()
+
+	blk, nx := benchBlockVar(m)
+	stmt := &IncDecStmt{X: nx}
+	bv := makeBigDec(digits)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		blk.Values[0] = TypedValue{T: UntypedBigdecType, V: bv}
+		m.PushStmt(stmt)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpDec()
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpDec_BigDec_10(b *testing.B)    { benchOpDec_BigDec(b, 10) }
+func BenchmarkOpDec_BigDec_100(b *testing.B)   { benchOpDec_BigDec(b, 100) }
+func BenchmarkOpDec_BigDec_1000(b *testing.B)  { benchOpDec_BigDec(b, 1000) }
+func BenchmarkOpDec_BigDec_10000(b *testing.B) { benchOpDec_BigDec(b, 10000) }
 
 // --- Slice with 3-index expression (low:high:max) ---
 
@@ -2964,6 +3281,44 @@ func BenchmarkOpEql_Array_1(b *testing.B)    { benchOpEql_Array(b, 1) }
 func BenchmarkOpEql_Array_10(b *testing.B)   { benchOpEql_Array(b, 10) }
 func BenchmarkOpEql_Array_100(b *testing.B)  { benchOpEql_Array(b, 100) }
 func BenchmarkOpEql_Array_1000(b *testing.B) { benchOpEql_Array(b, 1000) }
+
+// --- isEql with ArrayKind (Data path): bytes.Equal O(n) comparison ---
+
+func benchOpEql_ByteArray(b *testing.B, n int) {
+	m := benchMachine()
+	defer m.Release()
+	expr := &BinaryExpr{}
+
+	at := &ArrayType{Elt: Uint8Type, Len: n}
+	av1 := m.Alloc.NewDataArray(n)
+	av2 := m.Alloc.NewDataArray(n)
+	for i := 0; i < n; i++ {
+		av1.Data[i] = byte(i % 256)
+		av2.Data[i] = byte(i % 256)
+	}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: at, V: av1})
+		m.PushValue(TypedValue{T: at, V: av2})
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEql()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if !res.GetBool() {
+			b.Fatal("expected true")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpEql_ByteArray_1(b *testing.B)    { benchOpEql_ByteArray(b, 1) }
+func BenchmarkOpEql_ByteArray_10(b *testing.B)   { benchOpEql_ByteArray(b, 10) }
+func BenchmarkOpEql_ByteArray_100(b *testing.B)  { benchOpEql_ByteArray(b, 100) }
+func BenchmarkOpEql_ByteArray_1000(b *testing.B) { benchOpEql_ByteArray(b, 1000) }
 
 // --- isEql with StructKind: recursive O(fields) comparison ---
 
@@ -3126,13 +3481,13 @@ func BenchmarkOpSliceLit2_Sparse_10000(b *testing.B) { benchOpSliceLit2_Sparse(b
 
 // --- ArrayLit uint8: NewDataArray (flat byte alloc) vs non-uint8 ---
 
-func BenchmarkOpArrayLit_10_Uint8(b *testing.B) {
+func benchOpArrayLit_Uint8(b *testing.B, n int) {
 	m := benchMachine()
 	defer m.Release()
 
-	at := m.Alloc.NewType(&ArrayType{Elt: Uint8Type, Len: 10})
-	elts := make([]KeyValueExpr, 10)
-	for i := range 10 {
+	at := m.Alloc.NewType(&ArrayType{Elt: Uint8Type, Len: n})
+	elts := make([]KeyValueExpr, n)
+	for i := range n {
 		elts[i] = KeyValueExpr{Value: &ConstExpr{}}
 	}
 	litExpr := &CompositeLitExpr{Elts: elts}
@@ -3141,8 +3496,8 @@ func BenchmarkOpArrayLit_10_Uint8(b *testing.B) {
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
 		m.PushValue(asValue(at))
-		for i := range 10 {
-			m.PushValue(TypedValue{T: Uint8Type, N: u2n(uint64(i))})
+		for i := range n {
+			m.PushValue(TypedValue{T: Uint8Type, N: u2n(uint64(i % 256))})
 		}
 		m.PushExpr(litExpr)
 		bm.SwitchOpCode(bmTarget)
@@ -3150,13 +3505,18 @@ func BenchmarkOpArrayLit_10_Uint8(b *testing.B) {
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
 		av := res.V.(*ArrayValue)
-		if len(av.Data) != 10 {
-			b.Fatalf("expected data len 10, got %d", len(av.Data))
+		if len(av.Data) != n {
+			b.Fatalf("expected data len %d, got %d", n, len(av.Data))
 		}
 		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpArrayLit_Uint8_1(b *testing.B)    { benchOpArrayLit_Uint8(b, 1) }
+func BenchmarkOpArrayLit_Uint8_10(b *testing.B)   { benchOpArrayLit_Uint8(b, 10) }
+func BenchmarkOpArrayLit_Uint8_100(b *testing.B)  { benchOpArrayLit_Uint8(b, 100) }
+func BenchmarkOpArrayLit_Uint8_1000(b *testing.B) { benchOpArrayLit_Uint8(b, 1000) }
 
 // --- doOpEval NameExpr: block depth traversal ---
 
