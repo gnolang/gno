@@ -30,6 +30,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&PackageValue{},
 	&Block{},
 	RefValue{},
+	ExportRefValue{},
 	&HeapItemValue{},
 
 	//----------------------------------------

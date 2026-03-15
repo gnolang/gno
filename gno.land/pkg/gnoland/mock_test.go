@@ -85,6 +85,18 @@ func (m *mockVMKeeper) QueryEval(ctx sdk.Context, pkgPath, expr string) (res str
 	return "", nil
 }
 
+func (m *mockVMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath, expr string) (res string, err error) {
+	return "", nil
+}
+
+func (m *mockVMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error) {
+	return "", nil
+}
+
+func (m *mockVMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byte, err error) {
+	return nil, nil
+}
+
 func (m *mockVMKeeper) Run(ctx sdk.Context, msg vm.MsgRun) (res string, err error) {
 	if m.runFn != nil {
 		return m.runFn(ctx, msg)

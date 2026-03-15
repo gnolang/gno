@@ -57,3 +57,6 @@ message InvalidPackageError {
 
 message InvalidFileError {
 }
+
+message ObjectNotFoundError {
+}

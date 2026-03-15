@@ -3,6 +3,7 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -1650,4 +1651,691 @@ func Hello(cur realm) string { return "hello" }`},
 	userMsg := NewMsgAddPackage(user, userPkgPath, userFiles)
 	err := env.vmk.AddPackage(ctx, userMsg)
 	assert.NoError(t, err, "should allow deployment when CLA realm is not deployed (bootstrap)")
+}
+
+func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(9000000)))
+
+	tests := []struct {
+		name      string
+		pkgBody   string
+		expr      string
+		checkStrs []string // substrings that must appear in output
+	}{
+		{
+			name:    "JSON string",
+			pkgBody: `func GetString() string { return "hello" }`,
+			expr:    "GetString()",
+			checkStrs: []string{
+				`/gno.PrimitiveType`,
+				`/gno.StringValue`,
+				`"value":"hello"`,
+			},
+		},
+		{
+			name:    "JSON integer",
+			pkgBody: `func GetInt() int { return 42 }`,
+			expr:    "GetInt()",
+			checkStrs: []string{
+				`/gno.PrimitiveType`,
+				`"N":`, // int value in base64
+			},
+		},
+		{
+			name:    "JSON boolean",
+			pkgBody: `func GetBool() bool { return true }`,
+			expr:    "GetBool()",
+			checkStrs: []string{
+				`/gno.PrimitiveType`,
+				`"N":`, // bool value in base64
+			},
+		},
+		{
+			name:    "JSON bytes",
+			pkgBody: `func GetBytes() []byte { return []byte("test") }`,
+			expr:    "GetBytes()",
+			checkStrs: []string{
+				`/gno.SliceType`,
+				`/gno.SliceValue`,
+				`/gno.ArrayValue`,
+				`"Data":"dGVzdA=="`,
+				`"Length":"4"`,
+			},
+		},
+		{
+			name:    "JSON multiple values",
+			pkgBody: `func GetMulti() (string, int) { return "hello", 42 }`,
+			expr:    "GetMulti()",
+			checkStrs: []string{
+				`/gno.PrimitiveType`,
+				`"value":"hello"`,
+				`"N":`, // int value
+			},
+		},
+	}
+
+	for i, tc := range tests {
+		pkgPath := fmt.Sprintf("gno.land/r/hello%d", i)
+		pkgName := fmt.Sprintf("hello%d", i)
+		pkgBody := fmt.Sprintf("package %s\n%s", pkgName, tc.pkgBody)
+		t.Run(tc.name, func(t *testing.T) {
+			files := []*std.MemFile{
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+				{Name: "hello.gno", Body: pkgBody},
+			}
+
+			msg1 := NewMsgAddPackage(addr, pkgPath, files)
+			err := env.vmk.AddPackage(ctx, msg1)
+			assert.NoError(t, err)
+			env.vmk.CommitGnoTransactionStore(ctx)
+
+			res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, tc.expr)
+			require.NoError(t, err)
+			// Verify valid JSON
+			var result map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal([]byte(res), &result))
+			require.Contains(t, string(result["results"]), "@type")
+			for _, s := range tc.checkStrs {
+				assert.Contains(t, res, s)
+			}
+		})
+	}
+}
+
+// TestVMKeeperEvalJSONPersistedObjects tests JSON output for persisted realm objects
+// with real ObjectIDs stored in the database.
+func TestVMKeeperEvalJSONPersistedObjects(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(20000000)))
+
+	t.Run("persisted_struct_pointer_with_objectid", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/persisted1"
+		pkgBody := `package persisted1
+
+type Item struct {
+	ID   int
+	Name string
+}
+
+var item *Item
+
+func init() {
+	item = &Item{ID: 42, Name: "test item"}
+}
+
+func GetItem() *Item {
+	return item
+}`
+
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "item.gno", Body: pkgBody},
+		}
+
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		err := env.vmk.AddPackage(ctx, msg)
+		require.NoError(t, err)
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetItem()")
+		require.NoError(t, err)
+
+		// Verify Amino format: PointerType wrapping RefType
+		assert.Contains(t, res, `/gno.PointerType`)
+		assert.Contains(t, res, `"ID":"gno.land/r/test/persisted1.Item"`)
+		// Pointer shows RefValue to the persisted object
+		assert.Contains(t, res, `/gno.PointerValue`)
+		assert.Contains(t, res, `/gno.RefValue`)
+		// RefValue contains queryable ObjectID
+		assert.Contains(t, res, `"ObjectID":"`)
+	})
+
+	t.Run("persisted_map", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/persisted4"
+		pkgBody := `package persisted4
+
+var data map[string]int
+
+func init() {
+	data = make(map[string]int)
+	data["one"] = 1
+	data["two"] = 2
+}
+
+func GetData() map[string]int {
+	return data
+}`
+
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "map.gno", Body: pkgBody},
+		}
+
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		err := env.vmk.AddPackage(ctx, msg)
+		require.NoError(t, err)
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetData()")
+		require.NoError(t, err)
+
+		// Verify Amino format - persisted map shows as MapType + RefValue
+		assert.Contains(t, res, `/gno.MapType`)
+		assert.Contains(t, res, `/gno.RefValue`)
+		assert.Contains(t, res, `"ObjectID":"`)
+	})
+
+	t.Run("persisted_declared_type", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/persisted7"
+		pkgBody := `package persisted7
+
+type Amount int64
+
+var amount Amount
+
+func init() {
+	amount = 1000
+}
+
+func GetAmount() Amount {
+	return amount
+}`
+
+		files := []*std.MemFile{
+			{Name: "a.gno", Body: pkgBody},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		}
+
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		err := env.vmk.AddPackage(ctx, msg)
+		require.NoError(t, err)
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetAmount()")
+		require.NoError(t, err)
+
+		// Verify Amino format for declared type: RefType with ID
+		assert.Contains(t, res, `"ID":"gno.land/r/test/persisted7.Amount"`)
+		assert.Contains(t, res, `/gno.RefType`)
+		// Primitive value stored in N (base64)
+		assert.Contains(t, res, `"N":`)
+	})
+
+	t.Run("persisted_error_type", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/persisted8"
+		pkgBody := `package persisted8
+
+type CustomError struct {
+	Code    int
+	Message string
+}
+
+func (e *CustomError) Error() string {
+	return e.Message
+}
+
+var lastError *CustomError
+
+func init() {
+	lastError = &CustomError{Code: 404, Message: "not found"}
+}
+
+func GetError() error {
+	return lastError
+}`
+
+		files := []*std.MemFile{
+			{Name: "a.gno", Body: pkgBody},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		}
+
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		err := env.vmk.AddPackage(ctx, msg)
+		require.NoError(t, err)
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetError()")
+		require.NoError(t, err)
+
+		// Verify Amino format: PointerType wrapping RefType
+		assert.Contains(t, res, `/gno.PointerType`)
+		assert.Contains(t, res, `"ID":"gno.land/r/test/persisted8.CustomError"`)
+		// Shows as PointerValue with RefValue to the persisted struct
+		assert.Contains(t, res, `/gno.PointerValue`)
+		assert.Contains(t, res, `/gno.RefValue`)
+		// Note: @error is NOT present for persisted objects queried via QueryEvalJSON
+		// because QueryEvalJSON passes nil machine to stringifyJSONResults,
+		// so tryGetError cannot evaluate .Error(). The error can be extracted
+		// client-side by fetching the object via qobject.
+		assert.NotContains(t, res, `"@error"`)
+	})
+
+	t.Run("persisted_json_tags", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/persisted9"
+		pkgBody := `package persisted9
+
+type Person struct {
+	FirstName string ` + "`json:\"first_name\"`" + `
+	LastName  string ` + "`json:\"last_name\"`" + `
+	Age       int    ` + "`json:\"age,omitempty\"`" + `
+}
+
+var person *Person
+
+func init() {
+	person = &Person{FirstName: "John", LastName: "Doe", Age: 30}
+}
+
+func GetPerson() *Person {
+	return person
+}`
+
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "person.gno", Body: pkgBody},
+		}
+
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		err := env.vmk.AddPackage(ctx, msg)
+		require.NoError(t, err)
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetPerson()")
+		require.NoError(t, err)
+
+		// Verify Amino format: PointerType wrapping RefType
+		assert.Contains(t, res, `/gno.PointerType`)
+		assert.Contains(t, res, `"ID":"gno.land/r/test/persisted9.Person"`)
+		assert.Contains(t, res, `/gno.PointerValue`)
+		assert.Contains(t, res, `/gno.RefValue`)
+	})
+
+	t.Run("persisted_nil_pointer", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/persisted10"
+		pkgBody := `package persisted10
+
+type Data struct {
+	Value int
+}
+
+var ptr *Data
+
+func GetPtr() *Data {
+	return ptr
+}`
+
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "nil.gno", Body: pkgBody},
+		}
+
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		err := env.vmk.AddPackage(ctx, msg)
+		require.NoError(t, err)
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetPtr()")
+		require.NoError(t, err)
+
+		// Verify Amino format for nil pointer: PointerType, no V field (amino omits nil)
+		assert.Contains(t, res, `/gno.PointerType`)
+		assert.Contains(t, res, `"ID":"gno.land/r/test/persisted10.Data"`)
+		// Nil pointer: V is omitted by amino, not "V":null
+		assert.NotContains(t, res, `"V":`)
+	})
+
+	// Regression test: nil pointer in struct field should not panic
+	// This tests the fix for pv.TV == nil check in jsonValueSimple
+	t.Run("persisted_struct_with_nil_pointer_field", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/persisted11"
+		pkgBody := `package persisted11
+
+type Child struct {
+	Value int
+}
+
+type Parent struct {
+	Name  string
+	Child *Child
+}
+
+var parent *Parent
+
+func init() {
+	parent = &Parent{Name: "test", Child: nil}
+}
+
+func GetParent() *Parent {
+	return parent
+}`
+
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "parent.gno", Body: pkgBody},
+		}
+
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		err := env.vmk.AddPackage(ctx, msg)
+		require.NoError(t, err)
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetParent()")
+		require.NoError(t, err)
+
+		// Verify Amino format: PointerType wrapping RefType
+		assert.Contains(t, res, `/gno.PointerType`)
+		assert.Contains(t, res, `"ID":"gno.land/r/test/persisted11.Parent"`)
+		assert.Contains(t, res, `/gno.PointerValue`)
+		assert.Contains(t, res, `/gno.RefValue`)
+	})
+
+	// Regression test: persisted slice with RefValue base should not panic
+	// This tests the fix for passing m.Store instead of nil to GetPointerAtIndexInt2
+	t.Run("persisted_slice_of_primitives", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/persisted12"
+		pkgBody := `package persisted12
+
+var numbers []int
+
+func init() {
+	numbers = []int{10, 20, 30, 40, 50}
+}
+
+func GetNumbers() []int {
+	return numbers
+}`
+
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "numbers.gno", Body: pkgBody},
+		}
+
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		err := env.vmk.AddPackage(ctx, msg)
+		require.NoError(t, err)
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetNumbers()")
+		require.NoError(t, err)
+
+		// Verify Amino format for persisted slice
+		assert.Contains(t, res, `/gno.SliceType`)
+		assert.Contains(t, res, `/gno.SliceValue`)
+		assert.Contains(t, res, `/gno.RefValue`)
+	})
+
+	// Regression test: persisted slice of structs with RefValue base
+	t.Run("persisted_slice_of_structs", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/persisted13"
+		pkgBody := `package persisted13
+
+type Item struct {
+	ID   int
+	Name string
+}
+
+var items []Item
+
+func init() {
+	items = []Item{
+		{ID: 1, Name: "first"},
+		{ID: 2, Name: "second"},
+	}
+}
+
+func GetItems() []Item {
+	return items
+}`
+
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "items.gno", Body: pkgBody},
+		}
+
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		err := env.vmk.AddPackage(ctx, msg)
+		require.NoError(t, err)
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetItems()")
+		require.NoError(t, err)
+
+		// Verify Amino format for slice of structs
+		assert.Contains(t, res, `/gno.SliceType`)
+		assert.Contains(t, res, `"ID":"gno.land/r/test/persisted13.Item"`)
+		assert.Contains(t, res, `/gno.SliceValue`)
+		assert.Contains(t, res, `/gno.RefValue`)
+	})
+
+	// Regression test: deeply nested persisted struct with nil pointers at various levels
+	t.Run("persisted_nested_with_nil_pointers", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/persisted14"
+		pkgBody := `package persisted14
+
+type Level3 struct {
+	Data string
+}
+
+type Level2 struct {
+	L3  *Level3
+	Nil *Level3
+}
+
+type Level1 struct {
+	L2 *Level2
+}
+
+var root *Level1
+
+func init() {
+	root = &Level1{
+		L2: &Level2{
+			L3:  &Level3{Data: "deep"},
+			Nil: nil,
+		},
+	}
+}
+
+func GetRoot() *Level1 {
+	return root
+}`
+
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "nested.gno", Body: pkgBody},
+		}
+
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		err := env.vmk.AddPackage(ctx, msg)
+		require.NoError(t, err)
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetRoot()")
+		require.NoError(t, err)
+
+		// Verify Amino format: PointerType wrapping RefType
+		assert.Contains(t, res, `/gno.PointerType`)
+		assert.Contains(t, res, `"ID":"gno.land/r/test/persisted14.Level1"`)
+		assert.Contains(t, res, `/gno.PointerValue`)
+		assert.Contains(t, res, `/gno.RefValue`)
+		// ObjectID present for fetching the object
+		assert.Contains(t, res, `"ObjectID":"`)
+	})
+}
+
+// TestVMKeeperNestedObjectTraversal tests that nested persisted objects
+// can be traversed by querying ObjectIDs returned in RefValue fields.
+// This verifies the object graph can be explored via qeval + qobject queries.
+//
+// The object graph structure for nested pointers is:
+//
+//	HeapItemValue (for *L1) -> StructValue (L1) -> HeapItemValue (for *L2) -> StructValue (L2) -> ...
+//
+// Each pointer field is wrapped in a HeapItemValue, and the actual struct is a separate object.
+// So traversal requires following the RefValue chain through each wrapper.
+func TestVMKeeperNestedObjectTraversal(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(20000000)))
+
+	// Create realm with 3-level nested structure: L1 -> L2 -> L3
+	pkgPath := "gno.land/r/test/nested"
+	pkgBody := `package nested
+
+type L3 struct {
+	Value string
+}
+
+type L2 struct {
+	Name string
+	L3   *L3
+}
+
+type L1 struct {
+	ID int
+	L2 *L2
+}
+
+var root *L1
+
+func init() {
+	root = &L1{
+		ID: 1,
+		L2: &L2{
+			Name: "level2",
+			L3: &L3{
+				Value: "deepest",
+			},
+		},
+	}
+}
+
+func GetRoot() *L1 {
+	return root
+}`
+
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "nested.gno", Body: pkgBody},
+	}
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	// Step 1: Query via qeval to get root pointer's ObjectID
+	// qeval returns Amino JSON format consistent with qobject
+	res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetRoot()")
+	require.NoError(t, err)
+	t.Logf("Step 1 - qeval GetRoot():\n%s\n", res)
+
+	// Extract the ObjectID from the PointerValue's RefValue Base
+	oid := extractNestedRefValueObjectID(t, res)
+	require.NotEmpty(t, oid, "Should have ObjectID for *L1 HeapItemValue")
+
+	// Step 2: Query the HeapItemValue for *L1 (pure Amino: no auto-unwrapping)
+	res, err = env.vmk.QueryObjectJSON(env.ctx, oid)
+	require.NoError(t, err)
+	t.Logf("Step 2 - HeapItemValue for *L1:\n%s\n", res)
+	assert.Contains(t, res, `/gno.HeapItemValue`)
+
+	// HeapItemValue contains a TypedValue with RefValue pointing to the StructValue
+	oid = extractNestedRefValueObjectID(t, res)
+	require.NotEmpty(t, oid, "Should have ObjectID for L1 StructValue")
+
+	// Step 3: Query L1 StructValue
+	res, err = env.vmk.QueryObjectJSON(env.ctx, oid)
+	require.NoError(t, err)
+	t.Logf("Step 3 - L1 StructValue:\n%s\n", res)
+	assert.Contains(t, res, `/gno.StructValue`)
+	assert.Contains(t, res, `"Fields"`)
+
+	// Extract ObjectID for *L2 field's HeapItemValue
+	oid = extractNestedRefValueObjectID(t, res)
+	require.NotEmpty(t, oid, "Should have ObjectID for *L2 HeapItemValue")
+
+	// Step 4: Query *L2 HeapItemValue
+	res, err = env.vmk.QueryObjectJSON(env.ctx, oid)
+	require.NoError(t, err)
+	t.Logf("Step 4 - HeapItemValue for *L2:\n%s\n", res)
+
+	// Follow to L2 StructValue
+	oid = extractNestedRefValueObjectID(t, res)
+	require.NotEmpty(t, oid, "Should have ObjectID for L2 StructValue")
+
+	// Step 5: Query L2 StructValue
+	res, err = env.vmk.QueryObjectJSON(env.ctx, oid)
+	require.NoError(t, err)
+	t.Logf("Step 5 - L2 StructValue:\n%s\n", res)
+	assert.Contains(t, res, `/gno.StructValue`)
+
+	// Follow to *L3 HeapItemValue
+	oid = extractNestedRefValueObjectID(t, res)
+	require.NotEmpty(t, oid, "Should have ObjectID for *L3 HeapItemValue")
+
+	// Step 6: Query *L3 HeapItemValue
+	res, err = env.vmk.QueryObjectJSON(env.ctx, oid)
+	require.NoError(t, err)
+	t.Logf("Step 6 - HeapItemValue for *L3:\n%s\n", res)
+
+	// Follow to L3 StructValue
+	oid = extractNestedRefValueObjectID(t, res)
+	require.NotEmpty(t, oid, "Should have ObjectID for L3 StructValue")
+
+	// Step 7: Query L3 StructValue (final)
+	res, err = env.vmk.QueryObjectJSON(env.ctx, oid)
+	require.NoError(t, err)
+	t.Logf("Step 7 - L3 StructValue (final):\n%s\n", res)
+	assert.Contains(t, res, `/gno.StructValue`)
+
+	t.Log("Successfully traversed nested object graph from L1 -> L2 -> L3!")
+	t.Log("Pure Amino format: 7 steps (HeapItemValue -> StructValue alternating)")
+}
+
+// extractNestedRefValueObjectID extracts the first nested ObjectID from a JSON response.
+// Works with both qeval format ({"results":[...]}) and qobject format ({"objectid":"...","value":{...}}).
+// This finds the first RefValue.ObjectID that appears in the content (Amino format).
+func extractNestedRefValueObjectID(t *testing.T, jsonStr string) string {
+	t.Helper()
+
+	// For qobject responses, skip past the wrapper "objectid" and "value" fields
+	// For qeval responses, we just search in "results"
+	searchFrom := jsonStr
+
+	// If it's a qobject response with "value" wrapper, skip to that section
+	valuePattern := `"value":`
+	if valueIdx := strings.Index(jsonStr, valuePattern); valueIdx != -1 {
+		searchFrom = jsonStr[valueIdx:]
+	}
+
+	// Look for RefValue's ObjectID (Amino format uses uppercase ObjectID)
+	pattern := `"ObjectID":"`
+	idx := strings.Index(searchFrom, pattern)
+	if idx == -1 {
+		return ""
+	}
+
+	start := idx + len(pattern)
+	end := strings.Index(searchFrom[start:], `"`)
+	if end == -1 {
+		return ""
+	}
+
+	return searchFrom[start : start+end]
 }

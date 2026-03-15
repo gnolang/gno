@@ -26,6 +26,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -54,6 +55,9 @@ type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
 	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
+	QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
+	QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error)
+	QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byte, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
@@ -1206,6 +1210,59 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 	res := fmt.Sprintf("storage: %d, deposit: %d", rlm.Storage, rlm.Deposit)
 
 	return res, nil
+}
+
+// QueryEvalJSON evaluates a gno expression and returns JSON (Amino-encoded) results.
+func (vm *VMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
+	if err != nil {
+		return "", err
+	}
+	return stringifyJSONResults(nil, rtvs, nil), nil
+}
+
+// exportObject retrieves and exports an object by ObjectID string.
+func (vm *VMKeeper) exportObject(ctx sdk.Context, oidStr string) (gno.Value, error) {
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	var oid gno.ObjectID
+	if err := oid.UnmarshalAmino(oidStr); err != nil {
+		return nil, ErrInvalidExpr(fmt.Sprintf("invalid object id %q: %v", oidStr, err))
+	}
+
+	obj := gnostore.GetObjectSafe(oid)
+	if obj == nil {
+		return nil, ErrObjectNotFound(fmt.Sprintf("object not found: %s", oidStr))
+	}
+
+	return gno.ExportObject(obj), nil
+}
+
+// QueryObjectJSON retrieves an object by ObjectID and returns its Amino JSON representation.
+func (vm *VMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error) {
+	exported, err := vm.exportObject(ctx, oidStr)
+	if err != nil {
+		return "", err
+	}
+
+	jsonBytes, err := amino.MarshalJSONAny(exported)
+	if err != nil {
+		return "", err
+	}
+
+	result := fmt.Sprintf(`{"objectid":%q,"value":%s}`, oidStr, string(jsonBytes))
+	return result, nil
+}
+
+// QueryObjectBinary retrieves an object by ObjectID and returns its Amino binary representation.
+func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byte, err error) {
+	exported, err := vm.exportObject(ctx, oidStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return amino.MarshalAny(exported)
 }
 
 // processStorageDeposit processes storage deposit adjustments for package realms based on
