@@ -1,6 +1,7 @@
 package bank
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -27,6 +28,7 @@ func TestKeeper(t *testing.T) {
 
 	env.bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10)))
 	require.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
+	require.Equal(t, int64(10), env.bankk.TotalCoin(ctx, "foocoin"))
 
 	// Test HasCoins
 	require.True(t, env.bankk.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10))))
@@ -37,35 +39,50 @@ func TestKeeper(t *testing.T) {
 	// Test AddCoins
 	env.bankk.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15)))
 	require.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 25))))
+	require.Equal(t, int64(25), env.bankk.TotalCoin(ctx, "foocoin"))
 
 	env.bankk.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 15)))
 	require.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 15), std.NewCoin("foocoin", 25))))
+	require.Equal(t, int64(15), env.bankk.TotalCoin(ctx, "barcoin"))
+	require.Equal(t, int64(25), env.bankk.TotalCoin(ctx, "foocoin"))
 
 	// Test SubtractCoins
 	env.bankk.SubtractCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10)))
 	env.bankk.SubtractCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5)))
 	require.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 15))))
+	require.Equal(t, int64(10), env.bankk.TotalCoin(ctx, "barcoin"))
+	require.Equal(t, int64(15), env.bankk.TotalCoin(ctx, "foocoin"))
 
 	env.bankk.SubtractCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 11)))
 	require.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 15))))
+	// Supply unchanged after failed subtract.
+	require.Equal(t, int64(10), env.bankk.TotalCoin(ctx, "barcoin"))
 
 	env.bankk.SubtractCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 10)))
 	require.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 15))))
 	require.False(t, env.bankk.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 1))))
+	require.Equal(t, int64(0), env.bankk.TotalCoin(ctx, "barcoin"))
+	require.Equal(t, int64(15), env.bankk.TotalCoin(ctx, "foocoin"))
 
 	// Test SendCoins
 	env.bankk.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 5)))
 	require.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
 	require.True(t, env.bankk.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("foocoin", 5))))
+	// Total supply unchanged after a transfer.
+	require.Equal(t, int64(15), env.bankk.TotalCoin(ctx, "foocoin"))
 
 	_ = env.bankk.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 50)))
 	require.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
 	require.True(t, env.bankk.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("foocoin", 5))))
+	// Total supply unchanged after a failed transfer.
+	require.Equal(t, int64(15), env.bankk.TotalCoin(ctx, "foocoin"))
 
 	env.bankk.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 30)))
 	env.bankk.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 5)))
 	require.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 5))))
 	require.True(t, env.bankk.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 10))))
+	require.Equal(t, int64(30), env.bankk.TotalCoin(ctx, "barcoin"))
+	require.Equal(t, int64(15), env.bankk.TotalCoin(ctx, "foocoin"))
 
 	// Test InputOutputCoins
 	input1 := NewInput(addr2, std.NewCoins(std.NewCoin("foocoin", 2)))
@@ -73,6 +90,9 @@ func TestKeeper(t *testing.T) {
 	env.bankk.InputOutputCoins(ctx, []Input{input1}, []Output{output1})
 	require.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 7))))
 	require.True(t, env.bankk.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 8))))
+	// Total supply unchanged after InputOutputCoins.
+	require.Equal(t, int64(30), env.bankk.TotalCoin(ctx, "barcoin"))
+	require.Equal(t, int64(15), env.bankk.TotalCoin(ctx, "foocoin"))
 
 	inputs := []Input{
 		NewInput(addr, std.NewCoins(std.NewCoin("foocoin", 3))),
@@ -87,6 +107,9 @@ func TestKeeper(t *testing.T) {
 	require.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 21), std.NewCoin("foocoin", 4))))
 	require.True(t, env.bankk.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 7), std.NewCoin("foocoin", 6))))
 	require.True(t, env.bankk.GetCoins(ctx, addr3).IsEqual(std.NewCoins(std.NewCoin("barcoin", 2), std.NewCoin("foocoin", 5))))
+	// Total supply unchanged after multi-input/output.
+	require.Equal(t, int64(30), env.bankk.TotalCoin(ctx, "barcoin"))
+	require.Equal(t, int64(15), env.bankk.TotalCoin(ctx, "foocoin"))
 }
 
 func TestBankKeeper(t *testing.T) {
@@ -185,4 +208,55 @@ func TestSetRestrictedDenoms(t *testing.T) {
 	prmk.SetStrings(ctx, "bank:p:restricted_denoms", []string{})
 	params = bankk.GetParams(ctx)
 	require.Empty(t, params.RestrictedDenoms)
+}
+
+func TestUpdateSupplyOverflow(t *testing.T) {
+	t.Parallel()
+
+	t.Run("supply addition overflow panics", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		ctx := env.ctx
+
+		addr1 := crypto.AddressFromPreimage([]byte("supply-addr1"))
+		addr2 := crypto.AddressFromPreimage([]byte("supply-addr2"))
+		acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+		acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
+		env.acck.SetAccount(ctx, acc1)
+		env.acck.SetAccount(ctx, acc2)
+
+		// Set first account near max to push total supply high.
+		env.bankk.SetCoins(ctx, addr1, std.NewCoins(std.NewCoin("ugnot", math.MaxInt64-1)))
+
+		// Setting second account's coins should overflow the total supply.
+		require.PanicsWithValue(t,
+			`total supply overflow for denom "ugnot": 9223372036854775806 + 2`,
+			func() {
+				env.bankk.SetCoins(ctx, addr2, std.NewCoins(std.NewCoin("ugnot", 2)))
+			},
+		)
+	})
+
+	t.Run("normal supply update succeeds", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		ctx := env.ctx
+
+		addr := crypto.AddressFromPreimage([]byte("normal-addr"))
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+
+		// Normal operations should work fine.
+		require.NotPanics(t, func() {
+			env.bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("ugnot", 100)))
+		})
+		require.Equal(t, int64(100), env.bankk.TotalCoin(ctx, "ugnot"))
+
+		require.NotPanics(t, func() {
+			env.bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("ugnot", 50)))
+		})
+		require.Equal(t, int64(50), env.bankk.TotalCoin(ctx, "ugnot"))
+	})
 }

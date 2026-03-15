@@ -20,6 +20,7 @@ type BankKeeperI interface {
 	SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 	SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
 	AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
+	TotalCoin(ctx sdk.Context, denom string) int64
 	RestrictedDenoms(ctx sdk.Context) []string
 }
 
