@@ -1108,125 +1108,154 @@ func (m *Machine) incrCPU(cycles int64) {
 }
 
 const (
-	// CPU cycles
+	// CPU gas costs calibrated on Xeon 8168, cpuBaseNs=5.2.
+	// Parameterized ops use base cost here; per-N cost is added in the handler.
+	// See gnovm/cmd/calibrate/op_bench_analysis.txt for full derivation.
+
 	/* Control operators */
 	OpCPUInvalid             = 1
 	OpCPUHalt                = 1
 	OpCPUNoop                = 1
 	OpCPUExec                = 25
-	OpCPUPrecall             = 207
-	OpCPUEnterCrossing       = 100 // XXX
-	OpCPUCall                = 256
-	OpCPUCallNativeBody      = 424 // Todo benchmark this properly
-	OpCPUDefer               = 64
+	OpCPUPrecall             = 38 // max(type conv=14, func=34, bound method=38)
+	OpCPUEnterCrossing       = 100 // XXX not yet benchmarked
+	OpCPUCall                = 35 // base for 0 params, 0 captures; per-param/capture added in handler
+	OpCPUCallNativeBody      = 424 // TODO: benchmark this properly
+	OpCPUDefer               = 14
 	OpCPUCallDeferNativeBody = 33
-	OpCPUGo                  = 1 // Not yet implemented
-	OpCPUSelect              = 1 // Not yet implemented
-	OpCPUSwitchClause        = 38
-	OpCPUSwitchClauseCase    = 143
-	OpCPUTypeSwitch          = 171
+	OpCPUGo                  = 1 // not yet implemented
+	OpCPUSelect              = 1 // not yet implemented
+	OpCPUSwitchClause        = 17
+	OpCPUSwitchClauseCase    = 21 // max(match=21, miss=20)
+	OpCPUTypeSwitch          = 171 // parameterized; base cost kept, per-clause added in handler
 	OpCPUIfCond              = 38
 	OpCPUPopValue            = 1
 	OpCPUPopResults          = 1
 	OpCPUPopBlock            = 3
 	OpCPUPopFrameAndReset    = 15
 	OpCPUPanic1              = 121
-	OpCPUPanic2              = 21
-	OpCPUReturn              = 38
-	OpCPUReturnAfterCopy     = 38 // XXX
-	OpCPUReturnFromBlock     = 36
+	OpCPUPanic2              = 9
+	OpCPUReturn              = 26
+	OpCPUReturnAfterCopy     = 32
+	OpCPUReturnFromBlock     = 32
 	OpCPUReturnToBlock       = 23
 
 	/* Unary & binary operators */
-	OpCPUUpos  = 7
-	OpCPUUneg  = 25
-	OpCPUUnot  = 6
-	OpCPUUxor  = 14
-	OpCPUUrecv = 1 // Not yet implemented
-	OpCPULor   = 26
-	OpCPULand  = 24
-	OpCPUEql   = 160
-	OpCPUNeq   = 95
-	OpCPULss   = 13
-	OpCPULeq   = 19
-	OpCPUGtr   = 20
-	OpCPUGeq   = 26
-	OpCPUAdd   = 18
-	OpCPUSub   = 6
-	OpCPUBor   = 23
-	OpCPUXor   = 13
-	OpCPUMul   = 19
-	OpCPUQuo   = 16
-	OpCPURem   = 18
-	OpCPUShl   = 22
-	OpCPUShr   = 20
-	OpCPUBand  = 9
-	OpCPUBandn = 15
+	OpCPUUpos  = 12
+	OpCPUUneg  = 13
+	OpCPUUnot  = 13
+	OpCPUUxor  = 13
+	OpCPUUrecv = 1 // not yet implemented
+	OpCPULor   = 16
+	OpCPULand  = 16 // max(true=13, false=13) ~ 16 with overhead
+	OpCPUEql   = 18 // max(int=16, float64=18); parameterized cases added in handler
+	OpCPUNeq   = 16
+	OpCPULss   = 14
+	OpCPULeq   = 14
+	OpCPUGtr   = 14
+	OpCPUGeq   = 14
+	OpCPUAdd   = 32 // max(int=16, float64=28, string=32)
+	OpCPUSub   = 26 // max(int=13, float64=26)
+	OpCPUBor   = 14
+	OpCPUXor   = 14
+	OpCPUMul   = 27 // max(int=14, float64=27)
+	OpCPUQuo   = 45 // max(int=26, float64=45)
+	OpCPURem   = 27
+	OpCPUShl   = 15
+	OpCPUShr   = 15
+	OpCPUBand  = 14
+	OpCPUBandn = 14
 
 	/* Other expression operators */
-	OpCPUEval        = 29
-	OpCPUBinary1     = 19
-	OpCPUIndex1      = 77
+	OpCPUEval        = 29 // parameterized for NameExpr; base cost for const/type
+	OpCPUBinary1     = 13
+	OpCPUIndex1      = 20 // max(array=20, slice=20, map/string similar)
 	OpCPUIndex2      = 195
-	OpCPUSelector    = 32
-	OpCPUSlice       = 103
-	OpCPUStar        = 40
-	OpCPURef         = 125
-	OpCPUTypeAssert1 = 30
-	OpCPUTypeAssert2 = 25
+	OpCPUSelector    = 80 // max(own/VPBlock/method~flat, VPValMethod=80); VPInterface parameterized in handler
+	OpCPUSlice       = 41 // max(array=35, slice=37, byte=36, 3idx=41, string=38)
+	OpCPUStar        = 20
+	OpCPURef         = 26
+	OpCPUTypeAssert1 = 16 // concrete; interface case parameterized in handler
+	OpCPUTypeAssert2 = 18 // max(hit=16, miss=18)
 	// TODO: OpCPUStaticTypeOf is an arbitrary number.
 	// A good way to benchmark this is yet to be determined.
 	OpCPUStaticTypeOf = 100
-	OpCPUCompositeLit = 50
-	OpCPUArrayLit     = 137
-	OpCPUSliceLit     = 183
-	OpCPUSliceLit2    = 467
-	OpCPUMapLit       = 475
-	OpCPUStructLit    = 179
-	OpCPUFuncLit      = 61
-	OpCPUConvert      = 16
+	OpCPUCompositeLit = 15
+	OpCPUArrayLit     = 37 // base; per-element added in handler
+	OpCPUSliceLit     = 42 // base; per-element added in handler
+	OpCPUSliceLit2    = 88 // base; per-alloc-size added in handler
+	OpCPUMapLit       = 103 // base; per-entry added in handler (fit base negative, clamped)
+	OpCPUStructLit    = 43 // base; per-field added in handler (max of unnamed=39, named=43)
+	OpCPUFuncLit      = 34 // base; per-capture added in handler
+	OpCPUConvert      = 55 // max(int->string, int->int64=29, str->bytes=55); parameterized cases in handler
 
 	/* Type operators */
 	OpCPUFieldType     = 59
-	OpCPUArrayType     = 57
-	OpCPUSliceType     = 55
-	OpCPUPointerType   = 1 // Not yet implemented
-	OpCPUInterfaceType = 75
-	OpCPUChanType      = 57
-	OpCPUFuncType      = 81
-	OpCPUMapType       = 59
-	OpCPUStructType    = 174
+	OpCPUArrayType     = 29
+	OpCPUSliceType     = 29
+	OpCPUPointerType   = 1 // dead code (no dispatch case)
+	OpCPUInterfaceType = 73 // base; per-method added in handler
+	OpCPUChanType      = 29
+	OpCPUFuncType      = 54 // base; per-param+result added in handler
+	OpCPUMapType       = 29
+	OpCPUStructType    = 62 // base; per-field added in handler
 
 	/* Statement operators */
-	OpCPUAssign      = 79
-	OpCPUAddAssign   = 85
-	OpCPUSubAssign   = 57
-	OpCPUMulAssign   = 55
-	OpCPUQuoAssign   = 50
-	OpCPURemAssign   = 46
-	OpCPUBandAssign  = 54
-	OpCPUBandnAssign = 44
-	OpCPUBorAssign   = 55
-	OpCPUXorAssign   = 48
-	OpCPUShlAssign   = 68
-	OpCPUShrAssign   = 76
-	OpCPUDefine      = 111
-	OpCPUInc         = 76
-	OpCPUDec         = 46
+	OpCPUAssign      = 17 // base; per-LHS added in handler
+	OpCPUAddAssign   = 19
+	OpCPUSubAssign   = 17
+	OpCPUMulAssign   = 17
+	OpCPUQuoAssign   = 32
+	OpCPURemAssign   = 33
+	OpCPUBandAssign  = 17
+	OpCPUBandnAssign = 17
+	OpCPUBorAssign   = 17
+	OpCPUXorAssign   = 17
+	OpCPUShlAssign   = 19
+	OpCPUShrAssign   = 19
+	OpCPUDefine      = 22 // base; per-LHS added in handler
+	OpCPUInc         = 16
+	OpCPUDec         = 16
 
 	/* Decl operators */
-	OpCPUValueDecl = 113
-	OpCPUTypeDecl  = 100
+	OpCPUValueDecl = 38
+	OpCPUTypeDecl  = 27
 
 	/* Loop (sticky) operators (>= 0xD0) */
-	OpCPUSticky            = 1 // Not a real op
-	OpCPUBody              = 43
-	OpCPUForLoop           = 27
-	OpCPURangeIter         = 105
-	OpCPURangeIterString   = 55
-	OpCPURangeIterMap      = 48
+	OpCPUSticky            = 1 // not a real op
+	OpCPUBody              = 14
+	OpCPUForLoop           = 13 // base; per-heap-var added in handler for heap copy
+	OpCPURangeIter         = 25 // base; per-element added in handler
+	OpCPURangeIterString   = 15 // flat (called once per rune)
+	OpCPURangeIterMap      = 14 // flat (called once per entry)
 	OpCPURangeIterArrayPtr = 46
-	OpCPUReturnCallDefers  = 78
+	OpCPUReturnCallDefers  = 114 // base; per-defer added in handler
+
+	// Per-N slope constants for parameterized ops.
+	// Each value is the CPU gas cost per unit of the parameter N.
+	// Calibrated on Xeon 8168, cpuBaseNs=5.2.
+	OpCPUSlopeDefine         = 15 // per LHS variable
+	OpCPUSlopeAssign         = 17 // per LHS variable
+	OpCPUSlopeMapLit         = 60 // per map entry
+	OpCPUSlopeArrayLit       = 9  // per element (max of int=9, uint8=2)
+	OpCPUSlopeSliceLit       = 4  // per element
+	OpCPUSlopeSliceLit2      = 5  // per alloc size
+	OpCPUSlopeStructLit      = 9  // per field (max of unnamed=4, named=9)
+	OpCPUSlopeFuncLit        = 7  // per capture
+	OpCPUSlopeCallParam      = 9  // per param in OpCall
+	OpCPUSlopeCallCapture    = 5  // per capture in OpCall
+	OpCPUSlopeForLoopHeap    = 8  // per heap var copied
+	OpCPUSlopeRangeIterArray = 2  // per element (init copy)
+	OpCPUSlopeTypeSwitchCase = 49 // per clause (concrete)
+	OpCPUSlopeTypeAssertIface = 67 // per interface method
+	OpCPUSlopeConvertStrRunes = 3 // per char (string→runes)
+	OpCPUSlopeConvertRunesStr = 2 // per rune (runes→string)
+	OpCPUSlopeEqlArray       = 27 // per element
+	OpCPUSlopeEqlStruct      = 26 // per field
+	OpCPUSlopeStructType     = 6  // per field
+	OpCPUSlopeInterfaceType  = 5  // per method
+	OpCPUSlopeFuncType       = 4  // per param+result
+	OpCPUSlopeValueDecl      = 6  // per field/element
 )
 
 //----------------------------------------

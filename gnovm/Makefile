@@ -82,6 +82,21 @@ run.bench.native: build.bench.native
 	./build/gnobench -out native_results_$(COMMIT_HASH).csv
 
 ########################################
+# Gas calibration analysis
+CALIBRATE_DIR := cmd/calibrate
+BENCH_DATA := $(CALIBRATE_DIR)/op_bench_do_dedicated.txt
+MACHINE_GO := pkg/gnolang/machine.go
+
+.PHONY: calibrate.analysis
+calibrate.analysis:
+	python3 $(CALIBRATE_DIR)/gen_analysis.py $(BENCH_DATA) $(MACHINE_GO)
+
+.PHONY: calibrate.plot
+calibrate.plot:
+	python3 $(CALIBRATE_DIR)/plot_fits.py $(BENCH_DATA) $(CALIBRATE_DIR)/op_gas_fits.png
+	@echo "Plot saved to $(CALIBRATE_DIR)/op_gas_fits.png"
+
+########################################
 # Test suite
 .PHONY: test
 test: _test.filetest _test.cmd _test.pkg _test.stdlibs

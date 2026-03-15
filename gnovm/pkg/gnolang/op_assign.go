@@ -6,6 +6,7 @@ func (m *Machine) doOpDefine() {
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
+	m.incrCPU(OpCPUSlopeDefine * int64(len(s.Lhs)))
 	lb := m.LastBlock()
 	for i := range s.Lhs {
 		// Get name and value of i'th term.
@@ -25,6 +26,7 @@ func (m *Machine) doOpAssign() {
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
+	m.incrCPU(OpCPUSlopeAssign * int64(len(s.Lhs)))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])

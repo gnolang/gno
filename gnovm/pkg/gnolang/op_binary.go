@@ -82,6 +82,17 @@ func (m *Machine) doOpEql() {
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
+	// Per-N CPU gas for array/struct equality.
+	if lv.T != nil {
+		switch lv.T.Kind() {
+		case ArrayKind:
+			at := baseOf(lv.T).(*ArrayType)
+			m.incrCPU(OpCPUSlopeEqlArray * int64(at.Len))
+		case StructKind:
+			st := baseOf(lv.T).(*StructType)
+			m.incrCPU(OpCPUSlopeEqlStruct * int64(len(st.Fields)))
+		}
+	}
 	// set result in lv.
 	res := isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
