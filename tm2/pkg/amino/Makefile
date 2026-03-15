@@ -18,6 +18,7 @@ include tools.mk
 
 ########################################
 ### Testing
+# See README.md for documentation on test and fuzz targets.
 
 test:
 	go test $(shell go list ./... | grep -v vendor | grep -v fuzz)
