@@ -198,9 +198,9 @@ func benchGCVisit(b *testing.B, nObjects int) {
 	b.ReportMetric(float64(lastVisitCount), "visits/op")
 }
 
-func BenchmarkGCVisit_100(b *testing.B)     { benchGCVisit(b, 100) }
-func BenchmarkGCVisit_1000(b *testing.B)    { benchGCVisit(b, 1000) }
-func BenchmarkGCVisit_10000(b *testing.B)   { benchGCVisit(b, 10000) }
-func BenchmarkGCVisit_100000(b *testing.B)  { benchGCVisit(b, 100000) }
+func BenchmarkGCVisit_100(b *testing.B)      { benchGCVisit(b, 100) }
+func BenchmarkGCVisit_1000(b *testing.B)     { benchGCVisit(b, 1000) }
+func BenchmarkGCVisit_10000(b *testing.B)    { benchGCVisit(b, 10000) }
+func BenchmarkGCVisit_100000(b *testing.B)   { benchGCVisit(b, 100000) }
 func BenchmarkGCVisit_1000000(b *testing.B)  { benchGCVisit(b, 1000000) }
 func BenchmarkGCVisit_10000000(b *testing.B) { benchGCVisit(b, 10000000) }

@@ -1172,16 +1172,16 @@ const (
 	OpCPUHalt                = 1
 	OpCPUNoop                = 1
 	OpCPUExec                = 25
-	OpCPUPrecall             = 38 // max(type conv=14, func=34, bound method=38)
+	OpCPUPrecall             = 38  // max(type conv=14, func=34, bound method=38)
 	OpCPUEnterCrossing       = 100 // XXX not yet benchmarked
-	OpCPUCall                = 35 // base for 0 params, 0 captures; per-param/capture added in handler
+	OpCPUCall                = 35  // base for 0 params, 0 captures; per-param/capture added in handler
 	OpCPUCallNativeBody      = 424 // TODO: benchmark this properly
 	OpCPUDefer               = 14
 	OpCPUCallDeferNativeBody = 33
 	OpCPUGo                  = 1 // not yet implemented
 	OpCPUSelect              = 1 // not yet implemented
 	OpCPUSwitchClause        = 17
-	OpCPUSwitchClauseCase    = 21 // max(match=21, miss=20)
+	OpCPUSwitchClauseCase    = 21  // max(match=21, miss=20)
 	OpCPUTypeSwitch          = 171 // parameterized; base cost kept, per-clause added in handler
 	OpCPUIfCond              = 38
 	OpCPUPopValue            = 1
@@ -1236,19 +1236,19 @@ const (
 	// A good way to benchmark this is yet to be determined.
 	OpCPUStaticTypeOf = 100
 	OpCPUCompositeLit = 15
-	OpCPUArrayLit     = 37 // base; per-element added in handler
-	OpCPUSliceLit     = 42 // base; per-element added in handler
-	OpCPUSliceLit2    = 88 // base; per-alloc-size added in handler
+	OpCPUArrayLit     = 37  // base; per-element added in handler
+	OpCPUSliceLit     = 42  // base; per-element added in handler
+	OpCPUSliceLit2    = 88  // base; per-alloc-size added in handler
 	OpCPUMapLit       = 103 // base; per-entry added in handler (fit base negative, clamped)
-	OpCPUStructLit    = 43 // base; per-field added in handler (max of unnamed=39, named=43)
-	OpCPUFuncLit      = 34 // base; per-capture added in handler
-	OpCPUConvert      = 55 // max(int->string, int->int64=29, str->bytes=55); parameterized cases in handler
+	OpCPUStructLit    = 43  // base; per-field added in handler (max of unnamed=39, named=43)
+	OpCPUFuncLit      = 34  // base; per-capture added in handler
+	OpCPUConvert      = 55  // max(int->string, int->int64=29, str->bytes=55); parameterized cases in handler
 
 	/* Type operators */
 	OpCPUFieldType     = 59
 	OpCPUArrayType     = 29
 	OpCPUSliceType     = 29
-	OpCPUPointerType   = 1 // dead code (no dispatch case)
+	OpCPUPointerType   = 1  // dead code (no dispatch case)
 	OpCPUInterfaceType = 73 // base; per-method added in handler
 	OpCPUChanType      = 29
 	OpCPUFuncType      = 54 // base; per-param+result added in handler
@@ -1289,44 +1289,44 @@ const (
 	// Per-N slope constants for parameterized ops.
 	// Each value is the CPU gas cost per unit of the parameter N.
 	// Calibrated on Xeon 8168, cpuBaseNs=5.2.
-	OpCPUSlopeDefine         = 15 // per LHS variable
-	OpCPUSlopeAssign         = 17 // per LHS variable
-	OpCPUSlopeMapLit         = 60 // per map entry
-	OpCPUSlopeArrayLit       = 9  // per element (max of int=9, uint8=2)
-	OpCPUSlopeSliceLit       = 4  // per element
-	OpCPUSlopeSliceLit2      = 5  // per alloc size
-	OpCPUSlopeStructLit      = 9  // per field (max of unnamed=4, named=9)
-	OpCPUSlopeFuncLit        = 7  // per capture
-	OpCPUSlopeCallParam      = 9  // per param in OpCall
-	OpCPUSlopeCallCapture    = 5  // per capture in OpCall
-	OpCPUSlopeForLoopHeap    = 8  // per heap var copied
-	OpCPUSlopeRangeIterArray = 2  // per element (init copy)
-	OpCPUSlopeTypeSwitchCase = 49 // per clause (concrete)
+	OpCPUSlopeDefine          = 15 // per LHS variable
+	OpCPUSlopeAssign          = 17 // per LHS variable
+	OpCPUSlopeMapLit          = 60 // per map entry
+	OpCPUSlopeArrayLit        = 9  // per element (max of int=9, uint8=2)
+	OpCPUSlopeSliceLit        = 4  // per element
+	OpCPUSlopeSliceLit2       = 5  // per alloc size
+	OpCPUSlopeStructLit       = 9  // per field (max of unnamed=4, named=9)
+	OpCPUSlopeFuncLit         = 7  // per capture
+	OpCPUSlopeCallParam       = 9  // per param in OpCall
+	OpCPUSlopeCallCapture     = 5  // per capture in OpCall
+	OpCPUSlopeForLoopHeap     = 8  // per heap var copied
+	OpCPUSlopeRangeIterArray  = 2  // per element (init copy)
+	OpCPUSlopeTypeSwitchCase  = 49 // per clause (concrete)
 	OpCPUSlopeTypeAssertIface = 67 // per interface method
-	OpCPUSlopeConvertStrRunes = 3 // per char (string→runes)
-	OpCPUSlopeConvertRunesStr = 2 // per rune (runes→string)
-	OpCPUSlopeEqlArray       = 27 // per element
-	OpCPUSlopeEqlStruct      = 26 // per field
-	OpCPUSlopeStructType     = 6  // per field
-	OpCPUSlopeInterfaceType  = 5  // per method
-	OpCPUSlopeFuncType       = 4  // per param+result
-	OpCPUSlopeValueDecl      = 6  // per field/element
-	OpCPUSlopeEvalNameExpr   = 1  // per block depth hop (0.69/depth, round to 1)
+	OpCPUSlopeConvertStrRunes = 3  // per char (string→runes)
+	OpCPUSlopeConvertRunesStr = 2  // per rune (runes→string)
+	OpCPUSlopeEqlArray        = 27 // per element
+	OpCPUSlopeEqlStruct       = 26 // per field
+	OpCPUSlopeStructType      = 6  // per field
+	OpCPUSlopeInterfaceType   = 5  // per method
+	OpCPUSlopeFuncType        = 4  // per param+result
+	OpCPUSlopeValueDecl       = 6  // per field/element
+	OpCPUSlopeEvalNameExpr    = 1  // per block depth hop (0.69/depth, round to 1)
 
 	// BigInt per-kilobit slopes: gas = bits * slope / 1024.
 	// Linear ops (Add/Sub/Band/Bor/Xor/Bandn/Uneg/Uxor/Inc/Dec/Eql/Lss).
-	OpCPUSlopeBigIntAdd   = 9   // 0.0086 * 1024 = 8.8
-	OpCPUSlopeBigIntSub   = 13  // 0.0128 * 1024 = 13.1
-	OpCPUSlopeBigIntBand  = 11  // 0.0108 * 1024 = 11.1
-	OpCPUSlopeBigIntBor   = 11  // 0.0112 * 1024 = 11.5
-	OpCPUSlopeBigIntXor   = 13  // 0.0129 * 1024 = 13.2
-	OpCPUSlopeBigIntBandn = 13  // 0.0129 * 1024 = 13.2
-	OpCPUSlopeBigIntUneg  = 8   // 0.0081 * 1024 = 8.3
-	OpCPUSlopeBigIntUxor  = 9   // 0.0086 * 1024 = 8.8
-	OpCPUSlopeBigIntInc   = 12  // 0.0116 * 1024 = 11.9
-	OpCPUSlopeBigIntDec   = 12  // 0.0117 * 1024 = 12.0
-	OpCPUSlopeBigIntEql   = 2   // 0.0019 * 1024 = 1.9
-	OpCPUSlopeBigIntLss   = 2   // 0.0017 * 1024 = 1.7
+	OpCPUSlopeBigIntAdd   = 9  // 0.0086 * 1024 = 8.8
+	OpCPUSlopeBigIntSub   = 13 // 0.0128 * 1024 = 13.1
+	OpCPUSlopeBigIntBand  = 11 // 0.0108 * 1024 = 11.1
+	OpCPUSlopeBigIntBor   = 11 // 0.0112 * 1024 = 11.5
+	OpCPUSlopeBigIntXor   = 13 // 0.0129 * 1024 = 13.2
+	OpCPUSlopeBigIntBandn = 13 // 0.0129 * 1024 = 13.2
+	OpCPUSlopeBigIntUneg  = 8  // 0.0081 * 1024 = 8.3
+	OpCPUSlopeBigIntUxor  = 9  // 0.0086 * 1024 = 8.8
+	OpCPUSlopeBigIntInc   = 12 // 0.0116 * 1024 = 11.9
+	OpCPUSlopeBigIntDec   = 12 // 0.0117 * 1024 = 12.0
+	OpCPUSlopeBigIntEql   = 2  // 0.0019 * 1024 = 1.9
+	OpCPUSlopeBigIntLss   = 2  // 0.0017 * 1024 = 1.7
 	// Quadratic: gas = (bits/32)^2 * slope / 32.
 	// Mul: 0.000026/bit^2. At 32-bit granularity: 0.000026 * 32^2 = 0.0266 per (32b)^2.
 	// Scaled by /32: 0.0266*32 = 0.85 → 1.
