@@ -176,7 +176,7 @@ gnokey maketx addpkg \
 -gas-wanted 8000000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443"
+-remote "https://rpc.staging.gno.land:443"
 ```
 
 Once we have added a desired [namespace](../resources/users-and-teams.md) to upload the package to, we can specify a key
@@ -190,7 +190,7 @@ gnokey maketx addpkg \
 -gas-wanted 200000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443"
+-remote "https://rpc.staging.gno.land:443"
 mykey
 ```
 
@@ -253,7 +253,7 @@ gnokey maketx call \
 -gas-wanted 2000000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 mykey
 ```
 
@@ -264,7 +264,7 @@ In this command, we have specified three main things:
 - The amount of `ugnot` we want to send to be wrapped, using the `-send` flag
 
 Apart from this, we have also specified the Staging chain ID, `staging`,
-as well as the Staging remote address, `https://rpc.gno.land:443`.
+as well as the Staging remote address, `https://rpc.staging.gno.land:443`.
 
 After running the command, we can expect an output similar to the following:
 
@@ -293,7 +293,7 @@ gnokey maketx call \
 -gas-wanted 2000000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 mykey
 ```
 
@@ -342,7 +342,7 @@ gnokey maketx send \
 -gas-wanted 2000000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 mykey
 ```
 
@@ -356,7 +356,7 @@ in the [Querying a network](#querying-a-gnoland-network) section.
 ## `Run`
 
 With the `Run` message, you can write a snippet of Gno code and run it against
-code on the chain. For this example, we will use the [Counter realm](https://gno.land/r/demo/counter),
+code on the chain. For this example, we will use the [Counter realm](https://staging.gno.land/r/demo/counter),
 which maintains a simple counter that can be incremented.
 It contains a simple `Increment()` function, which we will call with `Run`.
 
@@ -403,7 +403,7 @@ gnokey maketx run \
 -gas-wanted 20000000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 mykey ./script.gno
 ```
 
@@ -561,7 +561,7 @@ First, we need to fetch data for the account we are using to sign the transactio
 using the [auth/accounts](#authaccounts) query:
 
 ```bash
-gnokey query auth/accounts/<your_address> -remote "https://rpc.gno.land:443"
+gnokey query auth/accounts/<your_address> -remote "https://rpc.staging.gno.land:443"
 ```
 
 We need to extract the account number and sequence from the output:
@@ -633,7 +633,7 @@ To broadcast the signed transaction to the chain, we can use the `gnokey broadca
 subcommand, giving it the path to the signed transaction:
 
 ```bash
-gnokey broadcast -remote "https://rpc.gno.land:443" counter.tx
+gnokey broadcast -remote "https://rpc.staging.gno.land:443" counter.tx
 ```
 
 In this case, we do not need to specify a key pair, as the transaction has already
@@ -1043,7 +1043,7 @@ we can run the following command:
 gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
 ```
 
-With this, we are asking the Staging network to deliver information about the
+With this, we are asking the network to deliver information about the
 specified address. If everything went correctly, we should get output similar to the following:
 
 ```bash
@@ -1313,7 +1313,7 @@ gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.
 ```
 
 Running this command will display the current `Render()` output of the WUGNOT
-realm, which is also displayed by default on the [realm's page](https://gno.land/r/gnoland/wugnot):
+realm, which is also displayed by default on the [realm's page](https://staging.gno.land/r/gnoland/wugnot):
 
 ```bash
 height: 0
@@ -1423,7 +1423,7 @@ gnokey maketx call \
   --args "MyBoard" "Board description" \
   --gas-fee 1000000ugnot \
   --gas-wanted 2000000 \
-  --remote https://rpc.gno.land:443 \
+  --remote https://rpc.staging.gno.land:443 \
   --chainid staging \
   YOUR_KEY_NAME
 ```
