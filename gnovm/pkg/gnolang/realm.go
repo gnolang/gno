@@ -1808,8 +1808,10 @@ func getOwner(store Store, oo Object) Object {
 	poid := oo.GetOwnerID()
 	if po == nil {
 		if !poid.IsZero() {
-			po = store.GetObject(poid)
-			oo.SetOwner(po)
+			po = store.GetObjectSafe(poid)
+			if po != nil {
+				oo.SetOwner(po)
+			}
 		}
 	}
 	return po

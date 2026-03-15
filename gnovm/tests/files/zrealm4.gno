@@ -79,3 +79,13 @@ func main(cur realm) {
 //                  "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8"
 //              }
 //          }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2](0)=
+//     @@ -34,7 +34,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "ff9e569e6515e2a9b9d7c2a8be02c5eee200b349",
+//     +                "Hash": "f1040e8fa75bc74acc3fa8279cd8be76adc22cd8",
+//                      "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                  }
+//              },

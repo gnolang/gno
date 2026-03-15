@@ -17,7 +17,7 @@ func main() {
 
 // Storage:
 // gno.land/r/crossrealm: 0
-// gno.land/r/tests/vm/crossrealm: 224
+// gno.land/r/tests/vm/crossrealm: 237
 // gno.land/r/tests/vm/crossrealm_b: 8
 
 // Output:
