@@ -168,42 +168,159 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 
 ## Benchmark gap analysis
 
-### Missing benchmarks (not yet covered)
+### Status: 350 benchmarks in bench_ops_test.go (as of 2026-03-14)
 
-1. **isEql ArrayKind** — recursive O(N) comparison
-2. **isEql StructKind** — recursive O(fields) comparison
-3. **doOpConvert String→[]rune** — O(rune_count) allocs
-4. **doOpConvert []rune→String** — O(rune_count) re-encode
-5. **doOpSliceLit2 sparse** — maxVal amplification
-6. **doOpSelector VPValMethod** — BoundMethodValue allocation
-7. **doOpSelector VPInterface** — findEmbeddedFieldType recursion
-8. **doOpSelector VPBlock** — block depth traversal
-9. **doOpTypeAssert1 interface** — VerifyImplementedBy O(M×F×D)
-10. **doOpFuncLit with captures** — O(n×depth)
-11. **doOpCall** — captures, block alloc, variadic
-12. **doOpReturn** — frame depth, realm finalization
-13. **doOpDefer** — argument count, variadic
-14. **doOpExec OpForLoop** — heap item copy overhead
-15. **doOpExec OpRangeIter** — upfront array copy
-16. **doOpExec OpRangeIterString** — UTF-8 decode per rune
-17. **doOpExec OpRangeIterMap** — linked list traversal
-18. **doOpIfCond** — ExpandWith heap var allocation
-19. **doOpTypeSwitch** — clause × case iteration
-20. **doOpSwitchClauseCase** — isEql per case
-21. **doOpEval NameExpr** — block depth traversal
-22. **doOpEval BasicLitExpr** — literal parsing (hex float most expensive)
-23. **doOpValueDecl** — defaultTypedValue recursion
-24. **doOpPrecall** — realm creation for crossing
-25. **doOpPanic2** — exception chain Sprint
-26. **doOpEnterCrossing** — O(n²) frame scan
+### Previously missing — now DONE
 
-### Existing benchmarks needing additional parameterizations
+1. ~~isEql ArrayKind~~ — BenchmarkOpEql_Array_{1,10,100,1000}
+2. ~~isEql StructKind~~ — BenchmarkOpEql_Struct_{1,10,100,1000}
+3. ~~doOpConvert String→[]rune~~ — BenchmarkOpConvert_StringToRunes_{1,10,100,1000}
+4. ~~doOpConvert []rune→String~~ — BenchmarkOpConvert_RunesToString_{1,10,100,1000}
+5. ~~doOpSelector VPValMethod~~ — BenchmarkOpSelector_VPValMethod
+6. ~~doOpSelector VPInterface~~ — BenchmarkOpSelector_VPInterface_{1,10,100}
+7. ~~doOpTypeAssert1 interface~~ — BenchmarkOpTypeAssert1_Interface_{1,10,100}
+8. ~~doOpTypeAssert2 interface~~ — BenchmarkOpTypeAssert2_Interface_{Hit,Miss}
+9. ~~doOpFuncLit with captures~~ — BenchmarkOpFuncLit_Captures_{0,1,10,100,1000}
+10. ~~doOpCall~~ — BenchmarkOpCall_{0-100}Params_{0-100}Captures + BenchmarkOpCall_Method
+11. ~~doOpReturn~~ — BenchmarkOpReturn + ReturnAfterCopy + ReturnFromBlock + ReturnToBlock
+12. ~~doOpDefer~~ — BenchmarkOpDefer_{1,10,100}Args
+13. ~~doOpExec OpForLoop~~ — BenchmarkOpForLoop_HeapCopy_{0,1,10,100,1000}
+14. ~~doOpExec OpRangeIter~~ — BenchmarkOpRangeIter_{1,10,100,1000}
+15. ~~doOpExec OpRangeIterString~~ — BenchmarkOpRangeIterString_{1,10,100,1000}
+16. ~~doOpExec OpRangeIterMap~~ — BenchmarkOpRangeIterMap_{1,10,100,1000}
+17. ~~doOpIfCond~~ — BenchmarkOpIfCond_TrueBranch + FalseBranch
+18. ~~doOpTypeSwitch~~ — BenchmarkOpTypeSwitch_{1,10,100} + Interface_{1,10,100}
+19. ~~doOpSwitchClauseCase~~ — BenchmarkOpSwitchClauseCase_{Match,Miss}
+20. ~~doOpEval NameExpr~~ — BenchmarkOpEval_NameExpr_Depth{1,10,100}
+21. ~~doOpEval BasicLitExpr~~ — BenchmarkOpEval_BasicLitInt_{Small,Large,Hex} + String
+22. ~~doOpValueDecl~~ — BenchmarkOpValueDecl_{DefaultInt,DefaultArray,DefaultStruct}
+23. ~~doOpPrecall~~ — BenchmarkOpPrecall_{FuncValue,TypeConversion,BoundMethod}
+24. ~~doOpPanic2~~ — BenchmarkOpPanic2
+25. ~~BenchmarkOpEql~~ — + Array, Struct, ByteArray, String parameterized
+26. ~~BenchmarkOpSelector~~ — + VPValMethod, VPInterface parameterized
+27. ~~BenchmarkOpArrayLit~~ — + Uint8 variant
+28. ~~BenchmarkOpConvert_StringToBytes~~ — + StringToRunes, RunesToString
+29. ~~BigInt/BigDec~~ — 14 BigInt ops × 4 bit-lengths + 11 asymmetric + 7 BigDec ops × 4 precisions
+30. ~~String ops~~ — Add, Eql, Lss, Convert, Index1_MapStringKey, Slice × 4 lengths
+31. ~~Byte-array ops~~ — Eql, ArrayLit_Uint8, Index1, Slice × 4 sizes
 
-1. **BenchmarkOpShl_BigInt** — add shift values near maxBigintShift=10000
-2. **BenchmarkOpShr_BigInt** — add very large shifts (no limit!)
-3. **BenchmarkOpConvert_StringToBytes** — add String→[]rune variant
-4. **BenchmarkOpSliceLit** — add sparse keyed variant (doOpSliceLit2)
-5. **BenchmarkOpArrayLit** — add uint8 element type variant
-6. **BenchmarkOpSelector** — add method selector and interface selector variants
-7. **BenchmarkOpTypeAssert1** — add interface with many methods variant
-8. **BenchmarkOpEql** — add array and struct equality variants
+### Also done (code changes, not just benchmarks)
+
+- **bytes.Equal fast path** in `isEql` for byte array comparison (~850x speedup)
+- **gcVisitGasTable** replacing flat `VisitCpuFactor=8` with heap-size-aware lookup table
+
+### Still missing
+
+1. **doOpSliceLit2 sparse** — maxVal amplification attack vector
+2. **doOpSelector VPBlock** — block depth traversal
+3. **doOpReturnCallDefers** with many captures per defer
+4. **doOpEnterCrossing** — O(n²) frame scan
+5. **BenchmarkOpShl_BigInt** — shift values near maxBigintShift=10000
+6. **BenchmarkOpShr_BigInt** — very large shifts (no limit!)
+
+---
+
+## Benchmark findings and calibration insights
+
+### Byte array equality was 850x slower than necessary
+
+`isEql` for `ArrayKind` with `Data []byte` representation (used for `[N]uint8`)
+iterated element-by-element, wrapping each byte in `DataByteValue` via
+`GetPointerAtIndex`. BenchmarkOpEql_ByteArray_1000 measured 177µs vs 45µs for
+equivalent List-based arrays. Adding a `bytes.Equal(la.Data, ra.Data)` fast path
+reduced 1000-byte comparison from ~47,600ns to ~56ns. This is the kind of
+performance cliff that flat gas constants miss entirely.
+
+### BigInt operations are asymmetric — both operand sizes matter
+
+For `Mul(A, B)` where `len(A) ≠ len(B)`, cost is `O(len(A) × len(B))`, not
+`O(max(len(A), len(B))²)`. Benchmark results on M2:
+
+| Operation | Operand sizes | ns/op (pure) |
+|-----------|--------------|-------------|
+| Mul_BigInt_64 | 64×64 | ~28ns |
+| Mul_BigInt_4096 | 4096×4096 | ~28,600ns |
+| Mul_BigInt_64x4096 | 64×4096 | ~700ns |
+| Mul_BigInt_256x4096 | 256×4096 | ~2,100ns |
+
+This means gas should be charged as `O(len(A) × len(B))`, not `O(max²)`.
+For `Quo`/`Rem`, the dividend is typically larger than the divisor, so asymmetric
+benchmarks use (large÷small) ordering. For `Add`/`Sub`, cost is `O(max(len(A), len(B)))`.
+
+### BigDec cost varies with precision (decimal digits)
+
+`apd.Decimal` operations scale with the number of significant decimal digits.
+Benchmark results show clear scaling:
+
+| Op | 10 digits | 100 digits | 1000 digits | 10000 digits |
+|----|----------|-----------|------------|-------------|
+| Add | ~100ns | ~140ns | ~500ns | ~5,000ns |
+| Mul | ~150ns | ~700ns | ~25,000ns | ~2,500,000ns |
+| Quo | ~300ns | ~2,000ns | ~80,000ns | ~8,000,000ns |
+
+Mul and Quo show superlinear growth, consistent with underlying big.Int arithmetic.
+
+### Interface method dispatch scales linearly with method count
+
+Three different interface-checking paths were benchmarked (M2, pure ns/op):
+
+| Path | 1 method | 10 methods | 100 methods |
+|------|---------|-----------|------------|
+| doOpSelector VPInterface | ~400ns | ~400ns | ~700ns |
+| doOpTypeAssert2 Interface | ~140ns | ~930ns | ~22,000ns |
+| doOpTypeSwitch Interface | ~350ns | ~1,350ns | ~25,800ns |
+
+`doOpSelector` uses `findEmbeddedFieldType` (name-based search) — relatively
+flat because it returns on first match. `doOpTypeAssert` and `doOpTypeSwitch`
+use `IsImplementedBy`/`VerifyImplementedBy` which must verify ALL methods match,
+giving true O(nMethods) behavior. Gas for interface assertions should scale
+with the interface's method count.
+
+### GC visit cost is not constant — scales with heap size
+
+The GC visitor traverses object graphs via random pointer chasing. As the
+working set grows beyond CPU cache levels, per-visit cost increases dramatically
+due to cache miss latency:
+
+| Objects | Visits/op | ns/visit (Xeon 8168) | ns/visit (M2) | Cache level |
+|---------|----------|---------------------|--------------|-------------|
+| 100 | 73 | 29 | 21 | L1/L2 |
+| 1,000 | 543 | 40 | 30 | L2/L3 |
+| 10,000 | 5,383 | 91 | 68 | L3 |
+| 100,000 | 55,229 | 197 | 155 | L3/DRAM |
+| 1,000,000 | 552,735 | 380 | 310 | DRAM |
+| 10,000,000 | 5,543,981 | 700 | 4,500 | DRAM+TLB |
+
+The 10M row shows dramatic M2 vs Xeon divergence: M2 collapses to 4,500ns/visit
+while Xeon degrades gracefully to 700ns. This is because the Xeon 8168 has 33MB
+L3 cache, larger TLBs, and 6-channel DDR4 memory controllers, while the M2 has
+smaller caches and unified memory with higher random-access latency at scale.
+
+This led to replacing the flat `VisitCpuFactor=8` constant with `gcVisitGasTable`:
+a 25-entry lookup table indexed by `log2(visitCount)`, calibrated from the Xeon
+benchmarks. Per-visit gas ranges from 6 (small heaps, L1/L2) to 135 (large
+heaps, DRAM+TLB).
+
+### Reference hardware and cpuBaseNs
+
+All gas calibration uses a DigitalOcean Dedicated CPU droplet:
+- Intel Xeon Platinum 8168 @ 2.70GHz, 2 cores
+- cpuBaseNs = 5.2 ns/gas (from benchops: weighted avg of OpCPU constants)
+
+On Apple M2: cpuBaseNs ≈ 3.5 ns/gas (faster per-core, but worse at large heaps).
+
+The gas model must be calibrated against a single reference machine for consensus.
+Individual validator hardware differences are absorbed by the gas price mechanism.
+
+### ArrayValue dual representation affects all array ops
+
+`ArrayValue` has two representations:
+- `Data []byte` for `[N]uint8` — flat byte slice, compact
+- `List []TypedValue` for all other element types — pointer-heavy
+
+This means every array op (Index1, Slice, Eql, ArrayLit) has two code paths
+with very different performance characteristics. The `Data` path is typically
+much faster for reads but was missing fast paths for comparison (fixed with
+`bytes.Equal`). Gas should ideally distinguish these, but in practice the
+`Data` path is always cheaper, so charging based on `List` (the slower path)
+is conservative and safe.

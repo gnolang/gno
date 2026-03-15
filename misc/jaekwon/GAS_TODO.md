@@ -117,8 +117,8 @@ Fixed: all packages loaded before `bm.Init()` creates the exporter. Export funct
 
 ## LOW: Minor Issues
 
-### L1. GC visitor `VisitCpuFactor = 8` is approximate
-**File:** `garbage_collector.go:14` — "TODO: more accurate benchmark"
+### L1. ~~GC visitor `VisitCpuFactor = 8` is approximate~~ DONE
+**File:** `garbage_collector.go` — Replaced with `gcVisitGasTable`: 25-entry lookup table indexed by log2(visitCount), calibrated from BenchmarkGCVisit on DO Xeon 8168. Per-visit cost scales from ~6 gas (L1/L2 cache) to ~135 gas (DRAM+TLB).
 
 ### L2. GC silent failure returns `(-1, false)` with no diagnostics
 **File:** `garbage_collector.go:70-95`
