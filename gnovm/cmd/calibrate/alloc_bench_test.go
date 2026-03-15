@@ -15,6 +15,7 @@ import "testing"
 var sink []byte
 
 func benchAlloc(b *testing.B, n int) {
+	b.Helper()
 	for i := 0; i < b.N; i++ {
 		sink = make([]byte, n)
 	}

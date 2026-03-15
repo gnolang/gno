@@ -179,6 +179,7 @@ func buildGCGraph(nObjects int) Value {
 }
 
 func benchGCVisit(b *testing.B, nObjects int) {
+	b.Helper()
 	root := buildGCGraph(nObjects)
 	alloc := NewAllocator(1 << 40) // very large limit
 	var gcCycle int64

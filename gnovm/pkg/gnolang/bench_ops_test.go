@@ -89,6 +89,7 @@ func BenchmarkOpAdd_Int(b *testing.B) {
 }
 
 func benchOpAdd_String(b *testing.B, length int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -148,6 +149,7 @@ func BenchmarkOpAdd_Float64(b *testing.B) {
 }
 
 func benchOpAdd_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -181,6 +183,7 @@ func BenchmarkOpAdd_BigInt_1024(b *testing.B) { benchOpAdd_BigInt(b, 1024) }
 func BenchmarkOpAdd_BigInt_4096(b *testing.B) { benchOpAdd_BigInt(b, 4096) }
 
 func benchOpAdd_BigInt_Asym(b *testing.B, bitsA, bitsB int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -265,6 +268,7 @@ func BenchmarkOpSub_Float64(b *testing.B) {
 }
 
 func benchOpSub_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -351,6 +355,7 @@ func BenchmarkOpMul_Float64(b *testing.B) {
 }
 
 func benchOpMul_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -384,6 +389,7 @@ func BenchmarkOpMul_BigInt_1024(b *testing.B) { benchOpMul_BigInt(b, 1024) }
 func BenchmarkOpMul_BigInt_4096(b *testing.B) { benchOpMul_BigInt(b, 4096) }
 
 func benchOpMul_BigInt_Asym(b *testing.B, bitsA, bitsB int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -470,6 +476,7 @@ func BenchmarkOpQuo_Float64(b *testing.B) {
 }
 
 func benchOpQuo_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -508,6 +515,7 @@ func BenchmarkOpQuo_BigInt_1024(b *testing.B) { benchOpQuo_BigInt(b, 1024) }
 func BenchmarkOpQuo_BigInt_4096(b *testing.B) { benchOpQuo_BigInt(b, 4096) }
 
 func benchOpQuo_BigInt_Asym(b *testing.B, bitsA, bitsB int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -568,6 +576,7 @@ func BenchmarkOpRem_Int(b *testing.B) {
 }
 
 func benchOpRem_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -606,6 +615,7 @@ func BenchmarkOpRem_BigInt_1024(b *testing.B) { benchOpRem_BigInt(b, 1024) }
 func BenchmarkOpRem_BigInt_4096(b *testing.B) { benchOpRem_BigInt(b, 4096) }
 
 func benchOpRem_BigInt_Asym(b *testing.B, bitsA, bitsB int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -803,6 +813,7 @@ func BenchmarkOpEql_Int(b *testing.B) {
 }
 
 func benchOpEql_String(b *testing.B, length int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -887,6 +898,7 @@ func BenchmarkOpLss(b *testing.B) {
 }
 
 func benchOpLss_String(b *testing.B, length int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -1077,6 +1089,7 @@ func BenchmarkOpUneg(b *testing.B) {
 }
 
 func benchOpUneg_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &UnaryExpr{}
@@ -1185,6 +1198,7 @@ func BenchmarkOpUxor(b *testing.B) {
 }
 
 func benchOpUxor_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &UnaryExpr{}
@@ -1220,6 +1234,7 @@ func BenchmarkOpUxor_BigInt_4096(b *testing.B) { benchOpUxor_BigInt(b, 4096) }
 // ---------------------------------------------------------------------------
 
 func benchOpSliceLit(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -1262,6 +1277,7 @@ func BenchmarkOpSliceLit_1000(b *testing.B) { benchOpSliceLit(b, 1000) }
 // ---------------------------------------------------------------------------
 
 func benchOpArrayLit(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -1307,6 +1323,7 @@ func BenchmarkOpArrayLit_1000(b *testing.B) { benchOpArrayLit(b, 1000) }
 // ---------------------------------------------------------------------------
 
 func benchOpStructLit(b *testing.B, nFields int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -1364,6 +1381,7 @@ func BenchmarkOpStructLit_1000(b *testing.B) { benchOpStructLit(b, 1000) }
 // ---------------------------------------------------------------------------
 
 func benchOpStructLitNamed(b *testing.B, nFields int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -1425,6 +1443,7 @@ func BenchmarkOpStructLitNamed_1000(b *testing.B) { benchOpStructLitNamed(b, 100
 // ---------------------------------------------------------------------------
 
 func benchOpMapLit(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -1556,6 +1575,7 @@ func BenchmarkOpIndex1_Slice(b *testing.B) {
 }
 
 func benchOpIndex1MapHit(b *testing.B, size int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &IndexExpr{}
@@ -1629,6 +1649,7 @@ func BenchmarkOpIndex1_MapMiss(b *testing.B) {
 }
 
 func benchOpIndex1_MapStringKey(b *testing.B, keyLen int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &IndexExpr{}
@@ -1673,6 +1694,7 @@ func BenchmarkOpIndex1_MapStringKey_10000(b *testing.B) { benchOpIndex1_MapStrin
 // ---------------------------------------------------------------------------
 
 func benchOpSelector(b *testing.B, nFields int, fieldIdx int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -1728,6 +1750,7 @@ func BenchmarkOpSelector_1000fields(b *testing.B) { benchOpSelector(b, 1000, 999
 // ---------------------------------------------------------------------------
 
 func benchOpShlParam(b *testing.B, shift uint64) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -1757,6 +1780,7 @@ func BenchmarkOpShl_62(b *testing.B) { benchOpShlParam(b, 62) }
 
 // BigInt shift: allocates new big.Int, shift amount is the cost driver.
 func benchOpShlBigInt(b *testing.B, shift uint64) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -1995,6 +2019,7 @@ func BenchmarkOpSlice_Slice(b *testing.B) {
 }
 
 func benchOpSlice_String(b *testing.B, length int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	sliceExpr := &SliceExpr{
@@ -2167,6 +2192,7 @@ func BenchmarkOpConvert_IntToInt64(b *testing.B) {
 }
 
 func benchOpConvert_StringToBytes(b *testing.B, length int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -2561,6 +2587,7 @@ func BenchmarkOpBandnAssign_Int(b *testing.B) {
 // ---------------------------------------------------------------------------
 
 func benchOpDefine(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -2606,6 +2633,7 @@ func BenchmarkOpDefine_1000(b *testing.B) { benchOpDefine(b, 1000) }
 // ---------------------------------------------------------------------------
 
 func benchOpAssign(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -2649,6 +2677,7 @@ func BenchmarkOpAssign_1000(b *testing.B) { benchOpAssign(b, 1000) }
 // --- BigInt bitwise ops (all allocate big.NewInt(0).Op) ---
 
 func benchOpBand_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -2682,6 +2711,7 @@ func BenchmarkOpBand_BigInt_1024(b *testing.B) { benchOpBand_BigInt(b, 1024) }
 func BenchmarkOpBand_BigInt_4096(b *testing.B) { benchOpBand_BigInt(b, 4096) }
 
 func benchOpBor_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -2715,6 +2745,7 @@ func BenchmarkOpBor_BigInt_1024(b *testing.B) { benchOpBor_BigInt(b, 1024) }
 func BenchmarkOpBor_BigInt_4096(b *testing.B) { benchOpBor_BigInt(b, 4096) }
 
 func benchOpXor_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -2748,6 +2779,7 @@ func BenchmarkOpXor_BigInt_1024(b *testing.B) { benchOpXor_BigInt(b, 1024) }
 func BenchmarkOpXor_BigInt_4096(b *testing.B) { benchOpXor_BigInt(b, 4096) }
 
 func benchOpBandn_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -2810,6 +2842,7 @@ func BenchmarkOpEql_Float64(b *testing.B) {
 }
 
 func benchOpEql_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -2869,6 +2902,7 @@ func BenchmarkOpLss_Float64(b *testing.B) {
 }
 
 func benchOpLss_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -2953,6 +2987,7 @@ func BenchmarkOpInc_Float64(b *testing.B) {
 }
 
 func benchOpInc_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -3006,6 +3041,7 @@ func BenchmarkOpDec_Float64(b *testing.B) {
 }
 
 func benchOpDec_BigInt(b *testing.B, bits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -3053,6 +3089,7 @@ func makeBigDec(digits int) BigdecValue {
 // --- doOpAdd BigDec ---
 
 func benchOpAdd_BigDec(b *testing.B, digits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -3081,6 +3118,7 @@ func BenchmarkOpAdd_BigDec_10000(b *testing.B) { benchOpAdd_BigDec(b, 10000) }
 // --- doOpSub BigDec ---
 
 func benchOpSub_BigDec(b *testing.B, digits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -3109,6 +3147,7 @@ func BenchmarkOpSub_BigDec_10000(b *testing.B) { benchOpSub_BigDec(b, 10000) }
 // --- doOpMul BigDec ---
 
 func benchOpMul_BigDec(b *testing.B, digits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -3137,6 +3176,7 @@ func BenchmarkOpMul_BigDec_10000(b *testing.B) { benchOpMul_BigDec(b, 10000) }
 // --- doOpQuo BigDec ---
 
 func benchOpQuo_BigDec(b *testing.B, digits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -3170,6 +3210,7 @@ func BenchmarkOpQuo_BigDec_10000(b *testing.B) { benchOpQuo_BigDec(b, 10000) }
 // --- doOpUneg BigDec ---
 
 func benchOpUneg_BigDec(b *testing.B, digits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &UnaryExpr{}
@@ -3196,6 +3237,7 @@ func BenchmarkOpUneg_BigDec_10000(b *testing.B) { benchOpUneg_BigDec(b, 10000) }
 // --- doOpInc BigDec ---
 
 func benchOpInc_BigDec(b *testing.B, digits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -3223,6 +3265,7 @@ func BenchmarkOpInc_BigDec_10000(b *testing.B) { benchOpInc_BigDec(b, 10000) }
 // --- doOpDec BigDec ---
 
 func benchOpDec_BigDec(b *testing.B, digits int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -3331,6 +3374,7 @@ func BenchmarkOpArrayLit_10_String(b *testing.B) {
 // --- isEql with ArrayKind: recursive O(N) element comparison ---
 
 func benchOpEql_Array(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -3369,6 +3413,7 @@ func BenchmarkOpEql_Array_1000(b *testing.B) { benchOpEql_Array(b, 1000) }
 // --- isEql with ArrayKind (Data path): bytes.Equal O(n) comparison ---
 
 func benchOpEql_ByteArray(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -3407,6 +3452,7 @@ func BenchmarkOpEql_ByteArray_1000(b *testing.B) { benchOpEql_ByteArray(b, 1000)
 // --- isEql with StructKind: recursive O(fields) comparison ---
 
 func benchOpEql_Struct(b *testing.B, nFields int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -3459,6 +3505,7 @@ func BenchmarkOpShl_BigInt_10000(b *testing.B) { benchOpShlBigInt(b, 10000) }
 // --- Shr BigInt with large shifts (no limit!) ---
 
 func benchOpShrBigInt(b *testing.B, shift uint64) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
@@ -3492,6 +3539,7 @@ func BenchmarkOpShr_BigInt_10000(b *testing.B) { benchOpShrBigInt(b, 10000) }
 // --- Convert String→[]rune (O(rune_count) per-rune alloc) ---
 
 func benchOpConvert_StringToRunes(b *testing.B, length int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -3524,6 +3572,7 @@ func BenchmarkOpConvert_StringToRunes_1000(b *testing.B) { benchOpConvert_String
 // --- SliceLit2 sparse: maxVal amplification ---
 
 func benchOpSliceLit2_Sparse(b *testing.B, maxIdx int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -3566,6 +3615,7 @@ func BenchmarkOpSliceLit2_Sparse_10000(b *testing.B) { benchOpSliceLit2_Sparse(b
 // --- ArrayLit uint8: NewDataArray (flat byte alloc) vs non-uint8 ---
 
 func benchOpArrayLit_Uint8(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -3605,6 +3655,7 @@ func BenchmarkOpArrayLit_Uint8_1000(b *testing.B) { benchOpArrayLit_Uint8(b, 100
 // --- doOpEval NameExpr: block depth traversal ---
 
 func benchOpEval_NameExpr(b *testing.B, depth int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -3657,6 +3708,7 @@ func BenchmarkOpEval_NameExpr_Depth200(b *testing.B) { benchOpEval_NameExpr(b, 2
 // --- doOpValueDecl: defaultTypedValue recursion for nested types ---
 
 func benchOpValueDecl_Default(b *testing.B, nt Type) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -3711,6 +3763,7 @@ func BenchmarkOpValueDecl_DefaultArray1000(b *testing.B) {
 // --- Convert []rune→String (O(rune_count) re-encode) ---
 
 func benchOpConvert_RunesToString(b *testing.B, length int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -3749,6 +3802,7 @@ func BenchmarkOpConvert_RunesToString_1000(b *testing.B) { benchOpConvert_RunesT
 // --- doOpEval BasicLitExpr: literal parsing cost ---
 
 func benchOpEval_BasicLitInt(b *testing.B, value string) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -3844,6 +3898,7 @@ func benchInterfaceAndImpl(alloc *Allocator, nMethods, nImpl int) (*InterfaceTyp
 }
 
 func benchOpTypeAssert1_Interface(b *testing.B, nMethods int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &TypeAssertExpr{}
@@ -3876,6 +3931,7 @@ func BenchmarkOpTypeAssert1_Interface_100(b *testing.B) { benchOpTypeAssert1_Int
 // Cost is O(nMethods) due to method matching.
 
 func benchOpSelector_VPInterface(b *testing.B, nMethods int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -3980,6 +4036,7 @@ func BenchmarkOpSelector_VPValMethod(b *testing.B) {
 // Each capture requires GetPointerToDirect which traverses O(Depth) parent blocks.
 
 func benchOpFuncLit(b *testing.B, nCaptures int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -4052,6 +4109,7 @@ func benchFuncDeclNode(numNames int, heapIdxs []int) *FuncDecl {
 }
 
 func benchOpCall(b *testing.B, nParams int, nCaptures int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -4163,6 +4221,7 @@ func BenchmarkOpReturn(b *testing.B) {
 // --- doOpDefer: pop args + store in frame's Defers ---
 
 func benchOpDefer(b *testing.B, nArgs int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -4230,6 +4289,7 @@ func BenchmarkOpDefer_100Args(b *testing.B) { benchOpDefer(b, 100) }
 // iteration (Go 1.22 loopvars semantics).
 
 func benchOpForLoopHeapCopy(b *testing.B, numInit int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -4670,6 +4730,7 @@ func BenchmarkOpIfCond_FalseBranch(b *testing.B) {
 // --- doOpTypeAssert2 interface: parameterized by nMethods ---
 
 func benchOpTypeAssert2_Interface(b *testing.B, nMethods int, shouldMatch bool) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	expr := &TypeAssertExpr{}
@@ -4802,6 +4863,7 @@ func BenchmarkOpReturnToBlock(b *testing.B) {
 // --- doOpReturnCallDefers: processes defer chain ---
 
 func benchOpReturnCallDefers(b *testing.B, nDefers int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	// Outer function with defers.
@@ -4918,6 +4980,7 @@ func BenchmarkOpBody(b *testing.B) {
 // --- OpRangeIter: array copy + iteration init ---
 
 func benchOpRangeIter(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	// Build array value.
@@ -4980,6 +5043,7 @@ func BenchmarkOpRangeIter_1000(b *testing.B) { benchOpRangeIter(b, 1000) }
 // --- OpRangeIterString: UTF-8 decode per rune ---
 
 func benchOpRangeIterString(b *testing.B, length int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	s := strings.Repeat("a", length) // ASCII, 1 byte per rune
@@ -5031,6 +5095,7 @@ func BenchmarkOpRangeIterString_1000(b *testing.B) { benchOpRangeIterString(b, 1
 // --- OpRangeIterMap: linked list traversal ---
 
 func benchOpRangeIterMap(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	mt := &MapType{Key: IntType, Value: IntType}
@@ -5091,6 +5156,7 @@ func BenchmarkOpRangeIterMap_1000(b *testing.B) { benchOpRangeIterMap(b, 1000) }
 // --- doOpTypeSwitch: clause × case type iteration ---
 
 func benchOpTypeSwitch(b *testing.B, nClauses int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	// Build switch with nClauses type cases, match on last.
@@ -5141,6 +5207,7 @@ func BenchmarkOpTypeSwitch_1000(b *testing.B) { benchOpTypeSwitch(b, 1000) }
 // --- doOpTypeSwitch with interface case: IsImplementedBy cost ---
 
 func benchOpTypeSwitch_Interface(b *testing.B, nMethods int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -5219,6 +5286,7 @@ func BenchmarkOpSwitchClause_DefaultMatch(b *testing.B) {
 // --- doOpSwitchClauseCase: isEql comparison per case ---
 
 func benchOpSwitchClauseCase(b *testing.B, match bool) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	clause := SwitchClauseStmt{
@@ -5313,6 +5381,7 @@ func BenchmarkOpSliceType(b *testing.B) {
 }
 
 func benchOpFuncType(b *testing.B, nParams, nResults int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
@@ -5379,6 +5448,7 @@ func BenchmarkOpMapType(b *testing.B) {
 }
 
 func benchOpStructType(b *testing.B, nFields int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	fields := make([]FieldTypeExpr, nFields)
@@ -5410,6 +5480,7 @@ func BenchmarkOpStructType_100(b *testing.B)  { benchOpStructType(b, 100) }
 func BenchmarkOpStructType_1000(b *testing.B) { benchOpStructType(b, 1000) }
 
 func benchOpInterfaceType(b *testing.B, nMethods int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	methods := make([]FieldTypeExpr, nMethods)
