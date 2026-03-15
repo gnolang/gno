@@ -25,17 +25,18 @@ FILTERED_PACKAGES=(
 )
 
 # Initial validator set. Format: "name power address pub_key"
-# More validators can be added post-genesis via govDAO proposals (see add-validator.sh).
+# More validators can be added post-genesis via govDAO proposals (see govdao-scripts/add-validator.sh).
+# 4 validators — BFT >2/3 threshold (floor(2n/3)+1) means 3 nodes must be up for consensus.
 INITIAL_VALSET=(
-  "gnocore-val-01 1 g1vta7dwp4guuhkfzksenfcheky4xf9hue8mgne4 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpu5muc9ksphk3cayrduhathd2rw4talmtedpef3a44c2qfzzqalgl4c55y"
-  "gnocore-val-02 1 g1d5hh9fw3l00gugfzafskaxqlmsyvxfaj6l2q60 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpnj5vt2vkv94exe6cmdgqgtxmyfkvlhztnl0kj4xv97uz2t0muwe9mka0q"
-  "gnocore-val-03 1 g1wu87cyc08tzs9wvj8twu30njxp87urq0e526ud gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqs5fenpsq0ttj87nmpmvumvfd0f6wyqlv5kxxspazj8s5gjfmc7qdn9gv2"
-  "gnocore-val-04 1 g15sdr5dxpnwxwy28wqfxj488h3jsq3vkce5szv8 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp858jgym22kr0vapu0nye4ruwcq6epdqkn2aat0weqsvxedn67pgp4ld6j"
+  "moul-val-01 1 g1uhv7wr7nku89se3t7v8fpquc7n5sf8rfkywxpc gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqavtgten8l8k4f72j8klpu4l7tk2qw4kl8394krsaysmz2q0765ynvjag0"
+  "aeddi-val-01 1 g10jdd8vlgydfypynrk23ul90jnsg5twrtvmcmh4 gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqve8jffvhy97sfc5gyvag09h8g9g3d9e4cta7s7m6vcmzug84kjywg7fn2y"
+  "berty-val-01 1 g1eueypc9w524ctda3y0kwd4jruw5p4zqpjna0jq gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqsdatvn76ru9pck7zrt7zc33y8p2kweaujx82utgmtwljypuz9p8uctk3m"
+  "samourai-crew-1 1 g1kn7p0wqumvqlcqzhkwnavkhf0z4qnr73ltwsae gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpufsm93d5fmzxrug76esaxsdsmw0guy9e6geypw7ekz92sl3mte492q62e"
 )
 
 # Chain parameters.
 CHAIN_ID=gnoland1
-GENESIS_TIME=1770883200 # Thursday, February 12th 2026 09:00 GMT+0100 (CET)
+GENESIS_TIME=1773579600 # Sunday, March 15th 2026 14:00 GMT+0100 (CET)
 
 # Airdrop balances (independence-day snapshot).
 BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/9dec38a4a72c9e84db7e78ae010370de250f2d64/mkgenesis/balances.txt.gz"
@@ -156,17 +157,12 @@ mkdir -p "$WORK_DIR_EXAMPLES"
 while IFS= read -r dir; do
   [[ -z "$dir" ]] && continue
   rel="${dir#$EXAMPLES_DIR/}"
-  mkdir -p "$(dirname "$WORK_DIR_EXAMPLES/$rel")"
-  cp -r "$dir" "$WORK_DIR_EXAMPLES/$rel"
+  dest="$WORK_DIR_EXAMPLES/$rel"
+  mkdir -p "$dest"
+  # Copy only regular files (skip subdirectories), except preserve filetests/.
+  find "$dir" -maxdepth 1 -type f -exec cp {} "$dest/" \;
+  [[ -d "$dir/filetests" ]] && cp -r "$dir/filetests" "$dest/filetests"
 done <<<"$pkg_dirs"
-
-# Strip test files from staging — gnogenesis resolves all imports including
-# from test files, which can pull in packages not in our set (e.g. r/tests/vm).
-# The -test-dep flag above already ensured test *dependencies* (like uassert)
-# are included; we just can't ship the test files themselves.
-printf "  Stripping test files from staging...\n"
-find "$WORK_DIR_EXAMPLES" -name '*_test.gno' -delete
-find "$WORK_DIR_EXAMPLES" -name '*_filetest.gno' -delete
 
 # Create deployer key (needed to sign MsgAddPackage and MsgRun txs).
 printf "  Creating deployer key...\n"
@@ -439,35 +435,43 @@ else
   exit 1
 fi
 
-printf "  Adding deployer balances to genesis...\n"
-run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_DEPLOYER_BALANCES" --genesis-path "$WORK_DIR_GENESIS"
+# ---- 5. Add the initial validator set to the genesis file
+# (Done before balances — gnogenesis is O(filesize) per call, so adding
+# validators while the file is still small saves ~6 minutes.)
 
-# ---- 5. Download and add the airdrop balances
-
-printf "\n=== Step 5/7: Downloading airdrop balances ===\n"
-
-AIRDROP_BALANCES_GZ="$WORK_DIR/airdrop_balances.txt.gz"
-AIRDROP_BALANCES_TXT="$WORK_DIR/airdrop_balances.txt"
-
-printf "  Downloading...\n"
-run curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
-gzip -dc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
-
-airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
-# TODO: We need to verify if there is a colision between deployer and airdrop addresses.
-# See: https://github.com/gnolang/gno/pull/5250/changes#discussion_r2925485031
-printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
-run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS"
-
-# ---- 6. Add the initial validator set to the genesis file
-
-printf "\n=== Step 6/7: Adding validators ===\n"
+printf "\n=== Step 5/7: Adding validators ===\n"
 
 for validator in "${INITIAL_VALSET[@]}"; do
   read -r name power address pub_key <<<"$validator"
   printf "  %s (power=%s, %s)\n" "$name" "$power" "$address"
   run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
 done
+
+# ---- 6. Add balances (deployer + airdrop)
+# These are added last since they bloat the genesis file and make
+# subsequent gnogenesis calls slow.
+
+printf "\n=== Step 6/7: Adding balances ===\n"
+
+printf "  Adding deployer balances to genesis...\n"
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_DEPLOYER_BALANCES" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
+
+AIRDROP_BALANCES_GZ="$SCRIPT_DIR/airdrop_balances.txt.gz"
+AIRDROP_BALANCES_TXT="$WORK_DIR/airdrop_balances.txt"
+
+if [ -f "$AIRDROP_BALANCES_GZ" ]; then
+  printf "  Using cached airdrop balances\n"
+else
+  printf "  Downloading airdrop balances...\n"
+  run curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
+fi
+gzip -dkc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
+
+airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
+# TODO: We need to verify if there is a colision between deployer and airdrop addresses.
+# See: https://github.com/gnolang/gno/pull/5250/changes#discussion_r2925485031
+printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 
 # ---- 7. Verify the generated genesis file
 

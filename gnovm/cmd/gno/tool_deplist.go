@@ -4,8 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -47,9 +50,53 @@ func execDeplist(cfg *deplistCfg, args []string, io commands.IO) error {
 		Test:    cfg.testDep,
 		Out:     io.Err(),
 	}
+
 	pkgs, err := packages.Load(loadCfg, args...)
 	if err != nil {
 		return err
+	}
+
+	if cfg.testDep {
+		// Iteratively promote dep packages to patterns so their test
+		// dependencies are loaded, mirroring two-pass `go list -deps -test`.
+		modCacheDir := filepath.Clean(gnomod.ModCachePath())
+		patternFor := func(p *packages.Package) string {
+			if gnolang.IsStdlib(p.ImportPath) || strings.HasPrefix(filepath.Clean(p.Dir), modCacheDir) {
+				return p.ImportPath
+			}
+			return p.Dir
+		}
+
+		promoted := make(map[string]struct{}, len(pkgs))
+		known := make(map[string]struct{}, len(pkgs))
+		for _, p := range pkgs {
+			known[p.Dir] = struct{}{}
+			if len(p.Match) != 0 {
+				promoted[p.Dir] = struct{}{}
+			}
+		}
+
+		for i := 0; i < len(pkgs); i++ {
+			p := pkgs[i]
+			if gnolang.IsStdlib(p.ImportPath) {
+				continue
+			}
+			if _, ok := promoted[p.Dir]; ok {
+				continue
+			}
+			promoted[p.Dir] = struct{}{}
+
+			more, err := packages.Load(loadCfg, patternFor(p))
+			if err != nil {
+				return err
+			}
+			for _, q := range more {
+				if _, ok := known[q.Dir]; !ok {
+					known[q.Dir] = struct{}{}
+					pkgs = append(pkgs, q)
+				}
+			}
+		}
 	}
 
 	// Filter out stdlibs — they're built into the VM and not deployed.
@@ -69,12 +116,16 @@ func execDeplist(cfg *deplistCfg, args []string, io commands.IO) error {
 		return err
 	}
 
+	var out []*packages.Package
+	for _, pkg := range sorted {
+		if !pkg.Ignore {
+			out = append(out, pkg)
+		}
+	}
+
 	if cfg.json {
 		lw := newJsonListWriter(io.Out())
-		for _, pkg := range sorted {
-			if pkg.Ignore {
-				continue
-			}
+		for _, pkg := range out {
 			if err := lw.write(pkg); err != nil {
 				return err
 			}
@@ -82,10 +133,7 @@ func execDeplist(cfg *deplistCfg, args []string, io commands.IO) error {
 		return nil
 	}
 
-	for _, pkg := range sorted {
-		if pkg.Ignore {
-			continue
-		}
+	for _, pkg := range out {
 		fmt.Fprintln(io.Out(), pkg.Dir)
 	}
 	return nil
@@ -99,7 +147,7 @@ func sortSkipMissing(pkgs packages.PkgList) ([]*packages.Package, error) {
 		byPath[p.ImportPath] = p
 	}
 
-	visited := make(map[string]bool)
+	visited := make(map[string]struct{})
 	onStack := make(map[string]bool)
 	var sorted []*packages.Package
 
@@ -108,10 +156,10 @@ func sortSkipMissing(pkgs packages.PkgList) ([]*packages.Package, error) {
 		if onStack[pkg.ImportPath] {
 			return fmt.Errorf("cycle detected: %s", pkg.ImportPath)
 		}
-		if visited[pkg.ImportPath] {
+		if _, ok := visited[pkg.ImportPath]; ok {
 			return nil
 		}
-		visited[pkg.ImportPath] = true
+		visited[pkg.ImportPath] = struct{}{}
 		onStack[pkg.ImportPath] = true
 
 		for _, imp := range pkg.Imports[packages.FileKindPackageSource] {
