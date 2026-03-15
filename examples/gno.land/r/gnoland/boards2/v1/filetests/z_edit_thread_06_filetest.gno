@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	admin address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 	title         = "Test Thread"
 	body          = "Test body"
@@ -42,7 +42,7 @@ func main() {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board](/r/gnoland/boards2/v1:test-board)
 // ## Test Thread
 //
-// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC
 // Test body
 //
 // ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)
