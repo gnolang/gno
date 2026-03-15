@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"io"
 	"math"
 	"math/big"
@@ -3713,42 +3714,31 @@ func BenchmarkOpEval_BasicLitString(b *testing.B) {
 
 // --- doOpTypeAssert1 interface: VerifyImplementedBy with many methods ---
 
-func benchOpTypeAssert1_Interface(b *testing.B, nMethods int) {
-	m := benchMachine()
-	defer m.Release()
-	expr := &TypeAssertExpr{}
-
-	// Create an interface type with nMethods methods.
+// benchInterfaceAndImpl creates an InterfaceType with nMethods methods and a
+// DeclaredType that implements nImpl of them. When nImpl == nMethods the type
+// fully implements the interface.
+func benchInterfaceAndImpl(alloc *Allocator, nMethods, nImpl int) (*InterfaceType, *DeclaredType, *StructValue) {
 	methods := make([]FieldType, nMethods)
 	for i := range nMethods {
 		methods[i] = FieldType{
-			Name: Name("M" + string(rune('a'+i%26)) + string(rune('0'+i/26))),
-			Type: &FuncType{
-				Params: []FieldType{},
-				Results: []FieldType{},
-			},
+			Name: Name(fmt.Sprintf("M%d", i)),
+			Type: &FuncType{Params: []FieldType{}, Results: []FieldType{}},
 		}
 	}
 	iface := &InterfaceType{
 		PkgPath: "bench",
 		Methods: methods,
-		Generic: "",
 	}
-
-	// Create a DeclaredType that implements the interface.
-	// The concrete type needs matching methods.
 	st := &StructType{PkgPath: "bench", Fields: []FieldType{}}
 	dt := &DeclaredType{
 		PkgPath: "bench",
 		Name:    "S",
 		Base:    st,
-		Methods: make([]TypedValue, nMethods),
+		Methods: make([]TypedValue, nImpl),
 	}
-	for i := range nMethods {
+	for i := range nImpl {
 		ft := &FuncType{
-			Params: []FieldType{
-				{Name: "self", Type: dt}, // value receiver
-			},
+			Params:  []FieldType{{Name: "self", Type: dt}},
 			Results: []FieldType{},
 		}
 		fv := &FuncValue{
@@ -3761,8 +3751,16 @@ func benchOpTypeAssert1_Interface(b *testing.B, nMethods int) {
 		}
 		dt.Methods[i] = TypedValue{T: ft, V: fv}
 	}
+	sv := alloc.NewStruct([]TypedValue{})
+	return iface, dt, sv
+}
 
-	sv := m.Alloc.NewStruct([]TypedValue{})
+func benchOpTypeAssert1_Interface(b *testing.B, nMethods int) {
+	m := benchMachine()
+	defer m.Release()
+	expr := &TypeAssertExpr{}
+
+	iface, dt, sv := benchInterfaceAndImpl(m.Alloc, nMethods, nMethods)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -3785,6 +3783,47 @@ func benchOpTypeAssert1_Interface(b *testing.B, nMethods int) {
 func BenchmarkOpTypeAssert1_Interface_1(b *testing.B)    { benchOpTypeAssert1_Interface(b, 1) }
 func BenchmarkOpTypeAssert1_Interface_10(b *testing.B)   { benchOpTypeAssert1_Interface(b, 10) }
 func BenchmarkOpTypeAssert1_Interface_100(b *testing.B)  { benchOpTypeAssert1_Interface(b, 100) }
+
+// --- doOpSelector VPInterface: interface method dispatch via findEmbeddedFieldType ---
+// Cost is O(nMethods) due to method matching.
+
+func benchOpSelector_VPInterface(b *testing.B, nMethods int) {
+	m := benchMachine()
+	defer m.Release()
+
+	_, dt, sv := benchInterfaceAndImpl(m.Alloc, nMethods, nMethods)
+
+	// Target the last method to maximize search cost.
+	lastName := Name(fmt.Sprintf("M%d", nMethods-1))
+	selExpr := &SelectorExpr{
+		Path: ValuePath{
+			Type:  VPInterface,
+			Depth: 0,
+			Index: 0,
+			Name:  lastName,
+		},
+	}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: dt, V: sv})
+		m.PushExpr(selExpr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpSelector()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if _, ok := res.V.(*BoundMethodValue); !ok {
+			b.Fatal("expected BoundMethodValue")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpSelector_VPInterface_1(b *testing.B)   { benchOpSelector_VPInterface(b, 1) }
+func BenchmarkOpSelector_VPInterface_10(b *testing.B)  { benchOpSelector_VPInterface(b, 10) }
+func BenchmarkOpSelector_VPInterface_100(b *testing.B) { benchOpSelector_VPInterface(b, 100) }
 
 // --- doOpSelector VPValMethod: BoundMethodValue allocation ---
 
@@ -4409,6 +4448,177 @@ func BenchmarkOpPrecall_TypeConversion(b *testing.B) {
 	reportBenchops(b)
 }
 
+// benchMethodSetup creates a DeclaredType with one value method "DoStuff(self S, y int)".
+// Returns the FuncType, FuncValue, DeclaredType, and a StructValue receiver.
+func benchMethodSetup(alloc *Allocator) (ft *FuncType, fv *FuncValue, dt *DeclaredType, sv *StructValue) {
+	st := &StructType{
+		PkgPath: "bench",
+		Fields:  []FieldType{{Name: "x", Type: IntType}},
+	}
+	dt = &DeclaredType{
+		PkgPath: "bench",
+		Name:    "S",
+		Base:    st,
+	}
+	ft = &FuncType{
+		Params:  []FieldType{{Name: "self", Type: dt}, {Name: "y", Type: IntType}},
+		Results: []FieldType{},
+	}
+	fd := benchFuncDeclNode(2, nil) // self + y
+	fv = &FuncValue{
+		Type:      ft,
+		IsMethod:  true,
+		IsClosure: true,
+		Source:    fd,
+		Name:      "DoStuff",
+		PkgPath:   "bench",
+		body:      []Stmt{},
+	}
+	dt.Methods = []TypedValue{{T: ft, V: fv}}
+	sv = alloc.NewStruct([]TypedValue{{T: IntType, N: i2n(42)}})
+	return
+}
+
+// --- doOpPrecall BoundMethodValue: method call dispatch ---
+
+func BenchmarkOpPrecall_BoundMethod(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+
+	ft, fv, dt, sv := benchMethodSetup(m.Alloc)
+	bmv := &BoundMethodValue{
+		Func:     fv,
+		Receiver: TypedValue{T: dt, V: sv},
+	}
+	cx := &CallExpr{NumArgs: 1}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: ft, V: bmv})            // bound method
+		m.PushValue(TypedValue{T: IntType, N: i2n(1)})    // arg
+		m.PushExpr(cx)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpPrecall()
+		bm.SwitchOpCode(bmSetup)
+		m.Ops = m.Ops[:0]
+		m.Frames = m.Frames[:0]
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+// --- doOpCall with receiver (method call) ---
+
+func BenchmarkOpCall_Method(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+
+	ft, fv, dt, sv := benchMethodSetup(m.Alloc)
+	recv := TypedValue{T: dt, V: sv}
+	cx := &CallExpr{NumArgs: 1}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: IntType, N: i2n(7)}) // arg
+		m.PushValue(TypedValue{T: ft, V: fv})          // func
+		m.PushFrameCall(cx, fv, recv, false)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpCall()
+		bm.SwitchOpCode(bmSetup)
+		m.Blocks = m.Blocks[:0]
+		m.Ops = m.Ops[:0]
+		m.Stmts = m.Stmts[:0]
+		m.Values = m.Values[:0]
+		m.Frames = m.Frames[:0]
+	}
+	reportBenchops(b)
+}
+
+// --- doOpIfCond false branch ---
+
+func BenchmarkOpIfCond_FalseBranch(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+
+	elseCase := &IfCaseStmt{
+		Body: []Stmt{&EmptyStmt{}},
+	}
+	elseCase.StaticBlock.NumNames = 0
+	elseCase.StaticBlock.HeapItems = []bool{}
+	elseCase.StaticBlock.Block.Source = elseCase
+
+	thenCase := &IfCaseStmt{Body: []Stmt{&EmptyStmt{}}}
+	thenCase.StaticBlock.NumNames = 0
+	thenCase.StaticBlock.HeapItems = []bool{}
+	thenCase.StaticBlock.Block.Source = thenCase
+
+	ifStmt := &IfStmt{
+		Then: *thenCase,
+		Else: *elseCase,
+	}
+
+	blk := &Block{Values: []TypedValue{}}
+	m.Blocks = append(m.Blocks, blk)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: BoolType, N: i2n(0)}) // false
+		m.PushStmt(ifStmt)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpIfCond()
+		bm.SwitchOpCode(bmSetup)
+		m.Ops = m.Ops[:0]
+		m.Stmts = m.Stmts[:0]
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+// --- doOpTypeAssert2 interface: parameterized by nMethods ---
+
+func benchOpTypeAssert2_Interface(b *testing.B, nMethods int, shouldMatch bool) {
+	m := benchMachine()
+	defer m.Release()
+	expr := &TypeAssertExpr{}
+
+	nImpl := nMethods
+	if !shouldMatch {
+		nImpl = nMethods - 1
+		if nImpl < 0 {
+			nImpl = 0
+		}
+	}
+	iface, dt, sv := benchInterfaceAndImpl(m.Alloc, nMethods, nImpl)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: dt, V: sv})
+		m.PushValue(asValue(iface))
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpTypeAssert2()
+		bm.SwitchOpCode(bmSetup)
+		boolRes := m.PeekValue(1)
+		if shouldMatch && !boolRes.GetBool() {
+			b.Fatal("expected ok=true")
+		}
+		if !shouldMatch && boolRes.GetBool() {
+			b.Fatal("expected ok=false")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpTypeAssert2_Interface_Hit_1(b *testing.B)   { benchOpTypeAssert2_Interface(b, 1, true) }
+func BenchmarkOpTypeAssert2_Interface_Hit_10(b *testing.B)  { benchOpTypeAssert2_Interface(b, 10, true) }
+func BenchmarkOpTypeAssert2_Interface_Hit_100(b *testing.B) { benchOpTypeAssert2_Interface(b, 100, true) }
+func BenchmarkOpTypeAssert2_Interface_Miss_10(b *testing.B) { benchOpTypeAssert2_Interface(b, 10, false) }
+
 // --- doOpReturnFromBlock: reads named results from block ---
 
 func BenchmarkOpReturnFromBlock(b *testing.B) {
@@ -4832,6 +5042,49 @@ func BenchmarkOpTypeSwitch_1(b *testing.B)   { benchOpTypeSwitch(b, 1) }
 func BenchmarkOpTypeSwitch_10(b *testing.B)  { benchOpTypeSwitch(b, 10) }
 func BenchmarkOpTypeSwitch_100(b *testing.B) { benchOpTypeSwitch(b, 100) }
 
+// --- doOpTypeSwitch with interface case: IsImplementedBy cost ---
+
+func benchOpTypeSwitch_Interface(b *testing.B, nMethods int) {
+	m := benchMachine()
+	defer m.Release()
+
+	iface, dt, _ := benchInterfaceAndImpl(m.Alloc, nMethods, nMethods)
+
+	// Single clause matching the interface.
+	clause := SwitchClauseStmt{
+		Cases: []Expr{&constTypeExpr{Type: iface}},
+		Body:  []Stmt{&EmptyStmt{}},
+	}
+	clause.StaticBlock.NumNames = 0
+	clause.StaticBlock.HeapItems = []bool{}
+	clause.StaticBlock.Block.Source = &clause
+
+	ss := &SwitchStmt{
+		IsTypeSwitch: true,
+		Clauses:      []SwitchClauseStmt{clause},
+	}
+	blk := &Block{Values: []TypedValue{}}
+	m.Blocks = append(m.Blocks, blk)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: dt})
+		m.PushStmt(ss)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpTypeSwitch()
+		bm.SwitchOpCode(bmSetup)
+		m.Ops = m.Ops[:0]
+		m.Stmts = m.Stmts[:0]
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpTypeSwitch_Interface_1(b *testing.B)   { benchOpTypeSwitch_Interface(b, 1) }
+func BenchmarkOpTypeSwitch_Interface_10(b *testing.B)  { benchOpTypeSwitch_Interface(b, 10) }
+func BenchmarkOpTypeSwitch_Interface_100(b *testing.B) { benchOpTypeSwitch_Interface(b, 100) }
+
 // --- doOpSwitchClause: clause index iteration ---
 
 func BenchmarkOpSwitchClause_DefaultMatch(b *testing.B) {
@@ -5007,16 +5260,18 @@ func benchOpStructType(b *testing.B, nFields int) {
 	m := benchMachine()
 	defer m.Release()
 	fields := make([]FieldTypeExpr, nFields)
+	fieldTVs := make([]TypedValue, nFields)
 	for i := range nFields {
 		fields[i] = FieldTypeExpr{NameExpr: NameExpr{Name: Name("f" + string(rune('0'+i%10)))}}
+		ft := FieldType{Name: fields[i].Name, Type: IntType}
+		fieldTVs[i] = TypedValue{T: gTypeType, V: toTypeValue(ft)}
 	}
 	x := &StructTypeExpr{Fields: fields}
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
 		for i := range nFields {
-			ft := FieldType{Name: Name("f" + string(rune('0'+i%10))), Type: IntType}
-			m.PushValue(TypedValue{T: gTypeType, V: toTypeValue(ft)})
+			m.PushValue(fieldTVs[i])
 		}
 		m.PushExpr(x)
 		bm.SwitchOpCode(bmTarget)
@@ -5035,19 +5290,21 @@ func benchOpInterfaceType(b *testing.B, nMethods int) {
 	m := benchMachine()
 	defer m.Release()
 	methods := make([]FieldTypeExpr, nMethods)
+	methodTVs := make([]TypedValue, nMethods)
 	for i := range nMethods {
 		methods[i] = FieldTypeExpr{NameExpr: NameExpr{Name: Name("M" + string(rune('a'+i%26)))}}
+		mft := FieldType{
+			Name: methods[i].Name,
+			Type: &FuncType{Params: []FieldType{}, Results: []FieldType{}},
+		}
+		methodTVs[i] = TypedValue{T: gTypeType, V: toTypeValue(mft)}
 	}
 	x := &InterfaceTypeExpr{Methods: methods}
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
 		for i := range nMethods {
-			mft := FieldType{
-				Name: Name("M" + string(rune('a'+i%26))),
-				Type: &FuncType{Params: []FieldType{}, Results: []FieldType{}},
-			}
-			m.PushValue(TypedValue{T: gTypeType, V: toTypeValue(mft)})
+			m.PushValue(methodTVs[i])
 		}
 		m.PushExpr(x)
 		bm.SwitchOpCode(bmTarget)
