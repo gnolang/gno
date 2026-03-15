@@ -6,6 +6,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -38,7 +39,18 @@ func X_bankerGetCoins(m *gno.Machine, bt uint8, addr string) (denoms []string, a
 	return ExpandCoins(coins)
 }
 
+// XXX: benchmark the real cost
+const GasCostBankerSendPerByte int64 = 1
+
 func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []string, amounts []int64) {
+	if m.GasMeter != nil {
+		totalBytes := int64(len(fromS) + len(toS))
+		for _, d := range denoms {
+			totalBytes += int64(len(d))
+		}
+		m.GasMeter.ConsumeGas(overflow.Mulp(totalBytes, GasCostBankerSendPerByte), "bankerSendCoins")
+	}
+
 	// bt != BankerTypeReadonly (checked in gno)
 
 	ctx := execctx.GetContext(m)

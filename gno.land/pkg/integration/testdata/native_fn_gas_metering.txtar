@@ -1,0 +1,146 @@
+# Native function gas must scale with input size.
+# For each function, calling with 2× input must cost more gas than 1× input.
+
+loadpkg gno.land/r/test/hash1mb $WORK/hash1mb
+loadpkg gno.land/r/test/hash2mb $WORK/hash2mb
+loadpkg gno.land/r/test/verify1mb $WORK/verify1mb
+loadpkg gno.land/r/test/verify2mb $WORK/verify2mb
+loadpkg gno.land/r/test/emit1mb $WORK/emit1mb
+loadpkg gno.land/r/test/emit2mb $WORK/emit2mb
+
+gnoland start
+
+# --- SHA256 ---
+# Hash 1MB: ~2.1M gas (1M alloc + 1M hash)
+gnokey maketx call -pkgpath gno.land/r/test/hash1mb -func Hash -gas-fee 1000000ugnot -gas-wanted 500000000 -broadcast -chainid=tendermint_test -simulate only test1
+stdout 'GAS USED:   2[0-9]{6}'
+
+# Hash 2MB: ~4.1M gas — 2× the 1MB case
+gnokey maketx call -pkgpath gno.land/r/test/hash2mb -func Hash -gas-fee 1000000ugnot -gas-wanted 500000000 -broadcast -chainid=tendermint_test -simulate only test1
+stdout 'GAS USED:   4[0-9]{6}'
+
+# --- Ed25519 ---
+# Verify with 1MB message: gas scales with message size
+gnokey maketx call -pkgpath gno.land/r/test/verify1mb -func Verify -gas-fee 1000000ugnot -gas-wanted 500000000 -broadcast -chainid=tendermint_test -simulate only test1
+stdout 'GAS USED:   2[0-9]{6}'
+
+# Verify with 2MB message: ~2× the 1MB case
+gnokey maketx call -pkgpath gno.land/r/test/verify2mb -func Verify -gas-fee 1000000ugnot -gas-wanted 500000000 -broadcast -chainid=tendermint_test -simulate only test1
+stdout 'GAS USED:   4[0-9]{6}'
+
+# --- Emit ---
+# Emit with 1MB of attrs: ~1.5M gas
+gnokey maketx call -pkgpath gno.land/r/test/emit1mb -func DoEmit -gas-fee 1000000ugnot -gas-wanted 500000000 -broadcast -chainid=tendermint_test -simulate only test1
+stdout 'GAS USED:   1[0-9]{6}'
+
+# Emit with 2MB of attrs: ~2.1M gas — scales with input
+gnokey maketx call -pkgpath gno.land/r/test/emit2mb -func DoEmit -gas-fee 1000000ugnot -gas-wanted 500000000 -broadcast -chainid=tendermint_test -simulate only test1
+stdout 'GAS USED:   2[0-9]{6}'
+
+-- hash1mb/gnomod.toml --
+module = "gno.land/r/test/hash1mb"
+gno = "0.9"
+
+-- hash1mb/hash1mb.gno --
+package hash1mb
+
+import "crypto/sha256"
+
+func Hash(cur realm) string {
+	data := make([]byte, 1_000_000)
+	sha256.Sum256(data)
+	return "done"
+}
+
+-- hash2mb/gnomod.toml --
+module = "gno.land/r/test/hash2mb"
+gno = "0.9"
+
+-- hash2mb/hash2mb.gno --
+package hash2mb
+
+import "crypto/sha256"
+
+func Hash(cur realm) string {
+	data := make([]byte, 2_000_000)
+	sha256.Sum256(data)
+	return "done"
+}
+
+-- verify1mb/gnomod.toml --
+module = "gno.land/r/test/verify1mb"
+gno = "0.9"
+
+-- verify1mb/verify1mb.gno --
+package verify1mb
+
+import "crypto/ed25519"
+
+func Verify(cur realm) string {
+	pk := make([]byte, 32)
+	sig := make([]byte, 64)
+	msg := make([]byte, 1_000_000)
+	ed25519.Verify(pk, msg, sig)
+	return "done"
+}
+
+-- verify2mb/gnomod.toml --
+module = "gno.land/r/test/verify2mb"
+gno = "0.9"
+
+-- verify2mb/verify2mb.gno --
+package verify2mb
+
+import "crypto/ed25519"
+
+func Verify(cur realm) string {
+	pk := make([]byte, 32)
+	sig := make([]byte, 64)
+	msg := make([]byte, 2_000_000)
+	ed25519.Verify(pk, msg, sig)
+	return "done"
+}
+
+-- emit1mb/gnomod.toml --
+module = "gno.land/r/test/emit1mb"
+gno = "0.9"
+
+-- emit1mb/emit1mb.gno --
+package emit1mb
+
+import "chain"
+
+func DoEmit(cur realm) string {
+	// Build 1MB of attr data: 100 key-value pairs, each ~5KB
+	key := string(make([]byte, 5000))
+	val := string(make([]byte, 5000))
+	args := make([]string, 200)
+	for i := 0; i < 200; i += 2 {
+		args[i] = key
+		args[i+1] = val
+	}
+	chain.Emit("test", args...)
+	return "done"
+}
+
+-- emit2mb/gnomod.toml --
+module = "gno.land/r/test/emit2mb"
+gno = "0.9"
+
+-- emit2mb/emit2mb.gno --
+package emit2mb
+
+import "chain"
+
+func DoEmit(cur realm) string {
+	// Build 2MB of attr data: 200 key-value pairs, each ~5KB
+	key := string(make([]byte, 5000))
+	val := string(make([]byte, 5000))
+	args := make([]string, 400)
+	for i := 0; i < 400; i += 2 {
+		args[i] = key
+		args[i+1] = val
+	}
+	chain.Emit("test", args...)
+	return "done"
+}
