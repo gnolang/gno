@@ -139,3 +139,13 @@ func StopNative(nativeCode byte, old byte) {
 	measure.curOpCode = old
 	measure.curStart = now
 }
+
+// OpAccumDur returns the accumulated duration for an op code.
+func OpAccumDur(code byte) time.Duration {
+	return measure.opAccumDur[code]
+}
+
+// OpCount returns the invocation count for an op code.
+func OpCount(code byte) int64 {
+	return measure.opCounts[code]
+}
