@@ -183,6 +183,32 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 				"end to end through bytes and pbo failed.\nbz(go): %X\nstart(goo): %v\nend(goo): %v\nmid(pbo): %v\n",
 				bz, spw(ptr), spw(ptr3), spw(pbo))
 		}
+
+		if codecType == "binary" {
+			// Check genproto2 (go -> bz2 vs go -> bz)
+			pbm2, ok := rv.Interface().(amino.PBMessager2)
+			if !ok {
+				continue
+			}
+			bz2, err := cdc.MarshalBinary2(pbm2)
+			require.NoError(t, err,
+				"MarshalBinary2 failed for %v: %v\n", spw(ptr), err)
+			require.Equal(t, bz, bz2,
+				"genproto2 bytes mismatch.\nbz(amino): %X\nbz(genproto2): %X\nstart(goo): %v\n",
+				bz, bz2, spw(ptr))
+
+			// Unmarshal with genproto2 and re-marshal to check roundtrip.
+			rv5 := reflect.New(rt)
+			ptr5 := rv5.Interface()
+			err = ptr5.(amino.PBMessager2).UnmarshalBinary2(cdc, bz)
+			require.NoError(t, err,
+				"UnmarshalBinary2 failed: %v\nbz: %X\n", err, bz)
+			bz2rt, err := cdc.MarshalBinary2(ptr5.(amino.PBMessager2))
+			require.NoError(t, err)
+			require.Equal(t, bz, bz2rt,
+				"genproto2 roundtrip bytes mismatch.\nbz(amino): %X\nbz(roundtrip): %X\nstart(goo): %v\nend(goo): %v\n",
+				bz, bz2rt, spw(ptr), spw(ptr5))
+		}
 	}
 }
 

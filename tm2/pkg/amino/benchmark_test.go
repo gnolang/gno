@@ -3,153 +3,138 @@ package amino_test
 import (
 	"math/rand"
 	"reflect"
-	"runtime/debug"
 	"testing"
 
 	fuzz "github.com/google/gofuzz"
-	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 )
 
-func BenchmarkBinary(b *testing.B) {
-	if testing.Short() {
-		b.Skip("skipping testing in short mode")
-	}
+// Pre-generate N random instances of each type and their encoded bytes.
+const benchN = 100
 
-	cdc := amino.NewCodec()
-	for _, ptr := range tests.StructTypes {
-		b.Logf("case %v", reflect.TypeOf(ptr))
-		rt := getTypeFromPointer(ptr)
-		name := rt.Name()
-		b.Run(name+":encode", func(b *testing.B) {
-			_benchmarkBinary(b, cdc, rt, "binary", true)
-		})
-		b.Run(name+":decode", func(b *testing.B) {
-			_benchmarkBinary(b, cdc, rt, "binary", false)
-		})
-	}
+type benchData struct {
+	ptrs []any          // random struct pointers
+	bzs  [][]byte       // amino-encoded bytes
+	pbos []proto.Message // pbbindings proto messages (nil if not PBMessager)
 }
 
-func BenchmarkBinaryPBBindings(b *testing.B) {
-	b.Skip("fuzzing not benchmarking")
-
-	cdc := amino.NewCodec().WithPBBindings()
-	for _, ptr := range tests.StructTypes {
-		b.Logf("case %v (pbbindings)", reflect.TypeOf(ptr))
-		rt := getTypeFromPointer(ptr)
-		name := rt.Name()
-		b.Run(name+":encode:pbbindings", func(b *testing.B) {
-			_benchmarkBinary(b, cdc, rt, "binary_pb", true)
-		})
-
-		// TODO: fix nil pointer error
-		b.Run(name+":encode:pbbindings:translate_only", func(b *testing.B) {
-			_benchmarkBinary(b, cdc, rt, "binary_pb_translate_only", true)
-		})
-
-		b.Run(name+":decode:pbbindings", func(b *testing.B) {
-			_benchmarkBinary(b, cdc, rt, "binary_pb", false)
-		})
-
-		// TODO: fix nil pointer error
-		b.Run(name+":decode:pbbindings:translate_only", func(b *testing.B) {
-			_benchmarkBinary(b, cdc, rt, "binary_pb_translate_only", false)
-		})
-	}
-}
-
-func _benchmarkBinary(b *testing.B, cdc *amino.Codec, rt reflect.Type, codecType string, encode bool) {
-	b.Helper()
-
-	b.StopTimer()
-
-	err := error(nil)
-	bz := []byte{}
+func makeBenchData(cdc *amino.Codec, rt reflect.Type) benchData {
 	f := fuzz.New()
-	pbcdc := cdc.WithPBBindings()
-	rv := reflect.New(rt)
-	rv2 := reflect.New(rt)
-	ptr := rv.Interface()
-	ptr2 := rv2.Interface()
-	rnd := rand.New(rand.NewSource(10))
+	rnd := rand.New(rand.NewSource(42))
 	f.RandSource(rnd)
 	f.Funcs(fuzzFuncs...)
-	pbm := amino.PBMessager(nil)
-	pbo := proto.Message(nil)
 
-	defer func() {
-		if r := recover(); r != nil {
-			b.Fatalf("panic'd:\nreason: %v\n%s\nerr: %v\nbz: %X\nrv: %#v\nrv2: %#v\nptr: %v\nptr2: %v\n",
-				r, debug.Stack(), err, bz, rv, rv2, spw(ptr), spw(ptr2),
-			)
-		}
-	}()
-
-	for i := 0; i < b.N; i++ {
+	bd := benchData{
+		ptrs: make([]any, benchN),
+		bzs:  make([][]byte, benchN),
+		pbos: make([]proto.Message, benchN),
+	}
+	for i := range benchN {
+		rv := reflect.New(rt)
+		ptr := rv.Interface()
 		f.Fuzz(ptr)
+		bd.ptrs[i] = ptr
+		bz, err := cdc.MarshalReflect(ptr)
+		if err != nil {
+			panic(err)
+		}
+		bd.bzs[i] = bz
+		if pbm, ok := ptr.(amino.PBMessager); ok {
+			pbo, err := pbm.ToPBMessage(cdc)
+			if err != nil {
+				panic(err)
+			}
+			bd.pbos[i] = pbo
+		}
+	}
+	return bd
+}
 
-		// Reset, which makes debugging decoding easier.
-		rv2 = reflect.New(rt)
-		ptr2 = rv2.Interface()
+// BenchmarkEncode compares encode performance: genproto2 vs reflect vs pbbindings.
+func BenchmarkEncode(b *testing.B) {
+	cdc := amino.NewCodec()
+	pbcdc := cdc.WithPBBindings()
 
-		// Encode to bz.
-		if encode {
-			b.StartTimer()
-		}
-		switch codecType {
-		case "binary":
-			bz, err = cdc.Marshal(ptr)
-		case "json":
-			bz, err = cdc.JSONMarshal(ptr)
-		case "binary_pb":
-			bz, err = pbcdc.Marshal(ptr)
-		case "binary_pb_translate_only":
-			pbm, _ = ptr.(amino.PBMessager)
-			pbo, err = pbm.ToPBMessage(pbcdc)
-		default:
-			panic("should not happen")
-		}
-		if encode {
-			b.StopTimer()
-		}
+	for _, ptr := range tests.StructTypes {
+		rt := getTypeFromPointer(ptr)
+		name := rt.Name()
 
-		// Check for errors
-		require.Nil(b, err,
-			"failed to marshal %v to bytes: %v\n",
-			spw(ptr), err)
+		b.Run(name+"/genproto2", func(b *testing.B) {
+			bd := makeBenchData(cdc, rt)
+			for i := 0; i < b.N; i++ {
+				p := bd.ptrs[i%benchN]
+				if pbm2, ok := p.(amino.PBMessager2); ok {
+					cdc.MarshalBinary2(pbm2)
+				} else {
+					cdc.MarshalReflect(p)
+				}
+			}
+		})
 
-		// Decode from bz.
-		if !encode {
-			b.StartTimer()
-		}
-		switch codecType {
-		case "binary":
-			err = cdc.Unmarshal(bz, ptr2)
-		case "json":
-			err = cdc.JSONUnmarshal(bz, ptr2)
-		case "binary_pb":
-			err = pbcdc.Unmarshal(bz, ptr2)
-		case "binary_pb_translate_only":
-			err = pbm.FromPBMessage(pbcdc, pbo)
-		default:
-			panic("should not happen")
-		}
-		if !encode {
-			b.StopTimer()
-		}
+		b.Run(name+"/reflect", func(b *testing.B) {
+			bd := makeBenchData(cdc, rt)
+			for i := 0; i < b.N; i++ {
+				cdc.MarshalReflect(bd.ptrs[i%benchN])
+			}
+		})
 
-		if codecType != "binary_pb_translate_only" {
-			// Decode for completeness and check for errors,
-			// in case there were encoding/decoding issues.
-			require.NoError(b, err,
-				"failed to unmarshal bytes %X (%s): %v\nptr: %v\n",
-				bz, bz, err, spw(ptr))
-			require.Equal(b, ptr2, ptr,
-				"end to end failed.\nstart: %v\nend: %v\nbytes: %X\nstring(bytes): %s\n",
-				spw(ptr), spw(ptr2), bz, bz)
-		}
+		b.Run(name+"/pbbindings", func(b *testing.B) {
+			bd := makeBenchData(cdc, rt)
+			if _, ok := bd.ptrs[0].(amino.PBMessager); !ok {
+				b.Skip("not PBMessager")
+			}
+			for i := 0; i < b.N; i++ {
+				pbcdc.MarshalPBBindings(bd.ptrs[i%benchN].(amino.PBMessager))
+			}
+		})
+	}
+}
+
+// BenchmarkDecode compares decode performance: genproto2 vs reflect vs pbbindings.
+func BenchmarkDecode(b *testing.B) {
+	cdc := amino.NewCodec()
+	pbcdc := cdc.WithPBBindings()
+
+	for _, ptr := range tests.StructTypes {
+		rt := getTypeFromPointer(ptr)
+		name := rt.Name()
+
+		b.Run(name+"/genproto2", func(b *testing.B) {
+			bd := makeBenchData(cdc, rt)
+			for i := 0; i < b.N; i++ {
+				rv := reflect.New(rt)
+				p := rv.Interface()
+				if pbm2, ok := p.(amino.PBMessager2); ok {
+					pbm2.UnmarshalBinary2(cdc, bd.bzs[i%benchN])
+				} else {
+					cdc.UnmarshalReflect(bd.bzs[i%benchN], p)
+				}
+			}
+		})
+
+		b.Run(name+"/reflect", func(b *testing.B) {
+			bd := makeBenchData(cdc, rt)
+			for i := 0; i < b.N; i++ {
+				rv := reflect.New(rt)
+				cdc.UnmarshalReflect(bd.bzs[i%benchN], rv.Interface())
+			}
+		})
+
+		b.Run(name+"/pbbindings", func(b *testing.B) {
+			bd := makeBenchData(cdc, rt)
+			if _, ok := bd.ptrs[0].(amino.PBMessager); !ok {
+				b.Skip("not PBMessager")
+			}
+			for i := 0; i < b.N; i++ {
+				rv := reflect.New(rt)
+				pbm := rv.Interface().(amino.PBMessager)
+				pbo := pbm.EmptyPBMessage(pbcdc)
+				proto.Unmarshal(bd.bzs[i%benchN], pbo)
+				pbm.FromPBMessage(pbcdc, pbo)
+			}
+		})
 	}
 }
