@@ -1357,6 +1357,69 @@ func BenchmarkOpStructLit_100(b *testing.B)  { benchOpStructLit(b, 100) }
 func BenchmarkOpStructLit_1000(b *testing.B) { benchOpStructLit(b, 1000) }
 
 // ---------------------------------------------------------------------------
+// doOpStructLit (named fields): S{X: 1, Y: 2}.
+// Named field path calls defaultStructFields, allocates fsset []bool,
+// and does per-field Copy + index lookup.
+// Parameterized by number of fields.
+// ---------------------------------------------------------------------------
+
+func benchOpStructLitNamed(b *testing.B, nFields int) {
+	m := benchMachine()
+	defer m.Release()
+
+	fields := make([]FieldType, nFields)
+	for i := range nFields {
+		fields[i] = FieldType{
+			Name: Name("f" + string(rune('a'+i))),
+			Type: IntType,
+		}
+	}
+	st := m.Alloc.NewType(&StructType{
+		PkgPath: "bench",
+		Fields:  fields,
+	})
+	elts := make([]KeyValueExpr, nFields)
+	for i := range nFields {
+		elts[i] = KeyValueExpr{
+			Key: &NameExpr{
+				Name: fields[i].Name,
+				Path: ValuePath{Depth: 0, Index: uint16(i)},
+			},
+			Value: &ConstExpr{},
+		}
+	}
+	litExpr := &CompositeLitExpr{Elts: elts}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(asValue(st))
+		for i := range nFields {
+			m.PushValue(TypedValue{T: IntType, N: i2n(int64(i + 1))})
+		}
+		m.PushExpr(litExpr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpStructLit()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		sv := res.V.(*StructValue)
+		if len(sv.Fields) != nFields {
+			b.Fatalf("expected %d fields, got %d", nFields, len(sv.Fields))
+		}
+		if sv.Fields[0].GetInt() != 1 {
+			b.Fatalf("expected first field 1, got %d", sv.Fields[0].GetInt())
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpStructLitNamed_1(b *testing.B)    { benchOpStructLitNamed(b, 1) }
+func BenchmarkOpStructLitNamed_10(b *testing.B)   { benchOpStructLitNamed(b, 10) }
+func BenchmarkOpStructLitNamed_100(b *testing.B)  { benchOpStructLitNamed(b, 100) }
+func BenchmarkOpStructLitNamed_1000(b *testing.B) { benchOpStructLitNamed(b, 1000) }
+
+// ---------------------------------------------------------------------------
 // doOpMapLit: PopExpr(CompositeLitExpr), PopValues(N*2), peek type, push map.
 // Parameterized by entry count.
 // ---------------------------------------------------------------------------
@@ -2534,7 +2597,8 @@ func benchOpDefine(b *testing.B, n int) {
 
 func BenchmarkOpDefine_1(b *testing.B)   { benchOpDefine(b, 1) }
 func BenchmarkOpDefine_10(b *testing.B)  { benchOpDefine(b, 10) }
-func BenchmarkOpDefine_100(b *testing.B) { benchOpDefine(b, 100) }
+func BenchmarkOpDefine_100(b *testing.B)  { benchOpDefine(b, 100) }
+func BenchmarkOpDefine_1000(b *testing.B) { benchOpDefine(b, 1000) }
 
 // ---------------------------------------------------------------------------
 // doOpAssign: PopStmt, PopValues(n), PopAsPointer for each lhs.
@@ -2574,7 +2638,8 @@ func benchOpAssign(b *testing.B, n int) {
 
 func BenchmarkOpAssign_1(b *testing.B)   { benchOpAssign(b, 1) }
 func BenchmarkOpAssign_10(b *testing.B)  { benchOpAssign(b, 10) }
-func BenchmarkOpAssign_100(b *testing.B) { benchOpAssign(b, 100) }
+func BenchmarkOpAssign_100(b *testing.B)  { benchOpAssign(b, 100) }
+func BenchmarkOpAssign_1000(b *testing.B) { benchOpAssign(b, 1000) }
 
 // ===========================================================================
 // Pessimistic type variants — BigInt bitwise, Float64/BigInt comparisons,
@@ -4038,14 +4103,16 @@ func benchOpCall(b *testing.B, nParams int, nCaptures int) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpCall_0Params_0Captures(b *testing.B)    { benchOpCall(b, 0, 0) }
-func BenchmarkOpCall_1Params_0Captures(b *testing.B)    { benchOpCall(b, 1, 0) }
-func BenchmarkOpCall_10Params_0Captures(b *testing.B)   { benchOpCall(b, 10, 0) }
-func BenchmarkOpCall_100Params_0Captures(b *testing.B)  { benchOpCall(b, 100, 0) }
-func BenchmarkOpCall_0Params_1Captures(b *testing.B)    { benchOpCall(b, 0, 1) }
-func BenchmarkOpCall_0Params_10Captures(b *testing.B)   { benchOpCall(b, 0, 10) }
-func BenchmarkOpCall_0Params_100Captures(b *testing.B)  { benchOpCall(b, 0, 100) }
-func BenchmarkOpCall_10Params_10Captures(b *testing.B)  { benchOpCall(b, 10, 10) }
+func BenchmarkOpCall_0Params_0Captures(b *testing.B)      { benchOpCall(b, 0, 0) }
+func BenchmarkOpCall_1Params_0Captures(b *testing.B)      { benchOpCall(b, 1, 0) }
+func BenchmarkOpCall_10Params_0Captures(b *testing.B)     { benchOpCall(b, 10, 0) }
+func BenchmarkOpCall_100Params_0Captures(b *testing.B)    { benchOpCall(b, 100, 0) }
+func BenchmarkOpCall_1000Params_0Captures(b *testing.B)   { benchOpCall(b, 1000, 0) }
+func BenchmarkOpCall_0Params_1Captures(b *testing.B)      { benchOpCall(b, 0, 1) }
+func BenchmarkOpCall_0Params_10Captures(b *testing.B)     { benchOpCall(b, 0, 10) }
+func BenchmarkOpCall_0Params_100Captures(b *testing.B)    { benchOpCall(b, 0, 100) }
+func BenchmarkOpCall_0Params_1000Captures(b *testing.B)   { benchOpCall(b, 0, 1000) }
+func BenchmarkOpCall_10Params_10Captures(b *testing.B)    { benchOpCall(b, 10, 10) }
 
 // --- doOpReturn: unwind stack + realm check ---
 
@@ -4771,7 +4838,8 @@ func benchOpReturnCallDefers(b *testing.B, nDefers int) {
 
 func BenchmarkOpReturnCallDefers_1(b *testing.B)   { benchOpReturnCallDefers(b, 1) }
 func BenchmarkOpReturnCallDefers_10(b *testing.B)  { benchOpReturnCallDefers(b, 10) }
-func BenchmarkOpReturnCallDefers_100(b *testing.B) { benchOpReturnCallDefers(b, 100) }
+func BenchmarkOpReturnCallDefers_100(b *testing.B)  { benchOpReturnCallDefers(b, 100) }
+func BenchmarkOpReturnCallDefers_1000(b *testing.B) { benchOpReturnCallDefers(b, 1000) }
 
 // --- doOpPanic2: unwind to call frame ---
 
@@ -5058,7 +5126,8 @@ func benchOpTypeSwitch(b *testing.B, nClauses int) {
 
 func BenchmarkOpTypeSwitch_1(b *testing.B)   { benchOpTypeSwitch(b, 1) }
 func BenchmarkOpTypeSwitch_10(b *testing.B)  { benchOpTypeSwitch(b, 10) }
-func BenchmarkOpTypeSwitch_100(b *testing.B) { benchOpTypeSwitch(b, 100) }
+func BenchmarkOpTypeSwitch_100(b *testing.B)  { benchOpTypeSwitch(b, 100) }
+func BenchmarkOpTypeSwitch_1000(b *testing.B) { benchOpTypeSwitch(b, 1000) }
 
 // --- doOpTypeSwitch with interface case: IsImplementedBy cost ---
 
@@ -5101,7 +5170,8 @@ func benchOpTypeSwitch_Interface(b *testing.B, nMethods int) {
 
 func BenchmarkOpTypeSwitch_Interface_1(b *testing.B)   { benchOpTypeSwitch_Interface(b, 1) }
 func BenchmarkOpTypeSwitch_Interface_10(b *testing.B)  { benchOpTypeSwitch_Interface(b, 10) }
-func BenchmarkOpTypeSwitch_Interface_100(b *testing.B) { benchOpTypeSwitch_Interface(b, 100) }
+func BenchmarkOpTypeSwitch_Interface_100(b *testing.B)  { benchOpTypeSwitch_Interface(b, 100) }
+func BenchmarkOpTypeSwitch_Interface_1000(b *testing.B) { benchOpTypeSwitch_Interface(b, 1000) }
 
 // --- doOpSwitchClause: clause index iteration ---
 
@@ -5302,7 +5372,8 @@ func benchOpStructType(b *testing.B, nFields int) {
 
 func BenchmarkOpStructType_1(b *testing.B)   { benchOpStructType(b, 1) }
 func BenchmarkOpStructType_10(b *testing.B)  { benchOpStructType(b, 10) }
-func BenchmarkOpStructType_100(b *testing.B) { benchOpStructType(b, 100) }
+func BenchmarkOpStructType_100(b *testing.B)  { benchOpStructType(b, 100) }
+func BenchmarkOpStructType_1000(b *testing.B) { benchOpStructType(b, 1000) }
 
 func benchOpInterfaceType(b *testing.B, nMethods int) {
 	m := benchMachine()
@@ -5335,7 +5406,8 @@ func benchOpInterfaceType(b *testing.B, nMethods int) {
 
 func BenchmarkOpInterfaceType_1(b *testing.B)   { benchOpInterfaceType(b, 1) }
 func BenchmarkOpInterfaceType_10(b *testing.B)  { benchOpInterfaceType(b, 10) }
-func BenchmarkOpInterfaceType_100(b *testing.B) { benchOpInterfaceType(b, 100) }
+func BenchmarkOpInterfaceType_100(b *testing.B)  { benchOpInterfaceType(b, 100) }
+func BenchmarkOpInterfaceType_1000(b *testing.B) { benchOpInterfaceType(b, 1000) }
 
 func BenchmarkOpChanType(b *testing.B) {
 	m := benchMachine()

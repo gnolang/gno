@@ -792,4 +792,48 @@ B. Convert to base + perN formulas (CPU gas only, alloc gas is separate):
 
 C. BigInt/BigDec: need operand-size-dependent formulas (see Sections 3-4).
 
+==============================================================================================================
+SECTION 8: WORST-CASE INPUT VERIFICATION
+==============================================================================================================
+
+All parameterized benchmarks must use attacker-optimal (worst-case) inputs, since gas
+must be charged for the most expensive possible execution at a given parameter size.
+
+Op Category          Input Strategy                                   Worst Case?
+--------------------------------------------------------------------------------------------------------------
+String Eql           Identical strings (must compare all bytes)       YES — forces full memcmp
+String Lss           Differ only at last char ("aaa...a" vs          YES — maximum prefix scan
+                     "aaa...b")
+String Add           Two N-char strings concatenated                  YES — always O(N), no fast path
+BigInt Add/Sub       2^bits - 1 (all bits set)                        YES — maximum carry propagation
+BigInt Mul           (2^bits - 1) × (2^bits - 1)                      YES — all bits set, max carries
+BigInt Quo           (2^bits - 1) ÷ (2^(bits/2) - 1)                  YES — all bits set, non-trivial
+                     divisor is half-width (min 32 bits)                     quotient
+BigDec Add/Sub       "1234567890..." repeated to N digits             YES — non-trivial coefficients,
+                                                                            no apd fast paths
+BigDec Mul           "1234567890..." × "1234567890..."                YES — non-trivial digits, result
+                     (both N digits wide)                                   is ~2N digits
+BigDec Quo           "1234567890..." ÷ "1234567890..."                YES — non-trivial digits,
+                     (divisor is N/2 digits wide)                           no short-circuit
+BigDec Inc/Dec       "1234567890..." + 1                              YES — O(N) on coefficient
+BigDec Uneg          negate "1234567890..."                            YES — O(N) copy
+Byte Array Eql       Identical byte arrays                            YES — forces full bytes.Equal
+MapLit               N int key/value pairs                            YES — linear in N
+ArrayLit             N int elements                                   YES — linear in N
+StructLit            N int fields                                     YES — linear in N
+SliceLit             N int elements                                   YES — linear in N
+
+Notes:
+- makeBigDec(digits) generates "1234567890123456789012..." truncated to `digits` length.
+  These non-trivial repeating digits avoid any special-case fast paths in the apd library
+  (no zeros, no powers of 10, no single-digit values).
+- BigInt values use 2^bits - 1 (all bits set), which maximizes carry propagation in
+  arithmetic and prevents any shortcut in Go's math/big implementation.
+- String comparison benchmarks are carefully constructed: Eql uses identical strings
+  (forcing full comparison), Lss uses strings that differ only at the final character
+  (forcing maximum prefix scan before the comparison can resolve).
+- All parameterized benchmarks test up to N=1000 or N=10000. Attackers can push N to
+  memory limits (~10M). Formulas derived from benchmark data must be validated at
+  extrapolated scales.
+
 Total unique benchmarks: 350
