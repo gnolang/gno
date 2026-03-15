@@ -1241,7 +1241,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					clt := evalStaticType(store, last, clx.Type)
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
-						n.Path = bt.GetPathForName(n.Name)
+						// Struct field keys are not variable references.
+						// Strip any .loopvar suffix that replaceAllLoopvar may have
+						// added (it cannot distinguish struct keys from map keys at
+						// the time of the rename pass).
+						fieldName := n.Name
+						if strings.HasSuffix(string(fieldName), ".loopvar") {
+							fieldName = Name(strings.TrimSuffix(string(fieldName), ".loopvar"))
+							n.Name = fieldName
+						}
+						n.Path = bt.GetPathForName(fieldName)
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
@@ -2843,6 +2852,12 @@ func defineOrDecl(
 
 	if numVals > 1 && numNames != numVals {
 		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numVals))
+	}
+	if isConst && numVals == 0 && numNames > 0 && typeExpr == nil {
+		// This occurs when a const group line inherits values from the previous
+		// line but the number of names doesn't match (go2gno sets Values to nil
+		// in that case). Report a proper error instead of a confusing internal panic.
+		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but 0 value(s)", numNames))
 	}
 
 	sts := make([]Type, numNames) // static types
