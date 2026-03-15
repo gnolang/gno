@@ -82,7 +82,7 @@ func (m *Machine) doOpEql() {
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
-	// Per-N CPU gas for array/struct equality.
+	// Per-N CPU gas for parameterized equality.
 	if lv.T != nil {
 		switch lv.T.Kind() {
 		case ArrayKind:
@@ -91,6 +91,8 @@ func (m *Machine) doOpEql() {
 		case StructKind:
 			st := baseOf(lv.T).(*StructType)
 			m.incrCPU(OpCPUSlopeEqlStruct * int64(len(st.Fields)))
+		case BigintKind:
+			m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
 		}
 	}
 	// set result in lv.
@@ -126,6 +128,8 @@ func (m *Machine) doOpLss() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
+
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
 
 	// set the result in lv.
 	res := isLss(lv, rv)
@@ -195,6 +199,10 @@ func (m *Machine) doOpAdd() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	// Per-N gas for BigInt/BigDec.
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntAdd)
+	m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecAdd)
+
 	// add rv to lv.
 	addAssign(m.Alloc, lv, rv)
 }
@@ -208,6 +216,9 @@ func (m *Machine) doOpSub() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
+
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntSub)
+	m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecSub)
 
 	// sub rv from lv.
 	subAssign(lv, rv)
@@ -223,6 +234,8 @@ func (m *Machine) doOpBor() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntBor)
+
 	// lv | rv
 	borAssign(lv, rv)
 }
@@ -236,6 +249,8 @@ func (m *Machine) doOpXor() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
+
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntXor)
 
 	// lv ^ rv
 	xorAssign(lv, rv)
@@ -251,6 +266,9 @@ func (m *Machine) doOpMul() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	m.incrCPUBigIntQuad(lv, rv, OpCPUSlopeBigIntMulQ)
+	m.incrCPUBigDecQuad(lv, rv, OpCPUSlopeBigDecMulQ)
+
 	// lv * rv
 	mulAssign(lv, rv)
 }
@@ -264,6 +282,8 @@ func (m *Machine) doOpQuo() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
+
+	m.incrCPUBigDecQuad(lv, rv, OpCPUSlopeBigDecQuoQ)
 
 	// lv / rv
 	err := quoAssign(lv, rv)
@@ -331,6 +351,8 @@ func (m *Machine) doOpBand() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntBand)
+
 	// lv & rv
 	bandAssign(lv, rv)
 }
@@ -344,6 +366,8 @@ func (m *Machine) doOpBandn() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
+
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntBandn)
 
 	// lv &^ rv
 	bandnAssign(lv, rv)

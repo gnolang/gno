@@ -1099,6 +1099,67 @@ const GasFactorCPU int64 = 1
 //----------------------------------------
 // "CPU" steps.
 
+// incrCPUBigInt charges per-kilobit CPU gas for BigInt binary ops.
+// slopePerKb is the gas cost per 1024 bits of max(lv, rv) bit length.
+func (m *Machine) incrCPUBigInt(lv, rv *TypedValue, slopePerKb int64) {
+	if lv.T == UntypedBigintType {
+		lb := int64(lv.GetBigInt().BitLen())
+		rb := int64(rv.GetBigInt().BitLen())
+		if rb > lb {
+			lb = rb
+		}
+		m.incrCPU(lb * slopePerKb / 1024)
+	}
+}
+
+// incrCPUBigIntQuad charges quadratic CPU gas for BigInt Mul.
+// gas = (bits/32)^2 * slope / 32.
+func (m *Machine) incrCPUBigIntQuad(lv, rv *TypedValue, slope int64) {
+	if lv.T == UntypedBigintType {
+		lb := int64(lv.GetBigInt().BitLen()) / 32
+		rb := int64(rv.GetBigInt().BitLen()) / 32
+		m.incrCPU(lb * rb * slope / 32)
+	}
+}
+
+// incrCPUBigDec charges per-100-digit CPU gas for BigDec binary ops.
+func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
+	if lv.T == UntypedBigdecType {
+		lb := lv.GetBigDec().NumDigits()
+		rb := rv.GetBigDec().NumDigits()
+		if rb > lb {
+			lb = rb
+		}
+		m.incrCPU(lb * slopePer100 / 100)
+	}
+}
+
+// incrCPUBigDecQuad charges quadratic CPU gas for BigDec Mul/Quo.
+// gas = (digits/10)^2 * slope / 10.
+func (m *Machine) incrCPUBigDecQuad(lv, rv *TypedValue, slope int64) {
+	if lv.T == UntypedBigdecType {
+		lb := lv.GetBigDec().NumDigits() / 10
+		rb := rv.GetBigDec().NumDigits() / 10
+		m.incrCPU(lb * rb * slope / 10)
+	}
+}
+
+// incrCPUBigUnary charges per-kilobit CPU gas for unary BigInt ops.
+func (m *Machine) incrCPUBigUnary(xv *TypedValue, slopePerKb int64) {
+	if xv.T == UntypedBigintType {
+		bits := int64(xv.V.(BigintValue).V.BitLen())
+		m.incrCPU(bits * slopePerKb / 1024)
+	}
+}
+
+// incrCPUBigDecUnary charges per-100-digit CPU gas for unary BigDec ops.
+func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
+	if xv.T == UntypedBigdecType {
+		digits := xv.V.(BigdecValue).V.NumDigits()
+		m.incrCPU(digits * slopePer100 / 100)
+	}
+}
+
 func (m *Machine) incrCPU(cycles int64) {
 	if m.GasMeter != nil {
 		gasCPU := overflow.Mulp(cycles, GasFactorCPU)
@@ -1256,6 +1317,38 @@ const (
 	OpCPUSlopeInterfaceType  = 5  // per method
 	OpCPUSlopeFuncType       = 4  // per param+result
 	OpCPUSlopeValueDecl      = 6  // per field/element
+	OpCPUSlopeEvalNameExpr   = 1  // per block depth hop (0.69/depth, round to 1)
+
+	// BigInt per-kilobit slopes: gas = bits * slope / 1024.
+	// Linear ops (Add/Sub/Band/Bor/Xor/Bandn/Uneg/Uxor/Inc/Dec/Eql/Lss).
+	OpCPUSlopeBigIntAdd   = 9   // 0.0086 * 1024 = 8.8
+	OpCPUSlopeBigIntSub   = 13  // 0.0128 * 1024 = 13.1
+	OpCPUSlopeBigIntBand  = 11  // 0.0108 * 1024 = 11.1
+	OpCPUSlopeBigIntBor   = 11  // 0.0112 * 1024 = 11.5
+	OpCPUSlopeBigIntXor   = 13  // 0.0129 * 1024 = 13.2
+	OpCPUSlopeBigIntBandn = 13  // 0.0129 * 1024 = 13.2
+	OpCPUSlopeBigIntUneg  = 8   // 0.0081 * 1024 = 8.3
+	OpCPUSlopeBigIntUxor  = 9   // 0.0086 * 1024 = 8.8
+	OpCPUSlopeBigIntInc   = 12  // 0.0116 * 1024 = 11.9
+	OpCPUSlopeBigIntDec   = 12  // 0.0117 * 1024 = 12.0
+	OpCPUSlopeBigIntEql   = 2   // 0.0019 * 1024 = 1.9
+	OpCPUSlopeBigIntLss   = 2   // 0.0017 * 1024 = 1.7
+	// Quadratic: gas = (bits/32)^2 * slope / 32.
+	// Mul: 0.000026/bit^2. At 32-bit granularity: 0.000026 * 32^2 = 0.0266 per (32b)^2.
+	// Scaled by /32: 0.0266*32 = 0.85 → 1.
+	OpCPUSlopeBigIntMulQ = 1 // per (bits/32)^2 / 32
+
+	// BigDec per-digit slopes: gas = digits * slope / 100.
+	OpCPUSlopeBigDecAdd  = 72 // 0.7216 * 100 = 72.2
+	OpCPUSlopeBigDecSub  = 4  // 0.0391 * 100 = 3.9
+	OpCPUSlopeBigDecUneg = 2  // 0.0246 * 100 = 2.5
+	OpCPUSlopeBigDecInc  = 72 // 0.7160 * 100 = 71.6
+	OpCPUSlopeBigDecDec  = 71 // 0.7127 * 100 = 71.3
+	// Quadratic: gas = (digits/10)^2 * slope / 10.
+	// Mul: 0.001130/digit^2. At 10-digit: 0.001130*100 = 0.113 per (10d)^2. *10 = 1.13 → 1.
+	OpCPUSlopeBigDecMulQ = 1 // per (digits/10)^2 / 10
+	// Quo: 0.000260/digit^2. At 10-digit: 0.000260*100 = 0.026 per (10d)^2. *10 = 0.26 → 1 (round up).
+	OpCPUSlopeBigDecQuoQ = 1 // per (digits/10)^2 / 10
 )
 
 //----------------------------------------

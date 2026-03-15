@@ -3652,6 +3652,7 @@ func benchOpEval_NameExpr(b *testing.B, depth int) {
 func BenchmarkOpEval_NameExpr_Depth1(b *testing.B)   { benchOpEval_NameExpr(b, 1) }
 func BenchmarkOpEval_NameExpr_Depth10(b *testing.B)  { benchOpEval_NameExpr(b, 10) }
 func BenchmarkOpEval_NameExpr_Depth100(b *testing.B) { benchOpEval_NameExpr(b, 100) }
+func BenchmarkOpEval_NameExpr_Depth200(b *testing.B) { benchOpEval_NameExpr(b, 200) }
 
 // --- doOpValueDecl: defaultTypedValue recursion for nested types ---
 

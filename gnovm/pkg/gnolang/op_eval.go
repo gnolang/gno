@@ -34,6 +34,7 @@ func (m *Machine) doOpEval() {
 			return
 		} else {
 			// Get value from scope.
+			m.incrCPU(OpCPUSlopeEvalNameExpr * int64(nx.Path.Depth))
 			lb := m.LastBlock()
 			// Push value, done.
 			ptr := lb.GetPointerTo(m.Store, nx.Path)

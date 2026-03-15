@@ -253,8 +253,8 @@ PARAM_FAMILIES = [
     # Selector (by field count) is flat: uses direct VPField index, doesn't scan fields.
     # See FLAT_OPS.
     ('Eval (NameExpr depth)', 'depth', [
-        ('BenchmarkOpEval_NameExpr_1', 1), ('BenchmarkOpEval_NameExpr_10', 10),
-        ('BenchmarkOpEval_NameExpr_100', 100)]),
+        ('BenchmarkOpEval_NameExpr_Depth1', 1), ('BenchmarkOpEval_NameExpr_Depth10', 10),
+        ('BenchmarkOpEval_NameExpr_Depth100', 100), ('BenchmarkOpEval_NameExpr_Depth200', 200)]),
     # Slice (string) is flat for CPU gas: alloc gas covers the O(N) copy.
     # See FLAT_OPS.
     ('Convert (str->runes)', 'string len', [
