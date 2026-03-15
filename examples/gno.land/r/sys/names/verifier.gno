@@ -2,10 +2,10 @@
 // Only address-prefix (PA) namespaces are allowed.
 package names
 
-import "gno.land/p/nt/ownable/v0"
+import "chain/runtime"
 
 var (
-	Ownable = ownable.NewWithAddressByPrevious("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig — dropped in genesis via Enable.
+	admin   = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 	enabled = false
 )
 
@@ -15,12 +15,12 @@ func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool
 	return verifier(enabled, address_XXX, namespace)
 }
 
-// Enable enables the namespace check and drops centralized ownership of this realm.
+// Enable enables the namespace check for this realm.
 // The namespace check is disabled initially to ease txtar and other testing contexts,
 // but this function is meant to be called in the genesis of a chain.
 func Enable(cur realm) {
-	if err := Ownable.DropOwnership(); err != nil {
-		panic(err)
+	if runtime.PreviousRealm().Address() != admin {
+		panic("caller is not admin")
 	}
 	enabled = true
 }
