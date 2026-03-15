@@ -5,7 +5,7 @@ package names
 import "gno.land/p/nt/ownable/v0"
 
 var (
-	Ownable = ownable.NewWithAddressByPrevious("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig — dropped in genesis via Enable.
+	Ownable = ownable.NewWithAddressByPrevious("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p") // genesis deployer — dropped in genesis via Enable.
 	enabled = false
 )
 
