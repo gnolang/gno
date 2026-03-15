@@ -157,6 +157,8 @@ func (m *Machine) doOpCall() {
 	}
 
 	m.PushBlock(b)
+	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
+		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
 	if fv.nativeBody == nil && fv.NativePkg != "" {
 		// native function, unmarshaled so doesn't have nativeBody yet
 		fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)

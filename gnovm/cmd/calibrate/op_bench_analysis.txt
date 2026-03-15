@@ -1,0 +1,895 @@
+python3 cmd/calibrate/gen_analysis.py cmd/calibrate/op_bench_do_dedicated.txt pkg/gnolang/machine.go
+# Op Handler Gas Calibration Report — Xeon 8168
+# cpuBaseNs = 5.2, 371 unique benchmarks x 3 runs, -benchtime=2s
+# Generated 2026-03-14 (with measured alloc-gas/op)
+
+All gas values are raw (not multiplied by GasFactor).
+'Alloc gas' = measured gas charged by allocator during benchmark.
+'CPU needed' = (ns/op(pure) / cpuBaseNs) - alloc_gas = what incrCPU should charge.
+
+==============================================================================================================
+SECTION 1: FLAT OPS (single gas constant is appropriate)
+==============================================================================================================
+
+Op                                                    ns/op    Total    Alloc      CPU   CurCPU  
+--------------------------------------------------------------------------------------------------------------
+Precall (type conv)                                    72.0     13.8        0     13.8      207  OVER >>>
+Eql (int)                                              85.1     16.4        0     16.4      160  OVER >>>
+Eql (float64)                                          92.9     17.9        0     17.9      160  OVER >>>
+SwitchClauseCase (miss)                               106.3     20.4        0     20.4      143  OVER >>>
+SwitchClauseCase (match)                              109.1     21.0        0     21.0      143  OVER >>>
+Precall (func)                                        178.2     34.3        0     34.3      207  OVER >>>
+Neq (int)                                              83.3     16.0        0     16.0       95  OVER >>>
+Precall (bound method)                                198.9     38.3        0     38.3      207  OVER >>>
+Inc (int)                                              80.8     15.5        0     15.5       76  OVER >>>
+Ref                                                   227.8     43.8       18     25.8      125  OVER >>>
+Defer                                                  71.2     13.7        0     13.7       64  OVER >>>
+AddAssign (int)                                        96.9     18.6        0     18.6       85  OVER >>>
+Sub (float64)                                         137.3     26.4        0     26.4        6  UNDER <<<
+Call (method)                                         515.3     99.1       35     64.1      256  OVER >>>
+ShrAssign (int)                                        99.1     19.1        0     19.1       76  OVER >>>
+Index1 (array)                                        101.6     19.5        0     19.5       77  OVER >>>
+Index1 (slice)                                        106.2     20.4        0     20.4       77  OVER >>>
+RangeIterString                                        78.2     15.0        0     15.0       55  OVER >>>
+TypeDecl                                              142.9     27.5        0     27.5      100  OVER >>>
+ShlAssign (int)                                        99.1     19.0        0     19.0       68  OVER >>>
+RangeIterMap                                           72.8     14.0        0     14.0       48  OVER >>>
+CompositeLit (array)                                   76.3     14.7        0     14.7       50  OVER >>>
+Convert (str->bytes)                                  381.7     73.4       19     54.4       16  UNDER <<<
+SubAssign (int)                                        88.2     17.0        0     17.0       57  OVER >>>
+MulAssign (int)                                        86.5     16.6        0     16.6       55  OVER >>>
+BorAssign (int)                                        88.5     17.0        0     17.0       55  OVER >>>
+BandAssign (int)                                       89.2     17.2        0     17.2       54  OVER >>>
+Body                                                   72.7     14.0        0     14.0       43  OVER >>>
+ValueDecl (int)                                       197.0     37.9        0     37.9      113  over
+Dec (int)                                              80.9     15.5        0     15.5       46  over
+Slice (array)                                         276.3     53.1       18     35.1      103  over
+Slice (byte array)                                    282.4     54.3       18     36.3      103  over
+Slice (slice)                                         216.1     41.6        5     36.6      103  over
+Quo (float64)                                         234.1     45.0        0     45.0       16  UNDER <<<
+XorAssign (int)                                        89.6     17.2        0     17.2       48  over
+Slice (string)                                        223.8     43.0        5     38.0      103  over
+BandnAssign (int)                                      87.6     16.8        0     16.8       44  over
+Selector (VPValMethod)                                686.5    132.0       52     80.0       32  UNDER <<<
+Slice (3-index)                                       240.5     46.2        5     41.2      103  over
+Panic2                                                 71.7     13.8        5      8.8       21  over
+SwitchClause (default)                                 87.4     16.8        0     16.8       38  over
+Sub (int)                                              69.9     13.4        0     13.4        6  UNDER <<<
+Unot                                                   69.8     13.4        0     13.4        6  UNDER <<<
+MapType                                               150.1     28.9        0     28.9       59  over
+Star                                                  101.9     19.6        0     19.6       40  over
+ChanType                                              152.6     29.3        0     29.3       57  over
+ArrayType                                             153.3     29.5        0     29.5       57  over
+Geq (int)                                              71.8     13.8        0     13.8       26  over
+TypeAssert1 (concrete)                                 83.1     16.0        0     16.0       30  over
+SliceType                                             152.3     29.3        0     29.3       55  over
+Uneg (int)                                             69.4     13.3        0     13.3       25  over
+Convert (int->int64)                                  151.2     29.1        0     29.1       16  UNDER <<<
+Add (string)                                          191.5     36.8        5     31.8       18  UNDER <<<
+Upos (int)                                             64.1     12.3        0     12.3        7  UNDER <<<
+Bor (int)                                              70.7     13.6        0     13.6       23  over
+Quo (int)                                             137.7     26.5        0     26.5       16  UNDER <<<
+Selector (field)                                      101.4     19.5        0     19.5       32  over
+Lor                                                    83.3     16.0        0     16.0       26  over
+Add (float64)                                         148.0     28.5        0     28.5       18  UNDER <<<
+QuoAssign (int)                                       166.1     31.9        0     31.9       50  over
+TypeAssert2 (hit)                                      84.7     16.3        0     16.3       25  over
+Rem (int)                                             141.7     27.3        0     27.3       18  UNDER <<<
+Band (int)                                             70.7     13.6        0     13.6        9  UNDER <<<
+Binary1 (LAND false)                                   65.8     12.7        0     12.7       19  over
+Land                                                   85.6     16.5        0     16.5       24  ok
+Return                                                136.8     26.3        0     26.3       38  ok
+Mul (float64)                                         142.1     27.3        0     27.3       19  under
+Gtr (int)                                              72.4     13.9        0     13.9       20  ok
+Binary1 (LAND true)                                    68.8     13.2        0     13.2       19  ok
+Shl (int)                                              79.9     15.4        0     15.4       22  ok
+RemAssign (int)                                       168.9     32.5        0     32.5       46  ok
+Mul (int)                                              70.8     13.6        0     13.6       19  ok
+Leq (int)                                              72.0     13.9        0     13.9       19  ok
+TypeAssert2 (miss)                                     95.7     18.4        0     18.4       25  ok
+Shr (int)                                              78.9     15.2        0     15.2       20  ok
+Dec (float64)                                         189.3     36.4        0     36.4       46  ok
+ReturnAfterCopy                                       167.8     32.3        0     32.3       38  ok
+Add (int)                                              81.0     15.6        0     15.6       18  ok
+ReturnFromBlock                                       167.0     32.1        0     32.1       36  ok
+Bandn (int)                                            70.6     13.6        0     13.6       15  ok
+Uxor (int)                                             69.0     13.3        0     13.3       14  ok
+Xor (int)                                              71.2     13.7        0     13.7       13  ok
+ReturnToBlock                                         119.1     22.9        0     22.9       23  ok
+
+==============================================================================================================
+SECTION 2: PARAMETERIZED OPS (need base + slope * N formulas)
+==============================================================================================================
+
+--- MapLit (entries) ---
+
+   entries      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      618.1       16.0      118.9      102.9
+        10     3307.0       61.0      636.0      575.0
+       100    30834.3      511.0     5929.7     5418.7
+      1000   339307.3     5011.0    65251.4    60240.4
+
+  CPU gas fit: -188.4 + 60.3875 * entries  (R²=0.9999)
+
+--- ArrayLit (int) (elements) ---
+
+  elements      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      300.4       15.0       57.8       42.8
+        10      804.0       35.0      154.6      119.6
+       100     5861.0      203.0     1127.1      924.1
+      1000    54397.0     1637.0    10461.0     8824.0
+
+  CPU gas fit: 36.7 + 8.7880 * elements  (R²=1.0000)
+
+--- ArrayLit (uint8) (elements) ---
+
+  elements      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      217.7       13.0       41.9       28.9
+        10      296.9       14.0       57.1       43.1
+       100     1108.0       19.0      213.1      194.1
+      1000     9083.0       64.0     1746.7     1682.7
+
+  CPU gas fit: 27.4 + 1.6554 * elements  (R²=1.0000)
+
+--- SliceLit (elements) ---
+
+  elements      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      319.4       20.0       61.4       41.4
+        10      623.3       40.0      119.9       79.9
+       100     3522.0      208.0      677.3      469.3
+      1000    30429.0     1642.0     5851.7     4209.7
+
+  CPU gas fit: 42.3 + 4.1684 * elements  (R²=1.0000)
+
+--- SliceLit2 (sparse) (alloc size) ---
+
+  alloc size      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        10      934.7       40.0      179.7      139.7
+       100     4210.3      208.0      809.7      601.7
+      1000    34507.7     1642.0     6636.1     4994.1
+     10000   328256.0    13708.0    63126.2    49418.2
+
+  CPU gas fit: 87.5 + 4.9328 * alloc size  (R²=1.0000)
+
+--- StructLit (unnamed) (fields) ---
+
+    fields      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      269.6       17.0       51.8       34.8
+        10      572.3       34.0      110.1       76.1
+       100     3600.7      205.0      692.4      487.4
+      1000    31225.3     1640.0     6004.9     4364.9
+
+  CPU gas fit: 38.8 + 4.3276 * fields  (R²=1.0000)
+
+--- StructLit (named) (fields) ---
+
+    fields      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      283.5       17.0       54.5       37.5
+        10      784.5       34.0      150.9      116.9
+       100     5850.7      205.0     1125.1      920.1
+      1000    52978.0     1640.0    10188.1     8548.1
+
+  CPU gas fit: 42.5 + 8.5081 * fields  (R²=1.0000)
+
+--- Define (LHS count) ---
+
+  LHS count      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      153.0        0.0       29.4       29.4
+        10      881.6        0.0      169.5      169.5
+       100     8100.0        0.0     1557.7     1557.7
+      1000    79266.3        0.0    15243.5    15243.5
+
+  CPU gas fit: 21.9 + 15.2230 * LHS count  (R²=1.0000)
+
+--- Assign (LHS count) ---
+
+  LHS count      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      157.1        0.0       30.2       30.2
+        10      942.5        0.0      181.2      181.2
+       100     8735.0        0.0     1679.8     1679.8
+      1000    86255.3        0.0    16587.6    16587.6
+
+  CPU gas fit: 17.1 + 16.5710 * LHS count  (R²=1.0000)
+
+--- Call (params, 0 captures) (params) ---
+
+    params      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         0      340.8       31.0       65.5       34.5
+         1      479.7       33.0       92.2       59.2
+        10     1038.7       51.0      199.7      148.7
+       100     6272.3      218.0     1206.2      988.2
+      1000    54644.0     1649.0    10508.5     8859.5
+
+  CPU gas fit: 62.3 + 8.8017 * params  (R²=0.9999)
+
+--- Call (0 params, captures) (captures) ---
+
+  captures      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         0      340.8       31.0       65.5       34.5
+         1      429.2       33.0       82.5       49.5
+        10      796.9       51.0      153.3      102.3
+       100     4192.0      218.0      806.2      588.2
+      1000    36288.0     1649.0     6978.5     5329.5
+
+  CPU gas fit: 46.7 + 5.2841 * captures  (R²=1.0000)
+
+--- FuncLit (captures) (captures) ---
+
+  captures      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         0      230.8       22.0       44.4       22.4
+         1      295.5       22.0       56.8       34.8
+        10      623.3       22.0      119.9       97.9
+       100     3794.7       22.0      729.7      707.7
+      1000    34256.3       22.2     6587.8     6565.6
+
+  CPU gas fit: 33.9 + 6.5337 * captures  (R²=1.0000)
+
+--- ForLoop (heap copy) (heap vars) ---
+
+  heap vars      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         0       69.4        0.0       13.3       13.3
+         1      187.8       13.0       36.1       23.1
+        10     1175.3      130.0      226.0       96.0
+       100    10909.0     1300.0     2097.9      797.9
+      1000   109604.0    13001.3    21077.7     8076.4
+
+  CPU gas fit: 9.2 + 8.0654 * heap vars  (R²=1.0000)
+
+--- RangeIter (array) (elements) ---
+
+  elements      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      284.1       15.0       54.6       39.6
+        10      430.6       35.0       82.8       47.8
+       100     1860.7      203.0      357.8      154.8
+      1000    16558.7     1637.0     3184.4     1547.4
+
+  CPU gas fit: 25.2 + 1.5200 * elements  (R²=0.9996)
+
+--- ReturnCallDefers (defers) ---
+
+    defers      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      605.6       31.0      116.5       85.5
+        10      779.6       31.0      149.9      118.9
+       100     1091.0       31.0      209.8      178.8
+      1000     2504.7       31.0      481.7      450.7
+
+  CPU gas fit: 114.1 + 0.3396 * defers  (R²=0.9783)
+
+--- TypeSwitch (concrete) (clauses) ---
+
+   clauses      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      582.8        0.0      112.1      112.1
+        10     2846.7        0.0      547.4      547.4
+       100    25588.7        0.0     4920.9     4920.9
+      1000   254205.0        0.0    48885.6    48885.6
+
+  CPU gas fit: 53.9 + 48.8301 * clauses  (R²=1.0000)
+
+--- TypeSwitch (interface) (methods) ---
+
+   methods      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      477.6        0.0       91.9       91.9
+        10     1858.3        0.0      357.4      357.4
+       100    35089.3        0.0     6747.9     6747.9
+      1000  2351113.3        0.0   452137.2   452137.2
+
+  CPU gas fit: -13935.5 + 463.6150 * methods  (R²=0.9938)
+
+--- TypeAssert1 (interface) (methods) ---
+
+   methods      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      196.3        0.0       37.7       37.7
+        10     1533.3        0.0      294.9      294.9
+       100    33963.0        0.0     6531.3     6531.3
+
+  CPU gas fit: -194.4 + 67.0928 * methods  (R²=0.9978)
+
+--- TypeAssert2 (iface hit) (methods) ---
+
+   methods      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      195.8        0.0       37.7       37.7
+        10     1528.0        0.0      293.8      293.8
+       100    34567.3        0.0     6647.6     6647.6
+
+  CPU gas fit: -201.5 + 68.3195 * methods  (R²=0.9977)
+
+--- Selector (VPInterface) (methods) ---
+
+   methods      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      796.6       49.0      153.2      104.2
+        10      855.8       49.0      164.6      115.6
+       100     1272.0       49.0      244.6      195.6
+
+  CPU gas fit: 104.8 + 0.9097 * methods  (R²=0.9990)
+
+--- Convert (str->runes) (string len) ---
+
+  string len      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      406.3       20.0       78.1       58.1
+        10      634.5       40.0      122.0       82.0
+       100     2955.3      208.0      568.3      360.3
+      1000    25420.0     1642.0     4888.5     3246.5
+
+  CPU gas fit: 48.8 + 3.1968 * string len  (R²=1.0000)
+
+--- Convert (runes->str) (rune count) ---
+
+  rune count      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      272.1        5.0       52.3       47.3
+        10      390.2        5.0       75.0       70.0
+       100     1128.7        9.0      217.1      208.1
+      1000     8437.3       56.0     1622.6     1566.6
+
+  CPU gas fit: 52.3 + 1.5147 * rune count  (R²=1.0000)
+
+--- Eql (array of int) (elements) ---
+
+  elements      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      223.8        0.0       43.0       43.0
+        10     1462.7        0.0      281.3      281.3
+       100    14054.0        0.0     2702.7     2702.7
+      1000   141230.3        0.2    27159.7    27159.5
+
+  CPU gas fit: 4.9 + 27.1529 * elements  (R²=1.0000)
+
+--- Eql (struct of int) (fields) ---
+
+    fields      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      218.7        0.0       42.1       42.1
+        10     1446.0        0.0      278.1      278.1
+       100    13646.3        0.0     2624.3     2624.3
+      1000   136107.0        0.0    26174.4    26174.4
+
+  CPU gas fit: 13.7 + 26.1602 * fields  (R²=1.0000)
+
+--- Eql (byte array) (bytes) ---
+
+     bytes      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1       85.0        0.0       16.3       16.3
+        10       82.4        0.0       15.8       15.8
+       100       87.3        0.0       16.8       16.8
+      1000       98.3        0.0       18.9       18.9
+
+  CPU gas fit: 16.2 + 0.0027 * bytes  (R²=0.9508)
+
+--- Eql (string) (string len) ---
+
+  string len      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        10       92.1        0.0       17.7       17.7
+       100       92.5        0.0       17.8       17.8
+      1000       92.4        0.0       17.8       17.8
+     10000       91.4        0.0       17.6       17.6
+
+  CPU gas fit: flat ~18  (R²=0.8672)
+  WARNING: Poor fit (R²<0.95).
+
+--- Lss (string) (string len) ---
+
+  string len      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        10       82.1        0.0       15.8       15.8
+       100       85.8        0.0       16.5       16.5
+      1000      107.1        0.0       20.6       20.6
+     10000      326.8        0.0       62.8       62.8
+
+  CPU gas fit: 15.9 + 0.0047 * string len  (R²=1.0000)
+
+--- StructType (fields) ---
+
+    fields      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      225.5        0.0       43.4       43.4
+        10      507.5        0.0       97.6       97.6
+       100     3591.7        0.0      690.7      690.7
+      1000    30363.7        0.0     5839.2     5839.2
+
+  CPU gas fit: 61.7 + 5.7823 * fields  (R²=0.9998)
+
+--- InterfaceType (methods) ---
+
+   methods      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         1      228.5        0.0       43.9       43.9
+        10      498.6        0.0       95.9       95.9
+       100     3408.7        0.0      655.5      655.5
+      1000    26976.0        0.0     5187.7     5187.7
+
+  CPU gas fit: 73.4 + 5.1210 * methods  (R²=0.9996)
+
+--- FuncType (params, 0 results) (params) ---
+
+    params      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         0      175.8        0.0       33.8       33.8
+         1      228.1        0.0       43.9       43.9
+        10      434.4        0.0       83.5       83.5
+       100     2790.7        0.0      536.7      536.7
+      1000    22497.0        0.0     4326.3     4326.3
+
+  CPU gas fit: 54.5 + 4.2772 * params  (R²=0.9997)
+
+--- FuncType (0 params, results) (results) ---
+
+   results      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+         0      175.8        0.0       33.8       33.8
+         1      221.2        0.0       42.5       42.5
+        10      429.4        0.0       82.6       82.6
+       100     2791.3        0.0      536.8      536.8
+      1000    22561.3        0.0     4338.7     4338.7
+
+  CPU gas fit: 53.6 + 4.2904 * results  (R²=0.9997)
+
+--- ValueDecl (struct) (fields) ---
+
+    fields      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        10     1257.0       68.0      241.7      173.7
+
+--- ValueDecl (array) (elements) ---
+
+  elements      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+       100     5451.0      406.0     1048.3      642.3
+      1000    46932.0     3274.0     9025.4     5751.4
+
+  CPU gas fit: 74.6 + 5.6768 * elements  (R²=1.0000)
+
+==============================================================================================================
+SECTION 3: BIGINT OPS (cost scales with bit width)
+==============================================================================================================
+
+--- Add (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64      239.9        0.0       46.1       46.1
+       256      251.3        0.0       48.3       48.3
+      1024      285.8        0.0       55.0       55.0
+      4096      422.4        0.0       81.2       81.2
+
+  CPU gas fit: 45.9 + 0.0086 * bits  (R²=0.9997)
+
+--- Sub (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64      224.8        0.0       43.2       43.2
+       256      244.1        0.0       46.9       46.9
+      1024      294.4        0.0       56.6       56.6
+      4096      496.0        0.0       95.4       95.4
+
+  CPU gas fit: 43.2 + 0.0128 * bits  (R²=0.9994)
+
+--- Mul (BigInt) [same width] (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64      240.6        0.0       46.3       46.3
+       256      298.5        0.0       57.4       57.4
+      1024      567.5        0.0      109.1      109.1
+      4096     2572.0        0.0      494.6      494.6
+
+  CPU gas fit: 60.8 + 0.000026 * bits²  (R²=0.9950)
+
+--- Mul (BigInt) [cross width] (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+     65536      289.5        0.0       55.7       55.7
+    262144      444.9        0.0       85.6       85.6
+    262144      350.2        0.0       67.3       67.3
+   1048576      579.6        0.0      111.5      111.5
+
+  CPU gas fit: flat ~59  (R²=0.8622)
+  WARNING: Poor fit (R²<0.95).
+
+--- Quo (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+      1024      463.8        0.0       89.2       89.2
+      4096      889.3        0.0      171.0      171.0
+      4096     2307.3        0.0      443.7      443.7
+
+  CPU gas fit: 16.5 + 0.0710 * bits  (R²=0.4605)
+  WARNING: Poor fit (R²<0.95).
+
+--- Rem (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+      4096      889.4        0.0      171.0      171.0
+      4096     2299.7        0.0      442.2      442.2
+
+  CPU gas fit: flat ~307  (R²=1.0000)
+
+--- Eql (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64       92.1        0.0       17.7       17.7
+       256       95.0        0.0       18.3       18.3
+      1024      101.2        0.0       19.5       19.5
+      4096      133.1        0.0       25.6       25.6
+
+  CPU gas fit: 17.6 + 0.0019 * bits  (R²=0.9988)
+
+--- Lss (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64       78.0        0.0       15.0       15.0
+       256       78.8        0.0       15.2       15.2
+      1024       84.1        0.0       16.2       16.2
+      4096      112.1        0.0       21.6       21.6
+
+  CPU gas fit: 14.7 + 0.0017 * bits  (R²=0.9967)
+
+--- Band (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64      207.7        0.0       39.9       39.9
+       256      225.9        0.0       43.4       43.4
+      1024      267.0        0.0       51.4       51.4
+      4096      438.1        0.0       84.2       84.2
+
+  CPU gas fit: 40.0 + 0.0108 * bits  (R²=0.9991)
+
+--- Bor (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64      212.3        0.0       40.8       40.8
+       256      229.4        0.0       44.1       44.1
+      1024      274.4        0.0       52.8       52.8
+      4096      449.7        0.0       86.5       86.5
+
+  CPU gas fit: 40.9 + 0.0112 * bits  (R²=0.9993)
+
+--- Xor (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64      211.2        0.0       40.6       40.6
+       256      235.1        0.0       45.2       45.2
+      1024      285.9        0.0       55.0       55.0
+      4096      487.4        0.0       93.7       93.7
+
+  CPU gas fit: 41.1 + 0.0129 * bits  (R²=0.9984)
+
+--- Bandn (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64      215.7        0.0       41.5       41.5
+       256      236.5        0.0       45.5       45.5
+      1024      293.1        0.0       56.4       56.4
+      4096      490.1        0.0       94.3       94.3
+
+  CPU gas fit: 41.9 + 0.0129 * bits  (R²=0.9980)
+
+--- Uneg (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64      208.2        0.0       40.0       40.0
+       256      219.1        0.0       42.1       42.1
+      1024      256.2        0.0       49.3       49.3
+      4096      380.3        0.0       73.1       73.1
+
+  CPU gas fit: 40.1 + 0.0081 * bits  (R²=0.9984)
+
+--- Uxor (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64      212.7        0.0       40.9       40.9
+       256      228.8        0.0       44.0       44.0
+      1024      266.4        0.0       51.2       51.2
+      4096      396.8        0.0       76.3       76.3
+
+  CPU gas fit: 41.5 + 0.0086 * bits  (R²=0.9969)
+
+--- Inc (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64      257.3        0.0       49.5       49.5
+       256      280.2        0.0       53.9       53.9
+      1024      334.1        0.0       64.2       64.2
+      4096      507.2        0.0       97.5       97.5
+
+  CPU gas fit: 50.5 + 0.0116 * bits  (R²=0.9951)
+
+--- Dec (BigInt) (bits) ---
+
+      bits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        64      240.6        0.0       46.3       46.3
+       256      279.5        0.0       53.8       53.8
+      1024      339.8        0.0       65.4       65.4
+      4096      501.9        0.0       96.5       96.5
+
+  CPU gas fit: 49.6 + 0.0117 * bits  (R²=0.9774)
+
+==============================================================================================================
+SECTION 4: BIGDEC OPS (cost scales with digit count)
+==============================================================================================================
+
+--- Add (BigDec) (digits) ---
+
+    digits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        10      239.6        0.0       46.1       46.1
+       100      403.4        0.0       77.6       77.6
+      1000     2951.3        0.0      567.6      567.6
+     10000    37412.7        0.0     7194.7     7194.7
+
+  CPU gas fit: -32.7 + 0.7216 * digits  (R²=0.9994)
+
+--- Sub (BigDec) (digits) ---
+
+    digits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        10      228.2        0.0       43.9       43.9
+       100      325.5        0.0       62.6       62.6
+      1000      530.5        0.0      102.0      102.0
+     10000     2311.7        0.0      444.6      444.6
+
+  CPU gas fit: 54.8 + 0.0391 * digits  (R²=0.9980)
+
+--- Mul (BigDec) (digits) ---
+
+    digits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        10      241.6        0.0       46.5       46.5
+       100     1822.7        0.0      350.5      350.5
+      1000    25634.7        0.0     4929.7     4929.7
+     10000   594587.7        0.0   114343.8   114343.8
+
+  CPU gas fit: 1387.2 + 0.001130 * digits²  (R²=0.9991)
+
+--- Quo (BigDec) (digits) ---
+
+    digits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        10     9378.7        0.0     1803.6     1803.6
+       100     8938.3        0.0     1718.9     1718.9
+      1000    19647.0        0.0     3778.3     3778.3
+     10000   147445.3        0.0    28354.9    28354.9
+
+  CPU gas fit: 2342.1 + 0.000260 * digits²  (R²=0.9959)
+
+--- Uneg (BigDec) (digits) ---
+
+    digits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        10      189.5        0.0       36.4       36.4
+       100      322.5        0.0       62.0       62.0
+      1000      489.6        0.0       94.2       94.2
+     10000     1555.0        0.0      299.0      299.0
+
+  CPU gas fit: 54.6 + 0.0246 * digits  (R²=0.9863)
+
+--- Inc (BigDec) (digits) ---
+
+    digits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        10      260.3        0.0       50.1       50.1
+       100      424.0        0.0       81.5       81.5
+      1000     2929.0        0.0      563.3      563.3
+     10000    37139.3        0.0     7142.2     7142.2
+
+  CPU gas fit: -29.3 + 0.7160 * digits  (R²=0.9994)
+
+--- Dec (BigDec) (digits) ---
+
+    digits      ns/op  alloc-gas  total-gas    cpu-gas
+  ----------------------------------------------------------
+        10      253.3        0.0       48.7       48.7
+       100      420.5        0.0       80.9       80.9
+      1000     2907.3        0.0      559.1      559.1
+     10000    36963.0        0.0     7108.3     7108.3
+
+  CPU gas fit: -30.2 + 0.7127 * digits  (R²=0.9994)
+
+==============================================================================================================
+SECTION 5: TOP 20 WORST GAS MISMATCHES
+==============================================================================================================
+
+Op                                                    ns/op    Ideal  Current    Ratio
+------------------------------------------------------------------------------------------
+Precall (type conv)                                    72.0     13.8      207   14.95x  OVER
+Eql (int)                                              85.1     16.4      160    9.77x  OVER
+Eql (float64)                                          92.9     17.9      160    8.95x  OVER
+SwitchClauseCase (miss)                               106.3     20.4      143    7.00x  OVER
+SwitchClauseCase (match)                              109.1     21.0      143    6.82x  OVER
+Precall (func)                                        178.2     34.3      207    6.04x  OVER
+Neq (int)                                              83.3     16.0       95    5.93x  OVER
+Precall (bound method)                                198.9     38.3      207    5.41x  OVER
+Inc (int)                                              80.8     15.5       76    4.89x  OVER
+Ref                                                   227.8     25.8      125    4.84x  OVER
+Defer                                                  71.2     13.7       64    4.67x  OVER
+AddAssign (int)                                        96.9     18.6       85    4.56x  OVER
+Sub (float64)                                         137.3     26.4        6    0.23x  UNDER
+Call (method)                                         515.3     64.1      256    3.99x  OVER
+ShrAssign (int)                                        99.1     19.1       76    3.99x  OVER
+Index1 (array)                                        101.6     19.5       77    3.94x  OVER
+Index1 (slice)                                        106.2     20.4       77    3.77x  OVER
+RangeIterString                                        78.2     15.0       55    3.66x  OVER
+TypeDecl                                              142.9     27.5      100    3.64x  OVER
+ShlAssign (int)                                        99.1     19.0       68    3.57x  OVER
+
+==============================================================================================================
+SECTION 6: HIGH VARIANCE BENCHMARKS (>5%% CV)
+==============================================================================================================
+
+Op                                                          Mean   StdDev      CV%
+-------------------------------------------------------------------------------------
+Selector_1000fields                                         97.8      6.2     6.3%
+Selector_1field                                            100.5      5.2     5.2%
+Selector_10fields                                          101.4      5.2     5.1%
+
+==============================================================================================================
+SECTION 7: SUMMARY & RECOMMENDATIONS
+==============================================================================================================
+
+A. Flat ops needing recalibration (current/ideal ratio > 1.5x or < 0.67x):
+
+  Precall (type conv)                           current=207  ideal=14  ratio=14.95x
+  Eql (int)                                     current=160  ideal=16  ratio=9.77x
+  Eql (float64)                                 current=160  ideal=18  ratio=8.95x
+  SwitchClauseCase (miss)                       current=143  ideal=20  ratio=7.00x
+  SwitchClauseCase (match)                      current=143  ideal=21  ratio=6.82x
+  Precall (func)                                current=207  ideal=34  ratio=6.04x
+  Neq (int)                                     current=95  ideal=16  ratio=5.93x
+  Precall (bound method)                        current=207  ideal=38  ratio=5.41x
+  Inc (int)                                     current=76  ideal=16  ratio=4.89x
+  Ref                                           current=125  ideal=26  ratio=4.84x
+  Defer                                         current=64  ideal=14  ratio=4.67x
+  AddAssign (int)                               current=85  ideal=19  ratio=4.56x
+  Sub (float64)                                 current=6  ideal=26  ratio=0.23x
+  Call (method)                                 current=256  ideal=64  ratio=3.99x
+  ShrAssign (int)                               current=76  ideal=19  ratio=3.99x
+  Index1 (array)                                current=77  ideal=20  ratio=3.94x
+  Index1 (slice)                                current=77  ideal=20  ratio=3.77x
+  RangeIterString                               current=55  ideal=15  ratio=3.66x
+  TypeDecl                                      current=100  ideal=27  ratio=3.64x
+  ShlAssign (int)                               current=68  ideal=19  ratio=3.57x
+  RangeIterMap                                  current=48  ideal=14  ratio=3.43x
+  CompositeLit (array)                          current=50  ideal=15  ratio=3.41x
+  Convert (str->bytes)                          current=16  ideal=54  ratio=0.29x
+  SubAssign (int)                               current=57  ideal=17  ratio=3.36x
+  MulAssign (int)                               current=55  ideal=17  ratio=3.31x
+  BorAssign (int)                               current=55  ideal=17  ratio=3.23x
+  BandAssign (int)                              current=54  ideal=17  ratio=3.15x
+  Body                                          current=43  ideal=14  ratio=3.07x
+  ValueDecl (int)                               current=113  ideal=38  ratio=2.98x
+  Dec (int)                                     current=46  ideal=16  ratio=2.96x
+  Slice (array)                                 current=103  ideal=35  ratio=2.93x
+  Slice (byte array)                            current=103  ideal=36  ratio=2.84x
+  Slice (slice)                                 current=103  ideal=37  ratio=2.82x
+  Quo (float64)                                 current=16  ideal=45  ratio=0.36x
+  XorAssign (int)                               current=48  ideal=17  ratio=2.78x
+  Slice (string)                                current=103  ideal=38  ratio=2.71x
+  BandnAssign (int)                             current=44  ideal=17  ratio=2.61x
+  Selector (VPValMethod)                        current=32  ideal=80  ratio=0.40x
+  Slice (3-index)                               current=103  ideal=41  ratio=2.50x
+  Panic2                                        current=21  ideal=9  ratio=2.39x
+  SwitchClause (default)                        current=38  ideal=17  ratio=2.26x
+  Sub (int)                                     current=6  ideal=13  ratio=0.45x
+  Unot                                          current=6  ideal=13  ratio=0.45x
+  MapType                                       current=59  ideal=29  ratio=2.04x
+  Star                                          current=40  ideal=20  ratio=2.04x
+  ChanType                                      current=57  ideal=29  ratio=1.94x
+  ArrayType                                     current=57  ideal=29  ratio=1.93x
+  Geq (int)                                     current=26  ideal=14  ratio=1.88x
+  TypeAssert1 (concrete)                        current=30  ideal=16  ratio=1.88x
+  SliceType                                     current=55  ideal=29  ratio=1.88x
+  Uneg (int)                                    current=25  ideal=13  ratio=1.87x
+  Convert (int->int64)                          current=16  ideal=29  ratio=0.55x
+  Add (string)                                  current=18  ideal=32  ratio=0.57x
+  Upos (int)                                    current=7  ideal=12  ratio=0.57x
+  Bor (int)                                     current=23  ideal=14  ratio=1.69x
+  Quo (int)                                     current=16  ideal=26  ratio=0.60x
+  Selector (field)                              current=32  ideal=20  ratio=1.64x
+  Lor                                           current=26  ideal=16  ratio=1.62x
+  Add (float64)                                 current=18  ideal=28  ratio=0.63x
+  QuoAssign (int)                               current=50  ideal=32  ratio=1.57x
+  TypeAssert2 (hit)                             current=25  ideal=16  ratio=1.53x
+  Rem (int)                                     current=18  ideal=27  ratio=0.66x
+  Band (int)                                    current=9  ideal=14  ratio=0.66x
+  Binary1 (LAND false)                          current=19  ideal=13  ratio=1.50x
+
+B. Parameterized ops — CPU gas formulas (alloc gas charged separately):
+
+  Op                                            CPU gas formula                     N=max: CPU gas
+  MapLit                                        base=-188 + 60.39*entries           N=1000: CPU=60199
+  ArrayLit (int)                                base=37 + 8.79*elements             N=1000: CPU=8825
+  ArrayLit (uint8)                              base=27 + 1.66*elements             N=1000: CPU=1683
+  SliceLit                                      base=42 + 4.17*elements             N=1000: CPU=4211
+  SliceLit2 (sparse)                            base=87 + 4.93*alloc size           N=10000: CPU=49416
+  StructLit (unnamed)                           base=39 + 4.33*fields               N=1000: CPU=4366
+  StructLit (named)                             base=43 + 8.51*fields               N=1000: CPU=8551
+  Define                                        base=22 + 15.22*LHS count           N=1000: CPU=15245
+  Assign                                        base=17 + 16.57*LHS count           N=1000: CPU=16588
+  Call (params, 0 captures)                     base=62 + 8.80*params               N=1000: CPU=8864
+  Call (0 params, captures)                     base=47 + 5.28*captures             N=1000: CPU=5331
+  FuncLit (captures)                            base=34 + 6.53*captures             N=1000: CPU=6568
+  ForLoop (heap copy)                           base=9 + 8.07*heap vars             N=1000: CPU=8075
+  RangeIter (array)                             base=25 + 1.52*elements             N=1000: CPU=1545
+  ReturnCallDefers                              base=114 + 0.34*defers              N=1000: CPU=454
+  TypeSwitch (concrete)                         base=54 + 48.83*clauses             N=1000: CPU=48884
+  TypeSwitch (interface)                        base=-13935 + 463.61*methods        N=1000: CPU=449679
+  TypeAssert1 (interface)                       base=-194 + 67.09*methods           N=100: CPU=6515
+  TypeAssert2 (iface hit)                       base=-201 + 68.32*methods           N=100: CPU=6630
+  Selector (VPInterface)                        base=105 + 0.91*methods             N=100: CPU=196
+  Convert (str->runes)                          base=49 + 3.20*string len           N=1000: CPU=3246
+  Convert (runes->str)                          base=52 + 1.51*rune count           N=1000: CPU=1567
+  Eql (array of int)                            base=5 + 27.15*elements             N=1000: CPU=27158
+  Eql (struct of int)                           base=14 + 26.16*fields              N=1000: CPU=26174
+  Eql (byte array)                              base=16 + 0.00*bytes                N=1000: CPU=19
+  Eql (string)                                  flat ~18                            N=10000: CPU=18 (R²=0.87 !)
+  Lss (string)                                  base=16 + 0.00*string len           N=10000: CPU=63
+  StructType                                    base=62 + 5.78*fields               N=1000: CPU=5844
+  InterfaceType                                 base=73 + 5.12*methods              N=1000: CPU=5194
+  FuncType (params, 0 results)                  base=54 + 4.28*params               N=1000: CPU=4332
+  FuncType (0 params, results)                  base=54 + 4.29*results              N=1000: CPU=4344
+  ValueDecl (array)                             base=75 + 5.68*elements             N=1000: CPU=5751
+
+  NOTE: No parameterized op is "negligible." Even tiny per-element costs
+  become exploitable at scale (e.g. 0.02 ns/byte at N=10M = 38,000 gas uncharged).
+  Every op with any scaling dimension needs a formula.
+
+C. BigInt/BigDec: need operand-size-dependent formulas (see Sections 3-4).
+
+==============================================================================================================
+SECTION 8: WORST-CASE INPUT VERIFICATION
+==============================================================================================================
+
+All parameterized benchmarks use attacker-optimal (worst-case) inputs.
+
+Op Category          Input Strategy                                Worst Case?
+--------------------------------------------------------------------------------------------------------------
+String Eql           Identical strings (must compare all bytes)    YES
+String Lss           Differ only at last char                      YES
+String Add           Two N-char strings concatenated               YES
+BigInt Add/Sub       2^bits - 1 (all bits set)                     YES
+BigInt Mul           (2^bits - 1) x (2^bits - 1)                   YES
+BigInt Quo           (2^bits - 1) / (2^(bits/2) - 1)               YES
+BigDec *             "1234567890..." (non-trivial, no fast paths)  YES
+Byte Array Eql       Identical byte arrays                         YES
+MapLit               N int key/value pairs                         YES
+ArrayLit             N int elements                                YES
+StructLit            N int fields                                  YES
+SliceLit             N int elements                                YES
+
+Total unique benchmarks: 371

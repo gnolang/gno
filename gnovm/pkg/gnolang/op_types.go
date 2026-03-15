@@ -72,6 +72,7 @@ func (m *Machine) doOpSliceType() {
 
 func (m *Machine) doOpFuncType() {
 	x := m.PopExpr().(*FuncTypeExpr)
+	m.incrCPU(OpCPUSlopeFuncType * int64(len(x.Params)+len(x.Results)))
 	// Allocate space for data.
 	params := make([]FieldType, len(x.Params))
 	results := make([]FieldType, len(x.Results))
@@ -109,6 +110,7 @@ func (m *Machine) doOpMapType() {
 
 func (m *Machine) doOpStructType() {
 	x := m.PopExpr().(*StructTypeExpr)
+	m.incrCPU(OpCPUSlopeStructType * int64(len(x.Fields)))
 	// pop fields
 	ftvs := m.PopValues(len(x.Fields))
 	// allocate (minimum) space for fields
@@ -132,6 +134,7 @@ func (m *Machine) doOpStructType() {
 
 func (m *Machine) doOpInterfaceType() {
 	x := m.PopExpr().(*InterfaceTypeExpr)
+	m.incrCPU(OpCPUSlopeInterfaceType * int64(len(x.Methods)))
 	// allocate space
 	methods := make([]FieldType, len(x.Methods))
 	// pop methods

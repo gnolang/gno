@@ -124,6 +124,7 @@ func (m *Machine) doOpExec(op Op) {
 				m.PushOp(OpEval)
 			}
 			// copy heap item defines in init to new heap items.
+			m.incrCPU(OpCPUSlopeForLoopHeap * int64(bs.NumInit))
 			for i := 0; i < bs.NumInit; i++ {
 				hiv, ok := last.Values[i].V.(*HeapItemValue)
 				if !ok {
@@ -175,6 +176,7 @@ func (m *Machine) doOpExec(op Op) {
 				m.PopFrameAndReset()
 				return
 			}
+			m.incrCPU(OpCPUSlopeRangeIterArray * int64(ll))
 			bs.ListLen = ll
 			bs.NumOps = len(m.Ops)
 			bs.NumValues = len(m.Values)
@@ -830,6 +832,7 @@ func (m *Machine) doOpIfCond() {
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
+	m.incrCPU(OpCPUSlopeTypeSwitchCase * int64(len(ss.Clauses)))
 	xtid := TypeID("")
 	if xv.T != nil {
 		xtid = xv.T.TypeID()

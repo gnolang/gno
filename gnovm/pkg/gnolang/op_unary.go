@@ -22,6 +22,8 @@ func (m *Machine) doOpUneg() {
 		debug.Printf("doOpUneg(%v)\n", ux)
 	}
 	xv := m.PeekValue(1)
+	m.incrCPUBigUnary(xv, OpCPUSlopeBigIntUneg)
+	m.incrCPUBigDecUnary(xv, OpCPUSlopeBigDecUneg)
 
 	// Switch on the base type.
 	// NOTE: this is faster than computing the kind of kv.T.
@@ -89,6 +91,7 @@ func (m *Machine) doOpUxor() {
 		debug.Printf("doOpUxor(%v)\n", ux)
 	}
 	xv := m.PeekValue(1)
+	m.incrCPUBigUnary(xv, OpCPUSlopeBigIntUxor)
 
 	// Switch on the base type.
 	switch baseOf(xv.T) {

@@ -6,6 +6,7 @@ import (
 
 func (m *Machine) doOpValueDecl() {
 	s := m.PopStmt().(*ValueDecl)
+	m.incrCPU(OpCPUSlopeValueDecl * int64(len(s.NameExprs)))
 	lb := m.LastBlock()
 	nt := Type(nil)
 	if s.Type != nil {

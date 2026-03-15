@@ -15,6 +15,10 @@ func (m *Machine) doOpInc() {
 	pv := m.PopAsPointer(s.X)
 	lv := pv.TV
 
+	// Per-N gas for BigInt/BigDec.
+	m.incrCPUBigUnary(lv, OpCPUSlopeBigIntInc)
+	m.incrCPUBigDecUnary(lv, OpCPUSlopeBigDecInc)
+
 	// Switch on the base type.  NOTE: this is faster
 	// than computing the kind of kv.T.  TODO: consider
 	// optimizing away this switch by implementing a
@@ -88,6 +92,10 @@ func (m *Machine) doOpDec() {
 	// Get result ptr depending on lhs.
 	pv := m.PopAsPointer(s.X)
 	lv := pv.TV
+
+	// Per-N gas for BigInt/BigDec.
+	m.incrCPUBigUnary(lv, OpCPUSlopeBigIntDec)
+	m.incrCPUBigDecUnary(lv, OpCPUSlopeBigDecDec)
 
 	// Switch on the base type.  NOTE: this is faster
 	// than computing the kind of kv.T.  TODO: consider
