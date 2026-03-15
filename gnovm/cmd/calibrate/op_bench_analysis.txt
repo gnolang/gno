@@ -1,0 +1,795 @@
+# Op Handler Gas Calibration Report — Xeon 8168
+# cpuBaseNs = 5.2, 350 benchmarks x 3 runs, -benchtime=2s
+# Generated 2026-03-14
+
+All gas values are raw (not multiplied by GasFactor).
+'Alloc gas' = gas charged by allocator via allocGas() lookup table.
+'CPU needed' = total ideal gas - alloc gas = what incrCPU should charge.
+
+==============================================================================================================
+SECTION 1: FLAT OPS (single gas constant is appropriate)
+==============================================================================================================
+
+Op                                                    ns/op    Total    Alloc      CPU   CurCPU  
+--------------------------------------------------------------------------------------------------------------
+precall (type conv)                                    81.2     15.6        0     15.6      207  OVER >>>
+int == (Eql also covers arrays/structs; see Sec 2)     83.3     16.0        0     16.0      160  OVER >>>
+precall (bound method)                                207.1     39.8       13     26.8      207  OVER >>>
+switch clause (match)                                 105.8     20.3        0     20.3      143  OVER >>>
+switch clause (miss)                                  105.9     20.4        0     20.4      143  OVER >>>
+index1 (array)                                         99.4     19.1        0     19.1       77  OVER >>>
+index1 (slice)                                        105.0     20.2        0     20.2       77  OVER >>>
+body                                                   72.7     14.0        0     14.0       43  OVER >>>
+if cond (true)                                         85.8     16.5        0     16.5       38  OVER >>>
+if cond (false)                                        86.6     16.7        0     16.7       38  OVER >>>
+int >=                                                 72.5     13.9        0     13.9       26  over
+chan type                                             159.2     30.6        0     30.6       57  over
+selector (method)                                     633.6    121.8       13    108.8       32  UNDER <<<
+int |                                                  70.8     13.6        0     13.6       23  over
+||                                                     84.1     16.2        0     16.2       26  over
+int -                                                  70.9     13.6        0     13.6        6  UNDER <<<
+panic                                                  70.9     13.6        0     13.6       21  over
+return                                                133.4     25.7        0     25.7       38  over
+&&                                                     85.2     16.4        0     16.4       24  over
+int >                                                  72.2     13.9        0     13.9       20  over
+int /                                                 145.4     28.0        0     28.0       16  UNDER <<<
+int *                                                  70.9     13.6        0     13.6       19  over
+float64 + (shares OpCPUAdd)                           150.7     29.0        0     29.0       18  UNDER <<<
+int <=                                                 72.1     13.9        0     13.9       19  over
+int <<                                                 83.8     16.1        0     16.1       22  over
+int &                                                  70.3     13.5        0     13.5        9  UNDER <<<
+int %%                                                138.7     26.7        0     26.7       18  UNDER <<<
+int +                                                  81.3     15.6        0     15.6       18  
+return from block                                     163.3     31.4        0     31.4       36  
+int &^                                                 70.3     13.5        0     13.5       15  
+int ^                                                  71.8     13.8        0     13.8       13  
+int <                                                  71.5     13.8        0     13.8       13  
+return to block                                       119.6     23.0        0     23.0       23  
+
+Notes:
+  - float64 + (151ns) and int + (81ns) share OpCPUAdd=18. Should be split.
+  - selector (method) allocates BoundMethodValue (alloc=5 gas); the remaining
+    CPU cost of 117 gas is severely undercharged at OpCPUSelector=32.
+  - precall has two very different code paths sharing one constant.
+
+==============================================================================================================
+SECTION 2: PARAMETERIZED OPS (need base + perN * N)
+==============================================================================================================
+
+Cost scales with parameter N. Alloc gas (from allocGas table) is subtracted
+to isolate CPU-only gas that incrCPU should charge.
+
+--- Eql (array) ---
+  Current: OpCPUEql = 160 (flat).  Dimension: N = elements
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      217.8       41.9          0       41.9
+      10     1411.0      271.3          0      271.3
+     100    13456.0     2587.7          0     2587.7
+    1000   132608.0    25501.5          0    25501.5
+
+  CPU gas formula: gas = 24 + 25.48 * N
+  At N=1000 : CPU needed=25502, current flat=160 (0.0x)
+
+--- Eql (struct) ---
+  Current: OpCPUEql = 160 (flat).  Dimension: N = fields
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      218.9       42.1          0       42.1
+      10     1368.0      263.1          0      263.1
+     100    12759.0     2453.7          0     2453.7
+    1000   134314.0    25829.6          0    25829.6
+
+  CPU gas formula: gas = 0 + 25.85 * N
+  At N=1000 : CPU needed=25830, current flat=160 (0.0x)
+
+--- Eql (byte array) ---
+  Current: OpCPUEql = 160 (flat).  Dimension: N = bytes (bytes.Equal — flat)
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1       81.6       15.7          0       15.7
+      10       80.7       15.5          0       15.5
+     100       83.5       16.1          0       16.1
+    1000      103.5       19.9          0       19.9
+
+  CPU gas formula: gas = 16 + 0.00 * N
+  At N=1000 : CPU needed=20, current flat=160 (8.0x)
+
+--- StructLit ---
+  Current: OpCPUStructLit = 179 (flat).  Dimension: N = fields
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      234.1       45.0         17       28.0
+      10      528.5      101.6         34       67.6
+     100     3422.0      658.1        205      453.1
+    1000    30692.0     5902.3       1640     4262.3
+
+  CPU gas formula: gas = 26 + 4.24 * N
+  At N=1000 : CPU needed=4262, current flat=179 (0.0x)
+
+--- ArrayLit ---
+  Current: OpCPUArrayLit = 137 (flat).  Dimension: N = elements
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      282.8       54.4         15       39.4
+      10      768.4      147.8         35      112.8
+     100     5619.0     1080.6        203      877.6
+    1000    51500.0     9903.8       1637     8266.8
+
+  CPU gas formula: gas = 38 + 8.23 * N
+  At N=1000 : CPU needed=8267, current flat=137 (0.0x)
+
+--- ArrayLit (uint8) ---
+  Current: OpCPUArrayLit = 137 (flat).  Dimension: N = bytes
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      206.5       39.7         13       26.7
+      10      286.8       55.2         14       41.2
+     100     1075.0      206.7         19      187.7
+    1000     9046.0     1739.6         64     1675.6
+
+  CPU gas formula: gas = 24 + 1.65 * N
+  At N=1000 : CPU needed=1676, current flat=137 (0.1x)
+
+--- SliceLit ---
+  Current: OpCPUSliceLit = 183 (flat).  Dimension: N = elements
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      295.1       56.8         20       36.8
+      10      609.0      117.1         40       77.1
+     100     3593.0      691.0        208      483.0
+    1000    31342.0     6027.3       1642     4385.3
+
+  CPU gas formula: gas = 38 + 4.35 * N
+  At N=1000 : CPU needed=4385, current flat=183 (0.0x)
+
+--- MapLit ---
+  Current: OpCPUMapLit = 475 (flat).  Dimension: N = entries
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      582.7      112.1         21       91.1
+      10     3085.0      593.3        103      490.3
+     100    28933.0     5564.0        877     4687.0
+    1000   322649.0    62047.9       8098    53949.9
+
+  CPU gas formula: gas = 0 + 54.13 * N
+  At N=1000 : CPU needed=53950, current flat=475 (0.0x)
+
+--- FuncLit ---
+  Current: OpCPUFuncLit = 61 (flat).  Dimension: N = captures
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       0      217.2       41.8         22       19.8
+       1      286.2       55.0         22       33.0
+      10      607.7      116.9         22       94.9
+     100     3812.0      733.1         22      711.1
+    1000    34599.0     6653.7         22     6631.7
+
+  CPU gas formula: gas = 31 + 6.60 * N
+  At N=1000 : CPU needed=6632, current flat=61 (0.0x)
+
+--- Call (params) ---
+  Current: OpCPUCall = 256 (flat).  Dimension: N = params
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       0      330.9       63.6         31       32.6
+     100     6095.0     1172.1        218      954.1
+
+  CPU gas formula: gas = 33 + 9.21 * N
+  At N=100  : CPU needed=954, current flat=256 (0.3x)
+
+--- Call (captures) ---
+  Current: OpCPUCall = 256 (flat).  Dimension: N = captures
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       0      330.9       63.6         31       32.6
+     100     4064.0      781.5        218      563.5
+
+  CPU gas formula: gas = 33 + 5.31 * N
+  At N=100  : CPU needed=564, current flat=256 (0.5x)
+
+--- Assign ---
+  Current: OpCPUAssign = 79 (flat).  Dimension: N = LHS targets
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      169.0       32.5          0       32.5
+      10      950.4      182.8          0      182.8
+     100     8880.0     1707.7          0     1707.7
+
+  CPU gas formula: gas = 15 + 16.93 * N
+  At N=100  : CPU needed=1708, current flat=79 (0.0x)
+
+--- Define ---
+  Current: OpCPUDefine = 111 (flat).  Dimension: N = LHS targets
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      151.4       29.1          0       29.1
+      10      894.6      172.0          0      172.0
+     100     8274.0     1591.2          0     1591.2
+
+  CPU gas formula: gas = 14 + 15.77 * N
+  At N=100  : CPU needed=1591, current flat=111 (0.1x)
+
+--- ForLoop HeapCopy ---
+  Current: OpCPUForLoop = 27 (flat).  Dimension: N = heap items copied per iteration
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       0       69.1       13.3          0       13.3
+       1      193.2       37.2         13       24.2
+      10     1195.0      229.8        130       99.8
+     100    11262.0     2165.8       1300      865.8
+    1000   114952.0    22106.2      13000     9106.2
+
+  CPU gas formula: gas = 0 + 9.10 * N
+  At N=1000 : CPU needed=9106, current flat=27 (0.0x)
+
+--- RangeIter ---
+  Current: OpCPURangeIter = 105 (flat).  Dimension: N = array length
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      270.2       52.0         15       37.0
+      10      410.9       79.0         35       44.0
+     100     1859.0      357.5        203      154.5
+    1000    16739.0     3219.0       1637     1582.0
+
+  CPU gas formula: gas = 22 + 1.56 * N
+  At N=1000 : CPU needed=1582, current flat=105 (0.1x)
+
+--- RangeIterString ---
+  Current: OpCPURangeIterString = 55 (flat).  Dimension: N = string length in runes
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1       89.2       17.2          0       17.2
+      10       76.6       14.7          0       14.7
+     100       83.5       16.1          0       16.1
+    1000       91.0       17.5          0       17.5
+
+  CPU gas formula: gas = 16 + 0.00 * N
+  At N=1000 : CPU needed=18, current flat=55 (3.1x)
+
+--- RangeIterMap ---
+  Current: OpCPURangeIterMap = 48 (flat).  Dimension: N = map size
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1       84.5       16.2          0       16.2
+      10       82.5       15.9          0       15.9
+     100       80.2       15.4          0       15.4
+    1000       73.7       14.2          0       14.2
+
+  CPU gas formula: gas = 16 + -0.00 * N
+  At N=1000 : CPU needed=14, current flat=48 (3.4x)
+
+--- TypeAssert (iface) ---
+  Current: OpCPUTypeAssert = 0 (flat).  Dimension: N = interface methods
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      208.8       40.2          0       40.2
+      10     1474.0      283.5          0      283.5
+     100    36436.0     7006.9          0     7006.9
+
+  CPU gas formula: gas = 0 + 72.13 * N
+  At N=100  : CPU needed=7007, current flat=0 (0.0x)
+
+--- TypeSwitch (concrete) ---
+  Current: OpCPUTypeSwitch = 171 (flat).  Dimension: N = cases
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      597.6      114.9          0      114.9
+      10     2859.0      549.8          0      549.8
+     100    25691.0     4940.6          0     4940.6
+
+  CPU gas formula: gas = 64 + 48.76 * N
+  At N=100  : CPU needed=4941, current flat=171 (0.0x)
+
+--- TypeSwitch (iface) ---
+  Current: OpCPUTypeSwitch = 171 (flat).  Dimension: N = interface methods per case
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      475.8       91.5          0       91.5
+      10     1782.0      342.7          0      342.7
+     100    34034.0     6545.0          0     6545.0
+
+  CPU gas formula: gas = 0 + 66.70 * N
+  At N=100  : CPU needed=6545, current flat=171 (0.0x)
+
+--- Selector (VPInterface) ---
+  Current: OpCPUSelector = 32 (flat).  Dimension: N = methods (findEmbeddedFieldType)
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      758.8      145.9         13      132.9
+      10      798.8      153.6         13      140.6
+     100     1250.0      240.4         13      227.4
+
+  CPU gas formula: gas = 132 + 0.96 * N
+  At N=100  : CPU needed=227, current flat=32 (0.1x)
+
+--- StructType ---
+  Current: OpCPUStructType = 174 (flat).  Dimension: N = fields
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      227.9       43.8         11       32.8
+      10      499.6       96.1         11       85.1
+     100     3489.0      671.0         11      660.0
+
+  CPU gas formula: gas = 24 + 6.36 * N
+  At N=100  : CPU needed=660, current flat=174 (0.3x)
+
+--- InterfaceType ---
+  Current: OpCPUInterfaceType = 75 (flat).  Dimension: N = methods
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      241.5       46.4         11       35.4
+      10      508.5       97.8         11       86.8
+     100     3261.0      627.1         11      616.1
+
+  CPU gas formula: gas = 29 + 5.87 * N
+  At N=100  : CPU needed=616, current flat=75 (0.1x)
+
+--- Eval NameExpr ---
+  Current: OpCPUEval = 29 (flat).  Dimension: N = block depth
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1       90.6       17.4          0       17.4
+      10      113.9       21.9          0       21.9
+     100      431.0       82.9          0       82.9
+
+  CPU gas formula: gas = 16 + 0.67 * N
+  At N=100  : CPU needed=83, current flat=29 (0.3x)
+
+--- Defer ---
+  Current: OpCPUDefer = 64 (flat).  Dimension: N = args
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1       69.2       13.3          0       13.3
+      10       77.3       14.9          0       14.9
+     100       77.9       15.0          0       15.0
+
+  CPU gas formula: gas = 14 + 0.01 * N
+  At N=100  : CPU needed=15, current flat=64 (4.3x)
+
+--- ValueDecl ---
+  Current: OpCPUValueDecl = 113 (flat).  Dimension: N = elements (alloc charged separately)
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      206.7       39.8          0       39.8
+      10     1180.0      226.9          0      226.9
+    1000    46879.0     9015.2          0     9015.2
+
+  CPU gas formula: gas = 84 + 8.93 * N
+  At N=1000 : CPU needed=9015, current flat=113 (0.0x)
+
+--- Convert Str to Runes ---
+  Current: OpCPUConvert = 16 (flat).  Dimension: N = runes
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      369.0       71.0         20       51.0
+      10      592.2      113.9         40       73.9
+     100     2856.0      549.2        208      341.2
+    1000    24363.0     4685.2       1642     3043.2
+
+  CPU gas formula: gas = 45 + 3.00 * N
+  At N=1000 : CPU needed=3043, current flat=16 (0.0x)
+
+--- Convert Runes to String ---
+  Current: OpCPUConvert = 16 (flat).  Dimension: N = runes
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+       1      257.8       49.6          5       44.6
+      10      377.0       72.5          6       66.5
+     100     1118.0      215.0         25      190.0
+    1000     8418.0     1618.8        195     1423.8
+
+  CPU gas formula: gas = 49 + 1.37 * N
+  At N=1000 : CPU needed=1424, current flat=16 (0.0x)
+
+--- Convert Str to Bytes ---
+  Current: OpCPUConvert = 16 (flat).  Dimension: N = bytes
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+      10      350.0       67.3         19       48.3
+     100      390.7       75.1         24       51.1
+    1000      695.3      133.7         69       64.7
+   10000     2442.0      469.6        466        3.6
+
+  CPU gas formula: gas = 56 + -0.01 * N
+  At N=10000: CPU needed=4, current flat=16 (4.4x)
+
+--- String Add ---
+  Current: OpCPUAdd = 18 (flat).  Dimension: N = total string length
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+      10      184.0       35.4          5       30.4
+     100      225.8       43.4          9       34.4
+    1000      621.6      119.5         56       63.5
+   10000     3998.0      768.8        453      315.8
+
+  CPU gas formula: gas = 32 + 0.03 * N
+  At N=10000: CPU needed=316, current flat=18 (0.1x)
+
+--- String Eql ---
+  Current: OpCPUEql = 160 (flat).  Dimension: N = string length (SIMD memcmp)
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+      10       90.2       17.4          0       17.4
+     100       92.6       17.8          0       17.8
+    1000       90.9       17.5          0       17.5
+   10000       90.5       17.4          0       17.4
+
+  CPU gas formula: gas = 18 + -0.00 * N
+  At N=10000: CPU needed=17, current flat=160 (9.2x)
+
+--- String Lss ---
+  Current: OpCPULss = 13 (flat).  Dimension: N = string length
+
+       N   ns(pure)   TotalGas   AllocGas  CPUNeeded
+  ----------------------------------------------------
+      10       81.4       15.6          0       15.6
+     100       95.1       18.3          0       18.3
+    1000      108.9       20.9          0       20.9
+   10000      326.7       62.8          0       62.8
+
+  CPU gas formula: gas = 17 + 0.00 * N
+  At N=10000: CPU needed=63, current flat=13 (0.2x)
+
+==============================================================================================================
+SECTION 3: BIGINT OPS
+==============================================================================================================
+
+Each BigInt op allocates one result (~232 bytes, alloc gas=13).
+CPU needed = total gas - 13.
+
+  Add:
+    1024 bits       296.5 ns  total=  57.0  cpu=  44.0
+    256 bits        260.6 ns  total=  50.1  cpu=  37.1
+    256x4096 bits    442.6 ns  total=  85.1  cpu=  72.1
+    4096 bits       429.7 ns  total=  82.6  cpu=  69.6
+    64 bits         242.2 ns  total=  46.6  cpu=  33.6
+    64x4096 bits    438.1 ns  total=  84.2  cpu=  71.2
+
+  Band:
+    1024 bits       267.1 ns  total=  51.4  cpu=  38.4
+    256 bits        229.3 ns  total=  44.1  cpu=  31.1
+    4096 bits       403.0 ns  total=  77.5  cpu=  64.5
+    64 bits         213.3 ns  total=  41.0  cpu=  28.0
+
+  Bandn:
+    1024 bits       277.9 ns  total=  53.4  cpu=  40.4
+    256 bits        228.3 ns  total=  43.9  cpu=  30.9
+    4096 bits       456.7 ns  total=  87.8  cpu=  74.8
+    64 bits         215.1 ns  total=  41.4  cpu=  28.4
+
+  Bor:
+    1024 bits       262.1 ns  total=  50.4  cpu=  37.4
+    256 bits        232.5 ns  total=  44.7  cpu=  31.7
+    4096 bits       410.7 ns  total=  79.0  cpu=  66.0
+    64 bits         215.0 ns  total=  41.3  cpu=  28.3
+
+  Dec:
+    1024 bits       337.9 ns  total=  65.0  cpu=  52.0
+    256 bits        288.2 ns  total=  55.4  cpu=  42.4
+    4096 bits       486.8 ns  total=  93.6  cpu=  80.6
+    64 bits         241.5 ns  total=  46.4  cpu=  33.4
+
+  Eql:
+    1024 bits       100.9 ns  total=  19.4  cpu=   6.4
+    256 bits         95.0 ns  total=  18.3  cpu=   5.3
+    4096 bits       132.9 ns  total=  25.6  cpu=  12.6
+    64 bits          90.8 ns  total=  17.5  cpu=   4.5
+
+  Inc:
+    1024 bits       321.9 ns  total=  61.9  cpu=  48.9
+    256 bits        280.5 ns  total=  53.9  cpu=  40.9
+    4096 bits       490.8 ns  total=  94.4  cpu=  81.4
+    64 bits         251.3 ns  total=  48.3  cpu=  35.3
+
+  Lss:
+    1024 bits        87.7 ns  total=  16.9  cpu=   3.9
+    256 bits         79.1 ns  total=  15.2  cpu=   2.2
+    4096 bits       111.9 ns  total=  21.5  cpu=   8.5
+    64 bits          86.5 ns  total=  16.6  cpu=   3.6
+
+  Mul:
+    1024 bits       569.9 ns  total= 109.6  cpu=  96.6
+    256 bits        305.9 ns  total=  58.8  cpu=  45.8
+    256x1024 bits    357.7 ns  total=  68.8  cpu=  55.8
+    256x4096 bits    580.9 ns  total= 111.7  cpu=  98.7
+    4096 bits      2529.0 ns  total= 486.3  cpu= 473.3
+    64 bits         246.5 ns  total=  47.4  cpu=  34.4
+    64x1024 bits    295.7 ns  total=  56.9  cpu=  43.9
+    64x4096 bits    453.0 ns  total=  87.1  cpu=  74.1
+
+  Quo:
+    1024 bits       832.1 ns  total= 160.0  cpu= 147.0
+    1024x64 bits    455.0 ns  total=  87.5  cpu=  74.5
+    256 bits        561.1 ns  total= 107.9  cpu=  94.9
+    4096 bits      2602.0 ns  total= 500.4  cpu= 487.4
+    4096x256 bits   2279.0 ns  total= 438.3  cpu= 425.3
+    4096x64 bits    893.4 ns  total= 171.8  cpu= 158.8
+    64 bits         306.3 ns  total=  58.9  cpu=  45.9
+
+  Rem:
+    1024 bits       810.0 ns  total= 155.8  cpu= 142.8
+    256 bits        548.7 ns  total= 105.5  cpu=  92.5
+    4096 bits      2592.0 ns  total= 498.5  cpu= 485.5
+    4096x256 bits   2325.0 ns  total= 447.1  cpu= 434.1
+    4096x64 bits    895.3 ns  total= 172.2  cpu= 159.2
+    64 bits         293.9 ns  total=  56.5  cpu=  43.5
+
+  Shl:
+    10 bits         241.6 ns  total=  46.5  cpu=  33.5
+    100 bits        240.2 ns  total=  46.2  cpu=  33.2
+    1000 bits       279.2 ns  total=  53.7  cpu=  40.7
+    10000 bits      611.8 ns  total= 117.7  cpu= 104.7
+
+  Shr:
+    10 bits         701.0 ns  total= 134.8  cpu= 121.8
+    100 bits        669.2 ns  total= 128.7  cpu= 115.7
+    1000 bits       666.3 ns  total= 128.1  cpu= 115.1
+    10000 bits      223.4 ns  total=  43.0  cpu=  30.0
+
+  Sub:
+    1024 bits       299.2 ns  total=  57.5  cpu=  44.5
+    256 bits        247.1 ns  total=  47.5  cpu=  34.5
+    4096 bits       495.2 ns  total=  95.2  cpu=  82.2
+    64 bits         233.1 ns  total=  44.8  cpu=  31.8
+
+  Uneg:
+    1024 bits       260.3 ns  total=  50.1  cpu=  37.1
+    256 bits        226.5 ns  total=  43.6  cpu=  30.6
+    4096 bits       390.1 ns  total=  75.0  cpu=  62.0
+    64 bits         213.5 ns  total=  41.1  cpu=  28.1
+
+  Uxor:
+    1024 bits       267.0 ns  total=  51.3  cpu=  38.3
+    256 bits        233.5 ns  total=  44.9  cpu=  31.9
+    4096 bits       393.1 ns  total=  75.6  cpu=  62.6
+    64 bits         218.7 ns  total=  42.1  cpu=  29.1
+
+  Xor:
+    1024 bits       279.2 ns  total=  53.7  cpu=  40.7
+    256 bits        238.4 ns  total=  45.8  cpu=  32.8
+    4096 bits       450.3 ns  total=  86.6  cpu=  73.6
+    64 bits         211.4 ns  total=  40.7  cpu=  27.7
+
+==============================================================================================================
+SECTION 4: BIGDEC OPS
+==============================================================================================================
+
+Each BigDec op allocates one result (~232 bytes, alloc gas=13).
+
+  Add:
+    10 digits         243.4 ns  total=    46.8  cpu=    33.8
+    100 digits        401.9 ns  total=    77.3  cpu=    64.3
+    1000 digits      2779.0 ns  total=   534.4  cpu=   521.4
+    10000 digits    36126.0 ns  total=  6947.3  cpu=  6934.3
+
+  Dec:
+    10 digits         249.8 ns  total=    48.0  cpu=    35.0
+    100 digits        413.6 ns  total=    79.5  cpu=    66.5
+    1000 digits      2802.0 ns  total=   538.8  cpu=   525.8
+    10000 digits    36159.0 ns  total=  6953.7  cpu=  6940.7
+
+  Inc:
+    10 digits         251.7 ns  total=    48.4  cpu=    35.4
+    100 digits        420.2 ns  total=    80.8  cpu=    67.8
+    1000 digits      2751.0 ns  total=   529.0  cpu=   516.0
+    10000 digits    36172.0 ns  total=  6956.2  cpu=  6943.2
+
+  Mul:
+    10 digits         237.5 ns  total=    45.7  cpu=    32.7
+    100 digits       1712.0 ns  total=   329.2  cpu=   316.2
+    1000 digits     24483.0 ns  total=  4708.3  cpu=  4695.3
+    10000 digits   573091.0 ns  total=110209.8  cpu=110196.8
+
+  Quo:
+    10 digits        8697.0 ns  total=  1672.5  cpu=  1659.5
+    100 digits       8485.0 ns  total=  1631.7  cpu=  1618.7
+    1000 digits     18589.0 ns  total=  3574.8  cpu=  3561.8
+    10000 digits   139733.0 ns  total= 26871.7  cpu= 26858.7
+
+  Sub:
+    10 digits         230.4 ns  total=    44.3  cpu=    31.3
+    100 digits        324.3 ns  total=    62.4  cpu=    49.4
+    1000 digits       507.8 ns  total=    97.7  cpu=    84.7
+    10000 digits     2272.0 ns  total=   436.9  cpu=   423.9
+
+  Uneg:
+    10 digits         189.3 ns  total=    36.4  cpu=    23.4
+    100 digits        304.5 ns  total=    58.6  cpu=    45.6
+    1000 digits       432.0 ns  total=    83.1  cpu=    70.1
+    10000 digits     1506.0 ns  total=   289.6  cpu=   276.6
+
+==============================================================================================================
+SECTION 5: TOP 30 MOST EXPENSIVE / 20 CHEAPEST
+==============================================================================================================
+
+--- Top 30 ---
+Benchmark                                                      ns(pure)   TotalGas
+----------------------------------------------------------------------------------
+OpMul_BigDec_10000                                             573091.0   110209.8
+OpSliceLit2_Sparse_10000                                       322881.0    62092.5
+OpMapLit_1000                                                  322649.0    62047.9
+OpQuo_BigDec_10000                                             139733.0    26871.7
+OpEql_Struct_1000                                              134314.0    25829.6
+OpEql_Array_1000                                               132608.0    25501.5
+OpForLoop_HeapCopy_1000                                        114952.0    22106.2
+OpArrayLit_1000                                                 51500.0     9903.8
+OpValueDecl_DefaultArray1000                                    46879.0     9015.2
+OpTypeAssert1_Interface_100                                     36436.0     7006.9
+OpInc_BigDec_10000                                              36172.0     6956.2
+OpDec_BigDec_10000                                              36159.0     6953.7
+OpAdd_BigDec_10000                                              36126.0     6947.3
+OpFuncLit_Captures_1000                                         34599.0     6653.7
+OpTypeAssert2_Interface_Hit_100                                 34223.0     6581.3
+OpTypeSwitch_Interface_100                                      34034.0     6545.0
+OpSliceLit2_Sparse_1000                                         33611.0     6463.7
+OpSliceLit_1000                                                 31342.0     6027.3
+OpStructLit_1000                                                30692.0     5902.3
+OpMapLit_100                                                    28933.0     5564.0
+OpTypeSwitch_100                                                25691.0     4940.6
+OpMul_BigDec_1000                                               24483.0     4708.3
+OpConvert_StringToRunes_1000                                    24363.0     4685.2
+OpQuo_BigDec_1000                                               18589.0     3574.8
+OpRangeIter_1000                                                16739.0     3219.0
+OpEql_Array_100                                                 13456.0     2587.7
+OpEql_Struct_100                                                12759.0     2453.7
+OpForLoop_HeapCopy_100                                          11262.0     2165.8
+OpArrayLit_Uint8_1000                                            9046.0     1739.6
+OpAssign_100                                                     8880.0     1707.7
+
+--- 20 cheapest ---
+Benchmark                                                      ns(pure)   TotalGas
+----------------------------------------------------------------------------------
+OpUpos                                                             64.7       12.4
+OpBinary1_LAND_False                                               65.9       12.7
+OpUxor                                                             68.4       13.2
+OpBinary1_LAND_True                                                68.5       13.2
+OpUnot                                                             68.8       13.2
+OpForLoop_HeapCopy_0                                               69.1       13.3
+OpUneg                                                             69.2       13.3
+OpDefer_1Arg                                                       69.2       13.3
+OpBand                                                             70.3       13.5
+OpBandn                                                            70.3       13.5
+OpBor                                                              70.8       13.6
+OpSub_Int                                                          70.9       13.6
+OpPanic2                                                           70.9       13.6
+OpMul_Int                                                          70.9       13.6
+OpLss                                                              71.5       13.8
+OpXor                                                              71.8       13.8
+OpLeq                                                              72.1       13.9
+OpGtr                                                              72.2       13.9
+OpGeq                                                              72.5       13.9
+OpBody                                                             72.7       14.0
+
+==============================================================================================================
+SECTION 6: HIGH VARIANCE (max/min > 1.10)
+==============================================================================================================
+
+Benchmark                                                      Min        Max    Max/Min
+----------------------------------------------------------------------------------------
+OpAddAssign_Int                                               96.4      111.0       1.15x
+OpBandAssign_Int                                              88.9      102.1       1.15x
+OpBorAssign_Int                                               86.0       96.6       1.12x
+OpDec_Int                                                     79.9       88.8       1.11x
+OpDefer_100Args                                               69.8       81.6       1.17x
+OpDefer_10Args                                                73.7       86.8       1.18x
+OpEql_ByteArray_1000                                          98.7      110.5       1.12x
+OpEval_NameExpr_Depth100                                     386.5      442.0       1.14x
+OpInc_Int                                                     80.4       93.2       1.16x
+OpInterfaceType_1                                            221.6      247.5       1.12x
+OpLss_String_100                                              86.3       97.3       1.13x
+OpMul_Float64                                                139.2      153.2       1.10x
+OpPrecall_TypeConversion                                      72.5       84.3       1.16x
+OpRangeIterMap_10                                             73.0       88.7       1.22x
+OpRangeIterMap_100                                            73.2       81.4       1.11x
+OpRangeIterString_100                                         76.4       84.9       1.11x
+OpRangeIterString_1000                                        79.1       91.3       1.15x
+OpShl_2                                                       80.4       97.0       1.21x
+OpShl_32                                                      79.2       88.5       1.12x
+OpShl_62                                                      79.1       92.5       1.17x
+OpStructType_100                                            2979.0     3496.0       1.17x
+OpSubAssign_Int                                               88.7      101.8       1.15x
+OpTypeAssert1_Interface_100                                33394.0    37471.0       1.12x
+OpTypeAssert2_Hit                                             83.4       95.2       1.14x
+OpUpos                                                        63.4       70.2       1.11x
+25 / 350 benchmarks exceed 10% variance.
+
+==============================================================================================================
+SECTION 7: RECOMMENDED CHANGES
+==============================================================================================================
+
+A. Fix wrong flat constants:
+
+  Constant                        Current    Ideal  
+  --------------------------------------------------------------------------------
+  OpCPUSub                              6       14  same CPU cost as Mul/Band
+  OpCPUQuo                             16       28  int division is 2x costlier than int add
+  OpCPURem                             18       27  same as Quo
+  OpCPUBand                             9       14  all bitwise ops cost ~70ns
+  OpCPUSelector                        32      117  method path: alloc=5 + CPU=117
+  OpCPUEql                            160       16  for int only; array/struct needs formula
+  OpCPUSwitchClauseCase               143       20  7x overcharged
+  OpCPUBody                            43       14  3x overcharged
+  OpCPUIfCond                          38       17  2x overcharged
+  OpCPUIndex1                          77       20  4x overcharged
+  OpCPUPrecall                        207       16  type-conv=81ns, bound-method=207ns; needs split
+
+B. Convert to base + perN formulas (CPU gas only, alloc gas is separate):
+   Formulas from least-squares fit on benchmark data with alloc gas subtracted.
+
+  Op                                      CPU Formula  Exposure at max tested N
+  -----------------------------------------------------------------------------------------------
+  MapLit                                base=0 + 54*N  N=1000: CPU=53950, charged 475
+  Eql (array)                          base=24 + 25*N  N=1000: CPU=25502, charged 160
+  Eql (struct)                          base=0 + 26*N  N=1000: CPU=25830, charged 160
+  ForLoop HeapCopy                      base=0 + 9*N   N=1000: CPU=9106, charged 27
+  ValueDecl (default)                  base=84 + 9*N   N=1000: CPU=9015, charged 113
+  ArrayLit                             base=38 + 8*N   N=1000: CPU=8267, charged 137
+  TypeAssert (iface)                             72*N  N=100: CPU=7007, charged 160
+  FuncLit Captures                     base=31 + 7*N   N=1000: CPU=6632, charged 61
+  TypeSwitch (iface)                             67*N  N=100: CPU=6545, charged 171
+  TypeSwitch (concrete)                base=64 + 49*N  N=100: CPU=4941, charged 171
+  SliceLit                             base=38 + 4*N   N=1000: CPU=4385, charged 183
+  StructLit                            base=26 + 4*N   N=1000: CPU=4262, charged 179
+  Convert Str to Runes                 base=45 + 3*N   N=1000: CPU=3043, charged 16
+  Assign                               base=15 + 17*N  N=100: CPU=1708, charged 79
+  Define                               base=14 + 16*N  N=100: CPU=1591, charged 111
+  RangeIter                            base=22 + 2*N   N=1000: CPU=1582, charged 105
+  Convert Runes to String              base=49 + 1*N   N=1000: CPU=1424, charged 16
+  Call (params)                        base=33 + 9*N   N=100: CPU=954, charged 256
+  StructType                           base=24 + 6*N   N=100: CPU=660, charged 174
+  InterfaceType                        base=29 + 6*N   N=100: CPU=616, charged 75
+  Call (captures)                      base=33 + 5*N   N=100: CPU=564, charged 256
+  String Add                          base=32 + 0.03*N N=10000: CPU=316, charged 18
+  Selector (VPInterface)              base=132 + 1*N   N=100: CPU=227, charged 32
+
+  NOTE: No parameterized op is "negligible." Even tiny per-element costs (e.g.
+  bytes.Equal at 0.02 ns/byte) become exploitable at scale. At N=10M (within
+  memory limits), 0.02 ns/byte = 200,000ns = ~38,000 gas uncharged. Every op
+  with any scaling dimension needs a formula, regardless of how small the slope
+  appears at benchmark scale. The benchmarks only test up to N=1000-10000; an
+  attacker will push N to the memory limit.
+
+  Ops with very small slopes still need formulas:
+  - Eql (byte array):   bytes.Equal 0.02 ns/byte — N=10M → 38,000 gas uncharged
+  - String Eql:         memcmp ~0.001 ns/byte — N=10M → 1,900 gas uncharged
+  - String Lss:         memcmp ~0.03 ns/byte — N=10M → 57,700 gas uncharged
+  - Convert Str→Bytes:  memcpy ~0.01 ns/byte — N=10M → 19,200 gas uncharged
+  - RangeIterString:    per-rune cost unclear at N>1000 — needs larger benchmarks
+  - RangeIterMap:       per-entry cost unclear at N>1000 — needs larger benchmarks
+  - Defer:              per-arg cost unclear at N>100 — needs larger benchmarks
+
+C. BigInt/BigDec: need operand-size-dependent formulas (see Sections 3-4).
+
+Total unique benchmarks: 350

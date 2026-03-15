@@ -11,6 +11,7 @@ import (
 	"github.com/cockroachdb/apd/v3"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // bench_ops_test.go: Go-level microbenchmarks for GnoVM op handlers.
@@ -23,11 +24,23 @@ const (
 	bmTarget = byte(0x02) // op code for the measured operation
 )
 
+// benchAllocMeter tracks allocation gas across the benchmark.
+// Set by benchMachine(), read by reportBenchops().
+var benchAllocMeter store.GasMeter
+
 func benchMachine() *Machine {
+	benchAllocMeter = store.NewGasMeter(math.MaxInt64)
+	alloc := NewAllocator(math.MaxInt64)
 	m := NewMachineWithOptions(MachineOptions{
 		PkgPath: "bench",
 		Output:  io.Discard,
+		Alloc:   alloc,
 	})
+	// Set alloc gas meter AFTER construction, so it doesn't get
+	// overwritten by NewMachineWithOptions (which sets alloc.gasMeter
+	// to opts.GasMeter). We intentionally don't set opts.GasMeter
+	// to avoid enabling CPU gas metering via incrCPU.
+	alloc.SetGasMeter(benchAllocMeter)
 	return m
 }
 
@@ -38,6 +51,11 @@ func reportBenchops(b *testing.B) {
 	if count > 0 {
 		avgNs := float64(bm.OpAccumDur(bmTarget).Nanoseconds()) / float64(count)
 		b.ReportMetric(avgNs, "ns/op(pure)")
+	}
+	if benchAllocMeter != nil && b.N > 0 {
+		// One-time setup allocs are amortized to ~0 across b.N iterations.
+		allocGas := float64(benchAllocMeter.GasConsumed()) / float64(b.N)
+		b.ReportMetric(allocGas, "alloc-gas/op")
 	}
 }
 
