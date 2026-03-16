@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"time"
@@ -27,7 +28,7 @@ const (
 )
 
 // url & struct for verify captcha
-var siteVerifyURL = "https://hcaptcha.com/siteverify"
+var siteVerifyURL = "https://api.hcaptcha.com/siteverify"
 
 const (
 	ipv6Loopback = "::1"
@@ -55,6 +56,7 @@ type serveCfg struct {
 
 	remote        string
 	isBehindProxy bool
+	logLevel      string
 }
 
 func newServeCmd() *commands.Command {
@@ -127,6 +129,23 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"use X-Forwarded-For IP for throttling",
 	)
+
+	fs.StringVar(
+		&c.logLevel,
+		"log-level",
+		"info",
+		"log level (debug, info, warn, error)",
+	)
+}
+
+// newLogger constructs a JSON structured logger at the configured level.
+func (c *serveCfg) newLogger(io commands.IO) (*slog.Logger, error) {
+	var level zapcore.Level
+	if err := level.UnmarshalText([]byte(c.logLevel)); err != nil {
+		return nil, fmt.Errorf("invalid log level %q: %w", c.logLevel, err)
+	}
+
+	return log.ZapLoggerToSlog(log.NewZapJSONLogger(io.Out(), level)), nil
 }
 
 // generateFaucetConfig generates the Faucet configuration
@@ -147,7 +166,7 @@ func (c *serveCfg) generateFaucetConfig() *config.Config {
 func serveFaucet(
 	ctx context.Context,
 	cfg *serveCfg,
-	io commands.IO,
+	logger *slog.Logger,
 	opts ...faucet.Option,
 ) error {
 	// Parse static gas values.
@@ -177,14 +196,6 @@ func serveFaucet(
 	if err != nil {
 		return fmt.Errorf("unable to create TM2 client, %w", err)
 	}
-
-	// Set up the logger
-	logger := log.ZapLoggerToSlog(
-		log.NewZapJSONLogger(
-			io.Out(),
-			zapcore.DebugLevel,
-		),
-	)
 
 	faucetOpts := []faucet.Option{
 		faucet.WithLogger(logger),
