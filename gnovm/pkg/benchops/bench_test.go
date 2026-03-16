@@ -63,13 +63,16 @@ func TestSwitchOpCode_InvalidCode_Panics(t *testing.T) {
 func TestResumeOpCode(t *testing.T) {
 	InitMeasure()
 
-	SwitchOpCode(0x01)        // start A (count=1)
-	old := SwitchOpCode(0x02) // A -> B
+	SwitchOpCode(0x01)              // start op A (count=1)
+	old := StartStore(0x10)         // pause op A, start store
 	if old != 0x01 {
 		t.Fatalf("expected old 0x01, got %#x", old)
 	}
+	if measure.curOpCode != invalidCode {
+		t.Fatalf("curOpCode should be invalidCode during store, got %#x", measure.curOpCode)
+	}
 
-	ResumeOpCode(0x01) // resume A — count should stay 1
+	ResumeOpCode(old) // resume op A — count should stay 1
 
 	if measure.opCounts[0x01] != 1 {
 		t.Fatalf("resume should not increment count; got %d", measure.opCounts[0x01])
