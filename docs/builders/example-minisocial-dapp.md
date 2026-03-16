@@ -238,7 +238,7 @@ func (p Post) String() string {
 ```
 
 Here, package `ufmt` is used to provide string formatting functionality. It can
-be imported via with `gno.land/p/nt/ufmt`.
+be imported via with `gno.land/p/nt/ufmt/v0`.
 
 With this, we can expand our `Render()` function in `posts.gno` as follows:
 
@@ -246,7 +246,7 @@ With this, we can expand our `Render()` function in `posts.gno` as follows:
 ```go
 package minisocial
 
-import "gno.land/p/nt/ufmt" // Gno counterpart to `fmt`, for formatting strings
+import "gno.land/p/nt/ufmt/v0" // Gno counterpart to `fmt`, for formatting strings
 
 func Render(_ string) string {
 	output := "# MiniSocial\n\n" // \n is needed just like in standard Markdown
@@ -289,7 +289,7 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/testutils" // Provides testing utilities
+	"gno.land/p/nt/testutils/v0" // Provides testing utilities
 )
 
 func TestCreatePostSingle(t *testing.T) {

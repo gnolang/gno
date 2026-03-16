@@ -356,9 +356,9 @@ in the [Querying a network](#querying-a-gnoland-network) section.
 ## `Run`
 
 With the `Run` message, you can write a snippet of Gno code and run it against
-code on the chain. For this example, we will use the [Userbook realm](https://gno.land/r/demo/userbook),
-which simply allows you to register the fact that you have interacted with it.
-It contains a simple `SignUp()` function, which we will call with `Run`.
+code on the chain. For this example, we will use the [Counter realm](https://gno.land/r/demo/counter),
+which maintains a simple counter that can be incremented.
+It contains a simple `Increment()` function, which we will call with `Run`.
 
 To understand how to use the `Run` message better, let's write a simple `script.gno`
 file. First, create a folder which will store our script.
@@ -382,16 +382,16 @@ Now, we should have the following folder structure:
 ```
 
 In the `script.gno` file, first define the package to be `main`. Then we can import
-the Userbook realm and define a `main()` function with no return values that will
-be automatically detected and run. In it, we can call the `SignUp()` function.
+the Counter realm and define a `main()` function with no return values that will
+be automatically detected and run. In it, we can call the `Increment()` function.
 
 ```go
 package main
 
-import "gno.land/r/demo/userbook"
+import "gno.land/r/demo/counter"
 
 func main() {
-	println(userbook.SignUp())
+	println(counter.Increment())
 }
 ```
 
@@ -426,7 +426,7 @@ to the following example realm:
 ```go
 package foo
 
-import "gno.land/p/nt/ufmt"
+import "gno.land/p/nt/ufmt/v0"
 
 var (
 	MainFoo *Foo
@@ -591,14 +591,14 @@ without the `-broadcast` flag, while redirecting the output to a local file:
 
 ```bash
 gnokey maketx call \
--pkgpath "gno.land/r/demo/userbook" \
--func "SignUp" \
+-pkgpath "gno.land/r/demo/counter" \
+-func "Increment" \
 -gas-fee 1000000ugnot \
 -gas-wanted 2000000 \
-mykey > userbook.tx
+mykey > counter.tx
 ```
 
-This will create a `userbook.tx` file with a null `signature` field.
+This will create a `counter.tx` file with a null `signature` field.
 Now we are ready to sign the transaction.
 
 ### 3. Signing the transaction
@@ -606,14 +606,14 @@ Now we are ready to sign the transaction.
 To add a signature to the transaction, we can use the `gnokey sign` subcommand.
 To sign, we must set the correct flags for the subcommand:
 
-- `-tx-path` - path to the transaction file to sign, in our case, `userbook.tx`
+- `-tx-path` - path to the transaction file to sign, in our case, `counter.tx`
 - `-chainid` - id of the chain to sign for
 - `-account-number` - number of the account fetched previously
 - `-account-sequence` - sequence of the account fetched previously
 
 ```bash
 gnokey sign \
--tx-path userbook.tx \
+-tx-path counter.tx \
 -chainid "staging" \
 -account-number 468 \
 -account-sequence 0 \
@@ -622,7 +622,7 @@ mykey
 
 After inputting the correct values, `gnokey` will ask for the password to decrypt
 the key pair. Once we input the password, we should receive the message that the
-signing was completed. If we open the `userbook.tx` file, we will be able to see
+signing was completed. If we open the `counter.tx` file, we will be able to see
 that the signature field has been populated.
 
 We are now ready to broadcast this transaction to the chain.
@@ -633,7 +633,7 @@ To broadcast the signed transaction to the chain, we can use the `gnokey broadca
 subcommand, giving it the path to the signed transaction:
 
 ```bash
-gnokey broadcast -remote "https://rpc.gno.land:443" userbook.tx
+gnokey broadcast -remote "https://rpc.gno.land:443" counter.tx
 ```
 
 In this case, we do not need to specify a key pair, as the transaction has already
@@ -647,7 +647,7 @@ flag, provide the key we signed the transaction with, and the signature itself.
 Make sure the signature is in the `hex` format.
 
 ```bash
-gnokey verify -docpath userbook.tx mykey <signature>
+gnokey verify -docpath counter.tx mykey <signature>
 ```
 
 ## Using a k-of-n multisig
@@ -1200,8 +1200,8 @@ import (
         "std"
         "strings"
 
-        "gno.land/p/nt/grc/grc20"
-        "gno.land/p/nt/ufmt"
+        "gno.land/p/demo/tokens/grc20"
+        "gno.land/p/nt/ufmt/v0"
         pusers "gno.land/p/demo/users"
         "gno.land/r/demo/users"
 )
@@ -1362,8 +1362,6 @@ gno.land/r/gnoland/coins
 gno.land/r/gnoland/events
 gno.land/r/gnoland/home
 gno.land/r/gnoland/pages
-gno.land/r/gnoland/users
-gno.land/r/gnoland/users/v1
 ```
 
 The result limit can also be specified in the following manner (mind the added

@@ -1494,3 +1494,13 @@ func toBigInt(d *apd.Decimal) *big.Int {
 	}
 	return bi
 }
+
+// IsExactBigDec checks if v is a BigdecValue that can be represented
+// as an integer without loss of precision. This is true only if its
+// underlying value has no fractional component.
+func IsExactBigDec(v Value) bool {
+	if bd, ok := v.(BigdecValue); ok {
+		return isInteger(bd.V)
+	}
+	return false
+}

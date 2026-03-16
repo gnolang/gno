@@ -5,19 +5,19 @@ on:
     branches:
       - master
     paths:
-      - '**/*.go'
-      - 'misc/genproto/**'
+      - "**/*.go"
+      - "misc/genproto/**"
   pull_request:
     paths:
-      - '**/*.go'
-      - 'misc/genproto/**'
+      - "**/*.go"
+      - "misc/genproto/**"
   workflow_dispatch:
     inputs:
       go-version:
         description: "Go version to use"
         required: false
         type: string
-        default: "1.23.x"
+        default: "1.24.x"
 
 jobs:
   main:
@@ -27,10 +27,10 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ inputs.go-version || '1.23.x' }}
+          go-version: ${{ inputs.go-version || '1.24.x' }}
 
       - name: Install protoc
-        run: sudo apt install -y libprotobuf-dev protobuf-compiler
+        run: sudo apt update && sudo apt install -y libprotobuf-dev protobuf-compiler
 
       - name: Checkout code
         uses: actions/checkout@v5

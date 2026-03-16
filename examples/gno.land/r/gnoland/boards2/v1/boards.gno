@@ -8,7 +8,7 @@ import (
 	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // TODO: Refactor globals in favor of a cleaner pattern
@@ -30,8 +30,8 @@ var (
 	gBoardsSequence = boards.NewIdentifierGenerator()
 	gRealmPath      = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land")
 	gPerms          = initRealmPermissions(
-		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", // @devx
-		"g1manfred47kzduec920z88wfr64ylksmdcedlf5", // @moul
+		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+		"g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", // govdao t1 multisig
 	)
 
 	// TODO: Allow updating open account amount though a proposal (GovDAO, CommonDAO?)
@@ -101,10 +101,16 @@ func getThread(board *boards.Board, threadID boards.ID) (*boards.Post, bool) {
 	thread, found := board.Threads.Get(threadID)
 	if !found {
 		// When thread is not found search it within hidden threads
-		meta := board.Meta.(*Meta)
+		meta := board.Meta.(*BoardMeta)
 		thread, found = meta.HiddenThreads.Get(threadID)
 	}
 	return thread, found
+}
+
+// getReply returns a thread comment or reply.
+func getReply(thread *boards.Post, replyID boards.ID) (*boards.Post, bool) {
+	meta := thread.Meta.(*ThreadMeta)
+	return meta.AllReplies.Get(replyID)
 }
 
 // mustGetThread returns a thread or panics when it's not found.
@@ -118,7 +124,7 @@ func mustGetThread(board *boards.Board, threadID boards.ID) *boards.Post {
 
 // mustGetReply returns a reply or panics when it's not found.
 func mustGetReply(thread *boards.Post, replyID boards.ID) *boards.Post {
-	reply, found := thread.Replies.Get(replyID)
+	reply, found := getReply(thread, replyID)
 	if !found {
 		panic("reply does not exist with ID: " + replyID.String())
 	}
