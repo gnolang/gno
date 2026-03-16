@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIndexLayout(t *testing.T) {
@@ -294,6 +295,65 @@ func TestViewModePredicates(t *testing.T) {
 			assert.Equal(t, tc.wantPackage, tc.mode.IsPackage(), "IsPackage")
 			assert.Equal(t, tc.wantHome, tc.mode.IsHome(), "IsHome")
 			assert.Equal(t, tc.wantUser, tc.mode.IsUser(), "IsUser")
+		})
+	}
+}
+
+func TestIndexLayout_ThemePropagation(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name          string
+		theme         string
+		wantAttr      string
+		wantNoDataTag bool
+	}{
+		{
+			name:     "success: dark theme rendered in HTML",
+			theme:    "dark",
+			wantAttr: `data-theme="dark"`,
+		},
+		{
+			name:     "success: light theme rendered in HTML",
+			theme:    "light",
+			wantAttr: `data-theme="light"`,
+		},
+		{
+			name:          "edge: empty theme omits data-theme attribute",
+			theme:         "",
+			wantNoDataTag: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := IndexData{
+				HeadData: HeadData{
+					Title: "Test",
+				},
+				Mode:  ViewModeHome,
+				Theme: tc.theme,
+				BodyView: &View{
+					Type:      "test-view",
+					Component: NewReaderComponent(strings.NewReader("testdata")),
+				},
+			}
+
+			component := IndexLayout(data)
+
+			var buf strings.Builder
+			err := component.Render(&buf)
+			require.NoError(t, err, "expected no render error")
+
+			output := buf.String()
+			if tc.wantNoDataTag {
+				assert.NotContains(t, output, `data-theme=`, "expected no data-theme attribute")
+			} else {
+				assert.Contains(t, output, tc.wantAttr, "expected HTML to contain %s", tc.wantAttr)
+			}
 		})
 	}
 }
