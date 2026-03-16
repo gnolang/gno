@@ -43,6 +43,9 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 }
 
 // pathRestricted is satisfied by GnoSessionAccount without importing gno.land.
+// If the session account type doesn't implement this, allowPaths will be nil
+// (meaning "unrestricted"), which is the correct semantic — the session has
+// no path restrictions configured at the protocol level.
 type pathRestricted interface{ GetAllowPaths() []string }
 
 func X_getSessionInfo(m *gno.Machine) (pubKeyAddr string, expiresAt int64, allowPaths []string, isSession bool) {
