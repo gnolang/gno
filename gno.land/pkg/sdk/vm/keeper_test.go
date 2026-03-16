@@ -1651,3 +1651,40 @@ func Hello(cur realm) string { return "hello" }`},
 	err := env.vmk.AddPackage(ctx, userMsg)
 	assert.NoError(t, err, "should allow deployment when CLA realm is not deployed (bootstrap)")
 }
+
+func TestCheckNamespacePermission_GenesisSkipsEnforcement(t *testing.T) {
+	env := setupTestEnv()
+
+	// Create a context at genesis height (0) using the same multistore.
+	genesisCtx := env.ctx.WithBlockHeader(&bft.Header{ChainID: "test-chain-id", Height: 0})
+	ctx := env.vmk.MakeGnoTransactionStore(genesisCtx)
+
+	// Set sysnames_pkgpath to a non-empty value and deploy the sys/names package
+	// so the first two early returns (empty pkgpath / package not deployed) are not triggered.
+	params := DefaultParams()
+	params.SysNamesPkgPath = "gno.land/r/sys/names"
+	env.vmk.SetParams(ctx, params)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	sysNamesFiles := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest("gno.land/r/sys/names")},
+		{Name: "names.gno", Body: `package names
+
+func IsAuthorizedAddressForNamespace(address_XXX string, namespace string) bool {
+	return false
+}`},
+	}
+	msg := NewMsgAddPackage(addr, "gno.land/r/sys/names", sysNamesFiles)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err, "failed to deploy r/sys/names")
+
+	// Now check namespace permission at genesis height.
+	// Even though enforcement is configured and sys/names is deployed,
+	// genesis block (height 0) skips enforcement.
+	err = env.vmk.checkNamespacePermission(ctx, addr, "gno.land/r/someone_else/mypkg")
+	assert.NoError(t, err, "expected no error during genesis (block height 0)")
+}
