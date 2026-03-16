@@ -2,10 +2,6 @@
 // ensuring that users registered in r/sys/users can only deploy to namespaces they own.
 package names
 
-import (
-	"gno.land/r/sys/users"
-)
-
 // IsAuthorizedAddressForNamespace checks whether the given address owns the given namespace.
 // The VM keeper only calls this function when the `sysnames_pkgpath` param is non-empty.
 func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool {
@@ -20,15 +16,5 @@ func verifier(address_XXX address, namespace string) bool {
 	}
 
 	// Allow deploying under your own address, e.g. gno.land/{p,r}/{ADDRESS}/**
-	if address_XXX.String() == namespace {
-		return true
-	}
-
-	// Check if the namespace is registered to this address
-	userData, _ := users.ResolveName(namespace)
-	if userData == nil || userData.IsDeleted() {
-		return false
-	}
-
-	return userData.Addr() == address_XXX
+	return address_XXX.String() == namespace
 }
