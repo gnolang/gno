@@ -156,6 +156,189 @@ func (goo *BaseAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
+func (goo BaseSessionAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.SpendReset != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.SpendReset))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3Varint)
+	}
+	if len(goo.SpendUsed) != 0 {
+		repr, err := goo.SpendUsed.MarshalAmino()
+		if err != nil {
+			return offset, err
+		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3ByteLength)
+	}
+	if goo.SpendPeriod != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.SpendPeriod))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3Varint)
+	}
+	if len(goo.SpendLimit) != 0 {
+		repr, err := goo.SpendLimit.MarshalAmino()
+		if err != nil {
+			return offset, err
+		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+	}
+	if goo.ExpiresAt != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.ExpiresAt))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
+	}
+	if goo.MasterAddress != [20]byte{} {
+		repr, err := goo.MasterAddress.MarshalAmino()
+		if err != nil {
+			return offset, err
+		}
+		offset = amino.PrependString(buf, offset, string(repr))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+	}
+	{
+		before := offset
+		offset, err = goo.BaseAccount.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
+}
+
+func (goo BaseSessionAccount) SizeBinary2(cdc *amino.Codec) int {
+	var s int
+	{
+		cs := goo.BaseAccount.SizeBinary2(cdc)
+		if cs > 0 {
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	if goo.MasterAddress != [20]byte{} {
+		repr, err := goo.MasterAddress.MarshalAmino()
+		if err != nil {
+			return 0
+		}
+		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+	}
+	if goo.ExpiresAt != 0 {
+		s += 1 + amino.VarintSize(int64(goo.ExpiresAt))
+	}
+	if len(goo.SpendLimit) != 0 {
+		repr, err := goo.SpendLimit.MarshalAmino()
+		if err != nil {
+			return 0
+		}
+		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+	}
+	if goo.SpendPeriod != 0 {
+		s += 1 + amino.VarintSize(int64(goo.SpendPeriod))
+	}
+	if len(goo.SpendUsed) != 0 {
+		repr, err := goo.SpendUsed.MarshalAmino()
+		if err != nil {
+			return 0
+		}
+		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+	}
+	if goo.SpendReset != 0 {
+		s += 1 + amino.VarintSize(int64(goo.SpendReset))
+	}
+	return s
+}
+
+func (goo *BaseSessionAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum < lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := goo.BaseAccount.UnmarshalBinary2(cdc, fbz); err != nil {
+				return err
+			}
+		case 2:
+			var repr string
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			repr = string(v)
+			if err := goo.MasterAddress.UnmarshalAmino(repr); err != nil {
+				return err
+			}
+		case 3:
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.ExpiresAt = int64(v)
+		case 4:
+			var repr string
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			repr = string(v)
+			if err := goo.SpendLimit.UnmarshalAmino(repr); err != nil {
+				return err
+			}
+		case 5:
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.SpendPeriod = int64(v)
+		case 6:
+			var repr string
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			repr = string(v)
+			if err := goo.SpendUsed.UnmarshalAmino(repr); err != nil {
+				return err
+			}
+		case 7:
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.SpendReset = int64(v)
+		default:
+			n, err = amino.SkipField(bz, typ3)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+		}
+	}
+	return nil
+}
+
 func (goo Coin) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	repr, err := goo.MarshalAmino()
@@ -1143,6 +1326,142 @@ func (goo RestrictedTransferError) SizeBinary2(cdc *amino.Codec) int {
 }
 
 func (goo *RestrictedTransferError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum < lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		default:
+			n, err = amino.SkipField(bz, typ3)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+		}
+	}
+	return nil
+}
+
+func (goo SessionExpiredError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
+}
+
+func (goo SessionExpiredError) SizeBinary2(cdc *amino.Codec) int {
+	var s int
+	return s
+}
+
+func (goo *SessionExpiredError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum < lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		default:
+			n, err = amino.SkipField(bz, typ3)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+		}
+	}
+	return nil
+}
+
+func (goo SessionNotFoundError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
+}
+
+func (goo SessionNotFoundError) SizeBinary2(cdc *amino.Codec) int {
+	var s int
+	return s
+}
+
+func (goo *SessionNotFoundError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum < lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		default:
+			n, err = amino.SkipField(bz, typ3)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+		}
+	}
+	return nil
+}
+
+func (goo SessionLimitError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
+}
+
+func (goo SessionLimitError) SizeBinary2(cdc *amino.Codec) int {
+	var s int
+	return s
+}
+
+func (goo *SessionLimitError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum < lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		default:
+			n, err = amino.SkipField(bz, typ3)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+		}
+	}
+	return nil
+}
+
+func (goo SessionNotAllowedError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
+}
+
+func (goo SessionNotAllowedError) SizeBinary2(cdc *amino.Codec) int {
+	var s int
+	return s
+}
+
+func (goo *SessionNotAllowedError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)

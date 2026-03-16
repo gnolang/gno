@@ -24,6 +24,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -55,6 +56,7 @@ func execGen(_ context.Context, _ []string) error {
 		multisig.Package,
 		std.Package,
 		sdk.Package,
+		auth.Package,
 		bank.Package,
 		vm.Package,
 		gno.Package,
