@@ -1,4 +1,8 @@
 loadpkg gno.land/r/sys/names
+loadpkg gno.land/r/sys/users/init
+
+# Bootstrap the init controller for user registration
+genesiscall gno.land/r/sys/users/init Bootstrap
 
 adduser gui
 
@@ -34,8 +38,8 @@ stderr 'is not authorized to deploy packages to namespace'
 ## Test registered namespace
 
 # test gui register namespace
-# gui call -> gnoland/users/v1.Register
-gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 13000000 -broadcast -chainid=tendermint_test -args 'guigui123' gui
+# gui call -> sys/users/init.RegisterUser
+gnokey maketx call -pkgpath gno.land/r/sys/users/init -func RegisterUser -args 'guigui123' -args "$gui_user_addr" -gas-fee 1000000ugnot -gas-wanted 13000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Test gui publishing on guigui123/one
