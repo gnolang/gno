@@ -303,3 +303,23 @@ func TestDupNamesMustPanic(t *testing.T) {
 		)
 	})
 }
+
+func TestReservedFieldBinFieldNum(t *testing.T) {
+	// A struct with a blank-identifier reserved field between A and B.
+	// A should get BinFieldNum=1, the reserved slot consumes 2, B gets 3.
+	type WithReserved struct {
+		A string
+		_ [0]struct{} `amino:"reserved"`
+		B string
+	}
+
+	cdc := amino.NewCodec()
+	info, err := cdc.GetTypeInfo(reflect.TypeOf(WithReserved{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	si := info.StructInfo
+	assert.Equal(t, []uint32{2}, si.Reserved)
+	assert.Equal(t, uint32(1), si.Fields[0].BinFieldNum) // A
+	assert.Equal(t, uint32(3), si.Fields[1].BinFieldNum) // B
+}

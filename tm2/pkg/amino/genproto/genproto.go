@@ -189,6 +189,7 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 	}
 
 	p3msg.Name = info.Name // not rinfo.
+	p3msg.Reserved = rinfo.StructInfo.Reserved
 
 	var fieldComments map[string]string
 	if rinfo.Package != nil {

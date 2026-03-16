@@ -44,7 +44,8 @@ type ConcreteInfo struct {
 }
 
 type StructInfo struct {
-	Fields []FieldInfo // If a struct.
+	Fields   []FieldInfo // If a struct.
+	Reserved []uint32    // field numbers consumed by removed fields
 }
 
 type FieldInfo struct {
@@ -676,9 +677,20 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 	}
 
 	infos := make([]FieldInfo, 0, rt.NumField())
+	nextFieldNum := uint32(1)
 	for i := range rt.NumField() {
 		field := rt.Field(i)
 		ftype := field.Type
+
+		// Handle blank-identifier reserved fields before the export check.
+		if field.Name == "_" {
+			if field.Tag.Get("amino") == "reserved" {
+				sinfo.Reserved = append(sinfo.Reserved, nextFieldNum)
+				nextFieldNum++
+			}
+			continue
+		}
+
 		if !isExported(field) {
 			continue // field is unexported
 		}
@@ -688,7 +700,8 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		}
 		// NOTE: This is going to change a bit.
 		// NOTE: BinFieldNum starts with 1.
-		fopts.BinFieldNum = uint32(len(infos) + 1)
+		fopts.BinFieldNum = nextFieldNum
+		nextFieldNum++
 		fieldTypeInfo, err := cdc.getTypeInfoWLocked(ftype)
 		if err != nil {
 			panic(err)
@@ -724,7 +737,7 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		fieldInfo.ValidateBasic()
 		infos = append(infos, fieldInfo)
 	}
-	sinfo = StructInfo{infos}
+	sinfo = StructInfo{Fields: infos, Reserved: sinfo.Reserved}
 	return sinfo
 }
 

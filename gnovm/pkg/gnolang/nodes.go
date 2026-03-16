@@ -1607,8 +1607,8 @@ type StaticBlock struct {
 	NameSources       []NameSource
 	HeapItems         []bool
 	UnassignableNames []Name
-	Consts            []Name // TODO consider merging with Names.
-	Externs           []Name // TODO: remove, this only exists for amino backward-compat.
+	Consts            []Name   // TODO consider merging with Names.
+	_                 struct{} `amino:"reserved"` // was: Externs []Name
 	Parent            BlockNode
 
 	// temporary storage for rolling back redefinitions.
