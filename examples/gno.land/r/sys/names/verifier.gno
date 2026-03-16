@@ -3,41 +3,32 @@
 package names
 
 import (
-	"strings"
-
 	"gno.land/r/sys/users"
 )
 
-// IsAuthorizedAddressForNamespace ensures that the given address has ownership of the given name.
-// A user's name found in r/sys/users is equivalent to their namespace.
-// Note: Whether namespace enforcement is enabled or not is controlled by the
-// VM param `sysnames_pkgpath`. The keeper only calls this function when the param is non-empty.
+// IsAuthorizedAddressForNamespace checks whether the given address owns the given namespace.
+// The VM keeper only calls this function when the `sysnames_pkgpath` param is non-empty.
 func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool {
 	return verifier(address_XXX, namespace)
 }
 
-// verifier checks the store to see that the
-// user has properly registered a given name/namespace.
-// This function considers as valid an `address` that matches the `namespace` (PA namespaces)
+// verifier checks whether the address owns the namespace by looking up r/sys/users.
+// An address always owns the namespace matching its own string representation (PA namespaces).
 func verifier(address_XXX address, namespace string) bool {
-	if strings.TrimSpace(address_XXX.String()) == "" || strings.TrimSpace(namespace) == "" {
+	if address_XXX.String() == "" || namespace == "" {
 		return false
 	}
 
-	// Allow user with their own address as namespace
-	// This enables pseudo-anon namespaces
-	// ie gno.land/{p,r}/{ADDRESS}/**
+	// Allow deploying under your own address, e.g. gno.land/{p,r}/{ADDRESS}/**
 	if address_XXX.String() == namespace {
 		return true
 	}
 
-	// Can be a registered namespace or an alias
+	// Check if the namespace is registered to this address
 	userData, _ := users.ResolveName(namespace)
 	if userData == nil || userData.IsDeleted() {
 		return false
 	}
-
-	/// XXX: add check for r/sys/teams down the line
 
 	return userData.Addr() == address_XXX
 }
