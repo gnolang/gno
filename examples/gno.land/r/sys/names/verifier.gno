@@ -1,5 +1,5 @@
-// Package names provides functionality for checking of package deployments
-// by users registered in r/sys/users are done to proper namespaces.
+// Package names provides namespace authorization for package deployments,
+// ensuring that users registered in r/sys/users can only deploy to namespaces they own.
 package names
 
 import (
