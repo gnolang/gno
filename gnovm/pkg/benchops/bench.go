@@ -35,9 +35,9 @@ func InitMeasure() {
 	}
 }
 
-// finalizeCurrent attributes elapsed time since curStart to
+// finalizeCurrentOp attributes elapsed time since curStart to
 // curOpCode and returns the snapshot time.
-func finalizeCurrent() time.Time {
+func finalizeCurrentOp() time.Time {
 	now := time.Now()
 	if measure.curOpCode != invalidCode && measure.curStart != measure.timeZero {
 		measure.opAccumDur[measure.curOpCode] += now.Sub(measure.curStart)
@@ -54,7 +54,7 @@ func SwitchOpCode(code byte) byte {
 		panic("the OpCode is invalid")
 	}
 	old := measure.curOpCode
-	now := finalizeCurrent()
+	now := finalizeCurrentOp()
 	measure.curOpCode = code
 	measure.curStart = now
 	measure.opCounts[code]++
@@ -73,7 +73,7 @@ func ResumeOpCode(code byte) {
 
 // StopOpCode finalizes the current op. Used at OpHalt/return.
 func StopOpCode() {
-	finalizeCurrent()
+	finalizeCurrentOp()
 	measure.curOpCode = invalidCode
 }
 
@@ -84,7 +84,7 @@ func StopOpCode() {
 func StartStore(storeCode byte) byte {
 	old := measure.curOpCode
 	// Finalize the VM op's time up to now.
-	now := finalizeCurrent()
+	now := finalizeCurrentOp()
 	// Park the timeline — store tracks its own duration.
 	measure.curOpCode = invalidCode
 	measure.storeCounts[storeCode]++
@@ -112,7 +112,7 @@ func StartNative(nativeCode byte) byte {
 		panic("the NativeCode is invalid")
 	}
 	old := measure.curOpCode
-	finalizeCurrent() // finalize previous op BEFORE GC
+	finalizeCurrentOp() // finalize previous op BEFORE GC
 	runtime.GC()
 	now := time.Now() // fresh timestamp after GC
 	measure.curOpCode = invalidCode
