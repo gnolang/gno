@@ -5554,7 +5554,10 @@ func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{})
 				}
 				// Already initialized: treat as done and skip its transitive
 				// deps entirely — there is nothing left to resolve through it.
-				if inFDeclared(dep) {
+				// (Checking len(fdeclared) > 0 is an optimization for a very
+				// common case: fdeclared is empty when creating a new package,
+				// it is only filled when adding files to an existing package.)
+				if len(fdeclared) > 0 && inFDeclared(dep) {
 					done[dep] = true
 					continue
 				}
@@ -5566,6 +5569,9 @@ func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{})
 					walk(dep, append(path, name))
 				}
 			default:
+				// *TypeDecl and *ImportDecl are caught by this case, but that's
+				// OK: addDependencyToTopDecl is only called for value
+				// dependencies and for function dependencies.
 				panic(fmt.Sprintf("unexpected gnolang.Decl: %#v", dep))
 			}
 		}
