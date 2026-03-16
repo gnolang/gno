@@ -171,7 +171,9 @@ func (acc *BaseAccount) SetSequence(seq uint64) error {
 // (via MsgCall.Send, MsgSend, gas fees, etc.). If SpendLimit is empty,
 // the session cannot spend any coins at all — this is useful for sessions
 // where another signer pays gas, or for calling functions that don't
-// require coin transfers.
+// require coin transfers. SpendLimit must include the gas fee denom
+// (e.g., ugnot) or the session won't be able to pay gas fees — spending
+// is checked per-denom, and a missing denom means zero allowance.
 type BaseSessionAccount struct {
 	BaseAccount
 	MasterAddress crypto.Address `json:"master_address" yaml:"master_address"`
