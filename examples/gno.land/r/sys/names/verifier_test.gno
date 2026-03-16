@@ -21,7 +21,7 @@ func TestIsAuthorizedAddressForNamespace(t *testing.T) {
 	uassert.False(t, IsAuthorizedAddressForNamespace(address(""), ""))
 
 	// Register proper username
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users/init")) // authorized write
 	urequire.NoError(t, users.RegisterUser(cross, "alice", alice))
 
 	// Proper namespace
