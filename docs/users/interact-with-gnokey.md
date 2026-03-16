@@ -1040,7 +1040,7 @@ We can obtain information about a specific address using this subquery. To call 
 we can run the following command:
 
 ```bash
-gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
+gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.staging.gno.land:443
 ```
 
 With this, we are asking the network to deliver information about the
@@ -1309,7 +1309,7 @@ Currently, `vm/qeval` only supports primitive types in expressions.
 We can use it like this:
 
 ```bash
-gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.gno.land:443
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.staging.gno.land:443
 ```
 
 Running this command will display the current `Render()` output of the WUGNOT
