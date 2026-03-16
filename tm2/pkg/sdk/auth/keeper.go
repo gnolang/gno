@@ -81,7 +81,9 @@ func (ak AccountKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Acc
 	return acc
 }
 
-// GetAllAccounts returns all accounts in the AccountKeeper.
+// GetAllAccounts returns all regular accounts (excludes session accounts).
+// Session accounts are stored under the same "/a/" prefix but are filtered
+// out by IterateAccounts via key length. Use IterateSessions to access sessions.
 func (ak AccountKeeper) GetAllAccounts(ctx sdk.Context) []std.Account {
 	accounts := []std.Account{}
 	appendAccount := func(acc std.Account) (stop bool) {
@@ -112,6 +114,10 @@ func (ak AccountKeeper) RemoveAccount(ctx sdk.Context, acc std.Account) {
 }
 
 // IterateAccounts implements AccountKeeper.
+// It iterates over regular accounts only — session accounts (which are
+// also stored under the "/a/" prefix at /a/<master>/s/<session>) are
+// skipped by checking key length. Regular account keys are exactly
+// AccountStoreKeyLen bytes; session sub-keys are longer.
 func (ak AccountKeeper) IterateAccounts(ctx sdk.Context, process func(std.Account) (stop bool)) {
 	stor := ctx.GasStore(ak.key)
 	iter := store.PrefixIterator(stor, []byte(AddressStoreKeyPrefix))
@@ -119,6 +125,13 @@ func (ak AccountKeeper) IterateAccounts(ctx sdk.Context, process func(std.Accoun
 	for {
 		if !iter.Valid() {
 			return
+		}
+		// Skip session sub-keys. Session accounts are stored at
+		// /a/<master>/s/<session> (longer than AccountStoreKeyLen).
+		// Regular accounts are at /a/<addr> (exactly AccountStoreKeyLen).
+		if len(iter.Key()) != AccountStoreKeyLen {
+			iter.Next()
+			continue
 		}
 		val := iter.Value()
 		acc := ak.decodeAccount(val)

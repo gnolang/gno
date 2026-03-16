@@ -880,3 +880,42 @@ func TestSessionChainIDReplay(t *testing.T) {
 	// Should fail — chainID mismatch in sign bytes.
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
 }
+
+func TestIterateAccountsExcludesSessions(t *testing.T) {
+	// Verify that IterateAccounts and GetAllAccounts do NOT return
+	// session accounts. Session accounts are stored under the same
+	// "/a/" prefix but are filtered by key length.
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+
+	// Create a few sessions.
+	for i := 0; i < 3; i++ {
+		_, sessionPub, _ := tu.KeyTestPubAddr()
+		createSessionDirect(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600)
+	}
+
+	// IterateAccounts should only return the master account, not sessions.
+	var accounts []std.Account
+	env.acck.IterateAccounts(ctx, func(acc std.Account) bool {
+		accounts = append(accounts, acc)
+		return false
+	})
+
+	// Should have exactly 1 account (the master).
+	assert.Equal(t, 1, len(accounts), "IterateAccounts should exclude session accounts")
+	assert.Equal(t, masterAddr, accounts[0].GetAddress())
+
+	// GetAllAccounts should also exclude sessions.
+	all := env.acck.GetAllAccounts(ctx)
+	assert.Equal(t, 1, len(all), "GetAllAccounts should exclude session accounts")
+
+	// But IterateSessions should find all 3.
+	var sessionCount int
+	env.acck.IterateSessions(ctx, masterAddr, func(_ std.Account) bool {
+		sessionCount++
+		return false
+	})
+	assert.Equal(t, 3, sessionCount, "IterateSessions should find all sessions")
+}
