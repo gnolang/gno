@@ -185,6 +185,43 @@ func TestSessionAllowPathsUnrestricted(t *testing.T) {
 	assert.True(t, res.IsOK(), res.Log)
 }
 
+func TestSessionAllowPathsMultipleEntries(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionGnoEnv(t)
+	ctx := env.ctx
+
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := createGnoSession(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600,
+		[]string{"gno.land/r/demo/boards", "gno.land/r/demo/chat"})
+	sessionAccNum := sa.GetAccountNumber()
+	fee := tu.NewTestFee()
+
+	t.Run("first allowed path succeeds", func(t *testing.T) {
+		msgs := []std.Msg{tu.MockMsgCall{Caller: masterAddr, PkgPath: "gno.land/r/demo/boards"}}
+		tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+		_, res, abort := anteHandler(ctx, tx, false)
+		require.False(t, abort, res.Log)
+		assert.True(t, res.IsOK(), res.Log)
+	})
+
+	t.Run("second allowed path succeeds", func(t *testing.T) {
+		msgs := []std.Msg{tu.MockMsgCall{Caller: masterAddr, PkgPath: "gno.land/r/demo/chat"}}
+		tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 1, fee)
+		_, res, abort := anteHandler(ctx, tx, false)
+		require.False(t, abort, res.Log)
+		assert.True(t, res.IsOK(), res.Log)
+	})
+
+	t.Run("disallowed path fails", func(t *testing.T) {
+		msgs := []std.Msg{tu.MockMsgCall{Caller: masterAddr, PkgPath: "gno.land/r/demo/users"}}
+		tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 2, fee)
+		_, res, abort := anteHandler(ctx, tx, false)
+		require.True(t, abort, "should reject disallowed path")
+		assert.Contains(t, res.Log, "not allowed")
+	})
+}
+
 func TestSessionDeniesNonExecMsg(t *testing.T) {
 	t.Parallel()
 

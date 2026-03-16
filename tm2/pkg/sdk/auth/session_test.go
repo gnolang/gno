@@ -919,3 +919,198 @@ func TestIterateAccountsExcludesSessions(t *testing.T) {
 	})
 	assert.Equal(t, 3, sessionCount, "IterateSessions should find all sessions")
 }
+
+func TestSessionMultiSignerMixed(t *testing.T) {
+	// A tx with two signers: signer[0] uses a session key, signer[1] uses their master key.
+	t.Parallel()
+
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, AnteOptions{VerifyGenesisSignatures: false})
+
+	// Set block time > 0.
+	now := time.Now()
+	env.ctx = env.ctx.WithBlockHeader(&bft.Header{
+		ChainID: env.ctx.ChainID(),
+		Height:  1,
+		Time:    now,
+	})
+	ctx := env.ctx
+	chainID := ctx.ChainID()
+
+	// Create and fund master account A.
+	masterPrivA, masterPubA, masterAddrA := tu.KeyTestPubAddr()
+	_ = masterPrivA
+	masterAccA := env.acck.NewAccountWithAddress(ctx, masterAddrA)
+	masterAccA.SetCoins(tu.NewTestCoins())
+	masterAccA.SetPubKey(masterPubA)
+	env.acck.SetAccount(ctx, masterAccA)
+
+	// Create and fund master account B.
+	masterPrivB, masterPubB, masterAddrB := tu.KeyTestPubAddr()
+	masterAccB := env.acck.NewAccountWithAddress(ctx, masterAddrB)
+	masterAccB.SetCoins(tu.NewTestCoins())
+	masterAccB.SetPubKey(masterPubB)
+	env.acck.SetAccount(ctx, masterAccB)
+
+	// Create session for masterA.
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := createSessionDirect(t, env, masterAddrA, sessionPub, ctx.BlockTime().Unix()+3600)
+	sessionAccNum := sa.GetAccountNumber()
+
+	// Master B account number.
+	masterBAccNum := masterAccB.GetAccountNumber()
+
+	// Build tx with one msg requiring both signers.
+	msgs := []std.Msg{tu.NewTestMsg(masterAddrA, masterAddrB)}
+	fee := tu.NewTestFee()
+
+	// Sign for masterA via session.
+	signBytesA, err := std.GetSignaturePayload(std.SignDoc{
+		ChainID:       chainID,
+		AccountNumber: sessionAccNum,
+		Sequence:      0,
+		Fee:           fee,
+		Msgs:          msgs,
+	})
+	require.NoError(t, err)
+	sigA, err := sessionPriv.Sign(signBytesA)
+	require.NoError(t, err)
+
+	// Sign for masterB with master key.
+	signBytesB, err := std.GetSignaturePayload(std.SignDoc{
+		ChainID:       chainID,
+		AccountNumber: masterBAccNum,
+		Sequence:      0,
+		Fee:           fee,
+		Msgs:          msgs,
+	})
+	require.NoError(t, err)
+	sigB, err := masterPrivB.Sign(signBytesB)
+	require.NoError(t, err)
+
+	tx := std.NewTx(msgs, fee, []std.Signature{
+		{SessionAddr: &sessionAddr, Signature: sigA},          // masterA via session
+		{PubKey: masterPubB, Signature: sigB},                 // masterB direct
+	}, "")
+
+	// Should pass.
+	newCtx, result, abort := anteHandler(ctx, tx, false)
+	require.False(t, abort, "expected mixed session/master tx to pass, got: %s", result.Log)
+	require.True(t, result.IsOK(), result.Log)
+
+	// Check context has session entry for masterA but not masterB.
+	saMap, ok := newCtx.Value(std.SessionAccountsContextKey{}).(map[crypto.Address]std.DelegatedAccount)
+	require.True(t, ok, "session accounts should be in context")
+	_, foundA := saMap[masterAddrA]
+	assert.True(t, foundA, "session account for masterA should be in context map")
+	_, foundB := saMap[masterAddrB]
+	assert.False(t, foundB, "masterB should NOT be in session accounts map")
+}
+
+func TestSessionAllowPathsValidation(t *testing.T) {
+	// Test that handleMsgCreateSession rejects invalid AllowPaths entries.
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+	h := NewHandler(env.acck, env.gk)
+
+	t.Run("empty string in AllowPaths rejected", func(t *testing.T) {
+		_, spub, _ := tu.KeyTestPubAddr()
+		msg := MsgCreateSession{
+			Creator:    masterAddr,
+			SessionKey: spub,
+			ExpiresAt:  ctx.BlockTime().Unix() + 3600,
+			AllowPaths: []string{"gno.land/r/demo/boards", ""},
+		}
+		res := h.Process(ctx, msg)
+		assert.False(t, res.IsOK(), "should reject empty allow_path entry")
+		assert.Contains(t, res.Log, "empty allow_path")
+	})
+
+	t.Run("trailing slash in AllowPaths rejected", func(t *testing.T) {
+		_, spub, _ := tu.KeyTestPubAddr()
+		msg := MsgCreateSession{
+			Creator:    masterAddr,
+			SessionKey: spub,
+			ExpiresAt:  ctx.BlockTime().Unix() + 3600,
+			AllowPaths: []string{"gno.land/r/demo/boards/"},
+		}
+		res := h.Process(ctx, msg)
+		assert.False(t, res.IsOK(), "should reject trailing slash in allow_path")
+		assert.Contains(t, res.Log, "must not end with /")
+	})
+}
+
+func TestSessionSpendPeriodValidation(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+	h := NewHandler(env.acck, env.gk)
+
+	t.Run("SpendPeriod exceeds MaxSessionDuration rejected by handler", func(t *testing.T) {
+		_, spub, _ := tu.KeyTestPubAddr()
+		msg := MsgCreateSession{
+			Creator:     masterAddr,
+			SessionKey:  spub,
+			ExpiresAt:   ctx.BlockTime().Unix() + 3600,
+			SpendPeriod: std.MaxSessionDuration + 1,
+		}
+		res := h.Process(ctx, msg)
+		assert.False(t, res.IsOK(), "should reject spend_period > MaxSessionDuration")
+		assert.Contains(t, res.Log, "spend_period exceeds maximum")
+	})
+
+	t.Run("negative SpendPeriod rejected by ValidateBasic", func(t *testing.T) {
+		_, spub, _ := tu.KeyTestPubAddr()
+		msg := MsgCreateSession{
+			Creator:     masterAddr,
+			SessionKey:  spub,
+			ExpiresAt:   ctx.BlockTime().Unix() + 3600,
+			SpendPeriod: -1,
+		}
+		err := msg.ValidateBasic()
+		require.Error(t, err, "ValidateBasic should reject negative spend_period")
+	})
+}
+
+func TestSessionCreateWithZeroExpiry(t *testing.T) {
+	// Test that MsgCreateSession with ExpiresAt=0 succeeds via the handler
+	// (not just via direct keeper), verifying the ValidateBasic fix allows it
+	// through the real message path.
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+	h := NewHandler(env.acck, env.gk)
+
+	// Create session with ExpiresAt=0 (no expiry) via handler.
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	createMsg := MsgCreateSession{
+		Creator:    masterAddr,
+		SessionKey: sessionPub,
+		ExpiresAt:  0, // no expiry
+		SpendLimit: sessionSpendLimit(),
+	}
+
+	// ValidateBasic should pass.
+	err := createMsg.ValidateBasic()
+	require.NoError(t, err, "ValidateBasic should accept ExpiresAt=0")
+
+	// Handler should process it successfully.
+	res := h.Process(ctx, createMsg)
+	require.True(t, res.IsOK(), "handler should accept ExpiresAt=0: %s", res.Log)
+
+	// Verify the created session actually works.
+	sa := env.acck.GetSessionAccount(ctx, masterAddr, sessionAddr)
+	require.NotNil(t, sa, "session should exist after handler creation with ExpiresAt=0")
+
+	sessionAccNum := sa.GetAccountNumber()
+	msgs := []std.Msg{tu.NewTestMsg(masterAddr)}
+	fee := tu.NewTestFee()
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+
+	// Should pass — ExpiresAt=0 means no expiry.
+	checkValidTx(t, anteHandler, ctx, tx, false)
+}
