@@ -7,7 +7,7 @@ gnoland start -sysnames-pkgpath gno.land/r/sys/names
 # give gui user more tokens
 gnokey maketx send -send 1000000000ugnot -to $gui_user_addr  -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
 
-# Namespace enforcement is enabled via the -sysnames-pkgpath flag.
+# Namespace enforcement is enabled by setting sysnames_pkgpath.
 
 # Gui should NOT be able to addpkg on test1 addr (not authorized)
 # gui addpkg -> gno.land/r/<addr_test1>/mysuperpkg

@@ -613,6 +613,13 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return err
 	}
 
+	// Clear the object cache before running the package.
+	// This is necessary because TypeCheckMemPackage may have
+	// cached the package, and for private package re-uploads
+	// the stale cache entry would cause RunMemPackage to fail
+	// with "already exists in cache".
+	gnostore.ClearObjectCache()
+
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),

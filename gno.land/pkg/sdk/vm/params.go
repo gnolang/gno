@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	sysNamesPkgDefault             = "gno.land/r/sys/names"
+	sysNamesPkgDefault             = "" // empty means namespace enforcement is disabled
 	sysCLAPkgDefault               = "gno.land/r/sys/cla"
 	chainDomainDefault             = "gno.land"
 	depositDefault                 = "600000000ugnot"

@@ -11,7 +11,7 @@ import (
 // IsAuthorizedAddressForNamespace ensures that the given address has ownership of the given name.
 // A user's name found in r/sys/users is equivalent to their namespace.
 // Note: Whether namespace enforcement is enabled or not is controlled by the
-// VM param `sysnames_pkgpath`. The keeper only calls this function when enforcement is on.
+// VM param `sysnames_pkgpath`. The keeper only calls this function when the param is non-empty.
 func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool {
 	return verifier(address_XXX, namespace)
 }

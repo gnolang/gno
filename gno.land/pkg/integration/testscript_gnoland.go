@@ -285,7 +285,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
 			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
 			noParallel := fs.Bool("no-parallel", false, "don't run this node in parallel with other testing nodes")
-			sysNamesPkgPath := fs.String("sysnames-pkgpath", "", "set sys names pkg path to enable namespace enforcement")
+			sysNamesPkgPath := fs.String("sysnames-pkgpath", "", "set the sysnames package path to enable namespace enforcement")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
