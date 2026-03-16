@@ -285,7 +285,6 @@ func TestGnoSessionAccount_AminoRoundTrip(t *testing.T) {
 		BaseSessionAccount: std.BaseSessionAccount{
 			BaseAccount: std.BaseAccount{
 				Address:       addr,
-				Coins:         std.Coins{std.NewCoin("ugnot", 1000)},
 				PubKey:        pubKey,
 				AccountNumber: 99,
 				Sequence:      3,
@@ -318,7 +317,7 @@ func TestGnoSessionAccount_AminoRoundTrip(t *testing.T) {
 
 	// Verify embedded BaseSessionAccount fields
 	assert.Equal(t, original.Address, result.Address)
-	assert.True(t, original.Coins.IsEqual(result.Coins))
+	assert.Nil(t, result.GetCoins())
 	assert.True(t, original.PubKey.Equals(result.PubKey))
 	assert.Equal(t, original.AccountNumber, result.AccountNumber)
 	assert.Equal(t, original.Sequence, result.Sequence)

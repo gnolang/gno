@@ -249,7 +249,7 @@ func (acc BaseSessionAccount) String() string {
   SpendPeriod:   %d
   SpendUsed:     %s
   SpendReset:    %d`,
-		acc.Address, pubkey, acc.Coins, acc.AccountNumber, acc.Sequence,
+		acc.Address, pubkey, acc.GetCoins(), acc.AccountNumber, acc.Sequence,
 		acc.MasterAddress, acc.ExpiresAt, acc.SpendLimit, acc.SpendPeriod,
 		acc.SpendUsed, acc.SpendReset,
 	)
@@ -262,6 +262,9 @@ func (acc BaseSessionAccount) GetMasterAddress() crypto.Address {
 
 // SetMasterAddress - Implements DelegatedAccount.
 func (acc *BaseSessionAccount) SetMasterAddress(addr crypto.Address) error {
+	if !acc.MasterAddress.IsZero() {
+		return errors.New("cannot override BaseSessionAccount master address")
+	}
 	acc.MasterAddress = addr
 	return nil
 }

@@ -129,7 +129,6 @@ func (ga *GnoAccount) GetBaseAccount() *std.BaseAccount {
 // session fields (AllowPaths for realm path restriction).
 type GnoSessionAccount struct {
 	std.BaseSessionAccount
-	Attributes BitSet   `json:"attributes,omitempty" yaml:"attributes,omitempty"`
 	AllowPaths []string `json:"allow_paths,omitempty" yaml:"allow_paths,omitempty"`
 }
 
@@ -144,6 +143,8 @@ func (gsa *GnoSessionAccount) GetAllowPaths() []string {
 func ProtoGnoSessionAccount() std.Account {
 	return &GnoSessionAccount{}
 }
+
+var _ std.DelegatedAccount = &GnoSessionAccount{}
 
 type GnoGenesisState struct {
 	Balances []Balance         `json:"balances"`

@@ -43,6 +43,9 @@ func (msg MsgCreateSession) ValidateBasic() error {
 	if len(msg.AllowPaths) > std.MaxAllowPathsPerSession {
 		return std.ErrUnauthorized("too many allow_paths")
 	}
+	if !msg.SpendLimit.IsValid() {
+		return std.ErrInvalidCoins("invalid spend_limit coins")
+	}
 	return nil
 }
 
