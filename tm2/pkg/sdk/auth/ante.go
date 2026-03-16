@@ -282,58 +282,6 @@ func ValidateMemo(tx std.Tx, params Params) sdk.Result {
 	return sdk.Result{}
 }
 
-// verify the signature and increment the sequence. If the account doesn't
-// have a pubkey, set it.
-func processSig(
-	ctx sdk.Context, acc std.Account, sig std.Signature, signBytes []byte, simulate bool, params Params,
-	sigGasConsumer SignatureVerificationGasConsumer,
-) (updatedAcc std.Account, res sdk.Result) {
-	pubKey, res := ProcessPubKey(acc, sig)
-	if !res.IsOK() {
-		return nil, res
-	}
-
-	err := acc.SetPubKey(pubKey)
-	if err != nil {
-		return nil, abciResult(std.ErrInternal("setting PubKey on signer's account"))
-	}
-
-	if res := sigGasConsumer(ctx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
-		return nil, res
-	}
-
-	if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-		return nil, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id"))
-	}
-
-	if err := acc.SetSequence(acc.GetSequence() + 1); err != nil {
-		panic(err)
-	}
-
-	return acc, res
-}
-
-// ProcessPubKey verifies that the given account address matches that of the
-// std.Signature. In addition, it will set the public key of the account if it
-// has not been set.
-func ProcessPubKey(acc std.Account, sig std.Signature) (crypto.PubKey, sdk.Result) {
-	// If pubkey is not known for account, set it from the std.Signature.
-	pubKey := acc.GetPubKey()
-	if pubKey == nil {
-		pubKey = sig.PubKey
-		if pubKey == nil {
-			return nil, abciResult(std.ErrInvalidPubKey("PubKey not found"))
-		}
-
-		if pubKey.Address() != acc.GetAddress() {
-			return nil, abciResult(std.ErrInvalidPubKey(
-				fmt.Sprintf("PubKey does not match Signer address %s", acc.GetAddress())))
-		}
-	}
-
-	return pubKey, sdk.Result{}
-}
-
 // DefaultSigVerificationGasConsumer is the default implementation of
 // SignatureVerificationGasConsumer. It consumes gas for signature verification
 // based upon the public key type. The cost is fetched from the given params
