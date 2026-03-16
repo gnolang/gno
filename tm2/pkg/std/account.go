@@ -162,6 +162,10 @@ func (acc *BaseAccount) SetSequence(seq uint64) error {
 
 // BaseSessionAccount is a delegated signing account linked to a master.
 // It is keyed under the master account in the store.
+//
+// Session accounts do not hold coins — fees are always deducted from the
+// master account. GetCoins always returns nil and SetCoins rejects non-empty
+// coins to prevent accidental trapping of funds.
 type BaseSessionAccount struct {
 	BaseAccount
 	MasterAddress crypto.Address `json:"master_address" yaml:"master_address"`
@@ -170,6 +174,18 @@ type BaseSessionAccount struct {
 	SpendPeriod   int64          `json:"spend_period,omitempty" yaml:"spend_period,omitempty"`
 	SpendUsed     Coins          `json:"spend_used,omitempty" yaml:"spend_used,omitempty"`
 	SpendReset    int64          `json:"spend_reset,omitempty" yaml:"spend_reset,omitempty"`
+}
+
+// GetCoins always returns nil — session accounts do not hold coins.
+func (acc BaseSessionAccount) GetCoins() Coins { return nil }
+
+// SetCoins rejects non-empty coins. Session accounts should never hold coins;
+// fees are deducted from the master account.
+func (acc *BaseSessionAccount) SetCoins(coins Coins) error {
+	if !coins.IsZero() {
+		return fmt.Errorf("session accounts cannot hold coins")
+	}
+	return nil
 }
 
 // DelegatedAccount is implemented by session accounts that delegate

@@ -21,10 +21,10 @@ func TestBaseSessionAccount_AminoRoundTrip(t *testing.T) {
 	original := &BaseSessionAccount{
 		BaseAccount: BaseAccount{
 			Address:       addr,
-			Coins:         Coins{NewCoin("ugnot", 1000)},
 			PubKey:        pubKey,
 			AccountNumber: 42,
 			Sequence:      7,
+			// Coins intentionally omitted — session accounts do not hold coins.
 		},
 		MasterAddress: masterAddr,
 		ExpiresAt:     1700000000,
@@ -49,7 +49,7 @@ func TestBaseSessionAccount_AminoRoundTrip(t *testing.T) {
 
 	// Verify all fields
 	assert.Equal(t, original.Address, result.Address)
-	assert.True(t, original.Coins.IsEqual(result.Coins))
+	assert.Nil(t, result.GetCoins(), "session accounts should not hold coins")
 	assert.True(t, original.PubKey.Equals(result.PubKey))
 	assert.Equal(t, original.AccountNumber, result.AccountNumber)
 	assert.Equal(t, original.Sequence, result.Sequence)
