@@ -417,10 +417,6 @@ func (vm *VMKeeper) callRealmBool(
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	sysNamesPkgPath := vm.getSysNamesPkgParam(ctx)
-	if sysNamesPkgPath == "" {
-		return nil
-	}
 	chainDomain := vm.getChainDomainParam(ctx)
 
 	store := vm.getGnoTransactionStore(ctx)
@@ -439,6 +435,10 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	}
 	namespace := match[1]
 
+	sysNamesPkgPath := vm.getSysNamesPkgParam(ctx)
+	if sysNamesPkgPath == "" {
+		return nil
+	}
 	// if `sysNamesPkg` does not exist -> skip validation.
 	sysNamesPkg := store.GetPackage(sysNamesPkgPath, false)
 	if sysNamesPkg == nil {
@@ -612,13 +612,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err != nil {
 		return err
 	}
-
-	// Clear the object cache before running the package.
-	// This is necessary because TypeCheckMemPackage may have
-	// cached the package, and for private package re-uploads
-	// the stale cache entry would cause RunMemPackage to fail
-	// with "already exists in cache".
-	gnostore.ClearObjectCache()
 
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
