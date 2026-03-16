@@ -166,12 +166,18 @@ func (acc *BaseAccount) SetSequence(seq uint64) error {
 // Session accounts do not hold coins — fees are always deducted from the
 // master account. GetCoins always returns nil and SetCoins rejects non-empty
 // coins to prevent accidental trapping of funds.
+//
+// SpendLimit controls how many coins the session can transfer per period
+// (via MsgCall.Send, MsgSend, gas fees, etc.). If SpendLimit is empty,
+// the session cannot spend any coins at all — this is useful for sessions
+// where another signer pays gas, or for calling functions that don't
+// require coin transfers.
 type BaseSessionAccount struct {
 	BaseAccount
 	MasterAddress crypto.Address `json:"master_address" yaml:"master_address"`
 	ExpiresAt     int64          `json:"expires_at" yaml:"expires_at"`
-	SpendLimit    Coins          `json:"spend_limit,omitempty" yaml:"spend_limit,omitempty"`
-	SpendPeriod   int64          `json:"spend_period,omitempty" yaml:"spend_period,omitempty"`
+	SpendLimit    Coins          `json:"spend_limit,omitempty" yaml:"spend_limit,omitempty"` // empty = no spending allowed
+	SpendPeriod   int64          `json:"spend_period,omitempty" yaml:"spend_period,omitempty"` // seconds; 0 = lifetime cap
 	SpendUsed     Coins          `json:"spend_used,omitempty" yaml:"spend_used,omitempty"`
 	SpendReset    int64          `json:"spend_reset,omitempty" yaml:"spend_reset,omitempty"`
 }

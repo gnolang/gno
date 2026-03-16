@@ -7,12 +7,18 @@ import (
 )
 
 // MsgCreateSession creates a new session key on the creator's account.
+//
+// ExpiresAt is a unix timestamp; 0 means no expiry (valid until revoked).
+// SpendLimit caps coin spending per period (gas fees, MsgCall.Send, etc.).
+// Empty SpendLimit means no spending is allowed — the session can only
+// sign txs where another signer pays gas, or call functions with zero Send.
+// SpendPeriod is in seconds; 0 means SpendLimit is a lifetime cap.
 type MsgCreateSession struct {
 	Creator     crypto.Address `json:"creator" yaml:"creator"`
 	SessionKey  crypto.PubKey  `json:"session_key" yaml:"session_key"`
-	ExpiresAt   int64          `json:"expires_at" yaml:"expires_at"` // unix timestamp
-	AllowPaths  []string       `json:"allow_paths,omitempty" yaml:"allow_paths"`
-	SpendLimit  std.Coins      `json:"spend_limit,omitempty" yaml:"spend_limit"`  // max spend per period; empty = no spending allowed
+	ExpiresAt   int64          `json:"expires_at" yaml:"expires_at"`               // unix timestamp; 0 = no expiry
+	AllowPaths  []string       `json:"allow_paths,omitempty" yaml:"allow_paths"`   // realm path prefixes; empty = unrestricted
+	SpendLimit  std.Coins      `json:"spend_limit,omitempty" yaml:"spend_limit"`   // max spend per period; empty = no spending
 	SpendPeriod int64          `json:"spend_period,omitempty" yaml:"spend_period"` // seconds; 0 = lifetime cap
 }
 
