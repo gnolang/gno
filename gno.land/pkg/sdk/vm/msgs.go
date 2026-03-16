@@ -152,6 +152,9 @@ func (msg MsgCall) GetSigners() []crypto.Address {
 	return []crypto.Address{msg.Caller}
 }
 
+// GetPkgPath returns the target package path.
+func (msg MsgCall) GetPkgPath() string { return msg.PkgPath }
+
 // Implements ReceiveMsg.
 func (msg MsgCall) GetReceived() std.Coins {
 	return msg.Send

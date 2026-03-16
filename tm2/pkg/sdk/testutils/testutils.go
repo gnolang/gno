@@ -157,3 +157,60 @@ func TestAddress(name string) crypto.Address {
 func TestBech32Address(name string) crypto.Bech32Address {
 	return TestAddress(name).Bech32()
 }
+
+// MockMsgCall mimics vm.MsgCall for testing session AllowPaths.
+type MockMsgCall struct {
+	Caller  crypto.Address
+	PkgPath string
+	Send    std.Coins
+}
+
+var _ std.Msg = MockMsgCall{}
+
+func (msg MockMsgCall) Route() string        { return "vm" }
+func (msg MockMsgCall) Type() string         { return "exec" }
+func (msg MockMsgCall) ValidateBasic() error { return nil }
+func (msg MockMsgCall) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+func (msg MockMsgCall) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
+}
+func (msg MockMsgCall) GetPkgPath() string { return msg.PkgPath }
+func (msg MockMsgCall) GetReceived() std.Coins {
+	return msg.Send
+}
+
+// NewSessionTestTx creates a tx signed by a session key with SessionAddr set.
+func NewSessionTestTx(
+	t *testing.T,
+	chainID string,
+	msgs []std.Msg,
+	sessionPriv crypto.PrivKey,
+	sessionAddr crypto.Address,
+	accNum uint64,
+	seq uint64,
+	fee std.Fee,
+) std.Tx {
+	t.Helper()
+
+	signBytes, err := std.GetSignaturePayload(std.SignDoc{
+		ChainID:       chainID,
+		AccountNumber: accNum,
+		Sequence:      seq,
+		Fee:           fee,
+		Msgs:          msgs,
+	})
+	require.NoError(t, err)
+
+	sig, err := sessionPriv.Sign(signBytes)
+	require.NoError(t, err)
+
+	sigs := []std.Signature{{
+		// PubKey omitted — stored on session account at creation.
+		SessionAddr: sessionAddr,
+		Signature:   sig,
+	}}
+
+	return std.NewTx(msgs, fee, sigs, "")
+}

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -108,62 +109,134 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return newCtx, res, true
 		}
 
-		// stdSigs contains the sequence number, account number, and signatures.
-		// When simulating, this would just be a 0-length slice.
 		signerAddrs := tx.GetSigners()
 		signerAccs := make([]std.Account, len(signerAddrs))
+		stdSigs := tx.GetSignatures()
 		isGenesis := ctx.BlockHeight() == 0
+		sessionAccounts := map[crypto.Address]std.DelegatedAccount{}
 
-		// fetch first signer, who's going to pay the fees
-		signerAccs[0], res = GetSignerAcc(newCtx, ak, signerAddrs[0])
-		if !res.IsOK() {
-			return newCtx, res, true
-		}
+		// ——— Phase 1: Resolve all signers ———
 
-		// deduct the fees
-		if !tx.Fee.GasFee.IsZero() {
-			res = DeductFees(bank, newCtx, signerAccs[0], ak.FeeCollectorAddress(ctx), std.Coins{tx.Fee.GasFee})
+		for i, signerAddr := range signerAddrs {
+			signerAccs[i], res = GetSignerAcc(newCtx, ak, signerAddr)
 			if !res.IsOK() {
 				return newCtx, res, true
 			}
 
+			if !stdSigs[i].SessionAddr.IsZero() {
+				sa := ak.GetSessionAccount(newCtx, signerAddr, stdSigs[i].SessionAddr)
+				if sa == nil {
+					return newCtx, abciResult(std.ErrUnauthorized("unknown session")), true
+				}
+				da := sa.(std.DelegatedAccount)
+				if da.GetExpiresAt() > 0 && newCtx.BlockTime().Unix() >= da.GetExpiresAt() {
+					return newCtx, abciResult(std.ErrSessionExpired("session expired")), true
+				}
+				sessionAccounts[signerAddr] = da
+			}
+		}
+
+		// ——— Phase 2: Deduct gas fees from first signer (always master) ———
+
+		if !tx.Fee.GasFee.IsZero() {
+			// Gas fees count against session spend limits.
+			if da, ok := sessionAccounts[signerAddrs[0]]; ok {
+				if err := DeductSessionSpend(da, std.Coins{tx.Fee.GasFee}, newCtx.BlockTime().Unix()); err != nil {
+					return newCtx, abciResult(err), true
+				}
+				// SpendUsed updated on in-memory da; persisted in Phase 3.
+			}
+			res = DeductFees(bank, newCtx, signerAccs[0], ak.FeeCollectorAddress(ctx), std.Coins{tx.Fee.GasFee})
+			if !res.IsOK() {
+				return newCtx, res, true
+			}
 			// reload the account as fees have been deducted
-			signerAccs[0] = ak.GetAccount(newCtx, signerAccs[0].GetAddress())
+			signerAccs[0] = ak.GetAccount(newCtx, signerAddrs[0])
 		}
 
-		// stdSigs contains the sequence number, account number, and signatures.
-		// When simulating, this would just be a 0-length slice.
-		stdSigs := tx.GetSignatures()
+		// ——— Phase 3: Verify signatures, increment sequences ———
 
-		for i := range stdSigs {
-			// skip the fee payer, account is cached and fees were deducted already
-			if i != 0 {
-				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerAddrs[i])
-				if !res.IsOK() {
-					return newCtx, res, true
-				}
-			}
-
-			// check signature, return account with incremented nonce
-			sacc := signerAccs[i]
+		for i, sig := range stdSigs {
 			if isGenesis && !opts.VerifyGenesisSignatures {
-				// No signatures are needed for genesis.
-			} else {
-				// Check signature
-				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
-				if err != nil {
-					return newCtx, res, true
-				}
-				signerAccs[i], res = processSig(newCtx, sacc, stdSigs[i], signBytes, simulate, params, sigGasConsumer)
-				if !res.IsOK() {
-					return newCtx, res, true
-				}
+				continue
 			}
-			ak.SetAccount(newCtx, signerAccs[i])
+
+			da, isSession := sessionAccounts[signerAddrs[i]]
+
+			// Pick the account that holds the pubkey + sequence.
+			var sigAcc std.Account
+			if isSession {
+				sigAcc = da.(std.Account)
+			} else {
+				sigAcc = signerAccs[i]
+			}
+
+			// Resolve pubkey.
+			pubKey := sig.PubKey
+			if pubKey == nil {
+				// No pubkey in signature — use stored key.
+				pubKey = sigAcc.GetPubKey()
+			} else if sigAcc.GetPubKey() == nil {
+				// First tx: set pubkey on account.
+				if !isSession {
+					// For master accounts, verify pubkey matches address.
+					if pubKey.Address() != sigAcc.GetAddress() {
+						return newCtx, abciResult(std.ErrInvalidPubKey(
+							fmt.Sprintf("PubKey does not match Signer address %s", sigAcc.GetAddress()))), true
+					}
+				}
+				sigAcc.SetPubKey(pubKey)
+			} else {
+				// Both sig.PubKey and stored pubkey exist — they must match.
+				if !bytes.Equal(pubKey.Bytes(), sigAcc.GetPubKey().Bytes()) {
+					return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+				}
+				pubKey = sigAcc.GetPubKey()
+			}
+			if pubKey == nil {
+				return newCtx, abciResult(std.ErrInvalidPubKey("PubKey not found")), true
+			}
+
+			// Sign bytes: sigAcc's own AccountNumber and Sequence.
+			// At genesis, both are zero regardless of actual values.
+			var accNum, accSeq uint64
+			if !isGenesis {
+				accNum = sigAcc.GetAccountNumber()
+				accSeq = sigAcc.GetSequence()
+			}
+			signBytes, err := tx.GetSignBytes(
+				newCtx.ChainID(),
+				accNum,
+				accSeq,
+			)
+			if err != nil {
+				return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
+			}
+
+			if res := sigGasConsumer(newCtx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
+				return newCtx, res, true
+			}
+
+			if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
+				return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+			}
+
+			if isSession {
+				sigAcc.SetSequence(sigAcc.GetSequence() + 1)
+				ak.SetSessionAccount(newCtx, signerAddrs[i], sigAcc)
+			} else {
+				sigAcc.SetSequence(sigAcc.GetSequence() + 1)
+				ak.SetAccount(newCtx, signerAccs[i])
+			}
 		}
 
-		// TODO: tx tags (?)
-		return newCtx, sdk.Result{GasWanted: tx.Fee.GasWanted}, false // continue...
+		// ——— Phase 4: Propagate session accounts in context ———
+
+		if len(sessionAccounts) > 0 {
+			newCtx = newCtx.WithValue(std.SessionAccountsContextKey{}, sessionAccounts)
+		}
+
+		return newCtx, sdk.Result{GasWanted: tx.Fee.GasWanted}, false
 	}
 }
 

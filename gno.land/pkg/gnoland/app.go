@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -105,7 +106,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Construct keepers.
 
 	prmk := params.NewParamsKeeper(mainKey)
-	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, ProtoGnoSessionAccount)
 	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
@@ -157,6 +158,14 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
+			if abort {
+				return
+			}
+
+			// Session message restrictions (gno.land layer).
+			if res, abort = checkSessionRestrictions(newCtx, tx); abort {
+				return newCtx, res, true
+			}
 			return
 		},
 	)
@@ -584,4 +593,55 @@ func extractUpdatesFromResponse(response string) ([]abci.ValidatorUpdate, error)
 	}
 
 	return updates, nil
+}
+
+// checkSessionRestrictions enforces gno.land session key restrictions:
+// sessions can only send MsgCall ("exec"), and if AllowPaths is set,
+// the target path must match one of the allowed prefixes.
+func checkSessionRestrictions(ctx sdk.Context, tx std.Tx) (sdk.Result, bool) {
+	sa := ctx.Value(std.SessionAccountsContextKey{})
+	if sa == nil {
+		return sdk.Result{}, false
+	}
+	sessions := sa.(map[crypto.Address]std.DelegatedAccount)
+	for _, msg := range tx.GetMsgs() {
+		for _, signer := range msg.GetSigners() {
+			da, ok := sessions[signer]
+			if !ok {
+				continue
+			}
+			gsa, ok := da.(*GnoSessionAccount)
+			if !ok {
+				continue
+			}
+			// Sessions can only call realms (MsgCall / "exec").
+			if msg.Type() != "exec" {
+				return sdk.ABCIResultFromError(
+					std.ErrSessionNotAllowed("session keys can only send MsgCall")), true
+			}
+			// If AllowPaths is set, check path restriction.
+			if len(gsa.AllowPaths) > 0 && !pathAllowedForSession(gsa.AllowPaths, msg) {
+				return sdk.ABCIResultFromError(
+					std.ErrSessionNotAllowed("message path not allowed for this session")), true
+			}
+		}
+	}
+	return sdk.Result{}, false
+}
+
+// pathAllowedForSession checks if a message's target path is allowed
+// by the session's AllowPaths.
+func pathAllowedForSession(allowPaths []string, msg std.Msg) bool {
+	type pkgPather interface{ GetPkgPath() string }
+	pp, ok := msg.(pkgPather)
+	if !ok {
+		return false
+	}
+	path := pp.GetPkgPath()
+	for _, prefix := range allowPaths {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
 }

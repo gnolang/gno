@@ -2591,6 +2591,11 @@ type RefValue struct {
 	Hash     ValueHash `json:",omitempty"` // Set iff not escaped
 }
 
+// ExportRefValue is a simplified RefValue for proto serialization.
+type ExportRefValue struct {
+	ObjectID string `json:",omitempty"`
+}
+
 func RefValueFromPackage(pv *PackageValue) RefValue {
 	return RefValue{PkgPath: pv.PkgPath}
 }

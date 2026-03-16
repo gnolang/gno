@@ -28,17 +28,23 @@ type AccountKeeper struct {
 
 	// The prototypical Account constructor.
 	proto func() std.Account
+
+	// The prototypical SessionAccount constructor.
+	sessionProto func() std.Account
 }
 
 // NewAccountKeeper returns a new AccountKeeper that uses go-amino to
 // (binary) encode and decode concrete std.Accounts.
 func NewAccountKeeper(
-	key store.StoreKey, pk params.ParamsKeeperI, proto func() std.Account,
+	key store.StoreKey, pk params.ParamsKeeperI,
+	proto func() std.Account,
+	sessionProto func() std.Account,
 ) AccountKeeper {
 	return AccountKeeper{
-		key:   key,
-		prmk:  pk,
-		proto: proto,
+		key:          key,
+		prmk:         pk,
+		proto:        proto,
+		sessionProto: sessionProto,
 	}
 }
 
@@ -159,6 +165,89 @@ func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 	stor.Set([]byte(GlobalAccountNumberKey), bz)
 
 	return accNumber
+}
+
+// GetSessionAccount returns a session account stored at /a/<master>/s/<session>.
+func (ak AccountKeeper) GetSessionAccount(ctx sdk.Context, master, session crypto.Address) std.Account {
+	stor := ctx.GasStore(ak.key)
+	bz := stor.Get(SessionStoreKey(master, session))
+	if bz == nil {
+		return nil
+	}
+	var acc std.Account
+	err := amino.UnmarshalAny(bz, &acc)
+	if err != nil {
+		panic(err)
+	}
+	return acc
+}
+
+// SetSessionAccount stores a session account at /a/<master>/s/<session>.
+func (ak AccountKeeper) SetSessionAccount(ctx sdk.Context, master crypto.Address, acc std.Account) {
+	addr := acc.GetAddress()
+	stor := ctx.GasStore(ak.key)
+	bz, err := amino.MarshalAny(acc)
+	if err != nil {
+		panic(err)
+	}
+	stor.Set(SessionStoreKey(master, addr), bz)
+}
+
+// RemoveSessionAccount deletes a session account.
+func (ak AccountKeeper) RemoveSessionAccount(ctx sdk.Context, master, session crypto.Address) {
+	stor := ctx.GasStore(ak.key)
+	stor.Delete(SessionStoreKey(master, session))
+}
+
+// RemoveAllSessions deletes all session accounts for a master via prefix delete.
+func (ak AccountKeeper) RemoveAllSessions(ctx sdk.Context, master crypto.Address) {
+	stor := ctx.GasStore(ak.key)
+	prefix := SessionPrefixKey(master)
+	iter := store.PrefixIterator(stor, prefix)
+	defer iter.Close()
+	keys := [][]byte{}
+	for ; iter.Valid(); iter.Next() {
+		keys = append(keys, iter.Key())
+	}
+	for _, key := range keys {
+		stor.Delete(key)
+	}
+}
+
+// IterateSessions iterates over all sessions of a master account.
+func (ak AccountKeeper) IterateSessions(ctx sdk.Context, master crypto.Address, cb func(std.Account) bool) {
+	stor := ctx.GasStore(ak.key)
+	iter := store.PrefixIterator(stor, SessionPrefixKey(master))
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		var acc std.Account
+		err := amino.UnmarshalAny(iter.Value(), &acc)
+		if err != nil {
+			panic(err)
+		}
+		if cb(acc) {
+			break
+		}
+	}
+}
+
+// NewSessionAccount creates a new session account using the session prototype.
+func (ak AccountKeeper) NewSessionAccount(ctx sdk.Context, master crypto.Address, pubKey crypto.PubKey) std.Account {
+	acc := ak.sessionProto()
+	if err := acc.SetAddress(pubKey.Address()); err != nil {
+		panic(err)
+	}
+	if err := acc.SetPubKey(pubKey); err != nil {
+		panic(err)
+	}
+	if err := acc.SetAccountNumber(ak.GetNextAccountNumber(ctx)); err != nil {
+		panic(err)
+	}
+	da := acc.(std.DelegatedAccount)
+	if err := da.SetMasterAddress(master); err != nil {
+		panic(err)
+	}
+	return acc
 }
 
 // -----------------------------------------------------------------------------

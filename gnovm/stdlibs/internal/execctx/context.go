@@ -37,6 +37,7 @@ type ExecContext struct {
 	Banker          BankerInterface
 	Params          ParamsInterface
 	EventLogger     *sdk.EventLogger
+	SessionAccount  std.DelegatedAccount // nil for master-key txs
 }
 
 // GetContext returns the execution context.

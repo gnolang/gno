@@ -156,3 +156,143 @@ func (acc *BaseAccount) SetSequence(seq uint64) error {
 	acc.Sequence = seq
 	return nil
 }
+
+//----------------------------------------
+// BaseSessionAccount
+
+// BaseSessionAccount is a delegated signing account linked to a master.
+// It is keyed under the master account in the store.
+type BaseSessionAccount struct {
+	BaseAccount
+	MasterAddress crypto.Address `json:"master_address" yaml:"master_address"`
+	ExpiresAt     int64          `json:"expires_at" yaml:"expires_at"`
+	SpendLimit    Coins          `json:"spend_limit,omitempty" yaml:"spend_limit,omitempty"`
+	SpendPeriod   int64          `json:"spend_period,omitempty" yaml:"spend_period,omitempty"`
+	SpendUsed     Coins          `json:"spend_used,omitempty" yaml:"spend_used,omitempty"`
+	SpendReset    int64          `json:"spend_reset,omitempty" yaml:"spend_reset,omitempty"`
+}
+
+// DelegatedAccount is implemented by session accounts that delegate
+// fee payment and identity to a master account.
+type DelegatedAccount interface {
+	Account
+	GetMasterAddress() crypto.Address
+	SetMasterAddress(crypto.Address) error
+	GetExpiresAt() int64
+	SetExpiresAt(int64) error
+	GetSpendLimit() Coins
+	SetSpendLimit(Coins) error
+	GetSpendPeriod() int64
+	SetSpendPeriod(int64) error
+	GetSpendUsed() Coins
+	SetSpendUsed(Coins) error
+	GetSpendReset() int64
+	SetSpendReset(int64) error
+}
+
+// SessionAccountsContextKey is the context key for the session accounts map.
+// The value is map[crypto.Address]DelegatedAccount (signer addr → session).
+type SessionAccountsContextKey struct{}
+
+const (
+	MaxSessionsPerAccount   = 16
+	MaxAllowPathsPerSession = 8
+	MaxSessionDuration      = 30 * 24 * 60 * 60 // 30 days in seconds
+)
+
+// ProtoBaseSessionAccount - a prototype function for BaseSessionAccount
+func ProtoBaseSessionAccount() Account {
+	return &BaseSessionAccount{}
+}
+
+// String implements fmt.Stringer
+func (acc BaseSessionAccount) String() string {
+	var pubkey string
+
+	if acc.PubKey != nil {
+		pubkey = crypto.PubKeyToBech32(acc.PubKey)
+	}
+
+	return fmt.Sprintf(`SessionAccount:
+  Address:       %s
+  Pubkey:        %s
+  Coins:         %s
+  AccountNumber: %d
+  Sequence:      %d
+  MasterAddress: %s
+  ExpiresAt:     %d
+  SpendLimit:    %s
+  SpendPeriod:   %d
+  SpendUsed:     %s
+  SpendReset:    %d`,
+		acc.Address, pubkey, acc.Coins, acc.AccountNumber, acc.Sequence,
+		acc.MasterAddress, acc.ExpiresAt, acc.SpendLimit, acc.SpendPeriod,
+		acc.SpendUsed, acc.SpendReset,
+	)
+}
+
+// GetMasterAddress - Implements DelegatedAccount.
+func (acc BaseSessionAccount) GetMasterAddress() crypto.Address {
+	return acc.MasterAddress
+}
+
+// SetMasterAddress - Implements DelegatedAccount.
+func (acc *BaseSessionAccount) SetMasterAddress(addr crypto.Address) error {
+	acc.MasterAddress = addr
+	return nil
+}
+
+// GetExpiresAt - Implements DelegatedAccount.
+func (acc BaseSessionAccount) GetExpiresAt() int64 {
+	return acc.ExpiresAt
+}
+
+// SetExpiresAt - Implements DelegatedAccount.
+func (acc *BaseSessionAccount) SetExpiresAt(t int64) error {
+	acc.ExpiresAt = t
+	return nil
+}
+
+// GetSpendLimit - Implements DelegatedAccount.
+func (acc BaseSessionAccount) GetSpendLimit() Coins {
+	return acc.SpendLimit
+}
+
+// SetSpendLimit - Implements DelegatedAccount.
+func (acc *BaseSessionAccount) SetSpendLimit(coins Coins) error {
+	acc.SpendLimit = coins
+	return nil
+}
+
+// GetSpendPeriod - Implements DelegatedAccount.
+func (acc BaseSessionAccount) GetSpendPeriod() int64 {
+	return acc.SpendPeriod
+}
+
+// SetSpendPeriod - Implements DelegatedAccount.
+func (acc *BaseSessionAccount) SetSpendPeriod(period int64) error {
+	acc.SpendPeriod = period
+	return nil
+}
+
+// GetSpendUsed - Implements DelegatedAccount.
+func (acc BaseSessionAccount) GetSpendUsed() Coins {
+	return acc.SpendUsed
+}
+
+// SetSpendUsed - Implements DelegatedAccount.
+func (acc *BaseSessionAccount) SetSpendUsed(coins Coins) error {
+	acc.SpendUsed = coins
+	return nil
+}
+
+// GetSpendReset - Implements DelegatedAccount.
+func (acc BaseSessionAccount) GetSpendReset() int64 {
+	return acc.SpendReset
+}
+
+// SetSpendReset - Implements DelegatedAccount.
+func (acc *BaseSessionAccount) SetSpendReset(t int64) error {
+	acc.SpendReset = t
+	return nil
+}

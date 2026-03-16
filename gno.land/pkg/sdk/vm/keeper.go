@@ -27,6 +27,7 @@ import (
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -63,6 +64,24 @@ type VMKeeperI interface {
 }
 
 var _ VMKeeperI = &VMKeeper{}
+
+// getSessionAccount extracts the DelegatedAccount for the given caller
+// from the SDK context, if this is a session tx.
+func getSessionAccount(ctx sdk.Context, caller crypto.Address) std.DelegatedAccount {
+	sa := ctx.Value(std.SessionAccountsContextKey{})
+	if sa == nil {
+		return nil
+	}
+	sessions, ok := sa.(map[crypto.Address]std.DelegatedAccount)
+	if !ok {
+		return nil
+	}
+	da, ok := sessions[caller]
+	if !ok {
+		return nil
+	}
+	return da
+}
 
 // VMKeeper holds all package code and store state.
 type VMKeeper struct {
@@ -382,6 +401,7 @@ func (vm *VMKeeper) callRealmBool(
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
+		SessionAccount:  getSessionAccount(ctx, creator),
 	}
 
 	m := gno.NewMachineWithOptions(
@@ -621,6 +641,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
+		SessionAccount:  getSessionAccount(ctx, creator),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -658,6 +679,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 
 // Call calls a public Gno function (for delivertx).
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
+	// Check session spend limits for coin transfers.
+	if !msg.Send.IsZero() {
+		if err := auth.CheckAndDeductSessionSpend(ctx, vm.acck, msg.Caller, msg.Send); err != nil {
+			return "", err
+		}
+	}
 	params := vm.GetParams(ctx)
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
@@ -707,6 +734,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
+		SessionAccount:  getSessionAccount(ctx, caller),
 	}
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
@@ -873,6 +901,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
+		SessionAccount:  getSessionAccount(ctx, caller),
 	}
 
 	buf := new(bytes.Buffer)

@@ -43,6 +43,7 @@ func GetSignaturePayload(s SignDoc) ([]byte, error) {
 
 // Signature represents a wrapped signature of a transaction
 type Signature struct {
-	PubKey    crypto.PubKey `json:"pub_key" yaml:"pub_key"` // optional
-	Signature []byte        `json:"signature" yaml:"signature"`
+	PubKey      crypto.PubKey  `json:"pub_key" yaml:"pub_key"` // optional
+	Signature   []byte         `json:"signature" yaml:"signature"`
+	SessionAddr crypto.Address `json:"session_addr,omitempty" yaml:"session_addr,omitempty"`
 }

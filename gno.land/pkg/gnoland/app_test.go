@@ -1063,7 +1063,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 
 	// Construct keepers.
 	prmk := params.NewParamsKeeper(mainKey)
-	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)

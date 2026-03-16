@@ -1,0 +1,207 @@
+package gnoland
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
+
+func setupSessionGnoEnv(t *testing.T) (testEnv, sdk.AnteHandler, crypto.PrivKey, crypto.PubKey, crypto.Address) {
+	t.Helper()
+
+	env := setupTestEnv()
+
+	// Set auth params including fee_collector.
+	params := auth.DefaultParams()
+	env.acck.SetParams(env.ctx, params)
+
+	// Build the full ante handler chain: tm2 auth + gno.land wrapper.
+	authAnteHandler := auth.NewAnteHandler(
+		env.acck, env.bankk, auth.DefaultSigVerificationGasConsumer,
+		auth.AnteOptions{VerifyGenesisSignatures: false})
+
+	// Wrap with gno.land session restrictions using the same function as app.go.
+	anteHandler := func(ctx sdk.Context, tx std.Tx, simulate bool) (
+		newCtx sdk.Context, res sdk.Result, abort bool,
+	) {
+		ctx = ctx.WithValue(auth.AuthParamsContextKey{}, env.acck.GetParams(ctx))
+		newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
+		if abort {
+			return
+		}
+		if res, abort = checkSessionRestrictions(newCtx, tx); abort {
+			return newCtx, res, true
+		}
+		return
+	}
+
+	// Create and fund master account.
+	masterPriv, masterPub, masterAddr := tu.KeyTestPubAddr()
+	masterAcc := env.acck.NewAccountWithAddress(env.ctx, masterAddr)
+	masterAcc.SetCoins(tu.NewTestCoins())
+	masterAcc.SetPubKey(masterPub)
+	env.acck.SetAccount(env.ctx, masterAcc)
+
+	// Set block time.
+	now := time.Now()
+	env.ctx = env.ctx.WithBlockHeader(&bft.Header{
+		ChainID: env.ctx.ChainID(),
+		Height:  1,
+		Time:    now,
+	})
+
+	return env, anteHandler, masterPriv, masterPub, masterAddr
+}
+
+func createGnoSession(t *testing.T, env testEnv, masterAddr crypto.Address, sessionPub crypto.PubKey, expiresAt int64, allowPaths []string) std.Account {
+	t.Helper()
+
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(expiresAt)
+	da.SetSpendLimit(std.Coins{std.NewCoin("atom", 10000000)})
+	da.SetSpendReset(env.ctx.BlockTime().Unix())
+
+	if len(allowPaths) > 0 {
+		sa.(*GnoSessionAccount).SetAllowPaths(allowPaths)
+	}
+
+	env.acck.SetSessionAccount(env.ctx, masterAddr, sa)
+	return sa
+}
+
+func TestSessionAllowPathsExactMatch(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionGnoEnv(t)
+	ctx := env.ctx
+
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := createGnoSession(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600,
+		[]string{"gno.land/r/demo/boards"})
+	sessionAccNum := sa.GetAccountNumber()
+
+	// MsgCall to the exact allowed path — should pass.
+	msgs := []std.Msg{tu.MockMsgCall{Caller: masterAddr, PkgPath: "gno.land/r/demo/boards"}}
+	fee := tu.NewTestFee()
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+
+	_, res, abort := anteHandler(ctx, tx, false)
+	require.False(t, abort, res.Log)
+	assert.True(t, res.IsOK(), res.Log)
+}
+
+func TestSessionAllowPathsSubPath(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionGnoEnv(t)
+	ctx := env.ctx
+
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := createGnoSession(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600,
+		[]string{"gno.land/r/demo"})
+	sessionAccNum := sa.GetAccountNumber()
+
+	// MsgCall to a sub-path — should pass.
+	msgs := []std.Msg{tu.MockMsgCall{Caller: masterAddr, PkgPath: "gno.land/r/demo/boards"}}
+	fee := tu.NewTestFee()
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+
+	_, res, abort := anteHandler(ctx, tx, false)
+	require.False(t, abort, res.Log)
+	assert.True(t, res.IsOK(), res.Log)
+}
+
+func TestSessionAllowPathsDenied(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionGnoEnv(t)
+	ctx := env.ctx
+
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := createGnoSession(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600,
+		[]string{"gno.land/r/demo/boards"})
+	sessionAccNum := sa.GetAccountNumber()
+
+	// MsgCall to a different path — should be denied.
+	msgs := []std.Msg{tu.MockMsgCall{Caller: masterAddr, PkgPath: "gno.land/r/demo/chat"}}
+	fee := tu.NewTestFee()
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+
+	_, res, abort := anteHandler(ctx, tx, false)
+	require.True(t, abort, "should reject disallowed path")
+	assert.Contains(t, res.Log, "not allowed")
+}
+
+func TestSessionAllowPathsPrefixAttack(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionGnoEnv(t)
+	ctx := env.ctx
+
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := createGnoSession(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600,
+		[]string{"gno.land/r/demo"})
+	sessionAccNum := sa.GetAccountNumber()
+
+	// "gno.land/r/demo_evil" shares the prefix "gno.land/r/demo" but is NOT
+	// a sub-path — should be denied.
+	msgs := []std.Msg{tu.MockMsgCall{Caller: masterAddr, PkgPath: "gno.land/r/demo_evil"}}
+	fee := tu.NewTestFee()
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+
+	_, res, abort := anteHandler(ctx, tx, false)
+	require.True(t, abort, "should reject prefix attack path")
+	assert.Contains(t, res.Log, "not allowed")
+}
+
+func TestSessionAllowPathsUnrestricted(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionGnoEnv(t)
+	ctx := env.ctx
+
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	// Empty AllowPaths = unrestricted for MsgCall.
+	sa := createGnoSession(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600, nil)
+	sessionAccNum := sa.GetAccountNumber()
+
+	// MsgCall to any path should pass.
+	msgs := []std.Msg{tu.MockMsgCall{Caller: masterAddr, PkgPath: "gno.land/r/anything/here"}}
+	fee := tu.NewTestFee()
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+
+	_, res, abort := anteHandler(ctx, tx, false)
+	require.False(t, abort, res.Log)
+	assert.True(t, res.IsOK(), res.Log)
+}
+
+func TestSessionDeniesNonExecMsg(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionGnoEnv(t)
+	ctx := env.ctx
+
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	// Even with empty AllowPaths (unrestricted), non-exec msgs are denied.
+	sa := createGnoSession(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600, nil)
+	sessionAccNum := sa.GetAccountNumber()
+
+	// TestMsg has Type() = "Test message", not "exec" — should be denied.
+	msgs := []std.Msg{tu.NewTestMsg(masterAddr)}
+	fee := tu.NewTestFee()
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+
+	_, res, abort := anteHandler(ctx, tx, false)
+	require.True(t, abort, "should reject non-exec msg for session")
+	assert.Contains(t, res.Log, "can only send MsgCall")
+}

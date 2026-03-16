@@ -24,6 +24,14 @@ func PreviousRealm() Realm {
 	return Realm{address(addr), path}
 }
 
+// GetSessionInfo returns session metadata if the current transaction was
+// signed by a session key. Returns isSession=false for master-key transactions.
+func GetSessionInfo() (pubKeyAddr address, expiresAt int64, allowPaths []string, isSession bool) {
+	addr, exp, paths, ok := getSessionInfo()
+	return address(addr), exp, paths, ok
+}
+
 // Variations which don't use named types.
 func originCaller() string
 func getRealm(height int) (address string, pkgPath string)
+func getSessionInfo() (pubKeyAddr string, expiresAt int64, allowPaths []string, isSession bool)
