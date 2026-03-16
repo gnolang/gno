@@ -116,7 +116,7 @@ func (m *Machine) doOpLss() {
 	}
 
 	// set the result in lv.
-	res := isLss(lv, rv)
+	res := isLss(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -133,7 +133,7 @@ func (m *Machine) doOpLeq() {
 	}
 
 	// set the result in lv.
-	res := isLeq(lv, rv)
+	res := isLeq(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -150,7 +150,7 @@ func (m *Machine) doOpGtr() {
 	}
 
 	// set the result in lv.
-	res := isGtr(lv, rv)
+	res := isGtr(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -167,7 +167,7 @@ func (m *Machine) doOpGeq() {
 	}
 
 	// set the result in lv.
-	res := isGeq(lv, rv)
+	res := isGeq(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -359,7 +359,18 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 	case BoolKind:
 		return (lv.GetBool() == rv.GetBool())
 	case StringKind:
-		return (lv.GetString() == rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		// Charge gas proportional to string length, since Go's == on
+		// strings is O(N). Use the longer of the two lengths; equal
+		// strings force a full scan, and Go may early-exit on
+		// length mismatch but we charge conservatively.
+		slen := int64(len(ls))
+		if int64(len(rs)) > slen {
+			slen = int64(len(rs))
+		}
+		m.incrCPU(slen * OpCPUEql)
+		return ls == rs
 	case IntKind:
 		return (lv.GetInt() == rv.GetInt())
 	case Int8Kind:
@@ -482,10 +493,17 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 }
 
 // TODO: can be much faster.
-func isLss(lv, rv *TypedValue) bool {
+func isLss(m *Machine, lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() < rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		slen := int64(len(ls))
+		if int64(len(rs)) > slen {
+			slen = int64(len(rs))
+		}
+		m.incrCPU(slen * OpCPULss)
+		return ls < rs
 	case IntKind:
 		return (lv.GetInt() < rv.GetInt())
 	case Int8Kind:
@@ -526,10 +544,17 @@ func isLss(lv, rv *TypedValue) bool {
 	}
 }
 
-func isLeq(lv, rv *TypedValue) bool {
+func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() <= rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		slen := int64(len(ls))
+		if int64(len(rs)) > slen {
+			slen = int64(len(rs))
+		}
+		m.incrCPU(slen * OpCPULeq)
+		return ls <= rs
 	case IntKind:
 		return (lv.GetInt() <= rv.GetInt())
 	case Int8Kind:
@@ -570,10 +595,17 @@ func isLeq(lv, rv *TypedValue) bool {
 	}
 }
 
-func isGtr(lv, rv *TypedValue) bool {
+func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() > rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		slen := int64(len(ls))
+		if int64(len(rs)) > slen {
+			slen = int64(len(rs))
+		}
+		m.incrCPU(slen * OpCPUGtr)
+		return ls > rs
 	case IntKind:
 		return (lv.GetInt() > rv.GetInt())
 	case Int8Kind:
@@ -614,10 +646,17 @@ func isGtr(lv, rv *TypedValue) bool {
 	}
 }
 
-func isGeq(lv, rv *TypedValue) bool {
+func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() >= rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		slen := int64(len(ls))
+		if int64(len(rs)) > slen {
+			slen = int64(len(rs))
+		}
+		m.incrCPU(slen * OpCPUGeq)
+		return ls >= rs
 	case IntKind:
 		return (lv.GetInt() >= rv.GetInt())
 	case Int8Kind:
