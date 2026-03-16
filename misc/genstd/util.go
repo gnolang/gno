@@ -69,25 +69,23 @@ func findDirs() (gitRoot string, relPath string, err error) {
 		return
 	}
 
+	// makeRelPath computes the relative path from root to wd, with / separators.
+	makeRelPath := func(root string) string {
+		rp := strings.TrimPrefix(wd, root+string(filepath.Separator))
+		return strings.ReplaceAll(rp, string(filepath.Separator), "/")
+	}
+
 	// Try git rev-parse --show-toplevel first; this correctly handles git worktrees.
 	if out, e := exec.Command("git", "rev-parse", "--show-toplevel").Output(); e == nil {
 		p := strings.TrimSpace(string(out))
-		// make relPath relative to the git root
-		rp := strings.TrimPrefix(wd, p+string(filepath.Separator))
-		// normalize separator to /
-		rp = strings.ReplaceAll(rp, string(filepath.Separator), "/")
-		return p, rp, nil
+		return p, makeRelPath(p), nil
 	}
 
 	// Fall back to walking up parent directories looking for a .git entry.
 	p := wd
 	for {
 		if _, e := os.Stat(filepath.Join(p, ".git")); e == nil {
-			// make relPath relative to the git root
-			rp := strings.TrimPrefix(wd, p+string(filepath.Separator))
-			// normalize separator to /
-			rp = strings.ReplaceAll(rp, string(filepath.Separator), "/")
-			return p, rp, nil
+			return p, makeRelPath(p), nil
 		}
 
 		if strings.HasSuffix(p, string(filepath.Separator)) {
