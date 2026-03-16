@@ -524,6 +524,12 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
+	// Check session spend limits for coin transfers.
+	if !msg.Send.IsZero() {
+		if err := auth.CheckAndDeductSessionSpend(ctx, vm.acck, msg.Creator, msg.Send); err != nil {
+			return err
+		}
+	}
 	creator := msg.Creator
 	pkgPath := msg.Package.Path
 	memPkg := msg.Package
@@ -848,6 +854,12 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 
 // Run executes arbitrary Gno code in the context of the caller's realm.
 func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
+	// Check session spend limits for coin transfers.
+	if !msg.Send.IsZero() {
+		if err := auth.CheckAndDeductSessionSpend(ctx, vm.acck, msg.Caller, msg.Send); err != nil {
+			return "", err
+		}
+	}
 	caller := msg.Caller
 	pkgAddr := caller
 	gnostore := vm.getGnoTransactionStore(ctx)

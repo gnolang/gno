@@ -73,9 +73,21 @@ func (ah authHandler) handleMsgCreateSession(ctx sdk.Context, msg MsgCreateSessi
 	if count >= std.MaxSessionsPerAccount {
 		return abciResult(std.ErrSessionLimit("too many sessions"))
 	}
+	// Check SpendPeriod max.
+	if msg.SpendPeriod > std.MaxSessionDuration {
+		return abciResult(std.ErrUnauthorized("spend_period exceeds maximum"))
+	}
 	// Check AllowPaths count.
 	if len(msg.AllowPaths) > std.MaxAllowPathsPerSession {
 		return abciResult(std.ErrUnauthorized("too many allow paths"))
+	}
+	for _, path := range msg.AllowPaths {
+		if path == "" {
+			return abciResult(std.ErrUnauthorized("empty allow_path entry"))
+		}
+		if strings.HasSuffix(path, "/") {
+			return abciResult(std.ErrUnauthorized("allow_path must not end with /"))
+		}
 	}
 
 	// Create session account via prototype.

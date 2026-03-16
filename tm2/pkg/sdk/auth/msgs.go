@@ -37,6 +37,9 @@ func (msg MsgCreateSession) ValidateBasic() error {
 	if msg.ExpiresAt < 0 {
 		return std.ErrUnauthorized("expires_at must be non-negative (0 means no expiry)")
 	}
+	if msg.SpendPeriod < 0 {
+		return std.ErrUnauthorized("spend_period must be non-negative")
+	}
 	if len(msg.AllowPaths) > std.MaxAllowPathsPerSession {
 		return std.ErrUnauthorized("too many allow_paths")
 	}
