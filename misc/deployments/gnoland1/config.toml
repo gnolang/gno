@@ -159,7 +159,7 @@ private_peer_ids = ""
 recv_rate = 5120000
 
 # Comma separated list of seed nodes to connect to
-seeds = "g14t27l6t5s8cyuu3w6sjw4qmznvghfdh8k0gavr@gnoland1.moul.p2p.team:26656"
+seeds = "" # TODO(@sw360cab): add gnocore seed node address
 
 # Rate at which packets can be sent, in bytes/second
 send_rate = 5120000
