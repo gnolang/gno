@@ -46,16 +46,6 @@ func finalizeCurrent() time.Time {
 	return now
 }
 
-// BeginOpCode starts timing the first op in a run loop.
-func BeginOpCode(code byte) {
-	if code == invalidCode {
-		panic("the OpCode is invalid")
-	}
-	measure.curOpCode = code
-	measure.curStart = time.Now()
-	measure.opCounts[code]++
-}
-
 // SwitchOpCode finalizes the current op's elapsed time and
 // starts timing a new op. Returns the old op code so the
 // caller can pass it to ResumeOpCode when done.
