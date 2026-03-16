@@ -1,5 +1,5 @@
-// Package names provides namespace authorization for package deployments,
-// ensuring that users registered in r/sys/users can only deploy to namespaces they own.
+// Package names provides namespace authorization for package deployments.
+// Only address-prefix (PA) namespaces are allowed.
 package names
 
 // IsAuthorizedAddressForNamespace checks whether the given address owns the given namespace.
@@ -8,8 +8,8 @@ func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool
 	return verifier(address_XXX, namespace)
 }
 
-// verifier checks whether the address owns the namespace by looking up r/sys/users.
-// An address always owns the namespace matching its own string representation (PA namespaces).
+// verifier checks namespace deployment permissions.
+// An address matching the namespace is the only allowed case.
 func verifier(address_XXX address, namespace string) bool {
 	if address_XXX.String() == "" || namespace == "" {
 		return false

@@ -5,28 +5,20 @@ import (
 
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
-	"gno.land/p/nt/urequire/v0"
-	"gno.land/r/sys/users"
 )
 
 var alice = testutils.TestAddress("alice")
 
 func TestIsAuthorizedAddressForNamespace(t *testing.T) {
-	// username + addr mismatch
+	// Address does not match namespace
 	uassert.False(t, IsAuthorizedAddressForNamespace(alice, "notregistered"))
-	// PA namespace check
+
+	// PA namespace: address matches its own string representation
 	uassert.True(t, IsAuthorizedAddressForNamespace(alice, alice.String()))
 
-	// Empty name/address
+	// Empty address and namespace
 	uassert.False(t, IsAuthorizedAddressForNamespace(address(""), ""))
 
-	// Register proper username
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users/init")) // authorized write
-	urequire.NoError(t, users.RegisterUser(cross, "alice", alice))
-
-	// Proper namespace
-	uassert.True(t, IsAuthorizedAddressForNamespace(alice, "alice"))
-
-	// Wrong address for namespace
-	uassert.False(t, IsAuthorizedAddressForNamespace(testutils.TestAddress("bob"), "alice"))
+	// Different address for the same namespace
+	uassert.False(t, IsAuthorizedAddressForNamespace(testutils.TestAddress("bob"), alice.String()))
 }
