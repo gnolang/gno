@@ -28,8 +28,8 @@ func (msg MsgCreateSession) ValidateBasic() error {
 	if msg.SessionKey == nil {
 		return std.ErrInvalidPubKey("missing session key")
 	}
-	if msg.ExpiresAt <= 0 {
-		return std.ErrUnauthorized("expires_at must be positive")
+	if msg.ExpiresAt < 0 {
+		return std.ErrUnauthorized("expires_at must be non-negative (0 means no expiry)")
 	}
 	if len(msg.AllowPaths) > std.MaxAllowPathsPerSession {
 		return std.ErrUnauthorized("too many allow_paths")

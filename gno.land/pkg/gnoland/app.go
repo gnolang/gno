@@ -606,23 +606,27 @@ func checkSessionRestrictions(ctx sdk.Context, tx std.Tx) (sdk.Result, bool) {
 	sessions := sa.(map[crypto.Address]std.DelegatedAccount)
 	for _, msg := range tx.GetMsgs() {
 		for _, signer := range msg.GetSigners() {
-			da, ok := sessions[signer]
+			_, ok := sessions[signer]
 			if !ok {
 				continue
 			}
-			gsa, ok := da.(*GnoSessionAccount)
-			if !ok {
-				continue
-			}
-			// Sessions can only call realms (MsgCall / "exec").
+			// All session types (regardless of concrete type) can only
+			// send MsgCall ("exec"). This check uses the DelegatedAccount
+			// presence in the map, NOT a type assertion to *GnoSessionAccount,
+			// so it cannot be bypassed by a different session account type.
 			if msg.Type() != "exec" {
 				return sdk.ABCIResultFromError(
 					std.ErrSessionNotAllowed("session keys can only send MsgCall")), true
 			}
-			// If AllowPaths is set, check path restriction.
-			if len(gsa.AllowPaths) > 0 && !pathAllowedForSession(gsa.AllowPaths, msg) {
-				return sdk.ABCIResultFromError(
-					std.ErrSessionNotAllowed("message path not allowed for this session")), true
+			// AllowPaths check — only applies to GnoSessionAccount.
+			// Other DelegatedAccount types have no path restrictions
+			// (but are still restricted to "exec" above).
+			type pathRestricted interface{ GetAllowPaths() []string }
+			if pr, ok := sessions[signer].(pathRestricted); ok {
+				if paths := pr.GetAllowPaths(); len(paths) > 0 && !pathAllowedForSession(paths, msg) {
+					return sdk.ABCIResultFromError(
+						std.ErrSessionNotAllowed("message path not allowed for this session")), true
+				}
 			}
 		}
 	}
