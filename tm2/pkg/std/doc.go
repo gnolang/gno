@@ -43,7 +43,12 @@ func GetSignaturePayload(s SignDoc) ([]byte, error) {
 
 // Signature represents a wrapped signature of a transaction
 type Signature struct {
-	PubKey      crypto.PubKey  `json:"pub_key" yaml:"pub_key"` // optional
-	Signature   []byte         `json:"signature" yaml:"signature"`
-	SessionAddr crypto.Address `json:"session_addr,omitempty" yaml:"session_addr,omitempty"`
+	PubKey    crypto.PubKey    `json:"pub_key" yaml:"pub_key"` // optional
+	Signature []byte           `json:"signature" yaml:"signature"`
+	// SessionAddr identifies a session account for delegated signing.
+	// Nil for master-key signatures. When set, the AnteHandler loads the
+	// session account at /a/<signer>/s/<SessionAddr> for verification.
+	// Pointer so amino omits the field when nil — a non-pointer
+	// crypto.Address ([20]byte) always encodes (+42 bytes per signature).
+	SessionAddr *crypto.Address `json:"session_addr,omitempty" yaml:"session_addr,omitempty"`
 }

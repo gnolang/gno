@@ -850,7 +850,7 @@ func TestSessionPubKeyMismatchAttack(t *testing.T) {
 		tu.NewTestFee(),
 		[]std.Signature{{
 			PubKey:      attackerPriv.PubKey(), // wrong pubkey
-			SessionAddr: sessionAddr,
+			SessionAddr: &sessionAddr,
 			Signature:   sig,
 		}},
 		"",
