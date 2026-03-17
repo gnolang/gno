@@ -2,24 +2,34 @@ REPO_ROOT := $(shell cd ../../.. && pwd)
 GENESIS_SHA256 := 34586634ed794c5167fbf55a06d8806fcbb8fe558a26399fa8b0e8e8b377b355
 GENESIS_NO_AIRDROP_SHA256 := aebbfc9b3af201a287c8fe0de033beb830f1da0520ec2ba37d59a15e45b2accd
 
+# verify_checksum $(file) $(expected_sha256)
+define verify_checksum
+	@actual=$$(shasum -a 256 $(1) | awk '{print $$1}'); \
+	expected=$(2); \
+	printf "\nVerify expected $(1) checksum: "; \
+	if [ "$$actual" = "$$expected" ]; then \
+	printf "MATCH ✅\n  Actual: %s\n" "$$actual"; \
+	else \
+		printf "MISMATCH ❌\n  Expected: %s\n  Actual:   %s\n" "$$expected" "$$actual"; \
+		exit 1; \
+	fi
+endef
+
 .PHONY: help generate generate-no-airdrop generate-txs test clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 
-generate: genesis.json ## Generate genesis.json with airdrop balances and verify checksum
-	@echo "Verifying genesis.json checksum..."
-	@shasum -a 256 genesis.json
-	@echo '$(GENESIS_SHA256)  genesis.json' | shasum -a 256 -c
+generate: ## Generate genesis.json with airdrop balances and verify checksum
+	./gen-genesis.sh
+	$(call verify_checksum,genesis.json,$(GENESIS_SHA256))
 
 genesis.json: gen-genesis.sh
 	./gen-genesis.sh
 
 generate-no-airdrop: ## Generate genesis.json with test1 balance only and verify checksum
 	./gen-genesis.sh --no-airdrop
-	@echo "Verifying genesis.json checksum..."
-	@shasum -a 256 genesis.json
-	@echo '$(GENESIS_NO_AIRDROP_SHA256)  genesis.json' | shasum -a 256 -c
+	$(call verify_checksum,genesis.json,$(GENESIS_NO_AIRDROP_SHA256))
 
 generate-txs: genesis_txs.jsonl ## Generate genesis transactions only
 
