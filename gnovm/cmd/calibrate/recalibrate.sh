@@ -30,7 +30,7 @@ echo
 # It won't run on the base commit (that's expected — it's a new op).
 BENCH_PATTERN='BenchmarkOpAdd_Int$|BenchmarkOpAdd_String_100$|BenchmarkOpAdd_Float64$|BenchmarkOpSub_Int$|BenchmarkOpMul_Int$|BenchmarkOpQuo_Int$|BenchmarkOpRem_Int$|BenchmarkOpCall_0Params_0Captures$|BenchmarkOpCall_1Params_0Captures$|BenchmarkOpCall_10Params_0Captures$|BenchmarkOpCall_0Params_1Captures$|BenchmarkOpCall_0Params_10Captures$|BenchmarkOpCall_10Params_10Captures$|BenchmarkOpCall_Method$|BenchmarkOpPrecall_BoundMethod$|BenchmarkOpMethodPrecall_ValMethod$|BenchmarkOpSelector_VPValMethod$|BenchmarkOpSelector_VPInterface_1$|BenchmarkOpSelector_VPInterface_10$|BenchmarkOpStructLit_Unnamed_3$|BenchmarkOpStructLit_Named_3$|BenchmarkOpReturn$|BenchmarkOpForLoop$|BenchmarkOpIfCond$|BenchmarkOpEval_NameExpr_Depth1$|BenchmarkOpEval_NameExpr_Depth10$'
 
-BENCH_FLAGS="-benchtime=3s -count=5"
+BENCH_FLAGS="-run=^$ -benchtime=3s -count=5 -timeout=30m"
 
 echo "--- Step 1: Benchmark AFTER (optimized) ---"
 go test ./gnovm/pkg/gnolang/ -bench="$BENCH_PATTERN" $BENCH_FLAGS \
