@@ -58,7 +58,6 @@ func main() {
 	// Unrestricted addresses (can transfer ugnot even when bank is locked).
 	govExec(params.ProposeAddUnrestrictedAcctsRequest(
 		address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"), // GovDAO T1 multisig
-		address("g148583t5x66zs6p90ehad6l4qefeyaf54s69wql"), // Faucet
 	))
 
 	// Lock ugnot transfers (restricted denom).
