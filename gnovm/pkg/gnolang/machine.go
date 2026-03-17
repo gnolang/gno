@@ -1250,6 +1250,7 @@ const (
 	OpCPUNoop                = 1
 	OpCPUExec                = 25
 	OpCPUPrecall             = 38  // max(type conv=14, func=34, bound method=38)
+	OpCPUMethodPrecall       = 80  // replaces OpSelector(80)+OpPrecall(38) for method calls; cheaper due to no heap alloc. TODO: recalibrate on server
 	OpCPUEnterCrossing       = 100 // XXX not yet benchmarked
 	OpCPUCall                = 35  // base for 0 params, 0 captures; per-param/capture added in handler
 	OpCPUCallNativeBody      = 424 // TODO: benchmark this properly
@@ -1483,7 +1484,7 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUPrecall)
 			m.doOpPrecall()
 		case OpMethodPrecall:
-			m.incrCPU(OpCPUPrecall) // same cost as OpPrecall
+			m.incrCPU(OpCPUMethodPrecall)
 			m.doOpMethodPrecall()
 		case OpEnterCrossing:
 			m.incrCPU(OpCPUEnterCrossing)

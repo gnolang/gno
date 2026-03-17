@@ -4686,6 +4686,39 @@ func BenchmarkOpCall_Method(b *testing.B) {
 	reportBenchops(b)
 }
 
+// --- doOpMethodPrecall: combined selector+precall for direct method calls ---
+// Measures the fast path that avoids BoundMethodValue allocation.
+
+func BenchmarkOpMethodPrecall_ValMethod(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+
+	_, _, dt, sv := benchMethodSetup(m.Alloc)
+	recv := TypedValue{T: dt, V: sv}
+	sx := &SelectorExpr{
+		Path: NewValuePathValMethod(0, "DoStuff"),
+	}
+	cx := &CallExpr{
+		Func:    sx,
+		NumArgs: 1,
+	}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(recv)                                // receiver
+		m.PushValue(TypedValue{T: IntType, N: i2n(7)})  // arg
+		m.PushExpr(cx)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpMethodPrecall()
+		bm.SwitchOpCode(bmSetup)
+		m.Ops = m.Ops[:0]
+		m.Frames = m.Frames[:0]
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
 // --- doOpIfCond false branch ---
 
 func BenchmarkOpIfCond_FalseBranch(b *testing.B) {
