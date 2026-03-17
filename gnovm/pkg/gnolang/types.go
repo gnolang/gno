@@ -1434,15 +1434,6 @@ func (tt *TypeType) IsNamed() bool {
 // Declared types have a name, base (underlying) type,
 // and associated methods.
 
-// embeddedFieldResult caches the result of findEmbeddedFieldType.
-type embeddedFieldResult struct {
-	trail       []ValuePath
-	hasPtr      bool
-	rcvr        Type
-	ft          Type
-	accessError bool
-}
-
 type DeclaredType struct {
 	PkgPath   string
 	Name      Name         // name of declaration
@@ -1450,9 +1441,8 @@ type DeclaredType struct {
 	Base      Type         // not a DeclaredType
 	Methods   []TypedValue // {T:*FuncType,V:*FuncValue}...
 
-	typeid         TypeID
-	sealed         bool                        // for ensuring correctness with recursive types.
-	embeddedCache  map[Name]embeddedFieldResult // cached findEmbeddedFieldType results
+	typeid TypeID
+	sealed bool // for ensuring correctness with recursive types.
 }
 
 // Returns an unsealed *DeclaredType.
@@ -1674,31 +1664,11 @@ func (dt *DeclaredType) GetUnboundPathForName(n Name) ValuePath {
 }
 
 // Searches embedded fields to find matching field or method.
-// Results are cached per method name for successful lookups from the
-// type's own package (the common case for interface dispatch).
+// This function is slow.
+// TODO: consider memoizing for successful matches.
 func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
 ) {
-	// Check cache for top-level calls with exported names.
-	// Only exported names are cached because unexported access depends
-	// on callerPath. Interface dispatch (the hot path) always uses
-	// exported names.
-	isTopLevel := m == nil
-	cacheable := isTopLevel && isUpper(string(n))
-	if cacheable && dt.embeddedCache != nil {
-		if cached, ok := dt.embeddedCache[n]; ok {
-			return cached.trail, cached.hasPtr, cached.rcvr, cached.ft, cached.accessError
-		}
-	}
-	// Cache the result on return.
-	defer func() {
-		if cacheable && trail != nil {
-			if dt.embeddedCache == nil {
-				dt.embeddedCache = make(map[Name]embeddedFieldResult, 4)
-			}
-			dt.embeddedCache[n] = embeddedFieldResult{trail, hasPtr, rcvr, ft, accessError}
-		}
-	}()
 	// Recursion guard
 	if m == nil {
 		m = map[Type]struct{}{dt: (struct{}{})}
