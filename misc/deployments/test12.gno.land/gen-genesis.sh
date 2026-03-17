@@ -171,16 +171,16 @@ printf "  Creating deployer key...\n"
 WORK_DIR_GNOKEY_HOME="$WORK_DIR/gnokey-home"
 WORK_DIR_GENESIS="$WORK_DIR/genesis.json"
 WORK_DIR_GENESIS_TXS="$WORK_DIR/genesis_txs.jsonl"
-printf '%s\n\n' "$DEPLOYER_MNEMONIC" | run "$GNOKEY_BIN" add --recover GenesisDeployer --home "$WORK_DIR_GNOKEY_HOME" --insecure-password-stdin 2>&1 | sed 's/^/    /'
+printf '%s\n\n' "$DEPLOYER_MNEMONIC" | "$GNOKEY_BIN" add --recover GenesisDeployer --home "$WORK_DIR_GNOKEY_HOME" --insecure-password-stdin &>/dev/null
 
 printf "  Generating empty genesis...\n"
-run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$GENESIS_TIME" --output-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
+run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$GENESIS_TIME" --output-path "$WORK_DIR_GENESIS" >/dev/null
 
 printf "  Adding %s packages to genesis...\n" "$pkg_count"
-echo "" | run "$GNOGENESIS_BIN" txs add packages "$WORK_DIR_EXAMPLES" -gno-home "$WORK_DIR_GNOKEY_HOME" -key-name GenesisDeployer --genesis-path "$WORK_DIR_GENESIS" --insecure-password-stdin 2>&1 | sed 's/^/    /'
+echo "" | "$GNOGENESIS_BIN" txs add packages "$WORK_DIR_EXAMPLES" -gno-home "$WORK_DIR_GNOKEY_HOME" -key-name GenesisDeployer --genesis-path "$WORK_DIR_GENESIS" --insecure-password-stdin &>/dev/null
 
 printf "  Exporting txs...\n"
-run "$GNOGENESIS_BIN" txs export "$WORK_DIR_GENESIS_TXS" --genesis-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
+run "$GNOGENESIS_BIN" txs export "$WORK_DIR_GENESIS_TXS" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 
 # ---- 3. Generate setup transaction (validators, members, deployer cleanup)
 
@@ -220,11 +220,11 @@ echo "" | run "$GNOKEY_BIN" sign \
   --account-sequence 0 \
   --home "$WORK_DIR_GNOKEY_HOME" \
   --insecure-password-stdin \
-  GenesisDeployer
+  GenesisDeployer &>/dev/null
 jq -c '{tx: .}' <"$SETUP_TX" >"$SETUP_TX_FILE"
 
 printf "  Adding setup tx to genesis...\n"
-run "$GNOGENESIS_BIN" txs add sheets "$SETUP_TX_FILE" --genesis-path "$WORK_DIR_GENESIS" 2>&1 | sed 's/^/    /'
+run "$GNOGENESIS_BIN" txs add sheets "$SETUP_TX_FILE" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 cat "$SETUP_TX_FILE" >>"$WORK_DIR_GENESIS_TXS"
 
 tx_count=$(wc -l <"$WORK_DIR_GENESIS_TXS" | tr -d ' ')
@@ -275,19 +275,19 @@ while IFS= read -r addr; do
 done <"$BALANCES_TMP_CREATOR_ADDRESSES"
 
 printf "  Setting up temporary node...\n"
-run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)" -output-path "$BALANCES_TMP_GENESIS"
-run "$GNOGENESIS_BIN" txs add sheets "$WORK_DIR_GENESIS_TXS" -genesis-path "$BALANCES_TMP_GENESIS"
-run "$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS"
-run "$GNOLAND_BIN" config init -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
-run "$GNOLAND_BIN" config set rpc.laddr "tcp://$NODE_RPC_ADDR" -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
-run "$GNOLAND_BIN" config set p2p.laddr "tcp://127.0.0.1:$NODE_P2P_PORT" -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
-run "$GNOLAND_BIN" secrets init -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets"
+run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)" -output-path "$BALANCES_TMP_GENESIS" >/dev/null
+run "$GNOGENESIS_BIN" txs add sheets "$WORK_DIR_GENESIS_TXS" -genesis-path "$BALANCES_TMP_GENESIS" >/dev/null
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS" >/dev/null
+run "$GNOLAND_BIN" config init -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml" >/dev/null
+run "$GNOLAND_BIN" config set rpc.laddr "tcp://$NODE_RPC_ADDR" -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml" >/dev/null
+run "$GNOLAND_BIN" config set p2p.laddr "tcp://127.0.0.1:$NODE_P2P_PORT" -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml" >/dev/null
+run "$GNOLAND_BIN" secrets init -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets" >/dev/null
 run "$GNOGENESIS_BIN" validator add \
   --address "$("$GNOLAND_BIN" secrets get validator_key.address --raw -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets")" \
   --pub-key "$("$GNOLAND_BIN" secrets get validator_key.pub_key --raw -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets")" \
   --name balance_generator \
   --power 1 \
-  -genesis-path "$BALANCES_TMP_GENESIS"
+  -genesis-path "$BALANCES_TMP_GENESIS" >/dev/null
 
 printf "  Starting node (run 1: measure gas costs)...\n"
 "$GNOLAND_BIN" start --skip-genesis-sig-verification -data-dir "$BALANCES_TMP_GNOLAND_DATA" -genesis "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GNOLAND_LOG" 2>&1 &
@@ -345,7 +345,6 @@ while IFS= read -r addr; do
     exit 1
   fi
   final=$((INITIAL_BALANCE - remaining))
-  printf "    %s = %s ugnot\n" "$addr" "$final"
   echo "${addr}=${final}ugnot" >>"$BALANCES_TMP_FILE"
 done <"$BALANCES_TMP_CREATOR_ADDRESSES"
 
@@ -361,19 +360,19 @@ NODE_RPC_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1
 NODE_P2P_PORT=$((NODE_RPC_PORT + 1))
 NODE_RPC_ADDR="127.0.0.1:$NODE_RPC_PORT"
 
-run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)" -output-path "$BALANCES_TMP_GENESIS"
-run "$GNOGENESIS_BIN" txs add sheets "$WORK_DIR_GENESIS_TXS" -genesis-path "$BALANCES_TMP_GENESIS"
-run "$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS"
-run "$GNOLAND_BIN" config init -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
-run "$GNOLAND_BIN" config set rpc.laddr "tcp://$NODE_RPC_ADDR" -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
-run "$GNOLAND_BIN" config set p2p.laddr "tcp://127.0.0.1:$NODE_P2P_PORT" -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml"
-run "$GNOLAND_BIN" secrets init -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets"
+run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)" -output-path "$BALANCES_TMP_GENESIS" >/dev/null
+run "$GNOGENESIS_BIN" txs add sheets "$WORK_DIR_GENESIS_TXS" -genesis-path "$BALANCES_TMP_GENESIS" >/dev/null
+run "$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS" >/dev/null
+run "$GNOLAND_BIN" config init -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml" >/dev/null
+run "$GNOLAND_BIN" config set rpc.laddr "tcp://$NODE_RPC_ADDR" -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml" >/dev/null
+run "$GNOLAND_BIN" config set p2p.laddr "tcp://127.0.0.1:$NODE_P2P_PORT" -config-path "$BALANCES_TMP_GNOLAND_DATA/config/config.toml" >/dev/null
+run "$GNOLAND_BIN" secrets init -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets" >/dev/null
 run "$GNOGENESIS_BIN" validator add \
   --address "$("$GNOLAND_BIN" secrets get validator_key.address --raw -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets")" \
   --pub-key "$("$GNOLAND_BIN" secrets get validator_key.pub_key --raw -data-dir "$BALANCES_TMP_GNOLAND_DATA/secrets")" \
   --name balance_generator \
   --power 1 \
-  -genesis-path "$BALANCES_TMP_GENESIS"
+  -genesis-path "$BALANCES_TMP_GENESIS" >/dev/null
 
 printf "  Starting node (run 2: verify zero balances)...\n"
 "$GNOLAND_BIN" start --skip-genesis-sig-verification -data-dir "$BALANCES_TMP_GNOLAND_DATA" -genesis "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GNOLAND_LOG" 2>&1 &
@@ -433,8 +432,6 @@ while IFS= read -r addr; do
   if [ "$remaining" -ne 0 ]; then
     printf "    FAIL: %s has %sugnot remaining\n" "$addr" "$remaining"
     all_zero=false
-  else
-    printf "    ok: %s\n" "$addr"
   fi
 done <"$BALANCES_TMP_CREATOR_ADDRESSES"
 
@@ -459,7 +456,7 @@ printf "\n=== Step 5/7: Adding validators ===\n"
 for validator in "${INITIAL_VALSET[@]}"; do
   read -r name power address pub_key <<<"$validator"
   printf "  %s (power=%s, %s)\n" "$name" "$power" "$address"
-  run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
+  run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 done
 
 # ---- 6. Add balances (deployer + airdrop)
@@ -475,7 +472,7 @@ if [ "$NO_AIRDROP" = true ]; then
   # test1 key address — receives a large balance for local testing.
   TEST1_ADDRESS="g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
   TEST1_BALANCE="9223372036854775807ugnot" # math.MaxInt64 — the highest value an int64 amount can hold
-  printf "  Skipping airdrop (--no-airdrop); adding %s to %s...\n" "$TEST1_BALANCE" "$TEST1_ADDRESS"
+  printf "  Skipping airdrop (--no-airdrop); adding max balance to test1...\n" "$TEST1_BALANCE" "$TEST1_ADDRESS"
   run "$GNOGENESIS_BIN" balances add -single "${TEST1_ADDRESS}=${TEST1_BALANCE}" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 else
   AIRDROP_BALANCES_GZ="$SCRIPT_DIR/airdrop_balances.txt.gz"
@@ -508,7 +505,7 @@ fi
 
 printf "\n=== Step 7/7: Verifying genesis ===\n"
 
-run "$GNOGENESIS_BIN" verify -genesis-path "$WORK_DIR_GENESIS"
+run "$GNOGENESIS_BIN" verify -genesis-path "$WORK_DIR_GENESIS" >/dev/null
 printf "  Verification passed\n"
 
 cp "$WORK_DIR_GENESIS" "$GENESIS_FILE"
