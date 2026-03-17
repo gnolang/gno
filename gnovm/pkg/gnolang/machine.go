@@ -149,6 +149,11 @@ var machinePool = sync.Pool{
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
 	vmGasMeter := opts.GasMeter
+	if vmGasMeter == nil {
+		// GasMeter must never be nil — eliminates nil checks from
+		// the hot path (incrCPU runs on every op).
+		vmGasMeter = store.NewInfiniteGasMeter()
+	}
 
 	output := opts.Output
 	if output == nil {
@@ -1221,7 +1226,7 @@ func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
 // on every op.
 func (m *Machine) incrCPU(cycles int64) {
 	m.Cycles += cycles
-	if m.GasMeter != nil {
+	if m.GasMeter != nil { // always true; nil check kept for inlining budget
 		m.cpuPending += cycles
 		if m.cpuPending >= cpuGasFlushThreshold {
 			m.flushCPUGas()

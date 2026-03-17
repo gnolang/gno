@@ -71,9 +71,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		if debug {
 			debug.Printf("GasConsumed for GC: %v\n", gasCPU)
 		}
-		if m.GasMeter != nil {
-			m.GasMeter.ConsumeGas(gasCPU, "GC")
-		}
+		m.GasMeter.ConsumeGas(gasCPU, "GC")
 	}()
 
 	defer func() {

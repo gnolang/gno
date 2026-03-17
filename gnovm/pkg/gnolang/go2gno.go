@@ -186,11 +186,10 @@ const (
 )
 
 func newParserCallback(m *Machine) parser.ParserCallback {
-	if m == nil || m.GasMeter == nil {
+	if m == nil {
 		return nil
 	}
 	return func(tok token.Token, nestLev int) {
-		// Flush pending CPU gas before parser charges its own gas.
 		m.flushCPUGas()
 		m.GasMeter.ConsumeGas(types.Gas(tokenCostFactor+nestLev*nestingCostFactor), "parsing")
 	}

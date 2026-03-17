@@ -1203,11 +1203,8 @@ func copyListToRunes(dst []rune, tvs []TypedValue) {
 }
 
 func consumeGas(m *Machine, amount types.Gas) {
-	if m.GasMeter != nil {
-		// Flush pending CPU gas first so the meter is accurate.
-		m.flushCPUGas()
-		m.GasMeter.ConsumeGas(amount, "CPUCycles")
-	}
+	m.flushCPUGas()
+	m.GasMeter.ConsumeGas(amount, "CPUCycles")
 }
 
 // uversePrint is used for the print and println functions.
