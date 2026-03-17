@@ -1641,7 +1641,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		}
 		bz = append(bz, ']')
 	case *SliceType:
-		panic("slice type cannot be used as map key")
+		panic("runtime error: slice type cannot be used as map key")
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
