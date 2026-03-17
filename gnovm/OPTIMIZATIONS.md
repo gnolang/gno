@@ -142,7 +142,23 @@ VPDerefPtrMethod) and interface methods (VPInterface, VPDerefInterface).
 Stored method values (`f := obj.Method`) still use the old
 BoundMethodValue path.
 
-### 7. Lazy Exception Allocation (`op_binary.go`)
+### 7. Interface Method Trail Cache (`types.go`)
+
+**Problem:** Interface method dispatch calls `findEmbeddedFieldType()` at
+runtime to resolve a method Name on the concrete type. This walks the type
+hierarchy (methods list + embedded fields) on every call, even for the same
+(type, method) pair.
+
+**Fix:** Add `DeclaredType.methodMap` — a `map[Name][]ValuePath` that caches
+the trail for exported method names. `LookupMethodTrail()` checks the cache
+first, falls back to `findEmbeddedFieldType` on miss, and stores the result.
+The cache is per-type and permanent (types are immutable after preprocessing),
+bounded by the number of exported methods per type (typically 1-10).
+
+Used by `doOpMethodPrecall` (VPInterface path) and `GetPointerToFromTV`
+(VPInterface path for non-call selectors).
+
+### 8. Lazy Exception Allocation (`op_binary.go`)
 
 **Problem:** `quoAssign()` and `remAssign()` allocated
 `&Exception{Value: typedString("division by zero")}` on **every** `/` and
@@ -166,7 +182,7 @@ by zero).
 | Contract_GasMetered | 2.20ms | 1.44ms | **-34%** |
 | **geomean** | | | **-37%** |
 
-### Local (Apple M2, all optimizations)
+### Local (Apple M2, all 8 optimizations)
 
 Approximate cumulative improvement vs pre-optimization baseline:
 
@@ -174,8 +190,8 @@ Approximate cumulative improvement vs pre-optimization baseline:
 |---|---|---|---|
 | VM_GasMetered | ~17ms | ~11.5ms | **-32%** |
 | Contract_GasMetered | ~740us | ~508us | **-31%** |
-| StdlibSort_GasMetered | ~20ms | ~12.8ms | **-36%** |
-| StdlibComplex_GasMetered | ~25ms | ~13.4ms | **-46%** |
+| StdlibSort_GasMetered | ~20ms | ~12.3ms | **-39%** |
+| StdlibComplex_GasMetered | ~25ms | ~13.2ms | **-47%** |
 
 ### Allocation reduction
 
@@ -184,24 +200,27 @@ Approximate cumulative improvement vs pre-optimization baseline:
 | Block allocs (% of total) | 93.4% | ~0% (arena) |
 | BoundMethodValue allocs | 39% of contract | ~0% (OpMethodPrecall) |
 | Exception allocs (% / %) | 48% of contract | 0% (lazy) |
-| GC CPU overhead | ~41% | ~13% |
+| findEmbeddedFieldType | per-call walk | cached trail |
+| GC CPU overhead | ~41% | ~14% |
 
 ---
 
-## Current Profile (post-optimization)
+## Current Profile (post all optimizations)
 
 ### CPU (StdlibComplex_GasMetered, M2)
 
 | Function | % | Notes |
 |---|---|---|
-| scanobject (GC) | 13% | Driven by struct allocs |
+| scanobject (GC) | 14% | Driven by struct allocs |
 | doOpEval | 14% | Expression dispatch |
-| mallocgc | 11% | Heap allocation |
-| doOpExec | 6% | Statement dispatch |
-| incrCPU | 3% | Gas batching |
-| TypedValue.Copy | 6% | Struct/array copies |
-| ifaceeq | 3% | Run() switch dispatch |
-| newBlock | 3% | Arena allocation |
+| madvise (runtime) | 6% | OS memory management |
+| doOpExec | 5% | Statement dispatch |
+| memclrNoHeapPointers | 4% | Arena/slice zeroing |
+| incrCPU | 2% | Gas batching |
+
+No single VM function dominates. Remaining overhead is split between
+GC (driven by struct allocs), the op dispatch loop, and OS-level
+memory management.
 
 ### Memory (StdlibComplex_GasMetered, M2)
 
@@ -211,7 +230,7 @@ Approximate cumulative improvement vs pre-optimization baseline:
 | NewStructFields | 14% | Struct fields slice |
 | GetPointerAtIndex | 7% | Array/slice indexing |
 | NewListArray | 6% | Slice allocation |
-| GetPointerToFromTV | 4% | Remaining non-method paths |
+| GetPointerToFromTV | 4% | Non-method selector paths |
 | doOpConvert | 4% | Type conversions |
 
 ---
@@ -254,21 +273,16 @@ in PointerValue (increases its size).
 
 ---
 
-## Next Targets
+## Remaining Targets (diminishing returns)
 
-### findEmbeddedFieldType caching
-
-`GetPointerToFromTV` (VPInterface path) and `doOpMethodPrecall` call
-`findEmbeddedFieldType()` at runtime for every interface method call.
-This walks the type hierarchy each time. Caching the result per
-`(concreteType, methodName)` pair would turn repeated calls into a map
-lookup.
+All remaining targets are estimated at 2-3% each:
 
 ### Struct allocations (35% of stdlib allocs)
 
 `NewStruct` (21%) + `NewStructFields` (14%) are the largest remaining
 allocators. Requires either preprocessor escape analysis or runtime escape
-detection — both are significant undertakings.
+detection — both are significant undertakings. See "Attempted but
+Abandoned" section for details on approaches tried.
 
 ### Op dispatch overhead
 
@@ -280,4 +294,5 @@ comparisons in the Run() switch.
 
 Called for every struct/array value pass. Many copies are unnecessary
 (source not modified after). Could skip for immutable values or use
-copy-on-write (requires architecture changes, see above).
+copy-on-write (requires architecture changes, see "Attempted but
+Abandoned" section).
