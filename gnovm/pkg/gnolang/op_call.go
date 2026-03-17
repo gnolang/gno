@@ -118,13 +118,46 @@ func (m *Machine) doOpMethodPrecall() {
 					if recvTV.V != nil {
 						recvTV.N = [8]byte{}
 					}
+				case VPDerefValMethod:
+					if btv.V == nil {
+						panic(&Exception{Value: typedString("nil pointer dereference")})
+					}
+					inner := btv.V.(PointerValue).TV
+					dbtv := TypedValue{T: btv.T.Elem(), V: inner.V, N: inner.N}
+					fillValueTV(m.Store, &dbtv)
+					dt := dbtv.T.(*DeclaredType)
+					mtp := tp
+					mtp.Type = VPValMethod
+					mtv := dt.GetValueAt(m.Alloc, m.Store, mtp)
+					fv = mtv.GetFunc()
+					recvTV = dbtv.Copy(m.Alloc)
+					if recvTV.V != nil {
+						recvTV.N = [8]byte{}
+					}
+				case VPDerefPtrMethod:
+					dt := btv.T.(*PointerType).Elt.(*DeclaredType)
+					mtp := tp
+					mtp.Type = VPPtrMethod
+					mtv := dt.GetValueAt(m.Alloc, m.Store, mtp)
+					fv = mtv.GetFunc()
+					recvTV = btv
+					if recvTV.V != nil {
+						recvTV.N = [8]byte{}
+					}
 				default:
-					// Embedded field traversal ended on a non-method path;
-					// fall back to the general GetPointerToFromTV path.
+					// Other final path types (e.g., VPInterface for
+					// embedded interfaces): fall back to GetPointerToFromTV
+					// which handles all cases via BoundMethodValue.
 					ptr := btv.GetPointerToFromTV(m.Alloc, m.Store, tp)
-					bmv := ptr.Deref()
-					fv = bmv.V.(*BoundMethodValue).Func
-					recvTV = bmv.V.(*BoundMethodValue).Receiver
+					res := ptr.Deref()
+					bmv, ok := res.V.(*BoundMethodValue)
+					if !ok {
+						panic(fmt.Sprintf(
+							"doOpMethodPrecall: unexpected final trail path type %s for method %s on %s",
+							tp.Type, path.Name, dtv.T.String()))
+					}
+					fv = bmv.Func
+					recvTV = bmv.Receiver
 				}
 			} else {
 				// Intermediate step: traverse embedded field.

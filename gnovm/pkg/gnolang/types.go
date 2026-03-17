@@ -1782,6 +1782,11 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 			// than copying. Safe: Machine is single-threaded and
 			// Parent is immutable once set (it's always the package's
 			// file block for non-closure methods).
+			//
+			// WARNING: This returns a shared pointer to the type's
+			// method FuncValue. Callers must NOT mutate any field
+			// other than Parent. If a future change needs to mutate
+			// the returned FuncValue, restore the .Copy(alloc) call.
 			if fv.Parent == nil {
 				fv.Parent = fv.GetParent(store)
 			}

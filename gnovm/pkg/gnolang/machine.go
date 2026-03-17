@@ -1148,9 +1148,13 @@ const (
 // flushed to the GasMeter. Flushing happens when cpuPending exceeds
 // this value. With typical op costs of 15-35, this means a flush
 // roughly every ~30-60 ops, reducing GasMeter interface calls by ~30x.
-// The max overshoot beyond the gas limit is bounded by this threshold
-// plus one op's max cost (~424), which is negligible vs typical gas
-// limits of millions.
+//
+// SECURITY: The max overshoot beyond the gas limit is bounded by this
+// threshold plus one op's max cost (~424) = ~1424 gas units. This is
+// negligible for typical gas limits (millions), but means a tx could
+// execute ~1424 gas worth of computation beyond its limit before the
+// OutOfGasError fires. Do not lower the chain's minimum gas limit
+// below this threshold without reducing it accordingly.
 const cpuGasFlushThreshold int64 = 1000
 
 //----------------------------------------
