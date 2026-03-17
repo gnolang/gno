@@ -65,6 +65,67 @@ func (m *Machine) doOpMethodPrecall() {
 		if recvTV.V != nil {
 			recvTV.N = [8]byte{}
 		}
+	case VPInterface, VPDerefInterface:
+		dtv := recv
+		if path.Type == VPDerefInterface {
+			if recv.V == nil {
+				panic(&Exception{Value: typedString("nil pointer dereference")})
+			}
+			derefed := recv.V.(PointerValue).TV
+			dtv = derefed
+		}
+		fillValueTV(m.Store, dtv)
+		if dtv.IsUndefined() {
+			panic("interface method call on undefined value")
+		}
+		if dtv.T.Kind() == InterfaceKind {
+			panic("cannot resolve an interface path at static time")
+		}
+		// Resolve the method on the concrete type.
+		callerPath := dtv.T.GetPkgPath()
+		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
+		if len(tr) == 0 {
+			panic(fmt.Sprintf("method %s not found in type %s",
+				path.Name, dtv.T.String()))
+		}
+		// Walk the trace to resolve the final method.
+		// The last element is the method path (VPValMethod or VPPtrMethod).
+		btv := *dtv
+		for i, tp := range tr {
+			if i == len(tr)-1 {
+				// Final step: resolve the method directly without BoundMethodValue.
+				fillValueTV(m.Store, &btv)
+				switch tp.Type {
+				case VPValMethod:
+					dt := btv.T.(*DeclaredType)
+					mtv := dt.GetValueAt(m.Alloc, m.Store, tp)
+					fv = mtv.GetFunc()
+					recvTV = btv.Copy(m.Alloc)
+					if recvTV.V != nil {
+						recvTV.N = [8]byte{}
+					}
+				case VPPtrMethod:
+					dt := btv.T.(*PointerType).Elt.(*DeclaredType)
+					mtv := dt.GetValueAt(m.Alloc, m.Store, tp)
+					fv = mtv.GetFunc()
+					recvTV = btv
+					if recvTV.V != nil {
+						recvTV.N = [8]byte{}
+					}
+				default:
+					// Embedded field traversal ended on a non-method path;
+					// fall back to the general GetPointerToFromTV path.
+					ptr := btv.GetPointerToFromTV(m.Alloc, m.Store, tp)
+					bmv := ptr.Deref()
+					fv = bmv.V.(*BoundMethodValue).Func
+					recvTV = bmv.V.(*BoundMethodValue).Receiver
+				}
+			} else {
+				// Intermediate step: traverse embedded field.
+				ptr := btv.GetPointerToFromTV(m.Alloc, m.Store, tp)
+				btv = ptr.Deref()
+			}
+		}
 	default:
 		panic("doOpMethodPrecall: unexpected path type")
 	}

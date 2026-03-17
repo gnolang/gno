@@ -2419,10 +2419,11 @@ const (
 )
 
 // IsMethodPath returns true if this path type refers to a method
-// (value method, pointer method, or their deref variants).
+// (value method, pointer method, interface method, or their deref variants).
 func (t VPType) IsMethodPath() bool {
 	switch t {
-	case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
+	case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod,
+		VPInterface, VPDerefInterface:
 		return true
 	}
 	return false
