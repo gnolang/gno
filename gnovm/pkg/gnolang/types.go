@@ -1443,6 +1443,38 @@ type DeclaredType struct {
 
 	typeid TypeID
 	sealed bool // for ensuring correctness with recursive types.
+	// methodMap caches findEmbeddedFieldType results for exported method
+	// names. Populated lazily on first interface dispatch. Maps method
+	// name to the ValuePath trail for reaching the concrete method.
+	// Only exported names are cached (interface dispatch always uses
+	// exported names; unexported access depends on callerPath).
+	methodMap map[Name][]ValuePath
+}
+
+// LookupMethodTrail returns the cached ValuePath trail for resolving
+// an exported method name on this type. On first call for a given name,
+// it runs findEmbeddedFieldType and caches the result. Subsequent calls
+// return the cached trail directly (no type hierarchy walk).
+//
+// Only used for interface method dispatch at runtime where the concrete
+// type is unknown at preprocess time.
+func (dt *DeclaredType) LookupMethodTrail(n Name) []ValuePath {
+	// Check cache.
+	if dt.methodMap != nil {
+		if trail, ok := dt.methodMap[n]; ok {
+			return trail
+		}
+	}
+	// Resolve and cache.
+	callerPath := dt.PkgPath
+	trail, _, _, _, _ := findEmbeddedFieldType(callerPath, dt, n, nil)
+	if trail != nil {
+		if dt.methodMap == nil {
+			dt.methodMap = make(map[Name][]ValuePath, 4)
+		}
+		dt.methodMap[n] = trail
+	}
+	return trail
 }
 
 // Returns an unsealed *DeclaredType.

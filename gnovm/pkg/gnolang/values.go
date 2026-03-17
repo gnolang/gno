@@ -1947,8 +1947,14 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		if dtv.T.Kind() == InterfaceKind {
 			panic("cannot resolve an interface path at static time")
 		}
-		callerPath := dtv.T.GetPkgPath()
-		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
+		// Use cached trail when available.
+		var tr []ValuePath
+		if dt, ok := dtv.T.(*DeclaredType); ok {
+			tr = dt.LookupMethodTrail(path.Name)
+		} else {
+			callerPath := dtv.T.GetPkgPath()
+			tr, _, _, _, _ = findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
+		}
 		if len(tr) == 0 {
 			panic(fmt.Sprintf("method %s not found in type %s",
 				path.Name, dtv.T.String()))
