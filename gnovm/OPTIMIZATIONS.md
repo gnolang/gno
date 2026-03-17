@@ -6,11 +6,19 @@ Benchmarks in `gnovm/cmd/profile/` run Gno programs through the full
 `Machine.Run()` dispatch loop. Parse/preprocess happens once; only
 `RunMain()` is measured.
 
-Two benchmarks:
-- **BenchmarkVM / BenchmarkVM_GasMetered** — synthetic workload: fib(20),
-  sieve, struct methods, maps, closures, interfaces, type switches, pointers
-- **BenchmarkContract / BenchmarkContract_GasMetered** — token contract
-  simulation: transfers, allowances, balance checks (map + method heavy)
+Benchmarks:
+- **BenchmarkVM** — synthetic: fib, sieve, structs, maps, closures,
+  interfaces, type switches, pointers
+- **BenchmarkContract** — token contract: transfers, allowances, balance
+  checks (map + method heavy)
+- **BenchmarkStdlibStrings** — strings.Builder, Split, Join, Replace,
+  strconv.Atoi/Itoa
+- **BenchmarkStdlibSort** — sort.IntSlice, StringSlice, custom
+  sort.Interface (interface-dispatch heavy)
+- **BenchmarkStdlibComplex** — record parsing, filtering, sorting, string
+  building with strings/strconv/sort
+
+Each has a `_GasMetered` variant with `GasMeter` enabled.
 
 ```bash
 # Before/after comparison:
@@ -18,14 +26,16 @@ go test -bench=. -benchtime=10s -count=10 ./gnovm/cmd/profile/ > bench.txt
 benchstat before.txt after.txt
 
 # Profiling:
-go test -bench=BenchmarkVM_GasMetered -benchtime=10s \
+go test -bench=BenchmarkStdlibComplex_GasMetered -benchtime=10s \
   -cpuprofile=cpu.prof -memprofile=mem.prof ./gnovm/cmd/profile/
 go tool pprof -http=:8080 cpu.prof
 ```
 
-## Profile Baseline (2026-03-16, pre-optimization)
+---
 
-### CPU (Apple M2)
+## Baseline (2026-03-16, pre-optimization)
+
+### CPU
 
 | Category | % of total |
 |---|---|
@@ -51,50 +61,102 @@ per function call, loop, if/switch clause.
 
 ## Completed Optimizations
 
-### 1. CPU Gas Batching
+### 1. CPU Gas Batching (`machine.go`)
 
-Accumulate CPU gas in `Machine.cpuPending`, flush to GasMeter every ~1000 gas
-instead of on every op. Reduces GasMeter interface calls ~30x.
+**Problem:** `GasMeter.ConsumeGas()` (an interface method call, ~7-10ns)
+was called on every single VM op.
 
-Flush points: `OpHalt`, `GarbageCollect()`, parser callback, uverse
-`consumeGas()`.
+**Fix:** Accumulate CPU gas in `Machine.cpuPending` and flush to the
+GasMeter when pending exceeds `cpuGasFlushThreshold` (1000). This
+reduces GasMeter interface calls ~30x.
 
-### 2. Block Arena Allocation
+**Flush points** (to maintain correctness): `OpHalt`, `GarbageCollect()`,
+parser callback, uverse `consumeGas()`. Max overshoot beyond gas limit
+is bounded by threshold + one op's max cost (~1424), negligible vs
+typical gas limits of millions.
 
-Pre-allocate `[]Block` arena (256 slots) per Machine. Function/loop/scope blocks
-are bump-allocated from the arena. On frame return, arena slots are reclaimed in
-reverse order (stack discipline). Falls back to heap if arena is full.
+### 2. Block Arena (`machine.go`)
 
-**Key hazard:** `EvalStatic`/`EvalStaticTypeOf` push shared static blocks via
-`StaticBlock.GetBlock()`. These must NOT be arena-allocated or recycled — they
-belong to the preprocessor. Only `m.newBlock()` uses the arena; `OpPopBlock`
-only recycles arena blocks (detected via pointer range check).
+**Problem:** Every function call, loop, and if/switch clause heap-allocated
+a `Block` struct. This was 93% of all allocations and drove 41% GC overhead.
 
-### 3. TypedValue Slab Arena (tvArena)
+**Fix:** Pre-allocate `[]Block` arena (256 slots) per Machine.
+`m.newBlock()` bump-allocates from the arena instead of `&Block{}`.
+On frame return, arena slots are reclaimed in reverse order (stack
+discipline). Falls back to `Allocator.NewBlock()` (heap) if full.
 
-Pre-allocate `[]TypedValue` slab (2048 slots) alongside the Block arena. Block
-Values slices are bump-allocated from the slab instead of `make()`. Slab
+**Key hazard:** `EvalStatic`/`EvalStaticTypeOf` push shared static blocks
+(from `StaticBlock.GetBlock()`) onto the block stack and pop them with
+`OpPopBlock`. These must NOT be recycled — `recycleBlock()` detects arena
+vs non-arena blocks via pointer range check (`blockArenaIdx()`).
+
+### 3. TypedValue Slab Arena (`machine.go`)
+
+**Problem:** Each `NewBlock` call also heap-allocated a `[]TypedValue`
+slice for `Block.Values` via `make()`.
+
+**Fix:** Pre-allocate `[]TypedValue` slab (2048 slots) alongside the
+Block arena. `newBlock()` bump-allocates Values from the slab. Slab
 position rewinds on block recycle if stack discipline holds.
 
-Blocks whose Values grow via `ExpandWith` (switch clauses, if/else) transparently
-fall back to heap — the arena slice is abandoned and Go's append allocates a new
-backing array.
+Blocks whose Values grow via `ExpandWith` (switch clauses, if/else)
+transparently fall back to heap — the arena slice is abandoned and
+Go's append allocates a new backing array.
 
-### 4. popCopyArgs Fast Path
+### 4. popCopyArgs Fast Path (`op_call.go`)
 
-For non-variadic function calls, pop args from the value stack and copy directly
-into `b.Values`, skipping the intermediate `make([]TypedValue)` in
-`popCopyArgs`. Variadic and deferred calls still use the old path (deferred args
-are stored in `Defer.Args` and must outlive the frame).
+**Problem:** `popCopyArgs()` allocated `make([]TypedValue, numParams)` on
+every function call to temporarily hold arguments before copying them
+into the block.
 
-### 5. Eliminate FuncValue.Copy on Method Dispatch
+**Fix:** For non-variadic calls (the common case), pop args from the
+value stack and copy directly into `b.Values`, skipping the intermediate
+allocation. Variadic and deferred calls still use `popCopyArgs` (deferred
+args are stored in `Defer.Args` and must outlive the frame).
 
-`DeclaredType.GetValueAt()` was copying the `FuncValue` on every method call just
-to lazily fill the `Parent` field. Since the Machine is single-threaded and Parent
-is stable once set (always the file block for package-level methods), fill Parent
-on the original and skip the heap allocation.
+### 5. Eliminate FuncValue.Copy (`types.go`)
 
-### Combined Results (Xeon 8168)
+**Problem:** `DeclaredType.GetValueAt()` called `FuncValue.Copy()` on every
+method dispatch just to lazily fill the `Parent` field. This heap-allocated
+a new FuncValue per method call.
+
+**Fix:** Fill `Parent` lazily on the original FuncValue. Safe because the
+Machine is single-threaded and Parent is immutable once set (always the
+package's file block for non-closure methods).
+
+### 6. OpMethodPrecall — Direct Method Dispatch (`op_call.go`, `op_eval.go`)
+
+**Problem:** Method calls (`obj.Method(args)`) went through:
+`OpSelector` → heap-allocate `&BoundMethodValue{}` + `&TypedValue{}` →
+push to stack → `OpPrecall` → extract Func+Receiver → discard BMV.
+Two heap allocations per method call, consumed one op later.
+
+**Fix:** Add `OpMethodPrecall` that combines selector lookup + precall.
+When `doOpEval` sees a `CallExpr` whose Func is a `SelectorExpr` with a
+method path, it pushes `OpMethodPrecall` instead of `OpSelector + OpPrecall`.
+The new op resolves the method and pushes the call frame directly — zero
+heap allocations.
+
+Handles concrete methods (VPValMethod, VPPtrMethod, VPDerefValMethod,
+VPDerefPtrMethod) and interface methods (VPInterface, VPDerefInterface).
+Stored method values (`f := obj.Method`) still use the old
+BoundMethodValue path.
+
+### 7. Lazy Exception Allocation (`op_binary.go`)
+
+**Problem:** `quoAssign()` and `remAssign()` allocated
+`&Exception{Value: typedString("division by zero")}` on **every** `/` and
+`%` operation, even when the divisor was non-zero. This was 48% of
+contract benchmark allocations.
+
+**Fix:** Only allocate the exception on the error path (actual division
+by zero).
+
+---
+
+## Results
+
+### Server (Xeon 8168, optimizations 1-3 only)
 
 | Benchmark | Before | After | Change |
 |---|---|---|---|
@@ -104,11 +166,53 @@ on the original and skip the heap allocation.
 | Contract_GasMetered | 2.20ms | 1.44ms | **-34%** |
 | **geomean** | | | **-37%** |
 
-Note: server numbers are from before optimizations #4 and #5; the full set
-including those will show further improvement.
+### Local (Apple M2, all optimizations)
 
-Total allocations reduced ~97% (153 GB → 4.2 GB in profiling run).
-GC CPU overhead reduced from ~41% to ~8%.
+Approximate cumulative improvement vs pre-optimization baseline:
+
+| Benchmark | Before | After | Change |
+|---|---|---|---|
+| VM_GasMetered | ~17ms | ~11.5ms | **-32%** |
+| Contract_GasMetered | ~740us | ~508us | **-31%** |
+| StdlibSort_GasMetered | ~20ms | ~12.8ms | **-36%** |
+| StdlibComplex_GasMetered | ~25ms | ~13.4ms | **-46%** |
+
+### Allocation reduction
+
+| Metric | Before | After |
+|---|---|---|
+| Block allocs (% of total) | 93.4% | ~0% (arena) |
+| BoundMethodValue allocs | 39% of contract | ~0% (OpMethodPrecall) |
+| Exception allocs (% / %) | 48% of contract | 0% (lazy) |
+| GC CPU overhead | ~41% | ~13% |
+
+---
+
+## Current Profile (post-optimization)
+
+### CPU (StdlibComplex_GasMetered, M2)
+
+| Function | % | Notes |
+|---|---|---|
+| scanobject (GC) | 13% | Driven by struct allocs |
+| doOpEval | 14% | Expression dispatch |
+| mallocgc | 11% | Heap allocation |
+| doOpExec | 6% | Statement dispatch |
+| incrCPU | 3% | Gas batching |
+| TypedValue.Copy | 6% | Struct/array copies |
+| ifaceeq | 3% | Run() switch dispatch |
+| newBlock | 3% | Arena allocation |
+
+### Memory (StdlibComplex_GasMetered, M2)
+
+| Allocator | % | Notes |
+|---|---|---|
+| NewStruct | 21% | Struct literal + Copy |
+| NewStructFields | 14% | Struct fields slice |
+| GetPointerAtIndex | 7% | Array/slice indexing |
+| NewListArray | 6% | Slice allocation |
+| GetPointerToFromTV | 4% | Remaining non-method paths |
+| doOpConvert | 4% | Type conversions |
 
 ---
 
@@ -117,89 +221,63 @@ GC CPU overhead reduced from ~41% to ~8%.
 ### Block Values Slice Recycling (freelist)
 
 Recycled `[]TypedValue` backing arrays via per-Machine freelist. Halved
-allocations-per-block from 2 to 1, but Block struct allocation still dominated.
-Superseded by the arena approach.
+allocations-per-block from 2 to 1, but Block struct allocation still
+dominated. Superseded by the arena approach.
 
 ### SelectorFromTV (bypass PointerValue for method dispatch)
 
-Added `SelectorFromTV` that constructs the method dispatch TypedValue directly
-on the stack, bypassing the `GetPointerToFromTV` → `PointerValue{TV: &TypedValue{}}` →
-`Deref()` path. This eliminated one heap allocation per method call (the
-`&TypedValue{}` in PointerValue.TV) but the `&BoundMethodValue{}` allocation
-still dominated since it must be heap-allocated to satisfy the `Value` interface.
-Net improvement was ~1% — not worth the code duplication.
+Added `SelectorFromTV` that returns TypedValue directly instead of going
+through `GetPointerToFromTV` → `PointerValue{TV: &TypedValue{}}` → `Deref()`.
+Eliminated one heap allocation per method call but `&BoundMethodValue{}`
+dominated. Net ~1% — not worth the code duplication. Superseded by
+OpMethodPrecall which eliminates both allocations.
+
+### Struct Allocation Arenas
+
+Added svArena (StructValue) and sfArena (Fields slices) with bump
+allocation. Also tried wiring arena allocators into the Allocator via
+function pointers so `StructValue.Copy` benefits.
+
+**Dead end.** Without reclaim, arenas fill up quickly and fall back to
+heap. Block arenas work because blocks follow stack discipline (reclaimed
+at frame pop); structs can escape via return values, container storage,
+or realm persistence. Sizing arenas large enough wastes memory.
+
+### Copy-on-Write for StructValue
+
+Explored deferring `StructValue.Copy` until a field is actually written.
+**Impractical** with the current architecture: the write path goes through
+`PointerValue{TV: &sv.Fields[idx]}` which has no reference back to the
+`TypedValue` holding the `*StructValue` pointer. Intercepting writes would
+require either a level of indirection (slows all reads) or a back-reference
+in PointerValue (increases its size).
 
 ---
 
 ## Next Targets
 
-### BoundMethodValue allocation (39% of contract allocs)
+### findEmbeddedFieldType caching
 
-`GetPointerToFromTV` allocates `&BoundMethodValue{}` on the heap for every
-method call (`values.go:1895,1932`). The BoundMethodValue is consumed immediately
-by `doOpPrecall` to extract `Func` and `Receiver`, then discarded.
+`GetPointerToFromTV` (VPInterface path) and `doOpMethodPrecall` call
+`findEmbeddedFieldType()` at runtime for every interface method call.
+This walks the type hierarchy each time. Caching the result per
+`(concreteType, methodName)` pair would turn repeated calls into a map
+lookup.
 
-Eliminating the `&TypedValue{}` wrapper (attempted via SelectorFromTV) only
-helped ~1% because `&BoundMethodValue{}` is the dominant cost. The real fix
-would be to avoid BoundMethodValue entirely — e.g., store Func and Receiver
-as two separate values on the Machine stack, or change the `doOpPrecall`
-protocol to not require a `Value` interface wrapper.
+### Struct allocations (35% of stdlib allocs)
 
-### findEmbeddedFieldType for interface dispatch
-
-`GetPointerToFromTV` calls `findEmbeddedFieldType()` at runtime for interface
-method resolution (`values.go:1951`). This walks the type hierarchy each call.
-Could cache the resolution result per (type, method name) pair.
-
-### TypedValue.Copy for value receivers
-
-`GetPointerToFromTV` VPValMethod path calls `dtv.Copy(alloc)` to copy the
-receiver for value-method calls (`values.go:1887`). For primitive/small
-receivers this allocates unnecessarily. Could specialize for common types.
-
-### NewListArray (69% of remaining allocs)
-
-User-visible array/slice allocations. These have unbounded lifetimes (can escape
-via return, closure, realm persistence), so arena allocation is not safe. Possible
-approaches: pool small fixed-size arrays (1-8 elements), or use a slab for
-known-short-lived slices (e.g., append temporaries).
+`NewStruct` (21%) + `NewStructFields` (14%) are the largest remaining
+allocators. Requires either preprocessor escape analysis or runtime escape
+detection — both are significant undertakings.
 
 ### Op dispatch overhead
 
-`ifaceeq` (5.2% CPU from switch type assertions), `PopOp` (3.5%), `duffcopy`
-(2.7%) are dispatch loop costs. A function table indexed by op code could
-eliminate the interface comparisons in the switch.
+`ifaceeq` (3% CPU), `PopOp` (2.5%), `duffcopy` (2%) are dispatch loop
+costs. A function table indexed by op code could eliminate the interface
+comparisons in the Run() switch.
 
----
+### TypedValue.Copy (6% CPU)
 
-## Dead End: Struct Allocation Arenas
-
-With stdlib workloads, `NewStruct` (21.6%) + `NewStructFields` (15.4%) are the
-largest remaining allocators. Three approaches were explored:
-
-### Bump-only arenas (branches: `struct-fields-arena`, `struct-escape-analysis`)
-
-Added svArena (StructValue) and sfArena (Fields slices) with bump allocation
-and no reclaim — reset only on Machine.Release(). Also tried wiring arena
-allocators into the Allocator via function pointers so StructValue.Copy
-benefits too.
-
-**Result:** Dead end. Without reclaim, arenas fill up quickly for any
-non-trivial transaction and fall back to heap. Sizing arenas large enough
-wastes memory (~2.6MB per Machine for 8K structs). The block arena works
-because blocks follow stack discipline (reclaimed at frame pop); structs
-don't — they can escape via return values, container storage, or realm
-persistence.
-
-### What would actually work
-
-Struct allocation optimization requires either:
-1. **Preprocessor escape analysis** — mark struct literals that provably
-   don't escape, arena-allocate only those. Catches common cases (local
-   loop variables) but misses dynamic patterns.
-2. **Scope-based arena + runtime escape detection** — arena-allocate all
-   structs, copy to heap on escape. Catches everything but requires
-   intercepting every assignment/store that could cause escape.
-
-Both are significant undertakings for ~5-10% improvement on struct-heavy
-workloads.
+Called for every struct/array value pass. Many copies are unnecessary
+(source not modified after). Could skip for immutable values or use
+copy-on-write (requires architecture changes, see above).
