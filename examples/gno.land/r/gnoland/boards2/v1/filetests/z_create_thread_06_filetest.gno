@@ -1,4 +1,4 @@
-// Open board: Test creating a new thread as a non member user that has no username registered
+// Open board: Test creating a new thread as a non member user that has no GNOT
 package main
 
 import (
@@ -24,9 +24,9 @@ func init() {
 func main() {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	// Non members should be able to create threads only if they have a registered user
+	// Non members should be able to create threads only if they have enough GNOT
 	boards2.CreateThread(cross, bid, "Title", "Body")
 }
 
 // Error:
-// a registered username is required to create threads on open boards
+// caller is not allowed to create threads: account amount is lower than 3000 GNOT
