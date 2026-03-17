@@ -28,6 +28,9 @@ FILTERED_PACKAGES=(
 # More validators can be added post-genesis via govDAO proposals (see govdao-scripts/add-validator.sh).
 # 7 validators — BFT >2/3 threshold (floor(2n/3)+1) means 5 nodes must be up for consensus.
 INITIAL_VALSET=(
+  "val-1 1 g12lc6gq7arhurjs3qnuhrhr2vp9fmdp34qte7nq gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqhcs964p3ktk3detxqemasghkyfzcjsgzw440ee58gr7krd8g4xz7hgj90"
+  "val-2 1 g1zw4syn44v50j4fydfvdkxtk62jmjat9c35jdm8 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqvfeh9lzkmrhfzvav8tkzmet6hww7sucdz5qmexm29w72a0euxmvxz8k9a"
+  "val-3 1 g1qnserdsck7rpmwstzzdqwvv7rr27gt97k39d90 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp5wpgsuwy2h72tnm3fxxq6853us8fjec6rw27zckhetey4dd85lzkjzayr"
 )
 
 # Chain parameters.
@@ -181,8 +184,21 @@ run "$GNOGENESIS_BIN" txs export "$WORK_DIR_GENESIS_TXS" --genesis-path "$WORK_D
 printf "\n=== Step 3/7: Generating MsgRun setup tx (govdao_prop1.gno) ===\n"
 
 SETUP_FILE="$SCRIPT_DIR/govdao_prop1.gno"
+WORK_DIR_SETUP_FILE="$WORK_DIR/govdao_prop1.gno"
 
-printf "  Generating MsgRun tx from %s...\n" "$(basename "$SETUP_FILE")"
+# Inject INITIAL_VALSET into a workdir copy of govdao_prop1.gno at the GEN:VALSET marker.
+printf "  Injecting %s validators into govdao_prop1.gno...\n" "${#INITIAL_VALSET[@]}"
+VALSET_ENTRIES_TMP="$WORK_DIR/valset_entries.tmp"
+for validator in "${INITIAL_VALSET[@]}"; do
+  read -r _name power address pub_key <<<"$validator"
+  printf '\t\t\t\t{\n\t\t\t\t\tAddress:     address("%s"),\n\t\t\t\t\tPubKey:      "%s",\n\t\t\t\t\tVotingPower: %s,\n\t\t\t\t},\n' \
+    "$address" "$pub_key" "$power" >>"$VALSET_ENTRIES_TMP"
+done
+awk -v vf="$VALSET_ENTRIES_TMP" \
+  '/\/\/ GEN:VALSET/ { while ((getline line < vf) > 0) print line; close(vf); next } { print }' \
+  "$SETUP_FILE" >"$WORK_DIR_SETUP_FILE"
+
+printf "  Generating MsgRun tx from %s...\n" "$(basename "$WORK_DIR_SETUP_FILE")"
 SETUP_TX="$WORK_DIR/genesis_setup_tx.json"
 SETUP_TX_FILE="$WORK_DIR/genesis_setup_tx.jsonl"
 run "$GNOKEY_BIN" maketx run \
@@ -191,7 +207,7 @@ run "$GNOKEY_BIN" maketx run \
   --chainid "$CHAIN_ID" \
   --home "$WORK_DIR_GNOKEY_HOME" \
   GenesisDeployer \
-  "$SETUP_FILE" >"$SETUP_TX"
+  "$WORK_DIR_SETUP_FILE" >"$SETUP_TX"
 
 printf "  Signing tx...\n"
 echo "" | run "$GNOKEY_BIN" sign \

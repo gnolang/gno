@@ -46,7 +46,8 @@ func main() {
 	govExec(valr.NewPropRequest(
 		func() []validators.Validator {
 			return []validators.Validator{
-      },
+				// GEN:VALSET — entries injected by gen-genesis.sh from INITIAL_VALSET
+			}
 		},
 		"Add initial validator set",
 		"Bootstrap the test12 initial validator set",
