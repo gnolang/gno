@@ -481,12 +481,8 @@ else
   AIRDROP_BALANCES_GZ="$SCRIPT_DIR/airdrop_balances.txt.gz"
   AIRDROP_BALANCES_TXT="$WORK_DIR/airdrop_balances.txt"
 
-  if [ -f "$AIRDROP_BALANCES_GZ" ]; then
-    printf "  Using cached airdrop balances\n"
-  else
-    printf "  Downloading airdrop balances...\n"
-    run curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
-  fi
+  printf "  Downloading airdrop balances...\n"
+  run curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
   gzip -dkc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
 
   airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
