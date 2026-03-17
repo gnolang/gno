@@ -2153,9 +2153,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
 				case *MapType:
+					// Check type first.
+					switch kt := baseOf(cclt.Key).(type) {
+					case PrimitiveType, *StructType, *InterfaceType, *PointerType:
+						// Good.
+					case FieldType:
+						panic("field (pseudo)type cannot be used as map key")
+					case *ChanType:
+						panic("not yet implemented")
+					default:
+						panic(fmt.Sprintf("invalid map key type %v", kt))
+					}
+
 					var kset = make(map[TypedValue]struct{})
-					fmt.Println("===MapType, clt: ", clt)
-					fmt.Println("===MapType, cclt: ", cclt, cclt.Key)
 					for i, elt := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)

@@ -8,7 +8,7 @@ func main() {
 }
 
 // Error:
-// runtime error: slice type cannot be used as map key
+// main/maplit8.gno:6:10-57: invalid map key type []int
 
 // TypeCheckError:
 // main/maplit8.gno:6:14: invalid map key type []int
