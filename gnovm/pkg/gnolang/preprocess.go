@@ -2153,9 +2153,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
 				case *MapType:
-					for i := range n.Elts {
+					var kset = make(map[TypedValue]struct{})
+					for i, elt := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
+						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
+							if _, ok := kset[cx.TypedValue]; ok {
+								panic(fmt.Sprintf("duplicate const key: %v in map literal", cx.TypedValue))
+							}
+							kset[cx.TypedValue] = struct{}{}
+						}
 					}
 				default:
 					panic(fmt.Sprintf(
