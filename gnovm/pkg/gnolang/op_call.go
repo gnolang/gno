@@ -6,6 +6,89 @@ import (
 	"strings"
 )
 
+// doOpMethodPrecall handles direct method calls (obj.Method(args)) without
+// allocating a BoundMethodValue. The value stack has [receiver, args...].
+// It resolves the method from the receiver's type and pushes the call frame
+// directly.
+func (m *Machine) doOpMethodPrecall() {
+	cx := m.PopExpr().(*CallExpr)
+	sx := cx.Func.(*SelectorExpr)
+	path := sx.Path
+
+	// The receiver is at position 1 + NumArgs on the stack.
+	recv := m.PeekValue(1 + cx.NumArgs)
+	fillValueTV(m.Store, recv)
+
+	// Resolve the method FuncValue from the receiver's type.
+	var fv *FuncValue
+	var recvTV TypedValue
+	switch path.Type {
+	case VPValMethod:
+		dt := recv.T.(*DeclaredType)
+		mtv := dt.GetValueAt(m.Alloc, m.Store, path)
+		fv = mtv.GetFunc()
+		recvTV = recv.Copy(m.Alloc)
+		if recvTV.V != nil {
+			recvTV.N = [8]byte{} // clear readonly
+		}
+	case VPDerefValMethod:
+		if recv.V == nil {
+			panic(&Exception{Value: typedString("nil pointer dereference")})
+		}
+		inner := recv.V.(PointerValue).TV
+		dtv := TypedValue{T: recv.T.Elem(), V: inner.V, N: inner.N}
+		fillValueTV(m.Store, &dtv)
+		dt := dtv.T.(*DeclaredType)
+		vpath := path
+		vpath.Type = VPValMethod
+		mtv := dt.GetValueAt(m.Alloc, m.Store, vpath)
+		fv = mtv.GetFunc()
+		recvTV = dtv.Copy(m.Alloc)
+		if recvTV.V != nil {
+			recvTV.N = [8]byte{}
+		}
+	case VPPtrMethod:
+		dt := recv.T.(*PointerType).Elt.(*DeclaredType)
+		mtv := dt.GetValueAt(m.Alloc, m.Store, path)
+		fv = mtv.GetFunc()
+		recvTV = *recv
+		if recvTV.V != nil {
+			recvTV.N = [8]byte{}
+		}
+	case VPDerefPtrMethod:
+		dt := recv.T.(*PointerType).Elt.(*DeclaredType)
+		ppath := path
+		ppath.Type = VPPtrMethod
+		mtv := dt.GetValueAt(m.Alloc, m.Store, ppath)
+		fv = mtv.GetFunc()
+		recvTV = *recv
+		if recvTV.V != nil {
+			recvTV.N = [8]byte{}
+		}
+	default:
+		panic("doOpMethodPrecall: unexpected path type")
+	}
+
+	// Push call frame (same as BoundMethodValue path in doOpPrecall).
+	m.PushFrameCall(cx, fv, recvTV, false)
+	m.PushOp(OpCall)
+	if fv.IsCrossing() {
+		m.PushOp(OpEnterCrossing)
+	}
+	if cx.IsWithCross() {
+		if !fv.IsCrossing() {
+			panic("non-crossing function in cross call")
+		}
+		niltv := m.PeekValue(cx.NumArgs)
+		if !niltv.IsUndefined() {
+			panic(fmt.Sprintf(
+				"expected nil for realm argument in cross call but got %v", niltv))
+		}
+		crlm := NewConcreteRealm(fv.PkgPath)
+		niltv.Assign(m.Alloc, crlm, false)
+	}
+}
+
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V

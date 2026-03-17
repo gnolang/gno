@@ -1028,6 +1028,7 @@ const (
 	OpEnterCrossing       Op = 0x05 // before OpCall of a crossing function
 	OpCall                Op = 0x06 // call(Frame.Func, [...])
 	OpCallNativeBody      Op = 0x07 // call body is native
+	OpMethodPrecall       Op = 0x08 // method call: combines selector + precall (no BoundMethodValue alloc)
 	OpDefer               Op = 0x0A // defer call(X, [...])
 	OpCallDeferNativeBody Op = 0x0B // call body is native
 	OpGo                  Op = 0x0C // go call(X, [...])
@@ -1477,6 +1478,9 @@ func (m *Machine) Run(st Stage) {
 		case OpPrecall:
 			m.incrCPU(OpCPUPrecall)
 			m.doOpPrecall()
+		case OpMethodPrecall:
+			m.incrCPU(OpCPUPrecall) // same cost as OpPrecall
+			m.doOpMethodPrecall()
 		case OpEnterCrossing:
 			m.incrCPU(OpCPUEnterCrossing)
 			m.doOpEnterCrossing()

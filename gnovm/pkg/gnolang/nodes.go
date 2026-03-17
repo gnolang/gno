@@ -2418,6 +2418,16 @@ const (
 	// 0x3X, 0x5X, 0x7X, 0x9X, 0xAX, 0xCX, 0xEX reserved.
 )
 
+// IsMethodPath returns true if this path type refers to a method
+// (value method, pointer method, or their deref variants).
+func (t VPType) IsMethodPath() bool {
+	switch t {
+	case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
+		return true
+	}
+	return false
+}
+
 func NewValuePath(t VPType, depth uint8, index uint16, n Name) ValuePath {
 	vp := ValuePath{
 		Type:  t,

@@ -241,16 +241,31 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 	case *CallExpr:
-		m.PushOp(OpPrecall)
-		// Eval args.
-		args := x.Args
-		for i := len(args) - 1; 0 <= i; i-- {
-			m.PushExpr(args[i])
+		// Check if this is a direct method call (obj.Method(args)).
+		// If so, use OpMethodPrecall to avoid BoundMethodValue allocation.
+		if sx, ok := x.Func.(*SelectorExpr); ok && sx.Path.Type.IsMethodPath() {
+			m.PushOp(OpMethodPrecall)
+			// Eval args.
+			args := x.Args
+			for i := len(args) - 1; 0 <= i; i-- {
+				m.PushExpr(args[i])
+				m.PushOp(OpEval)
+			}
+			// evaluate receiver (obj in obj.Method)
+			m.PushExpr(sx.X)
+			m.PushOp(OpEval)
+		} else {
+			m.PushOp(OpPrecall)
+			// Eval args.
+			args := x.Args
+			for i := len(args) - 1; 0 <= i; i-- {
+				m.PushExpr(args[i])
+				m.PushOp(OpEval)
+			}
+			// evaluate func
+			m.PushExpr(x.Func)
 			m.PushOp(OpEval)
 		}
-		// evaluate func
-		m.PushExpr(x.Func)
-		m.PushOp(OpEval)
 	case *IndexExpr:
 		if x.HasOK {
 			m.PushOp(OpIndex2)
