@@ -147,7 +147,7 @@ max_num_outbound_peers = 40 # Advised value is 40
 max_packet_msg_payload_size = 1024
 
 # Comma separated list of nodes to keep persistent connections to
-persistent_peers = "g14t27l6t5s8cyuu3w6sjw4qmznvghfdh8k0gavr@gnoland1.moul.p2p.team:26656"
+persistent_peers = ""
 
 # Set true to enable the peer-exchange reactor
 pex = true
@@ -159,7 +159,7 @@ private_peer_ids = ""
 recv_rate = 5120000
 
 # Comma separated list of seed nodes to connect to
-seeds = "g14t27l6t5s8cyuu3w6sjw4qmznvghfdh8k0gavr@gnoland1.moul.p2p.team:26656"
+seeds = ""
 
 # Rate at which packets can be sent, in bytes/second
 send_rate = 5120000
@@ -236,7 +236,7 @@ unsafe = false
 [telemetry]
 # the endpoint to export metrics to, like a local OpenTelemetry collector
 exporter_endpoint = "" # Change me to the OTEL endpoint!
-meter_name = "gnoland1"
+meter_name = "test12"
 metrics_enabled = false # Advised to be `true`
 
 # the ID helps to distinguish instances of the same service that exist at the same time (e.g. instances of a horizontally scaled service), in Prometheus this is transformed into the label 'exported_instance

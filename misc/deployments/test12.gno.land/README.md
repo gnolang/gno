@@ -1,6 +1,6 @@
-# gnoland1 Validator Setup
+# test12 Validator Setup
 
-Basic, tested instructions for joining the `gnoland1` network as a validator. Advanced operators may adapt these steps to their own infrastructure (Docker, systemd, etc.) at their discretion.
+Basic, tested instructions for joining the `test12` network as a validator. Advanced operators may adapt these steps to their own infrastructure (Docker, systemd, etc.) at their discretion.
 
 ## 1. Generate the Genesis
 
@@ -53,10 +53,10 @@ The `--skip-genesis-sig-verification` flag is required (known incompatibility be
 
 1. After block 1, verify the AppHash at block 2 matches (confirms deterministic genesis execution):
 
-   ```shell
-   curl -s http://localhost:26657/block?height=2 | jq -r '.result.block.header.app_hash'
-   # expected: TBD
-   ```
+    ```shell
+    curl -s http://localhost:26657/block?height=2 | jq -r '.result.block.header.app_hash'
+    # expected: TBD
+    ```
 
 2. Confirm your node is syncing — `latest_block_height` should be increasing and eventually match [the network RPC](https://rpc.betanet.gno.land/status).
 3. Make sure your RPC endpoint is publicly reachable: `http(s)://<your-host>:26657/status`

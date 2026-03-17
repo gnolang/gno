@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Add a validator to gnoland1 via govDAO proposal.
+# Add a validator to test12 via govDAO proposal.
 #
 # Usage:
 #   ./add-validator.sh <address> <pub_key> [voting_power]
 #
 # Environment:
-#   GNOKEY_NAME   - gnokey key name (default: moul)
-#   CHAIN_ID      - chain ID (default: gnoland1)
+#   GNOKEY_NAME   - gnokey key name (default: aeddi)
+#   CHAIN_ID      - chain ID (default: test12)
 #   REMOTE        - RPC endpoint (default: 127.0.0.1:26657)
 #   GAS_WANTED    - gas limit (default: 50000000)
 #   GAS_FEE       - gas fee (default: 1000000ugnot)
 set -eo pipefail
 
-GNOKEY_NAME="${GNOKEY_NAME:-moul}"
-CHAIN_ID="${CHAIN_ID:-gnoland1}"
+GNOKEY_NAME="${GNOKEY_NAME:-aeddi}"
+CHAIN_ID="${CHAIN_ID:-test12}"
 REMOTE="${REMOTE:-https://rpc.betanet.testnets.gno.land:443}"
 GAS_WANTED="${GAS_WANTED:-50000000}"
 GAS_FEE="${GAS_FEE:-1000000ugnot}"
