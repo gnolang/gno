@@ -143,7 +143,7 @@ func (m *Machine) doOpCall() {
 	ft := fr.Func.GetType(m.Store)
 	// Create new block scope.
 	pb := fr.Func.GetParent(m.Store)
-	b := m.Alloc.NewBlock(fs, pb)
+	b := m.newBlock(fs, pb)
 
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
@@ -400,7 +400,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	// Convert if variadic argument.
 	// Create new block scope for defer.
 	pb := dfr.Func.GetParent(m.Store)
-	b := m.Alloc.NewBlock(fv.GetSource(m.Store), pb)
+	b := m.newBlock(fv.GetSource(m.Store), pb)
 	// Copy values from captures.
 	if len(fv.Captures) != 0 {
 		if len(fv.Captures) > len(b.Values) {

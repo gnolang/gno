@@ -10,11 +10,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unsafe"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -37,6 +37,9 @@ type Machine struct {
 	NumResults    int           // number of results returned
 	Cycles        int64         // number of "cpu" cycles
 	GCCycle       int64         // number of "gc" cycles
+	cpuPending    int64         // accumulated CPU gas not yet flushed to GasMeter
+	blockArena    []Block       // pre-allocated block storage to avoid heap allocation
+	blockArenaPos int           // next free slot in blockArena
 	Stage         Stage         // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
 	Lastline      int           // the line the VM is currently executing
@@ -94,11 +97,17 @@ const (
 // this causes a significant part of the runtime and memory
 // to be occupied by *Machine
 // hence, this pool
+// blockArenaSize is the number of pre-allocated Block slots per Machine.
+// Sized to handle typical call depths (functions + loop/if scopes).
+// Deeper stacks fall back to heap allocation.
+const blockArenaSize = 256
+
 var machinePool = sync.Pool{
 	New: func() any {
 		return &Machine{
-			Ops:    make([]Op, 0, startingOpsCap),
-			Values: make([]TypedValue, 0, startingValuesCap),
+			Ops:        make([]Op, 0, startingOpsCap),
+			Values:     make([]TypedValue, 0, startingValuesCap),
+			blockArena: make([]Block, blockArenaSize),
 		}
 	},
 }
@@ -169,7 +178,10 @@ func (m *Machine) Release() {
 	ops, values := m.Ops[:0:startingOpsCap], m.Values[:0:startingValuesCap]
 	clear(ops[:startingOpsCap])
 	clear(values[:startingValuesCap])
-	*m = Machine{Ops: ops, Values: values}
+	arena := m.blockArena
+	// Clear used arena slots to release references.
+	clear(arena[:m.blockArenaPos])
+	*m = Machine{Ops: ops, Values: values, blockArena: arena}
 
 	machinePool.Put(m)
 }
@@ -1094,7 +1106,19 @@ const (
 	OpVoid              Op = 0xFF // For profiling simple operation
 )
 
-const GasFactorCPU int64 = 1
+// GasFactorCPU was the multiplier from CPU cycles to gas units.
+// Currently 1 (i.e. 1 cycle = 1 gas), so the multiplication is
+// elided in incrCPU. Kept as documentation for future recalibration.
+// const GasFactorCPU int64 = 1
+
+// cpuGasFlushThreshold controls how often accumulated CPU gas is
+// flushed to the GasMeter. Flushing happens when cpuPending exceeds
+// this value. With typical op costs of 15-35, this means a flush
+// roughly every ~30-60 ops, reducing GasMeter interface calls by ~30x.
+// The max overshoot beyond the gas limit is bounded by this threshold
+// plus one op's max cost (~424), which is negligible vs typical gas
+// limits of millions.
+const cpuGasFlushThreshold int64 = 1000
 
 //----------------------------------------
 // "CPU" steps.
@@ -1154,12 +1178,28 @@ func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
 	}
 }
 
+// incrCPU accumulates CPU gas locally and flushes to the GasMeter
+// when the pending amount exceeds cpuGasFlushThreshold. This reduces
+// GasMeter interface calls by ~30x compared to calling ConsumeGas
+// on every op.
 func (m *Machine) incrCPU(cycles int64) {
-	if m.GasMeter != nil {
-		gasCPU := overflow.Mulp(cycles, GasFactorCPU)
-		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles") // May panic if out of gas.
-	}
 	m.Cycles += cycles
+	if m.GasMeter != nil {
+		m.cpuPending += cycles
+		if m.cpuPending >= cpuGasFlushThreshold {
+			m.flushCPUGas()
+		}
+	}
+}
+
+// flushCPUGas pushes all accumulated CPU gas to the GasMeter.
+// May panic with OutOfGasError.
+func (m *Machine) flushCPUGas() {
+	if m.cpuPending > 0 && m.GasMeter != nil {
+		pending := m.cpuPending
+		m.cpuPending = 0
+		m.GasMeter.ConsumeGas(pending, "CPUCycles")
+	}
 }
 
 const (
@@ -1391,6 +1431,7 @@ func (m *Machine) Run(st Stage) {
 		/* Control operators */
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
+			m.flushCPUGas() // flush remaining CPU gas before returning
 			if bm.Enabled {
 				bm.StopOpCode()
 			}
@@ -1462,7 +1503,7 @@ func (m *Machine) Run(st Stage) {
 			m.PopResults()
 		case OpPopBlock:
 			m.incrCPU(OpCPUPopBlock)
-			m.PopBlock()
+			m.recycleBlock(m.PopBlock())
 		case OpPopFrameAndReset:
 			m.incrCPU(OpCPUPopFrameAndReset)
 			m.PopFrameAndReset()
@@ -1909,6 +1950,64 @@ func (m *Machine) ReapValues(start int) []TypedValue {
 	return rs
 }
 
+// newBlock allocates a block from the arena if possible, otherwise from the heap.
+func (m *Machine) newBlock(source BlockNode, parent *Block) *Block {
+	numNames := source.GetNumNames()
+	// Try arena allocation.
+	if m.blockArenaPos < len(m.blockArena) {
+		b := &m.blockArena[m.blockArenaPos]
+		m.blockArenaPos++
+		b.Source = source
+		b.Parent = parent
+		b.Values = make([]TypedValue, numNames)
+		// Populate heap items (same logic as NewBlock in values.go).
+		for i, isHeap := range source.GetHeapItems() {
+			if isHeap {
+				b.Values[i] = TypedValue{
+					T: heapItemType{},
+					V: m.Alloc.NewHeapItem(TypedValue{}),
+				}
+			}
+		}
+		m.Alloc.AllocateBlock(int64(numNames))
+		return b
+	}
+	// Arena full, fall back to heap.
+	return m.Alloc.NewBlock(source, parent)
+}
+
+// isArenaBlock returns true if b points into this machine's block arena.
+func (m *Machine) isArenaBlock(b *Block) bool {
+	if len(m.blockArena) == 0 {
+		return false
+	}
+	bp := uintptr(unsafe.Pointer(b))
+	start := uintptr(unsafe.Pointer(&m.blockArena[0]))
+	end := uintptr(unsafe.Pointer(&m.blockArena[len(m.blockArena)-1]))
+	return bp >= start && bp <= end
+}
+
+// recycleBlock reclaims arena slots for discarded blocks.
+// For arena blocks, clears the slot and decrements arenaPos if possible.
+// Non-arena blocks are left for GC.
+func (m *Machine) recycleBlock(b *Block) {
+	if !m.isArenaBlock(b) {
+		return
+	}
+	// Clear the block to release references.
+	vals := b.Values
+	if vals != nil {
+		clear(vals)
+	}
+	*b = Block{}
+	// Only decrement arenaPos if this is the topmost slot (stack discipline).
+	// This handles the common case where blocks are popped in reverse order.
+	idx := int((uintptr(unsafe.Pointer(b)) - uintptr(unsafe.Pointer(&m.blockArena[0]))) / unsafe.Sizeof(Block{}))
+	if idx == m.blockArenaPos-1 {
+		m.blockArenaPos--
+	}
+}
+
 func (m *Machine) PushBlock(b *Block) {
 	if debug {
 		m.Println("+B")
@@ -2127,6 +2226,9 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		m.Values = m.Values[:fr.NumValues]
 		m.Exprs = m.Exprs[:fr.NumExprs]
 		m.Stmts = m.Stmts[:fr.NumStmts]
+		for i := fr.NumBlocks; i < len(m.Blocks); i++ {
+			m.recycleBlock(m.Blocks[i])
+		}
 		m.Blocks = m.Blocks[:fr.NumBlocks]
 		// pop stmts
 		m.Stmts = m.Stmts[:len(m.Stmts)-depthFrames]
@@ -2136,7 +2238,11 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		panic("should not happen, depthBlocks exeeds total blocks")
 	}
 	// pop blocks
-	m.Blocks = m.Blocks[:len(m.Blocks)-depthBlocks]
+	newLen := len(m.Blocks) - depthBlocks
+	for i := len(m.Blocks) - 1; i >= newLen; i-- {
+		m.recycleBlock(m.Blocks[i])
+	}
+	m.Blocks = m.Blocks[:newLen]
 }
 
 func (m *Machine) PopFrameAndReset() {
@@ -2145,6 +2251,9 @@ func (m *Machine) PopFrameAndReset() {
 	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
+	for i := len(m.Blocks) - 1; i >= fr.NumBlocks; i-- {
+		m.recycleBlock(m.Blocks[i])
+	}
 	m.Blocks = m.Blocks[:fr.NumBlocks]
 	m.PopStmt() // may be sticky
 }
@@ -2163,6 +2272,9 @@ func (m *Machine) PopFrameAndReturn() {
 	m.NumResults = numRes
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
+	for i := len(m.Blocks) - 1; i >= fr.NumBlocks; i-- {
+		m.recycleBlock(m.Blocks[i])
+	}
 	m.Blocks = m.Blocks[:fr.NumBlocks]
 	// shift and convert results to typed-nil if undefined and not iface
 	// kind.  and not func result type isn't interface kind.

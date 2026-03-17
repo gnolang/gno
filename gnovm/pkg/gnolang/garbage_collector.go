@@ -59,6 +59,10 @@ type Visitor func(v Value) (stop bool)
 // XXX: make sure tv.T isn't bumped from allocation either.
 // XXX: record original value and verify after GC
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
+	// Flush pending CPU gas before GC charges its own gas,
+	// so the GasMeter reflects accurate total consumption.
+	m.flushCPUGas()
+
 	// times objects are visited for gc
 	var visitCount int64
 

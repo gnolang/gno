@@ -518,7 +518,7 @@ EXEC_SWITCH:
 		m.PushOp(OpEval)
 	case *ForStmt:
 		m.PushFrameBasic(cs)
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.newBlock(cs, m.LastBlock())
 		numInit := 0
 		if as, ok := cs.Init.(*AssignStmt); ok && as.Op == DEFINE {
 			numInit = len(as.Lhs)
@@ -545,7 +545,7 @@ EXEC_SWITCH:
 			m.PushOp(OpExec)
 		}
 	case *IfStmt:
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.newBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		m.PushOp(OpIfCond)
@@ -603,7 +603,7 @@ EXEC_SWITCH:
 		}
 	case *RangeStmt:
 		m.PushFrameBasic(cs)
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.newBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
@@ -755,7 +755,7 @@ EXEC_SWITCH:
 	case *SwitchStmt:
 		m.PushFrameBasic(cs)
 		m.PushOp(OpPopFrameAndReset)
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.newBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		if cs.IsTypeSwitch {
@@ -779,7 +779,7 @@ EXEC_SWITCH:
 			m.PushStmt(cs.Init)
 		}
 	case *BlockStmt:
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.newBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		b.bodyStmt = bodyStmt{
