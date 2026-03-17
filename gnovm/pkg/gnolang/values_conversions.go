@@ -813,7 +813,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		case Int8Kind:
 			validate(Float32Kind, Int8Kind, func() bool {
 				f32 := tv.GetFloat32()
-				trunc := int8(softfloat.F32toint64(f32))
+				trunc := int8(softfloat.F32toint32(f32))
 				return softfloat.Fint64to32(int64(trunc)) == f32
 			})
 
@@ -823,7 +823,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		case Int16Kind:
 			validate(Float32Kind, Int16Kind, func() bool {
 				f32 := tv.GetFloat32()
-				trunc := int16(softfloat.F32toint64(f32))
+				trunc := int16(softfloat.F32toint32(f32))
 				return softfloat.Fint64to32(int64(trunc)) == f32
 			})
 
@@ -922,7 +922,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		case Int8Kind:
 			validate(Float64Kind, Int8Kind, func() bool {
 				f64 := tv.GetFloat64()
-				trunc := int8(softfloat.F64toint64(f64))
+				trunc := int8(softfloat.F64toint32(f64))
 				return softfloat.Fint64to64(int64(trunc)) == f64
 			})
 
@@ -932,7 +932,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		case Int16Kind:
 			validate(Float64Kind, Int16Kind, func() bool {
 				f64 := tv.GetFloat64()
-				trunc := int16(softfloat.F64toint64(f64))
+				trunc := int16(softfloat.F64toint32(f64))
 				return softfloat.Fint64to64(int64(trunc)) == f64
 			})
 
