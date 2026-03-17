@@ -37,12 +37,36 @@ type Machine struct {
 	NumResults    int           // number of results returned
 	Cycles        int64         // number of "cpu" cycles
 	GCCycle       int64         // number of "gc" cycles
-	cpuPending    int64         // accumulated CPU gas not yet flushed to GasMeter
-	blockArena    []Block       // pre-allocated block storage to avoid heap allocation
-	blockArenaPos int           // next free slot in blockArena
-	tvArena       []TypedValue  // pre-allocated TypedValue slab for block Values
-	tvArenaPos    int           // next free slot in tvArena
-	Stage         Stage         // pre for static eval, add for package init, run otherwise
+	cpuPending int64 // accumulated CPU gas not yet flushed to GasMeter
+
+	// Block arenas: pre-allocated storage to avoid heap allocation for
+	// short-lived scope blocks (function calls, loops, if/switch).
+	//
+	// blockArena holds Block structs; tvArena holds the TypedValue
+	// slices that Block.Values points into. Both use bump allocation
+	// (pos increments on alloc) and stack-discipline reclamation (pos
+	// decrements on block pop, in reverse order).
+	//
+	// Blocks allocated via m.newBlock() come from the arena. Shared
+	// static blocks (pushed by EvalStatic/EvalStaticTypeOf) are NOT
+	// arena-allocated — they come from StaticBlock.GetBlock() and must
+	// not be recycled. recycleBlock() detects arena blocks via pointer
+	// range checks.
+	//
+	// When an arena is full, newBlock() falls back to Allocator.NewBlock()
+	// (heap). When tvArena is full but blockArena isn't, the Block struct
+	// is arena-allocated but Values uses make(). ExpandWith() may cause
+	// arena-backed Values to escape to heap via append — this is safe,
+	// the arena slot is simply abandoned.
+	//
+	// Both arenas are preserved across Machine pool reuse (Release clears
+	// used slots but keeps the backing arrays).
+	blockArena    []Block      // pre-allocated Block structs
+	blockArenaPos int          // next free slot (bump pointer)
+	tvArena       []TypedValue // pre-allocated TypedValue slab for Block.Values
+	tvArenaPos    int          // next free slot (bump pointer)
+
+	Stage Stage // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
 	Lastline      int           // the line the VM is currently executing
 
@@ -95,19 +119,17 @@ const (
 	startingValuesCap = 25
 )
 
-// the machine constructor gets spammed
-// this causes a significant part of the runtime and memory
-// to be occupied by *Machine
-// hence, this pool
-// blockArenaSize is the number of pre-allocated Block slots per Machine.
-// Sized to handle typical call depths (functions + loop/if scopes).
-// Deeper stacks fall back to heap allocation.
-const blockArenaSize = 256
+const (
+	// blockArenaSize is the number of pre-allocated Block slots per
+	// Machine. Sized for typical call depths (functions + loop/if
+	// scopes). Deeper stacks fall back to heap allocation.
+	blockArenaSize = 256
 
-// tvArenaSize is the number of pre-allocated TypedValue slots for block
-// Values slices. With typical numNames of 1-5 per block and 256 block
-// slots, 2048 covers most workloads without heap fallback.
-const tvArenaSize = 2048
+	// tvArenaSize is the number of pre-allocated TypedValue slots
+	// for Block.Values slices. With typical numNames of 1-5 per
+	// block, 2048 covers most workloads without heap fallback.
+	tvArenaSize = 2048
+)
 
 var machinePool = sync.Pool{
 	New: func() any {
@@ -1513,6 +1535,9 @@ func (m *Machine) Run(st Stage) {
 			m.PopResults()
 		case OpPopBlock:
 			m.incrCPU(OpCPUPopBlock)
+			// recycleBlock is safe here: it only reclaims arena blocks,
+			// not shared static blocks (EvalStatic uses StaticBlock.GetBlock()
+			// which is not arena-allocated).
 			m.recycleBlock(m.PopBlock())
 		case OpPopFrameAndReset:
 			m.incrCPU(OpCPUPopFrameAndReset)
@@ -1960,74 +1985,91 @@ func (m *Machine) ReapValues(start int) []TypedValue {
 	return rs
 }
 
-// newBlock allocates a block from the arena if possible, otherwise from the heap.
-// Both the Block struct and its Values slice are arena-allocated when space permits.
+// newBlock allocates a Block from the arenas if possible, otherwise
+// from the heap. See the arena comment on the Machine struct.
 func (m *Machine) newBlock(source BlockNode, parent *Block) *Block {
 	numNames := int(source.GetNumNames())
-	// Try arena allocation for both Block and Values.
-	if m.blockArenaPos < len(m.blockArena) {
-		b := &m.blockArena[m.blockArenaPos]
-		m.blockArenaPos++
-		b.Source = source
-		b.Parent = parent
-		// Try tvArena for the Values slice.
-		if m.tvArenaPos+numNames <= len(m.tvArena) {
-			b.Values = m.tvArena[m.tvArenaPos : m.tvArenaPos+numNames : m.tvArenaPos+numNames]
-			m.tvArenaPos += numNames
-		} else {
-			// tvArena full, fall back to heap for Values only.
-			b.Values = make([]TypedValue, numNames)
-		}
-		// Populate heap items (same logic as NewBlock in values.go).
-		for i, isHeap := range source.GetHeapItems() {
-			if isHeap {
-				b.Values[i] = TypedValue{
-					T: heapItemType{},
-					V: m.Alloc.NewHeapItem(TypedValue{}),
-				}
+
+	if m.blockArenaPos >= len(m.blockArena) {
+		// Block arena full — fall back to heap entirely.
+		return m.Alloc.NewBlock(source, parent)
+	}
+
+	// Bump-allocate a Block struct from the arena.
+	b := &m.blockArena[m.blockArenaPos]
+	m.blockArenaPos++
+	b.Source = source
+	b.Parent = parent
+
+	// Bump-allocate the Values slice from tvArena, or fall back to heap.
+	if m.tvArenaPos+numNames <= len(m.tvArena) {
+		b.Values = m.tvArena[m.tvArenaPos : m.tvArenaPos+numNames : m.tvArenaPos+numNames]
+		m.tvArenaPos += numNames
+	} else {
+		b.Values = make([]TypedValue, numNames)
+	}
+
+	// Populate heap items (must match NewBlock in values.go).
+	for i, isHeap := range source.GetHeapItems() {
+		if isHeap {
+			b.Values[i] = TypedValue{
+				T: heapItemType{},
+				V: m.Alloc.NewHeapItem(TypedValue{}),
 			}
 		}
-		m.Alloc.AllocateBlock(int64(numNames))
-		return b
 	}
-	// Arena full, fall back to heap.
-	return m.Alloc.NewBlock(source, parent)
+	m.Alloc.AllocateBlock(int64(numNames))
+	return b
 }
 
-// isArenaBlock returns true if b points into this machine's block arena.
-func (m *Machine) isArenaBlock(b *Block) bool {
+// blockArenaIdx returns the arena slot index for b, or -1 if b is not
+// in this machine's block arena (e.g., a shared static block or a
+// heap-allocated block).
+func (m *Machine) blockArenaIdx(b *Block) int {
 	if len(m.blockArena) == 0 {
-		return false
+		return -1
 	}
 	bp := uintptr(unsafe.Pointer(b))
-	start := uintptr(unsafe.Pointer(&m.blockArena[0]))
-	end := uintptr(unsafe.Pointer(&m.blockArena[len(m.blockArena)-1]))
-	return bp >= start && bp <= end
+	base := uintptr(unsafe.Pointer(&m.blockArena[0]))
+	if bp < base {
+		return -1
+	}
+	idx := int((bp - base) / unsafe.Sizeof(Block{}))
+	if idx >= len(m.blockArena) {
+		return -1
+	}
+	return idx
 }
 
-// recycleBlock reclaims arena slots for discarded blocks.
-// For arena blocks, clears the slot and decrements arenaPos if possible.
-// Non-arena blocks are left for GC.
+// recycleBlock reclaims arena space for a discarded block.
+//
+// Only arena blocks are reclaimed; heap blocks are left for GC.
+// Reclamation uses stack discipline: the arena position is only
+// decremented if b is the topmost slot. Callers must iterate blocks
+// in reverse pop order (highest index first) for this to work.
 func (m *Machine) recycleBlock(b *Block) {
-	if !m.isArenaBlock(b) {
-		return
+	idx := m.blockArenaIdx(b)
+	if idx < 0 {
+		return // not an arena block (shared static or heap)
 	}
-	// Reclaim tvArena space if this block's Values are the topmost allocation.
-	vals := b.Values
-	if len(vals) > 0 && len(m.tvArena) > 0 {
+
+	// Try to reclaim this block's tvArena Values.
+	// Only possible when the Values are the topmost tvArena allocation.
+	if vals := b.Values; len(vals) > 0 && m.tvArenaPos >= len(vals) {
 		vp := uintptr(unsafe.Pointer(&vals[0]))
-		arenaStart := uintptr(unsafe.Pointer(&m.tvArena[0]))
-		expectedTop := arenaStart + uintptr(m.tvArenaPos-len(vals))*unsafe.Sizeof(TypedValue{})
+		expectedTop := uintptr(unsafe.Pointer(&m.tvArena[m.tvArenaPos-len(vals)]))
 		if vp == expectedTop {
 			clear(vals)
 			m.tvArenaPos -= len(vals)
 		}
+		// else: Values were heap-allocated or already escaped via
+		// ExpandWith append — leave for GC.
 	}
-	// Clear the block to release references.
+
+	// Clear the Block struct to release all references.
 	*b = Block{}
-	// Only decrement arenaPos if this is the topmost slot (stack discipline).
-	// This handles the common case where blocks are popped in reverse order.
-	idx := int((uintptr(unsafe.Pointer(b)) - uintptr(unsafe.Pointer(&m.blockArena[0]))) / unsafe.Sizeof(Block{}))
+
+	// Reclaim the block arena slot (stack discipline).
 	if idx == m.blockArenaPos-1 {
 		m.blockArenaPos--
 	}
@@ -2251,7 +2293,8 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		m.Values = m.Values[:fr.NumValues]
 		m.Exprs = m.Exprs[:fr.NumExprs]
 		m.Stmts = m.Stmts[:fr.NumStmts]
-		for i := fr.NumBlocks; i < len(m.Blocks); i++ {
+		// Recycle in reverse for arena stack discipline.
+		for i := len(m.Blocks) - 1; i >= fr.NumBlocks; i-- {
 			m.recycleBlock(m.Blocks[i])
 		}
 		m.Blocks = m.Blocks[:fr.NumBlocks]

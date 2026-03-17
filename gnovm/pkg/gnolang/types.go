@@ -1744,11 +1744,12 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 	case VPValMethod, VPPtrMethod, VPField:
 		if path.Depth == 0 {
 			mtv := dt.Methods[path.Index]
-			// Fill in *FV.Parent lazily on the original.
-			// Safe because Machine is single-threaded and
-			// Parent is stable once set (always the file block).
 			ft := mtv.T
 			fv := mtv.V.(*FuncValue)
+			// Lazily fill Parent on the original FuncValue rather
+			// than copying. Safe: Machine is single-threaded and
+			// Parent is immutable once set (it's always the package's
+			// file block for non-closure methods).
 			if fv.Parent == nil {
 				fv.Parent = fv.GetParent(store)
 			}

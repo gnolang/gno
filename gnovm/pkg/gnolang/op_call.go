@@ -202,7 +202,7 @@ func (m *Machine) doOpCall() {
 		// so this op follows (this) OpCall.
 		m.PushOp(OpCallNativeBody)
 	}
-	// Construct arg values and assign to block.
+	// Copy arguments from the value stack into the new block.
 	bft := ft
 	isMethod := 0
 	if !fr.Receiver.IsUndefined() {
@@ -210,7 +210,10 @@ func (m *Machine) doOpCall() {
 		isMethod = 1
 	}
 	if !bft.HasVarg() {
-		// Fast path: pop-copy args directly into block, no intermediate slice.
+		// Non-variadic: pop args directly into block, avoiding the
+		// intermediate make([]TypedValue) allocation in popCopyArgs.
+		// (Variadic/defer calls still use popCopyArgs for arg conversion
+		// or because deferred args must outlive the frame.)
 		if isMethod == 1 {
 			b.Values[0].AssignToBlock(fr.Receiver)
 		}
