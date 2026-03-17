@@ -23,24 +23,31 @@ import (
 // Machine
 
 type Machine struct {
-	// State
-	Ops           []Op          // main operations
-	Values        []TypedValue  // buffer of values to be operated on
-	Exprs         []Expr        // pending expressions
-	Stmts         []Stmt        // pending statements
-	Blocks        []*Block      // block (scope) stack
-	Frames        []Frame       // func call stack
-	Package       *PackageValue // active package
-	Realm         *Realm        // active realm
-	Alloc         *Allocator    // memory allocations
-	Exception     *Exception    // last exception
-	NumResults    int           // number of results returned
-	Cycles        int64         // number of "cpu" cycles
-	GCCycle       int64         // number of "gc" cycles
+	// Hot fields — accessed on every op. Keep in first 2-3 cache lines.
+	Ops        []Op         // main operations
+	Values     []TypedValue // buffer of values to be operated on
+	Exprs      []Expr       // pending expressions
+	Stmts      []Stmt       // pending statements
+	Blocks     []*Block     // block (scope) stack
+	Frames     []Frame      // func call stack
+	Package    *PackageValue
+	Realm      *Realm
+	Alloc      *Allocator
+	GasMeter   store.GasMeter // keep near Cycles/cpuPending for incrCPU cache locality
+	Exception  *Exception
+	Cycles     int64 // number of "cpu" cycles
 	cpuPending int64 // accumulated CPU gas not yet flushed to GasMeter
+	NumResults int   // number of results returned
+	GCCycle    int64 // number of "gc" cycles
 
-	// Block arenas: pre-allocated storage to avoid heap allocation for
-	// short-lived scope blocks (function calls, loops, if/switch).
+	// Warm fields — accessed per-statement or per-frame, not every op.
+	Store         Store
+	Stage         Stage // pre for static eval, add for package init, run otherwise
+	ReviveEnabled bool
+	Lastline      int
+
+	// Block arenas — accessed only in newBlock/recycleBlock, not on
+	// every op. Kept at the end to avoid polluting hot cache lines.
 	//
 	// blockArena holds Block structs; tvArena holds the TypedValue
 	// slices that Block.Values points into. Both use bump allocation
@@ -61,22 +68,15 @@ type Machine struct {
 	//
 	// Both arenas are preserved across Machine pool reuse (Release clears
 	// used slots but keeps the backing arrays).
-	blockArena    []Block      // pre-allocated Block structs
-	blockArenaPos int          // next free slot (bump pointer)
-	tvArena       []TypedValue // pre-allocated TypedValue slab for Block.Values
-	tvArenaPos    int          // next free slot (bump pointer)
+	blockArena    []Block
+	blockArenaPos int
+	tvArena       []TypedValue
+	tvArenaPos    int
 
-	Stage Stage // pre for static eval, add for package init, run otherwise
-	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
-	Lastline      int           // the line the VM is currently executing
-
-	Debugger Debugger
-
-	// Configuration
-	Output   io.Writer
-	Store    Store
+	// Cold fields — rarely accessed in production.
+	Output   io.Writer // discard in production
 	Context  any
-	GasMeter store.GasMeter
+	Debugger Debugger // never used in production
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
