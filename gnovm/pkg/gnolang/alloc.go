@@ -422,7 +422,7 @@ func (b *Block) GetShallowSize() int64 {
 		ss += allocRefValue
 	}
 
-	ss = allocBlock + allocBlockItem*int64(len(b.Values))
+	ss += allocBlock + allocBlockItem*int64(len(b.Values))
 
 	return ss
 }

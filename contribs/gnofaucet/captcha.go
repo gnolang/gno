@@ -22,7 +22,7 @@ func (c *captchaCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.captchaSecret,
 		"captcha-secret",
 		"",
-		"recaptcha secret key (if empty, captcha are disabled)",
+		"hcaptcha secret key (if empty, captcha are disabled)",
 	)
 }
 

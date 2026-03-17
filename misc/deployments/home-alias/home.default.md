@@ -63,20 +63,20 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 
 ## [Latest Blogposts](/r/gnoland/blog)
 
-- [The More You Gno 16](/r/gnoland/blog)
-- [Student Contributor Program: Cohort 4 Wrap-up](/r/gnoland/blog)
-- [Gnomes at EthCC '25](/r/gnoland/blog)
-- [Announcing Test6: The Latest Gno.land Testnet](/r/gnoland/blog)
+- [The More You Gno 17](/r/gnoland/blog:p/monthly-dev-17)
+- [The More You Gno 16](/r/gnoland/blog:p/monthly-dev-16)
+- [Student Contributor Program: Cohort 4 Wrap-up](/r/gnoland/blog:p/scp-cohort-4)
+- [Gnomes at EthCC '25](/r/gnoland/blog:p/ethcc2025)
 
 |||
 
 ## [Latest Events](/r/devrels/events)
 
-- [Gno Seoul - KBW Edition](/r/devrels/events)
-- [GopherCon UK 2025](/r/devrels/events)
-- [Web3 Kamp 2025](/r/devrels/events)
-- [EthCC 8](/r/devrels/events)
-- [Welcome to Gno.land @ c-base Berlin](/r/devrels/events)
+- [Gno Seoul - KBW Edition](https://luma.com/5b4h90tb)
+- [GopherCon UK 2025](https://www.gophercon.co.uk/)
+- [Web3 Kamp 2025](https://www.web3kamp.org/)
+- [EthCC 8](https://ethcc.io/)
+- [Welcome to Gno.land @ c-base Berlin](https://lu.ma/3yf84hab)
 
 |||
 
