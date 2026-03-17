@@ -7,7 +7,7 @@ Basic, tested instructions for joining the `test12` network as a validator. Adva
 Every validator must produce the same `genesis.json`. Run from this directory:
 
 ```shell
-make generate
+make generate-no-airdrop
 ```
 
 This generates the genesis and verifies the sha256 checksum automatically.

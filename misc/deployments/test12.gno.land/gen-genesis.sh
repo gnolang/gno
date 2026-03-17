@@ -6,6 +6,7 @@
 #   ./gen-genesis.sh --debug      # show every command being run
 #   ./gen-genesis.sh --txs-only   # stop after generating txs (skip balance calculation)
 #   ./gen-genesis.sh --no-install # reuse previously built binaries
+#   ./gen-genesis.sh --no-airdrop # skip airdrop balances; add a large balance to test1 instead
 set -eo pipefail
 
 # =============================================================================
@@ -52,12 +53,14 @@ DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft w
 STOP_AFTER_TXS_EXPORT=false
 DEBUG=false
 NO_INSTALL=false
+NO_AIRDROP=false
 GENESIS_FILE=genesis.json # set to absolute path below, after SCRIPT_DIR
 for arg in "$@"; do
   case "$arg" in
   --txs-only) STOP_AFTER_TXS_EXPORT=true ;;
   --debug) DEBUG=true ;;
   --no-install) NO_INSTALL=true ;;
+  --no-airdrop) NO_AIRDROP=true ;;
   *)
     echo "Unknown argument: $arg"
     exit 1
@@ -468,22 +471,30 @@ printf "\n=== Step 6/7: Adding balances ===\n"
 printf "  Adding deployer balances to genesis...\n"
 run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_DEPLOYER_BALANCES" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 
-AIRDROP_BALANCES_GZ="$SCRIPT_DIR/airdrop_balances.txt.gz"
-AIRDROP_BALANCES_TXT="$WORK_DIR/airdrop_balances.txt"
-
-if [ -f "$AIRDROP_BALANCES_GZ" ]; then
-  printf "  Using cached airdrop balances\n"
+if [ "$NO_AIRDROP" = true ]; then
+  # test1 key address — receives a large balance for local testing.
+  TEST1_ADDRESS="g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+  TEST1_BALANCE="9223372036854775807ugnot" # math.MaxInt64 — the highest value an int64 amount can hold
+  printf "  Skipping airdrop (--no-airdrop); adding %s to %s...\n" "$TEST1_BALANCE" "$TEST1_ADDRESS"
+  run "$GNOGENESIS_BIN" balances add -single "${TEST1_ADDRESS}=${TEST1_BALANCE}" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 else
-  printf "  Downloading airdrop balances...\n"
-  run curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
-fi
-gzip -dkc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
+  AIRDROP_BALANCES_GZ="$SCRIPT_DIR/airdrop_balances.txt.gz"
+  AIRDROP_BALANCES_TXT="$WORK_DIR/airdrop_balances.txt"
 
-airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
-# TODO: We need to verify if there is a colision between deployer and airdrop addresses.
-# See: https://github.com/gnolang/gno/pull/5250/changes#discussion_r2925485031
-printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
-run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
+  if [ -f "$AIRDROP_BALANCES_GZ" ]; then
+    printf "  Using cached airdrop balances\n"
+  else
+    printf "  Downloading airdrop balances...\n"
+    run curl -fsSL "$BALANCES_GZ_URL" -o "$AIRDROP_BALANCES_GZ"
+  fi
+  gzip -dkc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
+
+  airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
+  # TODO: We need to verify if there is a colision between deployer and airdrop addresses.
+  # See: https://github.com/gnolang/gno/pull/5250/changes#discussion_r2925485031
+  printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
+  run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
+fi
 
 # ---- 7. Verify the generated genesis file
 
