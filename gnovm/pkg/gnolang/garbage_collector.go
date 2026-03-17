@@ -61,9 +61,7 @@ type Visitor func(v Value) (stop bool)
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	// Flush pending CPU gas before GC charges its own gas,
 	// so the GasMeter reflects accurate total consumption.
-	if m.GasMeter != nil {
-		m.flushCPUGas()
-	}
+	m.flushCPUGas()
 
 	// times objects are visited for gc
 	var visitCount int64

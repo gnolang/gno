@@ -1230,12 +1230,13 @@ func (m *Machine) incrCPU(cycles int64) {
 }
 
 // flushCPUGas pushes all accumulated CPU gas to the GasMeter.
-// Callers must ensure m.GasMeter != nil (incrCPU checks this).
 // May panic with OutOfGasError.
 func (m *Machine) flushCPUGas() {
-	pending := m.cpuPending
-	m.cpuPending = 0
-	m.GasMeter.ConsumeGas(pending, "CPUCycles")
+	if m.cpuPending > 0 && m.GasMeter != nil {
+		pending := m.cpuPending
+		m.cpuPending = 0
+		m.GasMeter.ConsumeGas(pending, "CPUCycles")
+	}
 }
 
 const (
@@ -1468,9 +1469,7 @@ func (m *Machine) Run(st Stage) {
 		/* Control operators */
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
-			if m.GasMeter != nil {
-				m.flushCPUGas() // flush remaining CPU gas before returning
-			}
+			m.flushCPUGas() // flush remaining CPU gas before returning
 			if bm.Enabled {
 				bm.StopOpCode()
 			}
