@@ -516,8 +516,9 @@ cp "$WORK_DIR_GENESIS_TXS" "$SCRIPT_DIR/genesis_txs.jsonl"
 jq '.app_state.balances = (.app_state.balances[:10])' "$GENESIS_FILE" >"$SCRIPT_DIR/genesis-redacted.json"
 
 printf "\n=== Done ===\n"
-printf "  sha256: %s\n" "$(shasum -a 256 "$GENESIS_FILE" | awk '{print $1}')"
-printf "  -> genesis.json (gitignored, %s)\n" "$(du -h "$GENESIS_FILE" | cut -f1)"
-printf "  -> genesis-redacted.json (%s)\n" "$(du -h "$SCRIPT_DIR/genesis-redacted.json" | cut -f1)"
-printf "  -> packages.gen.txt\n"
-printf "  -> genesis_txs.jsonl\n"
+for f in "$GENESIS_FILE" "$SCRIPT_DIR/genesis-redacted.json" "$SCRIPT_DIR/packages.gen.txt" "$SCRIPT_DIR/genesis_txs.jsonl"; do
+  printf "  -> %-28s  %s  %s\n" \
+    "$(basename "$f")" \
+    "$(du -h "$f" | cut -f1)" \
+    "$(shasum -a 256 "$f" | awk '{print $1}')"
+done
