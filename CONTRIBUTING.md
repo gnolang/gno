@@ -118,6 +118,45 @@ Avoid superficial changes aimed at farming airdrops or karma.
 See the [Community section](./README.md#community) in our README for Discord,
 GitHub discussions, and other communication channels.
 
+## Architecture Decision Records (ADRs)
+
+Non-trivial changes should include an ADR documenting the context and
+reasoning behind the work. ADRs go in the component's `adr/` folder:
+
+- `gnovm/adr/` — VM, interpreter, type-checker, transpiler
+- `gno.land/adr/` — node, SDK, keeper, RPC, genesis
+- `tm2/adr/` — consensus, p2p, mempool, crypto
+
+See [AGENTS.md](./AGENTS.md#architecture-decision-records-adrs) for format
+details.
+
+## AI-Assisted Contributions
+
+AI coding agents (Claude, Copilot, etc.) are welcome tools for contributing
+to Gno. **A human is always responsible for AI-assisted work.** Contributions
+must be submitted under the responsible human's GitHub account. If an
+autonomous agent submits work independently, it must clearly disclose its
+human owner in the PR description.
+
+AI-assisted PRs must include an ADR documenting the context the AI operated
+under (see above), unless the change is trivial (bug fixes, formatting,
+simple tests, docs-only). The human is responsible for reviewing the output
+for correctness, style, and security. All the same standards apply: CI must
+pass, tests must be included, conventional commits must be used.
+
+If using AI, point your agent at [AGENTS.md](./AGENTS.md).
+
+## Documentation Philosophy
+
+`docs/` is optimized for humans, readable by agents.
+`AGENTS.md` is optimized for agents, readable by humans.
+
+When writing documentation, keep human docs in `docs/` — narrative,
+examples, context. Avoid bloating `AGENTS.md` with content better suited
+for `docs/`. Conversely, a few lines of concise, direct rules in
+`AGENTS.md` is far better than pointing agents to multiple human-oriented
+documents they'd have to parse in full.
+
 ---
 
 For more documentation, see the [docs](./docs/) folder.
