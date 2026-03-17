@@ -486,10 +486,22 @@ else
   gzip -dkc "$AIRDROP_BALANCES_GZ" >"$AIRDROP_BALANCES_TXT"
 
   airdrop_count=$(wc -l <"$AIRDROP_BALANCES_TXT" | tr -d ' ')
-  # TODO: We need to verify if there is a colision between deployer and airdrop addresses.
-  # See: https://github.com/gnolang/gno/pull/5250/changes#discussion_r2925485031
+
+  # Merge airdrop with deployer balances: sum amounts for collision addresses so
+  # deployer gas costs and airdrop entitlements are both preserved.
+  MERGED_AIRDROP_TXT="$WORK_DIR/airdrop_merged.txt"
+  awk -F= '
+    FNR==NR { deployer[$1]=substr($2,1,length($2)-5)+0; next }
+    { addr=$1; amt=substr($2,1,length($2)-5)+0
+      if (addr in deployer) amt+=deployer[addr]
+      print addr "=" amt "ugnot" }
+  ' "$WORK_DIR_DEPLOYER_BALANCES" "$AIRDROP_BALANCES_TXT" >"$MERGED_AIRDROP_TXT"
+  collision_count=$(awk -F= 'FNR==NR{d[$1]=1;next} $1 in d{c++} END{print c+0}' \
+    "$WORK_DIR_DEPLOYER_BALANCES" "$AIRDROP_BALANCES_TXT")
+  [ "$collision_count" -gt 0 ] && printf "  Merged %s deployer/airdrop collision(s)\n" "$collision_count"
+
   printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
-  run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_BALANCES_TXT" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
+  run "$GNOGENESIS_BIN" balances add -balance-sheet "$MERGED_AIRDROP_TXT" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 fi
 
 # ---- 7. Verify the generated genesis file

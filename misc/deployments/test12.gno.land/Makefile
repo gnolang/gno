@@ -1,5 +1,5 @@
 REPO_ROOT := $(shell cd ../../.. && pwd)
-GENESIS_SHA256 := 80210a95352ca8f5411a7132e1dff187a14e6432a9a4b23b383463f9cdfccec7
+GENESIS_SHA256 := 34586634ed794c5167fbf55a06d8806fcbb8fe558a26399fa8b0e8e8b377b355
 GENESIS_NO_AIRDROP_SHA256 := aebbfc9b3af201a287c8fe0de033beb830f1da0520ec2ba37d59a15e45b2accd
 
 .PHONY: help generate generate-no-airdrop generate-txs test clean
