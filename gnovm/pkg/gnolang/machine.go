@@ -40,6 +40,8 @@ type Machine struct {
 	cpuPending    int64         // accumulated CPU gas not yet flushed to GasMeter
 	blockArena    []Block       // pre-allocated block storage to avoid heap allocation
 	blockArenaPos int           // next free slot in blockArena
+	tvArena       []TypedValue  // pre-allocated TypedValue slab for block Values
+	tvArenaPos    int           // next free slot in tvArena
 	Stage         Stage         // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
 	Lastline      int           // the line the VM is currently executing
@@ -102,12 +104,18 @@ const (
 // Deeper stacks fall back to heap allocation.
 const blockArenaSize = 256
 
+// tvArenaSize is the number of pre-allocated TypedValue slots for block
+// Values slices. With typical numNames of 1-5 per block and 256 block
+// slots, 2048 covers most workloads without heap fallback.
+const tvArenaSize = 2048
+
 var machinePool = sync.Pool{
 	New: func() any {
 		return &Machine{
 			Ops:        make([]Op, 0, startingOpsCap),
 			Values:     make([]TypedValue, 0, startingValuesCap),
 			blockArena: make([]Block, blockArenaSize),
+			tvArena:    make([]TypedValue, tvArenaSize),
 		}
 	},
 }
@@ -179,9 +187,11 @@ func (m *Machine) Release() {
 	clear(ops[:startingOpsCap])
 	clear(values[:startingValuesCap])
 	arena := m.blockArena
+	tvArena := m.tvArena
 	// Clear used arena slots to release references.
 	clear(arena[:m.blockArenaPos])
-	*m = Machine{Ops: ops, Values: values, blockArena: arena}
+	clear(tvArena[:m.tvArenaPos])
+	*m = Machine{Ops: ops, Values: values, blockArena: arena, tvArena: tvArena}
 
 	machinePool.Put(m)
 }
@@ -1951,15 +1961,23 @@ func (m *Machine) ReapValues(start int) []TypedValue {
 }
 
 // newBlock allocates a block from the arena if possible, otherwise from the heap.
+// Both the Block struct and its Values slice are arena-allocated when space permits.
 func (m *Machine) newBlock(source BlockNode, parent *Block) *Block {
-	numNames := source.GetNumNames()
-	// Try arena allocation.
+	numNames := int(source.GetNumNames())
+	// Try arena allocation for both Block and Values.
 	if m.blockArenaPos < len(m.blockArena) {
 		b := &m.blockArena[m.blockArenaPos]
 		m.blockArenaPos++
 		b.Source = source
 		b.Parent = parent
-		b.Values = make([]TypedValue, numNames)
+		// Try tvArena for the Values slice.
+		if m.tvArenaPos+numNames <= len(m.tvArena) {
+			b.Values = m.tvArena[m.tvArenaPos : m.tvArenaPos+numNames : m.tvArenaPos+numNames]
+			m.tvArenaPos += numNames
+		} else {
+			// tvArena full, fall back to heap for Values only.
+			b.Values = make([]TypedValue, numNames)
+		}
 		// Populate heap items (same logic as NewBlock in values.go).
 		for i, isHeap := range source.GetHeapItems() {
 			if isHeap {
@@ -1994,11 +2012,18 @@ func (m *Machine) recycleBlock(b *Block) {
 	if !m.isArenaBlock(b) {
 		return
 	}
-	// Clear the block to release references.
+	// Reclaim tvArena space if this block's Values are the topmost allocation.
 	vals := b.Values
-	if vals != nil {
-		clear(vals)
+	if len(vals) > 0 && len(m.tvArena) > 0 {
+		vp := uintptr(unsafe.Pointer(&vals[0]))
+		arenaStart := uintptr(unsafe.Pointer(&m.tvArena[0]))
+		expectedTop := arenaStart + uintptr(m.tvArenaPos-len(vals))*unsafe.Sizeof(TypedValue{})
+		if vp == expectedTop {
+			clear(vals)
+			m.tvArenaPos -= len(vals)
+		}
 	}
+	// Clear the block to release references.
 	*b = Block{}
 	// Only decrement arenaPos if this is the topmost slot (stack discipline).
 	// This handles the common case where blocks are popped in reverse order.
