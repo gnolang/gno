@@ -202,15 +202,28 @@ func (m *Machine) doOpCall() {
 		// so this op follows (this) OpCall.
 		m.PushOp(OpCallNativeBody)
 	}
-	// Construct arg values.
+	// Construct arg values and assign to block.
 	bft := ft
+	isMethod := 0
 	if !fr.Receiver.IsUndefined() {
 		bft = ft.BoundType()
+		isMethod = 1
 	}
-	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
-	// Assign parameters in forward order.
-	for i, argtv := range args {
-		b.Values[i].AssignToBlock(argtv)
+	if !bft.HasVarg() {
+		// Fast path: pop-copy args directly into block, no intermediate slice.
+		if isMethod == 1 {
+			b.Values[0].AssignToBlock(fr.Receiver)
+		}
+		numParams := len(bft.Params)
+		poppedArgs := m.PopValues(numParams)
+		for i, argtv := range poppedArgs {
+			b.Values[isMethod+i].AssignToBlock(argtv.Copy(m.Alloc))
+		}
+	} else {
+		args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
+		for i, argtv := range args {
+			b.Values[i].AssignToBlock(argtv)
+		}
 	}
 }
 
