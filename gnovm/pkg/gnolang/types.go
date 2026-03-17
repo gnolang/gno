@@ -1744,10 +1744,14 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 	case VPValMethod, VPPtrMethod, VPField:
 		if path.Depth == 0 {
 			mtv := dt.Methods[path.Index]
-			// Fill in *FV.Parent.
+			// Fill in *FV.Parent lazily on the original.
+			// Safe because Machine is single-threaded and
+			// Parent is stable once set (always the file block).
 			ft := mtv.T
-			fv := mtv.V.(*FuncValue).Copy(alloc)
-			fv.Parent = fv.GetParent(store)
+			fv := mtv.V.(*FuncValue)
+			if fv.Parent == nil {
+				fv.Parent = fv.GetParent(store)
+			}
 			return TypedValue{T: ft, V: fv}
 		} else {
 			panic("DeclaredType.GetValueAt() expects depth == 0")
