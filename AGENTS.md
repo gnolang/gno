@@ -82,7 +82,7 @@ make fmt                        # Format all code
 
 ## Architecture Decision Records (ADRs)
 
-**Every AI-assisted PR must include an ADR.**
+**Every non-trivial AI-assisted PR must include an ADR.**
 This documents what the AI understood so reviewers can verify assumptions and future contributors can build on it.
 
 | Scope | Directory |
@@ -119,11 +119,11 @@ Skip ADRs for: trivial bug fixes, formatting, simple tests, docs-only changes.
 | What | Where |
 |------|-------|
 | Understand a realm | Read its main `.gno` file |
-| VM internals | `gnovm/pkg/gnolang/machine.go` |
+| VM internals | `gnovm/pkg/gnolang/machine.go`, `gnovm/pkg/gnolang/preprocess.go` |
 | Node/keeper | `gno.land/pkg/sdk/vm/keeper.go` |
 | Client/RPC | `gno.land/pkg/gnoclient/` |
 | Example patterns | `examples/gno.land/p/nt/ownable/` |
-| Past decisions | `gnovm/adr/` and `gno.land/adr/` |
+| Past decisions | `gnovm/adr/`, `gno.land/adr/` and `tm2/adr/` |
 
 ---
 
