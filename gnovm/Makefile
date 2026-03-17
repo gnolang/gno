@@ -100,7 +100,7 @@ calibrate.plot:
 .PHONY: calibrate.alloc
 calibrate.alloc:
 	@mkdir -p .tmp
-	go test -bench=BenchmarkAlloc -benchmem -count=5 -timeout=10m \
+	go test -run=^$$ -bench=BenchmarkAlloc -benchmem -count=5 -timeout=10m \
 		./$(CALIBRATE_DIR)/ | tee .tmp/alloc_bench.txt
 	python3 $(CALIBRATE_DIR)/gen_alloc_table.py .tmp/alloc_bench.txt
 
@@ -108,10 +108,10 @@ calibrate.alloc:
 .PHONY: calibrate.gas
 calibrate.gas:
 	@echo "=== Running op handler benchmarks ==="
-	go test -tags benchmarkingops -bench=BenchmarkOp -benchmem -count=3 -timeout=30m \
+	go test -tags benchmarkingops -run=^$$ -bench=BenchmarkOp -benchmem -count=3 -timeout=30m \
 		./pkg/gnolang/ | tee $(CALIBRATE_DIR)/op_bench_local.txt
 	@echo "=== Running allocation benchmarks ==="
-	go test -bench=BenchmarkAlloc -benchmem -count=5 -timeout=10m \
+	go test -run=^$$ -bench=BenchmarkAlloc -benchmem -count=5 -timeout=10m \
 		./$(CALIBRATE_DIR)/ | tee $(CALIBRATE_DIR)/alloc_bench_local.txt
 	@echo "=== Generating analysis ==="
 	python3 $(CALIBRATE_DIR)/gen_analysis.py $(CALIBRATE_DIR)/op_bench_local.txt $(MACHINE_GO)
