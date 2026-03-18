@@ -1260,7 +1260,7 @@ const (
 	OpCPUInvalid             = 1
 	OpCPUHalt                = 1
 	OpCPUNoop                = 1
-	OpCPUExec                = 25
+	OpCPUExec                = 14 // max(ExprStmt=14, ForStmt covered by alloc)
 	OpCPUPrecall             = 40  // max(func=35, bound method=40)
 	OpCPUPrecallConvert      = 14  // type conversion — no frame creation
 	OpCPUMethodPrecall       = 67  // replaces OpSelector+OpPrecall for method calls
