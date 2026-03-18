@@ -6,10 +6,14 @@ import (
 	"strings"
 )
 
-// doOpMethodPrecall handles direct method calls (obj.Method(args)) without
-// allocating a BoundMethodValue. The value stack has [receiver, args...].
-// It resolves the method from the receiver's type and pushes the call frame
-// directly.
+// OPTIMIZATION: doOpMethodPrecall combines OpSelector + OpPrecall for direct
+// method calls (obj.Method(args)), eliminating 2 heap allocations per call:
+// &BoundMethodValue{} and &TypedValue{} that existed only to carry
+// (Func, Receiver) from OpSelector to OpPrecall. Stored method values
+// (f := obj.Method) still use the old OpSelector + OpPrecall path.
+//
+// doOpMethodPrecall handles direct method calls without allocating a
+// BoundMethodValue. The value stack has [receiver, args...].
 func (m *Machine) doOpMethodPrecall() {
 	cx := m.PopExpr().(*CallExpr)
 	sx := cx.Func.(*SelectorExpr)
@@ -194,8 +198,10 @@ func (m *Machine) doOpMethodPrecall() {
 	}
 }
 
+// OPTIMIZATION: Split from doOpPrecall. Type conversions don't create frames,
+// so they're charged 14 gas (OpCPUPrecallConvert) instead of 40 (OpCPUPrecall).
+//
 // doOpPrecallConvert handles type conversion calls: int(x), string(b), etc.
-// Cheaper than doOpPrecall — no frame creation, just pushes OpConvert.
 func (m *Machine) doOpPrecallConvert() {
 	cx := m.PopExpr().(*CallExpr)
 	// Do not pop type yet.
@@ -408,7 +414,9 @@ func (m *Machine) doOpCall() {
 		// so this op follows (this) OpCall.
 		m.PushOp(OpCallNativeBody)
 	}
-	// Copy arguments from the value stack into the new block.
+	// OPTIMIZATION: For non-variadic calls, pop args directly into block
+	// values, skipping the intermediate make([]TypedValue) in popCopyArgs.
+	// Variadic/defer calls still use popCopyArgs for arg conversion.
 	bft := ft
 	isMethod := 0
 	if !fr.Receiver.IsUndefined() {

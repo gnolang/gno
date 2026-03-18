@@ -1443,6 +1443,11 @@ type DeclaredType struct {
 
 	typeid TypeID
 	sealed bool // for ensuring correctness with recursive types.
+	// OPTIMIZATION: Cache for findEmbeddedFieldType results. Before this,
+	// every interface method call walked the type hierarchy. Now the first
+	// call caches the trail and subsequent calls are O(1) map lookups.
+	// Differential gas: cached calls pay base gas only; uncached calls
+	// additionally pay OpCPUSlopeInterfaceUncached per method.
 	// methodMap caches findEmbeddedFieldType results for exported method
 	// names. Populated lazily on first interface dispatch. Maps method
 	// name to the ValuePath trail for reaching the concrete method.

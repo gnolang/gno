@@ -241,8 +241,10 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 	case *CallExpr:
-		// Check if this is a direct method call (obj.Method(args)).
-		// If so, use OpMethodPrecall to avoid BoundMethodValue allocation.
+		// OPTIMIZATION: Three dispatch paths based on call type:
+		// 1. OpMethodPrecall — direct method calls (no BoundMethodValue alloc)
+		// 2. OpPrecallConvert — type conversions (cheaper gas, no frame)
+		// 3. OpPrecall — everything else (func calls, stored methods)
 		if sx, ok := x.Func.(*SelectorExpr); ok && sx.Path.Type.IsMethodPath() {
 			m.PushOp(OpMethodPrecall)
 			// Eval args.
@@ -291,7 +293,9 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *SelectorExpr:
-		// Use cheaper gas for field access vs method/package selectors.
+		// OPTIMIZATION: Split OpSelector (80 gas) into OpSelectorField (18 gas)
+		// for struct field access vs OpSelector for method/package selectors.
+		// Same handler, different gas cost.
 		switch x.Path.Type {
 		case VPField, VPDerefField, VPSubrefField:
 			m.PushOp(OpSelectorField)

@@ -518,7 +518,7 @@ EXEC_SWITCH:
 		m.PushOp(OpEval)
 	case *ForStmt:
 		m.PushFrameBasic(cs)
-		b := m.newBlock(cs, m.LastBlock())
+		b := m.newBlock(cs, m.LastBlock()) // OPTIMIZATION: arena-allocated (was m.Alloc.NewBlock)
 		numInit := 0
 		if as, ok := cs.Init.(*AssignStmt); ok && as.Op == DEFINE {
 			numInit = len(as.Lhs)
