@@ -33,7 +33,7 @@ func (ls *LifetimeSubscription) processSubscription(receiver address) error {
 		return ErrAmt
 	}
 
-	if ls.subs.Get(receiver.String()) != nil {
+	if ls.subs.Has(receiver.String()) {
 		return ErrAlreadySub
 	}
 
@@ -55,7 +55,7 @@ func (ls *LifetimeSubscription) GiftSubscription(receiver address) error {
 
 // HasValidSubscription checks if the given address has an active lifetime subscription.
 func (ls *LifetimeSubscription) HasValidSubscription(addr address) error {
-	if ls.subs.Get(addr.String()) == nil {
+	if !ls.subs.Has(addr.String()) {
 		return ErrNoSub
 	}
 

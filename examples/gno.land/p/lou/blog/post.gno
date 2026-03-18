@@ -212,7 +212,7 @@ func (p *Post) LikePost(addr string) error {
 	if p.DisableLikes {
 		return ErrLikesDisabled
 	}
-	if p.likes.Get(addr) != nil {
+	if p.likes.Has(addr) {
 		return ErrAlreadyLiked
 	}
 	p.likes.Set(addr, true)
@@ -223,7 +223,7 @@ func (p *Post) UnlikePost(addr string) error {
 	if p.DisableLikes {
 		return ErrLikesDisabled
 	}
-	if p.likes.Get(addr) == nil {
+	if !p.likes.Has(addr) {
 		return ErrNotLiked
 	}
 	if _, removed := p.likes.Remove(addr); !removed {

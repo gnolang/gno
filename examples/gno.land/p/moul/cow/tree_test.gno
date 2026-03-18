@@ -46,7 +46,7 @@ func TestTreeGet(t *testing.T) {
 		t.Error("Expected Get to return value1 and true")
 	}
 
-	if tree.Get("key2") != nil {
+	if tree.Has("key2") {
 		t.Error("Expected Get to return false for non-existent key")
 	}
 }

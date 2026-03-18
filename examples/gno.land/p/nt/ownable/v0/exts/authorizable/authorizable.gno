@@ -53,7 +53,7 @@ func (a *Authorizable) AddToAuthList(addr address) error {
 }
 
 func (a *Authorizable) addToAuthList(addr address) error {
-	if a.authorized.Get(addr.String()) != nil {
+	if a.authorized.Has(addr.String()) {
 		return ErrAlreadyInList
 	}
 

@@ -154,11 +154,11 @@ func Execute(_ realm, daoID, proposalID uint64) {
 }
 
 func hasOwnership(addr address) bool {
-	return ownership.Get(addr.String()) != nil
+	return ownership.Has(addr.String())
 }
 
 func isInvited(addr address) bool {
-	return invites.Get(addr.String()) != nil
+	return invites.Has(addr.String())
 }
 
 func isOwner(addr address, daoID uint64) bool {

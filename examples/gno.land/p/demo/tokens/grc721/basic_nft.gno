@@ -391,7 +391,7 @@ func (s *basicNFT) isApprovedOrOwner(addr address, tid TokenID) bool {
 
 // Checks if token id already exists
 func (s *basicNFT) exists(tid TokenID) bool {
-	return s.owners.Get(tid.String()) != nil
+	return s.owners.Has(tid.String())
 }
 
 func (s *basicNFT) beforeTokenTransfer(from, to address, firstTokenId TokenID, batchSize int64) {

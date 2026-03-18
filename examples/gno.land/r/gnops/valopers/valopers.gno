@@ -277,7 +277,7 @@ func (v Valoper) Render() string {
 
 // isValoper checks if the valoper exists
 func isValoper(address_XXX address) bool {
-	return valopers.Get(address_XXX.String()) != nil
+	return valopers.Has(address_XXX.String())
 }
 
 // validateMoniker checks if the moniker is valid

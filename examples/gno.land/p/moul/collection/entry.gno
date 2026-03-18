@@ -121,7 +121,7 @@ func (ei *EntryIterator) Empty() bool {
 
 	// Handle ID index specially
 	if ei.indexName == IDIndex {
-		return ei.collection.indexes[IDIndex].tree.Get(ei.key) == nil
+		return !ei.collection.indexes[IDIndex].tree.Has(ei.key)
 	}
 
 	// Get the index

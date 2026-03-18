@@ -143,7 +143,7 @@ func (b Blog) Render(path string) string {
 }
 
 func (b *Blog) NewPost(publisher address, slug, title, body, pubDate string, authors, tags []string) error {
-	if b.Posts.Get(slug) != nil {
+	if b.Posts.Has(slug) {
 		return ErrPostSlugExists
 	}
 
@@ -194,11 +194,11 @@ func (b *Blog) prepareAndSetPost(post *Post, edit bool) error {
 
 	if !edit {
 		// Cannot have two posts with same title key
-		if b.PostsAlphabetical.Get(trimmedTitleKey) != nil {
+		if b.PostsAlphabetical.Has(trimmedTitleKey) {
 			return ErrPostTitleExists
 		}
 		// Cannot have two posts with *exact* same timestamp
-		if b.PostsPublished.Get(pubDateKey) != nil {
+		if b.PostsPublished.Has(pubDateKey) {
 			return ErrPostPubDateExists
 		}
 	}

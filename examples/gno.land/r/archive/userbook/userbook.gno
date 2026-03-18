@@ -34,7 +34,7 @@ func SignUp(cur realm) string {
 	caller := runtime.PreviousRealm().Address()
 
 	// Check if the user is already signed up
-	if tracker.Get(caller.String()) != nil {
+	if tracker.Has(caller.String()) {
 		panic(caller.String() + " is already signed up!")
 	}
 

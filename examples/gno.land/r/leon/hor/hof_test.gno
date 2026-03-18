@@ -143,7 +143,7 @@ func TestDelete(t *testing.T) {
 func itemExists(t *testing.T, rlmPath string) bool {
 	t.Helper()
 
-	return exhibition.items.Get(rlmPath) != nil
+	return exhibition.items.Has(rlmPath)
 }
 
 func TestgetVoteSortKey(t *testing.T) {

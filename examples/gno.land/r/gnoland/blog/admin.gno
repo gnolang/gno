@@ -117,11 +117,11 @@ func isAdmin(addr address) bool {
 }
 
 func isModerator(addr address) bool {
-	return moderatorList.Get(addr.String()) != nil
+	return moderatorList.Has(addr.String())
 }
 
 func isCommenter(addr address) bool {
-	return commenterList.Get(addr.String()) != nil
+	return commenterList.Has(addr.String())
 }
 
 func assertIsAdmin() {

@@ -76,7 +76,7 @@ func RemoveTask(_ realm, todolistID int, taskID int) string {
 	}
 
 	// Get the task from the todolist
-	if tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID)) == nil {
+	if !tl.(*todolist.TodoList).Tasks.Has(strconv.Itoa(taskID)) {
 		panic("Task not found")
 	}
 
@@ -88,7 +88,7 @@ func RemoveTask(_ realm, todolistID int, taskID int) string {
 
 func RemoveTodoList(_ realm, todolistID int) string {
 	// Get Todolist from AVL tree
-	if todolistTree.Get(strconv.Itoa(todolistID)) == nil {
+	if !todolistTree.Has(strconv.Itoa(todolistID)) {
 		panic("Todolist not found")
 	}
 

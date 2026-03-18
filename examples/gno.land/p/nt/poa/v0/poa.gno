@@ -75,7 +75,7 @@ func (p *PoA) RemoveValidator(address_XXX address) (validators.Validator, error)
 }
 
 func (p *PoA) IsValidator(address_XXX address) bool {
-	return p.validators.Get(address_XXX.String()) != nil
+	return p.validators.Has(address_XXX.String())
 }
 
 func (p *PoA) GetValidator(address_XXX address) (validators.Validator, error) {

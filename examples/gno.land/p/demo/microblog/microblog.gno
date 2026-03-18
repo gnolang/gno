@@ -49,7 +49,7 @@ func (m *Microblog) GetPages() []*Page {
 
 func (m *Microblog) NewPost(text string) error {
 	author := runtime.OriginCaller()
-	if m.Pages.Get(author.String()) == nil {
+	if !m.Pages.Has(author.String()) {
 		// make a new page for the new author
 		m.Pages.Set(author.String(), &Page{
 			Author:    author,
