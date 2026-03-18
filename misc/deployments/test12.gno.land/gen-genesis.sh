@@ -37,7 +37,7 @@ INITIAL_VALSET=(
 
 # Chain parameters.
 CHAIN_ID=test12
-GENESIS_TIME=1773840600 # Wednesday, March 18th 2026 14:30 GMT+0100 (CET)
+GENESIS_TIME=1773842400 # Wednesday, March 18th 2026 15:00 GMT+0100 (CET)
 
 # Airdrop balances (independence-day snapshot).
 BALANCES_GZ_URL="https://github.com/gnolang/independence-day/raw/9dec38a4a72c9e84db7e78ae010370de250f2d64/mkgenesis/balances.txt.gz"

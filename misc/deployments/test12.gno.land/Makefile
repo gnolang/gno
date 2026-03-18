@@ -1,6 +1,6 @@
 REPO_ROOT := $(shell cd ../../.. && pwd)
-GENESIS_SHA256 := ccefbbeca23620769084af7b454d65dfc9ce14ffef97f157e9a1fe7496da10f9
-GENESIS_NO_AIRDROP_SHA256 := bcae7f7a6d6ccc7a52829a9008a9ec468c9e2298bf39dade7143a0ede9cd7ea3
+GENESIS_SHA256 := 333bb297a18c6e911fa8fa1faf2f501dcbedce18936c83ea79a887f63ccfd371
+GENESIS_NO_AIRDROP_SHA256 := a883d49b670378232b91d6043aca9b7fe9cfe04680dc47a9f3332c958edfaf2a
 
 # verify_checksum $(file) $(expected_sha256)
 define verify_checksum
