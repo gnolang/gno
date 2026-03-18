@@ -961,10 +961,8 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 				continue // before sliding...
 			}
 			// Consume any wire fields with fnum < field.BinFieldNum.
-			// These correspond to fields removed from the struct (e.g.
-			// marked amino:"reserved") that are still present in older
-			// encoded data.
-			zeroed := false
+			// These correspond to fields removed from the struct (e.g. marked
+			// amino:"reserved") that are still present in older encoded data.
 			for fnum < field.BinFieldNum {
 				if slide(&bz, &n, _n) && err != nil {
 					return
@@ -980,21 +978,15 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 					return
 				}
 				if len(bz) == 0 {
-					frv.Set(defaultValue(frv.Type()))
-					zeroed = true
 					break
 				}
 				fnum, typ, _n, err = decodeFieldNumberAndTyp3(bz)
 				if err != nil {
 					return
 				}
-				if field.BinFieldNum < fnum {
-					frv.Set(defaultValue(frv.Type()))
-					zeroed = true
-					break
-				}
 			}
-			if zeroed {
+			if fnum != field.BinFieldNum {
+				frv.Set(defaultValue(frv.Type()))
 				continue
 			}
 			if slide(&bz, &n, _n) && err != nil {
