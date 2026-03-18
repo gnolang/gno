@@ -3928,7 +3928,9 @@ func BenchmarkOpTypeAssert1_Interface_10(b *testing.B)  { benchOpTypeAssert1_Int
 func BenchmarkOpTypeAssert1_Interface_100(b *testing.B) { benchOpTypeAssert1_Interface(b, 100) }
 
 // --- doOpSelector VPInterface: interface method dispatch via findEmbeddedFieldType ---
-// Cost is O(nMethods) due to method matching.
+// Measures UNCACHED cost by clearing DeclaredType.methodMap each iteration.
+// This reflects the first call for each (type, method) pair — subsequent
+// calls hit the cache and are O(1).
 
 func benchOpSelector_VPInterface(b *testing.B, nMethods int) {
 	b.Helper()
@@ -3951,6 +3953,8 @@ func benchOpSelector_VPInterface(b *testing.B, nMethods int) {
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
+		// Clear the method trail cache so each iteration does a fresh lookup.
+		dt.methodMap = nil
 		m.PushValue(TypedValue{T: dt, V: sv})
 		m.PushExpr(selExpr)
 		bm.SwitchOpCode(bmTarget)
