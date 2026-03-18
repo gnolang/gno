@@ -78,7 +78,7 @@ gnokey maketx addpkg \
 -gas-wanted 8000000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 MyKey
 ```
 
@@ -130,7 +130,7 @@ to tolerate. Learn about [storage deposits](../resources/storage-deposit.md).
 
 Congratulations! If everything went as expected, you've successfully deployed a
 realm to the Staging network. To see it on `gnoweb` for the Staging chain,
-append `r/<your_address>/counter` to https://gno.land in your browser.
+append `r/<your_address>/counter` to https://staging.gno.land in your browser.
 
 :::info
 
