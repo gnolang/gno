@@ -257,7 +257,7 @@ func (c *Collection) Set(obj any) uint64 {
 			// Only check uniqueness for unique + single-value indexes
 			// (UniqueIndex is ambiguous; skipping that scenario)
 			if idx.options&UniqueIndex != 0 {
-				if existing := idx.tree.Get(key); existing != nil {
+				if idx.tree.Has(key) {
 					return 0
 				}
 			}
