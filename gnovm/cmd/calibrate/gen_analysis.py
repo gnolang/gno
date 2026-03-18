@@ -682,16 +682,15 @@ def main():
     print(report)
 
     # ================================================================
-    # Output Go const block with updated gas constants.
-    # For each OpCPU key, take max(ideal) across all benchmark variants.
+    # DEVELOPER OUTPUT: everything needed to update machine.go
     # ================================================================
     print()
     print('=' * 78)
-    print('GO CONST BLOCK — paste into machine.go (replace existing OpCPU constants)')
+    print('SECTION 9: UPDATED CONSTANTS FOR machine.go')
     print('=' * 78)
     print()
 
-    # Collect max ideal gas per OpCPU key from flat ops.
+    # --- Part A: Flat ops (Go const block) ---
     key_ideals = {}  # key -> list of (display_name, ideal_cpu_gas)
     for bench_name, (display_name, key) in FLAT_OPS.items():
         stats = get_stats(data, bench_name)
@@ -703,6 +702,8 @@ def main():
             key_ideals[key] = []
         key_ideals[key].append((display_name, int(round(cpu))))
 
+    print('// Part A: Flat OpCPU constants (paste into machine.go)')
+    print('// Negative values mean alloc gas already covers the cost — keep current value.')
     print('const (')
     for key in sorted(key_ideals.keys()):
         variants = key_ideals[key]
@@ -713,8 +714,75 @@ def main():
             parts = ', '.join('%s=%d' % (name, g) for name, g in variants)
             comment = 'max(%s)' % parts
         current = gas_constants.get(key, '?')
-        print('\tOpCPU%-24s = %4d // %s (was %s)' % (key, max_gas, comment, current))
+        if max_gas < 0:
+            max_gas = current if isinstance(current, int) else 1
+            comment += ' [NEGATIVE — keep current]'
+        changed = ''
+        if isinstance(current, int) and current != max_gas:
+            pct = (max_gas - current) * 100 // current if current else 0
+            changed = ' *** CHANGED %+d%%' % pct
+        print('\tOpCPU%-24s = %4d // %s (was %s)%s' % (key, max_gas, comment, current, changed))
     print(')')
+
+    # --- Part B: Parameterized ops (base + slope) ---
+    print()
+    print('// Part B: Parameterized OpCPU base + OpCPUSlope constants')
+    print('// Format: base = intercept of linear fit, slope = coefficient per N')
+    print('//')
+    for family in PARAM_FAMILIES:
+        fname = family[0]
+        label = family[1]
+        points = family[2]
+        pts = []
+        for bench_name, n in points:
+            stats = get_stats(data, bench_name)
+            if stats is None:
+                continue
+            ns_pure, alloc_gas = stats
+            total, cpu = gas(ns_pure, alloc_gas)
+            pts.append((n, cpu))
+        if len(pts) < 2:
+            continue
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        a, b, r2 = least_squares(list(zip(xs, ys)))
+        print('//   %-40s base=%d  slope=%.2f/%s  (R²=%.4f)' % (
+            fname, max(0, int(round(a))), b, label, r2))
+    print()
+
+    # --- Part C: Constants with NO benchmark data ---
+    benchmarked_keys = set(key_ideals.keys())
+    # Also count parameterized base keys
+    param_base_keys = set()
+    for family in PARAM_FAMILIES:
+        # Extract likely key name from family display name
+        fname = family[0]
+        # e.g. "Call (params, 0 captures)" -> would map to "Call"
+        # These are base costs, not in FLAT_OPS
+    # Keys covered by parameterized fits in Part B (base costs).
+    param_keys = set()
+    for family in PARAM_FAMILIES:
+        fname = family[0]
+        # Map family display names to likely OpCPU keys.
+        for prefix in ['Call', 'ArrayLit', 'SliceLit', 'SliceLit2', 'MapLit',
+                        'StructLit', 'FuncLit', 'Define', 'Assign', 'ForLoop',
+                        'RangeIter', 'ReturnCallDefers', 'TypeSwitch', 'TypeAssert1',
+                        'TypeAssert2', 'Selector', 'Eval', 'Convert', 'Eql', 'Lss',
+                        'StructType', 'InterfaceType', 'FuncType', 'ValueDecl']:
+            if prefix.lower() in fname.lower():
+                param_keys.add(prefix)
+    all_keys = set(gas_constants.keys())
+    unbenchmarked = all_keys - benchmarked_keys - param_keys
+    # Filter out Slope constants and known-placeholder constants
+    unbenchmarked_real = sorted([k for k in unbenchmarked
+        if not k.startswith('Slope') and k not in ('Invalid', 'Halt', 'Noop', 'Sticky',
+            'Go', 'Select', 'Urecv', 'PointerType', 'PopValue', 'PopResults')])
+    if unbenchmarked_real:
+        print('// Part C: Constants WITHOUT benchmark data (need manual review)')
+        for key in unbenchmarked_real:
+            current = gas_constants.get(key, '?')
+            print('//   OpCPU%-24s = %4s  (no benchmark)' % (key, current))
+        print()
 
 if __name__ == '__main__':
     main()
