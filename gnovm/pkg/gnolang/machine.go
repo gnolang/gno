@@ -1263,7 +1263,7 @@ const (
 	OpCPUExec                = 25
 	OpCPUPrecall             = 40  // max(func=35, bound method=40)
 	OpCPUPrecallConvert      = 14  // type conversion — no frame creation
-	OpCPUMethodPrecall       = 64  // replaces OpSelector+OpPrecall for method calls
+	OpCPUMethodPrecall       = 67  // replaces OpSelector+OpPrecall for method calls
 	OpCPUEnterCrossing       = 100 // XXX not yet benchmarked
 	OpCPUCall                = 50  // base for 0 params, 0 captures; per-param/capture added in handler
 	OpCPUCallNativeBody      = 424 // TODO: benchmark this properly
@@ -1274,7 +1274,7 @@ const (
 	OpCPUSwitchClause        = 17
 	OpCPUSwitchClauseCase    = 21 // max(match=21, miss=21)
 	OpCPUTypeSwitch          = 171 // parameterized; base cost kept, per-clause added in handler
-	OpCPUIfCond              = 38
+	OpCPUIfCond              = 17 // max(true=16, false=17)
 	OpCPUPopValue            = 1
 	OpCPUPopResults          = 1
 	OpCPUPopBlock            = 3
@@ -1316,7 +1316,7 @@ const (
 	OpCPUEval        = 29 // parameterized for NameExpr; base cost for const/type
 	OpCPUBinary1     = 13
 	OpCPUIndex1      = 20 // max(array=19, slice=20)
-	OpCPUIndex2      = 195
+	OpCPUIndex2      = 36 // max(map hit=36, map miss=35)
 	OpCPUSelector      = 64 // method/package selector: VPValMethod=64; VPInterface parameterized
 	OpCPUSelectorField = 18 // struct field access (VPField, VPDerefField, VPSubrefField)
 	OpCPUSlice       = 42 // max(array=35, slice=36, byte=36, 3idx=42, string=37)
