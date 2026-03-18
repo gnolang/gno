@@ -1451,21 +1451,20 @@ type DeclaredType struct {
 	methodMap map[Name][]ValuePath
 }
 
-// LookupMethodTrail returns the cached ValuePath trail for resolving
-// an exported method name on this type. On first call for a given name,
-// it runs findEmbeddedFieldType and caches the result. Subsequent calls
-// return the cached trail directly (no type hierarchy walk).
-//
-// Only used for interface method dispatch at runtime where the concrete
-// type is unknown at preprocess time.
-func (dt *DeclaredType) LookupMethodTrail(n Name) []ValuePath {
-	// Check cache.
+// GetCachedMethodTrail returns the cached trail for a method name,
+// or nil if not yet cached. O(1) map lookup.
+func (dt *DeclaredType) GetCachedMethodTrail(n Name) []ValuePath {
 	if dt.methodMap != nil {
 		if trail, ok := dt.methodMap[n]; ok {
 			return trail
 		}
 	}
-	// Resolve and cache.
+	return nil
+}
+
+// ResolveAndCacheMethodTrail runs findEmbeddedFieldType and caches
+// the result. Called on cache miss. O(methods) type walk.
+func (dt *DeclaredType) ResolveAndCacheMethodTrail(n Name) []ValuePath {
 	callerPath := dt.PkgPath
 	trail, _, _, _, _ := findEmbeddedFieldType(callerPath, dt, n, nil)
 	if trail != nil {

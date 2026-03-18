@@ -1392,8 +1392,9 @@ const (
 	OpCPUSlopeCallCapture     = 5  // per capture in OpCall
 	OpCPUSlopeForLoopHeap     = 8  // per heap var copied
 	OpCPUSlopeRangeIterArray  = 2  // per element (init copy)
-	OpCPUSlopeTypeSwitchCase  = 49 // per clause (concrete)
-	OpCPUSlopeTypeAssertIface = 67 // per interface method
+	OpCPUSlopeTypeSwitchCase      = 49 // per clause (concrete)
+	OpCPUSlopeTypeAssertIface     = 67 // per interface method
+	OpCPUSlopeInterfaceUncached   = 3  // per method on uncached interface dispatch (findEmbeddedFieldType walk)
 	OpCPUSlopeConvertStrRunes = 3  // per char (string→runes)
 	OpCPUSlopeConvertRunesStr = 2  // per rune (runes→string)
 	OpCPUSlopeEqlArray        = 27 // per element

@@ -1950,7 +1950,10 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		// Use cached trail when available.
 		var tr []ValuePath
 		if dt, ok := dtv.T.(*DeclaredType); ok {
-			tr = dt.LookupMethodTrail(path.Name)
+			tr = dt.GetCachedMethodTrail(path.Name)
+			if tr == nil {
+				tr = dt.ResolveAndCacheMethodTrail(path.Name)
+			}
 		} else {
 			callerPath := dtv.T.GetPkgPath()
 			tr, _, _, _, _ = findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)

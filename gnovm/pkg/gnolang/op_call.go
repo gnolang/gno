@@ -82,10 +82,15 @@ func (m *Machine) doOpMethodPrecall() {
 			panic("cannot resolve an interface path at static time")
 		}
 		// Resolve the method on the concrete type.
-		// Use cached trail when available (DeclaredType.LookupMethodTrail).
+		// Charge less gas for cached lookups (map hit) vs uncached
+		// (full type hierarchy walk).
 		var tr []ValuePath
 		if dt, ok := dtv.T.(*DeclaredType); ok {
-			tr = dt.LookupMethodTrail(path.Name)
+			tr = dt.GetCachedMethodTrail(path.Name)
+			if tr == nil {
+				tr = dt.ResolveAndCacheMethodTrail(path.Name)
+				m.incrCPU(OpCPUSlopeInterfaceUncached * int64(len(dt.Methods)))
+			}
 		} else {
 			callerPath := dtv.T.GetPkgPath()
 			tr, _, _, _, _ = findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
