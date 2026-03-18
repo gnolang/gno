@@ -126,7 +126,7 @@ FLAT_OPS = {
     'BenchmarkOpSwitchClause_DefaultMatch': ('SwitchClause (default)', 'SwitchClause'),
     'BenchmarkOpSwitchClauseCase_Match': ('SwitchClauseCase (match)', 'SwitchClauseCase'),
     'BenchmarkOpSwitchClauseCase_Miss': ('SwitchClauseCase (miss)', 'SwitchClauseCase'),
-    'BenchmarkOpPrecall_TypeConversion': ('Precall (type conv)', 'Precall'),
+    'BenchmarkOpPrecall_TypeConversion': ('Precall (type conv)', 'PrecallConvert'),
     'BenchmarkOpPrecall_FuncValue': ('Precall (func)', 'Precall'),
     'BenchmarkOpPrecall_BoundMethod': ('Precall (bound method)', 'Precall'),
     'BenchmarkOpIndex1_Array': ('Index1 (array)', 'Index1'),
@@ -171,7 +171,7 @@ FLAT_OPS = {
     'BenchmarkOpRangeIterString_10': ('RangeIterString', 'RangeIterString'),  # per-rune op, not per-string
     'BenchmarkOpRangeIterMap_10': ('RangeIterMap', 'RangeIterMap'),  # per-entry op, not per-map
     'BenchmarkOpDefer_10Args': ('Defer', 'Defer'),  # args already on stack
-    'BenchmarkOpSelector_10fields': ('Selector (field)', 'Selector'),  # direct VPField index
+    'BenchmarkOpSelector_10fields': ('Selector (field)', 'SelectorField'),  # direct VPField index
     # CPU-flat because alloc gas covers the O(N) memory cost:
     'BenchmarkOpAdd_String_10': ('Add (string)', 'Add'),
     'BenchmarkOpSlice_String_10': ('Slice (string)', 'Slice'),
@@ -667,6 +667,41 @@ def main():
 
     report = '\n'.join(out)
     print(report)
+
+    # ================================================================
+    # Output Go const block with updated gas constants.
+    # For each OpCPU key, take max(ideal) across all benchmark variants.
+    # ================================================================
+    print()
+    print('=' * 78)
+    print('GO CONST BLOCK — paste into machine.go (replace existing OpCPU constants)')
+    print('=' * 78)
+    print()
+
+    # Collect max ideal gas per OpCPU key from flat ops.
+    key_ideals = {}  # key -> list of (display_name, ideal_cpu_gas)
+    for bench_name, (display_name, key) in FLAT_OPS.items():
+        stats = get_stats(data, bench_name)
+        if stats is None:
+            continue
+        ns_pure, alloc_gas = stats
+        _, cpu = gas(ns_pure, alloc_gas)
+        if key not in key_ideals:
+            key_ideals[key] = []
+        key_ideals[key].append((display_name, int(round(cpu))))
+
+    print('const (')
+    for key in sorted(key_ideals.keys()):
+        variants = key_ideals[key]
+        max_gas = max(g for _, g in variants)
+        if len(variants) == 1:
+            comment = variants[0][0]
+        else:
+            parts = ', '.join('%s=%d' % (name, g) for name, g in variants)
+            comment = 'max(%s)' % parts
+        current = gas_constants.get(key, '?')
+        print('\tOpCPU%-24s = %4d // %s (was %s)' % (key, max_gas, comment, current))
+    print(')')
 
 if __name__ == '__main__':
     main()
