@@ -304,6 +304,34 @@ func TestDupNamesMustPanic(t *testing.T) {
 	})
 }
 
+func TestReservedFieldDecodeBackwardCompat(t *testing.T) {
+	// Encoding with a 3-field struct and decoding into a struct where
+	// the middle field is amino:"reserved" should round-trip successfully.
+
+	type OldStruct struct {
+		A string
+		B string
+		C string
+	}
+
+	type NewStruct struct {
+		A string
+		_ [0]struct{} `amino:"reserved"`
+		C string
+	}
+
+	cdc := amino.NewCodec()
+
+	bz, err := cdc.Marshal(OldStruct{A: "hello", B: "removed", C: "world"})
+	assert.NoError(t, err)
+
+	var got NewStruct
+	err = cdc.Unmarshal(bz, &got)
+	assert.NoError(t, err)
+	assert.Equal(t, "hello", got.A)
+	assert.Equal(t, "world", got.C)
+}
+
 func TestReservedFieldBinFieldNum(t *testing.T) {
 	// A struct with a blank-identifier reserved field between A and B.
 	// A should get BinFieldNum=1, the reserved slot consumes 2, B gets 3.

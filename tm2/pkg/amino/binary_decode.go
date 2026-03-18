@@ -960,6 +960,43 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 				frv.Set(defaultValue(frv.Type()))
 				continue // before sliding...
 			}
+			// Consume any wire fields with fnum < field.BinFieldNum.
+			// These correspond to fields removed from the struct (e.g.
+			// marked amino:"reserved") that are still present in older
+			// encoded data.
+			zeroed := false
+			for fnum < field.BinFieldNum {
+				if slide(&bz, &n, _n) && err != nil {
+					return
+				}
+				if fnum <= lastFieldNum {
+					err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v\nbytes:%X",
+						fnum, lastFieldNum, bz)
+					return
+				}
+				lastFieldNum = fnum
+				_n, err = consumeAny(typ, bz)
+				if slide(&bz, &n, _n) && err != nil {
+					return
+				}
+				if len(bz) == 0 {
+					frv.Set(defaultValue(frv.Type()))
+					zeroed = true
+					break
+				}
+				fnum, typ, _n, err = decodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return
+				}
+				if field.BinFieldNum < fnum {
+					frv.Set(defaultValue(frv.Type()))
+					zeroed = true
+					break
+				}
+			}
+			if zeroed {
+				continue
+			}
 			if slide(&bz, &n, _n) && err != nil {
 				return
 			}
@@ -971,14 +1008,6 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 				return
 			}
 			lastFieldNum = fnum
-			// NOTE: In the future, we'll support upgradeability.
-			// So in the future, this may not match,
-			// so we will need to remove this sanity check.
-			if field.BinFieldNum != fnum {
-				err = errors.New(fmt.Sprintf("expected field # %v of %v, got %v",
-					field.BinFieldNum, info.Type, fnum))
-				return
-			}
 			typWanted := finfo.GetTyp3(field.FieldOptions)
 			if typ != typWanted {
 				err = errors.New(fmt.Sprintf("expected field type %v for # %v of %v, got %v",
