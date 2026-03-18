@@ -1084,7 +1084,8 @@ const (
 	OpBinary1      Op = 0x41 // X op ?
 	OpIndex1       Op = 0x42 // X[Y]
 	OpIndex2       Op = 0x43 // (_, ok :=) X[Y]
-	OpSelector     Op = 0x44 // X.Y
+	OpSelector     Op = 0x44 // X.Y (method/package selector — expensive)
+	OpSelectorField Op = 0x53 // X.Y (struct field access — cheap)
 	OpSlice        Op = 0x45 // X[Low:High:Max]
 	OpStar         Op = 0x46 // *X (deref or pointer-to)
 	OpRef          Op = 0x47 // &X
@@ -1314,7 +1315,8 @@ const (
 	OpCPUBinary1     = 13
 	OpCPUIndex1      = 20 // max(array=20, slice=20, map/string similar)
 	OpCPUIndex2      = 195
-	OpCPUSelector    = 80 // max(own/VPBlock/method~flat, VPValMethod=80); VPInterface parameterized in handler
+	OpCPUSelector      = 80 // method/package selector: max(VPBlock, VPValMethod=80); VPInterface parameterized
+	OpCPUSelectorField = 18 // struct field access (VPField, VPDerefField, VPSubrefField)
 	OpCPUSlice       = 41 // max(array=35, slice=37, byte=36, 3idx=41, string=38)
 	OpCPUStar        = 20
 	OpCPURef         = 26
@@ -1691,6 +1693,9 @@ func (m *Machine) Run(st Stage) {
 		case OpSelector:
 			m.incrCPU(OpCPUSelector)
 			m.doOpSelector()
+		case OpSelectorField:
+			m.incrCPU(OpCPUSelectorField)
+			m.doOpSelector() // same handler, cheaper gas
 		case OpSlice:
 			m.incrCPU(OpCPUSlice)
 			m.doOpSlice()

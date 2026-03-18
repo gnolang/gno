@@ -279,7 +279,13 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *SelectorExpr:
-		m.PushOp(OpSelector)
+		// Use cheaper gas for field access vs method/package selectors.
+		switch x.Path.Type {
+		case VPField, VPDerefField, VPSubrefField:
+			m.PushOp(OpSelectorField)
+		default:
+			m.PushOp(OpSelector)
+		}
 		// evaluate x
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
