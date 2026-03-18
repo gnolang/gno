@@ -260,7 +260,10 @@ PARAM_FAMILIES = [
     ('TypeAssert2 (iface hit)', 'methods', [
         ('BenchmarkOpTypeAssert2_Interface_Hit_1', 1), ('BenchmarkOpTypeAssert2_Interface_Hit_10', 10),
         ('BenchmarkOpTypeAssert2_Interface_Hit_100', 100)]),
-    ('Selector (VPInterface)', 'methods', [
+    # Selector (VPInterface) measures UNCACHED cost (cache cleared each iter).
+    # The slope maps to OpCPUSlopeInterfaceUncached. Cached calls (99.9%)
+    # use the flat OpCPUMethodPrecall constant instead.
+    ('Selector (VPInterface) [uncached]', 'methods', [
         ('BenchmarkOpSelector_VPInterface_1', 1), ('BenchmarkOpSelector_VPInterface_10', 10),
         ('BenchmarkOpSelector_VPInterface_100', 100)]),
     # Selector (by field count) is flat: uses direct VPField index, doesn't scan fields.
