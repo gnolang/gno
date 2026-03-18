@@ -1592,7 +1592,20 @@ func (m *Machine) Run(st Stage) {
 			m.doOpNeq()
 		case OpLss:
 			m.incrCPU(OpCPULss)
-			m.doOpLss()
+			// Inline fast path for int comparison.
+			rv := m.PeekValue(1)
+			if rv.T == IntType {
+				m.PopExpr()
+				lv := m.PeekValue(2)
+				res := lv.GetInt() < rv.GetInt()
+				m.PopValue()
+				lv = m.PeekValue(1)
+				lv.T = UntypedBoolType
+				lv.V = nil
+				lv.SetBool(res)
+			} else {
+				m.doOpLss()
+			}
 		case OpLeq:
 			m.incrCPU(OpCPULeq)
 			m.doOpLeq()
@@ -1604,10 +1617,28 @@ func (m *Machine) Run(st Stage) {
 			m.doOpGeq()
 		case OpAdd:
 			m.incrCPU(OpCPUAdd)
-			m.doOpAdd()
+			// Inline fast path for int addition.
+			rv := m.PeekValue(1)
+			if rv.T == IntType {
+				m.PopExpr()
+				lv := m.PeekValue(2)
+				lv.SetInt(lv.GetInt() + rv.GetInt())
+				m.PopValue()
+			} else {
+				m.doOpAdd()
+			}
 		case OpSub:
 			m.incrCPU(OpCPUSub)
-			m.doOpSub()
+			// Inline fast path for int subtraction.
+			rv := m.PeekValue(1)
+			if rv.T == IntType {
+				m.PopExpr()
+				lv := m.PeekValue(2)
+				lv.SetInt(lv.GetInt() - rv.GetInt())
+				m.PopValue()
+			} else {
+				m.doOpSub()
+			}
 		case OpBor:
 			m.incrCPU(OpCPUBor)
 			m.doOpBor()
@@ -1638,7 +1669,16 @@ func (m *Machine) Run(st Stage) {
 		/* Expression operators */
 		case OpEval:
 			m.incrCPU(OpCPUEval)
-			m.doOpEval()
+			// Inline fast path for NameExpr (>90% of evals).
+			if nx, ok := m.PeekExpr(1).(*NameExpr); ok && nx.Path.Depth != 0 {
+				m.Lastline = nx.GetLine()
+				m.PopExpr()
+				m.incrCPU(OpCPUSlopeEvalNameExpr * int64(nx.Path.Depth))
+				ptr := m.LastBlock().GetPointerTo(m.Store, nx.Path)
+				m.PushValue(ptr.Deref())
+			} else {
+				m.doOpEval()
+			}
 		case OpBinary1:
 			m.incrCPU(OpCPUBinary1)
 			m.doOpBinary1()
