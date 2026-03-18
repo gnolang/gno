@@ -155,40 +155,7 @@ func assertComparable(xt, dt Type) {
 		}
 		return
 	}
-	assertComparable2(dt)
-}
-
-// assertComparable2 panics if dt is not comparable.
-// For arrays, it reports the innermost non-comparable element type.
-// For structs, it reports the struct type itself (matching Go's behavior).
-func assertComparable2(dt Type) {
-	if debug {
-		debug.Printf("assertComparable2 dt: %v \n", dt)
-	}
-	switch cdt := baseOf(dt).(type) {
-	case PrimitiveType, *PointerType, *InterfaceType, *ChanType:
-		// Comparable.
-	case *ArrayType:
-		switch baseOf(cdt.Elt).(type) {
-		case *ArrayType, *StructType:
-			assertComparable2(cdt.Elt)
-		default:
-			if !isComparable(cdt.Elt) {
-				panic(fmt.Sprintf("%v is not comparable", dt))
-			}
-		}
-	case *StructType:
-		for _, f := range cdt.Fields {
-			switch baseOf(f.Type).(type) {
-			case *ArrayType, *StructType:
-				assertComparable2(f.Type)
-			default:
-				if !isComparable(f.Type) {
-					panic(fmt.Sprintf("%v is not comparable", dt))
-				}
-			}
-		}
-	default:
+	if !isComparable(dt) {
 		panic(fmt.Sprintf("%v is not comparable", dt))
 	}
 }
