@@ -25,18 +25,18 @@ func init() {
 func AddPost(title, content string) {
 	for i := 0; i < boards.Size(); i++ {
 		boardId := strconv.Itoa(i)
-		b, ok := boards.Get(boardId)
-		if ok {
+		b := boards.Get(boardId)
+		if b != nil {
 			b.(Board).AddPost(title, content)
 		}
 	}
 }
 
 func GetPost(boardId, postId int) string {
-	b, ok := boards.Get(strconv.Itoa(boardId))
+	b := boards.Get(strconv.Itoa(boardId))
 	var res string
 
-	if ok {
+	if b != nil {
 		p, ok := b.(Board).GetPost(postId)
 		if ok {
 			res = p.title + "," + p.content
@@ -46,10 +46,10 @@ func GetPost(boardId, postId int) string {
 }
 
 func GetPostSize(boardId int) int {
-	b, ok := boards.Get(strconv.Itoa(boardId))
+	b := boards.Get(strconv.Itoa(boardId))
 	var res int
 
-	if ok {
+	if b != nil {
 		res = b.(Board).Size()
 	} else {
 		res = -1
