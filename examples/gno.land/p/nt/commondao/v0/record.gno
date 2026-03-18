@@ -66,7 +66,7 @@ func (r ReadonlyVotingRecord) IterateVotesCount(fn VotesCountIterFn) bool {
 
 // VoteCount returns the number of votes for a single voting choice.
 func (r ReadonlyVotingRecord) VoteCount(c VoteChoice) int {
-	if v, found := r.count.Get(string(c)); found {
+	if v := r.count.Get(string(c)); v != nil {
 		return v.(int)
 	}
 	return 0
@@ -79,7 +79,7 @@ func (r ReadonlyVotingRecord) HasVoted(user address) bool {
 
 // GetVote returns a vote.
 func (r ReadonlyVotingRecord) GetVote(user address) (_ Vote, found bool) {
-	if v, found := r.votes.Get(user.String()); found {
+	if v := r.votes.Get(user.String()); v != nil {
 		return v.(Vote), true
 	}
 	return Vote{}, false
@@ -99,7 +99,7 @@ func (r VotingRecord) Readonly() ReadonlyVotingRecord {
 // If a vote for the same user already exists is overwritten.
 func (r *VotingRecord) AddVote(vote Vote) (updated bool) {
 	// Get previous member vote if it exists
-	v, _ := r.votes.Get(vote.Address.String())
+	v := r.votes.Get(vote.Address.String())
 
 	// When a previous vote exists update counter for the previous choice
 	updated = r.votes.Set(vote.Address.String(), vote)

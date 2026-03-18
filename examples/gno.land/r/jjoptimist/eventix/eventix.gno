@@ -135,8 +135,8 @@ func Render(path string) string {
 }
 
 func getEvent(eventId uint64) (Event, bool) {
-	value, exists := events.Get(strconv.Itoa(int(eventId)))
-	if !exists {
+	value := events.Get(strconv.Itoa(int(eventId)))
+	if value == nil {
 		return Event{}, false
 	}
 	return value.(Event), true

@@ -123,46 +123,45 @@ func TestROStores(t *testing.T) {
 
 	t.Run("get user data", func(t *testing.T) {
 		// Name store
-		aliceDataRaw, ok := roNS.Get(alice)
-		uassert.True(t, ok)
+		aliceDataRaw := roNS.Get(alice)
+		uassert.True(t, aliceDataRaw != nil)
 
 		roData, ok := aliceDataRaw.(*UserData)
 		uassert.True(t, ok, "Could not cast data from RO tree to UserData")
 
 		// Try to modify data
 		roData.Delete()
-		raw, ok := nameStore.Get(alice)
+		raw := nameStore.Get(alice)
 		uassert.False(t, raw.(*UserData).deleted)
 
 		// Addr store
-		aliceDataRaw, ok = roAS.Get(aliceAddr.String())
-		uassert.True(t, ok)
+		aliceDataRaw = roAS.Get(aliceAddr.String())
+		uassert.True(t, aliceDataRaw != nil)
 
 		roData, ok = aliceDataRaw.(*UserData)
 		uassert.True(t, ok, "Could not cast data from RO tree to UserData")
 
 		// Try to modify data
 		roData.Delete()
-		raw, ok = nameStore.Get(alice)
+		raw = nameStore.Get(alice)
 		uassert.False(t, raw.(*UserData).deleted)
 	})
 
 	t.Run("get deleted data", func(t *testing.T) {
-		raw, _ := nameStore.Get(alice)
+		raw := nameStore.Get(alice)
 		aliceData := raw.(*UserData)
 
 		urequire.NoError(t, aliceData.Delete())
 		urequire.True(t, aliceData.IsDeleted())
 
 		// Should be nil because of makeSafeFn
-		rawRoData, ok := roNS.Get(alice)
-		// uassert.False(t, ok)
+		rawRoData := roNS.Get(alice)
 		// XXX: not sure what to do here, as the tree technically has the data so returns ok
 		// However the data is intercepted and something else (nil in this case) is returned.
 		// should we handle this somehow?
 
 		uassert.Equal(t, rawRoData, nil)
-		_, ok = rawRoData.(*UserData) // shouldn't be castable
+		_, ok := rawRoData.(*UserData) // shouldn't be castable
 		uassert.False(t, ok)
 	})
 }

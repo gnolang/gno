@@ -92,9 +92,9 @@ func TestNewQuery(t *testing.T) {
 			uassert.Equal(t, want.Filters.Size(), q.Filters.Size())
 
 			want.Filters.Iterate("", "", func(k string, v any) bool {
-				got, exists := q.Filters.Get(k)
-				uassert.True(t, exists)
-				if exists {
+				got := q.Filters.Get(k)
+				uassert.True(t, got != nil)
+				if got != nil {
 					uassert.Equal(t, fmt.Sprint(v), fmt.Sprint(got))
 				}
 				return false

@@ -53,8 +53,8 @@ func TestGrantRole(t *testing.T) {
 	uassert.NoError(t, err)
 	uassert.True(t, role.HasAccount(user1), "user1 should have the TestRole")
 
-	rolesList, found := roles.UserToRoles.Get(user1.String())
-	uassert.True(t, found, "user1 should be in UserToRoles")
+	rolesList := roles.UserToRoles.Get(user1.String())
+	uassert.True(t, rolesList != nil, "user1 should be in UserToRoles")
 	uassert.True(t, containsRole(rolesList.([]*Role), role), "UserToRoles should contain TestRole for user1")
 }
 
@@ -90,8 +90,8 @@ func TestRevokeRole(t *testing.T) {
 	uassert.NoError(t, err)
 	uassert.False(t, role.HasAccount(user1), "user1 should no longer have the TestRole")
 
-	rolesList, found := roles.UserToRoles.Get(user1.String())
-	if found {
+	rolesList := roles.UserToRoles.Get(user1.String())
+	if rolesList != nil {
 		uassert.False(t, containsRole(rolesList.([]*Role), role), "UserToRoles should not contain TestRole for user1 after revocation")
 	}
 }
@@ -224,8 +224,8 @@ func TestUserToRolesWithMultipleRoles(t *testing.T) {
 	uassert.NoError(t, err)
 
 	// Check if user1 has both roles
-	rolesList, found := roles.UserToRoles.Get(user1.String())
-	uassert.True(t, found, "user1 should be in UserToRoles")
+	rolesList := roles.UserToRoles.Get(user1.String())
+	uassert.True(t, rolesList != nil, "user1 should be in UserToRoles")
 	role1, _ := roles.FindRole(roleName1)
 	role2, _ := roles.FindRole(roleName2)
 	uassert.True(t, containsRole(rolesList.([]*Role), role1), "UserToRoles should contain Role1 for user1")

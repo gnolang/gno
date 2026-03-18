@@ -108,7 +108,7 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write("Post not found.")
 		return
 	}
-	post, found := b.Posts.Get(foundKey)
+	post := b.Posts.Get(foundKey)
 	out := post.(*Post).RenderPost(b.Prefix())
 
 	res.Write(out)
@@ -249,14 +249,14 @@ func (b Blog) renderCommenterItem(item pager.Item, options RenderOptions) string
 	}
 	postKey := parts[1]
 
-	var post interface{}
-	var found bool
-	if post, found = b.Posts.Get(postKey); !found {
-		if post, found = b.PostsBySlug.Get(postKey); !found {
-			post, found = b.PostsByUpdatedAt.Get(postKey)
-		}
+	post := b.Posts.Get(postKey)
+	if post == nil {
+		post = b.PostsBySlug.Get(postKey)
 	}
-	if !found {
+	if post == nil {
+		post = b.PostsByUpdatedAt.Get(postKey)
+	}
+	if post == nil {
 		return ""
 	}
 	p := post.(*Post)

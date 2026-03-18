@@ -187,8 +187,8 @@ func UpdateServerType(cur realm, address_XXX address, serverType string) {
 
 // GetByAddr fetches the valoper using the address, if present
 func GetByAddr(address_XXX address) Valoper {
-	valoperRaw, exists := valopers.Get(address_XXX.String())
-	if !exists {
+	valoperRaw := valopers.Get(address_XXX.String())
+	if valoperRaw == nil {
 		panic(ErrValoperMissing)
 	}
 
@@ -207,8 +207,8 @@ func Render(fullPath string) string {
 		if len(addr) < 2 || addr[:2] != "g1" {
 			return "invalid address " + addr
 		}
-		valoperRaw, exists := valopers.Get(addr)
-		if !exists {
+		valoperRaw := valopers.Get(addr)
+		if valoperRaw == nil {
 			return "unknown address " + addr
 		}
 		v := valoperRaw.(Valoper)
@@ -277,9 +277,7 @@ func (v Valoper) Render() string {
 
 // isValoper checks if the valoper exists
 func isValoper(address_XXX address) bool {
-	_, exists := valopers.Get(address_XXX.String())
-
-	return exists
+	return valopers.Get(address_XXX.String()) != nil
 }
 
 // validateMoniker checks if the moniker is valid

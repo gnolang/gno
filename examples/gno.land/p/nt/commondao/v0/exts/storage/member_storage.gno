@@ -19,8 +19,8 @@ func GetMemberGroups(s commondao.MemberStorage, member address) []string {
 		return nil
 	}
 
-	v, found := storage.memberGroups.Get(member.String())
-	if !found {
+	v := storage.memberGroups.Get(member.String())
+	if v == nil {
 		return nil
 	}
 
@@ -80,7 +80,7 @@ type memberStorage struct {
 func (s *memberStorage) handleMemberAddMsg(msg message.Message) {
 	data := msg.Data.(groupMemberUpdateData)
 	key := data.Member.String()
-	v, _ := s.memberGroups.Get(key)
+	v := s.memberGroups.Get(key)
 	groups, ok := v.(*avl.Tree)
 	if !ok {
 		// Create a new tree to track member's groups
@@ -98,8 +98,8 @@ func (s *memberStorage) handleMemberAddMsg(msg message.Message) {
 func (s *memberStorage) handleMemberRemoveMsg(msg message.Message) {
 	data := msg.Data.(groupMemberUpdateData)
 	key := data.Member.String()
-	v, found := s.memberGroups.Get(key)
-	if !found {
+	v := s.memberGroups.Get(key)
+	if v == nil {
 		// Member should always be found
 		return
 	}

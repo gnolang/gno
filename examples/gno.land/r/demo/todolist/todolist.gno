@@ -32,8 +32,8 @@ func NewTodoList(_ realm, title string) (int, string) {
 
 func AddTask(_ realm, todolistID int, title string) string {
 	// Get Todolist from AVL tree
-	tl, ok := todolistTree.Get(strconv.Itoa(todolistID))
-	if !ok {
+	tl := todolistTree.Get(strconv.Itoa(todolistID))
+	if tl == nil {
 		panic("Todolist not found")
 	}
 
@@ -51,14 +51,14 @@ func AddTask(_ realm, todolistID int, title string) string {
 
 func ToggleTaskStatus(_ realm, todolistID int, taskID int) string {
 	// Get Todolist from AVL tree
-	tl, ok := todolistTree.Get(strconv.Itoa(todolistID))
-	if !ok {
+	tl := todolistTree.Get(strconv.Itoa(todolistID))
+	if tl == nil {
 		panic("Todolist not found")
 	}
 
 	// Get the task from the todolist
-	task, found := tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID))
-	if !found {
+	task := tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID))
+	if task == nil {
 		panic("Task not found")
 	}
 
@@ -70,14 +70,13 @@ func ToggleTaskStatus(_ realm, todolistID int, taskID int) string {
 
 func RemoveTask(_ realm, todolistID int, taskID int) string {
 	// Get Todolist from AVL tree
-	tl, ok := todolistTree.Get(strconv.Itoa(todolistID))
-	if !ok {
+	tl := todolistTree.Get(strconv.Itoa(todolistID))
+	if tl == nil {
 		panic("Todolist not found")
 	}
 
 	// Get the task from the todolist
-	_, ok = tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID))
-	if !ok {
+	if tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID)) == nil {
 		panic("Task not found")
 	}
 
@@ -89,8 +88,7 @@ func RemoveTask(_ realm, todolistID int, taskID int) string {
 
 func RemoveTodoList(_ realm, todolistID int) string {
 	// Get Todolist from AVL tree
-	_, ok := todolistTree.Get(strconv.Itoa(todolistID))
-	if !ok {
+	if todolistTree.Get(strconv.Itoa(todolistID)) == nil {
 		panic("Todolist not found")
 	}
 

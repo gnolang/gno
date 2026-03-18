@@ -29,7 +29,7 @@ func init() {
 
 func getDAO(daoID uint64) *commondao.CommonDAO {
 	key := makeIDKey(daoID)
-	if v, found := daos.Get(key); found {
+	if v := daos.Get(key); v != nil {
 		return v.(*commondao.CommonDAO)
 	}
 	return nil
@@ -45,14 +45,14 @@ func mustGetDAO(daoID uint64) *commondao.CommonDAO {
 
 func getTree(rootID uint64) *avl.Tree {
 	key := makeIDKey(rootID)
-	if v, found := trees.Get(key); found {
+	if v := trees.Get(key); v != nil {
 		return v.(*avl.Tree)
 	}
 	return nil
 }
 
 func getOwnership(addr address) []uint64 {
-	if v, ok := ownership.Get(addr.String()); ok {
+	if v := ownership.Get(addr.String()); v != nil {
 		return v.([]uint64)
 	}
 	return nil
@@ -60,7 +60,7 @@ func getOwnership(addr address) []uint64 {
 
 func getOptions(daoID uint64) *Options {
 	key := makeIDKey(daoID)
-	if v, found := options.Get(key); found {
+	if v := options.Get(key); v != nil {
 		return v.(*Options)
 	}
 	return nil

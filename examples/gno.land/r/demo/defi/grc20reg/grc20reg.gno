@@ -24,8 +24,8 @@ func Register(cur realm, token *grc20.Token, slug string) {
 }
 
 func Get(key string) *grc20.Token {
-	token, ok := registry.Get(key)
-	if !ok {
+	token := registry.Get(key)
+	if token == nil {
 		return nil
 	}
 	return token.(*grc20.Token)

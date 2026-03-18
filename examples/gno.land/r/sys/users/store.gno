@@ -74,8 +74,8 @@ func RegisterUser(cur realm, name string, address_XXX address) error {
 		return ErrNameTaken
 	}
 
-	raw, ok := addressStore.Get(address_XXX.String())
-	if ok {
+	raw := addressStore.Get(address_XXX.String())
+	if raw != nil {
 		// Cannot re-register after deletion
 		if raw.(*UserData).IsDeleted() {
 			return ErrDeletedUser

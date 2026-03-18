@@ -193,9 +193,9 @@ func (tl *TimeLock) GetOperationState(id seqid.ID) (OperationState, error) {
 
 // Returns the status of an operation
 func (tl *TimeLock) GetOperationStatus(id seqid.ID) (OperationStatus, error) {
-	value, ok := tl.timestamps.Get(id.Binary())
+	value := tl.timestamps.Get(id.Binary())
 
-	if !ok {
+	if value == nil {
 		return OperationStatus{}, nil // Return an empty status if the operation is not found
 	}
 	if status, ok := value.(OperationStatus); ok {

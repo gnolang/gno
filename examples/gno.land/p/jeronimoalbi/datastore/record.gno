@@ -135,7 +135,11 @@ func (r record) Get(field string) (value interface{}, found bool) {
 	}
 
 	key := castIntToKey(i)
-	return r.values.Get(key)
+	v := r.values.Get(key)
+	if v == nil {
+		return nil, false
+	}
+	return v, true
 }
 
 // MustGet returns the value of a record's field or panics when the field is not found.
@@ -167,8 +171,8 @@ type recordset struct {
 func (rs recordset) Iterate(fn RecordIterFn) (stopped bool) {
 	if rs.isUsingCustomIndex() {
 		for _, k := range rs.keys {
-			v, found := rs.records.Get(k)
-			if !found {
+			v := rs.records.Get(k)
+			if v == nil {
 				continue
 			}
 
@@ -195,8 +199,8 @@ func (rs recordset) Iterate(fn RecordIterFn) (stopped bool) {
 func (rs recordset) ReverseIterate(fn RecordIterFn) (stopped bool) {
 	if rs.isUsingCustomIndex() {
 		for i := len(rs.keys) - 1; i >= 0; i-- {
-			v, found := rs.records.Get(rs.keys[i])
-			if !found {
+			v := rs.records.Get(rs.keys[i])
+			if v == nil {
 				continue
 			}
 

@@ -137,8 +137,8 @@ func (b *Blog) UpdatePostById(id string, newPost *Post) error {
 	if err != nil {
 		return err
 	}
-	postBySlug, _ := b.PostsBySlug.Get(post.Slug())
-	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.ID() + "::" + post.UpdatedAt().String())
+	postBySlug := b.PostsBySlug.Get(post.Slug())
+	postByUpdated := b.PostsByUpdatedAt.Get(post.ID() + "::" + post.UpdatedAt().String())
 	post.UpdatePost(newPost)
 	postBySlug.(*Post).UpdatePost(newPost)
 	postByUpdated.(*Post).UpdatePost(newPost)
@@ -152,8 +152,8 @@ func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
 	if err != nil {
 		return err
 	}
-	postById, _ := b.Posts.Get(post.ID())
-	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.ID() + "::" + post.UpdatedAt().String())
+	postById := b.Posts.Get(post.ID())
+	postByUpdated := b.PostsByUpdatedAt.Get(post.ID() + "::" + post.UpdatedAt().String())
 	post.UpdatePost(newPost)
 	postById.(*Post).UpdatePost(newPost)
 	postByUpdated.(*Post).UpdatePost(newPost)
@@ -218,16 +218,16 @@ func (b *Blog) LikePostBySlug(slug string) error { // toggles between like and u
 }
 
 func (b Blog) GetPostById(id string) (*Post, error) {
-	post, found := b.Posts.Get(id)
-	if !found {
+	post := b.Posts.Get(id)
+	if post == nil {
 		return nil, ErrPostNotFound
 	}
 	return post.(*Post), nil
 }
 
 func (b Blog) GetPostBySlug(slug string) (*Post, error) {
-	post, found := b.PostsBySlug.Get(slug)
-	if !found {
+	post := b.PostsBySlug.Get(slug)
+	if post == nil {
 		return nil, ErrPostNotFound
 	}
 	return post.(*Post), nil
@@ -301,7 +301,7 @@ func (b Blog) Mention(role, recipient string) string {
 func (b *Blog) addToIndex(post *Post) {
 	for _, tag := range post.Tags() {
 		oldCount := 0
-		if val, found := b.TagsIndex.Get(tag); found {
+		if val := b.TagsIndex.Get(tag); val != nil {
 			oldCount = val.(int)
 			b.TagsSorted.Remove(ufmt.Sprintf("%05d::%s", oldCount, tag))
 		}
@@ -311,7 +311,7 @@ func (b *Blog) addToIndex(post *Post) {
 	}
 	for _, author := range post.Authors() {
 		oldCount := 0
-		if val, found := b.AuthorsIndex.Get(author); found {
+		if val := b.AuthorsIndex.Get(author); val != nil {
 			oldCount = val.(int)
 			b.AuthorsSorted.Remove(ufmt.Sprintf("%05d::%s", oldCount, author))
 		}

@@ -149,8 +149,8 @@ func Render(path string) string {
 		})
 		return output
 	} else { // by id
-		swap, ok := swaps.Get(path)
-		if !ok {
+		swap := swaps.Get(path)
+		if swap == nil {
 			return "404"
 		}
 		return swap.(*Swap).String()
@@ -167,8 +167,8 @@ func require(check bool, msg string) {
 // mustGet retrieves a swap by its id or panics.
 func mustGet(id int) *Swap {
 	key := strconv.Itoa(id)
-	swap, ok := swaps.Get(key)
-	if !ok {
+	swap := swaps.Get(key)
+	if swap == nil {
 		panic("unknown swap ID")
 	}
 	return swap.(*Swap)

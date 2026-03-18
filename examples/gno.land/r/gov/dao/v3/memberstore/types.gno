@@ -54,8 +54,8 @@ func (mbt MembersByTier) SetTier(tier string) error {
 
 // GetTierSize tries to get how many members are on the specified tier. If the tier does not exists, it returns 0.
 func (mbt MembersByTier) GetTierSize(tn string) int {
-	tv, ok := mbt.Get(tn)
-	if !ok {
+	tv := mbt.Get(tn)
+	if tv == nil {
 		return 0
 	}
 
@@ -78,7 +78,7 @@ func (mbt MembersByTier) SetMember(tier string, addr address, member *Member) er
 		return errors.New("tier does not exist: " + tier)
 	}
 
-	ms, _ := mbt.Get(tier)
+	ms := mbt.Get(tier)
 	mst := ms.(*avl.Tree)
 
 	mst.Set(string(addr), member)
@@ -94,8 +94,8 @@ func (mbt MembersByTier) GetMember(addr address) (m *Member, t string) {
 			panic("MembersByTier values can only be avl.Tree")
 		}
 
-		mv, ok := mst.Get(string(addr))
-		if !ok {
+		mv := mst.Get(string(addr))
+		if mv == nil {
 			return false
 		}
 
@@ -173,8 +173,8 @@ type TiersByName struct {
 
 // GetTier obtains a Tier struct by its name. It returns false if the Tier is not found.
 func (tbn TiersByName) GetTier(tn string) (Tier, bool) {
-	val, ok := tbn.Get(tn)
-	if !ok {
+	val := tbn.Get(tn)
+	if val == nil {
 		return Tier{}, false
 	}
 

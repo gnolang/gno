@@ -75,14 +75,12 @@ func (p *PoA) RemoveValidator(address_XXX address) (validators.Validator, error)
 }
 
 func (p *PoA) IsValidator(address_XXX address) bool {
-	_, exists := p.validators.Get(address_XXX.String())
-
-	return exists
+	return p.validators.Get(address_XXX.String()) != nil
 }
 
 func (p *PoA) GetValidator(address_XXX address) (validators.Validator, error) {
-	validatorRaw, exists := p.validators.Get(address_XXX.String())
-	if !exists {
+	validatorRaw := p.validators.Get(address_XXX.String())
+	if validatorRaw == nil {
 		return validators.Validator{}, validators.ErrValidatorMissing
 	}
 

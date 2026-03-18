@@ -49,8 +49,8 @@ func (ei *EntryIterator) Next() bool {
 		if ei.currentID != "" { // We've already returned the single value
 			return false
 		}
-		obj, exists := ei.collection.indexes[IDIndex].tree.Get(ei.key)
-		if !exists {
+		obj := ei.collection.indexes[IDIndex].tree.Get(ei.key)
+		if obj == nil {
 			return false
 		}
 		ei.currentID = ei.key
@@ -66,8 +66,8 @@ func (ei *EntryIterator) Next() bool {
 
 	// Initialize ids slice if needed
 	if ei.ids == nil {
-		idData, exists := idx.tree.Get(ei.key)
-		if !exists {
+		idData := idx.tree.Get(ei.key)
+		if idData == nil {
 			return false
 		}
 
@@ -91,8 +91,8 @@ func (ei *EntryIterator) Next() bool {
 
 	// Fetch the actual object
 	ei.currentID = ei.ids[ei.currentIdx]
-	obj, exists := ei.collection.indexes[IDIndex].tree.Get(ei.currentID)
-	if !exists {
+	obj := ei.collection.indexes[IDIndex].tree.Get(ei.currentID)
+	if obj == nil {
 		// Skip invalid entries
 		return ei.Next()
 	}
@@ -121,8 +121,7 @@ func (ei *EntryIterator) Empty() bool {
 
 	// Handle ID index specially
 	if ei.indexName == IDIndex {
-		_, exists := ei.collection.indexes[IDIndex].tree.Get(ei.key)
-		return !exists
+		return ei.collection.indexes[IDIndex].tree.Get(ei.key) == nil
 	}
 
 	// Get the index
@@ -132,8 +131,8 @@ func (ei *EntryIterator) Empty() bool {
 	}
 
 	// Check if key exists in index
-	idData, exists := idx.tree.Get(ei.key)
-	if !exists {
+	idData := idx.tree.Get(ei.key)
+	if idData == nil {
 		return true
 	}
 

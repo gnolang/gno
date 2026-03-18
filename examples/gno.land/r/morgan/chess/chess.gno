@@ -139,8 +139,8 @@ func xNewGame(cur realm, opponentRaw string, seconds, increment int) string {
 }
 
 func getUserGames(user address) []*Game {
-	val, exist := user2Games.Get(user.String())
-	if !exist {
+	val := user2Games.Get(user.String())
+	if val == nil {
 		return nil
 	}
 	return val.([]*Game)
@@ -195,8 +195,8 @@ func newGame(caller, opponent address, seconds, increment int) *Game {
 
 func addToUser2Games(addr address, game *Game) {
 	var games []*Game
-	v, ok := user2Games.Get(string(addr))
-	if ok {
+	v := user2Games.Get(string(addr))
+	if v != nil {
 		games = v.([]*Game)
 	}
 	// game must be at top, because it is the latest ID
@@ -233,8 +233,8 @@ func GetGame(id string) string {
 }
 
 func getGame(id string, wantOpen bool) *Game {
-	graw, ok := gameStore.Get(id)
-	if !ok {
+	graw := gameStore.Get(id)
+	if graw == nil {
 		panic("game not found")
 	}
 	g := graw.(*Game)

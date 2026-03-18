@@ -85,14 +85,14 @@ func TestBlog_AddRemoveModerator(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(adminAddr))
 	AdminAddModerator(cross, mod)
 
-	_, found := moderatorList.Get(mod.String())
-	urequire.True(t, found)
+	found := moderatorList.Get(mod.String())
+	urequire.True(t, found != nil)
 
 	// Remove the moderator
 	AdminRemoveModerator(cross, mod)
 
 	// Make sure the moderator is disabled
-	isMod, _ := moderatorList.Get(mod.String())
+	isMod := moderatorList.Get(mod.String())
 	uassert.NotNil(t, isMod)
 
 	uassert.False(t, isMod.(bool))
@@ -117,8 +117,8 @@ func TestBlog_AddCommenter(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(mod))
 	ModAddCommenter(cross, commenter)
 
-	_, ok := commenterList.Get(commenter.String())
-	uassert.True(t, ok)
+	ok := commenterList.Get(commenter.String())
+	uassert.True(t, ok != nil)
 
 	// Make sure a non-mod can't add commenters
 	testing.SetOriginCaller(rand)
@@ -133,7 +133,7 @@ func TestBlog_AddCommenter(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(mod))
 	ModDelCommenter(cross, commenter)
 
-	active, _ := commenterList.Get(commenter.String())
+	active := commenterList.Get(commenter.String())
 	uassert.False(t, active.(bool))
 }
 
@@ -186,8 +186,8 @@ func TestBlog_ManageComment(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(mod))
 	ModAddCommenter(cross, commenter)
 
-	_, ok := commenterList.Get(commenter.String())
-	uassert.True(t, ok)
+	ok := commenterList.Get(commenter.String())
+	uassert.True(t, ok != nil)
 
 	// Add the post
 	testing.SetOriginCaller(mod)

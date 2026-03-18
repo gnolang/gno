@@ -36,8 +36,8 @@ func (s *LociStore) Set(value []byte) {
 // The return values are the byte slice value and a boolean indicating
 // whether the value exists.
 func (s *LociStore) Get(addr address) []byte {
-	value, exists := s.internal.Get(string(addr))
-	if !exists {
+	value := s.internal.Get(string(addr))
+	if value == nil {
 		return nil
 	}
 	return value.([]byte)

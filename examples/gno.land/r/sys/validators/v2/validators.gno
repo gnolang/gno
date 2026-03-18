@@ -69,8 +69,8 @@ func removeValidator(address_XXX address) {
 func saveChange(ch change) {
 	id := getBlockID(ch.blockNum)
 
-	setRaw, exists := changes.Get(id)
-	if !exists {
+	setRaw := changes.Get(id)
+	if setRaw == nil {
 		changes.Set(id, []change{ch})
 
 		return

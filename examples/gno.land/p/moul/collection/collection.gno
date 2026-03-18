@@ -145,8 +145,8 @@ func (c *Collection) AddIndex(name string, indexFn any, options IndexOption) {
 
 // storeIndex handles how we store an ID in the index tree
 func (idx *Index) store(key string, idStr string) {
-	stored, exists := idx.tree.Get(key)
-	if !exists {
+	stored := idx.tree.Get(key)
+	if stored == nil {
 		// First entry for this key
 		idx.tree.Set(key, idStr)
 		return
@@ -174,8 +174,8 @@ func (idx *Index) store(key string, idStr string) {
 
 // removeIndex handles how we remove an ID from the index tree
 func (idx *Index) remove(key string, idStr string) {
-	stored, exists := idx.tree.Get(key)
-	if !exists {
+	stored := idx.tree.Get(key)
+	if stored == nil {
 		return
 	}
 
@@ -257,7 +257,7 @@ func (c *Collection) Set(obj any) uint64 {
 			// Only check uniqueness for unique + single-value indexes
 			// (UniqueIndex is ambiguous; skipping that scenario)
 			if idx.options&UniqueIndex != 0 {
-				if existing, exists := idx.tree.Get(key); exists && existing != nil {
+				if existing := idx.tree.Get(key); existing != nil {
 					return 0
 				}
 			}
@@ -334,8 +334,8 @@ func (c *Collection) Delete(id uint64) bool {
 	idStr := seqid.ID(id).String()
 
 	// Get the object first to clean up other indexes
-	obj, exists := c.indexes[IDIndex].tree.Get(idStr)
-	if !exists {
+	obj := c.indexes[IDIndex].tree.Get(idStr)
+	if obj == nil {
 		return false
 	}
 
@@ -373,8 +373,8 @@ func (c *Collection) Update(id uint64, obj any) bool {
 		return false
 	}
 	idStr := seqid.ID(id).String()
-	oldObj, exists := c.indexes[IDIndex].tree.Get(idStr)
-	if !exists {
+	oldObj := c.indexes[IDIndex].tree.Get(idStr)
+	if oldObj == nil {
 		return false
 	}
 
@@ -396,7 +396,7 @@ func (c *Collection) Update(id uint64, obj any) bool {
 					newKey = strings.ToLower(newKey)
 				}
 
-				found, _ := idx.tree.Get(newKey)
+				found := idx.tree.Get(newKey)
 				if found != nil {
 					if storedID, ok := found.(string); !ok || storedID != idStr {
 						return false
@@ -470,14 +470,14 @@ func (c *Collection) GetAll(indexName string, key string) []Entry {
 	}
 
 	if indexName == IDIndex {
-		if obj, exists := idx.tree.Get(key); exists {
+		if obj := idx.tree.Get(key); obj != nil {
 			return []Entry{{ID: key, Obj: obj}}
 		}
 		return nil
 	}
 
-	idData, exists := idx.tree.Get(key)
-	if !exists {
+	idData := idx.tree.Get(key)
+	if idData == nil {
 		return nil
 	}
 
@@ -486,13 +486,13 @@ func (c *Collection) GetAll(indexName string, key string) []Entry {
 	case []string:
 		result := make([]Entry, 0, len(stored))
 		for _, idStr := range stored {
-			if obj, exists := c.indexes[IDIndex].tree.Get(idStr); exists {
+			if obj := c.indexes[IDIndex].tree.Get(idStr); obj != nil {
 				result = append(result, Entry{ID: idStr, Obj: obj})
 			}
 		}
 		return result
 	case string:
-		if obj, exists := c.indexes[IDIndex].tree.Get(stored); exists {
+		if obj := c.indexes[IDIndex].tree.Get(stored); obj != nil {
 			return []Entry{{ID: stored, Obj: obj}}
 		}
 	}

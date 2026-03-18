@@ -61,7 +61,7 @@ func (c *Contribution) Tally() {
 	// TODO error handling
 	for _, v := range c.votes {
 		if c.tallyResult.results.Has(v.option) {
-			value, _ := c.tallyResult.results.Get(v.option)
+			value := c.tallyResult.results.Get(v.option)
 			count := value.(int)
 			c.tallyResult.results.Set(v.option, count+1)
 		}

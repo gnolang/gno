@@ -248,8 +248,8 @@ func (ps *Permissions) WithPermission(user address, p boards.Permission, args bo
 	}
 
 	// Execute custom validation before calling the callback
-	v, found := ps.validators.Get(string(p))
-	if found {
+	v := ps.validators.Get(string(p))
+	if v != nil {
 		err := v.(ValidatorFunc)(ps, args)
 		if err != nil {
 			panic(err)

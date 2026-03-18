@@ -30,8 +30,8 @@ func NewRecurringSubscription(duration time.Duration, amount int64) *RecurringSu
 
 // HasValidSubscription verifies if the caller has an active recurring subscription.
 func (rs *RecurringSubscription) HasValidSubscription(addr address) error {
-	expTime, exists := rs.subs.Get(addr.String())
-	if !exists {
+	expTime := rs.subs.Get(addr.String())
+	if expTime == nil {
 		return ErrNoSub
 	}
 
@@ -50,10 +50,10 @@ func (rs *RecurringSubscription) processSubscription(receiver address) error {
 		return ErrAmt
 	}
 
-	expTime, exists := rs.subs.Get(receiver.String())
+	expTime := rs.subs.Get(receiver.String())
 
 	// If the user is already a subscriber but his subscription has expired, authorize renewal
-	if exists {
+	if expTime != nil {
 		expiration := expTime.(time.Time)
 		if time.Now().Before(expiration) {
 			return ErrAlreadySub
@@ -81,8 +81,8 @@ func (rs *RecurringSubscription) GiftSubscription(receiver address) error {
 
 // GetExpiration returns the expiration date of the recurring subscription for a given caller.
 func (rs *RecurringSubscription) GetExpiration(addr address) (time.Time, error) {
-	expTime, exists := rs.subs.Get(addr.String())
-	if !exists {
+	expTime := rs.subs.Get(addr.String())
+	if expTime == nil {
 		return time.Time{}, ErrNoSub
 	}
 

@@ -38,8 +38,8 @@ func (t *Treasury) RenderLanding(path string) string {
 // RenderBanker renders the details of a specific banker.
 func (t *Treasury) RenderBanker(bankerID string, path string) string {
 	// Get the banker associated to this ID.
-	br, ok := t.bankers.Get(bankerID)
-	if !ok {
+	br := t.bankers.Get(bankerID)
+	if br == nil {
 		return md.Paragraph("Banker not found: " + bankerID)
 	}
 	banker := br.(*bankerRecord).banker
@@ -114,8 +114,8 @@ func (t *Treasury) RenderBanker(bankerID string, path string) string {
 // RenderBankerHistory renders the payment history of a specific banker.
 func (t *Treasury) RenderBankerHistory(bankerID string, path string) string {
 	// Get the banker record corresponding to this ID if it exists.
-	br, ok := t.bankers.Get(bankerID)
-	if !ok {
+	br := t.bankers.Get(bankerID)
+	if br == nil {
 		return md.Paragraph("Banker not found: " + bankerID)
 	}
 	history := br.(*bankerRecord).history

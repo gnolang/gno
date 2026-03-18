@@ -43,7 +43,7 @@ func renderMembersPages(u *url.URL, page *pager.Page, members *avl.Tree) string 
 
 	for _, item := range page.Items {
 		addr := item.Key
-		tn, _ := members.Get(addr)
+		tn := members.Get(addr)
 		tnStr, _ := tn.(string)
 		tierCell := ufmt.Sprintf("%s %s", tierColoredChip(tnStr), tn)
 		table.Rows = append(table.Rows, []string{tierCell, addr})

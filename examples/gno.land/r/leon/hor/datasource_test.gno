@@ -153,8 +153,8 @@ func TestItemRecord(t *testing.T) {
 	uassert.Equal(t, pkgpath, r.String())
 
 	fields, _ := r.Fields()
-	details, found := fields.Get("details")
-	urequire.True(t, found, "details field")
+	details := fields.Get("details")
+	urequire.True(t, details != nil, "details field")
 	uassert.Equal(t, "Votes: ⏶ 2 - ⏷ 1", details)
 
 	content, _ := r.Content()

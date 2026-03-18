@@ -64,8 +64,7 @@ func isAdmin(addr address) bool {
 }
 
 func isModerator(addr address) bool {
-	_, found := moderatorList.Get(addr.String())
-	return found
+	return moderatorList.Get(addr.String()) != nil
 }
 
 func assertIsAdmin() {
