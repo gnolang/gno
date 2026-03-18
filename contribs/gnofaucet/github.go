@@ -12,12 +12,10 @@ import (
 
 	"github.com/Khan/genqlient/graphql"
 	"github.com/gnolang/faucet"
-	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/google/go-github/v74/github"
 	"github.com/jferrl/go-githubauth"
 	"github.com/redis/go-redis/v9"
-	"go.uber.org/zap/zapcore"
 	"golang.org/x/oauth2"
 
 	igh "github.com/gnolang/gno/contribs/gnofaucet/github"
@@ -159,12 +157,10 @@ func execGithub(ctx context.Context, cfg *githubCfg, io commands.IO) error {
 
 	rr := igh.NewRedisRewarder(rdb, rewarderCfg)
 
-	logger := log.ZapLoggerToSlog(
-		log.NewZapJSONLogger(
-			io.Out(),
-			zapcore.DebugLevel,
-		),
-	)
+	logger, err := cfg.rootCfg.newLogger(io)
+	if err != nil {
+		return err
+	}
 
 	// Prepare the middlewares
 	httpMiddlewares := []func(http.Handler) http.Handler{
@@ -177,7 +173,7 @@ func execGithub(ctx context.Context, cfg *githubCfg, io commands.IO) error {
 	return serveFaucet(
 		ctx,
 		cfg.rootCfg,
-		io,
+		logger,
 		faucet.WithHTTPMiddlewares(httpMiddlewares),
 		faucet.WithMiddlewares(rpcMiddlewares),
 	)
@@ -215,12 +211,10 @@ func execGHFetcher(ctx context.Context, cfg *ghFetcherCfg, io commands.IO) error
 		return fmt.Errorf("unable to connect to redis, %w", err)
 	}
 
-	logger := log.ZapLoggerToSlog(
-		log.NewZapJSONLogger(
-			io.Out(),
-			zapcore.DebugLevel,
-		),
-	)
+	logger, err := cfg.rootCfg.newLogger(io)
+	if err != nil {
+		return err
+	}
 
 	appTokenSource, err := githubauth.NewApplicationTokenSource(appID, privKey)
 	if err != nil {
