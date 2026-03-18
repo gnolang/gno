@@ -638,16 +638,9 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 			return true
 		})
 		if pos < 0 {
-			// Circular dependency - collect remaining names for error.
-			var remaining []Name
-			for _, pd := range pending {
-				remaining = append(remaining, pd.decl.GetDeclNames()...)
-			}
 			// This shouldn't happen: circular dependencies are already found in
-			// findUnresolvedDeps
-			panic(fmt.Sprintf(
-				"loop in variable initialization: remaining declarations %v have circular dependencies",
-				remaining))
+			// findUnresolvedDeps.
+			panic("unexpected circular initialization dependency")
 		}
 		pd := pending[pos]
 		pending = slices.Delete(pending, pos, pos+1)

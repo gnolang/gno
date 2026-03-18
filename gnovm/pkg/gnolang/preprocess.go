@@ -1252,22 +1252,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
-						globalUse(n.Path)
 						if last.GetIsConst(store, n.Name) {
 							cx := evalConst(store, last, n)
 							return cx, TRANS_CONTINUE
 						}
-						// If name refers to a package, and this is not in
-						// the context of a selector, fail. Packages cannot
-						// be used as a value, for go compatibility but also
-						// to preserve the security expectation regarding imports.
-						nt := evalStaticTypeOf(store, last, n)
-						if nt.Kind() == PackageKind {
-							panic(fmt.Sprintf(
-								"package %s cannot only be referred to in a selector expression",
-								n.Name))
-						}
-						return n, TRANS_CONTINUE
+						panic("slice/array literals may not contain non-const keys")
 					}
 				}
 				// specific and general cases
