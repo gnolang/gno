@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -109,6 +111,160 @@ func TestNewParams(t *testing.T) {
 	// Check if the returned params struct matches the expected struct
 	if !reflect.DeepEqual(params, expectedParams) {
 		t.Errorf("NewParams() = %+v, want %+v", params, expectedParams)
+	}
+}
+
+func TestWillSetParam(t *testing.T) {
+	env := setupTestEnv()
+
+	tests := []struct {
+		name        string
+		key         string
+		value       any
+		shouldPanic bool
+	}{
+		// unrestricted_addrs
+		{
+			name:        "valid unrestricted_addrs",
+			key:         "p:unrestricted_addrs",
+			value:       []string{},
+			shouldPanic: false,
+		},
+		{
+			name:        "wrong type for unrestricted_addrs",
+			key:         "p:unrestricted_addrs",
+			value:       "not_a_slice",
+			shouldPanic: true,
+		},
+		// fee_collector
+		{
+			name:        "valid fee_collector",
+			key:         "p:fee_collector",
+			value:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			shouldPanic: false,
+		},
+		{
+			name:        "wrong type for fee_collector",
+			key:         "p:fee_collector",
+			value:       int64(123),
+			shouldPanic: true,
+		},
+		{
+			name:        "invalid fee_collector address",
+			key:         "p:fee_collector",
+			value:       "invalid_address",
+			shouldPanic: true,
+		},
+		// int64 params
+		{
+			name:        "valid max_memo_bytes",
+			key:         "p:max_memo_bytes",
+			value:       int64(1024),
+			shouldPanic: false,
+		},
+		{
+			name:        "wrong type for max_memo_bytes",
+			key:         "p:max_memo_bytes",
+			value:       "not_int64",
+			shouldPanic: true,
+		},
+		{
+			name:        "invalid max_memo_bytes value",
+			key:         "p:max_memo_bytes",
+			value:       int64(0),
+			shouldPanic: true,
+		},
+		{
+			name:        "valid tx_sig_limit",
+			key:         "p:tx_sig_limit",
+			value:       int64(10),
+			shouldPanic: false,
+		},
+		{
+			name:        "wrong type for tx_sig_limit",
+			key:         "p:tx_sig_limit",
+			value:       "not_int64",
+			shouldPanic: true,
+		},
+		{
+			name:        "valid target_gas_ratio",
+			key:         "p:target_gas_ratio",
+			value:       int64(70),
+			shouldPanic: false,
+		},
+		{
+			name:        "invalid target_gas_ratio value",
+			key:         "p:target_gas_ratio",
+			value:       int64(150),
+			shouldPanic: true,
+		},
+		// initial_gasprice
+		{
+			name:        "valid initial_gasprice",
+			key:         "p:initial_gasprice",
+			value:       "1ugnot/1gas",
+			shouldPanic: false,
+		},
+		{
+			name:        "wrong type for initial_gasprice",
+			key:         "p:initial_gasprice",
+			value:       int64(123),
+			shouldPanic: true,
+		},
+		{
+			name:        "invalid initial_gasprice format",
+			key:         "p:initial_gasprice",
+			value:       "invalid",
+			shouldPanic: true,
+		},
+		// unknown key
+		{
+			name:        "unknown param key panics",
+			key:         "p:nonexistent",
+			value:       "foo",
+			shouldPanic: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.shouldPanic {
+				require.Panics(t, func() {
+					env.acck.WillSetParam(env.ctx, tt.key, tt.value)
+				})
+			} else {
+				require.NotPanics(t, func() {
+					env.acck.WillSetParam(env.ctx, tt.key, tt.value)
+				})
+			}
+		})
+	}
+}
+
+// TestWillSetParamExhaustive ensures every Params field has a WillSetParam case.
+func TestWillSetParamExhaustive(t *testing.T) {
+	env := setupTestEnv()
+
+	call := func(param string) (pnc any) {
+		defer func() {
+			pnc = recover()
+		}()
+		env.acck.WillSetParam(env.ctx, param, "")
+		return nil
+	}
+
+	// baseline: ensure a non-existent key has the expected error.
+	const format = "unknown auth param key: %q"
+	assert.Equal(t, fmt.Sprintf(format, "doesnotexist"), call("doesnotexist"))
+
+	typ := reflect.TypeOf(Params{})
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		jsonTag, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+
+		t.Run(jsonTag, func(t *testing.T) {
+			assert.NotEqual(t, fmt.Sprintf(format, "p:"+jsonTag), call("p:"+jsonTag))
+		})
 	}
 }
 

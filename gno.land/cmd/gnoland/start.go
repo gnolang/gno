@@ -55,8 +55,9 @@ type startCfg struct {
 	dataDir                    string
 	lazyInit                   bool
 
-	logLevel  string
-	logFormat string
+	logLevel   string
+	logFormat  string
+	earlyStart bool
 }
 
 func newStartCmd(io commands.IO) *commands.Command {
@@ -163,6 +164,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"flag indicating if lazy init is enabled. Generates the node secrets, configuration, and genesis.json",
 	)
+
+	fs.BoolVar(
+		&c.earlyStart,
+		"x-early-start",
+		false,
+		"[experimental] start RPC and P2P before genesis time, deferring only consensus",
+	)
 }
 
 func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
@@ -262,7 +270,11 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	}
 
 	// Create a default node, with the given setup
-	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger)
+	opts := []node.Option{}
+	if c.earlyStart {
+		opts = append(opts, node.WithEarlyStart())
+	}
+	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger, opts...)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
