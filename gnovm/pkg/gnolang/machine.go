@@ -1222,12 +1222,13 @@ func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
 
 // WARNING: incrCPU is inlined by the Go compiler (cost 77, budget 80).
 // It runs on EVERY VM op, so inlining is critical for performance.
-// Adding code here will likely push it over the budget and cause a
-// ~2-3ns regression per op. Verify with:
+// Verify with:
 //   go build -gcflags='-m=2' ./gnovm/pkg/gnolang/ 2>&1 | grep 'incrCPU'
-// The GasMeter nil check is always true (GasMeter is never nil), but
-// the Go inliner discounts nil-guarded blocks, which is what keeps
-// this function under budget. Do not remove it.
+//
+// Batching is still valuable even with concrete GasMeter: it avoids
+// dereferencing the GasMeter pointer (separate cache line) on every op.
+// The GasMeter nil check is always true but kept as an inlining hint
+// (the Go inliner discounts nil-guarded blocks).
 func (m *Machine) incrCPU(cycles int64) {
 	m.Cycles += cycles
 	if m.GasMeter != nil {
@@ -1238,10 +1239,8 @@ func (m *Machine) incrCPU(cycles int64) {
 	}
 }
 
-// WARNING: flushCPUGas is inlined by the Go compiler (cost 73, budget 80).
-// Keep it minimal — adding fields or logic may break inlining.
-// Verify with:
-//   go build -gcflags='-m=2' ./gnovm/pkg/gnolang/ 2>&1 | grep 'flushCPUGas'
+// flushCPUGas pushes all accumulated CPU gas to the GasMeter.
+// May panic with OutOfGasError.
 func (m *Machine) flushCPUGas() {
 	if m.cpuPending > 0 && m.GasMeter != nil {
 		pending := m.cpuPending

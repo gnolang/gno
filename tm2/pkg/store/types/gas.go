@@ -2,8 +2,6 @@ package types
 
 import (
 	"math"
-
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 // Gas consumption descriptors.
@@ -40,176 +38,92 @@ func (oog GasOverflowError) Error() string {
 	return "gas overflow in location: " + oog.Descriptor
 }
 
-// GasMeter interface to track gas consumption
-type GasMeter interface {
-	GasConsumed() Gas
-	GasConsumedToLimit() Gas
-	Limit() Gas
-	Remaining() Gas
-	ConsumeGas(amount Gas, descriptor string)
-	IsPastLimit() bool
-	IsOutOfGas() bool
-}
-
-//----------------------------------------
-// basicGasMeter
-
-type basicGasMeter struct {
-	limit    Gas
+// GasMeter is a concrete gas meter that tracks gas consumption.
+// It replaces the old GasMeter interface with a single struct that
+// handles limited, infinite, and passthrough modes:
+//   - limit > 0: panics with OutOfGasError when consumed exceeds limit
+//   - limit == 0: infinite mode, no limit check
+//   - parent != nil: passthrough, also charges the parent meter
+//
+// Being concrete (not an interface) allows the Go compiler to inline
+// ConsumeGas, eliminating interface dispatch on the VM hot path.
+type GasMeter struct {
 	consumed Gas
+	limit    Gas
+	parent   *GasMeter // non-nil for passthrough mode
 }
 
-// NewGasMeter returns a reference to a new basicGasMeter.
-func NewGasMeter(limit Gas) *basicGasMeter {
+// NewGasMeter returns a new GasMeter with the given gas limit.
+func NewGasMeter(limit Gas) *GasMeter {
 	if limit < 0 {
 		panic("gas must not be negative")
 	}
-	return &basicGasMeter{
-		limit:    limit,
-		consumed: 0,
+	return &GasMeter{
+		limit: limit,
 	}
 }
 
-func (g *basicGasMeter) GasConsumed() Gas {
+// NewInfiniteGasMeter returns a new GasMeter with no gas limit.
+func NewInfiniteGasMeter() *GasMeter {
+	return &GasMeter{}
+}
+
+// NewPassthroughGasMeter returns a GasMeter that charges both itself
+// (up to limit) and a parent meter.
+func NewPassthroughGasMeter(parent *GasMeter, limit Gas) *GasMeter {
+	if limit < 0 {
+		panic("gas must not be negative")
+	}
+	return &GasMeter{
+		limit:  limit,
+		parent: parent,
+	}
+}
+
+func (g *GasMeter) GasConsumed() Gas {
 	return g.consumed
 }
 
-func (g *basicGasMeter) Limit() Gas {
-	return g.limit
-}
-
-func (g *basicGasMeter) Remaining() Gas {
-	return overflow.Subp(g.Limit(), g.GasConsumedToLimit())
-}
-
-func (g *basicGasMeter) GasConsumedToLimit() Gas {
-	if g.IsPastLimit() {
+func (g *GasMeter) GasConsumedToLimit() Gas {
+	if g.limit > 0 && g.consumed > g.limit {
 		return g.limit
 	}
 	return g.consumed
 }
 
-// TODO rename to DidConsumeGas.
-func (g *basicGasMeter) ConsumeGas(amount Gas, descriptor string) {
-	if amount < 0 {
-		panic("gas must not be negative")
+func (g *GasMeter) Limit() Gas {
+	return g.limit
+}
+
+func (g *GasMeter) Remaining() Gas {
+	if g.limit == 0 {
+		return math.MaxInt64
 	}
-	consumed, ok := overflow.Add(g.consumed, amount)
-	if !ok {
-		panic(GasOverflowError{descriptor})
+	rem := g.limit - g.consumed
+	if rem < 0 {
+		return 0
 	}
-	// consume gas even if out of gas.
-	// corollary, call (Did)ConsumeGas after consumption.
-	g.consumed = consumed
-	if consumed > g.limit {
+	return rem
+}
+
+// ConsumeGas adds amount to consumed gas. Panics with OutOfGasError
+// if a limit is set and exceeded.
+func (g *GasMeter) ConsumeGas(amount Gas, descriptor string) {
+	g.consumed += amount
+	if g.limit > 0 && g.consumed > g.limit {
 		panic(OutOfGasError{descriptor})
 	}
-}
-
-func (g *basicGasMeter) IsPastLimit() bool {
-	return g.consumed > g.limit
-}
-
-func (g *basicGasMeter) IsOutOfGas() bool {
-	return g.consumed >= g.limit
-}
-
-//----------------------------------------
-// infiniteGasMeter
-
-type infiniteGasMeter struct {
-	consumed Gas
-}
-
-// NewInfiniteGasMeter returns a reference to a new infiniteGasMeter.
-func NewInfiniteGasMeter() GasMeter {
-	return &infiniteGasMeter{
-		consumed: 0,
+	if g.parent != nil {
+		g.parent.ConsumeGas(amount, descriptor)
 	}
 }
 
-func (g *infiniteGasMeter) GasConsumed() Gas {
-	return g.consumed
+func (g *GasMeter) IsPastLimit() bool {
+	return g.limit > 0 && g.consumed > g.limit
 }
 
-func (g *infiniteGasMeter) GasConsumedToLimit() Gas {
-	return g.consumed
-}
-
-func (g *infiniteGasMeter) Limit() Gas {
-	return 0
-}
-
-func (g *infiniteGasMeter) Remaining() Gas {
-	return math.MaxInt64
-}
-
-func (g *infiniteGasMeter) ConsumeGas(amount Gas, descriptor string) {
-	consumed, ok := overflow.Add(g.consumed, amount)
-	if !ok {
-		panic(GasOverflowError{descriptor})
-	}
-	g.consumed = consumed
-}
-
-func (g *infiniteGasMeter) IsPastLimit() bool {
-	return false
-}
-
-func (g *infiniteGasMeter) IsOutOfGas() bool {
-	return false
-}
-
-//----------------------------------------
-// passthroughGasMeter
-
-type passthroughGasMeter struct {
-	Base GasMeter
-	Head *basicGasMeter
-}
-
-// NewPassthroughGasMeter has a head basicGasMeter, but also passes through
-// consumption to a base basicGasMeter.  Limit must be less than
-// base.Remaining().
-func NewPassthroughGasMeter(base GasMeter, limit int64) passthroughGasMeter {
-	if limit < 0 {
-		panic("gas must not be negative")
-	}
-	// limit > base.Remaining() is not checked; so that a panic happens when
-	// gas is actually consumed.
-	return passthroughGasMeter{
-		Base: base,
-		Head: NewGasMeter(limit),
-	}
-}
-
-func (g passthroughGasMeter) GasConsumed() Gas {
-	return g.Head.GasConsumed()
-}
-
-func (g passthroughGasMeter) Limit() Gas {
-	return g.Head.Limit()
-}
-
-func (g passthroughGasMeter) Remaining() Gas {
-	return g.Head.Remaining()
-}
-
-func (g passthroughGasMeter) GasConsumedToLimit() Gas {
-	return g.Head.GasConsumedToLimit()
-}
-
-func (g passthroughGasMeter) ConsumeGas(amount Gas, descriptor string) {
-	g.Base.ConsumeGas(amount, descriptor)
-	g.Head.ConsumeGas(amount, descriptor)
-}
-
-func (g passthroughGasMeter) IsPastLimit() bool {
-	return g.Head.IsPastLimit()
-}
-
-func (g passthroughGasMeter) IsOutOfGas() bool {
-	return g.Head.IsOutOfGas()
+func (g *GasMeter) IsOutOfGas() bool {
+	return g.limit > 0 && g.consumed >= g.limit
 }
 
 //----------------------------------------

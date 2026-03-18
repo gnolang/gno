@@ -11,13 +11,13 @@ var _ types.Store = &Store{}
 // Store applies gas tracking to an underlying Store. It implements the
 // Store interface.
 type Store struct {
-	gasMeter  types.GasMeter
+	gasMeter  *types.GasMeter
 	gasConfig types.GasConfig
 	parent    types.Store
 }
 
 // New returns a reference to a new GasStore.
-func New(parent types.Store, gasMeter types.GasMeter, gasConfig types.GasConfig) *Store {
+func New(parent types.Store, gasMeter *types.GasMeter, gasConfig types.GasConfig) *Store {
 	kvs := &Store{
 		gasMeter:  gasMeter,
 		gasConfig: gasConfig,
@@ -118,12 +118,12 @@ func (gs *Store) Flush() {
 }
 
 type gasIterator struct {
-	gasMeter  types.GasMeter
+	gasMeter  *types.GasMeter
 	gasConfig types.GasConfig
 	parent    types.Iterator
 }
 
-func newGasIterator(gasMeter types.GasMeter, gasConfig types.GasConfig, parent types.Iterator) types.Iterator {
+func newGasIterator(gasMeter *types.GasMeter, gasConfig types.GasConfig, parent types.Iterator) types.Iterator {
 	return &gasIterator{
 		gasMeter:  gasMeter,
 		gasConfig: gasConfig,

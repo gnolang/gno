@@ -20,7 +20,7 @@ type (
 	StoreOptions           = types.StoreOptions
 	Queryable              = types.Queryable
 	Gas                    = types.Gas
-	GasMeter               = types.GasMeter
+	GasMeter               = *types.GasMeter
 	GasConfig              = types.GasConfig
 	OutOfGasError          = types.OutOfGasError
 	GasOverflowError       = types.GasOverflowError
