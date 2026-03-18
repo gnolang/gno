@@ -1034,6 +1034,7 @@ const (
 	OpCall                Op = 0x06 // call(Frame.Func, [...])
 	OpCallNativeBody      Op = 0x07 // call body is native
 	OpMethodPrecall       Op = 0x08 // method call: combines selector + precall (no BoundMethodValue alloc)
+	OpPrecallConvert      Op = 0x09 // type conversion: Y(X) — cheaper than func/method precall
 	OpDefer               Op = 0x0A // defer call(X, [...])
 	OpCallDeferNativeBody Op = 0x0B // call body is native
 	OpGo                  Op = 0x0C // go call(X, [...])
@@ -1260,7 +1261,8 @@ const (
 	OpCPUHalt                = 1
 	OpCPUNoop                = 1
 	OpCPUExec                = 25
-	OpCPUPrecall             = 38  // max(type conv=14, func=34, bound method=38)
+	OpCPUPrecall             = 38  // max(func=34, bound method=38)
+	OpCPUPrecallConvert      = 14  // type conversion — no frame creation
 	OpCPUMethodPrecall       = 80  // replaces OpSelector(80)+OpPrecall(38) for method calls; cheaper due to no heap alloc. TODO: recalibrate on server
 	OpCPUEnterCrossing       = 100 // XXX not yet benchmarked
 	OpCPUCall                = 35  // base for 0 params, 0 captures; per-param/capture added in handler
@@ -1495,6 +1497,9 @@ func (m *Machine) Run(st Stage) {
 		case OpPrecall:
 			m.incrCPU(OpCPUPrecall)
 			m.doOpPrecall()
+		case OpPrecallConvert:
+			m.incrCPU(OpCPUPrecallConvert)
+			m.doOpPrecallConvert()
 		case OpMethodPrecall:
 			m.incrCPU(OpCPUMethodPrecall)
 			m.doOpMethodPrecall()

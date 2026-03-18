@@ -254,6 +254,18 @@ func (m *Machine) doOpEval() {
 			// evaluate receiver (obj in obj.Method)
 			m.PushExpr(sx.X)
 			m.PushOp(OpEval)
+		} else if _, ok := x.Func.(*constTypeExpr); ok {
+			// Type conversion: int(x), string(b), etc.
+			m.PushOp(OpPrecallConvert)
+			// Eval the single arg.
+			args := x.Args
+			for i := len(args) - 1; 0 <= i; i-- {
+				m.PushExpr(args[i])
+				m.PushOp(OpEval)
+			}
+			// evaluate type
+			m.PushExpr(x.Func)
+			m.PushOp(OpEval)
 		} else {
 			m.PushOp(OpPrecall)
 			// Eval args.

@@ -189,6 +189,24 @@ func (m *Machine) doOpMethodPrecall() {
 	}
 }
 
+// doOpPrecallConvert handles type conversion calls: int(x), string(b), etc.
+// Cheaper than doOpPrecall — no frame creation, just pushes OpConvert.
+func (m *Machine) doOpPrecallConvert() {
+	cx := m.PopExpr().(*CallExpr)
+	// Do not pop type yet.
+	// No need for frames.
+	xv := m.PeekValue(1)
+	if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
+		xv.AssertNonNegative("runtime error: negative shift amount")
+	}
+	m.PushOp(OpConvert)
+	if debug {
+		if len(cx.Args) != 1 {
+			panic("conversion expressions only take 1 argument")
+		}
+	}
+}
+
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V
