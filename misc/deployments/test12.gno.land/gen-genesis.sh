@@ -193,9 +193,9 @@ WORK_DIR_SETUP_FILE="$WORK_DIR/govdao_prop1.gno"
 printf "  Injecting %s validators into govdao_prop1.gno...\n" "${#INITIAL_VALSET[@]}"
 VALSET_ENTRIES_TMP="$WORK_DIR/valset_entries.tmp"
 for validator in "${INITIAL_VALSET[@]}"; do
-  read -r _name power address pub_key <<<"$validator"
-  printf '\t\t\t\t{\n\t\t\t\t\tAddress:     address("%s"),\n\t\t\t\t\tPubKey:      "%s",\n\t\t\t\t\tVotingPower: %s,\n\t\t\t\t},\n' \
-    "$address" "$pub_key" "$power" >>"$VALSET_ENTRIES_TMP"
+  read -r name power address pub_key <<<"$validator"
+  printf '\t\t\t\t// %s\n\t\t\t\t{\n\t\t\t\t\tAddress:     address("%s"),\n\t\t\t\t\tPubKey:      "%s",\n\t\t\t\t\tVotingPower: %s,\n\t\t\t\t},\n' \
+    "$name" "$address" "$pub_key" "$power" >>"$VALSET_ENTRIES_TMP"
 done
 awk -v vf="$VALSET_ENTRIES_TMP" \
   '/\/\/ GEN:VALSET/ { while ((getline line < vf) > 0) print line; close(vf); next } { print }' \
