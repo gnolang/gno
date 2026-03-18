@@ -146,19 +146,6 @@ func isWhole(t Type) bool {
 }
 
 // ===========================================================
-func assertComparable(xt, dt Type) {
-	switch baseOf(dt).(type) {
-	case *SliceType, *FuncType, *MapType:
-		// Slices, funcs, and maps can only be compared to nil.
-		if xt != nil {
-			panic(fmt.Sprintf("%v can only be compared to nil", dt))
-		}
-		return
-	}
-	if !isComparable(dt) {
-		panic(fmt.Sprintf("%v is not comparable", dt))
-	}
-}
 
 func mayBeNil(t Type) bool {
 	switch baseOf(t).(type) {
@@ -713,7 +700,17 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 	if isComparison(x.Op) {
 		switch x.Op {
 		case EQL, NEQ:
-			assertComparable(xt, dt)
+			// Slice, func, and map can only be compared to nil.
+			switch baseOf(dt).(type) {
+			case *SliceType, *FuncType, *MapType:
+				if xt != nil {
+					panic(fmt.Sprintf("%v can only be compared to nil", dt))
+				}
+			default:
+				if !isComparable(dt) {
+					panic(fmt.Sprintf("%v is not comparable", dt))
+				}
+			}
 			err := checkAssignableTo(x, xt, dt)
 			if err != nil {
 				if debug {
