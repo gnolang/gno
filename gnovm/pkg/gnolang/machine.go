@@ -2108,7 +2108,12 @@ func (m *Machine) blockArenaIdx(b *Block) int {
 	if bp < base {
 		return -1
 	}
-	idx := int((bp - base) / unsafe.Sizeof(Block{}))
+	off := bp - base
+	sz := unsafe.Sizeof(Block{})
+	if off%sz != 0 { // not aligned to Block boundary
+		return -1
+	}
+	idx := int(off / sz)
 	if idx >= len(m.blockArena) {
 		return -1
 	}

@@ -1783,9 +1783,10 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 			// file block for non-closure methods).
 			//
 			// WARNING: This returns a shared pointer to the type's
-			// method FuncValue. Callers must NOT mutate any field
-			// other than Parent. If a future change needs to mutate
-			// the returned FuncValue, restore the .Copy(alloc) call.
+			// method FuncValue. The only safe mutations are idempotent
+			// lazy-fills: Parent, nativeBody, Type, Source, body.
+			// If a future change needs to mutate other fields,
+			// restore the .Copy(alloc) call.
 			if fv.Parent == nil {
 				fv.Parent = fv.GetParent(store)
 			}
