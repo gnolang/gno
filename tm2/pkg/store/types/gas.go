@@ -107,10 +107,14 @@ func (g *GasMeter) Remaining() Gas {
 }
 
 // ConsumeGas adds amount to consumed gas. Panics with OutOfGasError
-// if a limit is set and exceeded.
+// if a limit is set and exceeded, or GasOverflowError on int64 overflow.
 func (g *GasMeter) ConsumeGas(amount Gas, descriptor string) {
-	g.consumed += amount
-	if g.limit > 0 && g.consumed > g.limit {
+	consumed := g.consumed + amount
+	if consumed < g.consumed { // int64 overflow
+		panic(GasOverflowError{descriptor})
+	}
+	g.consumed = consumed
+	if g.limit > 0 && consumed > g.limit {
 		panic(OutOfGasError{descriptor})
 	}
 	if g.parent != nil {

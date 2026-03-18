@@ -1457,6 +1457,11 @@ func (m *Machine) Run(st Stage) {
 		r := recover()
 
 		if r != nil {
+			// Flush any pending CPU gas before handling the panic,
+			// so gas accounting is accurate across panic boundaries.
+			if m.GasMeter != nil {
+				m.flushCPUGas()
+			}
 			switch r := r.(type) {
 			case *Exception:
 				if r.Stacktrace.IsZero() {
