@@ -7,7 +7,7 @@ gnoland start -no-parallel
 
 
 gnokey maketx call -pkgpath gno.land/r/gc -func Alloc -gas-fee 10000000ugnot -gas-wanted 100000000 -simulate skip -broadcast -chainid tendermint_test test1
-stdout 'GAS USED:   22240795'
+stdout 'GAS USED:   22240615'
 
 -- r/gc/gc.gno --
 package gc

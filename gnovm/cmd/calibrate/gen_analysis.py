@@ -162,7 +162,9 @@ FLAT_OPS = {
     'BenchmarkOpTypeAssert2_Miss': ('TypeAssert2 (miss)', 'TypeAssert2'),
     'BenchmarkOpCallNativeBody_Len': ('CallNativeBody (len)', 'CallNativeBody'),
     'BenchmarkOpCallNativeBody_Println': ('CallNativeBody (println)', 'CallNativeBody'),
-    'BenchmarkOpCall_Method': ('Call (method)', 'Call'),
+    # BenchmarkOpCall_Method excluded from FLAT_OPS — its extra cost vs
+    # 0-param call is from the receiver (1 param), handled by the per-param
+    # slope in PARAM_FAMILIES. The base comes from the parameterized fit.
     'BenchmarkOpReturn': ('Return', 'Return'),
     'BenchmarkOpReturnAfterCopy': ('ReturnAfterCopy', 'ReturnAfterCopy'),
     'BenchmarkOpReturnFromBlock': ('ReturnFromBlock', 'ReturnFromBlock'),

@@ -1265,7 +1265,7 @@ const (
 	OpCPUPrecallConvert      = 14  // type conversion — no frame creation
 	OpCPUMethodPrecall       = 67  // replaces OpSelector+OpPrecall for method calls
 	OpCPUEnterCrossing       = 100 // XXX not yet benchmarked
-	OpCPUCall                = 50  // base for 0 params, 0 captures; per-param/capture added in handler
+	OpCPUCall                = 30  // base for 0 params, 0 captures; per-param/capture added in handler
 	OpCPUCallNativeBody      = 424 // TODO: benchmark this properly
 	OpCPUDefer               = 13
 	OpCPUCallDeferNativeBody = 33
