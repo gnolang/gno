@@ -2153,23 +2153,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
 				case *MapType:
-					// Check type first.
-					switch kt := baseOf(cclt.Key).(type) {
-					case PrimitiveType, *StructType, *InterfaceType, *PointerType:
-						// Good.
-					case FieldType:
-						panic("field (pseudo)type cannot be used as map key")
-					case *ChanType:
-						panic("not yet implemented")
-					default:
-						panic(fmt.Sprintf("invalid map key type %v", kt))
+					if !isComparable(cclt.Key) {
+						panic(fmt.Sprintf("invalid map key type %v", cclt.Key))
+					}
+					if _, ok := baseOf(cclt.Key).(*ChanType); ok {
+						panic("channel map keys are not yet supported")
 					}
 
 					var kset = make(map[TypedValue]struct{})
 					for i, elt := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
-						// Check dupicate cosnt key.
+						// Check duplicate const key.
 						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
 							if _, ok := kset[cx.TypedValue]; ok {
 								panic(fmt.Sprintf("duplicate key %v in map literal", cx.TypedValue))
