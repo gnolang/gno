@@ -127,6 +127,8 @@ FLAT_OPS = {
     'BenchmarkOpMethodPrecall_ValMethod': ('MethodPrecall (val)', 'MethodPrecall'),
     'BenchmarkOpPopBlock': ('PopBlock', 'PopBlock'),
     'BenchmarkOpPopFrameAndReset': ('PopFrameAndReset', 'PopFrameAndReset'),
+    'BenchmarkOpExec_ExprStmt': ('Exec (ExprStmt)', 'Exec'),
+    'BenchmarkOpExec_ForStmt': ('Exec (ForStmt)', 'Exec'),
     'BenchmarkOpIndex2_MapHit': ('Index2 (map hit)', 'Index2'),
     'BenchmarkOpIndex2_MapMiss': ('Index2 (map miss)', 'Index2'),
     'BenchmarkOpCallNativeBody_Len': ('CallNativeBody (len)', 'CallNativeBody'),

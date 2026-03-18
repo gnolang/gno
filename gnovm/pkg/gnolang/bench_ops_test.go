@@ -4719,6 +4719,77 @@ func BenchmarkOpMethodPrecall_ValMethod(b *testing.B) {
 	reportBenchops(b)
 }
 
+// --- doOpExec: statement dispatch ---
+// Cheapest case: ExprStmt (just pushes OpPopValue + OpEval).
+// Most expensive case: ForStmt (creates frame + block + bodyStmt setup).
+
+func BenchmarkOpExec_ExprStmt(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+
+	// Minimal ExprStmt that evals a NameExpr.
+	nx := &NameExpr{Path: NewValuePath(VPBlock, 1, 0, "x")}
+	nx.SetAttribute(ATTR_PREPROCESSED, true)
+	es := &ExprStmt{X: nx}
+
+	// Need a block on the stack for NameExpr eval.
+	blk := &Block{Values: []TypedValue{{T: IntType, N: i2n(42)}}}
+	m.PushBlock(blk)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushStmt(es)
+		m.PushOp(OpExec)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpExec(OpExec)
+		bm.SwitchOpCode(bmSetup)
+		// Clean up what doOpExec pushed (OpPopValue, OpEval, expr).
+		m.Ops = m.Ops[:0]
+		m.Exprs = m.Exprs[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpExec_ForStmt(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+
+	// Minimal ForStmt: for ; cond ; { }
+	cond := &NameExpr{Path: NewValuePath(VPBlock, 1, 0, "x")}
+	cond.SetAttribute(ATTR_PREPROCESSED, true)
+	fs := &ForStmt{
+		Cond: cond,
+		Body: []Stmt{},
+	}
+	fs.StaticBlock.NumNames = 0
+	fs.StaticBlock.HeapItems = []bool{}
+	fs.StaticBlock.Block.Source = fs
+
+	parentBlock := &Block{Values: []TypedValue{{T: BoolType}}}
+	m.PushBlock(parentBlock)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushStmt(fs)
+		m.PushOp(OpExec)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpExec(OpExec)
+		bm.SwitchOpCode(bmSetup)
+		// Clean up everything doOpExec pushed.
+		m.Ops = m.Ops[:0]
+		m.Stmts = m.Stmts[:0]
+		m.Exprs = m.Exprs[:0]
+		m.Frames = m.Frames[:0]
+		// Pop the block that was pushed (keep parentBlock).
+		for len(m.Blocks) > 1 {
+			m.recycleBlock(m.PopBlock())
+		}
+	}
+	reportBenchops(b)
+}
+
 // --- OpPopBlock: pop block and recycle arena slot ---
 
 func BenchmarkOpPopBlock(b *testing.B) {
