@@ -1,11 +1,24 @@
 package main
 
-func main() {
-	_ = map[[2][]int]int{[2][]int{{1}, {2}}: 10}
+import "fmt"
+
+type Inner struct {
+	X int
+	Y int
 }
 
-// Error:
-// main/maplit13.gno:4:6-46: invalid map key type [2][]int
+type Outer struct {
+	A Inner
+	B string
+}
 
-// TypeCheckError:
-// main/maplit13.gno:4:10: invalid map key type [2][]int
+func main() {
+	a := map[Outer]int{
+		Outer{Inner{1, 2}, "a"}: 10,
+		Outer{Inner{3, 4}, "b"}: 20,
+	}
+	fmt.Println(a)
+}
+
+// Output:
+// map[{{1 2} a}:10 {{3 4} b}:20]

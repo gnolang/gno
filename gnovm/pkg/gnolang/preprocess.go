@@ -2160,11 +2160,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						panic("channel map keys are not yet supported")
 					}
 
-					var kset = make(map[TypedValue]struct{})
+					// kset tracks seen const keys for duplicate detection.
+					// checkOrConvertType must be called before the check so that
+					// values are stored in N (not V), making TypedValue comparable.
+					kset := make(map[TypedValue]struct{})
 					for i, elt := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
-						// Check duplicate const key.
 						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
 							if _, ok := kset[cx.TypedValue]; ok {
 								panic(fmt.Sprintf("duplicate key %v in map literal", cx.TypedValue))
