@@ -2169,7 +2169,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					for i, elt := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
-
 						// Check dupicate cosnt key.
 						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
 							if _, ok := kset[cx.TypedValue]; ok {
