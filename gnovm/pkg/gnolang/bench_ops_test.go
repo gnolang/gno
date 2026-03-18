@@ -4719,6 +4719,62 @@ func BenchmarkOpMethodPrecall_ValMethod(b *testing.B) {
 	reportBenchops(b)
 }
 
+// --- OpPopBlock: pop block and recycle arena slot ---
+
+func BenchmarkOpPopBlock(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+
+	// Create a minimal block source for newBlock.
+	bs := &BlockStmt{Body: []Stmt{}}
+	bs.StaticBlock.NumNames = 2
+	bs.StaticBlock.HeapItems = []bool{false, false}
+	bs.StaticBlock.Block.Source = bs
+
+	parentBlock := &Block{Values: []TypedValue{}}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		b := m.newBlock(bs, parentBlock)
+		m.PushBlock(b)
+		bm.SwitchOpCode(bmTarget)
+		m.recycleBlock(m.PopBlock())
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+// --- OpPopFrameAndReset: pop frame and restore all stacks ---
+
+func BenchmarkOpPopFrameAndReset(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+
+	bs := &BlockStmt{Body: []Stmt{&EmptyStmt{}}}
+	bs.StaticBlock.NumNames = 0
+	bs.StaticBlock.HeapItems = []bool{}
+	bs.StaticBlock.Block.Source = bs
+
+	parentBlock := &Block{Values: []TypedValue{}}
+	m.PushBlock(parentBlock)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		// Push a sticky stmt first (PopFrameAndReset pops it).
+		m.PushStmt(bs)
+		// Push a frame (like a for-loop would).
+		m.PushFrameBasic(bs)
+		blk := m.newBlock(bs, parentBlock)
+		m.PushBlock(blk)
+		bm.SwitchOpCode(bmTarget)
+		m.PopFrameAndReset()
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
 // --- doOpIfCond false branch ---
 
 func BenchmarkOpIfCond_FalseBranch(b *testing.B) {

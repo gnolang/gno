@@ -125,6 +125,8 @@ FLAT_OPS = {
     'BenchmarkOpIfCond_TrueBranch': ('IfCond (true)', 'IfCond'),
     'BenchmarkOpIfCond_FalseBranch': ('IfCond (false)', 'IfCond'),
     'BenchmarkOpMethodPrecall_ValMethod': ('MethodPrecall (val)', 'MethodPrecall'),
+    'BenchmarkOpPopBlock': ('PopBlock', 'PopBlock'),
+    'BenchmarkOpPopFrameAndReset': ('PopFrameAndReset', 'PopFrameAndReset'),
     'BenchmarkOpIndex2_MapHit': ('Index2 (map hit)', 'Index2'),
     'BenchmarkOpIndex2_MapMiss': ('Index2 (map miss)', 'Index2'),
     'BenchmarkOpCallNativeBody_Len': ('CallNativeBody (len)', 'CallNativeBody'),
