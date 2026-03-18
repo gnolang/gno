@@ -3,7 +3,10 @@
 
 package autofile
 
-import "syscall"
+import (
+	"errors"
+	"syscall"
+)
 
 // availableDiskSpace returns the number of bytes available to unprivileged
 // users on the filesystem containing the given path.
@@ -19,5 +22,5 @@ func availableDiskSpace(path string) (uint64, error) {
 // isErrNoSpace reports whether the error indicates that no space is left
 // on the device (ENOSPC).
 func isErrNoSpace(err error) bool {
-	return err == syscall.ENOSPC
+	return errors.Is(err, syscall.ENOSPC)
 }
