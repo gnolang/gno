@@ -22,7 +22,27 @@ const (
 	defaultHeadSizeLimit      = 10 * 1024 * 1024       // 10MB
 	defaultTotalSizeLimit     = 1 * 1024 * 1024 * 1024 // 1GB
 	maxFilesToRemove          = 4                      // needs to be greater than 1
+
+	// defaultMinDiskSpaceLimit is the minimum available disk space (in bytes)
+	// before the Group halts writes. Default: 16MB.
+	defaultMinDiskSpaceLimit = 16 * 1024 * 1024
+	// diskSpaceWarningThreshold is the multiplier applied to minDiskSpaceLimit
+	// to determine when to start emitting warnings. When available space drops
+	// below minDiskSpaceLimit * diskSpaceWarningThreshold, warnings are logged.
+	diskSpaceWarningThreshold = 4
+	// defaultDiskSpaceCheckInterval is the number of write operations between
+	// consecutive disk space checks. This avoids calling statfs on every write.
+	defaultDiskSpaceCheckInterval = 100
 )
+
+// ErrDiskSpaceUnavailable is returned when writing cannot proceed because
+// the available disk space has fallen below the configured minimum threshold.
+var ErrDiskSpaceUnavailable = errors.New("disk space unavailable")
+
+// diskSpaceUnsupported is a sentinel value returned by availableDiskSpace
+// on platforms where querying disk space is not supported (e.g. wasm).
+// When this value is returned, disk space checks are skipped.
+const diskSpaceUnsupported = ^uint64(0)
 
 /*
 You can open a Group to keep restrictions on an AutoFile, like
@@ -60,10 +80,13 @@ type Group struct {
 	headBuf *bufio.Writer
 	Dir     string // Directory that contains .Head
 
-	mtx            sync.Mutex
-	headSizeLimit  int64
-	totalSizeLimit int64
-	info           GroupInfo
+	mtx                  sync.Mutex
+	headSizeLimit        int64
+	totalSizeLimit       int64
+	minDiskSpaceLimit    int64 // minimum available disk space before halting
+	writesSinceLastCheck int   // write counter for throttling disk space checks
+	halted               bool  // set to true when disk space is unavailable
+	info                 GroupInfo
 
 	// TODO: When we start deleting files, we need to start tracking GroupReaders
 	// and their dependencies.
@@ -79,12 +102,13 @@ func OpenGroup(headPath string, groupOptions ...func(*Group)) (g *Group, err err
 	}
 
 	g = &Group{
-		ID:             "group:" + head.ID,
-		Head:           head,
-		headBuf:        bufio.NewWriterSize(head, 4096*10),
-		Dir:            dir,
-		headSizeLimit:  defaultHeadSizeLimit,
-		totalSizeLimit: defaultTotalSizeLimit,
+		ID:                "group:" + head.ID,
+		Head:              head,
+		headBuf:           bufio.NewWriterSize(head, 4096*10),
+		Dir:               dir,
+		headSizeLimit:     defaultHeadSizeLimit,
+		totalSizeLimit:    defaultTotalSizeLimit,
+		minDiskSpaceLimit: defaultMinDiskSpaceLimit,
 		info: GroupInfo{
 			MinIndex:  0,
 			MaxIndex:  0,
@@ -113,6 +137,15 @@ func GroupHeadSizeLimit(limit int64) func(*Group) {
 func GroupTotalSizeLimit(limit int64) func(*Group) {
 	return func(g *Group) {
 		g.totalSizeLimit = limit
+	}
+}
+
+// GroupMinDiskSpaceLimit allows you to overwrite the default minimum disk space
+// limit (16MB). When available disk space falls below this limit, the Group
+// halts writes and returns ErrDiskSpaceUnavailable. Set to 0 to disable.
+func GroupMinDiskSpaceLimit(limit int64) func(*Group) {
+	return func(g *Group) {
+		g.minDiskSpaceLimit = limit
 	}
 }
 
@@ -200,18 +233,30 @@ func (g *Group) HeadSize() int64 {
 // returns the number of bytes written. If nn < len(p), it also returns an
 // error explaining why the write is short.
 // NOTE: Writes are buffered so they don't write synchronously
-// TODO: Make it halt if space is unavailable
+// Write halts (returns ErrDiskSpaceUnavailable) if disk space is unavailable.
 func (g *Group) Write(p []byte) (nn int, err error) {
 	g.mtx.Lock()
 	defer g.mtx.Unlock()
+
+	if err := g.checkDiskSpace(); err != nil {
+		return 0, err
+	}
+
 	nn, err = g.headBuf.Write(p)
+	if err != nil {
+		if isErrNoSpace(err) {
+			g.halt()
+			return nn, fmt.Errorf("%w: %w", ErrDiskSpaceUnavailable, err)
+		}
+		return nn, err
+	}
 
 	// Update limits
 	g.info.TotalSize += int64(nn)
 	g.info.HeadSize += int64(nn)
 
 	// Maybe rotate
-	if err == nil && 0 < g.headSizeLimit && g.headSizeLimit <= g.info.HeadSize {
+	if 0 < g.headSizeLimit && g.headSizeLimit <= g.info.HeadSize {
 		g.rotateFile()
 	}
 	return
@@ -219,21 +264,33 @@ func (g *Group) Write(p []byte) (nn int, err error) {
 
 // WriteLine writes line into the current head of the group. It also appends "\n".
 // NOTE: Writes are buffered so they don't write synchronously
-// TODO: Make it halt if space is unavailable
+// WriteLine halts (returns ErrDiskSpaceUnavailable) if disk space is unavailable.
 func (g *Group) WriteLine(line string) error {
 	g.mtx.Lock()
 	defer g.mtx.Unlock()
+
+	if err := g.checkDiskSpace(); err != nil {
+		return err
+	}
+
 	nn, err := g.headBuf.Write([]byte(line + "\n"))
+	if err != nil {
+		if isErrNoSpace(err) {
+			g.halt()
+			return fmt.Errorf("%w: %w", ErrDiskSpaceUnavailable, err)
+		}
+		return err
+	}
 
 	// Update limits
 	g.info.TotalSize += int64(nn)
 	g.info.HeadSize += int64(nn)
 
 	// Maybe rotate
-	if err == nil && 0 < g.headSizeLimit && g.headSizeLimit <= g.info.HeadSize {
+	if 0 < g.headSizeLimit && g.headSizeLimit <= g.info.HeadSize {
 		g.rotateFile()
 	}
-	return err
+	return nil
 }
 
 // Buffered returns the size of the currently buffered data.
@@ -253,6 +310,105 @@ func (g *Group) FlushAndSync() error {
 		err = g.Head.Sync()
 	}
 	return err
+}
+
+// checkDiskSpace checks available disk space before a write. The actual syscall
+// is throttled: it only runs every diskSpaceCheckInterval writes (and always
+// when the group is halted, to allow automatic recovery). It logs a warning
+// when space is running low and returns ErrDiskSpaceUnavailable when space has
+// fallen below the configured minimum threshold.
+// CONTRACT: caller must hold g.mtx.
+func (g *Group) checkDiskSpace() error {
+	if g.minDiskSpaceLimit == 0 {
+		return nil
+	}
+
+	// When halted, always re-check to allow automatic recovery.
+	// Otherwise, only check every diskSpaceCheckInterval writes.
+	if !g.halted {
+		g.writesSinceLastCheck++
+		if g.writesSinceLastCheck < defaultDiskSpaceCheckInterval {
+			return nil
+		}
+	}
+	g.writesSinceLastCheck = 0
+
+	avail, err := availableDiskSpace(g.Dir)
+	if err != nil {
+		// If we cannot determine available space (e.g. unsupported platform),
+		// log a warning but allow writes to continue.
+		g.Logger.Error("failed to check available disk space", "err", err)
+		return nil
+	}
+	// Negative sentinel (-1) from stubs means "unsupported"; skip checks.
+	if avail == diskSpaceUnsupported {
+		return nil
+	}
+
+	limit := uint64(g.minDiskSpaceLimit)
+	if avail < limit {
+		g.halt()
+		return fmt.Errorf(
+			"%w: available %d bytes < minimum %d bytes",
+			ErrDiskSpaceUnavailable, avail, limit,
+		)
+	}
+
+	// Space is sufficient — if we were halted, resume automatically.
+	if g.halted {
+		g.halted = false
+		g.Logger.Info(
+			"group resumed: disk space is now sufficient",
+			"dir", g.Dir,
+			"available", avail,
+			"minimum", limit,
+		)
+	}
+
+	warningThreshold := limit * diskSpaceWarningThreshold
+	if avail < warningThreshold {
+		g.Logger.Error(
+			"disk space is running low",
+			"available", avail,
+			"warning_threshold", warningThreshold,
+			"halt_threshold", limit,
+		)
+	}
+	return nil
+}
+
+// halt marks the group as halted. Once halted, all subsequent writes will be
+// rejected with ErrDiskSpaceUnavailable until disk space is freed (automatic
+// recovery) or Resume is called.
+// CONTRACT: caller must hold g.mtx.
+func (g *Group) halt() {
+	if !g.halted {
+		g.halted = true
+		g.Logger.Error(
+			"group halted due to unavailable disk space",
+			"dir", g.Dir,
+		)
+	}
+}
+
+// Halted returns true if the group has halted due to unavailable disk space.
+func (g *Group) Halted() bool {
+	g.mtx.Lock()
+	defer g.mtx.Unlock()
+	return g.halted
+}
+
+// Resume manually un-halts the group, allowing writes to proceed again. This
+// is intended for use after an operator has freed disk space. Writes will still
+// be re-checked against the disk space limit on the next check interval.
+func (g *Group) Resume() {
+	g.mtx.Lock()
+	defer g.mtx.Unlock()
+	if g.halted {
+		g.halted = false
+		g.writesSinceLastCheck = 0 // force a fresh check on the next write
+		g.Logger.Info("group manually resumed", "dir", g.Dir)
+	}
 }
 
 func (g *Group) ensureTotalSizeLimit() {
