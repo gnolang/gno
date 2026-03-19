@@ -348,8 +348,8 @@ func (g *Group) checkDiskSpace() error {
 }
 
 // halt marks the group as halted. Once halted, all subsequent writes will be
-// rejected with ErrDiskSpaceUnavailable until disk space is freed (automatic
-// recovery) or Resume is called.
+// rejected with ErrDiskSpaceUnavailable until disk space is freed and
+// automatic recovery kicks in.
 // CONTRACT: caller must hold g.mtx.
 func (g *Group) halt() {
 	if !g.halted {
@@ -358,26 +358,6 @@ func (g *Group) halt() {
 			"group halted due to unavailable disk space",
 			"dir", g.Dir,
 		)
-	}
-}
-
-// Halted returns true if the group has halted due to unavailable disk space.
-func (g *Group) Halted() bool {
-	g.mtx.Lock()
-	defer g.mtx.Unlock()
-	return g.halted
-}
-
-// Resume manually un-halts the group, allowing writes to proceed again. This
-// is intended for use after an operator has freed disk space. Writes will still
-// be re-checked against the disk space limit on the next check interval.
-func (g *Group) Resume() {
-	g.mtx.Lock()
-	defer g.mtx.Unlock()
-	if g.halted {
-		g.halted = false
-		g.writesSinceLastCheck = 0 // force a fresh check on the next write
-		g.Logger.Info("group manually resumed", "dir", g.Dir)
 	}
 }
 

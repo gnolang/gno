@@ -214,43 +214,6 @@ func TestMaxIndex(t *testing.T) {
 	assert.Equal(t, 1, g.MaxIndex(), "MaxIndex should point to the last file")
 }
 
-func TestHaltedReturnsTrueAfterHalt(t *testing.T) {
-	t.Parallel()
-
-	g := createTestGroupWithOptions(t)
-	defer g.Close()
-
-	assert.False(t, g.Halted(), "group should not be halted initially")
-
-	// Manually halt.
-	g.mtx.Lock()
-	g.halted = true
-	g.mtx.Unlock()
-
-	assert.True(t, g.Halted(), "group should report as halted")
-}
-
-func TestResumeUnhaltsGroup(t *testing.T) {
-	t.Parallel()
-
-	g := createTestGroupWithOptions(t)
-	defer g.Close()
-
-	// Manually halt.
-	g.mtx.Lock()
-	g.halted = true
-	g.mtx.Unlock()
-	assert.True(t, g.Halted())
-
-	// Resume should un-halt.
-	g.Resume()
-	assert.False(t, g.Halted())
-
-	// Writes should succeed after resume.
-	_, err := g.Write([]byte("after resume"))
-	require.NoError(t, err)
-}
-
 func TestAutoRecoveryWhenSpaceFreed(t *testing.T) {
 	t.Parallel()
 
@@ -265,12 +228,15 @@ func TestAutoRecoveryWhenSpaceFreed(t *testing.T) {
 	g.mtx.Lock()
 	g.halted = true
 	g.mtx.Unlock()
-	assert.True(t, g.Halted())
 
 	// Next write should trigger a re-check, see sufficient space, and auto-resume.
 	_, err := g.Write([]byte("recovered"))
 	require.NoError(t, err, "write should succeed after auto-recovery")
-	assert.False(t, g.Halted(), "group should have auto-resumed")
+
+	g.mtx.Lock()
+	halted := g.halted
+	g.mtx.Unlock()
+	assert.False(t, halted, "group should have auto-resumed")
 }
 
 func TestWriteCountThrottling(t *testing.T) {
