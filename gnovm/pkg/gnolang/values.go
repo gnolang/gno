@@ -1583,6 +1583,10 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 	}
 	// General case.
 	bz := make([]byte, 0, 64)
+	childrenLength := 0
+	defer func() {
+		store.GetAllocator().Allocate(int64(len(bz) - childrenLength))
+	}()
 	if !omitType {
 		// TypeID is human readable and balanced, so appending ":" works.
 		// This keeps ComputeMapKey somewhat human readable esp w/
@@ -1626,8 +1630,8 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 					bz = append(bz, ',')
 				}
 			}
+			childrenLength += len(bz)
 		} else {
-			store.GetAllocator().Allocate(int64(len(av.Data)))
 			bz = append(bz, av.Data...)
 		}
 		bz = append(bz, ']')
@@ -1651,6 +1655,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			}
 		}
 		bz = append(bz, '}')
+		childrenLength += len(bz)
 	case *ChanType:
 		panic("not yet implemented")
 	default:
