@@ -5,6 +5,9 @@
 
 <body>
   {{ template "ui/icons" -}}
+  <a href="https://github.com/gnolang/gno/issues/new/choose" target="_blank" rel="noopener noreferrer" class="b-beta-banner" aria-label="Beta notice">
+    <span>Welcome to gno.land beta — your feedback shapes what's next</span>
+  </a>
   {{ template "layouts/header" .IndexData.HeaderData -}}
   <main {{ if .IsDevmodView }}class="dev-mode" {{ end }}>
     <section class="c-center">
