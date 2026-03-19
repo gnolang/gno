@@ -5,10 +5,16 @@
 
 <body>
   {{ template "ui/icons" -}}
-  {{ if .IndexData.BetaBanner -}}
-  <a href="https://github.com/gnolang/gno/issues/new/choose" target="_blank" rel="noopener noreferrer" class="b-beta-banner" aria-label="Beta notice">
-    <span>Welcome to gno.land beta — your feedback shapes what's next</span>
+  {{ if .IndexData.Banner.Enabled -}}
+  {{ if .IndexData.Banner.HasURL -}}
+  <a href="{{ .IndexData.Banner.URL }}" target="_blank" rel="noopener noreferrer" class="b-banner">
+    <span>{{ .IndexData.Banner.Text }}</span>
   </a>
+  {{ else -}}
+  <div class="b-banner">
+    <span>{{ .IndexData.Banner.Text }}</span>
+  </div>
+  {{ end -}}
   {{ end -}}
   {{ template "layouts/header" .IndexData.HeaderData -}}
   <main {{ if .IsDevmodView }}class="dev-mode" {{ end }}>
