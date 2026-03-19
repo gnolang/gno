@@ -9,7 +9,7 @@ import (
 // RenderCharts generates two pie charts for member tiers:
 // 1) distribution of member counts per tier
 // 2) distribution of power per tier
-func RenderCharts(members MembersByTier) string {
+func RenderCharts(members *MembersByTier) string {
 	var sb strings.Builder
 
 	tierNames := []string{T1, T2, T3}

@@ -46,9 +46,9 @@ func (pss ProposalsStatuses) GetStatus(id dao.ProposalID) *proposalStatus {
 }
 
 type proposalStatus struct {
-	YesVotes memberstore.MembersByTier
-	NoVotes  memberstore.MembersByTier
-	AllVotes memberstore.MembersByTier
+	YesVotes *memberstore.MembersByTier
+	NoVotes  *memberstore.MembersByTier
+	AllVotes *memberstore.MembersByTier
 
 	Accepted bool
 	Denied   bool
@@ -60,7 +60,7 @@ type proposalStatus struct {
 	TotalPower float64 // TotalPower is the power of all the members existing when this proposal was created.
 }
 
-func getMembers(cur realm) memberstore.MembersByTier {
+func getMembers(cur realm) *memberstore.MembersByTier {
 	return memberstore.Get()
 }
 
@@ -168,7 +168,7 @@ func StringifyVotes(ps *proposalStatus) string {
 	return sb.String()
 }
 
-func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) {
+func writeVotes(sb *strings.Builder, t *memberstore.MembersByTier, title string) {
 	if t.Size() == 0 {
 		return
 	}
