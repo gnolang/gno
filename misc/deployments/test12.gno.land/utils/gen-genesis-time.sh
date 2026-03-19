@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
 # Generate a GENESIS_TIME line to copy-paste into gen-genesis.sh.
 #
+# Usage:
+#   gen-genesis-time.sh                        # interactive
+#   gen-genesis-time.sh 'YYYY-MM-DD HH:MM'     # non-interactive, system timezone
+#   gen-genesis-time.sh 'YYYY-MM-DD HH:MM' TZ  # non-interactive, explicit timezone
+#
 # Uses the system `date` command (macOS BSD date and GNU date both supported).
 set -eo pipefail
 
 default_tz=$(date +%Z)
 
-echo "Enter the desired genesis date and time."
-echo ""
+if [[ $# -ge 1 ]]; then
+  input_datetime="$1"
+  input_tz="${2:-$default_tz}"
+else
+  echo "Enter the desired genesis date and time."
+  echo ""
 
-read -rp "Date and time (YYYY-MM-DD HH:MM): " input_datetime
-read -rp "Timezone [${default_tz}]: " input_tz
-input_tz="${input_tz:-$default_tz}"
+  read -rp "Date and time (YYYY-MM-DD HH:MM): " input_datetime
+  read -rp "Timezone [${default_tz}]: " input_tz
+  input_tz="${input_tz:-$default_tz}"
+fi
 
 # Convert to Unix timestamp — macOS (BSD) and Linux (GNU) use different flags.
 if date --version &>/dev/null 2>&1; then
