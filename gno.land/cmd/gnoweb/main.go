@@ -58,6 +58,7 @@ type webCfg struct {
 	html             bool
 	noStrict         bool
 	verbose          bool
+	betaBanner       bool
 }
 
 var defaultWebOptions = webCfg{
@@ -204,6 +205,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultWebOptions.timeout,
 		"set read/write/idle timeout for server connections",
 	)
+
+	fs.BoolVar(
+		&c.betaBanner,
+		"beta-banner",
+		defaultWebOptions.betaBanner,
+		"show a beta banner at the top of every page",
+	)
 }
 
 func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
@@ -234,6 +242,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+	appcfg.BetaBanner = cfg.betaBanner
 
 	if cfg.noDefaultAliases {
 		appcfg.Aliases = map[string]gnoweb.AliasTarget{}

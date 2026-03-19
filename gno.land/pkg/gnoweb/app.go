@@ -52,6 +52,8 @@ type AppConfig struct {
 	FaucetURL string
 	// Domain is the domain used by the node.
 	Domain string
+	// BetaBanner enables the beta banner at the top of every page.
+	BetaBanner bool
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
@@ -112,6 +114,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		ChainId:    cfg.ChainID,
 		Analytics:  cfg.Analytics,
 		BuildTime:  buildTime,
+		BetaBanner: cfg.BetaBanner,
 	}
 
 	// Configure Markdown renderer

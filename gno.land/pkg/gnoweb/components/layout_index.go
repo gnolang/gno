@@ -47,9 +47,10 @@ type IndexData struct {
 	HeadData
 	HeaderData
 	FooterData
-	BodyView *View
-	Mode     ViewMode
-	Theme    string
+	BodyView   *View
+	Mode       ViewMode
+	Theme      string
+	BetaBanner bool
 }
 
 type indexLayoutParams struct {
