@@ -2,12 +2,12 @@ package main
 
 func main() {
 	var f func()
-	for i := 0; i < 3;{
+	for i := 0; i < 3; {
 		println("enter, i: ", i)
 
 		if i == 1 {
 			println("---continue")
-			i++ 
+			i++
 			continue
 		}
 

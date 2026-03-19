@@ -11,7 +11,7 @@ func init() {
 	ms.Field = 1
 }
 
-func main(cur realm,) {
+func main(cur realm) {
 	println(ms)
 	ms.Field += 2
 	println(ms)

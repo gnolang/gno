@@ -1,12 +1,11 @@
 package main
 
-import (
-	"filetests/extern/foo/v2"
-)
-
 func main() {
 	println(foo.Hello)
 }
 
-// Output:
-// Hello
+// Error:
+// main/import15.gno:4:10-13: name foo not declared
+
+// TypeCheckError:
+// main/import15.gno:4:10: undefined: foo

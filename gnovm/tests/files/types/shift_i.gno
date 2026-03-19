@@ -7,6 +7,5 @@ func main() {
 	println(xx)
 }
 
-
 // Output:
 // 0

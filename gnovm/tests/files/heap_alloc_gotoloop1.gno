@@ -17,8 +17,6 @@ loop:
 // Preprocessed:
 // file{ package main; func main() { c<!VPBlock(1,0)> := (const (0 int)); i<!VPBlock(1,1)> := (const (1 int)); (const (println func(...interface {})))(i<VPBlock(1,1)>); c<VPBlock(1,0)> += (const (1 int)); if c<VPBlock(2,0)> < (const (10 int)) { goto loop<1,0,1> } } }
 
-
-
 // Output:
 // 1
 // 1
