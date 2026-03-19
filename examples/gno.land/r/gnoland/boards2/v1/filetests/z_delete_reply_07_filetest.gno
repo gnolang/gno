@@ -10,7 +10,6 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	users "gno.land/r/gnoland/users/v1"
 )
 
 const (
@@ -31,10 +30,8 @@ func init() {
 	// Make sure user account has the required amount of GNOT for open board actions
 	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})
 
-	// Register a username which is required to be able to add
-	// a reply and then create a new reply as a non member user.
+	// Create a new reply as a non member user
 	testing.SetRealm(testing.NewUserRealm(user))
-	users.Register(cross, "user123")
 	rid = boards2.CreateReply(cross, bid, tid, 0, "Comment")
 }
 

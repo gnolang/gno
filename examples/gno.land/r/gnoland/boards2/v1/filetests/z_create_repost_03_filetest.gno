@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/gnoland/boards"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
