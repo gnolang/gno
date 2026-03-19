@@ -7,7 +7,7 @@ var (
 )
 
 func main() {
-	tmpInt := &i // heapitem((3 int)) is dirty after this.
+	tmpInt := &i  // heapitem((3 int)) is dirty after this.
 	m[tmpInt] = 1 // m is also dirty.
 }
 
