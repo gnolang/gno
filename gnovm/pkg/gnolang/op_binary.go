@@ -357,7 +357,10 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		// If one is undefined, the other must be as well.
 		// Fields/items are set to defaultTypedValue along the way.
 		if lvu, rvu := l.IsUndefined(), r.IsUndefined(); lvu || rvu {
-			return lvu && rvu
+			if lvu != rvu {
+				return false
+			}
+			continue // both undefined → equal, proceed to next pair
 		}
 		if err := checkSame(l.T, r.T, ""); err != nil {
 			return false
