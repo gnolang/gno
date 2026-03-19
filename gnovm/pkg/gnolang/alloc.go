@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
