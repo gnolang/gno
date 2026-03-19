@@ -1399,7 +1399,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	bd := bdv.V
 	switch k {
 	case BigintKind:
-		if !isInteger(bd) {
+		if !isDecimalInteger(bd) {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
 				bd.String(),
@@ -1419,7 +1419,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 		fallthrough
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-		if !isInteger(bd) {
+		if !isDecimalInteger(bd) {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
 				bd.String(),
@@ -1464,7 +1464,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 // ----------------------------------------
 // apd.Decimal utility
 
-func isInteger(d *apd.Decimal) bool {
+func isDecimalInteger(d *apd.Decimal) bool {
 	d2 := apd.New(0, 0)
 	res, err := apd.BaseContext.RoundToIntegralExact(d2, d)
 	if err != nil {
@@ -1496,7 +1496,7 @@ func toBigInt(d *apd.Decimal) *big.Int {
 // underlying value has no fractional component.
 func IsExactBigDec(v Value) bool {
 	if bd, ok := v.(BigdecValue); ok {
-		return isInteger(bd.V)
+		return isDecimalInteger(bd.V)
 	}
 	return false
 }
