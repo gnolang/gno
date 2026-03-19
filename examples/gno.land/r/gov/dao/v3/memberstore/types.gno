@@ -96,7 +96,10 @@ func (mbt *MembersByTier) GetMember(addr address) (m *Member, t string) {
 	ms, _ := mbt.Get(t)
 	mst := ms.(*avl.Tree)
 
-	mv, _ := mst.Get(string(addr))
+	mv, ok := mst.Get(string(addr))
+	if !ok {
+		panic("inconsistent state: address exists in reverse index but not in tier " + t)
+	}
 	m = mv.(*Member)
 
 	return
@@ -112,7 +115,9 @@ func (mbt *MembersByTier) RemoveMember(addr address) (t string) {
 	t = tv.(string)
 	ms, _ := mbt.Get(t)
 	mst := ms.(*avl.Tree)
-	mst.Remove(string(addr))
+	if _, removed := mst.Remove(string(addr)); !removed {
+		panic("inconsistent state: address exists in reverse index but not in tier " + t)
+	}
 	mbt.addrToTier.Remove(string(addr))
 
 	return
