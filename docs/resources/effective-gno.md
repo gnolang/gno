@@ -683,11 +683,17 @@ users.Iterate("bob", "charlie", func(name string, value any) bool {
 })
 
 // Get a specific user (O(log n))
-value, exists := users.Get("alice")
-if !exists {
+// Get returns nil if the key does not exist
+value := users.Get("alice")
+if value == nil {
 	return nil
 }
 return value.(*User)
+
+// Check if a key exists without retrieving the value
+if users.Has("alice") {
+	// key exists
+}
 
 // Multi-index example - search the same data in different ways
 var (
