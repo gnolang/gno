@@ -8,12 +8,7 @@
 #   ./unrestrict-account.sh g1abc...123
 #   ./unrestrict-account.sh g1abc...123 g1def...456
 #
-# Environment:
-#   GNOKEY_NAME   - gnokey key name (default: aeddi)
-#   CHAIN_ID      - chain ID (default: test12)
-#   REMOTE        - RPC endpoint (default: https://rpc.betanet.testnets.gno.land:443)
-#   GAS_WANTED    - gas limit (default: 50000000)
-#   GAS_FEE       - gas fee (default: 1000000ugnot)
+# Environment: see env file. Override inline: VAR=value ./script.sh
 set -eo pipefail
 
 if [ $# -eq 0 ]; then
@@ -21,11 +16,8 @@ if [ $# -eq 0 ]; then
   exit 1
 fi
 
-GNOKEY_NAME="${GNOKEY_NAME:-aeddi}"
-CHAIN_ID="${CHAIN_ID:-test12}"
-REMOTE="${REMOTE:-https://rpc.betanet.testnets.gno.land:443}"
-GAS_WANTED="${GAS_WANTED:-50000000}"
-GAS_FEE="${GAS_FEE:-1000000ugnot}"
+# shellcheck source=env
+source "$(dirname "$0")/env"
 
 # Build address list for the Gno code.
 ADDR_ARGS=""

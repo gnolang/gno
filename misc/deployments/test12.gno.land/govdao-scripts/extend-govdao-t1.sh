@@ -5,19 +5,11 @@
 # Usage:
 #   ./extend-govdao-t1.sh
 #
-# Environment:
-#   GNOKEY_NAME   - gnokey key name (default: aeddi)
-#   CHAIN_ID      - chain ID (default: test12)
-#   REMOTE        - RPC endpoint (default: https://rpc.betanet.testnets.gno.land:443)
-#   GAS_WANTED    - gas limit (default: 50000000)
-#   GAS_FEE       - gas fee (default: 1000000ugnot)
+# Environment: see env file. Override inline: VAR=value ./script.sh
 set -eo pipefail
 
-GNOKEY_NAME="${GNOKEY_NAME:-aeddi}"
-CHAIN_ID="${CHAIN_ID:-test12}"
-REMOTE="${REMOTE:-https://rpc.betanet.testnets.gno.land:443}"
-GAS_WANTED="${GAS_WANTED:-50000000}"
-GAS_FEE="${GAS_FEE:-1000000ugnot}"
+# shellcheck source=env
+source "$(dirname "$0")/env"
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
