@@ -1,7 +1,6 @@
 package autofile
 
 import (
-	"errors"
 	"io"
 	"os"
 	"testing"
@@ -9,33 +8,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
-func createTestGroupWithHeadSizeLimit(t *testing.T, headSizeLimit int64) *Group {
+func createTestGroupWithOptions(t *testing.T, opts ...func(*Group)) *Group {
 	t.Helper()
 
-	testID := random.RandStr(12)
-	testDir := "_test_" + testID
-	err := osm.EnsureDir(testDir, 0o700)
-	require.NoError(t, err, "Error creating dir")
-
+	testDir := t.TempDir()
 	headPath := testDir + "/myfile"
-	g, err := OpenGroup(headPath, GroupHeadSizeLimit(headSizeLimit))
+	g, err := OpenGroup(headPath, opts...)
 	require.NoError(t, err, "Error opening Group")
-	require.NotEqual(t, nil, g, "Failed to create Group")
+	require.NotNil(t, g, "Failed to create Group")
 
 	return g
-}
-
-func destroyTestGroup(t *testing.T, g *Group) {
-	t.Helper()
-
-	g.Close()
-
-	err := os.RemoveAll(g.Dir)
-	require.NoError(t, err, "Error removing test Group directory")
 }
 
 func assertGroupInfo(t *testing.T, gInfo GroupInfo, minIndex, maxIndex int, totalSize, headSize int64) {
@@ -50,7 +35,8 @@ func assertGroupInfo(t *testing.T, gInfo GroupInfo, minIndex, maxIndex int, tota
 func TestCheckHeadSizeLimit(t *testing.T) {
 	t.Parallel()
 
-	g := createTestGroupWithHeadSizeLimit(t, 1000*1000)
+	g := createTestGroupWithOptions(t, GroupHeadSizeLimit(1000*1000))
+	defer g.Close()
 
 	// At first, there are no files.
 	assertGroupInfo(t, g.ReadGroupInfo(), 0, 0, 0, 0)
@@ -90,15 +76,14 @@ func TestCheckHeadSizeLimit(t *testing.T) {
 	require.NoError(t, err, "Error appending to head")
 	g.FlushAndSync()
 	assertGroupInfo(t, g.ReadGroupInfo(), 0, 2, 2001000, 1000)
-
-	// Cleanup
-	destroyTestGroup(t, g)
 }
 
 func TestRotateFile(t *testing.T) {
 	t.Parallel()
 
-	g := createTestGroupWithHeadSizeLimit(t, 0)
+	g := createTestGroupWithOptions(t, GroupHeadSizeLimit(0))
+	defer g.Close()
+
 	g.WriteLine("Line 1")
 	g.WriteLine("Line 2")
 	g.WriteLine("Line 3")
@@ -122,15 +107,13 @@ func TestRotateFile(t *testing.T) {
 	if string(body2) != "Line 4\nLine 5\nLine 6\n" {
 		t.Errorf("Got unexpected contents: [%v]", string(body2))
 	}
-
-	// Cleanup
-	destroyTestGroup(t, g)
 }
 
 func TestWrite(t *testing.T) {
 	t.Parallel()
 
-	g := createTestGroupWithHeadSizeLimit(t, 0)
+	g := createTestGroupWithOptions(t, GroupHeadSizeLimit(0))
+	defer g.Close()
 
 	written := []byte("Medusa")
 	g.Write(written)
@@ -143,9 +126,6 @@ func TestWrite(t *testing.T) {
 	_, err = gr.Read(read)
 	assert.NoError(t, err, "failed to read data")
 	assert.Equal(t, written, read)
-
-	// Cleanup
-	destroyTestGroup(t, g)
 }
 
 // test that Read reads the required amount of bytes from all the files in the
@@ -153,7 +133,8 @@ func TestWrite(t *testing.T) {
 func TestGroupReaderRead(t *testing.T) {
 	t.Parallel()
 
-	g := createTestGroupWithHeadSizeLimit(t, 0)
+	g := createTestGroupWithOptions(t, GroupHeadSizeLimit(0))
+	defer g.Close()
 
 	professor := []byte("Professor Monster")
 	g.Write(professor)
@@ -174,9 +155,6 @@ func TestGroupReaderRead(t *testing.T) {
 	professorPlusFrankenstein := professor
 	professorPlusFrankenstein = append(professorPlusFrankenstein, frankenstein...)
 	assert.Equal(t, professorPlusFrankenstein, read)
-
-	// Cleanup
-	destroyTestGroup(t, g)
 }
 
 // test that Read returns an error if number of bytes read < size of
@@ -184,7 +162,8 @@ func TestGroupReaderRead(t *testing.T) {
 func TestGroupReaderRead2(t *testing.T) {
 	t.Parallel()
 
-	g := createTestGroupWithHeadSizeLimit(t, 0)
+	g := createTestGroupWithOptions(t, GroupHeadSizeLimit(0))
+	defer g.Close()
 
 	professor := []byte("Professor Monster")
 	g.Write(professor)
@@ -209,26 +188,22 @@ func TestGroupReaderRead2(t *testing.T) {
 	n, err = gr.Read([]byte("0"))
 	assert.Equal(t, io.EOF, err)
 	assert.Equal(t, 0, n)
-
-	// Cleanup
-	destroyTestGroup(t, g)
 }
 
 func TestMinIndex(t *testing.T) {
 	t.Parallel()
 
-	g := createTestGroupWithHeadSizeLimit(t, 0)
+	g := createTestGroupWithOptions(t, GroupHeadSizeLimit(0))
+	defer g.Close()
 
 	assert.Zero(t, g.MinIndex(), "MinIndex should be zero at the beginning")
-
-	// Cleanup
-	destroyTestGroup(t, g)
 }
 
 func TestMaxIndex(t *testing.T) {
 	t.Parallel()
 
-	g := createTestGroupWithHeadSizeLimit(t, 0)
+	g := createTestGroupWithOptions(t, GroupHeadSizeLimit(0))
+	defer g.Close()
 
 	assert.Zero(t, g.MaxIndex(), "MaxIndex should be zero at the beginning")
 
@@ -237,21 +212,6 @@ func TestMaxIndex(t *testing.T) {
 	g.RotateFile()
 
 	assert.Equal(t, 1, g.MaxIndex(), "MaxIndex should point to the last file")
-
-	// Cleanup
-	destroyTestGroup(t, g)
-}
-
-func createTestGroupWithOptions(t *testing.T, opts ...func(*Group)) *Group {
-	t.Helper()
-
-	testDir := t.TempDir()
-	headPath := testDir + "/myfile"
-	g, err := OpenGroup(headPath, opts...)
-	require.NoError(t, err, "Error opening Group")
-	require.NotNil(t, g, "Failed to create Group")
-
-	return g
 }
 
 func TestHaltedGroupRejectsWrite(t *testing.T) {
@@ -272,14 +232,12 @@ func TestHaltedGroupRejectsWrite(t *testing.T) {
 	// Write should fail with ErrDiskSpaceUnavailable.
 	_, err := g.Write([]byte("hello"))
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, ErrDiskSpaceUnavailable),
-		"expected ErrDiskSpaceUnavailable, got: %v", err)
+	assert.ErrorIs(t, err, ErrDiskSpaceUnavailable)
 
 	// WriteLine should also fail.
 	err = g.WriteLine("hello")
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, ErrDiskSpaceUnavailable),
-		"expected ErrDiskSpaceUnavailable, got: %v", err)
+	assert.ErrorIs(t, err, ErrDiskSpaceUnavailable)
 }
 
 func TestHaltedReturnsTrueAfterHalt(t *testing.T) {
@@ -410,15 +368,15 @@ func TestAutoRecoveryWhenSpaceFreed(t *testing.T) {
 func TestWriteCountThrottling(t *testing.T) {
 	t.Parallel()
 
-	// The check interval is defaultDiskSpaceCheckInterval (a constant).
+	// The check interval is diskSpaceCheckInterval (a constant).
 	// With a tiny limit the check always passes.
 	g := createTestGroupWithOptions(t,
 		GroupMinDiskSpaceLimit(1),
 	)
 	defer g.Close()
 
-	// Write defaultDiskSpaceCheckInterval+1 times — all should succeed.
-	for i := range defaultDiskSpaceCheckInterval + 1 {
+	// Write diskSpaceCheckInterval+1 times — all should succeed.
+	for i := range diskSpaceCheckInterval + 1 {
 		_, err := g.Write([]byte("data"))
 		require.NoError(t, err, "write %d should succeed", i)
 	}
@@ -427,7 +385,7 @@ func TestWriteCountThrottling(t *testing.T) {
 	counter := g.writesSinceLastCheck
 	g.mtx.Unlock()
 
-	// After defaultDiskSpaceCheckInterval+1 writes: the first N writes
+	// After diskSpaceCheckInterval+1 writes: the first N writes
 	// increment the counter to N, then the (N+1)th write triggers a check
 	// (resetting to 0) and increments to 1.
 	assert.Equal(t, 1, counter,

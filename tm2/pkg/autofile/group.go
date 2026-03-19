@@ -30,9 +30,9 @@ const (
 	// to determine when to start emitting warnings. When available space drops
 	// below minDiskSpaceLimit * diskSpaceWarningThreshold, warnings are logged.
 	diskSpaceWarningThreshold = 4
-	// defaultDiskSpaceCheckInterval is the number of write operations between
+	// diskSpaceCheckInterval is the number of write operations between
 	// consecutive disk space checks. This avoids calling statfs on every write.
-	defaultDiskSpaceCheckInterval = 100
+	diskSpaceCheckInterval = 100
 )
 
 // ErrDiskSpaceUnavailable is returned when writing cannot proceed because
@@ -234,15 +234,31 @@ func (g *Group) HeadSize() int64 {
 // error explaining why the write is short.
 // NOTE: Writes are buffered so they don't write synchronously
 // Write halts (returns ErrDiskSpaceUnavailable) if disk space is unavailable.
-func (g *Group) Write(p []byte) (nn int, err error) {
+func (g *Group) Write(p []byte) (int, error) {
 	g.mtx.Lock()
 	defer g.mtx.Unlock()
+	return g.writeBytes(p)
+}
 
+// WriteLine writes line into the current head of the group. It also appends "\n".
+// NOTE: Writes are buffered so they don't write synchronously
+// WriteLine halts (returns ErrDiskSpaceUnavailable) if disk space is unavailable.
+func (g *Group) WriteLine(line string) error {
+	g.mtx.Lock()
+	defer g.mtx.Unlock()
+	_, err := g.writeBytes([]byte(line + "\n"))
+	return err
+}
+
+// writeBytes performs the common write logic: disk space check, buffered write,
+// ENOSPC handling, size tracking, and rotation.
+// CONTRACT: caller must hold g.mtx.
+func (g *Group) writeBytes(p []byte) (int, error) {
 	if err := g.checkDiskSpace(); err != nil {
 		return 0, err
 	}
 
-	nn, err = g.headBuf.Write(p)
+	nn, err := g.headBuf.Write(p)
 	if err != nil {
 		if isErrNoSpace(err) {
 			g.halt()
@@ -259,38 +275,7 @@ func (g *Group) Write(p []byte) (nn int, err error) {
 	if 0 < g.headSizeLimit && g.headSizeLimit <= g.info.HeadSize {
 		g.rotateFile()
 	}
-	return
-}
-
-// WriteLine writes line into the current head of the group. It also appends "\n".
-// NOTE: Writes are buffered so they don't write synchronously
-// WriteLine halts (returns ErrDiskSpaceUnavailable) if disk space is unavailable.
-func (g *Group) WriteLine(line string) error {
-	g.mtx.Lock()
-	defer g.mtx.Unlock()
-
-	if err := g.checkDiskSpace(); err != nil {
-		return err
-	}
-
-	nn, err := g.headBuf.Write([]byte(line + "\n"))
-	if err != nil {
-		if isErrNoSpace(err) {
-			g.halt()
-			return fmt.Errorf("%w: %w", ErrDiskSpaceUnavailable, err)
-		}
-		return err
-	}
-
-	// Update limits
-	g.info.TotalSize += int64(nn)
-	g.info.HeadSize += int64(nn)
-
-	// Maybe rotate
-	if 0 < g.headSizeLimit && g.headSizeLimit <= g.info.HeadSize {
-		g.rotateFile()
-	}
-	return nil
+	return nn, nil
 }
 
 // Buffered returns the size of the currently buffered data.
@@ -327,7 +312,7 @@ func (g *Group) checkDiskSpace() error {
 	// Otherwise, only check every diskSpaceCheckInterval writes.
 	if !g.halted {
 		g.writesSinceLastCheck++
-		if g.writesSinceLastCheck < defaultDiskSpaceCheckInterval {
+		if g.writesSinceLastCheck < diskSpaceCheckInterval {
 			return nil
 		}
 	}
@@ -340,7 +325,7 @@ func (g *Group) checkDiskSpace() error {
 		g.Logger.Error("failed to check available disk space", "err", err)
 		return nil
 	}
-	// Negative sentinel (-1) from stubs means "unsupported"; skip checks.
+	// Max-uint64 sentinel from stubs means "unsupported"; skip checks.
 	if avail == diskSpaceUnsupported {
 		return nil
 	}
@@ -367,7 +352,7 @@ func (g *Group) checkDiskSpace() error {
 
 	warningThreshold := limit * diskSpaceWarningThreshold
 	if avail < warningThreshold {
-		g.Logger.Error(
+		g.Logger.Warn(
 			"disk space is running low",
 			"available", avail,
 			"warning_threshold", warningThreshold,
