@@ -594,8 +594,8 @@ func internalRefSize(val Value) int64 {
 	// do nothing
 	default:
 		panic(fmt.Sprintf(
-			"unexpected type %v",
-			reflect.TypeOf(val)))
+			"unexpected type %T",
+			val))
 	}
 	return size
 }
