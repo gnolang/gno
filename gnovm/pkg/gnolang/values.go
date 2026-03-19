@@ -1617,7 +1617,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			}
 		}
 	case FieldType:
-		panic("field (pseudo)type cannot be used as map key")
+		panic("runtime error: field (pseudo)type cannot be used as map key")
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
@@ -1644,7 +1644,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		}
 		bz = append(bz, ']')
 	case *SliceType:
-		panic("slice type cannot be used as map key")
+		panic("runtime error: slice type cannot be used as map key")
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
@@ -1664,7 +1664,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		}
 		bz = append(bz, '}')
 	case *ChanType:
-		panic("not yet implemented")
+		panic("runtime error: not yet implemented")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected map key type %s",
