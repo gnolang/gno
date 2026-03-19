@@ -118,15 +118,6 @@ func isNumeric(t Type) bool {
 	}
 }
 
-func isInteger(t Type) bool {
-	switch t := baseOf(t).(type) {
-	case PrimitiveType:
-		return t.category()&IsInteger != 0
-	default:
-		return false
-	}
-}
-
 func isNumericOrString(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
