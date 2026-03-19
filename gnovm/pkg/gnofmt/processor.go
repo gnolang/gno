@@ -2,6 +2,7 @@ package gnofmt
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -91,15 +92,18 @@ func (p *Processor) FormatFile(file string) ([]byte, error) {
 		var err error
 		pkg, err = ParsePackage(p.fset, "", dir)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse package %q: %w", dir, err)
+			if errors.Is(err, ErrPackageConflict) {
+				pkg = nil // fall back to per-file formatting
+			} else {
+				return nil, fmt.Errorf("unable to parse package %q: %w", dir, err)
+			}
 		}
 		p.pkgdirCache[dir] = pkg
 	}
 
 	if pkg == nil {
-		fmt.Printf("-> parsing file: %q, %q\n", file, filename)
-		// Fallback on src
-		return p.FormatImportFromSource(filename, nil)
+		// Fallback on per-file formatting with import resolution
+		return p.FormatImportFromSource(file, nil)
 	}
 
 	path := pkg.Path()

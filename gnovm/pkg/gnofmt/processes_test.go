@@ -94,3 +94,41 @@ func main() {
 
 	require.Equal(t, expectedOutput, string(formatted))
 }
+
+func TestFormatFileConflictingPackages(t *testing.T) {
+	t.Parallel()
+
+	mockResolver := newMockResolver()
+	processor := NewProcessor(mockResolver)
+
+	// Create a temp dir with two .gno files having different package names,
+	// simulating a filetest directory like gnovm/tests/files/.
+	dir := t.TempDir()
+
+	file1 := `package main
+
+func main() {
+	println("hello")
+}
+`
+	file2 := `package other
+
+func Foo() string {
+	return "foo"
+}
+`
+	err := os.WriteFile(filepath.Join(dir, "file1.gno"), []byte(file1), 0o644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(dir, "file2.gno"), []byte(file2), 0o644)
+	require.NoError(t, err)
+
+	// FormatFile should succeed despite conflicting package names,
+	// falling back to per-file formatting.
+	formatted, err := processor.FormatFile(filepath.Join(dir, "file1.gno"))
+	require.NoError(t, err)
+	require.Equal(t, file1, string(formatted))
+
+	formatted, err = processor.FormatFile(filepath.Join(dir, "file2.gno"))
+	require.NoError(t, err)
+	require.Equal(t, file2, string(formatted))
+}
