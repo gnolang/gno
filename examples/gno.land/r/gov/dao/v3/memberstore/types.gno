@@ -28,21 +28,20 @@ func (m *Member) RemoveInvitationPoint() {
 
 // MembersByTier contains all `Member`s indexed by their Address.
 type MembersByTier struct {
-	*avl.Tree // tier name -> address -> member
+	*avl.Tree            // tier name -> address -> member
+	addrToTier *avl.Tree // address -> tier name (reverse index)
 }
 
-func NewMembersByTier() MembersByTier {
-	return MembersByTier{Tree: avl.NewTree()}
+func NewMembersByTier() *MembersByTier {
+	return &MembersByTier{Tree: avl.NewTree(), addrToTier: avl.NewTree()}
 }
 
-func (mbt MembersByTier) DeleteAll() {
-	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
-		mbt.Remove(tn)
-		return false
-	})
+func (mbt *MembersByTier) DeleteAll() {
+	mbt.Tree = avl.NewTree()
+	mbt.addrToTier = avl.NewTree()
 }
 
-func (mbt MembersByTier) SetTier(tier string) error {
+func (mbt *MembersByTier) SetTier(tier string) error {
 	if ok := mbt.Has(tier); ok {
 		return errors.New("tier already exist: " + tier)
 	}
@@ -53,7 +52,7 @@ func (mbt MembersByTier) SetTier(tier string) error {
 }
 
 // GetTierSize tries to get how many members are on the specified tier. If the tier does not exists, it returns 0.
-func (mbt MembersByTier) GetTierSize(tn string) int {
+func (mbt *MembersByTier) GetTierSize(tn string) int {
 	tv, ok := mbt.Get(tn)
 	if !ok {
 		return 0
@@ -67,72 +66,65 @@ func (mbt MembersByTier) GetTierSize(tn string) int {
 	return tree.Size()
 }
 
-// SetMember adds a new member to the specified tier. The tier index is created on the fly if it does not exists.
-func (mbt MembersByTier) SetMember(tier string, addr address, member *Member) error {
-	_, t := mbt.GetMember(addr)
-	if t != "" {
-		return &ErrMemberAlreadyExists{Tier: t}
-	}
-
+// SetMember adds a new member to the specified tier.
+func (mbt *MembersByTier) SetMember(tier string, addr address, member *Member) error {
 	if ok := mbt.Has(tier); !ok {
 		return errors.New("tier does not exist: " + tier)
+	}
+
+	if t, ok := mbt.addrToTier.Get(string(addr)); ok {
+		return &ErrMemberAlreadyExists{Tier: t.(string)}
 	}
 
 	ms, _ := mbt.Get(tier)
 	mst := ms.(*avl.Tree)
 
 	mst.Set(string(addr), member)
+	mbt.addrToTier.Set(string(addr), tier)
 
 	return nil
 }
 
-// GetMember iterate over all tiers to try to find a member by its address. The tier ID is also returned if the Member is found.
-func (mbt MembersByTier) GetMember(addr address) (m *Member, t string) {
-	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
-		mst, ok := msv.(*avl.Tree)
-		if !ok {
-			panic("MembersByTier values can only be avl.Tree")
-		}
+// GetMember finds a member by its address using the reverse index. The tier ID is also returned if the Member is found.
+func (mbt *MembersByTier) GetMember(addr address) (m *Member, t string) {
+	tv, ok := mbt.addrToTier.Get(string(addr))
+	if !ok {
+		return nil, ""
+	}
 
-		mv, ok := mst.Get(string(addr))
-		if !ok {
-			return false
-		}
+	t = tv.(string)
+	ms, _ := mbt.Get(t)
+	mst := ms.(*avl.Tree)
 
-		mm, ok := mv.(*Member)
-		if !ok {
-			panic("MembersByTier values can only be *Member")
-		}
-
-		m = mm
-		t = tn
-
-		return true
-	})
+	mv, ok := mst.Get(string(addr))
+	if !ok {
+		panic("inconsistent state: address exists in reverse index but not in tier " + t)
+	}
+	m = mv.(*Member)
 
 	return
 }
 
 // RemoveMember removes a member from any tier
-func (mbt MembersByTier) RemoveMember(addr address) (t string) {
-	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
-		mst, ok := msv.(*avl.Tree)
-		if !ok {
-			panic("MembersByTier values can only be avl.Tree")
-		}
+func (mbt *MembersByTier) RemoveMember(addr address) (t string) {
+	tv, ok := mbt.addrToTier.Get(string(addr))
+	if !ok {
+		return ""
+	}
 
-		_, removed := mst.Remove(string(addr))
-		if removed {
-			t = tn
-		}
-		return removed
-	})
+	t = tv.(string)
+	ms, _ := mbt.Get(t)
+	mst := ms.(*avl.Tree)
+	if _, removed := mst.Remove(string(addr)); !removed {
+		panic("inconsistent state: address exists in reverse index but not in tier " + t)
+	}
+	mbt.addrToTier.Remove(string(addr))
 
 	return
 }
 
 // GetTotalPower obtains the total voting power from all the specified tiers.
-func (mbt MembersByTier) GetTotalPower() float64 {
+func (mbt *MembersByTier) GetTotalPower() float64 {
 	var out float64
 	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
 		tier, ok := tiers.GetTier(tn)
@@ -157,13 +149,13 @@ type Tier struct {
 	InvitationPoints int
 
 	// MaxSize calculates the max amount of members expected to be on this tier.
-	MaxSize func(membersByTier MembersByTier, tiersByName TiersByName) int
+	MaxSize func(membersByTier *MembersByTier, tiersByName TiersByName) int
 
 	// MinSize calculates the min amount of members expected to be on this tier.
-	MinSize func(membersByTier MembersByTier, tiersByName TiersByName) int
+	MinSize func(membersByTier *MembersByTier, tiersByName TiersByName) int
 
 	// PowerHandler calculates what is the final power of this tier after taking into account Members by other tiers.
-	PowerHandler func(membersByTier MembersByTier, tiersByName TiersByName) float64
+	PowerHandler func(membersByTier *MembersByTier, tiersByName TiersByName) float64
 }
 
 // TiersByName contains all tier objects indexed by its name.

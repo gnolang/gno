@@ -13,7 +13,7 @@ import (
 )
 
 // RenderMembers returns the members list with tier filters and pagination.
-func RenderMembers(path string, members MembersByTier) string {
+func RenderMembers(path string, members *MembersByTier) string {
 	u, _ := url.Parse(path)
 	mdFilters, items := urlfilter.ApplyFilters(u, members.Tree, "filter")
 	var sb strings.Builder

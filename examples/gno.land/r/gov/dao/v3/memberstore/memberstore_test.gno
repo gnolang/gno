@@ -112,7 +112,59 @@ func TestCreateMembers(t *testing.T) {
 	urequire.Equal(t, "T1", tier)
 }
 
-func addMembers(ms MembersByTier, c int, tier string) {
+func TestSetMemberDuplicate(t *testing.T) {
+	ms := NewMembersByTier()
+	ms.SetTier(T1)
+	ms.SetTier(T2)
+
+	addr := address("alice")
+	err := ms.SetMember(T1, addr, &Member{})
+	urequire.Equal(t, true, err == nil)
+
+	// Same address on same tier
+	err = ms.SetMember(T1, addr, &Member{})
+	urequire.Equal(t, true, err != nil)
+
+	// Same address on different tier
+	err = ms.SetMember(T2, addr, &Member{})
+	urequire.Equal(t, true, err != nil)
+}
+
+func TestSetMemberInvalidTier(t *testing.T) {
+	ms := NewMembersByTier()
+	ms.SetTier(T1)
+
+	err := ms.SetMember("INVALID", address("alice"), &Member{})
+	urequire.Equal(t, true, err != nil)
+}
+
+func TestRemoveMemberReverseIndex(t *testing.T) {
+	ms := NewMembersByTier()
+	ms.SetTier(T1)
+	ms.SetTier(T2)
+
+	addr := address("alice")
+	ms.SetMember(T1, addr, &Member{})
+
+	// Remove and verify lookup returns nothing
+	tier := ms.RemoveMember(addr)
+	urequire.Equal(t, T1, tier)
+
+	m, t2 := ms.GetMember(addr)
+	urequire.Equal(t, "", t2)
+	if m != nil {
+		t.Fatal("member should be nil after removal")
+	}
+
+	// Can re-add to a different tier after removal
+	err := ms.SetMember(T2, addr, &Member{})
+	urequire.Equal(t, true, err == nil)
+
+	_, t2 = ms.GetMember(addr)
+	urequire.Equal(t, T2, t2)
+}
+
+func addMembers(ms *MembersByTier, c int, tier string) {
 	// mt := avl.NewTree() XXX
 	ms.SetTier(tier)
 	for i := 0; i < c; i++ {

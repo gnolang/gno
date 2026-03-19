@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	members MembersByTier
+	members *MembersByTier
 	tiers   TiersByName // private to prevent external modification
 	router  *mux.Router
 )
@@ -30,28 +30,28 @@ func init() {
 	tiers = TiersByName{avl.NewTree()}
 	tiers.Set(T1, Tier{
 		InvitationPoints: 3,
-		MinSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
+		MinSize: func(membersByTier *MembersByTier, tiersByName TiersByName) int {
 			return 70
 		},
-		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
+		MaxSize: func(membersByTier *MembersByTier, tiersByName TiersByName) int {
 			return 0
 		},
 		BasePower: 3,
-		PowerHandler: func(membersByTier MembersByTier, tiersByName TiersByName) float64 {
+		PowerHandler: func(membersByTier *MembersByTier, tiersByName TiersByName) float64 {
 			return 3
 		},
 	})
 
 	tiers.Set(T2, Tier{
 		InvitationPoints: 2,
-		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
+		MaxSize: func(membersByTier *MembersByTier, tiersByName TiersByName) int {
 			return membersByTier.GetTierSize(T1) * 2
 		},
-		MinSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
+		MinSize: func(membersByTier *MembersByTier, tiersByName TiersByName) int {
 			return membersByTier.GetTierSize(T1) / 4
 		},
 		BasePower: 2,
-		PowerHandler: func(membersByTier MembersByTier, tiersByName TiersByName) float64 {
+		PowerHandler: func(membersByTier *MembersByTier, tiersByName TiersByName) float64 {
 			t1ms := float64(membersByTier.GetTierSize(T1))
 			t1, _ := tiersByName.GetTier(T1)
 			t2ms := float64(membersByTier.GetTierSize(T2))
@@ -72,14 +72,14 @@ func init() {
 
 	tiers.Set(T3, Tier{
 		InvitationPoints: 1,
-		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
+		MaxSize: func(membersByTier *MembersByTier, tiersByName TiersByName) int {
 			return 0
 		},
-		MinSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
+		MinSize: func(membersByTier *MembersByTier, tiersByName TiersByName) int {
 			return 0
 		},
 		BasePower: 1,
-		PowerHandler: func(membersByTier MembersByTier, tiersByName TiersByName) float64 {
+		PowerHandler: func(membersByTier *MembersByTier, tiersByName TiersByName) float64 {
 			t1ms := float64(membersByTier.GetTierSize(T1))
 			t1, _ := tiersByName.GetTier(T1)
 			t3ms := float64(membersByTier.GetTierSize(T3))
@@ -174,7 +174,7 @@ func Render(path string) string {
 }
 
 // Get gets the Members store
-func Get() MembersByTier {
+func Get() *MembersByTier {
 	currealm := runtime.CurrentRealm().PkgPath()
 	if !dao.InAllowedDAOs(currealm) {
 		panic("this Realm is not allowed to get the Members data: " + currealm)
@@ -209,7 +209,7 @@ func setTiers(newTiers TiersByName) {
 
 // GetTierPower calculates the effective voting power for a tier given the current members.
 // This is a safe accessor that uses the internal tiers configuration.
-func GetTierPower(tierName string, members MembersByTier) float64 {
+func GetTierPower(tierName string, members *MembersByTier) float64 {
 	tier, ok := tiers.GetTier(tierName)
 	if !ok {
 		return 0
