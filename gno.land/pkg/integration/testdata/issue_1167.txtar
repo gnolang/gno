@@ -83,10 +83,10 @@ func New(cur realm, s string) string {
 
 func Delta(cur realm, s string) string {
 	v := games.Get(s)
-	if v == nil {
+	g, ok := v.(*Game)
+	if !ok {
 		panic("invalid game")
 	}
-	g := v.(*Game)
 	n := g.Position.update()
 	g.Position = n
 	ret := values(n)
@@ -95,10 +95,10 @@ func Delta(cur realm, s string) string {
 
 func Render(s string) string {
 	v := games.Get(s)
-	if v == nil {
+	g, ok := v.(*Game)
+	if !ok {
 		panic("invalid game")
 	}
-	g := v.(*Game)
 	return values(g.Position)
 }
 
