@@ -185,7 +185,7 @@ func TestStaticHeaderDevLinks_WithRealmMode(t *testing.T) {
 	}
 
 	// Test realm mode (default case)
-	links := StaticHeaderDevLinks(u, ViewModeRealm)
+	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
 	assert.Len(t, links, 3, "expected Content, Source, and Actions links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
@@ -200,10 +200,22 @@ func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
 	}
 
 	// Test package mode
-	links := StaticHeaderDevLinks(u, ViewModePackage)
+	links := StaticHeaderDevLinks(u, ViewModePackage, false)
 	assert.Len(t, links, 2, "expected Content and Source links only")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
+}
+
+func TestStaticHeaderDevLinks_StaticContent(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path: "/r/test/pkg",
+	}
+
+	links := StaticHeaderDevLinks(u, ViewModeRealm, true)
+	require.Len(t, links, 1, "static content should only have Content link")
+	assert.Equal(t, "Content", links[0].Label)
 }
 
 func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
@@ -214,7 +226,7 @@ func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
 	}
 
 	// Test explorer mode
-	links := StaticHeaderDevLinks(u, ViewModeExplorer)
+	links := StaticHeaderDevLinks(u, ViewModeExplorer, false)
 	assert.Empty(t, links, "expected no links in explorer mode")
 }
 
