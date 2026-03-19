@@ -1558,6 +1558,11 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 	}
 }
 
+// maxComputeMapKeyDepth is the maximum nesting depth for ComputeMapKey.
+// 10 000 levels is far above any legitimate use case and well below the
+// Go goroutine stack limit.
+const maxComputeMapKeyDepth = 10000
+
 // ComputeMapKey returns the value of tv, encoded as a string for usage inside
 // of a map.
 //
@@ -1565,6 +1570,13 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 // array or struct) are NaN's; this would make the same tv != to itself, and
 // so shouldn't be included within a vmap.
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isNaN bool) {
+	return tv.computeMapKey(store, omitType, 0)
+}
+
+func (tv *TypedValue) computeMapKey(store Store, omitType bool, depth int) (key MapKey, isNaN bool) {
+	if depth > maxComputeMapKeyDepth {
+		panic("map key nesting depth limit exceeded")
+	}
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -1626,7 +1638,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := range al {
 				ev := fillValueTV(store, &av.List[i])
-				mk, isNaN := ev.ComputeMapKey(store, omitTypes)
+				mk, isNaN := ev.computeMapKey(store, omitTypes, depth+1)
 				if isNaN {
 					return "", true
 				}
@@ -1649,7 +1661,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		for i := range sl {
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
-			mk, isNaN := fv.ComputeMapKey(store, omitTypes)
+			mk, isNaN := fv.computeMapKey(store, omitTypes, depth+1)
 			if isNaN {
 				return "", true
 			}

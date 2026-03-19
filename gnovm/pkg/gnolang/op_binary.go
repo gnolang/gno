@@ -342,140 +342,189 @@ func (m *Machine) doOpBandn() {
 
 // TODO: can be much faster.
 func isEql(store Store, lv, rv *TypedValue) bool {
-	// If one is undefined, the other must be as well.
-	// Fields/items are set to defaultTypedValue along the way.
-	lvu := lv.IsUndefined()
-	rvu := rv.IsUndefined()
-	if lvu {
-		return rvu
-	} else if rvu {
-		return false
-	}
-	if err := checkSame(lv.T, rv.T, ""); err != nil {
-		return false
-	}
-	switch lv.T.Kind() {
-	case BoolKind:
-		return (lv.GetBool() == rv.GetBool())
-	case StringKind:
-		return (lv.GetString() == rv.GetString())
-	case IntKind:
-		return (lv.GetInt() == rv.GetInt())
-	case Int8Kind:
-		return (lv.GetInt8() == rv.GetInt8())
-	case Int16Kind:
-		return (lv.GetInt16() == rv.GetInt16())
-	case Int32Kind:
-		return (lv.GetInt32() == rv.GetInt32())
-	case Int64Kind:
-		return (lv.GetInt64() == rv.GetInt64())
-	case UintKind:
-		return (lv.GetUint() == rv.GetUint())
-	case Uint8Kind:
-		return (lv.GetUint8() == rv.GetUint8())
-	case Uint16Kind:
-		return (lv.GetUint16() == rv.GetUint16())
-	case Uint32Kind:
-		return (lv.GetUint32() == rv.GetUint32())
-	case Uint64Kind:
-		return (lv.GetUint64() == rv.GetUint64())
-	case Float32Kind:
-		return softfloat.Feq32(lv.GetFloat32(), rv.GetFloat32())
-	case Float64Kind:
-		return softfloat.Feq64(lv.GetFloat64(), rv.GetFloat64())
-	case BigintKind:
-		lb := lv.V.(BigintValue).V
-		rb := rv.V.(BigintValue).V
-		return lb.Cmp(rb) == 0
-	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) == 0
-	case ArrayKind:
-		la := lv.V.(*ArrayValue)
-		ra := rv.V.(*ArrayValue)
-		at := baseOf(lv.T).(*ArrayType)
-		et := at.Elt
-		if debug {
-			if la.GetLength() != ra.GetLength() {
-				panic("comparison on arrays of unequal length")
-			}
-			rat := baseOf(lv.T).(*ArrayType)
-			if at.TypeID() != rat.TypeID() {
-				panic("comparison on arrays of unequal type")
-			}
+	// pair holds two TypedValues to compare. Using value copies (not pointers)
+	// keeps stack entries independent across iterations.
+	type pair struct{ l, r TypedValue }
+	stack := make([]pair, 0, 8)
+	stack = append(stack, pair{*lv, *rv})
+
+	for len(stack) > 0 {
+		n := len(stack) - 1
+		p := stack[n]
+		stack = stack[:n]
+		l, r := &p.l, &p.r
+
+		// If one is undefined, the other must be as well.
+		// Fields/items are set to defaultTypedValue along the way.
+		if lvu, rvu := l.IsUndefined(), r.IsUndefined(); lvu || rvu {
+			return lvu && rvu
 		}
-		for i := range la.GetLength() {
-			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
-			ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()
-			if !isEql(store, &li, &ri) {
-				return false
-			}
-		}
-		return true
-	case StructKind:
-		ls := lv.V.(*StructValue)
-		rs := rv.V.(*StructValue)
-		if debug {
-			lt := baseOf(lv.T).(*StructType)
-			rt := baseOf(rv.T).(*StructType)
-			if lt.TypeID() != rt.TypeID() {
-				panic("comparison on structs of unequal types")
-			}
-			if len(ls.Fields) != len(rs.Fields) {
-				panic("comparison on structs of unequal size")
-			}
-		}
-		for i := range ls.Fields {
-			lf := ls.GetPointerToInt(store, i).Deref()
-			rf := rs.GetPointerToInt(store, i).Deref()
-			if !isEql(store, &lf, &rf) {
-				return false
-			}
-		}
-		return true
-	case MapKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("map can only be compared with `nil`")
-			}
-		}
-		return lv.V == rv.V
-	case SliceKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("slice can only be compared with `nil`")
-			}
-		}
-		return lv.V == rv.V
-	case FuncKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("function can only be compared with `nil`")
-			}
-		}
-		return lv.V == rv.V
-	case PointerKind:
-		if lv.T != rv.T &&
-			lv.T.Elem() != DataByteType &&
-			lv.T.TypeID() != rv.T.TypeID() {
+		if err := checkSame(l.T, r.T, ""); err != nil {
 			return false
 		}
-
-		if lv.V != nil && rv.V != nil {
-			lpv := lv.V.(PointerValue)
-			rpv := rv.V.(PointerValue)
-			if lpv.TV.T == DataByteType && rpv.TV.T == DataByteType {
-				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index
+		switch l.T.Kind() {
+		case BoolKind:
+			if l.GetBool() != r.GetBool() {
+				return false
 			}
+		case StringKind:
+			if l.GetString() != r.GetString() {
+				return false
+			}
+		case IntKind:
+			if l.GetInt() != r.GetInt() {
+				return false
+			}
+		case Int8Kind:
+			if l.GetInt8() != r.GetInt8() {
+				return false
+			}
+		case Int16Kind:
+			if l.GetInt16() != r.GetInt16() {
+				return false
+			}
+		case Int32Kind:
+			if l.GetInt32() != r.GetInt32() {
+				return false
+			}
+		case Int64Kind:
+			if l.GetInt64() != r.GetInt64() {
+				return false
+			}
+		case UintKind:
+			if l.GetUint() != r.GetUint() {
+				return false
+			}
+		case Uint8Kind:
+			if l.GetUint8() != r.GetUint8() {
+				return false
+			}
+		case Uint16Kind:
+			if l.GetUint16() != r.GetUint16() {
+				return false
+			}
+		case Uint32Kind:
+			if l.GetUint32() != r.GetUint32() {
+				return false
+			}
+		case Uint64Kind:
+			if l.GetUint64() != r.GetUint64() {
+				return false
+			}
+		case Float32Kind:
+			if !softfloat.Feq32(l.GetFloat32(), r.GetFloat32()) {
+				return false
+			}
+		case Float64Kind:
+			if !softfloat.Feq64(l.GetFloat64(), r.GetFloat64()) {
+				return false
+			}
+		case BigintKind:
+			lb := l.V.(BigintValue).V
+			rb := r.V.(BigintValue).V
+			if lb.Cmp(rb) != 0 {
+				return false
+			}
+		case BigdecKind:
+			lb := l.V.(BigdecValue).V
+			rb := r.V.(BigdecValue).V
+			if lb.Cmp(rb) != 0 {
+				return false
+			}
+		case ArrayKind:
+			la := l.V.(*ArrayValue)
+			ra := r.V.(*ArrayValue)
+			at := baseOf(l.T).(*ArrayType)
+			et := at.Elt
+			if debug {
+				if la.GetLength() != ra.GetLength() {
+					panic("comparison on arrays of unequal length")
+				}
+				rat := baseOf(l.T).(*ArrayType)
+				if at.TypeID() != rat.TypeID() {
+					panic("comparison on arrays of unequal type")
+				}
+			}
+			// Push in reverse order so element 0 is at the top of the stack
+			// (processed first) for early short-circuit on mismatch.
+			for i := la.GetLength() - 1; i >= 0; i-- {
+				li := la.GetPointerAtIndexInt2(store, i, et).Deref()
+				ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()
+				stack = append(stack, pair{li, ri})
+			}
+		case StructKind:
+			ls := l.V.(*StructValue)
+			rs := r.V.(*StructValue)
+			if debug {
+				lt := baseOf(l.T).(*StructType)
+				rt := baseOf(r.T).(*StructType)
+				if lt.TypeID() != rt.TypeID() {
+					panic("comparison on structs of unequal types")
+				}
+				if len(ls.Fields) != len(rs.Fields) {
+					panic("comparison on structs of unequal size")
+				}
+			}
+			// Push in reverse order so field 0 is processed first.
+			for i := len(ls.Fields) - 1; i >= 0; i-- {
+				lf := ls.GetPointerToInt(store, i).Deref()
+				rf := rs.GetPointerToInt(store, i).Deref()
+				stack = append(stack, pair{lf, rf})
+			}
+		case MapKind:
+			if debug {
+				if l.V != nil && r.V != nil {
+					panic("map can only be compared with `nil`")
+				}
+			}
+			if l.V != r.V {
+				return false
+			}
+		case SliceKind:
+			if debug {
+				if l.V != nil && r.V != nil {
+					panic("slice can only be compared with `nil`")
+				}
+			}
+			if l.V != r.V {
+				return false
+			}
+		case FuncKind:
+			if debug {
+				if l.V != nil && r.V != nil {
+					panic("function can only be compared with `nil`")
+				}
+			}
+			if l.V != r.V {
+				return false
+			}
+		case PointerKind:
+			if l.T != r.T &&
+				l.T.Elem() != DataByteType &&
+				l.T.TypeID() != r.T.TypeID() {
+				return false
+			}
+			if l.V != nil && r.V != nil {
+				lpv := l.V.(PointerValue)
+				rpv := r.V.(PointerValue)
+				if lpv.TV.T == DataByteType && rpv.TV.T == DataByteType {
+					if !(*(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index) {
+						return false
+					}
+				} else if l.V != r.V {
+					return false
+				}
+			} else if l.V != r.V {
+				return false
+			}
+		default:
+			panic(fmt.Sprintf(
+				"comparison operator == not defined for %s",
+				l.T.Kind(),
+			))
 		}
-		return lv.V == rv.V
-	default:
-		panic(fmt.Sprintf(
-			"comparison operator == not defined for %s",
-			lv.T.Kind(),
-		))
 	}
+	return true
 }
 
 // TODO: can be much faster.
