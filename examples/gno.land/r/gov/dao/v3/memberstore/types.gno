@@ -37,10 +37,7 @@ func NewMembersByTier() *MembersByTier {
 }
 
 func (mbt *MembersByTier) DeleteAll() {
-	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
-		mbt.Remove(tn)
-		return false
-	})
+	mbt.Tree = avl.NewTree()
 	mbt.addrToTier = avl.NewTree()
 }
 
