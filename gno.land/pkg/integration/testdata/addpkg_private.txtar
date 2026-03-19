@@ -394,7 +394,7 @@ func SaveClosure2ToPublicRealm(cur realm) {
 
 func SaveArrayOfSimpleFunctionsToPublicRealm(cur realm) {
     fn1 := func() string { 
-        data, _ := tree.Get("data")
+        data := tree.Get("data")
         return data.(string)
     }
     fn2 := func() string { return "hello" }
@@ -565,8 +565,8 @@ func SaveYourTree(cur realm, ptr *avl.Tree) {
 }
 
 func ReadYourTree(cur realm, ptr *avl.Tree) string {
-    data, exists := ptr.Get("data")
-    if !exists {
+    data := ptr.Get("data")
+    if data == nil {
         return ""
     }
     return data.(string)
