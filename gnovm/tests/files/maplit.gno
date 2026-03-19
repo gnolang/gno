@@ -3,8 +3,8 @@ package main
 import "fmt"
 
 func main() {
-    a := map[int]int{0: 10, 0: 20}
-    fmt.Println(a)
+	a := map[int]int{0: 10, 0: 20}
+	fmt.Println(a)
 }
 
 // Error:
