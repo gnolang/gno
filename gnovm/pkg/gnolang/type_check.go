@@ -1155,8 +1155,10 @@ func isBlankIdentifier(x Expr) bool {
 // This is used for map key validation and other comparability checks.
 func isComparable(dt Type) bool {
 	switch cdt := baseOf(dt).(type) {
-	case PrimitiveType, *PointerType, *InterfaceType, *ChanType:
+	case PrimitiveType, *PointerType, *InterfaceType:
 		return true
+	case *ChanType:
+		panic("channel type is not yet supported")
 	case *ArrayType:
 		return isComparable(cdt.Elt)
 	case *StructType:

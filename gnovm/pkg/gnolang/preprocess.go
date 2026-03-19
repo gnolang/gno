@@ -2156,9 +2156,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if !isComparable(cclt.Key) {
 						panic(fmt.Sprintf("invalid map key type %v", cclt.Key))
 					}
-					if _, ok := baseOf(cclt.Key).(*ChanType); ok {
-						panic("channel map keys are not yet supported")
-					}
 
 					// kset tracks seen const keys for duplicate detection.
 					// checkOrConvertType must be called before the check so that
