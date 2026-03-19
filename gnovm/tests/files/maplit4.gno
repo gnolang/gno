@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// main/maplit4.gno:7:10-43: duplicate key (0 int) in map literal
+// main/maplit4.gno:7:7-40: duplicate key (0 int) in map literal
 
 // TypeCheckError:
-// main/maplit4.gno:7:29: duplicate key 0 in map literal
+// main/maplit4.gno:7:26: duplicate key 0 in map literal

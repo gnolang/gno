@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// main/maplit5.gno:7:10-50: duplicate key (true bool) in map literal
+// main/maplit5.gno:7:7-47: duplicate key (true bool) in map literal
 
 // TypeCheckError:
-// main/maplit5.gno:7:33: duplicate key true in map literal
+// main/maplit5.gno:7:30: duplicate key true in map literal
