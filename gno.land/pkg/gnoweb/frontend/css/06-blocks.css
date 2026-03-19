@@ -31,7 +31,6 @@
 	@media (--md) {
 		font-size: var(--g-font-size-100);
 	}
-
 }
 
 a.b-banner:hover {
