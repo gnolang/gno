@@ -219,6 +219,9 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
+		if rlm != nil && pv.Base != nil {
+			rlm.DidUpdate(pv.Base.(Object), nil, nil)
+		}
 		return
 	}
 	// General case
