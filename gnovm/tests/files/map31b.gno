@@ -7,8 +7,8 @@ var (
 )
 
 func main() {
-	tmpInt := &i
-	m[tmpInt] = 1
+	tmpInt := &i  // heapitem((3 int)) is dirty after this.
+	m[tmpInt] = 1 // m is also dirty.
 }
 
 // Realm:
