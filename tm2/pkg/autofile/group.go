@@ -243,7 +243,7 @@ func (g *Group) WriteLine(line string) error {
 // ENOSPC handling, size tracking, and rotation.
 // CONTRACT: caller must hold g.mtx.
 func (g *Group) writeBytes(p []byte) (int, error) {
-	if err := g.checkDiskSpace(); err != nil {
+	if err := g.ensureDiskSpace(); err != nil {
 		return 0, err
 	}
 
@@ -286,13 +286,13 @@ func (g *Group) FlushAndSync() error {
 	return err
 }
 
-// checkDiskSpace checks available disk space before a write. The actual syscall
+// ensureDiskSpace checks available disk space before a write. The actual syscall
 // is throttled: it only runs every diskSpaceCheckInterval writes (and always
 // when the group is halted, to allow automatic recovery). It logs a warning
 // when space is running low and returns ErrDiskSpaceUnavailable when space has
 // fallen below minDiskSpaceLimit.
 // CONTRACT: caller must hold g.mtx.
-func (g *Group) checkDiskSpace() error {
+func (g *Group) ensureDiskSpace() error {
 	// When halted, always re-check to allow automatic recovery.
 	// Otherwise, only check every diskSpaceCheckInterval writes.
 	if !g.halted {
