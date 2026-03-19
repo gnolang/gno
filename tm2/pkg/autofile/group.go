@@ -23,9 +23,9 @@ const (
 	defaultTotalSizeLimit     = 1 * 1024 * 1024 * 1024 // 1GB
 	maxFilesToRemove          = 4                      // needs to be greater than 1
 
-	// defaultMinDiskSpaceLimit is the minimum available disk space (in bytes)
-	// before the Group halts writes. Default: 16MB.
-	defaultMinDiskSpaceLimit = 16 * 1024 * 1024
+	// minDiskSpaceLimit is the minimum available disk space (in bytes)
+	// before the Group halts writes (16 MB).
+	minDiskSpaceLimit = 16 * 1024 * 1024
 	// diskSpaceWarningThreshold is the multiplier applied to minDiskSpaceLimit
 	// to determine when to start emitting warnings. When available space drops
 	// below minDiskSpaceLimit * diskSpaceWarningThreshold, warnings are logged.
@@ -83,9 +83,8 @@ type Group struct {
 	mtx                  sync.Mutex
 	headSizeLimit        int64
 	totalSizeLimit       int64
-	minDiskSpaceLimit    int64 // minimum available disk space before halting
-	writesSinceLastCheck int   // write counter for throttling disk space checks
-	halted               bool  // set to true when disk space is unavailable
+	writesSinceLastCheck int  // write counter for throttling disk space checks
+	halted               bool // set to true when disk space is unavailable
 	info                 GroupInfo
 
 	// TODO: When we start deleting files, we need to start tracking GroupReaders
@@ -102,13 +101,12 @@ func OpenGroup(headPath string, groupOptions ...func(*Group)) (g *Group, err err
 	}
 
 	g = &Group{
-		ID:                "group:" + head.ID,
-		Head:              head,
-		headBuf:           bufio.NewWriterSize(head, 4096*10),
-		Dir:               dir,
-		headSizeLimit:     defaultHeadSizeLimit,
-		totalSizeLimit:    defaultTotalSizeLimit,
-		minDiskSpaceLimit: defaultMinDiskSpaceLimit,
+		ID:             "group:" + head.ID,
+		Head:           head,
+		headBuf:        bufio.NewWriterSize(head, 4096*10),
+		Dir:            dir,
+		headSizeLimit:  defaultHeadSizeLimit,
+		totalSizeLimit: defaultTotalSizeLimit,
 		info: GroupInfo{
 			MinIndex:  0,
 			MaxIndex:  0,
@@ -137,15 +135,6 @@ func GroupHeadSizeLimit(limit int64) func(*Group) {
 func GroupTotalSizeLimit(limit int64) func(*Group) {
 	return func(g *Group) {
 		g.totalSizeLimit = limit
-	}
-}
-
-// GroupMinDiskSpaceLimit allows you to overwrite the default minimum disk space
-// limit (16MB). When available disk space falls below this limit, the Group
-// halts writes and returns ErrDiskSpaceUnavailable. Set to 0 to disable.
-func GroupMinDiskSpaceLimit(limit int64) func(*Group) {
-	return func(g *Group) {
-		g.minDiskSpaceLimit = limit
 	}
 }
 
@@ -301,13 +290,9 @@ func (g *Group) FlushAndSync() error {
 // is throttled: it only runs every diskSpaceCheckInterval writes (and always
 // when the group is halted, to allow automatic recovery). It logs a warning
 // when space is running low and returns ErrDiskSpaceUnavailable when space has
-// fallen below the configured minimum threshold.
+// fallen below minDiskSpaceLimit.
 // CONTRACT: caller must hold g.mtx.
 func (g *Group) checkDiskSpace() error {
-	if g.minDiskSpaceLimit == 0 {
-		return nil
-	}
-
 	// When halted, always re-check to allow automatic recovery.
 	// Otherwise, only check every diskSpaceCheckInterval writes.
 	if !g.halted {
@@ -330,7 +315,7 @@ func (g *Group) checkDiskSpace() error {
 		return nil
 	}
 
-	limit := uint64(g.minDiskSpaceLimit)
+	limit := uint64(minDiskSpaceLimit)
 	if avail < limit {
 		g.halt()
 		return fmt.Errorf(

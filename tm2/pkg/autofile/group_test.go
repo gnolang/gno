@@ -214,36 +214,10 @@ func TestMaxIndex(t *testing.T) {
 	assert.Equal(t, 1, g.MaxIndex(), "MaxIndex should point to the last file")
 }
 
-func TestHaltedGroupRejectsWrite(t *testing.T) {
-	t.Parallel()
-
-	// Use a very large limit so the group stays halted (the real disk has
-	// less space than maxUint64).
-	g := createTestGroupWithOptions(t,
-		GroupMinDiskSpaceLimit(1<<62),
-	)
-	defer g.Close()
-
-	// Manually set halted to true (simulating disk space exhaustion).
-	g.mtx.Lock()
-	g.halted = true
-	g.mtx.Unlock()
-
-	// Write should fail with ErrDiskSpaceUnavailable.
-	_, err := g.Write([]byte("hello"))
-	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrDiskSpaceUnavailable)
-
-	// WriteLine should also fail.
-	err = g.WriteLine("hello")
-	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrDiskSpaceUnavailable)
-}
-
 func TestHaltedReturnsTrueAfterHalt(t *testing.T) {
 	t.Parallel()
 
-	g := createTestGroupWithOptions(t, GroupMinDiskSpaceLimit(0))
+	g := createTestGroupWithOptions(t)
 	defer g.Close()
 
 	assert.False(t, g.Halted(), "group should not be halted initially")
@@ -256,75 +230,10 @@ func TestHaltedReturnsTrueAfterHalt(t *testing.T) {
 	assert.True(t, g.Halted(), "group should report as halted")
 }
 
-func TestDiskSpaceCheckDisabledWhenLimitZero(t *testing.T) {
-	t.Parallel()
-
-	g := createTestGroupWithOptions(t, GroupMinDiskSpaceLimit(0))
-	defer g.Close()
-
-	// With limit 0, disk space checks are disabled; writes should succeed.
-	_, err := g.Write([]byte("data"))
-	require.NoError(t, err)
-
-	err = g.WriteLine("more data")
-	require.NoError(t, err)
-
-	assert.False(t, g.Halted())
-}
-
-func TestWriteSucceedsWithSufficientDiskSpace(t *testing.T) {
-	t.Parallel()
-
-	// Use a very small minimum disk space limit so the test always passes
-	// on machines with any reasonable amount of free space.
-	g := createTestGroupWithOptions(t,
-		GroupHeadSizeLimit(0),
-		GroupMinDiskSpaceLimit(1), // 1 byte
-	)
-	defer g.Close()
-
-	_, err := g.Write([]byte("hello"))
-	require.NoError(t, err)
-
-	err = g.WriteLine("world")
-	require.NoError(t, err)
-
-	assert.False(t, g.Halted())
-}
-
-func TestGroupMinDiskSpaceLimitOption(t *testing.T) {
-	t.Parallel()
-
-	g := createTestGroupWithOptions(t, GroupMinDiskSpaceLimit(42))
-	defer g.Close()
-
-	g.mtx.Lock()
-	limit := g.minDiskSpaceLimit
-	g.mtx.Unlock()
-
-	assert.Equal(t, int64(42), limit)
-}
-
-func TestDefaultMinDiskSpaceLimit(t *testing.T) {
-	t.Parallel()
-
-	g := createTestGroupWithOptions(t)
-	defer g.Close()
-
-	g.mtx.Lock()
-	limit := g.minDiskSpaceLimit
-	g.mtx.Unlock()
-
-	assert.Equal(t, int64(defaultMinDiskSpaceLimit), limit,
-		"default min disk space limit should be set")
-}
-
 func TestResumeUnhaltsGroup(t *testing.T) {
 	t.Parallel()
 
-	g := createTestGroupWithOptions(t,
-		GroupMinDiskSpaceLimit(1), // 1 byte — will pass on any real FS
-	)
+	g := createTestGroupWithOptions(t)
 	defer g.Close()
 
 	// Manually halt.
@@ -337,7 +246,7 @@ func TestResumeUnhaltsGroup(t *testing.T) {
 	g.Resume()
 	assert.False(t, g.Halted())
 
-	// Writes should succeed after resume (there's plenty of space with 1 byte limit).
+	// Writes should succeed after resume.
 	_, err := g.Write([]byte("after resume"))
 	require.NoError(t, err)
 }
@@ -345,12 +254,11 @@ func TestResumeUnhaltsGroup(t *testing.T) {
 func TestAutoRecoveryWhenSpaceFreed(t *testing.T) {
 	t.Parallel()
 
-	// Set a tiny limit (1 byte) so the real disk always has enough space.
-	// Manually halt and then attempt a write — the periodic re-check
-	// should see sufficient space and auto-resume.
-	g := createTestGroupWithOptions(t,
-		GroupMinDiskSpaceLimit(1),
-	)
+	// The constant minDiskSpaceLimit is 16 MB, which is well below the
+	// free space on any reasonable CI/dev machine. Manually halting the
+	// group and then writing should trigger a re-check that finds
+	// sufficient space and auto-resumes.
+	g := createTestGroupWithOptions(t)
 	defer g.Close()
 
 	// Manually halt.
@@ -369,10 +277,8 @@ func TestWriteCountThrottling(t *testing.T) {
 	t.Parallel()
 
 	// The check interval is diskSpaceCheckInterval (a constant).
-	// With a tiny limit the check always passes.
-	g := createTestGroupWithOptions(t,
-		GroupMinDiskSpaceLimit(1),
-	)
+	// With minDiskSpaceLimit at 16 MB the check always passes on real disks.
+	g := createTestGroupWithOptions(t)
 	defer g.Close()
 
 	// Write diskSpaceCheckInterval+1 times — all should succeed.
