@@ -2,14 +2,37 @@ package doc
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type mockQueryClient struct{}
+
+func (m *mockQueryClient) ABCIQuery(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+	if string(data) == "gno.land/r/test/mock" {
+		return &ctypes.ResultABCIQuery{
+			Response: abci.ResponseQuery{
+				ResponseBase: abci.ResponseBase{
+					Data: []byte(`{"package_path":"gno.land/r/test/mock","package_line":"package mock // import \"mock\"","package_doc":""}`),
+				},
+			},
+		}, nil
+	} else {
+		return &ctypes.ResultABCIQuery{
+			Response: abci.ResponseQuery{
+				ResponseBase: abci.ResponseBase{Error: abci.StringError("?"), Data: nil},
+			},
+		}, nil
+	}
+}
 
 func TestResolveDocumentable(t *testing.T) {
 	p, err := os.Getwd()
@@ -22,86 +45,98 @@ func TestResolveDocumentable(t *testing.T) {
 		require.NoError(t, err)
 		return pd
 	}
+	queryClient := &mockQueryClient{}
 
 	tt := []struct {
 		name        string
 		args        []string
 		unexp       bool
+		queryClient ABCIQueryClient
 		expect      *Documentable
 		errContains string
 	}{
-		{"package", []string{"crypto/rand"}, false, &Documentable{bfsDir: getDir("crypto/rand")}, ""},
-		{"packageMod", []string{"gno.land/mod"}, false, nil, `package not found`},
-		{"dir", []string{"./testdata/integ/crypto/rand"}, false, &Documentable{bfsDir: getDir("crypto/rand")}, ""},
-		{"dirMod", []string{"./testdata/integ/mod"}, false, &Documentable{bfsDir: getDir("mod")}, ""},
-		{"dirAbs", []string{path("crypto/rand")}, false, &Documentable{bfsDir: getDir("crypto/rand")}, ""},
+		{"package", []string{"crypto/rand"}, false, nil, &Documentable{bfsDir: getDir("crypto/rand")}, ""},
+		// Use queryClient to test failing to fetch from vm/qdoc
+		{"packageMod", []string{"gno.land/mod"}, false, queryClient, nil, `package not found`},
+		{"dir", []string{"./testdata/integ/crypto/rand"}, false, nil, &Documentable{bfsDir: getDir("crypto/rand")}, ""},
+		{"dirMod", []string{"./testdata/integ/mod"}, false, nil, &Documentable{bfsDir: getDir("mod")}, ""},
+		{"dirAbs", []string{path("crypto/rand")}, false, nil, &Documentable{bfsDir: getDir("crypto/rand")}, ""},
 		// test_notapkg exists in local dir and also path("test_notapkg").
 		// ResolveDocumentable should first try local dir, and seeing as it is not a valid dir, try searching it as a package.
-		{"dirLocalMisleading", []string{"test_notapkg"}, false, &Documentable{bfsDir: getDir("test_notapkg")}, ""},
+		{"dirLocalMisleading", []string{"test_notapkg"}, false, nil, &Documentable{bfsDir: getDir("test_notapkg")}, ""},
 		{
 			"normalSymbol",
 			[]string{"crypto/rand.Flag"},
-			false,
+			false, nil,
 			&Documentable{bfsDir: getDir("crypto/rand"), symbol: "Flag", pkgData: pdata("crypto/rand", false)}, "",
 		},
 		{
 			"normalAccessible",
 			[]string{"crypto/rand.Generate"},
-			false,
+			false, nil,
 			&Documentable{bfsDir: getDir("crypto/rand"), symbol: "Generate", pkgData: pdata("crypto/rand", false)}, "",
 		},
 		{
 			"normalSymbolUnexp",
 			[]string{"crypto/rand.unexp"},
-			true,
+			true, nil,
 			&Documentable{bfsDir: getDir("crypto/rand"), symbol: "unexp", pkgData: pdata("crypto/rand", true)}, "",
 		},
 		{
 			"normalAccessibleFull",
 			[]string{"crypto/rand.Rand.Name"},
-			false,
+			false, nil,
 			&Documentable{bfsDir: getDir("crypto/rand"), symbol: "Rand", accessible: "Name", pkgData: pdata("crypto/rand", false)}, "",
 		},
 		{
 			"disambiguate",
 			[]string{"rand.Flag"},
-			false,
+			false, nil,
 			&Documentable{bfsDir: getDir("crypto/rand"), symbol: "Flag", pkgData: pdata("crypto/rand", false)}, "",
 		},
 		{
 			"disambiguate2",
 			[]string{"rand.Crypto"},
-			false,
+			false, nil,
 			&Documentable{bfsDir: getDir("crypto/rand"), symbol: "Crypto", pkgData: pdata("crypto/rand", false)}, "",
 		},
 		{
 			"disambiguate3",
 			[]string{"rand.Normal"},
-			false,
+			false, nil,
 			&Documentable{bfsDir: getDir("rand"), symbol: "Normal", pkgData: pdata("rand", false)}, "",
 		},
 		{
 			"disambiguate4", // just "rand" should use the directory that matches it exactly.
 			[]string{"rand"},
-			false,
+			false, nil,
 			&Documentable{bfsDir: getDir("rand")}, "",
 		},
 		{
 			"wdSymbol",
 			[]string{"WdConst"},
-			false,
+			false, nil,
 			&Documentable{bfsDir: getDir("wd"), symbol: "WdConst", pkgData: pdata("wd", false)}, "",
 		},
+		{
+			"packageMock",
+			[]string{"gno.land/r/test/mock"},
+			false, queryClient,
+			&Documentable{doc: &JSONDocumentation{
+				PackagePath: "gno.land/r/test/mock",
+				PackageLine: "package mock // import \"mock\"",
+			}}, "",
+		},
 
-		{"errInvalidArgs", []string{"1", "2", "3"}, false, nil, "invalid arguments: [1 2 3]"},
-		{"errNoCandidates", []string{"math", "Big"}, false, nil, `package not found: "math"`},
-		{"errNoCandidates2", []string{"LocalSymbol"}, false, nil, `package not found`},
-		{"errNoCandidates3", []string{"Symbol.Accessible"}, false, nil, `package not found`},
-		{"errNonExisting", []string{"rand.NotExisting"}, false, nil, `could not resolve arguments`},
-		{"errIgnoredMod", []string{"modignored"}, false, &Documentable{bfsDir: getDir("modignored")}, ""},
-		{"errIgnoredMod2", []string{"./testdata/integ/modignored"}, false, &Documentable{bfsDir: getDir("modignored")}, ""},
-		{"errUnexp", []string{"crypto/rand.unexp"}, false, nil, "could not resolve arguments"},
-		{"errDirNotapkg", []string{"./test_notapkg"}, false, nil, `package not found: "./test_notapkg"`},
+		{"errInvalidArgs", []string{"1", "2", "3"}, false, nil, nil, "invalid arguments: [1 2 3]"},
+		{"errNoCandidates", []string{"math", "Big"}, false, nil, nil, `package not found: "math"`},
+		{"errNoCandidates2", []string{"LocalSymbol"}, false, nil, nil, `package not found`},
+		{"errNoCandidates3", []string{"Symbol.Accessible"}, false, nil, nil, `package not found`},
+		{"errNonExisting", []string{"rand.NotExisting"}, false, nil, nil, `could not resolve arguments`},
+		{"errIgnoredMod", []string{"modignored"}, false, nil, &Documentable{bfsDir: getDir("modignored")}, ""},
+		{"errIgnoredMod2", []string{"./testdata/integ/modignored"}, false, nil, &Documentable{bfsDir: getDir("modignored")}, ""},
+		{"errUnexp", []string{"crypto/rand.unexp"}, false, nil, nil, "could not resolve arguments"},
+		{"errDirNotapkg", []string{"./test_notapkg"}, false, nil, nil, `package not found: "./test_notapkg"`},
 	}
 
 	for _, tc := range tt {
@@ -116,7 +151,7 @@ func TestResolveDocumentable(t *testing.T) {
 			}
 			result, err := ResolveDocumentable(
 				[]string{path("")}, []string{path("mod")},
-				tc.args, tc.unexp,
+				tc.args, tc.unexp, tc.queryClient,
 			)
 			// we use stripFset because d.pkgData.fset contains sync/atomic values,
 			// which in turn makes reflect.DeepEqual compare the two sync.Atomic values.

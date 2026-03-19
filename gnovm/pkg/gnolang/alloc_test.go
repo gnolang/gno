@@ -24,3 +24,26 @@ func TestAllocSizes(t *testing.T) {
 	println("TypedValue{}", unsafe.Sizeof(TypedValue{}))
 	println("ObjectInfo{}", unsafe.Sizeof(ObjectInfo{}))
 }
+
+func TestBlockGetShallowSize_WithRefNodeSource(t *testing.T) {
+	t.Parallel()
+
+	const numValues = 5
+	normalBlock := &Block{
+		Source: &FuncDecl{},
+		Values: make([]TypedValue, numValues),
+	}
+	refNodeBlock := &Block{
+		Source: RefNode{Location: Location{PkgPath: "gno.land/r/test/foo"}},
+		Values: make([]TypedValue, numValues),
+	}
+
+	normalSize := normalBlock.GetShallowSize()
+	refNodeSize := refNodeBlock.GetShallowSize()
+
+	expectedRefNodeSize := normalSize + allocRefValue
+	if refNodeSize != expectedRefNodeSize {
+		t.Errorf("Block with RefNode source: GetShallowSize() = %d, want %d (normal %d + allocRefValue %d)",
+			refNodeSize, expectedRefNodeSize, normalSize, allocRefValue)
+	}
+}

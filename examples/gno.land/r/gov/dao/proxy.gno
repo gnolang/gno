@@ -6,7 +6,7 @@ import (
 	"errors"
 	"strconv"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // dao is the actual govDAO implementation, having all the needed business logic

@@ -3,9 +3,9 @@ package mgroup
 import (
 	"testing"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/uassert/v0"
 )
 
 func TestManagedGroup(t *testing.T) {
