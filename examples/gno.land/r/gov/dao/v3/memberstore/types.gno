@@ -28,7 +28,7 @@ func (m *Member) RemoveInvitationPoint() {
 
 // MembersByTier contains all `Member`s indexed by their Address.
 type MembersByTier struct {
-	*avl.Tree  // tier name -> address -> member
+	*avl.Tree            // tier name -> address -> member
 	addrToTier *avl.Tree // address -> tier name (reverse index)
 }
 
