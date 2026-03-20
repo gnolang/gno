@@ -1,4 +1,4 @@
-// Open board: Test creating a new reply as a non member user that has no username registered
+// Open board: Test creating a new reply as a non member user that has no GNOT
 package main
 
 import (
@@ -29,9 +29,9 @@ func init() {
 func main() {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	// Non members should be able to add replies only if they have a registered user
+	// Non members should be able to add replies only if they have enough GNOT
 	boards2.CreateReply(cross, bid, tid, 0, comment)
 }
 
 // Error:
-// a registered username is required to comment on open boards
+// caller is not allowed to comment: account amount is lower than 3000 GNOT
