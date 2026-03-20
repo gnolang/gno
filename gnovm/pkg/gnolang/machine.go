@@ -2221,16 +2221,15 @@ func readonlyAccessPanic(x Expr) string {
 	return "cannot directly modify readonly tainted object (w/o method): " + x.String()
 }
 
-// Returns true iff:
-//   - m.Realm is nil (single user mode), or
+// Returns false if m.Realm is nil (single user mode, nothing is readonly).
+// Otherwise returns true iff:
 //   - tv is a ref to (external) package path, or
 //   - tv is N_Readonly, or
 //   - tv is not an object ("first object" ID is zero), or
 //   - tv is an unreal object (no object id), or
 //   - tv is an object residing in external realm
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
-	// Returns true iff:
-	//  - m.Realm is nil (single user mode)
+	//  m.Realm is nil → single user mode, nothing is readonly
 	if m.Realm == nil {
 		return false
 	}
