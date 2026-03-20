@@ -179,7 +179,7 @@ func getThread(boardID, threadID uint64) (*boards.Post, bool) {
 	t, found := b.Threads.Get(boards.ID(threadID))
 	if !found {
 		// When thread is not found search it within hidden threads
-		meta := b.Meta.(*boards2.Meta)
+		meta := b.Meta.(*boards2.BoardMeta)
 		t, found = meta.HiddenThreads.Get(boards.ID(threadID))
 	}
 	return t, found
