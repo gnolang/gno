@@ -1,9 +1,6 @@
 package components
 
-import (
-	"net/url"
-	"strings"
-)
+import "strings"
 
 // ViewMode represents the current view mode of the application
 // It affects the layout, navigation, and display of content
@@ -54,54 +51,11 @@ type BannerData struct {
 	URL  string
 }
 
-// NewBannerData creates a sanitized BannerData from raw input.
-func NewBannerData(text, rawURL string) BannerData {
-	return BannerData{
-		Text: sanitizeBannerText(text),
-		URL:  sanitizeBannerURL(rawURL),
-	}
-}
-
 func (b BannerData) HasURL() bool {
 	return strings.HasPrefix(b.URL, "https://") || strings.HasPrefix(b.URL, "http://")
 }
 
 func (b BannerData) Enabled() bool { return b.Text != "" }
-
-// sanitizeBannerText strips control characters and trims whitespace.
-func sanitizeBannerText(s string) string {
-	s = strings.TrimSpace(s)
-	return strings.Map(func(r rune) rune {
-		if r < 0x20 && r != ' ' {
-			return -1 // drop control characters
-		}
-		return r
-	}, s)
-}
-
-// sanitizeBannerURL validates and cleans a banner URL.
-// Returns empty string for invalid or non-HTTP(S) URLs.
-func sanitizeBannerURL(raw string) string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return ""
-	}
-
-	u, err := url.Parse(raw)
-	if err != nil {
-		return ""
-	}
-
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return ""
-	}
-
-	if u.Host == "" {
-		return ""
-	}
-
-	return u.String()
-}
 
 type IndexData struct {
 	HeadData

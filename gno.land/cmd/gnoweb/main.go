@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"go.uber.org/zap"
@@ -239,7 +238,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
-		appcfg.Banner = components.NewBannerData(text, os.Getenv("GNOWEB_BANNER_URL"))
+		appcfg.Banner.Text = text
+		appcfg.Banner.URL = os.Getenv("GNOWEB_BANNER_URL")
 	}
 
 	if cfg.noDefaultAliases {
