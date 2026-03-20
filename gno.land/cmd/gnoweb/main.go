@@ -204,7 +204,6 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultWebOptions.timeout,
 		"set read/write/idle timeout for server connections",
 	)
-
 }
 
 func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
