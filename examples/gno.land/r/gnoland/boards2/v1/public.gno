@@ -315,6 +315,9 @@ func CreateRepost(_ realm, boardID, threadID, destinationBoardID boards.ID, titl
 
 		repost.Title = title
 		repost.Body = strings.TrimSpace(body)
+		repost.Meta = &ThreadMeta{
+			AllReplies: boards.NewPostStorage(),
+		}
 
 		if err := dst.Threads.Add(repost); err != nil {
 			panic(err)
