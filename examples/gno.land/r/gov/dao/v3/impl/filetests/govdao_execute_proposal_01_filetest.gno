@@ -68,6 +68,7 @@ func main() {
 // - Tiers eligible to vote: T1, T2, T3
 // - YES PERCENT: 0%
 // - NO PERCENT: 0%
+// - ABSTAIN PERCENT: 0%
 //
 // [Detailed voting list](/r/gov/dao/v3/impl:0/votes)
 //
