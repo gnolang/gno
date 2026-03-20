@@ -11,12 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestCrossRealmAssignRecover_GovernanceCorruption demonstrates that
-// assign+recover state corruption is dangerous even WITHOUT OriginCaller.
-//
-// Scenario: A DAO governance realm tracks proposal votes. An attacker
-// uses the assign+recover trick to flip a vote result from "rejected"
-// to "approved" — no fund theft needed, pure state corruption.
+// TestCrossRealmAssignRecover_GovernanceCorruption verifies that the
+// assign+recover exploit does NOT corrupt governance state.
+// The readonly check fires before the mutation, so votes stay unchanged.
 func TestCrossRealmAssignRecover_GovernanceCorruption(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -33,9 +30,6 @@ func TestCrossRealmAssignRecover_GovernanceCorruption(t *testing.T) {
 	env.bankk.SetCoins(ctx, attacker, std.MustParseCoins(ugnot.ValueString(10_000_000)))
 
 	// Deploy a simple governance realm.
-	// - No OriginCaller anywhere.
-	// - Vote tally is a package-level var.
-	// - SetVotes is a non-crossing function (no `cur realm`).
 	const govPath = "gno.land/r/test/governance"
 	govFiles := []*std.MemFile{
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(govPath)},
@@ -48,14 +42,12 @@ var (
 )
 
 func init() {
-	// Proposal #1 was voted on: 10 yes, 90 no → rejected.
 	yesVotes = 10
 	noVotes = 90
 	finalized = true
 }
 
-// SetVotes allows overriding the tally (e.g. for migration).
-// Non-crossing — should panic if called cross-realm.
+// SetVotes: non-crossing, should panic if called cross-realm.
 func SetVotes(yes, no int) {
 	yesVotes = yes
 	noVotes = no
@@ -83,7 +75,7 @@ func GetTally(cur realm) (int, int) {
 	require.NoError(t, err)
 	require.Contains(t, res, "rejected", "proposal must start as rejected")
 
-	// Attacker flips the vote via assign+recover.
+	// Attacker attempts to flip the vote via assign+recover.
 	runFiles := []*std.MemFile{
 		{Name: "main.gno", Body: `package main
 
@@ -93,7 +85,7 @@ func main() {
 	result := governance.GetResult(cross)
 	println("before:", result)
 
-	// Corrupt the tally: flip to 99 yes, 1 no.
+	// Attempt to corrupt the tally: flip to 99 yes, 1 no.
 	func() {
 		defer func() {
 			r := recover()
@@ -112,27 +104,27 @@ func main() {
 	res, err = env.vmk.Run(ctx, NewMsgRun(attacker, std.Coins{}, runFiles))
 	require.NoError(t, err)
 
-	// The cross-realm guard fired but was recovered.
+	// The readonly check fired and was recovered.
 	require.Contains(t, res, "panic caught:")
-	require.Contains(t, res, "external-realm")
+	require.Contains(t, res, "readonly")
 
-	// State corruption: vote flipped from rejected to approved.
+	// State is NOT corrupted: vote stays rejected.
 	require.Contains(t, res, "before: rejected")
-	require.Contains(t, res, "after: approved",
-		"vote result must be corrupted to 'approved' despite cross-realm guard")
+	require.Contains(t, res, "after: rejected",
+		"vote result must remain 'rejected' — no corruption")
 
-	// Corruption persists after commit.
+	// Verify state persists correctly after commit.
 	env.vmk.CommitGnoTransactionStore(ctx)
 	ctx2 := env.vmk.MakeGnoTransactionStore(env.ctx)
 	res, err = env.vmk.Call(ctx2, NewMsgCall(deployer, std.Coins{}, govPath, "GetResult", nil))
 	require.NoError(t, err)
-	require.Contains(t, res, "approved",
-		"corrupted vote must persist after commit — permanent governance damage")
+	require.Contains(t, res, "rejected",
+		"vote must remain rejected after commit")
 }
 
-// TestCrossRealmAssignRecover_PermanentAdminLockout demonstrates
-// a DoS attack: corrupt admin to an address nobody controls,
-// permanently locking out the real admin. Uses CurrentRealm, not OriginCaller.
+// TestCrossRealmAssignRecover_PermanentAdminLockout verifies that
+// the assign+recover exploit does NOT corrupt admin state.
+// The readonly check prevents the mutation, so admin stays unchanged.
 func TestCrossRealmAssignRecover_PermanentAdminLockout(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -171,7 +163,7 @@ func GetAdmin(cur realm) address {
 	return admin
 }
 
-// DoSomething: only admin can call. Uses PreviousRealm, NOT OriginCaller.
+// DoSomething: only admin can call.
 func DoSomething(cur realm) string {
 	caller := runtime.PreviousRealm().Address()
 	if caller != admin {
@@ -188,7 +180,7 @@ func DoSomething(cur realm) string {
 	require.NoError(t, err)
 	require.Contains(t, res, "success")
 
-	// Attacker corrupts admin to a dead address (nobody's key).
+	// Attacker attempts to corrupt admin to a dead address.
 	deadAddr := crypto.AddressFromPreimage([]byte("dead-address-nobody-controls"))
 	runFiles := []*std.MemFile{
 		{Name: "main.gno", Body: fmt.Sprintf(`package main
@@ -199,7 +191,7 @@ func main() {
 	adminBefore := service.GetAdmin(cross)
 	println("admin before:", adminBefore)
 
-	// Corrupt admin to a dead address.
+	// Attempt to corrupt admin to a dead address.
 	func() {
 		defer func() { _ = recover() }()
 		service.SetAdmin(address("%s"))
@@ -213,15 +205,14 @@ func main() {
 	res, err = env.vmk.Run(ctx, NewMsgRun(attacker, std.Coins{}, runFiles))
 	require.NoError(t, err)
 	require.Contains(t, res, "admin before: "+deployer.String())
-	require.Contains(t, res, "admin after: "+deadAddr.String(),
-		"admin must be corrupted to the dead address")
+	// Admin must be unchanged — the fix prevents corruption.
+	require.Contains(t, res, "admin after: "+deployer.String(),
+		"admin must remain the deployer — no corruption")
 
-	// Now even the original deployer is locked out permanently.
+	// Deployer can still use the service after commit.
 	env.vmk.CommitGnoTransactionStore(ctx)
 	ctx2 := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	_, err = env.vmk.Call(ctx2, NewMsgCall(deployer, std.Coins{}, svcPath, "DoSomething", nil))
-	require.Error(t, err, "deployer must be locked out after admin corruption")
-	require.Contains(t, err.Error(), "unauthorized",
-		"real admin is permanently locked out — DoS via state corruption")
+	require.NoError(t, err, "deployer must still be authorized — no lockout")
 }

@@ -18,7 +18,7 @@ stdout 'obj\.value = 0'
 
 ## execute NonCrossingMutation
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
-stderr 'cannot modify external-realm or non-realm object'
+stderr 'readonly tainted object'
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 0, value = 0'
 

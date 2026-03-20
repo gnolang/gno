@@ -43,7 +43,7 @@ func GetAdmin(cur realm) address {
 }
 
 func Withdraw(cur realm) {
-	caller := runtime.OriginCaller()
+	caller := runtime.PreviousRealm().Address()
 	if caller != admin {
 		panic("unauthorized")
 	}
@@ -63,23 +63,15 @@ func lastSegment(path string) string {
 	return parts[len(parts)-1]
 }
 
-// TestCrossRealmAssignRecover_SameTxFundTheft demonstrates end-to-end
-// fund theft via Assign2 mutation-before-check using MsgRun.
-//
-// Attack chain:
-//  1. Attacker script calls victim.SetAdmin(attackerAddr) -- non-crossing.
-//  2. Assign2 mutates admin in-memory, then DidUpdate panics (cross-realm).
-//  3. defer/recover catches the panic. Admin is now corrupted.
-//  4. Attacker calls victim.Withdraw(cross) which trusts corrupted admin.
-//  5. Funds transfer to attacker. State persists after commit.
+// TestCrossRealmAssignRecover_SameTxFundTheft verifies that the
+// assign+recover exploit does NOT work: the readonly check fires
+// before the mutation, so admin remains unchanged and Withdraw fails.
 func TestCrossRealmAssignRecover_SameTxFundTheft(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	deployer := crypto.AddressFromPreimage([]byte("deployer"))
-	t.Log("===deployer: ", deployer)
 	attacker := crypto.AddressFromPreimage([]byte("attacker"))
-	t.Log("===attacker: ", attacker)
 
 	deployerAcc := env.acck.NewAccountWithAddress(ctx, deployer)
 	env.acck.SetAccount(ctx, deployerAcc)
@@ -95,12 +87,9 @@ func TestCrossRealmAssignRecover_SameTxFundTheft(t *testing.T) {
 	beforeAttacker := env.bankk.GetCoins(ctx, attacker).AmountOf("ugnot")
 	beforeVictim := env.bankk.GetCoins(ctx, victimAddr).AmountOf("ugnot")
 
-	// The exploit script:
-	// - Calls SetAdmin (non-crossing) which triggers Assign2 mutation
-	// - Assign2 mutates admin in-memory, DidUpdate panics (cross-realm guard)
-	// - defer/recover catches the panic; admin is now corrupted
-	// - Queries GetAdmin(cross) to prove the corruption
-	// - Calls Withdraw(cross) which trusts the corrupted admin
+	// The exploit script attempts SetAdmin (non-crossing) then Withdraw.
+	// With the fix, SetAdmin's assign is blocked before mutation,
+	// so admin stays as deployer and Withdraw panics with "unauthorized".
 	runFiles := []*std.MemFile{
 		{Name: "main.gno", Body: fmt.Sprintf(`package main
 
@@ -131,46 +120,24 @@ func main() {
 `, attacker.String())},
 	}
 
-	res, err := env.vmk.Run(ctx, NewMsgRun(attacker, std.Coins{}, runFiles))
-	require.NoError(t, err)
+	_, err := env.vmk.Run(ctx, NewMsgRun(attacker, std.Coins{}, runFiles))
+	// Withdraw panics with "unauthorized" because admin was not corrupted.
+	require.Error(t, err, "tx must fail because admin was not corrupted")
+	require.Contains(t, err.Error(), "unauthorized",
+		"Withdraw must reject the attacker since admin is unchanged")
 
-	// Verify the cross-realm guard fired but was bypassed.
-	require.Contains(t, res, "panic caught:",
-		"the cross-realm guard must have fired and been recovered")
-	require.Contains(t, res, "external-realm",
-		"panic message should reference the cross-realm guard")
-
-	// Verify admin state corruption is visible in the output.
-	require.Contains(t, res, "admin before: "+deployer.String(),
-		"admin before attack must be the deployer")
-	t.Log("===admin before: ", deployer.String())
-	require.Contains(t, res, "admin after: "+attacker.String(),
-		"admin must have been mutated to attacker despite cross-realm guard")
-	t.Log("===admin after: ", attacker.String())
-
-	require.Contains(t, res, "theft complete",
-		"execution must continue past the recovered panic")
-
-	// Verify fund movement.
+	// Balances must remain unchanged — no fund theft.
 	afterAttacker := env.bankk.GetCoins(ctx, attacker).AmountOf("ugnot")
 	afterVictim := env.bankk.GetCoins(ctx, victimAddr).AmountOf("ugnot")
 
-	require.Equal(t, beforeAttacker+1_000_000, afterAttacker,
-		"attacker must gain 1,000,000 ugnot")
-	require.Equal(t, beforeVictim-1_000_000, afterVictim,
-		"victim realm must lose 1,000,000 ugnot")
-
-	// Persist and verify theft survives commit.
-	env.vmk.CommitGnoTransactionStore(ctx)
-	ctx2 := env.vmk.MakeGnoTransactionStore(env.ctx)
-	require.Equal(t, afterAttacker, env.bankk.GetCoins(ctx2, attacker).AmountOf("ugnot"),
-		"attacker balance must persist after commit")
-	require.Equal(t, afterVictim, env.bankk.GetCoins(ctx2, victimAddr).AmountOf("ugnot"),
-		"victim balance must persist after commit")
+	require.Equal(t, beforeAttacker, afterAttacker,
+		"attacker balance must not change")
+	require.Equal(t, beforeVictim, afterVictim,
+		"victim balance must not change")
 }
 
-// TestCrossRealmAssignRecover_RealmToRealmFundTheft demonstrates the same
-// exploit via realm-to-realm composition (MsgCall to attacker realm).
+// TestCrossRealmAssignRecover_RealmToRealmFundTheft verifies the same
+// protection via realm-to-realm composition (MsgCall to attacker realm).
 func TestCrossRealmAssignRecover_RealmToRealmFundTheft(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -189,7 +156,7 @@ func TestCrossRealmAssignRecover_RealmToRealmFundTheft(t *testing.T) {
 	const victimPath = "gno.land/r/test/vault_assign_r2r"
 	victimAddr := deployAssignVault(t, env, ctx, deployer, victimPath)
 
-	// Deploy attacker realm that exploits the vulnerability.
+	// Deploy attacker realm that attempts the exploit.
 	const attackerPath = "gno.land/r/test/attacker_assign_r2r"
 	attackerFiles := []*std.MemFile{
 		{Name: "attacker.gno", Body: fmt.Sprintf(`package attacker_assign_r2r
@@ -218,25 +185,22 @@ func Attack(cur realm) {
 	beforeVictim := env.bankk.GetCoins(ctx, victimAddr).AmountOf("ugnot")
 
 	_, err := env.vmk.Call(ctx, NewMsgCall(attacker, std.Coins{}, attackerPath, "Attack", nil))
-	require.NoError(t, err, "Attack tx must succeed (exploit worked)")
+	// Withdraw panics with "unauthorized" because admin was not corrupted.
+	require.Error(t, err, "Attack tx must fail because admin was not corrupted")
+	require.Contains(t, err.Error(), "unauthorized")
 
+	// Balances must remain unchanged.
 	afterAttacker := env.bankk.GetCoins(ctx, attacker).AmountOf("ugnot")
 	afterVictim := env.bankk.GetCoins(ctx, victimAddr).AmountOf("ugnot")
 
-	require.Equal(t, beforeAttacker+1_000_000, afterAttacker,
-		"attacker must gain 1,000,000 ugnot")
-	require.Equal(t, beforeVictim-1_000_000, afterVictim,
-		"victim realm must lose 1,000,000 ugnot")
-
-	env.vmk.CommitGnoTransactionStore(ctx)
-	ctx2 := env.vmk.MakeGnoTransactionStore(env.ctx)
-	require.Equal(t, afterAttacker, env.bankk.GetCoins(ctx2, attacker).AmountOf("ugnot"))
-	require.Equal(t, afterVictim, env.bankk.GetCoins(ctx2, victimAddr).AmountOf("ugnot"))
+	require.Equal(t, beforeAttacker, afterAttacker,
+		"attacker balance must not change")
+	require.Equal(t, beforeVictim, afterVictim,
+		"victim balance must not change")
 }
 
-// TestCrossRealmAssignRecover_DrainLoop demonstrates that the attacker
-// can drain the entire vault in a single transaction by looping the
-// recover-then-withdraw pattern.
+// TestCrossRealmAssignRecover_DrainLoop verifies that the drain loop
+// exploit does NOT work: each SetAdmin attempt is blocked before mutation.
 func TestCrossRealmAssignRecover_DrainLoop(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -259,7 +223,7 @@ func TestCrossRealmAssignRecover_DrainLoop(t *testing.T) {
 	beforeVictim := env.bankk.GetCoins(ctx, victimAddr).AmountOf("ugnot")
 	require.Equal(t, int64(5_000_000), beforeVictim, "vault should start with 5M ugnot")
 
-	// Drain the entire vault in a single tx by looping 5 times (1M each).
+	// Attempt to drain — each iteration fails because SetAdmin is blocked.
 	runFiles := []*std.MemFile{
 		{Name: "main.gno", Body: fmt.Sprintf(`package main
 
@@ -278,29 +242,23 @@ func main() {
 `, attacker.String())},
 	}
 
-	res, err := env.vmk.Run(ctx, NewMsgRun(attacker, std.Coins{}, runFiles))
-	require.NoError(t, err)
-	require.Contains(t, res, "vault drained")
+	_, err := env.vmk.Run(ctx, NewMsgRun(attacker, std.Coins{}, runFiles))
+	// First Withdraw panics with "unauthorized", aborting the tx.
+	require.Error(t, err, "drain tx must fail")
+	require.Contains(t, err.Error(), "unauthorized")
 
+	// Balances must remain unchanged.
 	afterAttacker := env.bankk.GetCoins(ctx, attacker).AmountOf("ugnot")
 	afterVictim := env.bankk.GetCoins(ctx, victimAddr).AmountOf("ugnot")
 
-	require.Equal(t, beforeAttacker+5_000_000, afterAttacker,
-		"attacker must drain all 5M ugnot from vault")
-	require.Equal(t, int64(0), afterVictim,
-		"victim vault must be fully drained")
-
-	env.vmk.CommitGnoTransactionStore(ctx)
-	ctx2 := env.vmk.MakeGnoTransactionStore(env.ctx)
-	require.Equal(t, afterAttacker, env.bankk.GetCoins(ctx2, attacker).AmountOf("ugnot"),
-		"drain must persist after commit")
-	require.Equal(t, int64(0), env.bankk.GetCoins(ctx2, victimAddr).AmountOf("ugnot"),
-		"vault must remain empty after commit")
+	require.Equal(t, beforeAttacker, afterAttacker,
+		"attacker balance must not change")
+	require.Equal(t, beforeVictim, afterVictim,
+		"vault must retain all funds")
 }
 
 // TestCrossRealmAssign_WithoutRecover_Fails is a negative control.
-// It verifies that calling SetAdmin without recover causes the tx to fail,
-// proving that recover is the enabling factor for the exploit.
+// It verifies that calling SetAdmin without recover causes the tx to fail.
 func TestCrossRealmAssign_WithoutRecover_Fails(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -322,7 +280,7 @@ func TestCrossRealmAssign_WithoutRecover_Fails(t *testing.T) {
 	beforeAttacker := env.bankk.GetCoins(ctx, attacker).AmountOf("ugnot")
 	beforeVictim := env.bankk.GetCoins(ctx, victimAddr).AmountOf("ugnot")
 
-	// No recover -- the cross-realm panic should abort the entire tx.
+	// No recover -- the readonly panic aborts the entire tx.
 	runFiles := []*std.MemFile{
 		{Name: "main.gno", Body: fmt.Sprintf(`package main
 
@@ -337,8 +295,8 @@ func main() {
 
 	_, err := env.vmk.Run(ctx, NewMsgRun(attacker, std.Coins{}, runFiles))
 	require.Error(t, err, "tx must fail when cross-realm panic is not recovered")
-	require.Contains(t, err.Error(), "external-realm",
-		"error must reference the cross-realm guard")
+	require.Contains(t, err.Error(), "readonly",
+		"error must reference the readonly check")
 
 	// Balances must remain unchanged.
 	afterAttacker := env.bankk.GetCoins(ctx, attacker).AmountOf("ugnot")

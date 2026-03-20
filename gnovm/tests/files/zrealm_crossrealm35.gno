@@ -1,29 +1,38 @@
-package main
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
+
+// Verifies that cross-realm assign+recover does NOT corrupt state.
+// The readonly check in PopAsPointer fires BEFORE the mutation,
+// so recover() catches the panic but no state change occurs.
 
 import (
-	"chain/runtime"
-	ext "gno.land/r/tests/vm/crossrealm_b"
+	"gno.land/r/tests/vm/crossrealm_d"
 )
 
 func main() {
-	adminBefore := ext.GetAdmin(cross)
-	println("admin before:", adminBefore)
+	// 1. Verify initial state: proposal is rejected (10 yes, 90 no).
+	result := crossrealm_d.GetResult(cross)
+	println("before:", result)
 
-	var panicMsg string
+	// 2. Corrupt the tally via assign+recover.
+	//    SetVotes is non-crossing → cross-realm guard panics.
+	//    But the mutation lands before the panic.
 	func() {
 		defer func() {
 			r := recover()
 			if r != nil {
-				panicMsg = r.(string)
+				println("panic caught:", r.(string))
 			}
 		}()
-		ext.SetAdmin(runtime.CurrentRealm().Address())
+		crossrealm_d.SetVotes(99, 1)
 	}()
-	println("panic caught:", panicMsg)
 
-	adminAfter := ext.GetAdmin(cross)
-	println("admin after:", adminAfter)
-
-	ext.Withdraw(cross)
-	println("theft complete")
+	// 3. Check result after corruption.
+	result = crossrealm_d.GetResult(cross)
+	println("after:", result)
 }
+
+// Output:
+// before: rejected
+// panic caught: cannot directly modify readonly tainted object (w/o method): yesVotes<~VPBlock(3,0)>
+// after: rejected

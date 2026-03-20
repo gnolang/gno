@@ -1,13 +1,11 @@
-# Test cross-realm assign+recover state corruption scope.
+# Test that cross-realm assign+recover does NOT corrupt state.
 #
-# This test verifies that the assign+recover bug corrupts realm state
-# within a single transaction, but the corruption does NOT persist
-# across transactions (the store layer doesn't commit unreachable
-# MarkDirty calls).
+# The readonly check in PopAsPointer fires BEFORE the mutation,
+# so recover() catches the panic but no state change occurs.
 #
 #  1. Deploy a victim realm with admin=deployer and vote tally (10:90 → rejected).
-#  2. TX1 (MsgRun): attacker corrupts admin+vote via assign+recover — visible within tx.
-#  3. TX2 (MsgCall): verify original state is restored (corruption is transient).
+#  2. TX1 (MsgRun): attacker attempts assign+recover — state unchanged.
+#  3. TX2 (MsgCall): verify state is still original (no corruption).
 
 ## Setup users
 adduser deployer
@@ -28,22 +26,22 @@ gnokey maketx call -pkgpath gno.land/r/test/victim -func GetResult -gas-fee 1000
 stdout 'rejected'
 
 ## ============================================
-## TX1: Within-tx corruption via assign+recover
+## TX1: Attempt assign+recover — no corruption
 ## ============================================
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test attacker $WORK/exploit/exploit.gno
-stdout 'admin corrupted in-tx: true'
-stdout 'vote corrupted in-tx: true'
+stdout 'admin corrupted in-tx: false'
+stdout 'vote corrupted in-tx: false'
 stdout 'corruption done'
 
 ## ============================================
-## TX2: Verify corruption does NOT persist
+## TX2: Verify state is still original
 ## ============================================
 
-## Admin must still be the deployer (not the dead address)
+## Admin must still be the deployer
 gnokey maketx call -pkgpath gno.land/r/test/victim -func GetAdmin -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test deployer
 stdout ${deployer_user_addr}
 
-## Vote must still be rejected (not approved)
+## Vote must still be rejected
 gnokey maketx call -pkgpath gno.land/r/test/victim -func GetResult -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test deployer
 stdout 'rejected'
 

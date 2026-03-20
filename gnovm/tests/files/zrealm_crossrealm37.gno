@@ -1,12 +1,8 @@
 // PKGPATH: gno.land/r/crossrealm
 package crossrealm
 
-// Negative control: without recover(), the cross-realm guard
-// properly aborts the entire transaction. State is NOT corrupted.
-//
-// This proves that recover() is the enabling factor — the guard
-// itself works, but it fires AFTER the mutation, so recover()
-// swallows the panic while the damage is already done.
+// Negative control: without recover(), the cross-realm readonly
+// check properly aborts the entire transaction.
 
 import (
 	"gno.land/r/tests/vm/crossrealm_d"
@@ -27,4 +23,4 @@ func main() {
 // before: rejected
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (w/o method): yesVotes<~VPBlock(3,0)>

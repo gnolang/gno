@@ -2249,6 +2249,24 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	return tv.IsReadonlyBy(m.Realm.ID)
 }
 
+// isExternalRealm returns true if base is a real Object belonging to
+// a different realm than m.Realm. Used for NameExpr cross-realm checks
+// where we have a Base (Block) rather than a TypedValue.
+func (m *Machine) isExternalRealm(base Value) bool {
+	if m.Realm == nil {
+		return false
+	}
+	obj, ok := base.(Object)
+	if !ok {
+		return false
+	}
+	oid := obj.GetObjectID()
+	if oid.IsZero() {
+		return false // transient (local var, unreal block)
+	}
+	return oid.PkgID != m.Realm.ID
+}
+
 // Returns ro = true if the base is readonly,
 // or if the base's storage realm != m.Realm and both are non-nil,
 // and the lx isn't a name (base is a block),
@@ -2260,11 +2278,11 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		case NameExprTypeNormal:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
+			ro = m.isExternalRealm(pv.Base)
 		case NameExprTypeHeapUse:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
+			ro = m.isExternalRealm(pv.Base)
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:

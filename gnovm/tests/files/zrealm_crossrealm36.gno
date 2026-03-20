@@ -1,25 +1,22 @@
 // PKGPATH: gno.land/r/crossrealm
 package crossrealm
 
-// Demonstrates that assign+recover corrupts state even without
-// OriginCaller or fund theft. An attacker flips a governance
-// vote from "rejected" to "approved" via pure state corruption.
-//
-// NOTE: this corruption is within-tx only — the store layer
-// does not persist it because DidUpdate panics before MarkDirty.
+// Verifies that cross-realm admin assignment via assign+recover
+// does NOT corrupt state. The readonly check in PopAsPointer fires
+// BEFORE the mutation, so admin remains unchanged after recover().
 
 import (
+	"chain/runtime"
+
 	"gno.land/r/tests/vm/crossrealm_d"
 )
 
 func main() {
-	// 1. Verify initial state: proposal is rejected (10 yes, 90 no).
-	result := crossrealm_d.GetResult(cross)
-	println("before:", result)
+	adminBefore := crossrealm_d.GetAdmin(cross)
+	println("admin before:", adminBefore)
 
-	// 2. Corrupt the tally via assign+recover.
-	//    SetVotes is non-crossing → cross-realm guard panics.
-	//    But the mutation lands before the panic.
+	// Attempt to corrupt admin to this realm's address via assign+recover.
+	myAddr := runtime.CurrentRealm().Address()
 	func() {
 		defer func() {
 			r := recover()
@@ -27,15 +24,20 @@ func main() {
 				println("panic caught:", r.(string))
 			}
 		}()
-		crossrealm_d.SetVotes(99, 1)
+		crossrealm_d.SetAdmin(myAddr)
 	}()
 
-	// 3. Check result after corruption.
-	result = crossrealm_d.GetResult(cross)
-	println("after:", result)
+	// Verify admin is unchanged (fix prevents corruption).
+	adminAfter := crossrealm_d.GetAdmin(cross)
+	println("admin after:", adminAfter)
+	println("admin matches attacker:", adminAfter == myAddr)
+
+	println("realm state intact")
 }
 
 // Output:
-// before: rejected
-// panic caught: cannot modify external-realm or non-realm object
-// after: approved
+// admin before:
+// panic caught: cannot directly modify readonly tainted object (w/o method): admin<~VPBlock(3,6)>
+// admin after:
+// admin matches attacker: false
+// realm state intact
