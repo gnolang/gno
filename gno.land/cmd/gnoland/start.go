@@ -58,6 +58,7 @@ type startCfg struct {
 	logLevel   string
 	logFormat  string
 	earlyStart bool
+	haltHeight int64
 }
 
 func newStartCmd(io commands.IO) *commands.Command {
@@ -171,6 +172,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"[experimental] start RPC and P2P before genesis time, deferring only consensus",
 	)
+
+	fs.Int64Var(
+		&c.haltHeight,
+		"halt-height",
+		0,
+		"halt the node after committing this block height (0 = run indefinitely)",
+	)
 }
 
 func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
@@ -273,6 +281,9 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	opts := []node.Option{}
 	if c.earlyStart {
 		opts = append(opts, node.WithEarlyStart())
+	}
+	if c.haltHeight > 0 {
+		opts = append(opts, node.WithHaltHeight(c.haltHeight))
 	}
 	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger, opts...)
 	if err != nil {

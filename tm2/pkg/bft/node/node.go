@@ -155,6 +155,15 @@ func WithEarlyStart() Option {
 	}
 }
 
+// WithHaltHeight configures the node to stop after committing the given block height.
+// This is useful for coordinated chain upgrades where all validators need to stop
+// at the same height before upgrading the binary.
+func WithHaltHeight(height int64) Option {
+	return func(n *Node) {
+		n.haltHeight = height
+	}
+}
+
 // ------------------------------------------------------------------------------
 
 // Node is the highest level interface to a full Tendermint node.
@@ -190,7 +199,8 @@ type Node struct {
 	eventStoreService *eventstore.Service
 	firstBlockSignal  <-chan struct{}
 
-	earlyStart bool // start RPC+P2P before genesis time, defer only consensus
+	earlyStart bool  // start RPC+P2P before genesis time, defer only consensus
+	haltHeight int64 // if non-zero, halt after committing this block height
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -575,6 +585,12 @@ func NewNode(config *cfg.Config,
 
 	for _, option := range options {
 		option(node)
+	}
+
+	// Apply halt height to consensus state after options are processed
+	if node.haltHeight > 0 {
+		node.consensusState.SetHaltHeight(node.haltHeight)
+		logger.Info("Halt height configured", "height", node.haltHeight)
 	}
 
 	return node, nil

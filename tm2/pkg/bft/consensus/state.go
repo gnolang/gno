@@ -138,6 +138,9 @@ type ConsensusState struct {
 	doPrevote      func(height int64, round int)
 	setProposal    func(proposal *types.Proposal) error
 
+	// if non-zero, the node will stop after committing this height
+	haltHeight int64
+
 	// closed when we finish shutting down
 	done chan struct{}
 }
@@ -193,6 +196,12 @@ func NewConsensusState(
 func (cs *ConsensusState) SetLogger(l *slog.Logger) {
 	cs.BaseService.Logger = l
 	cs.timeoutTicker.SetLogger(l)
+}
+
+// SetHaltHeight sets the height at which the node will stop after committing.
+// If set to 0, the node runs indefinitely.
+func (cs *ConsensusState) SetHaltHeight(height int64) {
+	cs.haltHeight = height
 }
 
 // SetEventSwitch sets event bus.
@@ -1402,6 +1411,14 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 
 	// Log the telemetry
 	cs.logTelemetry(block)
+
+	// Check if we should halt at this height
+	if cs.haltHeight > 0 && height >= cs.haltHeight {
+		cs.Logger.Info("Halt height reached, shutting down", "height", height, "halt_height", cs.haltHeight)
+		if err := osm.Kill(); err != nil {
+			cs.Logger.Error("Failed to halt node", "err", err)
+		}
+	}
 }
 
 // -----------------------------------------------------------------------------
