@@ -1644,13 +1644,13 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 				if isNaN {
 					return "", true
 				}
+				childrenLength += len(mk)
 				bz = binary.AppendUvarint(bz, uint64(len(mk)))
 				bz = append(bz, mk...)
 				if i != al-1 {
 					bz = append(bz, ',')
 				}
 			}
-			childrenLength += len(bz)
 		} else {
 			bz = append(bz, av.Data...)
 		}
@@ -1668,6 +1668,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			if isNaN {
 				return "", true
 			}
+			childrenLength += len(mk)
 			bz = binary.AppendUvarint(bz, uint64(len(mk)))
 			bz = append(bz, mk...)
 			if i != sl-1 {
@@ -1675,7 +1676,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			}
 		}
 		bz = append(bz, '}')
-		childrenLength += len(bz)
+
 	case *ChanType:
 		panic("runtime error: not yet implemented")
 	default:
