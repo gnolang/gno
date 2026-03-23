@@ -53,6 +53,12 @@ func SetRequiredAccountAmount(_ realm, amount int64) {
 	args := boards.Args{amount}
 	gPerms.WithPermission(caller, PermissionAccountRequiredAmountChange, args, crossingFn(func() {
 		RequiredAccountAmount = amount
+
+		chain.Emit(
+			"RequiredAccountAmountChanged",
+			"caller", caller.String(),
+			"amount", strconv.FormatInt(amount, 10),
+		)
 	}))
 }
 
@@ -75,7 +81,7 @@ func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions) {
 			gPerms = p
 
 			chain.Emit(
-				"RealmPermissionsUpdated",
+				"RealmPermissionsChanged",
 				"caller", caller.String(),
 			)
 			return
@@ -86,7 +92,7 @@ func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions) {
 		board.Permissions = p
 
 		chain.Emit(
-			"BoardPermissionsUpdated",
+			"BoardPermissionsChanged",
 			"caller", caller.String(),
 			"boardID", board.ID.String(),
 		)
