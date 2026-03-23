@@ -11,7 +11,7 @@ import (
 
 	"gno.land/p/morgan/chess"
 	"gno.land/p/morgan/chess/glicko2"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 func cleanup() {

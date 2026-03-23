@@ -16,7 +16,7 @@ stdout OK!
 stdout 'GAS WANTED: [0-9]+'
 stdout 'GAS USED:   [0-9]+'
 stdout 'HEIGHT:     [0-9]+'
-stdout 'EVENTS:     \[{"type":"Transfer","attrs":\[{"key":"token","value":"gno.land/r/demo/defi/foo20.FOO"},{"key":"from","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},{"key":"to","value":"g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp"},{"key":"value","value":"1000000"}\],"pkg_path":"gno.land/p/demo/tokens/grc20"},{\"bytes_delta\":2011,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":201100},\"pkg_path\":\"gno.land/r/demo/defi/foo20\"}\]'
+stdout 'EVENTS:     \[{"type":"Transfer","attrs":\[{"key":"token","value":"gno.land/r/demo/defi/foo20.FOO"},{"key":"from","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},{"key":"to","value":"g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp"},{"key":"value","value":"1000000"}\],"pkg_path":"gno.land/p/demo/tokens/grc20"},{\"bytes_delta\":2029,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":202900},\"pkg_path\":\"gno.land/r/demo/defi/foo20\"}\]'
 stdout 'TX HASH:    '
 
 -- gnomod.toml --
