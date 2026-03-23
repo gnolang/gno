@@ -8,10 +8,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 )
 
+// These values should follow future evolution of the CLA realm.
 const (
 	claErrorSubstring  = "has not signed the required CLA"
 	sysCLARealmDefault = "gno.land/r/sys/cla"
 	sysCLAParamPath    = "params/params/vm:p:syscla_pkgpath"
+	sysCLAHashExpr     = "requiredHash"
+	sysCLAURLExpr      = "claURL"
 )
 
 // isCLAError checks whether the error indicates a CLA signing failure.
@@ -70,12 +73,12 @@ func queryCLARealmPath(remote string) (string, error) {
 func queryCLAInfo(remote, claRealmPath string) (hash, url string, err error) {
 	var errs []string
 
-	hash, hashErr := queryEvalString(remote, claRealmPath, "requiredHash")
+	hash, hashErr := queryEvalString(remote, claRealmPath, sysCLAHashExpr)
 	if hashErr != nil {
 		errs = append(errs, hashErr.Error())
 	}
 
-	url, urlErr := queryEvalString(remote, claRealmPath, "claURL")
+	url, urlErr := queryEvalString(remote, claRealmPath, sysCLAURLExpr)
 	if urlErr != nil {
 		errs = append(errs, urlErr.Error())
 	}
