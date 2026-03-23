@@ -145,6 +145,16 @@ func isWhole(t Type) bool {
 	}
 }
 
+func isIntegerKind(k Kind) bool {
+	switch k {
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
+		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		return true
+	default:
+		return false
+	}
+}
+
 // ===========================================================
 
 func mayBeNil(t Type) bool {
