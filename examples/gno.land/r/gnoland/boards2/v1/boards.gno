@@ -11,6 +11,11 @@ import (
 	"gno.land/p/nt/avl/v0"
 )
 
+// RequiredAccountAmount contains the required account amount for open board interactions.
+// The amount requirement is not applied to members that were invited to an open board.
+// Amount is defined as ugnot.
+var RequiredAccountAmount = int64(3_000_000_000)
+
 // TODO: Refactor globals in favor of a cleaner pattern
 var (
 	gRealmLink        txlink.Realm
@@ -29,10 +34,7 @@ var (
 	gBoards         = boards.NewStorage()
 	gBoardsSequence = boards.NewIdentifierGenerator()
 	gRealmPath      = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land")
-	gPerms          = initRealmPermissions("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
-
-	// TODO: Allow updating open account amount though a proposal (GovDAO, CommonDAO?)
-	gOpenAccountAmount = int64(3_000_000_000) // ugnot required for open board actions
+	gPerms          = initRealmPermissions("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // GovDAO T1 multisig
 )
 
 func init() {

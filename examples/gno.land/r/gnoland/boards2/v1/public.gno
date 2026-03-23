@@ -36,8 +36,23 @@ func SetHelp(_ realm, content string) {
 	content = strings.TrimSpace(content)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{content}
-	gPerms.WithPermission(caller, PermissionRealmHelp, args, crossingFn(func() {
+	gPerms.WithPermission(caller, PermissionRealmHelpChange, args, crossingFn(func() {
 		gHelp = content
+	}))
+}
+
+// SetRequiredAccountAmount sets the required account amount to interact as a non member with open boards.
+// Amount must be given as ugnot.
+// The amount requirement is not applied to members that were invited to an open board.
+func SetRequiredAccountAmount(_ realm, amount int64) {
+	if amount < 0 {
+		panic("invalid amount")
+	}
+
+	caller := runtime.PreviousRealm().Address()
+	args := boards.Args{amount}
+	gPerms.WithPermission(caller, PermissionAccountRequiredAmountChange, args, crossingFn(func() {
+		RequiredAccountAmount = amount
 	}))
 }
 
