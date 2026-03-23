@@ -146,12 +146,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {
 			if isCLAError(err) {
-				remote := cfg.RootCfg.RootCfg.Remote
-				claRealm := queryCLARealmPath(remote)
-				hash, claURL := queryCLAInfo(remote, claRealm)
-				if helper := formatCLAHelper(hash, claURL, claRealm, cfg.RootCfg.ChainID, remote, nameOrBech32); helper != "" {
-					io.Println(helper)
-				}
+				return enhanceCLAError(err, cfg.RootCfg.RootCfg.Remote, cfg.RootCfg.ChainID, nameOrBech32)
 			}
 			return err
 		}

@@ -42,7 +42,9 @@ func TestFormatCLAHelper(t *testing.T) {
 }
 
 func TestFormatCLAHelper_NoHash(t *testing.T) {
-	assert.Empty(t, formatCLAHelper("", "https://example.com", "gno.land/r/sys/cla", "chain", "localhost:26657", "g1abc"))
+	helper := formatCLAHelper("", "https://example.com", "gno.land/r/sys/cla", "chain", "localhost:26657", "g1abc")
+	assert.Contains(t, helper, "<CLA_HASH>")
+	assert.Contains(t, helper, "To sign the CLA, run:")
 }
 
 func TestFormatCLAHelper_NoURL(t *testing.T) {
@@ -51,7 +53,8 @@ func TestFormatCLAHelper_NoURL(t *testing.T) {
 	assert.Contains(t, helper, "To sign the CLA, run:")
 }
 
-func TestFormatCLAHelper_NoChainID(t *testing.T) {
+func TestFormatCLAHelper_NoChainIDNoRemote(t *testing.T) {
 	helper := formatCLAHelper("abc123", "", "gno.land/r/sys/cla", "", "", "g1abc")
 	assert.NotContains(t, helper, "-chainid")
+	assert.NotContains(t, helper, "-remote")
 }
