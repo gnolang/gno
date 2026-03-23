@@ -25,6 +25,10 @@ func TestParseQEvalString(t *testing.T) {
 	// Garbage
 	assert.Equal(t, "", parseQEvalString(""))
 	assert.Equal(t, "", parseQEvalString("garbage"))
+	// Quoted value with spaces
+	assert.Equal(t, "hello world", parseQEvalString(`("hello world" string)`))
+	// Quoted value with escaped quotes
+	assert.Equal(t, `"quoted" value`, parseQEvalString(`("\"quoted\" value" string)`))
 	// Unquoted fallback (shouldn't happen in practice but handle gracefully)
 	assert.Equal(t, "abc123hash", parseQEvalString("(abc123hash string)"))
 }

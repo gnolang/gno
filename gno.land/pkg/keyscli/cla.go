@@ -12,7 +12,7 @@ import (
 const (
 	claErrorSubstring  = "has not signed the required CLA"
 	sysCLARealmDefault = "gno.land/r/sys/cla"
-	sysCLAParamPath    = "params/params/vm:p:syscla_pkgpath"
+	sysCLAParamPath    = "params/vm:p:syscla_pkgpath"
 	sysCLAHashExpr     = "requiredHash"
 	sysCLAURLExpr      = "claURL"
 )
@@ -23,9 +23,9 @@ func isCLAError(err error) bool {
 	return err != nil && strings.Contains(fmt.Sprintf("%#v", err), claErrorSubstring)
 }
 
-// enhanceCLAError wraps the original error with a user-friendly CLA signing helper.
+// wrapCLAError wraps the original error with a user-friendly CLA signing helper.
 // Query failure warnings are appended below the helper message.
-func enhanceCLAError(err error, remote, chainID, nameOrBech32 string) error {
+func wrapCLAError(err error, remote, chainID, nameOrBech32 string) error {
 	var warnings []string
 
 	claRealm, queryErr := queryCLARealmPath(remote)
@@ -63,6 +63,10 @@ func queryCLARealmPath(remote string) (string, error) {
 		return sysCLARealmDefault, fmt.Errorf("querying CLA realm path: empty response")
 	}
 	path := string(res.Response.Data)
+	// Params store returns quoted strings, e.g. "gno.land/r/sys/cla"
+	if unquoted, err := strconv.Unquote(path); err == nil {
+		path = unquoted
+	}
 	if path == "" {
 		return sysCLARealmDefault, nil
 	}
@@ -116,12 +120,13 @@ func parseQEvalString(data string) string {
 	if !strings.HasPrefix(data, "(") || !strings.HasSuffix(data, ")") {
 		return ""
 	}
-	inner := data[1 : len(data)-1]
-	fields := strings.Fields(inner)
-	if len(fields) < 2 || fields[len(fields)-1] != "string" {
+	inner := strings.TrimSpace(data[1 : len(data)-1])
+	// Split at last space to separate value from type: "<value> string"
+	lastSpace := strings.LastIndex(inner, " ")
+	if lastSpace < 0 || inner[lastSpace+1:] != "string" {
 		return ""
 	}
-	val := strings.Join(fields[:len(fields)-1], " ")
+	val := inner[:lastSpace]
 	if unquoted, err := strconv.Unquote(val); err == nil {
 		return unquoted
 	}

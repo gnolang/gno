@@ -146,7 +146,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {
 			if isCLAError(err) {
-				return enhanceCLAError(err, cfg.RootCfg.RootCfg.Remote, cfg.RootCfg.ChainID, nameOrBech32)
+				return wrapCLAError(err, cfg.RootCfg.RootCfg.Remote, cfg.RootCfg.ChainID, nameOrBech32)
 			}
 			return err
 		}

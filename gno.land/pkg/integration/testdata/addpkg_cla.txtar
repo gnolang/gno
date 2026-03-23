@@ -52,9 +52,9 @@ stdout 'false bool'
 # Alice tries to deploy without signing CLA - should FAIL
 # The error should include a CLA signing helper queried from the realm
 ! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
-stderr 'has not signed the required CLA'
-stdout 'To sign the CLA, run:'
-stdout 'gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args abc123hash'
+stderr 'must be signed before deploying packages'
+stderr 'To sign the CLA, run:'
+stderr 'gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args abc123hash'
 
 # ============================================================
 # Test 3: Sign CLA, then deploy successfully
@@ -93,8 +93,8 @@ stdout 'false bool'
 
 # Alice tries to deploy - should FAIL (with updated hash in helper)
 ! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg4 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
-stderr 'has not signed the required CLA'
-stdout 'gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args newhash456'
+stderr 'must be signed before deploying packages'
+stderr 'gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args newhash456'
 
 # Alice re-signs with new hash
 gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "newhash456" -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
