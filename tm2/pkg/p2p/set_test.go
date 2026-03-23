@@ -22,7 +22,7 @@ func TestSet_Add(t *testing.T) {
 
 	for _, peer := range peers {
 		// Add the peer
-		s.Add(peer)
+		require.NoError(t, s.Add(peer))
 
 		// Make sure the peer is present
 		assert.True(t, s.Has(peer.ID()))
@@ -44,7 +44,7 @@ func TestSet_Remove(t *testing.T) {
 	// Add the initial peers
 	for _, peer := range peers {
 		// Add the peer
-		s.Add(peer)
+		require.NoError(t, s.Add(peer))
 
 		// Make sure the peer is present
 		require.True(t, s.Has(peer.ID()))
@@ -81,8 +81,8 @@ func TestSet_Add_DuplicateInbound(t *testing.T) {
 	}
 
 	// Add the same inbound peer twice
-	s.Add(peer)
-	s.Add(peer)
+	require.NoError(t, s.Add(peer))
+	require.Error(t, s.Add(peer))
 
 	// Counter should reflect 1 peer, not 2
 	assert.EqualValues(t, 1, s.NumInbound())
@@ -108,48 +108,10 @@ func TestSet_Add_DuplicateOutbound(t *testing.T) {
 	}
 
 	// Add the same outbound peer twice
-	s.Add(peer)
-	s.Add(peer)
+	require.NoError(t, s.Add(peer))
+	require.Error(t, s.Add(peer))
 
 	// Counter should reflect 1 peer, not 2
-	assert.EqualValues(t, 0, s.NumInbound())
-	assert.EqualValues(t, 1, s.NumOutbound())
-	assert.Len(t, s.List(), 1)
-}
-
-func TestSet_Add_DirectionChange(t *testing.T) {
-	t.Parallel()
-
-	var (
-		key = types.GenerateNodeKey()
-		s   = newSet()
-	)
-
-	inboundPeer := &mock.Peer{
-		IDFn: func() types.ID {
-			return key.ID()
-		},
-		IsOutboundFn: func() bool {
-			return false
-		},
-	}
-
-	outboundPeer := &mock.Peer{
-		IDFn: func() types.ID {
-			return key.ID()
-		},
-		IsOutboundFn: func() bool {
-			return true
-		},
-	}
-
-	// Add as inbound first
-	s.Add(inboundPeer)
-	assert.EqualValues(t, 1, s.NumInbound())
-	assert.EqualValues(t, 0, s.NumOutbound())
-
-	// Replace with outbound (same peer ID)
-	s.Add(outboundPeer)
 	assert.EqualValues(t, 0, s.NumInbound())
 	assert.EqualValues(t, 1, s.NumOutbound())
 	assert.Len(t, s.List(), 1)
@@ -186,8 +148,9 @@ func TestSet_Add_Remove_DuplicateCycle(t *testing.T) {
 	}
 
 	// Add the same peer 10 times (simulates the reported attack)
-	for range 10 {
-		s.Add(peer)
+	require.NoError(t, s.Add(peer))
+	for range 9 {
+		require.Error(t, s.Add(peer))
 	}
 
 	// Should only count as 1 peer
@@ -215,7 +178,7 @@ func TestSet_Get(t *testing.T) {
 
 		for _, peer := range peers {
 			id := peer.ID()
-			s.Add(peer)
+			require.NoError(t, s.Add(peer))
 
 			assert.True(t, s.Get(id).ID() == id)
 		}
@@ -230,7 +193,7 @@ func TestSet_Get(t *testing.T) {
 		)
 
 		for _, peer := range peers {
-			s.Add(peer)
+			require.NoError(t, s.Add(peer))
 		}
 
 		p := s.Get("random ID")
@@ -260,7 +223,7 @@ func TestSet_List(t *testing.T) {
 		)
 
 		for _, peer := range peers {
-			s.Add(peer)
+			require.NoError(t, s.Add(peer))
 		}
 
 		// Linearize the set

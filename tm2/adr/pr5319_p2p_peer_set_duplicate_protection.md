@@ -19,51 +19,58 @@ from different IPs inflates the counter with no guard. With
 
 Two complementary fixes:
 
-### 1. Make `set.Add()` idempotent (root cause)
+### 1. `set.Add()` returns an error on duplicate (root cause)
 
-Check if the peer ID exists before touching counters. If it does, only adjust
-counters when the direction (inbound/outbound) changed:
+Change the `PeerSet.Add()` signature to return an `error`. If the peer ID
+already exists, return an error without modifying the map or counters:
 
 ```go
-if existing, exists := s.peers[peer.ID()]; exists {
-    if existing.IsOutbound() && !peer.IsOutbound() {
-        s.outbound -= 1
-        s.inbound += 1
-    } else if !existing.IsOutbound() && peer.IsOutbound() {
-        s.inbound -= 1
-        s.outbound += 1
+func (s *set) Add(peer PeerConn) error {
+    s.mux.Lock()
+    defer s.mux.Unlock()
+    if _, exists := s.peers[peer.ID()]; exists {
+        return errors.New("duplicate peer")
     }
     s.peers[peer.ID()] = peer
-    return
+    if peer.IsOutbound() {
+        s.outbound++
+    } else {
+        s.inbound++
+    }
+    return nil
 }
 ```
 
-The direction-change branch should never trigger in practice (Fix 2 blocks
-duplicates before they reach `Add()`), but it keeps the data structure
-self-consistent in isolation.
+The `addPeer()` function in `switch.go` checks this error. Both callers
+(`runAcceptLoop`, `runDialLoop`) already handle `addPeer()` errors with
+proper cleanup (transport removal, peer stop). This also closes the TOCTOU
+gap in `runDialLoop` where `Has()` is checked before dialing but the peer
+could connect between the check and the `Add()`.
 
 ### 2. Reject duplicate peer IDs in `runAcceptLoop()` (defense in depth)
 
-Add `peers.Has(p.ID())` before `addPeer()`. This blocks the primary vector
-and avoids wasted work (peer start, reactor init).
+Add `peers.Has(p.ID())` before `addPeer()`. This is a fast-path optimization
+that avoids wasted work (peer start, reactor init) when the peer is obviously
+a duplicate.
 
 ## Alternatives considered
 
-**A. Ignore direction change on duplicate** — rejected because if a duplicate
-with a different direction reaches `Add()`, `Remove()` would later decrement
-the wrong counter (uint64 underflow).
+**A. Handle direction changes in `Add()`** — rejected because direction change
+inside `Add()` is an implicit side effect. If a caller needs to handle
+direction change, it should explicitly `Remove()` then `Add()`, making the
+design choice visible at the call site.
 
-**B. Reject duplicates in `Add()` (return bool)** — rejected because the peer
-is already started before `Add()` is called; the caller cleanup would require
-interface changes.
-
-**C. Only apply the switch-level guard** — rejected because `set.Add()` would
+**B. Only apply the switch-level guard** — rejected because `set.Add()` would
 still violate its own invariants. Any future caller without a prior `Has()`
 check would reintroduce the bug.
+
+**C. Make `Add()` silently idempotent (no error)** — rejected because callers
+should know a duplicate occurred so they can clean up the already-started peer.
 
 ## Consequences
 
 - Ghost counter inflation blocked at two layers
 - `set` counters always match map contents
-- 5 new regression tests, no regressions on existing tests
-- `set.Add()` slightly more complex due to direction-change handling
+- `PeerSet` interface changed: `Add()` now returns `error`
+- TOCTOU gap in `runDialLoop` closed by error return from `Add()`
+- 4 new regression tests, no regressions on existing tests

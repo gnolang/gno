@@ -125,7 +125,7 @@ func TestMultiplexSwitch_Broadcast(t *testing.T) {
 		}
 
 		// Load it up with peers
-		sw.peers.Add(p)
+		require.NoError(t, sw.peers.Add(p))
 	}
 
 	// Broadcast the data
@@ -147,7 +147,7 @@ func TestMultiplexSwitch_Peers(t *testing.T) {
 
 	for _, p := range peers {
 		// Load it up with peers
-		sw.peers.Add(p)
+		require.NoError(t, sw.peers.Add(p))
 	}
 
 	// Broadcast the data
@@ -185,7 +185,7 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 		sw.peers = newSet()
 
 		// Save the single peer
-		sw.peers.Add(p)
+		require.NoError(t, sw.peers.Add(p))
 
 		// Stop and remove the peer
 		sw.StopPeerForError(p, nil)
@@ -224,7 +224,7 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 		sw.peers = newSet()
 
 		// Save the single peer
-		sw.peers.Add(p)
+		require.NoError(t, sw.peers.Add(p))
 
 		// Stop and remove the peer
 		sw.StopPeerForError(p, nil)
@@ -508,12 +508,14 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 				numInboundFn: func() uint64 {
 					return maxInbound - 1 // available slot
 				},
-				addFn: func(peer PeerConn) {
+				addFn: func(peer PeerConn) error {
 					require.Equal(t, p.ID(), peer.ID())
 
 					peerAdded = true
 
 					ch <- struct{}{}
+
+					return nil
 				},
 			}
 

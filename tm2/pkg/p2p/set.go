@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -24,34 +25,24 @@ func newSet() *set {
 }
 
 // Add adds the peer to the set.
-func (s *set) Add(peer PeerConn) {
+// Returns an error if a peer with the same ID already exists.
+func (s *set) Add(peer PeerConn) error {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
-	// If the peer already exists, we need to check if the direction has changed
-	if existing, exists := s.peers[peer.ID()]; exists {
-		if existing.IsOutbound() && !peer.IsOutbound() {
-			s.outbound -= 1
-			s.inbound += 1
-		} else if !existing.IsOutbound() && peer.IsOutbound() {
-			s.inbound -= 1
-			s.outbound += 1
-		}
-
-		s.peers[peer.ID()] = peer
-
-		return
+	if _, exists := s.peers[peer.ID()]; exists {
+		return errors.New("duplicate peer")
 	}
 
 	s.peers[peer.ID()] = peer
 
 	if peer.IsOutbound() {
-		s.outbound += 1
-
-		return
+		s.outbound++
+	} else {
+		s.inbound++
 	}
 
-	s.inbound += 1
+	return nil
 }
 
 // Has returns true if the set contains the peer referred to by this

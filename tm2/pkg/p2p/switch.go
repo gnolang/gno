@@ -713,7 +713,9 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 
 	// Add the peer to the peer set. Do this before starting the reactors
 	// so that if Receive errors, we will find the peer and remove it.
-	sw.peers.Add(p)
+	if err := sw.peers.Add(p); err != nil {
+		return err
+	}
 
 	// Start all the reactor protocols on the peer.
 	for _, reactor := range sw.reactors {
