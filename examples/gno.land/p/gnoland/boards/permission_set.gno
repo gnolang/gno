@@ -18,7 +18,7 @@ func NewPermissionSet(perms ...Permission) PermissionSet {
 		}
 	}
 
-	s := make(PermissionSet, max/64+1)
+	s := make(PermissionSet, int(max)/64+1)
 	for _, p := range perms {
 		// Calculate the index within the set where the permission should be defined.
 		// Each item in the set can contain 64 permissions, for example:
