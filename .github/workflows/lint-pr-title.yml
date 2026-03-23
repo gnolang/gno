@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   pr-title:
+    if: github.head_ref != 'master'
     runs-on: ubuntu-latest
     steps:
       - uses: amannn/action-semantic-pull-request@v6

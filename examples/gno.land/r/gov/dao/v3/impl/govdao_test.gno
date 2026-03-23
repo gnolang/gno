@@ -146,7 +146,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	urequire.Equal(t, false, accepted)
 
 	urequire.Equal(t, true, contains(dao.Render("0"), "**PROPOSAL HAS BEEN DENIED**"))
-	urequire.Equal(t, true, contains(dao.Render("0"), "NO PERCENT: 68.42105263157895%"))
+	urequire.Equal(t, true, contains(dao.Render("0"), "NO PERCENT: 81.25%"))
 }
 
 func TestExecutorCreationRealm(cur realm, t *testing.T) {
@@ -304,6 +304,69 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	urequire.Equal(t, true, accepted)
 	urequire.Equal(t, true, contains(dao.Render("8"), "**PROPOSAL HAS BEEN ACCEPTED**"))
 	urequire.Equal(t, true, contains(dao.Render("8"), "YES PERCENT: 68.42105263157895%"))
+}
+
+func TestAbstainVote(cur realm, t *testing.T) {
+	loadMembers()
+
+	portfolio := "# This is my portfolio:\n\n- THINGS"
+
+	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+
+	nm1 := testutils.TestAddress("nm1")
+	proposalRequest := NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio)
+
+	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewUserRealm(m1))
+	pid := dao.MustCreateProposal(cross, proposalRequest)
+
+	// m1 votes abstain
+	dao.MustVoteOnProposalSimple(cross, int64(pid), "ABSTAIN")
+
+	// Other members vote YES to reach supermajority
+	testing.SetOriginCaller(m11)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: pid,
+	})
+
+	testing.SetOriginCaller(m111)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: pid,
+	})
+
+	testing.SetOriginCaller(m1111)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: pid,
+	})
+
+	testing.SetOriginCaller(m2)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: pid,
+	})
+
+	testing.SetOriginCaller(m3)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: pid,
+	})
+
+	// Verify render shows correct percentages
+	urequire.Equal(t, true, contains(dao.Render(pid.String()), "YES PERCENT: 81.25%"))
+	urequire.Equal(t, true, contains(dao.Render(pid.String()), "NO PERCENT: 0%"))
+	urequire.Equal(t, true, contains(dao.Render(pid.String()), "ABSTAIN PERCENT: 18.75%"))
+
+	// Supermajority reached despite one abstain voter
+	accepted := dao.ExecuteProposal(cross, pid)
+	urequire.Equal(t, true, accepted)
+	urequire.Equal(t, true, contains(dao.Render(pid.String()), "**PROPOSAL HAS BEEN ACCEPTED**"))
+
+	// Abstain voter appears in vote list
+	urequire.Equal(t, true, contains(dao.Render(fmt.Sprintf("%v/votes", int64(pid))), "ABSTAIN"))
 }
 
 func contains(s, substr string) bool {
