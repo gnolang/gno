@@ -11,7 +11,7 @@ import (
 var board hub.Board
 
 func init() {
-	testing.SetRealm(testing.NewUserRealm("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"))
+	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
 	boardID := boards2.CreateBoard(cross, "test123", false, false)
 
 	// Create a couple of board threads

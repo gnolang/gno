@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	testing.SetRealm(testing.NewUserRealm("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"))
+	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
 	boards2.CreateBoard(cross, "aaa123", false, false)
 	boards2.CreateBoard(cross, "bbb123", false, false)
 	boards2.CreateBoard(cross, "ccc123", false, false)

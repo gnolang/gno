@@ -30,8 +30,8 @@ func TestBoardIterateThreads(t *testing.T) {
 			setup: func(b *boards.Board) {
 				threads := []*boards.Post{
 					boards.MustNewThread(b, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Title 1", "Body 1"),
-					boards.MustNewThread(b, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "Title 2", "Body 2"),
-					boards.MustNewThread(b, "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", "Title 3", "Body 3"),
+					boards.MustNewThread(b, "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", "Title 2", "Body 2"),
+					boards.MustNewThread(b, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "Title 3", "Body 3"),
 				}
 				for _, t := range threads {
 					b.Threads.Add(t)
@@ -81,8 +81,8 @@ func TestBoardIterateMembers(t *testing.T) {
 		{
 			name: "multiple members",
 			users: []boards.User{
-				{Address: "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"},
 				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
+				{Address: "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"},
 				{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"},
 			},
 		},
