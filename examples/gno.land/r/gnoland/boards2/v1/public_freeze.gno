@@ -6,8 +6,6 @@ import (
 	"strconv"
 
 	"gno.land/p/gnoland/boards"
-
-	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // FreezeBoard freezes a board so no more threads and comments can be created or modified.
@@ -59,7 +57,7 @@ func setBoardReadonly(boardID boards.ID, readonly bool) {
 
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{caller, board.ID, readonly}
-	board.Permissions.WithPermission(cross, caller, permissions.PermissionBoardFreeze, args, func(realm) {
+	board.Permissions.WithPermission(caller, PermissionBoardFreeze, args, crossingFn(func() {
 		assertRealmIsNotLocked()
 
 		board.Readonly = readonly
@@ -70,7 +68,7 @@ func setBoardReadonly(boardID boards.ID, readonly bool) {
 			"boardID", board.ID.String(),
 			"frozen", strconv.FormatBool(readonly),
 		)
-	})
+	}))
 }
 
 func setThreadReadonly(boardID, threadID boards.ID, readonly bool) {
@@ -86,7 +84,7 @@ func setThreadReadonly(boardID, threadID boards.ID, readonly bool) {
 
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{caller, board.ID, thread.ID, readonly}
-	board.Permissions.WithPermission(cross, caller, permissions.PermissionThreadFreeze, args, func(realm) {
+	board.Permissions.WithPermission(caller, PermissionThreadFreeze, args, crossingFn(func() {
 		assertRealmIsNotLocked()
 
 		thread.Readonly = readonly
@@ -98,5 +96,5 @@ func setThreadReadonly(boardID, threadID boards.ID, readonly bool) {
 			"threadID", thread.ID.String(),
 			"frozen", strconv.FormatBool(readonly),
 		)
-	})
+	}))
 }

@@ -3,8 +3,8 @@ package impl
 import (
 	"strings"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
@@ -46,9 +46,10 @@ func (pss ProposalsStatuses) GetStatus(id dao.ProposalID) *proposalStatus {
 }
 
 type proposalStatus struct {
-	YesVotes memberstore.MembersByTier
-	NoVotes  memberstore.MembersByTier
-	AllVotes memberstore.MembersByTier
+	YesVotes     memberstore.MembersByTier
+	NoVotes      memberstore.MembersByTier
+	AbstainVotes memberstore.MembersByTier
+	AllVotes     memberstore.MembersByTier
 
 	Accepted bool
 	Denied   bool
@@ -56,67 +57,61 @@ type proposalStatus struct {
 	DeniedReason string
 
 	TiersAllowedToVote []string
-
-	TotalPower float64 // TotalPower is the power of all the members existing when this proposal was created.
 }
 
 func getMembers(cur realm) memberstore.MembersByTier {
 	return memberstore.Get()
 }
 
+func newEmptyVoteStore() memberstore.MembersByTier {
+	mbt := memberstore.NewMembersByTier()
+	mbt.SetTier(memberstore.T1)
+	mbt.SetTier(memberstore.T2)
+	mbt.SetTier(memberstore.T3)
+	return mbt
+}
+
 func newProposalStatus(allowedToVote []string) *proposalStatus {
-	yv := memberstore.NewMembersByTier()
-	yv.SetTier(memberstore.T1)
-	yv.SetTier(memberstore.T2)
-	yv.SetTier(memberstore.T3)
-	nv := memberstore.NewMembersByTier()
-	nv.SetTier(memberstore.T1)
-	nv.SetTier(memberstore.T2)
-	nv.SetTier(memberstore.T3)
-	av := memberstore.NewMembersByTier()
-	av.SetTier(memberstore.T1)
-	av.SetTier(memberstore.T2)
-	av.SetTier(memberstore.T3)
-
 	return &proposalStatus{
-		YesVotes: yv,
-		NoVotes:  nv,
-		AllVotes: av,
-
+		YesVotes:           newEmptyVoteStore(),
+		NoVotes:            newEmptyVoteStore(),
+		AbstainVotes:       newEmptyVoteStore(),
+		AllVotes:           newEmptyVoteStore(),
 		TiersAllowedToVote: allowedToVote,
-
-		TotalPower: getMembers(cross).GetTotalPower(),
 	}
 }
 
-func (ps *proposalStatus) YesPercent() float64 {
-	var yp float64
-
-	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
-		power := memberstore.GetTierPower(tn, getMembers(cross))
-		ts := ps.YesVotes.GetTierSize(tn)
-
-		yp = yp + (power * float64(ts))
-
-		return false
-	})
-
-	return (yp / ps.TotalPower) * 100
+// totalPower computes the total voting power dynamically from current members
+// rather than using a snapshot. See https://github.com/gnolang/gno/pull/5271#discussion_r2952523023
+func (ps *proposalStatus) totalPower() float64 {
+	members := getMembers(cross)
+	var tp float64
+	for _, tn := range ps.TiersAllowedToVote {
+		power := memberstore.GetTierPower(tn, members)
+		tp += power * float64(members.GetTierSize(tn))
+	}
+	return tp
 }
 
-func (ps *proposalStatus) NoPercent() float64 {
-	var np float64
-
+func (ps *proposalStatus) votePowerPercent(votes memberstore.MembersByTier) float64 {
+	members := getMembers(cross)
+	var vp float64
 	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
-		power := memberstore.GetTierPower(tn, getMembers(cross))
-		ts := ps.NoVotes.GetTierSize(tn)
-		np = np + (power * float64(ts))
-
+		power := memberstore.GetTierPower(tn, members)
+		ts := votes.GetTierSize(tn)
+		vp = vp + (power * float64(ts))
 		return false
 	})
-
-	return (np / ps.TotalPower) * 100
+	tp := ps.totalPower()
+	if tp == 0 {
+		return 0
+	}
+	return (vp / tp) * 100
 }
+
+func (ps *proposalStatus) YesPercent() float64     { return ps.votePowerPercent(ps.YesVotes) }
+func (ps *proposalStatus) NoPercent() float64      { return ps.votePowerPercent(ps.NoVotes) }
+func (ps *proposalStatus) AbstainPercent() float64 { return ps.votePowerPercent(ps.AbstainVotes) }
 
 func (ps *proposalStatus) IsAllowed(tier string) bool {
 	for _, ta := range ps.TiersAllowedToVote {
@@ -128,6 +123,7 @@ func (ps *proposalStatus) IsAllowed(tier string) bool {
 	return false
 }
 
+// XXX: can be optimized by passing down total power to Yes/No/Abstain percent fn to avoid re-computing
 func (ps *proposalStatus) String() string {
 	var sb strings.Builder
 	sb.WriteString("### Stats\n")
@@ -139,6 +135,7 @@ func (ps *proposalStatus) String() string {
 		if ps.DeniedReason != "" {
 			sb.WriteString("REASON: ")
 			sb.WriteString(ps.DeniedReason)
+			sb.WriteString("\n")
 		}
 	} else {
 		sb.WriteString("- **Proposal is open for votes**\n")
@@ -150,6 +147,7 @@ func (ps *proposalStatus) String() string {
 
 	sb.WriteString(ufmt.Sprintf("- YES PERCENT: %v%%\n", ps.YesPercent()))
 	sb.WriteString(ufmt.Sprintf("- NO PERCENT: %v%%\n", ps.NoPercent()))
+	sb.WriteString(ufmt.Sprintf("- ABSTAIN PERCENT: %v%%\n", ps.AbstainPercent()))
 
 	return sb.String()
 }
@@ -159,6 +157,7 @@ func StringifyVotes(ps *proposalStatus) string {
 
 	writeVotes(&sb, ps.YesVotes, "YES")
 	writeVotes(&sb, ps.NoVotes, "NO")
+	writeVotes(&sb, ps.AbstainVotes, "ABSTAIN")
 
 	if sb.String() == "" {
 		return "No one voted yet."
@@ -171,20 +170,19 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 	if t.Size() == 0 {
 		return
 	}
+	members := getMembers(cross)
 	t.Iterate("", "", func(tn string, value interface{}) bool {
 		_, ok := memberstore.GetTier(tn)
 		if !ok {
 			panic("tier not found")
 		}
 
-		power := memberstore.GetTierPower(tn, getMembers(cross))
+		power := memberstore.GetTierPower(tn, members)
 
 		sb.WriteString(ufmt.Sprintf("%v from %v (VPPM %v):\n\n", title, tn, power))
 		ms, _ := value.(*avl.Tree)
 		ms.Iterate("", "", func(addr string, _ interface{}) bool {
-			sb.WriteString("\n")
 			sb.WriteString("- " + tryResolveAddr(address(addr)) + "\n")
-
 			return false
 		})
 
@@ -207,8 +205,10 @@ func StringifyProposal(p *dao.Proposal) string {
 		out += ufmt.Sprintf(`
 This proposal contains the following metadata:
 
-%s	
-`, p.ExecutorString())
+%s
+
+Executor created in: %s
+`, p.ExecutorString(), p.ExecutorCreationRealm())
 	}
 
 	return out

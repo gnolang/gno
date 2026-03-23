@@ -117,8 +117,8 @@ func (addr *Address) DecodeString(str string) error {
 	if err != nil {
 		return err
 	}
-	if pre != Bech32AddrPrefix {
-		return fmt.Errorf("unexpected bech32 prefix for address. expected %q, got %q", Bech32AddrPrefix, pre)
+	if pre != Bech32AddrPrefix() {
+		return fmt.Errorf("unexpected bech32 prefix for address. expected %q, got %q", Bech32AddrPrefix(), pre)
 	}
 	if len(bz) != AddressSize {
 		return fmt.Errorf("unexpected address byte length. expected %v, got %v", AddressSize, len(bz))

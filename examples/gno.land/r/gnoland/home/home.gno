@@ -5,18 +5,17 @@ import (
 	"strconv"
 
 	"gno.land/p/moul/dynreplacer"
-	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/ownable/v0"
 	blog "gno.land/r/gnoland/blog"
 
 	"gno.land/p/leon/svgbtn"
 	"gno.land/r/devrels/events"
-	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/leon/hor"
 )
 
 var (
 	override string
-	Admin    = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
+	Admin    = ownable.NewWithAddressByPrevious("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 )
 
 func Render(_ string) string {
@@ -33,9 +32,6 @@ func Render(_ string) string {
 	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
 	r.RegisterCallback(":newsletter-button:", newsletterButton)
-	r.RegisterCallback(":latest-gnomes:", func() string {
-		return users.RenderLatestUsersWidget(5)
-	})
 	r.RegisterCallback(":chain-height:", func() string {
 		return strconv.Itoa(int(runtime.ChainHeight()))
 	})
@@ -52,7 +48,7 @@ using fully transparent, auditable code that anyone can inspect and reuse.
 
 Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes
 censorship-resistant platforms accessible to everyone. If you want to help lay
-the foundations of a fairer and freer world, join us today. 
+the foundations of a fairer and freer world, join us today.
 
 
 <gno-columns>
@@ -84,7 +80,7 @@ the foundations of a fairer and freer world, join us today.
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
 - [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
-- [Testnet 10](https://test10.testnets.gno.land/)
+- [Testnet 11](https://test11.testnets.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
 - [Boards](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions): community forum
 
@@ -102,7 +98,7 @@ the foundations of a fairer and freer world, join us today.
 
 :upcoming-events:
 
-||| 
+|||
 
 ## [Hall of Realms](/r/leon/hor)
 
@@ -166,13 +162,6 @@ Pure packages for demo purposes.
 ---
 
 <gno-columns>
-## Latest Gnomes
-
-Latest Gnomes in the [registry](/r/gnoland/users/v1).
-
-:latest-gnomes:
-
-|||
 
 ## Socials
 
@@ -235,6 +224,12 @@ func quoteOfTheBlock() string {
 }
 
 func AdminSetOverride(cur realm, content string) {
-	Admin.AssertOwnedByPrevious()
+	Admin.AssertOwned()
 	override = content
+}
+
+func AdminTransferOwnership(cur realm, newOwner address) {
+	if err := Admin.TransferOwnership(newOwner); err != nil {
+		panic(err)
+	}
 }

@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 
 	"gno.land/p/n2p5/loci"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var store *loci.LociStore

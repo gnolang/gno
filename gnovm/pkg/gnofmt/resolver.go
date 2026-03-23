@@ -72,6 +72,11 @@ func (r *FSResolver) LoadPackages(root string, pkgHandler PackageHandler) error 
 			return filepath.SkipDir
 		}
 
+		if d.Name() == "filetests" {
+			// This isn't a package dir and should be ignored by ParsePackage, but skip just to be sure
+			return filepath.SkipDir
+		}
+
 		// Skip already visited dir
 		if r.visited[path] {
 			return filepath.SkipDir

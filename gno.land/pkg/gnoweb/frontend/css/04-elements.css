@@ -26,8 +26,8 @@
 html {
 	font-family: var(--g-font-family-inter-var);
 	font-size: calc(var(--g-px-base) * 1px);
-	color: var(--g-color-gray-600);
-	background-color: var(--g-color-light);
+	color: var(--s-color-text-secondary);
+	background-color: var(--s-color-bg-base);
 	line-height: var(--g-line-height-normal);
 
 	font-feature-settings:
