@@ -407,7 +407,7 @@ func exchangeNodeInfo(
 	}
 
 	// Validate the received node information
-	if err := nodeInfo.Validate(); err != nil {
+	if err := peerNodeInfo.Validate(); err != nil {
 		return types.NodeInfo{}, fmt.Errorf("unable to validate node info, %w", err)
 	}
 
