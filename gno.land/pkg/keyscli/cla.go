@@ -103,7 +103,11 @@ func queryEvalString(remote, pkgPath, expr string) (string, error) {
 	if res.Response.Error != nil {
 		return "", fmt.Errorf("evaluating %s.%s: %s", pkgPath, expr, res.Response.Error.Error())
 	}
-	return parseQEvalString(string(res.Response.Data)), nil
+	result := parseQEvalString(string(res.Response.Data))
+	if result == "" && len(res.Response.Data) > 0 {
+		return "", fmt.Errorf("evaluating %s.%s: unexpected response format: %s", pkgPath, expr, string(res.Response.Data))
+	}
+	return result, nil
 }
 
 // parseQEvalString extracts the string value from a '("value" string)' qeval response.
