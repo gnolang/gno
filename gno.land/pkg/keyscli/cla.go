@@ -11,11 +11,11 @@ import (
 const (
 	claErrorSubstring  = "has not signed the required CLA"
 	sysCLARealmDefault = "gno.land/r/sys/cla"
+	sysCLAParamPath    = "params/params/vm:p:syscla_pkgpath"
 )
 
 // isCLAError checks whether the error indicates a CLA signing failure.
-// Uses %#v because the CLA message lives in tm2 error msgtraces (ABCI Log),
-// not in err.Error(). Type-based matching is not possible across the ABCI boundary.
+// Uses %#v because the CLA message is not available via err.Error()
 func isCLAError(err error) bool {
 	return err != nil && strings.Contains(fmt.Sprintf("%#v", err), claErrorSubstring)
 }
@@ -47,7 +47,7 @@ func enhanceCLAError(err error, remote, chainID, nameOrBech32 string) error {
 func queryCLARealmPath(remote string) (string, error) {
 	cfg := &client.QueryCfg{
 		RootCfg: &client.BaseCfg{BaseOptions: client.BaseOptions{Remote: remote}},
-		Path:    "params/params/vm:p:syscla_pkgpath",
+		Path:    sysCLAParamPath,
 	}
 	res, err := client.QueryHandler(cfg)
 	if err != nil {
