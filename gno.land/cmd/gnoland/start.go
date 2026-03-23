@@ -148,7 +148,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.logLevel,
 		"log-level",
 		zapcore.DebugLevel.String(),
-		"log level for the gnoland node,",
+		"log level for the gnoland node (debug, info, warn, error)",
 	)
 
 	fs.StringVar(

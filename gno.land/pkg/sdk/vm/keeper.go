@@ -154,7 +154,7 @@ func (vm *VMKeeper) Initialize(
 			opts.Cache[stdlib] = pkg
 		}
 
-		logger.Debug("GnoVM packages preprocessed",
+		logger.Info("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
 }
