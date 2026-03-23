@@ -26,8 +26,8 @@ func TestCommentIterateFlags(t *testing.T) {
 		{
 			name: "multiple flags",
 			flags: []boards.Flag{
-				{User: "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", Reason: "Reason 1"},
-				{User: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Reason: "Reason 2"},
+				{User: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Reason: "Reason 1"},
+				{User: "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", Reason: "Reason 2"},
 				{User: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Reason: "Reason 3"},
 			},
 		},
@@ -74,8 +74,8 @@ func TestCommentIterateReplies(t *testing.T) {
 			setup: func(comment *boards.Post) {
 				replies := []*boards.Post{
 					boards.MustNewReply(comment, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Body 1"),
-					boards.MustNewReply(comment, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "Body 2"),
-					boards.MustNewReply(comment, "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", "Body 3"),
+					boards.MustNewReply(comment, "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", "Body 2"),
+					boards.MustNewReply(comment, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "Body 3"),
 				}
 				for _, t := range replies {
 					comment.Replies.Add(t)

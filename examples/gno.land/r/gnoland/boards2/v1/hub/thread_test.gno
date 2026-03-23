@@ -26,8 +26,8 @@ func TestThreadIterateFlags(t *testing.T) {
 		{
 			name: "multiple flags",
 			flags: []boards.Flag{
-				{User: "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", Reason: "Reason 1"},
-				{User: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Reason: "Reason 2"},
+				{User: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Reason: "Reason 1"},
+				{User: "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", Reason: "Reason 2"},
 				{User: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Reason: "Reason 3"},
 			},
 		},
@@ -78,8 +78,8 @@ func TestThreadIterateReposts(t *testing.T) {
 			setup: func(thread *boards.Post) {
 				reposts := []*boards.Post{
 					boards.MustNewRepost(thread, boards.New(1), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-					boards.MustNewRepost(thread, boards.New(2), "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"),
-					boards.MustNewRepost(thread, boards.New(5), "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"),
+					boards.MustNewRepost(thread, boards.New(2), "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"),
+					boards.MustNewRepost(thread, boards.New(5), "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"),
 				}
 				for _, r := range reposts {
 					thread.Reposts.Add(r)
@@ -134,8 +134,8 @@ func TestThreadIterateComments(t *testing.T) {
 			setup: func(thread *boards.Post) {
 				replies := []*boards.Post{
 					boards.MustNewReply(thread, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Body 1"),
-					boards.MustNewReply(thread, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "Body 2"),
-					boards.MustNewReply(thread, "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", "Body 3"),
+					boards.MustNewReply(thread, "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", "Body 2"),
+					boards.MustNewReply(thread, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "Body 3"),
 				}
 				for _, t := range replies {
 					thread.Replies.Add(t)
