@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	bid           = boards.ID(0) // Operate on realm DAO instead of individual boards
 )
 
@@ -30,6 +30,5 @@ func main() {
 }
 
 // Output:
-// g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq owner
 // g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh owner
 // g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj admin
