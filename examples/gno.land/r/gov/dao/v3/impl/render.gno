@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"gno.land/p/moul/helplink"
-	"gno.land/p/nt/avl/pager"
-	"gno.land/p/nt/mux"
-	"gno.land/p/nt/seqid"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/mux/v0"
+	"gno.land/p/nt/seqid/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/sys/users"
 )

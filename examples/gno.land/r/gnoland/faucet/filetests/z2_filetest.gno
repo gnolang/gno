@@ -4,7 +4,7 @@ import (
 	"chain"
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/gnoland/faucet"
 )
 
@@ -17,7 +17,7 @@ func init() {
 // assert render with empty path and 2 controllers
 func main() {
 	var (
-		adminaddr       = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		adminaddr       = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 		controlleraddr1 = testutils.TestAddress("controller1")
 		controlleraddr2 = testutils.TestAddress("controller2")
 	)
@@ -40,9 +40,9 @@ func main() {
 // Balance: 200000000ugnot.
 // Total transfers:  (in 0 times).
 //
-// Package address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+// Package address: g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
 //
-// Admin: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+// Admin: g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
 //
 //  Controllers:
 //

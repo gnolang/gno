@@ -8,8 +8,8 @@ import (
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/mux"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/mux/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 func renderThread(res *mux.ResponseWriter, req *mux.Request) {
@@ -27,7 +27,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread not found")
 		return
@@ -122,7 +122,7 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread not found")
 		return
@@ -179,7 +179,7 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread not found")
 		return

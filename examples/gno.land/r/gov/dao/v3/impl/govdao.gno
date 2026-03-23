@@ -5,7 +5,7 @@ import (
 	"chain/runtime"
 	"errors"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
@@ -126,8 +126,11 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	case dao.NoVote:
 		status.AllVotes.SetMember(tie, caller, mem)
 		status.NoVotes.SetMember(tie, caller, mem)
+	case dao.AbstainVote:
+		status.AllVotes.SetMember(tie, caller, mem)
+		status.AbstainVotes.SetMember(tie, caller, mem)
 	default:
-		return errors.New("voting can only be YES or NO")
+		return errors.New("voting can only be YES, NO, or ABSTAIN")
 	}
 
 	return nil

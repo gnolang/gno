@@ -1,7 +1,7 @@
 package daokit
 
 import (
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 	"gno.land/p/samcrew/daocond"
 )
 

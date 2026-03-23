@@ -3,7 +3,7 @@ package minisocial
 import (
 	"time" // For handling time operations
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Post defines the main data we keep about each post
