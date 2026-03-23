@@ -1,7 +1,7 @@
 # Gno
 
 [![License](https://img.shields.io/badge/license-GNO%20GPL%20v5-blue.svg)](LICENSE.md)
-[![Go Reference](https://pkg.go.dev/badge/hey/google)](https://gnolang.github.io/gno/github.com/gnolang/gno.html)
+[![Go Reference](https://pkg.go.dev/badge/github.com/gnolang/gno.svg)](https://pkg.go.dev/github.com/gnolang/gno)
 
 > At first, there was Bitcoin, out of entropy soup of the greater All.
 > Then, there was Ethereum, which was created in the likeness of Bitcoin,
@@ -48,7 +48,7 @@ Visit [gno.land](https://gno.land) to see live smart contracts in action.
 
 - [Documentation](./docs/) - Complete documentation portal
 - [Examples](./examples) - Sample contracts and patterns
-- [Go API Reference](https://gnolang.github.io/gno/github.com/gnolang/gno.html) - 
+- [Go API Reference](https://pkg.go.dev/github.com/gnolang/gno) - 
   Go package documentation
 
 ## Gno Playground
@@ -130,7 +130,6 @@ repository.
 
   Pkg.go.dev
 
-  * [![Go Reference](https://pkg.go.dev/badge/hey/google)](https://gnolang.github.io/gno/github.com/gnolang/gno.html) \
+  * [![Go Reference](https://pkg.go.dev/badge/github.com/gnolang/gno)](https://gnolang.github.io/gno/github.com/gnolang/gno.html) \
     (pkg.go.dev will not show our repository as it has a license it doesn't recognise)
 </details>
-
