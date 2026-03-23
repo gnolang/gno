@@ -243,7 +243,7 @@ func (pool *BlockPool) AddBlock(peerID p2pTypes.ID, block *types.Block, blockSiz
 
 	requester := pool.requesters[block.Height]
 	if requester == nil {
-		pool.Logger.Info("peer sent us a block we didn't expect", "peer", peerID, "curHeight", pool.height, "blockHeight", block.Height)
+		pool.Logger.Warn("peer sent us a block we didn't expect", "peer", peerID, "curHeight", pool.height, "blockHeight", block.Height)
 		diff := pool.height - block.Height
 		if diff < 0 {
 			diff *= -1
@@ -261,7 +261,7 @@ func (pool *BlockPool) AddBlock(peerID p2pTypes.ID, block *types.Block, blockSiz
 			peer.decrPending(blockSize)
 		}
 	} else {
-		pool.Logger.Info("invalid peer", "peer", peerID, "blockHeight", block.Height)
+		pool.Logger.Warn("invalid peer", "peer", peerID, "blockHeight", block.Height)
 		pool.sendError(errors.New("invalid peer"), peerID)
 	}
 }
