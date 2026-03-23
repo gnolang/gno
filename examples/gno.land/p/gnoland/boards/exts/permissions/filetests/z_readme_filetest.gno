@@ -31,7 +31,7 @@ func main() {
 	perms.ValidateFunc(PermissionFoo, validateFoo)
 
 	// Add foo permission to example role
-	perms.AddRole(RoleExample, boards.NewPermissionSet(PermissionFoo))
+	perms.AddRole(RoleExample, PermissionFoo)
 
 	// Add a guest user
 	perms.SetUserRoles(user, RoleExample)
