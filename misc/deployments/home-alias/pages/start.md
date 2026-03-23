@@ -2,4 +2,6 @@
 
 ## Getting Started with Gno
 
-Visit the [getting-started](https://github.com/gnolang/getting-started) repo to try Gno in 5 minutes!
+Visit the
+[getting-started](https://github.com/gnolang/getting-started)
+repo to try Gno in 5 minutes!
