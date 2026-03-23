@@ -104,6 +104,11 @@ func GetBoardIDFromName(_ realm, name string) (_ boards.ID, found bool) {
 	return board.ID, true
 }
 
+// BoardCount returns the total number of boards.
+func BoardCount() int {
+	return gBoards.Size()
+}
+
 // CreateBoard creates a new board.
 //
 // Listed boards are included in the realm's list of boards.
@@ -125,7 +130,7 @@ func CreateBoard(_ realm, name string, listed, open bool) boards.ID {
 
 		board.Name = name
 		board.Creator = caller
-		board.Meta = &Meta{
+		board.Meta = &BoardMeta{
 			HiddenThreads: boards.NewPostStorage(),
 		}
 
@@ -176,6 +181,7 @@ func RenameBoard(_ realm, name, newName string) {
 
 		board.Aliases = append(board.Aliases, board.Name)
 		board.Name = newName
+		board.UpdatedAt = time.Now()
 
 		// Index board for the new name keeping previous indexes for older names
 		gBoards.Add(board)
@@ -209,7 +215,9 @@ func CreateThread(_ realm, boardID boards.ID, title, body string) boards.ID {
 		assertRealmIsNotLocked()
 		assertUserIsNotBanned(board.ID, caller)
 
-		thread.Replies = NewReplyStorage()
+		thread.Meta = &ThreadMeta{
+			AllReplies: boards.NewPostStorage(),
+		}
 
 		if err := board.Threads.Add(thread); err != nil {
 			panic(err)
@@ -265,13 +273,11 @@ func CreateReply(_ realm, boardID, threadID, replyID boards.ID, body string) boa
 			panic(err)
 		}
 
-		// When parent is not a thread also add reply to the thread.
-		// The thread contains all replies and sub-replies, while each
-		// reply only contains direct sub-replies.
-		if parent.ID != thread.ID {
-			if err := thread.Replies.Add(reply); err != nil {
-				panic(err)
-			}
+		// Always add reply to the thread so it contains all comments and replies.
+		// Comment and reply only contains direct replies.
+		meta := thread.Meta.(*ThreadMeta)
+		if err := meta.AllReplies.Add(reply); err != nil {
+			panic(err)
 		}
 
 		chain.Emit(
@@ -309,6 +315,9 @@ func CreateRepost(_ realm, boardID, threadID, destinationBoardID boards.ID, titl
 
 		repost.Title = title
 		repost.Body = strings.TrimSpace(body)
+		repost.Meta = &ThreadMeta{
+			AllReplies: boards.NewPostStorage(),
+		}
 
 		if err := dst.Threads.Add(repost); err != nil {
 			panic(err)
@@ -395,21 +404,22 @@ func DeleteReply(_ realm, boardID, threadID, replyID boards.ID) {
 	}
 
 	deleteReply := func() {
-		// Soft delete reply by changing its body when it contains
-		// sub-replies, otherwise hard delete it.
+		// Soft delete comment/reply by changing its body when
+		// it contains replies, otherwise hard delete it.
 		if reply.Replies.Size() > 0 {
-			reply.Body = "*This reply has been deleted*"
+			reply.Body = "⚠ This comment has been deleted"
 			reply.UpdatedAt = time.Now()
 		} else {
 			// Remove reply from the thread
-			reply, removed := thread.Replies.Remove(replyID)
+			meta := thread.Meta.(*ThreadMeta)
+			reply, removed := meta.AllReplies.Remove(replyID)
 			if !removed {
 				panic("reply not found")
 			}
 
 			// Remove reply from reply's parent
 			if reply.ParentID != thread.ID {
-				parent, found := thread.Replies.Get(reply.ParentID)
+				parent, found := meta.AllReplies.Get(reply.ParentID)
 				if found {
 					parent.Replies.Remove(replyID)
 				}
@@ -623,22 +633,6 @@ func ChangeMemberRole(_ realm, boardID boards.ID, member address, role boards.Ro
 	}))
 }
 
-// IterateRealmMembers iterates boards realm members.
-// The iteration is done only for realm members, board members are not iterated.
-func IterateRealmMembers(offset int, fn boards.UsersIterFn) (halted bool) {
-	count := gPerms.UsersCount() - offset
-	return gPerms.IterateUsers(offset, count, fn)
-}
-
-// GetBoard returns a single board.
-func GetBoard(boardID boards.ID) *boards.Board {
-	board := mustGetBoard(boardID)
-	if !board.Permissions.HasRole(runtime.OriginCaller(), RoleOwner) {
-		panic("forbidden")
-	}
-	return board
-}
-
 // Wraps a function to cross back to Boards2 realm.
 func crossingFn(fn func()) func() {
 	return func() {
@@ -743,7 +737,7 @@ func assertThreadExists(b *boards.Board, threadID boards.ID) {
 }
 
 func assertReplyExists(thread *boards.Post, replyID boards.ID) {
-	if _, found := thread.Replies.Get(replyID); !found {
+	if _, found := getReply(thread, replyID); !found {
 		panic("reply not found: " + replyID.String())
 	}
 }
