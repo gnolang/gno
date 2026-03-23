@@ -315,6 +315,9 @@ func (bank BankKeeper) setSupply(stor store.Store, denom string, supply int64) {
 		stor.Delete(key)
 		return
 	}
+	if supply < 0 {
+		panic(fmt.Sprintf("negative supply for denom %q: %d", denom, supply))
+	}
 	bz := amino.MustMarshal(supply)
 	stor.Set(key, bz)
 }
