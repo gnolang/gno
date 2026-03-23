@@ -12,9 +12,8 @@ The following tools must be installed before proceeding:
 - **jq**
 - **python3**
 - **gzip**
-- **shasum** — on Debian/Ubuntu: `apt install perl`
 
-Hardware: at least **16 GB RAM** is recommended. Node startup temporarily exceeds 8 GB during genesis execution.
+Hardware: at least **16 GB RAM** is recommended. Node startup temporarily exceeds 8 GB during genesis execution. See also the [dedicated gnops article](https://gnops.io/articles/effective-gnops/validator-specs/).
 
 ## 1. Generate the Genesis
 
