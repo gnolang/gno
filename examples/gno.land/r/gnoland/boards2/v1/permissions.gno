@@ -5,6 +5,7 @@ import (
 	"gno.land/p/gnoland/boards/exts/permissions"
 )
 
+// List of Boards2 member roles.
 const (
 	RoleOwner     boards.Role = "owner"
 	RoleAdmin                 = "admin"
@@ -12,6 +13,20 @@ const (
 	RoleGuest                 = "guest"
 )
 
+// PermissionCustom defines an initial value for custom board permissions.
+// When a board defines custom permissions it must starts from a value
+// greater or equal than PermissionCustom.
+//
+// Custom permissions definition example:
+//
+//	const (
+//	  PermissionCustom1 boards.Permission = iota + boards2.PermissionCustom
+//	  PermissionCustom2
+//	  PermissionCustom3
+//	)
+const PermissionCustom boards.Permission = 200
+
+// List of Boards2 permissions.
 const (
 	PermissionBoardCreate boards.Permission = iota
 	PermissionBoardFlaggingUpdate
