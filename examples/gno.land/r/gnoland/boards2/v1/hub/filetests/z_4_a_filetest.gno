@@ -11,7 +11,7 @@ import (
 var board hub.Board
 
 func init() {
-	testing.SetRealm(testing.NewUserRealm("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"))
+	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
 	boardID := boards2.CreateBoard(cross, "test123", false, false)
 
 	// Invite board members
@@ -33,6 +33,6 @@ func main() {
 }
 
 // Output:
-// g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq slice[("owner" gno.land/p/gnoland/boards.Role)]
 // g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 slice[("owner" gno.land/p/gnoland/boards.Role)]
+// g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh slice[("owner" gno.land/p/gnoland/boards.Role)]
 // g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj slice[("admin" gno.land/p/gnoland/boards.Role)]
