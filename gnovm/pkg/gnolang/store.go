@@ -108,7 +108,7 @@ const (
 	GasAddMemPackageDesc   = "AddMemPackagePerByte"
 	GasGetMemPackageDesc   = "GetMemPackagePerByte"
 	GasDeleteObjectDesc    = "DeleteObjectFlat"
-	GasComputeMapKey       = "ComputeMapKey"
+	GasComputeMapKeyDesc   = "ComputeMapKey"
 )
 
 // GasConfig defines gas cost for each operation on KVStores

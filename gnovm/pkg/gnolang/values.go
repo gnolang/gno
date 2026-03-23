@@ -1574,7 +1574,7 @@ const (
 // array or struct) are NaN's; this would make the same tv != to itself, and
 // so shouldn't be included within a vmap.
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isNaN bool) {
-	store.ConsumeGas(CPUComputeMapKey, GasComputeMapKey)
+	store.ConsumeGas(CPUComputeMapKey, GasComputeMapKeyDesc)
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
