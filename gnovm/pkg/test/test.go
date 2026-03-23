@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -320,7 +321,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			tcheck := false // already type-checked e.g. by cmd/gno/test.go
 			// We can not use shared tx gno store (tgs) between _filetest.gno since we need to
 			// isolate the state between them
-			changed, gas, err := opts.runFiletest(
+			changed, gas, storageDiffs, err := opts.runFiletest(
 				testFileName, []byte(testFile.Body), opts.TestStore, tcheck)
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
@@ -332,12 +333,13 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
+			storageStr := fmtStorageDiffs(storageDiffs)
 			if err != nil {
-				fmt.Fprintf(opts.Error, "--- FAIL: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
+				fmt.Fprintf(opts.Error, "--- FAIL: %s (elapsed: %s, gas: %d%s)\n", testName, dstr, gas, storageStr)
 				fmt.Fprintln(opts.Error, err.Error())
 				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
 			} else if opts.Verbose {
-				fmt.Fprintf(opts.Error, "--- PASS: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
+				fmt.Fprintf(opts.Error, "--- PASS: %s (elapsed: %s, gas: %d%s)\n", testName, dstr, gas, storageStr)
 			}
 
 			// XXX: add per-test metrics
@@ -520,7 +522,6 @@ func (opts *TestOptions) runTestFiles(
 		}
 
 		if opts.Metrics {
-			// XXX: store changes
 			// XXX: max mem consumption
 			allocsVal := "n/a"
 			if m.Alloc != nil {
@@ -530,9 +531,11 @@ func (opts *TestOptions) runTestFiles(
 					float64(allocs)/float64(maxAllocs)*100,
 				)
 			}
-			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s allocs=%s\n",
+			storageStr := fmtStorageDiffs(m.Store.RealmStorageDiffs())
+			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s allocs=%s%s\n",
 				prettySize(m.Cycles),
 				allocsVal,
+				storageStr,
 			)
 		}
 	}
@@ -640,4 +643,27 @@ func prettySize(nb int64) string {
 
 func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
+}
+
+// fmtStorageDiffs formats storage diffs for display in test output.
+// Returns an empty string when there are no non-zero diffs, otherwise returns
+// a string like ", storage: gno.land/r/example:+31b gno.land/r/other:+42b".
+func fmtStorageDiffs(diffs map[string]int64) string {
+	keys := make([]string, 0, len(diffs))
+	for k, v := range diffs {
+		if v != 0 {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return ""
+	}
+	sort.Strings(keys)
+
+	var sb strings.Builder
+	sb.WriteString(", storage:")
+	for _, k := range keys {
+		fmt.Fprintf(&sb, " %s:%+db", k, diffs[k])
+	}
+	return sb.String()
 }

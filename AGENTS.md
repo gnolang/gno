@@ -49,6 +49,13 @@ make fmt                        # Format all code
 | Filetests: `_filetest.gno` | Integration: `.txtar` in `gno.land/pkg/integration/testdata/` |
 | VM file tests: `gnovm/tests/files/` with `// Output:` | Standard Go test runner |
 
+### Updating test expectations
+
+```bash
+gno test -v ./path/... -update-golden-tests         # update filetest directives (// Output:, // Realm:, etc.)
+UPDATE_SCRIPTS=true go test ./gnovm/cmd/gno/ -run 'Test_Scripts'  # update .txtar integration tests
+```
+
 ---
 
 ## Conventions
