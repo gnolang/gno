@@ -12,6 +12,10 @@ import (
 )
 
 var (
+	// RealmLink contains Boards2 realm link.
+	// It can be used to generate board TX links from other realms.
+	RealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
+
 	// RequiredAccountAmount contains the required account amount for open board interactions.
 	// The amount requirement is not applied to members that were invited to an open board.
 	// Amount is defined as ugnot.
@@ -26,7 +30,6 @@ var (
 
 // TODO: Refactor globals in favor of a cleaner pattern
 var (
-	gRealmLink        txlink.Realm
 	gListedBoardsByID avl.Tree // string(id) -> *boards.Board
 	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
 	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
@@ -42,11 +45,6 @@ var (
 	gRealmPath      = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land")
 	gPerms          = initRealmPermissions("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // GovDAO T1 multisig
 )
-
-func init() {
-	// Save current realm path so it's available during render calls
-	gRealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
-}
 
 // initRealmPermissions returns the default realm permissions.
 func initRealmPermissions(owners ...address) boards.Permissions {
@@ -147,6 +145,6 @@ func mustGetPermissions(bid boards.ID) boards.Permissions {
 func parseRealmPath(path string) *realmpath.Request {
 	// Make sure request is using current realm path so paths can be parsed during Render
 	r := realmpath.Parse(path)
-	r.Realm = string(gRealmLink)
+	r.Realm = string(RealmLink)
 	return r
 }
