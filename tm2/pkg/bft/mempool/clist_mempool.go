@@ -423,7 +423,7 @@ func (mem *CListMempool) resCbRecheck(req abci.Request, res abci.Response) {
 			// Good, nothing to do.
 		} else {
 			// Tx became invalidated due to newly committed block.
-			mem.logger.Debug("Tx is no longer valid", "tx", txID(tx), "res", res, "err", res.Error)
+			mem.logger.Info("Tx is no longer valid", "tx", txID(tx), "res", res, "err", res.Error)
 			// NOTE: we remove tx from the cache because it might be good later
 			mem.removeTx(tx, mem.recheckCursor, true)
 		}
