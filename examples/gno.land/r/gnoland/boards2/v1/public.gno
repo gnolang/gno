@@ -37,7 +37,7 @@ func SetHelp(_ realm, content string) {
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{content}
 	gPerms.WithPermission(caller, PermissionRealmHelpChange, args, crossingFn(func() {
-		gHelp = content
+		Help = content
 	}))
 }
 
@@ -93,14 +93,14 @@ func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions) {
 	}))
 }
 
-// SetRealmNotice sets a notice to be displayed globally by the realm.
+// SetRealmNotice sets a notice to be displayed globally within the realm.
 // An empty message removes the realm notice.
 func SetRealmNotice(_ realm, message string) {
 	message = strings.TrimSpace(message)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{message}
 	gPerms.WithPermission(caller, PermissionRealmNotice, args, crossingFn(func() {
-		gNotice = message
+		Notice = message
 
 		chain.Emit(
 			"RealmNoticeChanged",

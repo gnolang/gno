@@ -11,16 +11,22 @@ import (
 	"gno.land/p/nt/avl/v0"
 )
 
-// RequiredAccountAmount contains the required account amount for open board interactions.
-// The amount requirement is not applied to members that were invited to an open board.
-// Amount is defined as ugnot.
-var RequiredAccountAmount = int64(3_000_000_000)
+var (
+	// RequiredAccountAmount contains the required account amount for open board interactions.
+	// The amount requirement is not applied to members that were invited to an open board.
+	// Amount is defined as ugnot.
+	RequiredAccountAmount = int64(3_000_000_000)
+
+	// Notice contains an optional message that is displayed globally within the realm.
+	Notice string
+
+	// Help contains optional Markdown with Boards2 realm help.
+	Help string
+)
 
 // TODO: Refactor globals in favor of a cleaner pattern
 var (
 	gRealmLink        txlink.Realm
-	gNotice           string
-	gHelp             string
 	gListedBoardsByID avl.Tree // string(id) -> *boards.Board
 	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
 	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)

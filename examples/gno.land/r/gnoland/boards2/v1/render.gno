@@ -61,8 +61,8 @@ func Render(path string) string {
 	}
 
 	// Render common realm header before resolving render path
-	if gNotice != "" {
-		b.WriteString(infoAlert("Notice", gNotice))
+	if Notice != "" {
+		b.WriteString(infoAlert("Notice", Notice))
 	}
 
 	// Render view for current path
@@ -73,8 +73,8 @@ func Render(path string) string {
 
 func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
 	res.Write(md.H1("Boards Help"))
-	if gHelp != "" {
-		res.Write(gHelp)
+	if Help != "" {
+		res.Write(Help)
 		return
 	}
 
