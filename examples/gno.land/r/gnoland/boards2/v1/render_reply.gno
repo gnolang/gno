@@ -41,7 +41,7 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	reply, found := thread.Replies.Get(boards.ID(replyID))
+	reply, found := getReply(thread, boards.ID(replyID))
 	if !found {
 		res.Write("Reply not found")
 		return
@@ -137,7 +137,7 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	reply, found := thread.Replies.Get(boards.ID(replyID))
+	reply, found := getReply(thread, boards.ID(replyID))
 	if !found {
 		res.Write("Reply not found")
 		return

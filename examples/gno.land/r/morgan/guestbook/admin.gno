@@ -11,7 +11,7 @@ var owner = ownable.NewWithOrigin()
 // The user will still be marked as having submitted a message, so they
 // won't be able to re-submit a new message.
 func AdminDelete(cur realm, signatureID string) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 	id, err := seqid.FromString(signatureID)
 	if err != nil {
 		panic(err)

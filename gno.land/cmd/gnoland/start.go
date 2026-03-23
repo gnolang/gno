@@ -58,8 +58,9 @@ type nodeCfg struct {
 	dataDir                    string
 	lazyInit                   bool
 
-	logLevel  string
-	logFormat string
+	logLevel   string
+	logFormat  string
+	earlyStart bool
 }
 
 func newStartCmd(io commands.IO) *commands.Command {
@@ -150,7 +151,7 @@ func (c *nodeCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.logLevel,
 		"log-level",
 		zapcore.DebugLevel.String(),
-		"log level for the gnoland node,",
+		"log level for the gnoland node (debug, info, warn, error)",
 	)
 
 	fs.StringVar(
@@ -165,6 +166,13 @@ func (c *nodeCfg) RegisterFlags(fs *flag.FlagSet) {
 		"lazy",
 		false,
 		"flag indicating if lazy init is enabled. Generates the node secrets, configuration, and genesis.json",
+	)
+
+	fs.BoolVar(
+		&c.earlyStart,
+		"x-early-start",
+		false,
+		"[experimental] start RPC and P2P before genesis time, deferring only consensus",
 	)
 }
 
@@ -291,7 +299,11 @@ func createNode(ctx context.Context, c *nodeCfg, io commands.IO) (*node.Node, er
 	}
 
 	// Create a default node, with the given setup
-	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger)
+	opts := []node.Option{}
+	if c.earlyStart {
+		opts = append(opts, node.WithEarlyStart())
+	}
+	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
