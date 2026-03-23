@@ -153,7 +153,7 @@ func (vm *VMKeeper) Initialize(
 			}
 		}
 
-		logger.Debug("GnoVM packages preprocessed",
+		logger.Info("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
 }
