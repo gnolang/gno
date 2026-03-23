@@ -68,6 +68,11 @@ func findDirs() (gitRoot string, relPath string, err error) {
 	if err != nil {
 		return
 	}
+	// Resolve symlinks so that wd and git-returned paths can be compared.
+	// os.Getwd preserves symlinks, while git resolves them (e.g. /tmp -> /private/tmp on macOS).
+	if resolved, e := filepath.EvalSymlinks(wd); e == nil {
+		wd = resolved
+	}
 
 	// makeRelPath computes the relative path from root to wd, with / separators.
 	makeRelPath := func(root string) string {
