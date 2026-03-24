@@ -23,6 +23,76 @@ const (
 	hcaptchaTestResponse = "10000000-aaaa-bbbb-cccc-000000000001"
 )
 
+func TestIPMiddleware_XForwardedFor(t *testing.T) {
+	t.Parallel()
+
+	t.Run("parses first IP from multi-value header", func(t *testing.T) {
+		t.Parallel()
+
+		st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+
+		var capturedIP string
+		handler := ipMiddleware(discardLogger, true, st)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			capturedIP, _ = r.Context().Value(remoteIPContextKey).(string)
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req.RemoteAddr = "10.0.0.1:1234"
+		req.Header.Set("X-Forwarded-For", "203.0.113.50, 70.41.3.18, 150.172.238.178")
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "203.0.113.50", capturedIP)
+	})
+
+	t.Run("single IP in header", func(t *testing.T) {
+		t.Parallel()
+
+		st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+
+		var capturedIP string
+		handler := ipMiddleware(discardLogger, true, st)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			capturedIP, _ = r.Context().Value(remoteIPContextKey).(string)
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req.RemoteAddr = "10.0.0.1:1234"
+		req.Header.Set("X-Forwarded-For", "203.0.113.50")
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "203.0.113.50", capturedIP)
+	})
+
+	t.Run("uses RemoteAddr when not behind proxy", func(t *testing.T) {
+		t.Parallel()
+
+		st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+
+		var capturedIP string
+		handler := ipMiddleware(discardLogger, false, st)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			capturedIP, _ = r.Context().Value(remoteIPContextKey).(string)
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req.RemoteAddr = "10.0.0.1:1234"
+		req.Header.Set("X-Forwarded-For", "203.0.113.50")
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "10.0.0.1", capturedIP)
+	})
+}
+
 func TestCheckHcaptcha(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

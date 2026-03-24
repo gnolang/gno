@@ -23,7 +23,7 @@ type contextKey int
 const remoteIPContextKey contextKey = iota
 
 // ipMiddleware returns the IP verification middleware, using the given subnet throttler
-func ipMiddleware(behindProxy bool, st *ipThrottler) func(next http.Handler) http.Handler {
+func ipMiddleware(logger *slog.Logger, behindProxy bool, st *ipThrottler) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -41,9 +41,12 @@ func ipMiddleware(behindProxy bool, st *ipThrottler) func(next http.Handler) htt
 					return
 				}
 
-				// Check if the request is behind a proxy
+				// Check if the request is behind a proxy.
+				// X-Forwarded-For can contain a comma-separated list of IPs
+				// (e.g. "client, proxy1, proxy2"). Extract the first (client) IP.
 				if xff := r.Header.Get("X-Forwarded-For"); xff != "" && behindProxy {
-					host = xff
+					host, _, _ = strings.Cut(xff, ",")
+					host = strings.TrimSpace(host)
 				}
 
 				// If the host is empty or IPv6 loopback, set it to IPv4 loopback
@@ -74,6 +77,8 @@ func ipMiddleware(behindProxy bool, st *ipThrottler) func(next http.Handler) htt
 
 					return
 				}
+
+				logger.Debug("registered new request from IP", slog.String("ip", hostAddr.String()))
 
 				// Store the resolved IP in the context for use by RPC middlewares
 				ctx := context.WithValue(r.Context(), remoteIPContextKey, hostAddr.String())

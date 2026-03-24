@@ -57,6 +57,9 @@ type serveCfg struct {
 	remote        string
 	isBehindProxy bool
 	logLevel      string
+
+	rateLimitInterval     time.Duration
+	rateLimitCleanTimeout time.Duration
 }
 
 func newServeCmd() *commands.Command {
@@ -136,6 +139,20 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"info",
 		"log level (debug, info, warn, error)",
 	)
+
+	fs.DurationVar(
+		&c.rateLimitInterval,
+		"ratelimit-interval",
+		defaultRateLimitInterval,
+		"minimum interval between allowed requests from the same IP",
+	)
+
+	fs.DurationVar(
+		&c.rateLimitCleanTimeout,
+		"ratelimit-cleanup-timeout",
+		defaultCleanTimeout,
+		"how long an idle IP entry is kept before being removed",
+	)
 }
 
 // newLogger constructs a JSON structured logger at the configured level.
@@ -169,6 +186,14 @@ func serveFaucet(
 	logger *slog.Logger,
 	opts ...faucet.Option,
 ) error {
+	if cfg.rateLimitInterval <= 0 {
+		return errors.New("ratelimit-interval must be greater than zero")
+	}
+
+	if cfg.rateLimitCleanTimeout <= 0 {
+		return errors.New("ratelimit-cleanup-timeout must be greater than zero")
+	}
+
 	// Parse static gas values.
 	// It is worth noting that this is temporary,
 	// and will be removed once gas estimation is enabled
