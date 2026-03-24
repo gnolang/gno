@@ -483,7 +483,9 @@ func (opts *TestOptions) runTestFiles(
 				},
 			},
 		))
-		fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
+		if opts.Verbose {
+			fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
+		}
 
 		if opts.Events {
 			events := m.Context.(*runtime.TestExecContext).EventLogger.Events()
