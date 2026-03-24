@@ -854,7 +854,7 @@ func New(id ID) *Board {
 }
 ```
 
-<img src="images/manifesto/boards2.jpeg" />
+![boards2](images/manifesto/boards2.jpeg)
 
 While it is certainly possible to embed a `*Board` as a field of each
 `*Thought`, the current implementation of `*Board` is only safe from a
