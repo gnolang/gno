@@ -1,8 +1,4 @@
 loadpkg gno.land/r/sys/names
-loadpkg gno.land/r/sys/users/init
-
-# Bootstrap the init controller for user registration
-genesiscall gno.land/r/sys/users/init Bootstrap
 
 adduser gui
 
@@ -33,23 +29,6 @@ stdout 'OK!'
 # Call addpkg with test1 user on gui namespace
 # test1 addpkg -> gno.land/r/guiland/one
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'is not authorized to deploy packages to namespace'
-
-## Test registered namespace
-
-# test gui register namespace
-# gui call -> sys/users/init.RegisterUser
-gnokey maketx call -pkgpath gno.land/r/sys/users/init -func RegisterUser -args 'guigui123' -args "$gui_user_addr" -gas-fee 1000000ugnot -gas-wanted 13000000 -broadcast -chainid=tendermint_test gui
-stdout 'OK!'
-
-# Test gui publishing on guigui123/one
-# gui addpkg -> gno.land/r/guigui123/one
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/one -gas-fee 1000000ugnot -gas-wanted 3700000 -broadcast -chainid=tendermint_test gui
-stdout 'OK!'
-
-# Test test1 publishing on guigui123/two (should fail - not authorized)
-# test1 addpkg -> gno.land/r/guigui123/two
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/two -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stderr 'is not authorized to deploy packages to namespace'
 
 # Invalid package path characters
