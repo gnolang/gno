@@ -1628,13 +1628,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
 							// reserve attach() so we can support it later.
 							panic("attach() not yet supported")
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "make" {
-							if len(n.Args) > 0 {
-								mt := evalStaticType(store, last, n.Args[0])
-								if _, ok := baseOf(mt).(*ChanType); ok {
-									panic("channel operations are not yet supported")
-								}
-							}
 						}
 					}
 
@@ -2220,7 +2213,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ChanTypeExpr:
-				evalStaticType(store, last, n)
+				panic("channel type is not supported")
 
 			// TRANS_LEAVE -----------------------
 			case *FuncTypeExpr:
@@ -4850,7 +4843,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			case *InterfaceTypeExpr:
 				t = &InterfaceType{}
 			case *ChanTypeExpr:
-				t = &ChanType{}
+				panic("channel type is not supported")
 			case *MapTypeExpr:
 				t = &MapType{}
 			case *StructTypeExpr:
