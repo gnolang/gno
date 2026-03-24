@@ -13,8 +13,8 @@ func Render(path string) string {
 	out += md.Paragraph("A Contributor License Agreement (CLA) must be signed before deploying packages.")
 	out += md.Paragraph(
 		"The Agreement governs Contributions uploaded, published, or made available " +
-		"for execution on the Gno.land blockchain network, and the " +
-		"related software and repositories used to publish such Contributions.",
+			"for execution on the Gno.land blockchain network, and the " +
+			"related software and repositories used to publish such Contributions.",
 	)
 
 	if requiredHash == "" {
