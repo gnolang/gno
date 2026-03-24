@@ -27,12 +27,14 @@ func TestRender_PreSeededChecks(t *testing.T) {
 	uassert.True(t, strings.Contains(out, "[r/gnoland/boards2/v1:realm_locked](/r/gnoland/boards2/v1)"))
 	uassert.True(t, strings.Contains(out, "[r/sys/validators/v2:count](/r/sys/validators/v2)"))
 	uassert.True(t, strings.Contains(out, "[r/sys/cla:enforcement](/r/sys/cla)"))
+	uassert.True(t, strings.Contains(out, "[r/sys/names:enabled](/r/sys/names)"))
 
 	// Check labels
 	uassert.True(t, strings.Contains(out, "Realm Locked"))
 	uassert.True(t, strings.Contains(out, "Members Locked"))
 	uassert.True(t, strings.Contains(out, "Validator Count"))
 	uassert.True(t, strings.Contains(out, "CLA Enforcement"))
+	uassert.True(t, strings.Contains(out, "Namespace Enforcement"))
 
 	// Not-queryable section
 	uassert.True(t, strings.Contains(out, "Not Queryable On-Chain"))

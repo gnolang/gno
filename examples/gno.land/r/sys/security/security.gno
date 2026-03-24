@@ -16,6 +16,7 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 	"gno.land/r/gov/dao"
 	"gno.land/r/sys/cla"
+	names "gno.land/r/sys/names"
 	validators "gno.land/r/sys/validators/v2"
 )
 
@@ -58,6 +59,16 @@ func init() {
 		},
 		Expected: "> 0",
 		Risk:     "No block production",
+	})
+
+	// TODO: update when #5080 is merged
+	checks.Set("r/sys/names:enabled", &Check{
+		Label: "Namespace Enforcement",
+		ValueFn: func() string {
+			return strconv.FormatBool(names.IsEnabled())
+		},
+		Expected: "true",
+		Risk:     "Namespace hijacking",
 	})
 
 	checks.Set("r/sys/cla:enforcement", &Check{
