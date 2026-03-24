@@ -17,4 +17,3 @@ func main() {
 
 // Error:
 // other panic
-

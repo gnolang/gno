@@ -12,4 +12,3 @@ func main() {
 
 // Output:
 // 2
-
