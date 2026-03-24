@@ -674,6 +674,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// XXX check node lines and locations
 	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
 
+	// Record package-level initialization order dependencies.
+	// Must run before codaPackageSelectors replaces NameExprs.
+	codaInitOrderDeps(ctx, n)
+
 	// "coda" means "conclusion".
 	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
 	// because say n may be a *CallExpr containing an anonymous function.
@@ -1231,12 +1235,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						panic("cannot use _ as value or type")
 					}
 				}
-				globalUse := func(path ValuePath) {
-					bn := last.GetBlockNodeForPath(nil, path)
-					if bn == ctxpn {
-						addDependencyToTopDecl(ns, n.Name)
-					}
-				}
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -1300,9 +1298,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					case TRANS_ASSIGN_LHS:
 						as := ns[len(ns)-1].(*AssignStmt)
 						fillNameExprPath(last, n, as.Op == DEFINE)
-						if as.Op != DEFINE {
-							globalUse(n.Path)
-						}
 						return n, TRANS_CONTINUE
 					case TRANS_VAR_NAME:
 						fillNameExprPath(last, n, true)
@@ -1366,8 +1361,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						pref := RefValueFromPackage(pv)
 						n.SetAttribute(ATTR_PACKAGE_REF, pref)
 						n.SetAttribute(ATTR_PACKAGE_PATH, pv.PkgPath)
-					} else if nt.Kind() != TypeKind {
-						globalUse(n.Path)
 					}
 				}
 
@@ -2303,16 +2296,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// bound method or underlying.
 					// TODO check for unexported fields.
 					n.Path = tr[len(tr)-1]
-					if rcvr != nil {
-						destarRcvr := rcvr
-						if pt, ok := destarRcvr.(*PointerType); ok {
-							destarRcvr = pt.Elt
-						}
-						dt := destarRcvr.(*DeclaredType)
-						if dt.PkgPath == ctxpn.PkgPath {
-							addDependencyToTopDecl(ns, dt.Name+"."+n.Sel)
-						}
-					}
+
 					// n.Path = cxt.GetPathForName(n.Sel)
 				case *PackageType:
 					var pv *PackageValue
@@ -5451,6 +5435,113 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 	} else {
 		return 1
 	}
+}
+
+// codaInitOrderDeps records ATTR_DECL_DEPS on package-level *ValueDecl and
+// *FuncDecl nodes by scanning for all references to other package-level names.
+// It must run after preprocess1 (so all NameExpr paths are filled) and before
+// codaPackageSelectors (which replaces NameExprs with SelectorExprs).
+//
+// This is implemented as a separate post-preprocess pass (rather than inline
+// within preprocess1) so that the full ancestor node stack (ns) is always
+// available. In preprocess1, inner var declarations inside function literals
+// trigger isolated Preprocess calls with an empty ns, which caused dependencies
+// discovered inside those declarations to be attributed to the wrong (inner)
+// declaration instead of the enclosing package-level one.
+func codaInitOrderDeps(ctx BlockNode, n Node) {
+	ctxpn := packageOf(ctx)
+	if ctxpn.PkgPath == ".uverse" {
+		return
+	}
+	_ = TranscribeB(ctx, n, func(
+		ns []Node,
+		stack []BlockNode,
+		last BlockNode,
+		ftype TransField,
+		index int,
+		n Node,
+		stage TransStage,
+	) (Node, TransCtrl) {
+		switch stage {
+		case TRANS_ENTER:
+			// Skip function literal bodies that were not preprocessed;
+			// same guard as the main coda Transcribe in Preprocess.
+			if flx, ok := n.(*FuncLitExpr); ok {
+				if flx.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
+					return n, TRANS_SKIP
+				}
+			}
+		case TRANS_LEAVE:
+			switch n := n.(type) {
+			case *NameExpr:
+				// Only track names resolved via the block hierarchy.
+				if n.Path.Type != VPBlock {
+					return n, TRANS_CONTINUE
+				}
+				// Ignore blank identifiers.
+				if n.Name == blankIdentifier {
+					return n, TRANS_CONTINUE
+				}
+				// Ignore package-name references (e.g. `fmt` in `fmt.Println`).
+				if n.GetAttribute(ATTR_PACKAGE_REF) != nil {
+					return n, TRANS_CONTINUE
+				}
+				// Ignore the declaration name itself (LHS of var/const decl).
+				if ftype == TRANS_VAR_NAME {
+					return n, TRANS_CONTINUE
+				}
+				// Check that the name is defined at package level.
+				dbn := last.GetBlockNodeForPath(nil, n.Path)
+				if dbn != ctxpn {
+					return n, TRANS_CONTINUE
+				}
+				// Ignore type declarations; they have no runtime
+				// initialization order.
+				if li, ok := ctxpn.GetLocalIndex(n.Name); ok {
+					if ctxpn.NameSources[li].Type == NSTypeDecl {
+						return n, TRANS_CONTINUE
+					}
+				}
+				addDependencyToTopDecl(ns, n.Name)
+			case *SelectorExpr:
+				// Track same-package method calls so that findUnresolvedDeps
+				// can transitively discover vars referenced in method bodies.
+				// e.g. `A = T{}.GetB()` records "T.GetB" as a dep of A;
+				// findUnresolvedDeps then walks GetB's body to find B.
+				switch n.Path.Type {
+				case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
+					// Get the receiver type from the cached ATTR_TYPEOF_VALUE.
+					// Two cases for RefExpr:
+					//  (a) user-written &T{}: n.X is the RefExpr with type *T
+					//      stored directly on the RefExpr node.
+					//  (b) auto-generated &x (pointer-receiver auto-address):
+					//      preprocessing wraps the original expression in a
+					//      RefExpr AFTER caching the type on the inner node,
+					//      so n.X (the RefExpr) has no cached type but n.X.X
+					//      does.
+					xt, ok := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+					if !ok {
+						if re, ok2 := n.X.(*RefExpr); ok2 {
+							xt, ok = re.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+						}
+					}
+					if !ok {
+						break
+					}
+					// Dereference pointer receiver types.
+					if pt, ok2 := xt.(*PointerType); ok2 {
+						xt = pt.Elt
+					}
+					dt, ok := xt.(*DeclaredType)
+					if !ok || dt.PkgPath != ctxpn.PkgPath {
+						break
+					}
+					addDependencyToTopDecl(ns, dt.Name+"."+n.Sel)
+				}
+			}
+		}
+		return n, TRANS_CONTINUE
+	})
 }
 
 func addDependencyToTopDecl(ns []Node, name Name) {
