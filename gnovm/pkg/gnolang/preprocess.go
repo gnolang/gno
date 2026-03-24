@@ -676,7 +676,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 	// Record package-level initialization order dependencies.
 	// Must run before codaPackageSelectors replaces NameExprs.
-	codaInitOrderDeps(ctx, n)
+	if fn, ok := n.(*FileNode); ok {
+		codaInitOrderDeps(ctx, fn)
+	}
 
 	// "coda" means "conclusion".
 	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
@@ -5448,12 +5450,12 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 // trigger isolated Preprocess calls with an empty ns, which caused dependencies
 // discovered inside those declarations to be attributed to the wrong (inner)
 // declaration instead of the enclosing package-level one.
-func codaInitOrderDeps(ctx BlockNode, n Node) {
+func codaInitOrderDeps(ctx BlockNode, fn *FileNode) {
 	ctxpn := packageOf(ctx)
 	if ctxpn.PkgPath == ".uverse" {
 		return
 	}
-	_ = TranscribeB(ctx, n, func(
+	_ = TranscribeB(ctx, fn, func(
 		ns []Node,
 		stack []BlockNode,
 		last BlockNode,
