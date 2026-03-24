@@ -41,16 +41,6 @@ Gnoswap is currently under development and led by the Onbloc team. Gnoswap will
 be the first DEX on gno.land and is an automated market maker (AMM) protocol
 written in Gno that allows for permissionless token exchanges on the platform.
 
-### Flippando
-
-Flippando is a simple on-chain memory game, ported from Solidity to Gno, which
-starts with an empty matrix to flip tiles on to see what's underneath. If the
-tiles match, they remain uncovered; if not, they are briefly shown, and the
-player must memorize their colors until the entire matrix is uncovered. The end
-result can be minted as an NFT, which can later be assembled into bigger, more
-complex NFTs, creating a digital "painting" with the uncovered tiles.  Play the
-game at [Flippando](https://gno.flippando.xyz/flip)
-
 ### Gno Native Kit
 
 [Gno Native Kit](https://github.com/gnolang/gnonative) is a framework that
