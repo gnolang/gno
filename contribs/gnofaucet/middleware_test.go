@@ -26,70 +26,87 @@ const (
 func TestIPMiddleware_XForwardedFor(t *testing.T) {
 	t.Parallel()
 
-	t.Run("parses first IP from multi-value header", func(t *testing.T) {
-		t.Parallel()
+	// Helper to run ipMiddleware and return the captured IP and status code.
+	runMiddleware := func(t *testing.T, trustedProxyCount int, remoteAddr, xff string) (capturedIP string, statusCode int) {
+		t.Helper()
 
 		st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
-
-		var capturedIP string
-		handler := ipMiddleware(discardLogger, true, st)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler := ipMiddleware(discardLogger, trustedProxyCount, st)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			capturedIP, _ = r.Context().Value(remoteIPContextKey).(string)
 			w.WriteHeader(http.StatusOK)
 		}))
 
 		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		req.RemoteAddr = "10.0.0.1:1234"
-		req.Header.Set("X-Forwarded-For", "203.0.113.50, 70.41.3.18, 150.172.238.178")
+		req.RemoteAddr = remoteAddr
+		if xff != "" {
+			req.Header.Set("X-Forwarded-For", xff)
+		}
 
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
 
-		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Equal(t, "203.0.113.50", capturedIP)
+		return capturedIP, rr.Code
+	}
+
+	t.Run("count=0 uses RemoteAddr and ignores XFF", func(t *testing.T) {
+		t.Parallel()
+
+		ip, code := runMiddleware(t, 0, "10.0.0.1:1234", "203.0.113.50")
+		assert.Equal(t, http.StatusOK, code)
+		assert.Equal(t, "10.0.0.1", ip)
 	})
 
-	t.Run("single IP in header", func(t *testing.T) {
+	t.Run("count=1 selects rightmost XFF entry (client IP)", func(t *testing.T) {
 		t.Parallel()
 
-		st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
-
-		var capturedIP string
-		handler := ipMiddleware(discardLogger, true, st)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			capturedIP, _ = r.Context().Value(remoteIPContextKey).(string)
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		req.RemoteAddr = "10.0.0.1:1234"
-		req.Header.Set("X-Forwarded-For", "203.0.113.50")
-
-		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
-
-		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Equal(t, "203.0.113.50", capturedIP)
+		// 1 proxy: proxy appends client IP → rightmost is client
+		ip, code := runMiddleware(t, 1, "10.0.0.1:1234", "203.0.113.50")
+		assert.Equal(t, http.StatusOK, code)
+		assert.Equal(t, "203.0.113.50", ip)
 	})
 
-	t.Run("uses RemoteAddr when not behind proxy", func(t *testing.T) {
+	t.Run("count=1 ignores spoofed leftmost entries", func(t *testing.T) {
 		t.Parallel()
 
-		st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+		// Client spoofed "1.1.1.1", 1 proxy appended real client IP
+		ip, code := runMiddleware(t, 1, "10.0.0.1:1234", "1.1.1.1, 203.0.113.50")
+		assert.Equal(t, http.StatusOK, code)
+		assert.Equal(t, "203.0.113.50", ip)
+	})
 
-		var capturedIP string
-		handler := ipMiddleware(discardLogger, false, st)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			capturedIP, _ = r.Context().Value(remoteIPContextKey).(string)
-			w.WriteHeader(http.StatusOK)
-		}))
+	t.Run("count=2 skips one trusted proxy entry", func(t *testing.T) {
+		t.Parallel()
 
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		req.RemoteAddr = "10.0.0.1:1234"
-		req.Header.Set("X-Forwarded-For", "203.0.113.50")
+		// 2 proxies: proxy1 appended client, proxy2 appended proxy1
+		// XFF: "spoofed, client, proxy1" → pick index len-2 = client
+		ip, code := runMiddleware(t, 2, "10.0.0.1:1234", "1.1.1.1, 203.0.113.50, 70.41.3.18")
+		assert.Equal(t, http.StatusOK, code)
+		assert.Equal(t, "203.0.113.50", ip)
+	})
 
-		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
+	t.Run("count exceeds entries uses leftmost", func(t *testing.T) {
+		t.Parallel()
 
-		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Equal(t, "10.0.0.1", capturedIP)
+		// count=3 but only 2 entries: all from trusted proxies, leftmost is client
+		ip, code := runMiddleware(t, 3, "10.0.0.1:1234", "203.0.113.50, 70.41.3.18")
+		assert.Equal(t, http.StatusOK, code)
+		assert.Equal(t, "203.0.113.50", ip)
+	})
+
+	t.Run("count>0 with empty XFF falls back to RemoteAddr", func(t *testing.T) {
+		t.Parallel()
+
+		ip, code := runMiddleware(t, 1, "10.0.0.1:1234", "")
+		assert.Equal(t, http.StatusOK, code)
+		assert.Equal(t, "10.0.0.1", ip)
+	})
+
+	t.Run("handles whitespace in XFF entries", func(t *testing.T) {
+		t.Parallel()
+
+		ip, code := runMiddleware(t, 2, "10.0.0.1:1234", "  1.1.1.1 , 203.0.113.50 , 70.41.3.18 ")
+		assert.Equal(t, http.StatusOK, code)
+		assert.Equal(t, "203.0.113.50", ip)
 	})
 }
 

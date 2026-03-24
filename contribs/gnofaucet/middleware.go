@@ -22,8 +22,14 @@ type contextKey int
 
 const remoteIPContextKey contextKey = iota
 
-// ipMiddleware returns the IP verification middleware, using the given subnet throttler
-func ipMiddleware(logger *slog.Logger, behindProxy bool, st *ipThrottler) func(next http.Handler) http.Handler {
+// ipMiddleware returns the IP verification middleware, using the given subnet throttler.
+//
+// trustedProxyCount is the number of trusted reverse proxies between the
+// internet and this server. When > 0 the client IP is selected from the
+// X-Forwarded-For header counting trustedProxyCount entries from the right,
+// which prevents spoofing of leftmost entries.
+// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For
+func ipMiddleware(logger *slog.Logger, trustedProxyCount int, st *ipThrottler) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -41,12 +47,13 @@ func ipMiddleware(logger *slog.Logger, behindProxy bool, st *ipThrottler) func(n
 					return
 				}
 
-				// Check if the request is behind a proxy.
-				// X-Forwarded-For can contain a comma-separated list of IPs
-				// (e.g. "client, proxy1, proxy2"). Extract the first (client) IP.
-				if xff := r.Header.Get("X-Forwarded-For"); xff != "" && behindProxy {
-					host, _, _ = strings.Cut(xff, ",")
-					host = strings.TrimSpace(host)
+				// When behind trusted proxies, select the client IP from
+				// X-Forwarded-For by counting trustedProxyCount entries
+				// from the right. This ignores any spoofed leftmost entries.
+				if xff := r.Header.Get("X-Forwarded-For"); xff != "" && trustedProxyCount > 0 {
+					parts := strings.Split(xff, ",")
+					idx := max(len(parts)-trustedProxyCount, 0)
+					host = strings.TrimSpace(parts[idx])
 				}
 
 				// If the host is empty or IPv6 loopback, set it to IPv4 loopback

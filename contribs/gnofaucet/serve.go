@@ -54,9 +54,9 @@ type serveCfg struct {
 	maxSendAmount string
 	numAccounts   uint64
 
-	remote        string
-	isBehindProxy bool
-	logLevel      string
+	remote            string
+	trustedProxyCount int
+	logLevel          string
 
 	rateLimitInterval     time.Duration
 	rateLimitCleanTimeout time.Duration
@@ -126,11 +126,11 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"the static max send amount (native currency)",
 	)
 
-	fs.BoolVar(
-		&c.isBehindProxy,
-		"is-behind-proxy",
-		false,
-		"use X-Forwarded-For IP for throttling",
+	fs.IntVar(
+		&c.trustedProxyCount,
+		"trusted-proxy-count",
+		0,
+		"number of trusted reverse proxies between the internet and this server; client IP is selected from the right side of X-Forwarded-For (0 disables)",
 	)
 
 	fs.StringVar(
