@@ -1,0 +1,3 @@
+# __DEPLOYER_ADDR__ is patched by enable-basic-namespaces.sh before deployment.
+module = "gno.land/r/__DEPLOYER_ADDR__/names_bootstrap"
+gno = "0.9"

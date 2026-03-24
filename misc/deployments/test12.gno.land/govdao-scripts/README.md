@@ -9,9 +9,12 @@ GNOKEY_NAME=mykey ./add-validator.sh ...
 ```
 
 ```bash
-./add-validator-from-valopers.sh ADDR        # add a validator registered at r/gnops/valopers
-./add-validator.sh ADDR PUBKEY [POWER]       # add a validator with explicit pub_key
-./rm-validator.sh ADDR                       # remove a validator
+./add-validator-from-valopers.sh ADDR       # add a validator registered at r/gnops/valopers
+./add-validator.sh ADDR PUBKEY [POWER]      # add a validator with explicit pub_key
+./rm-validator.sh ADDR                      # remove a validator
 ./extend-govdao-t1.sh                       # add 6 T1 members to govDAO (one-time bootstrap)
 ./unrestrict-account.sh ADDR [ADDR...]      # allow address(es) to transfer ugnot
+./enable-govdao-namespaces.sh               # enable PA + custom namespace support (one-time)
+./add-namespace.sh NAMESPACE ADDR           # register a custom namespace in r/sys/names/v2
+./rm-namespace.sh NAMESPACE                 # remove a custom namespace from r/sys/names/v2
 ```
