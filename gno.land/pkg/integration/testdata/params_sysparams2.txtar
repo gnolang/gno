@@ -12,27 +12,30 @@ gnokey query params/bank:p:restricted_denoms
 stdout 'data: \["ugnot"\]'
 
 # unlock transfer
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/params -func UnlockTransfer -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 gnokey query params/bank:p:restricted_denoms
-stdout 'data: \[""\]'
+stdout 'data: \[\]'
 
 # set non-existing module param
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBankArbitrary -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-#stderr 'invalid bank parameter name: newkey'
-
-gnokey query params/bank:p:newkey
-stdout 'data: "foo"'
+! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBankArbitrary -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'unknown bank param key: "p:newkey"'
 
 # set invalid key
 ! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetInvalidKey -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stderr 'invalid param name: bank:restricted_denoms'
 
 gnokey query params/bank:p:restricted_denoms
-stdout 'data: \[""\]' # still the same.
+stdout 'data: \[\]' # still the same.
 
 gnokey query params/bank:restricted_denoms
 stdout 'data: \n'
 
+# set wrong type for restricted_denoms
+! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetRestrictedDenomsWrongType -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'invalid type for restricted_denoms param: expected \[\]string, got string'
+
+gnokey query params/bank:p:restricted_denoms
+stdout 'data: \[\]' # still the same, value was not written.
 
 # ---- 2 Test sys/params.SetSysParamXXX when called outside of gno.land/r/sys/params
 gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
@@ -85,8 +88,15 @@ func SetLockTransfer(cur realm, denom string) {
 	params.SetSysParamStrings("bank","p", "restricted_denoms", []string{denom})
 }
 
-// # XXX test setting the wrong type, like SetSysParamString() instead of Strings(), and make it error for special case of "p".
-// # func SetLockTransfer(denom string) { params.SetSysParamString("bank","p", "restricted_denoms", denom) }
+func UnlockTransfer(cur realm) {
+	params.SetSysParamStrings("bank","p", "restricted_denoms", []string{})
+}
+
+// SetRestrictedDenomsWrongType uses SetSysParamString (string) instead of
+// SetSysParamStrings ([]string) for restricted_denoms, which should panic.
+func SetRestrictedDenomsWrongType(cur realm, denom string) {
+	params.SetSysParamString("bank", "p", "restricted_denoms", denom)
+}
 
 // This should fail because the parameter does not exist
 func SetBankArbitrary(cur realm, value string) {

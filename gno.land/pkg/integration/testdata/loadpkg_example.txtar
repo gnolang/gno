@@ -1,5 +1,5 @@
 # load a package from the 'examples' directory.
-loadpkg gno.land/p/nt/ufmt
+loadpkg gno.land/p/nt/ufmt/v0
 
 ## start a new node
 gnoland start
@@ -19,7 +19,7 @@ gno = "0.9"
 package importtest
 
 import (
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 func Render(_ string) string {

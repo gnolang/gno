@@ -41,7 +41,7 @@ const storagePkgPath = "gno.land/r/x/benchmark/storage"
 func benchmarkStorage(bstore BenchStore, dir string) {
 	gs := bstore.gnoStore
 	avlPkgDir := filepath.Join(dir, "avl")
-	addPackage(gs, avlPkgDir, "gno.land/p/nt/avl")
+	addPackage(gs, avlPkgDir, "gno.land/p/nt/avl/v0")
 
 	storagePkgDir := filepath.Join(dir, "storage")
 	pv := addPackage(gs, storagePkgDir, storagePkgPath)

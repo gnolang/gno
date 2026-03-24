@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIndexLayout(t *testing.T) {
@@ -184,7 +185,7 @@ func TestStaticHeaderDevLinks_WithRealmMode(t *testing.T) {
 	}
 
 	// Test realm mode (default case)
-	links := StaticHeaderDevLinks(u, ViewModeRealm)
+	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
 	assert.Len(t, links, 3, "expected Content, Source, and Actions links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
@@ -199,10 +200,22 @@ func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
 	}
 
 	// Test package mode
-	links := StaticHeaderDevLinks(u, ViewModePackage)
+	links := StaticHeaderDevLinks(u, ViewModePackage, false)
 	assert.Len(t, links, 2, "expected Content and Source links only")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
+}
+
+func TestStaticHeaderDevLinks_StaticContent(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path: "/r/test/pkg",
+	}
+
+	links := StaticHeaderDevLinks(u, ViewModeRealm, true)
+	require.Len(t, links, 1, "static content should only have Content link")
+	assert.Equal(t, "Content", links[0].Label)
 }
 
 func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
@@ -213,7 +226,7 @@ func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
 	}
 
 	// Test explorer mode
-	links := StaticHeaderDevLinks(u, ViewModeExplorer)
+	links := StaticHeaderDevLinks(u, ViewModeExplorer, false)
 	assert.Empty(t, links, "expected no links in explorer mode")
 }
 
@@ -294,6 +307,65 @@ func TestViewModePredicates(t *testing.T) {
 			assert.Equal(t, tc.wantPackage, tc.mode.IsPackage(), "IsPackage")
 			assert.Equal(t, tc.wantHome, tc.mode.IsHome(), "IsHome")
 			assert.Equal(t, tc.wantUser, tc.mode.IsUser(), "IsUser")
+		})
+	}
+}
+
+func TestIndexLayout_ThemePropagation(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name          string
+		theme         string
+		wantAttr      string
+		wantNoDataTag bool
+	}{
+		{
+			name:     "success: dark theme rendered in HTML",
+			theme:    "dark",
+			wantAttr: `data-theme="dark"`,
+		},
+		{
+			name:     "success: light theme rendered in HTML",
+			theme:    "light",
+			wantAttr: `data-theme="light"`,
+		},
+		{
+			name:          "edge: empty theme omits data-theme attribute",
+			theme:         "",
+			wantNoDataTag: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := IndexData{
+				HeadData: HeadData{
+					Title: "Test",
+				},
+				Mode:  ViewModeHome,
+				Theme: tc.theme,
+				BodyView: &View{
+					Type:      "test-view",
+					Component: NewReaderComponent(strings.NewReader("testdata")),
+				},
+			}
+
+			component := IndexLayout(data)
+
+			var buf strings.Builder
+			err := component.Render(&buf)
+			require.NoError(t, err, "expected no render error")
+
+			output := buf.String()
+			if tc.wantNoDataTag {
+				assert.NotContains(t, output, `data-theme=`, "expected no data-theme attribute")
+			} else {
+				assert.Contains(t, output, tc.wantAttr, "expected HTML to contain %s", tc.wantAttr)
+			}
 		})
 	}
 }

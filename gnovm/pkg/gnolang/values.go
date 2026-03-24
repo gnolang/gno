@@ -219,6 +219,9 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
+		if rlm != nil && pv.Base != nil {
+			rlm.DidUpdate(pv.Base.(Object), nil, nil)
+		}
 		return
 	}
 	// General case
@@ -1590,14 +1593,31 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			return "", true
 		}
 	case *PointerType:
-		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
-		if tv.V != nil {
-			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
-			ptrBytes = uintptrToBytes(&ptr)
+		if tv.V == nil {
+			var ptrBytes [sizeOfUintPtr]byte
+			bz = append(bz, ptrBytes[:]...)
+		} else {
+			pv := tv.V.(PointerValue)
+			if pv.TV != nil && pv.TV.T == DataByteType {
+				// TV is freshly allocated per access (see GetPointerAtIndexInt2);
+				// so we cannot simply convert to uintptr.
+				// We instead use the pointer to Base + concat with Index.
+				// This causes a longer pointer value, but does not cause issues
+				// because when we encode pointers in arrays or structs they are
+				// length-prefixed.
+				dbv := pv.TV.V.(DataByteValue)
+				base := uintptr(unsafe.Pointer(dbv.Base))
+				baseBytes := uintptrToBytes(&base)
+				bz = append(bz, baseBytes[:]...)
+				bz = binary.AppendUvarint(bz, uint64(dbv.Index))
+			} else {
+				ptr := uintptr(unsafe.Pointer(pv.TV))
+				ptrBytes := uintptrToBytes(&ptr)
+				bz = append(bz, ptrBytes[:]...)
+			}
 		}
-		bz = append(bz, ptrBytes[:]...)
 	case FieldType:
-		panic("field (pseudo)type cannot be used as map key")
+		panic("runtime error: field (pseudo)type cannot be used as map key")
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
@@ -1624,7 +1644,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		}
 		bz = append(bz, ']')
 	case *SliceType:
-		panic("slice type cannot be used as map key")
+		panic("runtime error: slice type cannot be used as map key")
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
@@ -1644,7 +1664,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		}
 		bz = append(bz, '}')
 	case *ChanType:
-		panic("not yet implemented")
+		panic("runtime error: not yet implemented")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected map key type %s",

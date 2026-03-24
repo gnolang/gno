@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -39,11 +40,11 @@ func LoadConfigFile(path string) (*Config, error) {
 
 // WriteConfigFile renders config using the template and writes it to configFilePath.
 func WriteConfigFile(configFilePath string, config *Config) error {
-	// Marshal the config
-	configRaw, err := toml.Marshal(config)
-	if err != nil {
+	var buf bytes.Buffer
+	if err := toml.NewEncoder(&buf).Indentation("").Encode(config); err != nil {
 		return fmt.Errorf("unable to TOML marshal config, %w", err)
 	}
+	configRaw := buf.Bytes()
 
 	if err := osm.WriteFile(configFilePath, configRaw, 0o644); err != nil {
 		return fmt.Errorf("unable to write config file, %w", err)
