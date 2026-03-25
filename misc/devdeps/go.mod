@@ -7,7 +7,6 @@ toolchain go1.23.2
 require (
 	github.com/bufbuild/buf v1.54.0
 	github.com/campoy/embedmd v1.0.0
-	github.com/golang/mock v1.6.0
 	github.com/golangci/golangci-lint/v2 v2.3.1 // sync with github actions
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.0 // indirect
 	golang.org/x/tools v0.35.0
@@ -16,7 +15,10 @@ require (
 	mvdan.cc/gofumpt v0.8.0
 )
 
-require google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
+require (
+	connectrpc.com/connect v1.18.1
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
+)
 
 require (
 	4d63.com/gocheckcompilerdirectives v1.3.0 // indirect
@@ -35,7 +37,6 @@ require (
 	buf.build/go/standard v0.1.0 // indirect
 	cel.dev/expr v0.24.0 // indirect
 	codeberg.org/chavacava/garif v0.2.0 // indirect
-	connectrpc.com/connect v1.18.1 // indirect
 	connectrpc.com/otelconnect v0.7.2 // indirect
 	github.com/4meepo/tagalign v1.4.3 // indirect
 	github.com/Abirdcfly/dupword v0.1.6 // indirect

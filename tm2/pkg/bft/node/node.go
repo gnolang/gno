@@ -20,7 +20,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/backup"
 	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
-	privval "github.com/gnolang/gno/tm2/pkg/bft/privval"
+
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
@@ -196,7 +196,7 @@ type Node struct {
 	firstBlockSignal  <-chan struct{}
 
 	earlyStart   bool // start RPC+P2P before genesis time, defer only consensus
-	backupServer *http.Server
+	backupServer *grpc.Server
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
