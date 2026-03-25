@@ -93,7 +93,11 @@ func (p *Processor) FormatFile(file string) ([]byte, error) {
 		pkg, err = ParsePackage(p.fset, "", dir)
 		if err != nil {
 			if errors.Is(err, ErrPackageConflict) {
-				pkg = nil // fall back to per-file formatting
+				// Filetest directories (e.g. gnovm/tests/files/) contain
+				// independent .gno files with different package names in
+				// the same directory. This is expected and not a real
+				// package error — fall back to per-file formatting which
+				// formats each file standalone without cross-file context.
 			} else {
 				return nil, fmt.Errorf("unable to parse package %q: %w", dir, err)
 			}
