@@ -15,4 +15,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	MsgSend{}, "MsgSend",
 	GenesisState{}, "GenesisState",
 	Params{}, "Params",
+	TransferEvent{}, "TransferEvent",
 ))

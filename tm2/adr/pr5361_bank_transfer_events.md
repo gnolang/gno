@@ -17,9 +17,10 @@ Ref: https://github.com/gnolang/gno/issues/5344
 
 ## Decision
 
-Add a single `TransferEvent` type to `gnovm/stdlibs/chain/emit_event.go` (alongside
-existing `StorageDepositEvent` and `StorageUnlockEvent`) and emit it from the bank
-keeper whenever coins are transferred.
+Add a single `TransferEvent` type to `tm2/pkg/sdk/bank/events.go` and emit it from the
+bank keeper whenever coins are transferred. The type lives in the bank module (not in
+`gnovm/stdlibs/chain/`) to respect the architectural layering: `tm2` must not import
+`gnovm`.
 
 ### Event type
 
@@ -73,8 +74,8 @@ This matches Cosmos SDK behavior where `SendCoins` always emits regardless of ca
 
 - Indexers can track all coin movements (sends, multi-sends, gas fees) via `TransferEvent`.
 - Existing behavior is unchanged; events are additive.
-- The `TransferEvent` is amino-registered under the `"tm"` prefix, consistent with
-  other chain events.
+- The `TransferEvent` is amino-registered under the `"bank"` prefix in the bank
+  module's amino package (`tm2/pkg/sdk/bank/package.go`).
 - Realm-level minting/burning (`IssueCoin`/`RemoveCoin` via `SDKBanker`) calls
   `AddCoins`/`SubtractCoins` directly, bypassing `sendCoins()`, so these operations
   remain invisible to indexers. Adding events to `AddCoins`/`SubtractCoins` would cause
