@@ -26,3 +26,9 @@ message GenesisState {
 message Params {
 	repeated string restricted_denoms = 1;
 }
+
+message TransferEvent {
+	string from = 1;
+	string to = 2;
+	string amount = 3;
+}

@@ -1,0 +1,41 @@
+# Test that bank transfer events are emitted for send transactions.
+
+adduser test2
+
+## start a new node
+gnoland start
+
+## Simple bank send emits a TransferEvent with from, to, and amount.
+gnokey maketx send -send 5000000ugnot -to ${test2_user_addr} -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+stdout 'EVENTS:     .*{"from":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","to":"'${test2_user_addr}'","amount":\[{"denom":"ugnot","amount":5000000}\]}'
+
+## Send with realm banker also emits TransferEvents.
+gnokey maketx addpkg -pkgdir $WORK/realm -pkgpath gno.land/r/bankevt -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/bankevt -func SendBack -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+## Expect the send-coins-to-realm transfer event and the send-back transfer event.
+stdout 'EVENTS:     .*{"from":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","to":"g19q72u2wu3rj4cftjuzsdxd5tjyma3crztc5ukh","amount":\[{"denom":"ugnot","amount":1000000}\]}.*{"from":"g19q72u2wu3rj4cftjuzsdxd5tjyma3crztc5ukh","to":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","amount":\[{"denom":"ugnot","amount":1000000}\]}'
+
+-- realm/gnomod.toml --
+module = "gno.land/r/bankevt"
+gno = "0.9"
+
+-- realm/bankevt.gno --
+package bankevt
+
+import (
+	"chain/banker"
+	"chain/runtime"
+)
+
+func SendBack(cur realm) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend)
+	b.SendCoins(
+		runtime.CurrentRealm().Address(),
+		runtime.OriginCaller(),
+		banker.OriginSend(),
+	)
+}
