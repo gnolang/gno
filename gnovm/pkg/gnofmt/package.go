@@ -80,7 +80,7 @@ func CheckPackageConsistency(fset *token.FileSet, dir string) (bool, error) {
 		if pkgname == "" {
 			pkgname = f.Name.Name
 		} else if pkgname != f.Name.Name {
-				return false, nil
+			return false, nil
 		}
 	}
 
