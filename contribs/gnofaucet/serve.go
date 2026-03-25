@@ -54,9 +54,12 @@ type serveCfg struct {
 	maxSendAmount string
 	numAccounts   uint64
 
-	remote        string
-	isBehindProxy bool
-	logLevel      string
+	remote            string
+	trustedProxyCount int
+	logLevel          string
+
+	rateLimitInterval     time.Duration
+	rateLimitCleanTimeout time.Duration
 }
 
 func newServeCmd() *commands.Command {
@@ -123,11 +126,11 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"the static max send amount (native currency)",
 	)
 
-	fs.BoolVar(
-		&c.isBehindProxy,
-		"is-behind-proxy",
-		false,
-		"use X-Forwarded-For IP for throttling",
+	fs.IntVar(
+		&c.trustedProxyCount,
+		"trusted-proxy-count",
+		0,
+		"number of trusted reverse proxies between the internet and this server; client IP is selected from the right side of X-Forwarded-For (0 disables)",
 	)
 
 	fs.StringVar(
@@ -135,6 +138,20 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"log-level",
 		"info",
 		"log level (debug, info, warn, error)",
+	)
+
+	fs.DurationVar(
+		&c.rateLimitInterval,
+		"ratelimit-interval",
+		defaultRateLimitInterval,
+		"minimum interval between allowed requests from the same IP",
+	)
+
+	fs.DurationVar(
+		&c.rateLimitCleanTimeout,
+		"ratelimit-cleanup-timeout",
+		defaultCleanTimeout,
+		"how long an idle IP entry is kept before being removed",
 	)
 }
 
@@ -169,6 +186,14 @@ func serveFaucet(
 	logger *slog.Logger,
 	opts ...faucet.Option,
 ) error {
+	if cfg.rateLimitInterval <= 0 {
+		return errors.New("ratelimit-interval must be greater than zero")
+	}
+
+	if cfg.rateLimitCleanTimeout <= 0 {
+		return errors.New("ratelimit-cleanup-timeout must be greater than zero")
+	}
+
 	// Parse static gas values.
 	// It is worth noting that this is temporary,
 	// and will be removed once gas estimation is enabled
