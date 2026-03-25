@@ -42,8 +42,15 @@ func NewSignerServer(
 			rss.WithServerPrivKey(authKeysFile.ServerIdentity.PrivKey),
 		)
 	} else if protocol, _ := osm.ProtocolAndAddress(commonFlags.Listener); protocol == "tcp" {
-		// If no auth keys file found and the listener use the TCP protocol, log a security
-		// warning suggesting to the user to generate mutual auth keys.
+		if !commonFlags.Insecure {
+			return nil, fmt.Errorf(
+				"mutual authentication keys required for TCP listener; " +
+					"provide an auth keys file with --auth-keys-file, " +
+					"generate one with 'gnokms auth generate', " +
+					"or use --insecure to skip (NOT recommended for production)",
+			)
+		}
+		// --insecure explicitly set: warn but continue.
 		logger.Warn("Mutual auth keys not found, gnokms and its clients will not be able to authenticate")
 		logger.Warn("For more security, generate mutual auth keys using 'gnokms auth generate'")
 	}

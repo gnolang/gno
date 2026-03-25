@@ -27,6 +27,7 @@ func TestNewSignerServer(t *testing.T) {
 	t.Run("nil signer", func(t *testing.T) {
 		serverFlags := &ServerFlags{
 			Listener: "tcp://127.0.0.1:0",
+			Insecure: true,
 		}
 
 		signerServer, err := NewSignerServer(
@@ -36,6 +37,58 @@ func TestNewSignerServer(t *testing.T) {
 		)
 		require.Nil(t, signerServer)
 		assert.Error(t, err)
+	})
+
+	t.Run("tcp without auth keys rejects by default", func(t *testing.T) {
+		t.Parallel()
+
+		serverFlags := &ServerFlags{
+			Listener: "tcp://127.0.0.1:0",
+		}
+
+		signerServer, err := NewSignerServer(
+			serverFlags,
+			types.NewMockSigner(),
+			log.NewNoopLogger(),
+		)
+		require.Nil(t, signerServer)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "mutual authentication keys required")
+	})
+
+	t.Run("tcp with insecure flag allows no auth keys", func(t *testing.T) {
+		t.Parallel()
+
+		serverFlags := &ServerFlags{
+			Listener: "tcp://127.0.0.1:0",
+			Insecure: true,
+		}
+
+		signerServer, err := NewSignerServer(
+			serverFlags,
+			types.NewMockSigner(),
+			log.NewNoopLogger(),
+		)
+		require.NotNil(t, signerServer)
+		assert.NoError(t, err)
+	})
+
+	t.Run("unix socket without auth keys works", func(t *testing.T) {
+		t.Parallel()
+
+		socketPath := filepath.Join(t.TempDir(), "test.sock")
+
+		serverFlags := &ServerFlags{
+			Listener: "unix://" + socketPath,
+		}
+
+		signerServer, err := NewSignerServer(
+			serverFlags,
+			types.NewMockSigner(),
+			log.NewNoopLogger(),
+		)
+		require.NotNil(t, signerServer)
+		assert.NoError(t, err)
 	})
 
 	t.Run("invalid auth keys file", func(t *testing.T) {
@@ -164,7 +217,9 @@ func TestRunSignerServer(t *testing.T) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		serverFlags := &ServerFlags{}
+		serverFlags := &ServerFlags{
+			Insecure: true,
+		}
 
 		assert.Error(t, RunSignerServer(
 			ctx,
@@ -213,6 +268,7 @@ func TestRunSignerServer(t *testing.T) {
 		serverFlags := &ServerFlags{
 			Listener: fmt.Sprintf("tcp://127.0.0.1:%d", listener.Addr().(*net.TCPAddr).Port),
 			LogLevel: zapcore.ErrorLevel.String(),
+			Insecure: true,
 		}
 
 		assert.Error(t, RunSignerServer(
@@ -232,6 +288,7 @@ func TestRunSignerServer(t *testing.T) {
 		serverFlags := &ServerFlags{
 			Listener: "tcp://127.0.0.1:0",
 			LogLevel: zapcore.ErrorLevel.String(),
+			Insecure: true,
 		}
 
 		assert.ErrorIs(t, RunSignerServer(
@@ -253,6 +310,7 @@ func TestRunSignerServer(t *testing.T) {
 		serverFlags := &ServerFlags{
 			Listener: "tcp://127.0.0.1:0",
 			LogLevel: zapcore.ErrorLevel.String(),
+			Insecure: true,
 		}
 
 		assert.NoError(t, RunSignerServer(

@@ -49,6 +49,7 @@ type ServerFlags struct {
 	ResponseTimeout time.Duration
 	LogLevel        string
 	LogFormat       string
+	Insecure        bool
 }
 
 var defaultServerFlags = ServerFlags{
@@ -95,5 +96,12 @@ func (f *ServerFlags) RegisterFlags(fs *flag.FlagSet) {
 		"log-format",
 		defaultServerFlags.LogFormat,
 		"log format (json|console)",
+	)
+
+	fs.BoolVar(
+		&f.Insecure,
+		"insecure",
+		false,
+		"allow starting the server without mutual authentication keys on TCP (NOT recommended for production)",
 	)
 }

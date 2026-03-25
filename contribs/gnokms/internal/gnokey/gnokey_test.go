@@ -70,6 +70,7 @@ func TestNewGnokeyCmd(t *testing.T) {
 					"error",
 					"--listener",
 					"wrong_address",
+					"--insecure",
 					"--home",
 					filePath,
 					"--insecure-password-stdin",
