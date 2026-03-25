@@ -56,7 +56,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Get last commit hash for directory
         id: get-hash
@@ -64,14 +64,14 @@ jobs:
 
       - name: Cache github-bot binary
         id: cache-bot-bin
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /usr/local/bin/github-bot
           key: ${{ runner.os }}-github-bot-${{ steps.get-hash.outputs.dir_hash }}
 
       - name: Install Go
         if: steps.cache-bot-bin.outputs.cache-hit != 'true'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: contribs/github-bot/go.mod
 
@@ -104,7 +104,7 @@ jobs:
         run: echo $PR_NUMBER > pr-number
 
       - name: Upload it as an artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-number
           path: pr-number
@@ -127,7 +127,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Get last commit hash for directory
         id: get-hash
@@ -135,14 +135,14 @@ jobs:
 
       - name: Cache github-bot binary
         id: cache-bot-bin
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /usr/local/bin/github-bot
           key: ${{ runner.os }}-github-bot-${{ steps.get-hash.outputs.dir_hash }}
 
       - name: Install Go
         if: steps.cache-bot-bin.outputs.cache-hit != 'true'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: contribs/github-bot/go.mod
 

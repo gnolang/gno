@@ -25,8 +25,8 @@ jobs:
     if: github.repository == 'gnolang/gno' # Alternatively, validate based on provided tokens and permissions.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       # Use the goroot at the top of the project to compare with the GnoVM
@@ -45,7 +45,7 @@ jobs:
         id: pages
         if: github.event_name != 'pull_request'
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         if: github.event_name != 'pull_request'
         with:
           path: ./pages_output
