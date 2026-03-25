@@ -17,32 +17,54 @@ Ref: https://github.com/gnolang/gno/issues/5344
 
 ## Decision
 
-Add a single `TransferEvent` type to `tm2/pkg/sdk/bank/events.go` and emit it from the
-bank keeper whenever coins are transferred. The type lives in the bank module (not in
-`gnovm/stdlibs/chain/`) to respect the architectural layering: `tm2` must not import
-`gnovm`.
+Add three event types to `tm2/pkg/sdk/bank/events.go`, following the Cosmos SDK
+convention of separate event types for different operations. All types live in the
+bank module (not in `gnovm/stdlibs/chain/`) to respect the architectural layering:
+`tm2` must not import `gnovm`.
 
-### Event type
+### Event types
 
 ```go
+// 1:1 transfers (SendCoins, SendCoinsUnrestricted)
 type TransferEvent struct {
     From   crypto.Address `json:"from"`
     To     crypto.Address `json:"to"`
     Amount std.Coins      `json:"amount"`
 }
+
+// Coins leaving an account (InputOutputCoins inputs)
+type CoinSpentEvent struct {
+    Spender crypto.Address `json:"spender"`
+    Amount  std.Coins      `json:"amount"`
+}
+
+// Coins entering an account (InputOutputCoins outputs)
+type CoinReceivedEvent struct {
+    Receiver crypto.Address `json:"receiver"`
+    Amount   std.Coins      `json:"amount"`
+}
 ```
+
+Using separate types avoids zero-address sentinels in partially-populated fields
+(which would serialize as `g1qqq...luuxe` and confuse indexers) and gives consumers
+type-safe event discrimination.
 
 ### Emission points
 
-- `sendCoins()`: emits with both `From` and `To` populated. Covers `SendCoins`,
-  `SendCoinsUnrestricted` (gas fees), and any future callers.
-- `InputOutputCoins()`: emits per-input (only `From` set) and per-output (only `To` set).
+- `sendCoins()`: emits `TransferEvent` with both `From` and `To` populated. Covers
+  `SendCoins`, `SendCoinsUnrestricted`, and any future callers.
+- `InputOutputCoins()`: emits `CoinSpentEvent` per-input and `CoinReceivedEvent`
+  per-output. No `TransferEvent` is emitted because N:M multi-sends cannot be
+  expressed as a single transfer.
 
-### Gas fee transfers emit events
+### Gas fee transfers
 
 `SendCoinsUnrestricted` (used for gas fee deduction in `auth/ante.go`) calls
-`sendCoins()` internally, so gas fee transfers automatically produce events.
-This matches Cosmos SDK behavior where `SendCoins` always emits regardless of caller.
+`sendCoins()` internally, so gas fee transfers produce `TransferEvent`s. However,
+note that the ante handler runs before `runMsgs()`, which creates a fresh
+`EventLogger`. As a result, gas fee events are currently **not visible** in the
+transaction result. Making ante-handler events visible requires changes to
+`baseapp.go` and is tracked separately.
 
 ## Alternatives considered
 

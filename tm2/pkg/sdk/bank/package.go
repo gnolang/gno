@@ -16,4 +16,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	GenesisState{}, "GenesisState",
 	Params{}, "Params",
 	TransferEvent{}, "TransferEvent",
+	CoinSpentEvent{}, "CoinSpentEvent",
+	CoinReceivedEvent{}, "CoinReceivedEvent",
 ))

@@ -95,9 +95,9 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 			return err
 		}
 
-		ctx.EventLogger().EmitEvent(TransferEvent{
-			From:   in.Address,
-			Amount: in.Coins,
+		ctx.EventLogger().EmitEvent(CoinSpentEvent{
+			Spender: in.Address,
+			Amount:  in.Coins,
 		})
 	}
 
@@ -107,9 +107,9 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 			return err
 		}
 
-		ctx.EventLogger().EmitEvent(TransferEvent{
-			To:     out.Address,
-			Amount: out.Coins,
+		ctx.EventLogger().EmitEvent(CoinReceivedEvent{
+			Receiver: out.Address,
+			Amount:   out.Coins,
 		})
 	}
 
