@@ -159,11 +159,14 @@ func (bank BankKeeper) sendCoins(
 		return err
 	}
 
-	ctx.EventLogger().EmitEvent(TransferEvent{
-		From:   fromAddr,
-		To:     toAddr,
-		Amount: amt,
-	})
+	// Only emit a transfer event when coins are actually moved.
+	if !amt.IsZero() {
+		ctx.EventLogger().EmitEvent(TransferEvent{
+			From:   fromAddr,
+			To:     toAddr,
+			Amount: amt,
+		})
+	}
 
 	return nil
 }

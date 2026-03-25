@@ -52,7 +52,10 @@ type-safe event discrimination.
 ### Emission points
 
 - `sendCoins()`: emits `TransferEvent` with both `From` and `To` populated. Covers
-  `SendCoins`, `SendCoinsUnrestricted`, and any future callers.
+  `SendCoins`, `SendCoinsUnrestricted`, and any future callers. **No event is emitted
+  when the amount is zero** (`amt.IsZero()`), because several call sites (e.g. the VM
+  keeper on every `MsgCall`/`MsgRun`) invoke `SendCoins` with empty coins; emitting a
+  `TransferEvent` with a null amount would be noise for indexers.
 - `InputOutputCoins()`: emits `CoinSpentEvent` per-input and `CoinReceivedEvent`
   per-output. No `TransferEvent` is emitted because N:M multi-sends cannot be
   expressed as a single transfer.
@@ -65,6 +68,14 @@ note that the ante handler runs before `runMsgs()`, which creates a fresh
 `EventLogger`. As a result, gas fee events are currently **not visible** in the
 transaction result. Making ante-handler events visible requires changes to
 `baseapp.go` and is tracked separately.
+
+### Storage deposit transfers
+
+`SendCoinsUnrestricted` is also used for storage deposit collection and refunds
+(`lockStorageDeposit` / `refundStorageDeposit` in the VM keeper). These calls
+happen within `runMsgs()`, so their `TransferEvent`s **are visible** in the
+transaction result alongside the existing `StorageDepositEvent` /
+`StorageUnlockEvent`.
 
 ## Alternatives considered
 
