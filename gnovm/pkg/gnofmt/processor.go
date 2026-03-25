@@ -2,7 +2,6 @@ package gnofmt
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -89,24 +88,27 @@ func (p *Processor) FormatFile(file string) ([]byte, error) {
 
 	pkg, ok := p.pkgdirCache[dir]
 	if !ok {
-		var err error
+		// Check if all non-test .gno files share the same package name.
+		// Filetest directories (e.g. gnovm/tests/files/) contain independent
+		// .gno files with different package names — skip package parsing and
+		// fall back to per-file formatting.
+		consistent, err := CheckPackageConsistency(p.fset, dir)
+		if err != nil {
+			return nil, fmt.Errorf("unable to check package consistency for %q: %w", dir, err)
+		}
+
+		if !consistent {
+			p.pkgdirCache[dir] = nil
+			return p.FormatImportFromSource(file, nil)
+		}
+
 		pkg, err = ParsePackage(p.fset, "", dir)
 		if err != nil {
-			if errors.Is(err, ErrPackageConflict) {
-				// Filetest directories (e.g. gnovm/tests/files/) contain
-				// independent .gno files with different package names in
-				// the same directory. This is expected and not a real
-				// package error — fall back to per-file formatting which
-				// formats each file standalone without cross-file context.
-			} else {
-				return nil, fmt.Errorf("unable to parse package %q: %w", dir, err)
-			}
+			return nil, fmt.Errorf("unable to parse package %q: %w", dir, err)
 		}
 		p.pkgdirCache[dir] = pkg
-	}
-
-	if pkg == nil {
-		// Fallback on per-file formatting with import resolution
+	} else if pkg == nil {
+		// Cache hit from a previously-detected inconsistent directory.
 		return p.FormatImportFromSource(file, nil)
 	}
 

@@ -3,6 +3,7 @@
 package gnofmt
 
 import (
+	"go/token"
 	"os"
 	"path/filepath"
 	"testing"
@@ -93,6 +94,80 @@ func main() {
 	require.NoError(t, err)
 
 	require.Equal(t, expectedOutput, string(formatted))
+}
+
+func TestCheckPackageConsistency(t *testing.T) {
+	t.Parallel()
+
+	fset := token.NewFileSet()
+
+	t.Run("consistent", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.gno"), []byte("package foo\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.gno"), []byte("package foo\n"), 0o644))
+
+		ok, err := CheckPackageConsistency(fset, dir)
+		require.NoError(t, err)
+		require.True(t, ok)
+	})
+
+	t.Run("inconsistent", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.gno"), []byte("package foo\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.gno"), []byte("package bar\n"), 0o644))
+
+		ok, err := CheckPackageConsistency(fset, dir)
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+
+	t.Run("single_file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.gno"), []byte("package foo\n"), 0o644))
+
+		ok, err := CheckPackageConsistency(fset, dir)
+		require.NoError(t, err)
+		require.True(t, ok)
+	})
+
+	t.Run("test_files_ignored", func(t *testing.T) {
+		t.Parallel()
+		// Test files (_test.gno) should not affect consistency.
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.gno"), []byte("package foo\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a_test.gno"), []byte("package bar\n"), 0o644))
+
+		ok, err := CheckPackageConsistency(fset, dir)
+		require.NoError(t, err)
+		require.True(t, ok)
+	})
+
+	t.Run("empty_dir", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		ok, err := CheckPackageConsistency(fset, dir)
+		require.NoError(t, err)
+		require.True(t, ok)
+	})
+
+	// Verify the real gnovm/tests/files/ directory is detected as inconsistent.
+	// This directory contains independent filetests with different package names
+	// (e.g. "main" and "test"), which is the primary real-world use case.
+	t.Run("real_tests_files", func(t *testing.T) {
+		t.Parallel()
+		dir := filepath.Join("..", "..", "tests", "files")
+		// Ensure the directory exists so this test isn't silently skipped.
+		_, err := os.Stat(dir)
+		require.NoError(t, err, "gnovm/tests/files/ directory should exist")
+
+		ok, err := CheckPackageConsistency(fset, dir)
+		require.NoError(t, err)
+		require.False(t, ok, "gnovm/tests/files/ should have mixed package names")
+	})
 }
 
 func TestFormatFileConflictingPackages(t *testing.T) {

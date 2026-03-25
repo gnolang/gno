@@ -54,10 +54,45 @@ type fsPackage struct {
 	files []string // filenames
 }
 
+// CheckPackageConsistency checks whether all non-test .gno files in a directory
+// share the same package name. Returns false for directories like filetest dirs
+// (e.g. gnovm/tests/files/) where independent .gno files have different package names.
+// This is not an error condition — it simply means per-file formatting should be used.
+func CheckPackageConsistency(fset *token.FileSet, dir string) (bool, error) {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return false, fmt.Errorf("unable to read dir %q: %w", dir, err)
+	}
+
+	var pkgname string
+	for _, file := range files {
+		name := file.Name()
+		if !isGnoFile(name) || isTestFile(name) {
+			continue
+		}
+
+		filename := filepath.Join(dir, name)
+		f, err := parser.ParseFile(fset, filename, nil, parser.PackageClauseOnly)
+		if err != nil {
+			return false, fmt.Errorf("unable to parse file %q: %w", filename, err)
+		}
+
+		if pkgname == "" {
+			pkgname = f.Name.Name
+		} else if pkgname != f.Name.Name {
+				return false, nil
+		}
+	}
+
+	return true, nil
+}
+
 // ParsePackage parses package from the given directory.
 // It will return a nil package if no gno files are found.
 // If a gnomod.toml is found, it will be used to determine the pkg path.
 // If root is specified, it will be trimmed from the actual given dir to create the pkgpath if no gnomod.toml is found.
+// The caller should use CheckPackageConsistency first for directories that may
+// contain mixed package names (e.g. filetest directories).
 func ParsePackage(fset *token.FileSet, root string, dir string) (Package, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
