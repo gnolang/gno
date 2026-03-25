@@ -5,6 +5,17 @@
 
 <body>
   {{ template "ui/icons" -}}
+  {{ if .IndexData.Banner.Enabled -}}
+  {{ if .IndexData.Banner.HasURL -}}
+  <a href="{{ .IndexData.Banner.URL }}" target="_blank" rel="noopener noreferrer" class="b-banner">
+    <span>{{ .IndexData.Banner.Text }}</span>
+  </a>
+  {{ else -}}
+  <div class="b-banner">
+    <span>{{ .IndexData.Banner.Text }}</span>
+  </div>
+  {{ end -}}
+  {{ end -}}
   {{ template "layouts/header" .IndexData.HeaderData -}}
   <main {{ if .IsDevmodView }}class="dev-mode" {{ end }}>
     <section class="c-center">
