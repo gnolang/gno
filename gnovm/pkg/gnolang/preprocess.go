@@ -2396,7 +2396,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ChanTypeExpr:
-				panic("channel type is not supported")
+				panic("channel type is not yet supported")
 
 			// TRANS_LEAVE -----------------------
 			case *FuncTypeExpr:
