@@ -71,35 +71,33 @@ transaction result. Making ante-handler events visible requires changes to
 - **Generic `chain.Event` with string attributes**: Would avoid a new type but places
   bank-level semantics in string parsing, losing type safety for indexers.
 
-- **Multiple event types like Cosmos SDK** (`CoinSpent`, `CoinReceived`, `Transfer`):
-  Cosmos SDK emits 5 distinct event types for coin operations:
+- **Single `TransferEvent` with optional empty `From`/`To` for multi-send**:
+  Simpler (one type), but zero-value `crypto.Address` serializes to
+  `g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe` — a valid-looking bech32 address that
+  would corrupt indexer balance tracking. Separate `CoinSpentEvent`/`CoinReceivedEvent`
+  types are cleaner and match the Cosmos SDK pattern.
 
-  | Event | Attributes | Purpose |
-  |-------|-----------|---------|
-  | `coin_spent` | spender, amount | Low-level: coins left an account |
-  | `coin_received` | receiver, amount | Low-level: coins entered an account |
-  | `transfer` | sender, recipient, amount | High-level: send correlation |
-  | `coinbase` | minter, amount | Minting |
-  | `burn` | burner, amount | Burning |
-
-  The separation of `coin_spent`/`coin_received` from `transfer` serves different
-  indexer needs and handles asymmetric operations (minting has no sender, burning has
-  no recipient). However, Gno currently has no minting/burning in the bank module, so
-  a single `TransferEvent` with optional empty `From`/`To` is sufficient. If Gno adds
-  minting or burning later, dedicated event types should be introduced at that point
-  rather than overloading `TransferEvent`.
+- **Full Cosmos SDK event set** (`CoinSpent`, `CoinReceived`, `Transfer`, `Coinbase`,
+  `Burn`): Cosmos SDK emits 5 distinct event types. Gno currently has no
+  minting/burning in the bank module, so `Coinbase` and `Burn` are not needed.
+  Dedicated `MintEvent`/`BurnEvent` types should be introduced when those operations
+  are added.
 
 - **Suppress events for gas fees**: Would require splitting `sendCoins` into emitting
   and silent variants, adding complexity for little benefit.
 
 ## Consequences
 
-- Indexers can track all coin movements (sends, multi-sends, gas fees) via `TransferEvent`.
+- Indexers can track coin movements via `TransferEvent` (1:1 sends),
+  `CoinSpentEvent` (debits in multi-send), and `CoinReceivedEvent` (credits in
+  multi-send).
 - Existing behavior is unchanged; events are additive.
-- The `TransferEvent` is amino-registered under the `"bank"` prefix in the bank
+- All three event types are amino-registered under the `"bank"` prefix in the bank
   module's amino package (`tm2/pkg/sdk/bank/package.go`).
 - Realm-level minting/burning (`IssueCoin`/`RemoveCoin` via `SDKBanker`) calls
   `AddCoins`/`SubtractCoins` directly, bypassing `sendCoins()`, so these operations
   remain invisible to indexers. Adding events to `AddCoins`/`SubtractCoins` would cause
   double-emission on transfers. Dedicated `MintEvent`/`BurnEvent` types (or emission
   from the `SDKBanker` layer) should be introduced separately.
+- Gas fee events are emitted but not yet visible in transaction results (see
+  "Gas fee transfers" above). A follow-up change to `baseapp.go` is needed.
