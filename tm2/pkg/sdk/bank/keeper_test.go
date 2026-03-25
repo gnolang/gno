@@ -189,7 +189,7 @@ func TestSendCoinsEmitsTransferEvent(t *testing.T) {
 	require.True(t, evt.Amount.IsEqual(std.NewCoins(std.NewCoin("foocoin", 50))))
 }
 
-func TestInputOutputCoinsEmitsTransferEvents(t *testing.T) {
+func TestInputOutputCoinsEmitsEvents(t *testing.T) {
 	t.Parallel()
 
 	env := setupTestEnv()
@@ -216,28 +216,25 @@ func TestInputOutputCoinsEmitsTransferEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	events := ctx.EventLogger().Events()
-	// 2 input events + 1 output event
+	// 2 CoinSpent events + 1 CoinReceived event
 	require.Len(t, events, 3)
 
-	// First input event
-	evt0, ok := events[0].(TransferEvent)
+	// First input: CoinSpentEvent
+	evt0, ok := events[0].(CoinSpentEvent)
 	require.True(t, ok)
-	require.Equal(t, addr, evt0.From)
-	require.Equal(t, crypto.Address{}, evt0.To)
+	require.Equal(t, addr, evt0.Spender)
 	require.True(t, evt0.Amount.IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
 
-	// Second input event
-	evt1, ok := events[1].(TransferEvent)
+	// Second input: CoinSpentEvent
+	evt1, ok := events[1].(CoinSpentEvent)
 	require.True(t, ok)
-	require.Equal(t, addr2, evt1.From)
-	require.Equal(t, crypto.Address{}, evt1.To)
+	require.Equal(t, addr2, evt1.Spender)
 	require.True(t, evt1.Amount.IsEqual(std.NewCoins(std.NewCoin("barcoin", 10))))
 
-	// Output event
-	evt2, ok := events[2].(TransferEvent)
+	// Output: CoinReceivedEvent
+	evt2, ok := events[2].(CoinReceivedEvent)
 	require.True(t, ok)
-	require.Equal(t, crypto.Address{}, evt2.From)
-	require.Equal(t, addr3, evt2.To)
+	require.Equal(t, addr3, evt2.Receiver)
 	require.True(t, evt2.Amount.IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 10))))
 }
 

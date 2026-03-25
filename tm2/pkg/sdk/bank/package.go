@@ -14,4 +14,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	InputOutputMismatchError{}, "InputOutputMismatchError",
 	MsgSend{}, "MsgSend",
 	TransferEvent{}, "TransferEvent",
+	CoinSpentEvent{}, "CoinSpentEvent",
+	CoinReceivedEvent{}, "CoinReceivedEvent",
 ))
