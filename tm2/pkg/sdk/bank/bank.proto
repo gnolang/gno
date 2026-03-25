@@ -18,3 +18,9 @@ message MsgSend {
 	string to_address = 2;
 	string amount = 3;
 }
+
+message TransferEvent {
+	string from = 1;
+	string to = 2;
+	string amount = 3;
+}
