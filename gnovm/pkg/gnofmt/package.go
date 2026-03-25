@@ -91,8 +91,6 @@ func CheckPackageConsistency(fset *token.FileSet, dir string) (bool, error) {
 // It will return a nil package if no gno files are found.
 // If a gnomod.toml is found, it will be used to determine the pkg path.
 // If root is specified, it will be trimmed from the actual given dir to create the pkgpath if no gnomod.toml is found.
-// The caller should use CheckPackageConsistency first for directories that may
-// contain mixed package names (e.g. filetest directories).
 func ParsePackage(fset *token.FileSet, root string, dir string) (Package, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
