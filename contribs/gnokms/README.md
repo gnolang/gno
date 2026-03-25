@@ -39,7 +39,8 @@ Both TCP and Unix domain socket connections are supported for communication betw
 **Note:** The only supported backend for now is [gnokey](../../gno.land/cmd/gnokey), so the following instructions will use it.
 
 1. Generate a signing key using [gnokey](../../gno.land/cmd/gnokey) if you do not already have one.
-2. Start a `gnokms` server with the [gnokey](../../gno.land/cmd/gnokey) backend using:
+2. Set up mutual authentication keys (required for TCP listeners, see [Mutual TCP Authentication](#mutual-tcp-authentication) below).
+3. Start a `gnokms` server with the [gnokey](../../gno.land/cmd/gnokey) backend using:
 
 ```shell
 $ gnokms gnokey '<key_name>' -listener '<listen_address>'
@@ -47,7 +48,12 @@ $ gnokms gnokey '<key_name>' -listener '<listen_address>'
 # <listen_address> is the address on which the server should listen (e.g., 'tcp://127.0.0.1:26659' or 'unix:///tmp/gnokms.sock').
 ```
 
-3. Set the `gnokms` server address in the gnoland validator config using:
+> **Note:** For TCP listeners, gnokms requires mutual authentication keys to be configured.
+> If you want to skip authentication for development or testing, use the `--insecure` flag:
+> `gnokms gnokey '<key_name>' -listener 'tcp://...' --insecure`
+> This is **not recommended for production** use.
+
+4. Set the `gnokms` server address in the gnoland validator config using:
 
 ```shell
 $ gnoland config set consensus.priv_validator.remote_signer.server_address '<gnokms_server_address>'
@@ -90,7 +96,7 @@ $ gnogenesis validator add \
 
 ### Mutual TCP Authentication
 
-In the case of a TCP connection, the connection is encrypted. It can also be mutually authenticated to ensure an additional level of security (recommended outside of a testing or development context).
+In the case of a TCP connection, the connection is encrypted. Mutual authentication is **required by default** for TCP listeners to prevent unauthorized access to the signing service. The `--insecure` flag can be used to bypass this requirement in development or testing environments.
 
 1. Generate a random keypair and an empty whitelist on the server side using:
 
