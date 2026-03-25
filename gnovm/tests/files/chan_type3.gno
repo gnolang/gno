@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/chan_type3.gno:5:5-13: channel type is not supported
+// main/chan_type3.gno:5:5-13: channel type is not yet supported
