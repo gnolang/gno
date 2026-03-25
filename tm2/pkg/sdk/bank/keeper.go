@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
@@ -89,7 +88,7 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 			return err
 		}
 
-		ctx.EventLogger().EmitEvent(chain.TransferEvent{
+		ctx.EventLogger().EmitEvent(TransferEvent{
 			From:   in.Address,
 			Amount: in.Coins,
 		})
@@ -101,7 +100,7 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 			return err
 		}
 
-		ctx.EventLogger().EmitEvent(chain.TransferEvent{
+		ctx.EventLogger().EmitEvent(TransferEvent{
 			To:     out.Address,
 			Amount: out.Coins,
 		})
@@ -160,7 +159,7 @@ func (bank BankKeeper) sendCoins(
 		return err
 	}
 
-	ctx.EventLogger().EmitEvent(chain.TransferEvent{
+	ctx.EventLogger().EmitEvent(TransferEvent{
 		From:   fromAddr,
 		To:     toAddr,
 		Amount: amt,

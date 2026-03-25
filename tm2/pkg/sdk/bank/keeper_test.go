@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -183,7 +182,7 @@ func TestSendCoinsEmitsTransferEvent(t *testing.T) {
 	events := ctx.EventLogger().Events()
 	require.Len(t, events, 1)
 
-	evt, ok := events[0].(chain.TransferEvent)
+	evt, ok := events[0].(TransferEvent)
 	require.True(t, ok)
 	require.Equal(t, addr, evt.From)
 	require.Equal(t, addr2, evt.To)
@@ -221,21 +220,21 @@ func TestInputOutputCoinsEmitsTransferEvents(t *testing.T) {
 	require.Len(t, events, 3)
 
 	// First input event
-	evt0, ok := events[0].(chain.TransferEvent)
+	evt0, ok := events[0].(TransferEvent)
 	require.True(t, ok)
 	require.Equal(t, addr, evt0.From)
 	require.Equal(t, crypto.Address{}, evt0.To)
 	require.True(t, evt0.Amount.IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
 
 	// Second input event
-	evt1, ok := events[1].(chain.TransferEvent)
+	evt1, ok := events[1].(TransferEvent)
 	require.True(t, ok)
 	require.Equal(t, addr2, evt1.From)
 	require.Equal(t, crypto.Address{}, evt1.To)
 	require.True(t, evt1.Amount.IsEqual(std.NewCoins(std.NewCoin("barcoin", 10))))
 
 	// Output event
-	evt2, ok := events[2].(chain.TransferEvent)
+	evt2, ok := events[2].(TransferEvent)
 	require.True(t, ok)
 	require.Equal(t, crypto.Address{}, evt2.From)
 	require.Equal(t, addr3, evt2.To)
