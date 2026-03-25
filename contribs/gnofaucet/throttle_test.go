@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"net/netip"
-	"sync"
 	"testing"
 	"time"
 
@@ -14,93 +13,67 @@ import (
 func TestIPThrottler_RegisterNewRequest(t *testing.T) {
 	t.Parallel()
 
-	t.Run("valid number of requests", func(t *testing.T) {
+	t.Run("first request allowed", func(t *testing.T) {
 		t.Parallel()
 
-		addr, err := netip.ParseAddr("127.0.0.1")
-		require.NoError(t, err)
+		addr := netip.MustParseAddr("127.0.0.1")
 
-		// Create the IP throttler
 		th := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
 
-		// Register < max requests
-		for i := uint64(0); i < maxRequestsPerMinute; i++ {
-			assert.NoError(t, th.registerNewRequest(addr))
-		}
+		assert.NoError(t, th.registerNewRequest(addr))
 	})
 
-	t.Run("exceeded number of requests", func(t *testing.T) {
+	t.Run("second request rejected", func(t *testing.T) {
 		t.Parallel()
 
-		addr, err := netip.ParseAddr("127.0.0.1")
-		require.NoError(t, err)
+		addr := netip.MustParseAddr("127.0.0.1")
 
-		// Create the IP throttler
 		th := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
 
-		// Register max requests
-		for i := uint64(0); i < maxRequestsPerMinute; i++ {
-			assert.NoError(t, th.registerNewRequest(addr))
-		}
+		require.NoError(t, th.registerNewRequest(addr))
 
-		// Attempt to register an additional request
 		assert.ErrorIs(t, th.registerNewRequest(addr), errInvalidNumberOfRequests)
 	})
 }
 
-func TestIPThrottler_RequestsThrottled(t *testing.T) {
+func TestIPThrottler_SecondRequestRejected(t *testing.T) {
 	t.Parallel()
 
-	var (
-		cleanupInterval = time.Millisecond * 100
+	addr := netip.MustParseAddr("192.168.1.1")
 
-		requestInterval = 3 * cleanupInterval      // requests triggered after ~5 cleans
-		numRequests     = maxRequestsPerMinute * 2 // number of request loops
-	)
+	// Use a long interval so no tokens regenerate during the test
+	th := newIPThrottler(time.Hour, defaultCleanTimeout)
 
-	addr, err := netip.ParseAddr("127.0.0.1")
-	require.NoError(t, err)
+	// First request must succeed
+	require.NoError(t, th.registerNewRequest(addr))
 
-	// Create the IP throttler
-	th := newIPThrottler(defaultRateLimitInterval, cleanupInterval)
+	// Second request from the same IP must be rejected
+	assert.ErrorIs(t, th.registerNewRequest(addr), errInvalidNumberOfRequests)
+}
+
+func TestIPThrottler_CleanupAllowsNewRequest(t *testing.T) {
+	t.Parallel()
+
+	cleanupInterval := time.Millisecond * 100
+
+	addr := netip.MustParseAddr("127.0.0.1")
+
+	// Rate interval is long so tokens won't regenerate on their own;
+	// only cleanup (removing the stale entry) should allow a new request.
+	th := newIPThrottler(time.Hour, cleanupInterval)
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
-	// Start the throttler (async)
 	th.start(ctx)
 
-	var wg sync.WaitGroup
+	// First request succeeds, second is rejected
+	require.NoError(t, th.registerNewRequest(addr))
+	require.ErrorIs(t, th.registerNewRequest(addr), errInvalidNumberOfRequests)
 
-	wg.Add(1)
+	// Wait for the cleanup cycle to evict the stale entry
+	time.Sleep(cleanupInterval * 3)
 
-	go func() {
-		defer wg.Done()
-
-		var (
-			requestsSent = 0
-			ticker       = time.NewTicker(requestInterval)
-		)
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				// Fill out the request count for the address
-				for i := uint64(0); i < maxRequestsPerMinute; i++ {
-					require.NoError(t, th.registerNewRequest(addr))
-				}
-
-				requestsSent += maxRequestsPerMinute
-
-				if requestsSent == numRequests {
-					// Loops done
-					return
-				}
-			}
-		}
-	}()
-
-	wg.Wait()
+	// After cleanup the IP entry is gone, so a new request succeeds
+	assert.NoError(t, th.registerNewRequest(addr))
 }
