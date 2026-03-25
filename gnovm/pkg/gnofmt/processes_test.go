@@ -105,13 +105,39 @@ func TestFormatFileConflictingPackages(t *testing.T) {
 	// simulating a filetest directory like gnovm/tests/files/.
 	dir := t.TempDir()
 
+	// Deliberately unformatted: bad spacing, missing indentation, no spaces around operators.
 	file1 := `package main
 
-func main() {
-	println("hello")
+func    main(   ) {
+x:=1
+  y   :=2
+if x==y{
+println(   "equal")
+} else    {
+println("not equal"  )
+}
 }
 `
+	file1Expected := `package main
+
+func main() {
+	x := 1
+	y := 2
+	if x == y {
+		println("equal")
+	} else {
+		println("not equal")
+	}
+}
+`
+
 	file2 := `package other
+
+func   Foo()  string {
+return    "foo"
+}
+`
+	file2Expected := `package other
 
 func Foo() string {
 	return "foo"
@@ -123,12 +149,12 @@ func Foo() string {
 	require.NoError(t, err)
 
 	// FormatFile should succeed despite conflicting package names,
-	// falling back to per-file formatting.
+	// falling back to per-file formatting, and actually format the code.
 	formatted, err := processor.FormatFile(filepath.Join(dir, "file1.gno"))
 	require.NoError(t, err)
-	require.Equal(t, file1, string(formatted))
+	require.Equal(t, file1Expected, string(formatted))
 
 	formatted, err = processor.FormatFile(filepath.Join(dir, "file2.gno"))
 	require.NoError(t, err)
-	require.Equal(t, file2, string(formatted))
+	require.Equal(t, file2Expected, string(formatted))
 }
