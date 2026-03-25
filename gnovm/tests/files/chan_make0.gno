@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/chan_make0.gno:6:13-21: channel type is not yet supported
+// channel type is not yet supported

@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/chan_type1.gno:4:6-16: channel type is not yet supported
+// channel type is not yet supported
