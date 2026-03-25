@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -161,6 +162,104 @@ func TestViewKeeper(t *testing.T) {
 	require.True(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 5))))
 	require.False(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15))))
 	require.False(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5))))
+}
+
+func TestSendCoinsEmitsTransferEvent(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	env.bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 100)))
+
+	err := env.bankk.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 50)))
+	require.NoError(t, err)
+
+	events := ctx.EventLogger().Events()
+	require.Len(t, events, 1)
+
+	evt, ok := events[0].(chain.TransferEvent)
+	require.True(t, ok)
+	require.Equal(t, addr, evt.From)
+	require.Equal(t, addr2, evt.To)
+	require.True(t, evt.Amount.IsEqual(std.NewCoins(std.NewCoin("foocoin", 50))))
+}
+
+func TestInputOutputCoinsEmitsTransferEvents(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
+	addr3 := crypto.AddressFromPreimage([]byte("addr3"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr2))
+
+	env.bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 50)))
+	env.bankk.SetCoins(ctx, addr2, std.NewCoins(std.NewCoin("barcoin", 50)))
+
+	inputs := []Input{
+		NewInput(addr, std.NewCoins(std.NewCoin("foocoin", 10))),
+		NewInput(addr2, std.NewCoins(std.NewCoin("barcoin", 10))),
+	}
+	outputs := []Output{
+		NewOutput(addr3, std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 10))),
+	}
+
+	err := env.bankk.InputOutputCoins(ctx, inputs, outputs)
+	require.NoError(t, err)
+
+	events := ctx.EventLogger().Events()
+	// 2 input events + 1 output event
+	require.Len(t, events, 3)
+
+	// First input event
+	evt0, ok := events[0].(chain.TransferEvent)
+	require.True(t, ok)
+	require.Equal(t, addr, evt0.From)
+	require.Equal(t, crypto.Address{}, evt0.To)
+	require.True(t, evt0.Amount.IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
+
+	// Second input event
+	evt1, ok := events[1].(chain.TransferEvent)
+	require.True(t, ok)
+	require.Equal(t, addr2, evt1.From)
+	require.Equal(t, crypto.Address{}, evt1.To)
+	require.True(t, evt1.Amount.IsEqual(std.NewCoins(std.NewCoin("barcoin", 10))))
+
+	// Output event
+	evt2, ok := events[2].(chain.TransferEvent)
+	require.True(t, ok)
+	require.Equal(t, crypto.Address{}, evt2.From)
+	require.Equal(t, addr3, evt2.To)
+	require.True(t, evt2.Amount.IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 10))))
+}
+
+func TestSendCoinsFailureNoEvents(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	env.bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10)))
+
+	err := env.bankk.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 50)))
+	require.Error(t, err)
+
+	events := ctx.EventLogger().Events()
+	require.Len(t, events, 0)
 }
 
 // Test SetRestrictedDenoms

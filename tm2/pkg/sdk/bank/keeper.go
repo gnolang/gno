@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
@@ -88,14 +89,10 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 			return err
 		}
 
-		/*
-			ctx.EventManager().EmitEvent(
-				sdk.NewEvent(
-					sdk.EventTypeMessage,
-					sdk.NewAttribute(types.AttributeKeySender, in.Address.String()),
-				),
-			)
-		*/
+		ctx.EventLogger().EmitEvent(chain.TransferEvent{
+			From:   in.Address,
+			Amount: in.Coins,
+		})
 	}
 
 	for _, out := range outputs {
@@ -104,14 +101,10 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 			return err
 		}
 
-		/*
-			ctx.EventManager().EmitEvent(
-				sdk.NewEvent(
-					types.EventTypeTransfer,
-					sdk.NewAttribute(types.AttributeKeyRecipient, out.Address.String()),
-				),
-			)
-		*/
+		ctx.EventLogger().EmitEvent(chain.TransferEvent{
+			To:     out.Address,
+			Amount: out.Coins,
+		})
 	}
 
 	return nil
@@ -167,19 +160,11 @@ func (bank BankKeeper) sendCoins(
 		return err
 	}
 
-	/*
-		ctx.EventManager().EmitEvents(sdk.Events{
-			sdk.NewEvent(
-				types.EventTypeTransfer,
-				sdk.NewAttribute(types.AttributeKeyRecipient, toAddr.String()),
-				sdk.NewAttribute(sdk.AttributeKeyAmount, amt.String()),
-			),
-			sdk.NewEvent(
-				sdk.EventTypeMessage,
-				sdk.NewAttribute(types.AttributeKeySender, fromAddr.String()),
-			),
-		})
-	*/
+	ctx.EventLogger().EmitEvent(chain.TransferEvent{
+		From:   fromAddr,
+		To:     toAddr,
+		Amount: amt,
+	})
 
 	return nil
 }

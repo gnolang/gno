@@ -18,4 +18,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 		Event{},
 		StorageDepositEvent{},
 		StorageUnlockEvent{},
+		TransferEvent{},
 	))
