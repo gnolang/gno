@@ -316,13 +316,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			}
 		}
 	case *ChanTypeExpr:
-		// NOTE: ChanTypeExpr is rejected at preprocess time (see preprocess1),
-		// but we keep this case for completeness; if channels are supported
-		// in the future, restore the traversal logic below.
-		// cnn.Value = transcribe(t, nns, TRANS_CHANTYPE_VALUE, 0, cnn.Value, &c).(Expr)
-		// if stopOrSkip(nc, c) {
-		// 	return
-		// }
 		panic("channel type is not yet supported")
 	case *FuncTypeExpr:
 		for idx := range cnn.Params {

@@ -868,8 +868,6 @@ func makeUverseNode() {
 					panic("make() of map type takes 1 or 2 arguments")
 				}
 			case *ChanType:
-				// NOTE: ChanTypeExpr is rejected at preprocess time (see preprocess1),
-				// but this runtime check remains as a safety net.
 				panic("channel type is not yet supported")
 			default:
 				panic(fmt.Sprintf(

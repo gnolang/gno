@@ -4671,10 +4671,6 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 			}
 		}
 	case *ChanTypeExpr:
-		// NOTE: ChanTypeExpr is rejected at preprocess time (see preprocess1),
-		// but we keep this case for completeness; if channels are supported
-		// in the future, restore the traversal logic below.
-		// return findUndefinedT(store, last, cx.Value, stack, defining, isalias, astype && isalias)
 		panic("channel type is not yet supported")
 	case *FuncTypeExpr:
 		for i := range cx.Params {
@@ -5023,10 +5019,6 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			case *InterfaceTypeExpr:
 				t = &InterfaceType{}
 			case *ChanTypeExpr:
-				// NOTE: ChanTypeExpr is rejected at preprocess time (see preprocess1),
-				// but we keep this case for completeness; if channels are supported
-				// in the future, restore the type assignment below.
-				// t = &ChanType{}
 				panic("channel type is not yet supported")
 			case *MapTypeExpr:
 				t = &MapType{}
