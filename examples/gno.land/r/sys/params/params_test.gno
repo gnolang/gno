@@ -15,3 +15,17 @@ func TestNewStringPropRequest(t *testing.T) {
 		t.Errorf("executor shouldn't be nil")
 	}
 }
+
+func TestNewSetHaltHeightRequest(t *testing.T) {
+	pr := NewSetHaltHeightRequest(100_000)
+	if pr.Title() == "" {
+		t.Errorf("proposal title shouldn't be empty")
+	}
+}
+
+func TestNewSetHaltHeightRequestZero(t *testing.T) {
+	pr := NewSetHaltHeightRequest(0)
+	if pr.Title() == "" {
+		t.Errorf("proposal title shouldn't be empty")
+	}
+}

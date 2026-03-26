@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -114,6 +115,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
+	prmk.Register("node", nodeParamsKeeper{})
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -188,6 +190,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			acck,
 			gpk,
 			vmk,
+			prmk,
 			baseApp,
 		),
 	)
@@ -448,18 +451,19 @@ type endBlockerApp interface {
 
 // EndBlocker defines the logic executed after every block.
 // Currently, it parses events that happened during execution to calculate
-// validator set changes
+// validator set changes, and checks for a governance-requested chain halt.
 func EndBlocker(
 	collector *collector[validatorUpdate],
 	acck auth.AccountKeeperI,
 	gpk auth.GasPriceKeeperI,
 	vmk vm.VMKeeperI,
+	prmk params.ParamsKeeperI,
 	app endBlockerApp,
 ) func(
 	ctx sdk.Context,
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
-	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
 		// the params to calculate the updated gas price.
 		if acck != nil {
@@ -467,6 +471,22 @@ func EndBlocker(
 		}
 		if acck != nil && gpk != nil {
 			auth.EndBlocker(ctx, gpk)
+		}
+
+		// Check if GovDAO has requested a halt at this height.
+		if prmk != nil {
+			var haltHeight int64
+			prmk.GetInt64(ctx, "node:p:halt_height", &haltHeight)
+			if haltHeight > 0 && req.Height >= haltHeight {
+				app.Logger().Info(
+					"GovDAO halt height reached, shutting down",
+					"height", req.Height,
+					"halt_height", haltHeight,
+				)
+				if err := osm.Kill(); err != nil {
+					app.Logger().Error("Failed to halt node at requested height", "err", err)
+				}
+			}
 		}
 
 		// Check if there was a valset change
