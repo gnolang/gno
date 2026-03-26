@@ -1,5 +1,7 @@
 package components
 
+import "strings"
+
 // ViewMode represents the current view mode of the application
 // It affects the layout, navigation, and display of content
 type ViewMode int
@@ -43,6 +45,18 @@ type HeadData struct {
 	BuildTime   string
 }
 
+// BannerData holds configuration for the site-wide banner displayed above the header.
+type BannerData struct {
+	Text string
+	URL  string
+}
+
+func (b BannerData) HasURL() bool {
+	return strings.HasPrefix(b.URL, "https://") || strings.HasPrefix(b.URL, "http://")
+}
+
+func (b BannerData) Enabled() bool { return b.Text != "" }
+
 type IndexData struct {
 	HeadData
 	HeaderData
@@ -50,6 +64,7 @@ type IndexData struct {
 	BodyView *View
 	Mode     ViewMode
 	Theme    string
+	Banner   BannerData
 }
 
 type indexLayoutParams struct {
