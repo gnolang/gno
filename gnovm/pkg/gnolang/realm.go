@@ -198,7 +198,10 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return // do nothing.
 	}
 	if po.GetObjectID().PkgID != rlm.ID {
-		panic(&Exception{Value: typedString("cannot modify external-realm or non-realm object")})
+		// Invariant violation: all mutation paths must have a pre-mutation
+		// readonly check (IsReadonly/isExternalRealm) that prevents reaching
+		// here. If this fires, a pre-check is missing.
+		panic("invariant violation: DidUpdate called on external-realm object without prior readonly check")
 	}
 
 	// XXX check if this boosts performance
