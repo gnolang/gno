@@ -92,7 +92,32 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 		return err
 	}
 
-	// XXX Write onto ggs for other keeper params.
+	// Write onto ggs.Bank.Params.
+	if bankparams, ok := m["bank"]; ok {
+		for name, value := range bankparams {
+			name, _ := splitTypedName(name)
+			switch name {
+			case "restricted_denoms":
+				vz, ok := value.([]any)
+				if !ok {
+					return fmt.Errorf("bank parameter restricted_denoms: expected string array, got %T", value)
+				}
+				sz := make([]string, len(vz))
+				for i, v := range vz {
+					s, ok := v.(string)
+					if !ok {
+						return fmt.Errorf("bank parameter restricted_denoms[%d]: expected string, got %T", i, v)
+					}
+					sz[i] = s
+				}
+				ggs.Bank.Params.RestrictedDenoms = sz
+			default:
+				return errors.New("unexpected bank parameter " + name)
+			}
+		}
+	}
+
+	// TODO: Write onto ggs for auth and tm2 keeper params.
 
 	// Write onto ggs.VM.Params.
 	if vmparams, ok := m["vm"]; ok {

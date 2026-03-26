@@ -2,7 +2,7 @@
 ## gno.land params
 
 ["bank"]
-  restricted_denoms = ["gnot"]
+  restricted_denoms = ["ugnot"]
 
 ["vm"]
   chain_domain = "gno.land"

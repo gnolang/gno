@@ -67,6 +67,102 @@ func TestGenesis_Verify(t *testing.T) {
 	}
 }
 
+func TestLoadGenesisParamsFile_BankParams(t *testing.T) {
+	tests := []struct {
+		name      string
+		toml      string
+		expectErr string
+		verify    func(t *testing.T, ggs GnoGenesisState)
+	}{
+		{
+			name: "restricted_denoms loads correctly",
+			toml: `["bank"]
+  restricted_denoms = ["ugnot"]
+`,
+			verify: func(t *testing.T, ggs GnoGenesisState) {
+				t.Helper()
+				require.Equal(t, []string{"ugnot"}, ggs.Bank.Params.RestrictedDenoms)
+			},
+		},
+		{
+			name: "multiple restricted denoms",
+			toml: `["bank"]
+  restricted_denoms = ["ugnot", "foo"]
+`,
+			verify: func(t *testing.T, ggs GnoGenesisState) {
+				t.Helper()
+				require.Equal(t, []string{"ugnot", "foo"}, ggs.Bank.Params.RestrictedDenoms)
+			},
+		},
+		{
+			name: "empty restricted denoms",
+			toml: `["bank"]
+  restricted_denoms = []
+`,
+			verify: func(t *testing.T, ggs GnoGenesisState) {
+				t.Helper()
+				require.Empty(t, ggs.Bank.Params.RestrictedDenoms)
+			},
+		},
+		{
+			name:      "unknown bank parameter",
+			toml:      `["bank"]` + "\n" + `  unknown_param = "value"` + "\n",
+			expectErr: "unexpected bank parameter",
+		},
+		{
+			name: "bank and vm params together",
+			toml: `["bank"]
+  restricted_denoms = ["ugnot"]
+["vm"]
+  chain_domain = "test.land"
+  sysnames_pkgpath = "gno.land/r/sys/names"
+`,
+			verify: func(t *testing.T, ggs GnoGenesisState) {
+				t.Helper()
+				require.Equal(t, []string{"ugnot"}, ggs.Bank.Params.RestrictedDenoms)
+				require.Equal(t, "test.land", ggs.VM.Params.ChainDomain)
+			},
+		},
+		{
+			name: "no bank section keeps defaults",
+			toml: `["vm"]
+  chain_domain = "test.land"
+  sysnames_pkgpath = "gno.land/r/sys/names"
+`,
+			verify: func(t *testing.T, ggs GnoGenesisState) {
+				t.Helper()
+				require.Empty(t, ggs.Bank.Params.RestrictedDenoms)
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpFile := filepath.Join(t.TempDir(), "params.toml")
+			require.NoError(t, os.WriteFile(tmpFile, []byte(tc.toml), 0644))
+
+			ggs := DefaultGenState()
+			err := LoadGenesisParamsFile(tmpFile, &ggs)
+			if tc.expectErr != "" {
+				require.ErrorContains(t, err, tc.expectErr)
+			} else {
+				require.NoError(t, err)
+				tc.verify(t, ggs)
+			}
+		})
+	}
+}
+
+func TestLoadGenesisParamsFile_RealFile(t *testing.T) {
+	// Test the actual genesis_params.toml file to ensure it parses correctly.
+	paramFile := filepath.Join("..", "..", "genesis", "genesis_params.toml")
+	ggs := DefaultGenState()
+	err := LoadGenesisParamsFile(paramFile, &ggs)
+	require.NoError(t, err)
+	require.Equal(t, []string{"ugnot"}, ggs.Bank.Params.RestrictedDenoms)
+	require.Equal(t, "gno.land", ggs.VM.Params.ChainDomain)
+}
+
 func TestLoadPackagesFromDir_Creator(t *testing.T) {
 	defaultCreator := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	customCreator := crypto.MustAddressFromString("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
