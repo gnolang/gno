@@ -5,8 +5,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// TransferEvent is emitted for 1:1 transfers (SendCoins, SendCoinsUnrestricted).
-// Both From and To are always populated.
+// TransferEvent is emitted for 1:1 transfers.
 type TransferEvent struct {
 	From   crypto.Address `json:"from"`
 	To     crypto.Address `json:"to"`
@@ -16,7 +15,6 @@ type TransferEvent struct {
 func (TransferEvent) AssertABCIEvent() {}
 
 // CoinSpentEvent is emitted when coins leave an account.
-// Used in InputOutputCoins for each input.
 type CoinSpentEvent struct {
 	Spender crypto.Address `json:"spender"`
 	Amount  std.Coins      `json:"amount"`
@@ -25,7 +23,6 @@ type CoinSpentEvent struct {
 func (CoinSpentEvent) AssertABCIEvent() {}
 
 // CoinReceivedEvent is emitted when coins enter an account.
-// Used in InputOutputCoins for each output.
 type CoinReceivedEvent struct {
 	Receiver crypto.Address `json:"receiver"`
 	Amount   std.Coins      `json:"amount"`
