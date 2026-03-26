@@ -211,6 +211,13 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
 
+	// Verify that the running binary meets the minimum version requirement
+	// set by a previous governance halt proposal, preventing old binaries
+	// from accidentally resuming a chain halted for an upgrade.
+	if err := checkNodeStartupParams(prmk, baseApp.GetCacheMultiStore()); err != nil {
+		return nil, err
+	}
+
 	return baseApp, nil
 }
 

@@ -16,15 +16,22 @@ func TestNewStringPropRequest(t *testing.T) {
 	}
 }
 
-func TestNewSetHaltHeightRequest(t *testing.T) {
-	pr := NewSetHaltHeightRequest(100_000)
+func TestNewSetHaltRequest(t *testing.T) {
+	pr := NewSetHaltRequest(100_000, "chain/gnoland1.1")
 	if pr.Title() == "" {
 		t.Errorf("proposal title shouldn't be empty")
 	}
 }
 
-func TestNewSetHaltHeightRequestZero(t *testing.T) {
-	pr := NewSetHaltHeightRequest(0)
+func TestNewSetHaltRequestNoVersion(t *testing.T) {
+	pr := NewSetHaltRequest(100_000, "")
+	if pr.Title() == "" {
+		t.Errorf("proposal title shouldn't be empty")
+	}
+}
+
+func TestNewSetHaltRequestCancel(t *testing.T) {
+	pr := NewSetHaltRequest(0, "")
 	if pr.Title() == "" {
 		t.Errorf("proposal title shouldn't be empty")
 	}
