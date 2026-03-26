@@ -1,43 +1,25 @@
 // PKGPATH: gno.land/r/crossrealm
 package crossrealm
 
-// Verifies that cross-realm admin assignment via assign+recover
-// does NOT corrupt state. The readonly check in PopAsPointer fires
-// BEFORE the mutation, so admin remains unchanged after recover().
+// Negative control: without recover(), the cross-realm readonly
+// check properly aborts the entire transaction.
 
 import (
-	"chain/runtime"
-
 	"gno.land/r/tests/vm/crossrealm_d"
 )
 
 func main() {
-	adminBefore := crossrealm_d.GetAdmin(cross)
-	println("admin before:", adminBefore)
+	println("counter:", crossrealm_d.GetCounter(cross))
 
-	// Attempt to corrupt admin to this realm's address via assign+recover.
-	myAddr := runtime.CurrentRealm().Address()
-	func() {
-		defer func() {
-			r := recover()
-			if r != nil {
-				println("panic caught:", r.(string))
-			}
-		}()
-		crossrealm_d.SetAdmin(myAddr)
-	}()
+	// No recover — the cross-realm panic aborts everything.
+	crossrealm_d.SetCounter(0)
 
-	// Verify admin is unchanged (fix prevents corruption).
-	adminAfter := crossrealm_d.GetAdmin(cross)
-	println("admin after:", adminAfter)
-	println("admin matches attacker:", adminAfter == myAddr)
-
-	println("realm state intact")
+	// This line is never reached.
+	println("counter after:", crossrealm_d.GetCounter(cross))
 }
 
 // Output:
-// admin before:
-// panic caught: cannot directly modify readonly tainted object (w/o method): admin<~VPBlock(3,6)>
-// admin after:
-// admin matches attacker: false
-// realm state intact
+// counter: 100
+
+// Error:
+// cannot directly modify readonly tainted object (w/o method): counter<~VPBlock(3,0)>

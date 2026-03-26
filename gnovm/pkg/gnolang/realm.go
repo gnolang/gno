@@ -175,6 +175,10 @@ func (rlm *Realm) String() string {
 // if rlm or po is nil, do nothing.
 // xo or co is nil if the element value is undefined or has no
 // associated object.
+//
+// Caller MUST have done a readonly check (IsReadonly/isExternalRealm)
+// before mutating. DidUpdate is called after mutation, so it cannot
+// prevent the write — it can only detect a missing pre-check and panic.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()

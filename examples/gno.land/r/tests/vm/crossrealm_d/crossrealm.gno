@@ -1,55 +1,38 @@
 package crossrealm_d
 
-// Governance + admin state for cross-realm assign+recover tests.
+// Simple stateful realm for cross-realm consistency tests.
 // Separated from crossrealm_b to avoid perturbing its object IDs.
+//
+// Contains both crossing and non-crossing setters so tests can
+// demonstrate that non-crossing calls from another realm cannot
+// silently mutate state via assign+recover.
 
-import "chain/runtime"
-
-// Governance state
-var (
-	yesVotes  int
-	noVotes   int
-	finalized bool
-)
+var counter int
 
 func init() {
-	yesVotes = 10
-	noVotes = 90
-	finalized = true
+	counter = 100
 }
 
-// SetVotes: non-crossing, should panic if called cross-realm.
-func SetVotes(yes, no int) {
-	yesVotes = yes
-	noVotes = no
+// SetCounter: non-crossing. Calling this cross-realm triggers
+// the readonly check because it directly assigns a package var.
+func SetCounter(n int) {
+	counter = n
 }
 
-func GetResult(cur realm) string {
-	if !finalized {
-		return "pending"
-	}
-	if yesVotes > noVotes {
-		return "approved"
-	}
-	return "rejected"
+// SetCounterCrossing: crossing version. This works correctly
+// cross-realm because the caller enters this realm's context.
+func SetCounterCrossing(cur realm, n int) {
+	counter = n
 }
 
-// Admin state
-var admin address
-
-func SetAdmin(newAdmin address) {
-	admin = newAdmin
+func GetCounter(cur realm) int {
+	return counter
 }
 
-func GetAdmin(cur realm) address {
-	return admin
-}
-
-func Withdraw(cur realm) {
-	caller := runtime.CurrentRealm().Address()
-	println("caller: ", caller)
-	if caller != admin {
-		panic("unauthorized")
-	}
-	println("===transfer...")
+// DoubleCounter reads counter and doubles it. Used to show that
+// if counter were silently corrupted in memory, subsequent crossing
+// calls would act on the wrong value.
+func DoubleCounter(cur realm) int {
+	counter = counter * 2
+	return counter
 }
