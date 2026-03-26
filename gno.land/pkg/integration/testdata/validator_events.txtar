@@ -1,0 +1,71 @@
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/validators/v2
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+# load specific govDAO implementation with member for the test
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Create a proposal to add a validator
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/add_validator.gno
+stdout OK!
+
+# Vote YES on the proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Execute the proposal and assert ValidatorAdded event with attributes
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+stdout 'EVENTS:.*"type":"ValidatorAdded".*"key":"address".*"key":"pubkey".*"key":"voting_power"'
+stdout '"pkg_path":"gno.land/r/sys/validators/v2"'
+
+-- proposer/add_validator.gno --
+package main
+
+import (
+	"gno.land/p/sys/validators"
+	val "gno.land/r/sys/validators/v2"
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	changesFn := func() []validators.Validator {
+		return []validators.Validator{
+			{
+				Address:     address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"),
+				PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj",
+				VotingPower: 1,
+			},
+		}
+	}
+
+	pr := val.NewPropRequest(changesFn, "Add test validator", "Add a test validator to the set")
+	dao.MustCreateProposal(cross, pr)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}

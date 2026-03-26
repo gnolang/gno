@@ -49,8 +49,8 @@ func validatorEventFilter(event events.Event) []validatorUpdate {
 		// Make sure the event is either an add / remove
 		switch gnoEv.Type {
 		case validatorAddedEvent, validatorRemovedEvent:
-			// We don't pass data around with the events, but a single
-			// notification is enough to "trigger" a VM scrape
+			// Events carry validator attributes (address, pubkey, etc.),
+			// but a single notification is enough to trigger a VM scrape
 			return []validatorUpdate{{}}
 		default:
 			continue

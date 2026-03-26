@@ -38,7 +38,12 @@ func addValidator(validator validators.Validator) {
 	saveChange(ch)
 
 	// Emit the validator set change
-	chain.Emit(validators.ValidatorAddedEvent)
+	chain.Emit(
+		validators.ValidatorAddedEvent,
+		"address", val.Address.String(),
+		"pubkey", val.PubKey,
+		"voting_power", ufmt.Sprintf("%d", val.VotingPower),
+	)
 }
 
 // removeValidator removes the given validator from the set.
@@ -62,7 +67,11 @@ func removeValidator(address_XXX address) {
 	saveChange(ch)
 
 	// Emit the validator set change
-	chain.Emit(validators.ValidatorRemovedEvent)
+	chain.Emit(
+		validators.ValidatorRemovedEvent,
+		"address", val.Address.String(),
+		"pubkey", val.PubKey,
+	)
 }
 
 // saveChange saves the valset change
