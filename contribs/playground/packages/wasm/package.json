@@ -1,0 +1,38 @@
+{
+  "name": "@gnostudio/wasm",
+  "version": "0.0.1",
+  "type": "module",
+  "sideEffects": false,
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "watch": "vite build -w",
+    "lint": "eslint src"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@gnoide/tools": "workspace:*",
+    "@gnostudio/pkg": "workspace:*",
+    "@types/path-browserify": "^1.0.2",
+    "browserfs": "2.0.0",
+    "comlink": "^4.4.1",
+    "date-fns": "^3.6.0",
+    "mobx": "^6.13.7",
+    "path-browserify": "^1.0.1",
+    "vscode-languageserver-protocol": "^3.16.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react-swc": "^3.6.0",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0",
+    "vite-plugin-comlink": "^3.0.5",
+    "vite-plugin-dts": "^4.5.0"
+  }
+}

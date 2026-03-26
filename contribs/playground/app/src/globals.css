@@ -1,0 +1,80 @@
+/* PandaCSS configuration */
+@layer reset, base, tokens, recipes, utilities;
+
+@layer reset {
+  body {
+    line-height: inherit;
+    overflow-x: hidden;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+
+  button,
+  [type='button'],
+  [type='reset'],
+  [type='submit'] {
+    background-color: transparent;
+  }
+
+  ol,
+  ul,
+  menu {
+    padding: 0;
+  }
+
+  button,
+  [role='button'] {
+    cursor: pointer;
+  }
+
+  :disabled {
+    cursor: default;
+  }
+}
+
+/* play (prefixed) generic content */
+.play--content {
+  max-width: 63.75rem;
+}
+.play--content :is(h1, h2) {
+  font-weight: 600;
+}
+.play--content h1 {
+  font-size: 2rem;
+  margin-block: 3.6rem 0.5rem;
+}
+.play--content h2 {
+  font-size: 1.6rem;
+  margin-block: 3.3rem 0.5rem;
+}
+.play--content h3 {
+  font-size: 1.4rem;
+  margin-block: 2.8rem 0.5rem;
+  font-weight: 500;
+}
+.play--content :is(h1, h2, h3) + :is(h1, h2, h3) {
+  margin-block-start: 0;
+}
+.play--content p {
+  margin-block: 1rem;
+  font-size: 1rem;
+  font-weight: 400;
+}
+.play--content :is(ul, ol) {
+  margin-block: 1.2rem;
+}
+.play--content ol {
+  margin-left: 1rem;
+  list-style: decimal;
+}
+.play--content ul {
+  list-style: disc;
+  padding-inline-start: 1rem;
+  margin-block: 1.2rem;
+}
+.play--content li {
+  margin-left: 1rem;
+}

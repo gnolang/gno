@@ -1,0 +1,27 @@
+{
+  "name": "@gnostudio/react",
+  "version": "0.0.1",
+  "sideEffects": false,
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsup",
+    "lint": "eslint src"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@ark-ui/react": "^5.23.0",
+    "@gnostudio/core": "workspace:*",
+    "mobx-react-lite": "^4.1.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "tsup": "^8.5.0"
+  }
+}

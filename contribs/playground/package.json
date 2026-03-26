@@ -1,0 +1,22 @@
+{
+  "name": "gno-playground",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm -C app dev",
+    "build": "pnpm -C app build",
+    "lint": "pnpm -C app lint",
+    "preview": "pnpm -C app preview"
+  },
+  "packageManager": "pnpm@10.15.1",
+  "pnpm": {
+    "overrides": {
+      "react": "18.3.1",
+      "@swc/core": "1.11.24"
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "unenv": "^2.0.0-rc.17"
+  }
+}
