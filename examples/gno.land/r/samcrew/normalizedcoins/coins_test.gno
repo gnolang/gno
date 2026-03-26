@@ -25,12 +25,22 @@ func TestPrefixCoins(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		for i, coin := range expected {
-			if result[i].Amount != coin.Amount {
-				t.Fatalf("invalid amount of %s got %d, want %d", coin.Denom, result[i].Amount, coin.Amount)
+		if len(result) != len(expected) {
+			t.Fatalf("invalid result length: got %d, want %d", len(result), len(expected))
+		}
+		for _, coin := range expected {
+			found := false
+			for _, resCoin := range result {
+				if resCoin.Denom == coin.Denom {
+					found = true
+					if resCoin.Amount != coin.Amount {
+						t.Fatalf("invalid amount of %s got %d, want %d", coin.Denom, resCoin.Amount, coin.Amount)
+					}
+					break
+				}
 			}
-			if result[i].Denom != coin.Denom {
-				t.Fatalf("invalid denom: got %s, want %s", result[i].Denom, coin.Denom)
+			if !found {
+				t.Fatalf("missing coin in result: %s", coin.Denom)
 			}
 		}
 	})

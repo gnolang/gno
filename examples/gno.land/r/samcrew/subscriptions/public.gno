@@ -49,7 +49,7 @@ func NewService(cur realm, displayName, description string, renewalPeriod time.D
 	}
 	svc := &service{
 		id:            id.Next(),
-		owner:         ownable.NewWithAddress(creator),
+		owner:         ownable.NewWithAddressByPrevious(creator),
 		displayName:   displayName,
 		description:   description,
 		renewalPeriod: renewalPeriod,
@@ -269,7 +269,7 @@ func IsSubscribed(cur realm, svcKey string, userAddr string) bool {
 // - svcKey: the full service key (ownerAddr:displayName)
 func ServiceClaimVault(cur realm, svcKey string) {
 	svc := mustGetService(svcKey)
-	svc.owner.AssertOwnedByPrevious()
+	svc.owner.AssertOwned()
 	balance := svc.balance(true)
 
 	if !normalizedcoins.CoinsHasPositive(balance) {
