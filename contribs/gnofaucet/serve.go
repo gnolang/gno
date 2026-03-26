@@ -194,6 +194,10 @@ func serveFaucet(
 		return errors.New("ratelimit-cleanup-timeout must be greater than zero")
 	}
 
+	if cfg.rateLimitCleanTimeout < cfg.rateLimitInterval {
+		return errors.New("ratelimit-cleanup-timeout must be >= ratelimit-interval, otherwise cleanup defeats the rate limit")
+	}
+
 	// Parse static gas values.
 	// It is worth noting that this is temporary,
 	// and will be removed once gas estimation is enabled
