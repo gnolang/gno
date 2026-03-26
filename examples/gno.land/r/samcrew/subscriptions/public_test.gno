@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 	"gno.land/r/demo/defi/grc20reg"
 	"gno.land/r/samcrew/normalizedcoins"
 )

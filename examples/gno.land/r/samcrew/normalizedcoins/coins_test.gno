@@ -5,7 +5,7 @@ import (
 	"chain/banker"
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 )
 
 func TestPrefixCoins(t *testing.T) {
