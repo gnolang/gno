@@ -2268,7 +2268,6 @@ func (m *Machine) isExternalRealm(base Value) bool {
 
 // Returns ro = true if the base is readonly,
 // or if the base's storage realm != m.Realm and both are non-nil,
-// and the lx isn't a name (base is a block),
 // and the lx isn't a composite lit expr.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
@@ -2325,7 +2324,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			Base:  hv,
 			Index: 0,
 		}
-		ro = false // always mutable
+		ro = false // always mutable; composite literals are freshly allocated (unreal) values not yet owned by any realm.
 	default:
 		panic("should not happen")
 	}
