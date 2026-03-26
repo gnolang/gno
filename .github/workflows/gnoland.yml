@@ -41,13 +41,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/Jod # (22.x) https://github.com/nodejs/Release
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - run: |
           make -C gno.land/pkg/gnoweb fclean generate
           # Check if there are changes after running generate.gnoweb
@@ -58,8 +58,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/Jod
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - run: make -C gno.land/pkg/gnoweb/frontend lint.ci
