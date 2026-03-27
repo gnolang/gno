@@ -14,13 +14,8 @@ import (
 type Allocator struct {
 	maxBytes int64
 	bytes    int64
-	// `peakBytes` represents the maximum memory
-	// usage during a single transaction, and is used
-	// to calculate the corresponding gas usage.
-	// It increases monotonically.
-	peakBytes int64
-	collect   func() (left int64, ok bool) // gc callback
-	gasMeter  store.GasMeter
+	collect  func() (left int64, ok bool) // gc callback
+	gasMeter store.GasMeter
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -120,6 +115,13 @@ func (alloc *Allocator) Reset() *Allocator {
 	return alloc
 }
 
+// Recount adds size to bytes without charging gas.
+// Used during GC re-walk to re-count surviving objects
+// without double-charging for already-paid allocations.
+func (alloc *Allocator) Recount(size int64) {
+	alloc.bytes += size
+}
+
 func (alloc *Allocator) Fork() *Allocator {
 	if alloc == nil {
 		return nil
@@ -151,15 +153,11 @@ func (alloc *Allocator) Allocate(size int64) {
 	} else {
 		alloc.bytes += size
 	}
-	// The value of `bytes` decreases during GC, and fees
-	// are only charged when it exceeds peakBytes (again).
-	if alloc.bytes > alloc.peakBytes {
-		if alloc.gasMeter != nil {
-			change := alloc.bytes - alloc.peakBytes
-			alloc.gasMeter.ConsumeGas(overflow.Mulp(change, GasCostPerByte), "memory allocation")
-		}
 
-		alloc.peakBytes = alloc.bytes
+	// Charge gas for every allocation unconditionally (cpu/throughput).
+	// This ensures repeated allocate-then-GC cycles are not free.
+	if alloc.gasMeter != nil {
+		alloc.gasMeter.ConsumeGas(overflow.Mulp(size, GasCostPerByte), "memory allocation (cpu)")
 	}
 }
 
@@ -422,7 +420,7 @@ func (b *Block) GetShallowSize() int64 {
 		ss += allocRefValue
 	}
 
-	ss = allocBlock + allocBlockItem*int64(len(b.Values))
+	ss += allocBlock + allocBlockItem*int64(len(b.Values))
 
 	return ss
 }

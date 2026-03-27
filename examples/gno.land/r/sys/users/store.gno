@@ -53,8 +53,9 @@ func (u UserData) RenderLink(linkText string) string {
 
 // RegisterUser adds a new user to the system.
 func RegisterUser(cur realm, name string, address_XXX address) error {
-	// Validate caller
-	if !controllers.Has(runtime.PreviousRealm().Address()) {
+	// At genesis (height 0), allow any caller to register users.
+	// After genesis, only whitelisted controllers can register.
+	if runtime.ChainHeight() > 0 && !controllers.Has(runtime.PreviousRealm().Address()) {
 		return NewErrNotWhitelisted()
 	}
 

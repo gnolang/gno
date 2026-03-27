@@ -436,12 +436,26 @@ func makeUverseNode() {
 								// to mark arg0Base dirty; no top-level call needed.
 								list := arg0Base.List
 								if arg1Base.Data == nil {
-									for i := range arg1Length {
-										oldElem := list[arg0Offset+arg0Length+i]
+									dstStart := arg0Offset + arg0Length
+									srcStart := arg1Offset
+									srcEnd := arg1Offset + arg1Length
+
+									step := 1
+									start := 0
+									end := arg1Length
+									// Overlap-safe copy: copy backward when dst starts after src to avoid clobbering.
+									requiresBackwardCopy := arg0Base == arg1Base && dstStart > srcStart && dstStart < srcEnd
+									if requiresBackwardCopy {
+										step = -1
+										start = arg1Length - 1
+										end = -1
+									}
+									for i := start; i != end; i += step {
+										oldElem := list[dstStart+i]
 										// unrefCopy will resolve references and copy their values
 										// to copy by value rather than by reference.
 										newElem := arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
-										list[arg0Offset+arg0Length+i] = newElem
+										list[dstStart+i] = newElem
 
 										m.Realm.DidUpdate(
 											arg0Base,
@@ -651,7 +665,22 @@ func makeUverseNode() {
 				// Same as above: DidUpdate is required for the DataByte case.
 				m.Realm.DidUpdate(dstBase, nil, nil)
 				srcv := src.TV.V.(*SliceValue)
-				for i := range minl {
+				srcBase := srcv.GetBase(m.Store)
+				dstStart := dstv.Offset
+				srcStart := srcv.Offset
+				srcEnd := srcStart + minl
+
+				step := 1
+				start := 0
+				end := minl
+				// Overlap-safe copy: copy backward when dst starts after src to avoid clobbering.
+				requiresBackwardCopy := dstBase == srcBase && dstStart > srcStart && dstStart < srcEnd
+				if requiresBackwardCopy {
+					step = -1
+					start = minl - 1
+					end = -1
+				}
+				for i := start; i != end; i += step {
 					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 					srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
 					dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
