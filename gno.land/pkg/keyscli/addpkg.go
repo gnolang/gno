@@ -2,12 +2,15 @@ package keyscli
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"strconv"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -22,6 +25,7 @@ type MakeAddPkgCfg struct {
 	PkgDir     string
 	Send       string
 	MaxDeposit string
+	Force      bool
 }
 
 func NewMakeAddPkgCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command {
@@ -69,6 +73,13 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 		"max-deposit",
 		"",
 		"max storage deposit",
+	)
+
+	fs.BoolVar(
+		&c.Force,
+		"force",
+		false,
+		"force deployment even if there is a large version gap (> 5)",
 	)
 }
 
@@ -119,6 +130,11 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
 	}
 
+	// Check for version gaps (soft warning / hard block for large gaps).
+	if err := checkVersionGap(cfg, io); err != nil {
+		return err
+	}
+
 	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
@@ -150,5 +166,77 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	} else {
 		io.Println(string(amino.MustMarshalJSON(tx)))
 	}
+	return nil
+}
+
+// maxVersionGap is the maximum allowed version gap before --force is required.
+const maxVersionGap = 5
+
+// checkVersionGap queries the chain for version information and emits
+// warnings or errors when deploying a versioned package with gaps.
+// Network/RPC errors are silently ignored so offline usage is unaffected.
+func checkVersionGap(cfg *MakeAddPkgCfg, io commands.IO) error {
+	basePath, version, ok := gno.ParseVersionSuffix(cfg.PkgPath)
+	if !ok || version == 0 {
+		return nil // not a versioned path or first version — nothing to check
+	}
+
+	remote := cfg.RootCfg.RootCfg.Remote
+	if remote == "" {
+		return nil // no remote configured — skip check
+	}
+
+	cli, err := rpcclient.NewHTTPClient(remote)
+	if err != nil {
+		return nil // silently skip on connection errors
+	}
+
+	qres, err := cli.ABCIQuery(context.Background(), "vm/qlatestversion", []byte(basePath))
+	if err != nil {
+		return nil // silently skip on network errors
+	}
+
+	if qres.Response.Error != nil {
+		// No versions found on-chain — warn about deploying without predecessor.
+		io.ErrPrintfln("Warning: deploying %s but no previous versions of %s exist on-chain.", cfg.PkgPath, basePath)
+		if version > maxVersionGap && !cfg.Force {
+			return fmt.Errorf(
+				"version gap too large: deploying v%d but no versions exist on-chain (gap: %d, max allowed: %d). Use --force to override",
+				version, version, maxVersionGap,
+			)
+		}
+		return nil
+	}
+
+	var result vm.LatestVersionResult
+	if err := json.Unmarshal(qres.Response.Data, &result); err != nil {
+		return nil // silently skip on parse errors
+	}
+
+	// Extract the latest version number from the result (e.g. "v3" -> 3).
+	latestStr := result.Latest
+	if len(latestStr) > 0 && latestStr[0] == 'v' {
+		latestStr = latestStr[1:]
+	}
+	latestVersion, err := strconv.Atoi(latestStr)
+	if err != nil {
+		return nil // silently skip on parse errors
+	}
+
+	// Warn if deploying a version whose predecessor is missing.
+	prevPath := basePath + "/v" + strconv.Itoa(version-1)
+	if version-1 > latestVersion {
+		io.ErrPrintfln("Warning: deploying %s but %s does not exist on-chain (latest: %s).", cfg.PkgPath, prevPath, result.Latest)
+	}
+
+	// Block if the gap is too large (unless --force is set).
+	gap := version - latestVersion
+	if gap > maxVersionGap && !cfg.Force {
+		return fmt.Errorf(
+			"version gap too large: deploying v%d but latest on-chain is %s (gap: %d, max allowed: %d). Use --force to override",
+			version, result.Latest, gap, maxVersionGap,
+		)
+	}
+
 	return nil
 }

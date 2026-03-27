@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"encoding/json"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -71,13 +73,14 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 
 // query paths
 const (
-	QueryRender  = "qrender"
-	QueryFuncs   = "qfuncs"
-	QueryEval    = "qeval"
-	QueryFile    = "qfile"
-	QueryDoc     = "qdoc"
-	QueryPaths   = "qpaths"
-	QueryStorage = "qstorage"
+	QueryRender        = "qrender"
+	QueryFuncs         = "qfuncs"
+	QueryEval          = "qeval"
+	QueryFile          = "qfile"
+	QueryDoc           = "qdoc"
+	QueryPaths         = "qpaths"
+	QueryStorage       = "qstorage"
+	QueryLatestVersion = "qlatestversion"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -101,6 +104,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		res = vh.queryPaths(ctx, req)
 	case QueryStorage:
 		res = vh.queryStorage(ctx, req)
+	case QueryLatestVersion:
+		res = vh.queryLatestVersion(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -252,6 +257,22 @@ func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res ab
 		return
 	}
 	res.Data = []byte(result)
+	return
+}
+
+// queryLatestVersion returns the latest deployed version for a base package path.
+func (vh vmHandler) queryLatestVersion(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	basePath := string(req.Data)
+	result, err := vh.vm.QueryLatestVersion(ctx, basePath)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+	bz, err := json.Marshal(result)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+	res.Data = bz
+	res.Height = req.Height
 	return
 }
 

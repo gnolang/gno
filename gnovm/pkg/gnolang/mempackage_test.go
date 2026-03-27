@@ -329,3 +329,83 @@ func TestMemPackage_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestParseVersionSuffix(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		pkgPath     string
+		wantBase    string
+		wantVersion int
+		wantOk      bool
+	}{
+		{
+			name:        "v0",
+			pkgPath:     "gno.land/p/demo/avl/v0",
+			wantBase:    "gno.land/p/demo/avl",
+			wantVersion: 0,
+			wantOk:      true,
+		},
+		{
+			name:        "v2",
+			pkgPath:     "gno.land/p/demo/avl/v2",
+			wantBase:    "gno.land/p/demo/avl",
+			wantVersion: 2,
+			wantOk:      true,
+		},
+		{
+			name:        "v100",
+			pkgPath:     "gno.land/r/gov/dao/v100",
+			wantBase:    "gno.land/r/gov/dao",
+			wantVersion: 100,
+			wantOk:      true,
+		},
+		{
+			name:    "no_version_suffix",
+			pkgPath: "gno.land/p/demo/avl",
+			wantOk:  false,
+		},
+		{
+			name:    "name_starting_with_v",
+			pkgPath: "gno.land/r/demo/validator",
+			wantOk:  false,
+		},
+		{
+			name:    "v_with_no_digits",
+			pkgPath: "gno.land/p/demo/avl/v",
+			wantOk:  false,
+		},
+		{
+			name:    "v_with_mixed_chars",
+			pkgPath: "gno.land/p/demo/avl/v2beta",
+			wantOk:  false,
+		},
+		{
+			name:    "overflow",
+			pkgPath: "gno.land/p/demo/avl/v99999999999999999999",
+			wantOk:  false,
+		},
+		{
+			name:    "no_slash",
+			pkgPath: "v2",
+			wantOk:  false,
+		},
+		{
+			name:    "empty_string",
+			pkgPath: "",
+			wantOk:  false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			basePath, version, ok := ParseVersionSuffix(tc.pkgPath)
+			assert.Equal(t, tc.wantOk, ok, "ok mismatch")
+			if ok {
+				assert.Equal(t, tc.wantBase, basePath, "basePath mismatch")
+				assert.Equal(t, tc.wantVersion, version, "version mismatch")
+			}
+		})
+	}
+}

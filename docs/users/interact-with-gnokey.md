@@ -1031,6 +1031,7 @@ Below is a list of queries a user can make with `gnokey`:
 - `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
 - `vm/qpaths` - lists all existing package paths
 - `vm/qstorage` - returns storage usage and deposit locked in a realm
+- `vm/qlatestversion` - returns the latest deployed version and gap info for a versioned package
 
 Let's see how we can use them.
 
@@ -1411,6 +1412,31 @@ storage: 5025, deposit: 502500
 The storage price can be also calculated directly using this output
 (e.g., deposit / storage, `502500/5025 = 100ugnot`) instead of querying the price
 per byte from the params realm.
+
+### `vm/qlatestversion`
+
+This ABCI query endpoint returns information about deployed versions of a package,
+including the highest version, missing version count, and the first gap:
+
+```bash
+gnokey query vm/qlatestversion --data "gno.land/p/demo/avl" -remote https://rpc.staging.gno.land:443
+```
+
+Sample Output (sequential versions v0, v1, v2 deployed):
+
+```json
+{"latest": "v2", "missing": 0}
+```
+
+Sample Output (v0, v1, v3 deployed — v2 is missing):
+
+```json
+{"latest": "v3", "first_missing": "v2", "missing": 1}
+```
+
+- `latest` — the highest deployed version (e.g. `"v5"`)
+- `first_missing` — the first version gap, if any (omitted when `missing` is 0)
+- `missing` — total count of missing versions between v0 and latest
 
 ## Gas parameters
 

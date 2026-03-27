@@ -474,3 +474,111 @@ func Hello(msg string) (res string) { res = prefix+" "+msg; return }
 		})
 	}
 }
+
+func TestVmHandlerQuery_LatestVersion(t *testing.T) {
+	makeFiles := func(pkgPath, pkgName string) []*std.MemFile {
+		return []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "hello.gno", Body: fmt.Sprintf("package %s\n\nfunc Hello() string { return \"hello\" }\n", pkgName)},
+		}
+	}
+
+	t.Run("sequential_versions", func(t *testing.T) {
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		addr := crypto.AddressFromPreimage([]byte("addr1"))
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+
+		// Deploy v0, v1, v2
+		for i := 0; i <= 2; i++ {
+			pkgPath := fmt.Sprintf("gno.land/p/demo/avl/v%d", i)
+			msg := NewMsgAddPackage(addr, pkgPath, makeFiles(pkgPath, "avl"))
+			err := env.vmk.AddPackage(ctx, msg)
+			assert.NoError(t, err)
+		}
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		req := abci.RequestQuery{
+			Path: "vm/qlatestversion",
+			Data: []byte("gno.land/p/demo/avl"),
+		}
+		res := env.vmh.Query(env.ctx, req)
+		assert.True(t, res.IsOK(), "should not have error: %v", res.Error)
+		assert.Contains(t, string(res.Data), `"latest":"v2"`)
+		assert.Contains(t, string(res.Data), `"missing":0`)
+		assert.NotContains(t, string(res.Data), `first_missing`)
+	})
+
+	t.Run("version_gap", func(t *testing.T) {
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		addr := crypto.AddressFromPreimage([]byte("addr1"))
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+
+		// Deploy v0, v1, v3 (skip v2)
+		for _, i := range []int{0, 1, 3} {
+			pkgPath := fmt.Sprintf("gno.land/p/demo/avl/v%d", i)
+			msg := NewMsgAddPackage(addr, pkgPath, makeFiles(pkgPath, "avl"))
+			err := env.vmk.AddPackage(ctx, msg)
+			assert.NoError(t, err)
+		}
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		req := abci.RequestQuery{
+			Path: "vm/qlatestversion",
+			Data: []byte("gno.land/p/demo/avl"),
+		}
+		res := env.vmh.Query(env.ctx, req)
+		assert.True(t, res.IsOK(), "should not have error: %v", res.Error)
+		assert.Contains(t, string(res.Data), `"latest":"v3"`)
+		assert.Contains(t, string(res.Data), `"missing":1`)
+		assert.Contains(t, string(res.Data), `"first_missing":"v2"`)
+	})
+
+	t.Run("large_gap", func(t *testing.T) {
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		addr := crypto.AddressFromPreimage([]byte("addr1"))
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+
+		// Deploy v0 and v10 only (large gap: 9 missing versions)
+		for _, i := range []int{0, 10} {
+			pkgPath := fmt.Sprintf("gno.land/p/demo/avl/v%d", i)
+			msg := NewMsgAddPackage(addr, pkgPath, makeFiles(pkgPath, "avl"))
+			err := env.vmk.AddPackage(ctx, msg)
+			assert.NoError(t, err)
+		}
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		req := abci.RequestQuery{
+			Path: "vm/qlatestversion",
+			Data: []byte("gno.land/p/demo/avl"),
+		}
+		res := env.vmh.Query(env.ctx, req)
+		assert.True(t, res.IsOK(), "should not have error: %v", res.Error)
+		assert.Contains(t, string(res.Data), `"latest":"v10"`)
+		assert.Contains(t, string(res.Data), `"missing":9`)
+		assert.Contains(t, string(res.Data), `"first_missing":"v1"`)
+	})
+
+	t.Run("no_versions", func(t *testing.T) {
+		env := setupTestEnv()
+
+		req := abci.RequestQuery{
+			Path: "vm/qlatestversion",
+			Data: []byte("gno.land/p/demo/nonexistent"),
+		}
+		res := env.vmh.Query(env.ctx, req)
+		assert.False(t, res.IsOK(), "should have an error")
+		assert.Contains(t, res.Error.Error(), "no versions found")
+	})
+}
