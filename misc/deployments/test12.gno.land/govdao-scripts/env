@@ -4,6 +4,6 @@
 
 GNOKEY_NAME="${GNOKEY_NAME:-aeddi}"
 CHAIN_ID="${CHAIN_ID:-test12}"
-REMOTE="${REMOTE:-https://rpc.test12.testnets.gno.land}"
+REMOTE="${REMOTE:-https://rpc.test12.aeddi.org}"
 GAS_WANTED="${GAS_WANTED:-50000000}"
 GAS_FEE="${GAS_FEE:-1000000ugnot}"
