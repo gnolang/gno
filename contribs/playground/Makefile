@@ -13,6 +13,9 @@ GH_RELEASE_BASE = https://github.com/gnolang/gno/releases/download
 install:
 	pnpm install
 
+run:
+	pnpm dev
+
 build-wasm:
 	GOOS=js GOARCH=wasm go build -o $(WASM_OUT) $(GNOVM_DIR)/cmd/gno
 

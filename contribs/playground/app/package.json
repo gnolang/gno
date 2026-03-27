@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --experimental-strip-types ./scripts/dev.ts",
+    "dev": "pnpm vite",
     "build": "pnpm prebuild; tsc && vite build",
     "lint": "eslint src --max-warnings 0",
     "preview": "vite preview",
