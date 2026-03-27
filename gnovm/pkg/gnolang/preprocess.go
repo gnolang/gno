@@ -5506,10 +5506,10 @@ func codaInitOrderDeps(ctx BlockNode, fn *FileNode) {
 				}
 				addDependencyToTopDecl(ns, n.Name)
 			case *SelectorExpr:
-				// Track same-package method calls so that findUnresolvedDeps
+				// Track same-package method calls so that resolveEffectiveDeps
 				// can transitively discover vars referenced in method bodies.
 				// e.g. `A = T{}.GetB()` records "T.GetB" as a dep of A;
-				// findUnresolvedDeps then walks GetB's body to find B.
+				// resolveEffectiveDeps then walks GetB's body to find B.
 				switch n.Path.Type {
 				case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
 					// Get the receiver type from the cached ATTR_TYPEOF_VALUE.
@@ -5589,19 +5589,22 @@ func resolveDeclDep(name Name, pn *PackageNode) Decl {
 	return pn.NameSources[li].Origin.(Decl)
 }
 
-// findUnresolvedDeps returns the ValueDecl dependencies of decl that are not
-// yet in fdeclared, traversing transitively through FuncDecl call edges.
-// It panics with a descriptive chain if a circular variable-initialization
-// dependency is detected.
-func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{}) []Decl {
-	var ret []Decl
-	onStack := map[Decl]bool{} // grey: currently in the DFS call path
-	done := map[Decl]bool{}    // black: fully explored
+// resolveEffectiveDeps computes, for every Decl reachable from the given
+// declarations, the set of *ValueDecl dependencies obtained by collapsing
+// FuncDecl edges (FuncDecls are transparent pass-throughs).
+//
+// The result is a shared cache: cache[d] = list of *ValueDecl that d
+// (transitively through FuncDecls) depends on. Each Decl is visited at most
+// once across all calls, so total work is O(V+E).
+//
+// Circular variable dependencies are detected and cause a panic with a
+// descriptive chain.
+func resolveEffectiveDeps(decls []Decl, pn *PackageNode, fdeclared map[Name]struct{}) map[Decl][]*ValueDecl {
+	cache := map[Decl][]*ValueDecl{} // fully resolved
+	onStack := map[Decl]bool{}       // grey: currently in DFS path
 
 	// inFDeclared reports whether all names declared by d are already in
-	// fdeclared, meaning d has already been initialized and its deps are
-	// satisfied. Used to prune the DFS and avoid false circular-dep panics
-	// through already-resolved nodes.
+	// fdeclared, meaning d has already been initialized.
 	inFDeclared := func(d *ValueDecl) bool {
 		for _, n := range d.GetDeclNames() {
 			if _, ok := fdeclared[n]; !ok {
@@ -5611,34 +5614,37 @@ func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{})
 		return true
 	}
 
-	var walk func(d Decl, path []Name)
-	walk = func(d Decl, path []Name) {
-		if done[d] {
-			return
+	var walk func(d Decl, path []Name) []*ValueDecl
+	walk = func(d Decl, path []Name) []*ValueDecl {
+		if res, ok := cache[d]; ok {
+			return res
 		}
 		onStack[d] = true
 		m, _ := d.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
 		// Sort dependency names for deterministic DFS traversal order.
-		// Without sorting, Go map iteration is non-deterministic, which makes
-		// the cycle error message vary across runs.
 		names := slices.Collect(maps.Keys(m))
 		slices.Sort(names)
+
+		var result []*ValueDecl
 		for _, name := range names {
 			dep := resolveDeclDep(name, pn)
 			switch dep := dep.(type) {
 			case *FuncDecl:
-				// Mutually recursive functions are fine; only skip if already
-				// on the current path or fully explored.
-				if !onStack[dep] && !done[dep] {
-					walk(dep, append(path, name))
+				if onStack[dep] {
+					// Mutually recursive functions are fine; skip.
+					continue
+				}
+				// Collapse: inherit effective deps from the FuncDecl.
+				for _, vd := range walk(dep, append(path, name)) {
+					if !slices.Contains(result, vd) {
+						result = append(result, vd)
+					}
 				}
 			case *ValueDecl:
 				if onStack[dep] {
-					// Prefix with the root decl's source position so the error
-					// is easy to locate, then list the simple name chain.
 					bld := strings.Builder{}
-					if fn, _, ok := pn.FileSet.GetDeclForSafe(path[0]); ok {
-						fmt.Fprintf(&bld, "%s/%s:%s: ", pn.PkgPath, fn.FileName, decl.GetSpan().Pos.String())
+					if fn, sourceDecl, ok := pn.FileSet.GetDeclForSafe(path[0]); ok {
+						fmt.Fprintf(&bld, "%s/%s:%s: ", pn.PkgPath, fn.FileName, (*sourceDecl).GetSpan().Pos.String())
 					}
 					bld.WriteString("circular dependency: ")
 					for _, n := range path {
@@ -5648,40 +5654,40 @@ func findUnresolvedDeps(decl Decl, pn *PackageNode, fdeclared map[Name]struct{})
 					bld.WriteString(string(name))
 					panic(bld.String())
 				}
-				// Already initialized: treat as done and skip its transitive
-				// deps entirely — there is nothing left to resolve through it.
-				// (Checking len(fdeclared) > 0 is an optimization for a very
-				// common case: fdeclared is empty when creating a new package,
-				// it is only filled when adding files to an existing package.)
+				// Skip already-initialized decls entirely.
 				if len(fdeclared) > 0 && inFDeclared(dep) {
-					done[dep] = true
 					continue
 				}
-				dv := Decl(dep)
-				if !slices.Contains(ret, dv) {
-					ret = append(ret, dv)
+				if !slices.Contains(result, dep) {
+					result = append(result, dep)
 				}
-				if !done[dep] {
-					walk(dep, append(path, name))
-				}
+				// Recurse into ValueDecl deps to detect cycles and to
+				// discover transitive deps through FuncDecl chains rooted
+				// in this ValueDecl. Kahn's handles direct ValueDecl→ValueDecl
+				// transitivity, but we still need to walk through for cycle
+				// detection and for FuncDecl collapse.
+				walk(dep, append(path, name))
 			default:
-				// *TypeDecl and *ImportDecl are caught by this case, but that's
-				// OK: addDependencyToTopDecl is only called for value
-				// dependencies and for function dependencies.
 				panic(fmt.Sprintf("unexpected gnolang.Decl: %#v", dep))
 			}
 		}
-		onStack[d] = false
-		done[d] = true
+		delete(onStack, d)
+		cache[d] = result
+		return result
 	}
 
-	rootNames := decl.GetDeclNames()
-	rootName := Name("_")
-	if len(rootNames) > 0 {
-		rootName = rootNames[0]
+	for _, d := range decls {
+		if _, ok := cache[d]; ok {
+			continue
+		}
+		rootNames := d.GetDeclNames()
+		rootName := Name("_")
+		if len(rootNames) > 0 {
+			rootName = rootNames[0]
+		}
+		walk(d, []Name{rootName})
 	}
-	walk(decl, []Name{rootName})
-	return ret
+	return cache
 }
 
 // A name is locally defined on a block node

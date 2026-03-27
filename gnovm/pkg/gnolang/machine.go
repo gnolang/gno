@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"container/heap"
 	"fmt"
 	"io"
 	"path"
@@ -524,6 +525,23 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	return pn, pv
 }
 
+// initHeap is a min-heap of pending-declaration indices, used by runFileDecls
+// to always pick the earliest-in-declaration-order ready entry.
+type initHeap []int
+
+func (h initHeap) Len() int           { return len(h) }
+func (h initHeap) Less(i, j int) bool { return h[i] < h[j] }
+func (h initHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h *initHeap) Push(x any)        { *h = append(*h, x.(int)) }
+
+func (h *initHeap) Pop() any {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[:n-1]
+	return x
+}
+
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
@@ -598,59 +616,76 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	//    Within a package, package-level variable initialization proceeds
 	//    stepwise, with each step selecting the variable earliest in declaration
 	//    order which has no dependencies on uninitialized variables.
-	// Thus, we begin by making an ordered list of all the declarations in the
-	// file; and then we perform initialization as described above.
+	//
+	// Implementation: Kahn's topological sort with declaration-order tiebreaking
+	// via a min-heap keyed on declaration index.
+	//
+	// Phase 1: Collect all non-FuncDecl declarations in source order and compute
+	// effective deps (collapsing FuncDecl edges) once for all declarations.
+	// Phase 2: Build reverse-dep index and unsatisfied counts, then use a
+	// min-heap to always pick the earliest-in-declaration-order ready entry.
 
-	// pendingInitDecl holds a declaration that is waiting for its dependencies to
-	// be satisfied before it can be initialized.
 	type pendingInitDecl struct {
 		fn   *FileNode
 		decl Decl
-		deps []Decl // effective (variable/type) deps not yet satisfied
 	}
 
 	// Build ordered pending list from all non-FuncDecl decls, preserving source
 	// declaration order.
 	var pending []pendingInitDecl
+	var allDecls []Decl
 	for _, fn := range fns {
 		for _, decl := range fn.Decls {
 			if _, ok := decl.(*FuncDecl); ok {
-				continue // FuncDecls need no runtime init (no-op)
+				continue
 			}
-			unresolved := findUnresolvedDeps(decl, pn, fdeclared)
-			pending = append(pending, pendingInitDecl{fn, decl, unresolved})
+			pending = append(pending, pendingInitDecl{fn, decl})
+			allDecls = append(allDecls, decl)
 		}
 	}
 
-	// Ready-variable loop (Go spec algorithm).
-	// Repeatedly pick the earliest-in-declaration-order pending entry
-	// whose dependencies are all satisfied, and initialize it.
-	for len(pending) > 0 {
-		pos := slices.IndexFunc(pending, func(pid pendingInitDecl) bool {
-			for _, dep := range pid.deps {
-				names := dep.GetDeclNames()
-				for _, name := range names {
-					if _, ok := fdeclared[name]; !ok {
-						return false
-					}
-				}
-			}
-			return true
-		})
-		if pos < 0 {
-			// This shouldn't happen: circular dependencies are already found in
-			// findUnresolvedDeps.
-			panic("unexpected circular initialization dependency")
+	// Compute effective deps for all decls at once (memoized DFS, O(V+E)).
+	effectiveDeps := resolveEffectiveDeps(allDecls, pn, fdeclared)
+
+	// Build reverse deps and unsatisfied counts. reverseDeps maps a ValueDecl
+	// to the indices of pending entries that depend on it.
+	unsatisfied := make([]int, len(pending))
+	reverseDeps := map[*ValueDecl][]int{}
+	for i, pd := range pending {
+		deps := effectiveDeps[pd.decl]
+		unsatisfied[i] = len(deps)
+		for _, dep := range deps {
+			reverseDeps[dep] = append(reverseDeps[dep], i)
 		}
-		pd := pending[pos]
-		pending = slices.Delete(pending, pos, pos+1)
+	}
+
+	// Seed heap with zero-dep entries.
+	ready := &initHeap{}
+	for i := range pending {
+		if unsatisfied[i] == 0 {
+			heap.Push(ready, i)
+		}
+	}
+
+	// Kahn's loop: always pop the earliest-in-declaration-order ready entry.
+	for ready.Len() > 0 {
+		idx := heap.Pop(ready).(int)
+		pd := pending[idx]
 		fb := pv.GetFileBlock(m.Store, pd.fn.FileName)
 		m.PushBlock(fb)
 		m.runDeclaration(pd.decl)
 		m.PopBlock()
-		declNames := pd.decl.GetDeclNames()
-		for _, n := range declNames {
+		for _, n := range pd.decl.GetDeclNames() {
 			fdeclared[n] = struct{}{}
+		}
+		// Notify dependents; enqueue newly-ready ones.
+		if vd, ok := pd.decl.(*ValueDecl); ok {
+			for _, depIdx := range reverseDeps[vd] {
+				unsatisfied[depIdx]--
+				if unsatisfied[depIdx] == 0 {
+					heap.Push(ready, depIdx)
+				}
+			}
 		}
 	}
 
