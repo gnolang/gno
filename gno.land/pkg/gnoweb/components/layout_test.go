@@ -370,64 +370,81 @@ func TestIndexLayout_ThemePropagation(t *testing.T) {
 	}
 }
 
-func TestBannerData(t *testing.T) {
+func TestNewBannerData(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name        string
-		banner      BannerData
-		wantEnabled bool
-		wantHasURL  bool
+		name         string
+		input        string
+		wantEnabled  bool
+		wantContains string
 	}{
 		{
-			name:        "empty banner is disabled",
-			banner:      BannerData{},
+			name:        "empty is disabled",
+			input:       "",
 			wantEnabled: false,
-			wantHasURL:  false,
 		},
 		{
-			name:        "text only",
-			banner:      BannerData{Text: "Beta"},
-			wantEnabled: true,
-			wantHasURL:  false,
+			name:         "plain text",
+			input:        "Beta",
+			wantEnabled:  true,
+			wantContains: "Beta",
 		},
 		{
-			name:        "text with https URL",
-			banner:      BannerData{Text: "Beta", URL: "https://example.com"},
-			wantEnabled: true,
-			wantHasURL:  true,
+			name:         "markdown link gets target blank",
+			input:        "[Beta](https://example.com)",
+			wantEnabled:  true,
+			wantContains: `<a href="https://example.com" target="_blank" rel="noopener noreferrer">Beta</a>`,
 		},
 		{
-			name:        "text with http URL",
-			banner:      BannerData{Text: "Beta", URL: "http://example.com"},
-			wantEnabled: true,
-			wantHasURL:  true,
+			name:         "bold and italic",
+			input:        "This is **bold** and *italic*",
+			wantEnabled:  true,
+			wantContains: "<strong>bold</strong>",
 		},
 		{
-			name:        "rejects javascript scheme",
-			banner:      BannerData{Text: "Click me", URL: "javascript:alert(1)"},
-			wantEnabled: true,
-			wantHasURL:  false,
+			name:         "content after newline discarded",
+			input:        "line one\nline two",
+			wantEnabled:  true,
+			wantContains: "line one",
 		},
 		{
-			name:        "rejects data scheme",
-			banner:      BannerData{Text: "Click me", URL: "data:text/html,<h1>hi</h1>"},
+			name:        "truncated over max length",
+			input:       strings.Repeat("a", MaxBannerLength+50),
 			wantEnabled: true,
-			wantHasURL:  false,
 		},
 		{
-			name:        "rejects schemeless URL",
-			banner:      BannerData{Text: "Click me", URL: "example.com"},
-			wantEnabled: true,
-			wantHasURL:  false,
+			name:         "script tag sanitized",
+			input:        `<script>alert("xss")</script>`,
+			wantEnabled:  true,
+			wantContains: "<!-- raw HTML omitted -->",
+		},
+		{
+			name:         "javascript URL sanitized",
+			input:        `[click](javascript:alert(1))`,
+			wantEnabled:  true,
+			wantContains: `href=""`,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.wantEnabled, tc.banner.Enabled())
-			assert.Equal(t, tc.wantHasURL, tc.banner.HasURL())
+
+			banner, err := NewBannerData(tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantEnabled, banner.Enabled())
+
+			var buf strings.Builder
+			require.NoError(t, banner.Render(&buf))
+			rendered := buf.String()
+
+			if tc.wantContains != "" {
+				assert.Contains(t, rendered, tc.wantContains)
+			}
+			if banner.Enabled() {
+				assert.NotContains(t, rendered, "<p>")
+			}
 		})
 	}
 }
@@ -437,29 +454,26 @@ func TestIndexLayout_Banner(t *testing.T) {
 
 	cases := []struct {
 		name         string
-		banner       BannerData
+		markdown     string
 		wantBanner   bool
-		wantLink     bool
 		wantContains string
 	}{
 		{
 			name:       "no banner when empty",
-			banner:     BannerData{},
+			markdown:   "",
 			wantBanner: false,
 		},
 		{
-			name:         "text-only renders div",
-			banner:       BannerData{Text: "Maintenance"},
+			name:         "plain text renders in div",
+			markdown:     "Maintenance",
 			wantBanner:   true,
-			wantLink:     false,
 			wantContains: "Maintenance",
 		},
 		{
-			name:         "text with URL renders link",
-			banner:       BannerData{Text: "Beta", URL: "https://example.com"},
+			name:         "markdown link renders inline",
+			markdown:     "[Beta](https://example.com)",
 			wantBanner:   true,
-			wantLink:     true,
-			wantContains: "https://example.com",
+			wantContains: `href="https://example.com"`,
 		},
 	}
 
@@ -467,10 +481,13 @@ func TestIndexLayout_Banner(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
+			banner, err := NewBannerData(tc.markdown)
+			require.NoError(t, err)
+
 			data := IndexData{
 				HeadData: HeadData{Title: "Test"},
 				Mode:     ViewModeHome,
-				Banner:   tc.banner,
+				Banner:   banner,
 				BodyView: &View{
 					Type:      "test-view",
 					Component: NewReaderComponent(strings.NewReader("testdata")),
@@ -478,20 +495,15 @@ func TestIndexLayout_Banner(t *testing.T) {
 			}
 
 			var buf strings.Builder
-			err := IndexLayout(data).Render(&buf)
+			err = IndexLayout(data).Render(&buf)
 			require.NoError(t, err)
 
 			output := buf.String()
 			if !tc.wantBanner {
 				assert.NotContains(t, output, "b-banner")
 			} else {
-				assert.Contains(t, output, "b-banner")
+				assert.Contains(t, output, `<div class="b-banner"`)
 				assert.Contains(t, output, tc.wantContains)
-				if tc.wantLink {
-					assert.Contains(t, output, "<a ")
-				} else {
-					assert.Contains(t, output, "<div class=\"b-banner\"")
-				}
 			}
 		})
 	}

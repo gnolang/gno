@@ -1,6 +1,16 @@
 package components
 
-import "strings"
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"strings"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/text"
+)
 
 // ViewMode represents the current view mode of the application
 // It affects the layout, navigation, and display of content
@@ -45,17 +55,68 @@ type HeadData struct {
 	BuildTime   string
 }
 
-// BannerData holds configuration for the site-wide banner displayed above the header.
+// MaxBannerLength is the maximum character length for banner markdown source.
+const MaxBannerLength = 400
+
+// BannerData implement component.
+var _ Component = BannerData{}
+
+// BannerData holds pre-rendered inline HTML from markdown.
 type BannerData struct {
-	Text string
-	URL  string
+	content string
 }
 
-func (b BannerData) HasURL() bool {
-	return strings.HasPrefix(b.URL, "https://") || strings.HasPrefix(b.URL, "http://")
+func (b BannerData) Enabled() bool { return b.content != "" }
+
+func (b BannerData) Render(w io.Writer) (err error) {
+	_, err = io.WriteString(w, b.content)
+	return err
 }
 
-func (b BannerData) Enabled() bool { return b.Text != "" }
+// NewBannerData parses inline markdown into a BannerData with pre-rendered HTML.
+// Content after the first newline is discarded. Content is truncated to MaxBannerLength runes.
+// Returns an error only if goldmark fails to parse.
+func NewBannerData(markdown string) (BannerData, error) {
+	// Keep only the first line
+	if i := strings.IndexAny(markdown, "\n\r"); i >= 0 {
+		markdown = markdown[:i]
+	}
+	markdown = strings.TrimSpace(markdown)
+
+	if markdown == "" {
+		return BannerData{}, nil
+	}
+
+	// Truncate to max length (rune-safe)
+	if runes := []rune(markdown); len(runes) > MaxBannerLength {
+		markdown = string(runes[:MaxBannerLength])
+	}
+
+	md := goldmark.New(goldmark.WithExtensions(extension.Strikethrough))
+	src := []byte(markdown)
+	doc := md.Parser().Parse(text.NewReader(src))
+
+	// Walk the AST to add target="_blank" on all links.
+	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering && n.Kind() == ast.KindLink {
+			n.SetAttributeString("target", "_blank")
+			n.SetAttributeString("rel", "noopener noreferrer")
+		}
+		return ast.WalkContinue, nil
+	})
+
+	var buf bytes.Buffer
+	if err := md.Renderer().Render(&buf, src, doc); err != nil {
+		return BannerData{}, fmt.Errorf("banner markdown rendering: %w", err)
+	}
+
+	// Strip <p> wrapper that goldmark adds for single-paragraph content.
+	result := strings.TrimSpace(buf.String())
+	result = strings.TrimPrefix(result, "<p>")
+	result = strings.TrimSuffix(result, "</p>")
+
+	return BannerData{content: result}, nil
+}
 
 type IndexData struct {
 	HeadData

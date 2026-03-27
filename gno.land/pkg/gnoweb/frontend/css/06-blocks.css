@@ -26,16 +26,26 @@
 	font-size: var(--g-font-size-50);
 	font-weight: var(--g-font-semibold);
 	text-align: center;
-	text-decoration: none;
 
 	@media (--md) {
 		font-size: var(--g-font-size-100);
 	}
-}
 
-a.b-banner:hover {
-	opacity: 0.9;
-	text-decoration: underline;
+	& a {
+		color: inherit;
+		text-decoration: underline;
+	}
+
+	& a:hover {
+		opacity: 0.8;
+	}
+
+	& code {
+		padding: 0.1em 0.3em;
+		border-radius: 3px;
+		background-color: rgba(0, 0, 0, 0.1);
+		font-size: 0.9em;
+	}
 }
 
 /* ===== HEADER COMPONENT ===== */
