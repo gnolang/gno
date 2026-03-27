@@ -1214,7 +1214,7 @@ func (vm *VMKeeper) QueryLatestVersion(ctx sdk.Context, basePath string) (*Lates
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
 	prefix := basePath + "/v"
-	var deployedVersions []int
+	deployed := make(map[int]struct{})
 	latest := -1
 
 	for p := range store.FindPathsByPrefix(prefix) {
@@ -1222,7 +1222,7 @@ func (vm *VMKeeper) QueryLatestVersion(ctx sdk.Context, basePath string) (*Lates
 		if !ok {
 			continue
 		}
-		deployedVersions = append(deployedVersions, v)
+		deployed[v] = struct{}{}
 		if v > latest {
 			latest = v
 		}
@@ -1232,8 +1232,7 @@ func (vm *VMKeeper) QueryLatestVersion(ctx sdk.Context, basePath string) (*Lates
 		return nil, fmt.Errorf("no versions found for %s", basePath)
 	}
 
-	deployedCount := len(deployedVersions)
-	missing := (latest + 1) - deployedCount
+	missing := (latest + 1) - len(deployed)
 
 	result := &LatestVersionResult{
 		Latest:  fmt.Sprintf("v%d", latest),
@@ -1242,9 +1241,8 @@ func (vm *VMKeeper) QueryLatestVersion(ctx sdk.Context, basePath string) (*Lates
 
 	// Find first missing version if there are gaps.
 	if missing > 0 {
-		slices.Sort(deployedVersions)
-		for i, v := range deployedVersions {
-			if v != i {
+		for i := range latest {
+			if _, ok := deployed[i]; !ok {
 				result.FirstMissing = fmt.Sprintf("v%d", i)
 				break
 			}
