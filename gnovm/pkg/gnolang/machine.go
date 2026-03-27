@@ -684,6 +684,17 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		}
 	}
 
+	// Sanity check: all entries must have been processed. If any remain,
+	// it means resolveEffectiveDeps missed a cycle or the reverse-dep
+	// notification has a gap.
+	for i, decl := range pending {
+		if unsatisfied[i] > 0 {
+			panic(fmt.Sprintf(
+				"incomplete initialization: %v still has %d unsatisfied deps",
+				decl.GetDeclNames(), unsatisfied[i]))
+		}
+	}
+
 	return updates
 }
 
