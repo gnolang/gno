@@ -17,4 +17,5 @@ GNOKEY_NAME=mykey ./add-validator.sh ...
 ./enable-govdao-namespaces.sh               # enable PA + custom namespace support (one-time)
 ./add-namespace.sh NAMESPACE ADDR           # register a custom namespace in r/sys/names/v2
 ./rm-namespace.sh NAMESPACE                 # remove a custom namespace from r/sys/names/v2
+./set-valoper-minfee.sh AMOUNT_UGNOT        # update the valoper registration minimum fee
 ```
