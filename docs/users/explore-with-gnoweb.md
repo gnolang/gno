@@ -6,7 +6,7 @@ to explore the blockchain ecosystem.
 
 ## Networks
 
-The main gnoweb instance is available at [gno.land](https://gno.land), which serves the Betanet (`gnoland1`). The Staging network is accessible at [staging.gno.land](https://staging.gno.land).
+The main gnoweb instance is available at [gno.land](https://gno.land), which serves the Betanet (`gnoland-1`). The Staging network is accessible at [staging.gno.land](https://staging.gno.land).
 
 For a complete list of all available networks (testnets and more), see [Networks](../resources/gnoland-networks.md).
 
