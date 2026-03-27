@@ -367,7 +367,7 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 		}
 		// Charge gas proportional to string length, since Go's == on
 		// strings is O(N).
-		m.incrCPU(overflow.Mulp(int64(len(ls)), OpCPUEql))
+		m.incrCPU(overflow.Mulp(int64(len(ls)), OpCPUCmpPerByte))
 		return ls == rs
 	case IntKind:
 		return (lv.GetInt() == rv.GetInt())
@@ -496,7 +496,7 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPULss))
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUCmpPerByte))
 		return ls < rs
 	case IntKind:
 		return (lv.GetInt() < rv.GetInt())
@@ -543,7 +543,7 @@ func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPULeq))
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUCmpPerByte))
 		return ls <= rs
 	case IntKind:
 		return (lv.GetInt() <= rv.GetInt())
@@ -590,7 +590,7 @@ func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUGtr))
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUCmpPerByte))
 		return ls > rs
 	case IntKind:
 		return (lv.GetInt() > rv.GetInt())
@@ -637,7 +637,7 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUGeq))
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUCmpPerByte))
 		return ls >= rs
 	case IntKind:
 		return (lv.GetInt() >= rv.GetInt())

@@ -3,8 +3,8 @@
 
 gno test -v .
 
-stderr '--- PASS: ./small_string_filetest.gno \(elapsed: \d+\.\d\ds, gas: 11664\)'
-stderr '--- PASS: ./large_string_filetest.gno \(elapsed: \d+\.\d\ds, gas: 2419254\)'
+stderr '--- PASS: ./small_string_filetest.gno \(elapsed: \d+\.\d\ds, gas: 9334\)'
+stderr '--- PASS: ./large_string_filetest.gno \(elapsed: \d+\.\d\ds, gas: 89254\)'
 
 -- pkg.gno --
 package gas_string_cmp

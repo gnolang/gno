@@ -4,9 +4,9 @@
 
 gno test -v .
 
-stderr '--- PASS: ./small_array_string_filetest.gno \(elapsed: \d+\.\d\ds, gas: 6347\)'
-stderr '--- PASS: ./large_array_string_filetest.gno \(elapsed: \d+\.\d\ds, gas: 813367\)'
-stderr '--- PASS: ./switch_case_filetest.gno \(elapsed: \d+\.\d\ds, gas: 175762\)'
+stderr '--- PASS: ./small_array_string_filetest.gno \(elapsed: \d+\.\d\ds, gas: 6029\)'
+stderr '--- PASS: ./large_array_string_filetest.gno \(elapsed: \d+\.\d\ds, gas: 18367\)'
+stderr '--- PASS: ./switch_case_filetest.gno \(elapsed: \d+\.\d\ds, gas: 16762\)'
 
 -- pkg.gno --
 package gas_mixed_eql

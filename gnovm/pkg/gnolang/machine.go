@@ -1163,6 +1163,9 @@ const (
 	OpCPUBand  = 9
 	OpCPUBandn = 15
 
+	/* Per-unit scaling costs (multiplied by size) */
+	OpCPUCmpPerByte = 1 // per-byte cost for string comparisons (hardware-optimized memcmp)
+
 	/* Other expression operators */
 	OpCPUEval        = 29
 	OpCPUBinary1     = 19

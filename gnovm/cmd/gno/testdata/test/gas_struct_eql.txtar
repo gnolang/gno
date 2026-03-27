@@ -4,7 +4,7 @@
 gno test -v .
 
 stderr '--- PASS: ./small_struct_filetest.gno \(elapsed: \d+\.\d\ds, gas: 6570\)'
-stderr '--- PASS: ./string_struct_filetest.gno \(elapsed: \d+\.\d\ds, gas: 171303\)'
+stderr '--- PASS: ./string_struct_filetest.gno \(elapsed: \d+\.\d\ds, gas: 12303\)'
 
 -- pkg.gno --
 package gas_struct_eql
