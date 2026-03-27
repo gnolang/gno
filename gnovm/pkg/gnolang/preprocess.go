@@ -1718,9 +1718,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
-					if cx, ok := n.Func.(*ConstExpr); ok {
+					if cx, ok := n.Func.(*ConstExpr); ok && cx.GetFunc().PkgPath == uversePkgPath {
 						fv := cx.GetFunc()
-						if fv.PkgPath == uversePkgPath && fv.Name == "append" {
+						switch fv.Name {
+						case "append":
 							if n.Varg && len(n.Args) == 2 {
 								// If the second argument is a string,
 								// convert to byteslice.
@@ -1761,7 +1762,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
 								}
 							}
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
+						case "copy":
 							if len(n.Args) == 2 {
 								// If the second argument is a string,
 								// convert to byteslice.
@@ -1773,11 +1774,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									n.Args[1] = args1
 								}
 							}
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "make" {
+						case "make":
 							isBuiltinMake = true
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
-							panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "_cross_gno0p0" {
+						case "_cross_gno0p0":
 							if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
 								// This is only backwards compatibility for the gno 0.9
 								// transpiler/fixer.  cross() is no longer used.
@@ -1793,11 +1792,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// only way _cross_gno0p0 appears is
 								panic("_cross_gno0p0 is reserved")
 							}
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
+						case "cross":
+							panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
+						case "crossing":
 							if ctxpn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
 								panic("crossing() is reserved and deprecated")
 							}
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
+						case "attach":
 							// reserve attach() so we can support it later.
 							panic("attach() not yet supported")
 						}
