@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -158,6 +159,21 @@ func (conR *ConsensusReactor) InitPeer(peer p2p.PeerConn) p2p.PeerConn {
 	peerState := NewPeerState(peer).SetLogger(conR.Logger)
 	peer.Set(types.PeerStateKey, peerState)
 	return peer
+}
+
+// recoverFromPanic recovers from panics in gossip goroutines, logging the error
+// and disconnecting the offending peer.
+func (conR *ConsensusReactor) recoverFromPanic(peer p2p.PeerConn, routine string) {
+	if r := recover(); r != nil {
+		conR.Logger.Error("Recovered from panic in gossip routine",
+			"routine", routine,
+			"peer", peer,
+			"err", r,
+			"stack", string(debug.Stack()))
+		if sw := conR.Switch; sw != nil {
+			sw.StopPeerForError(peer, fmt.Errorf("panic in %s: %v", routine, r))
+		}
+	}
 }
 
 // AddPeer implements Reactor by spawning multiple gossiping goroutines for the
@@ -450,6 +466,7 @@ func (conR *ConsensusReactor) sendNewRoundStepMessage(peer p2p.PeerConn) {
 }
 
 func (conR *ConsensusReactor) gossipDataRoutine(peer p2p.PeerConn, ps *PeerState) {
+	defer conR.recoverFromPanic(peer, "gossipDataRoutine")
 	logger := conR.Logger.With("peer", peer)
 
 OUTER_LOOP:
@@ -587,6 +604,7 @@ func (conR *ConsensusReactor) gossipDataForCatchup(logger *slog.Logger, rs *csty
 }
 
 func (conR *ConsensusReactor) gossipVotesRoutine(peer p2p.PeerConn, ps *PeerState) {
+	defer conR.recoverFromPanic(peer, "gossipVotesRoutine")
 	logger := conR.Logger.With("peer", peer)
 
 	// Simple hack to throttle logs upon sleep.
@@ -714,6 +732,7 @@ func (conR *ConsensusReactor) gossipVotesForHeight(logger *slog.Logger, rs *csty
 // NOTE: `queryMaj23Routine` has a simple crude design since it only comes
 // into play for liveness when there's a signature DDoS attack happening.
 func (conR *ConsensusReactor) queryMaj23Routine(peer p2p.PeerConn, ps *PeerState) {
+	defer conR.recoverFromPanic(peer, "queryMaj23Routine")
 	logger := conR.Logger.With("peer", peer)
 
 OUTER_LOOP:
@@ -800,6 +819,12 @@ OUTER_LOOP:
 }
 
 func (conR *ConsensusReactor) peerStatsRoutine() {
+	defer func() {
+		if r := recover(); r != nil {
+			conR.Logger.Error("Recovered from panic in peerStatsRoutine",
+				"err", r, "stack", string(debug.Stack()))
+		}
+	}()
 	for {
 		if !conR.IsRunning() {
 			conR.Logger.Info("Stopping peerStatsRoutine")
