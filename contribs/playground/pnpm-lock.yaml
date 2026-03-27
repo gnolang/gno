@@ -4,6 +4,33 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@vitejs/plugin-react-swc':
+      specifier: ^3.6.0
+      version: 3.11.0
+    browserfs:
+      specifier: v2.0.0
+      version: 2.0.0
+    comlink:
+      specifier: ^4.4.1
+      version: 4.4.2
+    mobx:
+      specifier: ^6.13.7
+      version: 6.15.0
+    typescript:
+      specifier: ^5.8.3
+      version: 5.9.3
+    vite:
+      specifier: ^7.0.0
+      version: 7.3.1
+    vite-plugin-dts:
+      specifier: ^4.5.0
+      version: 4.5.4
+    vscode-languageserver-protocol:
+      specifier: ^3.16.0
+      version: 3.17.5
+
 overrides:
   react: 18.3.1
   '@swc/core': 1.11.24
@@ -405,16 +432,16 @@ importers:
         specifier: ^1.0.2
         version: 1.0.3
       browserfs:
-        specifier: 2.0.0
+        specifier: 'catalog:'
         version: 2.0.0
       comlink:
-        specifier: ^4.4.1
+        specifier: 'catalog:'
         version: 4.4.2
       date-fns:
         specifier: ^3.6.0
         version: 3.6.0
       mobx:
-        specifier: ^6.13.7
+        specifier: 'catalog:'
         version: 6.15.0
       path-browserify:
         specifier: ^1.0.1
@@ -423,27 +450,30 @@ importers:
         specifier: 18.3.1
         version: 18.3.1
       react-dom:
-        specifier: ^18.3.1
+        specifier: 'catalog:'
         version: 18.3.1(react@18.3.1)
       vscode-languageserver-protocol:
-        specifier: ^3.16.0
+        specifier: 'catalog:'
         version: 3.17.5
     devDependencies:
       '@vitejs/plugin-react-swc':
-        specifier: ^3.6.0
+        specifier: 'catalog:'
         version: 3.11.0(@swc/helpers@0.5.20)(vite@7.3.1(@types/node@22.19.15)(lightningcss@1.23.0)(terser@5.46.1))
       typescript:
-        specifier: ^5.8.3
+        specifier: 'catalog:'
         version: 5.9.3
       vite:
-        specifier: ^7.0.0
+        specifier: 'catalog:'
         version: 7.3.1(@types/node@22.19.15)(lightningcss@1.23.0)(terser@5.46.1)
       vite-plugin-comlink:
         specifier: ^3.0.5
         version: 3.0.5(comlink@4.4.2)(vite@7.3.1(@types/node@22.19.15)(lightningcss@1.23.0)(terser@5.46.1))
       vite-plugin-dts:
-        specifier: ^4.5.0
+        specifier: 'catalog:'
         version: 4.5.4(@types/node@22.19.15)(rollup@4.60.0)(typescript@5.9.3)(vite@7.3.1(@types/node@22.19.15)(lightningcss@1.23.0)(terser@5.46.1))
+      vite-plugin-node-polyfills:
+        specifier: 0.23.0
+        version: 0.23.0(rollup@4.60.0)(vite@7.3.1(@types/node@22.19.15)(lightningcss@1.23.0)(terser@5.46.1))
 
   tools: {}
 
@@ -4944,6 +4974,11 @@ packages:
     peerDependencies:
       vite: '>=4 <=7'
 
+  vite-plugin-node-polyfills@0.23.0:
+    resolution: {integrity: sha512-4n+Ys+2bKHQohPBKigFlndwWQ5fFKwaGY6muNDMTb0fSQLyBzS+jjUNRZG9sKF0S/Go4ApG6LFnUGopjkILg3w==}
+    peerDependencies:
+      vite: ^2.0.0 || ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0
+
   vite-plugin-node-polyfills@0.23.1:
     resolution: {integrity: sha512-hR2YlaMqVo2f/0w6V9YgaeKsIy8z5gEsMFHX8MQlh8ATEAbfI4EWjE6qnCvkZ9lyaXKoJD2rAwL/up8/Rzsjkg==}
     deprecated: this version is broken
@@ -6996,7 +7031,7 @@ snapshots:
       '@vue/compiler-ssr': 3.4.19
       '@vue/shared': 3.4.19
       estree-walker: 2.0.2
-      magic-string: 0.30.7
+      magic-string: 0.30.21
       postcss: 8.4.35
       source-map-js: 1.2.1
 
@@ -10843,6 +10878,14 @@ snapshots:
       vite: 7.3.1(@types/node@22.19.15)(lightningcss@1.23.0)(terser@5.46.1)
     transitivePeerDependencies:
       - supports-color
+
+  vite-plugin-node-polyfills@0.23.0(rollup@4.60.0)(vite@7.3.1(@types/node@22.19.15)(lightningcss@1.23.0)(terser@5.46.1)):
+    dependencies:
+      '@rollup/plugin-inject': 5.0.5(rollup@4.60.0)
+      node-stdlib-browser: 1.3.1
+      vite: 7.3.1(@types/node@22.19.15)(lightningcss@1.23.0)(terser@5.46.1)
+    transitivePeerDependencies:
+      - rollup
 
   vite-plugin-node-polyfills@0.23.1(rollup@4.60.0)(vite@7.3.1(@types/node@22.19.15)(lightningcss@1.23.0)(terser@5.46.1)):
     dependencies:

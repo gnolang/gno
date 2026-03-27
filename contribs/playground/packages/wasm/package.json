@@ -17,22 +17,23 @@
     "@gnoide/tools": "workspace:*",
     "@gnostudio/pkg": "workspace:*",
     "@types/path-browserify": "^1.0.2",
-    "browserfs": "2.0.0",
-    "comlink": "^4.4.1",
+    "browserfs": "catalog:",
+    "comlink": "catalog:",
     "date-fns": "^3.6.0",
-    "mobx": "^6.13.7",
+    "mobx": "catalog:",
     "path-browserify": "^1.0.1",
-    "vscode-languageserver-protocol": "^3.16.0"
+    "vscode-languageserver-protocol": "catalog:"
   },
   "peerDependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@vitejs/plugin-react-swc": "^3.6.0",
-    "typescript": "^5.8.3",
-    "vite": "^7.0.0",
+    "@vitejs/plugin-react-swc": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
     "vite-plugin-comlink": "^3.0.5",
-    "vite-plugin-dts": "^4.5.0"
+    "vite-plugin-dts": "catalog:",
+    "vite-plugin-node-polyfills": "catalog:"
   }
 }
