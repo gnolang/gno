@@ -108,6 +108,9 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 					if !ok {
 						return fmt.Errorf("bank parameter restricted_denoms[%d]: expected string, got %T", i, v)
 					}
+					if err := std.ValidateDenom(s); err != nil {
+						return fmt.Errorf("bank parameter restricted_denoms[%d]: %w", i, err)
+					}
 					sz[i] = s
 				}
 				ggs.Bank.Params.RestrictedDenoms = sz
