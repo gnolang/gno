@@ -841,8 +841,7 @@ func (conR *ConsensusReactor) peerStatsRoutine() {
 			// Get peer state
 			ps, ok := peer.Get(types.PeerStateKey).(*PeerState)
 			if !ok {
-				conR.Logger.Error("Peer has no state", "peer", peer)
-				continue
+				panic(fmt.Sprintf("Peer %v has no state", peer))
 			}
 			switch msg.Msg.(type) {
 			case *VoteMessage:
