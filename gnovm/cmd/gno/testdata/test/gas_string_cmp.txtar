@@ -1,0 +1,44 @@
+# Test per-byte gas metering for string comparison operators.
+# Compares gas for small vs large strings to verify cost scales with string length.
+
+gno test -v .
+
+stderr '--- PASS: ./small_string_filetest.gno \(elapsed: \d+\.\d\ds, gas: 11664\)'
+stderr '--- PASS: ./large_string_filetest.gno \(elapsed: \d+\.\d\ds, gas: 2419254\)'
+
+-- pkg.gno --
+package gas_string_cmp
+
+-- small_string_filetest.gno --
+// MAXALLOC: 500000000
+package main
+
+func main() {
+	buf := make([]byte, 10)
+	s1 := string(buf)
+	s2 := string(buf)
+	_ = s1 == s2
+	_ = s1 < s2
+	_ = s1 <= s2
+	_ = s1 > s2
+	_ = s1 >= s2
+}
+
+-- large_string_filetest.gno --
+// MAXALLOC: 500000000
+package main
+
+func main() {
+	buf := make([]byte, 10000)
+	s1 := string(buf)
+	s2 := string(buf)
+	_ = s1 == s2
+	_ = s1 < s2
+	_ = s1 <= s2
+	_ = s1 > s2
+	_ = s1 >= s2
+}
+
+-- gnomod.toml --
+module = "gno.test/r/integ/gas_string_cmp"
+gno = "0.9"

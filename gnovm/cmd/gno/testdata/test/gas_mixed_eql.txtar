@@ -1,0 +1,59 @@
+# Test gas metering for arrays of strings and switch-case matching.
+# Arrays of strings exercise both per-element and per-byte gas charging.
+# Switch-case matching exercises the doOpSwitchClauseCase code path.
+
+gno test -v .
+
+stderr '--- PASS: ./small_array_string_filetest.gno \(elapsed: \d+\.\d\ds, gas: 6347\)'
+stderr '--- PASS: ./large_array_string_filetest.gno \(elapsed: \d+\.\d\ds, gas: 813367\)'
+stderr '--- PASS: ./switch_case_filetest.gno \(elapsed: \d+\.\d\ds, gas: 175762\)'
+
+-- pkg.gno --
+package gas_mixed_eql
+
+-- small_array_string_filetest.gno --
+// MAXALLOC: 500000000
+package main
+
+func main() {
+	a1 := [2]string{"a", "b"}
+	a2 := [2]string{"a", "b"}
+	_ = a1 == a2
+}
+
+-- large_array_string_filetest.gno --
+// MAXALLOC: 500000000
+package main
+
+func main() {
+	buf := make([]byte, 500)
+	s := string(buf)
+	a1 := [10]string{s, s, s, s, s, s, s, s, s, s}
+	a2 := [10]string{s, s, s, s, s, s, s, s, s, s}
+	_ = a1 == a2
+}
+
+-- switch_case_filetest.gno --
+// MAXALLOC: 500000000
+package main
+
+func main() {
+	buf := make([]byte, 1000)
+	s := string(buf)
+
+	switch s {
+	case "a":
+	case "b":
+	case string(buf):
+	}
+
+	a := [5]int{1, 2, 3, 4, 5}
+	switch a {
+	case [5]int{0, 0, 0, 0, 0}:
+	case [5]int{1, 2, 3, 4, 5}:
+	}
+}
+
+-- gnomod.toml --
+module = "gno.test/r/integ/gas_mixed_eql"
+gno = "0.9"

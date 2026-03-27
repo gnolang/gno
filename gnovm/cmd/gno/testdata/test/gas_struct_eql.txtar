@@ -1,0 +1,47 @@
+# Test per-field gas metering for struct equality comparisons.
+# Compares gas for a small struct vs a struct with a large string field.
+
+gno test -v .
+
+stderr '--- PASS: ./small_struct_filetest.gno \(elapsed: \d+\.\d\ds, gas: 6570\)'
+stderr '--- PASS: ./string_struct_filetest.gno \(elapsed: \d+\.\d\ds, gas: 171303\)'
+
+-- pkg.gno --
+package gas_struct_eql
+
+-- small_struct_filetest.gno --
+// MAXALLOC: 500000000
+package main
+
+type Point struct {
+	X int
+	Y int
+	Z int
+}
+
+func main() {
+	p1 := Point{1, 2, 3}
+	p2 := Point{1, 2, 3}
+	_ = p1 == p2
+}
+
+-- string_struct_filetest.gno --
+// MAXALLOC: 500000000
+package main
+
+type Named struct {
+	Name string
+	Age  int
+}
+
+func main() {
+	buf := make([]byte, 1000)
+	s := string(buf)
+	n1 := Named{s, 42}
+	n2 := Named{s, 42}
+	_ = n1 == n2
+}
+
+-- gnomod.toml --
+module = "gno.test/r/integ/gas_struct_eql"
+gno = "0.9"
