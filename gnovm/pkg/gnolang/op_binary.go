@@ -361,15 +361,13 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		// Charge gas proportional to string length, since Go's == on
-		// strings is O(N). Use the longer of the two lengths; equal
-		// strings force a full scan, and Go may early-exit on
-		// length mismatch but we charge conservatively.
-		slen := int64(len(ls))
-		if int64(len(rs)) > slen {
-			slen = int64(len(rs))
+		if len(ls) != len(rs) {
+			return false
 		}
-		m.incrCPU(slen * OpCPUEql)
+		
+		// Charge gas proportional to string length, since Go's == on
+		// strings is O(N).
+		m.incrCPU(int64(len(ls)) * OpCPUEql)
 		return ls == rs
 	case IntKind:
 		return (lv.GetInt() == rv.GetInt())
@@ -498,11 +496,7 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		slen := int64(len(ls))
-		if int64(len(rs)) > slen {
-			slen = int64(len(rs))
-		}
-		m.incrCPU(slen * OpCPULss)
+		m.incrCPU(int64(min(len(ls), len(rs)) * OpCPULss)
 		return ls < rs
 	case IntKind:
 		return (lv.GetInt() < rv.GetInt())
