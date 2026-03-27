@@ -22,10 +22,14 @@ If you are interested in contributing to Gno.land, you can jump in on our
 [GitHub monorepo](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md)
 \- where most development happens.
 
-A good place to start are the issues tagged
-["good first issue"](https://github.com/gnolang/gno/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22).
-They should allow you to make some impact on the Gno repository while you're
-still exploring the details of how everything works.
+### Resources for contributors
+
+- [Write Gno in the browser](https://play.gno.land)
+- [Read about the Gno Language](/gnolang)
+- [Visit the official documentation](https://docs.gno.land)
+- [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
+- [Get testnet GNOTs](https://faucet.gno.land)
+- [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 
 ## Gno Bounties
 
