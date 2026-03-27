@@ -63,12 +63,12 @@ func execCaptcha(ctx context.Context, cfg *captchaCfg, io commands.IO) error {
 	}
 
 	// Start the IP throttler
-	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+	st := newIPThrottler(cfg.rootCfg.rateLimitInterval, cfg.rootCfg.rateLimitCleanTimeout)
 	st.start(ctx)
 
 	// Prepare the middlewares
 	httpMiddlewares := []func(http.Handler) http.Handler{
-		ipMiddleware(cfg.rootCfg.isBehindProxy, st),
+		ipMiddleware(logger, cfg.rootCfg.trustedProxyCount, st),
 	}
 
 	rpcMiddlewares := []faucet.Middleware{
