@@ -625,34 +625,29 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	// Phase 2: Build reverse-dep index and unsatisfied counts, then use a
 	// min-heap to always pick the earliest-in-declaration-order ready entry.
 
-	type pendingInitDecl struct {
-		fn   *FileNode
-		decl Decl
-	}
-
 	// Build ordered pending list from all non-FuncDecl decls, preserving source
-	// declaration order.
-	var pending []pendingInitDecl
-	var allDecls []Decl
+	// declaration order. declFiles tracks which FileNode each decl belongs to.
+	var pending []Decl
+	var declFiles []*FileNode
 	for _, fn := range fns {
 		for _, decl := range fn.Decls {
 			if _, ok := decl.(*FuncDecl); ok {
 				continue
 			}
-			pending = append(pending, pendingInitDecl{fn, decl})
-			allDecls = append(allDecls, decl)
+			pending = append(pending, decl)
+			declFiles = append(declFiles, fn)
 		}
 	}
 
 	// Compute effective deps for all decls at once (memoized DFS, O(V+E)).
-	effectiveDeps := resolveEffectiveDeps(allDecls, pn, fdeclared)
+	effectiveDeps := resolveEffectiveDeps(pending, pn, fdeclared)
 
 	// Build reverse deps and unsatisfied counts. reverseDeps maps a ValueDecl
 	// to the indices of pending entries that depend on it.
 	unsatisfied := make([]int, len(pending))
 	reverseDeps := map[*ValueDecl][]int{}
-	for i, pd := range pending {
-		deps := effectiveDeps[pd.decl]
+	for i, decl := range pending {
+		deps := effectiveDeps[decl]
 		unsatisfied[i] = len(deps)
 		for _, dep := range deps {
 			reverseDeps[dep] = append(reverseDeps[dep], i)
@@ -670,16 +665,16 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	// Kahn's loop: always pop the earliest-in-declaration-order ready entry.
 	for ready.Len() > 0 {
 		idx := heap.Pop(ready).(int)
-		pd := pending[idx]
-		fb := pv.GetFileBlock(m.Store, pd.fn.FileName)
+		decl := pending[idx]
+		fb := pv.GetFileBlock(m.Store, declFiles[idx].FileName)
 		m.PushBlock(fb)
-		m.runDeclaration(pd.decl)
+		m.runDeclaration(decl)
 		m.PopBlock()
-		for _, n := range pd.decl.GetDeclNames() {
+		for _, n := range decl.GetDeclNames() {
 			fdeclared[n] = struct{}{}
 		}
 		// Notify dependents; enqueue newly-ready ones.
-		if vd, ok := pd.decl.(*ValueDecl); ok {
+		if vd, ok := decl.(*ValueDecl); ok {
 			for _, depIdx := range reverseDeps[vd] {
 				unsatisfied[depIdx]--
 				if unsatisfied[depIdx] == 0 {
