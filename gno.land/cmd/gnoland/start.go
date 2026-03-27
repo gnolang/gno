@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -58,6 +59,8 @@ type startCfg struct {
 	logLevel   string
 	logFormat  string
 	earlyStart bool
+
+	migrate bool // run in-place block-replay migration before starting
 }
 
 func newStartCmd(io commands.IO) *commands.Command {
@@ -171,6 +174,14 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"[experimental] start RPC and P2P before genesis time, deferring only consensus",
 	)
+
+	fs.BoolVar(
+		&c.migrate,
+		"migrate",
+		false,
+		"run an in-place block-replay migration before starting the node; "+
+			"replays all historical blocks with the current binary to rebuild the app state",
+	)
 }
 
 func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
@@ -253,6 +264,36 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 
 	// Create a top-level shared event switch
 	evsw := events.NewEventSwitch()
+
+	// Run in-place block-replay migration if requested.
+	// This must happen before the app is started so the migration can replace
+	// the application database while no one holds it open.
+	if c.migrate {
+		migCfg := gnoland.MigrationConfig{
+			DataRootDir: nodeDir,
+			GenesisPath: genesisPath,
+			DBBackend:   dbm.BackendType(cfg.DBBackend),
+			NewApp: func(db dbm.DB) (abci.Application, error) {
+				appOpts := &gnoland.AppOptions{
+					DB:          db,
+					Logger:      logger,
+					EventSwitch: evsw,
+					InitChainerConfig: gnoland.InitChainerConfig{
+						GenesisTxResultHandler: gnoland.PanicOnFailingTxResultHandler,
+						StdlibDir:              filepath.Join(c.gnoRootDir, "gnovm", "stdlibs"),
+					},
+					MinGasPrices:               cfg.Application.MinGasPrices,
+					SkipGenesisSigVerification: c.skipGenesisSigVerification,
+					PruneStrategy:              cfg.Application.PruneStrategy,
+				}
+				return gnoland.NewAppWithOptions(appOpts)
+			},
+			Logger: logger,
+		}
+		if err := gnoland.RunInPlaceMigration(migCfg); err != nil {
+			return fmt.Errorf("in-place migration failed: %w", err)
+		}
+	}
 
 	// Create application and node
 	cfg.LocalApp, err = gnoland.NewApp(
