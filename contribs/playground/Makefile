@@ -19,7 +19,8 @@ build-wasm:
 build-rootzip:
 	@mkdir -p $(TOOLS_DATA)/gno
 	@cd $(GNOVM_DIR)/.. && go run ./gnovm/cmd/gno env GNOROOT | xargs -I{} sh -c \
-		'cd {} && zip -r - stdlibs' > $(CURDIR)/$(ROOTZIP_OUT)
+		'cd {} && zip -r -i "*.toml" -i "*.gno" -x "*_test.gno" - gnovm/stdlibs gnovm/tests/stdlibs examples' \
+		> $(CURDIR)/$(ROOTZIP_OUT)
 
 # Download WASM and root.zip from a GitHub release tag
 download-release:
