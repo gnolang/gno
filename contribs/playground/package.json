@@ -4,10 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm -C app dev",
-    "build": "pnpm -C app build",
-    "build:wasm": "pnpm -C packages/wasm build",
-    "build:core": "pnpm -C packages/core build",
-    "build:codemirror-lsp": "pnpm -C packages/codemirror-lsp build",
+    "build": "pnpm build:packages && pnpm build:app",
+    "build:app": "pnpm -C app build",
+    "build:packages": "pnpm -r -C packages build",
     "lint": "pnpm -C app lint",
     "preview": "pnpm -C app preview"
   },
