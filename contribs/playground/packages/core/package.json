@@ -7,7 +7,6 @@
     "dist",
     "src/stores/terminal/terminal.css"
   ],
-  "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
     "./config": "./src/config/index.ts",
@@ -23,24 +22,23 @@
     "test": "vitest --watch=false"
   },
   "dependencies": {
-    "@adena-wallet/sdk": "^0.0.12",
-    "@codemirror/autocomplete": "^6.18.6",
+    "@adena-wallet/sdk": "catalog:",
+    "@codemirror/autocomplete": "catalog:",
     "@codemirror/commands": "^6.1.0",
-    "@codemirror/lang-go": "^6.0.1",
-    "@codemirror/language": "^6.11.2",
+    "@codemirror/lang-go": "catalog:",
+    "@codemirror/language": "catalog:",
     "@codemirror/legacy-modes": "^6.4.0",
-    "@codemirror/lint": "^6.8.5",
+    "@codemirror/lint": "catalog:",
     "@codemirror/search": ">=6.0.0",
-    "@codemirror/state": "^6.5.2",
-    "@codemirror/view": "^6.38.0",
+    "@codemirror/state": "catalog:",
+    "@codemirror/view": "catalog:",
     "@cosmjs/crypto": "^0.32.3",
-    "@gnoide/files": "^0.3.50",
-
+    "@gnoide/files": "workspace:*",
     "@gnolang/gno-js-client": "^1.4.4",
     "@gnolang/tm2-js-client": "^1.3.3",
     "@gnostudio/codemirror-lsp": "workspace:*",
     "@gnostudio/wasm": "workspace:*",
-    "@lezer/highlight": "^1.2.1",
+    "@lezer/highlight": "catalog:",
     "@protobuf-ts/grpcweb-transport": "^2.9.1",
     "@protobuf-ts/runtime": "2.9.4",
     "@replit/codemirror-emacs": "^6.0.1",
@@ -52,25 +50,25 @@
     "@xterm/xterm": "^5.5.0",
     "bignumber.js": "^9.3.0",
     "dayjs": "^1.11.10",
-    "elegant-spinner": "^3.0.0",
+    "elegant-spinner": "catalog:",
     "fflate": "^0.8.0",
-    "mobx": "^6.13.7",
-    "mobx-state-tree": "^7.0.2",
+    "mobx": "catalog:",
+    "mobx-state-tree": "catalog:",
     "monaco-emacs": "^0.3.0",
     "monaco-vim": "^0.4.0",
-    "mst-persist": "^0.1.4",
-    "react-icons": "^5.0.1"
+    "mst-persist": "catalog:",
+    "react-icons": "catalog:"
   },
   "peerDependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
     "@bufbuild/protobuf": "^2.2.4",
     "@lezer/common": "^1.2.1",
-    "@types/react": "^18.3.5",
-    "@types/react-dom": "^18.3.0",
-    "tsup": "^8.5.0",
-    "vitest": "^3.2.4"
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "tsup": "catalog:",
+    "vitest": "catalog:"
   }
 }

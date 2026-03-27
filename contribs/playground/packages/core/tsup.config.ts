@@ -2,7 +2,7 @@ import { resolve } from 'path'
 import { defineConfig } from 'tsup'
 
 export default defineConfig((options) => ({
-  entry: ['src/**/*.ts(x)?', '!src/**/*.test.ts'],
+  entry: ['src/**/*.ts(x)?', '!src/**/*.test.ts', '!src/**/*.d.ts'],
   splitting: false,
   bundle: false,
   sourcemap: true,

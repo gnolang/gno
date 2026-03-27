@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@adena-wallet/sdk':
+      specifier: ^0.0.12
+      version: 0.0.12
     '@codemirror/autocomplete':
       specifier: ^6.18.6
       version: 6.20.1
@@ -27,6 +30,12 @@ catalogs:
     '@lezer/highlight':
       specifier: ^1.2.1
       version: 1.2.3
+    '@types/react':
+      specifier: ^18.3.5
+      version: 18.3.28
+    '@types/react-dom':
+      specifier: ^18.3.0
+      version: 18.3.7
     '@vitejs/plugin-react-swc':
       specifier: ^3.6.0
       version: 3.11.0
@@ -36,12 +45,27 @@ catalogs:
     comlink:
       specifier: ^4.4.1
       version: 4.4.2
+    elegant-spinner:
+      specifier: ^3.0.0
+      version: 3.0.0
     mobx:
       specifier: ^6.13.7
       version: 6.15.0
+    mobx-state-tree:
+      specifier: ^7.0.2
+      version: 7.1.0
+    mst-persist:
+      specifier: ^0.1.4
+      version: 0.1.4
     react-dom:
       specifier: ^18.3.1
       version: 18.3.1
+    react-icons:
+      specifier: ^5.0.1
+      version: 5.6.0
+    tsup:
+      specifier: ^8.5.0
+      version: 8.5.1
     typescript:
       specifier: ^5.8.3
       version: 5.9.3
@@ -54,6 +78,9 @@ catalogs:
     vite-plugin-node-polyfills:
       specifier: ^0.23.0
       version: 0.23.1
+    vitest:
+      specifier: ^3.2.4
+      version: 3.2.4
     vscode-languageserver-protocol:
       specifier: ^3.16.0
       version: 3.17.5
@@ -252,41 +279,41 @@ importers:
   packages/core:
     dependencies:
       '@adena-wallet/sdk':
-        specifier: ^0.0.12
+        specifier: 'catalog:'
         version: 0.0.12(@babel/runtime@7.29.2)
       '@codemirror/autocomplete':
-        specifier: ^6.18.6
+        specifier: 'catalog:'
         version: 6.20.1
       '@codemirror/commands':
         specifier: ^6.1.0
         version: 6.10.3
       '@codemirror/lang-go':
-        specifier: ^6.0.1
+        specifier: 'catalog:'
         version: 6.0.1
       '@codemirror/language':
-        specifier: ^6.11.2
+        specifier: 'catalog:'
         version: 6.12.3
       '@codemirror/legacy-modes':
         specifier: ^6.4.0
         version: 6.5.2
       '@codemirror/lint':
-        specifier: ^6.8.5
+        specifier: 'catalog:'
         version: 6.9.5
       '@codemirror/search':
         specifier: '>=6.0.0'
         version: 6.6.0
       '@codemirror/state':
-        specifier: ^6.5.2
+        specifier: 'catalog:'
         version: 6.6.0
       '@codemirror/view':
-        specifier: ^6.38.0
+        specifier: 'catalog:'
         version: 6.40.0
       '@cosmjs/crypto':
         specifier: ^0.32.3
         version: 0.32.4
       '@gnoide/files':
-        specifier: ^0.3.50
-        version: 0.3.50
+        specifier: workspace:*
+        version: link:../files
       '@gnolang/gno-js-client':
         specifier: ^1.4.4
         version: 1.4.5
@@ -300,7 +327,7 @@ importers:
         specifier: workspace:*
         version: link:../wasm
       '@lezer/highlight':
-        specifier: ^1.2.1
+        specifier: 'catalog:'
         version: 1.2.3
       '@protobuf-ts/grpcweb-transport':
         specifier: ^2.9.1
@@ -336,16 +363,16 @@ importers:
         specifier: ^1.11.10
         version: 1.11.20
       elegant-spinner:
-        specifier: ^3.0.0
+        specifier: 'catalog:'
         version: 3.0.0
       fflate:
         specifier: ^0.8.0
         version: 0.8.2
       mobx:
-        specifier: ^6.13.7
+        specifier: 'catalog:'
         version: 6.15.0
       mobx-state-tree:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.1.0(mobx@6.15.0)(typescript@5.9.3)
       monaco-emacs:
         specifier: ^0.3.0
@@ -354,16 +381,16 @@ importers:
         specifier: ^0.4.0
         version: 0.4.4(monaco-editor@0.55.1)
       mst-persist:
-        specifier: ^0.1.4
+        specifier: 'catalog:'
         version: 0.1.4(mobx-state-tree@7.1.0(mobx@6.15.0)(typescript@5.9.3))
       react:
         specifier: 18.3.1
         version: 18.3.1
       react-dom:
-        specifier: ^18.3.1
+        specifier: 'catalog:'
         version: 18.3.1(react@18.3.1)
       react-icons:
-        specifier: ^5.0.1
+        specifier: 'catalog:'
         version: 5.6.0(react@18.3.1)
     devDependencies:
       '@bufbuild/protobuf':
@@ -373,17 +400,19 @@ importers:
         specifier: ^1.2.1
         version: 1.5.1
       '@types/react':
-        specifier: ^18.3.5
+        specifier: 'catalog:'
         version: 18.3.28
       '@types/react-dom':
-        specifier: ^18.3.0
+        specifier: 'catalog:'
         version: 18.3.7(@types/react@18.3.28)
       tsup:
-        specifier: ^8.5.0
+        specifier: 'catalog:'
         version: 8.5.1(@microsoft/api-extractor@7.57.7(@types/node@22.19.15))(@swc/core@1.11.24(@swc/helpers@0.5.20))(postcss@8.5.8)(typescript@5.9.3)
       vitest:
-        specifier: ^3.2.4
+        specifier: 'catalog:'
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.15)(lightningcss@1.23.0)(terser@5.46.1)
+
+  packages/files: {}
 
   packages/pkg:
     dependencies:
@@ -6469,7 +6498,7 @@ snapshots:
 
   '@scure/bip32@1.7.0':
     dependencies:
-      '@noble/curves': 1.9.4
+      '@noble/curves': 1.9.7
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
 
