@@ -2020,8 +2020,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 										// SPECIAL CASE: 'make' variadic arguments are untyped sizes
 										// that must default to 'int' if no type is explicitly provided.
-										if isBuiltinMake && isUntyped(evalStaticTypeOf(store, last, n.Args[i])) {
-											expectedType = IntType
+										if isBuiltinMake {
+											at := evalStaticTypeOf(store, last, n.Args[i])
+											switch {
+											case isUntyped(at):
+												expectedType = IntType
+											case !isInteger2(at):
+												panic(fmt.Sprintf("invalid argument: index %v (variable of type %v) must be integer", n.Args[i], at))
+											}
 										}
 
 										checkOrConvertType(store, last, n, &n.Args[i], expectedType)
