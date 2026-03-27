@@ -27,12 +27,11 @@ import (
 // If opts.Sync is enabled, and the filetest's golden output has changed,
 // the first string is set to the new generated content of the file.
 // Before the filetest is run it will be type-checked.
-func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store) (string, types.Gas, error) {
+func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store) (string, types.Gas, map[string]int64, error) {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
 	tcheck := true // Go type-check filetests in test/files.
-	changed, gas, _, err := opts.runFiletest(fname, source, tgs, tcheck)
-	return changed, gas, err
+	return opts.runFiletest(fname, source, tgs, tcheck)
 }
 
 // tcheck: only set to false pkg/test.Test(), since `gno test`
