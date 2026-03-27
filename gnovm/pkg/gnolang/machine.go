@@ -1164,6 +1164,7 @@ const (
 	OpCPUBandn = 15
 
 	/* Per-unit scaling costs (multiplied by size) */
+	// TODO: OpCPUCmpPerByte is an arbitrary number; needs benchmarking.
 	OpCPUCmpPerByte = 1 // per-byte cost for string comparisons (hardware-optimized memcmp)
 
 	/* Other expression operators */
