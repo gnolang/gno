@@ -182,12 +182,6 @@ func checkVersionGap(cfg *MakeAddPkgCfg, io commands.IO) error {
 		return nil // not a versioned path or first version — nothing to check
 	}
 
-	// Use short name for messages (e.g. "versiontest/v3" instead of full path).
-	shortName := basePath
-	if idx := strings.LastIndex(basePath, "/"); idx >= 0 {
-		shortName = basePath[idx+1:]
-	}
-
 	remote := cfg.RootCfg.RootCfg.Remote
 	if remote == "" {
 		return nil // no remote configured — skip check
@@ -204,15 +198,7 @@ func checkVersionGap(cfg *MakeAddPkgCfg, io commands.IO) error {
 	}
 
 	if qres.Response.Error != nil {
-		// No versions found on-chain — warn about deploying without predecessor.
-		io.ErrPrintfln("Warning: deploying %s/v%d but no previous versions exist on-chain.", shortName, version)
-		if version > maxVersionGap && !cfg.Force {
-			return fmt.Errorf(
-				"version gap too large: deploying v%d but no versions exist on-chain (gap: %d, max allowed: %d). Use --force to override",
-				version, version, maxVersionGap,
-			)
-		}
-		return nil
+		return evalVersionGap(basePath, version, nil, cfg.Force, io)
 	}
 
 	var result vm.LatestVersionResult
@@ -220,29 +206,59 @@ func checkVersionGap(cfg *MakeAddPkgCfg, io commands.IO) error {
 		return nil // silently skip on parse errors
 	}
 
-	// Extract the latest version number from the result (e.g. "v3" -> 3).
-	latestStr := result.Latest
-	if len(latestStr) > 0 && latestStr[0] == 'v' {
-		latestStr = latestStr[1:]
-	}
-	latestVersion, err := strconv.Atoi(latestStr)
-	if err != nil {
-		return nil // silently skip on parse errors
+	return evalVersionGap(basePath, version, &result, cfg.Force, io)
+}
+
+// evalVersionGap evaluates whether to warn or block based on the version being
+// deployed and the on-chain state. If result is nil, no versions exist on-chain.
+func evalVersionGap(basePath string, version int, result *vm.LatestVersionResult, force bool, io commands.IO) error {
+	shortName := basePath
+	if idx := strings.LastIndex(basePath, "/"); idx >= 0 {
+		shortName = basePath[idx+1:]
 	}
 
-	// Warn if deploying a version whose predecessor is missing.
-	if version-1 > latestVersion {
+	// Determine gap from latest on-chain version.
+	var latestVersion int
+	if result != nil {
+		latestStr := result.Latest
+		if len(latestStr) > 0 && latestStr[0] == 'v' {
+			latestStr = latestStr[1:]
+		}
+		var err error
+		latestVersion, err = strconv.Atoi(latestStr)
+		if err != nil {
+			return nil // silently skip on parse errors
+		}
+	} else {
+		latestVersion = -1
+	}
+
+	gap := version - latestVersion
+	if gap <= 1 {
+		return nil // sequential — nothing to warn about
+	}
+
+	// Warn about missing predecessor.
+	if result == nil {
+		io.ErrPrintfln("Warning: deploying %s/v%d but no previous versions exist on-chain.", shortName, version)
+	} else {
 		io.ErrPrintfln("Warning: deploying %s/v%d but %s/v%d does not exist on-chain (latest: %s).", shortName, version, shortName, version-1, result.Latest)
 	}
 
 	// Block if the gap is too large (unless --force is set).
-	gap := version - latestVersion
-	if gap > maxVersionGap && !cfg.Force {
+	if gap > maxVersionGap && !force {
 		return fmt.Errorf(
 			"version gap too large: deploying v%d but latest on-chain is %s (gap: %d, max allowed: %d). Use --force to override",
-			version, result.Latest, gap, maxVersionGap,
+			version, latestDisplay(result), gap, maxVersionGap,
 		)
 	}
 
 	return nil
+}
+
+func latestDisplay(result *vm.LatestVersionResult) string {
+	if result == nil {
+		return "none"
+	}
+	return result.Latest
 }
