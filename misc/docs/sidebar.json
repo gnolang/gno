@@ -24,6 +24,7 @@
           "builders/example-minisocial-dapp",
           "builders/deploy-packages",
           "builders/connect-clients-and-apps",
+          "builders/stress-testing-with-supernova",
           "builders/become-a-gnome"
         ]
       },

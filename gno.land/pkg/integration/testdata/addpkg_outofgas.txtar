@@ -4,7 +4,7 @@
 gnoland start
 
 # add foo package
-gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 350000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test test1
 
 
 # add bar package - out of gas at store.GetPackage() with gas 60000

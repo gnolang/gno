@@ -276,7 +276,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 
 	case DataChannel:
 		if conR.FastSync() {
-			conR.Logger.Info("Ignoring message received during fastSync", "msg", msg)
+			conR.Logger.Debug("Ignoring message received during fastSync", "msg", msg)
 			return
 		}
 		switch msg := msg.(type) {
@@ -294,7 +294,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 
 	case VoteChannel:
 		if conR.FastSync() {
-			conR.Logger.Info("Ignoring message received during fastSync", "msg", msg)
+			conR.Logger.Debug("Ignoring message received during fastSync", "msg", msg)
 			return
 		}
 		switch msg := msg.(type) {
@@ -316,7 +316,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 
 	case VoteSetBitsChannel:
 		if conR.FastSync() {
-			conR.Logger.Info("Ignoring message received during fastSync", "msg", msg)
+			conR.Logger.Debug("Ignoring message received during fastSync", "msg", msg)
 			return
 		}
 		switch msg := msg.(type) {

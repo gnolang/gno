@@ -6,7 +6,7 @@ import (
 	"chain/runtime"
 
 	ptests "gno.land/p/demo/tests"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	rtests "gno.land/r/tests/vm"
 )
 
