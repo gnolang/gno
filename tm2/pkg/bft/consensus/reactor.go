@@ -824,56 +824,47 @@ func (conR *ConsensusReactor) peerStatsRoutine() {
 			conR.Logger.Info("Stopping peerStatsRoutine")
 			return
 		}
-		quit := func() bool {
-			defer func() {
-				if r := recover(); r != nil {
-					conR.Logger.Error("Recovered from panic in peerStatsRoutine",
-						"err", r, "stack", string(debug.Stack()))
-				}
-			}()
 
-			select {
-			case msg := <-conR.conS.statsMsgQueue:
-				// Get peer
-				peer := conR.Switch.Peers().Get(msg.PeerID)
-				if peer == nil {
-					conR.Logger.Debug("Attempt to update stats for non-existent peer",
-						"peer", msg.PeerID)
-					return false
-				}
-				// Get peer state
-				ps, ok := peer.Get(types.PeerStateKey).(*PeerState)
-				if !ok {
-					conR.Logger.Error("Peer has no state", "peer", peer)
-					return false
-				}
-				switch msg.Msg.(type) {
-				case *VoteMessage:
-					ps.RecordVote()
-
-					// votesToContributeToBecomeGoodPeer  = 10000
-					// if numVotes := ps.RecordVote(); numVotes%votesToContributeToBecomeGoodPeer == 0 {
-					// 	// TODO: peer metrics.
-					// 	// conR.MultiplexSwitch.MarkPeerAsGood(peer)
-					// }
-				case *BlockPartMessage:
-					ps.RecordBlockPart()
-					// blocksToContributeToBecomeGoodPeer = 10000
-					// if numParts := ps.RecordBlockPart(); numParts%blocksToContributeToBecomeGoodPeer == 0 {
-					// 	// TODO: peer metrics.
-					// 	// conR.MultiplexSwitch.MarkPeerAsGood(peer)
-					// }
-				}
-			case <-conR.conS.Quit():
-				return true
-
-			case <-conR.Quit():
-				return true
+		select {
+		case msg := <-conR.conS.statsMsgQueue:
+			if conR.Switch == nil {
+				conR.Logger.Error("Switch is nil in peerStatsRoutine")
+				return
 			}
-			return false
-		}()
+			// Get peer
+			peer := conR.Switch.Peers().Get(msg.PeerID)
+			if peer == nil {
+				conR.Logger.Debug("Attempt to update stats for non-existent peer",
+					"peer", msg.PeerID)
+				continue
+			}
+			// Get peer state
+			ps, ok := peer.Get(types.PeerStateKey).(*PeerState)
+			if !ok {
+				conR.Logger.Error("Peer has no state", "peer", peer)
+				continue
+			}
+			switch msg.Msg.(type) {
+			case *VoteMessage:
+				ps.RecordVote()
 
-		if quit {
+				// votesToContributeToBecomeGoodPeer  = 10000
+				// if numVotes := ps.RecordVote(); numVotes%votesToContributeToBecomeGoodPeer == 0 {
+				// 	// TODO: peer metrics.
+				// 	// conR.MultiplexSwitch.MarkPeerAsGood(peer)
+				// }
+			case *BlockPartMessage:
+				ps.RecordBlockPart()
+				// blocksToContributeToBecomeGoodPeer = 10000
+				// if numParts := ps.RecordBlockPart(); numParts%blocksToContributeToBecomeGoodPeer == 0 {
+				// 	// TODO: peer metrics.
+				// 	// conR.MultiplexSwitch.MarkPeerAsGood(peer)
+				// }
+			}
+		case <-conR.conS.Quit():
+			return
+
+		case <-conR.Quit():
 			return
 		}
 	}
