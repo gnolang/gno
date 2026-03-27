@@ -7,6 +7,7 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 // ----------------------------------------
@@ -364,10 +365,9 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 		if len(ls) != len(rs) {
 			return false
 		}
-		
 		// Charge gas proportional to string length, since Go's == on
 		// strings is O(N).
-		m.incrCPU(int64(len(ls)) * OpCPUEql)
+		m.incrCPU(overflow.Mulp(int64(len(ls)), OpCPUEql))
 		return ls == rs
 	case IntKind:
 		return (lv.GetInt() == rv.GetInt())
@@ -496,7 +496,7 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(int64(min(len(ls), len(rs)) * OpCPULss)
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPULss))
 		return ls < rs
 	case IntKind:
 		return (lv.GetInt() < rv.GetInt())
@@ -543,11 +543,7 @@ func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		slen := int64(len(ls))
-		if int64(len(rs)) > slen {
-			slen = int64(len(rs))
-		}
-		m.incrCPU(slen * OpCPULeq)
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPULeq))
 		return ls <= rs
 	case IntKind:
 		return (lv.GetInt() <= rv.GetInt())
@@ -594,11 +590,7 @@ func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		slen := int64(len(ls))
-		if int64(len(rs)) > slen {
-			slen = int64(len(rs))
-		}
-		m.incrCPU(slen * OpCPUGtr)
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUGtr))
 		return ls > rs
 	case IntKind:
 		return (lv.GetInt() > rv.GetInt())
@@ -645,11 +637,7 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		slen := int64(len(ls))
-		if int64(len(rs)) > slen {
-			slen = int64(len(rs))
-		}
-		m.incrCPU(slen * OpCPUGeq)
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUGeq))
 		return ls >= rs
 	case IntKind:
 		return (lv.GetInt() >= rv.GetInt())
