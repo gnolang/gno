@@ -13,20 +13,28 @@ catalog:
   '@codemirror/state': ^6.5.2
   '@codemirror/view': ^6.38.0
   '@lezer/highlight': ^1.2.1
+  '@pandacss/dev': ^0.32.1
+  '@tanstack/react-query': ^5.12.2
   '@types/react': ^18.3.5
   '@types/react-dom': ^18.3.0
+  '@types/react-helmet': ^6.1.11
   '@vitejs/plugin-react': ^4.6.0
   '@vitejs/plugin-react-swc': ^3.6.0
   browserfs: v2.0.0
   comlink: ^4.4.1
   elegant-spinner: ^3.0.0
+  eslint: ^9.29.0
   mobx: ^6.13.7
   mobx-react-lite: ^4.1.0
   mobx-state-tree: ^7.0.2
   mst-persist: ^0.1.4
+  qs: ^6.14.0
   react: ^18.3.1
   react-dom: ^18.3.1
+  react-helmet: ^6.1.0
+  react-hook-form: ^7.49.3
   react-icons: ^5.0.1
+  react-router-dom: ^6.20.1
   tsup: ^8.5.0
   typescript: ^5.8.3
   vite: ^7.0.0
