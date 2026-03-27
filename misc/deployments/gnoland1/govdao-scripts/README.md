@@ -10,4 +10,5 @@ All scripts default to `GNOKEY_NAME=moul`, `CHAIN_ID=gnoland1`, and `REMOTE=http
 ./rm-validator.sh ADDR                       # remove a validator
 ./extend-govdao-t1.sh                       # add 6 T1 members to govDAO (one-time bootstrap)
 ./unrestrict-account.sh ADDR [ADDR...]      # allow address(es) to transfer ugnot
+./set-valoper-price-zero.sh                 # set r/gnops/valopers registration fee to 0
 ```
