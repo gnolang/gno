@@ -61,7 +61,13 @@ class GnoVMWasmStore {
   }
 
   private getWasmUrl(_version: string) {
-    return import.meta.env.VITE_GNOVM_WASM_URL ?? gnoWasmUrl
+    if (!!import.meta.env.VITE_GNOVM_WASM_URL) {
+      return import.meta.env.VITE_GNOVM_WASM_URL
+    }
+
+    const baseUrl = new URL(import.meta.url).origin
+    const url = new URL(gnoWasmUrl, baseUrl)
+    return url.toString()
   }
 }
 
