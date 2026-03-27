@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -181,6 +182,12 @@ func checkVersionGap(cfg *MakeAddPkgCfg, io commands.IO) error {
 		return nil // not a versioned path or first version — nothing to check
 	}
 
+	// Use short name for messages (e.g. "versiontest/v3" instead of full path).
+	shortName := basePath
+	if idx := strings.LastIndex(basePath, "/"); idx >= 0 {
+		shortName = basePath[idx+1:]
+	}
+
 	remote := cfg.RootCfg.RootCfg.Remote
 	if remote == "" {
 		return nil // no remote configured — skip check
@@ -198,7 +205,7 @@ func checkVersionGap(cfg *MakeAddPkgCfg, io commands.IO) error {
 
 	if qres.Response.Error != nil {
 		// No versions found on-chain — warn about deploying without predecessor.
-		io.ErrPrintfln("Warning: deploying %s but no previous versions of %s exist on-chain.", cfg.PkgPath, basePath)
+		io.ErrPrintfln("Warning: deploying %s/v%d but no previous versions exist on-chain.", shortName, version)
 		if version > maxVersionGap && !cfg.Force {
 			return fmt.Errorf(
 				"version gap too large: deploying v%d but no versions exist on-chain (gap: %d, max allowed: %d). Use --force to override",
@@ -224,9 +231,8 @@ func checkVersionGap(cfg *MakeAddPkgCfg, io commands.IO) error {
 	}
 
 	// Warn if deploying a version whose predecessor is missing.
-	prevPath := basePath + "/v" + strconv.Itoa(version-1)
 	if version-1 > latestVersion {
-		io.ErrPrintfln("Warning: deploying %s but %s does not exist on-chain (latest: %s).", cfg.PkgPath, prevPath, result.Latest)
+		io.ErrPrintfln("Warning: deploying %s/v%d but %s/v%d does not exist on-chain (latest: %s).", shortName, version, shortName, version-1, result.Latest)
 	}
 
 	// Block if the gap is too large (unless --force is set).
