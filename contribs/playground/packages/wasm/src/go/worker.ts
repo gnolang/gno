@@ -1,4 +1,4 @@
-import { BackendInmemory, KeyValueFileSystem } from '@gnostudio/pkg'
+import { BackendInmemory, BackendOverlayFS, KeyValueFileSystem } from '@gnostudio/pkg'
 
 import { join } from 'path'
 import type { FileSystem } from 'browserfs/dist/node/core/file_system'
@@ -119,7 +119,10 @@ export const worker: WorkerHandler = {
       packages: testableDirs,
     })
 
-    const workspaceFs = KeyValueFileSystem.fromObject(files, { stripRootSlash: true })
+    const workspaceFs = await BackendOverlayFS({
+      readable: KeyValueFileSystem.fromObject(files),
+      writable: await BackendInmemory(),
+    })
     const wasmFs = await createRootFs({
       workspaceFs,
       stdio: stdioFromPort(stdioPort, false),
