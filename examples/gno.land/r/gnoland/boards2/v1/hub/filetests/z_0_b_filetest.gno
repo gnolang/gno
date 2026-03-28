@@ -13,7 +13,7 @@ import (
 var boardID boards.ID
 
 func init() {
-	testing.SetRealm(testing.NewUserRealm("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"))
+	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
 	boardID = boards2.CreateBoard(cross, "test123", false, false)
 
 	// Invite member
@@ -54,6 +54,6 @@ func main() {
 // true
 // 1
 // 2
-// g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq
+// g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
 // 1234567890
 // 1234567890
