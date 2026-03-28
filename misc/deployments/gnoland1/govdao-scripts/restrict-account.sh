@@ -58,6 +58,10 @@ echo "Restricting $# account(s):"
 for addr in "$@"; do
   echo "  $addr"
 done
+echo "  Key: ${GNOKEY_NAME}"
+echo "  Chain: ${CHAIN_ID}"
+echo "  Remote: ${REMOTE}"
+echo ""
 
 gnokey maketx run \
   -gas-wanted "$GAS_WANTED" \

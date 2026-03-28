@@ -34,13 +34,24 @@ GAS_FEE="${GAS_FEE:-1000000ugnot}"
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | cut -d' ' -f1
+  else
+    echo "Error: no sha256 tool found (install coreutils or perl)" >&2
+    return 1
+  fi
+}
+
 if [ -z "$CLA_URL" ]; then
   CLA_HASH=""
   echo "Disabling CLA enforcement"
 else
   echo "Fetching CLA from: $CLA_URL"
   wget -q -O "$TMPDIR/cla.md" "$CLA_URL"
-  CLA_HASH=$(shasum -a 256 "$TMPDIR/cla.md" | cut -d' ' -f1)
+  CLA_HASH=$(sha256_file "$TMPDIR/cla.md")
   echo "  sha256: $CLA_HASH"
 fi
 
@@ -60,7 +71,11 @@ func main() {
 }
 GOEOF
 
+echo "  Key: ${GNOKEY_NAME}"
+echo "  Chain: ${CHAIN_ID}"
+echo "  Remote: ${REMOTE}"
 echo ""
+
 gnokey maketx run \
   -gas-wanted "$GAS_WANTED" \
   -gas-fee "$GAS_FEE" \
