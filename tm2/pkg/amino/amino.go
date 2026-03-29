@@ -458,6 +458,11 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 		return nil, errors.New("MarshalAny() requires non-nil argument")
 	}
 
+	// Try genproto2 fast path.
+	if pbm2, ok := o.(PBMessager2); ok {
+		return cdc.marshalAnyBinary2(pbm2)
+	}
+
 	// Dereference value if pointer.
 	rv, _, _ := maybeDerefValue(reflect.ValueOf(o))
 	rt := rv.Type()
@@ -485,6 +490,53 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 	bz := copyBytes(buf.Bytes())
 
 	return bz, nil
+}
+
+// marshalAnyBinary2 encodes a PBMessager2 value as google.protobuf.Any
+// using genproto2 for the inner value.
+func (cdc *Codec) marshalAnyBinary2(o PBMessager2) ([]byte, error) {
+	// Get concrete type for TypeURL.
+	rv := reflect.ValueOf(o)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	cinfo, err := cdc.getTypeInfoWLock(rv.Type())
+	if err != nil {
+		return nil, err
+	}
+	if !cinfo.Registered {
+		return nil, fmt.Errorf("cannot encode unregistered concrete type %v", rv.Type())
+	}
+
+	// Marshal inner value via genproto2.
+	valueBz, err := cdc.MarshalBinary2(o)
+	if err != nil {
+		return nil, err
+	}
+
+	// Construct Any envelope: field 1 = TypeURL, field 2 = Value.
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
+
+	// Field 1: TypeURL.
+	if err = encodeFieldNumberAndTyp3(buf, 1, Typ3ByteLength); err != nil {
+		return nil, err
+	}
+	if err = EncodeString(buf, cinfo.TypeURL); err != nil {
+		return nil, err
+	}
+
+	// Field 2: Value (omit if empty).
+	if len(valueBz) > 0 {
+		if err = encodeFieldNumberAndTyp3(buf, 2, Typ3ByteLength); err != nil {
+			return nil, err
+		}
+		if err = EncodeByteSlice(buf, valueBz); err != nil {
+			return nil, err
+		}
+	}
+
+	return copyBytes(buf.Bytes()), nil
 }
 
 func copyBytes(bz []byte) []byte {
@@ -769,6 +821,11 @@ func (cdc *Codec) UnmarshalAny(bz []byte, ptr any) (err error) {
 	}
 	rv = rv.Elem()
 
+	// Try genproto2 fast path.
+	if ok, err2 := cdc.unmarshalAnyBinary2(bz, rv); ok {
+		return err2
+	}
+
 	// Get interface *TypeInfo.
 	iinfo, err := cdc.getTypeInfoWLock(rv.Type())
 	if err != nil {
@@ -777,6 +834,79 @@ func (cdc *Codec) UnmarshalAny(bz []byte, ptr any) (err error) {
 
 	_, err = cdc.decodeReflectBinaryInterface(bz, iinfo, rv, FieldOptions{}, true)
 	return
+}
+
+// unmarshalAnyBinary2 attempts to decode an Any-wrapped value using genproto2.
+// Returns (true, err) if genproto2 was used, (false, nil) to fall through.
+func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error) {
+	// Parse Any envelope: field 1 = TypeURL, field 2 = Value.
+	if len(bz) == 0 {
+		return false, nil
+	}
+
+	// Read bare-encoded Any fields.
+	// Field 1: TypeURL.
+	fnum, typ, n, err := decodeFieldNumberAndTyp3(bz)
+	if err != nil {
+		return false, nil // let reflect path handle the error
+	}
+	if fnum != 1 || typ != Typ3ByteLength {
+		return false, nil
+	}
+	bz = bz[n:]
+	typeURL, n, err := DecodeString(bz)
+	if err != nil {
+		return false, nil
+	}
+	bz = bz[n:]
+
+	// Field 2: Value (may be absent for empty structs).
+	var value []byte
+	if len(bz) > 0 {
+		fnum, typ, n, err = decodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return false, nil
+		}
+		if fnum != 2 || typ != Typ3ByteLength {
+			return false, nil
+		}
+		bz = bz[n:]
+		value, _, err = DecodeByteSlice(bz)
+		if err != nil {
+			return false, nil
+		}
+	}
+
+	// Look up concrete type from typeURL.
+	cinfo, err := cdc.getTypeInfoFromTypeURLRLock(typeURL, FieldOptions{})
+	if err != nil {
+		return false, nil
+	}
+
+	// Construct concrete value and check for PBMessager2.
+	crv, irvSet := constructConcreteType(cinfo)
+	if !crv.CanAddr() {
+		return false, nil
+	}
+	pbm2, ok := crv.Addr().Interface().(PBMessager2)
+	if !ok {
+		return false, nil
+	}
+
+	// Check assignability before decoding.
+	if !irvSet.Type().AssignableTo(rv.Type()) {
+		return true, fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
+	}
+
+	// Decode inner value via genproto2.
+	if len(value) > 0 {
+		if err = pbm2.UnmarshalBinary2(cdc, value); err != nil {
+			return true, err
+		}
+	}
+
+	rv.Set(irvSet)
+	return true, nil
 }
 
 // like UnmarshalAny() but with typeURL and value destructured.
