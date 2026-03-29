@@ -15,7 +15,7 @@ func TestJSONDocumentation(t *testing.T) {
 	pkgPath := "gno.land/r/hello"
 	expected := &JSONDocumentation{
 		PackagePath: "gno.land/r/hello",
-		PackageLine: "package hello // import \"hello\"",
+		PackageLine: "package hello // import \"gno.land/r/hello\"",
 		PackageDoc:  "hello is a package for testing\n",
 		Bugs:        []string{"Bug about myInterface\n"},
 		Values: []*JSONValueDecl{

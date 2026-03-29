@@ -29,10 +29,7 @@ var (
 	gBoards         = boards.NewStorage()
 	gBoardsSequence = boards.NewIdentifierGenerator()
 	gRealmPath      = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land")
-	gPerms          = initRealmPermissions(
-		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-		"g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", // govdao t1 multisig
-	)
+	gPerms          = initRealmPermissions("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 
 	// TODO: Allow updating open account amount though a proposal (GovDAO, CommonDAO?)
 	gOpenAccountAmount = int64(3_000_000_000) // ugnot required for open board actions
