@@ -335,6 +335,13 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 		// No realm exists here, try to display underlying paths
 		return h.GetPathsListView(ctx, gnourl, indexData)
 	default:
+		// Check if the package has source files — if it does, it exists
+		// but is broken (e.g. preprocessing failed after a VM update).
+		if files, ferr := h.Client.ListFiles(ctx, gnourl.Path); ferr == nil && len(files) > 0 {
+			h.Logger.Warn("package exists but cannot be rendered, likely broken",
+				"error", err, "path", gnourl.EncodeURL())
+			return http.StatusServiceUnavailable, components.StatusPackageBrokenComponent(gnourl.Path)
+		}
 		h.Logger.Error("unable to fetch realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
 	}
@@ -465,6 +472,13 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	jdoc, err := h.Client.Doc(ctx, gnourl.Path)
 	if err != nil {
+		// Check if the package has source files — if it does, it exists
+		// but is broken (e.g. preprocessing failed after a VM update).
+		if files, ferr := h.Client.ListFiles(ctx, gnourl.Path); ferr == nil && len(files) > 0 {
+			h.Logger.Warn("package exists but cannot load docs, likely broken",
+				"error", err, "path", gnourl.Path)
+			return http.StatusServiceUnavailable, components.StatusPackageBrokenComponent(gnourl.Path)
+		}
 		h.Logger.Error("unable to fetch qdoc", "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
 	}

@@ -136,8 +136,13 @@ func (vm *VMKeeper) Initialize(
 			})
 		defer m2.Release()
 		gno.DisableDebug()
-		m2.PreprocessAllFilesAndSaveBlockNodes()
+		failed := m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
+
+		for _, pkgPath := range failed {
+			logger.Warn("package preprocessing failed; package will be unavailable until next update",
+				"pkgPath", pkgPath)
+		}
 
 		opts := gno.TypeCheckOptions{
 			Getter:     vm.gnoStore,
@@ -154,7 +159,8 @@ func (vm *VMKeeper) Initialize(
 		}
 
 		logger.Info("GnoVM packages preprocessed",
-			"elapsed", time.Since(start))
+			"elapsed", time.Since(start),
+			"failures", len(failed))
 	}
 }
 

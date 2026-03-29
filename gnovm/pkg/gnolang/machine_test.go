@@ -62,6 +62,106 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	assert.Equal(t, StringValue("1"), v.V)
 }
 
+func TestPreprocessMemPackage_recovery(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
+	store := NewStore(nil, baseStore, iavlStore)
+
+	t.Run("syntax error is recovered", func(t *testing.T) {
+		m := NewMachineWithOptions(MachineOptions{Store: store})
+		defer m.Release()
+
+		mpkg := &std.MemPackage{
+			Type: MPStdlibProd,
+			Name: "broken",
+			Path: "broken",
+			Files: []*std.MemFile{
+				{Name: "broken.gno", Body: `package broken; func }{`},
+			},
+		}
+		err := m.preprocessMemPackage(mpkg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "preprocess broken")
+	})
+
+	t.Run("package name mismatch is recovered", func(t *testing.T) {
+		m := NewMachineWithOptions(MachineOptions{Store: store})
+		defer m.Release()
+
+		mpkg := &std.MemPackage{
+			Type: MPStdlibProd,
+			Name: "mypkg",
+			Path: "mypkg",
+			Files: []*std.MemFile{
+				{Name: "f.gno", Body: `package wrongname; func X() {}`},
+			},
+		}
+		err := m.preprocessMemPackage(mpkg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "preprocess mypkg")
+	})
+
+	t.Run("valid package succeeds", func(t *testing.T) {
+		m := NewMachineWithOptions(MachineOptions{Store: store})
+		defer m.Release()
+
+		mpkg := &std.MemPackage{
+			Type: MPStdlibProd,
+			Name: "hello",
+			Path: "hello",
+			Files: []*std.MemFile{
+				{Name: "hello.gno", Body: `package hello; func Hi() string { return "hi" }`},
+			},
+		}
+		err := m.preprocessMemPackage(mpkg)
+		assert.NoError(t, err)
+	})
+}
+
+func TestPreprocessAllFilesAndSaveBlockNodes_skipsBroken(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
+	store := NewStore(nil, baseStore, iavlStore)
+
+	// Add a valid package directly to the store.
+	store.AddMemPackage(&std.MemPackage{
+		Type: MPStdlibAll,
+		Name: "good",
+		Path: "good",
+		Files: []*std.MemFile{
+			{Name: "good.gno", Body: `package good; func Hello() string { return "hello" }`},
+		},
+	}, MPAnyAll)
+
+	// Add a broken package (syntax error) directly to the store.
+	// This simulates a package that was valid when deployed but
+	// fails preprocessing on restart (e.g. due to a VM update).
+	store.AddMemPackage(&std.MemPackage{
+		Type: MPStdlibAll,
+		Name: "broken",
+		Path: "broken",
+		Files: []*std.MemFile{
+			{Name: "broken.gno", Body: `package broken; func }{`},
+		},
+	}, MPAnyAll)
+
+	m := NewMachineWithOptions(MachineOptions{Store: store})
+	defer m.Release()
+
+	failed := m.PreprocessAllFilesAndSaveBlockNodes()
+
+	// The broken package should be in the failed list.
+	assert.Contains(t, failed, "broken")
+	// The good package should NOT be in the failed list.
+	assert.NotContains(t, failed, "good")
+}
+
 func TestMachineString(t *testing.T) {
 	cases := []struct {
 		name string

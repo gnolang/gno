@@ -191,33 +191,54 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // Upon restart, preprocess all MemPackage and save blocknodes.
 // This is a temporary measure until we optimize/make-lazy.
 //
+// Returns the list of package paths that failed preprocessing.
+// Failed packages are logged and skipped so that a single broken
+// package does not prevent the node from starting.
+//
 // NOTE: package paths not beginning with gno.land will be allowed to override,
 // to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
-func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
+func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() []string {
+	var failed []string
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
-		mpkg = MPFProd.FilterMemPackage(mpkg)
-		fset := m.ParseMemPackage(mpkg)
-		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
-		m.Store.SetBlockNode(pn)
-		PredefineFileSet(m.Store, pn, fset)
-		for _, fn := range fset.Files {
-			// Save Types to m.Store (while preprocessing).
-			fn = Preprocess(m.Store, pn, fn).(*FileNode)
-			// Save BlockNodes to m.Store.
-			SaveBlockNodes(m.Store, fn)
+		if err := m.preprocessMemPackage(mpkg); err != nil {
+			failed = append(failed, mpkg.Path)
 		}
-		// Normally, the fileset would be added onto the
-		// package node only after runFiles(), but we cannot
-		// run files upon restart (only preprocess them).
-		// So, add them here instead.
-		// TODO: is this right?
-		if pn.FileSet == nil {
-			pn.FileSet = fset
-		}
-		// pn.FileSet != nil happens for non-realm file tests.
-		// TODO ensure the files are the same.
 	}
+	return failed
+}
+
+// preprocessMemPackage preprocesses a single MemPackage, recovering
+// from any panic so that one broken package cannot crash the node.
+func (m *Machine) preprocessMemPackage(mpkg *std.MemPackage) (rerr error) {
+	defer func() {
+		if r := recover(); r != nil {
+			rerr = fmt.Errorf("preprocess %s: %v", mpkg.Path, r)
+		}
+	}()
+
+	mpkg = MPFProd.FilterMemPackage(mpkg)
+	fset := m.ParseMemPackage(mpkg)
+	pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
+	m.Store.SetBlockNode(pn)
+	PredefineFileSet(m.Store, pn, fset)
+	for _, fn := range fset.Files {
+		// Save Types to m.Store (while preprocessing).
+		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+		// Save BlockNodes to m.Store.
+		SaveBlockNodes(m.Store, fn)
+	}
+	// Normally, the fileset would be added onto the
+	// package node only after runFiles(), but we cannot
+	// run files upon restart (only preprocess them).
+	// So, add them here instead.
+	// TODO: is this right?
+	if pn.FileSet == nil {
+		pn.FileSet = fset
+	}
+	// pn.FileSet != nil happens for non-realm file tests.
+	// TODO ensure the files are the same.
+	return nil
 }
 
 //----------------------------------------

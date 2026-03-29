@@ -37,3 +37,18 @@ func StatusNoRenderComponent(pkgPath string) *View {
 		},
 	)
 }
+
+// StatusPackageBrokenComponent returns a view for packages that exist in the
+// store but could not be loaded (e.g. preprocessing failed after a VM update).
+func StatusPackageBrokenComponent(pkgPath string) *View {
+	return NewTemplateView(
+		StatusViewType,
+		"status",
+		StatusData{
+			Title:      "Package Unavailable",
+			Body:       "This package could not be loaded. It may be outdated or contain incompatible code. You can still view its source code.",
+			ButtonURL:  pkgPath + "$source",
+			ButtonText: "View Source",
+		},
+	)
+}
