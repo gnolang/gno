@@ -34,7 +34,7 @@ const (
 	_allocFuncValue        = 352
 	_allocMapValue         = 168
 	_allocBoundMethodValue = 200
-	_allocBlock            = 520
+	_allocBlock            = 528
 	_allocPackageValue     = 272
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
