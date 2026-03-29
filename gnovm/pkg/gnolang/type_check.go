@@ -16,13 +16,13 @@ var (
 		SUB:      isNumeric,
 		MUL:      isNumeric,
 		QUO:      isNumeric,
-		REM:      isIntNum,
-		SHL:      isIntNum,
-		SHR:      isIntNum,
-		BAND:     isIntNum, // bit ops
-		XOR:      isIntNum,
-		BOR:      isIntNum,
-		BAND_NOT: isIntNum,
+		REM:      isWhole,
+		SHL:      isWhole,
+		SHR:      isWhole,
+		BAND:     isWhole, // bit ops
+		XOR:      isWhole,
+		BOR:      isWhole,
+		BAND_NOT: isWhole,
 		LAND:     isBoolean, // logic
 		LOR:      isBoolean,
 		LSS:      isOrdered, // compare
@@ -34,7 +34,7 @@ var (
 	unaryChecker = map[Word]func(t Type) bool{
 		ADD: isNumeric,
 		SUB: isNumeric,
-		XOR: isIntNum,
+		XOR: isWhole,
 		NOT: isBoolean,
 	}
 	IncDecStmtChecker = map[Word]func(t Type) bool{
@@ -46,13 +46,13 @@ var (
 		SUB_ASSIGN:      isNumeric,
 		MUL_ASSIGN:      isNumeric,
 		QUO_ASSIGN:      isNumeric,
-		REM_ASSIGN:      isIntNum,
-		SHL_ASSIGN:      isIntNum,
-		SHR_ASSIGN:      isIntNum,
-		BAND_ASSIGN:     isIntNum,
-		XOR_ASSIGN:      isIntNum,
-		BOR_ASSIGN:      isIntNum,
-		BAND_NOT_ASSIGN: isIntNum,
+		REM_ASSIGN:      isWhole,
+		SHL_ASSIGN:      isWhole,
+		SHR_ASSIGN:      isWhole,
+		BAND_ASSIGN:     isWhole,
+		XOR_ASSIGN:      isWhole,
+		BOR_ASSIGN:      isWhole,
+		BAND_NOT_ASSIGN: isWhole,
 	}
 )
 
@@ -113,15 +113,6 @@ func isNumeric(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
 		return t.category()&IsNumeric != 0
-	default:
-		return false
-	}
-}
-
-func isIntNum(t Type) bool {
-	switch t := baseOf(t).(type) {
-	case PrimitiveType:
-		return t.category()&IsInteger != 0 || t.category()&IsBigInt != 0
 	default:
 		return false
 	}
@@ -633,7 +624,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
 	}
 	// If not const, must be IntNum.
-	if !isIntNum(rt) && !ric {
+	if !isWhole(rt) && !ric {
 		panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
 	}
 
@@ -643,7 +634,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 			panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Right))
 		}
 
-		if isIntNum(rt) {
+		if isWhole(rt) {
 			// Good.
 		} else if !IsExactBigDec(rv.V) { // e.g. 1.0 .
 			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
@@ -995,7 +986,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					}
 				}
 			case SHL_ASSIGN, SHR_ASSIGN:
-				if !isIntNum(rt) {
+				if !isWhole(rt) {
 					panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Rhs[0]))
 				}
 				_, ric := x.Rhs[0].(*ConstExpr)

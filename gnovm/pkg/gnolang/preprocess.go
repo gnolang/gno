@@ -1536,9 +1536,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// be represented as an integer, it cannot be converted to one,
 						// and the error is handled here.
 						// Out of bounds errors are usually handled during evalConst().
-						if isIntNum(ct) {
+						if isWhole(ct) {
 							if bd, ok := arg0.TypedValue.V.(BigdecValue); ok {
-								if !isInteger(bd.V) {
+								if !isDecimalInteger(bd.V) {
 									panic(fmt.Sprintf(
 										"cannot convert %s to integer type",
 										arg0))
