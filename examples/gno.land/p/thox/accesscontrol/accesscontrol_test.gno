@@ -225,7 +225,7 @@ func TestUserToRolesWithMultipleRoles(t *testing.T) {
 
 	// Check if user1 has both roles
 	rolesList := roles.UserToRoles.Get(user1.String())
-	uassert.True(t, rolesList != nil, "user1 should be in UserToRoles")
+	uassert.NotNil(t, rolesList, "user1 should be in UserToRoles")
 	role1, _ := roles.FindRole(roleName1)
 	role2, _ := roles.FindRole(roleName2)
 	uassert.True(t, containsRole(rolesList.([]*Role), role1), "UserToRoles should contain Role1 for user1")
