@@ -31,7 +31,7 @@ func TestCreateRole(t *testing.T) {
 
 	role, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
-	uassert.True(t, role != nil, "role should not be nil")
+	uassert.NotNil(t, role, "role should not be nil")
 	uassert.Equal(t, role.Name, roleName)
 
 	_, err = roles.CreateRole(roleName)
@@ -54,7 +54,7 @@ func TestGrantRole(t *testing.T) {
 	uassert.True(t, role.HasAccount(user1), "user1 should have the TestRole")
 
 	rolesList := roles.UserToRoles.Get(user1.String())
-	uassert.True(t, rolesList != nil, "user1 should be in UserToRoles")
+	uassert.NotNil(t, rolesList, "user1 should be in UserToRoles")
 	uassert.True(t, containsRole(rolesList.([]*Role), role), "UserToRoles should contain TestRole for user1")
 }
 
@@ -196,7 +196,7 @@ func TestDeleteRole(t *testing.T) {
 
 	role, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
-	uassert.True(t, role != nil, "role should not be nil")
+	uassert.NotNil(t, role, "role should not be nil")
 
 	roles.Roles = []*Role{} // Clear roles for testing purpose
 	_, err = roles.FindRole(roleName)
