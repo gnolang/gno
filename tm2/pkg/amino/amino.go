@@ -27,6 +27,25 @@ type (
 	Type    = pkg.Type
 )
 
+// genproto2Types tracks types that have native (non-promoted) genproto2 methods.
+// Populated by init() functions in generated pb3_gen.go files.
+var genproto2Types = make(map[reflect.Type]bool)
+
+// RegisterGenproto2Type records that a type has native genproto2 methods.
+// Called from init() in generated pb3_gen.go files.
+func RegisterGenproto2Type(rt reflect.Type) {
+	genproto2Types[rt] = true
+}
+
+// HasNativeGenproto2 returns true if the type has its own genproto2 methods
+// (not just promoted from an embedded struct).
+func HasNativeGenproto2(rt reflect.Type) bool {
+	if rt.Kind() == reflect.Ptr {
+		rt = rt.Elem()
+	}
+	return genproto2Types[rt]
+}
+
 var (
 	// Global methods for global auto-sealing codec.
 	gcdc *Codec
@@ -341,7 +360,8 @@ func (cdc *Codec) Marshal(o any) ([]byte, error) {
 	cdc.doAutoseal()
 
 	// Try genproto2 direct encoding (fastest path).
-	if pbm2, ok := o.(PBMessager2); ok {
+	// Check HasNativeGenproto2 to avoid using promoted methods from embedded structs.
+	if pbm2, ok := o.(PBMessager2); ok && HasNativeGenproto2(reflect.TypeOf(o)) {
 		return cdc.MarshalBinary2(pbm2)
 	}
 
@@ -459,7 +479,7 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 	}
 
 	// Try genproto2 fast path.
-	if pbm2, ok := o.(PBMessager2); ok {
+	if pbm2, ok := o.(PBMessager2); ok && HasNativeGenproto2(reflect.TypeOf(o)) {
 		return cdc.marshalAnyBinary2(pbm2)
 	}
 
@@ -844,7 +864,7 @@ func (cdc *Codec) Unmarshal(bz []byte, ptr any) error {
 	cdc.doAutoseal()
 
 	// Try genproto2 direct decoding (fastest path).
-	if pbm2, ok := ptr.(PBMessager2); ok {
+	if pbm2, ok := ptr.(PBMessager2); ok && HasNativeGenproto2(reflect.TypeOf(ptr)) {
 		return pbm2.UnmarshalBinary2(cdc, bz)
 	}
 
@@ -1047,7 +1067,7 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 		return false, nil
 	}
 	pbm2, ok := crv.Addr().Interface().(PBMessager2)
-	if !ok {
+	if !ok || !HasNativeGenproto2(cinfo.Type) {
 		return false, nil
 	}
 

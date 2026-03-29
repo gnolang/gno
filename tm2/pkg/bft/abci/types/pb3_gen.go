@@ -7,13 +7,52 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
+	"reflect"
 	"time"
 )
 
 var _ fmt.Stringer
 var _ *amino.Codec
 var _ = errors.New
+var _ reflect.Type
 var _ time.Time
+
+func init() {
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RequestBase)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RequestEcho)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RequestFlush)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RequestInfo)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RequestSetOption)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RequestInitChain)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RequestQuery)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RequestBeginBlock)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RequestCheckTx)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RequestDeliverTx)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RequestEndBlock)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RequestCommit)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseBase)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseException)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseEcho)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseFlush)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseInfo)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseSetOption)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseInitChain)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseQuery)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseBeginBlock)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseCheckTx)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseDeliverTx)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseEndBlock)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ResponseCommit)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*StringError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ConsensusParams)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*BlockParams)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ValidatorParams)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ValidatorUpdate)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*LastCommitInfo)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*VoteInfo)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventString)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*MockHeader)(nil)).Elem())
+}
 
 func (goo RequestBase) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error

@@ -9,6 +9,7 @@ import (
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
@@ -16,7 +17,23 @@ import (
 var _ fmt.Stringer
 var _ *amino.Codec
 var _ = errors.New
+var _ reflect.Type
 var _ time.Time
+
+func init() {
+	amino.RegisterGenproto2Type(reflect.TypeOf((*NewRoundStepMessage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*NewValidBlockMessage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ProposalMessage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ProposalPOLMessage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*BlockPartMessage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*VoteMessage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*HasVoteMessage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*VoteSetMaj23Message)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*VoteSetBitsMessage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*newRoundStepInfo)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*msgInfo)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*timeoutInfo)(nil)).Elem())
+}
 
 func (goo NewRoundStepMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error

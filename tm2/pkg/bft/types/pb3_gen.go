@@ -7,13 +7,44 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 )
 
 var _ fmt.Stringer
 var _ *amino.Codec
 var _ = errors.New
+var _ reflect.Type
 var _ time.Time
+
+func init() {
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Proposal)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Block)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Header)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Data)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Commit)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*BlockID)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*CommitSig)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Vote)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Part)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PartSet)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PartSetHeader)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Validator)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ValidatorSet)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventNewBlock)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventNewBlockHeader)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventTx)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventVote)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventString)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventValidatorSetUpdates)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*DuplicateVoteEvidence)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*MockGoodEvidence)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*MockRandomGoodEvidence)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*MockBadEvidence)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*TxResult)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*MockAppState)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*VoteSet)(nil)).Elem())
+}
 
 func (goo Proposal) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error

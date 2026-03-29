@@ -6,11 +6,40 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"reflect"
 )
 
 var _ fmt.Stringer
 var _ *amino.Codec
 var _ = errors.New
+var _ reflect.Type
+
+func init() {
+	amino.RegisterGenproto2Type(reflect.TypeOf((*BaseAccount)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Coin)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GasPrice)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*MemFile)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*MemPackage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InternalError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*TxDecodeError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidSequenceError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*UnauthorizedError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InsufficientFundsError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*UnknownRequestError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidAddressError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*UnknownAddressError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidPubKeyError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InsufficientCoinsError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidCoinsError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidGasWantedError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*OutOfGasError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*MemoTooLargeError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InsufficientFeeError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*TooManySignaturesError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*NoSignaturesError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GasOverflowError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RestrictedTransferError)(nil)).Elem())
+}
 
 func (goo BaseAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error

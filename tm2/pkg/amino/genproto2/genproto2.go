@@ -46,9 +46,10 @@ func (ctx *P3Context2) GenerateProtobuf3ForTypes(pkg string, rtz ...reflect.Type
 
 	// Initialize imports with always-needed packages.
 	ctx.imports = map[string]string{
-		"fmt":    "fmt",
-		"errors": "errors",
-		"amino":  "github.com/gnolang/gno/tm2/pkg/amino",
+		"fmt":     "fmt",
+		"errors":  "errors",
+		"reflect": "reflect",
+		"amino":   "github.com/gnolang/gno/tm2/pkg/amino",
 	}
 
 	// Check if any type uses time.
@@ -61,12 +62,18 @@ func (ctx *P3Context2) GenerateProtobuf3ForTypes(pkg string, rtz ...reflect.Type
 
 	// Generate method bodies first (this accumulates extra imports via goTypeName).
 	var body strings.Builder
+	var generatedTypes []string // type names for init() registration
 	for _, rt := range rtz {
 		info, err := ctx.cdc.GetTypeInfo(rt)
 		if err != nil {
 			return "", fmt.Errorf("GetTypeInfo(%v): %w", rt, err)
 		}
 		if info.Type.Kind() == reflect.Interface {
+			continue
+		}
+
+		tname := typeName(info)
+		if tname == "" {
 			continue
 		}
 
@@ -79,6 +86,7 @@ func (ctx *P3Context2) GenerateProtobuf3ForTypes(pkg string, rtz ...reflect.Type
 		if err := ctx.generateUnmarshal(&body, info); err != nil {
 			return "", fmt.Errorf("generateUnmarshal(%v): %w", rt, err)
 		}
+		generatedTypes = append(generatedTypes, tname)
 	}
 
 	// Assemble final output with complete imports.
@@ -107,10 +115,20 @@ func (ctx *P3Context2) GenerateProtobuf3ForTypes(pkg string, rtz ...reflect.Type
 	sb.WriteString("var _ fmt.Stringer\n")
 	sb.WriteString("var _ *amino.Codec\n")
 	sb.WriteString("var _ = errors.New\n")
+	sb.WriteString("var _ reflect.Type\n")
 	if _, ok := ctx.imports["time"]; ok {
 		sb.WriteString("var _ time.Time\n")
 	}
 	sb.WriteString("\n")
+
+	// Generate init() to register genproto2-native types.
+	if len(generatedTypes) > 0 {
+		sb.WriteString("func init() {\n")
+		for _, tname := range generatedTypes {
+			sb.WriteString(fmt.Sprintf("\tamino.RegisterGenproto2Type(reflect.TypeOf((*%s)(nil)).Elem())\n", tname))
+		}
+		sb.WriteString("}\n\n")
+	}
 
 	sb.WriteString(body.String())
 

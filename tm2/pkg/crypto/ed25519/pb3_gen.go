@@ -6,11 +6,18 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"reflect"
 )
 
 var _ fmt.Stringer
 var _ *amino.Codec
 var _ = errors.New
+var _ reflect.Type
+
+func init() {
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PubKeyEd25519)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PrivKeyEd25519)(nil)).Elem())
+}
 
 func (goo PubKeyEd25519) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error

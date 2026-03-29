@@ -6,13 +6,86 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 )
 
 var _ fmt.Stringer
 var _ *amino.Codec
 var _ = errors.New
+var _ reflect.Type
 var _ time.Time
+
+func init() {
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EmptyStruct)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PrimitivesStruct)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ShortArraysStruct)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ArraysStruct)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ArraysArraysStruct)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*SlicesStruct)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*SlicesSlicesStruct)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PointersStruct)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PointerSlicesStruct)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ComplexSt)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EmbeddedSt1)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EmbeddedSt2)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EmbeddedSt3)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EmbeddedSt4)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EmbeddedSt5)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*AminoMarshalerStruct1)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ReprStruct1)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*AminoMarshalerStruct2)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ReprElem2)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*AminoMarshalerStruct3)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*AminoMarshalerInt4)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*AminoMarshalerInt5)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*AminoMarshalerStruct6)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*AminoMarshalerStruct7)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ReprElem7)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*IntDef)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*IntAr)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*IntSl)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ByteAr)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ByteSl)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PrimitivesStructDef)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PrimitivesStructSl)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PrimitivesStructAr)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Concrete1)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Concrete2)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ConcreteTypeDef)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ConcreteWrappedBytes)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InterfaceFieldsStruct)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMPos)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMSpan)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMLocation)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMAttrs)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMObjectID)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMObjectInfo)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMTypedValue)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMBlock)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMFuncValue)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMDeclaredType)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMRefValue)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMFieldType)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMStructType)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMFileNode)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMPointerValue)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMSliceValue)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMMapEntry)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoVMNode)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzFieldInfo)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzStructInfo)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzValueEntry)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzBlock)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzFuncInfo)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzDeclInfo)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzFileInfo)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzPtrNest)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzDeepNest)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzWriteEmpty)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzNilElements)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InterfaceHeavy)(nil)).Elem())
+}
 
 func (goo EmptyStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
