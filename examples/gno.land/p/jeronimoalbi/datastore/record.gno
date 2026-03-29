@@ -136,10 +136,7 @@ func (r record) Get(field string) (value interface{}, found bool) {
 
 	key := castIntToKey(i)
 	v := r.values.Get(key)
-	if v == nil {
-		return nil, false
-	}
-	return v, true
+	return v, v != nil
 }
 
 // MustGet returns the value of a record's field or panics when the field is not found.
