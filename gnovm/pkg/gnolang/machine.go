@@ -1228,7 +1228,6 @@ const (
 	OpCPURangeIterArrayPtr = 46
 	OpCPUReturnCallDefers  = 78
 
-	
 	// OpCPUComputeMapKey is the base gas cost for the ComputeMapKey function.
 	// TODO: fix an accurate value with benchmarks
 	OpCPUComputeMapKey = 10
