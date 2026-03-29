@@ -46,6 +46,25 @@ func HasNativeGenproto2(rt reflect.Type) bool {
 	return genproto2Types[rt]
 }
 
+// pbbindingsTypes tracks types that have native (non-promoted) pbbindings methods.
+// Populated by init() functions in generated pbbindings.go files.
+var pbbindingsTypes = make(map[reflect.Type]bool)
+
+// RegisterPbbindingsType records that a type has native pbbindings methods.
+// Called from init() in generated pbbindings.go files.
+func RegisterPbbindingsType(rt reflect.Type) {
+	pbbindingsTypes[rt] = true
+}
+
+// HasNativePbbindings returns true if the type has its own pbbindings methods
+// (not just promoted from an embedded struct).
+func HasNativePbbindings(rt reflect.Type) bool {
+	if rt.Kind() == reflect.Ptr {
+		rt = rt.Elem()
+	}
+	return pbbindingsTypes[rt]
+}
+
 var (
 	// Global methods for global auto-sealing codec.
 	gcdc *Codec
@@ -367,7 +386,7 @@ func (cdc *Codec) Marshal(o any) ([]byte, error) {
 
 	if cdc.usePBBindings {
 		pbm, ok := o.(PBMessager)
-		if ok {
+		if ok && HasNativePbbindings(reflect.TypeOf(o)) {
 			return cdc.MarshalPBBindings(pbm)
 		}
 		// Else, fall back to using reflection for native primitive types.
@@ -870,7 +889,7 @@ func (cdc *Codec) Unmarshal(bz []byte, ptr any) error {
 
 	if cdc.usePBBindings {
 		pbm, ok := ptr.(PBMessager)
-		if ok {
+		if ok && HasNativePbbindings(reflect.TypeOf(ptr)) {
 			return cdc.unmarshalPBBindings(bz, pbm)
 		}
 		// Else, fall back to using reflection for native primitive types.
