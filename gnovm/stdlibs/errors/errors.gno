@@ -6,7 +6,7 @@
 //
 // The New function creates errors whose only content is a text message.
 //
-// The Unwrap, Is and As functions work on errors that may wrap other errors.
+// The Unwrap, Is, and Join functions work on errors that may wrap other errors.
 // An error wraps another error if its type has the method
 //
 //	Unwrap() error
@@ -35,22 +35,8 @@
 //
 // because the former will succeed if err wraps fs.ErrExist.
 //
-// As unwraps its first argument sequentially looking for an error that can be
-// assigned to its second argument, which must be a pointer. If it succeeds, it
-// performs the assignment and returns true. Otherwise, it returns false. The form
-//
-//	var perr *fs.PathError
-//	if errors.As(err, &perr) {
-//		fmt.Println(perr.Path)
-//	}
-//
-// is preferable to
-//
-//	if perr, ok := err.(*fs.PathError); ok {
-//		fmt.Println(perr.Path)
-//	}
-//
-// because the former will succeed if err wraps an *fs.PathError.
+// Note: errors.As is not yet available because it requires reflect support.
+// Error types that want custom matching should implement Is(error) bool.
 package errors
 
 // New returns an error that formats as the given text.
