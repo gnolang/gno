@@ -93,7 +93,7 @@ func TestNewQuery(t *testing.T) {
 
 			want.Filters.Iterate("", "", func(k string, v any) bool {
 				got := q.Filters.Get(k)
-				uassert.True(t, got != nil)
+				uassert.NotNil(t, got)
 				if got != nil {
 					uassert.Equal(t, fmt.Sprint(v), fmt.Sprint(got))
 				}
