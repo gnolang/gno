@@ -237,8 +237,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	buildErrCount := 0
 	testErrCount := 0
 	fail := func() error {
-		io.ErrPrintfln("FAIL")
-		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
+		return fmt.Errorf("--- FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
 
 	for _, pkg := range pkgs {
@@ -339,7 +338,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 		if didPanic || didError {
-			io.ErrPrintfln("FAIL    %s \t%s", prettyDir, dstr)
+			io.ErrPrintfln("--- FAIL: %s \t%s", prettyDir, dstr)
 			testErrCount++
 			if cmd.failfast {
 				return fail()
