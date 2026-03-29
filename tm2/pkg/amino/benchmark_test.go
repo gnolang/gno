@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 )
 
+
 // Pre-generate N random instances of each type and their encoded bytes.
 const benchN = 100
 
@@ -56,6 +57,7 @@ func makeBenchData(cdc *amino.Codec, rt reflect.Type) benchData {
 // BenchmarkEncode compares encode performance: genproto2 vs reflect vs pbbindings.
 func BenchmarkEncode(b *testing.B) {
 	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
 	pbcdc := cdc.WithPBBindings()
 
 	for _, ptr := range tests.StructTypes {
@@ -96,6 +98,7 @@ func BenchmarkEncode(b *testing.B) {
 // BenchmarkDecode compares decode performance: genproto2 vs reflect vs pbbindings.
 func BenchmarkDecode(b *testing.B) {
 	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
 	pbcdc := cdc.WithPBBindings()
 
 	for _, ptr := range tests.StructTypes {
@@ -138,3 +141,4 @@ func BenchmarkDecode(b *testing.B) {
 		})
 	}
 }
+

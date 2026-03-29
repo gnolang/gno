@@ -1514,11 +1514,13 @@ func (goo Validator) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 	}
 	if goo.PubKey != nil {
 		if goo.PubKey != nil {
-			anyBz, err := cdc.MarshalAny(goo.PubKey)
+			before := offset
+			offset, err = cdc.MarshalAnyBinary2(goo.PubKey, buf, offset)
 			if err != nil {
 				return offset, err
 			}
-			offset = amino.PrependByteSlice(buf, offset, anyBz)
+			anyLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		}
 	}
@@ -1544,11 +1546,8 @@ func (goo Validator) SizeBinary2(cdc *amino.Codec) int {
 	}
 	if goo.PubKey != nil {
 		if goo.PubKey != nil {
-			anyBz, err := cdc.MarshalAny(goo.PubKey)
-			if err != nil {
-				panic(err)
-			}
-			s += 1 + amino.UvarintSize(uint64(len(anyBz))) + len(anyBz)
+			cs := cdc.SizeAnyBinary2(goo.PubKey)
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.VotingPower != 0 {
@@ -1591,7 +1590,7 @@ func (goo *Validator) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			}
 			bz = bz[n:]
 			if len(fbz) > 0 {
-				if err := cdc.UnmarshalAny(fbz, &goo.PubKey); err != nil {
+				if err := cdc.UnmarshalAnyBinary2(fbz, &goo.PubKey); err != nil {
 					return err
 				}
 			}
@@ -2112,6 +2111,52 @@ func (goo *EventVote) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
+func (goo EventString) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	repr := goo
+	{
+		before := offset
+		offset = amino.PrependString(buf, offset, string(repr))
+		valueLen := before - offset
+		if valueLen > 0 {
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
+}
+
+func (goo EventString) SizeBinary2(cdc *amino.Codec) int {
+	var s int
+	repr := goo
+	{
+		vs := amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if vs > 0 {
+			s += 1 + vs
+		}
+	}
+	return s
+}
+
+func (goo *EventString) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	var repr EventString
+	if len(bz) > 0 {
+		_, _, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		bz = bz[n:]
+		v, _, err := amino.DecodeString(bz)
+		if err != nil {
+			return err
+		}
+		repr = EventString(v)
+	}
+	*goo = EventString(repr)
+	return nil
+}
+
 func (goo EventValidatorSetUpdates) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	for i := len(goo.ValidatorUpdates) - 1; i >= 0; i-- {
@@ -2221,11 +2266,13 @@ func (goo DuplicateVoteEvidence) MarshalBinary2(cdc *amino.Codec, buf []byte, of
 	}
 	if goo.PubKey != nil {
 		if goo.PubKey != nil {
-			anyBz, err := cdc.MarshalAny(goo.PubKey)
+			before := offset
+			offset, err = cdc.MarshalAnyBinary2(goo.PubKey, buf, offset)
 			if err != nil {
 				return offset, err
 			}
-			offset = amino.PrependByteSlice(buf, offset, anyBz)
+			anyLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 	}
@@ -2236,11 +2283,8 @@ func (goo DuplicateVoteEvidence) SizeBinary2(cdc *amino.Codec) int {
 	var s int
 	if goo.PubKey != nil {
 		if goo.PubKey != nil {
-			anyBz, err := cdc.MarshalAny(goo.PubKey)
-			if err != nil {
-				panic(err)
-			}
-			s += 1 + amino.UvarintSize(uint64(len(anyBz))) + len(anyBz)
+			cs := cdc.SizeAnyBinary2(goo.PubKey)
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.VoteA != nil {
@@ -2278,7 +2322,7 @@ func (goo *DuplicateVoteEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte) 
 			}
 			bz = bz[n:]
 			if len(fbz) > 0 {
-				if err := cdc.UnmarshalAny(fbz, &goo.PubKey); err != nil {
+				if err := cdc.UnmarshalAnyBinary2(fbz, &goo.PubKey); err != nil {
 					return err
 				}
 			}

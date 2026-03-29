@@ -492,3 +492,141 @@ func PrependDuration(buf []byte, offset int, d time.Duration) (int, error) {
 	s, ns := sns/1e9, int32(sns%1e9)
 	return PrependDurationValue(buf, offset, s, ns)
 }
+
+// ----------------------------------------
+// Append*Reversed functions for reversed-append encoding.
+// These append bytes in reversed order to buf and return the updated slice.
+// A single reverseBytes() at the end produces correct protobuf wire format.
+// Uses the standard Go append pattern: buf = AppendXReversed(buf, ...).
+
+func reverseBytes(buf []byte) {
+	for i, j := 0, len(buf)-1; i < j; i, j = i+1, j-1 {
+		buf[i], buf[j] = buf[j], buf[i]
+	}
+}
+
+func AppendByteReversed(buf []byte, b byte) []byte {
+	return append(buf, b)
+}
+
+func AppendBoolReversed(buf []byte, b bool) []byte {
+	if b {
+		return append(buf, 0x01)
+	}
+	return append(buf, 0x00)
+}
+
+func AppendVarintReversed(buf []byte, i int64) []byte {
+	var tmp [10]byte
+	n := binary.PutVarint(tmp[:], i)
+	for j := n - 1; j >= 0; j-- {
+		buf = append(buf, tmp[j])
+	}
+	return buf
+}
+
+func AppendUvarintReversed(buf []byte, u uint64) []byte {
+	var tmp [10]byte
+	n := binary.PutUvarint(tmp[:], u)
+	for j := n - 1; j >= 0; j-- {
+		buf = append(buf, tmp[j])
+	}
+	return buf
+}
+
+func AppendInt32Reversed(buf []byte, i int32) []byte {
+	var tmp [4]byte
+	binary.LittleEndian.PutUint32(tmp[:], uint32(i))
+	return append(buf, tmp[3], tmp[2], tmp[1], tmp[0])
+}
+
+func AppendInt64Reversed(buf []byte, i int64) []byte {
+	var tmp [8]byte
+	binary.LittleEndian.PutUint64(tmp[:], uint64(i))
+	return append(buf, tmp[7], tmp[6], tmp[5], tmp[4], tmp[3], tmp[2], tmp[1], tmp[0])
+}
+
+func AppendUint32Reversed(buf []byte, u uint32) []byte {
+	var tmp [4]byte
+	binary.LittleEndian.PutUint32(tmp[:], u)
+	return append(buf, tmp[3], tmp[2], tmp[1], tmp[0])
+}
+
+func AppendUint64Reversed(buf []byte, u uint64) []byte {
+	var tmp [8]byte
+	binary.LittleEndian.PutUint64(tmp[:], u)
+	return append(buf, tmp[7], tmp[6], tmp[5], tmp[4], tmp[3], tmp[2], tmp[1], tmp[0])
+}
+
+func AppendFloat32Reversed(buf []byte, f float32) []byte {
+	return AppendUint32Reversed(buf, math.Float32bits(f))
+}
+
+func AppendFloat64Reversed(buf []byte, f float64) []byte {
+	return AppendUint64Reversed(buf, math.Float64bits(f))
+}
+
+func AppendBytesReversed(buf []byte, bz []byte) []byte {
+	start := len(buf)
+	buf = append(buf, bz...)
+	reverseBytes(buf[start:])
+	return buf
+}
+
+func AppendByteSliceReversed(buf []byte, bz []byte) []byte {
+	buf = AppendBytesReversed(buf, bz)
+	buf = AppendUvarintReversed(buf, uint64(len(bz)))
+	return buf
+}
+
+func AppendStringReversed(buf []byte, s string) []byte {
+	start := len(buf)
+	buf = append(buf, s...)
+	reverseBytes(buf[start:])
+	buf = AppendUvarintReversed(buf, uint64(len(s)))
+	return buf
+}
+
+func AppendFieldNumberAndTyp3Reversed(buf []byte, num uint32, typ Typ3) []byte {
+	return AppendUvarintReversed(buf, (uint64(num)<<3)|uint64(typ))
+}
+
+func AppendTimeValueReversed(buf []byte, s int64, ns int32) ([]byte, error) {
+	if err := validateTimeValue(s, ns); err != nil {
+		return buf, err
+	}
+	if ns != 0 {
+		buf = AppendUvarintReversed(buf, uint64(ns))
+		buf = AppendFieldNumberAndTyp3Reversed(buf, 2, Typ3Varint)
+	}
+	if s != 0 {
+		buf = AppendUvarintReversed(buf, uint64(s))
+		buf = AppendFieldNumberAndTyp3Reversed(buf, 1, Typ3Varint)
+	}
+	return buf, nil
+}
+
+func AppendTimeReversed(buf []byte, t time.Time) ([]byte, error) {
+	return AppendTimeValueReversed(buf, t.Unix(), int32(t.Nanosecond()))
+}
+
+func AppendDurationValueReversed(buf []byte, s int64, ns int32) ([]byte, error) {
+	if err := validateDurationValue(s, ns); err != nil {
+		return buf, err
+	}
+	if ns != 0 {
+		buf = AppendUvarintReversed(buf, uint64(ns))
+		buf = AppendFieldNumberAndTyp3Reversed(buf, 2, Typ3Varint)
+	}
+	if s != 0 {
+		buf = AppendUvarintReversed(buf, uint64(s))
+		buf = AppendFieldNumberAndTyp3Reversed(buf, 1, Typ3Varint)
+	}
+	return buf, nil
+}
+
+func AppendDurationReversed(buf []byte, d time.Duration) ([]byte, error) {
+	sns := d.Nanoseconds()
+	s, ns := sns/1e9, int32(sns%1e9)
+	return AppendDurationValueReversed(buf, s, ns)
+}

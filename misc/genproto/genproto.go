@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/consensus"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool"
+	"github.com/gnolang/gno/tm2/pkg/bft/state"
 	btypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/bitarray"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
@@ -47,6 +48,7 @@ func execGen(_ context.Context, _ []string) error {
 		abci.Package,
 		btypes.Package,
 		consensus.Package,
+		state.Package,
 		ctypes.Package,
 		mempool.Package,
 		ed25519.Package,

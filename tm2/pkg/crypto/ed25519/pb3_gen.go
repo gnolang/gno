@@ -12,3 +12,65 @@ var _ fmt.Stringer
 var _ *amino.Codec
 var _ = errors.New
 
+func (goo PubKeyEd25519) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	repr := goo
+	if len(repr) > 0 {
+		before := offset
+		for i := len(repr) - 1; i >= 0; i-- {
+			elem := repr[i]
+			offset = amino.PrependByte(buf, offset, uint8(elem))
+		}
+		dataLen := before - offset
+		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+	}
+	return offset, err
+}
+
+func (goo PubKeyEd25519) SizeBinary2(cdc *amino.Codec) int {
+	var s int
+	repr := goo
+	if len(repr) > 0 {
+		var cs int
+		cs = len(repr)
+		s += 1 + amino.UvarintSize(uint64(cs)) + cs
+	}
+	return s
+}
+
+func (goo *PubKeyEd25519) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	return cdc.UnmarshalReflect(bz, goo)
+}
+
+func (goo PrivKeyEd25519) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	repr := goo
+	if len(repr) > 0 {
+		before := offset
+		for i := len(repr) - 1; i >= 0; i-- {
+			elem := repr[i]
+			offset = amino.PrependByte(buf, offset, uint8(elem))
+		}
+		dataLen := before - offset
+		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+	}
+	return offset, err
+}
+
+func (goo PrivKeyEd25519) SizeBinary2(cdc *amino.Codec) int {
+	var s int
+	repr := goo
+	if len(repr) > 0 {
+		var cs int
+		cs = len(repr)
+		s += 1 + amino.UvarintSize(uint64(cs)) + cs
+	}
+	return s
+}
+
+func (goo *PrivKeyEd25519) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	return cdc.UnmarshalReflect(bz, goo)
+}
+

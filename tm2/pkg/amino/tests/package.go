@@ -93,4 +93,6 @@ var Package = pkg.NewPackage(
 	// FuzzUnsafeFloat is excluded: pbbindings generator doesn't support float.
 	FuzzWriteEmpty{},
 	FuzzNilElements{},
+	// Interface-heavy benchmark type.
+	InterfaceHeavy{},
 )

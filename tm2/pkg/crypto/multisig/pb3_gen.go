@@ -18,11 +18,13 @@ func (goo PubKeyMultisigThreshold) MarshalBinary2(cdc *amino.Codec, buf []byte, 
 	for i := len(goo.PubKeys) - 1; i >= 0; i-- {
 		elem := goo.PubKeys[i]
 		if elem != nil {
-			anyBz, err := cdc.MarshalAny(elem)
+			before := offset
+			offset, err = cdc.MarshalAnyBinary2(elem, buf, offset)
 			if err != nil {
 				return offset, err
 			}
-			offset = amino.PrependByteSlice(buf, offset, anyBz)
+			anyLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
 		} else {
 			offset = amino.PrependByte(buf, offset, 0x00)
 		}
@@ -42,11 +44,8 @@ func (goo PubKeyMultisigThreshold) SizeBinary2(cdc *amino.Codec) int {
 	}
 	for _, elem := range goo.PubKeys {
 		if elem != nil {
-			anyBz, err := cdc.MarshalAny(elem)
-			if err != nil {
-				panic(err)
-			}
-			s += 1 + amino.UvarintSize(uint64(len(anyBz))) + len(anyBz)
+			cs := cdc.SizeAnyBinary2(elem)
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		} else {
 			s += 1 + 1
 		}
@@ -82,7 +81,7 @@ func (goo *PubKeyMultisigThreshold) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 			bz = bz[n:]
 			if len(fbz) > 0 {
 				var ev crypto.PubKey
-				if err := cdc.UnmarshalAny(fbz, &ev); err != nil {
+				if err := cdc.UnmarshalAnyBinary2(fbz, &ev); err != nil {
 					return err
 				}
 				goo.PubKeys = append(goo.PubKeys, ev)
@@ -106,7 +105,7 @@ func (goo *PubKeyMultisigThreshold) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 				bz = bz[n:]
 				if len(fbz) > 0 {
 					var ev crypto.PubKey
-					if err := cdc.UnmarshalAny(fbz, &ev); err != nil {
+					if err := cdc.UnmarshalAnyBinary2(fbz, &ev); err != nil {
 						return err
 					}
 					goo.PubKeys = append(goo.PubKeys, ev)

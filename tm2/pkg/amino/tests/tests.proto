@@ -536,6 +536,14 @@ message FuzzNilElements {
 	string name = 3 [json_name = "Name"];
 }
 
+message InterfaceHeavy {
+	google.protobuf.Any field1 = 1 [json_name = "Field1"];
+	google.protobuf.Any field2 = 2 [json_name = "Field2"];
+	google.protobuf.Any field3 = 3 [json_name = "Field3"];
+	repeated google.protobuf.Any items = 4 [json_name = "Items"];
+	string name = 5 [json_name = "Name"];
+}
+
 message TESTS_BytesList {
 	repeated bytes Value = 1;
 }

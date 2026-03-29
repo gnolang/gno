@@ -609,6 +609,35 @@ func TestRoundtripBinary2_GnoVMMapEntry(t *testing.T) {
 	})
 }
 
+func TestRoundtripBinary2_InterfaceHeavy(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Test with various concrete types in interface fields.
+	compareEncoding(t, cdc, "InterfaceHeavy/empty", InterfaceHeavy{
+		Name: "empty interfaces",
+	})
+	compareEncoding(t, cdc, "InterfaceHeavy/concrete1", InterfaceHeavy{
+		Field1: Concrete1{},
+		Field2: Concrete2{},
+		Name:   "with concrete1/2",
+	})
+	compareEncoding(t, cdc, "InterfaceHeavy/wrapped_bytes", InterfaceHeavy{
+		Field1: ConcreteWrappedBytes{Value: []byte{0xDE, 0xAD}},
+		Field3: Concrete1{},
+		Items:  []Interface1{Concrete2{}, ConcreteWrappedBytes{Value: []byte{0xBE, 0xEF}}},
+		Name:   "mixed",
+	})
+	compareEncoding(t, cdc, "InterfaceHeavy/all_fields", InterfaceHeavy{
+		Field1: Concrete1{},
+		Field2: Concrete2{},
+		Field3: ConcreteWrappedBytes{Value: []byte{1, 2, 3}},
+		Items:  []Interface1{Concrete1{}, Concrete2{}, ConcreteWrappedBytes{Value: []byte{4, 5}}},
+		Name:   "all populated",
+	})
+}
+
 // compareEncoding verifies that MarshalBinary2 produces identical bytes to amino.MarshalReflect
 // and that UnmarshalBinary2 can roundtrip the data.
 func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface{}) {

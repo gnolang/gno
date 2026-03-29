@@ -91,6 +91,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 	err := error(nil)
 	bz := []byte{}
 	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
 	f := fuzz.New()
 	rv := reflect.New(rt)
 	rv2 := reflect.New(rt)
@@ -744,6 +745,40 @@ var fuzzFuncs = []any{
 			*f = -float32(c.Intn(1000)) / 100.0
 		case 3:
 			*f = float32(c.Int31())
+		}
+	},
+	func(iface *tests.Interface1, c fuzz.Continue) {
+		// Randomly pick a concrete type for the interface.
+		switch c.Intn(4) {
+		case 0:
+			*iface = nil
+			return
+		case 1:
+			*iface = tests.Concrete1{}
+		case 2:
+			*iface = tests.Concrete2{}
+		case 3:
+			n := c.Intn(20)
+			if n == 0 {
+				*iface = tests.ConcreteWrappedBytes{Value: nil}
+			} else {
+				bz := make([]byte, n)
+				for i := range bz {
+					bz[i] = byte(c.Intn(256))
+				}
+				*iface = tests.ConcreteWrappedBytes{Value: bz}
+			}
+		}
+	},
+	func(sl *[]tests.Interface1, c fuzz.Continue) {
+		n := c.Intn(4)
+		if n == 0 {
+			*sl = nil
+			return
+		}
+		*sl = make([]tests.Interface1, n)
+		for i := range n {
+			c.Fuzz(&(*sl)[i])
 		}
 	},
 }

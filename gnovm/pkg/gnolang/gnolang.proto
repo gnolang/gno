@@ -119,6 +119,14 @@ message HeapItemValue {
 	TypedValue value = 2 [json_name = "Value"];
 }
 
+message Realm {
+	string id = 1 [json_name = "ID"];
+	string path = 2 [json_name = "Path"];
+	uint64 time = 3 [json_name = "Time"];
+	uint64 deposit = 4 [json_name = "Deposit"];
+	uint64 storage = 5 [json_name = "Storage"];
+}
+
 message ObjectID {
 	string value = 1;
 }

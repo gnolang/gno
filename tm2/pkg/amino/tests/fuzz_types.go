@@ -294,3 +294,12 @@ type FuzzUnsafeFloat struct {
 	Label   string
 	Count   int32
 }
+
+// InterfaceHeavy: benchmarks MarshalAnyBinary2 with multiple interface fields.
+type InterfaceHeavy struct {
+	Field1 Interface1
+	Field2 Interface1
+	Field3 Interface1
+	Items  []Interface1
+	Name   string
+}

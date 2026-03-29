@@ -24,11 +24,13 @@ func (goo BaseAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 	}
 	if goo.PubKey != nil {
 		if goo.PubKey != nil {
-			anyBz, err := cdc.MarshalAny(goo.PubKey)
+			before := offset
+			offset, err = cdc.MarshalAnyBinary2(goo.PubKey, buf, offset)
 			if err != nil {
 				return offset, err
 			}
-			offset = amino.PrependByteSlice(buf, offset, anyBz)
+			anyLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 		}
 	}
@@ -69,11 +71,8 @@ func (goo BaseAccount) SizeBinary2(cdc *amino.Codec) int {
 	}
 	if goo.PubKey != nil {
 		if goo.PubKey != nil {
-			anyBz, err := cdc.MarshalAny(goo.PubKey)
-			if err != nil {
-				panic(err)
-			}
-			s += 1 + amino.UvarintSize(uint64(len(anyBz))) + len(anyBz)
+			cs := cdc.SizeAnyBinary2(goo.PubKey)
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.AccountNumber != 0 {
@@ -127,7 +126,7 @@ func (goo *BaseAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			}
 			bz = bz[n:]
 			if len(fbz) > 0 {
-				if err := cdc.UnmarshalAny(fbz, &goo.PubKey); err != nil {
+				if err := cdc.UnmarshalAnyBinary2(fbz, &goo.PubKey); err != nil {
 					return err
 				}
 			}
@@ -347,21 +346,25 @@ func (goo MemPackage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 	var err error
 	if goo.Info != nil {
 		if goo.Info != nil {
-			anyBz, err := cdc.MarshalAny(goo.Info)
+			before := offset
+			offset, err = cdc.MarshalAnyBinary2(goo.Info, buf, offset)
 			if err != nil {
 				return offset, err
 			}
-			offset = amino.PrependByteSlice(buf, offset, anyBz)
+			anyLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
 		}
 	}
 	if goo.Type != nil {
 		if goo.Type != nil {
-			anyBz, err := cdc.MarshalAny(goo.Type)
+			before := offset
+			offset, err = cdc.MarshalAnyBinary2(goo.Type, buf, offset)
 			if err != nil {
 				return offset, err
 			}
-			offset = amino.PrependByteSlice(buf, offset, anyBz)
+			anyLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
 		}
 	}
@@ -409,20 +412,14 @@ func (goo MemPackage) SizeBinary2(cdc *amino.Codec) int {
 	}
 	if goo.Type != nil {
 		if goo.Type != nil {
-			anyBz, err := cdc.MarshalAny(goo.Type)
-			if err != nil {
-				panic(err)
-			}
-			s += 1 + amino.UvarintSize(uint64(len(anyBz))) + len(anyBz)
+			cs := cdc.SizeAnyBinary2(goo.Type)
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.Info != nil {
 		if goo.Info != nil {
-			anyBz, err := cdc.MarshalAny(goo.Info)
-			if err != nil {
-				panic(err)
-			}
-			s += 1 + amino.UvarintSize(uint64(len(anyBz))) + len(anyBz)
+			cs := cdc.SizeAnyBinary2(goo.Info)
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	return s
@@ -494,7 +491,7 @@ func (goo *MemPackage) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			}
 			bz = bz[n:]
 			if len(fbz) > 0 {
-				if err := cdc.UnmarshalAny(fbz, &goo.Type); err != nil {
+				if err := cdc.UnmarshalAnyBinary2(fbz, &goo.Type); err != nil {
 					return err
 				}
 			}
@@ -505,7 +502,7 @@ func (goo *MemPackage) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			}
 			bz = bz[n:]
 			if len(fbz) > 0 {
-				if err := cdc.UnmarshalAny(fbz, &goo.Info); err != nil {
+				if err := cdc.UnmarshalAnyBinary2(fbz, &goo.Info); err != nil {
 					return err
 				}
 			}

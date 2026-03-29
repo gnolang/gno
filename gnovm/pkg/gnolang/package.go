@@ -34,6 +34,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 
 	//----------------------------------------
 	// Realm/Object
+	&Realm{},
 	ObjectID{},
 	&ObjectInfo{},
 

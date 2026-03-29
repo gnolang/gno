@@ -976,11 +976,13 @@ func (goo msgInfo) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 	}
 	if goo.Msg != nil {
 		if goo.Msg != nil {
-			anyBz, err := cdc.MarshalAny(goo.Msg)
+			before := offset
+			offset, err = cdc.MarshalAnyBinary2(goo.Msg, buf, offset)
 			if err != nil {
 				return offset, err
 			}
-			offset = amino.PrependByteSlice(buf, offset, anyBz)
+			anyLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		}
 	}
@@ -991,11 +993,8 @@ func (goo msgInfo) SizeBinary2(cdc *amino.Codec) int {
 	var s int
 	if goo.Msg != nil {
 		if goo.Msg != nil {
-			anyBz, err := cdc.MarshalAny(goo.Msg)
-			if err != nil {
-				panic(err)
-			}
-			s += 1 + amino.UvarintSize(uint64(len(anyBz))) + len(anyBz)
+			cs := cdc.SizeAnyBinary2(goo.Msg)
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.PeerID != "" {
@@ -1024,7 +1023,7 @@ func (goo *msgInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			}
 			bz = bz[n:]
 			if len(fbz) > 0 {
-				if err := cdc.UnmarshalAny(fbz, &goo.Msg); err != nil {
+				if err := cdc.UnmarshalAnyBinary2(fbz, &goo.Msg); err != nil {
 					return err
 				}
 			}

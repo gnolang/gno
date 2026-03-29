@@ -539,6 +539,164 @@ func (cdc *Codec) marshalAnyBinary2(o PBMessager2) ([]byte, error) {
 	return copyBytes(buf.Bytes()), nil
 }
 
+// MarshalAnyBinary2 writes a google.protobuf.Any envelope backward into
+// buf at offset, using the same Prepend* backward encoding as generated code.
+// For use within generated MarshalBinary2 methods.
+func (cdc *Codec) MarshalAnyBinary2(o any, buf []byte, offset int) (int, error) {
+	pbm2, ok := o.(PBMarshaler2)
+	if !ok {
+		// Fallback for built-in types (string, int, etc.) that can't have methods.
+		anyBz, err := cdc.MarshalAny(o)
+		if err != nil {
+			return offset, err
+		}
+		offset = PrependBytes(buf, offset, anyBz)
+		return offset, nil
+	}
+	rv := reflect.ValueOf(o)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	cinfo, err := cdc.getTypeInfoWLock(rv.Type())
+	if err != nil {
+		return offset, err
+	}
+	if !cinfo.Registered {
+		return offset, fmt.Errorf("MarshalAnyBinary2: cannot encode unregistered concrete type %v", rv.Type())
+	}
+
+	// Write backward: field 2 (value) first, then field 1 (typeURL).
+
+	// Field 2: Value (inner struct encoded backward into same buf).
+	before := offset
+	offset, err = pbm2.MarshalBinary2(cdc, buf, offset)
+	if err != nil {
+		return offset, err
+	}
+	innerLen := before - offset
+	if innerLen > 0 {
+		offset = PrependUvarint(buf, offset, uint64(innerLen))
+		offset = PrependFieldNumberAndTyp3(buf, offset, 2, Typ3ByteLength)
+	}
+
+	// Field 1: TypeURL.
+	offset = PrependString(buf, offset, cinfo.TypeURL)
+	offset = PrependFieldNumberAndTyp3(buf, offset, 1, Typ3ByteLength)
+
+	return offset, nil
+}
+
+// SizeAnyBinary2 computes the encoded size of a google.protobuf.Any envelope
+// arithmetically, without marshaling. For use in generated SizeBinary2 methods.
+func (cdc *Codec) SizeAnyBinary2(o any) int {
+	pbm2, ok := o.(PBMarshaler2)
+	if !ok {
+		// Fallback for built-in types (string, int, etc.) that can't have methods.
+		bz, err := cdc.MarshalAny(o)
+		if err != nil {
+			panic(err)
+		}
+		return len(bz)
+	}
+	rv := reflect.ValueOf(o)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	cinfo, err := cdc.getTypeInfoWLock(rv.Type())
+	if err != nil {
+		panic(err)
+	}
+
+	var s int
+	// Field 1: TypeURL (field key + length prefix + string bytes).
+	s += UvarintSize(uint64(1)<<3|uint64(Typ3ByteLength)) + UvarintSize(uint64(len(cinfo.TypeURL))) + len(cinfo.TypeURL)
+	// Field 2: Value (field key + length prefix + inner struct bytes).
+	innerSize := pbm2.SizeBinary2(cdc)
+	if innerSize > 0 {
+		s += UvarintSize(uint64(2)<<3|uint64(Typ3ByteLength)) + UvarintSize(uint64(innerSize)) + innerSize
+	}
+	return s
+}
+
+// UnmarshalAnyBinary2 decodes a google.protobuf.Any-wrapped value using
+// genproto2. For use within generated UnmarshalBinary2 methods.
+// Unlike unmarshalAnyBinary2, this errors (not falls through) if the
+// concrete type does not implement PBMessager2.
+func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any) error {
+	if len(bz) == 0 {
+		return nil
+	}
+
+	// Field 1: TypeURL.
+	fnum, typ, n, err := decodeFieldNumberAndTyp3(bz)
+	if err != nil {
+		return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
+	}
+	if fnum != 1 || typ != Typ3ByteLength {
+		return fmt.Errorf("UnmarshalAnyBinary2: expected field 1 TypeURL, got num %v typ %v", fnum, typ)
+	}
+	bz = bz[n:]
+	typeURL, n, err := DecodeString(bz)
+	if err != nil {
+		return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
+	}
+	bz = bz[n:]
+
+	// Field 2: Value (may be absent for empty structs).
+	var value []byte
+	if len(bz) > 0 {
+		fnum, typ, n, err = decodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
+		}
+		if fnum != 2 || typ != Typ3ByteLength {
+			return fmt.Errorf("UnmarshalAnyBinary2: expected field 2 Value, got num %v typ %v", fnum, typ)
+		}
+		bz = bz[n:]
+		value, _, err = DecodeByteSlice(bz)
+		if err != nil {
+			return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
+		}
+	}
+
+	// Look up concrete type.
+	cinfo, err := cdc.getTypeInfoFromTypeURLRLock(typeURL, FieldOptions{})
+	if err != nil {
+		return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
+	}
+
+	// Construct concrete value.
+	crv, irvSet := constructConcreteType(cinfo)
+	if !crv.CanAddr() {
+		return fmt.Errorf("UnmarshalAnyBinary2: concrete type %v not addressable", cinfo.Type)
+	}
+	pbm2, ok := crv.Addr().Interface().(PBMessager2)
+	if !ok {
+		// Fallback: use reflect-based decoding.
+		return cdc.UnmarshalAny2(typeURL, value, ptr)
+	}
+
+	// Check assignability.
+	rv := reflect.ValueOf(ptr)
+	if rv.Kind() != reflect.Ptr {
+		return ErrNoPointer
+	}
+	rv = rv.Elem()
+	if !irvSet.Type().AssignableTo(rv.Type()) {
+		return fmt.Errorf("UnmarshalAnyBinary2: decoded type %v is not assignable to %v", irvSet.Type(), rv.Type())
+	}
+
+	// Decode inner value.
+	if len(value) > 0 {
+		if err := pbm2.UnmarshalBinary2(cdc, value); err != nil {
+			return err
+		}
+	}
+
+	rv.Set(irvSet)
+	return nil
+}
+
 func copyBytes(bz []byte) []byte {
 	cp := make([]byte, len(bz))
 	copy(cp, bz)
@@ -913,6 +1071,11 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 func (cdc *Codec) UnmarshalAny2(typeURL string, value []byte, ptr any) (err error) {
 	cdc.doAutoseal()
 
+	// Empty typeURL means nil interface (e.g. from proto3 zero-value Any).
+	if typeURL == "" {
+		return nil
+	}
+
 	rv := reflect.ValueOf(ptr)
 	if rv.Kind() != reflect.Ptr {
 		return ErrNoPointer
@@ -1135,10 +1298,15 @@ type PBMessager interface {
 // PBMessager2 is implemented by types that can directly
 // marshal/unmarshal protobuf3 wire bytes without intermediate
 // protobuf structs. Generated by genproto2.
-type PBMessager2 interface {
-	// MarshalBinary2 encodes the struct backward into buf ending at offset.
-	// Returns the new offset (start of written data).
+// PBMarshaler2 is the encode-only subset of PBMessager2.
+// Both methods have value receivers, so T (not just *T) satisfies this.
+// Used by SizeAnyBinary2/MarshalAnyBinary2 for interface field encoding.
+type PBMarshaler2 interface {
 	MarshalBinary2(cdc *Codec, buf []byte, offset int) (int, error)
 	SizeBinary2(cdc *Codec) int
+}
+
+type PBMessager2 interface {
+	PBMarshaler2
 	UnmarshalBinary2(cdc *Codec, bz []byte) error
 }
