@@ -89,4 +89,8 @@ var Package = pkg.NewPackage(
 	FuzzFileInfo{},
 	FuzzPtrNest{},
 	FuzzDeepNest{},
+	// Amino tag fuzz types (write_empty, nil_elements).
+	// FuzzUnsafeFloat is excluded: pbbindings generator doesn't support float.
+	FuzzWriteEmpty{},
+	FuzzNilElements{},
 )

@@ -12604,3 +12604,311 @@ func (goo *FuzzDeepNest) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	return nil
 }
 
+func (goo FuzzWriteEmpty) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.Normal != "" {
+		offset = amino.PrependString(buf, offset, string(goo.Normal))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3ByteLength)
+	}
+	offset = amino.PrependBool(buf, offset, bool(goo.Flag))
+	offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3Varint)
+	offset = amino.PrependVarint(buf, offset, int64(goo.Count))
+	offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3Varint)
+	offset = amino.PrependByteSlice(buf, offset, goo.Data)
+	offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+	{
+		before := offset
+		offset, err = goo.Inner.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+	}
+	{
+		before := offset
+		for i := len(goo.Values) - 1; i >= 0; i-- {
+			e := goo.Values[i]
+			offset = amino.PrependVarint(buf, offset, int64(e))
+		}
+		dataLen := before - offset
+		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+	}
+	offset = amino.PrependString(buf, offset, string(goo.Name))
+	offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+	return offset, err
+}
+
+func (goo FuzzWriteEmpty) SizeBinary2(cdc *amino.Codec) int {
+	var s int
+	s += 1 + amino.UvarintSize(uint64(len(goo.Name))) + len(goo.Name)
+	{
+		var cs int
+		for _, e := range goo.Values {
+			cs += amino.VarintSize(int64(e))
+		}
+		s += 1 + amino.UvarintSize(uint64(cs)) + cs
+	}
+	{
+		cs := goo.Inner.SizeBinary2(cdc)
+		s += 1 + amino.UvarintSize(uint64(cs)) + cs
+	}
+	s += 1 + amino.ByteSliceSize(goo.Data)
+	s += 1 + amino.VarintSize(int64(goo.Count))
+	s += 1 + 1
+	if goo.Normal != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.Normal))) + len(goo.Normal)
+	}
+	return s
+}
+
+func (goo *FuzzWriteEmpty) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum < lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Name = string(v)
+		case 2:
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			for len(fbz) > 0 {
+				var ev int32
+				v, n, err := amino.DecodeVarint(fbz)
+				if err != nil {
+					return err
+				}
+				fbz = fbz[n:]
+				ev = int32(v)
+				goo.Values = append(goo.Values, ev)
+			}
+		case 3:
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := goo.Inner.UnmarshalBinary2(cdc, fbz); err != nil {
+				return err
+			}
+		case 4:
+			v, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if len(v) == 0 {
+				goo.Data = nil
+			} else {
+				goo.Data = v
+			}
+		case 5:
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Count = int64(v)
+		case 6:
+			v, n, err := amino.DecodeBool(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Flag = bool(v)
+		case 7:
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Normal = string(v)
+		default:
+			n, err = amino.SkipField(bz, typ3)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+		}
+	}
+	return nil
+}
+
+func (goo FuzzNilElements) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.Name != "" {
+		offset = amino.PrependString(buf, offset, string(goo.Name))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+	}
+	for i := len(goo.Poses) - 1; i >= 0; i-- {
+		elem := goo.Poses[i]
+		if elem == nil {
+			offset = amino.PrependByte(buf, offset, 0x00)
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		} else {
+			before := offset
+			offset, err = (*elem).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		}
+	}
+	for i := len(goo.Entries) - 1; i >= 0; i-- {
+		elem := goo.Entries[i]
+		if elem == nil {
+			offset = amino.PrependByte(buf, offset, 0x00)
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			before := offset
+			offset, err = (*elem).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		}
+	}
+	return offset, err
+}
+
+func (goo FuzzNilElements) SizeBinary2(cdc *amino.Codec) int {
+	var s int
+	for _, elem := range goo.Entries {
+		if elem == nil {
+			s += 1 + 1
+		} else {
+			cs := (*elem).SizeBinary2(cdc)
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	for _, elem := range goo.Poses {
+		if elem == nil {
+			s += 1 + 1
+		} else {
+			cs := (*elem).SizeBinary2(cdc)
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	if goo.Name != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.Name))) + len(goo.Name)
+	}
+	return s
+}
+
+func (goo *FuzzNilElements) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum < lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			var ev FuzzFieldInfo
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := ev.UnmarshalBinary2(cdc, fbz); err != nil {
+				return err
+			}
+			goo.Entries = append(goo.Entries, &ev)
+			for len(bz) > 0 {
+				var nextFnum uint32
+				nextFnum, _, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return err
+				}
+				if nextFnum != 1 {
+					break
+				}
+				bz = bz[n:]
+				var ev FuzzFieldInfo
+				fbz, n, err := amino.DecodeByteSlice(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+				if err := ev.UnmarshalBinary2(cdc, fbz); err != nil {
+					return err
+				}
+				goo.Entries = append(goo.Entries, &ev)
+			}
+		case 2:
+			var ev GnoVMPos
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := ev.UnmarshalBinary2(cdc, fbz); err != nil {
+				return err
+			}
+			goo.Poses = append(goo.Poses, &ev)
+			for len(bz) > 0 {
+				var nextFnum uint32
+				nextFnum, _, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return err
+				}
+				if nextFnum != 2 {
+					break
+				}
+				bz = bz[n:]
+				var ev GnoVMPos
+				fbz, n, err := amino.DecodeByteSlice(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+				if err := ev.UnmarshalBinary2(cdc, fbz); err != nil {
+					return err
+				}
+				goo.Poses = append(goo.Poses, &ev)
+			}
+		case 3:
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Name = string(v)
+		default:
+			n, err = amino.SkipField(bz, typ3)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+		}
+	}
+	return nil
+}
+

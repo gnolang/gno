@@ -263,3 +263,34 @@ type FuzzDeepNest struct {
 	Blocks []FuzzBlock
 	Meta   GnoVMAttrs
 }
+
+// ========================================
+// Fuzz types for amino Go-tag coverage.
+// These exercise amino:"write_empty", amino:"nil_elements", and amino:"unsafe".
+// Not registered in Package (no pbbindings) — tested via reflect + genproto2 only.
+
+// FuzzWriteEmpty: exercises amino:"write_empty" on various field types.
+type FuzzWriteEmpty struct {
+	Name   string      `amino:"write_empty"`
+	Values []int32     `amino:"write_empty"`
+	Inner  GnoVMPos    `amino:"write_empty"`
+	Data   []byte      `amino:"write_empty"`
+	Count  int64       `amino:"write_empty"`
+	Flag   bool        `amino:"write_empty"`
+	Normal string      // control: no write_empty
+}
+
+// FuzzNilElements: exercises amino:"nil_elements" on pointer-to-struct slices.
+type FuzzNilElements struct {
+	Entries []*FuzzFieldInfo `amino:"nil_elements"`
+	Poses   []*GnoVMPos     `amino:"nil_elements"`
+	Name    string
+}
+
+// FuzzUnsafeFloat: exercises amino:"unsafe" for float types.
+type FuzzUnsafeFloat struct {
+	Score   float64 `amino:"unsafe"`
+	Weight  float32 `amino:"unsafe"`
+	Label   string
+	Count   int32
+}
