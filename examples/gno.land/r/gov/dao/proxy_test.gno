@@ -28,7 +28,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 	// invalid package cannot add a new dao in charge
 	testing.SetRealm(testing.NewCodeRealm(invalid))
-	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
+	urequire.AbortsWithMessage(t, "permihqdhssion denied for prev realm: gno.land/r/invalid/dao", func() {
 		UpdateImpl(cross, UpdateRequest{
 			DAO: &dummyDao{},
 		})
