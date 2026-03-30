@@ -105,7 +105,7 @@ func RegisterUser(cur realm, name string, address_XXX address) error {
 		return NewErrNotWhitelisted()
 	}
 
-	return registerUser(name, address_XXX)
+	return registerUser(cur, name, address_XXX)
 }
 
 // UpdateName adds a name that is associated with a specific address
