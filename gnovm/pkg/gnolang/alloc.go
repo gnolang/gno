@@ -195,9 +195,6 @@ func (alloc *Allocator) AllocateFunc() {
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
-	if items < 0 {
-		items = 0
-	}
 	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)))
 }
 
@@ -356,6 +353,9 @@ func (alloc *Allocator) NewStructWithFields(fields ...TypedValue) *StructValue {
 }
 
 func (alloc *Allocator) NewMap(size int) *MapValue {
+	if size < 0 {
+		size = 0
+	}
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
 	mv.MakeMap(size)
