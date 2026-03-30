@@ -1,9 +1,11 @@
 package gnoland
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -579,6 +581,169 @@ func GetH(cur realm) int64 { return h }
 		string(resp.Data),
 		fmt.Sprintf("(%d int64)", expectedHeight),
 	)
+}
+
+func TestGenesisMetadataRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	var (
+		key     = getDummyKey(t)
+		chainID = "test"
+
+		originalTimestamp   = time.Now().Unix()
+		originalBlockHeight = int64(99)
+		originalChainID     = "test-chain-42"
+	)
+
+	// Build two TxWithMetadata entries: one with all fields, one with only Timestamp (backward compat)
+	path1 := "gno.land/r/demo/roundtrip1"
+	body1 := `package roundtrip1
+
+import (
+	"time"
+	"chain/runtime"
+)
+
+var t time.Time = time.Now()
+var h int64 = runtime.ChainHeight()
+
+func GetT(cur realm) int64 { return t.Unix() }
+func GetH(cur realm) int64 { return h }
+`
+	msg1 := vm.MsgAddPackage{
+		Creator: key.PubKey().Address(),
+		Package: &std.MemPackage{
+			Name: "roundtrip1",
+			Path: path1,
+			Files: []*std.MemFile{
+				{Name: "file.gno", Body: body1},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path1)},
+			},
+		},
+		MaxDeposit: nil,
+	}
+	tx1 := createAndSignTx(t, []std.Msg{msg1}, chainID, key)
+
+	path2 := "gno.land/r/demo/roundtrip2"
+	body2 := `package roundtrip2
+
+import "time"
+
+var t time.Time = time.Now()
+
+func GetT(cur realm) int64 { return t.Unix() }
+`
+	msg2 := vm.MsgAddPackage{
+		Creator: key.PubKey().Address(),
+		Package: &std.MemPackage{
+			Name: "roundtrip2",
+			Path: path2,
+			Files: []*std.MemFile{
+				{Name: "file.gno", Body: body2},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path2)},
+			},
+		},
+		MaxDeposit: nil,
+	}
+	tx2 := createAndSignTx(t, []std.Msg{msg2}, chainID, key)
+
+	fullMetadataTx := TxWithMetadata{
+		Tx: tx1,
+		Metadata: &GnoTxMetadata{
+			Timestamp:   originalTimestamp,
+			BlockHeight: originalBlockHeight,
+			ChainID:     originalChainID,
+		},
+	}
+
+	// Backward compat: only Timestamp, no BlockHeight or ChainID
+	partialMetadataTx := TxWithMetadata{
+		Tx: tx2,
+		Metadata: &GnoTxMetadata{
+			Timestamp: originalTimestamp,
+		},
+	}
+
+	// --- Part 1: JSONL round-trip ---
+
+	var buf bytes.Buffer
+	for _, txm := range []TxWithMetadata{fullMetadataTx, partialMetadataTx} {
+		line, err := amino.MarshalJSON(txm)
+		require.NoError(t, err)
+		buf.Write(line)
+		buf.WriteByte('\n')
+	}
+
+	tmpFile := filepath.Join(t.TempDir(), "txs.jsonl")
+	require.NoError(t, os.WriteFile(tmpFile, buf.Bytes(), 0o644))
+
+	readTxs, err := ReadGenesisTxs(context.Background(), tmpFile)
+	require.NoError(t, err)
+	require.Len(t, readTxs, 2)
+
+	// Verify full metadata preserved
+	require.NotNil(t, readTxs[0].Metadata)
+	require.Equal(t, originalTimestamp, readTxs[0].Metadata.Timestamp)
+	require.Equal(t, originalBlockHeight, readTxs[0].Metadata.BlockHeight)
+	require.Equal(t, originalChainID, readTxs[0].Metadata.ChainID)
+
+	// Verify backward compat: partial metadata has zero-value BlockHeight and empty ChainID
+	require.NotNil(t, readTxs[1].Metadata)
+	require.Equal(t, originalTimestamp, readTxs[1].Metadata.Timestamp)
+	require.Equal(t, int64(0), readTxs[1].Metadata.BlockHeight)
+	require.Equal(t, "", readTxs[1].Metadata.ChainID)
+
+	// --- Part 2: Genesis replay with full metadata ---
+
+	db := memdb.NewMemDB()
+	app, err := NewAppWithOptions(TestAppOptions(db))
+	require.NoError(t, err)
+
+	app.InitChain(abci.RequestInitChain{
+		ChainID: chainID,
+		Time:    time.Now(),
+		ConsensusParams: &abci.ConsensusParams{
+			Block: defaultBlockParams(),
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{},
+			},
+		},
+		AppState: GnoGenesisState{
+			Txs:      readTxs,
+			Balances: []Balance{{Address: key.PubKey().Address(), Amount: std.NewCoins(std.NewCoin("ugnot", 20_000_000))}},
+			Auth:     auth.DefaultGenesisState(),
+			Bank:     bank.DefaultGenesisState(),
+			VM:       vm.DefaultGenesisState(),
+		},
+	})
+
+	// Verify timestamp was applied (via realm 1)
+	callMsg1 := vm.MsgCall{
+		Caller:  key.PubKey().Address(),
+		PkgPath: path1,
+		Func:    "GetT",
+	}
+	callTx1 := createAndSignTx(t, []std.Msg{callMsg1}, chainID, key)
+	marshalledTx1, err := amino.Marshal(callTx1)
+	require.NoError(t, err)
+
+	resp1 := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx1})
+	require.True(t, resp1.IsOK(), "DeliverTx failed: %s", resp1.Log)
+	assert.Contains(t, string(resp1.Data), fmt.Sprintf("(%d int64)", originalTimestamp))
+
+	// Verify block height was applied (via realm 1, which was deployed with full metadata)
+	callMsg2 := vm.MsgCall{
+		Caller:  key.PubKey().Address(),
+		PkgPath: path1,
+		Func:    "GetH",
+	}
+	callTx2 := createAndSignTx(t, []std.Msg{callMsg2}, chainID, key)
+	marshalledTx2, err := amino.Marshal(callTx2)
+	require.NoError(t, err)
+
+	resp2 := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx2})
+	require.True(t, resp2.IsOK(), "DeliverTx failed: %s", resp2.Log)
+	assert.Contains(t, string(resp2.Data), fmt.Sprintf("(%d int64)", originalBlockHeight))
 }
 
 func TestEndBlocker(t *testing.T) {
