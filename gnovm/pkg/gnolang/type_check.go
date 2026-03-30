@@ -16,13 +16,13 @@ var (
 		SUB:      isNumeric,
 		MUL:      isNumeric,
 		QUO:      isNumeric,
-		REM:      isIntNum,
-		SHL:      isIntNum,
-		SHR:      isIntNum,
-		BAND:     isIntNum, // bit ops
-		XOR:      isIntNum,
-		BOR:      isIntNum,
-		BAND_NOT: isIntNum,
+		REM:      isWhole,
+		SHL:      isWhole,
+		SHR:      isWhole,
+		BAND:     isWhole, // bit ops
+		XOR:      isWhole,
+		BOR:      isWhole,
+		BAND_NOT: isWhole,
 		LAND:     isBoolean, // logic
 		LOR:      isBoolean,
 		LSS:      isOrdered, // compare
@@ -34,7 +34,7 @@ var (
 	unaryChecker = map[Word]func(t Type) bool{
 		ADD: isNumeric,
 		SUB: isNumeric,
-		XOR: isIntNum,
+		XOR: isWhole,
 		NOT: isBoolean,
 	}
 	IncDecStmtChecker = map[Word]func(t Type) bool{
@@ -46,13 +46,13 @@ var (
 		SUB_ASSIGN:      isNumeric,
 		MUL_ASSIGN:      isNumeric,
 		QUO_ASSIGN:      isNumeric,
-		REM_ASSIGN:      isIntNum,
-		SHL_ASSIGN:      isIntNum,
-		SHR_ASSIGN:      isIntNum,
-		BAND_ASSIGN:     isIntNum,
-		XOR_ASSIGN:      isIntNum,
-		BOR_ASSIGN:      isIntNum,
-		BAND_NOT_ASSIGN: isIntNum,
+		REM_ASSIGN:      isWhole,
+		SHL_ASSIGN:      isWhole,
+		SHR_ASSIGN:      isWhole,
+		BAND_ASSIGN:     isWhole,
+		XOR_ASSIGN:      isWhole,
+		BOR_ASSIGN:      isWhole,
+		BAND_NOT_ASSIGN: isWhole,
 	}
 )
 
@@ -118,15 +118,6 @@ func isNumeric(t Type) bool {
 	}
 }
 
-func isIntNum(t Type) bool {
-	switch t := baseOf(t).(type) {
-	case PrimitiveType:
-		return t.category()&IsInteger != 0 || t.category()&IsBigInt != 0
-	default:
-		return false
-	}
-}
-
 func isNumericOrString(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
@@ -145,47 +136,17 @@ func isWhole(t Type) bool {
 	}
 }
 
-// ===========================================================
-func assertComparable(xt, dt Type) {
-	switch baseOf(dt).(type) {
-	case *SliceType, *FuncType, *MapType:
-		if xt != nil {
-			panic(fmt.Sprintf("%v can only be compared to nil", dt))
-		}
+func isIntegerKind(k Kind) bool {
+	switch k {
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
+		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		return true
+	default:
+		return false
 	}
-	assertComparable2(dt)
 }
 
-// assert value with dt is comparable
-func assertComparable2(dt Type) {
-	if debug {
-		debug.Printf("assertComparable2 dt: %v \n", dt)
-	}
-	switch cdt := baseOf(dt).(type) {
-	case PrimitiveType:
-	case *ArrayType:
-		switch baseOf(cdt.Elem()).(type) {
-		case PrimitiveType, *PointerType, *InterfaceType, *ArrayType, *StructType, *ChanType:
-			assertComparable2(cdt.Elem())
-		default:
-			panic(fmt.Sprintf("%v is not comparable", dt))
-		}
-	case *StructType:
-		for _, f := range cdt.Fields {
-			switch cft := baseOf(f.Type).(type) {
-			case PrimitiveType, *PointerType, *InterfaceType, *ArrayType, *StructType:
-				assertComparable2(cft)
-			default:
-				panic(fmt.Sprintf("%v is not comparable", dt))
-			}
-		}
-	case *PointerType: // &a == &b
-	case *InterfaceType:
-	case *SliceType, *FuncType, *MapType:
-	default:
-		panic(fmt.Sprintf("%v is not comparable", dt))
-	}
-}
+// ===========================================================
 
 func mayBeNil(t Type) bool {
 	switch baseOf(t).(type) {
@@ -663,7 +624,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
 	}
 	// If not const, must be IntNum.
-	if !isIntNum(rt) && !ric {
+	if !isWhole(rt) && !ric {
 		panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
 	}
 
@@ -673,7 +634,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 			panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Right))
 		}
 
-		if isIntNum(rt) {
+		if isWhole(rt) {
 			// Good.
 		} else if !IsExactBigDec(rv.V) { // e.g. 1.0 .
 			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
@@ -740,7 +701,17 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 	if isComparison(x.Op) {
 		switch x.Op {
 		case EQL, NEQ:
-			assertComparable(xt, dt)
+			// Slice, func, and map can only be compared to nil.
+			switch baseOf(dt).(type) {
+			case *SliceType, *FuncType, *MapType:
+				if xt != nil {
+					panic(fmt.Sprintf("%v can only be compared to nil", dt))
+				}
+			default:
+				if !isComparable(dt) {
+					panic(fmt.Sprintf("%v is not comparable", dt))
+				}
+			}
 			err := checkAssignableTo(x, xt, dt)
 			if err != nil {
 				if debug {
@@ -1015,7 +986,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					}
 				}
 			case SHL_ASSIGN, SHR_ASSIGN:
-				if !isIntNum(rt) {
+				if !isWhole(rt) {
 					panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Rhs[0]))
 				}
 				_, ric := x.Rhs[0].(*ConstExpr)
@@ -1179,4 +1150,26 @@ func isBlankIdentifier(x Expr) bool {
 		return nx.Name == blankIdentifier
 	}
 	return false
+}
+
+// isComparable returns true if the type can be compared with ==.
+// This is used for map key validation and other comparability checks.
+func isComparable(dt Type) bool {
+	switch cdt := baseOf(dt).(type) {
+	case PrimitiveType, *PointerType, *InterfaceType:
+		return true
+	case *ChanType:
+		panic("channel type is not yet supported")
+	case *ArrayType:
+		return isComparable(cdt.Elt)
+	case *StructType:
+		for _, f := range cdt.Fields {
+			if !isComparable(f.Type) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
 }
