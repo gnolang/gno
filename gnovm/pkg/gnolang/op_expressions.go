@@ -27,7 +27,7 @@ func (m *Machine) doOpIndex1() {
 			}
 		}
 	default:
-		// NOTE: nilRealm is OK, not setting a map (w/ new key).
+		// Read-only: pass nilRealm so map key attach DidUpdate is a no-op.
 		res := xv.GetPointerAtIndex(nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}

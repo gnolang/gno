@@ -176,9 +176,16 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 //
-// Caller MUST have done a readonly check (IsReadonly/isExternalRealm)
-// before mutating. DidUpdate is called after mutation, so it cannot
-// prevent the write — it can only detect a missing pre-check and panic.
+// DidUpdate is called after mutation, so it cannot prevent the write —
+// it can only detect a missing pre-check and panic.
+//
+// Direct callers (e.g. op_assign, machine.go) must perform a readonly
+// check (IsReadonly/isExternalRealm) before the mutation.
+//
+// Indirect callers via GetPointerAtIndex (values.go, map key attach):
+//   - PopAsPointer2 (write path): checks readonly before calling.
+//   - doOpIndex (read path): passes nilRealm, so DidUpdate is a no-op.
+//   - debugger: passes nilRealm (read-only), so DidUpdate is a no-op.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
