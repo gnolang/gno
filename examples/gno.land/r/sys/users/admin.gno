@@ -94,7 +94,7 @@ func ProposeRegisterUser(name string, addr address) dao.ProposalRequest {
 	}
 
 	cb := func(cur realm) error {
-		return registerUser(name, addr)
+		return registerUser(cur, name, addr)
 	}
 
 	desc := "This proposal registers " + name + " with address " + addr.String() + " in `sys/users`."
