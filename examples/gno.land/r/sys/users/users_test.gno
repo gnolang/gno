@@ -201,6 +201,44 @@ func TestResolveAny(t *testing.T) {
 	})
 }
 
+func TestProposeErrors(t *testing.T) {
+	t.Run("propose_register_user_errors", func(t *testing.T) {
+		urequire.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+			ProposeRegisterUser("bad name", aliceAddr)
+		})
+		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
+			ProposeRegisterUser(alice, "badaddress")
+		})
+	})
+
+	t.Run("propose_update_name_errors", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
+			ProposeUpdateName("badaddress", "alice1")
+		})
+		urequire.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+			ProposeUpdateName(aliceAddr, "bad name")
+		})
+		// Not yet registered
+		urequire.PanicsWithMessage(t, ErrUserNotExistOrDeleted.Error(), func() {
+			ProposeUpdateName(aliceAddr, "alice1")
+		})
+	})
+
+	t.Run("propose_delete_user_errors", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
+			ProposeDeleteUser("badaddress")
+		})
+		// Not yet registered
+		urequire.PanicsWithMessage(t, ErrUserNotExistOrDeleted.Error(), func() {
+			ProposeDeleteUser(aliceAddr)
+		})
+	})
+}
+
 // TODO Uncomment after gnoweb /u/ page.
 //func TestUserRenderLink(t *testing.T) {
 //	testing.SetOriginCaller(whitelistedCallerAddr)

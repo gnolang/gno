@@ -108,17 +108,12 @@ func RegisterUser(cur realm, name string, address_XXX address) error {
 	return registerUser(cur, name, address_XXX)
 }
 
-// UpdateName adds a name that is associated with a specific address
+// updateName adds a name that is associated with a specific address without checking controllers
 // All previous names are preserved and resolvable.
 // The new name is the default value returned for address lookups.
-func (u *UserData) UpdateName(newName string) error {
-	if u == nil { // either doesnt exists or was deleted
+func (u *UserData) updateName(newName string) error {
+	if u == nil { // either doesn't exist or was deleted
 		return ErrUserNotExistOrDeleted
-	}
-
-	// Validate caller
-	if !controllers.Has(runtime.CurrentRealm().Address()) {
-		return NewErrNotWhitelisted()
 	}
 
 	// Validate name
@@ -141,6 +136,34 @@ func (u *UserData) UpdateName(newName string) error {
 	return nil
 }
 
+// UpdateName adds a name that is associated with a specific address
+// All previous names are preserved and resolvable.
+// The new name is the default value returned for address lookups.
+func (u *UserData) UpdateName(newName string) error {
+	if u == nil {
+		return ErrUserNotExistOrDeleted
+	}
+
+	// Validate caller
+	if !controllers.Has(runtime.CurrentRealm().Address()) {
+		return NewErrNotWhitelisted()
+	}
+
+	return u.updateName(newName)
+}
+
+// delete marks a user and all their aliases as deleted without checking controllers.
+func (u *UserData) delete() error {
+	if u == nil {
+		return ErrUserNotExistOrDeleted
+	}
+
+	u.deleted = true
+
+	chain.Emit(DeleteUserEvent, "address", u.addr.String())
+	return nil
+}
+
 // Delete marks a user and all their aliases as deleted.
 func (u *UserData) Delete() error {
 	if u == nil {
@@ -152,10 +175,7 @@ func (u *UserData) Delete() error {
 		return NewErrNotWhitelisted()
 	}
 
-	u.deleted = true
-
-	chain.Emit(DeleteUserEvent, "address", u.addr.String())
-	return nil
+	return u.delete()
 }
 
 // Validate validates username and address passed in
