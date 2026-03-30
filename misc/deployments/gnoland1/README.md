@@ -61,8 +61,7 @@ Fields to update:
 
 ```shell
 gnoland start \
-  --skip-genesis-sig-verification \
-  --genesis genesis.json
+  --skip-genesis-sig-verification
 ```
 
 The `--skip-genesis-sig-verification` flag is required (known incompatibility between genesis signatures and custom package metadata).
@@ -80,10 +79,11 @@ The `--skip-genesis-sig-verification` flag is required (known incompatibility be
 
 2. Confirm your node is syncing — `latest_block_height` should be increasing and eventually match [the network RPC](https://rpc.betanet.gno.land/status).
 3. Make sure both your RPC port (`26657`) and P2P port (`26656`) are publicly reachable: `http(s)://<your-host>:26657/status`
-4. Get your validator public key:
+4. Get your validator key info to share with the team:
 
    ```shell
+   gnoland secrets get -raw validator_key.address
    gnoland secrets get -raw validator_key.pub_key
    ```
 
-5. Ping the team on the validators Signal group so we can add you via a GovDAO proposal. Include your validator public key from the step above.
+5. Ping the team on the validators Signal group so we can add you via a GovDAO proposal. Include your validator address and public key from the step above.
