@@ -4309,7 +4309,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 
 			// Convert untyped to typed.
 			checkOrConvertType(store, last, n, &bx.Left, t)
-			bx.SetAttribute(ATTR_TYPEOF_VALUE, t) // XXX, test this.
+			bx.SetAttribute(ATTR_TYPEOF_VALUE, t) // propagate converted type from left operand to shift expr.
 		} else {
 			mustAssignableTo(n, xt, t)
 		}
