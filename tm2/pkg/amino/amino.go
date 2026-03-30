@@ -583,7 +583,7 @@ func (cdc *Codec) marshalAnyBinary2(o PBMessager2) ([]byte, error) {
 // For use within generated MarshalBinary2 methods.
 func (cdc *Codec) MarshalAnyBinary2(o any, buf []byte, offset int) (int, error) {
 	pbm2, ok := o.(PBMarshaler2)
-	if !ok {
+	if !ok || !HasNativeGenproto2(reflect.TypeOf(o)) {
 		// Fallback for built-in types (string, int, etc.) that can't have methods.
 		anyBz, err := cdc.MarshalAny(o)
 		if err != nil {
@@ -629,7 +629,7 @@ func (cdc *Codec) MarshalAnyBinary2(o any, buf []byte, offset int) (int, error) 
 // arithmetically, without marshaling. For use in generated SizeBinary2 methods.
 func (cdc *Codec) SizeAnyBinary2(o any) int {
 	pbm2, ok := o.(PBMarshaler2)
-	if !ok {
+	if !ok || !HasNativeGenproto2(reflect.TypeOf(o)) {
 		// Fallback for built-in types (string, int, etc.) that can't have methods.
 		bz, err := cdc.MarshalAny(o)
 		if err != nil {
@@ -710,7 +710,7 @@ func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any) error {
 		return fmt.Errorf("UnmarshalAnyBinary2: concrete type %v not addressable", cinfo.Type)
 	}
 	pbm2, ok := crv.Addr().Interface().(PBMessager2)
-	if !ok {
+	if !ok || !HasNativeGenproto2(cinfo.Type) {
 		// Fallback: use reflect-based decoding.
 		return cdc.UnmarshalAny2(typeURL, value, ptr)
 	}
