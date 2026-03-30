@@ -98,7 +98,7 @@ func ProposeRegisterUser(name string, addr address) dao.ProposalRequest {
 	}
 
 	desc := "This proposal registers " + name + " with address " + addr.String() + " in `sys/users`."
-	return dao.NewProposalRequest("Register user to \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
+	return dao.NewProposalRequest("Register User to \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
 }
 
 // Helpers
