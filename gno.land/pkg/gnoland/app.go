@@ -410,6 +410,9 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 				// which only the timestamp information is modified
 				header := ctx.BlockHeader().(*bft.Header).Copy()
 				header.Time = time.Unix(metadata.Timestamp, 0)
+				if metadata.BlockHeight > 0 {
+					header.Height = metadata.BlockHeight
+				}
 
 				// Save the modified header
 				return ctx.WithBlockHeader(header)

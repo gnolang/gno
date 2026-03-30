@@ -134,7 +134,9 @@ type TxWithMetadata struct {
 }
 
 type GnoTxMetadata struct {
-	Timestamp int64 `json:"timestamp"`
+	Timestamp   int64  `json:"timestamp"`
+	BlockHeight int64  `json:"block_height,omitempty"`
+	ChainID     string `json:"chain_id,omitempty"`
 }
 
 // ReadGenesisTxs reads the genesis txs from the given file path

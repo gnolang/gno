@@ -481,6 +481,106 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 	}
 }
 
+func TestInitChainer_MetadataBlockHeight(t *testing.T) {
+	var (
+		db      = memdb.NewMemDB()
+		key     = getDummyKey(t)
+		chainID = "test"
+		path    = "gno.land/r/demo/heighttx"
+		body    = `package heighttx
+
+import "chain/runtime"
+
+// Height is initialized on deployment (genesis)
+var h int64 = runtime.ChainHeight()
+
+// GetH returns the height that was saved from genesis
+func GetH(cur realm) int64 { return h }
+`
+	)
+
+	// Create a fresh app instance
+	app, err := NewAppWithOptions(TestAppOptions(db))
+	require.NoError(t, err)
+
+	msg := vm.MsgAddPackage{
+		Creator: key.PubKey().Address(),
+		Package: &std.MemPackage{
+			Name: "heighttx",
+			Path: path,
+			Files: []*std.MemFile{
+				{
+					Name: "file.gno",
+					Body: body,
+				},
+				{
+					Name: "gnomod.toml",
+					Body: gnolang.GenGnoModLatest(path),
+				},
+			},
+		},
+		MaxDeposit: nil,
+	}
+
+	tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+	var expectedHeight int64 = 42
+
+	// Run InitChain with metadata containing BlockHeight
+	app.InitChain(abci.RequestInitChain{
+		ChainID: chainID,
+		Time:    time.Now(),
+		ConsensusParams: &abci.ConsensusParams{
+			Block: defaultBlockParams(),
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{},
+			},
+		},
+		AppState: GnoGenesisState{
+			Txs: []TxWithMetadata{
+				{
+					Tx: tx,
+					Metadata: &GnoTxMetadata{
+						Timestamp:   time.Now().Unix(),
+						BlockHeight: expectedHeight,
+					},
+				},
+			},
+			Balances: []Balance{
+				{
+					Address: key.PubKey().Address(),
+					Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+				},
+			},
+			Auth: auth.DefaultGenesisState(),
+			Bank: bank.DefaultGenesisState(),
+			VM:   vm.DefaultGenesisState(),
+		},
+	})
+
+	// Call GetH to verify the block height was set during genesis
+	callMsg := vm.MsgCall{
+		Caller:  key.PubKey().Address(),
+		PkgPath: path,
+		Func:    "GetH",
+	}
+
+	tx = createAndSignTx(t, []std.Msg{callMsg}, chainID, key)
+	marshalledTx, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	resp := app.DeliverTx(abci.RequestDeliverTx{
+		Tx: marshalledTx,
+	})
+
+	require.True(t, resp.IsOK())
+	assert.Contains(
+		t,
+		string(resp.Data),
+		fmt.Sprintf("(%d int64)", expectedHeight),
+	)
+}
+
 func TestEndBlocker(t *testing.T) {
 	t.Parallel()
 
