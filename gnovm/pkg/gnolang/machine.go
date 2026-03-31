@@ -2218,7 +2218,7 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 }
 
 func readonlyAccessPanic(x Expr) string {
-	return "cannot directly modify readonly tainted object (w/o method): " + x.String()
+	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }
 
 // Returns false if m.Realm is nil (single user mode, nothing is readonly).

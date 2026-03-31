@@ -22,4 +22,4 @@ func main() {
 // counter: 100
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): counter<~VPBlock(3,0)>
+// cannot directly modify readonly tainted object (use a method or crossing function): counter<~VPBlock(3,0)>

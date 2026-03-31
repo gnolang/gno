@@ -53,7 +53,7 @@ func main() {
 
 // Output:
 // counter: 100
-// panic caught: cannot directly modify readonly tainted object (w/o method): counter<~VPBlock(3,0)>
+// panic caught: cannot directly modify readonly tainted object (use a method or crossing function): counter<~VPBlock(3,0)>
 // counter after set+recover: 100
 // double: 200
 // after crossing set: 50
