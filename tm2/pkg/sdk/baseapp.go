@@ -566,44 +566,50 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 	return
 }
 
+// unmarshalTx decodes a transaction from binary, recovering from any unexpected
+// panic in the codec so callers receive an error instead of a crash.
+func unmarshalTx(bz []byte) (tx Tx, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic during tx decode: %v", r)
+		}
+	}()
+	err = amino.Unmarshal(bz, &tx)
+	return
+}
+
 // CheckTx implements the ABCI interface. It runs the "basic checks" to see
 // whether or not a transaction can possibly be executed, first decoding and then
 // the ante handler (which checks signatures/fees/ValidateBasic).
 //
 // NOTE:CheckTx does not run the actual Msg handler function(s).
 func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) {
-	var tx Tx
-	err := amino.Unmarshal(req.Tx, &tx)
+	tx, err := unmarshalTx(req.Tx)
 	if err != nil {
 		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
-	} else {
-		ctx := app.getContextForTx(RunTxModeCheck, req.Tx)
-
-		result := app.runTx(ctx, tx)
-		res.ResponseBase = result.ResponseBase
-		res.GasWanted = result.GasWanted
-		res.GasUsed = result.GasUsed
-		return
 	}
+	ctx := app.getContextForTx(RunTxModeCheck, req.Tx)
+	result := app.runTx(ctx, tx)
+	res.ResponseBase = result.ResponseBase
+	res.GasWanted = result.GasWanted
+	res.GasUsed = result.GasUsed
+	return
 }
 
 // DeliverTx implements the ABCI interface.
 func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliverTx) {
-	var tx Tx
-	err := amino.Unmarshal(req.Tx, &tx)
+	tx, err := unmarshalTx(req.Tx)
 	if err != nil {
 		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
-	} else {
-		ctx := app.getContextForTx(RunTxModeDeliver, req.Tx)
-
-		result := app.runTx(ctx, tx)
-		res.ResponseBase = result.ResponseBase
-		res.GasWanted = result.GasWanted
-		res.GasUsed = result.GasUsed
-		return
 	}
+	ctx := app.getContextForTx(RunTxModeDeliver, req.Tx)
+	result := app.runTx(ctx, tx)
+	res.ResponseBase = result.ResponseBase
+	res.GasWanted = result.GasWanted
+	res.GasUsed = result.GasUsed
+	return
 }
 
 // validateBasicTxMsgs executes basic validator calls for messages.
