@@ -58,7 +58,7 @@ stderr 'has not signed the required CLA'
 # ============================================================
 
 # Alice signs the CLA with correct hash
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "abc123hash" -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "abc123hash" -gas-fee 100000ugnot -gas-wanted 3000000 -broadcast -chainid tendermint_test alice
 stdout 'OK!'
 
 # Verify Alice's signature
@@ -93,7 +93,7 @@ stdout 'false bool'
 stderr 'has not signed the required CLA'
 
 # Alice re-signs with new hash
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "newhash456" -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "newhash456" -gas-fee 100000ugnot -gas-wanted 3000000 -broadcast -chainid tendermint_test alice
 stdout 'OK!'
 
 # Now Alice can deploy again

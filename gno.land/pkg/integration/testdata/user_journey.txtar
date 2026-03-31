@@ -151,7 +151,7 @@ gnokey maketx call -pkgpath gno.land/r/sys/users/init -func RegisterUser -args "
 stdout 'OK!'
 
 # user3 creates a new board and a thread
-gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateBoard -args 'user3_awesome_board' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateBoard -args 'user3_awesome_board' -gas-fee 1000000ugnot -gas-wanted 16000000 -broadcast -chainid=tendermint_test user3
 stdout 'OK!'
 gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateThread -args 1 -args 'My first thread' -args 'Hey Guys!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
 stdout 'OK!'

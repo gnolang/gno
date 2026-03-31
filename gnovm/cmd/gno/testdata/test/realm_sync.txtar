@@ -48,6 +48,25 @@ func main(cur realm) {
 //              "T": {
 //                  "@type": "/gno.PrimitiveType",
 //                  "value": "32"
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:2](5)=
+//     @@ -4,7 +4,7 @@
+//              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
+//              "IsEscaped": true,
+//              "LastObjectSize": "535",
+//     -        "ModTime": "0",
+//     +        "ModTime": "5",
+//              "RefCount": "2"
+//          },
+//          "Parent": null,
+//     @@ -34,7 +34,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "452d5f690cd00719ae69aed4d25bd65a1dc6a827",
+//     +                "Hash": "0cf920589fee150de3162224aa753fa5cc1e3d7e",
+//                      "ObjectID": "aea84df38908f9569d0f552575606e6e6e7e22dd:3"
+//                  }
+//              },
 -- gnomod.toml --
 module = "gno.test/r/integ/realm_sync"
 gno = "0.9"
