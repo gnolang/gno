@@ -1829,7 +1829,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// Type-check arguments.
 							// First arg is the type -- check against resolved param type.
 							checkOrConvertType(store, last, n, &n.Args[0], spts[0].Type)
-							// Remaining args are size values -- must be integers.
+
+							// make's variadic params are declared as Vrd(AnyT()), so untyped
+							// constants won't be automatically coerced to int; enforce it here.
 							for i := 1; i < len(n.Args); i++ {
 								expectedType := spts[len(spts)-1].Type.Elem()
 								at := evalStaticTypeOf(store, last, n.Args[i])
@@ -2086,8 +2088,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										}
 										checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
 									} else {
-										expectedType := spts[len(spts)-1].Type.Elem()
-										checkOrConvertType(store, last, n, &n.Args[i], expectedType)
+										checkOrConvertType(store, last, n, &n.Args[i], spts[len(spts)-1].Type.Elem())
 									}
 								} else {
 									checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
