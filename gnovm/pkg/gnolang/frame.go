@@ -86,13 +86,6 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 	return
 }
 
-func (fr *Frame) SetWithCross() {
-	if fr.WithCross {
-		panic("fr.WithCross already set")
-	}
-	fr.WithCross = true
-}
-
 func (fr *Frame) SetDidCrossing() {
 	if fr.DidCrossing {
 		panic("fr.DidCrossing already set")
