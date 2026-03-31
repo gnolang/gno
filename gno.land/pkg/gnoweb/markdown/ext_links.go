@@ -23,18 +23,22 @@ const (
 	tooltipInternalLink = "Cross package link"
 	tooltipTxLink       = "Transaction link"
 	tooltipUserLink     = "User profile"
+	tooltipUnsafeLink   = "This link may be unsafe"
 
 	// SVG icon ids for link types
 	iconExternalLink = "ico-external-link"
 	iconInternalLink = "ico-internal-link"
 	iconTxLink       = "ico-tx-link"
 	iconUserLink     = "ico-user-link"
+	iconWarning      = "ico-warning"
 
 	// CSS classes for link types
-	classLinkExternal = "link-external"
-	classLinkInternal = "link-internal"
-	classLinkTx       = "link-tx"
-	classLinkUser     = "link-user"
+	classLinkExternal    = "link-external"
+	classLinkInternal    = "link-internal"
+	classLinkTx          = "link-tx"
+	classLinkUser        = "link-user"
+	classLinkUnsafe      = "link-unsafe"
+	classLinkUnavailable = "link-unavailable"
 )
 
 // GnoLinkType represents the type of a link
@@ -67,8 +71,9 @@ var KindGnoLink = ast.NewNodeKind("GnoLink")
 // GnoLink represents a link with Gno-specific metadata
 type GnoLink struct {
 	*ast.Link
-	LinkType GnoLinkType
-	GnoURL   *weburl.GnoURL
+	LinkType     GnoLinkType
+	GnoURL       *weburl.GnoURL
+	SafetyStatus SafetyStatus // URL safety status from SafeURL validation
 }
 
 func (n *GnoLink) Dump(source []byte, level int) {
@@ -76,6 +81,7 @@ func (n *GnoLink) Dump(source []byte, level int) {
 	m["Destination"] = string(n.Destination)
 	m["Title"] = string(n.Title)
 	m["LinkType"] = n.LinkType.String()
+	m["SafetyStatus"] = n.SafetyStatus.String()
 	ast.DumpHelper(n, source, level, m, nil)
 }
 
@@ -122,6 +128,13 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 
 		// Detect and set the GnoLink type.
 		gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, orig)
+
+		// Check if safety results are available in context (set by safeURLTransformer)
+		if results, ok := getSafetyResultsFromContext(pc); ok {
+			if result, found := results[string(link.Destination)]; found {
+				gnoLink.SafetyStatus = result.Status
+			}
+		}
 
 		return ast.WalkContinue, nil
 	})
@@ -235,6 +248,18 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 		return ast.WalkSkipChildren, nil
 	}
 
+	// Handle unavailable safety status - render as plain text (not clickable)
+	if n.SafetyStatus == StatusUnavailable {
+		if entering {
+			w.WriteString(`<span class="`)
+			w.WriteString(classLinkUnavailable)
+			w.WriteString(`" title="Unable to verify link safety">[`)
+		} else {
+			w.WriteString(`]</span>`)
+		}
+		return ast.WalkContinue, nil
+	}
+
 	if entering {
 		w.WriteString(`<a href="`)
 		if !html.IsDangerousURL(n.Destination) {
@@ -250,6 +275,10 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 		if n.Title != nil {
 			attrs = append(attrs, attr{"title", string(n.Title)})
 		}
+		// Add unsafe class if needed
+		if n.SafetyStatus == StatusUnsafe {
+			attrs = append(attrs, attr{"class", classLinkUnsafe})
+		}
 
 		// Render additional attributes
 		renderStringAttributes(w, attrs)
@@ -257,6 +286,20 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 		// Close tag and continue
 		w.WriteByte('>')
 		return ast.WalkContinue, nil
+	}
+
+	// Add warning icon for unsafe links
+	if n.SafetyStatus == StatusUnsafe {
+		w.WriteString("<span")
+		renderStringAttributes(w, []attr{
+			{"class", "link-unsafe-indicator tooltip"},
+			{"data-tooltip-target", "info"},
+			{"data-tooltip", tooltipUnsafeLink},
+			{"title", tooltipUnsafeLink},
+		})
+		w.WriteByte('>')
+		w.WriteString(`<svg class="c-icon"><use href="#` + iconWarning + `"></use></svg>`)
+		w.WriteString("</span>")
 	}
 
 	// Render all icons dynamically

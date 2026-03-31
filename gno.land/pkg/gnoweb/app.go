@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/safeurl"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 	mdhtml "github.com/yuin/goldmark/renderer/html"
@@ -58,6 +59,12 @@ type AppConfig struct {
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
 	RenderConfig RenderConfig
+	// SafeURLAPIKey is the API key for SafeURL validation (disabled if empty).
+	SafeURLAPIKey string
+	// SafeURLBaseURL is the SafeURL API base URL.
+	SafeURLBaseURL string
+	// SafeURLTimeout is the timeout for SafeURL API requests.
+	SafeURLTimeout time.Duration
 }
 
 // NewDefaultAppConfig returns a new default AppConfig. The default sets
@@ -117,8 +124,28 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Banner:     cfg.Banner,
 	}
 
+	// Initialize SafeURL validator if configured
+	var safeURLValidator *safeurl.Validator
+	if cfg.SafeURLAPIKey != "" {
+		validatorCfg := safeurl.ValidatorConfig{
+			Enabled:     true,
+			BaseURL:     cfg.SafeURLBaseURL,
+			APIKey:      cfg.SafeURLAPIKey,
+			ScanTimeout: cfg.SafeURLTimeout,
+		}
+		var err error
+		safeURLValidator, err = safeurl.NewValidator(validatorCfg, logger)
+		if err != nil {
+			logger.Error("failed to initialize SafeURL validator", "error", err)
+			// Continue without SafeURL - graceful degradation
+		}
+	}
+
 	// Configure Markdown renderer
 	rcfg := cfg.RenderConfig
+	rcfg.SafeURLValidator = safeURLValidator
+	// Rebuild GoldmarkOptions with the SafeURL validator
+	rcfg.GoldmarkOptions = NewGoldmarkOptions(safeURLValidator)
 	if cfg.UnsafeHTML {
 		rcfg.GoldmarkOptions = append(rcfg.GoldmarkOptions, goldmark.WithRendererOptions(
 			mdhtml.WithXHTML(), mdhtml.WithUnsafe(),

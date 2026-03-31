@@ -58,14 +58,20 @@ type webCfg struct {
 	html             bool
 	noStrict         bool
 	verbose          bool
+	// SafeURL configuration
+	safeURLAPIKey  string
+	safeURLBaseURL string
+	safeURLTimeout time.Duration
 }
 
 var defaultWebOptions = webCfg{
-	chainid:       "dev",
-	remote:        "127.0.0.1:26657",
-	bind:          ":8888",
-	remoteTimeout: time.Minute,
-	timeout:       time.Minute,
+	chainid:        "dev",
+	remote:         "127.0.0.1:26657",
+	bind:           ":8888",
+	remoteTimeout:  time.Minute,
+	timeout:        time.Minute,
+	safeURLBaseURL: "https://api.safeurl.ai",
+	safeURLTimeout: 5 * time.Second,
 }
 
 func main() {
@@ -208,6 +214,28 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultWebOptions.timeout,
 		"set read/write/idle timeout for server connections",
 	)
+
+	// SafeURL flags
+	fs.StringVar(
+		&c.safeURLAPIKey,
+		"safeurl-api-key",
+		defaultWebOptions.safeURLAPIKey,
+		"SafeURL API key for URL safety validation (disabled if empty)",
+	)
+
+	fs.StringVar(
+		&c.safeURLBaseURL,
+		"safeurl-url",
+		defaultWebOptions.safeURLBaseURL,
+		"SafeURL API base URL",
+	)
+
+	fs.DurationVar(
+		&c.safeURLTimeout,
+		"safeurl-timeout",
+		defaultWebOptions.safeURLTimeout,
+		"SafeURL API request timeout",
+	)
 }
 
 func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
@@ -238,6 +266,9 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+	appcfg.SafeURLAPIKey = cfg.safeURLAPIKey
+	appcfg.SafeURLBaseURL = cfg.safeURLBaseURL
+	appcfg.SafeURLTimeout = cfg.safeURLTimeout
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
