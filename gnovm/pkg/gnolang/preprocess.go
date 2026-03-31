@@ -1714,7 +1714,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// LEAVE (FUNC) CALL EXPR SPECIAL CASES:
 					//----------------------------------------
 
-					isBuiltinMake := false
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
@@ -1775,7 +1774,77 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								}
 							}
 						case "make":
-							isBuiltinMake = true
+							// Self-contained handling for make() builtin.
+							// Validate argument count based on target type,
+							// check size arguments are integers, resolve generics,
+							// then skip the general case via TRANS_CONTINUE.
+							ft := bnft
+							n.NumArgs = countNumArgs(store, last, n)
+
+							if n.Varg {
+								panic("make does not accept variadic spread (...)")
+							}
+							if len(n.Args) == 0 {
+								panic("missing argument to make")
+							}
+
+							// Validate arg count per target type.
+							tt := evalStaticType(store, last, n.Args[0])
+							switch baseOf(tt).(type) {
+							case *SliceType:
+								if len(n.Args) < 2 || len(n.Args) > 3 {
+									panic(fmt.Sprintf(
+										"invalid operation: make(%s) expects 2 or 3 arguments; found %d",
+										tt, len(n.Args)))
+								}
+							case *MapType:
+								if len(n.Args) > 2 {
+									panic(fmt.Sprintf(
+										"invalid operation: make(%s) expects 1 or 2 arguments; found %d",
+										tt, len(n.Args)))
+								}
+							case *ChanType:
+								panic("channel type is not yet supported")
+							default:
+								panic(fmt.Sprintf(
+									"invalid argument: cannot make %s; type must be slice, map", tt))
+							}
+
+							// Specify function param/result generics.
+							argTVs := evalStaticTypedValues(store, last, n.Args...)
+							isVarg := n.Varg
+							sft := ft.Specify(store, n, argTVs, isVarg)
+							spts := sft.Params
+							srts := FieldTypeList(sft.Results).Types()
+
+							// Update func attributes with specified types.
+							n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
+							cx := n.Func.(*ConstExpr)
+							fv2 := cx.V.(*FuncValue).Copy(nilAllocator)
+							fv2.Type = sft
+							cx.T = sft
+							cx.V = fv2
+							n.SetAttribute(ATTR_TYPEOF_VALUE, &tupleType{Elts: srts})
+
+							// Type-check arguments.
+							// First arg is the type -- check against resolved param type.
+							checkOrConvertType(store, last, n, &n.Args[0], spts[0].Type)
+							// Remaining args are size values -- must be integers.
+							for i := 1; i < len(n.Args); i++ {
+								expectedType := spts[len(spts)-1].Type.Elem()
+								at := evalStaticTypeOf(store, last, n.Args[i])
+								switch {
+								case isUntyped(at):
+									expectedType = IntType
+								case !isInteger(at):
+									panic(fmt.Sprintf(
+										"invalid argument: index %v (variable of type %v) must be integer",
+										n.Args[i], at))
+								}
+								checkOrConvertType(store, last, n, &n.Args[i], expectedType)
+							}
+
+							return n, TRANS_CONTINUE
 						case "_cross_gno0p0":
 							if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
 								// This is only backwards compatibility for the gno 0.9
@@ -2018,19 +2087,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
 									} else {
 										expectedType := spts[len(spts)-1].Type.Elem()
-
-										// SPECIAL CASE: 'make' variadic arguments are untyped sizes
-										// that must default to 'int' if no type is explicitly provided.
-										if isBuiltinMake {
-											at := evalStaticTypeOf(store, last, n.Args[i])
-											switch {
-											case isUntyped(at):
-												expectedType = IntType
-											case !isInteger(at):
-												panic(fmt.Sprintf("invalid argument: index %v (variable of type %v) must be integer", n.Args[i], at))
-											}
-										}
-
 										checkOrConvertType(store, last, n, &n.Args[i], expectedType)
 									}
 								} else {
