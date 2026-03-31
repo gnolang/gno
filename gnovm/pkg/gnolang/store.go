@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dgraph-io/ristretto/v2"
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -157,7 +156,7 @@ type defaultStore struct {
 	// store configuration; cannot be modified in a transaction
 	pkgGetter      PackageGetter  // non-realm packages
 	nativeResolver NativeResolver // for injecting natives
-	aminoCache     *ristretto.Cache[[]byte, Type]
+	aminoCache     *deterministicTypeCache
 
 	// transient
 	opslog  io.Writer // for logging store operations.
@@ -171,16 +170,34 @@ type defaultStore struct {
 	realmStorageDiffs map[string]int64 // maps realm path to size diff
 }
 
-var globalAminoCache = sync.OnceValue[*ristretto.Cache[[]byte, Type]](func() *ristretto.Cache[[]byte, Type] {
-	rc, err := ristretto.NewCache(&ristretto.Config[[]byte, Type]{
-		NumCounters: 1_000_000,       // maximum number of keys in cache
-		MaxCost:     128 * (1 << 20), // 128 MB
-		BufferItems: 64,
-	})
-	if err != nil {
-		panic(err)
+// deterministicTypeCache is a deterministic replacement for the previous
+// ristretto cache. Ristretto is probabilistic (Set may silently drop entries,
+// Get may miss entries that were Set) which causes different validators to
+// have different cache states. This leads to different gas consumption for
+// the same transaction, producing different app hashes and halting the chain.
+//
+// This cache is a simple concurrent map keyed by SHA256 of the amino-encoded
+// type bytes. It is deterministic: Set always stores, Get always finds what
+// was Set. Memory is bounded by the number of unique types in the store.
+type deterministicTypeCache struct {
+	m sync.Map // [sha256hex string] -> Type
+}
+
+func (c *deterministicTypeCache) Get(key []byte) (Type, bool) {
+	v, ok := c.m.Load(string(key))
+	if !ok {
+		return nil, false
 	}
-	return rc
+	return v.(Type), true
+}
+
+func (c *deterministicTypeCache) Set(key []byte, val Type, _ int64) bool {
+	c.m.Store(string(key), val)
+	return true
+}
+
+var globalAminoCache = sync.OnceValue[*deterministicTypeCache](func() *deterministicTypeCache {
+	return &deterministicTypeCache{}
 })
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
