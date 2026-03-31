@@ -1808,6 +1808,11 @@ func getOwner(store Store, oo Object) Object {
 	poid := oo.GetOwnerID()
 	if po == nil {
 		if !poid.IsZero() {
+			// Use GetObjectSafe because OwnerID can be stale:
+			// the owner may have been deleted (e.g., a slice
+			// backing array replaced by append) while this
+			// object's OwnerID still references it.
+			// Returns nil to stop the ancestor walk gracefully.
 			po = store.GetObjectSafe(poid)
 			if po != nil {
 				oo.SetOwner(po)
