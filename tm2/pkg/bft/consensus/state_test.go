@@ -1804,13 +1804,31 @@ func TestStateOutputVoteStats(t *testing.T) {
 	}
 }
 
+// mockEvidencePool records calls to ReportConflictingVotes for test assertions.
+type mockEvidencePool struct {
+	callCount int
+	lastVoteA *types.Vote
+	lastVoteB *types.Vote
+}
+
+func (m *mockEvidencePool) ReportConflictingVotes(voteA, voteB *types.Vote) {
+	m.callCount++
+	m.lastVoteA = voteA
+	m.lastVoteB = voteB
+}
+
 // TestConflictingVotesFromPeer verifies that receiving two conflicting votes
 // (double-signing) from another validator is handled gracefully: the vote set
-// retains the original vote and the conflicting one does not replace it.
+// retains the original vote and the conflicting one is reported to the evidence pool.
 func TestConflictingVotesFromPeer(t *testing.T) {
 	t.Parallel()
 
 	cs, vss := randConsensusState(2)
+
+	// Inject a mock evidence pool to assert it gets called.
+	evpool := &mockEvidencePool{}
+	cs.evpool = evpool
+
 	peerAddr := vss[1].PubKey().Address()
 	peer := p2pmock.Peer{}
 
@@ -1835,15 +1853,27 @@ func TestConflictingVotesFromPeer(t *testing.T) {
 	require.NotNil(t, stored, "vote should still be present after conflicting vote")
 	assert.Equal(t, voteA.BlockID.Hash, stored.BlockID.Hash,
 		"stored vote should still be the original, not the conflicting one")
+
+	// The evidence pool should have been called with the conflicting votes.
+	require.Equal(t, 1, evpool.callCount, "ReportConflictingVotes should have been called once")
+	assert.Equal(t, voteA.BlockID.Hash, evpool.lastVoteA.BlockID.Hash,
+		"evidence pool should have received the original vote as voteA")
+	assert.Equal(t, voteB.BlockID.Hash, evpool.lastVoteB.BlockID.Hash,
+		"evidence pool should have received the conflicting vote as voteB")
 }
 
 // TestConflictingVotesFromOurselves verifies that receiving two conflicting
 // votes from the node's own validator (e.g. after an unsafe_reset) is handled
-// gracefully: the vote set retains the original vote.
+// gracefully: the vote set retains the original vote and the evidence pool is NOT called.
 func TestConflictingVotesFromOurselves(t *testing.T) {
 	t.Parallel()
 
 	cs, vss := randConsensusState(2)
+
+	// Inject a mock evidence pool to assert it does NOT get called.
+	evpool := &mockEvidencePool{}
+	cs.evpool = evpool
+
 	peer := p2pmock.Peer{}
 
 	// vss[0] is the same validator as cs.privValidator (our own node).
@@ -1875,6 +1905,9 @@ func TestConflictingVotesFromOurselves(t *testing.T) {
 	require.NotNil(t, stored, "vote should still be present after conflicting self-vote")
 	assert.Equal(t, voteA.BlockID.Hash, stored.BlockID.Hash,
 		"stored vote should still be the original, not the conflicting one")
+
+	// The evidence pool should NOT have been called for self-conflicting votes.
+	require.Equal(t, 0, evpool.callCount, "ReportConflictingVotes should NOT have been called for our own votes")
 }
 
 func subscribe(evsw events.EventSwitch, protoevent events.Event) <-chan events.Event {
