@@ -866,7 +866,7 @@ func (cs *ConsensusState) needProofBlock(height int64) bool {
 
 	lastBlockMeta := cs.blockStore.LoadBlockMeta(height - 1)
 	if lastBlockMeta == nil {
-		return true
+		panic(fmt.Sprintf("Failed to load block meta for height %d", height-1))
 	}
 	return !bytes.Equal(cs.state.AppHash, lastBlockMeta.Header.AppHash)
 }

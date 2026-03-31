@@ -201,6 +201,41 @@ func TestCommitHandler(t *testing.T) {
 		assert.ErrorContains(t, err, "block meta not found for height 5")
 	})
 
+	t.Run("nil seen commit", func(t *testing.T) {
+		var height int64 = 5
+
+		SetBlockStore(&mockBlockStore{
+			heightFn: func() int64 { return height }, // storeHeight == height
+			loadBlockMetaFn: func(int64) *types.BlockMeta {
+				return &types.BlockMeta{Header: types.Header{Height: height}}
+			},
+			loadSeenCommitFn: func(int64) *types.Commit { return nil },
+		})
+
+		result, err := Commit(&rpctypes.Context{}, &height)
+		require.Nil(t, result)
+		assert.ErrorContains(t, err, "seen commit not found for height 5")
+	})
+
+	t.Run("nil block commit", func(t *testing.T) {
+		var (
+			height      int64 = 5
+			storeHeight int64 = 10
+		)
+
+		SetBlockStore(&mockBlockStore{
+			heightFn: func() int64 { return storeHeight },
+			loadBlockMetaFn: func(int64) *types.BlockMeta {
+				return &types.BlockMeta{Header: types.Header{Height: height}}
+			},
+			loadBlockCommitFn: func(int64) *types.Commit { return nil },
+		})
+
+		result, err := Commit(&rpctypes.Context{}, &height)
+		require.Nil(t, result)
+		assert.ErrorContains(t, err, "block commit not found for height 5")
+	})
+
 	t.Run("success canonical commit", func(t *testing.T) {
 		var (
 			height      int64 = 5

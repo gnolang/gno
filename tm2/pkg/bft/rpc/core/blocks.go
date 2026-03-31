@@ -358,11 +358,17 @@ func Commit(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultCommit, erro
 	// use a non-canonical commit
 	if height == storeHeight {
 		commit := blockStore.LoadSeenCommit(height)
+		if commit == nil {
+			return nil, fmt.Errorf("seen commit not found for height %d", height)
+		}
 		return ctypes.NewResultCommit(&header, commit, false), nil
 	}
 
 	// Return the canonical commit (comes from the block at height+1)
 	commit := blockStore.LoadBlockCommit(height)
+	if commit == nil {
+		return nil, fmt.Errorf("block commit not found for height %d", height)
+	}
 	return ctypes.NewResultCommit(&header, commit, true), nil
 }
 

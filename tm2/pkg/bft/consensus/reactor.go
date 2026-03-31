@@ -783,6 +783,9 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if prs.CatchupCommitRound != -1 && 0 < prs.Height && prs.Height <= conR.conS.blockStore.Height() {
 				commit := conR.conS.LoadCommit(prs.Height)
+				if commit == nil {
+					continue OUTER_LOOP
+				}
 				peer.TrySend(StateChannel, amino.MustMarshalAny(&VoteSetMaj23Message{
 					Height:  prs.Height,
 					Round:   commit.Round(),
