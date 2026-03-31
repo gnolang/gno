@@ -60,7 +60,7 @@ func (c *Client) ScanURLs(ctx context.Context, urls []string) (map[string]ScanRe
 	// Scan missing URLs - SDK handles batching and polling automatically
 	scanResults, err := c.scanner.ScanURLs(ctx, missing)
 	if err != nil {
-		c.logger.Error("scan failed", "error", err, "url_count", len(missing))
+		c.logger.Warn("SafeURL scan failed", "error", err, "url_count", len(missing))
 		// Mark failed URLs as unavailable
 		for _, url := range missing {
 			results[url] = ScanResult{

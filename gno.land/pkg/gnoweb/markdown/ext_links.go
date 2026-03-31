@@ -74,6 +74,7 @@ type GnoLink struct {
 	LinkType     GnoLinkType
 	GnoURL       *weburl.GnoURL
 	SafetyStatus SafetyStatus // URL safety status from SafeURL validation
+	Verdict      string       // SafeURL verdict (e.g., "safe", "malicious")
 }
 
 func (n *GnoLink) Dump(source []byte, level int) {
@@ -133,6 +134,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		if results, ok := getSafetyResultsFromContext(pc); ok {
 			if result, found := results[string(link.Destination)]; found {
 				gnoLink.SafetyStatus = result.Status
+				gnoLink.Verdict = result.Verdict
 			}
 		}
 
@@ -272,12 +274,31 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 		if n.LinkType == GnoLinkTypeExternal {
 			attrs = append(attrs, attr{"rel", "noopener nofollow ugc"})
 		}
+
+		// Build title with SafeURL info
+		title := ""
 		if n.Title != nil {
-			attrs = append(attrs, attr{"title", string(n.Title)})
+			title = string(n.Title)
 		}
-		// Add unsafe class if needed
+		if n.SafetyStatus == StatusSafe && n.Verdict != "" {
+			if title != "" {
+				title += " | "
+			}
+			title += "SafeURL: " + n.Verdict
+		}
+		if title != "" {
+			attrs = append(attrs, attr{"title", title})
+		}
+
+		// Add class based on safety status
 		if n.SafetyStatus == StatusUnsafe {
 			attrs = append(attrs, attr{"class", classLinkUnsafe})
+		}
+
+		// Add data attributes for SafeURL info
+		if n.SafetyStatus == StatusSafe && n.Verdict != "" {
+			attrs = append(attrs, attr{"data-safeurl-status", "safe"})
+			attrs = append(attrs, attr{"data-safeurl-verdict", n.Verdict})
 		}
 
 		// Render additional attributes

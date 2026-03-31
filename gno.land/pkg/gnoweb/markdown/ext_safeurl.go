@@ -41,6 +41,7 @@ var KindSafeImage = ast.NewNodeKind("SafeImage")
 type SafeImage struct {
 	*ast.Image
 	SafetyStatus SafetyStatus
+	Verdict      string
 }
 
 // Kind implements ast.Node.
@@ -134,6 +135,7 @@ func (t *safeURLTransformer) Transform(doc *ast.Document, reader text.Reader, pc
 		safeImg := &SafeImage{
 			Image:        img,
 			SafetyStatus: result.Status,
+			Verdict:      result.Verdict,
 		}
 
 		// Replace Image with SafeImage in the tree
@@ -241,7 +243,7 @@ func (r *safeImageRenderer) renderSafeImage(w util.BufWriter, source []byte, nod
 		return ast.WalkSkipChildren, nil
 
 	default:
-		// Safe or unknown - render normally using default image rendering
+		// Safe or unknown - render with safety info
 		w.WriteString(`<img src="`)
 		if !html.IsDangerousURL(n.Destination) {
 			w.Write(util.EscapeHTML(util.URLEscape(n.Destination, true)))
@@ -257,11 +259,31 @@ func (r *safeImageRenderer) renderSafeImage(w util.BufWriter, source []byte, nod
 		}
 		w.WriteString(`"`)
 
-		// Title if present
+		// Title with safety info
+		title := ""
 		if n.Title != nil {
+			title = string(n.Title)
+		}
+		if n.SafetyStatus == StatusSafe && n.Verdict != "" {
+			if title != "" {
+				title += " | "
+			}
+			title += "SafeURL: " + n.Verdict
+		}
+		if title != "" {
 			w.WriteString(` title="`)
-			w.Write(util.EscapeHTML(n.Title))
+			w.Write(util.EscapeHTML([]byte(title)))
 			w.WriteString(`"`)
+		}
+
+		// Add data attribute for safety status
+		if n.SafetyStatus == StatusSafe {
+			w.WriteString(` data-safeurl-status="safe"`)
+			if n.Verdict != "" {
+				w.WriteString(` data-safeurl-verdict="`)
+				w.Write(util.EscapeHTML([]byte(n.Verdict)))
+				w.WriteString(`"`)
+			}
 		}
 
 		w.WriteString(` />`)

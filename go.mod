@@ -19,7 +19,7 @@ require (
 	github.com/dgraph-io/ristretto/v2 v2.4.0
 	github.com/emicklei/dot v1.11.0
 	github.com/fortytw2/leaktest v1.3.0
-	github.com/gnoverse/safeurl-sdk/go v1.1.0
+	github.com/gnoverse/safeurl-sdk/go v1.1.1
 	github.com/gofrs/flock v0.13.0
 	github.com/golang/mock v1.6.0
 	github.com/google/gofuzz v1.2.0
