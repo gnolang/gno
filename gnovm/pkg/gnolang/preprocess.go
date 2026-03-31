@@ -1714,7 +1714,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// LEAVE (FUNC) CALL EXPR SPECIAL CASES:
 					//----------------------------------------
 
-					isBuiltinMake := false
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
@@ -1775,7 +1774,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								}
 							}
 						case "make":
-							isBuiltinMake = true
+							// make's variadic params are declared as Vrd(AnyT()), so untyped
+							// constants won't be automatically coerced to int; enforce it here.
+							for i := range n.Args[1:] {
+								at := evalStaticTypeOf(store, last, n.Args[i+1])
+								if isUntyped(at) {
+									checkOrConvertType(store, last, n, &n.Args[i+1], IntType)
+								} else if !isInteger(at) {
+									panic(fmt.Sprintf("invalid argument: index %v (variable of type %v) must be integer", n.Args[i+1], at))
+								}
+							}
 						case "_cross_gno0p0":
 							if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
 								// This is only backwards compatibility for the gno 0.9
@@ -2017,21 +2025,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										}
 										checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
 									} else {
-										expectedType := spts[len(spts)-1].Type.Elem()
-
-										// SPECIAL CASE: 'make' variadic arguments are untyped sizes
-										// that must default to 'int' if no type is explicitly provided.
-										if isBuiltinMake {
-											at := evalStaticTypeOf(store, last, n.Args[i])
-											switch {
-											case isUntyped(at):
-												expectedType = IntType
-											case !isInteger(at):
-												panic(fmt.Sprintf("invalid argument: index %v (variable of type %v) must be integer", n.Args[i], at))
-											}
-										}
-
-										checkOrConvertType(store, last, n, &n.Args[i], expectedType)
+										checkOrConvertType(store, last, n, &n.Args[i], spts[len(spts)-1].Type.Elem())
 									}
 								} else {
 									checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
