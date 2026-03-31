@@ -196,7 +196,7 @@ func (mt *MultiplexTransport) runAcceptLoop(ctx context.Context) {
 		case err == nil: // ok
 		case goerrors.Is(err, net.ErrClosed):
 			// Listener has been closed, this is not recoverable.
-			mt.logger.Debug("listener has been closed")
+			mt.logger.Info("listener has been closed")
 			return // exit
 		default:
 			// An error occurred during accept, report and continue

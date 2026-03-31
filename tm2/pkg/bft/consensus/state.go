@@ -482,7 +482,7 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 		// be processed out of order.
 		// TODO: use CList here for strict determinism and
 		// attempt push to internalMsgQueue in receiveRoutine
-		cs.Logger.Info("Internal msg queue is full. Using a go-routine")
+		cs.Logger.Warn("Internal msg queue is full. Using a go-routine")
 		go func() { cs.internalMsgQueue <- mi }()
 	}
 }
@@ -521,7 +521,7 @@ func (cs *ConsensusState) updateToState(state sm.State) {
 	// signal the new round step, because other services (eg. txNotifier)
 	// depend on having an up-to-date peer state!
 	if !cs.state.IsEmpty() && (state.LastBlockHeight <= cs.state.LastBlockHeight) {
-		cs.Logger.Info("Ignoring updateToState()", "newHeight", state.LastBlockHeight+1, "oldHeight", cs.state.LastBlockHeight+1)
+		cs.Logger.Debug("Ignoring updateToState()", "newHeight", state.LastBlockHeight+1, "oldHeight", cs.state.LastBlockHeight+1)
 		cs.newStep()
 		return
 	}
