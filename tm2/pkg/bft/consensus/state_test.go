@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"testing"
 	"time"
@@ -793,7 +794,7 @@ func TestStateLockPOLSafety1(t *testing.T) {
 	// the others sign a polka but we don't see it
 	prevotes := signVotes(types.PrevoteType, propBlock.Hash(), propBlock.MakePartSet(partSize).Header(), vs2, vs3, vs4)
 
-	t.Logf("old prop hash %v", fmt.Sprintf("%X", propBlock.Hash()))
+	t.Logf("old prop hash %v", base64.StdEncoding.EncodeToString(propBlock.Hash()))
 
 	// we do see them precommit nil
 	signAddVotes(cs1, types.PrecommitType, nil, types.PartSetHeader{}, vs2, vs3, vs4)
@@ -829,7 +830,7 @@ func TestStateLockPOLSafety1(t *testing.T) {
 	if rs.LockedBlock != nil {
 		panic("we should not be locked!")
 	}
-	t.Logf("new prop hash %v", fmt.Sprintf("%X", propBlockHash))
+	t.Logf("new prop hash %v", base64.StdEncoding.EncodeToString(propBlockHash))
 
 	validatePrevote(cs1, round, vss[0], propBlockHash)
 

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -78,12 +79,12 @@ func (p *Proposal) ValidateBasic() error {
 
 // String returns a string representation of the Proposal.
 func (p *Proposal) String() string {
-	return fmt.Sprintf("Proposal{%v/%v (%v, %v) %X @ %s}",
+	return fmt.Sprintf("Proposal{%v/%v (%v, %v) %s @ %s}",
 		p.Height,
 		p.Round,
 		p.BlockID,
 		p.POLRound,
-		fingerprint(p.Signature),
+		base64.StdEncoding.EncodeToString(fingerprint(p.Signature)),
 		CanonicalTime(p.Timestamp))
 }
 

@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
@@ -717,7 +718,7 @@ func (data *Data) StringIndented(indent string) string {
 			txStrings[i] = fmt.Sprintf("... (%v total)", len(data.Txs))
 			break
 		}
-		txStrings[i] = fmt.Sprintf("%X (%d bytes)", tx.Hash(), len(tx))
+		txStrings[i] = fmt.Sprintf("%s (%d bytes)", base64.StdEncoding.EncodeToString(tx.Hash()), len(tx))
 	}
 	return fmt.Sprintf(`Data{
 %s  %v
@@ -776,5 +777,5 @@ func (blockID BlockID) IsComplete() bool {
 
 // String returns a human readable string representation of the BlockID
 func (blockID BlockID) String() string {
-	return fmt.Sprintf(`%X:%v`, blockID.Hash, blockID.PartsHeader)
+	return fmt.Sprintf(`%s:%v`, base64.StdEncoding.EncodeToString(blockID.Hash), blockID.PartsHeader)
 }

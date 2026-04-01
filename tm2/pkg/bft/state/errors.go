@@ -1,6 +1,9 @@
 package state
 
-import "fmt"
+import (
+	"encoding/base64"
+	"fmt"
+)
 
 type (
 	InvalidBlockError error
@@ -54,7 +57,7 @@ func (e UnknownBlockError) Error() string {
 }
 
 func (e BlockHashMismatchError) Error() string {
-	return fmt.Sprintf("App block hash (%X) does not match core block hash (%X) for height %d", e.AppHash, e.CoreHash, e.Height)
+	return fmt.Sprintf("App block hash (%s) does not match core block hash (%s) for height %d", base64.StdEncoding.EncodeToString(e.AppHash), base64.StdEncoding.EncodeToString(e.CoreHash), e.Height)
 }
 
 func (e AppBlockHeightTooHighError) Error() string {

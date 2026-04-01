@@ -1,6 +1,7 @@
 package state
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 
@@ -190,7 +191,7 @@ func (blockExec *BlockExecutor) Commit(
 		"Committed state",
 		"height", block.Height,
 		"txs", block.NumTxs,
-		"appHash", fmt.Sprintf("%X", res.Data),
+		"appHash", base64.StdEncoding.EncodeToString(res.Data),
 	)
 
 	// Update mempool.

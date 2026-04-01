@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -248,7 +249,7 @@ func (h *Handshaker) Handshake(proxyApp appconn.AppConns) error {
 
 	h.logger.Info("ABCI Handshake App Info",
 		"height", blockHeight,
-		"hash", fmt.Sprintf("%X", appHash),
+		"hash", base64.StdEncoding.EncodeToString(appHash),
 		"abci-version", res.ABCIVersion,
 		"app-version", res.AppVersion,
 	)
@@ -266,7 +267,7 @@ func (h *Handshaker) Handshake(proxyApp appconn.AppConns) error {
 	}
 
 	h.logger.Info("Completed ABCI Handshake - Tendermint and App are synced",
-		"appHeight", blockHeight, "appHash", fmt.Sprintf("%X", appHash))
+		"appHeight", blockHeight, "appHash", base64.StdEncoding.EncodeToString(appHash))
 
 	// TODO: (on restart) replay mempool
 

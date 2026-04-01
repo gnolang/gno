@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -95,15 +96,15 @@ func (vote *Vote) String() string {
 		panic("Unknown vote type")
 	}
 
-	return fmt.Sprintf("Vote{%v:%X %v/%02d/%v(%v) %X %X @ %s}",
+	return fmt.Sprintf("Vote{%v:%s %v/%02d/%v(%v) %s %s @ %s}",
 		vote.ValidatorIndex,
-		fingerprint(vote.ValidatorAddress[:]),
+		base64.StdEncoding.EncodeToString(fingerprint(vote.ValidatorAddress[:])),
 		vote.Height,
 		vote.Round,
 		vote.Type,
 		typeString,
-		fingerprint(vote.BlockID.Hash),
-		fingerprint(vote.Signature),
+		base64.StdEncoding.EncodeToString(fingerprint(vote.BlockID.Hash)),
+		base64.StdEncoding.EncodeToString(fingerprint(vote.Signature)),
 		CanonicalTime(vote.Timestamp),
 	)
 }

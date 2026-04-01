@@ -5,6 +5,7 @@ import (
 	"container/list"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -737,7 +738,7 @@ func txKey(tx types.Tx) [sha256.Size]byte {
 	return sha256.Sum256(tx)
 }
 
-// txID is the hex encoded hash of the bytes as a types.Tx.
+// txID is the base64 encoded hash of the bytes as a types.Tx.
 func txID(tx []byte) string {
-	return fmt.Sprintf("%X", types.Tx(tx).Hash())
+	return base64.StdEncoding.EncodeToString(types.Tx(tx).Hash())
 }
