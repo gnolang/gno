@@ -1,11 +1,17 @@
 # Build and Push Docker Images using Docker Bake
-name: Build and Push Images for Testnets
+name: Build and Push Chain Images
 
 on:
   push:
     branches:
-      - chain/test*
+      - chain/*
+    tags:
+      - "chain/*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. chain/gnoland1.1)"
+        required: true
 
 permissions:
   contents: read
@@ -19,6 +25,10 @@ jobs:
         image: [gnoland,gnokey,gnoweb,gno,gnofaucet,gnodev,gnocontribs]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -36,12 +46,8 @@ jobs:
           images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
           tags: |
             type=ref,event=branch
-            type=ref,event=tag
+            type=match,pattern=chain/(.*),group=1
             type=sha,prefix=sha-
-          # Timestamp (optional, good for nightly builds)
-          #type=raw,value={{date 'YYYYMMDD-HHmmss'}},prefix=ts- # e.g. "ts-20250410-153001"
-          # Latest tag (only on main branch, optional)
-          #type=raw,value=latest,enable={{ is_default_branch }}
           labels: |
             org.opencontainers.image.authors=Gno Core Team
 

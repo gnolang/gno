@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# Unrestrict an account so it can transfer ugnot even when bank is locked.
+# Update the valoper registration minimum fee via govDAO proposal.
 #
 # Usage:
-#   ./unrestrict-account.sh ADDR [ADDR...]
-#
-# Example:
-#   ./unrestrict-account.sh g1abc...123
-#   ./unrestrict-account.sh g1abc...123 g1def...456
+#   ./set-valoper-minfee.sh <amount_ugnot>
+#   ./set-valoper-minfee.sh 0          # disable registration fee
+#   ./set-valoper-minfee.sh 20000000   # set to 20 GNOT
 #
 # Environment:
 #   GNOKEY_NAME   - gnokey key name (default: moul)
@@ -16,10 +14,14 @@
 #   GAS_FEE       - gas fee (default: 1000000ugnot)
 set -eo pipefail
 
-if [ $# -eq 0 ]; then
-  echo "Usage: $0 ADDR [ADDR...]" >&2
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <amount_ugnot>" >&2
+  echo "       $0 0          # disable registration fee" >&2
+  echo "       $0 20000000   # set to 20 GNOT" >&2
   exit 1
 fi
+
+MIN_FEE="$1"
 
 GNOKEY_NAME="${GNOKEY_NAME:-moul}"
 CHAIN_ID="${CHAIN_ID:-gnoland1}"
@@ -27,37 +29,26 @@ REMOTE="${REMOTE:-https://rpc.betanet.testnets.gno.land:443}"
 GAS_WANTED="${GAS_WANTED:-50000000}"
 GAS_FEE="${GAS_FEE:-1000000ugnot}"
 
-# Build address list for the Gno code.
-ADDR_ARGS=""
-for addr in "$@"; do
-  ADDR_ARGS="${ADDR_ARGS}		address(\"${addr}\"),
-"
-done
-
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-cat >"$TMPDIR/unrestrict.gno" <<GOEOF
+cat >"$TMPDIR/set_minfee.gno" <<GOEOF
 package main
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/sys/params"
+	"gno.land/r/gnops/valopers/proposal"
 )
 
 func main() {
-	r := params.ProposeAddUnrestrictedAcctsRequest(
-${ADDR_ARGS}	)
+	r := proposal.ProposeNewMinFeeProposalRequest(cross, int64(${MIN_FEE}))
 	pid := dao.MustCreateProposal(cross, r)
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
 	dao.ExecuteProposal(cross, pid)
 }
 GOEOF
 
-echo "Unrestricting $# account(s):"
-for addr in "$@"; do
-  echo "  $addr"
-done
+echo "Setting valoper registration min fee to: ${MIN_FEE} ugnot"
 echo "  Key: ${GNOKEY_NAME}"
 echo "  Chain: ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
@@ -70,7 +61,7 @@ gnokey maketx run \
   -chainid "$CHAIN_ID" \
   -remote "$REMOTE" \
   "$GNOKEY_NAME" \
-  "$TMPDIR/unrestrict.gno"
+  "$TMPDIR/set_minfee.gno"
 
 echo ""
-echo "Done — $# account(s) unrestricted."
+echo "Done — valoper min fee updated to ${MIN_FEE} ugnot."
