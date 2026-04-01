@@ -12,8 +12,7 @@ import (
 )
 
 func TestVersion(t *testing.T) {
-	t.Parallel()
-
+	// Not parallel: subtests mutate the global version.Version.
 	originalVersion := version.Version
 	t.Cleanup(func() {
 		version.Version = originalVersion
@@ -22,9 +21,9 @@ func TestVersion(t *testing.T) {
 	versionValues := []string{"chain/test4.2", "develop", "master"}
 
 	for _, v := range versionValues {
-		t.Run(v, func(t *testing.T) {
-			version.Version = v
+		version.Version = v
 
+		t.Run(v, func(t *testing.T) {
 			mockOut := bytes.NewBufferString("")
 			io := commands.NewTestIO()
 			io.SetOut(commands.WriteNopCloser(mockOut))
