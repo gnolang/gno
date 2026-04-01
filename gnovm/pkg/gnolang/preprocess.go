@@ -677,7 +677,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// Record package-level initialization order dependencies.
 	// Must run before codaPackageSelectors replaces NameExprs.
 	if fn, ok := n.(*FileNode); ok {
-		codaInitOrderDeps(ctx, fn)
+		codaInitOrderDeps(packageOf(ctx), fn)
 	}
 
 	// "coda" means "conclusion".
@@ -5445,118 +5445,121 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 // codaPackageSelectors (which replaces NameExprs with SelectorExprs).
 //
 // This is implemented as a separate post-preprocess pass (rather than inline
-// within preprocess1) so that the full ancestor node stack (ns) is always
-// available. In preprocess1, inner var declarations inside function literals
-// trigger isolated Preprocess calls with an empty ns, which caused dependencies
-// discovered inside those declarations to be attributed to the wrong (inner)
-// declaration instead of the enclosing package-level one.
-func codaInitOrderDeps(ctx BlockNode, fn *FileNode) {
-	ctxpn := packageOf(ctx)
-	if ctxpn.PkgPath == ".uverse" {
+// within preprocess1) because preprocess1 recursively calls Preprocess for
+// inner function literal bodies with a fresh context, losing the enclosing
+// declaration. By iterating fn.Decls and transcribing each one, the target
+// declaration is always known from the outer loop.
+func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
+	if pn.PkgPath == ".uverse" {
 		return
 	}
-	_ = TranscribeB(ctx, fn, func(
-		ns []Node,
-		stack []BlockNode,
-		last BlockNode,
-		ftype TransField,
-		index int,
-		n Node,
-		stage TransStage,
-	) (Node, TransCtrl) {
-		switch stage {
-		case TRANS_ENTER:
-			// Skip function literal bodies that were not preprocessed;
-			// same guard as the main coda Transcribe in Preprocess.
-			if flx, ok := n.(*FuncLitExpr); ok {
-				if flx.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
-					return n, TRANS_SKIP
-				}
+	for _, decl := range fn.Decls {
+		switch decl.(type) {
+		case *FuncDecl, *ValueDecl:
+		default:
+			continue
+		}
+
+		var deps map[Name]struct{}
+		addDep := func(name Name) {
+			if deps == nil {
+				deps = make(map[Name]struct{})
 			}
-		case TRANS_LEAVE:
-			switch n := n.(type) {
-			case *NameExpr:
-				// Only track names resolved via the block hierarchy.
-				if n.Path.Type != VPBlock {
-					return n, TRANS_CONTINUE
+			deps[name] = struct{}{}
+		}
+
+		_ = TranscribeB(fn, decl, func(
+			ns []Node,
+			stack []BlockNode,
+			last BlockNode,
+			ftype TransField,
+			index int,
+			n Node,
+			stage TransStage,
+		) (Node, TransCtrl) {
+			switch stage {
+			case TRANS_ENTER:
+				// Skip function literal bodies that were not preprocessed;
+				// same guard as the main coda Transcribe in Preprocess.
+				if flx, ok := n.(*FuncLitExpr); ok {
+					if flx.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
+						return n, TRANS_SKIP
+					}
 				}
-				// Ignore blank identifiers.
-				if n.Name == blankIdentifier {
-					return n, TRANS_CONTINUE
-				}
-				// Ignore package-name references (e.g. `fmt` in `fmt.Println`).
-				if n.GetAttribute(ATTR_PACKAGE_REF) != nil {
-					return n, TRANS_CONTINUE
-				}
-				// Ignore the declaration name itself (LHS of var/const decl).
-				if ftype == TRANS_VAR_NAME {
-					return n, TRANS_CONTINUE
-				}
-				// Check that the name is defined at package level.
-				dbn := last.GetBlockNodeForPath(nil, n.Path)
-				if dbn != ctxpn {
-					return n, TRANS_CONTINUE
-				}
-				// Ignore type declarations; they have no runtime
-				// initialization order.
-				if li, ok := ctxpn.GetLocalIndex(n.Name); ok {
-					if ctxpn.NameSources[li].Type == NSTypeDecl {
+			case TRANS_LEAVE:
+				switch n := n.(type) {
+				case *NameExpr:
+					// Only track names resolved via the block hierarchy.
+					if n.Path.Type != VPBlock {
 						return n, TRANS_CONTINUE
 					}
-				}
-				addDependencyToTopDecl(ns, n.Name)
-			case *SelectorExpr:
-				// Track same-package method calls so that resolveEffectiveDeps
-				// can transitively discover vars referenced in method bodies.
-				// e.g. `A = T{}.GetB()` records "T.GetB" as a dep of A;
-				// resolveEffectiveDeps then walks GetB's body to find B.
-				switch n.Path.Type {
-				case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
-					// Get the receiver type from the cached ATTR_TYPEOF_VALUE.
-					// Two cases for RefExpr:
-					//  (a) user-written &T{}: n.X is the RefExpr with type *T
-					//      stored directly on the RefExpr node.
-					//  (b) auto-generated &x (pointer-receiver auto-address):
-					//      preprocessing wraps the original expression in a
-					//      RefExpr AFTER caching the type on the inner node,
-					//      so n.X (the RefExpr) has no cached type but n.X.X
-					//      does.
-					xt, ok := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
-					if !ok {
-						if re, ok2 := n.X.(*RefExpr); ok2 {
-							xt, ok = re.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+					// Ignore blank identifiers.
+					if n.Name == blankIdentifier {
+						return n, TRANS_CONTINUE
+					}
+					// Ignore package-name references (e.g. `fmt` in `fmt.Println`).
+					if n.GetAttribute(ATTR_PACKAGE_REF) != nil {
+						return n, TRANS_CONTINUE
+					}
+					// Ignore the declaration name itself (LHS of var/const decl).
+					if ftype == TRANS_VAR_NAME {
+						return n, TRANS_CONTINUE
+					}
+					// Check that the name is defined at package level.
+					dbn := last.GetBlockNodeForPath(nil, n.Path)
+					if dbn != pn {
+						return n, TRANS_CONTINUE
+					}
+					// Ignore type declarations; they have no runtime
+					// initialization order.
+					if li, ok := pn.GetLocalIndex(n.Name); ok {
+						if pn.NameSources[li].Type == NSTypeDecl {
+							return n, TRANS_CONTINUE
 						}
 					}
-					if !ok {
-						break
+					addDep(n.Name)
+				case *SelectorExpr:
+					// Track same-package method calls so that resolveEffectiveDeps
+					// can transitively discover vars referenced in method bodies.
+					// e.g. `A = T{}.GetB()` records "T.GetB" as a dep of A;
+					// resolveEffectiveDeps then walks GetB's body to find B.
+					switch n.Path.Type {
+					case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
+						// Get the receiver type from the cached ATTR_TYPEOF_VALUE.
+						// Two cases for RefExpr:
+						//  (a) user-written &T{}: n.X is the RefExpr with type *T
+						//      stored directly on the RefExpr node.
+						//  (b) auto-generated &x (pointer-receiver auto-address):
+						//      preprocessing wraps the original expression in a
+						//      RefExpr AFTER caching the type on the inner node,
+						//      so n.X (the RefExpr) has no cached type but n.X.X
+						//      does.
+						xt, ok := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+						if !ok {
+							if re, ok2 := n.X.(*RefExpr); ok2 {
+								xt, ok = re.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+							}
+						}
+						if !ok {
+							break
+						}
+						// Dereference pointer receiver types.
+						if pt, ok2 := xt.(*PointerType); ok2 {
+							xt = pt.Elt
+						}
+						dt, ok := xt.(*DeclaredType)
+						if !ok || dt.PkgPath != pn.PkgPath {
+							break
+						}
+						addDep(dt.Name + "." + n.Sel)
 					}
-					// Dereference pointer receiver types.
-					if pt, ok2 := xt.(*PointerType); ok2 {
-						xt = pt.Elt
-					}
-					dt, ok := xt.(*DeclaredType)
-					if !ok || dt.PkgPath != ctxpn.PkgPath {
-						break
-					}
-					addDependencyToTopDecl(ns, dt.Name+"."+n.Sel)
 				}
 			}
-		}
-		return n, TRANS_CONTINUE
-	})
-}
+			return n, TRANS_CONTINUE
+		})
 
-func addDependencyToTopDecl(ns []Node, name Name) {
-	for _, n := range ns {
-		switch val := n.(type) {
-		case *FuncDecl, *ValueDecl:
-			dd, _ := val.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
-			if dd == nil {
-				dd = make(map[Name]struct{})
-				val.SetAttribute(ATTR_DECL_DEPS, dd)
-			}
-			dd[name] = struct{}{}
-			return
+		if deps != nil {
+			decl.SetAttribute(ATTR_DECL_DEPS, deps)
 		}
 	}
 }
