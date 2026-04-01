@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Unrestrict an account so it can transfer ugnot even when bank is locked.
+# Re-restrict an account so it can no longer transfer ugnot when bank is locked.
 #
 # Usage:
-#   ./unrestrict-account.sh ADDR [ADDR...]
+#   ./restrict-account.sh ADDR [ADDR...]
 #
 # Example:
-#   ./unrestrict-account.sh g1abc...123
-#   ./unrestrict-account.sh g1abc...123 g1def...456
+#   ./restrict-account.sh g1abc...123
+#   ./restrict-account.sh g1abc...123 g1def...456
 #
 # Environment:
 #   GNOKEY_NAME   - gnokey key name (default: moul)
@@ -37,7 +37,7 @@ done
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-cat >"$TMPDIR/unrestrict.gno" <<GOEOF
+cat >"$TMPDIR/restrict.gno" <<GOEOF
 package main
 
 import (
@@ -46,7 +46,7 @@ import (
 )
 
 func main() {
-	r := params.ProposeAddUnrestrictedAcctsRequest(
+	r := params.ProposeRemoveUnrestrictedAcctsRequest(
 ${ADDR_ARGS}	)
 	pid := dao.MustCreateProposal(cross, r)
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
@@ -54,7 +54,7 @@ ${ADDR_ARGS}	)
 }
 GOEOF
 
-echo "Unrestricting $# account(s):"
+echo "Restricting $# account(s):"
 for addr in "$@"; do
   echo "  $addr"
 done
@@ -70,7 +70,7 @@ gnokey maketx run \
   -chainid "$CHAIN_ID" \
   -remote "$REMOTE" \
   "$GNOKEY_NAME" \
-  "$TMPDIR/unrestrict.gno"
+  "$TMPDIR/restrict.gno"
 
 echo ""
-echo "Done — $# account(s) unrestricted."
+echo "Done — $# account(s) restricted."
