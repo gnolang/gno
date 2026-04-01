@@ -5,7 +5,13 @@ on:
   push:
     branches:
       - chain/test*
+    tags:
+      - "chain/*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. chain/gnoland1.1)"
+        required: true
 
 permissions:
   contents: read
@@ -36,7 +42,7 @@ jobs:
           images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
           tags: |
             type=ref,event=branch
-            type=ref,event=tag
+            type=match,pattern=chain/(.*),group=1,prefix=chain-
             type=sha,prefix=sha-
           # Timestamp (optional, good for nightly builds)
           #type=raw,value={{date 'YYYYMMDD-HHmmss'}},prefix=ts- # e.g. "ts-20250410-153001"
