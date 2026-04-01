@@ -593,6 +593,32 @@ func TestCheckTx(t *testing.T) {
 	require.Nil(t, storedBytes)
 }
 
+// TestCheckTxMalformedTypeURL verifies that CheckTx returns a decode error
+// (and does not panic) when given a transaction whose amino type_url contains
+// no slash — the bug that previously caused a consensus-halting panic.
+func TestCheckTxMalformedTypeURL(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// Build a valid tx and corrupt its type_url to have no slash.
+	tx := newTxCounter(0, 0)
+	validBz, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	typeURL := amino.GetTypeURL(msgCounter{})
+	idx := bytes.Index(validBz, []byte(typeURL))
+	require.True(t, idx >= 0, "type_url not found in encoded tx")
+
+	mutated := make([]byte, len(validBz))
+	copy(mutated, validBz)
+	mutated[idx] = '}' // strip leading '/' so type_url has no slash
+
+	res := app.CheckTx(abci.RequestCheckTx{Tx: mutated})
+	require.False(t, res.IsOK(), "expected a decode error, got OK")
+}
+
 // Test that successive DeliverTx can see each others' effects
 // on the store, both within and across blocks.
 func TestDeliverTx(t *testing.T) {

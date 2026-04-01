@@ -792,6 +792,9 @@ func typeURLtoFullname(typeURL string) (string, error) {
 	return parts[len(parts)-1], nil
 }
 
+// typeURLtoShortname is only called during type registration (startup), so
+// panicking on a malformed typeURL is appropriate: it is a programming error,
+// not a runtime input.
 func typeURLtoShortname(typeURL string) (name string) {
 	fullname, err := typeURLtoFullname(typeURL)
 	if err != nil {

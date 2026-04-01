@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
@@ -116,6 +117,9 @@ func TestMalformedTypeURL_ConsensusDoesNotHalt(t *testing.T) {
 
 	state := cs.GetState()
 
+	// Subscribe before injection so we don't miss the commit event.
+	newBlockSub := events.SubscribeToEvent(node.EventSwitch(), "test-malformed-typeurl", bfttypes.EventNewBlock{})
+
 	// Build a block that passes structural validation but contains the
 	// amino-malformed transaction. state.MakeBlock uses MedianTime for
 	// block.Time, which is exactly what ValidateBlock expects.
@@ -136,15 +140,19 @@ func TestMalformedTypeURL_ConsensusDoesNotHalt(t *testing.T) {
 	// Inject the signed proposal. receiveRoutine picks it up via peerMsgQueue.
 	// With the fix applied, DeliverTx returns a decode error; the block is
 	// committed with the tx marked as errored and consensus continues.
-	if err := cs.SetProposalAndBlock(proposal, block, blockParts, "attacker"); err != nil {
-		t.Logf("SetProposalAndBlock: %v (may succeed via queue)", err)
-	}
+	require.NoError(t, cs.SetProposalAndBlock(proposal, block, blockParts, "attacker"))
 
-	// If the fix is absent, consensusDead closes well within this window.
+	// Wait for an EventNewBlock at targetHeight: this fires only after the
+	// block is fully committed, proving consensus is still alive.  If the fix
+	// is absent, consensusDead closes first.
 	select {
 	case <-consensusDead:
-		t.Error("consensus goroutine terminated — malformed tx caused an unrecovered panic")
-	case <-time.After(8 * time.Second):
-		t.Log("OK: consensus survived block with malformed type_url transaction")
+		t.Fatal("consensus goroutine terminated — malformed tx caused an unrecovered panic")
+	case ev := <-newBlockSub:
+		got := ev.(bfttypes.EventNewBlock)
+		require.GreaterOrEqual(t, got.Block.Height, targetHeight)
+		t.Logf("OK: consensus survived, committed block %d with malformed type_url transaction", got.Block.Height)
+	case <-time.After(15 * time.Second):
+		t.Fatal("timed out waiting for consensus to commit block with malformed type_url transaction")
 	}
 }
