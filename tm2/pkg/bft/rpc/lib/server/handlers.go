@@ -212,7 +212,7 @@ func processRequest(r *http.Request, req types.RPCRequest, funcMap map[string]*R
 
 	// Call the RPC function using reflection.
 	returns := rpcFunc.f.Call(args)
-	logger.Info("HTTPJSONRPC", "method", req.Method, "args", args, "returns", returns)
+	logger.Debug("HTTPJSONRPC", "method", req.Method)
 
 	// Convert the reflection return values into a result value for JSON serialization.
 	result, err := unreflectResult(returns)
@@ -353,7 +353,7 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 
 		returns := rpcFunc.f.Call(args)
 
-		logger.Info("HTTPRestRPC", "method", r.URL.Path, "args", args, "returns", returns)
+		logger.Debug("HTTPRestRPC", "method", r.URL.Path)
 		result, err := unreflectResult(returns)
 		if err != nil {
 			var statusErr *types.HTTPStatusError
@@ -648,7 +648,7 @@ func (wsc *wsConnection) readRoutine() {
 			_, in, err := wsc.baseConn.ReadMessage()
 			if err != nil {
 				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-					wsc.Logger.Info("Client closed the connection")
+					wsc.Logger.Debug("Client closed the connection")
 				} else {
 					wsc.Logger.Error("Failed to read request", "err", err)
 				}
@@ -718,8 +718,7 @@ func (wsc *wsConnection) readRoutine() {
 
 				returns := rpcFunc.f.Call(args)
 
-				// TODO: Need to encode args/returns to string if we want to log them
-				wsc.Logger.Info("WSJSONRPC", "method", request.Method)
+				wsc.Logger.Debug("WSJSONRPC", "method", request.Method)
 
 				result, err := unreflectResult(returns)
 				if err != nil {
