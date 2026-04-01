@@ -1717,9 +1717,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
-					if cx, ok := n.Func.(*ConstExpr); ok {
+					if cx, ok := n.Func.(*ConstExpr); ok && cx.GetFunc().PkgPath == uversePkgPath {
 						fv := cx.GetFunc()
-						if fv.PkgPath == uversePkgPath && fv.Name == "append" {
+						switch fv.Name {
+						case "append":
 							if n.Varg && len(n.Args) == 2 {
 								// If the second argument is a string,
 								// convert to byteslice.
@@ -1760,7 +1761,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
 								}
 							}
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
+						case "copy":
 							if len(n.Args) == 2 {
 								// If the second argument is a string,
 								// convert to byteslice.
@@ -1772,9 +1773,84 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									n.Args[1] = args1
 								}
 							}
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
-							panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "_cross_gno0p0" {
+						case "make":
+							// Self-contained handling for make() builtin.
+							// Validate argument count based on target type,
+							// check size arguments are integers, resolve generics,
+							// then skip the general case via TRANS_CONTINUE.
+							// NOTE: If the general *FuncType call-expr path below changes
+							// (e.g. embedded-call expansion, generic Specify semantics, or
+							// checkOrConvertType behaviour), this block may need updating.
+							ft := bnft
+							n.NumArgs = countNumArgs(store, last, n)
+
+							if n.Varg {
+								panic("make does not accept variadic spread (...)")
+							}
+							if len(n.Args) == 0 {
+								panic("missing argument to make")
+							}
+
+							// Validate arg count per target type.
+							tt := evalStaticType(store, last, n.Args[0])
+							switch baseOf(tt).(type) {
+							case *SliceType:
+								if len(n.Args) < 2 || len(n.Args) > 3 {
+									panic(fmt.Sprintf(
+										"invalid operation: make(%s) expects 2 or 3 arguments; found %d",
+										tt, len(n.Args)))
+								}
+							case *MapType:
+								if len(n.Args) > 2 {
+									panic(fmt.Sprintf(
+										"invalid operation: make(%s) expects 1 or 2 arguments; found %d",
+										tt, len(n.Args)))
+								}
+							case *ChanType:
+								panic("channel type is not yet supported")
+							default:
+								panic(fmt.Sprintf(
+									"invalid argument: cannot make %s; type must be slice, map", tt))
+							}
+
+							// Specify function param/result generics.
+							argTVs := evalStaticTypedValues(store, last, n.Args...)
+							isVarg := n.Varg
+							sft := ft.Specify(store, n, argTVs, isVarg)
+							spts := sft.Params
+							srts := FieldTypeList(sft.Results).Types()
+
+							// Update func attributes with specified types.
+							n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
+							cx := n.Func.(*ConstExpr)
+							fv2 := cx.V.(*FuncValue).Copy(nilAllocator)
+							fv2.Type = sft
+							cx.T = sft
+							cx.V = fv2
+							n.SetAttribute(ATTR_TYPEOF_VALUE, &tupleType{Elts: srts})
+
+							// Type-check arguments.
+							// First arg is the type -- check against resolved param type.
+							checkOrConvertType(store, last, n, &n.Args[0], spts[0].Type)
+
+							// make's variadic params are declared as Vrd(AnyT()), so untyped
+							// constants won't be automatically coerced to int; enforce it here.
+							for i := 1; i < len(n.Args); i++ {
+								expectedType := spts[len(spts)-1].Type.Elem()
+								at := evalStaticTypeOf(store, last, n.Args[i])
+								switch {
+								case isUntyped(at):
+									expectedType = IntType
+								case !isInteger(at):
+									panic(fmt.Sprintf(
+										"invalid argument: index %v (variable of type %v) must be integer",
+										n.Args[i], at))
+								}
+								checkOrConvertType(store, last, n, &n.Args[i], expectedType)
+							}
+
+							return n, TRANS_CONTINUE
+						case "_cross_gno0p0":
 							if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
 								// This is only backwards compatibility for the gno 0.9
 								// transpiler/fixer.  cross() is no longer used.
@@ -1790,11 +1866,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// only way _cross_gno0p0 appears is
 								panic("_cross_gno0p0 is reserved")
 							}
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
+						case "cross":
+							panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
+						case "crossing":
 							if ctxpn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
 								panic("crossing() is reserved and deprecated")
 							}
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
+						case "attach":
 							// reserve attach() so we can support it later.
 							panic("attach() not yet supported")
 						}
@@ -2013,8 +2091,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										}
 										checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
 									} else {
-										checkOrConvertType(store, last, n, &n.Args[i],
-											spts[len(spts)-1].Type.Elem())
+										checkOrConvertType(store, last, n, &n.Args[i], spts[len(spts)-1].Type.Elem())
 									}
 								} else {
 									checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
@@ -4292,6 +4369,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 
 			// Convert untyped to typed.
 			checkOrConvertType(store, last, n, &bx.Left, t)
+			bx.SetAttribute(ATTR_TYPEOF_VALUE, t) // propagate converted type from left operand to shift expr.
 		} else {
 			mustAssignableTo(n, xt, t)
 		}
