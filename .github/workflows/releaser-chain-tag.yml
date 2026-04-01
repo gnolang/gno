@@ -1,0 +1,80 @@
+name: Chain Tag Releases
+
+on:
+  push:
+    tags:
+      - "chain/*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. chain/gnoland1.1)"
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Compute image tag
+        id: meta
+        env:
+          RAW_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          TAG="${RAW_TAG#chain/}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Building image for tag: ${TAG}"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push gnoland
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: gnoland
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/gnolang/gno/gnoland:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push gnokey
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: gnokey
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/gnolang/gno/gnokey:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push gnoweb
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: gnoweb
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/gnolang/gno/gnoweb:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
