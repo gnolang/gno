@@ -1,6 +1,7 @@
 package safeurl
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -17,7 +18,7 @@ func TestValidator_Disabled(t *testing.T) {
 	}
 
 	// Should return unknown status for all URLs
-	results := v.ValidateURLs(nil, []string{"https://example.com", "https://test.com"})
+	results := v.ValidateURLs(context.Background(), []string{"https://example.com", "https://test.com"})
 
 	for url, result := range results {
 		if result.Status != StatusUnknown {
@@ -52,20 +53,20 @@ func TestIsExternalURL(t *testing.T) {
 		{"https://gno.land/r/demo", false},
 		{"http://gno.land/p/demo", false},
 		{"https://test.gno.land/r/demo", false},
+		{"HTTPS://GNO.LAND/r/demo", false}, // Case insensitive
 
 		// External URLs
 		{"https://example.com", true},
 		{"http://malicious.site", true},
 		{"https://google.com", true},
 		{"ftp://files.example.com", true},
-		// Note: Protocol-relative URLs (//...) are not handled as external
-		// because they could resolve to gno.land on the same domain
+		{"//cdn.example.com/image.png", true}, // Protocol-relative URLs are external
 	}
 
 	for _, tt := range tests {
-		got := isExternalURL(tt.url)
+		got := IsExternalURL(tt.url)
 		if got != tt.expected {
-			t.Errorf("isExternalURL(%q) = %v, want %v", tt.url, got, tt.expected)
+			t.Errorf("IsExternalURL(%q) = %v, want %v", tt.url, got, tt.expected)
 		}
 	}
 }

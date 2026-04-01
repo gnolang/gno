@@ -9,6 +9,8 @@ type SafetyStatus int
 const (
 	// StatusUnknown indicates the URL has not been scanned yet.
 	StatusUnknown SafetyStatus = iota
+	// StatusPending indicates the URL scan is in progress.
+	StatusPending
 	// StatusSafe indicates the URL has been verified as safe.
 	StatusSafe
 	// StatusUnsafe indicates the URL has been identified as potentially malicious.
@@ -20,6 +22,8 @@ const (
 // String returns a human-readable representation of the safety status.
 func (s SafetyStatus) String() string {
 	switch s {
+	case StatusPending:
+		return "pending"
 	case StatusSafe:
 		return "safe"
 	case StatusUnsafe:
@@ -35,6 +39,8 @@ func (s SafetyStatus) String() string {
 type ScanResult struct {
 	// URL is the scanned URL.
 	URL string
+	// ScanID is the API scan ID (for polling pending scans).
+	ScanID string
 	// Status is the safety classification.
 	Status SafetyStatus
 	// Verdict is the raw verdict string from the API (e.g., "safe", "malicious").

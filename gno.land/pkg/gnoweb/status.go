@@ -7,8 +7,10 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime"
+	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/safeurl"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -134,4 +136,52 @@ func getChainID(ctx context.Context, cli *client.RPCClient) (string, error) {
 	}
 
 	return status.NodeInfo.Network, nil
+}
+
+// handlerSafeURLScan handles polling for SafeURL scan status.
+// GET /api/safeurl/scan/{scanID} returns the current scan status.
+func handlerSafeURLScan(logger *slog.Logger, validator *safeurl.Validator) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Extract scan ID from path: /api/safeurl/scan/{scanID}
+		path := strings.TrimPrefix(r.URL.Path, "/api/safeurl/scan/")
+		scanID := strings.TrimSuffix(path, "/")
+		if scanID == "" {
+			http.Error(w, "scan ID required", http.StatusBadRequest)
+			return
+		}
+
+		ctx := r.Context()
+		result, err := validator.GetScanStatus(ctx, scanID)
+		if err != nil {
+			logger.Warn("failed to get scan status", "scan_id", scanID, "error", err)
+			http.Error(w, "failed to get scan status", http.StatusInternalServerError)
+			return
+		}
+
+		if result == nil {
+			http.Error(w, "scan not found", http.StatusNotFound)
+			return
+		}
+
+		// Return scan result as JSON
+		resp := struct {
+			ScanID  string `json:"scanId"`
+			URL     string `json:"url"`
+			Status  string `json:"status"`
+			Verdict string `json:"verdict,omitempty"`
+		}{
+			ScanID:  result.ScanID,
+			URL:     result.URL,
+			Status:  result.Status.String(),
+			Verdict: result.Verdict,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
 }

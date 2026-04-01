@@ -74,6 +74,7 @@ type GnoLink struct {
 	LinkType     GnoLinkType
 	GnoURL       *weburl.GnoURL
 	SafetyStatus SafetyStatus // URL safety status from SafeURL validation
+	ScanID       string       // SafeURL scan ID (for polling pending scans)
 	Verdict      string       // SafeURL verdict (e.g., "safe", "malicious")
 }
 
@@ -134,6 +135,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		if results, ok := getSafetyResultsFromContext(pc); ok {
 			if result, found := results[string(link.Destination)]; found {
 				gnoLink.SafetyStatus = result.Status
+				gnoLink.ScanID = result.ScanID
 				gnoLink.Verdict = result.Verdict
 			}
 		}
@@ -258,6 +260,44 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 			w.WriteString(`" title="Unable to verify link safety">[`)
 		} else {
 			w.WriteString(`]</span>`)
+		}
+		return ast.WalkContinue, nil
+	}
+
+	// Handle pending safety status - render as non-clickable with copy action
+	if n.SafetyStatus == StatusPending {
+		if entering {
+			w.WriteString(`<span class="link-pending"`)
+			w.WriteString(` data-safeurl-status="pending"`)
+			if n.ScanID != "" {
+				w.WriteString(` data-safeurl-scan-id="`)
+				w.Write(util.EscapeHTML([]byte(n.ScanID)))
+				w.WriteString(`"`)
+			}
+			// Store URL for JS to convert to link after scan completes
+			w.WriteString(` data-safeurl-href="`)
+			if !html.IsDangerousURL(n.Destination) {
+				w.Write(util.EscapeHTML(util.URLEscape(n.Destination, true)))
+			}
+			w.WriteString(`"`)
+			w.WriteString(` title="Link safety is being verified..."`)
+			w.WriteByte('>')
+		} else {
+			// Add copy button using existing copy controller pattern
+			w.WriteString(`<button type="button" class="link-copy-btn" data-controller="copy" data-action="click->copy#copy"`)
+			w.WriteString(` data-copy-text-value="`)
+			if !html.IsDangerousURL(n.Destination) {
+				w.Write(util.EscapeHTML(util.URLEscape(n.Destination, true)))
+			}
+			w.WriteString(`" title="Copy URL">`)
+			w.WriteString(`<svg class="c-icon"><use href="#ico-copy" data-copy-target="icon"></use>`)
+			w.WriteString(`<use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>`)
+			w.WriteString(`</button>`)
+			// Add scanning indicator
+			w.WriteString(`<span class="link-scanning" title="Checking link safety...">`)
+			w.WriteString(`<svg class="c-icon spinning"><use href="#ico-loading"></use></svg>`)
+			w.WriteString(`</span>`)
+			w.WriteString("</span>")
 		}
 		return ast.WalkContinue, nil
 	}

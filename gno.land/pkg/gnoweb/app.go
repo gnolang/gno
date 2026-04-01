@@ -213,5 +213,10 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle readiness check - service can communicate with RPC node and serve clients
 	mux.Handle("/ready", handlerReadyJSON(logger, rpcclient, cfg.Domain))
 
+	// Handle SafeURL scan status polling endpoint
+	if safeURLValidator != nil && safeURLValidator.IsEnabled() {
+		mux.Handle("/api/safeurl/scan/", handlerSafeURLScan(logger, safeURLValidator))
+	}
+
 	return mux, nil
 }

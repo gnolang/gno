@@ -2,7 +2,6 @@ package safeurl
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"time"
 
@@ -40,9 +39,10 @@ func NewClient(baseURL, apiKey string, cache *Cache, logger *slog.Logger, timeou
 	}, nil
 }
 
-// ScanURLs scans multiple URLs for safety, using the cache where possible.
-// Returns a map of URL to ScanResult.
-func (c *Client) ScanURLs(ctx context.Context, urls []string) (map[string]ScanResult, error) {
+// SubmitURLs submits URLs for scanning without waiting for completion.
+// Returns immediately with pending status for URLs not in cache.
+// Use GetScan to poll for results.
+func (c *Client) SubmitURLs(ctx context.Context, urls []string) (map[string]ScanResult, error) {
 	if len(urls) == 0 {
 		return make(map[string]ScanResult), nil
 	}
@@ -55,32 +55,35 @@ func (c *Client) ScanURLs(ctx context.Context, urls []string) (map[string]ScanRe
 		return results, nil
 	}
 
-	c.logger.Debug("scanning URLs", "cached", len(urls)-len(missing), "to_scan", len(missing))
+	c.logger.Debug("submitting URLs for scan", "cached", len(urls)-len(missing), "to_scan", len(missing))
 
-	// Scan missing URLs - SDK handles batching and polling automatically
-	scanResults, err := c.scanner.ScanURLs(ctx, missing)
+	// Submit missing URLs - returns immediately without waiting
+	scanResults, err := c.scanner.SubmitURLs(ctx, missing)
 	if err != nil {
-		c.logger.Warn("SafeURL scan failed", "error", err, "url_count", len(missing))
+		c.logger.Warn("SafeURL submit failed", "error", err, "url_count", len(missing))
 		// Mark failed URLs as unavailable
 		for _, url := range missing {
 			results[url] = ScanResult{
 				URL:       url,
 				Status:    StatusUnavailable,
 				ScannedAt: time.Now(),
-				ExpiresAt: time.Now().Add(5 * time.Minute), // Short TTL for failures
+				ExpiresAt: time.Now().Add(5 * time.Minute),
 			}
 		}
 		return results, nil
 	}
 
-	// Convert SDK results to our ScanResult type and cache them
+	// Convert SDK results to our ScanResult type
 	for url, scan := range scanResults {
 		result := convertScanResult(url, scan)
 		results[url] = result
-		c.cache.Set(url, result)
+		// Only cache completed results
+		if result.Status != StatusPending {
+			c.cache.Set(url, result)
+		}
 	}
 
-	// Handle any URLs that weren't in the response (shouldn't happen, but be safe)
+	// Handle any URLs that weren't in the response
 	for _, url := range missing {
 		if _, ok := results[url]; !ok {
 			results[url] = ScanResult{
@@ -95,18 +98,46 @@ func (c *Client) ScanURLs(ctx context.Context, urls []string) (map[string]ScanRe
 	return results, nil
 }
 
+// GetScan retrieves the current status of a scan by ID.
+func (c *Client) GetScan(ctx context.Context, scanID string) (*ScanResult, error) {
+	scan, err := c.scanner.GetScan(ctx, scanID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := convertScanResult(scan.URL, scan)
+
+	// Cache completed results
+	if result.Status != StatusPending {
+		c.cache.Set(scan.URL, result)
+	}
+
+	return &result, nil
+}
+
 // convertScanResult converts an SDK ScanResponse to our internal ScanResult type.
 func convertScanResult(url string, scan *sdk.ScanResponse) ScanResult {
+	// Check if scan is still in progress
+	if !scan.State.IsTerminal() {
+		return ScanResult{
+			ScanID:    scan.ID,
+			URL:       url,
+			Status:    StatusPending,
+			ScannedAt: time.Now(),
+			ExpiresAt: time.Now().Add(5 * time.Minute), // Short TTL for pending
+		}
+	}
+
+	// Scan is complete, determine status
 	status := StatusSafe
-	verdict := string(scan.Verdict)
+	verdict := scan.GetVerdict()
 
 	switch {
 	case scan.State == sdk.ScanStateFailed:
 		status = StatusUnavailable
-	case scan.Verdict.IsUnsafe():
+	case verdict.IsUnsafe():
 		status = StatusUnsafe
-	case !scan.Verdict.IsSafe() && scan.Verdict != sdk.VerdictUnknown:
-		// Treat unexpected verdicts as unavailable
+	case !verdict.IsSafe() && verdict != sdk.VerdictUnknown:
 		status = StatusUnavailable
 	}
 
@@ -116,15 +147,11 @@ func convertScanResult(url string, scan *sdk.ScanResponse) ScanResult {
 	}
 
 	return ScanResult{
+		ScanID:    scan.ID,
 		URL:       url,
 		Status:    status,
-		Verdict:   verdict,
+		Verdict:   string(verdict),
 		ScannedAt: time.Now(),
 		ExpiresAt: expiresAt,
 	}
-}
-
-// IsTimeout returns true if the error is a timeout error from the SDK.
-func IsTimeout(err error) bool {
-	return errors.Is(err, sdk.ErrTimeout)
 }

@@ -72,6 +72,8 @@ func (v *Validator) IsEnabled() bool {
 // ValidateURLs validates multiple URLs and returns their safety status.
 // If the validator is disabled, all URLs are returned as StatusUnknown.
 // External URLs are validated via the SafeURL API; internal URLs are returned as StatusSafe.
+// This method uses async scanning - it submits scans and returns immediately.
+// Pending scans will have StatusPending and include a ScanID for polling.
 func (v *Validator) ValidateURLs(ctx context.Context, urls []string) map[string]ScanResult {
 	results := make(map[string]ScanResult, len(urls))
 
@@ -89,7 +91,7 @@ func (v *Validator) ValidateURLs(ctx context.Context, urls []string) map[string]
 	// Separate external URLs from internal ones
 	var externalURLs []string
 	for _, url := range urls {
-		if isExternalURL(url) {
+		if IsExternalURL(url) {
 			externalURLs = append(externalURLs, url)
 		} else {
 			// Internal URLs are always safe
@@ -104,10 +106,10 @@ func (v *Validator) ValidateURLs(ctx context.Context, urls []string) map[string]
 		return results
 	}
 
-	// Scan external URLs
-	scanResults, err := v.client.ScanURLs(ctx, externalURLs)
+	// Submit external URLs for scanning (async - returns immediately)
+	scanResults, err := v.client.SubmitURLs(ctx, externalURLs)
 	if err != nil {
-		v.logger.Error("failed to scan URLs", "error", err)
+		v.logger.Error("failed to submit URLs for scan", "error", err)
 		// Mark all external URLs as unavailable on error
 		for _, url := range externalURLs {
 			results[url] = ScanResult{
@@ -126,27 +128,46 @@ func (v *Validator) ValidateURLs(ctx context.Context, urls []string) map[string]
 	return results
 }
 
-// isExternalURL checks if a URL is external (not a relative or gno.land URL).
-func isExternalURL(url string) bool {
-	// Empty or relative URLs are internal
-	if url == "" || strings.HasPrefix(url, "/") || strings.HasPrefix(url, "#") {
+// GetScanStatus retrieves the current status of a scan by ID.
+func (v *Validator) GetScanStatus(ctx context.Context, scanID string) (*ScanResult, error) {
+	if !v.enabled {
+		return nil, nil
+	}
+	return v.client.GetScan(ctx, scanID)
+}
+
+// IsExternalURL checks if a URL is external (requires safety validation).
+// A URL is considered external if it has a scheme (http://, https://, etc.)
+// and is not a gno.land domain. Relative URLs, anchors, data URIs, and
+// protocol-relative URLs resolving to gno.land are considered internal.
+func IsExternalURL(url string) bool {
+	// Empty or anchor-only URLs are internal
+	if url == "" || strings.HasPrefix(url, "#") {
 		return false
 	}
 
-	// Data URIs are not external
+	// Relative URLs are internal (but not protocol-relative)
+	if strings.HasPrefix(url, "/") && !strings.HasPrefix(url, "//") {
+		return false
+	}
+
+	// Data URIs don't need external validation
 	if strings.HasPrefix(url, "data:") {
 		return false
 	}
 
 	// Check for scheme
 	if strings.Contains(url, "://") {
-		// gno.land URLs are internal
-		if strings.Contains(url, "gno.land") {
-			return false
-		}
+		// gno.land URLs are internal, all others are external
+		lowerURL := strings.ToLower(url)
+		return !strings.Contains(lowerURL, "gno.land")
+	}
+
+	// Protocol-relative URLs (//example.com) are external
+	if strings.HasPrefix(url, "//") {
 		return true
 	}
 
-	// No scheme - likely relative
+	// No scheme - could be relative
 	return false
 }

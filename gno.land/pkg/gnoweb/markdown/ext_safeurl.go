@@ -2,7 +2,6 @@ package markdown
 
 import (
 	"context"
-	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/safeurl"
 	"github.com/yuin/goldmark"
@@ -20,6 +19,7 @@ type SafetyStatus = safeurl.SafetyStatus
 // Safety status constants.
 const (
 	StatusUnknown     = safeurl.StatusUnknown
+	StatusPending     = safeurl.StatusPending
 	StatusSafe        = safeurl.StatusSafe
 	StatusUnsafe      = safeurl.StatusUnsafe
 	StatusUnavailable = safeurl.StatusUnavailable
@@ -39,9 +39,30 @@ var KindSafeImage = ast.NewNodeKind("SafeImage")
 
 // SafeImage wraps ast.Image with safety status.
 type SafeImage struct {
-	*ast.Image
+	ast.BaseInline
+	Destination  []byte
+	Title        []byte
 	SafetyStatus SafetyStatus
+	ScanID       string // For polling pending scans
 	Verdict      string
+}
+
+// NewSafeImage creates a SafeImage from an ast.Image, copying its properties.
+func NewSafeImage(img *ast.Image, status SafetyStatus, scanID, verdict string) *SafeImage {
+	s := &SafeImage{
+		Destination:  img.Destination,
+		Title:        img.Title,
+		SafetyStatus: status,
+		ScanID:       scanID,
+		Verdict:      verdict,
+	}
+	// Copy children from the original image
+	for c := img.FirstChild(); c != nil; {
+		next := c.NextSibling()
+		s.AppendChild(s, c)
+		c = next
+	}
+	return s
 }
 
 // Kind implements ast.Node.
@@ -91,7 +112,7 @@ func (t *safeURLTransformer) Transform(doc *ast.Document, reader text.Reader, pc
 			return ast.WalkContinue, nil
 		}
 
-		if dest != "" && isExternalURL(dest) && !urlSet[dest] {
+		if dest != "" && safeurl.IsExternalURL(dest) && !urlSet[dest] {
 			urls = append(urls, dest)
 			urlSet[dest] = true
 		}
@@ -122,7 +143,7 @@ func (t *safeURLTransformer) Transform(doc *ast.Document, reader text.Reader, pc
 		}
 
 		dest := string(img.Destination)
-		if !isExternalURL(dest) {
+		if !safeurl.IsExternalURL(dest) {
 			return ast.WalkContinue, nil
 		}
 
@@ -132,11 +153,7 @@ func (t *safeURLTransformer) Transform(doc *ast.Document, reader text.Reader, pc
 		}
 
 		// Create SafeImage wrapper
-		safeImg := &SafeImage{
-			Image:        img,
-			SafetyStatus: result.Status,
-			Verdict:      result.Verdict,
-		}
+		safeImg := NewSafeImage(img, result.Status, result.ScanID, result.Verdict)
 
 		// Replace Image with SafeImage in the tree
 		parent := img.Parent()
@@ -146,42 +163,6 @@ func (t *safeURLTransformer) Transform(doc *ast.Document, reader text.Reader, pc
 
 		return ast.WalkContinue, nil
 	})
-}
-
-// isExternalURL checks if a URL is external (requires safety validation).
-func isExternalURL(url string) bool {
-	// Empty or anchor-only URLs are internal
-	if url == "" || strings.HasPrefix(url, "#") {
-		return false
-	}
-
-	// Relative URLs are internal
-	if strings.HasPrefix(url, "/") && !strings.HasPrefix(url, "//") {
-		return false
-	}
-
-	// Data URIs don't need external validation
-	if strings.HasPrefix(url, "data:") {
-		return false
-	}
-
-	// Check for scheme
-	if strings.Contains(url, "://") {
-		// gno.land URLs are internal
-		lowerURL := strings.ToLower(url)
-		if strings.Contains(lowerURL, "gno.land") {
-			return false
-		}
-		return true
-	}
-
-	// Protocol-relative URLs (//example.com) are external
-	if strings.HasPrefix(url, "//") {
-		return true
-	}
-
-	// No scheme - could be relative
-	return false
 }
 
 // safeImageRenderer renders SafeImage nodes with safety-aware HTML.
@@ -211,34 +192,50 @@ func (r *safeImageRenderer) renderSafeImage(w util.BufWriter, source []byte, nod
 		return ast.WalkSkipChildren, nil
 
 	case StatusUnsafe:
-		// Render with warning overlay
-		w.WriteString(`<span class="img-unsafe">`)
-		w.WriteString(`<img src="`)
+		// Block unsafe image - don't load it at all, show warning placeholder
+		w.WriteString(`<span class="img-unsafe img-blocked" title="This image was blocked because it may be unsafe">`)
+		w.WriteString(`<svg class="c-icon"><use href="#ico-warning"></use></svg>`)
+		w.WriteString(`<span class="img-blocked-text">Image blocked: `)
+		// Show alt text or URL
+		hasAlt := false
+		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+			if t, ok := c.(*ast.Text); ok {
+				w.Write(util.EscapeHTML(t.Segment.Value(source)))
+				hasAlt = true
+			}
+		}
+		if !hasAlt {
+			w.WriteString(`unsafe content`)
+		}
+		w.WriteString(`</span>`)
+		w.WriteString(`</span>`)
+		return ast.WalkSkipChildren, nil
+
+	case StatusPending:
+		// Render placeholder with spinner instead of actual image
+		w.WriteString(`<span class="img-pending img-placeholder" data-safeurl-status="pending"`)
+		if n.ScanID != "" {
+			w.WriteString(` data-safeurl-scan-id="`)
+			w.Write(util.EscapeHTML([]byte(n.ScanID)))
+			w.WriteString(`"`)
+		}
+		// Store the real image URL for JS to load after scan completes
+		w.WriteString(` data-safeurl-src="`)
 		if !html.IsDangerousURL(n.Destination) {
 			w.Write(util.EscapeHTML(util.URLEscape(n.Destination, true)))
 		}
 		w.WriteString(`"`)
-
-		// Alt text
-		w.WriteString(` alt="`)
+		// Store alt text
+		w.WriteString(` data-safeurl-alt="`)
 		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
 			if t, ok := c.(*ast.Text); ok {
 				w.Write(util.EscapeHTML(t.Segment.Value(source)))
 			}
 		}
 		w.WriteString(`"`)
-
-		// Title if present
-		if n.Title != nil {
-			w.WriteString(` title="`)
-			w.Write(util.EscapeHTML(n.Title))
-			w.WriteString(`"`)
-		}
-
-		w.WriteString(` />`)
-		w.WriteString(`<span class="img-warning tooltip" data-tooltip="This image may be unsafe" title="This image may be unsafe">`)
-		w.WriteString(`<svg class="c-icon"><use href="#ico-warning"></use></svg>`)
-		w.WriteString(`</span>`)
+		w.WriteString(` title="Checking image safety...">`)
+		w.WriteString(`<svg class="c-icon spinning"><use href="#ico-loading"></use></svg>`)
+		w.WriteString(`<span class="img-placeholder-text">Scanning image...</span>`)
 		w.WriteString(`</span>`)
 		return ast.WalkSkipChildren, nil
 

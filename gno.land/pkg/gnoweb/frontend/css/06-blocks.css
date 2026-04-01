@@ -2569,3 +2569,130 @@ main.dev-mode .b-toc a {
 .img-warning .c-icon {
 	font-size: 1rem;
 }
+
+/* Pending links - non-clickable, show copy button and scanning indicator */
+.link-pending {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25em;
+	color: var(--s-color-text-secondary);
+	border-bottom: 1px dashed var(--s-color-border-secondary);
+	cursor: default;
+}
+
+/* Pending images - scan in progress */
+.img-pending {
+	position: relative;
+}
+
+/* Copy button for pending links */
+.link-copy-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 !important;
+	margin: 0;
+	background: transparent !important;
+	border: none !important;
+	cursor: pointer;
+	color: var(--s-color-text-tertiary);
+	transition: color var(--g-transition-fast);
+	vertical-align: middle;
+}
+
+.link-copy-btn:hover {
+	color: var(--s-color-text-secondary);
+}
+
+.link-copy-btn .c-icon {
+	width: 1em;
+	height: 1em;
+	display: block;
+}
+
+.link-scanning,
+.img-scanning {
+	color: var(--s-color-text-secondary);
+	margin-inline-start: 0.25em;
+	display: inline-flex;
+	align-items: center;
+}
+
+.img-pending .img-scanning {
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+	background-color: var(--s-color-bg-default);
+	padding: 0.25rem;
+	border-radius: var(--s-rounded-sm);
+}
+
+/* Spinning animation for loading indicator */
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.spinning {
+	display: inline-block;
+	animation: spin 1s linear infinite;
+	transform-origin: center center;
+}
+
+.c-icon.spinning {
+	font-size: 0.85em;
+	vertical-align: middle;
+}
+
+/* Image placeholder for pending scans */
+.img-placeholder {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	min-width: 100px;
+	min-height: 80px;
+	padding: 1rem;
+	background-color: var(--s-color-bg-subtle);
+	border: 1px dashed var(--s-color-border-default);
+	border-radius: var(--s-rounded-sm);
+	color: var(--s-color-text-secondary);
+	font-size: 0.875rem;
+}
+
+.img-placeholder .c-icon {
+	width: 1.5rem;
+	height: 1.5rem;
+}
+
+.img-placeholder-text {
+	white-space: nowrap;
+}
+
+/* Blocked unsafe image */
+.img-blocked {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.75rem 1rem;
+	background-color: var(--s-color-danger-bg, #fef2f2);
+	border: 1px solid var(--s-color-danger-border, #fecaca);
+	border-radius: var(--s-rounded-sm);
+	color: var(--s-color-danger-text, #dc2626);
+	font-size: 0.875rem;
+}
+
+.img-blocked .c-icon {
+	width: 1.25rem;
+	height: 1.25rem;
+	flex-shrink: 0;
+}
+
+.img-blocked-text {
+	white-space: nowrap;
+}
