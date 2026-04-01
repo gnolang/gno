@@ -1,5 +1,7 @@
-// Command gnobr (gno block rollback) trims the block store to a target height
-// and wipes state/app DBs so gnoland replays all blocks locally on restart.
+// Command gnobr (gno block rollback) rolls back a gnoland node to a target
+// height by trimming the blockstore and wiping app state. On restart, gnoland's
+// Handshaker replays all blocks from genesis through the local blockstore.
+// No network access needed.
 //
 // Usage:
 //
@@ -33,55 +35,53 @@ func main() {
 	}
 
 	dbDir := filepath.Join(*dataDir, "db")
+	targetHeight := *dropAfter
 
+	// 1. Trim blockstore to target height
 	bsDB, err := dbm.NewDB("blockstore", dbm.PebbleDBBackend, dbDir)
 	if err != nil {
 		log.Fatalf("failed to open blockstore.db: %v", err)
 	}
+	bsHeight := loadBlockStoreState(bsDB).Height
+	fmt.Printf("blockstore: %d\n", bsHeight)
 
-	currentHeight := loadBlockStoreState(bsDB).Height
-	fmt.Printf("blockstore height: %d\n", currentHeight)
-
-	targetHeight := *dropAfter
-	if targetHeight <= 0 {
-		log.Fatalf("target height %d is invalid", targetHeight)
-	}
-	if targetHeight >= currentHeight {
-		fmt.Printf("target height %d >= current height %d, nothing to do\n", targetHeight, currentHeight)
+	if targetHeight >= bsHeight {
+		fmt.Printf("target %d >= blockstore %d, nothing to trim\n", targetHeight, bsHeight)
 		bsDB.Close()
 		return
 	}
 
-	fmt.Printf("target height: %d (dropping blocks %d..%d)\n", targetHeight, targetHeight+1, currentHeight)
+	fmt.Printf("target: %d (dropping blocks %d..%d)\n", targetHeight, targetHeight+1, bsHeight)
 
 	if *dryRun {
-		fmt.Println("[dry-run] would delete blocks and wipe state.db + gnolang.db")
+		fmt.Println("[dry-run] would trim blockstore, wipe app state, reset validator state")
 		bsDB.Close()
 		return
 	}
 
-	for h := targetHeight + 1; h <= currentHeight; h++ {
+	for h := targetHeight + 1; h <= bsHeight; h++ {
 		if h%10000 == 0 {
 			fmt.Printf("  deleting block %d...\n", h)
 		}
 		deleteBlock(bsDB, h)
 	}
-
 	saveBlockStoreState(bsDB, targetHeight)
-	fmt.Printf("blockstore height set to %d\n", targetHeight)
 	bsDB.Close()
+	fmt.Printf("blockstore trimmed to %d\n", targetHeight)
 
-	// Wipe state.db and gnolang.db so the app replays from genesis through blockstore
-	for _, name := range []string{"state.db", "gnolang.db"} {
-		p := filepath.Join(dbDir, name)
-		fmt.Printf("removing %s\n", p)
-		os.RemoveAll(p)
-	}
+	// 2. Wipe gnolang.db (app state) — app reports height 0 on startup.
+	//    state.db is kept intact — Handshaker needs storeHeight == stateHeight.
+	//    With app=0, store=N, state=N, the Handshaker replays blocks 1..N.
+	appDBPath := filepath.Join(dbDir, "gnolang.db")
+	fmt.Printf("removing %s\n", appDBPath)
+	os.RemoveAll(appDBPath)
 
+	// 3. Wipe WAL
 	walPath := filepath.Join(*dataDir, "wal")
 	fmt.Printf("removing %s\n", walPath)
 	os.RemoveAll(walPath)
 
+	// 4. Reset priv_validator_state.json
 	pvsPath := filepath.Join(*dataDir, "secrets", "priv_validator_state.json")
 	pvs := map[string]interface{}{"height": "0", "round": "0", "step": 0}
 	pvsBytes, _ := json.MarshalIndent(pvs, "", "  ")
@@ -122,8 +122,7 @@ func loadBlockStoreState(db dbm.DB) blockStoreState {
 }
 
 func saveBlockStoreState(db dbm.DB, height int64) {
-	bss := blockStoreState{Height: height}
-	buf, err := amino.MarshalJSON(bss)
+	buf, err := amino.MarshalJSON(blockStoreState{Height: height})
 	if err != nil {
 		log.Fatalf("failed to marshal blockstore state: %v", err)
 	}
