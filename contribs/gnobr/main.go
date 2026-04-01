@@ -58,27 +58,24 @@ func main() {
 	fmt.Printf("blockstore: %d\n", bsHeight)
 
 	if targetHeight >= bsHeight {
-		fmt.Printf("target %d >= blockstore %d, nothing to trim\n", targetHeight, bsHeight)
-		bsDB.Close()
-		return
-	}
-	fmt.Printf("target: %d (dropping blocks %d..%d)\n", targetHeight, targetHeight+1, bsHeight)
-
-	if *dryRun {
-		fmt.Println("[dry-run] would trim blockstore, patch state, wipe app DB")
-		bsDB.Close()
-		return
-	}
-
-	for h := targetHeight + 1; h <= bsHeight; h++ {
-		if h%10000 == 0 {
-			fmt.Printf("  deleting block %d...\n", h)
+		fmt.Printf("blockstore already at %d, no trimming needed\n", bsHeight)
+	} else {
+		fmt.Printf("target: %d (dropping blocks %d..%d)\n", targetHeight, targetHeight+1, bsHeight)
+		if *dryRun {
+			fmt.Println("[dry-run] would trim blockstore, patch state, wipe app DB")
+			bsDB.Close()
+			return
 		}
-		deleteBlock(bsDB, h)
+		for h := targetHeight + 1; h <= bsHeight; h++ {
+			if h%10000 == 0 {
+				fmt.Printf("  deleting block %d...\n", h)
+			}
+			deleteBlock(bsDB, h)
+		}
+		saveBlockStoreState(bsDB, targetHeight)
+		fmt.Printf("blockstore trimmed to %d\n", targetHeight)
 	}
-	saveBlockStoreState(bsDB, targetHeight)
 	bsDB.Close()
-	fmt.Printf("blockstore trimmed to %d\n", targetHeight)
 
 	// 2. Patch state.db: update AppHash so the Handshaker won't panic
 	stDB, err := dbm.NewDB("state", dbm.PebbleDBBackend, dbDir)
