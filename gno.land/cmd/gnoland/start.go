@@ -171,7 +171,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"[experimental] start RPC and P2P before genesis time, deferring only consensus",
 	)
-
 }
 
 func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
