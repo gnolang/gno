@@ -1315,3 +1315,159 @@ func TestPruneStrategyNothing(t *testing.T) {
 	err = db.Close()
 	require.NoError(t, err)
 }
+
+func TestChainUpgradeGenesisReplay(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fields serialize correctly", func(t *testing.T) {
+		t.Parallel()
+
+		state := GnoGenesisState{
+			Balances:        []Balance{},
+			Txs:             []TxWithMetadata{},
+			Auth:            auth.DefaultGenesisState(),
+			Bank:            bank.DefaultGenesisState(),
+			VM:              vm.DefaultGenesisState(),
+			OriginalChainID: "old-chain",
+			InitialHeight:   100,
+		}
+
+		// Serialize and deserialize
+		data, err := amino.MarshalJSON(state)
+		require.NoError(t, err)
+
+		var decoded GnoGenesisState
+		require.NoError(t, amino.UnmarshalJSON(data, &decoded))
+
+		assert.Equal(t, "old-chain", decoded.OriginalChainID)
+		assert.Equal(t, int64(100), decoded.InitialHeight)
+	})
+
+	t.Run("historical tx replays with correct block height", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/upgradetest"
+			body = `package upgradetest
+
+import "chain/runtime"
+
+var height int64 = runtime.ChainHeight()
+
+func GetHeight(cur realm) int64 { return height }
+`
+		)
+
+		// Create a fresh app instance
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		// Prepare the deploy transaction
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "upgradetest",
+				Path: path,
+				Files: []*std.MemFile{
+					{
+						Name: "file.gno",
+						Body: body,
+					},
+					{
+						Name: "gnomod.toml",
+						Body: gnolang.GenGnoModLatest(path),
+					},
+				},
+			},
+			MaxDeposit: nil,
+		}
+
+		// Sign with original chain ID since metadata.BlockHeight > 0 will cause
+		// the ctxFn to override the chain ID to OriginalChainID for signature verification.
+		// Account number=0 and sequence=0 because the account is created from balances
+		// but hasn't processed any transactions yet.
+		tx := createAndSignTx(t, []std.Msg{msg}, "old-chain", key)
+
+		// Run InitChain with OriginalChainID and InitialHeight set,
+		// and the deploy tx using metadata with BlockHeight=42
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 42,
+						},
+					},
+				},
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth:            auth.DefaultGenesisState(),
+				Bank:            bank.DefaultGenesisState(),
+				VM:              vm.DefaultGenesisState(),
+				OriginalChainID: "old-chain",
+				InitialHeight:   100,
+			},
+		})
+
+		// Call GetHeight to verify the realm captured height=42
+		callMsg := vm.MsgCall{
+			Caller:  key.PubKey().Address(),
+			PkgPath: path,
+			Func:    "GetHeight",
+		}
+
+		callTx := createAndSignTx(t, []std.Msg{callMsg}, chainID, key)
+
+		marshalledTx, err := amino.Marshal(callTx)
+		require.NoError(t, err)
+
+		resp := app.DeliverTx(abci.RequestDeliverTx{
+			Tx: marshalledTx,
+		})
+
+		require.True(t, resp.IsOK(), "DeliverTx failed: %s", resp.Log)
+
+		// The realm should have captured block height 42
+		assert.Contains(t, string(resp.Data), "(42 int64)")
+	})
+
+	t.Run("metadata block height in GnoTxMetadata serializes correctly", func(t *testing.T) {
+		t.Parallel()
+
+		txm := TxWithMetadata{
+			Tx: std.Tx{},
+			Metadata: &GnoTxMetadata{
+				Timestamp:   1234567890,
+				BlockHeight: 42,
+			},
+		}
+
+		data, err := amino.MarshalJSON(txm)
+		require.NoError(t, err)
+
+		var decoded TxWithMetadata
+		require.NoError(t, amino.UnmarshalJSON(data, &decoded))
+
+		require.NotNil(t, decoded.Metadata)
+		assert.Equal(t, int64(1234567890), decoded.Metadata.Timestamp)
+		assert.Equal(t, int64(42), decoded.Metadata.BlockHeight)
+	})
+}

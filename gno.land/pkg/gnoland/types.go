@@ -126,6 +126,9 @@ type GnoGenesisState struct {
 	Auth     auth.GenesisState `json:"auth"`
 	Bank     bank.GenesisState `json:"bank"`
 	VM       vm.GenesisState   `json:"vm"`
+	// Chain upgrade fields
+	OriginalChainID string `json:"original_chain_id,omitempty"` // Chain ID for verifying historical tx signatures
+	InitialHeight   int64  `json:"initial_height,omitempty"`    // Block height to start from after genesis replay
 }
 
 type TxWithMetadata struct {
@@ -134,7 +137,8 @@ type TxWithMetadata struct {
 }
 
 type GnoTxMetadata struct {
-	Timestamp int64 `json:"timestamp"`
+	Timestamp   int64 `json:"timestamp"`
+	BlockHeight int64 `json:"block_height,omitempty"` // Original block height for historical tx replay
 }
 
 // ReadGenesisTxs reads the genesis txs from the given file path
