@@ -90,10 +90,18 @@ func main() {
 		fmt.Println("state.db: empty (nothing to patch)")
 	} else {
 		fmt.Printf("state.db: height=%d appHash=%X\n", state.LastBlockHeight, state.AppHash)
+		changed := false
+		if state.LastBlockHeight > targetHeight {
+			state.LastBlockHeight = targetHeight
+			changed = true
+		}
 		if newAppHash != nil {
 			state.AppHash = newAppHash
+			changed = true
+		}
+		if changed {
 			sm.SaveState(stDB, state)
-			fmt.Printf("state.db: appHash patched to %X\n", newAppHash)
+			fmt.Printf("state.db: patched height=%d appHash=%X\n", state.LastBlockHeight, state.AppHash)
 		}
 	}
 	stDB.Close()
