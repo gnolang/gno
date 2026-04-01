@@ -356,6 +356,13 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
 
+	if state.OriginalChainID != "" {
+		ctx.Logger().Info("Chain upgrade genesis replay",
+			"original_chain_id", state.OriginalChainID,
+			"initial_height", state.InitialHeight,
+		)
+	}
+
 	cfg.bankk.InitGenesis(ctx, state.Bank)
 	// Apply genesis balances.
 	for _, bal := range state.Balances {
@@ -404,15 +411,23 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 		// Check if there is metadata associated with the tx
 		if metadata != nil {
-			// Create a custom context modifier
 			ctxFn = func(ctx sdk.Context) sdk.Context {
-				// Create a copy of the header, in
-				// which only the timestamp information is modified
 				header := ctx.BlockHeader().(*bft.Header).Copy()
 				header.Time = time.Unix(metadata.Timestamp, 0)
+				if metadata.BlockHeight > 0 {
+					header.Height = metadata.BlockHeight
+				}
 
-				// Save the modified header
-				return ctx.WithBlockHeader(header)
+				ctx = ctx.WithBlockHeader(header)
+
+				// For historical txs (BlockHeight > 0), use the original chain ID
+				// for signature verification. This allows replaying txs that were
+				// signed with the old chain ID during a hard fork.
+				if metadata.BlockHeight > 0 && state.OriginalChainID != "" {
+					ctx = ctx.WithChainID(state.OriginalChainID)
+				}
+
+				return ctx
 			}
 		}
 
@@ -434,6 +449,13 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 		cfg.GenesisTxResultHandler(ctx, stdTx, res)
 	}
+
+	if state.InitialHeight > 0 {
+		ctx.Logger().Info("Chain will start from initial height (requires GenesisDoc.InitialHeight support)",
+			"initial_height", state.InitialHeight,
+		)
+	}
+
 	return txResponses, nil
 }
 
