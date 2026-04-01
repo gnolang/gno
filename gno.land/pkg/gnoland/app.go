@@ -451,7 +451,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	}
 
 	if state.InitialHeight > 0 {
-		ctx.Logger().Info("Chain will start from initial height (requires GenesisDoc.InitialHeight support)",
+		ctx.Logger().Info("Genesis replay complete, chain will start from initial height",
 			"initial_height", state.InitialHeight,
 		)
 	}
