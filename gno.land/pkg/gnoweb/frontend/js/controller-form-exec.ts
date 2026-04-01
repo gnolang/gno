@@ -1,6 +1,8 @@
 import { BaseController } from "./controller.js";
 
 export class FormExecController extends BaseController {
+	static controllerIdentifier = "form-exec";
+
 	protected connect(): void {
 		this.initializeDOM({});
 

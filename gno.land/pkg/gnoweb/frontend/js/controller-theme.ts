@@ -25,6 +25,7 @@ function isPreference(value: string | null): value is Preference {
 }
 
 export class ThemeController extends BaseController {
+	static controllerIdentifier = "theme";
 	declare sun: HTMLElement | null;
 	declare moon: HTMLElement | null;
 	declare system: HTMLElement | null;

@@ -1,6 +1,7 @@
 import { BaseController } from "./controller.js";
 
 export class CopyController extends BaseController {
+	static controllerIdentifier = "copy";
 	private static FEEDBACK_DELAY = 750;
 	private isAnimationRunning = false;
 	private btnClicked: HTMLElement | null = null;

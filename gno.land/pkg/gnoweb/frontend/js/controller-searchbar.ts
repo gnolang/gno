@@ -1,6 +1,8 @@
 import { BaseController } from "./controller.js";
 
 export class SearchbarController extends BaseController {
+	static controllerIdentifier = "searchbar";
+
 	protected connect(): void {
 		this.initializeDOM({
 			input: this.getTarget("input"),

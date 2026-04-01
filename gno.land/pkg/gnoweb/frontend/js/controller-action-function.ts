@@ -6,6 +6,7 @@ import {
 import type { ActionMode } from "./controller-action-header.js";
 
 export class ActionFunctionController extends BaseController {
+	static controllerIdentifier = "action-function";
 	protected sendValue: string | null = null;
 	declare _funcName: string | null;
 	declare _pkgPath: string | null;

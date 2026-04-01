@@ -7,6 +7,7 @@ type ListItem = {
 };
 
 export class ListController extends BaseController {
+	static controllerIdentifier = "list";
 	private static STORAGE_KEY = "gno_display_mode";
 	private static LOADING_CLASS = "u-is-loading";
 

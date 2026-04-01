@@ -8,6 +8,10 @@ import {
 } from "./utils.js";
 
 export abstract class BaseController {
+	// Subclasses should override this static property with their controller name
+	// This is needed because minification mangles class names
+	static controllerIdentifier: string = "";
+
 	protected element: HTMLElement;
 	protected initialized = false;
 	protected DOM: Record<string, HTMLElement | HTMLElement[] | null> = {};
@@ -223,17 +227,36 @@ export abstract class BaseController {
 	// get the controller name
 	// eg. getControllerName() -> "Copy" (no Controller suffix) PascalCase
 	private getControllerName(): string {
-		// Use data-controller attribute for minified code
-		const controllerAttr = this.element.getAttribute("data-controller");
-		if (controllerAttr) {
-			return controllerAttr;
+		// First check for static controllerIdentifier (preferred, survives minification)
+		const ctor = this.constructor as typeof BaseController;
+		if (ctor.controllerIdentifier) {
+			return ctor.controllerIdentifier;
 		}
 
-		// Fallback to constructor name (for non-minified code)
+		// Fallback to constructor name (works in development, may break when minified)
 		const className = this.constructor.name;
-		return className
+		const derivedName = className
 			.replace(/^_/, "") // remove leading underscore
 			.replace(/Controller$/, ""); // remove Controller suffix
+
+		// If we have a valid derived name (not minified), use it
+		if (
+			derivedName &&
+			derivedName.length > 2 &&
+			derivedName !== "BaseController"
+		) {
+			return derivedName;
+		}
+
+		// Last resort: use data-controller attribute
+		// Note: If data-controller has multiple space-separated values, only use the first
+		const controllerAttr = this.element.getAttribute("data-controller");
+		if (controllerAttr) {
+			const firstController = controllerAttr.split(/\s+/)[0];
+			return firstController;
+		}
+
+		return derivedName;
 	}
 }
 

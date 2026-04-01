@@ -1,6 +1,8 @@
 import { BaseController } from "./controller.js";
 
 export class TooltipController extends BaseController {
+	static controllerIdentifier = "tooltip";
+
 	protected connect(): void {
 		this.initializeDOM({
 			tooltip: this.getTargets("info"),
