@@ -177,7 +177,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.haltHeight,
 		"halt-height",
 		0,
-		"halt the node after committing this block height (0 = run indefinitely)",
+		"halt the node after committing this block height (0 = run indefinitely; overrides config halt_height)",
 	)
 }
 

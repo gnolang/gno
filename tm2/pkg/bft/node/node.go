@@ -587,10 +587,15 @@ func NewNode(config *cfg.Config,
 		option(node)
 	}
 
-	// Apply halt height to consensus state after options are processed
-	if node.haltHeight > 0 {
-		node.consensusState.SetHaltHeight(node.haltHeight)
-		logger.Info("Halt height configured", "height", node.haltHeight)
+	// Apply halt height: CLI option overrides config file
+	haltHeight := node.haltHeight
+	if haltHeight == 0 {
+		haltHeight = config.BaseConfig.HaltHeight
+	}
+	if haltHeight > 0 {
+		node.haltHeight = haltHeight
+		node.consensusState.SetHaltHeight(haltHeight)
+		logger.Info("Halt height configured", "height", haltHeight)
 	}
 
 	return node, nil
