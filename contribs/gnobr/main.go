@@ -1,22 +1,24 @@
 // Command gnobr (gno block rollback) rolls back a gnoland node to a target
-// height by trimming the blockstore and wiping app state. On restart, gnoland's
-// Handshaker replays all blocks from genesis through the local blockstore.
-// No network access needed.
+// height and patches the app hash in state.db so gnoland can replay blocks
+// locally without any special flags or patches.
 //
 // Usage:
 //
-//	gnobr --data-dir /path/to/gnoland-data --drop-after 352921
+//	gnobr --data-dir gnoland-data --drop-after 352921 --app-hash 14BD8BB9...
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 )
@@ -25,19 +27,29 @@ func main() {
 	var (
 		dataDir   = flag.String("data-dir", "gnoland-data", "Path to gnoland data directory")
 		dropAfter = flag.Int64("drop-after", 0, "Keep up to this height, drop everything after")
+		appHash   = flag.String("app-hash", "", "Set this app hash in state.db (hex, required when replaying)")
 		dryRun    = flag.Bool("dry-run", false, "Show what would be done without modifying anything")
 	)
 	flag.Parse()
 
 	if *dropAfter == 0 {
-		fmt.Fprintln(os.Stderr, "usage: gnobr --data-dir <path> --drop-after <height>")
+		fmt.Fprintln(os.Stderr, "usage: gnobr --data-dir <path> --drop-after <height> [--app-hash <hex>]")
 		os.Exit(1)
 	}
 
 	dbDir := filepath.Join(*dataDir, "db")
 	targetHeight := *dropAfter
 
-	// 1. Trim blockstore to target height
+	var newAppHash []byte
+	if *appHash != "" {
+		h, err := hex.DecodeString(strings.TrimPrefix(*appHash, "0x"))
+		if err != nil {
+			log.Fatalf("invalid --app-hash: %v", err)
+		}
+		newAppHash = h
+	}
+
+	// 1. Trim blockstore
 	bsDB, err := dbm.NewDB("blockstore", dbm.PebbleDBBackend, dbDir)
 	if err != nil {
 		log.Fatalf("failed to open blockstore.db: %v", err)
@@ -50,11 +62,10 @@ func main() {
 		bsDB.Close()
 		return
 	}
-
 	fmt.Printf("target: %d (dropping blocks %d..%d)\n", targetHeight, targetHeight+1, bsHeight)
 
 	if *dryRun {
-		fmt.Println("[dry-run] would trim blockstore, wipe app state, reset validator state")
+		fmt.Println("[dry-run] would trim blockstore, patch state, wipe app DB")
 		bsDB.Close()
 		return
 	}
@@ -69,19 +80,35 @@ func main() {
 	bsDB.Close()
 	fmt.Printf("blockstore trimmed to %d\n", targetHeight)
 
-	// 2. Wipe gnolang.db (app state) — app reports height 0 on startup.
-	//    state.db is kept intact — Handshaker needs storeHeight == stateHeight.
-	//    With app=0, store=N, state=N, the Handshaker replays blocks 1..N.
+	// 2. Patch state.db: update AppHash so the Handshaker won't panic
+	stDB, err := dbm.NewDB("state", dbm.PebbleDBBackend, dbDir)
+	if err != nil {
+		log.Fatalf("failed to open state.db: %v", err)
+	}
+	state := sm.LoadState(stDB)
+	if state.IsEmpty() {
+		fmt.Println("state.db: empty (nothing to patch)")
+	} else {
+		fmt.Printf("state.db: height=%d appHash=%X\n", state.LastBlockHeight, state.AppHash)
+		if newAppHash != nil {
+			state.AppHash = newAppHash
+			sm.SaveState(stDB, state)
+			fmt.Printf("state.db: appHash patched to %X\n", newAppHash)
+		}
+	}
+	stDB.Close()
+
+	// 3. Wipe gnolang.db (app state) → app replays from genesis
 	appDBPath := filepath.Join(dbDir, "gnolang.db")
 	fmt.Printf("removing %s\n", appDBPath)
 	os.RemoveAll(appDBPath)
 
-	// 3. Wipe WAL
+	// 4. Wipe WAL
 	walPath := filepath.Join(*dataDir, "wal")
 	fmt.Printf("removing %s\n", walPath)
 	os.RemoveAll(walPath)
 
-	// 4. Reset priv_validator_state.json
+	// 5. Reset priv_validator_state.json
 	pvsPath := filepath.Join(*dataDir, "secrets", "priv_validator_state.json")
 	pvs := map[string]interface{}{"height": "0", "round": "0", "step": 0}
 	pvsBytes, _ := json.MarshalIndent(pvs, "", "  ")
