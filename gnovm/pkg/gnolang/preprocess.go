@@ -1778,6 +1778,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// Validate argument count based on target type,
 							// check size arguments are integers, resolve generics,
 							// then skip the general case via TRANS_CONTINUE.
+							// NOTE: If the general *FuncType call-expr path below changes
+							// (e.g. embedded-call expansion, generic Specify semantics, or
+							// checkOrConvertType behaviour), this block may need updating.
 							ft := bnft
 							n.NumArgs = countNumArgs(store, last, n)
 
