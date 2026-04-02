@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Unrestrict an account so it can transfer ugnot even when bank is locked.
+# Set or update the CLA document via govDAO proposal.
+# Downloads the URL, computes sha256, and submits the proposal.
 #
 # Usage:
-#   ./unrestrict-account.sh ADDR [ADDR...]
+#   ./set-cla.sh URL
+#   ./set-cla.sh ""   # disable CLA enforcement
 #
 # Example:
-#   ./unrestrict-account.sh g1abc...123
-#   ./unrestrict-account.sh g1abc...123 g1def...456
+#   ./set-cla.sh https://raw.githubusercontent.com/gnolang/gno/.../CLA.md
 #
 # Environment:
 #   GNOKEY_NAME   - gnokey key name (default: moul)
@@ -16,10 +17,13 @@
 #   GAS_FEE       - gas fee (default: 1000000ugnot)
 set -eo pipefail
 
-if [ $# -eq 0 ]; then
-  echo "Usage: $0 ADDR [ADDR...]" >&2
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 URL" >&2
+  echo "       $0 \"\"    # disable CLA enforcement" >&2
   exit 1
 fi
+
+CLA_URL="$1"
 
 GNOKEY_NAME="${GNOKEY_NAME:-moul}"
 CHAIN_ID="${CHAIN_ID:-gnoland1}"
@@ -27,37 +31,46 @@ REMOTE="${REMOTE:-https://rpc.betanet.testnets.gno.land:443}"
 GAS_WANTED="${GAS_WANTED:-50000000}"
 GAS_FEE="${GAS_FEE:-1000000ugnot}"
 
-# Build address list for the Gno code.
-ADDR_ARGS=""
-for addr in "$@"; do
-  ADDR_ARGS="${ADDR_ARGS}		address(\"${addr}\"),
-"
-done
-
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-cat >"$TMPDIR/unrestrict.gno" <<GOEOF
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | cut -d' ' -f1
+  else
+    echo "Error: no sha256 tool found (install coreutils or perl)" >&2
+    return 1
+  fi
+}
+
+if [ -z "$CLA_URL" ]; then
+  CLA_HASH=""
+  echo "Disabling CLA enforcement"
+else
+  echo "Fetching CLA from: $CLA_URL"
+  wget -q -O "$TMPDIR/cla.md" "$CLA_URL"
+  CLA_HASH=$(sha256_file "$TMPDIR/cla.md")
+  echo "  sha256: $CLA_HASH"
+fi
+
+cat >"$TMPDIR/set_cla.gno" <<GOEOF
 package main
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/sys/params"
+	"gno.land/r/sys/cla"
 )
 
 func main() {
-	r := params.ProposeAddUnrestrictedAcctsRequest(
-${ADDR_ARGS}	)
+	r := cla.ProposeNewCLA("${CLA_HASH}", "${CLA_URL}")
 	pid := dao.MustCreateProposal(cross, r)
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
 	dao.ExecuteProposal(cross, pid)
 }
 GOEOF
 
-echo "Unrestricting $# account(s):"
-for addr in "$@"; do
-  echo "  $addr"
-done
 echo "  Key: ${GNOKEY_NAME}"
 echo "  Chain: ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
@@ -70,7 +83,7 @@ gnokey maketx run \
   -chainid "$CHAIN_ID" \
   -remote "$REMOTE" \
   "$GNOKEY_NAME" \
-  "$TMPDIR/unrestrict.gno"
+  "$TMPDIR/set_cla.gno"
 
 echo ""
-echo "Done — $# account(s) unrestricted."
+echo "Done — CLA updated."
