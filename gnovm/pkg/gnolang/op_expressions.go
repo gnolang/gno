@@ -386,26 +386,13 @@ func (m *Machine) doOpCompositeLit() {
 			m.PushOp(OpEval)
 		}
 	case *SliceType:
-		if len(x.Elts) > 0 && x.Elts[0].Key != nil {
-			m.PushOp(OpSliceLit2)
-			// evaluate item values
-			for i := len(x.Elts) - 1; 0 <= i; i-- {
-				if x.Elts[i].Key == nil {
-					panic("slice composite literal cannot mix keyed and unkeyed elements")
-				}
-				m.PushExpr(x.Elts[i].Value)
-				m.PushOp(OpEval)
+		m.PushOp(OpSliceLit2)
+		// evaluate item values; also evaluate key if present
+		for i := len(x.Elts) - 1; 0 <= i; i-- {
+			m.PushExpr(x.Elts[i].Value)
+			m.PushOp(OpEval)
+			if x.Elts[i].Key != nil {
 				m.PushExpr(x.Elts[i].Key)
-				m.PushOp(OpEval)
-			}
-		} else {
-			m.PushOp(OpSliceLit)
-			// evaluate item values
-			for i := len(x.Elts) - 1; 0 <= i; i-- {
-				if x.Elts[i].Key != nil {
-					panic("slice composite literal cannot mix keyed and unkeyed elements")
-				}
-				m.PushExpr(x.Elts[i].Value)
 				m.PushOp(OpEval)
 			}
 		}
@@ -518,18 +505,33 @@ func (m *Machine) doOpSliceLit() {
 
 func (m *Machine) doOpSliceLit2() {
 	x := m.PopExpr().(*CompositeLitExpr)
-	el := len(x.Elts)
-	tvs := m.PopValues(el * 2)
+	// count total stack items: key+value for keyed elements, value only for unkeyed.
+	total := len(x.Elts)
+	for _, elt := range x.Elts {
+		if elt.Key != nil {
+			total++
+		}
+	}
+	tvs := m.PopValues(total)
 	// peek slice type.
 	st := m.PeekValue(1).V.(TypeValue).Type
-	// calculate maximum index.
-	var maxVal int64
-	for i := range el {
-		itv := tvs[i*2+0]
-		idx := itv.ConvertGetInt()
+	// first pass: calculate max index, tracking prev for unkeyed elements.
+	// maxVal and idx start at -1 so that an empty literal (e.g. []rune{})
+	// produces a zero-length slice instead of a one-element slice.
+	var maxVal int64 = -1
+	var idx int64 = -1
+	pos := 0
+	for _, elt := range x.Elts {
+		if elt.Key != nil {
+			idx = tvs[pos].ConvertGetInt()
+			pos++
+		} else {
+			idx++
+		}
 		if idx > maxVal {
 			maxVal = idx
 		}
+		pos++ // skip value
 	}
 	m.incrCPU(OpCPUSlopeSliceLit2 * (maxVal + 1))
 	// construct element buf slice.
@@ -537,10 +539,18 @@ func (m *Machine) doOpSliceLit2() {
 	baseArray := m.Alloc.NewListArray(int(maxVal + 1))
 	es := baseArray.List
 
-	for i := range el {
-		itv := tvs[i*2+0]
-		vtv := tvs[i*2+1]
-		idx := itv.ConvertGetInt()
+	// second pass: fill values.
+	idx = -1
+	pos = 0
+	for _, elt := range x.Elts {
+		if elt.Key != nil {
+			idx = tvs[pos].ConvertGetInt()
+			pos++
+		} else {
+			idx++
+		}
+		vtv := tvs[pos]
+		pos++
 		if es[idx].IsDefined() {
 			// slice index has already been assigned
 			panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
