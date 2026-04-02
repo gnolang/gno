@@ -682,7 +682,7 @@ func TestGasUsedBetweenSimulateAndDeliver(t *testing.T) {
 	txBytes, err := amino.Marshal(tx)
 	require.Nil(t, err)
 
-	simulateRes := app.Simulate(txBytes, tx)
+	simulateRes := app.Simulate(txBytes)
 	require.True(t, simulateRes.IsOK(), fmt.Sprintf("%v", simulateRes))
 	require.Greater(t, simulateRes.GasUsed, int64(0)) // gas used should be greater than 0
 
@@ -793,12 +793,12 @@ func TestSimulateTx(t *testing.T) {
 		require.Nil(t, err)
 
 		// simulate a message, check gas reported
-		result := app.Simulate(txBytes, tx)
+		result := app.Simulate(txBytes)
 		require.True(t, result.IsOK(), result.Log)
 		require.Equal(t, gasConsumed, result.GasUsed)
 
 		// simulate again, same result
-		result = app.Simulate(txBytes, tx)
+		result = app.Simulate(txBytes)
 		require.True(t, result.IsOK(), result.Log)
 		require.Equal(t, gasConsumed, result.GasUsed)
 
