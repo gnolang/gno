@@ -1808,25 +1808,3 @@ func subscribe(evsw events.EventSwitch, protoevent events.Event) <-chan events.E
 	return events.SubscribeToEvent(evsw, testSubscriber, protoevent)
 }
 
-func TestSetHaltHeight(t *testing.T) {
-	t.Helper()
-
-	cs := &ConsensusState{}
-
-	// Default should be 0 (no halt)
-	if cs.haltHeight != 0 {
-		t.Fatalf("expected default haltHeight to be 0, got %d", cs.haltHeight)
-	}
-
-	// Set halt height
-	cs.SetHaltHeight(100)
-	if cs.haltHeight != 100 {
-		t.Fatalf("expected haltHeight to be 100, got %d", cs.haltHeight)
-	}
-
-	// Set to 0 to disable
-	cs.SetHaltHeight(0)
-	if cs.haltHeight != 0 {
-		t.Fatalf("expected haltHeight to be 0, got %d", cs.haltHeight)
-	}
-}

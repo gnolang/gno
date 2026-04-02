@@ -577,12 +577,6 @@ func NewNode(config *cfg.Config,
 		option(node)
 	}
 
-	// Apply halt height from config
-	if config.BaseConfig.HaltHeight > 0 {
-		node.consensusState.SetHaltHeight(config.BaseConfig.HaltHeight)
-		logger.Info("Halt height configured", "height", config.BaseConfig.HaltHeight)
-	}
-
 	return node, nil
 }
 

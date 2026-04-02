@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/events"
@@ -267,6 +268,14 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
+	}
+
+	// Apply halt height from config to the application
+	if cfg.BaseConfig.HaltHeight > 0 {
+		if baseApp, ok := cfg.LocalApp.(*sdk.BaseApp); ok {
+			baseApp.SetHaltHeight(uint64(cfg.BaseConfig.HaltHeight))
+			logger.Info("Halt height configured", "height", cfg.BaseConfig.HaltHeight)
+		}
 	}
 
 	// Create a default node, with the given setup
