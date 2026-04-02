@@ -104,7 +104,7 @@ func main() {
 	} else {
 		fmt.Printf("state.db: height=%d appHash=%X\n", state.LastBlockHeight, state.AppHash)
 
-		if state.LastBlockHeight > targetHeight {
+		if state.LastBlockHeight >= targetHeight {
 			state.LastBlockHeight = targetHeight
 			state.LastBlockID = targetMeta.BlockID
 			state.LastBlockTime = targetMeta.Header.Time
