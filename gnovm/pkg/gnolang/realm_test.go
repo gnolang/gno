@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"io"
 	"testing"
 
@@ -11,6 +12,25 @@ import (
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/require"
 )
+
+// printOwnershipTree logs the ownership chain for the given object IDs,
+// showing each object's type, hash (first 8 bytes), and owner.
+// Run with `go test -v` to see the output.
+func printOwnershipTree(t *testing.T, store Store, baseStore storetypes.Store, label string, oids []ObjectID) {
+	t.Helper()
+	t.Logf("=== Ownership tree: %s ===", label)
+	for _, oid := range oids {
+		obj := store.GetObject(oid)
+		hash := loadObjectHashFromDB(baseStore, oid)
+		ownerID := obj.GetOwnerID()
+		typeName := fmt.Sprintf("%T", obj)
+		if ownerID.IsZero() {
+			t.Logf("  %s  %-24s  hash=%X  owner=(none)", oid, typeName, hash.Bytes()[:8])
+		} else {
+			t.Logf("  %s  %-24s  hash=%X  owner=%s", oid, typeName, hash.Bytes()[:8], ownerID)
+		}
+	}
+}
 
 // loadObjectHashFromDB reads an object directly from the baseStore DB,
 // bypassing the in-memory cache. Returns the hash stored alongside the bytes.
@@ -83,7 +103,10 @@ func main() {
 	m1.RunMemPackage(mpkg, true)
 	txSt1.Write()
 
-	// --- Record hashes after init (read directly from DB) ---
+	// --- Print and record hashes after init ---
+	oids := []ObjectID{blockOID, heapItemOID, mapOID}
+	printOwnershipTree(t, st, baseStore, "After init", oids)
+
 	blockHashInit := loadObjectHashFromDB(baseStore, blockOID)
 	heapItemHashInit := loadObjectHashFromDB(baseStore, heapItemOID)
 	mapHashInit := loadObjectHashFromDB(baseStore, mapOID)
@@ -122,7 +145,9 @@ func main() {
 	m2.SetActivePackage(pv2)
 	m2.RunMain()
 
-	// --- Verify hashes after main (read directly from DB) ---
+	// --- Print and verify hashes after main ---
+	printOwnershipTree(t, st, baseStore, "After main()", oids)
+
 	mapHashMain := loadObjectHashFromDB(baseStore, mapOID)
 	heapItemHashMain := loadObjectHashFromDB(baseStore, heapItemOID)
 	blockHashMain := loadObjectHashFromDB(baseStore, blockOID)
