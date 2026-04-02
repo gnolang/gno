@@ -244,7 +244,7 @@ func (ps Permissions) IterateUsers(start, count int, fn boards.UsersIterFn) (sto
 // If a permission validation function exists it's called before calling the callback.
 func (ps *Permissions) WithPermission(user address, p boards.Permission, args boards.Args, cb func()) {
 	if !ps.HasPermission(user, p) {
-		panic("unauthorized")
+		panic("unauthorized, user " + user.String() + " doesn't have the required permission")
 	}
 
 	// Execute custom validation before calling the callback
