@@ -1,4 +1,4 @@
-// channel type in struct field is rejected at preprocess time.
+// channel type in struct field is rejected at parse time.
 package main
 
 type S struct {
@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// channel type is not yet supported
+// chan_type3.gno:5:5: channels are not permitted

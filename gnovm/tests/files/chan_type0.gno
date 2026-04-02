@@ -1,4 +1,4 @@
-// channel type in variable declaration is rejected at preprocess time.
+// channel type in variable declaration is rejected at parse time.
 package main
 
 func main() {
@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// channel type is not yet supported
+// chan_type0.gno:5:9: channels are not permitted

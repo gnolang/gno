@@ -316,7 +316,10 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			}
 		}
 	case *ChanTypeExpr:
-		panic("channel type is not yet supported")
+		cnn.Value = transcribe(t, nns, TRANS_CHANTYPE_VALUE, 0, cnn.Value, &c).(Expr)
+		if stopOrSkip(nc, c) {
+			return
+		}
 	case *FuncTypeExpr:
 		for idx := range cnn.Params {
 			cnn.Params[idx] = *transcribe(t, nns, TRANS_FUNCTYPE_PARAM, idx, &cnn.Params[idx], &c).(*FieldTypeExpr)

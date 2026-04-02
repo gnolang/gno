@@ -386,18 +386,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		return &InterfaceTypeExpr{
 			Methods: toFieldsFromList(fs, gon.Methods),
 		}
-	case *ast.ChanType:
-		var dir ChanDir
-		if gon.Dir&ast.SEND > 0 {
-			dir |= SEND
-		}
-		if gon.Dir&ast.RECV > 0 {
-			dir |= RECV
-		}
-		return &ChanTypeExpr{
-			Dir:   dir,
-			Value: toExpr(fs, gon.Value),
-		}
 	case *ast.FuncType:
 		return &FuncTypeExpr{
 			Params:  toFieldsFromList(fs, gon.Params),
@@ -578,6 +566,8 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			panicWithPos("invalid operation: more than one index")
 		}
 		panicWithPos("invalid operation: indexList is not permitted in Gno")
+	case *ast.ChanType:
+		panicWithPos("channels are not permitted")
 	case *ast.GoStmt:
 		panicWithPos("goroutines are not permitted")
 	default:

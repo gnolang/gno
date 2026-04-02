@@ -1,4 +1,4 @@
-// named channel type declaration is rejected at preprocess time.
+// named channel type declaration is rejected at parse time.
 package main
 
 type C chan int
@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// channel type is not yet supported
+// chan_type1.gno:4:8: channels are not permitted

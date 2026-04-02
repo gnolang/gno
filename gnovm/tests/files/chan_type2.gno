@@ -1,4 +1,4 @@
-// channel type in function signature is rejected at preprocess time.
+// channel type in function signature is rejected at parse time.
 package main
 
 func foo(ch chan int) {
@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// channel type is not yet supported
+// chan_type2.gno:4:13: channels are not permitted
