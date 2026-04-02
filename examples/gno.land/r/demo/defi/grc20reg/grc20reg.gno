@@ -14,6 +14,9 @@ import (
 
 var registry = avl.NewTree() // rlmPath[.slug] -> *Token (slug is optional)
 func Register(cur realm, token *grc20.Token, slug string) {
+	if slug != "" {
+		validateSlug(slug)
+	}
 	rlmPath := runtime.PreviousRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	registry.Set(key, token)
@@ -77,4 +80,18 @@ const registerEvent = "register"
 
 func GetRegistry() *rotree.ReadOnlyTree {
 	return rotree.Wrap(registry, nil)
+}
+
+// validateSlug panics if the slug contains non-alphanumeric characters.
+// Only letters, digits, dashes, and underscores are allowed.
+func validateSlug(slug string) {
+	for _, c := range slug {
+		if !isAlphanumeric(c) && c != '_' && c != '-' {
+			panic("grc20reg: invalid slug character: " + string(c))
+		}
+	}
+}
+
+func isAlphanumeric(c rune) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
 }
