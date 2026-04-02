@@ -312,8 +312,6 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 						nx.Name += ".loopvar"
 						replaceAllLoopvar(last, n, ln)
 					}
-				case *SendStmt:
-					panic("not yet implemented")
 				}
 			case *RangeStmt:
 				if n.Op != DEFINE {
@@ -956,10 +954,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 
 			// TRANS_BLOCK -----------------------
-			case *SelectCaseStmt:
-				pushInitBlock(n, &last, &stack)
-
-			// TRANS_BLOCK -----------------------
 			case *SwitchStmt:
 				// create faux block to store .Init/.Varname.
 				// the contents are copied onto the case block
@@ -1566,7 +1560,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// check legal type for nil
 						if arg0.IsUndefined() {
 							switch ct.Kind() { // special case for nil conversion check.
-							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind, ChanKind:
+							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind:
 								convertConst(store, last, n, arg0, ct)
 							default:
 								panic(fmt.Sprintf(
@@ -2692,18 +2686,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 
 			// TRANS_LEAVE -----------------------
-			case *SendStmt:
-				// Value consts become default *ConstExprs.
-				checkOrConvertType(store, last, n, &n.Value, nil)
-
-			// TRANS_LEAVE -----------------------
-			case *SelectCaseStmt:
-				// maybe receive defines.
-				// if as, ok := n.Comm.(*AssignStmt); ok {
-				//     handled by case *AssignStmt.
-				// }
-
-			// TRANS_LEAVE -----------------------
 			case *SwitchStmt:
 				// Ensure type switch cases are unique.
 				if n.IsTypeSwitch {
@@ -2791,8 +2773,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					*dstT = *(tmp.(*SliceType))
 				case *InterfaceType:
 					*dstT = *(tmp.(*InterfaceType))
-				case *ChanType:
-					*dstT = *(tmp.(*ChanType))
 				case *MapType:
 					*dstT = *(tmp.(*MapType))
 				case *StructType:

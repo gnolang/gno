@@ -570,6 +570,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		panicWithPos("channels are not permitted")
 	case *ast.GoStmt:
 		panicWithPos("goroutines are not permitted")
+	case *ast.SendStmt:
+		panicWithPos("send statements are not permitted")
+	case *ast.SelectStmt:
+		panicWithPos("select statements are not permitted")
 	default:
 		panicWithPos("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),

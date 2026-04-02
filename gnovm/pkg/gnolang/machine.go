@@ -1328,11 +1328,9 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUCallDeferNativeBody)
 			m.doOpCallDeferNativeBody()
 		case OpGo:
-			m.incrCPU(OpCPUGo)
-			panic("not yet implemented")
+			panic("goroutines are not yet supported")
 		case OpSelect:
-			m.incrCPU(OpCPUSelect)
-			panic("not yet implemented")
+			panic("select is not yet supported")
 		case OpSwitchClause:
 			m.incrCPU(OpCPUSwitchClause)
 			m.doOpSwitchClause()
@@ -1371,8 +1369,7 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUUxor)
 			m.doOpUxor()
 		case OpUrecv:
-			m.incrCPU(OpCPUUrecv)
-			m.doOpUrecv()
+			panic("channel type is not yet supported")
 		/* Binary operators */
 		case OpLor:
 			m.incrCPU(OpCPULor)
@@ -1500,8 +1497,7 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUSliceType)
 			m.doOpSliceType()
 		case OpChanType:
-			m.incrCPU(OpCPUChanType)
-			m.doOpChanType()
+			panic("channel type is not yet supported")
 		case OpFuncType:
 			m.incrCPU(OpCPUFuncType)
 			m.doOpFuncType()
