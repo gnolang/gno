@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/test"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -129,4 +131,34 @@ func main() {}`
 	if len(seen) > 1 {
 		t.Errorf("circular dependency error message is non-deterministic across %d runs: %v", iters, seen)
 	}
+}
+
+func TestShiftExprAttrTypeOfValue(t *testing.T) {
+	t.Parallel()
+
+	m := gno.NewMachine("test", nil)
+	c := `package test
+func main() {
+	var a uint = 1
+	b := make([]byte, 1<<a)
+	println(b)
+}`
+	n := m.MustParseFile("main.go", c)
+	m.RunFiles(n)
+
+	fn := n.Decls[0].(*gno.FuncDecl)
+	assignStmt := fn.Body[1].(*gno.AssignStmt)
+	callExpr := assignStmt.Rhs[0].(*gno.CallExpr)
+
+	// The shift expression (1<<a) is the second argument to make.
+	bx, ok := callExpr.Args[1].(*gno.BinaryExpr)
+	require.True(t, ok, "expected BinaryExpr for shift")
+	assert.Equal(t, gno.SHL, bx.Op)
+
+	// When checkOrConvertType processes the shift expression, it converts
+	// bx.Left (the literal 1) from UntypedBigintType to IntType. Without
+	// explicitly setting ATTR_TYPEOF_VALUE on bx itself, the shift expression
+	// retains the stale UntypedBigintType from initial preprocessing.
+	attr := bx.GetAttribute(gno.ATTR_TYPEOF_VALUE)
+	assert.Equal(t, gno.IntType, attr)
 }

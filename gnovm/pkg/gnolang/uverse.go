@@ -756,6 +756,10 @@ func makeUverseNode() {
 			m.PushValue(res0)
 		},
 	)
+	// NOTE: The variadic signature is intentionally permissive.
+	// Actual argument count validation (e.g. slices require 2-3 args,
+	// maps/channels require 1-2) is enforced at preprocess time in
+	// the "make" special case of CallExpr, not here.
 	defNative("make",
 		Flds( // params
 			"t", GenT("T.(type)", nil),
