@@ -48,7 +48,7 @@ func finalizeCurrentOp() time.Time {
 
 // SwitchOpCode finalizes the current op's elapsed time and
 // starts timing a new op. Returns the old op code so the
-// caller can pass it to resumeOpCode when done.
+// caller can pass it to ResumeOpCode when done.
 func SwitchOpCode(code byte) byte {
 	if code == invalidCode {
 		panic("the OpCode is invalid")
@@ -61,11 +61,11 @@ func SwitchOpCode(code byte) byte {
 	return old
 }
 
-// resumeOpCode resumes a previous op without incrementing its count.
+// ResumeOpCode resumes a previous op without incrementing its count.
 // Used by StopStore/StopNative to hand back to the parent op.
-func resumeOpCode(code byte) {
+func ResumeOpCode(code byte) {
 	if measure.curOpCode != invalidCode {
-		panic("resumeOpCode called with active op")
+		panic("ResumeOpCode called with active op")
 	}
 	measure.curOpCode = code
 	measure.curStart = time.Now()
@@ -102,7 +102,7 @@ func StopStore(storeCode byte, old byte, size int) {
 		measure.storeAccumDur[storeCode] += now.Sub(measure.curStart)
 	}
 	measure.storeAccumSize[storeCode] += int64(size)
-	resumeOpCode(old)
+	ResumeOpCode(old)
 }
 
 // ---- Native operations ----
@@ -126,5 +126,5 @@ func StopNative(nativeCode byte, old byte) {
 	if measure.curStart != measure.timeZero {
 		measure.nativeAccumDur[nativeCode] += now.Sub(measure.curStart)
 	}
-	resumeOpCode(old)
+	ResumeOpCode(old)
 }
