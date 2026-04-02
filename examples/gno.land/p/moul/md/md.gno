@@ -235,9 +235,12 @@ func CollapsibleSection(title, content string) string {
 }
 
 // EscapeURL escapes characters in a URL that would break markdown link syntax.
-// Specifically, it escapes closing parentheses which would prematurely end a markdown link.
 func EscapeURL(url string) string {
-	return strings.ReplaceAll(url, ")", "%29")
+	r := strings.NewReplacer(
+		"(", `%28`,
+		")", `%29`,
+	)
+	return r.Replace(url)
 }
 
 // EscapeText escapes special Markdown characters in regular text where needed.
