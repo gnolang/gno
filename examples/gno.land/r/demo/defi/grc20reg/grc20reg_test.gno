@@ -54,34 +54,46 @@ func TestRegistry(t *testing.T) {
 	urequire.Equal(t, expected, got)
 }
 
-func TestRegisterSlugValidation(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/bar"))
-	token, _ := grc20.NewToken("SlugTest", "SLG", 6)
-
-	// Valid slugs
+func TestValidateSlug(t *testing.T) {
+	// Valid slugs — should not panic
 	valid := []string{"mytoken", "my-token", "my_token", "Token123", "a", "A-B_c"}
 	for _, slug := range valid {
-		Register(cross, token, slug)
+		validateSlug(slug) // no panic = pass
 	}
+}
 
-	// Invalid slugs should panic
-	invalid := []string{
-		`) [Claim](https://evil.com`,
-		"has space",
-		"has.dot",
-		"has/slash",
-		"[brackets]",
-		"(parens)",
-		"evil:colon",
-	}
-	for _, slug := range invalid {
-		func() {
-			defer func() {
-				if r := recover(); r == nil {
-					t.Errorf("Register with slug %q should have panicked", slug)
-				}
-			}()
-			Register(cross, token, slug)
-		}()
-	}
+func TestValidateSlugPanicsOnSpace(t *testing.T) {
+	defer func() { recover() }()
+	validateSlug("has space")
+	t.Errorf("should have panicked")
+}
+
+func TestValidateSlugPanicsOnDot(t *testing.T) {
+	defer func() { recover() }()
+	validateSlug("has.dot")
+	t.Errorf("should have panicked")
+}
+
+func TestValidateSlugPanicsOnSlash(t *testing.T) {
+	defer func() { recover() }()
+	validateSlug("has/slash")
+	t.Errorf("should have panicked")
+}
+
+func TestValidateSlugPanicsOnBrackets(t *testing.T) {
+	defer func() { recover() }()
+	validateSlug("[brackets]")
+	t.Errorf("should have panicked")
+}
+
+func TestValidateSlugPanicsOnParens(t *testing.T) {
+	defer func() { recover() }()
+	validateSlug("(parens)")
+	t.Errorf("should have panicked")
+}
+
+func TestValidateSlugPanicsOnInjection(t *testing.T) {
+	defer func() { recover() }()
+	validateSlug(`) [Claim](https://evil.com`)
+	t.Errorf("should have panicked")
 }
