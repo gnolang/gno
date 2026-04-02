@@ -71,6 +71,8 @@ func TestPreprocessMemPackage_recovery(t *testing.T) {
 	store := NewStore(nil, baseStore, iavlStore)
 
 	t.Run("syntax error is recovered", func(t *testing.T) {
+		t.Parallel()
+
 		m := NewMachineWithOptions(MachineOptions{Store: store})
 		defer m.Release()
 
@@ -88,6 +90,8 @@ func TestPreprocessMemPackage_recovery(t *testing.T) {
 	})
 
 	t.Run("package name mismatch is recovered", func(t *testing.T) {
+		t.Parallel()
+
 		m := NewMachineWithOptions(MachineOptions{Store: store})
 		defer m.Release()
 
@@ -105,6 +109,8 @@ func TestPreprocessMemPackage_recovery(t *testing.T) {
 	})
 
 	t.Run("valid package succeeds", func(t *testing.T) {
+		t.Parallel()
+
 		m := NewMachineWithOptions(MachineOptions{Store: store})
 		defer m.Release()
 
