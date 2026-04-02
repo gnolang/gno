@@ -53,3 +53,35 @@ func TestRegistry(t *testing.T) {
 	got = Render("gno.land/r/demo/foo.mySlug")
 	urequire.Equal(t, expected, got)
 }
+
+func TestRegisterSlugValidation(t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/bar"))
+	token, _ := grc20.NewToken("SlugTest", "SLG", 6)
+
+	// Valid slugs
+	valid := []string{"mytoken", "my-token", "my_token", "Token123", "a", "A-B_c"}
+	for _, slug := range valid {
+		Register(cross, token, slug)
+	}
+
+	// Invalid slugs should panic
+	invalid := []string{
+		`) [Claim](https://evil.com`,
+		"has space",
+		"has.dot",
+		"has/slash",
+		"[brackets]",
+		"(parens)",
+		"evil:colon",
+	}
+	for _, slug := range invalid {
+		func() {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("Register with slug %q should have panicked", slug)
+				}
+			}()
+			Register(cross, token, slug)
+		}()
+	}
+}
