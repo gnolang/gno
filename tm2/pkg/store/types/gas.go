@@ -47,6 +47,7 @@ type GasMeter interface {
 	Limit() Gas
 	Remaining() Gas
 	ConsumeGas(amount Gas, descriptor string)
+	SetLimit(limit Gas)
 	IsPastLimit() bool
 	IsOutOfGas() bool
 }
@@ -106,6 +107,13 @@ func (g *basicGasMeter) ConsumeGas(amount Gas, descriptor string) {
 	}
 }
 
+func (g *basicGasMeter) SetLimit(limit Gas) {
+	if limit < 0 {
+		panic("gas limit must not be negative")
+	}
+	g.limit = limit
+}
+
 func (g *basicGasMeter) IsPastLimit() bool {
 	return g.consumed > g.limit
 }
@@ -150,6 +158,10 @@ func (g *infiniteGasMeter) ConsumeGas(amount Gas, descriptor string) {
 		panic(GasOverflowError{descriptor})
 	}
 	g.consumed = consumed
+}
+
+func (g *infiniteGasMeter) SetLimit(_ Gas) {
+	// no-op: infinite meter has no limit
 }
 
 func (g *infiniteGasMeter) IsPastLimit() bool {
@@ -202,6 +214,10 @@ func (g passthroughGasMeter) GasConsumedToLimit() Gas {
 func (g passthroughGasMeter) ConsumeGas(amount Gas, descriptor string) {
 	g.Base.ConsumeGas(amount, descriptor)
 	g.Head.ConsumeGas(amount, descriptor)
+}
+
+func (g passthroughGasMeter) SetLimit(limit Gas) {
+	g.Head.SetLimit(limit)
 }
 
 func (g passthroughGasMeter) IsPastLimit() bool {

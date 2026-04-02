@@ -165,6 +165,7 @@ message BlockParams {
 	sint64 max_block_bytes = 3 [json_name = "MaxBlockBytes"];
 	sint64 max_gas = 4 [json_name = "MaxGas"];
 	sint64 time_iota_ms = 5 [json_name = "TimeIotaMS"];
+	sint64 max_gas_credit_per_tx = 6 [json_name = "MaxGasCreditPerTx"];
 }
 
 message ValidatorParams {

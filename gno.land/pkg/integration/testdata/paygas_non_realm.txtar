@@ -1,0 +1,44 @@
+# Test that calling PayGas from a package (not a realm) panics.
+# Only realms can call PayGas — packages have no balance.
+
+## start a new node
+gnoland start
+
+## deploy a package that calls PayGas
+gnokey maketx addpkg -pkgdir $WORK/mypkg -pkgpath gno.land/p/test/mypkg -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## deploy a realm that calls the package
+gnokey maketx addpkg -pkgdir $WORK/caller -pkgpath gno.land/r/test/pkgcaller -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## call — package calls PayGas, should panic
+! gnokey maketx call -pkgpath gno.land/r/test/pkgcaller -func CallPkg -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stderr 'function creator realm does not match paying realm'
+
+-- mypkg/gnomod.toml --
+module = "mypkg"
+gno = "0.9"
+
+-- mypkg/mypkg.gno --
+package mypkg
+
+import "chain/runtime"
+
+func DoWork() string {
+	runtime.PayGas(1000000) // package calling PayGas — should panic
+	return "done"
+}
+
+-- caller/gnomod.toml --
+module = "caller"
+gno = "0.9"
+
+-- caller/caller.gno --
+package caller
+
+import "gno.land/p/test/mypkg"
+
+func CallPkg(cur realm) string {
+	return mypkg.DoWork()
+}

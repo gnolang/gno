@@ -248,11 +248,12 @@ type ConsensusParams struct {
 }
 
 type BlockParams struct {
-	MaxTxBytes    int64 // must be > 0
-	MaxDataBytes  int64 // must be > 0
-	MaxBlockBytes int64 // must be > 0
-	MaxGas        int64 // must be >= -1
-	TimeIotaMS    int64 // must be > 0
+	MaxTxBytes        int64 // must be > 0
+	MaxDataBytes      int64 // must be > 0
+	MaxBlockBytes     int64 // must be > 0
+	MaxGas            int64 // must be >= -1
+	TimeIotaMS        int64 // must be > 0
+	MaxGasCreditPerTx int64 // max gas for 0-fee tx credit window. 0 = feature disabled.
 }
 
 type ValidatorParams struct {

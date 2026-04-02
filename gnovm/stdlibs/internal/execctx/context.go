@@ -37,6 +37,9 @@ type ExecContext struct {
 	Banker          BankerInterface
 	Params          ParamsInterface
 	EventLogger     *sdk.EventLogger
+	PayGasInfo      *sdk.PayGasInfo     // mutable, shared pointer. MaxFee > 0 means PayGas was called.
+	PayStorageInfo  *sdk.PayStorageInfo // mutable, shared pointer. MaxDeposit > 0 means PayStorage was called.
+	GasPrice        std.GasPrice        // current gas price for PayGas gas limit derivation
 }
 
 // GetContext returns the execution context.

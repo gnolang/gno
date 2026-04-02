@@ -15,4 +15,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	).
 	WithTypes(
 		Result{},
+		PayGasInfo{},
 	))

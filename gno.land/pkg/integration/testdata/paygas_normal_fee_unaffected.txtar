@@ -1,0 +1,33 @@
+# Test that a normal tx (GasFee > 0) that calls PayGas still works normally.
+# The user pays gas as usual. PayGas should still set PayGasInfo but the
+# user's fee covers gas, not the realm.
+
+## start a new node
+gnoland start
+
+## deploy realm with PayGas
+gnokey maketx addpkg -pkgdir $WORK/normalfee -pkgpath gno.land/r/test/normalfee -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund realm so PayGas balance check passes
+gnokey maketx send -send 10000000ugnot -to g1pkhf78w28n9m9cgm4nsn3q3cggjy39nu7m3z0f -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## call with normal fee — PayGas is called but user pays gas normally
+gnokey maketx call -pkgpath gno.land/r/test/normalfee -func DoWork -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout '"done" string'
+
+-- normalfee/gnomod.toml --
+module = "normalfee"
+gno = "0.9"
+
+-- normalfee/normalfee.gno --
+package normalfee
+
+import "chain/runtime"
+
+func DoWork(cur realm) string {
+	runtime.PayGas(1000000) // called but user already pays gas
+	return "done"
+}

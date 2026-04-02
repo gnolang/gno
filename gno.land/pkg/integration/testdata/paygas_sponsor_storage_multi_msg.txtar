@@ -1,0 +1,72 @@
+# Test SponsorStorage=true in a multi-msg tx.
+# All storage diffs from ALL messages are accumulated and charged to the realm.
+# User pays truly 0 — both gas and storage.
+
+## load packages
+loadpkg gno.land/r/test/ss_counter $WORK/counter
+loadpkg gno.land/r/test/ss_payer $WORK/payer
+
+## create user1 for signing
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+
+## start a new node
+gnoland start
+
+## fund payer realm
+gnokey maketx send -send 10000000ugnot -to g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## check balances before
+gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
+stdout '10000000ugnot'
+
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_before
+
+## sign the multi-msg tx with SponsorStorage=true
+gnokey sign -tx-path $WORK/multi_msg.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence $user1_account_seq user1
+stdout 'Tx successfully signed and saved to '
+
+## broadcast
+gnokey broadcast $WORK/multi_msg.tx -quiet=false
+stdout OK!
+
+## check payer realm balance decreased (paid gas + storage for ALL messages)
+gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
+! stdout '10000000ugnot'
+
+## check user1 balance unchanged — truly gasless (SponsorStorage=true covers ALL storage)
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_after
+cmp user1_balance_before user1_balance_after
+
+-- counter/gnomod.toml --
+module = "ss_counter"
+gno = "0.9"
+
+-- counter/counter.gno --
+package ss_counter
+
+var Count int
+
+func Increment(cur realm) {
+	Count++
+}
+
+-- payer/gnomod.toml --
+module = "ss_payer"
+gno = "0.9"
+
+-- payer/payer.gno --
+package ss_payer
+
+import "chain/runtime"
+
+func Pay(cur realm) string {
+	runtime.PayGas(5000000)
+	runtime.PayStorage(500000)
+	return "paid"
+}
+
+-- multi_msg.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_counter","func":"Increment","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"Pay","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot","sponsor_storage":true},"signatures":null,"memo":""}

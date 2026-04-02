@@ -2,6 +2,7 @@ package sdk
 
 import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -20,11 +21,26 @@ type Handler interface {
 	Query(ctx Context, req abci.RequestQuery) abci.ResponseQuery
 }
 
+// PayGasInfo tracks whether a realm has called PayGas in the current transaction.
+type PayGasInfo struct {
+	RealmPkgPath string         // pkg path of the realm that called PayGas
+	RealmAddr    crypto.Address // derived address of the realm
+	MaxFee       int64          // gas fee cap in ugnot (0 = PayGas not called)
+}
+
+type PayStorageInfo struct {
+	RealmPkgPath     string           // pkg path of the realm that called PayStorage
+	RealmAddr        crypto.Address   // derived address of the realm
+	MaxDeposit       int64            // storage deposit cap in ugnot (0 = PayStorage not called)
+	AccumulatedDiffs map[string]int64 // tx-level storage diff accumulator (when SponsorStorage=true)
+}
+
 // Result is the union of ResponseDeliverTx and ResponseCheckTx plus events.
 type Result struct {
 	abci.ResponseBase
-	GasWanted int64
-	GasUsed   int64
+	GasWanted  int64
+	GasUsed    int64
+	PayGasInfo *PayGasInfo // set when a realm calls PayGas during execution
 }
 
 // AnteHandler authenticates transactions, before their internal messages are handled.

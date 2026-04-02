@@ -1,0 +1,23 @@
+# Test that a 0-fee tx is rejected when PayGas is not called.
+
+## start a new node
+gnoland start
+
+## deploy a realm that does NOT call PayGas
+gnokey maketx addpkg -pkgdir $WORK/nopay -pkgpath gno.land/r/test/nopay -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## call the realm with 0 gas fee — PayGas not called, should be rejected
+! gnokey maketx call -pkgpath gno.land/r/test/nopay -func DoWork -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+stderr 'unauthorized error'
+
+-- nopay/gnomod.toml --
+module = "nopay"
+gno = "0.9"
+
+-- nopay/nopay.gno --
+package nopay
+
+func DoWork(cur realm) string {
+	return "done without paying"
+}

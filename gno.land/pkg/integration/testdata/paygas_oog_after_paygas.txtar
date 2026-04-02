@@ -1,0 +1,50 @@
+# Test that a 0-fee tx fails with OOG when the realm's PayGas budget is
+# too small for the work done AFTER PayGas. PayGas succeeds, but the
+# derived gas limit is exhausted during subsequent execution.
+# Realm balance should be unchanged (tx failed, settlement reverts).
+
+## start a new node
+gnoland start
+
+## deploy realm
+gnokey maketx addpkg -pkgdir $WORK/oog -pkgpath gno.land/r/test/oog -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund realm
+gnokey maketx send -send 10000000ugnot -to g1javuas63xhumsdllp6mugm3ckx4ju4gzgzf8hn -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## check realm balance before
+gnokey query bank/balances/g1javuas63xhumsdllp6mugm3ckx4ju4gzgzf8hn
+stdout '10000000ugnot'
+
+## call with 0 fee — PayGas(1000) gives ~1M gas, heavy work after PayGas exhausts it
+! gnokey maketx call -pkgpath gno.land/r/test/oog -func SmallBudgetHeavyWork -gas-fee 0ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'out of gas'
+
+## realm balance unchanged — tx failed, settlement reverted
+gnokey query bank/balances/g1javuas63xhumsdllp6mugm3ckx4ju4gzgzf8hn
+stdout '10000000ugnot'
+
+-- oog/gnomod.toml --
+module = "oog"
+gno = "0.9"
+
+-- oog/oog.gno --
+package oog
+
+import "chain/runtime"
+
+func SmallBudgetHeavyWork(cur realm) string {
+	// PayGas with small budget: 1000 ugnot / (1ugnot/1000gas) = 1000000 gas
+	// This succeeds (enough for the code before the loop).
+	// But the heavy work after exhausts the 1M gas limit.
+	runtime.PayGas(1000)
+
+	// Heavy work that exceeds 200000 gas → OOG
+	s := ""
+	for i := 0; i < 100000; i++ {
+		s += "x"
+	}
+	return s
+}

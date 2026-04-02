@@ -47,7 +47,7 @@ func (tx Tx) ValidateBasic() error {
 	if tx.Fee.GasWanted > maxGasWanted {
 		return ErrGasOverflow(fmt.Sprintf("invalid gas supplied; %d > %d", tx.Fee.GasWanted, maxGasWanted))
 	}
-	if !tx.Fee.GasFee.IsValid() {
+	if !tx.Fee.GasFee.IsZero() && !tx.Fee.GasFee.IsValid() {
 		return ErrInsufficientFee(fmt.Sprintf("invalid fee %s amount provided", tx.Fee.GasFee))
 	}
 	if len(stdSigs) == 0 {
@@ -124,8 +124,9 @@ func (tx Tx) GetSignBytes(chainID string, accountNumber uint64, sequence uint64)
 // gas to be used by the transaction. The ratio yields an effective "gasprice",
 // which must be above some miminum to be accepted into the mempool.
 type Fee struct {
-	GasWanted int64 `json:"gas_wanted" yaml:"gas_wanted"`
-	GasFee    Coin  `json:"gas_fee" yaml:"gas_fee"`
+	GasWanted      int64 `json:"gas_wanted" yaml:"gas_wanted"`
+	GasFee         Coin  `json:"gas_fee" yaml:"gas_fee"`
+	SponsorStorage bool  `json:"sponsor_storage,omitempty" yaml:"sponsor_storage"` // true = defer storage deposits to end-of-tx for PayStorage
 }
 
 // NewFee returns a new instance of Fee

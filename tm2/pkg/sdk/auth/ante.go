@@ -33,6 +33,8 @@ type AnteOptions struct {
 	// This is useful for development, and maybe production chains.
 	// Always check your settings and inspect genesis transactions.
 	VerifyGenesisSignatures bool
+	// AllowZeroFeeTxs enables 0-fee transactions when realms sponsor gas via PayGas.
+	AllowZeroFeeTxs bool
 }
 
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
@@ -42,32 +44,49 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 	return func(
 		ctx sdk.Context, tx std.Tx, simulate bool,
 	) (newCtx sdk.Context, res sdk.Result, abort bool) {
-		// Ensure that the gas wanted is not greater than the max allowed.
+		// Determine if this is a 0-fee PayGas transaction.
 		consParams := ctx.ConsensusParams()
-		if consParams.Block.MaxGas == -1 {
-			// no gas bounds (not recommended)
-		} else if consParams.Block.MaxGas < tx.Fee.GasWanted {
-			// tx gas-wanted too large.
-			res = abciResult(std.ErrInvalidGasWanted(
-				fmt.Sprintf(
-					"invalid gas-wanted; got: %d block-max-gas: %d",
-					tx.Fee.GasWanted, consParams.Block.MaxGas,
-				),
-			))
-			return ctx, res, true
-		}
+		isZeroFeeTx := tx.Fee.GasFee.IsZero() && consParams.Block.MaxGasCreditPerTx > 0
 
-		// Ensure that the provided fees meet a minimum threshold for the validator,
-		// if this is a CheckTx. This is only for local mempool purposes, and thus
-		// is only run upon checktx.
-		if ctx.IsCheckTx() && !simulate {
-			res := EnsureSufficientMempoolFees(ctx, tx.Fee)
-			if !res.IsOK() {
+		// Ensure that the gas wanted is not greater than the max allowed.
+		// For 0-fee txs, gas limit is set by the credit window, not GasWanted.
+		if !isZeroFeeTx {
+			if consParams.Block.MaxGas == -1 {
+				// no gas bounds (not recommended)
+			} else if consParams.Block.MaxGas < tx.Fee.GasWanted {
+				// tx gas-wanted too large.
+				res = abciResult(std.ErrInvalidGasWanted(
+					fmt.Sprintf(
+						"invalid gas-wanted; got: %d block-max-gas: %d",
+						tx.Fee.GasWanted, consParams.Block.MaxGas,
+					),
+				))
 				return ctx, res, true
 			}
 		}
 
-		newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)
+		// Ensure that the provided fees meet a minimum threshold for the validator,
+		// if this is a CheckTx. This is only for local mempool purposes, and thus
+		// is only run upon checktx. Skip for 0-fee PayGas txs when allowed.
+		if ctx.IsCheckTx() && !simulate {
+			if isZeroFeeTx && !opts.AllowZeroFeeTxs {
+				res = abciResult(std.ErrInsufficientFee("zero-fee transactions not accepted by this validator"))
+				return ctx, res, true
+			}
+			if !isZeroFeeTx {
+				res := EnsureSufficientMempoolFees(ctx, tx.Fee)
+				if !res.IsOK() {
+					return ctx, res, true
+				}
+			}
+		}
+
+		// Set gas meter: credit window for 0-fee txs, GasWanted for normal txs.
+		if isZeroFeeTx {
+			newCtx = SetGasMeter(ctx, consParams.Block.MaxGasCreditPerTx)
+		} else {
+			newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)
+		}
 
 		// AnteHandlers must have their own defer/recover in order for the BaseApp
 		// to know how much gas was used! This is because the GasMeter is created in
@@ -115,6 +134,8 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		isGenesis := ctx.BlockHeight() == 0
 
 		// fetch first signer, who's going to pay the fees
+		// Store tx caller and sponsor flag for end-of-tx settlement.
+		newCtx = newCtx.WithTxCaller(signerAddrs[0]).WithSponsorStorage(tx.Fee.SponsorStorage)
 		signerAccs[0], res = GetSignerAcc(newCtx, ak, signerAddrs[0])
 		if !res.IsOK() {
 			return newCtx, res, true

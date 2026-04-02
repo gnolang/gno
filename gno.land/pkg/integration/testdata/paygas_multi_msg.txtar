@@ -1,0 +1,71 @@
+# Test multi-message tx where PayGas is called in the second message.
+# First message sets up state, second message calls PayGas.
+# Both messages execute, realm pays total gas.
+
+## start a new node
+gnoland start
+
+## deploy a counter realm (first message target — no PayGas)
+gnokey maketx addpkg -pkgdir $WORK/counter -pkgpath gno.land/r/test/counter -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## deploy a swap realm (second message target — calls PayGas)
+gnokey maketx addpkg -pkgdir $WORK/swap -pkgpath gno.land/r/test/swap -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund swap realm so it can pay gas
+gnokey maketx send -send 10000000ugnot -to g1qf5d6n0xwkfzgaxt6cclzd856rpstktk7fw0xw -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## check swap realm balance before
+gnokey query bank/balances/g1qf5d6n0xwkfzgaxt6cclzd856rpstktk7fw0xw
+stdout '10000000ugnot'
+
+## send multi-msg tx: first increment counter, then swap (which calls PayGas)
+## Using MsgRun to bundle both calls
+gnokey maketx run -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1 $WORK/multi.gno
+stdout OK!
+
+## check swap realm balance decreased (paid gas for entire tx)
+gnokey query bank/balances/g1qf5d6n0xwkfzgaxt6cclzd856rpstktk7fw0xw
+! stdout '10000000ugnot'
+
+-- counter/gnomod.toml --
+module = "counter"
+gno = "0.9"
+
+-- counter/counter.gno --
+package counter
+
+var Count int
+
+func Increment(cur realm) {
+	Count++
+}
+
+-- swap/gnomod.toml --
+module = "swap"
+gno = "0.9"
+
+-- swap/swap.gno --
+package swap
+
+import "chain/runtime"
+
+func Swap(cur realm) string {
+	runtime.PayGas(1000000)
+	return "swapped"
+}
+
+-- multi.gno --
+package main
+
+import (
+	"gno.land/r/test/counter"
+	"gno.land/r/test/swap"
+)
+
+func main() {
+	counter.Increment(cross)
+	swap.Swap(cross)
+}

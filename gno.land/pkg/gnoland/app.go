@@ -22,6 +22,7 @@ import (
 	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
@@ -44,6 +45,7 @@ type AppOptions struct {
 	InitChainerConfig                             // options related to InitChainer
 	MinGasPrices               string             // optional
 	PruneStrategy              types.PruneStrategy
+	AllowZeroFeeTxs            bool // accept 0-fee txs when realms sponsor gas via PayGas
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
@@ -124,7 +126,9 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
 		VerifyGenesisSignatures: !cfg.SkipGenesisSigVerification,
+		AllowZeroFeeTxs:         cfg.AllowZeroFeeTxs,
 	}
+	baseApp.SetAllowZeroFeeTxs(cfg.AllowZeroFeeTxs)
 	authAnteHandler := auth.NewAnteHandler(
 		acck, bankk, auth.DefaultSigVerificationGasConsumer, authOptions)
 	baseApp.SetAnteHandler(
@@ -169,8 +173,62 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		// Create Gno transaction store.
 		return vmk.MakeGnoTransactionStore(ctx)
 	})
+	feeCollectorAddr := crypto.AddressFromPreimage([]byte(auth.DefaultFeeCollectorName))
 	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result) {
 		if result.IsOK() {
+			// PayGas settlement: deduct gas cost from realm balance.
+			if result.PayGasInfo != nil && result.PayGasInfo.MaxFee > 0 {
+				gasPrice, ok := ctx.Value(auth.GasPriceContextKey{}).(std.GasPrice)
+				if !ok || gasPrice.Gas <= 0 {
+					panic("PayGas settlement: gas price not available on context")
+				}
+				gasUsed := ctx.GasMeter().GasConsumed()
+				// Overflow-safe: actualCost = gasUsed * Price.Amount / Gas, capped by MaxFee
+				product, ok := overflow.Mul(gasUsed, gasPrice.Price.Amount)
+				if !ok {
+					panic("PayGas settlement: gas cost calculation overflow")
+				}
+				actualCost := product / gasPrice.Gas
+				if actualCost > result.PayGasInfo.MaxFee {
+					actualCost = result.PayGasInfo.MaxFee
+				}
+				if actualCost > 0 {
+					realmAddr := result.PayGasInfo.RealmAddr
+					costCoins := std.NewCoins(std.NewCoin(gasPrice.Price.Denom, actualCost))
+					// Pre-check balance (same pattern as auth.DeductFees)
+					realmCoins := bankk.GetCoins(ctx, realmAddr)
+					diff := realmCoins.SubUnsafe(costCoins)
+					if !diff.IsValid() {
+						panic(fmt.Sprintf("PayGas settlement: insufficient realm funds; %s < %s", realmCoins, costCoins))
+					}
+					err := bankk.SendCoinsUnrestricted(ctx, realmAddr, feeCollectorAddr, costCoins)
+					if err != nil {
+						panic(fmt.Sprintf("PayGas settlement failed: %v", err))
+					}
+				}
+			}
+
+			// Storage deposit settlement.
+			if ctx.SponsorStorage() {
+				// SponsorStorage: settle accumulated diffs from all messages.
+				// Diffs were already accumulated per-message in accumulateStorageDiffs.
+				// No need to read final diffs again — handlers already captured them.
+				psi := ctx.PayStorageInfo()
+				storagePayer := ctx.TxCaller()
+				if psi != nil && psi.MaxDeposit > 0 {
+					storagePayer = psi.RealmAddr
+				}
+				if !storagePayer.IsZero() && psi != nil && len(psi.AccumulatedDiffs) > 0 {
+					gnostore := vmk.GetGnoTransactionStoreReadOnly(ctx)
+					params := vmk.GetParams(ctx)
+					err := vmk.ProcessStorageDepositFromDiffs(ctx, storagePayer, psi.AccumulatedDiffs, psi.MaxDeposit, gnostore, params)
+					if err != nil {
+						panic(fmt.Sprintf("storage deposit settlement failed: %v", err))
+					}
+				}
+			}
+			// Per-message storage (SponsorStorage=false) was already settled in handlers.
+
 			vmk.CommitGnoTransactionStore(ctx)
 		}
 	})

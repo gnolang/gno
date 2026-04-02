@@ -1,0 +1,39 @@
+# Test that when a tx fails after PayGas, all state reverts and the realm does NOT pay.
+
+## start a new node
+gnoland start
+
+## deploy realm that calls PayGas then panics
+gnokey maketx addpkg -pkgdir $WORK/revert -pkgpath gno.land/r/test/revert -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund realm
+gnokey maketx send -send 10000000ugnot -to g1g8y7uvrq5zwcavlwmf04g5ate4cjy8aphxf3qs -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## check realm balance before
+gnokey query bank/balances/g1g8y7uvrq5zwcavlwmf04g5ate4cjy8aphxf3qs
+stdout '10000000ugnot'
+
+## call — PayGas succeeds but then execution panics
+! gnokey maketx call -pkgpath gno.land/r/test/revert -func DoWorkAndFail -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+stderr 'intentional panic after PayGas'
+
+## check realm balance unchanged — realm did NOT pay because tx failed
+gnokey query bank/balances/g1g8y7uvrq5zwcavlwmf04g5ate4cjy8aphxf3qs
+stdout '10000000ugnot'
+
+-- revert/gnomod.toml --
+module = "revert"
+gno = "0.9"
+
+-- revert/revert.gno --
+package revert
+
+import "chain/runtime"
+
+func DoWorkAndFail(cur realm) string {
+	runtime.PayGas(1000000)
+	panic("intentional panic after PayGas")
+	return "unreachable"
+}

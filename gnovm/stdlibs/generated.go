@@ -726,6 +726,54 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"chain/runtime",
+		"PayGas",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("int64")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  int64
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+
+			libs_chain_runtime.PayGas(
+				m,
+				p0)
+		},
+	},
+	{
+		"chain/runtime",
+		"PayStorage",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("int64")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  int64
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+
+			libs_chain_runtime.PayStorage(
+				m,
+				p0)
+		},
+	},
+	{
 		"crypto/ed25519",
 		"verify",
 		[]gno.FieldTypeExpr{

@@ -1,0 +1,32 @@
+# Test that PayGas panics when maxFee budget is already exceeded.
+# With MinGasPrice=1, PayGas(100) gives a gas limit of 100.
+# If gas already consumed > 100, PayGas should panic.
+
+## start a new node
+gnoland start
+
+## deploy realm with tiny maxFee
+gnokey maketx addpkg -pkgdir $WORK/tiny -pkgpath gno.land/r/test/tiny -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund realm
+gnokey maketx send -send 10000000ugnot -to g1w6q6dsm6pmjzn63cuxgqxj7s09y0wu8gqpds8z -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## call — PayGas(100) should panic because gas consumed is already > 100
+! gnokey maketx call -pkgpath gno.land/r/test/tiny -func DoWork -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+stderr 'maxFee budget exceeded at current gas price'
+
+-- tiny/gnomod.toml --
+module = "tiny"
+gno = "0.9"
+
+-- tiny/tiny.gno --
+package tiny
+
+import "chain/runtime"
+
+func DoWork(cur realm) string {
+	runtime.PayGas(100) // 100 ugnot / 1 ugnot per gas = 100 gas limit, but we already consumed more
+	return "done"
+}

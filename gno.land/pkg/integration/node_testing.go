@@ -98,6 +98,7 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 			GenesisTxResultHandler: gnoland.PanicOnFailingTxResultHandler,
 			CacheStdlibLoad:        true,
 		},
+		AllowZeroFeeTxs: true, // enable PayGas support in tests
 	}
 }
 
@@ -122,10 +123,11 @@ func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *t
 		ChainID:     tmconfig.ChainID(),
 		ConsensusParams: abci.ConsensusParams{
 			Block: &abci.BlockParams{
-				MaxTxBytes:   1_000_000,     // 1MB,
-				MaxDataBytes: 2_000_000,     // 2MB,
-				MaxGas:       3_000_000_000, // 3B gas
-				TimeIotaMS:   100,           // 100ms
+				MaxTxBytes:        1_000_000,     // 1MB,
+				MaxDataBytes:      2_000_000,     // 2MB,
+				MaxGas:            3_000_000_000, // 3B gas
+				TimeIotaMS:        100,           // 100ms
+				MaxGasCreditPerTx: 10_000_000,    // credit window for PayGas (large enough for multi-msg txs)
 			},
 		},
 		Validators: []bft.GenesisValidator{
