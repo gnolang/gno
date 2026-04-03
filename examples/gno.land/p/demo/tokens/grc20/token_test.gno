@@ -1,6 +1,7 @@
 package grc20
 
 import (
+	"errors"
 	"math"
 	"testing"
 
@@ -186,7 +187,7 @@ func TestMintUntilOverflow(t *testing.T) {
 
 			if tt.expectedError != nil {
 				uassert.Error(t, err, tt.description)
-				if err == nil || err.Error() != tt.expectedError.Error() {
+				if !errors.Is(err, tt.expectedError) {
 					t.Errorf("expected error %v, got %v", tt.expectedError, err)
 				}
 			} else {
