@@ -1,150 +1,80 @@
-import { BaseController } from "./controller.js";
-
+// Playground controller — standalone, does not rely on BaseController action wiring
 interface PlaygroundFile {
 	name: string;
 	content: string;
 }
 
-export class PlaygroundController extends BaseController {
-	private files: PlaygroundFile[] = [];
-	private activeFile = 0;
-	private _codeEl!: HTMLTextAreaElement;
-	private _outputEl!: HTMLElement;
-	private _tabsEl!: HTMLElement;
+export default function PlaygroundController(element: HTMLElement): void {
+	let files: PlaygroundFile[] = [];
+	let activeFile = 0;
 
-	protected connect(): void {
-		this._codeEl = this.getTarget("code") as HTMLTextAreaElement;
-		this._outputEl = this.getTarget("output") as HTMLElement;
-		this._tabsEl = this.getTarget("tabs") as HTMLElement;
+	const codeEl = element.querySelector('[data-playground-target="code"]') as HTMLTextAreaElement;
+	const outputEl = element.querySelector('[data-playground-target="output"]') as HTMLElement;
+	const tabsEl = element.querySelector('[data-playground-target="tabs"]') as HTMLElement;
 
-		// Initialize files from the editor content
-		const initialCode = this._codeEl.value;
-		if (initialCode.includes("// --- ") && initialCode.includes(" ---")) {
-			this._parseForkedFiles(initialCode);
-		} else {
-			this.files = [{ name: "main.gno", content: initialCode }];
-		}
+	if (!codeEl || !outputEl || !tabsEl) return;
 
-		this._renderTabs();
-		this._setupKeyboard();
-		this._bindButtons();
-	}
+	const domain = element.getAttribute("data-playground-domain-value") || "gno.land";
 
-	// Bind toolbar buttons directly (BaseController.setupActions can be unreliable)
-	private _bindButtons(): void {
-		this.element.querySelectorAll("[data-action]").forEach((el) => {
-			const attr = el.getAttribute("data-action");
-			if (!attr) return;
-			const match = attr.match(/^(\w+)->playground#(\w+)$/);
-			if (!match) return;
-			const [, event, method] = match;
-			const fn = (this as Record<string, unknown>)[method];
-			if (typeof fn === "function") {
-				el.addEventListener(event, fn.bind(this));
-			}
-		});
-	}
-
-	private _parseForkedFiles(code: string): void {
-		const parts = code.split(/^\/\/ --- (.+?) ---$/m);
-		this.files = [];
+	// Parse initial code
+	const initialCode = codeEl.value;
+	if (initialCode.includes("// --- ") && initialCode.includes(" ---")) {
+		const parts = initialCode.split(/^\/\/ --- (.+?) ---$/m);
 		for (let i = 1; i < parts.length; i += 2) {
 			const name = parts[i].trim();
 			const content = (parts[i + 1] || "").trim();
-			if (name) {
-				this.files.push({ name, content });
-			}
+			if (name) files.push({ name, content });
 		}
-		if (this.files.length === 0) {
-			this.files = [{ name: "main.gno", content: code }];
-		}
-		this._codeEl.value = this.files[0].content;
+		if (files.length === 0) files = [{ name: "main.gno", content: initialCode }];
+		codeEl.value = files[0].content;
+	} else {
+		files = [{ name: "main.gno", content: initialCode }];
 	}
 
-	private _setupKeyboard(): void {
-		this._codeEl.addEventListener("keydown", (e: KeyboardEvent) => {
-			if (e.ctrlKey && e.key === "Enter") {
-				e.preventDefault();
-				this.runCode();
-				return;
-			}
-			if (e.key === "Tab" && !e.shiftKey) {
-				e.preventDefault();
-				const start = this._codeEl.selectionStart;
-				const end = this._codeEl.selectionEnd;
-				this._codeEl.value =
-					this._codeEl.value.substring(0, start) +
-					"\t" +
-					this._codeEl.value.substring(end);
-				this._codeEl.selectionStart = this._codeEl.selectionEnd = start + 1;
-			}
-		});
-	}
-
-	private _renderTabs(): void {
-		// Clear existing tabs using safe DOM methods
-		while (this._tabsEl.firstChild) {
-			this._tabsEl.removeChild(this._tabsEl.firstChild);
-		}
-
-		this.files.forEach((f, i) => {
+	function renderTabs(): void {
+		while (tabsEl.firstChild) tabsEl.removeChild(tabsEl.firstChild);
+		files.forEach((f, i) => {
 			const btn = document.createElement("button");
-			btn.className = `b-playground-tab${i === this.activeFile ? " b-playground-tab--active" : ""}`;
+			btn.className = `b-playground-tab${i === activeFile ? " b-playground-tab--active" : ""}`;
 			btn.textContent = f.name;
-			btn.addEventListener("click", () => this._switchToFile(f.name));
-			this._tabsEl.appendChild(btn);
+			btn.addEventListener("click", () => switchToFile(f.name));
+			tabsEl.appendChild(btn);
 		});
-
 		const addBtn = document.createElement("button");
 		addBtn.className = "b-playground-tab-add";
 		addBtn.textContent = "+";
 		addBtn.title = "Add file";
-		addBtn.addEventListener("click", () => this.addFile());
-		this._tabsEl.appendChild(addBtn);
+		addBtn.addEventListener("click", addFile);
+		tabsEl.appendChild(addBtn);
 	}
 
-	private _switchToFile(fileName: string): void {
-		this.files[this.activeFile].content = this._codeEl.value;
-		const idx = this.files.findIndex((f) => f.name === fileName);
+	function switchToFile(fileName: string): void {
+		files[activeFile].content = codeEl.value;
+		const idx = files.findIndex((f) => f.name === fileName);
 		if (idx >= 0) {
-			this.activeFile = idx;
-			this._codeEl.value = this.files[idx].content;
-			this._renderTabs();
+			activeFile = idx;
+			codeEl.value = files[idx].content;
+			renderTabs();
 		}
 	}
 
-	public switchTab(event: Event): void {
-		const target = event.currentTarget as HTMLElement;
-		const fileName = target.dataset.playgroundFileParam || "";
-		this._switchToFile(fileName);
-	}
-
-	public addFile(): void {
+	function addFile(): void {
 		const name = prompt("File name (e.g. helper.gno):");
-		if (!name) return;
-		if (!name.endsWith(".gno")) {
-			alert("File name must end with .gno");
-			return;
-		}
-		if (this.files.some((f) => f.name === name)) {
-			alert("File already exists");
-			return;
-		}
-
-		this.files[this.activeFile].content = this._codeEl.value;
-		this.files.push({ name, content: `package main\n` });
-		this.activeFile = this.files.length - 1;
-		this._codeEl.value = this.files[this.activeFile].content;
-		this._renderTabs();
+		if (!name || !name.endsWith(".gno")) return;
+		if (files.some((f) => f.name === name)) return;
+		files[activeFile].content = codeEl.value;
+		files.push({ name, content: "package main\n" });
+		activeFile = files.length - 1;
+		codeEl.value = files[activeFile].content;
+		renderTabs();
 	}
 
-	public async runCode(): Promise<void> {
-		this.files[this.activeFile].content = this._codeEl.value;
-		this._outputEl.textContent = "Running...";
+	async function runCode(): Promise<void> {
+		files[activeFile].content = codeEl.value;
+		outputEl.textContent = "Running...";
+		outputEl.classList.remove("u-color-danger");
 
-		const remote = this.getValue("remote");
-		const domain = this.getValue("domain");
-		const code = this._codeEl.value;
+		const code = codeEl.value;
 		const pkgMatch = code.match(/^package\s+(\w+)/m);
 		const pkgName = pkgMatch ? pkgMatch[1] : "main";
 
@@ -155,63 +85,77 @@ export class PlaygroundController extends BaseController {
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
 						pkg_path: `${domain}/r/playground_preview`,
-						expression: `Render("")`,
+						expression: 'Render("")',
 					}),
 				});
 				const result = await resp.json();
 				if (result.error) {
-					this._outputEl.textContent = `Error: ${result.error}`;
-					this._outputEl.classList.add("u-color-danger");
+					outputEl.textContent = `Error: ${result.error}`;
+					outputEl.classList.add("u-color-danger");
 				} else {
-					this._outputEl.textContent = result.result;
-					this._outputEl.classList.remove("u-color-danger");
+					outputEl.textContent = result.result;
 				}
 			} catch {
-				this._outputEl.textContent = `Note: Server-side execution requires a running gno node.\n\nPackage: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(", ")}\n\nTo deploy and test, use:\n  gnokey maketx addpkg -pkgpath "${domain}/r/yourname/pkg" ...`;
-				this._outputEl.classList.remove("u-color-danger");
+				outputEl.textContent = `Note: Server-side execution not available for scratch pad code.\n\nPackage: ${pkgName}\nFiles: ${files.map((f) => f.name).join(", ")}\n\nTo deploy and test:\n  gnokey maketx addpkg -pkgpath "${domain}/r/yourname/pkg" ...`;
 			}
 		} else {
-			this._outputEl.textContent = `Package: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(", ")}\n\nTo run locally:\n  gno run ${this.files.map((f) => f.name).join(" ")}\n\nTo test:\n  gno test .`;
-			this._outputEl.classList.remove("u-color-danger");
+			outputEl.textContent = `Package: ${pkgName}\nFiles: ${files.map((f) => f.name).join(", ")}\n\nTo run locally:\n  gno run ${files.map((f) => f.name).join(" ")}\n\nTo test:\n  gno test .`;
 		}
 	}
 
-	public runTests(): void {
-		this._outputEl.textContent =
-			"Testing requires a running gno node.\n\nTo test locally:\n  gno test .";
+	function runTests(): void {
+		outputEl.textContent = "Testing requires a running gno node.\n\nTo test locally:\n  gno test .";
 	}
 
-	public formatCode(): void {
-		this._outputEl.textContent =
+	function formatCode(): void {
+		outputEl.textContent =
 			"Formatting requires server-side gno fmt (coming soon).\n\nTo format locally:\n  gno fmt -w " +
-			this.files[this.activeFile].name;
+			files[activeFile].name;
 	}
 
-	public shareCode(): void {
-		this.files[this.activeFile].content = this._codeEl.value;
-
+	function shareCode(): void {
+		files[activeFile].content = codeEl.value;
 		const code =
-			this.files.length === 1
-				? this.files[0].content
-				: this.files
-						.map((f) => `// --- ${f.name} ---\n${f.content}`)
-						.join("\n\n");
-
-		const encoded = encodeURIComponent(code);
-		const url = `${window.location.origin}/_/play?code=${encoded}`;
-
+			files.length === 1
+				? files[0].content
+				: files.map((f) => `// --- ${f.name} ---\n${f.content}`).join("\n\n");
+		const url = `${window.location.origin}/_/play?code=${encodeURIComponent(code)}`;
 		navigator.clipboard
 			.writeText(url)
-			.then(() => {
-				this._outputEl.textContent = "Share URL copied to clipboard!";
-			})
-			.catch(() => {
-				this._outputEl.textContent = `Share URL:\n${url}`;
-			});
+			.then(() => { outputEl.textContent = "Share URL copied to clipboard!"; })
+			.catch(() => { outputEl.textContent = `Share URL:\n${url}`; });
 	}
 
-	public clearOutput(): void {
-		this._outputEl.textContent = "// Run code to see output here";
-		this._outputEl.classList.remove("u-color-danger");
+	function clearOutput(): void {
+		outputEl.textContent = "// Run code to see output here";
+		outputEl.classList.remove("u-color-danger");
 	}
+
+	// Keyboard shortcuts
+	codeEl.addEventListener("keydown", (e: KeyboardEvent) => {
+		if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); runCode(); return; }
+		if (e.key === "Tab" && !e.shiftKey) {
+			e.preventDefault();
+			const start = codeEl.selectionStart;
+			const end = codeEl.selectionEnd;
+			codeEl.value = codeEl.value.substring(0, start) + "\t" + codeEl.value.substring(end);
+			codeEl.selectionStart = codeEl.selectionEnd = start + 1;
+		}
+	});
+
+	// Wire buttons by data-action attribute
+	const actions: Record<string, () => void> = {
+		runCode, runTests, formatCode, shareCode, clearOutput,
+	};
+	element.querySelectorAll("[data-action]").forEach((el) => {
+		const attr = el.getAttribute("data-action");
+		if (!attr) return;
+		const match = attr.match(/^(\w+)->playground#(\w+)$/);
+		if (!match) return;
+		const [, evt, method] = match;
+		const fn = actions[method];
+		if (fn) el.addEventListener(evt, fn);
+	});
+
+	renderTabs();
 }
