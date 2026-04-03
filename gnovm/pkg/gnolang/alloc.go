@@ -399,7 +399,8 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 // block entry: the fname string (header + content), the FBlocks interface
 // slot, and the fBlocksMap key+pointer entry.
 func fileBlockEntrySize(fname string) int64 {
-	return allocString + int64(len(fname))*allocStringByte + _allocValue + _allocName + _allocPointer
+	ss := overflow.Addp(allocString, overflow.Mulp(allocStringByte, int64(len(fname))))
+	return overflow.Addp(ss, int64(_allocValue+_allocName+_allocPointer))
 }
 
 // packageValueSize computes the total shallow memory size of a PackageValue
@@ -407,12 +408,11 @@ func fileBlockEntrySize(fname string) int64 {
 // Used both during allocation (creation/store-loading) and GC recounting
 // to ensure consistency.
 func packageValueSize(pkgName Name, pkgPath string, fnames []string) int64 {
-	var ss int64
-	ss = allocPackage
-	ss += allocString + int64(len(pkgName))*allocStringByte
-	ss += allocString + int64(len(pkgPath))*allocStringByte
+	ss := int64(allocPackage)
+	ss = overflow.Addp(ss, overflow.Addp(allocString, overflow.Mulp(allocStringByte, int64(len(pkgName)))))
+	ss = overflow.Addp(ss, overflow.Addp(allocString, overflow.Mulp(allocStringByte, int64(len(pkgPath)))))
 	for _, fname := range fnames {
-		ss += fileBlockEntrySize(fname)
+		ss = overflow.Addp(ss, fileBlockEntrySize(fname))
 	}
 	return ss
 }
