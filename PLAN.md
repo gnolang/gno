@@ -11,6 +11,13 @@ the Discord server.
 * Put bounties in r/gnoland/bounties
 * Use IBC2 to fetch gnolang libraries from another chain
 
+## Fee Model Overview
+
+| Cost Component | Description | When Incurred | Paid By | Recoverable |
+|---|---|---|---|---|
+| Gas Fee | Computation and bandwidth cost for transaction execution | Every transaction | Transaction sender | No |
+| Storage Deposit | Deposit for on-chain storage allocation | When new storage is allocated | Transaction sender | Yes, when storage is freed |
+
 ## Technical Plan
 
 ### Gnolang
