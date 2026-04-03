@@ -1,0 +1,18 @@
+# Configuration for valset test scripts.
+# Override any value by setting the variable before running a script:
+#   VAR=value ./script.sh
+
+# BASH_SOURCE[0] is this common file; dirname gives the valset/ directory.
+_VALSET_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=../../govdao-scripts/common
+source "$_VALSET_DIR/../../govdao-scripts/common"
+
+# Absolute paths to sibling script directories.
+GOVDAO_SCRIPTS="${GOVDAO_SCRIPTS:-$_VALSET_DIR/../../govdao-scripts}"
+VALSET_SCRIPTS="${VALSET_SCRIPTS:-$_VALSET_DIR}"
+
+# Valoper registration fee sent with Register calls (ugnot).
+VALOPER_REGISTRATION_FEE="${VALOPER_REGISTRATION_FEE:-20000000}"
+
+unset _VALSET_DIR
