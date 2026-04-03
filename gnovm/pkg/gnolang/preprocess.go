@@ -2464,10 +2464,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------
-			case *ChanTypeExpr:
-				panic("channel type is not yet supported")
-
-			// TRANS_LEAVE -----------------------
 			case *FuncTypeExpr:
 				evalStaticType(store, last, n)
 
@@ -4726,8 +4722,6 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				return
 			}
 		}
-	case *ChanTypeExpr:
-		panic("channel type is not yet supported")
 	case *FuncTypeExpr:
 		for i := range cx.Params {
 			un, directR = findUndefinedT(store, last, &cx.Params[i], stack, defining, isalias, astype && isalias)
@@ -5074,8 +5068,6 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				t = &SliceType{}
 			case *InterfaceTypeExpr:
 				t = &InterfaceType{}
-			case *ChanTypeExpr:
-				panic("channel type is not yet supported")
 			case *MapTypeExpr:
 				t = &MapType{}
 			case *StructTypeExpr:

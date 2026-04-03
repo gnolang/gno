@@ -316,6 +316,8 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			return &RefExpr{
 				X: toExpr(fs, gon.X),
 			}
+		} else if gon.Op == token.ARROW {
+			panicWithPos("channel receive is not permitted")
 		} else {
 			return &UnaryExpr{
 				X:  toExpr(fs, gon.X),
