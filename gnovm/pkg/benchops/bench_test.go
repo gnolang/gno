@@ -2,6 +2,7 @@ package benchops
 
 import (
 	"testing"
+	"time"
 )
 
 // --- OpCode timing ---
@@ -9,23 +10,23 @@ import (
 func TestSwitchOpCode_Basic(t *testing.T) {
 	InitMeasure()
 	old := SwitchOpCode(0x01)
-	if old != invalidCode {
-		t.Fatalf("expected old code %#x, got %#x", invalidCode, old)
+	if old != CPUOpInvalid {
+		t.Fatalf("expected old code %#x, got %#x", CPUOpInvalid, old)
 	}
 	if measure.opCounts[0x01] != 1 {
 		t.Fatalf("expected opCounts[0x01] == 1, got %d", measure.opCounts[0x01])
 	}
-	if measure.curOpCode != 0x01 {
-		t.Fatalf("expected curOpCode 0x01, got %#x", measure.curOpCode)
+	if measure.curCPUOp != 0x01 {
+		t.Fatalf("expected curCPUOp 0x01, got %#x", measure.curCPUOp)
 	}
 }
 
 func TestSwitchOpCode_Chain(t *testing.T) {
 	InitMeasure()
 
-	oldA := SwitchOpCode(0x10) // invalidCode -> A
-	if oldA != invalidCode {
-		t.Fatalf("first switch should return invalidCode, got %#x", oldA)
+	oldA := SwitchOpCode(0x10) // invalid -> A
+	if oldA != CPUOpInvalid {
+		t.Fatalf("first switch should return CPUOpInvalid, got %#x", oldA)
 	}
 
 	oldB := SwitchOpCode(0x20) // A -> B
@@ -40,12 +41,12 @@ func TestSwitchOpCode_Chain(t *testing.T) {
 
 	StopOpCode() // finalize C
 
-	for _, code := range []byte{0x10, 0x20, 0x30} {
-		if measure.opCounts[code] != 1 {
-			t.Errorf("opCounts[%#x] = %d, want 1", code, measure.opCounts[code])
+	for _, code := range []CPUOp{0x10, 0x20, 0x30} {
+		if measure.opCounts[byte(code)] != 1 {
+			t.Errorf("opCounts[%#x] = %d, want 1", code, measure.opCounts[byte(code)])
 		}
-		if measure.opAccumDur[code] <= 0 {
-			t.Errorf("opAccumDur[%#x] = %v, want > 0", code, measure.opAccumDur[code])
+		if measure.opAccumDur[byte(code)] <= 0 {
+			t.Errorf("opAccumDur[%#x] = %v, want > 0", code, measure.opAccumDur[byte(code)])
 		}
 	}
 }
@@ -54,10 +55,10 @@ func TestSwitchOpCode_InvalidCode_Panics(t *testing.T) {
 	InitMeasure()
 	defer func() {
 		if r := recover(); r == nil {
-			t.Fatal("expected panic for invalidCode, got none")
+			t.Fatal("expected panic for CPUOpInvalid, got none")
 		}
 	}()
-	SwitchOpCode(invalidCode)
+	SwitchOpCode(CPUOpInvalid)
 }
 
 func TestResumeOpCode(t *testing.T) {
@@ -74,8 +75,8 @@ func TestResumeOpCode(t *testing.T) {
 	if measure.opCounts[0x01] != 1 {
 		t.Fatalf("resume should not increment count; got %d", measure.opCounts[0x01])
 	}
-	if measure.curOpCode != 0x01 {
-		t.Fatalf("curOpCode should be 0x01 after resume, got %#x", measure.curOpCode)
+	if measure.curCPUOp != 0x01 {
+		t.Fatalf("curCPUOp should be 0x01 after resume, got %#x", measure.curCPUOp)
 	}
 }
 
@@ -84,8 +85,8 @@ func TestStopOpCode(t *testing.T) {
 	SwitchOpCode(0x05)
 	StopOpCode()
 
-	if measure.curOpCode != invalidCode {
-		t.Fatalf("curOpCode should be invalidCode after StopOpCode, got %#x", measure.curOpCode)
+	if measure.curCPUOp != CPUOpInvalid {
+		t.Fatalf("curCPUOp should be CPUOpInvalid after StopOpCode, got %#x", measure.curCPUOp)
 	}
 	if measure.opAccumDur[0x05] <= 0 {
 		t.Errorf("opAccumDur[0x05] = %v, want > 0", measure.opAccumDur[0x05])
@@ -96,50 +97,95 @@ func TestStopOpCode(t *testing.T) {
 
 func TestStartStopStore(t *testing.T) {
 	InitMeasure()
-	vmOp := byte(0x10)
-	storeCode := byte(0x01)
+	vmOp := CPUOp(0x10)
+	storeCode := StoreOp(0x01)
 
 	SwitchOpCode(vmOp)
-	old := StartStore(storeCode)
-	if old != vmOp {
-		t.Fatalf("StartStore should return old VM op %#x, got %#x", vmOp, old)
+	oldCPU, oldStore := StartStore(storeCode)
+	if oldCPU != vmOp {
+		t.Fatalf("StartStore should return old VM op %#x, got %#x", vmOp, oldCPU)
+	}
+	if oldStore != StoreOpInvalid {
+		t.Fatalf("StartStore should return StoreOpInvalid, got %#x", oldStore)
 	}
 
-	StopStore(storeCode, old, 42)
+	StopStore(storeCode, oldCPU, oldStore, 42)
 
-	if measure.storeCounts[storeCode] != 1 {
-		t.Fatalf("storeCounts = %d, want 1", measure.storeCounts[storeCode])
+	if measure.storeCounts[byte(storeCode)] != 1 {
+		t.Fatalf("storeCounts = %d, want 1", measure.storeCounts[byte(storeCode)])
 	}
-	if measure.storeAccumDur[storeCode] <= 0 {
-		t.Errorf("storeAccumDur = %v, want > 0", measure.storeAccumDur[storeCode])
+	if measure.storeAccumDur[byte(storeCode)] <= 0 {
+		t.Errorf("storeAccumDur = %v, want > 0", measure.storeAccumDur[byte(storeCode)])
 	}
-	if measure.storeAccumSize[storeCode] != 42 {
-		t.Fatalf("storeAccumSize = %d, want 42", measure.storeAccumSize[storeCode])
+	if measure.storeAccumSize[byte(storeCode)] != 42 {
+		t.Fatalf("storeAccumSize = %d, want 42", measure.storeAccumSize[byte(storeCode)])
 	}
-	if measure.curOpCode != vmOp {
-		t.Fatalf("VM op should be resumed; curOpCode = %#x, want %#x", measure.curOpCode, vmOp)
+	if measure.curCPUOp != vmOp {
+		t.Fatalf("VM op should be resumed; curCPUOp = %#x, want %#x", measure.curCPUOp, vmOp)
 	}
 }
 
 func TestStartStore_SuspendsVMOp(t *testing.T) {
 	InitMeasure()
 	SwitchOpCode(0x10)
-	old := StartStore(0x01)
+	oldCPU, oldStore := StartStore(0x01)
 
 	// During store operation, VM timeline should be paused.
-	if measure.curOpCode != invalidCode {
-		t.Fatalf("curOpCode should be invalidCode during store, got %#x", measure.curOpCode)
+	if measure.curCPUOp != CPUOpInvalid {
+		t.Fatalf("curCPUOp should be CPUOpInvalid during store, got %#x", measure.curCPUOp)
 	}
 
-	StopStore(0x01, old, 0) // clean up
+	StopStore(0x01, oldCPU, oldStore, 0) // clean up
+}
+
+// --- Nested store timing (regression test for nesting bug) ---
+
+func TestNestedStoreOps(t *testing.T) {
+	InitMeasure()
+	vmOp := CPUOp(0x10)
+	outerStore := StoreOp(0x01)
+	innerStore := StoreOp(0x02)
+
+	SwitchOpCode(vmOp)
+
+	// Outer store op (e.g. RealmFinalizeTx)
+	outerCPU, outerStoreOld := StartStore(outerStore)
+	time.Sleep(1 * time.Millisecond) // outer's own work
+
+	// Inner store op (e.g. SetObject called from within FinalizeRealmTransaction)
+	innerCPU, innerStoreOld := StartStore(innerStore)
+	time.Sleep(1 * time.Millisecond) // inner's work
+	StopStore(innerStore, innerCPU, innerStoreOld, 10)
+
+	time.Sleep(1 * time.Millisecond) // more outer work
+	StopStore(outerStore, outerCPU, outerStoreOld, 20)
+
+	// Both store ops should have accumulated time.
+	if measure.storeAccumDur[byte(outerStore)] <= 0 {
+		t.Errorf("outer store op duration = %v, want > 0", measure.storeAccumDur[byte(outerStore)])
+	}
+	if measure.storeAccumDur[byte(innerStore)] <= 0 {
+		t.Errorf("inner store op duration = %v, want > 0", measure.storeAccumDur[byte(innerStore)])
+	}
+	// Inner should have saved/restored outer store op, not CPU op.
+	if innerCPU != CPUOpInvalid {
+		t.Fatalf("inner StartStore should save CPUOpInvalid, got %#x", innerCPU)
+	}
+	if innerStoreOld != outerStore {
+		t.Fatalf("inner StartStore should save outer store op %#x, got %#x", outerStore, innerStoreOld)
+	}
+	// VM op should be restored after everything.
+	if measure.curCPUOp != vmOp {
+		t.Fatalf("VM op should be restored; curCPUOp = %#x, want %#x", measure.curCPUOp, vmOp)
+	}
 }
 
 // --- Native timing ---
 
 func TestStartStopNative(t *testing.T) {
 	InitMeasure()
-	vmOp := byte(0x10)
-	nativeCode := byte(0x01)
+	vmOp := CPUOp(0x10)
+	nativeCode := NativeOp(0x01)
 
 	SwitchOpCode(vmOp)
 	old := StartNative(nativeCode)
@@ -149,14 +195,14 @@ func TestStartStopNative(t *testing.T) {
 
 	StopNative(nativeCode, old)
 
-	if measure.nativeCounts[nativeCode] != 1 {
-		t.Fatalf("nativeCounts = %d, want 1", measure.nativeCounts[nativeCode])
+	if measure.nativeCounts[byte(nativeCode)] != 1 {
+		t.Fatalf("nativeCounts = %d, want 1", measure.nativeCounts[byte(nativeCode)])
 	}
-	if measure.nativeAccumDur[nativeCode] <= 0 {
-		t.Errorf("nativeAccumDur = %v, want > 0", measure.nativeAccumDur[nativeCode])
+	if measure.nativeAccumDur[byte(nativeCode)] <= 0 {
+		t.Errorf("nativeAccumDur = %v, want > 0", measure.nativeAccumDur[byte(nativeCode)])
 	}
-	if measure.curOpCode != vmOp {
-		t.Fatalf("VM op should be resumed; curOpCode = %#x, want %#x", measure.curOpCode, vmOp)
+	if measure.curCPUOp != vmOp {
+		t.Fatalf("VM op should be resumed; curCPUOp = %#x, want %#x", measure.curCPUOp, vmOp)
 	}
 }
 
@@ -164,10 +210,10 @@ func TestStartNative_InvalidCode_Panics(t *testing.T) {
 	InitMeasure()
 	defer func() {
 		if r := recover(); r == nil {
-			t.Fatal("expected panic for invalidCode, got none")
+			t.Fatal("expected panic for NativeOpInvalid, got none")
 		}
 	}()
-	StartNative(invalidCode)
+	StartNative(NativeOpInvalid)
 }
 
 // --- InitMeasure ---
@@ -177,8 +223,8 @@ func TestInitMeasure_Resets(t *testing.T) {
 	InitMeasure()
 	SwitchOpCode(0x01)
 	SwitchOpCode(0x02)
-	old := StartStore(0x03)
-	StopStore(0x03, old, 100)
+	oldCPU, oldStore := StartStore(0x03)
+	StopStore(0x03, oldCPU, oldStore, 100)
 	nOld := StartNative(0x04)
 	StopNative(0x04, nOld)
 	StopOpCode()
@@ -186,8 +232,8 @@ func TestInitMeasure_Resets(t *testing.T) {
 	// Reset.
 	InitMeasure()
 
-	if measure.curOpCode != invalidCode {
-		t.Fatalf("curOpCode should be invalidCode after reset, got %#x", measure.curOpCode)
+	if measure.curCPUOp != CPUOpInvalid {
+		t.Fatalf("curCPUOp should be CPUOpInvalid after reset, got %#x", measure.curCPUOp)
 	}
 	for i := range 256 {
 		if measure.opCounts[i] != 0 {
