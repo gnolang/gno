@@ -1,5 +1,5 @@
 # This workflow must be kept in sync to some extent with meta-bot-proxy.yml
-name: meta/bot
+name: meta / bot
 
 on:
   # Watch for changes on PR state, assignees, labels, head branch and draft/ready status

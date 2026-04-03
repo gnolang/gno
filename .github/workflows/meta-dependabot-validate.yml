@@ -1,4 +1,4 @@
-name: meta/dependabot-validate
+name: meta / dependabot-validate
 
 on:
   pull_request:

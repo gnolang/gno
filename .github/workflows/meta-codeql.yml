@@ -1,4 +1,4 @@
-name: meta/codeql
+name: meta / codeql
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: meta/auto-assign
+name: meta / auto-assign
 
 on:
   pull_request_target:

@@ -1,10 +1,10 @@
 # This workflow must be kept in sync to some extent with meta-bot.yml
-name: meta/bot-proxy
+name: meta / bot-proxy
 
 on:
   # Watch for any completed run on meta-bot.yml workflow
   workflow_run:
-    workflows: [meta/bot]
+    workflows: [meta / bot]
     types: [completed]
 
 jobs:

@@ -1,4 +1,4 @@
-name: ci/go/gnoland
+name: ci / go / gnoland
 
 on:
   push:

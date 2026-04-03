@@ -1,4 +1,4 @@
-name: meta/discord-bot
+name: meta / discord-bot
 
 on:
   pull_request:

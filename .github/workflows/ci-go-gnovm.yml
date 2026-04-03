@@ -1,4 +1,4 @@
-name: ci/go/gnovm
+name: ci / go / gnovm
 
 on:
   push:

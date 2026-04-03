@@ -1,6 +1,6 @@
 # Unified release workflow: master push releases + nightly scheduled releases.
 # Replaces the old releaser-master.yml and releaser-nightly.yml.
-name: release/goreleaser
+name: release / goreleaser
 
 on:
   push:

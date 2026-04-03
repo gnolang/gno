@@ -1,4 +1,4 @@
-name: ci/genesis-verify
+name: ci / genesis-verify
 
 on:
   push:

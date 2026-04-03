@@ -1,4 +1,4 @@
-name: meta/fossa
+name: meta / fossa
 
 on:
   push:

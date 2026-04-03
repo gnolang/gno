@@ -1,4 +1,4 @@
-name: meta/dependabot-tidy
+name: meta / dependabot-tidy
 
 on:
   pull_request:

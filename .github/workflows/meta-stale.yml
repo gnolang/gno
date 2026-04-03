@@ -1,4 +1,4 @@
-name: meta/stale
+name: meta / stale
 on:
   schedule:
     - cron: "30 1 * * *"

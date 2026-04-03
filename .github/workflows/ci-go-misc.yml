@@ -1,6 +1,6 @@
 # tests the "misc" directory & tools
 # (not meant for miscellaneous workflows)
-name: ci/go/misc
+name: ci / go / misc
 
 on:
   push:

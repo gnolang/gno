@@ -1,6 +1,6 @@
 # generate Go docs and publish on gh-pages branch
 # Live at: https://gnolang.github.io/gno
-name: deploy/pages
+name: deploy / pages
 
 on:
   push:

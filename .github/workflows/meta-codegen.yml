@@ -1,4 +1,4 @@
-name: meta/codegen
+name: meta / codegen
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: ci/gnovm-benchops
+name: ci / gnovm-benchops
 
 on:
   push:

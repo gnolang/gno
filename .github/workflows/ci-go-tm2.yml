@@ -1,4 +1,4 @@
-name: ci/go/tm2
+name: ci / go / tm2
 
 on:
   push:
