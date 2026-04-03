@@ -7,7 +7,7 @@ on:
   pull_request:
     paths:
       - "misc/deployments/**/genesis.json"
-      - ".github/workflows/genesis-verify.yml"
+      - ".github/workflows/ci-genesis-verify.yml"
 
 jobs:
   verify:

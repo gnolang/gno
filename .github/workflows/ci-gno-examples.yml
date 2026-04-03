@@ -26,18 +26,13 @@ concurrency:
 jobs:
   gno2go:
     name: ci/gno/examples/transpile
-    strategy:
-      fail-fast: false
-      matrix:
-        goversion:
-          - "1.24.x"
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.goversion }}
+          go-version-file: go.mod
       - run: go install -v ./gnovm/cmd/gno
       - run: go run ./gnovm/cmd/gno tool transpile -v --gobuild ./examples
 
@@ -47,7 +42,6 @@ jobs:
     with:
       debug: ${{ inputs.debug || false }}
       path: "examples"
-      go-version: "1.24.x"
 
   generate:
     name: ci/gno/examples/generate
@@ -56,14 +50,13 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.24.x"
-      - name: Check generated files are up to date
-        working-directory: examples
+          go-version-file: go.mod
+      - working-directory: examples
         run: |
           if make -qp | grep -q '^generate:'; then
             make generate
             if [ "$(git status -s)" != "" ]; then
-              echo "command 'make generate' creates files that differ from the git tree, please run 'make generate' and commit:"
+              echo "'make generate' creates files that differ from the git tree, please run 'make generate' and commit:"
               git status -s
               git diff
               exit 1
@@ -79,10 +72,9 @@ jobs:
     steps:
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.24.x"
+          go-version-file: go.mod
       - uses: actions/checkout@v5
       - working-directory: ./examples
         run: |
           make tidy
-          # Check if there are changes after running gno mod tidy
           git diff --exit-code || (echo "Some gnomod.toml files are not tidy, please run 'make tidy'." && exit 1)

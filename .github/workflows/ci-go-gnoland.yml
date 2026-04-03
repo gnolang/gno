@@ -7,15 +7,9 @@ on:
   pull_request:
     paths:
       - gno.land/**
-      # We trigger the testing workflow for gno.land on the following,
-      # since there are integration suites that cover the gnovm / tm2
       - gnovm/**
       - tm2/**
-      # Changes to examples/ can create failures in gno.land, eg. txtars,
-      # see: https://github.com/gnolang/gno/pull/3590
       - examples/**
-      # We trigger the testing workflow for changes to the main go.mod,
-      # since this can affect test results
       - go.mod
   workflow_dispatch:
 
@@ -26,33 +20,27 @@ jobs:
     with:
       modulepath: "gno.land"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
-      # FIXME(gfanton): run txtar integration test sequentially using `ts-seq` to avoid timeout, this is a
-      # temporary fix for until cache is properly implemented on typecheck
+      # FIXME(gfanton): run txtar integration test sequentially to avoid timeout
       tests-ts-seq: true
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   gnoweb_generate:
     name: ci/go/gnoland/gnoweb-generate
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: ["1.24.x"]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version-file: go.mod
       - uses: actions/setup-node@v4
         with:
-          node-version: lts/Jod # (22.x) https://github.com/nodejs/Release
+          node-version: lts/Jod
       - uses: actions/checkout@v5
       - run: |
           make -C gno.land/pkg/gnoweb fclean generate
-          # Check if there are changes after running generate.gnoweb
           git diff --exit-code || \
-             (echo "\`gnoweb generate\` out of date, please run \`make gnoweb.generate\` within './gno.land'" && exit 1)
+             (echo "'gnoweb generate' out of date, please run 'make gnoweb.generate' within './gno.land'" && exit 1)
 
   gnoweb_front_lint:
     name: ci/go/gnoland/gnoweb-lint

@@ -1,5 +1,5 @@
 # Reusable workflow for Gno packages/realms: fmt + lint + test.
-# Replaces the old template_gnofmt, template_gnolint, template_gnotest.
+# Reusable workflow for Gno packages/realms: fmt + lint + test.
 on:
   workflow_call:
     inputs:
@@ -47,8 +47,6 @@ jobs:
   lint:
     name: lint
     if: inputs.run-lint
-    strategy:
-      fail-fast: false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -61,8 +59,6 @@ jobs:
   test:
     name: test
     if: inputs.run-test
-    strategy:
-      fail-fast: false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

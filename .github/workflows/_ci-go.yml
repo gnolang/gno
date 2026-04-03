@@ -1,5 +1,5 @@
 # Reusable workflow for Go modules: lint + build check + test with coverage.
-# Replaces the old template_main -> template_lint/template_build/template_test chain.
+# Reusable workflow for Go modules: lint + build + test.
 on:
   workflow_call:
     inputs:
