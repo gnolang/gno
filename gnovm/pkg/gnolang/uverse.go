@@ -756,6 +756,10 @@ func makeUverseNode() {
 			m.PushValue(res0)
 		},
 	)
+	// NOTE: The variadic signature is intentionally permissive.
+	// Actual argument count validation (e.g. slices require 2-3 args,
+	// maps/channels require 1-2) is enforced at preprocess time in
+	// the "make" special case of CallExpr, not here.
 	defNative("make",
 		Flds( // params
 			"t", GenT("T.(type)", nil),
@@ -866,13 +870,6 @@ func makeUverseNode() {
 					return
 				default:
 					panic("make() of map type takes 1 or 2 arguments")
-				}
-			case *ChanType:
-				switch vargsl {
-				case 0, 1:
-					panic("not yet implemented")
-				default:
-					panic("make() of chan type takes 1 or 2 arguments")
 				}
 			default:
 				panic(fmt.Sprintf(

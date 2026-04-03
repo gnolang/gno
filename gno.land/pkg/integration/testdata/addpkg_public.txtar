@@ -213,7 +213,6 @@ var savedSlice []string
 var savedMap map[string]int
 var savedInterface interface{}
 var savedArray [3]*avl.Tree
-var savedChannel chan *avl.Tree
 
 type PublicStruct struct {
     Name        string
