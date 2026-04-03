@@ -1,4 +1,4 @@
-name: ci / gnovm-benchops
+name: release / benchmarks
 
 on:
   push:
