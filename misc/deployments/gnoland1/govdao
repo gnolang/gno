@@ -16,7 +16,7 @@ SCRIPTS_DIR="$(cd "$(dirname "$0")/../../govdao-scripts" && pwd)"
 # gnoland1 defaults
 export GNOKEY_NAME="${GNOKEY_NAME:-moul}"
 export CHAIN_ID="${CHAIN_ID:-gnoland1}"
-export REMOTE="${REMOTE:-https://rpc.betanet.testnets.gno.land:443}"
+export REMOTE="${REMOTE:-https://rpc.gnoland1.moul.p2p.team/}"
 
 if [ $# -eq 0 ]; then
   echo "govdao — gnoland1"
