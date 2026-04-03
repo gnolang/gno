@@ -48,6 +48,10 @@ type ClientAdapter interface {
 	// Doc retrieves the JSON doc suitable for printing from a
 	// specified package path.
 	Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error)
+
+	// Eval evaluates a Gno expression via vm/qeval query.
+	// The data string should be in the format "gno.land/r/pkg.Expression(args)".
+	Eval(ctx context.Context, data string) ([]byte, error)
 }
 
 type rpcClient struct {
@@ -169,6 +173,12 @@ func (c *rpcClient) Doc(ctx context.Context, pkgPath string) (*doc.JSONDocumenta
 	}
 
 	return jdoc, nil
+}
+
+// Eval evaluates a Gno expression via the vm/qeval ABCI query.
+func (c *rpcClient) Eval(ctx context.Context, data string) ([]byte, error) {
+	const qpath = "vm/qeval"
+	return c.query(ctx, qpath, []byte(data))
 }
 
 // query sends a query to the RPC client and returns the response

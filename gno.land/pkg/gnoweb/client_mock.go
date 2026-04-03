@@ -138,6 +138,11 @@ func (m *MockClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentati
 	return &doc.JSONDocumentation{Funcs: pkg.Functions}, nil
 }
 
+// Eval evaluates a Gno expression (mock implementation).
+func (m *MockClient) Eval(_ context.Context, data string) ([]byte, error) {
+	return []byte("(mock eval: " + data + ")"), nil
+}
+
 // Helper: check if package has a Render(string) string function.
 func pkgHasRender(pkg *MockPackage) bool {
 	if len(pkg.Functions) == 0 {

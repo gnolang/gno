@@ -157,6 +157,12 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Handle playground page
+	if r.URL.Path == "/_/play" {
+		h.servePlayground(w, r)
+		return
+	}
+
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
@@ -301,6 +307,16 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
+	}
+
+	// Handle Eval page (expression evaluator)
+	if gnourl.WebQuery.Has("eval") {
+		return h.GetEvalView(ctx, gnourl)
+	}
+
+	// Handle Fork page (fork source to playground)
+	if gnourl.WebQuery.Has("fork") {
+		return h.GetForkView(ctx, gnourl)
 	}
 
 	// Handle Source page
@@ -717,6 +733,115 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	w.WriteHeader(http.StatusOK)
 	w.Write(source) // write raw file
+}
+
+// servePlayground renders the standalone playground page.
+func (h *HTTPHandler) servePlayground(w http.ResponseWriter, r *http.Request) {
+	var theme string
+	if c, err := r.Cookie("theme"); err == nil {
+		if c.Value == "light" || c.Value == "dark" {
+			theme = c.Value
+		}
+	}
+
+	// Check if we have initial code from query (e.g. shared snippet)
+	initialCode := r.URL.Query().Get("code")
+	forkFrom := r.URL.Query().Get("from")
+	if initialCode == "" {
+		initialCode = `package main
+
+func Render(path string) string {
+	return "Hello, Playground!"
+}
+`
+	}
+
+	indexData := components.IndexData{
+		HeadData: components.HeadData{
+			Title:      "Playground — " + h.Static.Domain,
+			AssetsPath: h.Static.AssetsPath,
+			ChromaPath: h.Static.ChromaPath,
+			ChainId:    h.Static.ChainId,
+			Remote:     h.Static.RemoteHelp,
+			BuildTime:  h.Static.BuildTime,
+		},
+		FooterData: components.FooterData{
+			Analytics:  h.Static.Analytics,
+			AssetsPath: h.Static.AssetsPath,
+			BuildTime:  h.Static.BuildTime,
+		},
+		Theme:  theme,
+		Banner: h.Static.Banner,
+		Mode:   components.ViewModeRealm,
+	}
+
+	indexData.BodyView = components.PlaygroundView(components.PlaygroundData{
+		InitialCode: initialCode,
+		ForkFrom:    forkFrom,
+		Remote:      h.Static.RemoteHelp,
+		ChainId:     h.Static.ChainId,
+		Domain:      h.Static.Domain,
+	})
+
+	w.WriteHeader(http.StatusOK)
+	if err := components.IndexLayout(indexData).Render(w); err != nil {
+		h.Logger.Error("failed to render playground", "error", err)
+	}
+}
+
+// GetEvalView renders the expression evaluator page for a package/realm.
+func (h *HTTPHandler) GetEvalView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+	jdoc, err := h.Client.Doc(ctx, gnourl.Path)
+	if err != nil {
+		h.Logger.Error("unable to fetch qdoc for eval", "error", err)
+		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	funcs := components.BuildEvalFuncs(jdoc)
+
+	return http.StatusOK, components.EvalView(components.EvalData{
+		Remote:    h.Static.RemoteHelp,
+		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
+		Domain:    h.Static.Domain,
+		Functions: funcs,
+	})
+}
+
+// GetForkView loads all source files from a package and redirects to playground with the code.
+func (h *HTTPHandler) GetForkView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+	pkgPath := gnourl.Path
+
+	files, err := h.Client.ListFiles(ctx, pkgPath)
+	if err != nil {
+		h.Logger.Warn("unable to list files for fork", "path", pkgPath, "error", err)
+		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	// Collect all .gno files
+	var allCode strings.Builder
+	for _, fileName := range files {
+		if !strings.HasSuffix(fileName, ".gno") {
+			continue
+		}
+		file, _, err := h.Client.File(ctx, pkgPath, fileName)
+		if err != nil {
+			continue
+		}
+		if allCode.Len() > 0 {
+			allCode.WriteString("\n// --- " + fileName + " ---\n\n")
+		} else {
+			allCode.WriteString("// --- " + fileName + " ---\n\n")
+		}
+		allCode.Write(file)
+	}
+
+	return http.StatusOK, components.PlaygroundView(components.PlaygroundData{
+		InitialCode: allCode.String(),
+		ForkFrom:    path.Join(h.Static.Domain, pkgPath),
+		Remote:      h.Static.RemoteHelp,
+		ChainId:     h.Static.ChainId,
+		Domain:      h.Static.Domain,
+	})
 }
 
 func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.View) {

@@ -76,6 +76,10 @@ func (s *stubClient) ListPaths(ctx context.Context, prefix string, limit int) ([
 	return nil, errors.New("stubClient: ListPaths not implemented")
 }
 
+func (s *stubClient) Eval(_ context.Context, data string) ([]byte, error) {
+	return []byte("(stub eval: " + data + ")"), nil
+}
+
 type rawRenderer struct{}
 
 func (rawRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx gnoweb.RealmRenderContext) (md.Toc, error) {

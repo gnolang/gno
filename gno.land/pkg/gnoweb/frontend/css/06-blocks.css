@@ -2518,3 +2518,274 @@ main.dev-mode .b-toc a {
 		}
 	}
 }
+
+/* ==========================================================================
+   PLAYGROUND - Scratch pad editor
+   ========================================================================== */
+.b-playground {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+	min-height: 70vh;
+}
+
+.b-playground-toolbar {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--g-space-2);
+	flex-wrap: wrap;
+}
+
+.b-playground-toolbar-left {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+}
+
+.b-playground-toolbar-right {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-1);
+}
+
+.b-playground-title {
+	font-size: var(--g-font-size-200);
+	font-weight: var(--g-font-semibold);
+}
+
+.b-playground-editor-area {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	border: 1px solid var(--s-color-border-default);
+	border-radius: var(--g-radius-2);
+	overflow: hidden;
+	min-height: 40vh;
+}
+
+.b-playground-tabs {
+	display: flex;
+	align-items: center;
+	gap: 0;
+	background-color: var(--s-color-bg-muted);
+	border-bottom: 1px solid var(--s-color-border-default);
+	overflow-x: auto;
+}
+
+.b-playground-tab {
+	padding: var(--g-space-1) var(--g-space-2);
+	border: none;
+	background: none;
+	cursor: pointer;
+	font-size: var(--g-font-size-50);
+	font-family: var(--g-font-mono);
+	color: var(--s-color-text-muted);
+	border-bottom: 2px solid transparent;
+	white-space: nowrap;
+
+	&:hover {
+		color: var(--s-color-text-base);
+		background-color: var(--s-color-bg-default);
+	}
+
+	&--active {
+		color: var(--s-color-text-base);
+		border-bottom-color: var(--s-color-border-brand);
+		font-weight: var(--g-font-semibold);
+	}
+}
+
+.b-playground-tab-add {
+	padding: var(--g-space-1) var(--g-space-2);
+	border: none;
+	background: none;
+	cursor: pointer;
+	font-size: var(--g-font-size-100);
+	color: var(--s-color-text-muted);
+
+	&:hover {
+		color: var(--s-color-text-base);
+	}
+}
+
+.b-playground-editor {
+	flex: 1;
+	display: flex;
+}
+
+.b-playground-code {
+	flex: 1;
+	width: 100%;
+	min-height: 300px;
+	padding: var(--g-space-2);
+	border: none;
+	background-color: var(--s-color-bg-default);
+	color: var(--s-color-text-base);
+	font-family: var(--g-font-mono);
+	font-size: var(--g-font-size-75);
+	line-height: 1.6;
+	resize: none;
+	tab-size: 4;
+	outline: none;
+}
+
+.b-playground-output {
+	border: 1px solid var(--s-color-border-default);
+	border-radius: var(--g-radius-2);
+	overflow: hidden;
+}
+
+.b-playground-output-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: var(--g-space-1) var(--g-space-2);
+	background-color: var(--s-color-bg-muted);
+	border-bottom: 1px solid var(--s-color-border-default);
+}
+
+.b-playground-output-title {
+	font-size: var(--g-font-size-50);
+	font-weight: var(--g-font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.b-playground-output-clear {
+	border: none;
+	background: none;
+	cursor: pointer;
+	font-size: var(--g-font-size-50);
+	color: var(--s-color-text-muted);
+
+	&:hover {
+		color: var(--s-color-text-base);
+	}
+}
+
+.b-playground-output-content {
+	padding: var(--g-space-2);
+	margin: 0;
+	font-family: var(--g-font-mono);
+	font-size: var(--g-font-size-75);
+	line-height: 1.6;
+	white-space: pre-wrap;
+	word-break: break-word;
+	min-height: 80px;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+/* ==========================================================================
+   EVAL - Expression evaluator
+   ========================================================================== */
+.b-eval {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-3);
+}
+
+.b-eval-header {
+	margin-bottom: var(--g-space-1);
+}
+
+.b-eval-form {
+	display: flex;
+	gap: var(--g-space-2);
+	align-items: flex-end;
+}
+
+.b-eval-form .b-input--full {
+	flex: 1;
+}
+
+.b-eval-result {
+	border: 1px solid var(--s-color-border-default);
+	border-radius: var(--g-radius-2);
+	overflow: hidden;
+}
+
+.b-eval-result-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: var(--g-space-1) var(--g-space-2);
+	background-color: var(--s-color-bg-muted);
+	border-bottom: 1px solid var(--s-color-border-default);
+	font-size: var(--g-font-size-50);
+	font-weight: var(--g-font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.b-eval-result-clear {
+	border: none;
+	background: none;
+	cursor: pointer;
+	font-size: var(--g-font-size-50);
+	color: var(--s-color-text-muted);
+
+	&:hover {
+		color: var(--s-color-text-base);
+	}
+}
+
+.b-eval-result-content {
+	padding: var(--g-space-2);
+	margin: 0;
+	font-family: var(--g-font-mono);
+	font-size: var(--g-font-size-75);
+	line-height: 1.6;
+	white-space: pre-wrap;
+	word-break: break-word;
+	min-height: 60px;
+	max-height: 400px;
+	overflow-y: auto;
+}
+
+.b-eval-func {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+}
+
+.b-eval-history-entry {
+	padding: var(--g-space-1-5);
+	border: 1px solid var(--s-color-border-default);
+	border-radius: var(--g-radius-1);
+
+	& + & {
+		margin-top: var(--g-space-1);
+	}
+}
+
+.b-eval-history-expr {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: var(--g-space-1);
+}
+
+.b-eval-history-rerun {
+	border: none;
+	background: none;
+	cursor: pointer;
+	font-size: var(--g-font-size-100);
+	color: var(--s-color-text-muted);
+
+	&:hover {
+		color: var(--s-color-text-base);
+	}
+}
+
+.b-eval-history-result {
+	margin: 0;
+	padding: var(--g-space-1);
+	font-family: var(--g-font-mono);
+	font-size: var(--g-font-size-50);
+	background-color: var(--s-color-bg-muted);
+	border-radius: var(--g-radius-1);
+	white-space: pre-wrap;
+	word-break: break-word;
+}

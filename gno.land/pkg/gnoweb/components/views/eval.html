@@ -1,0 +1,81 @@
+{{/* ===================================================================================
+LAYOUT - Eval view wrapper
+=================================================================================== */}}
+{{ define "renderEval" }}
+<!-- Aside - Function list -->
+{{ with render .ComponentTOC }}
+{{ template "layout/aside" . }}
+{{ end }}
+
+<!-- Eval Content -->
+{{ template "layout/article" .Article }}
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Inline Eval content
+=================================================================================== */}}
+{{ define "renderEvalContent" }}
+{{ $data := . }}
+<div class="b-eval" data-controller="eval"
+  data-eval-remote-value="{{ .Remote }}"
+  data-eval-pkg-path-value="{{ .PkgPath }}"
+  data-eval-domain-value="{{ .Domain }}">
+
+  <div class="b-eval-header">
+    <h2 class="b-content-h2">Expression Evaluator</h2>
+    <p class="u-color-muted">Evaluate read-only expressions against <code class="u-font-mono">{{ .PkgPath }}</code></p>
+  </div>
+
+  <!-- Quick eval input -->
+  <div class="b-eval-input">
+    <form data-action="submit->eval#evalExpression" class="b-eval-form">
+      <div class="b-input b-input--full">
+        <label for="eval-expression">Expression</label>
+        <input type="text" id="eval-expression" data-eval-target="input"
+          placeholder='Render("")' class="u-font-mono"
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      </div>
+      <button type="submit" class="b-btn b-btn--primary">
+        <svg class="c-icon"><use href="#ico-tx-link"></use></svg>
+        <span>Eval</span>
+      </button>
+    </form>
+  </div>
+
+  <!-- Result area -->
+  <div class="b-eval-result">
+    <div class="b-eval-result-header">
+      <span>Result</span>
+      <button class="b-eval-result-clear" data-action="click->eval#clearResult">Clear</button>
+    </div>
+    <pre class="b-eval-result-content" data-eval-target="result"><span class="u-color-muted">// Enter an expression above</span></pre>
+  </div>
+
+  <!-- Function quick-call buttons -->
+  {{ if .Functions }}
+  <div class="b-eval-functions">
+    <h3 class="b-content-h3">Quick Call</h3>
+    <div class="c-stack">
+      {{ range .Functions }}
+      <div class="b-eval-func">
+        <button class="b-btn b-btn--secondary" data-action="click->eval#quickCall"
+          data-eval-func-name-param="{{ .Name }}"
+          data-eval-func-sig-param="{{ .Signature }}">
+          {{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }}, {{ end }}{{ $p.Name }}{{ end }})
+        </button>
+        {{ if .Doc }}<span class="u-color-muted">{{ .Doc }}</span>{{ end }}
+      </div>
+      {{ end }}
+    </div>
+  </div>
+  {{ end }}
+
+  <!-- History -->
+  <div class="b-eval-history" data-eval-target="history">
+    <h3 class="b-content-h3">History</h3>
+    <div class="c-stack" data-eval-target="history-list">
+    </div>
+  </div>
+</div>
+{{ end }}

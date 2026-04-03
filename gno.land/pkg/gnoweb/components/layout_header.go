@@ -38,10 +38,12 @@ func StaticHeaderGeneralLinks() []HeaderLink {
 }
 
 func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderLink {
-	contentURL, sourceURL, helpURL := u, u, u
+	contentURL, sourceURL, helpURL, evalURL, forkURL := u, u, u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
 	helpURL.WebQuery = url.Values{"help": {""}}
+	evalURL.WebQuery = url.Values{"eval": {""}}
+	forkURL.WebQuery = url.Values{"fork": {""}}
 
 	contentLink := HeaderLink{
 		Label:    "Content",
@@ -64,6 +66,20 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 		IsActive: isActive(u.WebQuery, "Actions"),
 	}
 
+	evalLink := HeaderLink{
+		Label:    "Eval",
+		URL:      evalURL.EncodeWebURL(),
+		Icon:     "ico-tx-link",
+		IsActive: isActive(u.WebQuery, "Eval"),
+	}
+
+	forkLink := HeaderLink{
+		Label:    "Fork",
+		URL:      forkURL.EncodeWebURL(),
+		Icon:     "ico-link",
+		IsActive: isActive(u.WebQuery, "Fork"),
+	}
+
 	switch {
 	case static:
 		return []HeaderLink{contentLink}
@@ -72,9 +88,9 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	case mode == ViewModeUser:
 		return []HeaderLink{contentLink}
 	case mode == ViewModePackage:
-		return []HeaderLink{contentLink, sourceLink}
+		return []HeaderLink{contentLink, sourceLink, forkLink}
 	default:
-		return []HeaderLink{contentLink, sourceLink, actionsLink}
+		return []HeaderLink{contentLink, sourceLink, actionsLink, evalLink, forkLink}
 	}
 }
 
@@ -93,11 +109,15 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 func isActive(webQuery url.Values, label string) bool {
 	switch label {
 	case "Content":
-		return !webQuery.Has("source") && !webQuery.Has("help")
+		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("eval") && !webQuery.Has("fork")
 	case "Source":
 		return webQuery.Has("source")
 	case "Actions":
 		return webQuery.Has("help")
+	case "Eval":
+		return webQuery.Has("eval")
+	case "Fork":
+		return webQuery.Has("fork")
 	default:
 		return false
 	}
