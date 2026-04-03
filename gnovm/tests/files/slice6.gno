@@ -1,4 +1,3 @@
-// slice4.gno
 package main
 
 func main() {
