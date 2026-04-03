@@ -1,4 +1,4 @@
-name: release / benchmark
+name: release / bench-history
 
 on:
   push:
