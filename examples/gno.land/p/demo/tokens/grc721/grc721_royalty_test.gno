@@ -31,11 +31,11 @@ func TestSetTokenRoyalty(t *testing.T) {
 	uassert.NoError(t, derr, "Should not result in error")
 
 	// Test case: Invalid token ID
-	_ = dummy.SetTokenRoyalty(TokenID("3"), RoyaltyInfo{
+	iderr := dummy.SetTokenRoyalty(TokenID("3"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
 		Percentage:     percentage,
 	})
-	uassert.ErrorIs(t, derr, ErrInvalidTokenId)
+	uassert.ErrorIs(t, iderr, ErrInvalidTokenId)
 
 	testing.SetOriginCaller(addr2) // addr2
 

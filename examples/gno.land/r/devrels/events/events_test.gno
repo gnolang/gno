@@ -170,14 +170,6 @@ func TestRenderEventWidget(t *testing.T) {
 	uassert.NoError(t, err)
 	uassert.Equal(t, out, "No events.")
 
-	// Too many events
-	out, err = RenderEventWidget(MaxWidgetSize + 1)
-	uassert.ErrorIs(t, err, ErrMaxWidgetSize)
-
-	// Too little events
-	out, err = RenderEventWidget(0)
-	uassert.ErrorIs(t, err, ErrMinWidgetSize)
-
 	// Ordering & if requested amt is larger than the num of events that exist
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
 	e1End := e1Start.Add(time.Hour * 4)
@@ -190,6 +182,15 @@ func TestRenderEventWidget(t *testing.T) {
 
 	_, err = AddEvent(cross, "Event 2", "description", "gno.land", "loc", e2Start.Format(time.RFC3339), e2End.Format(time.RFC3339))
 	urequire.NoError(t, err)
+
+	// Too many events (must be checked after adding events, otherwise
+	// RenderEventWidget returns early with "No events.")
+	out, err = RenderEventWidget(MaxWidgetSize + 1)
+	uassert.ErrorIs(t, err, ErrMaxWidgetSize)
+
+	// Too few events
+	out, err = RenderEventWidget(0)
+	uassert.ErrorIs(t, err, ErrMinWidgetSize)
 
 	out, err = RenderEventWidget(MaxWidgetSize)
 	urequire.NoError(t, err)
