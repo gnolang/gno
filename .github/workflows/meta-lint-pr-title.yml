@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pr-title:
+  check:
     if: github.head_ref != 'master'
     runs-on: ubuntu-latest
     steps:
