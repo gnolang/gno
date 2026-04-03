@@ -20,12 +20,29 @@ export class EvalController extends BaseController {
 		this._inputEl?.focus();
 
 		this._inputEl?.addEventListener("keydown", (e: KeyboardEvent) => {
+			// Up arrow = previous history
 			if (e.key === "ArrowUp" && this._history.length > 0) {
 				e.preventDefault();
 				this._inputEl.value =
 					this._history[this._history.length - 1].expression;
 			}
+			// Enter = submit
+			if (e.key === "Enter") {
+				e.preventDefault();
+				const expr = this._inputEl.value.trim();
+				if (expr) this._doEval(expr);
+			}
 		});
+
+		// Also intercept form submit directly (belt and suspenders)
+		const form = this.element.querySelector("form");
+		if (form) {
+			form.addEventListener("submit", (e: Event) => {
+				e.preventDefault();
+				const expr = this._inputEl.value.trim();
+				if (expr) this._doEval(expr);
+			});
+		}
 	}
 
 	public evalExpression(event: Event): void {
