@@ -859,7 +859,7 @@ func (pv *PackageValue) GetValueAt(store Store, path ValuePath) TypedValue {
 		TV)
 }
 
-func (pv *PackageValue) AddFileBlock(fname string, fb *Block) {
+func (pv *PackageValue) AddFileBlock(alloc *Allocator, fname string, fb *Block) {
 	for _, fn := range pv.FNames {
 		if fname == fn {
 			panic(fmt.Sprintf(
@@ -867,6 +867,8 @@ func (pv *PackageValue) AddFileBlock(fname string, fb *Block) {
 				fname))
 		}
 	}
+	// Allocate incremental cost for the new file block entry.
+	alloc.Allocate(fileBlockEntrySize(fname))
 	pv.FNames = append(pv.FNames, fname)
 	pv.FBlocks = append(pv.FBlocks, fb)
 	pv.getFBlocksMap()[fname] = fb

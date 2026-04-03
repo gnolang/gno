@@ -361,7 +361,7 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 
 // Only used for constructing the main package
 func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
-	alloc.AllocatePackageValue()
+	alloc.Allocate(packageValueSize(pn.PkgName, pn.PkgPath, nil, 0))
 	alloc.AllocateBlock(int64(pn.GetNumNames()))
 	pv := &PackageValue{
 		Block: &Block{
@@ -395,35 +395,40 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 // -----------------------------------------------
 // Utilities for obtaining shallow size
 
+// fileBlockEntrySize returns the incremental memory cost of adding one file
+// block entry: the fname string (header + content), the FBlocks interface
+// slot, and the fBlocksMap key+pointer entry.
+func fileBlockEntrySize(fname string) int64 {
+	return allocString + int64(len(fname))*allocStringByte + _allocValue + _allocName + _allocPointer
+}
+
+// packageValueSize computes the total shallow memory size of a PackageValue
+// including its string fields and file block metadata.
+// Used both during allocation (creation/store-loading) and GC recounting
+// to ensure consistency.
+func packageValueSize(pkgName Name, pkgPath string, fnames []string, fblocksLen int) int64 {
+	var ss int64
+	ss = allocPackage
+	ss += allocString + int64(len(pkgName))*allocStringByte
+	ss += allocString + int64(len(pkgPath))*allocStringByte
+	for _, fname := range fnames {
+		ss += fileBlockEntrySize(fname)
+	}
+	// If fblocksLen > len(fnames), account for extra FBlocks interface slots
+	// not covered by fileBlockEntrySize (which already includes _allocValue).
+	if extra := fblocksLen - len(fnames); extra > 0 {
+		ss += _allocValue * int64(extra)
+	}
+	return ss
+}
+
 func (pv *PackageValue) GetShallowSize() int64 {
 	// .uverse is preloaded
 	if pv.PkgPath == ".uverse" {
 		return 0
 	}
 
-	var ss int64
-	ss = allocPackage
-
-	ss = overflow.Addp(ss, overflow.Mulp(allocStringByte, int64(len(pv.PkgName))))
-	ss = overflow.Addp(ss, overflow.Mulp(allocStringByte, int64(len(pv.PkgPath))))
-
-	if pv.FNames != nil {
-		ss = overflow.Addp(ss, overflow.Mulp(_allocName, int64(len(pv.FNames))))
-		for _, fname := range pv.FNames {
-			ss = overflow.Addp(ss, overflow.Mulp(allocStringByte, int64(len(fname))))
-		}
-	}
-
-	if pv.FBlocks != nil {
-		ss = overflow.Addp(ss, overflow.Mulp(_allocValue, int64(len(pv.FBlocks))))
-	}
-
-	if pv.fBlocksMap != nil {
-		mapSize := int64(len(pv.fBlocksMap))
-		ss = overflow.Addp(ss, overflow.Mulp(_allocName+_allocPointer, mapSize))
-	}
-
-	return ss
+	return packageValueSize(pv.PkgName, pv.PkgPath, pv.FNames, len(pv.FBlocks))
 }
 
 func (b *Block) GetShallowSize() int64 {

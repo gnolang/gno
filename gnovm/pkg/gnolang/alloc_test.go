@@ -113,8 +113,8 @@ func TestPackageValueGetShallowSize(t *testing.T) {
 				PkgPath: "gno.land/p/test",
 			},
 			expected: allocPackage +
-				int64(len("test")) + // PkgName
-				int64(len("gno.land/p/test")), // PkgPath
+				allocString + int64(len("test")) + // PkgName
+				allocString + int64(len("gno.land/p/test")), // PkgPath
 		},
 		{
 			name: "package with FNames",
@@ -124,11 +124,10 @@ func TestPackageValueGetShallowSize(t *testing.T) {
 				FNames:  []string{"file1.gno", "file2.gno"},
 			},
 			expected: allocPackage +
-				int64(len("demo")) +
-				int64(len("gno.land/r/demo")) +
-				_allocName*2 + // two string headers
-				int64(len("file1.gno")) +
-				int64(len("file2.gno")),
+				allocString + int64(len("demo")) +
+				allocString + int64(len("gno.land/r/demo")) +
+				fileBlockEntrySize("file1.gno") + // FNames[0]
+				fileBlockEntrySize("file2.gno"), // FNames[1]
 		},
 		{
 			name: "package with FBlocks",
@@ -138,12 +137,12 @@ func TestPackageValueGetShallowSize(t *testing.T) {
 				FBlocks: make([]Value, 3),
 			},
 			expected: allocPackage +
-				int64(len("demo")) +
-				int64(len("gno.land/r/demo")) +
+				allocString + int64(len("demo")) +
+				allocString + int64(len("gno.land/r/demo")) +
 				_allocValue*3, // three interface values
 		},
 		{
-			name: "package with fBlocksMap",
+			name: "package with fBlocksMap (no FNames)",
 			pv: &PackageValue{
 				PkgName: "demo",
 				PkgPath: "gno.land/r/demo",
@@ -152,11 +151,11 @@ func TestPackageValueGetShallowSize(t *testing.T) {
 					"key2": nil,
 				},
 			},
-			// fBlocksMap entries: string header + pointer per entry
+			// fBlocksMap is derived from FNames; with no FNames,
+			// the map entries are not counted.
 			expected: allocPackage +
-				int64(len("demo")) +
-				int64(len("gno.land/r/demo")) +
-				(_allocName+_allocPointer)*2, // two map entries
+				allocString + int64(len("demo")) +
+				allocString + int64(len("gno.land/r/demo")),
 		},
 		{
 			name: "package with all fields",
@@ -171,13 +170,10 @@ func TestPackageValueGetShallowSize(t *testing.T) {
 				},
 			},
 			expected: allocPackage +
-				int64(len("demo")) +
-				int64(len("gno.land/r/demo")) +
-				_allocName*2 +
-				int64(len("file1.gno")) +
-				int64(len("file2.gno")) +
-				_allocValue*2 +
-				(_allocName+_allocPointer)*2, // map entries
+				allocString + int64(len("demo")) +
+				allocString + int64(len("gno.land/r/demo")) +
+				fileBlockEntrySize("file1.gno") + // FNames[0] (includes FBlocks + fBlocksMap)
+				fileBlockEntrySize("file2.gno"), // FNames[1] (includes FBlocks + fBlocksMap)
 		},
 	}
 

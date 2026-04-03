@@ -1339,10 +1339,10 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 	var pv *PackageValue
 	if pn.PkgName == "main" {
-		// Allocation is only for the new created main package,
-		// other packages are allocted while loading from store.
 		pv = alloc.NewPackageValue(pn)
 	} else {
+		alloc.Allocate(packageValueSize(pn.PkgName, pn.PkgPath, nil, 0))
+		alloc.AllocateBlock(int64(pn.GetNumNames()))
 		pv = &PackageValue{
 			Block: &Block{
 				Source: pn,
