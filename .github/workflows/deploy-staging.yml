@@ -7,7 +7,7 @@ on:
   pull_request:
     paths:
       - "misc/loop/**"
-      - ".github/workflows/staging.yml"
+      - ".github/workflows/deploy-staging.yml"
   workflow_dispatch:
 
 permissions:
