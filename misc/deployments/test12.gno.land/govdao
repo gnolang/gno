@@ -16,7 +16,7 @@ SCRIPTS_DIR="$(cd "$(dirname "$0")/../../govdao-scripts" && pwd)"
 # test12 defaults
 export GNOKEY_NAME="${GNOKEY_NAME:-aeddi}"
 export CHAIN_ID="${CHAIN_ID:-test12}"
-export REMOTE="${REMOTE:-https://rpc.test12.gno.land:443}"
+export REMOTE="${REMOTE:-https://rpc.test12.aeddi.org/}"
 
 if [ $# -eq 0 ]; then
   echo "govdao — test12"
