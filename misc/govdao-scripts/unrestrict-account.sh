@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Re-restrict an account so it can no longer transfer ugnot when bank is locked.
+# Unrestrict an account so it can transfer ugnot even when bank is locked.
 #
 # Usage:
-#   ./restrict-account.sh ADDR [ADDR...]
+#   ./unrestrict-account.sh ADDR [ADDR...]
 #
 # Example:
-#   ./restrict-account.sh g1abc...123
-#   ./restrict-account.sh g1abc...123 g1def...456
+#   ./unrestrict-account.sh g1abc...123
+#   ./unrestrict-account.sh g1abc...123 g1def...456
 #
 # Environment:
-#   GNOKEY_NAME   - gnokey key name (default: moul)
-#   CHAIN_ID      - chain ID (default: gnoland1)
-#   REMOTE        - RPC endpoint (default: https://rpc.betanet.testnets.gno.land:443)
+#   GNOKEY_NAME   - gnokey key name (required)
+#   CHAIN_ID      - chain ID (required)
+#   REMOTE        - RPC endpoint (required)
 #   GAS_WANTED    - gas limit (default: 50000000)
 #   GAS_FEE       - gas fee (default: 1000000ugnot)
 set -eo pipefail
@@ -21,9 +21,9 @@ if [ $# -eq 0 ]; then
   exit 1
 fi
 
-GNOKEY_NAME="${GNOKEY_NAME:-moul}"
-CHAIN_ID="${CHAIN_ID:-gnoland1}"
-REMOTE="${REMOTE:-https://rpc.betanet.testnets.gno.land:443}"
+GNOKEY_NAME="${GNOKEY_NAME:?GNOKEY_NAME is required}"
+CHAIN_ID="${CHAIN_ID:?CHAIN_ID is required}"
+REMOTE="${REMOTE:?REMOTE is required}"
 GAS_WANTED="${GAS_WANTED:-50000000}"
 GAS_FEE="${GAS_FEE:-1000000ugnot}"
 
@@ -37,7 +37,7 @@ done
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-cat >"$TMPDIR/restrict.gno" <<GOEOF
+cat >"$TMPDIR/unrestrict.gno" <<GOEOF
 package main
 
 import (
@@ -46,7 +46,7 @@ import (
 )
 
 func main() {
-	r := params.ProposeRemoveUnrestrictedAcctsRequest(
+	r := params.ProposeAddUnrestrictedAcctsRequest(
 ${ADDR_ARGS}	)
 	pid := dao.MustCreateProposal(cross, r)
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
@@ -54,7 +54,7 @@ ${ADDR_ARGS}	)
 }
 GOEOF
 
-echo "Restricting $# account(s):"
+echo "Unrestricting $# account(s):"
 for addr in "$@"; do
   echo "  $addr"
 done
@@ -70,7 +70,7 @@ gnokey maketx run \
   -chainid "$CHAIN_ID" \
   -remote "$REMOTE" \
   "$GNOKEY_NAME" \
-  "$TMPDIR/restrict.gno"
+  "$TMPDIR/unrestrict.gno"
 
 echo ""
-echo "Done — $# account(s) restricted."
+echo "Done — $# account(s) unrestricted."
