@@ -1,4 +1,4 @@
-name: Run and Save Benchmarks
+name: benchmarks
 
 on:
   push:

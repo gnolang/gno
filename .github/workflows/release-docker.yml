@@ -1,5 +1,5 @@
 # Build and Push Docker Images using Docker Bake
-name: Build and Push Chain Images
+name: docker
 
 on:
   push:

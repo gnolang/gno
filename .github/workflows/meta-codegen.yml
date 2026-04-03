@@ -1,4 +1,4 @@
-name: Verify Generated Files
+name: codegen
 
 on:
   push:
@@ -27,7 +27,7 @@ on:
 
 jobs:
   mod-tidy:
-    name: Ensure go.mods are tidied
+    name: mod-tidy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v5
@@ -37,7 +37,7 @@ jobs:
       - run: make tidy VERIFY_MOD_SUMS=true
 
   genproto:
-    name: Ensure .proto files are updated
+    name: genproto
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v5
@@ -53,7 +53,7 @@ jobs:
           git diff --text --exit-code || (echo "Some .proto files are not updated, please run 'make -C misc/genproto'." && exit 1)
 
   docs:
-    name: Ensure docs are generated
+    name: docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

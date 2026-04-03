@@ -1,4 +1,4 @@
-name: Deployment genesis.json Verification
+name: genesis-verify
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: Dependency License Scanning
+name: fossa
 
 on:
   push:
@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   fossa:
-    name: Fossa
+    name: scan
     runs-on: ubuntu-latest
     if: github.repository == 'gnolang/gno'
     steps:

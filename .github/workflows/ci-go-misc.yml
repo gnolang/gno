@@ -23,7 +23,7 @@ jobs:
           - genstd
           - goscan
           - loop
-    name: Run misc suite
+    name: test
     uses: ./.github/workflows/_ci-go.yml
     with:
       modulepath: misc/${{ matrix.program }}

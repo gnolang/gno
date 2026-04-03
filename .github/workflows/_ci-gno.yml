@@ -34,7 +34,7 @@ on:
 
 jobs:
   fmt:
-    name: Gno Fmt
+    name: fmt
     if: inputs.run-fmt
     runs-on: ubuntu-latest
     steps:
@@ -45,7 +45,7 @@ jobs:
       - run: go run ./gnovm/cmd/gno -C ${{ inputs.path }} fmt -diff ./...
 
   lint:
-    name: Gno Lint
+    name: lint
     if: inputs.run-lint
     strategy:
       fail-fast: false
@@ -59,7 +59,7 @@ jobs:
       - run: go run ./gnovm/cmd/gno lint -C ${{ inputs.path }} -v ./...
 
   test:
-    name: Gno Test
+    name: test
     if: inputs.run-test
     strategy:
       fail-fast: false

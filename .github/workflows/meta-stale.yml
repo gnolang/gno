@@ -1,4 +1,4 @@
-name: Stale PR Bot
+name: stale
 on:
   schedule:
     - cron: "30 1 * * *"

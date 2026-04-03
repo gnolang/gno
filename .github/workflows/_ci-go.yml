@@ -23,7 +23,7 @@ on:
 
 jobs:
   lint:
-    name: Go Lint
+    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -37,7 +37,7 @@ jobs:
           version: v2.3 # sync with misc/devdeps
 
   build:
-    name: Go Build
+    name: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -60,7 +60,7 @@ jobs:
           fi
 
   test:
-    name: Go Test
+    name: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

@@ -1,4 +1,4 @@
-name: gno.land
+name: gnoland
 
 on:
   push:
@@ -21,7 +21,7 @@ on:
 
 jobs:
   main:
-    name: Run gno.land suite
+    name: test
     uses: ./.github/workflows/_ci-go.yml
     with:
       modulepath: "gno.land"

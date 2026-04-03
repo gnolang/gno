@@ -1,4 +1,4 @@
-name: Gno Examples
+name: gno-examples
 
 on:
   push:
@@ -41,7 +41,7 @@ jobs:
       - run: go run ./gnovm/cmd/gno tool transpile -v --gobuild ./examples
 
   gno-checks:
-    name: Gno checks
+    name: gno-checks
     uses: ./.github/workflows/_ci-gno.yml
     with:
       debug: ${{ inputs.debug || false }}
@@ -49,7 +49,7 @@ jobs:
       go-version: "1.24.x"
 
   generate:
-    name: Check generated files
+    name: generate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

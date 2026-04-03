@@ -1,5 +1,5 @@
 # This workflow must be kept in sync to some extent with meta-bot-proxy.yml
-name: GitHub Bot
+name: bot
 
 on:
   # Watch for changes on PR state, assignees, labels, head branch and draft/ready status
@@ -37,7 +37,7 @@ jobs:
   # events that can trigger this workflow so that the process-pr job below can
   # handle the parallel processing of the pull-requests
   define-prs-matrix:
-    name: Define PRs matrix
+    name: matrix
     # Skip this workflow if:
     #   - the bot is not configured on this repo/fork
     #   - the bot is retriggering itself
@@ -92,7 +92,7 @@ jobs:
   # proxy workflow can use it to rerun the current workflow with write permission.
   # See bot-proxy.yml for more info.
   save-pr-number:
-    name: Persist PR number for proxy
+    name: save-pr
     # Run this job if the event is a review on a pull request opened from a fork
     if: github.event_name == 'pull_request_review' && github.event.pull_request.base.repo.full_name != github.event.pull_request.head.repo.full_name
     runs-on: ubuntu-latest
@@ -112,7 +112,7 @@ jobs:
   # This job processes each pull request in the matrix individually while ensuring
   # that a same PR cannot be processed concurrently by mutliple runners
   process-pr:
-    name: Process PR
+    name: process
     needs: define-prs-matrix
     # Just skip this job if PR numbers matrix is empty (prevent failed state)
     if: needs.define-prs-matrix.outputs.pr-numbers != '[]' && needs.define-prs-matrix.outputs.pr-numbers != ''

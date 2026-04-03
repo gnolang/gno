@@ -1,4 +1,4 @@
-name: TM2
+name: tm2
 
 on:
   push:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   main:
-    name: Run TM2 suite
+    name: test
     uses: ./.github/workflows/_ci-go.yml
     with:
       modulepath: "tm2"

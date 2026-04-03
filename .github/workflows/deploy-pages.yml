@@ -1,6 +1,6 @@
 # generate Go docs and publish on gh-pages branch
 # Live at: https://gnolang.github.io/gno
-name: GitHub pages (godoc & stdlib_diff) build and deploy
+name: pages
 
 on:
   push:

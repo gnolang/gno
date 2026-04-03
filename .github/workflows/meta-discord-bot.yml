@@ -1,4 +1,4 @@
-name: Discord Examples Hook
+name: discord-bot
 
 on:
   pull_request:

@@ -1,4 +1,4 @@
-name: GnoVM Benchmarks
+name: gnovm-benchops
 
 on:
   push:
