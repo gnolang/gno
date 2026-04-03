@@ -1,4 +1,4 @@
-name: meta / lint-pr-title
+name: meta / gh / title
 
 on:
   pull_request_target:

@@ -1,4 +1,4 @@
-name: meta / codegen
+name: ci / codegen-verify
 
 on:
   push:
