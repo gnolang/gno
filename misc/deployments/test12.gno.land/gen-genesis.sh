@@ -25,14 +25,15 @@ FILTERED_PACKAGES=(
   ./gno.land/r/gnops/valopers/...
 )
 
-# Initial validator set. Format: "name power address pub_key"
+# Initial validator set. Format: "name power pub_key"
+# Address is derived automatically from pub_key via utils/valkey-to-addr.sh.
 # More validators can be added post-genesis via govDAO proposals (see govdao-scripts/add-validator.sh).
 # 3 validators — BFT >2/3 threshold (floor(2n/3)+1) means 3 nodes must be up for consensus.
 INITIAL_VALSET=(
-  "aeddi-2         1 g1qtxq5t3acclx03cznwusddg5mv4pfm2knjcmsg gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq23rkn8tsqufv67v8rwwl4kfz3jfx4ykhvszpd09j6l9f6sykc0w6zqghnv"
-  "gfanton-2       1 g15atj32de45nqgm68298aua8ayy4aujwyewegvd gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqw93xyutkn4wy3gnuwxsu7ak963kv2ztepzxjxyrwuhwkc0wzh2hy7cpm39"
-  "gnocore-val-01  1 g18kp360plxkmh3yal3juzffjuqa0ugys0963a80 gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqdxm8w984fdgm92pnc406z8cv2lugu48ekfdhytvmcqx5s8sccfskhh6j7r"
-  "samourai-crew-1 1 g1z9eedz4qfru6ggdsyj7yn85s5ewvdr5gr39c7r gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq83n9f9xfpg2ut0p6hsxlu7f9fwuhm9wwt5y8ez0rv4s6xrzsalva7j2pu"
+  "aeddi-2         1 gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq23rkn8tsqufv67v8rwwl4kfz3jfx4ykhvszpd09j6l9f6sykc0w6zqghnv"
+  "gfanton-2       1 gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqw93xyutkn4wy3gnuwxsu7ak963kv2ztepzxjxyrwuhwkc0wzh2hy7cpm39"
+  "gnocore-val-01  1 gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqdxm8w984fdgm92pnc406z8cv2lugu48ekfdhytvmcqx5s8sccfskhh6j7r"
+  "samourai-crew-1 1 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq83n9f9xfpg2ut0p6hsxlu7f9fwuhm9wwt5y8ez0rv4s6xrzsalva7j2pu"
 )
 
 # Chain parameters.
@@ -194,7 +195,8 @@ WORK_DIR_SETUP_FILE="$WORK_DIR/govdao_prop1.gno"
 printf "  Injecting %s validators into govdao_prop1.gno...\n" "${#INITIAL_VALSET[@]}"
 VALSET_ENTRIES_TMP="$WORK_DIR/valset_entries.tmp"
 for validator in "${INITIAL_VALSET[@]}"; do
-  read -r name power address pub_key <<<"$validator"
+  read -r name power pub_key <<<"$validator"
+  address=$("$SCRIPT_DIR/utils/valkey-to-addr.sh" "$pub_key")
   printf '\t\t\t\t// %s\n\t\t\t\t{\n\t\t\t\t\tAddress:     address("%s"),\n\t\t\t\t\tPubKey:      "%s",\n\t\t\t\t\tVotingPower: %s,\n\t\t\t\t},\n' \
     "$name" "$address" "$pub_key" "$power" >>"$VALSET_ENTRIES_TMP"
 done
@@ -455,7 +457,8 @@ fi
 printf "\n=== Step 5/7: Adding validators ===\n"
 
 for validator in "${INITIAL_VALSET[@]}"; do
-  read -r name power address pub_key <<<"$validator"
+  read -r name power pub_key <<<"$validator"
+  address=$("$SCRIPT_DIR/utils/valkey-to-addr.sh" "$pub_key")
   printf "  %s (power=%s, %s)\n" "$name" "$power" "$address"
   run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 done
