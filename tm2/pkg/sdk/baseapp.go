@@ -413,14 +413,7 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 
 		switch path[1] {
 		case "simulate":
-			txBytes := req.Data
-			var tx Tx
-			err := amino.Unmarshal(txBytes, &tx)
-			if err != nil {
-				res.Error = ABCIError(std.ErrTxDecode(err.Error()))
-			} else {
-				result = app.Simulate(txBytes, tx)
-			}
+			result = app.Simulate(req.Data)
 
 			res.Height = req.Height
 
@@ -572,38 +565,22 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 //
 // NOTE:CheckTx does not run the actual Msg handler function(s).
 func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) {
-	var tx Tx
-	err := amino.Unmarshal(req.Tx, &tx)
-	if err != nil {
-		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
-		return
-	} else {
-		ctx := app.getContextForTx(RunTxModeCheck, req.Tx)
-
-		result := app.runTx(ctx, tx)
-		res.ResponseBase = result.ResponseBase
-		res.GasWanted = result.GasWanted
-		res.GasUsed = result.GasUsed
-		return
-	}
+	ctx := app.getContextForTx(RunTxModeCheck, req.Tx)
+	result := app.runTx(ctx, req.Tx)
+	res.ResponseBase = result.ResponseBase
+	res.GasWanted = result.GasWanted
+	res.GasUsed = result.GasUsed
+	return
 }
 
 // DeliverTx implements the ABCI interface.
 func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliverTx) {
-	var tx Tx
-	err := amino.Unmarshal(req.Tx, &tx)
-	if err != nil {
-		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
-		return
-	} else {
-		ctx := app.getContextForTx(RunTxModeDeliver, req.Tx)
-
-		result := app.runTx(ctx, tx)
-		res.ResponseBase = result.ResponseBase
-		res.GasWanted = result.GasWanted
-		res.GasUsed = result.GasUsed
-		return
-	}
+	ctx := app.getContextForTx(RunTxModeDeliver, req.Tx)
+	result := app.runTx(ctx, req.Tx)
+	res.ResponseBase = result.ResponseBase
+	res.GasWanted = result.GasWanted
+	res.GasUsed = result.GasUsed
+	return
 }
 
 // validateBasicTxMsgs executes basic validator calls for messages.
@@ -728,7 +705,7 @@ func (app *BaseApp) cacheTxContext(ctx Context) (Context, store.MultiStore) {
 // anteHandler. The provided txBytes may be nil in some cases, eg. in tests. For
 // further details on transaction execution, reference the BaseApp SDK
 // documentation.
-func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
+func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	var (
 		// NOTE: GasWanted should be returned by the AnteHandler. GasUsed is
 		// determined by the GasMeter. We need access to the context to get the gas
@@ -804,6 +781,12 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 			}
 		}
 	}()
+
+	var tx Tx
+	if err := amino.Unmarshal(txBytes, &tx); err != nil {
+		result.Error = ABCIError(std.ErrTxDecode(err.Error()))
+		return
+	}
 
 	msgs := tx.GetMsgs()
 	if err := validateBasicTxMsgs(msgs); err != nil {
