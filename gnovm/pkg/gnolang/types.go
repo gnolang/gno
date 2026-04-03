@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	r "github.com/gnolang/gno/tm2/pkg/regx"
 )
 
@@ -1080,6 +1081,27 @@ func (it *InterfaceType) TotalMethodCount() int {
 
 func (it *InterfaceType) GetPathForName(n Name) ValuePath {
 	return NewValuePathInterface(n)
+}
+
+// countTypeMethodsForGas returns the declared method count of concrete type t,
+// used to meter the O(N*M) cost of VerifyImplementedBy.
+func countTypeMethodsForGas(t Type) int64 {
+	if dt, ok := t.(*DeclaredType); ok {
+		n := int64(len(dt.Methods))
+		if n > 0 {
+			return n
+		}
+	}
+	return 1
+}
+
+// interfaceVerifyGasCost returns the gas to charge for a VerifyImplementedBy
+// call, computed as costPerMethod * interfaceMethods * concreteMethods with
+// overflow protection.
+func calcMethodCheckGasCost(costPerMethod int64, it *InterfaceType, concreteType Type) int64 {
+	n := int64(it.TotalMethodCount())
+	m := countTypeMethodsForGas(concreteType)
+	return overflow.Mulp(overflow.Mulp(costPerMethod, n), m)
 }
 
 // ----------------------------------------

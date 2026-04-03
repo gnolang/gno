@@ -863,11 +863,8 @@ func (m *Machine) doOpTypeSwitch() {
 				} else if ct.Kind() == InterfaceKind {
 					gnot := ct
 					it := baseOf(gnot).(*InterfaceType)
-					// Charge gas proportional to the number of
-					// interface methods that must be checked.
-					// This reflects the O(M) work done by
-					// IsImplementedBy -> VerifyImplementedBy.
-					m.incrCPU(OpCPUInterfaceMethodCheck * int64(it.TotalMethodCount()))
+					// Charge gas proportional to interface and concrete method counts.
+					m.incrCPU(calcMethodCheckGasCost(OpCPUInterfaceMethodCheck, it, xv.T))
 					if it.IsImplementedBy(xv.T) {
 						// match
 						match = true

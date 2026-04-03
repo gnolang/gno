@@ -5,7 +5,7 @@
 gno test -v .
 
 stderr '--- PASS: ./small_filetest.gno \(elapsed: \d+\.\d\ds, gas: 4846\)'
-stderr '--- PASS: ./large_filetest.gno \(elapsed: \d+\.\d\ds, gas: 5927\)'
+stderr '--- PASS: ./large_filetest.gno \(elapsed: \d+\.\d\ds, gas: 5967\)'
 
 -- small_filetest.gno --
 package main
@@ -88,7 +88,7 @@ func main() {
 // I1
 
 // Gas:
-// 5927
+// 5967
 
 -- gnomod.toml --
 module = "gno.test/r/integ/typeswitch_gas"
