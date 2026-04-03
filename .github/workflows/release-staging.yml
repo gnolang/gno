@@ -7,7 +7,7 @@ on:
   pull_request:
     paths:
       - "misc/loop/**"
-      - ".github/workflows/deploy-staging.yml"
+      - ".github/workflows/release-staging.yml"
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build-staging:
-    name: deploy/staging/build
+    name: release/staging/build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -47,7 +47,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
 
   test-staging-running-in-compose:
-    name: deploy/staging/test
+    name: release/staging/test
     runs-on: ubuntu-latest 
     timeout-minutes: 10
     steps:
