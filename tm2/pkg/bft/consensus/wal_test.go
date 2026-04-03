@@ -157,7 +157,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	defer evsw.Stop()
 	mempool := mock.Mempool{}
 	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mempool)
-	consensusState := NewConsensusState(config.Consensus, state.Copy(), blockExec, blockStore, mempool, EvidencePool{})
+	consensusState := NewConsensusState(config.Consensus, state.Copy(), blockExec, blockStore, mempool, NoOpEvidencePool{})
 	consensusState.SetLogger(logger)
 	consensusState.SetEventSwitch(evsw)
 	if privVal != nil {

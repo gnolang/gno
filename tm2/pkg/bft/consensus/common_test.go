@@ -295,7 +295,7 @@ func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.S
 	stateDB := blockDB
 	sm.SaveState(stateDB, state) // for save height 1's validators info
 	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyAppConnCon, mempool)
-	cs := NewConsensusState(thisConfig.Consensus, state, blockExec, blockStore, mempool, EvidencePool{})
+	cs := NewConsensusState(thisConfig.Consensus, state, blockExec, blockStore, mempool, NoOpEvidencePool{})
 	cs.SetLogger(log.NewNoopLogger().With("module", "consensus"))
 	cs.SetPrivValidator(pv)
 

@@ -89,12 +89,12 @@ type evidencePool interface {
 	ReportConflictingVotes(voteA, voteB *types.Vote)
 }
 
-// EvidencePool is a no-op implementation of evidencePool.
+// NoOpEvidencePool is a no-op implementation of evidencePool.
 // TODO: replace with a real evidence pool that persists double-signing
 // evidence and enables validator slashing.
-type EvidencePool struct{}
+type NoOpEvidencePool struct{}
 
-func (EvidencePool) ReportConflictingVotes(_, _ *types.Vote) {}
+func (NoOpEvidencePool) ReportConflictingVotes(_, _ *types.Vote) {}
 
 // ConsensusState handles execution of the consensus algorithm.
 // It processes votes and proposals, and upon reaching agreement,

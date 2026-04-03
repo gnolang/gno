@@ -107,7 +107,7 @@ func (pb *playback) replayReset(count int, newStepSub <-chan events.Event) error
 	pb.cs.Wait()
 
 	newCS := NewConsensusState(pb.cs.config, pb.genesisState.Copy(), pb.cs.blockExec,
-		pb.cs.blockStore, pb.cs.txNotifier, EvidencePool{})
+		pb.cs.blockStore, pb.cs.txNotifier, NoOpEvidencePool{})
 	newCS.SetEventSwitch(pb.cs.evsw)
 	newCS.startForReplay()
 
