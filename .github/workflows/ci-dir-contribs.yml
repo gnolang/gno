@@ -1,4 +1,4 @@
-name: ci / go / contribs
+name: ci / contribs
 
 on:
   push:

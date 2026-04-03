@@ -1,4 +1,4 @@
-name: ci / gno / examples
+name: ci / examples
 
 on:
   push:

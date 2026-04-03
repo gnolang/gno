@@ -1,4 +1,4 @@
-name: ci / go / gnovm
+name: ci / tm2
 
 on:
   push:
@@ -6,9 +6,7 @@ on:
       - master
   pull_request:
     paths:
-      - gnovm/**
-      - tm2/** # GnoVM has a dependency on TM2 types
-      - examples/** # gnovm has some tests that depend on examples
+      - tm2/**
       # We trigger the testing workflow for changes to the main go.mod,
       # since this can affect test results
       - go.mod
@@ -18,11 +16,7 @@ jobs:
   main:
     uses: ./.github/workflows/_ci-go.yml
     with:
-      modulepath: "gnovm"
-      tests-extra-args: "-coverpkg=github.com/gnolang/gno/gnovm/..."
+      modulepath: "tm2"
+      tests-extra-args: "-coverpkg=github.com/gnolang/gno/tm2/..."
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
-  stdlibs:
-    uses: ./.github/workflows/_ci-gno.yml
-    with:
-      path: "gnovm/stdlibs"
