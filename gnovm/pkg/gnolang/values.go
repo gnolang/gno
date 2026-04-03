@@ -999,7 +999,7 @@ func (tv *TypedValue) IsTypedNil() bool {
 	}
 	if tv.T != nil {
 		switch tv.T.Kind() {
-		case SliceKind, FuncKind, MapKind, InterfaceKind, PointerKind, ChanKind:
+		case SliceKind, FuncKind, MapKind, InterfaceKind, PointerKind:
 			return true
 		}
 	}
@@ -1664,7 +1664,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		}
 		bz = append(bz, '}')
 	case *ChanType:
-		panic("runtime error: not yet implemented")
+		panic("channel type is not yet supported")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected map key type %s",
