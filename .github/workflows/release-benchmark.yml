@@ -1,4 +1,4 @@
-name: deploy / benchmarks
+name: release / benchmark
 
 on:
   push:
