@@ -1807,4 +1807,3 @@ func TestStateOutputVoteStats(t *testing.T) {
 func subscribe(evsw events.EventSwitch, protoevent events.Event) <-chan events.Event {
 	return events.SubscribeToEvent(evsw, testSubscriber, protoevent)
 }
-

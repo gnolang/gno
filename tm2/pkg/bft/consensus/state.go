@@ -1408,7 +1408,6 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 
 	// Log the telemetry
 	cs.logTelemetry(block)
-
 }
 
 // -----------------------------------------------------------------------------

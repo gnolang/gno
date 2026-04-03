@@ -66,9 +66,6 @@ type BaseApp struct {
 	// block height at which to halt the chain and gracefully shutdown
 	haltHeight uint64
 
-	// minimum block time (in Unix seconds) at which to halt the chain and gracefully shutdown
-	haltTime uint64
-
 	// application's version string
 	appVersion string
 }
