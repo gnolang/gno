@@ -11,8 +11,8 @@
 # Environment: see env file. Override inline: VAR=value ./script.sh
 set -eo pipefail
 
-# shellcheck source=env
-source "$(dirname "$0")/env"
+# shellcheck source=common
+source "$(dirname "$0")/common"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <address>"

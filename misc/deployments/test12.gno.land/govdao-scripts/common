@@ -1,4 +1,4 @@
-# Default configuration for govDAO scripts.
+# Common configuration for govDAO scripts.
 # Override any value by setting the variable before running a script:
 #   VAR=value ./script.sh
 
@@ -67,4 +67,11 @@ gnokey_addpkg() {
       "$@" \
       "$GNOKEY_NAME"
   fi
+}
+
+# Derive a gno address (g1...) from a validator public key (gpub1...).
+pubkey_to_addr() {
+  local _dir
+  _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../utils" && pwd)"
+  "$_dir/valkey-to-addr.sh" "$1"
 }

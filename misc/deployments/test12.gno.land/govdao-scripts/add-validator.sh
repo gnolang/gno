@@ -2,25 +2,28 @@
 # Add a validator to test12 via govDAO proposal.
 #
 # Usage:
-#   ./add-validator.sh <address> <pub_key> [voting_power]
+#   ./add-validator.sh <pub_key> [voting_power]
+#
+# The validator address is derived from the public key automatically.
 #
 # Environment: see env file. Override inline: VAR=value ./script.sh
 set -eo pipefail
 
-# shellcheck source=env
-source "$(dirname "$0")/env"
+# shellcheck source=common
+source "$(dirname "$0")/common"
 
-if [ $# -lt 2 ]; then
-  echo "Usage: $0 <address> <pub_key> [voting_power]"
+if [ $# -lt 1 ]; then
+  echo "Usage: $0 <pub_key> [voting_power]"
   echo ""
   echo "Example:"
-  echo "  $0 g1abc...xyz gpub1pggj7... 1"
+  echo "  $0 gpub1pggj7... 1"
   exit 1
 fi
 
-ADDR="$1"
-PUB_KEY="$2"
-POWER="${3:-1}"
+PUB_KEY="$1"
+POWER="${2:-1}"
+
+ADDR=$(pubkey_to_addr "$PUB_KEY")
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
@@ -55,6 +58,7 @@ func main() {
 GOEOF
 
 echo "Adding validator: ${ADDR} (power=${POWER})"
+echo "  PubKey: ${PUB_KEY}"
 echo "  Key: ${GNOKEY_NAME}"
 echo "  Chain: ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"

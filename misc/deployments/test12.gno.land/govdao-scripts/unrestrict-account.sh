@@ -16,8 +16,8 @@ if [ $# -eq 0 ]; then
   exit 1
 fi
 
-# shellcheck source=env
-source "$(dirname "$0")/env"
+# shellcheck source=common
+source "$(dirname "$0")/common"
 
 # Build address list for the Gno code.
 ADDR_ARGS=""
