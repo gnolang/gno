@@ -1,10 +1,20 @@
-name: Master Releases
+# Unified release workflow: master push releases + nightly scheduled releases.
+# Replaces the old releaser-master.yml and releaser-nightly.yml.
+name: Releases
 
 on:
   push:
     branches:
       - master
+  schedule:
+    - cron: "0 0 * * 2-6" # nightly Tue-Sat
   workflow_dispatch:
+    inputs:
+      snapshot:
+        description: "Build as snapshot (no publish)"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
@@ -21,7 +31,10 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
+      # Dummy tag needed for goreleaser on non-tag pushes
       - name: Create a dummy tag to avoid goreleaser failure
+        if: github.event_name == 'push'
         run: git tag v0.0.0 master
 
       - uses: actions/setup-go@v5
@@ -41,12 +54,23 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
+      - name: Determine release args
+        id: args
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.snapshot }}" = "true" ]; then
+            echo "goreleaser-args=release --clean --nightly --snapshot --config ./.github/goreleaser.yaml" >> $GITHUB_OUTPUT
+            echo "tag-version=nightly" >> $GITHUB_OUTPUT
+          else
+            echo "goreleaser-args=release --clean --nightly --config ./.github/goreleaser.yaml" >> $GITHUB_OUTPUT
+            echo "tag-version=master" >> $GITHUB_OUTPUT
+          fi
+
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
           version: ~> v2
-          args: release --clean --nightly --config ./.github/goreleaser.yaml
+          args: ${{ steps.args.outputs.goreleaser-args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-          TAG_VERSION: master
+          TAG_VERSION: ${{ steps.args.outputs.tag-version }}

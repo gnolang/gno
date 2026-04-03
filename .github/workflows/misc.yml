@@ -24,7 +24,7 @@ jobs:
           - goscan
           - loop
     name: Run misc suite
-    uses: ./.github/workflows/template_main.yml
+    uses: ./.github/workflows/_ci-go.yml
     with:
       modulepath: misc/${{ matrix.program }}
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/misc/..."
