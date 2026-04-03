@@ -49,25 +49,35 @@ jobs:
       go-version: "1.24.x"
 
   generate:
-    name: Check generated files are up to date
-    uses: ./.github/workflows/_ci-go.yml
-    with:
-      modulepath: "examples"
-      go-version: "1.24.x"
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}
+    name: Check generated files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+      - name: Check generated files are up to date
+        working-directory: examples
+        run: |
+          if make -qp | grep -q '^generate:'; then
+            make generate
+            if [ "$(git status -s)" != "" ]; then
+              echo "command 'make generate' creates files that differ from the git tree, please run 'make generate' and commit:"
+              git status -s
+              git diff
+              exit 1
+            fi
+          else
+            echo "'make generate' rule not found, skipping."
+          fi
 
   mod-tidy:
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: ["1.24.x"]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: "1.24.x"
       - uses: actions/checkout@v5
       - working-directory: ./examples
         run: |

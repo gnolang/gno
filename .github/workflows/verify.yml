@@ -1,0 +1,75 @@
+name: Verify Generated Files
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "misc/genproto/**"
+      - "docs/**"
+  pull_request:
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "misc/genproto/**"
+      - "docs/**"
+  workflow_dispatch:
+    inputs:
+      go-version:
+        description: "Go version to use"
+        required: false
+        type: string
+        default: "1.24.x"
+
+jobs:
+  mod-tidy:
+    name: Ensure go.mods are tidied
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version || '1.24.x' }}
+      - uses: actions/checkout@v5
+      - run: make tidy VERIFY_MOD_SUMS=true
+
+  genproto:
+    name: Ensure .proto files are updated
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version || '1.24.x' }}
+      - name: Install protoc
+        run: sudo apt update && sudo apt install -y libprotobuf-dev protobuf-compiler
+      - uses: actions/checkout@v5
+      - run: make -C misc/devdeps install
+      - name: Check .proto files are up to date
+        run: |
+          make -C misc/genproto
+          git diff --text --exit-code || (echo "Some .proto files are not updated, please run 'make -C misc/genproto'." && exit 1)
+
+  docs:
+    name: Ensure docs are generated
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+      - name: make generate
+        working-directory: docs/
+        run: make generate -B
+      - name: Check if there is a diff
+        run: |
+          diff=$(git status --porcelain)
+          if [[ $diff ]]; then
+              echo 'Please run `make generate` in docs/.'
+              exit 1
+          fi
+      - name: make lint
+        working-directory: docs/
+        run: make lint

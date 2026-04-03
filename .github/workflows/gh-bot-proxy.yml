@@ -1,8 +1,8 @@
-# This workflow must be kept in sync to some extent with bot.yml
+# This workflow must be kept in sync to some extent with gh-bot.yml
 name: GitHub Bot Proxy
 
 on:
-  # Watch for any completed run on bot.yml workflow
+  # Watch for any completed run on gh-bot.yml workflow
   workflow_run:
     workflows: [GitHub Bot]
     types: [completed]
@@ -15,7 +15,7 @@ jobs:
   # event, thereby allowing it to run with write permissions.
   #
   # Complete flow:
-  # 'pull_request_review' from fork on bot.yml (read-only) -> 'workflow_run' on bot-proxy.yml (write) -> 'workflow_dispatch' on bot.yml (write)
+  # 'pull_request_review' from fork on gh-bot.yml (read-only) -> 'workflow_run' on gh-bot-proxy.yml (write) -> 'workflow_dispatch' on gh-bot.yml (write)
   rerun-with-write-perm:
     name: Rerun Bot with write permission
     # Skip this workflow if the original event is not 'pull_request_review'
@@ -45,4 +45,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.event.workflow_run.repository.full_name }}
         run: |
-          gh workflow run bot.yml -R "$REPO" -f "pull-request-list=$(cat pr-number)"
+          gh workflow run gh-bot.yml -R "$REPO" -f "pull-request-list=$(cat pr-number)"
