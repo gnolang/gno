@@ -1,4 +1,4 @@
-name: gnoland
+name: ci/go/gnoland
 
 on:
   push:
@@ -15,7 +15,6 @@ on:
 
 jobs:
   main:
-    name: ci/go/gnoland
     uses: ./.github/workflows/_ci-go.yml
     with:
       modulepath: "gno.land"
@@ -26,7 +25,6 @@ jobs:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   gnoweb_generate:
-    name: ci/go/gnoland/gnoweb-generate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,7 +41,6 @@ jobs:
              (echo "'gnoweb generate' out of date, please run 'make gnoweb.generate' within './gno.land'" && exit 1)
 
   gnoweb_front_lint:
-    name: ci/go/gnoland/gnoweb-lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

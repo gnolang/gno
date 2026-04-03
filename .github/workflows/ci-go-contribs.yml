@@ -1,4 +1,4 @@
-name: contribs
+name: ci/go/contribs
 
 on:
   push:
@@ -17,7 +17,7 @@ on:
 
 jobs:
   setup:
-    name: ci/go/contribs/setup
+
     runs-on: ubuntu-latest
     outputs:
       programs: ${{ steps.set-matrix.outputs.programs }}
@@ -52,7 +52,7 @@ jobs:
       fail-fast: false
       matrix:
         program: ${{ fromJson(needs.setup.outputs.programs) }}
-    name: ci/go/contribs
+    name: ${{ matrix.program }}
     uses: ./.github/workflows/_ci-go.yml
     with:
       modulepath: contribs/${{ matrix.program }}

@@ -1,4 +1,4 @@
-name: discord-bot
+name: meta/discord-bot
 
 on:
   pull_request:
@@ -9,7 +9,6 @@ on:
 
 jobs:
   discord-notify:
-    name: meta/discord-bot
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 

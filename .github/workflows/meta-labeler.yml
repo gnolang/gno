@@ -1,10 +1,9 @@
-name: labeler
+name: meta/labeler
 on:
   - pull_request_target
 
 jobs:
   triage:
-    name: meta/labeler
     permissions:
       contents: write
       issues: write

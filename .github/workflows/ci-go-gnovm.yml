@@ -1,4 +1,4 @@
-name: gnovm
+name: ci/go/gnovm
 
 on:
   push:
@@ -16,7 +16,6 @@ on:
 
 jobs:
   main:
-    name: ci/go/gnovm
     uses: ./.github/workflows/_ci-go.yml
     with:
       modulepath: "gnovm"
@@ -24,7 +23,6 @@ jobs:
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
   stdlibs:
-    name: ci/gno/stdlibs
     uses: ./.github/workflows/_ci-gno.yml
     with:
       path: "gnovm/stdlibs"

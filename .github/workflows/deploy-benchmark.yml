@@ -1,4 +1,4 @@
-name: benchmarks
+name: deploy/benchmarks
 
 on:
   push:
@@ -21,7 +21,6 @@ env:
 
 jobs:
   benchmarks:
-    name: deploy/benchmarks
     if: ${{ github.repository == 'gnolang/gno' }}
     runs-on: [ self-hosted, Linux, X64, benchmarks ]
     steps:

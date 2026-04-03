@@ -1,4 +1,4 @@
-name: auto-assign
+name: meta/auto-assign
 
 on:
   pull_request_target:
@@ -13,7 +13,6 @@ concurrency:
 
 jobs:
   assign-author:
-    name: meta/auto-assign
     runs-on: ubuntu-latest
     steps:
       - uses: toshimaru/auto-author-assign@v2.1.1

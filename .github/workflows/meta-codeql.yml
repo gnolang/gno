@@ -1,4 +1,4 @@
-name: codeql
+name: meta/codeql
 
 on:
   push:
@@ -14,7 +14,6 @@ on:
 
 jobs:
   analyze:
-    name: meta/codeql
     runs-on: ubuntu-latest
     timeout-minutes: 360
     permissions:

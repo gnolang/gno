@@ -1,6 +1,6 @@
 # tests the "misc" directory & tools
 # (not meant for miscellaneous workflows)
-name: misc
+name: ci/go/misc
 
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
           - genstd
           - goscan
           - loop
-    name: ci/go/misc
+    name: ${{ matrix.program }}
     uses: ./.github/workflows/_ci-go.yml
     with:
       modulepath: misc/${{ matrix.program }}

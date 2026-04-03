@@ -1,6 +1,6 @@
 # Unified release workflow: master push releases + nightly scheduled releases.
 # Replaces the old releaser-master.yml and releaser-nightly.yml.
-name: goreleaser
+name: release/goreleaser
 
 on:
   push:
@@ -26,7 +26,6 @@ permissions:
 
 jobs:
   goreleaser:
-    name: release/goreleaser
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

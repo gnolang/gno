@@ -1,6 +1,6 @@
 # This workflow triggers a cross-repo workflow call,
 # that deploys the monorepo docs on Netlify, using Docusaurus
-name: docs
+name: deploy/docs
 on:
   push:
     branches:
@@ -10,7 +10,6 @@ on:
 
 jobs:
   trigger-netlify-docs-deploy:
-    name: deploy/docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7

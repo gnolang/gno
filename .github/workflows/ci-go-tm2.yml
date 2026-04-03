@@ -1,4 +1,4 @@
-name: tm2
+name: ci/go/tm2
 
 on:
   push:
@@ -14,7 +14,6 @@ on:
 
 jobs:
   main:
-    name: ci/go/tm2
     uses: ./.github/workflows/_ci-go.yml
     with:
       modulepath: "tm2"

@@ -1,5 +1,5 @@
 # Build and Push Docker Images using Docker Bake
-name: docker
+name: release/docker
 
 on:
   push:
@@ -20,7 +20,6 @@ permissions:
 
 jobs:
   bake:
-    name: release/docker
     strategy:
       matrix:
         image: [gnoland,gnokey,gnoweb,gno,gnofaucet,gnodev,gnocontribs]

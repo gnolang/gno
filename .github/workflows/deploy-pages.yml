@@ -1,6 +1,6 @@
 # generate Go docs and publish on gh-pages branch
 # Live at: https://gnolang.github.io/gno
-name: pages
+name: deploy/pages
 
 on:
   push:
@@ -22,7 +22,6 @@ concurrency:
 
 jobs:
   build:
-    name: deploy/pages/build
     if: github.repository == 'gnolang/gno' # Alternatively, validate based on provided tokens and permissions.
     runs-on: ubuntu-latest
     steps:
@@ -52,7 +51,6 @@ jobs:
           path: ./pages_output
 
   deploy:
-    name: deploy/pages/deploy
     if: >
       github.repository == 'gnolang/gno' &&
       github.ref == 'refs/heads/master' &&

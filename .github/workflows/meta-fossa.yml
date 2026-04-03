@@ -1,4 +1,4 @@
-name: fossa
+name: meta/fossa
 
 on:
   push:
@@ -20,7 +20,6 @@ permissions:
 
 jobs:
   fossa:
-    name: meta/fossa
     runs-on: ubuntu-latest
     if: github.repository == 'gnolang/gno'
     steps:

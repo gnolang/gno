@@ -1,4 +1,4 @@
-name: dependabot-tidy
+name: meta/dependabot-tidy
 
 on:
   pull_request:
@@ -9,7 +9,6 @@ on:
 
 jobs:
   tidy_go_mods:
-    name: meta/dependabot-tidy
     runs-on: ubuntu-latest
     if: ${{ github.actor == 'dependabot[bot]' }}
     permissions:
