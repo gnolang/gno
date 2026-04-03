@@ -312,13 +312,14 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Type: toExpr(fs, gon.Type),
 		}
 	case *ast.UnaryExpr:
-		if gon.Op == token.AND {
+		switch gon.Op {
+		case token.AND:
 			return &RefExpr{
 				X: toExpr(fs, gon.X),
 			}
-		} else if gon.Op == token.ARROW {
+		case token.ARROW:
 			panicWithPos("channel receive is not permitted")
-		} else {
+		default:
 			return &UnaryExpr{
 				X:  toExpr(fs, gon.X),
 				Op: toWord(gon.Op),
