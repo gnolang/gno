@@ -17,7 +17,7 @@ jobs:
   # Complete flow:
   # 'pull_request_review' from fork on meta-bot.yml (read-only) -> 'workflow_run' on meta-bot-proxy.yml (write) -> 'workflow_dispatch' on meta-bot.yml (write)
   rerun-with-write-perm:
-    name: rerun
+    name: meta/bot-proxy/rerun
     # Skip this workflow if the original event is not 'pull_request_review'
     if: github.event.workflow_run.event == 'pull_request_review'
     runs-on: ubuntu-latest

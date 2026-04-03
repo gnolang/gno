@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   fossa:
-    name: scan
+    name: meta/fossa
     runs-on: ubuntu-latest
     if: github.repository == 'gnolang/gno'
     steps:

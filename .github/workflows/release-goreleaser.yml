@@ -26,6 +26,7 @@ permissions:
 
 jobs:
   goreleaser:
+    name: release/goreleaser
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

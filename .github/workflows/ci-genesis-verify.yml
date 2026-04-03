@@ -11,6 +11,7 @@ on:
 
 jobs:
   verify:
+    name: ci/genesis-verify
     strategy:
       fail-fast: false
       matrix:

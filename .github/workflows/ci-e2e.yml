@@ -8,6 +8,7 @@ on:
 
 jobs:
   e2e-test:
+    name: ci/e2e
     runs-on: ubuntu-latest
     
     steps:

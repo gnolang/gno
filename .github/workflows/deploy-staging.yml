@@ -16,6 +16,7 @@ permissions:
 
 jobs:
   build-staging:
+    name: deploy/staging/build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -46,6 +47,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
 
   test-staging-running-in-compose:
+    name: deploy/staging/test
     runs-on: ubuntu-latest 
     timeout-minutes: 10
     steps:

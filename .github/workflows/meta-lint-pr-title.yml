@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   pr-title:
+    name: meta/lint-pr-title
     if: github.head_ref != 'master'
     runs-on: ubuntu-latest
     steps:

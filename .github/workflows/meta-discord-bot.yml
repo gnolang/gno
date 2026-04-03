@@ -9,6 +9,7 @@ on:
 
 jobs:
   discord-notify:
+    name: meta/discord-bot
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 

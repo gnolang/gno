@@ -20,6 +20,7 @@ permissions:
 
 jobs:
   bake:
+    name: release/docker
     strategy:
       matrix:
         image: [gnoland,gnokey,gnoweb,gno,gnofaucet,gnodev,gnocontribs]

@@ -27,7 +27,7 @@ on:
 
 jobs:
   mod-tidy:
-    name: mod-tidy
+    name: meta/codegen/mod-tidy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v5
@@ -37,7 +37,7 @@ jobs:
       - run: make tidy VERIFY_MOD_SUMS=true
 
   genproto:
-    name: genproto
+    name: meta/codegen/genproto
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v5
@@ -53,7 +53,7 @@ jobs:
           git diff --text --exit-code || (echo "Some .proto files are not updated, please run 'make -C misc/genproto'." && exit 1)
 
   docs:
-    name: docs
+    name: meta/codegen/docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

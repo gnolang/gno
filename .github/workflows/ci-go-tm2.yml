@@ -14,7 +14,7 @@ on:
 
 jobs:
   main:
-    name: test
+    name: ci/go/tm2
     uses: ./.github/workflows/_ci-go.yml
     with:
       modulepath: "tm2"

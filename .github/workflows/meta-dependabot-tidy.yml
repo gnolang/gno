@@ -9,6 +9,7 @@ on:
 
 jobs:
   tidy_go_mods:
+    name: meta/dependabot-tidy
     runs-on: ubuntu-latest
     if: ${{ github.actor == 'dependabot[bot]' }}
     permissions:

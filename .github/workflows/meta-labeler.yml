@@ -4,6 +4,7 @@ on:
 
 jobs:
   triage:
+    name: meta/labeler
     permissions:
       contents: write
       issues: write

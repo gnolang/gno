@@ -25,6 +25,7 @@ concurrency:
 
 jobs:
   gno2go:
+    name: ci/gno/examples/transpile
     strategy:
       fail-fast: false
       matrix:
@@ -41,7 +42,7 @@ jobs:
       - run: go run ./gnovm/cmd/gno tool transpile -v --gobuild ./examples
 
   gno-checks:
-    name: gno-checks
+    name: ci/gno/examples
     uses: ./.github/workflows/_ci-gno.yml
     with:
       debug: ${{ inputs.debug || false }}
@@ -49,7 +50,7 @@ jobs:
       go-version: "1.24.x"
 
   generate:
-    name: generate
+    name: ci/gno/examples/generate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -72,6 +73,7 @@ jobs:
           fi
 
   mod-tidy:
+    name: ci/gno/examples/mod-tidy
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

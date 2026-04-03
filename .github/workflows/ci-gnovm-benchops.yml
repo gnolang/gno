@@ -8,6 +8,7 @@ on:
 
 jobs:
   benchops:
+    name: ci/gnovm/benchops
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
