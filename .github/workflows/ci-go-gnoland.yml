@@ -28,13 +28,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
       - uses: actions/setup-node@v4
         with:
           node-version: lts/Jod
-      - uses: actions/checkout@v5
       - run: |
           make -C gno.land/pkg/gnoweb fclean generate
           git diff --exit-code || \
@@ -44,8 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
           node-version: lts/Jod
-      - uses: actions/checkout@v5
       - run: make -C gno.land/pkg/gnoweb/frontend lint.ci
