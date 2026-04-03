@@ -130,18 +130,6 @@ func TestPackageValueGetShallowSize(t *testing.T) {
 				fileBlockEntrySize("file2.gno"), // FNames[1]
 		},
 		{
-			name: "package with FBlocks",
-			pv: &PackageValue{
-				PkgName: "demo",
-				PkgPath: "gno.land/r/demo",
-				FBlocks: make([]Value, 3),
-			},
-			expected: allocPackage +
-				allocString + int64(len("demo")) +
-				allocString + int64(len("gno.land/r/demo")) +
-				_allocValue*3, // three interface values
-		},
-		{
 			name: "package with fBlocksMap (no FNames)",
 			pv: &PackageValue{
 				PkgName: "demo",

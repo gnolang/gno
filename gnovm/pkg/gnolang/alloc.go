@@ -361,7 +361,7 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 
 // Only used for constructing the main package
 func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
-	alloc.Allocate(packageValueSize(pn.PkgName, pn.PkgPath, nil, 0))
+	alloc.Allocate(packageValueSize(pn.PkgName, pn.PkgPath, nil))
 	alloc.AllocateBlock(int64(pn.GetNumNames()))
 	pv := &PackageValue{
 		Block: &Block{
@@ -406,18 +406,13 @@ func fileBlockEntrySize(fname string) int64 {
 // including its string fields and file block metadata.
 // Used both during allocation (creation/store-loading) and GC recounting
 // to ensure consistency.
-func packageValueSize(pkgName Name, pkgPath string, fnames []string, fblocksLen int) int64 {
+func packageValueSize(pkgName Name, pkgPath string, fnames []string) int64 {
 	var ss int64
 	ss = allocPackage
 	ss += allocString + int64(len(pkgName))*allocStringByte
 	ss += allocString + int64(len(pkgPath))*allocStringByte
 	for _, fname := range fnames {
 		ss += fileBlockEntrySize(fname)
-	}
-	// If fblocksLen > len(fnames), account for extra FBlocks interface slots
-	// not covered by fileBlockEntrySize (which already includes _allocValue).
-	if extra := fblocksLen - len(fnames); extra > 0 {
-		ss += _allocValue * int64(extra)
 	}
 	return ss
 }
@@ -428,7 +423,7 @@ func (pv *PackageValue) GetShallowSize() int64 {
 		return 0
 	}
 
-	return packageValueSize(pv.PkgName, pv.PkgPath, pv.FNames, len(pv.FBlocks))
+	return packageValueSize(pv.PkgName, pv.PkgPath, pv.FNames)
 }
 
 func (b *Block) GetShallowSize() int64 {

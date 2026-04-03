@@ -1343,7 +1343,7 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 	if pn.PkgName == "main" {
 		pv = alloc.NewPackageValue(pn)
 	} else {
-		alloc.Allocate(packageValueSize(pn.PkgName, pn.PkgPath, nil, 0))
+		alloc.Allocate(packageValueSize(pn.PkgName, pn.PkgPath, nil))
 		alloc.AllocateBlock(int64(pn.GetNumNames()))
 		pv = &PackageValue{
 			Block: &Block{
