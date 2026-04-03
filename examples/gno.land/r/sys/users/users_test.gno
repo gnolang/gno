@@ -220,10 +220,8 @@ func TestProposeErrors(t *testing.T) {
 		urequire.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
 			ProposeUpdateName(aliceAddr, "bad name")
 		})
-		// Not yet registered
-		urequire.PanicsWithMessage(t, ErrUserNotExistOrDeleted.Error(), func() {
-			ProposeUpdateName(aliceAddr, "alice1")
-		})
+		// Note: unregistered user is not checked at proposal creation time.
+		// The callback handles it at execution time.
 	})
 
 	t.Run("propose_delete_user_errors", func(t *testing.T) {
@@ -232,10 +230,8 @@ func TestProposeErrors(t *testing.T) {
 		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
 			ProposeDeleteUser("badaddress")
 		})
-		// Not yet registered
-		urequire.PanicsWithMessage(t, ErrUserNotExistOrDeleted.Error(), func() {
-			ProposeDeleteUser(aliceAddr)
-		})
+		// Note: unregistered user is not checked at proposal creation time.
+		// The callback handles it at execution time.
 	})
 }
 
