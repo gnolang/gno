@@ -144,7 +144,6 @@ func ProposeDeleteUser(addr address) dao.ProposalRequest {
 	return dao.NewProposalRequest("Delete User in \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
 }
 
-
 // Helpers
 
 func deleteFromWhitelist(addr address) error {
