@@ -1,0 +1,122 @@
+# Build and upload binaries for chain/* tags.
+name: release / chain-tag
+
+on:
+  push:
+    tags:
+      - "chain/*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. chain/gnoland1.1)"
+        required: true
+
+permissions:
+  contents: write # needed to upload release assets
+
+jobs:
+  binaries:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+    runs-on: ${{ matrix.os }}
+    env:
+      RAW_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Compute version
+        id: version
+        run: |
+          TAG="${RAW_TAG#chain/}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Building version: $TAG"
+
+      - name: Build binaries
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ steps.version.outputs.tag }}
+        run: |
+          LDFLAGS="-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=${VERSION}"
+          SUFFIX="${GOOS}_${GOARCH}"
+          mkdir -p dist
+
+          echo "Building gnoland..."
+          go build -ldflags "$LDFLAGS" -o "dist/gnoland_${SUFFIX}" ./gno.land/cmd/gnoland
+
+          echo "Building gnokey..."
+          go build -ldflags "$LDFLAGS" -o "dist/gnokey_${SUFFIX}" ./gno.land/cmd/gnokey
+
+          echo "Building gnoweb..."
+          go build -ldflags "$LDFLAGS" -o "dist/gnoweb_${SUFFIX}" ./gno.land/cmd/gnoweb
+
+          echo "Building gno..."
+          go build -ldflags "$LDFLAGS" -o "dist/gno_${SUFFIX}" ./gnovm/cmd/gno
+
+          cd dist
+          if command -v sha256sum &>/dev/null; then
+            sha256sum * > "checksums_${SUFFIX}.txt"
+          else
+            shasum -a 256 * > "checksums_${SUFFIX}.txt"
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/
+
+  release:
+    needs: binaries
+    runs-on: ubuntu-latest
+    env:
+      RAW_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compute version
+        id: version
+        run: |
+          TAG="${RAW_TAG#chain/}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate combined checksums
+        run: |
+          cd dist
+          cat checksums_*.txt | sort > CHECKSUMS.txt
+          rm -f checksums_*.txt
+          echo "Checksums:"
+          cat CHECKSUMS.txt
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release upload "chain/${TAG}" dist/* --clobber
