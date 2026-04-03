@@ -7,6 +7,16 @@ declare const process: { env: { NODE_ENV: string } };
 	const CONTROLLER_PATH = "/public/js/controller-";
 	const modulePromises = new Map<string, Promise<Record<string, unknown>>>();
 
+	// Extract build version from this script's own URL for cache busting
+	const buildVersion = (() => {
+		const scripts = document.querySelectorAll('script[src*="index.js"]');
+		for (const s of scripts) {
+			const match = s.getAttribute("src")?.match(/[?&]v=([^&]+)/);
+			if (match) return match[1];
+		}
+		return "";
+	})();
+
 	// load one controller for a provided set of elements (no re-query)
 	const loadController = async (
 		controllerName: string,
@@ -26,7 +36,8 @@ declare const process: { env: { NODE_ENV: string } };
 		const pascal = camel.charAt(0).toUpperCase() + camel.slice(1);
 
 		// Only kebab-case file naming, prefixed with "controller-"
-		const path = `${CONTROLLER_PATH}${kebab}.js`;
+		const vSuffix = buildVersion ? `?v=${buildVersion}` : "";
+		const path = `${CONTROLLER_PATH}${kebab}.js${vSuffix}`;
 
 		// import the controller module with promise cache (dedupe concurrent imports)
 		let modulePromise = modulePromises.get(path);
