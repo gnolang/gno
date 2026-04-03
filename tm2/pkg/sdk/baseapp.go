@@ -3,7 +3,6 @@ package sdk
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"runtime/debug"
 	"sort"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -526,6 +524,13 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 		panic(err)
 	}
 
+	// Check if we should halt before processing this block.
+	// We halt at the beginning of the block *after* haltHeight,
+	// so the block at haltHeight is fully committed.
+	if app.haltHeight > 0 && uint64(req.Header.GetHeight()) > app.haltHeight {
+		panic(fmt.Sprintf("halt height %d reached, node shutting down", app.haltHeight))
+	}
+
 	// Initialize the DeliverTx state. If this is the first block, it should
 	// already be initialized in InitChain. Otherwise app.deliverState will be
 	// nil, since it is reset on Commit.
@@ -912,22 +917,7 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 	// return.
 	res.Data = commitID.Hash
 
-	// Check if we should halt after this commit.
-	if app.haltHeight > 0 && uint64(header.GetHeight()) >= app.haltHeight {
-		app.logger.Info("halt height reached, shutting down", "height", header.GetHeight(), "halt_height", app.haltHeight)
-		app.halt()
-	}
-
 	return
-}
-
-// halt attempts to gracefully shutdown the node via osm.Kill(),
-// falling back on os.Exit if that fails.
-func (app *BaseApp) halt() {
-	if err := osm.Kill(); err != nil {
-		app.logger.Error("failed to halt node", "err", err)
-		os.Exit(0)
-	}
 }
 
 // SetHaltHeight sets the block height at which the node will halt after committing.
