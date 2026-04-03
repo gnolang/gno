@@ -27,6 +27,22 @@ export class PlaygroundController extends BaseController {
 
 		this._renderTabs();
 		this._setupKeyboard();
+		this._bindButtons();
+	}
+
+	// Bind toolbar buttons directly (BaseController.setupActions can be unreliable)
+	private _bindButtons(): void {
+		this.element.querySelectorAll("[data-action]").forEach((el) => {
+			const attr = el.getAttribute("data-action");
+			if (!attr) return;
+			const match = attr.match(/^(\w+)->playground#(\w+)$/);
+			if (!match) return;
+			const [, event, method] = match;
+			const fn = (this as Record<string, unknown>)[method];
+			if (typeof fn === "function") {
+				el.addEventListener(event, fn.bind(this));
+			}
+		});
 	}
 
 	private _parseForkedFiles(code: string): void {
