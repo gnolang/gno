@@ -46,14 +46,7 @@ echo "  Chain: ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
 echo ""
 
-gnokey maketx run \
-  -gas-wanted "$GAS_WANTED" \
-  -gas-fee "$GAS_FEE" \
-  -broadcast \
-  -chainid "$CHAIN_ID" \
-  -remote "$REMOTE" \
-  "$GNOKEY_NAME" \
-  "$TMPDIR/set_minfee.gno"
+gnokey_run "$TMPDIR/set_minfee.gno"
 
 echo ""
 echo "Done — valoper min fee updated to ${MIN_FEE} ugnot."

@@ -51,14 +51,7 @@ for addr in "$@"; do
   echo "  $addr"
 done
 
-gnokey maketx run \
-  -gas-wanted "$GAS_WANTED" \
-  -gas-fee "$GAS_FEE" \
-  -broadcast \
-  -chainid "$CHAIN_ID" \
-  -remote "$REMOTE" \
-  "$GNOKEY_NAME" \
-  "$TMPDIR/unrestrict.gno"
+gnokey_run "$TMPDIR/unrestrict.gno"
 
 echo ""
 echo "Done — $# account(s) unrestricted."

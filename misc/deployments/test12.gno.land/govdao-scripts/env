@@ -7,3 +7,64 @@ CHAIN_ID="${CHAIN_ID:-test12}"
 REMOTE="${REMOTE:-https://rpc.test12.aeddi.org}"
 GAS_WANTED="${GAS_WANTED:-50000000}"
 GAS_FEE="${GAS_FEE:-1000000ugnot}"
+
+# Optional: set to use this password for gnokey commands instead of interactive prompting.
+# Intended for automated scripts (e.g. test harnesses). Never hardcode in committed files.
+INSECURE_STDIN_PASSWORD="${INSECURE_STDIN_PASSWORD:-}"
+
+# Run 'gnokey maketx run' with common flags.
+# Usage: gnokey_run <gno-file> [extra-flags...]
+# Extra flags (e.g. -send 20000000ugnot) are inserted before the key name.
+# Uses INSECURE_STDIN_PASSWORD if set, otherwise prompts interactively.
+gnokey_run() {
+  local file="$1"
+  shift
+  if [ -n "$INSECURE_STDIN_PASSWORD" ]; then
+    printf '%s\n' "$INSECURE_STDIN_PASSWORD" | gnokey maketx run \
+      -gas-wanted "$GAS_WANTED" \
+      -gas-fee "$GAS_FEE" \
+      -broadcast \
+      -chainid "$CHAIN_ID" \
+      -remote "$REMOTE" \
+      --insecure-password-stdin \
+      "$@" \
+      "$GNOKEY_NAME" \
+      "$file"
+  else
+    gnokey maketx run \
+      -gas-wanted "$GAS_WANTED" \
+      -gas-fee "$GAS_FEE" \
+      -broadcast \
+      -chainid "$CHAIN_ID" \
+      -remote "$REMOTE" \
+      "$@" \
+      "$GNOKEY_NAME" \
+      "$file"
+  fi
+}
+
+# Run 'gnokey maketx addpkg' with common flags.
+# Usage: gnokey_addpkg -pkgdir <dir> -pkgpath <path>
+# Uses INSECURE_STDIN_PASSWORD if set, otherwise prompts interactively.
+gnokey_addpkg() {
+  if [ -n "$INSECURE_STDIN_PASSWORD" ]; then
+    printf '%s\n' "$INSECURE_STDIN_PASSWORD" | gnokey maketx addpkg \
+      -gas-wanted "$GAS_WANTED" \
+      -gas-fee "$GAS_FEE" \
+      -broadcast \
+      -chainid "$CHAIN_ID" \
+      -remote "$REMOTE" \
+      --insecure-password-stdin \
+      "$@" \
+      "$GNOKEY_NAME"
+  else
+    gnokey maketx addpkg \
+      -gas-wanted "$GAS_WANTED" \
+      -gas-fee "$GAS_FEE" \
+      -broadcast \
+      -chainid "$CHAIN_ID" \
+      -remote "$REMOTE" \
+      "$@" \
+      "$GNOKEY_NAME"
+  fi
+}

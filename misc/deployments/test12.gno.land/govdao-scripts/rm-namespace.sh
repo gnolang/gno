@@ -42,11 +42,4 @@ echo "  Chain: ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
 echo ""
 
-gnokey maketx run \
-  -gas-wanted "$GAS_WANTED" \
-  -gas-fee "$GAS_FEE" \
-  -broadcast \
-  -chainid "$CHAIN_ID" \
-  -remote "$REMOTE" \
-  "$GNOKEY_NAME" \
-  "$TMPDIR/rm_namespace.gno"
+gnokey_run "$TMPDIR/rm_namespace.gno"

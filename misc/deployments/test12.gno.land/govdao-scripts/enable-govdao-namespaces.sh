@@ -54,15 +54,9 @@ done
 echo ""
 echo "==> [1/4] Deploying bootstrap verifier at r/${DEPLOYER_ADDR}/names_bootstrap..."
 
-gnokey maketx addpkg \
+gnokey_addpkg \
   -pkgdir "$TMPDIR/bootstrap" \
-  -pkgpath "gno.land/r/${DEPLOYER_ADDR}/names_bootstrap" \
-  -gas-wanted "$GAS_WANTED" \
-  -gas-fee "$GAS_FEE" \
-  -broadcast \
-  -chainid "$CHAIN_ID" \
-  -remote "$REMOTE" \
-  "$GNOKEY_NAME"
+  -pkgpath "gno.land/r/${DEPLOYER_ADDR}/names_bootstrap"
 
 echo ""
 echo "==> [2/4] Switching sysnames_pkgpath to bootstrap verifier..."
@@ -87,29 +81,16 @@ func govExec(r dao.ProposalRequest) {
 }
 GOEOF
 
-gnokey maketx run \
-  -gas-wanted "$GAS_WANTED" \
-  -gas-fee "$GAS_FEE" \
-  -broadcast \
-  -chainid "$CHAIN_ID" \
-  -remote "$REMOTE" \
-  "$GNOKEY_NAME" \
-  "$TMPDIR/switch_to_bootstrap.gno"
+gnokey_run "$TMPDIR/switch_to_bootstrap.gno"
 
 # ---- Phase 2: Real v2 ----
 
 echo ""
 echo "==> [3/4] Deploying r/sys/names/v2..."
 
-gnokey maketx addpkg \
+gnokey_addpkg \
   -pkgdir "$TMPDIR/sys-names" \
-  -pkgpath "gno.land/r/sys/names/v2" \
-  -gas-wanted "$GAS_WANTED" \
-  -gas-fee "$GAS_FEE" \
-  -broadcast \
-  -chainid "$CHAIN_ID" \
-  -remote "$REMOTE" \
-  "$GNOKEY_NAME"
+  -pkgpath "gno.land/r/sys/names/v2"
 
 echo ""
 echo "==> [4/4] Switching sysnames_pkgpath to v2..."
@@ -133,14 +114,7 @@ func govExec(r dao.ProposalRequest) {
 }
 GOEOF
 
-gnokey maketx run \
-  -gas-wanted "$GAS_WANTED" \
-  -gas-fee "$GAS_FEE" \
-  -broadcast \
-  -chainid "$CHAIN_ID" \
-  -remote "$REMOTE" \
-  "$GNOKEY_NAME" \
-  "$TMPDIR/switch_to_v2.gno"
+gnokey_run "$TMPDIR/switch_to_v2.gno"
 
 echo ""
 echo "Done! Namespace support is now active on test12."

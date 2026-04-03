@@ -44,14 +44,7 @@ echo "  Chain: ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
 echo ""
 
-gnokey maketx run \
-  -gas-wanted "$GAS_WANTED" \
-  -gas-fee "$GAS_FEE" \
-  -broadcast \
-  -chainid "$CHAIN_ID" \
-  -remote "$REMOTE" \
-  "$GNOKEY_NAME" \
-  "$TMPDIR/extend_govdao.gno"
+gnokey_run "$TMPDIR/extend_govdao.gno"
 
 echo ""
 echo "Done — 6 T1 members added (Jae, Morgan, Ray, Dongwon, Maxwell, Milos)."
