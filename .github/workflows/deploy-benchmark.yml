@@ -21,7 +21,7 @@ env:
 
 jobs:
   benchmarks:
-    name: ci/benchmarks
+    name: deploy/benchmarks
     if: ${{ github.repository == 'gnolang/gno' }}
     runs-on: [ self-hosted, Linux, X64, benchmarks ]
     steps:
