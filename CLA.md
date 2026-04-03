@@ -1,5 +1,26 @@
 # Gno.land Contributor License Agreement
 
+## What is the CLA?
+
+The Contributor License Agreement (CLA) is a legal agreement between you (the contributor) and the Gno.land project. It grants the project the necessary rights to use, distribute, and sublicense your contributions under the [GNO Network General Public License](./LICENSE.md) while you retain ownership of your work.
+
+## Why must contributors sign it?
+
+Signing the CLA ensures that:
+- The project has the legal right to include your contribution in the Gno.land network and related repositories.
+- Your contribution can be distributed under the Network License without legal ambiguity.
+- You confirm that you have the right to submit the contribution and that it does not infringe on any third-party rights.
+
+## How to sign the CLA
+
+1. **Read the full agreement** below to understand the terms.
+2. **Submit a contribution** via an on-chain package submission transaction (e.g., `MsgAddPackage`). The transaction must include the current CLA Hash, which is the cryptographic hash of the canonical CLA text published by the Network.
+3. **Inclusion of the CLA Hash** in your submission constitutes your acceptance of the agreement. You only need to accept once per CLA Hash — if the agreement text changes and a new hash is published, you will need to accept the updated version.
+
+For off-chain contributions (e.g., pull requests to the GitHub repository), follow the instructions provided by the project's contribution tooling. See [CONTRIBUTING.md](./CONTRIBUTING.md) for more details.
+
+---
+
 **Contributor License Agreement**
 
 This Agreement governs Contributions uploaded, published, or made available
