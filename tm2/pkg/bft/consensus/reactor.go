@@ -635,6 +635,10 @@ OUTER_LOOP:
 			// Load the block commit for prs.Height,
 			// which contains precommit signatures for prs.Height.
 			commit := conR.conS.blockStore.LoadBlockCommit(prs.Height)
+			if commit == nil {
+				logger.Warn("Failed to load block commit for catchup", "height", prs.Height)
+				continue OUTER_LOOP
+			}
 			if ps.PickSendVote(commit) {
 				logger.Debug("Picked Catchup commit to send", "height", prs.Height)
 				continue OUTER_LOOP
@@ -783,6 +787,10 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if prs.CatchupCommitRound != -1 && 0 < prs.Height && prs.Height <= conR.conS.blockStore.Height() {
 				commit := conR.conS.LoadCommit(prs.Height)
+				if commit == nil {
+					logger.Warn("Failed to load commit for queryMaj23", "height", prs.Height)
+					continue OUTER_LOOP
+				}
 				peer.TrySend(StateChannel, amino.MustMarshalAny(&VoteSetMaj23Message{
 					Height:  prs.Height,
 					Round:   commit.Round(),
