@@ -70,36 +70,41 @@ export class EvalController extends BaseController {
 	}
 
 	private async _doEval(expression: string): Promise<void> {
-		const remote = this.getValue("remote");
 		const pkgPath = this.getValue("pkg-path");
+		const domain = this.getValue("domain");
 
 		this._resultEl.textContent = "Evaluating...";
 		this._resultEl.classList.remove("u-color-danger");
 
 		try {
-			const data = `${pkgPath}.${expression}`;
-			const url = `${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
-			const response = await fetch(url);
+			// Strip domain prefix from pkgPath for the API (it expects relative path)
+			const relPath = pkgPath.startsWith(domain + "/")
+				? pkgPath.slice(domain.length + 1)
+				: pkgPath;
+
+			const response = await fetch("/_/api/eval", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					pkg_path: relPath,
+					expression: expression,
+				}),
+			});
 
 			if (!response.ok) {
 				throw new Error(`HTTP ${response.status}`);
 			}
 
 			const json = await response.json();
-			const responseBase = json.result.response.ResponseBase;
 
 			let result: string;
 			let isError: boolean;
 
-			if (responseBase.Data) {
-				result = atob(responseBase.Data);
-				isError = false;
-			} else if (responseBase.Error) {
-				const errorValue = responseBase.Error.value || responseBase.Error;
-				result = `Error: ${typeof errorValue === "string" ? errorValue : JSON.stringify(errorValue)}`;
+			if (json.error) {
+				result = `Error: ${json.error}`;
 				isError = true;
 			} else {
-				result = "(empty result)";
+				result = json.result || "(empty result)";
 				isError = false;
 			}
 

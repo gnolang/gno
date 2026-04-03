@@ -2527,6 +2527,7 @@ main.dev-mode .b-toc a {
 	flex-direction: column;
 	gap: var(--g-space-2);
 	min-height: 70vh;
+	grid-column: 1 / -1;
 }
 
 .b-playground-toolbar {
@@ -2684,6 +2685,7 @@ main.dev-mode .b-toc a {
 	display: flex;
 	flex-direction: column;
 	gap: var(--g-space-3);
+	grid-column: 1 / -1;
 }
 
 .b-eval-header {
