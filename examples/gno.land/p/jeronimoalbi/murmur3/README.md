@@ -20,7 +20,7 @@ matter more than cryptographic security.
 
 ## Usage
 
-[embedmd]:# (filetests/z_readme_filetest.gno go)
+[embedmd]:# (filetests/readme_filetest.gno go)
 ```go
 package main
 
