@@ -1447,7 +1447,7 @@ func (m *Machine) Run(st Stage) {
 		}
 		op := m.PopOp()
 		if bm.Enabled {
-			bm.SwitchOpCode(byte(op))
+			bm.SwitchOpCode(bm.CPUOp(op))
 		}
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {

@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner     address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	boardName         = "BoardName"
 )
 
@@ -28,4 +28,4 @@ func main() {
 // ### These are the board members
 // | Member | Role | Actions |
 // | --- | --- | --- |
-// | [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) | owner | [remove](/r/gnoland/boards2/v1$help&func=RemoveMember&boardID=1&member=g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) • [change role](/r/gnoland/boards2/v1$help&func=ChangeMemberRole&boardID=1&member=g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq&role=) |
+// | [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) | owner | [remove](/r/gnoland/boards2/v1$help&func=RemoveMember&boardID=1&member=g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) • [change role](/r/gnoland/boards2/v1$help&func=ChangeMemberRole&boardID=1&member=g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh&role=) |

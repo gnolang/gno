@@ -20,8 +20,8 @@ import (
 // isolate timing to just the doOpXxx() call, and checks the result.
 
 const (
-	bmSetup  = byte(0x01) // dummy op code for setup phases
-	bmTarget = byte(0x02) // op code for the measured operation
+	bmSetup  = bm.CPUOp(0x01) // dummy op code for setup phases
+	bmTarget = bm.CPUOp(0x02) // op code for the measured operation
 )
 
 // benchAllocMeter tracks allocation gas across the benchmark.

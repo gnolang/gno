@@ -174,8 +174,8 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return
 	}
 	if bm.Enabled {
-		old := bm.StartStore(bm.RealmDidUpdate)
-		defer func() { bm.StopStore(bm.RealmDidUpdate, old, 0) }()
+		oldCPU, oldStore := bm.StartStore(bm.RealmDidUpdate)
+		defer func() { bm.StopStore(bm.RealmDidUpdate, oldCPU, oldStore, 0) }()
 	}
 	if debugRealm {
 		if co != nil && co.GetIsDeleted() {
@@ -335,8 +335,8 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	if bm.Enabled {
-		old := bm.StartStore(bm.RealmFinalizeTx)
-		defer func() { bm.StopStore(bm.RealmFinalizeTx, old, 0) }()
+		oldCPU, oldStore := bm.StartStore(bm.RealmFinalizeTx)
+		defer func() { bm.StopStore(bm.RealmFinalizeTx, oldCPU, oldStore, 0) }()
 	}
 
 	if debugRealm {

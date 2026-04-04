@@ -54,9 +54,9 @@ func stats(binFile string) {
 				case byte(bm.TypeOpCode):
 					opName = gno.Op(record[1]).String()
 				case byte(bm.TypeStore):
-					opName = bm.StoreCodeString(record[1])
+					opName = bm.StoreCodeString(bm.StoreOp(record[1]))
 				case byte(bm.TypeNative):
-					opName = bm.NativeCodeString(record[1])
+					opName = bm.NativeCodeString(bm.NativeOp(record[1]))
 				default:
 					panic(fmt.Sprintf("invalid record type: %d", record[0]))
 				}

@@ -372,8 +372,8 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	var size int
 	if bm.Enabled {
-		old := bm.StartStore(bm.StoreGetPackageRealm)
-		defer func() { bm.StopStore(bm.StoreGetPackageRealm, old, size) }()
+		oldCPU, oldStore := bm.StartStore(bm.StoreGetPackageRealm)
+		defer func() { bm.StopStore(bm.StoreGetPackageRealm, oldCPU, oldStore, size) }()
 	}
 	oid := ObjectIDFromPkgPath(pkgPath)
 	key := backendRealmKey(oid)
@@ -398,8 +398,8 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	var size int
 	if bm.Enabled {
-		old := bm.StartStore(bm.StoreSetPackageRealm)
-		defer func() { bm.StopStore(bm.StoreSetPackageRealm, old, size) }()
+		oldCPU, oldStore := bm.StartStore(bm.StoreSetPackageRealm)
+		defer func() { bm.StopStore(bm.StoreSetPackageRealm, oldCPU, oldStore, size) }()
 	}
 	oid := ObjectIDFromPkgPath(rlm.Path)
 	key := backendRealmKey(oid)
@@ -442,8 +442,8 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 	var size int
 	if bm.Enabled {
-		old := bm.StartStore(bm.StoreGetObject)
-		defer func() { bm.StopStore(bm.StoreGetObject, old, size) }()
+		oldCPU, oldStore := bm.StartStore(bm.StoreGetObject)
+		defer func() { bm.StopStore(bm.StoreGetObject, oldCPU, oldStore, size) }()
 	}
 	key := backendObjectKey(oid)
 	hashbz := ds.baseStore.Get([]byte(key))
@@ -594,8 +594,8 @@ func AllocExpanded(alloc *Allocator, val Value) {
 func (ds *defaultStore) SetObject(oo Object) int64 {
 	var size int
 	if bm.Enabled {
-		old := bm.StartStore(bm.StoreSetObject)
-		defer func() { bm.StopStore(bm.StoreSetObject, old, size) }()
+		oldCPU, oldStore := bm.StartStore(bm.StoreSetObject)
+		defer func() { bm.StopStore(bm.StoreSetObject, oldCPU, oldStore, size) }()
 	}
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
@@ -697,8 +697,8 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 
 func (ds *defaultStore) DelObject(oo Object) int64 {
 	if bm.Enabled {
-		old := bm.StartStore(bm.StoreDeleteObject)
-		defer func() { bm.StopStore(bm.StoreDeleteObject, old, 0) }()
+		oldCPU, oldStore := bm.StartStore(bm.StoreDeleteObject)
+		defer func() { bm.StopStore(bm.StoreDeleteObject, oldCPU, oldStore, 0) }()
 	}
 	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
 	oid := oo.GetObjectID()
@@ -786,8 +786,8 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 func (ds *defaultStore) SetType(tt Type) {
 	var size int
 	if bm.Enabled {
-		old := bm.StartStore(bm.StoreSetType)
-		defer func() { bm.StopStore(bm.StoreSetType, old, size) }()
+		oldCPU, oldStore := bm.StartStore(bm.StoreSetType)
+		defer func() { bm.StopStore(bm.StoreSetType, oldCPU, oldStore, size) }()
 	}
 	tid := tt.TypeID()
 	// return if tid already known.
@@ -830,8 +830,8 @@ func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
 func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 	var size int
 	if bm.Enabled {
-		old := bm.StartStore(bm.StoreGetBlockNode)
-		defer func() { bm.StopStore(bm.StoreGetBlockNode, old, size) }()
+		oldCPU, oldStore := bm.StartStore(bm.StoreGetBlockNode)
+		defer func() { bm.StopStore(bm.StoreGetBlockNode, oldCPU, oldStore, size) }()
 	}
 	// check cache.
 	if bn, exists := ds.cacheNodes.Get(loc); exists {
@@ -916,8 +916,8 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType) {
 	var size int
 	if bm.Enabled {
-		old := bm.StartStore(bm.StoreAddMemPackage)
-		defer func() { bm.StopStore(bm.StoreAddMemPackage, old, size) }()
+		oldCPU, oldStore := bm.StartStore(bm.StoreAddMemPackage)
+		defer func() { bm.StopStore(bm.StoreAddMemPackage, oldCPU, oldStore, size) }()
 	}
 	mpkgtype := mpkg.Type.(MemPackageType)
 	if !mpkgtype.IsStorable() {
@@ -951,8 +951,8 @@ func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
 func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
 	var size int
 	if bm.Enabled {
-		old := bm.StartStore(bm.StoreGetMemPackage)
-		defer func() { bm.StopStore(bm.StoreGetMemPackage, old, size) }()
+		oldCPU, oldStore := bm.StartStore(bm.StoreGetMemPackage)
+		defer func() { bm.StopStore(bm.StoreGetMemPackage, oldCPU, oldStore, size) }()
 	}
 	pathkey := []byte(backendPackagePathKey(path))
 	bz := ds.iavlStore.Get(pathkey)

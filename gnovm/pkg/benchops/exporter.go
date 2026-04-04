@@ -94,7 +94,7 @@ func FinishRun() {
 		return
 	}
 	// Ensure the timeline is stopped.
-	if measure.curOpCode != invalidCode {
+	if measure.curCPUOp != CPUOpInvalid {
 		StopOpCode()
 	}
 
@@ -134,7 +134,9 @@ func FinishNative() {
 func ResetRun() {
 	measure.opCounts = [256]int64{}
 	measure.opAccumDur = [256]time.Duration{}
-	measure.curOpCode = invalidCode
+	measure.curCPUOp = CPUOpInvalid
+	measure.curStoreOp = StoreOpInvalid
+	measure.curNativeOp = NativeOpInvalid
 	measure.curStart = measure.timeZero
 }
 
