@@ -652,12 +652,6 @@ func assertUserAddressIsValid(user address) {
 	}
 }
 
-func assertHasPermission(perms boards.Permissions, user address, p boards.Permission) {
-	if !perms.HasPermission(user, p) {
-		panic("unauthorized")
-	}
-}
-
 func assertBoardExists(id boards.ID) {
 	if id == 0 { // ID zero is used to refer to the realm
 		return
