@@ -21,7 +21,31 @@ func (app *BaseApp) Check(tx Tx) (result Result) {
 }
 
 func (app *BaseApp) Simulate(txBytes []byte) (result Result) {
-	ctx := app.getContextForTx(RunTxModeSimulate, txBytes)
+	// Read header from the atomic snapshot — safe for concurrent access.
+	header := app.getLastBlockHeader()
+	if header == nil || header.GetHeight() < 1 {
+		// Before first commit (e.g., during InitChain or tests),
+		// fall back to checkState which is safe in single-threaded context.
+		ctx := app.getContextForTx(RunTxModeSimulate, txBytes)
+		return app.runTx(ctx, txBytes)
+	}
+
+	height := header.GetHeight()
+
+	// Load an immutable snapshot of committed state at the given height.
+	// This is safe for concurrent access — IAVL versions are copy-on-write.
+	cacheMS, err := app.cms.MultiImmutableCacheWrapWithVersion(height)
+	if err != nil {
+		return ABCIResultFromError(
+			std.ErrInternal(fmt.Sprintf("failed to load state for simulate at height %d: %s", height, err)),
+		)
+	}
+
+	ctx := NewContext(RunTxModeSimulate, cacheMS, header, app.logger).
+		WithTxBytes(txBytes).
+		WithMinGasPrices(app.minGasPrices).
+		WithConsensusParams(app.consensusParams)
+
 	return app.runTx(ctx, txBytes)
 }
 

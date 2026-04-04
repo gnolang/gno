@@ -820,6 +820,73 @@ func TestSimulateTx(t *testing.T) {
 	}
 }
 
+// TestSimulateConcurrentWithCommit verifies that Simulate can run concurrently
+// with BeginBlock/DeliverTx/Commit without data races. This test should be run
+// with -race to detect any unsafe concurrent access.
+func TestSimulateConcurrentWithCommit(t *testing.T) {
+	t.Parallel()
+
+	gasConsumed := int64(5)
+
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			newCtx = ctx.WithGasMeter(store.NewGasMeter(gasConsumed))
+			return
+		})
+	}
+
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.GasMeter().ConsumeGas(gasConsumed, "test")
+			return Result{GasUsed: ctx.GasMeter().GasConsumed()}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	// Run a first block so that committed state exists for Simulate.
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	// Spawn goroutines that continuously simulate while the main goroutine
+	// runs block production cycles. The race detector will flag any unsafe
+	// concurrent access to shared BaseApp state.
+	done := make(chan struct{})
+	defer close(done)
+
+	for range 4 {
+		go func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					result := app.Simulate(txBytes)
+					// Simulate may fail if called mid-Commit (height mismatch),
+					// but it must never panic or race.
+					_ = result
+				}
+			}
+		}()
+	}
+
+	// Run several block cycles concurrently with the simulate goroutines.
+	for i := int64(2); i <= 10; i++ {
+		header := &bft.Header{ChainID: "test-chain", Height: i}
+		app.BeginBlock(abci.RequestBeginBlock{Header: header})
+		app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+		app.EndBlock(abci.RequestEndBlock{})
+		app.Commit()
+	}
+}
+
 func TestRunInvalidTransaction(t *testing.T) {
 	t.Parallel()
 

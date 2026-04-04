@@ -9,28 +9,40 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 )
 
-// NewABCIClient returns newly connected client
+// ClientCreator creates ABCI clients for the three Tendermint connections.
 type ClientCreator interface {
+	// NewABCIClient returns a client for mutating connections (consensus, mempool).
 	NewABCIClient() (abcicli.Client, error)
+	// NewReadOnlyABCIClient returns a client for the query connection.
+	// It uses an independent mutex so query calls never block consensus.
+	NewReadOnlyABCIClient() (abcicli.Client, error)
 }
 
 //----------------------------------------------------
 // local proxy uses a mutex on an in-proc app
 
 type localClientCreator struct {
-	mtx *sync.Mutex
-	app abci.Application
+	mtx      *sync.Mutex // shared by consensus and mempool connections
+	queryMtx *sync.Mutex // independent mutex for the query connection
+	app      abci.Application
 }
 
 func NewLocalClientCreator(app abci.Application) ClientCreator {
 	return &localClientCreator{
-		mtx: new(sync.Mutex),
-		app: app,
+		mtx:      new(sync.Mutex),
+		queryMtx: new(sync.Mutex),
+		app:      app,
 	}
 }
 
 func (l *localClientCreator) NewABCIClient() (abcicli.Client, error) {
 	return abcicli.NewLocalClient(l.mtx, l.app), nil
+}
+
+// NewReadOnlyABCIClient returns a client backed by an independent mutex.
+// Query calls never contend with consensus or mempool operations.
+func (l *localClientCreator) NewReadOnlyABCIClient() (abcicli.Client, error) {
+	return abcicli.NewLocalClient(l.queryMtx, l.app), nil
 }
 
 //-----------------------------------------------------------------

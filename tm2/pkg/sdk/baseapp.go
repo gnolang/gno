@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -61,6 +62,11 @@ type BaseApp struct {
 	// The minimum gas prices a validator is willing to accept for processing a
 	// transaction. This is mainly used for DoS and spam prevention.
 	minGasPrices []GasPrice
+
+	// Thread-safe snapshot of the last block header.
+	// Updated atomically in setCheckState() and BeginBlock().
+	// Used by Simulate and query handlers that run outside the consensus mutex.
+	lastBlockHeader atomic.Value // stores headerSnapshot
 
 	// flag for sealing options and parameters to a BaseApp
 	sealed bool // TODO: needed?
@@ -249,6 +255,7 @@ func (app *BaseApp) setCheckState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeCheck, ms, header, app.logger).WithMinGasPrices(app.minGasPrices),
 	}
+	app.lastBlockHeader.Store(headerSnapshot{header: header})
 }
 
 // setDeliverState sets deliverState with the cached multistore and
@@ -261,6 +268,16 @@ func (app *BaseApp) setDeliverState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeDeliver, ms, header, app.logger),
 	}
+}
+
+// getLastBlockHeader returns the last block header, safe for concurrent access.
+// It reads from an atomic.Value updated in setCheckState() and BeginBlock().
+// Returns nil if no header has been set yet.
+func (app *BaseApp) getLastBlockHeader() abci.Header {
+	if snap, ok := app.lastBlockHeader.Load().(headerSnapshot); ok {
+		return snap.header
+	}
+	return nil
 }
 
 // setConsensusParams memoizes the consensus params.
@@ -500,7 +517,7 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 
 	// cache wrap the commit-multistore for safety
 	// XXX RunTxModeQuery?
-	ctx := NewContext(RunTxModeCheck, cacheMS, app.checkState.ctx.BlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
+	ctx := NewContext(RunTxModeCheck, cacheMS, app.getLastBlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
 
 	// Passes the query to the handler.
 	res = handler.Query(ctx, req)
@@ -974,6 +991,12 @@ func (app *BaseApp) Close() error {
 type state struct {
 	ms  store.MultiStore
 	ctx Context
+}
+
+// headerSnapshot wraps an abci.Header for safe use with atomic.Value,
+// which requires a consistent concrete type on every Store call.
+type headerSnapshot struct {
+	header abci.Header
 }
 
 func (st *state) MultiCacheWrap() store.MultiStore {
