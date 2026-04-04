@@ -1,0 +1,125 @@
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/sys/users
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+# Initialize GovDAO members
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
+stdout OK!
+
+# Render GovDAO to check it's working
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
+stdout 'data: # GovDAO'
+
+# Create proposal to register @user1
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_register_user_proposal.gno
+stdout OK!
+
+# Check proposal exists
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'Register User to \"sys/users\" Realm'
+
+# Vote on proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Execute proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Check user is registered
+gnokey query vm/qeval --data "gno.land/r/sys/users.ResolveName(\"user1\")"
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+# Create proposal for name alias @user1alias
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_update_name_proposal.gno
+stdout OK!
+
+# Check proposal exists
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:1'
+stdout 'Update Name Alias in \"sys/users\" Realm'
+
+# Vote on proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -args YES -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Execute proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 1 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Check alias is registered
+gnokey query vm/qeval --data "gno.land/r/sys/users.ResolveName(\"user1alias\")"
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+# Create proposal for to delete @user1
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_delete_user_proposal.gno
+stdout OK!
+
+# Check proposal exists
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:2'
+stdout 'Delete User in \"sys/users\" Realm'
+
+# Vote on proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 2 -args YES -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Execute proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 2 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Check user is deleted
+gnokey query vm/qeval --data "gno.land/r/sys/users.ResolveName(\"user1\")"
+stdout '(nil \*gno\.land/r/sys/users\.UserData)'
+
+-- run/init_govdao.gno --
+package main
+
+import dao "gno.land/r/gov/dao/v3/init"
+
+func main() {
+	dao.InitWithUsers("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+}
+
+-- run/create_register_user_proposal.gno --
+package main
+
+import (
+	"gno.land/r/sys/users"
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	r := users.ProposeRegisterUser("user1", "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4")
+	dao.MustCreateProposal(cross, r)
+}
+
+-- run/create_update_name_proposal.gno --
+package main
+
+import (
+	"gno.land/r/sys/users"
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	r := users.ProposeUpdateName("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", "user1alias")
+	dao.MustCreateProposal(cross, r)
+}
+
+-- run/create_delete_user_proposal.gno --
+package main
+
+import (
+	"gno.land/r/sys/users"
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	r := users.ProposeDeleteUser("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4")
+	dao.MustCreateProposal(cross, r)
+}

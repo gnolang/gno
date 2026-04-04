@@ -62,7 +62,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
 			},
-			err: "unauthorized",
+			err: "unauthorized, user g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 doesn't have the required permission",
 		},
 		{
 			name:       "is not a DAO member",
@@ -71,7 +71,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			setup: func() *Permissions {
 				return New()
 			},
-			err: "unauthorized",
+			err: "unauthorized, user g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 doesn't have the required permission",
 		},
 	}
 
