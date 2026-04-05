@@ -1,3 +1,15 @@
+// Opcode microbenchmarks for GnoVM gas calibration.
+//
+// These benchmarks measure individual opcode costs and report custom metrics
+// (alloc-gas/op, ns/op(pure)) via the pkg/benchops instrumentation framework.
+//
+// The output is consumed by gnovm/cmd/calibrate's analysis scripts:
+//
+//	go test -run=^$ -bench='BenchmarkOp' -benchtime=2s -count=3 -timeout=60m \
+//	    ./pkg/gnolang/ 2>&1 | tee gnovm/cmd/calibrate/op_bench.txt
+//	cd gnovm/cmd/calibrate && python3 gen_analysis.py op_bench.txt
+//
+// See gnovm/cmd/calibrate/README.md for the full calibration workflow.
 package gnolang
 
 import (
