@@ -47,7 +47,7 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 			assert.True(t, abort)
 			assert.False(t, res.IsOK())
 			gasCheck := gctx.GasMeter().GasConsumed()
-			assert.Equal(t, int64(3404387), gasCheck)
+			assert.Equal(t, int64(3266449), gasCheck)
 		} else {
 			t.Errorf("should panic")
 		}
@@ -72,7 +72,7 @@ func TestAddPkgDeliverTx(t *testing.T) {
 
 	assert.True(t, res.IsOK())
 
-	assert.Equal(t, int64(18651076), gasDeliver)
+	assert.Equal(t, int64(8602076), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
@@ -90,7 +90,7 @@ func TestAddPkgDeliverTxFailed(t *testing.T) {
 	gasDeliver := gctx.GasMeter().GasConsumed()
 
 	assert.False(t, res.IsOK())
-	assert.Equal(t, int64(1240309), gasDeliver)
+	assert.Equal(t, int64(591309), gasDeliver)
 }
 
 // Not enough gas for a failed transaction.
@@ -99,7 +99,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	tx.Fee.GasWanted = 1000000
+	tx.Fee.GasWanted = 500000
 	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 	gctx, _ = gctx.CacheContext()
 	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
@@ -119,7 +119,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 			assert.True(t, abort)
 			assert.False(t, res.IsOK())
 			gasCheck := gctx.GasMeter().GasConsumed()
-			assert.Equal(t, int64(1240309), gasCheck)
+			assert.Equal(t, int64(531000), gasCheck)
 		} else {
 			t.Errorf("should panic")
 		}
