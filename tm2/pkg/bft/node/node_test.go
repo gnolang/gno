@@ -170,6 +170,7 @@ func TestNodeSoftwareVersion(t *testing.T) {
 
 	// NodeInfo.Version should reflect the software version, not the TM2 protocol version
 	assert.Equal(t, softwareVersion.Version, n.nodeInfo.Version)
+	assert.Equal(t, "gnoland", n.nodeInfo.Software)
 }
 
 func TestNodeSetPrivValTCP(t *testing.T) {

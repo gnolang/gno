@@ -925,6 +925,7 @@ func makeNodeInfo(
 		VersionSet: vset,
 		NetAddress: nil, // The shared address depends on the configuration
 		Network:    genDoc.ChainID,
+		Software:   "gnoland",
 		Version:    softwareVersion.Version,
 		Channels: []byte{
 			bcChannel,
