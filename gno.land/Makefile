@@ -33,7 +33,7 @@ start.gnoweb:; go run ./cmd/gnoweb
 .PHONY: build
 build: build.gnoland build.gnokey build.gnoweb
 
-build.gnoland:;    go build -o build/gnoland   ./cmd/gnoland
+build.gnoland:;    go build $(GOBUILD_FLAGS) -o build/gnoland   ./cmd/gnoland
 build.gnoweb:;     go build -o build/gnoweb    ./cmd/gnoweb
 build.gnokey:;     go build $(GOBUILD_FLAGS) -o build/gnokey    ./cmd/gnokey
 
@@ -43,7 +43,7 @@ run.gnoweb:;       go run ./cmd/gnoweb
 .PHONY: install
 install: install.gnoland install.gnoweb install.gnokey
 
-install.gnoland:;    go install ./cmd/gnoland
+install.gnoland:;    go install $(GOBUILD_FLAGS) ./cmd/gnoland
 install.gnoweb:;     go install ./cmd/gnoweb
 install.gnokey:;     go install ./cmd/gnokey
 

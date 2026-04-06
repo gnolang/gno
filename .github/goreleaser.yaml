@@ -26,6 +26,8 @@ builds:
   - id: gnoland
     main: ./gno.land/cmd/gnoland
     binary: gnoland
+    ldflags:
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Version }}
     env:
       - CGO_ENABLED=0
     goos:
