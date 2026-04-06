@@ -60,13 +60,11 @@ no longer adds a Go stack frame.
 
 ## Testing
 
-No dedicated regression test is included. The vulnerability requires ~500K panicking
-defers to trigger a fatal `runtime.throw("stack overflow")`, which kills the test process
-entirely — there is no way to assert the crash from within a standard test or filetest.
-A subprocess-based Go test could detect exit code 2, but adds complexity for a single
-code path. The fix is validated by the existing 96 panic/defer/recover file tests in
-`gnovm/tests/files/`, which exercise the `Run()`/`runOnce()` iterative recovery path
-on every run.
+No dedicated regression test is included. Reproducing the crash requires ~500K panicking
+defers, which is too costly for routine CI runs. A filetest cannot assert a process crash,
+and a subprocess-based Go test adds complexity for a single code path. The fix is validated
+by the existing 96 panic/defer/recover file tests in `gnovm/tests/files/`, which exercise
+the `Run()`/`runOnce()` iterative recovery path on every run.
 
 ## Consequences
 
