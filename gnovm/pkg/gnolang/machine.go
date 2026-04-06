@@ -1296,7 +1296,7 @@ func (m *Machine) Run(st Stage) {
 
 // runOnce executes the op loop until it completes (OpHalt) or a Go-level
 // *Exception panic is caught. Returns the caught exception, or nil if the
-// loop completed normally.
+// loop completed normally. Non-Exception panics are re-raised.
 func (m *Machine) runOnce() (caught *Exception) {
 	defer func() {
 		if r := recover(); r != nil {

@@ -1,12 +1,13 @@
-# PRxxxx: Iterative Exception Recovery in Machine.Run()
+# PR5439: Iterative Exception Recovery in Machine.Run()
 
 ## Context
 
 `Machine.Run()` contained a `defer/recover` handler that caught Go-level `*Exception`
 panics and recursively called `m.Run(st)`. This design meant each panicking deferred
-function added a new Go stack frame. An attacker could register ~50,000 deferred closures
+function added a new Go stack frame. An attacker could register enough deferred closures
 that each trigger a nil pointer dereference (a Go-level `panic(&Exception{})`), causing
-unbounded Go stack growth that exceeds the Go runtime's 1GB goroutine stack limit.
+unbounded Go stack growth that exceeds the Go runtime's 1GB goroutine stack limit
+(~500K defers are sufficient to crash the process).
 
 The resulting `runtime.throw("stack overflow")` is a fatal error that bypasses all
 `recover()` handlers in the call chain — including the VM keeper's `doRecover` and
@@ -55,8 +56,17 @@ no longer adds a Go stack frame.
 | File | Role |
 |------|------|
 | `gnovm/pkg/gnolang/machine.go:1268` | `Run()` — outer iterative loop |
-| `gnovm/pkg/gnolang/machine.go:1309` | `runOnce()` — inner op loop with defer/recover |
-| `gnovm/pkg/gnolang/recursive_run_overflow_test.go` | Regression test: 50K panicking defers |
+| `gnovm/pkg/gnolang/machine.go:1300` | `runOnce()` — inner op loop with defer/recover |
+
+## Testing
+
+No dedicated regression test is included. The vulnerability requires ~500K panicking
+defers to trigger a fatal `runtime.throw("stack overflow")`, which kills the test process
+entirely — there is no way to assert the crash from within a standard test or filetest.
+A subprocess-based Go test could detect exit code 2, but adds complexity for a single
+code path. The fix is validated by the existing 96 panic/defer/recover file tests in
+`gnovm/tests/files/`, which exercise the `Run()`/`runOnce()` iterative recovery path
+on every run.
 
 ## Consequences
 
