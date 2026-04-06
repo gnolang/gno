@@ -45,7 +45,7 @@ install: install.gnoland install.gnoweb install.gnokey
 
 install.gnoland:;    go install $(GOBUILD_FLAGS) ./cmd/gnoland
 install.gnoweb:;     go install ./cmd/gnoweb
-install.gnokey:;     go install ./cmd/gnokey
+install.gnokey:;     go install $(GOBUILD_FLAGS) ./cmd/gnokey
 
 .PHONY: dev.gnoweb generate.gnoweb
 dev.gnoweb:
