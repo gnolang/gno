@@ -139,93 +139,191 @@ func TestBitSetNew(t *testing.T) {
 }
 
 func TestBitSetOr(t *testing.T) {
-	// Arrange
-	var a, b bitset.BitSet
-
-	a.Set(1)
-	a.Set(3)
-
-	b.Set(2)
-	b.Set(3)
-	b.Set(200)
-
-	// Act
-	a.Or(b)
-
-	// Assert
-	for _, i := range []int{1, 2, 3, 200} {
-		if !a.Test(i) {
-			t.Errorf("bit %d should be set after union", i)
-		}
+	cases := []struct {
+		name    string
+		current []int
+		other   []int
+		want    string
+	}{
+		{
+			name:    "empty sets",
+			current: []int{},
+			other:   []int{},
+			want:    "",
+		},
+		{
+			name:    "equal sets",
+			current: []int{1, 4, 8},
+			other:   []int{1, 4, 8},
+			want:    "100010010",
+		},
+		{
+			name:    "different sets",
+			current: []int{1, 4, 8},
+			other:   []int{2, 3, 5},
+			want:    "100111110",
+		},
+		{
+			name:    "current smaller than other",
+			current: []int{1, 4},
+			other:   []int{2, 3, 5, 8},
+			want:    "100111110",
+		},
+		{
+			name:    "current bigger than other",
+			current: []int{2, 3, 5, 8},
+			other:   []int{1, 4},
+			want:    "100111110",
+		},
 	}
 
-	if a.Test(0) {
-		t.Error("bit 0 should not be set")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			var a, b bitset.BitSet
+
+			for _, v := range tc.current {
+				a.Set(v)
+			}
+
+			for _, v := range tc.other {
+				b.Set(v)
+			}
+
+			// Act
+			a.Or(b)
+
+			// Assert
+			if got := a.String(); got != tc.want {
+				t.Errorf("expected %s, got %s", tc.want, got)
+			}
+		})
 	}
 }
 
 func TestBitSetAnd(t *testing.T) {
-	// Arrange
-	var a, b bitset.BitSet
-
-	a.Set(1)
-	a.Set(2)
-	a.Set(3)
-	a.Set(68)
-
-	b.Set(2)
-	b.Set(3)
-	b.Set(4)
-
-	// Act
-	a.And(b)
-
-	// Assert
-	if a.Test(1) {
-		t.Error("bit 1 should be cleared after AND")
+	cases := []struct {
+		name    string
+		current []int
+		other   []int
+		want    string
+	}{
+		{
+			name:    "empty sets",
+			current: []int{},
+			other:   []int{},
+			want:    "",
+		},
+		{
+			name:    "equal sets",
+			current: []int{1, 4, 8},
+			other:   []int{1, 4, 8},
+			want:    "100010010",
+		},
+		{
+			name:    "different sets",
+			current: []int{1, 4, 8},
+			other:   []int{2, 3, 5},
+			want:    "0",
+		},
+		{
+			name:    "current smaller than other",
+			current: []int{1, 4},
+			other:   []int{1, 4, 5, 8},
+			want:    "10010",
+		},
+		{
+			name:    "current bigger than other",
+			current: []int{0, 3, 5, 8},
+			other:   []int{0, 3},
+			want:    "1001",
+		},
 	}
 
-	if !a.Test(2) {
-		t.Error("bit 2 should remain set")
-	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			var a, b bitset.BitSet
 
-	if !a.Test(3) {
-		t.Error("bit 3 should remain set")
-	}
+			for _, v := range tc.current {
+				a.Set(v)
+			}
 
-	if a.Test(4) {
-		t.Error("bit 4 should not be set (was not in a)")
-	}
+			for _, v := range tc.other {
+				b.Set(v)
+			}
 
-	if a.Test(68) {
-		t.Error("bit 68 should not be set (was not in b)")
+			// Act
+			a.And(b)
+
+			// Assert
+			if got := a.String(); got != tc.want {
+				t.Errorf("expected %s, got %s", tc.want, got)
+			}
+		})
 	}
 }
 
 func TestBitSetXor(t *testing.T) {
-	// Arrange
-	var a, b bitset.BitSet
-
-	a.Set(1)
-	a.Set(2)
-
-	b.Set(2)
-	b.Set(3)
-
-	// Act
-	a.Xor(b)
-
-	// Assert
-	if !a.Test(1) {
-		t.Error("bit 1 should be set (only in a)")
+	cases := []struct {
+		name    string
+		current []int
+		other   []int
+		want    string
+	}{
+		{
+			name:    "empty sets",
+			current: []int{},
+			other:   []int{},
+			want:    "",
+		},
+		{
+			name:    "equal sets",
+			current: []int{1, 4, 8},
+			other:   []int{1, 4, 8},
+			want:    "0",
+		},
+		{
+			name:    "different sets",
+			current: []int{1, 3, 8},
+			other:   []int{2, 3, 5},
+			want:    "100100110",
+		},
+		{
+			name:    "current smaller than other",
+			current: []int{1, 3, 4},
+			other:   []int{2, 3, 5, 8},
+			want:    "100110110",
+		},
+		{
+			name:    "current bigger than other",
+			current: []int{2, 3, 5, 8},
+			other:   []int{1, 3},
+			want:    "100100110",
+		},
 	}
 
-	if a.Test(2) {
-		t.Error("bit 2 should be cleared (in both)")
-	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			var a, b bitset.BitSet
 
-	if !a.Test(3) {
-		t.Error("bit 3 should be set (only in b)")
+			for _, v := range tc.current {
+				a.Set(v)
+			}
+
+			for _, v := range tc.other {
+				b.Set(v)
+			}
+
+			// Act
+			a.Xor(b)
+
+			// Assert
+			if got := a.String(); got != tc.want {
+				t.Errorf("expected %s, got %s", tc.want, got)
+			}
+		})
 	}
 }
 
