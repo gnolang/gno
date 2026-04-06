@@ -171,6 +171,7 @@ func TestBitSetAnd(t *testing.T) {
 	a.Set(1)
 	a.Set(2)
 	a.Set(3)
+	a.Set(68)
 
 	b.Set(2)
 	b.Set(3)
@@ -194,6 +195,10 @@ func TestBitSetAnd(t *testing.T) {
 
 	if a.Test(4) {
 		t.Error("bit 4 should not be set (was not in a)")
+	}
+
+	if a.Test(68) {
+		t.Error("bit 68 should not be set (was not in b)")
 	}
 }
 

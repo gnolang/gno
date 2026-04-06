@@ -64,14 +64,14 @@ func (b BitSet) Len() int {
 }
 
 // And performs an in-place AND with other bitset.
-// Current bitset grows if the other bitset is bigger.
+// Bits beyond the other bitset are cleared.
 func (b *BitSet) And(other BitSet) {
-	if len(other.words) > len(b.words) {
-		b.grow(len(other.words) - 1)
-	}
-
-	for i := range other.words {
-		b.words[i] &= other.words[i]
+	for i := range b.words {
+		if i < len(other.words) {
+			b.words[i] &= other.words[i]
+		} else {
+			b.words[i] = 0
+		}
 	}
 }
 
