@@ -759,6 +759,10 @@ func assertReplyBodyIsValid(body string) {
 	if reDeniedReplyLinePrefixes.MatchString(body) {
 		panic("using Markdown headings, blockquotes or horizontal lines is not allowed in replies")
 	}
+
+	if strings.Index(body, "gno-form") != -1 {
+		panic("Gno-Flavored Markdown forms are not allowed in replies")
+	}
 }
 
 func assertMembersUpdateIsEnabled(boardID boards.ID) {
