@@ -38,6 +38,7 @@ import (
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	"github.com/gnolang/gno/tm2/pkg/bft/version"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	softwareVersion "github.com/gnolang/gno/tm2/pkg/version"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/events"
@@ -924,7 +925,7 @@ func makeNodeInfo(
 		VersionSet: vset,
 		NetAddress: nil, // The shared address depends on the configuration
 		Network:    genDoc.ChainID,
-		Version:    version.Version,
+		Version:    softwareVersion.Version,
 		Channels: []byte{
 			bcChannel,
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,

@@ -26,6 +26,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/random"
+	softwareVersion "github.com/gnolang/gno/tm2/pkg/version"
 )
 
 func TestNodeStartStop(t *testing.T) {
@@ -158,6 +159,17 @@ func TestNodeSetAppVersion(t *testing.T) {
 	appVersion2, ok := n.nodeInfo.VersionSet.Get("app")
 	assert.True(t, ok)
 	assert.Equal(t, appVersion2.Version, appVersion)
+}
+
+func TestNodeSoftwareVersion(t *testing.T) {
+	config, genesisFile := cfg.ResetTestRoot("node_software_version_test")
+	defer os.RemoveAll(config.RootDir)
+
+	n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewTestingLogger(t))
+	require.NoError(t, err)
+
+	// NodeInfo.Version should reflect the software version, not the TM2 protocol version
+	assert.Equal(t, softwareVersion.Version, n.nodeInfo.Version)
 }
 
 func TestNodeSetPrivValTCP(t *testing.T) {
