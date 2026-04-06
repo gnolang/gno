@@ -40,16 +40,20 @@ var (
 	_ types.DepthEstimator = (*Store)(nil)
 )
 
-// ExpectedDepth returns floor(log2(size)) + 1 as a deterministic estimate
-// of IAVL tree traversal depth. Size is consensus state — constant within
-// a block.
-func (st *Store) ExpectedDepth() int64 {
-	size := st.tree.Size()
+// expectedDepth100 returns floor(log2(size)) + 1, scaled by 100 for
+// fixed-point depth estimation. Size is consensus state — constant
+// within a block.
+func expectedDepth100(size int64) int64 {
 	if size <= 1 {
-		return 1
+		return 100
 	}
-	return int64(bits.Len64(uint64(size)))
+	return int64(bits.Len64(uint64(size))) * 100
 }
+
+// For IAVL (no fast nodes), all three depths are the same — full tree depth.
+func (st *Store) ExpectedGetReadDepth100() int64 { return expectedDepth100(st.tree.Size()) }
+func (st *Store) ExpectedSetReadDepth100() int64 { return expectedDepth100(st.tree.Size()) }
+func (st *Store) ExpectedWriteDepth100() int64   { return expectedDepth100(st.tree.Size()) }
 
 // Store Implements types.Store and CommitStore.
 type Store struct {

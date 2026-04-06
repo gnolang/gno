@@ -20,7 +20,10 @@ const (
 	depositDefault                 = "600000000ugnot"
 	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1B GNOT == 10TB
 	storageFeeCollectorNameDefault = "storage_fee_collector"
-	minDepthDefault                = int64(12) // floor for IAVL depth gas estimate (~4K keys equivalent)
+	// Depth floors calibrated for B+32 at 100M items with 10K cache, batched 1000 muts.
+	minGetReadDepth100Default = int64(300) // 3.0 GET read ops
+	minSetReadDepth100Default = int64(200) // 2.0 SET read ops
+	minWriteDepth100Default   = int64(440) // 4.4 write ops (batched)
 )
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
@@ -33,11 +36,13 @@ type Params struct {
 	DefaultDeposit      string         `json:"default_deposit" yaml:"default_deposit"`
 	StoragePrice        string         `json:"storage_price" yaml:"storage_price"`
 	StorageFeeCollector crypto.Address `json:"storage_fee_collector" yaml:"storage_fee_collector"`
-	MinDepth            int64          `json:"min_depth" yaml:"min_depth"`
+	MinGetReadDepth100  int64          `json:"min_get_read_depth_100" yaml:"min_get_read_depth_100"`
+	MinSetReadDepth100  int64          `json:"min_set_read_depth_100" yaml:"min_set_read_depth_100"`
+	MinWriteDepth100    int64          `json:"min_write_depth_100" yaml:"min_write_depth_100"`
 }
 
 // NewParams creates a new Params object
-func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address, minDepth int64) Params {
+func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address, minGetReadDepth100, minSetReadDepth100, minWriteDepth100 int64) Params {
 	return Params{
 		SysNamesPkgPath:     namesPkgPath,
 		SysCLAPkgPath:       claPkgPath,
@@ -45,7 +50,9 @@ func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePri
 		DefaultDeposit:      defaultDeposit,
 		StoragePrice:        storagePrice,
 		StorageFeeCollector: storageFeeCollector,
-		MinDepth:            minDepth,
+		MinGetReadDepth100:  minGetReadDepth100,
+		MinSetReadDepth100:  minSetReadDepth100,
+		MinWriteDepth100:    minWriteDepth100,
 	}
 }
 
@@ -53,7 +60,7 @@ func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePri
 func DefaultParams() Params {
 	return NewParams(sysNamesPkgDefault, sysCLAPkgDefault, chainDomainDefault,
 		depositDefault, storagePriceDefault, crypto.AddressFromPreimage([]byte(storageFeeCollectorNameDefault)),
-		minDepthDefault)
+		minGetReadDepth100Default, minSetReadDepth100Default, minWriteDepth100Default)
 }
 
 // String implements the stringer interface.
@@ -156,8 +163,12 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 			panic(fmt.Sprintf("invalid storage_fee_collector address: %v", err))
 		}
 		params.StorageFeeCollector = addr
-	case "p:min_depth":
-		params.MinDepth = sdkparams.MustParamInt64("min_depth", value)
+	case "p:min_get_read_depth_100":
+		params.MinGetReadDepth100 = sdkparams.MustParamInt64("min_get_read_depth_100", value)
+	case "p:min_set_read_depth_100":
+		params.MinSetReadDepth100 = sdkparams.MustParamInt64("min_set_read_depth_100", value)
+	case "p:min_write_depth_100":
+		params.MinWriteDepth100 = sdkparams.MustParamInt64("min_write_depth_100", value)
 	default:
 		if strings.HasPrefix(key, "p:") {
 			panic(fmt.Sprintf("unknown vm param key: %q", key))

@@ -38,13 +38,20 @@ func (cv cValue) String() string {
 
 // cacheStore wraps an in-memory cache around an underlying types.Store.
 type cacheStore struct {
-	mtx            sync.Mutex
-	cache          map[string]*cValue
-	unsortedCache  map[string]struct{}
-	sortedCache    *list.List // always ascending sorted
-	parent         types.Store
-	depthEstimator types.DepthEstimator // nil for flat stores (e.g. dbadapter)
-	chargedGas     map[string]types.Gas // write/delete gas deduplication per key
+	mtx           sync.Mutex
+	cache         map[string]*cValue
+	unsortedCache map[string]struct{}
+	sortedCache   *list.List // always ascending sorted
+	parent        types.Store
+	chargedGas    map[string]types.Gas // write/delete gas deduplication per key
+
+	// Depth estimation for gas. Cached at construction time from
+	// DepthEstimator (IAVL/B+tree). 100x fixed-point (300 = 3.0).
+	// hasEstimator is false for flat stores (dbadapter).
+	hasEstimator    bool
+	getReadDepth100 int64
+	setReadDepth100 int64
+	writeDepth100   int64
 }
 
 var _ types.Store = (*cacheStore)(nil)
@@ -57,29 +64,41 @@ func New(parent types.Store) *cacheStore {
 		parent:        parent,
 		chargedGas:    make(map[string]types.Gas),
 	}
-	// Auto-detect DepthEstimator from parent.
+	// Auto-detect DepthEstimator from parent and cache depths.
 	if de, ok := parent.(types.DepthEstimator); ok {
-		cs.depthEstimator = de
+		cs.hasEstimator = true
+		cs.getReadDepth100 = de.ExpectedGetReadDepth100()
+		cs.setReadDepth100 = de.ExpectedSetReadDepth100()
+		cs.writeDepth100 = de.ExpectedWriteDepth100()
 	}
 	return cs
 }
 
-// SetDepthEstimator sets the depth estimator for IAVL-backed stores.
-func (store *cacheStore) SetDepthEstimator(de types.DepthEstimator) {
-	store.depthEstimator = de
+// effectiveGetReadDepth100 returns the GET read depth, floored by MinGetReadDepth100.
+func (store *cacheStore) effectiveGetReadDepth100(gctx *types.GasContext) int64 {
+	d := store.getReadDepth100
+	if gctx != nil && gctx.Config.MinGetReadDepth100 > 0 && d < gctx.Config.MinGetReadDepth100 {
+		d = gctx.Config.MinGetReadDepth100
+	}
+	return d
 }
 
-// expectedDepth returns the estimated IAVL tree depth, floored by
-// GasConfig.MinDepth. Returns 1 for non-IAVL stores (no estimator).
-func (store *cacheStore) expectedDepth(gctx *types.GasContext) int64 {
-	if store.depthEstimator == nil {
-		return 1 // flat store (dbadapter), no depth
+// effectiveSetReadDepth100 returns the SET read depth, floored by MinSetReadDepth100.
+func (store *cacheStore) effectiveSetReadDepth100(gctx *types.GasContext) int64 {
+	d := store.setReadDepth100
+	if gctx != nil && gctx.Config.MinSetReadDepth100 > 0 && d < gctx.Config.MinSetReadDepth100 {
+		d = gctx.Config.MinSetReadDepth100
 	}
-	depth := store.depthEstimator.ExpectedDepth()
-	if gctx != nil && gctx.Config.MinDepth > 0 && depth < gctx.Config.MinDepth {
-		return gctx.Config.MinDepth
+	return d
+}
+
+// effectiveWriteDepth100 returns the write depth, floored by MinWriteDepth100.
+func (store *cacheStore) effectiveWriteDepth100(gctx *types.GasContext) int64 {
+	d := store.writeDepth100
+	if gctx != nil && gctx.Config.MinWriteDepth100 > 0 && d < gctx.Config.MinWriteDepth100 {
+		d = gctx.Config.MinWriteDepth100
 	}
-	return depth
+	return d
 }
 
 // Implements types.Store.
@@ -92,9 +111,9 @@ func (store *cacheStore) Get(gctx *types.GasContext, key []byte) (value []byte) 
 	if !ok {
 		// Cache miss — charge depth-based I/O gas, then fetch.
 		if gctx != nil {
-			depth := store.expectedDepth(gctx)
-			if depth > 1 {
-				gctx.ConsumeGas(types.Gas(depth)*gctx.Config.ReadCostFlat, "DepthReadFlat")
+			if store.hasEstimator {
+				d := store.effectiveGetReadDepth100(gctx)
+				gctx.ConsumeGas(d*gctx.Config.ReadCostFlat/100, "DepthReadFlat")
 			} else {
 				gctx.WillGet() // flat ReadCostFlat (non-depth store)
 			}
@@ -127,12 +146,13 @@ func (store *cacheStore) Set(gctx *types.GasContext, key []byte, value []byte) {
 			gctx.RefundGas(prev)
 		}
 		var gas types.Gas
-		depth := store.expectedDepth(gctx)
-		if depth > 1 {
-			depthGas := types.Gas(depth) * (gctx.Config.ReadCostFlat + gctx.Config.WriteCostFlat)
-			depthGas += gctx.Config.WriteCostPerByte * types.Gas(len(value))
-			gctx.ConsumeGas(depthGas, "IavlSet")
-			gas = depthGas
+		if store.hasEstimator {
+			rd := store.effectiveSetReadDepth100(gctx)
+			wd := store.effectiveWriteDepth100(gctx)
+			gas = rd*gctx.Config.ReadCostFlat/100 +
+				wd*gctx.Config.WriteCostFlat/100 +
+				gctx.Config.WriteCostPerByte*types.Gas(len(value))
+			gctx.ConsumeGas(gas, "DepthSet")
 		} else {
 			gas = gctx.WillSet(value)
 		}
@@ -161,12 +181,12 @@ func (store *cacheStore) Delete(gctx *types.GasContext, key []byte) {
 			gctx.RefundGas(prev)
 		}
 		var gas types.Gas
-		depth := store.expectedDepth(gctx)
-		if depth > 1 {
-			// IAVL: depth reads + depth writes to remove and rebalance
-			depthGas := types.Gas(depth) * (gctx.Config.ReadCostFlat + gctx.Config.WriteCostFlat)
-			gctx.ConsumeGas(depthGas, "IavlDelete")
-			gas = depthGas
+		if store.hasEstimator {
+			rd := store.effectiveSetReadDepth100(gctx)
+			wd := store.effectiveWriteDepth100(gctx)
+			gas = rd*gctx.Config.ReadCostFlat/100 +
+				wd*gctx.Config.WriteCostFlat/100
+			gctx.ConsumeGas(gas, "DepthDelete")
 		} else {
 			gas = gctx.WillDelete() // DeleteCost
 		}
@@ -252,8 +272,11 @@ func (store *cacheStore) clear() {
 // Implements Store.
 func (store *cacheStore) CacheWrap() types.Store {
 	cs := New(store)
-	// Propagate depth estimator to nested cache layers.
-	cs.depthEstimator = store.depthEstimator
+	// Propagate cached depths to nested cache layers.
+	cs.hasEstimator = store.hasEstimator
+	cs.getReadDepth100 = store.getReadDepth100
+	cs.setReadDepth100 = store.setReadDepth100
+	cs.writeDepth100 = store.writeDepth100
 	return cs
 }
 

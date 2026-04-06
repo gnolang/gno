@@ -99,10 +99,13 @@ func (gctx *GasContext) WillIterNext() {
 }
 
 // DepthEstimator is implemented by stores that have depth-dependent
-// I/O cost (e.g., IAVL trees). The expected depth is used by
-// cache.Store to estimate gas for reads/writes.
+// I/O cost (e.g., IAVL trees, B+ trees). The expected depths are used
+// by cache.Store to estimate gas for reads/writes. Values are 100x
+// fixed-point (e.g., 300 = 3.0 reads) for deterministic fractional depths.
 type DepthEstimator interface {
-	ExpectedDepth() int64
+	ExpectedGetReadDepth100() int64 // GET read ops × 100
+	ExpectedSetReadDepth100() int64 // SET read ops × 100 (no value read)
+	ExpectedWriteDepth100() int64   // write ops × 100 (COW path)
 }
 
 // Gas measured by the SDK
@@ -335,8 +338,10 @@ type GasConfig struct {
 	ReadCostPerByte  Gas
 	WriteCostFlat    Gas
 	WriteCostPerByte Gas
-	IterNextCostFlat Gas
-	MinDepth         Gas // floor for DepthEstimator (0 = no floor)
+	IterNextCostFlat    Gas
+	MinGetReadDepth100  Gas // floor for GET read depth (100x fixed-point, 0 = no floor)
+	MinSetReadDepth100  Gas // floor for SET read depth
+	MinWriteDepth100    Gas // floor for write depth (batched)
 }
 
 // DefaultGasConfig returns a default gas config for KVStores.
@@ -344,13 +349,15 @@ type GasConfig struct {
 // See gno.land/adr/gas_refactor.md Calibration section.
 func DefaultGasConfig() GasConfig {
 	return GasConfig{
-		HasCost:          59_000, // same as ReadCostFlat (Has traverses the tree)
-		DeleteCost:       59_000, // same as ReadCostFlat (delete requires finding the key)
-		ReadCostFlat:     59_000, // ~59µs per random read at 100M keys
-		ReadCostPerByte:  17,     // ~17 ns/byte (LMDB overflow page reads)
-		WriteCostFlat:    24_000, // ~24µs per write (amortized, batch=1000)
-		WriteCostPerByte: 14,     // ~14 ns/byte (LMDB overflow page writes)
-		IterNextCostFlat: 1_000,  // ~1µs per iteration step (sequential leaf scan)
-		MinDepth:         0,      // tm2 default: no floor
+		HasCost:             59_000, // same as ReadCostFlat (Has traverses the tree)
+		DeleteCost:          59_000, // same as ReadCostFlat (delete requires finding the key)
+		ReadCostFlat:        59_000, // ~59µs per random read at 100M keys
+		ReadCostPerByte:     17,     // ~17 ns/byte (LMDB overflow page reads)
+		WriteCostFlat:       24_000, // ~24µs per write (amortized, batch=1000)
+		WriteCostPerByte:    14,     // ~14 ns/byte (LMDB overflow page writes)
+		IterNextCostFlat:    1_000,  // ~1µs per iteration step (sequential leaf scan)
+		MinGetReadDepth100:  0,      // tm2 default: no floor
+		MinSetReadDepth100:  0,
+		MinWriteDepth100:    0,
 	}
 }
