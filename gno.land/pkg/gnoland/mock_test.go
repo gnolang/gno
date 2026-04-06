@@ -118,6 +118,8 @@ func (m *mockVMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
 	}
 }
 
+func (m *mockVMKeeper) PopulateStdlibCache() {}
+
 func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {}
 
 type mockBankKeeper struct{}

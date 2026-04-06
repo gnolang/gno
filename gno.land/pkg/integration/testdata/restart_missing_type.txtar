@@ -10,7 +10,7 @@ loadpkg gno.land/p/nt/avl/v0
 gnoland start
 
 # give gui user more tokens
-gnokey maketx send -send 1000000000ugnot -to $user1_user_addr  -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
+gnokey maketx send -send 1000000000ugnot -to $user1_user_addr  -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid tendermint_test test1
 
 # tx1 out of gas
 gnokey sign -tx-path $WORK/tx1.tx -chainid tendermint_test -account-sequence 0 -account-number 58 user1
@@ -101,7 +101,7 @@ gnoland restart
     }
   ],
   "fee": {
-    "gas_wanted": "3000000",
+    "gas_wanted": "10000000",
     "gas_fee": "1000000ugnot"
   },
   "signatures": [],
@@ -180,7 +180,7 @@ gnoland restart
     }
   ],
   "fee": {
-    "gas_wanted": "35000000",
+    "gas_wanted": "200000000",
     "gas_fee": "1000000ugnot"
   },
   "signatures": [],
@@ -215,7 +215,7 @@ gnoland restart
     }
   ],
   "fee": {
-    "gas_wanted": "30000000",
+    "gas_wanted": "200000000",
     "gas_fee": "1000000ugnot"
   },
   "signatures": [],
