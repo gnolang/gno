@@ -36,9 +36,10 @@ const (
 	PermissionMemberInviteRevoke
 	PermissionMemberRemove
 	PermissionPermissionsUpdate
-	PermissionRealmHelp
+	PermissionRealmHelpChange
 	PermissionRealmLock
 	PermissionRealmNotice
+	PermissionAccountRequiredAmountChange
 	PermissionReplyCreate
 	PermissionReplyDelete
 	PermissionReplyFlag

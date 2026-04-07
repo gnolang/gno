@@ -11,10 +11,10 @@ const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.SetRealmNotice(cross, "This is a test realm message")
+	boards2.SetRequiredAccountAmount(cross, 1_000_000)
 
-	println(boards2.Notice)
+	println(boards2.RequiredAccountAmount)
 }
 
 // Output:
-// This is a test realm message
+// 1000000
