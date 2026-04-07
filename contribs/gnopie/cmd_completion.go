@@ -45,7 +45,7 @@ const bashCompletion = `_gnopie() {
     _init_completion || return
 
     local verbs="GET EVAL READ INSPECT CALL RUN"
-    local subcmds="completion version"
+    local subcmds="config completion version"
     local flags="--home --key --json --quiet --send --gas-wanted --gas-fee --dry-run --generate-gnokey"
 
     case "$prev" in
@@ -68,7 +68,7 @@ const zshCompletion = `#compdef gnopie
 _gnopie() {
     local -a verbs subcmds flags
     verbs=(GET EVAL READ INSPECT CALL RUN)
-    subcmds=(completion version)
+    subcmds=(config completion version)
     flags=(--home --key --json --quiet --send --gas-wanted --gas-fee --dry-run --generate-gnokey)
 
     _arguments -C \
@@ -91,8 +91,10 @@ _gnopie() {
 _gnopie`
 
 const fishCompletion = `complete -c gnopie -n '__fish_use_subcommand' -a 'GET EVAL READ INSPECT CALL RUN' -d 'Verb'
+complete -c gnopie -n '__fish_use_subcommand' -a 'config' -d 'Manage config'
 complete -c gnopie -n '__fish_use_subcommand' -a 'completion' -d 'Shell completions'
 complete -c gnopie -n '__fish_use_subcommand' -a 'version' -d 'Print version'
+complete -c gnopie -n '__fish_seen_subcommand_from config' -a 'set get list'
 complete -c gnopie -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
 complete -c gnopie -l home -d 'Config home directory'
 complete -c gnopie -l key -d 'Key name'

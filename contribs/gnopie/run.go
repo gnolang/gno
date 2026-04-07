@@ -171,10 +171,11 @@ func printRunGnokeyCmd(cfg *baseCfg, p *GnoPath, code string, io commands.IO) er
 	if cfg.send != "" {
 		parts = append(parts, fmt.Sprintf("-send=%s", cfg.send))
 	}
-	if cfg.keyName != "" {
-		parts = append(parts, cfg.keyName)
-	} else {
+	keyName, err := cfg.resolveKeyName()
+	if err != nil {
 		parts = append(parts, "<key-name>")
+	} else {
+		parts = append(parts, keyName)
 	}
 	parts = append(parts, "run.gno")
 

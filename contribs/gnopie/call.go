@@ -165,10 +165,11 @@ func printGnokeyCmd(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 			parts = append(parts, fmt.Sprintf("-args=%s", arg))
 		}
 	}
-	if cfg.keyName != "" {
-		parts = append(parts, cfg.keyName)
-	} else {
+	keyName, err := cfg.resolveKeyName()
+	if err != nil {
 		parts = append(parts, "<key-name>")
+	} else {
+		parts = append(parts, keyName)
 	}
 	io.Println(strings.Join(parts, " \\\n  "))
 	return nil

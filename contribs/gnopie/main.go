@@ -92,9 +92,25 @@ func (c *baseCfg) queryClient(domain string) (*gnoclient.Client, *Remote, error)
 	return &gnoclient.Client{RPCClient: rpc}, remote, nil
 }
 
+// resolveKeyName returns the effective key name from --key flag or config.
+func (c *baseCfg) resolveKeyName() (string, error) {
+	if c.keyName != "" {
+		return c.keyName, nil
+	}
+	cfg, err := LoadConfig(c.home)
+	if err != nil {
+		return "", err
+	}
+	if cfg.Key != "" {
+		return cfg.Key, nil
+	}
+	return "", fmt.Errorf("no key specified (use --key or 'gnopie config set key=<name>')")
+}
+
 func (c *baseCfg) signingClient(domain string, io commands.IO) (*gnoclient.Client, *Remote, error) {
-	if c.keyName == "" {
-		return nil, nil, fmt.Errorf("--key is required for signing transactions")
+	keyName, err := c.resolveKeyName()
+	if err != nil {
+		return nil, nil, err
 	}
 	remote, err := c.resolveRemote(domain)
 	if err != nil {
@@ -108,13 +124,13 @@ func (c *baseCfg) signingClient(domain string, io commands.IO) (*gnoclient.Clien
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening keybase: %w", err)
 	}
-	pass, err := io.GetPassword("Enter password:", false)
+	pass, err := io.GetPassword(fmt.Sprintf("Enter password (%s):", keyName), false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading password: %w", err)
 	}
 	return &gnoclient.Client{
 		Signer: &gnoclient.SignerFromKeybase{
-			Keybase: kb, Account: c.keyName, Password: pass, ChainID: remote.ChainID,
+			Keybase: kb, Account: keyName, Password: pass, ChainID: remote.ChainID,
 		},
 		RPCClient: rpc,
 	}, remote, nil
@@ -161,6 +177,7 @@ Verbs:
 	)
 
 	cmd.AddSubCommands(
+		newConfigCmd(cfg, io),
 		newCompletionCmd(io),
 		newVersionCmd(io),
 	)
