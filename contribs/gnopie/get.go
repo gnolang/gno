@@ -184,21 +184,82 @@ func readSource(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 		if err != nil {
 			continue
 		}
-		for _, prefix := range []string{"func ", "var ", "type ", "const "} {
-			if strings.Contains(source, prefix+p.Symbol) {
-				if cfg.jsonOut {
-					return outputJSON(io, map[string]any{
-						"pkg_path": p.PkgPath, "symbol": p.Symbol,
-						"file": fname, "source": source,
-					})
-				}
-				io.Printfln("// %s/%s", p.PkgPath, fname)
-				io.Println(source)
-				return nil
+		decl := extractDecl(source, p.Symbol)
+		if decl != "" {
+			cfg.debugf(io, "found %s in %s", p.Symbol, fname)
+			if cfg.jsonOut {
+				return outputJSON(io, map[string]any{
+					"pkg_path": p.PkgPath, "symbol": p.Symbol,
+					"file": fname, "source": decl,
+				})
 			}
+			io.Printfln("// %s/%s", p.PkgPath, fname)
+			io.Println(decl)
+			return nil
 		}
 	}
 	return fmt.Errorf("symbol %q not found in %s", p.Symbol, p.PkgPath)
+}
+
+// extractDecl extracts a single declaration (func, type, var, const) from source code.
+// It finds the line starting with "func Symbol", "type Symbol", etc. and returns
+// the complete block including its body (tracking brace depth for funcs/types).
+func extractDecl(source, symbol string) string {
+	lines := strings.Split(source, "\n")
+	prefixes := []string{"func ", "var ", "type ", "const "}
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		for _, prefix := range prefixes {
+			// Match "func Symbol(" or "func (r Type) Symbol(" or "var Symbol" etc.
+			if !strings.Contains(trimmed, prefix+symbol) {
+				continue
+			}
+			// For "func ", also check it's the function name not a substring
+			// e.g., "func ModAddPost(" should match "ModAddPost" but not "AddPost"
+			idx := strings.Index(trimmed, prefix+symbol)
+			afterSymbol := idx + len(prefix) + len(symbol)
+			if afterSymbol < len(trimmed) {
+				next := trimmed[afterSymbol]
+				if next != '(' && next != ' ' && next != '\t' && next != '{' && next != '\n' {
+					continue // substring match, skip
+				}
+			}
+
+			// Found the declaration start. Now extract the full block.
+			// For single-line declarations (var, const without block), return just the line.
+			if prefix == "var " || prefix == "const " {
+				if !strings.Contains(line, "{") {
+					return strings.TrimRight(line, "\n")
+				}
+			}
+
+			// Track braces to find the end of the block
+			var result strings.Builder
+			depth := 0
+			started := false
+			for j := i; j < len(lines); j++ {
+				result.WriteString(lines[j])
+				result.WriteByte('\n')
+
+				for _, ch := range lines[j] {
+					if ch == '{' {
+						depth++
+						started = true
+					} else if ch == '}' {
+						depth--
+					}
+				}
+
+				if started && depth == 0 {
+					return strings.TrimRight(result.String(), "\n")
+				}
+			}
+			// If we never found matching braces, return what we have
+			return strings.TrimRight(result.String(), "\n")
+		}
+	}
+	return ""
 }
 
 // execInspect provides detailed inspection of any gno resource.
