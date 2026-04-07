@@ -42,7 +42,7 @@ func main() {
 	// ---- 2. Register the initial validator set via governance proposal ----
 	// 7 validators — BFT >2/3 threshold (floor(2n/3)+1) means 5 nodes must be up for consensus.
 	// Additional validators can be added post-genesis via govDAO proposals
-	// (see govdao-scripts/add-validator.sh).
+	// (see misc/govdao-scripts/add-validator.sh or ./govdao add-validator).
 	govExec(valr.NewPropRequest(
 		func() []validators.Validator {
 			return []validators.Validator{
