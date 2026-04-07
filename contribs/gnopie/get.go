@@ -20,11 +20,11 @@ func execGet(ctx context.Context, cfg *baseCfg, expr string, io commands.IO) err
 		return fmt.Errorf("parsing: %w", err)
 	}
 
-	cfg.debugf(io, "path parsed: kind=%d domain=%s pkgpath=%s symbol=%s args=%v", p.Kind, p.Domain, p.PkgPath, p.Symbol, p.Args)
+	cfg.debugf(io, "parse           kind=%d domain=%s pkg=%s sym=%s", p.Kind, p.Domain, p.PkgPath, p.Symbol)
 
 	// Handle gnoweb modifiers
 	if p.RenderPath == "$source" {
-		cfg.debugf(io, "GET dispatch → READ ($source modifier)")
+		cfg.debugf(io, "route           → READ ($source)")
 		if p.File != "" {
 			// $source&file=admin.gno → read specific file
 			return readFile(cfg, p, io)
@@ -32,7 +32,7 @@ func execGet(ctx context.Context, cfg *baseCfg, expr string, io commands.IO) err
 		return execRead(ctx, cfg, expr, io)
 	}
 	if p.RenderPath == "$help" || p.RenderPath == "$funcs" {
-		cfg.debugf(io, "GET dispatch → INSPECT ($help/$funcs modifier)")
+		cfg.debugf(io, "route           → INSPECT ($help)")
 		if p.Symbol != "" {
 			// $help#func-Name → inspect specific function
 			return readFuncSignature(cfg, p, io)
@@ -42,26 +42,26 @@ func execGet(ctx context.Context, cfg *baseCfg, expr string, io commands.IO) err
 
 	switch p.Kind {
 	case PathCall:
-		cfg.debugf(io, "GET dispatch → EVAL (function call)")
+		cfg.debugf(io, "route           → EVAL")
 		return execEval(ctx, cfg, expr, io)
 	case PathSymbol:
-		cfg.debugf(io, "GET dispatch → READ (symbol)")
+		cfg.debugf(io, "route           → READ")
 		return execRead(ctx, cfg, expr, io)
 	case PathFile:
-		cfg.debugf(io, "GET dispatch → READ (file)")
+		cfg.debugf(io, "route           → READ (file)")
 		return readFile(cfg, p, io)
 	case PathAddress:
-		cfg.debugf(io, "GET dispatch → INSPECT (address)")
+		cfg.debugf(io, "route           → INSPECT (address)")
 		return inspectAddress(cfg, p, io)
 	case PathUser:
-		cfg.debugf(io, "GET dispatch → user profile")
+		cfg.debugf(io, "route           → user lookup")
 		return inspectUser(cfg, p, io)
 	case PathPackage:
 		// Default for packages: call Render("") like gnoweb
-		cfg.debugf(io, "GET dispatch → Render (package)")
+		cfg.debugf(io, "route           → Render")
 		return getRender(cfg, p, io)
 	default:
-		cfg.debugf(io, "GET dispatch → INSPECT (kind=%d)", p.Kind)
+		cfg.debugf(io, "route           → INSPECT")
 		return execInspect(ctx, cfg, expr, io)
 	}
 }
@@ -87,7 +87,7 @@ func execEval(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 		args := joinArgs(p.Args)
 		// Auto-inject `cross` for crossing functions
 		crossing := isCrossingFunc(c, cfg, p.PkgPath, p.Symbol)
-		cfg.debugf(io, "crossing check for %s.%s: %v", p.PkgPath, p.Symbol, crossing)
+		cfg.debugf(io, "crossing        %s.%s=%v", p.PkgPath, p.Symbol, crossing)
 		if crossing {
 			if args == "" {
 				args = "cross"
@@ -100,7 +100,6 @@ func execEval(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 		qevalExpr = p.Symbol
 	}
 
-	cfg.debugf(io, "qeval: %s.%s", p.PkgPath, qevalExpr)
 	result, _, err := c.QEval(p.PkgPath, qevalExpr)
 	if err != nil {
 		return fmt.Errorf("eval: %w", err)
@@ -130,10 +129,8 @@ func execRead(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 
 	case PathSymbol:
 		if p.IsPublic() {
-			cfg.debugf(io, "reading source for public symbol %s.%s", p.PkgPath, p.Symbol)
 			return readSource(cfg, p, io)
 		}
-		cfg.debugf(io, "reading value for private symbol %s.%s via qeval", p.PkgPath, p.Symbol)
 		c, _, err := cfg.queryClient(p.Domain)
 		if err != nil {
 			return err
@@ -190,25 +187,23 @@ func readSource(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	cfg.debugf(io, "qfile: listing files in %s", p.PkgPath)
 	fileList, err := queryFileC(c, cfg, p.PkgPath)
 	if err != nil {
 		return err
 	}
 	files := splitLines(fileList)
-	cfg.debugf(io, "found %d files, searching for symbol %q", len(files), p.Symbol)
+	cfg.debugf(io, "search          %q in %d files", p.Symbol, len(files))
 	for _, fname := range files {
 		if !strings.HasSuffix(fname, ".gno") || strings.HasSuffix(fname, "_test.gno") {
 			continue
 		}
-		cfg.debugf(io, "qfile: reading %s/%s", p.PkgPath, fname)
 		source, err := queryFileC(c, cfg, p.PkgPath+"/"+fname)
 		if err != nil {
 			continue
 		}
 		decl := extractDecl(source, p.Symbol)
 		if decl != "" {
-			cfg.debugf(io, "found %s in %s", p.Symbol, fname)
+			cfg.debugf(io, "found           %s in %s", p.Symbol, fname)
 			if cfg.jsonOut {
 				return outputJSON(io, map[string]any{
 					"pkg_path": p.PkgPath, "symbol": p.Symbol,
@@ -318,9 +313,7 @@ func inspectNetwork(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	cfg.debugf(io, "querying latest block height")
 	height, _ := c.LatestBlockHeight()
-	cfg.debugf(io, "querying app version")
 	ver, _, _ := c.QueryAppVersion()
 
 	if cfg.jsonOut {
@@ -347,7 +340,6 @@ func inspectNamespace(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	cfg.debugf(io, "qpaths: %s", p.PkgPath)
 	result, err := queryPaths(c, p.PkgPath)
 	if err != nil {
 		return err
@@ -368,13 +360,9 @@ func inspectPackage(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	cfg.debugf(io, "qfile: listing %s", p.PkgPath)
 	fileList, _ := queryFileC(c, cfg, p.PkgPath)
 	files := splitLines(fileList)
-	cfg.debugf(io, "qfile: %d files", len(files))
-	cfg.debugf(io, "qfuncs: %s", p.PkgPath)
 	funcsJSON, _ := queryFuncsC(c, cfg, p.PkgPath)
-	cfg.debugf(io, "qstorage: %s", p.PkgPath)
 	storage, _ := queryStorage(c, p.PkgPath)
 
 	if cfg.jsonOut {
@@ -412,7 +400,6 @@ func inspectSymbol(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	cfg.debugf(io, "qeval: %s.%s", p.PkgPath, p.Symbol)
 	result, _, err := c.QEval(p.PkgPath, p.Symbol)
 	if err != nil {
 		return fmt.Errorf("inspecting %s.%s: %w", p.PkgPath, p.Symbol, err)
@@ -436,11 +423,11 @@ func getRender(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 		renderPath = ""
 	}
 
-	cfg.debugf(io, "qrender: %s:%s", p.PkgPath, renderPath)
+	cfg.debugf(io, "render          %s:%s", p.PkgPath, renderPath)
 	result, _, err := c.Render(p.PkgPath, renderPath)
 	if err != nil {
 		// If Render fails, fall back to inspect
-		cfg.debugf(io, "Render failed, falling back to inspect: %v", err)
+		cfg.debugf(io, "fallback        Render failed, using INSPECT")
 		return inspectPackage(cfg, p, io)
 	}
 
@@ -462,7 +449,6 @@ func readFile(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 		return err
 	}
 	filePath := p.PkgPath + "/" + p.File
-	cfg.debugf(io, "qfile: %s", filePath)
 	source, err := queryFileC(c, cfg, filePath)
 	if err != nil {
 		return fmt.Errorf("reading file: %w", err)
@@ -547,7 +533,7 @@ func inspectAddress(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	}
 	_ = remote
 
-	cfg.debugf(io, "querying account %s", p.Address)
+	cfg.debugf(io, "account         %s", p.Address)
 
 	// Query account via auth/accounts path
 	res, err := c.Query(gnoclient.QueryCfg{
@@ -580,7 +566,7 @@ func inspectUser(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	}
 
 	username := p.Symbol // stored in Symbol by parser
-	cfg.debugf(io, "looking up user %q", username)
+	cfg.debugf(io, "user            %s", username)
 
 	// Render the user page via r/sys/users
 	result, _, err := c.Render("gno.land/r/sys/users", username)

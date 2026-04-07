@@ -205,7 +205,6 @@ Verbs:
 }
 
 func dispatch(ctx context.Context, cfg *baseCfg, args []string, io commands.IO) error {
-	cfg.debugf(io, "args: %v", args)
 	if len(args) == 0 {
 		return fmt.Errorf("usage: gnopie [VERB] <expression>\nRun 'gnopie --help' for details")
 	}
@@ -224,7 +223,7 @@ func dispatch(ctx context.Context, cfg *baseCfg, args []string, io commands.IO) 
 	}
 
 	expr := exprArgs[0]
-	cfg.debugf(io, "verb=%s expr=%s", verb, expr)
+	cfg.debugf(io, "dispatch        verb=%s expr=%s", verb, expr)
 
 	switch verb {
 	case VerbGET:
@@ -256,12 +255,12 @@ func cachedQuery(client *gnoclient.Client, home, queryPath, data string, cacheab
 
 	if cacheable && home != "" {
 		if result, ok := loadCachedQuery(home, queryPath, data); ok {
-			dbg("%s %s (cached)", queryPath, data)
+			dbg("query           %s %s CACHED", queryPath, data)
 			return result, nil
 		}
 	}
 
-	dbg("%s %s (live)", queryPath, data)
+	dbg("query           %s %s", queryPath, data)
 	res, err := client.Query(gnoclient.QueryCfg{Path: queryPath, Data: []byte(data)})
 	if err != nil {
 		return "", err

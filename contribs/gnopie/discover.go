@@ -45,10 +45,9 @@ func DiscoverRemote(home, domain string, dbg DebugFunc) (*Remote, error) {
 
 	// Check cache first
 	if r, err := loadCachedRemote(home, domain); err == nil {
-		dbg("cache hit for %s (rpc=%s, chainid=%s)", domain, r.RPC, r.ChainID)
+		dbg("discover        %s rpc=%s chainid=%s CACHED", domain, r.RPC, r.ChainID)
 		return r, nil
 	}
-	dbg("cache miss for %s, discovering...", domain)
 
 	// Determine URL to fetch
 	var url string
@@ -58,7 +57,7 @@ func DiscoverRemote(home, domain string, dbg DebugFunc) (*Remote, error) {
 		url = fmt.Sprintf("https://%s/", domain)
 	}
 
-	dbg("fetching %s", url)
+	dbg("discover        %s via %s", domain, url)
 	client := &http.Client{Timeout: discoverTimeout}
 	resp, err := client.Get(url)
 	if err != nil {
@@ -77,7 +76,7 @@ func DiscoverRemote(home, domain string, dbg DebugFunc) (*Remote, error) {
 	for _, match := range matches {
 		key := string(match[1])
 		value := string(match[2])
-		dbg("found gnoconnect:%s = %s", key, value)
+		dbg("  gnoconnect     %s=%s", key, value)
 		switch key {
 		case "rpc":
 			remote.RPC = value
@@ -95,11 +94,8 @@ func DiscoverRemote(home, domain string, dbg DebugFunc) (*Remote, error) {
 		return nil, fmt.Errorf("no gnoconnect:chainid meta tag found at %s", url)
 	}
 
-	dbg("discovered %s: rpc=%s chainid=%s", domain, remote.RPC, remote.ChainID)
-
-	// Cache the result
+	dbg("discover        %s rpc=%s chainid=%s", domain, remote.RPC, remote.ChainID)
 	_ = saveCachedRemote(home, domain, remote)
-	dbg("cached %s", domain)
 
 	return remote, nil
 }
