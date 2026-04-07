@@ -58,44 +58,44 @@ func TestCLI(t *testing.T) {
 	tc := []cliTestCase{
 		// --- GET (default verb) ---
 		{
-			name:                "GET realm renders by default",
+			name:                "realm renders by default",
 			args:                []string{"gno.land/r/demo/counter"},
 			stdoutShouldContain: "0",
 		},
 		{
-			name:                "GET realm with render path",
+			name:                "realm with render path",
 			args:                []string{"gno.land/r/demo/counter:anything"},
 			stdoutShouldContain: "0",
 		},
 		{
-			name:                "GET network shows info",
+			name:                "network shows info",
 			args:                []string{"gno.land"},
 			stdoutShouldContain: "Network: gno.land",
 		},
 		{
-			name:                "GET network shows chain ID",
+			name:                "network shows chain ID",
 			args:                []string{"gno.land"},
 			stdoutShouldContain: "Chain ID:",
 		},
 		{
-			name:                "GET address shows account",
+			name:                "address shows account",
 			args:                []string{integration.DefaultAccount_Address},
 			stdoutShouldContain: "Address:",
 		},
 
 		// --- GET with gnoweb URLs ---
 		{
-			name:                "GET strips https://",
+			name:                "strips https prefix",
 			args:                []string{"https://gno.land/r/demo/counter"},
 			stdoutShouldContain: "0",
 		},
 		{
-			name:                "GET strips fragment",
+			name:                "strips URL fragment",
 			args:                []string{"https://gno.land/r/demo/counter#some-anchor"},
 			stdoutShouldContain: "0",
 		},
 		{
-			name:                "GET strips trailing slash",
+			name:                "strips trailing slash",
 			args:                []string{"https://gno.land/r/demo/counter/"},
 			stdoutShouldContain: "0",
 		},
@@ -148,9 +148,9 @@ func TestCLI(t *testing.T) {
 
 		// --- INSPECT ---
 		{
-			name:                "INSPECT realm shows files",
+			name:                "INSPECT realm shows variables",
 			args:                []string{"INSPECT", "gno.land/r/demo/counter"},
-			stdoutShouldContain: "counter.gno",
+			stdoutShouldContain: "counter int",
 		},
 		{
 			name:                "INSPECT realm shows functions",

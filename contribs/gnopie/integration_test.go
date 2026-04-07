@@ -163,9 +163,9 @@ func TestINSPECT_Realm(t *testing.T) {
 
 	out := env.runOK("INSPECT", "gno.land/r/demo/counter")
 	assert.Contains(t, out, "Realm: gno.land/r/demo/counter")
-	assert.Contains(t, out, "counter.gno")
 	assert.Contains(t, out, "func Increment")
 	assert.Contains(t, out, "func Render")
+	assert.Contains(t, out, "counter int") // variable
 }
 
 func TestINSPECT_Network(t *testing.T) {

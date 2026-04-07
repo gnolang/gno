@@ -360,18 +360,43 @@ func inspectPackage(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	if err != nil {
 		return err
 	}
+
+	funcsJSON, _ := queryFuncsC(c, cfg, p.PkgPath)
 	fileList, _ := queryFileC(c, cfg, p.PkgPath)
 	files := splitLines(fileList)
-	funcsJSON, _ := queryFuncsC(c, cfg, p.PkgPath)
 	storage, _ := queryStorage(c, p.PkgPath)
 
+	// Extract vars and consts from source files
+	var vars, consts []string
+	for _, fname := range files {
+		if !strings.HasSuffix(fname, ".gno") || strings.HasSuffix(fname, "_test.gno") {
+			continue
+		}
+		source, err := queryFileC(c, cfg, p.PkgPath+"/"+fname)
+		if err != nil {
+			continue
+		}
+		v, cn := extractVarsConsts(source)
+		vars = append(vars, v...)
+		consts = append(consts, cn...)
+	}
+
 	if cfg.jsonOut {
-		m := map[string]any{"pkg_path": p.PkgPath, "files": files}
+		m := map[string]any{"pkg_path": p.PkgPath}
 		if funcsJSON != "" {
 			m["functions_raw"] = funcsJSON
 		}
+		if len(vars) > 0 {
+			m["vars"] = vars
+		}
+		if len(consts) > 0 {
+			m["consts"] = consts
+		}
 		if storage != "" {
 			m["storage"] = storage
+		}
+		if cfg.all {
+			m["files"] = files
 		}
 		return outputJSON(io, m)
 	}
@@ -381,18 +406,79 @@ func inspectPackage(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 		io.Printfln("Storage: %s", storage)
 	}
 	io.Println()
-	if len(files) > 0 {
+
+	if funcsJSON != "" && funcsJSON != "null" && funcsJSON != "[]" {
+		io.Println("Functions:")
+		formatFuncs(io, funcsJSON)
+	}
+
+	if len(vars) > 0 {
+		io.Println()
+		io.Println("Variables:")
+		for _, v := range vars {
+			io.Printfln("  %s", v)
+		}
+	}
+
+	if len(consts) > 0 {
+		io.Println()
+		io.Println("Constants:")
+		for _, cn := range consts {
+			io.Printfln("  %s", cn)
+		}
+	}
+
+	if cfg.all && len(files) > 0 {
+		io.Println()
 		io.Println("Files:")
 		for _, f := range files {
 			io.Printfln("  %s", f)
 		}
 	}
-	if funcsJSON != "" && funcsJSON != "null" && funcsJSON != "[]" {
-		io.Println()
-		io.Println("Functions:")
-		formatFuncs(io, funcsJSON)
-	}
+
 	return nil
+}
+
+// extractVarsConsts extracts top-level var and const declarations from source.
+func extractVarsConsts(source string) (vars, consts []string) {
+	lines := strings.Split(source, "\n")
+	for i := 0; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+
+		if strings.HasPrefix(trimmed, "var ") && !strings.HasPrefix(trimmed, "var (") {
+			vars = append(vars, strings.TrimPrefix(trimmed, "var "))
+			continue
+		}
+		if strings.HasPrefix(trimmed, "const ") && !strings.HasPrefix(trimmed, "const (") {
+			consts = append(consts, strings.TrimPrefix(trimmed, "const "))
+			continue
+		}
+		if trimmed == "var (" {
+			for i++; i < len(lines); i++ {
+				inner := strings.TrimSpace(lines[i])
+				if inner == ")" {
+					break
+				}
+				if inner != "" && !strings.HasPrefix(inner, "//") {
+					vars = append(vars, inner)
+				}
+			}
+			continue
+		}
+		if trimmed == "const (" {
+			for i++; i < len(lines); i++ {
+				inner := strings.TrimSpace(lines[i])
+				if inner == ")" {
+					break
+				}
+				if inner != "" && !strings.HasPrefix(inner, "//") {
+					consts = append(consts, inner)
+				}
+			}
+			continue
+		}
+	}
+	return
 }
 
 func inspectSymbol(cfg *baseCfg, p *GnoPath, io commands.IO) error {

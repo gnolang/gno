@@ -38,6 +38,7 @@ type baseCfg struct {
 	insecureNoPass bool // skip password prompt (empty password, for tests)
 	dryRun         bool
 	printGnokeyCmd bool
+	all            bool // show all details (files, etc.)
 	debug          bool
 }
 
@@ -52,6 +53,7 @@ func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.gasFee, "gas-fee", "1000000ugnot", "gas fee")
 	fs.BoolVar(&c.dryRun, "dry-run", false, "simulate without broadcasting")
 	fs.BoolVar(&c.printGnokeyCmd, "print-gnokey-command", false, "print equivalent gnokey command instead of executing")
+	fs.BoolVar(&c.all, "all", false, "show all details (files in INSPECT, etc.)")
 }
 
 // debugf prints debug info to stderr if --debug is enabled.

@@ -38,6 +38,16 @@ func execRun(_ context.Context, cfg *baseCfg, expr string, io commands.IO) error
 		return printRunGnokeyCmd(cfg, p, code, io)
 	}
 
+	// Dry-run: just show generated code, no signing needed
+	if cfg.dryRun {
+		if cfg.jsonOut {
+			return outputJSON(io, map[string]any{"code": code})
+		}
+		io.Println("Generated code:")
+		io.Println(code)
+		return nil
+	}
+
 	client, _, err := cfg.signingClient(p.Domain, io)
 	if err != nil {
 		return err
@@ -97,32 +107,6 @@ func execRun(_ context.Context, cfg *baseCfg, expr string, io commands.IO) error
 	}
 
 	txCfg := gnoclient.BaseTxCfg{GasFee: gasFee, GasWanted: gasWanted}
-
-	if cfg.dryRun {
-		tx, err := gnoclient.NewRunTx(txCfg, msg)
-		if err != nil {
-			return err
-		}
-		signedTx, err := client.SignTx(*tx, 0, 0)
-		if err != nil {
-			return fmt.Errorf("signing for simulation: %w", err)
-		}
-		result, err := client.Simulate(signedTx)
-		if err != nil {
-			return fmt.Errorf("simulation: %w", err)
-		}
-		if cfg.jsonOut {
-			return outputJSON(io, map[string]any{
-				"gas_used": result.GasUsed, "gas_wanted": gasWanted,
-				"code": code, "data": string(result.Data),
-			})
-		}
-		io.Printfln("Simulation OK — gas used: %d", result.GasUsed)
-		io.Println()
-		io.Println("Generated code:")
-		io.Println(code)
-		return nil
-	}
 
 	res, err := client.Run(txCfg, msg)
 	if err != nil {

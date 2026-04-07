@@ -27,6 +27,21 @@ func execCall(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 		return printGnokeyCmd(cfg, p, io)
 	}
 
+	// Dry-run: show what would be called, no signing needed
+	if cfg.dryRun {
+		var funcArgs []string
+		if p.Kind == PathCall {
+			funcArgs = p.Args
+		}
+		if cfg.jsonOut {
+			return outputJSON(io, map[string]any{
+				"pkg_path": p.PkgPath, "func": p.Symbol, "args": funcArgs,
+			})
+		}
+		io.Printfln("Would call: %s.%s(%s)", p.PkgPath, p.Symbol, strings.Join(funcArgs, ", "))
+		return nil
+	}
+
 	client, remote, err := cfg.signingClient(p.Domain, io)
 	if err != nil {
 		return err
@@ -90,32 +105,6 @@ func execCall(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 	}
 
 	txCfg := gnoclient.BaseTxCfg{GasFee: gasFee, GasWanted: gasWanted}
-
-	if cfg.dryRun {
-		tx, err := gnoclient.NewCallTx(txCfg, msg)
-		if err != nil {
-			return err
-		}
-		signedTx, err := client.SignTx(*tx, 0, 0)
-		if err != nil {
-			return fmt.Errorf("signing for simulation: %w", err)
-		}
-		result, err := client.Simulate(signedTx)
-		if err != nil {
-			return fmt.Errorf("simulation: %w", err)
-		}
-		if cfg.jsonOut {
-			return outputJSON(io, map[string]any{
-				"gas_used": result.GasUsed, "gas_wanted": gasWanted,
-				"data": string(result.Data),
-			})
-		}
-		io.Printfln("Simulation OK — gas used: %d, gas wanted: %d", result.GasUsed, gasWanted)
-		if len(result.Data) > 0 {
-			io.Printfln("Data: %s", string(result.Data))
-		}
-		return nil
-	}
 
 	res, err := client.Call(txCfg, msg)
 	if err != nil {
