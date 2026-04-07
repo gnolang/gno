@@ -20,13 +20,21 @@ network needs to coordinate an upgrade — not on every commit.
 | **MINOR** | Chain upgrade on the current network (state migration, new module, protocol change). |
 | **PATCH** | Backward-compatible change that does not require a coordinated chain upgrade. |
 
-**Branches:**
+**Global tags** (`vMAJOR.MINOR.PATCH`) track the current mainnet
+(`gnoland1`). They are the canonical versions users install.
+
+**Branches and chain-specific tags:**
 
 | Branch | Tags | Purpose |
 |--------|------|---------|
 | `master` | none | Continuous integration, `gno.land` staging environment |
-| `chain/gnoland1` | `v1.x.x` | Mainnet (betanet initially) — coordinated upgrades only, never rebased |
-| `chain/test11`, `chain/test12`, … | (optional) | Testnets, same model as mainnet |
+| `chain/gnoland1` | `v1.x.x`, `chain/gnoland1.0`, `chain/gnoland1.1`, … | Mainnet (betanet initially) — coordinated upgrades only, never rebased |
+| `chain/test12`, … | `chain/test12.0`, `chain/test12.1`, … | Testnets, same model as mainnet |
+
+Chain-specific tags (`chain/<name>.<N>`) identify each
+chain upgrade without a patch component — they map 1:1
+to on-chain upgrade heights. Global `vX.Y.Z` tags are
+created alongside the mainnet chain tag.
 
 ## Release Workflow
 
