@@ -15,7 +15,7 @@ The old `GetOwnerID()` implementation went through the transient pointer:
 ```go
 func (oi *ObjectInfo) GetOwnerID() ObjectID {
     if oi.owner == nil {
-        return ObjectID{}  // ← zero for all store-restored objects!
+        return ObjectID{}  // <- zero for all store-restored objects!
     }
     return oi.owner.GetObjectID()
 }
@@ -23,19 +23,40 @@ func (oi *ObjectInfo) GetOwnerID() ObjectID {
 
 This broke `markDirtyAncestors` in `realm.go`. When a child object (e.g., a MapValue)
 is modified, `markDirtyAncestors` walks up the ownership chain to mark all ancestors
-dirty so their hashes are re-computed. But for store-restored objects, `GetOwnerID()`
-returned zero, stopping the walk at the first hop. Ancestors were never re-saved,
-leaving stale hashes in the `RefValue{ObjectID, Hash}` chain — a Merkle inconsistency.
+dirty so they are re-saved. But for store-restored objects, `GetOwnerID()` returned
+zero, stopping the walk at the first hop. Ancestors were never re-saved, leaving stale
+data in the store.
 
 Example ownership chain:
 
 ```
-Block :2  (RefValue{Hash, OID:3})
-  └─ HeapItemValue :3  (RefValue{Hash, OID:4})
-       └─ MapValue :4  ← modified by main()
+Block :2  (contains RefValue{OID:3, Hash:hash3})
+  +-- HeapItemValue :3  (contains RefValue{OID:4, Hash:hash4})
+       +-- MapValue :4  <- modified by main()
 ```
 
-Without the fix: only `:4` gets a new hash. `:3` and `:2` keep stale hashes.
+Without the fix: only `:4` is re-saved with its new hash. `:3` and `:2` retain stale
+bytes in the store, including stale `RefValue.Hash`, stale `ModTime`, and stale
+serialized content.
+
+### Scope of Impact
+
+The stale ancestor hashes are a **correctness invariant violation**, not a consensus or
+app-hash issue. Specifically:
+
+- **No consensus impact**: non-escaped realm objects are stored in the flat `baseStore`
+  (`dbadapter`), not the IAVL Merkle tree. Their hashes do not contribute to the app hash.
+  All validators produce the same (incorrect) state deterministically.
+- **No value retrieval impact**: objects are loaded by `ObjectID`; `RefValue.Hash` is
+  written during save but never checked during load (`fillValueTV` ignores it).
+- **Hash chain inconsistency**: parent objects contain `RefValue{OID, Hash}` where `Hash`
+  refers to the child's old content. This violates the invariant that a parent's stored
+  bytes should reflect the current state of its children.
+- **Forward-compatibility risk**: the hash chain is infrastructure for future Merkle proofs
+  over realm state. If proofs are implemented without this fix, they would be broken for
+  any object modified after store restoration.
+- **Stale ModTime/bytes**: unsaved ancestors also miss `ModTime` updates and any other
+  structural changes that should have been persisted.
 
 ## Decision
 
@@ -75,8 +96,9 @@ while the child's `OwnerID` still references it. Using `GetObjectSafe` instead o
   consumption slightly (reflected in updated integration test gas values).
 - Filetest expected outputs gain additional `u[oid]=` entries showing ancestors being
   re-saved with updated `ModTime` and `Hash` values.
-- Merkle hash chain is now consistent: modifying a child object correctly propagates
-  hash changes up through all ancestors to the package block.
+- The `RefValue.Hash` chain is now consistent: modifying a child object correctly
+  propagates hash changes up through all ancestors to the package block. This maintains
+  the invariant needed for future Merkle proof support over realm state.
 
 ## Key Files
 

@@ -44,9 +44,66 @@ func loadObjectHashFromDB(baseStore storetypes.Store, oid ObjectID) ValueHash {
 	return ValueHash{NewHashlet(hash)}
 }
 
+// loadObjectFromDB reads an object's raw amino bytes from the baseStore,
+// bypassing the in-memory cache. Returns the deserialized object with
+// RefValues intact (children are NOT hydrated — they remain as RefValue).
+func loadObjectFromDB(baseStore storetypes.Store, oid ObjectID) Object {
+	key := backendObjectKey(oid)
+	hashbz := baseStore.Get([]byte(key))
+	if hashbz == nil {
+		return nil
+	}
+	bz := hashbz[HashSize:]
+	var oo Object
+	amino.MustUnmarshal(bz, &oo)
+	return oo
+}
+
+// loadObjectBytesFromDB returns the raw amino bytes for an object as stored
+// in the backend (without the hash prefix).
+func loadObjectBytesFromDB(baseStore storetypes.Store, oid ObjectID) []byte {
+	key := backendObjectKey(oid)
+	hashbz := baseStore.Get([]byte(key))
+	if hashbz == nil {
+		return nil
+	}
+	return hashbz[HashSize:]
+}
+
+// findRefValueByOID searches the serialized form of a parent object for a
+// RefValue that references the given child ObjectID. This lets us verify
+// that the embedded hash matches the child's actual stored hash.
+func findRefValueByOID(parent Object, childOID ObjectID) (RefValue, bool) {
+	switch pv := parent.(type) {
+	case *HeapItemValue:
+		if ref, ok := pv.Value.V.(RefValue); ok && ref.ObjectID == childOID {
+			return ref, true
+		}
+	case *Block:
+		for _, tv := range pv.Values {
+			if ref, ok := tv.V.(RefValue); ok && ref.ObjectID == childOID {
+				return ref, true
+			}
+		}
+	case *ArrayValue:
+		for _, tv := range pv.List {
+			if ref, ok := tv.V.(RefValue); ok && ref.ObjectID == childOID {
+				return ref, true
+			}
+		}
+	case *StructValue:
+		for _, tv := range pv.Fields {
+			if ref, ok := tv.V.(RefValue); ok && ref.ObjectID == childOID {
+				return ref, true
+			}
+		}
+	}
+	return RefValue{}, false
+}
+
 // TestMarkDirtyAncestors_HashConsistency proves that when a child object
 // (like a map) is modified, its ancestors must also be re-saved so their
-// hashes reflect the child's new hash via the RefValue{ObjectID, Hash} chain.
+// stored bytes (including RefValue.Hash) reflect the child's new state.
 //
 // Object layout after init:
 //
@@ -57,9 +114,26 @@ func loadObjectHashFromDB(baseStore storetypes.Store, oid ObjectID) ValueHash {
 //	:5 FuncValue (main, owned by :2)
 //
 // When main() runs m["a"] = 2, MapValue :4 is dirtied.
-// markDirtyAncestors should walk :4 → :3 → :2, dirtying all of them.
-// But GetOwnerID() returns zero for store-restored objects (owner pointer is nil),
-// so the walk stops immediately and :3 and :2 are never re-saved.
+// markDirtyAncestors should walk :4 -> :3 -> :2, dirtying all of them.
+// Without the fix, GetOwnerID() returns zero for store-restored objects
+// (owner pointer is nil after deserialization), so the walk stops at
+// the first hop and ancestors :3 and :2 are never re-saved.
+//
+// Hash chain (built bottom-up during saveUnsavedObjects):
+//
+//	MapValue :4 -> serialize to amino bytes -> hash4 = HashBytes(bz4)
+//	HeapItemValue :3 -> its Value is RefValue{OID:4, Hash:hash4} -> bz3 -> hash3 = HashBytes(bz3)
+//	Block :2 -> its Values[0] is RefValue{OID:3, Hash:hash3} -> bz2 -> hash2 = HashBytes(bz2)
+//
+// Each parent's hash transitively includes all descendant hashes via embedded
+// RefValue.Hash fields. If an ancestor is not re-saved, its RefValue.Hash is
+// stale — a correctness invariant violation.
+//
+// Note: these hashes are stored in the flat baseStore (dbadapter), not the
+// IAVL Merkle tree, so stale hashes do not affect the app hash or consensus.
+// The RefValue.Hash is currently write-only (never verified on load). This
+// test enforces the invariant for forward-compatibility with future Merkle
+// proof support over realm state.
 func TestMarkDirtyAncestors_HashConsistency(t *testing.T) {
 	// --- Setup ---
 	db := memdb.NewMemDB()
@@ -74,7 +148,6 @@ func TestMarkDirtyAncestors_HashConsistency(t *testing.T) {
 	mapOID := ObjectID{PkgID: pkgOID.PkgID, NewTime: 4}
 
 	// --- Transaction 1: Initialize realm with a map ---
-	// (following the filetest pattern: use transaction store, then commit)
 	txSt1 := st.BeginTransaction(nil, nil, nil)
 
 	m1 := NewMachineWithOptions(MachineOptions{
@@ -115,14 +188,10 @@ func main() {
 	require.False(t, heapItemHashInit.IsZero(), "heapitem hash should be set after init")
 	require.False(t, mapHashInit.IsZero(), "map hash should be set after init")
 
-	// Verify OwnerID is persisted via the DB bytes.
+	// Verify OwnerID is persisted correctly in the DB.
 	{
-		key := backendObjectKey(mapOID)
-		hashbz := baseStore.Get([]byte(key))
-		bz := hashbz[HashSize:]
-		var oo Object
-		amino.MustUnmarshal(bz, &oo)
-		require.Equal(t, heapItemOID, oo.GetObjectInfo().OwnerID,
+		mapFromDB := loadObjectFromDB(baseStore, mapOID)
+		require.Equal(t, heapItemOID, mapFromDB.GetObjectInfo().OwnerID,
 			"map's persisted OwnerID should point to heapitem")
 	}
 
@@ -134,8 +203,23 @@ func main() {
 			"GetOwnerID() should return the persisted OwnerID")
 	}
 
+	// Verify the RefValue.Hash chain is consistent after init.
+	{
+		hivFromDB := loadObjectFromDB(baseStore, heapItemOID)
+		ref, found := findRefValueByOID(hivFromDB, mapOID)
+		require.True(t, found, "heapitem should contain RefValue pointing to map")
+		require.Equal(t, mapHashInit, ref.Hash,
+			"heapitem's RefValue.Hash should match map's actual hash after init")
+	}
+	{
+		blkFromDB := loadObjectFromDB(baseStore, blockOID)
+		ref, found := findRefValueByOID(blkFromDB, heapItemOID)
+		require.True(t, found, "block should contain RefValue pointing to heapitem")
+		require.Equal(t, heapItemHashInit, ref.Hash,
+			"block's RefValue.Hash should match heapitem's actual hash after init")
+	}
+
 	// --- Transaction 2: Run main() which modifies the map ---
-	// (following filetest pattern: reload package from base store)
 	pv2 := st.GetPackage(pkgPath, false)
 	m2 := NewMachineWithOptions(MachineOptions{
 		PkgPath: pkgPath,
@@ -145,7 +229,7 @@ func main() {
 	m2.SetActivePackage(pv2)
 	m2.RunMain()
 
-	// --- Print and verify hashes after main ---
+	// --- Verify ancestors were re-saved after main ---
 	printOwnershipTree(t, st, baseStore, "After main()", oids)
 
 	mapHashMain := loadObjectHashFromDB(baseStore, mapOID)
@@ -156,29 +240,41 @@ func main() {
 	require.NotEqual(t, mapHashInit, mapHashMain,
 		"map hash should change after modification in main()")
 
-	// The heapitem contains RefValue{Hash} for the map.
-	// If the map hash changed, the heapitem must be re-saved with the new hash.
-	if heapItemHashInit == heapItemHashMain {
-		t.Errorf("MERKLE INCONSISTENCY at HeapItemValue (:3):\n"+
-			"  heapitem hash unchanged despite child map hash changing.\n"+
-			"  heapitem hash (init): %X\n"+
-			"  heapitem hash (main): %X  (should differ!)\n"+
-			"  map hash (init):      %X\n"+
-			"  map hash (main):      %X",
-			heapItemHashInit.Bytes(), heapItemHashMain.Bytes(),
-			mapHashInit.Bytes(), mapHashMain.Bytes())
+	// Ancestors must have been re-saved (hash changed), proving
+	// markDirtyAncestors walked the full ownership chain.
+	require.NotEqual(t, heapItemHashInit, heapItemHashMain,
+		"heapitem hash should change — ancestor must be re-saved when child changes")
+	require.NotEqual(t, blockHashInit, blockHashMain,
+		"block hash should change — ancestor must be re-saved when descendant changes")
+
+	// --- Verify RefValue.Hash chain is consistent after main ---
+	// Each parent's stored bytes must embed the child's CURRENT hash.
+	{
+		hivFromDB := loadObjectFromDB(baseStore, heapItemOID)
+		ref, found := findRefValueByOID(hivFromDB, mapOID)
+		require.True(t, found, "heapitem should contain RefValue pointing to map")
+		require.Equal(t, mapHashMain, ref.Hash,
+			"heapitem's RefValue.Hash should match map's new hash after main")
+	}
+	{
+		blkFromDB := loadObjectFromDB(baseStore, blockOID)
+		ref, found := findRefValueByOID(blkFromDB, heapItemOID)
+		require.True(t, found, "block should contain RefValue pointing to heapitem")
+		require.Equal(t, heapItemHashMain, ref.Hash,
+			"block's RefValue.Hash should match heapitem's new hash after main")
 	}
 
-	// The block contains RefValue{Hash} for the heapitem.
-	// If the heapitem hash changed, the block must be re-saved too.
-	if blockHashInit == blockHashMain {
-		t.Errorf("MERKLE INCONSISTENCY at Block (:2):\n"+
-			"  block hash unchanged despite descendant map hash changing.\n"+
-			"  block hash (init):    %X\n"+
-			"  block hash (main):    %X  (should differ!)\n"+
-			"  map hash (init):      %X\n"+
-			"  map hash (main):      %X",
-			blockHashInit.Bytes(), blockHashMain.Bytes(),
-			mapHashInit.Bytes(), mapHashMain.Bytes())
+	// --- Verify hash self-consistency ---
+	// Each object's stored hash must equal HashBytes(its stored amino bytes).
+	// This proves the hash is a faithful digest of the bytes, and the bytes
+	// include the child's RefValue.Hash — so the parent hash transitively
+	// depends on all descendant content.
+	for _, oid := range oids {
+		bz := loadObjectBytesFromDB(baseStore, oid)
+		require.NotNil(t, bz, "object %s should exist in store", oid)
+		storedHash := loadObjectHashFromDB(baseStore, oid)
+		recomputed := ValueHash{HashBytes(bz)}
+		require.Equal(t, storedHash, recomputed,
+			"object %s: stored hash should equal HashBytes(stored bytes)", oid)
 	}
 }
