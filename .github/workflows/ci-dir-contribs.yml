@@ -27,7 +27,7 @@ jobs:
 
       - id: set-matrix
         run: |
-          echo "::set-output name=programs::$(ls -d contribs/*/ | cut -d/ -f2 | jq -R -s -c 'split("\n")[:-1]')"
+          echo "programs=$(ls -d contribs/*/ | cut -d/ -f2 | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_OUTPUT
 
       - id: get-go-versions
         run: |
@@ -44,7 +44,7 @@ jobs:
           # Close out the JSON
           versions_map="${versions_map%,}"
           versions_map="$versions_map}"
-          echo "::set-output name=go-versions::$versions_map"
+          echo "go-versions=$versions_map" >> $GITHUB_OUTPUT
 
   main:
     needs: setup
