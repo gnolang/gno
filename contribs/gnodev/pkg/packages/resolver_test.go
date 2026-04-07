@@ -224,12 +224,12 @@ func TestResolver_ResolveRemote(t *testing.T) {
 	const targetPath = "gno.land/r/target/path"
 
 	mempkg := std.MemPackage{
-		Name: "foo",
+		Name: "path",
 		Path: targetPath,
 		Files: []*std.MemFile{
 			{
-				Name: "foo.gno",
-				Body: `package foo; func Render(_ string) string { return "bar" }`,
+				Name: "path.gno",
+				Body: `package path; func Render(_ string) string { return "bar" }`,
 			},
 		},
 	}

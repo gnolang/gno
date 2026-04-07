@@ -33,7 +33,7 @@ gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank -max-deposit "200000
 stdout 'OK!'
 
 ## paying gas fees to add a package is acceptable.
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank2 -gas-fee 1000000ugnot -gas-wanted 12500000 -broadcast -chainid=tendermint_test regular1
+gnokey maketx addpkg -pkgdir $WORK/bank2 -pkgpath gno.land/r/bank2 -gas-fee 1000000ugnot -gas-wanted 12500000 -broadcast -chainid=tendermint_test regular1
 stdout 'OK!'
 
 ## paying gas fees to call a realm function is acceptable.
@@ -46,6 +46,28 @@ module = "gno.land/r/demo/lock"
 gno = "0.9"
 -- bank.gno --
 package bank
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+)
+
+func Withdraw(cur realm, denom string, amt int64) string {
+	caller := runtime.OriginCaller()
+	coin := chain.Coins{{denom, amt}}
+	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
+	pkgaddr := runtime.PreviousRealm().Address()
+	banker_.SendCoins(pkgaddr, caller, coin)
+	return "Withdrawn!"
+}
+
+-- bank2/gnomod.toml --
+module = "gno.land/r/bank2"
+
+gno = "0.9"
+-- bank2/bank2.gno --
+package bank2
 
 import (
 	"chain"

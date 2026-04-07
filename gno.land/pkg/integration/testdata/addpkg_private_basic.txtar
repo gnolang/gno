@@ -35,12 +35,12 @@ stderr 'name A not declared'
 gnokey query vm/qeval --data "gno.land/r/foobar/privaterealm.B"
 stdout '456'
 
-# overwrite public realm with private realm
-! gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+# try to overwrite public realm with private version (should fail - package already exists)
+! gnokey maketx addpkg -pkgdir $WORK/publicrealm_private -pkgpath gno.land/r/foobar/publicrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'package already exists'
 
-# overwrite private realm with public realm
-! gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+# try to overwrite private realm with public version (should fail)
+! gnokey maketx addpkg -pkgdir $WORK/privaterealm_public -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'a private package cannot be overridden by a public package'
 
 -- privaterealm/gnomod.toml --
@@ -49,7 +49,7 @@ gno = "0.9"
 private = true
 
 -- privaterealm/privaterealm.gno --
-package test
+package privaterealm
 var A = "123"
 
 func Echo(cur realm) string {
@@ -62,11 +62,22 @@ gno = "0.9"
 private = true
 
 -- privaterealmedited/privaterealm.gno --
-package test
+package privaterealm
 var B = "456"
 
 func Echo(cur realm) string {
 	return "hello private edited world"
+}
+
+-- privaterealm_public/gnomod.toml --
+module = "gno.land/r/foobar/privaterealm"
+gno = "0.9"
+
+-- privaterealm_public/privaterealm.gno --
+package privaterealm
+
+func Echo(cur realm) string {
+	return "hello public world"
 }
 
 -- publicrealm/gnomod.toml --
@@ -74,8 +85,20 @@ module = "gno.land/r/foobar/publicrealm"
 gno = "0.9"
 
 -- publicrealm/publicrealm.gno --
-package test
+package publicrealm
 
 func Echo(cur realm) string {
 	return "hello public world"
+}
+
+-- publicrealm_private/gnomod.toml --
+module = "gno.land/r/foobar/publicrealm"
+gno = "0.9"
+private = true
+
+-- publicrealm_private/publicrealm.gno --
+package publicrealm
+
+func Echo(cur realm) string {
+	return "hello private world trying to overwrite public"
 }

@@ -1,13 +1,13 @@
 # aaa namespace
-loadpkg gno.land/r/aaa/bbb/ccc $WORK
-loadpkg gno.land/r/aaa/ccc/ddd $WORK
-loadpkg gno.land/r/aaa $WORK
+loadpkg gno.land/r/aaa/bbb/ccc $WORK/ccc
+loadpkg gno.land/r/aaa/ccc/ddd $WORK/ddd
+loadpkg gno.land/r/aaa $WORK/aaa
 
 # bbb namespace
-loadpkg gno.land/r/bbb/ccc $WORK
-loadpkg gno.land/p/bbb/ccc/ppp $WORK
-loadpkg gno.land/r/bbb/aaa $WORK
-loadpkg gno.land/r/bbb0 $WORK
+loadpkg gno.land/r/bbb/ccc $WORK/ccc
+loadpkg gno.land/p/bbb/ccc/ppp $WORK/ppp
+loadpkg gno.land/r/bbb/aaa $WORK/aaa
+loadpkg gno.land/r/bbb0 $WORK/bbb0
 
 gnoland start
 
@@ -56,10 +56,31 @@ gnokey query vm/qpaths?limit=5 --data ""
 cmp stdout empty-qpaths.stdout.golden
 cmp stderr empty_file
 
--- main.gno --
-package main
+-- aaa/aaa.gno --
+package aaa
 
-func main() { println("A") }
+func Hello() { println("AAA") }
+
+-- ccc/ccc.gno --
+package ccc
+
+func Hello() { println("CCC") }
+
+-- ddd/ddd.gno --
+package ddd
+
+func Hello() { println("DDD") }
+
+-- ppp/ppp.gno --
+package ppp
+
+func Hello() { println("PPP") }
+
+-- bbb0/bbb0.gno --
+package bbb0
+
+func Hello() { println("BBB0") }
+
 -- aaa-qpaths.stdout.golden --
 height: 0
 data: gno.land/r/aaa

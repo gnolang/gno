@@ -1,4 +1,4 @@
-package main
+package render_valid2
 
 type Test struct{}
 

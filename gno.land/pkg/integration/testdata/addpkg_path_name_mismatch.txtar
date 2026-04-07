@@ -1,0 +1,20 @@
+# Test that package declaration name must match the last element of the package path
+# e.g., deploying to gno.land/r/.../hello requires "package hello", not "package hello123"
+
+## start a new node
+gnoland start
+
+## deploy realm should fail because package name "hello123" doesn't match path element "hello"
+! gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stderr 'does not match path element'
+
+-- hello/gnomod.toml --
+module = "gno.land/p/demo/hello"
+gno = "0.9"
+
+-- hello/hello.gno --
+package hello123
+
+func SayHello() string {
+	return "hello world!"
+}

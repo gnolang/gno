@@ -59,7 +59,7 @@ module = "gno.land/r/demo/r1"
 gno = "0.9"
 
 -- r1/realm.gno --
-package f1
+package r1
 
 func init() {
 	for {}

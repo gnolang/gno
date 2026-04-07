@@ -11,7 +11,7 @@ gnokey maketx call -pkgpath gno.land/r/demo/realm --func Render --gas-fee 100000
 stdout '("0key.num:1" string)'
 
 -- realm.gno --
-package main
+package realm
 
 import "strconv"
 

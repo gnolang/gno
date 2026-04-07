@@ -50,8 +50,8 @@ import "gno.land/r/gov/dao/v3/impl"
 func CreateMember(cur realm, addr address) {
 	impl.AddMember(cross, addr)
 }
--- loader/load_govdao.gno --
-package load_govdao
+-- loader/loader.gno --
+package loader
 
 import (
 	"gno.land/r/gov/dao"
