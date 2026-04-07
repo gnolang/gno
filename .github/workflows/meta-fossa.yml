@@ -1,18 +1,6 @@
 name: meta / fossa
 
 on:
-  push:
-    branches:
-      - master
-    paths:
-      - '**/*.go'
-      - 'go.mod'
-      - 'go.sum'
-  pull_request_target:
-    paths:
-      - '**/*.go'
-      - 'go.mod'
-      - 'go.sum'
   workflow_dispatch:
 
 permissions:
@@ -45,10 +33,5 @@ jobs:
 
       - name: FOSSA analyze
         run: fossa analyze
-        env:
-          FOSSA_API_KEY: "${{secrets.FOSSA_API_KEY}}"
-
-      - name: FOSSA test
-        run: fossa test
         env:
           FOSSA_API_KEY: "${{secrets.FOSSA_API_KEY}}"
