@@ -318,7 +318,9 @@ func inspectNetwork(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	if err != nil {
 		return err
 	}
+	cfg.debugf(io, "querying latest block height")
 	height, _ := c.LatestBlockHeight()
+	cfg.debugf(io, "querying app version")
 	ver, _, _ := c.QueryAppVersion()
 
 	if cfg.jsonOut {
@@ -345,6 +347,7 @@ func inspectNamespace(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	if err != nil {
 		return err
 	}
+	cfg.debugf(io, "qpaths: %s", p.PkgPath)
 	result, err := queryPaths(c, p.PkgPath)
 	if err != nil {
 		return err
@@ -365,9 +368,13 @@ func inspectPackage(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	if err != nil {
 		return err
 	}
+	cfg.debugf(io, "qfile: listing %s", p.PkgPath)
 	fileList, _ := queryFile(c, p.PkgPath)
 	files := splitLines(fileList)
+	cfg.debugf(io, "qfile: %d files", len(files))
+	cfg.debugf(io, "qfuncs: %s", p.PkgPath)
 	funcsJSON, _ := queryFuncs(c, p.PkgPath)
+	cfg.debugf(io, "qstorage: %s", p.PkgPath)
 	storage, _ := queryStorage(c, p.PkgPath)
 
 	if cfg.jsonOut {
@@ -405,6 +412,7 @@ func inspectSymbol(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	if err != nil {
 		return err
 	}
+	cfg.debugf(io, "qeval: %s.%s", p.PkgPath, p.Symbol)
 	result, _, err := c.QEval(p.PkgPath, p.Symbol)
 	if err != nil {
 		return fmt.Errorf("inspecting %s.%s: %w", p.PkgPath, p.Symbol, err)
