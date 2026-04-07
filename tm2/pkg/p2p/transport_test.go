@@ -267,6 +267,73 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 		require.Nil(t, p)
 	})
 
+	t.Run("peer node info missing net address", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			network = "dev"
+			mCfg    = conn.DefaultMConnConfig()
+			logger  = log.NewNoopLogger()
+			keys    = []*types.NodeKey{
+				types.GenerateNodeKey(),
+				types.GenerateNodeKey(),
+			}
+
+			peerBehavior = &reactorPeerBehavior{
+				chDescs:      make([]*conn.ChannelDescriptor, 0),
+				reactorsByCh: make(map[byte]Reactor),
+				handlePeerErrFn: func(_ PeerConn, err error) {
+					require.NoError(t, err)
+				},
+				isPersistentPeerFn: func(_ types.ID) bool {
+					return false
+				},
+				isPrivatePeerFn: func(_ types.ID) bool {
+					return false
+				},
+			}
+		)
+
+		peers := make([]*MultiplexTransport, 0, len(keys))
+
+		for index, key := range keys {
+			addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+			require.NoError(t, err)
+
+			na, err := types.NewNetAddress(key.ID(), addr)
+			require.NoError(t, err)
+
+			ni := types.NodeInfo{
+				Network:    network,
+				NetAddress: na,
+				Version:    "v1.0.0-rc.0",
+				Moniker:    fmt.Sprintf("node-%d", index),
+				VersionSet: make(versionset.VersionSet, 0),
+				Channels:   []byte{42},
+			}
+			if index == 1 {
+				ni.NetAddress = nil // malformed handshake payload
+			}
+
+			tr := NewMultiplexTransport(ni, *key, mCfg, logger)
+			require.NoError(t, tr.Listen(*na))
+
+			t.Cleanup(func() {
+				assert.NoError(t, tr.Close())
+			})
+
+			peers = append(peers, tr)
+		}
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		p, err := peers[0].Dial(ctx, peers[1].netAddr, peerBehavior)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "unable to validate node info")
+		require.Nil(t, p)
+	})
+
 	t.Run("incompatible peers", func(t *testing.T) {
 		t.Parallel()
 
