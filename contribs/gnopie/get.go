@@ -22,13 +22,44 @@ func execGet(ctx context.Context, cfg *baseCfg, expr string, io commands.IO) err
 
 	cfg.debugf(io, "path parsed: kind=%d domain=%s pkgpath=%s symbol=%s args=%v", p.Kind, p.Domain, p.PkgPath, p.Symbol, p.Args)
 
+	// Handle gnoweb modifiers
+	if p.RenderPath == "$source" {
+		cfg.debugf(io, "GET dispatch → READ ($source modifier)")
+		if p.File != "" {
+			// $source&file=admin.gno → read specific file
+			return readFile(cfg, p, io)
+		}
+		return execRead(ctx, cfg, expr, io)
+	}
+	if p.RenderPath == "$help" || p.RenderPath == "$funcs" {
+		cfg.debugf(io, "GET dispatch → INSPECT ($help/$funcs modifier)")
+		if p.Symbol != "" {
+			// $help#func-Name → inspect specific function
+			return readFuncSignature(cfg, p, io)
+		}
+		return execInspect(ctx, cfg, expr, io)
+	}
+
 	switch p.Kind {
 	case PathCall:
 		cfg.debugf(io, "GET dispatch → EVAL (function call)")
 		return execEval(ctx, cfg, expr, io)
-	case PathSymbol, PathFile:
-		cfg.debugf(io, "GET dispatch → READ (symbol/file)")
+	case PathSymbol:
+		cfg.debugf(io, "GET dispatch → READ (symbol)")
 		return execRead(ctx, cfg, expr, io)
+	case PathFile:
+		cfg.debugf(io, "GET dispatch → READ (file)")
+		return readFile(cfg, p, io)
+	case PathAddress:
+		cfg.debugf(io, "GET dispatch → INSPECT (address)")
+		return inspectAddress(cfg, p, io)
+	case PathUser:
+		cfg.debugf(io, "GET dispatch → user profile")
+		return inspectUser(cfg, p, io)
+	case PathPackage:
+		// Default for packages: call Render("") like gnoweb
+		cfg.debugf(io, "GET dispatch → Render (package)")
+		return getRender(cfg, p, io)
 	default:
 		cfg.debugf(io, "GET dispatch → INSPECT (kind=%d)", p.Kind)
 		return execInspect(ctx, cfg, expr, io)
@@ -93,35 +124,20 @@ func execRead(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 		return fmt.Errorf("parsing: %w", err)
 	}
 
-	c, _, err := cfg.queryClient(p.Domain)
-	if err != nil {
-		return err
-	}
-
 	switch p.Kind {
 	case PathFile:
-		// Fetch specific file
-		cfg.debugf(io, "reading file: %s/%s", p.PkgPath, p.File)
-		source, err := queryFile(c, p.PkgPath+"/"+p.File)
-		if err != nil {
-			return fmt.Errorf("reading file: %w", err)
-		}
-		if cfg.jsonOut {
-			return outputJSON(io, map[string]any{
-				"pkg_path": p.PkgPath, "file": p.File, "source": source,
-			})
-		}
-		io.Println(source)
-		return nil
+		return readFile(cfg, p, io)
 
 	case PathSymbol:
 		if p.IsPublic() {
-			// Public symbol: show source code
 			cfg.debugf(io, "reading source for public symbol %s.%s", p.PkgPath, p.Symbol)
 			return readSource(cfg, p, io)
 		}
-		// Private symbol: get value via qeval
 		cfg.debugf(io, "reading value for private symbol %s.%s via qeval", p.PkgPath, p.Symbol)
+		c, _, err := cfg.queryClient(p.Domain)
+		if err != nil {
+			return err
+		}
 		result, _, err := c.QEval(p.PkgPath, p.Symbol)
 		if err != nil {
 			return fmt.Errorf("reading %s.%s: %w", p.PkgPath, p.Symbol, err)
@@ -135,8 +151,11 @@ func execRead(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 		return nil
 
 	case PathPackage:
-		// List files
-		fileList, err := queryFile(c, p.PkgPath)
+		qc, _, err := cfg.queryClient(p.Domain)
+		if err != nil {
+			return err
+		}
+		fileList, err := queryFile(qc, p.PkgPath)
 		if err != nil {
 			return err
 		}
@@ -147,8 +166,11 @@ func execRead(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 		return nil
 
 	case PathNamespace:
-		// List packages
-		result, err := queryPaths(c, p.PkgPath)
+		qc, _, err := cfg.queryClient(p.Domain)
+		if err != nil {
+			return err
+		}
+		result, err := queryPaths(qc, p.PkgPath)
 		if err != nil {
 			return err
 		}
@@ -278,6 +300,8 @@ func execInspect(_ context.Context, cfg *baseCfg, expr string, io commands.IO) e
 		return inspectPackage(cfg, p, io)
 	case PathSymbol:
 		return inspectSymbol(cfg, p, io)
+	case PathAddress:
+		return inspectAddress(cfg, p, io)
 	case PathCall:
 		return execEval(context.Background(), cfg, expr, io)
 	default:
@@ -389,6 +413,180 @@ func inspectSymbol(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 		return outputJSON(io, map[string]any{"pkg_path": p.PkgPath, "symbol": p.Symbol, "value": result})
 	}
 	io.Printfln("%s.%s = %s", p.PkgPath, p.Symbol, result)
+	return nil
+}
+
+// getRender calls Render() on a realm — the default GET behavior for packages.
+func getRender(cfg *baseCfg, p *GnoPath, io commands.IO) error {
+	c, _, err := cfg.queryClient(p.Domain)
+	if err != nil {
+		return err
+	}
+
+	renderPath := p.RenderPath
+	if renderPath == "" || strings.HasPrefix(renderPath, "$") {
+		renderPath = ""
+	}
+
+	cfg.debugf(io, "qrender: %s:%s", p.PkgPath, renderPath)
+	result, _, err := c.Render(p.PkgPath, renderPath)
+	if err != nil {
+		// If Render fails, fall back to inspect
+		cfg.debugf(io, "Render failed, falling back to inspect: %v", err)
+		return inspectPackage(cfg, p, io)
+	}
+
+	if cfg.jsonOut {
+		return outputJSON(io, map[string]any{
+			"pkg_path":    p.PkgPath,
+			"render_path": renderPath,
+			"result":      result,
+		})
+	}
+	io.Println(result)
+	return nil
+}
+
+// readFile fetches a specific file from a package.
+func readFile(cfg *baseCfg, p *GnoPath, io commands.IO) error {
+	c, _, err := cfg.queryClient(p.Domain)
+	if err != nil {
+		return err
+	}
+	filePath := p.PkgPath + "/" + p.File
+	cfg.debugf(io, "qfile: %s", filePath)
+	source, err := queryFile(c, filePath)
+	if err != nil {
+		return fmt.Errorf("reading file: %w", err)
+	}
+	if cfg.jsonOut {
+		return outputJSON(io, map[string]any{
+			"pkg_path": p.PkgPath, "file": p.File, "source": source,
+		})
+	}
+	io.Println(source)
+	return nil
+}
+
+// readFuncSignature shows a specific function's signature from qfuncs.
+func readFuncSignature(cfg *baseCfg, p *GnoPath, io commands.IO) error {
+	c, _, err := cfg.queryClient(p.Domain)
+	if err != nil {
+		return err
+	}
+	funcsJSON, err := queryFuncs(c, p.PkgPath)
+	if err != nil {
+		return fmt.Errorf("querying functions: %w", err)
+	}
+
+	type nt struct {
+		Name string `json:"Name"`
+		Type string `json:"Type"`
+	}
+	type fs struct {
+		FuncName string `json:"FuncName"`
+		Params   []nt   `json:"Params"`
+		Results  []nt   `json:"Results"`
+	}
+	var sigs []fs
+	if err := json.Unmarshal([]byte(funcsJSON), &sigs); err != nil {
+		return fmt.Errorf("parsing functions: %w", err)
+	}
+
+	for _, sig := range sigs {
+		if sig.FuncName != p.Symbol {
+			continue
+		}
+		var params, results []string
+		for _, param := range sig.Params {
+			if param.Name != "" {
+				params = append(params, param.Name+" "+param.Type)
+			} else {
+				params = append(params, param.Type)
+			}
+		}
+		for _, r := range sig.Results {
+			if r.Name != "" {
+				results = append(results, r.Name+" "+r.Type)
+			} else {
+				results = append(results, r.Type)
+			}
+		}
+		line := fmt.Sprintf("func %s(%s)", sig.FuncName, strings.Join(params, ", "))
+		if len(results) == 1 {
+			line += " " + results[0]
+		} else if len(results) > 1 {
+			line += " (" + strings.Join(results, ", ") + ")"
+		}
+
+		if cfg.jsonOut {
+			return outputJSON(io, map[string]any{
+				"pkg_path": p.PkgPath, "function": line,
+			})
+		}
+		io.Println(line)
+		return nil
+	}
+	return fmt.Errorf("function %q not found in %s", p.Symbol, p.PkgPath)
+}
+
+// inspectAddress queries account info for a bech32 address.
+func inspectAddress(cfg *baseCfg, p *GnoPath, io commands.IO) error {
+	// Use default domain for address queries
+	c, remote, err := cfg.queryClient("gno.land")
+	if err != nil {
+		return err
+	}
+	_ = remote
+
+	cfg.debugf(io, "querying account %s", p.Address)
+
+	// Query account via auth/accounts path
+	res, err := c.Query(gnoclient.QueryCfg{
+		Path: fmt.Sprintf("auth/accounts/%s", p.Address),
+		Data: []byte{},
+	})
+	if err != nil {
+		return fmt.Errorf("querying account: %w", err)
+	}
+
+	if cfg.jsonOut {
+		return outputJSON(io, map[string]any{
+			"address":  p.Address,
+			"response": string(res.Response.Data),
+		})
+	}
+
+	io.Printfln("Address: %s", p.Address)
+	if len(res.Response.Data) > 0 {
+		io.Println(string(res.Response.Data))
+	}
+	return nil
+}
+
+// inspectUser handles /u/username URLs by querying r/sys/users.
+func inspectUser(cfg *baseCfg, p *GnoPath, io commands.IO) error {
+	c, _, err := cfg.queryClient(p.Domain)
+	if err != nil {
+		return err
+	}
+
+	username := p.Symbol // stored in Symbol by parser
+	cfg.debugf(io, "looking up user %q", username)
+
+	// Render the user page via r/sys/users
+	result, _, err := c.Render("gno.land/r/sys/users", username)
+	if err != nil {
+		return fmt.Errorf("looking up user: %w", err)
+	}
+
+	if cfg.jsonOut {
+		return outputJSON(io, map[string]any{
+			"username": username,
+			"result":   result,
+		})
+	}
+	io.Println(result)
 	return nil
 }
 

@@ -14,16 +14,20 @@ const (
 	PathSymbol                    // gno.land/r/foo/bar.Blah or gno.land/r/foo/bar:baz
 	PathCall                      // gno.land/r/foo/bar.Blah("arg1","arg2")
 	PathFile                      // gno.land/r/foo/bar/file.gno
+	PathAddress                   // g1abc...xyz (bech32 address)
+	PathUser                      // gno.land/u/moul (gnoweb user URL)
 )
 
 type GnoPath struct {
-	Raw     string
-	Domain  string
-	PkgPath string
-	Symbol  string
-	File    string // e.g., "admin.gno" for file paths
-	Args    []string
-	Kind    PathKind
+	Raw        string
+	Domain     string
+	PkgPath    string
+	Symbol     string
+	File       string // e.g., "admin.gno" for file paths
+	Address    string // e.g., "g1abc...xyz" for address paths
+	RenderPath string // e.g., "p/monthly-dev-17" from gnoweb URL `:` separator
+	Args       []string
+	Kind       PathKind
 }
 
 func (p *GnoPath) IsPublic() bool {
@@ -36,7 +40,66 @@ func ParsePath(input string) (*GnoPath, error) {
 		return nil, fmt.Errorf("empty path")
 	}
 
+	// Strip https:// or http:// prefix (allow pasting gnoweb URLs)
+	for _, prefix := range []string{"https://", "http://"} {
+		if strings.HasPrefix(input, prefix) {
+			input = input[len(prefix):]
+			break
+		}
+	}
+
+	// Extract URL fragment (#...) — may contain function name (e.g., #func-AdminSetAddr)
+	var fragment string
+	if hashIdx := strings.Index(input, "#"); hashIdx >= 0 {
+		fragment = input[hashIdx+1:]
+		input = input[:hashIdx]
+	}
+
+	// Strip trailing slash
+	input = strings.TrimRight(input, "/")
+
 	p := &GnoPath{Raw: input}
+
+	// Detect gnoweb modifiers ($source, $help, $funcs)
+	// e.g., gno.land/r/foo/bar$source or gno.land/r/foo/bar$source&file=admin.gno
+	if dollarIdx := strings.Index(input, "$"); dollarIdx > 0 {
+		modPart := input[dollarIdx+1:]
+		input = input[:dollarIdx]
+		p.Raw = input
+
+		// Parse modifier and optional &key=value params
+		modifier := modPart
+		if ampIdx := strings.Index(modPart, "&"); ampIdx >= 0 {
+			modifier = modPart[:ampIdx]
+			params := modPart[ampIdx+1:]
+			// Parse file= param
+			for _, param := range strings.Split(params, "&") {
+				if strings.HasPrefix(param, "file=") {
+					p.File = param[5:]
+				}
+			}
+		}
+
+		switch modifier {
+		case "source":
+			p.RenderPath = "$source"
+		case "help", "funcs":
+			p.RenderPath = "$" + modifier
+		}
+	}
+
+	// Handle #func-Name fragments (from $help URLs)
+	if fragment != "" && strings.HasPrefix(fragment, "func-") {
+		p.Symbol = fragment[5:] // strip "func-" prefix
+	}
+
+	// Detect bech32 addresses (g1...)
+	if strings.HasPrefix(input, "g1") && !strings.Contains(input, "/") && !strings.Contains(input, ".") {
+		p.Address = input
+		p.Kind = PathAddress
+		return p, nil
+	}
+
 	slashIdx := strings.Index(input, "/")
 	if slashIdx < 0 {
 		p.Domain = input
@@ -47,6 +110,26 @@ func ParsePath(input string) (*GnoPath, error) {
 	p.Domain = input[:slashIdx]
 	rest := input[slashIdx:]
 
+	// Handle gnoweb user URLs: /u/moul or /u/g1abc...
+	if strings.HasPrefix(rest, "/u/") {
+		username := rest[3:]
+		p.Symbol = username // store username in Symbol
+		p.Domain = p.Domain
+		p.Kind = PathUser
+		return p, nil
+	}
+
+	// Handle gnoweb render path separator (:)
+	// e.g., /r/gnoland/blog:p/monthly-dev-17
+	if colonIdx := strings.Index(rest, ":"); colonIdx > 0 {
+		p.RenderPath = rest[colonIdx+1:]
+		rest = rest[:colonIdx]
+		p.PkgPath = p.Domain + rest
+		p.Kind = PathPackage
+		return p, nil
+	}
+
+	// Check for call expression: Func(args...)
 	if callStart := strings.Index(rest, "("); callStart >= 0 {
 		pkgPath, symbol := splitSymbol(p.Domain, rest[:callStart])
 		if symbol == "" {
@@ -63,6 +146,7 @@ func ParsePath(input string) (*GnoPath, error) {
 		return p, nil
 	}
 
+	// Check for dot-separated symbol (Pkg.Symbol)
 	pkgPath, symbol := splitSymbol(p.Domain, rest)
 	if symbol != "" {
 		p.PkgPath = pkgPath
@@ -107,9 +191,6 @@ func isFileExtension(s string) bool {
 }
 
 func splitSymbol(domain, pathPart string) (pkgPath, symbol string) {
-	if colonIdx := strings.LastIndex(pathPart, ":"); colonIdx > 0 {
-		return domain + pathPart[:colonIdx], pathPart[colonIdx+1:]
-	}
 	lastSlash := strings.LastIndex(pathPart, "/")
 	if lastSlash < 0 {
 		return "", ""
