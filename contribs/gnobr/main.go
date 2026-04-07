@@ -71,11 +71,14 @@ func main() {
 		return
 	}
 
-	// Read block meta for target height (needed to patch state)
+	// Read block meta for target height and target+1 (needed to patch state)
 	targetMeta := bs.LoadBlockMeta(targetHeight)
 	if targetMeta == nil {
 		log.Fatalf("block meta for height %d not found", targetHeight)
 	}
+	// Block at target+1 has LastResultsHash for target in its header.
+	// Must read before trimming since trim deletes blocks above target.
+	nextMeta := bs.LoadBlockMeta(targetHeight + 1)
 
 	// Trim blocks above target
 	if targetHeight < bsHeight {
@@ -111,11 +114,14 @@ func main() {
 			state.LastBlockTotalTx = targetMeta.Header.TotalTxs
 		}
 
-		// Load ABCI responses for target height to get LastResultsHash
-		abciResp, err := sm.LoadABCIResponses(stDB, targetHeight)
-		if err == nil && abciResp != nil {
-			state.LastResultsHash = abciResp.ResultsHash()
-			fmt.Printf("state.db: LastResultsHash set from ABCI responses\n")
+		// Get LastResultsHash from block at targetHeight+1 (its header stores the
+		// results hash for targetHeight). This avoids loading ABCI responses which
+		// calls osm.Exit() if amino can't unmarshal chain-specific event types.
+		if nextMeta != nil {
+			state.LastResultsHash = nextMeta.Header.LastResultsHash
+			fmt.Printf("state.db: LastResultsHash set from block %d header\n", targetHeight+1)
+		} else {
+			fmt.Printf("state.db: WARNING: block %d not available, LastResultsHash not updated\n", targetHeight+1)
 		}
 
 		if newAppHash != nil {
