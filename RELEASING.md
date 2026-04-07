@@ -1,4 +1,4 @@
-# MAINTAINERS.md
+# RELEASING.md
 
 > For contributors, see [CONTRIBUTING.md](CONTRIBUTING.md). This document
 > covers internal processes for those with merge access.
@@ -18,7 +18,7 @@ network needs to coordinate an upgrade — not on every commit.
 |-----------|---------|
 | **MAJOR** | New network (incompatible chain reset). `v1` = gnoland1, `v2` = gnoland2, etc. |
 | **MINOR** | Chain upgrade on the current network (state migration, new module, protocol change). |
-| **PATCH** | Client-only change that does not affect the chain state (gnokey, SDK). |
+| **PATCH** | Backward-compatible change that does not require a coordinated chain upgrade. |
 
 **Branches:**
 
@@ -37,10 +37,10 @@ Cherry-pick or merge the relevant commits from `master` into
 `chain/gnoland1`, tag, and coordinate the upgrade height with
 validators.
 
-**Client-only release (patch bump, e.g. v1.1.0 → v1.1.1):**
-Off-chain only (gnokey, SDK). Cherry-pick or merge from
-`master` into `chain/gnoland1` and tag. No validator
-coordination needed.
+**Patch release (e.g. v1.1.0 → v1.1.1):** Backward-compatible
+changes (client tools, SDK, server-side fixes that don't affect
+consensus). Cherry-pick or merge from `master` into
+`chain/gnoland1` and tag. No validator coordination needed.
 
 **Hotfix:** Critical fix that cannot wait for the normal
 `master`-first flow. Commit directly on the `chain/` branch,
