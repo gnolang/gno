@@ -63,15 +63,28 @@ func RenderLink(pkgPath, slug string) string {
 	if strings.HasPrefix(pkgPath, "gno.land") {
 		pkgLink := strings.TrimPrefix(pkgPath, "gno.land")
 		if slug != "" {
-			return "[" + pkgPath + "](" + pkgLink + ")." + slug
+			safeSlug := escapeMarkdown(slug)
+			return "[" + pkgPath + "](" + pkgLink + ")." + safeSlug
 		}
 
 		return "[" + pkgPath + "](" + pkgLink + ")"
 	}
 
 	if slug != "" {
-		return pkgPath + "." + slug
+		safeSlug := escapeMarkdown(slug)
+		return pkgPath + "." + safeSlug
 	}
 
 	return pkgPath
+}
+
+// escapeMarkdown escapes characters that could break markdown link syntax.
+func escapeMarkdown(s string) string {
+	r := strings.NewReplacer(
+		"[", `\[`,
+		"]", `\]`,
+		"(", `\(`,
+		")", `\)`,
+	)
+	return r.Replace(s)
 }

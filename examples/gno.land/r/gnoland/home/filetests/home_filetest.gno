@@ -9,18 +9,29 @@ func main() {
 // Output:
 // # Welcome to Gno.land
 //
-// We’re building Gno.land, set to become the leading open-source smart contract
+// We're building Gno.land, set to become the leading open-source smart contract
 // platform, using Gno, an interpreted and fully deterministic variation of the
 // Go programming language for succinct and composable smart contracts.
 //
 // With transparent and timeless code, Gno.land is the next generation of smart
-// contract platforms, serving as the “GitHub” of the ecosystem, with realms built
+// contract platforms, serving as the "GitHub" of the ecosystem, with realms built
 // using fully transparent, auditable code that anyone can inspect and reuse.
 //
 // Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes
 // censorship-resistant platforms accessible to everyone. If you want to help lay
 // the foundations of a fairer and freer world, join us today.
 //
+// ---
+//
+// ## [Boards](/r/gnoland/boards2/v1) - On-chain forum for the Gno.land community
+//
+// **Post, discuss, and create your content community**: Boards is a fully on-chain social forum to create Boards topics, post threads, comment and reply. A plug-and-deploy DAO lets communities manage content, permissions and moderation their way.
+//
+// Explore this ready-to-use Gno dApp, and experience decentralized social media in action.
+//
+// **[Open Boards](/r/gnoland/boards2/v1)**
+//
+// ---
 //
 // <gno-columns>
 // ## Learn about Gno.land
@@ -40,7 +51,6 @@ func main() {
 // - [Write Gno in the browser](https://play.gno.land)
 // - [Read about the Gno Language](/gnolang)
 // - [Visit the official documentation](https://docs.gno.land)
-// - [Gno by Example](/r/docs/home)
 // - [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
 // - [Get testnet GNOTs](https://faucet.gno.land)
 //
@@ -50,10 +60,10 @@ func main() {
 //
 // - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 // - [Gnoscan](https://gnoscan.io)
-// - [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
-// - [Testnet 11](https://test11.testnets.gno.land/)
+// - [Gno networks documentation](https://docs.gno.land/resources/gnoland-networks/)
+// - [Staging](https://staging.gno.land/)
+// - [Testnet 12](https://test12.testnets.gno.land/)
 // - [Faucet Hub](https://faucet.gno.land)
-// - [Boards](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions): community forum
 //
 // </gno-columns>
 //
@@ -65,17 +75,9 @@ func main() {
 //
 // |||
 //
-// ## [Latest Events](/r/devrels/events)
+// ## [Latest Events](/events)
 //
 // No events.
-//
-// |||
-//
-// ## [Hall of Realms](/r/leon/hor)
-//
-// No items in the Hall of Realms.
-//
-//
 //
 // </gno-columns>
 //

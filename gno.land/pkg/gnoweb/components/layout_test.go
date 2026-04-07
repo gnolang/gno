@@ -185,7 +185,7 @@ func TestStaticHeaderDevLinks_WithRealmMode(t *testing.T) {
 	}
 
 	// Test realm mode (default case)
-	links := StaticHeaderDevLinks(u, ViewModeRealm)
+	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
 	assert.Len(t, links, 3, "expected Content, Source, and Actions links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
@@ -200,10 +200,22 @@ func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
 	}
 
 	// Test package mode
-	links := StaticHeaderDevLinks(u, ViewModePackage)
+	links := StaticHeaderDevLinks(u, ViewModePackage, false)
 	assert.Len(t, links, 2, "expected Content and Source links only")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
+}
+
+func TestStaticHeaderDevLinks_StaticContent(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path: "/r/test/pkg",
+	}
+
+	links := StaticHeaderDevLinks(u, ViewModeRealm, true)
+	require.Len(t, links, 1, "static content should only have Content link")
+	assert.Equal(t, "Content", links[0].Label)
 }
 
 func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
@@ -214,7 +226,7 @@ func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
 	}
 
 	// Test explorer mode
-	links := StaticHeaderDevLinks(u, ViewModeExplorer)
+	links := StaticHeaderDevLinks(u, ViewModeExplorer, false)
 	assert.Empty(t, links, "expected no links in explorer mode")
 }
 
@@ -353,6 +365,133 @@ func TestIndexLayout_ThemePropagation(t *testing.T) {
 				assert.NotContains(t, output, `data-theme=`, "expected no data-theme attribute")
 			} else {
 				assert.Contains(t, output, tc.wantAttr, "expected HTML to contain %s", tc.wantAttr)
+			}
+		})
+	}
+}
+
+func TestBannerData(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name        string
+		banner      BannerData
+		wantEnabled bool
+		wantHasURL  bool
+	}{
+		{
+			name:        "empty banner is disabled",
+			banner:      BannerData{},
+			wantEnabled: false,
+			wantHasURL:  false,
+		},
+		{
+			name:        "text only",
+			banner:      BannerData{Text: "Beta"},
+			wantEnabled: true,
+			wantHasURL:  false,
+		},
+		{
+			name:        "text with https URL",
+			banner:      BannerData{Text: "Beta", URL: "https://example.com"},
+			wantEnabled: true,
+			wantHasURL:  true,
+		},
+		{
+			name:        "text with http URL",
+			banner:      BannerData{Text: "Beta", URL: "http://example.com"},
+			wantEnabled: true,
+			wantHasURL:  true,
+		},
+		{
+			name:        "rejects javascript scheme",
+			banner:      BannerData{Text: "Click me", URL: "javascript:alert(1)"},
+			wantEnabled: true,
+			wantHasURL:  false,
+		},
+		{
+			name:        "rejects data scheme",
+			banner:      BannerData{Text: "Click me", URL: "data:text/html,<h1>hi</h1>"},
+			wantEnabled: true,
+			wantHasURL:  false,
+		},
+		{
+			name:        "rejects schemeless URL",
+			banner:      BannerData{Text: "Click me", URL: "example.com"},
+			wantEnabled: true,
+			wantHasURL:  false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.wantEnabled, tc.banner.Enabled())
+			assert.Equal(t, tc.wantHasURL, tc.banner.HasURL())
+		})
+	}
+}
+
+func TestIndexLayout_Banner(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name         string
+		banner       BannerData
+		wantBanner   bool
+		wantLink     bool
+		wantContains string
+	}{
+		{
+			name:       "no banner when empty",
+			banner:     BannerData{},
+			wantBanner: false,
+		},
+		{
+			name:         "text-only renders div",
+			banner:       BannerData{Text: "Maintenance"},
+			wantBanner:   true,
+			wantLink:     false,
+			wantContains: "Maintenance",
+		},
+		{
+			name:         "text with URL renders link",
+			banner:       BannerData{Text: "Beta", URL: "https://example.com"},
+			wantBanner:   true,
+			wantLink:     true,
+			wantContains: "https://example.com",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := IndexData{
+				HeadData: HeadData{Title: "Test"},
+				Mode:     ViewModeHome,
+				Banner:   tc.banner,
+				BodyView: &View{
+					Type:      "test-view",
+					Component: NewReaderComponent(strings.NewReader("testdata")),
+				},
+			}
+
+			var buf strings.Builder
+			err := IndexLayout(data).Render(&buf)
+			require.NoError(t, err)
+
+			output := buf.String()
+			if !tc.wantBanner {
+				assert.NotContains(t, output, "b-banner")
+			} else {
+				assert.Contains(t, output, "b-banner")
+				assert.Contains(t, output, tc.wantContains)
+				if tc.wantLink {
+					assert.Contains(t, output, "<a ")
+				} else {
+					assert.Contains(t, output, "<div class=\"b-banner\"")
+				}
 			}
 		})
 	}

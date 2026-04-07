@@ -36,8 +36,29 @@ func SetHelp(_ realm, content string) {
 	content = strings.TrimSpace(content)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{content}
-	gPerms.WithPermission(caller, PermissionRealmHelp, args, crossingFn(func() {
-		gHelp = content
+	gPerms.WithPermission(caller, PermissionRealmHelpChange, args, crossingFn(func() {
+		Help = content
+	}))
+}
+
+// SetRequiredAccountAmount sets the required account amount to interact as a non member with open boards.
+// Amount must be given as ugnot.
+// The amount requirement is not applied to members that were invited to an open board.
+func SetRequiredAccountAmount(_ realm, amount int64) {
+	if amount < 0 {
+		panic("invalid amount")
+	}
+
+	caller := runtime.PreviousRealm().Address()
+	args := boards.Args{amount}
+	gPerms.WithPermission(caller, PermissionAccountRequiredAmountChange, args, crossingFn(func() {
+		RequiredAccountAmount = amount
+
+		chain.Emit(
+			"RequiredAccountAmountChanged",
+			"caller", caller.String(),
+			"amount", strconv.FormatInt(amount, 10),
+		)
 	}))
 }
 
@@ -60,7 +81,7 @@ func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions) {
 			gPerms = p
 
 			chain.Emit(
-				"RealmPermissionsUpdated",
+				"RealmPermissionsChanged",
 				"caller", caller.String(),
 			)
 			return
@@ -71,21 +92,21 @@ func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions) {
 		board.Permissions = p
 
 		chain.Emit(
-			"BoardPermissionsUpdated",
+			"BoardPermissionsChanged",
 			"caller", caller.String(),
 			"boardID", board.ID.String(),
 		)
 	}))
 }
 
-// SetRealmNotice sets a notice to be displayed globally by the realm.
+// SetRealmNotice sets a notice to be displayed globally within the realm.
 // An empty message removes the realm notice.
 func SetRealmNotice(_ realm, message string) {
 	message = strings.TrimSpace(message)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{message}
 	gPerms.WithPermission(caller, PermissionRealmNotice, args, crossingFn(func() {
-		gNotice = message
+		Notice = message
 
 		chain.Emit(
 			"RealmNoticeChanged",
@@ -102,6 +123,11 @@ func GetBoardIDFromName(_ realm, name string) (_ boards.ID, found bool) {
 		return 0, false
 	}
 	return board.ID, true
+}
+
+// BoardCount returns the total number of boards.
+func BoardCount() int {
+	return gBoards.Size()
 }
 
 // CreateBoard creates a new board.
@@ -176,6 +202,7 @@ func RenameBoard(_ realm, name, newName string) {
 
 		board.Aliases = append(board.Aliases, board.Name)
 		board.Name = newName
+		board.UpdatedAt = time.Now()
 
 		// Index board for the new name keeping previous indexes for older names
 		gBoards.Add(board)
@@ -309,6 +336,9 @@ func CreateRepost(_ realm, boardID, threadID, destinationBoardID boards.ID, titl
 
 		repost.Title = title
 		repost.Body = strings.TrimSpace(body)
+		repost.Meta = &ThreadMeta{
+			AllReplies: boards.NewPostStorage(),
+		}
 
 		if err := dst.Threads.Add(repost); err != nil {
 			panic(err)
@@ -624,22 +654,6 @@ func ChangeMemberRole(_ realm, boardID boards.ID, member address, role boards.Ro
 	}))
 }
 
-// IterateRealmMembers iterates boards realm members.
-// The iteration is done only for realm members, board members are not iterated.
-func IterateRealmMembers(offset int, fn boards.UsersIterFn) (halted bool) {
-	count := gPerms.UsersCount() - offset
-	return gPerms.IterateUsers(offset, count, fn)
-}
-
-// GetBoard returns a single board.
-func GetBoard(boardID boards.ID) *boards.Board {
-	board := mustGetBoard(boardID)
-	if !board.Permissions.HasRole(runtime.OriginCaller(), RoleOwner) {
-		panic("forbidden")
-	}
-	return board
-}
-
 // Wraps a function to cross back to Boards2 realm.
 func crossingFn(fn func()) func() {
 	return func() {
@@ -656,12 +670,6 @@ func assertMemberAddressIsValid(member address) {
 func assertUserAddressIsValid(user address) {
 	if !user.IsValid() {
 		panic("invalid user address: " + user.String())
-	}
-}
-
-func assertHasPermission(perms boards.Permissions, user address, p boards.Permission) {
-	if !perms.HasPermission(user, p) {
-		panic("unauthorized")
 	}
 }
 
