@@ -193,22 +193,98 @@ func TestCLI(t *testing.T) {
 
 		// --- CALL --print-gnokey-command ---
 		{
-			name:                "CALL generate gnokey command",
+			name:                "CALL gnokey: has gnokey header",
 			args:                []string{"CALL", "gno.land/r/demo/counter.Increment()"},
 			printGnokeyCmd:      true,
 			stdoutShouldContain: "gnokey",
 		},
 		{
-			name:                "CALL generate gnokey has func",
+			name:                "CALL gnokey: has maketx call",
+			args:                []string{"CALL", "gno.land/r/demo/counter.Increment()"},
+			printGnokeyCmd:      true,
+			stdoutShouldContain: "maketx",
+		},
+		{
+			name:                "CALL gnokey: has func flag",
 			args:                []string{"CALL", "gno.land/r/demo/counter.Increment()"},
 			printGnokeyCmd:      true,
 			stdoutShouldContain: "-func=Increment",
 		},
 		{
-			name:                "CALL generate gnokey has pkgpath",
+			name:                "CALL gnokey: has pkgpath flag",
 			args:                []string{"CALL", "gno.land/r/demo/counter.Increment()"},
 			printGnokeyCmd:      true,
 			stdoutShouldContain: "-pkgpath=gno.land/r/demo/counter",
+		},
+		{
+			name:                "CALL gnokey: has chainid",
+			args:                []string{"CALL", "gno.land/r/demo/counter.Increment()"},
+			printGnokeyCmd:      true,
+			stdoutShouldContain: "-chainid=",
+		},
+		{
+			name:                "CALL gnokey: has remote",
+			args:                []string{"CALL", "gno.land/r/demo/counter.Increment()"},
+			printGnokeyCmd:      true,
+			stdoutShouldContain: "-remote=",
+		},
+		{
+			name:                "CALL gnokey: has key name",
+			args:                []string{"CALL", "gno.land/r/demo/counter.Increment()"},
+			printGnokeyCmd:      true,
+			stdoutShouldContain: integration.DefaultAccount_Name,
+		},
+
+		// --- RUN --print-gnokey-command ---
+		{
+			name:                "RUN gnokey: has generated code",
+			args:                []string{"RUN", "gno.land/r/demo/counter.Increment()"},
+			printGnokeyCmd:      true,
+			stdoutShouldContain: "package main",
+		},
+		{
+			name:                "RUN gnokey: has import",
+			args:                []string{"RUN", "gno.land/r/demo/counter.Increment()"},
+			printGnokeyCmd:      true,
+			stdoutShouldContain: `"gno.land/r/demo/counter"`,
+		},
+		{
+			name:                "RUN gnokey: has cross for crossing func",
+			args:                []string{"RUN", "gno.land/r/demo/counter.Increment()"},
+			printGnokeyCmd:      true,
+			stdoutShouldContain: "counter.Increment(cross)",
+		},
+		{
+			name:                "RUN gnokey: has maketx run",
+			args:                []string{"RUN", "gno.land/r/demo/counter.Increment()"},
+			printGnokeyCmd:      true,
+			stdoutShouldContain: "maketx",
+		},
+		{
+			name:                "RUN gnokey: has run.gno",
+			args:                []string{"RUN", "gno.land/r/demo/counter.Increment()"},
+			printGnokeyCmd:      true,
+			stdoutShouldContain: "run.gno",
+		},
+		{
+			name:                "RUN gnokey: has key name",
+			args:                []string{"RUN", "gno.land/r/demo/counter.Increment()"},
+			printGnokeyCmd:      true,
+			stdoutShouldContain: integration.DefaultAccount_Name,
+		},
+
+		// --- dry-run (no password prompt) ---
+		{
+			name:                "CALL dry-run shows what would be called",
+			args:                []string{"CALL", "gno.land/r/demo/counter.Increment()"},
+			dryRun:              true,
+			stdoutShouldContain: "Would call:",
+		},
+		{
+			name:                "RUN dry-run shows generated code",
+			args:                []string{"RUN", "gno.land/r/demo/counter.Increment()"},
+			dryRun:              true,
+			stdoutShouldContain: "package main",
 		},
 
 		// --- Error cases ---
