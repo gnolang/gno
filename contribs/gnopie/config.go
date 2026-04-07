@@ -9,10 +9,20 @@ import (
 	"github.com/pelletier/go-toml"
 )
 
+const defaultGasBuffer = 20 // percent
+
 // Config holds persisted gnopie settings.
 type Config struct {
-	Key string `toml:"key,omitempty"` // default key name
-	// Future: other defaults like gas-fee, quiet, etc.
+	Key       string `toml:"key,omitempty"`        // default key name
+	GasBuffer int    `toml:"gas_buffer,omitempty"` // gas estimation buffer percent (default 20)
+}
+
+// GetGasBuffer returns the gas buffer percentage, defaulting to 20.
+func (c *Config) GetGasBuffer() int {
+	if c.GasBuffer <= 0 {
+		return defaultGasBuffer
+	}
+	return c.GasBuffer
 }
 
 func configPath(home string) string {
@@ -52,25 +62,33 @@ func ConfigGet(cfg *Config, key string) (string, error) {
 	switch key {
 	case "key":
 		return cfg.Key, nil
+	case "gas-buffer":
+		return fmt.Sprintf("%d", cfg.GetGasBuffer()), nil
 	default:
-		return "", fmt.Errorf("unknown config key %q (available: key)", key)
+		return "", fmt.Errorf("unknown config key %q (available: key, gas-buffer)", key)
 	}
 }
 
-// ConfigSet sets a config key to a value.
 func ConfigSet(cfg *Config, key, value string) error {
 	switch key {
 	case "key":
 		cfg.Key = value
 		return nil
+	case "gas-buffer":
+		var v int
+		if _, err := fmt.Sscanf(value, "%d", &v); err != nil || v < 0 {
+			return fmt.Errorf("gas-buffer must be a non-negative integer (percent), got %q", value)
+		}
+		cfg.GasBuffer = v
+		return nil
 	default:
-		return fmt.Errorf("unknown config key %q (available: key)", key)
+		return fmt.Errorf("unknown config key %q (available: key, gas-buffer)", key)
 	}
 }
 
-// ConfigList returns all config key=value pairs.
 func ConfigList(cfg *Config) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "key=%s\n", cfg.Key)
+	fmt.Fprintf(&sb, "gas-buffer=%d\n", cfg.GetGasBuffer())
 	return sb.String()
 }

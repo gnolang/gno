@@ -1,3 +1,6 @@
+// Package-level query cache for read-only, static data.
+// Only source code (vm/qfile) and function signatures (vm/qfuncs) are cached.
+// State queries (vm/qstorage, vm/qeval, vm/qrender) are never cached.
 package main
 
 import (

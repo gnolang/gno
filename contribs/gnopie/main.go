@@ -129,6 +129,15 @@ func (c *baseCfg) resolveKeyName() (string, error) {
 	return "", fmt.Errorf("no key specified (use --key or 'gnopie config set key=<name>')")
 }
 
+// gasBufferPercent returns the gas estimation buffer from config (default 20%).
+func (c *baseCfg) gasBufferPercent() int64 {
+	cfg, err := LoadConfig(c.home)
+	if err != nil {
+		return int64(defaultGasBuffer)
+	}
+	return int64(cfg.GetGasBuffer())
+}
+
 func (c *baseCfg) signingClient(domain string, io commands.IO) (*gnoclient.Client, *Remote, error) {
 	keyName, err := c.resolveKeyName()
 	if err != nil {
@@ -282,16 +291,8 @@ func cachedQuery(client *gnoclient.Client, home, queryPath, data string, cacheab
 	return result, nil
 }
 
-func queryFile(client *gnoclient.Client, pkgPath string) (string, error) {
-	return cachedQuery(client, "", "vm/qfile", pkgPath, false, nil)
-}
-
 func queryFileC(client *gnoclient.Client, cfg *baseCfg, pkgPath string) (string, error) {
 	return cachedQuery(client, cfg.home, "vm/qfile", pkgPath, true, cfg.dbgFunc())
-}
-
-func queryFuncs(client *gnoclient.Client, pkgPath string) (string, error) {
-	return cachedQuery(client, "", "vm/qfuncs", pkgPath, false, nil)
 }
 
 func queryFuncsC(client *gnoclient.Client, cfg *baseCfg, pkgPath string) (string, error) {

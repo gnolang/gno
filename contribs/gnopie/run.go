@@ -97,7 +97,7 @@ func execRun(_ context.Context, cfg *baseCfg, expr string, io commands.IO) error
 		if err != nil {
 			return fmt.Errorf("gas estimation: %w", err)
 		}
-		gasWanted = gasUsed + gasUsed/2
+		gasWanted = gasUsed + gasUsed*cfg.gasBufferPercent()/100
 		if gasWanted < 100_000 {
 			gasWanted = 100_000
 		}

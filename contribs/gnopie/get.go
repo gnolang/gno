@@ -260,10 +260,11 @@ func extractDecl(source, symbol string) string {
 				result.WriteByte('\n')
 
 				for _, ch := range lines[j] {
-					if ch == '{' {
+					switch ch {
+					case '{':
 						depth++
 						started = true
-					} else if ch == '}' {
+					case '}':
 						depth--
 					}
 				}
