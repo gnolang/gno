@@ -331,7 +331,9 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	*/
 	if av.Data == nil {
 		av2 := alloc.NewListArray(len(av.List))
-		copy(av2.List, av.List)
+		for i, tv := range av.List {
+			av2.List[i] = tv.Copy(alloc)
+		}
 		return av2
 	}
 	av2 := alloc.NewDataArray(len(av.Data))
