@@ -147,7 +147,7 @@ func TestNewApp(t *testing.T) {
 	// NewApp should have good defaults and manage to run InitChain.
 	td := t.TempDir()
 
-	app, err := NewApp(td, NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger())
+	app, err := NewApp(td, NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
 	require.NoError(t, err, "NewApp should be successful")
 
 	resp := app.InitChain(abci.RequestInitChain{
@@ -1262,6 +1262,7 @@ func TestPruneStrategyNothing(t *testing.T) {
 		appCfg,
 		events.NewEventSwitch(),
 		log.NewNoopLogger(),
+		0,
 	)
 	require.NoError(t, err)
 

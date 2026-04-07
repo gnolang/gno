@@ -41,6 +41,7 @@ type AppOptions struct {
 	EventSwitch                events.EventSwitch // required
 	VMOutput                   io.Writer          // optional
 	SkipGenesisSigVerification bool               // default to verify genesis transactions
+	SkipUpgradeHeight          int64              // if set, skip the halt_min_version check at this height
 	InitChainerConfig                             // options related to InitChainer
 	MinGasPrices               string             // optional
 	PruneStrategy              types.PruneStrategy
@@ -210,10 +211,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
 
-	// Verify that the running binary meets the minimum version requirement
-	// set by a previous governance halt proposal, preventing old binaries
-	// from accidentally resuming a chain halted for an upgrade.
-	if err := checkNodeStartupParams(prmk, baseApp.GetCacheMultiStore()); err != nil {
+	// Verify node startup constraints set by governance halt proposals.
+	if err := checkNodeStartupParams(prmk, baseApp.GetCacheMultiStore(), baseApp.LastBlockHeight(), cfg.SkipUpgradeHeight); err != nil {
 		return nil, err
 	}
 
@@ -242,6 +241,7 @@ func NewApp(
 	appCfg *sdkCfg.AppConfig,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
+	skipUpgradeHeight int64,
 ) (abci.Application, error) {
 	var err error
 
@@ -254,6 +254,7 @@ func NewApp(
 		},
 		MinGasPrices:               appCfg.MinGasPrices,
 		SkipGenesisSigVerification: genesisCfg.SkipSigVerification,
+		SkipUpgradeHeight:          skipUpgradeHeight,
 		PruneStrategy:              appCfg.PruneStrategy,
 	}
 	if genesisCfg.SkipFailingTxs {

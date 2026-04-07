@@ -43,26 +43,53 @@ func (nodeParamsKeeper) WillSetParam(_ sdk.Context, key string, value any) {
 	}
 }
 
-// checkNodeStartupParams reads halt-related params from the committed state and verifies
-// that the running binary satisfies any minimum version requirement set by governance.
-// This prevents an old binary from accidentally resuming a chain that was halted for an upgrade.
-func checkNodeStartupParams(prmk sdkparams.ParamsKeeperI, ms store.MultiStore) error {
+// checkNodeStartupParams reads halt-related params from the committed state and verifies:
+//  1. The running binary meets the minimum version requirement set by governance.
+//  2. A new (upgraded) binary is not started before the chain has actually halted.
+//
+// skipUpgradeHeight, if non-zero, skips all upgrade checks at that specific height.
+func checkNodeStartupParams(prmk sdkparams.ParamsKeeperI, ms store.MultiStore, lastBlockHeight, skipUpgradeHeight int64) error {
 	// Build a minimal read-only context with just the multistore and a placeholder chain ID.
 	// We only need store access to read params; no block execution context is required.
 	ctx := sdk.Context{}.WithMultiStore(ms).WithChainID("_")
 
+	var haltHeight int64
+	prmk.GetInt64(ctx, nodeParamHaltHeight, &haltHeight)
+
 	var minVersion string
 	prmk.GetString(ctx, nodeParamHaltMinVersion, &minVersion)
-	if minVersion == "" {
+
+	// Nothing to check if no governance halt is configured.
+	if haltHeight == 0 || minVersion == "" {
+		return nil
+	}
+
+	// Allow skipping upgrade checks at a specific height (e.g., validator already migrated).
+	if skipUpgradeHeight > 0 && skipUpgradeHeight == haltHeight {
 		return nil
 	}
 
 	binaryVersion := tmver.Version
-	if !meetsMinVersion(binaryVersion, minVersion) {
+
+	// Check 1: Prevent old binaries from resuming after a halt.
+	if lastBlockHeight >= haltHeight {
+		if !meetsMinVersion(binaryVersion, minVersion) {
+			return fmt.Errorf(
+				"binary version %q does not meet the minimum version %q required by governance; "+
+					"please upgrade to a compatible binary before restarting",
+				binaryVersion, minVersion,
+			)
+		}
+		return nil
+	}
+
+	// Check 2: Prevent new (upgraded) binaries from running before the halt height.
+	if meetsMinVersion(binaryVersion, minVersion) && binaryVersion != minVersion {
 		return fmt.Errorf(
-			"binary version %q does not meet the minimum version %q required by governance; "+
-				"please upgrade to a compatible binary before restarting",
-			binaryVersion, minVersion,
+			"binary version %q is an upgrade intended for halt height %d, "+
+				"but the chain is at height %d; please use the previous binary until the halt, "+
+				"or set skip_upgrade_height = %d in config.toml if you have already migrated",
+			binaryVersion, haltHeight, lastBlockHeight, haltHeight,
 		)
 	}
 
