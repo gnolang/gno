@@ -1,7 +1,6 @@
 package types
 
 import (
-	"math"
 	"testing"
 	"time"
 
@@ -132,7 +131,7 @@ func TestProposalValidateBasic(t *testing.T) {
 			p.Signature = make([]byte, MaxSignatureSize+1)
 		}, true},
 	}
-	blockID := makeBlockID(tmhash.Sum([]byte("blockhash")), math.MaxInt64, tmhash.Sum([]byte("partshash")))
+	blockID := makeBlockID(tmhash.Sum([]byte("blockhash")), 10, tmhash.Sum([]byte("partshash")))
 
 	for _, tc := range testCases {
 		tc := tc
