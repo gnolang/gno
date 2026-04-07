@@ -108,7 +108,7 @@ func (c *baseCfg) signingClient(domain string, io commands.IO) (*gnoclient.Clien
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening keybase: %w", err)
 	}
-	pass, err := io.GetPassword("Enter password:", true)
+	pass, err := io.GetPassword("Enter password:", false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading password: %w", err)
 	}
