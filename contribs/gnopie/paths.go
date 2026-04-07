@@ -13,6 +13,7 @@ const (
 	PathPackage                   // gno.land/r/foo/bar
 	PathSymbol                    // gno.land/r/foo/bar.Blah or gno.land/r/foo/bar:baz
 	PathCall                      // gno.land/r/foo/bar.Blah("arg1","arg2")
+	PathFile                      // gno.land/r/foo/bar/file.gno
 )
 
 type GnoPath struct {
@@ -20,6 +21,7 @@ type GnoPath struct {
 	Domain  string
 	PkgPath string
 	Symbol  string
+	File    string // e.g., "admin.gno" for file paths
 	Args    []string
 	Kind    PathKind
 }
@@ -69,7 +71,20 @@ func ParsePath(input string) (*GnoPath, error) {
 		return p, nil
 	}
 
-	p.PkgPath = p.Domain + rest
+	fullPath := p.Domain + rest
+
+	// Check if last segment is a file
+	if lastSlash := strings.LastIndex(rest, "/"); lastSlash > 0 {
+		lastSeg := rest[lastSlash+1:]
+		if isFileExtension(lastSeg) {
+			p.PkgPath = p.Domain + rest[:lastSlash]
+			p.File = lastSeg
+			p.Kind = PathFile
+			return p, nil
+		}
+	}
+
+	p.PkgPath = fullPath
 	parts := strings.Split(rest, "/")
 	if len(parts) <= 3 {
 		p.Kind = PathNamespace
@@ -77,6 +92,18 @@ func ParsePath(input string) (*GnoPath, error) {
 		p.Kind = PathPackage
 	}
 	return p, nil
+}
+
+// fileExtensions that should be treated as file paths, not symbol references.
+var fileExtensions = []string{".gno", ".toml", ".md", ".txt", ".json"}
+
+func isFileExtension(s string) bool {
+	for _, ext := range fileExtensions {
+		if strings.HasSuffix(s, ext) {
+			return true
+		}
+	}
+	return false
 }
 
 func splitSymbol(domain, pathPart string) (pkgPath, symbol string) {
@@ -88,6 +115,10 @@ func splitSymbol(domain, pathPart string) (pkgPath, symbol string) {
 		return "", ""
 	}
 	lastSegment := pathPart[lastSlash+1:]
+	// Don't treat file extensions as symbol separators
+	if isFileExtension(lastSegment) {
+		return "", ""
+	}
 	if dotIdx := strings.Index(lastSegment, "."); dotIdx > 0 {
 		fullDotIdx := lastSlash + 1 + dotIdx
 		return domain + pathPart[:fullDotIdx], pathPart[fullDotIdx+1:]

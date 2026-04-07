@@ -30,14 +30,25 @@ const (
 
 var metaRe = regexp.MustCompile(`<meta\s+name="gnoconnect:(\w+)"\s+content="([^"]*)"`)
 
+// DebugFunc is an optional debug logging function.
+type DebugFunc func(format string, args ...any)
+
+func noopDebug(string, ...any) {}
+
 // DiscoverRemote discovers network configuration by fetching the domain's
 // gnoweb homepage and reading <meta name="gnoconnect:*"> tags.
 // Results are cached on disk for cacheMaxAge.
-func DiscoverRemote(home, domain string) (*Remote, error) {
+func DiscoverRemote(home, domain string, dbg DebugFunc) (*Remote, error) {
+	if dbg == nil {
+		dbg = noopDebug
+	}
+
 	// Check cache first
 	if r, err := loadCachedRemote(home, domain); err == nil {
+		dbg("cache hit for %s (rpc=%s, chainid=%s)", domain, r.RPC, r.ChainID)
 		return r, nil
 	}
+	dbg("cache miss for %s, discovering...", domain)
 
 	// Determine URL to fetch
 	var url string
@@ -47,6 +58,7 @@ func DiscoverRemote(home, domain string) (*Remote, error) {
 		url = fmt.Sprintf("https://%s/", domain)
 	}
 
+	dbg("fetching %s", url)
 	client := &http.Client{Timeout: discoverTimeout}
 	resp, err := client.Get(url)
 	if err != nil {
@@ -54,7 +66,7 @@ func DiscoverRemote(home, domain string) (*Remote, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024)) // limit read
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024))
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", url, err)
 	}
@@ -65,6 +77,7 @@ func DiscoverRemote(home, domain string) (*Remote, error) {
 	for _, match := range matches {
 		key := string(match[1])
 		value := string(match[2])
+		dbg("found gnoconnect:%s = %s", key, value)
 		switch key {
 		case "rpc":
 			remote.RPC = value
@@ -82,8 +95,11 @@ func DiscoverRemote(home, domain string) (*Remote, error) {
 		return nil, fmt.Errorf("no gnoconnect:chainid meta tag found at %s", url)
 	}
 
+	dbg("discovered %s: rpc=%s chainid=%s", domain, remote.RPC, remote.ChainID)
+
 	// Cache the result
 	_ = saveCachedRemote(home, domain, remote)
+	dbg("cached %s", domain)
 
 	return remote, nil
 }

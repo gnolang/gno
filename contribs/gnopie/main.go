@@ -37,6 +37,7 @@ type baseCfg struct {
 	gasFee         string
 	dryRun         bool
 	generateGnokey bool
+	debug          bool
 }
 
 func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
@@ -44,11 +45,19 @@ func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.keyName, "key", "", "key name or address from keybase")
 	fs.BoolVar(&c.jsonOut, "json", false, "output as JSON")
 	fs.BoolVar(&c.quiet, "quiet", false, "suppress non-essential output")
+	fs.BoolVar(&c.debug, "debug", false, "show debug info (cache, discovery, queries)")
 	fs.StringVar(&c.send, "send", "", "coins to send with CALL/RUN (e.g., 1000000ugnot)")
 	fs.Int64Var(&c.gasWanted, "gas-wanted", 0, "gas limit (0 = auto-estimate)")
 	fs.StringVar(&c.gasFee, "gas-fee", "1000000ugnot", "gas fee")
 	fs.BoolVar(&c.dryRun, "dry-run", false, "simulate without broadcasting")
 	fs.BoolVar(&c.generateGnokey, "generate-gnokey", false, "print equivalent gnokey command")
+}
+
+// debugf prints debug info to stderr if --debug is enabled.
+func (c *baseCfg) debugf(io commands.IO, format string, args ...any) {
+	if c.debug {
+		io.ErrPrintfln("[debug] "+format, args...)
+	}
 }
 
 func defaultHome() string {
@@ -69,7 +78,17 @@ func (c *baseCfg) resolveRemote(domain string) (*Remote, error) {
 	if domain == "" {
 		return nil, fmt.Errorf("no domain specified")
 	}
-	return DiscoverRemote(c.home, domain)
+	return DiscoverRemote(c.home, domain, c.dbgFunc())
+}
+
+// dbgFunc returns a DebugFunc that prints to stderr if debug is enabled.
+func (c *baseCfg) dbgFunc() DebugFunc {
+	if !c.debug {
+		return nil
+	}
+	return func(format string, args ...any) {
+		fmt.Fprintf(os.Stderr, "[debug] "+format+"\n", args...)
+	}
 }
 
 func rpcClientFromRemote(remote *Remote) (rpcclient.Client, error) {
@@ -186,6 +205,7 @@ Verbs:
 }
 
 func dispatch(ctx context.Context, cfg *baseCfg, args []string, io commands.IO) error {
+	cfg.debugf(io, "args: %v", args)
 	if len(args) == 0 {
 		return fmt.Errorf("usage: gnopie [VERB] <expression>\nRun 'gnopie --help' for details")
 	}
@@ -204,6 +224,7 @@ func dispatch(ctx context.Context, cfg *baseCfg, args []string, io commands.IO) 
 	}
 
 	expr := exprArgs[0]
+	cfg.debugf(io, "verb=%s expr=%s", verb, expr)
 
 	switch verb {
 	case VerbGET:

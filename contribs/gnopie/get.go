@@ -20,12 +20,17 @@ func execGet(ctx context.Context, cfg *baseCfg, expr string, io commands.IO) err
 		return fmt.Errorf("parsing: %w", err)
 	}
 
+	cfg.debugf(io, "path parsed: kind=%d domain=%s pkgpath=%s symbol=%s args=%v", p.Kind, p.Domain, p.PkgPath, p.Symbol, p.Args)
+
 	switch p.Kind {
 	case PathCall:
+		cfg.debugf(io, "GET dispatch → EVAL (function call)")
 		return execEval(ctx, cfg, expr, io)
-	case PathSymbol:
+	case PathSymbol, PathFile:
+		cfg.debugf(io, "GET dispatch → READ (symbol/file)")
 		return execRead(ctx, cfg, expr, io)
 	default:
+		cfg.debugf(io, "GET dispatch → INSPECT (kind=%d)", p.Kind)
 		return execInspect(ctx, cfg, expr, io)
 	}
 }
@@ -50,7 +55,9 @@ func execEval(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 	if p.Kind == PathCall {
 		args := joinArgs(p.Args)
 		// Auto-inject `cross` for crossing functions
-		if isCrossingFunc(c, p.PkgPath, p.Symbol) {
+		crossing := isCrossingFunc(c, p.PkgPath, p.Symbol)
+		cfg.debugf(io, "crossing check for %s.%s: %v", p.PkgPath, p.Symbol, crossing)
+		if crossing {
 			if args == "" {
 				args = "cross"
 			} else {
@@ -62,6 +69,7 @@ func execEval(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 		qevalExpr = p.Symbol
 	}
 
+	cfg.debugf(io, "qeval: %s.%s", p.PkgPath, qevalExpr)
 	result, _, err := c.QEval(p.PkgPath, qevalExpr)
 	if err != nil {
 		return fmt.Errorf("eval: %w", err)
@@ -91,14 +99,31 @@ func execRead(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 	}
 
 	switch p.Kind {
+	case PathFile:
+		// Fetch specific file
+		cfg.debugf(io, "reading file: %s/%s", p.PkgPath, p.File)
+		source, err := queryFile(c, p.PkgPath+"/"+p.File)
+		if err != nil {
+			return fmt.Errorf("reading file: %w", err)
+		}
+		if cfg.jsonOut {
+			return outputJSON(io, map[string]any{
+				"pkg_path": p.PkgPath, "file": p.File, "source": source,
+			})
+		}
+		io.Println(source)
+		return nil
+
 	case PathSymbol:
-		// Try qeval for value
+		if p.IsPublic() {
+			// Public symbol: show source code
+			cfg.debugf(io, "reading source for public symbol %s.%s", p.PkgPath, p.Symbol)
+			return readSource(cfg, p, io)
+		}
+		// Private symbol: get value via qeval
+		cfg.debugf(io, "reading value for private symbol %s.%s via qeval", p.PkgPath, p.Symbol)
 		result, _, err := c.QEval(p.PkgPath, p.Symbol)
 		if err != nil {
-			// For public symbols, try finding source
-			if p.IsPublic() {
-				return readSource(cfg, p, io)
-			}
 			return fmt.Errorf("reading %s.%s: %w", p.PkgPath, p.Symbol, err)
 		}
 		if cfg.jsonOut {
@@ -143,14 +168,18 @@ func readSource(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	if err != nil {
 		return err
 	}
+	cfg.debugf(io, "qfile: listing files in %s", p.PkgPath)
 	fileList, err := queryFile(c, p.PkgPath)
 	if err != nil {
 		return err
 	}
-	for _, fname := range splitLines(fileList) {
+	files := splitLines(fileList)
+	cfg.debugf(io, "found %d files, searching for symbol %q", len(files), p.Symbol)
+	for _, fname := range files {
 		if !strings.HasSuffix(fname, ".gno") || strings.HasSuffix(fname, "_test.gno") {
 			continue
 		}
+		cfg.debugf(io, "qfile: reading %s/%s", p.PkgPath, fname)
 		source, err := queryFile(c, p.PkgPath+"/"+fname)
 		if err != nil {
 			continue
