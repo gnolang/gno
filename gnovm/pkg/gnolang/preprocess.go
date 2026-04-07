@@ -1782,14 +1782,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								panic("missing argument to make")
 							}
 
-							for _, arg := range n.Args {
-								if cx, ok := arg.(*ConstExpr); ok {
-									if tv := cx.TypedValue; tv.T != nil && isNumeric(tv.T) && tv.Sign() < 0 {
-										panic(fmt.Sprintf("invalid argument: index %v must not be negative", tv))
-									}
-								}
-							}
-
 							// Validate arg count per target type.
 							tt := evalStaticType(store, last, n.Args[0])
 							switch baseOf(tt).(type) {
@@ -1810,6 +1802,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							default:
 								panic(fmt.Sprintf(
 									"invalid argument: cannot make %s; type must be slice, map", tt))
+							}
+
+							// Reject negative constant size arguments (len, cap, hint).
+							// Skip n.Args[0] which is the type argument.
+							for _, arg := range n.Args[1:] {
+								if cx, ok := arg.(*ConstExpr); ok {
+									if tv := cx.TypedValue; tv.T != nil && isNumeric(tv.T) && tv.Sign() < 0 {
+										panic(fmt.Sprintf("invalid argument: index %v must not be negative", tv))
+									}
+								}
 							}
 
 							// Specify function param/result generics.
