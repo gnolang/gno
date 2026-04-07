@@ -13,7 +13,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -454,6 +453,9 @@ type endBlockerApp interface {
 
 	// Logger returns the logger reference
 	Logger() *slog.Logger
+
+	// SetHaltHeight sets the block height at which the node will halt.
+	SetHaltHeight(uint64)
 }
 
 // EndBlocker defines the logic executed after every block.
@@ -481,18 +483,18 @@ func EndBlocker(
 		}
 
 		// Check if GovDAO has requested a halt at this height.
+		// If so, propagate to BaseApp so BeginBlock panics on the next block,
+		// ensuring this block is fully committed before the node stops.
 		if prmk != nil {
 			var haltHeight int64
 			prmk.GetInt64(ctx, "node:p:halt_height", &haltHeight)
 			if haltHeight > 0 && req.Height >= haltHeight {
 				app.Logger().Info(
-					"GovDAO halt height reached, shutting down",
+					"GovDAO halt height reached, will halt after this block",
 					"height", req.Height,
 					"halt_height", haltHeight,
 				)
-				if err := osm.Kill(); err != nil {
-					app.Logger().Error("Failed to halt node at requested height", "err", err)
-				}
+				app.SetHaltHeight(uint64(haltHeight))
 			}
 		}
 

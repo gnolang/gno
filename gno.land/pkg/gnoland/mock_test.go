@@ -219,3 +219,5 @@ func (m *mockEndBlockerApp) Logger() *slog.Logger {
 
 	return log.NewNoopLogger()
 }
+
+func (m *mockEndBlockerApp) SetHaltHeight(_ uint64) {}
