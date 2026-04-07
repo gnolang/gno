@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -46,7 +48,16 @@ func execEval(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 
 	var qevalExpr string
 	if p.Kind == PathCall {
-		qevalExpr = p.Symbol + "(" + joinArgs(p.Args) + ")"
+		args := joinArgs(p.Args)
+		// Auto-inject `cross` for crossing functions
+		if isCrossingFunc(c, p.PkgPath, p.Symbol) {
+			if args == "" {
+				args = "cross"
+			} else {
+				args = "cross," + args
+			}
+		}
+		qevalExpr = p.Symbol + "(" + args + ")"
 	} else {
 		qevalExpr = p.Symbol
 	}
@@ -289,4 +300,35 @@ func inspectSymbol(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	}
 	io.Printfln("%s.%s = %s", p.PkgPath, p.Symbol, result)
 	return nil
+}
+
+// isCrossingFunc checks if a function's first parameter is a realm type,
+// meaning it's a crossing function that needs `cross` as first arg in qeval.
+func isCrossingFunc(client *gnoclient.Client, pkgPath, funcName string) bool {
+	funcsJSON, err := queryFuncs(client, pkgPath)
+	if err != nil || funcsJSON == "" {
+		return false
+	}
+
+	type nt struct {
+		Name string `json:"Name"`
+		Type string `json:"Type"`
+	}
+	type fs struct {
+		FuncName string `json:"FuncName"`
+		Params   []nt   `json:"Params"`
+	}
+
+	var sigs []fs
+	if err := json.Unmarshal([]byte(funcsJSON), &sigs); err != nil {
+		return false
+	}
+
+	for _, sig := range sigs {
+		if sig.FuncName == funcName && len(sig.Params) > 0 {
+			// Crossing functions have realm as first param
+			return strings.Contains(sig.Params[0].Type, "realm")
+		}
+	}
+	return false
 }
