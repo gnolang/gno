@@ -27,7 +27,6 @@ const (
 
 type baseCfg struct {
 	home    string
-	network string
 	keyName string
 	jsonOut bool
 	quiet   bool
@@ -42,7 +41,6 @@ type baseCfg struct {
 
 func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.home, "home", defaultHome(), "gno config home directory")
-	fs.StringVar(&c.network, "network", "", "network name from remotes config")
 	fs.StringVar(&c.keyName, "key", "", "key name or address from keybase")
 	fs.BoolVar(&c.jsonOut, "json", false, "output as JSON")
 	fs.BoolVar(&c.quiet, "quiet", false, "suppress non-essential output")
@@ -68,11 +66,10 @@ func defaultHome() string {
 }
 
 func (c *baseCfg) resolveRemote(domain string) (*Remote, error) {
-	cfg, err := LoadRemotes(c.home)
-	if err != nil {
-		return nil, err
+	if domain == "" {
+		return nil, fmt.Errorf("no domain specified")
 	}
-	return cfg.Resolve(c.network, domain)
+	return DiscoverRemote(c.home, domain)
 }
 
 func rpcClientFromRemote(remote *Remote) (rpcclient.Client, error) {
@@ -134,6 +131,10 @@ func main() {
 			ShortHelp:  "gnopie — like httpie, but for gno.land",
 			LongHelp: `gnopie is an opinionated CLI for gno.land chains, inspired by httpie.
 
+Network configuration is auto-discovered from the domain via gnoconnect
+meta tags (e.g., gnopie fetches https://gno.land/ to find RPC and chain ID).
+Results are cached locally for 24h.
+
 Usage:
   gnopie gno.land/r/foo/bar.Baz("hello")           GET (auto: eval function)
   gnopie gno.land/r/foo/bar.counter                 GET (auto: read variable)
@@ -151,12 +152,7 @@ Verbs:
   READ     Read variable value (qeval) or source code (qfile)
   INSPECT  Inspect network, namespace, realm, or symbol
   CALL     Sign and broadcast a transaction (requires --key)
-  RUN      Generate and execute Gno code via maketx run (requires --key)
-
-Management commands:
-  gnopie remotes     Manage network configurations
-  gnopie completion  Generate shell completions
-  gnopie version     Print version`,
+  RUN      Generate and execute Gno code via maketx run (requires --key)`,
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
@@ -165,7 +161,6 @@ Management commands:
 	)
 
 	cmd.AddSubCommands(
-		newRemotesCmd(cfg, io),
 		newCompletionCmd(io),
 		newVersionCmd(io),
 	)

@@ -45,15 +45,12 @@ const bashCompletion = `_gnopie() {
     _init_completion || return
 
     local verbs="GET EVAL READ INSPECT CALL RUN"
-    local subcmds="remotes completion version"
-    local flags="--home --network --key --json --quiet --send --gas-wanted --gas-fee --dry-run --generate-gnokey"
+    local subcmds="completion version"
+    local flags="--home --key --json --quiet --send --gas-wanted --gas-fee --dry-run --generate-gnokey"
 
     case "$prev" in
         gnopie)
             COMPREPLY=( $(compgen -W "$verbs $subcmds $flags" -- "$cur") )
-            return ;;
-        remotes)
-            COMPREPLY=( $(compgen -W "list add rm update default" -- "$cur") )
             return ;;
         completion)
             COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )
@@ -71,8 +68,8 @@ const zshCompletion = `#compdef gnopie
 _gnopie() {
     local -a verbs subcmds flags
     verbs=(GET EVAL READ INSPECT CALL RUN)
-    subcmds=(remotes completion version)
-    flags=(--home --network --key --json --quiet --send --gas-wanted --gas-fee --dry-run --generate-gnokey)
+    subcmds=(completion version)
+    flags=(--home --key --json --quiet --send --gas-wanted --gas-fee --dry-run --generate-gnokey)
 
     _arguments -C \
         '1:verb or command:->first' \
@@ -85,8 +82,6 @@ _gnopie() {
             _values 'flags' $flags ;;
         args)
             case "${words[1]}" in
-                remotes)
-                    _values 'subcommand' list add rm update default ;;
                 completion)
                     _values 'shell' bash zsh fish ;;
             esac ;;
@@ -96,13 +91,10 @@ _gnopie() {
 _gnopie`
 
 const fishCompletion = `complete -c gnopie -n '__fish_use_subcommand' -a 'GET EVAL READ INSPECT CALL RUN' -d 'Verb'
-complete -c gnopie -n '__fish_use_subcommand' -a 'remotes' -d 'Manage remotes'
 complete -c gnopie -n '__fish_use_subcommand' -a 'completion' -d 'Shell completions'
 complete -c gnopie -n '__fish_use_subcommand' -a 'version' -d 'Print version'
-complete -c gnopie -n '__fish_seen_subcommand_from remotes' -a 'list add rm update default'
 complete -c gnopie -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
 complete -c gnopie -l home -d 'Config home directory'
-complete -c gnopie -l network -d 'Network name'
 complete -c gnopie -l key -d 'Key name'
 complete -c gnopie -l json -d 'JSON output'
 complete -c gnopie -l quiet -d 'Suppress output'
