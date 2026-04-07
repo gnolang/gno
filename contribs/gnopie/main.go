@@ -342,17 +342,22 @@ func formatFuncs(io commands.IO, jsonStr string) {
 	for _, sig := range sigs {
 		var params, results []string
 		for _, p := range sig.Params {
-			if p.Name != "" {
-				params = append(params, p.Name+" "+p.Type)
+			name := cleanParamName(p.Name)
+			typ := cleanType(p.Type)
+			if name != "" {
+				params = append(params, name+" "+typ)
 			} else {
-				params = append(params, p.Type)
+				params = append(params, typ)
 			}
 		}
 		for _, r := range sig.Results {
-			if r.Name != "" {
-				results = append(results, r.Name+" "+r.Type)
+			typ := cleanType(r.Type)
+			// Skip synthetic result names like .res.0
+			name := cleanParamName(r.Name)
+			if name != "" {
+				results = append(results, name+" "+typ)
 			} else {
-				results = append(results, r.Type)
+				results = append(results, typ)
 			}
 		}
 		line := fmt.Sprintf("  func %s(%s)", sig.FuncName, strings.Join(params, ", "))
@@ -365,4 +370,127 @@ func formatFuncs(io commands.IO, jsonStr string) {
 		}
 		io.Println(line)
 	}
+}
+
+// cleanParamName cleans up internal parameter names.
+// Removes synthetic names like ".arg_0", ".res.0", etc.
+func cleanParamName(name string) string {
+	if name == "" {
+		return ""
+	}
+	// Skip synthetic names
+	if strings.HasPrefix(name, ".arg_") || strings.HasPrefix(name, ".res.") {
+		return ""
+	}
+	return name
+}
+
+// realmInterfacePattern matches the verbose realm interface type from qfuncs.
+const realmInterfacePrefix = "interface {Address func() .uverse.address; Coins func() .uverse.gnocoins;"
+
+// errorInterfaceStr matches the error interface pattern.
+const errorInterfaceStr = "interface {Error func() string}"
+
+// cleanType simplifies verbose internal type representations.
+func cleanType(t string) string {
+	// realm interface → realm
+	if strings.Contains(t, realmInterfacePrefix) {
+		return "realm"
+	}
+
+	// error interface → error
+	if t == errorInterfaceStr {
+		return "error"
+	}
+
+	// .uverse.error → error
+	t = strings.ReplaceAll(t, ".uverse.error", "error")
+	t = strings.ReplaceAll(t, ".uverse.realm", "realm")
+	t = strings.ReplaceAll(t, ".uverse.address", "address")
+	t = strings.ReplaceAll(t, ".uverse.gnocoins", "gnocoins")
+
+	// Resolve struct literals to short type names where possible.
+	// e.g., struct{title string; description string; executor gno.land/r/gov/dao.Executor; ...}
+	// Try to find a type name from the fields — if it has a field with a fully qualified type
+	// from the same package, use that package's type.
+	if strings.HasPrefix(t, "struct{") {
+		// Try to extract a meaningful name from qualified field types
+		if short := extractStructTypeName(t); short != "" {
+			return short
+		}
+	}
+
+	// Pointer to qualified type: *gno.land/r/gov/dao.Proposal → *dao.Proposal
+	t = shortenQualifiedTypes(t)
+
+	return t
+}
+
+// extractStructTypeName tries to find a type name for anonymous struct types.
+// If the struct has fields with qualified types from a package, we try to match
+// it to a known type name pattern.
+func extractStructTypeName(t string) string {
+	// Look for qualified types in the struct fields
+	// e.g., "gno.land/r/gov/dao.Executor" → package is "dao"
+	idx := strings.Index(t, "gno.land/")
+	if idx < 0 {
+		return ""
+	}
+	// Find the type reference
+	rest := t[idx:]
+	dotIdx := strings.Index(rest, ".")
+	if dotIdx < 0 {
+		return ""
+	}
+	// Get package path up to the dot
+	pkgPath := rest[:dotIdx]
+	// Get short package name
+	lastSlash := strings.LastIndex(pkgPath, "/")
+	if lastSlash < 0 {
+		return ""
+	}
+	// We can't determine the exact type name from the struct literal,
+	// but we can shorten the qualified types within it
+	return ""
+}
+
+// shortenQualifiedTypes replaces fully qualified type paths with short names.
+// e.g., "gno.land/r/gov/dao.Executor" → "dao.Executor"
+// e.g., "*gno.land/r/gov/dao.Proposal" → "*dao.Proposal"
+func shortenQualifiedTypes(t string) string {
+	// Process all occurrences of gno.land/... qualified types
+	for {
+		idx := strings.Index(t, "gno.land/")
+		if idx < 0 {
+			break
+		}
+		// Check for pointer prefix
+		prefix := t[:idx]
+
+		// Find the end of the qualified name (next space, comma, }, ), or end of string)
+		rest := t[idx:]
+		end := len(rest)
+		for i, ch := range rest {
+			if ch == ' ' || ch == ',' || ch == '}' || ch == ')' || ch == ';' {
+				end = i
+				break
+			}
+		}
+		qualifiedName := rest[:end]
+		remainder := rest[end:]
+
+		// Extract short name: "gno.land/r/gov/dao.Proposal" → "dao.Proposal"
+		lastSlash := strings.LastIndex(qualifiedName, "/")
+		shortName := qualifiedName
+		if lastSlash >= 0 {
+			shortName = qualifiedName[lastSlash+1:]
+		}
+
+		t = prefix + shortName + remainder
+	}
+
+	// Also clean up chain/runtime.Realm → runtime.Realm
+	t = strings.ReplaceAll(t, "chain/runtime.", "runtime.")
+
+	return t
 }
