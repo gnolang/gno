@@ -4,7 +4,7 @@ loadpkg $WORK/hello
 gnoland start
 
 ## deploy realm should succeed
-gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 5000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 1300000ugnot -gas-wanted 13_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 ## deploy realm should fail, because we import incorrectly.

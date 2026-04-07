@@ -3,7 +3,7 @@
 ## start a new node
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK/realm -pkgpath gno.land/r/foo -gas-fee 5000000ugnot -gas-wanted 200000000 -max-deposit 900000ugnot -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/realm -pkgpath gno.land/r/foo -gas-fee 1500000ugnot -gas-wanted 15_000_000 -max-deposit 900000ugnot -broadcast -chainid=tendermint_test test1
 stdout 'EVENTS:     \[{\"bytes_delta\":\d+,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":\d+},\"pkg_path\":\"gno.land/r/foo\"}\]'
 stdout 'STORAGE DELTA:  \d+ bytes'
 stdout 'STORAGE FEE:    \d+ugnot'
@@ -14,7 +14,7 @@ gnokey query vm/qstorage --data gno.land/r/foo
 stdout 'storage: \d+, deposit: \d+'
 
 ## Set an object with a smaller size. Exactly 2 bytes are released when we update the realm record from 'hello' to 'foo'.
-gnokey maketx call -pkgpath gno.land/r/foo -func NewFoo -args "foo"  -gas-fee 5000000ugnot -gas-wanted 50000000  -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo -func NewFoo -args "foo"  -gas-fee 890000ugnot -gas-wanted 8_900_000  -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'EVENTS:     \[{\"bytes_delta\":-2,\"fee_refund\":{\"denom\":\"ugnot\",\"amount\":200},\"pkg_path\":\"gno.land/r/foo\",\"refund_withheld\":false}\]'
 stdout 'STORAGE DELTA:  -2 bytes'
@@ -27,7 +27,7 @@ stdout 'storage: \d+, deposit: \d+'
 
 ## remove an object
 
- gnokey maketx call -pkgpath gno.land/r/foo -func Clear -gas-fee 5000000ugnot -gas-wanted 50000000  -broadcast -chainid=tendermint_test test1
+ gnokey maketx call -pkgpath gno.land/r/foo -func Clear -gas-fee 890000ugnot -gas-wanted 8_900_000  -broadcast -chainid=tendermint_test test1
  stdout OK!
  stdout 'EVENTS:     \[{\"bytes_delta\":-\d+,\"fee_refund\":{\"denom\":\"ugnot\",\"amount\":\d+},\"pkg_path\":\"gno.land/r/foo\",\"refund_withheld\":false}\]'
  stdout 'STORAGE DELTA:  -\d+ bytes'
@@ -42,7 +42,7 @@ stdout 'storage: \d+, deposit: \d+'
  stdout '"coins": "\d+ugnot"'
 
 ## test storage deposit for package gno.land/p/foo
-gnokey maketx addpkg -pkgdir $WORK/package -pkgpath gno.land/p/foo -gas-fee 5000000ugnot -gas-wanted 200000000 -max-deposit 500000ugnot -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/package -pkgpath gno.land/p/foo -gas-fee 1300000ugnot -gas-wanted 13_000_000 -max-deposit 500000ugnot -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'EVENTS:     \[{\"bytes_delta\":\d+,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":\d+},\"pkg_path\":\"gno.land/p/foo\"}\]'
 stdout 'STORAGE DELTA:  \d+ bytes'

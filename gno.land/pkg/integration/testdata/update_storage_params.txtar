@@ -11,16 +11,16 @@ loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 gnoland start
 
 ## add a contract
-gnokey maketx addpkg -pkgdir $WORK/storage -pkgpath gno.land/r/storage -gas-fee 5000000ugnot -gas-wanted 50000000  -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/storage -pkgpath gno.land/r/storage -gas-fee 1300000ugnot -gas-wanted 13_000_000  -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 ## Propose to update default deposit.
-gnokey maketx run -gas-fee 5000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
+gnokey maketx run -gas-fee 6900000ugnot -gas-wanted 69_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
 
 stdout OK!
 
 ## Vote "update default deposit"
-gnokey maketx run  -gas-fee 9500000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
+gnokey maketx run  -gas-fee 4900000ugnot -gas-wanted 49_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
 
 stdout 'OK!'
 
@@ -29,7 +29,7 @@ gnokey query params/vm:p:default_deposit
 stdout '600000000ugnot'
 
 ## Execute "update default deposit" proposal
-gnokey maketx run  -gas-fee 20000000ugnot -gas-wanted 200000000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
+gnokey maketx run  -gas-fee 5500000ugnot -gas-wanted 55_000_000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
 
 stdout 'OK!'
 

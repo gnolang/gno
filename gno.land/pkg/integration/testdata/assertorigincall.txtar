@@ -40,11 +40,11 @@ gnoland start
 stderr 'invalid non-origin call'
 
 ## 2. MsgCall -> myrlm.B: PASS
-gnokey maketx call -pkgpath gno.land/r/myrlm -func B -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/myrlm -func B -gas-fee 690000ugnot -gas-wanted 6_900_000 -broadcast -chainid tendermint_test test1
 stdout 'OK!'
 
 ## 3. MsgCall -> myrlm.C: PASS
-gnokey maketx call -pkgpath gno.land/r/myrlm -func C -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/myrlm -func C -gas-fee 810000ugnot -gas-wanted 8_100_000 -broadcast -chainid tendermint_test test1
 stdout 'OK!'
 
 ## 4. MsgCall -> r/foo.A -> myrlm.A: PANIC
@@ -52,7 +52,7 @@ stdout 'OK!'
 stderr 'invalid non-origin call'
 
 ## 5. MsgCall -> r/foo.B -> myrlm.B: PASS
-gnokey maketx call -pkgpath gno.land/r/foo -func B -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo -func B -gas-fee 740000ugnot -gas-wanted 7_400_000 -broadcast -chainid tendermint_test test1
 stdout 'OK!'
 
 ## 6. MsgCall -> r/foo.C -> myrlm.C: PANIC
@@ -77,7 +77,7 @@ stderr 'invalid non-origin call'
 stderr 'invalid non-origin call'
 
 ## 11. MsgRun -> run.main -> myrlm.B: PASS
-gnokey maketx run -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlm-b.gno
+gnokey maketx run -gas-fee 600000ugnot -gas-wanted 6_000_000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlm-b.gno
 stdout 'OK!'
 
 ## 12. MsgRun -> run.main -> myrlm.C: PANIC
@@ -89,7 +89,7 @@ stderr 'invalid non-origin call'
 stderr 'invalid non-origin call'
 
 ## 14. MsgRun -> run.main -> foo.B: PASS
-gnokey maketx run -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid tendermint_test test1 $WORK/run/foo-b.gno
+gnokey maketx run -gas-fee 710000ugnot -gas-wanted 7_100_000 -broadcast -chainid tendermint_test test1 $WORK/run/foo-b.gno
 stdout 'OK!'
 
 ## 15. MsgRun -> run.main -> foo.C: PANIC
@@ -101,7 +101,7 @@ stderr 'invalid non-origin call'
 stderr 'invalid non-origin call'
 
 ## 17. MsgRun -> run.main -> bar.B: PASS
-gnokey maketx run -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid tendermint_test test1 $WORK/run/bar-b.gno
+gnokey maketx run -gas-fee 590000ugnot -gas-wanted 5_900_000 -broadcast -chainid tendermint_test test1 $WORK/run/bar-b.gno
 stdout 'OK!'
 
 ## 18. MsgRun -> run.main -> bar.C: PANIC
