@@ -1,0 +1,100 @@
+# Reusable workflow for Go modules: lint + build + test with coverage.
+on:
+  workflow_call:
+    inputs:
+      modulepath:
+        required: true
+        type: string
+      tests-extra-args:
+        required: false
+        type: string
+      tests-ts-seq:
+        required: false
+        type: boolean
+      go-version:
+        description: "Go version to use"
+        required: false
+        type: string
+        default: "1.24.x"
+    secrets:
+      codecov-token:
+        required: true
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          working-directory: ${{ inputs.modulepath }}
+          args: --config=${{ github.workspace }}/.github/golangci.yml
+          version: v2.3 # sync with misc/devdeps
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - name: Check generated files are up to date
+        working-directory: ${{ inputs.modulepath }}
+        run: |
+          if make -qp | grep -q '^generate:'; then
+            make generate
+            if [ "$(git status -s)" != "" ]; then
+              echo "command 'make generate' creates files that differ from the git tree, please run 'make generate' and commit:"
+              git status -s
+              git diff
+              exit 1
+            fi
+          else
+            echo "'make generate' rule not found, skipping."
+          fi
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - name: Go test
+        working-directory: ${{ inputs.modulepath }}
+        env:
+          SEQ_TS: ${{ inputs.tests-ts-seq }}
+          TXTARCOVERDIR: /tmp/txtarcoverdir
+          GOCOVERDIR: /tmp/gocoverdir
+          COVERDIR: /tmp/coverdir
+        run: |
+          set -x
+
+          mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
+
+          export filter="-pkg=github.com/gnolang/gno/${{ inputs.modulepath }}/..."
+
+          go test -covermode=set -timeout 30m ${{ inputs.tests-extra-args }} ./... -test.gocoverdir=$GOCOVERDIR
+
+          (set +x; echo 'go coverage results:')
+          go tool covdata percent $filter -i=$GOCOVERDIR
+          (set +x; echo 'txtar coverage results:')
+          go tool covdata percent $filter -i=$TXTARCOVERDIR
+
+          go tool covdata textfmt -v 1 $filter -i=$GOCOVERDIR,$TXTARCOVERDIR -o gocoverage.out
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          disable_search: true
+          fail_ci_if_error: true
+          files: ${{ inputs.modulepath }}/gocoverage.out
+          flags: ${{ inputs.modulepath }}
+          token: ${{ secrets.codecov-token }}
+          verbose: true
