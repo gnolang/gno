@@ -778,22 +778,29 @@ production-available metrics.
 - **IAVL tree internals**: unchanged (no gctx threading through tree/nodeDB).
 - **dbm.DB interface**: unchanged.
 
-## PkgID Flag Nibble
+## PkgID Classification Flags
 
-The first nibble (4 bits) of `PkgID.Hashlet` is reserved for package
-classification flags, set during `PkgIDFromPkgPath()`:
+Package classification flags (`IsStdlib`, `IsImmutable`, `IsInternal`)
+are stored in an in-memory side table (`pkgIDFlags sync.Map`) keyed by
+`PkgID`, populated lazily by `PkgIDFromPkgPath()`.
 
-- bit 0 (0x80): `IsStdlib` — standard library package
-- bit 1 (0x40): `IsImmutable` — stdlib or `/p/` package
-- bit 2 (0x20): `IsInternal` — internal package path
-- bit 3 (0x10): reserved (always 0)
+The full 160-bit SHA-256 truncated hash in `PkgID.Hashlet` is preserved
+unchanged — no bits are stolen for flags. This avoids:
+- consensus-breaking changes to stored PkgIDs,
+- hash collision risk from reduced entropy (160 → 156 bits),
+- migration complexity for existing on-chain data.
 
-The remaining 156 bits are the truncated SHA-256 hash. Methods:
-`PkgID.IsStdlibPkg()`, `PkgID.IsImmutablePkg()`, `PkgID.IsInternalPkg()`.
-O(1) bitwise checks, no map lookups or path string parsing.
+Methods: `PkgID.IsStdlibPkg()`, `PkgID.IsImmutablePkg()`,
+`PkgID.IsInternalPkg()`. Each performs a `sync.Map.Load` (~15-25ns,
+lock-free on read path). The call sites are in realm finalization
+and object loading — not inner loops — so the cost vs a bitwise check
+is negligible relative to the amino/store work already done there.
 
-These flags enable efficient runtime decisions about package mutability
-and stdlib caching without needing reverse mappings from hash to path.
+Unknown PkgIDs return `false` (conservative: skip no optimizations,
+do normal refcount logic). Every package path goes through
+`PkgIDFromPkgPath` during `GetPackage`/`AddMemPackage` before realm
+finalization can reference its objects, so the table is always
+populated before the flags are queried.
 
 ## Immutable Package Guard
 

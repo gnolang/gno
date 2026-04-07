@@ -35,43 +35,43 @@ func main(cur realm,) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[08ada09dee16d791fd406d629fe29bb0ed084a30:15](5)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:15](5)=
 //     @@ -12,7 +12,7 @@
 //                      "@type": "/gno.PointerValue",
 //                      "Base": {
 //                          "@type": "/gno.RefValue",
-//     -                    "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:4"
-//     +                    "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:7"
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
+//     +                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
 //                      },
 //                      "Index": "0",
 //                      "TV": null
 //     @@ -32,7 +32,7 @@
 //          "ObjectInfo": {
-//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:15",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:15",
 //              "LastObjectSize": "441",
 //     -        "ModTime": "0",
 //     +        "ModTime": "17",
-//              "OwnerID": "08ada09dee16d791fd406d629fe29bb0ed084a30:14",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:14",
 //              "RefCount": "1"
 //          }
-// u[08ada09dee16d791fd406d629fe29bb0ed084a30:7](7)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](7)=
 //     @@ -1,10 +1,11 @@
 //      {
 //          "ObjectInfo": {
-//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:7",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
 //     +        "IsEscaped": true,
 //              "LastObjectSize": "333",
 //     -        "ModTime": "0",
 //     +        "ModTime": "17",
-//              "OwnerID": "08ada09dee16d791fd406d629fe29bb0ed084a30:6",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
 //          "Value": {
 //              "T": {
-// u[08ada09dee16d791fd406d629fe29bb0ed084a30:4](0)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4](0)=
 //     @@ -3,8 +3,8 @@
-//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:4",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
 //              "IsEscaped": true,
 //              "LastObjectSize": "340",
 //     -        "ModTime": "15",

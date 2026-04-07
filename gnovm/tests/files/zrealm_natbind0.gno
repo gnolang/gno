@@ -26,7 +26,7 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[08ada09dee16d791fd406d629fe29bb0ed084a30:3](-1)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](-1)=
 //     @@ -17,15 +17,15 @@
 //                          "Tag": "",
 //                          "Type": {

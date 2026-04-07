@@ -84,50 +84,75 @@ func (pid PkgID) Bytes() []byte {
 // https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
 var pkgIDFromPkgPathCache sync.Map
 
+// pkgFlags encodes package classification flags for O(1) lookups.
+type pkgFlags uint8
+
+const (
+	flagStdlib    pkgFlags = 1 << 0 // standard library package
+	flagImmutable pkgFlags = 1 << 1 // stdlib or /p/ package
+	flagInternal  pkgFlags = 1 << 2 // internal package path
+)
+
+// pkgIDFlags maps PkgID to classification flags. Populated alongside
+// pkgIDFromPkgPathCache by PkgIDFromPkgPath. Lock-free reads via sync.Map.
+// Every package path goes through PkgIDFromPkgPath during GetPackage /
+// AddMemPackage before any realm finalization can reference its objects,
+// so the table is always populated before IsStdlibPkg / IsImmutablePkg
+// are called.
+var pkgIDFlags sync.Map // PkgID → pkgFlags
+
 // PkgIDFromPkgPath derives a PkgID from a package path.
-// The first nibble (4 bits) of the Hashlet is reserved for flags:
-//
-//	bit 0 (0x80): IsStdlib — standard library package
-//	bit 1 (0x40): IsImmutable — immutable package (stdlib or /p/)
-//	bit 2 (0x20): IsInternal — internal package path
-//	bit 3 (0x10): reserved (always 0)
-//
-// The remaining 156 bits are the truncated SHA-256 hash.
+// The full 160-bit hash is preserved (no bits are stolen for flags).
+// Package classification flags are stored in a separate side table
+// (pkgIDFlags) for O(1) lookups without modifying the hash.
 func PkgIDFromPkgPath(path string) PkgID {
 	if v, ok := pkgIDFromPkgPathCache.Load(path); ok {
 		return *v.(*PkgID)
 	}
 	pkgID := &PkgID{HashBytes([]byte(path))}
-	// Clear the first nibble, then set flag bits.
-	pkgID.Hashlet[0] &= 0x0F
+	// Compute classification flags from the path.
+	var flags pkgFlags
 	if IsStdlib(path) {
-		pkgID.Hashlet[0] |= 0x80
-	}
-	if IsStdlib(path) || IsPPackagePath(path) {
-		pkgID.Hashlet[0] |= 0x40
+		flags |= flagStdlib | flagImmutable
+	} else if IsPPackagePath(path) {
+		flags |= flagImmutable
 	}
 	if _, isInternal := IsInternalPath(path); isInternal {
-		pkgID.Hashlet[0] |= 0x20
+		flags |= flagInternal
 	}
 	actual, _ := pkgIDFromPkgPathCache.LoadOrStore(path, pkgID)
-	return *actual.(*PkgID)
+	result := *actual.(*PkgID)
+	pkgIDFlags.LoadOrStore(result, flags)
+	return result
 }
 
 // IsStdlibPkg returns true if this PkgID is for a standard library package.
+// Returns false for unknown PkgIDs (conservative: skip no optimizations).
 func (pid PkgID) IsStdlibPkg() bool {
-	return pid.Hashlet[0]&0x80 != 0
+	if v, ok := pkgIDFlags.Load(pid); ok {
+		return v.(pkgFlags)&flagStdlib != 0
+	}
+	return false
 }
 
 // IsImmutablePkg returns true if this PkgID is for an immutable package
 // (stdlib or /p/ package). Objects from immutable packages should not
 // have their refcounts or dirty flags modified during realm finalization.
+// Returns false for unknown PkgIDs (conservative: do normal refcount logic).
 func (pid PkgID) IsImmutablePkg() bool {
-	return pid.Hashlet[0]&0x40 != 0
+	if v, ok := pkgIDFlags.Load(pid); ok {
+		return v.(pkgFlags)&flagImmutable != 0
+	}
+	return false
 }
 
 // IsInternalPkg returns true if this PkgID is for an internal package path.
+// Returns false for unknown PkgIDs.
 func (pid PkgID) IsInternalPkg() bool {
-	return pid.Hashlet[0]&0x20 != 0
+	if v, ok := pkgIDFlags.Load(pid); ok {
+		return v.(pkgFlags)&flagInternal != 0
+	}
+	return false
 }
 
 // Returns the ObjectID of the PackageValue associated with path.

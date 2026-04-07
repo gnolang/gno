@@ -14,6 +14,7 @@ func main(cur realm) {
 // 1
 
 
+
 // The below tests that the realm's block (of 1 variable) changed.  The first
 // element image in the package (block) is for the "main" function, which
 // appears first because function declarations are defined in a file before
@@ -21,14 +22,14 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[08ada09dee16d791fd406d629fe29bb0ed084a30:3](31)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](31)=
 //     @@ -2,9 +2,15 @@
 //          "ObjectInfo": {
-//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //              "LastObjectSize": "190",
 //     -        "ModTime": "0",
 //     +        "ModTime": "5",
-//              "OwnerID": "08ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //              "RefCount": "1"
 //          },
 //     -    "Value": {}
