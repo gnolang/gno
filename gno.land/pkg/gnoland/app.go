@@ -487,7 +487,7 @@ func EndBlocker(
 		// ensuring this block is fully committed before the node stops.
 		if prmk != nil {
 			var haltHeight int64
-			prmk.GetInt64(ctx, "node:p:halt_height", &haltHeight)
+			prmk.GetInt64(ctx, nodeParamHaltHeight, &haltHeight)
 			if haltHeight > 0 && req.Height >= haltHeight {
 				app.Logger().Info(
 					"GovDAO halt height reached, will halt after this block",
