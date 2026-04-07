@@ -170,28 +170,30 @@ func main() {
 			ShortHelp:  "gnopie — like httpie, but for gno.land",
 			LongHelp: `gnopie is an opinionated CLI for gno.land chains, inspired by httpie.
 
-Network configuration is auto-discovered from the domain via gnoconnect
-meta tags (e.g., gnopie fetches https://gno.land/ to find RPC and chain ID).
-Results are cached locally for 24h.
+Network configuration is auto-discovered via gnoconnect meta tags.
 
-Usage:
-  gnopie gno.land/r/foo/bar.Baz("hello")           GET (auto: eval function)
-  gnopie gno.land/r/foo/bar.counter                 GET (auto: read variable)
-  gnopie gno.land/r/foo/bar                         GET (auto: inspect realm)
-  gnopie gno.land                                   GET (auto: inspect network)
-  gnopie EVAL gno.land/r/foo/bar.Baz("hello")       EVAL explicitly
-  gnopie READ gno.land/r/foo/bar.counter             READ explicitly
-  gnopie INSPECT gno.land/r/foo/bar                  INSPECT explicitly
-  gnopie CALL gno.land/r/foo/bar.Baz("hello")       CALL (transaction)
-  gnopie RUN gno.land/r/foo/bar.Baz("hello")        RUN (maketx run)
+Examples:
+  gnopie gno.land/r/gnoland/blog                          Browse a realm (Render)
+  gnopie 'gno.land/r/gnoland/blog.Render("")'             Evaluate a function
+  gnopie gno.land                                          Network info
+  gnopie g1manfred47kzduec920z88wfr64ylksmdcedlf5         Inspect address
+  gnopie https://gno.land/r/gnoland/blog:p/beta-mainnet   Paste gnoweb URL
+  gnopie INSPECT gno.land/r/gov/dao                        List files + functions
+  gnopie READ gno.land/r/gnoland/blog.ModAddPost           Function source code
+  gnopie READ gno.land/r/gnoland/blog/admin.gno            Read a specific file
+  gnopie CALL 'gno.land/r/demo/wugnot.Deposit()'          Sign & broadcast tx
+  gnopie RUN 'gno.land/r/demo/counter.Increment()'        Execute via maketx run
+  gnopie CALL --print-gnokey-command 'gno.land/r/demo/wugnot.Deposit()'
+  gnopie --json gno.land/r/gnoland/blog | jq .result       JSON for piping
+  gnopie --debug gno.land/r/gnoland/blog                   Show internals
 
 Verbs:
-  GET      (default) Smart dispatch: EVAL for calls, READ for symbols, INSPECT for the rest
-  EVAL     Evaluate a read-only function call via qeval
-  READ     Read variable value (qeval) or source code (qfile)
-  INSPECT  Inspect network, namespace, realm, or symbol
-  CALL     Sign and broadcast a transaction (requires --key)
-  RUN      Generate and execute Gno code via maketx run (requires --key)`,
+  GET      (default) Render for realms, EVAL for calls, READ for symbols
+  EVAL     Evaluate a read-only function call
+  READ     Read source code, file, or variable value
+  INSPECT  Inspect network, realm, or symbol in detail
+  CALL     Sign and broadcast a MsgCall transaction
+  RUN      Generate code and broadcast a MsgRun transaction`,
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
