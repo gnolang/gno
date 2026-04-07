@@ -36,7 +36,7 @@ type baseCfg struct {
 	gasWanted      int64
 	gasFee         string
 	dryRun         bool
-	generateGnokey bool
+	printGnokeyCmd bool
 	debug          bool
 }
 
@@ -50,7 +50,7 @@ func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Int64Var(&c.gasWanted, "gas-wanted", 0, "gas limit (0 = auto-estimate)")
 	fs.StringVar(&c.gasFee, "gas-fee", "1000000ugnot", "gas fee")
 	fs.BoolVar(&c.dryRun, "dry-run", false, "simulate without broadcasting")
-	fs.BoolVar(&c.generateGnokey, "generate-gnokey", false, "print equivalent gnokey command")
+	fs.BoolVar(&c.printGnokeyCmd, "print-gnokey-command", false, "print equivalent gnokey command instead of executing")
 }
 
 // debugf prints debug info to stderr if --debug is enabled.

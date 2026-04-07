@@ -28,7 +28,7 @@ func execRun(_ context.Context, cfg *baseCfg, expr string, io commands.IO) error
 	pkgAlias := path.Base(p.PkgPath)
 	code := generateRunCode(p.PkgPath, pkgAlias, p.Symbol, p.Args)
 
-	if cfg.generateGnokey {
+	if cfg.printGnokeyCmd {
 		return printRunGnokeyCmd(cfg, p, code, io)
 	}
 

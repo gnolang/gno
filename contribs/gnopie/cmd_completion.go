@@ -46,7 +46,7 @@ const bashCompletion = `_gnopie() {
 
     local verbs="GET EVAL READ INSPECT CALL RUN"
     local subcmds="config completion version"
-    local flags="--home --key --json --quiet --send --gas-wanted --gas-fee --dry-run --generate-gnokey"
+    local flags="--home --key --json --quiet --send --gas-wanted --gas-fee --dry-run --print-gnokey-command"
 
     case "$prev" in
         gnopie)
@@ -69,7 +69,7 @@ _gnopie() {
     local -a verbs subcmds flags
     verbs=(GET EVAL READ INSPECT CALL RUN)
     subcmds=(config completion version)
-    flags=(--home --key --json --quiet --send --gas-wanted --gas-fee --dry-run --generate-gnokey)
+    flags=(--home --key --json --quiet --send --gas-wanted --gas-fee --dry-run --print-gnokey-command)
 
     _arguments -C \
         '1:verb or command:->first' \
@@ -104,4 +104,4 @@ complete -c gnopie -l send -d 'Coins to send'
 complete -c gnopie -l gas-wanted -d 'Gas limit'
 complete -c gnopie -l gas-fee -d 'Gas fee'
 complete -c gnopie -l dry-run -d 'Simulate only'
-complete -c gnopie -l generate-gnokey -d 'Print gnokey command'`
+complete -c gnopie -l print-gnokey-command -d 'Print gnokey command'`

@@ -23,7 +23,7 @@ func execCall(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 	}
 
 	// Generate gnokey mode
-	if cfg.generateGnokey {
+	if cfg.printGnokeyCmd {
 		return printGnokeyCmd(cfg, p, io)
 	}
 
