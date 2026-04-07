@@ -71,7 +71,12 @@ func execCall(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 		if err != nil {
 			return fmt.Errorf("building sim tx: %w", err)
 		}
-		gasUsed, err := client.EstimateGas(tx)
+		// Sign before simulation — the node requires a valid signature
+		signedTx, err := client.SignTx(*tx, 0, 0)
+		if err != nil {
+			return fmt.Errorf("signing for simulation: %w", err)
+		}
+		gasUsed, err := client.EstimateGas(signedTx)
 		if err != nil {
 			return fmt.Errorf("gas estimation: %w", err)
 		}
@@ -91,7 +96,11 @@ func execCall(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 		if err != nil {
 			return err
 		}
-		result, err := client.Simulate(tx)
+		signedTx, err := client.SignTx(*tx, 0, 0)
+		if err != nil {
+			return fmt.Errorf("signing for simulation: %w", err)
+		}
+		result, err := client.Simulate(signedTx)
 		if err != nil {
 			return fmt.Errorf("simulation: %w", err)
 		}
