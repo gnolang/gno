@@ -1,5 +1,4 @@
 # Reusable workflow for Go modules: lint + build check + test with coverage.
-# Reusable workflow for Go modules: lint + build + test.
 on:
   workflow_call:
     inputs:

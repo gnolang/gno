@@ -1,5 +1,4 @@
 # Reusable workflow for Gno packages/realms: fmt + lint + test.
-# Reusable workflow for Gno packages/realms: fmt + lint + test.
 on:
   workflow_call:
     inputs:
