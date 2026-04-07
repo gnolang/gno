@@ -16,6 +16,10 @@ type Allocator struct {
 	bytes    int64
 	collect  func() (left int64, ok bool) // gc callback
 	gasMeter store.GasMeter
+
+	// Per-type byte accumulator for debug builds.
+	// Only non-nil when debug build tag is enabled.
+	typeCounts map[string]int64
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -82,9 +86,26 @@ func NewAllocator(maxBytes int64) *Allocator {
 	if maxBytes == 0 {
 		return nil
 	}
-	return &Allocator{
+	alloc := &Allocator{
 		maxBytes: maxBytes,
 	}
+	if debug {
+		alloc.typeCounts = make(map[string]int64)
+	}
+	return alloc
+}
+
+// SnapshotTypeCounts returns a copy of the current per-type
+// allocation counts. Returns nil if typeCounts is not enabled.
+func (alloc *Allocator) SnapshotTypeCounts() map[string]int64 {
+	if alloc == nil || alloc.typeCounts == nil {
+		return nil
+	}
+	snap := make(map[string]int64, len(alloc.typeCounts))
+	for k, v := range alloc.typeCounts {
+		snap[k] = v
+	}
+	return snap
 }
 
 func (alloc *Allocator) SetGCFn(f func() (int64, bool)) {
@@ -112,14 +133,20 @@ func (alloc *Allocator) Reset() *Allocator {
 		return nil
 	}
 	alloc.bytes = 0
+	if alloc.typeCounts != nil {
+		alloc.typeCounts = make(map[string]int64)
+	}
 	return alloc
 }
 
 // Recount adds size to bytes without charging gas.
 // Used during GC re-walk to re-count surviving objects
 // without double-charging for already-paid allocations.
-func (alloc *Allocator) Recount(size int64) {
+func (alloc *Allocator) Recount(size int64, typeName string) {
 	alloc.bytes += size
+	if alloc.typeCounts != nil {
+		alloc.typeCounts[typeName] += size
+	}
 }
 
 func (alloc *Allocator) Fork() *Allocator {
@@ -132,7 +159,7 @@ func (alloc *Allocator) Fork() *Allocator {
 	}
 }
 
-func (alloc *Allocator) Allocate(size int64) {
+func (alloc *Allocator) Allocate(size int64, typeName string) {
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
@@ -154,6 +181,10 @@ func (alloc *Allocator) Allocate(size int64) {
 		alloc.bytes += size
 	}
 
+	if alloc.typeCounts != nil {
+		alloc.typeCounts[typeName] += size
+	}
+
 	// Charge gas for every allocation unconditionally (cpu/throughput).
 	// This ensures repeated allocate-then-GC cycles are not free.
 	if alloc.gasMeter != nil {
@@ -162,74 +193,74 @@ func (alloc *Allocator) Allocate(size int64) {
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
-	alloc.Allocate(overflow.Addp(allocString, overflow.Mulp(allocStringByte, size)))
+	alloc.Allocate(overflow.Addp(allocString, overflow.Mulp(allocStringByte, size)), "StringValue")
 }
 
 func (alloc *Allocator) AllocatePointer() {
-	alloc.Allocate(allocPointer)
+	alloc.Allocate(allocPointer, "PointerValue")
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Allocate(overflow.Addp(allocArray, size))
+	alloc.Allocate(overflow.Addp(allocArray, size), "ArrayValue")
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem, items)))
+	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem, items)), "ArrayValue")
 }
 
 func (alloc *Allocator) AllocateSlice() {
-	alloc.Allocate(allocSlice)
+	alloc.Allocate(allocSlice, "SliceValue")
 }
 
 // NOTE: fields must be allocated separately.
 func (alloc *Allocator) AllocateStruct() {
-	alloc.Allocate(allocStruct)
+	alloc.Allocate(allocStruct, "StructValue")
 }
 
 func (alloc *Allocator) AllocateStructFields(fields int64) {
-	alloc.Allocate(overflow.Mulp(allocStructField, fields))
+	alloc.Allocate(overflow.Mulp(allocStructField, fields), "StructValue.Fields")
 }
 
 func (alloc *Allocator) AllocateFunc() {
-	alloc.Allocate(allocFunc)
+	alloc.Allocate(allocFunc, "FuncValue")
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
-	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)))
+	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)), "MapValue")
 }
 
 func (alloc *Allocator) AllocateMapItem() {
-	alloc.Allocate(allocMapItem)
+	alloc.Allocate(allocMapItem, "MapValue.Item")
 }
 
 func (alloc *Allocator) AllocateBoundMethod() {
-	alloc.Allocate(allocBoundMethod)
+	alloc.Allocate(allocBoundMethod, "BoundMethodValue")
 }
 
 func (alloc *Allocator) AllocatePackageValue() {
-	alloc.Allocate(allocPackage)
+	alloc.Allocate(allocPackage, "PackageValue")
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
-	alloc.Allocate(overflow.Addp(allocBlock, overflow.Mulp(allocBlockItem, items)))
+	alloc.Allocate(overflow.Addp(allocBlock, overflow.Mulp(allocBlockItem, items)), "Block")
 }
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
-	alloc.Allocate(overflow.Mulp(allocBlockItem, items))
+	alloc.Allocate(overflow.Mulp(allocBlockItem, items), "Block.Items")
 }
 
 /* NOTE: Not used, account for with AllocatePointer.
 func (alloc *Allocator) AllocateDataByte() {
-	alloc.Allocate(allocDataByte)
+	alloc.Allocate(allocDataByte, "DataByte")
 }
 */
 
 func (alloc *Allocator) AllocateType() {
-	alloc.Allocate(allocType)
+	alloc.Allocate(allocType, "Type")
 }
 
 func (alloc *Allocator) AllocateHeapItem() {
-	alloc.Allocate(allocHeapItem)
+	alloc.Allocate(allocHeapItem, "HeapItemValue")
 }
 
 //----------------------------------------

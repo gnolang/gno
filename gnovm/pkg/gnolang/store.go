@@ -486,7 +486,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 		ss := oo.GetShallowSize()
 		rs := internalRefSize(oo)
-		ds.alloc.Allocate(ss + rs)
+		ds.alloc.Allocate(ss+rs, reflect.TypeOf(oo).Elem().Name())
 
 		if debug {
 			if oo.GetObjectID() != oid {

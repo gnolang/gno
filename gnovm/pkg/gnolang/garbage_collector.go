@@ -1,10 +1,22 @@
 package gnolang
 
 import (
+	"fmt"
+	"os"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
+
+// allocTypeName returns a short name for the Value type,
+// used by the per-type allocation tracker in debug builds.
+func allocTypeName(v Value) string {
+	t := reflect.TypeOf(v)
+	if t.Kind() == reflect.Ptr {
+		return t.Elem().Name()
+	}
+	return t.Name()
+}
 
 // Represents the "time unit" cost for
 // a single garbage collection visit.
@@ -38,6 +50,9 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	// times objects are visited for gc
 	var visitCount int64
 
+	// Snapshot per-type counts before GC for debug comparison.
+	beforeCounts := m.Alloc.SnapshotTypeCounts()
+
 	defer func() {
 		gasCPU := overflow.Mulp(overflow.Mulp(visitCount, VisitCpuFactor), GasFactorCPU)
 		if debug {
@@ -45,6 +60,19 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}
 		if m.GasMeter != nil {
 			m.GasMeter.ConsumeGas(gasCPU, "GC")
+		}
+	}()
+
+	defer func() {
+		// Log per-type allocation comparison after GC recount.
+		if beforeCounts != nil && m.Alloc.typeCounts != nil {
+			for typeName, after := range m.Alloc.typeCounts {
+				before := beforeCounts[typeName]
+				if after > before {
+					fmt.Fprintf(os.Stderr, "GC alloc mismatch for %s: before=%d after=%d (diff: +%d)\n",
+						typeName, before, after, after-before)
+				}
+			}
 		}
 	}()
 
@@ -160,7 +188,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 			return true
 		}
 
-		alloc.Recount(size)
+		alloc.Recount(size, allocTypeName(v))
 
 		// bump before visiting associated,
 		// this avoids infinite recursion.
@@ -406,7 +434,7 @@ func (tv TypeValue) VisitAssociated(vis Visitor) (stop bool) {
 func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	// vis receiver
 	if fr.Receiver.IsDefined() {
-		alloc.Recount(allocTypedValue) // reclaim shallowly
+		alloc.Recount(allocTypedValue, "Frame.Receiver") // reclaim shallowly
 
 		if v := fr.Receiver.V; v != nil {
 			stop = vis(v)
@@ -435,7 +463,7 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 		}
 
 		for _, arg := range dfr.Args {
-			alloc.Recount(allocTypedValue)
+			alloc.Recount(allocTypedValue, "Defer.Arg")
 
 			if arg.V != nil {
 				stop = vis(arg.V)
@@ -466,7 +494,7 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 
 func (e *Exception) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	// vis value
-	alloc.Recount(allocTypedValue)
+	alloc.Recount(allocTypedValue, "Exception.Value")
 	if v := e.Value.V; v != nil {
 		stop = vis(v)
 	}
