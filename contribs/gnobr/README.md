@@ -5,7 +5,7 @@ Roll back a gnoland node to a target height and replay blocks locally. No networ
 ## Usage
 
 ```bash
-gnobr --data-dir gnoland-data --drop-after <height> --app-hash <hex>
+gnobr --data-dir gnoland-data --drop-after <height> [--app-hash <hex>]
 ```
 
 ### Flags
@@ -14,7 +14,7 @@ gnobr --data-dir gnoland-data --drop-after <height> --app-hash <hex>
 |---|---|
 | `--data-dir` | Path to gnoland data directory (default: `gnoland-data`) |
 | `--drop-after` | Keep blocks up to this height, drop everything after |
-| `--app-hash` | Hex-encoded app hash to write into state.db |
+| `--app-hash` | Override the app hash written into state.db (hex); auto-detected if omitted |
 | `--dry-run` | Show what would be done without modifying anything |
 
 ### What it does
@@ -27,31 +27,30 @@ gnobr --data-dir gnoland-data --drop-after <height> --app-hash <hex>
 
 On restart, gnoland's Handshaker sees `appHeight=0` but `storeHeight=N` and `stateHeight=N`, runs InitChain, then replays all N blocks from the local blockstore.
 
-## When the app hash is known
+## Normal rollback (same binary)
 
-If all validators agree on the app hash (e.g. the chain halted due to a non-determinism bug but the correct hash is known), pass it directly:
+When rolling back due to a non-determinism bug or AppHash divergence with the same binary:
 
 ```bash
-gnobr --data-dir gnoland-data --drop-after 352921 \
-  --app-hash 311BB98564478295A971AE5481D8F58B12A6D945A63883330BD0A2788A873132
+gnobr --data-dir gnoland-data --drop-after <height>
 ```
+
+gnobr auto-detects the correct app hash from block `<height+1>`'s header in the blockstore (that header carries the committed state hash after `<height>`). No `--app-hash` flag needed.
 
 ## App hash breaking changes
 
-When the gnoland binary changes in a way that affects state computation (new gas model, VM changes, store refactor, etc.), replaying the same blocks with the new binary produces a **different app hash** than the original chain. In this case, you can't know the correct hash upfront.
+When the gnoland binary changes in a way that affects state computation (new gas model, VM changes, store refactor, etc.), replaying the same blocks with the new binary produces a **different app hash** than the original chain.
 
-Use a two-pass approach:
+gnobr auto-detects the **old** app hash from the blockstore, but the new binary computes a different one. Use a two-pass approach to find the new hash:
 
 ### Pass 1: replay and extract the new hash
 
 ```bash
-# Run gnobr without --app-hash (or with any placeholder)
-gnobr --data-dir gnoland-data --drop-after <height> \
-  --app-hash 0000000000000000000000000000000000000000000000000000000000000000
+gnobr --data-dir gnoland-data --drop-after <height>
 
 # Start gnoland — it will replay all blocks then panic:
 #   "state.AppHash does not match AppHash after replay.
-#    Got <NEW_HASH>, expected 0000..."
+#    Got <NEW_HASH>, expected <OLD_HASH>"
 #
 # The "Got" value is the correct hash for the new binary.
 ```
@@ -59,9 +58,9 @@ gnobr --data-dir gnoland-data --drop-after <height> \
 ### Pass 2: patch with the correct hash
 
 ```bash
-# Re-run gnobr with the hash from the panic message
-gnobr --data-dir gnoland-data --drop-after <height> \
-  --app-hash <NEW_HASH>
+# --app-hash is required here: block <height+1> was already trimmed by pass 1,
+# so auto-detect is unavailable.
+gnobr --data-dir gnoland-data --drop-after <height> --app-hash <NEW_HASH>
 
 # Restart gnoland — replay succeeds, node is ready.
 ```
