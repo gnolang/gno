@@ -268,6 +268,8 @@ func TestRPCBatchPartialUnmarshal(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			req, _ := http.NewRequest("POST", "http://localhost/", strings.NewReader(tt.payload))
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
