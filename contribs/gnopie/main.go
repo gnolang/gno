@@ -246,36 +246,57 @@ func dispatch(ctx context.Context, cfg *baseCfg, args []string, io commands.IO) 
 
 // --- Query helpers ---
 
-func queryFile(client *gnoclient.Client, pkgPath string) (string, error) {
-	res, err := client.Query(gnoclient.QueryCfg{Path: "vm/qfile", Data: []byte(pkgPath)})
+// cachedQuery executes an ABCI query with file-based caching.
+// Cacheable queries (qfile, qfuncs) are cached for 1h.
+// Non-cacheable queries (qstorage, qpaths) are not cached.
+func cachedQuery(client *gnoclient.Client, home, queryPath, data string, cacheable bool, dbg DebugFunc) (string, error) {
+	if dbg == nil {
+		dbg = noopDebug
+	}
+
+	if cacheable && home != "" {
+		if result, ok := loadCachedQuery(home, queryPath, data); ok {
+			dbg("%s %s (cached)", queryPath, data)
+			return result, nil
+		}
+	}
+
+	dbg("%s %s (live)", queryPath, data)
+	res, err := client.Query(gnoclient.QueryCfg{Path: queryPath, Data: []byte(data)})
 	if err != nil {
 		return "", err
 	}
-	return string(res.Response.Data), nil
+	result := string(res.Response.Data)
+
+	if cacheable && home != "" {
+		saveCachedQuery(home, queryPath, data, result)
+	}
+
+	return result, nil
+}
+
+func queryFile(client *gnoclient.Client, pkgPath string) (string, error) {
+	return cachedQuery(client, "", "vm/qfile", pkgPath, false, nil)
+}
+
+func queryFileC(client *gnoclient.Client, cfg *baseCfg, pkgPath string) (string, error) {
+	return cachedQuery(client, cfg.home, "vm/qfile", pkgPath, true, cfg.dbgFunc())
 }
 
 func queryFuncs(client *gnoclient.Client, pkgPath string) (string, error) {
-	res, err := client.Query(gnoclient.QueryCfg{Path: "vm/qfuncs", Data: []byte(pkgPath)})
-	if err != nil {
-		return "", err
-	}
-	return string(res.Response.Data), nil
+	return cachedQuery(client, "", "vm/qfuncs", pkgPath, false, nil)
+}
+
+func queryFuncsC(client *gnoclient.Client, cfg *baseCfg, pkgPath string) (string, error) {
+	return cachedQuery(client, cfg.home, "vm/qfuncs", pkgPath, true, cfg.dbgFunc())
 }
 
 func queryPaths(client *gnoclient.Client, prefix string) (string, error) {
-	res, err := client.Query(gnoclient.QueryCfg{Path: "vm/qpaths", Data: []byte(prefix)})
-	if err != nil {
-		return "", err
-	}
-	return string(res.Response.Data), nil
+	return cachedQuery(client, "", "vm/qpaths", prefix, false, nil)
 }
 
 func queryStorage(client *gnoclient.Client, pkgPath string) (string, error) {
-	res, err := client.Query(gnoclient.QueryCfg{Path: "vm/qstorage", Data: []byte(pkgPath)})
-	if err != nil {
-		return "", err
-	}
-	return string(res.Response.Data), nil
+	return cachedQuery(client, "", "vm/qstorage", pkgPath, false, nil)
 }
 
 func splitLines(s string) []string {

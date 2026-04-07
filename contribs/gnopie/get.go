@@ -86,7 +86,7 @@ func execEval(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 	if p.Kind == PathCall {
 		args := joinArgs(p.Args)
 		// Auto-inject `cross` for crossing functions
-		crossing := isCrossingFunc(c, p.PkgPath, p.Symbol)
+		crossing := isCrossingFunc(c, cfg, p.PkgPath, p.Symbol)
 		cfg.debugf(io, "crossing check for %s.%s: %v", p.PkgPath, p.Symbol, crossing)
 		if crossing {
 			if args == "" {
@@ -155,7 +155,7 @@ func execRead(_ context.Context, cfg *baseCfg, expr string, io commands.IO) erro
 		if err != nil {
 			return err
 		}
-		fileList, err := queryFile(qc, p.PkgPath)
+		fileList, err := queryFileC(qc, cfg, p.PkgPath)
 		if err != nil {
 			return err
 		}
@@ -191,7 +191,7 @@ func readSource(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 		return err
 	}
 	cfg.debugf(io, "qfile: listing files in %s", p.PkgPath)
-	fileList, err := queryFile(c, p.PkgPath)
+	fileList, err := queryFileC(c, cfg, p.PkgPath)
 	if err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ func readSource(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 			continue
 		}
 		cfg.debugf(io, "qfile: reading %s/%s", p.PkgPath, fname)
-		source, err := queryFile(c, p.PkgPath+"/"+fname)
+		source, err := queryFileC(c, cfg, p.PkgPath+"/"+fname)
 		if err != nil {
 			continue
 		}
@@ -369,11 +369,11 @@ func inspectPackage(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 		return err
 	}
 	cfg.debugf(io, "qfile: listing %s", p.PkgPath)
-	fileList, _ := queryFile(c, p.PkgPath)
+	fileList, _ := queryFileC(c, cfg, p.PkgPath)
 	files := splitLines(fileList)
 	cfg.debugf(io, "qfile: %d files", len(files))
 	cfg.debugf(io, "qfuncs: %s", p.PkgPath)
-	funcsJSON, _ := queryFuncs(c, p.PkgPath)
+	funcsJSON, _ := queryFuncsC(c, cfg, p.PkgPath)
 	cfg.debugf(io, "qstorage: %s", p.PkgPath)
 	storage, _ := queryStorage(c, p.PkgPath)
 
@@ -463,7 +463,7 @@ func readFile(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	}
 	filePath := p.PkgPath + "/" + p.File
 	cfg.debugf(io, "qfile: %s", filePath)
-	source, err := queryFile(c, filePath)
+	source, err := queryFileC(c, cfg, filePath)
 	if err != nil {
 		return fmt.Errorf("reading file: %w", err)
 	}
@@ -482,7 +482,7 @@ func readFuncSignature(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	funcsJSON, err := queryFuncs(c, p.PkgPath)
+	funcsJSON, err := queryFuncsC(c, cfg, p.PkgPath)
 	if err != nil {
 		return fmt.Errorf("querying functions: %w", err)
 	}
@@ -600,8 +600,8 @@ func inspectUser(cfg *baseCfg, p *GnoPath, io commands.IO) error {
 
 // isCrossingFunc checks if a function's first parameter is a realm type,
 // meaning it's a crossing function that needs `cross` as first arg in qeval.
-func isCrossingFunc(client *gnoclient.Client, pkgPath, funcName string) bool {
-	funcsJSON, err := queryFuncs(client, pkgPath)
+func isCrossingFunc(client *gnoclient.Client, cfg *baseCfg, pkgPath, funcName string) bool {
+	funcsJSON, err := queryFuncsC(client, cfg, pkgPath)
 	if err != nil || funcsJSON == "" {
 		return false
 	}
