@@ -24,9 +24,15 @@ func execRun(_ context.Context, cfg *baseCfg, expr string, io commands.IO) error
 		return fmt.Errorf("RUN expects a function call like gno.land/r/foo/bar.Func(...)")
 	}
 
-	// Generate the code
+	// Check if crossing function and inject `cross` in generated code
 	pkgAlias := path.Base(p.PkgPath)
-	code := generateRunCode(p.PkgPath, pkgAlias, p.Symbol, p.Args)
+	funcArgs := p.Args
+	qc, _, _ := cfg.queryClient(p.Domain)
+	if qc != nil && isCrossingFunc(qc, cfg, p.PkgPath, p.Symbol) {
+		// Prepend "cross" as a raw token (not a string arg)
+		funcArgs = append([]string{"__cross__"}, funcArgs...)
+	}
+	code := generateRunCode(p.PkgPath, pkgAlias, p.Symbol, funcArgs)
 
 	if cfg.printGnokeyCmd {
 		return printRunGnokeyCmd(cfg, p, code, io)
@@ -141,9 +147,24 @@ func generateRunCode(pkgPath, pkgAlias, funcName string, args []string) string {
 	sb.WriteString("package main\n\n")
 	sb.WriteString(fmt.Sprintf("import %q\n\n", pkgPath))
 	sb.WriteString("func main() {\n")
-	sb.WriteString(fmt.Sprintf("\t%s.%s(%s)\n", pkgAlias, funcName, joinArgs(args)))
+	sb.WriteString(fmt.Sprintf("\t%s.%s(%s)\n", pkgAlias, funcName, joinRunArgs(args)))
 	sb.WriteString("}\n")
 	return sb.String()
+}
+
+// joinRunArgs is like joinArgs but handles the __cross__ sentinel as a raw token.
+func joinRunArgs(args []string) string {
+	parts := make([]string, len(args))
+	for i, arg := range args {
+		if arg == "__cross__" {
+			parts[i] = "cross"
+		} else if isNumeric(arg) || arg == "true" || arg == "false" {
+			parts[i] = arg
+		} else {
+			parts[i] = `"` + arg + `"`
+		}
+	}
+	return strings.Join(parts, ", ")
 }
 
 func printRunGnokeyCmd(cfg *baseCfg, p *GnoPath, code string, io commands.IO) error {

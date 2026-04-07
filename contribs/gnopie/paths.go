@@ -114,7 +114,6 @@ func ParsePath(input string) (*GnoPath, error) {
 	if strings.HasPrefix(rest, "/u/") {
 		username := rest[3:]
 		p.Symbol = username // store username in Symbol
-		p.Domain = p.Domain
 		p.Kind = PathUser
 		return p, nil
 	}

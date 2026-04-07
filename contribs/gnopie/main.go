@@ -35,6 +35,7 @@ type baseCfg struct {
 	send           string
 	gasWanted      int64
 	gasFee         string
+	insecureNoPass bool // skip password prompt (empty password, for tests)
 	dryRun         bool
 	printGnokeyCmd bool
 	debug          bool
@@ -143,9 +144,12 @@ func (c *baseCfg) signingClient(domain string, io commands.IO) (*gnoclient.Clien
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening keybase: %w", err)
 	}
-	pass, err := io.GetPassword(fmt.Sprintf("Enter password (%s):", keyName), false)
-	if err != nil {
-		return nil, nil, fmt.Errorf("reading password: %w", err)
+	var pass string
+	if !c.insecureNoPass {
+		pass, err = io.GetPassword(fmt.Sprintf("Enter password (%s):", keyName), false)
+		if err != nil {
+			return nil, nil, fmt.Errorf("reading password: %w", err)
+		}
 	}
 	return &gnoclient.Client{
 		Signer: &gnoclient.SignerFromKeybase{
