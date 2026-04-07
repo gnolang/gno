@@ -12,12 +12,12 @@ func newVersionCmd(io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "version",
-			ShortUsage: "gnosh version",
+			ShortUsage: "gnopie version",
 			ShortHelp:  "Print version information.",
 		},
 		nil,
 		func(_ context.Context, _ []string) error {
-			io.Printfln("gnosh %s", version)
+			io.Printfln("gnopie %s", version)
 			return nil
 		},
 	)

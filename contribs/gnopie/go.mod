@@ -1,4 +1,4 @@
-module github.com/gnolang/gno/contribs/gnosh
+module github.com/gnolang/gno/contribs/gnopie
 
 go 1.24.0
 
@@ -6,7 +6,10 @@ toolchain go1.24.4
 
 replace github.com/gnolang/gno => ../..
 
-require github.com/gnolang/gno v0.0.0-00010101000000-000000000000
+require (
+	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
+	github.com/pelletier/go-toml v1.9.5
+)
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6 // indirect
@@ -33,7 +36,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
-	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect

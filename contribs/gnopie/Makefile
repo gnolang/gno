@@ -7,7 +7,7 @@ install:
 
 .PHONY: build
 build:
-	go build -o build/gnosh .
+	go build -o build/gnopie .
 
 .PHONY: lint
 lint:
