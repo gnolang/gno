@@ -6,19 +6,19 @@ const bitsPerWord = 64
 
 // BitSet implements an arbitrary-size bit array.
 type BitSet struct {
-	words []uint64
+	words []uint
 }
 
 // New creates a new BitSet pre-allocated to hold at least size bits.
-func New(size int) BitSet {
-	if size <= 0 {
+func New(size uint) BitSet {
+	if size == 0 {
 		return BitSet{}
 	}
-	return BitSet{words: make([]uint64, wordIndex(size-1)+1)}
+	return BitSet{words: make([]uint, wordIndex(size-1)+1)}
 }
 
 // Set turns on the bit at a given position.
-func (b *BitSet) Set(i int) {
+func (b *BitSet) Set(i uint) {
 	idx := wordIndex(i)
 	if idx >= len(b.words) {
 		b.grow(idx)
@@ -27,7 +27,7 @@ func (b *BitSet) Set(i int) {
 }
 
 // Clear turns off the bit at a given position.
-func (b *BitSet) Clear(i int) {
+func (b *BitSet) Clear(i uint) {
 	idx := wordIndex(i)
 	if idx < len(b.words) {
 		b.words[idx] &^= bitMask(i) // Turn bit off
@@ -42,7 +42,7 @@ func (b *BitSet) ClearAll() {
 }
 
 // Test reports whether the bit at a given position is set.
-func (b BitSet) Test(i int) bool {
+func (b BitSet) Test(i uint) bool {
 	idx := wordIndex(i)
 	if idx >= len(b.words) {
 		return false // Bit has not been setted yet
@@ -127,26 +127,26 @@ func (b BitSet) Equals(other BitSet) bool {
 func (b BitSet) String() string {
 	var s string
 	for _, w := range b.words {
-		s += strconv.FormatUint(w, 2)
+		s += strconv.FormatUint(uint64(w), 2)
 	}
 	return s
 }
 
 func (b *BitSet) grow(idx int) {
-	words := make([]uint64, idx+1)
+	words := make([]uint, idx+1)
 	copy(words, b.words)
 	b.words = words
 }
 
-func wordIndex(i int) int {
-	return i / bitsPerWord
+func wordIndex(i uint) int {
+	return int(i / bitsPerWord)
 }
 
-func bitMask(i int) uint64 {
-	return 1 << uint(i%bitsPerWord)
+func bitMask(i uint) uint {
+	return 1 << (i % bitsPerWord)
 }
 
-func countSetBits(x uint64) int {
+func countSetBits(x uint) int {
 	// Count the number of set bits using Kernighan's algorithm
 	var count int
 	for x != 0 {

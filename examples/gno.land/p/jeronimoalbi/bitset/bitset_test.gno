@@ -9,37 +9,37 @@ import (
 func TestBitSetSet(t *testing.T) {
 	cases := []struct {
 		name string
-		bits []int
+		bits []uint
 		want string
 	}{
 		{
 			name: "single bit 0",
-			bits: []int{0},
+			bits: []uint{0},
 			want: "1",
 		},
 		{
 			name: "single bit 5",
-			bits: []int{5},
+			bits: []uint{5},
 			want: "100000",
 		},
 		{
 			name: "multiple bits in same word",
-			bits: []int{0, 3, 7},
+			bits: []uint{0, 3, 7},
 			want: "10001001",
 		},
 		{
 			name: "bit at word boundary",
-			bits: []int{63},
+			bits: []uint{63},
 			want: "1000000000000000000000000000000000000000000000000000000000000000",
 		},
 		{
 			name: "bit across word boundary",
-			bits: []int{63, 64},
+			bits: []uint{63, 64},
 			want: "10000000000000000000000000000000000000000000000000000000000000001",
 		},
 		{
 			name: "set same bit twice",
-			bits: []int{2, 2},
+			bits: []uint{2, 2},
 			want: "100",
 		},
 	}
@@ -65,7 +65,7 @@ func TestBitSetSet(t *testing.T) {
 func TestBitSetTest(t *testing.T) {
 	var (
 		b      bitset.BitSet
-		values = []int{0, 5, 63, 64, 200}
+		values = []uint{0, 5, 63, 64, 200}
 	)
 
 	for _, v := range values {
@@ -197,38 +197,38 @@ func TestBitSetNew(t *testing.T) {
 func TestBitSetOr(t *testing.T) {
 	cases := []struct {
 		name    string
-		current []int
-		other   []int
+		current []uint
+		other   []uint
 		want    string
 	}{
 		{
 			name:    "empty sets",
-			current: []int{},
-			other:   []int{},
+			current: []uint{},
+			other:   []uint{},
 			want:    "",
 		},
 		{
 			name:    "equal sets",
-			current: []int{1, 4, 8},
-			other:   []int{1, 4, 8},
+			current: []uint{1, 4, 8},
+			other:   []uint{1, 4, 8},
 			want:    "100010010",
 		},
 		{
 			name:    "different sets",
-			current: []int{1, 4, 8},
-			other:   []int{2, 3, 5},
+			current: []uint{1, 4, 8},
+			other:   []uint{2, 3, 5},
 			want:    "100111110",
 		},
 		{
 			name:    "current smaller than other",
-			current: []int{1, 4},
-			other:   []int{2, 3, 5, 8},
+			current: []uint{1, 4},
+			other:   []uint{2, 3, 5, 8},
 			want:    "100111110",
 		},
 		{
 			name:    "current bigger than other",
-			current: []int{2, 3, 5, 8},
-			other:   []int{1, 4},
+			current: []uint{2, 3, 5, 8},
+			other:   []uint{1, 4},
 			want:    "100111110",
 		},
 	}
@@ -260,38 +260,38 @@ func TestBitSetOr(t *testing.T) {
 func TestBitSetAnd(t *testing.T) {
 	cases := []struct {
 		name    string
-		current []int
-		other   []int
+		current []uint
+		other   []uint
 		want    string
 	}{
 		{
 			name:    "empty sets",
-			current: []int{},
-			other:   []int{},
+			current: []uint{},
+			other:   []uint{},
 			want:    "",
 		},
 		{
 			name:    "equal sets",
-			current: []int{1, 4, 8},
-			other:   []int{1, 4, 8},
+			current: []uint{1, 4, 8},
+			other:   []uint{1, 4, 8},
 			want:    "100010010",
 		},
 		{
 			name:    "different sets",
-			current: []int{1, 4, 8},
-			other:   []int{2, 3, 5},
+			current: []uint{1, 4, 8},
+			other:   []uint{2, 3, 5},
 			want:    "0",
 		},
 		{
 			name:    "current smaller than other",
-			current: []int{1, 4},
-			other:   []int{1, 4, 5, 8},
+			current: []uint{1, 4},
+			other:   []uint{1, 4, 5, 8},
 			want:    "10010",
 		},
 		{
 			name:    "current bigger than other",
-			current: []int{0, 3, 5, 8},
-			other:   []int{0, 3},
+			current: []uint{0, 3, 5, 8},
+			other:   []uint{0, 3},
 			want:    "1001",
 		},
 	}
@@ -323,38 +323,38 @@ func TestBitSetAnd(t *testing.T) {
 func TestBitSetXor(t *testing.T) {
 	cases := []struct {
 		name    string
-		current []int
-		other   []int
+		current []uint
+		other   []uint
 		want    string
 	}{
 		{
 			name:    "empty sets",
-			current: []int{},
-			other:   []int{},
+			current: []uint{},
+			other:   []uint{},
 			want:    "",
 		},
 		{
 			name:    "equal sets",
-			current: []int{1, 4, 8},
-			other:   []int{1, 4, 8},
+			current: []uint{1, 4, 8},
+			other:   []uint{1, 4, 8},
 			want:    "0",
 		},
 		{
 			name:    "different sets",
-			current: []int{1, 3, 8},
-			other:   []int{2, 3, 5},
+			current: []uint{1, 3, 8},
+			other:   []uint{2, 3, 5},
 			want:    "100100110",
 		},
 		{
 			name:    "current smaller than other",
-			current: []int{1, 3, 4},
-			other:   []int{2, 3, 5, 8},
+			current: []uint{1, 3, 4},
+			other:   []uint{2, 3, 5, 8},
 			want:    "100110110",
 		},
 		{
 			name:    "current bigger than other",
-			current: []int{2, 3, 5, 8},
-			other:   []int{1, 3},
+			current: []uint{2, 3, 5, 8},
+			other:   []uint{1, 3},
 			want:    "100100110",
 		},
 	}
@@ -452,13 +452,13 @@ func TestBitSetEquals(t *testing.T) {
 func TestBitSetString(t *testing.T) {
 	cases := []struct {
 		name   string
-		values []int
+		values []uint
 		want   string
 	}{
 		{"empty", nil, ""},
-		{"single bit", []int{0}, "1"},
-		{"multiple sequential bits", []int{0, 1, 2, 3}, "1111"},
-		{"multiple non sequential bits", []int{0, 2, 4}, "10101"},
+		{"single bit", []uint{0}, "1"},
+		{"multiple sequential bits", []uint{0, 1, 2, 3}, "1111"},
+		{"multiple non sequential bits", []uint{0, 2, 4}, "10101"},
 	}
 
 	for _, tc := range cases {
