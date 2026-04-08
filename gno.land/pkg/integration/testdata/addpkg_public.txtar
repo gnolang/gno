@@ -11,52 +11,52 @@ gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/public
 stdout OK!
 
 # add the normal realm (not marked as private)
-gnokey maketx addpkg -pkgdir $WORK/normalrealm -pkgpath gno.land/r/foobar/normalrealm -gas-fee 2200000ugnot -gas-wanted 22_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/normalrealm -pkgpath gno.land/r/foobar/normalrealm -gas-fee 2000001ugnot -gas-wanted 20_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveTreeToPublicRealm -gas-fee 1600000ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveTreeToPublicRealm -gas-fee 1200001ugnot -gas-wanted 12_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveIntToPublicRealm -gas-fee 1400000ugnot -gas-wanted 14_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveIntToPublicRealm -gas-fee 1000001ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveSliceToPublicRealm -gas-fee 1500000ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveSliceToPublicRealm -gas-fee 1100001ugnot -gas-wanted 11_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMapToPublicRealm -gas-fee 1500000ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMapToPublicRealm -gas-fee 1100001ugnot -gas-wanted 11_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveStructToPublicRealm -gas-fee 1600000ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveStructToPublicRealm -gas-fee 1200001ugnot -gas-wanted 12_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithoutRef -gas-fee 1500000ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithoutRef -gas-fee 1100001ugnot -gas-wanted 11_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithRefToStruct -gas-fee 1600000ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithRefToStruct -gas-fee 1300001ugnot -gas-wanted 13_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithRefToTree -gas-fee 1700000ugnot -gas-wanted 17_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithRefToTree -gas-fee 1400001ugnot -gas-wanted 14_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmAfterSaving -gas-fee 2000000ugnot -gas-wanted 20_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmAfterSaving -gas-fee 1700001ugnot -gas-wanted 17_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveInterfaceToPublicRealm -gas-fee 1700000ugnot -gas-wanted 17_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveInterfaceToPublicRealm -gas-fee 1300001ugnot -gas-wanted 13_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveArrayToPublicRealm -gas-fee 1600000ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveArrayToPublicRealm -gas-fee 1300001ugnot -gas-wanted 13_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveNestedToPublicRealm -gas-fee 1600000ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveNestedToPublicRealm -gas-fee 1300001ugnot -gas-wanted 13_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveNestedToPublicRealmAfterSaving -gas-fee 2000000ugnot -gas-wanted 20_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveNestedToPublicRealmAfterSaving -gas-fee 1600001ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveClosureToPublicRealm -gas-fee 1600000ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveClosureToPublicRealm -gas-fee 1200001ugnot -gas-wanted 12_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveValueFromNormalStructToPublicRealm -gas-fee 1600000ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveValueFromNormalStructToPublicRealm -gas-fee 1300001ugnot -gas-wanted 13_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 gnokey query vm/qeval --data 'gno.land/r/foobar/normalrealm.GetTreePointer()'

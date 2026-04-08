@@ -34,20 +34,20 @@ stderr 'restricted token transfer error'
 
 
 ## Load member as T1 to be able to vote afterwards
-gnokey maketx run  -gas-fee 8500000ugnot -gas-wanted 85_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/load_user.gno
+gnokey maketx run  -gas-fee 7200001ugnot -gas-wanted 72_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/load_user.gno
 
 ## Submit a proposal to add a regular use as the unrestricted account.
-gnokey maketx run  -gas-fee 6700000ugnot -gas-wanted 67_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_unrestricted.gno
+gnokey maketx run  -gas-fee 4400001ugnot -gas-wanted 44_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_unrestricted.gno
 
 stdout '0'
 
 ## Vote for the unrestricted account proposal using test1
-gnokey maketx run  -gas-fee 4900000ugnot -gas-wanted 49_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
+gnokey maketx run  -gas-fee 3600001ugnot -gas-wanted 36_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
 
 stdout 'OK!'
 
 ## Execute the unrestricted account proposal using test1
-gnokey maketx run  -gas-fee 5700000ugnot -gas-wanted 57_000_000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
+gnokey maketx run  -gas-fee 4100001ugnot -gas-wanted 41_000_000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
 
 stdout 'OK!'
 
@@ -67,17 +67,17 @@ stdout '["g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","g18e22n23g462drp4pyszyl6e6m
 
 
 ## Submit a proposal to remove regular1 and regular2 as the unrestricted accounts.
-gnokey maketx run  -gas-fee 6700000ugnot -gas-wanted 67_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_restricted.gno
+gnokey maketx run  -gas-fee 4500001ugnot -gas-wanted 45_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_restricted.gno
 
 stdout '1'
 
 ## Vote for the remove unrestricted account proposal using test1
-gnokey maketx run  -gas-fee 4900000ugnot -gas-wanted 49_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal1.gno
+gnokey maketx run  -gas-fee 3600001ugnot -gas-wanted 36_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal1.gno
 
 stdout 'OK!'
 
 ## Execute the remove unrestricted account proposal using test1
-gnokey maketx run  -gas-fee 5800000ugnot -gas-wanted 58_000_000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal1.gno
+gnokey maketx run  -gas-fee 4200001ugnot -gas-wanted 42_000_000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal1.gno
 
 stdout 'OK!'
 

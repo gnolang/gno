@@ -8,15 +8,15 @@ loadpkg gno.land/r/registry $WORK/registry
 gnoland start
 
 # we call Transfer with foo20, before it's registered
-gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo20' -args 'g123456789' -args '42' -gas-fee 700000ugnot -gas-wanted 7_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo20' -args 'g123456789' -args '42' -gas-fee 690001ugnot -gas-wanted 6_900_000 -broadcast -chainid=tendermint_test test1
 stdout 'not found'
 
 # add foo20, and foo20wrapper
-gnokey maketx addpkg -pkgdir $WORK/foo20 -pkgpath gno.land/r/foo20 -gas-fee 1400000ugnot -gas-wanted 14_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/foo20 -pkgpath gno.land/r/foo20 -gas-fee 1300001ugnot -gas-wanted 13_000_000 -broadcast -chainid=tendermint_test test1
 gnokey maketx addpkg -pkgdir $WORK/foo20wrapper -pkgpath gno.land/r/foo20wrapper -gas-fee 1800000ugnot -gas-wanted 18_000_000 -broadcast -chainid=tendermint_test test1
 
 # we call Transfer with foo20, after it's registered
-gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo20' -args 'g123456789' -args '42' -gas-fee 890000ugnot -gas-wanted 8_900_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo20' -args 'g123456789' -args '42' -gas-fee 830001ugnot -gas-wanted 8_300_000 -broadcast -chainid=tendermint_test test1
 stdout 'same address, success!'
 
 -- registry/registry.gno --

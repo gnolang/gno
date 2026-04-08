@@ -6,7 +6,7 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/xx -gas-fee 1400000ugnot -gas-wanted 14_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/demo/xx -func DefineFamily -gas-fee 980000ugnot -gas-wanted 9_800_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func DefineFamily -gas-fee 970001ugnot -gas-wanted 9_700_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/demo/xx -func GetOutcastChildAge -gas-fee 720000ugnot -gas-wanted 7_200_000 -broadcast -chainid=tendermint_test test1

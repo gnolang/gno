@@ -13,7 +13,7 @@ gnoland start
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
 # add the proposal
-gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
+gnokey maketx run -gas-fee 7700001ugnot -gas-wanted 77_000_000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
 # call gov/dao render to check the proposal was created
@@ -21,11 +21,11 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout '## Prop #0 - Change Law Proposal'
 
 # vote on the proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 3400000ugnot -gas-wanted 34_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2700001ugnot -gas-wanted 27_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # call proposal execution
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 3600000ugnot -gas-wanted 36_000_000 -args 0 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2900001ugnot -gas-wanted 29_000_000 -args 0 -broadcast -chainid=tendermint_test member
 stdout OK!
 
 -- proposer/create_proposal.gno --

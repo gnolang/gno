@@ -20,21 +20,21 @@ stdout 'OK!'
 stderr 'restricted token transfer error'
 
 ## Load member as T1 to be able to vote afterwards
-gnokey maketx run  -gas-fee 8500000ugnot -gas-wanted 85_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/load_user.gno
+gnokey maketx run  -gas-fee 7200001ugnot -gas-wanted 72_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/load_user.gno
 
 ## Submit a proposal to unlock the transfer. When token transfer is locked, only the predefined unrestricted account test1 in the genesis state can
 ## pay the fee and submit a proposal to unlock the transfer.
-gnokey maketx run  -gas-fee 6700000ugnot -gas-wanted 67_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_unlock.gno
+gnokey maketx run  -gas-fee 4400001ugnot -gas-wanted 44_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_unlock.gno
 
 stdout '0'
 
 ## Vote unlock proposal with unrestricted account test1
-gnokey maketx run  -gas-fee 4900000ugnot -gas-wanted 49_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
+gnokey maketx run  -gas-fee 3600001ugnot -gas-wanted 36_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
 
 stdout 'OK!'
 
 ## Execute unlock proposal with unrestricted account test1
-gnokey maketx run  -gas-fee 5400000ugnot -gas-wanted 54_000_000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
+gnokey maketx run  -gas-fee 3800001ugnot -gas-wanted 38_000_000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
 
 stdout 'OK!'
 

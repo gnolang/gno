@@ -5,9 +5,9 @@ loadpkg gno.land/r/demo/realm $WORK
 # start a new node
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/demo/realm --func Register --gas-fee 880000ugnot --gas-wanted 8_800_000 --broadcast -chainid=tendermint_test test1
-gnokey maketx call -pkgpath gno.land/r/demo/realm --func Set --args 4 --gas-fee 870000ugnot --gas-wanted 8_700_000 --broadcast -chainid=tendermint_test test1
-gnokey maketx call -pkgpath gno.land/r/demo/realm --func Render --gas-fee 1800000ugnot --gas-wanted 18_000_000 --broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/realm --func Register --gas-fee 860001ugnot --gas-wanted 8_600_000 --broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/realm --func Set --args 4 --gas-fee 850001ugnot --gas-wanted 8_500_000 --broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/realm --func Render --gas-fee 960001ugnot --gas-wanted 9_600_000 --broadcast -chainid=tendermint_test test1
 stdout '("0key.num:1" string)'
 
 -- realm.gno --

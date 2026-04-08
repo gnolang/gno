@@ -29,11 +29,11 @@ stderr 'restricted token transfer error'
 
 
 ## making a storage deposit to a realm package while adding the package is acceptable
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank -max-deposit "2000000ugnot" -gas-fee 1800000ugnot -gas-wanted 18_000_000 -broadcast -chainid=tendermint_test regular1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank -max-deposit "2000000ugnot" -gas-fee 1600001ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test regular1
 stdout 'OK!'
 
 ## paying gas fees to add a package is acceptable.
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank2 -gas-fee 1800000ugnot -gas-wanted 18_000_000 -broadcast -chainid=tendermint_test regular1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank2 -gas-fee 1600001ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test regular1
 stdout 'OK!'
 
 ## paying gas fees to call a realm function is acceptable.

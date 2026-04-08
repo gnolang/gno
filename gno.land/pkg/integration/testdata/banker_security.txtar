@@ -21,7 +21,7 @@ gnokey query bank/balances/${attacker_user_addr}
 stdout '1000000000ugnot'
 
 ## Deploy the malicious realm that attempts to steal coins
-gnokey maketx addpkg -pkgdir $WORK/malicious -pkgpath gno.land/r/test/malicious -gas-fee 2000000ugnot -gas-wanted 20_000_000 -broadcast -chainid=tendermint_test attacker
+gnokey maketx addpkg -pkgdir $WORK/malicious -pkgpath gno.land/r/test/malicious -gas-fee 1700001ugnot -gas-wanted 17_000_000 -broadcast -chainid=tendermint_test attacker
 stdout OK!
 
 ## ============================================
@@ -63,7 +63,7 @@ stderr 'cannot send "100000ugnot", limit "10ugnot" exceeded'
 ## This verifies the banker does work correctly for legitimate use
 ## ============================================
 
-gnokey maketx call -pkgpath gno.land/r/test/malicious -func LegitOriginSend -args ${attacker_user_addr} -args 5 -send 10ugnot -gas-fee 1200000ugnot -gas-wanted 12_000_000 -broadcast -chainid=tendermint_test victim
+gnokey maketx call -pkgpath gno.land/r/test/malicious -func LegitOriginSend -args ${attacker_user_addr} -args 5 -send 10ugnot -gas-fee 1000001ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test victim
 stdout OK!
 
 ## ============================================
@@ -71,11 +71,11 @@ stdout OK!
 ## Deploy a "helper" realm that the malicious realm tries to use to steal coins
 ## ============================================
 
-gnokey maketx addpkg -pkgdir $WORK/helper -pkgpath gno.land/r/test/helper -gas-fee 1700000ugnot -gas-wanted 17_000_000 -broadcast -chainid=tendermint_test attacker
+gnokey maketx addpkg -pkgdir $WORK/helper -pkgpath gno.land/r/test/helper -gas-fee 1500001ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test attacker
 stdout OK!
 
 ## Update malicious realm to have access to helper
-gnokey maketx addpkg -pkgdir $WORK/malicious_v2 -pkgpath gno.land/r/test/malicious_v2 -gas-fee 1500000ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test attacker
+gnokey maketx addpkg -pkgdir $WORK/malicious_v2 -pkgpath gno.land/r/test/malicious_v2 -gas-fee 1400001ugnot -gas-wanted 14_000_000 -broadcast -chainid=tendermint_test attacker
 stdout OK!
 
 ## Try cross-realm attack - helper realm should not be able to create OriginSend banker
