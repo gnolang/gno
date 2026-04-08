@@ -94,13 +94,16 @@ func (t *MutableTree) pruneVersion(v, nextV int64) error {
 		}
 	}
 
-	return t.walkAndPrune(vRoot, nextRoot)
+	return t.walkAndPrune(vRoot, nextRoot, nextRoot)
 }
 
 // walkAndPrune compares two subtrees and deletes nodes from oldNode
 // that are not referenced by newNode. Uses child hash set comparison
 // to handle split/merge position shifts.
-func (t *MutableTree) walkAndPrune(oldNode, newNode Node) error {
+//
+// newRoot is the root of the new version's tree, used to find children
+// that moved to a different part of the tree due to inner node splits.
+func (t *MutableTree) walkAndPrune(oldNode, newNode, newRoot Node) error {
 	if oldNode == nil {
 		return nil
 	}
@@ -134,7 +137,7 @@ func (t *MutableTree) walkAndPrune(oldNode, newNode Node) error {
 
 	// For each child in the old inner node:
 	// - If the child hash exists in the new node's children → shared, skip
-	// - If not → the child subtree is orphaned, recurse to delete
+	// - If not → the child subtree may be orphaned or moved, check from root
 	for i := 0; i < oldInner.NumChildren(); i++ {
 		childHash := oldInner.childHashes[i]
 		if newChildHashes[childHash] {
@@ -151,14 +154,21 @@ func (t *MutableTree) walkAndPrune(oldNode, newNode Node) error {
 			continue
 		}
 
-		// Find the corresponding child in the new tree (if any) by descending
-		// through the new tree using a key from the old child.
+		// Find the corresponding child in the new tree by routing from the
+		// new tree ROOT. This handles inner node splits where children move
+		// to sibling nodes not reachable from the local newNode.
 		var newChild Node
-		if newNode != nil {
-			newChild = t.findCorrespondingChild(newNode, child)
+		if newRoot != nil {
+			newChild = t.findCorrespondingChild(newRoot, child)
 		}
 
-		if err := t.walkAndPrune(child, newChild); err != nil {
+		// If the child was found in the new tree with the same hash,
+		// it's shared (moved to a different part of the tree due to split) — skip.
+		if newChild != nil && child.Hash() == newChild.Hash() {
+			continue
+		}
+
+		if err := t.walkAndPrune(child, newChild, newRoot); err != nil {
 			return err
 		}
 	}

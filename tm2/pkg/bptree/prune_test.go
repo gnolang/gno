@@ -334,6 +334,143 @@ func countDBNodes(db *memdb.MemDB) int {
 	return count
 }
 
+func TestPrune_InnerNodeSplit(t *testing.T) {
+	tree := newPruneTree(t)
+
+	// V1: Insert enough keys to create a height-1 tree (root inner node
+	// with ~30+ leaf children). With fan-out 32, ~1100 keys fills the root.
+	for i := 0; i < 1100; i++ {
+		tree.Set(fmt.Appendf(nil, "split%05d", i), []byte("v1"))
+	}
+	hash1, v1, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatalf("SaveVersion v1: %v", err)
+	}
+	if v1 != 1 {
+		t.Fatalf("v1 = %d, want 1", v1)
+	}
+	_ = hash1
+
+	// V2: Insert 300+ more keys to trigger root inner node split
+	// (height-1 → height-2). The old root's children are now distributed
+	// across two or more new inner nodes.
+	for i := 1100; i < 1400; i++ {
+		tree.Set(fmt.Appendf(nil, "split%05d", i), []byte("v2"))
+	}
+	hash2, v2, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatalf("SaveVersion v2: %v", err)
+	}
+	if v2 != 2 {
+		t.Fatalf("v2 = %d, want 2", v2)
+	}
+
+	// Prune V1 — this is where the bug would trigger: walkAndPrune would
+	// search for old children under only one of the new inner children,
+	// miss the ones under the sibling, and incorrectly delete them.
+	err = tree.DeleteVersionsTo(1)
+	if err != nil {
+		t.Fatalf("DeleteVersionsTo(1): %v", err)
+	}
+
+	// Reload V2 from DB and verify integrity
+	tree2 := NewMutableTreeWithDB(tree.ndb.db, 1000, NewNopLogger())
+	if _, err := tree2.LoadVersion(2); err != nil {
+		t.Fatalf("LoadVersion(2) after prune: %v", err)
+	}
+
+	hash2b := tree2.WorkingHash()
+	if !bytes.Equal(hash2, hash2b) {
+		t.Fatalf("V2 hash changed after pruning V1: %x != %x", hash2, hash2b)
+	}
+	if tree2.Size() != 1400 {
+		t.Fatalf("V2 size = %d, want 1400", tree2.Size())
+	}
+
+	// Verify all keys are accessible
+	for i := 0; i < 1400; i++ {
+		key := fmt.Appendf(nil, "split%05d", i)
+		val, _ := tree2.Get(key)
+		if val == nil {
+			t.Fatalf("key %q missing after prune", key)
+		}
+	}
+
+	// Continue: V3 with more mutations, then prune V2
+	for i := 0; i < 200; i++ {
+		tree.Set(fmt.Appendf(nil, "split%05d", i), []byte("v3"))
+	}
+	hash3, _, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatalf("SaveVersion v3: %v", err)
+	}
+
+	err = tree.DeleteVersionsTo(2)
+	if err != nil {
+		t.Fatalf("DeleteVersionsTo(2): %v", err)
+	}
+
+	tree3 := NewMutableTreeWithDB(tree.ndb.db, 1000, NewNopLogger())
+	if _, err := tree3.LoadVersion(3); err != nil {
+		t.Fatalf("LoadVersion(3) after prune: %v", err)
+	}
+	hash3b := tree3.WorkingHash()
+	if !bytes.Equal(hash3, hash3b) {
+		t.Fatalf("V3 hash changed after pruning V2: %x != %x", hash3, hash3b)
+	}
+}
+
+func TestPrune_SustainedInsertPrune(t *testing.T) {
+	tree := newPruneTree(t)
+
+	// Bootstrap: insert initial keys so the tree has some structure
+	for i := 0; i < 500; i++ {
+		tree.Set(fmt.Appendf(nil, "sus%06d", i), []byte("init"))
+	}
+	_, v, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatalf("SaveVersion initial: %v", err)
+	}
+	nextKey := 500
+
+	// 20 iterations: insert 200 random keys, save, prune oldest, verify
+	for iter := 0; iter < 20; iter++ {
+		for i := 0; i < 200; i++ {
+			tree.Set(fmt.Appendf(nil, "sus%06d", nextKey), fmt.Appendf(nil, "iter%d", iter))
+			nextKey++
+		}
+		latestHash, newV, err := tree.SaveVersion()
+		if err != nil {
+			t.Fatalf("iter %d: SaveVersion: %v", iter, err)
+		}
+		v = newV
+
+		// Prune the oldest surviving version
+		oldestToPrune := v - 1
+		if oldestToPrune < 1 {
+			continue
+		}
+		err = tree.DeleteVersionsTo(oldestToPrune)
+		if err != nil {
+			t.Fatalf("iter %d: DeleteVersionsTo(%d): %v", iter, oldestToPrune, err)
+		}
+
+		// Verify latest version integrity by reloading from DB
+		tree2 := NewMutableTreeWithDB(tree.ndb.db, 1000, NewNopLogger())
+		if _, err := tree2.LoadVersion(v); err != nil {
+			t.Fatalf("iter %d: LoadVersion(%d): %v", iter, v, err)
+		}
+		hash2 := tree2.WorkingHash()
+		if !bytes.Equal(latestHash, hash2) {
+			t.Fatalf("iter %d: hash mismatch after prune: %x != %x", iter, latestHash, hash2)
+		}
+		expectedSize := int64(500 + (iter+1)*200)
+		if tree2.Size() != expectedSize {
+			t.Fatalf("iter %d: size = %d, want %d", iter, tree2.Size(), expectedSize)
+		}
+	}
+}
+
 func TestPrune_EmptyVersions(t *testing.T) {
 	tree := newPruneTree(t)
 
