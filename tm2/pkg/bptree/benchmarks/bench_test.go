@@ -662,9 +662,12 @@ func BenchmarkMembershipProof(b *testing.B) {
 			l := int32(len(bt.keys))
 			b.Run(name, func(b *testing.B) {
 				b.ReportAllocs()
+				var lastSize int
 				for i := 0; i < b.N; i++ {
-					bt.tree.GetMembershipProof(bt.keys[mrand.Int31n(l)])
+					proof, _ := bt.tree.GetMembershipProof(bt.keys[mrand.Int31n(l)])
+					lastSize = proof.Size()
 				}
+				b.ReportMetric(float64(lastSize), "proof-bytes")
 			})
 			bt.cleanup()
 		}
@@ -680,11 +683,48 @@ func BenchmarkNonMembershipProof(b *testing.B) {
 			bt := buildTree(b, f, sz)
 			b.Run(name, func(b *testing.B) {
 				b.ReportAllocs()
+				var lastSize int
 				for i := 0; i < b.N; i++ {
-					bt.tree.GetNonMembershipProof(missKeys[i%pregenPool])
+					proof, _ := bt.tree.GetNonMembershipProof(missKeys[i%pregenPool])
+					lastSize = proof.Size()
 				}
+				b.ReportMetric(float64(lastSize), "proof-bytes")
 			})
 			bt.cleanup()
+		}
+	}
+}
+
+// -----------------------------------------------------------------------
+// WorkingHash
+// -----------------------------------------------------------------------
+
+func BenchmarkWorkingHash(b *testing.B) {
+	// Measures WorkingHash after 10 mutations (the realistic usage pattern).
+	// Mutations are included in timed work to avoid b.StopTimer/b.StartTimer
+	// per iteration, which causes b.N explosion and timeouts.
+	sizes := []int{1_000, 10_000, 100_000}
+	for _, sz := range sizes {
+		for _, f := range factories {
+			name := fmt.Sprintf("%s/%dk", f.name, sz/1000)
+			f := f
+			sz := sz
+			b.Run(name, func(b *testing.B) {
+				b.StopTimer()
+				di := makeDB(b, *benchBackend)
+				defer di.cleanup()
+				tree := f.newTree(di.db, cacheForSize(sz))
+				_ = prepareTree(b, tree, sz, keyLen, dataLen)
+				defer tree.Close()
+				b.ReportAllocs()
+				b.StartTimer()
+				for i := 0; i < b.N; i++ {
+					for j := 0; j < 10; j++ {
+						tree.Set(randBytes(keyLen), randBytes(dataLen))
+					}
+					tree.WorkingHash()
+				}
+			})
 		}
 	}
 }
@@ -793,6 +833,7 @@ func BenchmarkScalingGet(b *testing.B) {
 			l := int32(len(bt.keys))
 			b.Run(name, func(b *testing.B) {
 				b.ReportAllocs()
+				b.ReportMetric(float64(bt.tree.Height()), "height")
 				for i := 0; i < b.N; i++ {
 					bt.tree.Get(bt.keys[mrand.Int31n(l)])
 				}
