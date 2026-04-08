@@ -10,7 +10,7 @@ jobs:
   stale:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@v9
+      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9
         with:
           # actions/stale's cache mechanism doesn't work if you have a non-trivial
           # amount of other caches: https://github.com/actions/stale/issues/1136

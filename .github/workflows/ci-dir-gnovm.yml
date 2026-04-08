@@ -14,6 +14,9 @@ on:
       - go.mod
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   main:
     uses: ./.github/workflows/_ci-go.yml

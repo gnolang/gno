@@ -11,6 +11,9 @@ on:
       - misc/**
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   main:
     strategy:

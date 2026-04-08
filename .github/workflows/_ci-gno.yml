@@ -38,11 +38,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ inputs.go-version }}
-      - run: go run ./gnovm/cmd/gno -C ${{ inputs.path }} fmt -diff ./...
+      - run: go run ./gnovm/cmd/gno -C ${INPUTS_PATH} fmt -diff ./...
+        env:
+          INPUTS_PATH: ${{ inputs.path }}
 
   lint:
     name: lint
@@ -50,11 +54,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ inputs.go-version }}
-      - run: go run ./gnovm/cmd/gno lint -C ${{ inputs.path }} -v ./...
+      - run: go run ./gnovm/cmd/gno lint -C ${INPUTS_PATH} -v ./...
+        env:
+          INPUTS_PATH: ${{ inputs.path }}
 
   test:
     name: test
@@ -62,8 +70,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -76,4 +86,6 @@ jobs:
           echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
 
       - name: Run gno test
-        run: go run ./gnovm/cmd/gno test -C ${{ inputs.path }} -v -print-runtime-metrics -print-events ./...
+        run: go run ./gnovm/cmd/gno test -C ${INPUTS_PATH} -v -print-runtime-metrics -print-events ./...
+        env:
+          INPUTS_PATH: ${{ inputs.path }}

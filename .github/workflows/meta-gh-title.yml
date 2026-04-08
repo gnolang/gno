@@ -1,7 +1,7 @@
 name: meta / gh / title
 
 on:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
     types:
       - opened
       - edited
@@ -15,7 +15,9 @@ jobs:
   check:
     if: github.head_ref != 'master'
     runs-on: ubuntu-latest
+    permissions:
+      statuses: write
     steps:
-      - uses: amannn/action-semantic-pull-request@v6
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
