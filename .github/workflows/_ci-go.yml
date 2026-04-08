@@ -91,7 +91,8 @@ jobs:
 
           export filter="-pkg=github.com/gnolang/gno/${INPUTS_MODULEPATH}/..."
 
-          # shellcheck disable=SC2086 -- INPUTS_TESTS_EXTRA_ARGS must word-split into flags
+          # INPUTS_TESTS_EXTRA_ARGS must word-split into flags
+          # shellcheck disable=SC2086
           go test -covermode=set -timeout 30m ${INPUTS_TESTS_EXTRA_ARGS} ./... -test.gocoverdir="$GOCOVERDIR"
 
           (set +x; echo 'go coverage results:')
