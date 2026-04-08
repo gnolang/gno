@@ -32,10 +32,10 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
-      - uses: github/codeql-action@5c8a8a642e79153f5d047b10ec1cba1d1cc65699 # v3
+      - uses: github/codeql-action/init@5c8a8a642e79153f5d047b10ec1cba1d1cc65699 # v3
         with:
           languages: go
           build-mode: autobuild
-      - uses: github/codeql-action@5c8a8a642e79153f5d047b10ec1cba1d1cc65699 # v3
+      - uses: github/codeql-action/analyze@5c8a8a642e79153f5d047b10ec1cba1d1cc65699 # v3
         with:
           category: "/language:go"
