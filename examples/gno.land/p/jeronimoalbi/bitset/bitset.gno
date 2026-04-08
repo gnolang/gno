@@ -48,7 +48,7 @@ func (b *BitSet) ClearAll() {
 func (b BitSet) Test(i uint) bool {
 	idx := wordIndex(i)
 	if idx >= len(b.words) {
-		return false // Bit has not been setted yet
+		return false // Bit has not been set yet
 	}
 	return b.words[idx]&bitMask(i) != 0
 }
