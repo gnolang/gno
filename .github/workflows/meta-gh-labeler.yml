@@ -1,0 +1,14 @@
+name: meta / gh / labeler
+on:
+  - pull_request_target
+
+jobs:
+  check:
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/labeler@v5
