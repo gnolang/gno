@@ -35,7 +35,7 @@ func TestBitSetSet(t *testing.T) {
 		{
 			name: "bit across word boundary",
 			bits: []uint{63, 64},
-			want: "10000000000000000000000000000000000000000000000000000000000000001",
+			want: "11000000000000000000000000000000000000000000000000000000000000000",
 		},
 		{
 			name: "set same bit twice",
@@ -457,6 +457,7 @@ func TestBitSetString(t *testing.T) {
 	}{
 		{"empty", nil, ""},
 		{"single bit", []uint{0}, "1"},
+		{"max word value", []uint{63}, "1000000000000000000000000000000000000000000000000000000000000000"},
 		{"multiple sequential bits", []uint{0, 1, 2, 3}, "1111"},
 		{"multiple non sequential bits", []uint{0, 2, 4}, "10101"},
 	}
@@ -471,6 +472,38 @@ func TestBitSetString(t *testing.T) {
 
 			// Act
 			got := b.String()
+
+			// Assert
+			if got != tc.want {
+				t.Errorf("expected %q, got %q", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestBitSetPaddedString(t *testing.T) {
+	cases := []struct {
+		name   string
+		values []uint
+		want   string
+	}{
+		{"empty", nil, ""},
+		{"single bit", []uint{0}, "0000000000000000000000000000000000000000000000000000000000000001"},
+		{"max word value", []uint{63}, "1000000000000000000000000000000000000000000000000000000000000000"},
+		{"multiple sequential bits", []uint{0, 1, 2, 3}, "0000000000000000000000000000000000000000000000000000000000001111"},
+		{"multiple non sequential bits", []uint{0, 2, 4}, "0000000000000000000000000000000000000000000000000000000000010101"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			var b bitset.BitSet
+			for _, v := range tc.values {
+				b.Set(v)
+			}
+
+			// Act
+			got := b.PaddedString()
 
 			// Assert
 			if got != tc.want {

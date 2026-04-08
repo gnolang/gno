@@ -1,6 +1,9 @@
 package bitset
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 const bitsPerWord = 64
 
@@ -124,10 +127,27 @@ func (b BitSet) Equals(other BitSet) bool {
 }
 
 // String returns a binary representation of the bitset.
+// Representation uses MSB-first binary representation.
 func (b BitSet) String() string {
 	var s string
-	for _, w := range b.words {
-		s += strconv.FormatUint(uint64(w), 2)
+	for i := len(b.words) - 1; i >= 0; i-- {
+		s += strconv.FormatUint(uint64(b.words[i]), 2)
+	}
+	return s
+}
+
+// PaddedString returns a binary representation of the bitset with zero padding.
+// Representation uses MSB-first binary representation.
+func (b BitSet) PaddedString() string {
+	var s string
+	for i := len(b.words) - 1; i >= 0; i-- {
+		// Append zero padding when needed to complete word size
+		word := strconv.FormatUint(uint64(b.words[i]), 2)
+		if len(word) < bitsPerWord {
+			s += strings.Repeat("0", bitsPerWord-len(word))
+		}
+
+		s += strconv.FormatUint(uint64(b.words[i]), 2)
 	}
 	return s
 }
