@@ -46,9 +46,9 @@ jobs:
           INPUT="${INPUTS_TAG}"
           if [ -n "$INPUT" ]; then
             # chain/gnolang1.2 → chain-gnolang1.2
-            echo "tag=${INPUT/\//-}" >> $GITHUB_OUTPUT
+            echo "tag=${INPUT/\//-}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=" >> $GITHUB_OUTPUT
+            echo "tag=" >> "$GITHUB_OUTPUT"
           fi
         env:
           INPUTS_TAG: ${{ inputs.tag }}

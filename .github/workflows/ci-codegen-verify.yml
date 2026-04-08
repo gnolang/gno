@@ -63,7 +63,7 @@ jobs:
       - run: |
           diff=$(git status --porcelain)
           if [[ $diff ]]; then
-              echo 'Please run `make generate` in docs/.'
+              echo "Please run 'make generate' in docs/."
               exit 1
           fi
       - working-directory: docs/

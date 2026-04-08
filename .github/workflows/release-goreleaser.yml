@@ -59,11 +59,11 @@ jobs:
         id: args
         run: |
           if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.snapshot }}" = "true" ]; then
-            echo "goreleaser-args=release --clean --nightly --snapshot --config ./.github/goreleaser.yaml" >> $GITHUB_OUTPUT
-            echo "tag-version=nightly" >> $GITHUB_OUTPUT
+            echo "goreleaser-args=release --clean --nightly --snapshot --config ./.github/goreleaser.yaml" >> "$GITHUB_OUTPUT"
+            echo "tag-version=nightly" >> "$GITHUB_OUTPUT"
           else
-            echo "goreleaser-args=release --clean --nightly --config ./.github/goreleaser.yaml" >> $GITHUB_OUTPUT
-            echo "tag-version=master" >> $GITHUB_OUTPUT
+            echo "goreleaser-args=release --clean --nightly --config ./.github/goreleaser.yaml" >> "$GITHUB_OUTPUT"
+            echo "tag-version=master" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6

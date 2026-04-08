@@ -86,11 +86,11 @@ jobs:
 
       - name: "Wait for new docker image"
         run: |
-          ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
+          ip_addr=$(grep -o "http://.*:26657" misc/loop/traefik/gno.yml)
           while
-            new_ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
+            new_ip_addr=$(grep -o "http://.*:26657" misc/loop/traefik/gno.yml)
             echo "${ip_addr} -> ${new_ip_addr}"
-            [[ "${ip_addr}" == ${new_ip_addr} ]]
+            [[ "${ip_addr}" == "${new_ip_addr}" ]]
           do
             sleep 5
           done

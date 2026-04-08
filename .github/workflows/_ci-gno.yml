@@ -44,7 +44,7 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ inputs.go-version }}
-      - run: go run ./gnovm/cmd/gno -C ${INPUTS_PATH} fmt -diff ./...
+      - run: go run ./gnovm/cmd/gno -C "${INPUTS_PATH}" fmt -diff ./...
         env:
           INPUTS_PATH: ${{ inputs.path }}
 
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ inputs.go-version }}
-      - run: go run ./gnovm/cmd/gno lint -C ${INPUTS_PATH} -v ./...
+      - run: go run ./gnovm/cmd/gno lint -C "${INPUTS_PATH}" -v ./...
         env:
           INPUTS_PATH: ${{ inputs.path }}
 
@@ -82,10 +82,10 @@ jobs:
         run: |
           export LOG_PATH_DIR=${{ runner.temp }}/logs
           mkdir -p $LOG_PATH_DIR
-          echo "LOG_LEVEL=debug" >> $GITHUB_ENV
-          echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
+          echo "LOG_LEVEL=debug" >> "$GITHUB_ENV"
+          echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> "$GITHUB_ENV"
 
       - name: Run gno test
-        run: go run ./gnovm/cmd/gno test -C ${INPUTS_PATH} -v -print-runtime-metrics -print-events ./...
+        run: go run ./gnovm/cmd/gno test -C "${INPUTS_PATH}" -v -print-runtime-metrics -print-events ./...
         env:
           INPUTS_PATH: ${{ inputs.path }}

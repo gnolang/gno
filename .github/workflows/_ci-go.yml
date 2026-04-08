@@ -91,14 +91,15 @@ jobs:
 
           export filter="-pkg=github.com/gnolang/gno/${INPUTS_MODULEPATH}/..."
 
-          go test -covermode=set -timeout 30m ${INPUTS_TESTS_EXTRA_ARGS} ./... -test.gocoverdir=$GOCOVERDIR
+          # shellcheck disable=SC2086 -- INPUTS_TESTS_EXTRA_ARGS must word-split into flags
+          go test -covermode=set -timeout 30m ${INPUTS_TESTS_EXTRA_ARGS} ./... -test.gocoverdir="$GOCOVERDIR"
 
           (set +x; echo 'go coverage results:')
-          go tool covdata percent $filter -i=$GOCOVERDIR
+          go tool covdata percent "$filter" -i="$GOCOVERDIR"
           (set +x; echo 'txtar coverage results:')
-          go tool covdata percent $filter -i=$TXTARCOVERDIR
+          go tool covdata percent "$filter" -i="$TXTARCOVERDIR"
 
-          go tool covdata textfmt -v 1 $filter -i=$GOCOVERDIR,$TXTARCOVERDIR -o gocoverage.out
+          go tool covdata textfmt -v 1 "$filter" -i="$GOCOVERDIR,$TXTARCOVERDIR" -o gocoverage.out
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5

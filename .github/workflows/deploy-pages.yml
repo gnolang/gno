@@ -32,7 +32,7 @@ jobs:
       # Use the goroot at the top of the project to compare with the GnoVM
       # stdlib, rather than the one in stdlib_diff (which may have a go.mod with
       # a different toolchain version).
-      - run: echo "GOROOT_SAVE=$(go env GOROOT)" >> $GITHUB_ENV
+      - run: echo "GOROOT_SAVE=$(go env GOROOT)" >> "$GITHUB_ENV"
       - run: "cd misc/stdlib_diff && make gen"
       - run: "cd misc/gendocs && make install gen"
       - run: "mkdir -p pages_output/stdlib_diff"

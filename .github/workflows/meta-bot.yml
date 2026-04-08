@@ -63,7 +63,7 @@ jobs:
 
       - name: Get last commit hash for directory
         id: get-hash
-        run: echo "dir_hash=$(git log -1 --format="%H" -- contribs/github-bot/)" >> $GITHUB_OUTPUT
+        run: echo "dir_hash=$(git log -1 --format="%H" -- contribs/github-bot/)" >> "$GITHUB_OUTPUT"
 
       - name: Cache github-bot binary
         id: cache-bot-bin
@@ -103,7 +103,7 @@ jobs:
       - name: Write PR number to a file
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: echo $PR_NUMBER > pr-number
+        run: echo "$PR_NUMBER" > pr-number
 
       - name: Upload it as an artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -136,7 +136,7 @@ jobs:
 
       - name: Get last commit hash for directory
         id: get-hash
-        run: echo "dir_hash=$(git log -1 --format="%H" -- contribs/github-bot/)" >> $GITHUB_OUTPUT
+        run: echo "dir_hash=$(git log -1 --format="%H" -- contribs/github-bot/)" >> "$GITHUB_OUTPUT"
 
       - name: Cache github-bot binary
         id: cache-bot-bin
@@ -161,4 +161,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_BOT_PAT }} # zizmor: ignore[secrets-outside-env]
           MATRIX_PR_NUMBER: ${{ matrix.pr-number }}
-        run: github-bot check -pr-numbers '${MATRIX_PR_NUMBER}' -verbose
+        run: github-bot check -pr-numbers "${MATRIX_PR_NUMBER}" -verbose

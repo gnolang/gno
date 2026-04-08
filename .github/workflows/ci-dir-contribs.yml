@@ -31,24 +31,24 @@ jobs:
 
       - id: set-matrix
         run: |
-          echo "programs=$(ls -d contribs/*/ | cut -d/ -f2 | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_OUTPUT
+          echo "programs=$(printf '%s\n' contribs/*/ | cut -d/ -f2 | jq -R -s -c 'split("\n")[:-1]')" >> "$GITHUB_OUTPUT"
 
       - id: get-go-versions
         run: |
-          contribs_programs=$(ls -d contribs/*/ | cut -d/ -f2)
+          contribs_programs=$(printf '%s\n' contribs/*/ | cut -d/ -f2)
           versions_map="{"
 
           for p in $contribs_programs; do
             # Fetch the go version of the contribs entry, and save it
             # to a versions map we can reference later in the workflow
-            go_version=$(grep "^go [0-9]" contribs/$p/go.mod | cut -d ' ' -f2)
+            go_version=$(grep "^go [0-9]" "contribs/$p/go.mod" | cut -d ' ' -f2)
             versions_map="$versions_map\"$p\":\"$go_version\","
           done
 
           # Close out the JSON
           versions_map="${versions_map%,}"
           versions_map="$versions_map}"
-          echo "go-versions=$versions_map" >> $GITHUB_OUTPUT
+          echo "go-versions=$versions_map" >> "$GITHUB_OUTPUT"
 
   main:
     needs: setup
