@@ -663,11 +663,8 @@ func TestPersistence_ExportImportHashMatch(t *testing.T) {
 		t.Fatalf("imported size = %d", tree2.Size())
 	}
 
-	// Hash may or may not match depending on whether the rebuild produces
-	// the same tree structure. Log the result for documentation.
-	if bytes.Equal(hash1, hash2) {
-		t.Logf("Export/Import preserved hash (same tree structure)")
-	} else {
-		t.Logf("Export/Import produced different hash (different tree structure) — expected for B+ trees")
+	// Structural export/import must preserve the exact hash.
+	if !bytes.Equal(hash1, hash2) {
+		t.Fatalf("export/import hash mismatch: %x != %x", hash1, hash2)
 	}
 }

@@ -126,6 +126,7 @@ func TestImporter_Commit_Closed(t *testing.T) {
 	require.NoError(t, err)
 
 	imp.Add(&ExportNode{Key: []byte("x"), Value: []byte("y"), Height: 0})
+	imp.Add(&ExportNode{Height: -1, NumKeys: 1})
 	require.NoError(t, imp.Close())
 
 	// Commit after close — our implementation allows this since Close is a no-op
@@ -140,13 +141,19 @@ func TestImporter_Add(t *testing.T) {
 	imp, err := tree.Import(1)
 	require.NoError(t, err)
 
-	// Add leaf nodes
+	// Leaf entries for first leaf
 	require.NoError(t, imp.Add(&ExportNode{Key: []byte("a"), Value: []byte("1"), Height: 0}))
 	require.NoError(t, imp.Add(&ExportNode{Key: []byte("b"), Value: []byte("2"), Height: 0}))
-	require.NoError(t, imp.Add(&ExportNode{Key: []byte("c"), Value: []byte("3"), Height: 0}))
+	// Leaf boundary
+	require.NoError(t, imp.Add(&ExportNode{Height: -1, NumKeys: 2}))
 
-	// Add inner node marker (should be skipped by our importer)
-	require.NoError(t, imp.Add(&ExportNode{Key: []byte("b"), Height: 1}))
+	// Leaf entries for second leaf
+	require.NoError(t, imp.Add(&ExportNode{Key: []byte("c"), Value: []byte("3"), Height: 0}))
+	// Leaf boundary
+	require.NoError(t, imp.Add(&ExportNode{Height: -1, NumKeys: 1}))
+
+	// Inner marker with separator key
+	require.NoError(t, imp.Add(&ExportNode{Height: 1, NumKeys: 1, SeparatorKeys: [][]byte{[]byte("c")}}))
 
 	require.NoError(t, imp.Commit())
 

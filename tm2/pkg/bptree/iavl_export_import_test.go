@@ -100,8 +100,8 @@ func TestExporter_Import(t *testing.T) {
 			require.NoError(t, importer.Close())
 
 			require.Equal(t, origSize, newTree.Size())
-			// Hash may or may not match (B+ tree structure depends on insertion order)
-			_ = origHash
+			newHash := newTree.WorkingHash()
+			require.Equal(t, origHash, newHash, "roundtrip hash must match")
 		})
 	}
 }
@@ -189,6 +189,7 @@ func TestImporter_Commit(t *testing.T) {
 
 	importer.Add(&ExportNode{Key: []byte("a"), Value: []byte("1"), Height: 0})
 	importer.Add(&ExportNode{Key: []byte("b"), Value: []byte("2"), Height: 0})
+	importer.Add(&ExportNode{Height: -1, NumKeys: 2})
 
 	require.NoError(t, importer.Commit())
 
@@ -204,6 +205,7 @@ func TestImporter_Commit_ForwardVersion(t *testing.T) {
 	require.NoError(t, err)
 
 	importer.Add(&ExportNode{Key: []byte("x"), Value: []byte("y"), Height: 0})
+	importer.Add(&ExportNode{Height: -1, NumKeys: 1})
 	require.NoError(t, importer.Commit())
 
 	require.Equal(t, int64(5), tree.Version())
