@@ -51,6 +51,9 @@ func (imp *Importer) Add(node *ExportNode) error {
 	case node.Height == -1:
 		// Leaf boundary marker: pop NumKeys entries from kvBuffer, build LeafNode.
 		nk := int(node.NumKeys)
+		if nk < 0 || nk > B {
+			return fmt.Errorf("import: leaf numKeys %d out of range [0,%d]", nk, B)
+		}
 		if len(imp.kvBuffer) < nk {
 			return fmt.Errorf("import: leaf boundary expects %d entries, have %d", nk, len(imp.kvBuffer))
 		}
@@ -70,6 +73,9 @@ func (imp *Importer) Add(node *ExportNode) error {
 
 	case node.Height > 0:
 		// Inner node marker: pop NumKeys+1 children from stack, build InnerNode.
+		if node.NumKeys < 0 || node.NumKeys > B-1 {
+			return fmt.Errorf("import: inner numKeys %d out of range [0,%d]", node.NumKeys, B-1)
+		}
 		numChildren := int(node.NumKeys) + 1
 		if len(imp.stack) < numChildren {
 			return fmt.Errorf("import: inner marker expects %d children, stack has %d", numChildren, len(imp.stack))
