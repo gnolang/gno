@@ -17,7 +17,6 @@ on:
 
 jobs:
   setup:
-
     runs-on: ubuntu-latest
     outputs:
       programs: ${{ steps.set-matrix.outputs.programs }}

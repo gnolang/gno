@@ -32,9 +32,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Dummy tag needed for goreleaser on non-tag pushes
+      # Dummy tag needed for goreleaser on non-tag pushes (non-snapshot runs)
       - name: Create a dummy tag to avoid goreleaser failure
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.snapshot != true)
         run: git tag v0.0.0 master
 
       - uses: actions/setup-go@v5
