@@ -3,11 +3,9 @@ package sdk
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"runtime/debug"
 	"sort"
 	"strings"
-	"syscall"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -67,9 +65,6 @@ type BaseApp struct {
 
 	// block height at which to halt the chain and gracefully shutdown
 	haltHeight uint64
-
-	// minimum block time (in Unix seconds) at which to halt the chain and gracefully shutdown
-	haltTime uint64
 
 	// application's version string
 	appVersion string
@@ -526,6 +521,13 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 		panic(err)
 	}
 
+	// Check if we should halt before processing this block.
+	// We halt at the beginning of the block *after* haltHeight,
+	// so the block at haltHeight is fully committed.
+	if app.haltHeight > 0 && uint64(req.Header.GetHeight()) > app.haltHeight {
+		panic(fmt.Sprintf("halt height %d reached, node shutting down", app.haltHeight))
+	}
+
 	// Initialize the DeliverTx state. If this is the first block, it should
 	// already be initialized in InitChain. Otherwise app.deliverState will be
 	// nil, since it is reset on Commit.
@@ -884,24 +886,6 @@ func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBloc
 func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 	header := app.deliverState.ctx.BlockHeader()
 
-	var halt bool
-
-	switch {
-	case app.haltHeight > 0 && uint64(header.GetHeight()) >= app.haltHeight:
-		halt = true
-
-	case app.haltTime > 0 && header.GetTime().Unix() >= int64(app.haltTime):
-		halt = true
-	}
-
-	if halt {
-		app.halt()
-
-		// Note: State is not actually committed when halted. Logs from Tendermint
-		// can be ignored.
-		return abci.ResponseCommit{}
-	}
-
 	// Write the DeliverTx state which is cache-wrapped and commit the MultiStore.
 	// The write to the DeliverTx state writes all state transitions to the root
 	// MultiStore (app.cms) so when Commit() is called is persists those values.
@@ -929,29 +913,13 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 
 	// return.
 	res.Data = commitID.Hash
+
 	return
 }
 
-// halt attempts to gracefully shutdown the node via SIGINT and SIGTERM falling
-// back on os.Exit if both fail.
-func (app *BaseApp) halt() {
-	app.logger.Info("halting node per configuration", "height", app.haltHeight, "time", app.haltTime)
-
-	p, err := os.FindProcess(os.Getpid())
-	if err == nil {
-		// attempt cascading signals in case SIGINT fails (os dependent)
-		sigIntErr := p.Signal(syscall.SIGINT)
-		sigTermErr := p.Signal(syscall.SIGTERM)
-
-		if sigIntErr == nil || sigTermErr == nil {
-			return
-		}
-	}
-
-	// Resort to exiting immediately if the process could not be found or killed
-	// via SIGINT/SIGTERM signals.
-	app.logger.Info("failed to send SIGINT/SIGTERM; exiting...")
-	os.Exit(0)
+// SetHaltHeight sets the block height at which the node will halt after committing.
+func (app *BaseApp) SetHaltHeight(height uint64) {
+	app.haltHeight = height
 }
 
 func (app *BaseApp) Close() error {

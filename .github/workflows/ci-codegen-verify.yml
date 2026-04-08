@@ -1,0 +1,61 @@
+name: ci / codegen-verify
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "misc/genproto/**"
+      - "docs/**"
+  pull_request:
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "misc/genproto/**"
+      - "docs/**"
+  workflow_dispatch:
+
+jobs:
+  mod-tidy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: make tidy VERIFY_MOD_SUMS=true
+
+  genproto:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: sudo apt update && sudo apt install -y libprotobuf-dev protobuf-compiler
+      - run: make -C misc/devdeps install
+      - run: |
+          make -C misc/genproto
+          git diff --text --exit-code || (echo "Some .proto files are not updated, please run 'make -C misc/genproto'." && exit 1)
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - working-directory: docs/
+        run: make generate -B
+      - run: |
+          diff=$(git status --porcelain)
+          if [[ $diff ]]; then
+              echo 'Please run `make generate` in docs/.'
+              exit 1
+          fi
+      - working-directory: docs/
+        run: make lint
