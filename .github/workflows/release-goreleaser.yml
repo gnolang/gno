@@ -57,8 +57,11 @@ jobs:
 
       - name: Determine release args
         id: args
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUTS_SNAPSHOT: ${{ inputs.snapshot }}
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.snapshot }}" = "true" ]; then
+          if [ "$EVENT_NAME" = "schedule" ] || [ "$INPUTS_SNAPSHOT" = "true" ]; then
             echo "goreleaser-args=release --clean --nightly --snapshot --config ./.github/goreleaser.yaml" >> "$GITHUB_OUTPUT"
             echo "tag-version=nightly" >> "$GITHUB_OUTPUT"
           else
