@@ -190,6 +190,10 @@ func newParserCallback(m *Machine) parser.ParserCallback {
 		return nil
 	}
 	return func(tok token.Token, nestLev int) {
+		if tok == token.COMMENT {
+			// Comments are not charged for gas.
+			return
+		}
 		m.GasMeter.ConsumeGas(types.Gas(tokenCostFactor+nestLev*nestingCostFactor), "parsing")
 	}
 }
