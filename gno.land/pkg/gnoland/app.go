@@ -136,6 +136,24 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
 			// Override auth params.
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
+			// Apply VM gas config so all store operations (including
+			// ante handler account reads/writes) use the governed
+			// depth parameters.
+			// NOTE: GetParams reads use nil GasContext internally
+			// (params keeper passes nil to store.Get), so no gas is
+			// charged for these reads. The underlying store values
+			// are also amortized in the block-level cache — only
+			// the first tx in a block hits the IAVL tree, and
+			// subsequent txs get free cache hits.
+			vmParams := vmk.GetParams(ctx)
+			gasCfg := store.DefaultGasConfig()
+			gasCfg.MinGetReadDepth100 = vmParams.MinGetReadDepth100
+			gasCfg.MinSetReadDepth100 = vmParams.MinSetReadDepth100
+			gasCfg.MinWriteDepth100 = vmParams.MinWriteDepth100
+			gasCfg.FixedGetReadDepth100 = vmParams.FixedGetReadDepth100
+			gasCfg.FixedSetReadDepth100 = vmParams.FixedSetReadDepth100
+			gasCfg.FixedWriteDepth100 = vmParams.FixedWriteDepth100
+			ctx = ctx.WithGasConfig(gasCfg)
 
 			// During genesis (block height 0), automatically create accounts for signers
 			// if they don't exist. This allows packages with custom creators to be loaded.

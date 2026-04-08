@@ -344,11 +344,14 @@ func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 	iavl := ctx.Store(vm.iavlKey)
 	gctx := ctx.GasContext()
 	if gctx != nil {
-		// Apply depth floor governance parameters.
+		// Apply depth governance parameters.
 		params := vm.GetParams(ctx)
 		gctx.Config.MinGetReadDepth100 = params.MinGetReadDepth100
 		gctx.Config.MinSetReadDepth100 = params.MinSetReadDepth100
 		gctx.Config.MinWriteDepth100 = params.MinWriteDepth100
+		gctx.Config.FixedGetReadDepth100 = params.FixedGetReadDepth100
+		gctx.Config.FixedSetReadDepth100 = params.FixedSetReadDepth100
+		gctx.Config.FixedWriteDepth100 = params.FixedWriteDepth100
 	}
 	gasMeter := ctx.GasMeter()
 

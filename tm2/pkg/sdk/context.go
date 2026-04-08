@@ -29,6 +29,7 @@ type Context struct {
 	voteInfo      []abci.VoteInfo
 	gasMeter      store.GasMeter // XXX make passthroughGasMeter w/ blockGasMeter?
 	blockGasMeter store.GasMeter
+	gasConfig     *store.GasConfig // override gas config (nil = use default)
 	minGasPrices  []GasPrice
 	consParams    *abci.ConsensusParams
 	eventLogger   *EventLogger
@@ -179,10 +180,22 @@ func (c Context) GasContext() *store.GasContext {
 	if c.GasMeter() == nil {
 		return nil
 	}
+	var cfg store.GasConfig
+	if c.gasConfig != nil {
+		cfg = *c.gasConfig
+	} else {
+		cfg = store.DefaultGasConfig()
+	}
 	return &store.GasContext{
 		Meter:  c.GasMeter(),
-		Config: store.DefaultGasConfig(),
+		Config: cfg,
 	}
+}
+
+// WithGasConfig returns a new Context with the given GasConfig override.
+func (c Context) WithGasConfig(cfg store.GasConfig) Context {
+	c.gasConfig = &cfg
+	return c
 }
 
 // CacheContext returns a new Context with the multi-store cached and a new

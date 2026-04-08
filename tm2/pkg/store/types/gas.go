@@ -342,6 +342,9 @@ type GasConfig struct {
 	MinGetReadDepth100  Gas // floor for GET read depth (100x fixed-point, 0 = no floor)
 	MinSetReadDepth100  Gas // floor for SET read depth
 	MinWriteDepth100    Gas // floor for write depth (batched)
+	FixedGetReadDepth100 Gas // override for GET read depth (0 = use tree estimate)
+	FixedSetReadDepth100 Gas // override for SET read depth (0 = use tree estimate)
+	FixedWriteDepth100   Gas // override for write depth (0 = use tree estimate)
 }
 
 // DefaultGasConfig returns a default gas config for KVStores.
@@ -350,7 +353,7 @@ type GasConfig struct {
 func DefaultGasConfig() GasConfig {
 	return GasConfig{
 		HasCost:             59_000, // same as ReadCostFlat (Has traverses the tree)
-		DeleteCost:          59_000, // same as ReadCostFlat (delete requires finding the key)
+		DeleteCost:          24_000, // same as WriteCostFlat (delete modifies the tree)
 		ReadCostFlat:        59_000, // ~59µs per random read at 100M keys
 		ReadCostPerByte:     17,     // ~17 ns/byte (LMDB overflow page reads)
 		WriteCostFlat:       24_000, // ~24µs per write (amortized, batch=1000)

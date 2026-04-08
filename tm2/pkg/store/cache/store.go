@@ -74,8 +74,13 @@ func New(parent types.Store) *cacheStore {
 	return cs
 }
 
-// effectiveGetReadDepth100 returns the GET read depth, floored by MinGetReadDepth100.
+// effectiveGetReadDepth100 returns the GET read depth.
+// If FixedGetReadDepth100 is set, uses that exactly.
+// Otherwise uses the tree estimate, floored by MinGetReadDepth100.
 func (store *cacheStore) effectiveGetReadDepth100(gctx *types.GasContext) int64 {
+	if gctx != nil && gctx.Config.FixedGetReadDepth100 > 0 {
+		return gctx.Config.FixedGetReadDepth100
+	}
 	d := store.getReadDepth100
 	if gctx != nil && gctx.Config.MinGetReadDepth100 > 0 && d < gctx.Config.MinGetReadDepth100 {
 		d = gctx.Config.MinGetReadDepth100
@@ -83,8 +88,13 @@ func (store *cacheStore) effectiveGetReadDepth100(gctx *types.GasContext) int64 
 	return d
 }
 
-// effectiveSetReadDepth100 returns the SET read depth, floored by MinSetReadDepth100.
+// effectiveSetReadDepth100 returns the SET read depth.
+// If FixedSetReadDepth100 is set, uses that exactly.
+// Otherwise uses the tree estimate, floored by MinSetReadDepth100.
 func (store *cacheStore) effectiveSetReadDepth100(gctx *types.GasContext) int64 {
+	if gctx != nil && gctx.Config.FixedSetReadDepth100 > 0 {
+		return gctx.Config.FixedSetReadDepth100
+	}
 	d := store.setReadDepth100
 	if gctx != nil && gctx.Config.MinSetReadDepth100 > 0 && d < gctx.Config.MinSetReadDepth100 {
 		d = gctx.Config.MinSetReadDepth100
@@ -92,8 +102,13 @@ func (store *cacheStore) effectiveSetReadDepth100(gctx *types.GasContext) int64 
 	return d
 }
 
-// effectiveWriteDepth100 returns the write depth, floored by MinWriteDepth100.
+// effectiveWriteDepth100 returns the write depth.
+// If FixedWriteDepth100 is set, uses that exactly.
+// Otherwise uses the tree estimate, floored by MinWriteDepth100.
 func (store *cacheStore) effectiveWriteDepth100(gctx *types.GasContext) int64 {
+	if gctx != nil && gctx.Config.FixedWriteDepth100 > 0 {
+		return gctx.Config.FixedWriteDepth100
+	}
 	d := store.writeDepth100
 	if gctx != nil && gctx.Config.MinWriteDepth100 > 0 && d < gctx.Config.MinWriteDepth100 {
 		d = gctx.Config.MinWriteDepth100

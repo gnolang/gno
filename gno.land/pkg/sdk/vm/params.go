@@ -36,23 +36,29 @@ type Params struct {
 	DefaultDeposit      string         `json:"default_deposit" yaml:"default_deposit"`
 	StoragePrice        string         `json:"storage_price" yaml:"storage_price"`
 	StorageFeeCollector crypto.Address `json:"storage_fee_collector" yaml:"storage_fee_collector"`
-	MinGetReadDepth100  int64          `json:"min_get_read_depth_100" yaml:"min_get_read_depth_100"`
-	MinSetReadDepth100  int64          `json:"min_set_read_depth_100" yaml:"min_set_read_depth_100"`
-	MinWriteDepth100    int64          `json:"min_write_depth_100" yaml:"min_write_depth_100"`
+	MinGetReadDepth100    int64          `json:"min_get_read_depth_100" yaml:"min_get_read_depth_100"`
+	MinSetReadDepth100    int64          `json:"min_set_read_depth_100" yaml:"min_set_read_depth_100"`
+	MinWriteDepth100      int64          `json:"min_write_depth_100" yaml:"min_write_depth_100"`
+	FixedGetReadDepth100  int64          `json:"fixed_get_read_depth_100" yaml:"fixed_get_read_depth_100"`
+	FixedSetReadDepth100  int64          `json:"fixed_set_read_depth_100" yaml:"fixed_set_read_depth_100"`
+	FixedWriteDepth100    int64          `json:"fixed_write_depth_100" yaml:"fixed_write_depth_100"`
 }
 
 // NewParams creates a new Params object
 func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address, minGetReadDepth100, minSetReadDepth100, minWriteDepth100 int64) Params {
 	return Params{
-		SysNamesPkgPath:     namesPkgPath,
-		SysCLAPkgPath:       claPkgPath,
-		ChainDomain:         chainDomain,
-		DefaultDeposit:      defaultDeposit,
-		StoragePrice:        storagePrice,
-		StorageFeeCollector: storageFeeCollector,
-		MinGetReadDepth100:  minGetReadDepth100,
-		MinSetReadDepth100:  minSetReadDepth100,
-		MinWriteDepth100:    minWriteDepth100,
+		SysNamesPkgPath:      namesPkgPath,
+		SysCLAPkgPath:        claPkgPath,
+		ChainDomain:          chainDomain,
+		DefaultDeposit:       defaultDeposit,
+		StoragePrice:         storagePrice,
+		StorageFeeCollector:  storageFeeCollector,
+		MinGetReadDepth100:   minGetReadDepth100,
+		MinSetReadDepth100:   minSetReadDepth100,
+		MinWriteDepth100:     minWriteDepth100,
+		FixedGetReadDepth100: minGetReadDepth100,
+		FixedSetReadDepth100: minSetReadDepth100,
+		FixedWriteDepth100:   minWriteDepth100,
 	}
 }
 
@@ -169,6 +175,12 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		params.MinSetReadDepth100 = sdkparams.MustParamInt64("min_set_read_depth_100", value)
 	case "p:min_write_depth_100":
 		params.MinWriteDepth100 = sdkparams.MustParamInt64("min_write_depth_100", value)
+	case "p:fixed_get_read_depth_100":
+		params.FixedGetReadDepth100 = sdkparams.MustParamInt64("fixed_get_read_depth_100", value)
+	case "p:fixed_set_read_depth_100":
+		params.FixedSetReadDepth100 = sdkparams.MustParamInt64("fixed_set_read_depth_100", value)
+	case "p:fixed_write_depth_100":
+		params.FixedWriteDepth100 = sdkparams.MustParamInt64("fixed_write_depth_100", value)
 	default:
 		if strings.HasPrefix(key, "p:") {
 			panic(fmt.Sprintf("unknown vm param key: %q", key))
