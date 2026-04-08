@@ -20,7 +20,9 @@ func New(size int) BitSet {
 // Set turns on the bit at a given position.
 func (b *BitSet) Set(i int) {
 	idx := wordIndex(i)
-	b.grow(idx)
+	if idx >= len(b.words) {
+		b.grow(idx)
+	}
 	b.words[idx] |= bitMask(i) // Turn bit on
 }
 
@@ -131,10 +133,6 @@ func (b BitSet) String() string {
 }
 
 func (b *BitSet) grow(idx int) {
-	if idx < len(b.words) {
-		return
-	}
-
 	words := make([]uint64, idx+1)
 	copy(words, b.words)
 	b.words = words

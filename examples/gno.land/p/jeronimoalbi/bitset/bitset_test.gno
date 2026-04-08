@@ -6,6 +6,62 @@ import (
 	"gno.land/p/jeronimoalbi/bitset"
 )
 
+func TestBitSetSet(t *testing.T) {
+	cases := []struct {
+		name string
+		bits []int
+		want string
+	}{
+		{
+			name: "single bit 0",
+			bits: []int{0},
+			want: "1",
+		},
+		{
+			name: "single bit 5",
+			bits: []int{5},
+			want: "100000",
+		},
+		{
+			name: "multiple bits in same word",
+			bits: []int{0, 3, 7},
+			want: "10001001",
+		},
+		{
+			name: "bit at word boundary",
+			bits: []int{63},
+			want: "1000000000000000000000000000000000000000000000000000000000000000",
+		},
+		{
+			name: "bit across word boundary",
+			bits: []int{63, 64},
+			want: "10000000000000000000000000000000000000000000000000000000000000001",
+		},
+		{
+			name: "set same bit twice",
+			bits: []int{2, 2},
+			want: "100",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			var b bitset.BitSet
+
+			// Act
+			for _, v := range tc.bits {
+				b.Set(v)
+			}
+
+			// Assert
+			if got := b.String(); got != tc.want {
+				t.Errorf("expected %s, got %s", tc.want, got)
+			}
+		})
+	}
+}
+
 func TestBitSetTest(t *testing.T) {
 	var (
 		b      bitset.BitSet
