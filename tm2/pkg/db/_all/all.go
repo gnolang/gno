@@ -4,8 +4,6 @@ package all
 import (
 	_ "github.com/gnolang/gno/tm2/pkg/db/boltdb"
 	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
-	_ "github.com/gnolang/gno/tm2/pkg/db/lmdbdb"
-	_ "github.com/gnolang/gno/tm2/pkg/db/mdbxdb"
 	_ "github.com/gnolang/gno/tm2/pkg/db/memdb"
 	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 )

@@ -329,7 +329,7 @@ func DefaultBaseConfig() BaseConfig {
 		ABCI:              SocketABCI,
 		ProfListenAddress: "",
 		FastSyncMode:      true,
-		DBBackend:         "lmdbdb",
+		DBBackend:         "pebbledb",
 		DBPath:            DefaultDBDir,
 	}
 }

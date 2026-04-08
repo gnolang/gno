@@ -1,3 +1,5 @@
+//go:build cgo
+
 package benchstore
 
 // Storage benchmarks for comparing DB backends (PebbleDB vs LMDB vs MDBX).
