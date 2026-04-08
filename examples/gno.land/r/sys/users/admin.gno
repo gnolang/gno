@@ -87,6 +87,63 @@ func ProposeControllerAdditionAndRemoval(toAdd, toRemove address) dao.ProposalRe
 	return dao.NewProposalRequest("Add and Remove Whitelisted Callers From \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
 }
 
+// ProposeRegisterUser allows GovDAO to register a name without checking controllers
+func ProposeRegisterUser(name string, addr address) dao.ProposalRequest {
+	// Validate the name and address now, even though registerUser will validate again
+	if err := validateName(name); err != nil {
+		panic(err.Error())
+	}
+	if !addr.IsValid() {
+		panic(ErrInvalidAddress)
+	}
+
+	cb := func(cur realm) error {
+		return registerUser(cur, name, addr)
+	}
+
+	desc := "This proposal registers " + name + " with address " + addr.String() + " in `sys/users`."
+	return dao.NewProposalRequest("Register User to \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
+}
+
+// ProposeUpdateName allows GovDAO to update a name with an alias without checking controllers
+func ProposeUpdateName(addr address, newName string) dao.ProposalRequest {
+	if !addr.IsValid() {
+		panic(ErrInvalidAddress)
+	}
+	if err := validateName(newName); err != nil {
+		panic(err.Error())
+	}
+
+	cb := func(cur realm) error {
+		data := ResolveAddress(addr)
+		if data == nil {
+			return ErrUserNotExistOrDeleted
+		}
+		return data.updateName(newName)
+	}
+
+	desc := "This proposal updates address " + addr.String() + " with alias " + newName + " in `sys/users`."
+	return dao.NewProposalRequest("Update Name Alias in \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
+}
+
+// ProposeDeleteUser allows GovDAO to delete a user without checking controllers
+func ProposeDeleteUser(addr address) dao.ProposalRequest {
+	if !addr.IsValid() {
+		panic(ErrInvalidAddress)
+	}
+
+	cb := func(cur realm) error {
+		data := ResolveAddress(addr)
+		if data == nil {
+			return ErrUserNotExistOrDeleted
+		}
+		return data.delete()
+	}
+
+	desc := "This proposal deletes the user with address " + addr.String() + " in `sys/users`."
+	return dao.NewProposalRequest("Delete User in \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
+}
+
 // Helpers
 
 func deleteFromWhitelist(addr address) error {

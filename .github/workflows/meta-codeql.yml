@@ -1,0 +1,31 @@
+name: meta / codeql
+
+on:
+  push:
+    branches: ["master", "chain/*"]
+  pull_request:
+    branches: ["master", "chain/*"]
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+  schedule:
+    - cron: '22 17 * * 3'
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: go
+          build-mode: autobuild
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:go"

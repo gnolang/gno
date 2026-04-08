@@ -1434,6 +1434,7 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 				}
 			}
 		}
+		alloc.AllocateBlockItems(int64(len(nvs)))
 		block.Values = append(block.Values, nvs...)
 		return block.Values[pvl:]
 	} else if pvl > pnl {
