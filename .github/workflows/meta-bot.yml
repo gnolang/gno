@@ -51,7 +51,7 @@ jobs:
       (github.event_name != 'pull_request_review' || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name)
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      pull-requests: read # to read PR metadata for matrix generation
     outputs:
       pr-numbers: ${{ steps.pr-numbers.outputs.pr-numbers }}
 

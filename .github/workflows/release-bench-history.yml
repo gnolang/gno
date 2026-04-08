@@ -11,10 +11,7 @@ on:
       - tm2/**/*.go
 
 permissions:
-  # deployments permission to deploy GitHub pages website
-  deployments: write
-  # contents permission to update benchmark contents in gh-pages branch
-  contents: write
+  contents: read
 
 env:
   CGO_ENABLED: 0
@@ -23,6 +20,9 @@ jobs:
   benchmarks:
     if: ${{ github.repository == 'gnolang/gno' }}
     runs-on: [ self-hosted, Linux, X64, benchmarks ]
+    permissions:
+      deployments: write # to deploy GitHub pages website
+      contents: write # to update benchmark data in gh-benchmarks branch
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5

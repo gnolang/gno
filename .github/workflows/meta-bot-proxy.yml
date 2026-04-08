@@ -7,6 +7,8 @@ on:
     workflows: [meta / bot]
     types: [completed]
 
+permissions: {}
+
 jobs:
   # This workflow monitors any run completed on the GitHub Bot workflow and
   # checks if the event that triggered it is limited to read-only permissions
@@ -21,7 +23,7 @@ jobs:
     if: github.event.workflow_run.event == 'pull_request_review'
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      actions: write # to dispatch workflow_dispatch on meta-bot.yml
 
     steps:
       - name: Download artifact from previous run

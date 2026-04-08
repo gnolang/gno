@@ -10,6 +10,7 @@ on:
       - "go.sum"
       - "misc/genproto/**"
       - "docs/**"
+      - ".github/workflows/ci-codegen-verify.yml"
   pull_request:
     paths:
       - "**/*.go"
@@ -17,6 +18,7 @@ on:
       - "go.sum"
       - "misc/genproto/**"
       - "docs/**"
+      - ".github/workflows/ci-codegen-verify.yml"
   workflow_dispatch:
 
 permissions:

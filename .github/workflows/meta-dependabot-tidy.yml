@@ -7,12 +7,14 @@ on:
       - "**/go.mod"
       - "**/go.sum"
 
+permissions: {}
+
 jobs:
   tidy_go_mods:
     runs-on: ubuntu-latest
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     permissions:
-      contents: write
+      contents: write # to commit the tidied go.mod/go.sum files
     steps:
       - name: Checkout code
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5

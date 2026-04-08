@@ -10,6 +10,7 @@ on:
       # We trigger the testing workflow for changes to the main go.mod,
       # since this can affect test results
       - go.mod
+      - .github/workflows/ci-dir-tm2.yml
   workflow_dispatch:
 
 permissions:

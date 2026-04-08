@@ -25,22 +25,20 @@ jobs:
         with:
           persist-credentials: false
       - name: Download actionlint
-        id: get_actionlint
-        run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash | bash # v1.7.12
         shell: bash
       - name: Run actionlint
-        env:
-          ACTIONLINT: ${{ steps.get_actionlint.outputs.executable }}
-        run: $ACTIONLINT -color
+        run: ./actionlint -color
         shell: bash
 
   zizmor:
     name: zizmor
     runs-on: ubuntu-latest
     permissions:
-      security-events: write
+      security-events: write # to upload SARIF results to the Security tab
       contents: read
-      actions: read
+      actions: read # to read workflow files for analysis
     steps:
       - name: Checkout code
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5

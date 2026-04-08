@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/dependabot.yml'
-      - '.github/workflows/dependabot-validate.yml'
+      - '.github/workflows/meta-dependabot-validate.yml'
 
 permissions:
   contents: read

@@ -12,6 +12,7 @@ on:
       - gno.land/**
       - gnovm/**
       - tm2/**
+      - .github/workflows/ci-dir-contribs.yml
 
   workflow_dispatch:
 

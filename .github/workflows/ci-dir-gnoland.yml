@@ -11,6 +11,7 @@ on:
       - tm2/**
       - examples/**
       - go.mod
+      - .github/workflows/ci-dir-gnoland.yml
   workflow_dispatch:
 
 permissions:
