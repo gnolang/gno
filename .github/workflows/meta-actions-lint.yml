@@ -1,4 +1,4 @@
-name: Actions Lint
+name: meta / actions-lint
 
 on:
   push:
