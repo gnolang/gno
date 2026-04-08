@@ -5,7 +5,7 @@ import (
 	"chain/runtime"
 	"errors"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
@@ -126,8 +126,11 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	case dao.NoVote:
 		status.AllVotes.SetMember(tie, caller, mem)
 		status.NoVotes.SetMember(tie, caller, mem)
+	case dao.AbstainVote:
+		status.AllVotes.SetMember(tie, caller, mem)
+		status.AbstainVotes.SetMember(tie, caller, mem)
 	default:
-		return errors.New("voting can only be YES or NO")
+		return errors.New("voting can only be YES, NO, or ABSTAIN")
 	}
 
 	return nil
@@ -161,6 +164,25 @@ func (g *GovDAO) PreExecuteProposal(pid dao.ProposalID) (bool, error) {
 	}
 
 	return false, errors.New(ufmt.Sprintf("proposal didn't reach supermajority yet: %v", law.Supermajority))
+}
+
+func (g *GovDAO) ExecuteProposal(pid dao.ProposalID, e dao.Executor) error {
+	if e == nil {
+		panic("an executor is required to execute the proposal")
+	}
+
+	status := g.pss.GetStatus(pid)
+	if status == nil {
+		panic("proposal not found")
+	}
+
+	err := e.Execute(cross)
+	if err != nil {
+		status.Accepted = false
+		status.Denied = true
+		status.DeniedReason = "execution failed: " + err.Error()
+	}
+	return err
 }
 
 func (g *GovDAO) Render(pkgPath string, path string) string {

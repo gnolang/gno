@@ -1,0 +1,78 @@
+# Reusable workflow for Gno packages/realms: fmt + lint + test.
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: "Path to run gno tools on"
+        required: true
+        type: string
+      go-version:
+        description: "Go version to use"
+        required: false
+        type: string
+        default: "1.24.x"
+      debug:
+        description: "Enable debug logs"
+        required: false
+        type: boolean
+      run-fmt:
+        description: "Run gno fmt"
+        required: false
+        type: boolean
+        default: true
+      run-lint:
+        description: "Run gno lint"
+        required: false
+        type: boolean
+        default: true
+      run-test:
+        description: "Run gno test"
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  fmt:
+    name: fmt
+    if: inputs.run-fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - run: go run ./gnovm/cmd/gno -C ${{ inputs.path }} fmt -diff ./...
+
+  lint:
+    name: lint
+    if: inputs.run-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - run: go run ./gnovm/cmd/gno lint -C ${{ inputs.path }} -v ./...
+
+  test:
+    name: test
+    if: inputs.run-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Setup debug env
+        if: inputs.debug
+        run: |
+          export LOG_PATH_DIR=${{ runner.temp }}/logs
+          mkdir -p $LOG_PATH_DIR
+          echo "LOG_LEVEL=debug" >> $GITHUB_ENV
+          echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
+
+      - name: Run gno test
+        run: go run ./gnovm/cmd/gno test -C ${{ inputs.path }} -v -print-runtime-metrics -print-events ./...

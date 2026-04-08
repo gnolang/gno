@@ -10,7 +10,7 @@ func main() {
 }
 
 // Error:
-// main/shift_d32a.gno:7:7-26: cannot convert untyped bigdec to integer -- 1.2 not an exact integer
+// main/shift_d32a.gno:7:16-24: invalid operation: shifted operand (const (1.2 <untyped> bigdec)) (<untyped> bigdec) must be integer
 
 // TypeCheckError:
 // main/shift_d32a.gno:7:16: invalid operation: shifted operand 1.2 (untyped float constant) must be integer

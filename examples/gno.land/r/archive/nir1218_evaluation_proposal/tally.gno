@@ -1,6 +1,6 @@
 package evaluation
 
-import "gno.land/p/nt/avl"
+import "gno.land/p/nt/avl/v0"
 
 type TallyResult struct {
 	results avl.Tree

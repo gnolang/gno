@@ -986,8 +986,8 @@ func OpForLoop() {
 }
 
 /*
-OpEval, struct { a [](const-type string), b map[(const-type string)] (const-type string), c <-chan (const-type string), d func(), e interface {  } }{}
-OpEval, struct { a [](const-type string), b map[(const-type string)] (const-type string), c <-chan (const-type string), d func(), e interface {  } }
+OpEval, struct { a [](const-type string), b map[(const-type string)] (const-type string), c *(const-type string), d func(), e interface {  } }{}
+OpEval, struct { a [](const-type string), b map[(const-type string)] (const-type string), c *(const-type string), d func(), e interface {  } }
 OpEval, a [](const-type string)
 OpEval, [](const-type string)
 OpEval, (const-type string)
@@ -999,11 +999,11 @@ OpEval, (const-type string)
 OpEval, (const-type string)
 OpMapType, (typeval{string} type{})
 OpFieldType, b map[(const-type string)] (const-type string)
-OpEval, c <-chan (const-type string)
-OpEval, <-chan (const-type string)
+OpEval, c *(const-type string)
+OpEval, *(const-type string)
 OpEval, (const-type string)
-OpChanType, <-chan (const-type string)
-OpFieldType, c <-chan (const-type string)
+OpStarType, *(const-type string)
+OpFieldType, c *(const-type string)
 OpEval, d func()
 OpEval, func()
 OpFuncType, func()
@@ -1012,10 +1012,10 @@ OpEval, e interface {  }
 OpEval, interface {  }
 OpInterfaceType, interface {  }
 OpFieldType, e interface {  }
-OpStructType, struct { a [](const-type string), b map[(const-type string)] (const-type string), c <-chan (const-type string), d func(), e interface {  } }
-OpCompositeLit, struct { a [](const-type string), b map[(const-type string)] (const-type string), c <-chan (const-type string), d func(), e interface {  } }{}
-OpStructLit, struct { a [](const-type string), b map[(const-type string)] (const-type string), c <-chan (const-type string), d func(), e interface {  } }{}
-OpDefine, t<VPBlock(1,0)> := struct { a [](const-type string), b map[(const-type string)] (const-type string), c <-chan (const-type string), d func(), e interface
+OpStructType, struct { a [](const-type string), b map[(const-type string)] (const-type string), c *(const-type string), d func(), e interface {  } }
+OpCompositeLit, struct { a [](const-type string), b map[(const-type string)] (const-type string), c *(const-type string), d func(), e interface {  } }{}
+OpStructLit, struct { a [](const-type string), b map[(const-type string)] (const-type string), c *(const-type string), d func(), e interface {  } }{}
+OpDefine, t<VPBlock(1,0)> := struct { a [](const-type string), b map[(const-type string)] (const-type string), c *(const-type string), d func(), e interface
 OpExec, bodyStmt[0/0/1]=(end)
 OpExec, return
 OpReturnFromBlock, [FRAME FUNC:OpTypes RECV:(undefined) (0 args) 1/0/0/0/1 LASTPKG:main LASTRLM:Realm(nil)]
@@ -1025,7 +1025,7 @@ func OpTypes() {
 	t := struct {
 		a []string
 		b map[string]string
-		c chan string
+		c *string
 		d func()
 		e any
 	}{}

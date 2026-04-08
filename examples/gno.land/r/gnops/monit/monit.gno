@@ -10,9 +10,9 @@ import (
 	"chain/runtime"
 	"time"
 
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/ufmt"
-	"gno.land/p/nt/watchdog"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/p/nt/watchdog/v0"
 )
 
 var (
@@ -37,7 +37,7 @@ func Incr(cur realm) int {
 // Reset resets the realm state.
 // This function can only be called by the admin.
 func Reset(cur realm) {
-	Ownable.AssertOwnedByPrevious()
+	Ownable.AssertOwned()
 	counter = 0
 	lastCaller = runtime.PreviousRealm().Address()
 	lastUpdate = time.Now()
