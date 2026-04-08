@@ -1,0 +1,51 @@
+name: ci / gnoland
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - gno.land/**
+      - gnovm/**
+      - tm2/**
+      - examples/**
+      - go.mod
+  workflow_dispatch:
+
+jobs:
+  main:
+    uses: ./.github/workflows/_ci-go.yml
+    with:
+      modulepath: "gno.land"
+      tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
+      # FIXME(gfanton): run txtar integration test sequentially to avoid timeout
+      tests-ts-seq: true
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  gnoweb_generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/Jod
+      - run: |
+          make -C gno.land/pkg/gnoweb fclean generate
+          git diff --exit-code || \
+             (echo "'gnoweb generate' out of date, please run 'make gnoweb.generate' within './gno.land'" && exit 1)
+
+  gnoweb_front_lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/Jod
+      - run: make -C gno.land/pkg/gnoweb/frontend lint.ci

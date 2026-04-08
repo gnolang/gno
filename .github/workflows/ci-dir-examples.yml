@@ -1,0 +1,75 @@
+name: ci / examples
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - gnovm/**
+      - examples/**
+      - misc/deployments/**
+      - contribs/gnogenesis/**
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: Enable debug mode for gno test
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  gno2go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go install -v ./gnovm/cmd/gno
+      - run: go run ./gnovm/cmd/gno tool transpile -v --gobuild ./examples
+
+  gno-checks:
+    uses: ./.github/workflows/_ci-gno.yml
+    with:
+      debug: ${{ inputs.debug || false }}
+      path: "examples"
+
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - working-directory: examples
+        run: |
+          if make -qp | grep -q '^generate:'; then
+            make generate
+            if [ "$(git status -s)" != "" ]; then
+              echo "'make generate' creates files that differ from the git tree, please run 'make generate' and commit:"
+              git status -s
+              git diff
+              exit 1
+            fi
+          else
+            echo "'make generate' rule not found, skipping."
+          fi
+
+  mod-tidy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - working-directory: ./examples
+        run: |
+          make tidy
+          git diff --exit-code || (echo "Some gnomod.toml files are not tidy, please run 'make tidy'." && exit 1)
