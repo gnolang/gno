@@ -24,7 +24,7 @@ func New(size uint) BitSet {
 func (b *BitSet) Set(i uint) {
 	idx := wordIndex(i)
 	if idx >= len(b.words) {
-		b.grow(idx)
+		b.grow(idx + 1)
 	}
 	b.words[idx] |= bitMask(i) // Turn bit on
 }
@@ -83,8 +83,9 @@ func (b *BitSet) And(other BitSet) {
 // Or performs an in-place OR (union) with other bitset.
 // Current bitset grows if the other bitset is bigger.
 func (b *BitSet) Or(other BitSet) {
-	if len(other.words) > len(b.words) {
-		b.grow(len(other.words) - 1)
+	otherLen := len(other.words)
+	if otherLen > len(b.words) {
+		b.grow(otherLen)
 	}
 
 	for i := range other.words {
@@ -95,8 +96,9 @@ func (b *BitSet) Or(other BitSet) {
 // Xor performs an in-place XOR with other.
 // Current bitset grows if the other bitset is bigger.
 func (b *BitSet) Xor(other BitSet) {
-	if len(other.words) > len(b.words) {
-		b.grow(len(other.words) - 1)
+	otherLen := len(other.words)
+	if otherLen > len(b.words) {
+		b.grow(otherLen)
 	}
 
 	for i := range other.words {
@@ -152,8 +154,8 @@ func (b BitSet) PaddedString() string {
 	return s
 }
 
-func (b *BitSet) grow(idx int) {
-	words := make([]uint, idx+1)
+func (b *BitSet) grow(length int) {
+	words := make([]uint, length)
 	copy(words, b.words)
 	b.words = words
 }
