@@ -829,18 +829,14 @@ func (pv *PackageValue) deriveFBlocksMap(store Store) {
 	}
 }
 
-// Retrieves the block from store if necessary, and if so fills all the values
-// of the block.
+// Retrieves the block from store if necessary.
+// Block values are filled lazily via GetPointerToInt/fillValueTV.
 func (pv *PackageValue) GetBlock(store Store) *Block {
 	bv := pv.Block
 	switch bv := bv.(type) {
 	case RefValue:
 		bb := store.GetObject(bv.ObjectID).(*Block)
 		pv.Block = bb
-		for i := range bb.Values {
-			tv := &bb.Values[i]
-			fillValueTV(store, tv)
-		}
 		return bb
 	case *Block:
 		return bv
@@ -2736,6 +2732,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		switch cbv := cv.Base.(type) {
 		case *HeapItemValue:
 			fillValueTV(store, &cbv.Value)
+			cv.TV = &cbv.Value
 		case RefValue:
 			base := store.GetObject(cbv.ObjectID).(Value)
 			cv.Base = base
@@ -2755,6 +2752,15 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 				vpv := cbv.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
 			case *HeapItemValue:
+				/* Structs and blocks don't need explicit
+				filling here because GetPointerToInt already
+				does it — it calls fillValueTV on the specific
+				element before returning the pointer.
+				HeapItemValue is the odd one out because it
+				wraps a single value (no index), so there's no
+				GetPointerToInt call — it just takes &cbv.Value
+				directly, skipping the fill step. */
+				fillValueTV(store, &cbv.Value)
 				cv.TV = &cbv.Value
 			default:
 				panic("should not happen")

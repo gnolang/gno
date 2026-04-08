@@ -1053,7 +1053,8 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 	}
 	// Iterate over public functions.
 	pblock := pv.GetBlock(store)
-	for _, tv := range pblock.Values {
+	for i := range pblock.Values {
+		tv := pblock.GetPointerToInt(store, i).TV
 		if tv.T.Kind() != gno.FuncKind {
 			continue // must be function
 		}
