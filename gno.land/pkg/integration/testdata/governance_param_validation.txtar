@@ -12,17 +12,17 @@ loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 gnoland start
 
 ## Deploy a realm and verify it works
-gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/test/hello -gas-fee 1300000ugnot -gas-wanted 13_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/test/hello -gas-fee 400001ugnot -gas-wanted 4_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 670000ugnot -gas-wanted 6_700_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 220001ugnot -gas-wanted 2_200_000 -broadcast -chainid=tendermint_test test1
 stdout 'hello world'
 
 ## Propose setting StoragePrice to an invalid value
-gnokey maketx run -gas-fee 4600001ugnot -gas-wanted 46_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_invalid.gno
+gnokey maketx run -gas-fee 3700001ugnot -gas-wanted 37_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_invalid.gno
 stdout OK!
 
-gnokey maketx run -gas-fee 3600001ugnot -gas-wanted 36_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_yes.gno
+gnokey maketx run -gas-fee 2800001ugnot -gas-wanted 28_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_yes.gno
 stdout OK!
 
 ## Executing the proposal should fail because the value is invalid
@@ -34,7 +34,7 @@ gnokey query params/vm:p:storage_price
 stdout '100ugnot'
 
 ## VM operations should still work
-gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 670000ugnot -gas-wanted 6_700_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 220001ugnot -gas-wanted 2_200_000 -broadcast -chainid=tendermint_test test1
 stdout 'hello world'
 
 -- hello/gnomod.toml --

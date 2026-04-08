@@ -3,13 +3,13 @@
 ## start a new node
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK/contracts -pkgpath gno.land/r/foo -gas-fee 1800001ugnot -gas-wanted 18_000_000 -max-deposit 1500000ugnot -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/contracts -pkgpath gno.land/r/foo -gas-fee 750001ugnot -gas-wanted 7_500_000 -max-deposit 1500000ugnot -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 
 # Users are not allowed to withdraw deposits from the realm balance via the realm banker.
 ## Get realm gno.land/r/foo (g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469) balance
-gnokey maketx call -pkgpath gno.land/r/foo -func PkgAddress -gas-fee 800001ugnot -gas-wanted 8_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo -func PkgAddress -gas-fee 350001ugnot -gas-wanted 3_500_000 -broadcast -chainid=tendermint_test test1
 stdout 'g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469'
 stdout OK!
 
@@ -19,7 +19,7 @@ stdout '"coins": ""'
 
 
 ## Get realm gno.land/r/foo storage deposit address  balance (g1nln0nrcd20s6a2736n864ma8lac0zep8hw7th9) balance
-gnokey maketx call -pkgpath gno.land/r/foo -func StorageDepositAddress -gas-fee 800001ugnot -gas-wanted 8_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo -func StorageDepositAddress -gas-fee 350001ugnot -gas-wanted 3_500_000 -broadcast -chainid=tendermint_test test1
 stdout 'g1nln0nrcd20s6a2736n864ma8lac0zep8hw7th9'
 stdout OK!
 
@@ -60,7 +60,7 @@ stderr 'insufficient coins error'
 
 
 ## Origin banker send within user's allowed amount
-gnokey maketx call -pkgpath gno.land/r/foo -func OriginSend  -args $test1_user_addr -args 1 -send 1ugnot -gas-fee 900001ugnot -gas-wanted 9_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo -func OriginSend  -args $test1_user_addr -args 1 -send 1ugnot -gas-fee 450001ugnot -gas-wanted 4_500_000 -broadcast -chainid=tendermint_test test1
 stdout 'OK'
 
 ## Origin banker send more than user's allowed amount

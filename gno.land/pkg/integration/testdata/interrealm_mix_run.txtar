@@ -7,8 +7,8 @@ loadpkg gno.land/p/nt/ufmt/v0
 gnoland start
 
 ## load packages
-gnokey maketx addpkg -pkgdir $WORK/utils -pkgpath gno.land/p/test/utils -gas-fee 1300001ugnot -gas-wanted 13_000_000 -broadcast -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 1600001ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/utils -pkgpath gno.land/p/test/utils -gas-fee 460001ugnot -gas-wanted 4_600_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 670001ugnot -gas-wanted 6_700_000 -broadcast -chainid=tendermint_test test1
 
 ## validate initial state
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
@@ -21,41 +21,41 @@ gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 0, value = 0'
 
 ## run crossing_mutation
-gnokey maketx run runner $WORK/run/crossing_mutation.gno -gas-fee 970001ugnot -gas-wanted 9_700_000 -broadcast -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/crossing_mutation.gno -gas-fee 380001ugnot -gas-wanted 3_800_000 -broadcast -chainid=tendermint_test
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 0, value = 1'
 
 ## run borrowed_object_mutation
-gnokey maketx run runner $WORK/run/borrowed_object_mutation.gno -gas-fee 1100001ugnot -gas-wanted 11_000_000 -broadcast -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/borrowed_object_mutation.gno -gas-fee 510001ugnot -gas-wanted 5_100_000 -broadcast -chainid=tendermint_test
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 1, value = 1'
 
 ## run object_mutation_rooted_at_caller
-gnokey maketx run runner $WORK/run/object_mutation_rooted_at_caller.gno -gas-fee 920001ugnot -gas-wanted 9_200_000 -broadcast -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/object_mutation_rooted_at_caller.gno -gas-fee 450001ugnot -gas-wanted 4_500_000 -broadcast -chainid=tendermint_test
 
 ## run call_mutate_object
-gnokey maketx run runner $WORK/run/call_mutate_object.gno -gas-fee 940001ugnot -gas-wanted 9_400_000 -broadcast -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/call_mutate_object.gno -gas-fee 470001ugnot -gas-wanted 4_700_000 -broadcast -chainid=tendermint_test
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 2, value = 1'
 
 ## run inspect_realms_crossing
-gnokey maketx run runner $WORK/run/inspect_realms_crossing.gno -gas-fee 920001ugnot -gas-wanted 9_200_000 -broadcast -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/inspect_realms_crossing.gno -gas-fee 450001ugnot -gas-wanted 4_500_000 -broadcast -chainid=tendermint_test
 
 ## run inspect_realms_non_crossing
-gnokey maketx run runner $WORK/run/inspect_realms_non_crossing.gno -gas-fee 920001ugnot -gas-wanted 9_200_000 -broadcast -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/inspect_realms_non_crossing.gno -gas-fee 450001ugnot -gas-wanted 4_500_000 -broadcast -chainid=tendermint_test
 
 ## run mutate_object_with_borrow_crossing
-gnokey maketx run runner $WORK/run/mutate_object_with_borrow_crossing.gno -gas-fee 940001ugnot -gas-wanted 9_400_000 -broadcast -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/mutate_object_with_borrow_crossing.gno -gas-fee 470001ugnot -gas-wanted 4_700_000 -broadcast -chainid=tendermint_test
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 3, value = 1'
 
 ## run mutate_crossing_object
-gnokey maketx run runner $WORK/run/mutate_crossing_object.gno -gas-fee 930001ugnot -gas-wanted 9_300_000 -broadcast -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/mutate_crossing_object.gno -gas-fee 460001ugnot -gas-wanted 4_600_000 -broadcast -chainid=tendermint_test
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 4, value = 1'
 
 ## run mutate_crossing_object_rooted_at_caller
-gnokey maketx run runner $WORK/run/mutate_crossing_object_rooted_at_caller.gno -gas-fee 920001ugnot -gas-wanted 9_200_000 -broadcast -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/mutate_crossing_object_rooted_at_caller.gno -gas-fee 450001ugnot -gas-wanted 4_500_000 -broadcast -chainid=tendermint_test
 
 -- run/non_crossing_mutation.gno --
 package main

@@ -1,14 +1,14 @@
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1400000ugnot -gas-wanted 14_000_000 -max-deposit 502500ugnot -broadcast -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/bar -gas-fee 1300000ugnot -gas-wanted 13_000_000 -max-deposit 502500ugnot -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 450001ugnot -gas-wanted 4_500_000 -max-deposit 502500ugnot -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/bar -gas-fee 400001ugnot -gas-wanted 4_000_000 -max-deposit 502500ugnot -broadcast -chainid=tendermint_test test1
 
-gnokey maketx call -pkgpath gno.land/r/foo -func NewS -args "struct"  -gas-fee 850000ugnot -gas-wanted 8_500_000  -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo -func NewS -args "struct"  -gas-fee 290001ugnot -gas-wanted 2_900_000  -broadcast -chainid=tendermint_test test1
 stdout 'GAS USED: +\d+'
 
 gnoland restart
 
-gnokey maketx call -pkgpath gno.land/r/bar -func NewS -args "struct"  -gas-fee 850000ugnot -gas-wanted 8_500_000  -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/bar -func NewS -args "struct"  -gas-fee 290001ugnot -gas-wanted 2_900_000  -broadcast -chainid=tendermint_test test1
 stdout 'GAS USED: +\d+'
 
 

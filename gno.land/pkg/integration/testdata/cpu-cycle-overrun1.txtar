@@ -3,20 +3,20 @@ loadpkg gno.land/p/nt/avl/v0
 # start a new node
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/cpu_cycle_overrun1 -gas-fee 2500001ugnot -gas-wanted 25_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/cpu_cycle_overrun1 -gas-fee 1600001ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # Call AddData 3 times
-gnokey maketx call -pkgpath gno.land/r/cpu_cycle_overrun1 -func AddData -gas-fee 6400001ugnot -gas-wanted 64_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/cpu_cycle_overrun1 -func AddData -gas-fee 5900001ugnot -gas-wanted 59_000_000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/cpu_cycle_overrun1 -func AddData -gas-fee 7700001ugnot -gas-wanted 77_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 gnokey maketx call -pkgpath gno.land/r/cpu_cycle_overrun1 -func AddData -gas-fee 8400001ugnot -gas-wanted 84_000_000 -broadcast -chainid=tendermint_test test1
-stdout OK!
-gnokey maketx call -pkgpath gno.land/r/cpu_cycle_overrun1 -func AddData -gas-fee 9100001ugnot -gas-wanted 91_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # Call AddData one more time. The call to Render used to hang. If you commented this out, then the call to Render would return quickly.
 # This bug was fixed by https://github.com/gnolang/gno/pull/4060
-gnokey maketx call -pkgpath gno.land/r/cpu_cycle_overrun1 -func AddData -gas-fee 9400001ugnot -gas-wanted 94_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/cpu_cycle_overrun1 -func AddData -gas-fee 8700001ugnot -gas-wanted 87_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # Call Render

@@ -4,19 +4,19 @@ loadpkg gno.land/r/gnoland/ghverify
 gnoland start
 
 # make a verification request
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func RequestVerification -args 'deelawn' -gas-fee 2700001ugnot -gas-wanted 27_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func RequestVerification -args 'deelawn' -gas-fee 2100001ugnot -gas-wanted 21_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # request tasks to complete (this is done by the agent)
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint -args 'request' -gas-fee 2900001ugnot -gas-wanted 29_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint -args 'request' -gas-fee 2500001ugnot -gas-wanted 25_000_000 -broadcast -chainid=tendermint_test test1
 stdout '\("\[\{\\"id\\":\\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\\",\\"type\\":\\"0\\",\\"value_type\\":\\"string\\",\\"tasks\\":\[\{\\"gno_address\\":\\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\\",\\"github_handle\\":\\"deelawn\\"\}\]\}\]" string\)'
 
 # a verification request was made but there should be no verified address
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetHandleByAddress -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -gas-fee 1100001ugnot -gas-wanted 11_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetHandleByAddress -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -gas-fee 690001ugnot -gas-wanted 6_900_000 -broadcast -chainid=tendermint_test test1
 stdout ""
 
 # a verification request was made but there should be no verified handle
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 1100001ugnot -gas-wanted 11_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 680001ugnot -gas-wanted 6_800_000 -broadcast -chainid=tendermint_test test1
 stdout ""
 
 # fail on ingestion with a bad task ID
@@ -24,15 +24,15 @@ stdout ""
 stderr 'invalid ingest id: a'
 
 # the agent publishes their response to the task and the verification is complete
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint -args 'ingest,g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5,OK' -gas-fee 2900001ugnot -gas-wanted 29_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint -args 'ingest,g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5,OK' -gas-fee 2200001ugnot -gas-wanted 22_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # get verified github handle by gno address
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetHandleByAddress -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -gas-fee 1100001ugnot -gas-wanted 11_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetHandleByAddress -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -gas-fee 700001ugnot -gas-wanted 7_000_000 -broadcast -chainid=tendermint_test test1
 stdout "deelawn"
 
 # get verified gno address by github handle
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 1100001ugnot -gas-wanted 11_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 700001ugnot -gas-wanted 7_000_000 -broadcast -chainid=tendermint_test test1
 stdout "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
 gnokey query vm/qrender --data 'gno.land/r/gnoland/ghverify:'

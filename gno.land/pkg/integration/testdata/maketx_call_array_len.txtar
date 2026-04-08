@@ -6,7 +6,7 @@ loadpkg gno.land/r/test/arrlen $WORK/realm
 gnoland start
 
 # Correct length (32 bytes) should succeed.
-gnokey maketx call -pkgpath gno.land/r/test/arrlen -func CheckLen -args 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' -gas-fee 930001ugnot -gas-wanted 9_300_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/arrlen -func CheckLen -args 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' -gas-fee 480001ugnot -gas-wanted 4_800_000 -broadcast -chainid=tendermint_test test1
 stdout '("32" string)'
 
 # Oversized input (100 bytes) must be rejected.
