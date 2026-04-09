@@ -205,18 +205,29 @@ func miniMerkleInnerOps(m *MiniMerkle, index int) []*ics23.InnerOp {
 // --- MutableTree wrappers ---
 
 func (t *MutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
-	imm := t.immutableForProof()
+	imm, err := t.immutableForProof()
+	if err != nil {
+		return nil, err
+	}
 	return imm.GetMembershipProof(key)
 }
 
 func (t *MutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
-	imm := t.immutableForProof()
+	imm, err := t.immutableForProof()
+	if err != nil {
+		return nil, err
+	}
 	return imm.GetNonMembershipProof(key)
 }
 
-// immutableForProof creates an ImmutableTree with a value resolver for proof generation.
-func (t *MutableTree) immutableForProof() *ImmutableTree {
-	imm := &ImmutableTree{root: t.root, version: t.version}
+// immutableForProof creates an ImmutableTree from the last committed state
+// with a value resolver for proof generation. Returns an error if no version
+// has been committed yet.
+func (t *MutableTree) immutableForProof() (*ImmutableTree, error) {
+	if t.lastSaved == nil {
+		return nil, ErrNoCommittedState
+	}
+	imm := &ImmutableTree{root: t.lastSaved, version: t.version}
 	if t.ndb != nil {
 		imm.valueResolver = func(vk []byte) ([]byte, error) {
 			return t.ndb.GetValue(vk)
@@ -230,5 +241,5 @@ func (t *MutableTree) immutableForProof() *ImmutableTree {
 			return val, nil
 		}
 	}
-	return imm
+	return imm, nil
 }

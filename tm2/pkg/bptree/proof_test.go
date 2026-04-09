@@ -1,6 +1,7 @@
 package bptree
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
@@ -16,8 +17,9 @@ func newTestDB(t *testing.T) *memdb.MemDB {
 func TestProof_MembershipSingleKey(t *testing.T) {
 	tree := NewMutableTreeMem()
 	tree.Set([]byte("hello"), []byte("world"))
+	tree.SaveVersion()
 
-	root := tree.WorkingHash()
+	root := tree.Hash()
 	proof, err := tree.GetMembershipProof([]byte("hello"))
 	if err != nil {
 		t.Fatalf("GetMembershipProof: %v", err)
@@ -34,8 +36,9 @@ func TestProof_MembershipMultipleKeys(t *testing.T) {
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "pk%04d", i), fmt.Appendf(nil, "pv%04d", i))
 	}
+	tree.SaveVersion()
 
-	root := tree.WorkingHash()
+	root := tree.Hash()
 
 	for _, idx := range []int{0, 1, 25, 50, 75, 99} {
 		key := fmt.Appendf(nil, "pk%04d", idx)
@@ -55,8 +58,9 @@ func TestProof_MembershipMultipleKeys(t *testing.T) {
 func TestProof_MembershipWrongValue(t *testing.T) {
 	tree := NewMutableTreeMem()
 	tree.Set([]byte("k"), []byte("v"))
+	tree.SaveVersion()
 
-	root := tree.WorkingHash()
+	root := tree.Hash()
 	proof, err := tree.GetMembershipProof([]byte("k"))
 	if err != nil {
 		t.Fatalf("GetMembershipProof: %v", err)
@@ -70,6 +74,7 @@ func TestProof_MembershipWrongValue(t *testing.T) {
 func TestProof_MembershipWrongRoot(t *testing.T) {
 	tree := NewMutableTreeMem()
 	tree.Set([]byte("k"), []byte("v"))
+	tree.SaveVersion()
 
 	proof, _ := tree.GetMembershipProof([]byte("k"))
 	fakeRoot := []byte("00000000000000000000000000000000")
@@ -82,6 +87,7 @@ func TestProof_MembershipWrongRoot(t *testing.T) {
 func TestProof_MembershipMissingKey(t *testing.T) {
 	tree := NewMutableTreeMem()
 	tree.Set([]byte("a"), []byte("1"))
+	tree.SaveVersion()
 
 	_, err := tree.GetMembershipProof([]byte("missing"))
 	if err == nil {
@@ -95,8 +101,9 @@ func TestProof_MembershipLargeTree(t *testing.T) {
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "lg%05d", i), fmt.Appendf(nil, "val%05d", i))
 	}
+	tree.SaveVersion()
 
-	root := tree.WorkingHash()
+	root := tree.Hash()
 
 	for _, idx := range []int{0, 100, 250, 499} {
 		key := fmt.Appendf(nil, "lg%05d", idx)
@@ -117,8 +124,9 @@ func TestProof_NonMembershipMiddle(t *testing.T) {
 	tree := NewMutableTreeMem()
 	tree.Set([]byte("a"), []byte("1"))
 	tree.Set([]byte("c"), []byte("3"))
+	tree.SaveVersion()
 
-	root := tree.WorkingHash()
+	root := tree.Hash()
 
 	proof, err := tree.GetNonMembershipProof([]byte("b"))
 	if err != nil {
@@ -134,8 +142,9 @@ func TestProof_NonMembershipBeforeAll(t *testing.T) {
 	tree := NewMutableTreeMem()
 	tree.Set([]byte("b"), []byte("2"))
 	tree.Set([]byte("c"), []byte("3"))
+	tree.SaveVersion()
 
-	root := tree.WorkingHash()
+	root := tree.Hash()
 
 	proof, err := tree.GetNonMembershipProof([]byte("a"))
 	if err != nil {
@@ -151,8 +160,9 @@ func TestProof_NonMembershipAfterAll(t *testing.T) {
 	tree := NewMutableTreeMem()
 	tree.Set([]byte("a"), []byte("1"))
 	tree.Set([]byte("b"), []byte("2"))
+	tree.SaveVersion()
 
-	root := tree.WorkingHash()
+	root := tree.Hash()
 
 	proof, err := tree.GetNonMembershipProof([]byte("z"))
 	if err != nil {
@@ -167,6 +177,7 @@ func TestProof_NonMembershipAfterAll(t *testing.T) {
 func TestProof_NonMembershipExistingKey(t *testing.T) {
 	tree := NewMutableTreeMem()
 	tree.Set([]byte("a"), []byte("1"))
+	tree.SaveVersion()
 
 	_, err := tree.GetNonMembershipProof([]byte("a"))
 	if err == nil {
@@ -180,8 +191,9 @@ func TestProof_NonMembershipLargeTree(t *testing.T) {
 	for i := 0; i < 200; i += 2 {
 		tree.Set(fmt.Appendf(nil, "nm%04d", i), []byte("v"))
 	}
+	tree.SaveVersion()
 
-	root := tree.WorkingHash()
+	root := tree.Hash()
 
 	for _, idx := range []int{1, 51, 99, 151, 199} {
 		key := fmt.Appendf(nil, "nm%04d", idx)
@@ -205,8 +217,9 @@ func TestProof_NonMembershipCrossLeaf(t *testing.T) {
 	if tree.Height() < 1 {
 		t.Fatalf("need multiple leaves (height=%d)", tree.Height())
 	}
+	tree.SaveVersion()
 
-	root := tree.WorkingHash()
+	root := tree.Hash()
 
 	// Probe EVERY odd number — some will be cross-leaf boundaries
 	for i := 1; i < 200; i += 2 {
@@ -231,8 +244,9 @@ func TestProof_MembershipMultiLevelTree(t *testing.T) {
 	if tree.Height() < 2 {
 		t.Fatalf("need height >= 2, got %d", tree.Height())
 	}
+	tree.SaveVersion()
 
-	root := tree.WorkingHash()
+	root := tree.Hash()
 
 	for _, idx := range []int{0, 500, 1000, 1500, 1999} {
 		key := fmt.Appendf(nil, "ml%06d", idx)
@@ -261,7 +275,7 @@ func TestProof_MembershipDBBacked(t *testing.T) {
 	tree2 := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 	tree2.Load()
 
-	root := tree2.WorkingHash()
+	root := tree2.Hash()
 
 	for _, idx := range []int{0, 50, 99} {
 		key := fmt.Appendf(nil, "db%04d", idx)
@@ -278,12 +292,97 @@ func TestProof_MembershipDBBacked(t *testing.T) {
 	}
 }
 
+// TestProof_UsesCommittedState verifies that immutableForProof() uses
+// the last committed state (lastSaved), not the working tree. Proofs
+// generated after Set() but before SaveVersion() must be based on the
+// committed state and verifiable against MutableTree.Hash().
+func TestProof_UsesCommittedState(t *testing.T) {
+	t.Run("in-memory", func(t *testing.T) {
+		testProofUsesCommittedState(t, func() *MutableTree {
+			return NewMutableTreeMem()
+		})
+	})
+	t.Run("db-backed", func(t *testing.T) {
+		testProofUsesCommittedState(t, func() *MutableTree {
+			db := newTestDB(t)
+			return NewMutableTreeWithDB(db, 1000, NewNopLogger())
+		})
+	})
+}
+
+func testProofUsesCommittedState(t *testing.T, newTree func() *MutableTree) {
+	t.Helper()
+	tree := newTree()
+
+	// Before any SaveVersion, proof generation should fail
+	tree.Set([]byte("a"), []byte("1"))
+	_, err := tree.GetMembershipProof([]byte("a"))
+	if err != ErrNoCommittedState {
+		t.Fatalf("expected ErrNoCommittedState before SaveVersion, got: %v", err)
+	}
+
+	// Commit version 1
+	committedHash, _, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatalf("SaveVersion: %v", err)
+	}
+
+	// Insert ("b", "2") WITHOUT SaveVersion — dirty the working tree
+	tree.Set([]byte("b"), []byte("2"))
+
+	// Working hash should differ from committed hash
+	workingHash := tree.WorkingHash()
+	if bytes.Equal(workingHash, committedHash) {
+		t.Fatalf("working hash should differ from committed hash after uncommitted Set")
+	}
+
+	// Proof for committed key "a" must verify against the committed root hash,
+	// NOT against the working hash
+	proofA, err := tree.GetMembershipProof([]byte("a"))
+	if err != nil {
+		t.Fatalf("GetMembershipProof(a): %v", err)
+	}
+	if ok := ics23.VerifyMembership(BptreeSpec, committedHash, proofA, []byte("a"), []byte("1")); !ok {
+		t.Fatalf("proof for committed key 'a' must verify against committed root hash")
+	}
+
+	// Proof for uncommitted key "b" should fail — it doesn't exist in lastSaved
+	_, err = tree.GetMembershipProof([]byte("b"))
+	if err == nil {
+		t.Fatalf("GetMembershipProof(b) should fail for uncommitted key")
+	}
+
+	// After committing version 2, both keys should produce valid proofs
+	tree.SaveVersion()
+	hash2 := tree.Hash()
+
+	proofA2, err := tree.GetMembershipProof([]byte("a"))
+	if err != nil {
+		t.Fatalf("GetMembershipProof(a) after second save: %v", err)
+	}
+	if ok := ics23.VerifyMembership(BptreeSpec, hash2, proofA2, []byte("a"), []byte("1")); !ok {
+		t.Fatalf("proof for 'a' should verify after second save")
+	}
+
+	proofB2, err := tree.GetMembershipProof([]byte("b"))
+	if err != nil {
+		t.Fatalf("GetMembershipProof(b) after second save: %v", err)
+	}
+	if ok := ics23.VerifyMembership(BptreeSpec, hash2, proofB2, []byte("b"), []byte("2")); !ok {
+		t.Fatalf("proof for 'b' should verify after second save")
+	}
+}
+
 func TestProof_VerifyMethods(t *testing.T) {
 	tree := NewMutableTreeMem()
 	tree.Set([]byte("a"), []byte("1"))
 	tree.Set([]byte("b"), []byte("2"))
+	tree.SaveVersion()
 
-	imm := tree.immutableForProof()
+	imm, err := tree.immutableForProof()
+	if err != nil {
+		t.Fatalf("immutableForProof: %v", err)
+	}
 
 	// VerifyMembership
 	proof, _ := imm.GetMembershipProof([]byte("a"))

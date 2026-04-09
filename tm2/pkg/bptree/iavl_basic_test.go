@@ -380,13 +380,7 @@ func TestProof(t *testing.T) {
 	// Persist the items so far
 	tree.SaveVersion()
 
-	// Add more items so it's not all persisted
-	for i := 0; i < 10; i++ {
-		key, value := randstr(20), randstr(20)
-		tree.Set([]byte(key), []byte(value))
-	}
-
-	// Now for each item, construct a proof and verify
+	// Now for each committed item, construct a proof and verify
 	tree.Iterate(func(key []byte, value []byte) bool {
 		proof, err := tree.GetMembershipProof(key)
 		assert.NoError(t, err)

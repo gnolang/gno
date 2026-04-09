@@ -50,6 +50,7 @@ func buildTree(size int, seed int64) (*MutableTree, [][]byte, error) {
 			unique = append(unique, k)
 		}
 	}
+	tree.SaveVersion()
 	return tree, unique, nil
 }
 
@@ -121,7 +122,7 @@ func TestGetMembership(t *testing.T) {
 			proof, err := tree.GetMembershipProof(key)
 			require.NoError(t, err)
 
-			root := tree.WorkingHash()
+			root := tree.Hash()
 			valid := ics23.VerifyMembership(BptreeSpec, root, proof, key, val)
 			require.True(t, valid, "Membership Proof Invalid")
 		})
@@ -155,7 +156,7 @@ func TestGetNonMembership(t *testing.T) {
 			proof, err := tree.GetNonMembershipProof(key)
 			require.NoError(t, err)
 
-			root := tree.WorkingHash()
+			root := tree.Hash()
 			valid := ics23.VerifyNonMembership(BptreeSpec, root, proof, key)
 			require.True(t, valid, "Non-Membership Proof Invalid")
 		})
