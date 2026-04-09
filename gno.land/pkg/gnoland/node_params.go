@@ -21,7 +21,7 @@ const (
 type nodeParamsKeeper struct{}
 
 // WillSetParam validates node parameters before they are written to the params store.
-func (nodeParamsKeeper) WillSetParam(_ sdk.Context, key string, value any) {
+func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	switch key {
 	case "p:halt_height":
 		h, ok := value.(int64)
@@ -30,6 +30,12 @@ func (nodeParamsKeeper) WillSetParam(_ sdk.Context, key string, value any) {
 		}
 		if h < 0 {
 			panic(fmt.Sprintf("halt_height must be non-negative, got %d", h))
+		}
+		// Reject halt heights that are in the past or present.
+		// h == 0 is the cancel sentinel and is always allowed.
+		// safeBlockHeight handles genesis/test contexts where the block header may not be set.
+		if curHeight := safeBlockHeight(ctx); h > 0 && curHeight > 0 && h <= curHeight {
+			panic(fmt.Sprintf("halt_height %d must be greater than the current block height %d", h, curHeight))
 		}
 	case "p:halt_min_version":
 		_, ok := value.(string)
@@ -84,7 +90,8 @@ func checkNodeStartupParams(prmk sdkparams.ParamsKeeperI, ms store.MultiStore, l
 	}
 
 	// Check 2: Prevent new (upgraded) binaries from running before the halt height.
-	if meetsMinVersion(binaryVersion, minVersion) && binaryVersion != minVersion {
+	// Any binary that meets the minimum version is rejected until the halt occurs.
+	if meetsMinVersion(binaryVersion, minVersion) {
 		return fmt.Errorf(
 			"binary version %q is an upgrade intended for halt height %d, "+
 				"but the chain is at height %d; please use the previous binary until the halt, "+
@@ -94,6 +101,13 @@ func checkNodeStartupParams(prmk sdkparams.ParamsKeeperI, ms store.MultiStore, l
 	}
 
 	return nil
+}
+
+// safeBlockHeight returns ctx.BlockHeight() or 0 if the context has no block header.
+// This handles genesis and test contexts where the header may not be initialized.
+func safeBlockHeight(ctx sdk.Context) (h int64) {
+	defer func() { recover() }() //nolint:errcheck
+	return ctx.BlockHeight()
 }
 
 // meetsMinVersion reports whether binaryVersion satisfies the minVersion requirement.

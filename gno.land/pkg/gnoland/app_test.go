@@ -1323,17 +1323,42 @@ func TestNodeParamsKeeperWillSetParam(t *testing.T) {
 
 	npk := nodeParamsKeeper{}
 
-	t.Run("valid halt_height", func(t *testing.T) {
+	t.Run("valid halt_height (no block context)", func(t *testing.T) {
 		t.Parallel()
+		// Without a block header, safeBlockHeight returns 0, so no future check.
 		assert.NotPanics(t, func() {
 			npk.WillSetParam(sdk.Context{}, "p:halt_height", int64(100))
 		})
 	})
 
-	t.Run("halt_height zero is allowed", func(t *testing.T) {
+	t.Run("halt_height zero is allowed (cancel sentinel)", func(t *testing.T) {
 		t.Parallel()
 		assert.NotPanics(t, func() {
 			npk.WillSetParam(sdk.Context{}, "p:halt_height", int64(0))
+		})
+	})
+
+	t.Run("halt_height in the future is valid when block height is known", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithBlockHeader(&bft.Header{Height: 50})
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(ctx, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("halt_height equal to current block height panics", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithBlockHeader(&bft.Header{Height: 100})
+		assert.Panics(t, func() {
+			npk.WillSetParam(ctx, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("halt_height in the past panics", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithBlockHeader(&bft.Header{Height: 200})
+		assert.Panics(t, func() {
+			npk.WillSetParam(ctx, "p:halt_height", int64(100))
 		})
 	})
 
@@ -1459,4 +1484,164 @@ func TestParseGnolandVersion(t *testing.T) {
 			}
 		})
 	}
+}
+
+// newTestParamsKeeper creates a minimal ParamsKeeper with an in-memory store
+// and pre-seeds it with the given halt params.
+func newTestParamsKeeper(t *testing.T, haltHeight int64, minVersion string) (params.ParamsKeeper, store.MultiStore) {
+	t.Helper()
+
+	db := memdb.NewMemDB()
+	mainKey := store.NewStoreKey("main")
+
+	cms := store.NewCommitMultiStore(db)
+	cms.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	require.NoError(t, cms.LoadLatestVersion())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	prmk.Register("node", nodeParamsKeeper{})
+
+	ms := cms.MultiCacheWrap()
+	ctx := sdk.Context{}.WithMultiStore(ms).WithChainID("_")
+
+	prmk.SetInt64(ctx, nodeParamHaltHeight, haltHeight)
+	prmk.SetString(ctx, nodeParamHaltMinVersion, minVersion)
+	ms.MultiWrite()
+	cms.Commit()
+
+	return prmk, cms.MultiCacheWrap()
+}
+
+func TestCheckNodeStartupParams(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no halt configured", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 0, "")
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 50, 0))
+	})
+
+	t.Run("halt with no version passes", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "")
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 100, 0))
+	})
+
+	t.Run("binary meets version after halt", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "develop")
+		// binary "develop" == "develop" -> meetsMinVersion (exact match), lastBlock >= haltHeight
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 100, 0))
+	})
+
+	t.Run("old binary rejected after halt", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "chain/gnoland9.9")
+		// binary "develop" doesn't meet "chain/gnoland9.9" -> rejected
+		err := checkNodeStartupParams(prmk, ms, 100, 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "does not meet the minimum version")
+	})
+
+	t.Run("new binary rejected before halt height", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "develop")
+		// binary "develop" == "develop" -> meetsMinVersion, but chain hasn't halted yet
+		err := checkNodeStartupParams(prmk, ms, 50, 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "upgrade intended for halt height")
+	})
+
+	t.Run("old binary allowed before halt height", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "chain/gnoland9.9")
+		// binary "develop" doesn't meet "chain/gnoland9.9", chain hasn't halted -> old binary, OK
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 50, 0))
+	})
+
+	t.Run("skip_upgrade_height bypasses check", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "develop")
+		// Even though binary meets version before halt, skip_upgrade_height=100 bypasses
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 50, 100))
+	})
+}
+
+func TestEndBlockerHalt(t *testing.T) {
+	t.Parallel()
+
+	noFilter := func(_ events.Event) []validatorUpdate { return nil }
+
+	t.Run("halts at exact height", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 100},
+		}
+
+		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
+		eb := EndBlocker(c, nil, nil, nil, mockPrmk, mockApp)
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 100})
+
+		assert.Equal(t, uint64(100), haltSet, "SetHaltHeight should be called with halt_height")
+	})
+
+	t.Run("does not halt before halt height", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 100},
+		}
+
+		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
+		eb := EndBlocker(c, nil, nil, nil, mockPrmk, mockApp)
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 99})
+
+		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight should NOT be called before halt height")
+	})
+
+	t.Run("does not re-halt after halt height (no infinite loop)", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 100},
+		}
+
+		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
+		eb := EndBlocker(c, nil, nil, nil, mockPrmk, mockApp)
+		// After restart at height 101, halt_height=100 still in params but == doesn't re-fire
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 101})
+
+		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight must NOT be called after halt height (prevents infinite loop)")
+	})
+
+	t.Run("cancel: halt_height zero never halts", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 0},
+		}
+
+		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
+		eb := EndBlocker(c, nil, nil, nil, mockPrmk, mockApp)
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 100})
+
+		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight should NOT be called when halt_height=0 (cancelled)")
+	})
 }

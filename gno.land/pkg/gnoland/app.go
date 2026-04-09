@@ -484,12 +484,14 @@ func EndBlocker(
 		}
 
 		// Check if GovDAO has requested a halt at this height.
-		// If so, propagate to BaseApp so BeginBlock panics on the next block,
-		// ensuring this block is fully committed before the node stops.
+		// Use == (not >=) so we only trigger once: at the exact halt height.
+		// SetHaltHeight causes BeginBlock of the *next* block to panic, ensuring
+		// this block is fully committed before the node stops.
+		// On restart, req.Height > halt_height, so == never re-fires — no infinite loop.
 		if prmk != nil {
 			var haltHeight int64
 			prmk.GetInt64(ctx, nodeParamHaltHeight, &haltHeight)
-			if haltHeight > 0 && req.Height >= haltHeight {
+			if haltHeight > 0 && req.Height == haltHeight {
 				app.Logger().Info(
 					"GovDAO halt height reached, will halt after this block",
 					"height", req.Height,
