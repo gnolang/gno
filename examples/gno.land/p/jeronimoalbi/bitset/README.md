@@ -9,7 +9,7 @@ entire sets.
 
 ## API
 
-- `New(size uint) BitSet` - Returns a new BitSet pre-allocated for `size` bits
+- `New(size uint64) BitSet` - Returns a new BitSet pre-allocated for `size` bits
 
 ## Usage
 
