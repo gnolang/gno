@@ -13,7 +13,7 @@ gnokey query auth/accounts/g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7
 stdout '"coins": ""'
 
 # call to realm with -send
-gnokey maketx call -send 42ugnot -pkgpath gno.land/r/foo/call_realm -func GimmeMoney -gas-fee 670001ugnot -gas-wanted 6_700_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -send 42ugnot -pkgpath gno.land/r/foo/call_realm -func GimmeMoney -gas-fee 630001ugnot -gas-wanted 6_300_000 -broadcast -chainid=tendermint_test test1
 stdout '("send: 42ugnot")'
 
 ## user balance after realm send

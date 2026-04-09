@@ -8,12 +8,12 @@ genesiscall gno.land/r/sys/users/init Bootstrap
 gnoland start -no-parallel
 
 # Register test1 for boards (requires registered user)
-gnokey maketx call -pkgpath gno.land/r/sys/users/init -func RegisterUser -args "test1" -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" -gas-fee 2500001ugnot -gas-wanted 25_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/users/init -func RegisterUser -args "test1" -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" -gas-fee 2400001ugnot -gas-wanted 24_000_000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
 gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateBoard -args 'testboard' -gas-fee 3300001ugnot -gas-wanted 33_000_000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
-gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateThread -args 1 -args 'thread1' -args 'thread1' -gas-fee 2200001ugnot -gas-wanted 22_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateThread -args 1 -args 'thread1' -args 'thread1' -gas-fee 2100001ugnot -gas-wanted 21_000_000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
 gnokey maketx run -max-deposit 2000000000ugnot -gas-fee 33000001ugnot -gas-wanted 330_000_000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno

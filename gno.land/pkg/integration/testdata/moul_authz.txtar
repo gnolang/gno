@@ -7,11 +7,11 @@ stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/testing/resource -func Edit -args edited -gas-fee 860001ugnot -gas-wanted 8_600_000 -broadcast -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/testing/resource -func Edit -args edited -gas-fee 820001ugnot -gas-wanted 8_200_000 -broadcast -chainid tendermint_test alice
 
-gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 890001ugnot -gas-wanted 8_900_000 -broadcast -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 840001ugnot -gas-wanted 8_400_000 -broadcast -chainid tendermint_test alice
 
-gnokey maketx call -pkgpath gno.land/r/testing/resource -func Value -gas-fee 230001ugnot -gas-wanted 2_300_000 -broadcast -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/testing/resource -func Value -gas-fee 190001ugnot -gas-wanted 1_900_000 -broadcast -chainid tendermint_test alice
 stdout 'edited'
 
 

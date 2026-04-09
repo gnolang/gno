@@ -4,7 +4,7 @@
 gnoland start
 
 # add a public realm
-gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 440001ugnot -gas-wanted 4_400_000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 350001ugnot -gas-wanted 3_500_000 -broadcast -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
 # update the public realm
@@ -12,11 +12,11 @@ stdout OK!
 stderr 'package already exists'
 
 # add a private realm
-gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 400001ugnot -gas-wanted 4_000_000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 350001ugnot -gas-wanted 3_500_000 -broadcast -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
 # update the same private realm
-gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 380001ugnot -gas-wanted 3_800_000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 330001ugnot -gas-wanted 3_300_000 -broadcast -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
 # ensure A is present
@@ -24,7 +24,7 @@ gnokey query vm/qeval --data "gno.land/r/foobar/privaterealm.A"
 stdout '123'
 
 # update the edited private realm over the original
-gnokey maketx addpkg -pkgdir $WORK/privaterealmedited -pkgpath gno.land/r/foobar/privaterealm -gas-fee 380001ugnot -gas-wanted 3_800_000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx addpkg -pkgdir $WORK/privaterealmedited -pkgpath gno.land/r/foobar/privaterealm -gas-fee 330001ugnot -gas-wanted 3_300_000 -broadcast -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
 # ensure A is deleted

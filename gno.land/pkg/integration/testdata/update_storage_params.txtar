@@ -11,11 +11,11 @@ loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 gnoland start
 
 ## add a contract
-gnokey maketx addpkg -pkgdir $WORK/storage -pkgpath gno.land/r/storage -gas-fee 420001ugnot -gas-wanted 4_200_000  -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/storage -pkgpath gno.land/r/storage -gas-fee 380001ugnot -gas-wanted 3_800_000  -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 ## Propose to update default deposit.
-gnokey maketx run -gas-fee 3700001ugnot -gas-wanted 37_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
+gnokey maketx run -gas-fee 3600001ugnot -gas-wanted 36_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
 
 stdout OK!
 

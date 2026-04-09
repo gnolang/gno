@@ -18,7 +18,7 @@ stderr 'panic: invalid address'
 stderr 'panic: invalid checksum'
 
 # add a valoper
-gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 4300001ugnot -gas-wanted 43_000_000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 4200001ugnot -gas-wanted 42_000_000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # see the valoper in the Render
@@ -38,7 +38,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 stdout 'Add valoper berty'
 
 # make a proposal for updating instructions
-gnokey maketx run  -gas-fee 5200001ugnot -gas-wanted 52_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/new_instructions_proposal.gno
+gnokey maketx run  -gas-fee 5100001ugnot -gas-wanted 51_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/new_instructions_proposal.gno
 stdout OK!
 
 # see the instructions in gov/dao proposition Render

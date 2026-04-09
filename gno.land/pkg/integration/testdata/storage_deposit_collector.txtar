@@ -24,22 +24,22 @@ gnokey maketx run -gas-fee 4600001ugnot -gas-wanted 46_000_000 -broadcast -chain
 ## Submit a proposal to change storage_fee_collector to storage_collector
 
 ## pay the fee and submit a proposal to change the fee collector.
-gnokey maketx run -gas-fee 3500001ugnot -gas-wanted 35_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_collector.gno
+gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 34_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_collector.gno
 stdout '0'
 
 ## Vote change proposal with unrestricted account test1
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2100001ugnot -gas-wanted 21_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000001ugnot -gas-wanted 20_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
 ## Execute change proposal with unrestricted account test1
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2400001ugnot -gas-wanted 24_000_000 -args 0 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 0 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
 ## Check storage_collector balance
 gnokey query bank/balances/$storage_collector_user_addr
 stdout '1000000000ugnot'
 
-gnokey maketx addpkg -pkgdir $WORK/bytesbank -pkgpath gno.land/r/bytesbank -gas-fee 470001ugnot -gas-wanted 4_700_000 -max-deposit 900000ugnot -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/bytesbank -pkgpath gno.land/r/bytesbank -gas-fee 420001ugnot -gas-wanted 4_200_000 -max-deposit 900000ugnot -broadcast -chainid=tendermint_test test1
 stdout 'EVENTS:     \[{\"bytes_delta\":\d+,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":\d+},\"pkg_path\":\"gno.land/r/bytesbank\"}]'
 stdout 'STORAGE DELTA:  \d+ bytes'
 stdout 'STORAGE FEE:    \d+ugnot'
@@ -61,7 +61,7 @@ stdout 'storage: \d+, deposit: \d+'
 
 ## Norman frees the storage of bytes bank, but storage deposit goes to storage fee collector
 ## instead of him
-gnokey maketx call -pkgpath gno.land/r/bytesbank -func Debit -args 0  -gas-fee 1600001ugnot -gas-wanted 16_000_000  -broadcast -chainid=tendermint_test norman
+gnokey maketx call -pkgpath gno.land/r/bytesbank -func Debit -args 0  -gas-fee 1500001ugnot -gas-wanted 15_000_000  -broadcast -chainid=tendermint_test norman
 stdout OK!
 stdout 'STORAGE DELTA:  -\d+ bytes'
 

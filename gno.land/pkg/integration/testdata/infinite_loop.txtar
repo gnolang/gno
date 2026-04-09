@@ -26,7 +26,7 @@ stderr 'out of gas.* location: CPUCycles'
 stderr 'out of gas.* location: CPUCycles'
 
 # maketx addpkg on r2 (successful)
-gnokey maketx addpkg -pkgdir $WORK/r2 -pkgpath gno.land/r/demo/r2 -gas-fee 400001ugnot -gas-wanted 4_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/r2 -pkgpath gno.land/r/demo/r2 -gas-fee 350001ugnot -gas-wanted 3_500_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # qeval on the render function
