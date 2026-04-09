@@ -36,8 +36,29 @@ func SetHelp(_ realm, content string) {
 	content = strings.TrimSpace(content)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{content}
-	gPerms.WithPermission(caller, PermissionRealmHelp, args, crossingFn(func() {
-		gHelp = content
+	gPerms.WithPermission(caller, PermissionRealmHelpChange, args, crossingFn(func() {
+		Help = content
+	}))
+}
+
+// SetRequiredAccountAmount sets the required account amount to interact as a non member with open boards.
+// Amount must be given as ugnot.
+// The amount requirement is not applied to members that were invited to an open board.
+func SetRequiredAccountAmount(_ realm, amount int64) {
+	if amount < 0 {
+		panic("invalid amount")
+	}
+
+	caller := runtime.PreviousRealm().Address()
+	args := boards.Args{amount}
+	gPerms.WithPermission(caller, PermissionAccountRequiredAmountChange, args, crossingFn(func() {
+		RequiredAccountAmount = amount
+
+		chain.Emit(
+			"RequiredAccountAmountChanged",
+			"caller", caller.String(),
+			"amount", strconv.FormatInt(amount, 10),
+		)
 	}))
 }
 
@@ -60,7 +81,7 @@ func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions) {
 			gPerms = p
 
 			chain.Emit(
-				"RealmPermissionsUpdated",
+				"RealmPermissionsChanged",
 				"caller", caller.String(),
 			)
 			return
@@ -71,21 +92,21 @@ func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions) {
 		board.Permissions = p
 
 		chain.Emit(
-			"BoardPermissionsUpdated",
+			"BoardPermissionsChanged",
 			"caller", caller.String(),
 			"boardID", board.ID.String(),
 		)
 	}))
 }
 
-// SetRealmNotice sets a notice to be displayed globally by the realm.
+// SetRealmNotice sets a notice to be displayed globally within the realm.
 // An empty message removes the realm notice.
 func SetRealmNotice(_ realm, message string) {
 	message = strings.TrimSpace(message)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{message}
 	gPerms.WithPermission(caller, PermissionRealmNotice, args, crossingFn(func() {
-		gNotice = message
+		Notice = message
 
 		chain.Emit(
 			"RealmNoticeChanged",
