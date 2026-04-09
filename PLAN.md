@@ -11,12 +11,9 @@ the Discord server.
 * Put bounties in r/gnoland/bounties
 * Use IBC2 to fetch gnolang libraries from another chain
 
-## Fee Model Overview
+## Fee Model
 
-| Cost Component | Description | When Incurred | Paid By | Recoverable |
-|---|---|---|---|---|
-| Gas Fee | Computation and bandwidth cost for transaction execution | Every transaction | Transaction sender | No |
-| Storage Deposit | Deposit for on-chain storage allocation | When new storage is allocated | Transaction sender | Yes, when storage is freed |
+Contract developers should consider gas fee and storage deposit trade-offs when designing data structures. See [docs/fee-model.md](docs/fee-model.md) for detailed analysis.
 
 ## Technical Plan
 
