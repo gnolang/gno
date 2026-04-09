@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
+	"maps"
 	"reflect"
 	"sort"
 	"sync"
@@ -44,6 +45,11 @@ type cacheStore struct {
 	sortedCache   *list.List // always ascending sorted
 	parent        types.Store
 	chargedGas    map[string]types.Gas // write/delete gas deduplication per key
+
+	// Checkpoint for rollback support. When set, WriteCheckpoint()
+	// restores these snapshots and flushes only the checkpointed state.
+	checkpointCache      map[string]*cValue
+	checkpointChargedGas map[string]types.Gas
 
 	// Depth estimation for gas. Cached at construction time from
 	// DepthEstimator (IAVL/B+tree). 100x fixed-point (300 = 3.0).
@@ -215,7 +221,12 @@ func (store *cacheStore) Delete(gctx *types.GasContext, key []byte) {
 func (store *cacheStore) Write() {
 	store.mtx.Lock()
 	defer store.mtx.Unlock()
+	store.writeLocked()
+}
 
+// writeLocked flushes dirty cache entries to the parent and clears the cache.
+// Caller must hold store.mtx.
+func (store *cacheStore) writeLocked() {
 	// We need a copy of all of the keys.
 	// Not the best, but probably not a bottleneck depending.
 	keys := make([]string, 0, len(store.cache))
@@ -279,6 +290,44 @@ func (store *cacheStore) clear() {
 	store.unsortedCache = make(map[string]struct{})
 	store.sortedCache = list.New()
 	store.chargedGas = make(map[string]types.Gas)
+	store.checkpointCache = nil
+	store.checkpointChargedGas = nil
+}
+
+// ----------------------------------------
+// Checkpoint/rollback support.
+
+// Checkpoint saves a shallow clone of the cache and chargedGas maps.
+// Used by BaseApp to snapshot ante handler state before msg execution.
+// setCacheValue always allocates a new *cValue, so the cloned map's
+// pointers remain valid after subsequent Set/Delete calls.
+func (store *cacheStore) Checkpoint() {
+	store.mtx.Lock()
+	defer store.mtx.Unlock()
+	store.checkpointCache = maps.Clone(store.cache)
+	store.checkpointChargedGas = maps.Clone(store.chargedGas)
+}
+
+// HasCheckpoint returns true if a checkpoint is active.
+func (store *cacheStore) HasCheckpoint() bool {
+	store.mtx.Lock()
+	defer store.mtx.Unlock()
+	return store.checkpointCache != nil
+}
+
+// WriteCheckpoint restores the checkpoint snapshot, then flushes only
+// the checkpointed (ante) entries to the parent store.
+func (store *cacheStore) WriteCheckpoint() {
+	store.mtx.Lock()
+	defer store.mtx.Unlock()
+	if store.checkpointCache == nil {
+		panic("WriteCheckpoint called without Checkpoint")
+	}
+	store.cache = store.checkpointCache
+	store.chargedGas = store.checkpointChargedGas
+	store.checkpointCache = nil
+	store.checkpointChargedGas = nil
+	store.writeLocked()
 }
 
 // ----------------------------------------

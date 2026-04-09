@@ -65,3 +65,33 @@ func (cms Store) MultiCacheWrap() types.MultiStore {
 func (cms Store) GetStore(key types.StoreKey) types.Store {
 	return cms.stores[key]
 }
+
+// ----------------------------------------
+// Checkpointable
+
+var _ types.Checkpointable = Store{}
+
+// Checkpoint snapshots each sub-store's cache state.
+func (cms Store) Checkpoint() {
+	for _, store := range cms.stores {
+		store.(interface{ Checkpoint() }).Checkpoint()
+	}
+}
+
+// HasCheckpoint returns true if any sub-store has an active checkpoint.
+func (cms Store) HasCheckpoint() bool {
+	for _, store := range cms.stores {
+		if store.(interface{ HasCheckpoint() bool }).HasCheckpoint() {
+			return true
+		}
+	}
+	return false
+}
+
+// WriteCheckpoint restores each sub-store to its checkpoint state
+// and flushes only the checkpointed entries to the parent.
+func (cms Store) WriteCheckpoint() {
+	for _, store := range cms.stores {
+		store.(interface{ WriteCheckpoint() }).WriteCheckpoint()
+	}
+}

@@ -26,6 +26,7 @@ type (
 	GasOverflowError       = types.GasOverflowError
 	GasContext             = types.GasContext
 	DepthEstimator         = types.DepthEstimator
+	Checkpointable         = types.Checkpointable
 )
 
 var (

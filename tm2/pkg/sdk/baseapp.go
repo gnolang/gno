@@ -734,9 +734,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		// determined by the GasMeter. We need access to the context to get the gas
 		// meter so we initialize upfront.
 		gasWanted int64
-
-		ms   = ctx.MultiStore()
-		mode = ctx.Mode()
+		mode      = ctx.Mode()
 	)
 
 	if mode == RunTxModeDeliver {
@@ -811,26 +809,14 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		return
 	}
 
+	// Single cache wrap for the entire transaction (ante + msgs).
+	// This avoids redundant IAVL reads between ante and msg phases.
+	// See gno.land/adr/BASEAPPCACHE.md for design details.
+	var msCache store.MultiStore
+
 	if app.anteHandler != nil {
 		var anteCtx Context
-		var msCache store.MultiStore
-
-		// Cache wrap context before anteHandler call in case
-		// it aborts.  This is required for both CheckTx and
-		// DeliverTx.  Ref:
-		// https://github.com/cosmos/cosmos-sdk/issues/2772
-		//
-		// NOTE: Alternatively, we could require that
-		// anteHandler ensures that writes do not happen if
-		// aborted/failed.  This may have some performance
-		// benefits, but it'll be more difficult to get
-		// right.
 		anteCtx, msCache = app.cacheTxContext(ctx)
-		// Call AnteHandler.
-		// NOTE: It is the responsibility of the anteHandler
-		// to use something like passthroughGasMeter to
-		// account for ante handler gas usage, despite
-		// OutOfGasExceptions.
 		newCtx, result, abort := app.anteHandler(anteCtx, tx, mode == RunTxModeSimulate)
 		if newCtx.IsZero() {
 			panic("newCtx must not be zero")
@@ -839,22 +825,41 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 			panic("result.Error should be set for abort")
 		}
 		if abort {
-			// NOTE: first we must set ctx above,
-			// because a previous defer call sets
-			// result.GasUsed, regardless of error.
 			return result
-		} else {
-			// Revert cache wrapping of multistore.
-			ctx = newCtx.WithMultiStore(ms)
-			msCache.MultiWrite()
-			gasWanted = result.GasWanted
 		}
+		// Carry forward ante handler's context (gas meter, params, etc.)
+		// but keep the same cache-wrapped multistore (no revert).
+		ctx = newCtx
+		gasWanted = result.GasWanted
 	}
 
-	// Create a new context based off of the existing context with a cache wrapped
-	// multi-store in case message processing fails.
-	runMsgCtx, msCache := app.cacheTxContext(ctx)
+	// CheckTx: flush ante writes (sequence, fees) and return.
+	// No msg execution happens (handler.Process is skipped for CheckTx).
+	if mode == RunTxModeCheck {
+		if msCache != nil {
+			msCache.MultiWrite()
+		}
+		return result
+	}
 
+	// DeliverTx and Simulate: checkpoint ante state, then execute msgs.
+	// On DeliverTx failure/panic, WriteCheckpoint flushes only ante writes.
+	if msCache == nil {
+		// No ante handler — create cache wrap for msgs only.
+		ctx, msCache = app.cacheTxContext(ctx)
+	}
+	cp := msCache.(store.Checkpointable)
+	cp.Checkpoint()
+
+	// Flush ante writes on DeliverTx panic (e.g., OutOfGasError).
+	// Registered after existing defers so it runs first (LIFO).
+	defer func() {
+		if mode == RunTxModeDeliver && cp.HasCheckpoint() {
+			cp.WriteCheckpoint()
+		}
+	}()
+
+	runMsgCtx := ctx
 	if app.beginTxHook != nil {
 		runMsgCtx = app.beginTxHook(runMsgCtx)
 	}
@@ -862,7 +867,8 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
 
-	// Safety check: don't write the cache state unless we're in DeliverTx.
+	// Simulate: return after msg execution. The outer CacheContext
+	// (from getContextForTx) discards everything.
 	if mode != RunTxModeDeliver {
 		return result
 	}
@@ -871,9 +877,10 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		app.endTxHook(runMsgCtx, result)
 	}
 
-	// only update state if all messages pass
 	if result.IsOK() {
 		msCache.MultiWrite()
+	} else {
+		cp.WriteCheckpoint()
 	}
 
 	return result
