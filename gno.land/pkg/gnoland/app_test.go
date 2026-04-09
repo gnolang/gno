@@ -1457,6 +1457,7 @@ func GetHeight(cur realm) int64 { return height }
 			Metadata: &GnoTxMetadata{
 				Timestamp:   1234567890,
 				BlockHeight: 42,
+				ChainID:     "gnoland1",
 			},
 		}
 
@@ -1469,5 +1470,144 @@ func GetHeight(cur realm) int64 { return height }
 		require.NotNil(t, decoded.Metadata)
 		assert.Equal(t, int64(1234567890), decoded.Metadata.Timestamp)
 		assert.Equal(t, int64(42), decoded.Metadata.BlockHeight)
+		assert.Equal(t, "gnoland1", decoded.Metadata.ChainID)
+	})
+
+	t.Run("chain ID not overridden when BlockHeight is zero in metadata", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/chainidtest"
+			body = `package chainidtest
+
+var Deployed = true
+
+func IsDeployed(cur realm) bool { return Deployed }
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "chainidtest",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+
+		// When metadata.BlockHeight == 0, the chain ID override must NOT happen.
+		// So the tx must be signed with the current chain ID (chainID), not the OriginalChainID.
+		tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 0, // zero — no chain ID override
+						},
+					},
+				},
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth:            auth.DefaultGenesisState(),
+				Bank:            bank.DefaultGenesisState(),
+				VM:              vm.DefaultGenesisState(),
+				OriginalChainID: "old-chain", // set, but should NOT be used since BlockHeight == 0
+			},
+		})
+	})
+
+	t.Run("no chain ID override when OriginalChainID is unset", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/nooverride"
+			body = `package nooverride
+
+var Deployed = true
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "nooverride",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+
+		// BlockHeight > 0 but OriginalChainID is not set — no chain ID override.
+		// The tx is signed with the current chainID (genesis mode skips sig verification
+		// when BlockHeight == 0, but BlockHeight > 0 triggers ante handler normally,
+		// so we sign with chainID).
+		tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 10, // non-zero, but OriginalChainID is unset
+						},
+					},
+				},
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth:            auth.DefaultGenesisState(),
+				Bank:            bank.DefaultGenesisState(),
+				VM:              vm.DefaultGenesisState(),
+				// OriginalChainID intentionally not set
+			},
+		})
 	})
 }
