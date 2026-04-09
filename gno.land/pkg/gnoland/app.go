@@ -368,7 +368,10 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 	msCache.MultiWrite()
 
 	// Populate stdlib byte cache for gas-free stdlib reads.
-	cfg.vmk.PopulateStdlibCache()
+	// Must read from the deliver state's baseStore (where stdlib objects
+	// were written), not the persistent gnoStore's baseStore (which is
+	// a different cache layer that doesn't have them yet).
+	cfg.vmk.PopulateStdlibCacheFrom(ms)
 }
 
 func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci.ResponseDeliverTx, error) {

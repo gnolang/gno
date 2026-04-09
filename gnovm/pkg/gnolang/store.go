@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"iter"
@@ -80,7 +81,8 @@ type Store interface {
 	GarbageCollectObjectCache(gcCycle int64)
 	SetNativeResolver(NativeResolver)                     // for native functions
 	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
-	PopulateStdlibCache(paths []string)            // populate stdlib byte cache at node start
+	PopulateStdlibCache(paths []string)                          // populate stdlib byte cache at node start
+	PopulateStdlibCacheFrom(paths []string, baseStore store.Store) // populate from a specific store
 	SetLogStoreOps(dst io.Writer)
 	LogFinalizeRealm(rlmpath string) // to mark finalization of realm boundaries
 	Print()
@@ -1061,14 +1063,22 @@ func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
 // Each stdlib package's objects are found via a prefix iterator on
 // "oid:<pkgid_hex>:".
 func (ds *defaultStore) PopulateStdlibCache(paths []string) {
+	ds.populateStdlibCache(paths, ds.baseStore)
+}
+
+func (ds *defaultStore) PopulateStdlibCacheFrom(paths []string, baseStore store.Store) {
+	ds.populateStdlibCache(paths, baseStore)
+}
+
+func (ds *defaultStore) populateStdlibCache(paths []string, baseStore store.Store) {
 	for _, path := range paths {
 		pid := PkgIDFromPkgPath(path)
-		prefix := "oid:" + pid.String() + ":"
+		prefix := "oid:" + hex.EncodeToString(pid.Hashlet[:]) + ":"
 		start := []byte(prefix)
 		// End key: increment last byte of prefix for exclusive upper bound.
 		endPrefix := prefix[:len(prefix)-1] + string(rune(prefix[len(prefix)-1]+1))
 		end := []byte(endPrefix)
-		iter := ds.baseStore.Iterator(nil, start, end)
+		iter := baseStore.Iterator(nil, start, end)
 		for ; iter.Valid(); iter.Next() {
 			key := string(iter.Key())
 			val := iter.Value()

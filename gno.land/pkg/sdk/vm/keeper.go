@@ -60,6 +60,7 @@ type VMKeeperI interface {
 	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
 	CommitGnoTransactionStore(ctx sdk.Context)
 	PopulateStdlibCache()
+	PopulateStdlibCacheFrom(ms store.MultiStore)
 	InitGenesis(ctx sdk.Context, data GenesisState)
 }
 
@@ -165,6 +166,14 @@ func (vm *VMKeeper) Initialize(
 // PopulateStdlibCache populates the stdlib byte cache on the gno store.
 func (vm *VMKeeper) PopulateStdlibCache() {
 	vm.gnoStore.PopulateStdlibCache(stdlibs.InitOrder())
+}
+
+// PopulateStdlibCacheFrom populates the stdlib byte cache by reading from
+// the given multistore. Needed at genesis when the persistent gnoStore's
+// baseStore doesn't have stdlib objects yet (they're in the deliver state).
+func (vm *VMKeeper) PopulateStdlibCacheFrom(ms store.MultiStore) {
+	baseStore := ms.GetStore(vm.baseKey)
+	vm.gnoStore.PopulateStdlibCacheFrom(stdlibs.InitOrder(), baseStore)
 }
 
 type stdlibCache struct {
