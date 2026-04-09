@@ -10,6 +10,7 @@ on:
       - "go.sum"
       - "misc/genproto/**"
       - "docs/**"
+      - ".github/workflows/ci-codegen-verify.yml"
   pull_request:
     paths:
       - "**/*.go"
@@ -17,14 +18,20 @@ on:
       - "go.sum"
       - "misc/genproto/**"
       - "docs/**"
+      - ".github/workflows/ci-codegen-verify.yml"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   mod-tidy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
       - run: make tidy VERIFY_MOD_SUMS=true
@@ -32,8 +39,10 @@ jobs:
   genproto:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
       - run: sudo apt update && sudo apt install -y libprotobuf-dev protobuf-compiler
@@ -45,8 +54,10 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
       - working-directory: docs/
@@ -54,7 +65,7 @@ jobs:
       - run: |
           diff=$(git status --porcelain)
           if [[ $diff ]]; then
-              echo 'Please run `make generate` in docs/.'
+              echo "Please run 'make generate' in docs/."
               exit 1
           fi
       - working-directory: docs/

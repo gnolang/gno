@@ -11,10 +11,7 @@ on:
       - tm2/**/*.go
 
 permissions:
-  # deployments permission to deploy GitHub pages website
-  deployments: write
-  # contents permission to update benchmark contents in gh-pages branch
-  contents: write
+  contents: read
 
 env:
   CGO_ENABLED: 0
@@ -23,13 +20,17 @@ jobs:
   benchmarks:
     if: ${{ github.repository == 'gnolang/gno' }}
     runs-on: [ self-hosted, Linux, X64, benchmarks ]
+    permissions:
+      deployments: write # to deploy GitHub pages website
+      contents: write # to update benchmark data in gh-benchmarks branch
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 1
+          persist-credentials: false
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
 
@@ -42,13 +43,13 @@ jobs:
           ) | tee benchmarks.txt
 
       - name: Download previous benchmark data
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ./cache
           key: ${{ runner.os }}-benchmark
 
       - name: Store benchmark results into `gh-benchmarks` branch
-        uses: benchmark-action/github-action-benchmark@v1
+        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372 # v1
         # see https://github.com/benchmark-action/github-action-benchmark?tab=readme-ov-file#action-inputs
         with:
           name: Go Benchmarks
