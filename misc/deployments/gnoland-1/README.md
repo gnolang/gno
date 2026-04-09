@@ -22,8 +22,8 @@ This hard fork bundles the following upgrades in one shot:
 - **`r/sys/params` halt height** (gnolang/gno#5368): GovDAO can now vote to
   halt the chain at a specific block and enforce a minimum binary version on
   restart. _(awaiting merge)_
-- **`r/gnops/valopers` fix** (gnolang/gno#5373): Registration fee set to 0,
-  unblocking validators who don't hold GNOT. _(requires test12 validation)_
+- **`r/gnops/valopers` fee = 0**: Registration fee was set to 0 via a GovDAO
+  transaction on gnoland1; preserved in genesis replay. No code change needed.
 - **Namereg GovDAO whitelist** (gnolang/gno#5293): Namereg now checks GovDAO
   membership before allowing name registration. ✅ _merged_
 - **GovDAO scripts** (gnolang/gno#5375): Updated scripts for the new chain. ✅ _merged_
