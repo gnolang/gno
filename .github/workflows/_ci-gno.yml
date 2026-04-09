@@ -7,10 +7,10 @@ on:
         required: true
         type: string
       go-version:
-        description: "Go version to use"
+        description: "Go version to use; defaults to the version in go.mod"
         required: false
         type: string
-        default: "1.24.x"
+        default: ""
       debug:
         description: "Enable debug logs"
         required: false
@@ -48,6 +48,7 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
       - run: go run ./gnovm/cmd/gno -C "${INPUTS_PATH}" fmt -diff ./...
         env:
           INPUTS_PATH: ${{ inputs.path }}
@@ -66,6 +67,7 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
       - run: go run ./gnovm/cmd/gno lint -C "${INPUTS_PATH}" -v ./...
         env:
           INPUTS_PATH: ${{ inputs.path }}
@@ -84,6 +86,7 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
 
       - name: Setup debug env
         if: inputs.debug
