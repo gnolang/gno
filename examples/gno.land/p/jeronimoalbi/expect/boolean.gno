@@ -3,7 +3,7 @@ package expect
 import (
 	"strconv"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // NewBooleanChecker creates a new checker of boolean values

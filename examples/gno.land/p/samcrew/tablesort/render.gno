@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/mason/md"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Table holds the headings and rows for rendering.
