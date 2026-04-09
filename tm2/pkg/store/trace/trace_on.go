@@ -55,14 +55,6 @@ func Store(op string, gas int64, key []byte, valLen int, info string) {
 		op, gas, valLen, info, keyHex, keyStr)
 }
 
-// Flush writes buffered trace data. No-op for stderr (unbuffered).
-// Must be called before os.Exit — defers do not run on os.Exit.
-func Flush() {
-	if out != nil {
-		out.Flush()
-	}
-}
-
 func TxStart(mode string, gasWanted int64) {
 	var w io.Writer = outFile
 	if out != nil {
@@ -77,6 +69,7 @@ func TxEnd(gasUsed int64) {
 		w = out
 	}
 	fmt.Fprintf(w, "GAS_TX_END gas_used=%d\n", gasUsed)
+	flush()
 }
 
 func TxEndDebug(gasUsed, totalCharge, totalRefund int64) {
@@ -86,4 +79,11 @@ func TxEndDebug(gasUsed, totalCharge, totalRefund int64) {
 	}
 	fmt.Fprintf(w, "GAS_TX_END gas_used=%d meter_charges=%d meter_refunds=%d meter_net=%d\n",
 		gasUsed, totalCharge, totalRefund, totalCharge-totalRefund)
+	flush()
+}
+
+func flush() {
+	if out != nil {
+		out.Flush()
+	}
 }

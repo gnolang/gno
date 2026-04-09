@@ -125,20 +125,10 @@ the no-op body is inlined. With the guard, the compiler eliminates the
 entire block including argument evaluation. (Same pattern as the existing
 `gnovm/pkg/benchops` package.)
 
-**Flush at shutdown:** For file output, call `trace.Flush()` before exit.
-`defer` does not run on `os.Exit`, so use:
-
-```go
-// In TestMain:
-code := m.Run()
-trace.Flush()
-os.Exit(code)
-```
-
-For individual tests: `t.Cleanup(trace.Flush)` (safe to call multiple
-times — flush of an empty buffer is a no-op).
-
-For stderr output, Flush is a no-op (writes are unbuffered).
+**Flush:** The buffer is flushed automatically after every `TxEnd`.
+No manual flush or shutdown hook is needed. At most one tx worth of
+data is lost if the process crashes mid-transaction. Stderr output
+is unbuffered and crash-safe regardless.
 
 ### Trace points
 
@@ -210,13 +200,11 @@ GAS_STORE op=IAVL_SET_ESCAPED gas=223880     vlen=20     info=none            ke
 
 - **Store I/O and amino only.** Does not trace VM compute, ante handler,
   or block gas meter. Traced gas sums to ~40-70% of total GAS USED.
-- **No tx boundaries or phase markers.** Use one test per trace file.
 - **No running total.** Cross-reference with GAS USED output for totals.
 - **Single-goroutine only.** The `bufio.Writer` is not mutex-protected.
   Do not use with parallel test execution and file output.
-- **Crash safety.** File output is buffered — on panic or `os.Exit`,
-  unflushed data is lost. Call `trace.Flush()` before `os.Exit` (not via
-  defer). Stderr output is unbuffered and crash-safe.
+- **Crash safety.** File output is buffered and flushed after each tx.
+  At most one tx of trace data is lost on crash. Stderr is unbuffered.
 - **Key format.** Assumes store keys are printable ASCII (true for all
   current formats: oid:, tid:, pkg:, /a/, /pv/). Non-printable bytes
   replaced with `.` in key_str.
