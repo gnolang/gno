@@ -1,0 +1,19 @@
+name: meta / dependabot-validate
+
+on:
+  pull_request:
+    paths:
+      - '.github/dependabot.yml'
+      - '.github/workflows/meta-dependabot-validate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: marocchino/validate-dependabot@d8ae5c0d03dd75fbd0ad5f8ab4ba8101ebbd4b37 # v3
