@@ -4,7 +4,7 @@ loadpkg gno.land/r/demo/defi/foo20
 gnoland start
 
 # execute Faucet
-gnokey maketx call -pkgpath gno.land/r/demo/defi/foo20 -func Faucet -gas-fee 1300001ugnot -gas-wanted 13_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/defi/foo20 -func Faucet -gas-fee 830001ugnot -gas-wanted 8_300_000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
 # execute Transfer for invalid address

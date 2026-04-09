@@ -18,13 +18,13 @@ stdout 'data: # GovDAO'
 
 # add the proposal (temporarily comment out to debug)
 # First run a debug script to understand the addresses
-gnokey maketx run -gas-fee 190001ugnot -gas-wanted 1_900_000 -broadcast -chainid=tendermint_test member $WORK/debug/check_addresses.gno
+gnokey maketx run -gas-fee 120001ugnot -gas-wanted 1_200_000 -broadcast -chainid=tendermint_test member $WORK/debug/check_addresses.gno
 stdout '=== Debug info ==='
 stdout 'Origin caller: g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 stdout 'Current realm: CodeRealm{ g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0, gno.land/e/g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0/run }'
 
 # Create a proposal
-gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
+gnokey maketx run -gas-fee 5400001ugnot -gas-wanted 54_000_000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
 # call gov/dao render to check the proposal was created

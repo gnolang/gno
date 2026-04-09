@@ -6,7 +6,7 @@ loadpkg gno.land/r/alloc $WORK/alloc
 gnoland start
 
 # this works fine, mostly for observing allocations and garbage collection.
-gnokey maketx call -pkgpath gno.land/r/alloc -func DoAlloc -gas-fee 260001ugnot -gas-wanted 2_600_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/alloc -func DoAlloc -gas-fee 220001ugnot -gas-wanted 2_200_000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
 -- alloc/alloc.gno --

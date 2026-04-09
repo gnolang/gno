@@ -4,11 +4,11 @@ loadpkg gno.land/r/gnoland/ghverify
 gnoland start
 
 # make a verification request
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func RequestVerification -args 'deelawn' -gas-fee 2100001ugnot -gas-wanted 21_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func RequestVerification -args 'deelawn' -gas-fee 1500001ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # request tasks to complete (this is done by the agent)
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint -args 'request' -gas-fee 2400001ugnot -gas-wanted 24_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint -args 'request' -gas-fee 1700001ugnot -gas-wanted 17_000_000 -broadcast -chainid=tendermint_test test1
 stdout '\("\[\{\\"id\\":\\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\\",\\"type\\":\\"0\\",\\"value_type\\":\\"string\\",\\"tasks\\":\[\{\\"gno_address\\":\\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\\",\\"github_handle\\":\\"deelawn\\"\}\]\}\]" string\)'
 
 # a verification request was made but there should be no verified address
@@ -24,7 +24,7 @@ stdout ""
 stderr 'invalid ingest id: a'
 
 # the agent publishes their response to the task and the verification is complete
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint -args 'ingest,g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5,OK' -gas-fee 2200001ugnot -gas-wanted 22_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint -args 'ingest,g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5,OK' -gas-fee 1700001ugnot -gas-wanted 17_000_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # get verified github handle by gno address
