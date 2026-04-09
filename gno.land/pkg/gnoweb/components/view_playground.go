@@ -15,20 +15,6 @@ type PlaygroundData struct {
 	Domain string
 }
 
-type playgroundViewParams struct {
-	PlaygroundData
-	Article ArticleData
-}
-
 func PlaygroundView(data PlaygroundData) *View {
-	content := NewTemplateComponent("ui/playground_editor", data)
-	viewData := playgroundViewParams{
-		PlaygroundData: data,
-		Article: ArticleData{
-			ComponentContent: content,
-			Classes:          "c-playground-view",
-		},
-	}
-
-	return NewTemplateView(PlaygroundViewType, "renderPlayground", viewData)
+	return NewTemplateView(PlaygroundViewType, "renderPlayground", data)
 }
