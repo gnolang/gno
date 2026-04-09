@@ -21,42 +21,55 @@ This hard fork bundles the following upgrades in one shot:
 
 - **`r/sys/params` halt height** (gnolang/gno#5368): GovDAO can now vote to
   halt the chain at a specific block and enforce a minimum binary version on
-  restart.
+  restart. _(awaiting merge)_
 - **`r/gnops/valopers` fix** (gnolang/gno#5373): Registration fee set to 0,
-  unblocking validators who don't hold GNOT.
+  unblocking validators who don't hold GNOT. _(requires test12 validation)_
 - **Namereg GovDAO whitelist** (gnolang/gno#5293): Namereg now checks GovDAO
-  membership before allowing name registration.
-- **Gas parameter updates** (gnolang/gno#5291, #5289, #5274): Updated gas
-  schedule. Note: some previously-valid transactions may no longer be valid.
+  membership before allowing name registration. ✅ _merged_
+- **GovDAO scripts** (gnolang/gno#5375): Updated scripts for the new chain. ✅ _merged_
+
+**Not confirmed for this hard fork** (need explicit sign-off from Jae):
+- Gas parameter updates (gnolang/gno#5291, #5289, #5274)
 
 ## Upgrade workflow
+
+Approach: **Scenario A — genesis tx-replay with InitialHeight preservation**.
+All historical txs from gnoland1 are exported with their original block heights
+and timestamps, then assembled into the genesis for gnoland-1. The new chain
+starts at `initial_height = halt_height + 1`, preserving height continuity.
 
 ```
 gnoland1 (running)
     │
-    ├── Operators rolling-update to new binary (>= chain/gnoland1.1)
-    │   using --halt-height or GovDAO proposal
+    ├── [gnoland1.2] Operators rolling-update with halt_height config
     │
-    ├── Chain halts at approved height
+    ├── Chain halts at GovDAO-approved height
     │
-    ├── Each validator runs migrate-from-gnoland1.sh  ← TODO: not yet written
-    │   to produce gnoland-1/genesis.json
+    ├── Each validator runs migrate-from-gnoland1.sh  ← NOT YET IMPLEMENTED
+    │     - tx-archive exports all txs with block height + timestamp
+    │     - genesis-assemble produces genesis.json for gnoland-1
+    │       (chain_id=gnoland-1, initial_height=halt+1, original_chain_id=gnoland1)
     │
     ├── Validators compare genesis.json SHA-256
     │   (must all match before anyone restarts)
     │
     └── Validators restart with new binary + new genesis
-            chain-id: gnoland-1
+            chain-id: gnoland-1, starts at height halt+1
 ```
 
 ## ⚠️  Migration script not yet written
 
 **The migration script (`migrate-from-gnoland1.sh`) is the critical missing
-piece.** Until it exists and has been tested on a dry-run, the hard fork
-cannot happen.
+piece.** Until it exists and has been tested on a dry-run on test12, the
+hard fork cannot happen.
 
-See the TODO block inside `migrate-from-gnoland1.sh` for the full list of
-what needs to be implemented.
+Blockers:
+- `tx-archive genesis-assemble` command (companion to gnolang/gno#5411)
+- `tx-archive` offline export from block store (no live node required)
+- Jae's tm2 `GenesisDoc.InitialHeight` port (hard blocker for gnolang/gno#5411)
+- test12 dry-run: full halt → export → genesis-assemble → restart
+
+See the TODO block inside `migrate-from-gnoland1.sh` for details.
 
 Dry-run target: test12 (see gnoland1/govdao-scripts/ for tooling).
 
