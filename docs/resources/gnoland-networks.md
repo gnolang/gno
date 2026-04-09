@@ -8,10 +8,6 @@
 | Staging           | https://rpc.staging.gno.land:443         | `staging`    |
 | Test11            | https://rpc.test11.testnets.gno.land:443 | `test11`     |
 
-> **Note:** The Betanet chain ID changed from `gnoland1` to `gnoland-1` as part
-> of the hard fork that upgraded `r/sys/params`, `r/gnops/valopers`, and other
-> core realms. If you were using `gnoland1`, update your `--chainid` flag.
-
 ### WebSocket endpoints
 
 All networks follow the same pattern for websocket connections:
