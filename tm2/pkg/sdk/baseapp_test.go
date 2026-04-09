@@ -1273,3 +1273,81 @@ func TestGetMaximumBlockGas(t *testing.T) {
 	app.setConsensusParams(&abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: -5000000}})
 	require.Panics(t, func() { app.getMaximumBlockGas() })
 }
+
+func TestHaltHeight(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		haltHeight  uint64
+		blockHeight int64
+		shouldPanic bool
+	}{
+		{
+			name:        "no halt configured",
+			haltHeight:  0,
+			blockHeight: 10,
+			shouldPanic: false,
+		},
+		{
+			name:        "block before halt height",
+			haltHeight:  5,
+			blockHeight: 4,
+			shouldPanic: false,
+		},
+		{
+			name:        "block at halt height processes normally",
+			haltHeight:  5,
+			blockHeight: 5,
+			shouldPanic: false,
+		},
+		{
+			name:        "block after halt height panics",
+			haltHeight:  5,
+			blockHeight: 6,
+			shouldPanic: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := setupBaseApp(t)
+			app.SetHaltHeight(tt.haltHeight)
+
+			// Process blocks up to the target height.
+			for h := int64(1); h < tt.blockHeight; h++ {
+				header := &bft.Header{ChainID: "test-chain", Height: h}
+				app.BeginBlock(abci.RequestBeginBlock{Header: header})
+				app.Commit()
+			}
+
+			// Process the target block.
+			header := &bft.Header{ChainID: "test-chain", Height: tt.blockHeight}
+			if tt.shouldPanic {
+				require.Panics(t, func() {
+					app.BeginBlock(abci.RequestBeginBlock{Header: header})
+				})
+			} else {
+				require.NotPanics(t, func() {
+					app.BeginBlock(abci.RequestBeginBlock{Header: header})
+				})
+				app.Commit()
+			}
+		})
+	}
+}
+
+func TestSetHaltHeight(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t)
+	require.Equal(t, uint64(0), app.haltHeight)
+
+	app.SetHaltHeight(100)
+	require.Equal(t, uint64(100), app.haltHeight)
+
+	app.SetHaltHeight(0)
+	require.Equal(t, uint64(0), app.haltHeight)
+}
