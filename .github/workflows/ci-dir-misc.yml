@@ -1,0 +1,36 @@
+# tests the "misc" directory & tools
+# (not meant for miscellaneous workflows)
+name: ci / misc
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - misc/**
+      - .github/workflows/ci-dir-misc.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  main:
+    strategy:
+      fail-fast: false
+      matrix:
+        # fixed list because we have some non go programs on that misc folder
+        program:
+          - autocounterd
+          - genproto
+          - genstd
+          - goscan
+          - loop
+    name: ${{ matrix.program }}
+    uses: ./.github/workflows/_ci-go.yml
+    with:
+      modulepath: misc/${{ matrix.program }}
+      tests-extra-args: "-coverpkg=github.com/gnolang/gno/misc/..."
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}
