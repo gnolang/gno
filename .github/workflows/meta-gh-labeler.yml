@@ -1,0 +1,18 @@
+name: meta / gh / labeler
+on:
+  - pull_request_target # zizmor: ignore[dangerous-triggers]
+
+permissions: {}
+
+jobs:
+  check:
+    permissions:
+      contents: write # to read .github/labeler.yml config
+      issues: write # to add labels to issues
+      pull-requests: write # to add labels to PRs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9 # v5
