@@ -143,6 +143,24 @@ func TestNewAppWithOptions_ErrNoDB(t *testing.T) {
 	assert.ErrorContains(t, err, "no db provided")
 }
 
+func TestNewAppWithOptions_ErrNoLogger(t *testing.T) {
+	t.Parallel()
+
+	opts := TestAppOptions(memdb.NewMemDB())
+	opts.Logger = nil
+	_, err := NewAppWithOptions(opts)
+	assert.ErrorContains(t, err, "no logger provided")
+}
+
+func TestNewAppWithOptions_ErrNoEventSwitch(t *testing.T) {
+	t.Parallel()
+
+	opts := TestAppOptions(memdb.NewMemDB())
+	opts.EventSwitch = nil
+	_, err := NewAppWithOptions(opts)
+	assert.ErrorContains(t, err, "no event switch provided")
+}
+
 func TestNewApp(t *testing.T) {
 	// NewApp should have good defaults and manage to run InitChain.
 	td := t.TempDir()
@@ -900,6 +918,40 @@ func TestEndBlocker(t *testing.T) {
 		// Verify only the valid update is returned
 		require.Len(t, res.ValidatorUpdates, 0)
 	})
+
+	t.Run("extract updates error", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			noFilter = func(_ events.Event) []validatorUpdate {
+				return make([]validatorUpdate, 1) // 1 update
+			}
+
+			mockEventSwitchInner = newCommonEvSwitch()
+
+			mockVMKeeperInner = &mockVMKeeper{
+				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+					require.Equal(t, valRealm, pkgPath)
+					// Return a response that matches the regex but has an invalid bech32 address.
+					// This causes extractUpdatesFromResponse to return an error.
+					return `{("notabech32" std.Address),("notapubkey" string),(1 uint64)}`, nil
+				},
+			}
+		)
+
+		c := newCollector[validatorUpdate](mockEventSwitchInner, noFilter)
+		mockEventSwitchInner.FireEvent(chain.Event{})
+
+		eb := EndBlocker(c, nil, nil, mockVMKeeperInner, nil, &mockEndBlockerApp{})
+		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
+			},
+		}), abci.RequestEndBlock{})
+
+		// Error from extractUpdatesFromResponse → EndBlocker returns empty response
+		assert.Equal(t, abci.ResponseEndBlock{}, res)
+	})
 }
 
 func TestGasPriceUpdate(t *testing.T) {
@@ -1643,5 +1695,42 @@ func TestEndBlockerHalt(t *testing.T) {
 		eb(sdk.Context{}, abci.RequestEndBlock{Height: 100})
 
 		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight should NOT be called when halt_height=0 (cancelled)")
+	})
+}
+
+func TestExtractUpdatesFromResponse(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty response returns nil", func(t *testing.T) {
+		t.Parallel()
+		updates, err := extractUpdatesFromResponse("")
+		require.NoError(t, err)
+		assert.Nil(t, updates)
+	})
+
+	t.Run("no regex match returns nil", func(t *testing.T) {
+		t.Parallel()
+		updates, err := extractUpdatesFromResponse("some random string with no validator data")
+		require.NoError(t, err)
+		assert.Nil(t, updates)
+	})
+
+	t.Run("invalid address", func(t *testing.T) {
+		t.Parallel()
+		// The regex captures any quoted string as the address, so we can inject an invalid bech32.
+		response := `{("notabech32" std.Address),("notapubkey" string),(1 uint64)}`
+		_, err := extractUpdatesFromResponse(response)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unable to parse address")
+	})
+
+	t.Run("invalid pubkey", func(t *testing.T) {
+		t.Parallel()
+		// Valid bech32 address, but invalid pubkey string.
+		addr := crypto.AddressFromPreimage([]byte("test"))
+		response := fmt.Sprintf(`{(%q std.Address),("notapubkey" string),(1 uint64)}`, addr)
+		_, err := extractUpdatesFromResponse(response)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unable to parse public key")
 	})
 }
