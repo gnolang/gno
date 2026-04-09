@@ -1,0 +1,26 @@
+name: ci / tm2
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - tm2/**
+      # We trigger the testing workflow for changes to the main go.mod,
+      # since this can affect test results
+      - go.mod
+      - .github/workflows/ci-dir-tm2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  main:
+    uses: ./.github/workflows/_ci-go.yml
+    with:
+      modulepath: "tm2"
+      tests-extra-args: "-coverpkg=github.com/gnolang/gno/tm2/..."
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}

@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"container/heap"
 	"fmt"
 	"io"
 	"path"
@@ -524,6 +525,23 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	return pn, pv
 }
 
+// initHeap is a min-heap of pending-declaration indices, used by runFileDecls
+// to always pick the earliest-in-declaration-order ready entry.
+type initHeap []int
+
+func (h initHeap) Len() int           { return len(h) }
+func (h initHeap) Less(i, j int) bool { return h[i] < h[j] }
+func (h initHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h *initHeap) Push(x any)        { *h = append(*h, x.(int)) }
+
+func (h *initHeap) Pop() any {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[:n-1]
+	return x
+}
+
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
@@ -594,71 +612,86 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	// Get new values across all files in package.
 	updates := pn.PrepareNewValues(m.Alloc, pv)
 
-	// to detect loops in var declarations.
-	loopfindr := []Name{}
-	// recursive function for var declarations.
-	var runDeclarationFor func(fn *FileNode, decl Decl)
-	runDeclarationFor = func(fn *FileNode, decl Decl) {
-		// get fileblock of fn.
-		// fb := pv.GetFileBlock(nil, fn.FileName)
-		// get dependencies of decl.
-		deps := make(map[Name]struct{})
-		findDependentNames(decl, deps)
-		for dep := range deps {
-			// if dep already defined as import, skip.
-			if _, ok := fn.GetLocalIndex(dep); ok {
+	// To initialize package variables, Go's spec says the following:
+	//    Within a package, package-level variable initialization proceeds
+	//    stepwise, with each step selecting the variable earliest in declaration
+	//    order which has no dependencies on uninitialized variables.
+	//
+	// Implementation: Kahn's topological sort with declaration-order tiebreaking
+	// via a min-heap keyed on declaration index.
+	//
+	// Phase 1: Collect all non-FuncDecl declarations in source order and compute
+	// effective deps (collapsing FuncDecl edges) once for all declarations.
+	// Phase 2: Build reverse-dep index and unsatisfied counts, then use a
+	// min-heap to always pick the earliest-in-declaration-order ready entry.
+
+	// Build ordered pending list from all non-FuncDecl decls, preserving source
+	// declaration order. declFiles tracks which FileNode each decl belongs to.
+	var pending []Decl
+	var declFiles []*FileNode
+	for _, fn := range fns {
+		for _, decl := range fn.Decls {
+			if _, ok := decl.(*FuncDecl); ok {
 				continue
 			}
-			// if dep already in fdeclared, skip.
-			if _, ok := fdeclared[dep]; ok {
-				continue
-			}
-			fn, depdecl, exists := pn.FileSet.GetDeclForSafe(dep)
-			// special case: if doesn't exist:
-			if !exists {
-				if isUverseName(dep) { // then is reserved keyword in uverse.
-					continue
-				} else { // is an undefined dependency.
-					panic(fmt.Sprintf(
-						"%s/%s:%s: dependency %s not defined in fileset with files %v",
-						pv.PkgPath, fn.FileName, decl.GetPos().String(), dep, fs.FileNames()))
-				}
-			}
-			// if dep already in loopfindr, abort.
-			if slices.Contains(loopfindr, dep) {
-				if _, ok := (*depdecl).(*FuncDecl); ok {
-					// recursive function dependencies
-					// are OK with func decls.
-					continue
-				} else {
-					panic(fmt.Sprintf(
-						"%s/%s:%s: loop in variable initialization: dependency trail %v circularly depends on %s",
-						pv.PkgPath, fn.FileName, decl.GetPos().String(), loopfindr, dep))
-				}
-			}
-			// run dependency declaration
-			loopfindr = append(loopfindr, dep)
-			runDeclarationFor(fn, *depdecl)
-			loopfindr = loopfindr[:len(loopfindr)-1]
+			pending = append(pending, decl)
+			declFiles = append(declFiles, fn)
 		}
-		// run declaration
-		fb := pv.GetFileBlock(m.Store, fn.FileName)
+	}
+
+	// Compute effective deps for all decls at once (memoized DFS, O(V+E)).
+	effectiveDeps := resolveEffectiveDeps(pending, pn, fdeclared)
+
+	// Build reverse deps and unsatisfied counts. reverseDeps maps a ValueDecl
+	// to the indices of pending entries that depend on it.
+	unsatisfied := make([]int, len(pending))
+	reverseDeps := map[*ValueDecl][]int{}
+	for i, decl := range pending {
+		deps := effectiveDeps[decl]
+		unsatisfied[i] = len(deps)
+		for _, dep := range deps {
+			reverseDeps[dep] = append(reverseDeps[dep], i)
+		}
+	}
+
+	// Seed heap with zero-dep entries.
+	ready := &initHeap{}
+	for i := range pending {
+		if unsatisfied[i] == 0 {
+			heap.Push(ready, i)
+		}
+	}
+
+	// Kahn's loop: always pop the earliest-in-declaration-order ready entry.
+	for ready.Len() > 0 {
+		idx := heap.Pop(ready).(int)
+		decl := pending[idx]
+		fb := pv.GetFileBlock(m.Store, declFiles[idx].FileName)
 		m.PushBlock(fb)
 		m.runDeclaration(decl)
 		m.PopBlock()
 		for _, n := range decl.GetDeclNames() {
 			fdeclared[n] = struct{}{}
 		}
+		// Notify dependents; enqueue newly-ready ones.
+		if vd, ok := decl.(*ValueDecl); ok {
+			for _, depIdx := range reverseDeps[vd] {
+				unsatisfied[depIdx]--
+				if unsatisfied[depIdx] == 0 {
+					heap.Push(ready, depIdx)
+				}
+			}
+		}
 	}
 
-	// Declarations (and variable initializations).  This must happen
-	// after all files are preprocessed, because value decl may be out of
-	// order and depend on other files.
-
-	// Run declarations.
-	for _, fn := range fns {
-		for _, decl := range fn.Decls {
-			runDeclarationFor(fn, decl)
+	// Sanity check: all entries must have been processed. If any remain,
+	// it means resolveEffectiveDeps missed a cycle or the reverse-dep
+	// notification has a gap.
+	for i, decl := range pending {
+		if unsatisfied[i] > 0 {
+			panic(fmt.Sprintf(
+				"incomplete initialization: %v still has %d unsatisfied deps",
+				decl.GetDeclNames(), unsatisfied[i]))
 		}
 	}
 
@@ -1328,11 +1361,9 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUCallDeferNativeBody)
 			m.doOpCallDeferNativeBody()
 		case OpGo:
-			m.incrCPU(OpCPUGo)
-			panic("not yet implemented")
+			panic("goroutines are not yet supported")
 		case OpSelect:
-			m.incrCPU(OpCPUSelect)
-			panic("not yet implemented")
+			panic("select is not yet supported")
 		case OpSwitchClause:
 			m.incrCPU(OpCPUSwitchClause)
 			m.doOpSwitchClause()
@@ -1371,8 +1402,7 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUUxor)
 			m.doOpUxor()
 		case OpUrecv:
-			m.incrCPU(OpCPUUrecv)
-			m.doOpUrecv()
+			panic("channel type is not yet supported")
 		/* Binary operators */
 		case OpLor:
 			m.incrCPU(OpCPULor)
@@ -1500,8 +1530,7 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUSliceType)
 			m.doOpSliceType()
 		case OpChanType:
-			m.incrCPU(OpCPUChanType)
-			m.doOpChanType()
+			panic("channel type is not yet supported")
 		case OpFuncType:
 			m.incrCPU(OpCPUFuncType)
 			m.doOpFuncType()
