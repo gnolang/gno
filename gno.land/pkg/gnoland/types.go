@@ -137,8 +137,9 @@ type TxWithMetadata struct {
 }
 
 type GnoTxMetadata struct {
-	Timestamp   int64 `json:"timestamp"`
-	BlockHeight int64 `json:"block_height,omitempty"` // Original block height for historical tx replay
+	Timestamp   int64  `json:"timestamp"`
+	BlockHeight int64  `json:"block_height,omitempty"` // Original block height for historical tx replay
+	ChainID     string `json:"chain_id,omitempty"`     // Originating chain ID, populated by tx-archive export
 }
 
 // ReadGenesisTxs reads the genesis txs from the given file path

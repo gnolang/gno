@@ -251,4 +251,22 @@ func TestGenesis_Validate(t *testing.T) {
 
 		assert.ErrorIs(t, g.Validate(), ErrValidatorPubKeyMismatch)
 	})
+
+	t.Run("valid initial height", func(t *testing.T) {
+		t.Parallel()
+
+		g := getValidTestGenesis()
+		g.InitialHeight = 1000
+
+		require.NoError(t, g.Validate())
+	})
+
+	t.Run("invalid initial height (negative)", func(t *testing.T) {
+		t.Parallel()
+
+		g := getValidTestGenesis()
+		g.InitialHeight = -1
+
+		assert.ErrorIs(t, g.Validate(), ErrInvalidInitialHeight)
+	})
 }
