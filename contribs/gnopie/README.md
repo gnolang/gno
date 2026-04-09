@@ -41,7 +41,7 @@ gnopie --debug gno.land/r/gnoland/blog                   # Show internals
 ## How it works
 
 - **Auto-discovery**: gnopie fetches the domain's homepage and reads `<meta name="gnoconnect:rpc">` tags. No manual config.
-- **Auto-gas**: CALL and RUN simulate first, then broadcast with estimated gas + 50% buffer.
+- **Auto-gas**: CALL and RUN simulate first, then broadcast with estimated gas + 20% buffer (configurable).
 - **Crossing functions**: `cross` is auto-injected for realm functions that require it.
 - **Caching**: Network discovery (24h) and query results (1h) are cached in `$GNOHOME/gnopie/cache/`.
 
