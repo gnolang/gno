@@ -770,7 +770,10 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	// check backend.
 	if ds.baseStore != nil {
 		key := backendTypeKey(tid)
-		bz := ds.baseStore.Get(ds.gctx, []byte(key))
+		bz := ds.stdlibKeyBytes[key] // from byte cache — no I/O gas
+		if bz == nil {
+			bz = ds.baseStore.Get(ds.gctx, []byte(key)) // from store — charges I/O gas
+		}
 		if bz != nil {
 			gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
 			ds.consumeGas(gas, GasAminoDecodeDesc)
@@ -1111,10 +1114,10 @@ func (ds *defaultStore) PopulateStdlibCacheFrom(paths []string, baseStore store.
 
 func (ds *defaultStore) populateStdlibCache(paths []string, baseStore store.Store) {
 	for _, path := range paths {
+		// Cache object bytes (oid:<pkgid_hex>:*).
 		pid := PkgIDFromPkgPath(path)
 		prefix := "oid:" + hex.EncodeToString(pid.Hashlet[:]) + ":"
 		start := []byte(prefix)
-		// End key: increment last byte of prefix for exclusive upper bound.
 		endPrefix := prefix[:len(prefix)-1] + string(rune(prefix[len(prefix)-1]+1))
 		end := []byte(endPrefix)
 		iter := baseStore.Iterator(nil, start, end)
@@ -1126,6 +1129,22 @@ func (ds *defaultStore) populateStdlibCache(paths []string, baseStore store.Stor
 			ds.stdlibKeyBytes[key] = bz
 		}
 		iter.Close()
+
+		// Cache type bytes (tid:<path>.*).
+		// Type keys use the full package path (e.g., "tid:strings.Builder").
+		// Range: [tid:<path>. , tid:<path>/) captures all package-level types.
+		tprefix := "tid:" + path + "."
+		tstart := []byte(tprefix)
+		tend := []byte("tid:" + path + "/")
+		titer := baseStore.Iterator(nil, tstart, tend)
+		for ; titer.Valid(); titer.Next() {
+			key := string(titer.Key())
+			val := titer.Value()
+			bz := make([]byte, len(val))
+			copy(bz, val)
+			ds.stdlibKeyBytes[key] = bz
+		}
+		titer.Close()
 	}
 }
 

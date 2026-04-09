@@ -5,8 +5,8 @@
 
 # Gas budgets — update these together if gas model changes.
 # CALL_GAS must be enough for Convert but NOT enough for ConvertHeavy.
-env ADDPKG_GAS=9_200_000
-env CALL_GAS=5_400_000
+env ADDPKG_GAS=4_800_000
+env CALL_GAS=3_200_000
 
 gnoland start
 
