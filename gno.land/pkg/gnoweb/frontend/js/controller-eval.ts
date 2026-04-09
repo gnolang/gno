@@ -6,9 +6,15 @@ interface HistoryEntry {
 }
 
 export default function EvalController(element: HTMLElement): void {
-	const inputEl = element.querySelector('[data-eval-target="input"]') as HTMLInputElement;
-	const resultEl = element.querySelector('[data-eval-target="result"]') as HTMLElement;
-	const historyListEl = element.querySelector('[data-eval-target="history-list"]') as HTMLElement;
+	const inputEl = element.querySelector(
+		'[data-eval-target="input"]',
+	) as HTMLInputElement;
+	const resultEl = element.querySelector(
+		'[data-eval-target="result"]',
+	) as HTMLElement;
+	const historyListEl = element.querySelector(
+		'[data-eval-target="history-list"]',
+	) as HTMLElement;
 
 	if (!inputEl || !resultEl) return;
 
@@ -57,7 +63,11 @@ export default function EvalController(element: HTMLElement): void {
 		}
 	}
 
-	function addToHistory(expression: string, result: string, isError: boolean): void {
+	function addToHistory(
+		expression: string,
+		result: string,
+		isError: boolean,
+	): void {
 		history.push({ expression, result, isError });
 		if (!historyListEl) return;
 
@@ -84,7 +94,8 @@ export default function EvalController(element: HTMLElement): void {
 
 		const resultPre = document.createElement("pre");
 		resultPre.className = `b-eval-history-result${isError ? " u-color-danger" : ""}`;
-		resultPre.textContent = result.length > 200 ? result.substring(0, 200) + "..." : result;
+		resultPre.textContent =
+			result.length > 200 ? result.substring(0, 200) + "..." : result;
 
 		entry.appendChild(exprDiv);
 		entry.appendChild(resultPre);
@@ -146,7 +157,10 @@ export default function EvalController(element: HTMLElement): void {
 					})
 					.join(", ")})`;
 				inputEl.focus();
-				inputEl.setSelectionRange(funcName.length + 1, inputEl.value.length - 1);
+				inputEl.setSelectionRange(
+					funcName.length + 1,
+					inputEl.value.length - 1,
+				);
 			} else {
 				inputEl.value = `${funcName}()`;
 				doEval(`${funcName}()`);

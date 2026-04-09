@@ -8,13 +8,20 @@ export default function PlaygroundController(element: HTMLElement): void {
 	let files: PlaygroundFile[] = [];
 	let activeFile = 0;
 
-	const codeEl = element.querySelector('[data-playground-target="code"]') as HTMLTextAreaElement;
-	const outputEl = element.querySelector('[data-playground-target="output"]') as HTMLElement;
-	const tabsEl = element.querySelector('[data-playground-target="tabs"]') as HTMLElement;
+	const codeEl = element.querySelector(
+		'[data-playground-target="code"]',
+	) as HTMLTextAreaElement;
+	const outputEl = element.querySelector(
+		'[data-playground-target="output"]',
+	) as HTMLElement;
+	const tabsEl = element.querySelector(
+		'[data-playground-target="tabs"]',
+	) as HTMLElement;
 
 	if (!codeEl || !outputEl || !tabsEl) return;
 
-	const domain = element.getAttribute("data-playground-domain-value") || "gno.land";
+	const domain =
+		element.getAttribute("data-playground-domain-value") || "gno.land";
 
 	// Parse initial code
 	const initialCode = codeEl.value;
@@ -25,7 +32,8 @@ export default function PlaygroundController(element: HTMLElement): void {
 			const content = (parts[i + 1] || "").trim();
 			if (name) files.push({ name, content });
 		}
-		if (files.length === 0) files = [{ name: "main.gno", content: initialCode }];
+		if (files.length === 0)
+			files = [{ name: "main.gno", content: initialCode }];
 		codeEl.value = files[0].content;
 	} else {
 		files = [{ name: "main.gno", content: initialCode }];
@@ -104,7 +112,8 @@ export default function PlaygroundController(element: HTMLElement): void {
 	}
 
 	function runTests(): void {
-		outputEl.textContent = "Testing requires a running gno node.\n\nTo test locally:\n  gno test .";
+		outputEl.textContent =
+			"Testing requires a running gno node.\n\nTo test locally:\n  gno test .";
 	}
 
 	function formatCode(): void {
@@ -122,8 +131,12 @@ export default function PlaygroundController(element: HTMLElement): void {
 		const url = `${window.location.origin}/_/play?code=${encodeURIComponent(code)}`;
 		navigator.clipboard
 			.writeText(url)
-			.then(() => { outputEl.textContent = "Share URL copied to clipboard!"; })
-			.catch(() => { outputEl.textContent = `Share URL:\n${url}`; });
+			.then(() => {
+				outputEl.textContent = "Share URL copied to clipboard!";
+			})
+			.catch(() => {
+				outputEl.textContent = `Share URL:\n${url}`;
+			});
 	}
 
 	function clearOutput(): void {
@@ -133,19 +146,28 @@ export default function PlaygroundController(element: HTMLElement): void {
 
 	// Keyboard shortcuts
 	codeEl.addEventListener("keydown", (e: KeyboardEvent) => {
-		if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); runCode(); return; }
+		if (e.ctrlKey && e.key === "Enter") {
+			e.preventDefault();
+			runCode();
+			return;
+		}
 		if (e.key === "Tab" && !e.shiftKey) {
 			e.preventDefault();
 			const start = codeEl.selectionStart;
 			const end = codeEl.selectionEnd;
-			codeEl.value = codeEl.value.substring(0, start) + "\t" + codeEl.value.substring(end);
+			codeEl.value =
+				codeEl.value.substring(0, start) + "\t" + codeEl.value.substring(end);
 			codeEl.selectionStart = codeEl.selectionEnd = start + 1;
 		}
 	});
 
 	// Wire buttons by data-action attribute
 	const actions: Record<string, () => void> = {
-		runCode, runTests, formatCode, shareCode, clearOutput,
+		runCode,
+		runTests,
+		formatCode,
+		shareCode,
+		clearOutput,
 	};
 	element.querySelectorAll("[data-action]").forEach((el) => {
 		const attr = el.getAttribute("data-action");

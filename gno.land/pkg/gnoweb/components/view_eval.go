@@ -63,7 +63,7 @@ func EvalView(data EvalData) *View {
 
 // BuildEvalFuncs extracts public non-method functions suitable for eval.
 func BuildEvalFuncs(jdoc *doc.JSONDocumentation) []EvalFuncInfo {
-	var funcs []EvalFuncInfo
+	funcs := make([]EvalFuncInfo, 0, len(jdoc.Funcs))
 	for _, fn := range jdoc.Funcs {
 		if fn.Type != "" || !token.IsExported(fn.Name) {
 			continue
