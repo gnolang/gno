@@ -20,6 +20,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/store/trace"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
 	"github.com/pmezard/go-difflib/difflib"
@@ -383,6 +384,9 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	}
 	gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoDecodeDesc)
+	if trace.StoreGasEnabled {
+		trace.Store("DECODE_REALM", gas, []byte(key), len(bz), "none")
+	}
 	amino.MustUnmarshal(bz, &rlm)
 	size = len(bz)
 	if debug {
@@ -406,6 +410,9 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	bz := amino.MustMarshal(rlm)
 	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoEncodeDesc)
+	if trace.StoreGasEnabled {
+		trace.Store("ENCODE_REALM", gas, []byte(key), len(bz), "none")
+	}
 	ds.baseStore.Set(ds.gctx, []byte(key), bz)
 	size = len(bz)
 }
@@ -457,9 +464,14 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		size = len(hashbz)
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
+		fromCache := oid.PkgID.IsStdlibPkg() && ds.stdlibKeyBytes[key] != nil
 		var oo Object
 		gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasAminoDecodeDesc)
+		if trace.StoreGasEnabled {
+			trace.Store("DECODE_OBJ", gas, []byte(key), len(hashbz),
+				fmt.Sprintf("cached=%v", fromCache))
+		}
 		amino.MustUnmarshal(bz, &oo)
 		if debug {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
@@ -610,6 +622,9 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	bz := amino.MustMarshalAny(o2)
 	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoEncodeDesc)
+	if trace.StoreGasEnabled {
+		trace.Store("ENCODE_OBJ", gas, []byte(backendObjectKey(oid)), len(bz), "none")
+	}
 	// set hash.
 	hash := HashBytes(bz) // XXX objectHash(bz)???
 	if len(hash) != HashSize {
@@ -684,6 +699,9 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		key = []byte(oid.String())
 		value = hash.Bytes()
 		ds.iavlStore.Set(ds.gctx, key, value)
+		if trace.StoreGasEnabled {
+			trace.Store("IAVL_SET_ESCAPED", 0, key, len(value), "none")
+		}
 	}
 	return diff
 }
@@ -721,6 +739,9 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 	if oo.GetIsEscaped() && ds.iavlStore != nil {
 		key := []byte(oid.String())
 		ds.iavlStore.Delete(ds.gctx, key)
+		if trace.StoreGasEnabled {
+			trace.Store("IAVL_DEL_ESCAPED", 0, key, 0, "none")
+		}
 	}
 	// make realm op log entry
 	if ds.opslog != nil {
@@ -753,6 +774,9 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		if bz != nil {
 			gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
 			ds.consumeGas(gas, GasAminoDecodeDesc)
+			if trace.StoreGasEnabled {
+				trace.Store("DECODE_TYPE", gas, []byte(key), len(bz), "none")
+			}
 			cacheSum := sha256.Sum256(bz)
 			var tt Type
 			if val, ok := ds.aminoCache.Get(cacheSum[:]); ok {
@@ -814,6 +838,9 @@ func (ds *defaultStore) SetType(tt Type) {
 		ds.aminoCache.Set(cacheSum[:], tcopy, int64(len(bz)))
 		gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasAminoEncodeDesc)
+		if trace.StoreGasEnabled {
+			trace.Store("ENCODE_TYPE", gas, []byte(key), len(bz), "none")
+		}
 		ds.baseStore.Set(ds.gctx, []byte(key), bz)
 		size = len(bz)
 	}
@@ -945,7 +972,13 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	ds.consumeGas(gas, GasAminoEncodeDesc)
 	ds.baseStore.Set(ds.gctx, idxkey, []byte(mpkg.Path))
 	pathkey := []byte(backendPackagePathKey(mpkg.Path))
+	if trace.StoreGasEnabled {
+		trace.Store("ENCODE_MEMPKG", gas, pathkey, len(bz), "none")
+	}
 	ds.iavlStore.Set(ds.gctx, pathkey, bz)
+	if trace.StoreGasEnabled {
+		trace.Store("IAVL_SET_MEMPKG", 0, pathkey, len(bz), "none")
+	}
 	size = len(bz)
 }
 
@@ -963,6 +996,9 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	}
 	pathkey := []byte(backendPackagePathKey(path))
 	bz := ds.iavlStore.Get(ds.gctx, pathkey)
+	if trace.StoreGasEnabled {
+		trace.Store("IAVL_GET_MEMPKG", 0, pathkey, len(bz), "none")
+	}
 	if bz == nil {
 		// If this is the first try, attempt using GetPackage to retrieve the
 		// package, first. GetPackage can leverage pkgGetter, which in most
@@ -978,6 +1014,9 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	}
 	gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoDecodeDesc)
+	if trace.StoreGasEnabled {
+		trace.Store("DECODE_MEMPKG", gas, pathkey, len(bz), "none")
+	}
 
 	var mpkg *std.MemPackage
 	amino.MustUnmarshal(bz, &mpkg)

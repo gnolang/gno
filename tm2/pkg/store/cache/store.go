@@ -13,6 +13,7 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
+	"github.com/gnolang/gno/tm2/pkg/store/trace"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 )
@@ -132,14 +133,22 @@ func (store *cacheStore) Get(gctx *types.GasContext, key []byte) (value []byte) 
 	if !ok {
 		// Cache miss — charge depth-based I/O gas, then fetch.
 		if gctx != nil {
+			var gas types.Gas
 			if store.hasEstimator {
 				d := store.effectiveGetReadDepth100(gctx)
-				gctx.ConsumeGas(d*gctx.Config.ReadCostFlat/100, "DepthReadFlat")
+				gas = d * gctx.Config.ReadCostFlat / 100
+				gctx.ConsumeGas(gas, "DepthReadFlat")
 			} else {
 				gctx.WillGet() // flat ReadCostFlat (non-depth store)
+				gas = gctx.Config.ReadCostFlat
 			}
 			value = store.parent.Get(nil, key)
+			perByte := gctx.Config.ReadCostPerByte * types.Gas(len(value))
 			gctx.DidGet(value) // ReadCostPerByte (nil-safe)
+			if trace.StoreGasEnabled {
+				trace.Store("GET", gas+perByte, key, len(value),
+					fmt.Sprintf("depth=%v", store.hasEstimator))
+			}
 		} else {
 			value = store.parent.Get(nil, key)
 		}
@@ -165,6 +174,9 @@ func (store *cacheStore) Set(gctx *types.GasContext, key []byte, value []byte) {
 		k := string(key)
 		if prev, exists := store.chargedGas[k]; exists && prev > 0 {
 			gctx.RefundGas(prev)
+			if trace.StoreGasEnabled {
+				trace.Store("REFUND", prev, key, 0, "dedup")
+			}
 		}
 		var gas types.Gas
 		if store.hasEstimator {
@@ -178,6 +190,10 @@ func (store *cacheStore) Set(gctx *types.GasContext, key []byte, value []byte) {
 			gas = gctx.WillSet(value)
 		}
 		store.chargedGas[k] = gas
+		if trace.StoreGasEnabled {
+			trace.Store("SET", gas, key, len(value),
+				fmt.Sprintf("depth=%v", store.hasEstimator))
+		}
 	}
 
 	store.setCacheValue(key, value, false, true)
@@ -200,6 +216,9 @@ func (store *cacheStore) Delete(gctx *types.GasContext, key []byte) {
 		k := string(key)
 		if prev, exists := store.chargedGas[k]; exists && prev > 0 {
 			gctx.RefundGas(prev)
+			if trace.StoreGasEnabled {
+				trace.Store("REFUND", prev, key, 0, "dedup")
+			}
 		}
 		var gas types.Gas
 		if store.hasEstimator {
@@ -212,6 +231,10 @@ func (store *cacheStore) Delete(gctx *types.GasContext, key []byte) {
 			gas = gctx.WillDelete() // DeleteCost
 		}
 		store.chargedGas[k] = gas
+		if trace.StoreGasEnabled {
+			trace.Store("DELETE", gas, key, 0,
+				fmt.Sprintf("depth=%v", store.hasEstimator))
+		}
 	}
 
 	store.setCacheValue(key, nil, true, true)
