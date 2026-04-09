@@ -752,6 +752,12 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 	}
 
 	if mode == RunTxModeDeliver {
+		// Wrap the gas meter in a passthrough that limits gas to the
+		// remaining block gas. This acts as a safety net for any gas
+		// charges before the ante handler's SetGasMeter replaces it
+		// with a per-tx basicGasMeter(GasWanted). After SetGasMeter,
+		// block gas is no longer enforced per-charge — it is checked
+		// post-hoc by the block gas meter defer below.
 		gasleft := ctx.BlockGasMeter().Remaining()
 		ctx = ctx.WithGasMeter(store.NewPassthroughGasMeter(
 			ctx.GasMeter(),
@@ -804,15 +810,24 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		result.GasWanted = gasWanted
 		result.GasUsed = ctx.GasMeter().GasConsumed()
 		if trace.StoreGasEnabled {
-			trace.TxEnd(result.GasUsed)
+			type debugMeter interface{ DebugTotals() (int64, int64) }
+			if m, ok := ctx.GasMeter().(debugMeter); ok {
+				c, r := m.DebugTotals()
+				trace.TxEndDebug(result.GasUsed, c, r)
+			} else {
+				trace.TxEnd(result.GasUsed)
+			}
 		}
 	}()
 
-	// If BlockGasMeter() panics it will be caught by the above recover and will
-	// return an error - in any case BlockGasMeter will consume gas past the limit.
+	// Charge this tx's gas to the block gas meter. This is the post-hoc
+	// enforcement of the block gas limit — after the ante handler's
+	// SetGasMeter replaces the passthrough meter, block gas is no longer
+	// enforced per-charge. Instead, the tx's total gas is charged to the
+	// block meter here. If the block meter overflows, it panics.
 	//
-	// NOTE: This must exist in a separate defer function for the above recovery
-	// to recover from this one.
+	// NOTE: This must exist in a separate defer function for the above
+	// recovery to recover from this one.
 	defer func() {
 		if mode == RunTxModeDeliver {
 			ctx.BlockGasMeter().ConsumeGas(

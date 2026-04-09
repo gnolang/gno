@@ -146,8 +146,10 @@ type GasMeter interface {
 // basicGasMeter
 
 type basicGasMeter struct {
-	limit    Gas
-	consumed Gas
+	limit       Gas
+	consumed    Gas
+	totalCharge Gas // debug: sum of all ConsumeGas calls
+	totalRefund Gas // debug: sum of all RefundGas calls
 }
 
 // NewGasMeter returns a reference to a new basicGasMeter.
@@ -192,6 +194,7 @@ func (g *basicGasMeter) ConsumeGas(amount Gas, descriptor string) {
 	// consume gas even if out of gas.
 	// corollary, call (Did)ConsumeGas after consumption.
 	g.consumed = consumed
+	g.totalCharge += amount
 	if consumed > g.limit {
 		panic(OutOfGasError{descriptor})
 	}
@@ -201,10 +204,15 @@ func (g *basicGasMeter) RefundGas(amount Gas, descriptor string) {
 	if amount < 0 {
 		panic("gas must not be negative")
 	}
+	g.totalRefund += amount
 	g.consumed -= amount
 	if g.consumed < 0 {
 		g.consumed = 0
 	}
+}
+
+func (g *basicGasMeter) DebugTotals() (charge, refund Gas) {
+	return g.totalCharge, g.totalRefund
 }
 
 func (g *basicGasMeter) IsPastLimit() bool {

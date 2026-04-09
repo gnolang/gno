@@ -470,7 +470,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		ds.consumeGas(gas, GasAminoDecodeDesc)
 		if trace.StoreGasEnabled {
 			trace.Store("DECODE_OBJ", gas, []byte(key), len(hashbz),
-				fmt.Sprintf("cached=%v", fromCache))
+				fmt.Sprintf("cached=%v,meter=%v", fromCache, ds.gasMeter != nil))
 		}
 		amino.MustUnmarshal(bz, &oo)
 		if debug {

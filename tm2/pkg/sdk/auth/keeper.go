@@ -318,7 +318,9 @@ func maxBig(x, y *big.Int) *big.Int {
 // It returns the gas price for the last block.
 func (gk GasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice {
 	stor := ctx.Store(gk.key)
-	bz := stor.Get(ctx.GasContext(), []byte(GasPriceKey))
+	// nil GasContext: this read occurs before SetGasMeter creates
+	// the per-tx gas meter, so no gas can be meaningfully charged.
+	bz := stor.Get(nil, []byte(GasPriceKey))
 	if bz == nil {
 		return std.GasPrice{}
 	}

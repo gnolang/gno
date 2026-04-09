@@ -78,3 +78,12 @@ func TxEnd(gasUsed int64) {
 	}
 	fmt.Fprintf(w, "GAS_TX_END gas_used=%d\n", gasUsed)
 }
+
+func TxEndDebug(gasUsed, totalCharge, totalRefund int64) {
+	var w io.Writer = outFile
+	if out != nil {
+		w = out
+	}
+	fmt.Fprintf(w, "GAS_TX_END gas_used=%d meter_charges=%d meter_refunds=%d meter_net=%d\n",
+		gasUsed, totalCharge, totalRefund, totalCharge-totalRefund)
+}
