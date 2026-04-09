@@ -3,7 +3,7 @@ name: meta / bot
 
 on:
   # Watch for changes on PR state, assignees, labels, head branch and draft/ready status
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
     types:
       - assigned
       - unassigned
@@ -32,6 +32,8 @@ on:
         default: all
         type: string
 
+permissions: {}
+
 jobs:
   # This job creates a matrix of PR numbers based on the inputs from the various
   # events that can trigger this workflow so that the process-pr job below can
@@ -49,28 +51,30 @@ jobs:
       (github.event_name != 'pull_request_review' || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name)
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      pull-requests: read # to read PR metadata for matrix generation
     outputs:
       pr-numbers: ${{ steps.pr-numbers.outputs.pr-numbers }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
 
       - name: Get last commit hash for directory
         id: get-hash
-        run: echo "dir_hash=$(git log -1 --format="%H" -- contribs/github-bot/)" >> $GITHUB_OUTPUT
+        run: echo "dir_hash=$(git log -1 --format="%H" -- contribs/github-bot/)" >> "$GITHUB_OUTPUT"
 
       - name: Cache github-bot binary
         id: cache-bot-bin
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: /usr/local/bin/github-bot
           key: ${{ runner.os }}-github-bot-${{ steps.get-hash.outputs.dir_hash }}
 
       - name: Install Go
         if: steps.cache-bot-bin.outputs.cache-hit != 'true'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: contribs/github-bot/go.mod
 
@@ -99,10 +103,10 @@ jobs:
       - name: Write PR number to a file
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: echo $PR_NUMBER > pr-number
+        run: echo "$PR_NUMBER" > pr-number
 
       - name: Upload it as an artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: pr-number
           path: pr-number
@@ -114,6 +118,8 @@ jobs:
     # Just skip this job if PR numbers matrix is empty (prevent failed state)
     if: needs.define-prs-matrix.outputs.pr-numbers != '[]' && needs.define-prs-matrix.outputs.pr-numbers != ''
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         # Run one job for each PR to process
@@ -124,22 +130,24 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
 
       - name: Get last commit hash for directory
         id: get-hash
-        run: echo "dir_hash=$(git log -1 --format="%H" -- contribs/github-bot/)" >> $GITHUB_OUTPUT
+        run: echo "dir_hash=$(git log -1 --format="%H" -- contribs/github-bot/)" >> "$GITHUB_OUTPUT"
 
       - name: Cache github-bot binary
         id: cache-bot-bin
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: /usr/local/bin/github-bot
           key: ${{ runner.os }}-github-bot-${{ steps.get-hash.outputs.dir_hash }}
 
       - name: Install Go
         if: steps.cache-bot-bin.outputs.cache-hit != 'true'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: contribs/github-bot/go.mod
 
@@ -151,5 +159,6 @@ jobs:
       - name: Run GitHub Bot
         working-directory: contribs/github-bot
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_BOT_PAT }}
-        run: github-bot check -pr-numbers '${{ matrix.pr-number }}' -verbose
+          GITHUB_TOKEN: ${{ secrets.GH_BOT_PAT }} # zizmor: ignore[secrets-outside-env]
+          MATRIX_PR_NUMBER: ${{ matrix.pr-number }}
+        run: github-bot check -pr-numbers "${MATRIX_PR_NUMBER}" -verbose
