@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Remove a validator from gnoland1 via govDAO proposal.
+# Remove a validator from gnoland-1 via govDAO proposal.
 #
 # Usage:
 #   ./rm-validator.sh <address>
@@ -7,7 +7,7 @@
 # Environment:
 #   GNOKEY_NAME   - gnokey key name (default: moul)
 #   CHAIN_ID      - chain ID (default: gnoland-1)
-#   REMOTE        - RPC endpoint (default: 127.0.0.1:26657)
+#   REMOTE        - RPC endpoint (default: https://rpc.betanet.testnets.gno.land:443)
 #   GAS_WANTED    - gas limit (default: 50000000)
 #   GAS_FEE       - gas fee (default: 1000000ugnot)
 set -eo pipefail
