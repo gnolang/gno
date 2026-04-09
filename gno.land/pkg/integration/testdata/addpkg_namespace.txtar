@@ -27,7 +27,7 @@ stdout 'OK!'
 
 # Enable `sys/names`
 # admin call -> sys/names.Enable
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 400001ugnot -gas-wanted 4_000_000 -broadcast -chainid tendermint_test admin
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 350001ugnot -gas-wanted 3_500_000 -broadcast -chainid tendermint_test admin
 stdout 'OK!'
 
 # Check that `sys/names` has been enabled
