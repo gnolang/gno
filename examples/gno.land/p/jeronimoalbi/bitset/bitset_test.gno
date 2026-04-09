@@ -383,7 +383,7 @@ func TestBitSetXor(t *testing.T) {
 	}
 }
 
-func TestBitSetEquals(t *testing.T) {
+func TestBitSetEqual(t *testing.T) {
 	cases := []struct {
 		name  string
 		setup func() (a, b bitset.BitSet)
@@ -433,7 +433,7 @@ func TestBitSetEquals(t *testing.T) {
 			a, b := tc.setup()
 
 			// Act
-			got := a.Equals(b)
+			got := a.Equal(b)
 
 			// Assert
 			if tc.want == got {

@@ -106,8 +106,8 @@ func (b *BitSet) Xor(other BitSet) {
 	}
 }
 
-// Equals checks whether other bitset have exactly the same bits set.
-func (b BitSet) Equals(other BitSet) bool {
+// Equal checks whether other bitset have exactly the same bits set.
+func (b BitSet) Equal(other BitSet) bool {
 	short, long := b.words, other.words
 	if len(short) > len(long) {
 		short, long = long, short
