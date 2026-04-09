@@ -60,19 +60,15 @@ stdout ${RFOO_USER_ADDR}
 
 ## 7. MsgRun -> myrlm.A: user address
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlm-a.gno
-stdout ${test1_user_addr}
 
 ## 8. MsgRun -> myrealm.B -> myrlm.A: user address
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlm-b.gno
-stdout ${test1_user_addr}
 
 ## 9. MsgRun -> r/foo.A -> myrlm.A: r/foo
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/foo-a.gno
-stdout ${RFOO_USER_ADDR}
 
 ## 10. MsgRun -> r/foo.B -> myrlm.B -> r/foo.A: r/foo
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/foo-b.gno
-stdout ${RFOO_USER_ADDR}
 
 ## 11. MsgRun -> p/demo/bar.A -> myrlm.A: user address
 ## XXX: crossing call only allowed in realm packages, doesn't work - not possible
@@ -90,7 +86,6 @@ stdout ${RFOO_USER_ADDR}
 
 ## 14. MsgRun -> std.PreviousRealm(): user address
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/baz.gno
-stdout ${test1_user_addr}
 
 -- r/myrlm/myrlm.gno --
 package myrlm
@@ -107,7 +102,14 @@ func B(cur realm) string {
 -- r/foo/foo.gno --
 package foo
 
-import "gno.land/r/myrlm"
+import (
+	"chain/runtime"
+	"gno.land/r/myrlm"
+)
+
+func Addr(cur realm) string {
+	return runtime.CurrentRealm().Address().String()
+}
 
 func A(cur realm) string {
 	return myrlm.A(cross)
@@ -131,10 +133,14 @@ func B() string {
 -- run/myrlm-a.gno --
 package main
 
-import myrlm "gno.land/r/myrlm"
+import (
+	myrlm "gno.land/r/myrlm"
+)
 
 func main() {
-	println(myrlm.A(cross))
+	if got, want := myrlm.A(cross), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"; got != want {
+		panic("unexpected previous realm in myrlm-a: got=" + got + " want=" + want)
+	}
 }
 -- run/myrlm-b.gno --
 package main
@@ -142,7 +148,9 @@ package main
 import "gno.land/r/myrlm"
 
 func main() {
-	println(myrlm.B(cross))
+	if got, want := myrlm.B(cross), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"; got != want {
+		panic("unexpected previous realm in myrlm-b: got=" + got + " want=" + want)
+	}
 }
 -- run/foo-a.gno --
 package main
@@ -150,7 +158,9 @@ package main
 import "gno.land/r/foo"
 
 func main() {
-	println(foo.A(cross))
+	if got, want := foo.A(cross), "g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469"; got != want {
+		panic("unexpected previous realm in foo-a: got=" + got + " want=" + want)
+	}
 }
 -- run/foo-b.gno --
 package main
@@ -158,7 +168,9 @@ package main
 import "gno.land/r/foo"
 
 func main() {
-	println(foo.B(cross))
+	if got, want := foo.B(cross), "g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469"; got != want {
+		panic("unexpected previous realm in foo-b: got=" + got + " want=" + want)
+	}
 }
 
 -- run/bar-b.gno --
@@ -175,6 +187,7 @@ package main
 import "chain/runtime"
 
 func main() {
-	name := runtime.PreviousRealm().Address().String()
-	println(name)
+	if got, want := runtime.PreviousRealm().Address().String(), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"; got != want {
+		panic("unexpected previous realm in baz: got=" + got + " want=" + want)
+	}
 }
