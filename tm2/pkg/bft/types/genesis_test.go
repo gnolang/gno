@@ -270,3 +270,39 @@ func TestGenesis_Validate(t *testing.T) {
 		assert.ErrorIs(t, g.Validate(), ErrInvalidInitialHeight)
 	})
 }
+
+func TestGenesisDoc_ValidateAndComplete_InitialHeight(t *testing.T) {
+	t.Parallel()
+
+	pubkey := ed25519.GenPrivKey().PubKey()
+	newDoc := func() *GenesisDoc {
+		return &GenesisDoc{
+			ChainID:    "test-chain",
+			Validators: []GenesisValidator{{pubkey.Address(), pubkey, 10, "val"}},
+		}
+	}
+
+	t.Run("negative initial height rejected", func(t *testing.T) {
+		t.Parallel()
+
+		g := newDoc()
+		g.InitialHeight = -1
+		assert.Error(t, g.ValidateAndComplete())
+	})
+
+	t.Run("zero initial height accepted", func(t *testing.T) {
+		t.Parallel()
+
+		g := newDoc()
+		g.InitialHeight = 0
+		assert.NoError(t, g.ValidateAndComplete())
+	})
+
+	t.Run("positive initial height accepted", func(t *testing.T) {
+		t.Parallel()
+
+		g := newDoc()
+		g.InitialHeight = 100
+		assert.NoError(t, g.ValidateAndComplete())
+	})
+}

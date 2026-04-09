@@ -1300,3 +1300,52 @@ func TestReplayNilGuards(t *testing.T) {
 		})
 	}
 }
+
+// TestHandshaker_InitialHeight verifies that when GenesisDoc.InitialHeight > 1,
+// the handshaker sets state.LastBlockHeight = InitialHeight - 1 after InitChain,
+// so the chain starts producing blocks at the correct height.
+func TestHandshaker_InitialHeight(t *testing.T) {
+	t.Parallel()
+
+	testCfg, genesisFile := ResetConfig("initial_height_test")
+	t.Cleanup(func() { os.RemoveAll(testCfg.RootDir) })
+
+	state, err := sm.MakeGenesisStateFromFile(genesisFile)
+	require.NoError(t, err)
+
+	genDoc, err := sm.MakeGenesisDocFromFile(genesisFile)
+	require.NoError(t, err)
+
+	// Simulate a chain upgrade: new chain starts at a height > 1
+	const initialHeight = int64(100)
+	genDoc.InitialHeight = initialHeight
+
+	stateDB := memdb.NewMemDB()
+	sm.SaveState(stateDB, state)
+
+	// App that echoes back validators from InitChain (required for state update)
+	app := initChainApp{
+		initChain: func(req abci.RequestInitChain) abci.ResponseInitChain {
+			return abci.ResponseInitChain{Validators: req.Validators}
+		},
+	}
+
+	// Empty block store: no blocks committed yet (fresh genesis scenario)
+	store := &nilReturningBlockStore{height: 0}
+
+	handshaker := NewHandshaker(stateDB, state, store, genDoc)
+	handshaker.SetLogger(log.NewNoopLogger())
+
+	proxyApp := appconn.NewAppConns(proxy.NewLocalClientCreator(app))
+	require.NoError(t, proxyApp.Start())
+	t.Cleanup(func() { require.NoError(t, proxyApp.Stop()) })
+
+	// appBlockHeight=0 triggers InitChain; storeBlockHeight=0 so no block replay
+	_, err = handshaker.ReplayBlocks(state, nil, 0, proxyApp)
+	require.NoError(t, err)
+
+	// After InitChain with InitialHeight=100, the saved state must have LastBlockHeight=99
+	// so the first produced block will be at height 100.
+	savedState := sm.LoadState(stateDB)
+	assert.Equal(t, initialHeight-1, savedState.LastBlockHeight)
+}
