@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/store/trace"
 )
 
 // Key to store the consensus params in the main store.
@@ -737,6 +738,19 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		mode      = ctx.Mode()
 	)
 
+	if trace.StoreGasEnabled {
+		var modeName string
+		switch mode {
+		case RunTxModeCheck:
+			modeName = "check"
+		case RunTxModeSimulate:
+			modeName = "simulate"
+		case RunTxModeDeliver:
+			modeName = "deliver"
+		}
+		trace.TxStart(modeName, tx.Fee.GasWanted)
+	}
+
 	if mode == RunTxModeDeliver {
 		gasleft := ctx.BlockGasMeter().Remaining()
 		ctx = ctx.WithGasMeter(store.NewPassthroughGasMeter(
@@ -770,6 +784,9 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 				result.Log = log
 				result.GasWanted = gasWanted
 				result.GasUsed = ctx.GasMeter().GasConsumed()
+				if trace.StoreGasEnabled {
+					trace.TxEnd(result.GasUsed)
+				}
 				return
 			default:
 				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
@@ -777,12 +794,18 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 				result.Log = log
 				result.GasWanted = gasWanted
 				result.GasUsed = ctx.GasMeter().GasConsumed()
+				if trace.StoreGasEnabled {
+					trace.TxEnd(result.GasUsed)
+				}
 				return
 			}
 		}
 		// Whether AnteHandler panics or not.
 		result.GasWanted = gasWanted
 		result.GasUsed = ctx.GasMeter().GasConsumed()
+		if trace.StoreGasEnabled {
+			trace.TxEnd(result.GasUsed)
+		}
 	}()
 
 	// If BlockGasMeter() panics it will be caught by the above recover and will

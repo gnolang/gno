@@ -62,3 +62,19 @@ func Flush() {
 		out.Flush()
 	}
 }
+
+func TxStart(mode string, gasWanted int64) {
+	var w io.Writer = outFile
+	if out != nil {
+		w = out
+	}
+	fmt.Fprintf(w, "GAS_TX_START mode=%s gas_wanted=%d\n", mode, gasWanted)
+}
+
+func TxEnd(gasUsed int64) {
+	var w io.Writer = outFile
+	if out != nil {
+		w = out
+	}
+	fmt.Fprintf(w, "GAS_TX_END gas_used=%d\n", gasUsed)
+}
