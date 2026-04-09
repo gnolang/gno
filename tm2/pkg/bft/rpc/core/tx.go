@@ -34,7 +34,7 @@ func Tx(ctx *rpctypes.Context, hash []byte) (*ctypes.ResultTx, error) {
 	}
 	numTxs := len(block.Txs)
 
-	if int(resultIndex.TxIndex) > numTxs || numTxs == 0 {
+	if int(resultIndex.TxIndex) >= numTxs || numTxs == 0 {
 		return nil, fmt.Errorf(
 			"unable to get block transaction for block %d, index %d",
 			resultIndex.BlockNum,
@@ -51,7 +51,7 @@ func Tx(ctx *rpctypes.Context, hash []byte) (*ctypes.ResultTx, error) {
 	}
 
 	// Grab the block deliver response
-	if len(blockResults.DeliverTxs) < int(resultIndex.TxIndex) {
+	if len(blockResults.DeliverTxs) <= int(resultIndex.TxIndex) {
 		return nil, fmt.Errorf(
 			"unable to get deliver result for block %d, index %d",
 			resultIndex.BlockNum,

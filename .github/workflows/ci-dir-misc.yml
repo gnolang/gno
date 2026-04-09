@@ -9,7 +9,11 @@ on:
   pull_request:
     paths:
       - misc/**
+      - .github/workflows/ci-dir-misc.yml
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   main:

@@ -20,16 +20,23 @@ on:
       codecov-token:
         required: true
 
+permissions: {}
+
 jobs:
   lint:
     name: lint
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ inputs.go-version }}
-      - uses: golangci/golangci-lint-action@v8
+      - uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
         with:
           working-directory: ${{ inputs.modulepath }}
           args: --config=${{ github.workspace }}/.github/golangci.yml
@@ -38,9 +45,14 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ inputs.go-version }}
       - name: Check generated files are up to date
@@ -61,9 +73,12 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ inputs.go-version }}
       - name: Go test
@@ -73,28 +88,32 @@ jobs:
           TXTARCOVERDIR: /tmp/txtarcoverdir
           GOCOVERDIR: /tmp/gocoverdir
           COVERDIR: /tmp/coverdir
+          INPUTS_MODULEPATH: ${{ inputs.modulepath }}
+          INPUTS_TESTS_EXTRA_ARGS: ${{ inputs.tests-extra-args }}
         run: |
           set -x
 
           mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
 
-          export filter="-pkg=github.com/gnolang/gno/${{ inputs.modulepath }}/..."
+          export filter="-pkg=github.com/gnolang/gno/${INPUTS_MODULEPATH}/..."
 
-          go test -covermode=set -timeout 30m ${{ inputs.tests-extra-args }} ./... -test.gocoverdir=$GOCOVERDIR
+          # INPUTS_TESTS_EXTRA_ARGS must word-split into flags
+          # shellcheck disable=SC2086
+          go test -covermode=set -timeout 30m ${INPUTS_TESTS_EXTRA_ARGS} ./... -test.gocoverdir="$GOCOVERDIR"
 
           (set +x; echo 'go coverage results:')
-          go tool covdata percent $filter -i=$GOCOVERDIR
+          go tool covdata percent "$filter" -i="$GOCOVERDIR"
           (set +x; echo 'txtar coverage results:')
-          go tool covdata percent $filter -i=$TXTARCOVERDIR
+          go tool covdata percent "$filter" -i="$TXTARCOVERDIR"
 
-          go tool covdata textfmt -v 1 $filter -i=$GOCOVERDIR,$TXTARCOVERDIR -o gocoverage.out
+          go tool covdata textfmt -v 1 "$filter" -i="$GOCOVERDIR,$TXTARCOVERDIR" -o gocoverage.out
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
         with:
           disable_search: true
           fail_ci_if_error: true
           files: ${{ inputs.modulepath }}/gocoverage.out
           flags: ${{ inputs.modulepath }}
-          token: ${{ secrets.codecov-token }}
+          token: ${{ secrets.codecov-token }} # zizmor: ignore[secrets-outside-env]
           verbose: true
