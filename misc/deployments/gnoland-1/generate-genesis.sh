@@ -1,322 +1,139 @@
 #!/usr/bin/env bash
-# Generate gnoland-1 genesis from an existing gnoland1 node.
+# Generate gnoland-1 hardfork genesis.
 #
-# Three phases:
-#   Phase 1: Extract the base genesis from the local gnoland1 state
-#   Phase 2: Apply the upgrade overlay (new contracts, config changes)
-#   Phase 3: Export and append historical transactions with metadata
-#
-# Prerequisites:
-#   - gnoland, gnogenesis, gnokey binaries (built from this branch)
-#   - tx-archive binary (github.com/gnolang/tx-archive)
-#   - A stopped gnoland1 node with its data directory
+# This script is the gnoland-1-specific wrapper around the generic
+# `misc/hardfork` tool. It sets the chain-specific defaults (chain IDs,
+# halt height, overlay directory) and delegates to `hardfork genesis`.
 #
 # Usage:
-#   ./generate-genesis.sh --data-dir /path/to/gnoland1-data [OPTIONS]
+#   ./generate-genesis.sh [SOURCE] [OPTIONS]
 #
-# Options:
-#   --data-dir PATH       gnoland1 node data directory (required)
-#   --rpc URL             gnoland1 RPC for tx export (default: http://127.0.0.1:26657)
-#   --halt-height N       block height where gnoland1 was halted
-#   --output PATH         output genesis file (default: genesis.json)
-#   --overlay-dir PATH    directory with overlay scripts (default: ./overlay/)
-#   --skip-phase N        skip phase N (1, 2, or 3)
-#   --debug               print every command
+# SOURCE (positional, overrides DEFAULT_SOURCE):
+#   http://...      RPC of the running or recently-halted gnoland1 node
+#   /path/to/dir    local node data directory (stopped node)
+#   /path/to/file   exported genesis.json or txs.jsonl
+#
+# OPTIONS:
+#   --halt-height N   block height at which gnoland1 was halted (auto-detect if absent)
+#   --output PATH     output genesis file (default: genesis.json)
+#   --skip-txs        skip tx export — only copy genesis structure (fast preview)
+#   --debug           print every command being run
+#
+# Examples:
+#   ./generate-genesis.sh                              # use DEFAULT_SOURCE from this file
+#   ./generate-genesis.sh http://rpc.gno.land:26657   # use production RPC
+#   ./generate-genesis.sh /var/lib/gnoland             # use stopped node data dir
+#   ./generate-genesis.sh --skip-txs                   # quick preview, no tx download
 
 set -euo pipefail
 
 # =============================================================================
-# Configuration
+# gnoland-1 specific configuration — update before each hardfork.
 # =============================================================================
 
 CHAIN_ID="gnoland-1"
 ORIGINAL_CHAIN_ID="gnoland1"
 
-# Defaults
-DATA_DIR=""
-RPC_URL="${RPC_URL:-http://127.0.0.1:26657}"
+# Default source: the running gnoland1 RPC endpoint.
+# Override by passing the source as the first positional argument.
+DEFAULT_SOURCE="http://rpc.gno.land:26657"
+
+# Halt height: set this when the coordinated halt height is announced.
+# Leave empty to auto-detect from the source (uses latest block height).
 HALT_HEIGHT="${HALT_HEIGHT:-}"
-OUTPUT="${OUTPUT:-genesis.json}"
-OVERLAY_DIR=""
-SKIP_PHASES=()
-DEBUG=false
+
+# =============================================================================
+# Internals — no need to edit below.
+# =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-OVERLAY_DIR="${OVERLAY_DIR:-$SCRIPT_DIR/overlay}"
-WORK_DIR="$SCRIPT_DIR/genesis-work"
+HARDFORK_DIR="$REPO_ROOT/misc/hardfork"
+OVERLAY_DIR="$SCRIPT_DIR/overlay"
+OUTPUT="${OUTPUT:-$SCRIPT_DIR/genesis.json}"
 
-# =============================================================================
-# Parse flags
-# =============================================================================
+DEBUG=false
+EXTRA_ARGS=()
+# Initialize with set -u compatibility
+SOURCE=""
+SKIP_TXS=false
 
+# Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --data-dir)    DATA_DIR="$2"; shift 2 ;;
-        --rpc)         RPC_URL="$2"; shift 2 ;;
-        --halt-height) HALT_HEIGHT="$2"; shift 2 ;;
-        --output)      OUTPUT="$2"; shift 2 ;;
-        --overlay-dir) OVERLAY_DIR="$2"; shift 2 ;;
-        --skip-phase)  SKIP_PHASES+=("$2"); shift 2 ;;
-        --debug)       DEBUG=true; shift ;;
+        --halt-height)    HALT_HEIGHT="$2"; shift 2 ;;
+        --output)         OUTPUT="$2"; shift 2 ;;
+        --skip-txs)       SKIP_TXS=true; shift ;;
+        --debug)          DEBUG=true; shift ;;
         -h|--help)
-            sed -n '2,/^$/s/^# //p' "$0"
+            sed -n '2,/^set/{ /^set/d; s/^# //; p }' "$0"
             exit 0
             ;;
-        *) echo "Unknown option: $1" >&2; exit 1 ;;
+        -*)
+            EXTRA_ARGS+=("$1")
+            shift
+            ;;
+        *)
+            # First positional arg is the source override
+            if [[ -z "$SOURCE" ]]; then
+                SOURCE="$1"
+            else
+                echo "ERROR: unexpected argument: $1" >&2
+                exit 1
+            fi
+            shift
+            ;;
     esac
 done
 
+# Use default source if not specified
+SOURCE="${SOURCE:-$DEFAULT_SOURCE}"
+
 run() {
     if [ "$DEBUG" = true ]; then
-        printf "    \033[2m\$ %s\033[0m\n" "$*" >&2
+        printf "  \033[2m\$ %s\033[0m\n" "$*" >&2
     fi
     "$@"
 }
 
-should_skip() { printf '%s\n' "${SKIP_PHASES[@]}" 2>/dev/null | grep -qx "$1"; }
+# Build the hardfork binary if not already available
+HARDFORK_BIN=""
+if command -v hardfork >/dev/null 2>&1; then
+    HARDFORK_BIN="hardfork"
+else
+    WORK_BIN="$SCRIPT_DIR/genesis-work/bin/hardfork"
+    if [[ ! -x "$WORK_BIN" ]]; then
+        printf "Building hardfork tool...\n"
+        mkdir -p "$(dirname "$WORK_BIN")"
+        run go build -C "$HARDFORK_DIR" -o "$WORK_BIN" .
+        printf "  ok\n"
+    fi
+    HARDFORK_BIN="$WORK_BIN"
+fi
 
-sha256_file() {
+# Build hardfork genesis command
+CMD_ARGS=(
+    genesis
+    --source "$SOURCE"
+    --chain-id "$CHAIN_ID"
+    --original-chain-id "$ORIGINAL_CHAIN_ID"
+    --output "$OUTPUT"
+)
+
+[ -n "$HALT_HEIGHT" ] && CMD_ARGS+=(--halt-height "$HALT_HEIGHT")
+[ "$SKIP_TXS" = true ] && CMD_ARGS+=(--skip-txs)
+[ -d "$OVERLAY_DIR" ] && CMD_ARGS+=(--overlay-dir "$OVERLAY_DIR")
+
+[[ ${#EXTRA_ARGS[@]} -gt 0 ]] && CMD_ARGS+=("${EXTRA_ARGS[@]}")
+
+run "$HARDFORK_BIN" "${CMD_ARGS[@]}"
+
+# Print sha256 for cross-validator coordination
+if [[ -f "$OUTPUT" ]]; then
     if command -v sha256sum >/dev/null 2>&1; then
-        sha256sum "$1" | cut -d' ' -f1
+        SHA256=$(sha256sum "$OUTPUT" | cut -d' ' -f1)
     elif command -v shasum >/dev/null 2>&1; then
-        shasum -a 256 "$1" | cut -d' ' -f1
-    else
-        echo "ERROR: no sha256 tool found" >&2; return 1
+        SHA256=$(shasum -a 256 "$OUTPUT" | cut -d' ' -f1)
     fi
-}
-
-# =============================================================================
-# Validation
-# =============================================================================
-
-if [ -z "$DATA_DIR" ]; then
-    echo "ERROR: --data-dir is required (path to gnoland1 node data)" >&2
-    echo "Run with -h for usage." >&2
-    exit 1
+    printf "\nsha256: %s\n" "${SHA256:-<sha256 tool not found>}"
 fi
-
-if [ ! -d "$DATA_DIR" ]; then
-    echo "ERROR: data directory does not exist: $DATA_DIR" >&2
-    exit 1
-fi
-
-mkdir -p "$WORK_DIR"
-
-echo "=== Configuration ==="
-echo "  Data dir:          $DATA_DIR"
-echo "  RPC URL:           $RPC_URL"
-echo "  Halt height:       ${HALT_HEIGHT:-<auto-detect>}"
-echo "  Output:            $OUTPUT"
-echo "  Chain ID:          $CHAIN_ID"
-echo "  Original Chain ID: $ORIGINAL_CHAIN_ID"
-echo "  Overlay dir:       $OVERLAY_DIR"
-echo ""
-
-# =============================================================================
-# Phase 1: Extract base genesis from local gnoland1 state
-# =============================================================================
-# Takes the existing genesis.json from the stopped node as the base.
-# This preserves: balances, auth state, bank state, VM state, validators,
-# and the original genesis txs (package deploys, setup scripts).
-# =============================================================================
-
-if ! should_skip 1; then
-    printf "=== Phase 1: Extract base genesis from local state ===\n"
-
-    # Find the genesis file from the stopped node.
-    ORIGINAL_GENESIS=""
-    for candidate in \
-        "$DATA_DIR/genesis.json" \
-        "$DATA_DIR/config/genesis.json" \
-    ; do
-        if [ -f "$candidate" ]; then
-            ORIGINAL_GENESIS="$candidate"
-            break
-        fi
-    done
-
-    if [ -z "$ORIGINAL_GENESIS" ]; then
-        echo "ERROR: Could not find genesis.json in $DATA_DIR" >&2
-        exit 1
-    fi
-
-    printf "  Found genesis: %s\n" "$ORIGINAL_GENESIS"
-
-    # Copy as our working base.
-    BASE_GENESIS="$WORK_DIR/base-genesis.json"
-    cp "$ORIGINAL_GENESIS" "$BASE_GENESIS"
-
-    # Extract halt height from the genesis if not specified.
-    if [ -z "$HALT_HEIGHT" ]; then
-        # Try to get it from the node's state (last committed block).
-        # Fall back to user needing to specify it.
-        printf "  Auto-detecting halt height from node state...\n"
-        # TODO: read from blockstore.db or state.db
-        echo "  WARNING: Could not auto-detect halt height. Specify --halt-height." >&2
-    fi
-
-    printf "  Base genesis extracted (%s)\n" "$(du -h "$BASE_GENESIS" | cut -f1)"
-    printf "\n"
-else
-    printf "=== Phase 1: SKIPPED ===\n\n"
-    BASE_GENESIS="$WORK_DIR/base-genesis.json"
-fi
-
-# =============================================================================
-# Phase 2: Apply upgrade overlay
-# =============================================================================
-# Modifies the base genesis for the new chain:
-#   - Update chain_id to gnoland-1
-#   - Set original_chain_id for signature verification during tx replay
-#   - Set initial_height to halt_height + 1
-#   - Deploy new/updated contracts (overlay packages)
-#   - Apply parameter changes (e.g., valoper min_fee)
-#   - Run migration scripts (e.g., CLA setup)
-#
-# Overlay scripts are executed in alphabetical order from $OVERLAY_DIR.
-# Each script receives the working genesis path as $1 and can modify it.
-# =============================================================================
-
-if ! should_skip 2; then
-    printf "=== Phase 2: Apply upgrade overlay ===\n"
-
-    OVERLAY_GENESIS="$WORK_DIR/overlay-genesis.json"
-    cp "$BASE_GENESIS" "$OVERLAY_GENESIS"
-
-    # Update chain ID and set upgrade fields.
-    printf "  Setting chain_id=%s, original_chain_id=%s\n" "$CHAIN_ID" "$ORIGINAL_CHAIN_ID"
-    # Use python3 for JSON manipulation (jq may not be available everywhere).
-    python3 -c "
-import json, sys
-with open('$OVERLAY_GENESIS') as f:
-    doc = json.load(f)
-doc['chain_id'] = '$CHAIN_ID'
-if 'app_state' not in doc:
-    doc['app_state'] = {}
-doc['app_state']['original_chain_id'] = '$ORIGINAL_CHAIN_ID'
-if '$HALT_HEIGHT':
-    height = int('${HALT_HEIGHT:-0}')
-    if height > 0:
-        doc['initial_height'] = height + 1
-        doc['app_state']['initial_height'] = height + 1
-with open('$OVERLAY_GENESIS', 'w') as f:
-    json.dump(doc, f, indent=2)
-"
-
-    if [ -n "$HALT_HEIGHT" ] && [ "$HALT_HEIGHT" -gt 0 ]; then
-        printf "  Set initial_height=%d\n" "$((HALT_HEIGHT + 1))"
-    fi
-
-    # Run overlay scripts if directory exists.
-    if [ -d "$OVERLAY_DIR" ]; then
-        overlay_scripts=("$OVERLAY_DIR"/*.sh)
-        if [ -e "${overlay_scripts[0]}" ]; then
-            printf "  Running %d overlay scripts:\n" "${#overlay_scripts[@]}"
-            for script in "${overlay_scripts[@]}"; do
-                printf "    -> %s\n" "$(basename "$script")"
-                run bash "$script" "$OVERLAY_GENESIS"
-            done
-        else
-            printf "  No overlay scripts found in %s\n" "$OVERLAY_DIR"
-        fi
-    else
-        printf "  No overlay directory at %s (skipping)\n" "$OVERLAY_DIR"
-    fi
-
-    printf "  Overlay applied (%s)\n" "$(du -h "$OVERLAY_GENESIS" | cut -f1)"
-    printf "\n"
-else
-    printf "=== Phase 2: SKIPPED ===\n\n"
-    OVERLAY_GENESIS="$WORK_DIR/overlay-genesis.json"
-fi
-
-# =============================================================================
-# Phase 3: Export and append historical transactions
-# =============================================================================
-# Exports all successful txs from gnoland1 (via tx-archive) with full metadata
-# (block_height, timestamp, chain_id) and appends them to the genesis app_state.
-# These txs will be replayed during InitChain with their original context.
-# =============================================================================
-
-if ! should_skip 3; then
-    printf "=== Phase 3: Export and append historical transactions ===\n"
-
-    TX_EXPORT="$WORK_DIR/historical-txs.jsonl"
-
-    printf "  Exporting transactions from %s...\n" "$RPC_URL"
-    tx-archive backup \
-        --remote "$RPC_URL" \
-        --output-path "$TX_EXPORT" \
-        --from-block 1 \
-        ${HALT_HEIGHT:+--to-block "$HALT_HEIGHT"} \
-        --skip-failed-txs
-
-    tx_count=$(wc -l < "$TX_EXPORT" | tr -d ' ')
-    printf "  Exported %s transactions\n" "$tx_count"
-
-    # Append historical txs to the genesis app_state.txs array.
-    # The existing txs (from Phase 1 base genesis) are kept as-is (no metadata = genesis mode).
-    # Historical txs have metadata with block_height > 0, so they replay in normal mode.
-    printf "  Appending historical txs to genesis...\n"
-
-    FINAL_GENESIS="$WORK_DIR/final-genesis.json"
-    python3 -c "
-import json, sys
-
-with open('$OVERLAY_GENESIS') as f:
-    doc = json.load(f)
-
-# Read historical txs (JSONL format, amino JSON)
-historical_txs = []
-with open('$TX_EXPORT') as f:
-    for line in f:
-        line = line.strip()
-        if line:
-            historical_txs.append(json.loads(line))
-
-# Append to existing txs
-if 'app_state' not in doc:
-    doc['app_state'] = {}
-if 'txs' not in doc['app_state']:
-    doc['app_state']['txs'] = []
-
-existing_count = len(doc['app_state']['txs'])
-doc['app_state']['txs'].extend(historical_txs)
-total_count = len(doc['app_state']['txs'])
-
-print(f'  Existing genesis txs: {existing_count}', file=sys.stderr)
-print(f'  Historical txs added: {len(historical_txs)}', file=sys.stderr)
-print(f'  Total txs: {total_count}', file=sys.stderr)
-
-with open('$FINAL_GENESIS', 'w') as f:
-    json.dump(doc, f, indent=2)
-"
-
-    printf "\n"
-else
-    printf "=== Phase 3: SKIPPED ===\n\n"
-    FINAL_GENESIS="$OVERLAY_GENESIS"
-fi
-
-# =============================================================================
-# Output
-# =============================================================================
-
-cp "$FINAL_GENESIS" "$OUTPUT"
-
-HASH=$(sha256_file "$OUTPUT")
-SIZE=$(du -h "$OUTPUT" | cut -f1)
-
-printf "=== Done ===\n"
-printf "  Output:         %s (%s)\n" "$OUTPUT" "$SIZE"
-printf "  SHA-256:        %s\n" "$HASH"
-printf "  Chain ID:       %s\n" "$CHAIN_ID"
-printf "  Original Chain: %s\n" "$ORIGINAL_CHAIN_ID"
-if [ -n "$HALT_HEIGHT" ]; then
-    printf "  Initial Height: %d\n" "$((HALT_HEIGHT + 1))"
-fi
-printf "\n"
-printf "Next steps:\n"
-printf "  1. Share SHA-256 with other validators\n"
-printf "  2. gnoland start --genesis %s\n" "$OUTPUT"
