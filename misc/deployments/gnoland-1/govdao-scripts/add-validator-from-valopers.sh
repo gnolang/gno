@@ -12,7 +12,7 @@
 #   GNOKEY_NAME   - gnokey key name (default: moul)
 #   CHAIN_ID      - chain ID (default: gnoland-1)
 #   REMOTE        - RPC endpoint (default: https://rpc.betanet.testnets.gno.land:443)
-#   GAS_WANTED    - gas limit (default: 10000000)
+#   GAS_WANTED    - gas limit (default: 50000000)
 #   GAS_FEE       - gas fee (default: 1000000ugnot)
 set -eo pipefail
 
