@@ -180,8 +180,8 @@ func (attr *Attributes) SetAttribute(key GnoAttribute, value any) {
 }
 
 func (attr *Attributes) DelAttribute(key GnoAttribute) {
-	if debug && attr.data == nil {
-		panic("should not happen, attribute is expected to be non-empty.")
+	if attr.data == nil {
+		return // nothing to delete
 	}
 	delete(attr.data, key)
 }
@@ -1915,7 +1915,12 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 		}
 	}
 	if debug {
-		nt := reflect.TypeOf(sb.Source).String()
+		var nt string
+		if sb.Source != nil {
+			nt = reflect.TypeOf(sb.Source).String()
+		} else {
+			nt = "<nil>"
+		}
 		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
 			sb, nt, n)
 	}
@@ -2259,7 +2264,13 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 				sb.oldValues = append(sb.oldValues,
 					oldValue{idx, old.V})
 			} else {
-				if tv.T.TypeID() != old.T.TypeID() {
+				// Skip TypeID comparison for generic types (e.g. <X>{}),
+				// as generic InterfaceTypes have no TypeID.
+				isGeneric := false
+				if it, ok := tv.T.(*InterfaceType); ok && it.Generic != "" {
+					isGeneric = true
+				}
+				if !isGeneric && tv.T.TypeID() != old.T.TypeID() {
 					panic(fmt.Sprintf(
 						"StaticBlock.Define2(%s) cannot change .T; was %v, new %v",
 						n, old.T, tv.T))
