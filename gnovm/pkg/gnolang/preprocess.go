@@ -2290,6 +2290,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Ensure the static type of X is computed and cached
 				// so doOpRef can use it (instead of the runtime type,
 				// which is wrong for interface variables).
+				// The return value is intentionally discarded; the side
+				// effect of setting ATTR_TYPEOF_VALUE on n.X is all we need.
 				evalStaticTypeOf(store, last, n.X)
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
