@@ -3732,6 +3732,14 @@ func codaPackageSelectors(bn BlockNode) {
 						Sel:  n.Name,
 					}
 					setPreprocessed(sx)
+					// Preserve ATTR_TYPEOF_VALUE from the original NameExpr.
+					// This is needed e.g. when the NameExpr was wrapped in a
+					// synthetic RefExpr by TRANS_LEAVE *SelectorExpr (pointer
+					// receiver auto-addressing): the new SelectorExpr becomes
+					// RefExpr.X, and doOpRef reads its ATTR_TYPEOF_VALUE.
+					if t := n.GetAttribute(ATTR_TYPEOF_VALUE); t != nil {
+						sx.SetAttribute(ATTR_TYPEOF_VALUE, t)
+					}
 					return sx, TRANS_CONTINUE
 				}
 			}
