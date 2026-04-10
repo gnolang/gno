@@ -1,7 +1,8 @@
 // MAXALLOC: 500000000
 package main
 
-// [2]string with 1-byte strings ==
+// Checks equality of two [2]string arrays with 1-byte strings.
+//
 // large_array_string_eql.gno: [10]string with 500-byte strings
 func main() {
 	a1 := [2]string{"a", "b"}
@@ -10,4 +11,4 @@ func main() {
 }
 
 // Gas:
-// 6073
+// 6074

@@ -1,9 +1,10 @@
 // MAXALLOC: 500000000
 package main
 
-// 10000-byte string comparisons (==, <, <=, >, >=)
+// Compares two 10000-byte strings with all comparison operators.
+//
 // small_string_cmp.gno: same test with 10-byte strings
-// string_eql_diff_len.gno: == with different-length strings (early-exit)
+// string_eql_diff_len.gno: equality with different-length strings (early-exit)
 func main() {
 	buf := make([]byte, 10000)
 	s1 := string(buf)
@@ -16,4 +17,4 @@ func main() {
 }
 
 // Gas:
-// 89299
+// 89300

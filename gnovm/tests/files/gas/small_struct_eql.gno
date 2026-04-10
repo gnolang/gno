@@ -1,7 +1,8 @@
 // MAXALLOC: 500000000
 package main
 
-// 3-field struct ==
+// Checks equality of two structs with 3 int fields.
+//
 // large_struct_eql.gno: same test with 20 fields
 type Point struct {
 	X int
@@ -16,4 +17,4 @@ func main() {
 }
 
 // Gas:
-// 6654
+// 6655

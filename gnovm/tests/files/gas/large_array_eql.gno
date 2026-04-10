@@ -1,7 +1,8 @@
 // MAXALLOC: 500000000
 package main
 
-// [100]int == [100]int
+// Checks equality of two [100]int arrays.
+//
 // small_array_eql.gno: same test with [1]int
 // array_neq.gno: same test with != operator
 // nested_array_eql.gno: same 100 leaf elements as [10][10]int
@@ -12,4 +13,4 @@ func main() {
 }
 
 // Gas:
-// 37283
+// 37284

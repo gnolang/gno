@@ -1,7 +1,8 @@
 // MAXALLOC: 500000000
 package main
 
-// [1]int == [1]int
+// Checks equality of two [1]int arrays.
+//
 // large_array_eql.gno: same test with [100]int
 func main() {
 	a1 := [1]int{}
@@ -10,4 +11,4 @@ func main() {
 }
 
 // Gas:
-// 5601
+// 5602

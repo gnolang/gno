@@ -1,7 +1,9 @@
 // MAXALLOC: 500000000
 package main
 
-// String == with different lengths (10000 vs 5000); early-exit, no per-byte gas
+// Checks equality of two strings with different lengths (10000 vs 5000).
+// The length mismatch triggers an early exit with no per-byte gas cost.
+//
 // large_string_cmp.gno: equal-length 10000-byte strings
 func main() {
 	buf1 := make([]byte, 10000)
@@ -12,4 +14,4 @@ func main() {
 }
 
 // Gas:
-// 39781
+// 39783

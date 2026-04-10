@@ -1,7 +1,8 @@
 // MAXALLOC: 500000000
 package main
 
-// [10]string with 500-byte strings ==
+// Checks equality of two [10]string arrays with 500-byte strings.
+//
 // small_array_string_eql.gno: [2]string with 1-byte strings
 func main() {
 	buf := make([]byte, 500)
@@ -12,4 +13,4 @@ func main() {
 }
 
 // Gas:
-// 18411
+// 18412

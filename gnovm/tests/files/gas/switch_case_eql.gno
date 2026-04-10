@@ -1,7 +1,7 @@
 // MAXALLOC: 500000000
 package main
 
-// Switch-case matching on strings and arrays (doOpSwitchClauseCase path)
+// Tests gas metering for switch-case matching on strings and arrays.
 func main() {
 	buf := make([]byte, 1000)
 	s := string(buf)

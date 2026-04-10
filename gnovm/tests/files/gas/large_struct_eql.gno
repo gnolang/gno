@@ -1,7 +1,8 @@
 // MAXALLOC: 500000000
 package main
 
-// 20-field struct ==
+// Checks equality of two structs with 20 int fields.
+//
 // small_struct_eql.gno: same test with 3 fields
 // string_struct_eql.gno: struct with a string field
 type Large struct {
@@ -16,4 +17,4 @@ func main() {
 }
 
 // Gas:
-// 13520
+// 13521

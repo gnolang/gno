@@ -1,7 +1,8 @@
 // MAXALLOC: 500000000
 package main
 
-// Struct with 1000-byte string field ==
+// Checks equality of two structs containing a 1000-byte string field.
+//
 // large_struct_eql.gno: struct with only int fields
 type Named struct {
 	Name string
@@ -17,4 +18,4 @@ func main() {
 }
 
 // Gas:
-// 12387
+// 12388
