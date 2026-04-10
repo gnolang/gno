@@ -57,14 +57,19 @@ no longer adds a Go stack frame.
 |------|------|
 | `gnovm/pkg/gnolang/machine.go:1268` | `Run()` — outer iterative loop |
 | `gnovm/pkg/gnolang/machine.go:1300` | `runOnce()` — inner op loop with defer/recover |
+| `gnovm/tests/files/defer_panic_many.gno` | Regression filetest — 500K panicking defers |
 
 ## Testing
 
-No dedicated regression test is included. Reproducing the crash requires ~500K panicking
-defers, which is too costly for routine CI runs. A filetest cannot assert a process crash,
-and a subprocess-based Go test adds complexity for a single code path. The fix is validated
-by the existing 96 panic/defer/recover file tests in `gnovm/tests/files/`, which exercise
-the `Run()`/`runOnce()` iterative recovery path on every run.
+A dedicated filetest (`gnovm/tests/files/defer_panic_many.gno`) registers 500K deferred
+closures that each trigger a nil pointer dereference — a Go-level `panic(&Exception{})`.
+Before the fix, this would exhaust the Go goroutine stack via recursive `m.Run(st)` calls,
+crashing the process with `runtime.throw("stack overflow")`. With the iterative recovery
+loop, all 500K panicking defers complete in ~1s and the final panic is recovered normally.
+
+The fix is also validated by the existing 96 panic/defer/recover file tests in
+`gnovm/tests/files/`, which exercise the `Run()`/`runOnce()` iterative recovery path
+on every run.
 
 ## Consequences
 
