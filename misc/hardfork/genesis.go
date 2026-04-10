@@ -203,9 +203,10 @@ func execGenesis(ctx context.Context, cfg *genesisCfg, io commands.IO) error {
 	io.Printf("  Output:             %s\n", cfg.output)
 	io.Println()
 	io.Println("Next steps:")
-	io.Printf("  1. Verify: share SHA-256 with other validators\n")
+	io.Printf("  1. Test locally (in-process replay):\n")
+	io.Printf("     hardfork test --genesis %s\n", cfg.output)
+	io.Printf("  2. Verify with other validators (share SHA-256):\n")
 	io.Printf("     sha256: $(sha256sum %s | cut -d' ' -f1)\n", cfg.output)
-	io.Printf("  2. Test locally: gnoland start --skip-genesis-sig-verification --genesis %s\n", cfg.output)
 
 	_ = appState // suppress unused warning (used in summary above)
 	return nil

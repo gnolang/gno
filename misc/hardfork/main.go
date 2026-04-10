@@ -36,6 +36,7 @@ Source modes (auto-detected from --source):
 
 	cmd.AddSubCommands(
 		newGenesisCmd(io),
+		newTestCmd(io),
 	)
 
 	return cmd
