@@ -407,7 +407,7 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 		}
 
 		// Decode into field rv.
-		err = cdc.decodeReflectJSON(valueBytes, finfo, frv, fopts)
+		err = cdc.decodeReflectJSON(valueBytes, finfo, frv, field.FieldOptions)
 		if err != nil {
 			return
 		}

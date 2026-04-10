@@ -16,10 +16,6 @@ func (ctx *P3Context2) generateMarshal(sb *strings.Builder, info *amino.TypeInfo
 	if tname == "" {
 		return nil // skip anonymous types
 	}
-	// Skip non-struct non-AminoMarshaler types.
-	if info.Type.Kind() != reflect.Struct && !info.IsAminoMarshaler {
-		return nil
-	}
 
 	sb.WriteString(fmt.Sprintf("func (goo %s) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {\n", tname))
 	sb.WriteString("\tvar err error\n")
@@ -37,10 +33,22 @@ func (ctx *P3Context2) generateMarshal(sb *strings.Builder, info *amino.TypeInfo
 		return nil
 	}
 
-	if err := ctx.writeStructMarshalBody(sb, info, "goo"); err != nil {
-		return err
+	// Handle struct types.
+	if info.Type.Kind() == reflect.Struct {
+		if err := ctx.writeStructMarshalBody(sb, info, "goo"); err != nil {
+			return err
+		}
+		sb.WriteString("\treturn offset, err\n")
+		sb.WriteString("}\n\n")
+		return nil
 	}
 
+	// Handle non-struct primitive types (e.g. `type StringValue string`).
+	// Encoded as implicit struct with a single field number 1.
+	sb.WriteString("\trepr := goo\n")
+	if err := ctx.writeReprMarshal(sb, info); err != nil {
+		return err
+	}
 	sb.WriteString("\treturn offset, err\n")
 	sb.WriteString("}\n\n")
 	return nil
@@ -459,11 +467,13 @@ func (ctx *P3Context2) writeUnpackedListMarshal(sb *strings.Builder, accessor st
 		}
 
 		if einfo.ReprType.Type.Kind() == reflect.Interface {
-			// Interface element: encode via MarshalAny.
+			// Interface element: encode via MarshalAnyBinary2.
 			sb.WriteString(fmt.Sprintf("%sif %s != nil {\n", extraIndent, elemAccessor))
-			sb.WriteString(fmt.Sprintf("%s\tanyBz, err := cdc.MarshalAny(%s)\n", extraIndent, elemAccessor))
+			sb.WriteString(fmt.Sprintf("%s\tbefore := offset\n", extraIndent))
+			sb.WriteString(fmt.Sprintf("%s\toffset, err = cdc.MarshalAnyBinary2(%s, buf, offset)\n", extraIndent, elemAccessor))
 			sb.WriteString(fmt.Sprintf("%s\tif err != nil {\n%s\t\treturn offset, err\n%s\t}\n", extraIndent, extraIndent, extraIndent))
-			sb.WriteString(fmt.Sprintf("%s\toffset = amino.PrependByteSlice(buf, offset, anyBz)\n", extraIndent))
+			sb.WriteString(fmt.Sprintf("%s\tanyLen := before - offset\n", extraIndent))
+			sb.WriteString(fmt.Sprintf("%s\toffset = amino.PrependUvarint(buf, offset, uint64(anyLen))\n", extraIndent))
 			sb.WriteString(fmt.Sprintf("%s} else {\n", extraIndent))
 			sb.WriteString(fmt.Sprintf("%s\toffset = amino.PrependByte(buf, offset, 0x00)\n", extraIndent))
 			sb.WriteString(fmt.Sprintf("%s}\n", extraIndent))
@@ -612,9 +622,11 @@ func (ctx *P3Context2) writeElementEncode(sb *strings.Builder, accessor string, 
 
 func (ctx *P3Context2) writeInterfaceFieldMarshal(sb *strings.Builder, accessor string, fnum uint32, indent string) {
 	sb.WriteString(fmt.Sprintf("%sif %s != nil {\n", indent, accessor))
-	sb.WriteString(fmt.Sprintf("%s\tanyBz, err := cdc.MarshalAny(%s)\n", indent, accessor))
+	sb.WriteString(fmt.Sprintf("%s\tbefore := offset\n", indent))
+	sb.WriteString(fmt.Sprintf("%s\toffset, err = cdc.MarshalAnyBinary2(%s, buf, offset)\n", indent, accessor))
 	sb.WriteString(fmt.Sprintf("%s\tif err != nil {\n%s\t\treturn offset, err\n%s\t}\n", indent, indent, indent))
-	sb.WriteString(fmt.Sprintf("%s\toffset = amino.PrependByteSlice(buf, offset, anyBz)\n", indent))
+	sb.WriteString(fmt.Sprintf("%s\tanyLen := before - offset\n", indent))
+	sb.WriteString(fmt.Sprintf("%s\toffset = amino.PrependUvarint(buf, offset, uint64(anyLen))\n", indent))
 	sb.WriteString(fmt.Sprintf("%s\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", indent, fnum))
 	sb.WriteString(fmt.Sprintf("%s}\n", indent))
 }

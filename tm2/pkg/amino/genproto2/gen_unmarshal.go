@@ -17,11 +17,6 @@ func (ctx *P3Context2) generateUnmarshal(sb *strings.Builder, info *amino.TypeIn
 		return nil
 	}
 
-	// Only generate for struct types and AminoMarshalers.
-	if info.Type.Kind() != reflect.Struct && !info.IsAminoMarshaler {
-		return nil
-	}
-
 	sb.WriteString(fmt.Sprintf("func (goo *%s) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {\n", tname))
 
 	if info.IsAminoMarshaler {
@@ -34,7 +29,31 @@ func (ctx *P3Context2) generateUnmarshal(sb *strings.Builder, info *amino.TypeIn
 		return nil
 	}
 
-	ctx.writeStructUnmarshalBody(sb, info, "goo")
+	// Handle struct types.
+	if info.Type.Kind() == reflect.Struct {
+		ctx.writeStructUnmarshalBody(sb, info, "goo")
+		sb.WriteString("\treturn nil\n")
+		sb.WriteString("}\n\n")
+		return nil
+	}
+
+	// Handle non-struct primitive types (e.g. `type StringValue string`).
+	// Decoded as implicit struct with a single field number 1.
+	rt := info.Type
+
+	// For array types, fall back to cdc.Unmarshal (the reflect path)
+	// since writeReprUnmarshal uses append which doesn't work on arrays.
+	if rt.Kind() == reflect.Array {
+		sb.WriteString("\treturn cdc.UnmarshalReflect(bz, goo)\n")
+		sb.WriteString("}\n\n")
+		return nil
+	}
+
+	// Non-array, non-struct types: use writeReprUnmarshal which declares `var repr`.
+	if err := ctx.writeReprUnmarshal(sb, info); err != nil {
+		return err
+	}
+	sb.WriteString(fmt.Sprintf("\t*goo = %s(repr)\n", typeName(info)))
 	sb.WriteString("\treturn nil\n")
 	sb.WriteString("}\n\n")
 	return nil
@@ -323,11 +342,20 @@ func (ctx *P3Context2) writeFieldUnmarshal(sb *strings.Builder, accessor string,
 			indent, indent, accessor, indent, indent, accessor, indent))
 
 	case rt.Kind() == reflect.Array && rt.Elem().Kind() == reflect.Uint8:
-		// [N]byte
-		sb.WriteString(fmt.Sprintf("%sv, n, err := amino.DecodeByteSlice(bz)\n", indent))
+		// [N]byte — read length prefix then copy directly from buffer (no intermediate slice).
+		arrLen := rt.Len()
+		sb.WriteString(fmt.Sprintf("%svar count uint64\n", indent))
+		sb.WriteString(fmt.Sprintf("%scount, n, err = amino.DecodeUvarint(bz)\n", indent))
 		sb.WriteString(fmt.Sprintf("%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent))
 		sb.WriteString(fmt.Sprintf("%sbz = bz[n:]\n", indent))
-		sb.WriteString(fmt.Sprintf("%scopy(%s[:], v)\n", indent, accessor))
+		sb.WriteString(fmt.Sprintf("%sif int(count) != %d {\n", indent, arrLen))
+		sb.WriteString(fmt.Sprintf("%s\treturn fmt.Errorf(\"invalid [%d]byte length: expected %d, got %%d\", count)\n", indent, arrLen, arrLen))
+		sb.WriteString(fmt.Sprintf("%s}\n", indent))
+		sb.WriteString(fmt.Sprintf("%sif len(bz) < %d {\n", indent, arrLen))
+		sb.WriteString(fmt.Sprintf("%s\treturn fmt.Errorf(\"insufficient bytes for [%d]byte: have %%d\", len(bz))\n", indent, arrLen))
+		sb.WriteString(fmt.Sprintf("%s}\n", indent))
+		sb.WriteString(fmt.Sprintf("%scopy(%s[:], bz[:%d])\n", indent, accessor, arrLen))
+		sb.WriteString(fmt.Sprintf("%sbz = bz[%d:]\n", indent, arrLen))
 
 	case isListType(rt) && rt.Elem().Kind() != reflect.Uint8:
 		// Packed list (non-byte elements): decode length-prefixed block, then elements.
@@ -503,7 +531,7 @@ func (ctx *P3Context2) writeUnpackedListUnmarshal(sb *strings.Builder, accessor 
 			sb.WriteString(fmt.Sprintf("%sbz = bz[n:]\n", indent))
 			sb.WriteString(fmt.Sprintf("%sif len(fbz) > 0 {\n", indent))
 			sb.WriteString(fmt.Sprintf("%s\tvar ev %s\n", indent, ctx.goTypeName(ert)))
-			sb.WriteString(fmt.Sprintf("%s\tif err := cdc.UnmarshalAny(fbz, &ev); err != nil {\n%s\t\treturn err\n%s\t}\n",
+			sb.WriteString(fmt.Sprintf("%s\tif err := cdc.UnmarshalAnyBinary2(fbz, &ev); err != nil {\n%s\t\treturn err\n%s\t}\n",
 				indent, indent, indent))
 			sb.WriteString(fmt.Sprintf("%s\t%s", indent, storeElem("ev")))
 			sb.WriteString(fmt.Sprintf("%s} else {\n", indent))
@@ -606,7 +634,7 @@ func (ctx *P3Context2) writeInterfaceFieldUnmarshal(sb *strings.Builder, accesso
 	sb.WriteString(fmt.Sprintf("%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent))
 	sb.WriteString(fmt.Sprintf("%sbz = bz[n:]\n", indent))
 	sb.WriteString(fmt.Sprintf("%sif len(fbz) > 0 {\n", indent))
-	sb.WriteString(fmt.Sprintf("%s\tif err := cdc.UnmarshalAny(fbz, &%s); err != nil {\n%s\t\treturn err\n%s\t}\n",
+	sb.WriteString(fmt.Sprintf("%s\tif err := cdc.UnmarshalAnyBinary2(fbz, &%s); err != nil {\n%s\t\treturn err\n%s\t}\n",
 		indent, accessor, indent, indent))
 	sb.WriteString(fmt.Sprintf("%s}\n", indent))
 }

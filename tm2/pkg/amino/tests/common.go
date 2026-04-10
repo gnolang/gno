@@ -434,6 +434,12 @@ var StructTypes = []any{
 	(*FuzzBlock)(nil),
 	(*FuzzDeepNest)(nil),
 	(*FuzzPtrNest)(nil),
+	// Amino tag fuzz types.
+	(*FuzzWriteEmpty)(nil),
+	(*FuzzNilElements)(nil),
+	(*FuzzUnsafeFloat)(nil),
+	// Interface-heavy benchmark type.
+	(*InterfaceHeavy)(nil),
 }
 
 // ----------------------------------------

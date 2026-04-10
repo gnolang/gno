@@ -16,9 +16,6 @@ func (ctx *P3Context2) generateSize(sb *strings.Builder, info *amino.TypeInfo) e
 	if tname == "" {
 		return nil
 	}
-	if info.Type.Kind() != reflect.Struct && !info.IsAminoMarshaler {
-		return nil
-	}
 
 	sb.WriteString(fmt.Sprintf("func (goo %s) SizeBinary2(cdc *amino.Codec) int {\n", tname))
 	sb.WriteString("\tvar s int\n")
@@ -33,8 +30,18 @@ func (ctx *P3Context2) generateSize(sb *strings.Builder, info *amino.TypeInfo) e
 		return nil
 	}
 
-	ctx.writeStructSizeBody(sb, info, "goo")
+	// Handle struct types.
+	if info.Type.Kind() == reflect.Struct {
+		ctx.writeStructSizeBody(sb, info, "goo")
+		sb.WriteString("\treturn s\n")
+		sb.WriteString("}\n\n")
+		return nil
+	}
 
+	// Handle non-struct primitive types (e.g. `type StringValue string`).
+	// Encoded as implicit struct with a single field number 1.
+	sb.WriteString("\trepr := goo\n")
+	ctx.writeReprSize(sb, info)
 	sb.WriteString("\treturn s\n")
 	sb.WriteString("}\n\n")
 	return nil
@@ -251,9 +258,8 @@ func (ctx *P3Context2) writeFieldValueSize(sb *strings.Builder, accessor string,
 
 	case rinfo.Type.Kind() == reflect.Interface:
 		sb.WriteString(fmt.Sprintf("%sif %s != nil {\n", indent, accessor))
-		sb.WriteString(fmt.Sprintf("%s\tanyBz, err := cdc.MarshalAny(%s)\n", indent, accessor))
-		sb.WriteString(fmt.Sprintf("%s\tif err != nil {\n%s\t\tpanic(err)\n%s\t}\n", indent, indent, indent))
-		sb.WriteString(fmt.Sprintf("%s\ts += %d + amino.UvarintSize(uint64(len(anyBz))) + len(anyBz)\n", indent, fks))
+		sb.WriteString(fmt.Sprintf("%s\tcs := cdc.SizeAnyBinary2(%s)\n", indent, accessor))
+		sb.WriteString(fmt.Sprintf("%s\ts += %d + amino.UvarintSize(uint64(cs)) + cs\n", indent, fks))
 		sb.WriteString(fmt.Sprintf("%s}\n", indent))
 
 	case rinfo.Type.Kind() == reflect.String:
@@ -388,11 +394,10 @@ func (ctx *P3Context2) writeUnpackedListSize(sb *strings.Builder, accessor strin
 		}
 
 		if einfo.ReprType.Type.Kind() == reflect.Interface {
-			// Interface element: size via MarshalAny.
+			// Interface element: size via SizeAnyBinary2.
 			sb.WriteString(fmt.Sprintf("%sif %s != nil {\n", extraIndent, elemAccessor))
-			sb.WriteString(fmt.Sprintf("%s\tanyBz, err := cdc.MarshalAny(%s)\n", extraIndent, elemAccessor))
-			sb.WriteString(fmt.Sprintf("%s\tif err != nil {\n%s\t\tpanic(err)\n%s\t}\n", extraIndent, extraIndent, extraIndent))
-			sb.WriteString(fmt.Sprintf("%s\ts += %d + amino.UvarintSize(uint64(len(anyBz))) + len(anyBz)\n", extraIndent, fks))
+			sb.WriteString(fmt.Sprintf("%s\tcs := cdc.SizeAnyBinary2(%s)\n", extraIndent, elemAccessor))
+			sb.WriteString(fmt.Sprintf("%s\ts += %d + amino.UvarintSize(uint64(cs)) + cs\n", extraIndent, fks))
 			sb.WriteString(fmt.Sprintf("%s} else {\n", extraIndent))
 			sb.WriteString(fmt.Sprintf("%s\ts += %d + 1\n", extraIndent, fks)) // field key + 0x00
 			sb.WriteString(fmt.Sprintf("%s}\n", extraIndent))

@@ -91,6 +91,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 	err := error(nil)
 	bz := []byte{}
 	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
 	f := fuzz.New()
 	rv := reflect.New(rt)
 	rv2 := reflect.New(rt)
@@ -680,6 +681,104 @@ var fuzzFuncs = []any{
 			for i := range n {
 				(*esz)[i] = &tests.EmptyStruct{}
 			}
+		}
+	},
+	func(sl *[]*tests.FuzzFieldInfo, c fuzz.Continue) {
+		n := c.Intn(4)
+		switch n {
+		case 0:
+			*sl = nil
+		default:
+			// Include nil elements to exercise amino:"nil_elements".
+			*sl = make([]*tests.FuzzFieldInfo, n)
+			for i := range n {
+				if c.Intn(3) == 0 {
+					(*sl)[i] = nil // nil element
+				} else {
+					var fi tests.FuzzFieldInfo
+					c.Fuzz(&fi)
+					(*sl)[i] = &fi
+				}
+			}
+		}
+	},
+	func(sl *[]*tests.GnoVMPos, c fuzz.Continue) {
+		n := c.Intn(4)
+		switch n {
+		case 0:
+			*sl = nil
+		default:
+			// Include nil elements to exercise amino:"nil_elements".
+			*sl = make([]*tests.GnoVMPos, n)
+			for i := range n {
+				if c.Intn(3) == 0 {
+					(*sl)[i] = nil // nil element
+				} else {
+					var p tests.GnoVMPos
+					c.Fuzz(&p)
+					(*sl)[i] = &p
+				}
+			}
+		}
+	},
+	func(f *float64, c fuzz.Continue) {
+		// Exercise amino:"unsafe" float encoding.
+		// Avoid NaN/Inf which don't roundtrip via proto encoding.
+		switch c.Intn(4) {
+		case 0:
+			*f = 0
+		case 1:
+			*f = float64(c.Int63n(1000)) / 100.0
+		case 2:
+			*f = -float64(c.Int63n(1000)) / 100.0
+		case 3:
+			*f = float64(c.Int63())
+		}
+	},
+	func(f *float32, c fuzz.Continue) {
+		switch c.Intn(4) {
+		case 0:
+			*f = 0
+		case 1:
+			*f = float32(c.Intn(1000)) / 100.0
+		case 2:
+			*f = -float32(c.Intn(1000)) / 100.0
+		case 3:
+			*f = float32(c.Int31())
+		}
+	},
+	func(iface *tests.Interface1, c fuzz.Continue) {
+		// Randomly pick a concrete type for the interface.
+		switch c.Intn(4) {
+		case 0:
+			*iface = nil
+			return
+		case 1:
+			*iface = tests.Concrete1{}
+		case 2:
+			*iface = tests.Concrete2{}
+		case 3:
+			n := c.Intn(20)
+			if n == 0 {
+				*iface = tests.ConcreteWrappedBytes{Value: nil}
+			} else {
+				bz := make([]byte, n)
+				for i := range bz {
+					bz[i] = byte(c.Intn(256))
+				}
+				*iface = tests.ConcreteWrappedBytes{Value: bz}
+			}
+		}
+	},
+	func(sl *[]tests.Interface1, c fuzz.Continue) {
+		n := c.Intn(4)
+		if n == 0 {
+			*sl = nil
+			return
+		}
+		*sl = make([]tests.Interface1, n)
+		for i := range n {
+			c.Fuzz(&(*sl)[i])
 		}
 	},
 }

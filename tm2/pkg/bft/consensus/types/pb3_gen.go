@@ -8,13 +8,29 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bitarray"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 )
 
 var _ fmt.Stringer
 var _ *amino.Codec
 var _ = errors.New
+var _ reflect.Type
 var _ time.Time
+
+func init() {
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RoundState)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*HRS)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*RoundStateSimple)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PeerRoundState)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*HeightVoteSet)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventNewRoundStep)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventNewValidBlock)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventNewRound)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventCompleteProposal)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventTimeoutPropose)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EventTimeoutWait)(nil)).Elem())
+}
 
 func (goo RoundState) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error

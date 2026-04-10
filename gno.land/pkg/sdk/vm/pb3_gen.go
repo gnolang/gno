@@ -6,12 +6,29 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"reflect"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var _ fmt.Stringer
 var _ *amino.Codec
 var _ = errors.New
+var _ reflect.Type
+
+func init() {
+	amino.RegisterGenproto2Type(reflect.TypeOf((*MsgCall)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*MsgRun)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*MsgAddPackage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidPkgPathError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*NoRenderDeclError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PkgExistError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidStmtError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidExprError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*TypeCheckError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*UnauthorizedUserError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidPackageError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidFileError)(nil)).Elem())
+}
 
 func (goo MsgCall) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error

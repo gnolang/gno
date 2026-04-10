@@ -520,6 +520,30 @@ message FuzzDeepNest {
 	GnoVMAttrs meta = 2 [json_name = "Meta"];
 }
 
+message FuzzWriteEmpty {
+	string name = 1 [json_name = "Name"];
+	repeated sint32 values = 2 [json_name = "Values"];
+	GnoVMPos inner = 3 [json_name = "Inner"];
+	bytes data = 4 [json_name = "Data"];
+	sint64 count = 5 [json_name = "Count"];
+	bool flag = 6 [json_name = "Flag"];
+	string normal = 7 [json_name = "Normal"];
+}
+
+message FuzzNilElements {
+	repeated FuzzFieldInfo entries = 1 [json_name = "Entries"];
+	repeated GnoVMPos poses = 2 [json_name = "Poses"];
+	string name = 3 [json_name = "Name"];
+}
+
+message InterfaceHeavy {
+	google.protobuf.Any field1 = 1 [json_name = "Field1"];
+	google.protobuf.Any field2 = 2 [json_name = "Field2"];
+	google.protobuf.Any field3 = 3 [json_name = "Field3"];
+	repeated google.protobuf.Any items = 4 [json_name = "Items"];
+	string name = 5 [json_name = "Name"];
+}
+
 message TESTS_BytesList {
 	repeated bytes Value = 1;
 }

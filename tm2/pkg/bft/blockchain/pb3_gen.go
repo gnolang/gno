@@ -6,6 +6,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
@@ -13,7 +14,16 @@ import (
 var _ fmt.Stringer
 var _ *amino.Codec
 var _ = errors.New
+var _ reflect.Type
 var _ time.Time
+
+func init() {
+	amino.RegisterGenproto2Type(reflect.TypeOf((*bcBlockRequestMessage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*bcBlockResponseMessage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*bcNoBlockResponseMessage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*bcStatusRequestMessage)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*bcStatusResponseMessage)(nil)).Elem())
+}
 
 func (goo bcBlockRequestMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
