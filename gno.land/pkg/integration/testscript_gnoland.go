@@ -724,11 +724,37 @@ func (l *tsLogWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// safeWriter is a thread-safe writer that buffers output.
+// It is used to capture node stderr without racing with
+// testscript's internal strings.Builder.
+type safeWriter struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (w *safeWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.Write(p)
+}
+
+func (w *safeWriter) String() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.String()
+}
+
 func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeConfig) NodeProcess {
+	// Use thread-safe buffers for stdout and stderr to avoid racing
+	// with testscript's internal buffers. The node subprocess writes
+	// from background goroutines (waitForProcessReady stdout forwarder,
+	// node stderr) while the testscript main goroutine reads them
+	// via clearBuiltinStd/Logf.
+	var stdoutBuf, stderrBuf safeWriter
 	pcfg := ProcessConfig{
 		Node:   cfg,
-		Stdout: &tsLogWriter{ts},
-		Stderr: ts.Stderr(),
+		Stdout: &stdoutBuf,
+		Stderr: &stderrBuf,
 	}
 
 	// Setup coverdir provided
@@ -742,6 +768,7 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeC
 	case commandKindInMemory:
 		nodep, err := RunInMemoryProcess(ctx, pcfg)
 		if err != nil {
+			fmt.Fprint(ts.Stderr(), stderrBuf.String())
 			ts.Fatalf("unable to start in memory node: %s", err)
 		}
 
@@ -752,12 +779,19 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeC
 			ts.Fatalf("unable to invoke testing process while not testing")
 		}
 
-		return runTestingNodeProcess(&testingTS{ts}, ctx, pcfg)
+		nodep, err := runTestingNodeProcess(ctx, pcfg)
+		if err != nil {
+			fmt.Fprint(ts.Stderr(), stderrBuf.String())
+			ts.Fatalf("unable to start testing node: %s", err)
+		}
+
+		return nodep
 
 	case commandKindBin:
 		bin := ts.Value(envKeyExecBin).(string)
 		nodep, err := RunNodeProcess(ctx, pcfg, bin)
 		if err != nil {
+			fmt.Fprint(ts.Stderr(), stderrBuf.String())
 			ts.Fatalf("unable to start process node: %s", err)
 		}
 
