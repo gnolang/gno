@@ -202,6 +202,10 @@ func (m *Machine) doOpStaticTypeOf() {
 			m.PushValue(asValue(UntypedBoolType))
 		}
 	case *CallExpr:
+		// ATTR_TYPEOF_VALUE must already be set on every CallExpr
+		// during preprocessing: for type conversions (TRANS_LEAVE
+		// *CallExpr conversion paths), for generic/specialized
+		// calls, and for plain function calls via the general case.
 		t := getTypeOf(x)
 		m.PushValue(asValue(t))
 	case *IndexExpr:
@@ -415,6 +419,11 @@ func (m *Machine) doOpStaticTypeOf() {
 			panic("unexpected star expression")
 		}
 	case *RefExpr:
+		// Compute the static type of &x as *typeof(x).
+		// The result is cached as ATTR_TYPEOF_VALUE on the
+		// RefExpr by evalStaticTypeOfRaw, and the inner xt
+		// is cached on x.X.  doOpRef reads x.X's cached type
+		// at runtime to build the correct pointer type.
 		start := len(m.Values)
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
