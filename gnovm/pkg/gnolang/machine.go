@@ -233,11 +233,11 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	if bm.OpsEnabled || bm.StorageEnabled || bm.NativeEnabled {
+	if bm.Enabled {
 		bm.InitMeasure()
-	}
-	if bm.StorageEnabled {
-		defer bm.FinishStore()
+		if bm.StorageEnabled {
+			defer bm.FinishStore()
+		}
 	}
 	return m.runMemPackage(mpkg, save, false)
 }
@@ -816,12 +816,12 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
-	if bm.OpsEnabled || bm.StorageEnabled {
+	if bm.Enabled {
 		// reset the benchmark
 		bm.InitMeasure()
-	}
-	if bm.StorageEnabled {
-		defer bm.FinishStore()
+		if bm.StorageEnabled {
+			defer bm.FinishStore()
+		}
 	}
 	// X must not have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
@@ -1268,16 +1268,10 @@ const (
 func (m *Machine) Run(st Stage) {
 	m.Stage = st
 	if bm.OpsEnabled {
-		defer func() {
-			// output each machine run results to file
-			bm.FinishRun()
-		}()
+		defer bm.FinishRun()
 	}
 	if bm.NativeEnabled {
-		defer func() {
-			// output each machine run results to file
-			bm.FinishNative()
-		}()
+		defer bm.FinishNative()
 	}
 	defer func() {
 		r := recover()
@@ -1301,21 +1295,15 @@ func (m *Machine) Run(st Stage) {
 			m.Debug()
 		}
 		op := m.PopOp()
-		if bm.OpsEnabled {
-			// benchmark the operation.
-			bm.StartOpCode(byte(OpVoid))
-			bm.StopOpCode()
-			// we do not benchmark static evaluation.
-			if op != OpStaticTypeOf {
-				bm.StartOpCode(byte(op))
-			}
+		if bm.Enabled {
+			bm.SwitchOpCode(bm.CPUOp(op))
 		}
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
-			if bm.OpsEnabled {
+			if bm.Enabled {
 				bm.StopOpCode()
 			}
 			return
@@ -1621,11 +1609,8 @@ func (m *Machine) Run(st Stage) {
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
 		}
-		if bm.OpsEnabled {
-			if op != OpStaticTypeOf {
-				bm.StopOpCode()
-			}
-		}
+		// No StopOpCode needed here — SwitchOpCode at the top
+		// of the next iteration attributes this op's time.
 	}
 }
 
