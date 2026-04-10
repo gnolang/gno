@@ -1,13 +1,47 @@
-# Test: Verify event collector is exercised with real validator set changes.
+# Test: Event collector data race verification
 #
-# This test triggers actual ValidatorAdded events through the GovDAO proposal
-# flow, ensuring the collector's updateWith() and getEvents() are both called
-# during block processing.
+# PURPOSE:
+# Verify that the event collector (gno.land/pkg/gnoland/events.go) has no
+# data race between updateWith() and getEvents(). These two methods access
+# collector.events (a plain []T slice with no mutex), so if they ever ran
+# concurrently the Go race detector would catch it.
 #
-# The collector (gno.land/pkg/gnoland/events.go) stores events in a plain []T
-# slice. Both updateWith() (called from fireEvents after block commit) and
-# getEvents() (called from EndBlocker) run on the same consensus receiveRoutine
-# goroutine, so there is no data race by design.
+# WHY THERE IS NO RACE:
+# Both methods run on the single consensus receiveRoutine goroutine,
+# sequentially inside ApplyBlock():
+#
+#   ApplyBlock()                              (tm2/pkg/bft/state/execution.go:90)
+#   ├── execBlockOnProxyApp()                 (execution.go:95)
+#   │   └── EndBlockSync()                    (execution.go:265)
+#   │       └── app EndBlocker                (gno.land/pkg/gnoland/app.go:462)
+#   │           └── collector.getEvents()     ← READS + RESETS collector.events
+#   │
+#   └── fireEvents()                          (execution.go:151)
+#       └── evsw.FireEvent(EventTx)           (execution.go:427)
+#           └── collector.updateWith()        ← APPENDS to collector.events
+#
+# The EventSwitch fires listeners synchronously (events.go:106-107),
+# not in goroutines. So getEvents() always completes before the next
+# updateWith(). Events from block N are consumed by block N+1's EndBlocker.
+#
+# HOW THIS TEST EXERCISES THE COLLECTOR:
+# We trigger a real ValidatorAdded event through the GovDAO proposal flow:
+#   1. Register a valoper profile
+#   2. Create a GovDAO proposal to add it as a validator
+#   3. Vote YES and execute the proposal
+#   4. Execution calls r/sys/validators/v2.addValidator()
+#      which calls chain.Emit("ValidatorAdded")
+#   5. The validatorEventFilter matches the event, updateWith() stores it
+#   6. Next block's EndBlocker calls getEvents(), sees the event,
+#      and queries r/sys/validators/v2.GetChanges() for the actual update
+#
+# The [!race] guard ensures this test only runs with `go test -race`,
+# since the race detector is the whole point.
+#
+# Run: go test -race -v -run TestTestdata/event_race -timeout 300s ./gno.land/pkg/integration
+
+# Only run when compiled with -race; skip otherwise.
+[!race] skip 'requires -race build flag'
 
 loadpkg gno.land/r/gnops/valopers
 loadpkg gno.land/r/gnops/valopers/proposal
@@ -15,42 +49,54 @@ loadpkg gno.land/r/gov/dao
 
 gnoland start
 
-# Step 1: Initialize GovDAO with test1 as a member
+# Initialize GovDAO with test1 as a member (required for proposal voting)
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
 stdout 'OK!'
 
-# Step 2: Register a valoper
+# Register a valoper — this creates the on-chain profile that the proposal references
 gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 1000000ugnot -gas-wanted 30000000 -send 20000000ugnot -args myval -args "test validator" -args on-prem -args g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-# Step 3: Create a GovDAO proposal to add the valoper as a validator
-# This calls r/sys/validators/v2.NewPropRequest under the hood
+# Create a GovDAO proposal to add the valoper as a validator.
+# Under the hood: r/gnops/valopers/proposal.NewValidatorProposalRequest()
+# -> r/sys/validators/v2.NewPropRequest()
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_proposal.gno
 stdout 'OK!'
 
-# Step 4: Vote YES on the proposal
+# Vote YES — since test1 is the only GovDAO member, this passes immediately
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-# Step 5: Execute the proposal — this triggers:
-#   r/sys/validators/v2.addValidator()
-#     -> chain.Emit("ValidatorAdded")
-#     -> EventTx in DeliverTx response
-#     -> fireEvents() fires EventTx
-#     -> collector.updateWith() appends to collector.events
-#   Next block's EndBlocker:
-#     -> collector.getEvents() reads and resets collector.events
+# Execute the proposal — THIS IS THE KEY TRANSACTION.
+# It calls r/sys/validators/v2.addValidator() which emits:
+#   chain.Emit("ValidatorAdded")
+#
+# During this block's commit:
+#   1. DeliverTx runs the proposal execution, producing a GnoVM event
+#   2. EndBlockSync() calls app EndBlocker -> collector.getEvents()
+#      (returns empty — no events from *previous* block)
+#   3. fireEvents() fires EventTx containing the ValidatorAdded event
+#   4. collector.updateWith() stores validatorUpdate{} in collector.events
+#
+# During the NEXT block's commit:
+#   5. EndBlockSync() calls collector.getEvents() -> returns [validatorUpdate{}]
+#   6. EndBlocker queries r/sys/validators/v2.GetChanges() for the actual update
+#   7. The validator set change is applied
+#
+# If updateWith() (step 4) and getEvents() (step 2/5) could run concurrently,
+# the race detector would fire here. It doesn't — both are on receiveRoutine.
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-# Step 6: Send follow-up queries to force subsequent blocks,
-# ensuring getEvents() is called after the validator event was collected.
+# Force a follow-up block to ensure getEvents() consumes the buffered event
 gnokey query vm/qrender --data 'gno.land/r/gnops/valopers:'
 stdout 'myval'
 
-# Step 7: Verify the validator was actually added and valset changes recorded
+# Verify: the validator was added and the change was recorded.
+# This confirms the full event flow worked: Emit -> updateWith -> getEvents -> QueryEval
 gnokey query vm/qrender --data 'gno.land/r/sys/validators/v2:'
-stdout 'Valset changes'
+stdout 'Valset changes:'
+stdout 'g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl \(1\)'
 
 -- run/init_govdao.gno --
 package main

@@ -251,6 +251,19 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		p.Cmds[cmd] = call
 	}
 
+	// Register custom conditions.
+	// [race] evaluates to true when the binary is compiled with -race.
+	origCondition := p.Condition
+	p.Condition = func(cond string) (bool, error) {
+		if cond == "race" {
+			return raceEnabled, nil
+		}
+		if origCondition != nil {
+			return origCondition(cond)
+		}
+		return false, fmt.Errorf("unknown condition %q", cond)
+	}
+
 	return nil
 }
 
