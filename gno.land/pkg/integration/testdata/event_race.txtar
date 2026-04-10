@@ -1,0 +1,75 @@
+# Test: Verify event collector is exercised with real validator set changes.
+#
+# This test triggers actual ValidatorAdded events through the GovDAO proposal
+# flow, ensuring the collector's updateWith() and getEvents() are both called
+# during block processing.
+#
+# The collector (gno.land/pkg/gnoland/events.go) stores events in a plain []T
+# slice. Both updateWith() (called from fireEvents after block commit) and
+# getEvents() (called from EndBlocker) run on the same consensus receiveRoutine
+# goroutine, so there is no data race by design.
+
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gnops/valopers/proposal
+loadpkg gno.land/r/gov/dao
+
+gnoland start
+
+# Step 1: Initialize GovDAO with test1 as a member
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
+stdout 'OK!'
+
+# Step 2: Register a valoper
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 1000000ugnot -gas-wanted 30000000 -send 20000000ugnot -args myval -args "test validator" -args on-prem -args g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Step 3: Create a GovDAO proposal to add the valoper as a validator
+# This calls r/sys/validators/v2.NewPropRequest under the hood
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_proposal.gno
+stdout 'OK!'
+
+# Step 4: Vote YES on the proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Step 5: Execute the proposal — this triggers:
+#   r/sys/validators/v2.addValidator()
+#     -> chain.Emit("ValidatorAdded")
+#     -> EventTx in DeliverTx response
+#     -> fireEvents() fires EventTx
+#     -> collector.updateWith() appends to collector.events
+#   Next block's EndBlocker:
+#     -> collector.getEvents() reads and resets collector.events
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Step 6: Send follow-up queries to force subsequent blocks,
+# ensuring getEvents() is called after the validator event was collected.
+gnokey query vm/qrender --data 'gno.land/r/gnops/valopers:'
+stdout 'myval'
+
+# Step 7: Verify the validator was actually added and valset changes recorded
+gnokey query vm/qrender --data 'gno.land/r/sys/validators/v2:'
+stdout 'Valset changes'
+
+-- run/init_govdao.gno --
+package main
+
+import dao "gno.land/r/gov/dao/v3/init"
+
+func main() {
+	dao.InitWithUsers("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+}
+
+-- run/create_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gnops/valopers/proposal"
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	pr := proposal.NewValidatorProposalRequest(cross, address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"))
+	dao.MustCreateProposal(cross, pr)
+}
