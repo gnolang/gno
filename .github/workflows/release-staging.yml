@@ -1,0 +1,108 @@
+name: release / staging
+
+on:
+  push:
+    branches:
+      - "master"
+  pull_request:
+    paths:
+      - "misc/loop/**"
+      - ".github/workflows/release-staging.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-staging:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # to push images to ghcr.io
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata portalloopd
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ghcr.io/${{ github.repository }}/portalloopd
+          tags: |
+            type=raw,value=latest
+            type=semver,pattern=v{{version}}
+
+      - name: Build and push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          target: portalloopd
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: ${{ github.event_name != 'pull_request' }}
+
+  test-staging-running-in-compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+
+      - name: "Setup The staging docker compose"
+        # Pull the current Docker image of Gnoland to allow the loop application
+        # finding already the image in the local registry when booting.
+        run: | 
+          docker pull ghcr.io/gnolang/gno/gnoland:master
+          cd misc/loop
+          echo "Making docker compose happy"
+          touch .env
+          make docker.ci
+
+      - name: "Test1 - Staging start gnoland"
+        run: |
+          while
+            block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
+            echo "Current block height: $block_height"
+            [[ "$block_height" -lt 2 ]]
+          do
+            sleep 1
+          done
+
+          curl -s localhost:26657/status | jq
+
+      - name: "Build new gnolang/gno image"
+        run: |
+          docker build -t ghcr.io/gnolang/gno/gnoland:master -f Dockerfile --target gnoland .
+
+      - name: "Wait for new docker image"
+        run: |
+          ip_addr=$(grep -o "http://.*:26657" misc/loop/traefik/gno.yml)
+          while
+            new_ip_addr=$(grep -o "http://.*:26657" misc/loop/traefik/gno.yml)
+            echo "${ip_addr} -> ${new_ip_addr}"
+            [[ "${ip_addr}" == "${new_ip_addr}" ]]
+          do
+            sleep 5
+          done
+
+      - name: "Test2 - Wait staging start new image"
+        run: |
+          while
+            block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
+            echo "Current block height: $block_height"
+            [[ "$block_height" -lt 2 ]]
+          do
+            sleep 5
+          done
+          docker ps -a
+          curl -s localhost:26657/status | jq
