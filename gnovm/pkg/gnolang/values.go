@@ -219,6 +219,9 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
+		if rlm != nil && pv.Base != nil {
+			rlm.DidUpdate(pv.Base.(Object), nil, nil)
+		}
 		return
 	}
 	// General case
@@ -328,7 +331,9 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	*/
 	if av.Data == nil {
 		av2 := alloc.NewListArray(len(av.List))
-		copy(av2.List, av.List)
+		for i, tv := range av.List {
+			av2.List[i] = tv.Copy(alloc)
+		}
 		return av2
 	}
 	av2 := alloc.NewDataArray(len(av.Data))
@@ -656,15 +661,16 @@ func (ml MapList) MarshalAmino() (MapListImage, error) {
 func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 	for i, item := range mlimg.List {
 		if i == 0 {
+			item.Prev = nil
 			ml.Head = item
 			ml.Tail = item
-			item.Prev = nil
+			ml.Size = 1
 		} else {
 			item.Prev = ml.Tail
 			ml.Tail.Next = item
 			ml.Tail = item
+			ml.Size++
 		}
-		ml.Size++
 	}
 	return nil
 }
@@ -681,15 +687,19 @@ func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 	if ml.Head == nil {
 		ml.Head = item
 		ml.Tail = item
+		ml.Size = 1
 	} else {
 		ml.Tail.Next = item
 		ml.Tail = item
+		ml.Size++
 	}
-	ml.Size++
 	return item
 }
 
 func (ml *MapList) Remove(mli *MapListItem) {
+	if ml.Size == 0 {
+		return
+	}
 	prev, next := mli.Prev, mli.Next
 	if prev == nil {
 		ml.Head = next
@@ -996,7 +1006,7 @@ func (tv *TypedValue) IsTypedNil() bool {
 	}
 	if tv.T != nil {
 		switch tv.T.Kind() {
-		case SliceKind, FuncKind, MapKind, InterfaceKind, PointerKind, ChanKind:
+		case SliceKind, FuncKind, MapKind, InterfaceKind, PointerKind:
 			return true
 		}
 	}
@@ -1614,7 +1624,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			}
 		}
 	case FieldType:
-		panic("field (pseudo)type cannot be used as map key")
+		panic("runtime error: field (pseudo)type cannot be used as map key")
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
@@ -1641,7 +1651,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		}
 		bz = append(bz, ']')
 	case *SliceType:
-		panic("slice type cannot be used as map key")
+		panic("runtime error: slice type cannot be used as map key")
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
@@ -1661,7 +1671,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		}
 		bz = append(bz, '}')
 	case *ChanType:
-		panic("not yet implemented")
+		panic("channel type is not yet supported")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected map key type %s",

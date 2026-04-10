@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	user  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 	role          = boards2.RoleOwner
 )

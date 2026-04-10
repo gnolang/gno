@@ -115,6 +115,49 @@ func TestRoutes(t *testing.T) {
 	}
 }
 
+func TestStaticMarkdownDevLinks(t *testing.T) {
+	t.Parallel()
+
+	logger := log.NewTestingLogger(t)
+	rootdir := gnoenv.RootDir()
+	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
+	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
+	node, remoteAddr := integration.TestingInMemoryNode(t, logger, config)
+	t.Cleanup(func() { node.Stop() })
+
+	cfg := NewDefaultAppConfig()
+	cfg.NodeRemote = remoteAddr
+	cfg.Aliases["/"] = AliasTarget{Value: "# Home Static", Kind: StaticMarkdown}
+	cfg.Aliases["/staticmd"] = AliasTarget{Value: "# Static Content", Kind: StaticMarkdown}
+
+	router, err := NewRouter(logger, cfg)
+	require.NoError(t, err)
+
+	cases := []struct {
+		name  string
+		route string
+	}{
+		{"homepage static markdown", "/"},
+		{"non-homepage static markdown", "/staticmd"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			request := httptest.NewRequest(http.MethodGet, tc.route, nil)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+
+			body := response.Body.String()
+			assert.Equal(t, http.StatusOK, response.Code)
+			assert.Contains(t, body, `link-label">Content<`, "static markdown pages should have Content link")
+			assert.NotContains(t, body, `link-label">Source<`, "static markdown pages should not have Source link")
+			assert.NotContains(t, body, `link-label">Actions<`, "static markdown pages should not have Actions link")
+		})
+	}
+}
+
 func TestAnalytics(t *testing.T) {
 	routes := []string{
 		// Special realms

@@ -31,6 +31,7 @@ type StaticMetadata struct {
 	ChainId    string
 	Analytics  bool
 	BuildTime  string
+	Banner     components.BannerData
 }
 
 type AliasKind int
@@ -138,7 +139,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			AssetsPath: h.Static.AssetsPath,
 			BuildTime:  h.Static.BuildTime,
 		},
-		Theme: theme,
+		Theme:  theme,
+		Banner: h.Static.Banner,
 	}
 
 	// Parse the URL
@@ -263,6 +265,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
+		indexData.HeaderData.Static = true
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
 		return h.GetPackageView(ctx, gnourl, indexData)

@@ -598,7 +598,7 @@ func TestVmHandlerQuery_UnknownEndpoint(t *testing.T) {
 func TestVmHandlerQuery_Doc(t *testing.T) {
 	expected := &doc.JSONDocumentation{
 		PackagePath: "gno.land/r/hello",
-		PackageLine: "package hello // import \"hello\"",
+		PackageLine: "package hello // import \"gno.land/r/hello\"",
 		PackageDoc:  "hello is a package for testing\n",
 		Values: []*doc.JSONValueDecl{
 			{
