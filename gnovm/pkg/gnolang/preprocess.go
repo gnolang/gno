@@ -1389,6 +1389,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							Op:    n.Op,
 							Right: rn,
 						}
+						// Mark the uint() conversion as a shift RHS so
+						// doOpCall can assert non-negative at runtime.
 						n2.Right.SetAttribute(ATTR_SHIFT_RHS, true)
 						resn := Preprocess(store, last, n2)
 						return resn, TRANS_CONTINUE
@@ -2284,6 +2286,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf("invalid operation: cannot indirect %s (variable of type %s)", n.X.String(), xt.String()))
 				}
 			// TRANS_LEAVE -----------------------
+			case *RefExpr:
+				// Ensure the static type of X is computed and cached
+				// so doOpRef can use it (instead of the runtime type,
+				// which is wrong for interface variables).
+				evalStaticTypeOf(store, last, n.X)
+			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
 
@@ -2337,6 +2345,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// value: t.Mp is equivalent to (&t).Mp."
 						//
 						// convert to (&x).m, but leave xt as is.
+						// Cache static type for doOpRef; see TRANS_LEAVE *RefExpr.
+						n.X.SetAttribute(ATTR_TYPEOF_VALUE, nxt2)
 						n.X = &RefExpr{X: n.X}
 						setPreprocessed(n.X)
 						switch tr[len(tr)-1].Type {
@@ -2363,6 +2373,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Case 2: If tr[0] is deref type, but xt
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
+						// Cache static type for doOpRef; see TRANS_LEAVE *RefExpr.
+						n.X.SetAttribute(ATTR_TYPEOF_VALUE, nxt2)
 						n.X = &RefExpr{X: n.X}
 						setPreprocessed(n.X)
 					}
@@ -5458,6 +5470,8 @@ func elideCompositeExpr(last BlockNode, x *Expr, t Type) {
 			// Handle implicit &{}.
 			if t.Kind() == PointerKind {
 				clx.Type = toConstTypeExpr(last, tx, t.Elem())
+				// Cache static type for doOpRef; see TRANS_LEAVE *RefExpr.
+				clx.SetAttribute(ATTR_TYPEOF_VALUE, t.Elem())
 				refx := &RefExpr{X: clx}
 				refx.SetSpan(clx.GetSpan())
 				*x = refx
