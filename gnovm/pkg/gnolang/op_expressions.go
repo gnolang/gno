@@ -187,15 +187,15 @@ func (m *Machine) doOpStar() {
 
 // doOpRef implements the & (address-of) operator.
 // The element type for the resulting pointer is taken from
-// the static type of rx.X (via ATTR_TYPEOF_VALUE), not from
-// the runtime xv.TV.T.  This distinction matters for interface
+// the static type of rx.X (via RefExpr.Type), not from the
+// runtime xv.TV.T.  This distinction matters for interface
 // variables: var i interface{} = 42; &i must yield *interface{},
-// not *int.  The static type is set during preprocessing in
+// not *int.  RefExpr.Type is set during preprocessing in
 // TRANS_LEAVE *RefExpr and at each synthetic RefExpr site.
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
 	xv, ro := m.PopAsPointer2(rx.X)
-	elt := getTypeOf(rx.X)
+	elt := rx.Type
 	m.Alloc.AllocatePointer()
 	m.PushValue(TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),

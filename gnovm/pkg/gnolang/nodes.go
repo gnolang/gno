@@ -494,7 +494,8 @@ type StarExpr struct { // *X
 
 type RefExpr struct { // &X
 	Attributes
-	X Expr // operand
+	X    Expr // operand
+	Type Type // static type of X, set during preprocessing; persisted.
 }
 
 type TypeAssertExpr struct { // X.(Type)

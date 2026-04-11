@@ -77,7 +77,8 @@ func (x *StarExpr) Copy() Node {
 
 func (x *RefExpr) Copy() Node {
 	return &RefExpr{
-		X: x.X.Copy().(Expr),
+		X:    x.X.Copy().(Expr),
+		Type: x.Type,
 	}
 }
 

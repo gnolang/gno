@@ -45,3 +45,6 @@ func main(cur realm) {
 
 	println(gTree.Size())
 }
+
+// Output:
+// 10
