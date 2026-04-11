@@ -5605,8 +5605,6 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 							if re.Type != nil {
 								xt = re.Type
 								ok = true
-							} else {
-								xt, ok = re.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
 							}
 						}
 						if !ok {
