@@ -170,3 +170,40 @@ func TestGetChanges_ClampsMaxInt64(t *testing.T) {
 	uassert.Equal(t, 1, len(result))
 	uassert.Equal(t, vals[0].Address, result[0].Address)
 }
+
+func TestNewPropRequest_DuplicateAddressPanics(t *testing.T) {
+	changes = avl.NewTree()
+	vp = poa.NewPoA()
+
+	vals := generateTestValidators(2)
+
+	// Add v1 to the validator set so it can be removed
+	addValidator(vals[0])
+
+	// Proposal with duplicate address (remove v1 + re-add v1) should panic
+	uassert.PanicsWithMessage(t, "duplicate validator address in proposal: "+vals[0].Address.String(), func() {
+		NewPropRequest(func() []validators.Validator {
+			return []validators.Validator{
+				{Address: vals[0].Address, PubKey: vals[0].PubKey, VotingPower: 0},  // remove
+				{Address: vals[0].Address, PubKey: vals[0].PubKey, VotingPower: 20}, // re-add
+			}
+		}, "Update v1 power", "Change v1 voting power")
+	})
+}
+
+func TestNewPropRequest_DistinctAddressesSucceeds(t *testing.T) {
+	changes = avl.NewTree()
+	vp = poa.NewPoA()
+
+	vals := generateTestValidators(2)
+
+	// Proposal with distinct addresses should not panic
+	uassert.NotPanics(t, func() {
+		NewPropRequest(func() []validators.Validator {
+			return []validators.Validator{
+				{Address: vals[0].Address, PubKey: vals[0].PubKey, VotingPower: 10},
+				{Address: vals[1].Address, PubKey: vals[1].PubKey, VotingPower: 20},
+			}
+		}, "Add two validators", "Add v1 and v2")
+	})
+}

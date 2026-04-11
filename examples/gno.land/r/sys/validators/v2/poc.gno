@@ -8,6 +8,17 @@ import (
 	"gno.land/r/gov/dao"
 )
 
+// checkDuplicateAddresses panics if the same address appears more than once.
+func checkDuplicateAddresses(changes []validators.Validator) {
+	seen := make(map[address]bool)
+	for _, change := range changes {
+		if seen[change.Address] {
+			panic("duplicate validator address in proposal: " + change.Address.String())
+		}
+		seen[change.Address] = true
+	}
+}
+
 // NewPropRequest creates a new proposal request that wraps a changes closure
 // proposal. This wrapper is required to ensure the GovDAO Realm actually
 // executed the callback.
@@ -33,6 +44,8 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		panic("proposal requires at least one validator")
 	}
 
+	checkDuplicateAddresses(changes)
+
 	// List the validator addresses and the action to be taken for each one
 	var desc strings.Builder
 	desc.WriteString(description)
@@ -50,6 +63,8 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 	}
 
 	callback := func(cur realm) error {
+		checkDuplicateAddresses(changes)
+
 		for _, change := range changes {
 			if change.VotingPower == 0 {
 				// This change request is to remove the validator
