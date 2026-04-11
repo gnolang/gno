@@ -531,7 +531,6 @@ var savedInterfaceMap map[string]interface{}
 var savedInterface interface{}
 var savedArray [3]*avl.Tree
 var savedArray2 [3]interface{}
-var savedChannel chan *avl.Tree
 
 type PublicInterface interface {
     DoSomething() interface{}
