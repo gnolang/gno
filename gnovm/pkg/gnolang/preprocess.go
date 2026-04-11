@@ -2290,7 +2290,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Store the static type of X on the RefExpr node
 				// so doOpRef can use it (instead of the runtime type,
 				// which is wrong for interface variables).
-				n.Type = evalStaticTypeOf(store, last, n.X)
+				xt := evalStaticTypeOf(store, last, n.X)
+				if tt, ok := xt.(*tupleType); ok {
+					panic(fmt.Sprintf(
+						"cannot take address of multi-value call (results: %s)",
+						tt.String()))
+				}
+				n.Type = xt
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
