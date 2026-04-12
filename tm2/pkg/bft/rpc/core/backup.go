@@ -39,6 +39,12 @@ func BackupBlocks(ctx *rpctypes.Context, startHeight int64, endHeight int64) (*c
 	}
 
 	for height := startHeight; height <= endHeight; height++ {
+		select {
+		case <-ctx.Context().Done():
+			return nil, fmt.Errorf("context cancelled: %w", ctx.Context().Err())
+		default:
+		}
+
 		block := blockStore.LoadBlock(height)
 		if block == nil {
 			return nil, fmt.Errorf("block store returned nil block for height %d", height)
