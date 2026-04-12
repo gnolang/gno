@@ -387,15 +387,8 @@ func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator Blocks
 		blockBatch = bcR.store.NewBatch()
 		return nil
 	}
-	return blocksIterator(func(block *types.Block) error {
-		defer func() {
-			if blocksInBatch > 0 {
-				err = saveBatch()
-				if err != nil {
-					panic(err)
-				}
-			}
-		}()
+
+	err = blocksIterator(func(block *types.Block) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -436,6 +429,12 @@ func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator Blocks
 		blocksInBatch++
 		return nil
 	})
+
+	// Save the last batch (leftovers)
+	if blocksInBatch > 0 {
+		err = saveBatch()
+	}
+	return err
 }
 
 // BroadcastStatusRequest broadcasts `BlockStore` height.

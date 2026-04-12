@@ -460,15 +460,17 @@ func TestRestore(t *testing.T) {
 			err := yield(block)
 			require.NoError(t, err)
 
-			if blockHeight > 2 {
-				require.NotNil(t, reactor.reactor.store.LoadBlock(blockHeight-2))
-			}
-
 			require.Equal(t, blockHeight-2, reactor.reactor.store.Height())
 		}
 		return nil
 	}, false)
 	require.NoError(t, err)
+
+	for range numBlocks {
+		if blockHeight > 2 {
+			require.NotNil(t, reactor.reactor.store.LoadBlock(blockHeight-2))
+		}
+	}
 }
 
 // ----------------------------------------------

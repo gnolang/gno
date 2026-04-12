@@ -43,7 +43,7 @@ func generateBackup(t *testing.T, backupDir string, height int64) {
 	io.SetOut(os.Stdout)
 	io.SetErr(os.Stderr)
 
-	cfg := &nodeCfg{}
+	cfg := &startCfg{}
 	fs := flag.NewFlagSet("", flag.PanicOnError)
 	cfg.RegisterFlags(fs)
 	require.NoError(t, fs.Parse([]string{
