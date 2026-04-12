@@ -8,19 +8,19 @@ import (
 )
 
 func makeBoardURI(b *boards.Board) string {
-	path := strings.TrimPrefix(string(gRealmLink), "gno.land")
+	path := strings.TrimPrefix(string(RealmLink), "gno.land")
 	return path + ":" + url.PathEscape(b.Name)
 }
 
 func makeFreezeBoardURI(b *boards.Board) string {
-	return gRealmLink.Call(
+	return RealmLink.Call(
 		"FreezeBoard",
 		"boardID", b.ID.String(),
 	)
 }
 
 func makeUnfreezeBoardURI(b *boards.Board) string {
-	return gRealmLink.Call(
+	return RealmLink.Call(
 		"UnfreezeBoard",
 		"boardID", b.ID.String(),
 		"threadID", "",
@@ -37,7 +37,7 @@ func makeCreateThreadURI(b *boards.Board) string {
 }
 
 func makeRequestInviteURI(b *boards.Board) string {
-	return gRealmLink.Call(
+	return RealmLink.Call(
 		"RequestInvite",
 		"boardID", b.ID.String(),
 	)

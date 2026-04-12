@@ -159,7 +159,7 @@ func isIntegerKind(k Kind) bool {
 
 func mayBeNil(t Type) bool {
 	switch baseOf(t).(type) {
-	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType, *ChanType: //  we don't have unsafePointer
+	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
 		return true
 	default:
 		return false
@@ -602,7 +602,7 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 		panic("should not happen")
 	case *DeclaredType:
 		panic("should not happen")
-	case *FuncType, *StructType, *PackageType, *ChanType, *TypeType:
+	case *FuncType, *StructType, *PackageType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
 			return nil // ok
 		}

@@ -313,8 +313,6 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 						nx.Name += ".loopvar"
 						replaceAllLoopvar(last, n, ln)
 					}
-				case *SendStmt:
-					panic("not yet implemented")
 				}
 			case *RangeStmt:
 				if n.Op != DEFINE {
@@ -963,10 +961,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 
 			// TRANS_BLOCK -----------------------
-			case *SelectCaseStmt:
-				pushInitBlock(n, &last, &stack)
-
-			// TRANS_BLOCK -----------------------
 			case *SwitchStmt:
 				// create faux block to store .Init/.Varname.
 				// the contents are copied onto the case block
@@ -1563,7 +1557,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// check legal type for nil
 						if arg0.IsUndefined() {
 							switch ct.Kind() { // special case for nil conversion check.
-							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind, ChanKind:
+							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind:
 								convertConst(store, last, n, arg0, ct)
 							default:
 								panic(fmt.Sprintf(
@@ -2470,10 +2464,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------
-			case *ChanTypeExpr:
-				evalStaticType(store, last, n)
-
-			// TRANS_LEAVE -----------------------
 			case *FuncTypeExpr:
 				evalStaticType(store, last, n)
 
@@ -2767,18 +2757,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 
 			// TRANS_LEAVE -----------------------
-			case *SendStmt:
-				// Value consts become default *ConstExprs.
-				checkOrConvertType(store, last, n, &n.Value, nil)
-
-			// TRANS_LEAVE -----------------------
-			case *SelectCaseStmt:
-				// maybe receive defines.
-				// if as, ok := n.Comm.(*AssignStmt); ok {
-				//     handled by case *AssignStmt.
-				// }
-
-			// TRANS_LEAVE -----------------------
 			case *SwitchStmt:
 				// Ensure type switch cases are unique.
 				if n.IsTypeSwitch {
@@ -2866,8 +2844,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					*dstT = *(tmp.(*SliceType))
 				case *InterfaceType:
 					*dstT = *(tmp.(*InterfaceType))
-				case *ChanType:
-					*dstT = *(tmp.(*ChanType))
 				case *MapType:
 					*dstT = *(tmp.(*MapType))
 				case *StructType:
@@ -4746,8 +4722,6 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				return
 			}
 		}
-	case *ChanTypeExpr:
-		return findUndefinedT(store, last, cx.Value, stack, defining, isalias, astype && isalias)
 	case *FuncTypeExpr:
 		for i := range cx.Params {
 			un, directR = findUndefinedT(store, last, &cx.Params[i], stack, defining, isalias, astype && isalias)
@@ -5094,8 +5068,6 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				t = &SliceType{}
 			case *InterfaceTypeExpr:
 				t = &InterfaceType{}
-			case *ChanTypeExpr:
-				t = &ChanType{}
 			case *MapTypeExpr:
 				t = &MapType{}
 			case *StructTypeExpr:
