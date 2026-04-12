@@ -22,7 +22,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
-
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap/zapcore"
@@ -148,7 +148,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.logLevel,
 		"log-level",
 		zapcore.DebugLevel.String(),
-		"log level for the gnoland node,",
+		"log level for the gnoland node (debug, info, warn, error)",
 	)
 
 	fs.StringVar(
@@ -267,6 +267,14 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
+	}
+
+	// Apply halt height from config to the application
+	if cfg.BaseConfig.HaltHeight > 0 {
+		if baseApp, ok := cfg.LocalApp.(*sdk.BaseApp); ok {
+			baseApp.SetHaltHeight(uint64(cfg.BaseConfig.HaltHeight))
+			logger.Info("Halt height configured", "height", cfg.BaseConfig.HaltHeight)
+		}
 	}
 
 	// Create a default node, with the given setup

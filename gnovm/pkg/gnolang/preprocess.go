@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"math/big"
 	"reflect"
@@ -312,8 +313,6 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 						nx.Name += ".loopvar"
 						replaceAllLoopvar(last, n, ln)
 					}
-				case *SendStmt:
-					panic("not yet implemented")
 				}
 			case *RangeStmt:
 				if n.Op != DEFINE {
@@ -673,6 +672,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// XXX check node lines and locations
 	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
 
+	// Record package-level initialization order dependencies.
+	// Must run before codaPackageSelectors replaces NameExprs.
+	if fn, ok := n.(*FileNode); ok {
+		codaInitOrderDeps(packageOf(ctx), fn)
+	}
+
 	// "coda" means "conclusion".
 	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
 	// because say n may be a *CallExpr containing an anonymous function.
@@ -954,10 +959,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					last.Define(name, anyValue(rf.Type))
 					n.Type.Results[i].Path = n.GetPathForName(nil, name)
 				}
-
-			// TRANS_BLOCK -----------------------
-			case *SelectCaseStmt:
-				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
 			case *SwitchStmt:
@@ -1249,17 +1250,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							cx := evalConst(store, last, n)
 							return cx, TRANS_CONTINUE
 						}
-						// If name refers to a package, and this is not in
-						// the context of a selector, fail. Packages cannot
-						// be used as a value, for go compatibility but also
-						// to preserve the security expectation regarding imports.
-						nt := evalStaticTypeOf(store, last, n)
-						if nt.Kind() == PackageKind {
-							panic(fmt.Sprintf(
-								"package %s cannot only be referred to in a selector expression",
-								n.Name))
-						}
-						return n, TRANS_CONTINUE
+						panic("slice/array literals may not contain non-const keys")
 					}
 				}
 				// specific and general cases
@@ -1536,9 +1527,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// be represented as an integer, it cannot be converted to one,
 						// and the error is handled here.
 						// Out of bounds errors are usually handled during evalConst().
-						if isIntNum(ct) {
+						if isWhole(ct) {
 							if bd, ok := arg0.TypedValue.V.(BigdecValue); ok {
-								if !isInteger(bd.V) {
+								if !isDecimalInteger(bd.V) {
 									panic(fmt.Sprintf(
 										"cannot convert %s to integer type",
 										arg0))
@@ -1566,7 +1557,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// check legal type for nil
 						if arg0.IsUndefined() {
 							switch ct.Kind() { // special case for nil conversion check.
-							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind, ChanKind:
+							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind:
 								convertConst(store, last, n, arg0, ct)
 							default:
 								panic(fmt.Sprintf(
@@ -1717,9 +1708,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
-					if cx, ok := n.Func.(*ConstExpr); ok {
+					if cx, ok := n.Func.(*ConstExpr); ok && cx.GetFunc().PkgPath == uversePkgPath {
 						fv := cx.GetFunc()
-						if fv.PkgPath == uversePkgPath && fv.Name == "append" {
+						switch fv.Name {
+						case "append":
 							if n.Varg && len(n.Args) == 2 {
 								// If the second argument is a string,
 								// convert to byteslice.
@@ -1760,7 +1752,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
 								}
 							}
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
+						case "copy":
 							if len(n.Args) == 2 {
 								// If the second argument is a string,
 								// convert to byteslice.
@@ -1772,9 +1764,84 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									n.Args[1] = args1
 								}
 							}
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
-							panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "_cross_gno0p0" {
+						case "make":
+							// Self-contained handling for make() builtin.
+							// Validate argument count based on target type,
+							// check size arguments are integers, resolve generics,
+							// then skip the general case via TRANS_CONTINUE.
+							// NOTE: If the general *FuncType call-expr path below changes
+							// (e.g. embedded-call expansion, generic Specify semantics, or
+							// checkOrConvertType behaviour), this block may need updating.
+							ft := bnft
+							n.NumArgs = countNumArgs(store, last, n)
+
+							if n.Varg {
+								panic("make does not accept variadic spread (...)")
+							}
+							if len(n.Args) == 0 {
+								panic("missing argument to make")
+							}
+
+							// Validate arg count per target type.
+							tt := evalStaticType(store, last, n.Args[0])
+							switch baseOf(tt).(type) {
+							case *SliceType:
+								if len(n.Args) < 2 || len(n.Args) > 3 {
+									panic(fmt.Sprintf(
+										"invalid operation: make(%s) expects 2 or 3 arguments; found %d",
+										tt, len(n.Args)))
+								}
+							case *MapType:
+								if len(n.Args) > 2 {
+									panic(fmt.Sprintf(
+										"invalid operation: make(%s) expects 1 or 2 arguments; found %d",
+										tt, len(n.Args)))
+								}
+							case *ChanType:
+								panic("channel type is not yet supported")
+							default:
+								panic(fmt.Sprintf(
+									"invalid argument: cannot make %s; type must be slice, map", tt))
+							}
+
+							// Specify function param/result generics.
+							argTVs := evalStaticTypedValues(store, last, n.Args...)
+							isVarg := n.Varg
+							sft := ft.Specify(store, n, argTVs, isVarg)
+							spts := sft.Params
+							srts := FieldTypeList(sft.Results).Types()
+
+							// Update func attributes with specified types.
+							n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
+							cx := n.Func.(*ConstExpr)
+							fv2 := cx.V.(*FuncValue).Copy(nilAllocator)
+							fv2.Type = sft
+							cx.T = sft
+							cx.V = fv2
+							n.SetAttribute(ATTR_TYPEOF_VALUE, &tupleType{Elts: srts})
+
+							// Type-check arguments.
+							// First arg is the type -- check against resolved param type.
+							checkOrConvertType(store, last, n, &n.Args[0], spts[0].Type)
+
+							// make's variadic params are declared as Vrd(AnyT()), so untyped
+							// constants won't be automatically coerced to int; enforce it here.
+							for i := 1; i < len(n.Args); i++ {
+								expectedType := spts[len(spts)-1].Type.Elem()
+								at := evalStaticTypeOf(store, last, n.Args[i])
+								switch {
+								case isUntyped(at):
+									expectedType = IntType
+								case !isInteger(at):
+									panic(fmt.Sprintf(
+										"invalid argument: index %v (variable of type %v) must be integer",
+										n.Args[i], at))
+								}
+								checkOrConvertType(store, last, n, &n.Args[i], expectedType)
+							}
+
+							return n, TRANS_CONTINUE
+						case "_cross_gno0p0":
 							if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
 								// This is only backwards compatibility for the gno 0.9
 								// transpiler/fixer.  cross() is no longer used.
@@ -1790,11 +1857,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// only way _cross_gno0p0 appears is
 								panic("_cross_gno0p0 is reserved")
 							}
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
+						case "cross":
+							panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
+						case "crossing":
 							if ctxpn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
 								panic("crossing() is reserved and deprecated")
 							}
-						} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
+						case "attach":
 							// reserve attach() so we can support it later.
 							panic("attach() not yet supported")
 						}
@@ -2013,8 +2082,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										}
 										checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
 									} else {
-										checkOrConvertType(store, last, n, &n.Args[i],
-											spts[len(spts)-1].Type.Elem())
+										checkOrConvertType(store, last, n, &n.Args[i], spts[len(spts)-1].Type.Elem())
 									}
 								} else {
 									checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
@@ -2153,9 +2221,23 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
 				case *MapType:
-					for i := range n.Elts {
+					if !isComparable(cclt.Key) {
+						panic(fmt.Sprintf("invalid map key type %v", cclt.Key))
+					}
+
+					// kset tracks seen const keys for duplicate detection.
+					// checkOrConvertType must be called before the check so that
+					// values are stored in N (not V), making TypedValue comparable.
+					kset := make(map[TypedValue]struct{})
+					for i, elt := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
+						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
+							if _, ok := kset[cx.TypedValue]; ok {
+								panic(fmt.Sprintf("duplicate key %v in map literal", cx.TypedValue))
+							}
+							kset[cx.TypedValue] = struct{}{}
+						}
 					}
 				default:
 					panic(fmt.Sprintf(
@@ -2287,6 +2369,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// bound method or underlying.
 					// TODO check for unexported fields.
 					n.Path = tr[len(tr)-1]
+
 					// n.Path = cxt.GetPathForName(n.Sel)
 				case *PackageType:
 					var pv *PackageValue
@@ -2378,10 +2461,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *InterfaceTypeExpr:
-				evalStaticType(store, last, n)
-
-			// TRANS_LEAVE -----------------------
-			case *ChanTypeExpr:
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------
@@ -2678,18 +2757,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 
 			// TRANS_LEAVE -----------------------
-			case *SendStmt:
-				// Value consts become default *ConstExprs.
-				checkOrConvertType(store, last, n, &n.Value, nil)
-
-			// TRANS_LEAVE -----------------------
-			case *SelectCaseStmt:
-				// maybe receive defines.
-				// if as, ok := n.Comm.(*AssignStmt); ok {
-				//     handled by case *AssignStmt.
-				// }
-
-			// TRANS_LEAVE -----------------------
 			case *SwitchStmt:
 				// Ensure type switch cases are unique.
 				if n.IsTypeSwitch {
@@ -2777,8 +2844,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					*dstT = *(tmp.(*SliceType))
 				case *InterfaceType:
 					*dstT = *(tmp.(*InterfaceType))
-				case *ChanType:
-					*dstT = *(tmp.(*ChanType))
 				case *MapType:
 					*dstT = *(tmp.(*MapType))
 				case *StructType:
@@ -4278,6 +4343,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 
 			// Convert untyped to typed.
 			checkOrConvertType(store, last, n, &bx.Left, t)
+			bx.SetAttribute(ATTR_TYPEOF_VALUE, t) // propagate converted type from left operand to shift expr.
 		} else {
 			mustAssignableTo(n, xt, t)
 		}
@@ -4656,8 +4722,6 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				return
 			}
 		}
-	case *ChanTypeExpr:
-		return findUndefinedT(store, last, cx.Value, stack, defining, isalias, astype && isalias)
 	case *FuncTypeExpr:
 		for i := range cx.Params {
 			un, directR = findUndefinedT(store, last, &cx.Params[i], stack, defining, isalias, astype && isalias)
@@ -5004,8 +5068,6 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				t = &SliceType{}
 			case *InterfaceTypeExpr:
 				t = &InterfaceType{}
-			case *ChanTypeExpr:
-				t = &ChanType{}
 			case *MapTypeExpr:
 				t = &MapType{}
 			case *StructTypeExpr:
@@ -5318,14 +5380,6 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	nx.Path = last.GetPathForName(nil, nx.Name)
 }
 
-func isFile(n BlockNode) bool {
-	if _, ok := n.(*FileNode); ok {
-		return true
-	} else {
-		return false
-	}
-}
-
 func skipFile(n BlockNode) BlockNode {
 	if fn, ok := n.(*FileNode); ok {
 		return packageOf(fn)
@@ -5435,134 +5489,258 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 	}
 }
 
-// This is to be run *after* preprocessing is done,
-// to determine the order of var decl execution
-// (which may include functions which may refer to package vars).
-func findDependentNames(n Node, dst map[Name]struct{}) {
-	switch cn := n.(type) {
-	case *NameExpr:
-		dst[cn.Name] = struct{}{}
-	case *BasicLitExpr:
-	case *BinaryExpr:
-		findDependentNames(cn.Left, dst)
-		findDependentNames(cn.Right, dst)
-	case *SelectorExpr:
-		findDependentNames(cn.X, dst)
-	case *SliceExpr:
-		findDependentNames(cn.X, dst)
-		if cn.Low != nil {
-			findDependentNames(cn.Low, dst)
-		}
-		if cn.High != nil {
-			findDependentNames(cn.High, dst)
-		}
-		if cn.Max != nil {
-			findDependentNames(cn.Max, dst)
-		}
-	case *StarExpr:
-		findDependentNames(cn.X, dst)
-	case *RefExpr:
-		findDependentNames(cn.X, dst)
-	case *TypeAssertExpr:
-		findDependentNames(cn.X, dst)
-		findDependentNames(cn.Type, dst)
-	case *UnaryExpr:
-		findDependentNames(cn.X, dst)
-	case *CompositeLitExpr:
-		findDependentNames(cn.Type, dst)
-		ct := getType(cn.Type)
-		switch ct.Kind() {
-		case ArrayKind, SliceKind, MapKind:
-			for _, kvx := range cn.Elts {
-				if kvx.Key != nil {
-					findDependentNames(kvx.Key, dst)
-				}
-				findDependentNames(kvx.Value, dst)
-			}
-		case StructKind:
-			for _, kvx := range cn.Elts {
-				findDependentNames(kvx.Value, dst)
-			}
-		default:
-			panic(fmt.Sprintf(
-				"unexpected composite lit type %s",
-				ct.String()))
-		}
-	case *FieldTypeExpr:
-		findDependentNames(cn.Type, dst)
-	case *ArrayTypeExpr:
-		findDependentNames(cn.Elt, dst)
-		if cn.Len != nil {
-			findDependentNames(cn.Len, dst)
-		}
-	case *SliceTypeExpr:
-		findDependentNames(cn.Elt, dst)
-	case *InterfaceTypeExpr:
-		for i := range cn.Methods {
-			findDependentNames(&cn.Methods[i], dst)
-		}
-	case *ChanTypeExpr:
-		findDependentNames(cn.Value, dst)
-	case *FuncTypeExpr:
-		for i := range cn.Params {
-			findDependentNames(&cn.Params[i], dst)
-		}
-		for i := range cn.Results {
-			findDependentNames(&cn.Results[i], dst)
-		}
-	case *MapTypeExpr:
-		findDependentNames(cn.Key, dst)
-		findDependentNames(cn.Value, dst)
-	case *StructTypeExpr:
-		for i := range cn.Fields {
-			findDependentNames(&cn.Fields[i], dst)
-		}
-	case *CallExpr:
-		findDependentNames(cn.Func, dst)
-		for i := range cn.Args {
-			findDependentNames(cn.Args[i], dst)
-		}
-	case *IndexExpr:
-		findDependentNames(cn.X, dst)
-		findDependentNames(cn.Index, dst)
-	case *FuncLitExpr:
-		findDependentNames(&cn.Type, dst)
-		for _, n := range cn.GetExternNames() {
-			dst[n] = struct{}{}
-		}
-	case *constTypeExpr:
-	case *ConstExpr:
-	case *ImportDecl:
-	case *ValueDecl:
-		if cn.Type != nil {
-			findDependentNames(cn.Type, dst)
-		}
-		for _, vx := range cn.Values {
-			findDependentNames(vx, dst)
-		}
-	case *TypeDecl:
-		findDependentNames(cn.Type, dst)
-	case *FuncDecl:
-		findDependentNames(&cn.Type, dst)
-		if cn.IsMethod {
-			findDependentNames(&cn.Recv, dst)
-			for _, n := range cn.GetExternNames() {
-				dst[n] = struct{}{}
-			}
-		} else {
-			for _, n := range cn.GetExternNames() {
-				if n == cn.Name {
-					// top-level function referring to itself
-				} else {
-					dst[n] = struct{}{}
-				}
-			}
-		}
-	default:
-		panic(fmt.Sprintf(
-			"unexpected node: %v (%v)",
-			n, reflect.TypeOf(n)))
+// codaInitOrderDeps records ATTR_DECL_DEPS on package-level *ValueDecl and
+// *FuncDecl nodes by scanning for all references to other package-level names.
+// It must run after preprocess1 (so all NameExpr paths are filled) and before
+// codaPackageSelectors (which replaces NameExprs with SelectorExprs).
+//
+// This is implemented as a separate post-preprocess pass (rather than inline
+// within preprocess1) because preprocess1 recursively calls Preprocess for
+// inner function literal bodies with a fresh context, losing the enclosing
+// declaration. By iterating fn.Decls and transcribing each one, the target
+// declaration is always known from the outer loop.
+func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
+	if pn.PkgPath == ".uverse" {
+		return
 	}
+	for _, decl := range fn.Decls {
+		switch decl.(type) {
+		case *FuncDecl, *ValueDecl:
+		default:
+			continue
+		}
+
+		var deps map[Name]struct{}
+		addDep := func(name Name) {
+			if deps == nil {
+				deps = make(map[Name]struct{})
+			}
+			deps[name] = struct{}{}
+		}
+
+		_ = TranscribeB(fn, decl, func(
+			ns []Node,
+			stack []BlockNode,
+			last BlockNode,
+			ftype TransField,
+			index int,
+			n Node,
+			stage TransStage,
+		) (Node, TransCtrl) {
+			switch stage {
+			case TRANS_ENTER:
+				// Skip function literal bodies that were not preprocessed;
+				// same guard as the main coda Transcribe in Preprocess.
+				if flx, ok := n.(*FuncLitExpr); ok {
+					if flx.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
+						return n, TRANS_SKIP
+					}
+				}
+			case TRANS_LEAVE:
+				switch n := n.(type) {
+				case *NameExpr:
+					// Only track names resolved via the block hierarchy.
+					if n.Path.Type != VPBlock {
+						return n, TRANS_CONTINUE
+					}
+					// Ignore blank identifiers.
+					if n.Name == blankIdentifier {
+						return n, TRANS_CONTINUE
+					}
+					// Ignore package-name references (e.g. `fmt` in `fmt.Println`).
+					if n.GetAttribute(ATTR_PACKAGE_REF) != nil {
+						return n, TRANS_CONTINUE
+					}
+					// Ignore the declaration name itself (LHS of var/const decl).
+					if ftype == TRANS_VAR_NAME {
+						return n, TRANS_CONTINUE
+					}
+					// Check that the name is defined at package level.
+					dbn := last.GetBlockNodeForPath(nil, n.Path)
+					if dbn != pn {
+						return n, TRANS_CONTINUE
+					}
+					// Ignore type declarations; they have no runtime
+					// initialization order.
+					if li, ok := pn.GetLocalIndex(n.Name); ok {
+						if pn.NameSources[li].Type == NSTypeDecl {
+							return n, TRANS_CONTINUE
+						}
+					}
+					addDep(n.Name)
+				case *SelectorExpr:
+					// Track same-package method calls so that resolveEffectiveDeps
+					// can transitively discover vars referenced in method bodies.
+					// e.g. `A = T{}.GetB()` records "T.GetB" as a dep of A;
+					// resolveEffectiveDeps then walks GetB's body to find B.
+					switch n.Path.Type {
+					case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
+						// Get the receiver type from the cached ATTR_TYPEOF_VALUE.
+						// Two cases for RefExpr:
+						//  (a) user-written &T{}: n.X is the RefExpr with type *T
+						//      stored directly on the RefExpr node.
+						//  (b) auto-generated &x (pointer-receiver auto-address):
+						//      preprocessing wraps the original expression in a
+						//      RefExpr AFTER caching the type on the inner node,
+						//      so n.X (the RefExpr) has no cached type but n.X.X
+						//      does.
+						xt, ok := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+						if !ok {
+							if re, ok2 := n.X.(*RefExpr); ok2 {
+								xt, ok = re.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+							}
+						}
+						if !ok {
+							break
+						}
+						// Dereference pointer receiver types.
+						if pt, ok2 := xt.(*PointerType); ok2 {
+							xt = pt.Elt
+						}
+						dt, ok := xt.(*DeclaredType)
+						if !ok || dt.PkgPath != pn.PkgPath {
+							break
+						}
+						addDep(dt.Name + "." + n.Sel)
+					}
+				}
+			}
+			return n, TRANS_CONTINUE
+		})
+
+		if deps != nil {
+			decl.SetAttribute(ATTR_DECL_DEPS, deps)
+		}
+	}
+}
+
+// resolveDeclDep resolves a dependency name (as stored in ATTR_DECL_DEPS) to
+// the corresponding Decl in pn. Method dependencies are encoded as "Type.Method".
+func resolveDeclDep(name Name, pn *PackageNode) Decl {
+	id, sel, isMethod := strings.Cut(string(name), ".")
+	if isMethod {
+		li, found := pn.GetLocalIndex(Name(id))
+		if !found || pn.NameSources[li].Type != NSTypeDecl {
+			panic(fmt.Sprintf("type %s not found in package %s", id, pn.PkgName))
+		}
+		dt, ok := pn.Types[li].(*DeclaredType)
+		if !ok {
+			panic(fmt.Sprintf("type %s is not a *DeclaredType in package %s", id, pn.PkgName))
+		}
+		idx := slices.IndexFunc(dt.Methods, func(m TypedValue) bool {
+			return m.V.(*FuncValue).Name == Name(sel)
+		})
+		if idx < 0 {
+			panic(fmt.Sprintf("method %s not found in type %s", sel, id))
+		}
+		return dt.Methods[idx].V.(*FuncValue).Source.(*FuncDecl)
+	}
+	li, found := pn.GetLocalIndex(name)
+	if !found {
+		panic(fmt.Sprintf("name %s not found in package %s", name, pn.PkgName))
+	}
+	return pn.NameSources[li].Origin.(Decl)
+}
+
+// resolveEffectiveDeps computes, for every Decl reachable from the given
+// declarations, the set of *ValueDecl dependencies obtained by collapsing
+// FuncDecl edges (FuncDecls are transparent pass-throughs).
+//
+// The result is a shared cache: cache[d] = list of *ValueDecl that d
+// (transitively through FuncDecls) depends on. Each Decl is visited at most
+// once across all calls, so total work is O(V+E).
+//
+// Circular variable dependencies are detected and cause a panic with a
+// descriptive chain.
+func resolveEffectiveDeps(decls []Decl, pn *PackageNode, fdeclared map[Name]struct{}) map[Decl][]*ValueDecl {
+	cache := map[Decl][]*ValueDecl{} // fully resolved
+	onStack := map[Decl]bool{}       // grey: currently in DFS path
+
+	// inFDeclared reports whether all names declared by d are already in
+	// fdeclared, meaning d has already been initialized.
+	inFDeclared := func(d *ValueDecl) bool {
+		for _, n := range d.GetDeclNames() {
+			if _, ok := fdeclared[n]; !ok {
+				return false
+			}
+		}
+		return true
+	}
+
+	var walk func(d Decl, path []Name) []*ValueDecl
+	walk = func(d Decl, path []Name) []*ValueDecl {
+		if res, ok := cache[d]; ok {
+			return res
+		}
+		onStack[d] = true
+		m, _ := d.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
+		// Sort dependency names for deterministic DFS traversal order.
+		names := slices.Collect(maps.Keys(m))
+		slices.Sort(names)
+
+		var result []*ValueDecl
+		for _, name := range names {
+			dep := resolveDeclDep(name, pn)
+			switch dep := dep.(type) {
+			case *FuncDecl:
+				if onStack[dep] {
+					// Mutually recursive functions are fine; skip.
+					continue
+				}
+				// Collapse: inherit effective deps from the FuncDecl.
+				for _, vd := range walk(dep, append(path, name)) {
+					if !slices.Contains(result, vd) {
+						result = append(result, vd)
+					}
+				}
+			case *ValueDecl:
+				if onStack[dep] {
+					bld := strings.Builder{}
+					if fn, sourceDecl, ok := pn.FileSet.GetDeclForSafe(path[0]); ok {
+						fmt.Fprintf(&bld, "%s/%s:%s: ", pn.PkgPath, fn.FileName, (*sourceDecl).GetSpan().Pos.String())
+					}
+					bld.WriteString("circular dependency: ")
+					for _, n := range path {
+						bld.WriteString(string(n))
+						bld.WriteString(" -> ")
+					}
+					bld.WriteString(string(name))
+					panic(bld.String())
+				}
+				// Skip already-initialized decls entirely.
+				if len(fdeclared) > 0 && inFDeclared(dep) {
+					continue
+				}
+				if !slices.Contains(result, dep) {
+					result = append(result, dep)
+				}
+				// Recurse into ValueDecl deps to detect cycles and to
+				// discover transitive deps through FuncDecl chains rooted
+				// in this ValueDecl. Kahn's handles direct ValueDecl→ValueDecl
+				// transitivity, but we still need to walk through for cycle
+				// detection and for FuncDecl collapse.
+				walk(dep, append(path, name))
+			default:
+				panic(fmt.Sprintf("unexpected gnolang.Decl: %#v", dep))
+			}
+		}
+		delete(onStack, d)
+		cache[d] = result
+		return result
+	}
+
+	for _, d := range decls {
+		if _, ok := cache[d]; ok {
+			continue
+		}
+		rootNames := d.GetDeclNames()
+		rootName := Name("_")
+		if len(rootNames) > 0 {
+			rootName = rootNames[0]
+		}
+		walk(d, []Name{rootName})
+	}
+	return cache
 }
 
 // A name is locally defined on a block node
