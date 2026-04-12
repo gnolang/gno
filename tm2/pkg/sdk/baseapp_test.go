@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -859,10 +861,18 @@ func TestSimulateConcurrentWithCommit(t *testing.T) {
 	// runs block production cycles. The race detector will flag any unsafe
 	// concurrent access to shared BaseApp state.
 	done := make(chan struct{})
-	defer close(done)
+	var didPanic atomic.Bool
+	var wg sync.WaitGroup
 
 	for range 4 {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					didPanic.Store(true)
+				}
+			}()
 			for {
 				select {
 				case <-done:
@@ -885,6 +895,10 @@ func TestSimulateConcurrentWithCommit(t *testing.T) {
 		app.EndBlock(abci.RequestEndBlock{})
 		app.Commit()
 	}
+	close(done)
+	wg.Wait()
+
+	require.False(t, didPanic.Load(), "at least one goroutine panicked")
 }
 
 func TestRunInvalidTransaction(t *testing.T) {
