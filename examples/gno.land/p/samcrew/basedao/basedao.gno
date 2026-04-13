@@ -5,7 +5,7 @@ import (
 	"chain/runtime"
 	"errors"
 
-	"gno.land/p/nt/mux"
+	"gno.land/p/nt/mux/v0"
 	"gno.land/p/samcrew/daocond"
 	"gno.land/p/samcrew/daokit"
 )

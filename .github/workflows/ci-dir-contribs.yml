@@ -1,0 +1,66 @@
+name: ci / contribs
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - contribs/**
+      # We have to trigger the testing workflow for contribs on the following,
+      # since there is a direct depency of contribs to gno.land / tm2 / gnovm.
+      - gno.land/**
+      - gnovm/**
+      - tm2/**
+      - .github/workflows/ci-dir-contribs.yml
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      programs: ${{ steps.set-matrix.outputs.programs }}
+      go-versions: ${{ steps.get-go-versions.outputs.go-versions }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+
+      - id: set-matrix
+        run: |
+          echo "programs=$(printf '%s\n' contribs/*/ | cut -d/ -f2 | jq -R -s -c 'split("\n")[:-1]')" >> "$GITHUB_OUTPUT"
+
+      - id: get-go-versions
+        run: |
+          contribs_programs=$(printf '%s\n' contribs/*/ | cut -d/ -f2)
+          versions_map="{"
+
+          for p in $contribs_programs; do
+            # Fetch the go version of the contribs entry, and save it
+            # to a versions map we can reference later in the workflow
+            go_version=$(grep "^go [0-9]" "contribs/$p/go.mod" | cut -d ' ' -f2)
+            versions_map="$versions_map\"$p\":\"$go_version\","
+          done
+
+          # Close out the JSON
+          versions_map="${versions_map%,}"
+          versions_map="$versions_map}"
+          echo "go-versions=$versions_map" >> "$GITHUB_OUTPUT"
+
+  main:
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        program: ${{ fromJson(needs.setup.outputs.programs) }}
+    name: ${{ matrix.program }}
+    uses: ./.github/workflows/_ci-go.yml
+    with:
+      modulepath: contribs/${{ matrix.program }}
+      go-version: ${{ (fromJson(needs.setup.outputs.go-versions))[matrix.program] }}
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}

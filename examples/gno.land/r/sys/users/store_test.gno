@@ -4,10 +4,10 @@ import (
 	"chain"
 	"testing"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 var (
@@ -16,11 +16,11 @@ var (
 	bob       = "bob"
 	bobAddr   = testutils.TestAddress(bob)
 
-	whitelistedCallerAddr = chain.PackageAddress(gUsersV1Path)
+	whitelistedCallerAddr = chain.PackageAddress(initControllerPath)
 )
 
 func TestRegister(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("valid_registration", func(t *testing.T) {
 		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
@@ -88,7 +88,7 @@ func TestRegister(t *testing.T) {
 }
 
 func TestUpdateName(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("valid_direct_alias", func(t *testing.T) {
 		cleanStore(t)
@@ -184,7 +184,7 @@ func TestUpdateName(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("non_existent_user", func(t *testing.T) {
 		cleanStore(t)
@@ -213,6 +213,12 @@ func TestDelete(t *testing.T) {
 		resolved1, _ := ResolveName(alice)
 		uassert.Equal(t, nil, resolved1)
 		uassert.Equal(t, nil, ResolveAddress(aliceAddr))
+	})
+}
+
+func TestRegisterNotWhitelisted(t *testing.T) {
+	t.Run("register_not_whitelisted", func(t *testing.T) {
+		uassert.ErrorContains(t, RegisterUser(cross, alice, aliceAddr), "does not exist in whitelist")
 	})
 }
 

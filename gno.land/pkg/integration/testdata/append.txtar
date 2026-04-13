@@ -1,4 +1,4 @@
-loadpkg gno.land/p/nt/ufmt
+loadpkg gno.land/p/nt/ufmt/v0
 loadpkg gno.land/r/append $WORK
 
 # start a new node
@@ -64,7 +64,7 @@ stdout '1-'
 package append
 
 import (
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type T struct{ i int }

@@ -86,7 +86,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 				// c) be a draft
 				If(r.Or(
 					r.ReviewByAnyUser(gh,
-						"jefft0", "notJoon", "omarsy", "MikaelVallenet",
+						"davd-gzl", "jefft0", "notJoon", "omarsy", "MikaelVallenet",
 					).WithDesiredState(utils.ReviewStateApproved),
 					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
 					r.Draft(),
@@ -125,8 +125,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 					c.FileChanged(gh, `Dockerfile`),
 					c.FileChanged(gh, `^misc/deployments`),
 					c.FileChanged(gh, `^misc/docker-`),
-					c.FileChanged(gh, `^.github/workflows/releaser.*\.yml$`),
-					c.FileChanged(gh, `^.github/workflows/staging\.yml$`),
+					c.FileChanged(gh, `^.github/workflows/release.*\.yml$`),
 				),
 			),
 			Teams: Teams{"devops"},

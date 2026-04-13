@@ -51,11 +51,15 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 
 	validate := func(from Kind, to Kind, cmp func() bool) {
 		if isConst {
-			msg := fmt.Sprintf("cannot convert constant of type %s to %s", from, to)
-			if cmp != nil && cmp() {
-				return
+			if cmp == nil {
+				panic(fmt.Sprintf("unexpected conversion from %s to %s", from, to))
 			}
-			panic(msg)
+			if !cmp() {
+				if isIntegerKind(from) && isIntegerKind(to) {
+					panic(fmt.Sprintf("constant %s overflows %s", tv.ProtectedSprint(newSeenValues(), false), to))
+				}
+				panic(fmt.Sprintf("cannot convert constant of type %s to %s", from, to))
+			}
 		}
 	}
 
@@ -127,7 +131,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			validate(IntKind, StringKind, nil)
 			tv.V = alloc.NewString(string(rune(tv.GetInt())))
 			tv.T = t
 			tv.ClearNum()
@@ -268,8 +271,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			validate(Int16Kind, StringKind, nil)
-
 			tv.V = alloc.NewString(string(rune(tv.GetInt16())))
 			tv.T = t
 			tv.ClearNum()
@@ -343,8 +344,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			validate(Int32Kind, StringKind, nil)
-
 			tv.V = alloc.NewString(string(tv.GetInt32()))
 			tv.T = t
 			tv.ClearNum()
@@ -420,8 +419,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			validate(Int64Kind, Uint64Kind, nil)
-
 			tv.V = alloc.NewString(string(rune(tv.GetInt64())))
 			tv.T = t
 			tv.ClearNum()
@@ -497,8 +494,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			validate(UintKind, StringKind, nil)
-
 			tv.V = alloc.NewString(string(rune(tv.GetUint())))
 			tv.T = t
 			tv.ClearNum()
@@ -566,8 +561,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			validate(Uint8Kind, StringKind, nil)
-
 			tv.V = alloc.NewString(string(rune(tv.GetUint8())))
 			tv.T = t
 			tv.ClearNum()
@@ -637,8 +630,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			validate(Uint16Kind, StringKind, nil)
-
 			tv.V = alloc.NewString(string(rune(tv.GetUint16())))
 			tv.T = t
 			tv.ClearNum()
@@ -710,8 +701,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			validate(Uint32Kind, StringKind, nil)
-
 			tv.V = alloc.NewString(string(rune(tv.GetUint32())))
 			tv.T = t
 			tv.ClearNum()
@@ -723,25 +712,25 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 	case Uint64Kind:
 		switch k {
 		case IntKind:
-			validate(Uint64Kind, IntKind, func() bool { return int64(tv.GetUint64()) <= math.MaxInt })
+			validate(Uint64Kind, IntKind, func() bool { return tv.GetUint64() <= math.MaxInt })
 
 			x := int64(tv.GetUint64())
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
-			validate(Uint64Kind, Int8Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxInt8 })
+			validate(Uint64Kind, Int8Kind, func() bool { return tv.GetUint64() <= math.MaxInt8 })
 
 			x := int8(tv.GetUint64())
 			tv.T = t
 			tv.SetInt8(x)
 		case Int16Kind:
-			validate(Uint64Kind, Int16Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxInt16 })
+			validate(Uint64Kind, Int16Kind, func() bool { return tv.GetUint64() <= math.MaxInt16 })
 
 			x := int16(tv.GetUint64())
 			tv.T = t
 			tv.SetInt16(x)
 		case Int32Kind:
-			validate(Uint64Kind, Int32Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxInt32 })
+			validate(Uint64Kind, Int32Kind, func() bool { return tv.GetUint64() <= math.MaxInt32 })
 
 			x := int32(tv.GetUint64())
 			tv.T = t
@@ -759,13 +748,13 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetUint64(x)
 		case Uint8Kind:
-			validate(Uint64Kind, Uint8Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxUint8 })
+			validate(Uint64Kind, Uint8Kind, func() bool { return tv.GetUint64() <= math.MaxUint8 })
 
 			x := uint8(tv.GetUint64())
 			tv.T = t
 			tv.SetUint8(x)
 		case Uint16Kind:
-			validate(Uint64Kind, Uint16Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxUint16 })
+			validate(Uint64Kind, Uint16Kind, func() bool { return tv.GetUint64() <= math.MaxUint16 })
 
 			x := uint16(tv.GetUint64())
 			tv.T = t
@@ -789,8 +778,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			validate(Uint64Kind, StringKind, nil)
-
 			tv.V = alloc.NewString(string(rune(tv.GetUint64())))
 			tv.T = t
 			tv.ClearNum()
@@ -813,7 +800,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		case Int8Kind:
 			validate(Float32Kind, Int8Kind, func() bool {
 				f32 := tv.GetFloat32()
-				trunc := int8(softfloat.F32toint64(f32))
+				trunc := int8(softfloat.F32toint32(f32))
 				return softfloat.Fint64to32(int64(trunc)) == f32
 			})
 
@@ -823,7 +810,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		case Int16Kind:
 			validate(Float32Kind, Int16Kind, func() bool {
 				f32 := tv.GetFloat32()
-				trunc := int16(softfloat.F32toint64(f32))
+				trunc := int16(softfloat.F32toint32(f32))
 				return softfloat.Fint64to32(int64(trunc)) == f32
 			})
 
@@ -833,7 +820,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		case Int32Kind:
 			validate(Float32Kind, Int32Kind, func() bool {
 				f32 := tv.GetFloat32()
-				trunc := int32(softfloat.F32toint64(f32))
+				trunc := softfloat.F32toint32(f32)
 				return softfloat.Fint64to32(int64(trunc)) == f32
 			})
 
@@ -898,9 +885,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := tv.GetFloat32() // ???
 			tv.T = t
-			tv.SetFloat32(x)
 		case Float64Kind:
 			x := softfloat.F32to64(tv.GetFloat32())
 			tv.T = t
@@ -924,7 +909,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		case Int8Kind:
 			validate(Float64Kind, Int8Kind, func() bool {
 				f64 := tv.GetFloat64()
-				trunc := int8(softfloat.F64toint64(f64))
+				trunc := int8(softfloat.F64toint32(f64))
 				return softfloat.Fint64to64(int64(trunc)) == f64
 			})
 
@@ -934,7 +919,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		case Int16Kind:
 			validate(Float64Kind, Int16Kind, func() bool {
 				f64 := tv.GetFloat64()
-				trunc := int16(softfloat.F64toint64(f64))
+				trunc := int16(softfloat.F64toint32(f64))
 				return softfloat.Fint64to64(int64(trunc)) == f64
 			})
 
@@ -944,7 +929,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		case Int32Kind:
 			validate(Float64Kind, Int32Kind, func() bool {
 				f64 := tv.GetFloat64()
-				trunc := int32(softfloat.F64toint64(f64))
+				trunc := softfloat.F64toint32(f64)
 				return softfloat.Fint64to64(int64(trunc)) == f64
 			})
 
@@ -1016,9 +1001,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := tv.GetFloat64() // ???
 			tv.T = t
-			tv.SetFloat64(x)
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -1403,7 +1386,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	bd := bdv.V
 	switch k {
 	case BigintKind:
-		if !isInteger(bd) {
+		if !isDecimalInteger(bd) {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
 				bd.String(),
@@ -1423,7 +1406,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 		fallthrough
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-		if !isInteger(bd) {
+		if !isDecimalInteger(bd) {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
 				bd.String(),
@@ -1468,7 +1451,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 // ----------------------------------------
 // apd.Decimal utility
 
-func isInteger(d *apd.Decimal) bool {
+func isDecimalInteger(d *apd.Decimal) bool {
 	d2 := apd.New(0, 0)
 	res, err := apd.BaseContext.RoundToIntegralExact(d2, d)
 	if err != nil {
@@ -1493,4 +1476,14 @@ func toBigInt(d *apd.Decimal) *big.Int {
 			d2s))
 	}
 	return bi
+}
+
+// IsExactBigDec checks if v is a BigdecValue that can be represented
+// as an integer without loss of precision. This is true only if its
+// underlying value has no fractional component.
+func IsExactBigDec(v Value) bool {
+	if bd, ok := v.(BigdecValue); ok {
+		return isDecimalInteger(bd.V)
+	}
+	return false
 }
