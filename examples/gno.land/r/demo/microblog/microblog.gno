@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/microblog"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	susers "gno.land/r/sys/users"
 )
 

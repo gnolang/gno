@@ -92,34 +92,34 @@ func init() {
 }
 
 func UpdateCities(newCities []City) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 	travel.cities = newCities
 }
 
 func AddCities(newCities ...City) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 
 	travel.cities = append(travel.cities, newCities...)
 }
 
 func UpdateJarLink(newLink string) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 	travel.jarLink = newLink
 }
 
 func UpdateAboutMe(aboutMeStr string) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 	profile.aboutMe = strings.Split(aboutMeStr, "|")
 }
 
 func AddAboutMeRows(newRows ...string) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 
 	profile.aboutMe = append(profile.aboutMe, newRows...)
 }
 
 func UpdateMaxSponsors(newMax int) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 	if newMax <= 0 {
 		panic("maxSponsors must be greater than zero")
 	}
