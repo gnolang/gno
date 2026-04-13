@@ -62,7 +62,7 @@ func TestBitSetSet(t *testing.T) {
 	}
 }
 
-func TestBitSetTest(t *testing.T) {
+func TestBitSetIsSet(t *testing.T) {
 	var (
 		b      bitset.BitSet
 		values = []uint64{0, 5, 63, 64, 200}
@@ -73,12 +73,12 @@ func TestBitSetTest(t *testing.T) {
 	}
 
 	for _, v := range values {
-		if !b.Test(v) {
+		if !b.IsSet(v) {
 			t.Errorf("bit %d should be set", v)
 		}
 	}
 
-	if b.Test(999) {
+	if b.IsSet(999) {
 		t.Error("bit 999 should not be set")
 	}
 }
@@ -88,7 +88,7 @@ func TestBitSetClear(t *testing.T) {
 	b.Set(10)
 	b.Clear(10)
 
-	if b.Test(10) {
+	if b.IsSet(10) {
 		t.Error("bit 10 should be cleared")
 	}
 
@@ -111,7 +111,7 @@ func TestBitSetClearAll(t *testing.T) {
 		t.Errorf("expected len 0 after ClearAll, got %d", b.Len())
 	}
 
-	if b.Test(1) || b.Test(64) || b.Test(200) {
+	if b.IsSet(1) || b.IsSet(64) || b.IsSet(200) {
 		t.Error("no bits should be set after ClearAll")
 	}
 }

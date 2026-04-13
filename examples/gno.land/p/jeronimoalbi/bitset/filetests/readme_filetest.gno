@@ -8,10 +8,10 @@ func main() {
 	b.Set(2)
 	b.Set(5)
 
-	println("Test bit 0:", b.Test(0))
-	println("Test bit 1:", b.Test(1))
-	println("Test bit 2:", b.Test(2))
-	println("Test bit 5:", b.Test(5))
+	println("Test bit 0:", b.IsSet(0))
+	println("Test bit 1:", b.IsSet(1))
+	println("Test bit 2:", b.IsSet(2))
+	println("Test bit 5:", b.IsSet(5))
 	println("Len:", b.Len())
 	println("BitSet:", b.String())
 }

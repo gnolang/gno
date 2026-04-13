@@ -41,8 +41,8 @@ func (b *BitSet) ClearAll() {
 	}
 }
 
-// Test reports whether the bit at a given position is set.
-func (b BitSet) Test(i uint64) bool {
+// IsSet checks whether the bit at a given position is set.
+func (b BitSet) IsSet(i uint64) bool {
 	idx := wordIndex(i)
 	if idx >= len(b.words) {
 		return false // Bit has not been set yet
