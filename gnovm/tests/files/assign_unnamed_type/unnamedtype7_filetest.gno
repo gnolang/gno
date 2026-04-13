@@ -1,15 +1,15 @@
 package main
 
-type mychan chan int
+type myptr *int
 
-// chan int is unmamed
+// *int is unnamed
 func main() {
-	var n mychan = nil
-	var u chan int = nil
+	var n myptr = nil
+	var u *int = nil
 	n = u
 
 	println(n)
 }
 
 // Output:
-// (nil main.mychan)
+// (nil main.myptr)

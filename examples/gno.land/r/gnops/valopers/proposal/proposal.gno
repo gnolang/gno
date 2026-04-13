@@ -3,7 +3,7 @@ package proposal
 import (
 	"errors"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	pVals "gno.land/p/sys/validators"
 	valopers "gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"

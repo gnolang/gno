@@ -5,12 +5,12 @@ import (
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/avl"
-	p "gno.land/p/nt/avl/pager"
-	"gno.land/p/nt/avl/rotree"
-	"gno.land/p/nt/mux"
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	p "gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/avl/v0/rotree"
+	"gno.land/p/nt/mux/v0"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/demo/defi/grc20reg"
 )
 
@@ -45,7 +45,7 @@ func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, fau
 	inst := instance{
 		token:  token,
 		ledger: ledger,
-		admin:  ownable.NewWithAddress(admin),
+		admin:  ownable.NewWithAddressByPrevious(admin),
 		faucet: faucet,
 	}
 	instances.Set(symbol, &inst)
@@ -113,20 +113,20 @@ func Faucet(cur realm, symbol string) {
 
 func Mint(cur realm, symbol string, to address, amount int64) {
 	inst := mustGetInstance(symbol)
-	inst.admin.AssertOwnedByPrevious()
+	inst.admin.AssertOwned()
 	checkErr(inst.ledger.Mint(to, amount))
 }
 
 func Burn(cur realm, symbol string, from address, amount int64) {
 	inst := mustGetInstance(symbol)
-	inst.admin.AssertOwnedByPrevious()
+	inst.admin.AssertOwned()
 	checkErr(inst.ledger.Burn(from, amount))
 }
 
 // instance admin functionality
 func DropInstanceOwnership(cur realm, symbol string) {
 	inst := mustGetInstance(symbol)
-	checkErr(inst.admin.DropOwnershipByCurrent())
+	checkErr(inst.admin.DropOwnership())
 }
 
 func TransferInstanceOwnership(cur realm, symbol string, newOwner address) {

@@ -3,7 +3,7 @@ package boards_test
 import (
 	"testing"
 
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/urequire/v0"
 
 	"gno.land/p/gnoland/boards"
 )

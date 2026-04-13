@@ -3,7 +3,7 @@ package validators
 import (
 	"strings"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
 )

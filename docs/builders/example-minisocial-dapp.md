@@ -4,7 +4,7 @@ We will create a MiniSocial [realm](../resources/realms.md),
 a minimalist social media application. This tutorial will showcase a full local
 development flow for Gno, using all the tools covered in previous tutorials.
 
-Find the full app on [this link](https://gno.land/r/docs/minisocial/v1).
+Find the full app on [this link](https://staging.gno.land/r/docs/minisocial/v1).
 
 ## Prerequisites
 
@@ -238,7 +238,7 @@ func (p Post) String() string {
 ```
 
 Here, package `ufmt` is used to provide string formatting functionality. It can
-be imported via with `gno.land/p/nt/ufmt`.
+be imported via with `gno.land/p/nt/ufmt/v0`.
 
 With this, we can expand our `Render()` function in `posts.gno` as follows:
 
@@ -246,7 +246,7 @@ With this, we can expand our `Render()` function in `posts.gno` as follows:
 ```go
 package minisocial
 
-import "gno.land/p/nt/ufmt" // Gno counterpart to `fmt`, for formatting strings
+import "gno.land/p/nt/ufmt/v0" // Gno counterpart to `fmt`, for formatting strings
 
 func Render(_ string) string {
 	output := "# MiniSocial\n\n" // \n is needed just like in standard Markdown
@@ -289,7 +289,7 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/testutils" // Provides testing utilities
+	"gno.land/p/nt/testutils/v0" // Provides testing utilities
 )
 
 func TestCreatePostSingle(t *testing.T) {
@@ -378,12 +378,12 @@ Congratulations on completing your first Gno realm!
 Now you're equipped with the required knowledge to venture into Gno.land.
 
 Full code of this app can be found on the Staging network, on
-[this link](https://gno.land/r/docs/minisocial).
+[this link](https://staging.gno.land/r/docs/minisocial).
 
 ## Bonus - resolving usernames
 
 Let's make our MiniSocial app even better by resolving addresses to potential usernames
-registered in the [Gno.land User Registry](https://gno.land/demo/users).
+registered in the [Gno.land User Registry](https://staging.gno.land/demo/users).
 
 We can import the `gno.land/r/sys/users` realm which provides user data and use
 it to try to resolve the address:
