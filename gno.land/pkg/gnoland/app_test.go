@@ -1636,4 +1636,116 @@ var Deployed = true
 			},
 		})
 	})
+
+	t.Run("txs from multiple past chains replay correctly", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key1    = getDummyKey(t)
+			key2    = getDummyKey(t)
+			chainID = "new-chain"
+
+			path1 = "gno.land/r/demo/multichain1"
+			path2 = "gno.land/r/demo/multichain2"
+			body  = `package %s
+var Deployed = true
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		// tx1 was originally on "chain-a", tx2 on "chain-b"
+		msg1 := vm.MsgAddPackage{
+			Creator: key1.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "multichain1",
+				Path: path1,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: fmt.Sprintf(body, "multichain1")},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path1)},
+				},
+			},
+		}
+		msg2 := vm.MsgAddPackage{
+			Creator: key2.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "multichain2",
+				Path: path2,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: fmt.Sprintf(body, "multichain2")},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path2)},
+				},
+			},
+		}
+
+		tx1 := createAndSignTx(t, []std.Msg{msg1}, "chain-a", key1)
+		tx2 := createAndSignTx(t, []std.Msg{msg2}, "chain-b", key2)
+
+		// Both chain IDs in the allowlist; each tx carries its own ChainID
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx1,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 10,
+							ChainID:     "chain-a",
+						},
+					},
+					{
+						Tx: tx2,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 20,
+							ChainID:     "chain-b",
+						},
+					},
+				},
+				Balances: []Balance{
+					{Address: key1.PubKey().Address(), Amount: std.NewCoins(std.NewCoin("ugnot", 20_000_000))},
+					{Address: key2.PubKey().Address(), Amount: std.NewCoins(std.NewCoin("ugnot", 20_000_000))},
+				},
+				Auth:         auth.DefaultGenesisState(),
+				Bank:         bank.DefaultGenesisState(),
+				VM:           vm.DefaultGenesisState(),
+				PastChainIDs: []string{"chain-a", "chain-b"},
+			},
+		})
+	})
+}
+
+func TestIsPastChainID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		pastChainIDs []string
+		chainID      string
+		expected     bool
+	}{
+		{"empty allowlist", []string{}, "chain-a", false},
+		{"nil allowlist", nil, "chain-a", false},
+		{"single match", []string{"chain-a"}, "chain-a", true},
+		{"no match in list", []string{"chain-a", "chain-b"}, "chain-c", false},
+		{"match second element", []string{"chain-a", "chain-b"}, "chain-b", true},
+		{"empty chain ID", []string{"chain-a"}, "", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isPastChainID(tc.pastChainIDs, tc.chainID))
+		})
+	}
 }
