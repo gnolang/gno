@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	pte "gno.land/p/aeddi/panictoerr"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/uassert/v0"
 	grc20 "gno.land/r/demo/defi/grc20factory"
 )
 

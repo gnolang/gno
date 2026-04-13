@@ -3,8 +3,8 @@ package routing
 import (
 	"strings"
 
-	"gno.land/p/nt/mux"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/mux/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/sys/users"
 )
 

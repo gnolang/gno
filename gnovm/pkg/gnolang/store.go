@@ -371,11 +371,9 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 // Some atomic operation.
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	var size int
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreGetPackageRealm)
-		defer func() {
-			bm.StopStore(size)
-		}()
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.StoreGetPackageRealm)
+		defer func() { bm.StopStore(bm.StoreGetPackageRealm, oldCPU, oldStore, size) }()
 	}
 	oid := ObjectIDFromPkgPath(pkgPath)
 	key := backendRealmKey(oid)
@@ -398,17 +396,10 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 
 // An atomic operation to set the package realm info (id counter etc).
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
-
 	var size int
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreSetPackageRealm)
-		defer func() {
-			bm.StopStore(size)
-		}()
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.StoreSetPackageRealm)
+		defer func() { bm.StopStore(bm.StoreSetPackageRealm, oldCPU, oldStore, size) }()
 	}
 	oid := ObjectIDFromPkgPath(rlm.Path)
 	key := backendRealmKey(oid)
@@ -425,10 +416,6 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 // all []TypedValue types and TypeValue{} types to be
 // loaded (non-ref) types.
 func (ds *defaultStore) GetObject(oid ObjectID) Object {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	oo := ds.GetObjectSafe(oid)
 	if oo == nil {
 		panic(fmt.Sprintf("unexpected object with id %s", oid.String()))
@@ -437,10 +424,6 @@ func (ds *defaultStore) GetObject(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	// check cache.
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		return oo
@@ -457,18 +440,10 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
-
 	var size int
-
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreGetObject)
-		defer func() {
-			bm.StopStore(size)
-		}()
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.StoreGetObject)
+		defer func() { bm.StopStore(bm.StoreGetObject, oldCPU, oldStore, size) }()
 	}
 	key := backendObjectKey(oid)
 	hashbz := ds.baseStore.Get([]byte(key))
@@ -484,10 +459,9 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
 
-		ds.alloc.Allocate(oo.GetShallowSize())
-		// Alloc values other than shallow value,
-		// RefValue, e.g. keep sync with copyValueWithRefs().
-		AllocExpanded(ds.alloc, oo)
+		ss := oo.GetShallowSize()
+		rs := internalRefSize(oo)
+		ds.alloc.Allocate(ss + rs)
 
 		if debug {
 			if oo.GetObjectID() != oid {
@@ -520,113 +494,13 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	pv.deriveFBlocksMap(ds)
 }
 
-func AllocExpanded(alloc *Allocator, val Value) {
-	var size int64
-	defer func() {
-		alloc.Allocate(size)
-	}()
-
-	switch v := val.(type) {
-	case *PackageValue:
-		if _, ok := v.Block.(RefValue); ok {
-			size += allocRefValue // .Block ref
-		}
-
-		// include RefValue size
-		for _, fb := range v.FBlocks {
-			if _, ok := fb.(RefValue); !ok {
-				continue
-			}
-			size += allocRefValue
-		}
-	case *Block:
-		for _, v := range v.Values {
-			if _, ok := v.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *ArrayValue:
-		if v.Data == nil {
-			for _, tv := range v.List {
-				if _, ok := tv.V.(RefValue); ok {
-					size += allocRefValue
-				}
-			}
-		}
-	case *StructValue:
-		for _, tv := range v.Fields {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *MapValue:
-		for cur := v.List.Head; cur != nil; cur = cur.Next {
-			if _, ok := cur.Key.V.(RefValue); ok {
-				size += allocRefValue
-			}
-
-			if _, ok := cur.Value.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *BoundMethodValue:
-		if _, ok := v.Receiver.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *HeapItemValue:
-		if _, ok := v.Value.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case RefValue:
-		// do nothing
-	case *PointerValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *SliceValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *FuncValue:
-		for _, tv := range v.Captures {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-	case StringValue:
-		// do nothing
-	case BigintValue:
-		// do nothing
-	case BigdecValue:
-		// do nothing
-	case DataByteValue:
-		// do nothing
-	case TypeValue:
-		// do nothing
-	}
-}
-
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
 func (ds *defaultStore) SetObject(oo Object) int64 {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	var size int
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreSetObject)
-		defer func() {
-			bm.StopStore(size)
-		}()
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.StoreSetObject)
+		defer func() { bm.StopStore(bm.StoreSetObject, oldCPU, oldStore, size) }()
 	}
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
@@ -727,16 +601,9 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) DelObject(oo Object) int64 {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreDeleteObject)
-		defer func() {
-			// delete is a signle operation, not a func of size of bytes
-			bm.StopStore(0)
-		}()
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.StoreDeleteObject)
+		defer func() { bm.StopStore(bm.StoreDeleteObject, oldCPU, oldStore, 0) }()
 	}
 	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
 	oid := oo.GetObjectID()
@@ -767,11 +634,6 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 }
 
 func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
-
 	// check cache.
 	if tt, exists := ds.cacheTypes[tid]; exists {
 		return tt
@@ -822,17 +684,10 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 }
 
 func (ds *defaultStore) SetType(tt Type) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	var size int
-
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreSetType)
-		defer func() {
-			bm.StopStore(size)
-		}()
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.StoreSetType)
+		defer func() { bm.StopStore(bm.StoreSetType, oldCPU, oldStore, size) }()
 	}
 	tid := tt.TypeID()
 	// return if tid already known.
@@ -873,18 +728,10 @@ func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
 }
 
 func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
-
 	var size int
-
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreGetBlockNode)
-		defer func() {
-			bm.StopStore(size)
-		}()
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.StoreGetBlockNode)
+		defer func() { bm.StopStore(bm.StoreGetBlockNode, oldCPU, oldStore, size) }()
 	}
 	// check cache.
 	if bn, exists := ds.cacheNodes.Get(loc); exists {
@@ -967,17 +814,10 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 // MPFiletests are not allowed, as they are currently only read from disk (e.g.
 // test/files). However, MP*All may include filetests files.
 func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	var size int
-
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreAddMemPackage)
-		defer func() {
-			bm.StopStore(size)
-		}()
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.StoreAddMemPackage)
+		defer func() { bm.StopStore(bm.StoreAddMemPackage, oldCPU, oldStore, size) }()
 	}
 	mpkgtype := mpkg.Type.(MemPackageType)
 	if !mpkgtype.IsStorable() {
@@ -1009,18 +849,10 @@ func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
 }
 
 func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
-
 	var size int
-
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreGetMemPackage)
-		defer func() {
-			bm.StopStore(size)
-		}()
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.StoreGetMemPackage)
+		defer func() { bm.StopStore(bm.StoreGetMemPackage, oldCPU, oldStore, size) }()
 	}
 	pathkey := []byte(backendPackagePathKey(path))
 	bz := ds.iavlStore.Get(pathkey)

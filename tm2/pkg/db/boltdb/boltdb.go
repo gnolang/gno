@@ -153,7 +153,6 @@ type boltDBBatch struct {
 
 // NewBatch returns a new batch.
 func (bdb *BoltDB) NewBatch() db.Batch {
-	bdb.db.MaxBatchSize = bbolt.DefaultMaxBatchSize
 	return &boltDBBatch{
 		ops:  nil,
 		db:   bdb,

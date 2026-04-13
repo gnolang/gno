@@ -147,13 +147,14 @@ func (vm *VMKeeper) Initialize(
 		}
 		for _, stdlib := range stdlibs.InitOrder() {
 			mp := vm.gnoStore.GetMemPackage(stdlib)
-			_, err := gno.TypeCheckMemPackage(mp, opts)
+			pkg, err := gno.TypeCheckMemPackage(mp, opts)
 			if err != nil {
 				panic(fmt.Errorf("intialization error type checking %q: %w", stdlib, err))
 			}
+			opts.Cache[stdlib] = pkg
 		}
 
-		logger.Debug("GnoVM packages preprocessed",
+		logger.Info("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
 }
@@ -199,10 +200,11 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 			Cache:      cachedInitTypeCheckCache,
 		}
 		for _, lib := range stdlibs.InitOrder() {
-			_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+			pkg, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
 			if err != nil {
 				panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
 			}
+			opts.Cache[lib] = pkg
 		}
 		cachedStdlib.gno = gs
 	})
@@ -229,13 +231,14 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 		Getter:     gs,
 		TestGetter: vm.testStdlibCache.memPackageGetter(gs),
 		Mode:       gno.TCLatestStrict,
-		Cache:      vm.getTypeCheckCache(ctx),
+		Cache:      vm.typeCheckCache,
 	}
 	for _, lib := range stdlibs.InitOrder() {
-		_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+		pkg, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
 		if err != nil {
 			panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
 		}
+		opts.Cache[lib] = pkg
 	}
 }
 
@@ -361,6 +364,60 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 // Namespace can be either a user or crypto address.
 var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 
+// callRealmBool creates a Machine, imports pkgPath, calls funcName with args,
+// and expects a single bool return value.
+func (vm *VMKeeper) callRealmBool(
+	ctx sdk.Context,
+	creator crypto.Address,
+	pkgPath, importAlias, funcName string,
+	args ...any,
+) (result bool, err error) {
+	chainDomain := vm.getChainDomainParam(ctx)
+	store := vm.getGnoTransactionStore(ctx)
+
+	msgCtx := stdlibs.ExecContext{
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     chainDomain,
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    creator.Bech32(),
+		OriginSendSpent: new(std.Coins),
+		Banker:          NewSDKBanker(vm, ctx),
+		Params:          NewSDKParams(vm.prmk, ctx),
+		EventLogger:     ctx.EventLogger(),
+	}
+
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:  "",
+			Output:   vm.Output,
+			Store:    store,
+			Context:  msgCtx,
+			Alloc:    store.GetAllocator(),
+			GasMeter: ctx.GasMeter(),
+		})
+	defer m.Release()
+	defer doRecover(m, &err)
+
+	mpv := gno.NewPackageNode("main", "main", nil).NewPackage(m.Alloc)
+	m.SetActivePackage(mpv)
+	m.RunDeclaration(gno.ImportD(importAlias, pkgPath))
+	x := gno.Call(
+		gno.Sel(gno.Nx(importAlias), funcName),
+		args...,
+	)
+
+	ret := m.Eval(x)
+	if len(ret) != 1 {
+		return false, fmt.Errorf("callRealmBool: expected 1 return value, got %d", len(ret))
+	}
+	if ret[0].T.Kind() != gno.BoolKind {
+		return false, fmt.Errorf("callRealmBool: expected bool return value, got %s", ret[0].T.Kind())
+	}
+
+	return ret[0].GetBool(), nil
+}
+
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
 	sysNamesPkg := vm.getSysNamesPkgParam(ctx)
@@ -391,58 +448,58 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		return nil
 	}
 
-	// Parse and run the files, construct *PV.
-	msgCtx := stdlibs.ExecContext{
-		ChainID:         ctx.ChainID(),
-		ChainDomain:     chainDomain,
-		Height:          ctx.BlockHeight(),
-		Timestamp:       ctx.BlockTime().Unix(),
-		OriginCaller:    creator.Bech32(),
-		OriginSendSpent: new(std.Coins),
-		// XXX: should we remove the banker ?
-		Banker:      NewSDKBanker(vm, ctx),
-		Params:      NewSDKParams(vm.prmk, ctx),
-		EventLogger: ctx.EventLogger(),
+	result, err := vm.callRealmBool(ctx, creator, sysNamesPkg, "names",
+		"IsAuthorizedAddressForNamespace",
+		gno.Str(creator.String()), gno.Str(namespace))
+	if err != nil {
+		return err
 	}
 
-	m := gno.NewMachineWithOptions(
-		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   vm.Output,
-			Store:    store,
-			Context:  msgCtx,
-			Alloc:    store.GetAllocator(),
-			GasMeter: ctx.GasMeter(),
-		})
-	defer m.Release()
-
-	// call sysNamesPkg.IsAuthorizedAddressForName("<user>")
-	// We only need to check by name here, as addresses have already been checked
-	mpv := gno.NewPackageNode("main", "main", nil).NewPackage(m.Alloc)
-	m.SetActivePackage(mpv)
-	m.RunDeclaration(gno.ImportD("names", sysNamesPkg))
-	x := gno.Call(
-		gno.Sel(gno.Nx("names"), "IsAuthorizedAddressForNamespace"),
-		gno.Str(creator.String()),
-		gno.Str(namespace),
-	)
-
-	ret := m.Eval(x)
-	if len(ret) == 0 {
-		panic("call: invalid response length")
-	}
-
-	useraddress := ret[0]
-	if useraddress.T.Kind() != gno.BoolKind {
-		panic("call: invalid response kind")
-	}
-
-	if isAuthorized := useraddress.GetBool(); !isAuthorized {
+	if !result {
 		return ErrUnauthorizedUser(
 			fmt.Sprintf("%s is not authorized to deploy packages to namespace `%s`",
 				creator.String(),
 				namespace,
 			))
+	}
+
+	return nil
+}
+
+// checkCLASignature verifies the creator has signed the required CLA.
+// Returns nil if:
+//   - SysCLAPkgPath parameter is empty (CLA enforcement disabled)
+//   - CLA realm is not deployed yet (needed for bootstrap: the CLA realm
+//     itself must be deployable before it exists on-chain)
+//   - Creator has a valid CLA signature
+func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) error {
+	sysCLAPkg := vm.getSysCLAPkgParam(ctx)
+	if sysCLAPkg == "" {
+		return nil // CLA enforcement disabled
+	}
+
+	store := vm.getGnoTransactionStore(ctx)
+
+	// If CLA realm does not exist -> skip validation.
+	// This is required for bootstrap: the CLA realm itself needs to be
+	// deployable before it exists on-chain. Once deployed, all subsequent
+	// deployments will be checked.
+	claPkg := store.GetPackage(sysCLAPkg, false)
+	if claPkg == nil {
+		return nil
+	}
+
+	result, err := vm.callRealmBool(ctx, creator, sysCLAPkg, "cla",
+		"HasValidSignature",
+		gno.Str(creator.String()))
+	if err != nil {
+		return err
+	}
+
+	if !result {
+		return ErrUnauthorizedUser(
+			fmt.Sprintf("address %s has not signed the required CLA",
+				creator.String()))
 	}
 
 	return nil
@@ -542,6 +599,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// - if r/system/names does not exists -> skip validation.
 	// - loads r/system/names data state.
 	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
+		return err
+	}
+
+	// Check CLA signature
+	if err := vm.checkCLASignature(ctx, creator); err != nil {
 		return err
 	}
 
@@ -665,19 +727,39 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if err != nil {
 		return "", err
 	}
-	// Convert Args to gno values.
 	cx := xn.(*gno.CallExpr)
-	if cx.Varg {
-		panic("variadic calls not yet supported")
+	hasVarg := ft.HasVarg()
+	// NOTE: nargs = `cur` + user's len(args)
+	nargs := len(msg.Args) + 1
+	var vargType gno.Type
+	// If function is not variadic, it must have the same number of arguments.
+	if !hasVarg {
+		if nargs != len(ft.Params) {
+			panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
+		}
+	} else {
+		if nargs < len(ft.Params)-1 {
+			// If function is variadic, it must have at least the number of arguments-1.
+			// on the function we can simply avoid the variadic argument.
+			panic(fmt.Sprintf("insufficient number of arguments in call to %s: must be at least %d, got %d", fnc, len(ft.Params)-1, nargs))
+		}
+
+		// For the variadic argument, we need to use the type of the
+		// elements contained on the slice.
+		vargType = ft.Params[len(ft.Params)-1].Type.(*gno.SliceType).Elt
 	}
-	if nargs := len(msg.Args) + 1; nargs != len(ft.Params) { // NOTE: nargs = `cur` + user's len(args)
-		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
-	}
+
+	// Convert Args to gno values.
 	for i, arg := range msg.Args {
-		argType := ft.Params[i+1].Type
-		atv := convertArgToGno(arg, argType)
-		cx.Args[i+1] = &gno.ConstExpr{
-			TypedValue: atv,
+		paramIndex := i + 1
+		var argType gno.Type
+		if hasVarg && paramIndex >= len(ft.Params)-1 {
+			argType = vargType
+		} else {
+			argType = ft.Params[paramIndex].Type
+		}
+		cx.Args[paramIndex] = &gno.ConstExpr{
+			TypedValue: convertArgToGno(arg, argType),
 		}
 	}
 	defer m.Release()
@@ -1101,14 +1183,12 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	if filename != "" {
 		memFile := store.GetMemFile(dirpath, filename)
 		if memFile == nil {
-			// TODO: XSS protection
 			return "", errors.Wrapf(&InvalidFileError{}, "file %q is not available", filepath)
 		}
 		return memFile.Body, nil
 	} else {
 		memPkg := store.GetMemPackage(dirpath)
 		if memPkg == nil {
-			// TODO: XSS protection
 			return "", errors.Wrapf(&InvalidPackageError{}, "package %q is not available", dirpath)
 		}
 		for i, memfile := range memPkg.Files {

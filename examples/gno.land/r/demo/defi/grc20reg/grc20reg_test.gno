@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/ufmt"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 func TestRegistry(t *testing.T) {
@@ -71,4 +71,48 @@ func TestPagination(t *testing.T) {
 	// Test second page
 	page2 := Render("?page=2")
 	urequire.True(t, strings.Contains(page2, "Page 2 of 2"), "expected page 2 of 2")
+}
+
+func TestValidateSlug(t *testing.T) {
+	// Valid slugs — should not panic
+	valid := []string{"mytoken", "my-token", "my_token", "Token123", "a", "A-B_c"}
+	for _, slug := range valid {
+		validateSlug(slug) // no panic = pass
+	}
+}
+
+func TestValidateSlugPanicsOnSpace(t *testing.T) {
+	defer func() { recover() }()
+	validateSlug("has space")
+	t.Errorf("should have panicked")
+}
+
+func TestValidateSlugPanicsOnDot(t *testing.T) {
+	defer func() { recover() }()
+	validateSlug("has.dot")
+	t.Errorf("should have panicked")
+}
+
+func TestValidateSlugPanicsOnSlash(t *testing.T) {
+	defer func() { recover() }()
+	validateSlug("has/slash")
+	t.Errorf("should have panicked")
+}
+
+func TestValidateSlugPanicsOnBrackets(t *testing.T) {
+	defer func() { recover() }()
+	validateSlug("[brackets]")
+	t.Errorf("should have panicked")
+}
+
+func TestValidateSlugPanicsOnParens(t *testing.T) {
+	defer func() { recover() }()
+	validateSlug("(parens)")
+	t.Errorf("should have panicked")
+}
+
+func TestValidateSlugPanicsOnInjection(t *testing.T) {
+	defer func() { recover() }()
+	validateSlug(`) [Claim](https://evil.com`)
+	t.Errorf("should have panicked")
 }
