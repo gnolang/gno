@@ -10,6 +10,19 @@ entire sets.
 ## API
 
 - `New(size uint64) BitSet` - Returns a new BitSet pre-allocated for `size` bits
+- `BitSet.Set(i uint64)` - Turn on the bit at position `i`
+- `BitSet.Clear(i uint64)` - Turn off the bit at position `i`
+- `BitSet.ClearAll()` - Turn off all bits
+- `BitSet.Compact()` - Reclaim memory by removing trailing zero words
+- `BitSet.IsSet(i uint64) bool` - Check whether the bit at position `i` is set
+- `BitSet.Size() int` - Return the total number of bits currently allocated
+- `BitSet.Len() int` - Return the number of set bits
+- `BitSet.And(other BitSet)` - In-place intersection with another set
+- `BitSet.Or(other BitSet)` - In-place union with another set
+- `BitSet.Xor(other BitSet)` - In-place symmetric difference with another set
+- `BitSet.Equal(other BitSet) bool` - Check whether two sets have the same bits set
+- `BitSet.String() string` - Return a binary (MSB-first) representation of the set
+- `BitSet.PaddedString() string` - Return a zero-padded binary (MSB-first) representation of the set
 
 ## Usage
 
