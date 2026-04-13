@@ -27,7 +27,7 @@ import (
 // If opts.Sync is enabled, and the filetest's golden output has changed,
 // the first string is set to the new generated content of the file.
 // Before the filetest is run it will be type-checked.
-func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store) (string, types.Gas, map[string]int64, error) {
+func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store) (string, types.Gas, gno.StorageDiffs, error) {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
 	tcheck := true // Go type-check filetests in test/files.
@@ -38,7 +38,7 @@ func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store)
 // (cmd/gno/test.go) already type-checked the whole package.
 // Go type-checking in filetests is only available for gnovm internal filetests
 // in test/files.
-func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (string, types.Gas, map[string]int64, error) {
+func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (string, types.Gas, gno.StorageDiffs, error) {
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", 0, nil, fmt.Errorf("error parsing directives: %w", err)
@@ -217,7 +217,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 }
 
 // returns a sorted string representation of realm diffs map
-func realmDiffsString(m map[string]int64) string {
+func realmDiffsString(m gno.StorageDiffs) string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)

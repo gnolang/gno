@@ -36,6 +36,9 @@ type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValu
 // NativeResolver is a function which can retrieve native bodies of native functions.
 type NativeResolver func(pkgName string, name Name) func(m *Machine)
 
+// StorageDiffs maps realm paths to their storage size difference (in bytes).
+type StorageDiffs = map[string]int64
+
 // Store is the central interface that specifies the communications between the
 // GnoVM and the underlying data store; currently, generally the gno.land
 // blockchain, or the file system.
@@ -62,7 +65,7 @@ type Store interface {
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
-	RealmStorageDiffs() map[string]int64 // returns storage changes per realm within the message
+	RealmStorageDiffs() StorageDiffs // returns storage changes per realm within the message
 
 	// UNSTABLE
 	GetAllocator() *Allocator
@@ -168,7 +171,7 @@ type defaultStore struct {
 	gasConfig GasConfig
 
 	// realm storage changes on message level.
-	realmStorageDiffs map[string]int64 // maps realm path to size diff
+	realmStorageDiffs StorageDiffs // maps realm path to size diff
 }
 
 var globalAminoCache = sync.OnceValue[*ristretto.Cache[[]byte, Type]](func() *ristretto.Cache[[]byte, Type] {
@@ -195,7 +198,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
 
 		// reset at the message level
-		realmStorageDiffs: make(map[string]int64),
+		realmStorageDiffs: make(StorageDiffs),
 
 		// store configuration
 		pkgGetter:      nil,
@@ -239,7 +242,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 		current: nil,
 		opslog:  nil,
 		// reset at the message level
-		realmStorageDiffs: make(map[string]int64),
+		realmStorageDiffs: make(StorageDiffs),
 	}
 	InitStoreCaches(ds2)
 
@@ -1024,7 +1027,7 @@ func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
 }
 
 // It resturns storage changes per realm within message
-func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
+func (ds *defaultStore) RealmStorageDiffs() StorageDiffs {
 	return ds.realmStorageDiffs
 }
 
@@ -1034,7 +1037,7 @@ func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
-	ds.realmStorageDiffs = make(map[string]int64)
+	ds.realmStorageDiffs = make(StorageDiffs)
 	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
 }

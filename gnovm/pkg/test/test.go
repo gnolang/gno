@@ -650,7 +650,7 @@ func fmtDuration(d time.Duration) string {
 // fmtStorageDiffs formats storage diffs for display in test output.
 // Returns an empty string when there are no non-zero diffs, otherwise returns
 // a string like ", storage: gno.land/r/example:+31b gno.land/r/other:+42b".
-func fmtStorageDiffs(diffs map[string]int64) string {
+func fmtStorageDiffs(diffs gno.StorageDiffs) string {
 	keys := make([]string, 0, len(diffs))
 	for k, v := range diffs {
 		if v != 0 {
