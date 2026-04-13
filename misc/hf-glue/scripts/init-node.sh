@@ -34,7 +34,8 @@ if [[ -f "$PV_KEY" ]]; then
   echo "  secrets already present at $SECRETS_DIR — reusing"
 else
   echo "  generating secrets in $SECRETS_DIR"
-  go run -C "$REPO" ./gno.land/cmd/gnoland secrets init --data-dir "$HOME_DIR"
+  mkdir -p "$SECRETS_DIR"
+  go run -C "$REPO" ./gno.land/cmd/gnoland secrets init --data-dir "$SECRETS_DIR"
 fi
 
 # ---- 2. rewrite validator set in the genesis to a single entry ----

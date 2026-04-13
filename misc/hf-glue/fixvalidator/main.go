@@ -13,9 +13,10 @@ import (
 	"fmt"
 	"os"
 
+	_ "github.com/gnolang/gno/gno.land/pkg/gnoland" // register GnoGenesisState amino type
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
 func main() {

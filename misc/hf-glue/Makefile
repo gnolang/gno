@@ -25,6 +25,11 @@ help: ## show this help
 	@printf "misc/hf-glue — experimental hardfork testbed\n\n"
 	@awk 'BEGIN {FS=":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
+.PHONY: gen-local-genesis
+gen-local-genesis: ## rebuild gnoland1 base genesis locally (runs misc/deployments/gnoland1/gen-genesis.sh); output at out/source-genesis.json
+	@mkdir -p $(OUT)
+	@OUT=$(OUT) REPO=$(REPO) $(HERE)/scripts/gen-local-genesis.sh
+
 .PHONY: fetch
 fetch: ## build hardfork tool + fetch genesis from $SOURCE into out/genesis.json
 	@mkdir -p $(OUT)
