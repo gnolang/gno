@@ -1,0 +1,33 @@
+# misc/hf-glue — HIGHLY EXPERIMENTAL hardfork testbed.
+# Runs a single-validator gnoland node replaying a hardforked genesis.
+#
+# Prereqs (run from misc/hf-glue):
+#   make fetch init
+# Then:
+#   make up
+
+services:
+  gnoland:
+    container_name: hf-glue-node
+    image: hf-glue-gnoland:latest
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: all
+    restart: unless-stopped
+    command:
+      - start
+      - --lazy=true
+      - --skip-genesis-sig-verification
+      - --skip-failing-genesis-txs
+      - --data-dir=/gnoroot/gnoland-data
+      - --genesis=/gnoroot/gnoland-data/genesis.json
+    environment:
+      GNOROOT: /gnoroot
+    volumes:
+      - ./out/gnoland-home:/gnoroot/gnoland-data
+    entrypoint: ["/usr/bin/gnoland"]
+    ports:
+      - "26656:26656" # p2p
+      - "26657:26657" # rpc
+    stop_grace_period: 30s
