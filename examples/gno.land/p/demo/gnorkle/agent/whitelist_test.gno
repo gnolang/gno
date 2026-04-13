@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/gnorkle/agent"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/uassert/v0"
 )
 
 func TestWhitelist(t *testing.T) {

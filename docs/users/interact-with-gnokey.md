@@ -142,7 +142,7 @@ gnokey maketx addpkg \
 -gas-wanted 200000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 mykey
 ```
 
@@ -192,7 +192,7 @@ gnokey maketx call \
 -gas-wanted 2000000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 mykey
 ```
 
@@ -203,6 +203,33 @@ Verify the balance using a gas-free query:
 ```bash
 gnokey query vm/qeval -remote "https://rpc.gno.land:443" -data "gno.land/r/gnoland/wugnot.BalanceOf(\"<your_address>\")"
 ```
+
+### Calling a variadic function
+
+Variadic functions are supported in Gno. Pass one `-args` flag per variadic element:
+
+```go
+func Add(cur realm, nums ...int) int
+```
+
+```bash
+# Two variadic args
+gnokey maketx call \
+  -pkgpath gno.land/r/demo/math \
+  -func Add \
+  -args 10 \
+  -args 20 \
+  ... # gas, broadcast, etc.
+
+# Zero variadic args (omit -args entirely)
+gnokey maketx call \
+  -pkgpath gno.land/r/demo/math \
+  -func Add \
+  ... # gas, broadcast, etc.
+```
+
+Note: Slice expansion (`...`) is not supported — pass each element as
+a separate `-args` flag.
 
 ## `Send`
 
@@ -217,7 +244,7 @@ gnokey maketx send \
 -gas-wanted 2000000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 mykey
 ```
 
@@ -247,7 +274,7 @@ gnokey maketx run \
 -gas-wanted 20000000 \
 -broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 mykey ./script.gno
 ```
 
@@ -316,7 +343,7 @@ Workflow:
 ### 1. Fetch account information (online)
 
 ```bash
-gnokey query auth/accounts/<your_address> -remote "https://rpc.gno.land:443"
+gnokey query auth/accounts/<your_address> -remote "https://rpc.staging.gno.land:443"
 ```
 
 We need to extract the account number and sequence from the output:
@@ -340,14 +367,14 @@ Extract `account_number` (`468`) and `sequence` (`0`) for signing.
 
 ```bash
 gnokey maketx call \
--pkgpath "gno.land/r/demo/userbook" \
--func "SignUp" \
+-pkgpath "gno.land/r/demo/counter" \
+-func "Increment" \
 -gas-fee 1000000ugnot \
 -gas-wanted 2000000 \
-mykey > userbook.tx
+mykey > counter.tx
 ```
 
-Creates `userbook.tx` with null signature. Note: no `-broadcast` flag, so the transaction 
+Creates `counter.tx` with null signature. Note: no `-broadcast` flag, so the transaction 
 is not sent to the chain.
 
 ### 3. Sign transaction (offline)
@@ -356,7 +383,7 @@ Sign using account number and sequence from step 1:
 
 ```bash
 gnokey sign \
--tx-path userbook.tx \
+-tx-path counter.tx \
 -chainid "staging" \
 -account-number 468 \
 -account-sequence 0 \
@@ -368,7 +395,7 @@ After entering the password, the signature field is populated.
 ### 4. Broadcast transaction (online)
 
 ```bash
-gnokey broadcast -remote "https://rpc.gno.land:443" userbook.tx
+gnokey broadcast -remote "https://rpc.staging.gno.land:443" counter.tx
 ```
 
 ### Verify transaction signature
@@ -376,7 +403,7 @@ gnokey broadcast -remote "https://rpc.gno.land:443" userbook.tx
 Verify signature correctness (signature must be in `hex` format):
 
 ```bash
-gnokey verify -docpath userbook.tx mykey <signature>
+gnokey verify -docpath counter.tx mykey <signature>
 ```
 
 ## Querying a Gno.land network
@@ -401,7 +428,7 @@ Below is a list of queries a user can make with `gnokey`:
 Get information about a specific address:
 
 ```bash
-gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
+gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.staging.gno.land:443
 ```
 
 Output:
@@ -615,7 +642,7 @@ Note: You must escape quotation marks for string arguments. Currently only suppo
 Render a package's output (shorthand for `vm/qeval` on the `Render("")` function):
 
 ```bash
-gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.gno.land:443
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.staging.gno.land:443
 ```
 
 Displays the current `Render()` output of the realm.
@@ -656,8 +683,6 @@ gno.land/r/gnoland/coins
 gno.land/r/gnoland/events
 gno.land/r/gnoland/home
 gno.land/r/gnoland/pages
-gno.land/r/gnoland/users
-gno.land/r/gnoland/users/v1
 ```
 
 ```bash

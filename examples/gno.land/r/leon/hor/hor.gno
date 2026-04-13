@@ -10,10 +10,10 @@ import (
 	"strings"
 
 	"gno.land/p/moul/addrset"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/pausable"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/pausable/v0"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/r/leon/config"
 )
 
@@ -59,7 +59,7 @@ func init() {
 		itemsSortedByDownvotes: avl.NewTree(),
 	}
 
-	Ownable = ownable.NewWithAddress(config.OwnableMain.Owner()) // OrigSendOwnable?
+	Ownable = ownable.NewWithAddressByPrevious(config.OwnableMain.Owner()) // OrigSendOwnable?
 	Pausable = pausable.NewFromOwnable(Ownable)
 }
 
@@ -157,8 +157,16 @@ func Downvote(cur realm, pkgpath string) {
 	exhibition.itemsSortedByDownvotes.Set(getVoteSortKey(item.downvote.Size(), item.id), item)
 }
 
+func Pause(cur realm) error {
+	return Pausable.Pause()
+}
+
+func Unpause(cur realm) error {
+	return Pausable.Unpause()
+}
+
 func Delete(cur realm, pkgpath string) {
-	if !Ownable.OwnedByPrevious() {
+	if !Ownable.Owned() {
 		panic(ownable.ErrUnauthorized)
 	}
 

@@ -6,7 +6,7 @@ package proposal_test
 import (
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/gnops/valopers"
 	"gno.land/r/gnops/valopers/proposal"
 	"gno.land/r/gov/dao"

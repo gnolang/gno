@@ -3,7 +3,7 @@ package memberstore
 import (
 	"chain/runtime"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 
 	"gno.land/r/gov/dao"
 )

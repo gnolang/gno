@@ -4,8 +4,8 @@ import (
 	"chain/runtime"
 	"errors"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
 )
 
 type ProposalID int64
@@ -240,6 +240,11 @@ type DAO interface {
 	// PreExecuteProposal is called when someone is trying to execute a proposal by ID.
 	// Is intended to be used to validate who can trigger the proposal execution.
 	PreExecuteProposal(pid ProposalID) (bool, error)
+
+	// ExecuteProposal executes the proposal executor and on error changes proposal
+	// status to denied with the error message being the denial reason.
+	// It returns the executor error when it fails.
+	ExecuteProposal(pid ProposalID, e Executor) error
 
 	// Render will return a human-readable string in markdown format that
 	// will be used to show new data through the dao proxy entrypoint.

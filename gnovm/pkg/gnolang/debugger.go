@@ -811,13 +811,13 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 		switch t := b.Source.(type) {
 		case *IfStmt:
 			for i, s := range ifBody(m, t).Source.GetBlockNames() {
-				if string(s) == name {
+				if string(s) == name || string(s) == name+".loopvar" {
 					return b.Values[i], true
 				}
 			}
 		}
 		for i, s := range b.Source.GetBlockNames() {
-			if string(s) == name {
+			if string(s) == name || string(s) == name+".loopvar" {
 				return b.Values[i], true
 			}
 		}
