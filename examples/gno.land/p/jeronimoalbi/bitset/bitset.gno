@@ -35,6 +35,7 @@ func (b *BitSet) Clear(i uint64) {
 }
 
 // ClearAll turns off all bits.
+// The size of the bitset remains unchanged.
 func (b *BitSet) ClearAll() {
 	for i := range b.words {
 		b.words[i] = 0
