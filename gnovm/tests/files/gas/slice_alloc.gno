@@ -11,7 +11,7 @@ func alloc(n int) {
 }
 
 // Gas:
-// 7127
+// 7111
 
 // Error:
 // allocation limit exceeded
