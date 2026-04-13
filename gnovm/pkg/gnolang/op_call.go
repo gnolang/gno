@@ -130,8 +130,6 @@ func (m *Machine) doOpEnterCrossing() {
 			panic("crossing could not find corresponding cross(fn)(...) call")
 		}
 	}
-	//nolint:govet // detected as unreachable
-	panic("should not happen") // defensive
 }
 
 func (m *Machine) doOpCall() {
