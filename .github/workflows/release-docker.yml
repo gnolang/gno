@@ -21,7 +21,7 @@ jobs:
     strategy:
       matrix:
         image: [gnoland,gnokey,gnoweb,gno,gnofaucet,gnodev,gnocontribs]
-    runs-on: ubuntu-latest
+    runs-on: gnolang-self-runner-large
     permissions:
       contents: read
       actions: write # for GHA cache (docker buildx cache-to/from=type=gha)
