@@ -1549,7 +1549,7 @@ func IsDeployed(cur realm) bool { return Deployed }
 						Tx: tx,
 						Metadata: &GnoTxMetadata{
 							Timestamp:   time.Now().Unix(),
-							BlockHeight: 0,          // zero — no chain ID override
+							BlockHeight: 0,           // zero — no chain ID override
 							ChainID:     "old-chain", // present but ignored since BlockHeight == 0
 						},
 					},
