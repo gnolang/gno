@@ -1,0 +1,50 @@
+-- input.md --
+
+<gno-form exec="Transfer">
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false" data-controller="form-exec">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Exec: Transfer</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div data-controller="action-function" data-action-function-name-value="Transfer" data-action-function-pkgpath-value="/r/test">
+<div class="command u-hidden" data-form-exec-target="command"><div data-controller="action-header" class="c-between">
+  <span class="title">Command</span>
+  <div class="c-inline">
+    <div class="b-input">
+      <select data-action-header-target="mode" data-action="change->action-header#updateMode">
+        <option value="secure" selected="selected">Mode: Full Security</option>
+        <option value="fast">Mode: Fast</option>
+      </select>
+      <svg><use href="#ico-arrow-down"></use></svg>
+    </div>
+    <div class="b-input">
+      <label for="form-address-Transfer">Address</label>
+      <input type="text" data-action-header-target="address" data-action="input->action-header#updateAddress" id="form-address-Transfer" class="u-font-mono" placeholder="ADDRESS" />
+    </div>
+  </div>
+</div>
+<div class="b-code">
+    <button data-controller="copy" data-action="click->copy#copy" data-copy-remote-value="action-function-Transfer"
+        data-copy-clean-value class="btn-copy" aria-label="Copy Command">
+        <svg class="c-icon">
+            <use href="#ico-copy" data-copy-target="icon"></use>
+            <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
+        </svg>
+    </button>
+    <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target="action-function-Transfer"># WARNING: This command is running in an INSECURE mode.
+# It is strongly recommended to use a hardware device for signing
+# and avoid trusting any computer connected to the internet,
+# as your private keys could be exposed.
+
+gnokey maketx call -pkgpath "/r/test" -func "Transfer" -gas-fee 1000000ugnot -gas-wanted 1_000_000_000 -send "<span data-action-function-target="send-code"></span>" -broadcast -chainid "dev" -remote "127.0.0.1:26657" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-Transfer" class="u-inline">gnokey query -remote "127.0.0.1:26657" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
+gnokey maketx call -pkgpath "/r/test" -func "Transfer" -gas-fee 1000000ugnot -gas-wanted 1_000_000_000 -send "<span data-action-function-target="send-code"></span>" <span data-action-function-target="address">ADDRESS</span> > call.tx
+gnokey sign -tx-path call.tx -chainid "dev" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
+gnokey broadcast -remote "127.0.0.1:26657" call.tx
+  </span></code></pre>
+</div>
+</div>
+</div>
+</form>

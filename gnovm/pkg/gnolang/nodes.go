@@ -141,6 +141,9 @@ const (
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
 	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH" // if name expr refers to package.
 	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"     // gno fix this version.
+	ATTR_LOOPVAR_SKIP          GnoAttribute = "ATTR_LOOPVAR_SKIP" // temp only
+	// For top level declarations, a map[Name]struct{} of other dependencies
+	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )
 
 // Embedded in each Node.
@@ -991,6 +994,7 @@ type bodyStmt struct {
 	NumStmts      int          // number of Stmts, for goto
 	Cond          Expr         // for ForStmt
 	Post          Stmt         // for ForStmt
+	NumInit       int          // for ForStmt
 	Active        Stmt         // for PopStmt()
 	Key           Expr         // for RangeStmt
 	Value         Expr         // for RangeStmt
@@ -1333,6 +1337,7 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	return pn
 }
 
+// PackageValue should be constructed here for initialization.
 func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 	var pv *PackageValue
 	if pn.PkgName == "main" {
@@ -1351,6 +1356,8 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 			fBlocksMap: make(map[string]*Block),
 		}
 	}
+	// Cannot set ObjectID here; it is not real yet.
+	// BAD: pv.SetObjectID(ObjectIDFromPkgPath(pv.PkgPath))
 	// Set realm for realm packages, main package, and ephemeral run packages
 	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
 		rlm := NewRealm(pn.PkgPath)
@@ -1427,6 +1434,7 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 				}
 			}
 		}
+		alloc.AllocateBlockItems(int64(len(nvs)))
 		block.Values = append(block.Values, nvs...)
 		return block.Values[pvl:]
 	} else if pvl > pnl {
@@ -1542,7 +1550,6 @@ type BlockNode interface {
 	Define2(bool, Name, Type, TypedValue, NameSource)
 	GetPathForName(Store, Name) ValuePath
 	GetBlockNames() []Name
-	GetExternNames() []Name
 	GetNumNames() uint16
 	GetIsConst(Store, Name) bool
 	GetIsConstAt(Store, ValuePath) bool
@@ -1601,7 +1608,7 @@ type StaticBlock struct {
 	HeapItems         []bool
 	UnassignableNames []Name
 	Consts            []Name // TODO consider merging with Names.
-	Externs           []Name
+	Externs           []Name // TODO: remove, this only exists for amino backward-compat.
 	Parent            BlockNode
 
 	// temporary storage for rolling back redefinitions.
@@ -1692,7 +1699,6 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.NameSources = make([]NameSource, 0, 16)
 	sb.HeapItems = make([]bool, 0, 16)
 	sb.Consts = make([]Name, 0, 16)
-	sb.Externs = make([]Name, 0, 16)
 	sb.Parent = parent
 }
 
@@ -1715,20 +1721,6 @@ func (sb *StaticBlock) GetBlock() *Block {
 // Implements BlockNode.
 func (sb *StaticBlock) GetBlockNames() (ns []Name) {
 	return sb.Names
-}
-
-// Implements BlockNode.
-// NOTE: Extern names may also be local, if declared after usage as an extern
-// (thus shadowing the extern name).
-func (sb *StaticBlock) GetExternNames() (ns []Name) {
-	return sb.Externs
-}
-
-func (sb *StaticBlock) addExternName(n Name) {
-	if slices.Contains(sb.Externs, n) {
-		return
-	}
-	sb.Externs = append(sb.Externs, n)
 }
 
 // Implements BlockNode.
@@ -1756,7 +1748,6 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 }
 
 // Implements BlockNode.
-// As a side effect, notes externally defined names.
 // Slow, for precompile only.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	if n == blankIdentifier {
@@ -1768,14 +1759,6 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 		return NewValuePathBlock(uint8(gen), idx, n)
 	}
 	sn := sb.GetSource(store)
-	// Register as extern.
-	// NOTE: uverse names are externs too.
-	// NOTE: externs may also be shadowed later in the block. Thus, usages
-	// before the declaration will have depth > 1; following it, depth == 1,
-	// matching the two different identifiers they refer to.
-	if !isFile(sn) {
-		sb.GetStaticBlock().addExternName(n)
-	}
 	// Check ancestors.
 	gen++
 	fauxChild := 0
@@ -1790,9 +1773,6 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 			}
 			return NewValuePathBlock(uint8(gen-fauxChild), idx, n)
 		} else {
-			if !isFile(sn) {
-				sn.GetStaticBlock().addExternName(n)
-			}
 			gen++
 			if fauxChildBlockNode(sn) {
 				fauxChild++

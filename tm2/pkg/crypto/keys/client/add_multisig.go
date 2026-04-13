@@ -13,10 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 )
 
-var (
-	errOverwriteAborted       = errors.New("overwrite aborted")
-	errUnableToVerifyMultisig = errors.New("unable to verify multisig threshold")
-)
+var errUnableToVerifyMultisig = errors.New("unable to verify multisig threshold")
 
 type AddMultisigCfg struct {
 	RootCfg *AddCfg
@@ -89,24 +86,6 @@ func execAddMultisig(cfg *AddMultisigCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to read keybase, %w", err)
 	}
 
-	// Check if the key exists
-	exists, err := kb.HasByName(name)
-	if err != nil {
-		return fmt.Errorf("unable to fetch key, %w", err)
-	}
-
-	// Get overwrite confirmation, if any
-	if exists {
-		overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
-		if err != nil {
-			return fmt.Errorf("unable to get confirmation, %w", err)
-		}
-
-		if !overwrite {
-			return errOverwriteAborted
-		}
-	}
-
 	publicKeys := make([]crypto.PubKey, 0)
 	for _, keyName := range cfg.Multisig {
 		k, err := kb.GetByName(keyName)
@@ -124,11 +103,27 @@ func execAddMultisig(cfg *AddMultisigCfg, args []string, io commands.IO) error {
 		})
 	}
 
+	// Construct the multisig public key to get the address
+	multiPubKey := multisig.NewPubKeyMultisigThreshold(cfg.MultisigThreshold, publicKeys)
+
+	// If not forcing, check for collisions with existing keys
+	if !cfg.RootCfg.Force {
+		// Derive the address to check for collision
+		newAddress := multiPubKey.Address()
+
+		// Handle address / name collision if any
+		handled, err := handleCollision(kb, name, newAddress, keys.TypeMulti, io)
+		if err != nil {
+			return err
+		}
+		// If a collision was found and handled, we can skip saving the new key
+		if handled {
+			return nil
+		}
+	}
+
 	// Create a new public key with the multisig threshold
-	if _, err := kb.CreateMulti(
-		name,
-		multisig.NewPubKeyMultisigThreshold(cfg.MultisigThreshold, publicKeys),
-	); err != nil {
+	if _, err := kb.CreateMulti(name, multiPubKey); err != nil {
 		return fmt.Errorf("unable to create multisig key reference, %w", err)
 	}
 

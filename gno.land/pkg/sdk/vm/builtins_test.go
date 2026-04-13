@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParamsKeeper(t *testing.T) {
+func TestParamsKeeperFail(t *testing.T) {
 	env := setupTestEnv()
 	params := NewSDKParams(env.vmk.prmk, env.ctx)
 
@@ -62,6 +62,63 @@ func TestParamsKeeper(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			require.PanicsWithValue(t, tc.expectedMsg, tc.setFunc, "The panic message did not match the expected value")
+		})
+	}
+}
+
+func TestParamsKeeperSuccess(t *testing.T) {
+	env := setupTestEnv()
+	params := NewSDKParams(env.vmk.prmk, env.ctx)
+
+	testCases := []struct {
+		name     string
+		testFunc func()
+	}{
+		{
+			name: "string test module vm",
+			testFunc: func() {
+				params.SetString("vm:p:chain_domain", "gno.land")
+
+				var actual string
+				params.pmk.GetString(env.ctx, "vm:p:chain_domain", &actual)
+				require.Equal(t, "gno.land", actual)
+			},
+		},
+		{
+			name: "string test module vm storage_price",
+			testFunc: func() {
+				params.SetString("vm:p:storage_price", "200ugnot")
+
+				var actual string
+				params.pmk.GetString(env.ctx, "vm:p:storage_price", &actual)
+				require.Equal(t, "200ugnot", actual)
+			},
+		},
+		{
+			name: "int64 test module auth max_memo_bytes",
+			testFunc: func() {
+				params.SetInt64("auth:p:max_memo_bytes", 512)
+
+				var actual int64
+				params.pmk.GetInt64(env.ctx, "auth:p:max_memo_bytes", &actual)
+				require.Equal(t, int64(512), actual)
+			},
+		},
+		{
+			name: "strings test module bank restricted_denoms",
+			testFunc: func() {
+				params.SetStrings("bank:p:restricted_denoms", []string{"ugnot"})
+
+				var actual []string
+				params.pmk.GetStrings(env.ctx, "bank:p:restricted_denoms", &actual)
+				require.Equal(t, []string{"ugnot"}, actual)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.testFunc()
 		})
 	}
 }

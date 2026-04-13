@@ -276,7 +276,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 
 	case DataChannel:
 		if conR.FastSync() {
-			conR.Logger.Info("Ignoring message received during fastSync", "msg", msg)
+			conR.Logger.Debug("Ignoring message received during fastSync", "msg", msg)
 			return
 		}
 		switch msg := msg.(type) {
@@ -294,7 +294,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 
 	case VoteChannel:
 		if conR.FastSync() {
-			conR.Logger.Info("Ignoring message received during fastSync", "msg", msg)
+			conR.Logger.Debug("Ignoring message received during fastSync", "msg", msg)
 			return
 		}
 		switch msg := msg.(type) {
@@ -316,7 +316,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 
 	case VoteSetBitsChannel:
 		if conR.FastSync() {
-			conR.Logger.Info("Ignoring message received during fastSync", "msg", msg)
+			conR.Logger.Debug("Ignoring message received during fastSync", "msg", msg)
 			return
 		}
 		switch msg := msg.(type) {
@@ -635,6 +635,10 @@ OUTER_LOOP:
 			// Load the block commit for prs.Height,
 			// which contains precommit signatures for prs.Height.
 			commit := conR.conS.blockStore.LoadBlockCommit(prs.Height)
+			if commit == nil {
+				logger.Warn("Failed to load block commit for catchup", "height", prs.Height)
+				continue OUTER_LOOP
+			}
 			if ps.PickSendVote(commit) {
 				logger.Debug("Picked Catchup commit to send", "height", prs.Height)
 				continue OUTER_LOOP
@@ -783,6 +787,10 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if prs.CatchupCommitRound != -1 && 0 < prs.Height && prs.Height <= conR.conS.blockStore.Height() {
 				commit := conR.conS.LoadCommit(prs.Height)
+				if commit == nil {
+					logger.Warn("Failed to load commit for queryMaj23", "height", prs.Height)
+					continue OUTER_LOOP
+				}
 				peer.TrySend(StateChannel, amino.MustMarshalAny(&VoteSetMaj23Message{
 					Height:  prs.Height,
 					Round:   commit.Round(),
@@ -1423,6 +1431,9 @@ func (m *NewValidBlockMessage) ValidateBasic() error {
 	if m.BlockParts.Size() > types.MaxBlockPartsCount {
 		return errors.New("BlockParts bit array is too big: %d, max: %d", m.BlockParts.Size(), types.MaxBlockPartsCount)
 	}
+	if err := m.BlockParts.ValidateBasic(); err != nil {
+		return fmt.Errorf("wrong BlockParts: %w", err)
+	}
 	return nil
 }
 
@@ -1471,6 +1482,9 @@ func (m *ProposalPOLMessage) ValidateBasic() error {
 	}
 	if m.ProposalPOL.Size() > types.MaxVotesCount {
 		return errors.New("ProposalPOL bit array is too big: %d, max: %d", m.ProposalPOL.Size(), types.MaxVotesCount)
+	}
+	if err := m.ProposalPOL.ValidateBasic(); err != nil {
+		return fmt.Errorf("wrong ProposalPOL: %w", err)
 	}
 	return nil
 }
@@ -1617,6 +1631,9 @@ func (m *VoteSetBitsMessage) ValidateBasic() error {
 	// NOTE: Votes.Size() can be zero if the node does not have any
 	if m.Votes.Size() > types.MaxVotesCount {
 		return fmt.Errorf("votes bit array is too big: %d, max: %d", m.Votes.Size(), types.MaxVotesCount)
+	}
+	if err := m.Votes.ValidateBasic(); err != nil {
+		return fmt.Errorf("wrong Votes: %w", err)
 	}
 	return nil
 }

@@ -150,10 +150,6 @@ func (rss *RemoteSignerServer) handleRequest(request r.RemoteSignerMessage) r.Re
 			return &r.SignResponse{Signature: signature, Error: nil}
 		}
 
-		// Ping request is not related to the signer interface and is only used to confirm the connection.
-	case *r.PingRequest:
-		return &r.PingResponse{}
-
 	default:
 		rss.logger.Error("Invalid request type", "type", fmt.Sprintf("%T", request))
 		return nil

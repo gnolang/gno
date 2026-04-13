@@ -23,7 +23,7 @@ This script is doing:
 
 - Setup the current portal-loop in read only mode
 - Pull the latest version of [ghcr.io/gnolang/gno](https://ghcr.io/gnolang/gno)
-- Backup the txs using [contribs/tx-archive](https://github.com/gnolang/contribs/tx-archive)
+- Backup the txs using [contribs/tx-archive](https://github.com/gnolang/gno/tree/master/contribs/tx-archive)
 - Start a new docker container with the backups files
 - Changing the proxy (traefik) to redirect to the new portal loop
 - Unlock read only mode

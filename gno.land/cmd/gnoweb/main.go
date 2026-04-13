@@ -77,7 +77,11 @@ func main() {
 			Name:       "gnoweb",
 			ShortUsage: "gnoweb [flags] [path ...]",
 			ShortHelp:  "runs gno.land web interface",
-			LongHelp:   `gnoweb web interface`,
+			LongHelp: `gnoweb web interface
+
+Environment variables:
+  GNOWEB_BANNER_TEXT  Banner text displayed at the top of the page.
+  GNOWEB_BANNER_URL   Optional link for the banner (requires GNOWEB_BANNER_TEXT).`,
 		},
 		&cfg,
 		func(ctx context.Context, args []string) error {
@@ -225,15 +229,23 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	// Setup app
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
-	appcfg.NodeRemote = cfg.remote
+	appcfg.NodeRemote = normalizeRemoteURL(cfg.remote)
 	appcfg.NodeRequestTimeout = cfg.remoteTimeout
-	appcfg.RemoteHelp = cfg.remoteHelp
+	appcfg.RemoteHelp = normalizeRemoteURL(cfg.remoteHelp)
 	if appcfg.RemoteHelp == "" {
 		appcfg.RemoteHelp = appcfg.NodeRemote
 	}
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+
+	// Parse banner from env
+	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
+		appcfg.Banner.Text = text
+		appcfg.Banner.URL = os.Getenv("GNOWEB_BANNER_URL")
+	} else if os.Getenv("GNOWEB_BANNER_URL") != "" {
+		logger.Warn("GNOWEB_BANNER_URL is set but GNOWEB_BANNER_TEXT is empty; banner will not be shown")
+	}
 
 	if cfg.noDefaultAliases {
 		appcfg.Aliases = map[string]gnoweb.AliasTarget{}
@@ -262,7 +274,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	logger.Info("Running", "listener", bindaddr.String())
 
 	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict)
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
 
 	// Setup server
 	server := &http.Server{
@@ -319,7 +331,7 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 	return aliases, nil
 }
 
-func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
+func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http.Handler {
 	// Build img-src CSP directive
 	imgSrc := "'self' data:"
 
@@ -331,8 +343,9 @@ func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 	// scripts, styles, images, and other resources. This helps prevent
 	// cross-site scripting (XSS) and other code injection attacks.
 	csp := fmt.Sprintf(
-		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'",
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src %s/abci_query; form-action 'self'",
 		imgSrc,
+		remote,
 	)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -362,4 +375,28 @@ func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// normalizeRemoteURL ensures the remote URL has a valid HTTP(S) protocol.
+// - tcp:// is converted to http:// (RPC uses HTTP over TCP)
+// - No protocol defaults to http://
+// - http:// and https:// are kept as-is
+// - Any other protocol (e.g., unix://) will panic as it's not supported in web context
+func normalizeRemoteURL(remote string) string {
+	remote = strings.TrimSpace(remote)
+	if remote == "" {
+		return ""
+	}
+	protocol, rest, found := strings.Cut(remote, "://")
+	if !found {
+		return "http://" + remote
+	}
+	switch protocol {
+	case "tcp":
+		return "http://" + rest
+	case "http", "https":
+		return remote
+	default:
+		panic("unsupported protocol: " + protocol)
+	}
 }

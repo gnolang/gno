@@ -1,0 +1,3 @@
+module = "gno.land/r/docs/private"
+gno = "0.9"
+private = true

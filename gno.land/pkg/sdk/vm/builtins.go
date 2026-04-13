@@ -81,36 +81,31 @@ func NewSDKParams(pmk ParamsKeeperI, ctx sdk.Context) *SDKParams {
 
 // The key has the format <module>:(<realm>:)?<paramname>.
 func (prm *SDKParams) SetString(key string, value string) {
-	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetString(prm.ctx, key, value)
+	prm.setWithCheck(key, func() { prm.pmk.SetString(prm.ctx, key, value) })
 }
 
 func (prm *SDKParams) SetBool(key string, value bool) {
-	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetBool(prm.ctx, key, value)
+	prm.setWithCheck(key, func() { prm.pmk.SetBool(prm.ctx, key, value) })
 }
 
 func (prm *SDKParams) SetInt64(key string, value int64) {
-	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetInt64(prm.ctx, key, value)
+	prm.setWithCheck(key, func() { prm.pmk.SetInt64(prm.ctx, key, value) })
 }
 
 func (prm *SDKParams) SetUint64(key string, value uint64) {
-	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetUint64(prm.ctx, key, value)
+	prm.setWithCheck(key, func() { prm.pmk.SetUint64(prm.ctx, key, value) })
 }
 
 func (prm *SDKParams) SetBytes(key string, value []byte) {
-	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetBytes(prm.ctx, key, value)
+	prm.setWithCheck(key, func() { prm.pmk.SetBytes(prm.ctx, key, value) })
 }
 
 func (prm *SDKParams) SetStrings(key string, value []string) {
-	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetStrings(prm.ctx, key, value)
+	prm.setWithCheck(key, func() { prm.pmk.SetStrings(prm.ctx, key, value) })
 }
 
 func (prm *SDKParams) UpdateStrings(key string, vals []string, add bool) {
+	prm.mustHaveModuleKeeper(key)
 	ss := &[]string{}
 	prm.pmk.GetStrings(prm.ctx, key, ss)
 
@@ -147,18 +142,18 @@ func (prm *SDKParams) UpdateStrings(key string, vals []string, add bool) {
 	prm.SetStrings(key, updatedList)
 }
 
-func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key string, value any) {
-	parts := strings.Split(key, ":")
-	if len(parts) == 0 {
+func (prm *SDKParams) setWithCheck(key string, set func()) {
+	prm.mustHaveModuleKeeper(key)
+	set()
+}
+
+func (prm *SDKParams) mustHaveModuleKeeper(key string) {
+	idx := strings.Index(key, ":")
+	if idx <= 0 {
 		panic(fmt.Sprintf("SDKParams encountered invalid param key format: %s", key))
 	}
-	mname := parts[0]
+	mname := key[:idx]
 	if !prm.pmk.IsRegistered(mname) {
 		panic(fmt.Sprintf("module name <%s> not registered", mname))
-	}
-	kpr := prm.pmk.GetRegisteredKeeper(mname)
-	if kpr != nil {
-		subkey := key[len(mname)+1:]
-		kpr.WillSetParam(prm.ctx, subkey, value)
 	}
 }

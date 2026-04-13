@@ -1,4 +1,4 @@
-# Running & testing Gno code
+# Running & Testing Gno code
 
 ## Prerequisites
 
@@ -12,35 +12,35 @@ using the `gno` binary. For this example, we will use the `Counter` code from a
 
 ## Setup
 
-Start by creating a folder which will contain your Gno code:
+Start by creating a directory which will contain your Gno code:
 
 ```
 mkdir counter
 cd counter
 ```
 
-First, we should initialize a `gnomod.toml` file. This file declares the package path
-of your realm & the Gno language version, and is used by Gno tools. We can do
-this by using the following command:
+Next, initialize a `gnomod.toml` file. This file declares the package path of your
+realm and the Gno language version, and is required by Gno tooling. You can do
+this using the following command:
 
 ```
 gno mod init gno.land/r/<namespace>/counter
 ```
 
-You can enter your username under `<namespace>`. In this case, let's use `example`.
-This will create a file with the following content:
+Replace `<namespace>` with your username. In this example, we’ll use `example`.
+This command creates a file with the following content:
 
 ```
 module gno.land/r/example/counter
 ```
 
-Then, in the same folder, create two files- `counter.gno` & `counter_test.gno`:
+Then, in the same directory, create two files- `counter.gno` & `counter_test.gno`:
 
 ```
 touch counter.gno counter_test.gno
 ```
 
-In these files, paste in the code from the previous tutorial.
+Paste the code from the previous tutorial into these files.
 
 `counter.gno`:
 ```go
@@ -84,9 +84,8 @@ func TestIncrement(t *testing.T) {
 
 ## Testing
 
-To run package tests, we can simply use the `gno test` subcommand, passing it the
-directory that contains the tests. From inside the `counter/` directory, we
-can run the following:
+To run package tests, use the `gno test` subcommand and pass it the directory
+containing the tests. From inside the `counter/` directory, run:
 
 ```
 $ gno test .
@@ -102,8 +101,8 @@ $ gno test . -v
 ok      .       0.81s
 ```
 
-Apart from `-v`, other flags are also available, such as ones for setting the
-test timeout, checking performance metrics, etc.
+In addition to -v, other flags are available, such as options for setting test
+timeouts, checking performance metrics, and more.
 
 :::info Mocked testing & running environment
 The `gno` binary mocks a blockchain environment when running & testing code.
@@ -112,17 +111,18 @@ See [Final remarks](#final-remarks).
 
 ## Running Gno code
 
-The `gno` binary contains a `run` subcommand, allowing users to evaluate
-specific expressions in their Gno code, without a full blockchain environment.
-Under the hood, the Gno Virtual Machine evaluates the given expression and simply
-returns the value, without any permanent changes to contract storage.
+The `gno` binary also provides a `run` subcommand, which allows you to evaluate
+specific expressions in your Gno code without starting a full blockchain
+environment. Internally, the Gno Virtual Machine (GnoVM) evaluates the given
+expression and returns its value, without making any permanent changes to
+contract storage.
 
-This can be an easy way to quickly evaluate a function during development, without
-having to spin up a full blockchain environment.
+This is a convenient way to quickly test or evaluate a function during
+development without spinning up a full blockchain.
 
-The GnoVM won't automatically print out return values upon evaluating expressions,
-which is why we need to include a `println()` somewhere- either in the function
-body itself, or modify the expression itself:
+By default, the GnoVM does not automatically print return values when evaluating
+expressions. For this reason, you need to include a `println()` call—either inside
+the function itself or directly in the evaluated expression:
 
 ```
 gno run -expr "println(Increment(42))"
@@ -150,9 +150,79 @@ func Render(_ string) string {
 The `run` subcommand also supports a full GnoVM debugger, which can be started
 with the `-debug` flag. Read more about it [here](https://gno.land/r/gnoland/blog:p/gno-debugger).
 
+## Filetests
+
+Filetests are golden tests typically used to test realms. They execute a `main`
+function and compare actual output against expected output written as comment
+directives at the bottom of the file.
+
+Filetests use the `*_filetest.gno` suffix and are placed in a `filetests/`
+subdirectory of the realm package.
+
+:::warning Stability notice
+Filetests are primarily intended as an internal tool. Their API and behavior
+are not guaranteed to be as stable as standard `gno test` testing.
+:::
+
+### Example
+
+```go
+// PKGPATH: gno.land/r/demo/counter_test
+// SEND: 1000000ugnot
+package counter_test
+
+import "gno.land/r/demo/counter"
+
+func main() {
+	counter.Increment(cross)
+	println(counter.Render(""))
+}
+
+// Output:
+// 1
+```
+
+### Running filetests
+
+```bash
+# Only run the filetest for a package (from the package directory)
+gno test -run "_filetest.gno" .
+# Update expected values when output intentionally changes
+gno test --update-golden-tests .
+```
+
+### Directives
+
+**Input directives** are single-line comments at the top of the file:
+
+| Directive  | Description                          | Default |
+|------------|--------------------------------------|---------|
+| `PKGPATH`  | Package path. Use `r/` for realms.   | `main`  |
+| `MAXALLOC` | Max memory allocation in bytes.      | `0`     |
+| `SEND`     | Coins sent with the transaction.     | (none)  |
+
+**Output directives** are multi-line comments at the bottom:
+
+| Directive        | Matches                                       |
+|------------------|-----------------------------------------------|
+| `Output`         | Standard output.                              |
+| `Error`          | Panic or error message.                       |
+| `Realm`          | Realm state change operations.                |
+| `Events`         | Emitted events (JSON).                        |
+| `Preprocessed`   | Preprocessed AST.                             |
+| `Stacktrace`     | Gno stacktrace on panic.                      |
+| `Gas`            | Gas consumed.                                 |
+| `Storage`        | Realm storage size diff.                      |
+| `TypeCheckError` | Go type-checker error.                        |
+
+:::info Pure package imports
+Imports of pure packages are processed separately. If a pure package contains a
+line like `println(1)`, its output cannot be checked by an `// Output:` directive.
+:::
+
 ## Final remarks
 
-Note that executing and testing code as shown in this tutorial  utilizes a local,
+Note that executing and testing code as shown in this tutorial utilizes a local,
 mocked execution environment. During testing and expression evaluation, the GnoVM
 is simply running as a language interpreter, with no connection to a real blockchain.
 
@@ -160,10 +230,5 @@ No real on-chain transactions occur, and the state changes are purely in-memory
 for testing and development purposes. You might notice this if you run the same
 expression modifying a state variable twice, with the actual value staying unchanged.
 
-All possible imports in your code are resolved from the GnoVM's installation folder.
-
-## Conclusion
-
-That's it 🎉
-
-You've successfully run local tests and expressions using the `gno` binary.
+All imports used in your code are resolved from the GnoVM's installation
+directory.

@@ -1,6 +1,6 @@
 package agent
 
-import "gno.land/p/nt/avl"
+import "gno.land/p/nt/avl/v0"
 
 // Whitelist manages whitelisted agent addresses.
 type Whitelist struct {

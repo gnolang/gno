@@ -66,3 +66,34 @@ stdout 'OK!'
 gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:"
 stdout 'Total supply..: 10000'
 stdout 'Known accounts..: 1' # user3 is no longer known, as they withdrew all their balance
+
+# ============================================
+# TEST: MITM Attack Prevention via AssertOriginCall
+# ============================================
+
+# Deploy the malicious intermediary realm
+gnokey maketx addpkg -pkgdir $WORK/mitm -pkgpath gno.land/r/test/mitm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test user1
+stdout 'OK!'
+
+# user1 tries to deposit through the malicious intermediary - this should FAIL
+# The intermediary calls wugnot.Deposit(cross) but AssertOriginCall() blocks it
+! gnokey maketx call -pkgpath gno.land/r/test/mitm -func ProxyDeposit -send 10000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+stderr 'invalid non-origin call'
+
+# Verify no wugnot was minted (total supply should remain 10000 from user2)
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:"
+stdout 'Total supply..: 10000'
+stdout 'Known accounts..: 1'
+
+-- mitm/gnomod.toml --
+module = "gno.land/r/test/mitm"
+gno = "0.9"
+
+-- mitm/mitm.gno --
+package mitm
+
+import "gno.land/r/gnoland/wugnot"
+
+func ProxyDeposit(cur realm) {
+	wugnot.Deposit(cross)
+}

@@ -1,23 +1,54 @@
 {{ define "layouts/footer" }}
-<footer class="w-full text-100 py-1.5 border-t">
-  <nav class="max-w-screen-max mx-auto px-4 md:px-10 mb-8 md:mb-0 grid grid-cols-1 md:grid-cols-4 justify-between items-start xl:items-center gap-2 xl:gap-20 pt-2 xl:pt-0">
-    <!-- Footer Navigation -->
-    <div class="col-span-1 pb-8 md:pb-0">
-      <a class="block h-6 md:h-4" href="/">{{ template "ui/logo" }}</a>
-    </div>
-    <div class="flex justify-between md:col-span-3">
-      {{ range .Sections }}
-      <ul aria-label="{{ .Title }}" class="flex flex-col xl:flex-row gap-4 xl:gap-6">
+<footer class="b-footer">
+  <nav class="c-center c-view-grid">
+    <a class="logo" href="/">{{ template "ui/logo" }}</a>
+    <div class="nav-primary">
+      {{ with index .Sections 0 }}
+      <ul aria-label="{{ .Title }}">
         {{ range .Links }}
-        <li><a class="hover:underline" href="{{ .URL }}">{{ .Label }}</a></li>
+        <li><a href="{{ .URL }}">{{ .Label }}</a></li>
+        {{ end }}
+      </ul>
+      {{ end }}
+      {{ with index .Sections 1 }}
+      <ul class="nav-social" aria-label="{{ .Title }}">
+        {{ range .Links }}
+        <li><a href="{{ .URL }}">{{ .Label }}</a></li>
         {{ end }}
       </ul>
       {{ end }}
     </div>
+    <div class="nav-theme">
+      <button type="button" class="b-btn c-inline" data-controller="theme" data-action="click->theme#toggle"
+        aria-label="Toggle theme" title="Toggle theme">
+        <svg data-theme-target="sun" class="u-hidden c-icon" aria-hidden="true">
+          <title>Light theme</title>
+          <use href="#ico-sun"></use>
+        </svg>
+        <svg data-theme-target="moon" class="u-hidden c-icon" aria-hidden="true">
+          <title>Dark theme</title>
+          <use href="#ico-moon"></use>
+        </svg>
+        <svg data-theme-target="system" class="c-icon" aria-hidden="true">
+          <title>System theme</title>
+          <use href="#ico-system"></use>
+        </svg>
+        <span class="nav-theme-label" aria-hidden="true"></span>
+      </button>
+    </div>
   </nav>
+  <div class="legal c-center">
+    <p>{{ .LegalNotice }}</p>
+    <nav aria-label="Legal">
+      {{ range .LegalLinks }}
+      <a href="{{ .URL }}">{{ .Label }}</a>
+      {{ end }}
+    </nav>
+  </div>
 </footer>
 
 <!-- javascript module src -->
-<script type="module" src="{{ .AssetsPath }}js/index.js"></script>
+<script type="module" src="{{ .AssetsPath }}js/controller.js?v={{ .BuildTime }}"></script>
+<script type="module" src="{{ .AssetsPath }}js/index.js?v={{ .BuildTime }}"></script>
 
-{{- if .Analytics -}} {{- template "layout/analytics" }}{{- end -}} {{ end }} 
+{{- if .Analytics -}} {{- template "layout/analytics" }}{{- end -}} {{ end }}

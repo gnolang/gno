@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log/slog"
@@ -20,20 +21,28 @@ import (
 
 // Renderer defines the interface for rendering realms and source files.
 type Renderer interface {
-	RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error)
+	RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.Toc, error)
 	RenderSource(w io.Writer, name string, src []byte) error
+}
+
+// RealmRenderContext holds context information for rendering realms
+type RealmRenderContext struct {
+	ChainId string
+	Remote  string
+	Domain  string
 }
 
 // HTMLRenderer implements the Renderer interface for HTML output.
 type HTMLRenderer struct {
 	logger *slog.Logger
 	cfg    *RenderConfig
+	client ClientAdapter
 
 	gm goldmark.Markdown
 	ch *chromahtml.Formatter
 }
 
-func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig) *HTMLRenderer {
+func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter) *HTMLRenderer {
 	gmOpts := append(cfg.GoldmarkOptions, goldmark.WithExtensions(
 		markdown.NewHighlighting(
 			markdown.WithFormatOptions(cfg.ChromaOptions...), // force using chroma config
@@ -42,17 +51,24 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig) *HTMLRenderer {
 	return &HTMLRenderer{
 		logger: logger,
 		cfg:    &cfg,
+		client: client,
 		gm:     goldmark.New(gmOpts...),
 		ch:     chromahtml.New(cfg.ChromaOptions...),
 	}
 }
 
 // RenderRealm renders a realm to HTML and returns a table of contents.
-func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error) {
-	ctx := md.NewGnoParserContext(u)
+func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.Toc, error) {
+	var mdctx md.GnoContext
+	mdctx.GnoURL = u
+	mdctx.ChainId = ctx.ChainId
+	mdctx.Remote = ctx.Remote
+	mdctx.Domain = ctx.Domain
+
+	pctx := md.NewGnoParserContext(mdctx)
 
 	// Use Goldmark for Markdown parsing
-	doc := r.gm.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
+	doc := r.gm.Parser().Parse(text.NewReader(src), parser.WithContext(pctx))
 	if err := r.gm.Renderer().Render(w, src, doc); err != nil {
 		return md.Toc{}, fmt.Errorf("unable to render markdown at path %q: %w", u.Path, err)
 	}
@@ -100,6 +116,24 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 }
 
 // WriteChromaCSS writes the CSS for syntax highlighting to the provided writer.
+// It outputs the light theme by default and, if configured, the dark theme
+// scoped under [data-theme="dark"] using CSS nesting.
 func (r *HTMLRenderer) WriteChromaCSS(w io.Writer) error {
-	return r.ch.WriteCSS(w, r.cfg.ChromaStyle)
+	if err := r.ch.WriteCSS(w, r.cfg.ChromaStyle); err != nil {
+		return fmt.Errorf("writing light chroma CSS: %w", err)
+	}
+
+	if r.cfg.ChromaDarkStyle != nil {
+		var buf bytes.Buffer
+		buf.WriteString("\n[data-theme=\"dark\"] {\n")
+		if err := r.ch.WriteCSS(&buf, r.cfg.ChromaDarkStyle); err != nil {
+			return fmt.Errorf("writing dark chroma CSS: %w", err)
+		}
+		buf.WriteString("}\n")
+		if _, err := buf.WriteTo(w); err != nil {
+			return fmt.Errorf("writing dark chroma CSS: %w", err)
+		}
+	}
+
+	return nil
 }

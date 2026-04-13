@@ -8,8 +8,6 @@ stdout 'g149244zfh3qc7zcspttmmpknkzss4esteg6f086'
 loadpkg gno.land/r/sys/params
 loadpkg gno.land/r/gov/dao/v3/init
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/sys/users
-loadpkg gno.land/r/gnoland/users/v1
 
 gnoland start
 
@@ -21,33 +19,23 @@ gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=
 ## pay the fee and submit a proposal to change the fee collector.
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_collector1.gno
 stdout '0'
+## Vote change proposal with unrestricted account test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+## Execute change proposal with unrestricted account test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
 
 ## Check collector1 balance
 gnokey query bank/balances/$collector1_user_addr
 stdout '1000000000ugnot'
-
-# Register member with a namespace 
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "collector111" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test collector1
-stdout 'OK!'
-
-# Register member with a namespace 
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "collector222" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test collector2
-stdout 'OK!'
-
-## Vote change proposal with unrestricted account test1
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
-stdout 'OK!'
-
-## Execute change proposal with unrestricted account test1
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test test1
-stdout 'OK!'
 
 ## Make costly tx
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/costly.gno
 
 ## Check collector1 balance, must have changed
 gnokey query bank/balances/$collector1_user_addr
-stdout '997490700ugnot'
+stdout '1000100000ugnot'
 
 ## Submit a proposal to change fee_collector to collector2
 
@@ -63,22 +51,22 @@ stdout 'OK!'
 
 ## Check collector1 balance
 gnokey query bank/balances/$collector1_user_addr
-stdout '999590700ugnot'
+stdout '1002200000ugnot'
 
 ## Check collector2 balance
 gnokey query bank/balances/$collector2_user_addr
-stdout '997403000ugnot'
+stdout '1000000000ugnot'
 
 ## Make costly tx
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/costly.gno
 
 ## Check collector1 balance, must not have changed
 gnokey query bank/balances/$collector1_user_addr
-stdout '999590700ugnot'
+stdout '1002200000ugnot'
 
 ## Check collector2 balance, must have changed
 gnokey query bank/balances/$collector2_user_addr
-stdout '997503000ugnot'
+stdout '1000100000ugnot'
 
 -- run/load_user.gno --
 package main

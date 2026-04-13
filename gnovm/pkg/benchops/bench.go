@@ -1,116 +1,139 @@
 package benchops
 
 import (
+	"runtime"
 	"time"
-)
-
-const (
-	invalidCode = byte(0x00)
 )
 
 var measure bench
 
 type bench struct {
-	opCounts        [256]int64
-	opAccumDur      [256]time.Duration
-	opStartTime     [256]time.Time
-	isOpCodeStarted bool
-	curOpCode       byte
-	timeZero        time.Time
+	// Current active op — at most one is non-invalid at a time.
+	curCPUOp    CPUOp
+	curStoreOp  StoreOp
+	curNativeOp NativeOp
+	curStart    time.Time
+	timeZero    time.Time
 
+	// Opcode timing: single timeline, always one op active.
+	opCounts   [256]int64
+	opAccumDur [256]time.Duration
+
+	// Store timing: own accumulators.
 	storeCounts    [256]int64
 	storeAccumDur  [256]time.Duration
 	storeAccumSize [256]int64
-	storeStartTime [256]time.Time
-	curStoreCode   byte
+
+	// Native timing.
+	nativeCounts   [256]int64
+	nativeAccumDur [256]time.Duration
 }
 
 func InitMeasure() {
 	measure = bench{
-		// this will be called to reset each benchmarking
-		isOpCodeStarted: false,
-		curOpCode:       invalidCode,
-		curStoreCode:    invalidCode,
+		curCPUOp:    CPUOpInvalid,
+		curStoreOp:  StoreOpInvalid,
+		curNativeOp: NativeOpInvalid,
 	}
 }
 
-func StartOpCode(code byte) {
-	if code == invalidCode {
+// reapTime attributes elapsed time since curStart to whichever
+// op is currently active, then sets curStart = now.
+func reapTime() {
+	now := time.Now()
+	if measure.curStart != measure.timeZero {
+		elapsed := now.Sub(measure.curStart)
+		if measure.curCPUOp != CPUOpInvalid {
+			measure.opAccumDur[byte(measure.curCPUOp)] += elapsed
+		} else if measure.curStoreOp != StoreOpInvalid {
+			measure.storeAccumDur[byte(measure.curStoreOp)] += elapsed
+		} else if measure.curNativeOp != NativeOpInvalid {
+			measure.nativeAccumDur[byte(measure.curNativeOp)] += elapsed
+		}
+	}
+	measure.curStart = now
+}
+
+// SwitchOpCode finalizes the current op's elapsed time and
+// starts timing a new CPU op. Returns the old op code so the
+// caller can pass it to ResumeOpCode when done.
+func SwitchOpCode(code CPUOp) CPUOp {
+	if code == CPUOpInvalid {
 		panic("the OpCode is invalid")
 	}
-	if !measure.opStartTime[code].Equal(measure.timeZero) {
-		panic("Can not start a non-stopped timer")
-	}
-	measure.opStartTime[code] = time.Now()
-	measure.opCounts[code]++
-
-	measure.isOpCodeStarted = true
-	measure.curOpCode = code
+	old := measure.curCPUOp
+	reapTime()
+	measure.curCPUOp = code
+	measure.curStoreOp = StoreOpInvalid
+	measure.curNativeOp = NativeOpInvalid
+	measure.opCounts[byte(code)]++
+	return old
 }
 
-// Stop the current measurement
+// ResumeOpCode resumes a previous CPU op without incrementing its count.
+func ResumeOpCode(code CPUOp) {
+	reapTime()
+	measure.curCPUOp = code
+	measure.curStoreOp = StoreOpInvalid
+	measure.curNativeOp = NativeOpInvalid
+}
+
+// StopOpCode finalizes the current op. Used at OpHalt/return.
 func StopOpCode() {
-	code := measure.curOpCode
-	if measure.opStartTime[code].Equal(measure.timeZero) {
-		panic("Can not stop a stopped timer")
-	}
-	measure.opAccumDur[code] += time.Since(measure.opStartTime[code])
-	measure.opStartTime[code] = measure.timeZero // stop the timer
-	measure.isOpCodeStarted = false
+	reapTime()
+	measure.curCPUOp = CPUOpInvalid
+	measure.curStoreOp = StoreOpInvalid
+	measure.curNativeOp = NativeOpInvalid
+	measure.curStart = measure.timeZero
 }
 
-// Pause current opcode measurement
-func PauseOpCode() {
-	if !measure.isOpCodeStarted {
-		return
-	}
-	if measure.curOpCode == invalidCode {
-		panic("Can not Pause timer of an invalid OpCode")
-	}
-	code := measure.curOpCode
-	if measure.opStartTime[code].Equal(measure.timeZero) {
-		panic("Should not pause a stopped timer")
-	}
-	measure.opAccumDur[code] += time.Since(measure.opStartTime[code])
-	measure.opStartTime[code] = measure.timeZero
+// ---- Store operations ----
+
+// StartStore suspends the current op timer and begins a
+// store operation. Returns the old (CPUOp, StoreOp) so the
+// caller can pass them to StopStore to restore.
+func StartStore(storeCode StoreOp) (CPUOp, StoreOp) {
+	oldCPU := measure.curCPUOp
+	oldStore := measure.curStoreOp
+	reapTime()
+	measure.curCPUOp = CPUOpInvalid
+	measure.curStoreOp = storeCode
+	measure.curNativeOp = NativeOpInvalid
+	measure.storeCounts[byte(storeCode)]++
+	return oldCPU, oldStore
 }
 
-// Resume resumes current measurement
-func ResumeOpCode() {
-	if !measure.isOpCodeStarted {
-		return
-	}
-	if measure.curOpCode == invalidCode {
-		panic("Can not resume timer of an invalid OpCode")
-	}
-
-	code := measure.curOpCode
-
-	if measure.opStartTime[code] != measure.timeZero {
-		panic("Should not resume a running timer")
-	}
-	measure.opStartTime[code] = time.Now()
+// StopStore ends the store operation, records its size,
+// then resumes the previous op.
+func StopStore(storeCode StoreOp, oldCPU CPUOp, oldStore StoreOp, size int) {
+	reapTime()
+	measure.storeAccumSize[byte(storeCode)] += int64(size)
+	measure.curCPUOp = oldCPU
+	measure.curStoreOp = oldStore
+	measure.curNativeOp = NativeOpInvalid
 }
 
-func StartStore(code byte) {
-	if measure.storeStartTime[code] != measure.timeZero {
-		panic("Can not start a non-stopped timer")
+// ---- Native operations ----
+
+func StartNative(nativeCode NativeOp) CPUOp {
+	if nativeCode == NativeOpInvalid {
+		panic("the NativeCode is invalid")
 	}
-	measure.storeStartTime[code] = time.Now()
-	measure.storeCounts[code]++
-	measure.curStoreCode = code
+	old := measure.curCPUOp
+	reapTime()
+	measure.curStart = measure.timeZero // discard; GC follows
+	runtime.GC()
+	measure.curStart = time.Now() // fresh timestamp after GC
+	measure.curCPUOp = CPUOpInvalid
+	measure.curStoreOp = StoreOpInvalid
+	measure.curNativeOp = nativeCode
+	measure.nativeCounts[byte(nativeCode)]++
+	return old
 }
 
-// assume there is no recursive call for store.
-func StopStore(size int) {
-	code := measure.curStoreCode
-
-	if measure.storeStartTime[code].Equal(measure.timeZero) {
-		panic("Can not stop a stopped timer")
-	}
-
-	measure.storeAccumDur[code] += time.Since(measure.storeStartTime[code])
-	measure.storeStartTime[code] = measure.timeZero // stop the timer
-	measure.storeAccumSize[code] += int64(size)
-	measure.curStoreCode = invalidCode
+func StopNative(nativeCode NativeOp, old CPUOp) {
+	reapTime()
+	measure.curCPUOp = old
+	measure.curStoreOp = StoreOpInvalid
+	measure.curNativeOp = NativeOpInvalid
 }
