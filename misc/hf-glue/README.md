@@ -72,7 +72,7 @@ make fetch init up
 
 | Variable             | Default                        | Meaning |
 |----------------------|--------------------------------|---------|
-| `SOURCE`             | `http://rpc.gno.land:26657`    | RPC URL / local data dir / exported tarball the `hardfork` tool understands |
+| `SOURCE`             | `https://rpc.betanet.testnets.gno.land` | RPC URL / local data dir / exported tarball the `hardfork` tool understands |
 | `ORIGINAL_CHAIN_ID`  | `gnoland1`                     | Source chain ID (used for historical signature verification) |
 | `CHAIN_ID`           | `gnoland-1`                    | New chain ID after the fork |
 | `HALT_HEIGHT`        | *(auto-detect)*                | Height to stop pulling at; empty = latest |

@@ -5,7 +5,7 @@
 SHELL := bash
 
 # ---- configurable ----------------------------------------------------------
-SOURCE             ?= http://rpc.gno.land:26657
+SOURCE             ?= https://rpc.betanet.testnets.gno.land
 ORIGINAL_CHAIN_ID  ?= gnoland1
 CHAIN_ID           ?= gnoland-1
 HALT_HEIGHT        ?=
