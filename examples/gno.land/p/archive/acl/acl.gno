@@ -1,6 +1,6 @@
 package acl
 
-import "gno.land/p/nt/avl"
+import "gno.land/p/nt/avl/v0"
 
 func New() *Directory {
 	return &Directory{

@@ -9,7 +9,7 @@ import (
 	"errors"
 
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Interface storing Action's data.

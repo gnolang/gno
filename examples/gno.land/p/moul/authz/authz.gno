@@ -43,9 +43,9 @@ import (
 
 	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/once"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/avl/rotree"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/avl/v0/rotree"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Authorizer is the main wrapper object that handles authority management.

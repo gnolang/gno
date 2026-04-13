@@ -5,7 +5,7 @@ package daokit
 // Example: "transfer" action requires 3 member votes for execution.
 
 import (
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 	"gno.land/p/samcrew/daocond"
 )
 

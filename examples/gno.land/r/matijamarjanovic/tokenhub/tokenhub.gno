@@ -4,12 +4,12 @@ import (
 	"chain/runtime"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/fqname"
+	"gno.land/p/nt/fqname/v0"
 	"gno.land/r/demo/defi/grc20reg"
 
 	"gno.land/p/demo/tokens/grc1155"
 	"gno.land/p/demo/tokens/grc721"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 
 	"gno.land/r/leon/hor"
 )
@@ -32,18 +32,11 @@ func init() {
 }
 
 // RegisterToken is a function that uses gno.land/r/demo/defi/grc20reg to register a token
-// It uses the slug to construct a key and then registers the token in the registry
-// The logic is the same as in grc20reg, but it's done here so the key path is callers pkgpath and not of this realm
-// After doing so, the token hub realm uses grc20reg's registry as a read-only avl.Tree
-//
-// Note: register token returns the key path that can be used to retrieve the token
+// RegisterToken registers a token in grc20reg with the given slug.
+// Returns the registry key that can be used to retrieve the token.
 func RegisterToken(cur realm, token *grc20.Token, slug string) string {
-	rlmPath := runtime.PreviousRealm().PkgPath()
-	key := fqname.Construct(rlmPath, slug)
-
-	grc20reg.Register(cross, token, key)
-
-	return fqname.Construct(runtime.CurrentRealm().PkgPath(), key)
+	grc20reg.Register(cross, token, slug)
+	return fqname.Construct(runtime.CurrentRealm().PkgPath(), slug)
 }
 
 // RegisterNFT is a function that registers an NFT in an avl.Tree
