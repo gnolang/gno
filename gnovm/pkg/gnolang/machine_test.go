@@ -149,7 +149,7 @@ func TestPreprocessAllFilesAndSaveBlockNodes_skipsBroken(t *testing.T) {
 	// "for range 1000" is valid syntax but triggers a panic in Preprocess
 	// because Gno does not support ranging over integers. This means the
 	// store will contain partial data (PackageNode, predefined types) written
-	// before the panic — exactly the scenario we need to verify.
+	// before the panic.
 	store.AddMemPackage(&std.MemPackage{
 		Type: MPStdlibAll,
 		Name: "broken",
