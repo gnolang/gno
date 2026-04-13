@@ -41,6 +41,16 @@ func (b *BitSet) ClearAll() {
 	}
 }
 
+// Compact reclaims memory by removing trailing zero words.
+func (b *BitSet) Compact() {
+	end := len(b.words)
+	for ; end > 0 && b.words[end-1] == 0; end-- {
+	}
+	words := make([]uint64, end)
+	copy(words, b.words)
+	b.words = words
+}
+
 // IsSet checks whether the bit at a given position is set.
 func (b BitSet) IsSet(i uint64) bool {
 	idx := wordIndex(i)

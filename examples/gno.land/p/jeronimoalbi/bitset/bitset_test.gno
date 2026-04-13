@@ -116,6 +116,64 @@ func TestBitSetClearAll(t *testing.T) {
 	}
 }
 
+func TestBitSetCompact(t *testing.T) {
+	cases := []struct {
+		name     string
+		setup    func() bitset.BitSet
+		wantSize int
+	}{
+		{
+			name: "clear all",
+			setup: func() bitset.BitSet {
+				var b bitset.BitSet
+				b.Set(1)
+				b.Set(64)
+				b.Set(200)
+				b.ClearAll()
+				return b
+			},
+			wantSize: 0,
+		},
+		{
+			name: "trailing zeros",
+			setup: func() bitset.BitSet {
+				var a, other bitset.BitSet
+				a.Set(1)
+				a.Set(128)
+				other.Set(1)
+				a.And(other)
+				return a
+			},
+			wantSize: 64,
+		},
+		{
+			name: "no trailing zeros",
+			setup: func() bitset.BitSet {
+				var b bitset.BitSet
+				b.Set(1)
+				b.Set(64)
+				return b
+			},
+			wantSize: 128,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			b := tc.setup()
+
+			// Act
+			b.Compact()
+
+			// Assert
+			if got := b.Size(); got != tc.wantSize {
+				t.Errorf("expected size %d after Compact, got %d", tc.wantSize, got)
+			}
+		})
+	}
+}
+
 func TestBitSetSize(t *testing.T) {
 	cases := []struct {
 		name  string
