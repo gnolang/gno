@@ -1,3 +1,6 @@
+WRITE_FILE: .github/actionlint.yaml
+CONTENT:
 self-hosted-runner:
   labels:
     - benchmarks
+END_CONTENT
