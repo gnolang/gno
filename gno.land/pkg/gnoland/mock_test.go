@@ -165,21 +165,93 @@ func (m *mockAuthKeeper) IterateAccounts(ctx sdk.Context, process func(std.Accou
 func (m *mockAuthKeeper) InitGenesis(ctx sdk.Context, data auth.GenesisState)             {}
 func (m *mockAuthKeeper) GetParams(ctx sdk.Context) auth.Params                           { return auth.Params{} }
 
-type mockParamsKeeper struct{}
+type mockParamsKeeper struct {
+	getStringFn  func(sdk.Context, string, *string)
+	getInt64Fn   func(sdk.Context, string, *int64)
+	getUint64Fn  func(sdk.Context, string, *uint64)
+	getBoolFn    func(sdk.Context, string, *bool)
+	getBytesFn   func(sdk.Context, string, *[]byte)
+	getStringsFn func(sdk.Context, string, *[]string)
 
-func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string)    {}
-func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64)      {}
-func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64)    {}
-func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)        {}
-func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)     {}
-func (m *mockParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {}
+	setStringFn  func(sdk.Context, string, string)
+	setInt64Fn   func(sdk.Context, string, int64)
+	setUint64Fn  func(sdk.Context, string, uint64)
+	setBoolFn    func(sdk.Context, string, bool)
+	setBytesFn   func(sdk.Context, string, []byte)
+	setStringsFn func(sdk.Context, string, []string)
+}
 
-func (m *mockParamsKeeper) SetString(ctx sdk.Context, key string, value string)    {}
-func (m *mockParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64)      {}
-func (m *mockParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64)    {}
-func (m *mockParamsKeeper) SetBool(ctx sdk.Context, key string, value bool)        {}
-func (m *mockParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte)     {}
-func (m *mockParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {}
+func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {
+	if m.getStringFn != nil {
+		m.getStringFn(ctx, key, ptr)
+	}
+}
+
+func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) {
+	if m.getInt64Fn != nil {
+		m.getInt64Fn(ctx, key, ptr)
+	}
+}
+
+func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {
+	if m.getUint64Fn != nil {
+		m.getUint64Fn(ctx, key, ptr)
+	}
+}
+
+func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) {
+	if m.getBoolFn != nil {
+		m.getBoolFn(ctx, key, ptr)
+	}
+}
+
+func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) {
+	if m.getBytesFn != nil {
+		m.getBytesFn(ctx, key, ptr)
+	}
+}
+
+func (m *mockParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
+	if m.getStringsFn != nil {
+		m.getStringsFn(ctx, key, ptr)
+	}
+}
+
+func (m *mockParamsKeeper) SetString(ctx sdk.Context, key string, value string) {
+	if m.setStringFn != nil {
+		m.setStringFn(ctx, key, value)
+	}
+}
+
+func (m *mockParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64) {
+	if m.setInt64Fn != nil {
+		m.setInt64Fn(ctx, key, value)
+	}
+}
+
+func (m *mockParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {
+	if m.setUint64Fn != nil {
+		m.setUint64Fn(ctx, key, value)
+	}
+}
+
+func (m *mockParamsKeeper) SetBool(ctx sdk.Context, key string, value bool) {
+	if m.setBoolFn != nil {
+		m.setBoolFn(ctx, key, value)
+	}
+}
+
+func (m *mockParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
+	if m.setBytesFn != nil {
+		m.setBytesFn(ctx, key, value)
+	}
+}
+
+func (m *mockParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
+	if m.setStringsFn != nil {
+		m.setStringsFn(ctx, key, value)
+	}
+}
 
 func (m *mockParamsKeeper) Has(ctx sdk.Context, key string) bool                { return false }
 func (m *mockParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {}
