@@ -1642,8 +1642,7 @@ var Deployed = true
 
 		var (
 			db      = memdb.NewMemDB()
-			key1    = getDummyKey(t)
-			key2    = getDummyKey(t)
+			key     = getDummyKey(t)
 			chainID = "new-chain"
 
 			path1 = "gno.land/r/demo/multichain1"
@@ -1656,9 +1655,10 @@ var Deployed = true
 		app, err := NewAppWithOptions(TestAppOptions(db))
 		require.NoError(t, err)
 
-		// tx1 was originally on "chain-a", tx2 on "chain-b"
+		// Both txs come from the same account (accNum=0) but different past chains.
+		// tx1: seq=0, chain-a; tx2: seq=1, chain-b (sequence incremented by tx1).
 		msg1 := vm.MsgAddPackage{
-			Creator: key1.PubKey().Address(),
+			Creator: key.PubKey().Address(),
 			Package: &std.MemPackage{
 				Name: "multichain1",
 				Path: path1,
@@ -1669,7 +1669,7 @@ var Deployed = true
 			},
 		}
 		msg2 := vm.MsgAddPackage{
-			Creator: key2.PubKey().Address(),
+			Creator: key.PubKey().Address(),
 			Package: &std.MemPackage{
 				Name: "multichain2",
 				Path: path2,
@@ -1680,8 +1680,18 @@ var Deployed = true
 			},
 		}
 
-		tx1 := createAndSignTx(t, []std.Msg{msg1}, "chain-a", key1)
-		tx2 := createAndSignTx(t, []std.Msg{msg2}, "chain-b", key2)
+		tx1 := createAndSignTx(t, []std.Msg{msg1}, "chain-a", key) // accNum=0, seq=0
+
+		// tx2 must use seq=1 because tx1 already incremented the sequence.
+		tx2Raw := std.Tx{
+			Msgs: []std.Msg{msg2},
+			Fee:  std.Fee{GasFee: std.NewCoin("ugnot", 2_000_000), GasWanted: 10_000_000},
+		}
+		signBytes2, err := tx2Raw.GetSignBytes("chain-b", 0, 1) // accNum=0, seq=1
+		require.NoError(t, err)
+		sig2, err := key.Sign(signBytes2)
+		require.NoError(t, err)
+		tx2Raw.Signatures = []std.Signature{{PubKey: key.PubKey(), Signature: sig2}}
 
 		// Both chain IDs in the allowlist; each tx carries its own ChainID
 		app.InitChain(abci.RequestInitChain{
@@ -1704,7 +1714,7 @@ var Deployed = true
 						},
 					},
 					{
-						Tx: tx2,
+						Tx: tx2Raw,
 						Metadata: &GnoTxMetadata{
 							Timestamp:   time.Now().Unix(),
 							BlockHeight: 20,
@@ -1713,8 +1723,7 @@ var Deployed = true
 					},
 				},
 				Balances: []Balance{
-					{Address: key1.PubKey().Address(), Amount: std.NewCoins(std.NewCoin("ugnot", 20_000_000))},
-					{Address: key2.PubKey().Address(), Amount: std.NewCoins(std.NewCoin("ugnot", 20_000_000))},
+					{Address: key.PubKey().Address(), Amount: std.NewCoins(std.NewCoin("ugnot", 20_000_000))},
 				},
 				Auth:         auth.DefaultGenesisState(),
 				Bank:         bank.DefaultGenesisState(),
