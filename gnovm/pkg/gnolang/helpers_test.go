@@ -161,8 +161,8 @@ func TestLeftmostX(t *testing.T) {
 	name := func(n string) *NameExpr { return &NameExpr{Name: Name(n)} }
 	sel := func(x Expr, s string) *SelectorExpr { return &SelectorExpr{X: x, Sel: Name(s)} }
 	idx := func(x, i Expr) *IndexExpr { return &IndexExpr{X: x, Index: i} }
-	slc := func(x, low, high, max Expr) *SliceExpr {
-		return &SliceExpr{X: x, Low: low, High: high, Max: max}
+	slc := func(x, low, high, mx Expr) *SliceExpr {
+		return &SliceExpr{X: x, Low: low, High: high, Max: mx}
 	}
 	call := func(fn Expr, args ...Expr) *CallExpr { return &CallExpr{Func: fn, Args: args} }
 	star := func(x Expr) *StarExpr { return &StarExpr{X: x} }
