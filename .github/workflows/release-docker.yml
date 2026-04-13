@@ -68,6 +68,11 @@ jobs:
           labels: |
             org.opencontainers.image.authors=Gno Core Team
 
+      # Expose GitHub Runtime
+      - name: Expose GitHub Runtime
+        if: env.ACTIONS_CACHE_URL == ''
+        uses: crazy-max/ghaction-github-runtime@v4
+
       # Using Github Context. Overriding context with an explicit `set` is required
       - name: Bake build and push
         uses: docker/bake-action@5be5f02ff8819ecd3092ea6b2e6261c31774f2b4 # v6
