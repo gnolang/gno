@@ -1273,18 +1273,30 @@ func (m *Machine) Run(st Stage) {
 	if bm.NativeEnabled {
 		defer bm.FinishNative()
 	}
-	defer func() {
-		r := recover()
 
-		if r != nil {
-			switch r := r.(type) {
-			case *Exception:
-				if r.Stacktrace.IsZero() {
-					r.Stacktrace = m.Stacktrace()
-				}
-				m.pushPanic(r.Value)
-				m.Run(st)
-			default:
+	// Iterative exception recovery: catch Go-level *Exception panics and
+	// convert them to the cooperative pushPanic path without recursion.
+	for {
+		caught := m.runOnce()
+		if caught == nil {
+			return
+		}
+		if caught.Stacktrace.IsZero() {
+			caught.Stacktrace = m.Stacktrace()
+		}
+		m.pushPanic(caught.Value)
+	}
+}
+
+// runOnce executes the op loop until it completes (OpHalt) or a Go-level
+// *Exception panic is caught. Returns the caught exception, or nil if the
+// loop completed normally. Non-Exception panics are re-raised.
+func (m *Machine) runOnce() (caught *Exception) {
+	defer func() {
+		if r := recover(); r != nil {
+			if ex, ok := r.(*Exception); ok {
+				caught = ex
+			} else {
 				panic(r)
 			}
 		}
