@@ -2,26 +2,43 @@
 
 ## What is the CLA?
 
-The Contributor License Agreement (CLA) is a legal agreement between you (the contributor) and the Gno.land project. It grants the project the necessary rights to use, distribute, and sublicense your contributions under the [GNO Network General Public License](./LICENSE.md) while you retain ownership of your work.
+The Contributor License Agreement (CLA) is a legal agreement between
+you (the contributor) and the Gno.land project. It grants the project
+the necessary rights to use, distribute, and sublicense your
+contributions under the
+[GNO Network General Public License](./LICENSE.md) while you retain
+ownership of your work.
 
 ## Why must contributors sign it?
 
 Signing the CLA ensures that:
-- The project has the legal right to include your contribution in the Gno.land network and related repositories.
-- Your contribution can be distributed under the Network License without legal ambiguity.
-- You confirm that you have the right to submit the contribution and that it does not infringe on any third-party rights.
+- The project has the legal right to include your contribution
+  in the Gno.land network and related repositories.
+- Your contribution can be distributed under the Network License
+  without legal ambiguity.
+- You confirm that you have the right to submit the contribution
+  and that it does not infringe on any third-party rights.
 
 ## How to sign the CLA
 
 1. **Read the full agreement** below to understand the terms.
-2. **Submit a contribution** via an on-chain package submission transaction (e.g., `MsgAddPackage`). The transaction must include the current CLA Hash, which is the cryptographic hash of the canonical CLA text published by the Network.
-3. **Inclusion of the CLA Hash** in your submission constitutes your acceptance of the agreement. You only need to accept once per CLA Hash — if the agreement text changes and a new hash is published, you will need to accept the updated version.
+2. **Submit a contribution** via an on-chain package submission
+   transaction (e.g., `MsgAddPackage`). The transaction must include
+   the current CLA Hash, which is the cryptographic hash of the
+   canonical CLA text published by the Network.
+3. **Inclusion of the CLA Hash** in your submission constitutes your
+   acceptance of the agreement. You only need to accept once per CLA
+   Hash — if the agreement text changes and a new hash is published,
+   you will need to accept the updated version.
 
-For off-chain contributions (e.g., pull requests to the GitHub repository), follow the instructions provided by the project's contribution tooling. See [CONTRIBUTING.md](./CONTRIBUTING.md) for more details.
+For off-chain contributions (e.g., pull requests to the GitHub
+repository), follow the instructions provided by the project's
+contribution tooling. See [CONTRIBUTING.md](./CONTRIBUTING.md) for
+more details.
 
 ---
 
-**Contributor License Agreement**
+## Full Agreement
 
 This Agreement governs Contributions uploaded, published, or made available
 for execution on the Gno.land blockchain network (the "Network"), and the
@@ -31,7 +48,7 @@ The Network is stewarded by (i) GovDAO as the community governance body for
 Gno.land and (ii) NewTendermint, LLC ("NewTendermint") as the current core
 maintainer of the Network.
 
-**1. Definitions**
+### 1. Definitions
 
 **"CLA Hash"** means the cryptographic hash of the canonical text of this
 Agreement published by the Network as an on-chain parameter.
@@ -61,7 +78,7 @@ except as permitted under applicable NewTendermint policies. Where the Network
 License applies (for example, to code and other copyrightable works), Strong
 Attribution and other Network License requirements must be followed.
 
-**2. Acceptance; Scope**
+### 2. Acceptance; Scope
 
 By submitting a Contribution for publication or execution on the Network, you
 agree to be bound by this Agreement.
@@ -87,7 +104,7 @@ Other Network participants (including those submitting non-package
 transactions) are governed by the Network Interaction Terms referenced in the
 site footer.
 
-**3. Copyright License Grant**
+### 3. Copyright License Grant
 
 You grant to NewTendermint, GovDAO (in its capacity as the Network's
 governance body), and all recipients of software distributed in connection with
@@ -103,7 +120,7 @@ Network License (GNO GPL v6 or later), including its Additional Terms on
 Strong Attribution. This Agreement does not transfer ownership of your
 Contribution.
 
-**4. License Grant for Inputs and Resulting State**
+### 4. License Grant for Inputs and Resulting State
 
 To the extent you have rights in any non-code inputs you submit and any
 resulting or derived on-chain state produced from your Contribution, you grant
@@ -113,7 +130,7 @@ mirror, archive, display, and use those inputs and resulting state as needed to
 operate, verify, maintain, improve and provide access to the Network and its
 history.
 
-**5. Patent License**
+### 5. Patent License
 
 To the extent you own or control any patent claims that would be necessarily
 infringed by use of the code portion of your Contribution (alone or in
@@ -123,7 +140,7 @@ contributed code a perpetual, worldwide, royalty-free, non-exclusive,
 irrevocable patent license to make, have made, use, sell, offer for sale,
 import, and otherwise exploit that code under the Network License.
 
-**6. Contributor Representations and Warranties**
+### 6. Contributor Representations and Warranties
 
 You represent and warrant that:
 
@@ -147,20 +164,20 @@ a third party, you represent and warrant that you have the right to submit it
 under the Network License and this Agreement, and that you have complied with
 any applicable notice or attribution requirements.
 
-**7. No Assignment of Ownership**
+### 7. No Assignment of Ownership
 
 Except for the rights granted under this Agreement and the Network License, you
 retain all right, title, and interest in and to your Contribution. Nothing in
 this Agreement transfers ownership of your Contribution to NewTendermint,
 GovDAO, or any other party.
 
-**8. Moral Rights**
+### 8. Moral Rights
 
 To the maximum extent permitted by applicable law, you waive and agree not to
 assert any moral rights (or similar rights) in your Contribution to the extent
 such rights would interfere with the licenses granted under this Agreement.
 
-**9. Disclaimer**
+### 9. Disclaimer
 
 YOUR CONTRIBUTION IS PROVIDED "AS IS", WITHOUT WARRANTIES OR CONDITIONS OF ANY
 KIND, TO THE MAXIMUM EXTENT PERMITTED BY LAW. YOU DISCLAIM ALL EXPRESS OR
@@ -169,7 +186,7 @@ A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. UNLESS SEPARATELY AGREED IN
 WRITING, YOU HAVE NO OBLIGATION TO PROVIDE SUPPORT, UPDATES, OR BUG FIXES FOR
 YOUR CONTRIBUTION.
 
-**10. Severability; Relationship to Network License**
+### 10. Severability; Relationship to Network License
 
 This Agreement supplements the Network License and is intended to be consistent
 with it. If any provision of this Agreement is held unenforceable, the
@@ -178,7 +195,7 @@ conflict between this Agreement and the Network License, the Network License
 controls. Nothing in this Agreement limits any rights granted under the Network
 License.
 
-**11. General Provisions**
+### 11. General Provisions
 
 This Agreement is effective as of the date you first submit a Contribution to
 the Network. It applies to Contributions you submit after you accept this
