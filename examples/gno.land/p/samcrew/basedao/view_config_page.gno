@@ -1,7 +1,7 @@
 package basedao
 
 import (
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/samcrew/daokit"
 )
 

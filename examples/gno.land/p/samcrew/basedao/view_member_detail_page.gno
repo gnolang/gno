@@ -1,6 +1,6 @@
 package basedao
 
-import "gno.land/p/nt/ufmt"
+import "gno.land/p/nt/ufmt/v0"
 
 func (d *DAOPrivate) MemberDetailPageView(address string) string {
 	return d.MemberDetailHeaderView() +

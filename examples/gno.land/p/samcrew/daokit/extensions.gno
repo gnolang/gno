@@ -4,7 +4,7 @@ package daokit
 // accessed by other packages or realms. It provides a secure way to make
 // specific DAO capabilities available without exposing internal implementation details.
 
-import "gno.land/p/nt/avl"
+import "gno.land/p/nt/avl/v0"
 
 // Interface must be implemented by any object that wants to be
 // registered as a DAO extension. Extensions expose functionality through
