@@ -252,7 +252,18 @@ func createAndStartEventStoreService(
 
 func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
 	genDoc *types.GenesisDoc, evsw events.EventSwitch, proxyApp appconn.AppConns, consensusLogger *slog.Logger,
-) error {
+) (retErr error) {
+	// Catch halt-height panics from BeginBlock during block replay.
+	defer func() {
+		if r := recover(); r != nil {
+			if haltErr, ok := r.(types.ErrHaltHeightReached); ok {
+				retErr = fmt.Errorf("halt height %d already reached, remove or increase halt_height in config before restarting", haltErr.Height)
+				return
+			}
+			panic(r)
+		}
+	}()
+
 	handshaker := cs.NewHandshaker(stateDB, state, blockStore, genDoc)
 	handshaker.SetLogger(consensusLogger)
 	handshaker.SetEventSwitch(evsw)
