@@ -475,11 +475,12 @@ func EndBlocker(
 			return abci.ResponseEndBlock{}
 		}
 
-		// Run the VM to get the updates from the chain
+		// Run the VM to get the validator changes for the last committed block.
+		lastHeight := app.LastBlockHeight()
 		response, err := vmk.QueryEval(
 			ctx,
 			valRealm,
-			fmt.Sprintf("%s(%d)", valChangesFn, app.LastBlockHeight()),
+			fmt.Sprintf("%s(%d,%d)", valChangesFn, lastHeight, lastHeight),
 		)
 		if err != nil {
 			app.Logger().Error("unable to call VM during EndBlocker", "err", err)
