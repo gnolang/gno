@@ -1,10 +1,10 @@
-# ADR: Chain Upgrade Genesis Replay
+# ADR: Genesis TX Metadata and Initial Height for Chain Upgrades
 
 ## Context
 
-We need to support a hard fork from `gnoland1` to `gnoland-1`. The approach is to export all historical transactions from the old chain, include them in the new chain's genesis with metadata, and replay them during `InitChain`. The new chain then starts at the halted height of the old chain.
+Chain hard forks require replaying historical transactions in a new chain's genesis. Historical transactions were signed with the old chain's ID; during genesis replay the ante handler must verify signatures against the chain ID that was in effect when the tx was originally executed.
 
-Historical transactions were signed with the old chain's ID (`gnoland1`). During genesis replay, the ante handler needs to verify these signatures using the original chain ID, not the new one.
+A chain may go through multiple upgrades — a genesis could contain transactions originating from several past chains (e.g. `gnoland1` and `gnoland-1`). Using a single `OriginalChainID` field is fragile: it assumes all historical txs come from one chain. Instead, we use a `PastChainIDs` allowlist and a per-tx `ChainID` so each transaction is verified against its own originating chain ID.
 
 ## Decision
 
@@ -12,7 +12,7 @@ Historical transactions were signed with the old chain's ID (`gnoland1`). During
 
 Two new fields on `GnoGenesisState`:
 
-- **`OriginalChainID`** (`string`): The chain ID of the source chain. When set, historical transactions (those with `metadata.BlockHeight > 0`) are replayed with this chain ID in the context, allowing signature verification to succeed.
+- **`PastChainIDs`** (`[]string`): Allowlist of chain IDs from which historical transactions in this genesis originated. Only chain IDs present in this slice can be used for the chain ID override during replay.
 - **`InitialHeight`** (`int64`): The block height the new chain should start from after genesis replay. This corresponds to the halt height of the old chain + 1.
 
 ### `GnoTxMetadata` extensions
@@ -20,8 +20,8 @@ Two new fields on `GnoGenesisState`:
 Three fields on `GnoTxMetadata` (populated by tx-archive export):
 
 - **`Timestamp`** (`int64`): Unix timestamp of the original block (pre-existing field).
-- **`BlockHeight`** (`int64`): The original block height at which the transaction was included. When greater than zero, the context's block header height is set to this value during replay.
-- **`ChainID`** (`string`): The originating chain ID for this transaction. Informational — used by tx-archive to record provenance; the actual chain ID override during replay uses `GnoGenesisState.OriginalChainID`.
+- **`BlockHeight`** (`int64`): The original block height at which the transaction was included. When greater than zero, the context's block header height is set to this value during replay, and the tx goes through the normal ante handler (full sig verification).
+- **`ChainID`** (`string`): The originating chain ID for this transaction. Used for the per-tx chain ID override during replay if `ChainID` is in `GnoGenesisState.PastChainIDs`.
 
 ### `GenesisDoc` extension
 
@@ -30,36 +30,36 @@ Three fields on `GnoTxMetadata` (populated by tx-archive export):
 ### How it works
 
 1. Historical txs are exported from the old chain with metadata (timestamp, block height, chain ID).
-2. The new genesis includes these txs along with `OriginalChainID` and `InitialHeight`.
+2. The new genesis includes these txs along with `PastChainIDs` (the allowlist) and `InitialHeight`.
 3. During `InitChain`, the genesis tx replay loop checks each tx's metadata:
-   - If `metadata.BlockHeight > 0`, the block header height is set accordingly.
-   - If `metadata.BlockHeight > 0` AND `state.OriginalChainID` is set, the context's chain ID is overridden to the original chain ID.
+   - If `metadata.BlockHeight > 0`, the block header height is set to `metadata.BlockHeight`.
+   - If `metadata.BlockHeight > 0` AND `metadata.ChainID != ""` AND `metadata.ChainID` is in `state.PastChainIDs`, the context's chain ID is overridden to `metadata.ChainID` for that tx's sig verification.
    - If `metadata.BlockHeight == 0` (or no metadata), normal genesis mode applies (no chain ID override, no sig verification for package deploys).
-4. The ante handler sees `BlockHeight > 0` as non-genesis, so it performs full signature verification using account numbers, sequences, and the (overridden) chain ID. This means historical tx signatures verify correctly without modification.
+4. The ante handler sees `BlockHeight > 0` as non-genesis, performing full signature verification using account numbers, sequences, and the (possibly overridden) chain ID.
 5. After `InitChain`, the consensus layer reads `GenesisDoc.InitialHeight` and advances `state.LastBlockHeight` so the chain starts producing blocks at the correct height.
 
 ### Key insight
 
-When `header.Height` is set to a non-zero value, the ante handler treats transactions as normal (not genesis), using actual account numbers/sequences and verifying signatures with `ctx.ChainID()`. By setting `ctx.WithChainID(originalChainID)`, the original signatures verify correctly.
-
-The chain ID override is intentionally guarded by both conditions (`BlockHeight > 0` AND `OriginalChainID != ""`), so:
+The override is guarded by three conditions: `BlockHeight > 0` AND `metadata.ChainID != ""` AND `metadata.ChainID ∈ PastChainIDs`. This means:
 - Standard genesis txs (package deployments, setup) are unaffected.
-- Historical txs without an original chain ID use the new chain's context.
+- Historical txs with an unrecognised chain ID are not silently overridden — they fail as expected.
+- A genesis spanning multiple past chains works correctly: each tx uses its own chain ID.
 
 ## Alternatives considered
 
 1. **Re-sign all transactions**: Would require access to all private keys. Not feasible.
 2. **Skip signature verification entirely**: Reduces security guarantees during genesis replay.
-3. **Patch the ante handler**: More invasive and harder to maintain.
-4. **Per-tx chain ID override** (using `GnoTxMetadata.ChainID`): We chose a state-level `OriginalChainID` instead. All historical txs in a hard fork come from the same source chain, so a single override is simpler and less error-prone.
+3. **Single `OriginalChainID` field**: Simpler but fragile — assumes all historical txs come from one chain. Breaks for multi-hop upgrades (chain A → chain B → chain C).
+4. **State-level override (old design)**: `OriginalChainID` applied to all historical txs regardless of their actual origin. `PastChainIDs` + per-tx `ChainID` is more precise and more extensible.
 
 ## Consequences
 
 - Genesis files for chain upgrades will be larger (containing all historical txs with metadata).
 - `InitialHeight` is implemented end-to-end: `GenesisDoc.InitialHeight` → consensus `Handshaker` → `state.LastBlockHeight`. The chain starts producing blocks at `InitialHeight` after genesis replay.
-- The `OriginalChainID` override only applies to txs with `BlockHeight > 0`, so standard genesis txs (package deployments, etc.) continue to work normally.
+- The chain ID override only applies to txs satisfying all three conditions, so standard genesis txs continue to work normally.
 - All new fields use `omitempty`, so existing genesis files are unaffected.
 - `GenesisDoc.InitialHeight` is validated to be non-negative.
+- Future upgrades from `gnoland-1` to `gnoland-2` can include `PastChainIDs: ["gnoland1", "gnoland-1"]` to replay the full history.
 
 ## Open items
 
