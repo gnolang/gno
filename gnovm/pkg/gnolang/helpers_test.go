@@ -221,7 +221,7 @@ func TestLeftmostX(t *testing.T) {
 
 	for _, tc := range cases {
 		got := LeftmostX(tc.in)
-		if gotStr, wantStr := toExprTrace(got), toExprTrace(tc.want); gotStr != wantStr {
+		if gotStr, wantStr := toExprTrace(got, stackRecursiveTraceLimit), toExprTrace(tc.want, stackRecursiveTraceLimit); gotStr != wantStr {
 			t.Fatalf("%s: leftmost mismatch\n got:  %s\n want: %s", tc.name, gotStr, wantStr)
 		}
 	}
