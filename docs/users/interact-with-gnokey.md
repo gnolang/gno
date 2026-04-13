@@ -252,17 +252,17 @@ Check balances using the [`bank/balances`](#bankbalances) query.
 
 ## `Run`
 
-Execute Gno scripts against on-chain code. Example using the [Userbook realm](https://gno.land/r/demo/userbook):
+Execute Gno scripts against on-chain code. Example using the [Counter realm](https://staging.gno.land/r/demo/counter):
 
 Create `script.gno`:
 
 ```go
 package main
 
-import "gno.land/r/demo/userbook"
+import "gno.land/r/demo/counter"
 
 func main() {
-  println(userbook.SignUp(cross))
+  println(counter.Increment())
 }
 ```
 
