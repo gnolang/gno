@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +25,8 @@ func TestParamsString(t *testing.T) {
 		fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain) +
 		fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit) +
 		fmt.Sprintf("StoragePrice: %q\n", p.StoragePrice) +
-		fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector)
+		fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector) +
+		fmt.Sprintf("ValsetRealmPath: %q\n", p.ValsetRealmPath)
 
 	// Assert: check if the result matches the expected string.
 	if result != expected {
@@ -231,6 +233,106 @@ func TestWillSetParamExhaustive(t *testing.T) {
 			assert.NotEqual(t, fmt.Sprintf(format, "p:"+jsonTag), call("p:"+jsonTag))
 		})
 	}
+}
+
+func TestWillSetParam_ValsetUpdate(t *testing.T) {
+	t.Parallel()
+
+	// valsetNewPath returns the raw key (without vm: prefix) for valset_new param.
+	// "valset_new" must be kept in sync with examples/gno.land/r/sys/validators/v3/poc.gno.
+	valsetNewPath := func() string {
+		return ValsetRealmDefault + ":valset_new"
+	}
+
+	t.Run("non-valset key passes through", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		assert.NotPanics(t, func() {
+			env.vmk.WillSetParam(ctx, "some_realm:arbitrary_key", nil)
+		})
+	})
+
+	t.Run("invalid value type", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetNewPath(), "not a slice")
+		})
+	})
+
+	t.Run("malformed entry", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetNewPath(), []string{"addr:pubkey:power:extra"})
+		})
+	})
+
+	t.Run("invalid address", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+		key := secp256k1.GenPrivKey()
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetNewPath(), []string{
+				fmt.Sprintf("notabech32:%s:10", key.PubKey()),
+			})
+		})
+	})
+
+	t.Run("address pubkey mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+		key1 := secp256k1.GenPrivKey()
+		key2 := secp256k1.GenPrivKey()
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetNewPath(), []string{
+				fmt.Sprintf("%s:%s:10", key1.PubKey().Address(), key2.PubKey()),
+			})
+		})
+	})
+
+	t.Run("invalid voting power", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+		key := secp256k1.GenPrivKey()
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetNewPath(), []string{
+				fmt.Sprintf("%s:%s:notanumber", key.PubKey().Address(), key.PubKey()),
+			})
+		})
+	})
+
+	t.Run("valid valset update", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+		key := secp256k1.GenPrivKey()
+
+		assert.NotPanics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetNewPath(), []string{
+				fmt.Sprintf("%s:%s:10", key.PubKey().Address(), key.PubKey()),
+			})
+		})
+	})
 }
 
 func TestParamsValidate(t *testing.T) {

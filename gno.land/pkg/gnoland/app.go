@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -177,20 +178,12 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		}
 	})
 
-	// Set up the event collector
-	c := newCollector[validatorUpdate](
-		cfg.EventSwitch,      // global event switch filled by the node
-		validatorEventFilter, // filter fn that keeps the collector valid
-	)
-
 	// Set EndBlocker
 	baseApp.SetEndBlocker(
 		EndBlocker(
-			c,
+			prmk,
 			acck,
 			gpk,
-			vmk,
-			prmk,
 			baseApp,
 		),
 	)
@@ -567,22 +560,44 @@ func isPastChainID(pastChainIDs []string, chainID string) bool {
 	return slices.Contains(pastChainIDs, chainID)
 }
 
+// Keep in sync with examples/gno.land/r/sys/validators/v3/poc.gno
+const (
+	vmModulePrefix = "vm"
+
+	// newUpdatesAvailableKey is a flag indicating the chain valset should be updated.
+	// Set by the contract, but reset by the chain (EndBlocker).
+	newUpdatesAvailableKey = "new_updates_available"
+
+	// valsetNewKey is the param that holds the new proposed valset. Set by the contract,
+	// and read (but never modified) by the chain.
+	valsetNewKey = "valset_new"
+
+	// valsetPrevKey is the param that holds the latest applied valset. Initially set by
+	// the contract (init), but later only written by the chain (EndBlocker).
+	valsetPrevKey = "valset_prev"
+)
+
+// valsetParamPath constructs the full param key for a valset-realm-scoped param:
+//
+//	vm:<valset-realm-path>:<valset-param-key>
+func valsetParamPath(valsetRealm, key string) string {
+	return fmt.Sprintf("%s:%s:%s", vmModulePrefix, valsetRealm, key)
+}
+
 // EndBlocker defines the logic executed after every block.
-// Currently, it parses events that happened during execution to calculate
-// validator set changes, and checks for a governance-requested chain halt.
+// It reads valset changes from the VM params keeper, checks for a
+// governance-requested chain halt, and propagates updates to consensus.
 func EndBlocker(
-	collector *collector[validatorUpdate],
+	prmk params.ParamsKeeperI,
 	acck auth.AccountKeeperI,
 	gpk auth.GasPriceKeeperI,
-	vmk vm.VMKeeperI,
-	prmk params.ParamsKeeperI,
 	app endBlockerApp,
 ) func(
 	ctx sdk.Context,
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
 	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
+		// Set the auth params value in the ctx. The EndBlocker will use InitialGasPrice in
 		// the params to calculate the updated gas price.
 		if acck != nil {
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
@@ -609,65 +624,86 @@ func EndBlocker(
 			}
 		}
 
-		// Check if there was a valset change
-		if len(collector.getEvents()) == 0 {
-			// No valset updates
+		// Determine which realm is responsible for valset management.
+		valsetRealm := vm.ValsetRealmDefault
+		prmk.GetString(ctx, vm.ValsetRealmParamPath, &valsetRealm)
+
+		// Check if there are any pending valset changes.
+		updatesAvailable := false
+		prmk.GetBool(ctx, valsetParamPath(valsetRealm, newUpdatesAvailableKey), &updatesAvailable)
+
+		if !updatesAvailable {
 			return abci.ResponseEndBlock{}
 		}
 
-		// Run the VM to get the validator changes for the last committed block.
-		lastHeight := app.LastBlockHeight()
-		response, err := vmk.QueryEval(
-			ctx,
-			valRealm,
-			fmt.Sprintf("%s(%d,%d)", valChangesFn, lastHeight, lastHeight),
+		var (
+			prevValset     []string
+			proposedValset []string
+
+			prevValsetPath     = valsetParamPath(valsetRealm, valsetPrevKey)
+			proposedValsetPath = valsetParamPath(valsetRealm, valsetNewKey)
 		)
+
+		prmk.GetStrings(ctx, prevValsetPath, &prevValset)
+		prmk.GetStrings(ctx, proposedValsetPath, &proposedValset)
+
+		// Parse the previous set.
+		prevSet, err := extractUpdatesFromParams(prevValset)
 		if err != nil {
-			app.Logger().Error("unable to call VM during EndBlocker", "err", err)
+			app.Logger().Error(
+				"unable to parse prev valset in EndBlocker",
+				"err", err,
+			)
 
 			return abci.ResponseEndBlock{}
 		}
 
-		// Extract the updates from the VM response
-		updates, err := extractUpdatesFromResponse(response)
+		// Parse the proposed set.
+		proposedSet, err := extractUpdatesFromParams(proposedValset)
 		if err != nil {
-			app.Logger().Error("unable to extract updates from response", "err", err)
+			app.Logger().Error(
+				"unable to parse proposed valset in EndBlocker",
+				"err", err,
+			)
 
 			return abci.ResponseEndBlock{}
 		}
+
+		// Compute the diff between prev and proposed.
+		updates := prevSet.UpdatesFrom(proposedSet)
+
+		app.Logger().Info(
+			"valset changes to be applied",
+			"count", len(updates),
+		)
+
+		// Advance prevValset to match proposedValset.
+		prmk.SetStrings(ctx, prevValsetPath, proposedValset)
+
+		// Clear the pending-updates flag.
+		prmk.SetBool(ctx, valsetParamPath(valsetRealm, newUpdatesAvailableKey), false)
 
 		allowedKeyTypes := ctx.ConsensusParams().Validator.PubKeyTypeURLs
 
-		// Filter out the updates that are not valid
+		// Filter out updates that fail consensus-level validation.
 		updates = slices.DeleteFunc(updates, func(u abci.ValidatorUpdate) bool {
-			// Make sure the power is valid
-			if u.Power < 0 {
-				app.Logger().Error(
-					"valset update invalid; voting power < 0",
-					"address", u.Address.String(),
-					"power", u.Power,
-				)
-
-				return true // delete it
+			// Power == 0 means removal; skip further validation for removals.
+			if u.Power == 0 {
+				return false
 			}
 
-			// Make sure the public key matches the address
-			if u.PubKey.Address().Compare(u.Address) != 0 {
-				app.Logger().Error(
-					"valset update invalid; pubkey + address mismatch",
-					"address", u.Address.String(),
-					"pubkey", u.PubKey.String(),
-				)
-
-				return true // delete it
-			}
-
-			// Make sure the public key is an allowed consensus key type
+			// Make sure the public key is an allowed consensus key type.
 			if !slices.Contains(allowedKeyTypes, amino.GetTypeURL(u.PubKey)) {
+				app.Logger().Error(
+					"valset update invalid; unsupported pubkey type",
+					"address", u.Address.String(),
+					"pubkey_type", amino.GetTypeURL(u.PubKey),
+				)
+
 				return true // delete it
 			}
 
-			return false // keep it, update is valid
+			return false // keep it
 		})
 
 		return abci.ResponseEndBlock{
@@ -676,52 +712,44 @@ func EndBlocker(
 	}
 }
 
-// extractUpdatesFromResponse extracts the validator set updates
-// from the VM response.
+// extractUpdatesFromParams parses serialized validator updates from the params keeper.
+// Each entry is expected to be in the form:
 //
-// This method is not ideal, but currently there is no mechanism
-// in place to parse typed VM responses
-func extractUpdatesFromResponse(response string) ([]abci.ValidatorUpdate, error) {
-	// Find the submatches
-	matches := valRegexp.FindAllStringSubmatch(response, -1)
-	if len(matches) == 0 {
-		// No changes to extract
-		return nil, nil
-	}
+//	<address>:<pub-key>:<voting-power>
+//
+// A voting power of 0 indicates a validator removal.
+func extractUpdatesFromParams(changes []string) (abci.ValidatorUpdates, error) {
+	updates := make(abci.ValidatorUpdates, 0, len(changes))
 
-	updates := make([]abci.ValidatorUpdate, 0, len(matches))
-	for _, match := range matches {
-		var (
-			addressRaw = match[1]
-			pubKeyRaw  = match[2]
-			powerRaw   = match[3]
-		)
-
-		// Parse the address
-		address, err := crypto.AddressFromBech32(addressRaw)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse address, %w", err)
+	for _, change := range changes {
+		parts := strings.Split(change, ":")
+		if len(parts) != 3 {
+			return nil, fmt.Errorf(
+				"valset update is not in the format <address>:<pub-key>:<voting-power>, but %q",
+				change,
+			)
 		}
 
-		// Parse the public key
-		pubKey, err := crypto.PubKeyFromBech32(pubKeyRaw)
+		address, err := crypto.AddressFromBech32(parts[0])
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse public key, %w", err)
+			return nil, fmt.Errorf("invalid validator address: %w", err)
 		}
 
-		// Parse the voting power
-		power, err := strconv.ParseInt(powerRaw, 10, 64)
+		pubKey, err := crypto.PubKeyFromBech32(parts[1])
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse voting power, %w", err)
+			return nil, fmt.Errorf("invalid validator pubkey: %w", err)
 		}
 
-		update := abci.ValidatorUpdate{
+		votingPower, err := strconv.ParseInt(parts[2], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid voting power: %w", err)
+		}
+
+		updates = append(updates, abci.ValidatorUpdate{
 			Address: address,
 			PubKey:  pubKey,
-			Power:   power,
-		}
-
-		updates = append(updates, update)
+			Power:   votingPower,
+		})
 	}
 
 	return updates, nil

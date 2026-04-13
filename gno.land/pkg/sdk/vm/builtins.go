@@ -142,6 +142,42 @@ func (prm *SDKParams) UpdateStrings(key string, vals []string, add bool) {
 	prm.SetStrings(key, updatedList)
 }
 
+func (prm *SDKParams) GetString(key string) (string, bool) {
+	var val string
+	prm.pmk.GetString(prm.ctx, key, &val)
+	return val, true // impossible to determine if value is missing or just empty
+}
+
+func (prm *SDKParams) GetBool(key string) (bool, bool) {
+	var val bool
+	prm.pmk.GetBool(prm.ctx, key, &val)
+	return val, true // impossible to determine if value is missing or just false
+}
+
+func (prm *SDKParams) GetInt64(key string) (int64, bool) {
+	var val int64
+	prm.pmk.GetInt64(prm.ctx, key, &val)
+	return val, true // impossible to determine if value is missing or just 0
+}
+
+func (prm *SDKParams) GetUint64(key string) (uint64, bool) {
+	var val uint64
+	prm.pmk.GetUint64(prm.ctx, key, &val)
+	return val, true // impossible to determine if value is missing or just 0
+}
+
+func (prm *SDKParams) GetBytes(key string) ([]byte, bool) {
+	var val []byte
+	prm.pmk.GetBytes(prm.ctx, key, &val)
+	return val, val != nil
+}
+
+func (prm *SDKParams) GetStrings(key string) ([]string, bool) {
+	var val []string
+	prm.pmk.GetStrings(prm.ctx, key, &val)
+	return val, val != nil
+}
+
 func (prm *SDKParams) setWithCheck(key string, set func()) {
 	prm.mustHaveModuleKeeper(key)
 	set()
