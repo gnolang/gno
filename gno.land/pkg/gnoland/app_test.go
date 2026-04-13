@@ -358,6 +358,24 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 				VM:       vm.DefaultGenesisState(),
 			}
 		}
+
+		getZeroTimestampMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
+			return GnoGenesisState{
+				// Metadata present but Timestamp=0 — genesis block time should be preserved
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp: 0, // zero — must not override to Unix epoch
+						},
+					},
+				},
+				Balances: balances,
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
+			}
+		}
 	)
 
 	testTable := []struct {
@@ -377,6 +395,12 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 			currentTimestamp,
 			laterTimestamp,
 			getMetadataState,
+		},
+		{
+			"metadata transaction with zero timestamp uses genesis block time",
+			currentTimestamp,
+			currentTimestamp, // zero Timestamp → falls back to genesis block time
+			getZeroTimestampMetadataState,
 		},
 	}
 

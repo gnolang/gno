@@ -413,7 +413,9 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		if metadata != nil {
 			ctxFn = func(ctx sdk.Context) sdk.Context {
 				header := ctx.BlockHeader().(*bft.Header).Copy()
-				header.Time = time.Unix(metadata.Timestamp, 0)
+				if metadata.Timestamp != 0 {
+					header.Time = time.Unix(metadata.Timestamp, 0)
+				}
 				if metadata.BlockHeight > 0 {
 					header.Height = metadata.BlockHeight
 				}
