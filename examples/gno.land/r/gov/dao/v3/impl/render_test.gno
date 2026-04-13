@@ -3,7 +3,7 @@ package impl
 import (
 	"testing"
 
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/urequire/v0"
 )
 
 // TestRenderMembershipBadge verifies that the non-member badge is displayed correctly

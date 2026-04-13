@@ -4,12 +4,12 @@ import (
 	"strconv"
 	"testing"
 
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 func TestResolveName(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
@@ -64,7 +64,7 @@ func TestResolveName(t *testing.T) {
 }
 
 func TestResolveAddress(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
@@ -114,7 +114,7 @@ func TestResolveAddress(t *testing.T) {
 }
 
 func TestROStores(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 	cleanStore(t)
 
 	urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
@@ -168,7 +168,7 @@ func TestROStores(t *testing.T) {
 }
 
 func TestResolveAny(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("name", func(t *testing.T) {
 		cleanStore(t)
@@ -198,6 +198,40 @@ func TestResolveAny(t *testing.T) {
 		res, _ := ResolveAny(aliceAddr.String())
 
 		uassert.Equal(t, nil, res)
+	})
+}
+
+func TestProposeErrors(t *testing.T) {
+	t.Run("propose_register_user_errors", func(t *testing.T) {
+		urequire.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+			ProposeRegisterUser("bad name", aliceAddr)
+		})
+		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
+			ProposeRegisterUser(alice, "badaddress")
+		})
+	})
+
+	t.Run("propose_update_name_errors", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
+			ProposeUpdateName("badaddress", "alice1")
+		})
+		urequire.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+			ProposeUpdateName(aliceAddr, "bad name")
+		})
+		// Note: unregistered user is not checked at proposal creation time.
+		// The callback handles it at execution time.
+	})
+
+	t.Run("propose_delete_user_errors", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
+			ProposeDeleteUser("badaddress")
+		})
+		// Note: unregistered user is not checked at proposal creation time.
+		// The callback handles it at execution time.
 	})
 }
 

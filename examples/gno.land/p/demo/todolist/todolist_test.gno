@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"testing"
 
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/uassert/v0"
 )
 
 func TestNewTodoList(t *testing.T) {

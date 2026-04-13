@@ -176,12 +176,12 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	if rlm == nil {
 		return
+	}
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.RealmDidUpdate)
+		defer func() { bm.StopStore(bm.RealmDidUpdate, oldCPU, oldStore, 0) }()
 	}
 	if debugRealm {
 		if co != nil && co.GetIsDeleted() {
@@ -340,9 +340,9 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(store Store) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.RealmFinalizeTx)
+		defer func() { bm.StopStore(bm.RealmFinalizeTx, oldCPU, oldStore, 0) }()
 	}
 
 	if debugRealm {
@@ -1006,7 +1006,7 @@ func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]str
 		}
 	case FieldType:
 		rlm.assertTypeIsPublic(store, tt.Type, visited)
-	case *SliceType, *ArrayType, *ChanType, *PointerType:
+	case *SliceType, *ArrayType, *PointerType:
 		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
 	case *tupleType:
 		for _, et := range tt.Elts {
@@ -1287,11 +1287,6 @@ func copyTypeWithRefs(typ Type) Type {
 		return dt
 	case *PackageType:
 		return &PackageType{}
-	case *ChanType:
-		return &ChanType{
-			Dir: ct.Dir,
-			Elt: refOrCopyType(ct.Elt),
-		}
 	case blockType:
 		return blockType{}
 	case *tupleType:
@@ -1332,7 +1327,9 @@ func copyValueWithRefs(val Value) Value {
 	case BigdecValue:
 		return cv
 	case DataByteValue:
-		panic("cannot copy data byte value with references")
+		// DataByteValue is a view into an ArrayValue.Data,
+		// it is copied with its parent array.
+		panic("DataByteValue should not be copied independently")
 	case PointerValue:
 		if cv.Base == nil {
 			panic("should not happen")
@@ -1550,9 +1547,6 @@ func fillType(store Store, typ Type) Type {
 		}
 	case *PackageType:
 		return ct // nothing to do
-	case *ChanType:
-		ct.Elt = fillType(store, ct.Elt)
-		return ct
 	case blockType:
 		return ct // nothing to do
 	case *tupleType:
@@ -1714,11 +1708,11 @@ func toRefValue(val Value) RefValue {
 		} else if !oo.GetIsReal() {
 			panic("unexpected unreal object")
 		}
-		// This can happen with some circular
-		// references.
-		// else if oo.GetIsDirty() {
-		// panic("unexpected dirty object")
-		// }
+
+		// NOTE: A dirty object here is valid when a parent is being
+		// converted to a RefValue while its child is still dirty
+		// (e.g. dirty map elements). See map31b.gno and zrealm17.gno.
+
 		if oo.GetIsNewEscaped() {
 			// NOTE: oo.GetOwnerID() will become zero.
 			return RefValue{
@@ -1729,7 +1723,7 @@ func toRefValue(val Value) RefValue {
 		} else if oo.GetIsEscaped() {
 			if debugRealm {
 				if !oo.GetOwnerID().IsZero() {
-					panic("cannot convert escaped object to ref value without an owner ID")
+					panic("escaped object should not have an owner ID")
 				}
 			}
 			return RefValue{
@@ -1740,10 +1734,10 @@ func toRefValue(val Value) RefValue {
 		} else {
 			if debugRealm {
 				if oo.GetRefCount() > 1 {
-					panic("unexpected references when converting to ref value")
+					panic("non-escaped object should not have refcount > 1")
 				}
 				if oo.GetHash().IsZero() {
-					panic("hash missing when converting to ref value")
+					panic("non-escaped object should not have zero hash")
 				}
 			}
 			return RefValue{

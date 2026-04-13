@@ -6,10 +6,11 @@ import (
 	"strings"
 
 	"gno.land/p/moul/helplink"
-	"gno.land/p/nt/avl/pager"
-	"gno.land/p/nt/mux"
-	"gno.land/p/nt/seqid"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/moul/md"
+	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/mux/v0"
+	"gno.land/p/nt/seqid/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/sys/users"
 )
@@ -92,7 +93,7 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 	}
 
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, p.Title())
+	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, md.EscapeText(p.Title()))
 	out += ufmt.Sprintf("Author: %s %s\n\n", tryResolveAddr(p.Author()), renderMembershipBadge(p.Author(), d))
 
 	out += p.Description()
@@ -132,7 +133,7 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 	}
 
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, p.Title(), ren.relativeRealmPath, pid)
+	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, md.EscapeText(p.Title()), ren.relativeRealmPath, pid)
 	out += ufmt.Sprintf("Author: %s %s\n\n", tryResolveAddr(p.Author()), renderMembershipBadge(p.Author(), d))
 
 	out += "Status: " + getPropStatus(ps)
