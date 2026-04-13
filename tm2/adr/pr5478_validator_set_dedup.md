@@ -25,9 +25,18 @@ weakened.
 
 ## Decision
 
-Fix at the realm layer — reject duplicate addresses before they reach tm2.
+Fix at the realm layer — deduplicate and reject duplicate addresses before they
+reach tm2.
 
-### Realm layer fix
+### 1. `saveChange()` dedup (handles cross-tx duplicates)
+
+`saveChange()` in `validators.gno` now checks if a change for the same address
+already exists in the current block. If so, it overwrites (last-writer-wins)
+instead of appending. Since all txs in a block run consecutively, tx2 sees tx1's
+writes — this handles the cross-tx case where two separate proposals modify the
+same validator in the same block.
+
+### 2. `NewPropRequest()` guards (handles within-proposal duplicates)
 
 Reject duplicate addresses in `NewPropRequest()` in
 `examples/gno.land/r/sys/validators/v2/poc.gno`:
@@ -35,9 +44,10 @@ Reject duplicate addresses in `NewPropRequest()` in
 - **At proposal creation**: panic if `changesFn()` returns duplicate addresses.
 - **At proposal execution**: same check in the callback, before applying changes.
 
-This prevents bad input from ever reaching tm2. The tm2 `processChanges()`
-duplicate rejection stays as-is — it's a correct safety net that catches
-programming errors.
+### 3. tm2 `processChanges()` — unchanged
+
+The tm2 `processChanges()` duplicate rejection stays as-is — it's a correct
+safety net that catches programming errors.
 
 ## Alternatives considered
 

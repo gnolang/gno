@@ -171,6 +171,41 @@ func TestGetChanges_ClampsMaxInt64(t *testing.T) {
 	uassert.Equal(t, vals[0].Address, result[0].Address)
 }
 
+// TestSaveChange_DeduplicatesSameBlock verifies that saveChange overwrites
+// an existing entry for the same address within the same block (last-writer-wins).
+// This handles the cross-tx case: tx1 removes validator X, tx2 re-adds X in the same block.
+func TestSaveChange_DeduplicatesSameBlock(t *testing.T) {
+	changes = avl.NewTree()
+	vp = poa.NewPoA()
+
+	vals := generateTestValidators(2)
+
+	// Add both validators to the set
+	addValidator(vals[0])
+	addValidator(vals[1])
+
+	h := runtime.ChainHeight()
+
+	// Clear changes from the adds above
+	changes = avl.NewTree()
+
+	// Simulate tx1: remove vals[0]
+	removeValidator(vals[0].Address)
+
+	// Simulate tx2: re-add vals[0] with new power (same block, no SkipHeights)
+	addValidator(validators.Validator{
+		Address:     vals[0].Address,
+		PubKey:      vals[0].PubKey,
+		VotingPower: 30,
+	})
+
+	// Should have 1 entry for vals[0] (the re-add), not 2
+	chs := GetChanges(h, h)
+	uassert.Equal(t, 1, len(chs))
+	uassert.Equal(t, vals[0].Address, chs[0].Address)
+	uassert.Equal(t, uint64(30), chs[0].VotingPower)
+}
+
 func TestNewPropRequest_DuplicateAddressPanics(t *testing.T) {
 	changes = avl.NewTree()
 	vp = poa.NewPoA()
