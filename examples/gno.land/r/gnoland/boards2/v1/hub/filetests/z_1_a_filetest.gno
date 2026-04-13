@@ -30,6 +30,7 @@ func main() {
 
 	println(thread.ID)
 	println(thread.OriginalBoardID)
+	println(thread.OriginalThreadID)
 	println(thread.BoardID)
 	println(thread.Title)
 	println(thread.Body)
@@ -45,6 +46,7 @@ func main() {
 
 // Output:
 // 1
+// 0
 // 0
 // 1
 // Title

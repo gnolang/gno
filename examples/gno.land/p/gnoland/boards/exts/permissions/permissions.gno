@@ -24,8 +24,8 @@ type ValidatorFunc func(boards.Permissions, boards.Args) error
 type Permissions struct {
 	superRole      boards.Role
 	dao            *commondao.CommonDAO
-	validators     *avl.Tree // string(boards.Permission) -> BasicPermissionValidator
-	public         *avl.Tree // string(boards.Permission) -> struct{}{}
+	public         boards.PermissionSet
+	validators     *avl.Tree // string(boards.Permission) -> ValidatorFunc
 	singleUserRole bool
 }
 
@@ -34,7 +34,6 @@ func New(options ...Option) *Permissions {
 	s := storage.NewMemberStorage()
 	ps := &Permissions{
 		validators: avl.NewTree(),
-		public:     avl.NewTree(),
 		dao:        commondao.New(commondao.WithMemberStorage(s)),
 	}
 
@@ -52,20 +51,17 @@ func (ps Permissions) DAO() *commondao.CommonDAO {
 // ValidateFunc adds a custom permission validator function.
 // If an existing permission function exists it's ovewritten by the new one.
 func (ps *Permissions) ValidateFunc(p boards.Permission, fn ValidatorFunc) {
-	ps.validators.Set(string(p), fn)
+	ps.validators.Set(p.String(), fn)
 }
 
 // SetPublicPermissions assigns permissions that are available to anyone.
 // It removes previous public permissions and assigns the new ones.
 // By default there are no public permissions.
 func (ps *Permissions) SetPublicPermissions(permissions ...boards.Permission) {
-	ps.public = avl.NewTree()
-	for _, p := range permissions {
-		ps.public.Set(string(p), struct{}{})
-	}
+	ps.public = boards.NewPermissionSet(permissions...)
 }
 
-// AddRole add a role with one or more assigned permissions.
+// AddRole adds a role with one or more assigned permissions.
 // If role exists its permissions are overwritten with the new ones.
 func (ps *Permissions) AddRole(r boards.Role, p boards.Permission, extra ...boards.Permission) {
 	// If role is the super role it already has all permissions
@@ -86,7 +82,8 @@ func (ps *Permissions) AddRole(r boards.Role, p boards.Permission, extra ...boar
 	}
 
 	// Save permissions within the member group overwritting any existing permissions
-	group.SetMeta(append([]boards.Permission{p}, extra...))
+	permissions := append([]boards.Permission{p}, extra...)
+	group.SetMeta(boards.NewPermissionSet(permissions...))
 }
 
 // RoleExists checks if a role exists.
@@ -120,7 +117,7 @@ func (ps Permissions) HasRole(user address, r boards.Role) bool {
 
 // HasPermission checks if a user has a specific permission.
 func (ps Permissions) HasPermission(user address, perm boards.Permission) bool {
-	if ps.public.Has(string(perm)) {
+	if ps.public.Has(perm) {
 		return true
 	}
 
@@ -142,10 +139,8 @@ func (ps Permissions) HasPermission(user address, perm boards.Permission) bool {
 		}
 
 		meta := group.GetMeta()
-		for _, p := range meta.([]boards.Permission) {
-			if p == perm {
-				return true
-			}
+		if perms, ok := meta.(boards.PermissionSet); ok && perms.Has(perm) {
+			return true
 		}
 	}
 	return false
@@ -248,7 +243,7 @@ func (ps *Permissions) WithPermission(user address, p boards.Permission, args bo
 	}
 
 	// Execute custom validation before calling the callback
-	v, found := ps.validators.Get(string(p))
+	v, found := ps.validators.Get(p.String())
 	if found {
 		err := v.(ValidatorFunc)(ps, args)
 		if err != nil {

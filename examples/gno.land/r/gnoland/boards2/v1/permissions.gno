@@ -5,6 +5,7 @@ import (
 	"gno.land/p/gnoland/boards/exts/permissions"
 )
 
+// List of Boards2 member roles.
 const (
 	RoleOwner     boards.Role = "owner"
 	RoleAdmin                 = "admin"
@@ -12,30 +13,45 @@ const (
 	RoleGuest                 = "guest"
 )
 
+// PermissionCustom defines an initial value for custom board permissions.
+// When a board defines custom permissions it must starts from a value
+// greater or equal than PermissionCustom.
+//
+// Custom permissions definition example:
+//
+//	const (
+//	  PermissionCustom1 boards.Permission = iota + boards2.PermissionCustom
+//	  PermissionCustom2
+//	  PermissionCustom3
+//	)
+const PermissionCustom boards.Permission = 200
+
+// List of Boards2 permissions.
 const (
-	PermissionBoardCreate         boards.Permission = "board:create"
-	PermissionBoardFlaggingUpdate                   = "board:flagging-update"
-	PermissionBoardFreeze                           = "board:freeze"
-	PermissionBoardRename                           = "board:rename"
-	PermissionMemberInvite                          = "member:invite"
-	PermissionMemberInviteRevoke                    = "member:invite-remove"
-	PermissionMemberRemove                          = "member:remove"
-	PermissionPermissionsUpdate                     = "permissions:update"
-	PermissionRealmHelp                             = "realm:help"
-	PermissionRealmLock                             = "realm:lock"
-	PermissionRealmNotice                           = "realm:notice"
-	PermissionReplyCreate                           = "reply:create"
-	PermissionReplyDelete                           = "reply:delete"
-	PermissionReplyFlag                             = "reply:flag"
-	PermissionRoleChange                            = "role:change"
-	PermissionThreadCreate                          = "thread:create"
-	PermissionThreadDelete                          = "thread:delete"
-	PermissionThreadEdit                            = "thread:edit"
-	PermissionThreadFlag                            = "thread:flag"
-	PermissionThreadFreeze                          = "thread:freeze"
-	PermissionThreadRepost                          = "thread:repost"
-	PermissionUserBan                               = "user:ban"
-	PermissionUserUnban                             = "user:unban"
+	PermissionBoardCreate boards.Permission = iota
+	PermissionBoardFlaggingUpdate
+	PermissionBoardFreeze
+	PermissionBoardRename
+	PermissionMemberInvite
+	PermissionMemberInviteRevoke
+	PermissionMemberRemove
+	PermissionPermissionsUpdate
+	PermissionRealmHelpChange
+	PermissionRealmLock
+	PermissionRealmNotice
+	PermissionAccountRequiredAmountChange
+	PermissionReplyCreate
+	PermissionReplyDelete
+	PermissionReplyFlag
+	PermissionRoleChange
+	PermissionThreadCreate
+	PermissionThreadDelete
+	PermissionThreadEdit
+	PermissionThreadFlag
+	PermissionThreadFreeze
+	PermissionThreadRepost
+	PermissionUserBan
+	PermissionUserUnban
 )
 
 func createBasicBoardPermissions(owner address) *permissions.Permissions {
