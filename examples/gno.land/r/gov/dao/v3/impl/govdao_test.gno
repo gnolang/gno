@@ -146,7 +146,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	urequire.Equal(t, false, accepted)
 
 	urequire.Equal(t, true, contains(dao.Render("0"), "**REJECTED** - This proposal has been denied"))
-	urequire.Equal(t, true, contains(dao.Render("0"), "68.42%")) // NO percentage shown in voting statistics
+	urequire.Equal(t, true, contains(dao.Render("0"), "81.25%")) // NO percentage shown in voting statistics
 }
 
 func TestExecutorCreationRealm(cur realm, t *testing.T) {

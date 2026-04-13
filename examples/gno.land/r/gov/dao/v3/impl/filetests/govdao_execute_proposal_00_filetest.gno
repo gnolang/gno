@@ -55,28 +55,38 @@ func main() {
 // Output:
 // Boom!
 //
-// ## Prop #0 - Test
-// Author: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+// # Proposal #0 - Test
+//
+// [View All Votes](/r/gov/dao/v3/impl:0/votes) | [Back to Proposals](/r/gov/dao/v3/impl)
+//
+// **REJECTED** - This proposal has been denied
+//
+// ## Details
+//
+// | | |
+// |---|---|
+// | **Author** | g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 |
+// | **Status** | REJECTED _(Reason: execution failed: Boom!)_ |
+// | **Eligible Tiers** | T1, T2, T3 |
+//
+// ## Description
 //
 // This proposal always fails on execution
 //
+// ## Voting Statistics
 //
+// **PROPOSAL REJECTED**
 //
-// ---
+// > **Reason:** execution failed: Boom!
 //
-// ### Stats
-// - **PROPOSAL HAS BEEN DENIED**
-// REASON: execution failed: Boom!
-// - Tiers eligible to vote: T1, T2, T3
-// - YES PERCENT: 0%
-// - NO PERCENT: 0%
-// - ABSTAIN PERCENT: 0%
+// | Vote Option | Votes | Percentage |
+// |-------------|-------|------------|
+// | YES | 3 | 0.00% |
+// | NO | 3 | 0.00% |
+// | ABSTAIN | 3 | 0.00% |
 //
-// [Detailed voting list](/r/gov/dao/v3/impl:0/votes)
+// **Eligible to vote:** T1, T2, T3
 //
-// ---
+// ## Actions
 //
-// ### Actions
-// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
-//
-// WARNING: Please double check transaction data before voting.
+// > This proposal has been rejected. No further actions available.

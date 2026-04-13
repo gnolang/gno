@@ -54,27 +54,44 @@ func main() {
 // Output:
 // true
 //
-// ## Prop #0 - Test
-// Author: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+// # Proposal #0 - Test
+//
+// [View All Votes](/r/gov/dao/v3/impl:0/votes) | [Back to Proposals](/r/gov/dao/v3/impl)
+//
+// **ACTIVE** - Voting in progress
+//
+// ## Details
+//
+// | | |
+// |---|---|
+// | **Author** | g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 |
+// | **Status** | ACTIVE |
+// | **Eligible Tiers** | T1, T2, T3 |
+// | **YES** | 0.00% |
+// | **NO** | 0.00% |
+//
+// ## Description
 //
 // This proposal always pass on execution
 //
+// ## Voting Statistics
 //
+// **Voting in Progress**
 //
-// ---
+// | Vote Option | Votes | Percentage |
+// |-------------|-------|------------|
+// | YES | 3 | 0.00% |
+// | NO | 3 | 0.00% |
+// | ABSTAIN | 3 | 0.00% |
 //
-// ### Stats
-// - **Proposal is open for votes**
-// - Tiers eligible to vote: T1, T2, T3
-// - YES PERCENT: 0%
-// - NO PERCENT: 0%
-// - ABSTAIN PERCENT: 0%
+// **Eligible to vote:** T1, T2, T3
 //
-// [Detailed voting list](/r/gov/dao/v3/impl:0/votes)
+// ## Actions
 //
-// ---
+// **Cast your vote:**
 //
-// ### Actions
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
-// WARNING: Please double check transaction data before voting.
+// > **Note:** Please verify all transaction details before submitting your vote.
+//
+// > **Requirement:** You must have a registered namespace to cast a vote.

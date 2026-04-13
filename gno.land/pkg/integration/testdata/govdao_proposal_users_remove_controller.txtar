@@ -17,7 +17,7 @@ stdout OK!
 
 # Render GovDAO to check it's working
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
-stdout 'data: # GovDAO'
+stdout 'data: # Governance DAO'
 
 # Create proposal to add @test1 as controller
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_controller_add_proposal.gno
