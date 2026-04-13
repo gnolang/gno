@@ -145,15 +145,17 @@ func TestPreprocessAllFilesAndSaveBlockNodes_skipsBroken(t *testing.T) {
 		},
 	}, MPAnyAll)
 
-	// Add a broken package (syntax error) directly to the store.
-	// This simulates a package that was valid when deployed but
-	// fails preprocessing on restart (e.g. due to a VM update).
+	// Add a package that parses successfully but panics during Preprocess.
+	// "for range 1000" is valid syntax but triggers a panic in Preprocess
+	// because Gno does not support ranging over integers. This means the
+	// store will contain partial data (PackageNode, predefined types) written
+	// before the panic — exactly the scenario we need to verify.
 	store.AddMemPackage(&std.MemPackage{
 		Type: MPStdlibAll,
 		Name: "broken",
 		Path: "broken",
 		Files: []*std.MemFile{
-			{Name: "broken.gno", Body: `package broken; func }{`},
+			{Name: "broken.gno", Body: "package broken\n\nfunc Crash() { for range 1000 {} }"},
 		},
 	}, MPAnyAll)
 
@@ -166,6 +168,31 @@ func TestPreprocessAllFilesAndSaveBlockNodes_skipsBroken(t *testing.T) {
 	assert.Contains(t, failed, "broken")
 	// The good package should NOT be in the failed list.
 	assert.NotContains(t, failed, "good")
+
+	// Verify no corrupt data left in the store: the good package's
+	// PackageNode must be fully intact with its FileSet populated and
+	// its declared function accessible.
+	goodLoc := PackageNodeLocation("good")
+	goodBN := store.GetBlockNodeSafe(goodLoc)
+	require.NotNil(t, goodBN, "good package's block node must exist in the store")
+	goodPN, ok := goodBN.(*PackageNode)
+	require.True(t, ok, "good package's block node must be a *PackageNode")
+	assert.Equal(t, "good", goodPN.PkgPath)
+	require.NotNil(t, goodPN.FileSet, "good package's FileSet must be populated")
+	assert.Len(t, goodPN.FileSet.Files, 1, "good package should have exactly one file")
+	// The "Hello" function must be defined in the package's static block,
+	// proving that Preprocess and SaveBlockNodes completed for this package.
+	_, ok = goodPN.GetLocalIndex("Hello")
+	assert.True(t, ok, "good package must have 'Hello' defined after full preprocessing")
+
+	// The broken package panics during Preprocess, after SetBlockNode and
+	// PredefineFileSet already wrote partial data to the store. Verify the
+	// partial PackageNode exists (confirming writes happened before the
+	// panic) but that this does not corrupt the good package above.
+	brokenLoc := PackageNodeLocation("broken")
+	brokenBN := store.GetBlockNodeSafe(brokenLoc)
+	require.NotNil(t, brokenBN,
+		"broken package should have a partial PackageNode from writes before the panic")
 }
 
 func TestMachineString(t *testing.T) {
