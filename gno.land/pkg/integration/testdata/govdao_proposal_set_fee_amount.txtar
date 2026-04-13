@@ -4,14 +4,9 @@ stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
 loadpkg gno.land/r/sys/users
-loadpkg gno.land/r/gnoland/users/v1
 loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 
 gnoland start
-
-# Register member with a namespace (required for voting)
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test member
-stdout 'OK!'
 
 # Create proposal to change fee from 1000000 to 2000000 ugnot
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_fee_proposal.gno
