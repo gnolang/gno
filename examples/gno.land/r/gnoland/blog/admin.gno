@@ -17,7 +17,7 @@ var (
 )
 
 var (
-	adminAddr     = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // FIXME: find a way to use this from the main's genesis.
+	adminAddr     = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 	moderatorList = avl.NewTree()
 	commenterList = avl.NewTree()
 	inPause       bool

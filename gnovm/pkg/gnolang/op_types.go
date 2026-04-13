@@ -152,19 +152,6 @@ func (m *Machine) doOpInterfaceType() {
 	})
 }
 
-func (m *Machine) doOpChanType() {
-	x := m.PopExpr().(*ChanTypeExpr)
-	tv := m.PeekValue(1) // re-use as result.
-	ct := &ChanType{
-		Dir: x.Dir,
-		Elt: tv.GetType(),
-	}
-	*tv = TypedValue{
-		T: gTypeType,
-		V: toTypeValue(ct),
-	}
-}
-
 // Evaluate the type of a typed (i.e. not untyped) value.
 // This function expects const expressions to have been
 // already swapped for *ConstExpr in the preprocessor.  If not, panics.

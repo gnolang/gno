@@ -15,7 +15,7 @@ func initTest() {
 	lastCaller = address("")
 	wd = watchdog.Watchdog{Duration: watchdogDuration}
 	creator := address("g1creator")
-	Ownable = ownable.NewWithAddress(creator)
+	Ownable = ownable.NewWithAddressByPrevious(creator)
 }
 
 func TestPackage(t *testing.T) {
