@@ -100,7 +100,7 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 			name: "print composite slice",
 			code: `package test
 			func main() {
-				a, b, c, d := 1, 2, 3, 4
+				const a, b, c, d = 1, 2, 3, 4
 				x := []int{
 					a: b,
 					c: d,

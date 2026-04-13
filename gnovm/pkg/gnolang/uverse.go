@@ -223,7 +223,7 @@ const (
 
 func init() {
 	// Skip Uverse init during benchmarking to load stdlibs in the benchmark main function.
-	if !(bm.OpsEnabled || bm.StorageEnabled) {
+	if !bm.Enabled {
 		// Call Uverse() so we initialize the Uverse node ahead of any calls to the package.
 		Uverse()
 	}
@@ -756,6 +756,10 @@ func makeUverseNode() {
 			m.PushValue(res0)
 		},
 	)
+	// NOTE: The variadic signature is intentionally permissive.
+	// Actual argument count validation (e.g. slices require 2-3 args,
+	// maps/channels require 1-2) is enforced at preprocess time in
+	// the "make" special case of CallExpr, not here.
 	defNative("make",
 		Flds( // params
 			"t", GenT("T.(type)", nil),
@@ -867,13 +871,6 @@ func makeUverseNode() {
 				default:
 					panic("make() of map type takes 1 or 2 arguments")
 				}
-			case *ChanType:
-				switch vargsl {
-				case 0, 1:
-					panic("not yet implemented")
-				default:
-					panic("make() of chan type takes 1 or 2 arguments")
-				}
 			default:
 				panic(fmt.Sprintf(
 					"cannot make type %s kind %v",
@@ -914,14 +911,14 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			// Todo: should stop op code benchmarking here.
 			if bm.NativeEnabled {
 				arg0 := m.LastBlock().GetParams1(m.Store)
-				bm.StartNative(bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false))))
+				ncode := bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false)))
+				old := bm.StartNative(ncode)
 				prevOutput := m.Output
 				m.Output = io.Discard
 				defer func() {
-					bm.StopNative()
+					bm.StopNative(ncode, old)
 					m.Output = prevOutput
 				}()
 			}
@@ -936,14 +933,14 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			// Todo: should stop op code benchmarking here.
 			if bm.NativeEnabled {
 				arg0 := m.LastBlock().GetParams1(m.Store)
-				bm.StartNative(bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false))))
+				ncode := bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false)))
+				old := bm.StartNative(ncode)
 				prevOutput := m.Output
 				m.Output = io.Discard
 				defer func() {
-					bm.StopNative()
+					bm.StopNative(ncode, old)
 					m.Output = prevOutput
 				}()
 			}
