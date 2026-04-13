@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
