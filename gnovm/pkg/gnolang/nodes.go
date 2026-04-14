@@ -142,6 +142,7 @@ const (
 	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH" // if name expr refers to package.
 	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"     // gno fix this version.
 	ATTR_LOOPVAR_SKIP          GnoAttribute = "ATTR_LOOPVAR_SKIP" // temp only
+	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )
@@ -494,8 +495,7 @@ type StarExpr struct { // *X
 
 type RefExpr struct { // &X
 	Attributes
-	X    Expr // operand
-	Type Type // static type of X, set during preprocessing.
+	X Expr // operand
 }
 
 type TypeAssertExpr struct { // X.(Type)

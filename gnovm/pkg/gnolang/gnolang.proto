@@ -218,7 +218,6 @@ message StarExpr {
 message RefExpr {
 	Attributes attributes = 1 [json_name = "Attributes"];
 	google.protobuf.Any x = 2 [json_name = "X"];
-	google.protobuf.Any type = 3 [json_name = "Type"];
 }
 
 message TypeAssertExpr {

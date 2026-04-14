@@ -404,11 +404,12 @@ func (m *Machine) doOpStaticTypeOf() {
 		}
 	case *RefExpr:
 		// The static type of &x is *typeof(x).
-		// RefExpr.Type is set during preprocessing.
-		if x.Type == nil {
-			panic("RefExpr.Type not set during preprocessing")
+		// ATTR_REF_ELEM_TYPE is set during preprocessing.
+		xt, ok := x.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
+		if !ok {
+			panic("ATTR_REF_ELEM_TYPE not set during preprocessing")
 		}
-		m.PushValue(asValue(&PointerType{Elt: x.Type}))
+		m.PushValue(asValue(&PointerType{Elt: xt}))
 	case *TypeAssertExpr:
 		if x.HasOK {
 			panic("type assert assignment used with return 2 values; has no type")

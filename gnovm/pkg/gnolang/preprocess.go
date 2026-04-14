@@ -2287,16 +2287,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 			// TRANS_LEAVE -----------------------
 			case *RefExpr:
-				// Store the static type of X on the RefExpr node
-				// so doOpRef can use it (instead of the runtime type,
-				// which is wrong for interface variables).
+				// Cache the static type of X as ATTR_REF_ELEM_TYPE
+				// on the RefExpr so doOpRef can use it (instead of
+				// the runtime type, which is wrong for interface variables).
 				xt := evalStaticTypeOf(store, last, n.X)
 				if tt, ok := xt.(*tupleType); ok {
 					panic(fmt.Sprintf(
 						"cannot take address of multi-value call (results: %s)",
 						tt.String()))
 				}
-				n.Type = xt
+				n.SetAttribute(ATTR_REF_ELEM_TYPE, xt)
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
@@ -2351,7 +2351,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// value: t.Mp is equivalent to (&t).Mp."
 						//
 						// convert to (&x).m, but leave xt as is.
-						n.X = &RefExpr{X: n.X, Type: nxt2}
+						ref := &RefExpr{X: n.X}
+						ref.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
+						n.X = ref
 						setPreprocessed(n.X)
 						switch tr[len(tr)-1].Type {
 						case VPDerefPtrMethod:
@@ -2377,7 +2379,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Case 2: If tr[0] is deref type, but xt
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
-						n.X = &RefExpr{X: n.X, Type: nxt2}
+						ref := &RefExpr{X: n.X}
+						ref.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
+						n.X = ref
 						setPreprocessed(n.X)
 					}
 					// bound method or underlying.
@@ -5472,7 +5476,8 @@ func elideCompositeExpr(last BlockNode, x *Expr, t Type) {
 			// Handle implicit &{}.
 			if t.Kind() == PointerKind {
 				clx.Type = toConstTypeExpr(last, tx, t.Elem())
-				refx := &RefExpr{X: clx, Type: t.Elem()}
+				refx := &RefExpr{X: clx}
+				refx.SetAttribute(ATTR_REF_ELEM_TYPE, t.Elem())
 				refx.SetSpan(clx.GetSpan())
 				*x = refx
 				elideCompositeElements(last, clx, t.Elem()) // recurse
@@ -5589,15 +5594,12 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 					// resolveEffectiveDeps then walks GetB's body to find B.
 					switch n.Path.Type {
 					case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
-						// Get the receiver type from the RefExpr.Type field
-						// or ATTR_TYPEOF_VALUE attribute.
+						// Get the receiver type from ATTR_REF_ELEM_TYPE
+						// on the RefExpr, or ATTR_TYPEOF_VALUE on n.X.
 						var xt Type
 						var ok bool
 						if re, ok2 := n.X.(*RefExpr); ok2 {
-							if re.Type != nil {
-								xt = re.Type
-								ok = true
-							}
+							xt, ok = re.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
 						}
 						if !ok {
 							xt, ok = n.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
