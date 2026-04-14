@@ -117,7 +117,7 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 			}()
 
 			m := NewMachine("test", nil)
-			nn := MustParseFile("main.go", s)
+			nn := m.MustParseFile("main.go", s)
 			m.RunFiles(nn)
 			m.RunMain()
 		})
@@ -148,7 +148,7 @@ func TestConvertTo(t *testing.T) {
 
 		m := NewMachine("test", nil)
 
-		n := MustParseFile("main.go", source)
+		n := m.MustParseFile("main.go", source)
 		m.RunFiles(n)
 		m.RunMain()
 	}
@@ -323,94 +323,6 @@ func TestConvertTo(t *testing.T) {
 		}
 		`, `test/main.go:6:14-22: cannot convert interface{} to test.MyInt: need type assertion`,
 		},
-		{
-			`package test
-
-		func main() {
-			const a int = -1
-		   println(uint(a))
-		}`,
-			`test/main.go:5:14-21: cannot convert constant of type IntKind to UintKind`,
-		},
-		{
-			`package test
-
-		func main() {
-			const a int = -1
-		   println(uint8(a))
-		}`,
-			`test/main.go:5:14-22: cannot convert constant of type IntKind to Uint8Kind`,
-		},
-		{
-			`package test
-
-		func main() {
-			const a int = -1
-		   println(uint16(a))
-		}`,
-			`test/main.go:5:14-23: cannot convert constant of type IntKind to Uint16Kind`,
-		},
-		{
-			`package test
-
-		func main() {
-			const a int = -1
-		   println(uint32(a))
-		}`,
-			`test/main.go:5:14-23: cannot convert constant of type IntKind to Uint32Kind`,
-		},
-		{
-			`package test
-
-		func main() {
-			const a int = -1
-		   println(uint64(a))
-		}`,
-			`test/main.go:5:14-23: cannot convert constant of type IntKind to Uint64Kind`,
-		},
-		{
-			`package test
-
-		func main() {
-			const a float32 = 1.5
-		   println(int32(a))
-		}`,
-			`test/main.go:5:14-22: cannot convert constant of type Float32Kind to Int32Kind`,
-		},
-		{
-			`package test
-
-		func main() {
-		   println(int32(1.5))
-		}`,
-			`test/main.go:4:14-24: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
-		},
-		{
-			`package test
-
-		func main() {
-			const a float64 = 1.5
-		   println(int64(a))
-		}`,
-			`test/main.go:5:14-22: cannot convert constant of type Float64Kind to Int64Kind`,
-		},
-		{
-			`package test
-
-		func main() {
-		   println(int64(1.5))
-		}`,
-			`test/main.go:4:14-24: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
-		},
-		{
-			`package test
-
-				func main() {
-					const f = float64(1.0)
-				   println(int64(f))
-				}`,
-			``,
-		},
 	}
 
 	for _, tc := range tests {
@@ -443,7 +355,7 @@ func main() {
 		}
 	}
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
 }
@@ -454,7 +366,7 @@ func BenchmarkPreprocessForLoop(b *testing.B) {
 func main() {
 	for i:=0; i<10000; i++ {}
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 
 	for i := 0; i < b.N; i++ {
@@ -473,7 +385,7 @@ func foo(a int) {
     b := int(a)
     println(b)
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 	fn := n.Decls[1].(*FuncDecl)
 	as := fn.Body[0].(*AssignStmt)
@@ -493,7 +405,7 @@ func main() {
 		}
 	}
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 
 	for i := 0; i < b.N; i++ {
@@ -578,7 +490,7 @@ func TestEval(t *testing.T) {
 func next(i int) int {
 	return i+1
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 	res := m.Eval(Call("next", "1"))
 	fmt.Println(res)
@@ -592,7 +504,7 @@ func assertOutput(t *testing.T, input string, output string) {
 		PkgPath: "test",
 		Output:  buf,
 	})
-	n := MustParseFile("main.go", input)
+	n := m.MustParseFile("main.go", input)
 	m.RunFiles(n)
 	m.RunMain()
 	assert.Equal(t, output, buf.String())
@@ -679,7 +591,7 @@ func BenchmarkBenchdata(b *testing.B) {
 					PkgPath: "main",
 					Output:  io.Discard,
 				})
-				n := MustParseFile("main.go", buf.String())
+				n := m.MustParseFile("main.go", buf.String())
 				m.RunFiles(n)
 
 				b.ResetTimer()

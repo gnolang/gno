@@ -43,7 +43,11 @@ func TestTransactionStore(t *testing.T) {
 	assert.Nil(t, st.GetMemPackage("gno.vm/t/hello"))
 	assert.NotNil(t, txSt.GetMemPackage("gno.vm/t/hello"))
 	assert.PanicsWithValue(t, "unexpected type with id gno.vm/t/hello.A", func() { st.GetType("gno.vm/t/hello.A") })
-	assert.NotNil(t, txSt.GetType("gno.vm/t/hello.A"))
+
+	// Check that hello.A is set in txSt.
+	stA := txSt.GetType("gno.vm/t/hello.A")
+	assert.NotNil(t, stA)
+	assert.Empty(t, stA.(*DeclaredType).Methods)
 
 	// use write on the stores
 	txSt.Write()
@@ -55,7 +59,16 @@ func TestTransactionStore(t *testing.T) {
 	assert.Equal(t, txSt.GetMemPackage("gno.vm/t/hello"), res)
 	helloA := st.GetType("gno.vm/t/hello.A")
 	assert.NotNil(t, helloA)
-	assert.Equal(t, txSt.GetType("gno.vm/t/hello.A"), helloA)
+	// Normalize nil vs empty slice: amino-unmarshal of an empty repeated field
+	// returns nil, while the in-memory type retains nil from construction.
+	// Both represent "no methods" and are semantically equivalent.
+	if helloA.(*DeclaredType).Methods == nil {
+		helloA.(*DeclaredType).Methods = []TypedValue{}
+	}
+	if stA.(*DeclaredType).Methods == nil {
+		stA.(*DeclaredType).Methods = []TypedValue{}
+	}
+	assert.Equal(t, stA, helloA)
 }
 
 func TestTransactionStore_blockedMethods(t *testing.T) {
@@ -97,7 +110,7 @@ func TestCopyFromCachedStore(t *testing.T) {
 
 	assert.Equal(t, c1, d1, "cached baseStore and dest baseStore should match")
 	assert.Equal(t, c2, d2, "cached iavlStore and dest iavlStore should match")
-	assert.Equal(t, cachedStore.cacheTypes, destStore.cacheTypes, "cacheTypes should match")
+	assert.Equal(t, cachedStore.cacheNodes, destStore.cacheNodes, "cacheNodes should match")
 }
 
 func TestFindByPrefix(t *testing.T) {

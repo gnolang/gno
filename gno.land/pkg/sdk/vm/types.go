@@ -28,7 +28,6 @@ type ParamsKeeperI interface {
 	params.ParamsKeeperI
 
 	IsRegistered(moduleName string) bool
-	GetRegisteredKeeper(moduleName string) params.ParamfulKeeper
 }
 
 // Public facing function signatures.

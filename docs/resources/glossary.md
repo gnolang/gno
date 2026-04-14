@@ -29,8 +29,13 @@ networks.
 See [Third-party wallets](../users/third-party-wallets.md).
 
 ### AVL Tree
-Data structure in Gno which is commonly used instead of the native `map`. Found
-at `gno.land/p/nt/avl`.
+Data structure commonly used instead of the native `map` for
+key-value storage. It is efficient in both gas cost and runtime performance,
+particularly suited for large or growing datasets. Deployed under
+`gno.land/p/nt/avl/v0`.
+
+See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for usage guidance 
+and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for technical details.
 
 ## B
 
@@ -198,6 +203,14 @@ which the address is derived) that represents an account on Gno.land.
 
 ## M
 
+### Map
+A native Gno data structure for storing key-value pairs, identical to Go maps.
+Maps provide O(1) lookup time and type safety, but store all entries in a single
+object which can be inefficient for large datasets. For scalable storage in
+realms, consider using `avl.Tree` instead.
+See [Data Structures](./gno-data-structures.md) and
+[Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage).
+
 ### Merkleization
 The process of organizing data into a Merkle tree structure, allowing efficient
 and secure verification of large data sets.
@@ -256,7 +269,7 @@ nonce. Used to protect against replay attacks.
 See [Realm](#realm).
 
 ### Staging network
-The main Gno.land chain for testing, accessible at [gno.land](https://gno.land).
+The main Gno.land chain for testing, accessible at [staging.gno.land](https://staging.gno.land).
 
 ### Standard Library
 Built-in packages that provide core functionality to Gno programs without
@@ -289,12 +302,6 @@ or calling a realm function.
 
 ### ugnot
 The smallest unit of GNOT. 1 GNOT = 1,000,000 ugnot (micro-GNOT).
-
-### User Registry
-
-A system realm that allows users to register usernames and claim matching
-namespaces for deploying code. List of releases found at `gno.land/r/gnoland/users`.
-See [Users and Teams](./users-and-teams.md) for details.
 
 ### wugnot
 Wrapped version of `ugnot`, following the GRC20 standard.

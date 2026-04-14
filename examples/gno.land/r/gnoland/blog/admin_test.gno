@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"gno.land/p/demo/blog"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 // clearState wipes the global state between test calls
@@ -15,10 +15,10 @@ func clearState(t *testing.T) {
 	t.Helper()
 
 	b = &blog.Blog{
-		Title:  "gno.land's blog",
+		Title:  "Gno.land's blog",
 		Prefix: "/r/gnoland/blog:",
 	}
-	adminAddr = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	adminAddr = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 	inPause = false
 	moderatorList = avl.NewTree()
 	commenterList = avl.NewTree()

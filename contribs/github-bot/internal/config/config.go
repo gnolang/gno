@@ -40,23 +40,6 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			Then: r.MaintainerCanModify(),
 		},
 		{
-			Description: "Changes to 'docs' folder must be reviewed/authored by at least one devrel and one tech-staff",
-			If: c.And(
-				c.BaseBranch("^master$"),
-				c.FileChanged(gh, "^docs/"),
-			),
-			Then: r.And(
-				r.Or(
-					r.AuthorInTeam(gh, "tech-staff"),
-					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore).WithDesiredState(utils.ReviewStateApproved),
-				),
-				r.Or(
-					r.AuthorInTeam(gh, "devrels"),
-					r.ReviewByTeamMembers(gh, "devrels", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
-				),
-			),
-		},
-		{
 			Description: "Changes related to gnoweb must be reviewed by its codeowners",
 			If: c.And(
 				c.BaseBranch("^master$"),
@@ -103,7 +86,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 				// c) be a draft
 				If(r.Or(
 					r.ReviewByAnyUser(gh,
-						"jefft0", "leohhhn", "n0izn0iz", "notJoon", "omarsy", "x1unix",
+						"davd-gzl", "jefft0", "notJoon", "omarsy", "MikaelVallenet",
 					).WithDesiredState(utils.ReviewStateApproved),
 					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
 					r.Draft(),
@@ -142,8 +125,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 					c.FileChanged(gh, `Dockerfile`),
 					c.FileChanged(gh, `^misc/deployments`),
 					c.FileChanged(gh, `^misc/docker-`),
-					c.FileChanged(gh, `^.github/workflows/releaser.*\.yml$`),
-					c.FileChanged(gh, `^.github/workflows/staging\.yml$`),
+					c.FileChanged(gh, `^.github/workflows/release.*\.yml$`),
 				),
 			),
 			Teams: Teams{"devops"},

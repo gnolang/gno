@@ -26,6 +26,7 @@ const (
 	gnoPreprocessError gnoCode = "gnoPreprocessError"
 	gnoParserError     gnoCode = "gnoParserError"
 	gnoTypeCheckError  gnoCode = "gnoTypeCheckError"
+	gnoLintError       gnoCode = "gnoLintError"
 
 	// TODO: add new gno codes here.
 )
@@ -62,12 +63,13 @@ func sourceAndTestFileset(mpkg *std.MemPackage, onlyFiletests bool) (
 	fset = &gno.FileSet{}
 	tfset = &gno.FileSet{}
 	_tests = &gno.FileSet{}
+	var m *gno.Machine
 	for _, mfile := range mpkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // Skip non-GNO files
 		}
 
-		n := gno.MustParseFile(mfile.Name, mfile.Body)
+		n := m.MustParseFile(mfile.Name, mfile.Body)
 		if n == nil {
 			continue // Skip empty files
 		}
@@ -89,7 +91,7 @@ func sourceAndTestFileset(mpkg *std.MemPackage, onlyFiletests bool) (
 			// Non-test files.
 			fset.AddFiles(n)
 			// Parse again so fset and tfset can be preprocessed separately.
-			n := gno.MustParseFile(mfile.Name, mfile.Body)
+			n := m.MustParseFile(mfile.Name, mfile.Body)
 			tfset.AddFiles(n)
 		}
 	}

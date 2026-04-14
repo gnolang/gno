@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
@@ -19,6 +20,7 @@ var (
 const tmpFile = "benchmark.bin"
 
 func main() {
+	runtime.GOMAXPROCS(1) // for consistent benchmarking
 	flag.Parse()
 	if *binFlag != "" {
 		binFile, err := filepath.Abs(*binFlag)
@@ -28,6 +30,7 @@ func main() {
 		stats(binFile)
 		return
 	}
+
 	bm.Init(tmpFile)
 	bstore := benchmarkDiskStore()
 	defer bstore.Delete()
@@ -37,15 +40,24 @@ func main() {
 		log.Fatal("unable to get absolute path for storage directory.", err)
 	}
 
-	// load  stdlibs
+	// Load stdlibs and benchmark packages with recording off
+	// so init-phase store ops don't contaminate measurements.
 	loadStdlibs(bstore)
+	pkgs := loadBenchPackages(bstore, dir)
+
+	// Enable recording for actual benchmarks.
+	bm.Recording = true
 
 	if bm.OpsEnabled {
-		benchmarkOpCodes(bstore.gnoStore, dir)
+		benchmarkOpCodes(bstore.gnoStore, pkgs.opcodes)
 	}
 	if bm.StorageEnabled {
-		benchmarkStorage(bstore, dir)
+		benchmarkStorage(bstore, pkgs.storage)
 	}
+	if bm.NativeEnabled {
+		benchmarkNative(bstore.gnoStore, pkgs.native)
+	}
+
 	bm.Finish()
 	stats(tmpFile)
 	err = os.Remove(tmpFile)

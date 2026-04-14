@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
-	"strconv"
 	"unsafe"
 
 	"github.com/cockroachdb/apd/v3"
@@ -220,6 +219,9 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
+		if rlm != nil && pv.Base != nil {
+			rlm.DidUpdate(pv.Base.(Object), nil, nil)
+		}
 		return
 	}
 	// General case
@@ -329,7 +331,9 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	*/
 	if av.Data == nil {
 		av2 := alloc.NewListArray(len(av.List))
-		copy(av2.List, av.List)
+		for i, tv := range av.List {
+			av2.List[i] = tv.Copy(alloc)
+		}
 		return av2
 	}
 	av2 := alloc.NewDataArray(len(av.Data))
@@ -657,15 +661,16 @@ func (ml MapList) MarshalAmino() (MapListImage, error) {
 func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 	for i, item := range mlimg.List {
 		if i == 0 {
-			// init case
+			item.Prev = nil
 			ml.Head = item
-		}
-		item.Prev = ml.Tail
-		if ml.Tail != nil {
+			ml.Tail = item
+			ml.Size = 1
+		} else {
+			item.Prev = ml.Tail
 			ml.Tail.Next = item
+			ml.Tail = item
+			ml.Size++
 		}
-		ml.Tail = item
-		ml.Size++
 	}
 	return nil
 }
@@ -681,16 +686,20 @@ func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 	}
 	if ml.Head == nil {
 		ml.Head = item
-	}
-	if ml.Tail != nil {
+		ml.Tail = item
+		ml.Size = 1
+	} else {
 		ml.Tail.Next = item
+		ml.Tail = item
+		ml.Size++
 	}
-	ml.Tail = item
-	ml.Size++
 	return item
 }
 
 func (ml *MapList) Remove(mli *MapListItem) {
+	if ml.Size == 0 {
+		return
+	}
 	prev, next := mli.Prev, mli.Next
 	if prev == nil {
 		ml.Head = next
@@ -795,10 +804,15 @@ type PackageValue struct {
 	FNames     []string
 	FBlocks    []Value
 	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
+	Private    bool
 	// NOTE: Realm is persisted separately.
 
 	fBlocksMap map[string]*Block
 }
+
+// See PackageNode.NewPackage() for PackageValue constructor.
+// Do not uncomment; always use PackageNode.NewPackage().
+// func NewPackageValue() {}
 
 // IsRealm returns true if pv represents a realm.
 func (pv *PackageValue) IsRealm() bool {
@@ -900,6 +914,10 @@ func (pv *PackageValue) SetRealm(rlm *Realm) {
 	pv.Realm = rlm
 }
 
+func (pv *PackageValue) SetPrivate(private bool) {
+	pv.Private = private
+}
+
 // Convenience.
 func (pv *PackageValue) GetPackageNode(store Store) *PackageNode {
 	return pv.GetBlock(store).GetSource(store).(*PackageNode)
@@ -988,7 +1006,7 @@ func (tv *TypedValue) IsTypedNil() bool {
 	}
 	if tv.T != nil {
 		switch tv.T.Kind() {
-		case SliceKind, FuncKind, MapKind, InterfaceKind, PointerKind, ChanKind:
+		case SliceKind, FuncKind, MapKind, InterfaceKind, PointerKind:
 			return true
 		}
 	}
@@ -1009,19 +1027,6 @@ func (tv *TypedValue) IsNilInterface() bool {
 		return false
 	}
 	return false
-}
-
-func (tv *TypedValue) IsNaN() bool {
-	switch tv.T.Kind() {
-	case Float32Kind:
-		_, _, _, _, nan := softfloat.Funpack32(tv.GetFloat32())
-		return nan
-	case Float64Kind:
-		_, _, _, _, nan := softfloat.Funpack64(tv.GetFloat64())
-		return nan
-	default:
-		return false
-	}
 }
 
 func (tv *TypedValue) HasKind(k Kind) bool {
@@ -1091,35 +1096,50 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 
 // Returns encoded bytes for primitive values.
 // These are used for computing map keys.
-func (tv *TypedValue) PrimitiveBytes(bz []byte) []byte {
+// If NaN float32|float64 returns bz unchanged and isNaN=true.
+func (tv *TypedValue) MapKeyBytes(bz []byte) (bz2 []byte, isNaN bool) {
 	switch bt := baseOf(tv.T); bt {
 	case BoolType:
 		if tv.GetBool() {
-			return append(bz, 0x01)
+			return append(bz, 0x01), false
 		}
-		return append(bz, 0x00)
+		return append(bz, 0x00), false
 	case StringType:
-		return append(bz, tv.GetString()...)
+		return append(bz, tv.GetString()...), false
 	case Int8Type:
-		return append(bz, uint8(tv.GetInt8()))
+		return append(bz, uint8(tv.GetInt8())), false
 	case Int16Type:
-		return binary.LittleEndian.AppendUint16(bz, uint16(tv.GetInt16()))
+		return binary.LittleEndian.AppendUint16(bz, uint16(tv.GetInt16())), false
 	case Int32Type:
-		return binary.LittleEndian.AppendUint32(bz, uint32(tv.GetInt32()))
+		return binary.LittleEndian.AppendUint32(bz, uint32(tv.GetInt32())), false
 	case IntType, Int64Type:
-		return binary.LittleEndian.AppendUint64(bz, uint64(tv.GetInt()))
+		return binary.LittleEndian.AppendUint64(bz, uint64(tv.GetInt())), false
 	case Uint8Type:
-		return append(bz, tv.GetUint8())
+		return append(bz, tv.GetUint8()), false
 	case Uint16Type:
-		return binary.LittleEndian.AppendUint16(bz, tv.GetUint16())
+		return binary.LittleEndian.AppendUint16(bz, tv.GetUint16()), false
 	case Uint32Type:
-		return binary.LittleEndian.AppendUint32(bz, tv.GetUint32())
+		return binary.LittleEndian.AppendUint32(bz, tv.GetUint32()), false
 	case UintType, Uint64Type:
-		return binary.LittleEndian.AppendUint64(bz, tv.GetUint())
+		return binary.LittleEndian.AppendUint64(bz, tv.GetUint()), false
 	case Float32Type:
-		return binary.LittleEndian.AppendUint32(bz, tv.GetFloat32())
+		u32 := tv.GetFloat32()
+		if u32 == 0 || u32 == (1<<31) { // 0 or -0 normalized to 0
+			return binary.LittleEndian.AppendUint32(bz, 0), false
+		}
+		if _, _, _, _, isNaN = softfloat.Funpack32(u32); isNaN {
+			return bz, true
+		}
+		return binary.LittleEndian.AppendUint32(bz, u32), false
 	case Float64Type:
-		return binary.LittleEndian.AppendUint64(bz, tv.GetFloat64())
+		u64 := tv.GetFloat64()
+		if u64 == 0 || u64 == (1<<63) { // 0 or -0 normalized to 0
+			return binary.LittleEndian.AppendUint64(bz, 0), false
+		}
+		if _, _, _, _, isNaN = softfloat.Funpack64(u64); isNaN {
+			return bz, true
+		}
+		return binary.LittleEndian.AppendUint64(bz, u64), false
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
@@ -1434,7 +1454,7 @@ func (tv *TypedValue) GetUint64() uint64 {
 	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetFloat32(n uint32) {
+func (tv *TypedValue) SetFloat32(u32 uint32) {
 	if debug {
 		if tv.T.Kind() != Float32Kind {
 			panic(fmt.Sprintf(
@@ -1442,7 +1462,7 @@ func (tv *TypedValue) SetFloat32(n uint32) {
 				tv.T.String()))
 		}
 	}
-	*(*uint32)(unsafe.Pointer(&tv.N)) = n
+	*(*uint32)(unsafe.Pointer(&tv.N)) = u32
 }
 
 func (tv *TypedValue) GetFloat32() uint32 {
@@ -1456,7 +1476,7 @@ func (tv *TypedValue) GetFloat32() uint32 {
 	return *(*uint32)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetFloat64(n uint64) {
+func (tv *TypedValue) SetFloat64(u64 uint64) {
 	if debug {
 		if tv.T.Kind() != Float64Kind {
 			panic(fmt.Sprintf(
@@ -1464,7 +1484,7 @@ func (tv *TypedValue) SetFloat64(n uint64) {
 				tv.T.String()))
 		}
 	}
-	*(*uint64)(unsafe.Pointer(&tv.N)) = n
+	*(*uint64)(unsafe.Pointer(&tv.N)) = u64
 }
 
 func (tv *TypedValue) GetFloat64() uint64 {
@@ -1500,16 +1520,37 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
+// Sign returns the sign of the given numeric tv.
 func (tv *TypedValue) Sign() int {
 	if tv.T == nil {
 		panic("type should not be nil")
 	}
 
 	switch tv.T.Kind() {
-	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-		return signOfUnsignedBytes(tv.N)
-	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, Float32Kind, Float64Kind:
-		return signOfSignedBytes(tv.N)
+	case IntKind:
+		return signOfInteger(tv.GetInt())
+	case Int8Kind:
+		return signOfInteger(int64(tv.GetInt8()))
+	case Int16Kind:
+		return signOfInteger(int64(tv.GetInt16()))
+	case Int32Kind:
+		return signOfInteger(int64(tv.GetInt32()))
+	case Int64Kind:
+		return signOfInteger(tv.GetInt64())
+	case UintKind:
+		return signOfInteger(tv.GetUint())
+	case Uint8Kind:
+		return signOfInteger(uint64(tv.GetUint8()))
+	case Uint16Kind:
+		return signOfInteger(uint64(tv.GetUint16()))
+	case Uint32Kind:
+		return signOfInteger(uint64(tv.GetUint32()))
+	case Uint64Kind:
+		return signOfInteger(tv.GetUint64())
+	case Float32Kind:
+		return signOfFloat32Bits(tv.GetFloat32())
+	case Float64Kind:
+		return signOfFloat64Bits(tv.GetFloat64())
 	case BigintKind:
 		v := tv.GetBigInt()
 		return v.Sign()
@@ -1546,53 +1587,52 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 	// General case.
 	bz := make([]byte, 0, 64)
 	if !omitType {
+		// TypeID is human readable and balanced, so appending ":" works.
+		// This keeps ComputeMapKey somewhat human readable esp w/
+		// colors.ColoredBytes().
 		bz = append(bz, tv.T.TypeID().Bytes()...)
 		bz = append(bz, ':') // type/value separator
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		const (
-			fourZeroes  = "\x00\x00\x00\x00"
-			eightZeroes = fourZeroes + fourZeroes
-		)
-		// For float types, return isNaN = true if there is a nan value,
-		// normalize to 0 if negative zero.
-		switch bt {
-		case Float32Type:
-			if tv.IsNaN() {
-				return "", true
-			}
-			if tv.GetFloat32() == (1 << 31) {
-				bz = append(bz, fourZeroes...)
-			} else {
-				bz = tv.PrimitiveBytes(bz)
-			}
-		case Float64Type:
-			if tv.IsNaN() {
-				return "", true
-			}
-			if tv.GetFloat64() == (1 << 63) {
-				bz = append(bz, eightZeroes...)
-			} else {
-				bz = tv.PrimitiveBytes(bz)
-			}
-		default:
-			bz = tv.PrimitiveBytes(bz)
+		bz, isNaN = tv.MapKeyBytes(bz)
+		if isNaN {
+			return "", true
 		}
 	case *PointerType:
-		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
-		if tv.V != nil {
-			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
-			ptrBytes = uintptrToBytes(&ptr)
+		if tv.V == nil {
+			var ptrBytes [sizeOfUintPtr]byte
+			bz = append(bz, ptrBytes[:]...)
+		} else {
+			pv := tv.V.(PointerValue)
+			if pv.TV != nil && pv.TV.T == DataByteType {
+				// TV is freshly allocated per access (see GetPointerAtIndexInt2);
+				// so we cannot simply convert to uintptr.
+				// We instead use the pointer to Base + concat with Index.
+				// This causes a longer pointer value, but does not cause issues
+				// because when we encode pointers in arrays or structs they are
+				// length-prefixed.
+				dbv := pv.TV.V.(DataByteValue)
+				base := uintptr(unsafe.Pointer(dbv.Base))
+				baseBytes := uintptrToBytes(&base)
+				bz = append(bz, baseBytes[:]...)
+				bz = binary.AppendUvarint(bz, uint64(dbv.Index))
+			} else {
+				ptr := uintptr(unsafe.Pointer(pv.TV))
+				ptrBytes := uintptrToBytes(&ptr)
+				bz = append(bz, ptrBytes[:]...)
+			}
 		}
-		bz = append(bz, ptrBytes[:]...)
 	case FieldType:
-		panic("field (pseudo)type cannot be used as map key")
+		panic("runtime error: field (pseudo)type cannot be used as map key")
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
 		bz = append(bz, '[')
 		if av.Data == nil {
+			if tv.T.Elem().Kind() == Uint8Kind {
+				panic("should not happen; unexpected list array for array with uint8 element kind")
+			}
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := range al {
 				ev := fillValueTV(store, &av.List[i])
@@ -1600,6 +1640,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 				if isNaN {
 					return "", true
 				}
+				bz = binary.AppendUvarint(bz, uint64(len(mk)))
 				bz = append(bz, mk...)
 				if i != al-1 {
 					bz = append(bz, ',')
@@ -1610,7 +1651,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		}
 		bz = append(bz, ']')
 	case *SliceType:
-		panic("slice type cannot be used as map key")
+		panic("runtime error: slice type cannot be used as map key")
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
@@ -1622,23 +1663,15 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			if isNaN {
 				return "", true
 			}
+			bz = binary.AppendUvarint(bz, uint64(len(mk)))
 			bz = append(bz, mk...)
 			if i != sl-1 {
 				bz = append(bz, ',')
 			}
 		}
 		bz = append(bz, '}')
-	case *FuncType:
-		panic("func type cannot be used as map key")
-	case *MapType:
-		panic("map type cannot be used as map key")
-	case *InterfaceType:
-		panic("should not happen")
-	case *PackageType:
-		pv := tv.V.(*PackageValue)
-		bz = append(bz, []byte(strconv.Quote(pv.PkgPath))...)
 	case *ChanType:
-		panic("not yet implemented")
+		panic("channel type is not yet supported")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected map key type %s",
@@ -2557,24 +2590,37 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 	b.Source = source // otherwise new variables won't show in print or debugger.
 }
 
+// RefValue.PkgPath is set if the RefValue refers to a local package or an
+// external package and originates from a name by the preprocessor.  In this
+// case .ObjectID cannot be set because it may not yet be real.
 // NOTE: RefValue Object methods declared in ownership.go
 type RefValue struct {
-	ObjectID ObjectID  `json:",omitempty"`
-	Escaped  bool      `json:",omitempty"`
-	PkgPath  string    `json:",omitempty"`
-	Hash     ValueHash `json:",omitempty"`
+	ObjectID ObjectID  `json:",omitempty"` // If non-zero, PkgPath is empty
+	Escaped  bool      `json:",omitempty"` // XXX NOT USED DELETEME
+	PkgPath  string    `json:",omitempty"` // If set, ObjectID is non-zero
+	Hash     ValueHash `json:",omitempty"` // Set iff not escaped
 }
 
 func RefValueFromPackage(pv *PackageValue) RefValue {
 	return RefValue{PkgPath: pv.PkgPath}
 }
 
+// Returns .ObjectID.
+// Does not derive ObjectID from PkgPath if of form RefValue{PkgPath}.
+// TODO: consider splitting into another value type to prevent confusion.
 func (rv RefValue) GetObjectID() ObjectID {
+	if rv.PkgPath != "" {
+		panic("unexpected ref value of form RefValue{PkgPath}")
+	}
 	return rv.ObjectID
 }
 
 // Base for a detached singleton (e.g. new(int) or &struct{})
 // Conceptually like a Block that holds one value.
+// NOTE: It is possible for the value to be external
+// while the heap item itself is not; but this
+// should not be possible w/ blocks or struct values.
+// See test/files/zrealm_crossrealm25a.gno.
 // NOTE: could be renamed to HeapItemBaseValue.
 // See also note in realm.go about auto-unwrapping.
 type HeapItemValue struct {
@@ -2734,21 +2780,43 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 
 // ----------------------------------------
 // Utility
-func signOfSignedBytes(n [8]byte) int {
-	si := *(*int64)(unsafe.Pointer(&n[0]))
-	switch {
-	case si == 0:
-		return 0
-	case si < 0:
-		return -1
-	default:
+func signOfInteger[T interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
+}](v T) int {
+	if v > 0 {
 		return 1
+	} else if v < 0 {
+		return -1
+	} else {
+		return 0
 	}
 }
 
-func signOfUnsignedBytes(n [8]byte) int {
-	if *(*uint64)(unsafe.Pointer(&n[0])) == 0 {
+func signOfFloat32Bits(u32 uint32) int {
+	sign, mant, exp, _, nan := softfloat.Funpack32(u32)
+	if nan {
+		panic("sign of NaN is undefined")
+	}
+	if exp == 0 && mant == 0 {
 		return 0
+	}
+	if sign != 0 {
+		return -1
+	}
+	return 1
+}
+
+func signOfFloat64Bits(u64 uint64) int {
+	sign, mant, exp, _, nan := softfloat.Funpack64(u64)
+	if nan {
+		panic("sign of NaN is undefined")
+	}
+	if exp == 0 && mant == 0 {
+		return 0
+	}
+	if sign != 0 {
+		return -1
 	}
 	return 1
 }

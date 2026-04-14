@@ -183,9 +183,16 @@ func ReadGenesisTxs(ctx context.Context, path string) ([]TxWithMetadata, error) 
 	return txs, nil
 }
 
-// SignGenesisTxs will sign all txs passed as argument using the private key.
+// GenesisSigner defines the interface needed to sign genesis transactions.
+// Both crypto.PrivKey and bft/types.Signer implement this interface.
+type GenesisSigner interface {
+	PubKey() crypto.PubKey
+	Sign(msg []byte) ([]byte, error)
+}
+
+// SignGenesisTxs will sign all txs passed as argument using the genesis signer.
 // This signature is only valid for genesis transactions as the account number and sequence are 0
-func SignGenesisTxs(txs []TxWithMetadata, privKey crypto.PrivKey, chainID string) error {
+func SignGenesisTxs(txs []TxWithMetadata, signer GenesisSigner, chainID string) error {
 	for index, tx := range txs {
 		// Upon verifying genesis transactions, the account number and sequence are considered to be 0.
 		// The reason for this is that it is not possible to know the account number (or sequence!) in advance
@@ -195,14 +202,14 @@ func SignGenesisTxs(txs []TxWithMetadata, privKey crypto.PrivKey, chainID string
 			return fmt.Errorf("unable to get sign bytes for transaction, %w", err)
 		}
 
-		signature, err := privKey.Sign(bytes)
+		signature, err := signer.Sign(bytes)
 		if err != nil {
 			return fmt.Errorf("unable to sign genesis transaction, %w", err)
 		}
 
 		txs[index].Tx.Signatures = []std.Signature{
 			{
-				PubKey:    privKey.PubKey(),
+				PubKey:    signer.PubKey(),
 				Signature: signature,
 			},
 		}

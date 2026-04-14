@@ -20,7 +20,7 @@ func main() {
 }
 
 // Error:
-// main/cmp_pointer.gno:19:27-38: cannot use main.Person as main.Worker without explicit conversion
+// main/cmp_pointer.gno:19:27-38: invalid operation: (mismatched types *main.Person and *main.Worker)
 
 // TypeCheckError:
 // main/cmp_pointer.gno:19:33: invalid operation: p1 == p2Ptr (mismatched types *Person and *Worker)

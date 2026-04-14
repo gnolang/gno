@@ -1,0 +1,39 @@
+# start a new node
+gnoland start
+
+# add the private realm
+gnokey maketx addpkg -pkgdir $WORK/private -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+# add bar package located in $WORK directory as gno.land/r/$test1_user_addr/bar
+! gnokey maketx addpkg -pkgdir $WORK/public -pkgpath gno.land/r/foobar/bar -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+
+# check error message
+stdout 'TX HASH:    '
+stderr 'gno.land/r/foobar/bar/bar.gno:3:8: could not import gno.land/r/foobar/privaterealm \(import path \"gno.land/r/foobar/privaterealm\" is private and cannot be imported\)'
+
+
+-- private/gnomod.toml --
+module = "gno.land/r/foobar/privaterealm"
+gno = "0.9"
+private = true
+
+-- private/privaterealm.gno --
+package privaterealm
+
+func Render(path string) string {
+	return path
+}
+
+-- public/gnomod.toml --
+module = "gno.land/r/foobar/bar"
+gno = "0.9"
+
+-- public/bar.gno --
+package bar
+
+import "gno.land/r/foobar/privaterealm"
+
+func Render(path string) string {
+ 	return "hello " + privaterealm.Render(path)
+}

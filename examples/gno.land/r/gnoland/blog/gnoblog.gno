@@ -7,7 +7,7 @@ import (
 )
 
 var b = &blog.Blog{
-	Title:  "gno.land's blog",
+	Title:  "Gno.land's blog",
 	Prefix: "/r/gnoland/blog:",
 }
 

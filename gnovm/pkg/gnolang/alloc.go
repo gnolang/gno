@@ -14,13 +14,8 @@ import (
 type Allocator struct {
 	maxBytes int64
 	bytes    int64
-	// `peakBytes` represents the maximum memory
-	// usage during a single transaction, and is used
-	// to calculate the corresponding gas usage.
-	// It increases monotonically.
-	peakBytes int64
-	collect   func() (left int64, ok bool) // gc callback
-	gasMeter  store.GasMeter
+	collect  func() (left int64, ok bool) // gc callback
+	gasMeter store.GasMeter
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -72,8 +67,8 @@ const (
 	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
 	allocBlock       = _allocBase + _allocPointer + _allocBlock
 	allocBlockItem   = _allocTypedValue
-	allocRefValue    = _allocBase + +_allocRefValue
-	allocRefNode     = _allocBase + +_allocRefNode
+	allocRefValue    = _allocBase + _allocRefValue
+	allocRefNode     = _allocBase + _allocRefNode
 	allocType        = _allocBase + _allocPointer + _allocType
 	allocDataByte    = 1
 	allocPackage     = _allocBase + _allocPointer + _allocPackageValue
@@ -120,6 +115,17 @@ func (alloc *Allocator) Reset() *Allocator {
 	return alloc
 }
 
+// Recount adds size to bytes without charging gas.
+// Used during GC re-walk to re-count surviving objects
+// without double-charging for already-paid allocations.
+func (alloc *Allocator) Recount(size int64) {
+	alloc.bytes += size
+}
+
+// Fork creates a new Allocator with the same limits but no gasMeter
+// or GC callback. The caller must set these via SetGasMeter/SetGCFn
+// if gas charging or GC is needed (e.g. for transactions).
+// Query contexts intentionally omit the gasMeter.
 func (alloc *Allocator) Fork() *Allocator {
 	if alloc == nil {
 		return nil
@@ -135,7 +141,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		// this can happen for map items just prior to assignment.
 		return
 	}
-	if alloc.bytes+size > alloc.maxBytes {
+	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
 		if left, ok := alloc.collect(); !ok {
 			panic("should not happen, allocation limit exceeded while gc.")
 		} else {
@@ -151,20 +157,16 @@ func (alloc *Allocator) Allocate(size int64) {
 	} else {
 		alloc.bytes += size
 	}
-	// The value of `bytes` decreases during GC, and fees
-	// are only charged when it exceeds peakBytes (again).
-	if alloc.bytes > alloc.peakBytes {
-		if alloc.gasMeter != nil {
-			change := alloc.bytes - alloc.peakBytes
-			alloc.gasMeter.ConsumeGas(overflow.Mulp(change, GasCostPerByte), "memory allocation")
-		}
 
-		alloc.peakBytes = alloc.bytes
+	// Charge gas for every allocation unconditionally (cpu/throughput).
+	// This ensures repeated allocate-then-GC cycles are not free.
+	if alloc.gasMeter != nil {
+		alloc.gasMeter.ConsumeGas(overflow.Mulp(size, GasCostPerByte), "memory allocation (cpu)")
 	}
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
-	alloc.Allocate(allocString + allocStringByte*size)
+	alloc.Allocate(overflow.Addp(allocString, overflow.Mulp(allocStringByte, size)))
 }
 
 func (alloc *Allocator) AllocatePointer() {
@@ -172,11 +174,11 @@ func (alloc *Allocator) AllocatePointer() {
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Allocate(allocArray + size)
+	alloc.Allocate(overflow.Addp(allocArray, size))
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(allocArray + allocArrayItem*items)
+	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem, items)))
 }
 
 func (alloc *Allocator) AllocateSlice() {
@@ -189,7 +191,7 @@ func (alloc *Allocator) AllocateStruct() {
 }
 
 func (alloc *Allocator) AllocateStructFields(fields int64) {
-	alloc.Allocate(allocStructField * fields)
+	alloc.Allocate(overflow.Mulp(allocStructField, fields))
 }
 
 func (alloc *Allocator) AllocateFunc() {
@@ -197,7 +199,7 @@ func (alloc *Allocator) AllocateFunc() {
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
-	alloc.Allocate(allocMap + allocMapItem*items)
+	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)))
 }
 
 func (alloc *Allocator) AllocateMapItem() {
@@ -213,11 +215,11 @@ func (alloc *Allocator) AllocatePackageValue() {
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
-	alloc.Allocate(allocBlock + allocBlockItem*items)
+	alloc.Allocate(overflow.Addp(allocBlock, overflow.Mulp(allocBlockItem, items)))
 }
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
-	alloc.Allocate(allocBlockItem * items)
+	alloc.Allocate(overflow.Mulp(allocBlockItem, items))
 }
 
 /* NOTE: Not used, account for with AllocatePointer.
@@ -300,6 +302,9 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 // `make()` and `append()`. Using `Alloc.NewListArray` can be used is most cases
 // to allocate the space for the `TypedValue` list before doing the allocation
 // in the go runtime -- see the `make()` code in uverse.go.
+// NOTE: cap(list) is propagated directly into the Gno SliceValue.Maxcap.
+// Callers must ensure cap(list) == len(list) to produce deterministic results
+// across Go versions (Go's append growth strategy is unspecified).
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
@@ -413,13 +418,11 @@ func (b *Block) GetShallowSize() int64 {
 	}
 
 	var ss int64
-	// RefNode is not value, put it here
-	// for convinence
 	if _, ok := b.Source.(RefNode); ok {
-		ss += allocRefValue
+		ss += allocRefNode
 	}
 
-	ss = allocBlock + allocBlockItem*int64(len(b.Values))
+	ss += allocBlock + allocBlockItem*int64(len(b.Values))
 
 	return ss
 }
@@ -500,4 +503,102 @@ func (dbv DataByteValue) GetShallowSize() int64 {
 // as the type should  pre-exist.
 func (tv TypeValue) GetShallowSize() int64 {
 	return 0
+}
+
+// Returns the size of object's RefValue(s).
+func internalRefSize(val Value) int64 {
+	var size int64
+	switch v := val.(type) {
+	case *PackageValue:
+		if _, ok := v.Block.(RefValue); ok {
+			size += allocRefValue // .Block ref
+		}
+
+		// include RefValue size
+		for _, fb := range v.FBlocks {
+			if _, ok := fb.(RefValue); !ok {
+				continue
+			}
+			size += allocRefValue
+		}
+	case *Block:
+		for _, v := range v.Values {
+			if _, ok := v.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+
+		if _, ok := v.Parent.(RefValue); ok {
+			size += allocRefValue
+		}
+
+	case *ArrayValue:
+		if v.Data == nil {
+			for _, tv := range v.List {
+				if _, ok := tv.V.(RefValue); ok {
+					size += allocRefValue
+				}
+			}
+		}
+	case *StructValue:
+		for _, tv := range v.Fields {
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+	case *MapValue:
+		for cur := v.List.Head; cur != nil; cur = cur.Next {
+			if _, ok := cur.Key.V.(RefValue); ok {
+				size += allocRefValue
+			}
+
+			if _, ok := cur.Value.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+	case *BoundMethodValue:
+		if _, ok := v.Receiver.V.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *HeapItemValue:
+		if _, ok := v.Value.V.(RefValue); ok {
+			size += allocRefValue
+		}
+	case RefValue:
+		// do nothing
+	case *PointerValue:
+		if _, ok := v.Base.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *SliceValue:
+		if _, ok := v.Base.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *FuncValue:
+		for _, tv := range v.Captures {
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+
+		if _, ok := v.Parent.(RefValue); ok {
+			size += allocRefValue
+		}
+
+	case StringValue:
+		// do nothing
+	case BigintValue:
+		// do nothing
+	case BigdecValue:
+		// do nothing
+	case DataByteValue:
+		// do nothing
+	case TypeValue:
+	// do nothing
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %T",
+			val))
+	}
+	return size
 }

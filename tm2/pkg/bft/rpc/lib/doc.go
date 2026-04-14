@@ -79,6 +79,6 @@
 //
 // # Examples
 //
-// - [Tendermint](https://github.com/gnolang/gno/tm2/pkg/bft/blob/master/rpc/core/routes.go)
-// - [tm-monitor](https://github.com/gnolang/gno/tm2/pkg/bft/blob/master/tools/tm-monitor/rpc.go)
+// - [Tendermint](https://github.com/gnolang/gno/blob/master/tm2/pkg/bft/rpc/core/routes.go)
+// - [tm-monitor](https://github.com/tendermint/tools/blob/master/tm-monitor/rpc.go)
 package rpc

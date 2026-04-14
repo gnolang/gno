@@ -42,7 +42,7 @@ Or
 
     > git clone git@github.com:gnolang/gno.git
     > cd ./gno
-    > make install_gno
+    > make install.gno
 
 ## Getting started
 

@@ -20,6 +20,11 @@ http:
         stsIncludeSubdomains: true
         stsPreload: true
         stsSeconds: 31536000
+    web-ratelimit:
+      rateLimit:
+        average: 20 # Allow ~20 requests per second per IP
+        burst: 30
+        period: 1s
     ipwhitelist:
       ipWhiteList:
         sourceRange:
@@ -37,7 +42,7 @@ http:
       service: gno-portal-loop
       tls:
         certResolver: le
-      rule: "Host(`rpc.gno.land`) || Host(`rpc.staging.gno.land`)"
+      rule: "Host(`rpc.staging.gno.land`)"
       entrypoints: [ "web", "websecure" ]
       middlewares: []
 

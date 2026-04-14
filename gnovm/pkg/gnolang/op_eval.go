@@ -19,6 +19,7 @@ var (
 
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
+	m.Lastline = x.GetLine()
 	if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 	}
@@ -399,10 +400,6 @@ func (m *Machine) doOpEval() {
 		// evaluate x
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
-	case *ChanTypeExpr:
-		m.PushOp(OpChanType)
-		m.PushExpr(x.Value)
-		m.PushOp(OpEval) // OpEvalType?
 	default:
 		panic(fmt.Sprintf("unexpected expression %#v", x))
 	}

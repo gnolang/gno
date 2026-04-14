@@ -5,14 +5,6 @@ Generate pie charts with legends as SVG markup for gnoweb rendering.
 ## Usage
 
 ```go
-type PieSlice struct {
-	Value float64 // Value - "15"
-	Color string // Hex color - "#ffffff"
-	Label string // Value's name - "Mobile"
-}
-```
-
-```go
 slices := []piechart.PieSlice{
     {Value: 30, Color: "#ff6b6b", Label: "Frontend"},
     {Value: 25, Color: "#4ecdc4", Label: "Backend"},
@@ -28,6 +20,22 @@ titledChart := piechart.Render(slices, "Team Distribution")
 untitledChart := piechart.Render(slices, "")
 ```
 
-## Example
+## API Reference
 
-[/r/samcrew/daodemo/custom_condition:members](/r/samcrew/daodemo/custom_condition:members)
+```go
+type PieSlice struct {
+    Value float64 // Numeric value for the slice
+    Color string  // Hex color code (e.g., "#ff6b6b")
+    Label string  // Display label for the slice
+}
+
+// slices: Array of PieSlice structs containing the data
+// title: Chart title (empty string for no title)
+// Returns: SVG markup as a string
+func Render(slices []PieSlice, title string) string
+```
+
+## Live Example
+
+- [/r/docs/charts:piechart](/r/docs/charts:piechart)
+- [/r/samcrew/daodemo/custom_condition:members](/r/samcrew/daodemo/custom_condition:members)

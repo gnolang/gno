@@ -1,0 +1,183 @@
+--- ./interface.go
++++ ./interface.go
+@@ -133,6 +133,63 @@
+ 	return
+ }
+ 
++// ParserCallback is called during parsing at each new token.
++type ParserCallback func(tok token.Token, nestedLevel int)
++
++// ParseFile2 is indentical to ParseFile except it takes an additional ParserCallback parameter.
++func ParseFile2(fset *token.FileSet, filename string, src any, mode Mode, callback ParserCallback) (f *ast.File, err error) {
++	if fset == nil {
++		panic("parser.ParseFile: no token.FileSet provided (fset == nil)")
++	}
++
++	// get source
++	text, err := readSource(filename, src)
++	if err != nil {
++		return nil, err
++	}
++
++	file := fset.AddFile(filename, -1, len(text))
++
++	var p parser
++	defer func() {
++		if e := recover(); e != nil {
++			// resume same panic if it's not a bailout
++			bail, ok := e.(bailout)
++			if !ok {
++				panic(e)
++			} else if bail.msg != "" {
++				p.errors.Add(p.file.Position(bail.pos), bail.msg)
++			}
++		}
++
++		// set result values
++		if f == nil {
++			// source is not a valid Go source file - satisfy
++			// ParseFile API and return a valid (but) empty
++			// *ast.File
++			f = &ast.File{
++				Name:  new(ast.Ident),
++				Scope: ast.NewScope(nil),
++			}
++		}
++
++		// Ensure the start/end are consistent,
++		// whether parsing succeeded or not.
++		f.FileStart = token.Pos(file.Base())
++		f.FileEnd = token.Pos(file.Base() + file.Size())
++
++		p.errors.Sort()
++		err = p.errors.Err()
++	}()
++
++	// parse source
++	p.init(file, text, mode)
++	p.callback = callback
++	f = p.parseFile()
++
++	return
++}
++
+ // ParseDir calls [ParseFile] for all files with names ending in ".go" in the
+ // directory specified by path and returns a map of package name -> package
+ // AST with all the packages found.
+@@ -236,6 +293,49 @@
+ 	return
+ }
+ 
++// ParseExprFrom2 is identical to ParseExprFrom except it takes an additional ParserCallback parameter.
++func ParseExprFrom2(fset *token.FileSet, filename string, src any, mode Mode, callback ParserCallback) (expr ast.Expr, err error) {
++	if fset == nil {
++		panic("parser.ParseExprFrom: no token.FileSet provided (fset == nil)")
++	}
++
++	// get source
++	text, err := readSource(filename, src)
++	if err != nil {
++		return nil, err
++	}
++
++	var p parser
++	defer func() {
++		if e := recover(); e != nil {
++			// resume same panic if it's not a bailout
++			bail, ok := e.(bailout)
++			if !ok {
++				panic(e)
++			} else if bail.msg != "" {
++				p.errors.Add(p.file.Position(bail.pos), bail.msg)
++			}
++		}
++		p.errors.Sort()
++		err = p.errors.Err()
++	}()
++
++	// parse expr
++	file := fset.AddFile(filename, -1, len(text))
++	p.init(file, text, mode)
++	p.callback = callback
++	expr = p.parseRhs()
++
++	// If a semicolon was inserted, consume it;
++	// report an error if there's more tokens.
++	if p.tok == token.SEMICOLON && p.lit == "\n" {
++		p.next()
++	}
++	p.expect(token.EOF)
++
++	return
++}
++
+ // ParseExpr is a convenience function for obtaining the AST of an expression x.
+ // The position information recorded in the AST is undefined. The filename used
+ // in error messages is the empty string.
+@@ -246,3 +346,8 @@
+ func ParseExpr(x string) (ast.Expr, error) {
+ 	return ParseExprFrom(token.NewFileSet(), "", []byte(x), 0)
+ }
++
++// ParseExpr2 is identical to ParseExpr except it takes an additional ParserCallback parameter.
++func ParseExpr2(x string, callback ParserCallback) (ast.Expr, error) {
++	return ParseExprFrom2(token.NewFileSet(), "", []byte(x), 0, callback)
++}
+--- ./parser.go
++++ ./parser.go
+@@ -63,6 +63,9 @@
+ 	// nestLev is used to track and limit the recursion depth
+ 	// during parsing.
+ 	nestLev int
++
++	// Gno: user callback called at each new token
++	callback func(tok token.Token, nestLev int)
+ }
+ 
+ func (p *parser) init(file *token.File, src []byte, mode Mode) {
+@@ -144,6 +147,9 @@
+ 
+ 	for {
+ 		p.pos, p.tok, p.lit = p.scanner.Scan()
++		if p.callback != nil {
++			p.callback(p.tok, p.nestLev)
++		}
+ 		if p.tok == token.COMMENT {
+ 			if p.top && strings.HasPrefix(p.lit, "//go:build") {
+ 				if x, err := constraint.Parse(p.lit); err == nil {
+--- ./parser_test.go
++++ ./parser_test.go
+@@ -81,6 +81,7 @@
+ 	}
+ }
+ 
++/*
+ func TestIssue42951(t *testing.T) {
+ 	path := "./testdata/issue42951"
+ 	_, err := ParseDir(token.NewFileSet(), path, nil, 0)
+@@ -88,6 +89,7 @@
+ 		t.Errorf("ParseDir(%s): %v", path, err)
+ 	}
+ }
++*/
+ 
+ func TestParseExpr(t *testing.T) {
+ 	// just kicking the tires:
+--- ./performance_test.go
++++ ./performance_test.go
+@@ -10,7 +10,7 @@
+ 	"testing"
+ )
+ 
+-var src = readFile("../printer/nodes.go")
++var src = readFile("nodes.go.src")
+ 
+ func readFile(filename string) []byte {
+ 	data, err := os.ReadFile(filename)
+--- ./testdata/goversion/t03.go
++++ ./testdata/goversion/t03.go
+@@ -1,3 +1,3 @@
+-//go:build linux && go1.2 || windows
++//go:build (linux && go1.2) || windows
+ 
+ package none

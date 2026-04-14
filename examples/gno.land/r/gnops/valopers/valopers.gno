@@ -9,16 +9,22 @@ import (
 	"regexp"
 
 	"gno.land/p/moul/realmpath"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/avl/pager"
-	"gno.land/p/nt/combinederr"
-	"gno.land/p/nt/ownable/exts/authorizable"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/combinederr/v0"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/ownable/v0/exts/authorizable"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 const (
 	MonikerMaxLength     = 32
 	DescriptionMaxLength = 2048
+
+	// Valid server types
+	ServerTypeCloud      = "cloud"
+	ServerTypeOnPrem     = "on-prem"
+	ServerTypeDataCenter = "data-center"
 )
 
 var (
@@ -27,6 +33,7 @@ var (
 	ErrInvalidAddress     = errors.New("invalid address")
 	ErrInvalidMoniker     = errors.New("moniker is not valid")
 	ErrInvalidDescription = errors.New("description is not valid")
+	ErrInvalidServerType  = errors.New("server type is not valid")
 )
 
 var (
@@ -42,6 +49,7 @@ var (
 type Valoper struct {
 	Moniker     string // A human-readable name
 	Description string // A description and details about the valoper
+	ServerType  string // The type of server (cloud/on-prem/data-center)
 
 	Address     address // The bech32 gno address of the validator
 	PubKey      string  // The bech32 public key of the validator
@@ -56,20 +64,20 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 
 func AddToAuthList(cur realm, address_XXX address, member address) {
 	v := GetByAddr(address_XXX)
-	if err := v.Auth().AddToAuthListByPrevious(member); err != nil {
+	if err := v.Auth().AddToAuthList(member); err != nil {
 		panic(err)
 	}
 }
 
 func DeleteFromAuthList(cur realm, address_XXX address, member address) {
 	v := GetByAddr(address_XXX)
-	if err := v.Auth().DeleteFromAuthListByPrevious(member); err != nil {
+	if err := v.Auth().DeleteFromAuthList(member); err != nil {
 		panic(err)
 	}
 }
 
 // Register registers a new valoper
-func Register(cur realm, moniker string, description string, address_XXX address, pubKey string) {
+func Register(cur realm, moniker string, description string, serverType string, address_XXX address, pubKey string) {
 	// Check if a fee is enforced
 	if !minFee.IsZero() {
 		sentCoins := banker.OriginSend()
@@ -88,10 +96,11 @@ func Register(cur realm, moniker string, description string, address_XXX address
 	v := Valoper{
 		Moniker:     moniker,
 		Description: description,
+		ServerType:  serverType,
 		Address:     address_XXX,
 		PubKey:      pubKey,
 		KeepRunning: true,
-		auth:        authorizable.NewAuthorizableWithOrigin(),
+		auth:        authorizable.New(ownable.NewWithOrigin()),
 	}
 
 	if err := v.Validate(); err != nil {
@@ -157,6 +166,25 @@ func UpdateKeepRunning(cur realm, address_XXX address, keepRunning bool) {
 	valopers.Set(address_XXX.String(), v)
 }
 
+// UpdateServerType updates an existing valoper's server type
+func UpdateServerType(cur realm, address_XXX address, serverType string) {
+	// Check that the server type is valid
+	if err := validateServerType(serverType); err != nil {
+		panic(err)
+	}
+
+	v := GetByAddr(address_XXX)
+
+	// Check that the caller has permissions
+	v.Auth().AssertPreviousOnAuthList()
+
+	// Update server type
+	v.ServerType = serverType
+
+	// Save the valoper info
+	valopers.Set(address_XXX.String(), v)
+}
+
 // GetByAddr fetches the valoper using the address, if present
 func GetByAddr(address_XXX address) Valoper {
 	valoperRaw, exists := valopers.Get(address_XXX.String())
@@ -206,7 +234,7 @@ func renderHome(path string) string {
 	for _, item := range page.Items {
 		v := item.Value.(Valoper)
 		output += ufmt.Sprintf(" * [%s](/r/gnops/valopers:%s) - [profile](/r/demo/profile:u/%s)\n",
-			v.Moniker, v.Address, v.Auth().Owner())
+			v.Moniker, v.Address, v.Address)
 	}
 
 	output += "\n"
@@ -220,6 +248,7 @@ func (v *Valoper) Validate() error {
 
 	errs.Add(validateMoniker(v.Moniker))
 	errs.Add(validateDescription(v.Description))
+	errs.Add(validateServerType(v.ServerType))
 	errs.Add(validateBech32(v.Address))
 	errs.Add(validatePubKey(v.PubKey))
 
@@ -239,7 +268,8 @@ func (v Valoper) Render() string {
 	}
 
 	output += ufmt.Sprintf("- Address: %s\n", v.Address.String())
-	output += ufmt.Sprintf("- PubKey: %s\n\n", v.PubKey)
+	output += ufmt.Sprintf("- PubKey: %s\n", v.PubKey)
+	output += ufmt.Sprintf("- Server Type: %s\n\n", v.ServerType)
 	output += ufmt.Sprintf("[Profile link](/r/demo/profile:u/%s)\n", v.Address)
 
 	return output
@@ -295,6 +325,17 @@ func validateBech32(address_XXX address) error {
 func validatePubKey(pubKey string) error {
 	if _, _, err := bech32.DecodeNoLimit(pubKey); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// validateServerType checks if the server type is valid
+func validateServerType(serverType string) error {
+	if serverType != ServerTypeCloud &&
+		serverType != ServerTypeOnPrem &&
+		serverType != ServerTypeDataCenter {
+		return ErrInvalidServerType
 	}
 
 	return nil

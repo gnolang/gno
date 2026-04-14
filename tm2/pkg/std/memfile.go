@@ -22,7 +22,7 @@ const (
 var (
 	// See also gnovm/pkg/gnolang/mempackage.go.
 	// NOTE: DO NOT MODIFY without a pre/post ADR and discussions with core GnoVM and gno.land teams.
-	reFileName   = regexp.MustCompile(`^(([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.[a-z0-9_]{1,7}|LICENSE|README)$`)
+	reFileName   = regexp.MustCompile(`^(([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.[a-z0-9_]{1,7}|LICENSE|license|LICENCE|licence|README)$`)
 	rePkgName    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	rePkgPathURL = regexp.MustCompile(`^([a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}(\/[a-z0-9\-_]+)+$`)
 	rePkgPathStd = regexp.MustCompile(`^([a-z][a-z0-9_]*\/)*[a-z][a-z0-9_]+$`)

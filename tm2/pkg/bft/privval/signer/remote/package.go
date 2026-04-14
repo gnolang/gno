@@ -17,6 +17,4 @@ var Package = amino.RegisterPackage(
 			&PubKeyResponse{},
 			&SignRequest{},
 			&SignResponse{},
-			&PingRequest{},
-			&PingResponse{},
 		))

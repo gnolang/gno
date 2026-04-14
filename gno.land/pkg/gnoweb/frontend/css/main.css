@@ -1,0 +1,19 @@
+/* ==========================================================================
+   MAIN.CSS - gnoweb entry point for styles
+   Architecture: ITCSS + CUBE CSS
+   ========================================================================== */
+
+/* ===== IMPORT ORDER ===== */
+/* tokens.css is a special case, it overrides settings.css */
+/* settings.css must be imported first */
+/* tokens.css must be imported after settings.css */
+/* all other files must be imported in the order they are listed */
+
+/* ===== IMPORT FILES ===== */
+@import "./01-settings.css";
+@import "./02-tools.css";
+@import "./03-generic.css";
+@import "./04-elements.css";
+@import "./05-composition.css";
+@import "./06-blocks.css";
+@import "./07-utilities.css";

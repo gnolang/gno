@@ -28,7 +28,9 @@ type File struct {
 
 	// Private indicates that the module is private.
 	// Private modules:
-	// - cannot be imported by other modules.
+	// - Cannot be imported by other realms.
+	// - References to objects owned by this realm cannot be stored outside it.
+	// - Data whose type is defined in this realm cannot be retained in other realms.
 	Private bool `toml:"private,omitempty" json:"private,omitempty"`
 
 	// Replace is a list of replace directives for the module's dependencies.
