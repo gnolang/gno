@@ -495,6 +495,12 @@ func (cs *ConsensusState) reconstructLastCommit(state sm.State) {
 	}
 	seenCommit := cs.blockStore.LoadSeenCommit(state.LastBlockHeight)
 	if seenCommit == nil {
+		// Fresh genesis with InitialHeight > 1: the block store has no history yet.
+		// The handshaker sets LastBlockHeight = InitialHeight - 1 before the first
+		// block is produced, so there is no SeenCommit to reconstruct.
+		if cs.blockStore.Height() == 0 {
+			return
+		}
 		panic(fmt.Sprintf("Failed to reconstruct LastCommit: SeenCommit not found for height %d", state.LastBlockHeight))
 	}
 	lastPrecommits := types.CommitToVoteSet(state.ChainID, seenCommit, state.LastValidators)

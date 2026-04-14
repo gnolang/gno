@@ -473,12 +473,7 @@ type endBlockerApp interface {
 
 // isPastChainID reports whether chainID is present in the pastChainIDs allowlist.
 func isPastChainID(pastChainIDs []string, chainID string) bool {
-	for _, id := range pastChainIDs {
-		if id == chainID {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(pastChainIDs, chainID)
 }
 
 // EndBlocker defines the logic executed after every block.

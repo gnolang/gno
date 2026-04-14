@@ -1301,6 +1301,37 @@ func TestReplayNilGuards(t *testing.T) {
 	}
 }
 
+// TestReconstructLastCommit_InitialHeight verifies that reconstructLastCommit
+// does not panic when LastBlockHeight > 0 but the block store is empty
+// (the scenario that arises when InitialHeight > 1 is set after InitChain).
+func TestReconstructLastCommit_InitialHeight(t *testing.T) {
+	t.Parallel()
+
+	testCfg, genesisFile := ResetConfig("reconstruct_last_commit_initial_height_test")
+	t.Cleanup(func() { os.RemoveAll(testCfg.RootDir) })
+
+	state, err := sm.MakeGenesisStateFromFile(genesisFile)
+	require.NoError(t, err)
+
+	// Simulate what the Handshaker does after InitChain with InitialHeight=100:
+	// LastBlockHeight is set to InitialHeight-1 but the block store is empty.
+	state.LastBlockHeight = 99
+
+	stateDB := memdb.NewMemDB()
+	sm.SaveState(stateDB, state)
+
+	mempool := mock.Mempool{}
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), nil, mempool)
+
+	// Empty block store — Height() returns 0, LoadSeenCommit returns nil.
+	store := &nilReturningBlockStore{height: 0}
+
+	// NewConsensusState calls reconstructLastCommit; this must not panic.
+	require.NotPanics(t, func() {
+		_ = NewConsensusState(testCfg.Consensus, state, blockExec, store, mempool)
+	})
+}
+
 // TestHandshaker_InitialHeight verifies that when GenesisDoc.InitialHeight > 1,
 // the handshaker sets state.LastBlockHeight = InitialHeight - 1 after InitChain,
 // so the chain starts producing blocks at the correct height.
