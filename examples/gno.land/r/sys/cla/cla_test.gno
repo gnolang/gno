@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"gno.land/p/moul/addrset"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/uassert/v0"
 )
 
 const (
