@@ -104,6 +104,17 @@ func NewBannerData(markdown, globalURL string) (BannerData, error) {
 	src := []byte(markdown)
 	doc := md.Parser().Parse(text.NewReader(src))
 
+	// Keep only Paragraph nodes (the inline-content wrapper). All other
+	// block-level nodes (headings, code blocks, lists, HTML blocks, etc.)
+	// are removed so the banner contains only inline markup.
+	for c := doc.FirstChild(); c != nil; {
+		next := c.NextSibling()
+		if c.Kind() != ast.KindParagraph {
+			doc.RemoveChild(doc, c)
+		}
+		c = next
+	}
+
 	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering || n.Kind() != ast.KindLink {
 			return ast.WalkContinue, nil
@@ -131,10 +142,13 @@ func NewBannerData(markdown, globalURL string) (BannerData, error) {
 		return BannerData{}, fmt.Errorf("banner markdown rendering: %w", err)
 	}
 
-	// Strip <p> wrapper that goldmark adds for single-paragraph content.
+	// Strip the <p></p> wrapper that goldmark adds for single-paragraph content.
 	result := strings.TrimSpace(buf.String())
-	result = strings.TrimPrefix(result, "<p>")
-	result = strings.TrimSuffix(result, "</p>")
+	if after, ok := strings.CutPrefix(result, "<p>"); ok {
+		if inner, ok := strings.CutSuffix(after, "</p>"); ok {
+			result = inner
+		}
+	}
 
 	bd := BannerData{content: result}
 	if hasGlobalURL {

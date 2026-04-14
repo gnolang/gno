@@ -417,10 +417,9 @@ func TestNewBannerData(t *testing.T) {
 			wantEnabled: true,
 		},
 		{
-			name:         "script tag sanitized",
-			input:        `<script>alert("xss")</script>`,
-			wantEnabled:  true,
-			wantContains: "<!-- raw HTML omitted -->",
+			name:        "HTML block stripped",
+			input:       `<script>alert("xss")</script>`,
+			wantEnabled: false,
 		},
 		{
 			name:         "javascript URL sanitized",
@@ -438,18 +437,44 @@ func TestNewBannerData(t *testing.T) {
 			wantNotContains: `href="https://other.com"`,
 		},
 		{
-			name:       "global javascript URL rejected",
-			input:      "Hello",
-			globalURL:  "javascript:alert(1)",
+			name:        "global javascript URL rejected",
+			input:       "Hello",
+			globalURL:   "javascript:alert(1)",
 			wantEnabled: true,
-			wantHasURL: false,
+			wantHasURL:  false,
 		},
 		{
-			name:       "global ftp URL rejected",
-			input:      "Hello",
-			globalURL:  "ftp://bad.com",
+			name:        "global ftp URL rejected",
+			input:       "Hello",
+			globalURL:   "ftp://bad.com",
 			wantEnabled: true,
-			wantHasURL: false,
+			wantHasURL:  false,
+		},
+		{
+			name:        "heading block stripped",
+			input:       "# Big Heading",
+			wantEnabled: false,
+		},
+		{
+			name:        "blockquote stripped",
+			input:       "> quoted text",
+			wantEnabled: false,
+		},
+		{
+			name:        "thematic break stripped",
+			input:       "---",
+			wantEnabled: false,
+		},
+		{
+			name:        "list item stripped",
+			input:       "- list entry",
+			wantEnabled: false,
+		},
+		{
+			name:         "leading whitespace trimmed before parsing",
+			input:        "    code line",
+			wantEnabled:  true,
+			wantContains: "code line",
 		},
 	}
 
