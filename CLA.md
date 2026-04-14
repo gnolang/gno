@@ -1,58 +1,28 @@
 # Gno.land Contributor License Agreement
 
-## What is the CLA?
+## What you're signing
 
-The Contributor License Agreement (CLA) is a legal agreement between
-you (the contributor) and the Gno.land project. It grants the project
-the necessary rights to use, distribute, and sublicense your
-contributions under the
-[GNO Network General Public License](./LICENSE.md) while you retain
-ownership of your work.
+The CLA grants the project rights to use and distribute your contributions under the [GNO Network General Public License](./LICENSE.md). You retain ownership of your work. The full legal text is [below](#full-agreement).
 
-## Why must contributors sign it?
+## How to sign
 
-Signing the CLA ensures that:
-- The project has the legal right to include your contribution
-  in the Gno.land network and related repositories.
-- Your contribution can be distributed under the Network License
-  without legal ambiguity.
-- You confirm that you have the right to submit the contribution
-  and that it does not infringe on any third-party rights.
+1. **Read the full agreement** [below](#full-agreement) and get the current required hash from [`gno.land/r/sys/cla`](https://gno.land/r/sys/cla).
+2. **Sign from the CLI:**
 
-## How to sign the CLA
-
-The CLA is signed on-chain by calling `Sign` on the
-`gno.land/r/sys/cla` realm. This is a standalone transaction, sent
-**before** you deploy any package.
-
-1. **Find the current required hash.** Visit
-   [`gno.land/r/sys/cla`](https://gno.land/r/sys/cla) on gnoweb. The
-   rendered page shows the current required hash and a link to the
-   CLA document.
-2. **Sign the CLA** by submitting the transaction. From the CLI:
-
-   ```
+   ```bash
    gnokey maketx call \
      -pkgpath gno.land/r/sys/cla \
      -func Sign \
      -args <required_hash> \
      -gas-fee 1000000ugnot -gas-wanted 2000000 \
-     -broadcast -chainid <chain_id> <keyname>
+     -broadcast -chainid <chain_id> \
+     -remote <rpc_url> \
+     <keyname>
    ```
 
-   Your address is then recorded on-chain as a signer. Subsequent
-   package deployments (`MsgAddPackage`) from this address pass the
-   CLA check automatically; the deploy transaction itself does **not**
-   carry the hash.
-3. **If the CLA text is updated**, governance publishes a new hash
-   through a govdao proposal, and **all existing signatures are
-   reset**. You must call `Sign` again with the new hash before your
-   next deploy.
+3. **Deploy your package.** Once signed, the CLA check passes automatically for all future deploys from this address.
 
-For off-chain contributions (e.g., pull requests to the GitHub
-repository), follow the instructions provided by the project's
-contribution tooling. See [CONTRIBUTING.md](./CONTRIBUTING.md) for
-more details.
+If the CLA text is updated via a govdao proposal, all signatures are reset — call `Sign` again with the new hash before your next deploy.
 
 ---
 
