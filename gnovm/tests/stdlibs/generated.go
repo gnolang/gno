@@ -10,6 +10,7 @@ import (
 	testlibs_chain_runtime "github.com/gnolang/gno/gnovm/tests/stdlibs/chain/runtime"
 	testlibs_fmt "github.com/gnolang/gno/gnovm/tests/stdlibs/fmt"
 	testlibs_os "github.com/gnolang/gno/gnovm/tests/stdlibs/os"
+	testlibs_runtime "github.com/gnolang/gno/gnovm/tests/stdlibs/runtime"
 	testlibs_testing "github.com/gnolang/gno/gnovm/tests/stdlibs/testing"
 	testlibs_unicode "github.com/gnolang/gno/gnovm/tests/stdlibs/unicode"
 )
@@ -363,6 +364,38 @@ var nativeFuncs = [...]NativeFunc{
 			testlibs_os.X_sleep(
 				m,
 				p0)
+		},
+	},
+	{
+		"runtime",
+		"GC",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			testlibs_runtime.GC(
+				m,
+			)
+		},
+	},
+	{
+		"runtime",
+		"MemStats",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0 := testlibs_runtime.MemStats(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
 		},
 	},
 	{

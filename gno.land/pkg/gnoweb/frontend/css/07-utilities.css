@@ -43,7 +43,7 @@
 .u-quotes::before,
 .u-quotes::after {
 	content: '"';
-	color: var(--color-gray-400);
+	color: var(--s-color-text-tertiary);
 }
 
 .u-text-stroke {

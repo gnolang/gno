@@ -78,6 +78,7 @@ type ResultStatus struct {
 	NodeInfo      p2pTypes.NodeInfo `json:"node_info"`
 	SyncInfo      SyncInfo          `json:"sync_info"`
 	ValidatorInfo ValidatorInfo     `json:"validator_info"`
+	BuildVersion  string            `json:"build_version"`
 }
 
 // Is TxIndexing enabled
