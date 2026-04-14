@@ -2,6 +2,42 @@
    06-BLOCKS - Reusable UI components and blocks (CUBE CSS: Block)
    ========================================================================== */
 
+/* ===== GNOME / LOGO SVG ===== */
+.b-gnome,
+.b-logo {
+	& .hat {
+		fill: var(--s-logo-hat);
+	}
+
+	& .beard {
+		fill: var(--s-logo-beard);
+	}
+}
+
+/* ===== BANNER ===== */
+.b-banner {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	padding: var(--g-space-1-5) var(--g-space-4);
+	background-color: var(--s-color-bg-brand-default);
+	color: var(--s-color-text-base);
+	font-size: var(--g-font-size-50);
+	font-weight: var(--g-font-semibold);
+	text-align: center;
+	text-decoration: none;
+
+	@media (--md) {
+		font-size: var(--g-font-size-100);
+	}
+}
+
+a.b-banner:hover {
+	opacity: 0.9;
+	text-decoration: underline;
+}
+
 /* ===== HEADER COMPONENT ===== */
 .b-header {
 	position: sticky;

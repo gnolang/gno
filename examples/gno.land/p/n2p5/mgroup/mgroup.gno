@@ -32,7 +32,7 @@ type ManagedGroup struct {
 // The owner is automatically added as a backup owner and member of the group.
 func New(ownerAddress address) *ManagedGroup {
 	g := &ManagedGroup{
-		owner:        ownable.NewWithAddress(ownerAddress),
+		owner:        ownable.NewWithAddressByPrevious(ownerAddress),
 		backupOwners: avl.NewTree(),
 		members:      avl.NewTree(),
 	}
@@ -50,7 +50,7 @@ func New(ownerAddress address) *ManagedGroup {
 // AddBackupOwner adds a backup owner to the group by address.
 // If the caller is not the owner, an error is returned.
 func (g *ManagedGroup) AddBackupOwner(addr address) error {
-	if !g.owner.OwnedByPrevious() {
+	if !g.owner.Owned() {
 		return ownable.ErrUnauthorized
 	}
 	return g.addBackupOwner(addr)
@@ -67,7 +67,7 @@ func (g *ManagedGroup) addBackupOwner(addr address) error {
 // RemoveBackupOwner removes a backup owner from the group by address.
 // The owner cannot be removed. If the caller is not the owner, an error is returned.
 func (g *ManagedGroup) RemoveBackupOwner(addr address) error {
-	if !g.owner.OwnedByPrevious() {
+	if !g.owner.Owned() {
 		return ownable.ErrUnauthorized
 	}
 	if !addr.IsValid() {
@@ -92,7 +92,7 @@ func (g *ManagedGroup) ClaimOwnership() error {
 	if !g.IsBackupOwner(caller) {
 		return ErrNotMember
 	}
-	g.owner = ownable.NewWithAddress(caller)
+	g.owner = ownable.NewWithAddressByPrevious(caller)
 	err := g.addMember(caller)
 	return err
 }
@@ -100,7 +100,7 @@ func (g *ManagedGroup) ClaimOwnership() error {
 // AddMember adds a member to the group by address.
 // If the caller is not the owner, an error is returned.
 func (g *ManagedGroup) AddMember(addr address) error {
-	if !g.owner.OwnedByPrevious() {
+	if !g.owner.Owned() {
 		return ownable.ErrUnauthorized
 	}
 	return g.addMember(addr)
@@ -118,7 +118,7 @@ func (g *ManagedGroup) addMember(addr address) error {
 // The owner cannot be removed. If the caller is not the owner,
 // an error is returned.
 func (g *ManagedGroup) RemoveMember(addr address) error {
-	if !g.owner.OwnedByPrevious() {
+	if !g.owner.Owned() {
 		return ownable.ErrUnauthorized
 	}
 	if !addr.IsValid() {

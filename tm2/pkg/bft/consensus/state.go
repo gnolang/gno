@@ -482,7 +482,7 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 		// be processed out of order.
 		// TODO: use CList here for strict determinism and
 		// attempt push to internalMsgQueue in receiveRoutine
-		cs.Logger.Info("Internal msg queue is full. Using a go-routine")
+		cs.Logger.Warn("Internal msg queue is full. Using a go-routine")
 		go func() { cs.internalMsgQueue <- mi }()
 	}
 }
@@ -494,6 +494,9 @@ func (cs *ConsensusState) reconstructLastCommit(state sm.State) {
 		return
 	}
 	seenCommit := cs.blockStore.LoadSeenCommit(state.LastBlockHeight)
+	if seenCommit == nil {
+		panic(fmt.Sprintf("Failed to reconstruct LastCommit: SeenCommit not found for height %d", state.LastBlockHeight))
+	}
 	lastPrecommits := types.CommitToVoteSet(state.ChainID, seenCommit, state.LastValidators)
 	if !lastPrecommits.HasTwoThirdsMajority() {
 		panic("Failed to reconstruct LastCommit: Does not have +2/3 maj")
@@ -521,7 +524,7 @@ func (cs *ConsensusState) updateToState(state sm.State) {
 	// signal the new round step, because other services (eg. txNotifier)
 	// depend on having an up-to-date peer state!
 	if !cs.state.IsEmpty() && (state.LastBlockHeight <= cs.state.LastBlockHeight) {
-		cs.Logger.Info("Ignoring updateToState()", "newHeight", state.LastBlockHeight+1, "oldHeight", cs.state.LastBlockHeight+1)
+		cs.Logger.Debug("Ignoring updateToState()", "newHeight", state.LastBlockHeight+1, "oldHeight", cs.state.LastBlockHeight+1)
 		cs.newStep()
 		return
 	}
@@ -862,6 +865,9 @@ func (cs *ConsensusState) needProofBlock(height int64) bool {
 	}
 
 	lastBlockMeta := cs.blockStore.LoadBlockMeta(height - 1)
+	if lastBlockMeta == nil {
+		panic(fmt.Sprintf("Failed to load block meta for height %d", height-1))
+	}
 	return !bytes.Equal(cs.state.AppHash, lastBlockMeta.Header.AppHash)
 }
 
