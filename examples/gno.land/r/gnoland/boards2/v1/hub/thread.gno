@@ -23,6 +23,9 @@ type Thread struct {
 	// OriginalBoardID contains the board ID of the original thread when current is a repost.
 	OriginalBoardID uint64
 
+	// OriginalThreadID contains the ID of the original thread when current is a repost.
+	OriginalThreadID uint64
+
 	// BoardID is the board ID where thread is created.
 	BoardID uint64
 
@@ -87,19 +90,20 @@ func NewSafeThread(ref *boards.Post) Thread {
 	}
 
 	return Thread{
-		ref:             ref,
-		ID:              uint64(ref.ID),
-		OriginalBoardID: uint64(ref.OriginalBoardID),
-		BoardID:         uint64(ref.Board.ID),
-		Title:           ref.Title,
-		Body:            ref.Body,
-		Hidden:          ref.Hidden,
-		Readonly:        ref.Readonly,
-		CommentCount:    ref.Replies.Size(),
-		RepostCount:     ref.Reposts.Size(),
-		FlagCount:       ref.Flags.Size(),
-		Creator:         ref.Creator,
-		CreatedAt:       timeToUnix(ref.CreatedAt),
-		UpdatedAt:       timeToUnix(ref.UpdatedAt),
+		ref:              ref,
+		ID:               uint64(ref.ID),
+		OriginalBoardID:  uint64(ref.OriginalBoardID),
+		OriginalThreadID: uint64(ref.ParentID),
+		BoardID:          uint64(ref.Board.ID),
+		Title:            ref.Title,
+		Body:             ref.Body,
+		Hidden:           ref.Hidden,
+		Readonly:         ref.Readonly,
+		CommentCount:     ref.Replies.Size(),
+		RepostCount:      ref.Reposts.Size(),
+		FlagCount:        ref.Flags.Size(),
+		Creator:          ref.Creator,
+		CreatedAt:        timeToUnix(ref.CreatedAt),
+		UpdatedAt:        timeToUnix(ref.UpdatedAt),
 	}
 }

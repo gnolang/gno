@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"container/heap"
 	"fmt"
 	"io"
 	"path"
@@ -232,11 +233,11 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	if bm.OpsEnabled || bm.StorageEnabled || bm.NativeEnabled {
+	if bm.Enabled {
 		bm.InitMeasure()
-	}
-	if bm.StorageEnabled {
-		defer bm.FinishStore()
+		if bm.StorageEnabled {
+			defer bm.FinishStore()
+		}
 	}
 	return m.runMemPackage(mpkg, save, false)
 }
@@ -524,6 +525,23 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	return pn, pv
 }
 
+// initHeap is a min-heap of pending-declaration indices, used by runFileDecls
+// to always pick the earliest-in-declaration-order ready entry.
+type initHeap []int
+
+func (h initHeap) Len() int           { return len(h) }
+func (h initHeap) Less(i, j int) bool { return h[i] < h[j] }
+func (h initHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h *initHeap) Push(x any)        { *h = append(*h, x.(int)) }
+
+func (h *initHeap) Pop() any {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[:n-1]
+	return x
+}
+
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
@@ -594,71 +612,86 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	// Get new values across all files in package.
 	updates := pn.PrepareNewValues(m.Alloc, pv)
 
-	// to detect loops in var declarations.
-	loopfindr := []Name{}
-	// recursive function for var declarations.
-	var runDeclarationFor func(fn *FileNode, decl Decl)
-	runDeclarationFor = func(fn *FileNode, decl Decl) {
-		// get fileblock of fn.
-		// fb := pv.GetFileBlock(nil, fn.FileName)
-		// get dependencies of decl.
-		deps := make(map[Name]struct{})
-		findDependentNames(decl, deps)
-		for dep := range deps {
-			// if dep already defined as import, skip.
-			if _, ok := fn.GetLocalIndex(dep); ok {
+	// To initialize package variables, Go's spec says the following:
+	//    Within a package, package-level variable initialization proceeds
+	//    stepwise, with each step selecting the variable earliest in declaration
+	//    order which has no dependencies on uninitialized variables.
+	//
+	// Implementation: Kahn's topological sort with declaration-order tiebreaking
+	// via a min-heap keyed on declaration index.
+	//
+	// Phase 1: Collect all non-FuncDecl declarations in source order and compute
+	// effective deps (collapsing FuncDecl edges) once for all declarations.
+	// Phase 2: Build reverse-dep index and unsatisfied counts, then use a
+	// min-heap to always pick the earliest-in-declaration-order ready entry.
+
+	// Build ordered pending list from all non-FuncDecl decls, preserving source
+	// declaration order. declFiles tracks which FileNode each decl belongs to.
+	var pending []Decl
+	var declFiles []*FileNode
+	for _, fn := range fns {
+		for _, decl := range fn.Decls {
+			if _, ok := decl.(*FuncDecl); ok {
 				continue
 			}
-			// if dep already in fdeclared, skip.
-			if _, ok := fdeclared[dep]; ok {
-				continue
-			}
-			fn, depdecl, exists := pn.FileSet.GetDeclForSafe(dep)
-			// special case: if doesn't exist:
-			if !exists {
-				if isUverseName(dep) { // then is reserved keyword in uverse.
-					continue
-				} else { // is an undefined dependency.
-					panic(fmt.Sprintf(
-						"%s/%s:%s: dependency %s not defined in fileset with files %v",
-						pv.PkgPath, fn.FileName, decl.GetPos().String(), dep, fs.FileNames()))
-				}
-			}
-			// if dep already in loopfindr, abort.
-			if slices.Contains(loopfindr, dep) {
-				if _, ok := (*depdecl).(*FuncDecl); ok {
-					// recursive function dependencies
-					// are OK with func decls.
-					continue
-				} else {
-					panic(fmt.Sprintf(
-						"%s/%s:%s: loop in variable initialization: dependency trail %v circularly depends on %s",
-						pv.PkgPath, fn.FileName, decl.GetPos().String(), loopfindr, dep))
-				}
-			}
-			// run dependency declaration
-			loopfindr = append(loopfindr, dep)
-			runDeclarationFor(fn, *depdecl)
-			loopfindr = loopfindr[:len(loopfindr)-1]
+			pending = append(pending, decl)
+			declFiles = append(declFiles, fn)
 		}
-		// run declaration
-		fb := pv.GetFileBlock(m.Store, fn.FileName)
+	}
+
+	// Compute effective deps for all decls at once (memoized DFS, O(V+E)).
+	effectiveDeps := resolveEffectiveDeps(pending, pn, fdeclared)
+
+	// Build reverse deps and unsatisfied counts. reverseDeps maps a ValueDecl
+	// to the indices of pending entries that depend on it.
+	unsatisfied := make([]int, len(pending))
+	reverseDeps := map[*ValueDecl][]int{}
+	for i, decl := range pending {
+		deps := effectiveDeps[decl]
+		unsatisfied[i] = len(deps)
+		for _, dep := range deps {
+			reverseDeps[dep] = append(reverseDeps[dep], i)
+		}
+	}
+
+	// Seed heap with zero-dep entries.
+	ready := &initHeap{}
+	for i := range pending {
+		if unsatisfied[i] == 0 {
+			heap.Push(ready, i)
+		}
+	}
+
+	// Kahn's loop: always pop the earliest-in-declaration-order ready entry.
+	for ready.Len() > 0 {
+		idx := heap.Pop(ready).(int)
+		decl := pending[idx]
+		fb := pv.GetFileBlock(m.Store, declFiles[idx].FileName)
 		m.PushBlock(fb)
 		m.runDeclaration(decl)
 		m.PopBlock()
 		for _, n := range decl.GetDeclNames() {
 			fdeclared[n] = struct{}{}
 		}
+		// Notify dependents; enqueue newly-ready ones.
+		if vd, ok := decl.(*ValueDecl); ok {
+			for _, depIdx := range reverseDeps[vd] {
+				unsatisfied[depIdx]--
+				if unsatisfied[depIdx] == 0 {
+					heap.Push(ready, depIdx)
+				}
+			}
+		}
 	}
 
-	// Declarations (and variable initializations).  This must happen
-	// after all files are preprocessed, because value decl may be out of
-	// order and depend on other files.
-
-	// Run declarations.
-	for _, fn := range fns {
-		for _, decl := range fn.Decls {
-			runDeclarationFor(fn, decl)
+	// Sanity check: all entries must have been processed. If any remain,
+	// it means resolveEffectiveDeps missed a cycle or the reverse-dep
+	// notification has a gap.
+	for i, decl := range pending {
+		if unsatisfied[i] > 0 {
+			panic(fmt.Sprintf(
+				"incomplete initialization: %v still has %d unsatisfied deps",
+				decl.GetDeclNames(), unsatisfied[i]))
 		}
 	}
 
@@ -783,12 +816,12 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
-	if bm.OpsEnabled || bm.StorageEnabled {
+	if bm.Enabled {
 		// reset the benchmark
 		bm.InitMeasure()
-	}
-	if bm.StorageEnabled {
-		defer bm.FinishStore()
+		if bm.StorageEnabled {
+			defer bm.FinishStore()
+		}
 	}
 	// X must not have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
@@ -1235,29 +1268,35 @@ const (
 func (m *Machine) Run(st Stage) {
 	m.Stage = st
 	if bm.OpsEnabled {
-		defer func() {
-			// output each machine run results to file
-			bm.FinishRun()
-		}()
+		defer bm.FinishRun()
 	}
 	if bm.NativeEnabled {
-		defer func() {
-			// output each machine run results to file
-			bm.FinishNative()
-		}()
+		defer bm.FinishNative()
 	}
-	defer func() {
-		r := recover()
 
-		if r != nil {
-			switch r := r.(type) {
-			case *Exception:
-				if r.Stacktrace.IsZero() {
-					r.Stacktrace = m.Stacktrace()
-				}
-				m.pushPanic(r.Value)
-				m.Run(st)
-			default:
+	// Iterative exception recovery: catch Go-level *Exception panics and
+	// convert them to the cooperative pushPanic path without recursion.
+	for {
+		caught := m.runOnce()
+		if caught == nil {
+			return
+		}
+		if caught.Stacktrace.IsZero() {
+			caught.Stacktrace = m.Stacktrace()
+		}
+		m.pushPanic(caught.Value)
+	}
+}
+
+// runOnce executes the op loop until it completes (OpHalt) or a Go-level
+// *Exception panic is caught. Returns the caught exception, or nil if the
+// loop completed normally. Non-Exception panics are re-raised.
+func (m *Machine) runOnce() (caught *Exception) {
+	defer func() {
+		if r := recover(); r != nil {
+			if ex, ok := r.(*Exception); ok {
+				caught = ex
+			} else {
 				panic(r)
 			}
 		}
@@ -1268,21 +1307,15 @@ func (m *Machine) Run(st Stage) {
 			m.Debug()
 		}
 		op := m.PopOp()
-		if bm.OpsEnabled {
-			// benchmark the operation.
-			bm.StartOpCode(byte(OpVoid))
-			bm.StopOpCode()
-			// we do not benchmark static evaluation.
-			if op != OpStaticTypeOf {
-				bm.StartOpCode(byte(op))
-			}
+		if bm.Enabled {
+			bm.SwitchOpCode(bm.CPUOp(op))
 		}
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
-			if bm.OpsEnabled {
+			if bm.Enabled {
 				bm.StopOpCode()
 			}
 			return
@@ -1328,11 +1361,9 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUCallDeferNativeBody)
 			m.doOpCallDeferNativeBody()
 		case OpGo:
-			m.incrCPU(OpCPUGo)
-			panic("not yet implemented")
+			panic("goroutines are not yet supported")
 		case OpSelect:
-			m.incrCPU(OpCPUSelect)
-			panic("not yet implemented")
+			panic("select is not yet supported")
 		case OpSwitchClause:
 			m.incrCPU(OpCPUSwitchClause)
 			m.doOpSwitchClause()
@@ -1371,8 +1402,7 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUUxor)
 			m.doOpUxor()
 		case OpUrecv:
-			m.incrCPU(OpCPUUrecv)
-			m.doOpUrecv()
+			panic("channel type is not yet supported")
 		/* Binary operators */
 		case OpLor:
 			m.incrCPU(OpCPULor)
@@ -1500,8 +1530,7 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUSliceType)
 			m.doOpSliceType()
 		case OpChanType:
-			m.incrCPU(OpCPUChanType)
-			m.doOpChanType()
+			panic("channel type is not yet supported")
 		case OpFuncType:
 			m.incrCPU(OpCPUFuncType)
 			m.doOpFuncType()
@@ -1592,11 +1621,8 @@ func (m *Machine) Run(st Stage) {
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
 		}
-		if bm.OpsEnabled {
-			if op != OpStaticTypeOf {
-				bm.StopOpCode()
-			}
-		}
+		// No StopOpCode needed here — SwitchOpCode at the top
+		// of the next iteration attributes this op's time.
 	}
 }
 
@@ -2105,6 +2131,22 @@ func (m *Machine) PeekFrameAndContinueRange() {
 
 func (m *Machine) NumFrames() int {
 	return len(m.Frames)
+}
+
+// NumCallFrames returns the number of actual function call frames,
+// excluding closure frames (func literals) and control-flow basic
+// frames (for/range/switch where Func is nil). Only named, non-closure
+// function calls count as separate call boundaries for origin-call
+// purposes.
+func (m *Machine) NumCallFrames() int {
+	count := 0
+	for i := range m.Frames {
+		fr := &m.Frames[i]
+		if fr.Func != nil && !fr.Func.IsClosure {
+			count++
+		}
+	}
+	return count
 }
 
 // Returns the current frame.

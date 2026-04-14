@@ -30,6 +30,7 @@ func main() {
 		stats(binFile)
 		return
 	}
+
 	bm.Init(tmpFile)
 	bstore := benchmarkDiskStore()
 	defer bstore.Delete()
@@ -39,18 +40,22 @@ func main() {
 		log.Fatal("unable to get absolute path for storage directory.", err)
 	}
 
-	// load  stdlibs
+	// Load stdlibs and benchmark packages with recording off
+	// so init-phase store ops don't contaminate measurements.
 	loadStdlibs(bstore)
+	pkgs := loadBenchPackages(bstore, dir)
+
+	// Enable recording for actual benchmarks.
+	bm.Recording = true
 
 	if bm.OpsEnabled {
-		benchmarkOpCodes(bstore.gnoStore, dir)
+		benchmarkOpCodes(bstore.gnoStore, pkgs.opcodes)
 	}
 	if bm.StorageEnabled {
-		benchmarkStorage(bstore, dir)
+		benchmarkStorage(bstore, pkgs.storage)
 	}
-
 	if bm.NativeEnabled {
-		benchmarkNative(bstore.gnoStore, dir)
+		benchmarkNative(bstore.gnoStore, pkgs.native)
 	}
 
 	bm.Finish()
