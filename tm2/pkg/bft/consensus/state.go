@@ -609,7 +609,7 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Check if this is an intentional halt-height shutdown.
-			if haltErr, ok := r.(types.ErrHaltHeightReached); ok {
+			if haltErr, ok := r.(types.HaltHeightReachedError); ok {
 				cs.Logger.Info("Halt height reached, shutting down",
 					"height", haltErr.Height)
 				onExit()

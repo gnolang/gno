@@ -532,7 +532,7 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 	// We halt at the beginning of the block *after* haltHeight,
 	// so the block at haltHeight is fully committed.
 	if app.haltHeight > 0 && uint64(req.Header.GetHeight()) > app.haltHeight {
-		panic(bft.ErrHaltHeightReached{Height: app.haltHeight})
+		panic(bft.HaltHeightReachedError{Height: app.haltHeight})
 	}
 
 	// Initialize the DeliverTx state. If this is the first block, it should

@@ -40,12 +40,12 @@ func (e InvalidCommitPrecommitsError) Error() string {
 	return fmt.Sprintf("Invalid commit -- wrong set size: %v vs %v", e.Expected, e.Actual)
 }
 
-// ErrHaltHeightReached is the panic value used when the configured halt height
+// HaltHeightReachedError is the panic value used when the configured halt height
 // has been reached and the node should shut down.
-type ErrHaltHeightReached struct {
+type HaltHeightReachedError struct {
 	Height uint64
 }
 
-func (e ErrHaltHeightReached) Error() string {
+func (e HaltHeightReachedError) Error() string {
 	return fmt.Sprintf("halt height %d reached, node shutting down", e.Height)
 }
