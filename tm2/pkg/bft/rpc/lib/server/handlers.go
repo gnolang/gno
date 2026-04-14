@@ -153,7 +153,7 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 				if err := json.Unmarshal(raw, &req); err != nil {
 					responses = append(responses, types.RPCInvalidRequestError(
 						types.JSONRPCStringID(""),
-						fmt.Errorf("error unmarshalling request: %w", err),
+						errors.Wrap(err, "error unmarshalling request"),
 					))
 					continue
 				}
@@ -682,7 +682,7 @@ func (wsc *wsConnection) readRoutine() {
 					if err := json.Unmarshal(raw, &req); err != nil {
 						responses = append(responses, types.RPCInvalidRequestError(
 							types.JSONRPCStringID(""),
-							fmt.Errorf("error unmarshalling request: %w", err),
+							errors.Wrap(err, "error unmarshalling request"),
 						))
 						continue
 					}
