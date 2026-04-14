@@ -81,7 +81,8 @@ func main() {
 			LongHelp: `gnoweb web interface
 
 Environment variables:
-  GNOWEB_BANNER_TEXT  Banner content (supports inline markdown). Max 400 chars.`,
+  GNOWEB_BANNER_TEXT  Banner content (supports inline markdown). Max 400 chars.
+  GNOWEB_BANNER_URL   Optional link for the banner (requires GNOWEB_BANNER_TEXT).`,
 		},
 		&cfg,
 		func(ctx context.Context, args []string) error {
@@ -241,12 +242,15 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
-		banner, err := components.NewBannerData(text)
+		bannerURL := os.Getenv("GNOWEB_BANNER_URL")
+		banner, err := components.NewBannerData(text, bannerURL)
 		if err != nil {
 			logger.Warn("invalid banner markdown, banner disabled", "error", err)
 		} else {
 			appcfg.Banner = banner
 		}
+	} else if os.Getenv("GNOWEB_BANNER_URL") != "" {
+		logger.Warn("GNOWEB_BANNER_URL is set but GNOWEB_BANNER_TEXT is empty; banner will not be shown")
 	}
 
 	if cfg.noDefaultAliases {

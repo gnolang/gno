@@ -58,15 +58,18 @@ type HeadData struct {
 // MaxBannerLength is the maximum character length for banner markdown source.
 const MaxBannerLength = 400
 
-// BannerData implement component.
+// BannerData implements Component.
 var _ Component = BannerData{}
 
 // BannerData holds pre-rendered inline HTML from markdown.
 type BannerData struct {
 	content string
+	url     string
 }
 
 func (b BannerData) Enabled() bool { return b.content != "" }
+func (b BannerData) HasURL() bool  { return b.url != "" }
+func (b BannerData) URL() string   { return b.url }
 
 func (b BannerData) Render(w io.Writer) (err error) {
 	_, err = io.WriteString(w, b.content)
@@ -75,8 +78,9 @@ func (b BannerData) Render(w io.Writer) (err error) {
 
 // NewBannerData parses inline markdown into a BannerData with pre-rendered HTML.
 // Content after the first newline is discarded. Content is truncated to MaxBannerLength runes.
-// Returns an error only if goldmark fails to parse.
-func NewBannerData(markdown string) (BannerData, error) {
+// If globalURL is non-empty (http/https only), the banner acts as a single clickable link
+// and any inline markdown links are unwrapped to plain text.
+func NewBannerData(markdown, globalURL string) (BannerData, error) {
 	// Keep only the first line
 	if i := strings.IndexAny(markdown, "\n\r"); i >= 0 {
 		markdown = markdown[:i]
@@ -92,16 +96,33 @@ func NewBannerData(markdown string) (BannerData, error) {
 		markdown = string(runes[:MaxBannerLength])
 	}
 
+	// Validate global URL: only http/https allowed.
+	globalURL = strings.TrimSpace(globalURL)
+	hasGlobalURL := strings.HasPrefix(globalURL, "https://") || strings.HasPrefix(globalURL, "http://")
+
 	md := goldmark.New(goldmark.WithExtensions(extension.Strikethrough))
 	src := []byte(markdown)
 	doc := md.Parser().Parse(text.NewReader(src))
 
-	// Walk the AST to add target="_blank" on all links.
 	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if entering && n.Kind() == ast.KindLink {
-			n.SetAttributeString("target", "_blank")
-			n.SetAttributeString("rel", "noopener noreferrer")
+		if !entering || n.Kind() != ast.KindLink {
+			return ast.WalkContinue, nil
 		}
+
+		if hasGlobalURL {
+			// Replace link node with its children (keep text, drop the <a>).
+			parent := n.Parent()
+			for c := n.FirstChild(); c != nil; {
+				next := c.NextSibling()
+				parent.InsertBefore(parent, n, c)
+				c = next
+			}
+			parent.RemoveChild(parent, n)
+			return ast.WalkSkipChildren, nil
+		}
+
+		n.SetAttributeString("target", "_blank")
+		n.SetAttributeString("rel", "noopener noreferrer")
 		return ast.WalkContinue, nil
 	})
 
@@ -115,7 +136,11 @@ func NewBannerData(markdown string) (BannerData, error) {
 	result = strings.TrimPrefix(result, "<p>")
 	result = strings.TrimSuffix(result, "</p>")
 
-	return BannerData{content: result}, nil
+	bd := BannerData{content: result}
+	if hasGlobalURL {
+		bd.url = globalURL
+	}
+	return bd, nil
 }
 
 type IndexData struct {
