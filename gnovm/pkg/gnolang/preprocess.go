@@ -1804,6 +1804,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									"invalid argument: cannot make %s; type must be slice, map", tt))
 							}
 
+							// Reject negative constant size arguments (len, cap, hint).
+							// Skip n.Args[0] which is the type argument.
+							for _, arg := range n.Args[1:] {
+								if cx, ok := arg.(*ConstExpr); ok {
+									tv := cx.TypedValue
+									if tv.T == nil || !isNumeric(tv.T) {
+										panic(fmt.Sprintf(
+											"cannot use %v as type int in argument to make", tv))
+									}
+									if tv.Sign() < 0 {
+										panic(fmt.Sprintf(
+											"invalid argument: index %v must not be negative", tv))
+									}
+								}
+							}
+
 							// Specify function param/result generics.
 							argTVs := evalStaticTypedValues(store, last, n.Args...)
 							isVarg := n.Varg
@@ -1838,6 +1854,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										n.Args[i], at))
 								}
 								checkOrConvertType(store, last, n, &n.Args[i], expectedType)
+							}
+
+							// For slices with 3 args, check len <= cap when both are constants.
+							if _, ok := baseOf(tt).(*SliceType); ok && len(n.Args) == 3 {
+								lcx, lOk := n.Args[1].(*ConstExpr)
+								ccx, cOk := n.Args[2].(*ConstExpr)
+								if lOk && cOk {
+									if lcx.TypedValue.GetInt() > ccx.TypedValue.GetInt() {
+										panic(fmt.Sprintf(
+											"invalid argument: len larger than cap in make(%s)", tt))
+									}
+								}
 							}
 
 							return n, TRANS_CONTINUE
