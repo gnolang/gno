@@ -25,13 +25,13 @@ func Render(path string) string {
 		return out
 	}
 
-	if claURL != "" {
-		out += md.Paragraph("You can read the full agreement here: " + md.Link(claURL, claURL))
-	}
-
 	out += md.HorizontalRule()
 	out += md.H2("Status")
 	out += md.Paragraph(md.Bold("CLA enforcement is ENABLED"))
+
+	if claURL != "" {
+		out += md.Paragraph("You can read the full agreement here: " + md.Link(claURL, claURL))
+	}
 
 	table := mdtable.Table{Headers: []string{"", ""}}
 	table.Append([]string{md.Bold("Required Hash"), md.InlineCode(requiredHash)})
