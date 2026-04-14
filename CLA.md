@@ -21,33 +21,33 @@ Signing the CLA ensures that:
 
 ## How to sign the CLA
 
-  The CLA is signed on-chain by calling `Sign` on the
-  `gno.land/r/sys/cla` realm. This is a standalone transaction, sent
-  **before** you deploy any package.
+The CLA is signed on-chain by calling `Sign` on the
+`gno.land/r/sys/cla` realm. This is a standalone transaction, sent
+**before** you deploy any package.
 
-  1. **Find the current required hash.** Visit
-     [`gno.land/r/sys/cla`](https://gno.land/r/sys/cla) on gnoweb. The
-     rendered page shows the current required hash and a link to the
-     CLA document.
-  2. **Sign the CLA** by submitting the transaction. From the CLI:
+1. **Find the current required hash.** Visit
+   [`gno.land/r/sys/cla`](https://gno.land/r/sys/cla) on gnoweb. The
+   rendered page shows the current required hash and a link to the
+   CLA document.
+2. **Sign the CLA** by submitting the transaction. From the CLI:
 
-     ```
-     gnokey maketx call \
-       -pkgpath gno.land/r/sys/cla \
-       -func Sign \
-       -args <required_hash> \
-       -gas-fee 1000000ugnot -gas-wanted 2000000 \
-       -broadcast -chainid <chain_id> <keyname>
-     ```
+   ```
+   gnokey maketx call \
+     -pkgpath gno.land/r/sys/cla \
+     -func Sign \
+     -args <required_hash> \
+     -gas-fee 1000000ugnot -gas-wanted 2000000 \
+     -broadcast -chainid <chain_id> <keyname>
+   ```
 
-     Your address is then recorded on-chain as a signer. Subsequent
-     package deployments (`MsgAddPackage`) from this address pass the
-     CLA check automatically; the deploy transaction itself does **not**
-     carry the hash.
-  3. **If the CLA text is updated**, governance publishes a new hash
-     through a govdao proposal, and **all existing signatures are
-     reset**. You must call `Sign` again with the new hash before your
-     next deploy.
+   Your address is then recorded on-chain as a signer. Subsequent
+   package deployments (`MsgAddPackage`) from this address pass the
+   CLA check automatically; the deploy transaction itself does **not**
+   carry the hash.
+3. **If the CLA text is updated**, governance publishes a new hash
+   through a govdao proposal, and **all existing signatures are
+   reset**. You must call `Sign` again with the new hash before your
+   next deploy.
 
 For off-chain contributions (e.g., pull requests to the GitHub
 repository), follow the instructions provided by the project's
