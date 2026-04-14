@@ -94,7 +94,6 @@ func loadState(db dbm.DB, key []byte) (state State) {
 		osm.Exit(fmt.Sprintf(`LoadState: Data has been corrupted or its spec has changed:
                 %v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
 	return state
 }
@@ -178,7 +177,6 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 		osm.Exit(fmt.Sprintf(`LoadABCIResponses: Data has been corrupted or its spec has
                 changed: %v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
 	return abciResponses, nil
 }
@@ -294,7 +292,6 @@ func loadValidatorsInfo(db dbm.DB, height int64) *ValidatorsInfo {
 		osm.Exit(fmt.Sprintf(`LoadValidators: Data has been corrupted or its spec has changed:
                 %v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
 	return v
 }
@@ -374,7 +371,6 @@ func loadConsensusParamsInfo(db dbm.DB, height int64) *ConsensusParamsInfo {
 		osm.Exit(fmt.Sprintf(`LoadConsensusParams: Data has been corrupted or its spec has changed:
                 %v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
 	return paramsInfo
 }
