@@ -1562,7 +1562,6 @@ func (tv *TypedValue) Sign() int {
 	}
 }
 
-
 // ComputeMapKey returns the value of tv, encoded as a string for usage inside
 // of a map.
 //
