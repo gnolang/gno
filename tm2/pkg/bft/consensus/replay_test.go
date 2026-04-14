@@ -96,7 +96,10 @@ func startNewConsensusStateAndWaitForBlock(
 		err := cs.Start()
 		require.NoError(t, err)
 	}()
-	defer cs.Stop()
+	defer func() {
+		cs.Stop()
+		cs.Wait()
+	}()
 
 LOOP:
 	for {
@@ -225,6 +228,7 @@ LOOP:
 
 			// stop consensus state and transactions sender (initFn)
 			cs.Stop()
+			cs.Wait()
 			cancel()
 
 			// if we reached the required height, exit
