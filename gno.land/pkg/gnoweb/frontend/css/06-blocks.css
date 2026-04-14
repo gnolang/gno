@@ -40,12 +40,12 @@
 	&:is(a):hover {
 		opacity: 0.8;
 	}
+
 	& code {
 		padding: var(--g-space-0-5) var(--g-space-1);
 		border-radius: var(--g-border-radius-sm);
 		background-color: var(--s-color-bg-brand-action);
 		font-size: 0.96em;
-	}
 	}
 }
 
