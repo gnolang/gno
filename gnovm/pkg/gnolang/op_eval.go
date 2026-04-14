@@ -400,10 +400,6 @@ func (m *Machine) doOpEval() {
 		// evaluate x
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
-	case *ChanTypeExpr:
-		m.PushOp(OpChanType)
-		m.PushExpr(x.Value)
-		m.PushOp(OpEval) // OpEvalType?
 	default:
 		panic(fmt.Sprintf("unexpected expression %#v", x))
 	}
