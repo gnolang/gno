@@ -3,7 +3,6 @@ package main
 func main() {
 	var m map[string]int
 	delete(m, "foo")
-	delete(m, "bar")
 	delete(m, "")
 
 	var m2 map[int]string
