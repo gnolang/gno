@@ -2351,9 +2351,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// value: t.Mp is equivalent to (&t).Mp."
 						//
 						// convert to (&x).m, but leave xt as is.
-						ref := &RefExpr{X: n.X}
-						ref.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
-						n.X = ref
+						rx := &RefExpr{X: n.X}
+						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
+						n.X = rx
 						setPreprocessed(n.X)
 						switch tr[len(tr)-1].Type {
 						case VPDerefPtrMethod:
@@ -2379,9 +2379,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Case 2: If tr[0] is deref type, but xt
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
-						ref := &RefExpr{X: n.X}
-						ref.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
-						n.X = ref
+						rx := &RefExpr{X: n.X}
+						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
+						n.X = rx
 						setPreprocessed(n.X)
 					}
 					// bound method or underlying.
@@ -5598,8 +5598,8 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 						// on the RefExpr, or ATTR_TYPEOF_VALUE on n.X.
 						var xt Type
 						var ok bool
-						if re, ok2 := n.X.(*RefExpr); ok2 {
-							xt, ok = re.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
+						if rx, ok2 := n.X.(*RefExpr); ok2 {
+							xt, ok = rx.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
 						}
 						if !ok {
 							xt, ok = n.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
