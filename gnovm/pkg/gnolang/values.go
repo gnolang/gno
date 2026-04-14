@@ -1555,11 +1555,6 @@ func (tv *TypedValue) Sign() int {
 	}
 }
 
-func (tv *TypedValue) AssertNonNegative(msg string) {
-	if tv.Sign() < 0 {
-		panic(fmt.Sprintf("%s: %v", msg, tv))
-	}
-}
 
 // ComputeMapKey returns the value of tv, encoded as a string for usage inside
 // of a map.
