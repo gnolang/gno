@@ -1856,6 +1856,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								checkOrConvertType(store, last, n, &n.Args[i], expectedType)
 							}
 
+							// For slices with 3 args, check len <= cap when both are constants.
+							if _, ok := baseOf(tt).(*SliceType); ok && len(n.Args) == 3 {
+								lcx, lOk := n.Args[1].(*ConstExpr)
+								ccx, cOk := n.Args[2].(*ConstExpr)
+								if lOk && cOk {
+									if lcx.TypedValue.GetInt() > ccx.TypedValue.GetInt() {
+										panic(fmt.Sprintf(
+											"invalid argument: len larger than cap in make(%s)", tt))
+									}
+								}
+							}
+
 							return n, TRANS_CONTINUE
 						case "_cross_gno0p0":
 							if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
