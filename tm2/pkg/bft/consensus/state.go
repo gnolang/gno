@@ -608,6 +608,15 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 
 	defer func() {
 		if r := recover(); r != nil {
+			// Check if this is an intentional halt-height shutdown.
+			if haltErr, ok := r.(types.HaltHeightReachedError); ok {
+				cs.Logger.Info("Halt height reached, shutting down",
+					"height", haltErr.Height)
+				onExit()
+				osm.Kill()
+				return
+			}
+
 			// Log the panic if it's not due to the remote signer client being closed.
 			if err, ok := r.(error); !ok || !goerrors.Is(err, client.ErrClientAlreadyClosed) {
 				cs.Logger.Error("CONSENSUS FAILURE!!!", "err", r, "stack", string(debug.Stack()))
