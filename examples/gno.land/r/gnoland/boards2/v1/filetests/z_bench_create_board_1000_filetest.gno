@@ -7,21 +7,13 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const (
-	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
-	zeros         = "00000000000000" // 14 zeros
-)
+const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	for i := 0; i < 1000; i++ {
-		boards2.CreateBoard(cross, formatName(i), true, true)
+		boards2.CreateBoard(cross, "Board"+strconv.Itoa(i), true, true)
 	}
-}
-
-func formatName(i int) string {
-	s := strconv.Itoa(i)
-	return "b" + zeros[len(s):] + s
 }
 
 // Gas:
