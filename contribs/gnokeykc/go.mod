@@ -4,7 +4,10 @@ go 1.24.0
 
 toolchain go1.24.4
 
-replace github.com/gnolang/gno => ../..
+replace (
+	github.com/gnolang/gno => ../..
+	github.com/zondax/hid v0.9.2 => ../../misc/puregohid
+)
 
 require (
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
@@ -31,6 +34,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/ebitengine/purego v0.8.1 // indirect
 	github.com/emicklei/dot v1.11.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -48,6 +52,7 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/rafaelmartins/usbhid v0.0.0-20241114210731-578383344781 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b // indirect
 	github.com/stretchr/testify v1.11.1 // indirect

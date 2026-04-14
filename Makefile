@@ -13,8 +13,8 @@ rundep=go run -modfile misc/devdeps/go.mod
 # NOTE: these are not very useful in this makefile, but they serve as
 # documentation for sub-makefiles.
 
-# disable cgo by default. cgo requires some additional dependencies in some
-# cases, and is not strictly required by any tm2 code.
+# Disable cgo by default. Ledger support uses a pure-Go HID implementation
+# (misc/puregohid) and does not require CGO.
 CGO_ENABLED ?= 0
 export CGO_ENABLED
 # test suite flags.
