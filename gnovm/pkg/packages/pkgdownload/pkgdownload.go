@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // Download downloads the package identified by `pkgPath` in the directory at `dst` using the provided [PackageFetcher].
@@ -20,21 +19,9 @@ func Download(pkgPath string, dst string, fetcher PackageFetcher) error {
 		return err
 	}
 
-	absDst, err := filepath.Abs(dst)
-	if err != nil {
-		return fmt.Errorf("resolve absolute path for dst %q: %w", dst, err)
-	}
-
 	for _, file := range files {
-		fileDst := filepath.Join(dst, file.Name)
-		absFileDst, err := filepath.Abs(fileDst)
-		if err != nil {
-			return fmt.Errorf("resolve absolute path for file %q: %w", fileDst, err)
-		}
-		// Ensure the resolved file path is contained within dst.
-		// This prevents path traversal via file names containing ".." segments.
-		if !strings.HasPrefix(absFileDst, absDst+string(filepath.Separator)) {
-			return fmt.Errorf("path traversal detected: file name %q resolves outside destination directory", file.Name)
+		if !filepath.IsLocal(file.Name) {
+			return fmt.Errorf("invalid file name %q: must be a local path", file.Name)
 		}
 	}
 

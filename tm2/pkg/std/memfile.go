@@ -237,21 +237,9 @@ func (mpkg *MemPackage) IsZero() bool {
 
 // Write all files into dir.
 func (mpkg *MemPackage) WriteTo(dir string) error {
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		return fmt.Errorf("resolve absolute path for dir %q: %w", dir, err)
-	}
-
 	for _, mfile := range mpkg.Files {
-		fpath := filepath.Join(dir, mfile.Name)
-		absFpath, err := filepath.Abs(fpath)
-		if err != nil {
-			return fmt.Errorf("resolve absolute path for file %q: %w", fpath, err)
-		}
-		// Ensure the resolved file path is contained within dir.
-		// This prevents path traversal via file names containing ".." segments.
-		if !strings.HasPrefix(absFpath, absDir+string(filepath.Separator)) {
-			return fmt.Errorf("path traversal detected: file name %q resolves outside destination directory", mfile.Name)
+		if !filepath.IsLocal(mfile.Name) {
+			return fmt.Errorf("invalid file name %q: must be a local path", mfile.Name)
 		}
 	}
 
@@ -259,7 +247,7 @@ func (mpkg *MemPackage) WriteTo(dir string) error {
 	for _, mfile := range mpkg.Files {
 		// fmt.Printf(" - %s (%d bytes)\n", mfile.Name, len(mfile.Body))
 		fpath := filepath.Join(dir, mfile.Name)
-		err = os.WriteFile(fpath, []byte(mfile.Body), 0o644)
+		err := os.WriteFile(fpath, []byte(mfile.Body), 0o644)
 		if err != nil {
 			return err
 		}
