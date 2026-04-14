@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -457,23 +458,18 @@ func generateGenesisFile(genesisFile string, signer gnoland.GenesisSigner, c *st
 		}
 	}
 
-	filtered := make([]gnoland.TxWithMetadata, 0, len(genesisTxs))
-	for _, tx := range genesisTxs {
-		skip := false
+	genesisTxs = slices.DeleteFunc(genesisTxs, func(tx gnoland.TxWithMetadata) bool {
 		for _, msg := range tx.Tx.Msgs {
 			if addPkg, ok := msg.(vm.MsgAddPackage); ok && addPkg.Package != nil {
 				if _, exists := pkgPaths[addPkg.Package.Path]; exists {
-					skip = true
-					break
+					return true
 				}
 			}
 		}
-		if !skip {
-			filtered = append(filtered, tx)
-		}
-	}
+		return false
+	})
 
-	genesisTxs = append(pkgsTxs, filtered...)
+	genesisTxs = append(pkgsTxs, genesisTxs...)
 
 	// Sign genesis transactions, with the default key (test1)
 	if err = gnoland.SignGenesisTxs(genesisTxs, signer, c.chainID); err != nil {
