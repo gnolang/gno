@@ -256,7 +256,7 @@ func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
 	// Catch halt-height panics from BeginBlock during block replay.
 	defer func() {
 		if r := recover(); r != nil {
-			if haltErr, ok := r.(types.ErrHaltHeightReached); ok {
+			if haltErr, ok := r.(types.HaltHeightReachedError); ok {
 				retErr = fmt.Errorf("halt height %d already reached, remove or increase halt_height in config before restarting", haltErr.Height)
 				return
 			}

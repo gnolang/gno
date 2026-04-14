@@ -1301,7 +1301,7 @@ func TestHaltHeight(t *testing.T) {
 			header := &bft.Header{ChainID: "test-chain", Height: tt.blockHeight}
 			if tt.shouldPanic {
 				require.PanicsWithValue(t,
-					bft.ErrHaltHeightReached{Height: tt.haltHeight},
+					bft.HaltHeightReachedError{Height: tt.haltHeight},
 					func() {
 						app.BeginBlock(abci.RequestBeginBlock{Header: header})
 					},
