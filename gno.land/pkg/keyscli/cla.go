@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
+	tmerrors "github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 // These values should follow future evolution of the CLA realm.
@@ -18,9 +19,17 @@ const (
 )
 
 // isCLAError checks whether the error indicates a CLA signing failure.
-// Uses %#v because the CLA message is not available via err.Error()
+// Gates on UnauthorizedUserError as the cause, then matches the CLA log
+// message via %#v (not exposed through err.Error()).
 func isCLAError(err error) bool {
-	return err != nil && strings.Contains(fmt.Sprintf("%#v", err), claErrorSubstring)
+	if err == nil {
+		return false
+	}
+	cause := tmerrors.Cause(err)
+	if cause == nil || cause.Error() != "unauthorized user" {
+		return false
+	}
+	return strings.Contains(fmt.Sprintf("%#v", err), claErrorSubstring)
 }
 
 // wrapCLAError wraps the original error with a user-friendly CLA signing helper.
@@ -107,30 +116,32 @@ func queryEvalString(remote, pkgPath, expr string) (string, error) {
 	if res.Response.Error != nil {
 		return "", fmt.Errorf("evaluating %s.%s: %s", pkgPath, expr, res.Response.Error.Error())
 	}
-	result := parseQEvalString(string(res.Response.Data))
-	if result == "" && len(res.Response.Data) > 0 {
+	result, ok := parseQEvalString(string(res.Response.Data))
+	if !ok {
 		return "", fmt.Errorf("evaluating %s.%s: unexpected response format: %s", pkgPath, expr, string(res.Response.Data))
 	}
 	return result, nil
 }
 
 // parseQEvalString extracts the string value from a '("value" string)' qeval response.
-func parseQEvalString(data string) string {
+// Returns ok=false when the input does not match the expected shape; ok=true with
+// an empty value is a valid result (e.g. '("" string)').
+func parseQEvalString(data string) (string, bool) {
 	data = strings.TrimSpace(data)
-	if !strings.HasPrefix(data, "(") || !strings.HasSuffix(data, ")") {
-		return ""
+	if len(data) < 2 || data[0] != '(' || data[len(data)-1] != ')' {
+		return "", false
 	}
 	inner := strings.TrimSpace(data[1 : len(data)-1])
 	// Split at last space to separate value from type: "<value> string"
 	lastSpace := strings.LastIndex(inner, " ")
 	if lastSpace < 0 || inner[lastSpace+1:] != "string" {
-		return ""
+		return "", false
 	}
 	val := inner[:lastSpace]
 	if unquoted, err := strconv.Unquote(val); err == nil {
-		return unquoted
+		return unquoted, true
 	}
-	return val
+	return val, true
 }
 
 // formatCLAHelper builds a user-friendly CLA signing helper.

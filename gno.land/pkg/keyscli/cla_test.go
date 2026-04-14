@@ -4,33 +4,55 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	tmerrors "github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestIsCLAError(t *testing.T) {
-	assert.True(t, isCLAError(fmt.Errorf("address g1abc has not signed the required CLA")))
-	assert.True(t, isCLAError(fmt.Errorf("deliver transaction failed: log:address g1abc has not signed the required CLA")))
+	// Real CLA error: UnauthorizedUserError wrapped with the CLA log.
+	claErr := tmerrors.Wrapf(vm.UnauthorizedUserError{}, "deliver transaction failed: log:address g1abc has not signed the required CLA")
+	assert.True(t, isCLAError(claErr))
+	// Extra wrap (as maketx.go does with "broadcast tx") must still match.
+	assert.True(t, isCLAError(tmerrors.Wrap(claErr, "broadcast tx")))
+
+	// Namespace error: same UnauthorizedUserError cause, no CLA substring.
+	nsErr := tmerrors.Wrapf(vm.UnauthorizedUserError{}, "deliver transaction failed: log:user g1abc is not allowed to deploy to namespace")
+	assert.False(t, isCLAError(nsErr))
+
+	// Plain errors whose Cause is not UnauthorizedUserError must not match,
+	// even if the string happens to contain the CLA substring.
+	assert.False(t, isCLAError(fmt.Errorf("address g1abc has not signed the required CLA")))
 	assert.False(t, isCLAError(fmt.Errorf("unauthorized user")))
 	assert.False(t, isCLAError(fmt.Errorf("")))
+	assert.False(t, isCLAError(nil))
 }
 
 func TestParseQEvalString(t *testing.T) {
-	// Quoted format (actual vm/qeval output)
-	assert.Equal(t, "abc123hash", parseQEvalString(`("abc123hash" string)`))
-	assert.Equal(t, "https://example.com/cla", parseQEvalString(`("https://example.com/cla" string)`))
-	// Empty quoted string
-	assert.Equal(t, "", parseQEvalString(`("" string)`))
-	// Non-string type
-	assert.Equal(t, "", parseQEvalString("(true bool)"))
-	// Garbage
-	assert.Equal(t, "", parseQEvalString(""))
-	assert.Equal(t, "", parseQEvalString("garbage"))
-	// Quoted value with spaces
-	assert.Equal(t, "hello world", parseQEvalString(`("hello world" string)`))
-	// Quoted value with escaped quotes
-	assert.Equal(t, `"quoted" value`, parseQEvalString(`("\"quoted\" value" string)`))
-	// Unquoted fallback (shouldn't happen in practice but handle gracefully)
-	assert.Equal(t, "abc123hash", parseQEvalString("(abc123hash string)"))
+	cases := []struct {
+		name string
+		in   string
+		want string
+		ok   bool
+	}{
+		{"quoted hash", `("abc123hash" string)`, "abc123hash", true},
+		{"quoted url", `("https://example.com/cla" string)`, "https://example.com/cla", true},
+		{"empty quoted string is valid", `("" string)`, "", true},
+		{"quoted with spaces", `("hello world" string)`, "hello world", true},
+		{"quoted with escapes", `("\"quoted\" value" string)`, `"quoted" value`, true},
+		{"unquoted fallback", "(abc123hash string)", "abc123hash", true},
+
+		{"non-string type", "(true bool)", "", false},
+		{"empty input", "", "", false},
+		{"garbage", "garbage", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := parseQEvalString(tc.in)
+			assert.Equal(t, tc.ok, ok)
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }
 
 func TestFormatCLAHelper(t *testing.T) {
