@@ -1,6 +1,8 @@
 import { BaseController } from "./controller.js";
 
 export class BreadcrumbController extends BaseController {
+	static controllerIdentifier = "breadcrumb";
+
 	protected connect(): void {}
 
 	// DOM ACTIONS

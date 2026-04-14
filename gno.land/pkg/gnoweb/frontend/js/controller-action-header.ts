@@ -11,6 +11,8 @@ export type ActionMode =
 
 // CONTROLLER
 export class ActionHeaderController extends BaseController {
+	static controllerIdentifier = "action-header";
+
 	protected connect(): void {
 		this.on("controllers:ready", () => {
 			this._restoreMode();

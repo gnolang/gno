@@ -19,6 +19,7 @@ require (
 	github.com/dgraph-io/ristretto/v2 v2.4.0
 	github.com/emicklei/dot v1.11.0
 	github.com/fortytw2/leaktest v1.3.0
+	github.com/gnoverse/safeurl-sdk/go v1.3.2
 	github.com/gofrs/flock v0.13.0
 	github.com/golang/mock v1.6.0
 	github.com/google/gofuzz v1.2.0
@@ -62,6 +63,7 @@ require (
 
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
+	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -86,6 +88,7 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/oapi-codegen/runtime v1.3.1 // indirect
 	github.com/onsi/gomega v1.26.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.23.0 // indirect

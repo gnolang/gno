@@ -31,6 +31,7 @@
 package markdown
 
 import (
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/safeurl"
 	"github.com/yuin/goldmark"
 )
 
@@ -44,6 +45,7 @@ type GnoExtension struct {
 
 type config struct {
 	imgValidatorFunc ImageValidatorFunc
+	safeURLValidator *safeurl.Validator
 }
 
 type Option func(cfg *config)
@@ -51,6 +53,13 @@ type Option func(cfg *config)
 func WithImageValidator(valFunc ImageValidatorFunc) Option {
 	return func(cfg *config) {
 		cfg.imgValidatorFunc = valFunc
+	}
+}
+
+// WithSafeURLValidator sets the SafeURL validator for URL safety checking.
+func WithSafeURLValidator(v *safeurl.Validator) Option {
+	return func(cfg *config) {
+		cfg.safeURLValidator = v
 	}
 }
 
@@ -71,7 +80,12 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add alert extension
 	ExtAlerts.Extend(m)
 
-	// Add link extension
+	// Add SafeURL extension (must run before link extension at priority 400)
+	if e.cfg.safeURLValidator != nil {
+		ExtSafeURL.Extend(m, e.cfg.safeURLValidator)
+	}
+
+	// Add link extension (runs at priority 500)
 	ExtLinks.Extend(m)
 
 	// Add form / inputs extension
