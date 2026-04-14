@@ -1,0 +1,30 @@
+package main
+
+import (
+	"strconv"
+	"testing"
+
+	boards2 "gno.land/r/gnoland/boards2/v1"
+)
+
+const (
+	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+	zeros         = "00000000000000" // 14 zeros
+)
+
+func main() {
+	testing.SetRealm(testing.NewUserRealm(owner))
+	boardID := boards2.CreateBoard(cross, formatName(0), true, true)
+	threadID := boards2.CreateThread(cross, boardID, formatName(0), "Body")
+	for i := 0; i < 10; i++ {
+		boards2.CreateReply(cross, boardID, threadID, 0, "Comment")
+	}
+}
+
+func formatName(i int) string {
+	s := strconv.Itoa(i)
+	return "b" + zeros[len(s):] + s
+}
+
+// Gas:
+// 31435603
