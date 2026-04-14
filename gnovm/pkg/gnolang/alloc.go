@@ -242,7 +242,7 @@ func (alloc *Allocator) NewString(s string) StringValue {
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 	if n < 0 {
-		panic(&Exception{Value: typedString("len out of range")})
+		panic("NewListArray: n must not be negative")
 	}
 	alloc.AllocateListArray(int64(n))
 	return &ArrayValue{
@@ -252,11 +252,11 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 
 func (alloc *Allocator) NewListArray2(l, c int) *ArrayValue {
 	if l < 0 || c < 0 {
-		panic(&Exception{Value: typedString("len or cap out of range")})
+		panic("NewListArray2: l and c must not be negative")
 	}
 
 	if c < l {
-		panic(&Exception{Value: typedString("length and capacity swapped")})
+		panic("NewListArray2: c must not be less than l")
 	}
 
 	alloc.AllocateListArray(int64(c))
@@ -267,7 +267,7 @@ func (alloc *Allocator) NewListArray2(l, c int) *ArrayValue {
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 	if n < 0 {
-		panic(&Exception{Value: typedString("len out of range")})
+		panic("NewDataArray: n must not be negative")
 	}
 
 	alloc.AllocateDataArray(int64(n))
