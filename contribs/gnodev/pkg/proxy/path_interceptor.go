@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -72,7 +73,8 @@ func NewPathInterceptor(logger *slog.Logger, target net.Addr) (*PathInterceptor,
 	}
 
 	proxy.server = &http.Server{
-		Handler: proxy,
+		Handler:           proxy,
+		ReadHeaderTimeout: 60 * time.Second,
 	}
 
 	go proxy.server.Serve(proxyListener)
@@ -166,12 +168,16 @@ func (proxy *PathInterceptor) handleWebSocket(w http.ResponseWriter, r *http.Req
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		io.Copy(targetConn, clientConn)
+		if _, err := io.Copy(targetConn, clientConn); err != nil {
+			proxy.logger.Debug("websocket client to target copy error", "error", err)
+		}
 		targetConn.Close()
 	}()
 	go func() {
 		defer wg.Done()
-		io.Copy(clientConn, targetConn)
+		if _, err := io.Copy(clientConn, targetConn); err != nil {
+			proxy.logger.Debug("websocket target to client copy error", "error", err)
+		}
 		clientConn.Close()
 	}()
 	wg.Wait()
