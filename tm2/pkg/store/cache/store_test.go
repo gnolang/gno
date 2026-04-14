@@ -590,6 +590,77 @@ func (krc *keyRangeCounter) key() int {
 
 func bz(s string) []byte { return []byte(s) }
 
+// TestGasMeterDedupDriftAcrossMeterSwap demonstrates bug C8:
+// The chargedGas dedup map lives on the cache store, not on the gas meter.
+// When SetGasMeter replaces the meter mid-transaction (as the ante handler
+// does), subsequent writes to the same key refund gas from the NEW meter
+// that was never charged on, causing double-charging.
+//
+// Sequence:
+//  1. Ante writes Set(k, V1) with meterA. chargedGas[k] = gas_v1. meterA.consumed += gas_v1.
+//  2. SetGasMeter replaces meterA with meterB (consumed=0).
+//  3. Msg writes Set(k, V2) with meterB. Dedup refunds gas_v1 from meterB (clamps to 0),
+//     then charges gas_v2. meterB.consumed = gas_v2.
+//  4. User pays gas_v1 on meterA (invisible) + gas_v2 on meterB = double-charged.
+func TestGasMeterDedupDriftAcrossMeterSwap(t *testing.T) {
+	t.Parallel()
+
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
+	st := cache.New(mem)
+
+	cfg := types.DefaultGasConfig()
+	key := []byte("account_sequence")
+	anteValue := []byte("seq=42")
+	msgValue := []byte("seq=43")
+
+	// Phase 1: Ante handler writes with meterA (passthrough/infinite meter).
+	meterA := types.NewGasMeter(1_000_000)
+	gctxA := &types.GasContext{Meter: meterA, Config: cfg}
+	st.Set(gctxA, key, anteValue)
+
+	gasChargedOnA := meterA.GasConsumed()
+	require.Greater(t, gasChargedOnA, int64(0), "ante Set should charge gas on meterA")
+
+	// Phase 2: SetGasMeter replaces the meter. The cache store's chargedGas
+	// map still has the entry from phase 1, but the meter is now different.
+	meterB := types.NewGasMeter(1_000_000)
+	gctxB := &types.GasContext{Meter: meterB, Config: cfg}
+
+	// Phase 3: Msg handler writes the same key with meterB.
+	// The dedup logic will try to RefundGas(gasChargedOnA) from meterB,
+	// but meterB has consumed=0, so the refund clamps to 0.
+	st.Set(gctxB, key, msgValue)
+
+	gasChargedOnB := meterB.GasConsumed()
+
+	// Compute what a single Set SHOULD cost (the "correct" gas for msgValue).
+	expectedGas := cfg.WriteCostFlat + cfg.WriteCostPerByte*int64(len(msgValue))
+
+	// BUG: The user is double-charged.
+	// meterA saw: gasChargedOnA (for anteValue)
+	// meterB saw: gasChargedOnB (for msgValue) — the refund was clamped, so no discount
+	// Total paid: gasChargedOnA + gasChargedOnB
+	// Should pay: only gasChargedOnB (since V1 was overwritten, dedup should cancel it)
+	totalPaid := gasChargedOnA + gasChargedOnB
+
+	t.Logf("meterA charged: %d", gasChargedOnA)
+	t.Logf("meterB charged: %d (expected: %d)", gasChargedOnB, expectedGas)
+	t.Logf("total paid across both meters: %d", totalPaid)
+	t.Logf("correct total (single write): %d", expectedGas)
+
+	// meterB should show the full write cost (no effective refund happened).
+	require.Equal(t, expectedGas, gasChargedOnB,
+		"meterB has full charge — RefundGas(gasChargedOnA) clamped to 0 since meterB.consumed was 0")
+
+	// The user paid on BOTH meters. This is the double-charge.
+	require.Greater(t, totalPaid, expectedGas,
+		"total gas across both meters exceeds correct single-write cost — double-charge confirmed")
+
+	// Verify the refund was silently swallowed (meterB never went negative).
+	require.Equal(t, expectedGas, gasChargedOnB,
+		"meterB.consumed should equal a fresh write cost, proving the refund was a no-op")
+}
+
 func BenchmarkCacheStoreGetNoKeyFound(b *testing.B) {
 	st := newCacheStore()
 	b.ResetTimer()

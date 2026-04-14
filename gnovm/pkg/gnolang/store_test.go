@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"sort"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -198,4 +199,132 @@ func TestFindByPrefix(t *testing.T) {
 			require.Equal(t, tc.Expected, paths)
 		})
 	}
+}
+
+// TestStdlibCacheSharedWithoutMutex demonstrates bug H6:
+// stdlibKeyBytes is a plain map[string][]byte shared by reference across
+// transaction stores (BeginTransaction copies the pointer, not the map).
+// There is no mutex protecting it.
+//
+// In practice, PopulateStdlibCache is only called at node startup/genesis
+// (before transactions run), and after that the map is read-only. So this
+// is a defensive-programming concern rather than a runtime race under the
+// current ABCI model. However, the lack of any synchronization makes the
+// code fragile: any future write path (e.g., governance stdlib upgrade,
+// hot reload) would introduce a fatal "concurrent map read and map write".
+func TestStdlibCacheSharedWithoutMutex(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	baseStore := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+
+	// Seed some data in the backing store so populateStdlibCache has
+	// something to write into the cache.
+	baseStore.Set(nil, []byte("tid:strings.Builder"), []byte("builder_bytes"))
+	baseStore.Set(nil, []byte("tid:strings.Replacer"), []byte("replacer_bytes"))
+
+	parentStore := NewStore(nil, baseStore, baseStore)
+	parentStore.PopulateStdlibCache([]string{"strings"})
+
+	// BeginTransaction shares the same stdlibKeyBytes map reference.
+	tx1 := parentStore.BeginTransaction(nil, nil, nil, nil)
+	tx2 := parentStore.BeginTransaction(nil, nil, nil, nil)
+	ds0 := parentStore
+	ds1 := tx1.(transactionStore).defaultStore
+	ds2 := tx2.(transactionStore).defaultStore
+
+	// All three point to the same underlying map — no copy-on-write.
+	assert.Equal(t,
+		fmt.Sprintf("%p", ds0.stdlibKeyBytes),
+		fmt.Sprintf("%p", ds1.stdlibKeyBytes),
+		"tx1 should share the same stdlibKeyBytes map as parent")
+	assert.Equal(t,
+		fmt.Sprintf("%p", ds0.stdlibKeyBytes),
+		fmt.Sprintf("%p", ds2.stdlibKeyBytes),
+		"tx2 should share the same stdlibKeyBytes map as parent")
+
+	// Prove the sharing: parent, tx1, and tx2 all see the same entries.
+	require.NotNil(t, ds0.stdlibKeyBytes["tid:strings.Builder"])
+	require.NotNil(t, ds1.stdlibKeyBytes["tid:strings.Builder"])
+	require.NotNil(t, ds2.stdlibKeyBytes["tid:strings.Builder"])
+
+	// Prove writes through one reference are visible through the others —
+	// this is the root cause of the race. A concurrent CheckTx reading the
+	// map while DeliverTx's PopulateStdlibCache writes to it will crash
+	// with "concurrent map read and map write" (fatal in Go 1.19+).
+	ds1.stdlibKeyBytes["tid:strings.NewType"] = []byte("new_type_bytes")
+	assert.NotNil(t, ds0.stdlibKeyBytes["tid:strings.NewType"],
+		"write through tx1 visible in parent — same map, no copy-on-write")
+	assert.NotNil(t, ds2.stdlibKeyBytes["tid:strings.NewType"],
+		"write through tx1 visible in tx2 — same map, no copy-on-write")
+}
+
+// TestPopulateStdlibCacheMissesLocalTypes demonstrates bug H8:
+// populateStdlibCache uses the iterator range ["tid:<path>.", "tid:<path>/")
+// to capture stdlib type keys. This misses locally-declared types whose
+// TypeID has the form "<path>[<loc>].<name>" (e.g., "strings[1:2].myType"),
+// because '[' (0x5B) > '/' (0x2F) puts them outside the range.
+//
+// In practice, current stdlib packages only declare types at package level
+// (ParentLoc is zero), producing "tid:path.Name" which IS captured. So this
+// is currently a latent bug — it would only manifest if a stdlib package
+// defined a type inside a function body. The range logic is still incorrect
+// and should use PrefixEndBytes for correctness.
+func TestPopulateStdlibCacheMissesLocalTypes(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	baseStore := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+
+	// Seed the backing store with type keys in both formats:
+	//   Package-level type:  tid:<path>.<name>       (e.g., "tid:strings.Builder")
+	//   Local/block type:    tid:<path>[<loc>].<name> (e.g., "tid:strings[1:2].localType")
+	//
+	// DeclaredTypeID produces the second form when ParentLoc is non-zero.
+	typeKeys := map[string][]byte{
+		// Package-level types — should be cached.
+		"tid:strings.Builder":  []byte("builder_bytes"),
+		"tid:strings.Replacer": []byte("replacer_bytes"),
+		"tid:math/big.Int":     []byte("bigint_bytes"),
+		// Local types (non-zero Location) — MISSED by current range.
+		"tid:strings[1:2].localType":    []byte("local_type_bytes"),
+		"tid:strings[3:15].anotherType": []byte("another_local_bytes"),
+		"tid:math/big[7:9].helper":      []byte("helper_bytes"),
+	}
+
+	for k, v := range typeKeys {
+		baseStore.Set(nil, []byte(k), v)
+	}
+
+	// Create a defaultStore and populate the stdlib cache.
+	ds := &defaultStore{
+		baseStore:      baseStore,
+		iavlStore:      baseStore,
+		stdlibKeyBytes: make(map[string][]byte),
+	}
+	ds.populateStdlibCache([]string{"strings", "math/big"}, baseStore)
+
+	// Collect what was cached.
+	var cached []string
+	for k := range ds.stdlibKeyBytes {
+		cached = append(cached, k)
+	}
+	sort.Strings(cached)
+
+	// Package-level types are cached.
+	assert.Contains(t, ds.stdlibKeyBytes, "tid:strings.Builder", "package-level type should be cached")
+	assert.Contains(t, ds.stdlibKeyBytes, "tid:strings.Replacer", "package-level type should be cached")
+	assert.Contains(t, ds.stdlibKeyBytes, "tid:math/big.Int", "package-level type should be cached")
+
+	// BUG: Local types are NOT cached because '[' (0x5B) > '/' (0x2F)
+	// puts "tid:strings[..." outside the range ["tid:strings.", "tid:strings/").
+	assert.NotContains(t, ds.stdlibKeyBytes, "tid:strings[1:2].localType",
+		"local type MISSED: '[' (0x5B) is outside the iterator range ending at '/' (0x2F)")
+	assert.NotContains(t, ds.stdlibKeyBytes, "tid:strings[3:15].anotherType",
+		"local type MISSED: '[' (0x5B) is outside the iterator range ending at '/' (0x2F)")
+	assert.NotContains(t, ds.stdlibKeyBytes, "tid:math/big[7:9].helper",
+		"local type MISSED: '[' (0x5B) is outside the iterator range ending at '/' (0x2F)")
+
+	t.Logf("cached keys: %v", cached)
+	t.Logf("expected 6 keys cached, got %d — local types are missing", len(cached))
 }
