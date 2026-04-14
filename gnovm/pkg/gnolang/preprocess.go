@@ -1808,8 +1808,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// Skip n.Args[0] which is the type argument.
 							for _, arg := range n.Args[1:] {
 								if cx, ok := arg.(*ConstExpr); ok {
-									if tv := cx.TypedValue; tv.T != nil && isNumeric(tv.T) && tv.Sign() < 0 {
-										panic(fmt.Sprintf("invalid argument: index %v must not be negative", tv))
+									tv := cx.TypedValue
+									if tv.T == nil || !isNumeric(tv.T) {
+										panic(fmt.Sprintf(
+											"cannot use %v as type int in argument to make", tv))
+									}
+									if tv.Sign() < 0 {
+										panic(fmt.Sprintf(
+											"invalid argument: index %v must not be negative", tv))
 									}
 								}
 							}
