@@ -1162,7 +1162,9 @@ func xorAssign(lv, rv *TypedValue) {
 
 // for doOpShl and doOpShlAssign.
 func shlAssign(m *Machine, lv, rv *TypedValue) {
-	rv.AssertNonNegative("runtime error: negative shift amount")
+	if rv.Sign() < 0 {
+		panic(fmt.Sprintf("runtime error: negative shift amount: %v", rv))
+	}
 
 	checkOverflow := func(v func() bool) {
 		if m.Stage == StagePre && !v() {
@@ -1286,7 +1288,9 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 
 // for doOpShr and doOpShrAssign.
 func shrAssign(m *Machine, lv, rv *TypedValue) {
-	rv.AssertNonNegative("runtime error: negative shift amount")
+	if rv.Sign() < 0 {
+		panic(fmt.Sprintf("runtime error: negative shift amount: %v", rv))
+	}
 
 	checkOverflow := func(v func() bool) {
 		if m.Stage == StagePre && !v() {

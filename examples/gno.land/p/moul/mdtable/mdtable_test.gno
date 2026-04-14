@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"gno.land/p/moul/mdtable"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/urequire/v0"
 )
 
 // XXX: switch to `func Example() {}` when supported.

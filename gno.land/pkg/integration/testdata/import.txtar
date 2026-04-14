@@ -1,5 +1,5 @@
 # test that the packages from examples directory are importable and usable.
-loadpkg gno.land/p/nt/ufmt
+loadpkg gno.land/p/nt/ufmt/v0
 loadpkg $WORK
 
 ## start a new node
@@ -16,7 +16,7 @@ gno = "0.9"
 package importtest
 
 import (
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 func Render(_ string) string {

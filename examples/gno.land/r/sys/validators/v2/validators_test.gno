@@ -2,12 +2,14 @@ package validators
 
 import (
 	"chain/runtime"
+	"math"
 	"testing"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/poa/v0"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/sys/validators"
 )
 
@@ -49,7 +51,7 @@ func TestValidators_AddRemove(t *testing.T) {
 
 	for i := initialHeight; i < initialHeight+int64(len(vals)); i++ {
 		// Make sure the changes are saved
-		chs := GetChanges(i)
+		chs := GetChanges(i, initialHeight+int64(len(vals)))
 
 		// We use the funky index calculation to make sure
 		// changes are properly handled for each block span
@@ -83,7 +85,7 @@ func TestValidators_AddRemove(t *testing.T) {
 
 	for i := initialRemoveHeight; i < initialRemoveHeight+int64(len(vals)); i++ {
 		// Make sure the changes are saved
-		chs := GetChanges(i)
+		chs := GetChanges(i, initialRemoveHeight+int64(len(vals)))
 
 		// We use the funky index calculation to make sure
 		// changes are properly handled for each block span
@@ -98,4 +100,73 @@ func TestValidators_AddRemove(t *testing.T) {
 			uassert.Equal(t, uint64(0), ch.VotingPower)
 		}
 	}
+}
+
+// TestGetChanges_BoundedRange verifies that GetChanges(from, to) correctly
+// returns only changes within the [from, to] block range.
+func TestGetChanges_BoundedRange(t *testing.T) {
+	changes = avl.NewTree()
+	vp = poa.NewPoA()
+
+	vals := generateTestValidators(3)
+
+	// Store additions at block h1
+	h1 := runtime.ChainHeight()
+	for _, val := range vals {
+		addValidator(val)
+	}
+	testing.SkipHeights(1)
+
+	// Store removals at block h2
+	h2 := runtime.ChainHeight()
+	for _, val := range vals {
+		removeValidator(val.Address)
+	}
+	testing.SkipHeights(1)
+
+	// Query spanning both blocks returns all changes
+	all := GetChanges(h1, h2)
+	uassert.Equal(t, 6, len(all))
+
+	// Query for h1 only returns additions
+	atH1 := GetChanges(h1, h1)
+	uassert.Equal(t, 3, len(atH1))
+	for i, ch := range atH1 {
+		uassert.Equal(t, vals[i].Address, ch.Address)
+		uassert.True(t, ch.VotingPower > 0)
+	}
+
+	// Query for h2 only returns removals
+	atH2 := GetChanges(h2, h2)
+	uassert.Equal(t, 3, len(atH2))
+	for i, ch := range atH2 {
+		uassert.Equal(t, vals[i].Address, ch.Address)
+		uassert.Equal(t, uint64(0), ch.VotingPower)
+	}
+
+	// Query beyond stored range returns empty
+	uassert.Equal(t, 0, len(GetChanges(h2+1, h2+1)))
+}
+
+func TestGetChanges_PanicsOnInvalidRange(t *testing.T) {
+	uassert.PanicsWithMessage(t, "invalid range: from must be <= to", func() {
+		GetChanges(10, 5)
+	})
+}
+
+func TestGetChanges_ClampsMaxInt64(t *testing.T) {
+	changes = avl.NewTree()
+
+	vals := generateTestValidators(1)
+
+	// Simulate a validator change at block math.MaxInt64-1 (the boundary value).
+	changes.Set(getBlockID(math.MaxInt64-1), []change{
+		{blockNum: math.MaxInt64 - 1, validator: vals[0]},
+	})
+
+	// Passing math.MaxInt64 as "to" means "get all updates from here onwards".
+	// The clamp (to = MaxInt64-1) must still include the boundary block.
+	result := GetChanges(math.MaxInt64-1, math.MaxInt64)
+	uassert.Equal(t, 1, len(result))
+	uassert.Equal(t, vals[0].Address, result[0].Address)
 }

@@ -6,11 +6,11 @@ import (
 
 	"gno.land/p/gnoland/boards"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
 var (
 	srcBID boards.ID

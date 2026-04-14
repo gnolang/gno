@@ -89,7 +89,7 @@ func Render(path string) string {
 
 // Set adds or updates a presentation
 func Set(slug, title, event, author, date, content string) string {
-	Ownable.AssertOwnedByPrevious()
+	Ownable.AssertOwned()
 
 	parsedDate, err := time.Parse("2006-01-02", date)
 	if err != nil {
@@ -122,7 +122,7 @@ func Set(slug, title, event, author, date, content string) string {
 
 // Delete removes a presentation
 func Delete(slug string) string {
-	Ownable.AssertOwnedByPrevious()
+	Ownable.AssertOwned()
 
 	entry := presentations.GetFirst("slug", slug)
 	if entry == nil {
