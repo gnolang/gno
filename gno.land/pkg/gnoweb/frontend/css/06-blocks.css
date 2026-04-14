@@ -36,7 +36,8 @@
 		text-decoration: underline;
 	}
 
-	& a:hover {
+	& a:hover,
+	&:is(a):hover {
 		opacity: 0.8;
 	}
 
