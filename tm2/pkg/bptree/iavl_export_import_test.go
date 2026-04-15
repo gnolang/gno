@@ -151,6 +151,83 @@ func TestExporter_DeleteVersionErrors(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestExporter_InMemoryValues(t *testing.T) {
+	// Verify that in-memory export resolves actual values, not raw hashes.
+	tree := NewMutableTreeMem()
+	for i := 0; i < 50; i++ {
+		tree.Set(fmt.Appendf(nil, "key%03d", i), fmt.Appendf(nil, "val%03d", i))
+	}
+	_, _, err := tree.SaveVersion()
+	require.NoError(t, err)
+
+	imm, err := tree.GetImmutable(1)
+	require.NoError(t, err)
+
+	// Export with ndb=nil (in-memory path)
+	exporter, err := imm.Export(nil)
+	require.NoError(t, err)
+	defer exporter.Close()
+
+	for {
+		node, err := exporter.Next()
+		if err == ErrExportDone {
+			break
+		}
+		require.NoError(t, err)
+		if node.Height == 0 {
+			// Leaf entry: value must be the actual value, not a 32-byte hash
+			require.NotEqual(t, 32, len(node.Value),
+				"value should be actual data, not a 32-byte hash for key %s", node.Key)
+			require.True(t, len(node.Value) > 0, "value should not be empty")
+		}
+	}
+}
+
+func TestExporter_InMemoryRoundtrip(t *testing.T) {
+	// Export from in-memory tree, import into another, verify hash match.
+	tree1 := NewMutableTreeMem()
+	for i := 0; i < 100; i++ {
+		tree1.Set(fmt.Appendf(nil, "k%04d", i), fmt.Appendf(nil, "v%04d", i))
+	}
+	_, _, err := tree1.SaveVersion()
+	require.NoError(t, err)
+	origHash := tree1.WorkingHash()
+	origSize := tree1.Size()
+
+	imm, err := tree1.GetImmutable(1)
+	require.NoError(t, err)
+
+	exporter, err := imm.Export(nil)
+	require.NoError(t, err)
+
+	tree2 := NewMutableTreeMem()
+	importer, err := tree2.Import(1)
+	require.NoError(t, err)
+
+	for {
+		node, err := exporter.Next()
+		if err == ErrExportDone {
+			break
+		}
+		require.NoError(t, err)
+		require.NoError(t, importer.Add(node))
+	}
+	exporter.Close()
+	require.NoError(t, importer.Commit())
+
+	require.Equal(t, origSize, tree2.Size())
+	newHash := tree2.WorkingHash()
+	require.Equal(t, origHash, newHash, "in-memory export/import roundtrip hash must match")
+
+	// Verify all values
+	for i := 0; i < 100; i++ {
+		key := fmt.Appendf(nil, "k%04d", i)
+		expected := fmt.Appendf(nil, "v%04d", i)
+		val, _ := tree2.Get(key)
+		require.Equal(t, expected, val, "value mismatch for key %s", key)
+	}
+}
+
 // --- Import tests ---
 
 func TestImporter_NegativeVersion(t *testing.T) {

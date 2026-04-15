@@ -60,9 +60,14 @@ func (e *Exporter) exportNode(node Node) error {
 				if err != nil {
 					return err
 				}
+			} else if e.tree.valueResolver != nil {
+				var err error
+				value, err = e.tree.valueResolver(n.valueHashes[i])
+				if err != nil {
+					return err
+				}
 			} else {
-				vh := n.valueHashes[i]
-				value = vh[:]
+				return errors.New("export: no value resolver available (ndb is nil and no valueResolver set)")
 			}
 			e.ch <- &ExportNode{
 				Key:    n.keys[i],
