@@ -357,6 +357,9 @@ func (alloc *Allocator) NewStructWithFields(fields ...TypedValue) *StructValue {
 }
 
 func (alloc *Allocator) NewMap(size int) *MapValue {
+	if size < 0 {
+		size = 0
+	}
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
 	mv.MakeMap(size)
