@@ -203,6 +203,7 @@ func redistributeRight(parent *InnerNode, idx int) {
 		r.numKeys++
 		r.size += movedSize
 		parent.keys[idx] = l.keys[lastKeyIdx]
+		l.keys[lastKeyIdx] = nil
 		l.childNodes[lastChildIdx] = nil
 		l.children[lastChildIdx] = nil
 		l.childHashes[lastChildIdx] = Hash{}
