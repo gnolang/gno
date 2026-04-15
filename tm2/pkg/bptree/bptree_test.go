@@ -79,6 +79,27 @@ func TestInMemoryIteratorValues(t *testing.T) {
 	}
 }
 
+func TestKeyDefensivelyCopied(t *testing.T) {
+	// Mutating the key slice after Set must not corrupt the tree.
+	tree := NewMutableTreeMem()
+	key := []byte("hello")
+	tree.Set(key, []byte("world"))
+
+	// Mutate the original key slice
+	key[0] = 'Z'
+
+	// The tree must still find the original key
+	val, _ := tree.Get([]byte("hello"))
+	if !bytes.Equal(val, []byte("world")) {
+		t.Fatalf("key was not defensively copied; Get(\"hello\") = %q", val)
+	}
+	// The mutated key should not exist
+	val, _ = tree.Get([]byte("Zello"))
+	if val != nil {
+		t.Fatalf("mutated key should not exist in tree, got %q", val)
+	}
+}
+
 func TestSetEmptyValue(t *testing.T) {
 	// Set(key, []byte{}) must round-trip correctly — not return nil.
 	tree := NewMutableTreeMem()

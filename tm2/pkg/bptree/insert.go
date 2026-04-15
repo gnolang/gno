@@ -15,6 +15,7 @@ type insertResult struct {
 // It returns the (possibly new) root and whether the key was an update.
 // All nodes on the modification path are COW-cloned.
 func treeInsert(root Node, key, value []byte) (Node, bool) {
+	key = copyKey(key) // defensive copy — caller may reuse the slice
 	valueHash := sha256.Sum256(value)
 
 	// COW-clone the root
