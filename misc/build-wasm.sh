@@ -54,11 +54,28 @@ if [ -z "$TAG" ]; then
   exit 1
 fi
 
+# Validate required tools are available before doing any work
+for cmd in go zip git; do
+  if ! command -v "$cmd" &>/dev/null; then
+    echo "ERROR: required command '$cmd' not found in PATH."
+    exit 1
+  fi
+done
+
+if [ "$PUSH" = true ] && ! command -v gh &>/dev/null; then
+  echo "ERROR: --push requires 'gh' (GitHub CLI) but it was not found in PATH."
+  exit 1
+fi
+
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/gnovm/build}"
 mkdir -p "$OUTPUT_DIR"
 
 # Resolve tag: if not HEAD, checkout the tag (detached) then restore
 ORIG_HEAD="$(git -C "$REPO_ROOT" symbolic-ref --short HEAD 2>/dev/null || git -C "$REPO_ROOT" rev-parse HEAD)"
+if [ -z "$ORIG_HEAD" ]; then
+  echo "ERROR: unable to determine current HEAD; is this a valid git repository?"
+  exit 1
+fi
 NEEDS_RESTORE=false
 
 if [ "$TAG" != "HEAD" ]; then
