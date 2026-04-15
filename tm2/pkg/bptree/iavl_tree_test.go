@@ -178,7 +178,8 @@ func TestVersionedEmptyTree(t *testing.T) {
 
 	hash, v, err := tree.SaveVersion()
 	require.NoError(err)
-	require.Nil(hash) // empty tree hash is nil in our implementation
+	require.NotNil(hash) // empty tree hash is SHA256(""), matching IAVL
+	require.Len(hash, 32)
 	require.EqualValues(1, v)
 
 	hash, v, err = tree.SaveVersion()

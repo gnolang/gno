@@ -160,7 +160,7 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		t.lastSaved = t.root
 		t.version = version
 		if t.root == nil {
-			return nil, version, nil
+			return emptyHash(), version, nil
 		}
 		h := t.root.Hash()
 		return h[:], version, nil
@@ -178,10 +178,12 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 			// Need to compute the working hash to compare
 			h := t.root.Hash()
 			newHash = h[:]
+		} else {
+			newHash = emptyHash()
 		}
 		// Compare: existing empty vs new non-empty, or hash mismatch
 		existingEmpty := existingNK == nil
-		newEmpty := newHash == nil
+		newEmpty := t.root == nil
 		if existingEmpty != newEmpty || !bytes.Equal(existingHash, newHash) {
 			return nil, 0, fmt.Errorf("version %d already exists with a different hash", version)
 		}
@@ -209,7 +211,8 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 			return nil, 0, err
 		}
 	} else {
-		if err := t.ndb.SaveRoot(version, nil, nil); err != nil {
+		rootHash = emptyHash()
+		if err := t.ndb.SaveRoot(version, nil, rootHash); err != nil {
 			return nil, 0, err
 		}
 	}
@@ -436,18 +439,20 @@ func (t *MutableTree) Size() int64 { return t.size }
 func (t *MutableTree) IsEmpty() bool { return t.root == nil }
 
 // Hash returns the root hash of the last saved version.
+// Returns SHA256("") for empty trees, matching IAVL behavior.
 func (t *MutableTree) Hash() []byte {
 	if t.lastSaved == nil {
-		return nil
+		return emptyHash()
 	}
 	h := t.lastSaved.Hash()
 	return h[:]
 }
 
 // WorkingHash computes the hash of the current unsaved working tree.
+// Returns SHA256("") for empty trees, matching IAVL behavior.
 func (t *MutableTree) WorkingHash() []byte {
 	if t.root == nil {
-		return nil
+		return emptyHash()
 	}
 	h := t.root.Hash()
 	return h[:]

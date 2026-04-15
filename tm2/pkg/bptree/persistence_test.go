@@ -216,8 +216,8 @@ func TestPersistence_EmptyVersion(t *testing.T) {
 	if v != 1 {
 		t.Fatalf("version = %d", v)
 	}
-	if hash != nil {
-		t.Fatalf("empty tree hash should be nil")
+	if hash == nil || len(hash) != 32 {
+		t.Fatalf("empty tree hash should be SHA256(\"\"), got %x", hash)
 	}
 
 	// Load it back

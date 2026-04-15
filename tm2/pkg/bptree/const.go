@@ -39,6 +39,17 @@ type Hash = [HashSize]byte
 // Provably distinct from any 0x00-prefixed (leaf) or 0x01-prefixed (inner) hash.
 var SentinelHash Hash
 
+// emptyTreeHash is SHA256(""). Used by Hash() for empty trees, matching IAVL behavior.
+// Stored as a fixed array; callers get a fresh slice via emptyHash().
+var emptyTreeHash Hash
+
 func init() {
 	SentinelHash = sha256.Sum256([]byte{DomainEmpty})
+	emptyTreeHash = sha256.Sum256(nil)
+}
+
+// emptyHash returns a fresh copy of the empty tree hash (SHA256("")).
+func emptyHash() []byte {
+	h := emptyTreeHash
+	return h[:]
 }

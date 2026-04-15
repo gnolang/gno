@@ -170,18 +170,24 @@ func (ndb *nodeDB) GetValue(hash Hash) ([]byte, error) {
 // --- Root operations ---
 
 // SaveRoot writes a root reference: NodeKey (12B) + root hash (32B) = 44B.
+// For empty trees, nk is nil but hash is still stored (just the 32-byte hash).
 func (ndb *nodeDB) SaveRoot(version int64, nk *NodeKey, hash []byte) error {
-	val := make([]byte, 0, NodeKeySize+HashSize)
+	var val []byte
 	if nk != nil {
+		val = make([]byte, 0, NodeKeySize+HashSize)
 		val = append(val, nk.GetKey()...)
 		val = append(val, hash...)
+	} else if len(hash) > 0 {
+		// Empty tree: store just the hash (no NodeKey prefix)
+		val = make([]byte, 0, HashSize)
+		val = append(val, hash...)
 	}
-	// Empty val for empty tree
+	// val is nil/empty only if both nk and hash are nil/empty
 	return ndb.batch.Set(rootDBKey(version), val)
 }
 
 // GetRoot loads the root reference for a version.
-// Returns (nodeKey bytes, root hash, error). Both nil for empty tree.
+// Returns (nodeKey bytes, root hash, error). nodeKey is nil for empty tree.
 func (ndb *nodeDB) GetRoot(version int64) ([]byte, []byte, error) {
 	data, err := ndb.db.Get(rootDBKey(version))
 	if err != nil {
@@ -191,8 +197,12 @@ func (ndb *nodeDB) GetRoot(version int64) ([]byte, []byte, error) {
 		return nil, nil, ErrVersionDoesNotExist
 	}
 	if len(data) == 0 {
-		// Empty tree at this version
+		// Legacy empty tree (no hash stored)
 		return nil, nil, nil
+	}
+	if len(data) == HashSize {
+		// Empty tree with hash only (no NodeKey)
+		return nil, data, nil
 	}
 	if len(data) != NodeKeySize+HashSize {
 		return nil, nil, fmt.Errorf("corrupt root ref: len=%d", len(data))

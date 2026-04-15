@@ -19,6 +19,38 @@ func TestSentinelHash(t *testing.T) {
 	}
 }
 
+func TestEmptyTreeHash(t *testing.T) {
+	// Empty tree Hash() must return SHA256(""), matching IAVL behavior.
+	expectedHash := sha256.Sum256(nil)
+
+	// MutableTree (in-memory)
+	tree := NewMutableTreeMem()
+	h := tree.WorkingHash()
+	if !bytes.Equal(h, expectedHash[:]) {
+		t.Fatalf("WorkingHash on empty tree = %x, want %x", h, expectedHash)
+	}
+
+	// SaveVersion on empty tree must return SHA256("")
+	hash, _, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(hash, expectedHash[:]) {
+		t.Fatalf("SaveVersion on empty tree = %x, want %x", hash, expectedHash)
+	}
+
+	// Hash() after SaveVersion
+	if !bytes.Equal(tree.Hash(), expectedHash[:]) {
+		t.Fatalf("Hash() after empty SaveVersion = %x, want %x", tree.Hash(), expectedHash)
+	}
+
+	// ImmutableTree with nil root
+	imm := NewImmutableTree(nil, 1)
+	if !bytes.Equal(imm.Hash(), expectedHash[:]) {
+		t.Fatalf("ImmutableTree.Hash() on nil root = %x, want %x", imm.Hash(), expectedHash)
+	}
+}
+
 func TestConstants(t *testing.T) {
 	if B != 32 {
 		t.Fatalf("B = %d, want 32", B)

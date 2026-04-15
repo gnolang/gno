@@ -80,8 +80,8 @@ func TestMutableTree_EmptyTree(t *testing.T) {
 	if !tree.IsEmpty() {
 		t.Fatalf("new tree should be empty")
 	}
-	if tree.Hash() != nil {
-		t.Fatalf("empty tree hash should be nil")
+	if tree.Hash() == nil || len(tree.Hash()) != 32 {
+		t.Fatalf("empty tree hash should be SHA256(\"\"), got %x", tree.Hash())
 	}
 	if tree.Size() != 0 {
 		t.Fatalf("empty tree size should be 0")
@@ -749,8 +749,8 @@ func TestImmutableTree_Empty(t *testing.T) {
 	if imm.Size() != 0 {
 		t.Fatalf("size should be 0")
 	}
-	if imm.Hash() != nil {
-		t.Fatalf("hash should be nil")
+	if imm.Hash() == nil || len(imm.Hash()) != 32 {
+		t.Fatalf("empty immutable tree hash should be SHA256(\"\"), got %x", imm.Hash())
 	}
 	val, _ := imm.Get([]byte("x"))
 	if val != nil {

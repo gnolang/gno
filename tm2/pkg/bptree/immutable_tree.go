@@ -67,10 +67,10 @@ func (t *ImmutableTree) Height() int8 {
 	return int8(nodeHeight(t.root))
 }
 
-// Hash returns the root hash, or nil for an empty tree.
+// Hash returns the root hash. Returns SHA256("") for empty trees, matching IAVL.
 func (t *ImmutableTree) Hash() []byte {
 	if t.root == nil {
-		return nil
+		return emptyHash()
 	}
 	h := t.root.Hash()
 	return h[:]
