@@ -126,12 +126,19 @@ func (st *Store) SetStoreOptions(opts types.StoreOptions) { st.opts = opts }
 
 func (st *Store) LoadLatestVersion() error {
 	// Load discovers versions and loads the latest
-	_, err := st.mtree.Load()
+	latestV, err := st.mtree.Load()
 	if err != nil {
 		return err
 	}
-	// Update the tree adapter
-	st.tree = &mutableTreeAdapter{st.mtree}
+	if st.opts.Immutable {
+		iTree, err := st.mtree.GetImmutable(latestV)
+		if err != nil {
+			return err
+		}
+		st.tree = &immutableTreeAdapter{iTree}
+	} else {
+		st.tree = &mutableTreeAdapter{st.mtree}
+	}
 	return nil
 }
 
@@ -140,7 +147,9 @@ func (st *Store) LoadVersion(ver int64) error {
 		return nil // version 0 is always "empty"
 	}
 	if st.opts.Immutable {
-		st.mtree.Load()
+		if _, err := st.mtree.Load(); err != nil {
+			return err
+		}
 		iTree, err := st.mtree.GetImmutable(ver)
 		if err != nil {
 			return err
