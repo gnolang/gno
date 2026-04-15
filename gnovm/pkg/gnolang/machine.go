@@ -233,11 +233,11 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	if bm.OpsEnabled || bm.StorageEnabled || bm.NativeEnabled {
+	if bm.Enabled {
 		bm.InitMeasure()
-	}
-	if bm.StorageEnabled {
-		defer bm.FinishStore()
+		if bm.StorageEnabled {
+			defer bm.FinishStore()
+		}
 	}
 	return m.runMemPackage(mpkg, save, false)
 }
@@ -816,12 +816,12 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
-	if bm.OpsEnabled || bm.StorageEnabled {
+	if bm.Enabled {
 		// reset the benchmark
 		bm.InitMeasure()
-	}
-	if bm.StorageEnabled {
-		defer bm.FinishStore()
+		if bm.StorageEnabled {
+			defer bm.FinishStore()
+		}
 	}
 	// X must not have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
@@ -1268,29 +1268,35 @@ const (
 func (m *Machine) Run(st Stage) {
 	m.Stage = st
 	if bm.OpsEnabled {
-		defer func() {
-			// output each machine run results to file
-			bm.FinishRun()
-		}()
+		defer bm.FinishRun()
 	}
 	if bm.NativeEnabled {
-		defer func() {
-			// output each machine run results to file
-			bm.FinishNative()
-		}()
+		defer bm.FinishNative()
 	}
-	defer func() {
-		r := recover()
 
-		if r != nil {
-			switch r := r.(type) {
-			case *Exception:
-				if r.Stacktrace.IsZero() {
-					r.Stacktrace = m.Stacktrace()
-				}
-				m.pushPanic(r.Value)
-				m.Run(st)
-			default:
+	// Iterative exception recovery: catch Go-level *Exception panics and
+	// convert them to the cooperative pushPanic path without recursion.
+	for {
+		caught := m.runOnce()
+		if caught == nil {
+			return
+		}
+		if caught.Stacktrace.IsZero() {
+			caught.Stacktrace = m.Stacktrace()
+		}
+		m.pushPanic(caught.Value)
+	}
+}
+
+// runOnce executes the op loop until it completes (OpHalt) or a Go-level
+// *Exception panic is caught. Returns the caught exception, or nil if the
+// loop completed normally. Non-Exception panics are re-raised.
+func (m *Machine) runOnce() (caught *Exception) {
+	defer func() {
+		if r := recover(); r != nil {
+			if ex, ok := r.(*Exception); ok {
+				caught = ex
+			} else {
 				panic(r)
 			}
 		}
@@ -1301,21 +1307,15 @@ func (m *Machine) Run(st Stage) {
 			m.Debug()
 		}
 		op := m.PopOp()
-		if bm.OpsEnabled {
-			// benchmark the operation.
-			bm.StartOpCode(byte(OpVoid))
-			bm.StopOpCode()
-			// we do not benchmark static evaluation.
-			if op != OpStaticTypeOf {
-				bm.StartOpCode(byte(op))
-			}
+		if bm.Enabled {
+			bm.SwitchOpCode(bm.CPUOp(op))
 		}
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
-			if bm.OpsEnabled {
+			if bm.Enabled {
 				bm.StopOpCode()
 			}
 			return
@@ -1621,11 +1621,8 @@ func (m *Machine) Run(st Stage) {
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
 		}
-		if bm.OpsEnabled {
-			if op != OpStaticTypeOf {
-				bm.StopOpCode()
-			}
-		}
+		// No StopOpCode needed here — SwitchOpCode at the top
+		// of the next iteration attributes this op's time.
 	}
 }
 
@@ -2134,6 +2131,22 @@ func (m *Machine) PeekFrameAndContinueRange() {
 
 func (m *Machine) NumFrames() int {
 	return len(m.Frames)
+}
+
+// NumCallFrames returns the number of actual function call frames,
+// excluding closure frames (func literals) and control-flow basic
+// frames (for/range/switch where Func is nil). Only named, non-closure
+// function calls count as separate call boundaries for origin-call
+// purposes.
+func (m *Machine) NumCallFrames() int {
+	count := 0
+	for i := range m.Frames {
+		fr := &m.Frames[i]
+		if fr.Func != nil && !fr.Func.IsClosure {
+			count++
+		}
+	}
+	return count
 }
 
 // Returns the current frame.
