@@ -356,9 +356,9 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
 
-	if state.OriginalChainID != "" {
+	if len(state.PastChainIDs) > 0 {
 		ctx.Logger().Info("Chain upgrade genesis replay",
-			"original_chain_id", state.OriginalChainID,
+			"past_chain_ids", state.PastChainIDs,
 			"initial_height", state.InitialHeight,
 		)
 	}
@@ -413,18 +413,21 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		if metadata != nil {
 			ctxFn = func(ctx sdk.Context) sdk.Context {
 				header := ctx.BlockHeader().(*bft.Header).Copy()
-				header.Time = time.Unix(metadata.Timestamp, 0)
+				if metadata.Timestamp != 0 {
+					header.Time = time.Unix(metadata.Timestamp, 0)
+				}
 				if metadata.BlockHeight > 0 {
 					header.Height = metadata.BlockHeight
 				}
 
 				ctx = ctx.WithBlockHeader(header)
 
-				// For historical txs (BlockHeight > 0), use the original chain ID
-				// for signature verification. This allows replaying txs that were
-				// signed with the old chain ID during a hard fork.
-				if metadata.BlockHeight > 0 && state.OriginalChainID != "" {
-					ctx = ctx.WithChainID(state.OriginalChainID)
+				// For historical txs (BlockHeight > 0), override the chain ID
+				// for signature verification using the per-tx ChainID, provided
+				// it is in the genesis allowlist. This allows replaying txs from
+				// multiple past chains during a hard fork.
+				if metadata.BlockHeight > 0 && metadata.ChainID != "" && isPastChainID(state.PastChainIDs, metadata.ChainID) {
+					ctx = ctx.WithChainID(metadata.ChainID)
 				}
 
 				return ctx
@@ -466,6 +469,11 @@ type endBlockerApp interface {
 
 	// Logger returns the logger reference
 	Logger() *slog.Logger
+}
+
+// isPastChainID reports whether chainID is present in the pastChainIDs allowlist.
+func isPastChainID(pastChainIDs []string, chainID string) bool {
+	return slices.Contains(pastChainIDs, chainID)
 }
 
 // EndBlocker defines the logic executed after every block.

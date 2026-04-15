@@ -1301,6 +1301,112 @@ func TestReplayNilGuards(t *testing.T) {
 	}
 }
 
+// TestReconstructLastCommit_InitialHeight verifies that reconstructLastCommit
+// does not panic when LastBlockHeight > 0 but the block store is empty
+// (the scenario that arises when InitialHeight > 1 is set after InitChain).
+func TestReconstructLastCommit_InitialHeight(t *testing.T) {
+	t.Parallel()
+
+	testCfg, genesisFile := ResetConfig("reconstruct_last_commit_initial_height_test")
+	t.Cleanup(func() { os.RemoveAll(testCfg.RootDir) })
+
+	state, err := sm.MakeGenesisStateFromFile(genesisFile)
+	require.NoError(t, err)
+
+	// Simulate what the Handshaker does after InitChain with InitialHeight=100:
+	// LastBlockHeight is set to InitialHeight-1 but the block store is empty.
+	state.LastBlockHeight = 99
+
+	stateDB := memdb.NewMemDB()
+	sm.SaveState(stateDB, state)
+
+	mempool := mock.Mempool{}
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), nil, mempool)
+
+	// Empty block store — Height() returns 0, LoadSeenCommit returns nil.
+	store := &nilReturningBlockStore{height: 0}
+
+	// NewConsensusState calls reconstructLastCommit; this must not panic.
+	require.NotPanics(t, func() {
+		_ = NewConsensusState(testCfg.Consensus, state, blockExec, store, mempool)
+	})
+}
+
+// TestCreateProposalBlock_InitialHeight verifies that createProposalBlock uses
+// an empty commit (genesis behaviour) when the block store is empty and height > 1,
+// rather than falling through to the "No commit for previous block" error branch.
+func TestCreateProposalBlock_InitialHeight(t *testing.T) {
+	t.Parallel()
+
+	testCfg, genesisFile := ResetConfig("create_proposal_block_initial_height_test")
+	t.Cleanup(func() { os.RemoveAll(testCfg.RootDir) })
+
+	state, err := sm.MakeGenesisStateFromFile(genesisFile)
+	require.NoError(t, err)
+
+	state.LastBlockHeight = 99 // simulates InitialHeight=100
+
+	stateDB := memdb.NewMemDB()
+	sm.SaveState(stateDB, state)
+
+	mempool := mock.Mempool{}
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), nil, mempool)
+
+	store := &nilReturningBlockStore{height: 0, nilBlockMetaAt: 99}
+	cs := NewConsensusState(testCfg.Consensus, state, blockExec, store, mempool)
+
+	// Supply a private validator so createProposalBlock can proceed past the
+	// commit-selection logic and reach the actual block creation.
+	pv := loadPrivValidator(testCfg)
+	cs.SetPrivValidator(pv)
+
+	// cs.Height == 100, cs.blockStore.Height() == 0, cs.LastCommit == nil.
+	// createProposalBlock used to fall through to the "No commit" default branch
+	// and return nil without creating a block. After the fix it must return a
+	// non-nil block at height 100.
+	block, parts := cs.createProposalBlock()
+	require.NotNil(t, block, "createProposalBlock should return a valid block at InitialHeight")
+	require.NotNil(t, parts)
+	assert.Equal(t, int64(100), block.Height)
+}
+
+// TestNeedProofBlock_InitialHeight verifies that needProofBlock returns true
+// when the block store is empty and height > 1 (InitialHeight > 1 scenario),
+// rather than panicking from a nil LoadBlockMeta result.
+func TestNeedProofBlock_InitialHeight(t *testing.T) {
+	t.Parallel()
+
+	testCfg, genesisFile := ResetConfig("need_proof_block_initial_height_test")
+	t.Cleanup(func() { os.RemoveAll(testCfg.RootDir) })
+
+	state, err := sm.MakeGenesisStateFromFile(genesisFile)
+	require.NoError(t, err)
+
+	// Simulate InitialHeight=100: LastBlockHeight is set to 99, block store empty.
+	state.LastBlockHeight = 99
+
+	stateDB := memdb.NewMemDB()
+	sm.SaveState(stateDB, state)
+
+	mempool := mock.Mempool{}
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), nil, mempool)
+
+	// Empty block store: Height() == 0, and LoadBlockMeta returns nil for all heights
+	// (no blocks exist yet — this is what a real empty store does).
+	store := &nilReturningBlockStore{height: 0, nilBlockMetaAt: 99}
+
+	cs := NewConsensusState(testCfg.Consensus, state, blockExec, store, mempool)
+
+	// cs.Height is 100 (LastBlockHeight+1).
+	// needProofBlock(100) used to panic: LoadBlockMeta(99) == nil on empty store.
+	// After the fix it should return true (genesis-equivalent block).
+	var result bool
+	require.NotPanics(t, func() {
+		result = cs.needProofBlock(cs.Height)
+	})
+	assert.True(t, result, "needProofBlock should return true at InitialHeight with empty block store")
+}
+
 // TestHandshaker_InitialHeight verifies that when GenesisDoc.InitialHeight > 1,
 // the handshaker sets state.LastBlockHeight = InitialHeight - 1 after InitChain,
 // so the chain starts producing blocks at the correct height.

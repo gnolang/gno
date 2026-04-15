@@ -390,6 +390,36 @@ func TestBcStatusResponseMessageValidateBasic(t *testing.T) {
 	}
 }
 
+// TestNewBlockchainReactor_InitialHeight verifies that NewBlockchainReactor does
+// not panic when InitialHeight > 1 causes state.LastBlockHeight > 0 on a fresh
+// chain where the block store is still empty (Height() == 0).
+func TestNewBlockchainReactor_InitialHeight(t *testing.T) {
+	t.Parallel()
+
+	config, _ = cfg.ResetTestRoot("blockchain_reactor_initial_height_test")
+	defer os.RemoveAll(config.RootDir)
+
+	genDoc, _ := randGenesisDoc(1, false, 30)
+	state, err := sm.MakeGenesisState(genDoc)
+	assert.NoError(t, err)
+
+	// Simulate the Handshaker setting LastBlockHeight = InitialHeight - 1
+	// after InitChain with InitialHeight = 100.
+	state.LastBlockHeight = 99
+
+	db := memdb.NewMemDB()
+	sm.SaveState(db, state)
+	blockExec := sm.NewBlockExecutor(db, log.NewNoopLogger(), nil, mock.Mempool{})
+
+	// Empty block store: Height() == 0, no blocks committed yet.
+	blockStore := store.NewBlockStore(memdb.NewMemDB())
+
+	// Must not panic even though state.LastBlockHeight (99) != store.Height() (0).
+	assert.NotPanics(t, func() {
+		_ = NewBlockchainReactor(state.Copy(), blockExec, blockStore, false, nil)
+	})
+}
+
 // ----------------------------------------------
 // utility funcs
 

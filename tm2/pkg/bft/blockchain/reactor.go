@@ -78,7 +78,10 @@ func NewBlockchainReactor(
 	fastSync bool,
 	switchToConsensusFn SwitchToConsensusFn,
 ) *BlockchainReactor {
-	if state.LastBlockHeight != store.Height() {
+	// Allow the case where InitialHeight > 1: after InitChain, the Handshaker sets
+	// state.LastBlockHeight = InitialHeight - 1, but the block store is still empty
+	// (Height() == 0). A non-empty store must always match state.
+	if store.Height() != 0 && state.LastBlockHeight != store.Height() {
 		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,
 			store.Height()))
 	}

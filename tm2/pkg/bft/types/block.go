@@ -65,7 +65,14 @@ func (b *Block) ValidateBasic() error {
 	}
 
 	// Validate the last commit and its hash.
-	if b.Header.Height > 1 {
+	// The genesis block has an empty last commit and skips this validation.
+	// We detect genesis by Height == 1 (standard) OR by a zero LastBlockID
+	// (chain starting at InitialHeight > 1 with no real previous block).
+	// Using both conditions preserves backward compatibility: a height-1 block
+	// is always treated as genesis regardless of a potentially malleated
+	// LastBlockID, while a block at InitialHeight > 1 is correctly skipped too.
+	isGenesisBlock := b.Height == 1 || b.Header.LastBlockID.IsZero()
+	if !isGenesisBlock {
 		if b.LastCommit == nil {
 			return errors.New("nil LastCommit")
 		}

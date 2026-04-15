@@ -1351,3 +1351,24 @@ func TestSetHaltHeight(t *testing.T) {
 	app.SetHaltHeight(0)
 	require.Equal(t, uint64(0), app.haltHeight)
 }
+
+// TestBeginBlock_InitialHeight verifies that BeginBlock does not panic when
+// the chain starts at InitialHeight > 1.  After InitChain the app's commit
+// store has no committed blocks (LastBlockHeight == 0), so the first
+// BeginBlock must be accepted at any height >= 1, not only height 1.
+func TestBeginBlock_InitialHeight(t *testing.T) {
+	t.Parallel()
+
+	const initialHeight = int64(100)
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// Before the fix, validateHeight panics:
+	//   "invalid height: 100; expected: 1"
+	assert.NotPanics(t, func() {
+		app.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: "test-chain", Height: initialHeight},
+		})
+	})
+}

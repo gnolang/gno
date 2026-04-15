@@ -358,6 +358,24 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 				VM:       vm.DefaultGenesisState(),
 			}
 		}
+
+		getZeroTimestampMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
+			return GnoGenesisState{
+				// Metadata present but Timestamp=0 — genesis block time should be preserved
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp: 0, // zero — must not override to Unix epoch
+						},
+					},
+				},
+				Balances: balances,
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
+			}
+		}
 	)
 
 	testTable := []struct {
@@ -377,6 +395,12 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 			currentTimestamp,
 			laterTimestamp,
 			getMetadataState,
+		},
+		{
+			"metadata transaction with zero timestamp uses genesis block time",
+			currentTimestamp,
+			currentTimestamp, // zero Timestamp → falls back to genesis block time
+			getZeroTimestampMetadataState,
 		},
 	}
 
@@ -1323,13 +1347,13 @@ func TestChainUpgradeGenesisReplay(t *testing.T) {
 		t.Parallel()
 
 		state := GnoGenesisState{
-			Balances:        []Balance{},
-			Txs:             []TxWithMetadata{},
-			Auth:            auth.DefaultGenesisState(),
-			Bank:            bank.DefaultGenesisState(),
-			VM:              vm.DefaultGenesisState(),
-			OriginalChainID: "old-chain",
-			InitialHeight:   100,
+			Balances:      []Balance{},
+			Txs:           []TxWithMetadata{},
+			Auth:          auth.DefaultGenesisState(),
+			Bank:          bank.DefaultGenesisState(),
+			VM:            vm.DefaultGenesisState(),
+			PastChainIDs:  []string{"old-chain-1", "old-chain-2"},
+			InitialHeight: 100,
 		}
 
 		// Serialize and deserialize
@@ -1339,7 +1363,7 @@ func TestChainUpgradeGenesisReplay(t *testing.T) {
 		var decoded GnoGenesisState
 		require.NoError(t, amino.UnmarshalJSON(data, &decoded))
 
-		assert.Equal(t, "old-chain", decoded.OriginalChainID)
+		assert.Equal(t, []string{"old-chain-1", "old-chain-2"}, decoded.PastChainIDs)
 		assert.Equal(t, int64(100), decoded.InitialHeight)
 	})
 
@@ -1386,14 +1410,14 @@ func GetHeight(cur realm) int64 { return height }
 			MaxDeposit: nil,
 		}
 
-		// Sign with original chain ID since metadata.BlockHeight > 0 will cause
-		// the ctxFn to override the chain ID to OriginalChainID for signature verification.
+		// Sign with the old chain ID — metadata.BlockHeight > 0 and metadata.ChainID
+		// in PastChainIDs will cause the ctxFn to override the chain ID for sig verification.
 		// Account number=0 and sequence=0 because the account is created from balances
 		// but hasn't processed any transactions yet.
 		tx := createAndSignTx(t, []std.Msg{msg}, "old-chain", key)
 
-		// Run InitChain with OriginalChainID and InitialHeight set,
-		// and the deploy tx using metadata with BlockHeight=42
+		// Run InitChain with PastChainIDs and InitialHeight set,
+		// and the deploy tx using metadata with BlockHeight=42 and ChainID="old-chain"
 		app.InitChain(abci.RequestInitChain{
 			ChainID: chainID,
 			Time:    time.Now(),
@@ -1410,6 +1434,7 @@ func GetHeight(cur realm) int64 { return height }
 						Metadata: &GnoTxMetadata{
 							Timestamp:   time.Now().Unix(),
 							BlockHeight: 42,
+							ChainID:     "old-chain", // must be in PastChainIDs for override
 						},
 					},
 				},
@@ -1419,11 +1444,11 @@ func GetHeight(cur realm) int64 { return height }
 						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
 					},
 				},
-				Auth:            auth.DefaultGenesisState(),
-				Bank:            bank.DefaultGenesisState(),
-				VM:              vm.DefaultGenesisState(),
-				OriginalChainID: "old-chain",
-				InitialHeight:   100,
+				Auth:          auth.DefaultGenesisState(),
+				Bank:          bank.DefaultGenesisState(),
+				VM:            vm.DefaultGenesisState(),
+				PastChainIDs:  []string{"old-chain"},
+				InitialHeight: 100,
 			},
 		})
 
@@ -1506,7 +1531,7 @@ func IsDeployed(cur realm) bool { return Deployed }
 		}
 
 		// When metadata.BlockHeight == 0, the chain ID override must NOT happen.
-		// So the tx must be signed with the current chain ID (chainID), not the OriginalChainID.
+		// So the tx must be signed with the current chain ID (chainID), not any past chain ID.
 		tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
 
 		app.InitChain(abci.RequestInitChain{
@@ -1524,7 +1549,8 @@ func IsDeployed(cur realm) bool { return Deployed }
 						Tx: tx,
 						Metadata: &GnoTxMetadata{
 							Timestamp:   time.Now().Unix(),
-							BlockHeight: 0, // zero — no chain ID override
+							BlockHeight: 0,           // zero — no chain ID override
+							ChainID:     "old-chain", // present but ignored since BlockHeight == 0
 						},
 					},
 				},
@@ -1534,15 +1560,15 @@ func IsDeployed(cur realm) bool { return Deployed }
 						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
 					},
 				},
-				Auth:            auth.DefaultGenesisState(),
-				Bank:            bank.DefaultGenesisState(),
-				VM:              vm.DefaultGenesisState(),
-				OriginalChainID: "old-chain", // set, but should NOT be used since BlockHeight == 0
+				Auth:         auth.DefaultGenesisState(),
+				Bank:         bank.DefaultGenesisState(),
+				VM:           vm.DefaultGenesisState(),
+				PastChainIDs: []string{"old-chain"}, // set, but should NOT be used since BlockHeight == 0
 			},
 		})
 	})
 
-	t.Run("no chain ID override when OriginalChainID is unset", func(t *testing.T) {
+	t.Run("no chain ID override when metadata.ChainID not in PastChainIDs", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -1572,10 +1598,9 @@ var Deployed = true
 			},
 		}
 
-		// BlockHeight > 0 but OriginalChainID is not set — no chain ID override.
-		// The tx is signed with the current chainID (genesis mode skips sig verification
-		// when BlockHeight == 0, but BlockHeight > 0 triggers ante handler normally,
-		// so we sign with chainID).
+		// BlockHeight > 0 and metadata.ChainID is set, but the chain ID is NOT in
+		// PastChainIDs — no chain ID override should happen. The tx is signed with
+		// chainID so it verifies correctly without the override.
 		tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
 
 		app.InitChain(abci.RequestInitChain{
@@ -1593,7 +1618,8 @@ var Deployed = true
 						Tx: tx,
 						Metadata: &GnoTxMetadata{
 							Timestamp:   time.Now().Unix(),
-							BlockHeight: 10, // non-zero, but OriginalChainID is unset
+							BlockHeight: 10,
+							ChainID:     "unknown-chain", // not in PastChainIDs — no override
 						},
 					},
 				},
@@ -1603,11 +1629,132 @@ var Deployed = true
 						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
 					},
 				},
-				Auth:            auth.DefaultGenesisState(),
-				Bank:            bank.DefaultGenesisState(),
-				VM:              vm.DefaultGenesisState(),
-				// OriginalChainID intentionally not set
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+				// PastChainIDs intentionally empty — no chain ID override allowed
 			},
 		})
 	})
+
+	t.Run("txs from multiple past chains replay correctly", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path1 = "gno.land/r/demo/multichain1"
+			path2 = "gno.land/r/demo/multichain2"
+			body  = `package %s
+var Deployed = true
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		// Both txs come from the same account (accNum=0) but different past chains.
+		// tx1: seq=0, chain-a; tx2: seq=1, chain-b (sequence incremented by tx1).
+		msg1 := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "multichain1",
+				Path: path1,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: fmt.Sprintf(body, "multichain1")},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path1)},
+				},
+			},
+		}
+		msg2 := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "multichain2",
+				Path: path2,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: fmt.Sprintf(body, "multichain2")},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path2)},
+				},
+			},
+		}
+
+		tx1 := createAndSignTx(t, []std.Msg{msg1}, "chain-a", key) // accNum=0, seq=0
+
+		// tx2 must use seq=1 because tx1 already incremented the sequence.
+		tx2Raw := std.Tx{
+			Msgs: []std.Msg{msg2},
+			Fee:  std.Fee{GasFee: std.NewCoin("ugnot", 2_000_000), GasWanted: 10_000_000},
+		}
+		signBytes2, err := tx2Raw.GetSignBytes("chain-b", 0, 1) // accNum=0, seq=1
+		require.NoError(t, err)
+		sig2, err := key.Sign(signBytes2)
+		require.NoError(t, err)
+		tx2Raw.Signatures = []std.Signature{{PubKey: key.PubKey(), Signature: sig2}}
+
+		// Both chain IDs in the allowlist; each tx carries its own ChainID
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx1,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 10,
+							ChainID:     "chain-a",
+						},
+					},
+					{
+						Tx: tx2Raw,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 20,
+							ChainID:     "chain-b",
+						},
+					},
+				},
+				Balances: []Balance{
+					{Address: key.PubKey().Address(), Amount: std.NewCoins(std.NewCoin("ugnot", 20_000_000))},
+				},
+				Auth:         auth.DefaultGenesisState(),
+				Bank:         bank.DefaultGenesisState(),
+				VM:           vm.DefaultGenesisState(),
+				PastChainIDs: []string{"chain-a", "chain-b"},
+			},
+		})
+	})
+}
+
+func TestIsPastChainID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		pastChainIDs []string
+		chainID      string
+		expected     bool
+	}{
+		{"empty allowlist", []string{}, "chain-a", false},
+		{"nil allowlist", nil, "chain-a", false},
+		{"single match", []string{"chain-a"}, "chain-a", true},
+		{"no match in list", []string{"chain-a", "chain-b"}, "chain-c", false},
+		{"match second element", []string{"chain-a", "chain-b"}, "chain-b", true},
+		{"empty chain ID", []string{"chain-a"}, "", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isPastChainID(tc.pastChainIDs, tc.chainID))
+		})
+	}
 }

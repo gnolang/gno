@@ -508,7 +508,10 @@ func (app *BaseApp) validateHeight(req abci.RequestBeginBlock) error {
 	}
 
 	prevHeight := app.LastBlockHeight()
-	if req.Header.GetHeight() != prevHeight+1 {
+	// When prevHeight == 0 the app has no committed blocks yet. The first block
+	// may arrive at any height >= 1, including InitialHeight > 1 for chains
+	// that replay historical transactions during genesis.
+	if prevHeight != 0 && req.Header.GetHeight() != prevHeight+1 {
 		return fmt.Errorf("invalid height: %d; expected: %d", req.Header.GetHeight(), prevHeight+1)
 	}
 

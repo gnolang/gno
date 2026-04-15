@@ -127,8 +127,8 @@ type GnoGenesisState struct {
 	Bank     bank.GenesisState `json:"bank"`
 	VM       vm.GenesisState   `json:"vm"`
 	// Chain upgrade fields
-	OriginalChainID string `json:"original_chain_id,omitempty"` // Chain ID for verifying historical tx signatures
-	InitialHeight   int64  `json:"initial_height,omitempty"`    // Block height to start from after genesis replay
+	PastChainIDs  []string `json:"past_chain_ids,omitempty"` // Allowlist of chain IDs valid for historical tx signature verification
+	InitialHeight int64    `json:"initial_height,omitempty"` // Block height to start from after genesis replay
 }
 
 type TxWithMetadata struct {
