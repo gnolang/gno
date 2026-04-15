@@ -82,7 +82,7 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 			return ss
 		}
 		// Query account at halt_height
-		acc := s.queryAccountAtHeight(ctx, addr, toHeight)
+		acc := s.queryAccountAtHeight(ctx, addr, toHeight, io)
 		ss := &signerState{}
 		if acc != nil {
 			ss.accNum = acc.GetAccountNumber()
@@ -141,6 +141,8 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 			signers := stdTx.GetSigners()
 			sigs := stdTx.GetSignatures()
 
+			txIdx := len(txs) // index in output slice
+
 			// Build signer info
 			signerInfos := make([]gnoland.SignerAccountInfo, len(signers))
 			for j, signer := range signers {
@@ -152,12 +154,10 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 				}
 			}
 
-			txIdx := len(txs) // index in output slice
-
 			if !failed {
 				// Successful tx: resolve sequences
 				for j, signer := range signers {
-					ss := getOrCreateSignerState(signer)
+					ss := signerStates[signer]
 
 					if !ss.initialized || len(ss.pendingFails) > 0 {
 						// Brute-force to find this tx's pre-tx sequence.
@@ -194,7 +194,7 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 			} else {
 				// Failed tx: buffer for each signer
 				for j, signer := range signers {
-					ss := getOrCreateSignerState(signer)
+					ss := signerStates[signer]
 					ss.pendingFails = append(ss.pendingFails, &pendingFailedTx{
 						txIndex: txIdx,
 						signerI: j,
@@ -219,7 +219,7 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 	}
 
 	// Resolve trailing failures
-	for addr, ss := range signerStates {
+	for _, ss := range signerStates {
 		if len(ss.pendingFails) == 0 {
 			continue
 		}
@@ -242,7 +242,6 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 			}
 			assignTrailingFailedTxSequences(txs, ss.pendingFails, ss.seq, consumed)
 		}
-		_ = addr
 	}
 
 	io.Printf("\r  Blocks: %d/%d  Txs: %d\n", processed, total, txCount)
@@ -250,7 +249,9 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 }
 
 // queryAccountAtHeight queries an account's state at a specific block height.
-func (s *rpcSource) queryAccountAtHeight(ctx context.Context, addr crypto.Address, height int64) std.Account {
+func (s *rpcSource) queryAccountAtHeight(
+	ctx context.Context, addr crypto.Address, height int64, io commands.IO,
+) std.Account {
 	path := fmt.Sprintf("auth/accounts/%s", addr)
 	res, err := s.client.ABCIQueryWithOptions(ctx, path, nil, rpcclient.ABCIQueryOptions{
 		Height: height,
@@ -266,19 +267,21 @@ func (s *rpcSource) queryAccountAtHeight(ctx context.Context, addr crypto.Addres
 	}
 
 	// Response data is amino JSON (the auth query handler returns JSON).
-	// It's wrapped in {"BaseAccount": {...}}.
+	// Try wrapped form first {"BaseAccount": {...}}, then direct.
 	var wrapper struct {
 		BaseAccount std.BaseAccount `json:"BaseAccount"`
 	}
-	if err := amino.UnmarshalJSON(res.Response.Data, &wrapper); err != nil {
-		// Try direct unmarshal
-		var acc std.BaseAccount
-		if err2 := amino.UnmarshalJSON(res.Response.Data, &acc); err2 != nil {
-			return nil
-		}
-		return &acc
+	if err := amino.UnmarshalJSON(res.Response.Data, &wrapper); err == nil {
+		return &wrapper.BaseAccount
 	}
-	return &wrapper.BaseAccount
+
+	var acc std.BaseAccount
+	if err := amino.UnmarshalJSON(res.Response.Data, &acc); err != nil {
+		io.Printf("\n  WARNING: could not decode account %s at height %d: %v\n",
+			addr, height, err)
+		return nil
+	}
+	return &acc
 }
 
 // bruteForceSignerSequence tries sequences in [lo, hi] to find which makes
@@ -313,8 +316,14 @@ func bruteForceSignerSequence(
 }
 
 // assignFailedTxSequences back-patches sequence values on buffered failed txs.
-// This is cosmetic/audit-only — failed txs are skipped during replay.
-// We assign sequences sequentially, assuming consumed (msg-fail) txs come first.
+// This is cosmetic/audit-only — failed txs are skipped during replay and the
+// replay loop does not depend on their SignerInfo.Sequence values.
+//
+// Ordering within the gap is ambiguous: we cannot determine whether a failed tx
+// was ante-fail (no sequence consumed) or msg-fail (sequence consumed) without
+// re-verifying its signature, which may not be possible if the pubkey was not
+// on-chain yet. We approximate by assuming msg-fails (consuming) come first in
+// the gap, then ante-fails.
 func assignFailedTxSequences(
 	txs []gnoland.TxWithMetadata,
 	pending []*pendingFailedTx,
@@ -326,7 +335,6 @@ func assignFailedTxSequences(
 		if pf.txIndex < len(txs) && pf.signerI < len(txs[pf.txIndex].Metadata.SignerInfo) {
 			txs[pf.txIndex].Metadata.SignerInfo[pf.signerI].Sequence = seq
 		}
-		// Assume msg-fails (consuming) come first in the gap
 		if uint64(i) < consumed {
 			seq++
 		}

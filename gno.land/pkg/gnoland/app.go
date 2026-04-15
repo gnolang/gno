@@ -437,6 +437,11 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		// For historical txs with signer metadata, force-set account state
 		// so signature verification succeeds even if prior txs diverged.
 		// Uses pre-tx sequence — the value the signature was signed with.
+		//
+		// Invariant: SignerInfo is only populated by the export tool for historical
+		// txs (BlockHeight > 0). Genesis-mode txs (BlockHeight == 0) must never
+		// carry SignerInfo — if they did, the force-set would corrupt fresh account
+		// state. The BlockHeight > 0 guard enforces this.
 		if metadata != nil && metadata.BlockHeight > 0 && len(metadata.SignerInfo) > 0 {
 			for _, si := range metadata.SignerInfo {
 				acc := cfg.acck.GetAccount(ctx, si.Address)
