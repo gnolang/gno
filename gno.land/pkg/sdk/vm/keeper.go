@@ -420,10 +420,6 @@ func (vm *VMKeeper) callRealmBool(
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	sysNamesPkg := vm.getSysNamesPkgParam(ctx)
-	if sysNamesPkg == "" {
-		return nil
-	}
 	chainDomain := vm.getChainDomainParam(ctx)
 
 	store := vm.getGnoTransactionStore(ctx)
@@ -442,13 +438,23 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	}
 	namespace := match[1]
 
-	// if `sysUsersPkg` does not exist -> skip validation.
-	usersPkg := store.GetPackage(sysNamesPkg, false)
-	if usersPkg == nil {
+	sysNamesPkgPath := vm.getSysNamesPkgParam(ctx)
+	if sysNamesPkgPath == "" {
+		return nil
+	}
+	// if `sysNamesPkg` does not exist -> skip validation.
+	sysNamesPkg := store.GetPackage(sysNamesPkgPath, false)
+	if sysNamesPkg == nil {
 		return nil
 	}
 
-	result, err := vm.callRealmBool(ctx, creator, sysNamesPkg, "names",
+	// During genesis (block height 0), skip namespace enforcement.
+	// Genesis packages are trusted and deployed by chain operators.
+	if ctx.BlockHeight() == 0 {
+		return nil
+	}
+
+	result, err := vm.callRealmBool(ctx, creator, sysNamesPkgPath, "names",
 		"IsAuthorizedAddressForNamespace",
 		gno.Str(creator.String()), gno.Str(namespace))
 	if err != nil {
@@ -595,9 +601,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
 
-	// TODO: ACLs.
-	// - if r/system/names does not exists -> skip validation.
-	// - loads r/system/names data state.
+	// Check namespace permission via r/sys/names.
 	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
 		return err
 	}

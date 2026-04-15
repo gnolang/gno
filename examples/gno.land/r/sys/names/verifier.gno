@@ -1,46 +1,20 @@
-// Package names enforces namespace permissions for package deployment.
+// Package names provides namespace authorization for package deployments.
 // Only address-prefix (PA) namespaces are allowed.
 package names
 
-import "gno.land/p/nt/ownable/v0"
-
-var (
-	Ownable = ownable.NewWithAddressByPrevious("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p") // genesis deployer — dropped in genesis via Enable.
-	enabled = false
-)
-
-// IsAuthorizedAddressForNamespace checks if the given address can deploy to the given namespace.
-// Only the address's own PA namespace is permitted.
+// IsAuthorizedAddressForNamespace checks whether the given address owns the given namespace.
+// The VM keeper only calls this function when the `sysnames_pkgpath` param is non-empty.
 func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool {
-	return verifier(enabled, address_XXX, namespace)
-}
-
-// Enable enables the namespace check and drops centralized ownership of this realm.
-// The namespace check is disabled initially to ease txtar and other testing contexts,
-// but this function is meant to be called in the genesis of a chain.
-func Enable(cur realm) {
-	if err := Ownable.DropOwnership(); err != nil {
-		panic(err)
-	}
-	enabled = true
-}
-
-func IsEnabled() bool {
-	return enabled
+	return verifier(address_XXX, namespace)
 }
 
 // verifier checks namespace deployment permissions.
 // An address matching the namespace is the only allowed case.
-func verifier(isEnabled bool, address_XXX address, namespace string) bool {
-	if !isEnabled {
-		return true // only in pre-genesis cases
-	}
-
-	if namespace == "" || !address_XXX.IsValid() {
+func verifier(address_XXX address, namespace string) bool {
+	if address_XXX.String() == "" || namespace == "" {
 		return false
 	}
 
-	// Allow user with their own address as namespace
-	// ie gno.land/{p,r}/{ADDRESS}/**
+	// Allow deploying under your own address, e.g. gno.land/{p,r}/{ADDRESS}/**
 	return address_XXX.String() == namespace
 }

@@ -3,42 +3,22 @@ package names
 import (
 	"testing"
 
-	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 )
 
 var alice = testutils.TestAddress("alice")
 
-func TestDefaultVerifier(t *testing.T) {
-	// Disabled: any case is true
-	uassert.True(t, verifier(false, alice, alice.String()))
-	uassert.True(t, verifier(false, "", alice.String()))
-	uassert.True(t, verifier(false, alice, "somerandomusername"))
+func TestIsAuthorizedAddressForNamespace(t *testing.T) {
+	// Address does not match namespace
+	uassert.False(t, IsAuthorizedAddressForNamespace(alice, "notregistered"))
 
-	// Enabled: PA namespace check
-	uassert.True(t, verifier(true, alice, alice.String()))
+	// PA namespace: address matches its own string representation
+	uassert.True(t, IsAuthorizedAddressForNamespace(alice, alice.String()))
 
-	// Enabled: non-PA namespaces denied
-	uassert.False(t, verifier(true, alice, "notregistered"))
-	uassert.False(t, verifier(true, alice, "alice"))
+	// Empty address and namespace
+	uassert.False(t, IsAuthorizedAddressForNamespace(address(""), ""))
 
-	// Enabled: empty name/address
-	uassert.False(t, verifier(true, address(""), ""))
-	uassert.False(t, verifier(true, alice, ""))
-	uassert.False(t, verifier(true, address(""), "something"))
-}
-
-func TestEnable(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p"))
-
-	uassert.NotPanics(t, func() {
-		Enable(cross)
-	})
-
-	// Confirm enable drops ownership
-	uassert.Equal(t, Ownable.Owner().String(), "")
-	uassert.AbortsWithMessage(t, ownable.ErrUnauthorized.Error(), func() {
-		Enable(cross)
-	})
+	// Different address for the same namespace
+	uassert.False(t, IsAuthorizedAddressForNamespace(testutils.TestAddress("bob"), alice.String()))
 }

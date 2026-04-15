@@ -10,16 +10,13 @@ loadpkg gno.land/r/sys/names
 # Bootstrap the init controller for user registration
 genesiscall gno.land/r/sys/users/init Bootstrap
 
-# Override admin address in r/sys/names with test1 address
-patchpkg "g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p" $test1_user_addr
-
 # Add 3 users with different balances
 adduser user1 1ugnot
 adduser user2 1ugnot
 adduser user3 100000000000ugnot
 
-# Start the node
-gnoland start
+# Start the node with namespace enforcement enabled
+gnoland start -sysnames-pkgpath gno.land/r/sys/names
 
 # Verify users' initial balances
 gnokey query bank/balances/${user1_user_addr}
@@ -176,9 +173,7 @@ stdout 'OK!'
 # Add package / home #
 ######################
 
-# Enable `sys/names` to enforce namespace restrictions
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test test1
-stdout 'OK!'
+# Namespace enforcement is already enabled via -sysnames-pkgpath flag at startup.
 
 # user2 publishes a custom home package to its address namespace
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$user2_user_addr/home -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2

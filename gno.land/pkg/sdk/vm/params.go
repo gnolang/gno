@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	sysNamesPkgDefault             = "gno.land/r/sys/names"
+	sysNamesPkgDefault             = "" // empty means namespace enforcement is disabled
 	sysCLAPkgDefault               = "gno.land/r/sys/cla"
 	chainDomainDefault             = "gno.land"
 	depositDefault                 = "600000000ugnot"
@@ -56,7 +56,7 @@ func DefaultParams() Params {
 func (p Params) String() string {
 	var sb strings.Builder
 	sb.WriteString("Params: \n")
-	sb.WriteString(fmt.Sprintf("SysUsersPkgPath: %q\n", p.SysNamesPkgPath))
+	sb.WriteString(fmt.Sprintf("SysNamesPkgPath: %q\n", p.SysNamesPkgPath))
 	sb.WriteString(fmt.Sprintf("SysCLAPkgPath: %q\n", p.SysCLAPkgPath))
 	sb.WriteString(fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain))
 	sb.WriteString(fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit))
@@ -109,7 +109,7 @@ func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 }
 
 const (
-	sysUsersPkgParamPath = "vm:p:sysnames_pkgpath"
+	sysNamesPkgParamPath = "vm:p:sysnames_pkgpath"
 	sysCLAPkgParamPath   = "vm:p:syscla_pkgpath"
 	chainDomainParamPath = "vm:p:chain_domain"
 )
@@ -122,7 +122,7 @@ func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
 
 func (vm *VMKeeper) getSysNamesPkgParam(ctx sdk.Context) string {
 	sysNamesPkg := sysNamesPkgDefault
-	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysNamesPkg)
+	vm.prmk.GetString(ctx, sysNamesPkgParamPath, &sysNamesPkg)
 	return sysNamesPkg
 }
 
