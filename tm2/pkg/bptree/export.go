@@ -14,11 +14,15 @@ type ExportNode struct {
 	SeparatorKeys [][]byte // inner marker only: all separator keys
 }
 
+// errExportClosed is a sentinel used internally when the done channel is closed.
+var errExportClosed = errors.New("export closed")
+
 // Exporter streams tree nodes in depth-first post-order (children before parent).
 type Exporter struct {
 	tree      *ImmutableTree
 	ndb       *nodeDB // for fetching values; nil for in-memory
 	ch        chan *ExportNode
+	done      chan struct{} // closed by Close() to signal goroutine to exit
 	err       error
 	closeOnce sync.Once
 }
@@ -38,6 +42,7 @@ func (t *ImmutableTree) Export(ndb *nodeDB) (*Exporter, error) {
 		tree: t,
 		ndb:  ndb,
 		ch:   make(chan *ExportNode, 32),
+		done: make(chan struct{}),
 	}
 	go e.run()
 	return e, nil
@@ -46,6 +51,16 @@ func (t *ImmutableTree) Export(ndb *nodeDB) (*Exporter, error) {
 func (e *Exporter) run() {
 	defer close(e.ch)
 	e.err = e.exportNode(e.tree.root)
+}
+
+// send sends a node on the channel, or returns errExportClosed if Close() was called.
+func (e *Exporter) send(node *ExportNode) error {
+	select {
+	case e.ch <- node:
+		return nil
+	case <-e.done:
+		return errExportClosed
+	}
 }
 
 func (e *Exporter) exportNode(node Node) error {
@@ -69,16 +84,20 @@ func (e *Exporter) exportNode(node Node) error {
 			} else {
 				return errors.New("export: no value resolver available (ndb is nil and no valueResolver set)")
 			}
-			e.ch <- &ExportNode{
+			if err := e.send(&ExportNode{
 				Key:    n.keys[i],
 				Value:  value,
 				Height: 0,
+			}); err != nil {
+				return err
 			}
 		}
 		// Emit leaf boundary marker
-		e.ch <- &ExportNode{
+		if err := e.send(&ExportNode{
 			Height:  -1,
 			NumKeys: n.numKeys,
+		}); err != nil {
+			return err
 		}
 		return nil
 
@@ -97,10 +116,12 @@ func (e *Exporter) exportNode(node Node) error {
 		for i := 0; i < int(n.numKeys); i++ {
 			sepKeys[i] = n.keys[i]
 		}
-		e.ch <- &ExportNode{
+		if err := e.send(&ExportNode{
 			Height:        int8(n.height),
 			NumKeys:       n.numKeys,
 			SeparatorKeys: sepKeys,
+		}); err != nil {
+			return err
 		}
 		return nil
 
@@ -113,7 +134,7 @@ func (e *Exporter) exportNode(node Node) error {
 func (e *Exporter) Next() (*ExportNode, error) {
 	node, ok := <-e.ch
 	if !ok {
-		if e.err != nil {
+		if e.err != nil && e.err != errExportClosed {
 			return nil, e.err
 		}
 		return nil, ErrExportDone
@@ -122,10 +143,12 @@ func (e *Exporter) Next() (*ExportNode, error) {
 }
 
 // Close releases the exporter and decrements version readers.
-// Safe to call multiple times.
+// Safe to call multiple times. The goroutine exits promptly without
+// needing to drain the channel.
 func (e *Exporter) Close() {
 	e.closeOnce.Do(func() {
-		// Drain channel to let goroutine exit
+		close(e.done)
+		// Drain channel to let goroutine exit if it's blocked on send
 		for range e.ch {
 		}
 		if e.ndb != nil {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -125,6 +126,35 @@ func TestExporter_Close(t *testing.T) {
 
 	// Double close should be safe
 	exporter.Close()
+}
+
+func TestExporter_CloseStopsGoroutine(t *testing.T) {
+	// Verify that Close() causes the goroutine to exit promptly even
+	// when the consumer has not read all nodes (goroutine leak fix).
+	tree := setupExportTree(t, 1000) // large tree to ensure goroutine is still running
+	imm, err := tree.GetImmutable(1)
+	require.NoError(t, err)
+
+	exporter, err := imm.Export(tree.ndb)
+	require.NoError(t, err)
+
+	// Read just one node
+	_, err = exporter.Next()
+	require.NoError(t, err)
+
+	// Close immediately — goroutine should exit via done channel, not block forever
+	done := make(chan struct{})
+	go func() {
+		exporter.Close()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// OK — Close returned promptly
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close() blocked — goroutine likely leaked")
+	}
 }
 
 func TestExporter_DeleteVersionErrors(t *testing.T) {
