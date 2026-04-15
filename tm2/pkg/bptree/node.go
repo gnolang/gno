@@ -230,6 +230,9 @@ func readInnerNode(nk *NodeKey, r *bytes.Reader) (_ *InnerNode, err error) {
 		return nil, fmt.Errorf("reading numKeys: %w", err)
 	}
 	n.numKeys = int16(numKeys)
+	if n.numKeys < 0 || n.numKeys > B-1 {
+		return nil, fmt.Errorf("inner numKeys %d out of range [0,%d]", n.numKeys, B-1)
+	}
 
 	n.size, err = binary.ReadVarint(r)
 	if err != nil {
@@ -274,6 +277,9 @@ func readLeafNode(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 		return nil, fmt.Errorf("reading numKeys: %w", err)
 	}
 	n.numKeys = int16(numKeys)
+	if n.numKeys < 0 || n.numKeys > B {
+		return nil, fmt.Errorf("leaf numKeys %d out of range [0,%d]", n.numKeys, B)
+	}
 
 	for i := 0; i < int(n.numKeys); i++ {
 		n.keys[i], err = readBytes(r)
@@ -315,10 +321,16 @@ func writeBytes(w io.Writer, b []byte) error {
 	return err
 }
 
+// maxReadBytesLen caps allocations from untrusted data to prevent OOM.
+const maxReadBytesLen = 1 << 20 // 1 MiB — no key or inline field should exceed this
+
 func readBytes(r *bytes.Reader) ([]byte, error) {
 	length, err := binary.ReadUvarint(r)
 	if err != nil {
 		return nil, err
+	}
+	if length > maxReadBytesLen {
+		return nil, fmt.Errorf("readBytes: length %d exceeds maximum %d", length, maxReadBytesLen)
 	}
 	b := make([]byte, length)
 	if _, err := io.ReadFull(r, b); err != nil {

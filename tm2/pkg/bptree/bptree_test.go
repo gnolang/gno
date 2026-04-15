@@ -3,6 +3,7 @@ package bptree
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"math"
 	"math/rand"
@@ -116,6 +117,44 @@ func TestSetEmptyValue(t *testing.T) {
 	}
 	if len(val) != 0 {
 		t.Fatalf("Get returned %x, expected empty slice", val)
+	}
+}
+
+func TestDeserializeInvalidNumKeys(t *testing.T) {
+	// Inner node with numKeys > B-1 must error, not panic.
+	var buf bytes.Buffer
+	buf.WriteByte(TypeInner)
+	// numKeys = 255 (way over B-1=31)
+	var vbuf [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(vbuf[:], 255)
+	buf.Write(vbuf[:n])
+	// size
+	n = binary.PutVarint(vbuf[:], 0)
+	buf.Write(vbuf[:n])
+	// height
+	n = binary.PutUvarint(vbuf[:], 1)
+	buf.Write(vbuf[:n])
+
+	_, err := ReadNode(nil, buf.Bytes())
+	if err == nil {
+		t.Fatal("expected error for inner numKeys=255")
+	}
+	if !strings.Contains(err.Error(), "numKeys") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Leaf node with numKeys > B must error.
+	buf.Reset()
+	buf.WriteByte(TypeLeaf)
+	n = binary.PutUvarint(vbuf[:], 255)
+	buf.Write(vbuf[:n])
+
+	_, err = ReadNode(nil, buf.Bytes())
+	if err == nil {
+		t.Fatal("expected error for leaf numKeys=255")
+	}
+	if !strings.Contains(err.Error(), "numKeys") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
