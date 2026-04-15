@@ -1,8 +1,14 @@
 {
   "tutorialSidebar": [
     "README",
-    "getting-started",
     [
+      {
+        "type": "category",
+        "label": "Getting Started",
+        "items": [
+          "getting-started"
+        ]
+      },
       {
         "type": "category",
         "label": "Use Gno.land",

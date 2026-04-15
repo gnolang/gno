@@ -7,9 +7,9 @@ Gno.land is a smart contract platform built on a novel interpretation of Go
 decentralized applications with a minimalist approach and excellent developer
 experience.
 
-New here? Start with [**Getting started with Gno.land**](getting-started.md) —
-install the toolchain, create a key, get test tokens, and run your first query
-in about 15 minutes.
+## Getting Started
+
+- [Getting started](getting-started.md) - Install the toolchain, create a key, get test tokens, and run your first query in about 15 minutes.
 
 ## Use Gno.land
 
@@ -28,7 +28,6 @@ chain and its dApps.
 Get started with Gno development. Learn how to work with Gno tools, use
 Gno-specific features, connect to Gno apps with clients, and more.
 
-- [Getting started](getting-started.md) - Install the toolchain, create a key, get test tokens, and run your first query in about 15 minutes.
 - [What is Gno](builders/what-is-gnolang.md) - An introduction to Gno, a blockchain implementation of Go created by Cosmos co-founder Jae Kwon, highlighting its similarities to Go, security features, and advantages over other smart contract languages.
 - [Writing Gno code](builders/anatomy-of-a-gno-package.md) - Get a grasp on the basics of Gno syntax by building a simple Counter application and understanding the core language features.
 - [Installing `gno` and developing locally with `gnodev`](builders/local-dev-with-gnodev.md) - Setup a local development environment with a built-in node, hot-reload features, and testing capabilities.
