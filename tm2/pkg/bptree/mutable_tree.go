@@ -3,6 +3,7 @@ package bptree
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -20,14 +21,33 @@ type MutableTree struct {
 	initialVersion uint64
 	logger         Logger
 
-	// In-memory value store for Phase 2 compat (no ndb).
-	// Maps SHA256(value) hex -> raw value bytes.
-	memValues map[Hash][]byte
+	// In-memory value store (no ndb). Keyed by string(valueKey).
+	memValues map[string][]byte
+
+	// Value nonce counter for allocating unique ValueKeys.
+	nextValueNonce uint32
+
+	// Tier 1: all ValueKeys allocated in the current working session.
+	// On Rollback, these are deleted from DB. On SaveVersion, cleared.
+	sessionValues [][]byte
+
+	// Tier 2: cross-version orphaned ValueKeys (from prior committed versions).
+	// Persisted to DB at SaveVersion, consumed during PruneVersionsTo.
+	versionOrphans [][]byte
 }
 
 // NewMutableTreeMem creates an in-memory MutableTree (no DB).
 func NewMutableTreeMem() *MutableTree {
-	return &MutableTree{logger: NewNopLogger(), memValues: make(map[Hash][]byte)}
+	return &MutableTree{logger: NewNopLogger(), memValues: make(map[string][]byte)}
+}
+
+// allocValueKey allocates a unique ValueKey for the current working session.
+func (t *MutableTree) allocValueKey() []byte {
+	nk := &NodeKey{Version: t.WorkingVersion(), Nonce: t.nextValueNonce}
+	t.nextValueNonce++
+	vk := nk.GetKey()
+	t.sessionValues = append(t.sessionValues, vk)
+	return vk
 }
 
 // NewMutableTreeWithDB creates a DB-backed MutableTree.
@@ -62,6 +82,8 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 		leaf.keys[0] = copyKey(key)
 		valueHash := sha256.Sum256(value)
 		leaf.valueHashes[0] = valueHash
+		vk := t.allocValueKey()
+		leaf.valueKeys[0] = vk
 		leaf.numKeys = 1
 		leaf.RebuildMiniMerkle()
 		t.root = leaf
@@ -69,33 +91,39 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 
 		// Save value out-of-line
 		if t.ndb != nil {
-			if err := t.ndb.SaveValue(value, valueHash); err != nil {
+			if err := t.ndb.SaveValue(value, vk); err != nil {
 				return false, err
 			}
 		} else if t.memValues != nil {
 			valCopy := make([]byte, len(value))
 			copy(valCopy, value)
-			t.memValues[valueHash] = valCopy
+			t.memValues[string(vk)] = valCopy
 		}
 		return false, nil
 	}
 
 	valueHash := sha256.Sum256(value)
-	newRoot, updated := treeInsert(t.root, key, valueHash)
+	vk := t.allocValueKey()
+	newRoot, updated, oldValueKey := treeInsert(t.root, key, valueHash, vk)
 	t.root = newRoot
 	if !updated {
 		t.size++
 	}
 
+	// Handle orphaned old valueKey on update
+	if updated && oldValueKey != nil {
+		t.orphanValueKey(oldValueKey)
+	}
+
 	// Save value out-of-line
 	if t.ndb != nil {
-		if err := t.ndb.SaveValue(value, valueHash); err != nil {
+		if err := t.ndb.SaveValue(value, vk); err != nil {
 			return updated, err
 		}
 	} else if t.memValues != nil {
 		valCopy := make([]byte, len(value))
 		copy(valCopy, value)
-		t.memValues[valueHash] = valCopy
+		t.memValues[string(vk)] = valCopy
 	}
 	return updated, nil
 }
@@ -105,24 +133,43 @@ func (t *MutableTree) Get(key []byte) ([]byte, error) {
 	if t.root == nil {
 		return nil, nil
 	}
-	_, vh, found := treeLookup(t.root, key)
+	_, _, vk, found := treeLookup(t.root, key)
 	if !found {
 		return nil, nil
 	}
-	return t.resolveValue(vh)
+	return t.resolveValue(vk)
 }
 
-// resolveValue resolves a value hash to actual bytes.
-func (t *MutableTree) resolveValue(vh Hash) ([]byte, error) {
+// resolveValue resolves a valueKey to actual bytes.
+func (t *MutableTree) resolveValue(vk []byte) ([]byte, error) {
 	if t.ndb != nil {
-		return t.ndb.GetValue(vh)
+		return t.ndb.GetValue(vk)
 	}
 	if t.memValues != nil {
-		if val, ok := t.memValues[vh]; ok {
+		if val, ok := t.memValues[string(vk)]; ok {
 			return val, nil
 		}
 	}
-	return vh[:], nil
+	return nil, fmt.Errorf("value not found for key %x", vk)
+}
+
+// orphanValueKey handles an orphaned valueKey from an overwrite or remove.
+// Tier 1 (same working version): delete eagerly from DB.
+// Tier 2 (prior version): defer to orphan list for prune-time deletion.
+func (t *MutableTree) orphanValueKey(vk []byte) {
+	// Decode version from the first 8 bytes of the valueKey
+	vkVersion := int64(binary.BigEndian.Uint64(vk[:8]))
+	if vkVersion == t.WorkingVersion() {
+		// Tier 1: intra-version orphan — delete eagerly
+		if t.ndb != nil {
+			t.ndb.DeleteValueDirect(vk)
+		} else if t.memValues != nil {
+			delete(t.memValues, string(vk))
+		}
+	} else {
+		// Tier 2: cross-version orphan — defer to prune
+		t.versionOrphans = append(t.versionOrphans, vk)
+	}
 }
 
 // Has returns true if the key exists in the tree.
@@ -130,7 +177,7 @@ func (t *MutableTree) Has(key []byte) (bool, error) {
 	if t.root == nil {
 		return false, nil
 	}
-	_, _, found := treeLookup(t.root, key)
+	_, _, _, found := treeLookup(t.root, key)
 	return found, nil
 }
 
@@ -140,16 +187,18 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 	if t.root == nil {
 		return nil, false, nil
 	}
-	newRoot, oldVH, found := treeRemove(t.root, key)
+	newRoot, _, oldVK, found := treeRemove(t.root, key)
 	if !found {
 		return nil, false, nil
 	}
 	t.root = newRoot
 	t.size--
 
-	val, err := t.resolveValue(oldVH)
-	if err != nil {
-		return nil, true, err
+	// Resolve old value BEFORE orphaning (Tier 1 may delete it from DB)
+	var val []byte
+	if oldVK != nil {
+		val, _ = t.resolveValue(oldVK)
+		t.orphanValueKey(oldVK)
 	}
 	return val, true, nil
 }
@@ -163,6 +212,9 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		// In-memory only: just snapshot
 		t.lastSaved = t.root
 		t.version = version
+		t.sessionValues = t.sessionValues[:0]
+		t.versionOrphans = t.versionOrphans[:0]
+		t.nextValueNonce = 0
 		if t.root == nil {
 			return emptyHash(), version, nil
 		}
@@ -221,7 +273,12 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		}
 	}
 
-	// Commit batch
+	// Persist cross-version orphan list (Tier 2)
+	if err := t.ndb.SaveOrphans(version, t.versionOrphans); err != nil {
+		return nil, 0, err
+	}
+
+	// Commit batch (nodes + root + orphan list, atomically)
 	if err := t.ndb.Commit(); err != nil {
 		return nil, 0, err
 	}
@@ -232,6 +289,11 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 	if t.ndb.getFirstVersion() == 0 {
 		t.ndb.setFirstVersion(version)
 	}
+
+	// Clear session state
+	t.sessionValues = t.sessionValues[:0]
+	t.versionOrphans = t.versionOrphans[:0]
+	t.nextValueNonce = 0
 
 	return rootHash, version, nil
 }
@@ -321,32 +383,10 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	return version, nil
 }
 
-// LoadVersionForOverwriting loads a version and deletes all newer versions.
-func (t *MutableTree) LoadVersionForOverwriting(version int64) error {
-	if t.ndb == nil {
-		return nil
-	}
-	// Remember the old latest version before LoadVersion overwrites it
-	oldLatest := t.ndb.getLatestVersion()
-
-	_, err := t.LoadVersion(version)
-	if err != nil {
-		return err
-	}
-
-	// Delete all versions after the target, using the old latest as the upper bound
-	for v := version + 1; v <= oldLatest; v++ {
-		if t.ndb.VersionExists(v) {
-			if err := t.ndb.DeleteRoot(v); err != nil {
-				return err
-			}
-		}
-	}
-	if err := t.ndb.Commit(); err != nil {
-		return err
-	}
-	t.ndb.setLatestVersion(version)
-	return nil
+// LoadVersionForOverwriting is not supported — it would leak values and nodes.
+// Not called by gno.land, the SDK, or the store layer.
+func (t *MutableTree) LoadVersionForOverwriting(_ int64) error {
+	panic("LoadVersionForOverwriting is not supported; use PruneVersionsTo")
 }
 
 // loadNode loads a node from the DB. Children are loaded lazily via
@@ -361,8 +401,8 @@ func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
 		if version == t.version && t.lastSaved != nil {
 			imm := NewImmutableTree(t.lastSaved, version)
 			if t.memValues != nil {
-				imm.valueResolver = func(vh Hash) ([]byte, error) {
-					val, ok := t.memValues[vh]
+				imm.valueResolver = func(vk []byte) ([]byte, error) {
+					val, ok := t.memValues[string(vk)]
 					if !ok {
 						return nil, fmt.Errorf("value not found in memValues")
 					}
@@ -387,8 +427,8 @@ func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
 		return nil, err
 	}
 	imm := NewImmutableTree(root, version)
-	imm.valueResolver = func(vh Hash) ([]byte, error) {
-		return t.ndb.GetValue(vh)
+	imm.valueResolver = func(vk []byte) ([]byte, error) {
+		return t.ndb.GetValue(vk)
 	}
 	return imm, nil
 }
@@ -408,47 +448,10 @@ func (t *MutableTree) DeleteVersionsTo(toVersion int64) error {
 	return t.PruneVersionsTo(toVersion)
 }
 
-// DeleteVersionsFrom deletes all versions >= fromVersion.
-// Stub for Phase 3.
-func (t *MutableTree) DeleteVersionsFrom(fromVersion int64) error {
-	if t.ndb == nil {
-		return nil
-	}
-	latest := t.ndb.getLatestVersion()
-	for v := fromVersion; v <= latest; v++ {
-		if t.ndb.hasVersionReaders(v) {
-			return fmt.Errorf("%w: version %d", ErrActiveReaders, v)
-		}
-	}
-	for v := fromVersion; v <= latest; v++ {
-		if t.ndb.VersionExists(v) {
-			if err := t.ndb.DeleteRoot(v); err != nil {
-				return err
-			}
-		}
-	}
-	if err := t.ndb.Commit(); err != nil {
-		return err
-	}
-	if fromVersion <= latest {
-		newLatest := fromVersion - 1
-		t.ndb.setLatestVersion(newLatest)
-
-		// If the working tree's version was deleted, reset to the new latest.
-		if t.version >= fromVersion {
-			if newLatest > 0 && t.ndb.VersionExists(newLatest) {
-				if _, err := t.LoadVersion(newLatest); err != nil {
-					return err
-				}
-			} else {
-				t.root = nil
-				t.lastSaved = nil
-				t.size = 0
-				t.version = newLatest
-			}
-		}
-	}
-	return nil
+// DeleteVersionsFrom is not supported — it would leak values and nodes.
+// Not called by gno.land, the SDK, or the store layer.
+func (t *MutableTree) DeleteVersionsFrom(_ int64) error {
+	panic("DeleteVersionsFrom is not supported; use PruneVersionsTo")
 }
 
 // Size returns the total number of key-value pairs.
@@ -487,6 +490,26 @@ func (t *MutableTree) WorkingVersion() int64 {
 
 // Version returns the last saved version.
 func (t *MutableTree) Version() int64 { return t.version }
+
+// Snapshot creates an ImmutableTree snapshot of the current working tree
+// with a properly wired value resolver. For tests and lightweight snapshots.
+func (t *MutableTree) Snapshot(version int64) *ImmutableTree {
+	imm := NewImmutableTree(t.root, version)
+	if t.ndb != nil {
+		imm.valueResolver = func(vk []byte) ([]byte, error) {
+			return t.ndb.GetValue(vk)
+		}
+	} else if t.memValues != nil {
+		imm.valueResolver = func(vk []byte) ([]byte, error) {
+			val, ok := t.memValues[string(vk)]
+			if !ok {
+				return nil, fmt.Errorf("value not found in memValues")
+			}
+			return val, nil
+		}
+	}
+	return imm
+}
 
 // VersionExists returns true if the given version exists.
 func (t *MutableTree) VersionExists(version int64) bool {
@@ -527,7 +550,22 @@ func (t *MutableTree) UnsetCommitting() {
 }
 
 // Rollback discards all mutations since the last save.
+// Eagerly-written values from the session are deleted from DB.
 func (t *MutableTree) Rollback() {
+	// Delete all eagerly-written values from this session
+	if t.ndb != nil {
+		for _, vk := range t.sessionValues {
+			t.ndb.DeleteValueDirect(vk)
+		}
+	} else if t.memValues != nil {
+		for _, vk := range t.sessionValues {
+			delete(t.memValues, string(vk))
+		}
+	}
+	t.sessionValues = t.sessionValues[:0]
+	t.versionOrphans = t.versionOrphans[:0]
+	t.nextValueNonce = 0
+
 	t.root = t.lastSaved
 	if t.root != nil {
 		t.size = nodeSize(t.root)
@@ -544,19 +582,9 @@ func (t *MutableTree) Height() int8 {
 	return int8(nodeHeight(t.root))
 }
 
-// GetValueByHash resolves a value hash to the raw value bytes.
-func (t *MutableTree) GetValueByHash(vh Hash) ([]byte, error) {
-	if t.ndb != nil {
-		return t.ndb.GetValue(vh)
-	}
-	if t.memValues != nil {
-		val, ok := t.memValues[vh]
-		if !ok {
-			return nil, fmt.Errorf("value not found")
-		}
-		return val, nil
-	}
-	return vh[:], nil
+// GetValueByKey resolves a valueKey to the raw value bytes.
+func (t *MutableTree) GetValueByKey(vk []byte) ([]byte, error) {
+	return t.resolveValue(vk)
 }
 
 // Close closes the tree and its underlying DB resources.
@@ -572,8 +600,8 @@ func (t *MutableTree) GetByIndex(index int64) ([]byte, []byte, error) {
 	if t.root == nil || index < 0 || index >= t.size {
 		return nil, nil, ErrKeyDoesNotExist
 	}
-	key, vh := treeGetByIndex(t.root, index)
-	val, err := t.resolveValue(vh)
+	key, _, vk := treeGetByIndex(t.root, index)
+	val, err := t.resolveValue(vk)
 	return key, val, err
 }
 
@@ -582,11 +610,11 @@ func (t *MutableTree) GetWithIndex(key []byte) (int64, []byte, error) {
 	if t.root == nil {
 		return 0, nil, nil
 	}
-	idx, vh, found := treeGetWithIndex(t.root, key)
+	idx, _, vk, found := treeGetWithIndex(t.root, key)
 	if !found {
 		return idx, nil, nil
 	}
-	val, err := t.resolveValue(vh)
+	val, err := t.resolveValue(vk)
 	return idx, val, err
 }
 
@@ -596,36 +624,31 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, err
 	if t.root == nil {
 		return false, nil
 	}
-	if t.ndb != nil || t.memValues != nil {
-		return iterateNode(t.root, func(key, valueHash []byte) bool {
-			var vh Hash
-			copy(vh[:], valueHash)
-			val, err := t.resolveValue(vh)
-			if err != nil {
-				return true
-			}
-			return fn(key, val)
-		}), nil
-	}
-	return iterateNode(t.root, fn), nil
+	return iterateNodeResolved(t.root, func(key, vk []byte) bool {
+		val, err := t.resolveValue(vk)
+		if err != nil {
+			return true
+		}
+		return fn(key, val)
+	}), nil
 }
 
 // --- helpers ---
 
-func treeLookup(node Node, key []byte) (*LeafNode, Hash, bool) {
+func treeLookup(node Node, key []byte) (*LeafNode, Hash, []byte, bool) {
 	for {
 		switch n := node.(type) {
 		case *LeafNode:
 			pos, found := searchLeaf(n, key)
 			if !found {
-				return n, Hash{}, false
+				return n, Hash{}, nil, false
 			}
-			return n, n.valueHashes[pos], true
+			return n, n.valueHashes[pos], n.valueKeys[pos], true
 		case *InnerNode:
 			idx := searchInner(n, key)
 			child := n.getChild(idx)
 			if child == nil {
-				return nil, Hash{}, false
+				return nil, Hash{}, nil, false
 			}
 			node = child
 		default:
@@ -634,10 +657,10 @@ func treeLookup(node Node, key []byte) (*LeafNode, Hash, bool) {
 	}
 }
 
-func treeGetByIndex(node Node, index int64) ([]byte, Hash) {
+func treeGetByIndex(node Node, index int64) ([]byte, Hash, []byte) {
 	switch n := node.(type) {
 	case *LeafNode:
-		return n.keys[index], n.valueHashes[index]
+		return n.keys[index], n.valueHashes[index], n.valueKeys[index]
 	case *InnerNode:
 		offset := int64(0)
 		for i := 0; i < n.NumChildren(); i++ {
@@ -654,14 +677,14 @@ func treeGetByIndex(node Node, index int64) ([]byte, Hash) {
 	}
 }
 
-func treeGetWithIndex(node Node, key []byte) (int64, Hash, bool) {
+func treeGetWithIndex(node Node, key []byte) (int64, Hash, []byte, bool) {
 	switch n := node.(type) {
 	case *LeafNode:
 		pos, found := searchLeaf(n, key)
 		if !found {
-			return int64(pos), Hash{}, false
+			return int64(pos), Hash{}, nil, false
 		}
-		return int64(pos), n.valueHashes[pos], true
+		return int64(pos), n.valueHashes[pos], n.valueKeys[pos], true
 	case *InnerNode:
 		childIdx := searchInner(n, key)
 		offset := int64(0)
@@ -669,8 +692,8 @@ func treeGetWithIndex(node Node, key []byte) (int64, Hash, bool) {
 			offset += n.childSizes[i]
 		}
 		child := n.getChild(childIdx)
-		idx, vh, found := treeGetWithIndex(child, key)
-		return offset + idx, vh, found
+		idx, vh, vk, found := treeGetWithIndex(child, key)
+		return offset + idx, vh, vk, found
 	default:
 		panic("unknown node type")
 	}
@@ -690,6 +713,32 @@ func iterateNode(node Node, fn func(key, value []byte) bool) bool {
 			child := n.getChild(i)
 			if child != nil {
 				if iterateNode(child, fn) {
+					return true
+				}
+			}
+		}
+		return false
+	default:
+		panic("unknown node type")
+	}
+}
+
+// iterateNodeResolved is like iterateNode but passes valueKeys to the callback
+// instead of valueHashes, enabling value resolution via ValueKey.
+func iterateNodeResolved(node Node, fn func(key, vk []byte) bool) bool {
+	switch n := node.(type) {
+	case *LeafNode:
+		for i := 0; i < int(n.numKeys); i++ {
+			if fn(n.keys[i], n.valueKeys[i]) {
+				return true
+			}
+		}
+		return false
+	case *InnerNode:
+		for i := 0; i < n.NumChildren(); i++ {
+			child := n.getChild(i)
+			if child != nil {
+				if iterateNodeResolved(child, fn) {
 					return true
 				}
 			}

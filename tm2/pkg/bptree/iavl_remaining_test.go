@@ -327,64 +327,15 @@ func TestVersionedCheckpointsSpecialCase7(t *testing.T) {
 	require.Equal(t, []byte("val4"), val)
 }
 
-func TestLoadVersionForOverwritingCase2(t *testing.T) {
-	require := require.New(t)
+func TestLoadVersionForOverwriting_Panics(t *testing.T) {
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 0, NewNopLogger())
-
-	for i := 1; i <= 20; i++ {
-		tree.Set([]byte(fmt.Sprintf("key%d", i)), []byte(fmt.Sprintf("val%d", i)))
-		tree.SaveVersion()
-	}
-
-	tree = NewMutableTreeWithDB(db, 0, NewNopLogger())
-	tree.Load()
-	require.NoError(tree.LoadVersionForOverwriting(10))
-
-	for v := int64(1); v <= 10; v++ {
-		require.True(tree.VersionExists(v))
-	}
-	for v := int64(11); v <= 20; v++ {
-		require.False(tree.VersionExists(v))
-	}
-
-	// Can save new versions starting from 11
-	tree.Set([]byte("new"), []byte("val"))
-	_, v, err := tree.SaveVersion()
-	require.NoError(err)
-	require.Equal(int64(11), v)
-}
-
-func TestLoadVersionForOverwritingCase3(t *testing.T) {
-	require := require.New(t)
-	db := memdb.NewMemDB()
-	tree := NewMutableTreeWithDB(db, 0, NewNopLogger())
-
 	tree.Set([]byte("a"), []byte("1"))
-	tree.SaveVersion() // v1
-
-	tree.Set([]byte("b"), []byte("2"))
-	tree.SaveVersion() // v2
-
-	tree.Set([]byte("c"), []byte("3"))
-	tree.SaveVersion() // v3
-
-	tree = NewMutableTreeWithDB(db, 0, NewNopLogger())
-	tree.Load()
-	require.NoError(tree.LoadVersionForOverwriting(1))
-
-	// Only v1 should exist
-	require.True(tree.VersionExists(1))
-	require.False(tree.VersionExists(2))
-	require.False(tree.VersionExists(3))
-
-	// Verify v1 data
-	val, _ := tree.Get([]byte("a"))
-	require.Equal([]byte("1"), val)
-
-	has, _ := tree.Has([]byte("b"))
-	require.False(has) // b was added in v2, not v1
+	tree.SaveVersion()
+	require.New(t).Panics(func() { tree.LoadVersionForOverwriting(1) })
 }
+
+// TestLoadVersionForOverwritingCase2, Case3 removed — LoadVersionForOverwriting panics.
 
 func TestVersionedTreeProofs(t *testing.T) {
 	tree := getTestTree(0)
@@ -469,20 +420,13 @@ func TestTreeKeyExistsProof(t *testing.T) {
 }
 
 func TestDeleteVersionsFromNoDeadlock(t *testing.T) {
+	// DeleteVersionsFrom now panics — test that it panics
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 0, NewNopLogger())
-
-	for i := 0; i < 10; i++ {
-		tree.Set([]byte(fmt.Sprintf("key%d", i)), []byte("val"))
-		tree.SaveVersion()
-	}
-
-	// This should not deadlock
-	err := tree.DeleteVersionsFrom(5)
-	require.NoError(t, err)
-
-	require.True(t, tree.VersionExists(4))
-	require.False(t, tree.VersionExists(5))
+	tree.Set([]byte("k"), []byte("v"))
+	tree.SaveVersion()
+	tree.SaveVersion()
+	require.Panics(t, func() { tree.DeleteVersionsFrom(1) })
 }
 
 func TestIAVLAlternativePruning(t *testing.T) {

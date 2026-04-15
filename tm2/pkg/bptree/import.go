@@ -9,15 +9,17 @@ import (
 type importKV struct {
 	key       []byte
 	valueHash Hash
+	valueKey  []byte
 }
 
 // Importer reconstructs a tree from a stream of ExportNodes,
 // preserving the exact tree structure (and thus the root hash).
 type Importer struct {
-	tree     *MutableTree
-	version  int64
-	kvBuffer []importKV
-	stack    []Node
+	tree       *MutableTree
+	version    int64
+	kvBuffer   []importKV
+	stack      []Node
+	nextNonce  uint32
 }
 
 // Import creates an Importer that will reconstruct a tree at the given version.
@@ -33,18 +35,23 @@ func (t *MutableTree) Import(version int64) (*Importer, error) {
 func (imp *Importer) Add(node *ExportNode) error {
 	switch {
 	case node.Height == 0:
-		// Leaf entry: compute value hash, save value, buffer the entry.
+		// Leaf entry: compute value hash, allocate valueKey, save value, buffer.
 		valueHash := sha256.Sum256(node.Value)
+		vk := (&NodeKey{Version: imp.version, Nonce: imp.nextNonce}).GetKey()
+		imp.nextNonce++
 		if imp.tree.ndb != nil {
-			if err := imp.tree.ndb.SaveValue(node.Value, valueHash); err != nil {
+			if err := imp.tree.ndb.SaveValue(node.Value, vk); err != nil {
 				return err
 			}
 		} else if imp.tree.memValues != nil {
-			imp.tree.memValues[valueHash] = append([]byte(nil), node.Value...)
+			valCopy := make([]byte, len(node.Value))
+			copy(valCopy, node.Value)
+			imp.tree.memValues[string(vk)] = valCopy
 		}
 		imp.kvBuffer = append(imp.kvBuffer, importKV{
 			key:       append([]byte(nil), node.Key...),
 			valueHash: valueHash,
+			valueKey:  vk,
 		})
 		return nil
 
@@ -65,6 +72,7 @@ func (imp *Importer) Add(node *ExportNode) error {
 		for i := range nk {
 			leaf.keys[i] = entries[i].key
 			leaf.valueHashes[i] = entries[i].valueHash
+			leaf.valueKeys[i] = entries[i].valueKey
 		}
 		leaf.RebuildMiniMerkle()
 		imp.kvBuffer = imp.kvBuffer[:len(imp.kvBuffer)-nk]

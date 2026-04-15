@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -59,10 +60,17 @@ func nodeDBKey(nk []byte) []byte {
 	return key
 }
 
-func valueDBKey(hash Hash) []byte {
-	key := make([]byte, 1+HashSize)
+func valueDBKey(vk []byte) []byte {
+	key := make([]byte, 1+len(vk))
 	key[0] = PrefixVal
-	copy(key[1:], hash[:])
+	copy(key[1:], vk)
+	return key
+}
+
+func orphanDBKey(version int64) []byte {
+	key := make([]byte, 1+8)
+	key[0] = PrefixOrphan
+	binary.BigEndian.PutUint64(key[1:], uint64(version))
 	return key
 }
 
@@ -144,27 +152,82 @@ func (ndb *nodeDB) GetNode(nkBytes []byte) (Node, error) {
 
 // --- Value operations ---
 
-// SaveValue writes a value to the DB directly (not via batch).
-// Values are content-addressed and immutable, so writing to DB early
-// is safe and allows Get to work before SaveVersion/Commit.
-// The value is copied to prevent caller mutation from affecting stored data.
-func (ndb *nodeDB) SaveValue(value []byte, hash Hash) error {
-	key := valueDBKey(hash)
+// SaveValue writes a value to the DB directly (not via batch), keyed by
+// ValueKey. Writing early allows Get to work before SaveVersion/Commit.
+func (ndb *nodeDB) SaveValue(value, vk []byte) error {
+	key := valueDBKey(vk)
 	valCopy := make([]byte, len(value))
 	copy(valCopy, value)
-	if err := ndb.db.Set(key, valCopy); err != nil {
-		return err
-	}
-	return nil
+	return ndb.db.Set(key, valCopy)
 }
 
-// GetValue loads a value by its hash from the DB.
-func (ndb *nodeDB) GetValue(hash Hash) ([]byte, error) {
-	data, err := ndb.db.Get(valueDBKey(hash))
+// GetValue loads a value by its ValueKey from the DB.
+func (ndb *nodeDB) GetValue(vk []byte) ([]byte, error) {
+	data, err := ndb.db.Get(valueDBKey(vk))
 	if err != nil {
 		return nil, fmt.Errorf("db get value: %w", err)
 	}
 	return data, nil
+}
+
+// DeleteValue adds a value deletion to the batch (committed at prune time).
+func (ndb *nodeDB) DeleteValue(vk []byte) error {
+	return ndb.batch.Delete(valueDBKey(vk))
+}
+
+// DeleteValueDirect deletes a value directly from the DB (for Tier 1
+// intra-version orphans and Rollback — matching SaveValue's eager writes).
+func (ndb *nodeDB) DeleteValueDirect(vk []byte) error {
+	return ndb.db.Delete(valueDBKey(vk))
+}
+
+// --- Orphan list operations ---
+
+// SaveOrphans persists a list of orphaned ValueKeys for a version.
+// Written to batch (committed atomically with nodes and root).
+func (ndb *nodeDB) SaveOrphans(version int64, orphans [][]byte) error {
+	if len(orphans) == 0 {
+		return nil // don't write empty orphan records
+	}
+	// Encode: count(uvarint) + N * NodeKeySize bytes
+	size := binary.MaxVarintLen64 + len(orphans)*NodeKeySize
+	buf := make([]byte, 0, size)
+	var vbuf [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(vbuf[:], uint64(len(orphans)))
+	buf = append(buf, vbuf[:n]...)
+	for _, vk := range orphans {
+		buf = append(buf, vk...)
+	}
+	return ndb.batch.Set(orphanDBKey(version), buf)
+}
+
+// LoadOrphans loads the orphan list for a version from the DB.
+func (ndb *nodeDB) LoadOrphans(version int64) ([][]byte, error) {
+	data, err := ndb.db.Get(orphanDBKey(version))
+	if err != nil {
+		return nil, err
+	}
+	if data == nil || len(data) == 0 {
+		return nil, nil
+	}
+	r := bytes.NewReader(data)
+	count, err := binary.ReadUvarint(r)
+	if err != nil {
+		return nil, fmt.Errorf("reading orphan count: %w", err)
+	}
+	orphans := make([][]byte, count)
+	for i := range orphans {
+		orphans[i] = make([]byte, NodeKeySize)
+		if _, err := io.ReadFull(r, orphans[i]); err != nil {
+			return nil, fmt.Errorf("reading orphan %d: %w", i, err)
+		}
+	}
+	return orphans, nil
+}
+
+// DeleteOrphans removes the orphan list for a version from the batch.
+func (ndb *nodeDB) DeleteOrphans(version int64) error {
+	return ndb.batch.Delete(orphanDBKey(version))
 }
 
 // --- Root operations ---

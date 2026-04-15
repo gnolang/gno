@@ -94,7 +94,25 @@ func (t *MutableTree) pruneVersion(v, nextV int64) error {
 		}
 	}
 
-	return t.walkAndPrune(vRoot, nextRoot, nextRoot)
+	if err := t.walkAndPrune(vRoot, nextRoot, nextRoot); err != nil {
+		return err
+	}
+
+	// Process orphan list: delete values displaced when nextV was created
+	orphans, err := t.ndb.LoadOrphans(nextV)
+	if err != nil {
+		return fmt.Errorf("loading orphans for v%d: %w", nextV, err)
+	}
+	for _, vk := range orphans {
+		if err := t.ndb.DeleteValue(vk); err != nil {
+			return err
+		}
+	}
+	// Clean up orphan records for both versions
+	t.ndb.DeleteOrphans(nextV)
+	t.ndb.DeleteOrphans(v)
+
+	return nil
 }
 
 // walkAndPrune compares two subtrees and deletes nodes from oldNode

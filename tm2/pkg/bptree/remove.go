@@ -2,33 +2,34 @@ package bptree
 
 // removeResult is returned by recursive remove functions.
 type removeResult struct {
-	found     bool
-	oldValue  Hash
-	underflow bool // node now has fewer than minimum entries
+	found       bool
+	oldValue    Hash
+	oldValueKey []byte // old valueKey for orphan tracking
+	underflow   bool   // node now has fewer than minimum entries
 }
 
 // treeRemove removes a key from the tree rooted at root.
-// Returns the (possibly new) root, the old value hash, and whether found.
-func treeRemove(root Node, key []byte) (Node, Hash, bool) {
+// Returns the (possibly new) root, old value hash, old valueKey, and whether found.
+func treeRemove(root Node, key []byte) (Node, Hash, []byte, bool) {
 	if root == nil {
-		return nil, Hash{}, false
+		return nil, Hash{}, nil, false
 	}
 	root = cloneNode(root)
 	res := nodeRemove(root, key)
 	if !res.found {
-		return root, Hash{}, false
+		return root, Hash{}, nil, false
 	}
 
 	// Check for root collapse
 	if inner, ok := root.(*InnerNode); ok && inner.numKeys == 0 {
 		// Root has single child — collapse
-		return inner.getChild(0), res.oldValue, true
+		return inner.getChild(0), res.oldValue, res.oldValueKey, true
 	}
 	if leaf, ok := root.(*LeafNode); ok && leaf.numKeys == 0 {
 		// Empty tree
-		return nil, res.oldValue, true
+		return nil, res.oldValue, res.oldValueKey, true
 	}
-	return root, res.oldValue, true
+	return root, res.oldValue, res.oldValueKey, true
 }
 
 func nodeRemove(node Node, key []byte) removeResult {
@@ -49,17 +50,20 @@ func leafRemove(leaf *LeafNode, key []byte) removeResult {
 	}
 
 	oldVH := leaf.valueHashes[pos]
+	oldVK := leaf.valueKeys[pos]
 	n := int(leaf.numKeys)
 	for i := pos; i < n-1; i++ {
 		leaf.keys[i] = leaf.keys[i+1]
 		leaf.valueHashes[i] = leaf.valueHashes[i+1]
+		leaf.valueKeys[i] = leaf.valueKeys[i+1]
 	}
 	leaf.keys[n-1] = nil
 	leaf.valueHashes[n-1] = Hash{}
+	leaf.valueKeys[n-1] = nil
 	leaf.numKeys--
 	leaf.RebuildMiniMerkle()
 
-	return removeResult{found: true, oldValue: oldVH, underflow: leaf.numKeys < MinKeys}
+	return removeResult{found: true, oldValue: oldVH, oldValueKey: oldVK, underflow: leaf.numKeys < MinKeys}
 }
 
 func innerRemove(inner *InnerNode, key []byte) removeResult {
@@ -81,7 +85,7 @@ func innerRemove(inner *InnerNode, key []byte) removeResult {
 
 	if !res.underflow {
 		inner.miniTree.SetSlot(childIdx, inner.childHashes[childIdx])
-		return removeResult{found: true, oldValue: res.oldValue}
+		return removeResult{found: true, oldValue: res.oldValue, oldValueKey: res.oldValueKey}
 	}
 
 	// Fix underflow
@@ -91,9 +95,10 @@ func innerRemove(inner *InnerNode, key []byte) removeResult {
 	// Inner node underflows if it has fewer than MinKeys-1 separators
 	// (MinKeys-1 because inner minimum is ceil(B/2)-1 = 15 separators)
 	return removeResult{
-		found:     true,
-		oldValue:  res.oldValue,
-		underflow: merged && inner.numKeys < int16(MinKeys-1),
+		found:       true,
+		oldValue:    res.oldValue,
+		oldValueKey: res.oldValueKey,
+		underflow:   merged && inner.numKeys < int16(MinKeys-1),
 	}
 }
 
@@ -165,12 +170,15 @@ func redistributeRight(parent *InnerNode, idx int) {
 		for i := rn; i > 0; i-- {
 			r.keys[i] = r.keys[i-1]
 			r.valueHashes[i] = r.valueHashes[i-1]
+			r.valueKeys[i] = r.valueKeys[i-1]
 		}
 		r.keys[0] = l.keys[lastIdx]
 		r.valueHashes[0] = l.valueHashes[lastIdx]
+		r.valueKeys[0] = l.valueKeys[lastIdx]
 		r.numKeys++
 		l.keys[lastIdx] = nil
 		l.valueHashes[lastIdx] = Hash{}
+		l.valueKeys[lastIdx] = nil
 		l.numKeys--
 		// Update separator and parent childSizes
 		parent.keys[idx] = copyKey(r.keys[0])
@@ -234,15 +242,18 @@ func redistributeLeft(parent *InnerNode, idx int) {
 		// Append right's first entry to left
 		l.keys[l.numKeys] = r.keys[0]
 		l.valueHashes[l.numKeys] = r.valueHashes[0]
+		l.valueKeys[l.numKeys] = r.valueKeys[0]
 		l.numKeys++
 		// Shift right left
 		rn := int(r.numKeys)
 		for i := 0; i < rn-1; i++ {
 			r.keys[i] = r.keys[i+1]
 			r.valueHashes[i] = r.valueHashes[i+1]
+			r.valueKeys[i] = r.valueKeys[i+1]
 		}
 		r.keys[rn-1] = nil
 		r.valueHashes[rn-1] = Hash{}
+		r.valueKeys[rn-1] = nil
 		r.numKeys--
 		parent.keys[idx] = copyKey(r.keys[0])
 		parent.childSizes[idx]++
@@ -304,6 +315,7 @@ func merge(parent *InnerNode, idx int) {
 		for i := 0; i < int(r.numKeys); i++ {
 			l.keys[l.numKeys] = r.keys[i]
 			l.valueHashes[l.numKeys] = r.valueHashes[i]
+			l.valueKeys[l.numKeys] = r.valueKeys[i]
 			l.numKeys++
 		}
 		l.RebuildMiniMerkle()

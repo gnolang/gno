@@ -4,19 +4,20 @@ import "sync"
 
 // insertResult is returned by recursive insert functions.
 type insertResult struct {
-	updated bool         // true if key already existed (value replaced)
-	split   *splitResult // non-nil if the node split
+	updated     bool         // true if key already existed (value replaced)
+	split       *splitResult // non-nil if the node split
+	oldValueKey []byte       // old valueKey if key was updated (for orphan tracking)
 }
 
-// treeInsert inserts a key with a pre-computed value hash into the tree.
-// It returns the (possibly new) root and whether the key was an update.
-// All nodes on the modification path are COW-cloned.
-func treeInsert(root Node, key []byte, valueHash Hash) (Node, bool) {
+// treeInsert inserts a key with a pre-computed value hash and valueKey.
+// Returns the (possibly new) root, whether it was an update, and the old
+// valueKey if an existing key was overwritten (nil otherwise).
+func treeInsert(root Node, key []byte, valueHash Hash, valueKey []byte) (Node, bool, []byte) {
 	key = copyKey(key) // defensive copy — caller may reuse the slice
 
 	// COW-clone the root
 	root = cloneNode(root)
-	res := nodeInsert(root, key, valueHash)
+	res := nodeInsert(root, key, valueHash, valueKey)
 
 	if res.split != nil {
 		// Root split — create a new inner root
@@ -33,33 +34,35 @@ func treeInsert(root Node, key []byte, valueHash Hash) (Node, bool) {
 		newRoot.childSizes[0] = nodeSize(root)
 		newRoot.childSizes[1] = nodeSize(sr.right)
 		newRoot.RebuildMiniMerkle()
-		return newRoot, res.updated
+		return newRoot, res.updated, res.oldValueKey
 	}
-	return root, res.updated
+	return root, res.updated, res.oldValueKey
 }
 
 // nodeInsert recursively inserts into the subtree rooted at node.
 // The node must already be COW-cloned by the caller.
-func nodeInsert(node Node, key []byte, valueHash Hash) insertResult {
+func nodeInsert(node Node, key []byte, valueHash Hash, valueKey []byte) insertResult {
 	switch n := node.(type) {
 	case *LeafNode:
-		return leafInsert(n, key, valueHash)
+		return leafInsert(n, key, valueHash, valueKey)
 	case *InnerNode:
-		return innerInsert(n, key, valueHash)
+		return innerInsert(n, key, valueHash, valueKey)
 	default:
 		panic("unknown node type")
 	}
 }
 
 // leafInsert inserts into a leaf node (already COW-cloned).
-func leafInsert(leaf *LeafNode, key []byte, valueHash Hash) insertResult {
+func leafInsert(leaf *LeafNode, key []byte, valueHash Hash, valueKey []byte) insertResult {
 	pos, found := searchLeaf(leaf, key)
 
 	if found {
-		// Update existing key — size unchanged
+		// Update existing key — size unchanged. Capture old valueKey for orphan tracking.
+		oldVK := leaf.valueKeys[pos]
 		leaf.valueHashes[pos] = valueHash
+		leaf.valueKeys[pos] = valueKey
 		leaf.miniTree.SetSlot(pos, HashLeafSlotFromValueHash(key, valueHash))
-		return insertResult{updated: true}
+		return insertResult{updated: true, oldValueKey: oldVK}
 	}
 
 	// Insert new key
@@ -69,9 +72,11 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash) insertResult {
 		for i := n; i > pos; i-- {
 			leaf.keys[i] = leaf.keys[i-1]
 			leaf.valueHashes[i] = leaf.valueHashes[i-1]
+			leaf.valueKeys[i] = leaf.valueKeys[i-1]
 		}
 		leaf.keys[pos] = key
 		leaf.valueHashes[pos] = valueHash
+		leaf.valueKeys[pos] = valueKey
 		leaf.numKeys++
 		leaf.RebuildMiniMerkle()
 		return insertResult{updated: false}
@@ -80,6 +85,7 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash) insertResult {
 	// Leaf is full (numKeys == B) — need to split
 	allKeys := make([][]byte, B+1)
 	allVH := make([]Hash, B+1)
+	allVK := make([][]byte, B+1)
 	// Copy existing keys, inserting new key at pos
 	copy(allKeys[:pos], leaf.keys[:pos])
 	allKeys[pos] = key
@@ -87,8 +93,11 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash) insertResult {
 	copy(allVH[:pos], leaf.valueHashes[:pos])
 	allVH[pos] = valueHash
 	copy(allVH[pos+1:], leaf.valueHashes[pos:B])
+	copy(allVK[:pos], leaf.valueKeys[:pos])
+	allVK[pos] = valueKey
+	copy(allVK[pos+1:], leaf.valueKeys[pos:B])
 
-	left, sr := splitLeaf(allKeys, allVH, pos)
+	left, sr := splitLeaf(allKeys, allVH, allVK, pos)
 	*leaf = *left
 	leaf.RebuildMiniMerkle()
 	sr.right.(*LeafNode).RebuildMiniMerkle()
@@ -96,7 +105,7 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash) insertResult {
 }
 
 // innerInsert inserts into an inner node (already COW-cloned).
-func innerInsert(inner *InnerNode, key []byte, valueHash Hash) insertResult {
+func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) insertResult {
 	childIdx := searchInner(inner, key)
 
 	child := inner.getChild(childIdx)
@@ -109,7 +118,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash) insertResult {
 	inner.setChild(childIdx, child)
 
 	// Recurse
-	res := nodeInsert(child, key, valueHash)
+	res := nodeInsert(child, key, valueHash, valueKey)
 
 	if !res.updated {
 		inner.childSizes[childIdx]++

@@ -295,7 +295,7 @@ func TestIterator_ImmutableTree(t *testing.T) {
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "im%04d", i), []byte("v"))
 	}
-	imm := NewImmutableTree(tree.root, 1)
+	imm := tree.Snapshot(1)
 
 	itr, _ := imm.Iterator(nil, nil, true)
 	defer itr.Close()

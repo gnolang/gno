@@ -37,7 +37,8 @@ type LeafNode struct {
 	nodeKey     *NodeKey
 	numKeys     int16
 	keys        [B][]byte
-	valueHashes [B]Hash // SHA256 of each value (out-of-line)
+	valueHashes [B]Hash   // SHA256 of each value (for Merkle proofs)
+	valueKeys   [B][]byte // ValueKey references (12 bytes each, for value DB lookup)
 	miniTree    MiniMerkle // in-memory only, not serialized
 }
 
@@ -204,6 +205,18 @@ func (n *LeafNode) Serialize(w io.Writer) error {
 			return err
 		}
 	}
+	for i := 0; i < int(n.numKeys); i++ {
+		if n.valueKeys[i] != nil {
+			if _, err := w.Write(n.valueKeys[i]); err != nil {
+				return err
+			}
+		} else {
+			// Write zero-filled placeholder for missing valueKey
+			if _, err := w.Write(make([]byte, NodeKeySize)); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -294,6 +307,12 @@ func readLeafNode(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 	for i := 0; i < int(n.numKeys); i++ {
 		if _, err := io.ReadFull(r, n.valueHashes[i][:]); err != nil {
 			return nil, fmt.Errorf("reading value hash %d: %w", i, err)
+		}
+	}
+	for i := 0; i < int(n.numKeys); i++ {
+		n.valueKeys[i] = make([]byte, NodeKeySize)
+		if _, err := io.ReadFull(r, n.valueKeys[i]); err != nil {
+			return nil, fmt.Errorf("reading value key %d: %w", i, err)
 		}
 	}
 

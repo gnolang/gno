@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -362,41 +361,12 @@ func TestOverwrite(t *testing.T) {
 	require.NoError(err)
 }
 
-func TestLoadVersionForOverwriting(t *testing.T) {
-	require := require.New(t)
+func TestLoadVersionForOverwriting_PanicsIAVL(t *testing.T) {
 	mdb := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(mdb, 0, NewNopLogger())
-
-	maxLength := 100
-	for count := 1; count <= maxLength; count++ {
-		countStr := strconv.Itoa(count)
-		tree.Set([]byte("key"+countStr), []byte("value"+countStr))
-		_, _, err := tree.SaveVersion()
-		require.NoError(err, "SaveVersion should not fail")
-	}
-
-	tree = NewMutableTreeWithDB(mdb, 0, NewNopLogger())
-	tree.Load()
-	err := tree.LoadVersionForOverwriting(int64(maxLength / 2))
-	require.NoError(err, "LoadVersionForOverwriting should not fail")
-
-	for version := 1; version <= maxLength/2; version++ {
-		exist := tree.VersionExists(int64(version))
-		require.True(exist, "versions no more than 50 should exist")
-	}
-
-	for version := (maxLength / 2) + 1; version <= maxLength; version++ {
-		exist := tree.VersionExists(int64(version))
-		require.False(exist, "versions more than 50 should have been deleted")
-	}
-
-	tree.Set([]byte("key49"), []byte("value49 different"))
-	_, _, err = tree.SaveVersion()
-	require.NoError(err, "SaveVersion should not fail after overwrite")
-
-	tree.Set([]byte("key50"), []byte("value50 different"))
-	_, _, err = tree.SaveVersion()
-	require.NoError(err, "SaveVersion should not fail after overwrite")
+	tree.Set([]byte("k"), []byte("v"))
+	tree.SaveVersion()
+	require.New(t).Panics(func() { tree.LoadVersionForOverwriting(1) })
 }
 
 func TestIterate_ImmutableTree_Version1(t *testing.T) {

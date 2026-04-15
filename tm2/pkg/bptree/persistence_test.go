@@ -505,54 +505,29 @@ func TestPersistence_ExportImport(t *testing.T) {
 	}
 }
 
-func TestPersistence_LoadVersionForOverwriting(t *testing.T) {
+func TestPersistence_LoadVersionForOverwriting_Panics(t *testing.T) {
 	tree := newTestTree(t)
-	for i := 0; i < 5; i++ {
-		tree.Set(fmt.Appendf(nil, "ow%d", i), fmt.Appendf(nil, "v%d", i))
-		tree.SaveVersion()
-	}
-
-	// Overwrite from version 3 — deletes versions 4, 5
-	err := tree.LoadVersionForOverwriting(3)
-	if err != nil {
-		t.Fatalf("LoadVersionForOverwriting: %v", err)
-	}
-	if tree.Version() != 3 {
-		t.Fatalf("version = %d, want 3", tree.Version())
-	}
-	if tree.VersionExists(4) || tree.VersionExists(5) {
-		t.Fatalf("versions 4-5 should be deleted")
-	}
-	if !tree.VersionExists(1) || !tree.VersionExists(2) || !tree.VersionExists(3) {
-		t.Fatalf("versions 1-3 should exist")
-	}
-
-	// New save should be version 4
-	tree.Set([]byte("ow_new"), []byte("v_new"))
-	_, v, _ := tree.SaveVersion()
-	if v != 4 {
-		t.Fatalf("next version = %d, want 4", v)
-	}
+	tree.Set([]byte("k"), []byte("v"))
+	tree.SaveVersion()
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic from LoadVersionForOverwriting")
+		}
+	}()
+	tree.LoadVersionForOverwriting(1)
 }
 
-func TestPersistence_DeleteVersionsFrom(t *testing.T) {
+func TestPersistence_DeleteVersionsFrom_Panics(t *testing.T) {
 	tree := newTestTree(t)
-	for i := 0; i < 5; i++ {
-		tree.Set(fmt.Appendf(nil, "df%d", i), []byte("v"))
-		tree.SaveVersion()
-	}
-
-	err := tree.DeleteVersionsFrom(3)
-	if err != nil {
-		t.Fatalf("DeleteVersionsFrom(3): %v", err)
-	}
-
-	if !tree.VersionExists(1) || !tree.VersionExists(2) {
-		t.Fatalf("versions 1-2 should exist")
-	}
-	if tree.VersionExists(3) || tree.VersionExists(4) || tree.VersionExists(5) {
-		t.Fatalf("versions 3-5 should be deleted")
-	}
+	tree.Set([]byte("k"), []byte("v"))
+	tree.SaveVersion()
+	tree.SaveVersion()
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic from DeleteVersionsFrom")
+		}
+	}()
+	tree.DeleteVersionsFrom(1)
 }
 
 func TestPersistence_VersionReaders_BlockPruning(t *testing.T) {

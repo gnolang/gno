@@ -12,7 +12,7 @@ type splitResult struct {
 //
 // 90/10 split: if insertPos == B (key appended at the end), left gets B-1
 // keys, right gets 2 keys. Otherwise 50/50: left gets ceil((B+1)/2) = 17.
-func splitLeaf(keys [][]byte, valueHashes []Hash, insertPos int) (*LeafNode, splitResult) {
+func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, insertPos int) (*LeafNode, splitResult) {
 	total := len(keys) // B+1
 	var splitPoint int
 
@@ -29,12 +29,14 @@ func splitLeaf(keys [][]byte, valueHashes []Hash, insertPos int) (*LeafNode, spl
 	left.numKeys = int16(splitPoint)
 	copy(left.keys[:], keys[:splitPoint])
 	copy(left.valueHashes[:], valueHashes[:splitPoint])
+	copy(left.valueKeys[:], valueKeys[:splitPoint])
 
 	rightCount := total - splitPoint
 	right := &LeafNode{}
 	right.numKeys = int16(rightCount)
 	copy(right.keys[:], keys[splitPoint:])
 	copy(right.valueHashes[:], valueHashes[splitPoint:])
+	copy(right.valueKeys[:], valueKeys[splitPoint:])
 
 	// Separator is a copy of the first key of the right leaf
 	sep := make([]byte, len(right.keys[0]))

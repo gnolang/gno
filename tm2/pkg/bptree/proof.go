@@ -72,11 +72,13 @@ func (t *ImmutableTree) VerifyMembership(proof *ics23.CommitmentProof, key []byt
 	if t.valueResolver == nil {
 		return false, fmt.Errorf("cannot verify membership without a value resolver")
 	}
-	_, _, vh, err := t.findPathToKey(key)
+	path, leafSlotIdx, _, err := t.findPathToKey(key)
 	if err != nil {
 		return false, err
 	}
-	val, err := t.valueResolver(vh)
+	leafNode := path[len(path)-1].node.(*LeafNode)
+	vk := leafNode.valueKeys[leafSlotIdx]
+	val, err := t.valueResolver(vk)
 	if err != nil {
 		return false, err
 	}
@@ -109,8 +111,8 @@ func (t *ImmutableTree) createExistenceProof(key []byte) (*ics23.ExistenceProof,
 		return nil, fmt.Errorf("cannot create existence proof without a value resolver")
 	}
 	leafNode := path[len(path)-1].node.(*LeafNode)
-	vh := leafNode.valueHashes[leafSlotIdx]
-	rawValue, err := t.valueResolver(vh)
+	vk := leafNode.valueKeys[leafSlotIdx]
+	rawValue, err := t.valueResolver(vk)
 	if err != nil {
 		return nil, fmt.Errorf("resolving value for proof: %w", err)
 	}
@@ -224,12 +226,12 @@ func (t *MutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProof,
 func (t *MutableTree) immutableForProof() *ImmutableTree {
 	imm := &ImmutableTree{root: t.root, version: t.version}
 	if t.ndb != nil {
-		imm.valueResolver = func(vh Hash) ([]byte, error) {
-			return t.ndb.GetValue(vh)
+		imm.valueResolver = func(vk []byte) ([]byte, error) {
+			return t.ndb.GetValue(vk)
 		}
 	} else if t.memValues != nil {
-		imm.valueResolver = func(vh Hash) ([]byte, error) {
-			val, ok := t.memValues[vh]
+		imm.valueResolver = func(vk []byte) ([]byte, error) {
+			val, ok := t.memValues[string(vk)]
 			if !ok {
 				return nil, fmt.Errorf("value not found in memValues")
 			}

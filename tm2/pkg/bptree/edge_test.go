@@ -230,7 +230,7 @@ func TestEdge_ConcurrentImmutableReads(t *testing.T) {
 	for i := 0; i < 200; i++ {
 		tree.Set(fmt.Appendf(nil, "cc%04d", i), []byte("v"))
 	}
-	imm := NewImmutableTree(tree.root, 1)
+	imm := tree.Snapshot(1)
 
 	var wg sync.WaitGroup
 	errs := make(chan error, 10)

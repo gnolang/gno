@@ -71,13 +71,13 @@ func (e *Exporter) exportNode(node Node) error {
 			var value []byte
 			if e.ndb != nil {
 				var err error
-				value, err = e.ndb.GetValue(n.valueHashes[i])
+				value, err = e.ndb.GetValue(n.valueKeys[i])
 				if err != nil {
 					return err
 				}
 			} else if e.tree.valueResolver != nil {
 				var err error
-				value, err = e.tree.valueResolver(n.valueHashes[i])
+				value, err = e.tree.valueResolver(n.valueKeys[i])
 				if err != nil {
 					return err
 				}

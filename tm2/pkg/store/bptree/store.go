@@ -78,8 +78,8 @@ func (st *Store) GetImmutable(version int64) (*Store, error) {
 	}
 	// Wire up value resolver so ImmutableTree.Get returns actual values
 	if st.mtree != nil {
-		iTree.SetValueResolver(func(vh bp.Hash) ([]byte, error) {
-			return st.mtree.GetValueByHash(vh)
+		iTree.SetValueResolver(func(vk []byte) ([]byte, error) {
+			return st.mtree.GetValueByKey(vk)
 		})
 	}
 	opts := st.opts
@@ -315,8 +315,8 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		}
 		// Wire value resolver for proof generation
 		if st.mtree != nil {
-			iTree.SetValueResolver(func(vh bp.Hash) ([]byte, error) {
-				return st.mtree.GetValueByHash(vh)
+			iTree.SetValueResolver(func(vk []byte) ([]byte, error) {
+				return st.mtree.GetValueByKey(vk)
 			})
 		}
 

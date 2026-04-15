@@ -22,10 +22,11 @@ const (
 	DomainEmpty byte = 0x02
 
 	// DB key prefixes.
-	PrefixNode byte = 'B'
-	PrefixVal  byte = 'V'
-	PrefixRoot byte = 'R'
-	PrefixMeta byte = 'M'
+	PrefixNode   byte = 'B'
+	PrefixVal    byte = 'V'
+	PrefixRoot   byte = 'R'
+	PrefixMeta   byte = 'M'
+	PrefixOrphan byte = 'O'
 
 	// Node type bytes for serialization.
 	TypeInner byte = 0x01

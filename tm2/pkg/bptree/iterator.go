@@ -279,9 +279,9 @@ func (it *Iterator) Value() []byte {
 	if !it.valid {
 		panic("iterator invalid")
 	}
-	vh := it.leaf.valueHashes[it.leafIdx]
+	vk := it.leaf.valueKeys[it.leafIdx]
 	if it.ndb != nil {
-		val, err := it.ndb.GetValue(vh)
+		val, err := it.ndb.GetValue(vk)
 		if err != nil {
 			it.err = err
 			it.valid = false
@@ -290,7 +290,7 @@ func (it *Iterator) Value() []byte {
 		return val
 	}
 	if it.valueResolver != nil {
-		val, err := it.valueResolver(vh)
+		val, err := it.valueResolver(vk)
 		if err != nil {
 			it.err = err
 			it.valid = false
@@ -298,7 +298,7 @@ func (it *Iterator) Value() []byte {
 		}
 		return val
 	}
-	return vh[:]
+	return nil // no resolver available
 }
 
 func (it *Iterator) Error() error {
@@ -333,10 +333,10 @@ func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, m
 func (t *MutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, error) {
 	itr := newIterator(t.root, start, end, ascending, t.ndb, 0)
 	if t.ndb == nil && t.memValues != nil {
-		itr.valueResolver = func(vh Hash) ([]byte, error) {
-			val, ok := t.memValues[vh]
+		itr.valueResolver = func(vk []byte) ([]byte, error) {
+			val, ok := t.memValues[string(vk)]
 			if !ok {
-				return nil, fmt.Errorf("value not found in memValues for hash %x", vh[:8])
+				return nil, fmt.Errorf("value not found in memValues for key %x", vk)
 			}
 			return val, nil
 		}

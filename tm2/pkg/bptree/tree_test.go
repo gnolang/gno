@@ -676,7 +676,7 @@ func TestImmutableTree_Basic(t *testing.T) {
 	}
 
 	// Create an immutable snapshot
-	imm := NewImmutableTree(tree.root, 1)
+	imm := tree.Snapshot(1)
 
 	if imm.Size() != 50 {
 		t.Fatalf("immutable size = %d", imm.Size())
@@ -838,7 +838,7 @@ func TestImmutableTree_GetByIndex_AllIndices(t *testing.T) {
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "ia%03d", i), []byte("v"))
 	}
-	imm := NewImmutableTree(tree.root, 1)
+	imm := tree.Snapshot(1)
 
 	var prev string
 	for i := int64(0); i < imm.Size(); i++ {
@@ -858,7 +858,7 @@ func TestImmutableTree_GetWithIndex_MissingKeys(t *testing.T) {
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "iw%04d", i), []byte("v"))
 	}
-	imm := NewImmutableTree(tree.root, 1)
+	imm := tree.Snapshot(1)
 
 	// Before all
 	idx, val, _ := imm.GetWithIndex([]byte("aaa"))
