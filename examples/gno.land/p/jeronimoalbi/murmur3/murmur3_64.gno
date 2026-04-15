@@ -24,16 +24,12 @@ func New64() hash.Hash64 {
 
 // NewWithSeed64 returns a new hash.Hash64 computing a 64-bit
 // MurmurHash3 hash. The first 32-bit hash uses seed1 and the
-// second uses seed2. The two seeds should be different.
+// second uses seed2. The two seeds should ideally be different.
 // It can generate 2 to the power of 64 unique 64-bit values.
 // Hash is not collision safe, so it's recommended to handle potential
 // collisions when dealing with more than 4_294_967_296 values which is
 // when provability raises.
 func NewWithSeed64(seed1, seed2 uint32) hash.Hash64 {
-	if seed1 == seed2 {
-		panic("hash64 seeds must not be equal")
-	}
-
 	return &digest64{
 		d1: digest32{seed: seed1, h1: seed1},
 		d2: digest32{seed: seed2, h1: seed2},
