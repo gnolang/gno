@@ -2,7 +2,10 @@ module github.com/gnolang/gno/misc/hardfork
 
 go 1.24.0
 
-require github.com/gnolang/gno v0.0.0-00010101000000-000000000000
+require (
+	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
+	github.com/stretchr/testify v1.11.1
+)
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
@@ -54,7 +57,6 @@ require (
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.etcd.io/bbolt v1.4.3 // indirect

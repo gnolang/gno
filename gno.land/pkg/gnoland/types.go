@@ -141,7 +141,7 @@ type GnoTxMetadata struct {
 	BlockHeight int64               `json:"block_height,omitempty"` // Original block height for historical tx replay
 	ChainID     string              `json:"chain_id,omitempty"`     // Originating chain ID, populated by tx-archive export
 	Failed      bool                `json:"failed,omitempty"`       // True if tx had non-zero return code on source chain
-	SignerInfo  []SignerAccountInfo  `json:"signer_info,omitempty"` // Per-signer account metadata for signature verification
+	SignerInfo  []SignerAccountInfo `json:"signer_info,omitempty"` // Per-signer account metadata for signature verification
 }
 
 // SignerAccountInfo records a signer's account number and sequence at the time
