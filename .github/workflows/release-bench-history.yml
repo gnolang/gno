@@ -9,7 +9,6 @@ on:
       - gno.land/**/*.go
       - gnovm/**/*.go
       - tm2/**/*.go
-  workflow_dispatch:
 
 permissions:
   contents: read

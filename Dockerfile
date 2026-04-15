@@ -84,6 +84,14 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=kms_modcache \
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=kms_modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=kms_buildcache \
             go build -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o /gnoroot/build/gnokms .
+## TM2Backup
+WORKDIR     /gnoroot/contribs/tm2backup
+RUN         --mount=type=cache,target=/go/pkg/mod/,id=tm2bck_modcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=tm2bck_buildcache \
+            go mod download -x
+RUN         --mount=type=cache,target=/go/pkg/mod/,id=tm2bck_modcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=tm2bck_buildcache \
+            go build -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o /gnoroot/build/tm2backup .
 
 # Misc build
 FROM        setup-gnocore AS build-misc
@@ -162,8 +170,8 @@ ENTRYPOINT  ["/usr/bin/gno"]
 FROM        base AS gnocontribs
 COPY        --from=build-gnobro /gnoroot/build/gnobro                           /usr/bin/gnobro
 COPY        --from=build-contribs /gnoroot/build/gnogenesis                     /usr/bin/gnogenesis
-COPY        --from=build-contribs /gnoroot/build/gnokms                          /usr/bin/gnokms
-COPY        --from=build-contribs /gnoroot/build/tm2-backup                     /usr/bin/tm2-backup
+COPY        --from=build-contribs /gnoroot/build/gnokms                         /usr/bin/gnokms
+COPY        --from=build-contribs /gnoroot/build/tm2backup                      /usr/bin/tm2backup
 COPY        --from=build-gnocore /gnoroot/examples                              /gnoroot/examples
 COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
