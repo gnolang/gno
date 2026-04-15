@@ -62,9 +62,12 @@ func TestLoadBlockStoreStateJSON(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
+	batch := db.NewBatch()
 
 	bsj := &BlockStoreStateJSON{Height: 1000}
-	bsj.Save(db)
+	bsj.Save(batch)
+	batch.WriteSync()
+	batch.Close()
 
 	retrBSJ := LoadBlockStoreStateJSON(db)
 
@@ -419,6 +422,29 @@ func TestBlockFetchAtHeight(t *testing.T) {
 	require.Nil(t, blockAtHeightPlus1, "expecting an unsuccessful load of Height()+1")
 	blockAtHeightPlus2 := bs.LoadBlock(bs.Height() + 2)
 	require.Nil(t, blockAtHeightPlus2, "expecting an unsuccessful load of Height()+2")
+}
+
+func TestLoadBlockWithMissingPart(t *testing.T) {
+	t.Parallel()
+
+	state, bs, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
+	defer cleanup()
+
+	block := makeBlock(bs.Height()+1, state, new(types.Commit))
+	partSet := block.MakePartSet(2)
+	seenCommit := makeTestCommit(10, tmtime.Now())
+	bs.SaveBlock(block, partSet, seenCommit)
+
+	// Delete a block part from the DB to simulate a missing part
+	height := block.Header.Height
+	require.True(t, partSet.Total() > 1, "need multiple parts for this test")
+
+	// Delete the second part key
+	bs.db.Delete(calcBlockPartKey(height, 1))
+
+	// LoadBlock should return nil when a part is missing
+	loaded := bs.LoadBlock(height)
+	require.Nil(t, loaded, "LoadBlock should return nil when a block part is missing")
 }
 
 func doFn(fn func() (any, error)) (res any, err error, panicErr error) {
