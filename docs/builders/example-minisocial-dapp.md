@@ -26,13 +26,13 @@ realm and is used by Gno tools. Run the following command to create a `gnomod.to
 gno mod init gno.land/r/example/minisocial
 ```
 
-In this case, we'll be using the `examples` namespace, but you can change this to
+In this case, we'll be using the `example` namespace, but you can change this to
 the namespace of your liking later.
 
 Next, in the same folder, start by creating three files:
 
 ```sh
-touch types.gno minisocial.gno render.gno
+touch types.gno posts.gno render.gno
 ```
 
 While all code can be stored in a single file, separating logical units,
@@ -68,7 +68,7 @@ type Post struct {
 The `address` keyword is a built-in keyword type represents a Gno address.
 
 Standard libraries such as `time` are ported over directly from Go. Check out the
-[Go-Gno Compatability](../resources/go-gno-compatibility.md) page for more info.
+[Go-Gno Compatibility](../resources/go-gno-compatibility.md) page for more info.
 
 ### `posts.gno`
 
@@ -117,7 +117,7 @@ A few things to note:
   security checks in your code have passed. To discard (revert) state changes,
   use `panic()`.
 - To get the caller of `CreatePost`, we need to import `chain/runtime`,
-which provides access to the function caller, and use `runtime.PreviousRealm.Address()`.
+which provides access to the function caller, and use `runtime.PreviousRealm().Address()`.
 Check out the [realm concept page](../resources/realms.md) & the 
 [`chain/runtime` package](../resources/gno-stdlibs.md) reference page for more info.
 - In Gno, `time.Now()` returns the timestamp of the block the transaction was
@@ -126,7 +126,7 @@ included in, instead of the system time.
 :::info Lint & format
 
 The `gno` binary provides tooling which can help you write correct code.
-You can use `gno lint` and `gno tool fmt` to lint and format your code,
+You can use `gno lint` and `gno fmt` to lint and format your code,
 respectively.
 :::
 
@@ -240,7 +240,7 @@ func (p Post) String() string {
 Here, package `ufmt` is used to provide string formatting functionality. It can
 be imported via with `gno.land/p/nt/ufmt/v0`.
 
-With this, we can expand our `Render()` function in `posts.gno` as follows:
+With this, we can expand our `Render()` function in `render.gno` as follows:
 
 [embedmd]:# (../_assets/minisocial/render-1.gno go)
 ```go
@@ -383,7 +383,7 @@ Full code of this app can be found on the Staging network, on
 ## Bonus - resolving usernames
 
 Let's make our MiniSocial app even better by resolving addresses to potential usernames
-registered in the [Gno.land User Registry](https://staging.gno.land/demo/users).
+registered in the [Gno.land User Registry](https://staging.gno.land/r/sys/users).
 
 We can import the `gno.land/r/sys/users` realm which provides user data and use
 it to try to resolve the address:
@@ -396,11 +396,11 @@ func (p Post) String() string {
 
 	author := p.author.String()
 	// We can import and use the r/sys/users package to resolve addresses
-	user, _ := users.ResolveAddress(p.author)
+	user := users.ResolveAddress(p.author)
 	if user != nil {
 		// RenderLink provides a link that is clickable
 		// The link goes to the user's profile page
-		author = user.RenderLink()
+		author = user.RenderLink("")
 	}
 
 	out += ufmt.Sprintf("_by %s on %s_\n\n", author, p.createdAt.Format("02 Jan 2006, 15:04"))
