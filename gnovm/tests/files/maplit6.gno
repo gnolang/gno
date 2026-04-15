@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// slice type cannot be used as map key
+// runtime error: slice type cannot be used as map key
