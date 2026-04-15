@@ -1,9 +1,6 @@
 package bptree
 
-import (
-	"crypto/sha256"
-	"sync"
-)
+import "sync"
 
 // insertResult is returned by recursive insert functions.
 type insertResult struct {
@@ -11,12 +8,11 @@ type insertResult struct {
 	split   *splitResult // non-nil if the node split
 }
 
-// treeInsert inserts a key-value pair into the tree rooted at root.
+// treeInsert inserts a key with a pre-computed value hash into the tree.
 // It returns the (possibly new) root and whether the key was an update.
 // All nodes on the modification path are COW-cloned.
-func treeInsert(root Node, key, value []byte) (Node, bool) {
+func treeInsert(root Node, key []byte, valueHash Hash) (Node, bool) {
 	key = copyKey(key) // defensive copy — caller may reuse the slice
-	valueHash := sha256.Sum256(value)
 
 	// COW-clone the root
 	root = cloneNode(root)

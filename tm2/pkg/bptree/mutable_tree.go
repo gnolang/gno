@@ -81,7 +81,7 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	}
 
 	valueHash := sha256.Sum256(value)
-	newRoot, updated := treeInsert(t.root, key, value)
+	newRoot, updated := treeInsert(t.root, key, valueHash)
 	t.root = newRoot
 	if !updated {
 		t.size++
