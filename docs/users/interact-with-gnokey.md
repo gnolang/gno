@@ -10,7 +10,7 @@ with the essential operations.
 To build and install from source, you'll need:
 
 - Git
-- Go 1.22+
+- Go 1.24+
 - Make
 
 ```bash
@@ -156,7 +156,7 @@ The `addpkg` subcommand uses the following flags and arguments:
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
 - `-gas-fee` - amount of GNOTs to pay per gas unit
-- `-chain-id` - id of the chain that we are sending the transaction to
+- `-chainid` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
 The `-pkgpath`, `-pkgdir`, flags are unique to the `addpkg`
@@ -301,7 +301,7 @@ If everything was successful, we should get something similar to the following
 output:
 
 ```
-(1000 uint64)
+(1000 int64)
 
 OK!
 GAS WANTED: 2000000
@@ -670,12 +670,19 @@ been signed in a previous step and `gnokey` is only sending it to the RPC endpoi
 ## Verifying a transaction's signature
 
 To verify a transaction's signature is correct, you can use the `gnokey verify`
-subcommand. We can provide the path to the transaction document using the `-docpath`
-flag, provide the key we signed the transaction with, and the signature itself.
-Make sure the signature is in the `hex` format.
+subcommand. Provide the path to the transaction document using the `-tx-path`
+flag, and optionally the path to a separate signature file using the `-sig-path`
+flag. If `-sig-path` is omitted, the first signature embedded in the transaction
+itself is verified.
 
 ```bash
-gnokey verify -docpath counter.tx mykey <signature>
+gnokey verify -tx-path counter.tx mykey
+```
+
+To verify against a separate signature file:
+
+```bash
+gnokey verify -tx-path counter.tx -sig-path counter-sig.json mykey
 ```
 
 ## Using a k-of-n multisig
@@ -1025,7 +1032,7 @@ cd gnokey-airgap-bundle
 sha256sum -c gnokey.sha256
 
 # You can run the command locally now
-./gnokey --h
+./gnokey -h
 ```
 
 ### Practical warning: CGO usually implies dynamic deps
@@ -1126,7 +1133,7 @@ The data field will contain the coins the address owns.
 ### `auth/gasprice`
 
 The `auth/gasprice` query allows you to fetch the minimum gas price currently
-required for transactions. This is useful for ensuring your `--gas-fee` meets
+required for transactions. This is useful for ensuring your `-gas-fee` meets
 the network's requirements when submitting transactions. To call it, we can run the following command:
 
 ```bash
@@ -1181,7 +1188,7 @@ data: [
           "Params": [
             {
             "Name": "amount",
-            "Type": "uint64",
+            "Type": "int64",
             "Value": ""
             }
           ],
@@ -1225,23 +1232,21 @@ height: 0
 data: package wugnot
 
 import (
-        "std"
+        "chain"
+        "chain/banker"
+        "chain/runtime"
         "strings"
 
         "gno.land/p/demo/tokens/grc20"
         "gno.land/p/nt/ufmt/v0"
-        pusers "gno.land/p/demo/users"
-        "gno.land/r/demo/users"
+        "gno.land/r/demo/defi/grc20reg"
 )
 
-var (
-        banker *grc20.Banker = grc20.NewBanker("wrapped GNOT", "wugnot", 0)
-        Token                = banker.Token()
-)
+var Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)
 
 const (
-        ugnotMinDeposit  uint64 = 1000
-        wugnotMinDeposit uint64 = 1
+        ugnotMinDeposit  int64 = 1000
+        wugnotMinDeposit int64 = 1
 )
 ...
 ```
@@ -1446,13 +1451,15 @@ When using `gnokey` to send transactions, you'll need to specify gas parameters:
 
 ```bash
 gnokey maketx call \
-  --pkgpath "gno.land/r/demo/boards" \
-  --func "CreateBoard" \
-  --args "MyBoard" "Board description" \
-  --gas-fee 1000000ugnot \
-  --gas-wanted 2000000 \
-  --remote https://rpc.staging.gno.land:443 \
-  --chainid staging \
+  -pkgpath "gno.land/r/gnoland/boards2/v1" \
+  -func "CreateBoard" \
+  -args "MyBoard" \
+  -args "true" \
+  -args "true" \
+  -gas-fee 1000000ugnot \
+  -gas-wanted 2000000 \
+  -remote https://rpc.staging.gno.land:443 \
+  -chainid staging \
   YOUR_KEY_NAME
 ```
 
