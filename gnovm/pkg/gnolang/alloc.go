@@ -13,8 +13,8 @@ import (
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes int64
-	bytes    int64
+	maxBytes    int64
+	bytes       int64
 	collect     func() (left int64, ok bool) // gc callback
 	gasMeter    store.GasMeter
 	stringCache map[uintptr]struct{} // tracks backing pointers of strings allocated via NewString

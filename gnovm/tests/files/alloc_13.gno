@@ -17,6 +17,8 @@ func main() {
 	Assign()
 	s1 := s
 	println("===before GC, MemStats: ", runtime.MemStats())
+	// The string underlying bytes should only be counted once
+	// in GC recount process, otherwise GC will broken.
 	runtime.GC()
 	println("===after GC, MemStats: ", runtime.MemStats())
 }
