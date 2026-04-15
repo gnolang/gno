@@ -118,7 +118,7 @@ func TestExecTest_EmptyGenesis(t *testing.T) {
 }
 
 // TestExecTest_HardforkGenesis builds a minimal hardfork genesis (with
-// OriginalChainID and InitialHeight set) and verifies it can be replayed.
+// PastChainIDs and InitialHeight set) and verifies it can be replayed.
 //
 // This test is skipped in short mode (-short) because loading stdlibs takes ~30s.
 func TestExecTest_HardforkGenesis(t *testing.T) {
@@ -127,7 +127,7 @@ func TestExecTest_HardforkGenesis(t *testing.T) {
 	}
 
 	appState := minimalAppState()
-	appState.OriginalChainID = "test-hardfork-source"
+	appState.PastChainIDs = []string{"test-hardfork-source"}
 
 	pv := bft.NewMockPV()
 	pk := pv.PubKey()

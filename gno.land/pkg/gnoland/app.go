@@ -434,6 +434,33 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			}
 		}
 
+		// For historical txs with signer metadata, force-set account state
+		// so signature verification succeeds even if prior txs diverged.
+		// Uses pre-tx sequence — the value the signature was signed with.
+		if metadata != nil && metadata.BlockHeight > 0 && len(metadata.SignerInfo) > 0 {
+			for _, si := range metadata.SignerInfo {
+				acc := cfg.acck.GetAccount(ctx, si.Address)
+				if acc == nil {
+					// Account doesn't exist yet — create with specific account
+					// number, bypassing the auto-increment counter.
+					acc = cfg.acck.NewAccountWithNumber(ctx, si.Address, si.AccountNum)
+				} else {
+					acc.SetAccountNumber(si.AccountNum)
+				}
+				acc.SetSequence(si.Sequence)
+				cfg.acck.SetAccount(ctx, acc)
+			}
+		}
+
+		// Failed txs: pre-tx sequence already set above. Skip execution —
+		// re-executing failed txs could cause double spends or unexpected
+		// behavior if the VM fix makes them succeed. The next tx's force-set
+		// will handle the correct sequence state.
+		if metadata != nil && metadata.Failed {
+			txResponses = append(txResponses, abci.ResponseDeliverTx{})
+			continue
+		}
+
 		res := cfg.baseApp.Deliver(stdTx, ctxFn)
 		if res.IsErr() {
 			ctx.Logger().Error(

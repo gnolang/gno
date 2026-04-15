@@ -158,6 +158,9 @@ type mockAuthKeeper struct{}
 func (m *mockAuthKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account {
 	return nil
 }
+func (m *mockAuthKeeper) NewAccountWithNumber(ctx sdk.Context, addr crypto.Address, accNum uint64) std.Account {
+	return nil
+}
 func (m *mockAuthKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account     { return nil }
 func (m *mockAuthKeeper) GetAllAccounts(ctx sdk.Context) []std.Account                    { return nil }
 func (m *mockAuthKeeper) SetAccount(ctx sdk.Context, acc std.Account)                     {}

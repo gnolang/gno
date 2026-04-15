@@ -236,7 +236,7 @@ func buildHardforkGenesis(
 	}
 
 	// Inject hardfork fields
-	appState.OriginalChainID = originalChainID
+	appState.PastChainIDs = []string{originalChainID}
 	appState.InitialHeight = initialHeight
 
 	// Append historical txs after existing genesis-mode txs

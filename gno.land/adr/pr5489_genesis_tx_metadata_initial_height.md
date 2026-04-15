@@ -17,7 +17,7 @@ from one chain. Instead, we use a `PastChainIDs` allowlist and a per-tx
 
 ### `GnoTxMetadata` extensions
 
-Three fields on `GnoTxMetadata` (populated by tx-archive export):
+Six fields on `GnoTxMetadata` (populated by the hardfork export tool):
 
 - **`Timestamp`** (`int64`): Unix timestamp of the original block. When
   non-zero, overrides the block header time during replay. Zero means "use
@@ -28,6 +28,26 @@ Three fields on `GnoTxMetadata` (populated by tx-archive export):
   numbers, sequences).
 - **`ChainID`** (`string`): Originating chain ID. Used for per-tx chain ID
   override during replay if `ChainID` is in `GnoGenesisState.PastChainIDs`.
+- **`Failed`** (`bool`): True if the tx had a non-zero return code on the
+  source chain. Failed txs are included in the genesis for sequence tracking
+  but are NOT re-executed during replay (skipped to prevent double spends or
+  unexpected behavior if VM fixes cause them to succeed).
+- **`SignerInfo`** (`[]SignerAccountInfo`): Per-signer account metadata for
+  signature verification during replay. Each entry contains:
+  - `Address`: the signer's address
+  - `AccountNum`: the signer's account number (stable, never changes)
+  - `Sequence`: pre-tx sequence (the value used in `GetSignBytes`)
+
+  Before each historical tx is delivered during replay, the replay loop
+  force-sets each signer's account number and sequence from `SignerInfo`.
+  This ensures signatures verify correctly even if prior txs diverged
+  (e.g., due to VM fixes or tx deletions).
+
+  Sequences are determined during export via a single-pass algorithm with
+  brute-force recovery: for each sender, a counter starts at 0 and
+  increments per successful tx. When failed txs create ambiguity (ante-fail
+  doesn't increment sequence, msg-fail does), the next successful tx's
+  signature is verified against candidate sequences to resolve the gap.
 
 ### `GnoGenesisState` extensions
 
@@ -58,7 +78,14 @@ first produced block has height `InitialHeight`. Validated to be non-negative.
    `BlockHeight > 0` AND `metadata.ChainID != ""` AND
    `metadata.ChainID ∈ PastChainIDs`.
 4. Timestamp override applies when `metadata.Timestamp != 0`.
-5. After `InitChain`, the consensus layer reads `GenesisDoc.InitialHeight` and
+5. If `SignerInfo` is present, each signer's account number and pre-tx
+   sequence are force-set before the tx is delivered. If the account doesn't
+   exist, it is created with the specified account number (via
+   `NewAccountWithNumber`, which bypasses the auto-increment counter).
+6. If `Failed` is true, the tx is skipped (not re-executed). The force-set
+   from step 5 ensures the correct sequence state for the next tx. Failed
+   txs are included in the genesis for sequence tracking and auditability.
+7. After `InitChain`, the consensus layer reads `GenesisDoc.InitialHeight` and
    advances `state.LastBlockHeight` so blocks start at the correct height.
 
 ### Key properties
@@ -92,9 +119,12 @@ first produced block has height `InitialHeight`. Validated to be non-negative.
 
 ## Open items
 
-- Account number preservation: accounts are auto-assigned during balance
-  initialization. If the old chain had different account numbers, some txs
-  may fail replay. Workaround: order genesis balances so account numbers
-  align with the original chain.
+- ~~Account number preservation~~: **Resolved.** `SignerInfo` metadata
+  records each signer's account number and pre-tx sequence. During replay,
+  account state is force-set before each tx. If an account doesn't exist,
+  `NewAccountWithNumber` creates it with the correct number (bypassing the
+  auto-increment counter). Tested end-to-end against gnoland1 (2637 txs,
+  0 replay failures).
 - End-to-end test with a real chain halt → export → genesis assembly →
-  new chain start.
+  new chain start. (Partially done: export and in-memory replay validated
+  against gnoland1. Full multi-validator halt test remains.)

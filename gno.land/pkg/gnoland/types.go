@@ -137,9 +137,20 @@ type TxWithMetadata struct {
 }
 
 type GnoTxMetadata struct {
-	Timestamp   int64  `json:"timestamp"`
-	BlockHeight int64  `json:"block_height,omitempty"` // Original block height for historical tx replay
-	ChainID     string `json:"chain_id,omitempty"`     // Originating chain ID, populated by tx-archive export
+	Timestamp   int64               `json:"timestamp"`
+	BlockHeight int64               `json:"block_height,omitempty"` // Original block height for historical tx replay
+	ChainID     string              `json:"chain_id,omitempty"`     // Originating chain ID, populated by tx-archive export
+	Failed      bool                `json:"failed,omitempty"`       // True if tx had non-zero return code on source chain
+	SignerInfo  []SignerAccountInfo  `json:"signer_info,omitempty"` // Per-signer account metadata for signature verification
+}
+
+// SignerAccountInfo records a signer's account number and sequence at the time
+// a historical tx was executed on the source chain. Used during hardfork replay
+// to force-set account state so signatures verify correctly.
+type SignerAccountInfo struct {
+	Address    crypto.Address `json:"address"`
+	AccountNum uint64         `json:"account_num"` // Stable, never changes once assigned
+	Sequence   uint64         `json:"sequence"`    // Pre-tx sequence (value used in GetSignBytes)
 }
 
 // ReadGenesisTxs reads the genesis txs from the given file path

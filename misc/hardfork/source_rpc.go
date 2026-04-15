@@ -9,6 +9,7 @@ import (
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	bftypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -45,16 +46,24 @@ func (s *rpcSource) LatestHeight(ctx context.Context) (int64, error) {
 	return res.SyncInfo.LatestBlockHeight, nil
 }
 
-// FetchTxs iterates every block from fromHeight to toHeight, extracts
-// successful transactions, and wraps them in TxWithMetadata.
-//
-// This is intentionally block-by-block rather than using TxSearch because:
-// - TxSearch is not guaranteed to be available on all nodes
-// - Block iteration gives us the exact block height and timestamp
-// - We need metadata (BlockHeight, Timestamp, ChainID) for the hardfork replay
-//
-// For large chains this is slow (one RPC call per block). For production use
-// the local dir source (which reads the block store directly) is faster.
+// signerState tracks per-signer sequence resolution during export.
+type signerState struct {
+	accNum       uint64
+	finalSeq     uint64 // from RPC query at halt_height
+	seq          uint64 // current pre-tx sequence counter
+	initialized  bool   // true after first brute-force resolves starting seq
+	pendingFails []*pendingFailedTx
+}
+
+type pendingFailedTx struct {
+	txIndex int // index in the output txs slice, for back-patching SignerInfo
+	signerI int // index of this signer within the tx's signers
+}
+
+// FetchTxs fetches all transactions in [fromHeight, toHeight] with metadata.
+// Includes both successful and failed txs. Failed txs are marked with
+// Failed: true and are not re-executed during replay, but their sequence
+// impact is tracked.
 func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io commands.IO) ([]gnoland.TxWithMetadata, error) {
 	var txs []gnoland.TxWithMetadata
 
@@ -64,6 +73,24 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 		return nil, err
 	}
 	chainID := genesis.ChainID
+
+	// Per-signer state for sequence tracking
+	signerStates := map[crypto.Address]*signerState{}
+
+	getOrCreateSignerState := func(addr crypto.Address) *signerState {
+		if ss, ok := signerStates[addr]; ok {
+			return ss
+		}
+		// Query account at halt_height
+		acc := s.queryAccountAtHeight(ctx, addr, toHeight)
+		ss := &signerState{}
+		if acc != nil {
+			ss.accNum = acc.GetAccountNumber()
+			ss.finalSeq = acc.GetSequence()
+		}
+		signerStates[addr] = ss
+		return ss
+	}
 
 	total := toHeight - fromHeight + 1
 	var processed, txCount int64
@@ -90,7 +117,7 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 			continue
 		}
 
-		// Fetch block results to filter out failed txs
+		// Fetch block results to check success/failure
 		results, err := s.client.BlockResults(ctx, &h)
 		if err != nil {
 			return nil, fmt.Errorf("fetching block results %d: %w", h, err)
@@ -99,17 +126,82 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 		timestamp := block.Block.Header.Time.Unix()
 
 		for i, rawTx := range block.Block.Data.Txs {
-			// Skip failed transactions
-			if i < len(results.Results.DeliverTxs) && results.Results.DeliverTxs[i].IsErr() {
-				continue
-			}
-
 			// Decode the raw transaction bytes
 			var stdTx std.Tx
 			if err := amino.Unmarshal(rawTx, &stdTx); err != nil {
-				// Skip malformed txs with a warning
 				io.Printf("\n  WARNING: could not decode tx at height %d index %d: %v\n", h, i, err)
 				continue
+			}
+
+			failed := false
+			if i < len(results.Results.DeliverTxs) && results.Results.DeliverTxs[i].IsErr() {
+				failed = true
+			}
+
+			signers := stdTx.GetSigners()
+			sigs := stdTx.GetSignatures()
+
+			// Build signer info
+			signerInfos := make([]gnoland.SignerAccountInfo, len(signers))
+			for j, signer := range signers {
+				ss := getOrCreateSignerState(signer)
+				signerInfos[j] = gnoland.SignerAccountInfo{
+					Address:    signer,
+					AccountNum: ss.accNum,
+					Sequence:   0, // filled below
+				}
+			}
+
+			txIdx := len(txs) // index in output slice
+
+			if !failed {
+				// Successful tx: resolve sequences
+				for j, signer := range signers {
+					ss := getOrCreateSignerState(signer)
+
+					if !ss.initialized || len(ss.pendingFails) > 0 {
+						// Brute-force to find this tx's pre-tx sequence.
+						lo := ss.seq
+						hi := ss.seq + uint64(len(ss.pendingFails))
+						if !ss.initialized {
+							lo = 0
+							hi = ss.finalSeq
+						}
+
+						var sig std.Signature
+						if j < len(sigs) {
+							sig = sigs[j]
+						}
+
+						resolvedSeq, err := bruteForceSignerSequence(
+							stdTx, sig, ss.accNum, lo, hi, chainID)
+						if err != nil {
+							io.Printf("\n  WARNING: brute-force failed for signer %s at height %d: %v (using counter %d)\n",
+								signer, h, err, ss.seq)
+							resolvedSeq = ss.seq
+						}
+
+						// Back-patch buffered failed txs (cosmetic/audit-only)
+						assignFailedTxSequences(txs, ss.pendingFails, ss.seq, resolvedSeq)
+						ss.pendingFails = nil
+						ss.seq = resolvedSeq
+						ss.initialized = true
+					}
+
+					signerInfos[j].Sequence = ss.seq
+					ss.seq++
+				}
+			} else {
+				// Failed tx: buffer for each signer
+				for j, signer := range signers {
+					ss := getOrCreateSignerState(signer)
+					ss.pendingFails = append(ss.pendingFails, &pendingFailedTx{
+						txIndex: txIdx,
+						signerI: j,
+					})
+					// Assign current counter as placeholder (will be back-patched)
+					signerInfos[j].Sequence = ss.seq
+				}
 			}
 
 			txs = append(txs, gnoland.TxWithMetadata{
@@ -118,12 +210,143 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 					Timestamp:   timestamp,
 					BlockHeight: h,
 					ChainID:     chainID,
+					Failed:      failed,
+					SignerInfo:   signerInfos,
 				},
 			})
 			txCount++
 		}
 	}
 
+	// Resolve trailing failures
+	for addr, ss := range signerStates {
+		if len(ss.pendingFails) == 0 {
+			continue
+		}
+
+		if !ss.initialized {
+			// Never had a successful tx. Cap consumed at len(pendingFails).
+			var consumed uint64
+			if ss.finalSeq > ss.seq {
+				consumed = ss.finalSeq - ss.seq
+			}
+			if consumed > uint64(len(ss.pendingFails)) {
+				ss.seq = ss.finalSeq - uint64(len(ss.pendingFails))
+				consumed = uint64(len(ss.pendingFails))
+			}
+			assignTrailingFailedTxSequences(txs, ss.pendingFails, ss.seq, consumed)
+		} else {
+			var consumed uint64
+			if ss.finalSeq > ss.seq {
+				consumed = ss.finalSeq - ss.seq
+			}
+			assignTrailingFailedTxSequences(txs, ss.pendingFails, ss.seq, consumed)
+		}
+		_ = addr
+	}
+
 	io.Printf("\r  Blocks: %d/%d  Txs: %d\n", processed, total, txCount)
 	return txs, nil
+}
+
+// queryAccountAtHeight queries an account's state at a specific block height.
+func (s *rpcSource) queryAccountAtHeight(ctx context.Context, addr crypto.Address, height int64) std.Account {
+	path := fmt.Sprintf("auth/accounts/%s", addr)
+	res, err := s.client.ABCIQueryWithOptions(ctx, path, nil, rpcclient.ABCIQueryOptions{
+		Height: height,
+	})
+	if err != nil {
+		return nil
+	}
+	if res.Response.Error != nil {
+		return nil
+	}
+	if len(res.Response.Data) == 0 {
+		return nil
+	}
+
+	// Response data is amino JSON (the auth query handler returns JSON).
+	// It's wrapped in {"BaseAccount": {...}}.
+	var wrapper struct {
+		BaseAccount std.BaseAccount `json:"BaseAccount"`
+	}
+	if err := amino.UnmarshalJSON(res.Response.Data, &wrapper); err != nil {
+		// Try direct unmarshal
+		var acc std.BaseAccount
+		if err2 := amino.UnmarshalJSON(res.Response.Data, &acc); err2 != nil {
+			return nil
+		}
+		return &acc
+	}
+	return &wrapper.BaseAccount
+}
+
+// bruteForceSignerSequence tries sequences in [lo, hi] to find which makes
+// the signature verify. Returns the pre-tx sequence (the value used in sign bytes).
+func bruteForceSignerSequence(
+	tx std.Tx, sig std.Signature, accNum uint64,
+	lo, hi uint64, chainID string,
+) (uint64, error) {
+	pubKey := sig.PubKey
+	if pubKey == nil {
+		return lo, fmt.Errorf("no pubkey in signature")
+	}
+
+	for seq := lo; seq <= hi; seq++ {
+		signBytes, err := std.GetSignaturePayload(std.SignDoc{
+			ChainID:       chainID,
+			AccountNumber: accNum,
+			Sequence:      seq,
+			Fee:           tx.Fee,
+			Msgs:          tx.Msgs,
+			Memo:          tx.Memo,
+		})
+		if err != nil {
+			continue
+		}
+		if pubKey.VerifyBytes(signBytes, sig.Signature) {
+			return seq, nil
+		}
+	}
+
+	return lo, fmt.Errorf("no sequence in [%d, %d] verified for account %d", lo, hi, accNum)
+}
+
+// assignFailedTxSequences back-patches sequence values on buffered failed txs.
+// This is cosmetic/audit-only — failed txs are skipped during replay.
+// We assign sequences sequentially, assuming consumed (msg-fail) txs come first.
+func assignFailedTxSequences(
+	txs []gnoland.TxWithMetadata,
+	pending []*pendingFailedTx,
+	startSeq, resolvedSeq uint64,
+) {
+	consumed := resolvedSeq - startSeq
+	seq := startSeq
+	for i, pf := range pending {
+		if pf.txIndex < len(txs) && pf.signerI < len(txs[pf.txIndex].Metadata.SignerInfo) {
+			txs[pf.txIndex].Metadata.SignerInfo[pf.signerI].Sequence = seq
+		}
+		// Assume msg-fails (consuming) come first in the gap
+		if uint64(i) < consumed {
+			seq++
+		}
+	}
+}
+
+// assignTrailingFailedTxSequences handles failed txs at the end of the chain
+// with no subsequent success to anchor against.
+func assignTrailingFailedTxSequences(
+	txs []gnoland.TxWithMetadata,
+	pending []*pendingFailedTx,
+	startSeq, consumed uint64,
+) {
+	seq := startSeq
+	for i, pf := range pending {
+		if pf.txIndex < len(txs) && pf.signerI < len(txs[pf.txIndex].Metadata.SignerInfo) {
+			txs[pf.txIndex].Metadata.SignerInfo[pf.signerI].Sequence = seq
+		}
+		if uint64(i) < consumed {
+			seq++
+		}
+	}
 }

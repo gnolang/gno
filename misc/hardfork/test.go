@@ -111,15 +111,15 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 	genesisModeTxs := baseGenesisModeTxs(&appState)
 	historicalTxs := len(appState.Txs) - len(genesisModeTxs)
 
-	io.Printf("  Source chain ID:   %s\n", appState.OriginalChainID)
+	io.Printf("  Past chain IDs:    %v\n", appState.PastChainIDs)
 	io.Printf("  New chain ID:      %s\n", genDoc.ChainID)
 	io.Printf("  Initial height:    %d\n", genDoc.InitialHeight)
 	io.Printf("  Genesis-mode txs:  %d\n", len(genesisModeTxs))
 	io.Printf("  Historical txs:    %d\n", historicalTxs)
 	io.Printf("  Total txs:         %d\n", len(appState.Txs))
 
-	if appState.OriginalChainID == "" && historicalTxs > 0 {
-		io.Println("  WARNING: original_chain_id is empty — historical tx signatures cannot be verified.")
+	if len(appState.PastChainIDs) == 0 && historicalTxs > 0 {
+		io.Println("  WARNING: past_chain_ids is empty — historical tx signatures cannot be verified.")
 	}
 
 	// -------------------------------------------------------------------------
