@@ -107,14 +107,14 @@ TX HASH:    11fWJtYXQlyFcHY12HU1ECYs2GPo/e2z/Fdw6I8rwNs=
 
 ## Understanding Deployment Parameters
 
-- `--pkgpath` - The on-chain path where your code will be stored
-- `--pkgdir` - The local directory containing your code
-- `--send` - Amount of GNOT to send to the realm with the transaction (optional)
-- `--max-deposit` - Maximum GNOT to lock for on-chain storage (optional)
-- `--gas-fee` - The fee per unit of gas (typically 1 GNOT)
-- `--gas-wanted` - Maximum gas units for the transaction
-- `--remote` - The RPC endpoint for the network
-- `--chainid` - The ID of the blockchain network
+- `-pkgpath` - The on-chain path where your code will be stored
+- `-pkgdir` - The local directory containing your code
+- `-send` - Amount of GNOT to send to the realm with the transaction (optional)
+- `-max-deposit` - Maximum GNOT to lock for on-chain storage (optional)
+- `-gas-fee` - The fee per unit of gas (typically 1 GNOT)
+- `-gas-wanted` - Maximum gas units for the transaction
+- `-remote` - The RPC endpoint for the network
+- `-chainid` - The ID of the blockchain network
 
 For more details on gas fees and optimization strategies, see the [Gas Fees
 documentation](../resources/gas-fees.md).
