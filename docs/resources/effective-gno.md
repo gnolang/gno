@@ -724,6 +724,8 @@ pointer can be "stored" by other realms without issue, because it protects its
 usage completely.
 
 ```go
+import "chain/runtime"
+
 type MySafeStruct {
 	counter nb
 	admin address
@@ -797,7 +799,11 @@ Coins, or flexibility and control with GRC20 tokens. And if you want the
 best of both worlds, you can wrap a Coins into a GRC20 compatible token.
 
 ```go
-import "gno.land/p/demo/tokens/grc20"
+import (
+	"chain/runtime"
+
+	"gno.land/p/demo/tokens/grc20"
+)
 
 var (
 	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4)
