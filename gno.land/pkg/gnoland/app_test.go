@@ -296,6 +296,18 @@ func createAndSignTx(
 ) std.Tx {
 	t.Helper()
 
+	return createAndSignTxWithAccSeq(t, msgs, chainID, key, 0, 0)
+}
+
+func createAndSignTxWithAccSeq(
+	t *testing.T,
+	msgs []std.Msg,
+	chainID string,
+	key crypto.PrivKey,
+	accNum, seq uint64,
+) std.Tx {
+	t.Helper()
+
 	tx := std.Tx{
 		Msgs: msgs,
 		Fee: std.Fee{
@@ -304,7 +316,7 @@ func createAndSignTx(
 		},
 	}
 
-	signBytes, err := tx.GetSignBytes(chainID, 0, 0)
+	signBytes, err := tx.GetSignBytes(chainID, accNum, seq)
 	require.NoError(t, err)
 
 	// Sign the tx
@@ -1757,4 +1769,384 @@ func TestIsPastChainID(t *testing.T) {
 			assert.Equal(t, tc.expected, isPastChainID(tc.pastChainIDs, tc.chainID))
 		})
 	}
+}
+
+func TestSignerInfoForceSetAccountState(t *testing.T) {
+	t.Parallel()
+
+	t.Run("force-sets existing account sequence and number", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/signertest"
+			body = `package signertest
+
+var Deployed = true
+
+func IsDeployed(cur realm) bool { return Deployed }
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "signertest",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+
+		// Sign with old chain, accNum=5, seq=10 — the SignerInfo will force-set
+		// the account to these values before signature verification.
+		tx := createAndSignTxWithAccSeq(t, []std.Msg{msg}, "old-chain", key, 5, 10)
+
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 42,
+							ChainID:     "old-chain",
+							SignerInfo: []SignerAccountInfo{
+								{
+									Address:    key.PubKey().Address(),
+									AccountNum: 5,
+									Sequence:   10,
+								},
+							},
+						},
+					},
+				},
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth:         auth.DefaultGenesisState(),
+				Bank:         bank.DefaultGenesisState(),
+				VM:           vm.DefaultGenesisState(),
+				PastChainIDs: []string{"old-chain"},
+			},
+		})
+
+		// If SignerInfo was correctly applied, the tx would have been
+		// delivered successfully (sig verification passed).
+		// Verify by calling the deployed realm.
+		callMsg := vm.MsgCall{
+			Caller:  key.PubKey().Address(),
+			PkgPath: path,
+			Func:    "IsDeployed",
+		}
+
+		callTx := createAndSignTxWithAccSeq(t, []std.Msg{callMsg}, chainID, key, 5, 11)
+
+		marshalledTx, err := amino.Marshal(callTx)
+		require.NoError(t, err)
+
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
+		require.True(t, resp.IsOK(), "DeliverTx failed: %s", resp.Log)
+		assert.Contains(t, string(resp.Data), "true")
+	})
+
+	t.Run("creates new account via SignerInfo when account does not exist", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/newacctest"
+			body = `package newacctest
+
+var Deployed = true
+
+func IsDeployed(cur realm) bool { return Deployed }
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "newacctest",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+
+		// Sign with accNum=7 — account won't exist from balances,
+		// so NewAccountWithNumber must be called.
+		tx := createAndSignTxWithAccSeq(t, []std.Msg{msg}, "old-chain", key, 7, 0)
+
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 10,
+							ChainID:     "old-chain",
+							SignerInfo: []SignerAccountInfo{
+								{
+									Address:    key.PubKey().Address(),
+									AccountNum: 7,
+									Sequence:   0,
+								},
+							},
+						},
+					},
+				},
+				// No balances — account doesn't exist before SignerInfo creates it.
+				// But the account needs funds for gas, so we must provide balances.
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth:         auth.DefaultGenesisState(),
+				Bank:         bank.DefaultGenesisState(),
+				VM:           vm.DefaultGenesisState(),
+				PastChainIDs: []string{"old-chain"},
+			},
+		})
+
+		// Verify deployment succeeded
+		callMsg := vm.MsgCall{
+			Caller:  key.PubKey().Address(),
+			PkgPath: path,
+			Func:    "IsDeployed",
+		}
+
+		callTx := createAndSignTxWithAccSeq(t, []std.Msg{callMsg}, chainID, key, 7, 1)
+
+		marshalledTx, err := amino.Marshal(callTx)
+		require.NoError(t, err)
+
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
+		require.True(t, resp.IsOK(), "DeliverTx failed: %s", resp.Log)
+		assert.Contains(t, string(resp.Data), "true")
+	})
+
+	t.Run("failed tx is skipped and does not execute", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/failedtest"
+			body = `package failedtest
+
+var Deployed = true
+
+func IsDeployed(cur realm) bool { return Deployed }
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "failedtest",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+
+		// This tx is marked as Failed — it should be skipped entirely.
+		tx := createAndSignTxWithAccSeq(t, []std.Msg{msg}, "old-chain", key, 0, 0)
+
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 5,
+							ChainID:     "old-chain",
+							Failed:      true,
+							SignerInfo: []SignerAccountInfo{
+								{
+									Address:    key.PubKey().Address(),
+									AccountNum: 0,
+									Sequence:   0,
+								},
+							},
+						},
+					},
+				},
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth:         auth.DefaultGenesisState(),
+				Bank:         bank.DefaultGenesisState(),
+				VM:           vm.DefaultGenesisState(),
+				PastChainIDs: []string{"old-chain"},
+			},
+		})
+
+		// The package should NOT be deployed since the tx was marked as failed.
+		// Trying to call it should fail.
+		callMsg := vm.MsgCall{
+			Caller:  key.PubKey().Address(),
+			PkgPath: path,
+			Func:    "IsDeployed",
+		}
+
+		callTx := createAndSignTxWithAccSeq(t, []std.Msg{callMsg}, chainID, key, 0, 1)
+
+		marshalledTx, err := amino.Marshal(callTx)
+		require.NoError(t, err)
+
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
+		// Should fail because the package was never deployed
+		require.False(t, resp.IsOK(), "DeliverTx should have failed — failed tx should not deploy package")
+	})
+
+	t.Run("SignerInfo is ignored when BlockHeight is zero", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "test-chain"
+
+			path = "gno.land/r/demo/genesismode"
+			body = `package genesismode
+
+var Deployed = true
+
+func IsDeployed(cur realm) bool { return Deployed }
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "genesismode",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+
+		// Sign with the current chain ID (genesis-mode tx).
+		// BlockHeight=0 means SignerInfo should be ignored entirely.
+		tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 0, // genesis-mode — SignerInfo must be ignored
+							SignerInfo: []SignerAccountInfo{
+								{
+									Address:    key.PubKey().Address(),
+									AccountNum: 999, // would corrupt state if applied
+									Sequence:   999,
+								},
+							},
+						},
+					},
+				},
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+			},
+		})
+
+		// If SignerInfo was correctly ignored, the deployment should succeed
+		// with the normal account state (accNum=0, seq=0).
+		callMsg := vm.MsgCall{
+			Caller:  key.PubKey().Address(),
+			PkgPath: path,
+			Func:    "IsDeployed",
+		}
+
+		callTx := createAndSignTx(t, []std.Msg{callMsg}, chainID, key)
+
+		marshalledTx, err := amino.Marshal(callTx)
+		require.NoError(t, err)
+
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
+		require.True(t, resp.IsOK(), "DeliverTx failed: %s", resp.Log)
+		assert.Contains(t, string(resp.Data), "true")
+	})
 }
