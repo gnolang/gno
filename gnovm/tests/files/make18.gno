@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// makeslice: len out of range
+// runtime error: makeslice: len out of range
