@@ -23,7 +23,7 @@ The keeper and VM handler remain unchanged.
 2. If the transaction fails, gnokey checks whether the error message contains
    `"has not signed the required CLA"`.
 3. If it does, gnokey makes follow-up queries to the chain:
-   - `params/params/vm:p:syscla_pkgpath` to get the CLA realm path
+   - `params/vm:p:syscla_pkgpath` to get the CLA realm path
    - `vm/qeval` with `<realm>.requiredHash` and `<realm>.claURL`
 4. If the queries succeed, gnokey formats a helpful message with the signing
    command and prints it before returning the error.

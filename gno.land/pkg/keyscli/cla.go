@@ -1,12 +1,13 @@
 package keyscli
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
-	tmerrors "github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 // These values should follow future evolution of the CLA realm.
@@ -19,14 +20,9 @@ const (
 )
 
 // isCLAError checks whether the error indicates a CLA signing failure.
-// Gates on UnauthorizedUserError as the cause, then matches the CLA log
-// message via %#v (not exposed through err.Error()).
+// Gates on UnauthorizedUserError, then matches the CLA log message via %#v
 func isCLAError(err error) bool {
-	if err == nil {
-		return false
-	}
-	cause := tmerrors.Cause(err)
-	if cause == nil || cause.Error() != "unauthorized user" {
+	if !errors.Is(err, vm.UnauthorizedUserError{}) {
 		return false
 	}
 	return strings.Contains(fmt.Sprintf("%#v", err), claErrorSubstring)
