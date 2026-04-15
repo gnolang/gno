@@ -1,14 +1,9 @@
 # Running a local dev node
 
+## Prerequisites
 
-## Installation
-
-To install `gnodev`, simply clone the monorepo, and run `make install`:
-
-```
-git clone git@github.com:gnolang/gno.git
-cd gno && make install
-```
+You need the Gno toolchain installed. See
+[Getting started with Gno.land](../getting-started.md).
 
 ## Overview
 
