@@ -826,7 +826,7 @@ func mulAssign(lv, rv *TypedValue) {
 // for doOpQuo and doOpQuoAssign.
 func quoAssign(lv, rv *TypedValue) *Exception {
 	expt := &Exception{
-		Value: typedString("division by zero"),
+		Value: typedString("runtime error: division by zero"),
 	}
 
 	// set the result in lv.
@@ -925,7 +925,7 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 // for doOpRem and doOpRemAssign.
 func remAssign(lv, rv *TypedValue) *Exception {
 	expt := &Exception{
-		Value: typedString("division by zero"),
+		Value: typedString("runtime error: division by zero"),
 	}
 
 	// set the result in lv.
@@ -1163,7 +1163,7 @@ func xorAssign(lv, rv *TypedValue) {
 // for doOpShl and doOpShlAssign.
 func shlAssign(m *Machine, lv, rv *TypedValue) {
 	if rv.Sign() < 0 {
-		panic(fmt.Sprintf("runtime error: negative shift amount: %v", rv))
+		m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
 
 	checkOverflow := func(v func() bool) {
@@ -1289,7 +1289,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 // for doOpShr and doOpShrAssign.
 func shrAssign(m *Machine, lv, rv *TypedValue) {
 	if rv.Sign() < 0 {
-		panic(fmt.Sprintf("runtime error: negative shift amount: %v", rv))
+		m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
 
 	checkOverflow := func(v func() bool) {
