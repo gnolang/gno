@@ -94,8 +94,6 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		return
 	}
 
-	source := reader.Source()
-
 	ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
@@ -115,6 +113,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		case *ast.AutoLink:
 			// Build a synthetic ast.Link so the existing renderGnoLink handles
 			// IsDangerousURL, rel attributes, and icons for autolinks too.
+			source := reader.Source()
 			rawURL := n.URL(source)
 			if n.AutoLinkType == ast.AutoLinkEmail {
 				rawDest = append([]byte("mailto:"), rawURL...)
