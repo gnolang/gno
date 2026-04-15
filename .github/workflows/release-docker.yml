@@ -51,6 +51,15 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        with:
+          # Route docker.io pulls through Google's public read-through cache to
+          # avoid Docker Hub's anonymous / abuse-prevention rate limits (429)
+          # hit by the self-hosted runner's shared egress IP. Affects base
+          # images only: golang:1.24-alpine, alpine:3, docker (all library/*).
+          # See: https://docs.docker.com/docker-hub/usage/#abuse-rate-limit
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
 
       - name: Resolve image tag
         id: resolve_tag
