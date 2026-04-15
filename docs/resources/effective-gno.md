@@ -406,21 +406,21 @@ don't expect that other people will use your helpers, then you should probably
 use subdirectories like `p/NAMESPACE/DAPP/foo/bar/baz`.
 
 Packages which contain `internal` as an element of the path (ie. at the end, or
-in between, like `gno.land/p/nt/seqid/v0/internal`, or
-`gno.land/p/nt/seqid/v0/internal/base32`) can only be imported by packages
+in between, like `gno.land/p/demo/mypackage/internal`, or
+`gno.land/p/demo/mypackage/internal/helpers`) can only be imported by packages
 sharing the same root as the `internal` package. That is, given a package
 structure as follows:
 
 ```
-gno.land/p/nt/seqid/v0
-├── generator
+gno.land/p/demo/mypackage
+├── utils
 └── internal
-	├── base32
-	└── cford32
+	├── helpers
+	└── crypto
 ```
 
-The `seqid/internal`, `seqid/internal/base32`, and `seqid/internal/cford32`
-packages can only be imported by `seqid` and `seqid/generator`.
+The `mypackage/internal`, `mypackage/internal/helpers`, and `mypackage/internal/crypto`
+packages can only be imported by `mypackage` and `mypackage/utils`.
 
 This works for both realms and packages, and can be used to create entirely
 restricted packages and realms that are not meant for outside consumption.
@@ -538,8 +538,7 @@ of block #43 will contain the following data:
 	{
 	  "@type": "/tm.gnoEvent",
 	  "type": "OwnershipChange",
-	  "pkg_path": "gno.",
-	  "func": "ChangeOwner",
+	  "pkg_path": "gno.land/r/demo/example",
 	  "attrs": [
 		{
 		  "key": "newOwner",
@@ -678,14 +677,14 @@ users.Set("charlie", &User{})
 // Iterate all users (sorted alphabetically)
 users.Iterate("", "", func(name string, value any) bool {
 	// Order: alice, bob, charlie (sorted by key)
-	user := value.(*User) // Type assertion required - values are interface{}
+	user := value.(*User) // Type assertion required - values are any
 	return false // return true to stop iteration
 })
 
-// Range query: get users from "bob" to "charlie" (inclusive)
+// Range query: get users from "bob" (inclusive) to "charlie" (exclusive)
 // This is O(log n + k) where k = results in range
 users.Iterate("bob", "charlie", func(name string, value any) bool {
-	// Only visits: bob, charlie
+	// Only visits: bob (end is exclusive)
 	user := value.(*User) 
 	return false
 })
@@ -725,8 +724,8 @@ usage completely.
 ```go
 import "chain/runtime"
 
-type MySafeStruct {
-	counter nb
+type MySafeStruct struct {
+	counter int
 	admin address
 }
 
