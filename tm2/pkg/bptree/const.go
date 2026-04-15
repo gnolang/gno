@@ -46,6 +46,9 @@ var sentinelHash Hash
 var emptyTreeHash Hash
 
 func init() {
+	if B&(B-1) != 0 {
+		panic("B must be a power of 2 (required for mini-merkle heap layout)")
+	}
 	sentinelHash = sha256.Sum256([]byte{DomainEmpty})
 	emptyTreeHash = sha256.Sum256(nil)
 }

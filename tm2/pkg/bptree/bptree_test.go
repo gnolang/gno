@@ -509,14 +509,6 @@ func TestGetNodeKey_InvalidInputs(t *testing.T) {
 	}
 }
 
-func TestGetRootKey(t *testing.T) {
-	rk := GetRootKey(42)
-	expected := (&NodeKey{Version: 42, Nonce: 1}).GetKey()
-	if !bytes.Equal(rk, expected) {
-		t.Fatalf("GetRootKey mismatch")
-	}
-}
-
 // --- search.go ---
 
 func TestSearchLeaf_Basic(t *testing.T) {
@@ -1253,16 +1245,6 @@ func TestLeafNode_RebuildMiniMerkle_AllSlots(t *testing.T) {
 		if leaf.miniTree.GetSlot(i) != expected {
 			t.Fatalf("leaf slot %d mismatch", i)
 		}
-	}
-}
-
-// --- NodeKey ---
-
-func TestGetRootKey_ZeroVersion(t *testing.T) {
-	rk := GetRootKey(0)
-	nk := GetNodeKey(rk)
-	if nk.Version != 0 || nk.Nonce != 1 {
-		t.Fatalf("GetRootKey(0): got version=%d nonce=%d", nk.Version, nk.Nonce)
 	}
 }
 

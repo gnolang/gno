@@ -29,9 +29,6 @@ func GetNodeKey(key []byte) *NodeKey {
 	}
 }
 
-// GetRootKey returns the NodeKey used to store the root reference
-// for a given version. By convention, the root uses nonce=1.
-func GetRootKey(version int64) []byte {
-	nk := &NodeKey{Version: version, Nonce: 1}
-	return nk.GetKey()
-}
+// GetRootKey is removed. The root node's NodeKey is NOT nonce=1 —
+// nonces are assigned bottom-up during SaveVersion, so the root gets
+// the last nonce. Use ndb.GetRoot(version) to find the actual root.

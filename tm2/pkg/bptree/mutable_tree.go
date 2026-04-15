@@ -353,7 +353,8 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 		return 0, nil
 	}
 	if version <= 0 {
-		return 0, nil
+		// Version <= 0 means "load latest", matching IAVL behavior.
+		return t.Load()
 	}
 
 	nkBytes, _, err := t.ndb.GetRoot(version)
