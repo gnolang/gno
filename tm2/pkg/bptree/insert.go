@@ -129,7 +129,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 
 	if res.split == nil {
 		inner.miniTree.SetSlot(childIdx, inner.childHashes[childIdx])
-		return insertResult{updated: res.updated}
+		return insertResult{updated: res.updated, oldValueKey: res.oldValueKey}
 	}
 
 	// Child split — insert separator and new right child into this inner node
@@ -154,7 +154,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 		inner.childSizes[childIdx+1] = nodeSize(sr.right)
 		inner.numKeys++
 		inner.RebuildMiniMerkle()
-		return insertResult{updated: res.updated}
+		return insertResult{updated: res.updated, oldValueKey: res.oldValueKey}
 	}
 
 	// Inner node is full (numKeys == B-1) — need to split.
@@ -211,7 +211,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 	}
 	rightInner.RebuildMiniMerkle()
 
-	return insertResult{updated: res.updated, split: &innerSR}
+	return insertResult{updated: res.updated, oldValueKey: res.oldValueKey, split: &innerSR}
 }
 
 func cloneNode(n Node) Node {

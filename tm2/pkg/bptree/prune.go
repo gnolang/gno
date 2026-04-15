@@ -109,8 +109,12 @@ func (t *MutableTree) pruneVersion(v, nextV int64) error {
 		}
 	}
 	// Clean up orphan records for both versions
-	t.ndb.DeleteOrphans(nextV)
-	t.ndb.DeleteOrphans(v)
+	if err := t.ndb.DeleteOrphans(nextV); err != nil {
+		return err
+	}
+	if err := t.ndb.DeleteOrphans(v); err != nil {
+		return err
+	}
 
 	return nil
 }

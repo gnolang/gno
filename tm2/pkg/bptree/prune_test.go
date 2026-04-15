@@ -334,6 +334,373 @@ func countDBNodes(db *memdb.MemDB) int {
 	return count
 }
 
+func countDBValues(db *memdb.MemDB) int {
+	count := 0
+	itr, _ := db.Iterator([]byte{PrefixVal}, []byte{PrefixVal + 1})
+	defer itr.Close()
+	for ; itr.Valid(); itr.Next() {
+		count++
+	}
+	return count
+}
+
+// --- Value cleanup tests ---
+
+func TestPrune_ValueCountDecreases(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	// V1: 100 unique keys
+	for i := 0; i < 100; i++ {
+		tree.Set(fmt.Appendf(nil, "vc%05d", i), fmt.Appendf(nil, "val1_%05d", i))
+	}
+	tree.SaveVersion()
+
+	// V2: update 50 keys with new values
+	for i := 0; i < 50; i++ {
+		tree.Set(fmt.Appendf(nil, "vc%05d", i), fmt.Appendf(nil, "val2_%05d", i))
+	}
+	tree.SaveVersion()
+
+	before := countDBValues(db)
+	if before != 150 {
+		t.Fatalf("before prune: %d values, want 150", before)
+	}
+
+	// Prune V1
+	if err := tree.DeleteVersionsTo(1); err != nil {
+		t.Fatal(err)
+	}
+
+	after := countDBValues(db)
+	if after != 100 {
+		t.Fatalf("after prune: %d values, want 100", after)
+	}
+}
+
+func TestPrune_ValueCountBounded(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	// Initial: 100 keys
+	for i := 0; i < 100; i++ {
+		tree.Set(fmt.Appendf(nil, "vb%05d", i), fmt.Appendf(nil, "v0_k%d", i))
+	}
+	tree.SaveVersion()
+
+	// 20 iterations: overwrite all 100 keys, save, prune oldest
+	for iter := 1; iter <= 20; iter++ {
+		for i := 0; i < 100; i++ {
+			tree.Set(fmt.Appendf(nil, "vb%05d", i), fmt.Appendf(nil, "v%d_k%d", iter, i))
+		}
+		tree.SaveVersion()
+		if err := tree.DeleteVersionsTo(int64(iter)); err != nil {
+			t.Fatalf("iter %d prune: %v", iter, err)
+		}
+		count := countDBValues(db)
+		if count != 100 {
+			t.Fatalf("iter %d: %d values, want 100", iter, count)
+		}
+	}
+}
+
+func TestPrune_OverwrittenValueCleaned(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	tree.Set([]byte("k"), []byte("v1"))
+	tree.SaveVersion()
+	tree.Set([]byte("k"), []byte("v2"))
+	tree.SaveVersion()
+
+	tree.DeleteVersionsTo(1)
+	count := countDBValues(db)
+	if count != 1 {
+		t.Fatalf("after prune: %d values, want 1", count)
+	}
+}
+
+func TestRemove_OrphanedValueCleaned(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	tree.Set([]byte("k"), []byte("v"))
+	tree.SaveVersion()
+	tree.Remove([]byte("k"))
+	tree.SaveVersion()
+
+	tree.DeleteVersionsTo(1)
+	count := countDBValues(db)
+	if count != 0 {
+		t.Fatalf("after prune: %d values, want 0", count)
+	}
+}
+
+func TestSet_IntraVersionOverwrite(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	tree.Set([]byte("k"), []byte("v1"))
+	tree.Set([]byte("k"), []byte("v2"))
+	tree.Set([]byte("k"), []byte("v3"))
+	tree.SaveVersion()
+
+	count := countDBValues(db)
+	if count != 1 {
+		t.Fatalf("after save: %d values, want 1 (v1,v2 should be Tier 1 cleaned)", count)
+	}
+}
+
+func TestRollback_CleansUpValues(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	tree.Set([]byte("k"), []byte("v1"))
+	if countDBValues(db) != 1 {
+		t.Fatal("value should be eagerly written")
+	}
+
+	tree.Rollback()
+	if countDBValues(db) != 0 {
+		t.Fatal("rollback should delete eagerly-written values")
+	}
+
+	// Normal operation after rollback
+	tree.Set([]byte("k"), []byte("v2"))
+	tree.SaveVersion()
+	if countDBValues(db) != 1 {
+		t.Fatal("after rollback+save: should have 1 value")
+	}
+}
+
+func TestPrune_DisjointKeysPreservesValues(t *testing.T) {
+	// Regression: pruning should NOT delete shared values
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	for i := 0; i < 50; i++ {
+		tree.Set(fmt.Appendf(nil, "dj_a%05d", i), []byte("va"))
+	}
+	tree.SaveVersion()
+
+	for i := 0; i < 50; i++ {
+		tree.Set(fmt.Appendf(nil, "dj_b%05d", i), []byte("vb"))
+	}
+	tree.SaveVersion()
+
+	tree.DeleteVersionsTo(1)
+	count := countDBValues(db)
+	if count != 100 {
+		t.Fatalf("after prune: %d values, want 100 (all live in V2)", count)
+	}
+}
+
+func TestRemoveThenReSet_SameKey(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	tree.Set([]byte("k"), []byte("v1"))
+	tree.SaveVersion()
+
+	tree.Remove([]byte("k"))
+	tree.Set([]byte("k"), []byte("v2"))
+	tree.SaveVersion()
+
+	tree.DeleteVersionsTo(1)
+	count := countDBValues(db)
+	if count != 1 {
+		t.Fatalf("after prune: %d values, want 1", count)
+	}
+	val, _ := tree.Get([]byte("k"))
+	if string(val) != "v2" {
+		t.Fatalf("Get(k) = %q, want v2", val)
+	}
+}
+
+func TestExportImport_ValueKeysCorrect(t *testing.T) {
+	db1 := memdb.NewMemDB()
+	tree1 := NewMutableTreeWithDB(db1, 1000, NewNopLogger())
+
+	for i := 0; i < 100; i++ {
+		tree1.Set(fmt.Appendf(nil, "ei%05d", i), fmt.Appendf(nil, "val%05d", i))
+	}
+	tree1.SaveVersion()
+
+	// Export
+	imm, _ := tree1.GetImmutable(1)
+	exporter, _ := imm.Export(tree1.ndb)
+
+	// Import
+	db2 := memdb.NewMemDB()
+	tree2 := NewMutableTreeWithDB(db2, 1000, NewNopLogger())
+	imp, _ := tree2.Import(1)
+	for {
+		node, err := exporter.Next()
+		if err == ErrExportDone {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		imp.Add(node)
+	}
+	exporter.Close()
+	imp.Commit()
+
+	// Verify values readable
+	for i := 0; i < 100; i++ {
+		val, _ := tree2.Get(fmt.Appendf(nil, "ei%05d", i))
+		expected := fmt.Appendf(nil, "val%05d", i)
+		if string(val) != string(expected) {
+			t.Fatalf("Get(ei%05d) = %q, want %q", i, val, expected)
+		}
+	}
+
+	// Overwrite 30 keys, save V2, prune V1
+	for i := 0; i < 30; i++ {
+		tree2.Set(fmt.Appendf(nil, "ei%05d", i), fmt.Appendf(nil, "new%05d", i))
+	}
+	tree2.SaveVersion()
+	tree2.DeleteVersionsTo(1)
+
+	count := countDBValues(db2)
+	if count != 100 {
+		t.Fatalf("after import+prune: %d values, want 100", count)
+	}
+}
+
+func TestPrune_MultiVersion(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	// V1: keys a,b,c
+	tree.Set([]byte("a"), []byte("a1"))
+	tree.Set([]byte("b"), []byte("b1"))
+	tree.Set([]byte("c"), []byte("c1"))
+	tree.SaveVersion()
+
+	// V2: update a
+	tree.Set([]byte("a"), []byte("a2"))
+	tree.SaveVersion()
+
+	// V3: update b, remove c
+	tree.Set([]byte("b"), []byte("b3"))
+	tree.Remove([]byte("c"))
+	tree.SaveVersion()
+
+	// V4: update a again, add d
+	tree.Set([]byte("a"), []byte("a4"))
+	tree.Set([]byte("d"), []byte("d4"))
+	tree.SaveVersion()
+
+	// V5: update d
+	tree.Set([]byte("d"), []byte("d5"))
+	tree.SaveVersion()
+
+	// Prune V1-V3
+	tree.DeleteVersionsTo(3)
+
+	// V4 has: a=a4, b=b3(shared from V3), d=d4
+	// V5 has: a=a4(shared from V4), b=b3(shared), d=d5
+	// Live values across V4+V5: a4, b3, d4, d5 = 4
+	count := countDBValues(db)
+	if count != 4 {
+		t.Fatalf("after multi-prune: %d values, want 4", count)
+	}
+}
+
+func TestSet_EmptyValueCleanup(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	tree.Set([]byte("k"), []byte{})
+	tree.SaveVersion()
+
+	val, _ := tree.Get([]byte("k"))
+	if val == nil {
+		t.Fatal("Get should return []byte{}, not nil")
+	}
+	if len(val) != 0 {
+		t.Fatalf("Get = %q, want empty", val)
+	}
+
+	tree.Set([]byte("k"), []byte("notempty"))
+	tree.SaveVersion()
+	tree.DeleteVersionsTo(1)
+
+	count := countDBValues(db)
+	if count != 1 {
+		t.Fatalf("after prune: %d values, want 1", count)
+	}
+}
+
+func TestPrune_ValueIntegrityAfterOverwrite(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	// V1: 50 keys
+	for i := 0; i < 50; i++ {
+		tree.Set(fmt.Appendf(nil, "vi%03d", i), fmt.Appendf(nil, "val_v1_%03d", i))
+	}
+	tree.SaveVersion()
+
+	// V2: overwrite 30
+	for i := 0; i < 30; i++ {
+		tree.Set(fmt.Appendf(nil, "vi%03d", i), fmt.Appendf(nil, "val_v2_%03d", i))
+	}
+	tree.SaveVersion()
+
+	// V3: overwrite 10
+	for i := 0; i < 10; i++ {
+		tree.Set(fmt.Appendf(nil, "vi%03d", i), fmt.Appendf(nil, "val_v3_%03d", i))
+	}
+	tree.SaveVersion()
+
+	// Prune V1 and V2
+	tree.DeleteVersionsTo(2)
+
+	// Verify every key returns correct value
+	for i := 0; i < 50; i++ {
+		key := fmt.Appendf(nil, "vi%03d", i)
+		val, err := tree.Get(key)
+		if err != nil {
+			t.Fatalf("Get(%q): %v", key, err)
+		}
+		var expected []byte
+		switch {
+		case i < 10:
+			expected = fmt.Appendf(nil, "val_v3_%03d", i)
+		case i < 30:
+			expected = fmt.Appendf(nil, "val_v2_%03d", i)
+		default:
+			expected = fmt.Appendf(nil, "val_v1_%03d", i)
+		}
+		if !bytes.Equal(val, expected) {
+			t.Fatalf("Get(%q) = %q, want %q", key, val, expected)
+		}
+	}
+
+	// Reload from DB and verify again
+	tree2 := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	tree2.LoadVersion(3)
+	for i := 0; i < 50; i++ {
+		key := fmt.Appendf(nil, "vi%03d", i)
+		val, _ := tree2.Get(key)
+		var expected []byte
+		switch {
+		case i < 10:
+			expected = fmt.Appendf(nil, "val_v3_%03d", i)
+		case i < 30:
+			expected = fmt.Appendf(nil, "val_v2_%03d", i)
+		default:
+			expected = fmt.Appendf(nil, "val_v1_%03d", i)
+		}
+		if !bytes.Equal(val, expected) {
+			t.Fatalf("reloaded Get(%q) = %q, want %q", key, val, expected)
+		}
+	}
+}
+
 func TestPrune_InnerNodeSplit(t *testing.T) {
 	tree := newPruneTree(t)
 
