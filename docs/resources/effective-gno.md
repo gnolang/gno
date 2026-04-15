@@ -378,10 +378,9 @@ clear code is better than clever code.
 
 ### Package naming and organization
 
-Your package name should match the folder name. This helps to prevent having
-named imports, which can make your code more difficult to understand and
-maintain. By matching the package name with the folder name, you can ensure that
-your imports are clear and intuitive.
+Your package name must match the last element of the package path (ignoring a
+trailing `/vN` version suffix). This keeps imports clear and intuitive, avoiding
+the need for named imports.
 
 Ideally, package names should be short and human-readable. This makes it easier
 for other developers to understand what your package does at a glance. Avoid
