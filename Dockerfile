@@ -139,7 +139,7 @@ ENTRYPOINT  ["/usr/bin/gnofaucet"]
 # Gnodev image
 ## ghcr.io/gnolang/gno/gnodev
 FROM        base AS gnodev
-COPY        --from=build-gnodev /gnoroot/build/gnodev                       /usr/bin/gnodev
+COPY        --from=build-gnodev  /gnoroot/build/gnodev                          /usr/bin/gnodev
 COPY        --from=build-gnocore /gnoroot/examples                              /gnoroot/examples
 COPY        --from=build-gnocore /gnoroot/gnovm/stdlibs                         /gnoroot/gnovm/stdlibs
 COPY        --from=build-gnocore /gnoroot/gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs
@@ -163,6 +163,7 @@ FROM        base AS gnocontribs
 COPY        --from=build-gnobro /gnoroot/build/gnobro                           /usr/bin/gnobro
 COPY        --from=build-contribs /gnoroot/build/gnogenesis                     /usr/bin/gnogenesis
 COPY        --from=build-contribs /gnoroot/build/gnokms                          /usr/bin/gnokms
+COPY        --from=build-contribs /gnoroot/build/tm2-backup                     /usr/bin/tm2-backup
 COPY        --from=build-gnocore /gnoroot/examples                              /gnoroot/examples
 COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt

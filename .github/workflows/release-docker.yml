@@ -4,7 +4,7 @@ name: release / docker
 on:
   push:
     branches:
-      - chain/*
+      - chain/tm2-backup
     tags:
       - chain/*
   workflow_dispatch:
