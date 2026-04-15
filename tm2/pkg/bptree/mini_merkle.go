@@ -48,7 +48,7 @@ func (m *MiniMerkle) Build() {
 // Clear sets all slots to the sentinel hash.
 func (m *MiniMerkle) Clear() {
 	for i := range m.tree {
-		m.tree[i] = SentinelHash
+		m.tree[i] = sentinelHash
 	}
 }
 

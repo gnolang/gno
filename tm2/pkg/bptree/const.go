@@ -35,16 +35,17 @@ const (
 // Hash is a fixed-size SHA256 hash.
 type Hash = [HashSize]byte
 
-// SentinelHash is SHA256(0x02). Used for empty mini-merkle slots.
+// sentinelHash is SHA256(0x02). Used for empty mini-merkle slots.
 // Provably distinct from any 0x00-prefixed (leaf) or 0x01-prefixed (inner) hash.
-var SentinelHash Hash
+// Unexported to prevent accidental mutation.
+var sentinelHash Hash
 
 // emptyTreeHash is SHA256(""). Used by Hash() for empty trees, matching IAVL behavior.
 // Stored as a fixed array; callers get a fresh slice via emptyHash().
 var emptyTreeHash Hash
 
 func init() {
-	SentinelHash = sha256.Sum256([]byte{DomainEmpty})
+	sentinelHash = sha256.Sum256([]byte{DomainEmpty})
 	emptyTreeHash = sha256.Sum256(nil)
 }
 

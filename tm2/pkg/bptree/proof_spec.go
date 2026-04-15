@@ -17,7 +17,7 @@ var BptreeSpec = &ics23.ProofSpec{
 		MinPrefixLength: 1,                       // the 0x01 domain separator
 		MaxPrefixLength: 1,                       // just the 0x01 byte; ICS23 adds maxLeftChildBytes internally
 		ChildSize:       int32(HashSize),          // 32
-		EmptyChild:      SentinelHash[:],          // SHA256(0x02)
+		EmptyChild:      sentinelHash[:],          // SHA256(0x02)
 		Hash:            ics23.HashOp_SHA256,
 	},
 	MinDepth: 5,  // at least one mini-merkle traversal (log2(B) = 5)

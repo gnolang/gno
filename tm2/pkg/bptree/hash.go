@@ -39,8 +39,8 @@ func HashLeafSlotFromValueHash(key []byte, valueHash Hash) Hash {
 // If both left and right are the sentinel, returns the sentinel
 // (short-circuit rule for ICS23 EmptyChild compatibility).
 func HashInner(left, right Hash) Hash {
-	if left == SentinelHash && right == SentinelHash {
-		return SentinelHash
+	if left == sentinelHash && right == sentinelHash {
+		return sentinelHash
 	}
 	var buf [1 + HashSize + HashSize]byte
 	buf[0] = DomainInner

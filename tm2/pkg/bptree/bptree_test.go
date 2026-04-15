@@ -15,8 +15,8 @@ import (
 
 func TestSentinelHash(t *testing.T) {
 	expected := sha256.Sum256([]byte{0x02})
-	if SentinelHash != expected {
-		t.Fatalf("SentinelHash mismatch")
+	if sentinelHash != expected {
+		t.Fatalf("sentinelHash mismatch")
 	}
 }
 
@@ -177,16 +177,16 @@ func TestConstants(t *testing.T) {
 
 func TestHashInnerShortCircuit(t *testing.T) {
 	// Both sentinel → sentinel
-	result := HashInner(SentinelHash, SentinelHash)
-	if result != SentinelHash {
+	result := HashInner(sentinelHash, sentinelHash)
+	if result != sentinelHash {
 		t.Fatalf("expected sentinel short-circuit")
 	}
 
 	// One non-sentinel → real hash
 	var other Hash
 	other[0] = 0xFF
-	result = HashInner(SentinelHash, other)
-	if result == SentinelHash {
+	result = HashInner(sentinelHash, other)
+	if result == sentinelHash {
 		t.Fatalf("expected real hash, got sentinel")
 	}
 }
@@ -201,12 +201,12 @@ func TestHashInnerAsymmetry(t *testing.T) {
 
 func TestHashInnerOneSentinel(t *testing.T) {
 	other := sha256.Sum256([]byte("x"))
-	lr := HashInner(SentinelHash, other)
-	rl := HashInner(other, SentinelHash)
+	lr := HashInner(sentinelHash, other)
+	rl := HashInner(other, sentinelHash)
 	if lr == rl {
 		t.Fatalf("sentinel position should matter")
 	}
-	if lr == SentinelHash || rl == SentinelHash {
+	if lr == sentinelHash || rl == sentinelHash {
 		t.Fatalf("one-sentinel case should not short-circuit")
 	}
 }
@@ -224,14 +224,14 @@ func TestHashLeafSlotFromValueHash(t *testing.T) {
 
 func TestHashLeafSlot_EmptyKey(t *testing.T) {
 	h := HashLeafSlot([]byte{}, []byte("val"))
-	if h == SentinelHash {
+	if h == sentinelHash {
 		t.Fatalf("empty key hash should not be sentinel")
 	}
 }
 
 func TestHashLeafSlot_EmptyValue(t *testing.T) {
 	h := HashLeafSlot([]byte("key"), []byte{})
-	if h == SentinelHash {
+	if h == sentinelHash {
 		t.Fatalf("empty value hash should not be sentinel")
 	}
 }
@@ -252,7 +252,7 @@ func TestHashLeafSlot_LongKey(t *testing.T) {
 	// 1000 bytes
 	key1000 := []byte(strings.Repeat("b", 1000))
 	h1000 := HashLeafSlot(key1000, []byte("v"))
-	if h1000 == SentinelHash {
+	if h1000 == sentinelHash {
 		t.Fatalf("long key hash should not be sentinel")
 	}
 }
@@ -283,7 +283,7 @@ func TestHashLeafSlot_DomainSeparation(t *testing.T) {
 
 func TestMiniMerkle_EmptyRoot(t *testing.T) {
 	m := NewMiniMerkle()
-	if m.Root() != SentinelHash {
+	if m.Root() != sentinelHash {
 		t.Fatalf("empty mini merkle root should be sentinel")
 	}
 }
@@ -292,7 +292,7 @@ func TestMiniMerkle_SetSlotAndBuild(t *testing.T) {
 	m := NewMiniMerkle()
 	h := sha256.Sum256([]byte("hello"))
 	m.SetSlot(0, h)
-	if m.Root() == SentinelHash {
+	if m.Root() == sentinelHash {
 		t.Fatalf("root should not be sentinel after setting a slot")
 	}
 
@@ -310,7 +310,7 @@ func TestMiniMerkle_SetSlotLastIndex(t *testing.T) {
 	m := NewMiniMerkle()
 	h := sha256.Sum256([]byte("last"))
 	m.SetSlot(B-1, h)
-	if m.Root() == SentinelHash {
+	if m.Root() == sentinelHash {
 		t.Fatalf("root should not be sentinel after setting last slot")
 	}
 	if m.GetSlot(B-1) != h {
@@ -354,11 +354,11 @@ func TestMiniMerkle_AllSlotsFilled(t *testing.T) {
 func TestMiniMerkle_ClearAfterDirty(t *testing.T) {
 	m := NewMiniMerkle()
 	m.SetSlot(3, sha256.Sum256([]byte("dirty")))
-	if m.Root() == SentinelHash {
+	if m.Root() == sentinelHash {
 		t.Fatalf("should be dirty")
 	}
 	m.Clear()
-	if m.Root() != SentinelHash {
+	if m.Root() != sentinelHash {
 		t.Fatalf("Clear should reset to sentinel")
 	}
 }
@@ -369,11 +369,11 @@ func TestMiniMerkle_HalfFilledStructure(t *testing.T) {
 		m.SetSlot(i, sha256.Sum256([]byte{byte(i)}))
 	}
 	// Right half subtree root (tree[3]) should be sentinel
-	if m.tree[3] != SentinelHash {
+	if m.tree[3] != sentinelHash {
 		t.Fatalf("right half subtree should be sentinel, got non-sentinel")
 	}
 	// Root = HashInner(left_half, sentinel)
-	expected := HashInner(m.tree[2], SentinelHash)
+	expected := HashInner(m.tree[2], sentinelHash)
 	if m.Root() != expected {
 		t.Fatalf("root should be HashInner(left_half, sentinel)")
 	}
@@ -387,7 +387,7 @@ func TestMiniMerkle_SingleOccupiedSlot(t *testing.T) {
 	// Walk up manually: slot 0 is always left child at every level
 	cur := h
 	for level := 0; level < miniMerkleDepth(); level++ {
-		cur = HashInner(cur, SentinelHash)
+		cur = HashInner(cur, sentinelHash)
 	}
 	if m.Root() != cur {
 		t.Fatalf("single slot root mismatch")
@@ -926,7 +926,7 @@ func TestInnerNode_RebuildMiniMerkle(t *testing.T) {
 		inner.childHashes[i] = sha256.Sum256([]byte{byte(i)})
 	}
 	inner.RebuildMiniMerkle()
-	if inner.Hash() == SentinelHash {
+	if inner.Hash() == sentinelHash {
 		t.Fatalf("inner hash should not be sentinel after rebuild")
 	}
 
@@ -949,7 +949,7 @@ func TestLeafNode_RebuildMiniMerkle(t *testing.T) {
 	leaf.valueHashes[0] = sha256.Sum256([]byte("v1"))
 	leaf.valueHashes[1] = sha256.Sum256([]byte("v2"))
 	leaf.RebuildMiniMerkle()
-	if leaf.Hash() == SentinelHash {
+	if leaf.Hash() == sentinelHash {
 		t.Fatalf("leaf hash should not be sentinel")
 	}
 
@@ -988,7 +988,7 @@ func TestFunctionalOptions(t *testing.T) {
 func TestHashLeafSlot_GoldenVector(t *testing.T) {
 	h := HashLeafSlot([]byte("k"), []byte("v"))
 	// Verify determinism and non-sentinel
-	if h == SentinelHash {
+	if h == sentinelHash {
 		t.Fatalf("golden vector should not be sentinel")
 	}
 	h2 := HashLeafSlot([]byte("k"), []byte("v"))
@@ -1003,7 +1003,7 @@ func TestHashInner_GoldenVector(t *testing.T) {
 	a := sha256.Sum256([]byte("left"))
 	b := sha256.Sum256([]byte("right"))
 	h := HashInner(a, b)
-	if h == SentinelHash {
+	if h == sentinelHash {
 		t.Fatalf("inner golden should not be sentinel")
 	}
 	h2 := HashInner(a, b)
@@ -1161,14 +1161,14 @@ func TestMiniMerkle_SetSlotToSentinel(t *testing.T) {
 	h := sha256.Sum256([]byte("temp"))
 	m.SetSlot(5, h)
 	nonSentinelRoot := m.Root()
-	if nonSentinelRoot == SentinelHash {
+	if nonSentinelRoot == sentinelHash {
 		t.Fatalf("should be non-sentinel")
 	}
 
 	// Set slot 5 back to sentinel — should return to single-occupied state... no,
 	// all other slots are already sentinel, so clearing slot 5 should give sentinel root.
-	m.SetSlot(5, SentinelHash)
-	if m.Root() != SentinelHash {
+	m.SetSlot(5, sentinelHash)
+	if m.Root() != sentinelHash {
 		t.Fatalf("clearing the only non-sentinel slot should give sentinel root")
 	}
 }
@@ -1227,7 +1227,7 @@ func TestInnerNode_RebuildMiniMerkle_SingleChild(t *testing.T) {
 	// Root should be childHash walked up through 5 levels of HashInner(x, sentinel)
 	cur := inner.childHashes[0]
 	for level := 0; level < miniMerkleDepth(); level++ {
-		cur = HashInner(cur, SentinelHash)
+		cur = HashInner(cur, sentinelHash)
 	}
 	if inner.Hash() != cur {
 		t.Fatalf("single child inner hash mismatch")

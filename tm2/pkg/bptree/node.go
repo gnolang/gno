@@ -98,7 +98,7 @@ func (n *InnerNode) RebuildMiniMerkle() {
 		if i < n.NumChildren() {
 			n.miniTree.tree[B+i] = n.childHashes[i]
 		} else {
-			n.miniTree.tree[B+i] = SentinelHash
+			n.miniTree.tree[B+i] = sentinelHash
 		}
 	}
 	n.miniTree.Build()
@@ -109,7 +109,7 @@ func (n *LeafNode) RebuildMiniMerkle() {
 		if i < int(n.numKeys) {
 			n.miniTree.tree[B+i] = HashLeafSlotFromValueHash(n.keys[i], n.valueHashes[i])
 		} else {
-			n.miniTree.tree[B+i] = SentinelHash
+			n.miniTree.tree[B+i] = sentinelHash
 		}
 	}
 	n.miniTree.Build()
