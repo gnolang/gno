@@ -27,7 +27,7 @@ type digest32 struct {
 // from 0 to 4_294_967_296.
 // Hash is not collision safe, so it's recommended to handle potential
 // collisions when dealing with more than 65_536 values which is when
-// provability raises.
+// probability raises.
 func New32() hash.Hash32 {
 	return &digest32{}
 }

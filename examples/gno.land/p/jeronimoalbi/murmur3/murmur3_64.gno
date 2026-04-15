@@ -14,7 +14,7 @@ type digest64 struct {
 // It can generate 2 to the power of 64 unique 64-bit values.
 // Hash is not collision safe, so it's recommended to handle potential
 // collisions when dealing with more than 4_294_967_296 values which is
-// when provability raises.
+// when probability raises.
 func New64() hash.Hash64 {
 	return &digest64{
 		d1: digest32{},
