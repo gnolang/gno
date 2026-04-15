@@ -385,7 +385,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		case UntypedBigdecType:
 			return tv.V.(BigdecValue).V.String()
 		default:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	case *PointerType:
 		if tv.V == nil {
@@ -411,16 +411,16 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 	case *InterfaceType:
 		if debug {
 			if tv.DebugHasValue() {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 		return nilStr
 	case *DeclaredType:
-		panic("should not happen")
+		panic("internal: should not happen")
 	case *PackageType:
 		return tv.V.(*PackageValue).String()
 	case *ChanType:
-		panic("not yet implemented")
+		panic("internal: not yet implemented")
 	case *TypeType:
 		return tv.V.(TypeValue).String()
 	default:
@@ -446,7 +446,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 				"unexpected type %s",
 				tv.T.String()))
 		} else {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 }

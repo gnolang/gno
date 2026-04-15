@@ -918,7 +918,7 @@ func toClauses(fs *token.FileSet, csz []ast.Stmt) []SwitchClauseStmt {
 		res = append(res, *dclause)
 	}
 	if len(res) != len(csz) {
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	return res
 }

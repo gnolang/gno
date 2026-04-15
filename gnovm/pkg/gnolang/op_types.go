@@ -216,7 +216,7 @@ func (m *Machine) doOpStaticTypeOf() {
 				dxt = baseOf(xt)
 				path.SetDepth(0)
 			default:
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		case VPSubrefField:
 			switch path.Depth {
@@ -233,7 +233,7 @@ func (m *Machine) doOpStaticTypeOf() {
 				dxt = baseOf(xt.Elem())
 				path.SetDepth(0)
 			default:
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		case VPDerefField:
 			switch path.Depth {
@@ -254,7 +254,7 @@ func (m *Machine) doOpStaticTypeOf() {
 				path.Type = VPField
 				path.SetDepth(0)
 			default:
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		case VPDerefValMethod:
 			dxt = xt.Elem()
@@ -287,7 +287,7 @@ func (m *Machine) doOpStaticTypeOf() {
 				m.PushValue(asValue(t))
 				return
 			default:
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		case VPField:
 			switch cxt := dxt.(type) {

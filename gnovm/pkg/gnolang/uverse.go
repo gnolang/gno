@@ -392,7 +392,7 @@ func makeUverseNode() {
 						return
 					}
 				default:
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 
 			// ----------------------------------------------------------------
@@ -539,7 +539,7 @@ func makeUverseNode() {
 									arrayValue.List[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
 								}
 							} else {
-								panic("should not happen")
+								panic("internal: should not happen")
 							}
 						}
 
@@ -564,12 +564,12 @@ func makeUverseNode() {
 					}
 				// ------------------------------------------------------------
 				default:
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 			// ----------------------------------------------------------------
 			// append(?!!, ???)
 			default:
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		},
 	)
@@ -608,10 +608,10 @@ func makeUverseNode() {
 					debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
 				}
 				if bst.Kind() != StringKind {
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 				if bdt.Elt != Uint8Type {
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 				// NOTE: this implementation is almost identical to the next one.
 				// note that in some cases optimization
@@ -693,7 +693,7 @@ func makeUverseNode() {
 				m.PushValue(res0)
 				return
 			default:
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		},
 	)
@@ -1018,7 +1018,7 @@ func makeUverseNode() {
 			"", "address",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			panic("internal: not yet implemented")
 		},
 	)
 	defNativeMethod(".grealm", "PkgPath",
@@ -1027,7 +1027,7 @@ func makeUverseNode() {
 			"", "string",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			panic("internal: not yet implemented")
 		},
 	)
 	defNativeMethod(".grealm", "Coins",
@@ -1036,7 +1036,7 @@ func makeUverseNode() {
 			"", "gnocoins",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			panic("internal: not yet implemented")
 		},
 	)
 	defNativeMethod(".grealm", "Send",
@@ -1048,7 +1048,7 @@ func makeUverseNode() {
 			"", "error",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			panic("internal: not yet implemented")
 		},
 	)
 	defNativeMethod(".grealm", "Origin",
@@ -1057,7 +1057,7 @@ func makeUverseNode() {
 			"", "realm",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			panic("internal: not yet implemented")
 		},
 	)
 	defNativeMethod(".grealm", "Previous",
@@ -1066,7 +1066,7 @@ func makeUverseNode() {
 			"", "realm",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			panic("internal: not yet implemented")
 		},
 	)
 	defNativeMethod(".grealm", "String",
@@ -1075,7 +1075,7 @@ func makeUverseNode() {
 			"", "string",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			panic("internal: not yet implemented")
 		},
 	)
 	defNative("crossing",

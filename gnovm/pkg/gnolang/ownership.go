@@ -82,7 +82,7 @@ func (oid ObjectID) IsZero() bool {
 	if debug {
 		if oid.PkgID.IsZero() {
 			if oid.NewTime != 0 {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 	}
@@ -284,7 +284,7 @@ func (oi *ObjectInfo) DecRefCount() int {
 		// This may happen for uninitialized values.
 		if debug {
 			if oi.GetIsReal() {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 	}

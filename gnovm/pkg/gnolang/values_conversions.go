@@ -25,7 +25,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			panic("cannot convert to databyte type")
 		}
 		if isDataByte(tv.T) {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 	// special case for interface target
@@ -1071,7 +1071,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 						tv.T = t
 						tv.V = strv
 					default:
-						panic("should not happen")
+						panic("internal: should not happen")
 					}
 				} else {
 					data := svb.Data[svo : svo+svl]
@@ -1080,7 +1080,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 					tv.V = strv
 				}
 			default:
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		} else {
 			panic(fmt.Sprintf(
@@ -1177,7 +1177,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	dst.T = t
 	if debug {
 		if dst.V != nil {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 	// Check the bounds of sv or uv, given that
@@ -1234,7 +1234,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	case Uint64Kind:
 		dst.SetUint64(uint64(sv))
 	case StringKind:
-		panic("not yet implemented")
+		panic("internal: not yet implemented")
 	case BigintKind:
 		dst.ClearNum()
 		dst.V = BigintValue{V: big.NewInt(int64(sv))}
@@ -1257,7 +1257,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 		dst.V = biv
 		return // done
 	case BoolKind:
-		panic("not yet implemented")
+		panic("internal: not yet implemented")
 	case InterfaceKind:
 		t = IntType // default
 		fallthrough
@@ -1326,7 +1326,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	// the value is within int64 or uint64.
 	switch k {
 	case BoolKind:
-		panic("not yet implemented")
+		panic("internal: not yet implemented")
 	case IntKind, InterfaceKind:
 		dst.SetInt(sv)
 	case Int8Kind:
@@ -1375,7 +1375,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	case Uint64Kind:
 		dst.SetUint64(uv)
 	case StringKind:
-		panic("not yet implemented")
+		panic("internal: not yet implemented")
 	default:
 		panic(fmt.Sprintf("cannot convert untyped bigint to %v", k))
 	}
@@ -1455,7 +1455,7 @@ func isDecimalInteger(d *apd.Decimal) bool {
 	d2 := apd.New(0, 0)
 	res, err := apd.BaseContext.RoundToIntegralExact(d2, d)
 	if err != nil {
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	integer := !res.Inexact()
 	return integer
@@ -1465,7 +1465,7 @@ func toBigInt(d *apd.Decimal) *big.Int {
 	d2 := apd.New(0, 0)
 	_, err := apd.BaseContext.RoundToIntegralExact(d2, d)
 	if err != nil {
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	d2s := d2.String()
 	bi := big.NewInt(0)

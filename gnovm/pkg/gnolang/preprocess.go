@@ -526,7 +526,7 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 					}
 				} else {
 					if ss.VarName != "" {
-						panic("should not happen")
+						panic("internal: should not happen")
 					}
 				}
 			case *FuncDecl:
@@ -537,7 +537,7 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 				for i := range n.Type.Params {
 					px := &n.Type.Params[i].NameExpr
 					if px.Name == "" {
-						panic("should not happen")
+						panic("internal: should not happen")
 					}
 					px.Type = NameExprTypeDefine
 					n.Reserve(false, px, &n.Type, NSFuncParam, i)
@@ -1140,7 +1140,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			default:
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 			return n, TRANS_CONTINUE
 
@@ -1967,7 +1967,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// evaluation was skipped TRANS_LEAVE *NameExpr.
 								n.Args[0] = constNil(nx)
 							default:
-								panic("should not happen")
+								panic("internal: should not happen")
 							} // END Check validity of crossing arg n.Args[0].(*NameExpr).
 						}
 					LEAVE_CALL_EXPR_END_CHECK_CROSSING:
@@ -1989,7 +1989,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// special case of x(f()) form:
 						// use the number of results instead.
 						if isVarg {
-							panic("should not happen")
+							panic("internal: should not happen")
 						}
 						embedded = true
 						pcx := n.Args[0].(*CallExpr)
@@ -2041,7 +2041,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								len(n.Args)))
 						}
 					} else {
-						panic("should not happen")
+						panic("internal: should not happen")
 					}
 					// Specify function param/result generics.
 					sft := ft.Specify(store, n, argTVs, isVarg)
@@ -2065,7 +2065,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Also replace const Args with *ConstExpr unless embedded.
 					if embedded {
 						if isVarg {
-							panic("should not happen")
+							panic("internal: should not happen")
 						}
 						for i, tv := range argTVs {
 							if hasVarg {
@@ -2158,7 +2158,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *TypeAssertExpr:
 				if n.Type == nil {
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 
 				// Type assertions on the blank identifier are illegal.
@@ -2309,7 +2309,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// (the last vp, tr[len(tr)-1], is for n.Sel)
 						if debug {
 							if tr[len(tr)-1].Name != n.Sel {
-								panic("should not happen")
+								panic("internal: should not happen")
 							}
 						}
 						// replace n.X w/ tr[:len-1] selectors applied.
@@ -2673,7 +2673,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				default:
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -2755,7 +2755,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// cannot convert generic result,
 							// the result type depends.
 							// XXX how to deal?
-							panic("not yet implemented")
+							panic("internal: not yet implemented")
 						} else {
 							checkOrConvertType(store, last, n, &n.Results[i], rt)
 						}
@@ -3468,7 +3468,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 		}
 	}
 
-	panic("should not happen, idx not found")
+	panic("internal: should not happen, idx not found")
 }
 
 // finds the first FuncLitExpr in the stack after (excluding) stop.  returns
@@ -3777,7 +3777,7 @@ func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 func pushInitBlockAndCopy(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	if _, ok := bn.(*IfCaseStmt); !ok {
 		if _, ok := bn.(*SwitchClauseStmt); !ok {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 	orig := *last
@@ -4113,7 +4113,7 @@ func setConstAttrs(cx *ConstExpr) {
 	cx.SetAttribute(ATTR_TYPEOF_VALUE, cv.T)
 	if cv.T != nil && cv.T.Kind() == TypeKind {
 		if cv.GetType() == nil {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 		cx.SetAttribute(ATTR_TYPE_VALUE, cv.GetType())
 	}
@@ -4651,7 +4651,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 	case *CompositeLitExpr:
 		var ct Type
 		if cx.Type == nil {
-			panic("should not happen")
+			panic("internal: should not happen")
 			/*
 				if elide == nil {
 					panic("cannot elide unknown composite type")
@@ -4955,7 +4955,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 		*cd = *id2
 		return true
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 
@@ -5103,7 +5103,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 						if !dt.sealed {
 							// predefineRecursively should have
 							// already preprocessed dependent types!
-							panic("should not happen")
+							panic("internal: should not happen")
 						}
 					}
 				}
@@ -5203,13 +5203,13 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 					assertValidReceiverType(baseOf(ddt))
 					dt = ddt
 				} else {
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 			} else if ddt, ok := rt.(*DeclaredType); ok {
 				assertValidReceiverType(baseOf(ddt))
 				dt = ddt
 			} else {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 			// The body may get altered during preprocessing later.
 			if !dt.TryDefineMethod(&FuncValue{
@@ -5333,7 +5333,7 @@ func fauxChildBlockNode(bn BlockNode) bool {
 func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	if nx.Name == blankIdentifier {
 		// Blank name has no path; caller error.
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 
 	// If not DEFINE_LHS, yet is statically undefined, set path from parent.
@@ -5359,7 +5359,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					if isUverseName(nx.Name) {
 						idx, ok := UverseNode().GetLocalIndex(nx.Name)
 						if !ok {
-							panic("should not happen")
+							panic("internal: should not happen")
 						}
 						nx.Path = NewValuePathUverse(idx, nx.Name)
 						return

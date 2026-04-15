@@ -721,6 +721,6 @@ func stopOrSkip(oldnc *TransCtrl, nc TransCtrl) (stop bool) {
 	case TRANS_CONTINUE:
 		return false
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }

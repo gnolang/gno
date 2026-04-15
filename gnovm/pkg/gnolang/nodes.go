@@ -181,7 +181,7 @@ func (attr *Attributes) SetAttribute(key GnoAttribute, value any) {
 
 func (attr *Attributes) DelAttribute(key GnoAttribute) {
 	if debug && attr.data == nil {
-		panic("should not happen, attribute is expected to be non-empty.")
+		panic("internal: should not happen, attribute is expected to be non-empty.")
 	}
 	delete(attr.data, key)
 }
@@ -1459,7 +1459,7 @@ func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*
 	ft := evalStaticType(nil, pn, &fd.Type).(*FuncType)
 	if debug {
 		if ft == nil {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 	fv := pn.GetSlot(nil, n, true).V.(*FuncValue)
@@ -1480,7 +1480,7 @@ func (pn *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs,
 	ft := evalStaticType(nil, pn, &fd.Type).(*FuncType)
 	if debug {
 		if ft == nil {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 	// attach fv to base declared type as method.
@@ -1488,7 +1488,7 @@ func (pn *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs,
 	recv := evalStaticType(nil, pn, nx).(*DeclaredType)
 	if debug {
 		if ft == nil {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 	// recv.DefineMethod(fv)
@@ -1528,7 +1528,7 @@ func (ref RefNode) SetLocation(loc Location) {
 	// NOTE: Keep RefNode a non-pointer type,
 	// and disallow RefNode.SetLocation().
 	// You can still call ref.Location.SetLocation().
-	panic("should not happen")
+	panic("internal: should not happen")
 }
 
 // ----------------------------------------
@@ -1895,7 +1895,7 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 	if debug {
 		if path.Depth == 0 {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 	bn := sb.GetBlockNodeForPath(store, path)

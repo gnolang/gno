@@ -850,7 +850,7 @@ func (rlm *Realm) saveNewEscaped(store Store) {
 	/*
 		for _, eo := range rlm.escaped {
 				if !oo.GetIsEscaped() {
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 		}
 	*/
@@ -1035,7 +1035,7 @@ func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]str
 		}
 		pkgPath = tt.GetPkgPath()
 	case *RefType:
-		panic("should not happen: ref type in assert type is public")
+		panic("internal: should not happen: ref type in assert type is public")
 	case PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
 		// these types do not have a package path.
 		// NOTE: PackageType have a TypeID, should i loat it from store and check it?
@@ -1080,7 +1080,7 @@ func getChildObjects(val Value, more []Value) []Value {
 		panic("cannot get children from data byte objects")
 	case PointerValue:
 		if cv.Base == nil {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 		more = getSelfOrChildObjects(cv.Base, more)
 		return more
@@ -1332,7 +1332,7 @@ func copyValueWithRefs(val Value) Value {
 		panic("DataByteValue should not be copied independently")
 	case PointerValue:
 		if cv.Base == nil {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 		return PointerValue{
 			/*

@@ -143,7 +143,7 @@ func (alloc *Allocator) Allocate(size int64) {
 	}
 	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
 		if left, ok := alloc.collect(); !ok {
-			panic("should not happen, allocation limit exceeded while gc.")
+			panic("internal: should not happen, allocation limit exceeded while gc.")
 		} else {
 			if debug {
 				debug.Printf("GC finished, %d left after GC, required size: %d\n", left, size)

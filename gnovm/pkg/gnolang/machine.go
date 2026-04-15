@@ -878,7 +878,7 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	m.Run(StagePre)
 	res := m.ReapValues(start)
 	if len(res) != 1 {
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	return res[0]
 }
@@ -909,7 +909,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	m.Run(StagePre)
 	res := m.ReapValues(start)
 	if len(res) != 1 {
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	tv := res[0].V.(TypeValue)
 	return tv.Type
@@ -1662,7 +1662,7 @@ func (m *Machine) ForcePopOp() {
 func (m *Machine) PeekStmt(offset int) Stmt {
 	if debug {
 		if offset != 1 {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 	return m.Stmts[len(m.Stmts)-offset]
@@ -1904,7 +1904,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 	if debug {
 		if m.Package == nil {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 	if debug {
@@ -2034,7 +2034,7 @@ func (m *Machine) PopFrame() Frame {
 // set machine accordingly.
 func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 	if depthFrames >= len(m.Frames) {
-		panic("should not happen, depthFrames exeeds total frames")
+		panic("internal: should not happen, depthFrames exeeds total frames")
 	}
 	// pop frames if with depth not zero
 	if depthFrames != 0 {
@@ -2053,7 +2053,7 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 	}
 
 	if depthBlocks >= len(m.Blocks) {
-		panic("should not happen, depthBlocks exeeds total blocks")
+		panic("internal: should not happen, depthBlocks exeeds total blocks")
 	}
 	// pop blocks
 	m.Blocks = m.Blocks[:len(m.Blocks)-depthBlocks]
@@ -2308,7 +2308,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			pv = lb.GetPointerTo(m.Store, lx.Path)
 			ro = false // always mutable
 		case NameExprTypeHeapClosure:
-			panic("should not happen")
+			panic("internal: should not happen")
 		default:
 			panic("unexpected NameExpr in PopAsPointer")
 		}
@@ -2339,7 +2339,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			if xv.V == nil {
 				m.Panic(typedString("nil pointer dereference"))
 			}
-			panic("should not happen, not pointer nor nil")
+			panic("internal: should not happen, not pointer nor nil")
 		}
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
@@ -2352,7 +2352,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		}
 		ro = false // always mutable
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	return
 }

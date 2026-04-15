@@ -61,12 +61,12 @@ func (sv *StructValue) DeepFill(store Store) Value {
 }
 
 // XXX implement these too
-func (fv *FuncValue) DeepFill(store Store) Value         { panic("not yet implemented") }
-func (mv *MapValue) DeepFill(store Store) Value          { panic("not yet implemented") }
-func (bmv *BoundMethodValue) DeepFill(store Store) Value { panic("not yet implemented") }
-func (tv TypeValue) DeepFill(store Store) Value          { panic("not yet implemented") }
-func (pv *PackageValue) DeepFill(store Store) Value      { panic("not yet implemented") }
-func (b *Block) DeepFill(store Store) Value              { panic("not yet implemented") }
+func (fv *FuncValue) DeepFill(store Store) Value         { panic("internal: not yet implemented") }
+func (mv *MapValue) DeepFill(store Store) Value          { panic("internal: not yet implemented") }
+func (bmv *BoundMethodValue) DeepFill(store Store) Value { panic("internal: not yet implemented") }
+func (tv TypeValue) DeepFill(store Store) Value          { panic("internal: not yet implemented") }
+func (pv *PackageValue) DeepFill(store Store) Value      { panic("internal: not yet implemented") }
+func (b *Block) DeepFill(store Store) Value              { panic("internal: not yet implemented") }
 
 func (rv RefValue) DeepFill(store Store) Value {
 	return store.GetObject(rv.ObjectID)

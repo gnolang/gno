@@ -144,7 +144,7 @@ func (bdv BigdecValue) Copy(alloc *Allocator) BigdecValue {
 	cp := apd.New(0, 0)
 	_, err := apd.BaseContext.Add(cp, cp, bdv.V)
 	if err != nil {
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	return BigdecValue{V: cp}
 }
@@ -362,7 +362,7 @@ func (sv *SliceValue) GetBase(store Store) *ArrayValue {
 	case *ArrayValue:
 		return cv
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 
@@ -541,7 +541,7 @@ func (fv *FuncValue) GetType(store Store) *FuncType {
 	case *FuncType:
 		return ct
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 
@@ -600,7 +600,7 @@ func (fv *FuncValue) GetParent(store Store) *Block {
 	case *Block:
 		return cv
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 
@@ -855,7 +855,7 @@ func (pv *PackageValue) GetBlock(store Store) *Block {
 	case *Block:
 		return bv
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 
@@ -896,7 +896,7 @@ func (pv *PackageValue) GetFileBlock(store Store, fname string) *Block {
 				pv.getFBlocksMap()[fname] = fbv
 				return fbv
 			default:
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 	}
@@ -990,10 +990,10 @@ func (tv *TypedValue) IsUndefined() bool {
 	if debug {
 		if tv.T == nil {
 			if tv.V != nil {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 			if tv.N != [8]byte{} {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 	}
@@ -1040,7 +1040,7 @@ func (tv *TypedValue) HasKind(k Kind) bool {
 // zero doesn't mean it didn't get a value set.
 func (tv *TypedValue) DebugHasValue() bool {
 	if !debug {
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	if tv.V != nil {
 		return true
@@ -1573,7 +1573,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 	if tv.T == nil {
 		if debug {
 			if omitType {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 		return nilStr, false
@@ -1625,7 +1625,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		bz = append(bz, '[')
 		if av.Data == nil {
 			if tv.T.Elem().Kind() == Uint8Kind {
-				panic("should not happen; unexpected list array for array with uint8 element kind")
+				panic("internal: should not happen; unexpected list array for array with uint8 element kind")
 			}
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := range al {
@@ -1686,12 +1686,12 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
 			// happen via *PointerValue.Assign2().
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 		if tv2.T == DataByteType {
 			// tv2 will never be a DataByte, as it is
 			// retrieved as value.
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 	*tv = tv2.Copy(alloc)
@@ -1751,7 +1751,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			dtv = tv
 			path.SetDepth(0)
 		default:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	case VPSubrefField:
 		switch path.Depth {
@@ -1771,7 +1771,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			isPtr = true
 			path.SetDepth(0)
 		default:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	case VPDerefField:
 		switch path.Depth {
@@ -1798,7 +1798,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			path.Type = VPField
 			path.SetDepth(0)
 		default:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	case VPDerefValMethod:
 		if tv.V == nil {
@@ -1842,7 +1842,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			pv := dtv.V.(*PackageValue)
 			return pv.GetBlock(store).GetPointerTo(store, path)
 		default:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	case VPField:
 		switch baseOf(dtv.T).(type) {
@@ -1885,7 +1885,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		mt := mv.GetType(store)
 		if debug {
 			if mt.HasPointerReceiver() {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 		dtv2 := dtv.Copy(alloc)
@@ -1916,13 +1916,13 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		mt := mv.GetType(store)
 		if debug {
 			if !mt.HasPointerReceiver() {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 			if !isPtr {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 			if tv.T.Kind() != PointerKind {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 		ptv := *tv
@@ -1965,9 +1965,9 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			}
 			btv = ptr.Deref() // deref
 		}
-		panic("should not happen")
+		panic("internal: should not happen")
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 
@@ -2404,7 +2404,7 @@ func (b *Block) GetParent(store Store) *Block {
 		b.Parent = block
 		return block
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 
@@ -2753,16 +2753,16 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 				fpv := cbv.GetPointerToInt(store, cv.Index)
 				cv.TV = fpv.TV // TODO optimize?
 			case *BoundMethodValue:
-				panic("should not happen")
+				panic("internal: should not happen")
 			case *MapValue:
-				panic("should not happen")
+				panic("internal: should not happen")
 			case *Block:
 				vpv := cbv.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
 			case *HeapItemValue:
 				cv.TV = &cbv.Value
 			default:
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 			tv.V = cv
 		}

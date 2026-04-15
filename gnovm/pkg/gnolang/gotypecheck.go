@@ -635,7 +635,7 @@ func GoParseMemPackage(mpkg *std.MemPackage, fset *token.FileSet) (
 		case MPUserIntegration, MPStdlibIntegration:
 			// parse all integration test files
 		default:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 
 		// Go parse file.
@@ -661,7 +661,7 @@ func GoParseMemPackage(mpkg *std.MemPackage, fset *token.FileSet) (
 			case MPAnyAll:
 				panic("undefined MPAnyAll")
 			case MPUserProd, MPStdlibProd:
-				panic("should not happen")
+				panic("internal: should not happen")
 			case MPUserTest, MPStdlibTest:
 				// Do not include xxx_test.
 				// xxx_test imports normal and only
@@ -670,7 +670,7 @@ func GoParseMemPackage(mpkg *std.MemPackage, fset *token.FileSet) (
 				_gofs = append(_gofs, gof)
 				allgofs = append(allgofs, gof)
 			default:
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		} else if strings.HasSuffix(file.Name, "_test.gno") {
 			// !strings.HasSuffix(gof.Name.String(), "_test")

@@ -58,7 +58,7 @@ func (m *Machine) doOpIndex2() {
 			}
 		}
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	xv.SetReadonly(ro)
 }
@@ -245,7 +245,7 @@ func (m *Machine) doOpTypeAssert1() {
 			// interface-restricted form
 			// *xv = *xv
 		} else {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	} else { // is concrete assert
 		if xt == nil {
@@ -317,7 +317,7 @@ func (m *Machine) doOpTypeAssert2() {
 				*tv = untypedBool(false)
 			}
 		} else {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	} else { // is concrete assert
 		if xt == nil {
@@ -398,7 +398,7 @@ func (m *Machine) doOpCompositeLit() {
 			m.PushOp(OpEval)
 		}
 	default:
-		panic("not yet implemented")
+		panic("internal: not yet implemented")
 	}
 }
 
@@ -449,7 +449,7 @@ func (m *Machine) doOpArrayLit() {
 	// pop array type.
 	if debug {
 		if m.PopValue().V.(TypeValue).Type != at {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	} else {
 		m.PopValue()
@@ -474,7 +474,7 @@ func (m *Machine) doOpSliceLit() {
 	// construct and push value.
 	if debug {
 		if m.PopValue().V.(TypeValue).Type != st {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	} else {
 		m.PopValue()
@@ -527,7 +527,7 @@ func (m *Machine) doOpSliceLit2() {
 	// construct and push value.
 	if debug {
 		if m.PopValue().V.(TypeValue).Type != st {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	} else {
 		m.PopValue()
@@ -561,7 +561,7 @@ func (m *Machine) doOpMapLit() {
 	// pop map type.
 	if debug {
 		if m.PopValue().GetType() != mt {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	} else {
 		m.PopValue()
@@ -623,7 +623,7 @@ func (m *Machine) doOpStructLit() {
 					panic("unexpected struct composite lit key path generation value")
 				}
 				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 			}
 			if fsset[fnx.Path.Index] {
@@ -664,10 +664,10 @@ func (m *Machine) doOpFuncLit() {
 			// it must be in the form of:
 			// {T:heapItemType{},V:HeapItemValue{...}}
 			if _, ok := ptr.TV.T.(heapItemType); !ok {
-				panic("should not happen, should be heapItemType: " + nx.String())
+				panic("internal: should not happen, should be heapItemType: " + nx.String())
 			}
 			if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
-				panic("should not happen, should be heapItemValue: " + nx.String())
+				panic("internal: should not happen, should be heapItemValue: " + nx.String())
 			}
 			captures = append(captures, *ptr.TV)
 		}

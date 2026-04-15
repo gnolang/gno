@@ -149,7 +149,7 @@ func (m *Machine) doOpExec(op Op) {
 				goto EXEC_SWITCH
 			}
 		} else {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	case OpRangeIter, OpRangeIterArrayPtr:
 		bs := s.(*bodyStmt)
@@ -194,7 +194,7 @@ func (m *Machine) doOpExec(op Op) {
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 			}
 			if bs.Value != nil {
@@ -209,7 +209,7 @@ func (m *Machine) doOpExec(op Op) {
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 			}
 			bs.NextBodyIndex++
@@ -240,7 +240,7 @@ func (m *Machine) doOpExec(op Op) {
 					case ILLEGAL:
 						// do nothing, no assignment
 					default:
-						panic("should not happen")
+						panic("internal: should not happen")
 					}
 					bs.ListIndex++
 					bs.NextBodyIndex = -1
@@ -252,7 +252,7 @@ func (m *Machine) doOpExec(op Op) {
 					return
 				}
 			} else {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 	case OpRangeIterString:
@@ -290,7 +290,7 @@ func (m *Machine) doOpExec(op Op) {
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 			}
 			if bs.Value != nil {
@@ -303,7 +303,7 @@ func (m *Machine) doOpExec(op Op) {
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 			}
 			bs.NextBodyIndex++
@@ -334,7 +334,7 @@ func (m *Machine) doOpExec(op Op) {
 					case ILLEGAL:
 						// do nothing, no assignment
 					default:
-						panic("should not happen")
+						panic("internal: should not happen")
 					}
 					rsv := sv[bs.StrIndex:]
 					r, size := utf8.DecodeRuneInString(rsv)
@@ -350,7 +350,7 @@ func (m *Machine) doOpExec(op Op) {
 					return
 				}
 			} else {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 	case OpRangeIterMap:
@@ -386,7 +386,7 @@ func (m *Machine) doOpExec(op Op) {
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, kv, false)
 				default:
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 			}
 			if bs.Value != nil {
@@ -399,7 +399,7 @@ func (m *Machine) doOpExec(op Op) {
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, vv, false)
 				default:
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 			}
 			bs.NextBodyIndex++
@@ -435,7 +435,7 @@ func (m *Machine) doOpExec(op Op) {
 					case ILLEGAL:
 						// do nothing, no assignment
 					default:
-						panic("should not happen")
+						panic("internal: should not happen")
 					}
 					bs.NextItem = nnext
 					bs.ListIndex++
@@ -444,7 +444,7 @@ func (m *Machine) doOpExec(op Op) {
 					return // redo doOpExec:*bodyStmt
 				}
 			} else {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 	}
@@ -636,7 +636,7 @@ EXEC_SWITCH:
 		case ILLEGAL:
 			// do nothing, no assignment
 		default:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 		// evaluate X
 		m.PushExpr(cs.X)
