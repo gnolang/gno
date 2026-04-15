@@ -1,12 +1,78 @@
 # man 5 gitmailmap
 # git log --mailmap --pretty=short | grep ^Author: | sort -u
-Jae Kwon <53785+jaekwon@users.noreply.github.com> Jae Kwon <jae@tendermint.com>
-Jae Kwon <53785+jaekwon@users.noreply.github.com> Jae Kwon <jae@gno.land>
-Jae Kwon <53785+jaekwon@users.noreply.github.com> jaekwon <jae@tendermint.com>
-Jae Kwon <53785+jaekwon@users.noreply.github.com> Naut Jae <naut_jae@Nauts-Mac-mini.local>
-Thomas Bruyelle <thomas.bruyelle@tendermint.com> Thomas Bruyelle <thomas.bruyelle@gmail.com>
-Thomas Bruyelle <thomas.bruyelle@tendermint.com> Thomas Bruyelle <thomasbruyelle@hey.com>
-Miloš Živković <milos.zivkovic@tendermint.com> Miloš Živković <milos@zmilos.com>
-Hariom Verma <hariom.verma@tendermint.com> Hariom Verma <hariom18599@gmail.com>
-Giancarlos Salas <me@giansalex.dev> Giancarlos Salas <giansalex@gmail.com>
-Morgan <morgan@morganbaz.com> Morgan <git@howl.moe>
+6h057 <15034695+omarsy@users.noreply.github.com> <omarsy@users.noreply.github.com>
+Albert Le Batteux <contact@albttx.tech>
+Alexis Colin <alexis@jaunebleu.co>
+Alexis Colin <alexis@jaunebleu.co> <alexis@jaunebleu.com>
+Andrew K <andrew@onbloc.xyz>
+Antoine Eddi <5222525+aeddi@users.noreply.github.com> <antoine.e.b@gmail.com>
+Antonio Navarro Perez <antnavper@gmail.com>
+Antonio Navarro Perez <antnavper@gmail.com> <ajnavarro@pop-os.localdomain>
+Blake <104744707+r3v4s@users.noreply.github.com> <104744707+r3v4-onbloc@users.noreply.github.com>
+Dadidou <50441633+WaDadidou@users.noreply.github.com> <wadadidou@gmail.com>
+David <60177543+davd-gzl@users.noreply.github.com> <60177543+Davphla@users.noreply.github.com>
+David <60177543+davd-gzl@users.noreply.github.com> <david.gozlan@epitech.eu>
+Denys Sedchenko <denis0051@gmail.com> <9203548+x1unix@users.noreply.github.com>
+Emmanuel T Odeke <emmanuel@orijtech.com> <emm.odeke@gmail.com>
+Giancarlos Salas <me@giansalex.dev> <giansalex@gmail.com>
+Guilhem Fanton <8671905+gfanton@users.noreply.github.com>
+Hariom Verma <hariom.verma@tendermint.com> <hariom18599@gmail.com>
+Iuri Pereira <689440+iuricmp@users.noreply.github.com>
+Iuri Pereira <689440+iuricmp@users.noreply.github.com> <iuricmp@gmail.com>
+Ivan Ursulovic <97893481+Ursulovic@users.noreply.github.com>
+Ivan Ursulovic <97893481+Ursulovic@users.noreply.github.com> <ivan@Ivans-MacBook-Air.local>
+Ivan Ursulovic <97893481+Ursulovic@users.noreply.github.com> <ivan@MacBookAir.localdomain>
+Ivan Ursulovic <97893481+Ursulovic@users.noreply.github.com> <ivan@pop-os.localdomain>
+Jae Kwon <53785+jaekwon@users.noreply.github.com> <jae@gno.land>
+Jae Kwon <53785+jaekwon@users.noreply.github.com> <jae@tendermint.com>
+Jae Kwon <53785+jaekwon@users.noreply.github.com> <naut_jae@Nauts-Mac-mini.local>
+Jeff Thompson <jeff@thefirst.org> <jeff@berty.tech>
+Jerónimo Albi <894299+jeronimoalbi@users.noreply.github.com>
+Jerónimo Albi <894299+jeronimoalbi@users.noreply.github.com> <jeronimo.albi@gmail.com>
+Jerónimo Albi <894299+jeronimoalbi@users.noreply.github.com> <jeronimoalbi@gmail.com>
+Kazaï <149690535+kazai777@users.noreply.github.com> <kazai@777>
+Leon Hudak <33522493+leohhhn@users.noreply.github.com>
+Leon Hudak <33522493+leohhhn@users.noreply.github.com> <hudakleon@gmail.com>
+Leon Hudak <33522493+leohhhn@users.noreply.github.com> <leonhudak@protonmail.com>
+Manfred Touron <94029+moul@users.noreply.github.com>
+Marc Vertes <marc.vertes@tendermint.com> <mvertes@free.fr>
+Mason McBride <56214403+masonmcbride@users.noreply.github.com> <mcbridedmason@gmail.com>
+Miguel Victoria Villaquiran <miguelvicvil@gmail.com> <Villaquiranm@users.noreply.github.com>
+MikaelVallenet <mikael.vallenetpro@gmail.com>
+Miloš Živković <milos.zivkovic@tendermint.com>
+Miloš Živković <milos.zivkovic@tendermint.com> <milos@zmilos.com>
+Morgan <morgan@morganbaz.com>
+Morgan <morgan@morganbaz.com> <git@howl.moe>
+Mustapha <102119509+mous1985@users.noreply.github.com> <mustapha.benazzouz@outlok.fr>
+Mustapha <102119509+mous1985@users.noreply.github.com> <mustapha.benazzouz@outlook.fr>
+Nemanja Aleksic <kouteki@gmail.com>
+Nemanya Matic <nemanya.matic@gmail.com>
+Nemanya Matic <nemanya.matic@gmail.com> <106317308+Nemanya8@users.noreply.github.com>
+Norman Meier <norman@samourai.coop> <norman@Normans-MacBook-Pro-2.local>
+Reza Rahemtola <rahemtola.reza@protonmail.com> <49811529+RezaRahemtola@users.noreply.github.com>
+Reza Rahemtola <rahemtola.reza@protonmail.com> <reza.rahemtola@epitech.eu>
+Romain Gay <vikarious@gmail.com> <romain@diduenjoy.com>
+Rémi BARBERO <d4ryl00@gmail.com>
+Salvatore Mazzarino <salvatore.mazzarino@tendermint.com> <dev@mazzarino.cz>
+Santala <31094102+tranhoaison@users.noreply.github.com>
+Sergio Maria Matone <sergio@newtendermint.org> <sergio.matone@tendermint.com>
+Sergio Maria Matone <sergio@newtendermint.org> <sw360cab@gmail.com>
+SuperLuck <gwenweiqiu@gmail.com>
+Thomas Bruyelle <thomas.bruyelle@tendermint.com>
+Thomas Bruyelle <thomas.bruyelle@tendermint.com> <thomas.bruyelle@gmail.com>
+Thomas Bruyelle <thomas.bruyelle@tendermint.com> <thomasbruyelle@hey.com>
+Thox <90353329+DIGIX666@users.noreply.github.com> <digixit66@gmail.com>
+dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> <dependabot[bot]@users.noreply.github.com>
+grepsuzette <350354+grepsuzette@users.noreply.github.com>
+grepsuzette <350354+grepsuzette@users.noreply.github.com> <grepsuzette@users.noreply.github.com>
+hthieu1110 <tronghieu.ha@gmail.com>
+ltzmaxwell <ltz.maxwell@gmail.com>
+matija marjanovic <93043005+matijamarjanovic@users.noreply.github.com>
+myoung-su,shin <anarcher@gmail.com>
+n3wbie <r3v4@onbloc.xyz> <bobforcivil@gmail.com>
+piux2 <90544084+piux2@users.noreply.github.com> piux2 <>
+sunspirit <167175638+linhpn99@users.noreply.github.com>
+thinhnx-var <168700277+thinhnx-var@users.noreply.github.com> <thinhnx@192.168.1.6>
+thinhnx-var <168700277+thinhnx-var@users.noreply.github.com> <thinhnx@192.168.1.9>
+thinhnx-var <168700277+thinhnx-var@users.noreply.github.com> <thinhnx@thinhnx.local>
+İlker G. Öztürk <ilker@ilgooz.com> <ilkergoktugozturk@gmail.com>
