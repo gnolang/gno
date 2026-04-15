@@ -1,6 +1,12 @@
 package bptree
 
-import "testing"
+import (
+	"math/rand"
+	"sort"
+	"testing"
+
+	"gno.land/p/nt/avl/v0"
+)
 
 //----------------------------------------
 // Basic operations
@@ -1569,7 +1575,7 @@ func verifyInvariants(t *testing.T, tree *BPTree) {
 
 	// Check separator keys, child count bounds, sizes, ref-count.
 	seen := make(map[node]bool)
-	verifyNode(t, tree.root, tree.getFanout(), true, seen)
+	verifyNode(t, tree.root, tree.fanout, true, seen)
 
 	// Check tree.size matches actual leaf count.
 	actual := tree.root.nodeSize()
@@ -1604,6 +1610,13 @@ func verifyNode(t *testing.T, n node, fanout int, isRoot bool, seen map[node]boo
 	seen[n] = true
 
 	if n.isLeaf() {
+		leaf := n.(*leafNode)
+		if len(leaf.keys) == 0 && !isRoot {
+			t.Errorf("non-root leaf has 0 keys")
+		}
+		if len(leaf.keys) > fanout {
+			t.Errorf("leaf has %d keys, max=%d", len(leaf.keys), fanout)
+		}
 		return
 	}
 
@@ -2246,4 +2259,300 @@ func assertPanics(t *testing.T, name string, fn func()) {
 		}
 	}()
 	fn()
+}
+
+//----------------------------------------
+// Stress tests
+
+// TestAVLCrossValidation runs identical random operations on both avl.Tree
+// and BPTree and compares every return value.
+func TestAVLCrossValidation(t *testing.T) {
+	rng := rand.New(rand.NewPCG(12345, 0))
+	at := avl.NewTree()
+	bt := NewBPTree32()
+
+	const nOps = 5000
+	const keyRange = 200
+
+	for i := 0; i < nOps; i++ {
+		key := intToKey(rng.IntN(keyRange))
+		op := rng.IntN(3)
+		switch op {
+		case 0: // Set
+			aUpd := at.Set(key, i)
+			bUpd := bt.Set(key, i)
+			if aUpd != bUpd {
+				t.Fatalf("op %d: Set(%q) updated avl=%v bpt=%v", i, key, aUpd, bUpd)
+			}
+		case 1: // Remove
+			aVal, aOk := at.Remove(key)
+			bVal, bOk := bt.Remove(key)
+			if aOk != bOk {
+				t.Fatalf("op %d: Remove(%q) avl=%v bpt=%v", i, key, aOk, bOk)
+			}
+			if aOk && aVal != bVal {
+				t.Fatalf("op %d: Remove(%q) value avl=%v bpt=%v", i, key, aVal, bVal)
+			}
+		case 2: // Get
+			aVal, aOk := at.Get(key)
+			bVal, bOk := bt.Get(key)
+			if aOk != bOk {
+				t.Fatalf("op %d: Get(%q) avl=%v bpt=%v", i, key, aOk, bOk)
+			}
+			if aOk && aVal != bVal {
+				t.Fatalf("op %d: Get(%q) value avl=%v bpt=%v", i, key, aVal, bVal)
+			}
+		}
+		if at.Size() != bt.Size() {
+			t.Fatalf("op %d: size avl=%d bpt=%d", i, at.Size(), bt.Size())
+		}
+	}
+
+	// Compare full iteration.
+	var aKeys, bKeys []string
+	at.Iterate("", "", func(k string, v any) bool { aKeys = append(aKeys, k); return false })
+	bt.Iterate("", "", func(k string, v any) bool { bKeys = append(bKeys, k); return false })
+	assertSliceEqual(t, bKeys, aKeys)
+}
+
+// TestExhaustiveRemovalPermutations inserts N keys then tries all N!
+// permutations of removal order, verifying invariants after each remove.
+func TestExhaustiveRemovalPermutations(t *testing.T) {
+	keys := []string{"a", "b", "c", "d", "e", "f", "g", "h"}
+	n := len(keys)
+
+	perm := make([]int, n)
+	for i := range perm {
+		perm[i] = i
+	}
+
+	count := 0
+	permute(perm, 0, func(order []int) {
+		tree := NewBPTreeN(4)
+		for _, k := range keys {
+			tree.Set(k, k)
+		}
+		for _, idx := range order {
+			tree.Remove(keys[idx])
+			verifyInvariants(t, tree)
+		}
+		if tree.Size() != 0 {
+			t.Fatalf("perm %d: tree not empty after removing all keys", count)
+		}
+		count++
+	})
+}
+
+// permute generates all permutations of arr[start:] and calls fn for each.
+func permute(arr []int, start int, fn func([]int)) {
+	if start == len(arr) {
+		fn(arr)
+		return
+	}
+	for i := start; i < len(arr); i++ {
+		arr[start], arr[i] = arr[i], arr[start]
+		permute(arr, start+1, fn)
+		arr[start], arr[i] = arr[i], arr[start]
+	}
+}
+
+// TestMultiFanoutStress runs the same operation sequence across different
+// fanouts and verifies all produce identical results.
+func TestMultiFanoutStress(t *testing.T) {
+	fanouts := []int{4, 5, 6, 7, 8, 16, 32}
+	const nOps = 2000
+	const keyRange = 100
+
+	// Record expected results from the first fanout.
+	type result struct {
+		setUpdated bool
+		getVal     any
+		getOk      bool
+		rmVal      any
+		rmOk       bool
+	}
+
+	rng0 := rand.New(rand.NewPCG(99999, 0))
+	type op struct {
+		kind int // 0=set, 1=remove, 2=get
+		key  string
+		val  int
+	}
+	ops := make([]op, nOps)
+	for i := range ops {
+		ops[i] = op{
+			kind: rng0.IntN(3),
+			key:  intToKey(rng0.IntN(keyRange)),
+			val:  i,
+		}
+	}
+
+	// Run on each fanout and collect final keys.
+	var referenceKeys []string
+	for fi, fanout := range fanouts {
+		tree := NewBPTreeN(fanout)
+		for _, o := range ops {
+			switch o.kind {
+			case 0:
+				tree.Set(o.key, o.val)
+			case 1:
+				tree.Remove(o.key)
+			case 2:
+				tree.Get(o.key)
+			}
+		}
+		verifyInvariants(t, tree)
+
+		var keys []string
+		tree.Iterate("", "", func(k string, v any) bool {
+			keys = append(keys, k)
+			return false
+		})
+
+		if fi == 0 {
+			referenceKeys = keys
+		} else {
+			assertSliceEqual(t, keys, referenceKeys)
+		}
+	}
+}
+
+// TestSequentialInsertReverseRemove inserts keys 0..N-1 sequentially
+// (triggering 90/10 splits) then removes them in reverse order
+// (triggering cascading merges from the right).
+func TestSequentialInsertReverseRemove(t *testing.T) {
+	for _, fanout := range []int{4, 6, 8, 32} {
+		tree := NewBPTreeN(fanout)
+		n := 500
+		for i := 0; i < n; i++ {
+			tree.Set(intToKey(i), i)
+		}
+		verifyInvariants(t, tree)
+		if tree.Size() != n {
+			t.Errorf("fanout=%d: expected size %d, got %d", fanout, n, tree.Size())
+		}
+
+		for i := n - 1; i >= 0; i-- {
+			val, ok := tree.Remove(intToKey(i))
+			if !ok {
+				t.Fatalf("fanout=%d: Remove(%s) returned false", fanout, intToKey(i))
+			}
+			if val != i {
+				t.Fatalf("fanout=%d: Remove(%s) value=%v want %d", fanout, intToKey(i), val, i)
+			}
+			verifyInvariants(t, tree)
+		}
+		if tree.Size() != 0 {
+			t.Errorf("fanout=%d: expected empty tree, got size %d", fanout, tree.Size())
+		}
+	}
+}
+
+// TestRandomOpsWithPeriodicVerification does 10K random Set/Remove calls,
+// verifying invariants and sorted iteration every 100 ops.
+func TestRandomOpsWithPeriodicVerification(t *testing.T) {
+	rng := rand.New(rand.NewPCG(54321, 0))
+	tree := NewBPTreeN(4)
+
+	const nOps = 10000
+	const keyRange = 300
+	const checkEvery = 100
+
+	// Track expected keys in a sorted slice for comparison.
+	present := make(map[string]bool)
+
+	for i := 0; i < nOps; i++ {
+		key := intToKey(rng.IntN(keyRange))
+		if rng.IntN(3) == 0 { // ~33% removes
+			_, ok := tree.Remove(key)
+			if ok {
+				delete(present, key)
+			}
+		} else { // ~67% sets
+			tree.Set(key, i)
+			present[key] = true
+		}
+
+		if (i+1)%checkEvery == 0 {
+			verifyInvariants(t, tree)
+
+			// Check size.
+			if tree.Size() != len(present) {
+				t.Fatalf("op %d: size mismatch tree=%d map=%d", i, tree.Size(), len(present))
+			}
+
+			// Check iteration matches sorted keys.
+			var expected []string
+			for k := range present {
+				expected = append(expected, k)
+			}
+			sort.Strings(expected)
+
+			var got []string
+			tree.Iterate("", "", func(k string, v any) bool {
+				got = append(got, k)
+				return false
+			})
+			assertSliceEqual(t, got, expected)
+		}
+	}
+}
+
+// TestGetByIndexIterateByOffsetConsistency verifies that GetByIndex(i)
+// matches IterateByOffset(i, 1) for every valid index.
+func TestGetByIndexIterateByOffsetConsistency(t *testing.T) {
+	rng := rand.New(rand.NewPCG(77777, 0))
+	tree := NewBPTreeN(4)
+
+	// Build a tree with random insertions and removals.
+	const nOps = 1000
+	const keyRange = 200
+	for i := 0; i < nOps; i++ {
+		key := intToKey(rng.IntN(keyRange))
+		if rng.IntN(4) == 0 {
+			tree.Remove(key)
+		} else {
+			tree.Set(key, i)
+		}
+	}
+
+	n := tree.Size()
+	for i := 0; i < n; i++ {
+		gKey, gVal := tree.GetByIndex(i)
+
+		var iKey string
+		var iVal any
+		tree.IterateByOffset(i, 1, func(k string, v any) bool {
+			iKey = k
+			iVal = v
+			return true
+		})
+
+		if gKey != iKey {
+			t.Fatalf("index %d: GetByIndex key=%q IterateByOffset key=%q", i, gKey, iKey)
+		}
+		if gVal != iVal {
+			t.Fatalf("index %d: GetByIndex val=%v IterateByOffset val=%v", i, gVal, iVal)
+		}
+	}
+
+	// Also check ReverseIterateByOffset consistency.
+	for i := 0; i < n; i++ {
+		gKey, gVal := tree.GetByIndex(n - 1 - i)
+
+		var rKey string
+		var rVal any
+		tree.ReverseIterateByOffset(i, 1, func(k string, v any) bool {
+			rKey = k
+			rVal = v
+			return true
+		})
+
+		if gKey != rKey {
+			t.Fatalf("rev index %d: GetByIndex key=%q ReverseIterateByOffset key=%q", i, gKey, rKey)
+		}
+		if gVal != rVal {
+			t.Fatalf("rev index %d: GetByIndex val=%v ReverseIterateByOffset val=%v", i, gVal, rVal)
+		}
+	}
 }

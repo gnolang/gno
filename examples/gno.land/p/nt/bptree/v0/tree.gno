@@ -39,12 +39,6 @@ func NewBPTree32() *BPTree {
 	return NewBPTreeN(32)
 }
 
-func (t *BPTree) getFanout() int {
-	if t.fanout == 0 {
-		return 32
-	}
-	return t.fanout
-}
 
 func (t *BPTree) Size() int {
 	return t.size
@@ -270,7 +264,7 @@ func (t *BPTree) Remove(key string) (value any, removed bool) {
 	if t.root == nil {
 		return nil, false
 	}
-	fanout := t.getFanout()
+	fanout := t.fanout
 
 	var path []pathEntry
 	n := t.root
@@ -307,7 +301,9 @@ func (t *BPTree) Remove(key string) (value any, removed bool) {
 	// Check underflow.
 	minKeys := fanout / 2
 	if len(leaf.keys) >= minKeys {
-		t.updateSeparator(path)
+		if pos == 0 {
+			t.updateSeparator(path)
+		}
 		return value, true
 	}
 
@@ -337,7 +333,7 @@ func (t *BPTree) updateSeparator(path []pathEntry) {
 // rebalanceLeaf handles a leaf that has underflowed (< fanout/2 entries).
 // Tries redistribute from left, then right, then merges with a sibling.
 func (t *BPTree) rebalanceLeaf(leaf *leafNode, path []pathEntry) {
-	fanout := t.getFanout()
+	fanout := t.fanout
 	minKeys := fanout / 2
 	pe := path[len(path)-1]
 	parent := pe.inner
@@ -403,7 +399,7 @@ func (t *BPTree) rebalanceInner(path []pathEntry) {
 	parent := pe.inner
 	childIdx := pe.childIdx
 	child := parent.children[childIdx].(*innerNode)
-	fanout := t.getFanout()
+	fanout := t.fanout
 	minChildren := fanout / 2
 
 	if len(child.children) >= minChildren {
@@ -453,7 +449,7 @@ func (t *BPTree) rebalanceInner(path []pathEntry) {
 	gparent := gpe.inner
 	gchildIdx := gpe.childIdx
 	gchild := gparent.children[gchildIdx].(*innerNode)
-	minChildren = t.getFanout() / 2
+	minChildren = t.fanout / 2
 
 	if len(gchild.children) < minChildren {
 		t.rebalanceInner(grandPath)
@@ -592,6 +588,7 @@ func retreatLeaf(stack *iterStack) *leafNode {
 
 // Iterate calls cb for each key-value pair in [start, end) ascending order.
 // Empty start/end means no bound. Returns true if stopped early by cb.
+// The tree must not be modified during iteration (no Set or Remove from the callback).
 func (t *BPTree) Iterate(start, end string, cb IterCbFn) bool {
 	if t.root == nil {
 		return false
@@ -630,6 +627,7 @@ func (t *BPTree) Iterate(start, end string, cb IterCbFn) bool {
 
 // ReverseIterate calls cb for each key-value pair in [start, end] descending order.
 // Empty start/end means no bound. Returns true if stopped early by cb.
+// The tree must not be modified during iteration (no Set or Remove from the callback).
 func (t *BPTree) ReverseIterate(start, end string, cb IterCbFn) bool {
 	if t.root == nil {
 		return false
@@ -670,9 +668,13 @@ func (t *BPTree) ReverseIterate(start, end string, cb IterCbFn) bool {
 
 // IterateByOffset calls cb for count entries starting at the offset-th entry
 // in ascending order. Returns true if stopped early by cb.
+// The tree must not be modified during iteration (no Set or Remove from the callback).
 func (t *BPTree) IterateByOffset(offset int, count int, cb IterCbFn) bool {
 	if t.root == nil || offset >= t.size || count <= 0 {
 		return false
+	}
+	if offset < 0 {
+		offset = 0
 	}
 
 	leaf, pos, stack := t.descendToOffset(offset)
@@ -694,9 +696,13 @@ func (t *BPTree) IterateByOffset(offset int, count int, cb IterCbFn) bool {
 
 // ReverseIterateByOffset calls cb for count entries starting at the offset-th
 // entry from the end, in descending order. Returns true if stopped early by cb.
+// The tree must not be modified during iteration (no Set or Remove from the callback).
 func (t *BPTree) ReverseIterateByOffset(offset int, count int, cb IterCbFn) bool {
 	if t.root == nil || offset >= t.size || count <= 0 {
 		return false
+	}
+	if offset < 0 {
+		offset = 0
 	}
 
 	ascIdx := t.size - 1 - offset

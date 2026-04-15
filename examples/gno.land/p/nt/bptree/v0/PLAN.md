@@ -164,7 +164,8 @@ child index. At the leaf, binary search `keys` for exact match.
        - If parent is the root and drops to 1 child, replace root with that child.
        - If parent is not the root and has fewer than `fanout/2` children,
          rebalance recursively (the root is exempt — it may have as few as 2 children).
-   - After rebalance, update separator keys if the minimum key of a child changed.
+   - If the minimum key was removed (pos == 0), update ancestor separator keys
+     before rebalancing. Rebalance operations also fix separators as needed.
 
 ### Redistribute detail
 
@@ -373,11 +374,10 @@ within a single method call. It does not create any persistent references.
 - `var t BPTree` must work — zero-value tree is usable without a constructor.
   All methods work on it immediately. This means `root == nil` must be handled
   gracefully everywhere, and the default `fanout` (0) must be promoted to 32
-  on first use. Mechanism: a private helper `(t *BPTree) getFanout() int` returns
-  `t.fanout` if non-zero, else 32. All internal code uses `t.getFanout()` instead
-  of reading `t.fanout` directly. `Set` promotes and stores on first call:
-  `if t.fanout == 0 { t.fanout = 32 }`. Once set, fanout never resets (even if
-  tree becomes empty again).
+  on first use. `Set` promotes on first call: `if t.fanout == 0 { t.fanout = 32 }`.
+  All other methods that read `t.fanout` guard with `if t.root == nil` first, so
+  fanout is always initialized before it is read. Once set, fanout never resets
+  (even if tree becomes empty again).
 - Remove last key → tree returns to empty state (root = nil).
 - Insert after removing everything works normally.
 - `Size()` on empty tree returns 0.
