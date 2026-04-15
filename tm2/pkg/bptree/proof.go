@@ -68,22 +68,14 @@ func (t *ImmutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProo
 }
 
 // VerifyMembership verifies an ICS23 existence proof against the tree's root hash.
+// The value is taken from the proof itself (no tree lookup needed).
 func (t *ImmutableTree) VerifyMembership(proof *ics23.CommitmentProof, key []byte) (bool, error) {
-	if t.valueResolver == nil {
-		return false, fmt.Errorf("cannot verify membership without a value resolver")
-	}
-	path, leafSlotIdx, _, err := t.findPathToKey(key)
-	if err != nil {
-		return false, err
-	}
-	leafNode := path[len(path)-1].node.(*LeafNode)
-	vk := leafNode.valueKeys[leafSlotIdx]
-	val, err := t.valueResolver(vk)
-	if err != nil {
-		return false, err
+	exist := proof.GetExist()
+	if exist == nil {
+		return false, fmt.Errorf("proof is not an existence proof")
 	}
 	root := t.Hash()
-	return ics23.VerifyMembership(BptreeSpec, root, proof, key, val), nil
+	return ics23.VerifyMembership(BptreeSpec, root, proof, key, exist.Value), nil
 }
 
 // VerifyNonMembership verifies an ICS23 non-existence proof.
