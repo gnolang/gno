@@ -17,7 +17,7 @@ import (
 var (
 	cacheSize        = 100
 	numRecent  int64 = 5
-	storeEvery int64 = 3
+	storeEvery int64 = 0
 )
 
 func bz(s string) []byte { return []byte(s) }

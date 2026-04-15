@@ -18,7 +18,7 @@ import (
 var (
 	cacheSize        = 100
 	numRecent  int64 = 5
-	storeEvery int64 = 3
+	storeEvery int64 = 0
 )
 
 var (
@@ -52,7 +52,7 @@ func TestGetImmutable(t *testing.T) {
 
 	db := memdb.NewMemDB()
 	tree, cID := newAlohaTree(t, db)
-	store := UnsafeNewStore(tree, storeOptions(10, 10))
+	store := UnsafeNewStore(tree, storeOptions(10, 0))
 
 	updated, err := tree.Set([]byte("hello"), []byte("adios"))
 	require.NoError(t, err)
@@ -86,7 +86,7 @@ func TestTestGetImmutableIterator(t *testing.T) {
 
 	db := memdb.NewMemDB()
 	tree, cID := newAlohaTree(t, db)
-	store := UnsafeNewStore(tree, storeOptions(10, 10))
+	store := UnsafeNewStore(tree, storeOptions(10, 0))
 
 	newStore, err := store.GetImmutable(cID.Version)
 	require.NoError(t, err)
@@ -388,52 +388,45 @@ func TestIAVLDefaultPruning(t *testing.T) {
 	t.Parallel()
 
 	// Expected stored / deleted version numbers for:
-	// numRecent = 5, storeEvery = 3
+	// numRecent = 5, storeEvery = 0 (no waypoints)
+	// Each block prunes toRelease = previous - 5 when condition met.
 	states := []pruneState{
-		{[]int64{}, []int64{}},
-		{[]int64{1}, []int64{}},
-		{[]int64{1, 2}, []int64{}},
-		{[]int64{1, 2, 3}, []int64{}},
-		{[]int64{1, 2, 3, 4}, []int64{}},
-		{[]int64{1, 2, 3, 4, 5}, []int64{}},
-		{[]int64{1, 2, 3, 4, 5, 6}, []int64{}},
-		{[]int64{2, 3, 4, 5, 6, 7}, []int64{1}},
-		{[]int64{3, 4, 5, 6, 7, 8}, []int64{1, 2}},
-		{[]int64{3, 4, 5, 6, 7, 8, 9}, []int64{1, 2}},
-		{[]int64{5, 6, 7, 8, 9, 10}, []int64{1, 2, 3, 4}},
-		{[]int64{6, 7, 8, 9, 10, 11}, []int64{1, 2, 3, 4, 5}},
-		{[]int64{6, 7, 8, 9, 10, 11, 12}, []int64{1, 2, 3, 4, 5}},
-		{[]int64{8, 9, 10, 11, 12, 13}, []int64{1, 2, 3, 4, 5, 6, 7}},
-		{[]int64{9, 10, 11, 12, 13, 14}, []int64{1, 2, 3, 4, 5, 6, 7, 8}},
-		{[]int64{9, 10, 11, 12, 13, 14, 15}, []int64{1, 2, 3, 4, 5, 6, 7, 8}},
+		{[]int64{}, []int64{}},                                    // v0 (initial)
+		{[]int64{1}, []int64{}},                                   // v1
+		{[]int64{1, 2}, []int64{}},                                // v2
+		{[]int64{1, 2, 3}, []int64{}},                             // v3
+		{[]int64{1, 2, 3, 4}, []int64{}},                          // v4
+		{[]int64{1, 2, 3, 4, 5}, []int64{}},                       // v5
+		{[]int64{1, 2, 3, 4, 5, 6}, []int64{}},                    // v6: toRelease=0, 5<0 false
+		{[]int64{2, 3, 4, 5, 6, 7}, []int64{1}},                   // v7: toRelease=1
+		{[]int64{3, 4, 5, 6, 7, 8}, []int64{1, 2}},                // v8: toRelease=2
+		{[]int64{4, 5, 6, 7, 8, 9}, []int64{1, 2, 3}},             // v9: toRelease=3
+		{[]int64{5, 6, 7, 8, 9, 10}, []int64{1, 2, 3, 4}},         // v10: toRelease=4
+		{[]int64{6, 7, 8, 9, 10, 11}, []int64{1, 2, 3, 4, 5}},     // v11: toRelease=5
+		{[]int64{7, 8, 9, 10, 11, 12}, []int64{1, 2, 3, 4, 5, 6}}, // v12: toRelease=6
 	}
-	testPruning(t, int64(5), int64(3), states)
+	testPruning(t, int64(5), int64(0), states)
 }
 
 func TestIAVLAlternativePruning(t *testing.T) {
 	t.Parallel()
 
 	// Expected stored / deleted version numbers for:
-	// numRecent = 3, storeEvery = 5
+	// numRecent = 3, storeEvery = 0 (no waypoints)
 	states := []pruneState{
-		{[]int64{}, []int64{}},
-		{[]int64{1}, []int64{}},
-		{[]int64{1, 2}, []int64{}},
-		{[]int64{1, 2, 3}, []int64{}},
-		{[]int64{1, 2, 3, 4}, []int64{}},
-		{[]int64{2, 3, 4, 5}, []int64{1}},
-		{[]int64{3, 4, 5, 6}, []int64{1, 2}},
-		{[]int64{4, 5, 6, 7}, []int64{1, 2, 3}},
-		{[]int64{5, 6, 7, 8}, []int64{1, 2, 3, 4}},
-		{[]int64{5, 6, 7, 8, 9}, []int64{1, 2, 3, 4}},
-		{[]int64{7, 8, 9, 10}, []int64{1, 2, 3, 4, 5, 6}},
-		{[]int64{8, 9, 10, 11}, []int64{1, 2, 3, 4, 5, 6, 7}},
-		{[]int64{9, 10, 11, 12}, []int64{1, 2, 3, 4, 5, 6, 7, 8}},
-		{[]int64{10, 11, 12, 13}, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9}},
-		{[]int64{10, 11, 12, 13, 14}, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9}},
-		{[]int64{12, 13, 14, 15}, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
+		{[]int64{}, []int64{}},                                // v0
+		{[]int64{1}, []int64{}},                               // v1
+		{[]int64{1, 2}, []int64{}},                            // v2
+		{[]int64{1, 2, 3}, []int64{}},                         // v3
+		{[]int64{1, 2, 3, 4}, []int64{}},                      // v4: toRelease=0, 3<0 false
+		{[]int64{2, 3, 4, 5}, []int64{1}},                     // v5: toRelease=1
+		{[]int64{3, 4, 5, 6}, []int64{1, 2}},                  // v6: toRelease=2
+		{[]int64{4, 5, 6, 7}, []int64{1, 2, 3}},               // v7: toRelease=3
+		{[]int64{5, 6, 7, 8}, []int64{1, 2, 3, 4}},            // v8: toRelease=4
+		{[]int64{6, 7, 8, 9}, []int64{1, 2, 3, 4, 5}},         // v9: toRelease=5
+		{[]int64{7, 8, 9, 10}, []int64{1, 2, 3, 4, 5, 6}},     // v10: toRelease=6
 	}
-	testPruning(t, int64(3), int64(5), states)
+	testPruning(t, int64(3), int64(0), states)
 }
 
 type pruneState struct {

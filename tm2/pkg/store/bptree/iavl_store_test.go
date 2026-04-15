@@ -28,7 +28,7 @@ func newAlohaStore(t *testing.T) *Store {
 	tree.SaveVersion()
 	opts := types.StoreOptions{}
 	opts.KeepRecent = 10
-	opts.KeepEvery = 10
+	opts.KeepEvery = 0
 	return UnsafeNewStore(tree, opts)
 }
 
