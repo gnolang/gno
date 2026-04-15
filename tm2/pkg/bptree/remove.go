@@ -13,13 +13,11 @@ func treeRemove(root Node, key []byte) (Node, Hash, bool) {
 	if root == nil {
 		return nil, Hash{}, false
 	}
-	// Check if key exists before cloning to avoid wasted allocation
-	_, _, found := treeLookup(root, key)
-	if !found {
-		return root, Hash{}, false
-	}
 	root = cloneNode(root)
 	res := nodeRemove(root, key)
+	if !res.found {
+		return root, Hash{}, false
+	}
 
 	// Check for root collapse
 	if inner, ok := root.(*InnerNode); ok && inner.numKeys == 0 {
