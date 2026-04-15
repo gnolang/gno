@@ -51,7 +51,7 @@ func NewMutableTreeWithDB(db dbm.DB, cacheSize int, logger Logger, options ...Op
 // already existed (update), false if it was a new insert.
 func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	if len(key) == 0 {
-		return false, ErrKeyDoesNotExist
+		return false, ErrEmptyKey
 	}
 	if value == nil {
 		return false, fmt.Errorf("value must not be nil")

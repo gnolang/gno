@@ -11,4 +11,5 @@ var (
 	ErrNodeMissingNodeKey  = errors.New("node missing node key")
 	ErrEmptyTree           = errors.New("tree is empty")
 	ErrActiveReaders       = errors.New("version has active readers")
+	ErrEmptyKey            = errors.New("key must not be empty")
 )
