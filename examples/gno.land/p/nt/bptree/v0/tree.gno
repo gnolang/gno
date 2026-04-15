@@ -783,13 +783,18 @@ func (t *BPTree) descendToOffset(offset int) (*leafNode, int, iterStack) {
 	rem := offset
 	for !n.isLeaf() {
 		inner := n.(*innerNode)
+		found := false
 		for i, s := range inner.sizes {
 			if rem < s {
 				stack = append(stack, pathEntry{inner, i})
 				n = inner.children[i]
+				found = true
 				break
 			}
 			rem -= s
+		}
+		if !found {
+			panic("descendToOffset: offset out of range")
 		}
 	}
 	return n.(*leafNode), rem, stack

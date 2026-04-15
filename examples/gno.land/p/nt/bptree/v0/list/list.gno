@@ -12,7 +12,7 @@
 //	l.Append(1, 2, 3)
 //
 //	// Get and set elements
-//	value := l.Get(1)  // returns 2
+//	value, _ := l.Get(1)  // returns 2
 //	l.Set(1, 42)      // updates index 1 to 42
 //
 //	// Delete elements
@@ -43,7 +43,7 @@ import (
 type IList interface {
 	Len() int
 	Append(values ...any)
-	Get(index int) any
+	Get(index int) (any, bool)
 	Set(index int, value any) bool
 	Delete(index int) (any, bool)
 	Slice(startIndex, endIndex int) []any
@@ -73,14 +73,14 @@ func (l *List) Append(values ...any) {
 	}
 }
 
-// Get returns the value at the specified index.
-// Returns nil if index is out of bounds.
-func (l *List) Get(index int) any {
+// Get returns the value at the specified index and true if the index is valid.
+// Returns (nil, false) if index is out of bounds.
+func (l *List) Get(index int) (any, bool) {
 	if index < 0 || index >= l.tree.Size() {
-		return nil
+		return nil, false
 	}
 	_, value := l.tree.GetByIndex(index)
-	return value
+	return value, true
 }
 
 // Set updates or appends a value at the specified index.

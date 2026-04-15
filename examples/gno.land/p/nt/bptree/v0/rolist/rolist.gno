@@ -9,7 +9,7 @@ import (
 // IReadOnlyList defines the read-only operations available on a list.
 type IReadOnlyList interface {
 	Len() int
-	Get(index int) any
+	Get(index int) (any, bool)
 	Slice(startIndex, endIndex int) []any
 	ForEach(fn func(index int, value any) bool)
 }
@@ -49,13 +49,13 @@ func (rol *ReadOnlyList) Len() int {
 }
 
 // Get returns the value at the specified index, converted to a safe format.
-// Returns nil if index is out of bounds.
-func (rol *ReadOnlyList) Get(index int) any {
-	value := rol.list.Get(index)
-	if value == nil {
-		return nil
+// Returns (nil, false) if index is out of bounds.
+func (rol *ReadOnlyList) Get(index int) (any, bool) {
+	value, ok := rol.list.Get(index)
+	if !ok {
+		return nil, false
 	}
-	return rol.getSafeValue(value)
+	return rol.getSafeValue(value), true
 }
 
 // Slice returns a slice of values from startIndex (inclusive) to endIndex (exclusive),

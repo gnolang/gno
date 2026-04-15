@@ -51,8 +51,8 @@ func TestExample(t *testing.T) {
 	// Test retrieving and verifying a user
 	t.Run("Get User", func(t *testing.T) {
 		// Get user from read-only list
-		value := roList.Get(0)
-		if value == nil {
+		value, ok := roList.Get(0)
+		if !ok {
 			t.Fatal("User at index 0 not found")
 		}
 
@@ -69,7 +69,8 @@ func TestExample(t *testing.T) {
 		}
 
 		// Verify it's a different instance than the original
-		originalUser := l.Get(0).(*User)
+		origVal, _ := l.Get(0)
+		originalUser := origVal.(*User)
 		if user == originalUser {
 			t.Error("Read-only list should return a copy, not the original pointer")
 		}
@@ -118,8 +119,8 @@ func TestNilMakeEntrySafeFn(t *testing.T) {
 	roList := Wrap(l, nil)
 
 	// Test that we get back the original value
-	value := roList.Get(0)
-	if value == nil {
+	value, ok := roList.Get(0)
+	if !ok {
 		t.Fatal("Value not found")
 	}
 
@@ -145,17 +146,18 @@ func TestReadOnlyList(t *testing.T) {
 		name     string
 		index    int
 		expected any
+		ok       bool
 	}{
-		{"ExistingIndex0", 0, "value1_readonly"},
-		{"ExistingIndex1", 1, "value2_readonly"},
-		{"NonExistingIndex", 3, nil},
+		{"ExistingIndex0", 0, "value1_readonly", true},
+		{"ExistingIndex1", 1, "value2_readonly", true},
+		{"NonExistingIndex", 3, nil, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			value := roList.Get(tt.index)
-			if value != tt.expected {
-				t.Errorf("For index %d, expected %v, got %v", tt.index, tt.expected, value)
+			value, ok := roList.Get(tt.index)
+			if ok != tt.ok || value != tt.expected {
+				t.Errorf("For index %d, expected (%v, %v), got (%v, %v)", tt.index, tt.expected, tt.ok, value, ok)
 			}
 		})
 	}
