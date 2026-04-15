@@ -14,8 +14,6 @@ loadpkg gno.land/r/sys/params
 loadpkg gno.land/r/gov/dao/v3/init
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/sys/users
-loadpkg gno.land/r/gnoland/users/v1
-
 
 ## start a new node with token lock
 gnoland start -lock-transfer

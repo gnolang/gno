@@ -68,7 +68,7 @@ func (ls *LifetimeSubscription) HasValidSubscription(addr address) error {
 
 // UpdateAmount allows the owner of the LifetimeSubscription contract to update the subscription price.
 func (ls *LifetimeSubscription) UpdateAmount(newAmount int64) error {
-	if !ls.OwnedByCurrent() {
+	if !ls.Owned() {
 		return ErrNotAuthorized
 	}
 

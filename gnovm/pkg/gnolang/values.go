@@ -219,6 +219,9 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
+		if rlm != nil && pv.Base != nil {
+			rlm.DidUpdate(pv.Base.(Object), nil, nil)
+		}
 		return
 	}
 	// General case
@@ -328,7 +331,9 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	*/
 	if av.Data == nil {
 		av2 := alloc.NewListArray(len(av.List))
-		copy(av2.List, av.List)
+		for i, tv := range av.List {
+			av2.List[i] = tv.Copy(alloc)
+		}
 		return av2
 	}
 	av2 := alloc.NewDataArray(len(av.Data))
@@ -656,15 +661,16 @@ func (ml MapList) MarshalAmino() (MapListImage, error) {
 func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 	for i, item := range mlimg.List {
 		if i == 0 {
+			item.Prev = nil
 			ml.Head = item
 			ml.Tail = item
-			item.Prev = nil
+			ml.Size = 1
 		} else {
 			item.Prev = ml.Tail
 			ml.Tail.Next = item
 			ml.Tail = item
+			ml.Size++
 		}
-		ml.Size++
 	}
 	return nil
 }
@@ -681,15 +687,19 @@ func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 	if ml.Head == nil {
 		ml.Head = item
 		ml.Tail = item
+		ml.Size = 1
 	} else {
 		ml.Tail.Next = item
 		ml.Tail = item
+		ml.Size++
 	}
-	ml.Size++
 	return item
 }
 
 func (ml *MapList) Remove(mli *MapListItem) {
+	if ml.Size == 0 {
+		return
+	}
 	prev, next := mli.Prev, mli.Next
 	if prev == nil {
 		ml.Head = next
@@ -996,7 +1006,7 @@ func (tv *TypedValue) IsTypedNil() bool {
 	}
 	if tv.T != nil {
 		switch tv.T.Kind() {
-		case SliceKind, FuncKind, MapKind, InterfaceKind, PointerKind, ChanKind:
+		case SliceKind, FuncKind, MapKind, InterfaceKind, PointerKind:
 			return true
 		}
 	}
@@ -1554,12 +1564,6 @@ func (tv *TypedValue) Sign() int {
 	}
 }
 
-func (tv *TypedValue) AssertNonNegative(msg string) {
-	if tv.Sign() < 0 {
-		panic(fmt.Sprintf("%s: %v", msg, tv))
-	}
-}
-
 // ComputeMapKey returns the value of tv, encoded as a string for usage inside
 // of a map.
 //
@@ -1592,14 +1596,31 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			return "", true
 		}
 	case *PointerType:
-		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
-		if tv.V != nil {
-			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
-			ptrBytes = uintptrToBytes(&ptr)
+		if tv.V == nil {
+			var ptrBytes [sizeOfUintPtr]byte
+			bz = append(bz, ptrBytes[:]...)
+		} else {
+			pv := tv.V.(PointerValue)
+			if pv.TV != nil && pv.TV.T == DataByteType {
+				// TV is freshly allocated per access (see GetPointerAtIndexInt2);
+				// so we cannot simply convert to uintptr.
+				// We instead use the pointer to Base + concat with Index.
+				// This causes a longer pointer value, but does not cause issues
+				// because when we encode pointers in arrays or structs they are
+				// length-prefixed.
+				dbv := pv.TV.V.(DataByteValue)
+				base := uintptr(unsafe.Pointer(dbv.Base))
+				baseBytes := uintptrToBytes(&base)
+				bz = append(bz, baseBytes[:]...)
+				bz = binary.AppendUvarint(bz, uint64(dbv.Index))
+			} else {
+				ptr := uintptr(unsafe.Pointer(pv.TV))
+				ptrBytes := uintptrToBytes(&ptr)
+				bz = append(bz, ptrBytes[:]...)
+			}
 		}
-		bz = append(bz, ptrBytes[:]...)
 	case FieldType:
-		panic("field (pseudo)type cannot be used as map key")
+		panic("runtime error: field (pseudo)type cannot be used as map key")
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
@@ -1626,7 +1647,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		}
 		bz = append(bz, ']')
 	case *SliceType:
-		panic("slice type cannot be used as map key")
+		panic("runtime error: slice type cannot be used as map key")
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
@@ -1646,7 +1667,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		}
 		bz = append(bz, '}')
 	case *ChanType:
-		panic("not yet implemented")
+		panic("channel type is not yet supported")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected map key type %s",

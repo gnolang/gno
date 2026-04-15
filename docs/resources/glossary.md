@@ -269,7 +269,7 @@ nonce. Used to protect against replay attacks.
 See [Realm](#realm).
 
 ### Staging network
-The main Gno.land chain for testing, accessible at [gno.land](https://gno.land).
+The main Gno.land chain for testing, accessible at [staging.gno.land](https://staging.gno.land).
 
 ### Standard Library
 Built-in packages that provide core functionality to Gno programs without
@@ -302,12 +302,6 @@ or calling a realm function.
 
 ### ugnot
 The smallest unit of GNOT. 1 GNOT = 1,000,000 ugnot (micro-GNOT).
-
-### User Registry
-
-A system realm that allows users to register usernames and claim matching
-namespaces for deploying code. List of releases found at `gno.land/r/gnoland/users`.
-See [Users and Teams](./users-and-teams.md) for details.
 
 ### wugnot
 Wrapped version of `ugnot`, following the GRC20 standard.

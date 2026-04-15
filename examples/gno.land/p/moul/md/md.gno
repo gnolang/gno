@@ -183,7 +183,7 @@ func HorizontalRule() string {
 // Link returns a hyperlink for markdown.
 // Example: Link("foo", "http://example.com") => "[foo](http://example.com)"
 func Link(text, url string) string {
-	return "[" + EscapeText(text) + "](" + url + ")"
+	return "[" + EscapeText(text) + "](" + EscapeURL(url) + ")"
 }
 
 // UserLink returns a user profile link for markdown.
@@ -192,21 +192,21 @@ func Link(text, url string) string {
 // Example: UserLink("g1blah") => "[g1blah](/u/g1blah)"
 func UserLink(user string) string {
 	if strings.HasPrefix(user, "g1") {
-		return "[" + EscapeText(user) + "](/u/" + user + ")"
+		return "[" + EscapeText(user) + "](/u/" + EscapeURL(user) + ")"
 	}
-	return "[@" + EscapeText(user) + "](/u/" + user + ")"
+	return "[@" + EscapeText(user) + "](/u/" + EscapeURL(user) + ")"
 }
 
 // InlineImageWithLink creates an inline image wrapped in a hyperlink for markdown.
 // Example: InlineImageWithLink("alt text", "image-url", "link-url") => "[![alt text](image-url)](link-url)"
 func InlineImageWithLink(altText, imageUrl, linkUrl string) string {
-	return "[" + Image(altText, imageUrl) + "](" + linkUrl + ")"
+	return "[" + Image(altText, imageUrl) + "](" + EscapeURL(linkUrl) + ")"
 }
 
 // Image returns an image for markdown.
 // Example: Image("foo", "http://example.com") => "![foo](http://example.com)"
 func Image(altText, url string) string {
-	return "![" + EscapeText(altText) + "](" + url + ")"
+	return "![" + EscapeText(altText) + "](" + EscapeURL(url) + ")"
 }
 
 // Footnote returns a footnote for markdown.
@@ -232,6 +232,15 @@ func Paragraph(content string) string {
 // </details>
 func CollapsibleSection(title, content string) string {
 	return "<details><summary>" + EscapeText(title) + "</summary>\n\n" + content + "\n</details>\n"
+}
+
+// EscapeURL escapes characters in a URL that would break markdown link syntax.
+func EscapeURL(url string) string {
+	r := strings.NewReplacer(
+		"(", `%28`,
+		")", `%29`,
+	)
+	return r.Replace(url)
 }
 
 // EscapeText escapes special Markdown characters in regular text where needed.

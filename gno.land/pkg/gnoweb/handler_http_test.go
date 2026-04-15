@@ -365,6 +365,30 @@ func TestHTTPHandler_DirectoryViewErrorTotal(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "internal error")
 }
 
+// TestHTTPHandler_RealmExplorerWithRender tests realms with Render() show realm icon and Source button.
+func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
+	t.Parallel()
+
+	realmWithRender := &gnoweb.MockPackage{
+		Domain: "gno.land",
+		Path:   "/r/demo/withrender",
+		Files:  map[string]string{"render.gno": `package withrender`},
+		Functions: []*doc.JSONFunc{{
+			Name:    "Render",
+			Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
+			Results: []*doc.JSONField{{Type: "string"}},
+		}},
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, gnoweb.NewMockClient(realmWithRender)))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/withrender", nil))
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Source")
+	assert.Contains(t, rr.Body.String(), "Action")
+}
+
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
 func TestHTTPHandler_NewInvalidConfig(t *testing.T) {
 	t.Parallel()
@@ -1254,6 +1278,82 @@ func TestHTTPHandler_Post_HiddenPathField(t *testing.T) {
 			if tc.wantStatus == http.StatusSeeOther {
 				location := rr.Header().Get("Location")
 				assert.Equal(t, tc.wantRedirectURL, location, "unexpected redirect URL")
+			}
+		})
+	}
+}
+
+func TestHTTPHandler_ThemeCookie(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"render.gno": `package main; func Render(path string) string { return "hello" }`,
+			"gno.mod":    `module example.com/r/mock/path`,
+		},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	cases := []struct {
+		name        string
+		cookieValue string
+		wantAttr    string
+	}{
+		{
+			name:        "success: dark cookie renders data-theme dark",
+			cookieValue: "dark",
+			wantAttr:    `data-theme="dark"`,
+		},
+		{
+			name:        "success: light cookie renders data-theme light",
+			cookieValue: "light",
+			wantAttr:    `data-theme="light"`,
+		},
+		{
+			name:        "edge: no cookie renders no data-theme",
+			cookieValue: "",
+			wantAttr:    "",
+		},
+		{
+			name:        "edge: invalid cookie value ignored",
+			cookieValue: "purple",
+			wantAttr:    "",
+		},
+		{
+			name:        "edge: system cookie value ignored",
+			cookieValue: "system",
+			wantAttr:    "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodGet, "/r/mock/path", nil)
+			if tc.cookieValue != "" {
+				req.AddCookie(&http.Cookie{Name: "theme", Value: tc.cookieValue})
+			}
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+
+			body := rr.Body.String()
+			if tc.wantAttr != "" {
+				assert.Contains(t, body, tc.wantAttr,
+					"expected HTML to contain %q", tc.wantAttr)
+			} else {
+				assert.NotContains(t, body, `data-theme=`,
+					"expected HTML to not contain data-theme attribute")
 			}
 		})
 	}

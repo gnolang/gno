@@ -7,6 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -117,6 +118,12 @@ func (p Params) Validate() error {
 	if p.FeeCollector.IsZero() {
 		return fmt.Errorf("invalid fee collector, cannot be empty")
 	}
+	if p.InitialGasPrice.Gas < 0 {
+		return fmt.Errorf("invalid initial gas price: gas must be non-negative, got %d", p.InitialGasPrice.Gas)
+	}
+	if p.InitialGasPrice.Price.Amount < 0 {
+		return fmt.Errorf("invalid initial gas price: price amount must be non-negative, got %d", p.InitialGasPrice.Price.Amount)
+	}
 	return nil
 }
 
@@ -151,19 +158,45 @@ func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	return params
 }
 
-// WillSetParam defines what needs to be done when the parameter is set.
 func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
-	logger := ak.Logger(ctx)
+	params := ak.GetParams(ctx)
 	switch key {
-	case "p:unrestricted_addrs":
-		addrs, ok := value.([]string)
-		if !ok {
-			return
+	case "p:max_memo_bytes":
+		params.MaxMemoBytes = sdkparams.MustParamInt64("max_memo_bytes", value)
+	case "p:tx_sig_limit":
+		params.TxSigLimit = sdkparams.MustParamInt64("tx_sig_limit", value)
+	case "p:tx_size_cost_per_byte":
+		params.TxSizeCostPerByte = sdkparams.MustParamInt64("tx_size_cost_per_byte", value)
+	case "p:sig_verify_cost_ed25519":
+		params.SigVerifyCostED25519 = sdkparams.MustParamInt64("sig_verify_cost_ed25519", value)
+	case "p:sig_verify_cost_secp256k1":
+		params.SigVerifyCostSecp256k1 = sdkparams.MustParamInt64("sig_verify_cost_secp256k1", value)
+	case "p:gas_price_change_compressor":
+		params.GasPricesChangeCompressor = sdkparams.MustParamInt64("gas_price_change_compressor", value)
+	case "p:target_gas_ratio":
+		params.TargetGasRatio = sdkparams.MustParamInt64("target_gas_ratio", value)
+	case feeCollectorPath:
+		s := sdkparams.MustParamString("fee_collector", value)
+		addr, err := crypto.AddressFromString(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid fee_collector address: %v", err))
 		}
+		params.FeeCollector = addr
+	case "p:initial_gasprice":
+		s := sdkparams.MustParamString("initial_gasprice", value)
+		gp, err := std.ParseGasPrice(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid initial_gasprice: %v", err))
+		}
+		params.InitialGasPrice = gp
+	case "p:unrestricted_addrs":
+		addrs := sdkparams.MustParamStrings("unrestricted_addrs", value)
 		ak.applyUnrestrictedAddrsChange(ctx, addrs)
 	default:
-		// No-op for unrecognized keys
-		logger.Error("No-op for unrecognized keys", "key", key)
+		panic(fmt.Sprintf("unknown auth param key: %q", key))
+	}
+	if err := params.Validate(); err != nil {
+		panic("invalid param: " + err.Error())
 	}
 }
 
