@@ -51,6 +51,34 @@ func TestEmptyTreeHash(t *testing.T) {
 	}
 }
 
+func TestInMemoryIteratorValues(t *testing.T) {
+	// Iterator on in-memory trees must resolve actual values, not return hashes.
+	tree := NewMutableTreeMem()
+	for i := 0; i < 10; i++ {
+		tree.Set([]byte{byte(i)}, []byte{byte(i + 100)})
+	}
+	itr, err := tree.Iterator(nil, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer itr.Close()
+	count := 0
+	for itr.Valid() {
+		v := itr.Value()
+		if len(v) != 1 {
+			t.Fatalf("expected 1-byte value, got %d bytes (raw hash?)", len(v))
+		}
+		if v[0] != byte(count+100) {
+			t.Fatalf("value[%d] = %d, want %d", count, v[0], count+100)
+		}
+		count++
+		itr.Next()
+	}
+	if count != 10 {
+		t.Fatalf("iterated %d, want 10", count)
+	}
+}
+
 func TestSetEmptyValue(t *testing.T) {
 	// Set(key, []byte{}) must round-trip correctly — not return nil.
 	tree := NewMutableTreeMem()

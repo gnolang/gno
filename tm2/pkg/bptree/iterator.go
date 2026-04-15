@@ -1,6 +1,9 @@
 package bptree
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+)
 
 // Iterator traverses key-value pairs in a B+ tree within a [start, end) range.
 // Implements the same contract as tm2/pkg/db.Iterator.
@@ -328,7 +331,17 @@ func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, m
 
 // Iterator returns an iterator over [start, end) in the given direction.
 func (t *MutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, error) {
-	return newIterator(t.root, start, end, ascending, t.ndb, 0), nil
+	itr := newIterator(t.root, start, end, ascending, t.ndb, 0)
+	if t.ndb == nil && t.memValues != nil {
+		itr.valueResolver = func(vh Hash) ([]byte, error) {
+			val, ok := t.memValues[vh]
+			if !ok {
+				return nil, fmt.Errorf("value not found in memValues for hash %x", vh[:8])
+			}
+			return val, nil
+		}
+	}
+	return itr, nil
 }
 
 // ImmutableTree.Iterator returns an iterator. If a valueResolver is set,
