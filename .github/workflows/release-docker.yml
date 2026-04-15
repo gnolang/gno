@@ -32,6 +32,15 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
+          # Need full history + tags so `git describe --tags` works below.
+          fetch-depth: 0
+
+      - name: Compute build version
+        id: build_version
+        run: |
+          V=$(git describe --tags --exact-match 2>/dev/null \
+              || echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -76,6 +85,9 @@ jobs:
 
       - name: Bake build and push
         uses: docker/bake-action@5be5f02ff8819ecd3092ea6b2e6261c31774f2b4 # v6
+        env:
+          # Forwarded into the bake variable
+          BUILD_VERSION: ${{ steps.build_version.outputs.version }}
         with:
           source: . # use checked-out code, not git URL at GITHUB_SHA
           files: |
@@ -84,7 +96,8 @@ jobs:
             cwd://${{ steps.meta.outputs.bake-file-labels }}
           push: true
           targets: ${{ matrix.image }}
+          # GHA cache scope is per-image
           set: |
-            *.cache-from=type=gha
-            *.cache-to=type=gha,mode=max
+            *.cache-from=type=gha,scope=${{ matrix.image }}
+            *.cache-to=type=gha,mode=max,scope=${{ matrix.image }}
             *.context=.

@@ -1,67 +1,71 @@
 # setup gnocore basics
 FROM        golang:1.24-alpine AS setup-gnocore
+ARG         TARGETPLATFORM
+ARG         BUILD_VERSION=dev
 ENV         GNOROOT="/gnoroot"
 ENV         CGO_ENABLED=0 GOOS=linux
 WORKDIR     /gnoroot
+# git is kept for `go mod download` fallback when a module isn't served via the Go proxy 
 RUN         apk add --no-cache git
-RUN         go env -w GOMODCACHE=/root/.cache/go-build
 # Mod files
 COPY        go.mod go.sum ./
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go mod download -x
 COPY        . ./
-# Compute build version from git and write to a file for use in build stages
-RUN         { git describe --tags --exact-match 2>/dev/null \
-            || echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)"; \
-            } > /gnoroot/build_version
+# Build version is provided by the caller (CI computes it from git outside the image).
+RUN         echo "${BUILD_VERSION}" > /gnoroot/build_version
 
 # build gnocore
 FROM        setup-gnocore AS build-gnocore
+ARG         TARGETPLATFORM
 # Gnoland
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnoland ./gno.land/cmd/gnoland
 # Gnokey
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnokey ./gno.land/cmd/gnokey
 # Gnoweb
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnoweb ./gno.land/cmd/gnoweb
 # Gno
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gno ./gnovm/cmd/gno
 
 # Gnofaucet build
 FROM        setup-gnocore AS build-gnofaucet
+ARG         TARGETPLATFORM
 WORKDIR     /gnoroot/contribs/gnofaucet
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=faucet-modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=faucet-buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go mod download -x
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=faucet \
-            --mount=type=cache,target=/root/.cache/go-build,id=faucet-buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o /gnoroot/build/gnofaucet .
 
 # Gnodev build
 FROM        setup-gnocore AS build-gnodev
+ARG         TARGETPLATFORM
 WORKDIR     /gnoroot/contribs/gnodev
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnodev-modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=gnodev-buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go mod download -x
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnodev-modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=gnodev-buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go build \
             -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" \
             -o /gnoroot/build/gnodev .
 
 # Gnobro build
 FROM        setup-gnocore AS build-gnobro
+ARG         TARGETPLATFORM
 WORKDIR     /gnoroot/contribs/gnobro
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnobro-modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=gnobro-buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go build \
             -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" \
             -o /gnoroot/build/gnobro .
@@ -69,39 +73,41 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnobro-modcache \
 # Gnocontribs
 ## Gnogenesis
 FROM        setup-gnocore AS build-contribs
+ARG         TARGETPLATFORM
 WORKDIR     /gnoroot/contribs/gnogenesis
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=contribs_modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=contribs_buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go mod download -x
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=contribs_modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=contribs_buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o /gnoroot/build/gnogenesis .
 ## GnoKMS
 WORKDIR     /gnoroot/contribs/gnokms
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=kms_modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=kms_buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go mod download -x
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=kms_modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=kms_buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go build -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o /gnoroot/build/gnokms .
 ## TM2Backup
 WORKDIR     /gnoroot/contribs/tm2backup
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=tm2bck_modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=tm2bck_buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go mod download -x
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=tm2bck_modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=tm2bck_buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go build -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o /gnoroot/build/tm2backup .
 
 # Misc build
 FROM        setup-gnocore AS build-misc
+ARG         TARGETPLATFORM
 ## Staging
 WORKDIR     /gnoroot/misc/loop
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=pl-modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=pl-buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go mod download -x
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=pl-modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=pl-buildcache \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
             go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o /gnoroot/build/portalloopd ./cmd
 
 # Base image
