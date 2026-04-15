@@ -126,11 +126,30 @@ mkdir p/ && cd p
 touch hello_world.gno
 ```
 
+Next, initialize a `gnomod.toml` file for the package. This file defines
+package metadata, and the `pkgpath` it contains must match the `-pkgpath`
+flag you will use when deploying:
+
+```bash
+gno mod init gno.land/p/<your_namespace>/hello_world
+```
+
+This will generate a `gnomod.toml` with the following content:
+
+```toml
+gno = "0.9"
+module = "gno.land/p/<your_namespace>/hello_world"
+```
+
+For more details on `gnomod.toml` and its fields, see
+[Configuring Gno Projects](../resources/configuring-gno-projects.md#gnomodtoml).
+
 Now, we should have the following folder structure:
 
 ```bash
 └── example/
 │   └── p/
+│       ├── gnomod.toml
 │       └── hello_world.gno
 ```
 
@@ -419,7 +438,7 @@ package main
 import "gno.land/r/demo/counter"
 
 func main() {
-	println(counter.Increment())
+	println(counter.Increment(cross))
 }
 ```
 
