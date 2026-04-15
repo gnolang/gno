@@ -431,7 +431,22 @@ func (t *MutableTree) DeleteVersionsFrom(fromVersion int64) error {
 		return err
 	}
 	if fromVersion <= latest {
-		t.ndb.setLatestVersion(fromVersion - 1)
+		newLatest := fromVersion - 1
+		t.ndb.setLatestVersion(newLatest)
+
+		// If the working tree's version was deleted, reset to the new latest.
+		if t.version >= fromVersion {
+			if newLatest > 0 && t.ndb.VersionExists(newLatest) {
+				if _, err := t.LoadVersion(newLatest); err != nil {
+					return err
+				}
+			} else {
+				t.root = nil
+				t.lastSaved = nil
+				t.size = 0
+				t.version = newLatest
+			}
+		}
 	}
 	return nil
 }

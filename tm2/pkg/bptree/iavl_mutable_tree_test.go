@@ -83,6 +83,68 @@ func TestDeleteVersionsFrom(t *testing.T) {
 	require.False(t, tree.VersionExists(version+2))
 }
 
+func TestDeleteVersionsFrom_ResetsWorkingTree(t *testing.T) {
+	tree := setupMutableTree(false)
+
+	tree.Set([]byte("a"), []byte("v1"))
+	tree.SaveVersion() // v1
+	tree.Set([]byte("b"), []byte("v2"))
+	tree.SaveVersion() // v2
+	tree.Set([]byte("c"), []byte("v3"))
+	tree.SaveVersion() // v3
+
+	// Working tree is at version 3
+	require.Equal(t, int64(3), tree.Version())
+	require.Equal(t, int64(3), tree.Size())
+
+	// Delete versions >= 2 — working tree must reset to v1
+	require.NoError(t, tree.DeleteVersionsFrom(2))
+
+	require.Equal(t, int64(1), tree.Version())
+	require.Equal(t, int64(1), tree.Size())
+	require.True(t, tree.VersionExists(1))
+	require.False(t, tree.VersionExists(2))
+	require.False(t, tree.VersionExists(3))
+
+	// The tree should only have key "a"
+	val, _ := tree.Get([]byte("a"))
+	require.Equal(t, []byte("v1"), val)
+	val, _ = tree.Get([]byte("b"))
+	require.Nil(t, val)
+	val, _ = tree.Get([]byte("c"))
+	require.Nil(t, val)
+
+	// Can save a new version 2
+	tree.Set([]byte("d"), []byte("v2new"))
+	_, v, err := tree.SaveVersion()
+	require.NoError(t, err)
+	require.Equal(t, int64(2), v)
+}
+
+func TestDeleteVersionsFrom_DeleteAll(t *testing.T) {
+	tree := setupMutableTree(false)
+
+	tree.Set([]byte("a"), []byte("v1"))
+	tree.SaveVersion()
+	tree.Set([]byte("b"), []byte("v2"))
+	tree.SaveVersion()
+
+	// Delete ALL versions (fromVersion=1)
+	require.NoError(t, tree.DeleteVersionsFrom(1))
+
+	require.Equal(t, int64(0), tree.Version())
+	require.Equal(t, int64(0), tree.Size())
+	require.True(t, tree.IsEmpty())
+
+	// Can start fresh with version 1
+	tree.Set([]byte("x"), []byte("fresh"))
+	_, v, err := tree.SaveVersion()
+	require.NoError(t, err)
+	require.Equal(t, int64(1), v)
+	val, _ := tree.Get([]byte("x"))
+	require.Equal(t, []byte("fresh"), val)
+}
+
 func TestGetRemove(t *testing.T) {
 	require := require.New(t)
 	tree := setupMutableTree(false)
