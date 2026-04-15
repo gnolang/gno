@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - chain/*
   pull_request:
     paths:
       - contribs/**
@@ -21,7 +22,7 @@ permissions:
 
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    runs-on: gnolang-self-runner-large
     outputs:
       programs: ${{ steps.set-matrix.outputs.programs }}
       go-versions: ${{ steps.get-go-versions.outputs.go-versions }}

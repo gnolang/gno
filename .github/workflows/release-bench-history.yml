@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - chain/*
     paths:
       - contribs/**/*.go
       - gno.land/**/*.go
@@ -19,7 +20,7 @@ env:
 jobs:
   benchmarks:
     if: ${{ github.repository == 'gnolang/gno' }}
-    runs-on: [ self-hosted, Linux, X64, benchmarks ]
+    runs-on: gnolang-self-runner-huge
     permissions:
       deployments: write # to deploy GitHub pages website
       contents: write # to update benchmark data in gh-benchmarks branch
