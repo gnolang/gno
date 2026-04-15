@@ -13,20 +13,46 @@ import (
 
 const (
 	opcodesPkgPath = "gno.land/r/x/benchmark/opcodes"
+	storagePkgPath = "gno.land/r/x/benchmark/storage"
+	nativePkgPath  = "gno.land/r/x/benchmark/native"
 	rounds         = 1000
 )
 
-func benchmarkOpCodes(bstore gno.Store, dir string) {
-	opcodesPkgDir := filepath.Join(dir, "opcodes")
+// benchPackages holds pre-loaded package values so that
+// package loading doesn't contaminate benchmark measurements.
+type benchPackages struct {
+	opcodes *gno.PackageValue
+	storage *gno.PackageValue
+	native  *gno.PackageValue
+}
 
-	pv := addPackage(bstore, opcodesPkgDir, opcodesPkgPath)
+// loadBenchPackages loads all benchmark packages before the
+// exporter is initialized. Store operations during loading
+// are measured by the VM but not exported.
+func loadBenchPackages(bstore BenchStore, dir string) benchPackages {
+	gs := bstore.gnoStore
+	var pkgs benchPackages
+
+	// Opcodes
+	pkgs.opcodes = addPackage(gs, filepath.Join(dir, "opcodes"), opcodesPkgPath)
+
+	// Storage (needs avl dependency)
+	addPackage(gs, filepath.Join(dir, "avl"), "gno.land/p/nt/avl/v0")
+	pkgs.storage = addPackage(gs, filepath.Join(dir, "storage"), storagePkgPath)
+
+	// Native
+	pkgs.native = addPackage(gs, filepath.Join(dir, "native"), nativePkgPath)
+
+	return pkgs
+}
+
+func benchmarkOpCodes(bstore gno.Store, pv *gno.PackageValue) {
 	for range rounds {
 		callOpsBench(bstore, pv)
 	}
 }
 
 func callOpsBench(bstore gno.Store, pv *gno.PackageValue) {
-	// start
 	pb := pv.GetBlock(bstore)
 	for _, tv := range pb.Values {
 		if fv, ok := tv.V.(*gno.FuncValue); ok {
@@ -36,15 +62,7 @@ func callOpsBench(bstore gno.Store, pv *gno.PackageValue) {
 	}
 }
 
-const storagePkgPath = "gno.land/r/x/benchmark/storage"
-
-func benchmarkStorage(bstore BenchStore, dir string) {
-	gs := bstore.gnoStore
-	avlPkgDir := filepath.Join(dir, "avl")
-	addPackage(gs, avlPkgDir, "gno.land/p/nt/avl/v0")
-
-	storagePkgDir := filepath.Join(dir, "storage")
-	pv := addPackage(gs, storagePkgDir, storagePkgPath)
+func benchmarkStorage(bstore BenchStore, pv *gno.PackageValue) {
 	benchStoreSet(bstore, pv)
 	benchStoreGet(bstore, pv)
 }
@@ -77,16 +95,12 @@ func benchStoreGet(bstore BenchStore, pv *gno.PackageValue) {
 	}
 }
 
-const nativePkgPath = "gno.land/r/x/benchmark/native"
-
-func benchmarkNative(bstore gno.Store, dir string) {
-	nativePkgDir := filepath.Join(dir, "native")
-
-	pv := addPackage(bstore, nativePkgDir, nativePkgPath)
+func benchmarkNative(bstore gno.Store, pv *gno.PackageValue) {
 	for range rounds {
 		callOpsBench(bstore, pv)
 	}
 }
+
 func callFunc(gstore gno.Store, pv *gno.PackageValue, cx gno.Expr) []gno.TypedValue {
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -101,10 +115,7 @@ func callFunc(gstore gno.Store, pv *gno.PackageValue, cx gno.Expr) []gno.TypedVa
 	return m.Eval(cx)
 }
 
-// addPacakge
-
 func addPackage(gstore gno.Store, dir string, pkgPath string) *gno.PackageValue {
-	// load benchmark contract
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath: "",
@@ -115,7 +126,6 @@ func addPackage(gstore gno.Store, dir string, pkgPath string) *gno.PackageValue 
 
 	mpkg := gno.MustReadMemPackage(dir, pkgPath, gno.MPAnyProd)
 
-	// pare the file, create pn, pv and save the values in m.store
 	_, pv := m.RunMemPackage(mpkg, true)
 
 	return pv
