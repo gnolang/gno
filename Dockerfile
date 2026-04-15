@@ -1,5 +1,5 @@
 # setup gnocore basics
-FROM        golang:1.24-alpine AS setup-gnocore
+FROM        docker.io/sw360cab/golang:1.24-alpine AS setup-gnocore
 ARG         TARGETPLATFORM
 ARG         BUILD_VERSION=dev
 ENV         GNOROOT="/gnoroot"
@@ -111,7 +111,7 @@ RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM
             go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o /gnoroot/build/portalloopd ./cmd
 
 # Base image
-FROM        alpine:3 AS base
+FROM        docker.io/sw360cab/alpine:3 AS base
 WORKDIR     /gnoroot
 ENV         GNOROOT="/gnoroot"
 RUN         apk add --no-cache ca-certificates
