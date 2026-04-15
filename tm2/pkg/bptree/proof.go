@@ -35,25 +35,30 @@ func (t *ImmutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProo
 	nonexist := &ics23.NonExistenceProof{Key: key}
 
 	// Find the left neighbor (greatest key < key)
-	idx, _, _ := t.GetWithIndex(key)
+	idx, _, err := t.GetWithIndex(key)
+	if err != nil {
+		return nil, fmt.Errorf("GetWithIndex: %w", err)
+	}
 	if idx > 0 {
 		leftKey, _, err := t.GetByIndex(idx - 1)
-		if err == nil {
-			nonexist.Left, err = t.createExistenceProof(leftKey)
-			if err != nil {
-				return nil, fmt.Errorf("left neighbor proof: %w", err)
-			}
+		if err != nil {
+			return nil, fmt.Errorf("left neighbor GetByIndex(%d): %w", idx-1, err)
+		}
+		nonexist.Left, err = t.createExistenceProof(leftKey)
+		if err != nil {
+			return nil, fmt.Errorf("left neighbor proof: %w", err)
 		}
 	}
 
 	// Find the right neighbor (smallest key > key)
 	if idx < t.Size() {
 		rightKey, _, err := t.GetByIndex(idx)
-		if err == nil {
-			nonexist.Right, err = t.createExistenceProof(rightKey)
-			if err != nil {
-				return nil, fmt.Errorf("right neighbor proof: %w", err)
-			}
+		if err != nil {
+			return nil, fmt.Errorf("right neighbor GetByIndex(%d): %w", idx, err)
+		}
+		nonexist.Right, err = t.createExistenceProof(rightKey)
+		if err != nil {
+			return nil, fmt.Errorf("right neighbor proof: %w", err)
 		}
 	}
 
