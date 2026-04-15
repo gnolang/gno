@@ -701,6 +701,102 @@ func TestPrune_ValueIntegrityAfterOverwrite(t *testing.T) {
 	}
 }
 
+// TestPrune_SeparatorKeyRouting verifies that pruning is correct even though
+// findCorrespondingChild uses inner node separator keys (not leftmost leaf
+// keys) for routing. The separator routing may find the wrong peer inner node,
+// but the algorithm self-corrects via root-based re-routing at the leaf level.
+//
+// This test builds a height-3 tree, makes structural changes at height 2
+// (inner node splits), and verifies that pruning doesn't delete shared nodes.
+func TestPrune_SeparatorKeyRouting(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	// V1: Insert enough keys to create a height-2 tree (~1100 keys).
+	// With B=32, this gives ~34 leaves under a single root inner node.
+	for i := 0; i < 1100; i++ {
+		tree.Set(fmt.Appendf(nil, "sk%06d", i), fmt.Appendf(nil, "v1_%06d", i))
+	}
+	hash1, _, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tree.Height() < 2 {
+		t.Skipf("need height >= 2, got %d", tree.Height())
+	}
+
+	// V2: Insert 500 more keys to trigger inner node split at height 1,
+	// creating a height-3 tree. This forces findCorrespondingChild to
+	// route through inner nodes (height 2) using separator keys.
+	for i := 1100; i < 1600; i++ {
+		tree.Set(fmt.Appendf(nil, "sk%06d", i), fmt.Appendf(nil, "v2_%06d", i))
+	}
+	// Also update some V1 keys to create cross-version orphans
+	for i := 0; i < 200; i++ {
+		tree.Set(fmt.Appendf(nil, "sk%06d", i), fmt.Appendf(nil, "v2_upd_%06d", i))
+	}
+	hash2, _, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// V3: More mutations to ensure V2 isn't the latest when pruning V1
+	for i := 0; i < 50; i++ {
+		tree.Set(fmt.Appendf(nil, "sk%06d", i), fmt.Appendf(nil, "v3_%06d", i))
+	}
+	hash3, _, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Prune V1 — this exercises findCorrespondingChild with inner nodes
+	if err := tree.DeleteVersionsTo(1); err != nil {
+		t.Fatalf("prune V1: %v", err)
+	}
+
+	// Verify V2 integrity: reload from DB, check hash and all keys
+	tree2 := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	tree2.LoadVersion(2)
+	if !bytes.Equal(hash2, tree2.WorkingHash()) {
+		t.Fatalf("V2 hash changed after pruning V1")
+	}
+	for i := 0; i < 1600; i++ {
+		key := fmt.Appendf(nil, "sk%06d", i)
+		val, _ := tree2.Get(key)
+		if val == nil {
+			t.Fatalf("V2: key %q missing after prune", key)
+		}
+	}
+
+	// Prune V2 — exercises inner node routing again with V3
+	if err := tree.DeleteVersionsTo(2); err != nil {
+		t.Fatalf("prune V2: %v", err)
+	}
+
+	// Verify V3 integrity
+	tree3 := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	tree3.LoadVersion(3)
+	if !bytes.Equal(hash3, tree3.WorkingHash()) {
+		t.Fatalf("V3 hash changed after pruning V2")
+	}
+	for i := 0; i < 1600; i++ {
+		key := fmt.Appendf(nil, "sk%06d", i)
+		val, _ := tree3.Get(key)
+		if val == nil {
+			t.Fatalf("V3: key %q missing after prune", key)
+		}
+	}
+
+	// Also verify value count is correct (no leaked orphans)
+	expectedValues := 1600 // all keys live in V3
+	actualValues := countDBValues(db)
+	if actualValues != expectedValues {
+		t.Fatalf("after pruning V1+V2: %d values, want %d", actualValues, expectedValues)
+	}
+
+	_ = hash1
+}
+
 func TestPrune_InnerNodeSplit(t *testing.T) {
 	tree := newPruneTree(t)
 
