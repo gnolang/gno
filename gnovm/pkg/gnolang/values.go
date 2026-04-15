@@ -1068,8 +1068,6 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
 		cp.N = tv.N // preserve N_Readonly
-	case StringValue:
-		cp = tv
 	default:
 		cp = tv
 	}
@@ -2190,7 +2188,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		if t == StringType || t == UntypedStringType {
 			return TypedValue{
 				T: tv.T,
-				V: alloc.NewString(tv.GetString()[low:high]),
+				V: alloc.NewStringRef(tv.GetString()[low:high]),
 			}
 		}
 		panic(&Exception{Value: typedString(

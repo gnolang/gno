@@ -35,8 +35,6 @@ type Visitor func(v Value) (stop bool)
 // XXX: make sure tv.T isn't bumped from allocation either.
 // XXX: record original value and verify after GC
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
-	// fmt.Println("==================Start GarbageCollect...............")
-	// fmt.Println("======currBytes: ", m.Alloc.bytes)
 	// times objects are visited for gc
 	var visitCount int64
 
@@ -57,13 +55,11 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	// We don't need the old value anymore.
 	m.Alloc.Reset()
 
-	old := m.Alloc.Fork()
-
 	// This is the only place where it's bumped.
 	m.GCCycle += 1
 
 	// Construct visitor callback.
-	vis := GCVisitorFn(m.GCCycle, m.Alloc, old, &visitCount)
+	vis := GCVisitorFn(m.GCCycle, m.Alloc, &visitCount)
 
 	// Visit blocks
 	for _, block := range m.Blocks {
@@ -124,6 +120,10 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}
 	}
 
+	// Clear remaining string cache entries (dead strings that
+	// were not visited). Prevents leak across GC cycles.
+	m.Alloc.ClearStringCache()
+
 	// Return bytes remaining.
 	maxBytes, bytes := m.Alloc.Status()
 	return maxBytes - bytes, true
@@ -131,15 +131,13 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 // Returns a visitor that bumps the GCCycle counter
 // and stops if alloc is out of memory.
-func GCVisitorFn(gcCycle int64, alloc, old *Allocator, visitCount *int64) Visitor {
+func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 	var vis func(value Value) bool
 
 	vis = func(v Value) bool {
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 		}
-
-		// fmt.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 
 		if oo, isObject := v.(Object); isObject {
 			// Return if already measured.
@@ -154,19 +152,21 @@ func GCVisitorFn(gcCycle int64, alloc, old *Allocator, visitCount *int64) Visito
 
 		*visitCount++ // Count operations for gas calculation
 
-		// Add size to alloc.
-
+		// GetShallowSize returns header-only for strings.
 		size := v.GetShallowSize()
 
-		// special case for StringValue
-		// Count header size only if it's reused;
-		// otherwise, count the underlying string size.
-		// XXX, optimize this for types other than string
+		// Special case for StringValue: string underlying bytes
+		// are raw data, not a Value, so they cannot be counted
+		// via VisitAssociated (which visits child Values).
+		// Instead we count them inline here.
+		// PopStringCached checks if this string was allocated via
+		// NewString and removes the entry. The pop ensures each
+		// backing array's bytes are counted only once — if multiple
+		// StringValues share the same backing (e.g. s1 = s), the
+		// first visit pops the entry and counts bytes, subsequent
+		// visits find nothing and count header only.
 		if sv, ok := v.(StringValue); ok {
-			if exist := old.GetString(string(sv)); !exist {
-				// static do nothing
-			} else {
-				// panic("!!!")
+			if alloc.PopStringCached(string(sv)) {
 				size += allocStringByte * int64(len(sv))
 			}
 		}
@@ -395,6 +395,10 @@ func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
+// VisitAssociated is a no-op for StringValue.
+// String underlying bytes are raw data, not a Value, so they
+// cannot be visited. Byte accounting is handled as a special
+// case in GCVisitorFn using the allocator's string cache.
 func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
