@@ -28,6 +28,11 @@ fi
 
 ADDR="$1"
 
+if [[ ! "$ADDR" =~ ^g1[a-z0-9]{38}$ ]]; then
+  echo "Error: invalid address '${ADDR}' — must be a full, scoped bech32 address (g1...)"
+  exit 1
+fi
+
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
