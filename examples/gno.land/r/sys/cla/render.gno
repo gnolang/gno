@@ -40,8 +40,5 @@ func Render(path string) string {
 
 	out += md.H3("Actions")
 	out += md.Paragraph(helplink.Func("Sign CLA", "Sign", "hash", requiredHash))
-
-	link := helplink.Home() + "#func-Sign"
-	out += md.Paragraph("Or if you prefer to sign using `gnokey` visit the " + md.Link("helper page", link) + " to get the exact command to sign.")
 	return out
 }
