@@ -1766,6 +1766,53 @@ func TestAllRebalancePaths(t *testing.T) {
 		verifyInvariants(t, tree)
 	})
 
+	t.Run("leaf redistribute from right, no stale root separator keys", func(t *testing.T) {
+		tree := NewBPTreeN(4)
+		for _, k := range []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n"} {
+			tree.Set(k, k)
+		}
+		tree.Remove("g") // no underflow
+		tree.Remove("h") // leaf [h,i] underflows and must redistribute from right
+		verifyInvariants(t, tree)
+	})
+
+	t.Run("leaf redistribute from right, no stale inner node separator keys", func(t *testing.T) {
+		tree := NewBPTreeN(4)
+		for _, k := range []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q"} {
+			tree.Set(k, k)
+		}
+		tree.Remove("g") // no underflow
+		tree.Remove("j") // no underflow
+		tree.Remove("k") // leaf [k,l] underflows and must redistribute from right
+		verifyInvariants(t, tree)
+	})
+
+	t.Run("stale separator, middle leaf pos0 redistribute from right", func(t *testing.T) {
+		// Exercises the core bug: remove pos=0 from a middle leaf (childIdx > 0),
+		// where left sibling is at minimum (can't redistribute left) and right
+		// sibling has surplus (redistribute right fires). Without the fix,
+		// parent.keys[childIdx-1] remains stale.
+		//
+		// After inserting a-k with fanout=4, tree is:
+		//   root keys=["d","g","j"]
+		//   children=[["a","b","c"], ["d","e","f"], ["g","h","i"], ["j","k"]]
+		//
+		// Remove "a" thins children[0] to ["b","c"] (at minimum).
+		// Remove "f" thins children[1] to ["d","e"] (at minimum).
+		// Remove "d" is pos=0 from children[1], causing underflow to ["e"].
+		//   Left sibling ["b","c"] has 2 = minKeys, can't spare.
+		//   Right sibling ["g","h","i"] has 3 > minKeys, redistribute right fires.
+		//   Without fix: keys[0] stays "d" (stale). With fix: updated to "e".
+		tree := NewBPTreeN(4)
+		for _, k := range []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"} {
+			tree.Set(k, k)
+		}
+		tree.Remove("a") // thin left sibling to minimum
+		tree.Remove("f") // thin target leaf to minimum
+		tree.Remove("d") // pos=0, underflow, triggers redistribute from right
+		verifyInvariants(t, tree)
+	})
+
 	t.Run("leaf merge", func(t *testing.T) {
 		tree := NewBPTreeN(4)
 		for _, k := range []string{"a", "b", "c", "d", "e"} {

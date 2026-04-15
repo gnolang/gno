@@ -56,7 +56,7 @@ type IterCbFn func(key string, value any) bool
 ```go
 type leafNode struct {
     keys   []string  // sorted, len <= fanout
-    values []any     // parallel to keys
+    values []*any    // parallel to keys
 }
 ```
 
@@ -78,7 +78,6 @@ type innerNode struct {
     keys     []string // separator keys, len = len(children)-1
     children []node   // child pointers, len <= fanout
     sizes    []int    // sizes[i] = total leaf count in children[i] subtree
-    size     int      // cached sum of sizes[] (avoids O(fanout) recomputation)
 }
 ```
 
@@ -94,13 +93,12 @@ Minimum occupancy: `fanout/2` children (except root, which may have as few as 2)
 type node interface {
     isLeaf() bool
     numKeys() int     // number of keys (leaf: entries, inner: separators)
-    nodeSize() int    // total leaf entries in subtree (O(1) for both types)
+    nodeSize() int    // total leaf entries in subtree
     minKey() string   // leftmost key in subtree
 }
 ```
 
-`nodeSize()` is O(1): leafNode returns `len(keys)`, innerNode returns
-the cached `size` field. Updated during insert/remove/split/merge/redistribute.
+`nodeSize()`: leafNode returns `len(keys)` (O(1)), innerNode sums `sizes[]` (O(fanout)).
 
 Used internally so tree methods can handle both node types polymorphically.
 Type assertions to `*leafNode` or `*innerNode` are used when accessing
@@ -187,9 +185,9 @@ child index. At the leaf, binary search `keys` for exact match.
    Move left sibling's last `sizes` entry to the front of deficient's sizes too.
 3. Push up left sibling's last key to replace parent's `keys[childIdx-1]`.
 4. Remove left sibling's last key, last child, and last size entry.
-5. Update `size` cache on both siblings. Update parent's `sizes[childIdx-1]`
-   and `sizes[childIdx]` to reflect the new child sizes. (Parent's total `size`
-   is unchanged since we just moved entries between siblings.)
+5. Update parent's `sizes[childIdx-1]` and `sizes[childIdx]` to reflect
+   the new child sizes. (Parent's total size is unchanged since we just
+   moved entries between siblings.)
 
 **Redistribute from right sibling to deficient child (both inner nodes):**
 1. Pull down parent's separator `keys[childIdx]` — **append** it to deficient child's keys
@@ -198,16 +196,14 @@ child index. At the leaf, binary search `keys` for exact match.
    Move right sibling's first `sizes` entry to the end of deficient's sizes too.
 3. Push up right sibling's first key to replace parent's `keys[childIdx]`.
 4. Remove right sibling's first key, first child, and first size entry.
-5. Update `size` cache on both siblings. Update parent's `sizes[childIdx]`
-   and `sizes[childIdx+1]` to reflect the new child sizes. (Parent's total `size`
-   is unchanged.)
+5. Update parent's `sizes[childIdx]` and `sizes[childIdx+1]` to reflect
+   the new child sizes. (Parent's total size is unchanged.)
 
 **Merge two inner nodes:**
 1. Pull down the parent's separator between them into the left node's keys.
 2. Append all of right node's keys, children, and sizes to left node.
-3. Update left node's `size` cache.
-4. Remove right child and its separator from parent.
-5. Update parent's `sizes` and `size` cache.
+3. Remove right child and its separator from parent.
+4. Update parent's `sizes` for the merged left child.
 
 ### GetByIndex
 

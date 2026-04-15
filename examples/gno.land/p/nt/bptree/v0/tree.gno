@@ -26,7 +26,7 @@ type BPTree struct {
 }
 
 // NewBPTreeN creates a new empty B+ tree with the given fanout.
-// Fanout must be >= 4.
+// It panics when fanout is lower than 4.
 func NewBPTreeN(fanout int) *BPTree {
 	if fanout < 4 {
 		panic("bptree: fanout must be >= 4")
@@ -309,6 +309,11 @@ func (t *BPTree) Remove(key string) (value any, removed bool) {
 	if len(leaf.keys) >= minKeys {
 		t.updateSeparator(path)
 		return value, true
+	}
+
+	// If the minimum key was removed, fix ancestor separators before rebalancing.
+	if pos == 0 {
+		t.updateSeparator(path)
 	}
 
 	// Rebalance.
