@@ -307,7 +307,6 @@ Checks if the receiver realm has an ephemeral package path (i.e. under `/e/`).
 ```go
 if r.IsEphemeral() {...}
 ```
-
 ---
 
 ### CoinDenom

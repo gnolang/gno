@@ -122,6 +122,10 @@ func (alloc *Allocator) Recount(size int64) {
 	alloc.bytes += size
 }
 
+// Fork creates a new Allocator with the same limits but no gasMeter
+// or GC callback. The caller must set these via SetGasMeter/SetGCFn
+// if gas charging or GC is needed (e.g. for transactions).
+// Query contexts intentionally omit the gasMeter.
 func (alloc *Allocator) Fork() *Allocator {
 	if alloc == nil {
 		return nil
@@ -353,6 +357,9 @@ func (alloc *Allocator) NewStructWithFields(fields ...TypedValue) *StructValue {
 }
 
 func (alloc *Allocator) NewMap(size int) *MapValue {
+	if size < 0 {
+		size = 0
+	}
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
 	mv.MakeMap(size)

@@ -176,12 +176,12 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
 	if rlm == nil {
 		return
+	}
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.RealmDidUpdate)
+		defer func() { bm.StopStore(bm.RealmDidUpdate, oldCPU, oldStore, 0) }()
 	}
 	if debugRealm {
 		if co != nil && co.GetIsDeleted() {
@@ -340,9 +340,9 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(store Store) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
+	if bm.Enabled {
+		oldCPU, oldStore := bm.StartStore(bm.RealmFinalizeTx)
+		defer func() { bm.StopStore(bm.RealmFinalizeTx, oldCPU, oldStore, 0) }()
 	}
 
 	if debugRealm {
@@ -1006,7 +1006,7 @@ func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]str
 		}
 	case FieldType:
 		rlm.assertTypeIsPublic(store, tt.Type, visited)
-	case *SliceType, *ArrayType, *ChanType, *PointerType:
+	case *SliceType, *ArrayType, *PointerType:
 		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
 	case *tupleType:
 		for _, et := range tt.Elts {
@@ -1287,11 +1287,6 @@ func copyTypeWithRefs(typ Type) Type {
 		return dt
 	case *PackageType:
 		return &PackageType{}
-	case *ChanType:
-		return &ChanType{
-			Dir: ct.Dir,
-			Elt: refOrCopyType(ct.Elt),
-		}
 	case blockType:
 		return blockType{}
 	case *tupleType:
@@ -1552,9 +1547,6 @@ func fillType(store Store, typ Type) Type {
 		}
 	case *PackageType:
 		return ct // nothing to do
-	case *ChanType:
-		ct.Elt = fillType(store, ct.Elt)
-		return ct
 	case blockType:
 		return ct // nothing to do
 	case *tupleType:
