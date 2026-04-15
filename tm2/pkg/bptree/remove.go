@@ -76,7 +76,7 @@ func innerRemove(inner *InnerNode, key []byte) removeResult {
 		return res
 	}
 
-	inner.size--
+	inner.childSizes[childIdx]--
 	inner.childHashes[childIdx] = child.Hash()
 
 	if !res.underflow {
@@ -172,8 +172,10 @@ func redistributeRight(parent *InnerNode, idx int) {
 		l.keys[lastIdx] = nil
 		l.valueHashes[lastIdx] = Hash{}
 		l.numKeys--
-		// Update separator
+		// Update separator and parent childSizes
 		parent.keys[idx] = copyKey(r.keys[0])
+		parent.childSizes[idx]--
+		parent.childSizes[idx+1]++
 		l.RebuildMiniMerkle()
 		r.RebuildMiniMerkle()
 		parent.childHashes[idx] = l.Hash()
@@ -183,9 +185,9 @@ func redistributeRight(parent *InnerNode, idx int) {
 		r := right.(*InnerNode)
 		lastKeyIdx := int(l.numKeys) - 1
 		lastChildIdx := int(l.numKeys)
+		movedSize := l.childSizes[lastChildIdx]
 		movedChild := l.childNodes[lastChildIdx]
-		movedSize := nodeSize(movedChild)
-		// Shift right's entries
+		// Shift right's entries (including childSizes)
 		rn := int(r.numKeys)
 		for i := rn; i > 0; i-- {
 			r.keys[i] = r.keys[i-1]
@@ -194,21 +196,25 @@ func redistributeRight(parent *InnerNode, idx int) {
 			r.childNodes[i] = r.childNodes[i-1]
 			r.children[i] = r.children[i-1]
 			r.childHashes[i] = r.childHashes[i-1]
+			r.childSizes[i] = r.childSizes[i-1]
 		}
 		// Demote separator, promote left's last key
 		r.keys[0] = parent.keys[idx]
 		r.childNodes[0] = movedChild
 		r.children[0] = l.children[lastChildIdx]
 		r.childHashes[0] = l.childHashes[lastChildIdx]
+		r.childSizes[0] = movedSize
 		r.numKeys++
-		r.size += movedSize
 		parent.keys[idx] = l.keys[lastKeyIdx]
 		l.keys[lastKeyIdx] = nil
 		l.childNodes[lastChildIdx] = nil
 		l.children[lastChildIdx] = nil
 		l.childHashes[lastChildIdx] = Hash{}
+		l.childSizes[lastChildIdx] = 0
 		l.numKeys--
-		l.size -= movedSize
+		// Update parent's view of these children's sizes
+		parent.childSizes[idx] -= movedSize
+		parent.childSizes[idx+1] += movedSize
 		l.RebuildMiniMerkle()
 		r.RebuildMiniMerkle()
 		parent.childHashes[idx] = l.Hash()
@@ -239,6 +245,8 @@ func redistributeLeft(parent *InnerNode, idx int) {
 		r.valueHashes[rn-1] = Hash{}
 		r.numKeys--
 		parent.keys[idx] = copyKey(r.keys[0])
+		parent.childSizes[idx]++
+		parent.childSizes[idx+1]--
 		l.RebuildMiniMerkle()
 		r.RebuildMiniMerkle()
 		parent.childHashes[idx] = l.Hash()
@@ -246,17 +254,18 @@ func redistributeLeft(parent *InnerNode, idx int) {
 
 	case *InnerNode:
 		l := left.(*InnerNode)
+		movedSize := r.childSizes[0]
 		movedChild := r.childNodes[0]
-		movedSize := nodeSize(movedChild)
 		// Demote separator to end of left, promote right's first key
 		l.keys[l.numKeys] = parent.keys[idx]
-		l.childNodes[l.NumChildren()] = movedChild
-		l.children[l.NumChildren()] = r.children[0]
-		l.childHashes[l.NumChildren()] = r.childHashes[0]
+		lnc := l.NumChildren()
+		l.childNodes[lnc] = movedChild
+		l.children[lnc] = r.children[0]
+		l.childHashes[lnc] = r.childHashes[0]
+		l.childSizes[lnc] = movedSize
 		l.numKeys++
-		l.size += movedSize
 		parent.keys[idx] = r.keys[0]
-		// Shift right left
+		// Shift right left (including childSizes)
 		rn := int(r.numKeys)
 		for i := 0; i < rn-1; i++ {
 			r.keys[i] = r.keys[i+1]
@@ -265,13 +274,17 @@ func redistributeLeft(parent *InnerNode, idx int) {
 			r.childNodes[i] = r.childNodes[i+1]
 			r.children[i] = r.children[i+1]
 			r.childHashes[i] = r.childHashes[i+1]
+			r.childSizes[i] = r.childSizes[i+1]
 		}
 		r.childNodes[rn] = nil
 		r.children[rn] = nil
 		r.childHashes[rn] = Hash{}
+		r.childSizes[rn] = 0
 		r.keys[rn-1] = nil
 		r.numKeys--
-		r.size -= movedSize
+		// Update parent's view of these children's sizes
+		parent.childSizes[idx] += movedSize
+		parent.childSizes[idx+1] -= movedSize
 		l.RebuildMiniMerkle()
 		r.RebuildMiniMerkle()
 		parent.childHashes[idx] = l.Hash()
@@ -305,19 +318,21 @@ func merge(parent *InnerNode, idx int) {
 			l.keys[l.numKeys] = r.keys[i]
 			l.numKeys++
 		}
-		// Children: left already has some, append right's
+		// Children: left already has some, append right's (including childSizes)
 		leftChildBase := int(l.numKeys) - int(r.numKeys) // position after demoted separator
 		for i := 0; i < r.NumChildren(); i++ {
 			l.childNodes[leftChildBase+i] = r.childNodes[i]
 			l.children[leftChildBase+i] = r.children[i]
 			l.childHashes[leftChildBase+i] = r.childHashes[i]
+			l.childSizes[leftChildBase+i] = r.childSizes[i]
 		}
-		l.size += r.size
 		l.RebuildMiniMerkle()
 	}
 
 	// Remove separator and right child from parent
 	pn := int(parent.numKeys)
+	// Update parent's childSizes for the merged child
+	parent.childSizes[idx] = parent.childSizes[idx] + parent.childSizes[idx+1]
 	for i := idx; i < pn-1; i++ {
 		parent.keys[i] = parent.keys[i+1]
 	}
@@ -326,10 +341,12 @@ func merge(parent *InnerNode, idx int) {
 		parent.childNodes[i] = parent.childNodes[i+1]
 		parent.children[i] = parent.children[i+1]
 		parent.childHashes[i] = parent.childHashes[i+1]
+		parent.childSizes[i] = parent.childSizes[i+1]
 	}
 	parent.childNodes[pn] = nil
 	parent.children[pn] = nil
 	parent.childHashes[pn] = Hash{}
+	parent.childSizes[pn] = 0
 	parent.numKeys--
 	parent.childHashes[idx] = left.Hash()
 }

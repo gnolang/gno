@@ -661,7 +661,7 @@ func TestNodeSerialization_InnerBasic(t *testing.T) {
 	inner := &InnerNode{
 		nodeKey: &NodeKey{Version: 1, Nonce: 2},
 		numKeys: 2,
-		size:    100,
+		childSizes: [B]int64{50, 50},
 		height:  1,
 	}
 	inner.keys[0] = []byte("key1")
@@ -682,7 +682,7 @@ func TestNodeSerialization_InnerBasic(t *testing.T) {
 		t.Fatalf("ReadNode: %v", err)
 	}
 	inner2 := node.(*InnerNode)
-	if inner2.numKeys != 2 || inner2.size != 100 || inner2.height != 1 {
+	if inner2.numKeys != 2 || nodeSize(inner2) != 100 || inner2.height != 1 {
 		t.Fatalf("metadata mismatch")
 	}
 	if !bytes.Equal(inner2.keys[0], []byte("key1")) {
@@ -733,7 +733,7 @@ func TestNodeSerialization_EmptyInner(t *testing.T) {
 	inner := &InnerNode{
 		nodeKey: &NodeKey{Version: 1, Nonce: 1},
 		numKeys: 0,
-		size:    5,
+		childSizes: [B]int64{5},
 		height:  1,
 	}
 	inner.children[0] = (&NodeKey{Version: 1, Nonce: 10}).GetKey()
@@ -758,7 +758,7 @@ func TestNodeSerialization_FullInner(t *testing.T) {
 	inner := &InnerNode{
 		nodeKey: &NodeKey{Version: 1, Nonce: 1},
 		numKeys: B - 1,
-		size:    1000,
+		childSizes: [B]int64{1000},
 		height:  2,
 	}
 	for i := 0; i < B-1; i++ {
@@ -878,7 +878,7 @@ func TestInnerNode_Clone(t *testing.T) {
 	inner := &InnerNode{
 		nodeKey: &NodeKey{Version: 1, Nonce: 1},
 		numKeys: 2,
-		size:    50,
+		childSizes: [B]int64{25, 25},
 		height:  1,
 	}
 	inner.keys[0] = []byte("a")
@@ -888,7 +888,7 @@ func TestInnerNode_Clone(t *testing.T) {
 	if cloned.nodeKey != nil {
 		t.Fatalf("cloned nodeKey should be nil")
 	}
-	if cloned.numKeys != 2 || cloned.size != 50 {
+	if cloned.numKeys != 2 || nodeSize(cloned) != 50 {
 		t.Fatalf("cloned metadata mismatch")
 	}
 	// Modifying clone should not affect original
@@ -1018,7 +1018,7 @@ func TestInnerNode_CloneChildIsolation(t *testing.T) {
 	inner := &InnerNode{
 		nodeKey: &NodeKey{Version: 1, Nonce: 1},
 		numKeys: 1,
-		size:    10,
+		childSizes: [B]int64{5, 5},
 		height:  1,
 	}
 	inner.children[0] = (&NodeKey{Version: 1, Nonce: 10}).GetKey()
@@ -1049,7 +1049,7 @@ func TestInnerNode_CloneMiniTreeIsolation(t *testing.T) {
 	inner := &InnerNode{
 		nodeKey:  &NodeKey{Version: 1, Nonce: 1},
 		numKeys:  1,
-		size:     10,
+		childSizes: [B]int64{5, 5},
 		height:   1,
 		miniTree: NewMiniMerkle(),
 	}
@@ -1074,7 +1074,7 @@ func TestReadNode_TruncatedInner(t *testing.T) {
 	inner := &InnerNode{
 		nodeKey: &NodeKey{Version: 1, Nonce: 1},
 		numKeys: 3,
-		size:    100,
+		childSizes: [B]int64{50, 50},
 		height:  1,
 	}
 	for i := 0; i < 3; i++ {
@@ -1299,7 +1299,7 @@ func TestNodeSerialization_InnerGoldenBytes(t *testing.T) {
 	inner := &InnerNode{
 		nodeKey: &NodeKey{Version: 1, Nonce: 1},
 		numKeys: 1,
-		size:    42,
+		childSizes: [B]int64{42},
 		height:  1,
 	}
 	inner.keys[0] = []byte("sep")

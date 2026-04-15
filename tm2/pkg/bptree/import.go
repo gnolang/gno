@@ -96,15 +96,13 @@ func (imp *Importer) Add(node *ExportNode) error {
 			inner.keys[i] = append([]byte(nil), node.SeparatorKeys[i]...)
 		}
 
-		// Set children: compute size and childHashes
-		var totalSize int64
+		// Set children: compute childSizes and childHashes
 		for i := range numChildren {
 			child := children[i]
 			inner.childNodes[i] = child
 			inner.childHashes[i] = child.Hash()
-			totalSize += nodeSize(child)
+			inner.childSizes[i] = nodeSize(child)
 		}
-		inner.size = totalSize
 		inner.RebuildMiniMerkle()
 
 		imp.stack = imp.stack[:len(imp.stack)-numChildren]

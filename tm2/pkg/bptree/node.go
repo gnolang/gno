@@ -21,7 +21,7 @@ type Node interface {
 type InnerNode struct {
 	nodeKey     *NodeKey
 	numKeys     int16
-	size        int64 // total leaf count in subtree
+	childSizes  [B]int64 // leaf count per child subtree; total = sum(childSizes[:numKeys+1])
 	height      int16 // levels above leaf level (parent of leaves = 1)
 	keys        [B - 1][]byte
 	children    [B][]byte    // serialized NodeKey references (12 bytes each), used for persistence
@@ -155,9 +155,12 @@ func (n *InnerNode) Serialize(w io.Writer) error {
 	if err := writeUvarint(w, uint64(n.numKeys)); err != nil {
 		return err
 	}
-	// size
-	if err := writeVarint(w, n.size); err != nil {
-		return err
+	// childSizes (numKeys+1 entries)
+	nc := n.NumChildren()
+	for i := 0; i < nc; i++ {
+		if err := writeVarint(w, n.childSizes[i]); err != nil {
+			return err
+		}
 	}
 	// height
 	if err := writeUvarint(w, uint64(n.height)); err != nil {
@@ -170,7 +173,6 @@ func (n *InnerNode) Serialize(w io.Writer) error {
 		}
 	}
 	// children (numKeys+1 NodeKey refs)
-	nc := n.NumChildren()
 	for i := 0; i < nc; i++ {
 		if _, err := w.Write(n.children[i]); err != nil {
 			return err
@@ -234,9 +236,12 @@ func readInnerNode(nk *NodeKey, r *bytes.Reader) (_ *InnerNode, err error) {
 		return nil, fmt.Errorf("inner numKeys %d out of range [0,%d]", n.numKeys, B-1)
 	}
 
-	n.size, err = binary.ReadVarint(r)
-	if err != nil {
-		return nil, fmt.Errorf("reading size: %w", err)
+	nc := n.NumChildren()
+	for i := 0; i < nc; i++ {
+		n.childSizes[i], err = binary.ReadVarint(r)
+		if err != nil {
+			return nil, fmt.Errorf("reading childSize %d: %w", i, err)
+		}
 	}
 
 	height, err := binary.ReadUvarint(r)
@@ -252,7 +257,6 @@ func readInnerNode(nk *NodeKey, r *bytes.Reader) (_ *InnerNode, err error) {
 		}
 	}
 
-	nc := n.NumChildren()
 	for i := 0; i < nc; i++ {
 		n.children[i] = make([]byte, NodeKeySize)
 		if _, err := io.ReadFull(r, n.children[i]); err != nil {

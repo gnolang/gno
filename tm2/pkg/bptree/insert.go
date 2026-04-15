@@ -30,7 +30,8 @@ func treeInsert(root Node, key []byte, valueHash Hash) (Node, bool) {
 		newRoot.childNodes[1] = sr.right
 		newRoot.childHashes[0] = root.Hash()
 		newRoot.childHashes[1] = sr.right.Hash()
-		newRoot.size = nodeSize(root) + nodeSize(sr.right)
+		newRoot.childSizes[0] = nodeSize(root)
+		newRoot.childSizes[1] = nodeSize(sr.right)
 		newRoot.RebuildMiniMerkle()
 		return newRoot, res.updated
 	}
@@ -111,7 +112,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash) insertResult {
 	res := nodeInsert(child, key, valueHash)
 
 	if !res.updated {
-		inner.size++
+		inner.childSizes[childIdx]++
 	}
 
 	// Update child hash
@@ -134,17 +135,21 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash) insertResult {
 			inner.childNodes[i+1] = inner.childNodes[i]
 			inner.children[i+1] = inner.children[i]
 			inner.childHashes[i+1] = inner.childHashes[i]
+			inner.childSizes[i+1] = inner.childSizes[i]
 		}
 		inner.keys[childIdx] = sr.separator
 		inner.childNodes[childIdx+1] = sr.right
 		inner.children[childIdx+1] = nil
 		inner.childHashes[childIdx+1] = rightChildHash
+		inner.childSizes[childIdx] = nodeSize(child)
+		inner.childSizes[childIdx+1] = nodeSize(sr.right)
 		inner.numKeys++
 		inner.RebuildMiniMerkle()
 		return insertResult{updated: res.updated}
 	}
 
-	// Inner node is full (numKeys == B-1) — need to split
+	// Inner node is full (numKeys == B-1) — need to split.
+	// Build allSizes from childSizes (no child loading needed).
 	allKeys := make([][]byte, B)
 	allChildNodes := make([]Node, B+1)
 	allChildHashes := make([]Hash, B+1)
@@ -163,17 +168,26 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash) insertResult {
 	allChildHashes[childIdx+1] = rightChildHash
 	copy(allChildHashes[childIdx+2:], inner.childHashes[childIdx+1:B])
 
-	for i := 0; i < B+1; i++ {
-		allSizes[i] = nodeSize(allChildNodes[i])
-	}
+	// Build sizes from childSizes — the split child's sizes are known from
+	// the in-memory nodes; all others come from childSizes (no disk read).
+	copy(allSizes[:childIdx], inner.childSizes[:childIdx])
+	allSizes[childIdx] = nodeSize(child)      // post-split left (loaded)
+	allSizes[childIdx+1] = nodeSize(sr.right) // new right (in memory)
+	copy(allSizes[childIdx+2:], inner.childSizes[childIdx+1:B])
 
-	// Use children=nil for splitInner (in-memory, no serialized refs)
-	allChildRefs := make([][]byte, B+1) // all nil
+	// Build serialized child refs — preserve refs for unloaded children
+	allChildRefs := make([][]byte, B+1)
+	copy(allChildRefs[:childIdx+1], inner.children[:childIdx+1])
+	allChildRefs[childIdx] = nil   // loaded & cloned; ref is stale
+	allChildRefs[childIdx+1] = nil // sr.right is new; no serialized ref
+	copy(allChildRefs[childIdx+2:], inner.children[childIdx+1:B])
 	leftInner, innerSR := splitInner(allKeys, allChildRefs, allChildHashes, inner.height, allSizes)
 
-	// Wire up child nodes for left
+	// Wire up child nodes for left, preserving ndb from the original node
+	savedNdb := inner.ndb
 	*inner = *leftInner //nolint:govet // intentional copy; mutex re-initialized below
 	inner.childMu = sync.Mutex{}
+	inner.ndb = savedNdb
 	for i := 0; i < inner.NumChildren(); i++ {
 		inner.childNodes[i] = allChildNodes[i]
 	}
@@ -181,6 +195,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash) insertResult {
 
 	// Wire up child nodes for right
 	rightInner := innerSR.right.(*InnerNode)
+	rightInner.ndb = savedNdb
 	splitIdx := int(inner.numKeys) + 1 // separator was consumed
 	for i := 0; i < rightInner.NumChildren(); i++ {
 		rightInner.childNodes[i] = allChildNodes[splitIdx+i]
@@ -215,7 +230,11 @@ func nodeHeight(n Node) int16 {
 func nodeSize(n Node) int64 {
 	switch n := n.(type) {
 	case *InnerNode:
-		return n.size
+		var s int64
+		for i := 0; i < n.NumChildren(); i++ {
+			s += n.childSizes[i]
+		}
+		return s
 	case *LeafNode:
 		return int64(n.numKeys)
 	default:

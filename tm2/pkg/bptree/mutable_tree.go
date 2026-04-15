@@ -626,9 +626,9 @@ func treeGetByIndex(node Node, index int64) ([]byte, Hash) {
 	case *InnerNode:
 		offset := int64(0)
 		for i := 0; i < n.NumChildren(); i++ {
-			child := n.getChild(i)
-			childSize := nodeSize(child)
+			childSize := n.childSizes[i]
 			if index < offset+childSize {
+				child := n.getChild(i)
 				return treeGetByIndex(child, index-offset)
 			}
 			offset += childSize
@@ -651,7 +651,7 @@ func treeGetWithIndex(node Node, key []byte) (int64, Hash, bool) {
 		childIdx := searchInner(n, key)
 		offset := int64(0)
 		for i := 0; i < childIdx; i++ {
-			offset += nodeSize(n.getChild(i))
+			offset += n.childSizes[i]
 		}
 		child := n.getChild(childIdx)
 		idx, vh, found := treeGetWithIndex(child, key)

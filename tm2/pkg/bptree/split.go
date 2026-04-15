@@ -61,7 +61,7 @@ func splitInner(keys [][]byte, children [][]byte, childHashes []Hash, height int
 	copy(left.keys[:], keys[:splitPoint])
 	copy(left.children[:], children[:splitPoint+1])
 	copy(left.childHashes[:], childHashes[:splitPoint+1])
-	left.size = sumSizes(sizes[:splitPoint+1])
+	copy(left.childSizes[:], sizes[:splitPoint+1])
 
 	// The separator is keys[splitPoint] — consumed, not in either node
 	sep := keys[splitPoint]
@@ -76,7 +76,7 @@ func splitInner(keys [][]byte, children [][]byte, childHashes []Hash, height int
 	copy(right.keys[:], rightKeys)
 	copy(right.children[:], rightChildren)
 	copy(right.childHashes[:], rightChildHashes)
-	right.size = sumSizes(rightSizes)
+	copy(right.childSizes[:], rightSizes)
 
 	return left, splitResult{
 		separator: sep,
