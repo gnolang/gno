@@ -172,8 +172,7 @@ func (t *MutableTree) walkAndPrune(oldNode, newNode, newRoot Node) error {
 		}
 		child, err := t.ndb.GetNode(oldInner.children[i])
 		if err != nil {
-			// Node may have been deleted in a previous iteration — skip
-			continue
+			return fmt.Errorf("loading old child %d: %w", i, err)
 		}
 
 		// Find the corresponding child in the new tree by routing from the
@@ -262,7 +261,7 @@ func (t *MutableTree) deleteAllNodesForVersion(v int64) error {
 	}
 	root, err := t.ndb.GetNode(nkBytes)
 	if err != nil {
-		return nil // node may already be deleted
+		return fmt.Errorf("loading root node for v%d: %w", v, err)
 	}
 	return t.deleteSubtree(root)
 }
@@ -281,7 +280,7 @@ func (t *MutableTree) deleteSubtree(node Node) error {
 			if inner.children[i] != nil {
 				child, err := t.ndb.GetNode(inner.children[i])
 				if err != nil {
-					continue // may be already deleted (shared with another version)
+					return fmt.Errorf("loading child %d in deleteSubtree: %w", i, err)
 				}
 				if err := t.deleteSubtree(child); err != nil {
 					return err
