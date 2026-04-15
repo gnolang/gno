@@ -6,9 +6,10 @@ func main() {
 		println("recover:", r)
 	}()
 
-	var p *int
-	println(*p)
+	s := []int{1, 2, 3}
+	high := 5
+	_ = s[0:high:3]
 }
 
 // Output:
-// recover: runtime error: nil pointer dereference
+// recover: runtime error: invalid slice index 5 > 3
