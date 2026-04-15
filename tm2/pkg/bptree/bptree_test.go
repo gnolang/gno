@@ -51,6 +51,25 @@ func TestEmptyTreeHash(t *testing.T) {
 	}
 }
 
+func TestSetEmptyValue(t *testing.T) {
+	// Set(key, []byte{}) must round-trip correctly — not return nil.
+	tree := NewMutableTreeMem()
+	_, err := tree.Set([]byte("k"), []byte{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	val, err := tree.Get([]byte("k"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if val == nil {
+		t.Fatal("Get returned nil for empty value; expected []byte{}")
+	}
+	if len(val) != 0 {
+		t.Fatalf("Get returned %x, expected empty slice", val)
+	}
+}
+
 func TestConstants(t *testing.T) {
 	if B != 32 {
 		t.Fatalf("B = %d, want 32", B)

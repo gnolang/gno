@@ -73,7 +73,9 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 				return false, err
 			}
 		} else if t.memValues != nil {
-			t.memValues[valueHash] = append([]byte(nil), value...)
+			valCopy := make([]byte, len(value))
+			copy(valCopy, value)
+			t.memValues[valueHash] = valCopy
 		}
 		return false, nil
 	}
@@ -91,7 +93,9 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 			return updated, err
 		}
 	} else if t.memValues != nil {
-		t.memValues[valueHash] = append([]byte(nil), value...)
+		valCopy := make([]byte, len(value))
+		copy(valCopy, value)
+		t.memValues[valueHash] = valCopy
 	}
 	return updated, nil
 }
