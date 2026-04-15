@@ -301,13 +301,12 @@ if r.IsUserCall() {...}
 
 ### IsEphemeral
 
-Checks if the receiver realm is a user realm, given by a `MsgCall` transaction.
+Checks if the receiver realm is an ephemeral realm.
 
 ##### Usage
 ```go
-if r.IsUserCall() {...}
+if r.IsEphemeral() {...}
 ```
-
 ---
 
 ### CoinDenom
