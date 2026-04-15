@@ -151,7 +151,7 @@ These testnets are deprecated and currently serve as archives of previous progre
 
 ### Test10 (archive)
 
-Test9 is the testnet released on the 18th of December, 2025.
+Test10 is the testnet released on the 18th of December, 2025.
 
 ### Test9 (archive)
 
