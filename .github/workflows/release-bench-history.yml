@@ -4,12 +4,12 @@ on:
   push:
     branches:
       - master
-      - chain/*
     paths:
       - contribs/**/*.go
       - gno.land/**/*.go
       - gnovm/**/*.go
       - tm2/**/*.go
+  workflow_dispatch:
 
 permissions:
   contents: read
