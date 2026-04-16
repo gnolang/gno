@@ -9,9 +9,7 @@ WORKDIR     /gnoroot
 RUN         apk add --no-cache git
 # Mod files
 COPY        go.mod go.sum ./
-RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
-            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
-            go mod download -x
+RUN         go mod download -x
 COPY        . ./
 # Build version is provided by the caller (CI computes it from git outside the image).
 RUN         echo "${BUILD_VERSION}" > /gnoroot/build_version
