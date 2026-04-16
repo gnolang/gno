@@ -434,6 +434,17 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			}
 		}
 
+		// Genesis-mode txs (no metadata or BlockHeight == 0) were signed with
+		// the original chain ID. During a hardfork (PastChainIDs is set), we
+		// need to verify their signatures against the original chain ID, not
+		// the new one. Use the first PastChainID as the signing context.
+		if (metadata == nil || metadata.BlockHeight == 0) && len(state.PastChainIDs) > 0 {
+			originalChainID := state.PastChainIDs[0]
+			ctxFn = func(ctx sdk.Context) sdk.Context {
+				return ctx.WithChainID(originalChainID)
+			}
+		}
+
 		// For historical txs with signer metadata, force-set account state
 		// so signature verification succeeds even if prior txs diverged.
 		// Uses pre-tx sequence — the value the signature was signed with.

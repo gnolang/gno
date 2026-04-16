@@ -106,11 +106,15 @@ func SaveState(db dbm.DB, state State) {
 
 func saveState(db dbm.DB, state State, key []byte) {
 	nextHeight := state.LastBlockHeight + 1
-	// If first block, save validators for block 1.
-	if nextHeight == 1 {
+	// If first block, save validators for block 1 (or InitialHeight when > 1).
+	// With InitialHeight > 1 (chain upgrades), LastBlockHeight is set to
+	// InitialHeight-1 after InitChainer, so nextHeight == InitialHeight.
+	// We must save validators at that height so the second block's
+	// getBeginBlockLastCommitInfo can load them.
+	if nextHeight == 1 || (state.LastBlockHeight > 0 && loadValidatorsInfo(db, nextHeight) == nil) {
 		// This extra logic due to Tendermint validator set changes being delayed 1 block.
 		// It may get overwritten due to InitChain validator updates.
-		lastHeightVoteChanged := int64(1)
+		lastHeightVoteChanged := nextHeight
 		saveValidatorsInfo(db, nextHeight, lastHeightVoteChanged, state.Validators)
 	}
 	// Save next validators.
