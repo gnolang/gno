@@ -295,6 +295,14 @@ type FuzzUnsafeFloat struct {
 	Count   int32
 }
 
+// FuzzFixedInt: exercises binary:"fixed64" on bare int/uint types (not just
+// int64/uint64). Catches marshal/unmarshal wire-format divergence.
+// Note: binary:"fixed32" on int/uint is rejected by amino's ValidateBasic.
+type FuzzFixedInt struct {
+	I64 int  `binary:"fixed64"`
+	U64 uint `binary:"fixed64"`
+}
+
 // InterfaceHeavy: benchmarks MarshalAnyBinary2 with multiple interface fields.
 type InterfaceHeavy struct {
 	Field1 Interface1

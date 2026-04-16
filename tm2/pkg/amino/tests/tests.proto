@@ -536,6 +536,11 @@ message FuzzNilElements {
 	string name = 3 [json_name = "Name"];
 }
 
+message FuzzFixedInt {
+	sfixed64 i64 = 1 [json_name = "I64"];
+	fixed64 u64 = 2 [json_name = "U64"];
+}
+
 message InterfaceHeavy {
 	google.protobuf.Any field1 = 1 [json_name = "Field1"];
 	google.protobuf.Any field2 = 2 [json_name = "Field2"];

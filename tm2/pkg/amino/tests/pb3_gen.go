@@ -84,6 +84,7 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzDeepNest)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzWriteEmpty)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzNilElements)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzFixedInt)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*InterfaceHeavy)(nil)).Elem())
 }
 
@@ -13643,6 +13644,68 @@ func (goo *FuzzNilElements) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 			}
 			bz = bz[n:]
 			goo.Name = string(v)
+		default:
+			n, err = amino.SkipField(bz, typ3)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+		}
+	}
+	return nil
+}
+
+func (goo FuzzFixedInt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.U64 != 0 {
+		offset = amino.PrependUint64(buf, offset, uint64(goo.U64))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+	}
+	if goo.I64 != 0 {
+		offset = amino.PrependInt64(buf, offset, int64(goo.I64))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+	}
+	return offset, err
+}
+
+func (goo FuzzFixedInt) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	if goo.I64 != 0 {
+		s += 1 + 8
+	}
+	if goo.U64 != 0 {
+		s += 1 + 8
+	}
+	return s, nil
+}
+
+func (goo *FuzzFixedInt) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum < lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			v, n, err := amino.DecodeInt64(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.I64 = int(v)
+		case 2:
+			v, n, err := amino.DecodeUint64(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.U64 = uint(v)
 		default:
 			n, err = amino.SkipField(bz, typ3)
 			if err != nil {

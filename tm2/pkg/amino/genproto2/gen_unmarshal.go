@@ -690,7 +690,13 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 		sb.WriteString(fmt.Sprintf("%s%s = %s(v)\n", indent, accessor, ctx.goTypeName(rt)))
 
 	case reflect.Int:
-		sb.WriteString(fmt.Sprintf("%sv, n, err := amino.DecodeVarint(%s)\n", indent, srcVar))
+		if fopts.BinFixed64 {
+			sb.WriteString(fmt.Sprintf("%sv, n, err := amino.DecodeInt64(%s)\n", indent, srcVar))
+		} else if fopts.BinFixed32 {
+			sb.WriteString(fmt.Sprintf("%sv, n, err := amino.DecodeInt32(%s)\n", indent, srcVar))
+		} else {
+			sb.WriteString(fmt.Sprintf("%sv, n, err := amino.DecodeVarint(%s)\n", indent, srcVar))
+		}
 		sb.WriteString(fmt.Sprintf("%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent))
 		sb.WriteString(fmt.Sprintf("%s%s = %s[n:]\n", indent, srcVar, srcVar))
 		sb.WriteString(fmt.Sprintf("%s%s = %s(v)\n", indent, accessor, ctx.goTypeName(rt)))
@@ -728,7 +734,13 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 		sb.WriteString(fmt.Sprintf("%s%s = %s(v)\n", indent, accessor, ctx.goTypeName(rt)))
 
 	case reflect.Uint:
-		sb.WriteString(fmt.Sprintf("%sv, n, err := amino.DecodeUvarint(%s)\n", indent, srcVar))
+		if fopts.BinFixed64 {
+			sb.WriteString(fmt.Sprintf("%sv, n, err := amino.DecodeUint64(%s)\n", indent, srcVar))
+		} else if fopts.BinFixed32 {
+			sb.WriteString(fmt.Sprintf("%sv, n, err := amino.DecodeUint32(%s)\n", indent, srcVar))
+		} else {
+			sb.WriteString(fmt.Sprintf("%sv, n, err := amino.DecodeUvarint(%s)\n", indent, srcVar))
+		}
 		sb.WriteString(fmt.Sprintf("%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent))
 		sb.WriteString(fmt.Sprintf("%s%s = %s[n:]\n", indent, srcVar, srcVar))
 		sb.WriteString(fmt.Sprintf("%s%s = %s(v)\n", indent, accessor, ctx.goTypeName(rt)))
