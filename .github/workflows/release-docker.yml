@@ -1,25 +1,24 @@
-# Minimal cache-validation workflow.
-# Strips everything to the bone: one image, one platform, no bake, no attestation.
-# If caching works here, the problem is in the bake/HCL setup.
-# If it doesn't, the problem is in the GHA cache plumbing on the runner.
+# Build and Push Docker Images using Docker Bake
 name: release / docker
 
 on:
   push:
     branches:
       - chain/tm2-backup
+    tags:
+      - chain/*
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  bake:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: write
-      packages: write
+      actions: write # for GHA cache (docker buildx cache-to/from=type=gha)
+      packages: write # to push images to ghcr.io
 
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -33,16 +32,6 @@ jobs:
           V=$(git describe --tags --exact-match 2>/dev/null \
               || echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")
           echo "version=$V" >> "$GITHUB_OUTPUT"
-
-      # On self-hosted runners, ACTIONS_CACHE_URL and ACTIONS_RUNTIME_TOKEN
-      # may not be set. type=gha silently does nothing without them.
-      - name: Expose GitHub Runtime
-        uses: crazy-max/ghaction-github-runtime@v3
-
-      - name: Debug — verify GHA cache vars are set
-        run: |
-          echo "ACTIONS_CACHE_URL is ${ACTIONS_CACHE_URL:+SET (length ${#ACTIONS_CACHE_URL})}${ACTIONS_CACHE_URL:-EMPTY <-- THIS IS THE PROBLEM}"
-          echo "ACTIONS_RUNTIME_TOKEN is ${ACTIONS_RUNTIME_TOKEN:+SET (length ${#ACTIONS_RUNTIME_TOKEN})}${ACTIONS_RUNTIME_TOKEN:-EMPTY <-- THIS IS THE PROBLEM}"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -58,14 +47,37 @@ jobs:
             [registry."docker.io"]
               mirrors = ["mirror.gcr.io"]
 
-      - name: Build and push (single platform, no bake)
-        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6
+      - name: Extract metadata
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        id: meta
         with:
-          context: .
-          target: gnoland
-          platforms: linux/amd64
-          tags: ghcr.io/${{ github.repository }}/gnoland:cache-test
-          build-args: |
-            BUILD_VERSION=${{ steps.build_version.outputs.version }}
-          cache-from: type=gha,scope=gnoland
-          cache-to: type=gha,mode=max,scope=gnoland
+          images: ghcr.io/${{ github.repository }}/gnoland
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=sha-
+          labels: |
+            org.opencontainers.image.authors=Gno Core Team
+
+      # On self-hosted runners, ACTIONS_CACHE_URL and ACTIONS_RUNTIME_TOKEN
+      # may not be set. type=gha silently does nothing without them.
+      - name: Expose GitHub Runtime
+        if: env.ACTIONS_CACHE_URL == ''
+        uses: crazy-max/ghaction-github-runtime@v4
+
+      - name: Bake build and push
+        uses: docker/bake-action@5be5f02ff8819ecd3092ea6b2e6261c31774f2b4 # v6
+        env:
+          BUILD_VERSION: ${{ steps.build_version.outputs.version }}
+        with:
+          source: .
+          files: |
+            misc/deployments/bake/docker-bake.hcl
+            cwd://${{ steps.meta.outputs.bake-file-tags }}
+            cwd://${{ steps.meta.outputs.bake-file-labels }}
+          targets: gnoland
+          set: |
+            *.cache-from=type=gha,scope=gnoland
+            *.cache-to=type=gha,mode=max,scope=gnoland
+            *.platform=linux/amd64
+            *.context=.

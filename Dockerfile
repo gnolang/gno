@@ -7,8 +7,8 @@ WORKDIR     /gnoroot
 RUN         apk add --no-cache git
 # Mod files
 COPY        go.mod go.sum ./
-RUN         --mount=type=cache,target=/go/pkg/mod \
-            --mount=type=cache,target=/root/.cache/go-build \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
             go mod download -x
 COPY        . ./
 # BUILD_VERSION is declared late so that a version change (new tag / commit)
@@ -20,20 +20,20 @@ RUN         echo "${BUILD_VERSION}" > /gnoroot/build_version
 # build gnocore
 FROM        setup-gnocore AS build-gnocore
 # Gnoland
-RUN         --mount=type=cache,target=/go/pkg/mod \
-            --mount=type=cache,target=/root/.cache/go-build \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
             go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnoland ./gno.land/cmd/gnoland
 # Gnokey
-RUN         --mount=type=cache,target=/go/pkg/mod \
-            --mount=type=cache,target=/root/.cache/go-build \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
             go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnokey ./gno.land/cmd/gnokey
 # Gnoweb
-RUN         --mount=type=cache,target=/go/pkg/mod \
-            --mount=type=cache,target=/root/.cache/go-build \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
             go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnoweb ./gno.land/cmd/gnoweb
 # Gno
-RUN         --mount=type=cache,target=/go/pkg/mod \
-            --mount=type=cache,target=/root/.cache/go-build \
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
             go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gno ./gnovm/cmd/gno
 
 # Gnofaucet build
