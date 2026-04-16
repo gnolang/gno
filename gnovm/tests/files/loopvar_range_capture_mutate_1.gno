@@ -6,7 +6,7 @@ func main() {
 	var fns []func() int
 	for _, v := range []int{1, 2, 3} {
 		f := func() int { return v } // capture first
-		v += 100                      // mutate after; same iteration's v
+		v += 100                     // mutate after; same iteration's v
 		fns = append(fns, f)
 	}
 	for _, fn := range fns {
