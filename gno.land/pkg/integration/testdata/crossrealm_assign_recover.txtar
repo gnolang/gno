@@ -18,20 +18,20 @@ adduser attacker
 gnoland start
 
 ## deploy vault realm
-gnokey maketx addpkg -pkgdir $WORK/vault -pkgpath gno.land/r/test/vault -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/vault -pkgpath gno.land/r/test/vault -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
 
 ## verify initial owner is the DAO address
 gnokey query "vm/qrender" --data "gno.land/r/test/vault:"
 stdout 'owner: g1dao0000000000000000000000000000000000'
 
 ## deploy attack realm
-gnokey maketx addpkg -pkgdir $WORK/attack -pkgpath gno.land/r/test/attack -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test attacker
+gnokey maketx addpkg -pkgdir $WORK/attack -pkgpath gno.land/r/test/attack -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test attacker
 
 ## TEST 1: assign+recover then Withdraw — must fail with "unauthorized"
 ## The attacker does SetOwner(myAddr) + recover, then Withdraw(cross).
 ## With the fix, SetOwner is blocked before the write, so Withdraw sees
 ## the original owner and rejects the caller.
-! gnokey maketx call -pkgpath gno.land/r/test/attack -func Attack -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test attacker
+! gnokey maketx call -pkgpath gno.land/r/test/attack -func Attack -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
 stderr 'unauthorized'
 
 ## verify owner is unchanged after the attack attempt
@@ -39,7 +39,7 @@ gnokey query "vm/qrender" --data "gno.land/r/test/vault:"
 stdout 'owner: g1dao0000000000000000000000000000000000'
 
 ## TEST 2: assign without recover — the readonly panic aborts the tx
-! gnokey maketx call -pkgpath gno.land/r/test/attack -func AttackNoRecover -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test attacker
+! gnokey maketx call -pkgpath gno.land/r/test/attack -func AttackNoRecover -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
 stderr 'readonly tainted object'
 
 ## verify owner is still unchanged
@@ -47,7 +47,7 @@ gnokey query "vm/qrender" --data "gno.land/r/test/vault:"
 stdout 'owner: g1dao0000000000000000000000000000000000'
 
 ## TEST 3: the crossing setter correctly rejects non-owners (positive control)
-! gnokey maketx call -pkgpath gno.land/r/test/vault -func TransferOwnership -args ${attacker_user_addr} -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test attacker
+! gnokey maketx call -pkgpath gno.land/r/test/vault -func TransferOwnership -args ${attacker_user_addr} -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
 stderr 'unauthorized'
 
 ## owner unchanged
