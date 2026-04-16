@@ -326,7 +326,17 @@ func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, m
 	if mtree != nil {
 		ndb = mtree.ndb
 	}
-	return newIterator(imm.root, start, end, ascending, ndb, 0)
+	itr := newIterator(imm.root, start, end, ascending, ndb, 0)
+	if ndb == nil && mtree != nil && mtree.memValues != nil {
+		itr.valueResolver = func(vk []byte) ([]byte, error) {
+			val, ok := mtree.memValues[string(vk)]
+			if !ok {
+				return nil, fmt.Errorf("value not found in memValues for key %x", vk)
+			}
+			return val, nil
+		}
+	}
+	return itr
 }
 
 // Iterator returns an iterator over [start, end) in the given direction.
