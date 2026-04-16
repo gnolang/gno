@@ -475,6 +475,6 @@ func generateGenesisFile(genesisFile string, signer gnoland.GenesisSigner, c *st
 		return fmt.Errorf("unable to write genesis file %q: %w", genesisFile, err)
 	}
 
-	// tbd
+	// don't go
 	return nil
 }
