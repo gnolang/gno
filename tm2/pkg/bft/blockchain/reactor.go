@@ -91,8 +91,17 @@ func NewBlockchainReactor(
 	const capacity = 1000                      // must be bigger than peers count
 	errorsCh := make(chan peerError, capacity) // so we don't block in #Receive#pool.AddBlock
 
+	// When the store is empty (fresh chain) and InitialHeight > 1, the
+	// Handshaker has set state.LastBlockHeight = InitialHeight - 1 but the
+	// store is still at height 0. Use the state height so the pool starts
+	// syncing at InitialHeight, not at 1.
+	startHeight := store.Height() + 1
+	if store.Height() == 0 && state.LastBlockHeight > 0 {
+		startHeight = state.LastBlockHeight + 1
+	}
+
 	pool := NewBlockPool(
-		store.Height()+1,
+		startHeight,
 		requestsCh,
 		errorsCh,
 	)
