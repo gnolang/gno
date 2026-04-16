@@ -1106,12 +1106,18 @@ func makeUverseNode() {
 			"", "gnocoins",
 		),
 		func(m *Machine) {
-			// Only return coins if current pkg is the first realm in the call
-			// stack, i.e. the realm that actually received the funds.
-			var lastPkg string
+			// Only return coins if the caller of SentCoins() is the first realm
+			// in the call stack, i.e. the realm that actually received the funds.
+			//
+			// Frame.LastPackage is the package that was active before the frame
+			// was pushed (the caller's package). So the innermost frame's
+			// LastPackage is the package that invoked SentCoins().
+			var callerPkg string
 			if lp := m.Frames[m.NumFrames()-1].LastPackage; lp != nil {
-				lastPkg = lp.PkgPath
+				callerPkg = lp.PkgPath
 			}
+			// Walk frames from oldest to newest; the first LastPackage that is
+			// a realm path is the first realm that appeared in the call chain.
 			var firstRealmPkg string
 			for i := 1; i < m.NumFrames(); i++ {
 				lp := m.Frames[i].LastPackage
@@ -1124,7 +1130,7 @@ func makeUverseNode() {
 				}
 			}
 			var coins std.Coins
-			if lastPkg != "" && firstRealmPkg == lastPkg {
+			if callerPkg != "" && firstRealmPkg == callerPkg {
 				if osp, ok := m.Context.(OriginSendProvider); ok {
 					coins = osp.GetOriginSend()
 				}
