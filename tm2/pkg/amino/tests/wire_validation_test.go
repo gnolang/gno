@@ -274,6 +274,61 @@ func TestUnmarshalBinary2_RejectsImplicitStructTrailingBytes(t *testing.T) {
 	_ = bz // referenced to avoid unused-var warning if the assertion is satisfied before
 }
 
+// DecodeTimeValue must reject trailing bytes past the seconds/nanos fields.
+// Previously, extra fields after field 2 were silently ignored.
+func TestDecodeTime_RejectsTrailingBytes(t *testing.T) {
+	// field 1 seconds=0 (tag=0x08, value=0x00), then stray field 3 (tag=0x18, value=0x00).
+	bz := []byte{0x08, 0x00, 0x18, 0x00}
+	_, _, err := amino.DecodeTime(bz)
+	if err == nil {
+		t.Fatal("expected error on trailing bytes")
+	}
+	if !strings.Contains(err.Error(), "unexpected field") {
+		t.Fatalf("expected 'unexpected field' error, got %q", err.Error())
+	}
+}
+
+// DecodeTimeValue must reject out-of-order fields (nanos before seconds).
+// Previously, field 2 before field 1 caused seconds to be silently dropped.
+func TestDecodeTime_RejectsOutOfOrder(t *testing.T) {
+	// field 2 nanos=100 (tag=0x10, varint=0x64), then field 1 seconds=10 (tag=0x08, varint=0x0a)
+	bz := []byte{0x10, 0x64, 0x08, 0x0a}
+	_, _, err := amino.DecodeTime(bz)
+	if err == nil {
+		t.Fatal("expected error on out-of-order fields")
+	}
+	if !strings.Contains(err.Error(), "out of order") {
+		t.Fatalf("expected 'out of order' error, got %q", err.Error())
+	}
+}
+
+// DecodeTimeValue must reject duplicate fields.
+func TestDecodeTime_RejectsDuplicateFields(t *testing.T) {
+	// field 1 seconds=10, field 1 seconds=20 — duplicate
+	bz := []byte{0x08, 0x0a, 0x08, 0x14}
+	_, _, err := amino.DecodeTime(bz)
+	if err == nil {
+		t.Fatal("expected error on duplicate field")
+	}
+	if !strings.Contains(err.Error(), "duplicate") {
+		t.Fatalf("expected 'duplicate' error, got %q", err.Error())
+	}
+}
+
+// DecodeDuration must reject trailing bytes / out-of-order / duplicates
+// (shares the decodeSecondsAndNanos helper with DecodeTime).
+func TestDecodeDuration_RejectsMalformed(t *testing.T) {
+	// Trailing bytes: field 1 seconds=1, then stray field 3.
+	bz := []byte{0x08, 0x01, 0x18, 0x00}
+	_, _, err := amino.DecodeDuration(bz)
+	if err == nil {
+		t.Fatal("expected error on trailing bytes")
+	}
+	if !strings.Contains(err.Error(), "unexpected field") {
+		t.Fatalf("expected 'unexpected field' error, got %q", err.Error())
+	}
+}
+
 // AminoMarshalerStruct2.MarshalAmino → []ReprElem2 (unpacked slice repr).
 // Each element is wrapped as field 1 ByteLength. If a repeated entry has a
 // wrong typ3, the unpacked-slice-repr decoder should reject it.
