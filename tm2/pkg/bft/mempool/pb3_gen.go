@@ -27,12 +27,12 @@ func (goo TxMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 	return offset, err
 }
 
-func (goo TxMessage) SizeBinary2(cdc *amino.Codec) int {
+func (goo TxMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if len(goo.Tx) != 0 {
 		s += 1 + amino.ByteSliceSize(goo.Tx)
 	}
-	return s
+	return s, nil
 }
 
 func (goo *TxMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {

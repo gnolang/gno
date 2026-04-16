@@ -43,20 +43,23 @@ func (goo PubKeyMultisigThreshold) MarshalBinary2(cdc *amino.Codec, buf []byte, 
 	return offset, err
 }
 
-func (goo PubKeyMultisigThreshold) SizeBinary2(cdc *amino.Codec) int {
+func (goo PubKeyMultisigThreshold) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.K != 0 {
 		s += 1 + amino.UvarintSize(uint64(goo.K))
 	}
 	for _, elem := range goo.PubKeys {
 		if elem != nil {
-			cs := cdc.SizeAnyBinary2(elem)
+			cs, err := cdc.SizeAnyBinary2(elem)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		} else {
 			s += 1 + 1
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *PubKeyMultisigThreshold) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {

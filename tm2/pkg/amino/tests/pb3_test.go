@@ -697,7 +697,10 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 	}
 
 	// Check SizeBinary2 matches actual marshal length.
-	sizeResult := msg.SizeBinary2(cdc)
+	sizeResult, err := msg.SizeBinary2(cdc)
+	if err != nil {
+		t.Fatalf("%s: SizeBinary2: %v", name, err)
+	}
 	if sizeResult != len(bz2) {
 		t.Errorf("%s: SizeBinary2=%d but MarshalBinary2 produced %d bytes", name, sizeResult, len(bz2))
 	}

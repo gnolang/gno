@@ -35,7 +35,7 @@ func (goo PubKeyEd25519) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 	return offset, err
 }
 
-func (goo PubKeyEd25519) SizeBinary2(cdc *amino.Codec) int {
+func (goo PubKeyEd25519) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	repr := goo
 	if len(repr) > 0 {
@@ -43,7 +43,7 @@ func (goo PubKeyEd25519) SizeBinary2(cdc *amino.Codec) int {
 		cs = len(repr)
 		s += 1 + amino.UvarintSize(uint64(cs)) + cs
 	}
-	return s
+	return s, nil
 }
 
 func (goo *PubKeyEd25519) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -66,7 +66,7 @@ func (goo PrivKeyEd25519) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 	return offset, err
 }
 
-func (goo PrivKeyEd25519) SizeBinary2(cdc *amino.Codec) int {
+func (goo PrivKeyEd25519) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	repr := goo
 	if len(repr) > 0 {
@@ -74,7 +74,7 @@ func (goo PrivKeyEd25519) SizeBinary2(cdc *amino.Codec) int {
 		cs = len(repr)
 		s += 1 + amino.UvarintSize(uint64(cs)) + cs
 	}
-	return s
+	return s, nil
 }
 
 func (goo *PrivKeyEd25519) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {

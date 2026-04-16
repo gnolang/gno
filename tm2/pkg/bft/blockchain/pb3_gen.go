@@ -34,12 +34,12 @@ func (goo bcBlockRequestMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, of
 	return offset, err
 }
 
-func (goo bcBlockRequestMessage) SizeBinary2(cdc *amino.Codec) int {
+func (goo bcBlockRequestMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Height != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Height))
 	}
-	return s
+	return s, nil
 }
 
 func (goo *bcBlockRequestMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -90,15 +90,18 @@ func (goo bcBlockResponseMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, o
 	return offset, err
 }
 
-func (goo bcBlockResponseMessage) SizeBinary2(cdc *amino.Codec) int {
+func (goo bcBlockResponseMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Block != nil {
 		{
-			cs := (*goo.Block).SizeBinary2(cdc)
+			cs, err := (*goo.Block).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *bcBlockResponseMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -147,12 +150,12 @@ func (goo bcNoBlockResponseMessage) MarshalBinary2(cdc *amino.Codec, buf []byte,
 	return offset, err
 }
 
-func (goo bcNoBlockResponseMessage) SizeBinary2(cdc *amino.Codec) int {
+func (goo bcNoBlockResponseMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Height != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Height))
 	}
-	return s
+	return s, nil
 }
 
 func (goo *bcNoBlockResponseMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -195,12 +198,12 @@ func (goo bcStatusRequestMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, o
 	return offset, err
 }
 
-func (goo bcStatusRequestMessage) SizeBinary2(cdc *amino.Codec) int {
+func (goo bcStatusRequestMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Height != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Height))
 	}
-	return s
+	return s, nil
 }
 
 func (goo *bcStatusRequestMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -243,12 +246,12 @@ func (goo bcStatusResponseMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, 
 	return offset, err
 }
 
-func (goo bcStatusResponseMessage) SizeBinary2(cdc *amino.Codec) int {
+func (goo bcStatusResponseMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Height != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Height))
 	}
-	return s
+	return s, nil
 }
 
 func (goo *bcStatusResponseMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {

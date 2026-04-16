@@ -43,7 +43,7 @@ func (goo BIP44Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 	return offset, err
 }
 
-func (goo BIP44Params) SizeBinary2(cdc *amino.Codec) int {
+func (goo BIP44Params) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Purpose != 0 {
 		s += 1 + amino.UvarintSize(uint64(goo.Purpose))
@@ -60,7 +60,7 @@ func (goo BIP44Params) SizeBinary2(cdc *amino.Codec) int {
 	if goo.AddressIndex != 0 {
 		s += 1 + amino.UvarintSize(uint64(goo.AddressIndex))
 	}
-	return s
+	return s, nil
 }
 
 func (goo *BIP44Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {

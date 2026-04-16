@@ -38,7 +38,7 @@ func (goo ProofOp) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 	return offset, err
 }
 
-func (goo ProofOp) SizeBinary2(cdc *amino.Codec) int {
+func (goo ProofOp) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Type != "" {
 		s += 1 + amino.UvarintSize(uint64(len(goo.Type))) + len(goo.Type)
@@ -49,7 +49,7 @@ func (goo ProofOp) SizeBinary2(cdc *amino.Codec) int {
 	if len(goo.Data) != 0 {
 		s += 1 + amino.ByteSliceSize(goo.Data)
 	}
-	return s
+	return s, nil
 }
 
 func (goo *ProofOp) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -121,13 +121,16 @@ func (goo Proof) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, 
 	return offset, err
 }
 
-func (goo Proof) SizeBinary2(cdc *amino.Codec) int {
+func (goo Proof) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	for _, elem := range goo.Ops {
-		cs := elem.SizeBinary2(cdc)
+		cs, err := elem.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		s += 1 + amino.UvarintSize(uint64(cs)) + cs
 	}
-	return s
+	return s, nil
 }
 
 func (goo *Proof) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -208,7 +211,7 @@ func (goo SimpleProof) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 	return offset, err
 }
 
-func (goo SimpleProof) SizeBinary2(cdc *amino.Codec) int {
+func (goo SimpleProof) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Total != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Total))
@@ -223,7 +226,7 @@ func (goo SimpleProof) SizeBinary2(cdc *amino.Codec) int {
 		vs := amino.ByteSliceSize(elem)
 		s += 1 + vs
 	}
-	return s
+	return s, nil
 }
 
 func (goo *SimpleProof) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -356,30 +359,39 @@ func (goo SimpleProofNode) MarshalBinary2(cdc *amino.Codec, buf []byte, offset i
 	return offset, err
 }
 
-func (goo SimpleProofNode) SizeBinary2(cdc *amino.Codec) int {
+func (goo SimpleProofNode) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if len(goo.Hash) != 0 {
 		s += 1 + amino.ByteSliceSize(goo.Hash)
 	}
 	if goo.Parent != nil {
 		{
-			cs := (*goo.Parent).SizeBinary2(cdc)
+			cs, err := (*goo.Parent).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.Left != nil {
 		{
-			cs := (*goo.Left).SizeBinary2(cdc)
+			cs, err := (*goo.Left).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.Right != nil {
 		{
-			cs := (*goo.Right).SizeBinary2(cdc)
+			cs, err := (*goo.Right).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *SimpleProofNode) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {

@@ -72,26 +72,26 @@ func (goo MsgCall) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 	return offset, err
 }
 
-func (goo MsgCall) SizeBinary2(cdc *amino.Codec) int {
+func (goo MsgCall) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Caller != [20]byte{} {
 		repr, err := goo.Caller.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	if len(goo.Send) != 0 {
 		repr, err := goo.Send.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	if len(goo.MaxDeposit) != 0 {
 		repr, err := goo.MaxDeposit.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
@@ -105,7 +105,7 @@ func (goo MsgCall) SizeBinary2(cdc *amino.Codec) int {
 		vs := amino.UvarintSize(uint64(len(elem))) + len(elem)
 		s += 1 + vs
 	}
-	return s
+	return s, nil
 }
 
 func (goo *MsgCall) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -248,36 +248,39 @@ func (goo MsgRun) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 	return offset, err
 }
 
-func (goo MsgRun) SizeBinary2(cdc *amino.Codec) int {
+func (goo MsgRun) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Caller != [20]byte{} {
 		repr, err := goo.Caller.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	if len(goo.Send) != 0 {
 		repr, err := goo.Send.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	if len(goo.MaxDeposit) != 0 {
 		repr, err := goo.MaxDeposit.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	if goo.Package != nil {
 		{
-			cs := (*goo.Package).SizeBinary2(cdc)
+			cs, err := (*goo.Package).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *MsgRun) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -391,36 +394,39 @@ func (goo MsgAddPackage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 	return offset, err
 }
 
-func (goo MsgAddPackage) SizeBinary2(cdc *amino.Codec) int {
+func (goo MsgAddPackage) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Creator != [20]byte{} {
 		repr, err := goo.Creator.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	if goo.Package != nil {
 		{
-			cs := (*goo.Package).SizeBinary2(cdc)
+			cs, err := (*goo.Package).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if len(goo.Send) != 0 {
 		repr, err := goo.Send.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	if len(goo.MaxDeposit) != 0 {
 		repr, err := goo.MaxDeposit.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
-	return s
+	return s, nil
 }
 
 func (goo *MsgAddPackage) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -498,9 +504,9 @@ func (goo InvalidPkgPathError) MarshalBinary2(cdc *amino.Codec, buf []byte, offs
 	return offset, err
 }
 
-func (goo InvalidPkgPathError) SizeBinary2(cdc *amino.Codec) int {
+func (goo InvalidPkgPathError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *InvalidPkgPathError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -532,9 +538,9 @@ func (goo NoRenderDeclError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset
 	return offset, err
 }
 
-func (goo NoRenderDeclError) SizeBinary2(cdc *amino.Codec) int {
+func (goo NoRenderDeclError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *NoRenderDeclError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -566,9 +572,9 @@ func (goo PkgExistError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 	return offset, err
 }
 
-func (goo PkgExistError) SizeBinary2(cdc *amino.Codec) int {
+func (goo PkgExistError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *PkgExistError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -600,9 +606,9 @@ func (goo InvalidStmtError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 	return offset, err
 }
 
-func (goo InvalidStmtError) SizeBinary2(cdc *amino.Codec) int {
+func (goo InvalidStmtError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *InvalidStmtError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -634,9 +640,9 @@ func (goo InvalidExprError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 	return offset, err
 }
 
-func (goo InvalidExprError) SizeBinary2(cdc *amino.Codec) int {
+func (goo InvalidExprError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *InvalidExprError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -673,13 +679,13 @@ func (goo TypeCheckError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 	return offset, err
 }
 
-func (goo TypeCheckError) SizeBinary2(cdc *amino.Codec) int {
+func (goo TypeCheckError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	for _, elem := range goo.Errors {
 		vs := amino.UvarintSize(uint64(len(elem))) + len(elem)
 		s += 1 + vs
 	}
-	return s
+	return s, nil
 }
 
 func (goo *TypeCheckError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -739,9 +745,9 @@ func (goo UnauthorizedUserError) MarshalBinary2(cdc *amino.Codec, buf []byte, of
 	return offset, err
 }
 
-func (goo UnauthorizedUserError) SizeBinary2(cdc *amino.Codec) int {
+func (goo UnauthorizedUserError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *UnauthorizedUserError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -773,9 +779,9 @@ func (goo InvalidPackageError) MarshalBinary2(cdc *amino.Codec, buf []byte, offs
 	return offset, err
 }
 
-func (goo InvalidPackageError) SizeBinary2(cdc *amino.Codec) int {
+func (goo InvalidPackageError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *InvalidPackageError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -807,9 +813,9 @@ func (goo InvalidFileError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 	return offset, err
 }
 
-func (goo InvalidFileError) SizeBinary2(cdc *amino.Codec) int {
+func (goo InvalidFileError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *InvalidFileError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {

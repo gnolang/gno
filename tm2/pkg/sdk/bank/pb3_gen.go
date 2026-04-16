@@ -26,9 +26,9 @@ func (goo NoInputsError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 	return offset, err
 }
 
-func (goo NoInputsError) SizeBinary2(cdc *amino.Codec) int {
+func (goo NoInputsError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *NoInputsError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -60,9 +60,9 @@ func (goo NoOutputsError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 	return offset, err
 }
 
-func (goo NoOutputsError) SizeBinary2(cdc *amino.Codec) int {
+func (goo NoOutputsError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *NoOutputsError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -94,9 +94,9 @@ func (goo InputOutputMismatchError) MarshalBinary2(cdc *amino.Codec, buf []byte,
 	return offset, err
 }
 
-func (goo InputOutputMismatchError) SizeBinary2(cdc *amino.Codec) int {
+func (goo InputOutputMismatchError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *InputOutputMismatchError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -152,30 +152,30 @@ func (goo MsgSend) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 	return offset, err
 }
 
-func (goo MsgSend) SizeBinary2(cdc *amino.Codec) int {
+func (goo MsgSend) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.FromAddress != [20]byte{} {
 		repr, err := goo.FromAddress.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	if goo.ToAddress != [20]byte{} {
 		repr, err := goo.ToAddress.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	if len(goo.Amount) != 0 {
 		repr, err := goo.Amount.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
-	return s
+	return s, nil
 }
 
 func (goo *MsgSend) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {

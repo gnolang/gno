@@ -225,7 +225,7 @@ func (goo RoundState) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 	return offset, err
 }
 
-func (goo RoundState) SizeBinary2(cdc *amino.Codec) int {
+func (goo RoundState) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Height != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Height))
@@ -250,25 +250,37 @@ func (goo RoundState) SizeBinary2(cdc *amino.Codec) int {
 	}
 	if goo.Validators != nil {
 		{
-			cs := (*goo.Validators).SizeBinary2(cdc)
+			cs, err := (*goo.Validators).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.Proposal != nil {
 		{
-			cs := (*goo.Proposal).SizeBinary2(cdc)
+			cs, err := (*goo.Proposal).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.ProposalBlock != nil {
 		{
-			cs := (*goo.ProposalBlock).SizeBinary2(cdc)
+			cs, err := (*goo.ProposalBlock).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.ProposalBlockParts != nil {
 		{
-			cs := (*goo.ProposalBlockParts).SizeBinary2(cdc)
+			cs, err := (*goo.ProposalBlockParts).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
@@ -277,13 +289,19 @@ func (goo RoundState) SizeBinary2(cdc *amino.Codec) int {
 	}
 	if goo.LockedBlock != nil {
 		{
-			cs := (*goo.LockedBlock).SizeBinary2(cdc)
+			cs, err := (*goo.LockedBlock).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.LockedBlockParts != nil {
 		{
-			cs := (*goo.LockedBlockParts).SizeBinary2(cdc)
+			cs, err := (*goo.LockedBlockParts).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
@@ -292,19 +310,28 @@ func (goo RoundState) SizeBinary2(cdc *amino.Codec) int {
 	}
 	if goo.ValidBlock != nil {
 		{
-			cs := (*goo.ValidBlock).SizeBinary2(cdc)
+			cs, err := (*goo.ValidBlock).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.ValidBlockParts != nil {
 		{
-			cs := (*goo.ValidBlockParts).SizeBinary2(cdc)
+			cs, err := (*goo.ValidBlockParts).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.Votes != nil {
 		{
-			cs := (*goo.Votes).SizeBinary2(cdc)
+			cs, err := (*goo.Votes).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 2 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
@@ -313,20 +340,26 @@ func (goo RoundState) SizeBinary2(cdc *amino.Codec) int {
 	}
 	if goo.LastCommit != nil {
 		{
-			cs := (*goo.LastCommit).SizeBinary2(cdc)
+			cs, err := (*goo.LastCommit).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 2 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.LastValidators != nil {
 		{
-			cs := (*goo.LastValidators).SizeBinary2(cdc)
+			cs, err := (*goo.LastValidators).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 2 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.TriggeredTimeoutPrecommit {
 		s += 2 + 1
 	}
-	return s
+	return s, nil
 }
 
 func (goo *RoundState) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -586,7 +619,7 @@ func (goo HRS) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, er
 	return offset, err
 }
 
-func (goo HRS) SizeBinary2(cdc *amino.Codec) int {
+func (goo HRS) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Height != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Height))
@@ -597,7 +630,7 @@ func (goo HRS) SizeBinary2(cdc *amino.Codec) int {
 	if goo.Step != 0 {
 		s += 1 + amino.UvarintSize(uint64(goo.Step))
 	}
-	return s
+	return s, nil
 }
 
 func (goo *HRS) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -692,7 +725,7 @@ func (goo RoundStateSimple) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 	return offset, err
 }
 
-func (goo RoundStateSimple) SizeBinary2(cdc *amino.Codec) int {
+func (goo RoundStateSimple) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.HeightRoundStep != "" {
 		s += 1 + amino.UvarintSize(uint64(len(goo.HeightRoundStep))) + len(goo.HeightRoundStep)
@@ -714,11 +747,14 @@ func (goo RoundStateSimple) SizeBinary2(cdc *amino.Codec) int {
 	}
 	if goo.Votes != nil {
 		{
-			cs := (*goo.Votes).SizeBinary2(cdc)
+			cs, err := (*goo.Votes).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *RoundStateSimple) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -943,7 +979,7 @@ func (goo PeerRoundState) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 	return offset, err
 }
 
-func (goo PeerRoundState) SizeBinary2(cdc *amino.Codec) int {
+func (goo PeerRoundState) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Height != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Height))
@@ -964,14 +1000,20 @@ func (goo PeerRoundState) SizeBinary2(cdc *amino.Codec) int {
 		s += 1 + 1
 	}
 	{
-		cs := goo.ProposalBlockPartsHeader.SizeBinary2(cdc)
+		cs, err := goo.ProposalBlockPartsHeader.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.ProposalBlockParts != nil {
 		{
-			cs := (*goo.ProposalBlockParts).SizeBinary2(cdc)
+			cs, err := (*goo.ProposalBlockParts).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
@@ -980,19 +1022,28 @@ func (goo PeerRoundState) SizeBinary2(cdc *amino.Codec) int {
 	}
 	if goo.ProposalPOL != nil {
 		{
-			cs := (*goo.ProposalPOL).SizeBinary2(cdc)
+			cs, err := (*goo.ProposalPOL).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.Prevotes != nil {
 		{
-			cs := (*goo.Prevotes).SizeBinary2(cdc)
+			cs, err := (*goo.Prevotes).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.Precommits != nil {
 		{
-			cs := (*goo.Precommits).SizeBinary2(cdc)
+			cs, err := (*goo.Precommits).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
@@ -1001,7 +1052,10 @@ func (goo PeerRoundState) SizeBinary2(cdc *amino.Codec) int {
 	}
 	if goo.LastCommit != nil {
 		{
-			cs := (*goo.LastCommit).SizeBinary2(cdc)
+			cs, err := (*goo.LastCommit).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
@@ -1010,11 +1064,14 @@ func (goo PeerRoundState) SizeBinary2(cdc *amino.Codec) int {
 	}
 	if goo.CatchupCommit != nil {
 		{
-			cs := (*goo.CatchupCommit).SizeBinary2(cdc)
+			cs, err := (*goo.CatchupCommit).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *PeerRoundState) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1194,9 +1251,9 @@ func (goo HeightVoteSet) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 	return offset, err
 }
 
-func (goo HeightVoteSet) SizeBinary2(cdc *amino.Codec) int {
+func (goo HeightVoteSet) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *HeightVoteSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1250,10 +1307,13 @@ func (goo EventNewRoundStep) MarshalBinary2(cdc *amino.Codec, buf []byte, offset
 	return offset, err
 }
 
-func (goo EventNewRoundStep) SizeBinary2(cdc *amino.Codec) int {
+func (goo EventNewRoundStep) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.HRS.SizeBinary2(cdc)
+		cs, err := goo.HRS.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
@@ -1264,7 +1324,7 @@ func (goo EventNewRoundStep) SizeBinary2(cdc *amino.Codec) int {
 	if goo.LastCommitRound != 0 {
 		s += 1 + amino.VarintSize(int64(goo.LastCommitRound))
 	}
-	return s
+	return s, nil
 }
 
 func (goo *EventNewRoundStep) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1363,30 +1423,39 @@ func (goo EventNewValidBlock) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 	return offset, err
 }
 
-func (goo EventNewValidBlock) SizeBinary2(cdc *amino.Codec) int {
+func (goo EventNewValidBlock) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.HRS.SizeBinary2(cdc)
+		cs, err := goo.HRS.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	{
-		cs := goo.BlockPartsHeader.SizeBinary2(cdc)
+		cs, err := goo.BlockPartsHeader.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.BlockParts != nil {
 		{
-			cs := (*goo.BlockParts).SizeBinary2(cdc)
+			cs, err := (*goo.BlockParts).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.IsCommit {
 		s += 1 + 1
 	}
-	return s
+	return s, nil
 }
 
 func (goo *EventNewValidBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1488,16 +1557,22 @@ func (goo EventNewRound) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 	return offset, err
 }
 
-func (goo EventNewRound) SizeBinary2(cdc *amino.Codec) int {
+func (goo EventNewRound) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.HRS.SizeBinary2(cdc)
+		cs, err := goo.HRS.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	{
-		cs := goo.Proposer.SizeBinary2(cdc)
+		cs, err := goo.Proposer.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
@@ -1505,7 +1580,7 @@ func (goo EventNewRound) SizeBinary2(cdc *amino.Codec) int {
 	if goo.ProposerIndex != 0 {
 		s += 1 + amino.VarintSize(int64(goo.ProposerIndex))
 	}
-	return s
+	return s, nil
 }
 
 func (goo *EventNewRound) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1590,21 +1665,27 @@ func (goo EventCompleteProposal) MarshalBinary2(cdc *amino.Codec, buf []byte, of
 	return offset, err
 }
 
-func (goo EventCompleteProposal) SizeBinary2(cdc *amino.Codec) int {
+func (goo EventCompleteProposal) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.HRS.SizeBinary2(cdc)
+		cs, err := goo.HRS.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	{
-		cs := goo.BlockID.SizeBinary2(cdc)
+		cs, err := goo.BlockID.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *EventCompleteProposal) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1668,15 +1749,18 @@ func (goo EventTimeoutPropose) MarshalBinary2(cdc *amino.Codec, buf []byte, offs
 	return offset, err
 }
 
-func (goo EventTimeoutPropose) SizeBinary2(cdc *amino.Codec) int {
+func (goo EventTimeoutPropose) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.HRS.SizeBinary2(cdc)
+		cs, err := goo.HRS.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *EventTimeoutPropose) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1731,15 +1815,18 @@ func (goo EventTimeoutWait) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 	return offset, err
 }
 
-func (goo EventTimeoutWait) SizeBinary2(cdc *amino.Codec) int {
+func (goo EventTimeoutWait) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.HRS.SizeBinary2(cdc)
+		cs, err := goo.HRS.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *EventTimeoutWait) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {

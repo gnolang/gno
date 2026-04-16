@@ -45,10 +45,13 @@ func (goo Result) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 	return offset, err
 }
 
-func (goo Result) SizeBinary2(cdc *amino.Codec) int {
+func (goo Result) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.ResponseBase.SizeBinary2(cdc)
+		cs, err := goo.ResponseBase.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
@@ -59,7 +62,7 @@ func (goo Result) SizeBinary2(cdc *amino.Codec) int {
 	if goo.GasUsed != 0 {
 		s += 1 + amino.VarintSize(int64(goo.GasUsed))
 	}
-	return s
+	return s, nil
 }
 
 func (goo *Result) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {

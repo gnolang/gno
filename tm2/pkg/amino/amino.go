@@ -478,7 +478,10 @@ func (cdc *Codec) MarshalPBBindings(pbm PBMessager) ([]byte, error) {
 
 // Use genproto2 direct encoding.
 func (cdc *Codec) MarshalBinary2(pbm2 PBMessager2) ([]byte, error) {
-	n := pbm2.SizeBinary2(cdc)
+	n, err := pbm2.SizeBinary2(cdc)
+	if err != nil {
+		return nil, err
+	}
 	if n == 0 {
 		return nil, nil
 	}
@@ -639,15 +642,15 @@ func (cdc *Codec) MarshalAnyBinary2(o any, buf []byte, offset int) (int, error) 
 
 // SizeAnyBinary2 computes the encoded size of a google.protobuf.Any envelope
 // arithmetically, without marshaling. For use in generated SizeBinary2 methods.
-func (cdc *Codec) SizeAnyBinary2(o any) int {
+func (cdc *Codec) SizeAnyBinary2(o any) (int, error) {
 	pbm2, ok := o.(PBMarshaler2)
 	if !ok || !HasNativeGenproto2(reflect.TypeOf(o)) {
 		// Fallback for built-in types (string, int, etc.) that can't have methods.
 		bz, err := cdc.MarshalAny(o)
 		if err != nil {
-			panic(err)
+			return 0, err
 		}
-		return len(bz)
+		return len(bz), nil
 	}
 	rv := reflect.ValueOf(o)
 	if rv.Kind() == reflect.Ptr {
@@ -655,18 +658,21 @@ func (cdc *Codec) SizeAnyBinary2(o any) int {
 	}
 	cinfo, err := cdc.getTypeInfoWLock(rv.Type())
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 
 	var s int
 	// Field 1: TypeURL (field key + length prefix + string bytes).
 	s += UvarintSize(uint64(1)<<3|uint64(Typ3ByteLength)) + UvarintSize(uint64(len(cinfo.TypeURL))) + len(cinfo.TypeURL)
 	// Field 2: Value (field key + length prefix + inner struct bytes).
-	innerSize := pbm2.SizeBinary2(cdc)
+	innerSize, err := pbm2.SizeBinary2(cdc)
+	if err != nil {
+		return 0, err
+	}
 	if innerSize > 0 {
 		s += UvarintSize(uint64(2)<<3|uint64(Typ3ByteLength)) + UvarintSize(uint64(innerSize)) + innerSize
 	}
-	return s
+	return s, nil
 }
 
 // UnmarshalAnyBinary2 decodes a google.protobuf.Any-wrapped value using
@@ -1354,7 +1360,7 @@ type PBMessager interface {
 // Used by SizeAnyBinary2/MarshalAnyBinary2 for interface field encoding.
 type PBMarshaler2 interface {
 	MarshalBinary2(cdc *Codec, buf []byte, offset int) (int, error)
-	SizeBinary2(cdc *Codec) int
+	SizeBinary2(cdc *Codec) (int, error)
 }
 
 type PBMessager2 interface {

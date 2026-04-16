@@ -99,7 +99,7 @@ func (goo Proposal) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 	return offset, err
 }
 
-func (goo Proposal) SizeBinary2(cdc *amino.Codec) int {
+func (goo Proposal) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Type != 0 {
 		s += 1 + amino.UvarintSize(uint64(goo.Type))
@@ -114,7 +114,10 @@ func (goo Proposal) SizeBinary2(cdc *amino.Codec) int {
 		s += 1 + amino.VarintSize(int64(goo.POLRound))
 	}
 	{
-		cs := goo.BlockID.SizeBinary2(cdc)
+		cs, err := goo.BlockID.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
@@ -128,7 +131,7 @@ func (goo Proposal) SizeBinary2(cdc *amino.Codec) int {
 	if len(goo.Signature) != 0 {
 		s += 1 + amino.ByteSliceSize(goo.Signature)
 	}
-	return s
+	return s, nil
 }
 
 func (goo *Proposal) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -260,27 +263,36 @@ func (goo Block) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, 
 	return offset, err
 }
 
-func (goo Block) SizeBinary2(cdc *amino.Codec) int {
+func (goo Block) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.Header.SizeBinary2(cdc)
+		cs, err := goo.Header.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	{
-		cs := goo.Data.SizeBinary2(cdc)
+		cs, err := goo.Data.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.LastCommit != nil {
 		{
-			cs := (*goo.LastCommit).SizeBinary2(cdc)
+			cs, err := (*goo.LastCommit).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *Block) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -431,7 +443,7 @@ func (goo Header) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 	return offset, err
 }
 
-func (goo Header) SizeBinary2(cdc *amino.Codec) int {
+func (goo Header) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Version != "" {
 		s += 1 + amino.UvarintSize(uint64(len(goo.Version))) + len(goo.Version)
@@ -458,7 +470,10 @@ func (goo Header) SizeBinary2(cdc *amino.Codec) int {
 		s += 1 + amino.UvarintSize(uint64(len(goo.AppVersion))) + len(goo.AppVersion)
 	}
 	{
-		cs := goo.LastBlockID.SizeBinary2(cdc)
+		cs, err := goo.LastBlockID.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
@@ -487,11 +502,11 @@ func (goo Header) SizeBinary2(cdc *amino.Codec) int {
 	if goo.ProposerAddress != [20]byte{} {
 		repr, err := goo.ProposerAddress.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 2 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
-	return s
+	return s, nil
 }
 
 func (goo *Header) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -679,13 +694,13 @@ func (goo Data) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, e
 	return offset, err
 }
 
-func (goo Data) SizeBinary2(cdc *amino.Codec) int {
+func (goo Data) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	for _, elem := range goo.Txs {
 		vs := amino.ByteSliceSize(elem)
 		s += 1 + vs
 	}
-	return s
+	return s, nil
 }
 
 func (goo *Data) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -783,10 +798,13 @@ func (goo Commit) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 	return offset, err
 }
 
-func (goo Commit) SizeBinary2(cdc *amino.Codec) int {
+func (goo Commit) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.BlockID.SizeBinary2(cdc)
+		cs, err := goo.BlockID.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
@@ -795,11 +813,14 @@ func (goo Commit) SizeBinary2(cdc *amino.Codec) int {
 		if elem == nil {
 			s += 1 + 1
 		} else {
-			cs := (*elem).SizeBinary2(cdc)
+			cs, err := (*elem).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *Commit) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -890,18 +911,21 @@ func (goo BlockID) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 	return offset, err
 }
 
-func (goo BlockID) SizeBinary2(cdc *amino.Codec) int {
+func (goo BlockID) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if len(goo.Hash) != 0 {
 		s += 1 + amino.ByteSliceSize(goo.Hash)
 	}
 	{
-		cs := goo.PartsHeader.SizeBinary2(cdc)
+		cs, err := goo.PartsHeader.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *BlockID) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1009,7 +1033,7 @@ func (goo CommitSig) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 	return offset, err
 }
 
-func (goo CommitSig) SizeBinary2(cdc *amino.Codec) int {
+func (goo CommitSig) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Type != 0 {
 		s += 1 + amino.UvarintSize(uint64(goo.Type))
@@ -1021,7 +1045,10 @@ func (goo CommitSig) SizeBinary2(cdc *amino.Codec) int {
 		s += 1 + amino.VarintSize(int64(goo.Round))
 	}
 	{
-		cs := goo.BlockID.SizeBinary2(cdc)
+		cs, err := goo.BlockID.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
@@ -1035,7 +1062,7 @@ func (goo CommitSig) SizeBinary2(cdc *amino.Codec) int {
 	if goo.ValidatorAddress != [20]byte{} {
 		repr, err := goo.ValidatorAddress.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
@@ -1045,7 +1072,7 @@ func (goo CommitSig) SizeBinary2(cdc *amino.Codec) int {
 	if len(goo.Signature) != 0 {
 		s += 1 + amino.ByteSliceSize(goo.Signature)
 	}
-	return s
+	return s, nil
 }
 
 func (goo *CommitSig) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1204,7 +1231,7 @@ func (goo Vote) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, e
 	return offset, err
 }
 
-func (goo Vote) SizeBinary2(cdc *amino.Codec) int {
+func (goo Vote) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Type != 0 {
 		s += 1 + amino.UvarintSize(uint64(goo.Type))
@@ -1216,7 +1243,10 @@ func (goo Vote) SizeBinary2(cdc *amino.Codec) int {
 		s += 1 + amino.VarintSize(int64(goo.Round))
 	}
 	{
-		cs := goo.BlockID.SizeBinary2(cdc)
+		cs, err := goo.BlockID.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
@@ -1230,7 +1260,7 @@ func (goo Vote) SizeBinary2(cdc *amino.Codec) int {
 	if goo.ValidatorAddress != [20]byte{} {
 		repr, err := goo.ValidatorAddress.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
@@ -1240,7 +1270,7 @@ func (goo Vote) SizeBinary2(cdc *amino.Codec) int {
 	if len(goo.Signature) != 0 {
 		s += 1 + amino.ByteSliceSize(goo.Signature)
 	}
-	return s
+	return s, nil
 }
 
 func (goo *Vote) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1365,7 +1395,7 @@ func (goo Part) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, e
 	return offset, err
 }
 
-func (goo Part) SizeBinary2(cdc *amino.Codec) int {
+func (goo Part) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Index != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Index))
@@ -1374,12 +1404,15 @@ func (goo Part) SizeBinary2(cdc *amino.Codec) int {
 		s += 1 + amino.ByteSliceSize(goo.Bytes)
 	}
 	{
-		cs := goo.Proof.SizeBinary2(cdc)
+		cs, err := goo.Proof.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *Part) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1438,9 +1471,9 @@ func (goo PartSet) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 	return offset, err
 }
 
-func (goo PartSet) SizeBinary2(cdc *amino.Codec) int {
+func (goo PartSet) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *PartSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1480,7 +1513,7 @@ func (goo PartSetHeader) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 	return offset, err
 }
 
-func (goo PartSetHeader) SizeBinary2(cdc *amino.Codec) int {
+func (goo PartSetHeader) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Total != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Total))
@@ -1488,7 +1521,7 @@ func (goo PartSetHeader) SizeBinary2(cdc *amino.Codec) int {
 	if len(goo.Hash) != 0 {
 		s += 1 + amino.ByteSliceSize(goo.Hash)
 	}
-	return s
+	return s, nil
 }
 
 func (goo *PartSetHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1566,18 +1599,21 @@ func (goo Validator) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 	return offset, err
 }
 
-func (goo Validator) SizeBinary2(cdc *amino.Codec) int {
+func (goo Validator) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Address != [20]byte{} {
 		repr, err := goo.Address.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	if goo.PubKey != nil {
 		if goo.PubKey != nil {
-			cs := cdc.SizeAnyBinary2(goo.PubKey)
+			cs, err := cdc.SizeAnyBinary2(goo.PubKey)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
@@ -1587,7 +1623,7 @@ func (goo Validator) SizeBinary2(cdc *amino.Codec) int {
 	if goo.ProposerPriority != 0 {
 		s += 1 + amino.VarintSize(int64(goo.ProposerPriority))
 	}
-	return s
+	return s, nil
 }
 
 func (goo *Validator) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1682,23 +1718,29 @@ func (goo ValidatorSet) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 	return offset, err
 }
 
-func (goo ValidatorSet) SizeBinary2(cdc *amino.Codec) int {
+func (goo ValidatorSet) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	for _, elem := range goo.Validators {
 		if elem == nil {
 			panic("nil struct pointers in lists not supported unless nil_elements field tag is also set")
 		} else {
-			cs := (*elem).SizeBinary2(cdc)
+			cs, err := (*elem).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.Proposer != nil {
 		{
-			cs := (*goo.Proposer).SizeBinary2(cdc)
+			cs, err := (*goo.Proposer).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *ValidatorSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1815,27 +1857,36 @@ func (goo EventNewBlock) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 	return offset, err
 }
 
-func (goo EventNewBlock) SizeBinary2(cdc *amino.Codec) int {
+func (goo EventNewBlock) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Block != nil {
 		{
-			cs := (*goo.Block).SizeBinary2(cdc)
+			cs, err := (*goo.Block).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	{
-		cs := goo.ResultBeginBlock.SizeBinary2(cdc)
+		cs, err := goo.ResultBeginBlock.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	{
-		cs := goo.ResultEndBlock.SizeBinary2(cdc)
+		cs, err := goo.ResultEndBlock.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *EventNewBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -1940,27 +1991,36 @@ func (goo EventNewBlockHeader) MarshalBinary2(cdc *amino.Codec, buf []byte, offs
 	return offset, err
 }
 
-func (goo EventNewBlockHeader) SizeBinary2(cdc *amino.Codec) int {
+func (goo EventNewBlockHeader) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.Header.SizeBinary2(cdc)
+		cs, err := goo.Header.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	{
-		cs := goo.ResultBeginBlock.SizeBinary2(cdc)
+		cs, err := goo.ResultBeginBlock.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	{
-		cs := goo.ResultEndBlock.SizeBinary2(cdc)
+		cs, err := goo.ResultEndBlock.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *EventNewBlockHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -2033,15 +2093,18 @@ func (goo EventTx) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 	return offset, err
 }
 
-func (goo EventTx) SizeBinary2(cdc *amino.Codec) int {
+func (goo EventTx) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.Result.SizeBinary2(cdc)
+		cs, err := goo.Result.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *EventTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -2094,15 +2157,18 @@ func (goo EventVote) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 	return offset, err
 }
 
-func (goo EventVote) SizeBinary2(cdc *amino.Codec) int {
+func (goo EventVote) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Vote != nil {
 		{
-			cs := (*goo.Vote).SizeBinary2(cdc)
+			cs, err := (*goo.Vote).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *EventVote) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -2158,7 +2224,7 @@ func (goo EventString) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 	return offset, err
 }
 
-func (goo EventString) SizeBinary2(cdc *amino.Codec) int {
+func (goo EventString) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	repr := goo
 	{
@@ -2167,7 +2233,7 @@ func (goo EventString) SizeBinary2(cdc *amino.Codec) int {
 			s += 1 + vs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *EventString) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -2204,13 +2270,16 @@ func (goo EventValidatorSetUpdates) MarshalBinary2(cdc *amino.Codec, buf []byte,
 	return offset, err
 }
 
-func (goo EventValidatorSetUpdates) SizeBinary2(cdc *amino.Codec) int {
+func (goo EventValidatorSetUpdates) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	for _, elem := range goo.ValidatorUpdates {
-		cs := elem.SizeBinary2(cdc)
+		cs, err := elem.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		s += 1 + amino.UvarintSize(uint64(cs)) + cs
 	}
-	return s
+	return s, nil
 }
 
 func (goo *EventValidatorSetUpdates) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -2310,27 +2379,36 @@ func (goo DuplicateVoteEvidence) MarshalBinary2(cdc *amino.Codec, buf []byte, of
 	return offset, err
 }
 
-func (goo DuplicateVoteEvidence) SizeBinary2(cdc *amino.Codec) int {
+func (goo DuplicateVoteEvidence) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.PubKey != nil {
 		if goo.PubKey != nil {
-			cs := cdc.SizeAnyBinary2(goo.PubKey)
+			cs, err := cdc.SizeAnyBinary2(goo.PubKey)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.VoteA != nil {
 		{
-			cs := (*goo.VoteA).SizeBinary2(cdc)
+			cs, err := (*goo.VoteA).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
 	if goo.VoteB != nil {
 		{
-			cs := (*goo.VoteB).SizeBinary2(cdc)
+			cs, err := (*goo.VoteB).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *DuplicateVoteEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -2411,7 +2489,7 @@ func (goo MockGoodEvidence) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 	return offset, err
 }
 
-func (goo MockGoodEvidence) SizeBinary2(cdc *amino.Codec) int {
+func (goo MockGoodEvidence) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Height != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Height))
@@ -2419,11 +2497,11 @@ func (goo MockGoodEvidence) SizeBinary2(cdc *amino.Codec) int {
 	if goo.Address != [20]byte{} {
 		repr, err := goo.Address.MarshalAmino()
 		if err != nil {
-			return 0
+			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
-	return s
+	return s, nil
 }
 
 func (goo *MockGoodEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -2487,15 +2565,18 @@ func (goo MockRandomGoodEvidence) MarshalBinary2(cdc *amino.Codec, buf []byte, o
 	return offset, err
 }
 
-func (goo MockRandomGoodEvidence) SizeBinary2(cdc *amino.Codec) int {
+func (goo MockRandomGoodEvidence) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.MockGoodEvidence.SizeBinary2(cdc)
+		cs, err := goo.MockGoodEvidence.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *MockRandomGoodEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -2550,15 +2631,18 @@ func (goo MockBadEvidence) MarshalBinary2(cdc *amino.Codec, buf []byte, offset i
 	return offset, err
 }
 
-func (goo MockBadEvidence) SizeBinary2(cdc *amino.Codec) int {
+func (goo MockBadEvidence) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	{
-		cs := goo.MockGoodEvidence.SizeBinary2(cdc)
+		cs, err := goo.MockGoodEvidence.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *MockBadEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -2625,7 +2709,7 @@ func (goo TxResult) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 	return offset, err
 }
 
-func (goo TxResult) SizeBinary2(cdc *amino.Codec) int {
+func (goo TxResult) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.Height != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Height))
@@ -2637,12 +2721,15 @@ func (goo TxResult) SizeBinary2(cdc *amino.Codec) int {
 		s += 1 + amino.ByteSliceSize(goo.Tx)
 	}
 	{
-		cs := goo.Response.SizeBinary2(cdc)
+		cs, err := goo.Response.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
 		if cs > 0 {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (goo *TxResult) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -2712,12 +2799,12 @@ func (goo MockAppState) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 	return offset, err
 }
 
-func (goo MockAppState) SizeBinary2(cdc *amino.Codec) int {
+func (goo MockAppState) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	if goo.AccountOwner != "" {
 		s += 1 + amino.UvarintSize(uint64(len(goo.AccountOwner))) + len(goo.AccountOwner)
 	}
-	return s
+	return s, nil
 }
 
 func (goo *MockAppState) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
@@ -2756,9 +2843,9 @@ func (goo VoteSet) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 	return offset, err
 }
 
-func (goo VoteSet) SizeBinary2(cdc *amino.Codec) int {
+func (goo VoteSet) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	return s
+	return s, nil
 }
 
 func (goo *VoteSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
