@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - chain/tm2-backup
   pull_request:
     paths:
       - contribs/**
