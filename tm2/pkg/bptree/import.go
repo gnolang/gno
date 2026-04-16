@@ -15,18 +15,36 @@ type importKV struct {
 // Importer reconstructs a tree from a stream of ExportNodes,
 // preserving the exact tree structure (and thus the root hash).
 type Importer struct {
-	tree       *MutableTree
-	version    int64
-	kvBuffer   []importKV
-	stack      []Node
-	nextNonce  uint32
+	tree      *MutableTree
+	version   int64
+	kvBuffer  []importKV
+	stack     []Node
+	nextNonce uint32
+	// savedVKs tracks every valueKey whose value was eagerly written to
+	// the DB by Add. On Close without a prior successful Commit, these
+	// values are deleted so an aborted import does not leak. Cleared by
+	// Commit on success and by Close on abort. See Finding #27.
+	savedVKs  [][]byte
+	committed bool
 }
 
 // Import creates an Importer that will reconstruct a tree at the given version.
+//
+// Import must be called on a clean tree; any in-flight working-session
+// state (uncommitted Sets/Removes) is discarded via Rollback first so
+// that the eventual Commit() -> SaveVersion does not persist stray
+// values / orphans from a prior Set that predate the import. Callers
+// who intend to preserve pre-Import mutations must SaveVersion them
+// explicitly before Import. See Finding #39.
 func (t *MutableTree) Import(version int64) (*Importer, error) {
 	if t.VersionExists(version) {
 		return nil, fmt.Errorf("version %d already exists", version)
 	}
+	// Drop any pending working-session state: delete eagerly-written
+	// session values from the DB, clear the orphan list, reset the
+	// value-nonce counter. Rollback also reverts t.root to t.lastSaved
+	// — acceptable because import rebuilds the root from scratch.
+	t.Rollback()
 	// nonce=0 is reserved to avoid collision with the "missing" sentinel
 	// in LeafNode.Serialize (12 zero bytes). See Finding #6.
 	return &Importer{tree: t, version: version, nextNonce: 1}, nil
@@ -45,10 +63,13 @@ func (imp *Importer) Add(node *ExportNode) error {
 			if err := imp.tree.ndb.SaveValue(node.Value, vk); err != nil {
 				return err
 			}
+			// Record for Close-time cleanup on aborted imports.
+			imp.savedVKs = append(imp.savedVKs, vk)
 		} else if imp.tree.memValues != nil {
 			valCopy := make([]byte, len(node.Value))
 			copy(valCopy, node.Value)
 			imp.tree.memValues[string(vk)] = valCopy
+			imp.savedVKs = append(imp.savedVKs, vk)
 		}
 		imp.kvBuffer = append(imp.kvBuffer, importKV{
 			key:       append([]byte(nil), node.Key...),
@@ -147,10 +168,37 @@ func (imp *Importer) Commit() error {
 	imp.tree.version = imp.version - 1
 	imp.tree.initialVersion = 0
 	_, _, err := imp.tree.SaveVersion()
-	return err
+	if err != nil {
+		return err
+	}
+	// SaveVersion took ownership of the values; the tracked list is no
+	// longer needed for cleanup.
+	imp.committed = true
+	imp.savedVKs = nil
+	return nil
 }
 
-// Close is a no-op for cleanup compatibility.
+// Close releases resources held by the Importer. If Commit has not been
+// called (or failed), any values eagerly written by Add are deleted from
+// the backing store so an aborted import does not leave orphaned entries.
+// Close is idempotent. See Finding #27.
 func (imp *Importer) Close() error {
+	if imp.committed || len(imp.savedVKs) == 0 {
+		imp.savedVKs = nil
+		return nil
+	}
+	if imp.tree.ndb != nil {
+		for _, vk := range imp.savedVKs {
+			if err := imp.tree.ndb.DeleteValueDirect(vk); err != nil {
+				imp.tree.logger.Error("bptree: Importer.Close: DeleteValueDirect failed",
+					"vk", fmt.Sprintf("%x", vk), "err", err)
+			}
+		}
+	} else if imp.tree.memValues != nil {
+		for _, vk := range imp.savedVKs {
+			delete(imp.tree.memValues, string(vk))
+		}
+	}
+	imp.savedVKs = nil
 	return nil
 }

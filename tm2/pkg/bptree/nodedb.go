@@ -14,6 +14,20 @@ import (
 
 // nodeDB handles persistence: reading/writing nodes, values, and root
 // references to the underlying key-value store.
+//
+// Lock discipline:
+//
+//   - `mtx` guards `latestVersion`, `firstVersion`, `versionReaders`,
+//     and `isCommitting`.
+//   - `pruneMu` serialises prune with reader registration (see
+//     Findings #15 and #40). Always acquired BEFORE `mtx`.
+//   - `nodeCache` is internally thread-safe (hashicorp/lru).
+//   - `batch`, `nextNonce`, and `pendingEvicts` are NOT guarded by a
+//     lock. They are only mutated by the single writer goroutine
+//     (SaveVersion / PruneVersionsTo). A future `AsyncPruning` option
+//     that introduces a second writer goroutine MUST add a save-path
+//     mutex covering these fields before landing. See Findings #13
+//     and #42.
 type nodeDB struct {
 	db    dbm.DB
 	batch dbm.Batch
@@ -36,6 +50,16 @@ type nodeDB struct {
 	logger       Logger
 
 	nextNonce uint32 // per-SaveVersion nonce counter
+
+	// pendingEvicts accumulates node cache keys for nodes queued for
+	// deletion in the current batch. Evictions are deferred to Commit
+	// (after the batch write succeeds) so a reader racing a DeleteNode
+	// cannot cache-miss, reload from the still-populated DB, and then
+	// re-cache a node whose deletion has been flushed. See Finding #44.
+	// The prune-reader invariant makes this theoretical today (pruned
+	// versions have no readers), but deferring the eviction codifies
+	// the contract instead of relying on a cross-file invariant.
+	pendingEvicts []string
 }
 
 func newNodeDB(db dbm.DB, cacheSize int, logger Logger, opts Options) *nodeDB {
@@ -227,7 +251,7 @@ func (ndb *nodeDB) LoadOrphans(version int64) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return nil, nil
 	}
 	r := bytes.NewReader(data)
@@ -469,6 +493,17 @@ func (ndb *nodeDB) UnsetCommitting() {
 // Commit flushes the current batch to disk and creates a new batch.
 // Always closes the old batch and creates a new one, even on error,
 // to avoid leaving the nodeDB in a broken state.
+//
+// On write error the pending batch is lost: most backends treat a batch
+// write as atomic, so either every queued write landed on disk or none
+// did. The caller cannot retry the same writes through this nodeDB; any
+// state that was recorded in the batch (in particular: a half-built
+// prune or save-version pass) must be reconstructed or the tree rolled
+// back to a consistent checkpoint. See Finding #38.
+//
+// Pending cache evictions recorded by DeleteNode are applied only if
+// the batch write succeeds. On error they are discarded because the
+// deletions never reached disk (Finding #44).
 func (ndb *nodeDB) Commit() error {
 	var err error
 	if ndb.opts.Sync {
@@ -478,7 +513,38 @@ func (ndb *nodeDB) Commit() error {
 	}
 	ndb.batch.Close()
 	ndb.batch = ndb.db.NewBatch()
+	if err == nil {
+		ndb.flushPendingEvicts()
+	} else {
+		ndb.pendingEvicts = ndb.pendingEvicts[:0]
+	}
 	return err
+}
+
+// discardBatch closes the current pending batch without writing it and
+// starts a fresh one. Any cache evictions queued for the discarded
+// batch are dropped since the underlying deletes never landed on disk.
+// Callers that hit an error partway through queueing writes use this
+// to drop the half-built batch so subsequent operations do not silently
+// flush inconsistent state on the next Commit. See Findings #44 and #52.
+func (ndb *nodeDB) discardBatch() {
+	if ndb.batch != nil {
+		ndb.batch.Close()
+	}
+	ndb.batch = ndb.db.NewBatch()
+	ndb.pendingEvicts = ndb.pendingEvicts[:0]
+}
+
+// flushPendingEvicts applies deferred cache evictions accumulated by
+// DeleteNode. Must only be called after the batch has been written
+// successfully. See Finding #44.
+func (ndb *nodeDB) flushPendingEvicts() {
+	if ndb.nodeCache != nil {
+		for _, k := range ndb.pendingEvicts {
+			ndb.nodeCache.Remove(k)
+		}
+	}
+	ndb.pendingEvicts = ndb.pendingEvicts[:0]
 }
 
 // ResetNonce resets the per-version nonce counter.
@@ -511,10 +577,18 @@ func (ndb *nodeDB) DeleteRoot(version int64) error {
 	return ndb.batch.Delete(rootDBKey(version))
 }
 
-// DeleteNode removes a node from the batch (used during pruning).
+// DeleteNode queues a node deletion on the current batch and records
+// a pending cache eviction that Commit will apply if the batch write
+// succeeds. Deferring the eviction closes a theoretical race where a
+// cache-miss reader could reload the node after eviction but before
+// the batch flushes, then re-cache a node whose deletion is now on
+// disk. See Finding #44.
 func (ndb *nodeDB) DeleteNode(nkBytes []byte) error {
-	if ndb.nodeCache != nil {
-		ndb.nodeCache.Remove(string(nkBytes))
+	if err := ndb.batch.Delete(nodeDBKey(nkBytes)); err != nil {
+		return err
 	}
-	return ndb.batch.Delete(nodeDBKey(nkBytes))
+	if ndb.nodeCache != nil {
+		ndb.pendingEvicts = append(ndb.pendingEvicts, string(nkBytes))
+	}
+	return nil
 }

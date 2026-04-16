@@ -61,6 +61,11 @@ func init() {
 	}
 	sentinelHash = sha256.Sum256([]byte{DomainEmpty})
 	emptyTreeHash = sha256.Sum256(nil)
+	// Pre-fill the template used by MiniMerkle.Clear() now that
+	// sentinelHash is finalised (Finding #21).
+	for i := range emptyMiniMerkle.tree {
+		emptyMiniMerkle.tree[i] = sentinelHash
+	}
 }
 
 // emptyHash returns a fresh copy of the empty tree hash (SHA256("")).

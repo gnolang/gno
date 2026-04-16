@@ -18,12 +18,23 @@ type Iterator struct {
 	valueResolver ValueResolver // alternative value resolution (from ImmutableTree)
 
 	// State
-	stack     []stackEntry
-	leaf      *LeafNode
-	leafIdx   int // current position within leaf
-	valid     bool
-	err       error
-	closed    bool
+	stack   []stackEntry
+	leaf    *LeafNode
+	leafIdx int // current position within leaf
+	valid   bool
+	err     error
+	closed  bool
+
+	// Per-leaf value cache (Finding #16). When the iterator enters a leaf
+	// and the caller invokes Value() for the first time, every value in
+	// the leaf is resolved up front and stashed here. Subsequent Value()
+	// calls against the same leaf return from cache, trading one DB
+	// round-trip per Next() for one batched resolution per leaf. The
+	// cache is cleared by setLeaf() on every leaf transition so each
+	// cache entry is valid only for the leaf currently pointed at by
+	// `it.leaf`.
+	leafValues       [B][]byte
+	leafValuesLoaded bool
 
 	// Version reader tracking
 	version int64 // 0 if no version reader
@@ -65,6 +76,17 @@ func newIterator(root Node, start, end []byte, ascending bool, ndb *nodeDB, vers
 	return it
 }
 
+// setLeaf switches the iterator to leaf n, invalidating the per-leaf
+// value cache so a subsequent Value() call reloads from the resolver
+// for the new leaf (Finding #16).
+func (it *Iterator) setLeaf(n *LeafNode) {
+	it.leaf = n
+	it.leafValuesLoaded = false
+	for i := range it.leafValues {
+		it.leafValues[i] = nil
+	}
+}
+
 // seekFirst positions the iterator at the first key >= start.
 func (it *Iterator) seekFirst(node Node) {
 	for {
@@ -79,7 +101,7 @@ func (it *Iterator) seekFirst(node Node) {
 			it.stack = append(it.stack, stackEntry{inner: n, childIdx: childIdx})
 			node = n.getChild(childIdx)
 		case *LeafNode:
-			it.leaf = n
+			it.setLeaf(n)
 			if it.start != nil {
 				pos, _ := searchLeaf(n, it.start)
 				it.leafIdx = pos
@@ -109,11 +131,19 @@ func (it *Iterator) seekLast(node Node) {
 			var childIdx int
 			if it.end != nil {
 				childIdx = searchInner(n, it.end)
-				// searchInner returns the child for keys >= end.
-				// We want the child containing keys < end.
-				// If end would be in child[childIdx], that child may have keys < end.
-				// But we need the rightmost key < end, so start from childIdx
-				// and let the leaf positioning handle the exact boundary.
+				// searchInner returns the first j where keys[j] > end, so
+				// `end` itself lives in child[childIdx]. When end matches
+				// a separator exactly (end == keys[childIdx-1], which is
+				// the smallest key of child[childIdx]), the rightmost key
+				// strictly less than end is in child[childIdx-1], not
+				// child[childIdx]. Without the adjustment we would descend
+				// into child[childIdx], find the leaf's first key equals
+				// end, land on leafIdx = -1, and climb back via
+				// prevLeaf() — correct but one extra DB load per seek.
+				// See Finding #33.
+				if childIdx > 0 && bytes.Equal(n.keys[childIdx-1], it.end) {
+					childIdx--
+				}
 				if childIdx >= n.NumChildren() {
 					childIdx = n.NumChildren() - 1
 				}
@@ -123,7 +153,7 @@ func (it *Iterator) seekLast(node Node) {
 			it.stack = append(it.stack, stackEntry{inner: n, childIdx: childIdx})
 			node = n.getChild(childIdx)
 		case *LeafNode:
-			it.leaf = n
+			it.setLeaf(n)
 			if it.end != nil {
 				// end is exclusive for both branches: if end matches a
 				// key, pos-1 is the last key < end; if end would be
@@ -190,7 +220,7 @@ func (it *Iterator) descendLeft(node Node) {
 			it.stack = append(it.stack, stackEntry{inner: n, childIdx: 0})
 			node = n.getChild(0)
 		case *LeafNode:
-			it.leaf = n
+			it.setLeaf(n)
 			it.leafIdx = 0
 			it.valid = true
 			it.checkEnd()
@@ -211,7 +241,7 @@ func (it *Iterator) descendRight(node Node) {
 			it.stack = append(it.stack, stackEntry{inner: n, childIdx: idx})
 			node = n.getChild(idx)
 		case *LeafNode:
-			it.leaf = n
+			it.setLeaf(n)
 			it.leafIdx = int(n.numKeys) - 1
 			it.valid = true
 			it.checkStart()
@@ -285,28 +315,61 @@ func (it *Iterator) Value() []byte {
 	if !it.valid {
 		panic("iterator invalid")
 	}
-	vk := it.leaf.valueKeys[it.leafIdx]
-	if it.ndb != nil {
-		val, err := it.ndb.GetValue(vk)
-		if err != nil {
-			it.err = err
-			it.valid = false
+	// No resolver wired. Previously the iterator silently returned nil
+	// here, leaving callers unable to distinguish "value resolved as nil"
+	// from "misconfigured tree". Surface the misconfiguration through
+	// Error() and invalidate the iterator. See Finding #35.
+	if it.ndb == nil && it.valueResolver == nil {
+		it.err = ErrNoValueResolver
+		it.valid = false
+		return nil
+	}
+	// Leaf-level value prefetch (Finding #16). The first Value() call
+	// after entering a leaf populates the cache for every occupied slot
+	// in a single pass; subsequent calls return the cached slice. For
+	// the common scan pattern (Value() once per Next()) this amortises
+	// per-call DB / resolver overhead at the cost of at most one eager
+	// resolution per leaf. Error on any slot invalidates the iterator
+	// and propagates via Error().
+	if !it.leafValuesLoaded {
+		if !it.loadLeafValues() {
 			return nil
 		}
-		return val
 	}
-	if it.valueResolver != nil {
-		val, err := it.valueResolver(vk)
-		if err != nil {
-			it.err = err
-			it.valid = false
-			return nil
-		}
-		return val
-	}
-	return nil // no resolver available
+	return it.leafValues[it.leafIdx]
 }
 
+// loadLeafValues resolves values for every occupied slot of the current
+// leaf and caches them in it.leafValues. Returns false and invalidates
+// the iterator on the first resolution error.
+func (it *Iterator) loadLeafValues() bool {
+	n := int(it.leaf.numKeys)
+	for i := 0; i < n; i++ {
+		vk := it.leaf.valueKeys[i]
+		var (
+			val []byte
+			err error
+		)
+		if it.ndb != nil {
+			val, err = it.ndb.GetValue(vk)
+		} else {
+			val, err = it.valueResolver(vk)
+		}
+		if err != nil {
+			it.err = err
+			it.valid = false
+			return false
+		}
+		it.leafValues[i] = val
+	}
+	it.leafValuesLoaded = true
+	return true
+}
+
+// Error reports the first error encountered during iteration or value
+// resolution. Callers MUST check Error() after Valid() returns false to
+// distinguish a clean end-of-range walk from a resolver / DB failure that
+// truncated iteration silently. See Finding #34.
 func (it *Iterator) Error() error {
 	return it.err
 }
@@ -350,9 +413,19 @@ func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, m
 }
 
 // Iterator returns an iterator over [start, end) in the given direction.
+// When the tree has no value-resolution path configured (no ndb and no
+// memValues — e.g. a MutableTree built via a bare struct literal), the
+// iterator is returned with err = ErrNoValueResolver and valid = false;
+// Error() reports the misconfiguration and the caller avoids silent
+// nil-value reads. See Finding #35.
 func (t *MutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, error) {
 	itr := newIterator(t.root, start, end, ascending, t.ndb, 0)
-	if t.ndb == nil && t.memValues != nil {
+	if t.ndb == nil {
+		if t.memValues == nil {
+			itr.err = ErrNoValueResolver
+			itr.valid = false
+			return itr, ErrNoValueResolver
+		}
 		itr.valueResolver = func(vk []byte) ([]byte, error) {
 			val, ok := t.memValues[string(vk)]
 			if !ok {
@@ -365,10 +438,17 @@ func (t *MutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, er
 }
 
 // ImmutableTree.Iterator returns an iterator. If a valueResolver is set,
-// the iterator resolves values via a wrapping ndb-like mechanism.
+// the iterator resolves values via that resolver. If none is set, the
+// iterator is returned with err = ErrNoValueResolver and valid = false
+// (see Finding #35) — do not silently yield hashes or nils.
 // For DB-backed trees, use NewIteratorWithNDB instead.
 func (t *ImmutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, error) {
 	itr := newIterator(t.root, start, end, ascending, nil, 0)
+	if t.valueResolver == nil {
+		itr.err = ErrNoValueResolver
+		itr.valid = false
+		return itr, ErrNoValueResolver
+	}
 	itr.valueResolver = t.valueResolver
 	return itr, nil
 }

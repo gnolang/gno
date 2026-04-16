@@ -11,13 +11,23 @@ import (
 
 // MutableTree is the working tree supporting Set, Get, Has, Remove,
 // SaveVersion, LoadVersion, and Rollback.
+//
+// Concurrency: MutableTree is NOT safe for concurrent use. All methods —
+// including read-only ones like Get, Has, Iterate, and proof
+// generation — mutate tree-level caches (cachedRootHash, lazy childNodes
+// on InnerNode) and therefore must be serialised externally. Proof
+// generation in particular walks the current root without snapshotting
+// miniTree state and will tear under concurrent Set/Remove. Callers that
+// need concurrent reads should obtain an ImmutableTree via
+// GetImmutable / Snapshot and read through that instead. See Findings
+// #7 and #9.
 type MutableTree struct {
 	root      Node   // nil for empty tree
 	lastSaved Node   // snapshot for rollback (set by SaveVersion)
 	size      int64  // total key count in working tree
 	version   int64  // last saved version
 
-	ndb            *nodeDB // nil for in-memory only (Phase 2 compat)
+	ndb            *nodeDB // nil for in-memory only (no persistence)
 	initialVersion uint64
 	logger         Logger
 
@@ -173,17 +183,25 @@ func (t *MutableTree) Get(key []byte) ([]byte, error) {
 	return t.resolveValue(vk)
 }
 
-// resolveValue resolves a valueKey to actual bytes.
+// resolveValue resolves a valueKey to actual bytes via the tree's backing
+// store. A tree with neither ndb nor memValues configured returns
+// ErrNoValueResolver so callers can distinguish "misconfigured tree" from
+// "lookup miss". A hit against memValues returns nil without error; a
+// miss falls through to the not-found path and returns ErrKeyDoesNotExist
+// rather than a bespoke formatted error, keeping the error surface
+// consistent with Get/Has/resolve from ImmutableTree. See Findings #10
+// and #11.
 func (t *MutableTree) resolveValue(vk []byte) ([]byte, error) {
 	if t.ndb != nil {
 		return t.ndb.GetValue(vk)
 	}
-	if t.memValues != nil {
-		if val, ok := t.memValues[string(vk)]; ok {
-			return val, nil
-		}
+	if t.memValues == nil {
+		return nil, ErrNoValueResolver
 	}
-	return nil, fmt.Errorf("value not found for key %x", vk)
+	if val, ok := t.memValues[string(vk)]; ok {
+		return val, nil
+	}
+	return nil, ErrKeyDoesNotExist
 }
 
 // orphanValueKey handles an orphaned valueKey from an overwrite or remove.
@@ -303,10 +321,25 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 
 	t.ndb.ResetNonce()
 
+	// On any failure between here and a successful Commit, the in-memory
+	// tree may hold NodeKeys assigned by saveNode but never flushed to
+	// disk (the batch is discarded). A straight return would leave the
+	// caller with a tree whose dirty nodes look clean to a retry —
+	// saveNode would skip them (`node.GetNodeKey() != nil` short-
+	// circuits) and persist an incomplete version. Recover by rolling
+	// back to the last saved snapshot and discarding the batch; the
+	// caller sees the failure and can re-apply their mutations. See
+	// Finding #36.
+	failPartialSave := func(err error) ([]byte, int64, error) {
+		t.ndb.discardBatch()
+		t.Rollback()
+		return nil, 0, err
+	}
+
 	// Assign NodeKeys and save all dirty nodes
 	if t.root != nil {
 		if err := t.saveNode(t.root, version); err != nil {
-			return nil, 0, err
+			return failPartialSave(err)
 		}
 	}
 
@@ -314,22 +347,22 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 	rootHash := t.WorkingHash()
 	if t.root != nil {
 		if err := t.ndb.SaveRoot(version, t.root.GetNodeKey(), rootHash); err != nil {
-			return nil, 0, err
+			return failPartialSave(err)
 		}
 	} else {
 		if err := t.ndb.SaveRoot(version, nil, rootHash); err != nil {
-			return nil, 0, err
+			return failPartialSave(err)
 		}
 	}
 
 	// Persist cross-version orphan list (Tier 2)
 	if err := t.ndb.SaveOrphans(version, t.versionOrphans); err != nil {
-		return nil, 0, err
+		return failPartialSave(err)
 	}
 
 	// Commit batch (nodes + root + orphan list, atomically)
 	if err := t.ndb.Commit(); err != nil {
-		return nil, 0, err
+		return failPartialSave(err)
 	}
 
 	t.version = version
@@ -836,32 +869,12 @@ func treeGetWithIndex(node Node, key []byte) (int64, Hash, []byte, bool) {
 	}
 }
 
-func iterateNode(node Node, fn func(key, value []byte) bool) bool {
-	switch n := node.(type) {
-	case *LeafNode:
-		for i := 0; i < int(n.numKeys); i++ {
-			if fn(n.keys[i], n.valueHashes[i][:]) {
-				return true
-			}
-		}
-		return false
-	case *InnerNode:
-		for i := 0; i < n.NumChildren(); i++ {
-			child := n.getChild(i)
-			if child != nil {
-				if iterateNode(child, fn) {
-					return true
-				}
-			}
-		}
-		return false
-	default:
-		panic("unknown node type")
-	}
-}
-
-// iterateNodeResolved is like iterateNode but passes valueKeys to the callback
-// instead of valueHashes, enabling value resolution via ValueKey.
+// iterateNodeResolved walks node in key order, yielding each (key, valueKey)
+// pair to fn. Returning true from fn stops iteration; iterateNodeResolved
+// returns true in that case and false when the walk completes normally. The
+// previous value-hash sibling (iterateNode) was removed alongside the
+// legacy no-resolver Iterate fallback that silently handed callers hashes
+// where values were expected. See Findings #11 and #19.
 func iterateNodeResolved(node Node, fn func(key, vk []byte) bool) bool {
 	switch n := node.(type) {
 	case *LeafNode:

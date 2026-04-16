@@ -1,11 +1,24 @@
 package bptree
 
+import "sync"
+
 // ValueResolver resolves a valueKey to the raw value bytes.
 type ValueResolver func(vk []byte) ([]byte, error)
 
 // ImmutableTree is a read-only snapshot of the tree at a specific version.
-// It is safe for concurrent reads. Created by MutableTree.GetImmutable()
-// (Phase 3) or by snapshotting the root after SaveVersion.
+//
+// Concurrency: ImmutableTree is safe for concurrent reads across
+// goroutines so long as no mutator on the originating MutableTree
+// still holds a reference to any of the snapshot's nodes. Snapshots
+// returned by GetImmutable are freshly loaded from the DB (children
+// begin lazy, guarded by InnerNode.childMu). Snapshots returned by
+// MutableTree.Snapshot clone the root so subsequent COW descents on
+// the MutableTree cannot reach back into the snapshot. See Finding #7.
+//
+// Callers that obtain an ImmutableTree from GetImmutable or
+// immutableForProof MUST call Close when done — the tree registers as
+// an active version reader at construction and a missing Close blocks
+// PruneVersionsTo with ErrActiveReaders until the process exits.
 type ImmutableTree struct {
 	root          Node
 	version       int64
@@ -16,6 +29,12 @@ type ImmutableTree struct {
 	// that do not correspond to a saved version in a nodeDB (e.g. proof
 	// scratch trees or purely in-memory snapshots).
 	ndb *nodeDB
+
+	// closeOnce guards decrVersionReaders so double-Close or concurrent
+	// Close calls do not over-decrement the reader count (which would
+	// allow a prune to proceed against a version that still has live
+	// snapshots). See Finding #45.
+	closeOnce sync.Once
 }
 
 // NewImmutableTree creates an ImmutableTree from a root node and version.
@@ -29,24 +48,33 @@ func (t *ImmutableTree) SetValueResolver(resolver ValueResolver) {
 }
 
 // Close releases the version-reader reservation held by this snapshot.
-// It is safe to call multiple times; subsequent calls are no-ops. Callers
-// that hold an ImmutableTree obtained from GetImmutable or immutableForProof
-// MUST call Close when done; otherwise PruneVersionsTo on that version will
-// return ErrActiveReaders indefinitely. See Finding #30.
+// Guarded by sync.Once so repeated or concurrent Close calls decrement
+// the reader count exactly once — a double decrement would allow a
+// prune to proceed while other snapshots of the same version are still
+// live. Callers that hold an ImmutableTree obtained from GetImmutable or
+// immutableForProof MUST call Close when done; otherwise
+// PruneVersionsTo on that version will return ErrActiveReaders
+// indefinitely. See Findings #30 and #45.
 func (t *ImmutableTree) Close() error {
-	if t.ndb != nil && t.version > 0 {
-		t.ndb.decrVersionReaders(t.version)
-	}
-	t.ndb = nil
+	t.closeOnce.Do(func() {
+		if t.ndb != nil && t.version > 0 {
+			t.ndb.decrVersionReaders(t.version)
+		}
+		t.ndb = nil
+	})
 	return nil
 }
 
-// resolveValue resolves a valueKey to raw bytes if a resolver is set.
+// resolveValue resolves a valueKey to raw bytes via the configured resolver.
+// Returns ErrNoValueResolver when no resolver is set; this is distinct from
+// ErrKeyDoesNotExist so callers can tell a missing key from a misconfigured
+// tree (e.g. an ImmutableTree constructed outside GetImmutable/Snapshot).
+// See Findings #10 and #11.
 func (t *ImmutableTree) resolveValue(vk []byte) ([]byte, error) {
 	if t.valueResolver != nil {
 		return t.valueResolver(vk)
 	}
-	return nil, ErrKeyDoesNotExist
+	return nil, ErrNoValueResolver
 }
 
 // Get returns the value for a key, or nil if not found.
@@ -128,25 +156,27 @@ func (t *ImmutableTree) GetWithIndex(key []byte) (int64, []byte, error) {
 	return idx, val, err
 }
 
-// Iterate calls fn for each key-value pair in sorted order.
-// If a value resolver is set, values are resolved to actual bytes; a
-// resolver error stops iteration and is returned. If no resolver is
-// set, this falls back to yielding value hashes (legacy behavior).
+// Iterate calls fn for each key-value pair in sorted order. Values are
+// resolved to actual bytes via the configured resolver; a resolver error
+// stops iteration and is returned. If no resolver is set, Iterate returns
+// (false, ErrNoValueResolver) without walking the tree — the previous
+// value-hash fallback silently handed callers fixed-size hashes where a
+// value was expected, producing garbage downstream. See Finding #11.
 func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, error) {
 	if t.root == nil {
 		return false, nil
 	}
-	if t.valueResolver != nil {
-		var resolveErr error
-		stopped := iterateNodeResolved(t.root, func(key, vk []byte) bool {
-			val, err := t.valueResolver(vk)
-			if err != nil {
-				resolveErr = err
-				return true // stop
-			}
-			return fn(key, val)
-		})
-		return stopped, resolveErr
+	if t.valueResolver == nil {
+		return false, ErrNoValueResolver
 	}
-	return iterateNode(t.root, fn), nil
+	var resolveErr error
+	stopped := iterateNodeResolved(t.root, func(key, vk []byte) bool {
+		val, err := t.valueResolver(vk)
+		if err != nil {
+			resolveErr = err
+			return true // stop
+		}
+		return fn(key, val)
+	})
+	return stopped, resolveErr
 }

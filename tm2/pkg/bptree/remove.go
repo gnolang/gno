@@ -24,7 +24,15 @@ func treeRemove(root Node, key []byte) (Node, Hash, []byte, bool) {
 
 	// Check for root collapse
 	if inner, ok := root.(*InnerNode); ok && inner.numKeys == 0 {
-		// Root has single child — collapse
+		// Root has single child — collapse. Every code path that reaches
+		// numKeys==0 at the root passes through merge(), which operates
+		// only on children cloned by fixUnderflow (both sides of a merge
+		// are cloned). Clone clears nodeKey, so the surviving child is
+		// guaranteed dirty; SaveVersion will persist it and re-derive the
+		// root record from its freshly-assigned NodeKey. If a future
+		// refactor skips a clone on the collapse path, the new root
+		// would look clean (nodeKey != nil) and SaveVersion would leave
+		// the collapsed root unsaved. See Finding #37.
 		return inner.getChild(0), res.oldValue, res.oldValueKey, true
 	}
 	if leaf, ok := root.(*LeafNode); ok && leaf.numKeys == 0 {
@@ -159,9 +167,17 @@ func canSpare(n Node) bool {
 
 // redistributeRight moves the last entry from parent.child[idx] to
 // parent.child[idx+1], updating the separator at parent.keys[idx].
+//
+// Precondition: both children must be COW-cloned (nodeKey == nil). A
+// shared child still bearing its persisted nodeKey would be mutated in
+// place here, corrupting the retained version that also references it.
+// fixUnderflow's call sites clone both sides; the assertion catches a
+// future caller that forgets. See Finding #24.
 func redistributeRight(parent *InnerNode, idx int) {
 	left := parent.getChild(idx)
 	right := parent.getChild(idx + 1)
+	assertCloned(left, "redistributeRight: left child not cloned")
+	assertCloned(right, "redistributeRight: right child not cloned")
 
 	switch l := left.(type) {
 	case *LeafNode:
@@ -235,9 +251,14 @@ func redistributeRight(parent *InnerNode, idx int) {
 
 // redistributeLeft moves the first entry from parent.child[idx+1] to
 // parent.child[idx], updating the separator at parent.keys[idx].
+//
+// Precondition: both children must be COW-cloned. See redistributeRight
+// and Finding #24.
 func redistributeLeft(parent *InnerNode, idx int) {
 	left := parent.getChild(idx)
 	right := parent.getChild(idx + 1)
+	assertCloned(left, "redistributeLeft: left child not cloned")
+	assertCloned(right, "redistributeLeft: right child not cloned")
 
 	switch r := right.(type) {
 	case *LeafNode:
@@ -310,9 +331,14 @@ func redistributeLeft(parent *InnerNode, idx int) {
 
 // merge merges parent.child[idx+1] into parent.child[idx], removing
 // the separator at parent.keys[idx].
+//
+// Precondition: the left (destination) child must be COW-cloned.
+// fixUnderflow always clones left before calling merge; the assertion
+// guards against a future caller that forgets. See Finding #24.
 func merge(parent *InnerNode, idx int) {
 	left := parent.getChild(idx)
 	right := parent.getChild(idx + 1)
+	assertCloned(left, "merge: destination (left) child not cloned")
 
 	switch l := left.(type) {
 	case *LeafNode:
@@ -373,4 +399,17 @@ func copyKey(k []byte) []byte {
 	c := make([]byte, len(k))
 	copy(c, k)
 	return c
+}
+
+// assertCloned panics if node still carries a persisted nodeKey. A cloned
+// node always has nodeKey == nil (see cloneNode); the helper codifies the
+// contract that structural mutations must operate only on COW clones. See
+// Finding #24.
+func assertCloned(node Node, msg string) {
+	if node == nil {
+		return
+	}
+	if node.GetNodeKey() != nil {
+		panic(msg)
+	}
 }

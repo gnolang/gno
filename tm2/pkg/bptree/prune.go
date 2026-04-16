@@ -16,8 +16,17 @@ func nodeKeyArr(nk *NodeKey) [NodeKeySize]byte {
 }
 
 // nodeKeyBytesToArr copies an already-serialized 12-byte NodeKey into a
-// value-typed [NodeKeySize]byte for map lookup.
+// value-typed [NodeKeySize]byte for map lookup. A short slice would
+// otherwise zero-pad the tail and silently miscompare against the
+// reachable set (producing either a bogus hit or a bogus miss). A short
+// slice reaching this helper indicates a desync between `InnerNode`
+// serialisation and the reader (Finding #18 also guards this on the
+// write side); panic with a clear diagnostic so the upstream bug is
+// visible instead of corrupting prune decisions. See Finding #47.
 func nodeKeyBytesToArr(b []byte) [NodeKeySize]byte {
+	if len(b) != NodeKeySize {
+		panic(fmt.Sprintf("bptree: nodeKeyBytesToArr: short slice len=%d want %d", len(b), NodeKeySize))
+	}
 	var a [NodeKeySize]byte
 	copy(a[:], b)
 	return a
@@ -76,14 +85,17 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 		if nextV == 0 {
 			// No next version — just delete root ref and nodes
 			if err := t.deleteAllNodesForVersion(v); err != nil {
+				t.ndb.discardBatch() // Finding #52
 				return err
 			}
 		} else {
 			if err := t.sweepAndOrphanVersion(v, nextV, reachable); err != nil {
+				t.ndb.discardBatch() // Finding #52
 				return err
 			}
 		}
 		if err := t.ndb.DeleteRoot(v); err != nil {
+			t.ndb.discardBatch() // Finding #52
 			return err
 		}
 	}
@@ -91,7 +103,13 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 	if err := t.ndb.Commit(); err != nil {
 		return err
 	}
-	t.ndb.setFirstVersion(toVersion + 1)
+	// Advance-only: if a caller passes toVersion < firstVersion-1 (the
+	// per-version loop body is a no-op in that case), we must not rewind
+	// the bookkeeping below the true first retained version. See
+	// Finding #41.
+	if next := toVersion + 1; next > t.ndb.getFirstVersion() {
+		t.ndb.setFirstVersion(next)
+	}
 	return nil
 }
 
@@ -193,8 +211,16 @@ func (t *MutableTree) sweepAndOrphanVersion(v, nextV int64, reachable map[[NodeK
 //   - Leaf-skip: when the parent is directly above the leaf level
 //     (height == 1), children are leaves with no descendants. Their
 //     NodeKeys can be marked from the parent's `children[i]` reference
-//     without a DB load + RebuildMiniMerkle. At B=32 this removes ~97%
-//     of node loads in the mark phase.
+//     without a DB load + RebuildMiniMerkle. At B=32, every inner node
+//     at height 1 owns up to 32 leaf children and the inner itself is
+//     one node, so leaves outnumber parents-of-leaves 32:1 and the
+//     leaf-skip covers 32/33 ≈ 97% of descents at the penultimate
+//     level. See Finding #51.
+//
+// The leaf-skip correctness depends on the invariant that a height-1
+// inner's children are all leaves. The first child is verified on
+// entry (Finding #46): if it deserialises as an InnerNode, the tree
+// is corrupt and prune must bail rather than silently leak subtrees.
 func (t *MutableTree) markReachable(node Node, reachable map[[NodeKeySize]byte]struct{}) error {
 	if node == nil {
 		return nil
@@ -212,6 +238,9 @@ func (t *MutableTree) markReachable(node Node, reachable map[[NodeKeySize]byte]s
 		return nil
 	}
 	leafChildren := inner.height == 1
+	if err := t.assertLeafChildren(inner, leafChildren); err != nil {
+		return err
+	}
 	for i := 0; i < inner.NumChildren(); i++ {
 		if inner.childNodes[i] != nil {
 			if err := t.markReachable(inner.childNodes[i], reachable); err != nil {
@@ -237,6 +266,38 @@ func (t *MutableTree) markReachable(node Node, reachable map[[NodeKeySize]byte]s
 		if err := t.markReachable(child, reachable); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// assertLeafChildren verifies that inner.height == 1 implies its children
+// are LeafNodes (and height > 1 implies InnerNodes). The check peeks at
+// the first available child — either the in-memory reference or the
+// first serialised ref — which suffices because height invariants are
+// uniform across all children of a given inner node. One DB load per
+// height-1 parent is paid at most once per prune pass; the cost is
+// amortised by the leaf-skip optimisation that follows. See Finding
+// #46.
+func (t *MutableTree) assertLeafChildren(inner *InnerNode, leafChildren bool) error {
+	for i := 0; i < inner.NumChildren(); i++ {
+		var probe Node
+		if inner.childNodes[i] != nil {
+			probe = inner.childNodes[i]
+		} else if inner.children[i] != nil {
+			c, err := t.ndb.GetNode(inner.children[i])
+			if err != nil {
+				return fmt.Errorf("assertLeafChildren: loading child %d: %w", i, err)
+			}
+			probe = c
+		} else {
+			continue
+		}
+		_, isLeaf := probe.(*LeafNode)
+		if leafChildren != isLeaf {
+			return fmt.Errorf("%w: height=%d child[%d] isLeaf=%v",
+				ErrHeightInvariantViolated, inner.height, i, isLeaf)
+		}
+		return nil
 	}
 	return nil
 }
@@ -268,9 +329,22 @@ func (t *MutableTree) sweepOld(node Node, reachable map[[NodeKeySize]byte]struct
 		return nil
 	}
 	leafChildren := inner.height == 1
+	if err := t.assertLeafChildren(inner, leafChildren); err != nil {
+		return err
+	}
 	for i := 0; i < inner.NumChildren(); i++ {
 		var child Node
 		if inner.childNodes[i] != nil {
+			// In-memory child. Mirror the serialised-ref fast path:
+			// if the child's NodeKey is already in the reachable set
+			// the whole subtree is shared and descent is pointless.
+			// Otherwise fall through to sweepOld which rewalks this
+			// subtree and its descendants. See Finding #49.
+			if ck := inner.childNodes[i].GetNodeKey(); ck != nil {
+				if _, shared := reachable[nodeKeyArr(ck)]; shared {
+					continue
+				}
+			}
 			child = inner.childNodes[i]
 		} else if inner.children[i] != nil {
 			if _, shared := reachable[nodeKeyBytesToArr(inner.children[i])]; shared {
@@ -299,20 +373,49 @@ func (t *MutableTree) sweepOld(node Node, reachable map[[NodeKeySize]byte]struct
 }
 
 // deleteAllNodesForVersion deletes the root node and all nodes reachable
-// from it. Used when there is no next version to compare against.
+// from it, and processes v's own orphan list.
+//
+// Today the only caller path in PruneVersionsTo gates this on
+// `toVersion >= latest` at L59, so `findNextVersion(v, latest) == 0`
+// implies `v == latest` and the orphan-list of v is for keys displaced
+// when v+1 was created — a version that by definition does not exist
+// under the current guard. Loading and deleting v's orphans here
+// defends against any future relaxation of that guard that would
+// otherwise silently leak values. See Finding #43.
 func (t *MutableTree) deleteAllNodesForVersion(v int64) error {
 	nkBytes, _, err := t.ndb.GetRoot(v)
-	if err != nil || nkBytes == nil {
+	if err != nil {
 		return err
 	}
-	root, err := t.ndb.GetNode(nkBytes)
-	if err != nil {
-		return fmt.Errorf("loading root node for v%d: %w", v, err)
+	if nkBytes != nil {
+		root, err := t.ndb.GetNode(nkBytes)
+		if err != nil {
+			return fmt.Errorf("loading root node for v%d: %w", v, err)
+		}
+		if err := t.deleteSubtree(root); err != nil {
+			return err
+		}
 	}
-	return t.deleteSubtree(root)
+	orphans, err := t.ndb.LoadOrphans(v)
+	if err != nil {
+		return fmt.Errorf("loading orphans for v%d: %w", v, err)
+	}
+	for _, vk := range orphans {
+		if err := t.ndb.DeleteValue(vk); err != nil {
+			return err
+		}
+	}
+	return t.ndb.DeleteOrphans(v)
 }
 
 // deleteSubtree recursively deletes a node and all its descendants.
+//
+// Child resolution prefers the in-memory reference (childNodes[i]) when
+// set, falling back to loading from the serialised ref (children[i]).
+// Today the only caller (deleteAllNodesForVersion) passes a freshly
+// DB-loaded root whose childNodes begin nil, so the fast path never
+// fires — but a future caller handing in a tree with unsaved children
+// would leak those subtrees without this check. See Finding #50.
 func (t *MutableTree) deleteSubtree(node Node) error {
 	nk := node.GetNodeKey()
 	if nk != nil {
@@ -323,6 +426,12 @@ func (t *MutableTree) deleteSubtree(node Node) error {
 
 	if inner, ok := node.(*InnerNode); ok {
 		for i := 0; i < inner.NumChildren(); i++ {
+			if inner.childNodes[i] != nil {
+				if err := t.deleteSubtree(inner.childNodes[i]); err != nil {
+					return err
+				}
+				continue
+			}
 			if inner.children[i] != nil {
 				child, err := t.ndb.GetNode(inner.children[i])
 				if err != nil {

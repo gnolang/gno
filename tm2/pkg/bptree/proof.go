@@ -252,12 +252,22 @@ func miniMerkleInnerOps(m *MiniMerkle, index int) []*ics23.InnerOp {
 
 // --- MutableTree wrappers ---
 
+// GetMembershipProof generates an ICS23 existence proof over the current
+// working tree. Callers MUST NOT invoke Set/Remove/SaveVersion/Rollback
+// on this MutableTree while the proof is being constructed: the walk
+// reads miniTree state that Set rewrites in place, so concurrent
+// mutation tears the proof's inner ops. Proof generation against a
+// GetImmutable-returned snapshot does not have this restriction. See
+// Finding #9.
 func (t *MutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	imm := t.immutableForProof()
 	defer imm.Close()
 	return imm.GetMembershipProof(key)
 }
 
+// GetNonMembershipProof generates an ICS23 non-existence proof over the
+// current working tree. The same caller contract as GetMembershipProof
+// applies: do not mutate the MutableTree concurrently. See Finding #9.
 func (t *MutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	imm := t.immutableForProof()
 	defer imm.Close()

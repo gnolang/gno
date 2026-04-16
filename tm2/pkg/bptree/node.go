@@ -131,6 +131,16 @@ func (n *LeafNode) RebuildMiniMerkle() {
 // The childMu is intentionally NOT copied: each clone gets a fresh mutex
 // so concurrent lazy-load on n and c do not alias the same lock. The
 // ndb reference is preserved so the clone can itself lazy-load children.
+//
+// miniTree is copied by value (2 KB, compiles to a single memcpy).
+// Finding #29 considered storing only the leaf slots and recomputing
+// intermediates on demand: it would save ≈ 1 KB per clone but forces
+// every subsequent SetSlot to rebuild the full 31-hash walk-up instead
+// of the current 5-hash incremental update, turning each Set/Remove
+// into a ~6× slower mini-merkle operation. The full-heap layout is
+// retained because the memcpy is amortised by those fast incremental
+// updates; Option B remains tractable only if the module adopts
+// demand-driven hashing everywhere, which is out of scope here.
 func (n *InnerNode) Clone() *InnerNode {
 	// Explicit field copy avoids copying sync.Mutex (which vet flags
 	// as unsafe, even though both src and dst are unlocked here). See

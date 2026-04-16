@@ -45,11 +45,16 @@ func (m *MiniMerkle) Build() {
 	}
 }
 
+// emptyMiniMerkle is a MiniMerkle with every slot pre-filled with the
+// sentinel hash. Populated once at package init (sentinelHash itself is
+// set there) so Clear() can reset a tree via a single struct copy
+// (compiles to memcpy) rather than a 64-iteration loop of 32-byte
+// writes. See Finding #21.
+var emptyMiniMerkle MiniMerkle
+
 // Clear sets all slots to the sentinel hash.
 func (m *MiniMerkle) Clear() {
-	for i := range m.tree {
-		m.tree[i] = sentinelHash
-	}
+	*m = emptyMiniMerkle
 }
 
 // SiblingPath returns the MiniMerkleDepth sibling hashes needed to prove

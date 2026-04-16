@@ -24,4 +24,19 @@ var (
 	// these methods must switch to the documented alternative
 	// (typically PruneVersionsTo). See Finding #12.
 	ErrUnsupported = errors.New("bptree: operation not supported")
+	// ErrNoValueResolver is returned by read APIs that need to resolve
+	// a valueKey to raw value bytes when the tree has no resolver
+	// configured. Distinguishing this from ErrKeyDoesNotExist lets
+	// callers tell a missing key from a misconfigured tree. See
+	// Findings #10 and #11.
+	ErrNoValueResolver = errors.New("bptree: no value resolver configured")
+	// ErrHeightInvariantViolated is returned by prune when a loaded
+	// InnerNode claims height == 1 but at least one of its children
+	// deserialises as an InnerNode (or vice versa). The leaf-skip
+	// optimisation in markReachable / sweepOld would then incorrectly
+	// treat that child as a leaf — silently leaking its subtree on
+	// prune. Surface this as a typed error rather than a panic so the
+	// prune caller can roll back to a consistent checkpoint. See
+	// Finding #46.
+	ErrHeightInvariantViolated = errors.New("bptree: inner node height invariant violated")
 )

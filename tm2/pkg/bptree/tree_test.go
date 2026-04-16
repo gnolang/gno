@@ -493,13 +493,15 @@ func TestMutableTree_COW_OldReferencesValid(t *testing.T) {
 
 	// Walk snapshot's underlying tree — should still have exactly the
 	// original 50 keys. We iterate the tree structure directly (via
-	// iterateNode over the snapshot's root) rather than ImmutableTree.Iterate
-	// because Remove eagerly purges same-working-version valueKeys from the
-	// shared in-memory value store, which would fail value resolution even
-	// though the tree structure itself is preserved. Here we only verify
-	// the tree structure (keys) is isolated from mutations.
+	// iterateNodeResolved over the snapshot's root) rather than
+	// ImmutableTree.Iterate because Remove eagerly purges
+	// same-working-version valueKeys from the shared in-memory value
+	// store, which would fail value resolution even though the tree
+	// structure itself is preserved. Here we only verify the tree
+	// structure (keys) is isolated from mutations; the valueKey is
+	// discarded.
 	var oldKeys []string
-	iterateNode(snap.root, func(key, value []byte) bool {
+	iterateNodeResolved(snap.root, func(key, _ []byte) bool {
 		oldKeys = append(oldKeys, string(key))
 		return false
 	})

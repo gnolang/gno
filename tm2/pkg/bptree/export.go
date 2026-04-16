@@ -111,10 +111,17 @@ func (e *Exporter) exportNode(node Node) error {
 				}
 			}
 		}
-		// Emit inner node marker with ALL separator keys
+		// Emit inner node marker with ALL separator keys. Copy each key
+		// instead of sharing the backing slice: a concurrent mutator on
+		// the source tree (export is valid on ImmutableTree but the
+		// same underlying array may be visible to a MutableTree root via
+		// structural sharing before the first cowRoot) could otherwise
+		// tear key bytes mid-export, and a consumer that retains the
+		// ExportNode after the next Set would see corrupted keys. See
+		// Finding #27.
 		sepKeys := make([][]byte, n.numKeys)
 		for i := 0; i < int(n.numKeys); i++ {
-			sepKeys[i] = n.keys[i]
+			sepKeys[i] = copyKey(n.keys[i])
 		}
 		if err := e.send(&ExportNode{
 			Height:        int8(n.height),

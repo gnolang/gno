@@ -205,6 +205,47 @@ tm2/pkg/store/bptree/
 | Node loading | Eager (full tree) | Lazy (on demand) |
 | Copy semantics | Values shared by reference | Values copied (content-addressed) |
 
+## Thread safety
+
+The package advertises a tight but explicit concurrency contract. Code
+that violates it is a data race, not a tolerated pattern. See Findings
+#7, #9, #13 for the full history.
+
+- **`MutableTree` is single-writer**. All mutating methods (`Set`,
+  `Remove`, `SaveVersion`, `LoadVersion`, `Rollback`,
+  `PruneVersionsTo`, `Import`) must be serialised externally. The
+  implementation does not take a tree-level mutex; callers do.
+- **`ImmutableTree` is safe for concurrent reads** so long as no
+  mutator still holds a reference to any of its nodes. `GetImmutable`
+  and `Snapshot` return trees whose roots are either freshly loaded
+  from the DB (unshared) or explicitly cloned, so concurrent readers
+  on the returned tree do not race with subsequent mutations on the
+  originating `MutableTree`.
+- **Iterators and proofs pin a version**. `GetImmutable` /
+  `immutableForProof` register the tree as an active version reader;
+  a concurrent `PruneVersionsTo` on that version returns
+  `ErrActiveReaders` until every outstanding `ImmutableTree.Close`
+  has run. Iterators obtained via `NewIteratorWithNDB` hold the same
+  reservation and release it on `Close`.
+- **Proof generation on a `MutableTree`** (`MutableTree.GetMembershipProof`,
+  `MutableTree.GetNonMembershipProof`) goes through `immutableForProof`,
+  which captures the current root without cloning. Concurrent
+  mutations on the `MutableTree` while a proof is being constructed
+  can tear the walked mini-merkle state, so the caller must ensure
+  proof generation does not overlap with `Set` / `Remove` /
+  `SaveVersion` on the same tree. Proof generation against a
+  `GetImmutable`-returned snapshot is race-free.
+- **`nodeDB`'s `batch` and `nextNonce` are single-writer**, protected
+  only by the contract that `SaveVersion` and `PruneVersionsTo`
+  never run concurrently on the same tree. An unwired `AsyncPruning`
+  option was removed to prevent accidental activation; re-introducing
+  a background pruner will require adding a save-path mutex covering
+  these fields.
+
+The `TestConcurrent_LazyLoadFromDB` test in `final_test.go` runs
+ten concurrent `Has` calls against a lazily-loaded `ImmutableTree` and
+is exercised under `-race` in CI.
+
 ## Testing
 
 314 tests covering:
