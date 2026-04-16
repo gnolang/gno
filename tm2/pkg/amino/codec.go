@@ -310,7 +310,7 @@ func (cdc *Codec) registerType(pkg *Package, rt reflect.Type, typeURL string, po
 	info.Package = pkg
 	info.ConcreteInfo.Registered = true
 	info.ConcreteInfo.PointerPreferred = pointerPreferred
-	info.ConcreteInfo.Name = typeURLtoShortname(typeURL)
+	info.ConcreteInfo.Name = typeURLtoShortname(typeURL) // panics on bad typeURL (programmer error)
 	info.ConcreteInfo.TypeURL = typeURL
 
 	// Separate locking instance,
@@ -462,7 +462,7 @@ func (cdc *Codec) registerTypeInfoWLocked(info *TypeInfo, primary bool) {
 
 	// Everybody's dooing a brand-new dance, now
 	// Come on baby, doo the registration!
-	fullname := typeURLtoFullname(info.TypeURL)
+	fullname := mustTypeURLtoFullname(info.TypeURL) // panics on bad typeURL (programmer error)
 	existing, ok := cdc.fullnameToTypeInfo[fullname]
 	if primary {
 		if ok {
@@ -523,10 +523,10 @@ func (cdc *Codec) getTypeInfoWLocked(rt reflect.Type) (info *TypeInfo, err error
 }
 
 func (cdc *Codec) getTypeInfoFromTypeURLRLock(typeURL string, fopts FieldOptions) (info *TypeInfo, err error) {
-	if !strings.Contains(typeURL, "/") {
-		return nil, fmt.Errorf("invalid type_url %q: must contain at least one slash", typeURL)
+	fullname, err := typeURLtoFullname(typeURL)
+	if err != nil {
+		return nil, err
 	}
-	fullname := typeURLtoFullname(typeURL)
 	return cdc.getTypeInfoFromFullnameRLock(fullname, fopts)
 }
 
@@ -796,19 +796,27 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 // ----------------------------------------
 // Misc.
 
-func typeURLtoFullname(typeURL string) (fullname string) {
+func typeURLtoFullname(typeURL string) (string, error) {
 	parts := strings.Split(typeURL, "/")
 	if len(parts) == 1 {
-		panic(fmt.Sprintf("invalid type_url \"%v\", must contain at least one slash and be followed by the full name", typeURL))
+		return "", fmt.Errorf("invalid type_url %q, must contain at least one slash", typeURL)
 	}
-	return parts[len(parts)-1]
+	return parts[len(parts)-1], nil
 }
 
-func typeURLtoShortname(typeURL string) (name string) {
-	fullname := typeURLtoFullname(typeURL)
+func mustTypeURLtoFullname(typeURL string) string {
+	fullname, err := typeURLtoFullname(typeURL)
+	if err != nil {
+		panic(err)
+	}
+	return fullname
+}
+
+func typeURLtoShortname(typeURL string) string {
+	fullname := mustTypeURLtoFullname(typeURL)
 	parts := strings.Split(fullname, ".")
 	if len(parts) == 1 {
-		panic(fmt.Sprintf("invalid type_url \"%v\", full name must contain dot", typeURL))
+		panic(fmt.Sprintf("invalid type_url %q, full name must contain dot", typeURL))
 	}
 	return parts[len(parts)-1]
 }

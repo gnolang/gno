@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"reflect"
 	"runtime/debug"
+	"strings"
 	"testing"
 	"time"
 
@@ -166,11 +167,15 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 				spw(ptr), spw(ptr3), spw(pbo))
 
 			// Marshal pbo and check for equality of bz and b3. (go -> p3go -> bz vs go -> bz)
+			// Skip for types with write_empty fields: amino encodes zero values
+			// explicitly, but proto.Marshal omits them per proto3 rules.
 			bz3, err := proto.Marshal(pbo)
 			require.NoError(t, err)
-			require.Equal(t, bz, bz3,
-				"pbo serialization check failed.\nbz(go): %X\nbz(pb-go): %X\nstart(goo): %v\nend(pbo): %v\n",
-				bz, bz3, spw(ptr), spw(pbo))
+			if !hasWriteEmpty(rt) {
+				require.Equal(t, bz, bz3,
+					"pbo serialization check failed.\nbz(go): %X\nbz(pb-go): %X\nstart(goo): %v\nend(pbo): %v\n",
+					bz, bz3, spw(ptr), spw(pbo))
+			}
 
 			// Decode from bz and check for equality (go -> bz -> p3go -> go vs go)
 			pbo2 := pbm.EmptyPBMessage(cdc)
@@ -241,6 +246,18 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 			"end to end failed.\nstart: %v\nend: %v\nbytes: %X\nstring(bytes): %s\n",
 			spw(ptr), spw(ptr2))
 	}
+}
+
+func hasWriteEmpty(rt reflect.Type) bool {
+	if rt.Kind() != reflect.Struct {
+		return false
+	}
+	for i := range rt.NumField() {
+		if strings.Contains(rt.Field(i).Tag.Get("amino"), "write_empty") {
+			return true
+		}
+	}
+	return false
 }
 
 // ----------------------------------------
