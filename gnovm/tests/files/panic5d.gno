@@ -8,9 +8,9 @@ func main() {
 }
 
 // Error:
-// division by zero
+// runtime error: division by zero
 
 // Stacktrace:
-// panic: division by zero
+// panic: runtime error: division by zero
 // main<VPBlock(1,0)>()
 //     main/panic5d.gno:5
