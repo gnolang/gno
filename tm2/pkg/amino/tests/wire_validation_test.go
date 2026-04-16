@@ -183,6 +183,42 @@ func TestUnmarshalBinary2_RejectsWrongTyp3_AminoMarshalerRepr(t *testing.T) {
 	assertErrContains(t, err, "repr field 1")
 }
 
+// An Any envelope with trailing bytes past field 2 should be rejected,
+// not silently dropped.
+func TestUnmarshalAnyBinary2_RejectsTrailingBytes(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	typeURL := "/tests.Concrete1"
+	bz := []byte{0x0a, byte(len(typeURL))}
+	bz = append(bz, []byte(typeURL)...)
+	// Valid but empty field 2: tag(2, ByteLength) | length=0
+	bz = append(bz, 0x12, 0x00)
+	// Trailing bytes past field 2: tag(3, ByteLength) | length=0
+	bz = append(bz, 0x1a, 0x00)
+
+	err := cdc.UnmarshalAnyBinary2(bz, new(Interface1))
+	assertErrContains(t, err, "trailing bytes")
+}
+
+// DecodeByteSlice must reject length prefixes that would exceed the
+// remaining buffer, including pathological uint64 values that wrap when
+// cast to int on 32-bit platforms.
+func TestDecodeByteSlice_RejectsOversizeLength(t *testing.T) {
+	// length = 0xFFFFFFFFFFFFFFFF (uvarint encoding)
+	// 10 bytes: 0xff 0xff 0xff 0xff 0xff 0xff 0xff 0xff 0xff 0x01
+	bz := []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01}
+
+	_, _, err := amino.DecodeByteSlice(bz)
+	if err == nil {
+		t.Fatal("expected error on oversize length, got nil")
+	}
+	if !strings.Contains(err.Error(), "insufficient bytes") {
+		t.Fatalf("expected 'insufficient bytes' error, got %q", err.Error())
+	}
+}
+
 // AminoMarshalerStruct2.MarshalAmino → []ReprElem2 (unpacked slice repr).
 // Each element is wrapped as field 1 ByteLength. If a repeated entry has a
 // wrong typ3, the unpacked-slice-repr decoder should reject it.

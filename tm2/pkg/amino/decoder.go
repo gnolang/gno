@@ -351,12 +351,10 @@ func DecodeByteSlice(bz []byte) (bz2 []byte, n int, err error) {
 	if slide(&bz, &n, _n) && err != nil {
 		return
 	}
-	if int(count) < 0 {
-		err = fmt.Errorf("invalid negative length %v decoding []byte", count)
-		return
-	}
-	if len(bz) < int(count) {
-		err = fmt.Errorf("insufficient bytes decoding []byte of length %v: %X", count, bz)
+	// Compare as unsigned to catch count values that would wrap to negative
+	// when cast to int on 32-bit platforms (or any count > math.MaxInt).
+	if count > uint64(len(bz)) {
+		err = fmt.Errorf("insufficient bytes decoding []byte of length %v: have %d", count, len(bz))
 		return
 	}
 	bz2 = make([]byte, count)

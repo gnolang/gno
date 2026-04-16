@@ -729,10 +729,16 @@ func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any) error {
 			return fmt.Errorf("UnmarshalAnyBinary2: expected field 2 Value, got num %v typ %v", fnum, typ)
 		}
 		bz = bz[n:]
-		value, _, err = DecodeByteSlice(bz)
+		var valN int
+		value, valN, err = DecodeByteSlice(bz)
 		if err != nil {
 			return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
 		}
+		bz = bz[valN:]
+	}
+	// Any envelope only has fields 1 and 2 — reject trailing bytes.
+	if len(bz) > 0 {
+		return fmt.Errorf("UnmarshalAnyBinary2: %d trailing bytes after Any envelope", len(bz))
 	}
 
 	// Look up concrete type.
@@ -1109,10 +1115,17 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 			return true, fmt.Errorf("unmarshalAnyBinary2: expected Any field 2 Value (ByteLength), got num=%v typ=%v", fnum, typ)
 		}
 		bz = bz[n:]
-		value, _, err = DecodeByteSlice(bz)
+		var valN int
+		value, valN, err = DecodeByteSlice(bz)
 		if err != nil {
 			return true, fmt.Errorf("unmarshalAnyBinary2: decode Value: %w", err)
 		}
+		bz = bz[valN:]
+	}
+	// Any envelope only has fields 1 and 2 — reject trailing bytes instead
+	// of silently ignoring them.
+	if len(bz) > 0 {
+		return true, fmt.Errorf("unmarshalAnyBinary2: %d trailing bytes after Any envelope", len(bz))
 	}
 
 	// Look up concrete type from typeURL. Both malformed typeURLs and
