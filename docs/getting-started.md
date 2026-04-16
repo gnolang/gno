@@ -27,7 +27,7 @@ Then read [Writing Gno code](./builders/anatomy-of-a-gno-package.md).
 ## Prerequisites
 
 - **Git**
-- **Go 1.24+** — required by the repository's `go.mod`
+- **[Go 1.24+](https://go.dev/dl/)** — required by the repository's `go.mod`
 - **Make**
 - Linux and macOS are the primary supported platforms. Windows users
   should develop inside [WSL2](https://learn.microsoft.com/windows/wsl/install).
@@ -49,14 +49,18 @@ finishes, you should see three confirmation lines:
 [+] 'gnodev' has been installed. Read more in ./contribs/gnodev/
 ```
 
-Three binaries are installed into `$(go env GOPATH)/bin` — make sure
-that directory is on your `PATH`:
+This builds and installs three binaries into `$(go env GOPATH)/bin`:
 
 | Binary   | Purpose                                                  |
 |----------|----------------------------------------------------------|
 | `gno`    | Gno language CLI — build, test, format, lint `.gno` code |
 | `gnokey` | Wallet and transaction CLI — keys, queries, deploys      |
 | `gnodev` | Local development node with hot reload                   |
+
+:::info
+Make sure `$(go env GOPATH)/bin` is on your `PATH`. If `gno` or `gnokey`
+is reported as "command not found", this is almost always the reason.
+:::
 
 ### Verify the installation
 
@@ -77,6 +81,12 @@ docker pull ghcr.io/gnolang/gno/gnokey     # wallet / tx CLI
 docker pull ghcr.io/gnolang/gno/gnodev     # local dev node
 docker pull ghcr.io/gnolang/gno/gnoland    # full node
 docker pull ghcr.io/gnolang/gno/gnoweb     # web frontend
+```
+
+Quick smoke test:
+
+```sh
+docker run --rm ghcr.io/gnolang/gno version
 ```
 
 ## Create your first key
@@ -115,16 +125,17 @@ Tokens arrive in a few seconds.
 
 ## Query a live network
 
-Confirm your setup reaches a real network with a free read-only ABCI query:
+Before deploying anything, confirm your setup can reach a real network.
+The following command queries your account balance via ABCI — no
+transaction, no gas:
 
 ```sh
 gnokey query bank/balances/<your-g1-address> \
-  -remote <rpc-endpoint>
+  -remote https://rpc.gno.land:443
 ```
 
-For Betanet: `-remote https://rpc.gno.land:443` — use the endpoint matching
-the network you picked at the faucet. On success, the response shows your
-balance in the `data` field (e.g. `"10000000ugnot"`).
+If the faucet step worked, the response shows your balance as a
+`<amount>ugnot` data field at the current block height.
 
 The main public networks are:
 
@@ -138,19 +149,13 @@ See [Networks](./resources/gnoland-networks.md) for the full reference.
 
 ## Before you deploy
 
+Two things to know before publishing code on-chain.
+
 ### Namespaces
 
 Today, anyone can deploy under their own address-based namespace without
-registration:
-
-```
-gno.land/r/g1<your-address>/...   # realm (stateful)
-gno.land/p/g1<your-address>/...   # package (stateless)
-```
-
-Username-based namespaces like `gno.land/r/alice/...` are **not available
-yet**. They are planned to be introduced via GovDAO governance. For now,
-use the address form. See [Users and Teams](./resources/users-and-teams.md).
+registration. Username-based namespaces like `gno.land/r/alice/...` are **not available
+yet** and will require a registration step. 
 
 ### License agreement
 
@@ -187,7 +192,8 @@ Canonical text: [`CLA.md`](https://github.com/gnolang/gno/blob/master/CLA.md).
 - **[Example: the `minisocial` dApp](./builders/example-minisocial-dapp.md)** —
   a full end-to-end walkthrough.
 
-**Reading material:**
+If you prefer to read before coding, these references cover the concepts
+you'll meet right after this page:
 
 - **[Go–Gno compatibility](./resources/go-gno-compatibility.md)** — what's
   supported, what isn't, and which Go habits don't translate.
@@ -206,22 +212,6 @@ Stuck or want to talk to other builders?
   reports, feature requests, and public roadmap.
 - **[@_gnoland on X](https://twitter.com/_gnoland)** — announcements and
   short-form updates.
-
-## Other components
-
-The root `make install` covers the day-to-day developer toolchain. The
-repository ships additional components for specific use cases:
-
-```sh
-# Full node and web frontend (operators)
-cd gno.land && make install          # installs gnoland, gnoweb, gnokey
-
-# Contrib tools (faucet, kms, migrate, bro, …)
-cd contribs && make install_all
-```
-
-See [`contribs/`](https://github.com/gnolang/gno/tree/master/contribs) for
-the full list.
 
 ## Troubleshooting
 
