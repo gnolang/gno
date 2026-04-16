@@ -123,15 +123,27 @@ func (t *MutableTree) findNextVersion(v, latest int64) int64 {
 	return 0
 }
 
-// buildRetainedReachableSet walks every retained version in [from, to]
-// and records the NodeKey of every reachable node into a set. The
-// resulting set is the "must-not-delete" mask for the sweep phase:
-// any NodeKey not in the set is dead (not reachable from any retained
-// version) and can be deleted safely.
+// buildRetainedReachableSet walks the first existing retained version in
+// [from, to] and records the NodeKey of every reachable node. The
+// resulting set is the "must-not-delete" mask for the sweep phase.
 //
-// Building the set once per PruneVersionsTo call amortises the mark
-// cost across all pruned versions; in the common case where the only
-// retained version is `latest`, this is a single tree walk.
+// Correctness: the sweep only examines nodes in versions v ∈ [firstVersion,
+// toVersion] (= [firstVersion, from-1]), whose NodeKey.Version is ≤ v ≤
+// from-1. Consider such a node N with NodeKey.Version = W ≤ from-1 that
+// is reachable from some retained version R ∈ [from, to]. Because
+// NodeKeys are uniquely assigned per SaveVersion and nodes are immutable
+// after save, N has not been modified between versions W and R — every
+// parent reference to N along the path has remained unchanged. Therefore
+// N is reachable from every existing version in [W, R], and in particular
+// from the first existing version in [from, to] (which is ≥ from > W).
+//
+// Marking from that single version therefore captures every NodeKey the
+// sweep can observe. This collapses what was previously
+// O(retained-versions) mark walks — each of which deserialises every
+// inner node and rebuilds its mini-merkle — into a single walk. In
+// rolling-window workloads where retained-versions runs into the tens
+// (e.g. BenchmarkBlock historySize=20) this is a ~20× reduction in
+// mark-phase DB reads. See Finding #53.
 func (t *MutableTree) buildRetainedReachableSet(from, to int64) (map[[NodeKeySize]byte]struct{}, error) {
 	reachable := make(map[[NodeKeySize]byte]struct{})
 	for rv := from; rv <= to; rv++ {
@@ -152,6 +164,8 @@ func (t *MutableTree) buildRetainedReachableSet(from, to int64) (map[[NodeKeySiz
 		if err := t.markReachable(rvRoot, reachable); err != nil {
 			return nil, err
 		}
+		// Single mark pass suffices by the COW invariant above.
+		break
 	}
 	return reachable, nil
 }
@@ -271,25 +285,21 @@ func (t *MutableTree) markReachable(node Node, reachable map[[NodeKeySize]byte]s
 }
 
 // assertLeafChildren verifies that inner.height == 1 implies its children
-// are LeafNodes (and height > 1 implies InnerNodes). The check peeks at
-// the first available child — either the in-memory reference or the
-// first serialised ref — which suffices because height invariants are
-// uniform across all children of a given inner node. One DB load per
-// height-1 parent is paid at most once per prune pass; the cost is
-// amortised by the leaf-skip optimisation that follows. See Finding
-// #46.
+// are LeafNodes (and height > 1 implies InnerNodes). The check inspects
+// only children that are already resident in memory — a DB-loaded inner
+// whose children are still serialised refs is accepted without probing.
+//
+// Rationale: the height-1 invariant is a construction invariant
+// maintained by insert/split/merge. DB-loaded inners replay what was
+// previously written under that invariant, so re-verifying them requires
+// loading a child (rebuilding its mini-merkle) purely as a redundancy
+// check. The in-memory case is the only place a freshly constructed
+// inner could escape with a wrong height, and that case is free to
+// validate. See Findings #46, #54.
 func (t *MutableTree) assertLeafChildren(inner *InnerNode, leafChildren bool) error {
 	for i := 0; i < inner.NumChildren(); i++ {
-		var probe Node
-		if inner.childNodes[i] != nil {
-			probe = inner.childNodes[i]
-		} else if inner.children[i] != nil {
-			c, err := t.ndb.GetNode(inner.children[i])
-			if err != nil {
-				return fmt.Errorf("assertLeafChildren: loading child %d: %w", i, err)
-			}
-			probe = c
-		} else {
+		probe := inner.childNodes[i]
+		if probe == nil {
 			continue
 		}
 		_, isLeaf := probe.(*LeafNode)
