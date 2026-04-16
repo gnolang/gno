@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -33,7 +34,13 @@ var genproto2Types = make(map[reflect.Type]bool)
 
 // RegisterGenproto2Type records that a type has native genproto2 methods.
 // Called from init() in generated pb3_gen.go files.
+// Logs a warning if the type was already registered — duplicate init()
+// calls typically indicate a regenerated file pulled in twice, or two
+// generated files claiming the same type.
 func RegisterGenproto2Type(rt reflect.Type) {
+	if genproto2Types[rt] {
+		log.Printf("amino: genproto2 type %v registered twice", rt)
+	}
 	genproto2Types[rt] = true
 }
 
@@ -52,7 +59,12 @@ var pbbindingsTypes = make(map[reflect.Type]bool)
 
 // RegisterPbbindingsType records that a type has native pbbindings methods.
 // Called from init() in generated pbbindings.go files.
+// Logs a warning if the type was already registered — see
+// RegisterGenproto2Type for typical causes.
 func RegisterPbbindingsType(rt reflect.Type) {
+	if pbbindingsTypes[rt] {
+		log.Printf("amino: pbbindings type %v registered twice", rt)
+	}
 	pbbindingsTypes[rt] = true
 }
 
