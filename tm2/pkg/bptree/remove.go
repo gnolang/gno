@@ -208,14 +208,15 @@ func redistributeRight(parent *InnerNode, idx int) {
 			r.childHashes[i] = r.childHashes[i-1]
 			r.childSizes[i] = r.childSizes[i-1]
 		}
-		// Demote separator, promote left's last key
-		r.keys[0] = parent.keys[idx]
+		// Demote separator, promote left's last key. Both are copied so
+		// the receiving node owns its key bytes (Finding #20).
+		r.keys[0] = copyKey(parent.keys[idx])
 		r.childNodes[0] = movedChild
 		r.children[0] = l.children[lastChildIdx]
 		r.childHashes[0] = l.childHashes[lastChildIdx]
 		r.childSizes[0] = movedSize
 		r.numKeys++
-		parent.keys[idx] = l.keys[lastKeyIdx]
+		parent.keys[idx] = copyKey(l.keys[lastKeyIdx])
 		l.keys[lastKeyIdx] = nil
 		l.childNodes[lastChildIdx] = nil
 		l.children[lastChildIdx] = nil
@@ -269,15 +270,17 @@ func redistributeLeft(parent *InnerNode, idx int) {
 		l := left.(*InnerNode)
 		movedSize := r.childSizes[0]
 		movedChild := r.childNodes[0]
-		// Demote separator to end of left, promote right's first key
-		l.keys[l.numKeys] = parent.keys[idx]
+		// Demote separator to end of left, promote right's first key.
+		// Both are copied so the receiving node owns its key bytes
+		// (Finding #20).
+		l.keys[l.numKeys] = copyKey(parent.keys[idx])
 		lnc := l.NumChildren()
 		l.childNodes[lnc] = movedChild
 		l.children[lnc] = r.children[0]
 		l.childHashes[lnc] = r.childHashes[0]
 		l.childSizes[lnc] = movedSize
 		l.numKeys++
-		parent.keys[idx] = r.keys[0]
+		parent.keys[idx] = copyKey(r.keys[0])
 		// Shift right left (including childSizes)
 		rn := int(r.numKeys)
 		for i := 0; i < rn-1; i++ {
@@ -324,8 +327,9 @@ func merge(parent *InnerNode, idx int) {
 
 	case *InnerNode:
 		r := right.(*InnerNode)
-		// Demote separator
-		l.keys[l.numKeys] = parent.keys[idx]
+		// Demote separator. Copied so the merged left node owns its key
+		// bytes (Finding #20).
+		l.keys[l.numKeys] = copyKey(parent.keys[idx])
 		l.numKeys++
 		// Append right's keys and children
 		for i := 0; i < int(r.numKeys); i++ {
@@ -346,7 +350,7 @@ func merge(parent *InnerNode, idx int) {
 	// Remove separator and right child from parent
 	pn := int(parent.numKeys)
 	// Update parent's childSizes for the merged child
-	parent.childSizes[idx] = parent.childSizes[idx] + parent.childSizes[idx+1]
+	parent.childSizes[idx] += parent.childSizes[idx+1]
 	for i := idx; i < pn-1; i++ {
 		parent.keys[i] = parent.keys[i+1]
 	}

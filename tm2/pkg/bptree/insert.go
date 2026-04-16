@@ -1,7 +1,5 @@
 package bptree
 
-import "sync"
-
 // insertResult is returned by recursive insert functions.
 type insertResult struct {
 	updated     bool         // true if key already existed (value replaced)
@@ -194,19 +192,33 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 	allSizes[childIdx+1] = nodeSize(sr.right) // new right (in memory)
 	copy(allSizes[childIdx+2:], inner.childSizes[childIdx+1:B])
 
-	// Build serialized child refs — preserve refs for unloaded children
+	// Build serialized child refs — preserve refs for unloaded children.
+	// Copy stops at childIdx (exclusive) because positions childIdx and
+	// childIdx+1 are assigned explicitly below; the old `copy(..., [:childIdx+1])`
+	// wrote position childIdx twice. See Finding #27.
 	var allChildRefs [B + 1][]byte
-	copy(allChildRefs[:childIdx+1], inner.children[:childIdx+1])
+	copy(allChildRefs[:childIdx], inner.children[:childIdx])
 	allChildRefs[childIdx] = nil   // loaded & cloned; ref is stale
 	allChildRefs[childIdx+1] = nil // sr.right is new; no serialized ref
 	copy(allChildRefs[childIdx+2:], inner.children[childIdx+1:B])
 	leftInner, innerSR := splitInner(allKeys[:], allChildRefs[:], allChildHashes[:], inner.height, allSizes[:])
 
-	// Wire up child nodes for left, preserving ndb from the original node
+	// Replace *inner's data with leftInner's, preserving the existing
+	// childMu (must not be copied) and ndb (leftInner has none). Using
+	// explicit field assignment avoids copying sync.Mutex, which vet
+	// correctly flags as unsafe even when both locks are idle here.
+	// See Finding #24.
 	savedNdb := inner.ndb
-	*inner = *leftInner //nolint:govet // intentional copy; mutex re-initialized below
-	inner.childMu = sync.Mutex{}
-	inner.ndb = savedNdb
+	inner.nodeKey = leftInner.nodeKey
+	inner.numKeys = leftInner.numKeys
+	inner.childSizes = leftInner.childSizes
+	inner.height = leftInner.height
+	inner.keys = leftInner.keys
+	inner.children = leftInner.children
+	inner.childHashes = leftInner.childHashes
+	inner.miniTree = leftInner.miniTree
+	// inner.ndb preserved (leftInner was built without ndb).
+	// inner.childMu preserved (sync.Mutex must never be copied).
 	for i := 0; i < inner.NumChildren(); i++ {
 		inner.childNodes[i] = allChildNodes[i]
 	}

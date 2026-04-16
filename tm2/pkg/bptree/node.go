@@ -118,16 +118,47 @@ func (n *LeafNode) RebuildMiniMerkle() {
 
 // Clone creates a shallow copy of the node with nodeKey set to nil
 // (marking it as unsaved/new for COW).
-// Keys and childNodes are shared slice/pointer references (COW-safe:
-// keys are never mutated in-place, only replaced by shifting).
-// The ndb reference is preserved for lazy loading.
+//
+// The clone SHARES the following with n: keys slice headers, children
+// slice headers, childNodes pointers. These references are COW-safe
+// because of the key-ownership invariant (Finding #20): each node.keys[i]
+// points to a distinct backing array whose contents are never mutated in
+// place — the slot is only ever overwritten by a full slice-header
+// assignment during insert shifts, remove shifts, or redistribute/merge
+// paths. Therefore reading n.keys[i] bytes from any clone remains
+// consistent even while another clone is being mutated.
+//
+// The childMu is intentionally NOT copied: each clone gets a fresh mutex
+// so concurrent lazy-load on n and c do not alias the same lock. The
+// ndb reference is preserved so the clone can itself lazy-load children.
 func (n *InnerNode) Clone() *InnerNode {
-	c := *n //nolint:govet // intentional copy; mutex is re-initialized below
-	c.nodeKey = nil
-	c.childMu = sync.Mutex{} // fresh mutex for the clone
-	return &c
+	// Explicit field copy avoids copying sync.Mutex (which vet flags
+	// as unsafe, even though both src and dst are unlocked here). See
+	// Finding #24.
+	return &InnerNode{
+		nodeKey:     nil,
+		numKeys:     n.numKeys,
+		childSizes:  n.childSizes,
+		height:      n.height,
+		keys:        n.keys,
+		children:    n.children,
+		childHashes: n.childHashes,
+		childNodes:  n.childNodes,
+		miniTree:    n.miniTree,
+		ndb:         n.ndb,
+		// childMu is zero-init for the fresh clone.
+	}
 }
 
+// Clone creates a shallow copy of the leaf with nodeKey set to nil.
+//
+// The clone SHARES keys and valueKeys slice headers with n. This is safe
+// under the key-ownership invariant (Finding #20): key byte contents are
+// immutable — insert/remove/redistribute paths only assign slice headers
+// (leaf.keys[i] = ...) or nil them, never mutate the underlying bytes
+// (e.g. leaf.keys[i][j] = ... or append(leaf.keys[i], ...)). Callers
+// MUST uphold this invariant; violating it would corrupt every clone
+// that still shares the slot's backing array.
 func (n *LeafNode) Clone() *LeafNode {
 	c := *n
 	c.nodeKey = nil
@@ -359,8 +390,14 @@ func writeBytes(w io.Writer, b []byte) error {
 	return err
 }
 
-// maxReadBytesLen caps allocations from untrusted data to prevent OOM.
-const maxReadBytesLen = 1 << 20 // 1 MiB — no key or inline field should exceed this
+// maxReadBytesLen caps allocations from untrusted data to prevent OOM
+// during deserialization. readBytes is called only for keys (inner
+// separators and leaf keys); values are stored separately and reach the
+// reader via fixed-size NodeKey refs, not varint-length-prefixed bytes.
+// 64 KiB is more than an order of magnitude above any realistic key
+// size while still bounding a single malicious length prefix to a
+// reasonable allocation. See Finding #22.
+const maxReadBytesLen = 1 << 16 // 64 KiB
 
 func readBytes(r *bytes.Reader) ([]byte, error) {
 	length, err := binary.ReadUvarint(r)

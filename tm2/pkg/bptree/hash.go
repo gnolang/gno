@@ -15,9 +15,16 @@ func HashLeafSlot(key, value []byte) Hash {
 	return HashLeafSlotFromValueHash(key, valueHash)
 }
 
+// valueHashLenVarint is the single-byte varint encoding of HashSize
+// (32). Used as the length prefix of the value hash in a leaf slot so
+// the hash input stays byte-identical to ICS23's LeafOp expansion.
+// `HashSize < 0x80` makes the varint form a single byte; the package
+// init asserts this still holds.
+const valueHashLenVarint byte = 0x20
+
 // HashLeafSlotFromValueHash computes the leaf slot hash from a pre-computed value hash.
 //
-//	SHA256(0x00 || varint(len(key)) || key || 0x20 || valueHash)
+//	SHA256(0x00 || varint(len(key)) || key || varint(32) || valueHash)
 func HashLeafSlotFromValueHash(key []byte, valueHash Hash) Hash {
 	h := sha256.New()
 	h.Write([]byte{DomainLeaf})
@@ -25,7 +32,7 @@ func HashLeafSlotFromValueHash(key []byte, valueHash Hash) Hash {
 	n := binary.PutUvarint(vbuf[:], uint64(len(key)))
 	h.Write(vbuf[:n])
 	h.Write(key)
-	h.Write([]byte{0x20})
+	h.Write([]byte{valueHashLenVarint})
 	h.Write(valueHash[:])
 	var result Hash
 	h.Sum(result[:0])

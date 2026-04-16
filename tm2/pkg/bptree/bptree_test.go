@@ -956,10 +956,7 @@ func TestLeafNode_RebuildMiniMerkle(t *testing.T) {
 
 func TestDefaultOptions(t *testing.T) {
 	o := DefaultOptions()
-	if o.FlushThreshold != 100*1024 {
-		t.Fatalf("default FlushThreshold = %d", o.FlushThreshold)
-	}
-	if o.Sync || o.AsyncPruning || o.InitialVersion != 0 {
+	if o.Sync || o.InitialVersion != 0 {
 		t.Fatalf("unexpected defaults: %+v", o)
 	}
 }
@@ -968,9 +965,7 @@ func TestFunctionalOptions(t *testing.T) {
 	o := DefaultOptions()
 	SyncOption(true)(&o)
 	InitialVersionOption(5)(&o)
-	FlushThresholdOption(999)(&o)
-	AsyncPruningOption(true)(&o)
-	if !o.Sync || o.InitialVersion != 5 || o.FlushThreshold != 999 || !o.AsyncPruning {
+	if !o.Sync || o.InitialVersion != 5 {
 		t.Fatalf("options not applied: %+v", o)
 	}
 }

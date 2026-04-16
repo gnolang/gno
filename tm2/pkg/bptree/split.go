@@ -54,6 +54,12 @@ func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, insertPos 
 // For inner nodes, the separator is CONSUMED (promoted to the parent),
 // not duplicated. Left gets splitPoint keys and splitPoint+1 children.
 // Right gets the remaining keys and children.
+//
+// The promoted separator is defensively copied so that the parent owns
+// its own byte storage, matching the invariant established by splitLeaf
+// and the redistribute paths (see Finding #20). Callers never mutate
+// key bytes in place today, but the defensive copy makes the
+// node-level key ownership invariant unconditional.
 func splitInner(keys [][]byte, children [][]byte, childHashes []Hash, height int16, sizes []int64) (*InnerNode, splitResult) {
 	totalKeys := len(keys) // B (one more than max B-1)
 	splitPoint := totalKeys / 2 // B/2 = 16
@@ -65,8 +71,9 @@ func splitInner(keys [][]byte, children [][]byte, childHashes []Hash, height int
 	copy(left.childHashes[:], childHashes[:splitPoint+1])
 	copy(left.childSizes[:], sizes[:splitPoint+1])
 
-	// The separator is keys[splitPoint] — consumed, not in either node
-	sep := keys[splitPoint]
+	// The separator is keys[splitPoint] — consumed, promoted to the
+	// parent as a freshly-owned byte slice.
+	sep := copyKey(keys[splitPoint])
 
 	rightKeys := keys[splitPoint+1:]
 	rightChildren := children[splitPoint+1:]
@@ -85,12 +92,3 @@ func splitInner(keys [][]byte, children [][]byte, childHashes []Hash, height int
 		right:     right,
 	}
 }
-
-func sumSizes(sizes []int64) int64 {
-	var s int64
-	for _, v := range sizes {
-		s += v
-	}
-	return s
-}
-

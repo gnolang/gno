@@ -125,12 +125,11 @@ func (it *Iterator) seekLast(node Node) {
 		case *LeafNode:
 			it.leaf = n
 			if it.end != nil {
-				pos, found := searchLeaf(n, it.end)
-				if found {
-					it.leafIdx = pos - 1 // end is exclusive
-				} else {
-					it.leafIdx = pos - 1 // pos is where end would be inserted
-				}
+				// end is exclusive for both branches: if end matches a
+				// key, pos-1 is the last key < end; if end would be
+				// inserted at pos, pos-1 is still the last key < end.
+				pos, _ := searchLeaf(n, it.end)
+				it.leafIdx = pos - 1
 			} else {
 				it.leafIdx = int(n.numKeys) - 1
 			}

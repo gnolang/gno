@@ -53,11 +53,11 @@ var sentinelHash Hash
 var emptyTreeHash Hash
 
 func init() {
-	if B&(B-1) != 0 {
-		panic("B must be a power of 2 (required for mini-merkle heap layout)")
-	}
+	// B == 1<<MiniMerkleDepth implies B is a power of two (required for
+	// the mini-merkle heap layout); the single identity catches both
+	// invariants.
 	if B != 1<<MiniMerkleDepth {
-		panic("MiniMerkleDepth out of sync with B (must satisfy B == 1<<MiniMerkleDepth)")
+		panic("MiniMerkleDepth out of sync with B (must satisfy B == 1<<MiniMerkleDepth, and B must be a power of 2)")
 	}
 	sentinelHash = sha256.Sum256([]byte{DomainEmpty})
 	emptyTreeHash = sha256.Sum256(nil)
