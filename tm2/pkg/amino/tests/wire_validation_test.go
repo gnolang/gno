@@ -182,3 +182,20 @@ func TestUnmarshalBinary2_RejectsWrongTyp3_AminoMarshalerRepr(t *testing.T) {
 	err := s.UnmarshalBinary2(cdc, bz)
 	assertErrContains(t, err, "repr field 1")
 }
+
+// AminoMarshalerStruct2.MarshalAmino → []ReprElem2 (unpacked slice repr).
+// Each element is wrapped as field 1 ByteLength. If a repeated entry has a
+// wrong typ3, the unpacked-slice-repr decoder should reject it.
+func TestUnmarshalBinary2_RejectsWrongTyp3_UnpackedSliceRepr(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Valid first entry: tag(1,ByteLength)=0x0A, length=0, no body.
+	// Malformed second entry: tag(1,Varint)=0x08, value=0.
+	bz := []byte{0x0A, 0x00, 0x08, 0x00}
+
+	var s AminoMarshalerStruct2
+	err := s.UnmarshalBinary2(cdc, bz)
+	assertErrContains(t, err, "unpacked slice repr")
+}

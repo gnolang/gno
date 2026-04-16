@@ -9496,6 +9496,9 @@ func (goo *AminoMarshalerStruct2) UnmarshalBinary2(cdc *amino.Codec, bz []byte) 
 			bz = bz[n:]
 			continue
 		}
+		if typ3 != amino.Typ3ByteLength {
+			return fmt.Errorf("unpacked slice repr: expected field 1 ByteLength, got typ=%v", typ3)
+		}
 		var elem ReprElem2
 		fbz, n, err := amino.DecodeByteSlice(bz)
 		if err != nil {
@@ -9796,6 +9799,9 @@ func (goo *AminoMarshalerStruct6) UnmarshalBinary2(cdc *amino.Codec, bz []byte) 
 			}
 			bz = bz[n:]
 			continue
+		}
+		if typ3 != amino.Typ3ByteLength {
+			return fmt.Errorf("unpacked slice repr: expected field 1 ByteLength, got typ=%v", typ3)
 		}
 		var elem AminoMarshalerStruct1
 		fbz, n, err := amino.DecodeByteSlice(bz)
@@ -10627,6 +10633,9 @@ func (goo *PrimitivesStructSl) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 			}
 			bz = bz[n:]
 			continue
+		}
+		if typ3 != amino.Typ3ByteLength {
+			return fmt.Errorf("unpacked slice repr: expected field 1 ByteLength, got typ=%v", typ3)
 		}
 		var elem PrimitivesStruct
 		fbz, n, err := amino.DecodeByteSlice(bz)

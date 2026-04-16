@@ -188,7 +188,7 @@ func (ctx *P3Context2) writeSliceReprUnmarshal(sb *strings.Builder, info *amino.
 		sb.WriteString("\t\trepr = append(repr, elem)\n")
 		sb.WriteString("\t}\n")
 	} else {
-		// Unpacked: repeated field entries with field number 1.
+		// Unpacked: repeated field entries with field number 1, ByteLength typ3.
 		sb.WriteString("\tfor len(bz) > 0 {\n")
 		sb.WriteString("\t\tfnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)\n")
 		sb.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
@@ -198,6 +198,9 @@ func (ctx *P3Context2) writeSliceReprUnmarshal(sb *strings.Builder, info *amino.
 		sb.WriteString("\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n")
 		sb.WriteString("\t\t\tbz = bz[n:]\n")
 		sb.WriteString("\t\t\tcontinue\n")
+		sb.WriteString("\t\t}\n")
+		sb.WriteString("\t\tif typ3 != amino.Typ3ByteLength {\n")
+		sb.WriteString("\t\t\treturn fmt.Errorf(\"unpacked slice repr: expected field 1 ByteLength, got typ=%v\", typ3)\n")
 		sb.WriteString("\t\t}\n")
 		sb.WriteString(fmt.Sprintf("\t\tvar elem %s\n", ctx.goTypeName(ert)))
 		ctx.writeByteSliceElementDecode(sb, "elem", einfo, fopts, "\t\t")
