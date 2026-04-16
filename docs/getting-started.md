@@ -155,7 +155,7 @@ Two things to know before publishing code on-chain.
 
 Today, anyone can deploy under their own address-based namespace without
 registration. Username-based namespaces like `gno.land/r/alice/...` are **not available
-yet** and will require a registration step. 
+yet** and will require a registration step.
 
 ### License agreement
 
