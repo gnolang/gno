@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sync"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -30,7 +31,13 @@ type (
 
 // genproto2Types tracks types that have native (non-promoted) genproto2 methods.
 // Populated by init() functions in generated pb3_gen.go files.
-var genproto2Types = make(map[reflect.Type]bool)
+// The mutex is defense-in-depth: init() functions run sequentially in a
+// single goroutine, so there's no concurrent write today — but protecting
+// the map keeps runtime reads safe if a caller is ever added outside init().
+var (
+	genproto2Types   = make(map[reflect.Type]bool)
+	genproto2TypesMu sync.RWMutex
+)
 
 // RegisterGenproto2Type records that a type has native genproto2 methods.
 // Called from init() in generated pb3_gen.go files.
@@ -38,6 +45,8 @@ var genproto2Types = make(map[reflect.Type]bool)
 // calls typically indicate a regenerated file pulled in twice, or two
 // generated files claiming the same type.
 func RegisterGenproto2Type(rt reflect.Type) {
+	genproto2TypesMu.Lock()
+	defer genproto2TypesMu.Unlock()
 	if genproto2Types[rt] {
 		log.Printf("amino: genproto2 type %v registered twice", rt)
 	}
@@ -50,18 +59,26 @@ func HasNativeGenproto2(rt reflect.Type) bool {
 	if rt.Kind() == reflect.Ptr {
 		rt = rt.Elem()
 	}
+	genproto2TypesMu.RLock()
+	defer genproto2TypesMu.RUnlock()
 	return genproto2Types[rt]
 }
 
 // pbbindingsTypes tracks types that have native (non-promoted) pbbindings methods.
-// Populated by init() functions in generated pbbindings.go files.
-var pbbindingsTypes = make(map[reflect.Type]bool)
+// Populated by init() functions in generated pbbindings.go files. See
+// genproto2Types above for the rationale behind the mutex.
+var (
+	pbbindingsTypes   = make(map[reflect.Type]bool)
+	pbbindingsTypesMu sync.RWMutex
+)
 
 // RegisterPbbindingsType records that a type has native pbbindings methods.
 // Called from init() in generated pbbindings.go files.
 // Logs a warning if the type was already registered — see
 // RegisterGenproto2Type for typical causes.
 func RegisterPbbindingsType(rt reflect.Type) {
+	pbbindingsTypesMu.Lock()
+	defer pbbindingsTypesMu.Unlock()
 	if pbbindingsTypes[rt] {
 		log.Printf("amino: pbbindings type %v registered twice", rt)
 	}
@@ -74,6 +91,8 @@ func HasNativePbbindings(rt reflect.Type) bool {
 	if rt.Kind() == reflect.Ptr {
 		rt = rt.Elem()
 	}
+	pbbindingsTypesMu.RLock()
+	defer pbbindingsTypesMu.RUnlock()
 	return pbbindingsTypes[rt]
 }
 
