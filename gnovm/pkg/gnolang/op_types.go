@@ -403,17 +403,12 @@ func (m *Machine) doOpStaticTypeOf() {
 			panic("unexpected star expression")
 		}
 	case *RefExpr:
-		// Compute the static type of &x as *typeof(x).
-		// The result is cached as ATTR_TYPEOF_VALUE on the
-		// RefExpr by evalStaticTypeOfRaw, and the inner xt
-		// is cached on x.X.  doOpRef reads x.X's cached type
-		// at runtime to build the correct pointer type.
-		start := len(m.Values)
-		m.PushOp(OpHalt)
-		m.PushExpr(x.X)
-		m.PushOp(OpStaticTypeOf)
-		m.Run(StageRun)
-		xt := m.ReapValues(start)[0].GetType()
+		// The static type of &x is *typeof(x).
+		// ATTR_REF_ELEM_TYPE is set during preprocessing.
+		xt, ok := x.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
+		if !ok {
+			panic("ATTR_REF_ELEM_TYPE not set during preprocessing")
+		}
 		m.PushValue(asValue(&PointerType{Elt: xt}))
 	case *TypeAssertExpr:
 		if x.HasOK {
