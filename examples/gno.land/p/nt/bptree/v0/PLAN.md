@@ -92,7 +92,6 @@ Minimum occupancy: `fanout/2` children (except root, which may have as few as 2)
 ```go
 type node interface {
     isLeaf() bool
-    numKeys() int     // number of keys (leaf: entries, inner: separators)
     nodeSize() int    // total leaf entries in subtree
     minKey() string   // leftmost key in subtree
 }
@@ -411,4 +410,4 @@ within a single method call. It does not create any persistent references.
 - `ReverseIterateByOffset(0, N, cb)` → starts at largest key, takes N descending.
 - `ReverseIterateByOffset(1, 2, cb)` on [a,b,c,d,e] → [d, c].
 - Negative count → treated as count <= 0 (no iteration).
-- Negative offset → undefined (avl doesn't validate; we don't need to either).
+- Negative offset → clamped to 0 (avl silently treats negative as 0; we do the same explicitly).

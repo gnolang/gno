@@ -3,7 +3,6 @@ package bptree
 // node is the interface satisfied by both inner and leaf nodes.
 type node interface {
 	isLeaf() bool
-	numKeys() int  // leaf: number of entries, inner: number of separator keys
 	nodeSize() int // total leaf entries in subtree
 	minKey() string
 }
@@ -23,9 +22,8 @@ func newLeafNode(fanout int) *leafNode {
 	}
 }
 
-func (n *leafNode) isLeaf() bool   { return true }
-func (n *leafNode) numKeys() int   { return len(n.keys) }
-func (n *leafNode) nodeSize() int  { return len(n.keys) }
+func (n *leafNode) isLeaf() bool  { return true }
+func (n *leafNode) nodeSize() int { return len(n.keys) }
 func (n *leafNode) minKey() string { return n.keys[0] }
 
 // find returns the index where key is or would be inserted,
@@ -90,8 +88,7 @@ func newInnerNode(fanout int) *innerNode {
 	}
 }
 
-func (n *innerNode) isLeaf() bool   { return false }
-func (n *innerNode) numKeys() int   { return len(n.keys) }
+func (n *innerNode) isLeaf() bool { return false }
 func (n *innerNode) nodeSize() int {
 	sum := 0
 	for _, s := range n.sizes {
