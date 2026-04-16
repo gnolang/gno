@@ -73,6 +73,36 @@ func TestRoundtripBinary2_SlicesStruct(t *testing.T) {
 	compareEncoding(t, cdc, "SlicesStruct", orig)
 }
 
+func TestRoundtripBinary2_SlicesStructZero(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Zero-value: all slice fields are nil.
+	// Catches nil-vs-empty-slice mismatches between decoders.
+	compareEncoding(t, cdc, "SlicesStruct/zero", SlicesStruct{})
+
+	// Empty (non-nil) slices: exercises the nil vs []T{} edge case.
+	compareEncoding(t, cdc, "SlicesStruct/empty", SlicesStruct{
+		Int8Sl:    []int8{},
+		Int16Sl:   []int16{},
+		Int32Sl:   []int32{},
+		Int64Sl:   []int64{},
+		IntSl:     []int{},
+		ByteSl:    []byte{},
+		Uint8Sl:   []uint8{},
+		Uint16Sl:  []uint16{},
+		Uint32Sl:  []uint32{},
+		Uint64Sl:  []uint64{},
+		UintSl:    []uint{},
+		StrSl:     []string{},
+		BytesSl:   [][]byte{},
+		TimeSl:    []time.Time{},
+		DurationSl: []time.Duration{},
+		EmptySl:   []EmptyStruct{},
+	})
+}
+
 func TestRoundtripBinary2_PointersStruct(t *testing.T) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(Package)
@@ -704,6 +734,14 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 	if err := cdc.Unmarshal(bz1, decodedAmino.Interface()); err != nil {
 		t.Fatalf("%s: amino Unmarshal: %v", name, err)
 	}
+
+	// Cross-decoder struct equality: both unmarshal paths should produce
+	// identical Go values.
+	decodedAminoVal := decodedAmino.Elem().Interface()
+	if !reflect.DeepEqual(decodedAminoVal, decodedVal) {
+		t.Errorf("%s: struct mismatch amino vs genproto2 unmarshal:\n  amino:     %#v\n  genproto2: %#v", name, decodedAminoVal, decodedVal)
+	}
+
 	bzAminoRT, err := cdc.MarshalReflect(decodedAmino.Interface())
 	if err != nil {
 		t.Fatalf("%s: amino MarshalReflect after roundtrip: %v", name, err)
