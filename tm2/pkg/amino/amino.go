@@ -1052,9 +1052,13 @@ func (cdc *Codec) UnmarshalAny(bz []byte, ptr any) (err error) {
 }
 
 // unmarshalAnyBinary2 attempts to decode an Any-wrapped value using genproto2.
-// Returns (true, err) if genproto2 was used, (false, nil) to fall through.
+// Returns (true, err) once we've committed to the genproto2 path (even on
+// failure), (false, nil) only when genproto2 is not the right decoder for
+// this type and the reflect path should handle it (e.g. the concrete type
+// lacks native genproto2 methods). Byte-level parse errors are propagated
+// since the reflect path would fail identically on the same bytes.
 func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error) {
-	// Parse Any envelope: field 1 = TypeURL, field 2 = Value.
+	// Empty bytes: let reflect path decide (it may leave the interface nil).
 	if len(bz) == 0 {
 		return false, nil
 	}
@@ -1063,15 +1067,15 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 	// Field 1: TypeURL.
 	fnum, typ, n, err := decodeFieldNumberAndTyp3(bz)
 	if err != nil {
-		return false, nil // let reflect path handle the error
+		return true, fmt.Errorf("unmarshalAnyBinary2: field 1 header: %w", err)
 	}
 	if fnum != 1 || typ != Typ3ByteLength {
-		return false, nil
+		return true, fmt.Errorf("unmarshalAnyBinary2: expected Any field 1 TypeURL (ByteLength), got num=%v typ=%v", fnum, typ)
 	}
 	bz = bz[n:]
 	typeURL, n, err := DecodeString(bz)
 	if err != nil {
-		return false, nil
+		return true, fmt.Errorf("unmarshalAnyBinary2: decode TypeURL: %w", err)
 	}
 	bz = bz[n:]
 
@@ -1080,29 +1084,35 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 	if len(bz) > 0 {
 		fnum, typ, n, err = decodeFieldNumberAndTyp3(bz)
 		if err != nil {
-			return false, nil
+			return true, fmt.Errorf("unmarshalAnyBinary2: field 2 header: %w", err)
 		}
 		if fnum != 2 || typ != Typ3ByteLength {
-			return false, nil
+			return true, fmt.Errorf("unmarshalAnyBinary2: expected Any field 2 Value (ByteLength), got num=%v typ=%v", fnum, typ)
 		}
 		bz = bz[n:]
 		value, _, err = DecodeByteSlice(bz)
 		if err != nil {
-			return false, nil
+			return true, fmt.Errorf("unmarshalAnyBinary2: decode Value: %w", err)
 		}
 	}
 
-	// Look up concrete type from typeURL.
+	// Look up concrete type from typeURL. Both malformed typeURLs and
+	// unregistered types propagate here; the reflect path uses the same
+	// registry and would fail identically.
 	cinfo, err := cdc.getTypeInfoFromTypeURLRLock(typeURL, FieldOptions{})
 	if err != nil {
-		return false, nil
+		return true, fmt.Errorf("unmarshalAnyBinary2: type lookup for %q: %w", typeURL, err)
 	}
 
 	// Construct concrete value and check for PBMessager2.
+	// constructConcreteType always returns an addressable value (reflect.New().Elem()),
+	// so !CanAddr() indicates an internal invariant break rather than a decodable-elsewhere case.
 	crv, irvSet := constructConcreteType(cinfo)
 	if !crv.CanAddr() {
-		return false, nil
+		return true, fmt.Errorf("unmarshalAnyBinary2: constructed value for %q is not addressable", typeURL)
 	}
+	// Only fall-through case: the concrete type doesn't have native genproto2
+	// methods. The reflect path can still decode it via generic reflection.
 	pbm2, ok := crv.Addr().Interface().(PBMessager2)
 	if !ok || !HasNativeGenproto2(cinfo.Type) {
 		return false, nil
