@@ -1722,7 +1722,7 @@ func (goo ValidatorSet) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	for _, elem := range goo.Validators {
 		if elem == nil {
-			panic("nil struct pointers in lists not supported unless nil_elements field tag is also set")
+			return 0, errors.New("nil struct pointers in lists not supported unless nil_elements field tag is also set")
 		} else {
 			cs, err := (*elem).SizeBinary2(cdc)
 			if err != nil {

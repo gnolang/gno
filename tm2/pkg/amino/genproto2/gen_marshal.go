@@ -526,7 +526,7 @@ func (ctx *P3Context2) writeListEncode(sb *strings.Builder, accessor string, inf
 		sb.WriteString(fmt.Sprintf("%sfor i := len(%s) - 1; i >= 0; i-- {\n", indent, accessor))
 		sb.WriteString(fmt.Sprintf("%s\te := %s[i]\n", indent, accessor))
 		if ert.Kind() == reflect.Ptr {
-			sb.WriteString(fmt.Sprintf("%s\tif e == nil {\n%s\t\te = new(%s)\n%s\t}\n", indent, indent, ert.Elem().Name(), indent))
+			sb.WriteString(fmt.Sprintf("%s\tif e == nil {\n%s\t\te = new(%s)\n%s\t}\n", indent, indent, ctx.goTypeName(ert.Elem()), indent))
 			ctx.writePrimitiveEncode(sb, "(*e)", einfo, fopts, indent+"\t")
 		} else {
 			ctx.writePrimitiveEncode(sb, "e", einfo, fopts, indent+"\t")

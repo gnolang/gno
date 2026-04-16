@@ -247,6 +247,16 @@ func TestRoundtripBinary2_SlicesSlicesStruct(t *testing.T) {
 		StrSlSl:   [][]string{{"a", "b"}, {"c", "d"}},
 	}
 	compareEncoding(t, cdc, "SlicesSlicesStruct", orig)
+
+	// Inner-ByteLength cases: nested lists whose inner element type uses
+	// Typ3ByteLength (struct, bytes, time, duration). Exercises the
+	// implicit-struct wrapping path in marshal/size/unmarshal.
+	compareEncoding(t, cdc, "SlicesSlicesStruct/inner-bytelength", SlicesSlicesStruct{
+		BytesSlSl:    [][][]byte{{{0x01, 0x02}, {0x03}}, {{0x04, 0x05, 0x06}}},
+		TimeSlSl:     [][]time.Time{{time.Unix(1000, 0).UTC(), time.Unix(2000, 0).UTC()}, {time.Unix(3000, 0).UTC()}},
+		DurationSlSl: [][]time.Duration{{time.Second, time.Minute}, {time.Hour}},
+		EmptySlSl:    [][]EmptyStruct{{{}, {}}, {{}}},
+	})
 }
 
 func TestRoundtripBinary2_PointerSlicesStruct(t *testing.T) {

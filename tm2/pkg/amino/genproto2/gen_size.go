@@ -382,8 +382,9 @@ func (ctx *P3Context2) writeUnpackedListSize(sb *strings.Builder, accessor strin
 			ertIsStruct := einfo.ReprType.Type.Kind() == reflect.Struct
 			sb.WriteString("\t\tif elem == nil {\n")
 			if ertIsStruct && !fopts.NilElements {
-				// Match amino: nil struct pointers in lists panic (size is never called if marshal would error).
-				sb.WriteString("\t\t\tpanic(\"nil struct pointers in lists not supported unless nil_elements field tag is also set\")\n")
+				// Match MarshalBinary2's error surface: Size is a public method
+				// and may be called independently, so error rather than panic.
+				sb.WriteString("\t\t\treturn 0, errors.New(\"nil struct pointers in lists not supported unless nil_elements field tag is also set\")\n")
 			} else {
 				sb.WriteString(fmt.Sprintf("\t\t\ts += %d + 1\n", fks)) // field key + 0x00 byte
 			}

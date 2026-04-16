@@ -6911,7 +6911,7 @@ func (goo PointerSlicesStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 	}
 	for _, elem := range goo.TimePtSl {
 		if elem == nil {
-			panic("nil struct pointers in lists not supported unless nil_elements field tag is also set")
+			return 0, errors.New("nil struct pointers in lists not supported unless nil_elements field tag is also set")
 		} else {
 			cs := amino.TimeSize((*elem))
 			s += 2 + amino.UvarintSize(uint64(cs)) + cs
@@ -6927,7 +6927,7 @@ func (goo PointerSlicesStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 	}
 	for _, elem := range goo.EmptyPtSl {
 		if elem == nil {
-			panic("nil struct pointers in lists not supported unless nil_elements field tag is also set")
+			return 0, errors.New("nil struct pointers in lists not supported unless nil_elements field tag is also set")
 		} else {
 			cs, err := (*elem).SizeBinary2(cdc)
 			if err != nil {
