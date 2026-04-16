@@ -45,8 +45,18 @@ func (t *BPTree) Size() int {
 }
 
 func (t *BPTree) Has(key string) bool {
-	_, exists := t.Get(key)
-	return exists
+	if t.root == nil {
+		return false
+	}
+	n := t.root
+	for !n.isLeaf() {
+		inner := n.(*innerNode)
+		idx := inner.findChild(key)
+		n = inner.children[idx]
+	}
+	leaf := n.(*leafNode)
+	_, found := leaf.find(key)
+	return found
 }
 
 // Get retrieves the value associated with the given key.

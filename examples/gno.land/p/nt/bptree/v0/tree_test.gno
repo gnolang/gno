@@ -135,6 +135,9 @@ func TestRemoveLastKey(t *testing.T) {
 func TestNilValue(t *testing.T) {
 	tree := NewBPTreeN(4)
 	tree.Set("k", nil)
+	if !tree.Has("k") {
+		t.Error("Expected Has(k) = true for nil-valued entry")
+	}
 	v, ok := tree.Get("k")
 	if !ok {
 		t.Error("Expected key to exist")
@@ -157,6 +160,9 @@ func TestEmptyStringKey(t *testing.T) {
 	tree.Set("a", "alpha")
 	tree.Set("b", "beta")
 
+	if !tree.Has("") {
+		t.Error("Expected Has('') = true for empty string key")
+	}
 	if v, ok := tree.Get(""); !ok || v != "empty" {
 		t.Errorf("Expected (empty, true), got (%v, %v)", v, ok)
 	}
