@@ -49,6 +49,9 @@ func (goo *TxMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err

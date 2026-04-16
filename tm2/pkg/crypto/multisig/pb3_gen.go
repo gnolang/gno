@@ -76,6 +76,9 @@ func (goo *PubKeyMultisigThreshold) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeUvarint(bz)
 			if err != nil {
 				return err
@@ -83,6 +86,9 @@ func (goo *PubKeyMultisigThreshold) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 			bz = bz[n:]
 			goo.K = uint(v)
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -99,12 +105,16 @@ func (goo *PubKeyMultisigThreshold) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 			}
 			for len(bz) > 0 {
 				var nextFnum uint32
-				nextFnum, _, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
 				if err != nil {
 					return err
 				}
 				if nextFnum != 2 {
 					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
 				}
 				bz = bz[n:]
 				fbz, n, err := amino.DecodeByteSlice(bz)

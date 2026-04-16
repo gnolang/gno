@@ -541,6 +541,10 @@ message FuzzFixedInt {
 	fixed64 u64 = 2 [json_name = "U64"];
 }
 
+message FuzzContainsAminoMarshaler {
+	AminoMarshalerStruct1 am = 1 [json_name = "AM"];
+}
+
 message InterfaceHeavy {
 	google.protobuf.Any field1 = 1 [json_name = "Field1"];
 	google.protobuf.Any field2 = 2 [json_name = "Field2"];

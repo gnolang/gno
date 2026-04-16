@@ -89,8 +89,11 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 		einfo := rinfo.Elem
 		sb.WriteString(fmt.Sprintf("\tvar repr %s\n", ctx.goTypeName(rt)))
 		sb.WriteString("\tif len(bz) > 0 {\n")
-		sb.WriteString("\t\t_, _, n, err := amino.DecodeFieldNumberAndTyp3(bz)\n")
+		sb.WriteString("\t\tfnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)\n")
 		sb.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
+		sb.WriteString("\t\tif fnum != 1 || typ3 != amino.Typ3ByteLength {\n")
+		sb.WriteString("\t\t\treturn fmt.Errorf(\"repr field 1: expected ByteLength, got num=%v typ=%v\", fnum, typ3)\n")
+		sb.WriteString("\t\t}\n")
 		sb.WriteString("\t\tbz = bz[n:]\n")
 		sb.WriteString("\t\tfbz, _, err := amino.DecodeByteSlice(bz)\n")
 		sb.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
@@ -127,8 +130,12 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 		// Primitive repr: read field 1 key, then decode value.
 		sb.WriteString(fmt.Sprintf("\tvar repr %s\n", ctx.goTypeName(rt)))
 		sb.WriteString("\tif len(bz) > 0 {\n")
-		sb.WriteString("\t\t_, _, n, err := amino.DecodeFieldNumberAndTyp3(bz)\n")
+		expectedTyp3 := rinfo.GetTyp3(fopts)
+		sb.WriteString("\t\tfnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)\n")
 		sb.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
+		sb.WriteString(fmt.Sprintf("\t\tif fnum != 1 || typ3 != %s {\n", typ3GoStr(expectedTyp3)))
+		sb.WriteString(fmt.Sprintf("\t\t\treturn fmt.Errorf(\"repr field 1: expected typ3 %%v, got num=%%v typ=%%v\", %s, fnum, typ3)\n", typ3GoStr(expectedTyp3)))
+		sb.WriteString("\t\t}\n")
 		sb.WriteString("\t\tbz = bz[n:]\n")
 
 		switch rt.Kind() {
@@ -244,15 +251,24 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 
 		sb.WriteString(fmt.Sprintf("\t\tcase %d:\n", fnum))
 
+		// Validate that the received wire type matches what this field expects.
+		// Without this check, malformed wire data would be silently misparsed.
+		expectedTyp3 := finfo.GetTyp3(fopts)
+		sb.WriteString(fmt.Sprintf("\t\t\tif typ3 != %s {\n", typ3GoStr(expectedTyp3)))
+		sb.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"field %d: expected typ3 %%v, got %%v\", %s, typ3)\n", fnum, typ3GoStr(expectedTyp3)))
+		sb.WriteString("\t\t\t}\n")
+
 		if field.UnpackedList {
 			isArray := ftype.Kind() == reflect.Array
 			ctx.writeUnpackedListUnmarshal(sb, accessor, finfo, fopts, "\t\t\t", isArray, fname)
 			// Continue consuming repeated entries with the same field number.
 			sb.WriteString(fmt.Sprintf("\t\t\tfor len(bz) > 0 {\n"))
 			sb.WriteString(fmt.Sprintf("\t\t\t\tvar nextFnum uint32\n"))
-			sb.WriteString(fmt.Sprintf("\t\t\t\tnextFnum, _, n, err = amino.DecodeFieldNumberAndTyp3(bz)\n"))
+			sb.WriteString(fmt.Sprintf("\t\t\t\tvar nextTyp3 amino.Typ3\n"))
+			sb.WriteString(fmt.Sprintf("\t\t\t\tnextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)\n"))
 			sb.WriteString(fmt.Sprintf("\t\t\t\tif err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n"))
 			sb.WriteString(fmt.Sprintf("\t\t\t\tif nextFnum != %d {\n\t\t\t\t\tbreak\n\t\t\t\t}\n", fnum))
+			sb.WriteString(fmt.Sprintf("\t\t\t\tif nextTyp3 != %s {\n\t\t\t\t\treturn fmt.Errorf(\"field %d: expected typ3 %%v, got %%v\", %s, nextTyp3)\n\t\t\t\t}\n", typ3GoStr(expectedTyp3), fnum, typ3GoStr(expectedTyp3)))
 			sb.WriteString(fmt.Sprintf("\t\t\t\tbz = bz[n:]\n"))
 			ctx.writeUnpackedListUnmarshal(sb, accessor, finfo, fopts, "\t\t\t\t", isArray, fname)
 			sb.WriteString(fmt.Sprintf("\t\t\t}\n"))
@@ -599,9 +615,12 @@ func (ctx *P3Context2) writeImplicitStructDecode(sb *strings.Builder, accessor s
 	sb.WriteString(fmt.Sprintf("%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent))
 	sb.WriteString(fmt.Sprintf("%sbz = bz[n:]\n", indent))
 	sb.WriteString(fmt.Sprintf("%sif len(ibz) > 0 {\n", indent))
-	// Read field 1 key from ibz.
-	sb.WriteString(fmt.Sprintf("%s\t_, _, _n, _err := amino.DecodeFieldNumberAndTyp3(ibz)\n", indent))
+	// Read field 1 key from ibz and validate it's the expected ByteLength wrapper.
+	sb.WriteString(fmt.Sprintf("%s\t_fnum, _typ3, _n, _err := amino.DecodeFieldNumberAndTyp3(ibz)\n", indent))
 	sb.WriteString(fmt.Sprintf("%s\tif _err != nil {\n%s\t\treturn _err\n%s\t}\n", indent, indent, indent))
+	sb.WriteString(fmt.Sprintf("%s\tif _fnum != 1 || _typ3 != amino.Typ3ByteLength {\n", indent))
+	sb.WriteString(fmt.Sprintf("%s\t\treturn fmt.Errorf(\"implicit struct: expected field 1 ByteLength, got num=%%v typ=%%v\", _fnum, _typ3)\n", indent))
+	sb.WriteString(fmt.Sprintf("%s\t}\n", indent))
 	sb.WriteString(fmt.Sprintf("%s\tibz = ibz[_n:]\n", indent))
 	// Read inner ByteSlice (packed data).
 	sb.WriteString(fmt.Sprintf("%s\tfbz, _, _err2 := amino.DecodeByteSlice(ibz)\n", indent))

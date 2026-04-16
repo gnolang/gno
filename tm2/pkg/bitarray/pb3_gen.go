@@ -70,6 +70,9 @@ func (goo *BitArray) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -77,6 +80,9 @@ func (goo *BitArray) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.Bits = int(v)
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err

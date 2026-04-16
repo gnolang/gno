@@ -142,6 +142,9 @@ func (goo *RequestEcho) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -151,6 +154,9 @@ func (goo *RequestEcho) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
@@ -215,6 +221,9 @@ func (goo *RequestFlush) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -281,6 +290,9 @@ func (goo *RequestInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -361,6 +373,9 @@ func (goo *RequestSetOption) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -370,6 +385,9 @@ func (goo *RequestSetOption) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
@@ -377,6 +395,9 @@ func (goo *RequestSetOption) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 			bz = bz[n:]
 			goo.Key = string(v)
 		case 3:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
@@ -529,6 +550,9 @@ func (goo *RequestInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -538,6 +562,9 @@ func (goo *RequestInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			// time.Time (ByteLength)
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
@@ -549,6 +576,9 @@ func (goo *RequestInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 				return err
 			}
 		case 3:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
@@ -556,6 +586,9 @@ func (goo *RequestInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 			bz = bz[n:]
 			goo.ChainID = string(v)
 		case 4:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			{
 				var pv ConsensusParams
 				fbz, n, err := amino.DecodeByteSlice(bz)
@@ -569,6 +602,9 @@ func (goo *RequestInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 				goo.ConsensusParams = &pv
 			}
 		case 5:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 5: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			var ev ValidatorUpdate
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
@@ -581,12 +617,16 @@ func (goo *RequestInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 			goo.Validators = append(goo.Validators, ev)
 			for len(bz) > 0 {
 				var nextFnum uint32
-				nextFnum, _, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
 				if err != nil {
 					return err
 				}
 				if nextFnum != 5 {
 					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 5: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
 				}
 				bz = bz[n:]
 				var ev ValidatorUpdate
@@ -601,6 +641,9 @@ func (goo *RequestInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 				goo.Validators = append(goo.Validators, ev)
 			}
 		case 6:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 6: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -697,6 +740,9 @@ func (goo *RequestQuery) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -706,6 +752,9 @@ func (goo *RequestQuery) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -717,6 +766,9 @@ func (goo *RequestQuery) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				goo.Data = v
 			}
 		case 3:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
@@ -724,6 +776,9 @@ func (goo *RequestQuery) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.Path = string(v)
 		case 4:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -731,6 +786,9 @@ func (goo *RequestQuery) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.Height = int64(v)
 		case 5:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 5: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeBool(bz)
 			if err != nil {
 				return err
@@ -844,6 +902,9 @@ func (goo *RequestBeginBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -853,6 +914,9 @@ func (goo *RequestBeginBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -864,6 +928,9 @@ func (goo *RequestBeginBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 				goo.Hash = v
 			}
 		case 3:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -875,6 +942,9 @@ func (goo *RequestBeginBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 				}
 			}
 		case 4:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			{
 				var pv LastCommitInfo
 				fbz, n, err := amino.DecodeByteSlice(bz)
@@ -959,6 +1029,9 @@ func (goo *RequestCheckTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -968,6 +1041,9 @@ func (goo *RequestCheckTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -979,6 +1055,9 @@ func (goo *RequestCheckTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				goo.Tx = v
 			}
 		case 3:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -1050,6 +1129,9 @@ func (goo *RequestDeliverTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1059,6 +1141,9 @@ func (goo *RequestDeliverTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1134,6 +1219,9 @@ func (goo *RequestEndBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1143,6 +1231,9 @@ func (goo *RequestEndBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -1207,6 +1298,9 @@ func (goo *RequestCommit) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1318,6 +1412,9 @@ func (goo *ResponseBase) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1329,6 +1426,9 @@ func (goo *ResponseBase) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				}
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1340,6 +1440,9 @@ func (goo *ResponseBase) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				goo.Data = v
 			}
 		case 3:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1356,12 +1459,16 @@ func (goo *ResponseBase) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			}
 			for len(bz) > 0 {
 				var nextFnum uint32
-				nextFnum, _, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
 				if err != nil {
 					return err
 				}
 				if nextFnum != 3 {
 					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
 				}
 				bz = bz[n:]
 				fbz, n, err := amino.DecodeByteSlice(bz)
@@ -1380,6 +1487,9 @@ func (goo *ResponseBase) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				}
 			}
 		case 4:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
@@ -1387,6 +1497,9 @@ func (goo *ResponseBase) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.Log = string(v)
 		case 5:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 5: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
@@ -1451,6 +1564,9 @@ func (goo *ResponseException) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1524,6 +1640,9 @@ func (goo *ResponseEcho) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1533,6 +1652,9 @@ func (goo *ResponseEcho) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
@@ -1597,6 +1719,9 @@ func (goo *ResponseFlush) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1691,6 +1816,9 @@ func (goo *ResponseInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1700,6 +1828,9 @@ func (goo *ResponseInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
@@ -1707,6 +1838,9 @@ func (goo *ResponseInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.ABCIVersion = string(v)
 		case 3:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
@@ -1714,6 +1848,9 @@ func (goo *ResponseInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.AppVersion = string(v)
 		case 4:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -1721,6 +1858,9 @@ func (goo *ResponseInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.LastBlockHeight = int64(v)
 		case 5:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 5: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1789,6 +1929,9 @@ func (goo *ResponseSetOption) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1912,6 +2055,9 @@ func (goo *ResponseInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -1921,6 +2067,9 @@ func (goo *ResponseInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			{
 				var pv ConsensusParams
 				fbz, n, err := amino.DecodeByteSlice(bz)
@@ -1934,6 +2083,9 @@ func (goo *ResponseInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 				goo.ConsensusParams = &pv
 			}
 		case 3:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			var ev ValidatorUpdate
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
@@ -1946,12 +2098,16 @@ func (goo *ResponseInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 			goo.Validators = append(goo.Validators, ev)
 			for len(bz) > 0 {
 				var nextFnum uint32
-				nextFnum, _, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
 				if err != nil {
 					return err
 				}
 				if nextFnum != 3 {
 					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
 				}
 				bz = bz[n:]
 				var ev ValidatorUpdate
@@ -1966,6 +2122,9 @@ func (goo *ResponseInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 				goo.Validators = append(goo.Validators, ev)
 			}
 		case 4:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			var ev ResponseDeliverTx
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
@@ -1978,12 +2137,16 @@ func (goo *ResponseInitChain) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 			goo.TxResponses = append(goo.TxResponses, ev)
 			for len(bz) > 0 {
 				var nextFnum uint32
-				nextFnum, _, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
 				if err != nil {
 					return err
 				}
 				if nextFnum != 4 {
 					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
 				}
 				bz = bz[n:]
 				var ev ResponseDeliverTx
@@ -2097,6 +2260,9 @@ func (goo *ResponseQuery) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -2106,6 +2272,9 @@ func (goo *ResponseQuery) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -2117,6 +2286,9 @@ func (goo *ResponseQuery) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				goo.Key = v
 			}
 		case 3:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -2128,6 +2300,9 @@ func (goo *ResponseQuery) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				goo.Value = v
 			}
 		case 4:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			{
 				var pv merkle.Proof
 				fbz, n, err := amino.DecodeByteSlice(bz)
@@ -2141,6 +2316,9 @@ func (goo *ResponseQuery) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				goo.Proof = &pv
 			}
 		case 5:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 5: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -2205,6 +2383,9 @@ func (goo *ResponseBeginBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -2285,6 +2466,9 @@ func (goo *ResponseCheckTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -2294,6 +2478,9 @@ func (goo *ResponseCheckTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -2301,6 +2488,9 @@ func (goo *ResponseCheckTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 			bz = bz[n:]
 			goo.GasWanted = int64(v)
 		case 3:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -2379,6 +2569,9 @@ func (goo *ResponseDeliverTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -2388,6 +2581,9 @@ func (goo *ResponseDeliverTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -2395,6 +2591,9 @@ func (goo *ResponseDeliverTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) erro
 			bz = bz[n:]
 			goo.GasWanted = int64(v)
 		case 3:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -2524,6 +2723,9 @@ func (goo *ResponseEndBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -2533,6 +2735,9 @@ func (goo *ResponseEndBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			var ev ValidatorUpdate
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
@@ -2545,12 +2750,16 @@ func (goo *ResponseEndBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 			goo.ValidatorUpdates = append(goo.ValidatorUpdates, ev)
 			for len(bz) > 0 {
 				var nextFnum uint32
-				nextFnum, _, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
 				if err != nil {
 					return err
 				}
 				if nextFnum != 2 {
 					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
 				}
 				bz = bz[n:]
 				var ev ValidatorUpdate
@@ -2565,6 +2774,9 @@ func (goo *ResponseEndBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 				goo.ValidatorUpdates = append(goo.ValidatorUpdates, ev)
 			}
 		case 3:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			{
 				var pv ConsensusParams
 				fbz, n, err := amino.DecodeByteSlice(bz)
@@ -2578,6 +2790,9 @@ func (goo *ResponseEndBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 				goo.ConsensusParams = &pv
 			}
 		case 4:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -2594,12 +2809,16 @@ func (goo *ResponseEndBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error
 			}
 			for len(bz) > 0 {
 				var nextFnum uint32
-				nextFnum, _, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
 				if err != nil {
 					return err
 				}
 				if nextFnum != 4 {
 					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
 				}
 				bz = bz[n:]
 				fbz, n, err := amino.DecodeByteSlice(bz)
@@ -2675,6 +2894,9 @@ func (goo *ResponseCommit) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -2725,9 +2947,12 @@ func (goo StringError) SizeBinary2(cdc *amino.Codec) (int, error) {
 func (goo *StringError) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	var repr StringError
 	if len(bz) > 0 {
-		_, _, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
 		if err != nil {
 			return err
+		}
+		if fnum != 1 || typ3 != amino.Typ3ByteLength {
+			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3ByteLength, fnum, typ3)
 		}
 		bz = bz[n:]
 		v, _, err := amino.DecodeString(bz)
@@ -2806,6 +3031,9 @@ func (goo *ConsensusParams) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			{
 				var pv BlockParams
 				fbz, n, err := amino.DecodeByteSlice(bz)
@@ -2819,6 +3047,9 @@ func (goo *ConsensusParams) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 				goo.Block = &pv
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			{
 				var pv ValidatorParams
 				fbz, n, err := amino.DecodeByteSlice(bz)
@@ -2901,6 +3132,9 @@ func (goo *BlockParams) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -2908,6 +3142,9 @@ func (goo *BlockParams) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.MaxTxBytes = int64(v)
 		case 2:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -2915,6 +3152,9 @@ func (goo *BlockParams) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.MaxDataBytes = int64(v)
 		case 3:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -2922,6 +3162,9 @@ func (goo *BlockParams) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.MaxBlockBytes = int64(v)
 		case 4:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -2929,6 +3172,9 @@ func (goo *BlockParams) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.MaxGas = int64(v)
 		case 5:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 5: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -2979,6 +3225,9 @@ func (goo *ValidatorParams) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			var ev string
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
@@ -2989,12 +3238,16 @@ func (goo *ValidatorParams) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 			goo.PubKeyTypeURLs = append(goo.PubKeyTypeURLs, ev)
 			for len(bz) > 0 {
 				var nextFnum uint32
-				nextFnum, _, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
 				if err != nil {
 					return err
 				}
 				if nextFnum != 1 {
 					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
 				}
 				bz = bz[n:]
 				var ev string
@@ -3084,6 +3337,9 @@ func (goo *ValidatorUpdate) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			var repr string
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
@@ -3095,6 +3351,9 @@ func (goo *ValidatorUpdate) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -3106,6 +3365,9 @@ func (goo *ValidatorUpdate) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error 
 				}
 			}
 		case 3:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -3172,6 +3434,9 @@ func (goo *LastCommitInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -3179,6 +3444,9 @@ func (goo *LastCommitInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.Round = int32(v)
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			var ev VoteInfo
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
@@ -3191,12 +3459,16 @@ func (goo *LastCommitInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			goo.Votes = append(goo.Votes, ev)
 			for len(bz) > 0 {
 				var nextFnum uint32
-				nextFnum, _, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
 				if err != nil {
 					return err
 				}
 				if nextFnum != 2 {
 					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
 				}
 				bz = bz[n:]
 				var ev VoteInfo
@@ -3274,6 +3546,9 @@ func (goo *VoteInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			var repr string
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
@@ -3285,6 +3560,9 @@ func (goo *VoteInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -3292,6 +3570,9 @@ func (goo *VoteInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.Power = int64(v)
 		case 3:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeBool(bz)
 			if err != nil {
 				return err
@@ -3340,9 +3621,12 @@ func (goo EventString) SizeBinary2(cdc *amino.Codec) (int, error) {
 func (goo *EventString) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 	var repr EventString
 	if len(bz) > 0 {
-		_, _, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
 		if err != nil {
 			return err
+		}
+		if fnum != 1 || typ3 != amino.Typ3ByteLength {
+			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3ByteLength, fnum, typ3)
 		}
 		bz = bz[n:]
 		v, _, err := amino.DecodeString(bz)
@@ -3435,6 +3719,9 @@ func (goo *MockHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
@@ -3442,6 +3729,9 @@ func (goo *MockHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.Version = string(v)
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
@@ -3449,6 +3739,9 @@ func (goo *MockHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.ChainID = string(v)
 		case 3:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -3456,6 +3749,9 @@ func (goo *MockHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.Height = int64(v)
 		case 4:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			// time.Time (ByteLength)
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
@@ -3467,6 +3763,9 @@ func (goo *MockHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				return err
 			}
 		case 5:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 5: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
@@ -3474,6 +3773,9 @@ func (goo *MockHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			bz = bz[n:]
 			goo.NumTxs = int64(v)
 		case 6:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 6: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err

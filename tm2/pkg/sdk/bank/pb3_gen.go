@@ -192,6 +192,9 @@ func (goo *MsgSend) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 		bz = bz[n:]
 		switch fnum {
 		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			var repr string
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
@@ -203,6 +206,9 @@ func (goo *MsgSend) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				return err
 			}
 		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			var repr string
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
@@ -214,6 +220,9 @@ func (goo *MsgSend) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				return err
 			}
 		case 3:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
 			var repr string
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
