@@ -79,8 +79,12 @@ jobs:
             cwd://${{ steps.meta.outputs.bake-file-tags }}
             cwd://${{ steps.meta.outputs.bake-file-labels }}
           targets: ${{ matrix.image }}
+          # type=registry is used instead of type=gha because GHA cache blob
+          # entries are global (not scoped). When matrix jobs export concurrently,
+          # they race on the shared blob namespace, corrupting each other's cache.
+          # type=registry gives each image a fully independent OCI cache manifest.
           set: |
-            *.cache-from=type=gha,scope=${{ matrix.image }}
-            *.cache-to=type=gha,mode=max,scope=${{ matrix.image }}
+            *.cache-from=type=registry,ref=ghcr.io/${{ github.repository }}/cache:${{ matrix.image }}
+            *.cache-to=type=registry,ref=ghcr.io/${{ github.repository }}/cache:${{ matrix.image }},mode=max
             *.platform=linux/amd64
             *.context=.
