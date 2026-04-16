@@ -67,7 +67,9 @@ func (m *Machine) doOpPrecall() {
 		// No need for frames.
 		xv := m.PeekValue(1)
 		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
-			xv.AssertNonNegative("runtime error: negative shift amount")
+			if xv.Sign() < 0 {
+				m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
+			}
 		}
 		m.PushOp(OpConvert)
 		if debug {
