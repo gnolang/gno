@@ -159,6 +159,20 @@ func TestRoundtripBinary2_AminoMarshalerStruct1(t *testing.T) {
 	compareEncoding(t, cdc, "AminoMarshalerStruct1", orig)
 }
 
+func TestRoundtripBinary2_FuzzContainsAminoMarshaler(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Non-zero case: repr encodes to non-empty bytes.
+	compareEncoding(t, cdc, "FuzzContainsAminoMarshaler/nonzero", FuzzContainsAminoMarshaler{
+		AM: AminoMarshalerStruct1{A: 10, B: 20},
+	})
+	// Zero case: AminoMarshalerStruct1{0,0} → ReprStruct1{0,0} → encodes to 0 bytes.
+	// Exercises the size-vs-marshal "emit field key?" divergence path.
+	compareEncoding(t, cdc, "FuzzContainsAminoMarshaler/zero", FuzzContainsAminoMarshaler{})
+}
+
 func TestRoundtripBinary2_AminoMarshalerStruct3(t *testing.T) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(Package)

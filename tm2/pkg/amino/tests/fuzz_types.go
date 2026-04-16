@@ -303,6 +303,15 @@ type FuzzFixedInt struct {
 	U64 uint `binary:"fixed64"`
 }
 
+// FuzzContainsAminoMarshaler: a struct with an AminoMarshaler struct field
+// whose repr is itself a struct. Exercises the
+// `IsAminoMarshaler && field-type==struct && repr-type==struct` path in
+// gen_size.go / gen_marshal.go, which are easy to get out of sync on the
+// "should we emit the field key?" decision.
+type FuzzContainsAminoMarshaler struct {
+	AM AminoMarshalerStruct1
+}
+
 // InterfaceHeavy: benchmarks MarshalAnyBinary2 with multiple interface fields.
 type InterfaceHeavy struct {
 	Field1 Interface1

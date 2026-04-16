@@ -210,9 +210,10 @@ func (ctx *P3Context2) writeFieldSize(sb *strings.Builder, field amino.FieldInfo
 		if rinfo.Type.Kind() == reflect.Struct {
 			sb.WriteString("\t\tcs, err := repr.SizeBinary2(cdc)\n")
 			sb.WriteString("\t\tif err != nil {\n\t\t\treturn 0, err\n\t\t}\n")
-			sb.WriteString(fmt.Sprintf("\t\ts += amino.UvarintSize(uint64(%d<<3|%d))\n", fnum, finfo.GetTyp3(fopts)))
-			sb.WriteString("\t\ts += amino.UvarintSize(uint64(cs))\n")
-			sb.WriteString("\t\ts += cs\n")
+			// Match MarshalBinary2's writeLengthPrefixedField: if !WriteEmpty,
+			// skip emitting field key + length when inner content is empty.
+			fks := fieldKeySize(fnum, finfo.GetTyp3(fopts))
+			ctx.writeByteFieldSizeCheck(sb, fks, field.WriteEmpty, "\t\t")
 		} else {
 			ctx.writeFieldValueSize(sb, "repr", fnum, rinfo, fopts, field.WriteEmpty, "\t\t")
 		}

@@ -94,6 +94,7 @@ var Package = pkg.NewPackage(
 	FuzzWriteEmpty{},
 	FuzzNilElements{},
 	FuzzFixedInt{},
+	FuzzContainsAminoMarshaler{},
 	// Interface-heavy benchmark type.
 	InterfaceHeavy{},
 )

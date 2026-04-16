@@ -85,6 +85,7 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzWriteEmpty)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzNilElements)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzFixedInt)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzContainsAminoMarshaler)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*InterfaceHeavy)(nil)).Elem())
 }
 
@@ -13706,6 +13707,84 @@ func (goo *FuzzFixedInt) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 			}
 			bz = bz[n:]
 			goo.U64 = uint(v)
+		default:
+			n, err = amino.SkipField(bz, typ3)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+		}
+	}
+	return nil
+}
+
+func (goo FuzzContainsAminoMarshaler) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	{
+		repr, err := goo.AM.MarshalAmino()
+		if err != nil {
+			return offset, err
+		}
+		before := offset
+		offset, err = repr.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
+}
+
+func (goo FuzzContainsAminoMarshaler) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	{
+		repr, err := goo.AM.MarshalAmino()
+		if err != nil {
+			return 0, err
+		}
+		cs, err := repr.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
+			if cs > 0 {
+				s += 1 + amino.UvarintSize(uint64(cs)) + cs
+			}
+	}
+	return s, nil
+}
+
+func (goo *FuzzContainsAminoMarshaler) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum < lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			var repr ReprStruct1
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := repr.UnmarshalBinary2(cdc, fbz); err != nil {
+				return err
+			}
+			if err := goo.AM.UnmarshalAmino(repr); err != nil {
+				return err
+			}
 		default:
 			n, err = amino.SkipField(bz, typ3)
 			if err != nil {

@@ -436,6 +436,7 @@ var StructTypes = []any{
 	(*FuzzPtrNest)(nil),
 	(*FuzzUnsafeFloat)(nil),
 	(*FuzzFixedInt)(nil),
+	(*FuzzContainsAminoMarshaler)(nil),
 	// Interface-heavy benchmark type.
 	(*InterfaceHeavy)(nil),
 }
