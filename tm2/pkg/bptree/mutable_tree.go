@@ -357,6 +357,13 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 		return t.Load()
 	}
 
+	// Discover the DB's latest version before loading, to return it
+	// (matching IAVL behavior which returns latestVersion, not targetVersion).
+	if err := t.ndb.discoverVersions(); err != nil {
+		return 0, err
+	}
+	latestVersion := t.ndb.getLatestVersion()
+
 	nkBytes, _, err := t.ndb.GetRoot(version)
 	if err != nil {
 		return 0, err
@@ -368,7 +375,7 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 		t.size = 0
 		t.version = version
 		t.lastSaved = nil
-		return version, nil
+		return latestVersion, nil
 	}
 
 	root, err := t.loadNode(nkBytes)
@@ -380,8 +387,7 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	t.size = nodeSize(root)
 	t.version = version
 	t.lastSaved = root
-	t.ndb.setLatestVersion(version)
-	return version, nil
+	return latestVersion, nil
 }
 
 // LoadVersionForOverwriting is not supported — it would leak values and nodes.
