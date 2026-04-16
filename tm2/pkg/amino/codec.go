@@ -523,6 +523,9 @@ func (cdc *Codec) getTypeInfoWLocked(rt reflect.Type) (info *TypeInfo, err error
 }
 
 func (cdc *Codec) getTypeInfoFromTypeURLRLock(typeURL string, fopts FieldOptions) (info *TypeInfo, err error) {
+	if !strings.Contains(typeURL, "/") {
+		return nil, fmt.Errorf("invalid type_url %q: must contain at least one slash", typeURL)
+	}
 	fullname := typeURLtoFullname(typeURL)
 	return cdc.getTypeInfoFromFullnameRLock(fullname, fopts)
 }
