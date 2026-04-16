@@ -25,11 +25,13 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Compute build version
         id: build_version
         run: |
-          V="cache-test-$(git rev-parse --short HEAD)"
+          V=$(git describe --tags --exact-match 2>/dev/null \
+              || echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")
           echo "version=$V" >> "$GITHUB_OUTPUT"
 
       # On self-hosted runners, ACTIONS_CACHE_URL and ACTIONS_RUNTIME_TOKEN
