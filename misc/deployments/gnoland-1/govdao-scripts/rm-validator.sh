@@ -1,63 +1,69 @@
 #!/usr/bin/env bash
-# Unrestrict an account so it can transfer ugnot even when bank is locked.
+# Remove a validator from gnoland-1 via govDAO proposal.
 #
 # Usage:
-#   ./unrestrict-account.sh ADDR [ADDR...]
-#
-# Example:
-#   ./unrestrict-account.sh g1abc...123
-#   ./unrestrict-account.sh g1abc...123 g1def...456
+#   ./rm-validator.sh <address>
 #
 # Environment:
 #   GNOKEY_NAME   - gnokey key name (default: moul)
-#   CHAIN_ID      - chain ID (default: gnoland1)
+#   CHAIN_ID      - chain ID (default: gnoland-1)
 #   REMOTE        - RPC endpoint (default: https://rpc.betanet.testnets.gno.land:443)
 #   GAS_WANTED    - gas limit (default: 50000000)
 #   GAS_FEE       - gas fee (default: 1000000ugnot)
 set -eo pipefail
 
-if [ $# -eq 0 ]; then
-  echo "Usage: $0 ADDR [ADDR...]" >&2
-  exit 1
-fi
-
 GNOKEY_NAME="${GNOKEY_NAME:-moul}"
-CHAIN_ID="${CHAIN_ID:-gnoland1}"
+CHAIN_ID="${CHAIN_ID:-gnoland-1}"
 REMOTE="${REMOTE:-https://rpc.betanet.testnets.gno.land:443}"
 GAS_WANTED="${GAS_WANTED:-50000000}"
 GAS_FEE="${GAS_FEE:-1000000ugnot}"
 
-# Build address list for the Gno code.
-ADDR_ARGS=""
-for addr in "$@"; do
-  ADDR_ARGS="${ADDR_ARGS}		address(\"${addr}\"),
-"
-done
+if [ $# -lt 1 ]; then
+  echo "Usage: $0 <address>"
+  echo ""
+  echo "Example:"
+  echo "  $0 g1abc...xyz"
+  exit 1
+fi
+
+ADDR="$1"
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-cat >"$TMPDIR/unrestrict.gno" <<GOEOF
+cat >"$TMPDIR/rm_validator.gno" <<GOEOF
 package main
 
 import (
+	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
-	"gno.land/r/sys/params"
+	valr "gno.land/r/sys/validators/v2"
 )
 
 func main() {
-	r := params.ProposeAddUnrestrictedAcctsRequest(
-${ADDR_ARGS}	)
+	r := valr.NewPropRequest(
+		func() []validators.Validator {
+			return []validators.Validator{
+				{
+					Address:     address("${ADDR}"),
+					VotingPower: 0,
+				},
+			}
+		},
+		"Remove validator ${ADDR}",
+		"Remove validator ${ADDR} from the validator set",
+	)
 	pid := dao.MustCreateProposal(cross, r)
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
 	dao.ExecuteProposal(cross, pid)
 }
 GOEOF
 
-echo "Unrestricting $# account(s):"
-for addr in "$@"; do
-  echo "  $addr"
-done
+echo "Removing validator: ${ADDR}"
+echo "  Key: ${GNOKEY_NAME}"
+echo "  Chain: ${CHAIN_ID}"
+echo "  Remote: ${REMOTE}"
+echo ""
 
 gnokey maketx run \
   -gas-wanted "$GAS_WANTED" \
@@ -66,7 +72,4 @@ gnokey maketx run \
   -chainid "$CHAIN_ID" \
   -remote "$REMOTE" \
   "$GNOKEY_NAME" \
-  "$TMPDIR/unrestrict.gno"
-
-echo ""
-echo "Done — $# account(s) unrestricted."
+  "$TMPDIR/rm_validator.gno"

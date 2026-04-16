@@ -1352,6 +1352,7 @@ func TestSetHaltHeight(t *testing.T) {
 	require.Equal(t, uint64(0), app.haltHeight)
 }
 
+
 // TestBeginBlock_InitialHeight verifies that BeginBlock does not panic when
 // the chain starts at InitialHeight > 1.  After InitChain the app's commit
 // store has no committed blocks (LastBlockHeight == 0), so the first
