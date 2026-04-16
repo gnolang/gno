@@ -52,15 +52,6 @@ func (bh bankHandler) handleMsgSend(ctx sdk.Context, msg MsgSend) sdk.Result {
 		return abciResult(err)
 	}
 
-	/*
-		ctx.EventManager().EmitEvent(
-			sdk.NewEvent(
-				sdk.EventTypeMessage,
-				sdk.NewAttribute(sdk.AttributeKeyModule, types.AttributeValueCategory),
-			),
-		)
-	*/
-
 	return sdk.Result{}
 }
 
@@ -82,15 +73,6 @@ func (bh bankHandler) handleMsgMultiSend(ctx sdk.Context, msg MsgMultiSend) sdk.
 	if err != nil {
 		return abciResult(err)
 	}
-
-	/*
-		ctx.EventManager().EmitEvent(
-			sdk.NewEvent(
-				sdk.EventTypeMessage,
-				sdk.NewAttribute(sdk.AttributeKeyModule, types.AttributeValueCategory),
-			),
-		)
-	*/
 
 	return sdk.Result{}
 }

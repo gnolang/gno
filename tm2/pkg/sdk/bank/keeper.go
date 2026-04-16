@@ -88,14 +88,10 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 			return err
 		}
 
-		/*
-			ctx.EventManager().EmitEvent(
-				sdk.NewEvent(
-					sdk.EventTypeMessage,
-					sdk.NewAttribute(types.AttributeKeySender, in.Address.String()),
-				),
-			)
-		*/
+		ctx.EventLogger().EmitEvent(CoinSpentEvent{
+			Spender: in.Address,
+			Amount:  in.Coins,
+		})
 	}
 
 	for _, out := range outputs {
@@ -104,14 +100,10 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 			return err
 		}
 
-		/*
-			ctx.EventManager().EmitEvent(
-				sdk.NewEvent(
-					types.EventTypeTransfer,
-					sdk.NewAttribute(types.AttributeKeyRecipient, out.Address.String()),
-				),
-			)
-		*/
+		ctx.EventLogger().EmitEvent(CoinReceivedEvent{
+			Receiver: out.Address,
+			Amount:   out.Coins,
+		})
 	}
 
 	return nil
@@ -167,19 +159,14 @@ func (bank BankKeeper) sendCoins(
 		return err
 	}
 
-	/*
-		ctx.EventManager().EmitEvents(sdk.Events{
-			sdk.NewEvent(
-				types.EventTypeTransfer,
-				sdk.NewAttribute(types.AttributeKeyRecipient, toAddr.String()),
-				sdk.NewAttribute(sdk.AttributeKeyAmount, amt.String()),
-			),
-			sdk.NewEvent(
-				sdk.EventTypeMessage,
-				sdk.NewAttribute(types.AttributeKeySender, fromAddr.String()),
-			),
+	// Only emit a transfer event when coins are actually moved.
+	if !amt.IsZero() {
+		ctx.EventLogger().EmitEvent(TransferEvent{
+			From:   fromAddr,
+			To:     toAddr,
+			Amount: amt,
 		})
-	*/
+	}
 
 	return nil
 }
