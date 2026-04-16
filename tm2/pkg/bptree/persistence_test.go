@@ -555,8 +555,9 @@ func TestPersistence_VersionReaders_BlockPruning(t *testing.T) {
 		t.Fatalf("DeleteVersionsTo should fail with active reader")
 	}
 
-	// Close exporter — decrements reader
+	// Close exporter AND immutable snapshot — decrements both readers
 	exporter.Close()
+	imm.Close()
 
 	// Now deletion should succeed
 	err = tree.DeleteVersionsTo(1)

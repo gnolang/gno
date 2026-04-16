@@ -10,6 +10,12 @@ type ImmutableTree struct {
 	root          Node
 	version       int64
 	valueResolver ValueResolver // resolves valueKeys to raw values
+
+	// ndb is retained so Close() can decrement this version's reader count
+	// and to prevent pruning while the snapshot is in use. nil for snapshots
+	// that do not correspond to a saved version in a nodeDB (e.g. proof
+	// scratch trees or purely in-memory snapshots).
+	ndb *nodeDB
 }
 
 // NewImmutableTree creates an ImmutableTree from a root node and version.
@@ -20,6 +26,19 @@ func NewImmutableTree(root Node, version int64) *ImmutableTree {
 // SetValueResolver sets the function used to resolve valueKeys to raw values.
 func (t *ImmutableTree) SetValueResolver(resolver ValueResolver) {
 	t.valueResolver = resolver
+}
+
+// Close releases the version-reader reservation held by this snapshot.
+// It is safe to call multiple times; subsequent calls are no-ops. Callers
+// that hold an ImmutableTree obtained from GetImmutable or immutableForProof
+// MUST call Close when done; otherwise PruneVersionsTo on that version will
+// return ErrActiveReaders indefinitely. See Finding #30.
+func (t *ImmutableTree) Close() error {
+	if t.ndb != nil && t.version > 0 {
+		t.ndb.decrVersionReaders(t.version)
+	}
+	t.ndb = nil
+	return nil
 }
 
 // resolveValue resolves a valueKey to raw bytes if a resolver is set.
@@ -110,19 +129,24 @@ func (t *ImmutableTree) GetWithIndex(key []byte) (int64, []byte, error) {
 }
 
 // Iterate calls fn for each key-value pair in sorted order.
-// If a value resolver is set, values are resolved to actual bytes.
+// If a value resolver is set, values are resolved to actual bytes; a
+// resolver error stops iteration and is returned. If no resolver is
+// set, this falls back to yielding value hashes (legacy behavior).
 func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, error) {
 	if t.root == nil {
 		return false, nil
 	}
 	if t.valueResolver != nil {
-		return iterateNodeResolved(t.root, func(key, vk []byte) bool {
+		var resolveErr error
+		stopped := iterateNodeResolved(t.root, func(key, vk []byte) bool {
 			val, err := t.valueResolver(vk)
 			if err != nil {
-				return true // stop on error
+				resolveErr = err
+				return true // stop
 			}
 			return fn(key, val)
-		}), nil
+		})
+		return stopped, resolveErr
 	}
 	return iterateNode(t.root, fn), nil
 }

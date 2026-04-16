@@ -206,22 +206,43 @@ func miniMerkleInnerOps(m *MiniMerkle, index int) []*ics23.InnerOp {
 
 func (t *MutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	imm := t.immutableForProof()
+	defer imm.Close()
 	return imm.GetMembershipProof(key)
 }
 
 func (t *MutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	imm := t.immutableForProof()
+	defer imm.Close()
 	return imm.GetNonMembershipProof(key)
 }
 
-// immutableForProof creates an ImmutableTree with a value resolver for proof generation.
+// immutableForProof creates an ImmutableTree with a value resolver for proof
+// generation. When backed by a nodeDB, it registers as an active version
+// reader so a concurrent PruneVersionsTo(t.version) is rejected for the
+// duration of proof generation. Callers MUST Close() the returned tree.
+// See Finding #30.
+//
+// Note: the returned tree still shares t.root in memory, so concurrent
+// mutations via Set/Remove on the MutableTree can still tear mini-merkle
+// state. See Finding #9.
 func (t *MutableTree) immutableForProof() *ImmutableTree {
-	imm := &ImmutableTree{root: t.root, version: t.version}
 	if t.ndb != nil {
+		// Register as a reader FIRST so that a concurrent
+		// PruneVersionsTo(t.version) cannot delete nodes that proof
+		// generation will later traverse via getChild. See Findings
+		// #30 and #40.
+		if t.version > 0 {
+			t.ndb.incrVersionReaders(t.version)
+		}
+		imm := &ImmutableTree{root: t.root, version: t.version}
+		imm.ndb = t.ndb
 		imm.valueResolver = func(vk []byte) ([]byte, error) {
 			return t.ndb.GetValue(vk)
 		}
-	} else if t.memValues != nil {
+		return imm
+	}
+	imm := &ImmutableTree{root: t.root, version: t.version}
+	if t.memValues != nil {
 		imm.valueResolver = func(vk []byte) ([]byte, error) {
 			val, ok := t.memValues[string(vk)]
 			if !ok {

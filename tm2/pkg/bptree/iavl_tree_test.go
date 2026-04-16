@@ -201,6 +201,7 @@ func TestVersionedEmptyTree(t *testing.T) {
 	it, err := tree.GetImmutable(3)
 	require.NoError(err)
 	require.True(it.IsEmpty())
+	it.Close()
 
 	require.NoError(tree.DeleteVersionsTo(3))
 	require.False(tree.VersionExists(1))

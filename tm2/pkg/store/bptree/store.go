@@ -326,6 +326,8 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		} else {
 			proof, err = iTree.GetNonMembershipProof(key)
 		}
+		// Release the version-reader reservation acquired by GetImmutableTree.
+		iTree.Close()
 
 		if err != nil {
 			res.Log = err.Error()

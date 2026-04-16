@@ -26,6 +26,12 @@ type nodeDB struct {
 	firstVersion   int64
 	versionReaders map[int64]uint32
 
+	// pruneMu serialises prune with version-reader registration so that no
+	// new reader can register while a prune is in flight. Acquired by
+	// beginPruning and by incrVersionReaders. Always acquired BEFORE mtx
+	// to avoid lock-order inversion. See Finding #15.
+	pruneMu sync.Mutex
+
 	isCommitting bool
 	logger       Logger
 
@@ -361,6 +367,14 @@ func (ndb *nodeDB) discoverVersions() error {
 // --- Version readers ---
 
 func (ndb *nodeDB) incrVersionReaders(version int64) {
+	// Take pruneMu FIRST so that registrations block while a prune holds
+	// it. This closes the check-vs-register TOCTOU window: prune verifies
+	// reader counts under pruneMu and keeps it held for the duration of
+	// the prune, so any new reader attempting to register waits until
+	// prune completes — at which point the version will no longer exist
+	// in the DB and subsequent callers will observe that naturally.
+	ndb.pruneMu.Lock()
+	defer ndb.pruneMu.Unlock()
 	ndb.mtx.Lock()
 	defer ndb.mtx.Unlock()
 	ndb.versionReaders[version]++
@@ -377,10 +391,31 @@ func (ndb *nodeDB) decrVersionReaders(version int64) {
 	}
 }
 
-func (ndb *nodeDB) hasVersionReaders(version int64) bool {
+// beginPruning atomically verifies that no version in [first, to] has
+// active readers and claims pruneMu for the duration of the prune. If any
+// version has readers, it returns an ErrActiveReaders wrapping the first
+// such version and releases the lock.
+//
+// Callers MUST call endPruning when done to release pruneMu; the typical
+// pattern is `defer ndb.endPruning()` immediately after a successful
+// beginPruning call. See Finding #15.
+func (ndb *nodeDB) beginPruning(first, to int64) error {
+	ndb.pruneMu.Lock()
 	ndb.mtx.Lock()
-	defer ndb.mtx.Unlock()
-	return ndb.versionReaders[version] > 0
+	for v := first; v <= to; v++ {
+		if ndb.versionReaders[v] > 0 {
+			ndb.mtx.Unlock()
+			ndb.pruneMu.Unlock()
+			return fmt.Errorf("%w: version %d", ErrActiveReaders, v)
+		}
+	}
+	ndb.mtx.Unlock()
+	return nil
+}
+
+// endPruning releases pruneMu acquired by a prior beginPruning call.
+func (ndb *nodeDB) endPruning() {
+	ndb.pruneMu.Unlock()
 }
 
 // --- Commit coordination ---

@@ -45,6 +45,13 @@ func newIterator(root Node, start, end []byte, ascending bool, ndb *nodeDB, vers
 		ndb:       ndb,
 		version:   version,
 	}
+	// Register as an active reader of this version so that a concurrent
+	// PruneVersionsTo(version) returns ErrActiveReaders until the iterator
+	// is closed. Only meaningful for DB-backed snapshots of saved versions.
+	// See Finding #1.
+	if ndb != nil && version > 0 {
+		ndb.incrVersionReaders(version)
+	}
 	if root == nil {
 		it.valid = false
 		return it
@@ -321,12 +328,16 @@ func (it *Iterator) Close() error {
 
 // NewIteratorWithNDB creates an iterator over an immutable tree with value
 // resolution via the mutable tree's nodeDB. Used by the store wrapper.
+//
+// The iterator registers as a version reader on imm.version (when DB-backed)
+// so that a concurrent PruneVersionsTo(imm.version) is rejected until the
+// iterator is closed. Callers MUST call Close() on the returned iterator.
 func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, mtree *MutableTree) *Iterator {
 	var ndb *nodeDB
 	if mtree != nil {
 		ndb = mtree.ndb
 	}
-	itr := newIterator(imm.root, start, end, ascending, ndb, 0)
+	itr := newIterator(imm.root, start, end, ascending, ndb, imm.version)
 	if ndb == nil && mtree != nil && mtree.memValues != nil {
 		itr.valueResolver = func(vk []byte) ([]byte, error) {
 			val, ok := mtree.memValues[string(vk)]

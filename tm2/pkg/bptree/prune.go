@@ -1,11 +1,45 @@
 package bptree
 
-import "fmt"
+import (
+	"encoding/binary"
+	"fmt"
+)
+
+// nodeKeyArr encodes a *NodeKey into a value-typed [NodeKeySize]byte
+// suitable for use as a map key. Avoids the per-call []byte allocation
+// in nk.GetKey() on the pruning hot path.
+func nodeKeyArr(nk *NodeKey) [NodeKeySize]byte {
+	var a [NodeKeySize]byte
+	binary.BigEndian.PutUint64(a[:8], uint64(nk.Version))
+	binary.BigEndian.PutUint32(a[8:], nk.Nonce)
+	return a
+}
+
+// nodeKeyBytesToArr copies an already-serialized 12-byte NodeKey into a
+// value-typed [NodeKeySize]byte for map lookup.
+func nodeKeyBytesToArr(b []byte) [NodeKeySize]byte {
+	var a [NodeKeySize]byte
+	copy(a[:], b)
+	return a
+}
 
 // PruneVersionsTo deletes all versions from firstVersion through toVersion
-// (inclusive), removing orphaned nodes via the dual-tree-walk algorithm.
-// Adapted for B+ tree fan-out: uses child hash set comparison instead of
-// positional matching.
+// (inclusive) via a mark-and-sweep reachability pass.
+//
+// Algorithm:
+//  1. Build a reachability set over all retained versions (toVersion+1..latest),
+//     recording every live NodeKey.
+//  2. For each pruned version v, walk v's tree and delete any node whose
+//     NodeKey is NOT in the reachability set. Subtrees whose root is
+//     shared with a retained version are skipped without descent
+//     (NodeKeys are unique per save and nodes are immutable, so a shared
+//     root implies a shared subtree).
+//  3. Process each version's orphan list, deleting values displaced in the
+//     transition to nextV.
+//  4. Delete the pruned version's root record.
+//
+// The mark-and-sweep approach is correct under arbitrary split/merge
+// restructurings of the B+ tree. See POTENTIAL_IMPROVEMENTS.md Finding #3.
 func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 	if t.ndb == nil {
 		return nil
@@ -17,11 +51,21 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 		return fmt.Errorf("cannot prune latest version %d", latest)
 	}
 
-	// Check for active readers
-	for v := first; v <= toVersion; v++ {
-		if t.ndb.hasVersionReaders(v) {
-			return fmt.Errorf("%w: version %d", ErrActiveReaders, v)
-		}
+	// Atomically claim the prune: verify no readers on [first, toVersion]
+	// AND block new registrations for the duration of the prune. This
+	// closes the check-vs-delete TOCTOU. See Finding #15.
+	if err := t.ndb.beginPruning(first, toVersion); err != nil {
+		return err
+	}
+	defer t.ndb.endPruning()
+
+	// Build the NodeKey reachability set ONCE from all retained versions
+	// (toVersion+1..latest). Sweeping then costs O(per-version divergence)
+	// rather than O(retained-tree × versions) as a naive per-pair mark
+	// would.
+	reachable, err := t.buildRetainedReachableSet(toVersion+1, latest)
+	if err != nil {
+		return err
 	}
 
 	for v := first; v <= toVersion; v++ {
@@ -35,9 +79,7 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 				return err
 			}
 		} else {
-			// Dual-tree-walk: find orphaned nodes in version v
-			// that are not referenced by version nextV.
-			if err := t.pruneVersion(v, nextV); err != nil {
+			if err := t.sweepAndOrphanVersion(v, nextV, reachable); err != nil {
 				return err
 			}
 		}
@@ -63,42 +105,62 @@ func (t *MutableTree) findNextVersion(v, latest int64) int64 {
 	return 0
 }
 
-// pruneVersion performs the dual-tree-walk between version v and nextV,
-// deleting nodes in v that are not referenced by nextV.
-func (t *MutableTree) pruneVersion(v, nextV int64) error {
-	// Load roots for both versions
+// buildRetainedReachableSet walks every retained version in [from, to]
+// and records the NodeKey of every reachable node into a set. The
+// resulting set is the "must-not-delete" mask for the sweep phase:
+// any NodeKey not in the set is dead (not reachable from any retained
+// version) and can be deleted safely.
+//
+// Building the set once per PruneVersionsTo call amortises the mark
+// cost across all pruned versions; in the common case where the only
+// retained version is `latest`, this is a single tree walk.
+func (t *MutableTree) buildRetainedReachableSet(from, to int64) (map[[NodeKeySize]byte]struct{}, error) {
+	reachable := make(map[[NodeKeySize]byte]struct{})
+	for rv := from; rv <= to; rv++ {
+		if !t.ndb.VersionExists(rv) {
+			continue
+		}
+		rvRootNK, _, err := t.ndb.GetRoot(rv)
+		if err != nil {
+			return nil, fmt.Errorf("loading retained v%d root: %w", rv, err)
+		}
+		if rvRootNK == nil {
+			continue
+		}
+		rvRoot, err := t.ndb.GetNode(rvRootNK)
+		if err != nil {
+			return nil, fmt.Errorf("loading retained v%d root node: %w", rv, err)
+		}
+		if err := t.markReachable(rvRoot, reachable); err != nil {
+			return nil, err
+		}
+	}
+	return reachable, nil
+}
+
+// sweepAndOrphanVersion performs the sweep and orphan-processing for a
+// single old version v using a pre-built reachable set.
+//
+// When v has no tree (vRootNK is nil), the sweep phase is skipped but
+// the orphan-processing block still runs — values displaced when nextV
+// was created are stored under nextV's orphan list and must be deleted
+// regardless of whether v itself contained any nodes. See Finding #2.
+func (t *MutableTree) sweepAndOrphanVersion(v, nextV int64, reachable map[[NodeKeySize]byte]struct{}) error {
 	vRootNK, _, err := t.ndb.GetRoot(v)
 	if err != nil {
 		return err
 	}
-	nextRootNK, _, err := t.ndb.GetRoot(nextV)
-	if err != nil {
-		return err
-	}
-
-	if vRootNK == nil {
-		// Empty tree at version v — nothing to prune
-		return nil
-	}
-
-	vRoot, err := t.ndb.GetNode(vRootNK)
-	if err != nil {
-		return fmt.Errorf("loading v%d root: %w", v, err)
-	}
-
-	var nextRoot Node
-	if nextRootNK != nil {
-		nextRoot, err = t.ndb.GetNode(nextRootNK)
+	if vRootNK != nil {
+		vRoot, err := t.ndb.GetNode(vRootNK)
 		if err != nil {
-			return fmt.Errorf("loading v%d root: %w", nextV, err)
+			return fmt.Errorf("loading v%d root: %w", v, err)
+		}
+		if err := t.sweepOld(vRoot, reachable); err != nil {
+			return err
 		}
 	}
 
-	if err := t.walkAndPrune(vRoot, nextRoot, nextRoot); err != nil {
-		return err
-	}
-
-	// Process orphan list: delete values displaced when nextV was created
+	// Values displaced when nextV was created are deleted now.
 	orphans, err := t.ndb.LoadOrphans(nextV)
 	if err != nil {
 		return fmt.Errorf("loading orphans for v%d: %w", nextV, err)
@@ -108,148 +170,132 @@ func (t *MutableTree) pruneVersion(v, nextV int64) error {
 			return err
 		}
 	}
-	// Clean up orphan records for both versions
 	if err := t.ndb.DeleteOrphans(nextV); err != nil {
 		return err
 	}
 	if err := t.ndb.DeleteOrphans(v); err != nil {
 		return err
 	}
-
 	return nil
 }
 
-// walkAndPrune compares two subtrees and deletes nodes from oldNode
-// that are not referenced by newNode. Uses child hash set comparison
-// to handle split/merge position shifts.
+// markReachable records the NodeKey of every node reachable from node
+// into reachable. Loads children lazily through the nodeDB.
 //
-// newRoot is the root of the new version's tree, used to find children
-// that moved to a different part of the tree due to inner node splits.
-func (t *MutableTree) walkAndPrune(oldNode, newNode, newRoot Node) error {
-	if oldNode == nil {
+// Two optimisations avoid unnecessary DB work:
+//
+//   - Already-marked short-circuit: if a node's NodeKey is already in
+//     the set (possible when marking across multiple retained versions
+//     that share structure), the subtree is already fully recorded —
+//     NodeKeys are uniquely assigned per SaveVersion and nodes are
+//     immutable after save.
+//
+//   - Leaf-skip: when the parent is directly above the leaf level
+//     (height == 1), children are leaves with no descendants. Their
+//     NodeKeys can be marked from the parent's `children[i]` reference
+//     without a DB load + RebuildMiniMerkle. At B=32 this removes ~97%
+//     of node loads in the mark phase.
+func (t *MutableTree) markReachable(node Node, reachable map[[NodeKeySize]byte]struct{}) error {
+	if node == nil {
 		return nil
 	}
-
-	// If both nodes have the same hash, the entire subtree is shared — skip.
-	if newNode != nil && oldNode.Hash() == newNode.Hash() {
-		return nil
-	}
-
-	// Delete the old node itself (it's been replaced or removed in the new version)
-	oldNK := oldNode.GetNodeKey()
-	if oldNK != nil {
-		if err := t.ndb.DeleteNode(oldNK.GetKey()); err != nil {
-			return err
-		}
-	}
-
-	// For inner nodes, recurse into children
-	oldInner, isInner := oldNode.(*InnerNode)
-	if !isInner {
-		return nil // leaf — already deleted above, no children
-	}
-
-	// Build a set of child hashes from the new node (if it's also an inner node)
-	newChildHashes := make(map[Hash]bool)
-	if newInner, ok := newNode.(*InnerNode); ok {
-		for i := 0; i < newInner.NumChildren(); i++ {
-			newChildHashes[newInner.childHashes[i]] = true
-		}
-	}
-
-	// For each child in the old inner node:
-	// - If the child hash exists in the new node's children → shared, skip
-	// - If not → the child subtree may be orphaned or moved, check from root
-	for i := 0; i < oldInner.NumChildren(); i++ {
-		childHash := oldInner.childHashes[i]
-		if newChildHashes[childHash] {
-			continue // shared subtree
-		}
-
-		// Load and recurse into the orphaned child
-		if oldInner.children[i] == nil {
-			continue // no serialized ref (shouldn't happen for saved nodes)
-		}
-		child, err := t.ndb.GetNode(oldInner.children[i])
-		if err != nil {
-			return fmt.Errorf("loading old child %d: %w", i, err)
-		}
-
-		// Find the corresponding child in the new tree by routing from the
-		// new tree ROOT. This handles inner node splits where children move
-		// to sibling nodes not reachable from the local newNode.
-		var newChild Node
-		if newRoot != nil {
-			newChild = t.findCorrespondingChild(newRoot, child)
-		}
-
-		// If the child was found in the new tree with the same hash,
-		// it's shared (moved to a different part of the tree due to split) — skip.
-		if newChild != nil && child.Hash() == newChild.Hash() {
-			continue
-		}
-
-		if err := t.walkAndPrune(child, newChild, newRoot); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// findCorrespondingChild finds the child in newNode's tree that covers
-// the same key range as oldChild. Uses the first key of oldChild to route.
-// Descends to the same height as oldChild.
-func (t *MutableTree) findCorrespondingChild(newNode, oldChild Node) Node {
-	// Get a representative key from the old child
-	var key []byte
-	switch c := oldChild.(type) {
-	case *LeafNode:
-		if c.numKeys > 0 {
-			key = c.keys[0]
-		}
-	case *InnerNode:
-		if c.numKeys > 0 {
-			key = c.keys[0]
-		}
-	}
-	if key == nil {
-		return nil
-	}
-
-	targetHeight := nodeHeight(oldChild)
-
-	// Route through the new tree to find the node at the same height
-	node := newNode
-	for {
-		if nodeHeight(node) == targetHeight {
-			return node
-		}
-		if nodeHeight(node) < targetHeight {
-			return nil // new tree is shorter
-		}
-
-		inner, ok := node.(*InnerNode)
-		if !ok {
-			return node // leaf — can't descend further
-		}
-		idx := searchInner(inner, key)
-
-		// Try in-memory child first
-		child := inner.getChild(idx)
-		if child == nil && inner.children[idx] != nil {
-			// Load from DB
-			var err error
-			child, err = t.ndb.GetNode(inner.children[idx])
-			if err != nil {
-				return nil
-			}
-		}
-		if child == nil {
+	nk := node.GetNodeKey()
+	if nk != nil {
+		key := nodeKeyArr(nk)
+		if _, seen := reachable[key]; seen {
 			return nil
 		}
-		node = child
+		reachable[key] = struct{}{}
 	}
+	inner, ok := node.(*InnerNode)
+	if !ok {
+		return nil
+	}
+	leafChildren := inner.height == 1
+	for i := 0; i < inner.NumChildren(); i++ {
+		if inner.childNodes[i] != nil {
+			if err := t.markReachable(inner.childNodes[i], reachable); err != nil {
+				return err
+			}
+			continue
+		}
+		if inner.children[i] == nil {
+			continue
+		}
+		arr := nodeKeyBytesToArr(inner.children[i])
+		if _, seen := reachable[arr]; seen {
+			continue
+		}
+		if leafChildren {
+			reachable[arr] = struct{}{}
+			continue
+		}
+		child, err := t.ndb.GetNode(inner.children[i])
+		if err != nil {
+			return fmt.Errorf("markReachable: loading child %d: %w", i, err)
+		}
+		if err := t.markReachable(child, reachable); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// sweepOld walks the old-version tree and deletes each node whose
+// NodeKey is not in reachable. If a node's NodeKey IS in reachable, the
+// entire subtree rooted at it is known to be shared with a retained
+// version — NodeKeys are uniquely assigned per SaveVersion and nodes are
+// immutable after save, so every descendant is also in reachable — and
+// the descent is skipped.
+//
+// A parent-of-leaves optimisation mirrors markReachable: orphan leaves
+// are deleted by NodeKey alone without a DB load.
+func (t *MutableTree) sweepOld(node Node, reachable map[[NodeKeySize]byte]struct{}) error {
+	if node == nil {
+		return nil
+	}
+	nk := node.GetNodeKey()
+	if nk != nil {
+		if _, shared := reachable[nodeKeyArr(nk)]; shared {
+			return nil
+		}
+		if err := t.ndb.DeleteNode(nk.GetKey()); err != nil {
+			return err
+		}
+	}
+	inner, ok := node.(*InnerNode)
+	if !ok {
+		return nil
+	}
+	leafChildren := inner.height == 1
+	for i := 0; i < inner.NumChildren(); i++ {
+		var child Node
+		if inner.childNodes[i] != nil {
+			child = inner.childNodes[i]
+		} else if inner.children[i] != nil {
+			if _, shared := reachable[nodeKeyBytesToArr(inner.children[i])]; shared {
+				continue
+			}
+			if leafChildren {
+				if err := t.ndb.DeleteNode(inner.children[i]); err != nil {
+					return err
+				}
+				continue
+			}
+			c, err := t.ndb.GetNode(inner.children[i])
+			if err != nil {
+				return fmt.Errorf("sweepOld: loading child %d: %w", i, err)
+			}
+			child = c
+		}
+		if child == nil {
+			continue
+		}
+		if err := t.sweepOld(child, reachable); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // deleteAllNodesForVersion deletes the root node and all nodes reachable

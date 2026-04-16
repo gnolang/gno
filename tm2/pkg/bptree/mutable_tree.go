@@ -38,7 +38,11 @@ type MutableTree struct {
 
 // NewMutableTreeMem creates an in-memory MutableTree (no DB).
 func NewMutableTreeMem() *MutableTree {
-	return &MutableTree{logger: NewNopLogger(), memValues: make(map[string][]byte)}
+	return &MutableTree{
+		logger:         NewNopLogger(),
+		memValues:      make(map[string][]byte),
+		nextValueNonce: 1, // nonce=0 is reserved to avoid collision with the "missing" sentinel (Finding #6)
+	}
 }
 
 // allocValueKey allocates a unique ValueKey for the current working session.
@@ -64,6 +68,9 @@ func NewMutableTreeWithDB(db dbm.DB, cacheSize int, logger Logger, options ...Op
 		ndb:            ndb,
 		logger:         logger,
 		initialVersion: opts.InitialVersion,
+		// nonce=0 is reserved to avoid collision with the "missing" sentinel
+		// in LeafNode.Serialize (12 zero bytes). See Finding #6.
+		nextValueNonce: 1,
 	}
 }
 
@@ -214,7 +221,7 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		t.version = version
 		t.sessionValues = t.sessionValues[:0]
 		t.versionOrphans = t.versionOrphans[:0]
-		t.nextValueNonce = 0
+		t.nextValueNonce = 1
 		if t.root == nil {
 			return emptyHash(), version, nil
 		}
@@ -237,8 +244,15 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		} else {
 			newHash = emptyHash()
 		}
-		// Compare: existing empty vs new non-empty, or hash mismatch
+		// Legacy empty-tree blobs (zero-length stored value) deserialize
+		// as (nil, nil) from GetRoot. Normalize to the canonical empty
+		// hash so an idempotent re-save of an empty tree is recognised
+		// as equivalent instead of producing a false "hash mismatch".
+		// See Finding #26.
 		existingEmpty := existingNK == nil
+		if existingEmpty && existingHash == nil {
+			existingHash = emptyHash()
+		}
 		newEmpty := t.root == nil
 		if existingEmpty != newEmpty || !bytes.Equal(existingHash, newHash) {
 			return nil, 0, fmt.Errorf("version %d already exists with a different hash", version)
@@ -293,7 +307,7 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 	// Clear session state
 	t.sessionValues = t.sessionValues[:0]
 	t.versionOrphans = t.versionOrphans[:0]
-	t.nextValueNonce = 0
+	t.nextValueNonce = 1
 
 	return rootHash, version, nil
 }
@@ -421,19 +435,33 @@ func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
 		return nil, ErrVersionDoesNotExist
 	}
 
+	// Register as a reader FIRST so that a concurrent PruneVersionsTo
+	// cannot delete the root record or any node entries for this version
+	// between our GetRoot call and the end of root loading. Finding #15
+	// closed the check-vs-delete race from the prune side; this closes
+	// the symmetric reader-side TOCTOU. See Findings #30 and #40.
+	t.ndb.incrVersionReaders(version)
+
 	nkBytes, _, err := t.ndb.GetRoot(version)
 	if err != nil {
+		t.ndb.decrVersionReaders(version)
 		return nil, err
 	}
 	if nkBytes == nil {
-		return NewImmutableTree(nil, version), nil
+		// Empty saved version — registration is still held so the caller
+		// gets a consistent view until Close().
+		imm := NewImmutableTree(nil, version)
+		imm.ndb = t.ndb
+		return imm, nil
 	}
 
 	root, err := t.loadNode(nkBytes)
 	if err != nil {
+		t.ndb.decrVersionReaders(version)
 		return nil, err
 	}
 	imm := NewImmutableTree(root, version)
+	imm.ndb = t.ndb
 	imm.valueResolver = func(vk []byte) ([]byte, error) {
 		return t.ndb.GetValue(vk)
 	}
@@ -446,6 +474,7 @@ func (t *MutableTree) GetVersioned(key []byte, version int64) ([]byte, error) {
 	if err != nil {
 		return nil, nil // match IAVL behavior: silent nil for missing version
 	}
+	defer imm.Close()
 	return imm.Get(key)
 }
 
@@ -571,7 +600,7 @@ func (t *MutableTree) Rollback() {
 	}
 	t.sessionValues = t.sessionValues[:0]
 	t.versionOrphans = t.versionOrphans[:0]
-	t.nextValueNonce = 0
+	t.nextValueNonce = 1
 
 	t.root = t.lastSaved
 	if t.root != nil {
@@ -627,17 +656,21 @@ func (t *MutableTree) GetWithIndex(key []byte) (int64, []byte, error) {
 
 // Iterate calls fn for each key-value pair in sorted order.
 // Values are resolved from the value store (DB or memValues).
+// If value resolution fails, iteration stops and the error is returned.
 func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, error) {
 	if t.root == nil {
 		return false, nil
 	}
-	return iterateNodeResolved(t.root, func(key, vk []byte) bool {
+	var resolveErr error
+	stopped := iterateNodeResolved(t.root, func(key, vk []byte) bool {
 		val, err := t.resolveValue(vk)
 		if err != nil {
-			return true
+			resolveErr = err
+			return true // stop
 		}
 		return fn(key, val)
-	}), nil
+	})
+	return stopped, resolveErr
 }
 
 // --- helpers ---

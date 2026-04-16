@@ -27,7 +27,9 @@ func (t *MutableTree) Import(version int64) (*Importer, error) {
 	if t.VersionExists(version) {
 		return nil, fmt.Errorf("version %d already exists", version)
 	}
-	return &Importer{tree: t, version: version}, nil
+	// nonce=0 is reserved to avoid collision with the "missing" sentinel
+	// in LeafNode.Serialize (12 zero bytes). See Finding #6.
+	return &Importer{tree: t, version: version, nextNonce: 1}, nil
 }
 
 // Add adds an ExportNode to the tree being imported.

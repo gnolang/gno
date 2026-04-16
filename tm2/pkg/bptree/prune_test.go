@@ -122,8 +122,9 @@ func TestPrune_VersionReaders(t *testing.T) {
 		t.Fatalf("should fail with active reader")
 	}
 
-	// Close exporter and retry
+	// Close exporter AND the immutable snapshot, then retry
 	exporter.Close()
+	imm.Close()
 	err = tree.DeleteVersionsTo(1)
 	if err != nil {
 		t.Fatalf("prune after close: %v", err)
@@ -287,8 +288,10 @@ func TestPrune_IncrementalPreservesAll(t *testing.T) {
 			}
 			h := imm.Hash()
 			if !bytes.Equal(h, hashes[checkV]) {
+				imm.Close()
 				t.Fatalf("after prune v%d, v%d hash changed", pruneV, checkV)
 			}
+			imm.Close()
 		}
 	}
 }
@@ -703,10 +706,12 @@ func TestPrune_ValueIntegrityAfterOverwrite(t *testing.T) {
 	}
 }
 
-// TestPrune_SeparatorKeyRouting verifies that pruning is correct even though
-// findCorrespondingChild uses inner node separator keys (not leftmost leaf
-// keys) for routing. The separator routing may find the wrong peer inner node,
-// but the algorithm self-corrects via root-based re-routing at the leaf level.
+// TestPrune_SeparatorKeyRouting verifies that pruning is correct when
+// inner-node splits have restructured the tree between versions. Under
+// the replaced positional-descent algorithm, separator-key routing could
+// pick the wrong peer inner node and incorrectly delete shared nodes;
+// the current mark-and-sweep implementation is content-addressed via
+// NodeKey and is immune to that class of bug.
 //
 // This test builds a height-3 tree, makes structural changes at height 2
 // (inner node splits), and verifies that pruning doesn't delete shared nodes.
@@ -728,8 +733,8 @@ func TestPrune_SeparatorKeyRouting(t *testing.T) {
 	}
 
 	// V2: Insert 500 more keys to trigger inner node split at height 1,
-	// creating a height-3 tree. This forces findCorrespondingChild to
-	// route through inner nodes (height 2) using separator keys.
+	// creating a height-3 tree. This forces mark-and-sweep to traverse
+	// both V1's and V2's inner-node layers when computing reachability.
 	for i := 1100; i < 1600; i++ {
 		tree.Set(fmt.Appendf(nil, "sk%06d", i), fmt.Appendf(nil, "v2_%06d", i))
 	}
@@ -751,7 +756,8 @@ func TestPrune_SeparatorKeyRouting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Prune V1 — this exercises findCorrespondingChild with inner nodes
+	// Prune V1 — this exercises mark-and-sweep across the V1/V2 inner-node
+	// restructure.
 	if err := tree.DeleteVersionsTo(1); err != nil {
 		t.Fatalf("prune V1: %v", err)
 	}
@@ -830,9 +836,11 @@ func TestPrune_InnerNodeSplit(t *testing.T) {
 		t.Fatalf("v2 = %d, want 2", v2)
 	}
 
-	// Prune V1 — this is where the bug would trigger: walkAndPrune would
-	// search for old children under only one of the new inner children,
-	// miss the ones under the sibling, and incorrectly delete them.
+	// Prune V1 — this is where the replaced positional-descent algorithm
+	// would trigger: it searched for old children under only one of the
+	// new inner children, missed the ones under the sibling, and
+	// incorrectly deleted them. Mark-and-sweep avoids this by recording
+	// every NodeKey reachable from the retained version before deleting.
 	err = tree.DeleteVersionsTo(1)
 	if err != nil {
 		t.Fatalf("DeleteVersionsTo(1): %v", err)
@@ -958,12 +966,12 @@ func TestPrune_EmptyVersions(t *testing.T) {
 	}
 }
 
-// TestPrune_Height3ChurnAndPrune stresses the dual-tree-walk pruning
+// TestPrune_Height3ChurnAndPrune stresses the mark-and-sweep pruning
 // algorithm against a height-3 tree (≥ 32768 keys at B=32) with a
 // high-churn delete + insert + prune workload. This is the specific
-// regime where `findCorrespondingChild` has historically misidentified
-// subtrees during inner-node splits and merges (see POTENTIAL_IMPROVEMENTS.md
-// Finding #3).
+// regime where the replaced positional-descent algorithm historically
+// misidentified subtrees during inner-node splits and merges (see
+// POTENTIAL_IMPROVEMENTS.md Finding #3).
 //
 // The workload per iteration:
 //  1. Delete ~20% of live keys (forces merges across inner-node boundaries).
@@ -1103,14 +1111,14 @@ func TestPrune_Height3ChurnAndPrune(t *testing.T) {
 // TestPrune_CascadingMultiVersionPrune creates many retained versions
 // with heavy churn between each, then prunes them all in a single
 // DeleteVersionsTo call. This exercises the cascading prune path
-// (pruneVersion is called for every intermediate version), which is
-// where a silently corrupted DB from pass N would manifest as an error
-// or missing-key failure during pass N+1.
+// (sweep is invoked per intermediate version), which is where a
+// silently corrupted DB from pass N would manifest as an error or
+// missing-key failure during pass N+1.
 //
-// If findCorrespondingChild ever incorrectly deletes a node that is
-// still shared with a later version, a subsequent pass on that later
-// version will panic (via getChild returning an error) or silently
-// produce an incorrect hash. Both are caught by the reload/verify loop.
+// If mark-and-sweep ever incorrectly deleted a node still reachable
+// from a retained version, a subsequent pass on that later version
+// would panic (via getChild returning an error) or silently produce an
+// incorrect hash. Both are caught by the reload/verify loop.
 func TestPrune_CascadingMultiVersionPrune(t *testing.T) {
 	if testing.Short() {
 		t.Skip("cascading multi-version prune; skip under -short")
@@ -1193,8 +1201,9 @@ func TestPrune_CascadingMultiVersionPrune(t *testing.T) {
 	t.Logf("pre-prune: versions=%d, size=%d, height=%d", latestVer, tree.Size(), tree.Height())
 
 	// CRITICAL: prune all versions except the latest in a single call.
-	// This drives pruneVersion() for v=1,2,...,latestVer-1 consecutively,
-	// which is exactly the cascading path documented in Finding #3.
+	// This drives the per-version sweep for v=1,2,...,latestVer-1
+	// consecutively, which is exactly the cascading path documented in
+	// Finding #3.
 	if err := tree.DeleteVersionsTo(latestVer - 1); err != nil {
 		t.Fatalf("DeleteVersionsTo(%d): %v", latestVer-1, err)
 	}
@@ -1232,10 +1241,10 @@ func TestPrune_CascadingMultiVersionPrune(t *testing.T) {
 //   - at SaveVersion time (rebuild reads corrupted children),
 //   - at Get-after-prune time (value missing from mirror).
 //
-// The shrink-then-grow pattern is specifically the one where
-// findCorrespondingChild's separator-based routing is stressed the
-// most: same key range appears at different tree heights across
-// versions.
+// The shrink-then-grow pattern stresses mark-and-sweep by making the
+// same key range appear at different tree heights across versions: the
+// reachable set must record every NodeKey reachable from the retained
+// version regardless of the structural transition between passes.
 func TestPrune_HeightOscillation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("height oscillation stress; skip under -short")
@@ -1351,5 +1360,140 @@ func TestPrune_HeightOscillation(t *testing.T) {
 			}
 		}
 		t.Logf("cycle %d grew: v=%d size=%d height=%d", cycle, grewVer, t3.Size(), t3.Height())
+	}
+}
+
+// TestPrune_EmptyVersionOrphansCleaned verifies that when a version's
+// root is nil (empty tree), pruning still processes the orphan record
+// at the next version. Pre-fix, an early `return nil` when vRootNK == nil
+// skipped orphan cleanup, leaking values and the orphan record itself.
+// See Finding #2 in POTENTIAL_IMPROVEMENTS.md.
+func TestPrune_EmptyVersionOrphansCleaned(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	// V1: empty tree. The pruner will run the sweep for (v=1, nextV=2)
+	// with vRootNK == nil — this is the code path we care about.
+	if _, _, err := tree.SaveVersion(); err != nil {
+		t.Fatalf("V1 SaveVersion: %v", err)
+	}
+
+	// V2: non-empty. We want a next version to exist (cannot prune latest).
+	if _, err := tree.Set([]byte("real-key"), []byte("real-val")); err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+	if _, _, err := tree.SaveVersion(); err != nil {
+		t.Fatalf("V2 SaveVersion: %v", err)
+	}
+
+	// Inject an orphan record at V2 pointing to a fabricated ValueKey,
+	// and store a value under that ValueKey. This simulates the state
+	// where V2's creation displaced a value from an earlier version —
+	// the scenario the pre-fix prune failed to clean up.
+	fakeVK := (&NodeKey{Version: 1, Nonce: 99}).GetKey()
+	fakeValue := []byte("leaked-if-prune-skips-orphan-block")
+	if err := tree.ndb.SaveValue(fakeValue, fakeVK); err != nil {
+		t.Fatalf("SaveValue: %v", err)
+	}
+	if err := tree.ndb.SaveOrphans(2, [][]byte{fakeVK}); err != nil {
+		t.Fatalf("SaveOrphans: %v", err)
+	}
+	if err := tree.ndb.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Sanity: value and orphan record are present pre-prune.
+	if got, err := tree.ndb.GetValue(fakeVK); err != nil {
+		t.Fatalf("pre-prune GetValue: %v", err)
+	} else if !bytes.Equal(got, fakeValue) {
+		t.Fatalf("pre-prune GetValue: got %q, want %q", got, fakeValue)
+	}
+	if orphans, err := tree.ndb.LoadOrphans(2); err != nil {
+		t.Fatalf("pre-prune LoadOrphans(2): %v", err)
+	} else if len(orphans) != 1 {
+		t.Fatalf("pre-prune orphan count = %d, want 1", len(orphans))
+	}
+
+	// V3: another save so V2 isn't the latest (cannot prune latest).
+	if _, err := tree.Set([]byte("another"), []byte("val")); err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+	if _, _, err := tree.SaveVersion(); err != nil {
+		t.Fatalf("V3 SaveVersion: %v", err)
+	}
+
+	// Prune V1. This triggers the sweep for (v=1, nextV=2) where V1's
+	// root is nil. With the fix, the orphan block still runs and cleans up.
+	if err := tree.DeleteVersionsTo(1); err != nil {
+		t.Fatalf("DeleteVersionsTo(1): %v", err)
+	}
+
+	// The fake orphan value must be deleted.
+	got, err := tree.ndb.GetValue(fakeVK)
+	if err != nil {
+		t.Fatalf("post-prune GetValue: %v", err)
+	}
+	if got != nil {
+		t.Fatalf("orphan value leaked post-prune: got %q", got)
+	}
+
+	// V2's orphan record must be deleted.
+	orphans, err := tree.ndb.LoadOrphans(2)
+	if err != nil {
+		t.Fatalf("post-prune LoadOrphans(2): %v", err)
+	}
+	if len(orphans) != 0 {
+		t.Fatalf("V2 orphan record leaked: %v", orphans)
+	}
+}
+
+// TestPrune_BothVersionsEmptyOrphansCleaned covers the degenerate case
+// where BOTH v and nextV have empty-tree roots but an orphan record
+// still exists at nextV. The fix must process orphans even when both
+// trees are empty.
+func TestPrune_BothVersionsEmptyOrphansCleaned(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	// V1: empty
+	if _, _, err := tree.SaveVersion(); err != nil {
+		t.Fatalf("V1: %v", err)
+	}
+	// V2: empty
+	if _, _, err := tree.SaveVersion(); err != nil {
+		t.Fatalf("V2: %v", err)
+	}
+
+	// Inject orphan record + value at V2.
+	fakeVK := (&NodeKey{Version: 1, Nonce: 42}).GetKey()
+	fakeValue := []byte("orphan-across-two-empty-versions")
+	if err := tree.ndb.SaveValue(fakeValue, fakeVK); err != nil {
+		t.Fatalf("SaveValue: %v", err)
+	}
+	if err := tree.ndb.SaveOrphans(2, [][]byte{fakeVK}); err != nil {
+		t.Fatalf("SaveOrphans: %v", err)
+	}
+	if err := tree.ndb.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// V3: non-empty, so V2 isn't latest.
+	if _, err := tree.Set([]byte("k"), []byte("v")); err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+	if _, _, err := tree.SaveVersion(); err != nil {
+		t.Fatalf("V3: %v", err)
+	}
+
+	// Prune V1. The sweep for (v=1, nextV=2) runs with both roots nil.
+	if err := tree.DeleteVersionsTo(1); err != nil {
+		t.Fatalf("DeleteVersionsTo(1): %v", err)
+	}
+
+	if got, _ := tree.ndb.GetValue(fakeVK); got != nil {
+		t.Fatalf("orphan value leaked: %q", got)
+	}
+	if orphans, _ := tree.ndb.LoadOrphans(2); len(orphans) != 0 {
+		t.Fatalf("V2 orphan record leaked: %v", orphans)
 	}
 }

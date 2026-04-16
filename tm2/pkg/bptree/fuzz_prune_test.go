@@ -14,11 +14,13 @@ import (
 // FuzzPruneConsistency drives randomized Set / Remove / SaveVersion /
 // PruneVersionsTo operations against a bptree and a reference map.
 //
-// It is the Phase 0 infrastructure for Finding #3 in
-// POTENTIAL_IMPROVEMENTS.md: the `findCorrespondingChild` positional
-// descent in `prune.go` can mis-identify subtrees when successive splits
-// and merges restructure the new version's tree, causing nodes that are
-// still live to be deleted. Crashes surface either as
+// It is the regression harness for Finding #3 in POTENTIAL_IMPROVEMENTS.md.
+// The earlier positional-descent prune algorithm could mis-identify
+// subtrees when successive splits and merges restructured the new
+// version's tree, causing nodes that were still live to be deleted.
+// The current mark-and-sweep implementation replaced that algorithm; this
+// fuzzer guards against any regression that would resurrect the bug.
+// Any crash surfaces as either
 //  - a `bptree: failed to load child node ...` panic from `getChild`, or
 //  - a mirror-vs-tree hash/value mismatch after a SaveVersion that follows
 //    a prune.
@@ -165,9 +167,9 @@ func pickMirrorKey(rng *rand.Rand, m map[string][]byte) []byte {
 }
 
 // assertMirrorMatchesTree verifies that every key in the mirror resolves
-// to the expected value on the tree. A Phase-3 fuzz target will also
-// assert full Iterate coverage, but equality under Get is sufficient to
-// catch the pruning-corruption class of bugs.
+// to the expected value on the tree. A future fuzz target may extend
+// this with full Iterate coverage, but equality under Get is sufficient
+// to catch the pruning-corruption class of bugs.
 func assertMirrorMatchesTree(t *testing.T, tree *MutableTree, mirror map[string][]byte) {
 	t.Helper()
 	for k, v := range mirror {
@@ -197,8 +199,9 @@ func padTo8(b []byte) []byte {
 }
 
 // FuzzPruneDeepTree is a second fuzz target specialised for the
-// `findCorrespondingChild` corruption scenario (POTENTIAL_IMPROVEMENTS.md
-// Finding #3). Relative to FuzzPruneConsistency it:
+// cross-subtree prune-corruption regime (POTENTIAL_IMPROVEMENTS.md
+// Finding #3, now resolved by the mark-and-sweep rewrite). Relative to
+// FuzzPruneConsistency it:
 //
 //   - uses a 4096-key namespace so the tree reliably grows to 3+ levels,
 //     where inner-node splits and merges actually produce cross-subtree
@@ -276,8 +279,9 @@ func driveDeepTreeOps(t *testing.T, seed int64, nOps int) {
 			// After prune, the latest version should still satisfy
 			// the mirror and a fresh reload at lastVer should satisfy
 			// the committed snapshot — this is the assertion that
-			// surfaces silent prune corruption before the next prune
-			// call panics in findCorrespondingChild.
+			// would surface silent prune corruption if mark-and-sweep
+			// ever incorrectly deleted a node still reachable from a
+			// retained version.
 			assertMirrorMatchesTree(t, tree, mirror)
 			t2 := NewMutableTreeWithDB(db, 128, NewNopLogger())
 			if _, err := t2.LoadVersion(lastVer); err != nil {
@@ -291,11 +295,10 @@ func driveDeepTreeOps(t *testing.T, seed int64, nOps int) {
 // TestPrune_FuzzLongRun is a deterministic, seeded long-running variant of
 // the fuzz target. It complements the fuzzing by exercising a denser
 // workload than `TestPrune_SustainedInsertPrune` without requiring the
-// fuzz runner. Intended to surface the prune corruption bug
-// (Finding #3) during the Phase 1 fix cycle.
+// fuzz runner. It serves as a regression guard for the prune corruption
+// class of bugs (Finding #3).
 //
-// Currently passes on the pre-fix codebase with the seeds listed below;
-// any new seed that reliably crashes should be promoted to the fuzz
+// Any new seed that reliably crashes should be promoted to the fuzz
 // corpus via `testdata/fuzz/FuzzPruneConsistency/`.
 func TestPrune_FuzzLongRun(t *testing.T) {
 	if testing.Short() {

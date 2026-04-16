@@ -175,6 +175,7 @@ func TestExporter_DeleteVersionErrors(t *testing.T) {
 	require.Error(t, err)
 
 	exporter.Close()
+	imm.Close()
 
 	// After close, deletion should succeed
 	err = tree.DeleteVersionsTo(1)
