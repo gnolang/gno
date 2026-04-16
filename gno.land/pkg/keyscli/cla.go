@@ -160,7 +160,7 @@ func formatCLAHelper(hash, url, claRealmPath, chainID, remote, nameOrBech32 stri
 	}
 	fmt.Fprintf(&b, "\nTo sign the CLA, run:\n\n")
 	fmt.Fprintf(&b, "gnokey maketx call -pkgpath %s -func Sign -args %s", claRealmPath, hash)
-	fmt.Fprintf(&b, " -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast")
+	fmt.Fprintf(&b, " -gas-fee 100000ugnot -gas-wanted 2000000")
 	if remote != "" {
 		fmt.Fprintf(&b, " -remote %s", remote)
 	}
