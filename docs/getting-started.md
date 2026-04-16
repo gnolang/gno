@@ -26,7 +26,7 @@ gnokey add dev
 gnokey query bank/balances/<your-g1-address> -remote https://rpc.gno.land:443
 ```
 
-Then read [Writing Gno code](./builders/anatomy-of-a-gno-package.md).
+Then read [Anatomy of a Gno package](./builders/anatomy-of-a-gno-package.md) to learn how to write smart contracts for Gno.land.
 
 ## Prerequisites
 
@@ -120,7 +120,7 @@ query on-chain.
 
 ## Create your first key
 
-`gnokey` stores keys locally. Create a development key named `dev`:
+Keys are stored locally by `gnokey`. To create a development key named "dev" run:
 
 ```sh
 gnokey add dev
@@ -140,7 +140,7 @@ List your keys to see the address that was generated:
 gnokey list
 ```
 
-The address starts with `g1…` — this is how you'll be identified on-chain.
+The address starts with "g1…" — this is how you'll be identified on-chain.
 
 ## Get test tokens
 
@@ -166,15 +166,7 @@ gnokey query bank/balances/<your-g1-address> \
 If the faucet step worked, the response shows your balance as a
 `<amount>ugnot` data field at the current block height.
 
-The main public networks are:
-
-| Network  | RPC endpoint                               | Chain ID   |
-|----------|--------------------------------------------|------------|
-| Betanet  | `https://rpc.gno.land:443`                 | `gnoland1` |
-| Staging  | `https://rpc.staging.gno.land:443`         | `staging`  |
-| Test11   | `https://rpc.test11.testnets.gno.land:443` | `test11`   |
-
-See [Networks](./resources/gnoland-networks.md) for the full reference.
+See the list of [Networks](./resources/gnoland-networks.md) for the full reference.
 
 ## Before you deploy
 
@@ -205,10 +197,12 @@ gnokey maketx call \
   dev
 ```
 
-For Betanet: `-chainid gnoland1 -remote https://rpc.gno.land:443`.
+:::info
+For Betanet use `-chainid gnoland1 -remote https://rpc.gno.land:443`.
+:::
 
-Get the current `<hash>` at [`gno.land/r/sys/cla`](https://gno.land/r/sys/cla).
-Canonical text: [`CLA.md`](https://github.com/gnolang/gno/blob/master/CLA.md).
+Before signing read the [Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md)
+and then get the current `<hash>` at [`gno.land/r/sys/cla`](https://gno.land/r/sys/cla).
 
 ## Next steps
 
