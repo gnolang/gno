@@ -67,5 +67,5 @@ jobs:
           tags: ghcr.io/${{ github.repository }}/gnoland:cache-test
           build-args: |
             BUILD_VERSION=${{ steps.build_version.outputs.version }}
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/cache:gnoland
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/cache:gnoland,mode=max
+          cache-from: type=gha,scope=gnoland
+          cache-to: type=gha,mode=max,scope=gnoland
