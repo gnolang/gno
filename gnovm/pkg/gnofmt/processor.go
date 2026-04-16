@@ -103,20 +103,17 @@ func (p *Processor) FormatFile(file string) ([]byte, error) {
 		// file (e.g. b.gno uses Foo from an external package but the
 		// formatter sees it as resolved locally and skips the import).
 		//
-		// Hardcoded path detection (e.g. checking for gnovm/tests/files/)
-		// would solve known cases but couples the formatter to the repo
-		// layout, lacks flexibility, and still cannot help with unknown
-		// future directories.
+		// Neither the conflict fallback above, hardcoded path detection,
+		// nor a --per-file CLI flag can solve this — they all fail when
+		// independent files happen to share the same package name without
+		// explicit external information.
 		//
-		// A possible improvement is a --per-file CLI flag that explicitly
-		// opts into per-file formatting. On conflict without the flag, the
-		// formatter could error and prompt the user to add it. The Makefile
-		// would use: gno fmt --per-file ./tests/files/...
-		//
-		// Ultimately, the same-name case cannot be detected from file
-		// content alone — it requires external information (flag, config,
-		// or convention) to distinguish "independent files" from "one
-		// package."
+		// A proper fix is a marker file (e.g. .gnofmt-independent) placed
+		// in directories containing independent files. The formatter would
+		// check for its presence and always use per-file formatting. This
+		// is self-documenting, requires no CLI flags, and would replace
+		// the conflict fallback entirely — making the formatter's behavior
+		// explicit rather than heuristic-based.
 		var err error
 		pkg, err = ParsePackage(p.fset, "", dir)
 		if errors.Is(err, ErrPackageConflict) {
