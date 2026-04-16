@@ -2,6 +2,7 @@ package gnofmt
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -88,27 +89,47 @@ func (p *Processor) FormatFile(file string) ([]byte, error) {
 
 	pkg, ok := p.pkgdirCache[dir]
 	if !ok {
-		// Check if all non-test .gno files share the same package name.
-		// Filetest directories (e.g. gnovm/tests/files/) contain independent
-		// .gno files with different package names — skip package parsing and
-		// fall back to per-file formatting.
-		consistent, err := CheckPackageConsistency(p.fset, dir)
-		if err != nil {
-			return nil, fmt.Errorf("unable to check package consistency for %q: %w", dir, err)
-		}
-
-		if !consistent {
-			p.pkgdirCache[dir] = nil
+		// Parse the directory as a package. If files have conflicting package
+		// names (e.g. filetest directories like gnovm/tests/files/), fall back
+		// to per-file formatting without cross-file import resolution.
+		//
+		// Known limitation: same-name independent files
+		// =============================================
+		// This detection relies on package name conflicts. If a directory
+		// contains independent files that all share the same package name
+		// (e.g. all "package main"), they will be incorrectly treated as a
+		// single package. In that case, a declaration in one file (e.g.
+		// func Foo() in a.gno) may shadow an external import in another
+		// file (e.g. b.gno uses Foo from an external package but the
+		// formatter sees it as resolved locally and skips the import).
+		//
+		// Hardcoded path detection (e.g. checking for gnovm/tests/files/)
+		// would solve known cases but couples the formatter to the repo
+		// layout, lacks flexibility, and still cannot help with unknown
+		// future directories.
+		//
+		// A possible improvement is a --per-file CLI flag that explicitly
+		// opts into per-file formatting. On conflict without the flag, the
+		// formatter could error and prompt the user to add it. The Makefile
+		// would use: gno fmt --per-file ./tests/files/...
+		//
+		// Ultimately, the same-name case cannot be detected from file
+		// content alone — it requires external information (flag, config,
+		// or convention) to distinguish "independent files" from "one
+		// package."
+		var err error
+		pkg, err = ParsePackage(p.fset, "", dir)
+		if errors.Is(err, ErrPackageConflict) {
+			p.pkgdirCache[dir] = nil // cache conflict to avoid re-parsing
 			return p.FormatImportFromSource(file, nil)
 		}
-
-		pkg, err = ParsePackage(p.fset, "", dir)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse package %q: %w", dir, err)
 		}
 		p.pkgdirCache[dir] = pkg
 	} else if pkg == nil {
-		// Cache hit from a previously-detected inconsistent directory.
+		// Cache hit from a previously-detected package name conflict;
+		// use per-file formatting.
 		return p.FormatImportFromSource(file, nil)
 	}
 
