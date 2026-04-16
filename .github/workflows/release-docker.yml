@@ -15,6 +15,9 @@ permissions:
 jobs:
   bake:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [gnoland,gnokey,gnofaucet,gnodev]
     permissions:
       contents: read
       actions: write # for GHA cache (docker buildx cache-to/from=type=gha)
@@ -51,7 +54,7 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}/gnoland
+          images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag
@@ -75,9 +78,9 @@ jobs:
             misc/deployments/bake/docker-bake.hcl
             cwd://${{ steps.meta.outputs.bake-file-tags }}
             cwd://${{ steps.meta.outputs.bake-file-labels }}
-          targets: gnoland
+          targets: ${{ matrix.image }}
           set: |
-            *.cache-from=type=gha,scope=gnoland
-            *.cache-to=type=gha,mode=max,scope=gnoland
+            *.cache-from=type=gha,scope=${{ matrix.image }}
+            *.cache-to=type=gha,mode=max,scope=${{ matrix.image }}
             *.platform=linux/amd64
             *.context=.
