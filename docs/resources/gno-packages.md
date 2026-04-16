@@ -58,7 +58,7 @@ structure:
 gno.land/[r|p|e]/[namespace]/[package-name]
           │      │          │
           │      │          └── Name of the package
-          │      └── Namespace (often a username)
+          │      └── Namespace (address or reserved name)
           └── Type (realm, pure package, or ephemeral)
 ```
 
@@ -76,7 +76,7 @@ The components of these paths are:
 
 Two important facts about package paths:
 - The maximum length of a package path is `256` characters.
-- A realm's address is directly derived from its package path, by using [`chain.PackageAddress()`](./gno-stdlibs.md#derivepkgaddr)
+- A realm's address is directly derived from its package path, by using [`chain.PackageAddress()`](./gno-stdlibs.md#packageaddress)
 
 ## Namespaces
 
@@ -104,15 +104,10 @@ Apart from package names, developers can define subpackages to further organize
 their code, as seen in the example above. Packages can have any varying level of
 depth as long as the full package path doesn't exceed `256` characters.
 
-### Registering a custom namespace
+### Custom Namespaces
 
-To register a custom namespace:
-
-1. Register a username at `gno.land/r/gnoland/users`
-2. Once registered, you can deploy packages under that namespace
-3. Only you can deploy to your namespace
-
-This prevents impersonation and name squatting, ensuring package path authenticity.
+Custom namespaces are **not currently supported** but are planned to be introduced via GovDAO
+governance in the future.
 
 ## Importing Packages
 

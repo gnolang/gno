@@ -99,7 +99,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello.doesnotexist`), expectedErrorMatch: `^:0:0: name doesnotexist not declared:`}, // multiline error
 		{input: []byte(`gno.land/r/doesnotexist.Foo`), expectedErrorMatch: `^invalid package path$`},
 		{input: []byte(`gno.land/r/hello.Panic()`), expectedErrorMatch: `^foo$`},
-		{input: []byte(`gno.land/r/hello.sl[6]`), expectedErrorMatch: `^slice index out of bounds: 6 \(len=5\)$`},
+		{input: []byte(`gno.land/r/hello.sl[6]`), expectedErrorMatch: `^runtime error: slice index out of bounds: 6 \(len=5\)$`},
 		{input: []byte(`gno.land/r/hello.func(){ for {} }()`), expectedErrorMatch: `out of gas in location: CPUCycles`},
 	}
 
@@ -356,7 +356,7 @@ func TestVmHandlerQuery_File(t *testing.T) {
 func TestVmHandlerQuery_Doc(t *testing.T) {
 	expected := &doc.JSONDocumentation{
 		PackagePath: "gno.land/r/hello",
-		PackageLine: "package hello // import \"hello\"",
+		PackageLine: "package hello // import \"gno.land/r/hello\"",
 		PackageDoc:  "hello is a package for testing\n",
 		Values: []*doc.JSONValueDecl{
 			{

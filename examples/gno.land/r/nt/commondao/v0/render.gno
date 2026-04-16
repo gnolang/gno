@@ -346,7 +346,7 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 	o := getOptions(dao.ID())
 
 	// Render title
-	res.Write(ufmt.Sprintf("**[#%d %s](%s)**  \n", p.ID(), def.Title(), proposalURL(dao.ID(), p.ID())))
+	res.Write(ufmt.Sprintf("**[#%d %s](%s)**  \n", p.ID(), md.EscapeText(def.Title()), proposalURL(dao.ID(), p.ID())))
 
 	// Render details
 	res.Write(ufmt.Sprintf("Created by %s  \n", userLink(p.Creator())))
@@ -389,7 +389,7 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	def := p.Definition()
 
 	// Render header
-	res.Write(md.H1("#" + strconv.FormatUint(p.ID(), 10) + " " + def.Title()))
+	res.Write(md.H1("#" + strconv.FormatUint(p.ID(), 10) + " " + md.EscapeText(def.Title())))
 
 	// Render main menu
 	items := []string{goToDAOLink(dao.ID())}

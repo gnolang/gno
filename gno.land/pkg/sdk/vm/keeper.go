@@ -147,13 +147,14 @@ func (vm *VMKeeper) Initialize(
 		}
 		for _, stdlib := range stdlibs.InitOrder() {
 			mp := vm.gnoStore.GetMemPackage(stdlib)
-			_, err := gno.TypeCheckMemPackage(mp, opts)
+			pkg, err := gno.TypeCheckMemPackage(mp, opts)
 			if err != nil {
 				panic(fmt.Errorf("intialization error type checking %q: %w", stdlib, err))
 			}
+			opts.Cache[stdlib] = pkg
 		}
 
-		logger.Debug("GnoVM packages preprocessed",
+		logger.Info("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
 }
@@ -199,10 +200,11 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 			Cache:      cachedInitTypeCheckCache,
 		}
 		for _, lib := range stdlibs.InitOrder() {
-			_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+			pkg, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
 			if err != nil {
 				panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
 			}
+			opts.Cache[lib] = pkg
 		}
 		cachedStdlib.gno = gs
 	})
@@ -229,13 +231,14 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 		Getter:     gs,
 		TestGetter: vm.testStdlibCache.memPackageGetter(gs),
 		Mode:       gno.TCLatestStrict,
-		Cache:      vm.getTypeCheckCache(ctx),
+		Cache:      vm.typeCheckCache,
 	}
 	for _, lib := range stdlibs.InitOrder() {
-		_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+		pkg, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
 		if err != nil {
 			panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
 		}
+		opts.Cache[lib] = pkg
 	}
 }
 
@@ -724,19 +727,39 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if err != nil {
 		return "", err
 	}
-	// Convert Args to gno values.
 	cx := xn.(*gno.CallExpr)
-	if cx.Varg {
-		panic("variadic calls not yet supported")
+	hasVarg := ft.HasVarg()
+	// NOTE: nargs = `cur` + user's len(args)
+	nargs := len(msg.Args) + 1
+	var vargType gno.Type
+	// If function is not variadic, it must have the same number of arguments.
+	if !hasVarg {
+		if nargs != len(ft.Params) {
+			panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
+		}
+	} else {
+		if nargs < len(ft.Params)-1 {
+			// If function is variadic, it must have at least the number of arguments-1.
+			// on the function we can simply avoid the variadic argument.
+			panic(fmt.Sprintf("insufficient number of arguments in call to %s: must be at least %d, got %d", fnc, len(ft.Params)-1, nargs))
+		}
+
+		// For the variadic argument, we need to use the type of the
+		// elements contained on the slice.
+		vargType = ft.Params[len(ft.Params)-1].Type.(*gno.SliceType).Elt
 	}
-	if nargs := len(msg.Args) + 1; nargs != len(ft.Params) { // NOTE: nargs = `cur` + user's len(args)
-		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
-	}
+
+	// Convert Args to gno values.
 	for i, arg := range msg.Args {
-		argType := ft.Params[i+1].Type
-		atv := convertArgToGno(arg, argType)
-		cx.Args[i+1] = &gno.ConstExpr{
-			TypedValue: atv,
+		paramIndex := i + 1
+		var argType gno.Type
+		if hasVarg && paramIndex >= len(ft.Params)-1 {
+			argType = vargType
+		} else {
+			argType = ft.Params[paramIndex].Type
+		}
+		cx.Args[paramIndex] = &gno.ConstExpr{
+			TypedValue: convertArgToGno(arg, argType),
 		}
 	}
 	defer m.Release()

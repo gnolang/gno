@@ -447,7 +447,10 @@ func (cdc *Codec) registerTypeInfoWLocked(info *TypeInfo, primary bool) {
 
 	// Everybody's dooing a brand-new dance, now
 	// Come on baby, doo the registration!
-	fullname := typeURLtoFullname(info.TypeURL)
+	fullname, err := typeURLtoFullname(info.TypeURL)
+	if err != nil {
+		panic(err)
+	}
 	existing, ok := cdc.fullnameToTypeInfo[fullname]
 	if primary {
 		if ok {
@@ -508,7 +511,10 @@ func (cdc *Codec) getTypeInfoWLocked(rt reflect.Type) (info *TypeInfo, err error
 }
 
 func (cdc *Codec) getTypeInfoFromTypeURLRLock(typeURL string, fopts FieldOptions) (info *TypeInfo, err error) {
-	fullname := typeURLtoFullname(typeURL)
+	fullname, err := typeURLtoFullname(typeURL)
+	if err != nil {
+		return nil, err
+	}
 	return cdc.getTypeInfoFromFullnameRLock(fullname, fopts)
 }
 
@@ -778,16 +784,22 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 // ----------------------------------------
 // Misc.
 
-func typeURLtoFullname(typeURL string) (fullname string) {
+func typeURLtoFullname(typeURL string) (string, error) {
 	parts := strings.Split(typeURL, "/")
 	if len(parts) == 1 {
-		panic(fmt.Sprintf("invalid type_url \"%v\", must contain at least one slash and be followed by the full name", typeURL))
+		return "", fmt.Errorf("invalid type_url %q: must contain at least one slash and be followed by the full name", typeURL)
 	}
-	return parts[len(parts)-1]
+	return parts[len(parts)-1], nil
 }
 
+// typeURLtoShortname is only called during type registration (startup), so
+// panicking on a malformed typeURL is appropriate: it is a programming error,
+// not a runtime input.
 func typeURLtoShortname(typeURL string) (name string) {
-	fullname := typeURLtoFullname(typeURL)
+	fullname, err := typeURLtoFullname(typeURL)
+	if err != nil {
+		panic(err)
+	}
 	parts := strings.Split(fullname, ".")
 	if len(parts) == 1 {
 		panic(fmt.Sprintf("invalid type_url \"%v\", full name must contain dot", typeURL))
