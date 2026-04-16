@@ -195,7 +195,10 @@ func (m *Machine) doOpStar() {
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
 	xv, ro := m.PopAsPointer2(rx.X)
-	elt := rx.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
+	elt, ok := rx.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
+	if !ok {
+		panic("ATTR_REF_ELEM_TYPE not set during preprocessing")
+	}
 	m.Alloc.AllocatePointer()
 	m.PushValue(TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),

@@ -5596,6 +5596,11 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 					case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
 						// Get the receiver type from ATTR_REF_ELEM_TYPE
 						// on the RefExpr, or ATTR_TYPEOF_VALUE on n.X.
+						//
+						// For auto-addressed receivers (n.X is a synthetic *RefExpr),
+						// read from ATTR_REF_ELEM_TYPE. For already-pointer receivers
+						// (VPDerefValMethod/VPDerefPtrMethod), n.X is not a RefExpr;
+						// fall back to ATTR_TYPEOF_VALUE on the expression itself.
 						var xt Type
 						var ok bool
 						if rx, ok2 := n.X.(*RefExpr); ok2 {
