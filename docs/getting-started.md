@@ -3,9 +3,9 @@
 Gno.land is a Layer 1 blockchain where smart contracts are written in **Gno**,
 a deterministic variant of Go. If you can write Go, you can write Gno.
 
-This page takes you from nothing installed to a working toolchain, a key,
-test tokens, and your first query against a live network. Plan around
-15 minutes.
+This page takes you from nothing installed to a working local chain
+with `gnodev`, then shows how to graduate to a live network when you're
+ready to deploy. Plan around 15 minutes.
 
 :::tip Just want to try Gno?
 You don't have to install anything to play with Gno code. Open the
@@ -17,6 +17,10 @@ and run it instantly. Come back here when you're ready to build locally.
 
 ```sh
 git clone https://github.com/gnolang/gno.git && cd gno && make install
+gnodev
+# → open http://localhost:8888 and start building
+
+# Later, to go live:
 gnokey add dev
 # → open https://faucet.gno.land and paste your g1… address
 gnokey query bank/balances/<your-g1-address> -remote https://rpc.gno.land:443
@@ -88,6 +92,31 @@ Quick smoke test:
 ```sh
 docker run --rm ghcr.io/gnolang/gno version
 ```
+
+## First run: `gnodev`
+
+With `gnodev`, everything is preconfigured — premined test accounts, a
+local chain, and hot reload — so you can build and test locally without
+any extra setup.
+
+Confirm your toolchain works end-to-end:
+
+```sh
+gnodev
+```
+
+You should see a banner in the terminal and a web UI at
+[`http://localhost:8888`](http://localhost:8888). Edit any `.gno` file
+under `examples/` — the chain reloads in place. `Ctrl+C` to stop.
+
+See [Running a local dev node](./builders/local-dev-with-gnodev.md) for
+the full reference (genesis config, resolvers, multi-realm workflows).
+
+---
+
+**Ready to go live?** The next sections take you from local dev to a
+shared network — create a key, get test tokens, and run your first
+query on-chain.
 
 ## Create your first key
 
