@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -326,6 +327,143 @@ func TestDecodeDuration_RejectsMalformed(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unexpected field") {
 		t.Fatalf("expected 'unexpected field' error, got %q", err.Error())
+	}
+}
+
+// Duplicate field 2 should also be rejected (symmetric with field 1 case).
+func TestDecodeTime_RejectsDuplicateField2(t *testing.T) {
+	// field 2 nanos=1, field 2 nanos=2 — duplicate
+	bz := []byte{0x10, 0x01, 0x10, 0x02}
+	_, _, err := amino.DecodeTime(bz)
+	if err == nil {
+		t.Fatal("expected error on duplicate field 2")
+	}
+	if !strings.Contains(err.Error(), "duplicate") {
+		t.Fatalf("expected 'duplicate' error, got %q", err.Error())
+	}
+}
+
+// Wrong typ3 for field 1 (seconds must be Varint, not ByteLength).
+func TestDecodeTime_RejectsField1WrongTyp3(t *testing.T) {
+	// field 1 with ByteLength typ3=2: tag=(1<<3)|2=0x0a
+	bz := []byte{0x0a, 0x01, 0x00}
+	_, _, err := amino.DecodeTime(bz)
+	if err == nil {
+		t.Fatal("expected error on wrong typ3 for field 1")
+	}
+}
+
+// Unknown field number (3 or higher) is rejected.
+func TestDecodeTime_RejectsUnknownField(t *testing.T) {
+	// field 3 varint: tag=(3<<3)|0=0x18
+	bz := []byte{0x18, 0x00}
+	_, _, err := amino.DecodeTime(bz)
+	if err == nil {
+		t.Fatal("expected error on unknown field")
+	}
+	if !strings.Contains(err.Error(), "unexpected field") {
+		t.Fatalf("expected 'unexpected field' error, got %q", err.Error())
+	}
+}
+
+// Field 1 only (no nanos) is valid — should succeed with ns=0.
+func TestDecodeTime_AcceptsField1Only(t *testing.T) {
+	// seconds=100 → varint 0x64
+	bz := []byte{0x08, 0x64}
+	tm, n, err := amino.DecodeTime(bz)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("expected n=2, got %d", n)
+	}
+	if tm.Unix() != 100 {
+		t.Errorf("expected seconds=100, got %d", tm.Unix())
+	}
+}
+
+// Field 2 only (no seconds) is valid — should succeed with s=0.
+func TestDecodeTime_AcceptsField2Only(t *testing.T) {
+	// nanos=500 → varint 0x84 0x03 (wait, 500=0x1F4 as uvarint=0xf4 0x03)
+	// Actually 500 = 0b0000_0001_1111_0100 → uvarint: 0xf4 0x03
+	bz := []byte{0x10, 0xf4, 0x03}
+	tm, n, err := amino.DecodeTime(bz)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 3 {
+		t.Errorf("expected n=3, got %d", n)
+	}
+	if tm.Unix() != 0 || tm.Nanosecond() != 500 {
+		t.Errorf("expected seconds=0 nanos=500, got seconds=%d nanos=%d", tm.Unix(), tm.Nanosecond())
+	}
+}
+
+// Nanos range validation: exactly -999999999 and 999999999 are allowed;
+// one step outside is rejected. decodeSecondsAndNanos enforces ±1e9 bound.
+func TestDecodeTime_NanosRangeBoundaries(t *testing.T) {
+	// Upper boundary inside: nanos = 999999999 → uvarint 10 bytes
+	// Instead, test exceeding: nanos = 1000000000 → uvarint 0x80 0x94 0xeb 0xdc 0x03
+	// That should be rejected.
+	bz := []byte{0x10, 0x80, 0x94, 0xeb, 0xdc, 0x03}
+	_, _, err := amino.DecodeTime(bz)
+	if err == nil {
+		t.Fatal("expected error on nanos=1e9")
+	}
+	if !strings.Contains(err.Error(), "nanoseconds not in interval") {
+		t.Fatalf("expected 'nanoseconds not in interval' error, got %q", err.Error())
+	}
+}
+
+// DecodeByteSlice with count exactly equal to remaining bytes must succeed.
+func TestDecodeByteSlice_AcceptsExactLength(t *testing.T) {
+	// length=3, payload=0x01 0x02 0x03
+	bz := []byte{0x03, 0x01, 0x02, 0x03}
+	out, n, err := amino.DecodeByteSlice(bz)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 4 {
+		t.Errorf("expected n=4, got %d", n)
+	}
+	if !bytes.Equal(out, []byte{0x01, 0x02, 0x03}) {
+		t.Errorf("unexpected payload: %X", out)
+	}
+}
+
+// DecodeByteSlice with count exactly one more than remaining must fail —
+// the minimal failing case (easier to debug than the 2^64 case).
+func TestDecodeByteSlice_RejectsCountPlusOne(t *testing.T) {
+	// length=4, payload only 3 bytes
+	bz := []byte{0x04, 0x01, 0x02, 0x03}
+	_, _, err := amino.DecodeByteSlice(bz)
+	if err == nil {
+		t.Fatal("expected error on length > remaining")
+	}
+	if !strings.Contains(err.Error(), "insufficient bytes") {
+		t.Fatalf("expected 'insufficient bytes' error, got %q", err.Error())
+	}
+}
+
+// Any envelope with only field 1 (TypeURL) and no field 2 is legal —
+// represents a zero-value message of the declared concrete type.
+func TestUnmarshalAnyBinary2_AcceptsTypeURLOnly(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Concrete1 is an empty struct — zero-value encoding is 0 bytes.
+	typeURL := "/tests.Concrete1"
+	bz := []byte{0x0a, byte(len(typeURL))}
+	bz = append(bz, []byte(typeURL)...)
+
+	var iface Interface1
+	err := cdc.UnmarshalAnyBinary2(bz, &iface)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := iface.(Concrete1); !ok {
+		t.Errorf("expected Concrete1, got %T", iface)
 	}
 }
 
