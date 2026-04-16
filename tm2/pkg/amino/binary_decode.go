@@ -1058,8 +1058,12 @@ func decodeFieldNumberAndTyp3(bz []byte) (num uint32, typ Typ3, n int, err error
 	// Decode first typ3 byte.
 	typ = Typ3(value64 & 0x07)
 
-	// Decode num.
+	// Decode num. Field 0 is reserved by proto3 and must never appear.
 	num64 := value64 >> 3
+	if num64 == 0 {
+		err = fmt.Errorf("invalid field num 0 (reserved)")
+		return
+	}
 	if num64 > (1<<29 - 1) {
 		err = fmt.Errorf("invalid field num %v", num64)
 		return

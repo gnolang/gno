@@ -474,8 +474,7 @@ func (ctx *P3Context2) writeUnpackedListUnmarshal(sb *strings.Builder, accessor 
 	ert := finfo.Type.Elem()
 	einfo := finfo.Elem
 	if einfo == nil {
-		sb.WriteString(fmt.Sprintf("%s// TODO: nil Elem info for list type\n", indent))
-		return
+		panic(fmt.Sprintf("genproto2: writeUnpackedListUnmarshal: nil Elem info for list type %v (accessor=%s)", finfo.Type, accessor))
 	}
 
 	// beOptionByte: when element repr is uint8, amino encodes each element
@@ -626,8 +625,12 @@ func (ctx *P3Context2) writeImplicitStructDecode(sb *strings.Builder, accessor s
 	sb.WriteString(fmt.Sprintf("%s\t}\n", indent))
 	sb.WriteString(fmt.Sprintf("%s\tibz = ibz[_n:]\n", indent))
 	// Read inner ByteSlice (packed data).
-	sb.WriteString(fmt.Sprintf("%s\tfbz, _, _err2 := amino.DecodeByteSlice(ibz)\n", indent))
+	sb.WriteString(fmt.Sprintf("%s\tfbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)\n", indent))
 	sb.WriteString(fmt.Sprintf("%s\tif _err2 != nil {\n%s\t\treturn _err2\n%s\t}\n", indent, indent, indent))
+	// The implicit struct has only field 1 — reject anything past it.
+	sb.WriteString(fmt.Sprintf("%s\tif len(ibz)-_fbn > 0 {\n", indent))
+	sb.WriteString(fmt.Sprintf("%s\t\treturn fmt.Errorf(\"implicit struct: %%d trailing bytes after field 1\", len(ibz)-_fbn)\n", indent))
+	sb.WriteString(fmt.Sprintf("%s\t}\n", indent))
 	// Decode elements from packed data.
 	innerEinfo := einfo.Elem
 	if einfo.Type.Kind() == reflect.Array {
@@ -793,7 +796,7 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 			sb.WriteString(fmt.Sprintf("%sif len(v) == 0 {\n%s\t%s = nil\n%s} else {\n%s\t%s = v\n%s}\n",
 				indent, indent, accessor, indent, indent, accessor, indent))
 		} else {
-			sb.WriteString(fmt.Sprintf("%s// TODO: unsupported primitive decode slice element kind %v\n", indent, rt.Elem().Kind()))
+			panic(fmt.Sprintf("genproto2: writePrimitiveDecodeFrom: unsupported slice element kind %v (type=%v, accessor=%s)", rt.Elem().Kind(), rt, accessor))
 		}
 
 	case reflect.Array:
@@ -803,11 +806,11 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 			sb.WriteString(fmt.Sprintf("%s%s = %s[n:]\n", indent, srcVar, srcVar))
 			sb.WriteString(fmt.Sprintf("%scopy(%s[:], v)\n", indent, accessor))
 		} else {
-			sb.WriteString(fmt.Sprintf("%s// TODO: unsupported primitive decode array element kind %v\n", indent, rt.Elem().Kind()))
+			panic(fmt.Sprintf("genproto2: writePrimitiveDecodeFrom: unsupported array element kind %v (type=%v, accessor=%s)", rt.Elem().Kind(), rt, accessor))
 		}
 
 	default:
-		sb.WriteString(fmt.Sprintf("%s// TODO: unsupported primitive decode kind %v\n", indent, kind))
+		panic(fmt.Sprintf("genproto2: writePrimitiveDecodeFrom: unsupported kind %v (type=%v, accessor=%s)", kind, rt, accessor))
 	}
 }
 

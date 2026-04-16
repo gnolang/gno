@@ -219,6 +219,61 @@ func TestDecodeByteSlice_RejectsOversizeLength(t *testing.T) {
 	}
 }
 
+// Field number 0 is reserved by proto3 and must be rejected by the decoder.
+func TestDecodeFieldNumberAndTyp3_RejectsField0(t *testing.T) {
+	// tag byte: (0 << 3) | 2 = 0x02 (field 0 with ByteLength typ3)
+	bz := []byte{0x02, 0x00}
+
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Route through a top-level unmarshal: any struct should reject.
+	var s PrimitivesStruct
+	err := s.UnmarshalBinary2(cdc, bz)
+	assertErrContains(t, err, "invalid field num 0")
+}
+
+// Implicit struct wrapper (used for AminoMarshaler packed-slice repr with
+// nested lists) must reject trailing bytes after field 1.
+// Exercise via SlicesSlicesStruct which contains nested packed lists.
+func TestUnmarshalBinary2_RejectsImplicitStructTrailingBytes(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Build a roundtrippable SlicesSlicesStruct with one small nested list,
+	// then inject trailing bytes inside the implicit struct.
+	orig := SlicesSlicesStruct{Int8SlSl: [][]int8{{1, 2}}}
+	bz, err := cdc.MarshalBinary2(&orig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The wire layout is: outer tag | outer len | ibz(field 1 inner list).
+	// Find the inner length prefix and inflate it so the payload includes
+	// garbage bytes past field 1.
+	//
+	// Conservative approach: append stray bytes to ibz by mutating the outer
+	// length to be larger and the inner ByteSlice length to be smaller, so
+	// the decoder sees "trailing bytes after field 1" inside the implicit
+	// struct. To avoid fragile offset math on the complex layout, just
+	// verify that Marshal produces something, then manually verify the
+	// implicit-struct trailing-bytes check would fire if we fed a crafted
+	// payload. Fall back: confirm a known-malformed byte sequence errors.
+	//
+	// Direct malformed input: an implicit struct wrapper containing field
+	// 1 + field 2 inside, which our decoder should now reject.
+	// Bytes: outer tag(fnum=1,ByteLength)=0x0a | outer_len=0x06 |
+	//        [ tag(1,ByteLength)=0x0a | len=0x00 |
+	//          tag(2,ByteLength)=0x12 | len=0x02 | 0x00 0x00 ]
+	// This targets the first nested-list field (Int8SlSl = field 1).
+	malformed := []byte{0x0a, 0x06, 0x0a, 0x00, 0x12, 0x02, 0x00, 0x00}
+	var bad SlicesSlicesStruct
+	err = bad.UnmarshalBinary2(cdc, malformed)
+	assertErrContains(t, err, "trailing bytes after field 1")
+	_ = bz // referenced to avoid unused-var warning if the assertion is satisfied before
+}
+
 // AminoMarshalerStruct2.MarshalAmino → []ReprElem2 (unpacked slice repr).
 // Each element is wrapped as field 1 ByteLength. If a repeated entry has a
 // wrong typ3, the unpacked-slice-repr decoder should reject it.

@@ -591,14 +591,14 @@ func (ctx *P3Context2) primitiveValueSizeExpr(accessor string, info *amino.TypeI
 		if rt.Elem().Kind() == reflect.Uint8 {
 			return fmt.Sprintf("amino.ByteSliceSize(%s)", accessor)
 		}
-		return "0 /* TODO: unsupported */"
+		panic(fmt.Sprintf("genproto2: primitiveValueSizeExpr: unsupported slice element kind %v (type=%v, accessor=%s)", rt.Elem().Kind(), rt, accessor))
 	case reflect.Array:
 		if rt.Elem().Kind() == reflect.Uint8 {
 			return fmt.Sprintf("amino.UvarintSize(uint64(len(%s))) + len(%s)", accessor, accessor)
 		}
-		return "0 /* TODO: unsupported */"
+		panic(fmt.Sprintf("genproto2: primitiveValueSizeExpr: unsupported array element kind %v (type=%v, accessor=%s)", rt.Elem().Kind(), rt, accessor))
 	default:
-		return "0 /* TODO: unsupported */"
+		panic(fmt.Sprintf("genproto2: primitiveValueSizeExpr: unsupported kind %v (type=%v, accessor=%s)", rt.Kind(), rt, accessor))
 	}
 }
 

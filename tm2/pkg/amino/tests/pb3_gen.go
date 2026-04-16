@@ -2158,9 +2158,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeVarint8(fbz)
@@ -2213,9 +2216,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeVarint8(fbz)
@@ -2259,9 +2265,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeVarint16(fbz)
@@ -2314,9 +2323,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeVarint16(fbz)
@@ -2360,9 +2372,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeVarint(fbz)
@@ -2415,9 +2430,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeVarint(fbz)
@@ -2461,9 +2479,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeInt32(fbz)
@@ -2516,9 +2537,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeInt32(fbz)
@@ -2562,9 +2586,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeVarint(fbz)
@@ -2617,9 +2644,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeVarint(fbz)
@@ -2663,9 +2693,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeInt64(fbz)
@@ -2718,9 +2751,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeInt64(fbz)
@@ -2764,9 +2800,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeVarint(fbz)
@@ -2819,9 +2858,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeVarint(fbz)
@@ -2951,9 +2993,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeUvarint16(fbz)
@@ -3006,9 +3051,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeUvarint16(fbz)
@@ -3052,9 +3100,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeUvarint(fbz)
@@ -3107,9 +3158,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeUvarint(fbz)
@@ -3153,9 +3207,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeUint32(fbz)
@@ -3208,9 +3265,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeUint32(fbz)
@@ -3254,9 +3314,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeUvarint(fbz)
@@ -3309,9 +3372,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeUvarint(fbz)
@@ -3355,9 +3421,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeUint64(fbz)
@@ -3410,9 +3479,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeUint64(fbz)
@@ -3456,9 +3528,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				{
 					v, n, err := amino.DecodeUvarint(fbz)
@@ -3511,9 +3586,12 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					{
 						v, n, err := amino.DecodeUvarint(fbz)
@@ -5185,9 +5263,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem int8
@@ -5230,9 +5311,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem int8
@@ -5266,9 +5350,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem int16
@@ -5311,9 +5398,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem int16
@@ -5347,9 +5437,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem int32
@@ -5392,9 +5485,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem int32
@@ -5428,9 +5524,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem int32
@@ -5473,9 +5572,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem int32
@@ -5509,9 +5611,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem int64
@@ -5554,9 +5659,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem int64
@@ -5590,9 +5698,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem int64
@@ -5635,9 +5746,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem int64
@@ -5671,9 +5785,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem int
@@ -5716,9 +5833,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem int
@@ -5838,9 +5958,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem uint16
@@ -5883,9 +6006,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem uint16
@@ -5919,9 +6045,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem uint32
@@ -5964,9 +6093,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem uint32
@@ -6000,9 +6132,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem uint32
@@ -6045,9 +6180,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem uint32
@@ -6081,9 +6219,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem uint64
@@ -6126,9 +6267,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem uint64
@@ -6162,9 +6306,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem uint64
@@ -6207,9 +6354,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem uint64
@@ -6243,9 +6393,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 					return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 				}
 				ibz = ibz[_n:]
-				fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+				fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 				if _err2 != nil {
 					return _err2
+				}
+				if len(ibz)-_fbn > 0 {
+					return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 				}
 				for len(fbz) > 0 {
 					var _elem uint
@@ -6288,9 +6441,12 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte) err
 						return fmt.Errorf("implicit struct: expected field 1 ByteLength, got num=%v typ=%v", _fnum, _typ3)
 					}
 					ibz = ibz[_n:]
-					fbz, _, _err2 := amino.DecodeByteSlice(ibz)
+					fbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)
 					if _err2 != nil {
 						return _err2
+					}
+					if len(ibz)-_fbn > 0 {
+						return fmt.Errorf("implicit struct: %d trailing bytes after field 1", len(ibz)-_fbn)
 					}
 					for len(fbz) > 0 {
 						var _elem uint

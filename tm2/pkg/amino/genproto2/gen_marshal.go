@@ -697,16 +697,16 @@ func (ctx *P3Context2) writePrimitiveEncode(sb *strings.Builder, accessor string
 		if rt.Elem().Kind() == reflect.Uint8 {
 			sb.WriteString(fmt.Sprintf("%soffset = amino.PrependByteSlice(buf, offset, %s)\n", indent, accessor))
 		} else {
-			sb.WriteString(fmt.Sprintf("%s// TODO: unsupported primitive slice element kind %v\n", indent, rt.Elem().Kind()))
+			panic(fmt.Sprintf("genproto2: writePrimitiveEncode: unsupported slice element kind %v (type=%v, accessor=%s)", rt.Elem().Kind(), rt, accessor))
 		}
 	case reflect.Array:
 		if rt.Elem().Kind() == reflect.Uint8 {
 			sb.WriteString(fmt.Sprintf("%soffset = amino.PrependByteSlice(buf, offset, %s[:])\n", indent, accessor))
 		} else {
-			sb.WriteString(fmt.Sprintf("%s// TODO: unsupported primitive array element kind %v\n", indent, rt.Elem().Kind()))
+			panic(fmt.Sprintf("genproto2: writePrimitiveEncode: unsupported array element kind %v (type=%v, accessor=%s)", rt.Elem().Kind(), rt, accessor))
 		}
 	default:
-		sb.WriteString(fmt.Sprintf("%s// TODO: unsupported primitive kind %v\n", indent, kind))
+		panic(fmt.Sprintf("genproto2: writePrimitiveEncode: unsupported kind %v (type=%v, accessor=%s)", kind, rt, accessor))
 	}
 }
 
