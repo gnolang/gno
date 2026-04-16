@@ -434,12 +434,17 @@ var StructTypes = []any{
 	(*FuzzBlock)(nil),
 	(*FuzzDeepNest)(nil),
 	(*FuzzPtrNest)(nil),
-	// Amino tag fuzz types.
-	(*FuzzWriteEmpty)(nil),
-	(*FuzzNilElements)(nil),
 	(*FuzzUnsafeFloat)(nil),
 	// Interface-heavy benchmark type.
 	(*InterfaceHeavy)(nil),
+}
+
+// AminoTagTypes are struct types that use amino-specific encoding tags
+// (write_empty, nil_elements) with no proto3 equivalent. These need a
+// tailored test that skips the proto.Marshal byte comparison.
+var AminoTagTypes = []any{
+	(*FuzzWriteEmpty)(nil),
+	(*FuzzNilElements)(nil),
 }
 
 // ----------------------------------------
