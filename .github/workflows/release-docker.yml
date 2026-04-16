@@ -62,9 +62,8 @@ jobs:
           context: .
           target: gnoland
           platforms: linux/amd64
-          push: true
           tags: ghcr.io/${{ github.repository }}/gnoland:cache-test
           build-args: |
             BUILD_VERSION=${{ steps.build_version.outputs.version }}
-          cache-from: type=gha,scope=cache-test
-          cache-to: type=gha,mode=max,scope=cache-test
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/cache:gnoland
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/cache:gnoland,mode=max
