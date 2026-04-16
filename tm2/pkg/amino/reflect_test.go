@@ -42,6 +42,11 @@ func TestCodecStruct(t *testing.T) {
 // TestCodecAminoTags tests types with amino-specific encoding tags
 // (write_empty, nil_elements) that have no proto3 equivalent.
 // Same checks as TestCodecStruct but skips proto.Marshal byte comparison.
+//
+// FuzzNilElements has a pre-existing amino roundtrip bug where nil struct
+// pointers in slices decode as zero-value structs. For that type we run
+// byte-stability and cross-encoder/decoder checks instead of strict
+// struct equality, which still catch new regressions.
 func TestCodecAminoTags(t *testing.T) {
 	t.Parallel()
 
@@ -49,22 +54,14 @@ func TestCodecAminoTags(t *testing.T) {
 		t.Logf("case %v", reflect.TypeOf(ptr))
 		rt := getTypeFromPointer(ptr)
 		name := rt.Name()
+		lossyDecode := name == "FuzzNilElements"
 		t.Run(name+":binary", func(t *testing.T) {
 			t.Parallel()
-			// TODO: FuzzNilElements has a pre-existing amino roundtrip bug
-			// where nil struct pointers in slices decode as zero-value
-			// structs instead of nil. Fix separately.
-			if name == "FuzzNilElements" {
-				t.Skip("pre-existing amino roundtrip bug with nil_elements")
-			}
-			_testCodecAminoTags(t, rt, "binary")
+			_testCodecAminoTags(t, rt, "binary", lossyDecode)
 		})
 		t.Run(name+":json", func(t *testing.T) {
 			t.Parallel()
-			if name == "FuzzNilElements" {
-				t.Skip("pre-existing amino roundtrip bug with nil_elements")
-			}
-			_testCodecAminoTags(t, rt, "json")
+			_testCodecAminoTags(t, rt, "json", lossyDecode)
 		})
 	}
 }
@@ -279,7 +276,12 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 // comparison, which is invalid for types with amino-specific tags like
 // write_empty (forces zero-value emission) or nil_elements (allows nil
 // entries in repeated fields) — neither has a proto3 equivalent.
-func _testCodecAminoTags(t *testing.T, rt reflect.Type, codecType string) {
+//
+// If lossyDecode is true, the decoder may produce a struct that does not
+// reflect.DeepEqual to the original (e.g. nil pointer → zero-value struct).
+// In that case we use byte-stability + cross-encoder/decoder equivalence
+// instead of strict struct equality.
+func _testCodecAminoTags(t *testing.T, rt reflect.Type, codecType string, lossyDecode bool) {
 	t.Helper()
 
 	err := error(nil)
@@ -303,40 +305,52 @@ func _testCodecAminoTags(t *testing.T, rt reflect.Type, codecType string) {
 		}
 	}()
 
+	marshal := func(p any) ([]byte, error) {
+		if codecType == "json" {
+			return cdc.JSONMarshal(p)
+		}
+		return cdc.Marshal(p)
+	}
+	unmarshal := func(b []byte, p any) error {
+		if codecType == "json" {
+			return cdc.JSONUnmarshal(b, p)
+		}
+		return cdc.Unmarshal(b, p)
+	}
+
 	for range 10_000 {
 		f.Fuzz(ptr)
 
 		rv2 = reflect.New(rt)
 		ptr2 = rv2.Interface()
 
-		switch codecType {
-		case "binary":
-			bz, err = cdc.Marshal(ptr)
-		case "json":
-			bz, err = cdc.JSONMarshal(ptr)
-		default:
-			panic("should not happen")
-		}
+		bz, err = marshal(ptr)
 		require.Nil(t, err, "failed to marshal %v: %v\n", spw(ptr), err)
 
-		switch codecType {
-		case "binary":
-			err = cdc.Unmarshal(bz, ptr2)
-		case "json":
-			err = cdc.JSONUnmarshal(bz, ptr2)
-		default:
-			panic("should not happen")
-		}
+		err = unmarshal(bz, ptr2)
 		require.NoError(t, err, "failed to unmarshal %X: %v\n", bz, err)
-		require.Equal(t, ptr, ptr2,
-			"amino roundtrip failed.\nstart: %v\nend: %v\nbytes: %X\n",
-			spw(ptr), spw(ptr2), bz)
+
+		if lossyDecode {
+			// Byte stability: re-encode the (possibly lossy) decoded value
+			// and require the bytes to match. Catches any new divergence.
+			bzStable, err := marshal(ptr2)
+			require.NoError(t, err, "re-marshal failed: %v\n", err)
+			require.Equal(t, bz, bzStable,
+				"amino byte-stability failed.\nbz:       %X\nbzStable: %X\nstart: %v\nmid: %v\n",
+				bz, bzStable, spw(ptr), spw(ptr2))
+		} else {
+			require.Equal(t, ptr, ptr2,
+				"amino roundtrip failed.\nstart: %v\nend: %v\nbytes: %X\n",
+				spw(ptr), spw(ptr2), bz)
+		}
 
 		if codecType != "binary" {
 			continue
 		}
 
-		// ToPBMessage + FromPBMessage struct equality (no byte comparison).
+		// ToPBMessage + FromPBMessage. In strict mode we also check struct
+		// equality; in lossy mode ToPBMessage/FromPBMessage may share the
+		// same lossy decode path, so we only verify it doesn't error.
 		pbm, ok := rv.Interface().(amino.PBMessager)
 		if !ok {
 			continue
@@ -347,11 +361,13 @@ func _testCodecAminoTags(t *testing.T, rt reflect.Type, codecType string) {
 		ptr3 := rv3.Interface()
 		err = ptr3.(amino.PBMessager).FromPBMessage(cdc, pbo)
 		require.NoError(t, err)
-		require.Equal(t, ptr, ptr3,
-			"ToPBMessage/FromPBMessage roundtrip failed.\nstart: %v\nend: %v\nmid(pbo): %v\n",
-			spw(ptr), spw(ptr3), spw(pbo))
+		if !lossyDecode {
+			require.Equal(t, ptr, ptr3,
+				"ToPBMessage/FromPBMessage roundtrip failed.\nstart: %v\nend: %v\nmid(pbo): %v\n",
+				spw(ptr), spw(ptr3), spw(pbo))
+		}
 
-		// genproto2 byte equality + roundtrip.
+		// genproto2 byte equality (cross-encoder) + roundtrip.
 		pbm2, ok := rv.Interface().(amino.PBMessager2)
 		if !ok {
 			continue
@@ -371,6 +387,14 @@ func _testCodecAminoTags(t *testing.T, rt reflect.Type, codecType string) {
 		require.Equal(t, bz, bz2rt,
 			"genproto2 roundtrip bytes mismatch.\nbz(amino): %X\nbz(roundtrip): %X\n",
 			bz, bz2rt)
+
+		if lossyDecode {
+			// Cross-decoder: amino-decoded and genproto2-decoded should
+			// produce the same Go value, even if both share the same bug.
+			require.Equal(t, ptr2, ptr5,
+				"cross-decoder struct mismatch.\namino: %v\ngenproto2: %v\nbytes: %X\n",
+				spw(ptr2), spw(ptr5), bz)
+		}
 	}
 }
 
