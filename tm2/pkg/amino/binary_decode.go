@@ -652,12 +652,17 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 				n += UvarintSize(uint64(len(ibz)))
 				// Read field key of implicit struct.
 				var fnum uint32
-				fnum, _, _n, err = decodeFieldNumberAndTyp3(ibz)
+				var ityp Typ3
+				fnum, ityp, _n, err = decodeFieldNumberAndTyp3(ibz)
 				if slide(&ibz, &n, _n) && err != nil {
 					return
 				}
 				if fnum != 1 {
 					err = fmt.Errorf("unexpected field number %v of implicit list struct", fnum)
+					return
+				}
+				if ityp != Typ3ByteLength {
+					err = fmt.Errorf("unexpected typ3 %v of implicit list struct field 1 (want ByteLength)", ityp)
 					return
 				}
 				// Read field value of implicit struct.
@@ -856,12 +861,17 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 				n += UvarintSize(uint64(len(ibz)))
 				// Read field key of implicit struct.
 				var fnum uint32
-				fnum, _, _n, err = decodeFieldNumberAndTyp3(ibz)
+				var ityp Typ3
+				fnum, ityp, _n, err = decodeFieldNumberAndTyp3(ibz)
 				if slide(&ibz, &n, _n) && err != nil {
 					return
 				}
 				if fnum != 1 {
 					err = fmt.Errorf("unexpected field number %v of implicit list struct", fnum)
+					return
+				}
+				if ityp != Typ3ByteLength {
+					err = fmt.Errorf("unexpected typ3 %v of implicit list struct field 1 (want ByteLength)", ityp)
 					return
 				}
 				// Read field value of implicit struct.

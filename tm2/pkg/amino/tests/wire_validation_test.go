@@ -445,6 +445,30 @@ func TestDecodeByteSlice_RejectsCountPlusOne(t *testing.T) {
 	}
 }
 
+// The reflect-based decoder (used for types without native genproto2 methods)
+// must also validate typ3 of field 1 inside implicit-struct wrappers, so a
+// nested list with a wrong typ3 is rejected instead of silently misdecoded.
+// Exercised via cdc.Unmarshal (reflect path) on SlicesSlicesStruct bytes
+// with a tampered inner field-1 tag.
+func TestUnmarshalReflect_RejectsImplicitStructWrongTyp3(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Outer tag(fnum=1,ByteLength)=0x0a | outer_len=0x04 |
+	//   [ tag(1, Varint)=0x08 | varint 0 0 | 0 ]   // field 1 with WRONG typ3
+	// Inner element is a nested list; field 1 must be ByteLength, not Varint.
+	malformed := []byte{0x0a, 0x04, 0x08, 0x00, 0x00, 0x00}
+	var dst SlicesSlicesStruct
+	err := cdc.Unmarshal(malformed, &dst)
+	if err == nil {
+		t.Fatal("expected error on implicit-struct field 1 with wrong typ3")
+	}
+	if !strings.Contains(err.Error(), "typ3") && !strings.Contains(err.Error(), "ByteLength") {
+		t.Fatalf("expected typ3/ByteLength error, got %q", err.Error())
+	}
+}
+
 // Any envelope with only field 1 (TypeURL) and no field 2 is legal —
 // represents a zero-value message of the declared concrete type.
 func TestUnmarshalAnyBinary2_AcceptsTypeURLOnly(t *testing.T) {
