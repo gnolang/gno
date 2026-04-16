@@ -1,36 +1,102 @@
-# load the package
-loadpkg gno.land/r/foo/call_realm $WORK/realm
+# This test verifies the behavior of the -send flag in maketx call transactions,
+# and contrasts realm.SentCoins() with banker.OriginSend().
+# The call chain is: OriginCall -> firstrealm -> secondrealm -> firstrealm (re-entrant)
+#
+# The re-entrant call is achieved via a coinchecker.Caller interface defined in a
+# package (not a realm), which breaks the circular import problem: secondrealm
+# imports the package but not firstrealm; firstrealm passes itself as a Caller
+# to secondrealm, which calls back into firstrealm through the interface.
+#
+# - When -send is not provided, both APIs return empty coins in all realms.
+#
+# - realm.SentCoins() returns the coins sent via the tx -send field, but ONLY
+#   for the realm that is the tx recipient (identified by address). It returns
+#   empty coins for any other realm, even re-entrantly called ones. firstrealm
+#   sees coins in both its initial and re-entrant invocations because it is the
+#   tx recipient either way; secondrealm never sees them.
+#
+# - banker.OriginSend() returns the tx -send coins regardless of which realm
+#   calls it. It is not a reliable way to know if the current realm received
+#   the coins.
+
+# load the packages
+loadpkg gno.land/p/foo/coinchecker $WORK/coinchecker
+loadpkg gno.land/r/foo/secondrealm $WORK/secondrealm
+loadpkg gno.land/r/foo/firstrealm $WORK/firstrealm
 
 # start a new node
 gnoland start
 
-## user balance before realm send
-gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999998810000ugnot"'
+# call to firstrealm without -send: both APIs return empty in all realms
+gnokey maketx call -pkgpath gno.land/r/foo/firstrealm -func GetSentCoins -gas-fee 1000000ugnot -gas-wanted 3000000 -broadcast -chainid=tendermint_test test1
+stdout '("firstrealm\[realm.SentCoins: , banker.OriginSend: \] secondrealm\[realm.SentCoins: , banker.OriginSend: \] firstrealm\(reentrant\)\[realm.SentCoins: , banker.OriginSend: \]")'
 
-## realm balance before realm send
-gnokey query auth/accounts/g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7
+## firstrealm balance: no coins sent
+gnokey query auth/accounts/g1d260hvgfya26huxscg80xckxh7ydsyy0tve4sp
 stdout '"coins": ""'
 
-# call to realm with -send
-gnokey maketx call -send 42ugnot -pkgpath gno.land/r/foo/call_realm -func GimmeMoney -gas-fee 1000000ugnot -gas-wanted 3000000 -broadcast -chainid=tendermint_test test1
-stdout '("send: 42ugnot")'
+## secondrealm balance: no coins sent
+gnokey query auth/accounts/g17xvzxkz7lqm2mtmw3tvq0ajgx79phg24h60a9x
+stdout '"coins": ""'
 
-## user balance after realm send
-# reduced by -gas-fee AND -send
-gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999997809958ugnot"'
+# call to firstrealm with -send
+gnokey maketx call -send 42ugnot -pkgpath gno.land/r/foo/firstrealm -func GetSentCoins -gas-fee 1000000ugnot -gas-wanted 3000000 -broadcast -chainid=tendermint_test test1
+# realm.SentCoins() is tied to the realm address, not the call order: firstrealm
+# sees the coins in both its initial and re-entrant invocations because it is
+# the tx recipient either way. secondrealm never sees them.
+# banker.OriginSend() returns the coins in all realms regardless of call depth.
+stdout '("firstrealm\[realm.SentCoins: 42ugnot, banker.OriginSend: 42ugnot\] secondrealm\[realm.SentCoins: , banker.OriginSend: 42ugnot\] firstrealm\(reentrant\)\[realm.SentCoins: 42ugnot, banker.OriginSend: 42ugnot\]")'
 
-## realm balance after realm send
-gnokey query auth/accounts/g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7
+## firstrealm balance after realm send
+gnokey query auth/accounts/g1d260hvgfya26huxscg80xckxh7ydsyy0tve4sp
 stdout '"coins": "42ugnot"'
 
+## secondrealm balance after realm send
+gnokey query auth/accounts/g17xvzxkz7lqm2mtmw3tvq0ajgx79phg24h60a9x
+stdout '"coins": ""'
 
--- realm/realm.gno --
-package call_realm
 
-import "chain/banker"
+-- coinchecker/coinchecker.gno --
+package coinchecker
 
-func GimmeMoney(cur realm) string {
-	return "send: " + banker.OriginSend().String()
+type Caller interface {
+	Report(cur realm) string
+}
+-- firstrealm/realm.gno --
+package firstrealm
+
+import (
+	"chain/banker"
+
+	"gno.land/p/foo/coinchecker"
+	"gno.land/r/foo/secondrealm"
+)
+
+type self struct{}
+
+func (s self) Report(cur realm) string {
+	return "firstrealm(reentrant)[realm.SentCoins: " + cur.SentCoins().String() +
+		", banker.OriginSend: " + banker.OriginSend().String() + "]"
+}
+
+func GetSentCoins(cur realm) string {
+	return "firstrealm[realm.SentCoins: " + cur.SentCoins().String() +
+		", banker.OriginSend: " + banker.OriginSend().String() + "] " +
+		secondrealm.GetSentCoins(cross, self{})
+}
+
+var _ coinchecker.Caller = self{}
+-- secondrealm/realm.gno --
+package secondrealm
+
+import (
+	"chain/banker"
+
+	"gno.land/p/foo/coinchecker"
+)
+
+func GetSentCoins(cur realm, callback coinchecker.Caller) string {
+	return "secondrealm[realm.SentCoins: " + cur.SentCoins().String() +
+		", banker.OriginSend: " + banker.OriginSend().String() + "] " +
+		callback.Report(cross)
 }
