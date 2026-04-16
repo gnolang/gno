@@ -117,6 +117,44 @@ first produced block has height `InitialHeight`. Validated to be non-negative.
 - Future upgrades from `gnoland-1` to `gnoland-2` can set
   `PastChainIDs: ["gnoland1", "gnoland-1"]` to replay the full history.
 
+## Bugs found and fixed (PR #5511 review)
+
+### tm2 consensus layer (all fixed)
+
+1. **Fast-sync broken with InitialHeight > 1.** `BlockchainReactor` started
+   `BlockPool` at `store.Height()+1 = 1` instead of
+   `state.LastBlockHeight+1 = InitialHeight`. Nodes attempting fast-sync
+   would request non-existent blocks. Fixed: use state height when store is
+   empty.
+
+2. **Validator set / consensus params not saved at InitialHeight.** `saveState`
+   only persisted validators when `nextHeight == 1`. With InitialHeight > 1,
+   `LoadValidators` failed and `LoadConsensusParams` panicked when processing
+   the second block. Fixed: detect first-block generically (not just height 1).
+
+3. **`ValidateBasic` bypass via zeroed `LastBlockID`.** Any block with
+   `LastBlockID.IsZero()` could skip `LastCommit` validation. Fixed: only
+   skip when commit is also nil/empty (legitimate genesis), and explicitly
+   reject zero `LastBlockID` with non-empty commit.
+
+### Hardfork tooling (fixed)
+
+4. **`applyOverlay` silent no-op.** The overlay mechanism listed scripts but
+   never executed them, returning success. Fixed: returns an error when
+   scripts are found but execution is not implemented.
+
+5. **JSONL serialization used `encoding/json` instead of amino.** Interface
+   type info (`std.Msg`) was lost, breaking round-trip. Fixed: both writer
+   (`writeTxsJSONL`) and reader (`dirSource.FetchTxs`) now use amino.
+
+### Hardfork tooling (known, not yet fixed)
+
+6. **RPC source has no retry/resume.** A single transient error aborts the
+   entire multi-block fetch. Needs exponential backoff and checkpointing.
+
+7. **All txs accumulated in memory.** The full tx history is held in a single
+   slice. Will OOM on large chains. Needs streaming to disk.
+
 ## Open items
 
 - ~~Account number preservation~~: **Resolved.** `SignerInfo` metadata
@@ -128,3 +166,7 @@ first produced block has height `InitialHeight`. Validated to be non-negative.
 - End-to-end test with a real chain halt → export → genesis assembly →
   new chain start. (Partially done: export and in-memory replay validated
   against gnoland1. Full multi-validator halt test remains.)
+- Validate that `PastChainIDs` does not contain the new chain ID.
+- `NewAccountWithNumber` should check for duplicate account numbers.
+- Failed txs should carry a non-zero response code during genesis replay
+  (currently `ResponseDeliverTx{Code: 0}` which looks like success).
