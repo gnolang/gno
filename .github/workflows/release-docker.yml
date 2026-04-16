@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: gnolang-self-runner-large
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       actions: write
