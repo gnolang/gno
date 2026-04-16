@@ -16,23 +16,14 @@ RUN         echo "${BUILD_VERSION}" > /gnoroot/build_version
 
 # build gnocore
 FROM        setup-gnocore AS build-gnocore
-ARG         TARGETPLATFORM
 # Gnoland
-RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
-            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
-            go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnoland ./gno.land/cmd/gnoland
+RUN         go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnoland ./gno.land/cmd/gnoland
 # Gnokey
-RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
-            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
-            go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnokey ./gno.land/cmd/gnokey
+RUN         go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnokey ./gno.land/cmd/gnokey
 # Gnoweb
-RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
-            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
-            go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnoweb ./gno.land/cmd/gnoweb
+RUN         go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnoweb ./gno.land/cmd/gnoweb
 # Gno
-RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache-${TARGETPLATFORM} \
-            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
-            go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gno ./gnovm/cmd/gno
+RUN         go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gno ./gnovm/cmd/gno
 
 # Gnofaucet build
 FROM        setup-gnocore AS build-gnofaucet
