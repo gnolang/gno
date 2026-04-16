@@ -5,7 +5,7 @@
 SHELL := bash
 
 # ---- configurable ----------------------------------------------------------
-SOURCE             ?= https://rpc.betanet.testnets.gno.land
+SOURCE             ?= https://github.com/gnolang/gno/releases/download/chain/gnoland1.0/genesis.json
 ORIGINAL_CHAIN_ID  ?= gnoland1
 CHAIN_ID           ?= gnoland-1
 HALT_HEIGHT        ?=

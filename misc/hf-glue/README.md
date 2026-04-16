@@ -35,7 +35,7 @@ so you can keep posting txs against it.
 ## Quick start
 
 ```bash
-# 1. Fetch state from gnoland1 (defaults to the live RPC) and build genesis.
+# 1. Fetch gnoland1 genesis (defaults to GitHub release) and build hardfork genesis.
 make fetch
 
 # 2. Generate a single-validator key pair locally, patch genesis to use it.
@@ -71,7 +71,7 @@ make fetch init up
 
 | Variable             | Default                        | Meaning |
 |----------------------|--------------------------------|---------|
-| `SOURCE`             | `https://rpc.betanet.testnets.gno.land` | RPC URL / local data dir / exported tarball the `hardfork` tool understands |
+| `SOURCE`             | `https://github.com/gnolang/gno/releases/download/chain/gnoland1.0/genesis.json` | Genesis URL / RPC URL / local file the `hardfork` tool understands |
 | `ORIGINAL_CHAIN_ID`  | `gnoland1`                     | Source chain ID (used for historical signature verification) |
 | `CHAIN_ID`           | `gnoland-1`                    | New chain ID after the fork |
 | `HALT_HEIGHT`        | *(auto-detect)*                | Height to stop pulling at; empty = latest |
@@ -95,14 +95,17 @@ Items addressed by #5511 (should now work):
 - [x] Historical tx signatures verify via `PastChainIDs` allowlist (no `chainID` leakage)
 - [x] `GenesisDoc.InitialHeight` correctly handled across consensus, state, store, SDK
 
-Still to validate end-to-end in Docker:
+Validated in Docker (minimal genesis):
+
+- [x] First block after replay produced at `InitialHeight` exactly
+- [x] Node can restart from persisted state after replay
+
+Still to validate with full gnoland1 genesis:
 
 - [ ] Full genesis replay completes without `--skip-failing-genesis-txs`
-- [ ] First block after replay produced at `InitialHeight` exactly
 - [ ] New txs can be posted against the forked chain with the new chain ID
 - [ ] `valoper` fee = 0 carried over via param preservation
-- [ ] Replay time on a real gnoland1/betanet dataset (feasibility)
-- [ ] Node can restart from persisted state after replay
+- [ ] Replay time on a real gnoland1 dataset (feasibility — 194 MB genesis)
 
 ## Relation to `hardfork test`
 
