@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -96,7 +96,7 @@ func (s *dirSource) LatestHeight(_ context.Context) (int64, error) {
 	var raw struct {
 		InitialHeight int64 `json:"initial_height"`
 	}
-	_ = json.Unmarshal(data, &raw)
+	_ = amino.UnmarshalJSON(data, &raw)
 	if raw.InitialHeight > 1 {
 		// This is already a hardfork genesis — use InitialHeight-1 as the halt height
 		return raw.InitialHeight - 1, nil
@@ -130,10 +130,16 @@ func (s *dirSource) FetchTxs(_ context.Context, fromHeight, toHeight int64, io c
 	defer f.Close()
 
 	var txs []gnoland.TxWithMetadata
-	dec := json.NewDecoder(f)
-	for dec.More() {
+	scanner := bufio.NewScanner(f)
+	// Increase buffer for large tx lines.
+	scanner.Buffer(make([]byte, 0, 4096), 10*1024*1024)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
 		var tx gnoland.TxWithMetadata
-		if err := dec.Decode(&tx); err != nil {
+		if err := amino.UnmarshalJSON(line, &tx); err != nil {
 			return nil, fmt.Errorf("decoding tx: %w", err)
 		}
 
@@ -145,6 +151,9 @@ func (s *dirSource) FetchTxs(_ context.Context, fromHeight, toHeight int64, io c
 		}
 
 		txs = append(txs, tx)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("reading txs: %w", err)
 	}
 
 	return txs, nil
