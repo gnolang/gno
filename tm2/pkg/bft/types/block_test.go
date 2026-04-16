@@ -70,6 +70,32 @@ func TestBlockValidateBasic(t *testing.T) {
 	}
 }
 
+// TestValidateBasicRejectsZeroLastBlockIDAtNonGenesisHeight demonstrates a
+// vulnerability where a non-genesis block (height > 1) can bypass LastCommit
+// validation by having a zeroed LastBlockID. The current code treats any block
+// with LastBlockID.IsZero() as a genesis block, skipping commit validation.
+func TestValidateBasicRejectsZeroLastBlockIDAtNonGenesisHeight(t *testing.T) {
+	t.Parallel()
+
+	// Create a block at height 50 — clearly not genesis.
+	// Give it a zeroed LastBlockID and nil LastCommit.
+	block := MakeBlock(50, []Tx{Tx("tx1")}, nil)
+	// LastBlockID is zero by default (MakeBlock doesn't set it).
+	// LastCommit is nil.
+	// fillHeader set LastCommitHash = nil (hash of nil commit).
+
+	// Sanity check: LastBlockID is indeed zero.
+	require.True(t, block.Header.LastBlockID.IsZero(), "precondition: LastBlockID should be zero")
+
+	// ValidateBasic should reject this block because:
+	// - Height 50 is not a genesis block
+	// - It has no LastCommit
+	// BUG: ValidateBasic passes because it treats any block with
+	// LastBlockID.IsZero() as genesis, skipping the LastCommit check.
+	err := block.ValidateBasic()
+	require.Error(t, err, "ValidateBasic should reject a non-genesis block with zeroed LastBlockID and nil LastCommit")
+}
+
 func TestBlockHash(t *testing.T) {
 	t.Parallel()
 
