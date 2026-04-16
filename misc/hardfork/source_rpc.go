@@ -2,7 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -32,10 +38,74 @@ func (s *rpcSource) Close() error        { return s.client.Close() }
 
 func (s *rpcSource) FetchGenesis(ctx context.Context) (*bftypes.GenesisDoc, error) {
 	res, err := s.client.Genesis(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("RPC genesis call: %w", err)
+	if err == nil {
+		return res.Genesis, nil
 	}
-	return res.Genesis, nil
+
+	// Fallback: large genesis docs can exceed the JSON-RPC client's response
+	// buffer. Fetch via raw HTTP with streaming decode instead.
+	genDoc, rawErr := s.fetchGenesisRawHTTP(ctx)
+	if rawErr != nil {
+		return nil, fmt.Errorf("RPC genesis call: %w (raw HTTP fallback also failed: %v)", err, rawErr)
+	}
+	return genDoc, nil
+}
+
+// fetchGenesisRawHTTP fetches the genesis doc directly via HTTP, streaming the
+// response body to handle arbitrarily large genesis documents (e.g. betanet
+// with hundreds of thousands of genesis txs).
+func (s *rpcSource) fetchGenesisRawHTTP(ctx context.Context) (*bftypes.GenesisDoc, error) {
+	// Build the HTTP URL from the RPC URL.
+	baseURL := strings.TrimRight(s.rpcURL, "/")
+	url := baseURL + "/genesis"
+
+	// Force HTTP/1.1 — large responses (100+ MB) can trigger HTTP/2 stream
+	// errors with some reverse proxies / CDNs.
+	transport := &http.Transport{
+		ForceAttemptHTTP2: false,
+		TLSNextProto:      make(map[string]func(string, *tls.Conn) http.RoundTripper),
+	}
+	httpClient := &http.Client{
+		Timeout:   10 * time.Minute,
+		Transport: transport,
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP GET %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP GET %s: status %d", url, resp.StatusCode)
+	}
+
+	// The response is a JSON-RPC envelope: {"jsonrpc":"2.0","id":"","result":{"genesis":{...}}}
+	// Stream-decode to avoid buffering the entire response.
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading response body: %w", err)
+	}
+
+	var envelope struct {
+		Result struct {
+			Genesis json.RawMessage `json:"genesis"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil, fmt.Errorf("decoding JSON-RPC envelope: %w", err)
+	}
+
+	var genDoc bftypes.GenesisDoc
+	if err := amino.UnmarshalJSON(envelope.Result.Genesis, &genDoc); err != nil {
+		return nil, fmt.Errorf("decoding genesis doc: %w", err)
+	}
+
+	return &genDoc, nil
 }
 
 func (s *rpcSource) LatestHeight(ctx context.Context) (int64, error) {

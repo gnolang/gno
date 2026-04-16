@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Fetch source-chain state and build a hardforked genesis.json via the
-# misc/hardfork tool (shipped by PR #5411).
+# misc/hardfork tool (shipped by PR #5511).
+#
+# For large chains (betanet/gnoland1), the genesis doc can be 100+ MB and the
+# JSON-RPC /genesis endpoint often fails under load. This script detects RPC
+# sources, pre-downloads the base genesis via curl, and feeds the local file to
+# the hardfork tool with --skip-txs.  Historical txs are fetched separately via
+# RPC block-by-block (which works fine at any chain size).
 #
 # Inputs (env):
 #   SOURCE              RPC URL / local data dir / exported file
@@ -27,11 +33,47 @@ echo "  halt height:       ${HALT_HEIGHT:-<auto-detect>}"
 echo "  output:            $GENESIS"
 echo ""
 
+# ---------------------------------------------------------------------------
+# For RPC sources, pre-download the base genesis via curl.
+# The JSON-RPC client chokes on 100+ MB responses, but curl handles streaming
+# chunked-transfer fine. We extract the genesis from the JSON-RPC envelope
+# and feed it as a file source.
+# ---------------------------------------------------------------------------
+EFFECTIVE_SOURCE="$SOURCE"
+
+if [[ "$SOURCE" == http://* || "$SOURCE" == https://* ]]; then
+  BASE_GENESIS="$OUT/source-genesis.json"
+
+  if [[ -f "$BASE_GENESIS" ]]; then
+    echo "  reusing cached source genesis: $BASE_GENESIS"
+  else
+    GENESIS_URL="${SOURCE%/}/genesis"
+    echo "  downloading base genesis from $GENESIS_URL ..."
+    echo "  (this may take a few minutes for large chains)"
+
+    # Use curl with retry — the endpoint can drop connections on large responses.
+    curl -fsSL --retry 3 --retry-delay 5 --max-time 600 \
+      -o "$OUT/source-genesis-envelope.json" \
+      "$GENESIS_URL"
+
+    # The response is a JSON-RPC envelope: {"jsonrpc":"2.0","result":{"genesis":{...}}}
+    # Extract just the genesis doc.
+    echo "  extracting genesis from JSON-RPC envelope..."
+    jq -c '.result.genesis' < "$OUT/source-genesis-envelope.json" > "$BASE_GENESIS"
+    rm -f "$OUT/source-genesis-envelope.json"
+
+    SIZE=$(wc -c < "$BASE_GENESIS" | tr -d ' ')
+    echo "  base genesis: $(echo "scale=1; $SIZE / 1048576" | bc) MB"
+  fi
+
+  EFFECTIVE_SOURCE="$BASE_GENESIS"
+fi
+
 cd "$REPO/misc/hardfork"
 
 ARGS=(
   genesis
-  --source "$SOURCE"
+  --source "$EFFECTIVE_SOURCE"
   --chain-id "$CHAIN_ID"
   --original-chain-id "$ORIGINAL_CHAIN_ID"
   --output "$GENESIS"
@@ -41,6 +83,8 @@ if [[ -n "${HALT_HEIGHT:-}" ]]; then
   ARGS+=(--halt-height "$HALT_HEIGHT")
 fi
 
+# When using a pre-downloaded genesis file as source, historical txs are
+# already embedded in the genesis app_state.txs — no need to fetch separately.
 go run . "${ARGS[@]}"
 
 echo ""

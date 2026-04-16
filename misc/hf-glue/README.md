@@ -2,14 +2,13 @@
 
 > ⚠️ **DO NOT MERGE. DO NOT USE IN PRODUCTION.** ⚠️
 >
-> This directory exists **only** on the `moul/hf-glue-experimental` branch,
-> which is the *glue* PR combining [#5411](https://github.com/gnolang/gno/pull/5411)
-> (genesis-replay mechanism) and [#5376](https://github.com/gnolang/gno/pull/5376)
-> (gnoland-1 chain config) so the hardfork flow can be smoke-tested end-to-end in Docker.
+> This directory is throwaway tooling for smoke-testing the hardfork flow
+> end-to-end in Docker. It depends on
+> [#5511](https://github.com/gnolang/gno/pull/5511) (chain hardfork mechanism v3:
+> `PastChainIDs`, `SignerInfo` metadata, `InitialHeight` fixes) and
+> [#5376](https://github.com/gnolang/gno/pull/5376) (gnoland-1 chain config).
 >
-> The contents of this folder are throwaway tooling — we are using this branch to
-> find gaps in #5411/#5376 and then coordinate fixes **back upstream**, not to ship
-> a new blessed workflow.
+> Findings get reported back upstream, **not** fixed on this branch.
 
 ## What this gives you
 
@@ -90,21 +89,20 @@ make fetch init up
 
 ## Known gaps / what we are hunting for
 
-This testbed exists so we can find and file issues against #5411 / #5376. Early
-suspects (to be confirmed by running it):
+Items addressed by #5511 (should now work):
 
-- [ ] Account numbers / sequences preserved across chain ID switch? (see 5411 open items)
-- [ ] Auth genesis state carried from source chain, or reset by hardfork tool?
-- [ ] Historical tx signatures verify against `original_chain_id` all the way
-      through genesis replay — no `chainID` leakage?
-- [ ] `GenesisDoc.InitialHeight` correctly picked up so `state.LastBlockHeight`
-      is set before the first new block?
-- [ ] First block after replay produced at `InitialHeight` exactly?
-- [ ] `valoper` fee = 0 carried over via param preservation?
-- [ ] Replay time on a real gnoland1 dataset (tune `timeout` in `hardfork test`)
+- [x] Account numbers / sequences preserved — `SignerInfo` metadata carries per-signer state
+- [x] Historical tx signatures verify via `PastChainIDs` allowlist (no `chainID` leakage)
+- [x] `GenesisDoc.InitialHeight` correctly handled across consensus, state, store, SDK
 
-Findings get reported back to #5411 / #5376 as issues/review comments, **not**
-fixed on this branch.
+Still to validate end-to-end in Docker:
+
+- [ ] Full genesis replay completes without `--skip-failing-genesis-txs`
+- [ ] First block after replay produced at `InitialHeight` exactly
+- [ ] New txs can be posted against the forked chain with the new chain ID
+- [ ] `valoper` fee = 0 carried over via param preservation
+- [ ] Replay time on a real gnoland1/betanet dataset (feasibility)
+- [ ] Node can restart from persisted state after replay
 
 ## Relation to `hardfork test`
 

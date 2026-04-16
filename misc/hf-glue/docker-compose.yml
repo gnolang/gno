@@ -18,7 +18,6 @@ services:
     command:
       - start
       - --lazy=true
-      - --skip-genesis-sig-verification
       - --skip-failing-genesis-txs
       - --data-dir=/gnoroot/gnoland-data
       - --genesis=/gnoroot/gnoland-data/genesis.json

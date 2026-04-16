@@ -47,7 +47,19 @@ go run -C "$REPO/misc/hf-glue/fixvalidator" . \
   --name "$VALIDATOR_NAME" \
   --power 10
 
-# ---- 3. stage genesis.json next to the node data ----
+# ---- 3. write config.toml so RPC binds to 0.0.0.0 (accessible from host) ----
+CONFIG_DIR="$HOME_DIR/config"
+mkdir -p "$CONFIG_DIR"
+go run -C "$REPO" ./gno.land/cmd/gnoland config init -config-path "$CONFIG_DIR/config.toml"
+# Patch the generated config to bind to 0.0.0.0 (accessible from Docker host)
+if command -v sed >/dev/null 2>&1; then
+  sed -i.bak 's|tcp://127.0.0.1:26657|tcp://0.0.0.0:26657|' "$CONFIG_DIR/config.toml"
+  sed -i.bak 's|tcp://127.0.0.1:26656|tcp://0.0.0.0:26656|' "$CONFIG_DIR/config.toml"
+  rm -f "$CONFIG_DIR/config.toml.bak"
+fi
+echo "  config written to $CONFIG_DIR/config.toml"
+
+# ---- 4. stage genesis.json next to the node data ----
 cp "$GENESIS" "$HOME_DIR/genesis.json"
 
 echo ""
