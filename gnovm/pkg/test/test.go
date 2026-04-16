@@ -305,7 +305,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		filter := splitRegexp(opts.RunFlag)
 		for _, testFile := range ftfiles {
 			testFileName := testFile.Name
-			testFilePath := filepath.Join(fsDir, testFileName)
+			testFilePath := filepath.Join(fsDir, "filetests", testFileName)
 			// XXX consider this
 			testName := fsDir + "/" + testFileName
 			// testName := "file/" + testFileName
