@@ -1,0 +1,36 @@
+name: TM2 bptree race
+
+# Runs the bptree and store/bptree packages under -race. Separated from the
+# main tm2 workflow so concurrency regressions show up as a dedicated job
+# without inflating the coverage-instrumented test runtime.
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - tm2/pkg/bptree/**
+      - tm2/pkg/store/bptree/**
+      - .github/workflows/tm2-bptree-race.yml
+      - go.mod
+  workflow_dispatch:
+
+jobs:
+  race:
+    name: Go test -race (bptree)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+      - name: go test -race
+        working-directory: tm2
+        run: |
+          set -x
+          go test -race -timeout 30m -count=1 \
+            ./pkg/bptree/... \
+            ./pkg/store/bptree/...

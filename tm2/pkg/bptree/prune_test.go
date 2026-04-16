@@ -2,7 +2,9 @@ package bptree
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -953,5 +955,401 @@ func TestPrune_EmptyVersions(t *testing.T) {
 	// V2 should work
 	if !tree.VersionExists(2) {
 		t.Fatalf("v2 should exist")
+	}
+}
+
+// TestPrune_Height3ChurnAndPrune stresses the dual-tree-walk pruning
+// algorithm against a height-3 tree (≥ 32768 keys at B=32) with a
+// high-churn delete + insert + prune workload. This is the specific
+// regime where `findCorrespondingChild` has historically misidentified
+// subtrees during inner-node splits and merges (see POTENTIAL_IMPROVEMENTS.md
+// Finding #3).
+//
+// The workload per iteration:
+//  1. Delete ~20% of live keys (forces merges across inner-node boundaries).
+//  2. Insert ~25% new keys (forces splits; some of the new keys fall
+//     into ranges that were just merged, causing re-split at different
+//     positions than the original split).
+//  3. SaveVersion, then prune everything up to latest-1.
+//  4. Reload latest from a fresh MutableTree against the same DB and
+//     verify every live key, the root hash, and tree size.
+//
+// Shrinks deterministically with a fixed seed so crashes are
+// reproducible. Marked `t.Short()`-skippable because the full run
+// pushes ~40k keys through the tree and takes several seconds.
+func TestPrune_Height3ChurnAndPrune(t *testing.T) {
+	if testing.Short() {
+		t.Skip("height-3 stress; skip under -short")
+	}
+
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 2000, NewNopLogger())
+
+	mirror := make(map[string][]byte)
+	rng := rand.New(rand.NewSource(0xbadf00d))
+
+	// Bootstrap: insert 40k keys to reach height 3 (32^3 = 32768).
+	// Using 8-byte keys drawn from a 200k-key namespace so subsequent
+	// random deletes + inserts land across the full range.
+	const namespaceSize = 200_000
+	keyBytes := func(id uint64) []byte {
+		var b [8]byte
+		binary.BigEndian.PutUint64(b[:], id)
+		return b[:]
+	}
+	valBytes := func(rng *rand.Rand) []byte {
+		var b [16]byte
+		binary.BigEndian.PutUint64(b[:8], rng.Uint64())
+		binary.BigEndian.PutUint64(b[8:], rng.Uint64())
+		return b[:]
+	}
+
+	// Bootstrap.
+	for i := 0; i < 40_000; i++ {
+		id := uint64(rng.Intn(namespaceSize))
+		k := keyBytes(id)
+		v := valBytes(rng)
+		if _, err := tree.Set(k, v); err != nil {
+			t.Fatalf("bootstrap Set: %v", err)
+		}
+		mirror[string(k)] = v
+	}
+	hash1, v1, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatalf("SaveVersion bootstrap: %v", err)
+	}
+	if tree.Height() < 3 {
+		t.Fatalf("need height >= 3 for this reproducer, got %d", tree.Height())
+	}
+	t.Logf("bootstrap: v=%d, size=%d, height=%d, hash=%x", v1, tree.Size(), tree.Height(), hash1[:8])
+
+	// Churn loop: 12 iterations, each a delete+insert+prune cycle.
+	const iterations = 12
+	currentVer := v1
+	for iter := 0; iter < iterations; iter++ {
+		// --- 1. Delete ~20% of live keys ---
+		liveKeys := make([][]byte, 0, len(mirror))
+		for k := range mirror {
+			liveKeys = append(liveKeys, []byte(k))
+		}
+		rng.Shuffle(len(liveKeys), func(i, j int) { liveKeys[i], liveKeys[j] = liveKeys[j], liveKeys[i] })
+		toDelete := len(liveKeys) / 5
+		for i := 0; i < toDelete; i++ {
+			k := liveKeys[i]
+			if _, _, err := tree.Remove(k); err != nil {
+				t.Fatalf("iter %d: Remove(%x): %v", iter, k, err)
+			}
+			delete(mirror, string(k))
+		}
+
+		// --- 2. Insert ~25% new keys ---
+		toInsert := (len(mirror) + toDelete) / 4
+		for i := 0; i < toInsert; i++ {
+			id := uint64(rng.Intn(namespaceSize))
+			k := keyBytes(id)
+			v := valBytes(rng)
+			if _, err := tree.Set(k, v); err != nil {
+				t.Fatalf("iter %d: Set: %v", iter, err)
+			}
+			mirror[string(k)] = v
+		}
+
+		// --- 3. Save and prune ---
+		latestHash, newVer, err := tree.SaveVersion()
+		if err != nil {
+			t.Fatalf("iter %d: SaveVersion: %v", iter, err)
+		}
+		currentVer = newVer
+		if newVer >= 2 {
+			if err := tree.DeleteVersionsTo(newVer - 1); err != nil {
+				t.Fatalf("iter %d: DeleteVersionsTo(%d): %v", iter, newVer-1, err)
+			}
+		}
+
+		// --- 4. Verify: reload latest from fresh tree, check hash + every key ---
+		tree2 := NewMutableTreeWithDB(db, 2000, NewNopLogger())
+		if _, err := tree2.LoadVersion(newVer); err != nil {
+			t.Fatalf("iter %d: LoadVersion(%d): %v", iter, newVer, err)
+		}
+		if !bytes.Equal(latestHash, tree2.WorkingHash()) {
+			t.Fatalf("iter %d: hash mismatch after prune: got %x want %x",
+				iter, tree2.WorkingHash()[:8], latestHash[:8])
+		}
+		if int(tree2.Size()) != len(mirror) {
+			t.Fatalf("iter %d: size %d != mirror %d", iter, tree2.Size(), len(mirror))
+		}
+		// Spot-check every live key resolves to the expected value.
+		// Iterating the mirror directly so we catch nodes that are
+		// silently missing from the DB post-prune.
+		for k, want := range mirror {
+			got, err := tree2.Get([]byte(k))
+			if err != nil {
+				t.Fatalf("iter %d: Get(%x) after prune: %v", iter, []byte(k), err)
+			}
+			if !bytes.Equal(got, want) {
+				t.Fatalf("iter %d: Get(%x) after prune: got %x, want %x",
+					iter, []byte(k), got, want)
+			}
+		}
+
+		if iter%3 == 0 {
+			t.Logf("iter %d: v=%d size=%d height=%d", iter, newVer, tree2.Size(), tree2.Height())
+		}
+	}
+
+	_ = currentVer
+}
+
+// TestPrune_CascadingMultiVersionPrune creates many retained versions
+// with heavy churn between each, then prunes them all in a single
+// DeleteVersionsTo call. This exercises the cascading prune path
+// (pruneVersion is called for every intermediate version), which is
+// where a silently corrupted DB from pass N would manifest as an error
+// or missing-key failure during pass N+1.
+//
+// If findCorrespondingChild ever incorrectly deletes a node that is
+// still shared with a later version, a subsequent pass on that later
+// version will panic (via getChild returning an error) or silently
+// produce an incorrect hash. Both are caught by the reload/verify loop.
+func TestPrune_CascadingMultiVersionPrune(t *testing.T) {
+	if testing.Short() {
+		t.Skip("cascading multi-version prune; skip under -short")
+	}
+
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 2000, NewNopLogger())
+	rng := rand.New(rand.NewSource(0xbadcafe))
+
+	const namespaceSize = 200_000
+	keyBytes := func(id uint64) []byte {
+		var b [8]byte
+		binary.BigEndian.PutUint64(b[:], id)
+		return b[:]
+	}
+	valBytes := func(rng *rand.Rand) []byte {
+		var b [16]byte
+		binary.BigEndian.PutUint64(b[:8], rng.Uint64())
+		binary.BigEndian.PutUint64(b[8:], rng.Uint64())
+		return b[:]
+	}
+
+	mirror := make(map[string][]byte)
+
+	// Bootstrap to height 3 with heavy churn.
+	for i := 0; i < 40_000; i++ {
+		id := uint64(rng.Intn(namespaceSize))
+		k := keyBytes(id)
+		v := valBytes(rng)
+		if _, err := tree.Set(k, v); err != nil {
+			t.Fatalf("bootstrap Set: %v", err)
+		}
+		mirror[string(k)] = v
+	}
+	if _, _, err := tree.SaveVersion(); err != nil {
+		t.Fatalf("bootstrap SaveVersion: %v", err)
+	}
+	if tree.Height() < 3 {
+		t.Fatalf("need height >= 3, got %d", tree.Height())
+	}
+
+	// Create 15 additional versions with a mix of inserts and removes
+	// between each SaveVersion. 15 levels of separation between the
+	// bootstrap and the final version is enough to exercise all the
+	// dual-tree-walk paths: pass 1 (v1 vs v2), pass 2 (v2 vs v3), ...,
+	// pass 14 (v14 vs v15).
+	const extraVersions = 15
+	for v := 0; v < extraVersions; v++ {
+		// ~15% churn per version.
+		liveKeys := make([][]byte, 0, len(mirror))
+		for k := range mirror {
+			liveKeys = append(liveKeys, []byte(k))
+		}
+		rng.Shuffle(len(liveKeys), func(i, j int) { liveKeys[i], liveKeys[j] = liveKeys[j], liveKeys[i] })
+		toDelete := len(liveKeys) * 15 / 100
+		for i := 0; i < toDelete; i++ {
+			k := liveKeys[i]
+			if _, _, err := tree.Remove(k); err != nil {
+				t.Fatalf("v%d: Remove: %v", v, err)
+			}
+			delete(mirror, string(k))
+		}
+		toInsert := toDelete + toDelete/3
+		for i := 0; i < toInsert; i++ {
+			id := uint64(rng.Intn(namespaceSize))
+			k := keyBytes(id)
+			v := valBytes(rng)
+			if _, err := tree.Set(k, v); err != nil {
+				t.Fatalf("Set: %v", err)
+			}
+			mirror[string(k)] = v
+		}
+		if _, _, err := tree.SaveVersion(); err != nil {
+			t.Fatalf("SaveVersion: %v", err)
+		}
+	}
+
+	latestHash := tree.WorkingHash()
+	latestVer := tree.Version()
+	t.Logf("pre-prune: versions=%d, size=%d, height=%d", latestVer, tree.Size(), tree.Height())
+
+	// CRITICAL: prune all versions except the latest in a single call.
+	// This drives pruneVersion() for v=1,2,...,latestVer-1 consecutively,
+	// which is exactly the cascading path documented in Finding #3.
+	if err := tree.DeleteVersionsTo(latestVer - 1); err != nil {
+		t.Fatalf("DeleteVersionsTo(%d): %v", latestVer-1, err)
+	}
+
+	// Reload the latest from a fresh tree handle.
+	tree2 := NewMutableTreeWithDB(db, 2000, NewNopLogger())
+	if _, err := tree2.LoadVersion(latestVer); err != nil {
+		t.Fatalf("LoadVersion(%d) after cascading prune: %v", latestVer, err)
+	}
+	if !bytes.Equal(latestHash, tree2.WorkingHash()) {
+		t.Fatalf("hash mismatch after cascading prune: got %x want %x",
+			tree2.WorkingHash()[:8], latestHash[:8])
+	}
+	if int(tree2.Size()) != len(mirror) {
+		t.Fatalf("size mismatch: tree=%d mirror=%d", tree2.Size(), len(mirror))
+	}
+	for k, want := range mirror {
+		got, err := tree2.Get([]byte(k))
+		if err != nil {
+			t.Fatalf("Get(%x) after cascading prune: %v", []byte(k), err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("Get(%x): got %x want %x", []byte(k), got, want)
+		}
+	}
+	t.Logf("post-prune: size=%d, height=%d, nodes=%d, values=%d",
+		tree2.Size(), tree2.Height(), countDBNodes(db), countDBValues(db))
+}
+
+// TestPrune_HeightOscillation drives a workload that repeatedly grows
+// and shrinks the tree through heights 2 → 3 → 2 → 3, pruning every
+// intermediate version. If any prune pass incorrectly deletes a node
+// shared with a later version, a subsequent cycle will fail either:
+//   - at LoadVersion time ("failed to load child node"),
+//   - at SaveVersion time (rebuild reads corrupted children),
+//   - at Get-after-prune time (value missing from mirror).
+//
+// The shrink-then-grow pattern is specifically the one where
+// findCorrespondingChild's separator-based routing is stressed the
+// most: same key range appears at different tree heights across
+// versions.
+func TestPrune_HeightOscillation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("height oscillation stress; skip under -short")
+	}
+
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 2000, NewNopLogger())
+	rng := rand.New(rand.NewSource(0xfeedface))
+
+	keyBytes := func(id uint64) []byte {
+		var b [8]byte
+		binary.BigEndian.PutUint64(b[:], id)
+		return b[:]
+	}
+	valBytes := func(rng *rand.Rand) []byte {
+		var b [16]byte
+		binary.BigEndian.PutUint64(b[:8], rng.Uint64())
+		binary.BigEndian.PutUint64(b[8:], rng.Uint64())
+		return b[:]
+	}
+
+	mirror := make(map[string][]byte)
+
+	// Phase 1: Grow to height 3.
+	for i := 0; i < 40_000; i++ {
+		k := keyBytes(uint64(rng.Intn(200_000)))
+		v := valBytes(rng)
+		tree.Set(k, v)
+		mirror[string(k)] = v
+	}
+	if _, _, err := tree.SaveVersion(); err != nil {
+		t.Fatalf("bootstrap save: %v", err)
+	}
+	if tree.Height() < 3 {
+		t.Fatalf("want height >= 3, got %d", tree.Height())
+	}
+
+	// 4 oscillation cycles: shrink to height 2, grow back to height 3.
+	// After each phase, prune ALL prior versions to force the
+	// dual-tree-walk across the structural transition.
+	for cycle := 0; cycle < 4; cycle++ {
+		// --- Shrink: delete 80% of keys, dropping to height 2. ---
+		liveKeys := make([][]byte, 0, len(mirror))
+		for k := range mirror {
+			liveKeys = append(liveKeys, []byte(k))
+		}
+		rng.Shuffle(len(liveKeys), func(i, j int) { liveKeys[i], liveKeys[j] = liveKeys[j], liveKeys[i] })
+		toDelete := len(liveKeys) * 4 / 5
+		for i := 0; i < toDelete; i++ {
+			k := liveKeys[i]
+			if _, _, err := tree.Remove(k); err != nil {
+				t.Fatalf("cycle %d shrink Remove: %v", cycle, err)
+			}
+			delete(mirror, string(k))
+		}
+		latestHash, shrunkVer, err := tree.SaveVersion()
+		if err != nil {
+			t.Fatalf("cycle %d shrink save: %v", cycle, err)
+		}
+		// Prune all prior versions.
+		if shrunkVer >= 2 {
+			if err := tree.DeleteVersionsTo(shrunkVer - 1); err != nil {
+				t.Fatalf("cycle %d shrink prune: %v", cycle, err)
+			}
+		}
+		// Verify.
+		t2 := NewMutableTreeWithDB(db, 2000, NewNopLogger())
+		if _, err := t2.LoadVersion(shrunkVer); err != nil {
+			t.Fatalf("cycle %d shrink reload: %v", cycle, err)
+		}
+		if !bytes.Equal(latestHash, t2.WorkingHash()) {
+			t.Fatalf("cycle %d shrink: hash mismatch", cycle)
+		}
+		if int(t2.Size()) != len(mirror) {
+			t.Fatalf("cycle %d shrink: size %d != mirror %d", cycle, t2.Size(), len(mirror))
+		}
+		for k, want := range mirror {
+			got, _ := t2.Get([]byte(k))
+			if !bytes.Equal(got, want) {
+				t.Fatalf("cycle %d shrink: Get(%x) got %x want %x", cycle, []byte(k), got, want)
+			}
+		}
+		t.Logf("cycle %d shrunk: v=%d size=%d height=%d", cycle, shrunkVer, t2.Size(), t2.Height())
+
+		// --- Grow: re-insert 40k keys with fresh values, back to height 3. ---
+		for i := 0; i < 40_000; i++ {
+			k := keyBytes(uint64(rng.Intn(200_000)))
+			v := valBytes(rng)
+			tree.Set(k, v)
+			mirror[string(k)] = v
+		}
+		latestHash, grewVer, err := tree.SaveVersion()
+		if err != nil {
+			t.Fatalf("cycle %d grow save: %v", cycle, err)
+		}
+		if err := tree.DeleteVersionsTo(grewVer - 1); err != nil {
+			t.Fatalf("cycle %d grow prune: %v", cycle, err)
+		}
+		t3 := NewMutableTreeWithDB(db, 2000, NewNopLogger())
+		if _, err := t3.LoadVersion(grewVer); err != nil {
+			t.Fatalf("cycle %d grow reload: %v", cycle, err)
+		}
+		if !bytes.Equal(latestHash, t3.WorkingHash()) {
+			t.Fatalf("cycle %d grow: hash mismatch", cycle)
+		}
+		if int(t3.Size()) != len(mirror) {
+			t.Fatalf("cycle %d grow: size %d != mirror %d", cycle, t3.Size(), len(mirror))
+		}
+		for k, want := range mirror {
+			got, _ := t3.Get([]byte(k))
+			if !bytes.Equal(got, want) {
+				t.Fatalf("cycle %d grow: Get(%x) got %x want %x", cycle, []byte(k), got, want)
+			}
+		}
+		t.Logf("cycle %d grew: v=%d size=%d height=%d", cycle, grewVer, t3.Size(), t3.Height())
 	}
 }
