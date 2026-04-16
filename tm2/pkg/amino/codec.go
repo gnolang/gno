@@ -189,7 +189,6 @@ type Codec struct {
 	fullnameToTypeInfo map[string]*TypeInfo
 	packages           pkg.PackageSet
 	usePBBindings      bool
-	usePB2Bindings     bool
 }
 
 func NewCodec() *Codec {
@@ -216,20 +215,6 @@ func (cdc *Codec) WithPBBindings() *Codec {
 		fullnameToTypeInfo: cdc.fullnameToTypeInfo,
 		packages:           cdc.packages,
 		usePBBindings:      true,
-	}
-}
-
-// Returns a new codec that is optimized w/ genproto2 direct encoding.
-// The returned codec is sealed, but may be affected by
-// modifications to the underlying codec.
-func (cdc *Codec) WithPB2Bindings() *Codec {
-	return &Codec{
-		sealed:             cdc.sealed,
-		autoseal:           cdc.autoseal,
-		typeInfos:          cdc.typeInfos,
-		fullnameToTypeInfo: cdc.fullnameToTypeInfo,
-		packages:           cdc.packages,
-		usePB2Bindings:     true,
 	}
 }
 
