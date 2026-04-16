@@ -10,11 +10,13 @@ type removeResult struct {
 
 // treeRemove removes a key from the tree rooted at root.
 // Returns the (possibly new) root, old value hash, old valueKey, and whether found.
+//
+// The caller is responsible for COW-cloning the root before calling this
+// function (MutableTree.Remove does this via cowRoot()). See Finding #17.
 func treeRemove(root Node, key []byte) (Node, Hash, []byte, bool) {
 	if root == nil {
 		return nil, Hash{}, nil, false
 	}
-	root = cloneNode(root)
 	res := nodeRemove(root, key)
 	if !res.found {
 		return root, Hash{}, nil, false

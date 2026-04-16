@@ -52,39 +52,31 @@ func (m *MiniMerkle) Clear() {
 	}
 }
 
-// SiblingPath returns the log₂(B) sibling hashes needed to prove that
-// slot[index] is part of the mini merkle root. The path goes from the
-// leaf level toward the root. Each entry is the sibling's hash at that level.
-// Also returns the position indices (0=left child, 1=right child) indicating
-// which side the proven slot is on at each level.
-func (m *MiniMerkle) SiblingPath(index int) (siblings []Hash, positions []int) {
-	siblings = make([]Hash, 0, miniMerkleDepth())
-	positions = make([]int, 0, miniMerkleDepth())
+// SiblingPath returns the MiniMerkleDepth sibling hashes needed to prove
+// that slot[index] is part of the mini merkle root. The path goes from
+// the leaf level toward the root. Each entry is the sibling's hash at
+// that level. Also returns the position indices (0=left child,
+// 1=right child) indicating which side the proven slot is on at each
+// level.
+//
+// Returns fixed-size arrays by value so the results stay on the caller's
+// stack; the previous implementation made two parallel slices per call
+// via `make(..., 0, 5)`, allocating on every proof step. See Finding #21.
+func (m *MiniMerkle) SiblingPath(index int) (siblings [MiniMerkleDepth]Hash, positions [MiniMerkleDepth]int) {
 	pos := B + index
-	for pos > 1 {
+	for i := 0; pos > 1; i++ {
 		if pos%2 == 0 {
 			// pos is left child, sibling is right
-			siblings = append(siblings, m.tree[pos+1])
-			positions = append(positions, 0) // proven node is left child
+			siblings[i] = m.tree[pos+1]
+			positions[i] = 0 // proven node is left child
 		} else {
 			// pos is right child, sibling is left
-			siblings = append(siblings, m.tree[pos-1])
-			positions = append(positions, 1) // proven node is right child
+			siblings[i] = m.tree[pos-1]
+			positions[i] = 1 // proven node is right child
 		}
 		pos /= 2
 	}
 	return
-}
-
-// miniMerkleDepth returns log₂(B), the depth of the mini merkle tree.
-func miniMerkleDepth() int {
-	d := 0
-	n := B
-	for n > 1 {
-		n /= 2
-		d++
-	}
-	return d
 }
 
 // NewMiniMerkle creates a MiniMerkle with all slots set to the sentinel.

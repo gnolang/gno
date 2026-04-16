@@ -16,6 +16,13 @@ const (
 	// NodeKeySize is the size of a serialized NodeKey (version:8 + nonce:4).
 	NodeKeySize = 12
 
+	// MiniMerkleDepth is log₂(B) — the height of the mini-merkle tree
+	// above each node's B slots. Compile-time constant that replaces
+	// the former runtime miniMerkleDepth() log₂ loop (Finding #21).
+	// init() verifies B == 1<<MiniMerkleDepth so this stays in sync if B
+	// is ever adjusted.
+	MiniMerkleDepth = 5
+
 	// Domain separator prefix bytes (RFC 6962).
 	DomainLeaf  byte = 0x00
 	DomainInner byte = 0x01
@@ -48,6 +55,9 @@ var emptyTreeHash Hash
 func init() {
 	if B&(B-1) != 0 {
 		panic("B must be a power of 2 (required for mini-merkle heap layout)")
+	}
+	if B != 1<<MiniMerkleDepth {
+		panic("MiniMerkleDepth out of sync with B (must satisfy B == 1<<MiniMerkleDepth)")
 	}
 	sentinelHash = sha256.Sum256([]byte{DomainEmpty})
 	emptyTreeHash = sha256.Sum256(nil)

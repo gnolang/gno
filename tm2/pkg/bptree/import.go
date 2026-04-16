@@ -39,7 +39,7 @@ func (imp *Importer) Add(node *ExportNode) error {
 	case node.Height == 0:
 		// Leaf entry: compute value hash, allocate valueKey, save value, buffer.
 		valueHash := sha256.Sum256(node.Value)
-		vk := (&NodeKey{Version: imp.version, Nonce: imp.nextNonce}).GetKey()
+		vk := encodeNodeKeyBytes(imp.version, imp.nextNonce)
 		imp.nextNonce++
 		if imp.tree.ndb != nil {
 			if err := imp.tree.ndb.SaveValue(node.Value, vk); err != nil {

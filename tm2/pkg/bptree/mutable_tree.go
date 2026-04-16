@@ -34,6 +34,15 @@ type MutableTree struct {
 	// Tier 2: cross-version orphaned ValueKeys (from prior committed versions).
 	// Persisted to DB at SaveVersion, consumed during PruneVersionsTo.
 	versionOrphans [][]byte
+
+	// Cached root-hash slices. Hash() / WorkingHash() each return a
+	// []byte view of a [32]byte Hash value; the naive `h := x.Hash(); return h[:]`
+	// pattern forces h to escape to the heap on every call. Holding the
+	// slice here keeps the allocation to one per invalidation boundary
+	// instead of one per call. nil means "recompute on next call".
+	// See Finding #21.
+	cachedRootHash  []byte // invalidated on t.root change (Set, Remove, LoadVersion, Rollback)
+	cachedSavedHash []byte // invalidated on t.lastSaved change (SaveVersion, LoadVersion, Rollback)
 }
 
 // NewMutableTreeMem creates an in-memory MutableTree (no DB).
@@ -45,11 +54,26 @@ func NewMutableTreeMem() *MutableTree {
 	}
 }
 
+// cowRoot ensures t.root is a mutable, working-version clone. It clones
+// the root if it is shared with the lastSaved snapshot or came from the
+// persistent layer (has a durable NodeKey). Once cloned, subsequent
+// mutations within the same working version can skip the clone because
+// t.root is neither == t.lastSaved nor has a NodeKey. See Finding #17.
+func (t *MutableTree) cowRoot() {
+	if t.root == nil {
+		return
+	}
+	if t.root == t.lastSaved || t.root.GetNodeKey() != nil {
+		t.root = cloneNode(t.root)
+	}
+}
+
 // allocValueKey allocates a unique ValueKey for the current working session.
+// The NodeKey struct is bypassed — only the serialized bytes are needed,
+// so skipping the wrapper saves one heap allocation per Set. See Finding #21.
 func (t *MutableTree) allocValueKey() []byte {
-	nk := &NodeKey{Version: t.WorkingVersion(), Nonce: t.nextValueNonce}
+	vk := encodeNodeKeyBytes(t.WorkingVersion(), t.nextValueNonce)
 	t.nextValueNonce++
-	vk := nk.GetKey()
 	t.sessionValues = append(t.sessionValues, vk)
 	return vk
 }
@@ -90,6 +114,7 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	if value == nil {
 		return false, fmt.Errorf("value must not be nil")
 	}
+	t.cachedRootHash = nil // working tree about to mutate — invalidate cache (Finding #21)
 
 	// Allocate the ValueKey and persist the value FIRST. allocValueKey
 	// also appends vk to sessionValues so Rollback can clean up if this
@@ -122,6 +147,7 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 		return false, nil
 	}
 
+	t.cowRoot()
 	newRoot, updated, oldValueKey := treeInsert(t.root, key, valueHash, vk)
 	t.root = newRoot
 	if !updated {
@@ -210,6 +236,8 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 	if t.root == nil {
 		return nil, false, nil
 	}
+	t.cachedRootHash = nil // working tree about to mutate — invalidate cache (Finding #21)
+	t.cowRoot()
 	newRoot, _, oldVK, found := treeRemove(t.root, key)
 	if !found {
 		return nil, false, nil
@@ -238,11 +266,11 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		t.sessionValues = t.sessionValues[:0]
 		t.versionOrphans = t.versionOrphans[:0]
 		t.nextValueNonce = 1
-		if t.root == nil {
-			return emptyHash(), version, nil
-		}
-		h := t.root.Hash()
-		return h[:], version, nil
+		// lastSaved just became root — saved-hash cache is now the
+		// working-hash cache. Defer to WorkingHash() so the first
+		// caller populates both entries in one step.
+		t.cachedSavedHash = nil
+		return t.WorkingHash(), version, nil
 	}
 
 	// If this version already exists, verify the hash matches.
@@ -252,14 +280,7 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		if err != nil {
 			return nil, 0, err
 		}
-		var newHash []byte
-		if t.root != nil {
-			// Need to compute the working hash to compare
-			h := t.root.Hash()
-			newHash = h[:]
-		} else {
-			newHash = emptyHash()
-		}
+		newHash := t.WorkingHash()
 		// Legacy empty-tree blobs (zero-length stored value) deserialize
 		// as (nil, nil) from GetRoot. Normalize to the canonical empty
 		// hash so an idempotent re-save of an empty tree is recognised
@@ -276,6 +297,7 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		// Same hash — idempotent save, skip
 		t.version = version
 		t.lastSaved = t.root
+		t.cachedSavedHash = t.cachedRootHash
 		return newHash, version, nil
 	}
 
@@ -289,15 +311,12 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 	}
 
 	// Save root reference
-	var rootHash []byte
+	rootHash := t.WorkingHash()
 	if t.root != nil {
-		h := t.root.Hash()
-		rootHash = h[:]
 		if err := t.ndb.SaveRoot(version, t.root.GetNodeKey(), rootHash); err != nil {
 			return nil, 0, err
 		}
 	} else {
-		rootHash = emptyHash()
 		if err := t.ndb.SaveRoot(version, nil, rootHash); err != nil {
 			return nil, 0, err
 		}
@@ -315,6 +334,7 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 
 	t.version = version
 	t.lastSaved = t.root
+	t.cachedSavedHash = t.cachedRootHash
 	t.ndb.setLatestVersion(version)
 	if t.ndb.getFirstVersion() == 0 {
 		t.ndb.setFirstVersion(version)
@@ -329,6 +349,17 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 }
 
 // saveNode recursively assigns NodeKeys and saves dirty nodes.
+//
+// Finding #4: only slots whose in-memory child exists AND is dirty are
+// visited. Slots with childNodes[i] == nil (never mutated since the
+// parent was cloned or loaded) are skipped entirely — their serialized
+// ref (children[i]) and hash (childHashes[i]) were preserved by the
+// array-copy in Clone() and remain authoritative. Slots whose cached
+// child has a NodeKey (clean — loaded from DB for a read but never
+// mutated) are likewise skipped; re-saving a node that already has a
+// durable NodeKey is a no-op but the old code still paid for the
+// getChild() call, which triggers a DB read + ReadNode + 31-hash
+// mini-merkle rebuild for any sibling of a mutated leaf.
 func (t *MutableTree) saveNode(node Node, version int64) error {
 	if node.GetNodeKey() != nil {
 		return nil // already saved
@@ -337,15 +368,22 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 	// For inner nodes, save children first (bottom-up)
 	if inner, ok := node.(*InnerNode); ok {
 		for i := 0; i < inner.NumChildren(); i++ {
-			child := inner.getChild(i)
-			if child != nil {
-				if err := t.saveNode(child, version); err != nil {
-					return err
-				}
-				// Update child reference and hash after save
-				inner.children[i] = child.GetNodeKey().GetKey()
-				inner.childHashes[i] = child.Hash()
+			child := inner.childNodes[i]
+			if child == nil {
+				// Unchanged subtree — serialized ref + hash already current.
+				continue
 			}
+			if child.GetNodeKey() != nil {
+				// Clean cached child (read-only touch); nothing to persist.
+				continue
+			}
+			// Dirty child — save recursively and refresh the parent's
+			// serialized ref + hash from the newly assigned NodeKey.
+			if err := t.saveNode(child, version); err != nil {
+				return err
+			}
+			inner.children[i] = child.GetNodeKey().GetKey()
+			inner.childHashes[i] = child.Hash()
 		}
 		inner.RebuildMiniMerkle()
 	}
@@ -405,6 +443,8 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 		t.size = 0
 		t.version = version
 		t.lastSaved = nil
+		t.cachedRootHash = nil
+		t.cachedSavedHash = nil
 		return latestVersion, nil
 	}
 
@@ -417,6 +457,8 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	t.size = nodeSize(root)
 	t.version = version
 	t.lastSaved = root
+	t.cachedRootHash = nil
+	t.cachedSavedHash = nil
 	return latestVersion, nil
 }
 
@@ -519,21 +561,35 @@ func (t *MutableTree) IsEmpty() bool { return t.root == nil }
 // Hash returns the root hash of the last saved version.
 // Returns SHA256("") for empty trees, matching IAVL behavior.
 func (t *MutableTree) Hash() []byte {
+	if t.cachedSavedHash != nil {
+		return t.cachedSavedHash
+	}
 	if t.lastSaved == nil {
-		return emptyHash()
+		t.cachedSavedHash = emptyHash()
+		return t.cachedSavedHash
 	}
 	h := t.lastSaved.Hash()
-	return h[:]
+	buf := make([]byte, HashSize)
+	copy(buf, h[:])
+	t.cachedSavedHash = buf
+	return buf
 }
 
 // WorkingHash computes the hash of the current unsaved working tree.
 // Returns SHA256("") for empty trees, matching IAVL behavior.
 func (t *MutableTree) WorkingHash() []byte {
+	if t.cachedRootHash != nil {
+		return t.cachedRootHash
+	}
 	if t.root == nil {
-		return emptyHash()
+		t.cachedRootHash = emptyHash()
+		return t.cachedRootHash
 	}
 	h := t.root.Hash()
-	return h[:]
+	buf := make([]byte, HashSize)
+	copy(buf, h[:])
+	t.cachedRootHash = buf
+	return buf
 }
 
 // WorkingVersion returns the version that will be used by the next SaveVersion.
@@ -549,8 +605,18 @@ func (t *MutableTree) Version() int64 { return t.version }
 
 // Snapshot creates an ImmutableTree snapshot of the current working tree
 // with a properly wired value resolver. For tests and lightweight snapshots.
+//
+// The root is cloned so subsequent mutations on the MutableTree cannot
+// corrupt the snapshot's view. The child arrays are copied by value
+// (fixed-size arrays), so subsequent COW descents that swap child
+// pointers in the MutableTree's root do not affect the snapshot's root.
+// See Finding #17.
 func (t *MutableTree) Snapshot(version int64) *ImmutableTree {
-	imm := NewImmutableTree(t.root, version)
+	var snapRoot Node
+	if t.root != nil {
+		snapRoot = cloneNode(t.root)
+	}
+	imm := NewImmutableTree(snapRoot, version)
 	if t.ndb != nil {
 		imm.valueResolver = func(vk []byte) ([]byte, error) {
 			return t.ndb.GetValue(vk)
@@ -636,6 +702,9 @@ func (t *MutableTree) Rollback() {
 	} else {
 		t.size = 0
 	}
+	// root is now the saved root — the working-hash cache, if any, is
+	// stale; reuse the saved-hash cache as-is (it is still valid).
+	t.cachedRootHash = t.cachedSavedHash
 }
 
 // Height returns the tree height.

@@ -12,11 +12,14 @@ type insertResult struct {
 // treeInsert inserts a key with a pre-computed value hash and valueKey.
 // Returns the (possibly new) root, whether it was an update, and the old
 // valueKey if an existing key was overwritten (nil otherwise).
+//
+// The caller is responsible for ensuring the root is COW-cloned if it
+// is shared with a snapshot (lastSaved) or came from the node cache.
+// MutableTree.Set does this via cowRoot() at most once per working
+// version. Re-cloning here on every Set in a single working version is
+// a ~4.3 KB struct copy per call that we can avoid. See Finding #17.
 func treeInsert(root Node, key []byte, valueHash Hash, valueKey []byte) (Node, bool, []byte) {
 	key = copyKey(key) // defensive copy — caller may reuse the slice
-
-	// COW-clone the root
-	root = cloneNode(root)
 	res := nodeInsert(root, key, valueHash, valueKey)
 
 	if res.split != nil {
@@ -82,10 +85,14 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash, valueKey []byte) ins
 		return insertResult{updated: false}
 	}
 
-	// Leaf is full (numKeys == B) — need to split
-	allKeys := make([][]byte, B+1)
-	allVH := make([]Hash, B+1)
-	allVK := make([][]byte, B+1)
+	// Leaf is full (numKeys == B) — need to split. Scratch arrays for
+	// the B+1 overflow entries live on the stack; the old make() trio
+	// was three heap allocations per split. splitLeaf copies out of
+	// these slices into the returned LeafNodes, so the backing arrays
+	// do not escape. See Finding #21.
+	var allKeys [B + 1][]byte
+	var allVH [B + 1]Hash
+	var allVK [B + 1][]byte
 	// Copy existing keys, inserting new key at pos
 	copy(allKeys[:pos], leaf.keys[:pos])
 	allKeys[pos] = key
@@ -97,7 +104,7 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash, valueKey []byte) ins
 	allVK[pos] = valueKey
 	copy(allVK[pos+1:], leaf.valueKeys[pos:B])
 
-	left, sr := splitLeaf(allKeys, allVH, allVK, pos)
+	left, sr := splitLeaf(allKeys[:], allVH[:], allVK[:], pos)
 	*leaf = *left
 	leaf.RebuildMiniMerkle()
 	sr.right.(*LeafNode).RebuildMiniMerkle()
@@ -158,11 +165,14 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 	}
 
 	// Inner node is full (numKeys == B-1) — need to split.
-	// Build allSizes from childSizes (no child loading needed).
-	allKeys := make([][]byte, B)
-	allChildNodes := make([]Node, B+1)
-	allChildHashes := make([]Hash, B+1)
-	allSizes := make([]int64, B+1)
+	// Scratch arrays for the overflow entries live on the stack; the
+	// five make() calls that preceded this were five heap allocations
+	// per inner split. splitInner copies out of these slices, so the
+	// backing arrays do not escape. See Finding #21.
+	var allKeys [B][]byte
+	var allChildNodes [B + 1]Node
+	var allChildHashes [B + 1]Hash
+	var allSizes [B + 1]int64
 
 	// Copy existing, inserting at childIdx
 	copy(allKeys[:childIdx], inner.keys[:childIdx])
@@ -185,12 +195,12 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 	copy(allSizes[childIdx+2:], inner.childSizes[childIdx+1:B])
 
 	// Build serialized child refs — preserve refs for unloaded children
-	allChildRefs := make([][]byte, B+1)
+	var allChildRefs [B + 1][]byte
 	copy(allChildRefs[:childIdx+1], inner.children[:childIdx+1])
 	allChildRefs[childIdx] = nil   // loaded & cloned; ref is stale
 	allChildRefs[childIdx+1] = nil // sr.right is new; no serialized ref
 	copy(allChildRefs[childIdx+2:], inner.children[childIdx+1:B])
-	leftInner, innerSR := splitInner(allKeys, allChildRefs, allChildHashes, inner.height, allSizes)
+	leftInner, innerSR := splitInner(allKeys[:], allChildRefs[:], allChildHashes[:], inner.height, allSizes[:])
 
 	// Wire up child nodes for left, preserving ndb from the original node
 	savedNdb := inner.ndb

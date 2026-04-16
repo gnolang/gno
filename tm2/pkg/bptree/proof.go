@@ -18,48 +18,44 @@ func (t *ImmutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, 
 }
 
 // GetNonMembershipProof generates an ICS23 non-existence proof for a key.
+//
+// The previous implementation performed six full tree walks: Has →
+// GetWithIndex → GetByIndex(idx-1) → createExistenceProof(leftKey) →
+// GetByIndex(idx) → createExistenceProof(rightKey). Each neighbor's
+// existence proof re-walked the tree by key even though we had just
+// walked to that index. The current implementation collapses the
+// membership check, the neighbor lookups, and the path collection into
+// three walks: one treeGetWithIndex for the absence check plus at most
+// one findPathToIndex per neighbor. See Finding #21.
 func (t *ImmutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	if t.root == nil {
 		return nil, ErrEmptyTree
 	}
 
-	// Verify the key doesn't exist
-	has, err := t.Has(key)
-	if err != nil {
-		return nil, err
-	}
-	if has {
+	// One walk: does key exist, and what is its would-be index?
+	idx, _, _, found := treeGetWithIndex(t.root, key)
+	if found {
 		return nil, fmt.Errorf("key exists, cannot create non-membership proof")
 	}
 
 	nonexist := &ics23.NonExistenceProof{Key: key}
 
-	// Find the left neighbor (greatest key < key)
-	idx, _, err := t.GetWithIndex(key)
-	if err != nil {
-		return nil, fmt.Errorf("GetWithIndex: %w", err)
-	}
+	// Left neighbor (greatest key < key)
 	if idx > 0 {
-		leftKey, _, err := t.GetByIndex(idx - 1)
-		if err != nil {
-			return nil, fmt.Errorf("left neighbor GetByIndex(%d): %w", idx-1, err)
-		}
-		nonexist.Left, err = t.createExistenceProof(leftKey)
+		proof, err := t.existenceProofAtIndex(idx - 1)
 		if err != nil {
 			return nil, fmt.Errorf("left neighbor proof: %w", err)
 		}
+		nonexist.Left = proof
 	}
 
-	// Find the right neighbor (smallest key > key)
+	// Right neighbor (smallest key > key)
 	if idx < t.Size() {
-		rightKey, _, err := t.GetByIndex(idx)
-		if err != nil {
-			return nil, fmt.Errorf("right neighbor GetByIndex(%d): %w", idx, err)
-		}
-		nonexist.Right, err = t.createExistenceProof(rightKey)
+		proof, err := t.existenceProofAtIndex(idx)
 		if err != nil {
 			return nil, fmt.Errorf("right neighbor proof: %w", err)
 		}
+		nonexist.Right = proof
 	}
 
 	return &ics23.CommitmentProof{
@@ -92,33 +88,50 @@ func (t *ImmutableTree) createExistenceProof(key []byte) (*ics23.ExistenceProof,
 		return nil, ErrEmptyTree
 	}
 
-	// Find the key and collect the path from root to leaf
 	path, leafSlotIdx, _, err := t.findPathToKey(key)
 	if err != nil {
 		return nil, err
 	}
+	return t.buildExistenceProofFromPath(path, leafSlotIdx)
+}
 
+// existenceProofAtIndex builds the ExistenceProof for the idx-th key in
+// sorted order. Used by non-membership proofs to avoid the lookup-by-key
+// second walk: the neighbor's index is already known from the
+// treeGetWithIndex call, so we can descend directly by index and build
+// the proof in one pass. See Finding #21.
+func (t *ImmutableTree) existenceProofAtIndex(idx int64) (*ics23.ExistenceProof, error) {
+	path, leafSlotIdx := findPathToIndex(t.root, idx)
+	return t.buildExistenceProofFromPath(path, leafSlotIdx)
+}
+
+// buildExistenceProofFromPath assembles an ICS23 ExistenceProof given a
+// root-to-leaf path and the slot index within the leaf. The path entries
+// are consumed leaf-to-root when emitting InnerOps, matching ICS23's
+// expected ordering.
+func (t *ImmutableTree) buildExistenceProofFromPath(path []pathEntry, leafSlotIdx int) (*ics23.ExistenceProof, error) {
 	// For ICS23, we need the raw value. The tree only stores the hash.
 	if t.valueResolver == nil {
 		return nil, fmt.Errorf("cannot create existence proof without a value resolver")
 	}
-	leafNode := path[len(path)-1].node.(*LeafNode)
-	vk := leafNode.valueKeys[leafSlotIdx]
+	leaf := path[len(path)-1].node.(*LeafNode)
+	key := leaf.keys[leafSlotIdx]
+	vk := leaf.valueKeys[leafSlotIdx]
 	rawValue, err := t.valueResolver(vk)
 	if err != nil {
 		return nil, fmt.Errorf("resolving value for proof: %w", err)
 	}
 
-	// Build the ICS23 InnerOps from the path
+	// Build the ICS23 InnerOps from the path.
 	// The path goes from root to leaf. ICS23 expects leaf-to-root order.
-	var innerOps []*ics23.InnerOp
+	// Each level contributes MiniMerkleDepth ops; preallocate exactly.
+	innerOps := make([]*ics23.InnerOp, 0, len(path)*MiniMerkleDepth)
 
-	// 1. Mini merkle ops within the leaf node
-	leaf := path[len(path)-1].node.(*LeafNode)
+	// 1. Mini merkle ops within the leaf node.
 	leafOps := miniMerkleInnerOps(&leaf.miniTree, leafSlotIdx)
 	innerOps = append(innerOps, leafOps...)
 
-	// 2. Mini merkle ops for each inner node, from leaf's parent to root
+	// 2. Mini merkle ops for each inner node, from leaf's parent to root.
 	for i := len(path) - 2; i >= 0; i-- {
 		inner := path[i].node.(*InnerNode)
 		childIdx := path[i].childIdx
@@ -132,6 +145,41 @@ func (t *ImmutableTree) createExistenceProof(key []byte) (*ics23.ExistenceProof,
 		Leaf:  BptreeSpec.LeafSpec,
 		Path:  innerOps,
 	}, nil
+}
+
+// findPathToIndex descends to the leaf holding the idx-th key in sorted
+// order, collecting the root-to-leaf path. Returns the path and the slot
+// index within the leaf. The caller guarantees 0 <= idx < nodeSize(root).
+func findPathToIndex(root Node, idx int64) ([]pathEntry, int) {
+	var path []pathEntry
+	node := root
+	for {
+		switch n := node.(type) {
+		case *LeafNode:
+			path = append(path, pathEntry{node: n, childIdx: -1})
+			return path, int(idx)
+		case *InnerNode:
+			offset := int64(0)
+			for i := 0; i < n.NumChildren(); i++ {
+				childSize := n.childSizes[i]
+				if idx < offset+childSize {
+					path = append(path, pathEntry{node: n, childIdx: i})
+					child := n.getChild(i)
+					if child == nil {
+						panic("nil child at inner node during index descent")
+					}
+					node = child
+					idx -= offset
+					goto next
+				}
+				offset += childSize
+			}
+			panic("index out of range in findPathToIndex")
+		default:
+			panic("unknown node type")
+		}
+	next:
+	}
 }
 
 // pathEntry records a node and which child was descended into.
@@ -179,7 +227,7 @@ func (t *ImmutableTree) findPathToKey(key []byte) ([]pathEntry, int, Hash, error
 // leaf level of the mini merkle toward the root (bottom-up).
 func miniMerkleInnerOps(m *MiniMerkle, index int) []*ics23.InnerOp {
 	siblings, positions := m.SiblingPath(index)
-	ops := make([]*ics23.InnerOp, len(siblings))
+	ops := make([]*ics23.InnerOp, MiniMerkleDepth)
 
 	for i, sib := range siblings {
 		op := &ics23.InnerOp{Hash: ics23.HashOp_SHA256}

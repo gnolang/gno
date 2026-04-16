@@ -386,7 +386,7 @@ func TestMiniMerkle_SingleOccupiedSlot(t *testing.T) {
 
 	// Walk up manually: slot 0 is always left child at every level
 	cur := h
-	for level := 0; level < miniMerkleDepth(); level++ {
+	for level := 0; level < MiniMerkleDepth; level++ {
 		cur = HashInner(cur, sentinelHash)
 	}
 	if m.Root() != cur {
@@ -440,8 +440,8 @@ func filledMiniMerkle() MiniMerkle {
 func verifySiblingPath(t *testing.T, m *MiniMerkle, index int) {
 	t.Helper()
 	siblings, positions := m.SiblingPath(index)
-	if len(siblings) != miniMerkleDepth() {
-		t.Fatalf("slot %d: expected %d siblings, got %d", index, miniMerkleDepth(), len(siblings))
+	if len(siblings) != MiniMerkleDepth {
+		t.Fatalf("slot %d: expected %d siblings, got %d", index, MiniMerkleDepth, len(siblings))
 	}
 	current := m.GetSlot(index)
 	for i, sib := range siblings {
@@ -1218,7 +1218,7 @@ func TestInnerNode_RebuildMiniMerkle_SingleChild(t *testing.T) {
 	// Manually compute: slot 0 = childHash, slots 1..31 = sentinel
 	// Root should be childHash walked up through 5 levels of HashInner(x, sentinel)
 	cur := inner.childHashes[0]
-	for level := 0; level < miniMerkleDepth(); level++ {
+	for level := 0; level < MiniMerkleDepth; level++ {
 		cur = HashInner(cur, sentinelHash)
 	}
 	if inner.Hash() != cur {

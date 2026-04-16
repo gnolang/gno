@@ -325,15 +325,33 @@ func (ndb *nodeDB) VersionExists(version int64) bool {
 	return has
 }
 
-// AvailableVersions returns all versions that have root references.
+// AvailableVersions returns all versions that have root references,
+// in ascending order. Uses a single prefix iterator over PrefixRoot so
+// the cost is O(n) sequential DB reads rather than O(latest-first)
+// random point lookups — the gap matters for long-lived chains that
+// retain many versions. See Finding #14.
 func (ndb *nodeDB) AvailableVersions() []int {
+	prefix := []byte{PrefixRoot}
+	end := make([]byte, len(prefix))
+	copy(end, prefix)
+	end[0]++
+
+	itr, err := ndb.db.Iterator(prefix, end)
+	if err != nil {
+		return nil
+	}
+	defer itr.Close()
+
 	var versions []int
-	first := ndb.getFirstVersion()
-	latest := ndb.getLatestVersion()
-	for v := first; v <= latest; v++ {
-		if ndb.VersionExists(v) {
-			versions = append(versions, int(v))
+	for ; itr.Valid(); itr.Next() {
+		key := itr.Key()
+		if len(key) != 9 { // prefix(1) + version(8)
+			continue
 		}
+		// Keys are big-endian encoded versions; ascending iteration
+		// yields them in version order (no sort needed).
+		v := int64(binary.BigEndian.Uint64(key[1:]))
+		versions = append(versions, int(v))
 	}
 	return versions
 }
@@ -472,7 +490,7 @@ func (ndb *nodeDB) ResetNonce() {
 // auto-incrementing nonce.
 func (ndb *nodeDB) NextNodeKey(version int64) *NodeKey {
 	ndb.nextNonce++
-	return &NodeKey{Version: version, Nonce: ndb.nextNonce}
+	return NewNodeKey(version, ndb.nextNonce)
 }
 
 // Close closes the nodeDB batch. The underlying DB is NOT closed
