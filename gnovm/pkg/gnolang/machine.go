@@ -2133,6 +2133,22 @@ func (m *Machine) NumFrames() int {
 	return len(m.Frames)
 }
 
+// NumCallFrames returns the number of actual function call frames,
+// excluding closure frames (func literals) and control-flow basic
+// frames (for/range/switch where Func is nil). Only named, non-closure
+// function calls count as separate call boundaries for origin-call
+// purposes.
+func (m *Machine) NumCallFrames() int {
+	count := 0
+	for i := range m.Frames {
+		fr := &m.Frames[i]
+		if fr.Func != nil && !fr.Func.IsClosure {
+			count++
+		}
+	}
+	return count
+}
+
 // Returns the current frame.
 func (m *Machine) LastFrame() *Frame {
 	return &m.Frames[len(m.Frames)-1]
@@ -2321,7 +2337,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		var ok bool
 		if pv, ok = xv.V.(PointerValue); !ok {
 			if xv.V == nil {
-				m.Panic(typedString("nil pointer dereference"))
+				m.Panic(typedString("runtime error: nil pointer dereference"))
 			}
 			panic("should not happen, not pointer nor nil")
 		}

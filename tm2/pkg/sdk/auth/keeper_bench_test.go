@@ -19,7 +19,7 @@ func BenchmarkAccountMapperGetAccountFound(b *testing.B) {
 		addr := make([]byte, crypto.AddressSize)
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
 		copy(addr[:len(arr)], arr[:])
-		caddr := crypto.AddressFromBytes(addr)
+		caddr := crypto.MustAddressFromBytes(addr)
 		acc := env.acck.NewAccountWithAddress(env.ctx, caddr)
 		env.acck.SetAccount(env.ctx, acc)
 	}
@@ -29,7 +29,7 @@ func BenchmarkAccountMapperGetAccountFound(b *testing.B) {
 		addr := make([]byte, crypto.AddressSize)
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
 		copy(addr[:len(arr)], arr[:])
-		caddr := crypto.AddressFromBytes(addr)
+		caddr := crypto.MustAddressFromBytes(addr)
 		env.acck.GetAccount(env.ctx, caddr)
 	}
 }
@@ -50,7 +50,7 @@ func BenchmarkAccountMapperGetAccountFoundWithCoins(b *testing.B) {
 		addr := make([]byte, crypto.AddressSize)
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
 		copy(addr[:len(arr)], arr[:])
-		caddr := crypto.AddressFromBytes(addr)
+		caddr := crypto.MustAddressFromBytes(addr)
 		acc := env.acck.NewAccountWithAddress(env.ctx, caddr)
 		acc.SetCoins(coins)
 		env.acck.SetAccount(env.ctx, acc)
@@ -61,7 +61,7 @@ func BenchmarkAccountMapperGetAccountFoundWithCoins(b *testing.B) {
 		addr := make([]byte, crypto.AddressSize)
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
 		copy(addr[:len(arr)], arr[:])
-		caddr := crypto.AddressFromBytes(addr)
+		caddr := crypto.MustAddressFromBytes(addr)
 		env.acck.GetAccount(env.ctx, caddr)
 	}
 }
@@ -76,7 +76,7 @@ func BenchmarkAccountMapperSetAccount(b *testing.B) {
 		addr := make([]byte, crypto.AddressSize)
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
 		copy(addr[:len(arr)], arr[:])
-		caddr := crypto.AddressFromBytes(addr)
+		caddr := crypto.MustAddressFromBytes(addr)
 		acc := env.acck.NewAccountWithAddress(env.ctx, caddr)
 		env.acck.SetAccount(env.ctx, acc)
 	}
@@ -100,7 +100,7 @@ func BenchmarkAccountMapperSetAccountWithCoins(b *testing.B) {
 		addr := make([]byte, crypto.AddressSize)
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
 		copy(addr[:len(arr)], arr[:])
-		caddr := crypto.AddressFromBytes(addr)
+		caddr := crypto.MustAddressFromBytes(addr)
 		acc := env.acck.NewAccountWithAddress(env.ctx, caddr)
 		acc.SetCoins(coins)
 		env.acck.SetAccount(env.ctx, acc)
