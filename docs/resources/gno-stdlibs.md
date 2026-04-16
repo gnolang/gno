@@ -191,7 +191,7 @@ func (a address) String()  string {...}
 ```
 
 ### IsValid
-Check if **Address** is of a valid length, and conforms to the bech32 format.
+Check if **address** is of a valid length, and conforms to the bech32 format.
 
 ##### Usage
 ```go
@@ -201,7 +201,7 @@ if !address.IsValid() {...}
 ---
 
 ### String
-Get **string** representation of **Address**.
+Get **string** representation of **address**.
 
 ##### Usage
 ```go
@@ -217,11 +217,11 @@ stringAddr := addr.String()
 ```go
 type realm Realm
 type Realm struct { 
-    addr    Address
+    addr    address
     pkgPath string
 }
 
-func (r Realm) Address() Address {...}
+func (r Realm) Address() address {...}
 func (r Realm) PkgPath() string {...}
 func (r Realm) String() string {...}
 func (r Realm) IsUser() bool {...}
@@ -301,7 +301,7 @@ if r.IsUserCall() {...}
 
 ### IsEphemeral
 
-Checks if the receiver realm is an ephemeral realm.
+Checks if the receiver realm has an ephemeral package path (i.e. under `/e/`).
 
 ##### Usage
 ```go
@@ -670,7 +670,7 @@ height := runtime.ChainHeight()
 
 ### OriginCaller
 ```go
-func OriginCaller() Address
+func OriginCaller() address
 ```
 Returns the original signer of the transaction.
 
@@ -719,10 +719,11 @@ const (
 )
 
 type Banker interface {
-    GetCoins(addr Address) (dst Coins)
-    SendCoins(from, to Address, coins Coins)
-    IssueCoin(addr Address, denom string, amount int64)
-    RemoveCoin(addr Address, denom string, amount int64)
+    GetCoins(addr address) (dst chain.Coins)
+    SendCoins(from, to address, amt chain.Coins)
+    TotalCoin(denom string) int64
+    IssueCoin(addr address, denom string, amount int64)
+    RemoveCoin(addr address, denom string, amount int64)
 }
 ```
 
@@ -732,7 +733,7 @@ Returns `Banker` of the specified type.
 ##### Parameters
 - `BankerType` - type of Banker to get:
     - `BankerTypeReadonly` - read-only access to coin balances
-    - `BankerTypeOrigSend` - full access to coins sent with the transaction that calls the banker
+    - `BankerTypeOriginSend` - full access to coins sent with the transaction that calls the banker
     - `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaction
     - `BankerTypeRealmIssue` - able to issue new coins
 
@@ -744,10 +745,10 @@ banker := banker.NewBanker(banker.<BankerType>)
 ---
 
 ### GetCoins
-Returns `Coins` owned by `Address`.
+Returns `Coins` owned by `address`.
 
 ##### Parameters
-- `addr` **Address** to fetch balances for
+- `addr` **address** to fetch balances for
 
 ##### Usage
 
@@ -761,8 +762,8 @@ Sends `coins` from address `from` to address `to`. `coins` needs to be a well-de
 `Coins` slice.
 
 ##### Parameters
-- `from` **Address** to send from
-- `to` **Address** to send to
+- `from` **address** to send from
+- `to` **address** to send to
 - `coins` **Coins** to send
 
 ##### Usage
@@ -775,7 +776,7 @@ banker.SendCoins(from, to, coins)
 Issues `amount` of coin with a denomination `denom` to address `addr`.
 
 ##### Parameters
-- `addr` **Address** to issue coins to
+- `addr` **address** to issue coins to
 - `denom` **string** denomination of coin to issue
 - `amount` **int64** amount of coin to issue
 
@@ -796,7 +797,7 @@ banker.IssueCoin(addr, denom, amount)
 Removes (burns) `amount` of coin with a denomination `denom` from address `addr`.
 
 ##### Parameters
-- `addr` **Address** to remove coins from
+- `addr` **address** to remove coins from
 - `denom` **string** denomination of coin to remove
 - `amount` **int64** amount of coin to remove
 
