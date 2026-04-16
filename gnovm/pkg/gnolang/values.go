@@ -2042,7 +2042,10 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 				*(pv.TV) = defaultTypedValue(nil, vt)
 			}
 		}
-		// attach mapkey object, if changed
+		// Attach mapkey object to the map's ownership tree if changed.
+		// Only PopAsPointer2 (write path) reaches here with non-nil rlm,
+		// and it checks readonly before calling.
+		// Read paths (doOpIndex, debugger) pass nilRealm → DidUpdate is a no-op.
 		newObject := ivk.GetFirstObject(store)
 		if oldObject != newObject {
 			rlm.DidUpdate(mv, oldObject, newObject)

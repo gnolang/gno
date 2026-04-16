@@ -27,7 +27,7 @@ func (m *Machine) doOpIndex1() {
 			}
 		}
 	default:
-		// NOTE: nilRealm is OK, not setting a map (w/ new key).
+		// Read-only: pass nilRealm so map key attach DidUpdate is a no-op.
 		res := xv.GetPointerAtIndex(nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
@@ -698,7 +698,7 @@ func (m *Machine) doOpConvert() {
 	// These protect against inter-realm conversion exploits.
 
 	// Case 1.
-	// Do not allow conversion of value stored in eternal realm.
+	// Do not allow conversion of value stored in external realm.
 	// Otherwise anyone could convert an external object insecurely.
 	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
 		if xvdt, ok := xv.T.(*DeclaredType); ok &&
