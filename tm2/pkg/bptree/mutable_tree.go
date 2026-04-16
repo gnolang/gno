@@ -76,6 +76,13 @@ func NewMutableTreeWithDB(db dbm.DB, cacheSize int, logger Logger, options ...Op
 
 // Set inserts or updates a key-value pair. Returns true if the key
 // already existed (update), false if it was a new insert.
+//
+// Finding #28: the value is persisted BEFORE any tree mutation. If the
+// DB write fails, the in-memory tree is untouched and no leaf ends up
+// referencing a ValueKey that was never written. The previous order
+// (mutate-then-save) left the tree pointing at a dangling ValueKey on
+// SaveValue errors; a subsequent Get returned "value not found" and
+// SaveVersion would persist the inconsistent leaf.
 func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	if len(key) == 0 {
 		return false, ErrEmptyKey
@@ -84,33 +91,37 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 		return false, fmt.Errorf("value must not be nil")
 	}
 
+	// Allocate the ValueKey and persist the value FIRST. allocValueKey
+	// also appends vk to sessionValues so Rollback can clean up if this
+	// Set was part of a working session that later rolls back. On
+	// SaveValue failure we return before mutating the tree; the dangling
+	// sessionValues entry becomes a harmless no-op delete on Rollback
+	// (DB drivers treat delete-of-absent as success).
+	vk := t.allocValueKey()
+	if t.ndb != nil {
+		if err := t.ndb.SaveValue(value, vk); err != nil {
+			return false, err
+		}
+	} else if t.memValues != nil {
+		valCopy := make([]byte, len(value))
+		copy(valCopy, value)
+		t.memValues[string(vk)] = valCopy
+	}
+
+	valueHash := sha256.Sum256(value)
+
 	if t.root == nil {
 		leaf := &LeafNode{miniTree: NewMiniMerkle()}
 		leaf.keys[0] = copyKey(key)
-		valueHash := sha256.Sum256(value)
 		leaf.valueHashes[0] = valueHash
-		vk := t.allocValueKey()
 		leaf.valueKeys[0] = vk
 		leaf.numKeys = 1
 		leaf.RebuildMiniMerkle()
 		t.root = leaf
 		t.size = 1
-
-		// Save value out-of-line
-		if t.ndb != nil {
-			if err := t.ndb.SaveValue(value, vk); err != nil {
-				return false, err
-			}
-		} else if t.memValues != nil {
-			valCopy := make([]byte, len(value))
-			copy(valCopy, value)
-			t.memValues[string(vk)] = valCopy
-		}
 		return false, nil
 	}
 
-	valueHash := sha256.Sum256(value)
-	vk := t.allocValueKey()
 	newRoot, updated, oldValueKey := treeInsert(t.root, key, valueHash, vk)
 	t.root = newRoot
 	if !updated {
@@ -120,17 +131,6 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	// Handle orphaned old valueKey on update
 	if updated && oldValueKey != nil {
 		t.orphanValueKey(oldValueKey)
-	}
-
-	// Save value out-of-line
-	if t.ndb != nil {
-		if err := t.ndb.SaveValue(value, vk); err != nil {
-			return updated, err
-		}
-	} else if t.memValues != nil {
-		valCopy := make([]byte, len(value))
-		copy(valCopy, value)
-		t.memValues[string(vk)] = valCopy
 	}
 	return updated, nil
 }
@@ -163,13 +163,29 @@ func (t *MutableTree) resolveValue(vk []byte) ([]byte, error) {
 // orphanValueKey handles an orphaned valueKey from an overwrite or remove.
 // Tier 1 (same working version): delete eagerly from DB.
 // Tier 2 (prior version): defer to orphan list for prune-time deletion.
+//
+// Errors from the eager DB delete are logged rather than returned: the
+// caller (Set / Remove) has already committed the tree mutation, so a
+// failure here represents a space leak — not an inconsistency in the
+// tree itself — and short-circuiting would leave the tree in a more
+// confusing half-mutated state. See Finding #31.
 func (t *MutableTree) orphanValueKey(vk []byte) {
+	// Finding #23: a malformed or truncated valueKey would panic on the
+	// slice bound. Bail out early with a log line so a corrupt inner ref
+	// can't propagate into a slice-bounds runtime error.
+	if len(vk) < 8 {
+		t.logger.Error("bptree: orphanValueKey: short valueKey", "len", len(vk))
+		return
+	}
 	// Decode version from the first 8 bytes of the valueKey
 	vkVersion := int64(binary.BigEndian.Uint64(vk[:8]))
 	if vkVersion == t.WorkingVersion() {
 		// Tier 1: intra-version orphan — delete eagerly
 		if t.ndb != nil {
-			t.ndb.DeleteValueDirect(vk)
+			if err := t.ndb.DeleteValueDirect(vk); err != nil {
+				// Finding #25 / #31: don't discard silently.
+				t.logger.Error("bptree: DeleteValueDirect failed in orphanValueKey", "vk", fmt.Sprintf("%x", vk), "err", err)
+			}
 		} else if t.memValues != nil {
 			delete(t.memValues, string(vk))
 		}
@@ -405,9 +421,11 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 }
 
 // LoadVersionForOverwriting is not supported — it would leak values and nodes.
-// Not called by gno.land, the SDK, or the store layer.
+// Not called by gno.land, the SDK, or the store layer. Returns ErrUnsupported
+// rather than panicking so callers that probe for IAVL compatibility can
+// detect the gap without crashing the process. See Finding #12.
 func (t *MutableTree) LoadVersionForOverwriting(_ int64) error {
-	panic("LoadVersionForOverwriting is not supported; use PruneVersionsTo")
+	return fmt.Errorf("%w: LoadVersionForOverwriting; use PruneVersionsTo", ErrUnsupported)
 }
 
 // loadNode loads a node from the DB. Children are loaded lazily via
@@ -485,9 +503,11 @@ func (t *MutableTree) DeleteVersionsTo(toVersion int64) error {
 }
 
 // DeleteVersionsFrom is not supported — it would leak values and nodes.
-// Not called by gno.land, the SDK, or the store layer.
+// Not called by gno.land, the SDK, or the store layer. Returns ErrUnsupported
+// rather than panicking so callers that probe for IAVL compatibility can
+// detect the gap without crashing the process. See Finding #12.
 func (t *MutableTree) DeleteVersionsFrom(_ int64) error {
-	panic("DeleteVersionsFrom is not supported; use PruneVersionsTo")
+	return fmt.Errorf("%w: DeleteVersionsFrom; use PruneVersionsTo", ErrUnsupported)
 }
 
 // Size returns the total number of key-value pairs.
@@ -587,11 +607,19 @@ func (t *MutableTree) UnsetCommitting() {
 
 // Rollback discards all mutations since the last save.
 // Eagerly-written values from the session are deleted from DB.
+//
+// Per-value delete errors are logged (Findings #25 / #31) and Rollback
+// continues with the remaining entries. A single bad delete is a space
+// leak, not a correctness issue, and returning early would leave the
+// caller unable to restore the tree's in-memory state — which is the
+// primary job of Rollback.
 func (t *MutableTree) Rollback() {
 	// Delete all eagerly-written values from this session
 	if t.ndb != nil {
 		for _, vk := range t.sessionValues {
-			t.ndb.DeleteValueDirect(vk)
+			if err := t.ndb.DeleteValueDirect(vk); err != nil {
+				t.logger.Error("bptree: DeleteValueDirect failed in Rollback", "vk", fmt.Sprintf("%x", vk), "err", err)
+			}
 		}
 	} else if t.memValues != nil {
 		for _, vk := range t.sessionValues {

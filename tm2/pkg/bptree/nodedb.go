@@ -122,6 +122,16 @@ func (ndb *nodeDB) SaveNode(node Node) error {
 }
 
 // GetNode loads a node from cache or DB.
+//
+// Error semantics (Finding #5):
+//   - Returns (nil, ErrNodeNotFound) when the node's DB record is
+//     absent. Callers (e.g. GetImmutable, the mark-and-sweep prune
+//     path, loadNode) treat this as "pruned or never persisted" and
+//     handle it as a recoverable condition.
+//   - Panics on any other failure mode — a raw DB read error or a
+//     deserialization error both indicate unrecoverable storage
+//     corruption; continuing would propagate inconsistent state
+//     through every hot read path. This mirrors getChild's invariant.
 func (ndb *nodeDB) GetNode(nkBytes []byte) (Node, error) {
 	// Check cache
 	if ndb.nodeCache != nil {
@@ -130,19 +140,23 @@ func (ndb *nodeDB) GetNode(nkBytes []byte) (Node, error) {
 		}
 	}
 
-	// Load from DB
+	// Load from DB. A raw IO error here is unrecoverable — the tree
+	// depends on reads succeeding to maintain its shape invariant.
 	data, err := ndb.db.Get(nodeDBKey(nkBytes))
 	if err != nil {
-		return nil, fmt.Errorf("db get node: %w", err)
+		panic(fmt.Sprintf("bptree: db get node %x: %v", nkBytes, err))
 	}
 	if data == nil {
-		return nil, fmt.Errorf("node not found: %x", nkBytes)
+		// Legitimate "missing" signal (pruned / never persisted).
+		return nil, ErrNodeNotFound
 	}
 
 	nk := GetNodeKey(nkBytes)
 	node, err := ReadNode(nk, data)
 	if err != nil {
-		return nil, fmt.Errorf("deserializing node: %w", err)
+		// On-disk corruption — the tree's invariants are already
+		// violated; panic rather than return garbage nodes.
+		panic(fmt.Sprintf("bptree: deserializing node %x: %v", nkBytes, err))
 	}
 
 	// Set ndb on inner nodes for lazy child loading

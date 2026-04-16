@@ -173,8 +173,19 @@ func (n *InnerNode) Serialize(w io.Writer) error {
 			return err
 		}
 	}
-	// children (numKeys+1 NodeKey refs)
+	// children (numKeys+1 NodeKey refs).
+	//
+	// Finding #18: assert that every child ref is a full NodeKey. A nil or
+	// short slice would silently desynchronise the serialized stream —
+	// w.Write(nil) is a valid 0-byte write — and the next reader would then
+	// consume bytes from the following field as if they were the NodeKey.
+	// The recursive save path fills children[i] before reaching here; this
+	// check catches any future regression that lets an unsaved child leak
+	// into SaveNode.
 	for i := 0; i < nc; i++ {
+		if len(n.children[i]) != NodeKeySize {
+			return fmt.Errorf("InnerNode.Serialize: child[%d] ref has len %d, want %d (unsaved child reached SaveNode?)", i, len(n.children[i]), NodeKeySize)
+		}
 		if _, err := w.Write(n.children[i]); err != nil {
 			return err
 		}
@@ -244,10 +255,13 @@ func readInnerNode(nk *NodeKey, r *bytes.Reader) (_ *InnerNode, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading numKeys: %w", err)
 	}
-	n.numKeys = int16(numKeys)
-	if n.numKeys < 0 || n.numKeys > B-1 {
-		return nil, fmt.Errorf("inner numKeys %d out of range [0,%d]", n.numKeys, B-1)
+	// Finding #23: check the raw uint64 before casting. A crafted value
+	// like 0xFFFF would wrap to -1 as int16 and slip past the negative
+	// check below.
+	if numKeys > B-1 {
+		return nil, fmt.Errorf("inner numKeys %d out of range [0,%d]", numKeys, B-1)
 	}
+	n.numKeys = int16(numKeys)
 
 	nc := n.NumChildren()
 	for i := 0; i < nc; i++ {
@@ -293,10 +307,11 @@ func readLeafNode(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading numKeys: %w", err)
 	}
-	n.numKeys = int16(numKeys)
-	if n.numKeys < 0 || n.numKeys > B {
-		return nil, fmt.Errorf("leaf numKeys %d out of range [0,%d]", n.numKeys, B)
+	// Finding #23: check the raw uint64 before casting to int16.
+	if numKeys > B {
+		return nil, fmt.Errorf("leaf numKeys %d out of range [0,%d]", numKeys, B)
 	}
+	n.numKeys = int16(numKeys)
 
 	for i := 0; i < int(n.numKeys); i++ {
 		n.keys[i], err = readBytes(r)

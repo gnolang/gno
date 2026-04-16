@@ -362,12 +362,15 @@ func TestOverwrite(t *testing.T) {
 	require.NoError(err)
 }
 
-func TestLoadVersionForOverwriting_PanicsIAVL(t *testing.T) {
+// TestLoadVersionForOverwriting_UnsupportedIAVL verifies the IAVL-compat
+// API returns ErrUnsupported (Finding #12).
+func TestLoadVersionForOverwriting_UnsupportedIAVL(t *testing.T) {
 	mdb := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(mdb, 0, NewNopLogger())
 	tree.Set([]byte("k"), []byte("v"))
 	tree.SaveVersion()
-	require.New(t).Panics(func() { tree.LoadVersionForOverwriting(1) })
+	err := tree.LoadVersionForOverwriting(1)
+	require.New(t).ErrorIs(err, ErrUnsupported)
 }
 
 func TestIterate_ImmutableTree_Version1(t *testing.T) {
