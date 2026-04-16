@@ -1,17 +1,18 @@
 # setup gnocore basics
 FROM        golang:1.24-alpine AS setup-gnocore
-ARG         TARGETPLATFORM
-ARG         BUILD_VERSION=dev
 ENV         GNOROOT="/gnoroot"
 ENV         CGO_ENABLED=0 GOOS=linux
 WORKDIR     /gnoroot
-# git is kept for `go mod download` fallback when a module isn't served via the Go proxy 
+# git is kept for `go mod download` fallback when a module isn't served via the Go proxy
 RUN         apk add --no-cache git
 # Mod files
 COPY        go.mod go.sum ./
 RUN         go mod download -x
 COPY        . ./
-# Build version is provided by the caller (CI computes it from git outside the image).
+# BUILD_VERSION is declared late so that a version change (new tag / commit)
+# only invalidates this layer and below — not the expensive mod-download or
+# source-copy layers above.
+ARG         BUILD_VERSION=dev
 RUN         echo "${BUILD_VERSION}" > /gnoroot/build_version
 
 # build gnocore
