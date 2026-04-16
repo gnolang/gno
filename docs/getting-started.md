@@ -193,7 +193,7 @@ If your first `gnokey maketx addpkg` is rejected with
 gnokey maketx call \
   -pkgpath gno.land/r/sys/cla -func Sign -args "<current-hash>" \
   -gas-fee 100000ugnot -gas-wanted 2000000 \
-  -broadcast -chainid <chain-id> -remote <rpc-endpoint> \
+  -chainid <chain-id> -remote <rpc-endpoint> \
   dev
 ```
 
