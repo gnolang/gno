@@ -5,14 +5,18 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 	"mvdan.cc/xurls/v2"
 )
+
+var httpClient = &http.Client{
+	Timeout: 15 * time.Second,
+}
 
 // extractUrls extracts urls from given file content
 func extractUrls(fileContent []byte) []string {
@@ -93,22 +97,41 @@ func lintURLs(ctx context.Context, filepathToURLs map[string][]string, treatAsEr
 	return "", nil
 }
 
-// checkUrl checks if a URL is a 404
+// checkUrl checks if a URL is a 404, retrying on transient errors.
 func checkUrl(url string) error {
-	// Attempt to retrieve the HTTP header
-	resp, err := http.Get(url)
-	if err != nil || resp.StatusCode == http.StatusNotFound {
-		return err404Link
-	}
+	const maxRetries = 3
 
-	// Ensure the response body is closed properly
-	cleanup := func(Body io.ReadCloser) error {
-		if err := Body.Close(); err != nil {
-			return fmt.Errorf("could not close response properly: %w", err)
+	for attempt := range maxRetries {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 2 * time.Second)
+		}
+
+		resp, err := httpClient.Get(url)
+		if err != nil {
+			// Network error: retry unless this is the last attempt.
+			if attempt < maxRetries-1 {
+				continue
+			}
+
+			return err404Link
+		}
+		resp.Body.Close()
+
+		switch {
+		case resp.StatusCode == http.StatusNotFound:
+			// 404 is a definitive failure; no point retrying.
+			return err404Link
+		case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500:
+			// Transient server-side error; retry.
+			if attempt < maxRetries-1 {
+				continue
+			}
+
+			return err404Link
 		}
 
 		return nil
 	}
 
-	return cleanup(resp.Body)
+	return nil
 }
