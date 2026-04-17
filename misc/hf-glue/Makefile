@@ -14,8 +14,9 @@ VALIDATOR_NAME     ?= hf-glue-local
 # Only used by `make fetch-from-dir` (alternative local-source flow).
 NODE_DIR           ?=
 TXS_JSONL          ?=
-# Realm patches applied at hardfork-assembly time (see fetch.sh).
+# Extra realm patches applied at hardfork-assembly time (see scripts/migrate.sh).
 # Space-separated PKGPATH=SRCDIR entries. Set to empty to disable.
+# (migrate.sh always patches r/sys/params from examples/; use this for more.)
 PATCH_REALMS       ?=
 
 export SOURCE RPC_URL ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME NODE_DIR TXS_JSONL PATCH_REALMS
@@ -37,16 +38,19 @@ gen-local-genesis: ## rebuild gnoland1 base genesis locally (runs misc/deploymen
 	@mkdir -p $(OUT)
 	@OUT=$(OUT) REPO=$(REPO) $(HERE)/scripts/gen-local-genesis.sh
 
-.PHONY: fetch
-fetch: ## build hardfork tool + pull base genesis ($SOURCE) + all blocks from $RPC_URL into out/genesis.json
+.PHONY: fetch migrate
+fetch: migrate ## alias for `make migrate` (kept for back-compat)
+
+migrate: ## run scripts/migrate.sh — declarative hardfork recipe (fetch + patch + assemble)
 	@mkdir -p $(OUT)
 	@SOURCE=$(SOURCE) \
 	 RPC_URL=$(RPC_URL) \
 	 ORIGINAL_CHAIN_ID=$(ORIGINAL_CHAIN_ID) \
 	 CHAIN_ID=$(CHAIN_ID) \
 	 HALT_HEIGHT=$(HALT_HEIGHT) \
+	 PATCH_REALMS='$(PATCH_REALMS)' \
 	 OUT=$(OUT) REPO=$(REPO) \
-	 $(HERE)/scripts/fetch.sh
+	 $(HERE)/scripts/migrate.sh
 
 .PHONY: fetch-from-dir
 fetch-from-dir: ## (alt) build hardfork genesis from a local gnoland data dir ($NODE_DIR, $TXS_JSONL, $HALT_HEIGHT required)
