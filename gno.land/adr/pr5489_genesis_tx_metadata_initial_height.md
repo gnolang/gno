@@ -94,6 +94,13 @@ first produced block has height `InitialHeight`. Validated to be non-negative.
 - Unrecognised chain IDs are never silently overridden — they fail as expected.
 - A genesis spanning multiple past chains works: each tx uses its own chain ID.
 - All new fields use `omitempty`; existing genesis files are unaffected.
+- **Same-chain-ID hardforks are supported.** `PastChainIDs` MAY contain the
+  current chain ID (the one in `GenesisDoc.ChainID`). This is the right
+  setup when the chain is upgraded in-place without bumping the chain ID
+  (e.g. minor fork with no external-facing identity change). Historical txs
+  signed with the current chain ID will still verify correctly because
+  their `metadata.ChainID` matches and is allowlisted. Do NOT add a
+  validation that rejects this case — it is a legitimate configuration.
 
 ## Alternatives considered
 
@@ -147,13 +154,38 @@ first produced block has height `InitialHeight`. Validated to be non-negative.
    type info (`std.Msg`) was lost, breaking round-trip. Fixed: both writer
    (`writeTxsJSONL`) and reader (`dirSource.FetchTxs`) now use amino.
 
-### Hardfork tooling (known, not yet fixed)
+6. **`verifyGenesisFile` failure returned success.** Fixed: verification
+   failure now returns an error and aborts the tool (use `--no-verify` to
+   opt out).
 
-6. **RPC source has no retry/resume.** A single transient error aborts the
-   entire multi-block fetch. Needs exponential backoff and checkpointing.
+7. **Zero unit tests for `bruteForceSignerSequence`.** Fixed: added 10
+   table-driven tests covering boundaries, error cases, multiple key types,
+   and tamper detection.
 
-7. **All txs accumulated in memory.** The full tx history is held in a single
-   slice. Will OOM on large chains. Needs streaming to disk.
+### App-level fixes
+
+8. **Failed-tx `ResponseDeliverTx` was empty (looked like success).**
+   Fixed: skipped failed txs now carry an explicit error marker so
+   indexers and explorers can distinguish them from successful txs.
+
+9. **`GnoGenesisState.InitialHeight` wasn't cross-checked against
+   `GenesisDoc.InitialHeight`.** Fixed: added `InitialHeight` to
+   `abci.RequestInitChain` and validate in `loadAppState`.
+
+### Known unfixed (architectural)
+
+10. **RPC source has no retry/resume.** A single transient error aborts the
+    entire multi-block fetch. Needs exponential backoff and checkpointing.
+
+11. **All txs accumulated in memory.** The full tx history is held in a single
+    slice. Will OOM on large chains. Needs streaming to disk.
+
+12. **`NewAccountWithNumber` has no duplicate check.** See PR comment for
+    discussion; preferred approach is a pre-flight validation pass in
+    `loadAppState`.
+
+13. **`queryAccountAtHeight` silent nil.** All error paths return nil
+    with no indication; flaky RPC → wrong sequence metadata.
 
 ## Open items
 
@@ -166,7 +198,11 @@ first produced block has height `InitialHeight`. Validated to be non-negative.
 - End-to-end test with a real chain halt → export → genesis assembly →
   new chain start. (Partially done: export and in-memory replay validated
   against gnoland1. Full multi-validator halt test remains.)
-- Validate that `PastChainIDs` does not contain the new chain ID.
-- `NewAccountWithNumber` should check for duplicate account numbers.
-- Failed txs should carry a non-zero response code during genesis replay
-  (currently `ResponseDeliverTx{Code: 0}` which looks like success).
+- **Replay tolerance for gas-requirement changes.** If the VM changes gas
+  metering between chains, replayed txs may consume different gas than on
+  the source chain. Need a flag / mode that accepts "tx passes even though
+  gas differs" — e.g. by reusing the source chain's recorded gas instead of
+  recomputing, or by allowing up to max(old, new).
+- **Replay report.** Categorised summary of txs that used to work on the
+  source chain but no longer do (and why: gas change, VM fix, missing
+  dependency, etc.) so operators can review and selectively ignore.
