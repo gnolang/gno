@@ -136,7 +136,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 						}
 					}
 				}
-				split := make([]Decl, len(vd.NameExprs))
+				split := make([]Decl, 0, len(vd.NameExprs))
 				for j := range vd.NameExprs {
 					part := &ValueDecl{
 						NameExprs: NameExprs{{
@@ -152,10 +152,19 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					if iota_ != nil {
 						part.SetAttribute(ATTR_IOTA, iota_)
 					}
-					predefineRecursively(store, fn, part)
-					split[j] = part
+					split = append(split, part)
 				}
-				fn.Decls = append(fn.Decls[:i], append(split, fn.Decls[i+1:]...)...) //nolint:makezero
+				// Apply the split to fn.Decls BEFORE calling predefineRecursively,
+				// so that GetDeclFor resolves each split name to its own individual
+				// decl rather than the original multi-value decl, avoiding false
+				// cycle detection.
+				fn.Decls = append(fn.Decls[:i], append(split, fn.Decls[i+1:]...)...)
+				for j := range split {
+					if split[j].GetAttribute(ATTR_PREDEFINED) == true {
+						continue
+					}
+					predefineRecursively(store, fn, split[j])
+				}
 				i += len(vd.NameExprs) - 1
 				continue
 			} else {
@@ -2121,7 +2130,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				case StringKind, ArrayKind, SliceKind:
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
-					checkOrConvertIntegerKind(store, last, n, n.Index)
+					checkOrConvertIndexKind(store, last, n, n.Index)
 				case MapKind:
 					mt := baseOf(dt).(*MapType)
 					checkOrConvertType(store, last, n, &n.Index, mt.Key)
@@ -2135,9 +2144,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *SliceExpr:
 				// Replace const L/H/M with int *ConstExpr,
 				// or if not const, assert integer type..
-				checkOrConvertIntegerKind(store, last, n, n.Low)
-				checkOrConvertIntegerKind(store, last, n, n.High)
-				checkOrConvertIntegerKind(store, last, n, n.Max)
+				checkOrConvertIndexKind(store, last, n, n.Low)
+				checkOrConvertIndexKind(store, last, n, n.High)
+				checkOrConvertIndexKind(store, last, n, n.Max)
 
 				t := evalStaticTypeOf(store, last, n.X)
 				switch t.Kind() {
@@ -2220,11 +2229,17 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				case *ArrayType:
 					for i := range n.Elts {
+						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
+							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+						}
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
 				case *SliceType:
 					for i := range n.Elts {
+						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
+							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+						}
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
@@ -4839,6 +4854,15 @@ func checkBoolKind(xt Type) {
 	}
 }
 
+// checkOrConvertIndexKind ensures the expression evaluates to an integer
+// and, if it is a constant, ensures it is non-negative.
+func checkOrConvertIndexKind(store Store, last BlockNode, n Node, x Expr) {
+	if cx, ok := x.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
+		panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+	}
+	checkOrConvertIntegerKind(store, last, n, x)
+}
+
 // like checkOrConvertType() but for any typed integer kind.
 func checkOrConvertIntegerKind(store Store, last BlockNode, n Node, x Expr) {
 	if cx, ok := x.(*ConstExpr); ok {
@@ -4899,8 +4923,11 @@ func predefineRecursively(store Store, last BlockNode, d Decl) bool {
 func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) bool {
 	pkg := packageOf(last)
 
-	// NOTE: predefine fileset breaks up circular definitions like
-	// `var a, b, c = 1, a, b` which is only legal at the file level.
+	// NOTE: PredefineFileSet splits multi-value decls like `var a, b = c, d`
+	// into individual decls before calling this function, so that GetDeclFor
+	// resolves each name to its own standalone decl. Without the split,
+	// all names in the original multi-value decl would be added to `defining`,
+	// causing false cycle detection for valid DAG dependencies.
 	for _, dn := range d.GetDeclNames() {
 		if isUverseName(dn) {
 			panic(fmt.Sprintf(

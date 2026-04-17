@@ -135,8 +135,7 @@ func (m *Machine) doOpEnterCrossing() {
 			panic("crossing could not find corresponding cross(fn)(...) call")
 		}
 	}
-	//nolint:govet // detected as unreachable
-	panic("should not happen") // defensive
+	// NOTE: this loop must never exit without setting fr1.DidCrossing or panicking.
 }
 
 func (m *Machine) doOpCall() {
