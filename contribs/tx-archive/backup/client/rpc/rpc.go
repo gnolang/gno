@@ -59,6 +59,16 @@ func (c *Client) GetLatestBlockNumber() (uint64, error) {
 	return uint64(status.SyncInfo.LatestBlockHeight), nil
 }
 
+// GetChainID returns the chain ID of the source chain, fetched from /status.
+func (c *Client) GetChainID() (string, error) {
+	status, err := c.client.Status(context.Background(), nil)
+	if err != nil {
+		return "", fmt.Errorf("unable to fetch chain ID, %w", err)
+	}
+
+	return status.NodeInfo.Network, nil
+}
+
 func (c *Client) GetBlocks(ctx context.Context, from, to uint64) ([]*client.Block, error) {
 	// Check if the block range is valid
 	if from > to {

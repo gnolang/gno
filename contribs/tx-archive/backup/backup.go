@@ -62,9 +62,18 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("unable to determine right bound, %w", boundErr)
 	}
 
+	// Fetch source chain ID once — used to tag every tx so a hardfork replay
+	// (see gno.land/pkg/gnoland.GnoGenesisState.PastChainIDs) can verify the
+	// signature against the chain that produced it.
+	chainID, chainIDErr := s.client.GetChainID()
+	if chainIDErr != nil {
+		return fmt.Errorf("unable to fetch source chain id, %w", chainIDErr)
+	}
+
 	// Log info about what will be backed up
 	s.logger.Info(
 		"Existing blocks to backup",
+		"chain id", chainID,
 		"from block", cfg.FromBlock,
 		"to block", toBlock,
 		"total", toBlock-cfg.FromBlock+1,
@@ -142,8 +151,9 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 
 				for i, tx := range block.Txs {
 					txResult := txResults[i]
+					failed := !txResult.IsOK()
 
-					if !txResult.IsOK() && s.skipFailedTxs {
+					if failed && s.skipFailedTxs {
 						// Skip saving failed transaction
 						s.logger.Debug(
 							"Skipping failed tx",
@@ -158,7 +168,10 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 					txData := &gnoland.TxWithMetadata{
 						Tx: tx,
 						Metadata: &gnoland.GnoTxMetadata{
-							Timestamp: block.Timestamp,
+							Timestamp:   block.Timestamp,
+							BlockHeight: int64(block.Height),
+							ChainID:     chainID,
+							Failed:      failed,
 						},
 					}
 

@@ -12,6 +12,9 @@ type Client interface {
 	// GetLatestBlockNumber returns the latest block height from the chain
 	GetLatestBlockNumber() (uint64, error)
 
+	// GetChainID returns the chain ID of the source chain
+	GetChainID() (string, error)
+
 	// GetBlocks returns a slice of Block - including the block height and its
 	// timestamp in milliseconds - in the requested range only if they contain
 	// transactions
