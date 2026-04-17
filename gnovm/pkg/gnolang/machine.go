@@ -233,11 +233,11 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	if bm.OpsEnabled || bm.StorageEnabled || bm.NativeEnabled {
+	if bm.Enabled {
 		bm.InitMeasure()
-	}
-	if bm.StorageEnabled {
-		defer bm.FinishStore()
+		if bm.StorageEnabled {
+			defer bm.FinishStore()
+		}
 	}
 	return m.runMemPackage(mpkg, save, false)
 }
@@ -816,12 +816,12 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
-	if bm.OpsEnabled || bm.StorageEnabled {
+	if bm.Enabled {
 		// reset the benchmark
 		bm.InitMeasure()
-	}
-	if bm.StorageEnabled {
-		defer bm.FinishStore()
+		if bm.StorageEnabled {
+			defer bm.FinishStore()
+		}
 	}
 	// X must not have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
@@ -1268,29 +1268,35 @@ const (
 func (m *Machine) Run(st Stage) {
 	m.Stage = st
 	if bm.OpsEnabled {
-		defer func() {
-			// output each machine run results to file
-			bm.FinishRun()
-		}()
+		defer bm.FinishRun()
 	}
 	if bm.NativeEnabled {
-		defer func() {
-			// output each machine run results to file
-			bm.FinishNative()
-		}()
+		defer bm.FinishNative()
 	}
-	defer func() {
-		r := recover()
 
-		if r != nil {
-			switch r := r.(type) {
-			case *Exception:
-				if r.Stacktrace.IsZero() {
-					r.Stacktrace = m.Stacktrace()
-				}
-				m.pushPanic(r.Value)
-				m.Run(st)
-			default:
+	// Iterative exception recovery: catch Go-level *Exception panics and
+	// convert them to the cooperative pushPanic path without recursion.
+	for {
+		caught := m.runOnce()
+		if caught == nil {
+			return
+		}
+		if caught.Stacktrace.IsZero() {
+			caught.Stacktrace = m.Stacktrace()
+		}
+		m.pushPanic(caught.Value)
+	}
+}
+
+// runOnce executes the op loop until it completes (OpHalt) or a Go-level
+// *Exception panic is caught. Returns the caught exception, or nil if the
+// loop completed normally. Non-Exception panics are re-raised.
+func (m *Machine) runOnce() (caught *Exception) {
+	defer func() {
+		if r := recover(); r != nil {
+			if ex, ok := r.(*Exception); ok {
+				caught = ex
+			} else {
 				panic(r)
 			}
 		}
@@ -1301,21 +1307,15 @@ func (m *Machine) Run(st Stage) {
 			m.Debug()
 		}
 		op := m.PopOp()
-		if bm.OpsEnabled {
-			// benchmark the operation.
-			bm.StartOpCode(byte(OpVoid))
-			bm.StopOpCode()
-			// we do not benchmark static evaluation.
-			if op != OpStaticTypeOf {
-				bm.StartOpCode(byte(op))
-			}
+		if bm.Enabled {
+			bm.SwitchOpCode(bm.CPUOp(op))
 		}
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
-			if bm.OpsEnabled {
+			if bm.Enabled {
 				bm.StopOpCode()
 			}
 			return
@@ -1621,11 +1621,8 @@ func (m *Machine) Run(st Stage) {
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
 		}
-		if bm.OpsEnabled {
-			if op != OpStaticTypeOf {
-				bm.StopOpCode()
-			}
-		}
+		// No StopOpCode needed here — SwitchOpCode at the top
+		// of the next iteration attributes this op's time.
 	}
 }
 
@@ -2136,6 +2133,22 @@ func (m *Machine) NumFrames() int {
 	return len(m.Frames)
 }
 
+// NumCallFrames returns the number of actual function call frames,
+// excluding closure frames (func literals) and control-flow basic
+// frames (for/range/switch where Func is nil). Only named, non-closure
+// function calls count as separate call boundaries for origin-call
+// purposes.
+func (m *Machine) NumCallFrames() int {
+	count := 0
+	for i := range m.Frames {
+		fr := &m.Frames[i]
+		if fr.Func != nil && !fr.Func.IsClosure {
+			count++
+		}
+	}
+	return count
+}
+
 // Returns the current frame.
 func (m *Machine) LastFrame() *Frame {
 	return &m.Frames[len(m.Frames)-1]
@@ -2247,19 +2260,18 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 }
 
 func readonlyAccessPanic(x Expr) string {
-	return "cannot directly modify readonly tainted object (w/o method): " + x.String()
+	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }
 
-// Returns true iff:
-//   - m.Realm is nil (single user mode), or
+// Returns false if m.Realm is nil (single user mode, nothing is readonly).
+// Otherwise returns true iff:
 //   - tv is a ref to (external) package path, or
 //   - tv is N_Readonly, or
 //   - tv is not an object ("first object" ID is zero), or
 //   - tv is an unreal object (no object id), or
 //   - tv is an object residing in external realm
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
-	// Returns true iff:
-	//  - m.Realm is nil (single user mode)
+	//  m.Realm is nil → single user mode, nothing is readonly
 	if m.Realm == nil {
 		return false
 	}
@@ -2278,9 +2290,26 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	return tv.IsReadonlyBy(m.Realm.ID)
 }
 
+// isExternalRealm returns true if base is a real Object belonging to
+// a different realm than m.Realm. Used for NameExpr cross-realm checks
+// where we have a Base (Block) rather than a TypedValue.
+func (m *Machine) isExternalRealm(base Value) bool {
+	if m.Realm == nil {
+		return false
+	}
+	obj, ok := base.(Object)
+	if !ok {
+		return false
+	}
+	oid := obj.GetObjectID()
+	if oid.IsZero() {
+		return false // transient (local var, unreal block)
+	}
+	return oid.PkgID != m.Realm.ID
+}
+
 // Returns ro = true if the base is readonly,
 // or if the base's storage realm != m.Realm and both are non-nil,
-// and the lx isn't a name (base is a block),
 // and the lx isn't a composite lit expr.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
@@ -2289,11 +2318,11 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		case NameExprTypeNormal:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
+			ro = m.isExternalRealm(pv.Base)
 		case NameExprTypeHeapUse:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
+			ro = m.isExternalRealm(pv.Base)
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
@@ -2324,7 +2353,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		var ok bool
 		if pv, ok = xv.V.(PointerValue); !ok {
 			if xv.V == nil {
-				m.Panic(typedString("nil pointer dereference"))
+				m.Panic(typedString("runtime error: nil pointer dereference"))
 			}
 			panic("should not happen, not pointer nor nil")
 		}
@@ -2337,7 +2366,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			Base:  hv,
 			Index: 0,
 		}
-		ro = false // always mutable
+		ro = false // always mutable; composite literals are freshly allocated (unreal) values not yet owned by any realm.
 	default:
 		panic("should not happen")
 	}

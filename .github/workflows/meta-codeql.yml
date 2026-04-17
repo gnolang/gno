@@ -3,29 +3,39 @@ name: meta / codeql
 on:
   push:
     branches: ["master", "chain/*"]
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/meta-codeql.yml'
   pull_request:
     branches: ["master", "chain/*"]
     paths:
       - '**/*.go'
       - 'go.mod'
       - 'go.sum'
+      - '.github/workflows/meta-codeql.yml'
   schedule:
     - cron: '22 17 * * 3'
+
+permissions: {}
 
 jobs:
   analyze:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     permissions:
-      security-events: write
-      actions: read
+      security-events: write # to upload SARIF results
+      actions: read # to read workflow run details
       contents: read
     steps:
-      - uses: actions/checkout@v5
-      - uses: github/codeql-action/init@v3
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@5c8a8a642e79153f5d047b10ec1cba1d1cc65699 # v3
         with:
           languages: go
           build-mode: autobuild
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@5c8a8a642e79153f5d047b10ec1cba1d1cc65699 # v3
         with:
           category: "/language:go"
