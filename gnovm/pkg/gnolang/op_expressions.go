@@ -160,9 +160,17 @@ func (m *Machine) doOpStar() {
 			ro := m.IsReadonly(xv)
 			pvtv := (*pv.TV).WithReadonly(ro)
 			if xpt, ok := baseOf(xv.T).(*PointerType); ok {
-				// e.g. type Foo; type Bar;
-				// *((*Foo)(&Bar{})) should be Bar, not Foo.
-				pvtv.T = xpt.Elem()
+				// When a pointer was converted to a different
+				// declared pointer type, the dereferenced value
+				// should have the element type of the pointer,
+				// not the original stored type.
+				// e.g. type Foo struct{X int}; type Bar struct{X int};
+				// *((*Foo)(&Bar{})) is Foo, not Bar.
+				// But do not overwrite for interface element
+				// types; the concrete type must be preserved.
+				if xpt.Elem().Kind() != InterfaceKind {
+					pvtv.T = xpt.Elem()
+				}
 			}
 			m.PushValue(pvtv)
 		}
@@ -177,13 +185,19 @@ func (m *Machine) doOpStar() {
 	}
 }
 
-// XXX this is wrong, for var i interface{}; &i is *interface{}.
+// doOpRef implements the & (address-of) operator.
+// The element type for the resulting pointer is taken from
+// ATTR_REF_ELEM_TYPE on the RefExpr, not from the runtime
+// xv.TV.T.  This distinction matters for interface variables:
+// var i interface{} = 42; &i must yield *interface{}, not *int.
+// ATTR_REF_ELEM_TYPE is set during preprocessing in
+// TRANS_LEAVE *RefExpr and at each synthetic RefExpr site.
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
 	xv, ro := m.PopAsPointer2(rx.X)
-	elt := xv.TV.T
-	if elt == DataByteType {
-		elt = xv.TV.V.(DataByteValue).ElemType
+	elt, ok := rx.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
+	if !ok {
+		panic("ATTR_REF_ELEM_TYPE not set during preprocessing")
 	}
 	m.Alloc.AllocatePointer()
 	m.PushValue(TypedValue{
