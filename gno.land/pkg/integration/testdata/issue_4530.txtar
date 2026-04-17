@@ -1,0 +1,50 @@
+# Reproduction for https://github.com/gnolang/gno/issues/4530
+# `importee_test` (xtest) imports a package that itself imports `importee`,
+# which used to be flagged as a circular dependency.
+
+# Load packages from $WORK directory.
+loadpkg gno.land/r/issue/importee $WORK/importee
+loadpkg gno.land/r/issue/importer $WORK/importer
+
+# Start the node
+gnoland start
+stdout 'node started successfully'
+
+-- importer/gnomod.toml --
+module = "gno.land/r/issue/importer"
+gno = "0.9"
+
+-- importer/importer.gno --
+package importer
+
+import (
+	"gno.land/r/issue/importee"
+)
+
+func Function() {
+	importee.Function()
+}
+
+-- importee/gnomod.toml --
+module = "gno.land/r/issue/importee"
+gno = "0.9"
+
+-- importee/importee.gno --
+package importee
+
+func Function() {}
+
+-- importee/importee_test.gno --
+package importee_test
+
+import (
+	"testing"
+
+	"gno.land/r/issue/importee"
+	"gno.land/r/issue/importer"
+)
+
+func TestFunction(_ *testing.T) {
+	importee.Function()
+	importer.Function()
+}

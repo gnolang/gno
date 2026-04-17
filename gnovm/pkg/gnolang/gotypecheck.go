@@ -171,6 +171,12 @@ type TypeCheckOptions struct {
 	// After TypeCheckMemPackage returns, it contains the file position
 	// information from the parsed package.
 	Fset *token.FileSet
+
+	// SkipTestFileTypeCheck, when enabled, skips the xtest and filetest type
+	// check passes. Syntax is still validated via GoParseMemPackage. Intended
+	// for callers where xtest imports may reference packages not yet
+	// available to the importer (e.g. on-chain AddPkg at genesis).
+	SkipTestFileTypeCheck bool
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -204,7 +210,12 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 	}
 	gimp.cfg.Importer = gimp
 
-	pkg, errs = gimp.typeCheckMemPackage(mpkg, nil)
+	var wtests *bool
+	if opts.SkipTestFileTypeCheck {
+		t := true
+		wtests = &t
+	}
+	pkg, errs = gimp.typeCheckMemPackage(mpkg, wtests)
 	return
 }
 

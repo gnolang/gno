@@ -554,7 +554,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		Cache:      vm.getTypeCheckCache(ctx),
 	}
 	if ctx.BlockHeight() == 0 {
-		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
+		opts.Mode = gno.TCGenesisStrict   // genesis time, waive blocking rules for importing draft packages.
+		opts.SkipTestFileTypeCheck = true // genesis time, xtest/filetest imports may not be deployed yet.
 	}
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, opts)

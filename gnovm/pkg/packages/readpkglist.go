@@ -59,11 +59,12 @@ func ReadPkgListFromDir(dir string, mptype gnolang.MemPackageType) (gnomod.PkgLi
 				// ignore imports on error
 				importsMap = nil
 			}
+
+			// exclude xtest/filetest(Issue #4530): their back-imports are legal in Go and
+			// would be flagged as false cycles by the topological sort
 			importsRaw := importsMap.Merge(
-				FileKindFiletest,
 				FileKindPackageSource,
 				FileKindTest,
-				FileKindXTest,
 			)
 
 			imports := make([]string, 0, len(importsRaw))

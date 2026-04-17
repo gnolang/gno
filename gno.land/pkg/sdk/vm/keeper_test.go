@@ -1651,3 +1651,47 @@ func Hello(cur realm) string { return "hello" }`},
 	err := env.vmk.AddPackage(ctx, userMsg)
 	assert.NoError(t, err, "should allow deployment when CLA realm is not deployed (bootstrap)")
 }
+
+// Pins issue #4530: xtest back-import accepted at genesis, rejected post-genesis.
+func TestVMKeeperAddPackage_XTestBackImport_Genesis(t *testing.T) {
+	env := setupTestEnv()
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(env.ctx, addr)
+	env.acck.SetAccount(env.ctx, acc)
+	env.bankk.SetCoins(env.ctx, addr, initialBalance)
+
+	const pkgPath = "gno.land/r/test/importee"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "importee.gno", Body: `package importee
+
+func Function() {}`},
+		{Name: "importee_test.gno", Body: `package importee_test
+
+import (
+	"testing"
+
+	"gno.land/r/test/importee"
+	"gno.land/r/test/importer"
+)
+
+func TestFunction(_ *testing.T) {
+	importee.Function()
+	importer.Function()
+}`},
+	}
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+
+	// Post-genesis: reject (consensus preserved).
+	postCtx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	err := env.vmk.AddPackage(postCtx, msg)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "gno.land/r/test/importer")
+
+	// Genesis (Height=0): accept.
+	genesisHeader := &bft.Header{ChainID: "test-chain-id", Height: 0}
+	genesisCtx := env.vmk.MakeGnoTransactionStore(env.ctx.WithBlockHeader(genesisHeader))
+	err = env.vmk.AddPackage(genesisCtx, msg)
+	require.NoError(t, err)
+}
