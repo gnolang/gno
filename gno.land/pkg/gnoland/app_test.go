@@ -1431,8 +1431,9 @@ func GetHeight(cur realm) int64 { return height }
 		// Run InitChain with PastChainIDs and InitialHeight set,
 		// and the deploy tx using metadata with BlockHeight=42 and ChainID="old-chain"
 		app.InitChain(abci.RequestInitChain{
-			ChainID: chainID,
-			Time:    time.Now(),
+			ChainID:       chainID,
+			Time:          time.Now(),
+			InitialHeight: 100,
 			ConsensusParams: &abci.ConsensusParams{
 				Block: defaultBlockParams(),
 				Validator: &abci.ValidatorParams{
@@ -1743,6 +1744,90 @@ var Deployed = true
 				PastChainIDs: []string{"chain-a", "chain-b"},
 			},
 		})
+	})
+}
+
+// TestInitChainer_InitialHeightMismatch verifies that loadAppState rejects
+// a genesis where GnoGenesisState.InitialHeight diverges from the
+// GenesisDoc.InitialHeight passed in via RequestInitChain.
+func TestInitChainer_InitialHeightMismatch(t *testing.T) {
+	t.Parallel()
+
+	t.Run("mismatch is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID:       "test-chain",
+			Time:          time.Now(),
+			InitialHeight: 100,
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances:      []Balance{},
+				Txs:           []TxWithMetadata{},
+				Auth:          auth.DefaultGenesisState(),
+				Bank:          bank.DefaultGenesisState(),
+				VM:            vm.DefaultGenesisState(),
+				InitialHeight: 200, // diverges from RequestInitChain.InitialHeight
+			},
+		})
+		require.NotNil(t, resp.Error, "InitChainer should reject InitialHeight mismatch")
+		assert.Contains(t, resp.Error.Error(), "InitialHeight mismatch")
+	})
+
+	t.Run("match is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID:       "test-chain",
+			Time:          time.Now(),
+			InitialHeight: 100,
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances:      []Balance{},
+				Txs:           []TxWithMetadata{},
+				Auth:          auth.DefaultGenesisState(),
+				Bank:          bank.DefaultGenesisState(),
+				VM:            vm.DefaultGenesisState(),
+				InitialHeight: 100,
+			},
+		})
+		require.Nil(t, resp.Error, "matching InitialHeight should be accepted: %v", resp.Error)
+	})
+
+	t.Run("zero app-level InitialHeight is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		// GnoGenesisState.InitialHeight = 0 means "not set"; no check needed.
+		app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID:       "test-chain",
+			Time:          time.Now(),
+			InitialHeight: 100,
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances: []Balance{},
+				Txs:      []TxWithMetadata{},
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
+				// InitialHeight not set
+			},
+		})
+		require.Nil(t, resp.Error, "zero app-level InitialHeight should pass validation: %v", resp.Error)
 	})
 }
 
