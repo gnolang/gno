@@ -657,23 +657,56 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	}
 
 	// "coda" means "conclusion".
-	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
-	// because say n may be a *CallExpr containing an anonymous function.
+	//
+	// The three post-preprocess passes below run as TranscribeB walks
+	// rooted at each top-level BlockNode found via an outer Transcribe
+	// dispatcher. The dispatcher is necessary because Preprocess may be
+	// called recursively on non-BlockNode sub-expressions (e.g. a bare
+	// *CallExpr) — in that case the coda passes must only fire if/when the
+	// walk hits a BlockNode; running them unconditionally on every
+	// recursive Preprocess would corrupt attributes set by the outer call.
+	//
+	// We merge what used to be three inner walks into two, leveraging a
+	// middleware pipeline (coda_pipeline.go). The two-walk split is
+	// required because codaHeapDefinesByUseMW writes ATTR_HEAP_USES on an
+	// *ancestor* BlockNode (at TRANS_LEAVE of a closure-captured NameExpr),
+	// and codaHeapUsesDemoteDefinesMW reads that attribute on TRANS_ENTER
+	// of Define/HeapDefine NameExprs that may appear earlier in DFS order.
+	// So pass 2 can only run correctly after pass 1 finishes the subtree.
+	//
+	// Walk 1 (pass 1 alone):
+	//   - skipUnprocessedFuncLitMW: short-circuit FuncLits whose bodies
+	//     were never preprocessed (unresolved paths).
+	//   - codaHeapDefinesByUseMW: write ATTR_HEAP_USES and ATTR_PACKAGE_DECL
+	//     on TRANS_LEAVE.
+	//
+	// Walk 2 (passes 2 and 3 merged, one TranscribeB over the subtree):
+	//   - skipUnprocessedFuncLitMW (same guard).
+	//   - codaHeapUsesDemoteDefinesMW: reads ATTR_HEAP_USES, promote/demote.
+	//   - codaPackageSelectorsMW: reads ATTR_PACKAGE_DECL on TRANS_LEAVE of
+	//     *NameExpr and rewrites to SelectorExpr. Sits after pass 2 in the
+	//     pipeline because pass 2's *NameExpr ENTER case must see the
+	//     original NameExpr before any replacement.
+	pass1 := codaPipeline(
+		skipUnprocessedFuncLitMW,
+		codaHeapDefinesByUseMW,
+	)
+	pass23 := codaPipeline(
+		skipUnprocessedFuncLitMW,
+		codaHeapUsesDemoteDefinesMW,
+		codaPackageSelectorsMW,
+	)
 	Transcribe(n,
 		func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 			if stage != TRANS_ENTER {
 				return n, TRANS_CONTINUE
 			}
-			if _, ok := n.(*FuncLitExpr); ok {
-				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
-					return n, TRANS_SKIP
-				}
+			if isSkippedFuncLit(n) {
+				return n, TRANS_SKIP
 			}
 			if bn, ok := n.(BlockNode); ok {
-				// codaGotoLoopDefines(ctx, bn)
-				codaHeapDefinesByUse(ctx, bn)
-				codaHeapUsesDemoteDefines(ctx, bn)
-				codaPackageSelectors(bn)
+				_ = TranscribeB(ctx, bn, pass1)
+				_ = TranscribeB(ctx, bn, pass23)
 				return n, TRANS_SKIP
 			}
 			return n, TRANS_CONTINUE
@@ -3277,128 +3310,131 @@ func codaGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	})
 }
 
-// Finds heap defines by their use in ref expressions or
-// closures (captures). Also adjusts the name expr type,
-// and sets new closure captures' path to refer to local
-// capture.
-// Also happens to declare all package and file names
-// as heap use, so that functions added later may use them.
-func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
-	// Iterate over all nodes recursively.
-	_ = TranscribeB(ctx, bn, func(
-		ns []Node,
-		stack []BlockNode,
-		last BlockNode,
-		ftype TransField,
-		index int,
-		n Node,
-		stage TransStage,
-	) (Node, TransCtrl) {
-		defer doRecover(stack, n)
+// isSkippedFuncLit reports whether n is a *FuncLitExpr whose body was not
+// preprocessed (it was encountered inside a const/type expression; see
+// ATTR_PREPROCESS_SKIPPED set in preprocess1). Post-preprocess "coda" passes
+// must not descend into such nodes because their NameExpr paths and block
+// static data are unresolved.
+func isSkippedFuncLit(n Node) bool {
+	flx, ok := n.(*FuncLitExpr)
+	return ok && flx.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr
+}
 
-		if debug {
-			debug.Printf("codaHeapDefinesByUse %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
-		}
+// codaHeapDefinesByUseMW finds heap defines by their use in ref expressions
+// or closures (captures). Also adjusts the name expr type, and sets new
+// closure captures' path to refer to local capture.
+// Also happens to declare all package and file names as heap use, so that
+// functions added later may use them.
+//
+// Pipeline invariants:
+//   - Runs before codaHeapUsesDemoteDefinesMW in the pipeline so that the
+//     heap-use attributes this pass writes on TRANS_LEAVE of *ValueDecl are
+//     visible when the next pass reads them on LEAVE of the same node.
+//   - Runs before codaPackageSelectorsMW so that the ATTR_PACKAGE_DECL
+//     attribute written on TRANS_LEAVE of *NameExpr here is visible when
+//     the next pass consumes it on LEAVE of the same node.
+func codaHeapDefinesByUseMW(
+	ns []Node, stack []BlockNode, last BlockNode,
+	ftype TransField, index int, n Node, stage TransStage,
+) (Node, TransCtrl) {
+	defer doRecover(stack, n)
 
-		switch stage {
-		// ----------------------------------------
-		case TRANS_BLOCK:
+	if debug {
+		debug.Printf("codaHeapDefinesByUseMW %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+	}
 
-		// ----------------------------------------
-		case TRANS_LEAVE:
-
-			switch n := n.(type) {
-			case *ValueDecl:
-				// Top level value decls are always heap escaped.
-				// See also corresponding case in codaHeapUsesDemoteDefines.
-				if !n.Const {
-					switch last.(type) {
-					case *PackageNode, *FileNode:
-						pn := skipFile(last)
-						for _, nx := range n.NameExprs {
-							if nx.Name == "_" {
-								continue
-							}
-							addAttrHeapUse(pn, nx.Name)
-						}
+	if stage != TRANS_LEAVE {
+		return n, TRANS_CONTINUE
+	}
+	switch n := n.(type) {
+	case *ValueDecl:
+		// Top level value decls are always heap escaped.
+		// See also corresponding case in codaHeapUsesDemoteDefinesMW.
+		if !n.Const {
+			switch last.(type) {
+			case *PackageNode, *FileNode:
+				pn := skipFile(last)
+				for _, nx := range n.NameExprs {
+					if nx.Name == "_" {
+						continue
 					}
-				}
-			case *RefExpr:
-				lmx := LeftmostX(n.X)
-				if nx, ok := lmx.(*NameExpr); ok {
-					// Find the block where name is defined
-					dbn := last.GetBlockNodeForPath(nil, nx.Path)
-					// The leftmost name of possibly nested index
-					// and selector exprs.
-					// e.g. leftmost.middle[0][2].rightmost
-					// Mark name for heap use.
-					addAttrHeapUse(dbn, nx.Name)
-					// adjust NameExpr type.
-					nx.Type = NameExprTypeHeapUse
-				}
-			case *NameExpr:
-				// NOTE: Keep in sync maybe with transpile_gno0p0.go/FindMore...
-				// Ignore non-block type paths
-				if n.Path.Type != VPBlock {
-					return n, TRANS_CONTINUE
-				}
-				// Ignore blank identifers
-				if n.Name == blankIdentifier {
-					return n, TRANS_CONTINUE
-				}
-				// Ignore package names
-				if n.GetAttribute(ATTR_PACKAGE_REF) != nil {
-					return n, TRANS_CONTINUE
-				}
-				// Ignore decls names.
-				if ftype == TRANS_VAR_NAME {
-					return n, TRANS_CONTINUE
-				}
-				// Ignore := defines, etc.
-				if n.Type != NameExprTypeNormal {
-					return n, TRANS_CONTINUE
-				}
-				// Find the block where name is defined.
-				dbn := last.GetBlockNodeForPath(nil, n.Path)
-				for {
-					// If used as closure capture, mark as heap use.
-					flx, depth, found := findFirstClosure(stack, dbn)
-					if !found {
-						return n, TRANS_CONTINUE
-					}
-					// Ignore top level declarations.
-					// This get replaced by codaPackageSelectors.
-					if pn, ok := dbn.(*PackageNode); ok {
-						if pn.PkgPath != ".uverse" {
-							n.SetAttribute(ATTR_PACKAGE_DECL, true)
-							return n, TRANS_CONTINUE
-						}
-					}
-					// Ignore type declaration names.
-					// Types cannot be passed ergo cannot be captured.
-					// (revisit when types become first class objects)
-					st := dbn.GetStaticTypeOf(nil, n.Name)
-					if st.Kind() == TypeKind {
-						return n, TRANS_CONTINUE
-					}
-
-					// Found a heap item closure capture.
-					addAttrHeapUse(dbn, n.Name)
-					// The path must stay same for now,
-					// used later in codaHeapUsesDemoteDefines.
-					idx := addHeapCapture(dbn, flx, depth, n)
-					// adjust NameExpr type.
-					n.Type = NameExprTypeHeapUse
-					n.Path.SetDepth(uint8(depth))
-					n.Path.Index = idx
-					// Loop again for more closures.
-					dbn = flx
+					addAttrHeapUse(pn, nx.Name)
 				}
 			}
+		}
+	case *RefExpr:
+		lmx := LeftmostX(n.X)
+		if nx, ok := lmx.(*NameExpr); ok {
+			// Find the block where name is defined
+			dbn := last.GetBlockNodeForPath(nil, nx.Path)
+			// The leftmost name of possibly nested index
+			// and selector exprs.
+			// e.g. leftmost.middle[0][2].rightmost
+			// Mark name for heap use.
+			addAttrHeapUse(dbn, nx.Name)
+			// adjust NameExpr type.
+			nx.Type = NameExprTypeHeapUse
+		}
+	case *NameExpr:
+		// NOTE: Keep in sync maybe with transpile_gno0p0.go/FindMore...
+		// Ignore non-block type paths
+		if n.Path.Type != VPBlock {
 			return n, TRANS_CONTINUE
 		}
-		return n, TRANS_CONTINUE
-	})
+		// Ignore blank identifers
+		if n.Name == blankIdentifier {
+			return n, TRANS_CONTINUE
+		}
+		// Ignore package names
+		if n.GetAttribute(ATTR_PACKAGE_REF) != nil {
+			return n, TRANS_CONTINUE
+		}
+		// Ignore decls names.
+		if ftype == TRANS_VAR_NAME {
+			return n, TRANS_CONTINUE
+		}
+		// Ignore := defines, etc.
+		if n.Type != NameExprTypeNormal {
+			return n, TRANS_CONTINUE
+		}
+		// Find the block where name is defined.
+		dbn := last.GetBlockNodeForPath(nil, n.Path)
+		for {
+			// If used as closure capture, mark as heap use.
+			flx, depth, found := findFirstClosure(stack, dbn)
+			if !found {
+				return n, TRANS_CONTINUE
+			}
+			// Ignore top level declarations.
+			// This gets replaced by codaPackageSelectorsMW.
+			if pn, ok := dbn.(*PackageNode); ok {
+				if pn.PkgPath != ".uverse" {
+					n.SetAttribute(ATTR_PACKAGE_DECL, true)
+					return n, TRANS_CONTINUE
+				}
+			}
+			// Ignore type declaration names.
+			// Types cannot be passed ergo cannot be captured.
+			// (revisit when types become first class objects)
+			st := dbn.GetStaticTypeOf(nil, n.Name)
+			if st.Kind() == TypeKind {
+				return n, TRANS_CONTINUE
+			}
+
+			// Found a heap item closure capture.
+			addAttrHeapUse(dbn, n.Name)
+			// The path must stay same for now,
+			// used later in codaHeapUsesDemoteDefinesMW.
+			idx := addHeapCapture(dbn, flx, depth, n)
+			// adjust NameExpr type.
+			n.Type = NameExprTypeHeapUse
+			n.Path.SetDepth(uint8(depth))
+			n.Path.Index = idx
+			// Loop again for more closures.
+			dbn = flx
+		}
+	}
+	return n, TRANS_CONTINUE
 }
 
 // TODO consider adding to Names type.
@@ -3532,157 +3568,149 @@ func findLastFunction(last BlockNode, stop BlockNode) (fn FuncNode, depth int, f
 	return
 }
 
-// If a name is used as a heap item, Convert all other uses of such names
-// for heap use. If a name of type heap define is not actually used
-// as heap use, demotes them.
-func codaHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
-	// create stack of BlockNodes.
-	last := ctx
-	stack := append(make([]BlockNode, 0, 32), last)
+// codaHeapUsesDemoteDefinesMW: if a name is used as a heap item, convert
+// all other uses of such names for heap use. If a name of type heap define
+// is not actually used as heap use, demotes them.
+//
+// Pipeline invariant: this runs after codaHeapDefinesByUseMW so that the
+// ATTR_HEAP_USES written by that pass (on TRANS_LEAVE of *ValueDecl and on
+// LEAVE of ancestor BlockNodes for closure captures) is already present when
+// this middleware reads it.
+func codaHeapUsesDemoteDefinesMW(
+	ns []Node, stack []BlockNode, last BlockNode,
+	ftype TransField, index int, n Node, stage TransStage,
+) (Node, TransCtrl) {
+	defer doRecover(stack, n)
 
-	// Iterate over all nodes recursively.
-	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-		defer doRecover(stack, n)
+	if debug {
+		debug.Printf("codaHeapUsesDemoteDefinesMW %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+	}
 
-		if debug {
-			debug.Printf("codaHeapUsesDemoteDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
-		}
+	switch stage {
+	// ----------------------------------------
+	case TRANS_BLOCK:
+		// Block push handled by TranscribeB.
 
-		switch stage {
-		// ----------------------------------------
-		case TRANS_BLOCK:
-			pushInitBlock(n.(BlockNode), &last, &stack)
-
-		// ----------------------------------------
-		case TRANS_ENTER:
-			switch n := n.(type) {
-			// type switch is a special cast that varName is
-			// defined in case clauses.
-			case *SwitchClauseStmt:
-				// parent switch statement.
-				ss := ns[len(ns)-1].(*SwitchStmt)
-				if ss.IsTypeSwitch && ss.VarName != "" {
-					// If the name is actually heap used:
-					if hasAttrHeapUse(n, ss.VarName) {
-						// Make record in static block.
-						// will be populated in ExpandWith().
-						n.SetIsHeapItem(ss.VarName)
-					}
-				}
-			case *NameExpr:
-				// Ignore non-block type paths
-				if n.Path.Type != VPBlock {
-					return n, TRANS_CONTINUE
-				}
-				switch n.Type {
-				case NameExprTypeNormal:
-					// Find the block where name is defined
-					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					// If the name is heap used,
-					if hasAttrHeapUse(dbn, n.Name) {
-						// Change type to heap use.
-						n.Type = NameExprTypeHeapUse
-					}
-				case NameExprTypeDefine, NameExprTypeHeapDefine:
-					// Find the block where name is defined
-					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					// If the name is actually heap used:
-					if hasAttrHeapUse(dbn, n.Name) {
-						// Promote type to heap define.
-						n.Type = NameExprTypeHeapDefine
-						// Make record in static block.
-						dbn.SetIsHeapItem(n.Name)
-					} else {
-						// Demote type to regular define.
-						n.Type = NameExprTypeDefine
-					}
-				}
-			case *ValueDecl:
-				// Top level var value decls are always heap escaped.
-				// See also corresponding case in codaHeapDefinesByUse.
-				if !n.Const {
-					switch last.(type) {
-					case *PackageNode, *FileNode:
-						pn := skipFile(last)
-						for i := range n.NameExprs {
-							nx := &n.NameExprs[i]
-							if nx.Name == "_" {
-								continue
-							}
-							if !hasAttrHeapUse(pn, nx.Name) {
-								panic("expected heap use for top level value decl")
-							}
-							nx.Type = NameExprTypeHeapDefine
-							pn.SetIsHeapItem(nx.Name)
-						}
-					}
+	// ----------------------------------------
+	case TRANS_ENTER:
+		switch n := n.(type) {
+		// type switch is a special cast that varName is
+		// defined in case clauses.
+		case *SwitchClauseStmt:
+			// parent switch statement.
+			ss := ns[len(ns)-1].(*SwitchStmt)
+			if ss.IsTypeSwitch && ss.VarName != "" {
+				// If the name is actually heap used:
+				if hasAttrHeapUse(n, ss.VarName) {
+					// Make record in static block.
+					// will be populated in ExpandWith().
+					n.SetIsHeapItem(ss.VarName)
 				}
 			}
-			return n, TRANS_CONTINUE
-
-		// ----------------------------------------
-		case TRANS_LEAVE:
-
-			// Defer pop block from stack.
-			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
-			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
-			// POP BLOCK YOURSELF.
-			defer func() {
-				switch n.(type) {
-				case BlockNode:
-					stack = stack[:len(stack)-1]
-					last = stack[len(stack)-1]
-				}
-			}()
-
-			switch n := n.(type) {
-			case BlockNode:
-				switch fd := n.(type) {
-				case *FuncDecl:
-					recv := &fd.Recv
-					if hasAttrHeapUse(fd, recv.Name) {
-						recv.NameExpr.Type = NameExprTypeHeapDefine
-						fd.SetIsHeapItem(recv.Name)
-					}
-					for i := 0; i < len(fd.Type.Params); i++ {
-						name := fd.Type.Params[i].Name
-						if hasAttrHeapUse(fd, name) {
-							fd.Type.Params[i].NameExpr.Type = NameExprTypeHeapDefine
-							fd.SetIsHeapItem(name)
-						}
-					}
-					for i := 0; i < len(fd.Type.Results); i++ {
-						name := fd.Type.Results[i].Name
-						if hasAttrHeapUse(fd, name) {
-							fd.Type.Results[i].NameExpr.Type = NameExprTypeHeapDefine
-							fd.SetIsHeapItem(name)
-						}
-					}
-				case *FuncLitExpr:
-					for i := 0; i < len(fd.Type.Params); i++ {
-						name := fd.Type.Params[i].Name
-						if hasAttrHeapUse(fd, name) {
-							fd.Type.Params[i].NameExpr.Type = NameExprTypeHeapDefine
-							fd.SetIsHeapItem(name)
-						}
-					}
-					for i := 0; i < len(fd.Type.Results); i++ {
-						name := fd.Type.Results[i].Name
-						if hasAttrHeapUse(fd, name) {
-							fd.Type.Results[i].NameExpr.Type = NameExprTypeHeapDefine
-							fd.SetIsHeapItem(name)
-						}
-					}
-				}
-
-				// no need anymore
-				n.DelAttribute(ATTR_HEAP_USES)
-				n.DelAttribute(ATTR_HEAP_DEFINES)
+		case *NameExpr:
+			// Ignore non-block type paths
+			if n.Path.Type != VPBlock {
+				return n, TRANS_CONTINUE
 			}
-			return n, TRANS_CONTINUE
+			switch n.Type {
+			case NameExprTypeNormal:
+				// Find the block where name is defined
+				dbn := last.GetBlockNodeForPath(nil, n.Path)
+				// If the name is heap used,
+				if hasAttrHeapUse(dbn, n.Name) {
+					// Change type to heap use.
+					n.Type = NameExprTypeHeapUse
+				}
+			case NameExprTypeDefine, NameExprTypeHeapDefine:
+				// Find the block where name is defined
+				dbn := last.GetBlockNodeForPath(nil, n.Path)
+				// If the name is actually heap used:
+				if hasAttrHeapUse(dbn, n.Name) {
+					// Promote type to heap define.
+					n.Type = NameExprTypeHeapDefine
+					// Make record in static block.
+					dbn.SetIsHeapItem(n.Name)
+				} else {
+					// Demote type to regular define.
+					n.Type = NameExprTypeDefine
+				}
+			}
 		}
 		return n, TRANS_CONTINUE
-	})
+
+	// ----------------------------------------
+	case TRANS_LEAVE:
+		// Block pop handled by TranscribeB.
+		switch n := n.(type) {
+		case *ValueDecl:
+			// Top level var value decls are always heap escaped.
+			// See also corresponding case in codaHeapDefinesByUseMW.
+			// Handled on LEAVE so that the HEAP_USE attribute written on
+			// LEAVE of this same node by codaHeapDefinesByUseMW (which runs
+			// earlier in the pipeline for this (n, stage)) is present.
+			if !n.Const {
+				switch last.(type) {
+				case *PackageNode, *FileNode:
+					pn := skipFile(last)
+					for i := range n.NameExprs {
+						nx := &n.NameExprs[i]
+						if nx.Name == "_" {
+							continue
+						}
+						if !hasAttrHeapUse(pn, nx.Name) {
+							panic("expected heap use for top level value decl")
+						}
+						nx.Type = NameExprTypeHeapDefine
+						pn.SetIsHeapItem(nx.Name)
+					}
+				}
+			}
+		case BlockNode:
+			switch fd := n.(type) {
+			case *FuncDecl:
+				recv := &fd.Recv
+				if hasAttrHeapUse(fd, recv.Name) {
+					recv.NameExpr.Type = NameExprTypeHeapDefine
+					fd.SetIsHeapItem(recv.Name)
+				}
+				for i := 0; i < len(fd.Type.Params); i++ {
+					name := fd.Type.Params[i].Name
+					if hasAttrHeapUse(fd, name) {
+						fd.Type.Params[i].NameExpr.Type = NameExprTypeHeapDefine
+						fd.SetIsHeapItem(name)
+					}
+				}
+				for i := 0; i < len(fd.Type.Results); i++ {
+					name := fd.Type.Results[i].Name
+					if hasAttrHeapUse(fd, name) {
+						fd.Type.Results[i].NameExpr.Type = NameExprTypeHeapDefine
+						fd.SetIsHeapItem(name)
+					}
+				}
+			case *FuncLitExpr:
+				for i := 0; i < len(fd.Type.Params); i++ {
+					name := fd.Type.Params[i].Name
+					if hasAttrHeapUse(fd, name) {
+						fd.Type.Params[i].NameExpr.Type = NameExprTypeHeapDefine
+						fd.SetIsHeapItem(name)
+					}
+				}
+				for i := 0; i < len(fd.Type.Results); i++ {
+					name := fd.Type.Results[i].Name
+					if hasAttrHeapUse(fd, name) {
+						fd.Type.Results[i].NameExpr.Type = NameExprTypeHeapDefine
+						fd.SetIsHeapItem(name)
+					}
+				}
+			}
+
+			// no need anymore
+			n.DelAttribute(ATTR_HEAP_USES)
+			n.DelAttribute(ATTR_HEAP_DEFINES)
+		}
+		return n, TRANS_CONTINUE
+	}
+	return n, TRANS_CONTINUE
 }
 
 // Replace package name with ref:
@@ -3690,52 +3718,60 @@ func codaHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 //
 // Replace package declared name ref:
 //   - `name` -> SelectorExpr{X:RefValue{PkgPath},Sel:name}
-func codaPackageSelectors(bn BlockNode) {
-	// Iterate over all nodes recursively.
-	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-		switch stage {
-		case TRANS_ENTER:
-			switch n := n.(type) {
-			case *NameExpr:
-				// Replace a package name with RefValue{PkgPath}
-				if pref, ok := n.GetAttribute(ATTR_PACKAGE_REF).(RefValue); ok {
-					cx := &ConstExpr{
-						Source: n,
-						TypedValue: TypedValue{
-							T: gPackageType,
-							V: pref,
-						},
-					}
-					return cx, TRANS_CONTINUE
-				}
-				// Replace a local package declared name with
-				// SelectorExpr{X:RefValue{PkgPath},Sel:name}
-				pdi := n.GetAttribute(ATTR_PACKAGE_DECL)
-				if pdi != nil { // is true
-					if n.Path.Type != VPBlock {
-						panic("expected block path")
-					}
-					pn := packageOf(bn)
-					cx := &ConstExpr{
-						Source: Nx(".pkgSelector"),
-						TypedValue: TypedValue{
-							T: gPackageType,
-							V: RefValue{PkgPath: pn.PkgPath},
-						},
-					}
-					setPreprocessed(cx)
-					sx := &SelectorExpr{
-						X:    cx,
-						Path: NewValuePathBlock(1, n.Path.Index, n.Name),
-						Sel:  n.Name,
-					}
-					setPreprocessed(sx)
-					return sx, TRANS_CONTINUE
-				}
-			}
-		}
+// codaPackageSelectorsMW rewrites bare package-name and package-declared-name
+// NameExprs into ConstExpr/SelectorExpr forms that resolve against package
+// RefValues at execution time.
+//
+// Pipeline invariant: runs after codaHeapDefinesByUseMW so that the
+// ATTR_PACKAGE_DECL attribute set on LEAVE of *NameExpr by that pass is
+// present when this middleware reads it (both fire on LEAVE of the same node;
+// the pipeline's fixed order ensures the write precedes the read).
+func codaPackageSelectorsMW(
+	ns []Node, stack []BlockNode, last BlockNode,
+	ftype TransField, index int, n Node, stage TransStage,
+) (Node, TransCtrl) {
+	if stage != TRANS_LEAVE {
 		return n, TRANS_CONTINUE
-	})
+	}
+	switch n := n.(type) {
+	case *NameExpr:
+		// Replace a package name with RefValue{PkgPath}
+		if pref, ok := n.GetAttribute(ATTR_PACKAGE_REF).(RefValue); ok {
+			cx := &ConstExpr{
+				Source: n,
+				TypedValue: TypedValue{
+					T: gPackageType,
+					V: pref,
+				},
+			}
+			return cx, TRANS_CONTINUE
+		}
+		// Replace a local package declared name with
+		// SelectorExpr{X:RefValue{PkgPath},Sel:name}
+		pdi := n.GetAttribute(ATTR_PACKAGE_DECL)
+		if pdi != nil { // is true
+			if n.Path.Type != VPBlock {
+				panic("expected block path")
+			}
+			pn := packageOf(last)
+			cx := &ConstExpr{
+				Source: Nx(".pkgSelector"),
+				TypedValue: TypedValue{
+					T: gPackageType,
+					V: RefValue{PkgPath: pn.PkgPath},
+				},
+			}
+			setPreprocessed(cx)
+			sx := &SelectorExpr{
+				X:    cx,
+				Path: NewValuePathBlock(1, n.Path.Index, n.Name),
+				Sel:  n.Name,
+			}
+			setPreprocessed(sx)
+			return sx, TRANS_CONTINUE
+		}
+	}
+	return n, TRANS_CONTINUE
 }
 
 func isSwitchLabel(ns []Node, label Name) bool {
@@ -5543,10 +5579,8 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 			case TRANS_ENTER:
 				// Skip function literal bodies that were not preprocessed;
 				// same guard as the main coda Transcribe in Preprocess.
-				if flx, ok := n.(*FuncLitExpr); ok {
-					if flx.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
-						return n, TRANS_SKIP
-					}
+				if isSkippedFuncLit(n) {
+					return n, TRANS_SKIP
 				}
 			case TRANS_LEAVE:
 				switch n := n.(type) {
