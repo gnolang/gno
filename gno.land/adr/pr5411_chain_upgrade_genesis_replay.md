@@ -1,5 +1,11 @@
 # ADR: Chain Upgrade Genesis Replay
 
+> **Superseded by [pr5489_genesis_tx_metadata_initial_height.md](pr5489_genesis_tx_metadata_initial_height.md).**
+> This ADR describes the initial design with a single `OriginalChainID` field.
+> The implementation evolved to use `PastChainIDs []string` with per-tx chain ID
+> override and `SignerInfo` for account state. See the successor ADR for the
+> current design.
+
 ## Context
 
 We need to support a hard fork from `gnoland1` to `gnoland-1`. The approach is to export all historical transactions from the old chain, include them in the new chain's genesis with metadata, and replay them during `InitChain`. The new chain then starts at the halted height of the old chain.

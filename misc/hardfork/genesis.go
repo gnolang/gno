@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -184,10 +183,9 @@ func execGenesis(ctx context.Context, cfg *genesisCfg, io commands.IO) error {
 
 	if !cfg.noVerify {
 		if err := verifyGenesisFile(cfg.output); err != nil {
-			io.Printf("  WARNING: genesis verification failed: %v\n", err)
-		} else {
-			io.Println("  Verification: OK")
+			return fmt.Errorf("genesis verification failed: %w (use --no-verify to skip)", err)
 		}
+		io.Println("  Verification: OK")
 	}
 
 	// Summary
@@ -263,6 +261,7 @@ func writeGenesis(path string, genDoc *bftypes.GenesisDoc, _ *gnoland.GnoGenesis
 }
 
 // writeTxsJSONL writes transactions to a file, one amino JSON per line.
+// Uses amino.MarshalJSON to preserve interface type information (e.g. std.Msg).
 func writeTxsJSONL(path string, txs []gnoland.TxWithMetadata) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -270,9 +269,13 @@ func writeTxsJSONL(path string, txs []gnoland.TxWithMetadata) error {
 	}
 	defer f.Close()
 
-	enc := json.NewEncoder(f)
 	for _, tx := range txs {
-		if err := enc.Encode(tx); err != nil {
+		data, err := amino.MarshalJSON(tx)
+		if err != nil {
+			return err
+		}
+		data = append(data, '\n')
+		if _, err := f.Write(data); err != nil {
 			return err
 		}
 	}
@@ -325,15 +328,8 @@ func applyOverlay(overlayDir, genesisPath string, io commands.IO) error {
 		return nil
 	}
 
-	io.Printf("  Running %d overlay scripts...\n", len(scripts))
-	// Note: actual script execution requires exec.Command — intentionally
-	// deferred here since the binary should be OS-portable. The overlay
-	// mechanism is documented in overlay/README.md and invoked by generate-genesis.sh.
-	for _, s := range scripts {
-		io.Printf("  [overlay] %s\n", s)
-	}
-	io.Println("  NOTE: overlay script execution via --overlay-dir not yet implemented;")
-	io.Println("  use generate-genesis.sh for full overlay support.")
-
-	return nil
+	// Overlay script execution is not yet implemented in the Go binary.
+	// Return an error so the caller knows the genesis is incomplete.
+	// Use generate-genesis.sh for full overlay support.
+	return fmt.Errorf("overlay not yet implemented: found %d scripts in %s; use generate-genesis.sh instead", len(scripts), overlayDir)
 }

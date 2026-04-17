@@ -313,7 +313,7 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 
 	// load app state. AppState may be nil mostly in some minimal testing setups;
 	// so log a warning when that happens.
-	txResponses, err := cfg.loadAppState(ctx, req.AppState)
+	txResponses, err := cfg.loadAppState(ctx, req.AppState, req.InitialHeight)
 	if err != nil {
 		return abci.ResponseInitChain{
 			ResponseBase: abci.ResponseBase{
@@ -350,16 +350,27 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 	msCache.MultiWrite()
 }
 
-func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci.ResponseDeliverTx, error) {
+func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInitialHeight int64) ([]abci.ResponseDeliverTx, error) {
 	state, ok := appState.(GnoGenesisState)
 	if !ok {
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
 
+	// If GnoGenesisState.InitialHeight is set, it must match the authoritative
+	// GenesisDoc.InitialHeight (which comes in via req.InitialHeight). These
+	// fields are duplicated so tooling can read the app-level one; if they
+	// diverge, the genesis file is malformed.
+	if state.InitialHeight != 0 && state.InitialHeight != reqInitialHeight {
+		return nil, fmt.Errorf(
+			"InitialHeight mismatch: GnoGenesisState.InitialHeight=%d, GenesisDoc.InitialHeight=%d",
+			state.InitialHeight, reqInitialHeight,
+		)
+	}
+
 	if len(state.PastChainIDs) > 0 {
 		ctx.Logger().Info("Chain upgrade genesis replay",
 			"past_chain_ids", state.PastChainIDs,
-			"initial_height", state.InitialHeight,
+			"initial_height", reqInitialHeight,
 		)
 	}
 
@@ -472,8 +483,16 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		// re-executing failed txs could cause double spends or unexpected
 		// behavior if the VM fix makes them succeed. The next tx's force-set
 		// will handle the correct sequence state.
+		// Response carries an explicit error so downstream consumers
+		// (indexers, explorers) don't mistake a skipped failed tx for a
+		// successful one.
 		if metadata != nil && metadata.Failed {
-			txResponses = append(txResponses, abci.ResponseDeliverTx{})
+			txResponses = append(txResponses, abci.ResponseDeliverTx{
+				ResponseBase: abci.ResponseBase{
+					Error: abci.StringError("replay skipped: tx failed on source chain"),
+					Log:   "genesis replay: skipped failed tx from source chain",
+				},
+			})
 			continue
 		}
 
@@ -496,9 +515,9 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		cfg.GenesisTxResultHandler(ctx, stdTx, res)
 	}
 
-	if state.InitialHeight > 0 {
+	if reqInitialHeight > 1 {
 		ctx.Logger().Info("Genesis replay complete, chain will start from initial height",
-			"initial_height", state.InitialHeight,
+			"initial_height", reqInitialHeight,
 		)
 	}
 
