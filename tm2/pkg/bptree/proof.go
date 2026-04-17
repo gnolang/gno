@@ -127,13 +127,17 @@ func (t *ImmutableTree) buildExistenceProofFromPath(path []pathEntry, leafSlotId
 	// Each level contributes MiniMerkleDepth ops; preallocate exactly.
 	innerOps := make([]*ics23.InnerOp, 0, len(path)*MiniMerkleDepth)
 
-	// 1. Mini merkle ops within the leaf node.
+	// 1. Mini merkle ops within the leaf node. Force a rebuild if the
+	// leaf has pending mutations — the deferred-rebuild optimisation
+	// does not extend to sibling-path reads.
+	leaf.ensureMiniMerkleBuilt()
 	leafOps := miniMerkleInnerOps(&leaf.miniTree, leafSlotIdx)
 	innerOps = append(innerOps, leafOps...)
 
 	// 2. Mini merkle ops for each inner node, from leaf's parent to root.
 	for i := len(path) - 2; i >= 0; i-- {
 		inner := path[i].node.(*InnerNode)
+		inner.ensureMiniMerkleBuilt()
 		childIdx := path[i].childIdx
 		ops := miniMerkleInnerOps(&inner.miniTree, childIdx)
 		innerOps = append(innerOps, ops...)

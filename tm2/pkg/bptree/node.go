@@ -46,10 +46,11 @@ type InnerNode struct {
 	children    [B][]byte    // serialized NodeKey references (12 bytes each), used for persistence
 	childHashes [B]Hash      // hash of each child subtree
 	childNodes  [B]Node      // in-memory child references (nil == unset; read only after childLoaded bit is set)
-	childLoaded atomic.Uint32 // bitmap: bit i set iff childNodes[i] is populated
-	miniTree    MiniMerkle   // in-memory only, not serialized
-	ndb         *nodeDB      // for lazy child loading; nil for in-memory trees
-	childMu     sync.Mutex   // serialises the slow-path lazy load in getChild
+	childLoaded   atomic.Uint32 // bitmap: bit i set iff childNodes[i] is populated
+	miniTree      MiniMerkle    // in-memory only, not serialized
+	miniTreeDirty bool          // true when slot contents changed since last Build
+	ndb           *nodeDB       // for lazy child loading; nil for in-memory trees
+	childMu       sync.Mutex    // serialises the slow-path lazy load in getChild
 }
 
 // LeafNode stores sorted key-value hash pairs.
@@ -57,9 +58,16 @@ type LeafNode struct {
 	nodeKey     *NodeKey
 	numKeys     int16
 	keys        [B][]byte
-	valueHashes [B]Hash   // SHA256 of each value (for Merkle proofs)
-	valueKeys   [B][]byte // ValueKey references (12 bytes each, for value DB lookup)
-	miniTree    MiniMerkle // in-memory only, not serialized
+	valueHashes   [B]Hash    // SHA256 of each value (for Merkle proofs)
+	valueKeys     [B][]byte  // ValueKey references (12 bytes each, for value DB lookup)
+	miniTree      MiniMerkle // in-memory only, not serialized
+	miniTreeDirty bool       // true when slot contents changed since last Build
+	// slotHashes caches HashLeafSlotFromValueHash(keys[i], valueHashes[i])
+	// per slot so RebuildMiniMerkle skips slots whose key/value did not
+	// change since the previous rebuild. slotsDirty is a bitmap: bit i
+	// is set when slotHashes[i] is stale. A rebuild clears the bitmap.
+	slotHashes [B]Hash
+	slotsDirty uint32
 }
 
 func (*InnerNode) isNode() {}
@@ -70,9 +78,37 @@ func (n *LeafNode) GetNodeKey() *NodeKey   { return n.nodeKey }
 func (n *InnerNode) SetNodeKey(nk *NodeKey) { n.nodeKey = nk }
 func (n *LeafNode) SetNodeKey(nk *NodeKey)  { n.nodeKey = nk }
 
-// Hash returns the mini merkle root of the node.
-func (n *InnerNode) Hash() Hash { return n.miniTree.Root() }
-func (n *LeafNode) Hash() Hash  { return n.miniTree.Root() }
+// Hash returns the mini merkle root of the node. Rebuilds the mini
+// merkle lazily if a prior mutation marked it dirty — write paths
+// (insert/remove/redistribute/merge/split) set the dirty flag rather
+// than rebuilding immediately, so a burst of N writes to the same node
+// pays one rebuild at the first Hash observation instead of N rebuilds
+// inline.
+func (n *InnerNode) Hash() Hash {
+	n.ensureMiniMerkleBuilt()
+	return n.miniTree.Root()
+}
+
+func (n *LeafNode) Hash() Hash {
+	n.ensureMiniMerkleBuilt()
+	return n.miniTree.Root()
+}
+
+// ensureMiniMerkleBuilt forces a rebuild of the mini merkle if a prior
+// mutation flagged it dirty. Called from Hash and from any site that
+// reads the mini-merkle directly (currently: proof generation, which
+// walks mini-merkle sibling paths without going through Hash).
+func (n *InnerNode) ensureMiniMerkleBuilt() {
+	if n.miniTreeDirty {
+		n.RebuildMiniMerkle()
+	}
+}
+
+func (n *LeafNode) ensureMiniMerkleBuilt() {
+	if n.miniTreeDirty {
+		n.rebuildMiniMerkleIncremental()
+	}
+}
 
 // NumChildren returns the number of children (numKeys + 1).
 func (n *InnerNode) NumChildren() int { return int(n.numKeys) + 1 }
@@ -154,10 +190,15 @@ func (n *InnerNode) rebuildChildLoaded() {
 }
 
 
-// RebuildMiniMerkle recomputes the full mini merkle tree from the
-// slot-level hashes. For InnerNode, slots are childHashes.
-// For LeafNode, slots are HashLeafSlotFromValueHash(key, valueHash).
-// Cost: B-1 = 31 SHA256 calls (sets leaf slots directly, then Build).
+// RebuildMiniMerkle eagerly recomputes the full mini merkle tree from
+// slot-level hashes. For InnerNode, slots are childHashes. For
+// LeafNode, slots are HashLeafSlotFromValueHash(key, valueHash). Cost:
+// B-1 = 31 SHA256 calls.
+//
+// Hot mutation paths (insert/remove/redistribute/merge) instead set
+// miniTreeDirty = true and let Hash()/ensureMiniMerkleBuilt() rebuild
+// on demand — this collapses a burst of writes to the same node into
+// one rebuild per Hash observation.
 func (n *InnerNode) RebuildMiniMerkle() {
 	for i := 0; i < B; i++ {
 		if i < n.NumChildren() {
@@ -167,17 +208,76 @@ func (n *InnerNode) RebuildMiniMerkle() {
 		}
 	}
 	n.miniTree.Build()
+	n.miniTreeDirty = false
 }
 
+// RebuildMiniMerkle unconditionally rehashes every occupied slot and
+// builds the mini-merkle. Used by constructors and tests where the
+// per-slot cache is cold (slotHashes not yet populated). Hot mutation
+// paths instead mark specific slots dirty via markLeafSlotDirty /
+// markLeafSlotsDirtyRange and let ensureMiniMerkleBuilt call the
+// incremental variant.
 func (n *LeafNode) RebuildMiniMerkle() {
+	nk := int(n.numKeys)
 	for i := 0; i < B; i++ {
-		if i < int(n.numKeys) {
-			n.miniTree.tree[B+i] = HashLeafSlotFromValueHash(n.keys[i], n.valueHashes[i])
+		if i < nk {
+			n.slotHashes[i] = HashLeafSlotFromValueHash(n.keys[i], n.valueHashes[i])
+			n.miniTree.tree[B+i] = n.slotHashes[i]
 		} else {
 			n.miniTree.tree[B+i] = sentinelHash
 		}
 	}
 	n.miniTree.Build()
+	n.miniTreeDirty = false
+	n.slotsDirty = 0
+}
+
+// rebuildMiniMerkleIncremental rehashes only the slots flagged in
+// slotsDirty, reusing slotHashes for the rest. Called from
+// ensureMiniMerkleBuilt; assumes slotHashes is already populated for
+// non-dirty slots (true for any node that has been rebuilt at least
+// once).
+func (n *LeafNode) rebuildMiniMerkleIncremental() {
+	nk := int(n.numKeys)
+	dirty := n.slotsDirty
+	for i := 0; i < B; i++ {
+		if i < nk {
+			if dirty&(uint32(1)<<uint(i)) != 0 {
+				n.slotHashes[i] = HashLeafSlotFromValueHash(n.keys[i], n.valueHashes[i])
+			}
+			n.miniTree.tree[B+i] = n.slotHashes[i]
+		} else {
+			n.miniTree.tree[B+i] = sentinelHash
+		}
+	}
+	n.miniTree.Build()
+	n.miniTreeDirty = false
+	n.slotsDirty = 0
+}
+
+// markLeafSlotDirty flags slot i as needing recomputation on the next
+// ensureMiniMerkleBuilt. Used by every hot-path site that mutates
+// keys[i] or valueHashes[i] so the per-slot hash cache can skip
+// untouched slots.
+func (n *LeafNode) markLeafSlotDirty(i int) {
+	n.slotsDirty |= uint32(1) << uint(i)
+	n.miniTreeDirty = true
+}
+
+// markLeafSlotsDirtyRange flags slots [lo, hi) dirty. Used after bulk
+// shifts (insert/remove) where a contiguous range of slots changed.
+func (n *LeafNode) markLeafSlotsDirtyRange(lo, hi int) {
+	if lo >= hi {
+		return
+	}
+	var mask uint32
+	if hi >= B {
+		mask = ^uint32(0) << uint(lo)
+	} else {
+		mask = ((uint32(1) << uint(hi-lo)) - 1) << uint(lo)
+	}
+	n.slotsDirty |= mask
+	n.miniTreeDirty = true
 }
 
 // Clone creates a shallow copy of the node with nodeKey set to nil
@@ -263,109 +363,60 @@ func (n *LeafNode) Clone() *LeafNode {
 //   | keys[0..numKeys-1] (each: varint-len-prefixed bytes)
 //   | valueHashes[0..numKeys-1] (each: 32 bytes Hash)
 
-func (n *InnerNode) Serialize(w io.Writer) error {
-	// Type byte
-	if _, err := w.Write([]byte{TypeInner}); err != nil {
-		return err
-	}
-	// numKeys
-	if err := writeUvarint(w, uint64(n.numKeys)); err != nil {
-		return err
-	}
-	// childSizes (numKeys+1 entries)
+// Serialize takes *bytes.Buffer rather than io.Writer so writes can be
+// emitted directly (WriteByte, Write on a concrete type — no interface
+// dispatch, no intermediate varint buffer that escapes to the heap).
+// SaveNode is the only non-test caller and already holds a buffer.
+func (n *InnerNode) Serialize(buf *bytes.Buffer) error {
+	buf.WriteByte(TypeInner)
+	writeUvarintBuf(buf, uint64(n.numKeys))
 	nc := n.NumChildren()
 	for i := 0; i < nc; i++ {
-		if err := writeVarint(w, n.childSizes[i]); err != nil {
-			return err
-		}
+		writeVarintBuf(buf, n.childSizes[i])
 	}
-	// height
-	if err := writeUvarint(w, uint64(n.height)); err != nil {
-		return err
-	}
-	// keys
+	writeUvarintBuf(buf, uint64(n.height))
 	for i := 0; i < int(n.numKeys); i++ {
-		if err := writeBytes(w, n.keys[i]); err != nil {
-			return err
-		}
+		writeBytesBuf(buf, n.keys[i])
 	}
-	// children (numKeys+1 NodeKey refs) + childHashes are fixed-width
-	// fields, packed into a pooled scratch buffer and flushed in one
-	// Write per field. The old per-slot loop was 32 × 2 Write calls
-	// per full inner node. Finding #18's sanity check on child-ref
-	// length is preserved.
-	scratch := serializeBufPool.Get().(*serializeScratch)
-	defer serializeBufPool.Put(scratch)
+	// Fixed-width fields (children refs + child hashes) flush as
+	// contiguous regions directly onto the buffer via Write, avoiding
+	// 2*nc per-slot WriteByte/copy churn. Finding #18's child-ref
+	// length invariant is preserved.
 	for i := 0; i < nc; i++ {
 		if len(n.children[i]) != NodeKeySize {
 			return fmt.Errorf("InnerNode.Serialize: child[%d] ref has len %d, want %d (unsaved child reached SaveNode?)", i, len(n.children[i]), NodeKeySize)
 		}
-		copy(scratch.keyBytes[i*NodeKeySize:], n.children[i])
-	}
-	if _, err := w.Write(scratch.keyBytes[:nc*NodeKeySize]); err != nil {
-		return err
+		buf.Write(n.children[i])
 	}
 	for i := 0; i < nc; i++ {
-		copy(scratch.hashBytes[i*HashSize:], n.childHashes[i][:])
-	}
-	if _, err := w.Write(scratch.hashBytes[:nc*HashSize]); err != nil {
-		return err
+		buf.Write(n.childHashes[i][:])
 	}
 	return nil
 }
 
-func (n *LeafNode) Serialize(w io.Writer) error {
-	if _, err := w.Write([]byte{TypeLeaf}); err != nil {
-		return err
-	}
-	if err := writeUvarint(w, uint64(n.numKeys)); err != nil {
-		return err
-	}
-	for i := 0; i < int(n.numKeys); i++ {
-		if err := writeBytes(w, n.keys[i]); err != nil {
-			return err
-		}
-	}
-	// valueHashes + valueKeys are fixed-width. Pack into pooled
-	// scratch buffers and flush in one Write per field. Nil valueKey
-	// slots leave their region at zero — the scratch pool clears the
-	// valueKeys slice on Put, matching the previous "zero-filled
-	// placeholder for missing valueKey" path.
+func (n *LeafNode) Serialize(buf *bytes.Buffer) error {
+	buf.WriteByte(TypeLeaf)
+	writeUvarintBuf(buf, uint64(n.numKeys))
 	n16 := int(n.numKeys)
-	scratch := serializeBufPool.Get().(*serializeScratch)
-	defer serializeBufPool.Put(scratch)
 	for i := 0; i < n16; i++ {
-		copy(scratch.hashBytes[i*HashSize:], n.valueHashes[i][:])
+		writeBytesBuf(buf, n.keys[i])
 	}
-	if _, err := w.Write(scratch.hashBytes[:n16*HashSize]); err != nil {
-		return err
+	for i := 0; i < n16; i++ {
+		buf.Write(n.valueHashes[i][:])
 	}
+	// Nil valueKeys serialize as a 12-zero placeholder (see
+	// TestValueKey_LegacyNonceZeroStoreReadable); Write(zeroBytes) does
+	// that without the extra branch the old pooled-scratch variant
+	// needed.
+	var zeroVK [NodeKeySize]byte
 	for i := 0; i < n16; i++ {
 		if n.valueKeys[i] != nil {
-			copy(scratch.keyBytes[i*NodeKeySize:], n.valueKeys[i])
+			buf.Write(n.valueKeys[i])
 		} else {
-			// Explicitly zero the slot so a recycled buffer with
-			// stale bytes doesn't leak a non-zero placeholder.
-			clear(scratch.keyBytes[i*NodeKeySize : (i+1)*NodeKeySize])
+			buf.Write(zeroVK[:])
 		}
 	}
-	if _, err := w.Write(scratch.keyBytes[:n16*NodeKeySize]); err != nil {
-		return err
-	}
 	return nil
-}
-
-// serializeScratch is a reusable pair of stack-sized scratch buffers
-// used by Serialize to batch fixed-width field writes. Pooled because
-// a per-call stack buffer escapes to heap when passed to w.Write (the
-// compiler can't prove the io.Writer doesn't retain the slice).
-type serializeScratch struct {
-	keyBytes  [B * NodeKeySize]byte // children refs (inner) or valueKeys (leaf)
-	hashBytes [B * HashSize]byte    // childHashes (inner) or valueHashes (leaf)
-}
-
-var serializeBufPool = sync.Pool{
-	New: func() any { return &serializeScratch{} },
 }
 
 // ReadNode deserializes a node from bytes. Returns either *InnerNode or *LeafNode.
@@ -473,27 +524,34 @@ func readLeafNode(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 }
 
 // --- encoding helpers ---
+//
+// Buffer-direct varint emission. Writing directly via buf.WriteByte
+// avoids the stack-allocated [MaxVarintLen64]byte intermediate buffer
+// that would otherwise escape to the heap once passed through
+// io.Writer.Write. Every save in a 100k-key tree emits dozens of
+// varints per node × thousands of nodes; the escape was the top
+// allocator in the profile.
 
-func writeUvarint(w io.Writer, v uint64) error {
-	var buf [binary.MaxVarintLen64]byte
-	n := binary.PutUvarint(buf[:], v)
-	_, err := w.Write(buf[:n])
-	return err
-}
-
-func writeVarint(w io.Writer, v int64) error {
-	var buf [binary.MaxVarintLen64]byte
-	n := binary.PutVarint(buf[:], v)
-	_, err := w.Write(buf[:n])
-	return err
-}
-
-func writeBytes(w io.Writer, b []byte) error {
-	if err := writeUvarint(w, uint64(len(b))); err != nil {
-		return err
+func writeUvarintBuf(buf *bytes.Buffer, v uint64) {
+	for v >= 0x80 {
+		buf.WriteByte(byte(v) | 0x80)
+		v >>= 7
 	}
-	_, err := w.Write(b)
-	return err
+	buf.WriteByte(byte(v))
+}
+
+func writeVarintBuf(buf *bytes.Buffer, v int64) {
+	// ZigZag-compatible with binary.PutVarint.
+	ux := uint64(v) << 1
+	if v < 0 {
+		ux = ^ux
+	}
+	writeUvarintBuf(buf, ux)
+}
+
+func writeBytesBuf(buf *bytes.Buffer, b []byte) {
+	writeUvarintBuf(buf, uint64(len(b)))
+	buf.Write(b)
 }
 
 // maxReadBytesLen caps allocations from untrusted data to prevent OOM

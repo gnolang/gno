@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	lru "github.com/hashicorp/golang-lru/v2"
+
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 )
 
@@ -53,15 +55,43 @@ type MutableTree struct {
 	// See Finding #21.
 	cachedRootHash  []byte // invalidated on t.root change (Set, Remove, LoadVersion, Rollback)
 	cachedSavedHash []byte // invalidated on t.lastSaved change (SaveVersion, LoadVersion, Rollback)
+
+	// fastNodes is a latest-view key→value LRU that short-circuits
+	// Get/Has before the tree walk. Populated on Get hits; invalidated
+	// per-key on Set/Remove and wholesale on Rollback / LoadVersion.
+	// Covers only MutableTree reads — ImmutableTree snapshots walk the
+	// tree unconditionally, since fast-node entries correspond to the
+	// current root only. nil = disabled.
+	fastNodes *lru.Cache[string, []byte]
 }
 
 // NewMutableTreeMem creates an in-memory MutableTree (no DB).
 func NewMutableTreeMem() *MutableTree {
-	return &MutableTree{
+	t := &MutableTree{
 		logger:         NewNopLogger(),
 		memValues:      make(map[string][]byte),
 		nextValueNonce: 1, // nonce=0 is reserved to avoid collision with the "missing" sentinel (Finding #6)
 	}
+	t.initFastNodeCache(DefaultFastNodeCacheSize)
+	return t
+}
+
+// initFastNodeCache constructs the latest-view fast-node LRU according
+// to `size`: > 0 uses that capacity, 0 uses DefaultFastNodeCacheSize,
+// < 0 leaves the cache disabled. A panic at LRU construction indicates
+// a bug (negative-size passed through the guard) — bail loudly.
+func (t *MutableTree) initFastNodeCache(size int) {
+	if size < 0 {
+		return
+	}
+	if size == 0 {
+		size = DefaultFastNodeCacheSize
+	}
+	c, err := lru.New[string, []byte](size)
+	if err != nil {
+		panic(fmt.Sprintf("bptree: fast-node cache init: %v", err))
+	}
+	t.fastNodes = c
 }
 
 // cowRoot ensures t.root is a mutable, working-version clone. It clones
@@ -98,7 +128,7 @@ func NewMutableTreeWithDB(db dbm.DB, cacheSize int, logger Logger, options ...Op
 		logger = NewNopLogger()
 	}
 	ndb := newNodeDB(db, cacheSize, logger, opts)
-	return &MutableTree{
+	t := &MutableTree{
 		ndb:            ndb,
 		logger:         logger,
 		initialVersion: opts.InitialVersion,
@@ -106,6 +136,8 @@ func NewMutableTreeWithDB(db dbm.DB, cacheSize int, logger Logger, options ...Op
 		// in LeafNode.Serialize (12 zero bytes). See Finding #6.
 		nextValueNonce: 1,
 	}
+	t.initFastNodeCache(opts.FastNodeCacheSize)
+	return t
 }
 
 // Set inserts or updates a key-value pair. Returns true if the key
@@ -151,6 +183,7 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 		leaf.valueHashes[0] = valueHash
 		leaf.valueKeys[0] = vk
 		leaf.numKeys = 1
+		// Fresh leaf: slotHashes cache is cold, do a full build now.
 		leaf.RebuildMiniMerkle()
 		t.root = leaf
 		t.size = 1
@@ -168,11 +201,29 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	if updated && oldValueKey != nil {
 		t.orphanValueKey(oldValueKey)
 	}
+
+	// Refresh the fast-node cache with the fresh value. The stored
+	// slice is the value passed to this Set; the caller retains
+	// ownership, but the contract is read-only so sharing is safe.
+	if t.fastNodes != nil {
+		t.fastNodes.Add(string(key), value)
+	}
 	return updated, nil
 }
 
-// Get retrieves the value for a key.
+// Get retrieves the value for a key. The latest-view fast-node cache
+// short-circuits the tree walk on a hit; misses fall through to the
+// regular lookup and populate the cache for next time. The cache
+// lookup happens ahead of the root-nil check so that a cached value
+// from the previous working session remains readable after a
+// hypothetical root swap — paranoia against mis-ordered cache
+// invalidation elsewhere.
 func (t *MutableTree) Get(key []byte) ([]byte, error) {
+	if t.fastNodes != nil {
+		if v, ok := t.fastNodes.Get(string(key)); ok {
+			return v, nil
+		}
+	}
 	if t.root == nil {
 		return nil, nil
 	}
@@ -180,7 +231,11 @@ func (t *MutableTree) Get(key []byte) ([]byte, error) {
 	if !found {
 		return nil, nil
 	}
-	return t.resolveValue(vk)
+	val, err := t.resolveValue(vk)
+	if err == nil && val != nil && t.fastNodes != nil {
+		t.fastNodes.Add(string(key), val)
+	}
+	return val, err
 }
 
 // resolveValue resolves a valueKey to actual bytes via the tree's backing
@@ -239,8 +294,16 @@ func (t *MutableTree) orphanValueKey(vk []byte) {
 	}
 }
 
-// Has returns true if the key exists in the tree.
+// Has returns true if the key exists in the tree. A hit in the
+// fast-node cache answers without the tree walk; the absence of an
+// entry is not a negative signal (miss-caching is deliberately not
+// implemented) so a cache-miss falls through to the regular lookup.
 func (t *MutableTree) Has(key []byte) (bool, error) {
+	if t.fastNodes != nil {
+		if _, ok := t.fastNodes.Get(string(key)); ok {
+			return true, nil
+		}
+	}
 	if t.root == nil {
 		return false, nil
 	}
@@ -268,6 +331,9 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 	if oldVK != nil {
 		val, _ = t.resolveValue(oldVK)
 		t.orphanValueKey(oldVK)
+	}
+	if t.fastNodes != nil {
+		t.fastNodes.Remove(string(key))
 	}
 	return val, true, nil
 }
@@ -497,6 +563,12 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 		return 0, fmt.Errorf("scanning valueKey nonces for v%d: %w", workingVersion, err)
 	}
 	t.nextValueNonce = maxNonce + 1
+
+	// Entries in the fast-node cache are for the previously-loaded
+	// root; any key → value mapping we had is no longer authoritative.
+	if t.fastNodes != nil {
+		t.fastNodes.Purge()
+	}
 
 	if nkBytes == nil {
 		// Empty tree at this version
@@ -752,6 +824,14 @@ func (t *MutableTree) Rollback() {
 	// root is now the saved root — the working-hash cache, if any, is
 	// stale; reuse the saved-hash cache as-is (it is still valid).
 	t.cachedRootHash = t.cachedSavedHash
+	// Working-session Sets populated the fast-node cache with unsaved
+	// values; those are no longer valid against the rolled-back root.
+	// Preserving just the untouched entries would require per-session
+	// write tracking we don't otherwise keep, so purge wholesale —
+	// Rollback is a rare, user-initiated path.
+	if t.fastNodes != nil {
+		t.fastNodes.Purge()
+	}
 }
 
 // Height returns the tree height.

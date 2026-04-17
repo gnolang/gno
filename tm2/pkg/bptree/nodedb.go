@@ -125,6 +125,24 @@ func rootDBKey(version int64) []byte {
 
 // --- Node operations ---
 
+// saveBufPool holds a pool of *bytes.Buffer used by SaveNode to
+// serialize each node. Reusing buffers across saves (arena-style)
+// eliminates the grow-then-discard churn a fresh bytes.Buffer incurs
+// per call. Buffers return to the pool with a minimum capacity to
+// avoid re-growing on the next large node.
+var saveBufPool = sync.Pool{
+	New: func() any {
+		b := bytes.NewBuffer(make([]byte, 0, 512))
+		return b
+	},
+}
+
+// saveBufCapCap caps the retained pool buffer capacity so a single
+// abnormally large node doesn't inflate every pooled buffer. 8 KiB
+// fits any realistic inner/leaf node (full inner: ~2.4 KiB;
+// full leaf: ~2 KiB of fixed-width + variable key bytes).
+const saveBufCapCap = 8 << 10
+
 // SaveNode writes a node to the batch and adds it to the cache.
 func (ndb *nodeDB) SaveNode(node Node) error {
 	nk := node.GetNodeKey()
@@ -133,21 +151,33 @@ func (ndb *nodeDB) SaveNode(node Node) error {
 	}
 	nkBytes := nk.GetKey()
 
-	var buf bytes.Buffer
+	buf := saveBufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer func() {
+		if buf.Cap() <= saveBufCapCap {
+			saveBufPool.Put(buf)
+		}
+	}()
 	switch n := node.(type) {
 	case *InnerNode:
-		if err := n.Serialize(&buf); err != nil {
+		if err := n.Serialize(buf); err != nil {
 			return fmt.Errorf("serializing inner node: %w", err)
 		}
 	case *LeafNode:
-		if err := n.Serialize(&buf); err != nil {
+		if err := n.Serialize(buf); err != nil {
 			return fmt.Errorf("serializing leaf node: %w", err)
 		}
 	default:
 		return fmt.Errorf("unknown node type")
 	}
 
-	if err := ndb.batch.Set(nodeDBKey(nkBytes), buf.Bytes()); err != nil {
+	// batch.Set retains the value slice (see tm2/pkg/db memdb/goleveldb
+	// implementations). The pooled buffer is about to be reused, so
+	// copy the bytes into a fresh allocation whose lifetime matches
+	// the batch entry.
+	data := make([]byte, buf.Len())
+	copy(data, buf.Bytes())
+	if err := ndb.batch.Set(nodeDBKey(nkBytes), data); err != nil {
 		return err
 	}
 

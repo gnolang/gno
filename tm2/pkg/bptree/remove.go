@@ -66,12 +66,17 @@ func leafRemove(leaf *LeafNode, key []byte) removeResult {
 		leaf.keys[i] = leaf.keys[i+1]
 		leaf.valueHashes[i] = leaf.valueHashes[i+1]
 		leaf.valueKeys[i] = leaf.valueKeys[i+1]
+		leaf.slotHashes[i] = leaf.slotHashes[i+1]
 	}
 	leaf.keys[n-1] = nil
 	leaf.valueHashes[n-1] = Hash{}
 	leaf.valueKeys[n-1] = nil
+	leaf.slotHashes[n-1] = Hash{}
 	leaf.numKeys--
-	leaf.RebuildMiniMerkle()
+	// No slots were *re-valued* — the shift preserved slot-hash cache
+	// for every surviving slot. Just mark the mini-merkle dirty so the
+	// next Hash() re-walks the tree with the now-sentinel trailing slot.
+	leaf.miniTreeDirty = true
 
 	return removeResult{found: true, oldValue: oldVH, oldValueKey: oldVK, underflow: leaf.numKeys < MinKeys}
 }
@@ -94,13 +99,17 @@ func innerRemove(inner *InnerNode, key []byte) removeResult {
 	inner.childHashes[childIdx] = child.Hash()
 
 	if !res.underflow {
+		// Single-slot update (one child hash changed). Prefer the
+		// incremental SetSlot (5 hashes up the mini-merkle) over a
+		// full 31-hash rebuild.
+		inner.ensureMiniMerkleBuilt()
 		inner.miniTree.SetSlot(childIdx, inner.childHashes[childIdx])
 		return removeResult{found: true, oldValue: res.oldValue, oldValueKey: res.oldValueKey}
 	}
 
 	// Fix underflow
 	merged := fixUnderflow(inner, childIdx)
-	inner.RebuildMiniMerkle()
+	inner.miniTreeDirty = true
 
 	// Inner node underflows if it has fewer than MinKeys-1 separators
 	// (MinKeys-1 because inner minimum is ceil(B/2)-1 = 15 separators)
@@ -183,27 +192,33 @@ func redistributeRight(parent *InnerNode, idx int) {
 	case *LeafNode:
 		r := right.(*LeafNode)
 		lastIdx := int(l.numKeys) - 1
-		// Shift right's entries to make room at position 0
+		// Shift right's entries (plus slotHashes cache) to make room.
 		rn := int(r.numKeys)
 		for i := rn; i > 0; i-- {
 			r.keys[i] = r.keys[i-1]
 			r.valueHashes[i] = r.valueHashes[i-1]
 			r.valueKeys[i] = r.valueKeys[i-1]
+			r.slotHashes[i] = r.slotHashes[i-1]
 		}
 		r.keys[0] = l.keys[lastIdx]
 		r.valueHashes[0] = l.valueHashes[lastIdx]
 		r.valueKeys[0] = l.valueKeys[lastIdx]
+		r.slotHashes[0] = l.slotHashes[lastIdx] // slot hash is position-invariant per (key, valueHash)
 		r.numKeys++
 		l.keys[lastIdx] = nil
 		l.valueHashes[lastIdx] = Hash{}
 		l.valueKeys[lastIdx] = nil
+		l.slotHashes[lastIdx] = Hash{}
 		l.numKeys--
 		// Update separator and parent childSizes
 		parent.keys[idx] = copyKey(r.keys[0])
 		parent.childSizes[idx]--
 		parent.childSizes[idx+1]++
-		l.RebuildMiniMerkle()
-		r.RebuildMiniMerkle()
+		// No slot contents changed — only count shrank/grew. Just flag
+		// the mini-merkle dirty; the slotHashes cache is already
+		// consistent for every live slot.
+		l.miniTreeDirty = true
+		r.miniTreeDirty = true
 		parent.childHashes[idx] = l.Hash()
 		parent.childHashes[idx+1] = r.Hash()
 
@@ -244,8 +259,8 @@ func redistributeRight(parent *InnerNode, idx int) {
 		parent.childSizes[idx+1] += movedSize
 		l.rebuildChildLoaded()
 		r.rebuildChildLoaded()
-		l.RebuildMiniMerkle()
-		r.RebuildMiniMerkle()
+		l.miniTreeDirty = true
+		r.miniTreeDirty = true
 		parent.childHashes[idx] = l.Hash()
 		parent.childHashes[idx+1] = r.Hash()
 	}
@@ -265,27 +280,30 @@ func redistributeLeft(parent *InnerNode, idx int) {
 	switch r := right.(type) {
 	case *LeafNode:
 		l := left.(*LeafNode)
-		// Append right's first entry to left
+		// Append right's first entry (plus its slot hash) to left.
 		l.keys[l.numKeys] = r.keys[0]
 		l.valueHashes[l.numKeys] = r.valueHashes[0]
 		l.valueKeys[l.numKeys] = r.valueKeys[0]
+		l.slotHashes[l.numKeys] = r.slotHashes[0]
 		l.numKeys++
-		// Shift right left
+		// Shift right left (with slotHashes cache)
 		rn := int(r.numKeys)
 		for i := 0; i < rn-1; i++ {
 			r.keys[i] = r.keys[i+1]
 			r.valueHashes[i] = r.valueHashes[i+1]
 			r.valueKeys[i] = r.valueKeys[i+1]
+			r.slotHashes[i] = r.slotHashes[i+1]
 		}
 		r.keys[rn-1] = nil
 		r.valueHashes[rn-1] = Hash{}
 		r.valueKeys[rn-1] = nil
+		r.slotHashes[rn-1] = Hash{}
 		r.numKeys--
 		parent.keys[idx] = copyKey(r.keys[0])
 		parent.childSizes[idx]++
 		parent.childSizes[idx+1]--
-		l.RebuildMiniMerkle()
-		r.RebuildMiniMerkle()
+		l.miniTreeDirty = true
+		r.miniTreeDirty = true
 		parent.childHashes[idx] = l.Hash()
 		parent.childHashes[idx+1] = r.Hash()
 
@@ -326,8 +344,8 @@ func redistributeLeft(parent *InnerNode, idx int) {
 		parent.childSizes[idx+1] -= movedSize
 		l.rebuildChildLoaded()
 		r.rebuildChildLoaded()
-		l.RebuildMiniMerkle()
-		r.RebuildMiniMerkle()
+		l.miniTreeDirty = true
+		r.miniTreeDirty = true
 		parent.childHashes[idx] = l.Hash()
 		parent.childHashes[idx+1] = r.Hash()
 	}
@@ -351,9 +369,10 @@ func merge(parent *InnerNode, idx int) {
 			l.keys[l.numKeys] = r.keys[i]
 			l.valueHashes[l.numKeys] = r.valueHashes[i]
 			l.valueKeys[l.numKeys] = r.valueKeys[i]
+			l.slotHashes[l.numKeys] = r.slotHashes[i]
 			l.numKeys++
 		}
-		l.RebuildMiniMerkle()
+		l.miniTreeDirty = true
 
 	case *InnerNode:
 		r := right.(*InnerNode)
@@ -375,7 +394,7 @@ func merge(parent *InnerNode, idx int) {
 			l.childSizes[leftChildBase+i] = r.childSizes[i]
 		}
 		l.rebuildChildLoaded()
-		l.RebuildMiniMerkle()
+		l.miniTreeDirty = true
 	}
 
 	// Remove separator and right child from parent

@@ -35,7 +35,7 @@ func treeInsert(root Node, key []byte, valueHash Hash, valueKey []byte) (Node, b
 		newRoot.childSizes[0] = nodeSize(root)
 		newRoot.childSizes[1] = nodeSize(sr.right)
 		newRoot.rebuildChildLoaded()
-		newRoot.RebuildMiniMerkle()
+		newRoot.miniTreeDirty = true // defer rebuild; next Hash() materialises it
 		return newRoot, res.updated, res.oldValueKey
 	}
 	return root, res.updated, res.oldValueKey
@@ -63,24 +63,36 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash, valueKey []byte) ins
 		oldVK := leaf.valueKeys[pos]
 		leaf.valueHashes[pos] = valueHash
 		leaf.valueKeys[pos] = valueKey
-		leaf.miniTree.SetSlot(pos, HashLeafSlotFromValueHash(key, valueHash))
+		// Single-slot update. Rehash the slot once, refresh the per-slot
+		// hash cache, and walk the mini-merkle path incrementally
+		// (5 SHA-256 hashes) rather than paying a full 31-hash rebuild.
+		// ensureMiniMerkleBuilt covers the case where an earlier bulk
+		// mutation left the tree dirty.
+		leaf.ensureMiniMerkleBuilt()
+		h := HashLeafSlotFromValueHash(key, valueHash)
+		leaf.slotHashes[pos] = h
+		leaf.miniTree.SetSlot(pos, h)
 		return insertResult{updated: true, oldValueKey: oldVK}
 	}
 
 	// Insert new key
 	if int(leaf.numKeys) < B {
-		// Room in this leaf — shift right and insert
+		// Room in this leaf — shift right and insert. Shift slotHashes
+		// in parallel with keys/valueHashes so the per-slot cache
+		// stays valid for the shifted entries; only slot `pos` (the
+		// newly inserted key) is flagged dirty.
 		n := int(leaf.numKeys)
 		for i := n; i > pos; i-- {
 			leaf.keys[i] = leaf.keys[i-1]
 			leaf.valueHashes[i] = leaf.valueHashes[i-1]
 			leaf.valueKeys[i] = leaf.valueKeys[i-1]
+			leaf.slotHashes[i] = leaf.slotHashes[i-1]
 		}
 		leaf.keys[pos] = key
 		leaf.valueHashes[pos] = valueHash
 		leaf.valueKeys[pos] = valueKey
 		leaf.numKeys++
-		leaf.RebuildMiniMerkle()
+		leaf.markLeafSlotDirty(pos)
 		return insertResult{updated: false}
 	}
 
@@ -105,8 +117,9 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash, valueKey []byte) ins
 
 	left, sr := splitLeaf(allKeys[:], allVH[:], allVK[:], pos)
 	*leaf = *left
-	leaf.RebuildMiniMerkle()
-	sr.right.(*LeafNode).RebuildMiniMerkle()
+	leaf.markLeafSlotsDirtyRange(0, int(leaf.numKeys))
+	r := sr.right.(*LeafNode)
+	r.markLeafSlotsDirtyRange(0, int(r.numKeys))
 	return insertResult{updated: false, split: &sr}
 }
 
@@ -134,6 +147,10 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 	inner.childHashes[childIdx] = child.Hash()
 
 	if res.split == nil {
+		// Single-slot update (one child hash changed). Prefer the
+		// incremental SetSlot (5 hashes up the mini-merkle) over a
+		// full 31-hash rebuild, provided the mini-merkle is current.
+		inner.ensureMiniMerkleBuilt()
 		inner.miniTree.SetSlot(childIdx, inner.childHashes[childIdx])
 		return insertResult{updated: res.updated, oldValueKey: res.oldValueKey}
 	}
@@ -160,7 +177,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 		inner.childSizes[childIdx+1] = nodeSize(sr.right)
 		inner.numKeys++
 		inner.rebuildChildLoaded()
-		inner.RebuildMiniMerkle()
+		inner.miniTreeDirty = true
 		return insertResult{updated: res.updated, oldValueKey: res.oldValueKey}
 	}
 
@@ -230,7 +247,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 		inner.childNodes[i] = nil
 	}
 	inner.rebuildChildLoaded()
-	inner.RebuildMiniMerkle()
+	inner.miniTreeDirty = true
 
 	// Wire up child nodes for right
 	rightInner := innerSR.right.(*InnerNode)
@@ -240,7 +257,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 		rightInner.childNodes[i] = allChildNodes[splitIdx+i]
 	}
 	rightInner.rebuildChildLoaded()
-	rightInner.RebuildMiniMerkle()
+	rightInner.miniTreeDirty = true
 
 	return insertResult{updated: res.updated, oldValueKey: res.oldValueKey, split: &innerSR}
 }
