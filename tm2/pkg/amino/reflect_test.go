@@ -3,6 +3,7 @@ package amino_test
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"reflect"
 	"runtime/debug"
 	"testing"
@@ -17,6 +18,32 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 )
+
+// fuzzDeadline is a global shared deadline for all property-fuzz subtests.
+// Set via AMINO_FUZZ_BUDGET (e.g. "1h") to cap total wallclock. When zero,
+// each subtest uses a fixed iteration count (fast default for `go test`).
+var fuzzDeadline = func() time.Time {
+	if s := os.Getenv("AMINO_FUZZ_BUDGET"); s != "" {
+		if d, err := time.ParseDuration(s); err == nil && d > 0 {
+			return time.Now().Add(d)
+		}
+	}
+	return time.Time{}
+}()
+
+// shouldContinue returns true while the fuzz loop should keep iterating.
+// In budgeted mode (shared global deadline), runs until deadline passes,
+// with a floor of 100 iterations so late-scheduled subtests still fuzz
+// at least a little. Otherwise caps at iters.
+func shouldContinue(i int, iters int) bool {
+	if !fuzzDeadline.IsZero() {
+		if i < 100 {
+			return true
+		}
+		return time.Now().Before(fuzzDeadline)
+	}
+	return i < iters
+}
 
 // -------------------------------------
 // Non-interface Google fuzz tests
@@ -138,7 +165,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 		}
 	}()
 
-	for range 10_000 {
+	for i := 0; shouldContinue(i, 10_000); i++ {
 		f.Fuzz(ptr)
 
 		// Reset, which makes debugging decoding easier.
@@ -261,7 +288,7 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 		}
 	}()
 
-	for range 10_000 {
+	for i := 0; shouldContinue(i, 10_000); i++ {
 		f.Fuzz(ptr)
 
 		ptr2 := amino.DeepCopy(ptr)
@@ -318,7 +345,7 @@ func _testCodecAminoTags(t *testing.T, rt reflect.Type, codecType string, lossyD
 		return cdc.Unmarshal(b, p)
 	}
 
-	for range 10_000 {
+	for i := 0; shouldContinue(i, 10_000); i++ {
 		f.Fuzz(ptr)
 
 		rv2 = reflect.New(rt)
