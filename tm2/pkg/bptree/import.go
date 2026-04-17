@@ -134,6 +134,7 @@ func (imp *Importer) Add(node *ExportNode) error {
 			inner.childHashes[i] = child.Hash()
 			inner.childSizes[i] = nodeSize(child)
 		}
+		inner.rebuildChildLoaded()
 		inner.RebuildMiniMerkle()
 
 		imp.stack = imp.stack[:len(imp.stack)-numChildren]

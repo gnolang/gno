@@ -5,9 +5,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru/v2"
+	"golang.org/x/sync/singleflight"
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 )
@@ -17,10 +19,10 @@ import (
 //
 // Lock discipline:
 //
-//   - `mtx` guards `latestVersion`, `firstVersion`, `versionReaders`,
-//     and `isCommitting`.
+//   - `mtx` guards `latestVersion`, `firstVersion`, and `versionReaders`.
 //   - `pruneMu` serialises prune with reader registration (see
-//     Findings #15 and #40). Always acquired BEFORE `mtx`.
+//     Findings #15 and #40). Acquired BEFORE `mtx` on any path that
+//     takes both.
 //   - `nodeCache` is internally thread-safe (hashicorp/lru).
 //   - `batch`, `nextNonce`, and `pendingEvicts` are NOT guarded by a
 //     lock. They are only mutated by the single writer goroutine
@@ -42,12 +44,11 @@ type nodeDB struct {
 
 	// pruneMu serialises prune with version-reader registration so that no
 	// new reader can register while a prune is in flight. Acquired by
-	// beginPruning and by incrVersionReaders. Always acquired BEFORE mtx
-	// to avoid lock-order inversion. See Finding #15.
-	pruneMu sync.Mutex
+	// beginPruning (exclusive) and by incrVersionReaders (shared). See
+	// Finding #15.
+	pruneMu sync.RWMutex
 
-	isCommitting bool
-	logger       Logger
+	logger Logger
 
 	nextNonce uint32 // per-SaveVersion nonce counter
 
@@ -60,6 +61,17 @@ type nodeDB struct {
 	// versions have no readers), but deferring the eviction codifies
 	// the contract instead of relying on a cross-file invariant.
 	pendingEvicts []string
+
+	// loadGroup deduplicates concurrent cache-miss GetNode calls for
+	// the same NodeKey. Without it, two readers that miss the cache
+	// on the same key both do the DB read + deserialisation +
+	// mini-merkle rebuild and both Add to the cache; the second
+	// overwrites the first, leaving each reader holding a distinct
+	// in-memory instance. With singleflight only one goroutine does
+	// the work; the rest wait and share the result, keeping
+	// per-NodeKey instances coherent across readers and halving DB
+	// reads under hot-cold iteration workloads. See Finding #3.2.
+	loadGroup singleflight.Group
 }
 
 func newNodeDB(db dbm.DB, cacheSize int, logger Logger, opts Options) *nodeDB {
@@ -156,48 +168,79 @@ func (ndb *nodeDB) SaveNode(node Node) error {
 //     deserialization error both indicate unrecoverable storage
 //     corruption; continuing would propagate inconsistent state
 //     through every hot read path. This mirrors getChild's invariant.
+//
+// Concurrency: concurrent cache-miss readers share a single DB load
+// via singleflight, keyed on the serialised NodeKey. The returned
+// Node pointer is the same instance across all callers for a given
+// key, so lazy-loaded children populated by one reader via getChild
+// are observed by all.
 func (ndb *nodeDB) GetNode(nkBytes []byte) (Node, error) {
-	// Check cache
+	key := string(nkBytes)
+
+	// Fast path: cache hit.
 	if ndb.nodeCache != nil {
-		if node, ok := ndb.nodeCache.Get(string(nkBytes)); ok {
+		if node, ok := ndb.nodeCache.Get(key); ok {
 			return node, nil
 		}
 	}
 
-	// Load from DB. A raw IO error here is unrecoverable — the tree
-	// depends on reads succeeding to maintain its shape invariant.
-	data, err := ndb.db.Get(nodeDBKey(nkBytes))
+	// Slow path: singleflight the DB load + deserialisation so
+	// concurrent cache-miss readers share one instance.
+	v, err, _ := ndb.loadGroup.Do(key, func() (any, error) {
+		// Re-check the cache inside the singleflight in case another
+		// caller populated it while we were waiting on the lock.
+		if ndb.nodeCache != nil {
+			if node, ok := ndb.nodeCache.Get(key); ok {
+				return node, nil
+			}
+		}
+		// A raw IO error here is unrecoverable — the tree depends on
+		// reads succeeding to maintain its shape invariant.
+		data, err := ndb.db.Get(nodeDBKey(nkBytes))
+		if err != nil {
+			panic(fmt.Sprintf("bptree: db get node %x: %v", nkBytes, err))
+		}
+		if data == nil {
+			return nil, ErrNodeNotFound
+		}
+		nk := GetNodeKey(nkBytes)
+		node, err := ReadNode(nk, data)
+		if err != nil {
+			// On-disk corruption — the tree's invariants are already
+			// violated; panic rather than return garbage nodes.
+			panic(fmt.Sprintf("bptree: deserializing node %x: %v", nkBytes, err))
+		}
+		if inner, ok := node.(*InnerNode); ok {
+			inner.ndb = ndb
+		}
+		if ndb.nodeCache != nil {
+			ndb.nodeCache.Add(key, node)
+		}
+		return node, nil
+	})
 	if err != nil {
-		panic(fmt.Sprintf("bptree: db get node %x: %v", nkBytes, err))
+		return nil, err
 	}
-	if data == nil {
-		// Legitimate "missing" signal (pruned / never persisted).
-		return nil, ErrNodeNotFound
-	}
-
-	nk := GetNodeKey(nkBytes)
-	node, err := ReadNode(nk, data)
-	if err != nil {
-		// On-disk corruption — the tree's invariants are already
-		// violated; panic rather than return garbage nodes.
-		panic(fmt.Sprintf("bptree: deserializing node %x: %v", nkBytes, err))
-	}
-
-	// Set ndb on inner nodes for lazy child loading
-	if inner, ok := node.(*InnerNode); ok {
-		inner.ndb = ndb
-	}
-
-	if ndb.nodeCache != nil {
-		ndb.nodeCache.Add(string(nkBytes), node)
-	}
-	return node, nil
+	return v.(Node), nil
 }
 
 // --- Value operations ---
 
 // SaveValue writes a value to the DB directly (not via batch), keyed by
-// ValueKey. Writing early allows Get to work before SaveVersion/Commit.
+// ValueKey. Writing early allows Get to observe freshly-Set values inside
+// the same working session before SaveVersion flushes the surrounding
+// node updates.
+//
+// Crash-recovery tradeoff: on a process crash between a Set and the
+// subsequent SaveVersion's Commit, the in-memory sessionValues list is
+// lost and the eagerly-written values become orphans on disk — no tree
+// in any persisted version references them. The orphan is a pure space
+// leak, never a correctness issue: ValueKeys embed the working version,
+// whose nonce namespace LoadVersion seeds past any persisted slot via
+// maxValueNonceForVersion, so a stale Set can never overwrite a live
+// value. Rollback cleans them up in-process; a future restart-time
+// scrub could walk PrefixVal entries whose version exceeds the
+// persisted latestVersion to reclaim orphaned-on-crash values.
 func (ndb *nodeDB) SaveValue(value, vk []byte) error {
 	key := valueDBKey(vk)
 	valCopy := make([]byte, len(value))
@@ -206,6 +249,16 @@ func (ndb *nodeDB) SaveValue(value, vk []byte) error {
 }
 
 // GetValue loads a value by its ValueKey from the DB.
+//
+// Return semantics:
+//   - Present-and-empty values round-trip as a non-nil zero-length slice
+//     (verified on both memdb and goleveldb backends).
+//   - A missing key returns (nil, nil). The tree layer should never see
+//     this in a healthy DB — every leaf.valueKeys[i] references a
+//     ValueKey that SaveValue persisted. A (nil, nil) return therefore
+//     signals corruption (e.g., value file deleted out-of-band) rather
+//     than a legitimate Get miss; callers that need to surface it
+//     should compare `val == nil` explicitly.
 func (ndb *nodeDB) GetValue(vk []byte) ([]byte, error) {
 	data, err := ndb.db.Get(valueDBKey(vk))
 	if err != nil {
@@ -223,6 +276,48 @@ func (ndb *nodeDB) DeleteValue(vk []byte) error {
 // intra-version orphans and Rollback — matching SaveValue's eager writes).
 func (ndb *nodeDB) DeleteValueDirect(vk []byte) error {
 	return ndb.db.Delete(valueDBKey(vk))
+}
+
+// maxValueNonceForVersion returns the largest nonce currently persisted
+// for any ValueKey in the given version's namespace. Returns 0 when no
+// ValueKey exists under that version.
+//
+// Used by LoadVersion to seed MutableTree.nextValueNonce past any
+// on-disk slot in the working-version namespace, preventing SaveValue
+// collisions after loading a non-latest version.
+//
+// Cost: one DB reverse-seek. On goleveldb/pebble this is O(log N); on
+// memdb the current implementation materialises a sorted key list, so
+// the scan is O(N log N) in DB size — acceptable because LoadVersion
+// runs at most once per process lifecycle in production, and memdb is
+// a test-only backend.
+func (ndb *nodeDB) maxValueNonceForVersion(version int64) (uint32, error) {
+	// math.MaxInt64 as the working version would wrap on the upper
+	// bound; such a value is structurally unreachable (every
+	// SaveVersion advances by 1 from 0) but guarding here makes the
+	// helper safe for any int64 input.
+	if version == math.MaxInt64 {
+		return 0, fmt.Errorf("version %d out of range for nonce scan", version)
+	}
+	start := valueDBKey(encodeNodeKeyBytes(version, 0))
+	end := valueDBKey(encodeNodeKeyBytes(version+1, 0))
+	itr, err := ndb.db.ReverseIterator(start, end)
+	if err != nil {
+		return 0, err
+	}
+	defer itr.Close()
+	if !itr.Valid() {
+		return 0, nil
+	}
+	k := itr.Key()
+	if len(k) != 1+NodeKeySize {
+		return 0, nil
+	}
+	nk := GetNodeKey(k[1:])
+	if nk == nil || nk.Version != version {
+		return 0, nil
+	}
+	return nk.Nonce, nil
 }
 
 // --- Orphan list operations ---
@@ -423,14 +518,16 @@ func (ndb *nodeDB) discoverVersions() error {
 // --- Version readers ---
 
 func (ndb *nodeDB) incrVersionReaders(version int64) {
-	// Take pruneMu FIRST so that registrations block while a prune holds
-	// it. This closes the check-vs-register TOCTOU window: prune verifies
-	// reader counts under pruneMu and keeps it held for the duration of
-	// the prune, so any new reader attempting to register waits until
-	// prune completes — at which point the version will no longer exist
-	// in the DB and subsequent callers will observe that naturally.
-	ndb.pruneMu.Lock()
-	defer ndb.pruneMu.Unlock()
+	// Take pruneMu (shared) FIRST so that registrations block while a
+	// prune holds it exclusively. This closes the check-vs-register
+	// TOCTOU window: prune verifies reader counts under the exclusive
+	// lock and keeps it held for the duration of the prune, so any new
+	// reader attempting to register waits until prune completes — at
+	// which point the version will no longer exist in the DB and
+	// subsequent callers will observe that naturally. Concurrent
+	// registrations do not block each other. See Finding #15.
+	ndb.pruneMu.RLock()
+	defer ndb.pruneMu.RUnlock()
 	ndb.mtx.Lock()
 	defer ndb.mtx.Unlock()
 	ndb.versionReaders[version]++
@@ -469,23 +566,10 @@ func (ndb *nodeDB) beginPruning(first, to int64) error {
 	return nil
 }
 
-// endPruning releases pruneMu acquired by a prior beginPruning call.
+// endPruning releases the exclusive pruneMu acquired by a prior
+// beginPruning call.
 func (ndb *nodeDB) endPruning() {
 	ndb.pruneMu.Unlock()
-}
-
-// --- Commit coordination ---
-
-func (ndb *nodeDB) SetCommitting() {
-	ndb.mtx.Lock()
-	defer ndb.mtx.Unlock()
-	ndb.isCommitting = true
-}
-
-func (ndb *nodeDB) UnsetCommitting() {
-	ndb.mtx.Lock()
-	defer ndb.mtx.Unlock()
-	ndb.isCommitting = false
 }
 
 // --- Batch operations ---

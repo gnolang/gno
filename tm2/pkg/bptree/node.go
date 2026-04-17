@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 )
 
 // Node is the interface implemented by both InnerNode and LeafNode.
@@ -18,18 +19,37 @@ type Node interface {
 
 // InnerNode stores separator keys and child references.
 // It has numKeys separator keys and numKeys+1 children.
+//
+// Concurrency:
+//
+//   - `childLoaded` is a bitmap (bit i set iff childNodes[i] has been
+//     populated) read/written only via atomic ops. It provides the
+//     release-acquire ordering that lets a reader observe a fully-written
+//     `childNodes[i]` interface value after seeing the corresponding bit
+//     set: the writer's non-atomic store of the fat pointer happens-before
+//     the atomic.Store that sets the bit, which happens-before the reader's
+//     atomic.Load that observes the bit, which happens-before the reader's
+//     non-atomic load of the pointer.
+//   - `childMu` serialises the slow-path lazy-load (DB fetch +
+//     deserialisation + mini-merkle rebuild) so only one goroutine does
+//     the work per slot. Fast-path readers never acquire `childMu`.
+//
+// The bitmap + mutex pair replaces the earlier design where `getChild`
+// always took `childMu`, which added a full mutex Lock/Unlock to every
+// traversal step even for already-loaded children.
 type InnerNode struct {
 	nodeKey     *NodeKey
 	numKeys     int16
 	childSizes  [B]int64 // leaf count per child subtree; total = sum(childSizes[:numKeys+1])
-	height      int16 // levels above leaf level (parent of leaves = 1)
+	height      int16    // levels above leaf level (parent of leaves = 1)
 	keys        [B - 1][]byte
 	children    [B][]byte    // serialized NodeKey references (12 bytes each), used for persistence
 	childHashes [B]Hash      // hash of each child subtree
-	childNodes  [B]Node      // in-memory child references (nil = not yet loaded)
+	childNodes  [B]Node      // in-memory child references (nil == unset; read only after childLoaded bit is set)
+	childLoaded atomic.Uint32 // bitmap: bit i set iff childNodes[i] is populated
 	miniTree    MiniMerkle   // in-memory only, not serialized
 	ndb         *nodeDB      // for lazy child loading; nil for in-memory trees
-	childMu     sync.Mutex   // guards lazy loading in getChild for concurrent reads
+	childMu     sync.Mutex   // serialises the slow-path lazy load in getChild
 }
 
 // LeafNode stores sorted key-value hash pairs.
@@ -58,12 +78,28 @@ func (n *LeafNode) Hash() Hash  { return n.miniTree.Root() }
 func (n *InnerNode) NumChildren() int { return int(n.numKeys) + 1 }
 
 // getChild returns the child node at index, lazy-loading from DB if needed.
-// Thread-safe: uses a mutex so concurrent reads on ImmutableTree don't race.
+//
+// Fast path (cache hit): an atomic.Load on `childLoaded` tests whether
+// slot idx has been populated. On a hit, we read childNodes[idx]
+// directly — the atomic's release-acquire ordering guarantees the
+// non-atomic interface read sees the value the loader wrote before
+// setting the bit.
+//
+// Slow path: acquire childMu, re-check the bit (another goroutine may
+// have loaded the slot meanwhile), then do the DB fetch. Publishing
+// the loaded child is a non-atomic store of childNodes[idx] followed
+// by atomic.Or on childLoaded to set the bit — fast-path readers that
+// observe the bit therefore observe the complete write.
 func (n *InnerNode) getChild(idx int) Node {
+	mask := uint32(1) << uint(idx)
+	if n.childLoaded.Load()&mask != 0 {
+		return n.childNodes[idx]
+	}
+
 	n.childMu.Lock()
 	defer n.childMu.Unlock()
 
-	if n.childNodes[idx] != nil {
+	if n.childLoaded.Load()&mask != 0 {
 		return n.childNodes[idx]
 	}
 	if n.ndb == nil || n.children[idx] == nil {
@@ -78,15 +114,43 @@ func (n *InnerNode) getChild(idx int) Node {
 	if inner, ok := child.(*InnerNode); ok {
 		inner.ndb = n.ndb
 	}
-	n.childNodes[idx] = child
+	n.publishChild(idx, child)
 	return child
+}
+
+// publishChild stores `child` at slot idx and marks the slot loaded.
+// The non-atomic store of the fat interface pointer happens-before the
+// atomic.Or that sets the bit; fast-path readers that observe the bit
+// therefore observe the complete store.
+func (n *InnerNode) publishChild(idx int, child Node) {
+	n.childNodes[idx] = child
+	n.childLoaded.Or(uint32(1) << uint(idx))
 }
 
 // setChild sets the in-memory child node at index and clears the
 // serialized NodeKey ref (it will be assigned during SaveVersion).
+// Publishes the child via the atomic bit so other goroutines that may
+// hold a shared reference to this InnerNode see the new slot value.
 func (n *InnerNode) setChild(idx int, child Node) {
-	n.childNodes[idx] = child
 	n.children[idx] = nil
+	n.publishChild(idx, child)
+}
+
+// rebuildChildLoaded recomputes the childLoaded bitmap from the
+// current childNodes state. Write paths (insert, remove, split, merge,
+// redistribute, import) mutate childNodes via direct array shifts and
+// slot assignments; calling rebuildChildLoaded after the bulk
+// mutation restores the bit ↔ slot invariant that getChild depends on.
+// Cost: one O(B) pass per call, trivial relative to the mini-merkle
+// rebuild that usually follows.
+func (n *InnerNode) rebuildChildLoaded() {
+	var mask uint32
+	for i := 0; i < B; i++ {
+		if n.childNodes[i] != nil {
+			mask |= uint32(1) << uint(i)
+		}
+	}
+	n.childLoaded.Store(mask)
 }
 
 
@@ -142,10 +206,19 @@ func (n *LeafNode) RebuildMiniMerkle() {
 // updates; Option B remains tractable only if the module adopts
 // demand-driven hashing everywhere, which is out of scope here.
 func (n *InnerNode) Clone() *InnerNode {
-	// Explicit field copy avoids copying sync.Mutex (which vet flags
-	// as unsafe, even though both src and dst are unlocked here). See
-	// Finding #24.
-	return &InnerNode{
+	// Explicit field copy avoids copying sync.Mutex and atomic.Uint32
+	// (both would be flagged by vet). The clone inherits the parent's
+	// childNodes array by value; the childLoaded bitmap is copied
+	// explicitly so getChild's fast path on the clone observes the
+	// same loaded set.
+	//
+	// Clone is not atomic with respect to a concurrent publisher on
+	// `n` — the childNodes array copy and the childLoaded.Load happen
+	// at different instants. Under the single-writer MutableTree
+	// contract no such publisher exists, so the pair is coherent; a
+	// future relaxation of the contract would need to take a snapshot
+	// under childMu.
+	c := &InnerNode{
 		nodeKey:     nil,
 		numKeys:     n.numKeys,
 		childSizes:  n.childSizes,
@@ -158,6 +231,8 @@ func (n *InnerNode) Clone() *InnerNode {
 		ndb:         n.ndb,
 		// childMu is zero-init for the fresh clone.
 	}
+	c.childLoaded.Store(n.childLoaded.Load())
+	return c
 }
 
 // Clone creates a shallow copy of the leaf with nodeKey set to nil.
@@ -214,28 +289,27 @@ func (n *InnerNode) Serialize(w io.Writer) error {
 			return err
 		}
 	}
-	// children (numKeys+1 NodeKey refs).
-	//
-	// Finding #18: assert that every child ref is a full NodeKey. A nil or
-	// short slice would silently desynchronise the serialized stream —
-	// w.Write(nil) is a valid 0-byte write — and the next reader would then
-	// consume bytes from the following field as if they were the NodeKey.
-	// The recursive save path fills children[i] before reaching here; this
-	// check catches any future regression that lets an unsaved child leak
-	// into SaveNode.
+	// children (numKeys+1 NodeKey refs) + childHashes are fixed-width
+	// fields, packed into a pooled scratch buffer and flushed in one
+	// Write per field. The old per-slot loop was 32 × 2 Write calls
+	// per full inner node. Finding #18's sanity check on child-ref
+	// length is preserved.
+	scratch := serializeBufPool.Get().(*serializeScratch)
+	defer serializeBufPool.Put(scratch)
 	for i := 0; i < nc; i++ {
 		if len(n.children[i]) != NodeKeySize {
 			return fmt.Errorf("InnerNode.Serialize: child[%d] ref has len %d, want %d (unsaved child reached SaveNode?)", i, len(n.children[i]), NodeKeySize)
 		}
-		if _, err := w.Write(n.children[i]); err != nil {
-			return err
-		}
+		copy(scratch.keyBytes[i*NodeKeySize:], n.children[i])
 	}
-	// childHashes
+	if _, err := w.Write(scratch.keyBytes[:nc*NodeKeySize]); err != nil {
+		return err
+	}
 	for i := 0; i < nc; i++ {
-		if _, err := w.Write(n.childHashes[i][:]); err != nil {
-			return err
-		}
+		copy(scratch.hashBytes[i*HashSize:], n.childHashes[i][:])
+	}
+	if _, err := w.Write(scratch.hashBytes[:nc*HashSize]); err != nil {
+		return err
 	}
 	return nil
 }
@@ -252,24 +326,46 @@ func (n *LeafNode) Serialize(w io.Writer) error {
 			return err
 		}
 	}
-	for i := 0; i < int(n.numKeys); i++ {
-		if _, err := w.Write(n.valueHashes[i][:]); err != nil {
-			return err
+	// valueHashes + valueKeys are fixed-width. Pack into pooled
+	// scratch buffers and flush in one Write per field. Nil valueKey
+	// slots leave their region at zero — the scratch pool clears the
+	// valueKeys slice on Put, matching the previous "zero-filled
+	// placeholder for missing valueKey" path.
+	n16 := int(n.numKeys)
+	scratch := serializeBufPool.Get().(*serializeScratch)
+	defer serializeBufPool.Put(scratch)
+	for i := 0; i < n16; i++ {
+		copy(scratch.hashBytes[i*HashSize:], n.valueHashes[i][:])
+	}
+	if _, err := w.Write(scratch.hashBytes[:n16*HashSize]); err != nil {
+		return err
+	}
+	for i := 0; i < n16; i++ {
+		if n.valueKeys[i] != nil {
+			copy(scratch.keyBytes[i*NodeKeySize:], n.valueKeys[i])
+		} else {
+			// Explicitly zero the slot so a recycled buffer with
+			// stale bytes doesn't leak a non-zero placeholder.
+			clear(scratch.keyBytes[i*NodeKeySize : (i+1)*NodeKeySize])
 		}
 	}
-	for i := 0; i < int(n.numKeys); i++ {
-		if n.valueKeys[i] != nil {
-			if _, err := w.Write(n.valueKeys[i]); err != nil {
-				return err
-			}
-		} else {
-			// Write zero-filled placeholder for missing valueKey
-			if _, err := w.Write(make([]byte, NodeKeySize)); err != nil {
-				return err
-			}
-		}
+	if _, err := w.Write(scratch.keyBytes[:n16*NodeKeySize]); err != nil {
+		return err
 	}
 	return nil
+}
+
+// serializeScratch is a reusable pair of stack-sized scratch buffers
+// used by Serialize to batch fixed-width field writes. Pooled because
+// a per-call stack buffer escapes to heap when passed to w.Write (the
+// compiler can't prove the io.Writer doesn't retain the slice).
+type serializeScratch struct {
+	keyBytes  [B * NodeKeySize]byte // children refs (inner) or valueKeys (leaf)
+	hashBytes [B * HashSize]byte    // childHashes (inner) or valueHashes (leaf)
+}
+
+var serializeBufPool = sync.Pool{
+	New: func() any { return &serializeScratch{} },
 }
 
 // ReadNode deserializes a node from bytes. Returns either *InnerNode or *LeafNode.

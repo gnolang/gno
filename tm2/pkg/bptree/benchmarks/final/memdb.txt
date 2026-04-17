@@ -1,0 +1,372 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/gnolang/gno/tm2/pkg/bptree/benchmarks
+cpu: Apple M4 Pro
+BenchmarkGetHit/iavl/1k-12           	59012482	        54.53 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetHit/iavl/1k-12           	66553740	        55.28 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetHit/iavl/1k-12           	65845677	        54.58 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetHit/bptree/1k-12         	36001260	       100.8 ns/op	      16 B/op	       1 allocs/op
+BenchmarkGetHit/bptree/1k-12         	35254398	       100.5 ns/op	      16 B/op	       1 allocs/op
+BenchmarkGetHit/bptree/1k-12         	35998994	       102.0 ns/op	      16 B/op	       1 allocs/op
+BenchmarkGetHit/iavl/10k-12          	43792822	        74.03 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetHit/iavl/10k-12          	48423028	        73.78 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetHit/iavl/10k-12          	48694765	        73.70 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetHit/bptree/10k-12        	22437036	       159.9 ns/op	      16 B/op	       1 allocs/op
+BenchmarkGetHit/bptree/10k-12        	22504570	       160.8 ns/op	      16 B/op	       1 allocs/op
+BenchmarkGetHit/bptree/10k-12        	22392608	       160.9 ns/op	      16 B/op	       1 allocs/op
+BenchmarkGetHit/iavl/100k-12         	25724115	       125.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetHit/iavl/100k-12         	27101426	       138.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetHit/iavl/100k-12         	22787222	       136.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetHit/bptree/100k-12       	10644265	       339.4 ns/op	      16 B/op	       1 allocs/op
+BenchmarkGetHit/bptree/100k-12       	11700468	       332.5 ns/op	      16 B/op	       1 allocs/op
+BenchmarkGetHit/bptree/100k-12       	10858797	       320.8 ns/op	      16 B/op	       1 allocs/op
+BenchmarkGetMiss/iavl/1k-12          	52831466	        68.05 ns/op	      24 B/op	       1 allocs/op
+BenchmarkGetMiss/iavl/1k-12          	52941694	        68.64 ns/op	      24 B/op	       1 allocs/op
+BenchmarkGetMiss/iavl/1k-12          	53203869	        67.42 ns/op	      24 B/op	       1 allocs/op
+BenchmarkGetMiss/bptree/1k-12        	56785729	        60.44 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMiss/bptree/1k-12        	59760955	        60.17 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMiss/bptree/1k-12        	60985636	        60.11 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMiss/iavl/10k-12         	51205764	        68.73 ns/op	      24 B/op	       1 allocs/op
+BenchmarkGetMiss/iavl/10k-12         	52320733	        68.21 ns/op	      24 B/op	       1 allocs/op
+BenchmarkGetMiss/iavl/10k-12         	51582182	        68.18 ns/op	      24 B/op	       1 allocs/op
+BenchmarkGetMiss/bptree/10k-12       	34040527	       104.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMiss/bptree/10k-12       	35740730	       101.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMiss/bptree/10k-12       	33889941	       105.3 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMiss/iavl/100k-12        	39884869	        86.90 ns/op	      24 B/op	       1 allocs/op
+BenchmarkGetMiss/iavl/100k-12        	40271308	        88.11 ns/op	      24 B/op	       1 allocs/op
+BenchmarkGetMiss/iavl/100k-12        	39376825	        87.01 ns/op	      24 B/op	       1 allocs/op
+BenchmarkGetMiss/bptree/100k-12      	20499951	       168.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMiss/bptree/100k-12      	21277328	       167.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMiss/bptree/100k-12      	20359855	       168.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHas/iavl/1k-12              	 6689888	       543.9 ns/op	     294 B/op	       6 allocs/op
+BenchmarkHas/iavl/1k-12              	 6487539	       549.4 ns/op	     294 B/op	       6 allocs/op
+BenchmarkHas/iavl/1k-12              	 6359984	       564.8 ns/op	     294 B/op	       6 allocs/op
+BenchmarkHas/bptree/1k-12            	47503352	        76.40 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHas/bptree/1k-12            	46872736	        76.55 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHas/bptree/1k-12            	44975332	        76.36 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHas/iavl/10k-12             	 2200230	      1596 ns/op	    1636 B/op	      34 allocs/op
+BenchmarkHas/iavl/10k-12             	 2353376	      1547 ns/op	    1636 B/op	      34 allocs/op
+BenchmarkHas/iavl/10k-12             	 2305713	      1575 ns/op	    1636 B/op	      34 allocs/op
+BenchmarkHas/bptree/10k-12           	27752446	       127.3 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHas/bptree/10k-12           	28302933	       127.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHas/bptree/10k-12           	28222759	       127.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHas/iavl/100k-12            	 1000000	      3154 ns/op	    2984 B/op	      62 allocs/op
+BenchmarkHas/iavl/100k-12            	 1000000	      3263 ns/op	    2987 B/op	      62 allocs/op
+BenchmarkHas/iavl/100k-12            	 1000000	      3269 ns/op	    2988 B/op	      62 allocs/op
+BenchmarkHas/bptree/100k-12          	17037585	       216.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHas/bptree/100k-12          	17088627	       208.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHas/bptree/100k-12          	16347505	       212.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSetInsert/iavl/1k-12        	 1295055	      2858 ns/op	    3874 B/op	      28 allocs/op
+BenchmarkSetInsert/iavl/1k-12        	 1309876	      2948 ns/op	    3877 B/op	      28 allocs/op
+BenchmarkSetInsert/iavl/1k-12        	 1299118	      2880 ns/op	    3873 B/op	      28 allocs/op
+BenchmarkSetInsert/bptree/1k-12      	  537676	      8464 ns/op	   19818 B/op	      10 allocs/op
+BenchmarkSetInsert/bptree/1k-12      	  535821	      8394 ns/op	   19895 B/op	      10 allocs/op
+BenchmarkSetInsert/bptree/1k-12      	  544429	      8224 ns/op	   19764 B/op	      10 allocs/op
+BenchmarkSetInsert/iavl/10k-12       	 1261695	      2957 ns/op	    3893 B/op	      28 allocs/op
+BenchmarkSetInsert/iavl/10k-12       	 1257188	      3008 ns/op	    3880 B/op	      28 allocs/op
+BenchmarkSetInsert/iavl/10k-12       	 1247305	      2919 ns/op	    3885 B/op	      28 allocs/op
+BenchmarkSetInsert/bptree/10k-12     	  527758	      8263 ns/op	   20113 B/op	      10 allocs/op
+BenchmarkSetInsert/bptree/10k-12     	  526478	      8279 ns/op	   20468 B/op	      10 allocs/op
+BenchmarkSetInsert/bptree/10k-12     	  529874	      8306 ns/op	   20085 B/op	      10 allocs/op
+BenchmarkSetInsert/iavl/100k-12      	 1201909	      3088 ns/op	    3993 B/op	      29 allocs/op
+BenchmarkSetInsert/iavl/100k-12      	 1229312	      3160 ns/op	    3994 B/op	      29 allocs/op
+BenchmarkSetInsert/iavl/100k-12      	 1226322	      3125 ns/op	    3997 B/op	      29 allocs/op
+BenchmarkSetInsert/bptree/100k-12    	  433382	      8265 ns/op	   19972 B/op	      10 allocs/op
+BenchmarkSetInsert/bptree/100k-12    	  424922	      8245 ns/op	   19885 B/op	      10 allocs/op
+BenchmarkSetInsert/bptree/100k-12    	  427573	      8348 ns/op	   20765 B/op	      10 allocs/op
+BenchmarkSetUpdate/iavl/1k-12        	 3951873	       912.4 ns/op	    1908 B/op	      14 allocs/op
+BenchmarkSetUpdate/iavl/1k-12        	 3971949	       913.7 ns/op	    1908 B/op	      14 allocs/op
+BenchmarkSetUpdate/iavl/1k-12        	 3983032	       909.8 ns/op	    1908 B/op	      14 allocs/op
+BenchmarkSetUpdate/bptree/1k-12      	 1374118	      2385 ns/op	   11290 B/op	       8 allocs/op
+BenchmarkSetUpdate/bptree/1k-12      	 1534260	      2343 ns/op	   11280 B/op	       8 allocs/op
+BenchmarkSetUpdate/bptree/1k-12      	 1527481	      2329 ns/op	   11262 B/op	       8 allocs/op
+BenchmarkSetUpdate/iavl/10k-12       	 3191055	      1140 ns/op	    2455 B/op	      17 allocs/op
+BenchmarkSetUpdate/iavl/10k-12       	 3091796	      1163 ns/op	    2455 B/op	      17 allocs/op
+BenchmarkSetUpdate/iavl/10k-12       	 3079951	      1160 ns/op	    2455 B/op	      17 allocs/op
+BenchmarkSetUpdate/bptree/10k-12     	 1224830	      2743 ns/op	   11287 B/op	       8 allocs/op
+BenchmarkSetUpdate/bptree/10k-12     	 1321670	      2713 ns/op	   11303 B/op	       8 allocs/op
+BenchmarkSetUpdate/bptree/10k-12     	 1339754	      2712 ns/op	   11279 B/op	       8 allocs/op
+BenchmarkSetUpdate/iavl/100k-12      	 1822995	      1868 ns/op	    2997 B/op	      20 allocs/op
+BenchmarkSetUpdate/iavl/100k-12      	 1908199	      1860 ns/op	    2997 B/op	      20 allocs/op
+BenchmarkSetUpdate/iavl/100k-12      	 1889054	      1866 ns/op	    2997 B/op	      20 allocs/op
+BenchmarkSetUpdate/bptree/100k-12    	  772285	      4431 ns/op	   17449 B/op	       8 allocs/op
+BenchmarkSetUpdate/bptree/100k-12    	  775861	      4413 ns/op	   17406 B/op	       9 allocs/op
+BenchmarkSetUpdate/bptree/100k-12    	  807109	      4540 ns/op	   17420 B/op	       9 allocs/op
+BenchmarkRemove/iavl/1k-12           	 2918275	      1192 ns/op	    2807 B/op	      35 allocs/op
+BenchmarkRemove/iavl/1k-12           	 3015426	      1211 ns/op	    2824 B/op	      35 allocs/op
+BenchmarkRemove/iavl/1k-12           	 3061749	      1209 ns/op	    2807 B/op	      35 allocs/op
+BenchmarkRemove/bptree/1k-12         	  596629	      5258 ns/op	   11235 B/op	       4 allocs/op
+BenchmarkRemove/bptree/1k-12         	  784987	      4907 ns/op	   11137 B/op	       4 allocs/op
+BenchmarkRemove/bptree/1k-12         	  635344	      4882 ns/op	   11186 B/op	       4 allocs/op
+BenchmarkRemove/iavl/10k-12          	 2797554	      1273 ns/op	    3700 B/op	      46 allocs/op
+BenchmarkRemove/iavl/10k-12          	 2778514	      1277 ns/op	    3659 B/op	      46 allocs/op
+BenchmarkRemove/iavl/10k-12          	 2747274	      1275 ns/op	    3676 B/op	      46 allocs/op
+BenchmarkRemove/bptree/10k-12        	  678265	      4992 ns/op	   11040 B/op	       4 allocs/op
+BenchmarkRemove/bptree/10k-12        	  687006	      4941 ns/op	   11040 B/op	       4 allocs/op
+BenchmarkRemove/bptree/10k-12        	  662636	      5005 ns/op	   11040 B/op	       4 allocs/op
+BenchmarkRemove/iavl/100k-12         	 2451302	      1475 ns/op	    4488 B/op	      56 allocs/op
+BenchmarkRemove/iavl/100k-12         	 2281498	      1477 ns/op	    4489 B/op	      56 allocs/op
+BenchmarkRemove/iavl/100k-12         	 2451752	      1472 ns/op	    4495 B/op	      56 allocs/op
+BenchmarkRemove/bptree/100k-12       	  553610	      6006 ns/op	   17184 B/op	       5 allocs/op
+BenchmarkRemove/bptree/100k-12       	  590568	      6013 ns/op	   17184 B/op	       5 allocs/op
+BenchmarkRemove/bptree/100k-12       	  585876	      6005 ns/op	   17184 B/op	       5 allocs/op
+BenchmarkIterationFull/iavl/1k-12    	   18598	    193576 ns/op	  147607 B/op	    3016 allocs/op
+BenchmarkIterationFull/iavl/1k-12    	   18750	    192859 ns/op	  147608 B/op	    3016 allocs/op
+BenchmarkIterationFull/iavl/1k-12    	   19062	    193944 ns/op	  147608 B/op	    3016 allocs/op
+BenchmarkIterationFull/bptree/1k-12  	  104209	     34980 ns/op	   17072 B/op	    1003 allocs/op
+BenchmarkIterationFull/bptree/1k-12  	  103335	     34839 ns/op	   17072 B/op	    1003 allocs/op
+BenchmarkIterationFull/bptree/1k-12  	  103893	     34761 ns/op	   17072 B/op	    1003 allocs/op
+BenchmarkIterationFull/iavl/100k-12  	     130	  27447115 ns/op	20123943 B/op	  300033 allocs/op
+BenchmarkIterationFull/iavl/100k-12  	     129	  27258676 ns/op	20123938 B/op	  300033 allocs/op
+BenchmarkIterationFull/iavl/100k-12  	     130	  27285959 ns/op	20123939 B/op	  300033 allocs/op
+BenchmarkIterationFull/bptree/100k-12         	     691	   5067583 ns/op	 1601137 B/op	  100004 allocs/op
+BenchmarkIterationFull/bptree/100k-12         	     697	   5245158 ns/op	 1601137 B/op	  100004 allocs/op
+BenchmarkIterationFull/bptree/100k-12         	     706	   5091963 ns/op	 1601137 B/op	  100004 allocs/op
+BenchmarkIterationDescending/iavl/1k-12       	   18955	    191804 ns/op	  147608 B/op	    3016 allocs/op
+BenchmarkIterationDescending/iavl/1k-12       	   18938	    191079 ns/op	  147608 B/op	    3016 allocs/op
+BenchmarkIterationDescending/iavl/1k-12       	   18980	    190675 ns/op	  147608 B/op	    3016 allocs/op
+BenchmarkIterationDescending/bptree/1k-12     	  102549	     35144 ns/op	   17072 B/op	    1003 allocs/op
+BenchmarkIterationDescending/bptree/1k-12     	  102525	     35307 ns/op	   17072 B/op	    1003 allocs/op
+BenchmarkIterationDescending/bptree/1k-12     	  102034	     35049 ns/op	   17072 B/op	    1003 allocs/op
+BenchmarkIterationDescending/iavl/100k-12     	     130	  27275839 ns/op	20123939 B/op	  300033 allocs/op
+BenchmarkIterationDescending/iavl/100k-12     	     132	  27225104 ns/op	20123940 B/op	  300033 allocs/op
+BenchmarkIterationDescending/iavl/100k-12     	     130	  27111921 ns/op	20123939 B/op	  300033 allocs/op
+BenchmarkIterationDescending/bptree/100k-12   	     693	   5264016 ns/op	 1601137 B/op	  100004 allocs/op
+BenchmarkIterationDescending/bptree/100k-12   	     703	   5076530 ns/op	 1601137 B/op	  100004 allocs/op
+BenchmarkIterationDescending/bptree/100k-12   	     706	   5074095 ns/op	 1601137 B/op	  100004 allocs/op
+BenchmarkIterationRange/iavl/1k-12            	  101576	     36637 ns/op	    2080 B/op	      40 allocs/op
+BenchmarkIterationRange/iavl/1k-12            	  100497	     36290 ns/op	    2080 B/op	      40 allocs/op
+BenchmarkIterationRange/iavl/1k-12            	  101108	     35725 ns/op	    2080 B/op	      40 allocs/op
+BenchmarkIterationRange/bptree/1k-12          	 4257753	       892.7 ns/op	    1232 B/op	      13 allocs/op
+BenchmarkIterationRange/bptree/1k-12          	 3985359	       914.9 ns/op	    1232 B/op	      13 allocs/op
+BenchmarkIterationRange/bptree/1k-12          	 3989077	       919.4 ns/op	    1232 B/op	      13 allocs/op
+BenchmarkIterationRange/iavl/100k-12          	     832	   4294546 ns/op	  147648 B/op	    3016 allocs/op
+BenchmarkIterationRange/iavl/100k-12          	     834	   4285793 ns/op	  147648 B/op	    3016 allocs/op
+BenchmarkIterationRange/iavl/100k-12          	     834	   4291536 ns/op	  147648 B/op	    3016 allocs/op
+BenchmarkIterationRange/bptree/100k-12        	   72896	     48789 ns/op	   17136 B/op	    1004 allocs/op
+BenchmarkIterationRange/bptree/100k-12        	   72320	     49001 ns/op	   17136 B/op	    1004 allocs/op
+BenchmarkIterationRange/bptree/100k-12        	   72568	     49325 ns/op	   17136 B/op	    1004 allocs/op
+BenchmarkBlock/iavl/block-100-12              	    1318	   3411681 ns/op	 3387474 B/op	   57175 allocs/op
+BenchmarkBlock/iavl/block-100-12              	    1299	   3405536 ns/op	 3387554 B/op	   57162 allocs/op
+BenchmarkBlock/iavl/block-100-12              	    1293	   3386573 ns/op	 3388389 B/op	   57164 allocs/op
+BenchmarkBlock/bptree/block-100-12            	    1598	   2944108 ns/op	 5260157 B/op	   27017 allocs/op
+BenchmarkBlock/bptree/block-100-12            	    1629	   2922803 ns/op	 5204996 B/op	   26637 allocs/op
+BenchmarkBlock/bptree/block-100-12            	    1581	   2926706 ns/op	 5233389 B/op	   26747 allocs/op
+BenchmarkBlock/iavl/block-500-12              	     286	  14116430 ns/op	13840845 B/op	  224678 allocs/op
+BenchmarkBlock/iavl/block-500-12              	     288	  14076155 ns/op	13841834 B/op	  224802 allocs/op
+BenchmarkBlock/iavl/block-500-12              	     288	  14246475 ns/op	13853616 B/op	  224929 allocs/op
+BenchmarkBlock/bptree/block-500-12            	     450	   9228120 ns/op	17255896 B/op	   70555 allocs/op
+BenchmarkBlock/bptree/block-500-12            	     450	   9239326 ns/op	17236966 B/op	   70515 allocs/op
+BenchmarkBlock/bptree/block-500-12            	     454	   9203114 ns/op	17279528 B/op	   70676 allocs/op
+BenchmarkSaveVersion/iavl/1k-12               	    7194	   1016852 ns/op	 1199062 B/op	   16938 allocs/op
+BenchmarkSaveVersion/iavl/1k-12               	    6834	   1015482 ns/op	 1206167 B/op	   16844 allocs/op
+BenchmarkSaveVersion/iavl/1k-12               	    7080	   1018809 ns/op	 1201272 B/op	   16909 allocs/op
+BenchmarkSaveVersion/bptree/1k-12             	    8091	    996601 ns/op	 1175013 B/op	   11432 allocs/op
+BenchmarkSaveVersion/bptree/1k-12             	    8317	    985705 ns/op	 1183134 B/op	   11492 allocs/op
+BenchmarkSaveVersion/bptree/1k-12             	    8095	    979726 ns/op	 1179815 B/op	   11434 allocs/op
+BenchmarkSaveVersion/iavl/100k-12             	    4417	   1005076 ns/op	 1157973 B/op	   17095 allocs/op
+BenchmarkSaveVersion/iavl/100k-12             	    4507	   1009233 ns/op	 1164416 B/op	   17114 allocs/op
+BenchmarkSaveVersion/iavl/100k-12             	    4482	   1005234 ns/op	 1161847 B/op	   17101 allocs/op
+BenchmarkSaveVersion/bptree/100k-12           	    4144	    960714 ns/op	 1162760 B/op	   11229 allocs/op
+BenchmarkSaveVersion/bptree/100k-12           	    4152	    962795 ns/op	 1160523 B/op	   11219 allocs/op
+BenchmarkSaveVersion/bptree/100k-12           	    4136	    966349 ns/op	 1159848 B/op	   11217 allocs/op
+BenchmarkLoadVersion/iavl/1k-12               	  527106	      6792 ns/op	    3672 B/op	      81 allocs/op
+BenchmarkLoadVersion/iavl/1k-12               	  534759	      6700 ns/op	    3672 B/op	      81 allocs/op
+BenchmarkLoadVersion/iavl/1k-12               	  562347	      6571 ns/op	    3672 B/op	      81 allocs/op
+BenchmarkLoadVersion/bptree/1k-12             	  659416	      5534 ns/op	    8920 B/op	      56 allocs/op
+BenchmarkLoadVersion/bptree/1k-12             	  654274	      5523 ns/op	    8920 B/op	      56 allocs/op
+BenchmarkLoadVersion/bptree/1k-12             	  628898	      5584 ns/op	    8920 B/op	      56 allocs/op
+BenchmarkLoadVersion/iavl/100k-12             	  195409	     18114 ns/op	   17947 B/op	     250 allocs/op
+BenchmarkLoadVersion/iavl/100k-12             	  196560	     18036 ns/op	   17962 B/op	     250 allocs/op
+BenchmarkLoadVersion/iavl/100k-12             	  198050	     18036 ns/op	   17959 B/op	     250 allocs/op
+BenchmarkLoadVersion/bptree/100k-12           	  253842	     14042 ns/op	   19456 B/op	     203 allocs/op
+BenchmarkLoadVersion/bptree/100k-12           	  243614	     14177 ns/op	   19344 B/op	     201 allocs/op
+BenchmarkLoadVersion/bptree/100k-12           	  248473	     14295 ns/op	   19568 B/op	     203 allocs/op
+BenchmarkMultiVersionCreate/iavl/10-versions-12         	     556	   6489262 ns/op	 7733554 B/op	  125036 allocs/op
+BenchmarkMultiVersionCreate/iavl/10-versions-12         	     553	   6442471 ns/op	 7754284 B/op	  125131 allocs/op
+BenchmarkMultiVersionCreate/iavl/10-versions-12         	     556	   6496435 ns/op	 7742435 B/op	  125118 allocs/op
+BenchmarkMultiVersionCreate/bptree/10-versions-12       	     524	   6860484 ns/op	 9395572 B/op	   35479 allocs/op
+BenchmarkMultiVersionCreate/bptree/10-versions-12       	     523	   6859342 ns/op	 9386285 B/op	   35439 allocs/op
+BenchmarkMultiVersionCreate/bptree/10-versions-12       	     520	   6885879 ns/op	 9394622 B/op	   35488 allocs/op
+BenchmarkMultiVersionCreate/iavl/100-versions-12        	      48	  70919606 ns/op	84020161 B/op	 1288096 allocs/op
+BenchmarkMultiVersionCreate/iavl/100-versions-12        	      50	  70668663 ns/op	83969450 B/op	 1287447 allocs/op
+BenchmarkMultiVersionCreate/iavl/100-versions-12        	      51	  70654922 ns/op	84004101 B/op	 1287794 allocs/op
+BenchmarkMultiVersionCreate/bptree/100-versions-12      	      52	  67819634 ns/op	98051320 B/op	  374695 allocs/op
+BenchmarkMultiVersionCreate/bptree/100-versions-12      	      52	  68087139 ns/op	98025242 B/op	  374338 allocs/op
+BenchmarkMultiVersionCreate/bptree/100-versions-12      	      52	  67876549 ns/op	97994445 B/op	  374356 allocs/op
+BenchmarkPrune/iavl-12                                  	      74	  44920635 ns/op	51763681 B/op	  877875 allocs/op
+BenchmarkPrune/iavl-12                                  	      80	  44590420 ns/op	51773182 B/op	  878106 allocs/op
+BenchmarkPrune/iavl-12                                  	      80	  44619006 ns/op	51802548 B/op	  878686 allocs/op
+BenchmarkPrune/bptree-12                                	     454	   7899197 ns/op	20301588 B/op	  120326 allocs/op
+BenchmarkPrune/bptree-12                                	     457	   7714868 ns/op	20279121 B/op	  120287 allocs/op
+BenchmarkPrune/bptree-12                                	     469	   7763507 ns/op	20282648 B/op	  120266 allocs/op
+BenchmarkMembershipProof/iavl/1k-12                     	  250321	     14832 ns/op	       518.0 proof-bytes	    6276 B/op	      89 allocs/op
+BenchmarkMembershipProof/iavl/1k-12                     	  249727	     14866 ns/op	       479.0 proof-bytes	    6278 B/op	      90 allocs/op
+BenchmarkMembershipProof/iavl/1k-12                     	  249016	     14886 ns/op	       562.0 proof-bytes	    6279 B/op	      90 allocs/op
+BenchmarkMembershipProof/bptree/1k-12                   	  801922	      4733 ns/op	       681.0 proof-bytes	    2309 B/op	      58 allocs/op
+BenchmarkMembershipProof/bptree/1k-12                   	  823514	      4738 ns/op	       677.0 proof-bytes	    2309 B/op	      58 allocs/op
+BenchmarkMembershipProof/bptree/1k-12                   	  822534	      4781 ns/op	       679.0 proof-bytes	    2309 B/op	      58 allocs/op
+BenchmarkMembershipProof/iavl/100k-12                   	  353331	     10331 ns/op	       838.0 proof-bytes	   13573 B/op	     229 allocs/op
+BenchmarkMembershipProof/iavl/100k-12                   	  328066	     10579 ns/op	       928.0 proof-bytes	   13565 B/op	     229 allocs/op
+BenchmarkMembershipProof/iavl/100k-12                   	  323835	     10779 ns/op	       789.0 proof-bytes	   13559 B/op	     229 allocs/op
+BenchmarkMembershipProof/bptree/100k-12                 	 1889239	      1911 ns/op	       876.0 proof-bytes	    3024 B/op	      74 allocs/op
+BenchmarkMembershipProof/bptree/100k-12                 	 1874384	      1910 ns/op	       878.0 proof-bytes	    3023 B/op	      74 allocs/op
+BenchmarkMembershipProof/bptree/100k-12                 	 1886730	      1906 ns/op	       882.0 proof-bytes	    3024 B/op	      74 allocs/op
+BenchmarkNonMembershipProof/iavl/1k-12                  	  156235	     23175 ns/op	      1106 proof-bytes	   10920 B/op	     147 allocs/op
+BenchmarkNonMembershipProof/iavl/1k-12                  	  158472	     23249 ns/op	      1116 proof-bytes	   10920 B/op	     147 allocs/op
+BenchmarkNonMembershipProof/iavl/1k-12                  	  156022	     23265 ns/op	      1159 proof-bytes	   10920 B/op	     147 allocs/op
+BenchmarkNonMembershipProof/bptree/1k-12                	  379994	      9994 ns/op	      1389 proof-bytes	    4566 B/op	     112 allocs/op
+BenchmarkNonMembershipProof/bptree/1k-12                	  381439	      9876 ns/op	      1383 proof-bytes	    4566 B/op	     112 allocs/op
+BenchmarkNonMembershipProof/bptree/1k-12                	  380790	      9905 ns/op	      1377 proof-bytes	    4566 B/op	     112 allocs/op
+BenchmarkNonMembershipProof/iavl/100k-12                	  217929	     16280 ns/op	      1703 proof-bytes	   20093 B/op	     316 allocs/op
+BenchmarkNonMembershipProof/iavl/100k-12                	  218443	     16394 ns/op	      1789 proof-bytes	   20093 B/op	     316 allocs/op
+BenchmarkNonMembershipProof/iavl/100k-12                	  220030	     16348 ns/op	      1658 proof-bytes	   20094 B/op	     316 allocs/op
+BenchmarkNonMembershipProof/bptree/100k-12              	  975303	      3324 ns/op	      1783 proof-bytes	    5989 B/op	     145 allocs/op
+BenchmarkNonMembershipProof/bptree/100k-12              	  974880	      3338 ns/op	      1775 proof-bytes	    5989 B/op	     145 allocs/op
+BenchmarkNonMembershipProof/bptree/100k-12              	  970485	      3334 ns/op	      1773 proof-bytes	    5990 B/op	     145 allocs/op
+BenchmarkWorkingHash/iavl/1k-12                         	   70778	     58981 ns/op	   65559 B/op	     642 allocs/op
+BenchmarkWorkingHash/iavl/1k-12                         	   70692	     59096 ns/op	   65595 B/op	     642 allocs/op
+BenchmarkWorkingHash/iavl/1k-12                         	   70850	     59026 ns/op	   65520 B/op	     642 allocs/op
+BenchmarkWorkingHash/bptree/1k-12                       	   39009	     84005 ns/op	  180153 B/op	     102 allocs/op
+BenchmarkWorkingHash/bptree/1k-12                       	   39075	     83590 ns/op	  177792 B/op	     102 allocs/op
+BenchmarkWorkingHash/bptree/1k-12                       	   39019	     83713 ns/op	  178013 B/op	     102 allocs/op
+BenchmarkWorkingHash/iavl/10k-12                        	   69883	     58293 ns/op	   65844 B/op	     646 allocs/op
+BenchmarkWorkingHash/iavl/10k-12                        	   71419	     59129 ns/op	   66001 B/op	     647 allocs/op
+BenchmarkWorkingHash/iavl/10k-12                        	   72724	     59085 ns/op	   66058 B/op	     648 allocs/op
+BenchmarkWorkingHash/bptree/10k-12                      	   43251	     82081 ns/op	  186356 B/op	     103 allocs/op
+BenchmarkWorkingHash/bptree/10k-12                      	   43994	     84964 ns/op	  189926 B/op	     104 allocs/op
+BenchmarkWorkingHash/bptree/10k-12                      	   44012	     82689 ns/op	  190022 B/op	     104 allocs/op
+BenchmarkWorkingHash/iavl/100k-12                       	   61070	     60586 ns/op	   68291 B/op	     679 allocs/op
+BenchmarkWorkingHash/iavl/100k-12                       	   60429	     60642 ns/op	   68348 B/op	     680 allocs/op
+BenchmarkWorkingHash/iavl/100k-12                       	   60735	     60671 ns/op	   68364 B/op	     680 allocs/op
+BenchmarkWorkingHash/bptree/100k-12                     	   45139	     84767 ns/op	  209348 B/op	     107 allocs/op
+BenchmarkWorkingHash/bptree/100k-12                     	   45180	     84257 ns/op	  205132 B/op	     106 allocs/op
+BenchmarkWorkingHash/bptree/100k-12                     	   45081	     83716 ns/op	  201966 B/op	     106 allocs/op
+BenchmarkDiskSpace/iavl/1k-12                           	      93	  32312842 ns/op	         0.2036 MB	       213.5 bytes/key	 9272623 B/op	   45106 allocs/op
+BenchmarkDiskSpace/iavl/1k-12                           	     112	  31863809 ns/op	         0.2036 MB	       213.5 bytes/key	 9271789 B/op	   45101 allocs/op
+BenchmarkDiskSpace/iavl/1k-12                           	     114	  31901728 ns/op	         0.2036 MB	       213.5 bytes/key	 9270372 B/op	   45092 allocs/op
+BenchmarkDiskSpace/bptree/1k-12                         	      84	  37506747 ns/op	         0.1338 MB	       140.3 bytes/key	12186717 B/op	   12723 allocs/op
+BenchmarkDiskSpace/bptree/1k-12                         	      85	  37153394 ns/op	         0.1339 MB	       140.4 bytes/key	12176025 B/op	   12719 allocs/op
+BenchmarkDiskSpace/bptree/1k-12                         	      94	  37375411 ns/op	         0.1340 MB	       140.6 bytes/key	12171882 B/op	   12721 allocs/op
+BenchmarkDiskSpace/iavl/10k-12                          	      44	  74849027 ns/op	         2.044 MB	       214.3 bytes/key	59176759 B/op	  479952 allocs/op
+BenchmarkDiskSpace/iavl/10k-12                          	      44	  74499172 ns/op	         2.044 MB	       214.3 bytes/key	59173392 B/op	  479931 allocs/op
+BenchmarkDiskSpace/iavl/10k-12                          	      43	  73891373 ns/op	         2.044 MB	       214.3 bytes/key	59179821 B/op	  479972 allocs/op
+BenchmarkDiskSpace/bptree/10k-12                        	      26	 121846316 ns/op	         1.335 MB	       140.0 bytes/key	124673272 B/op	  129406 allocs/op
+BenchmarkDiskSpace/bptree/10k-12                        	      27	 121079352 ns/op	         1.335 MB	       140.0 bytes/key	124828581 B/op	  129488 allocs/op
+BenchmarkDiskSpace/bptree/10k-12                        	      27	 123011077 ns/op	         1.334 MB	       139.9 bytes/key	124815016 B/op	  129423 allocs/op
+BenchmarkDiskSpace/iavl/100k-12                         	       6	 579790118 ns/op	        18.58 MB	       194.8 bytes/key	593132656 B/op	 5143611 allocs/op
+BenchmarkDiskSpace/iavl/100k-12                         	       6	 582131938 ns/op	        18.58 MB	       194.8 bytes/key	592314250 B/op	 5145188 allocs/op
+BenchmarkDiskSpace/iavl/100k-12                         	       6	 586142917 ns/op	        18.58 MB	       194.8 bytes/key	592741742 B/op	 5143234 allocs/op
+BenchmarkDiskSpace/bptree/100k-12                       	       3	1044789708 ns/op	        10.58 MB	       110.9 bytes/key	1772388925 B/op	 1379421 allocs/op
+BenchmarkDiskSpace/bptree/100k-12                       	       3	1049889236 ns/op	        10.58 MB	       110.9 bytes/key	1771167469 B/op	 1379800 allocs/op
+BenchmarkDiskSpace/bptree/100k-12                       	       3	1048156764 ns/op	        10.57 MB	       110.9 bytes/key	1766879637 B/op	 1379122 allocs/op
+BenchmarkDiskSpaceMultiVersion/iavl/10-versions-12      	      42	  85921241 ns/op	         2.425 MB	70685882 B/op	  635900 allocs/op
+BenchmarkDiskSpaceMultiVersion/iavl/10-versions-12      	      37	  85792508 ns/op	         2.427 MB	70691120 B/op	  635982 allocs/op
+BenchmarkDiskSpaceMultiVersion/iavl/10-versions-12      	      40	  87159205 ns/op	         2.432 MB	70643899 B/op	  635535 allocs/op
+BenchmarkDiskSpaceMultiVersion/bptree/10-versions-12    	      25	 131671788 ns/op	         2.331 MB	137148105 B/op	  165220 allocs/op
+BenchmarkDiskSpaceMultiVersion/bptree/10-versions-12    	      26	 132556473 ns/op	         2.318 MB	137290545 B/op	  165456 allocs/op
+BenchmarkDiskSpaceMultiVersion/bptree/10-versions-12    	      26	 130998995 ns/op	         2.309 MB	137290117 B/op	  165395 allocs/op
+BenchmarkDiskSpaceMultiVersion/iavl/100-versions-12     	      20	 172181285 ns/op	         5.705 MB	192528669 B/op	 2194031 allocs/op
+BenchmarkDiskSpaceMultiVersion/iavl/100-versions-12     	      19	 172664230 ns/op	         5.724 MB	192515999 B/op	 2194279 allocs/op
+BenchmarkDiskSpaceMultiVersion/iavl/100-versions-12     	      19	 171061539 ns/op	         5.723 MB	192654596 B/op	 2195569 allocs/op
+BenchmarkDiskSpaceMultiVersion/bptree/100-versions-12   	      16	 230487359 ns/op	        10.73 MB	264497430 B/op	  509576 allocs/op
+BenchmarkDiskSpaceMultiVersion/bptree/100-versions-12   	      14	 236366717 ns/op	        10.71 MB	264245481 B/op	  509834 allocs/op
+BenchmarkDiskSpaceMultiVersion/bptree/100-versions-12   	      14	 234612929 ns/op	        10.77 MB	264187059 B/op	  509662 allocs/op
+BenchmarkMemory/iavl/1k-12                              	      81	  42444365 ns/op	         0.8763 MB	       918.9 bytes/key	 4603453 B/op	   47678 allocs/op
+BenchmarkMemory/iavl/1k-12                              	      84	  43374102 ns/op	         0.8761 MB	       918.7 bytes/key	 4601833 B/op	   47669 allocs/op
+BenchmarkMemory/iavl/1k-12                              	      82	  43176247 ns/op	         0.8761 MB	       918.7 bytes/key	 4603008 B/op	   47676 allocs/op
+BenchmarkMemory/bptree/1k-12                            	      74	  47776398 ns/op	         0.5590 MB	       586.1 bytes/key	 7680933 B/op	   10351 allocs/op
+BenchmarkMemory/bptree/1k-12                            	      75	  47575244 ns/op	         0.5607 MB	       588.0 bytes/key	 7596913 B/op	   10330 allocs/op
+BenchmarkMemory/bptree/1k-12                            	      74	  47539834 ns/op	         0.5527 MB	       579.6 bytes/key	 7683399 B/op	   10344 allocs/op
+BenchmarkMemory/iavl/10k-12                             	      33	 102433865 ns/op	         7.993 MB	       838.1 bytes/key	54304501 B/op	  509696 allocs/op
+BenchmarkMemory/iavl/10k-12                             	      34	 102173061 ns/op	         7.940 MB	       832.6 bytes/key	54293310 B/op	  509611 allocs/op
+BenchmarkMemory/iavl/10k-12                             	      34	 102689996 ns/op	         7.992 MB	       838.0 bytes/key	54322500 B/op	  509559 allocs/op
+BenchmarkMemory/bptree/10k-12                           	      15	 226689125 ns/op	         5.331 MB	       559.0 bytes/key	117225494 B/op	  109391 allocs/op
+BenchmarkMemory/bptree/10k-12                           	      15	 227599706 ns/op	         5.200 MB	       545.3 bytes/key	117289772 B/op	  109379 allocs/op
+BenchmarkMemory/bptree/10k-12                           	      15	 227863494 ns/op	         5.319 MB	       557.7 bytes/key	117198244 B/op	  109395 allocs/op
+BenchmarkMemory/iavl/100k-12                            	       6	 549109715 ns/op	        72.61 MB	       761.3 bytes/key	587860600 B/op	 5429586 allocs/op
+BenchmarkMemory/iavl/100k-12                            	       6	 551491014 ns/op	        72.63 MB	       761.6 bytes/key	588198984 B/op	 5431641 allocs/op
+BenchmarkMemory/iavl/100k-12                            	       6	 558350160 ns/op	        72.61 MB	       761.3 bytes/key	588063564 B/op	 5431023 allocs/op
+BenchmarkMemory/bptree/100k-12                          	       3	1047520472 ns/op	        50.90 MB	       533.7 bytes/key	1714743594 B/op	 1181743 allocs/op
+BenchmarkMemory/bptree/100k-12                          	       4	1001992281 ns/op	        50.79 MB	       532.6 bytes/key	1724583976 B/op	 1183085 allocs/op
+BenchmarkMemory/bptree/100k-12                          	       4	 967944490 ns/op	        50.85 MB	       533.2 bytes/key	1716155240 B/op	 1181754 allocs/op
+BenchmarkScalingGet/iavl/1k-12                          	65656687	        54.88 ns/op	        12.00 height	       0 B/op	       0 allocs/op
+BenchmarkScalingGet/iavl/1k-12                          	64320027	        54.89 ns/op	        12.00 height	       0 B/op	       0 allocs/op
+BenchmarkScalingGet/iavl/1k-12                          	64926866	        54.85 ns/op	        12.00 height	       0 B/op	       0 allocs/op
+BenchmarkScalingGet/bptree/1k-12                        	34747622	       103.4 ns/op	         2.000 height	      16 B/op	       1 allocs/op
+BenchmarkScalingGet/bptree/1k-12                        	34686633	       103.4 ns/op	         2.000 height	      16 B/op	       1 allocs/op
+BenchmarkScalingGet/bptree/1k-12                        	34600772	       103.6 ns/op	         2.000 height	      16 B/op	       1 allocs/op
+BenchmarkScalingGet/iavl/10k-12                         	48448824	        73.62 ns/op	        16.00 height	       0 B/op	       0 allocs/op
+BenchmarkScalingGet/iavl/10k-12                         	48212643	        73.63 ns/op	        16.00 height	       0 B/op	       0 allocs/op
+BenchmarkScalingGet/iavl/10k-12                         	48494181	        73.28 ns/op	        16.00 height	       0 B/op	       0 allocs/op
+BenchmarkScalingGet/bptree/10k-12                       	22389248	       159.1 ns/op	         2.000 height	      16 B/op	       1 allocs/op
+BenchmarkScalingGet/bptree/10k-12                       	22427053	       160.7 ns/op	         2.000 height	      16 B/op	       1 allocs/op
+BenchmarkScalingGet/bptree/10k-12                       	22142490	       159.2 ns/op	         2.000 height	      16 B/op	       1 allocs/op
+BenchmarkScalingGet/iavl/100k-12                        	28433155	       117.1 ns/op	        20.00 height	       0 B/op	       0 allocs/op
+BenchmarkScalingGet/iavl/100k-12                        	27553928	       117.7 ns/op	        20.00 height	       0 B/op	       0 allocs/op
+BenchmarkScalingGet/iavl/100k-12                        	26957592	       116.7 ns/op	        20.00 height	       0 B/op	       0 allocs/op
+BenchmarkScalingGet/bptree/100k-12                      	12241934	       281.8 ns/op	         3.000 height	      16 B/op	       1 allocs/op
+BenchmarkScalingGet/bptree/100k-12                      	12604716	       279.7 ns/op	         3.000 height	      16 B/op	       1 allocs/op
+BenchmarkScalingGet/bptree/100k-12                      	12481917	       280.5 ns/op	         3.000 height	      16 B/op	       1 allocs/op
+BenchmarkScalingGet/iavl/1000k-12                       	 4982613	       730.5 ns/op	        24.00 height	     166 B/op	       2 allocs/op
+BenchmarkScalingGet/iavl/1000k-12                       	 4819062	       736.6 ns/op	        24.00 height	     166 B/op	       2 allocs/op
+BenchmarkScalingGet/iavl/1000k-12                       	 4656013	       750.6 ns/op	        24.00 height	     165 B/op	       2 allocs/op
+BenchmarkScalingGet/bptree/1000k-12                     	 4331397	       847.6 ns/op	         4.000 height	      16 B/op	       1 allocs/op
+BenchmarkScalingGet/bptree/1000k-12                     	 4298631	       834.6 ns/op	         4.000 height	      16 B/op	       1 allocs/op
+BenchmarkScalingGet/bptree/1000k-12                     	 4276786	       835.3 ns/op	         4.000 height	      16 B/op	       1 allocs/op
+BenchmarkScalingSet/iavl/1k-12                          	 1000000	      3515 ns/op	    1921 B/op	      14 allocs/op
+BenchmarkScalingSet/iavl/1k-12                          	 1000000	      3648 ns/op	    1921 B/op	      14 allocs/op
+BenchmarkScalingSet/iavl/1k-12                          	 1000000	      3504 ns/op	    1921 B/op	      14 allocs/op
+BenchmarkScalingSet/bptree/1k-12                        	 1439253	      2402 ns/op	   11269 B/op	       8 allocs/op
+BenchmarkScalingSet/bptree/1k-12                        	 1530298	      2355 ns/op	   11317 B/op	       8 allocs/op
+BenchmarkScalingSet/bptree/1k-12                        	 1550113	      2322 ns/op	   11291 B/op	       8 allocs/op
+BenchmarkScalingSet/iavl/10k-12                         	 2562058	      1441 ns/op	    2465 B/op	      17 allocs/op
+BenchmarkScalingSet/iavl/10k-12                         	 2539183	      1437 ns/op	    2465 B/op	      17 allocs/op
+BenchmarkScalingSet/iavl/10k-12                         	 2526273	      1431 ns/op	    2465 B/op	      17 allocs/op
+BenchmarkScalingSet/bptree/10k-12                       	 1171057	      2857 ns/op	   11300 B/op	       8 allocs/op
+BenchmarkScalingSet/bptree/10k-12                       	 1310346	      2704 ns/op	   11230 B/op	       8 allocs/op
+BenchmarkScalingSet/bptree/10k-12                       	 1372114	      2629 ns/op	   11276 B/op	       8 allocs/op
+BenchmarkScalingSet/iavl/100k-12                        	 1880372	      1842 ns/op	    2995 B/op	      20 allocs/op
+BenchmarkScalingSet/iavl/100k-12                        	 1924224	      1865 ns/op	    2995 B/op	      20 allocs/op
+BenchmarkScalingSet/iavl/100k-12                        	 1919198	      1892 ns/op	    2995 B/op	      20 allocs/op
+BenchmarkScalingSet/bptree/100k-12                      	  761979	      4569 ns/op	   17452 B/op	       8 allocs/op
+BenchmarkScalingSet/bptree/100k-12                      	  779305	      4494 ns/op	   17406 B/op	       9 allocs/op
+BenchmarkScalingSet/bptree/100k-12                      	  776205	      4433 ns/op	   17426 B/op	       9 allocs/op
+BenchmarkScalingSet/iavl/1000k-12                       	 1206900	      2747 ns/op	    3570 B/op	      24 allocs/op
+BenchmarkScalingSet/iavl/1000k-12                       	 1348357	      2734 ns/op	    3535 B/op	      24 allocs/op
+BenchmarkScalingSet/iavl/1000k-12                       	 1298857	      2759 ns/op	    3534 B/op	      24 allocs/op
+BenchmarkScalingSet/bptree/1000k-12                     	  640748	      5639 ns/op	   23512 B/op	       9 allocs/op
+BenchmarkScalingSet/bptree/1000k-12                     	  726380	      5966 ns/op	   23791 B/op	       9 allocs/op
+BenchmarkScalingSet/bptree/1000k-12                     	  694994	      5920 ns/op	   23584 B/op	       9 allocs/op
+BenchmarkScalingSaveVersion/iavl/1k-12                  	    6831	   1014150 ns/op	 1206103 B/op	   16842 allocs/op
+BenchmarkScalingSaveVersion/iavl/1k-12                  	    6960	   1023498 ns/op	 1203539 B/op	   16879 allocs/op
+BenchmarkScalingSaveVersion/iavl/1k-12                  	    6841	   1025473 ns/op	 1205878 B/op	   16847 allocs/op
+BenchmarkScalingSaveVersion/bptree/1k-12                	    8067	    981905 ns/op	 1179100 B/op	   11429 allocs/op
+BenchmarkScalingSaveVersion/bptree/1k-12                	    8144	    990486 ns/op	 1181880 B/op	   11448 allocs/op
+BenchmarkScalingSaveVersion/bptree/1k-12                	    8230	    982130 ns/op	 1180079 B/op	   11469 allocs/op
+BenchmarkScalingSaveVersion/iavl/10k-12                 	    5767	   1028280 ns/op	 1241751 B/op	   16684 allocs/op
+BenchmarkScalingSaveVersion/iavl/10k-12                 	    5658	   1032654 ns/op	 1245769 B/op	   16657 allocs/op
+BenchmarkScalingSaveVersion/iavl/10k-12                 	    5653	   1032917 ns/op	 1245786 B/op	   16651 allocs/op
+BenchmarkScalingSaveVersion/bptree/10k-12               	    6308	    958150 ns/op	 1160718 B/op	   11061 allocs/op
+BenchmarkScalingSaveVersion/bptree/10k-12               	    6308	    955152 ns/op	 1158751 B/op	   11055 allocs/op
+BenchmarkScalingSaveVersion/bptree/10k-12               	    6285	    964524 ns/op	 1160127 B/op	   11044 allocs/op
+BenchmarkScalingSaveVersion/iavl/100k-12                	    4150	   1021808 ns/op	 1160839 B/op	   17018 allocs/op
+BenchmarkScalingSaveVersion/iavl/100k-12                	    4344	   1016769 ns/op	 1156514 B/op	   17067 allocs/op
+BenchmarkScalingSaveVersion/iavl/100k-12                	    4207	   1018021 ns/op	 1159764 B/op	   17042 allocs/op
+BenchmarkScalingSaveVersion/bptree/100k-12              	    4144	    980997 ns/op	 1157282 B/op	   11213 allocs/op
+BenchmarkScalingSaveVersion/bptree/100k-12              	    4084	   1012474 ns/op	 1164079 B/op	   11220 allocs/op
+BenchmarkScalingSaveVersion/bptree/100k-12              	    3909	    982311 ns/op	 1152555 B/op	   11145 allocs/op
+BenchmarkBackends/iavl/memdb-12                         	  643123	     11009 ns/op	    9490 B/op	     161 allocs/op
+BenchmarkBackends/iavl/memdb-12                         	  612526	     11027 ns/op	    9513 B/op	     161 allocs/op
+BenchmarkBackends/iavl/memdb-12                         	  664114	     11095 ns/op	    9541 B/op	     162 allocs/op
+BenchmarkBackends/bptree/memdb-12                       	  689008	      8788 ns/op	   14486 B/op	      73 allocs/op
+BenchmarkBackends/bptree/memdb-12                       	  715808	      8843 ns/op	   14645 B/op	      74 allocs/op
+BenchmarkBackends/bptree/memdb-12                       	  639153	      8679 ns/op	   14390 B/op	      72 allocs/op
+BenchmarkBackends/iavl/goleveldb-12                     	  250164	     34740 ns/op	   22943 B/op	     354 allocs/op
+BenchmarkBackends/iavl/goleveldb-12                     	  235124	     34946 ns/op	   22784 B/op	     355 allocs/op
+BenchmarkBackends/iavl/goleveldb-12                     	  231399	     35086 ns/op	   23073 B/op	     355 allocs/op
+BenchmarkBackends/bptree/goleveldb-12                   	  316611	     22777 ns/op	   21891 B/op	     107 allocs/op
+BenchmarkBackends/bptree/goleveldb-12                   	  318021	     22304 ns/op	   21355 B/op	     106 allocs/op
+BenchmarkBackends/bptree/goleveldb-12                   	  322177	     22569 ns/op	   21605 B/op	     107 allocs/op
+PASS
+ok  	github.com/gnolang/gno/tm2/pkg/bptree/benchmarks	3528.333s

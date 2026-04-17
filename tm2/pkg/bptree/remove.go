@@ -242,6 +242,8 @@ func redistributeRight(parent *InnerNode, idx int) {
 		// Update parent's view of these children's sizes
 		parent.childSizes[idx] -= movedSize
 		parent.childSizes[idx+1] += movedSize
+		l.rebuildChildLoaded()
+		r.rebuildChildLoaded()
 		l.RebuildMiniMerkle()
 		r.RebuildMiniMerkle()
 		parent.childHashes[idx] = l.Hash()
@@ -322,6 +324,8 @@ func redistributeLeft(parent *InnerNode, idx int) {
 		// Update parent's view of these children's sizes
 		parent.childSizes[idx] += movedSize
 		parent.childSizes[idx+1] -= movedSize
+		l.rebuildChildLoaded()
+		r.rebuildChildLoaded()
 		l.RebuildMiniMerkle()
 		r.RebuildMiniMerkle()
 		parent.childHashes[idx] = l.Hash()
@@ -370,6 +374,7 @@ func merge(parent *InnerNode, idx int) {
 			l.childHashes[leftChildBase+i] = r.childHashes[i]
 			l.childSizes[leftChildBase+i] = r.childSizes[i]
 		}
+		l.rebuildChildLoaded()
 		l.RebuildMiniMerkle()
 	}
 
@@ -392,6 +397,7 @@ func merge(parent *InnerNode, idx int) {
 	parent.childHashes[pn] = Hash{}
 	parent.childSizes[pn] = 0
 	parent.numKeys--
+	parent.rebuildChildLoaded()
 	parent.childHashes[idx] = left.Hash()
 }
 

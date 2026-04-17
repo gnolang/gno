@@ -459,3 +459,127 @@ func TestIterator_IterateRange_StopEarly(t *testing.T) {
 		t.Fatalf("count = %d, want 5", count)
 	}
 }
+
+// TestIterator_LeafVisitWindow_Ascending covers the range-aware prefetch
+// bounds for ascending iteration: start clipping the leaf's low side,
+// end clipping the high side, and the full-iteration default where the
+// window is [0, numKeys).
+func TestIterator_LeafVisitWindow_Ascending(t *testing.T) {
+	tree := NewMutableTreeMem()
+	// 20 keys, all in a single leaf (B=32 capacity).
+	for i := 0; i < 20; i++ {
+		tree.Set(fmt.Appendf(nil, "w%02d", i), []byte("v"))
+	}
+
+	cases := []struct {
+		name       string
+		start, end []byte
+		wantLo     int
+		wantHi     int
+	}{
+		{"full", nil, nil, 0, 20},
+		{"start_only_mid", []byte("w05"), nil, 5, 20},
+		{"end_only_mid", nil, []byte("w15"), 0, 15},
+		{"start_and_end", []byte("w03"), []byte("w08"), 3, 8},
+		{"end_between_keys", nil, []byte("w14z"), 0, 15}, // 14z > "w14" so p=15
+		{"start_between_keys", []byte("w07a"), nil, 8, 20},
+		{"end_below_first", nil, []byte("w"), 0, 0},
+		{"start_above_last", []byte("z"), nil, 20, 20},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			itr, _ := tree.Iterator(tc.start, tc.end, true)
+			defer itr.Close()
+			if itr.leaf == nil {
+				// Empty window: seekFirst may invalidate without setting leaf.
+				if tc.wantLo != tc.wantHi {
+					t.Fatalf("iterator has no leaf but want window [%d, %d)", tc.wantLo, tc.wantHi)
+				}
+				return
+			}
+			lo, hi := itr.leafVisitWindow()
+			if lo != tc.wantLo || hi != tc.wantHi {
+				t.Fatalf("window = [%d, %d), want [%d, %d)", lo, hi, tc.wantLo, tc.wantHi)
+			}
+		})
+	}
+}
+
+// TestIterator_LeafVisitWindow_Descending covers the descending variant.
+func TestIterator_LeafVisitWindow_Descending(t *testing.T) {
+	tree := NewMutableTreeMem()
+	for i := 0; i < 20; i++ {
+		tree.Set(fmt.Appendf(nil, "w%02d", i), []byte("v"))
+	}
+
+	cases := []struct {
+		name       string
+		start, end []byte
+		wantLo     int
+		wantHi     int
+	}{
+		{"full", nil, nil, 0, 20},
+		{"end_only_mid", nil, []byte("w15"), 0, 15},     // hi = first slot where key >= end
+		{"start_only_mid", []byte("w05"), nil, 5, 20},    // lo = first slot where key >= start
+		{"start_and_end", []byte("w03"), []byte("w08"), 3, 8},
+		{"start_between_keys", []byte("w07a"), nil, 8, 20},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			itr, _ := tree.Iterator(tc.start, tc.end, false)
+			defer itr.Close()
+			if itr.leaf == nil {
+				if tc.wantLo != tc.wantHi {
+					t.Fatalf("iterator has no leaf but want window [%d, %d)", tc.wantLo, tc.wantHi)
+				}
+				return
+			}
+			lo, hi := itr.leafVisitWindow()
+			if lo != tc.wantLo || hi != tc.wantHi {
+				t.Fatalf("window = [%d, %d), want [%d, %d)", lo, hi, tc.wantLo, tc.wantHi)
+			}
+		})
+	}
+}
+
+// TestIterator_RangeValuesMatchFull validates that range iteration
+// returns the same values as full iteration filtered to the same range —
+// i.e., the narrowed prefetch window didn't drop any legitimate values.
+func TestIterator_RangeValuesMatchFull(t *testing.T) {
+	tree := NewMutableTreeMem()
+	for i := 0; i < 500; i++ {
+		tree.Set(fmt.Appendf(nil, "r%04d", i), fmt.Appendf(nil, "val%04d", i))
+	}
+
+	// Reference: full ascending iteration collected into a map.
+	ref := make(map[string]string)
+	refItr, _ := tree.Iterator(nil, nil, true)
+	for refItr.Valid() {
+		ref[string(refItr.Key())] = string(refItr.Value())
+		refItr.Next()
+	}
+	refItr.Close()
+
+	// Range iteration across a mid-leaf window.
+	start := []byte("r0123")
+	end := []byte("r0456")
+	itr, _ := tree.Iterator(start, end, true)
+	defer itr.Close()
+	count := 0
+	for itr.Valid() {
+		k, v := string(itr.Key()), string(itr.Value())
+		want, ok := ref[k]
+		if !ok || v != want {
+			t.Fatalf("range iteration returned %q=%q, reference has %v=%q", k, v, ok, want)
+		}
+		if bytes.Compare(itr.Key(), start) < 0 || bytes.Compare(itr.Key(), end) >= 0 {
+			t.Fatalf("key %q outside [%q, %q)", k, start, end)
+		}
+		count++
+		itr.Next()
+	}
+	// Sanity: 456 - 123 = 333 keys in the range.
+	if count != 333 {
+		t.Fatalf("got %d keys in range, want 333", count)
+	}
+}

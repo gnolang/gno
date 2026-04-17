@@ -449,6 +449,24 @@ func (t *MutableTree) Load() (int64, error) {
 }
 
 // LoadVersion loads a specific version from the DB.
+//
+// ValueKey nonce recovery: `nextValueNonce` names slots in the
+// (t.version+1) namespace. For a fresh / latest-loaded tree that
+// namespace is unpopulated and starting at 1 is safe. But if the
+// caller loads a non-latest version (e.g. to re-play history into a
+// different v+1 state) and then Sets, a naive allocator would reuse
+// nonces that already name persisted values under the real version
+// v+1 — and because SaveValue writes directly to disk (outside the
+// batch, so Get can observe intra-session writes), the collision
+// silently overwrites a live value before SaveVersion's hash check
+// can reject the stale save.
+//
+// Fix (Finding #1.1): scan the maximum nonce currently persisted for
+// the working-version namespace and seed `nextValueNonce` past it.
+// Subsequent Sets allocate fresh slots that cannot collide with any
+// existing on-disk value. If SaveVersion later rejects the save
+// (hash mismatch), Rollback cleans up these orphans via
+// DeleteValueDirect.
 func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	if t.ndb == nil {
 		return 0, nil
@@ -469,6 +487,16 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+
+	// Seed the value-nonce allocator past any persisted nonce in the
+	// working-version namespace to prevent SaveValue from overwriting
+	// a live on-disk value. See comment above and Finding #1.1.
+	workingVersion := version + 1
+	maxNonce, err := t.ndb.maxValueNonceForVersion(workingVersion)
+	if err != nil {
+		return 0, fmt.Errorf("scanning valueKey nonces for v%d: %w", workingVersion, err)
+	}
+	t.nextValueNonce = maxNonce + 1
 
 	if nkBytes == nil {
 		// Empty tree at this version
@@ -688,20 +716,6 @@ func (t *MutableTree) AvailableVersions() []int {
 // SetInitialVersion sets the version number for the first SaveVersion.
 func (t *MutableTree) SetInitialVersion(version uint64) {
 	t.initialVersion = version
-}
-
-// SetCommitting signals that a commit is in progress.
-func (t *MutableTree) SetCommitting() {
-	if t.ndb != nil {
-		t.ndb.SetCommitting()
-	}
-}
-
-// UnsetCommitting signals that a commit has finished.
-func (t *MutableTree) UnsetCommitting() {
-	if t.ndb != nil {
-		t.ndb.UnsetCommitting()
-	}
 }
 
 // Rollback discards all mutations since the last save.

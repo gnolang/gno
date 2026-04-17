@@ -34,6 +34,7 @@ func treeInsert(root Node, key []byte, valueHash Hash, valueKey []byte) (Node, b
 		newRoot.childHashes[1] = sr.right.Hash()
 		newRoot.childSizes[0] = nodeSize(root)
 		newRoot.childSizes[1] = nodeSize(sr.right)
+		newRoot.rebuildChildLoaded()
 		newRoot.RebuildMiniMerkle()
 		return newRoot, res.updated, res.oldValueKey
 	}
@@ -158,6 +159,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 		inner.childSizes[childIdx] = nodeSize(child)
 		inner.childSizes[childIdx+1] = nodeSize(sr.right)
 		inner.numKeys++
+		inner.rebuildChildLoaded()
 		inner.RebuildMiniMerkle()
 		return insertResult{updated: res.updated, oldValueKey: res.oldValueKey}
 	}
@@ -222,6 +224,12 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 	for i := 0; i < inner.NumChildren(); i++ {
 		inner.childNodes[i] = allChildNodes[i]
 	}
+	// Zero out trailing slots from the pre-split state so the bitmap
+	// rebuilt below doesn't accidentally keep them marked loaded.
+	for i := inner.NumChildren(); i < B; i++ {
+		inner.childNodes[i] = nil
+	}
+	inner.rebuildChildLoaded()
 	inner.RebuildMiniMerkle()
 
 	// Wire up child nodes for right
@@ -231,6 +239,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 	for i := 0; i < rightInner.NumChildren(); i++ {
 		rightInner.childNodes[i] = allChildNodes[splitIdx+i]
 	}
+	rightInner.rebuildChildLoaded()
 	rightInner.RebuildMiniMerkle()
 
 	return insertResult{updated: res.updated, oldValueKey: res.oldValueKey, split: &innerSR}

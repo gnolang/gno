@@ -286,7 +286,7 @@ func (t *MutableTree) markReachable(node Node, reachable map[[NodeKeySize]byte]s
 
 // assertLeafChildren verifies that inner.height == 1 implies its children
 // are LeafNodes (and height > 1 implies InnerNodes). The check inspects
-// only children that are already resident in memory — a DB-loaded inner
+// every child that is already resident in memory — a DB-loaded inner
 // whose children are still serialised refs is accepted without probing.
 //
 // Rationale: the height-1 invariant is a construction invariant
@@ -294,8 +294,10 @@ func (t *MutableTree) markReachable(node Node, reachable map[[NodeKeySize]byte]s
 // previously written under that invariant, so re-verifying them requires
 // loading a child (rebuilding its mini-merkle) purely as a redundancy
 // check. The in-memory case is the only place a freshly constructed
-// inner could escape with a wrong height, and that case is free to
-// validate. See Findings #46, #54.
+// inner could escape with a wrong height, and any such inconsistency
+// indicates a bug — so we walk every in-memory child slot (at most B,
+// trivial compared with the DB work the prune will do) rather than
+// short-circuiting on the first match.
 func (t *MutableTree) assertLeafChildren(inner *InnerNode, leafChildren bool) error {
 	for i := 0; i < inner.NumChildren(); i++ {
 		probe := inner.childNodes[i]
@@ -307,7 +309,6 @@ func (t *MutableTree) assertLeafChildren(inner *InnerNode, leafChildren bool) er
 			return fmt.Errorf("%w: height=%d child[%d] isLeaf=%v",
 				ErrHeightInvariantViolated, inner.height, i, isLeaf)
 		}
-		return nil
 	}
 	return nil
 }

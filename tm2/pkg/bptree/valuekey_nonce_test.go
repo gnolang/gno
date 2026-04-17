@@ -99,6 +99,67 @@ func TestImporter_NonceStartsAtOne(t *testing.T) {
 	}
 }
 
+// TestLoadVersion_OldVersionDoesNotCorruptValues is a regression test for
+// the bug where LoadVersion(old) + Set would allocate ValueKeys colliding
+// with persisted values under the working-version namespace and — because
+// SaveValue writes directly to disk — silently overwrite the live values.
+// See Finding #1.1.
+//
+// Scenario:
+//   - v1: Set keyA
+//   - v2: Set keyB → persists value under (2, 1)
+//   - v3: Set keyC
+//   - LoadVersion(1); Set attacker → must NOT overwrite (2, 1)
+//   - v2's keyB must still resolve to its original value.
+func TestLoadVersion_OldVersionDoesNotCorruptValues(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 100, NewNopLogger())
+
+	mustSetSave := func(key, value string) {
+		if _, err := tree.Set([]byte(key), []byte(value)); err != nil {
+			t.Fatalf("Set %q: %v", key, err)
+		}
+		if _, _, err := tree.SaveVersion(); err != nil {
+			t.Fatalf("SaveVersion after %q: %v", key, err)
+		}
+	}
+	mustSetSave("keyA", "v1_valA")
+	mustSetSave("keyB", "v2_valB")
+	mustSetSave("keyC", "v3_valC")
+
+	// Snapshot version 2's view of keyB before the attack.
+	imm2, err := tree.GetImmutable(2)
+	if err != nil {
+		t.Fatalf("GetImmutable(2): %v", err)
+	}
+	pre, _ := imm2.Get([]byte("keyB"))
+	imm2.Close()
+	if !bytes.Equal(pre, []byte("v2_valB")) {
+		t.Fatalf("pre-check: v2.keyB = %q, want v2_valB", pre)
+	}
+
+	// Attack: load an older version, Set a new key. A naive allocator
+	// reuses nonces starting at 1 in the (v1+1)=v2 namespace, which
+	// collides with v2's existing (2,1) slot for keyB.
+	if _, err := tree.LoadVersion(1); err != nil {
+		t.Fatalf("LoadVersion(1): %v", err)
+	}
+	if _, err := tree.Set([]byte("attacker"), []byte("ATTACKER_DATA")); err != nil {
+		t.Fatalf("Set attacker: %v", err)
+	}
+
+	// v2's keyB must still resolve to its original value.
+	imm2b, err := tree.GetImmutable(2)
+	if err != nil {
+		t.Fatalf("GetImmutable(2) post-attack: %v", err)
+	}
+	post, _ := imm2b.Get([]byte("keyB"))
+	imm2b.Close()
+	if !bytes.Equal(post, []byte("v2_valB")) {
+		t.Fatalf("post-attack: v2.keyB = %q, want v2_valB (disk corruption!)", post)
+	}
+}
+
 // TestValueKey_LegacyNonceZeroStoreReadable verifies that a store
 // previously written with nonce=0 (before Finding #6 was fixed) remains
 // readable. We simulate this by manually writing a value under the

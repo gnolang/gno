@@ -339,12 +339,19 @@ func (it *Iterator) Value() []byte {
 	return it.leafValues[it.leafIdx]
 }
 
-// loadLeafValues resolves values for every occupied slot of the current
-// leaf and caches them in it.leafValues. Returns false and invalidates
-// the iterator on the first resolution error.
+// loadLeafValues resolves values for the slots the iterator will actually
+// visit on the current leaf and caches them in it.leafValues. Returns
+// false and invalidates the iterator on the first resolution error.
+//
+// The visit window is computed from the iterator's direction and bounds:
+// for a range scan that only touches part of a leaf, this avoids the
+// wasted resolves (one DB round-trip each on disk-backed backends) that
+// the earlier "prefetch every occupied slot" implementation paid.
+// Full iteration (start and end both nil) still fetches the whole
+// leaf — the window collapses to [0, numKeys).
 func (it *Iterator) loadLeafValues() bool {
-	n := int(it.leaf.numKeys)
-	for i := 0; i < n; i++ {
+	lo, hi := it.leafVisitWindow()
+	for i := lo; i < hi; i++ {
 		vk := it.leaf.valueKeys[i]
 		var (
 			val []byte
@@ -364,6 +371,47 @@ func (it *Iterator) loadLeafValues() bool {
 	}
 	it.leafValuesLoaded = true
 	return true
+}
+
+// leafVisitWindow returns the [lo, hi) range of leaf slot indices that
+// the iterator will visit on the current leaf, given its direction and
+// start/end bounds.
+//
+// Ascending: lo is the current leafIdx (earliest slot to be visited —
+// Next only moves forward); hi is numKeys clipped by end (exclusive).
+// Descending: hi is leafIdx+1 (leafIdx is the highest slot — Next moves
+// backward); lo is 0 clipped up by start (inclusive).
+//
+// The clip consults searchLeaf, costing log₂B = 5 comparisons per leaf
+// transition — strictly dominated by the DB resolves it eliminates.
+func (it *Iterator) leafVisitWindow() (lo, hi int) {
+	n := int(it.leaf.numKeys)
+	if it.ascending {
+		lo = it.leafIdx
+		hi = n
+		if it.end != nil {
+			// searchLeaf returns the first index whose key is >= end.
+			// end is exclusive, so that index is the first slot NOT
+			// visited; everything strictly below it is in-range.
+			p, _ := searchLeaf(it.leaf, it.end)
+			if p < hi {
+				hi = p
+			}
+		}
+	} else {
+		hi = it.leafIdx + 1
+		lo = 0
+		if it.start != nil {
+			// searchLeaf returns the first index whose key is >= start.
+			// start is inclusive, so that index is the first (lowest)
+			// slot we'll still visit on the descent.
+			p, _ := searchLeaf(it.leaf, it.start)
+			if p > lo {
+				lo = p
+			}
+		}
+	}
+	return lo, hi
 }
 
 // Error reports the first error encountered during iteration or value
@@ -418,6 +466,13 @@ func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, m
 // iterator is returned with err = ErrNoValueResolver and valid = false;
 // Error() reports the misconfiguration and the caller avoids silent
 // nil-value reads. See Finding #35.
+//
+// No version-reader registration: MutableTree is contracted as
+// single-goroutine (see the struct doc). Protecting against a
+// concurrent PruneVersionsTo on the same tree would defend against a
+// contract violation the caller has already made; callers that need a
+// snapshot stable across threads must obtain an ImmutableTree via
+// GetImmutable instead, which does register a reader.
 func (t *MutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, error) {
 	itr := newIterator(t.root, start, end, ascending, t.ndb, 0)
 	if t.ndb == nil {
