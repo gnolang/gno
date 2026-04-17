@@ -81,7 +81,7 @@ jobs:
         env:
           BUILD_VERSION: ${{ steps.build_version.outputs.version }}
         with:
-          source: .
+          source: . # use checked-out code, not git URL at GITHUB_SHA
           files: |
             misc/deployments/bake/docker-bake.hcl
             cwd://${{ steps.meta.outputs.bake-file-tags }}
