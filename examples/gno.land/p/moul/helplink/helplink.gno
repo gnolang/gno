@@ -47,7 +47,8 @@ type Realm string
 func (r Realm) prefix() string {
 	// relative
 	if r == "" {
-		return ""
+		curPath := runtime.CurrentRealm().PkgPath()
+		return strings.TrimPrefix(curPath, chainDomain)
 	}
 
 	// local realm -> /realm

@@ -4,13 +4,13 @@ loadpkg gno.land/r/demo/bug97 $WORK
 
 gnoland start
 
-gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'RealmCall1' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'RealmCall1' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -chainid='tendermint_test' test1
 stdout 'OK!'
 
-gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'RealmCall2' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'RealmCall2' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -chainid='tendermint_test' test1
 stdout 'OK!'
 
-gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'RealmCall1' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'RealmCall1' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -chainid='tendermint_test' test1
 stdout 'OK!'
 
 -- bug97.gno --

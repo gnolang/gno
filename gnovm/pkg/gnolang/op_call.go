@@ -70,7 +70,9 @@ func (m *Machine) doOpPrecall() {
 		// it sets ATTR_SHIFT_RHS so we can reject negative
 		// values before the conversion.
 		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
-			xv.AssertNonNegative("runtime error: negative shift amount")
+			if xv.Sign() < 0 {
+				m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
+			}
 		}
 		m.PushOp(OpConvert)
 		if debug {
