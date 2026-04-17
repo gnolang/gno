@@ -121,8 +121,8 @@ func checkUrl(url string) error {
 		case resp.StatusCode == http.StatusNotFound:
 			// 404 is a definitive failure; no point retrying.
 			return err404Link
-		case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500:
-			// Transient server-side error; retry.
+		case resp.StatusCode == http.StatusTooManyRequests:
+			// Rate-limited; retry.
 			if attempt < maxRetries-1 {
 				continue
 			}
@@ -130,6 +130,7 @@ func checkUrl(url string) error {
 			return err404Link
 		}
 
+		// Treat everything else (including 5xx) as reachable.
 		return nil
 	}
 
