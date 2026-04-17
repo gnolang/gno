@@ -4,10 +4,10 @@ adduser test8
 gnoland start
 
 ## add bar.gno package located in $WORK directory as gno.land/r/foobar/bar
-gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/foobar/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test8
+gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/foobar/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test8
 
 ## execute Render
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test8 $WORK/script/script.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test8 $WORK/script/script.gno
 
 ## compare render
 stdout 'main: --- hello from foo ---'
