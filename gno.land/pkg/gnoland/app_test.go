@@ -2084,7 +2084,7 @@ func IsDeployed(cur realm) bool { return Deployed }
 		// This tx is marked as Failed — it should be skipped entirely.
 		tx := createAndSignTxWithAccSeq(t, []std.Msg{msg}, "old-chain", key, 0, 0)
 
-		app.InitChain(abci.RequestInitChain{
+		initResp := app.InitChain(abci.RequestInitChain{
 			ChainID: chainID,
 			Time:    time.Now(),
 			ConsensusParams: &abci.ConsensusParams{
@@ -2124,6 +2124,14 @@ func IsDeployed(cur realm) bool { return Deployed }
 				PastChainIDs: []string{"old-chain"},
 			},
 		})
+
+		// The skipped failed tx should produce a non-success response so
+		// downstream consumers (indexers, explorers) don't mistake it for
+		// success.
+		require.Len(t, initResp.TxResponses, 1)
+		skippedResp := initResp.TxResponses[0]
+		require.NotNil(t, skippedResp.Error, "skipped failed tx response should carry an error marker")
+		assert.Contains(t, skippedResp.Error.Error(), "replay skipped")
 
 		// The package should NOT be deployed since the tx was marked as failed.
 		// Trying to call it should fail.

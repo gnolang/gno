@@ -472,8 +472,16 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 		// re-executing failed txs could cause double spends or unexpected
 		// behavior if the VM fix makes them succeed. The next tx's force-set
 		// will handle the correct sequence state.
+		// Response carries an explicit error so downstream consumers
+		// (indexers, explorers) don't mistake a skipped failed tx for a
+		// successful one.
 		if metadata != nil && metadata.Failed {
-			txResponses = append(txResponses, abci.ResponseDeliverTx{})
+			txResponses = append(txResponses, abci.ResponseDeliverTx{
+				ResponseBase: abci.ResponseBase{
+					Error: abci.StringError("replay skipped: tx failed on source chain"),
+					Log:   "genesis replay: skipped failed tx from source chain",
+				},
+			})
 			continue
 		}
 
