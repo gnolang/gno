@@ -114,3 +114,25 @@ func TestWriteTxsJSONL_RoundTrip(t *testing.T) {
 	assert.Equal(t, int64(42), decoded[0].Metadata.BlockHeight)
 	assert.Equal(t, "test-chain", decoded[0].Metadata.ChainID)
 }
+
+// TestVerifyGenesisFile_Invalid verifies that verifyGenesisFile returns an
+// error for a malformed genesis file (so the calling tool can abort).
+func TestVerifyGenesisFile_Invalid(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+
+	t.Run("missing file", func(t *testing.T) {
+		t.Parallel()
+		err := verifyGenesisFile(filepath.Join(dir, "does-not-exist.json"))
+		require.Error(t, err)
+	})
+
+	t.Run("malformed json", func(t *testing.T) {
+		t.Parallel()
+		path := filepath.Join(dir, "bad.json")
+		require.NoError(t, os.WriteFile(path, []byte(`{"not_valid": `), 0o644))
+		err := verifyGenesisFile(path)
+		require.Error(t, err)
+	})
+}

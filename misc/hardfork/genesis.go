@@ -183,10 +183,9 @@ func execGenesis(ctx context.Context, cfg *genesisCfg, io commands.IO) error {
 
 	if !cfg.noVerify {
 		if err := verifyGenesisFile(cfg.output); err != nil {
-			io.Printf("  WARNING: genesis verification failed: %v\n", err)
-		} else {
-			io.Println("  Verification: OK")
+			return fmt.Errorf("genesis verification failed: %w (use --no-verify to skip)", err)
 		}
+		io.Println("  Verification: OK")
 	}
 
 	// Summary
