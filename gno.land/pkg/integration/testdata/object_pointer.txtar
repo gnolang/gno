@@ -5,17 +5,17 @@ loadpkg gno.land/r/testing/bug_caller $WORK/bug_caller
 gnoland start
 
 # 1. (Working) Init the object, Set a value and Get the value
-gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func WorkingNew -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func WorkingNew -gas-fee 1000000ugnot -gas-wanted 14000000 -chainid=tendermint_test test1
 stdout 'OK!'
-gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -chainid=tendermint_test test1
 stdout 'OK!'
 gnokey query vm/qeval --data "gno.land/r/testing/bug_caller.Get()"
 stdout '42 int' # Works as expected
 
 # 2. (Also working)
-gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func BuggedNew -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func BuggedNew -gas-fee 1000000ugnot -gas-wanted 14000000 -chainid=tendermint_test test1
 stdout 'OK!'
-gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -chainid=tendermint_test test1
 stdout 'OK!'
 gnokey query vm/qeval --data "gno.land/r/testing/bug_caller.Get()"
 stdout '42 int' # Works as expected
