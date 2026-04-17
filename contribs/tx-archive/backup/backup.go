@@ -119,6 +119,13 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 
 	// Internal function that fetches and writes a range of blocks
 	fetchAndWrite := func(fromBlock, toBlock uint64) error {
+		// Progress pacing: print one status line every ~5s, not per batch.
+		var (
+			progressStart = time.Now()
+			totalRange    = toBlock - fromBlock + 1
+			nextProgress  = progressStart.Add(5 * time.Second)
+		)
+
 		// Fetch by batches
 		for batchStart := fromBlock; batchStart <= toBlock; {
 			// Determine batch stop block
@@ -146,6 +153,33 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 			// Keep track of the number of fetched blocks & those containing transactions
 			results.blocksFetched += batchSize
 			results.blocksWithTxs += uint64(len(blocks))
+
+			// Pace progress output at ~5s intervals + always on last batch.
+			if now := time.Now(); now.After(nextProgress) || batchStop == toBlock {
+				nextProgress = now.Add(5 * time.Second)
+
+				elapsed := now.Sub(progressStart)
+				done := batchStop - fromBlock + 1
+				var blocksPerSec float64
+				if secs := elapsed.Seconds(); secs > 0 {
+					blocksPerSec = float64(done) / secs
+				}
+				eta := time.Duration(0)
+				if blocksPerSec > 0 && done < totalRange {
+					remaining := totalRange - done
+					eta = time.Duration(float64(remaining)/blocksPerSec) * time.Second
+				}
+				pct := float64(done) / float64(totalRange) * 100
+				s.logger.Info(
+					"Progress",
+					"blocks", fmt.Sprintf("%d/%d", done, totalRange),
+					"pct", fmt.Sprintf("%.1f%%", pct),
+					"rate", fmt.Sprintf("%.0f blocks/s", blocksPerSec),
+					"txs", results.txsBackedUp,
+					"elapsed", elapsed.Round(time.Second),
+					"eta", eta.Round(time.Second),
+				)
+			}
 
 			// Verbose log for blocks containing transactions
 			s.logger.Debug(
