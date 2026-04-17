@@ -66,6 +66,9 @@ func (m *Machine) doOpPrecall() {
 		// Do not pop type yet.
 		// No need for frames.
 		xv := m.PeekValue(1)
+		// When the preprocessor wraps a shift RHS in uint(),
+		// it sets ATTR_SHIFT_RHS so we can reject negative
+		// values before the conversion.
 		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
 			if xv.Sign() < 0 {
 				m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
