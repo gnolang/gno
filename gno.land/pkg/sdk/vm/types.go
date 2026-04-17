@@ -50,3 +50,10 @@ func (fsigs FunctionSignatures) JSON() string {
 	bz := amino.MustMarshalJSON(fsigs)
 	return string(bz)
 }
+
+// LatestVersionResult is the response type for the vm/qlatestversion query.
+type LatestVersionResult struct {
+	Latest       string `json:"latest"`
+	FirstMissing string `json:"first_missing,omitempty"`
+	Missing      int    `json:"missing"`
+}

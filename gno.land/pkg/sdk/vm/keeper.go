@@ -1231,6 +1231,50 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 	return res, nil
 }
 
+// QueryLatestVersion returns the highest deployed version and gap info
+// for a given base package path (without /vN suffix).
+func (vm *VMKeeper) QueryLatestVersion(ctx sdk.Context, basePath string) (*LatestVersionResult, error) {
+	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	prefix := basePath + "/v"
+	deployed := make(map[int]struct{})
+	latest := -1
+
+	for p := range store.FindPathsByPrefix(prefix) {
+		_, v, ok := gno.ParseVersionSuffix(p)
+		if !ok {
+			continue
+		}
+		deployed[v] = struct{}{}
+		if v > latest {
+			latest = v
+		}
+	}
+
+	if latest < 0 {
+		return nil, fmt.Errorf("no versions found for %s", basePath)
+	}
+
+	missing := (latest + 1) - len(deployed)
+
+	result := &LatestVersionResult{
+		Latest:  fmt.Sprintf("v%d", latest),
+		Missing: missing,
+	}
+
+	// Find first missing version if there are gaps.
+	if missing > 0 {
+		for i := range latest {
+			if _, ok := deployed[i]; !ok {
+				result.FirstMissing = fmt.Sprintf("v%d", i)
+				break
+			}
+		}
+	}
+
+	return result, nil
+}
+
 // processStorageDeposit processes storage deposit adjustments for package realms based on
 // storage size changes tracked within the gnoStore.
 //
