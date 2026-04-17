@@ -6,7 +6,7 @@ gnokey query auth/accounts/$test1_user_addr
 stdout '"coins": "10000000000000ugnot"'
 
 ## run script/script.gno with send flag
-gnokey maketx run -send 42ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
+gnokey maketx run -send 42ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1 $WORK/script/script.gno
 stdout 'send: 42ugnot'
 
 ## user balance after realm send
