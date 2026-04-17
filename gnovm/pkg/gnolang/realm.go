@@ -175,6 +175,17 @@ func (rlm *Realm) String() string {
 // if rlm or po is nil, do nothing.
 // xo or co is nil if the element value is undefined or has no
 // associated object.
+//
+// DidUpdate is called after mutation, so it cannot prevent the write —
+// it can only detect a missing pre-check and panic.
+//
+// Direct callers (e.g. op_assign, machine.go) must perform a readonly
+// check (IsReadonly/isExternalRealm) before the mutation.
+//
+// Indirect callers via GetPointerAtIndex (values.go, map key attach):
+//   - PopAsPointer2 (write path): checks readonly before calling.
+//   - doOpIndex (read path): passes nilRealm, so DidUpdate is a no-op.
+//   - debugger: passes nilRealm (read-only), so DidUpdate is a no-op.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if rlm == nil {
 		return
@@ -198,7 +209,10 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return // do nothing.
 	}
 	if po.GetObjectID().PkgID != rlm.ID {
-		panic(&Exception{Value: typedString("cannot modify external-realm or non-realm object")})
+		// Invariant violation: all mutation paths must have a pre-mutation
+		// readonly check (IsReadonly/isExternalRealm) that prevents reaching
+		// here. If this fires, a pre-check is missing.
+		panic("invariant violation: DidUpdate called on external-realm object without prior readonly check")
 	}
 
 	// XXX check if this boosts performance

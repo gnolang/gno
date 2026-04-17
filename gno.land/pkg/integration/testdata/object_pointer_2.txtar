@@ -3,9 +3,9 @@ loadpkg gno.land/r/testing/ext_realm $WORK/ext_realm
 loadpkg gno.land/r/testing/caller_realm $WORK/caller_realm
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/testing/caller_realm -func SaveObject -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/testing/caller_realm -func SaveObject -gas-fee 1000000ugnot -gas-wanted 14000000 -chainid=tendermint_test test1
 stdout 'OK!'
-gnokey maketx call -pkgpath gno.land/r/testing/caller_realm -func Mutate -args "hello" -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/testing/caller_realm -func Mutate -args "hello" -gas-fee 1000000ugnot -gas-wanted 14000000 -chainid=tendermint_test test1
 stdout 'OK!'
 stdout '("reply from ext realm" string)'
 
