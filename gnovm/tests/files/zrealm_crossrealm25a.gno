@@ -36,7 +36,7 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
-// u[46279d1e03ecb38b84822f9caf584bd16913470d:19](0)=
+// u[46279d1e03ecb38b84822f9caf584bd16913470d:19|struct](0)=
 //     @@ -1,7 +1,7 @@
 //      {
 //          "Fields": [

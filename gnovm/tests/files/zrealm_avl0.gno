@@ -24,7 +24,7 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](6)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7|blk.node.heap.heap.field](6)=
 //     @@ -2,8 +2,8 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
@@ -36,7 +36,7 @@ func main(cur realm) {
 //              "RefCount": "1"
 //          },
 //          "Value": {
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:12](547)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:12|blk.node.heap.heap.field.heap](547)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -98,7 +98,7 @@ func main(cur realm) {
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:11](344)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:11|blk.node.heap.heap.field](344)={
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11",
 //         "LastObjectSize": "344",
@@ -118,7 +118,7 @@ func main(cur realm) {
 //         }
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:10](749)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:10|blk.node.heap.heap](749)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -192,7 +192,7 @@ func main(cur realm) {
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:9](342)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:9|blk.node.heap](342)={
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9",
 //         "LastObjectSize": "342",
@@ -212,7 +212,7 @@ func main(cur realm) {
 //         }
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](0)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3|blk.node](0)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",

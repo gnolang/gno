@@ -25,7 +25,7 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](5)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7|blk.m.heap](5)=
 //     @@ -44,7 +44,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",

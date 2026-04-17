@@ -25,7 +25,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/main"]
-// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:11](216)={
+// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:11|blk.x.heap.field[0].field[0].field[0]](216)={
 //     "Fields": [
 //         {
 //             "N": "AgAAAAAAAAA=",
@@ -43,7 +43,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:10](333)={
+// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:10|blk.x.heap.field[0].field[0]](333)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -65,7 +65,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// u[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:5](6)=
+// u[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:5|blk.x.heap.field[0]](6)=
 //     @@ -7,15 +7,15 @@
 //                  },
 //                  "V": {
@@ -85,5 +85,5 @@ func main() {
 //              "OwnerID": "f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:4",
 //              "RefCount": "1"
 //          }
-// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:6](-331)
-// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:7](-214)
+// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:6|blk.x.heap.field[0].field](-331)
+// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:7|struct](-214)

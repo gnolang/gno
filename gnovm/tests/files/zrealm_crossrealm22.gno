@@ -36,7 +36,7 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
-// c[a7e973c6aeab1f1cb747d0903cb1e4d369226376:45](404)={
+// c[a7e973c6aeab1f1cb747d0903cb1e4d369226376:45|blk.fooerGetter.heap.capture[0]](404)={
 //     "ObjectInfo": {
 //         "ID": "a7e973c6aeab1f1cb747d0903cb1e4d369226376:45",
 //         "LastObjectSize": "404",
@@ -65,7 +65,7 @@ func main(cur realm) {
 //         }
 //     }
 // }
-// c[a7e973c6aeab1f1cb747d0903cb1e4d369226376:44](507)={
+// c[a7e973c6aeab1f1cb747d0903cb1e4d369226376:44|blk.fooerGetter.heap](507)={
 //     "Captures": [
 //         {
 //             "T": {
@@ -129,7 +129,7 @@ func main(cur realm) {
 //         ]
 //     }
 // }
-// u[a7e973c6aeab1f1cb747d0903cb1e4d369226376:14](112)=
+// u[a7e973c6aeab1f1cb747d0903cb1e4d369226376:14|blk.fooerGetter](112)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "a7e973c6aeab1f1cb747d0903cb1e4d369226376:14",
@@ -151,7 +151,7 @@ func main(cur realm) {
 //              }
 //          }
 //      }
-// u[46279d1e03ecb38b84822f9caf584bd16913470d:4](7)=
+// u[46279d1e03ecb38b84822f9caf584bd16913470d:4|blk.Fooer.heap](7)=
 //     @@ -1,10 +1,11 @@
 //      {
 //          "ObjectInfo": {
@@ -169,7 +169,7 @@ func main(cur realm) {
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
-// u[46279d1e03ecb38b84822f9caf584bd16913470d:5](5)=
+// u[46279d1e03ecb38b84822f9caf584bd16913470d:5|blk.Fooer.heap.heap](5)=
 //     @@ -7,14 +7,14 @@
 //                  },
 //                  "V": {
@@ -190,7 +190,7 @@ func main(cur realm) {
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
-// u[46279d1e03ecb38b84822f9caf584bd16913470d:5](0)=
+// u[46279d1e03ecb38b84822f9caf584bd16913470d:5|blk.Fooer.heap.heap](0)=
 //     @@ -7,7 +7,7 @@
 //                  },
 //                  "V": {
@@ -201,7 +201,7 @@ func main(cur realm) {
 //              }
 //          ],
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
-// u[a7e973c6aeab1f1cb747d0903cb1e4d369226376:14](1)=
+// u[a7e973c6aeab1f1cb747d0903cb1e4d369226376:14|blk.fooerGetter](1)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "a7e973c6aeab1f1cb747d0903cb1e4d369226376:14",
@@ -222,7 +222,7 @@ func main(cur realm) {
 //              }
 //          }
 //      }
-// u[46279d1e03ecb38b84822f9caf584bd16913470d:7](7)=
+// u[46279d1e03ecb38b84822f9caf584bd16913470d:7|blk.FooerGetter.heap](7)=
 //     @@ -8,10 +8,11 @@
 //          "NativePkg": "",
 //          "ObjectInfo": {
@@ -237,7 +237,7 @@ func main(cur realm) {
 //          },
 //          "Parent": null,
 //          "PkgPath": "gno.land/r/tests/vm/crossrealm_b",
-// u[46279d1e03ecb38b84822f9caf584bd16913470d:4](0)=
+// u[46279d1e03ecb38b84822f9caf584bd16913470d:4|blk.Fooer.heap](0)=
 //     @@ -5,7 +5,7 @@
 //              "LastObjectSize": "361",
 //              "ModTime": "45",
@@ -256,12 +256,12 @@ func main(cur realm) {
 //                  "ObjectID": "46279d1e03ecb38b84822f9caf584bd16913470d:5"
 //              }
 //          }
-// d[a7e973c6aeab1f1cb747d0903cb1e4d369226376:44](-507)
-// d[a7e973c6aeab1f1cb747d0903cb1e4d369226376:45](-404)
+// d[a7e973c6aeab1f1cb747d0903cb1e4d369226376:44|blk.fooerGetter.heap](-507)
+// d[a7e973c6aeab1f1cb747d0903cb1e4d369226376:45|blk.fooerGetter.heap.capture[0]](-404)
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
-// u[46279d1e03ecb38b84822f9caf584bd16913470d:5](0)=
+// u[46279d1e03ecb38b84822f9caf584bd16913470d:5|blk.Fooer.heap.heap](0)=
 //     @@ -7,7 +7,7 @@
 //                  },
 //                  "V": {
@@ -272,7 +272,7 @@ func main(cur realm) {
 //              }
 //          ],
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
-// c[a7e973c6aeab1f1cb747d0903cb1e4d369226376:46](380)={
+// c[a7e973c6aeab1f1cb747d0903cb1e4d369226376:46|blk.fooerGetter.heap](380)={
 //     "Crossing": false,
 //     "FileName": "",
 //     "IsClosure": false,
@@ -324,7 +324,7 @@ func main(cur realm) {
 //         ]
 //     }
 // }
-// u[a7e973c6aeab1f1cb747d0903cb1e4d369226376:14](-1)=
+// u[a7e973c6aeab1f1cb747d0903cb1e4d369226376:14|blk.fooerGetter](-1)=
 //     @@ -13,8 +13,8 @@
 //              },
 //              "V": {
@@ -336,7 +336,7 @@ func main(cur realm) {
 //              }
 //          }
 //      }
-// u[46279d1e03ecb38b84822f9caf584bd16913470d:7](0)=
+// u[46279d1e03ecb38b84822f9caf584bd16913470d:7|blk.FooerGetter.heap](0)=
 //     @@ -12,7 +12,7 @@
 //              "LastObjectSize": "384",
 //              "ModTime": "45",

@@ -24,7 +24,7 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:9](5)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:9|blk.node.heap.heap.field](5)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9",
@@ -34,7 +34,7 @@ func main(cur realm) {
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8",
 //              "RefCount": "1"
 //          },
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:11](5)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:11|blk.node.heap.heap.field](5)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11",
@@ -44,7 +44,7 @@ func main(cur realm) {
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8",
 //              "RefCount": "1"
 //          },
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:18](547)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:18|blk.node.heap.heap.field.heap.field.heap](547)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -106,7 +106,7 @@ func main(cur realm) {
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:17](344)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:17|blk.node.heap.heap.field.heap.field](344)={
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:17",
 //         "LastObjectSize": "344",
@@ -126,7 +126,7 @@ func main(cur realm) {
 //         }
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:16](751)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:16|blk.node.heap.heap.field.heap](751)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -200,7 +200,7 @@ func main(cur realm) {
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:15](344)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:15|blk.node.heap.heap.field](344)={
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:15",
 //         "LastObjectSize": "344",
@@ -220,7 +220,7 @@ func main(cur realm) {
 //         }
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:14](750)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:14|blk.node.heap.heap](750)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -294,7 +294,7 @@ func main(cur realm) {
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:13](343)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:13|blk.node.heap](343)={
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:13",
 //         "LastObjectSize": "343",
@@ -314,7 +314,7 @@ func main(cur realm) {
 //         }
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](1)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3|blk.node](1)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
@@ -335,5 +335,5 @@ func main(cur realm) {
 //                  },
 //                  "Index": "0",
 //                  "TV": null
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](-341)
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:8](-748)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:7|blk.node.heap](-341)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:8|struct](-748)

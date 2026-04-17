@@ -25,7 +25,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/main"]
-// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:21](215)={
+// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:21|blk.bs.heap[0]](215)={
 //     "Fields": [
 //         {
 //             "N": "AQAAAAAAAAA=",
@@ -43,7 +43,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:22](215)={
+// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:22|blk.bs.heap[1]](215)={
 //     "Fields": [
 //         {
 //             "N": "AgAAAAAAAAA=",
@@ -61,7 +61,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:23](215)={
+// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:23|blk.bs.heap[2]](215)={
 //     "Fields": [
 //         {
 //             "N": "AwAAAAAAAAA=",
@@ -79,7 +79,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:24](215)={
+// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:24|blk.bs.heap[3]](215)={
 //     "Fields": [
 //         {
 //             "N": "BAAAAAAAAAA=",
@@ -97,7 +97,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// u[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:4](1)=
+// u[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:4|blk.bs.heap](1)=
 //     @@ -8,8 +8,8 @@
 //                  },
 //                  "V": {
@@ -151,7 +151,7 @@ func main() {
 //              "OwnerID": "f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:3",
 //              "RefCount": "1"
 //          }
-// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:18](-215)
-// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:19](-215)
-// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:20](-215)
-// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:8](-214)
+// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:18|blk.bs.heap.elem](-215)
+// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:19|blk.bs.heap.elem](-215)
+// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:20|blk.bs.heap.elem](-215)
+// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:8|blk.bs.heap.elem](-214)

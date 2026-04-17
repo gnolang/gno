@@ -24,7 +24,7 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/example"]
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:14](257)={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:14|blk.gPlot.heap.heap.field[1].field.heap.field.heap.field[2]](257)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -44,7 +44,7 @@ func main(cur realm) {
 //         "RefCount": "1"
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:13](485)={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:13|blk.gPlot.heap.heap.field[1].field.heap.field.heap](485)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -86,7 +86,7 @@ func main(cur realm) {
 //         "RefCount": "1"
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:12](346)={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:12|blk.gPlot.heap.heap.field[1].field.heap.field](346)={
 //     "ObjectInfo": {
 //         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:12",
 //         "LastObjectSize": "346",
@@ -106,7 +106,7 @@ func main(cur realm) {
 //         }
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:11](687)={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:11|blk.gPlot.heap.heap.field[1].field.heap](687)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -177,7 +177,7 @@ func main(cur realm) {
 //         "RefCount": "1"
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:10](343)={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:10|blk.gPlot.heap.heap.field[1].field](343)={
 //     "ObjectInfo": {
 //         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:10",
 //         "LastObjectSize": "343",
@@ -197,7 +197,7 @@ func main(cur realm) {
 //         }
 //     }
 // }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:8](5)=
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:8|blk.gPlot.heap.heap](5)=
 //     @@ -17,11 +17,11 @@
 //                  },
 //                  "V": {
@@ -220,7 +220,7 @@ func main(cur realm) {
 //              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7",
 //              "RefCount": "1"
 //          }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:9](135)=
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:9|blk.gPlot.heap.heap.field[1]](135)=
 //     @@ -7,13 +7,23 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/p/nt/avl/v0.Node"

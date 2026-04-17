@@ -17,7 +17,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/mapkey"]
-// c[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:7](216)={
+// c[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:7|blk.m.heap.mapval](216)={
 //     "ObjectInfo": {
 //         "ID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:7",
 //         "LastObjectSize": "216",
@@ -33,7 +33,7 @@ func main() {
 //         }
 //     }
 // }
-// u[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4](236)=
+// u[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4|blk.m.heap](236)=
 //     @@ -1,11 +1,40 @@
 //      {
 //          "List": {

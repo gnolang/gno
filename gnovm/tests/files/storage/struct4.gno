@@ -35,7 +35,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/storage"]
-// c[34f997a9ca158338c03cfc00686d77220a6cf62f:13](215)={
+// c[34f997a9ca158338c03cfc00686d77220a6cf62f:13|blk.record.heap](215)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -52,7 +52,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:12](6)=
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:12|blk.record2.heap.heap](6)=
 //     @@ -7,14 +7,14 @@
 //                  },
 //                  "V": {
@@ -70,7 +70,7 @@ func main() {
 //              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:11",
 //              "RefCount": "1"
 //          }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:6](135)=
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:6|blk.record3](135)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:6",
@@ -96,7 +96,7 @@ func main() {
 //              }
 //          }
 //      }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:11](5)=
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:11|blk.record2.heap](5)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:11",
@@ -115,7 +115,7 @@ func main() {
 //                  "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:12"
 //              }
 //          }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:3](0)=
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:3|blk.record](0)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3",
@@ -136,7 +136,7 @@ func main() {
 //              }
 //          }
 //      }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:5](-130)=
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:5|blk.record2](-130)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:5",
@@ -163,4 +163,4 @@ func main() {
 //              }
 //          }
 //      }
-// d[34f997a9ca158338c03cfc00686d77220a6cf62f:10](-240)
+// d[34f997a9ca158338c03cfc00686d77220a6cf62f:10|blk.record.heap](-240)

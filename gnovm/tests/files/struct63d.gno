@@ -26,7 +26,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/main"]
-// u[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:9](5)=
+// u[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:9|blk.x.heap.field.heap.field.heap.field](5)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:9",
@@ -36,7 +36,7 @@ func main() {
 //              "OwnerID": "f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:8",
 //              "RefCount": "1"
 //          },
-// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:14](378)={
+// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:14|blk.x.heap.field.heap.field.heap](378)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -66,7 +66,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:13](335)={
+// c[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:13|blk.x.heap.field.heap.field](335)={
 //     "ObjectInfo": {
 //         "ID": "f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:13",
 //         "LastObjectSize": "335",
@@ -86,7 +86,7 @@ func main() {
 //         }
 //     }
 // }
-// u[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:6](6)=
+// u[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:6|blk.x.heap.field.heap](6)=
 //     @@ -12,8 +12,8 @@
 //                      "@type": "/gno.PointerValue",
 //                      "Base": {
@@ -107,5 +107,5 @@ func main() {
 //              "OwnerID": "f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:5",
 //              "RefCount": "1"
 //          }
-// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:7](-333)
-// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:8](-376)
+// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:7|blk.x.heap.field.heap.field](-333)
+// d[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:8|struct](-376)
