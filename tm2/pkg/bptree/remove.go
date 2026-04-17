@@ -2,44 +2,36 @@ package bptree
 
 // removeResult is returned by recursive remove functions.
 type removeResult struct {
-	found       bool
-	oldValue    Hash
-	oldValueKey []byte // old valueKey for orphan tracking
-	underflow   bool   // node now has fewer than minimum entries
+	found      bool
+	oldPayload slotPayload // the displaced slot (inline bytes or valueKey)
+	underflow  bool        // node now has fewer than minimum entries
 }
 
-// treeRemove removes a key from the tree rooted at root.
-// Returns the (possibly new) root, old value hash, old valueKey, and whether found.
+// treeRemove removes a key from the tree rooted at root. Returns the
+// (possibly new) root, the displaced slot payload, and whether the key
+// was found. Callers orphan oldPayload.valueKey only when external.
 //
-// The caller is responsible for COW-cloning the root before calling this
-// function (MutableTree.Remove does this via cowRoot()). See Finding #17.
-func treeRemove(root Node, key []byte) (Node, Hash, []byte, bool) {
+// The caller is responsible for COW-cloning the root before calling
+// this function (MutableTree.Remove does this via cowRoot()). See
+// Finding #17.
+func treeRemove(root Node, key []byte) (Node, slotPayload, bool) {
 	if root == nil {
-		return nil, Hash{}, nil, false
+		return nil, slotPayload{}, false
 	}
 	res := nodeRemove(root, key)
 	if !res.found {
-		return root, Hash{}, nil, false
+		return root, slotPayload{}, false
 	}
 
 	// Check for root collapse
 	if inner, ok := root.(*InnerNode); ok && inner.numKeys == 0 {
-		// Root has single child — collapse. Every code path that reaches
-		// numKeys==0 at the root passes through merge(), which operates
-		// only on children cloned by fixUnderflow (both sides of a merge
-		// are cloned). Clone clears nodeKey, so the surviving child is
-		// guaranteed dirty; SaveVersion will persist it and re-derive the
-		// root record from its freshly-assigned NodeKey. If a future
-		// refactor skips a clone on the collapse path, the new root
-		// would look clean (nodeKey != nil) and SaveVersion would leave
-		// the collapsed root unsaved. See Finding #37.
-		return inner.getChild(0), res.oldValue, res.oldValueKey, true
+		return inner.getChild(0), res.oldPayload, true
 	}
 	if leaf, ok := root.(*LeafNode); ok && leaf.numKeys == 0 {
 		// Empty tree
-		return nil, res.oldValue, res.oldValueKey, true
+		return nil, res.oldPayload, true
 	}
-	return root, res.oldValue, res.oldValueKey, true
+	return root, res.oldPayload, true
 }
 
 func nodeRemove(node Node, key []byte) removeResult {
@@ -59,26 +51,38 @@ func leafRemove(leaf *LeafNode, key []byte) removeResult {
 		return removeResult{}
 	}
 
-	oldVH := leaf.valueHashes[pos]
-	oldVK := leaf.valueKeys[pos]
+	// Capture the displaced slot payload (either inline bytes or an
+	// external valueKey) before shifting.
+	old := captureSlotPayload(leaf, pos)
+
 	n := int(leaf.numKeys)
 	for i := pos; i < n-1; i++ {
 		leaf.keys[i] = leaf.keys[i+1]
 		leaf.valueHashes[i] = leaf.valueHashes[i+1]
 		leaf.valueKeys[i] = leaf.valueKeys[i+1]
+		leaf.inlineValues[i] = leaf.inlineValues[i+1]
 		leaf.slotHashes[i] = leaf.slotHashes[i+1]
 	}
 	leaf.keys[n-1] = nil
 	leaf.valueHashes[n-1] = Hash{}
 	leaf.valueKeys[n-1] = nil
+	leaf.inlineValues[n-1] = nil
 	leaf.slotHashes[n-1] = Hash{}
+	// Shift inlineMask bits [pos+1, n) down by one; clear the now-
+	// vacant bit at n-1.
+	shiftInlineMaskDown(leaf, pos)
 	leaf.numKeys--
-	// No slots were *re-valued* — the shift preserved slot-hash cache
-	// for every surviving slot. Just mark the mini-merkle dirty so the
-	// next Hash() re-walks the tree with the now-sentinel trailing slot.
 	leaf.miniTreeDirty = true
 
-	return removeResult{found: true, oldValue: oldVH, oldValueKey: oldVK, underflow: leaf.numKeys < MinKeys}
+	return removeResult{found: true, oldPayload: old, underflow: leaf.numKeys < MinKeys}
+}
+
+// shiftInlineMaskDown shifts inlineMask bits [pos+1, 32) down by one
+// to close the gap left by removing slot `pos`.
+func shiftInlineMaskDown(leaf *LeafNode, pos int) {
+	low := leaf.inlineMask & ((uint32(1) << uint(pos)) - 1)
+	high := leaf.inlineMask >> uint(pos+1) << uint(pos)
+	leaf.inlineMask = low | high
 }
 
 func innerRemove(inner *InnerNode, key []byte) removeResult {
@@ -104,7 +108,7 @@ func innerRemove(inner *InnerNode, key []byte) removeResult {
 		// full 31-hash rebuild.
 		inner.ensureMiniMerkleBuilt()
 		inner.miniTree.SetSlot(childIdx, inner.childHashes[childIdx])
-		return removeResult{found: true, oldValue: res.oldValue, oldValueKey: res.oldValueKey}
+		return removeResult{found: true, oldPayload: res.oldPayload}
 	}
 
 	// Fix underflow
@@ -114,10 +118,9 @@ func innerRemove(inner *InnerNode, key []byte) removeResult {
 	// Inner node underflows if it has fewer than MinKeys-1 separators
 	// (MinKeys-1 because inner minimum is ceil(B/2)-1 = 15 separators)
 	return removeResult{
-		found:       true,
-		oldValue:    res.oldValue,
-		oldValueKey: res.oldValueKey,
-		underflow:   merged && inner.numKeys < int16(MinKeys-1),
+		found:      true,
+		oldPayload: res.oldPayload,
+		underflow:  merged && inner.numKeys < int16(MinKeys-1),
 	}
 }
 
@@ -192,31 +195,40 @@ func redistributeRight(parent *InnerNode, idx int) {
 	case *LeafNode:
 		r := right.(*LeafNode)
 		lastIdx := int(l.numKeys) - 1
-		// Shift right's entries (plus slotHashes cache) to make room.
+		// Shift right's entries (plus slotHashes cache + inlineValues)
+		// to make room.
 		rn := int(r.numKeys)
 		for i := rn; i > 0; i-- {
 			r.keys[i] = r.keys[i-1]
 			r.valueHashes[i] = r.valueHashes[i-1]
 			r.valueKeys[i] = r.valueKeys[i-1]
+			r.inlineValues[i] = r.inlineValues[i-1]
 			r.slotHashes[i] = r.slotHashes[i-1]
 		}
+		// Shift r.inlineMask up by 1 bit (inserting a vacant bit at 0).
+		r.inlineMask <<= 1
+		// Move the last slot from l to position 0 of r, preserving
+		// inline/external status.
 		r.keys[0] = l.keys[lastIdx]
 		r.valueHashes[0] = l.valueHashes[lastIdx]
 		r.valueKeys[0] = l.valueKeys[lastIdx]
-		r.slotHashes[0] = l.slotHashes[lastIdx] // slot hash is position-invariant per (key, valueHash)
+		r.inlineValues[0] = l.inlineValues[lastIdx]
+		r.slotHashes[0] = l.slotHashes[lastIdx]
+		if l.inlineMask&(uint32(1)<<uint(lastIdx)) != 0 {
+			r.inlineMask |= 1
+		}
 		r.numKeys++
 		l.keys[lastIdx] = nil
 		l.valueHashes[lastIdx] = Hash{}
 		l.valueKeys[lastIdx] = nil
+		l.inlineValues[lastIdx] = nil
 		l.slotHashes[lastIdx] = Hash{}
+		l.inlineMask &^= uint32(1) << uint(lastIdx)
 		l.numKeys--
 		// Update separator and parent childSizes
 		parent.keys[idx] = copyKey(r.keys[0])
 		parent.childSizes[idx]--
 		parent.childSizes[idx+1]++
-		// No slot contents changed — only count shrank/grew. Just flag
-		// the mini-merkle dirty; the slotHashes cache is already
-		// consistent for every live slot.
 		l.miniTreeDirty = true
 		r.miniTreeDirty = true
 		parent.childHashes[idx] = l.Hash()
@@ -280,23 +292,32 @@ func redistributeLeft(parent *InnerNode, idx int) {
 	switch r := right.(type) {
 	case *LeafNode:
 		l := left.(*LeafNode)
-		// Append right's first entry (plus its slot hash) to left.
-		l.keys[l.numKeys] = r.keys[0]
-		l.valueHashes[l.numKeys] = r.valueHashes[0]
-		l.valueKeys[l.numKeys] = r.valueKeys[0]
-		l.slotHashes[l.numKeys] = r.slotHashes[0]
+		// Append right's first entry (plus its slot hash and inline
+		// status) to left.
+		dst := int(l.numKeys)
+		l.keys[dst] = r.keys[0]
+		l.valueHashes[dst] = r.valueHashes[0]
+		l.valueKeys[dst] = r.valueKeys[0]
+		l.inlineValues[dst] = r.inlineValues[0]
+		l.slotHashes[dst] = r.slotHashes[0]
+		if r.inlineMask&1 != 0 {
+			l.inlineMask |= uint32(1) << uint(dst)
+		}
 		l.numKeys++
-		// Shift right left (with slotHashes cache)
+		// Shift right left (with slotHashes cache + inline values).
 		rn := int(r.numKeys)
 		for i := 0; i < rn-1; i++ {
 			r.keys[i] = r.keys[i+1]
 			r.valueHashes[i] = r.valueHashes[i+1]
 			r.valueKeys[i] = r.valueKeys[i+1]
+			r.inlineValues[i] = r.inlineValues[i+1]
 			r.slotHashes[i] = r.slotHashes[i+1]
 		}
+		r.inlineMask >>= 1
 		r.keys[rn-1] = nil
 		r.valueHashes[rn-1] = Hash{}
 		r.valueKeys[rn-1] = nil
+		r.inlineValues[rn-1] = nil
 		r.slotHashes[rn-1] = Hash{}
 		r.numKeys--
 		parent.keys[idx] = copyKey(r.keys[0])
@@ -365,13 +386,19 @@ func merge(parent *InnerNode, idx int) {
 	switch l := left.(type) {
 	case *LeafNode:
 		r := right.(*LeafNode)
+		lBase := int(l.numKeys)
 		for i := 0; i < int(r.numKeys); i++ {
-			l.keys[l.numKeys] = r.keys[i]
-			l.valueHashes[l.numKeys] = r.valueHashes[i]
-			l.valueKeys[l.numKeys] = r.valueKeys[i]
-			l.slotHashes[l.numKeys] = r.slotHashes[i]
-			l.numKeys++
+			dst := lBase + i
+			l.keys[dst] = r.keys[i]
+			l.valueHashes[dst] = r.valueHashes[i]
+			l.valueKeys[dst] = r.valueKeys[i]
+			l.inlineValues[dst] = r.inlineValues[i]
+			l.slotHashes[dst] = r.slotHashes[i]
+			if r.inlineMask&(uint32(1)<<uint(i)) != 0 {
+				l.inlineMask |= uint32(1) << uint(dst)
+			}
 		}
+		l.numKeys += r.numKeys
 		l.miniTreeDirty = true
 
 	case *InnerNode:

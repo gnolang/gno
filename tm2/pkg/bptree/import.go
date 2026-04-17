@@ -5,11 +5,14 @@ import (
 	"fmt"
 )
 
-// importKV holds a buffered key-value entry during import.
+// importKV holds a buffered key-value entry during import. Exactly
+// one of `inline` or `valueKey` is non-nil, matching the slotPayload
+// split used by the Set path.
 type importKV struct {
 	key       []byte
 	valueHash Hash
-	valueKey  []byte
+	valueKey  []byte // non-nil for external slots
+	inline    []byte // non-nil for inline slots
 }
 
 // Importer reconstructs a tree from a stream of ExportNodes,
@@ -55,27 +58,37 @@ func (t *MutableTree) Import(version int64) (*Importer, error) {
 func (imp *Importer) Add(node *ExportNode) error {
 	switch {
 	case node.Height == 0:
-		// Leaf entry: compute value hash, allocate valueKey, save value, buffer.
+		// Leaf entry: mirror Set's inline-vs-external decision so
+		// imported trees end up in the same on-disk shape as freshly
+		// built ones.
 		valueHash := sha256.Sum256(node.Value)
-		vk := encodeNodeKeyBytes(imp.version, imp.nextNonce)
-		imp.nextNonce++
-		if imp.tree.ndb != nil {
-			if err := imp.tree.ndb.SaveValue(node.Value, vk); err != nil {
-				return err
-			}
-			// Record for Close-time cleanup on aborted imports.
-			imp.savedVKs = append(imp.savedVKs, vk)
-		} else if imp.tree.memValues != nil {
-			valCopy := make([]byte, len(node.Value))
-			copy(valCopy, node.Value)
-			imp.tree.memValues[string(vk)] = valCopy
-			imp.savedVKs = append(imp.savedVKs, vk)
-		}
-		imp.kvBuffer = append(imp.kvBuffer, importKV{
+		entry := importKV{
 			key:       append([]byte(nil), node.Key...),
 			valueHash: valueHash,
-			valueKey:  vk,
-		})
+		}
+		threshold := imp.tree.inlineThreshold
+		if threshold >= 0 && len(node.Value) <= threshold {
+			// Inline: keep a private copy.
+			cp := make([]byte, len(node.Value))
+			copy(cp, node.Value)
+			entry.inline = cp
+		} else {
+			vk := encodeNodeKeyBytes(imp.version, imp.nextNonce)
+			imp.nextNonce++
+			if imp.tree.ndb != nil {
+				if err := imp.tree.ndb.SaveValue(node.Value, vk); err != nil {
+					return err
+				}
+				imp.savedVKs = append(imp.savedVKs, vk)
+			} else if imp.tree.memValues != nil {
+				valCopy := make([]byte, len(node.Value))
+				copy(valCopy, node.Value)
+				imp.tree.memValues[string(vk)] = valCopy
+				imp.savedVKs = append(imp.savedVKs, vk)
+			}
+			entry.valueKey = vk
+		}
+		imp.kvBuffer = append(imp.kvBuffer, entry)
 		return nil
 
 	case node.Height == -1:
@@ -95,7 +108,12 @@ func (imp *Importer) Add(node *ExportNode) error {
 		for i := range nk {
 			leaf.keys[i] = entries[i].key
 			leaf.valueHashes[i] = entries[i].valueHash
-			leaf.valueKeys[i] = entries[i].valueKey
+			if entries[i].inline != nil {
+				leaf.inlineValues[i] = entries[i].inline
+				leaf.inlineMask |= uint32(1) << uint(i)
+			} else {
+				leaf.valueKeys[i] = entries[i].valueKey
+			}
 		}
 		leaf.RebuildMiniMerkle()
 		imp.kvBuffer = imp.kvBuffer[:len(imp.kvBuffer)-nk]

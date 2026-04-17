@@ -66,23 +66,16 @@ func (e *Exporter) send(node *ExportNode) error {
 func (e *Exporter) exportNode(node Node) error {
 	switch n := node.(type) {
 	case *LeafNode:
-		// Emit each key-value entry
+		// Resolver handles external slots; inline slots are returned
+		// directly by valueAt without consulting the resolver.
+		resolver := e.tree.valueResolver
+		if resolver == nil && e.ndb != nil {
+			resolver = e.ndb.GetValue
+		}
 		for i := 0; i < int(n.numKeys); i++ {
-			var value []byte
-			if e.ndb != nil {
-				var err error
-				value, err = e.ndb.GetValue(n.valueKeys[i])
-				if err != nil {
-					return err
-				}
-			} else if e.tree.valueResolver != nil {
-				var err error
-				value, err = e.tree.valueResolver(n.valueKeys[i])
-				if err != nil {
-					return err
-				}
-			} else {
-				return errors.New("export: no value resolver available (ndb is nil and no valueResolver set)")
+			value, err := n.valueAt(i, resolver)
+			if err != nil {
+				return err
 			}
 			if err := e.send(&ExportNode{
 				Key:    n.keys[i],

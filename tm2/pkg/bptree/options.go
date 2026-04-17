@@ -18,6 +18,14 @@ type Options struct {
 	// disables the cache entirely. Only covers the MutableTree's current
 	// working-view reads — GetImmutable snapshots do not consult it.
 	FastNodeCacheSize int
+
+	// InlineValueThreshold is the byte-length cutoff at which a value
+	// stored via Set is written inline into the leaf rather than via an
+	// external ValueKey indirection. Values <= threshold inline; values
+	// > threshold use the external path. Zero selects
+	// DefaultInlineValueThreshold; a negative value disables inlining
+	// entirely (every value goes external, as in pre-v2 behaviour).
+	InlineValueThreshold int
 }
 
 // Option is a functional option for tree construction.
@@ -47,3 +55,11 @@ func FastNodeCacheSizeOption(n int) Option {
 // to comfortably cover a hot working set of keys without dominating
 // heap under typical gno.land workloads (avg value < 256 B).
 const DefaultFastNodeCacheSize = 10000
+
+// InlineValueThresholdOption configures the cutoff at which values
+// are stored inline in the leaf (<= threshold) vs via a ValueKey
+// indirection (> threshold). Pass 0 to use DefaultInlineValueThreshold;
+// a negative value disables inlining.
+func InlineValueThresholdOption(n int) Option {
+	return func(o *Options) { o.InlineValueThreshold = n }
+}

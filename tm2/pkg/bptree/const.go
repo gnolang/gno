@@ -36,9 +36,22 @@ const (
 	PrefixOrphan byte = 'O'
 
 	// Node type bytes for serialization.
+	// v1 types (legacy; still readable):
 	TypeInner byte = 0x01
 	TypeLeaf  byte = 0x02
+	// v2 types (current writer output):
+	//   - TypeLeafV2 extends leaves with per-slot inline values
+	//     (values <= Options.InlineValueThreshold stored directly in
+	//     the leaf rather than via an external ValueKey indirection).
+	TypeLeafV2 byte = 0x12
 )
+
+// DefaultInlineValueThreshold is the default cutoff at which a value
+// is stored inline within its leaf rather than via an external
+// ValueKey indirection. Values of this size or smaller inline. Tuned
+// for gno.land's typical small-value workload; larger values keep the
+// external-storage path so leaf serialisation stays bounded.
+const DefaultInlineValueThreshold = 64
 
 // Hash is a fixed-size SHA256 hash.
 type Hash = [HashSize]byte

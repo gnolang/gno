@@ -315,15 +315,9 @@ func (it *Iterator) Value() []byte {
 	if !it.valid {
 		panic("iterator invalid")
 	}
-	// No resolver wired. Previously the iterator silently returned nil
-	// here, leaving callers unable to distinguish "value resolved as nil"
-	// from "misconfigured tree". Surface the misconfiguration through
-	// Error() and invalidate the iterator. See Finding #35.
-	if it.ndb == nil && it.valueResolver == nil {
-		it.err = ErrNoValueResolver
-		it.valid = false
-		return nil
-	}
+	// Resolver wiring is validated per-slot inside valueAt: inline
+	// slots don't need one, external slots surface ErrNoValueResolver
+	// (captured via loadLeafValues on the first Value() call).
 	// Leaf-level value prefetch (Finding #16). The first Value() call
 	// after entering a leaf populates the cache for every occupied slot
 	// in a single pass; subsequent calls return the cached slice. For
@@ -351,17 +345,12 @@ func (it *Iterator) Value() []byte {
 // leaf — the window collapses to [0, numKeys).
 func (it *Iterator) loadLeafValues() bool {
 	lo, hi := it.leafVisitWindow()
+	resolver := it.valueResolver
+	if resolver == nil && it.ndb != nil {
+		resolver = it.ndb.GetValue
+	}
 	for i := lo; i < hi; i++ {
-		vk := it.leaf.valueKeys[i]
-		var (
-			val []byte
-			err error
-		)
-		if it.ndb != nil {
-			val, err = it.ndb.GetValue(vk)
-		} else {
-			val, err = it.valueResolver(vk)
-		}
+		val, err := it.leaf.valueAt(i, resolver)
 		if err != nil {
 			it.err = err
 			it.valid = false

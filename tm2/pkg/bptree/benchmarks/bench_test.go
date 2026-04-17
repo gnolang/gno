@@ -102,7 +102,10 @@ type bptreeTree struct {
 }
 
 func newBptreeTree(db dbm.DB, cacheSize int) *bptreeTree {
-	return &bptreeTree{t: bptree.NewMutableTreeWithDB(db, cacheSize, bptree.NewNopLogger())}
+	// Enable inline-value storage so benchmarks reflect the post-Phase-2
+	// on-disk shape (values ≤ DefaultInlineValueThreshold ride along
+	// with their leaf rather than taking a separate DB round-trip).
+	return &bptreeTree{t: bptree.NewMutableTreeWithDB(db, cacheSize, bptree.NewNopLogger(), bptree.InlineValueThresholdOption(bptree.DefaultInlineValueThreshold))}
 }
 
 func (w *bptreeTree) Set(k, v []byte) (bool, error)        { return w.t.Set(k, v) }

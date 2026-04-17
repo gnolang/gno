@@ -96,7 +96,7 @@ func TestStress_ValueLeakDetector(t *testing.T) {
 	}
 
 	db := memdb.NewMemDB()
-	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger(), InlineValueThresholdOption(-1))
 	rng := rand.New(rand.NewSource(99))
 
 	const (
@@ -394,7 +394,7 @@ func TestStress_PruneManyVersions(t *testing.T) {
 	}
 
 	db := memdb.NewMemDB()
-	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger(), InlineValueThresholdOption(-1))
 	rng := rand.New(rand.NewSource(33))
 
 	type savedHash struct {
@@ -458,7 +458,10 @@ func TestStress_WorstCaseRestructuring(t *testing.T) {
 	}
 
 	db := memdb.NewMemDB()
-	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	// Disable inline storage: this test asserts that PrefixVal entries
+	// match tree.Size() after prune, which only holds when every value
+	// uses the external indirection.
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger(), InlineValueThresholdOption(-1))
 	oracle := make(map[string]string)
 	rng := rand.New(rand.NewSource(11))
 

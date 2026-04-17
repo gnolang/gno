@@ -110,14 +110,9 @@ func (t *ImmutableTree) existenceProofAtIndex(idx int64) (*ics23.ExistenceProof,
 // are consumed leaf-to-root when emitting InnerOps, matching ICS23's
 // expected ordering.
 func (t *ImmutableTree) buildExistenceProofFromPath(path []pathEntry, leafSlotIdx int) (*ics23.ExistenceProof, error) {
-	// For ICS23, we need the raw value. The tree only stores the hash.
-	if t.valueResolver == nil {
-		return nil, fmt.Errorf("cannot create existence proof without a value resolver")
-	}
 	leaf := path[len(path)-1].node.(*LeafNode)
 	key := leaf.keys[leafSlotIdx]
-	vk := leaf.valueKeys[leafSlotIdx]
-	rawValue, err := t.valueResolver(vk)
+	rawValue, err := leaf.valueAt(leafSlotIdx, t.valueResolver)
 	if err != nil {
 		return nil, fmt.Errorf("resolving value for proof: %w", err)
 	}

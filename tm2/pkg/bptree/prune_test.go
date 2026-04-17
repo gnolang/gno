@@ -576,7 +576,9 @@ func TestExportImport_ValueKeysCorrect(t *testing.T) {
 
 func TestPrune_MultiVersion(t *testing.T) {
 	db := memdb.NewMemDB()
-	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	// countDBValues asserts equal PrefixVal entries, which requires
+	// external storage; disable inlining for this check.
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger(), InlineValueThresholdOption(-1))
 
 	// V1: keys a,b,c
 	tree.Set([]byte("a"), []byte("a1"))
@@ -616,7 +618,9 @@ func TestPrune_MultiVersion(t *testing.T) {
 
 func TestSet_EmptyValueCleanup(t *testing.T) {
 	db := memdb.NewMemDB()
-	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	// Disable inlining so we exercise the eager SaveValue + DeleteValue
+	// path under test.
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger(), InlineValueThresholdOption(-1))
 
 	tree.Set([]byte("k"), []byte{})
 	tree.SaveVersion()
@@ -717,7 +721,7 @@ func TestPrune_ValueIntegrityAfterOverwrite(t *testing.T) {
 // (inner node splits), and verifies that pruning doesn't delete shared nodes.
 func TestPrune_SeparatorKeyRouting(t *testing.T) {
 	db := memdb.NewMemDB()
-	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger(), InlineValueThresholdOption(-1))
 
 	// V1: Insert enough keys to create a height-2 tree (~1100 keys).
 	// With B=32, this gives ~34 leaves under a single root inner node.

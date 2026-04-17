@@ -33,6 +33,12 @@ type MutableTree struct {
 	initialVersion uint64
 	logger         Logger
 
+	// inlineThreshold: values of this size or smaller are stored inline
+	// in the leaf (no ValueKey indirection / no separate PrefixVal
+	// record). Larger values continue to use the external path. A
+	// negative value disables inlining entirely.
+	inlineThreshold int
+
 	// In-memory value store (no ndb). Keyed by string(valueKey).
 	memValues map[string][]byte
 
@@ -65,15 +71,35 @@ type MutableTree struct {
 	fastNodes *lru.Cache[string, []byte]
 }
 
-// NewMutableTreeMem creates an in-memory MutableTree (no DB).
+// NewMutableTreeMem creates an in-memory MutableTree (no DB). Inline
+// value storage is off by default; enable via a future explicit option
+// if an in-memory constructor variant requires it.
 func NewMutableTreeMem() *MutableTree {
 	t := &MutableTree{
-		logger:         NewNopLogger(),
-		memValues:      make(map[string][]byte),
-		nextValueNonce: 1, // nonce=0 is reserved to avoid collision with the "missing" sentinel (Finding #6)
+		logger:          NewNopLogger(),
+		memValues:       make(map[string][]byte),
+		nextValueNonce:  1, // nonce=0 is reserved to avoid collision with the "missing" sentinel (Finding #6)
+		inlineThreshold: -1,
 	}
 	t.initFastNodeCache(DefaultFastNodeCacheSize)
 	return t
+}
+
+// resolveInlineThreshold turns an Options value into the effective
+// threshold. Default is disabled (-1) so existing callers and tests
+// that rely on the external-ValueKey indirection see no behaviour
+// change; callers opt into inline storage via
+// InlineValueThresholdOption. Pass 0 to get the recommended default
+// threshold (DefaultInlineValueThreshold).
+func resolveInlineThreshold(opt int) int {
+	switch {
+	case opt == 0:
+		return -1
+	case opt < 0:
+		return -1
+	default:
+		return opt
+	}
 }
 
 // initFastNodeCache constructs the latest-view fast-node LRU according
@@ -134,7 +160,8 @@ func NewMutableTreeWithDB(db dbm.DB, cacheSize int, logger Logger, options ...Op
 		initialVersion: opts.InitialVersion,
 		// nonce=0 is reserved to avoid collision with the "missing" sentinel
 		// in LeafNode.Serialize (12 zero bytes). See Finding #6.
-		nextValueNonce: 1,
+		nextValueNonce:  1,
+		inlineThreshold: resolveInlineThreshold(opts.InlineValueThreshold),
 	}
 	t.initFastNodeCache(opts.FastNodeCacheSize)
 	return t
@@ -158,57 +185,87 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	}
 	t.cachedRootHash = nil // working tree about to mutate — invalidate cache (Finding #21)
 
-	// Allocate the ValueKey and persist the value FIRST. allocValueKey
-	// also appends vk to sessionValues so Rollback can clean up if this
-	// Set was part of a working session that later rolls back. On
-	// SaveValue failure we return before mutating the tree; the dangling
-	// sessionValues entry becomes a harmless no-op delete on Rollback
-	// (DB drivers treat delete-of-absent as success).
-	vk := t.allocValueKey()
-	if t.ndb != nil {
-		if err := t.ndb.SaveValue(value, vk); err != nil {
-			return false, err
-		}
-	} else if t.memValues != nil {
-		valCopy := make([]byte, len(value))
-		copy(valCopy, value)
-		t.memValues[string(vk)] = valCopy
-	}
-
+	// Small values inline into the leaf; large values take the external
+	// ValueKey path. Only the external path allocates a ValueKey,
+	// appends to sessionValues, and calls SaveValue — inline bytes live
+	// directly on the node and ride along with leaf serialization at
+	// SaveVersion time. The external path still persists before any
+	// tree mutation (Finding #28).
 	valueHash := sha256.Sum256(value)
+	payload := slotPayload{valueHash: valueHash}
+	if t.inlineThreshold >= 0 && len(value) <= t.inlineThreshold {
+		// Inline: copy bytes so caller can retain/modify their slice.
+		cp := make([]byte, len(value))
+		copy(cp, value)
+		payload.inline = cp
+	} else {
+		vk := t.allocValueKey()
+		if t.ndb != nil {
+			if err := t.ndb.SaveValue(value, vk); err != nil {
+				return false, err
+			}
+		} else if t.memValues != nil {
+			valCopy := make([]byte, len(value))
+			copy(valCopy, value)
+			t.memValues[string(vk)] = valCopy
+		}
+		payload.valueKey = vk
+	}
 
 	if t.root == nil {
 		leaf := &LeafNode{miniTree: NewMiniMerkle()}
 		leaf.keys[0] = copyKey(key)
 		leaf.valueHashes[0] = valueHash
-		leaf.valueKeys[0] = vk
 		leaf.numKeys = 1
+		if payload.inline != nil {
+			leaf.inlineValues[0] = payload.inline
+			leaf.inlineMask = 1
+		} else {
+			leaf.valueKeys[0] = payload.valueKey
+		}
 		// Fresh leaf: slotHashes cache is cold, do a full build now.
 		leaf.RebuildMiniMerkle()
 		t.root = leaf
 		t.size = 1
+		t.cacheValueForKey(key, value)
 		return false, nil
 	}
 
 	t.cowRoot()
-	newRoot, updated, oldValueKey := treeInsert(t.root, key, valueHash, vk)
+	newRoot, updated, oldPayload := treeInsert(t.root, key, payload)
 	t.root = newRoot
 	if !updated {
 		t.size++
 	}
 
-	// Handle orphaned old valueKey on update
-	if updated && oldValueKey != nil {
-		t.orphanValueKey(oldValueKey)
+	// Handle orphaned old valueKey on update. Only the external-slot
+	// case produces an orphan — inline-slot displacements just drop
+	// their bytes (the replaced leaf version carries them).
+	if updated && oldPayload.valueKey != nil {
+		t.orphanValueKey(oldPayload.valueKey)
 	}
 
-	// Refresh the fast-node cache with the fresh value. The stored
-	// slice is the value passed to this Set; the caller retains
-	// ownership, but the contract is read-only so sharing is safe.
-	if t.fastNodes != nil {
-		t.fastNodes.Add(string(key), value)
-	}
+	// Refresh the fast-node cache with a private copy of the fresh
+	// value — the caller retains ownership of the original slice and
+	// may mutate it after Set returns.
+	t.cacheValueForKey(key, value)
 	return updated, nil
+}
+
+// cacheValueForKey populates the latest-view cache for `key`. The
+// value is copied so caller-side mutation cannot corrupt the cache.
+// The inline-storage path reuses its own copy (payload.inline), and
+// external values round-trip through the resolver which likewise
+// yields a fresh slice; populating the cache here avoids a double
+// copy in the inline case and a cache-miss + resolver call in the
+// external case on the very next Get.
+func (t *MutableTree) cacheValueForKey(key, value []byte) {
+	if t.fastNodes == nil {
+		return
+	}
+	cp := make([]byte, len(value))
+	copy(cp, value)
+	t.fastNodes.Add(string(key), cp)
 }
 
 // Get retrieves the value for a key. The latest-view fast-node cache
@@ -227,15 +284,22 @@ func (t *MutableTree) Get(key []byte) ([]byte, error) {
 	if t.root == nil {
 		return nil, nil
 	}
-	_, _, vk, found := treeLookup(t.root, key)
+	leaf, slot, found := treeLookup(t.root, key)
 	if !found {
 		return nil, nil
 	}
-	val, err := t.resolveValue(vk)
+	val, err := leaf.valueAt(slot, t.valueResolverFn())
 	if err == nil && val != nil && t.fastNodes != nil {
 		t.fastNodes.Add(string(key), val)
 	}
 	return val, err
+}
+
+// valueResolverFn returns a ValueResolver closure for external-slot
+// lookups. Inline slots are handled by leaf.valueAt without invoking
+// the resolver.
+func (t *MutableTree) valueResolverFn() ValueResolver {
+	return func(vk []byte) ([]byte, error) { return t.resolveValue(vk) }
 }
 
 // resolveValue resolves a valueKey to actual bytes via the tree's backing
@@ -307,7 +371,7 @@ func (t *MutableTree) Has(key []byte) (bool, error) {
 	if t.root == nil {
 		return false, nil
 	}
-	_, _, _, found := treeLookup(t.root, key)
+	_, _, found := treeLookup(t.root, key)
 	return found, nil
 }
 
@@ -319,18 +383,22 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 	}
 	t.cachedRootHash = nil // working tree about to mutate — invalidate cache (Finding #21)
 	t.cowRoot()
-	newRoot, _, oldVK, found := treeRemove(t.root, key)
+	newRoot, oldPayload, found := treeRemove(t.root, key)
 	if !found {
 		return nil, false, nil
 	}
 	t.root = newRoot
 	t.size--
 
-	// Resolve old value BEFORE orphaning (Tier 1 may delete it from DB)
+	// Recover the displaced value — inline bytes come straight off the
+	// leaf; external slots resolve via the value store and then orphan
+	// the valueKey for prune-time cleanup.
 	var val []byte
-	if oldVK != nil {
-		val, _ = t.resolveValue(oldVK)
-		t.orphanValueKey(oldVK)
+	if oldPayload.inline != nil {
+		val = oldPayload.inline
+	} else if oldPayload.valueKey != nil {
+		val, _ = t.resolveValue(oldPayload.valueKey)
+		t.orphanValueKey(oldPayload.valueKey)
 	}
 	if t.fastNodes != nil {
 		t.fastNodes.Remove(string(key))
@@ -860,9 +928,9 @@ func (t *MutableTree) GetByIndex(index int64) ([]byte, []byte, error) {
 	if t.root == nil || index < 0 || index >= t.size {
 		return nil, nil, ErrKeyDoesNotExist
 	}
-	key, _, vk := treeGetByIndex(t.root, index)
-	val, err := t.resolveValue(vk)
-	return key, val, err
+	leaf, slot := treeGetByIndex(t.root, index)
+	val, err := leaf.valueAt(slot, t.valueResolverFn())
+	return leaf.keys[slot], val, err
 }
 
 // GetWithIndex returns the index, value, and whether the key was found.
@@ -870,11 +938,11 @@ func (t *MutableTree) GetWithIndex(key []byte) (int64, []byte, error) {
 	if t.root == nil {
 		return 0, nil, nil
 	}
-	idx, _, vk, found := treeGetWithIndex(t.root, key)
+	idx, leaf, slot, found := treeGetWithIndex(t.root, key)
 	if !found {
 		return idx, nil, nil
 	}
-	val, err := t.resolveValue(vk)
+	val, err := leaf.valueAt(slot, t.valueResolverFn())
 	return idx, val, err
 }
 
@@ -886,8 +954,9 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, err
 		return false, nil
 	}
 	var resolveErr error
-	stopped := iterateNodeResolved(t.root, func(key, vk []byte) bool {
-		val, err := t.resolveValue(vk)
+	resolver := t.valueResolverFn()
+	stopped := iterateNodeResolved(t.root, func(key []byte, leaf *LeafNode, slot int) bool {
+		val, err := leaf.valueAt(slot, resolver)
 		if err != nil {
 			resolveErr = err
 			return true // stop
@@ -899,20 +968,24 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, err
 
 // --- helpers ---
 
-func treeLookup(node Node, key []byte) (*LeafNode, Hash, []byte, bool) {
+// treeLookup descends to the leaf containing `key`. Returns the leaf,
+// the slot index within it, and whether the key exists. Callers
+// resolve the value via leaf.valueAt(slot, resolver) so both inline
+// and external payloads work through one path.
+func treeLookup(node Node, key []byte) (*LeafNode, int, bool) {
 	for {
 		switch n := node.(type) {
 		case *LeafNode:
 			pos, found := searchLeaf(n, key)
 			if !found {
-				return n, Hash{}, nil, false
+				return n, pos, false
 			}
-			return n, n.valueHashes[pos], n.valueKeys[pos], true
+			return n, pos, true
 		case *InnerNode:
 			idx := searchInner(n, key)
 			child := n.getChild(idx)
 			if child == nil {
-				return nil, Hash{}, nil, false
+				return nil, 0, false
 			}
 			node = child
 		default:
@@ -921,10 +994,12 @@ func treeLookup(node Node, key []byte) (*LeafNode, Hash, []byte, bool) {
 	}
 }
 
-func treeGetByIndex(node Node, index int64) ([]byte, Hash, []byte) {
+// treeGetByIndex returns (leaf, slotIdx) for the idx-th key in sort
+// order. Caller reads key/value via leaf fields + valueAt.
+func treeGetByIndex(node Node, index int64) (*LeafNode, int) {
 	switch n := node.(type) {
 	case *LeafNode:
-		return n.keys[index], n.valueHashes[index], n.valueKeys[index]
+		return n, int(index)
 	case *InnerNode:
 		offset := int64(0)
 		for i := 0; i < n.NumChildren(); i++ {
@@ -941,14 +1016,13 @@ func treeGetByIndex(node Node, index int64) ([]byte, Hash, []byte) {
 	}
 }
 
-func treeGetWithIndex(node Node, key []byte) (int64, Hash, []byte, bool) {
+// treeGetWithIndex returns the sort-rank index of `key`, the leaf it
+// would live in, the slot within that leaf, and whether it exists.
+func treeGetWithIndex(node Node, key []byte) (int64, *LeafNode, int, bool) {
 	switch n := node.(type) {
 	case *LeafNode:
 		pos, found := searchLeaf(n, key)
-		if !found {
-			return int64(pos), Hash{}, nil, false
-		}
-		return int64(pos), n.valueHashes[pos], n.valueKeys[pos], true
+		return int64(pos), n, pos, found
 	case *InnerNode:
 		childIdx := searchInner(n, key)
 		offset := int64(0)
@@ -956,24 +1030,21 @@ func treeGetWithIndex(node Node, key []byte) (int64, Hash, []byte, bool) {
 			offset += n.childSizes[i]
 		}
 		child := n.getChild(childIdx)
-		idx, vh, vk, found := treeGetWithIndex(child, key)
-		return offset + idx, vh, vk, found
+		idx, leaf, slot, found := treeGetWithIndex(child, key)
+		return offset + idx, leaf, slot, found
 	default:
 		panic("unknown node type")
 	}
 }
 
-// iterateNodeResolved walks node in key order, yielding each (key, valueKey)
-// pair to fn. Returning true from fn stops iteration; iterateNodeResolved
-// returns true in that case and false when the walk completes normally. The
-// previous value-hash sibling (iterateNode) was removed alongside the
-// legacy no-resolver Iterate fallback that silently handed callers hashes
-// where values were expected. See Findings #11 and #19.
-func iterateNodeResolved(node Node, fn func(key, vk []byte) bool) bool {
+// iterateNodeResolved walks node in key order, yielding each
+// (key, leaf, slotIdx) triplet to fn. Returning true stops iteration.
+// Callers resolve the value via leaf.valueAt(slotIdx, resolver).
+func iterateNodeResolved(node Node, fn func(key []byte, leaf *LeafNode, slot int) bool) bool {
 	switch n := node.(type) {
 	case *LeafNode:
 		for i := 0; i < int(n.numKeys); i++ {
-			if fn(n.keys[i], n.valueKeys[i]) {
+			if fn(n.keys[i], n, i) {
 				return true
 			}
 		}

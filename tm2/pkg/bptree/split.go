@@ -12,16 +12,19 @@ type splitResult struct {
 //
 // 90/10 split: if insertPos == B (key appended at the end), left gets B-1
 // keys, right gets 2 keys. Otherwise 50/50: left gets ceil((B+1)/2) = 17.
-func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, insertPos int) (*LeafNode, splitResult) {
+//
+// Each slot carries either an inline payload (when bit i is set in
+// inlineMask — inlineValues[i] holds the bytes) or an external
+// valueKey (inlineMask bit i cleared — valueKeys[i] is the 12-byte
+// reference). The split partitions inlineMask along with the other
+// arrays.
+func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, inlineValues [][]byte, inlineMask uint64, insertPos int) (*LeafNode, splitResult) {
 	total := len(keys) // B+1
 	var splitPoint int
 
 	if insertPos == B {
-		// Append pattern: new key was inserted at the end.
-		// 90/10: left gets B-1, right gets 2.
 		splitPoint = total - 2 // B-1
 	} else {
-		// 50/50: left gets ceil((B+1)/2) = 17 for B=32
 		splitPoint = (total + 1) / 2
 	}
 
@@ -30,6 +33,8 @@ func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, insertPos 
 	copy(left.keys[:], keys[:splitPoint])
 	copy(left.valueHashes[:], valueHashes[:splitPoint])
 	copy(left.valueKeys[:], valueKeys[:splitPoint])
+	copy(left.inlineValues[:], inlineValues[:splitPoint])
+	left.inlineMask = uint32(inlineMask & ((uint64(1) << uint(splitPoint)) - 1))
 
 	rightCount := total - splitPoint
 	right := &LeafNode{}
@@ -37,8 +42,11 @@ func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, insertPos 
 	copy(right.keys[:], keys[splitPoint:])
 	copy(right.valueHashes[:], valueHashes[splitPoint:])
 	copy(right.valueKeys[:], valueKeys[splitPoint:])
+	copy(right.inlineValues[:], inlineValues[splitPoint:])
+	// Right-half's inlineMask: shift the high bits down by splitPoint
+	// so they align with right's slot indices.
+	right.inlineMask = uint32(inlineMask >> uint(splitPoint))
 
-	// Separator is a copy of the first key of the right leaf
 	sep := make([]byte, len(right.keys[0]))
 	copy(sep, right.keys[0])
 

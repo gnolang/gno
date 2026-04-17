@@ -38,7 +38,7 @@ func TestValueKey_NonceStartsAtOne(t *testing.T) {
 // TestValueKey_DBBackedNonceStartsAtOne is the DB-backed variant.
 func TestValueKey_DBBackedNonceStartsAtOne(t *testing.T) {
 	db := memdb.NewMemDB()
-	tree := NewMutableTreeWithDB(db, 100, NewNopLogger())
+	tree := NewMutableTreeWithDB(db, 100, NewNopLogger(), InlineValueThresholdOption(-1))
 	if _, err := tree.Set([]byte("key"), []byte("val")); err != nil {
 		t.Fatalf("Set: %v", err)
 	}
@@ -171,18 +171,25 @@ func TestLoadVersion_OldVersionDoesNotCorruptValues(t *testing.T) {
 // stores with nonce=0 valueKeys continue to resolve correctly.
 func TestValueKey_LegacyNonceZeroStoreReadable(t *testing.T) {
 	db := memdb.NewMemDB()
-	tree := NewMutableTreeWithDB(db, 100, NewNopLogger())
+	// Force external storage so we exercise the ValueKey indirection
+	// under test. With inline values enabled (the default), a 3-byte
+	// "v" would take the in-leaf path and bypass the ValueKey entirely.
+	tree := NewMutableTreeWithDB(db, 100, NewNopLogger(), InlineValueThresholdOption(-1))
 
-	// Simulate a legacy-format leaf by setting a key and then
-	// manually rewriting its valueKey to the all-zero (nonce=0,
-	// version=0) byte pattern. Save the value at that key directly.
 	if _, err := tree.Set([]byte("k"), []byte("original")); err != nil {
 		t.Fatalf("Set: %v", err)
 	}
 	leaf := tree.root.(*LeafNode)
 
 	// Overwrite with a legacy-format valueKey and stash the value
-	// under the legacy key directly.
+	// under the legacy key directly. Clear any inline state and the
+	// fast-node cache entry so the reader actually goes through the
+	// ValueKey resolver path under test.
+	leaf.inlineMask = 0
+	leaf.inlineValues[0] = nil
+	if tree.fastNodes != nil {
+		tree.fastNodes.Purge()
+	}
 	legacyVK := make([]byte, NodeKeySize) // all zeros
 	leaf.valueKeys[0] = legacyVK
 	if err := tree.ndb.SaveValue([]byte("legacy-value"), legacyVK); err != nil {

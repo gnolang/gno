@@ -54,12 +54,21 @@ type InnerNode struct {
 }
 
 // LeafNode stores sorted key-value hash pairs.
+//
+// Value storage is either inline (for small values; payload held
+// directly on the leaf and serialised alongside the node) or external
+// (for large values; a ValueKey references a separate record under
+// PrefixVal). `inlineMask` bit i set ↔ slot i is inline; in that case
+// `inlineValues[i]` holds the raw bytes and `valueKeys[i]` is nil.
+// `valueHashes[i]` is computed regardless so proofs share one path.
 type LeafNode struct {
-	nodeKey     *NodeKey
-	numKeys     int16
-	keys        [B][]byte
+	nodeKey       *NodeKey
+	numKeys       int16
+	keys          [B][]byte
 	valueHashes   [B]Hash    // SHA256 of each value (for Merkle proofs)
-	valueKeys     [B][]byte  // ValueKey references (12 bytes each, for value DB lookup)
+	valueKeys     [B][]byte  // ValueKey references (12 bytes each, nil when inline)
+	inlineValues  [B][]byte  // raw bytes when slot is inline
+	inlineMask    uint32     // bit i set ↔ slot i is inline
 	miniTree      MiniMerkle // in-memory only, not serialized
 	miniTreeDirty bool       // true when slot contents changed since last Build
 	// slotHashes caches HashLeafSlotFromValueHash(keys[i], valueHashes[i])
@@ -72,6 +81,32 @@ type LeafNode struct {
 
 func (*InnerNode) isNode() {}
 func (*LeafNode) isNode()  {}
+
+// valueAt returns the raw value bytes for leaf slot `i`, whether the
+// slot is stored inline or externally. For inline slots the bytes are
+// returned directly from the leaf's own storage (shared slice —
+// caller must not mutate). External slots call `resolver` with the
+// slot's valueKey. A nil resolver together with an external slot
+// signals misconfiguration via ErrNoValueResolver.
+func (n *LeafNode) valueAt(i int, resolver ValueResolver) ([]byte, error) {
+	if n.inlineMask&(uint32(1)<<uint(i)) != 0 {
+		return n.inlineValues[i], nil
+	}
+	if resolver == nil {
+		return nil, ErrNoValueResolver
+	}
+	return resolver(n.valueKeys[i])
+}
+
+// valueKeyAt returns the external valueKey at slot i, or nil if the
+// slot is inline. Used by orphan tracking paths that only care about
+// external slots.
+func (n *LeafNode) valueKeyAt(i int) []byte {
+	if n.inlineMask&(uint32(1)<<uint(i)) != 0 {
+		return nil
+	}
+	return n.valueKeys[i]
+}
 
 func (n *InnerNode) GetNodeKey() *NodeKey  { return n.nodeKey }
 func (n *LeafNode) GetNodeKey() *NodeKey   { return n.nodeKey }
@@ -394,8 +429,21 @@ func (n *InnerNode) Serialize(buf *bytes.Buffer) error {
 	return nil
 }
 
+// Serialize writes the leaf in v2 format (TypeLeafV2 = 0x12). Readers
+// accept both v2 and legacy v1 (TypeLeaf = 0x02); writers always emit
+// v2.
+//
+// v2 layout:
+//
+//	type(1) = 0x12
+//	numKeys (uvarint)
+//	keys      (each: varint-len-prefixed bytes)
+//	valueHashes (numKeys × 32 bytes)
+//	inlineMask (4 bytes, uint32 big-endian; bit i ↔ slot i inline)
+//	per-slot value: either inline (uvarint len + bytes) or external
+//	                (12 bytes valueKey; all-zero placeholder for nil).
 func (n *LeafNode) Serialize(buf *bytes.Buffer) error {
-	buf.WriteByte(TypeLeaf)
+	buf.WriteByte(TypeLeafV2)
 	writeUvarintBuf(buf, uint64(n.numKeys))
 	n16 := int(n.numKeys)
 	for i := 0; i < n16; i++ {
@@ -404,13 +452,17 @@ func (n *LeafNode) Serialize(buf *bytes.Buffer) error {
 	for i := 0; i < n16; i++ {
 		buf.Write(n.valueHashes[i][:])
 	}
-	// Nil valueKeys serialize as a 12-zero placeholder (see
-	// TestValueKey_LegacyNonceZeroStoreReadable); Write(zeroBytes) does
-	// that without the extra branch the old pooled-scratch variant
-	// needed.
+	// inlineMask — fixed 4 bytes so readers can size the payload block
+	// before walking it.
+	var maskBuf [4]byte
+	binary.BigEndian.PutUint32(maskBuf[:], n.inlineMask)
+	buf.Write(maskBuf[:])
 	var zeroVK [NodeKeySize]byte
 	for i := 0; i < n16; i++ {
-		if n.valueKeys[i] != nil {
+		if n.inlineMask&(uint32(1)<<uint(i)) != 0 {
+			// Inline: length-prefixed raw bytes.
+			writeBytesBuf(buf, n.inlineValues[i])
+		} else if n.valueKeys[i] != nil {
 			buf.Write(n.valueKeys[i])
 		} else {
 			buf.Write(zeroVK[:])
@@ -429,7 +481,9 @@ func ReadNode(nk *NodeKey, data []byte) (Node, error) {
 	case TypeInner:
 		return readInnerNode(nk, r)
 	case TypeLeaf:
-		return readLeafNode(nk, r)
+		return readLeafNodeV1(nk, r)
+	case TypeLeafV2:
+		return readLeafNodeV2(nk, r)
 	default:
 		return nil, fmt.Errorf("unknown node type: %d", data[0])
 	}
@@ -488,7 +542,9 @@ func readInnerNode(nk *NodeKey, r *bytes.Reader) (_ *InnerNode, err error) {
 	return n, nil
 }
 
-func readLeafNode(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
+// readLeafNodeV1 parses a legacy leaf (TypeLeaf = 0x02) where every
+// slot uses the external ValueKey indirection.
+func readLeafNodeV1(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 	n := &LeafNode{nodeKey: nk, miniTree: NewMiniMerkle()}
 
 	numKeys, err := binary.ReadUvarint(r)
@@ -516,6 +572,61 @@ func readLeafNode(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 		n.valueKeys[i] = make([]byte, NodeKeySize)
 		if _, err := io.ReadFull(r, n.valueKeys[i]); err != nil {
 			return nil, fmt.Errorf("reading value key %d: %w", i, err)
+		}
+	}
+
+	n.RebuildMiniMerkle()
+	return n, nil
+}
+
+// readLeafNodeV2 parses the current leaf format (TypeLeafV2 = 0x12)
+// which adds a per-slot inline-value option. Layout after the type byte:
+//
+//	numKeys (uvarint)
+//	keys (each: varint-len-prefixed bytes)
+//	valueHashes (numKeys × 32 bytes)
+//	inlineMask (4 bytes big-endian uint32)
+//	per-slot value: inline (uvarint len + bytes) or external (12 B valueKey)
+func readLeafNodeV2(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
+	n := &LeafNode{nodeKey: nk, miniTree: NewMiniMerkle()}
+
+	numKeys, err := binary.ReadUvarint(r)
+	if err != nil {
+		return nil, fmt.Errorf("reading numKeys: %w", err)
+	}
+	if numKeys > B {
+		return nil, fmt.Errorf("leaf numKeys %d out of range [0,%d]", numKeys, B)
+	}
+	n.numKeys = int16(numKeys)
+
+	for i := 0; i < int(n.numKeys); i++ {
+		n.keys[i], err = readBytes(r)
+		if err != nil {
+			return nil, fmt.Errorf("reading key %d: %w", i, err)
+		}
+	}
+	for i := 0; i < int(n.numKeys); i++ {
+		if _, err := io.ReadFull(r, n.valueHashes[i][:]); err != nil {
+			return nil, fmt.Errorf("reading value hash %d: %w", i, err)
+		}
+	}
+	var maskBuf [4]byte
+	if _, err := io.ReadFull(r, maskBuf[:]); err != nil {
+		return nil, fmt.Errorf("reading inlineMask: %w", err)
+	}
+	n.inlineMask = binary.BigEndian.Uint32(maskBuf[:])
+	for i := 0; i < int(n.numKeys); i++ {
+		if n.inlineMask&(uint32(1)<<uint(i)) != 0 {
+			v, err := readBytes(r)
+			if err != nil {
+				return nil, fmt.Errorf("reading inline value %d: %w", i, err)
+			}
+			n.inlineValues[i] = v
+		} else {
+			n.valueKeys[i] = make([]byte, NodeKeySize)
+			if _, err := io.ReadFull(r, n.valueKeys[i]); err != nil {
+				return nil, fmt.Errorf("reading value key %d: %w", i, err)
+			}
 		}
 	}
 
