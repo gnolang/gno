@@ -1,7 +1,5 @@
 package gnolang
 
-// XXX TODO address "this is wrong, for var i interface{}; &i is *interface{}."
-
 import (
 	"encoding/binary"
 	"fmt"

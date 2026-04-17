@@ -1367,6 +1367,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							Op:    n.Op,
 							Right: rn,
 						}
+						// Mark the uint() conversion as a shift RHS so
+						// doOpCall can assert non-negative at runtime.
 						n2.Right.SetAttribute(ATTR_SHIFT_RHS, true)
 						resn := Preprocess(store, last, n2)
 						return resn, TRANS_CONTINUE
@@ -2290,6 +2292,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf("invalid operation: cannot indirect %s (variable of type %s)", n.X.String(), xt.String()))
 				}
 			// TRANS_LEAVE -----------------------
+			case *RefExpr:
+				// Cache the static type of X as ATTR_REF_ELEM_TYPE
+				// on the RefExpr so doOpRef can use it (instead of
+				// the runtime type, which is wrong for interface variables).
+				xt := evalStaticTypeOf(store, last, n.X)
+				if tt, ok := xt.(*tupleType); ok {
+					panic(fmt.Sprintf(
+						"cannot take address of multi-value call (results: %s)",
+						tt.String()))
+				}
+				n.SetAttribute(ATTR_REF_ELEM_TYPE, xt)
+			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
 
@@ -2343,7 +2357,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// value: t.Mp is equivalent to (&t).Mp."
 						//
 						// convert to (&x).m, but leave xt as is.
-						n.X = &RefExpr{X: n.X}
+						rx := &RefExpr{X: n.X}
+						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
+						n.X = rx
 						setPreprocessed(n.X)
 						switch tr[len(tr)-1].Type {
 						case VPDerefPtrMethod:
@@ -2369,7 +2385,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Case 2: If tr[0] is deref type, but xt
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
-						n.X = &RefExpr{X: n.X}
+						rx := &RefExpr{X: n.X}
+						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
+						n.X = rx
 						setPreprocessed(n.X)
 					}
 					// bound method or underlying.
@@ -5471,6 +5489,7 @@ func elideCompositeExpr(last BlockNode, x *Expr, t Type) {
 			if t.Kind() == PointerKind {
 				clx.Type = toConstTypeExpr(last, tx, t.Elem())
 				refx := &RefExpr{X: clx}
+				refx.SetAttribute(ATTR_REF_ELEM_TYPE, t.Elem())
 				refx.SetSpan(clx.GetSpan())
 				*x = refx
 				elideCompositeElements(last, clx, t.Elem()) // recurse
@@ -5587,20 +5606,20 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 					// resolveEffectiveDeps then walks GetB's body to find B.
 					switch n.Path.Type {
 					case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
-						// Get the receiver type from the cached ATTR_TYPEOF_VALUE.
-						// Two cases for RefExpr:
-						//  (a) user-written &T{}: n.X is the RefExpr with type *T
-						//      stored directly on the RefExpr node.
-						//  (b) auto-generated &x (pointer-receiver auto-address):
-						//      preprocessing wraps the original expression in a
-						//      RefExpr AFTER caching the type on the inner node,
-						//      so n.X (the RefExpr) has no cached type but n.X.X
-						//      does.
-						xt, ok := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+						// Get the receiver type from ATTR_REF_ELEM_TYPE
+						// on the RefExpr, or ATTR_TYPEOF_VALUE on n.X.
+						//
+						// For auto-addressed receivers (n.X is a synthetic *RefExpr),
+						// read from ATTR_REF_ELEM_TYPE. For already-pointer receivers
+						// (VPDerefValMethod/VPDerefPtrMethod), n.X is not a RefExpr;
+						// fall back to ATTR_TYPEOF_VALUE on the expression itself.
+						var xt Type
+						var ok bool
+						if rx, ok2 := n.X.(*RefExpr); ok2 {
+							xt, ok = rx.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
+						}
 						if !ok {
-							if re, ok2 := n.X.(*RefExpr); ok2 {
-								xt, ok = re.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
-							}
+							xt, ok = n.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
 						}
 						if !ok {
 							break
