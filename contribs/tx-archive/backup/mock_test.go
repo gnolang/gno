@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/contribs/tx-archive/backup/client"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 type (
@@ -12,6 +13,7 @@ type (
 	getChainIDDelegate           func() (string, error)
 	getBlocksDelegate            func(context.Context, uint64, uint64) ([]*client.Block, error)
 	getTxResultsDelegate         func(uint64) ([]*abci.ResponseDeliverTx, error)
+	getAccountAtHeightDelegate   func(crypto.Address, uint64) (uint64, uint64, error)
 )
 
 type mockClient struct {
@@ -19,6 +21,7 @@ type mockClient struct {
 	getChainIDFn           getChainIDDelegate
 	getBlocksFn            getBlocksDelegate
 	getTxResultsFn         getTxResultsDelegate
+	getAccountAtHeightFn   getAccountAtHeightDelegate
 }
 
 func (m *mockClient) GetLatestBlockNumber() (uint64, error) {
@@ -51,4 +54,12 @@ func (m *mockClient) GetTxResults(block uint64) ([]*abci.ResponseDeliverTx, erro
 	}
 
 	return nil, nil
+}
+
+func (m *mockClient) GetAccountAtHeight(addr crypto.Address, height uint64) (uint64, uint64, error) {
+	if m.getAccountAtHeightFn != nil {
+		return m.getAccountAtHeightFn(addr, height)
+	}
+
+	return 0, 0, nil
 }
