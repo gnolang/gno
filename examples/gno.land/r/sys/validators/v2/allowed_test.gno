@@ -149,7 +149,7 @@ func TestUpdateAllowedRealms_RemoveNonExistent(t *testing.T) {
 }
 
 func TestNewPropAllowedRealmUpdateRequest_EmptyTitle(t *testing.T) {
-	urequire.AbortsWithMessage(t, "proposal title is empty", func() {
+	urequire.PanicsWithMessage(t, "proposal title is empty", func() {
 		NewPropAllowedRealmUpdateRequest(
 			[]string{"gno.land/r/demo/ics"},
 			nil,
@@ -160,7 +160,7 @@ func TestNewPropAllowedRealmUpdateRequest_EmptyTitle(t *testing.T) {
 }
 
 func TestNewPropAllowedRealmUpdateRequest_NoAddOrRemove(t *testing.T) {
-	urequire.AbortsWithMessage(t, "proposal must add or remove at least one realm", func() {
+	urequire.PanicsWithMessage(t, "proposal must add or remove at least one realm", func() {
 		NewPropAllowedRealmUpdateRequest(nil, nil, "title", "description")
 	})
 }
