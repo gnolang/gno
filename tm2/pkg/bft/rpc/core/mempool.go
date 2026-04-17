@@ -396,7 +396,24 @@ func newTxDispatcher(evsw events.EventSwitch) *txDispatcher {
 }
 
 func (td *txDispatcher) OnStart() error {
-	go td.listenRoutine()
+	go func() {
+		defer func() {
+			// listenRoutine panics when the subscription channel closes
+			// unexpectedly (programmer-error signal). During node shutdown
+			// the EventSwitch closes subscriptions from its own goroutine
+			// (see tm2/pkg/events/subscribe.go:55), which races td.Quit()
+			// — if it wins, the "unexpected" branch fires even though the
+			// dispatcher is about to stop anyway. Recover in that case so
+			// a normal shutdown doesn't crash the process (e.g. in-process
+			// integration tests). Otherwise, rethrow.
+			if r := recover(); r != nil {
+				if td.IsRunning() {
+					panic(r)
+				}
+			}
+		}()
+		td.listenRoutine()
+	}()
 	return nil
 }
 
