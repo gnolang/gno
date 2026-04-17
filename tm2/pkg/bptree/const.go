@@ -39,11 +39,20 @@ const (
 	// v1 types (legacy; still readable):
 	TypeInner byte = 0x01
 	TypeLeaf  byte = 0x02
-	// v2 types (current writer output):
+	// v2 types (legacy; readable):
 	//   - TypeLeafV2 extends leaves with per-slot inline values
 	//     (values <= Options.InlineValueThreshold stored directly in
 	//     the leaf rather than via an external ValueKey indirection).
 	TypeLeafV2 byte = 0x12
+	// v3 types (current writer output):
+	//   - TypeLeafV3 keeps the v2 inline-values semantics and adds
+	//     on-disk prefix compression of the keys block. Sorted leaf
+	//     keys share a common byte prefix (emitted once) with per-slot
+	//     suffixes; the in-memory layout is unchanged, so readers
+	//     reconstruct full keys at deserialise time. Saves disk bytes
+	//     on workloads whose keys cluster under common prefixes
+	//     (gno.land realm/path patterns).
+	TypeLeafV3 byte = 0x22
 )
 
 // DefaultInlineValueThreshold is the default cutoff at which a value

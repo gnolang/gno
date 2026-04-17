@@ -429,25 +429,48 @@ func (n *InnerNode) Serialize(buf *bytes.Buffer) error {
 	return nil
 }
 
-// Serialize writes the leaf in v2 format (TypeLeafV2 = 0x12). Readers
-// accept both v2 and legacy v1 (TypeLeaf = 0x02); writers always emit
-// v2.
+// Serialize writes the leaf in v3 format (TypeLeafV3 = 0x22). Readers
+// accept v3, v2 (TypeLeafV2 = 0x12), and legacy v1 (TypeLeaf = 0x02);
+// writers always emit v3.
 //
-// v2 layout:
+// v3 adds on-disk prefix compression: sorted leaf keys share a common
+// byte prefix that is emitted once, followed by per-slot suffixes.
+// Full keys are reconstructed at deserialise time — the in-memory
+// layout is unchanged from v2.
 //
-//	type(1) = 0x12
+// v3 layout:
+//
+//	type(1) = 0x22
 //	numKeys (uvarint)
-//	keys      (each: varint-len-prefixed bytes)
+//	if numKeys > 0:
+//	    commonPrefixLen (uvarint)
+//	    commonPrefix    (commonPrefixLen bytes)
+//	    per slot:
+//	        suffixLen (uvarint)
+//	        suffix    (suffixLen bytes)
 //	valueHashes (numKeys × 32 bytes)
-//	inlineMask (4 bytes, uint32 big-endian; bit i ↔ slot i inline)
+//	inlineMask  (4 bytes, uint32 big-endian; bit i ↔ slot i inline)
 //	per-slot value: either inline (uvarint len + bytes) or external
 //	                (12 bytes valueKey; all-zero placeholder for nil).
 func (n *LeafNode) Serialize(buf *bytes.Buffer) error {
-	buf.WriteByte(TypeLeafV2)
+	buf.WriteByte(TypeLeafV3)
 	writeUvarintBuf(buf, uint64(n.numKeys))
 	n16 := int(n.numKeys)
-	for i := 0; i < n16; i++ {
-		writeBytesBuf(buf, n.keys[i])
+	if n16 > 0 {
+		// Keys are sorted, so the first/last pair bounds the common
+		// prefix of every key in between.
+		plen := commonPrefixLen(n.keys[0], n.keys[n16-1])
+		writeUvarintBuf(buf, uint64(plen))
+		if plen > 0 {
+			buf.Write(n.keys[0][:plen])
+		}
+		for i := 0; i < n16; i++ {
+			k := n.keys[i]
+			writeUvarintBuf(buf, uint64(len(k)-plen))
+			if len(k) > plen {
+				buf.Write(k[plen:])
+			}
+		}
 	}
 	for i := 0; i < n16; i++ {
 		buf.Write(n.valueHashes[i][:])
@@ -471,6 +494,20 @@ func (n *LeafNode) Serialize(buf *bytes.Buffer) error {
 	return nil
 }
 
+// commonPrefixLen returns the length of the byte prefix shared by a and b.
+func commonPrefixLen(a, b []byte) int {
+	n := len(a)
+	if len(b) < n {
+		n = len(b)
+	}
+	for i := 0; i < n; i++ {
+		if a[i] != b[i] {
+			return i
+		}
+	}
+	return n
+}
+
 // ReadNode deserializes a node from bytes. Returns either *InnerNode or *LeafNode.
 func ReadNode(nk *NodeKey, data []byte) (Node, error) {
 	if len(data) == 0 {
@@ -484,6 +521,8 @@ func ReadNode(nk *NodeKey, data []byte) (Node, error) {
 		return readLeafNodeV1(nk, r)
 	case TypeLeafV2:
 		return readLeafNodeV2(nk, r)
+	case TypeLeafV3:
+		return readLeafNodeV3(nk, r)
 	default:
 		return nil, fmt.Errorf("unknown node type: %d", data[0])
 	}
@@ -605,6 +644,95 @@ func readLeafNodeV2(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 			return nil, fmt.Errorf("reading key %d: %w", i, err)
 		}
 	}
+	for i := 0; i < int(n.numKeys); i++ {
+		if _, err := io.ReadFull(r, n.valueHashes[i][:]); err != nil {
+			return nil, fmt.Errorf("reading value hash %d: %w", i, err)
+		}
+	}
+	var maskBuf [4]byte
+	if _, err := io.ReadFull(r, maskBuf[:]); err != nil {
+		return nil, fmt.Errorf("reading inlineMask: %w", err)
+	}
+	n.inlineMask = binary.BigEndian.Uint32(maskBuf[:])
+	for i := 0; i < int(n.numKeys); i++ {
+		if n.inlineMask&(uint32(1)<<uint(i)) != 0 {
+			v, err := readBytes(r)
+			if err != nil {
+				return nil, fmt.Errorf("reading inline value %d: %w", i, err)
+			}
+			n.inlineValues[i] = v
+		} else {
+			n.valueKeys[i] = make([]byte, NodeKeySize)
+			if _, err := io.ReadFull(r, n.valueKeys[i]); err != nil {
+				return nil, fmt.Errorf("reading value key %d: %w", i, err)
+			}
+		}
+	}
+
+	n.RebuildMiniMerkle()
+	return n, nil
+}
+
+// readLeafNodeV3 parses the current leaf format (TypeLeafV3 = 0x22)
+// which prefix-compresses the keys block relative to v2. Layout after
+// the type byte:
+//
+//	numKeys (uvarint)
+//	if numKeys > 0:
+//	    commonPrefixLen (uvarint) + commonPrefix bytes
+//	    per slot: suffixLen (uvarint) + suffix bytes
+//	valueHashes (numKeys × 32 bytes)
+//	inlineMask (4 bytes big-endian uint32)
+//	per-slot value: inline (uvarint len + bytes) or external (12 B valueKey)
+func readLeafNodeV3(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
+	n := &LeafNode{nodeKey: nk, miniTree: NewMiniMerkle()}
+
+	numKeys, err := binary.ReadUvarint(r)
+	if err != nil {
+		return nil, fmt.Errorf("reading numKeys: %w", err)
+	}
+	if numKeys > B {
+		return nil, fmt.Errorf("leaf numKeys %d out of range [0,%d]", numKeys, B)
+	}
+	n.numKeys = int16(numKeys)
+
+	if n.numKeys > 0 {
+		prefixLen, err := binary.ReadUvarint(r)
+		if err != nil {
+			return nil, fmt.Errorf("reading commonPrefixLen: %w", err)
+		}
+		if prefixLen > maxReadBytesLen {
+			return nil, fmt.Errorf("commonPrefixLen %d exceeds maximum %d", prefixLen, maxReadBytesLen)
+		}
+		var prefix []byte
+		if prefixLen > 0 {
+			prefix = make([]byte, prefixLen)
+			if _, err := io.ReadFull(r, prefix); err != nil {
+				return nil, fmt.Errorf("reading commonPrefix: %w", err)
+			}
+		}
+		for i := 0; i < int(n.numKeys); i++ {
+			suffixLen, err := binary.ReadUvarint(r)
+			if err != nil {
+				return nil, fmt.Errorf("reading key %d suffixLen: %w", i, err)
+			}
+			if uint64(prefixLen)+suffixLen > maxReadBytesLen {
+				return nil, fmt.Errorf("key %d length %d exceeds maximum %d", i, uint64(prefixLen)+suffixLen, maxReadBytesLen)
+			}
+			// Allocate the full key once. This keeps each leaf.keys[i]
+			// backed by its own byte array, preserving the key-ownership
+			// invariant (Finding #20) that Clone relies on.
+			key := make([]byte, uint64(prefixLen)+suffixLen)
+			copy(key, prefix)
+			if suffixLen > 0 {
+				if _, err := io.ReadFull(r, key[prefixLen:]); err != nil {
+					return nil, fmt.Errorf("reading key %d suffix: %w", i, err)
+				}
+			}
+			n.keys[i] = key
+		}
+	}
+
 	for i := 0; i < int(n.numKeys); i++ {
 		if _, err := io.ReadFull(r, n.valueHashes[i][:]); err != nil {
 			return nil, fmt.Errorf("reading value hash %d: %w", i, err)
