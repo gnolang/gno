@@ -78,3 +78,23 @@ reset: down ## stop and wipe ALL generated state (genesis, keys, db)
 smoketest: ## run 'hardfork test' in-memory against out/genesis.json
 	@test -f $(OUT)/genesis.json || { echo "missing out/genesis.json — run 'make fetch' first"; exit 1; }
 	cd $(REPO)/misc/hardfork && go run . test --genesis $(OUT)/genesis.json --verbose
+
+.PHONY: replay-log
+replay-log: ## run in-process genesis replay, tee full log to out/replay.log
+	@$(HERE)/scripts/replay-log.sh
+
+.PHONY: report-replay
+report-replay: ## generate out/REPLAY-REPORT.md from out/replay.log
+	@$(HERE)/scripts/report-replay.sh
+
+.PHONY: check-state
+check-state: ## probe running node, compare to gno.land, write out/STATE-REPORT.md
+	@$(HERE)/scripts/check-state.sh
+
+.PHONY: reports
+reports: replay-log report-replay check-state ## full reporting pipeline (replay + compare + write)
+	@echo ""
+	@echo "Reports:"
+	@echo "  $(OUT)/replay.log"
+	@echo "  $(OUT)/REPLAY-REPORT.md"
+	@echo "  $(OUT)/STATE-REPORT.md"
