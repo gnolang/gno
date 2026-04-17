@@ -1,0 +1,71 @@
+# A directory whose .gno files declare different package names cannot be
+# parsed as a single package. gno fmt must fall back to per-file formatting
+# via ErrPackageConflict, format each file independently, and stay silent
+# on stderr (the verbose-mode diagnostic is tested separately).
+
+# Single-file invocations: each file in isolation must format correctly
+# regardless of which one is passed first (guards against any ordering
+# sensitivity in ParsePackage's dir scan).
+gno fmt file1.gno
+cmp stdout file1.gno.golden
+! stderr .
+
+gno fmt file2.gno
+cmp stdout file2.gno.golden
+! stderr .
+
+# Multi-file invocation: simulates the realistic usage of pointing gno fmt
+# at a filetest tree, e.g. `gno fmt gnovm/tests/files/...`. Both files share
+# a directory and are formatted by the same Processor in one process.
+gno fmt file1.gno file2.gno
+cmp stdout both.golden
+! stderr .
+
+# Verbose invocation: confirms the conflict path actually fired (and wasn't
+# reached accidentally via some other code path). Stderr must contain the
+# note pointing at how to register the directory as a filetest root.
+# Stdout compare is omitted here because -v prefixes a "processing ..."
+# line; we just spot-check that the formatted body is present.
+gno fmt -v file1.gno
+stdout 'func main\(\)'
+stderr 'different package names'
+stderr 'fmt\.go'
+
+-- file1.gno --
+package main
+
+func    main() {
+	x:=1
+	println(x)
+}
+-- file2.gno --
+package other
+
+func   Foo() string {
+	return "foo"
+}
+-- file1.gno.golden --
+package main
+
+func main() {
+	x := 1
+	println(x)
+}
+-- file2.gno.golden --
+package other
+
+func Foo() string {
+	return "foo"
+}
+-- both.golden --
+package main
+
+func main() {
+	x := 1
+	println(x)
+}
+package other
+
+func Foo() string {
+	return "foo"
+}

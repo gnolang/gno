@@ -233,8 +233,33 @@ func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, erro
 	}
 
 	p := gnofmt.NewProcessor(r)
+
+	// Fast path: files under gnovm/tests/{files,challenges} are filetests —
+	// each .gno is independent (different package names by design). Route
+	// them directly to per-file formatting to avoid paying the cost of a
+	// doomed package parse. FormatFile still falls back gracefully via
+	// ErrPackageConflict for any filetest-like dir we don't enumerate here.
+	filetestsRoot := filepath.Join(gnoroot, "gnovm", "tests", "files")
+	challengesRoot := filepath.Join(gnoroot, "gnovm", "tests", "challenges")
+
+	// Under -v, surface conflict-dir fallbacks. The message is informational:
+	// end users can't fix this from the CLI (there is no flag), but a gno
+	// contributor reading the note can add the directory to the filetest
+	// roots above to skip the package probe on future runs.
+	if cfg.verbose {
+		p.OnPackageConflict = func(dir string) {
+			io.ErrPrintfln(
+				"note: %q has .gno files with different package names; "+
+					"formatting each file independently. "+
+					"To avoid the per-directory package probe, register this path "+
+					"in gnovm/cmd/gno/fmt.go's filetest roots.",
+				dir,
+			)
+		}
+	}
+
 	return func(file string, io commands.IO) []byte {
-		data, err := p.FormatFile(file)
+		data, err := formatOneFile(p, file, filetestsRoot, challengesRoot)
 		if err == nil {
 			return data
 		}
@@ -245,6 +270,37 @@ func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, erro
 
 		return nil
 	}, nil
+}
+
+// formatOneFile routes file to the per-file formatter when it lives under a
+// known filetest root; otherwise lets the package-aware formatter handle it.
+func formatOneFile(p *gnofmt.Processor, file string, filetestRoots ...string) ([]byte, error) {
+	if isUnderAnyRoot(filepath.Dir(file), filetestRoots) {
+		return p.FormatImportFromSource(file, nil)
+	}
+	return p.FormatFile(file)
+}
+
+// isUnderAnyRoot reports whether dir equals or is a descendant of any of
+// roots. Paths are compared after cleaning and resolving to absolute form;
+// symlinks are not followed.
+func isUnderAnyRoot(dir string, roots []string) bool {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	abs = filepath.Clean(abs)
+	sep := string(os.PathSeparator)
+	for _, root := range roots {
+		if root == "" {
+			continue
+		}
+		root = filepath.Clean(root)
+		if abs == root || strings.HasPrefix(abs, root+sep) {
+			return true
+		}
+	}
+	return false
 }
 
 func fmtFormatFile(file string, io commands.IO) []byte {

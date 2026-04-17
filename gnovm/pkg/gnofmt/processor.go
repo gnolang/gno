@@ -37,6 +37,12 @@ type Processor struct {
 
 	// cache for global parsed package
 	parsedPackage map[string]*parsedPackage // pkgdir -> parsed package
+
+	// OnPackageConflict, if set, is invoked at most once per directory whose
+	// files disagree on package name (ErrPackageConflict from ParsePackage).
+	// Callers can use this to surface a diagnostic — e.g., suggesting the
+	// directory be registered as a filetest root to skip the probe next time.
+	OnPackageConflict func(dir string)
 }
 
 func NewProcessor(r Resolver) *Processor {
@@ -83,46 +89,54 @@ func (p *Processor) FormatPackageFile(pkg Package, filename string) ([]byte, err
 }
 
 // FormatFile processes a single Gno file from the given file path.
+//
+// If the directory contains .gno files whose package names disagree (e.g.
+// filetest directories such as gnovm/tests/files/), parsing as a package
+// returns ErrPackageConflict and FormatFile gracefully falls back to
+// per-file formatting. Callers that already know a file is independent
+// (e.g. a filetest) can skip this probe by calling FormatImportFromSource
+// directly.
+//
+// Known limitation: directories whose files share a consistent package
+// name but are semantically independent (e.g. a directory full of
+// `package main` filetests each with their own func main) cannot be
+// detected here — they parse cleanly as a single package.
+//
+// When that happens, import resolution pools top-level declarations
+// across every file in the directory. A symbol used in file A but
+// top-level-declared in (unrelated) file B is treated as "already
+// resolved" by B, so FormatFile will silently skip adding the import
+// A needs — and may also prune imports A already had. The code layout
+// itself is still formatted correctly per-file; only the import list
+// becomes wrong.
+//
+// Such directories should be routed to per-file formatting by the
+// caller (see cmd/gno/fmt.go for how gno fmt enumerates the known
+// filetest roots under GNOROOT/gnovm/tests/). For any new directory
+// of this shape, add it to that enumeration.
 func (p *Processor) FormatFile(file string) ([]byte, error) {
 	filename := filepath.Base(file)
 	dir := filepath.Dir(file)
 
 	pkg, ok := p.pkgdirCache[dir]
 	if !ok {
-		// Parse the directory as a package. If files have conflicting package
-		// names (e.g. filetest directories like gnovm/tests/files/), fall back
-		// to per-file formatting without cross-file import resolution.
-		//
-		// Known limitation: same-name independent files
-		// =============================================
-		// This detection relies on package name conflicts. If a directory
-		// contains independent files that all share the same package name
-		// (e.g. all "package main"), they will be incorrectly treated as a
-		// single package. In that case, a declaration in one file (e.g.
-		// func Foo() in a.gno) may shadow an external import in another
-		// file (e.g. b.gno uses Foo from an external package but the
-		// formatter sees it as resolved locally and skips the import).
-		//
-		// No approach fully solves this without human action: hardcoded
-		// paths lack flexibility, a --per-file CLI flag must be remembered
-		// per invocation, and a marker file (e.g. .gnofmt-independent)
-		// must be placed in the directory. All fail silently if the
-		// directory is not explicitly marked. Among these, a marker file
-		// is the least error-prone — it is self-documenting, lives with
-		// the code, and requires no CLI flags or hardcoded paths.
 		var err error
 		pkg, err = ParsePackage(p.fset, "", dir)
 		if errors.Is(err, ErrPackageConflict) {
-			p.pkgdirCache[dir] = nil // cache conflict to avoid re-parsing
-			return p.FormatImportFromSource(file, nil)
-		}
-		if err != nil {
+			// Independent .gno files (different package names) — cache
+			// nil to avoid re-parsing and fall through to per-file mode.
+			pkg = nil
+			if p.OnPackageConflict != nil {
+				p.OnPackageConflict(dir)
+			}
+		} else if err != nil {
 			return nil, fmt.Errorf("unable to parse package %q: %w", dir, err)
 		}
 		p.pkgdirCache[dir] = pkg
-	} else if pkg == nil {
-		// Cache hit from a previously-detected package name conflict;
-		// use per-file formatting.
+	}
+
+	if pkg == nil {
+		// Per-file formatting (filetest dir or non-package dir).
 		return p.FormatImportFromSource(file, nil)
 	}
 
