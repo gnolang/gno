@@ -3718,6 +3718,7 @@ func codaHeapUsesDemoteDefinesMW(
 //
 // Replace package declared name ref:
 //   - `name` -> SelectorExpr{X:RefValue{PkgPath},Sel:name}
+//
 // codaPackageSelectorsMW rewrites bare package-name and package-declared-name
 // NameExprs into ConstExpr/SelectorExpr forms that resolve against package
 // RefValues at execution time.
