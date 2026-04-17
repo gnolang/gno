@@ -4,7 +4,7 @@ loadpkg gno.land/r/demo/edcl $WORK
 # start a new node
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/demo/edcl -func Main -gas-fee 1000000ugnot -gas-wanted 3000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/edcl -func Main -gas-fee 1000000ugnot -gas-wanted 3000000 -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 3000000'
 stdout 'GAS USED:   [0-9]+'
