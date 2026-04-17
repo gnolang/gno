@@ -2121,7 +2121,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				case StringKind, ArrayKind, SliceKind:
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
-					checkOrConvertIntegerKind(store, last, n, n.Index)
+					checkOrConvertIndexKind(store, last, n, n.Index)
 				case MapKind:
 					mt := baseOf(dt).(*MapType)
 					checkOrConvertType(store, last, n, &n.Index, mt.Key)
@@ -2135,9 +2135,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *SliceExpr:
 				// Replace const L/H/M with int *ConstExpr,
 				// or if not const, assert integer type..
-				checkOrConvertIntegerKind(store, last, n, n.Low)
-				checkOrConvertIntegerKind(store, last, n, n.High)
-				checkOrConvertIntegerKind(store, last, n, n.Max)
+				checkOrConvertIndexKind(store, last, n, n.Low)
+				checkOrConvertIndexKind(store, last, n, n.High)
+				checkOrConvertIndexKind(store, last, n, n.Max)
 
 				t := evalStaticTypeOf(store, last, n.X)
 				switch t.Kind() {
@@ -2220,11 +2220,17 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				case *ArrayType:
 					for i := range n.Elts {
+						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
+							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+						}
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
 				case *SliceType:
 					for i := range n.Elts {
+						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
+							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+						}
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
@@ -4837,6 +4843,15 @@ func checkBoolKind(xt Type) {
 			"expected typed bool kind, but got %v",
 			xt.Kind()))
 	}
+}
+
+// checkOrConvertIndexKind ensures the expression evaluates to an integer
+// and, if it is a constant, ensures it is non-negative.
+func checkOrConvertIndexKind(store Store, last BlockNode, n Node, x Expr) {
+	if cx, ok := x.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
+		panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+	}
+	checkOrConvertIntegerKind(store, last, n, x)
 }
 
 // like checkOrConvertType() but for any typed integer kind.

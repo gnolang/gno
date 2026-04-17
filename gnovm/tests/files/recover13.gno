@@ -7,11 +7,9 @@ func main() {
 	}()
 
 	arr := []int{1, 2, 3}
-	_ = arr[-1:] // Panics because of negative index
+	idx := -1
+	_ = arr[idx:] // Panics because of negative index
 }
 
 // Output:
 // recover: runtime error: invalid slice index -1 (index must be non-negative)
-
-// TypeCheckError:
-// main/recover13.gno:10:10: invalid argument: index -1 (constant of type int) must not be negative
