@@ -45,7 +45,9 @@ services:
     restart: unless-stopped
     command:
       - -remote=http://gnoland:26657
-      - -chainid=gnoland-1
+      - -chainid=${CHAIN_ID:-gnoland-1}
+      - -help-chainid=${CHAIN_ID:-gnoland-1}
+      - -help-remote=http://127.0.0.1:26657
       - -bind=0.0.0.0:8888
     entrypoint: ["/usr/bin/gnoweb"]
     ports:

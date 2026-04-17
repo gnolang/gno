@@ -41,12 +41,13 @@ type backupCfg struct {
 	fromBlock uint64
 	batchSize uint
 
-	ws            bool
-	overwrite     bool
-	legacy        bool
-	watch         bool
-	verbose       bool
-	skipFailedTxs bool
+	ws                 bool
+	overwrite          bool
+	legacy             bool
+	watch              bool
+	verbose            bool
+	skipFailedTxs      bool
+	noPopulateSigners  bool
 }
 
 // newBackupCmd creates the backup command
@@ -142,6 +143,16 @@ func (c *backupCfg) registerFlags(fs *flag.FlagSet) {
 		"skip-failed-txs",
 		false,
 		"flag indicating if failed txs should be skipped",
+	)
+
+	fs.BoolVar(
+		&c.noPopulateSigners,
+		"no-populate-signer-info",
+		false,
+		"disable per-tx SignerInfo population (account_num + sequence). "+
+			"SignerInfo is required for hardfork-replay — leave off unless you "+
+			"only need a plain stream backup and want to skip the brute-force "+
+			"sequence resolution",
 	)
 }
 
@@ -250,6 +261,7 @@ func (c *backupCfg) exec(ctx context.Context, _ []string) error {
 		backup.WithLogger(logger),
 		backup.WithBatchSize(c.batchSize),
 		backup.WithSkipFailedTxs(c.skipFailedTxs),
+		backup.WithPopulateSignerInfo(!c.noPopulateSigners),
 	)
 
 	// Run the backup service

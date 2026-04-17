@@ -24,18 +24,20 @@ type Service struct {
 	writer writer.Writer
 	logger log.Logger
 
-	batchSize     uint
-	watchInterval time.Duration // interval for the watch routine
-	skipFailedTxs bool
+	batchSize          uint
+	watchInterval      time.Duration // interval for the watch routine
+	skipFailedTxs      bool
+	populateSignerInfo bool // populate per-tx SignerInfo (default true for bounded backups)
 }
 
 // NewService creates a new backup service
 func NewService(client client.Client, writer writer.Writer, opts ...Option) *Service {
 	s := &Service{
-		client:        client,
-		writer:        writer,
-		logger:        noop.New(),
-		watchInterval: 1 * time.Second,
+		client:             client,
+		writer:             writer,
+		logger:             noop.New(),
+		watchInterval:      1 * time.Second,
+		populateSignerInfo: true,
 	}
 
 	for _, opt := range opts {
@@ -71,6 +73,23 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("unable to fetch source chain id, %w", chainIDErr)
 	}
 
+	// SignerInfo resolver: fills per-signer (account_num, sequence) metadata
+	// so hardfork replay can force-set account state before signature
+	// verification. Only enabled for non-watch, bounded backups — it needs
+	// a fixed halt height to anchor the brute-force sequence search.
+	//
+	// Because the resolver back-patches failed-tx SignerInfo retroactively
+	// (at the next success per signer), enabling it switches the writer
+	// from streaming to buffered mode: all txs are held in memory until the
+	// final Finalize pass, then flushed to the writer in one pass.
+	var (
+		resolver    *signerResolver
+		bufferedTxs []*gnoland.TxWithMetadata
+	)
+	if s.populateSignerInfo && !cfg.Watch {
+		resolver = newSignerResolver(s.client, chainID, toBlock)
+	}
+
 	// Log info about what will be backed up
 	s.logger.Info(
 		"Existing blocks to backup",
@@ -78,6 +97,7 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 		"from block", cfg.FromBlock,
 		"to block", toBlock,
 		"total", toBlock-cfg.FromBlock+1,
+		"populate signer info", resolver != nil,
 	)
 
 	// Keep track of what has been backed up
@@ -176,7 +196,15 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 						},
 					}
 
-					if writeErr := s.writer.WriteTxData(txData); writeErr != nil {
+					if resolver != nil {
+						// Buffer — SignerInfo is populated & back-patched,
+						// then the whole batch is flushed after Finalize.
+						if pErr := resolver.Populate(txData); pErr != nil {
+							return fmt.Errorf("populate signer info @ h=%d idx=%d: %w",
+								block.Height, i, pErr)
+						}
+						bufferedTxs = append(bufferedTxs, txData)
+					} else if writeErr := s.writer.WriteTxData(txData); writeErr != nil {
 						return fmt.Errorf("unable to write tx data, %w", writeErr)
 					}
 
@@ -202,6 +230,19 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 	// Backup the existing transactions
 	if fetchErr := fetchAndWrite(cfg.FromBlock, toBlock); fetchErr != nil {
 		return fetchErr
+	}
+
+	// Flush the resolver's buffered output (if enabled). Finalize back-patches
+	// any trailing failed-tx SignerInfo entries, then we stream the whole
+	// ordered batch to the writer.
+	if resolver != nil {
+		resolver.Finalize()
+		for _, txData := range bufferedTxs {
+			if writeErr := s.writer.WriteTxData(txData); writeErr != nil {
+				return fmt.Errorf("unable to write tx data, %w", writeErr)
+			}
+		}
+		bufferedTxs = nil
 	}
 
 	// Check if there needs to be a watcher setup

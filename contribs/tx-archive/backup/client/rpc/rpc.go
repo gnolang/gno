@@ -11,6 +11,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	rpcClient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
 	"github.com/gnolang/gno/contribs/tx-archive/backup/client"
@@ -67,6 +68,40 @@ func (c *Client) GetChainID() (string, error) {
 	}
 
 	return status.NodeInfo.Network, nil
+}
+
+// GetAccountAtHeight queries auth/accounts/<addr> at the given block height
+// and returns (account_number, sequence). Returns (0, 0, nil) when the
+// account does not yet exist at that height (i.e. genesis-less / pre-creation).
+func (c *Client) GetAccountAtHeight(addr crypto.Address, height uint64) (uint64, uint64, error) {
+	path := fmt.Sprintf("auth/accounts/%s", addr)
+	res, err := c.client.ABCIQueryWithOptions(
+		context.Background(),
+		path, nil,
+		rpcClient.ABCIQueryOptions{Height: int64(height)},
+	)
+	if err != nil {
+		return 0, 0, fmt.Errorf("abci query %s at %d: %w", path, height, err)
+	}
+	if res.Response.Error != nil || len(res.Response.Data) == 0 {
+		// Account doesn't exist yet — not an error.
+		return 0, 0, nil
+	}
+
+	// Response is amino JSON. Try wrapped form first, then direct.
+	var wrapper struct {
+		BaseAccount std.BaseAccount `json:"BaseAccount"`
+	}
+	if err := amino.UnmarshalJSON(res.Response.Data, &wrapper); err == nil &&
+		wrapper.BaseAccount.Address == addr {
+		return wrapper.BaseAccount.AccountNumber, wrapper.BaseAccount.Sequence, nil
+	}
+
+	var acc std.BaseAccount
+	if err := amino.UnmarshalJSON(res.Response.Data, &acc); err != nil {
+		return 0, 0, fmt.Errorf("decode BaseAccount for %s: %w", addr, err)
+	}
+	return acc.AccountNumber, acc.Sequence, nil
 }
 
 func (c *Client) GetBlocks(ctx context.Context, from, to uint64) ([]*client.Block, error) {
