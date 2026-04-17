@@ -51,10 +51,7 @@ jobs:
 
       - name: Compute version
         id: version
-        run: |
-          TAG="${RAW_TAG#chain/}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Building version: $TAG"
+        run: echo "tag=${RAW_TAG#chain/}" >> "$GITHUB_OUTPUT"
 
       - name: Build binaries
         env:
@@ -65,25 +62,18 @@ jobs:
           LDFLAGS="-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=${VERSION}"
           SUFFIX="${GOOS}_${GOARCH}"
           mkdir -p dist
-
-          echo "Building gnoland..."
-          go build -ldflags "$LDFLAGS" -o "dist/gnoland_${SUFFIX}" ./gno.land/cmd/gnoland
-
-          echo "Building gnokey..."
-          go build -ldflags "$LDFLAGS" -o "dist/gnokey_${SUFFIX}" ./gno.land/cmd/gnokey
-
-          echo "Building gnoweb..."
-          go build -ldflags "$LDFLAGS" -o "dist/gnoweb_${SUFFIX}" ./gno.land/cmd/gnoweb
-
-          echo "Building gno..."
-          go build -ldflags "$LDFLAGS" -o "dist/gno_${SUFFIX}" ./gnovm/cmd/gno
-
-          cd dist
-          if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum ./* > "checksums_${SUFFIX}.txt"
-          else
-            shasum -a 256 ./* > "checksums_${SUFFIX}.txt"
-          fi
+          for target in \
+            gnoland:./gno.land/cmd/gnoland \
+            gnokey:./gno.land/cmd/gnokey \
+            gnoweb:./gno.land/cmd/gnoweb \
+            gno:./gnovm/cmd/gno
+          do
+            name="${target%%:*}"
+            pkg="${target#*:}"
+            echo "Building ${name}..."
+            go build -ldflags "$LDFLAGS" -o "dist/${name}_${SUFFIX}" "$pkg"
+          done
+          (cd dist && shasum -a 256 ./* > "checksums_${SUFFIX}.txt")
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -104,9 +94,7 @@ jobs:
 
       - name: Compute version
         id: version
-        run: |
-          TAG="${RAW_TAG#chain/}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        run: echo "tag=${RAW_TAG#chain/}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
@@ -118,8 +106,6 @@ jobs:
           cd dist
           cat checksums_*.txt | sort > CHECKSUMS.txt
           rm -f checksums_*.txt
-          echo "Checksums:"
-          cat CHECKSUMS.txt
 
       - name: Ensure release exists
         env:
