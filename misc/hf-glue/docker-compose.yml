@@ -18,6 +18,12 @@ services:
     command:
       - start
       - --lazy=true
+      # Genesis-mode txs (BlockHeight==0) from gnogenesis are signed by the
+      # deployer key while msg.Creator is a different address (manfred, etc).
+      # The ante handler's pubkey-address check rejects these. Production
+      # gnoland1 uses the same flag; historical txs (BlockHeight>0) are still
+      # signature-verified via PastChainIDs.
+      - --skip-genesis-sig-verification
       - --skip-failing-genesis-txs
       - --data-dir=/gnoroot/gnoland-data
       - --genesis=/gnoroot/gnoland-data/genesis.json
@@ -30,3 +36,18 @@ services:
       - "26656:26656" # p2p
       - "26657:26657" # rpc
     stop_grace_period: 30s
+
+  gnoweb:
+    container_name: hf-glue-gnoweb
+    image: hf-glue-gnoland:latest
+    depends_on:
+      - gnoland
+    restart: unless-stopped
+    command:
+      - -remote=http://gnoland:26657
+      - -chainid=gnoland-1
+      - -bind=0.0.0.0:8888
+    entrypoint: ["/usr/bin/gnoweb"]
+    ports:
+      - "8888:8888"
+    stop_grace_period: 10s

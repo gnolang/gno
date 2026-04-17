@@ -61,6 +61,12 @@ up: ## start the gnoland node in docker (requires fetch+init first)
 down: ## stop the node (keep state)
 	docker compose down
 
+.PHONY: reset-db
+reset-db: down ## wipe node db + WAL + last-signed state, keep genesis + keys
+	rm -rf $(OUT)/gnoland-home/db $(OUT)/gnoland-home/wal $(OUT)/gnoland-home/data
+	printf '{"height":"0","round":"0","step":0}\n' > $(OUT)/gnoland-home/secrets/priv_validator_state.json
+	@echo "db wiped; next 'make up' will re-replay genesis from scratch"
+
 .PHONY: logs
 logs: ## tail node logs
 	docker compose logs -f --tail=200

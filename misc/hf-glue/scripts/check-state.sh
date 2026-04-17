@@ -131,17 +131,17 @@ account_info() {
     | jq '.result.consensus_params.Block' 2>/dev/null || echo "(unreachable)"
   echo '```'
   echo ""
-  echo "### Local auth params"
+  echo "### Local gas price"
   echo '```json'
-  curl -sS --max-time 10 "$LOCAL_RPC/abci_query?path=%22auth%2Fparams%22" 2>/dev/null \
+  curl -sS --max-time 10 "$LOCAL_RPC/abci_query?path=%22auth%2Fgasprice%22" 2>/dev/null \
     | jq -r '.result.response.ResponseBase.Data // empty' \
     | base64 -d 2>/dev/null \
     | jq '.' 2>/dev/null || echo "(no data)"
   echo '```'
   echo ""
-  echo "### Prod auth params"
+  echo "### Prod gas price"
   echo '```json'
-  curl -sS --max-time 10 "$PROD_RPC/abci_query?path=%22auth%2Fparams%22" 2>/dev/null \
+  curl -sS --max-time 10 "$PROD_RPC/abci_query?path=%22auth%2Fgasprice%22" 2>/dev/null \
     | jq -r '.result.response.ResponseBase.Data // empty' \
     | base64 -d 2>/dev/null \
     | jq '.' 2>/dev/null || echo "(no data)"
