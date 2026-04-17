@@ -1571,7 +1571,6 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 // Go goroutine stack limit.
 const maxComputeMapKeyDepth = 10000
 
-
 // ComputeMapKey returns the value of tv, encoded as a string for usage inside
 // of a map.
 //
