@@ -6,12 +6,16 @@ SHELL := bash
 
 # ---- configurable ----------------------------------------------------------
 SOURCE             ?= https://github.com/gnolang/gno/releases/download/chain/gnoland1.0/genesis.json
+RPC_URL            ?= https://rpc.gno.land
 ORIGINAL_CHAIN_ID  ?= gnoland1
 CHAIN_ID           ?= gnoland-1
 HALT_HEIGHT        ?=
 VALIDATOR_NAME     ?= hf-glue-local
+# Only used by `make fetch-from-dir` (alternative local-source flow).
+NODE_DIR           ?=
+TXS_JSONL          ?=
 
-export SOURCE ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME
+export SOURCE RPC_URL ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME NODE_DIR TXS_JSONL
 
 # ---- paths -----------------------------------------------------------------
 HERE := $(abspath .)
@@ -31,14 +35,25 @@ gen-local-genesis: ## rebuild gnoland1 base genesis locally (runs misc/deploymen
 	@OUT=$(OUT) REPO=$(REPO) $(HERE)/scripts/gen-local-genesis.sh
 
 .PHONY: fetch
-fetch: ## build hardfork tool + fetch genesis from $SOURCE into out/genesis.json
+fetch: ## build hardfork tool + pull base genesis ($SOURCE) + all blocks from $RPC_URL into out/genesis.json
 	@mkdir -p $(OUT)
 	@SOURCE=$(SOURCE) \
+	 RPC_URL=$(RPC_URL) \
 	 ORIGINAL_CHAIN_ID=$(ORIGINAL_CHAIN_ID) \
 	 CHAIN_ID=$(CHAIN_ID) \
 	 HALT_HEIGHT=$(HALT_HEIGHT) \
 	 OUT=$(OUT) REPO=$(REPO) \
 	 $(HERE)/scripts/fetch.sh
+
+.PHONY: fetch-from-dir
+fetch-from-dir: ## (alt) build hardfork genesis from a local gnoland data dir ($NODE_DIR, $TXS_JSONL, $HALT_HEIGHT required)
+	@mkdir -p $(OUT)
+	@NODE_DIR=$(NODE_DIR) TXS_JSONL=$(TXS_JSONL) \
+	 ORIGINAL_CHAIN_ID=$(ORIGINAL_CHAIN_ID) \
+	 CHAIN_ID=$(CHAIN_ID) \
+	 HALT_HEIGHT=$(HALT_HEIGHT) \
+	 OUT=$(OUT) REPO=$(REPO) \
+	 $(HERE)/scripts/fetch-from-dir.sh
 
 .PHONY: init
 init: ## generate single-validator secrets and patch out/genesis.json
