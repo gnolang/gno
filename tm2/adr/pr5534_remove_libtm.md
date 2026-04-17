@@ -1,4 +1,4 @@
-# PRxxxx: libtm integration — analysis and verdict
+# PR5534: Remove libtm — integration analysis and verdict
 
 ## Context
 
