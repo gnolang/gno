@@ -132,6 +132,7 @@ func (m *Machine) doOpEnterCrossing() {
 			panic("crossing could not find corresponding cross(fn)(...) call")
 		}
 	}
+	// NOTE: this loop must never exit without setting fr1.DidCrossing or panicking.
 }
 
 func (m *Machine) doOpCall() {
