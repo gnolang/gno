@@ -14,8 +14,11 @@ VALIDATOR_NAME     ?= hf-glue-local
 # Only used by `make fetch-from-dir` (alternative local-source flow).
 NODE_DIR           ?=
 TXS_JSONL          ?=
+# Realm patches applied at hardfork-assembly time (see fetch.sh).
+# Space-separated PKGPATH=SRCDIR entries. Set to empty to disable.
+PATCH_REALMS       ?=
 
-export SOURCE RPC_URL ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME NODE_DIR TXS_JSONL
+export SOURCE RPC_URL ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME NODE_DIR TXS_JSONL PATCH_REALMS
 
 # ---- paths -----------------------------------------------------------------
 HERE := $(abspath .)

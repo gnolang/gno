@@ -125,6 +125,22 @@ ARGS=(
   --halt-height "$HALT_HEIGHT"
   --output "$GENESIS"
 )
+
+# Realm upgrades riding along the hardfork. Each PATCH_REALMS entry has the
+# form PKGPATH=SRCDIR — the hardfork tool rewrites the matching genesis-mode
+# addpkg tx so the forked chain deploys the new source instead of the
+# original. The source genesis on disk stays untouched.
+#
+# Default: swap r/sys/params with the repo's current examples copy, which
+# (after merging PR #5368) includes the new halt.gno file. Override with
+# PATCH_REALMS="" to disable, or with a space-separated list to customise.
+: "${PATCH_REALMS:=gno.land/r/sys/params=$REPO/examples/gno.land/r/sys/params}"
+for spec in $PATCH_REALMS; do
+  [[ -z "$spec" ]] && continue
+  echo "  patch-realm: $spec"
+  ARGS+=(--patch-realm "$spec")
+done
+
 go run . "${ARGS[@]}"
 
 echo ""

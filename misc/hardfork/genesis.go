@@ -6,24 +6,40 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bftypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type genesisCfg struct {
-	source         string
-	chainID        string
+	source          string
+	chainID         string
 	originalChainID string
-	haltHeight     int64
-	output         string
-	txsOutput      string
-	overlayDir     string
-	skipTxs        bool
-	noVerify       bool
+	haltHeight      int64
+	output          string
+	txsOutput       string
+	overlayDir      string
+	patchRealms     patchRealmList
+	skipTxs         bool
+	noVerify        bool
+}
+
+// patchRealmList accepts repeated --patch-realm flags. Each value is
+// "pkgpath=srcdir"; the tool rewrites the matching genesis-mode addpkg
+// tx's Package.Files with the contents of srcdir.
+type patchRealmList []string
+
+func (p *patchRealmList) String() string { return strings.Join(*p, ",") }
+func (p *patchRealmList) Set(v string) error {
+	*p = append(*p, v)
+	return nil
 }
 
 func newGenesisCmd(io commands.IO) *commands.Command {
@@ -70,6 +86,11 @@ func (c *genesisCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.output, "output", "genesis.json", "output genesis file path")
 	fs.StringVar(&c.txsOutput, "txs-output", "", "also write extracted txs to this .jsonl file (optional)")
 	fs.StringVar(&c.overlayDir, "overlay-dir", "", "directory of overlay scripts to apply before tx replay (optional)")
+	fs.Var(&c.patchRealms, "patch-realm", "patch a genesis-mode addpkg tx in place: repeatable, PKGPATH=SRCDIR. "+
+		"Replaces Package.Files with the *.gno + gnomod.toml files found in SRCDIR. "+
+		"Source genesis on disk is NOT modified; the patch is applied in memory "+
+		"before writing the hardfork genesis. Use this to deliver realm upgrades "+
+		"as part of the fork (e.g. adding a new .gno file to an existing realm).")
 	fs.BoolVar(&c.skipTxs, "skip-txs", false, "skip tx export (only copy genesis structure — useful for quick preview)")
 	fs.BoolVar(&c.noVerify, "no-verify", false, "skip genesis verification after assembly")
 }
@@ -156,6 +177,25 @@ func execGenesis(ctx context.Context, cfg *genesisCfg, io commands.IO) error {
 	if err != nil {
 		return fmt.Errorf("building hardfork genesis: %w", err)
 	}
+
+	// Apply --patch-realm rewrites on genesis-mode addpkg txs (in-memory only).
+	for _, spec := range cfg.patchRealms {
+		parts := strings.SplitN(spec, "=", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return fmt.Errorf("--patch-realm needs PKGPATH=SRCDIR, got %q", spec)
+		}
+		pkgPath, srcDir := parts[0], parts[1]
+		n, err := patchGenesisModeAddPkg(appState, pkgPath, srcDir)
+		if err != nil {
+			return fmt.Errorf("patch %s: %w", pkgPath, err)
+		}
+		if n == 0 {
+			io.Printf("  WARNING: --patch-realm %s did not match any genesis-mode addpkg tx\n", pkgPath)
+		} else {
+			io.Printf("  patched %s from %s (%d tx rewritten)\n", pkgPath, srcDir, n)
+		}
+	}
+	newGenDoc.AppState = *appState
 
 	// Apply overlay if provided
 	if cfg.overlayDir != "" {
@@ -306,6 +346,111 @@ func baseGenesisModeTxs(appState *gnoland.GnoGenesisState) []gnoland.TxWithMetad
 		}
 	}
 	return out
+}
+
+// patchGenesisModeAddPkg rewrites every genesis-mode addpkg tx whose package
+// path matches `pkgPath` in-place — replacing its Package.Files slice with
+// the *.gno + gnomod.toml files read from `srcDir`.
+//
+// This is how realm upgrades ride along in a hardfork: instead of adding a
+// new tx (which would run with a different caller + account state and may
+// collide with existing state), we rewrite the tx that originally deployed
+// the realm so the forked chain initialises it with the new source.
+//
+// The source genesis on disk is NOT touched — this operates on the in-memory
+// GnoGenesisState that we assembled for the output.
+//
+// Returns the number of txs rewritten.
+func patchGenesisModeAddPkg(appState *gnoland.GnoGenesisState, pkgPath, srcDir string) (int, error) {
+	files, err := loadGnoPackageFiles(srcDir)
+	if err != nil {
+		return 0, fmt.Errorf("load %s: %w", srcDir, err)
+	}
+	if len(files) == 0 {
+		return 0, fmt.Errorf("no .gno/.toml files in %s", srcDir)
+	}
+
+	patched := 0
+	for i := range appState.Txs {
+		txm := &appState.Txs[i]
+		if txm.Metadata != nil && txm.Metadata.BlockHeight > 0 {
+			continue // historical tx, leave alone
+		}
+		for mi, msg := range txm.Tx.Msgs {
+			addpkg, ok := msg.(vm.MsgAddPackage)
+			if !ok {
+				continue
+			}
+			if addpkg.Package == nil || addpkg.Package.Path != pkgPath {
+				continue
+			}
+			addpkg.Package.Files = files
+			// Refresh package name in case a .gno's `package ...` declaration
+			// matters downstream.
+			for _, f := range files {
+				if strings.HasSuffix(f.Name, ".gno") {
+					if name := gnoPackageNameFromFileBody(f.Name, f.Body); name != "" {
+						addpkg.Package.Name = name
+					}
+					break
+				}
+			}
+			txm.Tx.Msgs[mi] = addpkg
+			patched++
+		}
+	}
+	return patched, nil
+}
+
+// loadGnoPackageFiles reads *.gno and gnomod.toml files from srcDir
+// (non-recursive) and returns them as ordered std.MemFile entries.
+// Skips _test.gno, _filetest.gno, and hidden files.
+func loadGnoPackageFiles(srcDir string) ([]*std.MemFile, error) {
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		n := e.Name()
+		if strings.HasSuffix(n, "_test.gno") || strings.HasSuffix(n, "_filetest.gno") {
+			continue
+		}
+		if strings.HasSuffix(n, ".gno") || n == "gnomod.toml" {
+			names = append(names, n)
+		}
+	}
+	sort.Strings(names)
+
+	files := make([]*std.MemFile, 0, len(names))
+	for _, n := range names {
+		body, err := os.ReadFile(filepath.Join(srcDir, n))
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, &std.MemFile{Name: n, Body: string(body)})
+	}
+	return files, nil
+}
+
+// gnoPackageNameFromFileBody extracts `package NAME` from the top of a .gno
+// file. Returns "" if not found. (Intentionally lightweight — avoids pulling
+// in the gnovm parser.)
+func gnoPackageNameFromFileBody(_ string, body string) string {
+	for _, line := range strings.Split(body, "\n") {
+		l := strings.TrimSpace(line)
+		if strings.HasPrefix(l, "package ") {
+			rest := strings.TrimPrefix(l, "package ")
+			if i := strings.IndexAny(rest, " \t/"); i >= 0 {
+				rest = rest[:i]
+			}
+			return rest
+		}
+	}
+	return ""
 }
 
 // applyOverlay runs overlay scripts from a directory against the genesis file.
