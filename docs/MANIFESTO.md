@@ -1138,7 +1138,7 @@ contribute:
 
  * **Learn Gno.** If you know Go you already know most of Gno. Start with the
    [examples directory](https://github.com/gnolang/gno/tree/master/examples/gno.land)
-   and the [Gno by Example](https://gno-by-example.com/) tutorials.
+   and the [Gno documentation](https://docs.gno.land/) tutorials.
  * **Write a realm.** Build something useful--a board, a registry, a token, a
    game, a supply chain tracker, a reputation module. Deploy it to the testnet.
    The ecosystem grows one realm at a time.
