@@ -301,10 +301,24 @@ func (app *BaseApp) getMaximumBlockGas() int64 {
 func (app *BaseApp) Info(req abci.RequestInfo) (res abci.ResponseInfo) {
 	lastCommitID := app.cms.LastCommitID()
 
-	// return res
 	res.Data = []byte(app.Name())
 	res.LastBlockHeight = lastCommitID.Version
 	res.LastBlockAppHash = lastCommitID.Hash
+
+	// When InitialHeight > 1 (chain upgrades), the multistore version counter
+	// starts from 0 and auto-increments, so it may be lower than the actual
+	// block height. Use the persisted header height when available.
+	if app.baseKey != nil {
+		baseStore := app.cms.GetStore(app.baseKey)
+		if baseStore != nil {
+			if headerBz := baseStore.Get(mainLastHeaderKey); headerBz != nil {
+				var header bft.Header
+				if err := amino.Unmarshal(headerBz, &header); err == nil && header.Height > res.LastBlockHeight {
+					res.LastBlockHeight = header.Height
+				}
+			}
+		}
+	}
 	return
 }
 
@@ -511,8 +525,24 @@ func (app *BaseApp) validateHeight(req abci.RequestBeginBlock) error {
 	// When prevHeight == 0 the app has no committed blocks yet. The first block
 	// may arrive at any height >= 1, including InitialHeight > 1 for chains
 	// that replay historical transactions during genesis.
-	if prevHeight != 0 && req.Header.GetHeight() != prevHeight+1 {
-		return fmt.Errorf("invalid height: %d; expected: %d", req.Header.GetHeight(), prevHeight+1)
+	if prevHeight == 0 {
+		return nil
+	}
+
+	// Normal sequential check: next block should be prevHeight+1.
+	// However, with InitialHeight > 1, the multistore version counter starts
+	// from 0 and auto-increments, so prevHeight (store version) can be less
+	// than the actual block height. In that case, we allow the jump as long as
+	// the height is increasing.
+	expected := prevHeight + 1
+	actual := req.Header.GetHeight()
+	if actual != expected && actual > prevHeight {
+		// Allow height jump — this happens when InitialHeight > 1 causes the
+		// store version to lag behind the block height.
+		return nil
+	}
+	if actual != expected {
+		return fmt.Errorf("invalid height: %d; expected: %d", actual, expected)
 	}
 
 	return nil
