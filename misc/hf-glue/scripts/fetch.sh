@@ -41,14 +41,18 @@ STAGE="$OUT/source"
 STAGE_GEN="$STAGE/config/genesis.json"
 STAGE_TXS="$STAGE/txs.jsonl"
 
-echo "── fetch hardfork genesis ───────────────────────────────────"
-echo "  base genesis:      $SOURCE"
-echo "  rpc (for blocks):  $RPC_URL"
-echo "  original chain id: $ORIGINAL_CHAIN_ID"
-echo "  new chain id:      $CHAIN_ID"
-echo "  halt height:       ${HALT_HEIGHT:-<auto-detect>}"
-echo "  output:            $GENESIS"
-echo "  staging dir:       $STAGE"
+banner() {
+  printf '\n\033[1;36m━━━ %s ━━━\033[0m\n' "$1"
+}
+
+banner "fetch hardfork genesis"
+printf "  base genesis:      \033[36m%s\033[0m\n" "$SOURCE"
+printf "  rpc (for blocks):  \033[36m%s\033[0m\n" "$RPC_URL"
+printf "  original chain id: \033[36m%s\033[0m\n" "$ORIGINAL_CHAIN_ID"
+printf "  new chain id:      \033[36m%s\033[0m\n" "$CHAIN_ID"
+printf "  halt height:       \033[36m%s\033[0m\n" "${HALT_HEIGHT:-<auto-detect>}"
+printf "  output:            \033[36m%s\033[0m\n" "$GENESIS"
+printf "  staging dir:       \033[36m%s\033[0m\n" "$STAGE"
 echo ""
 
 mkdir -p "$STAGE/config"
@@ -56,28 +60,25 @@ mkdir -p "$STAGE/config"
 # ---------------------------------------------------------------------------
 # Step 1: base genesis.json
 # ---------------------------------------------------------------------------
+banner "step 1/3 — base genesis"
 if [[ -f "$STAGE_GEN" ]]; then
-  echo "[1/3] base genesis already present, skipping download"
+  echo "  already present ($(wc -c < "$STAGE_GEN" | tr -d ' ') bytes), skipping"
 elif [[ "$SOURCE" == http://* || "$SOURCE" == https://* ]]; then
   if [[ "$SOURCE" == *.json || "$SOURCE" == */genesis.json ]]; then
-    # Direct genesis.json URL (release asset).
-    echo "[1/3] downloading base genesis from $SOURCE ..."
-    curl -fSL --retry 3 --retry-delay 5 --max-time 600 \
-      -o "$STAGE_GEN" \
-      "$SOURCE"
+    echo "  downloading from $SOURCE"
+    curl -fSL --retry 3 --retry-delay 5 --max-time 600 --progress-bar \
+      -o "$STAGE_GEN" "$SOURCE"
   else
-    # RPC endpoint — fetch /genesis and unwrap.
     GENESIS_URL="${SOURCE%/}/genesis"
-    echo "[1/3] downloading base genesis from $GENESIS_URL ..."
-    curl -fSL --retry 3 --retry-delay 5 --max-time 600 \
-      -o "$STAGE/envelope.json" \
-      "$GENESIS_URL"
+    echo "  downloading from $GENESIS_URL"
+    curl -fSL --retry 3 --retry-delay 5 --max-time 600 --progress-bar \
+      -o "$STAGE/envelope.json" "$GENESIS_URL"
     jq -c '.result.genesis' < "$STAGE/envelope.json" > "$STAGE_GEN"
     rm -f "$STAGE/envelope.json"
   fi
-  echo "      $(wc -c < "$STAGE_GEN" | tr -d ' ') bytes"
+  echo "  $(wc -c < "$STAGE_GEN" | tr -d ' ') bytes"
 elif [[ -f "$SOURCE" ]]; then
-  echo "[1/3] copying local base genesis from $SOURCE ..."
+  echo "  copying local $SOURCE"
   cp "$SOURCE" "$STAGE_GEN"
 else
   echo "ERROR: SOURCE is not a URL, not a file: $SOURCE" >&2
@@ -87,34 +88,33 @@ fi
 # ---------------------------------------------------------------------------
 # Step 2: historical txs via contribs/tx-archive
 # ---------------------------------------------------------------------------
-# Resolve halt height (auto-detect from RPC if unset).
+banner "step 2/3 — historical txs"
 if [[ -z "${HALT_HEIGHT:-}" ]]; then
   HALT_HEIGHT=$(curl -fsS --max-time 30 "${RPC_URL%/}/status" \
     | jq -r '.result.sync_info.latest_block_height')
-  echo "[2/3] halt height auto-detected: $HALT_HEIGHT"
+  echo "  halt height auto-detected: $HALT_HEIGHT"
 fi
 
 if [[ -f "$STAGE_TXS" ]]; then
-  echo "[2/3] txs.jsonl already present, skipping tx-archive"
+  echo "  $STAGE_TXS already present ($(wc -l < "$STAGE_TXS" | tr -d ' ') txs), skipping"
 else
-  echo "[2/3] running tx-archive backup against $RPC_URL (1..$HALT_HEIGHT)..."
+  echo "  running tx-archive backup against $RPC_URL (1..$HALT_HEIGHT)"
   cd "$REPO/contribs/tx-archive"
+  # No -verbose: rely on the new Info-level Progress lines that land every ~5s.
   go run ./cmd backup \
     -remote "$RPC_URL" \
     -from-block 1 \
     -to-block "$HALT_HEIGHT" \
     -batch 1000 \
-    -verbose \
     -output-path "$STAGE_TXS" \
     -overwrite
-  echo "      $(wc -l < "$STAGE_TXS" | tr -d ' ') txs in $STAGE_TXS"
+  echo "  $(wc -l < "$STAGE_TXS" | tr -d ' ') txs in $STAGE_TXS"
 fi
 
 # ---------------------------------------------------------------------------
 # Step 3: assemble the hardfork genesis
 # ---------------------------------------------------------------------------
-echo ""
-echo "[3/3] assembling hardfork genesis..."
+banner "step 3/3 — assemble hardfork genesis"
 cd "$REPO/misc/hardfork"
 
 ARGS=(
