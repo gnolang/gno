@@ -1,9 +1,8 @@
 package main
 
 func main() {
-	i := -1
-	t := make([]int, 5, i)
-	println(t)
+	c := -1
+	_ = make([]int, 0, c)
 }
 
 // Error:
