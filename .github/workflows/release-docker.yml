@@ -68,10 +68,10 @@ jobs:
           labels: |
             org.opencontainers.image.authors=Gno Core Team
 
-      # Using Github Context. Overriding context with an explicit `set` is required
       - name: Bake build and push
         uses: docker/bake-action@5be5f02ff8819ecd3092ea6b2e6261c31774f2b4 # v6
         with:
+          source: . # use checked-out code, not git URL at GITHUB_SHA
           files: |
             misc/deployments/bake/docker-bake.hcl
             cwd://${{ steps.meta.outputs.bake-file-tags }}

@@ -220,6 +220,8 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 				switch n := n.(type) {
 				case *NameExpr:
 					switch ftype {
+					case TRANS_COMPOSITE_KEY:
+						return n, TRANS_CONTINUE
 					case TRANS_ASSIGN_LHS:
 						as := ns[len(ns)-1].(*AssignStmt)
 						if as.Op == DEFINE {
@@ -318,32 +320,6 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 				if n.Op != DEFINE {
 					return n, TRANS_CONTINUE
 				}
-				if n.Key != nil {
-					ln := n.Key.(*NameExpr).Name
-					if ln == blankIdentifier {
-						return n, TRANS_CONTINUE
-					}
-					if strings.HasSuffix(string(ln), ".loopvar") {
-						// for idempotency (already converted)
-						return n, TRANS_CONTINUE
-					}
-					// replace all n.Key w/ <n.Key>.loopvar
-					n.Key.(*NameExpr).Name += ".loopvar"
-					replaceAllLoopvar(last, n, ln)
-				}
-				if n.Value != nil {
-					ln := n.Value.(*NameExpr).Name
-					if ln == blankIdentifier {
-						return n, TRANS_CONTINUE
-					}
-					if strings.HasSuffix(string(ln), ".loopvar") {
-						// for idempotency (already converted)
-						return n, TRANS_CONTINUE
-					}
-					// replace all n.Value w/ <n.Value>.loopvar
-					n.Value.(*NameExpr).Name += ".loopvar"
-					replaceAllLoopvar(last, n, ln)
-				}
 			}
 		}
 		return n, TRANS_CONTINUE
@@ -381,11 +357,13 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 						if ln == blankIdentifier {
 							continue
 						}
-						if !isLocallyDefined2(last, ln) {
+						if !isLocallyReserved(last, ln) {
 							// if loopvar, will promote to
 							// NameExprTypeHeapDefine later.
 							nx.Type = NameExprTypeDefine
 							last.Reserve(false, nx, n, NSDefine, i)
+						} else {
+							nx.Type = NameExprTypeDefine
 						}
 					}
 				}
@@ -1389,6 +1367,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							Op:    n.Op,
 							Right: rn,
 						}
+						// Mark the uint() conversion as a shift RHS so
+						// doOpCall can assert non-negative at runtime.
 						n2.Right.SetAttribute(ATTR_SHIFT_RHS, true)
 						resn := Preprocess(store, last, n2)
 						return resn, TRANS_CONTINUE
@@ -1804,6 +1784,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									"invalid argument: cannot make %s; type must be slice, map", tt))
 							}
 
+							// Reject negative constant size arguments (len, cap, hint).
+							// Skip n.Args[0] which is the type argument.
+							for _, arg := range n.Args[1:] {
+								if cx, ok := arg.(*ConstExpr); ok {
+									tv := cx.TypedValue
+									if tv.T == nil || !isNumeric(tv.T) {
+										panic(fmt.Sprintf(
+											"cannot use %v as type int in argument to make", tv))
+									}
+									if tv.Sign() < 0 {
+										panic(fmt.Sprintf(
+											"invalid argument: index %v must not be negative", tv))
+									}
+								}
+							}
+
 							// Specify function param/result generics.
 							argTVs := evalStaticTypedValues(store, last, n.Args...)
 							isVarg := n.Varg
@@ -1838,6 +1834,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										n.Args[i], at))
 								}
 								checkOrConvertType(store, last, n, &n.Args[i], expectedType)
+							}
+
+							// For slices with 3 args, check len <= cap when both are constants.
+							if _, ok := baseOf(tt).(*SliceType); ok && len(n.Args) == 3 {
+								lcx, lOk := n.Args[1].(*ConstExpr)
+								ccx, cOk := n.Args[2].(*ConstExpr)
+								if lOk && cOk {
+									if lcx.TypedValue.GetInt() > ccx.TypedValue.GetInt() {
+										panic(fmt.Sprintf(
+											"invalid argument: len larger than cap in make(%s)", tt))
+									}
+								}
 							}
 
 							return n, TRANS_CONTINUE
@@ -2284,6 +2292,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf("invalid operation: cannot indirect %s (variable of type %s)", n.X.String(), xt.String()))
 				}
 			// TRANS_LEAVE -----------------------
+			case *RefExpr:
+				// Cache the static type of X as ATTR_REF_ELEM_TYPE
+				// on the RefExpr so doOpRef can use it (instead of
+				// the runtime type, which is wrong for interface variables).
+				xt := evalStaticTypeOf(store, last, n.X)
+				if tt, ok := xt.(*tupleType); ok {
+					panic(fmt.Sprintf(
+						"cannot take address of multi-value call (results: %s)",
+						tt.String()))
+				}
+				n.SetAttribute(ATTR_REF_ELEM_TYPE, xt)
+			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
 
@@ -2337,7 +2357,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// value: t.Mp is equivalent to (&t).Mp."
 						//
 						// convert to (&x).m, but leave xt as is.
-						n.X = &RefExpr{X: n.X}
+						rx := &RefExpr{X: n.X}
+						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
+						n.X = rx
 						setPreprocessed(n.X)
 						switch tr[len(tr)-1].Type {
 						case VPDerefPtrMethod:
@@ -2363,7 +2385,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Case 2: If tr[0] is deref type, but xt
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
-						n.X = &RefExpr{X: n.X}
+						rx := &RefExpr{X: n.X}
+						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
+						n.X = rx
 						setPreprocessed(n.X)
 					}
 					// bound method or underlying.
@@ -2908,6 +2932,12 @@ func defineOrDecl(
 
 	if numVals > 1 && numNames != numVals {
 		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numVals))
+	}
+	if isConst && numVals == 0 && numNames > 0 && typeExpr == nil {
+		// This occurs when a const group line inherits values from the previous
+		// line but the number of names doesn't match (go2gno sets Values to nil
+		// in that case). Report a proper error instead of a confusing internal panic.
+		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but 0 value(s)", numNames))
 	}
 
 	sts := make([]Type, numNames) // static types
@@ -5459,6 +5489,7 @@ func elideCompositeExpr(last BlockNode, x *Expr, t Type) {
 			if t.Kind() == PointerKind {
 				clx.Type = toConstTypeExpr(last, tx, t.Elem())
 				refx := &RefExpr{X: clx}
+				refx.SetAttribute(ATTR_REF_ELEM_TYPE, t.Elem())
 				refx.SetSpan(clx.GetSpan())
 				*x = refx
 				elideCompositeElements(last, clx, t.Elem()) // recurse
@@ -5575,20 +5606,20 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 					// resolveEffectiveDeps then walks GetB's body to find B.
 					switch n.Path.Type {
 					case VPValMethod, VPPtrMethod, VPDerefValMethod, VPDerefPtrMethod:
-						// Get the receiver type from the cached ATTR_TYPEOF_VALUE.
-						// Two cases for RefExpr:
-						//  (a) user-written &T{}: n.X is the RefExpr with type *T
-						//      stored directly on the RefExpr node.
-						//  (b) auto-generated &x (pointer-receiver auto-address):
-						//      preprocessing wraps the original expression in a
-						//      RefExpr AFTER caching the type on the inner node,
-						//      so n.X (the RefExpr) has no cached type but n.X.X
-						//      does.
-						xt, ok := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+						// Get the receiver type from ATTR_REF_ELEM_TYPE
+						// on the RefExpr, or ATTR_TYPEOF_VALUE on n.X.
+						//
+						// For auto-addressed receivers (n.X is a synthetic *RefExpr),
+						// read from ATTR_REF_ELEM_TYPE. For already-pointer receivers
+						// (VPDerefValMethod/VPDerefPtrMethod), n.X is not a RefExpr;
+						// fall back to ATTR_TYPEOF_VALUE on the expression itself.
+						var xt Type
+						var ok bool
+						if rx, ok2 := n.X.(*RefExpr); ok2 {
+							xt, ok = rx.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
+						}
 						if !ok {
-							if re, ok2 := n.X.(*RefExpr); ok2 {
-								xt, ok = re.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
-							}
+							xt, ok = n.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
 						}
 						if !ok {
 							break
@@ -5757,9 +5788,8 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 	return t != nil
 }
 
-// r := 0
-// r, ok := 1, true
-func isLocallyDefined2(bn BlockNode, n Name) bool {
+// if name is is reserved.
+func isLocallyReserved(bn BlockNode, n Name) bool {
 	_, isLocal := bn.GetLocalIndex(n)
 	return isLocal
 }
