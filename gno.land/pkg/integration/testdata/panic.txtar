@@ -6,7 +6,7 @@ loadpkg gno.land/r/demo/panic $WORK
 gnoland start
 
 
-! gnokey maketx call -pkgpath gno.land/r/demo/panic --func Trigger --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/demo/panic --func Trigger --gas-fee 1000000ugnot --gas-wanted 2000000 --chainid=tendermint_test test1
 
 stderr 'p\<VPBlock\(3\,0\)\>\(\)'
 stderr 'gno.land/r/demo/panic/panic.gno:5'
