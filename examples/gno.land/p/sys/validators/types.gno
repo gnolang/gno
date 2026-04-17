@@ -38,8 +38,10 @@ type Validator struct {
 }
 
 const (
-	ValidatorAddedEvent   = "ValidatorAdded"   // emitted when a validator was added to the set
-	ValidatorRemovedEvent = "ValidatorRemoved" // emitted when a validator was removed from the set
+	ValidatorAddedEvent      = "ValidatorAdded"      // emitted when a validator was added to the set
+	ValidatorRemovedEvent    = "ValidatorRemoved"    // emitted when a validator was removed from the set
+	AllowedRealmAddedEvent   = "AllowedRealmAdded"   // emitted when a realm is added to the allowed list
+	AllowedRealmRemovedEvent = "AllowedRealmRemoved" // emitted when a realm is removed from the allowed list
 )
 
 var (
@@ -48,4 +50,10 @@ var (
 
 	// ErrValidatorMissing is returned when the validator is not in the set
 	ErrValidatorMissing = errors.New("validator doesn't exist")
+
+	// ErrValidatorPubKeyChanged is returned when attempting to update a validator with a different public key
+	ErrValidatorPubKeyChanged = errors.New("cannot change validator public key")
+
+	// ErrAllowedRealmMissing is returned when attempting to remove a realm not in the allowed list
+	ErrAllowedRealmMissing = errors.New("realm is not in the allowed list")
 )

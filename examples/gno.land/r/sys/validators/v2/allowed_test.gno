@@ -115,3 +115,52 @@ func TestRemoveValidator_NotAllowed(cur realm, t *testing.T) {
 		func() { RemoveValidator(cross, testutils.TestAddress("val1")) },
 	)
 }
+
+func TestUpdateAllowedRealms_Add(t *testing.T) {
+	allowedRealms = avl.NewTree()
+
+	err := updateAllowedRealms([]string{"gno.land/r/demo/ics", "gno.land/r/demo/other"}, nil)
+	urequire.NoError(t, err)
+
+	uassert.True(t, IsAllowedRealm("gno.land/r/demo/ics"))
+	uassert.True(t, IsAllowedRealm("gno.land/r/demo/other"))
+
+	realms := GetAllowedRealms()
+	uassert.Equal(t, 2, len(realms))
+}
+
+func TestUpdateAllowedRealms_Remove(t *testing.T) {
+	allowedRealms = avl.NewTree()
+	allowedRealms.Set("gno.land/r/demo/ics", true)
+	allowedRealms.Set("gno.land/r/demo/other", true)
+
+	err := updateAllowedRealms(nil, []string{"gno.land/r/demo/ics"})
+	urequire.NoError(t, err)
+
+	uassert.False(t, IsAllowedRealm("gno.land/r/demo/ics"))
+	uassert.True(t, IsAllowedRealm("gno.land/r/demo/other"))
+}
+
+func TestUpdateAllowedRealms_RemoveNonExistent(t *testing.T) {
+	allowedRealms = avl.NewTree()
+
+	err := updateAllowedRealms(nil, []string{"gno.land/r/demo/ics"})
+	uassert.ErrorIs(t, err, validators.ErrAllowedRealmMissing)
+}
+
+func TestNewPropAllowedRealmUpdateRequest_EmptyTitle(t *testing.T) {
+	urequire.AbortsWithMessage(t, "proposal title is empty", func() {
+		NewPropAllowedRealmUpdateRequest(
+			[]string{"gno.land/r/demo/ics"},
+			nil,
+			"   ",
+			"description",
+		)
+	})
+}
+
+func TestNewPropAllowedRealmUpdateRequest_NoAddOrRemove(t *testing.T) {
+	urequire.AbortsWithMessage(t, "proposal must add or remove at least one realm", func() {
+		NewPropAllowedRealmUpdateRequest(nil, nil, "title", "description")
+	})
+}

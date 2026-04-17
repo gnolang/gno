@@ -22,8 +22,8 @@ type change struct {
 	validator validators.Validator // the validator update
 }
 
-// addValidator adds a new validator to the validator set.
-// If the validator is already present, the method errors out
+// addValidator adds a new validator to the validator set, or updates
+// an existing validator's voting power.
 func addValidator(validator validators.Validator) {
 	val, err := vp.AddValidator(validator.Address, validator.PubKey, validator.VotingPower)
 	if err != nil {

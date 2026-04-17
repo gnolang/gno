@@ -67,6 +67,27 @@ func TestPoA_AddValidator_Invalid(t *testing.T) {
 		_, err := p.AddValidator(proposalAddress, proposalKey, 0)
 		uassert.ErrorIs(t, err, ErrInvalidVotingPower)
 	})
+
+	t.Run("public key mismatch on power update", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			proposalAddress = testutils.TestAddress("caller")
+			proposalKey     = "public-key"
+			differentKey    = "different-public-key"
+
+			initialSet = generateTestValidators(1)
+		)
+
+		initialSet[0].Address = proposalAddress
+		initialSet[0].PubKey = proposalKey
+		initialSet[0].VotingPower = 1
+
+		p := NewPoA(WithInitialSet(initialSet))
+
+		_, err := p.AddValidator(proposalAddress, differentKey, 100)
+		uassert.ErrorIs(t, err, validators.ErrValidatorPubKeyChanged)
+	})
 }
 
 func TestPoA_AddValidator_UpdatePower(t *testing.T) {

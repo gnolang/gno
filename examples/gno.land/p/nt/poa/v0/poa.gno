@@ -12,8 +12,9 @@ var ErrInvalidVotingPower = errors.New("invalid voting power")
 // PoA specifies the Proof of Authority validator set, with simple add / remove constraints.
 //
 // To add:
-// - proposed validator must not be part of the set already
 // - proposed validator voting power must be > 0
+// - if the validator already exists, the voting power must differ (update)
+// - if the validator already exists, the public key must match
 //
 // To remove:
 // - proposed validator must be part of the set already
@@ -46,6 +47,10 @@ func (p *PoA) AddValidator(address_XXX address, pubKey string, power uint64) (va
 	if existing, err := p.GetValidator(address_XXX); err == nil {
 		if existing.VotingPower == power {
 			return validators.Validator{}, validators.ErrValidatorExists
+		}
+
+		if existing.PubKey != pubKey {
+			return validators.Validator{}, validators.ErrValidatorPubKeyChanged
 		}
 	}
 

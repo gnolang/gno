@@ -1,6 +1,7 @@
 package validators
 
 import (
+	"chain"
 	"chain/runtime"
 	"strings"
 
@@ -48,6 +49,21 @@ func GetAllowedRealms() []string {
 	return realms
 }
 
+func updateAllowedRealms(add []string, remove []string) error {
+	for _, r := range add {
+		allowedRealms.Set(r, true)
+		chain.Emit(validators.AllowedRealmAddedEvent)
+	}
+	for _, r := range remove {
+		if !allowedRealms.Has(r) {
+			return validators.ErrAllowedRealmMissing
+		}
+		allowedRealms.Remove(r)
+		chain.Emit(validators.AllowedRealmRemovedEvent)
+	}
+	return nil
+}
+
 // NewPropAllowedRealmUpdateRequest creates a new proposal request that updates
 // the set of realms allowed to modify the validator set.
 func NewPropAllowedRealmUpdateRequest(add []string, remove []string, title, description string) dao.ProposalRequest {
@@ -75,13 +91,7 @@ func NewPropAllowedRealmUpdateRequest(add []string, remove []string, title, desc
 	}
 
 	callback := func(cur realm) error {
-		for _, r := range add {
-			allowedRealms.Set(r, true)
-		}
-		for _, r := range remove {
-			allowedRealms.Remove(r)
-		}
-		return nil
+		return updateAllowedRealms(add, remove)
 	}
 
 	e := dao.NewSimpleExecutor(callback, "")
