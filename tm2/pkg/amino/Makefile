@@ -42,9 +42,15 @@ fuzz:
 	  if [ "$(FUZZTIME)" != "0" ]; then break; fi; \
 	  echo "=== property fuzz: starting next rotation ===" >&2; \
 	done > /tmp/amino-property-fuzz.log 2>&1 ) & P1=$$!; \
-	go test ./tests/fuzz/binary/ -fuzz=FuzzUnmarshalBinary2 -fuzztime=$(FUZZTIME) -timeout=0 > /tmp/amino-coverage-fuzz.log 2>&1 & P2=$$!; \
+	go test ./tests/fuzz/binary/ -fuzz=FuzzUnmarshalBinary2 -fuzztime=$(FUZZTIME) -timeout=0 2>&1 \
+	  | tee /tmp/amino-coverage-fuzz.log & P2=$$!; \
+	( while kill -0 $$P1 2>/dev/null; do \
+	  sleep 30; \
+	  echo "[property fuzz] passed=$$(cat /tmp/amino-property-fuzz.log 2>/dev/null | grep -c -- '--- PASS') failed=$$(cat /tmp/amino-property-fuzz.log 2>/dev/null | grep -c -- '--- FAIL')"; \
+	done ) & P3=$$!; \
 	wait $$P1; E1=$$?; \
 	wait $$P2; E2=$$?; \
+	kill $$P3 2>/dev/null; wait $$P3 2>/dev/null; \
 	echo "=== property fuzz summary ==="; grep -E '^\s*--- (PASS|FAIL)' /tmp/amino-property-fuzz.log | tail -20; \
 	echo "=== coverage fuzz summary ==="; tail -5 /tmp/amino-coverage-fuzz.log; \
 	P_FAIL=$$(grep -cE '^\s*--- FAIL' /tmp/amino-property-fuzz.log || true); \
