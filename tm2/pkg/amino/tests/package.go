@@ -57,6 +57,7 @@ var Package = pkg.NewPackage(
 	PrimitivesStructAr{},
 	Concrete1{},
 	Concrete2{},
+	ConcreteRecursive{},
 	ConcreteTypeDef{},
 	ConcreteWrappedBytes{},
 	&InterfaceFieldsStruct{},

@@ -491,6 +491,38 @@ func TestUnmarshalAnyBinary2_AcceptsTypeURLOnly(t *testing.T) {
 	}
 }
 
+// Deeply nested binary Any values must be rejected at depth 64 to prevent
+// stack overflow from malicious input. Uses ConcreteRecursive which
+// implements Interface1 and has an Interface1 field, enabling unbounded nesting.
+func TestBinaryDepthLimitRejected(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Build from the inside out: innermost is ConcreteRecursive{Inner: nil}
+	// (just a typeURL, no value for the Inner field). Each wrapper adds an
+	// Any(ConcreteRecursive) envelope whose Inner field contains the previous level.
+	obj := Interface1(ConcreteRecursive{})
+	for i := 0; i < 70; i++ {
+		obj = ConcreteRecursive{Inner: obj}
+	}
+	// Marshal with Any wrapping so the outermost is an Any envelope.
+	bz, err := cdc.MarshalAny(obj)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+
+	// Unmarshal should hit the depth limit.
+	var dst Interface1
+	err = cdc.UnmarshalAny(bz, &dst)
+	if err == nil {
+		t.Fatal("expected error on deeply nested binary Any")
+	}
+	if !strings.Contains(err.Error(), "depth") {
+		t.Fatalf("expected 'depth' error, got %q", err.Error())
+	}
+}
+
 // AminoMarshalerStruct2.MarshalAmino → []ReprElem2 (unpacked slice repr).
 // Each element is wrapped as field 1 ByteLength. If a repeated entry has a
 // wrong typ3, the unpacked-slice-repr decoder should reject it.

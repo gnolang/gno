@@ -699,6 +699,13 @@ func (cdc *Codec) SizeAnyBinary2(o any) (int, error) {
 // Unlike unmarshalAnyBinary2, this errors (not falls through) if the
 // concrete type does not implement PBMessager2.
 func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any) error {
+	return cdc.unmarshalAnyBinary2Depth(bz, ptr, 0)
+}
+
+func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) error {
+	if anyDepth > maxAnyDepth {
+		return fmt.Errorf("exceeded max Any nesting depth %d", maxAnyDepth)
+	}
 	if len(bz) == 0 {
 		return nil
 	}
@@ -992,7 +999,7 @@ func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 	}
 
 	// Decode contents into rv.
-	n, err := cdc.decodeReflectBinary(bz, info, rv, FieldOptions{BinFieldNum: 1}, bare, 0)
+	n, err := cdc.decodeReflectBinary(bz, info, rv, FieldOptions{BinFieldNum: 1}, bare, 0, 0)
 	if err != nil {
 		return fmt.Errorf(
 			"unmarshal to %v failed after %d bytes (%w): %X",
@@ -1072,7 +1079,7 @@ func (cdc *Codec) UnmarshalAny(bz []byte, ptr any) (err error) {
 		return err
 	}
 
-	_, err = cdc.decodeReflectBinaryInterface(bz, iinfo, rv, FieldOptions{}, true)
+	_, err = cdc.decodeReflectBinaryInterface(bz, iinfo, rv, FieldOptions{}, true, 0)
 	return
 }
 
@@ -1180,7 +1187,7 @@ func (cdc *Codec) UnmarshalAny2(typeURL string, value []byte, ptr any) (err erro
 		return ErrNoPointer
 	}
 	rv = rv.Elem()
-	_, err = cdc.decodeReflectBinaryAny(typeURL, value, rv, FieldOptions{})
+	_, err = cdc.decodeReflectBinaryAny(typeURL, value, rv, FieldOptions{}, 0)
 	return
 }
 
@@ -1285,7 +1292,7 @@ func (cdc *Codec) JSONUnmarshal(bz []byte, ptr any) error {
 	if err != nil {
 		return err
 	}
-	return cdc.decodeReflectJSON(bz, info, rv, FieldOptions{})
+	return cdc.decodeReflectJSON(bz, info, rv, FieldOptions{}, 0)
 }
 
 // MustUnmarshalJSON panics if an error occurs. Besides that behaves exactly like UnmarshalJSON.

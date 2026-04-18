@@ -585,3 +585,85 @@ func TestJSONInterfaceTypeAssignability(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not assignable")
 }
+
+// Duplicate JSON keys must be rejected (matches binary decoder's monotonic
+// field-number check). Previously, encoding/json silently accepted
+// duplicates with last-wins semantics.
+func TestJSONDuplicateKeysRejected(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+
+	// Simple struct with two fields.
+	type Simple struct {
+		Name  string
+		Count int32
+	}
+
+	// Duplicate "Name" key — should error.
+	bz := []byte(`{"Name":"first","Count":1,"Name":"second"}`)
+	var s Simple
+	err := cdc.JSONUnmarshal(bz, &s)
+	require.Error(t, err, "expected error on duplicate JSON key")
+	assert.Contains(t, err.Error(), "duplicate")
+
+	// Non-duplicate — should succeed.
+	bz2 := []byte(`{"Name":"only","Count":42}`)
+	var s2 Simple
+	err = cdc.JSONUnmarshal(bz2, &s2)
+	require.NoError(t, err)
+	assert.Equal(t, "only", s2.Name)
+	assert.Equal(t, int32(42), s2.Count)
+}
+
+// Unknown JSON keys in structs must be rejected (binary decoder
+// skips unknown fields but at least validates their wire type).
+func TestJSONUnknownKeysRejected(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+
+	type Simple struct {
+		Name string
+	}
+
+	bz := []byte(`{"Name":"ok","Surprise":"oops"}`)
+	var s Simple
+	err := cdc.JSONUnmarshal(bz, &s)
+	require.Error(t, err, "expected error on unknown JSON key")
+	assert.Contains(t, err.Error(), "unknown")
+}
+
+// Deeply nested JSON interface values must be rejected at depth 64.
+// Uses ConcreteRecursive which implements Interface1 and has an Interface1
+// field, enabling unbounded nesting.
+func TestJSONDepthLimitRejected(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+
+	// Build nested JSON: ConcreteRecursive has Inner Interface1.
+	inner := `{"@type":"/tests.Concrete1"}`
+	for i := 0; i < 70; i++ {
+		inner = fmt.Sprintf(`{"@type":"/tests.ConcreteRecursive","Inner":%s}`, inner)
+	}
+	var iface tests.Interface1
+	err := cdc.JSONUnmarshal([]byte(inner), &iface)
+	require.Error(t, err, "expected error on deep JSON nesting")
+	assert.Contains(t, err.Error(), "depth")
+}
+
+// Any-wrapper duplicate @type key must be rejected.
+func TestJSONAnyWrapperDuplicateTypeRejected(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+
+	bz := []byte(`{"@type":"/tests.Concrete1","@type":"/tests.Concrete2"}`)
+	var iface tests.Interface1
+	err := cdc.JSONUnmarshal(bz, &iface)
+	require.Error(t, err, "expected error on duplicate @type key")
+	assert.Contains(t, err.Error(), "duplicate")
+}

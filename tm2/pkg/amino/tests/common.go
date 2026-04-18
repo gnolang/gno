@@ -508,6 +508,14 @@ type Concrete1 struct{}
 func (Concrete1) AssertInterface1() {}
 func (Concrete1) AssertInterface2() {}
 
+// ConcreteRecursive implements Interface1 and has an Interface1 field,
+// allowing unbounded nesting for depth-limit testing.
+type ConcreteRecursive struct {
+	Inner Interface1
+}
+
+func (ConcreteRecursive) AssertInterface1() {}
+
 type Concrete2 struct{}
 
 func (Concrete2) AssertInterface1() {}
