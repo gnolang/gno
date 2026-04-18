@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"runtime"
 	"runtime/debug"
 	"testing"
 	"time"
@@ -19,28 +20,43 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 )
 
-// fuzzDeadline is a global shared deadline for all property-fuzz subtests.
-// Set via AMINO_FUZZ_BUDGET (e.g. "1h") to cap total wallclock. When zero,
-// each subtest uses a fixed iteration count (fast default for `go test`).
-var fuzzDeadline = func() time.Time {
-	if s := os.Getenv("AMINO_FUZZ_BUDGET"); s != "" {
-		if d, err := time.ParseDuration(s); err == nil && d > 0 {
-			return time.Now().Add(d)
-		}
+// fuzzPerSubtest is the time each property-fuzz subtest should loop when
+// AMINO_FUZZ_BUDGET is set. Computed as:
+//
+//	FUZZ_BUDGET × GOMAXPROCS / total_subtests
+//
+// With t.Parallel(), up to GOMAXPROCS subtests run concurrently. Each runs
+// for fuzzPerSubtest, then returns — freeing its slot for the next batch.
+// Total wallclock ≈ FUZZ_BUDGET, and every type gets equal coverage.
+//
+// When AMINO_FUZZ_BUDGET is unset (normal `go test`), this is 0 and the
+// helpers fall back to a fast fixed iteration count (10k).
+var fuzzPerSubtest = func() time.Duration {
+	s := os.Getenv("AMINO_FUZZ_BUDGET")
+	if s == "" {
+		return 0
 	}
-	return time.Time{}
+	total, err := time.ParseDuration(s)
+	if err != nil || total <= 0 {
+		return 0
+	}
+	procs := runtime.GOMAXPROCS(0)
+	// Total property-fuzz subtests across all three test functions:
+	//   StructTypes×2 (binary+json) + AminoTagTypes×2 + DefTypes×2 + DeepCopy(Struct+AminoTag+Def)
+	numSubtests := (len(tests.StructTypes)+len(tests.AminoTagTypes)+len(tests.DefTypes))*2 +
+		len(tests.StructTypes) + len(tests.AminoTagTypes) + len(tests.DefTypes)
+	if numSubtests == 0 {
+		return total
+	}
+	return total * time.Duration(procs) / time.Duration(numSubtests)
 }()
 
 // shouldContinue returns true while the fuzz loop should keep iterating.
-// In budgeted mode (shared global deadline), runs until deadline passes,
-// with a floor of 100 iterations so late-scheduled subtests still fuzz
-// at least a little. Otherwise caps at iters.
-func shouldContinue(i int, iters int) bool {
-	if !fuzzDeadline.IsZero() {
-		if i < 100 {
-			return true
-		}
-		return time.Now().Before(fuzzDeadline)
+// In budgeted mode, each call gets its own deadline (now+fuzzPerSubtest);
+// otherwise caps at iters.
+func shouldContinue(i int, iters int, deadline time.Time) bool {
+	if !deadline.IsZero() {
+		return time.Now().Before(deadline)
 	}
 	return i < iters
 }
@@ -165,7 +181,11 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 		}
 	}()
 
-	for i := 0; shouldContinue(i, 10_000); i++ {
+	var deadline time.Time
+	if fuzzPerSubtest > 0 {
+		deadline = time.Now().Add(fuzzPerSubtest)
+	}
+	for i := 0; shouldContinue(i, 10_000, deadline); i++ {
 		f.Fuzz(ptr)
 
 		// Reset, which makes debugging decoding easier.
@@ -288,7 +308,11 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 		}
 	}()
 
-	for i := 0; shouldContinue(i, 10_000); i++ {
+	var deadline time.Time
+	if fuzzPerSubtest > 0 {
+		deadline = time.Now().Add(fuzzPerSubtest)
+	}
+	for i := 0; shouldContinue(i, 10_000, deadline); i++ {
 		f.Fuzz(ptr)
 
 		ptr2 := amino.DeepCopy(ptr)
@@ -345,7 +369,11 @@ func _testCodecAminoTags(t *testing.T, rt reflect.Type, codecType string, lossyD
 		return cdc.Unmarshal(b, p)
 	}
 
-	for i := 0; shouldContinue(i, 10_000); i++ {
+	var deadline time.Time
+	if fuzzPerSubtest > 0 {
+		deadline = time.Now().Add(fuzzPerSubtest)
+	}
+	for i := 0; shouldContinue(i, 10_000, deadline); i++ {
 		f.Fuzz(ptr)
 
 		rv2 = reflect.New(rt)
