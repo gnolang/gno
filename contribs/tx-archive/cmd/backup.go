@@ -41,13 +41,13 @@ type backupCfg struct {
 	fromBlock uint64
 	batchSize uint
 
-	ws                 bool
-	overwrite          bool
-	legacy             bool
-	watch              bool
-	verbose            bool
-	skipFailedTxs      bool
-	noPopulateSigners  bool
+	ws                bool
+	overwrite         bool
+	legacy            bool
+	watch             bool
+	verbose           bool
+	skipFailedTxs     bool
+	noPopulateSigners bool
 }
 
 // newBackupCmd creates the backup command

@@ -39,7 +39,6 @@ type signerResolver struct {
 	chainID    string
 	haltHeight uint64
 	states     map[crypto.Address]*signerState
-	buffered   []*gnoland.TxWithMetadata // txs waiting for Finalize (only carry failed entries)
 }
 
 type signerState struct {
