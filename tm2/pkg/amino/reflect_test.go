@@ -37,8 +37,13 @@ var fuzzPerSubtest = func() time.Duration {
 		return 0
 	}
 	total, err := time.ParseDuration(s)
-	if err != nil || total <= 0 {
+	if err != nil {
 		return 0
+	}
+	if total <= 0 {
+		// AMINO_FUZZ_BUDGET=0 means "run forever" (Ctrl-C to stop).
+		// Give each subtest a large slice so they all run indefinitely.
+		return 24 * time.Hour
 	}
 	procs := runtime.GOMAXPROCS(0)
 	// Total property-fuzz subtests across all three test functions:

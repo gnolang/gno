@@ -31,6 +31,7 @@ FUZZTIME ?= 1h
 #     asserting amino-reflect / pbbindings / genproto2 byte parity and roundtrip.
 #   - Coverage fuzz: FuzzUnmarshalBinary2 with random bytes, asserting no panics.
 # Usage: make fuzz [FUZZTIME=30m]
+#        make fuzz FUZZTIME=0    # run forever (Ctrl-C to stop)
 # Exits non-zero if either fuzzer reports a failure.
 fuzz:
 	@echo "=== Running property and coverage fuzzers in parallel for $(FUZZTIME) ==="
