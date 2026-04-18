@@ -328,6 +328,10 @@ message Concrete1 {
 message Concrete2 {
 }
 
+message ConcreteRecursive {
+	google.protobuf.Any inner = 1 [json_name = "Inner"];
+}
+
 message ConcreteTypeDef {
 	bytes value = 1;
 }
