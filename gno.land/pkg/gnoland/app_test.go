@@ -2008,9 +2008,9 @@ func TestMeetsMinVersion(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		binary  string
-		minVer  string
-		want    bool
+		binary string
+		minVer string
+		want   bool
 	}{
 		// Empty minVersion always passes
 		{"chain/gnoland1.0", "", true},
