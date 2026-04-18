@@ -1639,7 +1639,7 @@ and failing that, users should fork the chain or seek alternatives.
 > government, big business and the CIA to develop techniques to manage and control the minds of
 > the American people**. Those in power believed that the only way to make democracy work and
 > create a stable society was to repress the savage barbarism that lurked just under the surface of
-> normal American life." - Adam Curtis, BBC Four, 2002. ([transcript](https://github.com/jaekwon/ephesus/blob/main/files/century-of-the-self-transcript.pdf), [youtube](https://www.youtube.com/watch?v=caicn3VpHTo))
+> normal American life." - Adam Curtis, BBC Four, 2002. ([transcript](https://web.archive.org/web/2026/https://github.com/jaekwon/ephesus/blob/main/files/century-of-the-self-transcript.pdf), [youtube](https://www.youtube.com/watch?v=caicn3VpHTo))
 
 ### On Twitter Censorship
 
