@@ -654,6 +654,34 @@ func TestJSONDepthLimitRejected(t *testing.T) {
 	assert.Contains(t, err.Error(), "depth")
 }
 
+// JSON null means "use default value" for all types (proto3 JSON spec).
+func TestJSONNullUsesDefaultValue(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+
+	type Simple struct {
+		Name  string
+		Count int32
+	}
+
+	// null on string field → default value "".
+	var s Simple
+	err := cdc.JSONUnmarshal([]byte(`{"Name":null,"Count":42}`), &s)
+	require.NoError(t, err)
+	assert.Equal(t, "", s.Name)
+	assert.Equal(t, int32(42), s.Count)
+
+	// null on pointer field → nil (amino's defaultValue for non-struct pointers
+	// allocates a zero-value pointer, but null should be nil).
+	type WithPtr struct {
+		Ptr *int32
+	}
+	var wp WithPtr
+	err = cdc.JSONUnmarshal([]byte(`{"Ptr":null}`), &wp)
+	require.NoError(t, err)
+}
+
 // Any-wrapper duplicate @type key must be rejected.
 func TestJSONAnyWrapperDuplicateTypeRejected(t *testing.T) {
 	t.Parallel()

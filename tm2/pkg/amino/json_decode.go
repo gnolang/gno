@@ -29,8 +29,9 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 		}()
 	}
 
-	// Special case for null for either interface, pointer, slice
-	// NOTE: This doesn't match the binary implementation completely.
+	// JSON null means "use default value" for all types (proto3 JSON spec).
+	// For nullable types (pointer, slice, map, interface), default is nil/zero.
+	// For scalar types (string, int, bool), default is the zero value.
 	if nullBytes(bz) {
 		rv.Set(defaultValue(rv.Type()))
 		return
