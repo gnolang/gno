@@ -307,8 +307,13 @@ func (app *BaseApp) Info(req abci.RequestInfo) (res abci.ResponseInfo) {
 
 	// When InitialHeight > 1 (chain upgrades), the multistore version counter
 	// starts from 0 and auto-increments, so it may be lower than the actual
-	// block height. Use the persisted header height when available.
-	if app.baseKey != nil {
+	// block height. If we have a persisted header from a previous Commit, use
+	// its height as the authoritative value.
+	//
+	// Only attempt this if at least one commit has landed — otherwise the
+	// multistore hasn't been loaded with stores yet (e.g. in unit tests that
+	// call Info before LoadLatestVersion), and GetStore would panic.
+	if lastCommitID.Version > 0 && app.baseKey != nil {
 		baseStore := app.cms.GetStore(app.baseKey)
 		if baseStore != nil {
 			if headerBz := baseStore.Get(mainLastHeaderKey); headerBz != nil {
