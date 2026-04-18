@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
@@ -845,6 +846,27 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 	)
 }
 
+// doRecoverQueryNoMachine is like doRecoverQuery but for query paths that
+// don't run a gno.Machine; uses debug.Stack() instead of Machine.Stacktrace().
+func doRecoverQueryNoMachine(e *error) {
+	r := recover()
+	if r == nil {
+		return
+	}
+	if err, ok := r.(error); ok {
+		var oog stypes.OutOfGasError
+		if goerrors.As(err, &oog) {
+			*e = oog
+			return
+		}
+	}
+	*e = errors.Wrapf(
+		fmt.Errorf("%v", r),
+		"VM panic: %v\nStacktrace:\n%s\n",
+		r, string(debug.Stack()),
+	)
+}
+
 // Run executes arbitrary Gno code in the context of the caller's realm.
 func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	caller := msg.Caller
@@ -1107,16 +1129,16 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) {
+		for i, rtv := range rtvs {
+			res += rtv.String()
+			if i < len(rtvs)-1 {
+				res += "\n"
+			}
+		}
+	})
 	if err != nil {
 		return "", err
-	}
-	res = ""
-	for i, rtv := range rtvs {
-		res += rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
 	}
 	return res, nil
 }
@@ -1124,29 +1146,52 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
 // The result is expected to be a single string (not a tuple).
 func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
+	var cbErr error
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) {
+		if len(rtvs) != 1 {
+			cbErr = errors.New("expected 1 string result, got %d", len(rtvs))
+			return
+		}
+		if rtvs[0].T.Kind() != gno.StringKind {
+			cbErr = errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
+			return
+		}
+		res = rtvs[0].GetString()
+	})
 	if err != nil {
 		return "", err
 	}
-	if len(rtvs) != 1 {
-		return "", errors.New("expected 1 string result, got %d", len(rtvs))
-	} else if rtvs[0].T.Kind() != gno.StringKind {
-		return "", errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
+	if cbErr != nil {
+		return "", cbErr
 	}
-	res = rtvs[0].GetString()
 	return res, nil
 }
 
+// queryEvalInternal evaluates a gno expression and returns the resulting
+// TypedValues after releasing the machine. Because the machine is released
+// before returning, callers MUST NOT invoke methods (e.g. .Error()) on the
+// returned values — use withQueryEvalMachine for that.
 func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr string) (rtvs []gno.TypedValue, err error) {
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rs []gno.TypedValue) {
+		rtvs = rs
+	})
+	return rtvs, err
+}
+
+// withQueryEvalMachine parses and evaluates expr under pkgPath, then calls fn
+// with the live machine and its result values before releasing the machine.
+// Callers that need to invoke methods on result values (e.g. call .Error() on
+// an error-implementing return) must use this helper so the machine is still
+// alive when fn runs.
+func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr string, fn func(m *gno.Machine, rtvs []gno.TypedValue)) (err error) {
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	// Get Package.
 	pv := gnostore.GetPackage(pkgPath, false)
 	if pv == nil {
-		err = ErrInvalidPkgPath(fmt.Sprintf(
+		return ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
-		return nil, err
 	}
 	// Construct new machine.
 	chainDomain := vm.getChainDomainParam(ctx)
@@ -1173,12 +1218,12 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		})
 	defer m.Release()
 	defer doRecoverQuery(m, &err)
-	// Parse expression.
 	xx, err := m.ParseExpr(expr)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return m.Eval(xx), err
+	fn(m, m.Eval(xx))
+	return nil
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
@@ -1237,11 +1282,13 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 
 // QueryEvalJSON evaluates a gno expression and returns JSON (Amino-encoded) results.
 func (vm *VMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) {
+		res = stringifyJSONResults(m, rtvs, nil)
+	})
 	if err != nil {
 		return "", err
 	}
-	return stringifyJSONResults(nil, rtvs, nil), nil
+	return res, nil
 }
 
 // exportObject retrieves and exports an object by ObjectID string.
@@ -1264,6 +1311,7 @@ func (vm *VMKeeper) exportObject(ctx sdk.Context, oidStr string) (gno.Value, err
 
 // QueryObjectJSON retrieves an object by ObjectID and returns its Amino JSON representation.
 func (vm *VMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error) {
+	defer doRecoverQueryNoMachine(&err)
 	exported, err := vm.exportObject(ctx, oidStr)
 	if err != nil {
 		return "", err
@@ -1280,6 +1328,7 @@ func (vm *VMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string,
 
 // QueryObjectBinary retrieves an object by ObjectID and returns its Amino binary representation.
 func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byte, err error) {
+	defer doRecoverQueryNoMachine(&err)
 	exported, err := vm.exportObject(ctx, oidStr)
 	if err != nil {
 		return nil, err

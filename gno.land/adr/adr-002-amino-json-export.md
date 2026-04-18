@@ -28,8 +28,10 @@ process is:
 1. **ExportValues / ExportObject** (in `gnovm/pkg/gnolang/values_export.go`)
    walks the value tree and produces a defensive copy where:
    - Persisted (real) objects are replaced with `RefValue{ObjectID: "hash:N"}`
-   - Ephemeral cycles are broken with `RefValue{ObjectID: ":N"}` (zero PkgID,
-     synthetic incremental NewTime)
+   - Ephemeral (unpersisted) Objects seen more than once are replaced on
+     subsequent visits with `ExportRefValue{ObjectID: ":N"}`, where `N` is an
+     incrementing counter assigned in the encoder's DFS traversal order (see
+     "Ephemeral Reference Resolution" below)
    - Declared types in the `T` field are replaced with `RefType{ID: "pkg.Name"}`
    - All values are defensively copied to prevent accidental mutation
 
@@ -76,17 +78,73 @@ process is:
 - **Primitives** (int, bool, float, etc.): Stored in the `N` field as base64-encoded
   8-byte values. Strings are stored in `V` as `StringValue{value: "..."}`.
 - **Structs**: `StructValue` with `ObjectInfo` and positional `Fields` array.
-  Field names are not included (they live in the type definition).
+  Field names are not included (they live in the type definition). All fields
+  are emitted, including unexported (lowercase) ones — see
+  "Visibility of Unexported Fields" below.
 - **Pointers**: `PointerValue` with `Base` (a `RefValue` for persisted objects,
   or inline `HeapItemValue` for ephemeral).
 - **Slices/Arrays**: `SliceValue` with `Base` pointing to `ArrayValue`. Byte
   arrays use `Data` (base64), others use `List`.
-- **Maps**: `MapValue` with a linked list of key-value pairs.
+- **Maps**: `MapValue` with a linked list of key-value pairs. Because gno maps
+  can have non-string keys (ints, structs, pointers), the wire shape is a
+  positional list of `{Key, Value}` tuples — not a JSON object. See
+  "Map Encoding" below.
 - **Persisted objects**: Replaced with `RefValue{ObjectID: "hash:N"}` which can
   be followed via `qobject`.
 - **Nil pointers**: `V` field is omitted (Amino omitempty).
 - **Declared types**: `T` field uses `RefType{ID: "pkg.TypeName"}` instead of
   the full type definition.
+
+### Map Encoding
+
+Gno maps allow arbitrary key types (int, struct, pointer, interface), so the
+encoded shape cannot use JSON object syntax (which requires string keys).
+Instead a `MapValue` serializes as an ordered `MapList` — a linked list of
+`MapListItem{Key, Value}` pairs — preserving insertion order deterministically
+across nodes. Consumers that want an idiomatic JSON object for
+`map[string]T` must reconstruct it client-side by walking the list and using
+each `Key`'s string value.
+
+### Visibility of Unexported Fields
+
+The exporter emits every field of a `StructValue` including unexported
+(lowercase) ones. This is intentional and matches gno's on-chain semantics:
+all persisted realm state is already public — deterministically replayable
+from block data — so concealing unexported fields in a read-only query would
+give a false sense of privacy. Realm authors should not rely on
+lowercase-naming as a confidentiality mechanism.
+
+### Single-Hop Object Resolution
+
+`qobject_json` / `qobject_binary` return the object identified by the
+requested `ObjectID` expanded inline, but any child object reference remains
+a `RefValue{ObjectID: ...}` in the output — the endpoint does not recursively
+load and inline referenced objects. This is deliberate: it keeps per-query
+cost proportional to a single persisted object blob (which is gas-metered at
+load), and lets clients control traversal depth by issuing follow-up queries.
+To walk an object graph, clients repeatedly call `qobject_*` on each
+`RefValue.ObjectID` they want to expand.
+
+### Malformed Query Input
+
+`qeval` and `qeval_json` share `parseQueryEvalData`, which panics when the
+input does not contain a `<pkgpath>.<expression>` separator (no `.` after
+the first `/`). This is inherited behavior from the existing `qeval`
+endpoint — `qeval_json` matches it for symmetry. The panic is caught by
+BaseApp's ABCI recover and surfaced as a query error at the RPC layer. In
+both endpoints a malformed input therefore produces an ABCI error response
+rather than a structured JSON body. Clients must construct well-formed
+query data; the endpoints are not forgiving of shape errors.
+
+### Amino Type Registry for `qobject_binary`
+
+`qobject_binary` returns raw Amino binary bytes (amino-encoded `Any` of the
+exported value). Decoding requires the caller to have the same Amino type
+registry as the node — i.e., the types declared in
+`gnovm/pkg/gnolang/package.go`. Go clients that link
+`github.com/gnolang/gno/gnovm/pkg/gnolang` get this automatically; other
+clients must re-implement the registry or prefer `qobject_json`, which is
+self-describing via `@type` discriminators.
 
 ### Error Extraction
 
@@ -101,6 +159,36 @@ Clients can traverse the persisted object graph by:
 1. Calling `qeval` to get the root value (contains `RefValue` references)
 2. Following `ObjectID` references via `qobject`
 3. For pointer fields: `HeapItemValue` -> `StructValue` (alternating)
+
+### Ephemeral Reference Resolution
+
+`ExportRefValue{":N"}` tags back-references to ephemeral (unpersisted) Objects
+that appeared earlier in the same export — typically because the value graph
+contains a shared or cyclic ephemeral Object. They are emitted by
+`ExportValues` / `ExportObject` in `gnovm/pkg/gnolang/values_export.go` and
+serialized with `@type`: `/gno.ExportRefValue`.
+
+Assignment protocol: the encoder performs a DFS over the result. The first
+visit to an ephemeral Object expands it inline and assigns it
+`N = (count of previously-seen ephemeral Objects) + 1`. Any subsequent visit
+to the same Object emits `ExportRefValue{":N"}` with the ID assigned on first
+visit.
+
+Traversal order matches the declaration order of the underlying values:
+- `[]TypedValue` result slices, left to right
+- `StructValue.Fields`, in declared field order
+- `ArrayValue.List` / `SliceValue`, by index
+- `MapValue.List`, in insertion order (the gno-level `MapList`, not Go map
+  iteration)
+- `Block.Values`, in order
+- For pointer/slice containers, `Base` is visited before child elements
+- `FuncValue.Captures`, then `FuncValue.Parent`
+
+To resolve `:N` back to its inline expansion, a consumer walks the exported
+tree in this same order, counts each inline ephemeral Object as it is
+encountered, and looks up the Nth one. Persisted `RefValue{ObjectID: "hash:N"}`
+references are not part of this counter — they are resolved separately via
+`qobject`.
 
 ## Consequences
 

@@ -595,6 +595,30 @@ func TestVmHandlerQuery_UnknownEndpoint(t *testing.T) {
 	assert.Contains(t, res.Error.Error(), "unknown request")
 }
 
+// TestVmHandlerQuery_EvalJSON_MalformedInput documents the inherited panic
+// behavior of parseQueryEvalData: both qeval and qeval_json panic when the
+// request data lacks a `<pkgpath>.<expression>` shape. In production, the
+// ABCI layer's outer recover turns this into an error response at the RPC
+// boundary (see ADR-002 §"Malformed Query Input"). At this unit-test level
+// no outer recover is installed, so the panic surfaces directly.
+func TestVmHandlerQuery_EvalJSON_MalformedInput(t *testing.T) {
+	env := setupTestEnv()
+	vmHandler := env.vmh
+
+	req := abci.RequestQuery{
+		Path: "vm/qeval_json",
+		Data: []byte(`gno.land/r/hello`), // no dot after the slash
+	}
+
+	defer func() {
+		r := recover()
+		require.NotNil(t, r, "qeval_json must panic on malformed input (inherited qeval behavior)")
+		assert.Contains(t, fmt.Sprintf("%v", r), "expected <pkgpath>.<expression> syntax",
+			"panic message should match parseQueryEvalData's const; got: %v", r)
+	}()
+	_ = vmHandler.Query(env.ctx, req)
+}
+
 func TestVmHandlerQuery_Doc(t *testing.T) {
 	expected := &doc.JSONDocumentation{
 		PackagePath: "gno.land/r/hello",

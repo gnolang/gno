@@ -6,9 +6,19 @@ import (
 	"strconv"
 )
 
-// ExportRefValue represents a cycle-breaking reference in exported values.
-// Unlike RefValue (which uses ObjectID for persisted objects), ExportRefValue
-// uses a simple ":N" string ID for ephemeral cycle references.
+// ExportRefValue represents a back-reference to an ephemeral Object already
+// emitted earlier in the export stream. Unlike RefValue (which uses an
+// ObjectID for persisted objects), ExportRefValue uses a synthetic ":N" ID,
+// where N is an incrementing counter assigned in the encoder's DFS traversal
+// order. The first time an ephemeral Object is visited it is expanded inline
+// and assigned N = (count of previously-seen ephemeral Objects) + 1; any
+// subsequent visit to the same Object emits ExportRefValue{":N"} instead of
+// re-expanding it.
+//
+// Consumers that need to resolve ":N" back to its inline occurrence must walk
+// the exported tree in the same DFS order the encoder uses (source-order
+// fields, slice/array indices, MapList insertion order, Block values), count
+// each inline ephemeral Object as they encounter it, and look up the Nth one.
 // Registered with Amino as "/gno.ExportRefValue".
 type ExportRefValue struct {
 	ObjectID string `json:"ObjectID"` // ":1", ":2", etc.

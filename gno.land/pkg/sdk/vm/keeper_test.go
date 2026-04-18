@@ -17,10 +17,12 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
@@ -1914,11 +1916,8 @@ func GetError() error {
 		// Shows as PointerValue with RefValue to the persisted struct
 		assert.Contains(t, res, `/gno.PointerValue`)
 		assert.Contains(t, res, `/gno.RefValue`)
-		// Note: @error is NOT present for persisted objects queried via QueryEvalJSON
-		// because QueryEvalJSON passes nil machine to stringifyJSONResults,
-		// so tryGetError cannot evaluate .Error(). The error can be extracted
-		// client-side by fetching the object via qobject.
-		assert.NotContains(t, res, `"@error"`)
+		// @error is populated from the result's .Error() method.
+		assert.Contains(t, res, `"@error":"not found"`)
 	})
 
 	t.Run("persisted_json_tags", func(t *testing.T) {
@@ -2174,6 +2173,212 @@ func GetRoot() *Level1 {
 	})
 }
 
+// TestVMKeeperEvalJSONError verifies that QueryEvalJSON populates the
+// top-level "@error" field when the evaluated expression returns a non-nil
+// value that implements the error interface.
+//
+// Both an ephemeral error (constructed at query time) and a persisted error
+// value must have their .Error() string extracted into the @error field, so
+// clients don't have to perform a second round-trip to decode the message.
+func TestVMKeeperEvalJSONError(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(20000000)))
+
+	t.Run("ephemeral_error", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/ephemerr"
+		pkgBody := `package ephemerr
+
+type MyErr struct{ Msg string }
+
+func (e *MyErr) Error() string { return e.Msg }
+
+func GetError() error { return &MyErr{Msg: "boom"} }`
+
+		files := []*std.MemFile{
+			{Name: "a.gno", Body: pkgBody},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		}
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		require.NoError(t, env.vmk.AddPackage(ctx, msg))
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetError()")
+		require.NoError(t, err)
+
+		assert.Contains(t, res, `"@error":"boom"`,
+			"ephemeral error should have its .Error() extracted into @error; got: %s", res)
+	})
+
+	t.Run("persisted_error", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/persisterr"
+		pkgBody := `package persisterr
+
+type CustomError struct {
+	Code    int
+	Message string
+}
+
+func (e *CustomError) Error() string { return e.Message }
+
+var lastError *CustomError
+
+func init() {
+	lastError = &CustomError{Code: 404, Message: "not found"}
+}
+
+func GetError() error { return lastError }`
+
+		files := []*std.MemFile{
+			{Name: "a.gno", Body: pkgBody},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		}
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		require.NoError(t, env.vmk.AddPackage(ctx, msg))
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetError()")
+		require.NoError(t, err)
+
+		assert.Contains(t, res, `"@error":"not found"`,
+			"persisted error should have its .Error() extracted into @error; got: %s", res)
+	})
+
+	t.Run("nil_error_no_field", func(t *testing.T) {
+		pkgPath := "gno.land/r/test/nilerr"
+		pkgBody := `package nilerr
+func GetError() error { return nil }`
+
+		files := []*std.MemFile{
+			{Name: "a.gno", Body: pkgBody},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		}
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		require.NoError(t, env.vmk.AddPackage(ctx, msg))
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetError()")
+		require.NoError(t, err)
+
+		assert.NotContains(t, res, `"@error"`,
+			"nil error should not produce an @error field; got: %s", res)
+	})
+
+	t.Run("typed_nil_error_graceful_degrade", func(t *testing.T) {
+		// A non-nil error interface wrapping a typed-nil concrete pointer:
+		//   var e *MyErr = nil; return e
+		// tv.ImplError() is true (static type satisfies error), so
+		// tryGetError invokes .Error() — which nil-derefs the receiver.
+		// The defer-recover in tryGetError must catch the panic and
+		// gracefully degrade: no @error field, no process crash.
+		pkgPath := "gno.land/r/test/typednil"
+		pkgBody := `package typednil
+
+type MyErr struct{ Msg string }
+
+func (e *MyErr) Error() string { return e.Msg } // panics on nil receiver
+
+func GetError() error {
+	var e *MyErr = nil
+	return e
+}`
+
+		files := []*std.MemFile{
+			{Name: "a.gno", Body: pkgBody},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		}
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		require.NoError(t, env.vmk.AddPackage(ctx, msg))
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetError()")
+		require.NoError(t, err, "typed-nil error must not crash the handler")
+		assert.Contains(t, res, `"results":`,
+			"results must still be present even when .Error() panics")
+		assert.NotContains(t, res, `"@error"`,
+			"typed-nil .Error() panic should graceful-degrade, not surface as @error; got: %s", res)
+	})
+}
+
+// TestDoRecoverQueryNoMachine exercises the panic-recovery helper added for
+// QueryObjectJSON / QueryObjectBinary paths, covering every branch of the
+// recover logic: non-error panic, error panic (non-OOG), OOG panic, and the
+// two no-panic cases (preserves existing err, preserves nil err).
+//
+// Note on wrap message visibility: tm2/pkg/errors.Wrapf stores the format
+// string as a trace entry on the returned *cmnError. The trace appears in
+// fmt.Sprintf("%+v", err) but NOT in err.Error(), which surfaces only the
+// inner cause. Tests accordingly check the cause in Error() and the prefix
+// in %+v.
+func TestDoRecoverQueryNoMachine(t *testing.T) {
+	t.Run("string_panic_wraps_as_vm_panic", func(t *testing.T) {
+		var err error
+		func() {
+			defer doRecoverQueryNoMachine(&err)
+			panic("synthetic failure")
+		}()
+		require.Error(t, err)
+		// Error() surfaces the cause (fmt.Errorf of the raw panic value).
+		assert.Contains(t, err.Error(), "synthetic failure")
+		// The full format includes the "VM panic:" trace + stacktrace.
+		full := fmt.Sprintf("%+v", err)
+		assert.Contains(t, full, "VM panic:",
+			"wrap trace should appear in verbose format; got: %s", full)
+		assert.Contains(t, full, "Stacktrace:",
+			"wrap trace should reference Stacktrace label; got: %s", full)
+	})
+
+	t.Run("error_panic_wraps_as_vm_panic", func(t *testing.T) {
+		var err error
+		func() {
+			defer doRecoverQueryNoMachine(&err)
+			panic(errors.New("boom"))
+		}()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "boom")
+		full := fmt.Sprintf("%+v", err)
+		assert.Contains(t, full, "VM panic:", "got: %s", full)
+	})
+
+	t.Run("oog_surfaces_bare_not_wrapped", func(t *testing.T) {
+		var err error
+		func() {
+			defer doRecoverQueryNoMachine(&err)
+			panic(types.OutOfGasError{Descriptor: "test"})
+		}()
+		require.Error(t, err)
+		// OOG is assigned directly (*e = oog), not routed through Wrapf.
+		// The concrete type must still be OutOfGasError.
+		var oog types.OutOfGasError
+		require.True(t, errors.As(err, &oog),
+			"OOG must surface as bare OutOfGasError, not wrapped; got: %v", err)
+		// And the verbose format must NOT carry the VM panic trace.
+		assert.NotContains(t, fmt.Sprintf("%+v", err), "VM panic:",
+			"OOG must not be wrapped with the VM panic trace")
+	})
+
+	t.Run("no_panic_preserves_existing_err", func(t *testing.T) {
+		err := errors.New("original")
+		func() {
+			defer doRecoverQueryNoMachine(&err)
+		}()
+		require.Error(t, err)
+		assert.Equal(t, "original", err.Error())
+	})
+
+	t.Run("no_panic_preserves_nil_err", func(t *testing.T) {
+		var err error
+		func() {
+			defer doRecoverQueryNoMachine(&err)
+		}()
+		assert.NoError(t, err)
+	})
+}
+
 // TestVMKeeperNestedObjectTraversal tests that nested persisted objects
 // can be traversed by querying ObjectIDs returned in RefValue fields.
 // This verifies the object graph can be explored via qeval + qobject queries.
@@ -2306,6 +2511,265 @@ func GetRoot() *L1 {
 
 	t.Log("Successfully traversed nested object graph from L1 -> L2 -> L3!")
 	t.Log("Pure Amino format: 7 steps (HeapItemValue -> StructValue alternating)")
+}
+
+// deployJSONTestPkg deploys a single-file package for contract/edge-case tests.
+func deployJSONTestPkg(t *testing.T, env testEnv, ctx sdk.Context, addr crypto.Address, pkgPath, body string) {
+	t.Helper()
+	files := []*std.MemFile{
+		{Name: "a.gno", Body: body},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	}
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	require.NoError(t, env.vmk.AddPackage(ctx, msg))
+	env.vmk.CommitGnoTransactionStore(ctx)
+}
+
+// TestVMKeeperJSONContract anchors the ADR-002 design decisions in regression
+// tests. Each subtest asserts a specific contract the ADR documents, so future
+// refactors cannot silently change the wire shape.
+func TestVMKeeperJSONContract(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	t.Run("map_nonstring_keys_tuple_shape", func(t *testing.T) {
+		// Contract: maps serialize as an ordered MapList of {Key, Value}
+		// tuples, never as a JSON object (ADR §"Map Encoding"). Use an
+		// ephemeral (query-time-constructed) map so the full structure
+		// appears inline instead of as a RefValue.
+		pkgPath := "gno.land/r/contract/mapint"
+		deployJSONTestPkg(t, env, ctx, addr, pkgPath, `package mapint
+func GetMap() map[int]string {
+	return map[int]string{1: "one", 2: "two"}
+}`)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetMap()")
+		require.NoError(t, err)
+
+		// MapValue wrapper present with a nested List of {Key, Value} pairs.
+		assert.Contains(t, res, `"@type":"/gno.MapType"`)
+		assert.Contains(t, res, `"@type":"/gno.MapValue"`)
+		// {Key, Value} tuple shape — each entry has both keys.
+		assert.Contains(t, res, `"Key":{`)
+		assert.Contains(t, res, `"Value":{`)
+		// The keys are int (PrimitiveType/32), encoded in N — not as JSON
+		// object keys. One amino/base64 int-key form:
+		assert.Contains(t, res, `"Key":{"T":{"@type":"/gno.PrimitiveType","value":"32"}`,
+			"int keys must appear as typed Key fields, not as JSON object keys")
+		// Values "one" and "two" are present as StringValues.
+		assert.Contains(t, res, `"one"`)
+		assert.Contains(t, res, `"two"`)
+		// Must NOT be shaped as a JSON object with stringified numeric keys.
+		assert.NotContains(t, res, `"1":"one"`)
+		assert.NotContains(t, res, `"2":"two"`)
+	})
+
+	t.Run("unexported_fields_are_emitted", func(t *testing.T) {
+		// Contract: all struct fields, including unexported, appear in the
+		// output (ADR §"Visibility of Unexported Fields"). Chain state is
+		// already public; hiding unexported fields would be misleading.
+		pkgPath := "gno.land/r/contract/unexported"
+		deployJSONTestPkg(t, env, ctx, addr, pkgPath, `package unexported
+type Person struct {
+	Name   string
+	secret string
+}
+func New() Person { return Person{Name: "alice", secret: "shh"} }`)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "New()")
+		require.NoError(t, err)
+
+		// Both the exported and unexported field values must appear.
+		assert.Contains(t, res, `"alice"`)
+		assert.Contains(t, res, `"shh"`)
+	})
+
+	t.Run("qobject_single_hop_resolution", func(t *testing.T) {
+		// Contract: qobject_json returns the target object inline but any
+		// nested persisted Object stays as a RefValue — it is never
+		// recursively expanded (ADR §"Single-Hop Object Resolution"). This
+		// keeps per-query cost proportional to a single persisted blob.
+		//
+		// gno persists a `*Outer` as a chain of HeapItemValues, each its
+		// own persisted object. Qeval returns the outermost HeapItemValue's
+		// ObjectID. Fetching it must yield the HeapItemValue wrapper with a
+		// RefValue pointing onward — the wrapped StructValue must NOT be
+		// inlined in the same response.
+		pkgPath := "gno.land/r/contract/singlehop"
+		deployJSONTestPkg(t, env, ctx, addr, pkgPath, `package singlehop
+type Inner struct { V int }
+type Outer struct { Next *Inner }
+
+var inner *Inner
+var outer *Outer
+
+func init() {
+	inner = &Inner{V: 42}
+	outer = &Outer{Next: inner}
+}
+func GetOuter() *Outer { return outer }`)
+
+		evalRes, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetOuter()")
+		require.NoError(t, err)
+		hivOID := extractNestedRefValueObjectID(t, evalRes)
+		require.NotEmpty(t, hivOID)
+
+		objRes, err := env.vmk.QueryObjectJSON(env.ctx, hivOID)
+		require.NoError(t, err)
+
+		// The HeapItemValue's inner TypedValue.V must be a RefValue —
+		// proving the nested Outer struct was NOT recursively inlined.
+		assert.Contains(t, objRes, `"@type":"/gno.HeapItemValue"`)
+		assert.Contains(t, objRes, `"@type":"/gno.RefValue"`,
+			"single-hop: inner value must be a RefValue, not the expanded Outer struct")
+		assert.NotContains(t, objRes, `"@type":"/gno.StructValue"`,
+			"single-hop: Outer's StructValue body must NOT appear in this response. Got: %s", objRes)
+		// And definitely not Inner's "V":42 content (which is two hops away).
+		assert.NotContains(t, objRes, `"Fields":[{"T":{"@type":"/gno.PrimitiveType"`,
+			"single-hop: Inner's primitive field data must NOT appear")
+	})
+
+	t.Run("qobject_binary_amino_roundtrip", func(t *testing.T) {
+		// Contract: qobject_binary returns Amino-encoded bytes that a client
+		// sharing the node's type registry can decode back into a gno Value
+		// (ADR §"Amino Type Registry for qobject_binary"). The roundtrip
+		// proves: (a) type registration is complete for the kinds produced
+		// by ExportObject, and (b) single-hop semantics hold in binary too.
+		pkgPath := "gno.land/r/contract/binary"
+		deployJSONTestPkg(t, env, ctx, addr, pkgPath, `package binary
+type Item struct {
+	Name  string
+	Count int
+}
+var item = &Item{Name: "widget", Count: 7}
+func GetItem() *Item { return item }`)
+
+		evalRes, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetItem()")
+		require.NoError(t, err)
+		itemOID := extractNestedRefValueObjectID(t, evalRes)
+		require.NotEmpty(t, itemOID)
+
+		binRes, err := env.vmk.QueryObjectBinary(env.ctx, itemOID)
+		require.NoError(t, err)
+		require.NotEmpty(t, binRes)
+
+		// Decode through the shared amino registry.
+		var decoded gnolang.Value
+		require.NoError(t, amino.UnmarshalAny(binRes, &decoded),
+			"binary output must decode through the shared amino registry")
+
+		// The wrapping HeapItemValue must carry the queried ObjectID and
+		// its inner TypedValue must hold a RefValue (single-hop in binary).
+		hiv, ok := decoded.(*gnolang.HeapItemValue)
+		require.True(t, ok, "expected *HeapItemValue, got %T", decoded)
+		assert.Equal(t, itemOID, hiv.GetObjectID().String(),
+			"decoded HeapItemValue must carry the queried ObjectID")
+		_, isRef := hiv.Value.V.(gnolang.RefValue)
+		assert.True(t, isRef,
+			"single-hop: decoded inner value must be RefValue, got %T", hiv.Value.V)
+	})
+}
+
+// TestVMKeeperJSONEdgeCases exercises corners the reviewer flagged as
+// undertested: OOG, numeric extremes, nil-vs-empty collections.
+func TestVMKeeperJSONEdgeCases(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	t.Run("qeval_json_oog_infinite_loop", func(t *testing.T) {
+		// An infinite-loop expression must exhaust maxGasQuery and surface
+		// as an OutOfGasError, not panic through the ABCI handler.
+		pkgPath := "gno.land/r/edge/oogloop"
+		deployJSONTestPkg(t, env, ctx, addr, pkgPath, `package oogloop
+func Loop() int { for {} }`)
+
+		_, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "Loop()")
+		require.Error(t, err, "infinite loop must return an error, not hang or crash")
+		assert.Contains(t, err.Error(), "out of gas",
+			"expected out-of-gas error, got: %v", err)
+	})
+
+	t.Run("qobject_json_malformed_oid", func(t *testing.T) {
+		// Malformed ObjectID must surface as a structured error, not panic.
+		_, err := env.vmk.QueryObjectJSON(env.ctx, "not-a-valid-oid")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid")
+	})
+
+	t.Run("qobject_json_unknown_oid", func(t *testing.T) {
+		// Well-formed but nonexistent ObjectID → structured not-found error.
+		_, err := env.vmk.QueryObjectJSON(env.ctx,
+			"0000000000000000000000000000000000000000:999")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("int64_extremes", func(t *testing.T) {
+		// int64 min/max survive the spec's base64-in-N encoding.
+		pkgPath := "gno.land/r/edge/int64ext"
+		deployJSONTestPkg(t, env, ctx, addr, pkgPath, `package int64ext
+func Max() int64 { return 9223372036854775807 }
+func Min() int64 { return -9223372036854775808 }`)
+
+		resMax, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "Max()")
+		require.NoError(t, err)
+		// int64 max = 0x7FFFFFFFFFFFFFFF, little-endian = FF FF FF FF FF FF FF 7F
+		// base64 of that = /////////38=
+		assert.Contains(t, resMax, `"N":"/////////38="`,
+			"int64 max must encode as little-endian base64; got: %s", resMax)
+
+		resMin, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "Min()")
+		require.NoError(t, err)
+		// int64 min = 0x8000000000000000, little-endian = 00 00 00 00 00 00 00 80
+		// base64 of that = AAAAAAAAAIA=
+		assert.Contains(t, resMin, `"N":"AAAAAAAAAIA="`,
+			"int64 min must encode as little-endian base64; got: %s", resMin)
+	})
+
+	t.Run("nil_vs_empty_slice", func(t *testing.T) {
+		// nil slice and empty slice must be distinguishable in output.
+		pkgPath := "gno.land/r/edge/nilslice"
+		deployJSONTestPkg(t, env, ctx, addr, pkgPath, `package nilslice
+func Nil() []int { return nil }
+func Empty() []int { return []int{} }`)
+
+		resNil, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "Nil()")
+		require.NoError(t, err)
+		resEmpty, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "Empty()")
+		require.NoError(t, err)
+
+		// A nil slice has no V field (amino omitempty); empty has a
+		// SliceValue with Length "0".
+		assert.NotContains(t, resNil, `"@type":"/gno.SliceValue"`,
+			"nil slice should not carry a SliceValue; got: %s", resNil)
+		assert.Contains(t, resEmpty, `"@type":"/gno.SliceValue"`,
+			"empty slice must carry a SliceValue; got: %s", resEmpty)
+		assert.Contains(t, resEmpty, `"Length":"0"`)
+	})
+
+	t.Run("empty_map", func(t *testing.T) {
+		// Empty map round-trips as a MapValue with an empty list.
+		pkgPath := "gno.land/r/edge/emptymap"
+		deployJSONTestPkg(t, env, ctx, addr, pkgPath, `package emptymap
+func M() map[string]int { return map[string]int{} }`)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "M()")
+		require.NoError(t, err)
+		assert.Contains(t, res, `"@type":"/gno.MapValue"`)
+		// No MapListItem entries.
+		assert.NotContains(t, res, `"@type":"/gno.MapListItem"`,
+			"empty map should have no MapListItem entries; got: %s", res)
+	})
 }
 
 // extractNestedRefValueObjectID extracts the first nested ObjectID from a JSON response.
