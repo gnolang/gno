@@ -34,7 +34,7 @@ FUZZTIME ?= 1h
 # Exits non-zero if either fuzzer reports a failure.
 fuzz:
 	@echo "=== Running property and coverage fuzzers in parallel for $(FUZZTIME) ==="
-	@AMINO_FUZZ_BUDGET=$(FUZZTIME) go test -v ./... -run 'TestCodec(Struct|Def|AminoTags)' -timeout=0 > /tmp/amino-property-fuzz.log 2>&1 & P1=$$!; \
+	@AMINO_FUZZ_BUDGET=$(FUZZTIME) go test -v -count=1 ./... -run 'TestCodec(Struct|Def|AminoTags)' -timeout=0 > /tmp/amino-property-fuzz.log 2>&1 & P1=$$!; \
 	go test ./tests/fuzz/binary/ -fuzz=FuzzUnmarshalBinary2 -fuzztime=$(FUZZTIME) -timeout=0 > /tmp/amino-coverage-fuzz.log 2>&1 & P2=$$!; \
 	wait $$P1; E1=$$?; \
 	wait $$P2; E2=$$?; \
