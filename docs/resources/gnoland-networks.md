@@ -2,11 +2,11 @@
 
 ## Network configurations
 
-| Network | RPC Endpoint                             |  Chain ID  |
-|---------|------------------------------------------|------------|
-| Betanet | https://rpc.gno.land:443                 | `gnoland1` |
-| Staging | https://rpc.staging.gno.land:443         | `staging`  |
-| Test11  | https://rpc.test11.testnets.gno.land:443 | `test11`   |
+| Network           | RPC Endpoint                             |  Chain ID    |
+|-------------------|------------------------------------------|--------------|
+| Betanet (current) | https://rpc.gno.land:443                 | `gnoland1`   |
+| Staging           | https://rpc.staging.gno.land:443         | `staging`    |
+| Test11            | https://rpc.test11.testnets.gno.land:443 | `test11`     |
 
 ### WebSocket endpoints
 
@@ -151,7 +151,7 @@ These testnets are deprecated and currently serve as archives of previous progre
 
 ### Test10 (archive)
 
-Test9 is the testnet released on the 18th of December, 2025.
+Test10 is the testnet released on the 18th of December, 2025.
 
 ### Test9 (archive)
 

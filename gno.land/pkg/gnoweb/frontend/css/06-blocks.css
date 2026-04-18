@@ -26,16 +26,27 @@
 	font-size: var(--g-font-size-50);
 	font-weight: var(--g-font-semibold);
 	text-align: center;
-	text-decoration: none;
 
 	@media (--md) {
 		font-size: var(--g-font-size-100);
 	}
-}
 
-a.b-banner:hover {
-	opacity: 0.9;
-	text-decoration: underline;
+	& a {
+		color: inherit;
+		text-decoration: underline;
+	}
+
+	& a:hover,
+	&:is(a):hover {
+		opacity: 0.8;
+	}
+
+	& code {
+		padding: var(--g-space-0-5) var(--g-space-1);
+		border-radius: var(--g-border-radius-sm);
+		background-color: var(--s-color-bg-brand-action);
+		font-size: 0.96em;
+	}
 }
 
 /* ===== HEADER COMPONENT ===== */
@@ -895,7 +906,7 @@ a.b-banner:hover {
 			border-top: var(--s-border);
 		}
 
-		& > a {
+		& > :where(a, div) {
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
@@ -907,6 +918,15 @@ a.b-banner:hover {
 
 			.c-icon {
 				margin-inline-start: 0;
+			}
+
+			& > a {
+				flex: 1;
+				min-width: 0;
+
+				&:hover {
+					background-color: transparent;
+				}
 			}
 		}
 	}
