@@ -377,6 +377,10 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 		)
 	}
 
+	if err := validateGasReplayMode(state.GasReplayMode); err != nil {
+		return nil, err
+	}
+
 	if len(state.PastChainIDs) > 0 {
 		ctx.Logger().Info("Chain upgrade genesis replay",
 			"past_chain_ids", state.PastChainIDs,
@@ -420,9 +424,10 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 
 	// Replay genesis txs.
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
+	report := newReplayReport(state.GasReplayMode)
 
 	// Run genesis txs
-	for _, tx := range state.Txs {
+	for txIdx, tx := range state.Txs {
 		var (
 			stdTx    = tx.Tx
 			metadata = tx.Metadata
@@ -449,6 +454,13 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 				// multiple past chains during a hard fork.
 				if metadata.BlockHeight > 0 && metadata.ChainID != "" && isPastChainID(state.PastChainIDs, metadata.ChainID) {
 					ctx = ctx.WithChainID(metadata.ChainID)
+				}
+
+				// GasReplayMode="source": bypass the new VM's gas meter for
+				// historical txs so outcomes match the source chain even when
+				// gas metering changed.
+				if state.GasReplayMode == "source" && metadata.BlockHeight > 0 {
+					ctx = ctx.WithValue(auth.SkipGasMeteringKey{}, true)
 				}
 
 				return ctx
@@ -503,6 +515,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 					Log:   "genesis replay: skipped failed tx from source chain",
 				},
 			})
+			report.record(txIdx, metadata, 0, 0, replayCategorySkippedFailed, nil)
 			continue
 		}
 
@@ -521,6 +534,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 			GasWanted:    res.GasWanted,
 			GasUsed:      res.GasUsed,
 		})
+		report.recordDeliverResult(txIdx, metadata, res)
 
 		cfg.GenesisTxResultHandler(ctx, stdTx, res)
 	}
@@ -530,6 +544,8 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 			"initial_height", reqInitialHeight,
 		)
 	}
+
+	report.emit(ctx.Logger())
 
 	return txResponses, nil
 }
