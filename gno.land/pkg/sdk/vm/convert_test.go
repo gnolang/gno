@@ -3,7 +3,6 @@ package vm
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -176,8 +175,10 @@ var Value error = &panicError{}`
 		require.Contains(t, rep, `"results"`)
 	})
 
-	t.Run("out_of_gas_error_method", func(t *testing.T) {
-		// Use a machine with a very tight gas limit so .Error() exhausts it.
+	t.Run("out_of_gas_error_method_graceful_degrade", func(t *testing.T) {
+		// When .Error() runs out of gas, tryGetError must graceful-degrade
+		// (no @error) rather than re-panicking — re-panicking would discard
+		// the successful Results JSON that was already computed.
 		m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
 			PkgPath:  "testdata",
 			GasMeter: stypes.NewGasMeter(100_000),
@@ -206,23 +207,15 @@ var Value error = &gasError{}`
 		tv := tps[0]
 		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv.T}}}
 
-		// stringifyJSONResults should re-panic with OutOfGasError
-		require.Panics(t, func() {
-			stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
+		// Must NOT panic. Results must be present. @error must be absent.
+		var rep string
+		require.NotPanics(t, func() {
+			rep = stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
 		})
-
-		// Verify it's specifically an OOG panic
-		func() {
-			defer func() {
-				r := recover()
-				require.NotNil(t, r)
-				err, ok := r.(error)
-				require.True(t, ok, "panic should be an error")
-				var oog stypes.OutOfGasError
-				require.True(t, errors.As(err, &oog), "panic should be OutOfGasError, got: %v", err)
-			}()
-			stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
-		}()
+		require.Contains(t, rep, `"results":`,
+			"results payload must be preserved even when .Error() OOGs")
+		require.NotContains(t, rep, `"@error"`,
+			"@error must be omitted on OOG in .Error() — graceful degrade")
 	})
 }
 

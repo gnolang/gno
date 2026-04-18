@@ -5,6 +5,7 @@ package vm
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	goerrors "errors"
 	"fmt"
 	"io"
@@ -1322,8 +1323,18 @@ func (vm *VMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string,
 		return "", err
 	}
 
-	result := fmt.Sprintf(`{"objectid":%q,"value":%s}`, oidStr, string(jsonBytes))
-	return result, nil
+	// Build the envelope via json.Marshal rather than fmt.Sprintf %q so
+	// the objectid string is JSON-escaped (not Go-escaped). %q can emit
+	// \v and other Go-only escapes that are invalid JSON.
+	envelope := struct {
+		ObjectID string          `json:"objectid"`
+		Value    json.RawMessage `json:"value"`
+	}{ObjectID: oidStr, Value: jsonBytes}
+	out, err := json.Marshal(envelope)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }
 
 // QueryObjectBinary retrieves an object by ObjectID and returns its Amino binary representation.

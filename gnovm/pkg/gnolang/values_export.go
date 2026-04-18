@@ -232,6 +232,15 @@ func exportCopyValue(val Value, seen map[Object]int) Value {
 			Crossing:   cv.Crossing,
 		}
 	case *BoundMethodValue:
+		// cv.Func is typed *FuncValue, not Value, so it can't carry a
+		// RefValue/ExportRefValue back-reference. This mirrors realm.go's
+		// copyValueWithRefs pattern. Safe because a BoundMethodValue holds
+		// a unique, freshly-constructed FuncValue instance that is not
+		// shared with any other traversal path (BoundMethodValue is
+		// created at bind time, not deduplicated). If that invariant ever
+		// changes, this branch would re-expand a shared FuncValue inline
+		// instead of emitting an ExportRefValue — the exported output
+		// would still be correct, just potentially larger.
 		fnc := exportCopyValue(cv.Func, seen).(*FuncValue)
 		rtv := exportValue(cv.Receiver, seen)
 		return &BoundMethodValue{

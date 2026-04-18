@@ -73,6 +73,20 @@ process is:
 }
 ```
 
+`RefValue` fields — whether appearing inline in `qeval_json` output or as a
+child reference inside a `qobject_json` body — carry `ObjectID`, `Hash`,
+and (when relevant) `Escaped`:
+```json
+{
+  "@type": "/gno.RefValue",
+  "ObjectID": "68fac97482b733b2035b59fff3b5e13f0e453257:4",
+  "Hash": "7bab3bb08b98414b4c8d41ecbcad91827c60a990"
+}
+```
+`Hash` is the content hash at the time of export; clients that cache
+sub-object responses should key by `(ObjectID, Hash)` pairs to detect
+realm-level mutations between queries.
+
 ### Value Encoding
 
 - **Primitives** (int, bool, float, etc.): Stored in the `N` field as base64-encoded
@@ -148,10 +162,34 @@ self-describing via `@type` discriminators.
 
 ### Error Extraction
 
-If the function signature's last return type implements `error`, the `@error`
-field is populated by calling `.Error()` on the value. This call is panic-safe:
-- Out-of-gas panics are re-panicked for proper gas accounting
-- Other panics (buggy `.Error()` methods) are caught; `@error` is omitted
+`@error` is populated by calling `.Error()` on the last return value when it
+implements the error interface. Two detection paths exist:
+
+1. **Signature-based (preferred):** when the function signature is available,
+   the ADR check is `IsErrorType(lastReturnType)` on the declared return.
+   Used when the caller can supply a `FuncType` (e.g. from a resolved `Call`
+   expression).
+
+2. **Value-based (fallback):** when no signature is available — `qeval_json`
+   takes this path, since it evaluates an arbitrary expression without a
+   pre-resolved function type — the check is `tv.ImplError()` on the runtime
+   value's type.
+
+The two agree in almost all cases. They can differ only when the declared
+return is an interface type that implements `error` but the evaluated value
+has a concrete type that does not (e.g. via an explicit interface
+conversion). This is a rare, mostly theoretical case.
+
+The `.Error()` call is panic-safe in the following ways:
+
+- **Out-of-gas in `.Error()`:** the already-computed `results` payload is
+  preserved and `@error` is omitted (graceful degrade). The query does not
+  fail just because the optional error-extraction step ran out of gas.
+- **Other panics in `.Error()`:** same graceful degrade — e.g. a typed-nil
+  pointer receiver that nil-derefs, or a user-bug panic inside `.Error()`.
+
+`@error` is best-effort: its absence means either the last return does not
+implement `error`, the value was nil, or `.Error()` itself failed.
 
 ### Object Graph Traversal
 
@@ -174,6 +212,34 @@ visit to an ephemeral Object expands it inline and assigns it
 to the same Object emits `ExportRefValue{":N"}` with the ID assigned on first
 visit.
 
+**Which value kinds count as ephemeral Objects.** The counter is bumped for
+every visit to an in-gno `Object` (the internal gno interface implemented by
+persisted or persistable values), specifically:
+
+- `*HeapItemValue` — the per-allocation heap slot, wrapping any heap-held
+  value. In gno, a `*T` is typically represented by a `PointerValue` whose
+  `Base` is a `*HeapItemValue` that in turn holds the `*T`'s body. **Both
+  the heap slot and the body get their own counter slot.**
+- `*StructValue`
+- `*ArrayValue` (when it holds non-byte elements)
+- `*SliceValue`'s `Base` (an `*ArrayValue`)
+- `*MapValue`
+- `*BoundMethodValue`
+- `*FuncValue` (the exporter counts these; see the code comment at the
+  BoundMethodValue branch for one caveat)
+- `*Block`
+- `*PackageValue` (converted to `RefValue{PkgPath}`, no counter slot)
+
+Primitives (`StringValue`, `BigintValue`, `BigdecValue`, numeric-in-N) are
+NOT Objects and do not bump the counter.
+
+**Consequence for consumers:** a user-visible `*T` pointer chain of length
+K produces 2K counter slots, because each `*T` materializes as a
+`HeapItemValue` + `StructValue` pair. A consumer that walks only
+`StructValue` occurrences to resolve `:N` will miscount. The correct
+algorithm is to count every `@type` that matches one of the Object kinds
+above, in the traversal order below.
+
 Traversal order matches the declaration order of the underlying values:
 - `[]TypedValue` result slices, left to right
 - `StructValue.Fields`, in declared field order
@@ -185,10 +251,10 @@ Traversal order matches the declaration order of the underlying values:
 - `FuncValue.Captures`, then `FuncValue.Parent`
 
 To resolve `:N` back to its inline expansion, a consumer walks the exported
-tree in this same order, counts each inline ephemeral Object as it is
-encountered, and looks up the Nth one. Persisted `RefValue{ObjectID: "hash:N"}`
-references are not part of this counter — they are resolved separately via
-`qobject`.
+tree in this same order, counts each inline ephemeral Object (per the kind
+list above) as it is encountered, and looks up the Nth one. Persisted
+`RefValue{ObjectID: "hash:N"}` references are not part of this counter —
+they are resolved separately via `qobject`.
 
 ## Consequences
 

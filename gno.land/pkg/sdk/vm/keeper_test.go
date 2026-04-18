@@ -2268,6 +2268,43 @@ func GetError() error { return nil }`
 			"nil error should not produce an @error field; got: %s", res)
 	})
 
+	t.Run("oog_in_error_method_graceful_degrade", func(t *testing.T) {
+		// Contract: if the result's .Error() method exhausts gas, the query
+		// must still return the successful Results JSON. The @error field
+		// is best-effort — on OOG we drop it rather than destroying results.
+		pkgPath := "gno.land/r/test/oogerror"
+		pkgBody := `package oogerror
+
+type BigErr struct{}
+
+func (e *BigErr) Error() string {
+	// Consume a lot of gas to try to exhaust the per-query meter.
+	s := ""
+	for i := 0; i < 1000000; i++ {
+		s += "x"
+	}
+	return s
+}
+
+func GetError() error { return &BigErr{} }`
+
+		files := []*std.MemFile{
+			{Name: "a.gno", Body: pkgBody},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		}
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		require.NoError(t, env.vmk.AddPackage(ctx, msg))
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetError()")
+		require.NoError(t, err,
+			"OOG in .Error() must not fail the query; results should be preserved")
+		assert.Contains(t, res, `"results":`,
+			"results payload must be present")
+		assert.NotContains(t, res, `"@error"`,
+			"OOG in .Error() must graceful-degrade — @error omitted")
+	})
+
 	t.Run("typed_nil_error_graceful_degrade", func(t *testing.T) {
 		// A non-nil error interface wrapping a typed-nil concrete pointer:
 		//   var e *MyErr = nil; return e
