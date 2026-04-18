@@ -2260,19 +2260,18 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 }
 
 func readonlyAccessPanic(x Expr) string {
-	return "cannot directly modify readonly tainted object (w/o method): " + x.String()
+	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }
 
-// Returns true iff:
-//   - m.Realm is nil (single user mode), or
+// Returns false if m.Realm is nil (single user mode, nothing is readonly).
+// Otherwise returns true iff:
 //   - tv is a ref to (external) package path, or
 //   - tv is N_Readonly, or
 //   - tv is not an object ("first object" ID is zero), or
 //   - tv is an unreal object (no object id), or
 //   - tv is an object residing in external realm
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
-	// Returns true iff:
-	//  - m.Realm is nil (single user mode)
+	//  m.Realm is nil → single user mode, nothing is readonly
 	if m.Realm == nil {
 		return false
 	}
@@ -2291,9 +2290,26 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	return tv.IsReadonlyBy(m.Realm.ID)
 }
 
+// isExternalRealm returns true if base is a real Object belonging to
+// a different realm than m.Realm. Used for NameExpr cross-realm checks
+// where we have a Base (Block) rather than a TypedValue.
+func (m *Machine) isExternalRealm(base Value) bool {
+	if m.Realm == nil {
+		return false
+	}
+	obj, ok := base.(Object)
+	if !ok {
+		return false
+	}
+	oid := obj.GetObjectID()
+	if oid.IsZero() {
+		return false // transient (local var, unreal block)
+	}
+	return oid.PkgID != m.Realm.ID
+}
+
 // Returns ro = true if the base is readonly,
 // or if the base's storage realm != m.Realm and both are non-nil,
-// and the lx isn't a name (base is a block),
 // and the lx isn't a composite lit expr.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
@@ -2302,11 +2318,11 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		case NameExprTypeNormal:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
+			ro = m.isExternalRealm(pv.Base)
 		case NameExprTypeHeapUse:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
+			ro = m.isExternalRealm(pv.Base)
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
@@ -2350,7 +2366,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			Base:  hv,
 			Index: 0,
 		}
-		ro = false // always mutable
+		ro = false // always mutable; composite literals are freshly allocated (unreal) values not yet owned by any realm.
 	default:
 		panic("should not happen")
 	}

@@ -28,7 +28,7 @@ loadpkg gno.land/r/foo/firstrealm $WORK/firstrealm
 gnoland start
 
 # call to firstrealm without -send: both APIs return empty in all realms
-gnokey maketx call -pkgpath gno.land/r/foo/firstrealm -func GetSentCoins -gas-fee 1000000ugnot -gas-wanted 3000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo/firstrealm -func GetSentCoins -gas-fee 1000000ugnot -gas-wanted 3000000 -chainid=tendermint_test test1
 stdout '("firstrealm\[realm.SentCoins: , banker.OriginSend: \] secondrealm\[realm.SentCoins: , banker.OriginSend: \] firstrealm\(reentrant\)\[realm.SentCoins: , banker.OriginSend: \]")'
 
 ## firstrealm balance: no coins sent
@@ -40,7 +40,7 @@ gnokey query auth/accounts/g17xvzxkz7lqm2mtmw3tvq0ajgx79phg24h60a9x
 stdout '"coins": ""'
 
 # call to firstrealm with -send
-gnokey maketx call -send 42ugnot -pkgpath gno.land/r/foo/firstrealm -func GetSentCoins -gas-fee 1000000ugnot -gas-wanted 3000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -send 42ugnot -pkgpath gno.land/r/foo/firstrealm -func GetSentCoins -gas-fee 1000000ugnot -gas-wanted 3000000 -chainid=tendermint_test test1
 # realm.SentCoins() is tied to the realm address, not the call order: firstrealm
 # sees the coins in both its initial and re-entrant invocations because it is
 # the tx recipient either way. secondrealm never sees them.
