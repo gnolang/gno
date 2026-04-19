@@ -78,7 +78,7 @@ stdout OK!
           }
         ]
       },
-      "deposit": ""
+      "send": ""
     }
   ],
   "fee": {

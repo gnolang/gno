@@ -76,8 +76,19 @@ fmt:
 
 ########################################
 # Test suite
-.PHONY: test
-test: _test.help _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
+SHELL := bash
+
+.PHONY: test test.inner
+test:
+	@log=$$(mktemp); \
+	set -o pipefail; $(MAKE) test.inner 2>&1 | tee "$$log"; status=$$?; \
+	if [ $$status -ne 0 ]; then \
+		echo; echo "==== Failing tests ===="; \
+		grep -E '^(--- FAIL|FAIL\t|panic:)' "$$log" || true; \
+	fi; \
+	rm -f "$$log"; exit $$status
+
+test.inner: _test.help _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
 
 _test.help:
 	@echo "run \`INMEMORY_TS=true make test\` if you encounter 'context deadline exceeded' for non-parallel testing"

@@ -83,7 +83,7 @@ import (
           }
         ]
       },
-      "deposit": ""
+      "send": ""
     }
   ],
   "fee": {
