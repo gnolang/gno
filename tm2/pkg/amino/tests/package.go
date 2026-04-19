@@ -96,6 +96,11 @@ var Package = pkg.NewPackage(
 	FuzzNilElements{},
 	FuzzFixedInt{},
 	FuzzContainsAminoMarshaler{},
+	// AminoMarshaler list element types.
+	SimpleAddress{},
+	HostRepr{},
+	CounterRepr(0),
+	ContainerWithAminoLists{},
 	// Interface-heavy benchmark type.
 	InterfaceHeavy{},
 )

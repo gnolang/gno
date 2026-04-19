@@ -3,8 +3,10 @@ package genproto2
 import (
 	"go/parser"
 	"go/token"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
@@ -42,5 +44,193 @@ func TestGenerateProtobuf3(t *testing.T) {
 		if !strings.Contains(src, want) {
 			t.Errorf("generated source missing expected substring: %q", want)
 		}
+	}
+}
+
+// TestGoTypeName_NamedTypes verifies that goTypeName returns the named-type
+// form (e.g. "IntAr", "crypto.Address") rather than the structural form
+// ("[4]int", "[20]uint8") for named types whose underlying kind is array,
+// slice, map, or primitive.
+//
+// Regression: without the named-type check at the top of goTypeName, a
+// named `[4]byte` (e.g. crypto.Address) would be rendered as "[4]uint8" in
+// generated code, which silently loses the type identity needed for method
+// resolution (e.g. MarshalAmino).
+func TestGoTypeName_NamedTypes(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	ctx.targetPkgPath = "github.com/gnolang/gno/tm2/pkg/amino/tests"
+
+	cases := []struct {
+		name string
+		rt   reflect.Type
+		want string
+		desc string
+	}{
+		{
+			name: "SamePkgNamedInt",
+			rt:   reflect.TypeOf(tests.IntDef(0)),
+			want: "IntDef",
+			desc: "same-package named int should use IntDef, not int",
+		},
+		{
+			name: "SamePkgNamedIntArray",
+			rt:   reflect.TypeOf(tests.IntAr{}),
+			want: "IntAr",
+			desc: "same-package named [4]int should use IntAr, not [4]int",
+		},
+		{
+			name: "SamePkgNamedIntSlice",
+			rt:   reflect.TypeOf(tests.IntSl(nil)),
+			want: "IntSl",
+			desc: "same-package named []int should use IntSl, not []int",
+		},
+		{
+			name: "SamePkgNamedByteArray",
+			rt:   reflect.TypeOf(tests.ByteAr{}),
+			want: "ByteAr",
+			desc: "same-package named [4]byte should use ByteAr, not [4]uint8",
+		},
+		{
+			name: "SamePkgNamedByteSlice",
+			rt:   reflect.TypeOf(tests.ByteSl(nil)),
+			want: "ByteSl",
+			desc: "same-package named []byte should use ByteSl, not []byte",
+		},
+		{
+			name: "SamePkgNamedStruct",
+			rt:   reflect.TypeOf(tests.PrimitivesStructDef{}),
+			want: "PrimitivesStructDef",
+			desc: "same-package named struct should use its name",
+		},
+		{
+			name: "SamePkgNamedByteArrayAminoMarshaler",
+			rt:   reflect.TypeOf(tests.SimpleAddress{}),
+			want: "SimpleAddress",
+			desc: "named [20]byte AminoMarshaler (like crypto.Address) should use name, not [20]uint8 — this is the primary regression case",
+		},
+		{
+			name: "AnonymousByteSlice",
+			rt:   reflect.TypeOf([]byte(nil)),
+			want: "[]uint8",
+			desc: "anonymous []byte has no name; reflect sees []uint8 (byte is an alias)",
+		},
+		{
+			name: "AnonymousIntSlice",
+			rt:   reflect.TypeOf([]int(nil)),
+			want: "[]int",
+			desc: "anonymous []int has no name, structural",
+		},
+		{
+			name: "PointerToNamedType",
+			rt:   reflect.TypeOf((*tests.IntDef)(nil)),
+			want: "*IntDef",
+			desc: "pointer to named type should prefix *",
+		},
+		{
+			name: "SliceOfNamedType",
+			rt:   reflect.TypeOf([]tests.IntDef(nil)),
+			want: "[]IntDef",
+			desc: "slice of named type uses element name",
+		},
+		{
+			name: "ArrayOfNamedType",
+			rt:   reflect.TypeOf([4]tests.IntDef{}),
+			want: "[4]IntDef",
+			desc: "array of named type uses element name",
+		},
+		{
+			name: "EmptyInterface",
+			rt:   reflect.TypeOf((*any)(nil)).Elem(),
+			want: "any",
+			desc: "empty interface should be 'any'",
+		},
+		{
+			name: "TimeTime",
+			rt:   reflect.TypeOf(time.Time{}),
+			want: "time.Time",
+			desc: "time.Time is special-cased",
+		},
+		{
+			name: "TimeDuration",
+			rt:   reflect.TypeOf(time.Duration(0)),
+			want: "time.Duration",
+			desc: "time.Duration is special-cased",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ctx.goTypeName(tc.rt)
+			if got != tc.want {
+				t.Errorf("goTypeName(%v) = %q, want %q\n%s", tc.rt, got, tc.want, tc.desc)
+			}
+		})
+	}
+}
+
+// TestGoTypeName_NamedByteArrayRegression is the canary for the primary bug:
+// if someone removes the named-type early-return in goTypeName, this test
+// will fail first and clearly point at the issue (named [N]byte rendered
+// as [N]uint8 in generated code, which breaks method calls like MarshalAmino).
+func TestGoTypeName_NamedByteArrayRegression(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	ctx.targetPkgPath = "github.com/gnolang/gno/tm2/pkg/amino/tests"
+
+	rt := reflect.TypeOf(tests.ByteAr{}) // [4]byte
+	got := ctx.goTypeName(rt)
+
+	if got == "[4]uint8" || got == "[4]byte" {
+		t.Fatalf("REGRESSION: goTypeName returned structural %q for named type ByteAr. "+
+			"The named-type early-return in goTypeName was likely removed. "+
+			"This causes generated code like `var ev [4]uint8` where the named-type "+
+			"ByteAr was expected, silently dropping method dispatch.", got)
+	}
+	if got != "ByteAr" {
+		t.Errorf("goTypeName(ByteAr) = %q, want %q", got, "ByteAr")
+	}
+}
+
+// TestGenerateProtobuf3_UsesNamedTypes is an integration check that the
+// generated source uses the named type (e.g. "SimpleAddress") and not the
+// structural form ("[20]uint8") for AminoMarshaler-backed named arrays.
+func TestGenerateProtobuf3_UsesNamedTypes(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// SimpleAddress is [20]byte; generated code for []SimpleAddress should
+	// declare `var ev SimpleAddress`, not `var ev [20]uint8`.
+	if !strings.Contains(src, "SimpleAddress") {
+		t.Errorf("generated source should reference named type SimpleAddress")
+	}
+	if strings.Contains(src, "var ev [20]uint8") {
+		t.Errorf("generated source contains structural [20]uint8 where named SimpleAddress was expected")
+	}
+
+	// ByteAr is [4]byte. Generated code should use ByteAr, not [4]uint8.
+	if !strings.Contains(src, "ByteAr") {
+		t.Errorf("generated source should reference named type ByteAr")
+	}
+
+	// Syntactic validity.
+	fset := token.NewFileSet()
+	if _, err := parser.ParseFile(fset, "pb3_gen.go", src, parser.AllErrors); err != nil {
+		t.Fatalf("generated source does not parse: %v", err)
 	}
 }

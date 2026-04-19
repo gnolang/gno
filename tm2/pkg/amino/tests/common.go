@@ -353,6 +353,67 @@ func (re *ReprElem7) UnmarshalAmino(u uint8) error {
 }
 
 // ----------------------------------------
+// SimpleAddress: [20]byte with string repr (mimics crypto.Address).
+// Exercises AminoMarshaler elements inside slices/arrays/pointer-slices.
+
+type SimpleAddress [20]byte
+
+func (a SimpleAddress) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%x", a[:]), nil
+}
+
+func (a *SimpleAddress) UnmarshalAmino(repr string) error {
+	if len(repr) != 40 {
+		return fmt.Errorf("invalid SimpleAddress length: %d", len(repr))
+	}
+	for i := 0; i < 20; i++ {
+		var b byte
+		if _, err := fmt.Sscanf(repr[i*2:i*2+2], "%02x", &b); err != nil {
+			return err
+		}
+		a[i] = b
+	}
+	return nil
+}
+
+// HostRepr: AminoMarshaler with []byte repr. Exercises primitiveValueSizeExpr
+// ByteSlice path in the list-element size calculation.
+
+type HostRepr struct {
+	IP string
+}
+
+func (hr HostRepr) MarshalAmino() ([]byte, error) {
+	return []byte(hr.IP), nil
+}
+
+func (hr *HostRepr) UnmarshalAmino(repr []byte) error {
+	hr.IP = string(repr)
+	return nil
+}
+
+// CounterRepr: AminoMarshaler with uint8 repr. Exercises the packed list
+// branch for AminoMarshaler elements. Non-lossy: underlying type is also uint8.
+
+type CounterRepr uint8
+
+func (c CounterRepr) MarshalAmino() (uint8, error) {
+	return uint8(c), nil
+}
+
+func (c *CounterRepr) UnmarshalAmino(repr uint8) error {
+	*c = CounterRepr(repr)
+	return nil
+}
+
+// ContainerWithAminoLists: various list shapes of AminoMarshaler elements.
+
+type ContainerWithAminoLists struct {
+	Addrs    []SimpleAddress  // slice, string repr
+	TopAddrs [3]SimpleAddress // array, string repr
+}
+
+// ----------------------------------------
 
 type ComplexSt struct {
 	PrField PrimitivesStruct
@@ -437,6 +498,9 @@ var StructTypes = []any{
 	(*FuzzUnsafeFloat)(nil),
 	(*FuzzFixedInt)(nil),
 	(*FuzzContainsAminoMarshaler)(nil),
+	// AminoMarshaler list element types (slice/array of AminoMarshaler with
+	// various repr kinds). Exercises gen_marshal/gen_unmarshal/gen_size fixes.
+	(*ContainerWithAminoLists)(nil),
 	// Interface-heavy benchmark type.
 	(*InterfaceHeavy)(nil),
 }

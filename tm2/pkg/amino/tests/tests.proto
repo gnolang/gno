@@ -549,6 +549,23 @@ message FuzzContainsAminoMarshaler {
 	AminoMarshalerStruct1 am = 1 [json_name = "AM"];
 }
 
+message SimpleAddress {
+	string value = 1;
+}
+
+message HostRepr {
+	bytes value = 1;
+}
+
+message CounterRepr {
+	uint32 value = 1;
+}
+
+message ContainerWithAminoLists {
+	repeated string addrs = 1 [json_name = "Addrs"];
+	repeated string top_addrs = 2 [json_name = "TopAddrs"];
+}
+
 message InterfaceHeavy {
 	google.protobuf.Any field1 = 1 [json_name = "Field1"];
 	google.protobuf.Any field2 = 2 [json_name = "Field2"];
