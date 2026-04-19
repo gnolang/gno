@@ -98,6 +98,33 @@ func TestUnmarshalDoublePointer_Roundtrip(t *testing.T) {
 	assert.Equal(t, orig.Byte, dst.Byte)
 }
 
+// TestMarshalBareValue_Genproto2 verifies that Marshal(val) where val
+// is bare T (not *T) now hits the genproto2 fast path via PBMarshaler2.
+func TestMarshalBareValue_Genproto2(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	orig := tests.PrimitivesStruct{Int8: 42, Str: "bare"}
+
+	g2before := atomic.LoadInt64(&cdc.GetStats().Genproto2Encodes)
+
+	// Pass bare value, not pointer.
+	bz, err := cdc.Marshal(orig)
+	require.NoError(t, err)
+	require.NotEmpty(t, bz)
+
+	g2after := atomic.LoadInt64(&cdc.GetStats().Genproto2Encodes)
+	assert.Equal(t, g2before+1, g2after, "bare T should use genproto2 via PBMarshaler2")
+
+	// Verify bytes match pointer-based marshal.
+	bz2, err := cdc.Marshal(&orig)
+	require.NoError(t, err)
+	assert.Equal(t, bz, bz2, "bare T and *T should produce identical bytes")
+}
+
 // TestUnmarshalSinglePointer_StillWorks verifies that the normal
 // *T pattern is unaffected by the **T peel.
 func TestUnmarshalSinglePointer_StillWorks(t *testing.T) {

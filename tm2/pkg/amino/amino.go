@@ -411,19 +411,24 @@ func (cdc *Codec) Marshal(o any) ([]byte, error) {
 	cdc.doAutoseal()
 
 	// Try genproto2 direct encoding (fastest path).
+	// Use PBMarshaler2 (not PBMessager2) so bare values T (not just *T)
+	// hit the fast path — MarshalBinary2 and SizeBinary2 have value receivers.
 	// Check HasNativeGenproto2 to avoid using promoted methods from embedded structs.
-	if pbm2, ok := o.(PBMessager2); ok && HasNativeGenproto2(reflect.TypeOf(o)) {
+	if pbm2, ok := o.(PBMarshaler2); ok && HasNativeGenproto2(reflect.TypeOf(o)) {
+		atomic.AddInt64(&cdc.stats.Genproto2Encodes, 1)
 		return cdc.MarshalBinary2(pbm2)
 	}
 
 	if cdc.usePBBindings {
 		pbm, ok := o.(PBMessager)
 		if ok && HasNativePbbindings(reflect.TypeOf(o)) {
+			atomic.AddInt64(&cdc.stats.PbbindingsEncodes, 1)
 			return cdc.MarshalPBBindings(pbm)
 		}
 		// Else, fall back to using reflection for native primitive types.
 	}
 
+	atomic.AddInt64(&cdc.stats.ReflectEncodes, 1)
 	return cdc.MarshalReflect(o)
 }
 
@@ -497,7 +502,7 @@ func (cdc *Codec) MarshalPBBindings(pbm PBMessager) ([]byte, error) {
 }
 
 // Use genproto2 direct encoding.
-func (cdc *Codec) MarshalBinary2(pbm2 PBMessager2) ([]byte, error) {
+func (cdc *Codec) MarshalBinary2(pbm2 PBMarshaler2) ([]byte, error) {
 	n, err := pbm2.SizeBinary2(cdc)
 	if err != nil {
 		return nil, err

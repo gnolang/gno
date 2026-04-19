@@ -192,9 +192,12 @@ type Codec struct {
 	stats              codecStats
 }
 
-// codecStats records how many decodes went through each path.
+// codecStats records how many encodes/decodes went through each path.
 // All fields are atomically updated and safe for concurrent use.
 type codecStats struct {
+	Genproto2Encodes  int64
+	PbbindingsEncodes int64
+	ReflectEncodes    int64
 	Genproto2Decodes  int64
 	PbbindingsDecodes int64
 	ReflectDecodes    int64
