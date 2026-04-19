@@ -3,9 +3,9 @@
 package bank
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"reflect"
 )
 
@@ -374,4 +374,3 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 	}
 	return nil
 }
-

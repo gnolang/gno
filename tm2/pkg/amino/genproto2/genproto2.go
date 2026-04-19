@@ -5,6 +5,7 @@ package genproto2
 
 import (
 	"fmt"
+	"go/format"
 	"os"
 	"path"
 	"reflect"
@@ -132,7 +133,14 @@ func (ctx *P3Context2) GenerateProtobuf3ForTypes(pkg string, rtz ...reflect.Type
 
 	sb.WriteString(body.String())
 
-	return sb.String(), nil
+	// Run through go/format so the returned source is always gofmt-clean
+	// regardless of any hand-written indentation in the sb.WriteString calls.
+	src := sb.String()
+	formatted, err := format.Source([]byte(src))
+	if err != nil {
+		return "", fmt.Errorf("gofmt generated source: %w", err)
+	}
+	return string(formatted), nil
 }
 
 // WriteProtobuf3 generates pb3_gen.go in the package's directory.

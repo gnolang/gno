@@ -3,10 +3,10 @@
 package multisig
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"reflect"
 )
 
@@ -139,4 +139,3 @@ func (goo *PubKeyMultisigThreshold) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 	}
 	return nil
 }
-

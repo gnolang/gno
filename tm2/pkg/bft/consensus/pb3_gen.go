@@ -3,15 +3,15 @@
 package consensus
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/bitarray"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/bitarray"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"reflect"
 	"time"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
 var _ fmt.Stringer
@@ -1279,4 +1279,3 @@ func (goo *timeoutInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 	}
 	return nil
 }
-

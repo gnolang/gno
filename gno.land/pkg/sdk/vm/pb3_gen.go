@@ -3,12 +3,12 @@
 package vm
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
-	"reflect"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"reflect"
 )
 
 var _ fmt.Stringer
@@ -1132,4 +1132,3 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 	}
 	return nil
 }
-

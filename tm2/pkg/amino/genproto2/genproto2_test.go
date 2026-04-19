@@ -1,6 +1,7 @@
 package genproto2
 
 import (
+	"go/format"
 	"go/parser"
 	"go/token"
 	"reflect"
@@ -232,6 +233,43 @@ func TestGenerateProtobuf3_UsesNamedTypes(t *testing.T) {
 	fset := token.NewFileSet()
 	if _, err := parser.ParseFile(fset, "pb3_gen.go", src, parser.AllErrors); err != nil {
 		t.Fatalf("generated source does not parse: %v", err)
+	}
+}
+
+// TestGenerateProtobuf3_GofmtIdempotent verifies that generated source is
+// already gofmt-formatted. A regression that emits misaligned indentation
+// (e.g. passing the wrong indent to writeByteFieldSizeCheck) is caught by
+// comparing the generator's raw output against `go/format.Source` output.
+func TestGenerateProtobuf3_GofmtIdempotent(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	formatted, err := format.Source([]byte(src))
+	if err != nil {
+		t.Fatalf("go/format: %v", err)
+	}
+
+	if string(formatted) != src {
+		// Find the first line that differs to point at the regression.
+		origLines := strings.Split(src, "\n")
+		fmtLines := strings.Split(string(formatted), "\n")
+		for i := 0; i < len(origLines) && i < len(fmtLines); i++ {
+			if origLines[i] != fmtLines[i] {
+				t.Errorf("generated source not gofmt-idempotent at line %d:\n  raw: %q\n  fmt: %q",
+					i+1, origLines[i], fmtLines[i])
+				return
+			}
+		}
+		t.Errorf("generated source not gofmt-idempotent (length differs: raw=%d fmt=%d)", len(src), len(formatted))
 	}
 }
 

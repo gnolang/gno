@@ -3,9 +3,9 @@
 package hd
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"reflect"
 )
 
@@ -133,4 +133,3 @@ func (goo *BIP44Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 	}
 	return nil
 }
-

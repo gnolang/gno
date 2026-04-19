@@ -3,9 +3,9 @@
 package abci
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	"reflect"
 	"time"
@@ -3696,4 +3696,3 @@ func (goo *MockHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth in
 	}
 	return nil
 }
-

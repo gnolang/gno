@@ -3,12 +3,12 @@
 package blockchain
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"reflect"
 	"time"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
 var _ fmt.Stringer
@@ -284,4 +284,3 @@ func (goo *bcStatusResponseMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 	}
 	return nil
 }
-

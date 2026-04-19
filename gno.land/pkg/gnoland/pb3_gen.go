@@ -3,9 +3,9 @@
 package gnoland
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"reflect"
 )
 
@@ -507,4 +507,3 @@ func (goo *GnoTxMetadata) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 	}
 	return nil
 }
-

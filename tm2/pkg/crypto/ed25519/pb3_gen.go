@@ -3,9 +3,9 @@
 package ed25519
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"reflect"
 )
 
@@ -80,4 +80,3 @@ func (goo PrivKeyEd25519) SizeBinary2(cdc *amino.Codec) (int, error) {
 func (goo *PrivKeyEd25519) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	return cdc.UnmarshalReflect(bz, goo)
 }
-

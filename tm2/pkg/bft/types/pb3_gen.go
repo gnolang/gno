@@ -3,10 +3,10 @@
 package types
 
 import (
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"reflect"
 	"time"
 )
@@ -3052,4 +3052,3 @@ func (goo *VoteSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) 
 	}
 	return nil
 }
-

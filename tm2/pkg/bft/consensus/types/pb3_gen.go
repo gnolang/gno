@@ -3,11 +3,11 @@
 package cstypes
 
 import (
+	"errors"
+	"fmt"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft_types "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/bitarray"
-	"errors"
-	"fmt"
 	"reflect"
 	"time"
 )
@@ -2002,4 +2002,3 @@ func (goo *EventTimeoutWait) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDe
 	}
 	return nil
 }
-

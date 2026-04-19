@@ -212,8 +212,10 @@ func (ctx *P3Context2) writeFieldSize(sb *strings.Builder, field amino.FieldInfo
 			sb.WriteString("\t\tif err != nil {\n\t\t\treturn 0, err\n\t\t}\n")
 			// Match MarshalBinary2's writeLengthPrefixedField: if !WriteEmpty,
 			// skip emitting field key + length when inner content is empty.
+			// writeByteFieldSizeCheck takes the OUTER block indent and adds
+			// a tab internally for the emitted statements.
 			fks := fieldKeySize(fnum, finfo.GetTyp3(fopts))
-			ctx.writeByteFieldSizeCheck(sb, fks, field.WriteEmpty, "\t\t")
+			ctx.writeByteFieldSizeCheck(sb, fks, field.WriteEmpty, "\t")
 		} else {
 			ctx.writeFieldValueSize(sb, "repr", fnum, rinfo, fopts, field.WriteEmpty, "\t\t")
 		}

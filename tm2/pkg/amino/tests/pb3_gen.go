@@ -3,10 +3,10 @@
 package tests
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/amino/tests/crosspkg"
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino/tests/crosspkg"
 	"reflect"
 	"time"
 )
@@ -15214,9 +15214,9 @@ func (goo FuzzContainsAminoMarshaler) SizeBinary2(cdc *amino.Codec) (int, error)
 		if err != nil {
 			return 0, err
 		}
-			if cs > 0 {
-				s += 1 + amino.UvarintSize(uint64(cs)) + cs
-			}
+		if cs > 0 {
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
 	}
 	return s, nil
 }
@@ -15914,4 +15914,3 @@ func (goo *InterfaceHeavy) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 	}
 	return nil
 }
-
