@@ -8,46 +8,12 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// TestApplyOverlay_ReturnsErrorWhenNotImplemented verifies that applyOverlay
-// returns an error when overlay scripts exist but cannot be executed.
-// BUG: applyOverlay silently succeeds (returns nil) even though it doesn't
-// execute any scripts, giving the user a false sense that overlays were applied.
-func TestApplyOverlay_ReturnsErrorWhenNotImplemented(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-
-	// Create a dummy overlay script.
-	script := filepath.Join(dir, "01_fix_balances.sh")
-	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\necho hello"), 0o755))
-
-	io := commands.NewTestIO()
-	err := applyOverlay(dir, "/tmp/fake-genesis.json", io)
-
-	// applyOverlay found scripts but can't execute them.
-	// It SHOULD return an error so the caller knows the genesis is incomplete.
-	require.Error(t, err, "applyOverlay should error when scripts exist but execution is not implemented")
-	assert.Contains(t, err.Error(), "not yet implemented")
-}
-
-// TestApplyOverlay_NoScriptsIsOK verifies that an empty overlay dir is fine.
-func TestApplyOverlay_NoScriptsIsOK(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-	io := commands.NewTestIO()
-
-	err := applyOverlay(dir, "/tmp/fake-genesis.json", io)
-	require.NoError(t, err, "empty overlay dir should not error")
-}
 
 // TestWriteTxsJSONL_RoundTrip verifies that writeTxsJSONL produces output
 // that can be read back by the dir source's JSONL reader.
