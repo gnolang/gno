@@ -435,11 +435,6 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 // ----------------------------------------
 // Misc.
 
-type anyWrapper struct {
-	TypeURL string          `json:"@type"`
-	Value   json.RawMessage `json:"value"`
-}
-
 func extractJSONTypeURL(bz []byte) (typeURL string, value json.RawMessage, err error) {
 	// Decode with duplicate-key detection.
 	rawMap, err := unmarshalJSONObjectNoDuplicates(bz)

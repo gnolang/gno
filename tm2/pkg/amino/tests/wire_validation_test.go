@@ -159,7 +159,9 @@ func TestUnmarshalBinary2_RejectsWrongTyp3_UnpackedListContinuation(t *testing.T
 
 // AminoMarshalerStruct1 has repr = ReprStruct1 (a struct with C int64, D int64).
 // The implicit-struct wrapping means the outer wire must be:
-//   tag(1, ByteLength) | length | inner bytes
+//
+//	tag(1, ByteLength) | length | inner bytes
+//
 // If we send tag(1, Varint), the repr-unmarshal check should reject.
 func TestUnmarshalBinary2_RejectsWrongTyp3_AminoMarshalerRepr(t *testing.T) {
 	cdc := amino.NewCodec()

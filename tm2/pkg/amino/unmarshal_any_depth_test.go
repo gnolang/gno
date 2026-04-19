@@ -127,7 +127,7 @@ func splitAnyForTest(t *testing.T, bz []byte) (string, []byte) {
 			t.Fatalf("expected Any field 2 Value, got num=%v typ=%v", fnum, typ)
 		}
 		bz = bz[n:]
-		value, n, err = DecodeByteSlice(bz)
+		value, _, err = DecodeByteSlice(bz)
 		if err != nil {
 			t.Fatalf("decode Value: %v", err)
 		}

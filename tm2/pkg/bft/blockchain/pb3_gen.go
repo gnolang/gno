@@ -5,10 +5,11 @@ package blockchain
 import (
 	"errors"
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"reflect"
 	"time"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
 var _ fmt.Stringer

@@ -5,9 +5,10 @@ package multisig
 import (
 	"errors"
 	"fmt"
+	"reflect"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"reflect"
 )
 
 var _ fmt.Stringer

@@ -5,10 +5,11 @@ package tests
 import (
 	"errors"
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/amino/tests/crosspkg"
 	"reflect"
 	"time"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino/tests/crosspkg"
 )
 
 var _ fmt.Stringer

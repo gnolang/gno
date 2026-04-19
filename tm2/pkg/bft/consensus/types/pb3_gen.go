@@ -5,11 +5,12 @@ package cstypes
 import (
 	"errors"
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft_types "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/bitarray"
-	"reflect"
-	"time"
 )
 
 var _ fmt.Stringer

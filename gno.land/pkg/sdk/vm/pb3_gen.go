@@ -5,10 +5,11 @@ package vm
 import (
 	"errors"
 	"fmt"
+	"reflect"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"reflect"
 )
 
 var _ fmt.Stringer

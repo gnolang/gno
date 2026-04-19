@@ -12,13 +12,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 )
 
-
 // Pre-generate N random instances of each type and their encoded bytes.
 const benchN = 100
 
 type benchData struct {
-	ptrs []any          // random struct pointers
-	bzs  [][]byte       // amino-encoded bytes
+	ptrs []any           // random struct pointers
+	bzs  [][]byte        // amino-encoded bytes
 	pbos []proto.Message // pbbindings proto messages (nil if not PBMessager)
 }
 
@@ -141,4 +140,3 @@ func BenchmarkDecode(b *testing.B) {
 		})
 	}
 }
-

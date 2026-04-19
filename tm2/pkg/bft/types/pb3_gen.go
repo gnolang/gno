@@ -5,10 +5,11 @@ package types
 import (
 	"errors"
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"reflect"
 	"time"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 )
 
 var _ fmt.Stringer

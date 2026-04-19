@@ -5,10 +5,11 @@ package abci
 import (
 	"errors"
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	"reflect"
 	"time"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 )
 
 var _ fmt.Stringer

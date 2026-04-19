@@ -5,13 +5,14 @@ package consensus
 import (
 	"errors"
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/bitarray"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"reflect"
-	"time"
 )
 
 var _ fmt.Stringer

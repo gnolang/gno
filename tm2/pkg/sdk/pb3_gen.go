@@ -5,8 +5,9 @@ package sdk
 import (
 	"errors"
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"reflect"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
 var _ fmt.Stringer

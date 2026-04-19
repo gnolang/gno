@@ -33,7 +33,7 @@ func TestRoundtripBinary2_PrimitivesStruct(t *testing.T) {
 		Str:         "hello",
 		Bytes:       []byte{1, 2, 3},
 		Time:        time.Unix(1234567890, 123000000).UTC(),
-		Duration:    time.Duration(5*time.Second + 500*time.Millisecond),
+		Duration:    5*time.Second + 500*time.Millisecond,
 	}
 
 	compareEncoding(t, cdc, "PrimitivesStruct", orig)
@@ -52,22 +52,22 @@ func TestRoundtripBinary2_SlicesStruct(t *testing.T) {
 	cdc.Seal()
 
 	orig := SlicesStruct{
-		Int8Sl:    []int8{1, -1, 127},
-		Int16Sl:   []int16{256, -256},
-		Int32Sl:   []int32{100000, -100000},
-		Int64Sl:   []int64{999999999, -999999999},
-		IntSl:     []int{1, 2, 3},
-		ByteSl:    []byte{0xDE, 0xAD},
-		Uint8Sl:   []uint8{1, 2, 3},
-		Uint16Sl:  []uint16{1000, 2000},
-		Uint32Sl:  []uint32{100000, 200000},
-		Uint64Sl:  []uint64{1000000, 2000000},
-		UintSl:    []uint{1, 2, 3},
-		StrSl:     []string{"hello", "world"},
-		BytesSl:   [][]byte{{1, 2}, {3, 4}},
-		TimeSl:    []time.Time{time.Unix(1000, 0).UTC(), time.Unix(2000, 0).UTC()},
+		Int8Sl:     []int8{1, -1, 127},
+		Int16Sl:    []int16{256, -256},
+		Int32Sl:    []int32{100000, -100000},
+		Int64Sl:    []int64{999999999, -999999999},
+		IntSl:      []int{1, 2, 3},
+		ByteSl:     []byte{0xDE, 0xAD},
+		Uint8Sl:    []uint8{1, 2, 3},
+		Uint16Sl:   []uint16{1000, 2000},
+		Uint32Sl:   []uint32{100000, 200000},
+		Uint64Sl:   []uint64{1000000, 2000000},
+		UintSl:     []uint{1, 2, 3},
+		StrSl:      []string{"hello", "world"},
+		BytesSl:    [][]byte{{1, 2}, {3, 4}},
+		TimeSl:     []time.Time{time.Unix(1000, 0).UTC(), time.Unix(2000, 0).UTC()},
 		DurationSl: []time.Duration{time.Second, time.Minute},
-		EmptySl:   []EmptyStruct{{}, {}},
+		EmptySl:    []EmptyStruct{{}, {}},
 	}
 
 	compareEncoding(t, cdc, "SlicesStruct", orig)
@@ -84,22 +84,22 @@ func TestRoundtripBinary2_SlicesStructZero(t *testing.T) {
 
 	// Empty (non-nil) slices: exercises the nil vs []T{} edge case.
 	compareEncoding(t, cdc, "SlicesStruct/empty", SlicesStruct{
-		Int8Sl:    []int8{},
-		Int16Sl:   []int16{},
-		Int32Sl:   []int32{},
-		Int64Sl:   []int64{},
-		IntSl:     []int{},
-		ByteSl:    []byte{},
-		Uint8Sl:   []uint8{},
-		Uint16Sl:  []uint16{},
-		Uint32Sl:  []uint32{},
-		Uint64Sl:  []uint64{},
-		UintSl:    []uint{},
-		StrSl:     []string{},
-		BytesSl:   [][]byte{},
-		TimeSl:    []time.Time{},
+		Int8Sl:     []int8{},
+		Int16Sl:    []int16{},
+		Int32Sl:    []int32{},
+		Int64Sl:    []int64{},
+		IntSl:      []int{},
+		ByteSl:     []byte{},
+		Uint8Sl:    []uint8{},
+		Uint16Sl:   []uint16{},
+		Uint32Sl:   []uint32{},
+		Uint64Sl:   []uint64{},
+		UintSl:     []uint{},
+		StrSl:      []string{},
+		BytesSl:    [][]byte{},
+		TimeSl:     []time.Time{},
 		DurationSl: []time.Duration{},
-		EmptySl:   []EmptyStruct{},
+		EmptySl:    []EmptyStruct{},
 	})
 }
 
