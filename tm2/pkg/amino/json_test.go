@@ -695,3 +695,23 @@ func TestJSONAnyWrapperDuplicateTypeRejected(t *testing.T) {
 	require.Error(t, err, "expected error on duplicate @type key")
 	assert.Contains(t, err.Error(), "duplicate")
 }
+
+// Unknown field in a nested JSON struct must be rejected.
+func TestJSONRejectsUnknownFields_NestedStruct(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+
+	type Inner struct {
+		Name string
+	}
+	type Outer struct {
+		Inner Inner
+	}
+
+	bz := []byte(`{"Inner":{"Name":"ok","Surprise":"oops"}}`)
+	var dst Outer
+	err := cdc.JSONUnmarshal(bz, &dst)
+	require.Error(t, err, "expected error on unknown key in nested struct")
+	assert.Contains(t, err.Error(), "unknown")
+}
