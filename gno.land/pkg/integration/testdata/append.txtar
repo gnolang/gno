@@ -5,18 +5,18 @@ loadpkg gno.land/r/append $WORK
 gnoland start
 
 # Call Append 1
-gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 400000 -args '1' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 400000 -args '1' -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/append -func AppendNil -gas-fee 1000000ugnot -gas-wanted 400000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func AppendNil -gas-fee 1000000ugnot -gas-wanted 400000 -chainid=tendermint_test test1
 stdout OK!
 
 # Call Append 2
-gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 400000 -args '2' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 400000 -args '2' -chainid=tendermint_test test1
 stdout OK!
 
 # Call Append 3
-gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 500000 -args '3' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 500000 -args '3' -chainid=tendermint_test test1
 stdout OK!
 
 # Call render
@@ -24,34 +24,34 @@ gnokey query vm/qrender --data 'gno.land/r/append:'
 stdout '1-2-3-'
 
 # Call Pop
-gnokey maketx call -pkgpath gno.land/r/append -func Pop -gas-fee 1000000ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func Pop -gas-fee 1000000ugnot -gas-wanted 500000 -chainid=tendermint_test test1
 stdout OK!
 # Call render
 gnokey query vm/qrender --data 'gno.land/r/append:'
 stdout '2-3-'
 
 # Call Append 42
-gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 400000 -args '42' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 400000 -args '42' -chainid=tendermint_test test1
 stdout OK!
 
 # Call render
 gnokey query vm/qrender --data 'gno.land/r/append:'
 stdout '2-3-42-'
 
-gnokey maketx call -pkgpath gno.land/r/append -func CopyAppend -gas-fee 1000000ugnot -gas-wanted 450000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func CopyAppend -gas-fee 1000000ugnot -gas-wanted 450000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/append -func PopB -gas-fee 1000000ugnot -gas-wanted 450000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func PopB -gas-fee 1000000ugnot -gas-wanted 450000 -chainid=tendermint_test test1
 stdout OK!
 
 # Call render
 gnokey query vm/qrender --data 'gno.land/r/append:'
 stdout '2-3-42-'
 
-gnokey maketx call -pkgpath gno.land/r/append -func AppendMoreAndC -gas-fee 1000000ugnot -gas-wanted 450000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func AppendMoreAndC -gas-fee 1000000ugnot -gas-wanted 450000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/append -func ReassignC -gas-fee 1000000ugnot -gas-wanted 450000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func ReassignC -gas-fee 1000000ugnot -gas-wanted 450000 -chainid=tendermint_test test1
 stdout OK!
 
 gnokey query vm/qrender --data 'gno.land/r/append:'

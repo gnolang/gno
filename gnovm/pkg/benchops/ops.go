@@ -2,47 +2,67 @@ package benchops
 
 import "fmt"
 
+// CPUOp represents a VM opcode for benchmarking.
+// Values mirror gnolang.Op but are defined here to avoid circular imports.
+type CPUOp byte
+
+const CPUOpInvalid CPUOp = 0x00
+
+// StoreOp represents a store operation for benchmarking.
+type StoreOp byte
+
 // store code
 const (
-	// gno store
-	StoreGetObject       byte = 0x01 // get value and unmarshl to object from store
-	StoreSetObject       byte = 0x02 // marshal object and set value in store
-	StoreDeleteObject    byte = 0x03 // delete value from store
-	StoreGetPackage      byte = 0x04 // get package from store
-	StoreSetPackage      byte = 0x05 // get package from store
-	StoreGetType         byte = 0x06 // get type from store
-	StoreSetType         byte = 0x07 // set type in store
-	StoreGetBlockNode    byte = 0x08 // get block node from store
-	StoreSetBlockNode    byte = 0x09 // set block node in store
-	StoreAddMemPackage   byte = 0x0A // add mempackage to store
-	StoreGetMemPackage   byte = 0x0B // get mempackage from store
-	StoreGetPackageRealm byte = 0x0C // add mempackage to store
-	StoreSetPackageRealm byte = 0x0D // get mempackage from store
+	StoreOpInvalid StoreOp = 0x00 // invalid
 
-	AminoMarshal    byte = 0x0E // marshal mem package and realm to binary
-	AminoMarshalAny byte = 0x0F // marshal gno object to binary
-	AminoUnmarshal  byte = 0x10 // unmarshl binary to gno object, package and realm
+	// gno store
+	StoreGetObject       StoreOp = 0x01 // get value and unmarshl to object from store
+	StoreSetObject       StoreOp = 0x02 // marshal object and set value in store
+	StoreDeleteObject    StoreOp = 0x03 // delete value from store
+	StoreGetPackage      StoreOp = 0x04 // get package from store
+	StoreSetPackage      StoreOp = 0x05 // get package from store
+	StoreGetType         StoreOp = 0x06 // get type from store
+	StoreSetType         StoreOp = 0x07 // set type in store
+	StoreGetBlockNode    StoreOp = 0x08 // get block node from store
+	StoreSetBlockNode    StoreOp = 0x09 // set block node in store
+	StoreAddMemPackage   StoreOp = 0x0A // add mempackage to store
+	StoreGetMemPackage   StoreOp = 0x0B // get mempackage from store
+	StoreGetPackageRealm StoreOp = 0x0C // add mempackage to store
+	StoreSetPackageRealm StoreOp = 0x0D // get mempackage from store
+
+	AminoMarshal    StoreOp = 0x0E // marshal mem package and realm to binary
+	AminoMarshalAny StoreOp = 0x0F // marshal gno object to binary
+	AminoUnmarshal  StoreOp = 0x10 // unmarshl binary to gno object, package and realm
 
 	// underlying store
-	StoreGet byte = 0x11 // Get binary value by key
-	StoreSet byte = 0x12 // Set binary value by key
+	StoreGet StoreOp = 0x11 // Get binary value by key
+	StoreSet StoreOp = 0x12 // Set binary value by key
 
-	FinalizeTx byte = 0x13 // finalize transaction
+	FinalizeTx StoreOp = 0x13 // finalize transaction
+
+	// realm operations
+	RealmDidUpdate  StoreOp = 0x14 // realm dirty tracking / escape analysis
+	RealmFinalizeTx StoreOp = 0x15 // realm transaction finalization
 
 	invalidStoreCode string = "StoreInvalid"
 )
 
+// NativeOp represents a native operation for benchmarking.
+type NativeOp byte
+
 // native code
 const (
-	NativePrint       byte = 0x01 // print to console
-	NativePrint_1     byte = 0x02 // print to console
-	NativePrint_1000  byte = 0x03
-	NativePrint_10000 byte = 0x04 // print 1000 times to console
+	NativeOpInvalid NativeOp = 0x00 // invalid
+
+	NativePrint       NativeOp = 0x01 // print to console
+	NativePrint_1     NativeOp = 0x02 // print to console
+	NativePrint_1000  NativeOp = 0x03
+	NativePrint_10000 NativeOp = 0x04 // print 1000 times to console
 
 	invalidNativeCode string = "NativeInvalid"
 )
 
-func GetNativePrintCode(size int) byte {
+func GetNativePrintCode(size int) NativeOp {
 	switch size {
 	case 1:
 		return NativePrint_1
@@ -77,6 +97,8 @@ var storeCodeNames = []string{
 	"StoreGet",
 	"StoreSet",
 	"FinalizeTx",
+	"RealmDidUpdate",
+	"RealmFinalizeTx",
 }
 
 var nativeCodeNames = []string{
@@ -96,26 +118,26 @@ const (
 	TypeNative Type = 0x03
 )
 
-func VMOpCode(opCode byte) Code {
-	return [2]byte{byte(TypeOpCode), opCode}
+func VMOpCode(opCode CPUOp) Code {
+	return [2]byte{byte(TypeOpCode), byte(opCode)}
 }
 
-func StoreCode(storeCode byte) Code {
-	return [2]byte{byte(TypeStore), storeCode}
+func StoreCode(storeCode StoreOp) Code {
+	return [2]byte{byte(TypeStore), byte(storeCode)}
 }
 
-func NativeCode(nativeCode byte) Code {
-	return [2]byte{byte(TypeNative), nativeCode}
+func NativeCode(nativeCode NativeOp) Code {
+	return [2]byte{byte(TypeNative), byte(nativeCode)}
 }
 
-func StoreCodeString(storeCode byte) string {
+func StoreCodeString(storeCode StoreOp) string {
 	if int(storeCode) >= len(storeCodeNames) {
 		return invalidStoreCode
 	}
 	return storeCodeNames[storeCode]
 }
 
-func NativeCodeString(nativeCode byte) string {
+func NativeCodeString(nativeCode NativeOp) string {
 	if int(nativeCode) >= len(nativeCodeNames) {
 		return invalidNativeCode
 	}

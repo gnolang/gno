@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -220,20 +221,37 @@ func TestFindFilePaths(t *testing.T) {
 	}
 }
 
+// mockTransport returns a fixed HTTP status code for every request.
+type mockTransport struct{ statusCode int }
+
+func (m *mockTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: m.statusCode,
+		Body:       http.NoBody,
+	}, nil
+}
+
 func TestFlow(t *testing.T) {
 	t.Parallel()
+
+	// Replace the package-level HTTP client so checkUrl never hits the network.
+	origClient := httpClient
+	httpClient = &http.Client{Transport: &mockTransport{statusCode: http.StatusNotFound}}
+	t.Cleanup(func() { httpClient = origClient })
+
+	const brokenURL = "https://example.com/non-existent-page"
 
 	tempDir, err := os.MkdirTemp(".", "test")
 	require.NoError(t, err)
 	t.Cleanup(removeDir(t, tempDir))
 
-	contents := `This is a [broken Wikipedia link](https://www.wikipedia.org/non-existent-page).
+	contents := `This is a [broken link](` + brokenURL + `).
 Here's an embedmd link that links to a non-existing file: [embedmd]:# (../assets/myfile.sol go)
 and here is some JSX tags <string\> <random-unescaped-text-tag>
 and [this is a link to a non-existent](../myfolder/myfile.md) file.`
 
 	expectedItems := []string{
-		"https://www.wikipedia.org/non-existent-page",
+		brokenURL,
 		"../assets/myfile.sol",
 		"<random-unescaped-text-tag>",
 		"../myfolder/myfile.md",

@@ -802,11 +802,13 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 func typeURLtoFullname(typeURL string) (string, error) {
 	parts := strings.Split(typeURL, "/")
 	if len(parts) == 1 {
-		return "", fmt.Errorf("invalid type_url %q, must contain at least one slash", typeURL)
+		return "", fmt.Errorf("invalid type_url %q: must contain at least one slash and be followed by the full name", typeURL)
 	}
 	return parts[len(parts)-1], nil
 }
 
+// mustTypeURLtoFullname is for callers (registration paths) where a malformed
+// typeURL is a programming error, not user input; panicking is appropriate.
 func mustTypeURLtoFullname(typeURL string) string {
 	fullname, err := typeURLtoFullname(typeURL)
 	if err != nil {
@@ -815,6 +817,9 @@ func mustTypeURLtoFullname(typeURL string) string {
 	return fullname
 }
 
+// typeURLtoShortname is only called during type registration (startup), so
+// panicking on a malformed typeURL is appropriate: it is a programming error,
+// not a runtime input.
 func typeURLtoShortname(typeURL string) string {
 	fullname := mustTypeURLtoFullname(typeURL)
 	parts := strings.Split(fullname, ".")
