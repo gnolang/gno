@@ -44,12 +44,7 @@ func extractUrls(fileContent []byte) []string {
 				// placeholder for examples
 				!strings.Contains(url, "example.land") &&
 				// deployment-specific hosts whose uptime is not a CI concern
-				!strings.Contains(url, "staging.gno.land") &&
-				// archive.org (web.archive.org + ia*.us.archive.org + ...)
-				// is known to rate-limit / 5xx intermittently; skip to avoid
-				// flaky CI. We use it precisely for links that are already
-				// dead upstream, so URL-liveness checks don't add value.
-				!strings.Contains(url, "archive.org") {
+				!strings.Contains(url, "staging.gno.land") {
 				urls = append(urls, url)
 			}
 		}
