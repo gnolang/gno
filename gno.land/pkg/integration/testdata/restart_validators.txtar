@@ -35,11 +35,8 @@ gnoland restart
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/trigger.gno
 stdout OK!
 
-# Wait for the validator update to propagate
-sleep 1s
-
-# Verify the new validator is in the consensus set after restart
-gnorpc validators
+# Wait for the validator update to propagate into consensus, then verify
+gnorpc validators -wait g1td0cgmt9uz7kq4hcv7fkkwvp3z4lq4dsewffwr
 stdout 'g1td0cgmt9uz7kq4hcv7fkkwvp3z4lq4dsewffwr'
 
 -- run/init_govdao.gno --

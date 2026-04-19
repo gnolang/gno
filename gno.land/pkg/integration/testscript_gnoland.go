@@ -229,7 +229,6 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		"gnoland":     gnolandCmd(t, nodesManager, gnoRootDir),
 		"gnokey":      gnokeyCmd(nodesManager),
 		"gnorpc":      gnorpcCmd(nodesManager),
-		"sleep":       sleepCmd(),
 		"adduser":     adduserCmd(nodesManager),
 		"adduserfrom": adduserfromCmd(nodesManager),
 		"patchpkg":    patchpkgCmd(),
@@ -904,14 +903,70 @@ func gnorpcCmd(nodes *NodesManager) func(ts *testscript.TestScript, neg bool, ar
 
 		switch args[0] {
 		case "validators":
-			res, err := rpcClient.Validators(context.Background(), nil)
-			if err != nil {
-				tsValidateError(ts, "gnorpc", neg, err)
+			var (
+				waitAddr string
+				timeout  = 1 * time.Second
+			)
+			rest := args[1:]
+			for i := 0; i < len(rest); i++ {
+				switch rest[i] {
+				case "-wait":
+					i++
+					if i >= len(rest) {
+						ts.Fatalf("gnorpc validators: -wait requires an address")
+					}
+					waitAddr = rest[i]
+				case "-timeout":
+					i++
+					if i >= len(rest) {
+						ts.Fatalf("gnorpc validators: -timeout requires a duration")
+					}
+					d, err := time.ParseDuration(rest[i])
+					if err != nil {
+						ts.Fatalf("gnorpc validators: invalid -timeout %q: %v", rest[i], err)
+					}
+					timeout = d
+				default:
+					ts.Fatalf("gnorpc validators: unknown argument %q", rest[i])
+				}
+			}
+
+			printResult := func(res *ctypes.ResultValidators) {
+				for _, v := range res.Validators {
+					fmt.Fprintf(ts.Stdout(), "%s power=%d\n", v.Address, v.VotingPower)
+				}
+			}
+
+			if waitAddr == "" {
+				res, err := rpcClient.Validators(context.Background(), nil)
+				if err != nil {
+					tsValidateError(ts, "gnorpc", neg, err)
+					return
+				}
+				printResult(res)
 				return
 			}
 
-			for _, v := range res.Validators {
-				fmt.Fprintf(ts.Stdout(), "%s power=%d\n", v.Address, v.VotingPower)
+			const pollInterval = 100 * time.Millisecond
+			deadline := time.Now().Add(timeout)
+			var lastErr error
+			for {
+				res, err := rpcClient.Validators(context.Background(), nil)
+				if err == nil {
+					for _, v := range res.Validators {
+						if v.Address.String() == waitAddr {
+							printResult(res)
+							return
+						}
+					}
+				} else {
+					lastErr = err
+				}
+				if time.Now().After(deadline) {
+					ts.Fatalf("gnorpc validators: timeout after %s waiting for %s to appear (last err: %v)",
+						timeout, waitAddr, lastErr)
+				}
+				time.Sleep(pollInterval)
 			}
 		default:
 			ts.Fatalf("gnorpc: unknown subcommand %q", args[0])
@@ -938,24 +993,6 @@ func inputCmd() func(ts *testscript.TestScript, neg bool, args []string) {
 		// Join all arguments with spaces and add newline
 		content := strings.Join(args, " ") + "\n"
 		stdinBuf.WriteString(content)
-	}
-}
-
-// sleepCmd pauses execution for the given duration.
-// Usage: sleep 1s
-func sleepCmd() func(ts *testscript.TestScript, neg bool, args []string) {
-	return func(ts *testscript.TestScript, neg bool, args []string) {
-		if neg {
-			ts.Fatalf("sleep does not support negation")
-		}
-		if len(args) != 1 {
-			ts.Fatalf("sleep requires exactly one argument (e.g., 1s, 500ms)")
-		}
-		d, err := time.ParseDuration(args[0])
-		if err != nil {
-			ts.Fatalf("sleep: invalid duration %q: %v", args[0], err)
-		}
-		time.Sleep(d)
 	}
 }
 
