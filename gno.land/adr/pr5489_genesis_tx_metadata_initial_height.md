@@ -115,21 +115,23 @@ warn line with source height, gas delta, and error. Outcomes are exposed
 via `replayReport.Outcomes()` for tooling that wants to write a structured
 `replay-report.json`.
 
-### Hardfork tooling (`misc/hardfork/`)
+### Hardfork tooling (`gnogenesis fork`)
 
-The `hardfork` CLI generates the new genesis from a source chain:
-- **`hardfork genesis`** — subcommand that reads the source (RPC URL,
-  local data dir, or exported tarball), runs `bruteForceSignerSequence`
-  to recover each signer's pre-tx sequence, and emits the new genesis
+Integrated as a subcommand of the existing `gnogenesis` CLI
+(`contribs/gnogenesis/internal/fork/`). Subcommands:
+
+- **`gnogenesis fork generate`** — reads the source (RPC URL, local
+  data dir, or exported tarball), runs `bruteForceSignerSequence` to
+  recover each signer's pre-tx sequence, and emits the new genesis
   populated with `PastChainIDs`, `InitialHeight`, and per-tx metadata.
-- **`--patch-realm PKGPATH=SRCDIR`** (repeatable) — rewrites the
-  genesis-mode `addpkg` tx for `PKGPATH` in-place with files from
-  `SRCDIR` before writing. Source genesis on disk stays untouched — the
-  patch lives only in the in-memory `GnoGenesisState` used for output.
-  Motivation: you cannot re-`addpkg` post-deploy, so patching the original
-  deployment tx is the only way to land a realm code change as part of a
-  fork.
-- **`hardfork test`** — subcommand for local genesis replay smoke-test.
+- **`--patch-realm PKGPATH=SRCDIR`** (repeatable, on `generate`) —
+  rewrites the genesis-mode `addpkg` tx for `PKGPATH` in-place with
+  files from `SRCDIR` before writing. Source genesis on disk stays
+  untouched — the patch lives only in the in-memory `GnoGenesisState`
+  used for output. Motivation: you cannot re-`addpkg` post-deploy, so
+  patching the original deployment tx is the only way to land a realm
+  code change as part of a fork.
+- **`gnogenesis fork test`** — in-process genesis replay smoke-test.
 
 ### How genesis replay works
 

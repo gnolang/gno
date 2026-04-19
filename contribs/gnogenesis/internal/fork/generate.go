@@ -1,4 +1,4 @@
-package main
+package fork
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type genesisCfg struct {
+type generateCfg struct {
 	source          string
 	chainID         string
 	originalChainID string
@@ -42,14 +42,14 @@ func (p *patchRealmList) Set(v string) error {
 	return nil
 }
 
-func newGenesisCmd(io commands.IO) *commands.Command {
-	cfg := &genesisCfg{}
+func newGenerateCmd(io commands.IO) *commands.Command {
+	cfg := &generateCfg{}
 
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:       "genesis",
-			ShortUsage: "genesis [flags]",
-			ShortHelp:  "generate a hardfork genesis from a source chain",
+			Name:       "generate",
+			ShortUsage: "generate [flags]",
+			ShortHelp:  "assemble a hardfork genesis from a source chain",
 			LongHelp: `Generates a hardfork genesis.json by extracting state from a source chain
 and assembling it with the hardfork parameters (original_chain_id, initial_height).
 
@@ -60,25 +60,25 @@ so the new chain can replay all historical activity starting from the halt heigh
 Examples:
 
   # From a running or recently-halted node via RPC:
-  hardfork genesis --source http://rpc.gno.land:26657 --chain-id gnoland-1
+  gnogenesis fork generate --source http://rpc.gno.land:26657 --chain-id gnoland-1
 
   # From a local node data directory (offline, reads block store):
-  hardfork genesis --source /var/lib/gnoland --chain-id gnoland-1
+  gnogenesis fork generate --source /var/lib/gnoland --chain-id gnoland-1
 
   # From a pre-exported tarball (genesis.json + txs.jsonl):
-  hardfork genesis --source /tmp/gnoland1-export.tar.gz --chain-id gnoland-1
+  gnogenesis fork generate --source /tmp/gnoland1-export.tar.gz --chain-id gnoland-1
 
   # Preview only (skip tx export — fast summary of genesis structure):
-  hardfork genesis --source http://rpc.gno.land:26657 --skip-txs`,
+  gnogenesis fork generate --source http://rpc.gno.land:26657 --skip-txs`,
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
-			return execGenesis(ctx, cfg, io)
+			return execGenerate(ctx, cfg, io)
 		},
 	)
 }
 
-func (c *genesisCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.source, "source", "", "source: RPC URL, local data dir, or exported file (.json/.jsonl/.tar.gz)")
 	fs.StringVar(&c.chainID, "chain-id", "gnoland-1", "new chain ID")
 	fs.StringVar(&c.originalChainID, "original-chain-id", "", "source chain ID for signature verification (auto-detected from source genesis if empty)")
@@ -95,7 +95,7 @@ func (c *genesisCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.noVerify, "no-verify", false, "skip genesis verification after assembly")
 }
 
-func execGenesis(ctx context.Context, cfg *genesisCfg, io commands.IO) error {
+func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	if cfg.source == "" {
 		return errors.New("--source is required (RPC URL, local data dir, or exported file)")
 	}
