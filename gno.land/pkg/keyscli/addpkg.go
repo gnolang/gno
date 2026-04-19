@@ -142,6 +142,10 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	if cfg.RootCfg.Broadcast {
 		cfg.RootCfg.RootCfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
 			PrintTxInfo(tx, res, io)
+			io.Println("PKG PATH:  ", cfg.PkgPath)
+			if viewURL := GnowebURLFromRemote(cfg.RootCfg.RootCfg.Remote, cfg.PkgPath); viewURL != "" {
+				io.Println("VIEW AT:   ", viewURL)
+			}
 		}
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {

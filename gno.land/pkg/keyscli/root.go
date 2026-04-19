@@ -3,6 +3,11 @@ package keyscli
 
 import (
 	"encoding/base64"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
 
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -109,4 +114,51 @@ func GetStorageInfo(events []abci.Event) (int64, std.Coins, bool) {
 	}
 
 	return bytesDelta, coinsDelta, hasEvents
+}
+
+// GnowebURLFromRemote derives a best-effort gnoweb URL for pkgPath
+// from the RPC remote address. It strips the "rpc." hostname prefix,
+// swaps the port to 8888, and appends the package path without "gno.land".
+// Returns empty string if gnoweb is not reachable at the derived address.
+func GnowebURLFromRemote(remote, pkgPath string) string {
+	if remote == "" || pkgPath == "" {
+		return ""
+	}
+
+	if !strings.Contains(remote, "://") {
+		remote = "http://" + remote
+	}
+
+	u, err := url.Parse(remote)
+	if err != nil {
+		return ""
+	}
+
+	u.Host = strings.TrimPrefix(u.Hostname(), "rpc.") + ":8888"
+	u.Path = strings.TrimPrefix(pkgPath, "gno.land")
+
+	// Check if gnoweb is actually reachable before suggesting the URL.
+	baseURL := u.Scheme + "://" + u.Host
+	if !isGnowebReachable(baseURL) {
+		return ""
+	}
+
+	return u.String()
+}
+
+// isGnowebReachable performs a quick HTTP GET and checks that the
+// response contains "gno.land", confirming it is a gnoweb instance
+// rather than an unrelated service.
+func isGnowebReachable(baseURL string) bool {
+	c := &http.Client{Timeout: 2 * time.Second}
+	resp, err := c.Get(baseURL)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	// Read enough to find the "gno.land" marker in the HTML head.
+	buf := make([]byte, 1024)
+	n, _ := io.ReadAtLeast(resp.Body, buf, 256)
+	return strings.Contains(string(buf[:n]), "gno.land")
 }
