@@ -525,6 +525,33 @@ func TestBinaryDepthLimitRejected(t *testing.T) {
 	}
 }
 
+// Depth limit enforced via genproto2 generated WithDepth methods.
+// Unlike TestBinaryDepthLimitRejected (which uses reflect path), this
+// tests the generated code path end-to-end.
+func TestGenproto2DepthLimitRejected(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	obj := Interface1(ConcreteRecursive{})
+	for i := 0; i < 70; i++ {
+		obj = ConcreteRecursive{Inner: obj}
+	}
+	bz, err := cdc.MarshalBinary2(&ConcreteRecursive{Inner: obj})
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+
+	var dst ConcreteRecursive
+	err = dst.UnmarshalBinary2(cdc, bz)
+	if err == nil {
+		t.Fatal("expected error on deeply nested genproto2 Any")
+	}
+	if !strings.Contains(err.Error(), "depth") {
+		t.Fatalf("expected 'depth' error, got %q", err.Error())
+	}
+}
+
 // AminoMarshalerStruct2.MarshalAmino → []ReprElem2 (unpacked slice repr).
 // Each element is wrapped as field 1 ByteLength. If a repeated entry has a
 // wrong typ3, the unpacked-slice-repr decoder should reject it.

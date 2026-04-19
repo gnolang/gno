@@ -699,7 +699,16 @@ func (cdc *Codec) SizeAnyBinary2(o any) (int, error) {
 // Unlike unmarshalAnyBinary2, this errors (not falls through) if the
 // concrete type does not implement PBMessager2.
 func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any) error {
-	return cdc.unmarshalAnyBinary2Depth(bz, ptr, 0)
+	return cdc.UnmarshalAnyBinary2WithDepth(bz, ptr, 0)
+}
+
+// UnmarshalAnyBinary2WithDepth is the depth-aware variant called from
+// generated UnmarshalBinary2WithDepth methods. It increments depth by 1
+// (the sole increment point), checks the limit, resolves the concrete
+// type, and dispatches to the concrete type's WithDepth method via type
+// assertion (falling back to UnmarshalBinary2 if not available).
+func (cdc *Codec) UnmarshalAnyBinary2WithDepth(bz []byte, ptr any, anyDepth int) error {
+	return cdc.unmarshalAnyBinary2Depth(bz, ptr, anyDepth+1)
 }
 
 func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) error {
@@ -775,10 +784,19 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 		return fmt.Errorf("UnmarshalAnyBinary2: decoded type %v is not assignable to %v", irvSet.Type(), rv.Type())
 	}
 
-	// Decode inner value.
+	// Decode inner value, using WithDepth if available to track nesting.
 	if len(value) > 0 {
-		if err := pbm2.UnmarshalBinary2(cdc, value); err != nil {
-			return err
+		type withDepth interface {
+			UnmarshalBinary2WithDepth(cdc *Codec, bz []byte, anyDepth int) error
+		}
+		if wdm, ok := crv.Addr().Interface().(withDepth); ok {
+			if err := wdm.UnmarshalBinary2WithDepth(cdc, value, anyDepth); err != nil {
+				return err
+			}
+		} else {
+			if err := pbm2.UnmarshalBinary2(cdc, value); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1162,10 +1180,19 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 		return true, fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
 	}
 
-	// Decode inner value via genproto2.
+	// Decode inner value via genproto2, using WithDepth if available.
 	if len(value) > 0 {
-		if err = pbm2.UnmarshalBinary2(cdc, value); err != nil {
-			return true, err
+		type withDepth interface {
+			UnmarshalBinary2WithDepth(cdc *Codec, bz []byte, anyDepth int) error
+		}
+		if wdm, ok := crv.Addr().Interface().(withDepth); ok {
+			if err = wdm.UnmarshalBinary2WithDepth(cdc, value, 1); err != nil {
+				return true, err
+			}
+		} else {
+			if err = pbm2.UnmarshalBinary2(cdc, value); err != nil {
+				return true, err
+			}
 		}
 	}
 

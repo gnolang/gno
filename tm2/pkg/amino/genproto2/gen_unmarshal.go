@@ -17,7 +17,13 @@ func (ctx *P3Context2) generateUnmarshal(sb *strings.Builder, info *amino.TypeIn
 		return nil
 	}
 
+	// Emit backwards-compatible UnmarshalBinary2 that delegates to WithDepth.
 	sb.WriteString(fmt.Sprintf("func (goo *%s) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {\n", tname))
+	sb.WriteString("\treturn goo.UnmarshalBinary2WithDepth(cdc, bz, 0)\n")
+	sb.WriteString("}\n\n")
+
+	// Emit the depth-aware variant with the actual decode logic.
+	sb.WriteString(fmt.Sprintf("func (goo *%s) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {\n", tname))
 
 	if info.IsAminoMarshaler {
 		rinfo := info.ReprType
@@ -71,7 +77,7 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 		case reflect.Struct:
 			sb.WriteString(fmt.Sprintf("\tvar repr %s\n", rt.Name()))
 			if rinfo.Registered {
-				sb.WriteString("\tif err := repr.UnmarshalBinary2(cdc, bz); err != nil {\n\t\treturn err\n\t}\n")
+				sb.WriteString("\tif err := repr.UnmarshalBinary2WithDepth(cdc, bz, anyDepth); err != nil {\n\t\treturn err\n\t}\n")
 			} else {
 				sb.WriteString("\tif err := cdc.Unmarshal(bz, &repr); err != nil {\n\t\treturn err\n\t}\n")
 			}
@@ -340,7 +346,7 @@ func (ctx *P3Context2) writeFieldUnmarshal(sb *strings.Builder, accessor string,
 		sb.WriteString(fmt.Sprintf("%sfbz, n, err := amino.DecodeByteSlice(bz)\n", indent))
 		sb.WriteString(fmt.Sprintf("%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent))
 		sb.WriteString(fmt.Sprintf("%sbz = bz[n:]\n", indent))
-		sb.WriteString(fmt.Sprintf("%sif err := %s.UnmarshalBinary2(cdc, fbz); err != nil {\n%s\treturn err\n%s}\n",
+		sb.WriteString(fmt.Sprintf("%sif err := %s.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {\n%s\treturn err\n%s}\n",
 			indent, accessor, indent, indent))
 
 	case rt.Kind() == reflect.Interface:
@@ -601,7 +607,7 @@ func (ctx *P3Context2) writeByteSliceElementDecode(sb *strings.Builder, accessor
 			sb.WriteString(fmt.Sprintf("%sif err := cdc.Unmarshal(fbz, &%s); err != nil {\n%s\treturn err\n%s}\n",
 				indent, accessor, indent, indent))
 		default:
-			sb.WriteString(fmt.Sprintf("%sif err := %s.UnmarshalBinary2(cdc, fbz); err != nil {\n%s\treturn err\n%s}\n",
+			sb.WriteString(fmt.Sprintf("%sif err := %s.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {\n%s\treturn err\n%s}\n",
 				indent, accessor, indent, indent))
 		}
 	} else {
@@ -659,7 +665,7 @@ func (ctx *P3Context2) writeInterfaceFieldUnmarshal(sb *strings.Builder, accesso
 	sb.WriteString(fmt.Sprintf("%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent))
 	sb.WriteString(fmt.Sprintf("%sbz = bz[n:]\n", indent))
 	sb.WriteString(fmt.Sprintf("%sif len(fbz) > 0 {\n", indent))
-	sb.WriteString(fmt.Sprintf("%s\tif err := cdc.UnmarshalAnyBinary2(fbz, &%s); err != nil {\n%s\t\treturn err\n%s\t}\n",
+	sb.WriteString(fmt.Sprintf("%s\tif err := cdc.UnmarshalAnyBinary2WithDepth(fbz, &%s, anyDepth); err != nil {\n%s\t\treturn err\n%s\t}\n",
 		indent, accessor, indent, indent))
 	sb.WriteString(fmt.Sprintf("%s}\n", indent))
 }

@@ -66,6 +66,10 @@ func (goo Result) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *Result) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
+	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
+}
+
+func (goo *Result) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -87,7 +91,7 @@ func (goo *Result) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.ResponseBase.UnmarshalBinary2(cdc, fbz); err != nil {
+			if err := goo.ResponseBase.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		case 2:
